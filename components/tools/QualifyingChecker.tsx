@@ -282,14 +282,19 @@ export default function QualifyingChecker() {
   const birthOk = validDate(birth);
   const raceOk = validDate(raceDate);
   const tooFast = seconds !== null && seconds < 7200;
+  // While the time field has focus, keep showing the last complete result: "3:" or "3" (3 minutes) on the way to "3:29" should not blank the page.
+  const usable = seconds !== null && !tooFast ? seconds : null;
+  const [held, setHeld] = useState<number | null>(null);
+  useEffect(() => { if (usable !== null) setHeld(usable); }, [usable]);
+  const shown = usable ?? (timeFocused ? held : null);
   // While the visitor is still typing ("3" reads as 3 minutes on the way to "3:29"), hold the error until they leave the field.
   const timeError = tooFast && !timeFocused ? 'Under 2:00:00 is faster than the marathon world record. Check the time.' : null;
   const orderError = birthOk && raceOk && birth >= raceDate ? 'The date of birth must be before the race date.' : null;
-  const ready = seconds !== null && !tooFast && birthOk && raceOk && !orderError;
+  const ready = shown !== null && birthOk && raceOk && !orderError;
 
   const items: Item[] = useMemo(() => {
     if (!ready) return [];
-    const input = { birth, division, seconds: seconds!, raceDate, dropFeet, nyrr, ukResident: uk };
+    const input = { birth, division, seconds: shown!, raceDate, dropFeet, nyrr, ukResident: uk };
     return STANDARDS
       .map((s, i) => {
         const r = evaluateHere(s, input);
@@ -304,15 +309,16 @@ export default function QualifyingChecker() {
         return a.i - b.i;
       })
       .map(({ s, r, v, app, courseOut }) => ({ s, r, v, app, courseOut }));
-  }, [ready, birth, division, seconds, raceDate, dropFeet, nyrr, uk, today]);
+  }, [ready, birth, division, shown, raceDate, dropFeet, nyrr, uk, today]);
 
   const meets = items.filter((it) => it.r.status === 'meets').length;
   const boston = items.find((it) => it.s.key === 'boston');
   const planned = raceOk && raceDate > today;
   const extras = [dropFeet !== undefined ? `${grouped(dropNumber!)} ${dropUnit} drop` : !dropValid ? 'check the drop' : null, nyrr ? 'NYRR' : null, uk ? 'UK resident' : null].filter(Boolean);
   const headline = meets === items.length ? `Meets all ${items.length} time standards` : meets === 0 ? `Meets none of the ${items.length} time standards` : `Meets ${meets} of ${items.length} time standards`;
-  const emptyMessage = seconds === null ? 'Enter your chip time to check it against six marathons’ standards.'
-    : tooFast ? (timeFocused ? 'Keep typing the chip time: h:mm:ss, e.g. 3:29:00.' : 'Check the chip time.')
+  const emptyMessage = shown === null && timeFocused ? 'Keep typing the chip time: h:mm:ss, e.g. 3:29:00.'
+    : seconds === null ? 'Enter your chip time to check it against six marathons’ standards.'
+    : tooFast ? 'Check the chip time.'
     : !raceOk ? 'Enter the race date: each race only counts times from its own window.'
     : !birthOk ? 'Enter your date of birth: each race works out your age group differently.'
     : orderError ?? '';
@@ -404,7 +410,7 @@ export default function QualifyingChecker() {
                 <div className="qualifying-head">
                   <span className="evidence-badge evidence-official">Official standards</span>
                   <p className="qualifying-kicker">
-                    {DIVISIONS.find((d) => d.division === division)!.label} · {fmtTime(seconds!)} · {planned ? 'planned for' : 'run'} {fmtDate(raceDate)}
+                    {DIVISIONS.find((d) => d.division === division)!.label} · {fmtTime(shown!)} · {planned ? 'planned for' : 'run'} {fmtDate(raceDate)}
                     {example ? ' · example birth date' : ''}
                   </p>
                   <p className="qualifying-big">{headline}</p>
@@ -420,11 +426,11 @@ export default function QualifyingChecker() {
               ) : null}
 
               {items.map((it) => (
-                <RaceCard key={it.s.key} it={it} birth={birth} raceDate={raceDate} seconds={seconds!} division={division} dropFeet={dropFeet}
+                <RaceCard key={it.s.key} it={it} birth={birth} raceDate={raceDate} seconds={shown!} division={division} dropFeet={dropFeet}
                   dropShown={dropFeet !== undefined ? dropLabel(dropNumber!, dropUnit, dropFeet) : null} dropIgnored={!dropValid} nyrr={nyrr} uk={uk} />
               ))}
 
-              <TargetsPanel items={items} seconds={seconds!} buffer={buffer} setBuffer={setBuffer} dropFeet={dropFeet} units={units} />
+              <TargetsPanel items={items} seconds={shown!} buffer={buffer} setBuffer={setBuffer} dropFeet={dropFeet} units={units} />
 
               <p className="tool-note qualifying-share-note">The copied link carries your division and time only. Whoever opens it enters their own date of birth.</p>
               <ShareBar />
@@ -584,7 +590,7 @@ function RaceCard({ it, birth, raceDate, seconds, division, dropFeet, dropShown,
           <div className="is-key">
             <dt>{s.key === 'boston' ? 'Time counted' : 'Your time'}</dt>
             <dd>
-              {s.key === 'boston' && index === null ? <><b>—</b><span>A {dropShown} net drop: 6,000 ft or more is not accepted.</span></>
+              {s.key === 'boston' && index === null ? <><b>—</b><span>Not counted: courses dropping 6,000 ft or more are not accepted (this one: {dropShown}).</span></>
                 : s.key === 'boston' && index ? <><b>{fmtTime(r.counted)}</b><span>{fmtTime(seconds)} chip + {index / 60}:00 downhill index for a {dropShown} net drop</span></>
                 : <><b>{fmtTime(seconds)}</b><span>{s.key === 'boston' ? (dropFeet !== undefined ? `Chip time; no downhill index for a ${dropShown} drop (under 1,500 ft)` : 'Chip time; add a course drop for the downhill index') : timeHint}</span></>}
             </dd>
