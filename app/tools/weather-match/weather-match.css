@@ -172,3 +172,5 @@
   .weather-match-compare td:first-child { min-width: 6.5rem; }
   .weather-match-compare td { font-size: .8125rem; }
 }
+.weather-match-warning { margin-top: .8rem; padding: .8rem 1rem; border-left: 4px solid #D21F3C; border-radius: 0 12px 12px 0; background: #FDECEF; font-size: .875rem; line-height: 1.55; color: #6E0C25; }
+.weather-match-warning strong { color: #8E1030; }

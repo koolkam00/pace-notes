@@ -141,7 +141,9 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
   const example = q.temp === '' && q.dew === '' && q.hum !== 'rh';
 
   const hum = q.hum === 'rh' ? 'rh' : 'dew';
-  const dewField = q.dew === '' ? String(DEFAULTS.dew[tUnit]) : q.dew === 'none' ? '' : q.dew;
+  // The example dew point only applies while it is below the temperature; otherwise the field starts empty.
+  const exampleDewFits = !tempOk || fromUnit(DEFAULTS.dew[tUnit], tUnit) <= tempC!;
+  const dewField = q.dew === '' ? (exampleDewFits ? String(DEFAULTS.dew[tUnit]) : '') : q.dew === 'none' ? '' : q.dew;
   const rhIn = hum === 'rh' && q.rh ? parseNum(q.rh) : null;
   const rhOk = rhIn !== null && rhIn > 0 && rhIn <= 100;
   const dewIn = hum === 'dew' ? parseNum(dewField) : null;
@@ -220,6 +222,7 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
 
   const course = courses.find((c) => c.slug === q.course) ?? null;
   const warmCount = data ? data.editions.filter((e) => e.temp_c >= 20).length : 0;
+  const coldCount = data ? data.editions.filter((e) => e.temp_c <= 3).length : 0;
 
   /* ----- Labels shared by panels ----- */
   const winText = centre !== null ? tWindow(centre - hw, centre + hw, tUnit) : '';
@@ -328,7 +331,7 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
                     refTone={refTone} bandLabel={bandLabel} yourTemp={yourTemp} widenLabel={widenLabel} onWiden={toggleWiden} />
                 ) : (
                   <Unavailable match={match} tUnit={tUnit} units={units} hw={hw} winText={winText} bandLabel={bandLabel} yourTemp={yourTemp}
-                    warmCount={warmCount} total={data.editions.length} widenLabel={widenLabel} onWiden={toggleWiden} paceLo={paceLo} paceHi={paceHi} step={step} badTemp={tempField !== '' && !tempOk} />
+                    warmCount={warmCount} coldCount={coldCount} centre={centre} paceKm={paceKm} total={data.editions.length} widenLabel={widenLabel} onWiden={toggleWiden} paceLo={paceLo} paceHi={paceHi} step={step} badTemp={tempField !== '' && !tempOk} />
                 )}
 
                 {match.kind === 'ok' ? (
@@ -424,8 +427,8 @@ function HeadColumn({ tone, title, sub, row, units }: { tone: Tone; title: strin
   );
 }
 
-function Unavailable({ match, tUnit, units, hw, winText, bandLabel, yourTemp, warmCount, total, widenLabel, onWiden, paceLo, paceHi, step, badTemp = false }: {
-  badTemp?: boolean; match: Exclude<Match, { kind: 'ok' }>; tUnit: TUnit; units: UnitSystem; hw: number; winText: string; bandLabel: string; yourTemp: string;
+function Unavailable({ match, tUnit, units, hw, winText, bandLabel, yourTemp, warmCount, coldCount, centre, total, widenLabel, onWiden, paceLo, paceHi, step, paceKm, badTemp = false }: {
+  badTemp?: boolean; coldCount: number; centre: number | null; paceKm: number | null; match: Exclude<Match, { kind: 'ok' }>; tUnit: TUnit; units: UnitSystem; hw: number; winText: string; bandLabel: string; yourTemp: string;
   warmCount: number; total: number; widenLabel: string; onWiden: () => void; paceLo: number; paceHi: number; step: number;
 }) {
   let title: string;
@@ -449,7 +452,8 @@ function Unavailable({ match, tUnit, units, hw, winText, bandLabel, yourTemp, wa
         <p>
           {match.paces ? <>At these temperatures there are published rows for 5–20 km paces from {bandText(match.paces[0], step, units).split('–')[0]} to {bandText(match.paces[1], step, units).split('–')[1]}. </> : null}
           {match.nearest !== null ? <>At your pace, the nearest published window is centred on {tAbs(match.nearest, tUnit, tUnit === 'f' ? 1 : 0)}. </> : null}
-          Warm race mornings are rare: {count(warmCount)} of {count(total)} races here started at {tAbs(20, tUnit, 0)} or warmer.
+          {centre !== null && centre >= 15 ? <>Warm race mornings are rare: {count(warmCount)} of {count(total)} races here started at {tAbs(20, tUnit, 0)} or warmer.</> : null}
+          {centre !== null && centre <= 5 ? <>Cold race mornings are rare too: {count(coldCount)} of {count(total)} races here started at {tAbs(3, tUnit, 0)} or colder.</> : null}
         </p>
       </>
     );
@@ -458,10 +462,10 @@ function Unavailable({ match, tUnit, units, hw, winText, bandLabel, yourTemp, wa
     <section className="tool-headline night weather-match-headline is-unavailable" aria-live="polite" aria-label="Weather match result">
       <div className="weather-match-head">
         <span className="evidence-badge evidence-data">Pace Notes data</span>
-        <p className="weather-match-kicker">{match.kind === 'no-row' ? `Window ±${tSpan(hw, tUnit)} · ${bandLabel}` : 'Nothing to match yet'}</p>
+        <p className="weather-match-kicker">{match.kind === 'no-row' ? `Window ±${tSpan(hw, tUnit)} · ${bandLabel}` : match.kind === 'pace-range' && paceKm !== null ? `Your 5–20 km pace ${paceText(paceKm, units)}` : 'Nothing to match yet'}</p>
         <h2 className="weather-match-title">{title}</h2>
         <div className="weather-match-group">{typeof body === 'string' ? <p>{body}</p> : body}</div>
-        {match.kind === 'no-row' && (hw === 3 || match.widenHelps || hw === 2) ? (
+        {match.kind === 'no-row' ? (
           <div className="weather-match-unavail-actions">
             <button type="button" className="weather-match-widen" aria-pressed={hw === 3} onClick={onWiden}>{widenLabel}</button>
             {hw === 2 ? <span>{match.widenHelps ? `A ±${tSpan(3, tUnit)} window has a published row at your pace.` : `A ±${tSpan(3, tUnit)} window has no published row at your pace either.`}</span> : null}
@@ -624,8 +628,8 @@ function TempStrip({ editions, tUnit, marker, centre, hw, showRef, emphasis, emp
   const r = narrow ? 3.3 : 3.9;
   const gap = 2 * r + 1.2;
   const temps = editions.map((e) => e.temp_c);
-  const loC = Math.min(-3, Math.floor(Math.min(...temps)) - 1, ...(marker !== null ? [Math.floor(marker) - 2] : []));
-  const hiC = Math.max(28, Math.ceil(Math.max(...temps)) + 1, ...(marker !== null ? [Math.ceil(marker) + 2] : []));
+  const loC = Math.min(-3, Math.floor(Math.min(...temps)) - 1, ...(marker !== null ? [Math.floor(marker) - 2] : []), ...(centre !== null ? [centre - hw - 1] : []));
+  const hiC = Math.max(28, Math.ceil(Math.max(...temps)) + 1, ...(marker !== null ? [Math.ceil(marker) + 2] : []), ...(centre !== null ? [centre + hw + 1] : []));
   const m = { l: 12, r: 12 };
   const x = (c: number) => m.l + ((c - loC) / (hiC - loC)) * (width - m.l - m.r);
 
@@ -652,6 +656,8 @@ function TempStrip({ editions, tUnit, marker, centre, hw, showRef, emphasis, emp
   const ticks: number[] = [];
   if (tUnit === 'f') for (let f = Math.ceil(cToF(loC) / 10) * 10; f <= cToF(hiC); f += 10) ticks.push(fToC(f));
   else for (let c = Math.ceil(loC / 5) * 5; c <= hiC; c += 5) ticks.push(c);
+  // Leave room for the unit label at the right end of the axis.
+  const shownTicks = ticks.filter((c) => x(c) <= width - m.r - 24);
   const markerLabel = marker !== null ? `Your ${tAbs(marker, tUnit, tUnit === 'f' ? 0 : 1)}` : '';
   const markerW = markerLabel.length * 7;
   const markerAnchor = marker === null ? 'middle' : x(marker) - markerW / 2 < 2 ? 'start' : x(marker) + markerW / 2 > width - 2 ? 'end' : 'middle';
@@ -664,7 +670,7 @@ function TempStrip({ editions, tUnit, marker, centre, hw, showRef, emphasis, emp
           {showRef ? <rect x={x(REF.c - REF.hw)} y={top} width={x(REF.c + REF.hw) - x(REF.c - REF.hw)} height={base - top - 6} className="weather-match-zone is-cool" /> : null}
           {centre !== null ? <rect x={x(centre - hw)} y={top} width={x(centre + hw) - x(centre - hw)} height={base - top - 6} className="weather-match-zone is-warm" /> : null}
           <line x1={m.l} x2={width - m.r} y1={base} y2={base} stroke="var(--line-2)" />
-          {ticks.map((c) => (
+          {shownTicks.map((c) => (
             <g key={c}>
               <line x1={x(c)} x2={x(c)} y1={base} y2={base + 4} stroke="var(--line-2)" />
               <text x={x(c)} y={base + 17} textAnchor="middle">{num(toUnit(c, tUnit), 0)}°</text>
@@ -687,7 +693,7 @@ function TempStrip({ editions, tUnit, marker, centre, hw, showRef, emphasis, emp
         </svg>
       </div>
       <ul className="weather-match-legend is-strip" aria-hidden="true">
-        <li><i className={ring ? 'is-dot-ring' : `is-dot-${emphasisTone}`} />{legend}</li>
+        {emphasis.size ? <li><i className={ring ? 'is-dot-ring' : `is-dot-${emphasisTone}`} />{legend}</li> : null}
         <li><i className="is-dot" />Other races in this data</li>
         {centre !== null ? <li><i className="is-zone-warm" />Your window</li> : null}
         {showRef ? <li><i className="is-zone-cool" />Reference, {tWindow(REF.c - REF.hw, REF.c + REF.hw, tUnit)}</li> : null}
@@ -885,6 +891,13 @@ function ResearchPanel({ tempC, dewC, tUnit, goal, by, paceKm, units }: {
           <small>{flag ? `WBGT ${FLAG_TEXT[flag].range}: ${FLAG_TEXT[flag].risk}` : 'needs a dew point'}</small>
         </div>
       </div>
+      {flag === 'red' || flag === 'black' ? (
+        <p className="weather-match-warning" role="note">
+          <strong>{FLAG_TEXT[flag].name} flag conditions.</strong> {flag === 'black'
+            ? 'ACSM treats WBGT above 28 °C as extreme risk of exertional heat illness for everyone in the field, and advises organisers to consider cancelling or delaying events.'
+            : 'ACSM treats WBGT of 23–28 °C as high risk of exertional heat illness for everyone in the field.'} Follow your race organiser’s guidance on the day.
+        </p>
+      ) : null}
       {!ready ? <p className="tool-state">Add a dew point or relative humidity to see the heat-stress estimates and published adjustments for your forecast.</p> : null}
       {ready ? (
         <ul className="weather-match-methods">
