@@ -161,6 +161,15 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   checks += 4;
 }
 
+// Deep links carry only times and a course slug.
+{
+  const links = require('../lib/tools/links.ts');
+  assert.equal(links.courseSlug('São Paulo'), 'sao-paulo');
+  assert.equal(links.splitCheckHref([1500, 3000, 4500, 6000, 7500, 9000, 10500, 12000, 12660.4], 'New York'),
+    '/tools/split-check?s=0:25:00,0:50:00,1:15:00,1:40:00,2:05:00,2:30:00,2:55:00,3:20:00,3:31:00&course=new-york');
+  assert.equal(links.splitCheckHref([1500, 3000]), null);
+  checks += 3;
+}
 // Registry copy that quotes the tool cohort must match the published data.
 {
   const registry = require('../lib/tools/registry.ts');
