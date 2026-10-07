@@ -192,6 +192,23 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   assert.equal(qualifying.evaluate(q('london'), { ...runner, raceDate: '2026-09-30' }).status, 'meets', 'London window end wins over its later application close');
   checks += 8;
 }
+// Boston's metric bounds are the B.A.A.'s own (457.2 / 914.2 / 1,828.6 m), not conversions of 1,500 / 3,000 / 6,000 ft.
+{
+  const m = qualifying.bostonDownhillIndexMetres;
+  assert.deepEqual([457.1, 457.2, 914.1, 914.2, 1828.5, 1828.6].map(m), [0, 300, 300, 600, 600, null]);
+  const boston = qualifying.STANDARDS.find((s) => s.key === 'boston');
+  const r = qualifying.evaluate(boston, { birth: '1984-05-20', division: 'women', seconds: H(3, 20), raceDate: '2026-10-01', dropMetres: 914.2 });
+  assert.equal(r.counted, H(3, 30), 'metric drop at 914.2 m adds 10:00');
+  assert.equal(qualifying.evaluate(boston, { birth: '1984-05-20', division: 'women', seconds: H(3, 20), raceDate: '2026-10-01', dropMetres: 1828.6 }).status, 'not-eligible');
+  // NYRR guaranteed entry only for a time from the 2026 TCS New York City Marathon.
+  const nyc = qualifying.STANDARDS.find((s) => s.key === 'nyc');
+  const runner = { birth: '1984-05-20', division: 'women', seconds: H(3, 0), nyrr: true };
+  assert.ok(qualifying.evaluate(nyc, { ...runner, raceDate: nyc.nyrrMarathonDate }).notes.some((n) => n.startsWith('A time from the 2026 TCS New York City Marathon')));
+  assert.ok(qualifying.evaluate(nyc, { ...runner, raceDate: '2026-04-26' }).notes.some((n) => n.startsWith('No NYRR marathon was held on this date')));
+  assert.deepEqual(nyc.poolHistory.map((p) => [p.year, p.seconds]), [[2025, 800], [2026, 1372]]);
+  assert.deepEqual(qualifying.STANDARDS.filter((s) => !s.comparisonStated).map((s) => s.key), ['boston', 'berlin', 'sydney'], 'races that do not state the equal-time rule');
+  checks += 8;
+}
 // Deep links carry only times and a course slug.
 {
   const links = require('../lib/tools/links.ts');
@@ -211,6 +228,16 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
     checks++;
   }
   const slugs = registry.TOOLS.map((t) => t.slug);
+  // Every evidence kind a tool renders is listed in its registry entry (the header and index badges).
+  const COMPONENT = { 'pace-calculator': 'PaceCalculator', predictor: 'Predictor', 'pace-band': 'PaceBand', 'course-chooser': 'CourseChooser',
+    'weather-match': 'WeatherMatch', projector: 'Projector', 'split-check': 'SplitCheck', qualifying: 'QualifyingChecker' };
+  for (const t of registry.TOOLS) {
+    const source = fs.readFileSync(path.join(__dirname, '..', 'components/tools', `${COMPONENT[t.slug]}.tsx`), 'utf8');
+    const used = new Set([...source.matchAll(/kind=(?:"|\{')(arithmetic|data|research|official)/g), ...source.matchAll(/evidence-(arithmetic|data|research|official)\b/g),
+      ...source.matchAll(/evidence(?:Kind)?[:=]\s*'(arithmetic|data|research|official)'/g)].map((m) => m[1]));
+    for (const kind of used) assert.ok(t.evidence.includes(kind), `${t.slug}: renders ${kind} evidence but the registry lists ${t.evidence.join(', ')}`);
+    checks++;
+  }
   assert.equal(new Set(slugs).size, slugs.length, 'Tool slugs are unique');
   for (const t of registry.TOOLS) assert.ok(fs.existsSync(path.join(__dirname, '..', 'app/tools', t.slug, 'page.tsx')), `${t.slug}: page exists`);
   checks += 1 + registry.TOOLS.length;

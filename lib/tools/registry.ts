@@ -36,15 +36,15 @@ export const TOOLS: ToolDefinition[] = [
     dek: 'A marathon range from a recent race, with the classic formulas, the evidence that they run fast, and what happened to real finishes on that pace at 20 km.' },
   { slug: 'pace-band', title: 'Pace band', short: 'Wristband for your goal', group: 'Plan', evidence: ['arithmetic', 'data'], accent: '#FF5B2E', file: 'tools/pace-band.json',
     dek: 'A printable even-pace band, next to what finishes that actually hit your goal on your course ran at every 5 km mat, split by whether they held pace.' },
-  { slug: 'course-chooser', title: 'Course chooser', short: 'Your goal pace, every course', group: 'Plan', evidence: ['data'], accent: '#0FA3A3', file: 'tools/course-goal.json',
+  { slug: 'course-chooser', title: 'Course chooser', short: 'Your goal pace, every course', group: 'Plan', evidence: ['data', 'arithmetic'], accent: '#0FA3A3', file: 'tools/course-goal.json',
     dek: 'For your goal, how finishes that ran its pace from 5 to 20 km held up on each course, with race month, morning temperatures and route profile.' },
   { slug: 'weather-match', title: 'Weather match', short: 'Mornings like your forecast', group: 'Plan', evidence: ['data', 'research'], accent: '#F4B23E', file: 'tools/weather-match.json',
     dek: 'Past marathons that started at your forecast temperature, and how finishes at your pace held up there, beside published heat guidance.' },
   { slug: 'projector', title: 'Race-day projector', short: 'Finish range from any 5 km mat', group: 'Race day', evidence: ['data', 'arithmetic'], accent: '#E2416B', file: 'tools/projector.json',
     dek: 'Type a time from the tracker at any 5 km mat. See the finish range and the next mats’ arrival windows from what similar finishes actually ran, not a constant-pace guess.' },
-  { slug: 'split-check', title: 'Split check', short: 'Read your race afterwards', group: 'Afterwards', evidence: ['data'], accent: '#17A673', file: 'tools/pace-band.json',
+  { slug: 'split-check', title: 'Split check', short: 'Read your race afterwards', group: 'Afterwards', evidence: ['data', 'arithmetic', 'research'], accent: '#17A673', file: 'tools/pace-band.json',
     dek: 'Paste your nine mat times. See your section paces, whether you had a sustained slowdown, your pacing type and how you compare with finishes at your time.' },
-  { slug: 'qualifying', title: 'Qualifying checker', short: 'Boston, NYC, London and more', group: 'Qualify', evidence: ['official'], accent: '#15171C',
+  { slug: 'qualifying', title: 'Qualifying checker', short: 'Boston, NYC, London and more', group: 'Qualify', evidence: ['official', 'arithmetic'], accent: '#15171C',
     dek: 'Check a time against Boston (with the downhill index and every past cut-off), New York, London, Chicago, Berlin and Sydney, each with its own age rule.' },
 ];
 

@@ -28,7 +28,7 @@ export default function ToolsPage() {
           <p className="eyebrow">Runner tools</p>
           <h1 className="story-title">Tools that know how marathons <em>really</em> go.</h1>
           <p className="hero-dek">
-            Most calculators assume you will hold your pace to the finish. Most runners don’t. These tools pair exact arithmetic and published
+            Most calculators assume an even pace to the finish. Few marathons are run that way. These tools pair exact arithmetic and published
             research with what {cohort ? `${(cohort / 1e6).toFixed(2)} million` : 'millions of'} recorded finishes actually did, and say plainly which is which.
           </p>
         </div>

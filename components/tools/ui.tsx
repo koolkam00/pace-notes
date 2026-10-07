@@ -100,6 +100,16 @@ export function EvidencePanel({ kind, title, meta, children, id }: { kind: 'arit
   );
 }
 
+/** Marks results computed from a tool's example inputs, the same way in every tool. Hide it once the visitor changes anything. */
+export function ExampleNote({ children }: { children?: ReactNode }) {
+  return (
+    <p className="tool-example">
+      <span className="tool-example-tag">Example</span>
+      <span>{children ?? 'These results use example inputs. Type yours; everything updates as you type.'}</span>
+    </p>
+  );
+}
+
 /** Copy-link and print buttons. The copied link carries the units on screen, so it opens the same way for someone else. */
 export function ShareBar({ print = true, extra }: { print?: boolean; extra?: ReactNode }) {
   const [copied, setCopied] = useState(false);

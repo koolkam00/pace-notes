@@ -26,7 +26,8 @@ export interface Standard {
   windowStart: string;
   windowEnd?: string;
   windowNote: string;
-  applications?: { opens?: string; closes?: string; note: string };
+  /** Calendar dates for window rules; opensAt/closesAt are the official instants (UTC) where the race states a time of day. */
+  applications?: { opens?: string; closes?: string; opensAt?: string; closesAt?: string; note: string };
   entry: string;
   bands: Band[];
   nonbinaryNote: string;
@@ -34,6 +35,12 @@ export interface Standard {
   sources: { label: string; url: string }[];
   /** A capped pool's most recent observed cut-off (seconds under the standard), e.g. New York's non-NYRR pool. Past, not a forecast. */
   poolCutoff?: { year: number; seconds: number };
+  /** Every published pool cut-off, oldest first, with the share of the pool that was accepted. */
+  poolHistory?: { year: number; seconds: number; accepted: string }[];
+  /** Whether the race states that a time equal to the standard qualifies (false: the checker assumes it does). */
+  comparisonStated: boolean;
+  /** The only NYRR marathon in the New York window; NYRR guaranteed entry needs a time from it (or a listed NYRR half). */
+  nyrrMarathonDate?: string;
   /** Largest accepted course net drop, in metres (Sydney). */
   maxNetDropM?: number;
   /** Qualifiers who missed the cut-off but were drawn at random, by race year (Boston 2027). */
@@ -69,10 +76,21 @@ export function bostonDownhillIndex(dropFeet: number): number | null {
   return null; // not accepted for qualifying
 }
 
+/**
+ * The same index from a drop in metres, using the B.A.A.'s own published metric bounds (457.2–914.1 m adds 5:00,
+ * 914.2–1,828.5 m adds 10:00, 1,828.6 m or more is not accepted). They are not exact conversions of the feet bounds.
+ */
+export function bostonDownhillIndexMetres(dropMetres: number): number | null {
+  if (!(dropMetres >= 457.2)) return 0;
+  if (dropMetres < 914.2) return 300;
+  if (dropMetres < 1828.6) return 600;
+  return null;
+}
+
 export const STANDARDS: Standard[] = [
   {
-    key: 'boston', race: 'Boston Marathon', edition: '2028 (132nd, expected April 17, 2028)', ageRule: 'race-day', ageDate: '2028-04-17',
-    comparison: 'at-or-under', windowStart: '2026-09-19', windowNote: 'Times from September 19, 2026 through 2027 registration week count for 2028.',
+    key: 'boston', race: 'Boston Marathon', edition: '2028 (132nd, April 17, 2028)', ageRule: 'race-day', ageDate: '2028-04-17',
+    comparison: 'at-or-under', comparisonStated: false, windowStart: '2026-09-19', windowNote: 'Times from September 19, 2026 through 2027 registration week count for 2028.',
     applications: { note: 'Registration week is usually mid-September (2027 race: September 14–18, 2026). Accepted runners are those fastest relative to their standard.' },
     entry: 'Meeting the standard lets you apply. Acceptance depends on the cut-off (and, for 2027, a random selection of about 1,000 qualifiers who missed it).',
     randomSelection: { year: 2027, drawn: 1000 },
@@ -80,30 +98,33 @@ export const STANDARDS: Standard[] = [
       [50, 54, hm(3, 20), hm(3, 50)], [55, 59, hm(3, 30), hm(4, 0)], [60, 64, hm(3, 50), hm(4, 20)], [65, 69, hm(4, 5), hm(4, 35)],
       [70, 74, hm(4, 20), hm(4, 50)], [75, 79, hm(4, 35), hm(5, 5)], [80, 120, hm(4, 50), hm(5, 20)]]),
     nonbinaryNote: 'Non-binary standards equal the women’s. A non-binary time must come from a race that offered the category, unless it offered none.',
-    extra: ['The 2028 race date is expected to be Patriots’ Day, April 17, 2028; the B.A.A. had not confirmed it when this was checked.',
+    extra: ['Race date April 17, 2028 (B.A.A. registration update, September 21, 2026). The end of the qualifying window, 2027 registration week, is not yet dated.',
       'Net (chip) time on a certified course. No virtual, indoor, treadmill or time-trial marathons.',
-      'From 2027 registration, courses with a net drop of 1,500–2,999 ft add 5:00, 3,000–5,999 ft add 10:00, and 6,000 ft or more are not accepted.'],
-    sources: [{ label: 'B.A.A. qualifying standards', url: 'https://www.baa.org/races/boston-marathon/qualify/' },
-      { label: 'B.A.A. qualifier history', url: 'https://www.baa.org/races/boston-marathon/enter/qualify/history-qualifying-times' },
+      'From 2027 registration, courses with a net drop of 1,500–2,999 ft (457.2–914.1 m) add 5:00, 3,000–5,999 ft (914.2–1,828.5 m) add 10:00, and 6,000 ft (1,828.6 m) or more are not accepted.'],
+    sources: [{ label: 'B.A.A. qualifying standards and history', url: 'https://www.baa.org/races/boston-marathon/qualify/' },
+      { label: 'B.A.A. Boston Marathon rules and policies (non-binary entries)', url: 'https://www.baa.org/sites/default/files/2024-08/Boston_Marathon_Rules_and_Policies%20August%2021%202024.pdf' },
       { label: 'B.A.A. 2027 registration update', url: 'https://www.baa.org/news/2027-boston-marathon-presented-by-bank-of-america-registration-update/' }],
   },
   {
     key: 'nyc', race: 'New York City Marathon', edition: '2027 (November 7, 2027)', ageRule: 'race-day', ageDate: '2027-11-07',
-    comparison: 'at-or-under', windowStart: '2026-01-01', windowEnd: '2026-12-31', windowNote: 'Times run January 1 – December 31, 2026.',
+    comparison: 'at-or-under', comparisonStated: true, windowStart: '2026-01-01', windowEnd: '2026-12-31', windowNote: 'Times run January 1 – December 31, 2026.',
     entry: 'NYRR races (and listed NYRR half marathons) give guaranteed entry. Other marathons enter a capped pool, fastest first: for 2026 that pool took runners at least 22:52 under their standard.',
     poolCutoff: { year: 2026, seconds: 22 * 60 + 52 },
+    poolHistory: [{ year: 2025, seconds: 13 * 60 + 20, accepted: 'top 25%' }, { year: 2026, seconds: 22 * 60 + 52, accepted: 'top 10%' }],
+    nyrrMarathonDate: '2026-11-01',
     bands: majorBands([[18, 34, hm(2, 53), hm(3, 13)], [35, 39, hm(2, 55), hm(3, 15)], [40, 44, hm(2, 58), hm(3, 26)], [45, 49, hm(3, 5), hm(3, 38)],
       [50, 54, hm(3, 14), hm(3, 51)], [55, 59, hm(3, 23), hm(4, 10)], [60, 64, hm(3, 34), hm(4, 27)], [65, 69, hm(3, 45), hm(4, 50)],
       [70, 74, hm(4, 10), hm(5, 30)], [75, 79, hm(4, 30), hm(6, 0)], [80, 120, hm(4, 55), hm(6, 35)]]),
     nonbinaryNote: 'Non-binary standards equal the women’s. Apply in the gender your result was posted under, or as non-binary if the race offered no non-binary option.',
     extra: ['Half-marathon times count only from NYRR half marathons.', 'Net (chip) time; “at least as fast as” the standard.'],
     sources: [{ label: 'NYRR time qualifiers', url: 'https://www.nyrr.org/tcsnycmarathon/runners/marathon-time-qualifiers' },
-      { label: 'NYRR 2026 drawing results', url: 'https://www.nyrr.org/media-center/press-release/2026_0304_tcsnycmdrawingday' }],
+      { label: 'NYRR 2026 drawing results', url: 'https://www.nyrr.org/media-center/press-release/2026_0304_tcsnycmdrawingday' },
+      { label: 'NYRR 2025 drawing results', url: 'https://www.nyrr.org/media-center/press-release/2025_0305_tcsnycmdrawingday' }],
   },
   {
     key: 'london', race: 'London Marathon (Good For Age)', edition: '2027 (April 24–25, 2027)', ageRule: 'time-run',
-    comparison: 'strictly-under', windowStart: '2025-10-01', windowEnd: '2026-09-30', windowNote: 'Times run October 1, 2025 – September 30, 2026.',
-    applications: { closes: '2026-10-29', note: 'Applications close 16:00 GMT, October 29, 2026. UK residents only.' },
+    comparison: 'strictly-under', comparisonStated: true, windowStart: '2025-10-01', windowEnd: '2026-09-30', windowNote: 'Times run October 1, 2025 – September 30, 2026.',
+    applications: { closes: '2026-10-29', closesAt: '2026-10-29T16:00:00Z', note: 'Applications close 16:00 GMT, October 29, 2026. UK residents only.' },
     entry: '6,000 places (3,000 men, 3,000 women) allocated fastest first relative to age and standard.',
     bands: [[18, 39, hm(2, 52), hm(3, 38)], [40, 44, hm(2, 57), hm(3, 43)], [45, 49, hm(3, 2), hm(3, 46)], [50, 54, hm(3, 7), hm(3, 53)],
       [55, 59, hm(3, 12), hm(3, 58)], [60, 64, hm(3, 34), hm(4, 23)], [65, 69, hm(3, 52), hm(4, 53)], [70, 74, hm(4, 52), hm(5, 53)],
@@ -115,8 +136,8 @@ export const STANDARDS: Standard[] = [
   },
   {
     key: 'chicago', race: 'Chicago Marathon', edition: '2027 (October 10, 2027)', ageRule: 'race-day', ageDate: '2027-10-10',
-    comparison: 'at-or-under', windowStart: '2025-01-01', windowEnd: '2026-10-29', windowNote: 'Times run January 1, 2025 – October 29, 2026.',
-    applications: { opens: '2026-10-08', closes: '2026-10-29', note: 'Applications open 8 a.m. CT October 8 and close 2 p.m. CT October 29, 2026.' },
+    comparison: 'at-or-under', comparisonStated: true, windowStart: '2025-01-01', windowEnd: '2026-10-29', windowNote: 'Times run January 1, 2025 – October 29, 2026.',
+    applications: { opens: '2026-10-08', closes: '2026-10-29', opensAt: '2026-10-08T13:00:00Z', closesAt: '2026-10-29T19:00:00Z', note: 'Applications open 8 a.m. CT October 8 and close 2 p.m. CT October 29, 2026.' },
     entry: 'Time qualifiers who meet the standard are guaranteed entry; there is no cut-off.',
     bands: majorBands([[16, 34, hm(2, 50), hm(3, 20)], [35, 39, hm(2, 55), hm(3, 25)], [40, 44, hm(3, 0), hm(3, 30)], [45, 49, hm(3, 10), hm(3, 40)],
       [50, 54, hm(3, 15), hm(3, 50)], [55, 59, hm(3, 25), hm(3, 55)], [60, 64, hm(3, 40), hm(4, 15)], [65, 69, hm(3, 55), hm(4, 30)],
@@ -127,7 +148,7 @@ export const STANDARDS: Standard[] = [
   },
   {
     key: 'berlin', race: 'Berlin Marathon (fast runners)', edition: '2027', ageRule: 'birth-year', ageYear: 2027,
-    comparison: 'at-or-under', windowStart: '2025-01-01', windowEnd: '2026-12-31', windowNote: 'Marathon times from 2025 or 2026.',
+    comparison: 'at-or-under', comparisonStated: false, windowStart: '2025-01-01', windowEnd: '2026-12-31', windowNote: 'Marathon times from 2025 or 2026.',
     applications: { opens: '2026-10-01', closes: '2026-11-12', note: 'Registration October 1 – November 12, 2026; results December 3, 2026.' },
     entry: 'Registering as a fast runner does not guarantee a place; proof is reviewed, and invalid proof moves you to the lottery.',
     bands: [[18, 44, hm(2, 45), hm(3, 10)], [45, 59, hm(2, 55), hm(3, 30)], [60, 120, hm(3, 25), hm(4, 20)]].map(([min, max, men, women]) => ({ min, max, men, women })),
@@ -137,9 +158,9 @@ export const STANDARDS: Standard[] = [
   },
   {
     key: 'sydney', race: 'Sydney Marathon (High Performance Program)', edition: '2027 (August 29, 2027)', ageRule: 'race-day', ageDate: '2027-08-29',
-    comparison: 'at-or-under', windowStart: '2025-07-01', windowNote: 'Times run since July 1, 2025 on a World Athletics-certified course with a net drop of no more than 457 m.',
+    comparison: 'at-or-under', comparisonStated: false, windowStart: '2025-07-01', windowNote: 'Times run since July 1, 2025 on a World Athletics-certified course with a net drop of no more than 457 m.',
     applications: { closes: '2026-09-18', note: 'The 2027 application window ran September 14–18, 2026.' },
-    entry: '1,200 places: 600 sub-elite (fastest overall) and 600 Good For Age (fastest within each age and gender group). Not guaranteed.',
+    entry: '1,200 places: 600 sub-elite (the fastest men, women and non-binary athletes) and 600 Good For Age (fastest within each age and gender group). Not guaranteed.',
     maxNetDropM: 457,
     bands: majorBands([[18, 34, hm(2, 45), hm(3, 18)], [35, 39, hm(2, 47), hm(3, 20)], [40, 44, hm(2, 51), hm(3, 27)], [45, 49, hm(2, 55), hm(3, 35)],
       [50, 54, hm(3, 0), hm(3, 43)], [55, 59, hm(3, 6), hm(3, 51)], [60, 64, hm(3, 17), hm(4, 13)], [65, 69, hm(3, 41), hm(4, 24)],
@@ -163,7 +184,8 @@ export interface QualifyInput {
   division: Division;
   seconds: number;          // net (chip) time
   raceDate: string;         // YYYY-MM-DD the time was run
-  dropFeet?: number;        // course net drop for Boston's index
+  dropFeet?: number;        // course net drop for Boston's index, typed in feet
+  dropMetres?: number;      // or typed in metres: Boston then uses its own metric thresholds
   nyrr?: boolean;
   ukResident?: boolean;
 }
@@ -191,19 +213,23 @@ export function evaluate(s: Standard, input: QualifyInput): QualifyResult {
   else { age = s.ageYear! - Number(input.birth.slice(0, 4)); ageLabel = `Born ${input.birth.slice(0, 4)}: the ${age}-in-${s.ageYear} band`; }
   const band = s.bands.find((b) => age >= b.min && age <= b.max) ?? null;
   let counted = input.seconds;
-  if (s.key === 'boston' && input.dropFeet !== undefined) {
-    const index = bostonDownhillIndex(input.dropFeet);
+  const metric = input.dropMetres !== undefined;
+  const dropMetres = metric ? input.dropMetres! : input.dropFeet !== undefined ? input.dropFeet * 0.3048 : undefined;
+  if (s.key === 'boston' && dropMetres !== undefined) {
+    // Metric drops use the B.A.A.'s published metric bounds, which are not exact conversions of the feet bounds.
+    const index = metric ? bostonDownhillIndexMetres(input.dropMetres!) : bostonDownhillIndex(input.dropFeet!);
+    const dropText = metric ? `${input.dropMetres!.toLocaleString('en-US', { maximumFractionDigits: 1 })} m` : `${Math.round(input.dropFeet!).toLocaleString('en-US')} ft`;
     if (index === null) {
-      return { standard: s, age, ageLabel, band, limit: null, counted, margin: null, status: 'not-eligible', notes: ['A net drop of 6,000 ft or more is not accepted for Boston qualifying.'] };
+      return { standard: s, age, ageLabel, band, limit: null, counted, margin: null, status: 'not-eligible', notes: [`A net drop of 6,000 ft (1,828.6 m) or more is not accepted for Boston qualifying; this course drops ${dropText}.`] };
     }
-    if (index) notes.push(`Downhill index: +${index / 60}:00 added for a ${Math.round(input.dropFeet).toLocaleString('en-US')} ft net drop.`);
+    if (index) notes.push(`Downhill index: +${index / 60}:00 added for a ${dropText} net drop.`);
     counted += index;
   }
   if (!band) return { standard: s, age, ageLabel, band: null, limit: null, counted, margin: null, status: 'not-eligible', notes: [`No standard for age ${age}.`] };
   const limit = input.division === 'nonbinary' ? band.nonbinary ?? null : band[input.division];
   if (limit === null) return { standard: s, age, ageLabel, band, limit: null, counted, margin: null, status: 'no-category', notes: [s.nonbinaryNote] };
-  if (s.maxNetDropM !== undefined && input.dropFeet !== undefined && input.dropFeet * 0.3048 > s.maxNetDropM) {
-    const metres = Math.round(input.dropFeet * 0.3048).toLocaleString('en-US');
+  if (s.maxNetDropM !== undefined && dropMetres !== undefined && dropMetres > s.maxNetDropM) {
+    const metres = Math.round(dropMetres).toLocaleString('en-US');
     return { standard: s, age, ageLabel, band, limit, counted, margin: null, status: 'not-eligible',
       notes: [`Courses with a net drop of more than ${s.maxNetDropM} m are not accepted; this one drops about ${metres} m.`] };
   }
@@ -216,7 +242,12 @@ export function evaluate(s: Standard, input: QualifyInput): QualifyResult {
   }
   const passes = s.comparison === 'strictly-under' ? margin > 0 : margin >= 0;
   if (s.key === 'london' && input.ukResident === false) notes.push('London Good For Age places are for UK residents only.');
-  if (s.key === 'nyc') notes.push(input.nyrr ? 'An NYRR race time meeting the standard gives guaranteed entry.' : 'A non-NYRR time enters the capped, fastest-first pool.');
+  if (s.key === 'nyc') {
+    const nyrrMarathon = Boolean(input.nyrr) && input.raceDate === s.nyrrMarathonDate;
+    if (nyrrMarathon) notes.push('A time from the 2026 TCS New York City Marathon meeting the standard gives guaranteed entry.');
+    else if (input.nyrr) notes.push(`No NYRR marathon was held on this date. Guaranteed entry needs a time from the 2026 TCS New York City Marathon (${s.nyrrMarathonDate}) or a listed NYRR half (half times are not checked here); this time enters the capped, fastest-first pool.`);
+    else notes.push('A non-NYRR time enters the capped, fastest-first pool.');
+  }
   if (s.comparison === 'strictly-under' && margin === 0) notes.push('London requires a time strictly under the standard; equal is not enough.');
   return { standard: s, age, ageLabel, band, limit, counted, margin, status: !inside ? 'outside-window' : passes ? 'meets' : 'misses', notes };
 }

@@ -40,11 +40,11 @@ Numbers from different badges are never combined into one figure.
 | `/tools/pace-calculator` | `PaceCalculator` | Arithmetic | none |
 | `/tools/predictor` | `Predictor` | Research, data | `tools/projector.json` + `tools/projector/all/20.json` |
 | `/tools/pace-band` | `PaceBand` | Arithmetic, data | `tools/pace-band.json` + shards |
-| `/tools/course-chooser` | `CourseChooser` | Data | `tools/course-goal.json` |
+| `/tools/course-chooser` | `CourseChooser` | Data, arithmetic | `tools/course-goal.json` |
 | `/tools/weather-match` | `WeatherMatch` | Data, research | `tools/weather-match.json` |
-| `/tools/projector` | `Projector` | Data | `tools/projector.json` + shards |
-| `/tools/split-check` | `SplitCheck` | Data | `tools/pace-band.json` + shards, `archetypes.json` |
-| `/tools/qualifying` | `QualifyingChecker` | Official | none (`lib/tools/qualifying.ts`) |
+| `/tools/projector` | `Projector` | Data, arithmetic | `tools/projector.json` + shards |
+| `/tools/split-check` | `SplitCheck` | Data, arithmetic, research | `tools/pace-band.json` + shards, `archetypes.json` |
+| `/tools/qualifying` | `QualifyingChecker` | Official, arithmetic | none (`lib/tools/qualifying.ts`) |
 
 `lib/tools/registry.ts` lists the tools, their order and their evidence kinds. The index (`app/tools/page.tsx`) shows a data tool only when its file is in the verified insights manifest.
 

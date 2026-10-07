@@ -6,11 +6,6 @@
    ========================================================================== */
 
 .qualifying { --tool: #15171C; }
-/* The panel grows when "Course and entry details" opens; keep all of it reachable while it sticks. */
-@media (min-width: 901px) {
-  .qualifying .tool-inputs { max-height: calc(100vh - 6.5rem); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
-}
-
 /* ---------- Inputs ---------- */
 .qualifying-date { font-family: var(--mono); font-size: 1rem; font-variant-numeric: tabular-nums; display: block; text-align: left; }
 .qualifying-date::-webkit-date-and-time-value { text-align: left; }
