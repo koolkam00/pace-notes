@@ -45,6 +45,10 @@ def optional_families():
         ('demographics', 'insights_demographics', 'demographics.json'),
         ('courses', 'insights_courses', 'courses.json'),
         ('kick', 'insights_kick', 'kick.json'),
+        ('tool-projector', 'insights_tool_projector', 'tools/projector.json'),
+        ('tool-pace-band', 'insights_tool_paceband', 'tools/pace-band.json'),
+        ('tool-weather-match', 'insights_tool_weather', 'tools/weather-match.json'),
+        ('tool-course-goal', 'insights_tool_coursegoal', 'tools/course-goal.json'),
     ):
         path = Path(__file__).with_name(module_name + '.py')
         if path.exists():
