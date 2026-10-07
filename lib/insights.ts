@@ -69,15 +69,15 @@ async function digest(buffer: ArrayBuffer): Promise<string> {
   return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** Fetch one story file, verifying the digest the build recorded for it. */
+/** Fetch one insights file (story or tool data), verifying the digest the build recorded for it. */
 export function loadInsight<T>(name: string, sha256: string): Promise<T> {
   const key = name + '@' + sha256;
   if (!cache.has(key)) {
     const request = (async () => {
       const response = await fetch((process.env.NEXT_PUBLIC_BASE_PATH || '') + '/data/insights/' + name + '?v=' + sha256);
-      if (!response.ok) throw new Error('Could not load the story data.');
+      if (!response.ok) throw new Error('This data could not be loaded. Check the connection and try again.');
       const buffer = await response.arrayBuffer();
-      if (typeof crypto !== 'undefined' && crypto.subtle && (await digest(buffer)) !== sha256) throw new Error('The story data could not be verified.');
+      if (typeof crypto !== 'undefined' && crypto.subtle && (await digest(buffer)) !== sha256) throw new Error('This data could not be verified, so it is not shown.');
       return JSON.parse(new TextDecoder().decode(buffer)) as T;
     })();
     request.catch(() => cache.delete(key));
