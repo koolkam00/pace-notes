@@ -170,7 +170,7 @@ a.tool-card:hover { text-decoration: none; transform: translateY(-3px); box-shad
   .tool-workspace { grid-template-columns: 1fr; }
   .tool-panel, .tool-headline { box-shadow: none; break-inside: avoid; }
   .tool-headline { background: #fff; color: #000; border: 1px solid #000; }
-  .tool-headline .tool-stat-value, .tool-headline .tool-stat-label, .tool-headline .tool-stat-sub { color: #000; }
+  .tool-headline .tool-stat-value, .tool-headline .tool-stat-label, .tool-headline .tool-stat-sub { color: #000 !important; }
   .tool-header { padding: 0 0 .6rem; }
   .tool-title { font-size: 1.8rem; }
   .tool-title::after, .tool-dek { display: none; }

@@ -27,6 +27,8 @@ const SLOW = '#FF5B2E';
 const EXAMPLE = '0:25:50,0:52:24,1:19:06,1:45:54,2:13:18,2:42:41,3:16:39,3:49:12,4:03:31';
 const DEFAULTS = { s: EXAMPLE, course: 'all', g: 'all' };
 const EPS = 1e-12;
+/** Text-weight versions of the pacing-type colours, for lines and labels on the cream card. */
+const TYPE_INK = ['#0B7A52', '#2346E6', '#8A5A00', '#5B34D6', '#B3123E', '#B4380D'];
 
 type Gender = 'all' | 'men' | 'women';
 const GENDER_OPTIONS: { value: Gender; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'men', label: 'Men' }, { value: 'women', label: 'Women' }];
@@ -85,14 +87,16 @@ const MAT_RE = /(?:^|[^\d.,])0?(5|10|15|20|25|30|35|40)\s*(?:k\b|km\b|kms\b|kilo
 const FINISH_RE = /\b(?:finish|fin|final|ziel|zielzeit|netto|net\s*time|chip\s*time|arriv[ée]e|llegada)\b|\b42[.,]\d*\s*(?:k|km)\b|\b26[.,]2\s*mi/i;
 const HALF_RE = /\b(?:half|halfway|halb|hm|semi|mitad|21[.,]1\d*|13[.,]1)\b/i;
 
-export interface PasteResult { times: (number | null)[]; found: number; labelled: boolean; tokens: number }
+export interface PasteResult { times: (number | null)[]; found: number; labelled: boolean; tokens: number; skippedHalf?: boolean }
 
 /**
  * Read nine mat times from pasted tracker or results text. Lines labelled 5K…40K and Finish are matched by label (halfway and
  * mile lines are ignored, and the first plausible time on each line wins); unlabelled text must hold exactly nine times in order.
  */
 export function readPasted(text: string): PasteResult {
-  const times: (number | null)[] = Array(9).fill(null);
+  // Every plausible time on each labelled line, in order (a results table may also hold time of day and section times).
+  const candidates: number[][] = CHECKPOINTS.map(() => []);
+  const seen = new Set<number>();
   let labelled = false;
   for (const raw of text.split(/[\n;|]+/)) {
     const line = raw.trim();
@@ -103,18 +107,56 @@ export function readPasted(text: string): PasteResult {
     else if (FINISH_RE.test(line) && !HALF_RE.test(line)) index = 8;
     if (index < 0) continue;
     labelled = true;
-    if (times[index] !== null) continue;
+    if (seen.has(index)) continue;
+    seen.add(index);
     const km = CHECKPOINTS[index];
     for (const token of timeTokens(mat ? line.slice((mat.index ?? 0) + mat[0].length) : line)) {
       const s = parseMatTime(token);
-      if (s !== null && s / km >= 120 && s / km <= 1200) { times[index] = s; break; }
+      if (s !== null && s / km >= 120 && s / km <= 1200 && !candidates[index].includes(s)) candidates[index].push(s);
     }
   }
+  const times = chooseSequence(candidates);
   const found = times.filter((t) => t !== null).length;
   if (labelled && found) return { times, found, labelled: true, tokens: found };
   const tokens = timeTokens(text).map(parseMatTime).filter((t): t is number => t !== null);
   if (tokens.length === 9) return { times: tokens, found: 9, labelled: false, tokens: 9 };
+  // An unlabelled list with halfway in it: ten times, the fifth between 20 and 25 km at a plausible pace from the 20 km mat.
+  if (tokens.length === 10) {
+    const rest = tokens.filter((_, i) => i !== 4);
+    const half = (tokens[4] - tokens[3]) / (21.0975 - 20);
+    if (tokens[4] > tokens[3] && tokens[4] < tokens[5] && half >= 120 && half <= 1200 && validateSplits(rest) === null) {
+      return { times: rest, found: 9, labelled: false, tokens: 10, skippedHalf: true };
+    }
+  }
   return { times: Array(9).fill(null), found: 0, labelled: false, tokens: tokens.length };
+}
+
+/**
+ * One time per labelled mat so the whole race is consistent: increasing, and every gap between recorded mats at 2–20 min/km.
+ * Earlier tokens on a line are preferred; if no consistent choice exists, each mat keeps its first plausible time.
+ */
+function chooseSequence(candidates: number[][]): (number | null)[] {
+  const out: (number | null)[] = candidates.map(() => null);
+  const present = candidates.map((c, i) => (c.length ? i : -1)).filter((i) => i >= 0);
+  let steps = 0;
+  const fits = (i: number, t: number, prevI: number, prevT: number) => {
+    const pace = (t - prevT) / (CHECKPOINTS[i] - (prevI >= 0 ? CHECKPOINTS[prevI] : 0));
+    return t > prevT && pace >= 120 && pace <= 1200;
+  };
+  const go = (k: number, prevI: number, prevT: number): boolean => {
+    if (k === present.length) return true;
+    if ((steps += 1) > 20000) return false;
+    const i = present[k];
+    for (const t of candidates[i]) {
+      if (!fits(i, t, prevI, prevT)) continue;
+      out[i] = t;
+      if (go(k + 1, i, t)) return true;
+    }
+    out[i] = null;
+    return false;
+  };
+  if (go(0, -1, 0)) return out;
+  return candidates.map((c) => c[0] ?? null);
 }
 
 const serialize = (times: (number | null)[]) => (times.every((t) => t === null) ? '' : times.map((t) => (t === null ? '' : formatDuration(t, true))).join(','));
@@ -149,6 +191,12 @@ function ahead(seconds: number): string {
   const s = Math.round(seconds);
   if (s === 0) return 'level';
   return `${formatDuration(Math.abs(s))} ${s < 0 ? 'ahead' : 'behind'}`;
+}
+/** "6:11 ahead of", "1:38 behind", "level with": the words before a group name. */
+function relation(seconds: number): { time: string | null; words: string } {
+  const s = Math.round(seconds);
+  if (s === 0) return { time: null, words: 'level with' };
+  return { time: formatDuration(Math.abs(s)), words: s < 0 ? 'ahead of' : 'behind' };
 }
 
 type Tone = 'quick' | 'even' | 'slow' | 'qualify';
@@ -185,7 +233,7 @@ function summarize(r: SplitReading, units: UnitSystem): { lead: string; more: st
     if (worst !== i0) more.push(`Your slowest section was ${secName(worst, units)}, ${pctAbs(vs[worst])} slower.`);
   } else {
     const v = vs[worst];
-    if (v >= 0.02) lead = `No sustained slowdown. Your slowest ${five} ${after20}, ${secName(worst, units)}, was ${pctAbs(v)} slower than your ${base} pace, short of the 25% threshold.`;
+    if (v >= 0.02) lead = `No sustained slowdown. Your slowest ${five} ${after20}, ${secName(worst, units)}, was ${pctAbs(v)} slower than your ${base} pace, ${v < 0.15 ? 'well ' : ''}short of the 25% threshold.`;
     else if (v > -0.02) lead = `No sustained slowdown: every ${five} section ${after20} stayed within 2% of your ${base} pace or quicker.`;
     else lead = `No sustained slowdown: you ran every ${five} section ${after20} quicker than your ${base} pace.`;
     if (qualifies(vs[8])) more.push(`Your final ${units === 'mi' ? '1.4 mi' : '2.2 km'} was ${pctAbs(vs[8])} slower, but the last 2.195 km cannot count as a sustained slowdown on its own.`);
@@ -279,7 +327,9 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
     const read = readPasted(value);
     if (read.found === 9) {
       setTimes(read.times);
-      setPasteNote(read.labelled ? 'Read all nine mat times from their labels. Check them below.' : 'Read nine times in order, 5 km to the finish. Check them below.');
+      setPasteNote(read.labelled ? 'Read all nine mat times from their labels. Check them below.'
+        : read.skippedHalf ? 'Read nine times in order and skipped the fifth, which sits where halfway would be. Check them below.'
+        : 'Read nine times in order, 5 km to the finish. Check them below.');
     } else if (read.labelled && read.found > 0) {
       setTimes(read.times);
       const got = read.times.map((t, i) => (t === null ? null : i === 8 ? 'the finish' : `${CHECKPOINTS[i]}`)).filter(Boolean);
@@ -394,7 +444,7 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
                     <small>{i === 8 ? (units === 'mi' ? '26.2 mi' : '42.2 km') : units === 'mi' ? `${(km / KM_PER_MILE).toFixed(1)} mi` : ' '}</small>
                   </label>
                   <input id={`${formId}-t${i}`} inputMode="decimal" autoComplete="off" spellCheck={false} value={texts[i]}
-                    placeholder={i < 2 ? '25:50' : i === 8 ? '4:03:31' : '1:45:54'} aria-invalid={bad || undefined} aria-describedby={hintId}
+                    placeholder={i < 2 ? 'mm:ss' : 'h:mm:ss'} aria-invalid={bad || undefined} aria-describedby={hintId}
                     onChange={(e) => editField(i, e.target.value)} onBlur={() => blurField(i)} />
                 </div>
               );
@@ -461,7 +511,8 @@ function Results({ times, reading, units, comparison, type, typeError, where, pl
           {more.length ? <p className="split-check-more">{more.join(' ')}</p> : null}
         </div>
         <Stat label="Finish" value={formatDuration(times[8], true)} sub={`average ${fmtPace(avg, units)}`} />
-        <Stat label={`${baseName(units)} pace`} value={formatDuration(perUnit(reading.baseline, units))} sub={`per ${unitWord(units)} · 25% slower is ${fmtPace(reading.baseline * 1.25, units)}`} />
+        <Stat label="5–20 km pace" value={formatDuration(perUnit(reading.baseline, units))}
+          sub={`per ${unitWord(units)}${units === 'mi' ? ' (3.1–12.4 mi)' : ''} · 25% slower is ${fmtPace(reading.baseline * 1.25, units)}`} />
         <Stat label="Sustained slowdown" value={reading.slowdown ? 'Yes' : 'No'} tone={reading.slowdown ? 'bad' : 'good'}
           sub={reading.slowdown && onsetIndex !== null ? `from ${units === 'mi' ? `${(reading.onsetKm! / KM_PER_MILE).toFixed(1)} mi (${reading.onsetKm} km)` : `${reading.onsetKm} km`} · published definition` : 'published definition: ≥25% for ≥5 km after 20 km'} />
         <div className="tool-stat split-check-type-stat">
@@ -514,7 +565,7 @@ function SectionChart({ reading, times, units }: { reading: SplitReading; times:
   const [hover, setHover] = useState<number | null>(null);
   const narrow = width < 480;
   const H = narrow ? 280 : 320;
-  const m = { l: 44, r: 8, t: 30, b: 30 };
+  const m = { l: 50, r: 8, t: 30, b: 30 };
   const toU = (s: number) => perUnit(s, units);
   const B = toU(reading.baseline);
   const T = B * 1.25;
@@ -542,7 +593,8 @@ function SectionChart({ reading, times, units }: { reading: SplitReading; times:
     const [a, b] = SECTION_BOUNDS[i];
     const cx = (x(a) + x(b)) / 2;
     const yp = y(paces[i]);
-    const text = narrow || Math.abs(v) >= 0.1 ? `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.round(Math.abs(v * 100))}%` : pctSigned(v);
+    const whole = Math.round(Math.abs(v * 100));
+    const text = narrow || Math.abs(v) >= 0.1 ? (whole === 0 ? '0%' : `${v > 0 ? '+' : '−'}${whole}%`) : pctSigned(v);
     const w = text.length * 6.3;
     const down = v >= 0;
     let ly = down ? Math.max(yp, yB) + 13 : Math.min(yp, yB) - 5;
@@ -576,9 +628,10 @@ function SectionChart({ reading, times, units }: { reading: SplitReading; times:
       <div className="legend-row split-check-legend" aria-hidden="true">
         <span><i className="swatch" style={{ background: TONE.quick.fill, boxShadow: `inset 0 0 0 1px ${TONE.quick.stroke}` }} />Quicker</span>
         <span><i className="swatch" style={{ background: TONE.slow.fill, boxShadow: `inset 0 0 0 1px ${TONE.slow.stroke}` }} />Slower</span>
-        <span><i className="swatch" style={{ background: TONE.qualify.fill, boxShadow: `inset 0 0 0 1px ${TONE.qualify.stroke}` }} />25%+ slower after 20 km</span>
-        <span><i className="split-check-key-base" />{baseName(units)} pace</span>
-        <span><i className="split-check-key-zone" />Sustained-slowdown zone</span>
+        <span><i className="swatch" style={{ background: TONE.qualify.fill, boxShadow: `inset 0 0 0 1px ${TONE.qualify.stroke}` }} />≥25% slower after 20 km</span>
+        <span><i className="split-check-key-pill is-base">{formatDuration(perUnit(reading.baseline, units))}</i>{baseName(units)} pace</span>
+        <span><i className="split-check-key-pill is-threshold">{formatDuration(perUnit(reading.baseline * 1.25, units))}</i>25% slower</span>
+        <span><i className="split-check-key-zone" />Slowdown zone</span>
       </div>
       <div ref={ref} className="viz split-check-chart" onPointerMove={(e) => pick(e.clientX)} onPointerDown={(e) => pick(e.clientX)} onPointerLeave={() => setHover(null)}>
         <svg width={width} height={H} role="img" aria-label={aria}>
@@ -594,12 +647,11 @@ function SectionChart({ reading, times, units }: { reading: SplitReading; times:
           {ticks.map((v) => (
             <g key={v} className="grid">
               <line x1={m.l} x2={width - m.r} y1={y(v)} y2={y(v)} />
-              <text x={m.l - 7} y={y(v) + 4} textAnchor="end">{formatDuration(v)}</text>
+              {Math.abs(y(v) - yB) > 14 && Math.abs(y(v) - yT) > 14 ? <text x={m.l - 7} y={y(v) + 4} textAnchor="end">{formatDuration(v)}</text> : null}
             </g>
           ))}
           <text x={2} y={m.t - 10} className="axis-label">/{units} · quicker ↑</text>
           {xTicks.map((t) => <text key={t.label} x={x(t.km)} y={H - 10} textAnchor="middle">{t.label}</text>)}
-          <text x={width - m.r} y={H - 10} textAnchor="end" className="axis-label">{units === 'mi' ? '' : ''}</text>
 
           {reading.paces.map((_, i) => {
             const [a, b] = SECTION_BOUNDS[i];
@@ -618,8 +670,14 @@ function SectionChart({ reading, times, units }: { reading: SplitReading; times:
           <line x1={m.l} x2={width - m.r} y1={yB} y2={yB} stroke="var(--ink)" strokeWidth={1.2} strokeDasharray="5 4" />
           <line x1={x(5)} x2={x(20)} y1={yB} y2={yB} stroke="var(--ink)" strokeWidth={2.6} />
           <line x1={x(20)} x2={width - m.r} y1={yT} y2={yT} stroke="#B4380D" strokeWidth={1.4} strokeDasharray="3 3" />
-          <text x={width - m.r - 2} y={yT - 5} textAnchor="end" className="annotation-sub split-check-halo split-check-threshold">+25% · {formatDuration(T)}</text>
-          <text x={x(5) + 3} y={yB - 6} className="annotation-sub split-check-halo">{baseName(units)} pace</text>
+          <g className="split-check-pill is-base">
+            <rect x={2} y={yB - 9} width={m.l - 6} height={18} rx={9} />
+            <text x={2 + (m.l - 6) / 2} y={yB + 4} textAnchor="middle">{formatDuration(B)}</text>
+          </g>
+          <g className="split-check-pill is-threshold">
+            <rect x={2} y={yT - 9} width={m.l - 6} height={18} rx={9} />
+            <text x={2 + (m.l - 6) / 2} y={yT + 4} textAnchor="middle">{formatDuration(T)}</text>
+          </g>
 
           {labels.map((l) => (
             <text key={l.i} x={l.cx} y={l.ly} textAnchor="middle" className={`split-check-bar-label split-check-halo is-${l.tone}`}>{l.text}</text>
@@ -635,7 +693,7 @@ function SectionChart({ reading, times, units }: { reading: SplitReading; times:
           </div>
         ) : null}
       </div>
-      <p className="split-check-axis-note">{units === 'mi' ? 'Miles from the start' : 'Kilometres from the start'}. Each bar is one section between timing mats; the final one is 2.195 km. The shaded zone is 25% or more slower than your {baseName(units)} pace, after 20 km.</p>
+      <p className="split-check-axis-note">{units === 'mi' ? 'Miles from the start' : 'Kilometres from the start'}. Each bar runs from your {baseName(units)} pace to the section’s pace; the last is the final 2.195 km. The hatched zone is 25% or more slower than your {baseName(units)} pace, after 20 km.</p>
     </>
   );
 }
@@ -645,16 +703,16 @@ function SectionTable({ reading, times, units }: { reading: SplitReading; times:
     <div className="tool-table-wrap split-check-table-wrap">
       <table className="tool-table split-check-table">
         <thead>
-          <tr><th scope="col">Section</th><th scope="col">Time</th><th scope="col">Pace /{units}</th><th scope="col">vs {baseName(units)}</th></tr>
+          <tr><th scope="col">Section</th><th scope="col">Time</th><th scope="col">Pace /{units}</th><th scope="col">vs {baseName(units)} pace</th></tr>
         </thead>
         <tbody>
           {reading.paces.map((p, i) => {
             const tone = toneOf(reading, i);
             const v = reading.vsBaseline[i];
-            const note = i === 0 ? 'opening' : i >= 1 && i <= 3 ? 'reference block' : i === 8 ? 'final 2.195 km' : null;
+            const note = i === 0 ? 'opening' : i >= 1 && i <= 3 ? 'reference' : i === 8 ? 'final 2.195 km' : null;
             return (
               <tr key={i} className={`${i >= 1 && i <= 3 ? 'is-base' : ''}${tone === 'qualify' ? ' is-qualify' : ''}`.trim() || undefined}>
-                <th scope="row">{secName(i, units)}<span className="split-check-sub">{units === 'mi' ? `${SECTION_NAMES[i]} km` : ''}{units === 'mi' && note ? ' · ' : ''}{note ?? ''}</span></th>
+                <th scope="row"><span className="split-check-sec">{secName(i, units)}</span><span className="split-check-sub">{units === 'mi' ? `${SECTION_NAMES[i]} km` : ''}{units === 'mi' && note ? ' · ' : ''}{note ?? ''}</span></th>
                 <td>{formatDuration(times[i] - (i ? times[i - 1] : 0))}</td>
                 <td>{formatDuration(perUnit(p, units))}</td>
                 <td className={v >= 0.02 ? 'is-plus' : v <= -0.02 ? 'is-minus' : undefined}>
@@ -665,7 +723,7 @@ function SectionTable({ reading, times, units }: { reading: SplitReading; times:
           })}
         </tbody>
         <tfoot>
-          <tr><th scope="row">{baseName(units)} pace</th><td>{formatDuration(times[3] - times[0])}</td><td>{formatDuration(perUnit(reading.baseline, units))}</td><td>reference</td></tr>
+          <tr><th scope="row">{baseName(units)} pace</th><td>{formatDuration(times[3] - times[0])}</td><td>{formatDuration(perUnit(reading.baseline, units))}</td><td>—</td></tr>
           <tr><th scope="row">Whole race</th><td>{formatDuration(times[8], true)}</td><td>{formatDuration(perUnit(times[8] / MARATHON_KM, units))}</td><td>{pctSigned(times[8] / MARATHON_KM / reading.baseline - 1)}</td></tr>
         </tfoot>
         <caption>Arithmetic on your times: section time ÷ section length. Positive is slower than your {baseName(units)} pace. Mats only: no halfway or mile splits are derived.</caption>
@@ -745,7 +803,7 @@ function OpeningPanel({ reading, units, bands, cities, place, course, gender }: 
   return (
     <EvidencePanel kind="arithmetic" id="split-check-opening"
       title={<>Opening: {Math.abs(reading.opening) < 0.0005 ? 'level with' : `${pctAbs(reading.opening)} ${reading.opening < 0 ? 'quicker' : 'slower'} than`} your {baseName(units)} pace</>}
-      meta={`First ${five} ${fmtPace(reading.paces[0], units)} against ${fmtPace(reading.baseline, units)}. Crowded starts often make the first section slower; it is not part of the reference block.`}>
+      meta={`First ${five} ${fmtPace(reading.paces[0], units)} against ${fmtPace(reading.baseline, units)}. The first section is not part of the reference block, so the two are compared directly.`}>
       {bands.length ? (
         <>
           <ol className="split-check-bands" aria-label="The six opening groups, quickest first">
@@ -809,11 +867,10 @@ function ComparisonBody({ ok, times, units, where, course, fallbacks }: {
       <div className="split-check-facts">
         <div><b>{count(all.n)}</b><span>complete finishes · {editions(all.ed)}</span></div>
         {sd !== null && sd !== undefined ? <div><b>{share(sd)}</b><span>had a sustained slowdown (observed share)</span></div> : null}
-        {held ? <div><b>{count(held.n)}</b><span>held pace</span></div> : null}
       </div>
       {h20 !== null || s20 !== null ? (
         <p className="split-check-takeaway">
-          At the 20 km mat you were {h20 !== null ? <><b>{ahead(h20)}</b> of the held-pace median</> : null}{h20 !== null && s20 !== null ? ' and ' : null}{s20 !== null ? <><b>{ahead(s20)}</b> of the sustained-slowdown median</> : null}.
+          At the 20 km mat you were {h20 !== null ? <Rel seconds={h20} what="the held-pace median" /> : null}{h20 !== null && s20 !== null ? ' and ' : null}{s20 !== null ? <Rel seconds={s20} what="the sustained-slowdown median" /> : null}.
           {closer ? <> Through 20 km your times were closer to the median of finishes that {closer === 'slow' ? 'later had a sustained slowdown' : 'held pace'}.</> : null}
         </p>
       ) : null}
@@ -823,27 +880,31 @@ function ComparisonBody({ ok, times, units, where, course, fallbacks }: {
           <thead>
             <tr>
               <th scope="col">Mat</th>
-              <th scope="col">You</th>
-              <th scope="col"><i className="split-check-dot" style={{ background: HELD }} aria-hidden="true" />Held pace</th>
-              <th scope="col"><i className="split-check-dot" style={{ background: SLOW }} aria-hidden="true" />Sustained slowdown</th>
+              <th scope="col" className="split-check-you-cell">You</th>
+              <th scope="col"><i className="split-check-dot" style={{ background: HELD }} aria-hidden="true" />Held pace<span className="split-check-th-sub">median · you vs it</span></th>
+              <th scope="col"><i className="split-check-dot" style={{ background: SLOW }} aria-hidden="true" />Sustained slowdown<span className="split-check-th-sub">median · you vs it</span></th>
             </tr>
           </thead>
           <tbody>
             {CHECKPOINTS.map((km, i) => (
               <tr key={km} className={i === 8 ? 'is-finish' : i === 3 ? 'is-key' : undefined}>
-                <th scope="row">{km >= 42.19 ? 'Finish' : `${km} km`}<span className="split-check-sub">{units === 'mi' ? matName(km, 'mi') : ''}</span></th>
-                <td>{formatDuration(times[i])}</td>
-                <td>{held ? <>{formatDuration(held.e50[i])}<span className={`split-check-delta${times[i] - held.e50[i] < 0 ? ' is-ahead' : ''}`}>you {ahead(times[i] - held.e50[i])}</span></> : '—'}</td>
-                <td>{slow ? <>{formatDuration(slow.e50[i])}<span className={`split-check-delta${times[i] - slow.e50[i] < 0 ? ' is-ahead' : ''}`}>you {ahead(times[i] - slow.e50[i])}</span></> : '—'}</td>
+                <th scope="row">
+                  <span className="split-check-sec">{km >= 42.19 ? 'Finish' : `${km} km`}</span>
+                  <span className="split-check-sub">{units === 'mi' ? (km >= 42.19 ? '26.2 mi' : matName(km, 'mi')) : ''}</span>
+                  <span className="split-check-you-inline">you {formatDuration(times[i])}</span>
+                </th>
+                <td className="split-check-you-cell">{formatDuration(times[i])}</td>
+                <td>{held ? <>{formatDuration(held.e50[i])}<span className={`split-check-delta${times[i] - held.e50[i] < 0 ? ' is-ahead' : ''}`}>{ahead(times[i] - held.e50[i])}</span></> : '—'}</td>
+                <td>{slow ? <>{formatDuration(slow.e50[i])}<span className={`split-check-delta${times[i] - slow.e50[i] < 0 ? ' is-ahead' : ''}`}>{ahead(times[i] - slow.e50[i])}</span></> : '—'}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr><th scope="row">Finishes</th><td /><td>{held ? count(held.n) : '—'}</td><td>{slow ? count(slow.n) : '—'}</td></tr>
-            <tr><th scope="row">Editions</th><td /><td>{held ? count(held.ed) : '—'}</td><td>{slow ? count(slow.ed) : '—'}</td></tr>
+            <tr><th scope="row">Finishes</th><td className="split-check-you-cell" /><td>{held ? count(held.n) : '—'}</td><td>{slow ? count(slow.n) : '—'}</td></tr>
+            <tr><th scope="row">Editions</th><td className="split-check-you-cell" /><td>{held ? count(held.ed) : '—'}</td><td>{slow ? count(slow.ed) : '—'}</td></tr>
           </tfoot>
           <caption>
-            Median elapsed time of each group at the official mats, and your time against it (ahead = you passed that mat earlier). The groups are selected by how their races ended, so the differences describe those races; they do not show what caused them.
+            Median elapsed time of each group at the official mats, and how far ahead or behind it you were (ahead = you passed that mat earlier). The groups are selected by how their races ended, so the differences describe those races; they do not show what caused them.
             {missing.length ? ` Fewer than 100 finishes in the ${missing.join(' and ')} group, so it is not shown.` : ''}
           </caption>
         </table>
@@ -859,6 +920,11 @@ function ComparisonBody({ ok, times, units, where, course, fallbacks }: {
   );
 }
 
+function Rel({ seconds, what }: { seconds: number; what: string }) {
+  const r = relation(seconds);
+  return <>{r.time ? <b>{r.time}</b> : null}{r.time ? ' ' : ''}{r.words} {what}</>;
+}
+
 /** Your elapsed time minus each group's median at every mat: above zero means ahead of that median. Hand-built SVG. */
 function GapChart({ times, held, slow, units }: { times: number[]; held: Cell | null; slow: Cell | null; units: UnitSystem }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -867,9 +933,9 @@ function GapChart({ times, held, slow, units }: { times: number[]; held: Cell | 
   const H = narrow ? 220 : 250;
   const m = { l: 50, r: narrow ? 70 : 96, t: 24, b: 28 };
   const series = [
-    held ? { key: 'held', name: 'vs held pace', colour: HELD, d: [0, ...times.map((t, i) => t - held.e50[i])] } : null,
-    slow ? { key: 'slow', name: 'vs slowdown', colour: SLOW, d: [0, ...times.map((t, i) => t - slow.e50[i])] } : null,
-  ].filter((s): s is { key: string; name: string; colour: string; d: number[] } => s !== null);
+    held ? { key: 'held', name: 'vs held pace', colour: HELD, ink: '#2346E6', d: [0, ...times.map((t, i) => t - held.e50[i])] } : null,
+    slow ? { key: 'slow', name: 'vs slowdown', colour: SLOW, ink: '#B4380D', d: [0, ...times.map((t, i) => t - slow.e50[i])] } : null,
+  ].filter((s): s is { key: string; name: string; colour: string; ink: string; d: number[] } => s !== null);
   const kms = [0, ...CHECKPOINTS];
   const values = series.flatMap((s) => s.d);
   const minV = Math.min(0, ...values);
@@ -888,7 +954,7 @@ function GapChart({ times, held, slow, units }: { times: number[]; held: Cell | 
   // End labels, kept at least 26 px apart.
   const ends = series.map((s) => ({ s, ly: y(s.d[9]) })).sort((a, b) => a.ly - b.ly);
   for (let k = 1; k < ends.length; k += 1) if (ends[k].ly - ends[k - 1].ly < 26) ends[k].ly = ends[k - 1].ly + 26;
-  const tickText = (v: number) => (v === 0 ? '0' : `${v < 0 ? '−' : '+'}${formatDuration(Math.abs(v))}`);
+  const tickText = (v: number) => (v === 0 ? '0' : formatDuration(Math.abs(v)));
   const xTicks = units === 'mi' ? [0, 5, 10, 15, 20, 25].map((mi) => ({ km: mi * KM_PER_MILE, label: String(mi) })) : (narrow ? [0, 10, 20, 30, 40] : [0, 5, 10, 15, 20, 25, 30, 35, 40]).map((km) => ({ km, label: String(km) }));
   const aria = `Your elapsed time against each group's median at every mat. ${series.map((s) => `${s.name === 'vs held pace' ? 'Held-pace median' : 'Sustained-slowdown median'}: ${CHECKPOINTS.map((km, i) => `${km >= 42.19 ? 'finish' : `${km} km`} ${ahead(s.d[i + 1])}`).join(', ')}.`).join(' ')}`;
   return (
@@ -901,7 +967,7 @@ function GapChart({ times, held, slow, units }: { times: number[]; held: Cell | 
           </g>
         ))}
         <line x1={m.l} x2={m.l + iw} y1={y(0)} y2={y(0)} stroke="var(--ink-2)" strokeWidth={1.2} />
-        <text x={2} y={m.t - 9} className="axis-label">you vs median · ahead ↑</text>
+        <text x={2} y={m.t - 9} className="axis-label">↑ you ahead of the median · behind ↓</text>
         {xTicks.map((t) => <text key={t.label} x={x(t.km)} y={H - 8} textAnchor="middle">{t.label}</text>)}
         {series.map((s) => (
           <g key={s.key}>
@@ -911,12 +977,12 @@ function GapChart({ times, held, slow, units }: { times: number[]; held: Cell | 
         ))}
         {ends.map(({ s, ly }) => (
           <g key={s.key}>
-            <text x={m.l + iw + 8} y={ly - 1} className="split-check-end" fill={s.colour}>{s.name}</text>
+            <text x={m.l + iw + 8} y={ly - 1} className="split-check-end" style={{ fill: s.ink }}>{s.name}</text>
             <text x={m.l + iw + 8} y={ly + 11} className="split-check-end-sub">{ahead(s.d[9])}</text>
           </g>
         ))}
       </svg>
-      <p className="split-check-axis-note">{units === 'mi' ? 'Miles' : 'Kilometres'} from the start. At zero you matched that group’s median elapsed time; both groups finished in your window.</p>
+      <p className="split-check-axis-note">{units === 'mi' ? 'Miles' : 'Kilometres'} from the start. At zero you matched that group’s median elapsed time; every finish compared here finished in your window.</p>
     </div>
   );
 }
@@ -976,7 +1042,8 @@ function ProfileChart({ reading, arch, colour, units }: { reading: SplitReading;
   for (let v = lo; v <= hi + 1e-9; v += tick) ticks.push(v);
   const line = (vals: number[]) => vals.map((v, i) => `${i ? 'L' : 'M'}${x(mids[i]).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
   const band = `${line(arch.profile_p25)} ${[...arch.profile_p75].reverse().map((v, j) => `L${x(mids[8 - j]).toFixed(1)} ${y(v).toFixed(1)}`).join(' ')} Z`;
-  const ends = [{ key: 'you', text: 'You', colour: 'var(--ink)', ly: y(you[8]) }, { key: 'type', text: 'Typical', colour, ly: y(arch.profile[8]) }].sort((a, b) => a.ly - b.ly);
+  const ink = TYPE_INK[ARCHETYPE_COLOURS.indexOf(colour as (typeof ARCHETYPE_COLOURS)[number])] ?? 'var(--ink-2)';
+  const ends = [{ key: 'you', text: 'You', colour: 'var(--ink)', ly: y(you[8]) }, { key: 'type', text: 'Typical', colour: ink, ly: y(arch.profile[8]) }].sort((a, b) => a.ly - b.ly);
   if (ends[1].ly - ends[0].ly < 14) ends[1].ly = ends[0].ly + 14;
   const xTicks = units === 'mi' ? [0, 5, 10, 15, 20, 25].map((mi) => ({ km: mi * KM_PER_MILE, label: String(mi) })) : (narrow ? [0, 10, 20, 30, 40] : [0, 5, 10, 15, 20, 25, 30, 35, 40]).map((km) => ({ km, label: String(km) }));
   return (
@@ -993,10 +1060,10 @@ function ProfileChart({ reading, arch, colour, units }: { reading: SplitReading;
         <text x={2} y={m.t - 9} className="axis-label">vs your average pace · quicker ↑</text>
         {xTicks.map((t) => <text key={t.label} x={x(t.km)} y={H - 7} textAnchor="middle">{t.label}</text>)}
         <path d={band} fill={colour} opacity={0.16} />
-        <path d={line(arch.profile)} fill="none" stroke={colour} strokeWidth={2} strokeDasharray="5 4" />
+        <path d={line(arch.profile)} fill="none" stroke={ink} strokeWidth={2} strokeDasharray="5 4" />
         <path d={line(you)} fill="none" stroke="var(--ink)" strokeWidth={2.4} strokeLinejoin="round" />
         {you.map((v, i) => <circle key={i} cx={x(mids[i])} cy={y(v)} r={3} fill="var(--ink)" stroke="var(--card)" strokeWidth={1.5} />)}
-        {ends.map((e) => <text key={e.key} x={m.l + iw + 8} y={e.ly + 4} className="split-check-end" fill={e.colour}>{e.text}</text>)}
+        {ends.map((e) => <text key={e.key} x={m.l + iw + 8} y={e.ly + 4} className="split-check-end" style={{ fill: e.colour }}>{e.text}</text>)}
       </svg>
       <p className="split-check-axis-note">Solid: your sections. Dashed: the median {arch.name}, with the middle half of that type’s finishes shaded.</p>
     </div>
