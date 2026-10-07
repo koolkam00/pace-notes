@@ -32,6 +32,12 @@ export interface Standard {
   nonbinaryNote: string;
   extra?: string[];
   sources: { label: string; url: string }[];
+  /** A capped pool's most recent observed cut-off (seconds under the standard), e.g. New York's non-NYRR pool. Past, not a forecast. */
+  poolCutoff?: { year: number; seconds: number };
+  /** Largest accepted course net drop, in metres (Sydney). */
+  maxNetDropM?: number;
+  /** Qualifiers who missed the cut-off but were drawn at random, by race year (Boston 2027). */
+  randomSelection?: { year: number; drawn: number };
 }
 
 const majorBands = (rows: [number, number, number, number][]): Band[] =>
@@ -69,6 +75,7 @@ export const STANDARDS: Standard[] = [
     comparison: 'at-or-under', windowStart: '2026-09-19', windowNote: 'Times from September 19, 2026 through 2027 registration week count for 2028.',
     applications: { note: 'Registration week is usually mid-September (2027 race: September 14–18, 2026). Accepted runners are those fastest relative to their standard.' },
     entry: 'Meeting the standard lets you apply. Acceptance depends on the cut-off (and, for 2027, a random selection of about 1,000 qualifiers who missed it).',
+    randomSelection: { year: 2027, drawn: 1000 },
     bands: majorBands([[18, 34, hm(2, 55), hm(3, 25)], [35, 39, hm(3, 0), hm(3, 30)], [40, 44, hm(3, 5), hm(3, 35)], [45, 49, hm(3, 15), hm(3, 45)],
       [50, 54, hm(3, 20), hm(3, 50)], [55, 59, hm(3, 30), hm(4, 0)], [60, 64, hm(3, 50), hm(4, 20)], [65, 69, hm(4, 5), hm(4, 35)],
       [70, 74, hm(4, 20), hm(4, 50)], [75, 79, hm(4, 35), hm(5, 5)], [80, 120, hm(4, 50), hm(5, 20)]]),
@@ -84,6 +91,7 @@ export const STANDARDS: Standard[] = [
     key: 'nyc', race: 'New York City Marathon', edition: '2027 (November 7, 2027)', ageRule: 'race-day', ageDate: '2027-11-07',
     comparison: 'at-or-under', windowStart: '2026-01-01', windowEnd: '2026-12-31', windowNote: 'Times run January 1 – December 31, 2026.',
     entry: 'NYRR races (and listed NYRR half marathons) give guaranteed entry. Other marathons enter a capped pool, fastest first: for 2026 that pool took runners at least 22:52 under their standard.',
+    poolCutoff: { year: 2026, seconds: 22 * 60 + 52 },
     bands: majorBands([[18, 34, hm(2, 53), hm(3, 13)], [35, 39, hm(2, 55), hm(3, 15)], [40, 44, hm(2, 58), hm(3, 26)], [45, 49, hm(3, 5), hm(3, 38)],
       [50, 54, hm(3, 14), hm(3, 51)], [55, 59, hm(3, 23), hm(4, 10)], [60, 64, hm(3, 34), hm(4, 27)], [65, 69, hm(3, 45), hm(4, 50)],
       [70, 74, hm(4, 10), hm(5, 30)], [75, 79, hm(4, 30), hm(6, 0)], [80, 120, hm(4, 55), hm(6, 35)]]),
@@ -132,6 +140,7 @@ export const STANDARDS: Standard[] = [
     comparison: 'at-or-under', windowStart: '2025-07-01', windowNote: 'Times run since July 1, 2025 on a World Athletics-certified course with a net drop of no more than 457 m.',
     applications: { closes: '2026-09-18', note: 'The 2027 application window ran September 14–18, 2026.' },
     entry: '1,200 places: 600 sub-elite (fastest overall) and 600 Good For Age (fastest within each age and gender group). Not guaranteed.',
+    maxNetDropM: 457,
     bands: majorBands([[18, 34, hm(2, 45), hm(3, 18)], [35, 39, hm(2, 47), hm(3, 20)], [40, 44, hm(2, 51), hm(3, 27)], [45, 49, hm(2, 55), hm(3, 35)],
       [50, 54, hm(3, 0), hm(3, 43)], [55, 59, hm(3, 6), hm(3, 51)], [60, 64, hm(3, 17), hm(4, 13)], [65, 69, hm(3, 41), hm(4, 24)],
       [70, 74, hm(4, 7), hm(4, 35)], [75, 79, hm(4, 43), hm(5, 30)], [80, 120, hm(5, 46), hm(6, 36)]]),

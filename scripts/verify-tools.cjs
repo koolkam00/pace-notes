@@ -161,6 +161,15 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   checks += 4;
 }
 
+// Structured qualifying values agree with the transcribed prose, so the annual review changes them together.
+{
+  const nyc = qualifying.STANDARDS.find((s) => s.key === 'nyc'), sydney = qualifying.STANDARDS.find((s) => s.key === 'sydney'), boston = qualifying.STANDARDS.find((s) => s.key === 'boston');
+  assert.ok(nyc.entry.includes(time.formatDuration(nyc.poolCutoff.seconds, false)) && nyc.entry.includes(String(nyc.poolCutoff.year)), 'NYC pool cut-off matches its entry text');
+  assert.ok(sydney.windowNote.includes(`${sydney.maxNetDropM} m`), 'Sydney drop limit matches its window note');
+  const cut = qualifying.BOSTON_CUTOFFS.find((c) => c.year === boston.randomSelection.year);
+  assert.ok(cut && cut.note.includes(boston.randomSelection.drawn.toLocaleString('en-US')), 'Boston random selection matches the cut-off history');
+  checks += 3;
+}
 // Deep links carry only times and a course slug.
 {
   const links = require('../lib/tools/links.ts');
