@@ -445,7 +445,7 @@ function ProjectionChart({ E, mat, prev, cell, Q, P, bandS, units }: { E: number
   const nowBelow = y(P) - m.t < 30 || (nowRight > medianLeft && Math.abs((y(P) - 11) - (y(fin.p50) - 9)) < 16);
   // End the constant-pace line before the finish labels when it would run through one of them.
   const shownLabels = finLabels.filter((l) => l.key === 'p50' || showRange);
-  const crossed = shownLabels.filter((l) => { const base = y(l.v) + l.dy; return y(P) > base - 13 && y(P) < base + 5; });
+  const crossed = shownLabels.filter((l) => { const base = y(l.v) + l.dy; return y(P) > base - 16 && y(P) < base + 6; });
   const evenEnd = crossed.length
     ? Math.max(x(mat), Math.min(...crossed.map((l) => x(MARATHON_KM) - 8 - l.text.length * 7)) - 6)
     : x(MARATHON_KM);
@@ -657,7 +657,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
   const passed = target !== null && E !== null && target <= E;
   const share = cell && target !== null && !passed ? shareUnder(target, cell.q, Q) : null;
   const shareValue = share ? (share.bound === 'below' ? '≤5%' : share.bound === 'above' ? '>95%' : null) : null;
-  const targetTag = passed ? 'already passed' : share ? `${shareValue ?? `about ${pctText(share.share)}`} under` : null;
+  const targetTag = share ? `${shareValue ?? `about ${pctText(share.share)}`} under` : null;
   const validation = index ? pickValidation(index.validation, mat, variant) : null;
   const showClock = start !== null && clockView === 'clock';
   // Windows are widened to whole minutes: the low end rounded down, the high end up.
@@ -813,7 +813,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
         </div>
 
         <EvidencePanel kind="data" title="Where these finishes ended" meta={`Finish times of the ${count(cell.n)} finishes in this group. Each bar holds 5% of them; the darker bars are the middle half, and the outer 5% on each side is not drawn. The bracket under the bars marks the 10th–90th percentile. The dashed line is the even-pace arithmetic from the time entered, for reference.`}>
-          <FinishChart q={cell.q} Q={Q} P={P} target={target} targetTag={targetTag} />
+          <FinishChart q={cell.q} Q={Q} P={P} target={passed ? null : target} targetTag={targetTag} />
           <dl className="projector-quantiles">
             {[['10th', i10], ['25th', i25], ['Median', i50], ['75th', i75], ['90th', i90]].map(([name, i]) => (
               <div key={name as string} className={name === 'Median' ? 'is-median' : undefined}>
@@ -1069,8 +1069,12 @@ function AccuracyPanel({ index, mat, units, trendUsed, variant }: { index: Proje
 
 /** Which editions are left out, read from the verified index. Rendered inside the method notes. */
 export function ProjectorExclusions({ indexSha }: { indexSha: string | null }) {
-  const { index } = useProjectorIndex(indexSha);
-  if (!index) return null;
+  const { index, error, retry } = useProjectorIndex(indexSha);
+  if (!index) {
+    return error && retry ? (
+      <p><strong>Editions left out.</strong> The list could not be loaded. <button type="button" className="projector-link-button" onClick={retry}>Try again</button></p>
+    ) : null;
+  }
   const offset = index.screens?.start_offset ?? [];
   const grid = index.screens?.grid ?? [];
   const dupes = index.duplicate_edition_screen ?? [];
