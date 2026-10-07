@@ -19,6 +19,8 @@
   text-align: left; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 .projector-link-button:hover { color: var(--ink); background: none; }
 .projector-link-button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.projector-pref .segmented { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-radius: 20px; }
+.projector-pref .segmented button { min-height: 36px; }
 .projector-paste { border-top: 1px solid var(--line); padding-top: .2rem; }
 .projector-paste summary { min-height: 44px; font-size: .875rem; }
 .projector-paste textarea { display: block; width: 100%; min-height: 6.5rem; margin: .2rem 0 .45rem; padding: .6rem .75rem; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
@@ -27,6 +29,7 @@
 
 /* ---------- Headline ---------- */
 .projector-headline { row-gap: 1.15rem; }
+.projector-head .evidence-badge { justify-self: start; margin-bottom: .2rem; color: #FF9A73; }
 .projector-head { grid-column: 1 / -1; display: grid; gap: .35rem; padding-bottom: 1rem; border-bottom: 1px solid var(--night-3); }
 .projector-kicker { font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
 .projector-band { font-family: var(--serif); font-variation-settings: 'opsz' 96, 'SOFT' 40; font-size: clamp(1.55rem, 3.6vw, 2.15rem); font-weight: 640; line-height: 1.08; letter-spacing: -.015em; color: var(--night-ink); }
@@ -39,6 +42,16 @@
 
 /* ---------- Charts ---------- */
 .projector-chart { margin: .2rem 0 .4rem; }
+.projector-chart .projector-halo { paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }
+.projector-figure { margin: 0 0 .4rem; }
+.projector-chart-title { font-size: .9375rem; font-weight: 700; letter-spacing: -.005em; color: var(--ink); }
+.projector-key { display: flex; flex-wrap: wrap; gap: .3rem 1rem; list-style: none; margin: .45rem 0 .5rem; padding: 0; font-size: .75rem; color: var(--ink-3); }
+.projector-key li { display: inline-flex; align-items: center; gap: .4rem; }
+.projector-key i { display: inline-block; width: 18px; flex-shrink: 0; }
+.projector-key i.is-band { height: 10px; border-radius: 3px; background: rgba(226, 65, 107, .22); }
+.projector-key i.is-median { height: 0; border-top: 2.5px solid #B3123E; }
+.projector-key i.is-own { height: 10px; width: 10px; border-radius: 50%; background: var(--ink); }
+.projector-key i.is-even { height: 0; border-top: 1.5px dashed var(--ink); }
 .projector-chart .projector-marker { font-size: 11px; font-weight: 600; }
 .projector-chart .projector-whisker line { stroke: var(--ink-2); stroke-width: 1.5; }
 .projector-chart .projector-median-label { fill: #B3123E; }
@@ -59,7 +72,13 @@
 .projector-clock-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .8rem 1rem; margin: .6rem 0 1rem; }
 .projector-clock-controls .projector-start { flex: 1 1 15rem; max-width: 22rem; }
 .projector-clock-controls .tool-choice { width: auto; margin-bottom: 1.4rem; }
-.projector-table td:nth-child(2) { color: var(--ink); font-weight: 600; }
+.projector-table td:nth-child(2) { color: var(--ink); font-weight: 650; }
+.projector-th-sub { font-weight: 500; }
+.projector-cell-label { display: none; }
+.projector-arith td:first-child { white-space: normal; line-height: 1.4; }
+.projector-acc th { white-space: normal; vertical-align: bottom; }
+.projector-acc td:first-child { white-space: normal; }
+.projector-arith td:last-child { vertical-align: top; }
 .projector-save { display: grid; gap: .5rem; margin-top: 1.2rem; padding: 1rem; border-radius: 14px; background: var(--paper-2); }
 .projector-save-title { font-weight: 650; font-size: .9375rem; }
 .projector-save-row { display: flex; flex-wrap: wrap; gap: .5rem; }
@@ -107,10 +126,27 @@
 .projector-card-update .tool-field-hint { grid-column: 1 / -1; }
 .projector-card-update button { min-height: 46px; }
 
+@media (max-width: 560px) {
+  /* The later-mat table reads as a list on phones: mat on the left, window and median on the right. */
+  .projector-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  .projector-table, .projector-table tbody { display: block; }
+  .projector-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: .8rem; padding: .6rem .2rem; border-bottom: 1px solid var(--paper-2); }
+  .projector-table tr.is-finish { border-top: 2px solid var(--ink); border-bottom: 0; }
+  .projector-table tr.is-finish td { border-top: 0; }
+  .projector-table td { display: block; padding: 0; border: 0; }
+  .projector-table td:first-child { grid-row: span 2; align-self: center; white-space: normal; }
+  .projector-table td:nth-child(2) { font-size: .9375rem; }
+  .projector-table td:nth-child(3) { font-size: .75rem; color: var(--ink-3); }
+  .projector-table .projector-cell-label { display: inline; font-family: var(--sans); }
+  .projector-table caption { display: block; }
+}
 @media (max-width: 480px) {
-  .projector-headline { padding: 1.15rem 1.1rem; }
+  .projector-headline { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 1.15rem 1.1rem; gap: 1rem .8rem; }
+  .projector-headline .tool-stat-value { font-size: 1.75rem; }
+  .projector-headline .tool-stat:nth-child(4) { grid-column: 1 / -1; }
+  .projector-acc th, .projector-acc td { padding-inline: .35rem; }
+  .projector-this { display: none; }
   .projector-mats button { min-height: 50px; }
-  .projector-table td, .projector-table th { padding-inline: .4rem; }
 }
 
 @media print {

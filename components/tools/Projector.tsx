@@ -8,9 +8,9 @@ import { useWidth } from '@/components/viz/useSize';
 import { loadInsight } from '@/lib/insights';
 import { loadShard, shareUnder, type ProjectorCells, type ProjectorIndex, type ProjectorShard, type ProjectorValidation } from '@/lib/tools/data';
 import { MARATHON_KM, MATS_KM, perKm, perUnit } from '@/lib/tools/pace';
-import { formatClock, formatDuration, formatHM, formatMargin, parseClock, parseDuration, parseTrackerText, type MatReading } from '@/lib/tools/time';
+import { formatClock, formatDuration, formatHM, parseClock, parseDuration, parseTrackerText, type MatReading } from '@/lib/tools/time';
 import { checkpointLabel, compact, count } from '@/lib/viz/format';
-import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
+import { KM_PER_MILE, distanceLabel, type UnitSystem } from '@/lib/units';
 
 /* ------------------------------------------------------------------ */
 /* Constants and pure helpers                                          */
@@ -62,6 +62,9 @@ const pctText = (share: number) => (share > 0 && share < 0.01 ? '<1%' : `${Math.
 const paceText = (secondsPerKm: number, units: UnitSystem) => `${formatDuration(perUnit(secondsPerKm, units))}/${units}`;
 const hm = (seconds: number) => formatHM(seconds);
 const targetText = (seconds: number) => (seconds % 60 === 0 ? formatHM(seconds) : formatDuration(seconds, true));
+const ceilMinute = (seconds: number) => Math.ceil(seconds / 60) * 60;
+/** h:mm with the seconds dropped (not rounded), for the low end of a window. */
+const hmFloor = (seconds: number) => { const m = Math.floor(seconds / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
 
 /** "15.5 mi (25K)" in miles, "25 km" in kilometres. Mats are distances, never mile splits. */
 function matName(km: number, units: UnitSystem): string {
@@ -153,11 +156,12 @@ function writeCards(cards: RunnerCard[]) {
 /* Inputs                                                              */
 /* ------------------------------------------------------------------ */
 
-function ElapsedField({ label, value, onChange, placeholder, hint, large = false, inputRef, error }: {
+function ElapsedField({ label, value, onChange, placeholder, hint, large = false, inputRef, error, id: given }: {
   label: ReactNode; value: number | null; onChange: (seconds: number | null) => void; placeholder?: string; hint?: ReactNode;
-  large?: boolean; inputRef?: RefObject<HTMLInputElement>; error?: string | null;
+  large?: boolean; inputRef?: RefObject<HTMLInputElement>; error?: string | null; id?: string;
 }) {
-  const id = useId();
+  const auto = useId();
+  const id = given ?? auto;
   const [text, setText] = useState(value === null ? '' : formatDuration(value));
   const [touched, setTouched] = useState(false);
   const last = useRef(value);
@@ -280,7 +284,7 @@ function FinishChart({ q, Q, P, target, share }: { q: number[]; Q: number[]; P: 
   const H = base + 34;
   const densities = q.slice(0, -1).map((v, i) => 0.05 / Math.max(1, q[i + 1] - v));
   const maxD = Math.max(...densities);
-  const step = niceStep(hi - lo, narrow ? 4 : 8, [300, 600, 900, 1800, 3600, 7200]);
+  const step = niceStep(hi - lo, narrow ? 4 : 8, [60, 120, 300, 600, 900, 1800, 3600, 7200]);
   const ticks: number[] = [];
   for (let t = Math.ceil(lo / step) * step; t <= hi; t += step) ticks.push(t);
   const label = `Finish times of these finishes: 10th percentile ${formatDuration(q[i10], true)}, median ${formatDuration(q[i50], true)}, 90th percentile ${formatDuration(q[i90], true)}. The even-pace projection is ${formatDuration(P, true)}${target !== null && share ? `; about ${pctText(share.share)} finished under ${targetText(target)}` : ''}.`;
@@ -304,13 +308,18 @@ function FinishChart({ q, Q, P, target, share }: { q: number[]; Q: number[]; P: 
           <line x1={x(q[i10])} x2={x(q[i10])} y1={base + 2} y2={base + 10} />
           <line x1={x(q[i90])} x2={x(q[i90])} y1={base + 2} y2={base + 10} />
         </g>
+        {markers.map((mk) => (
+          <line key={mk.key} x1={mk.x} x2={mk.x} y1={12 + mk.row * 16 + 4} y2={base} stroke={mk.tone === 'target' ? ACCENT_INK : 'var(--ink)'}
+            strokeWidth={mk.tone === 'ink' ? 2 : 1.5} strokeDasharray={mk.tone === 'even' ? '4 3' : undefined} />
+        ))}
         {markers.map((mk) => {
-          const y = 12 + mk.row * 16;
-          const colour = mk.tone === 'target' ? ACCENT_INK : 'var(--ink)';
+          const w = mk.label.length * 6.7 + 6;
+          const left = mk.anchor === 'start' ? mk.x - 3 : mk.anchor === 'end' ? mk.x - w + 3 : mk.x - w / 2;
           return (
             <g key={mk.key}>
-              <line x1={mk.x} x2={mk.x} y1={y + 4} y2={base} stroke={colour} strokeWidth={mk.tone === 'ink' ? 2 : 1.5} strokeDasharray={mk.tone === 'even' ? '4 3' : undefined} />
-              <text x={mk.x} y={y} textAnchor={mk.anchor} className="projector-marker" style={{ fill: colour }}>{mk.label}</text>
+              <rect x={left} y={12 + mk.row * 16 - 11} width={w} height={15} fill="var(--card)" />
+              <text x={mk.x} y={12 + mk.row * 16} textAnchor={mk.anchor} className="projector-marker"
+                style={{ fill: mk.tone === 'target' ? ACCENT_INK : 'var(--ink)' }}>{mk.label}</text>
             </g>
           );
         })}
@@ -319,72 +328,97 @@ function FinishChart({ q, Q, P, target, share }: { q: number[]; Q: number[]; P: 
   );
 }
 
-function FanChart({ E, mat, prev, cell, Q, P, units }: { E: number; mat: number; prev: number | null; cell: CellView; Q: number[]; P: number; units: UnitSystem }) {
+/**
+ * What a constant-pace tracker would have shown for these finishes at each later mat: the percentiles of
+ * elapsed × 42.195 ÷ distance (a fixed scaling, so percentiles carry over exactly), ending at their actual finish times.
+ * The visitor's own points and the constant-pace line are drawn as a separate, arithmetic series.
+ */
+function ProjectionChart({ E, mat, prev, cell, Q, P, bandS, units }: { E: number; mat: number; prev: number | null; cell: CellView; Q: number[]; P: number; bandS: number; units: UnitSystem }) {
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 640);
   const narrow = width < 480;
   const i10 = qIndex(Q, 0.1); const i50 = qIndex(Q, 0.5); const i90 = qIndex(Q, 0.9);
-  const even = (km: number) => (E * km) / mat;
   const points = [
-    { km: mat, p10: 0, p50: 0, p90: 0 },
-    ...cell.later.map((v, j) => { const km = mat + 5 * (j + 1); return { km, p10: v[0] - even(km), p50: v[1] - even(km), p90: v[2] - even(km) }; }),
-    { km: MARATHON_KM, p10: cell.q[i10] - P, p50: cell.q[i50] - P, p90: cell.q[i90] - P },
+    { km: mat, p10: cell.b, p50: cell.b + bandS / 2, p90: cell.b + bandS },
+    ...cell.later.map((v, j) => { const km = mat + 5 * (j + 1); const f = MARATHON_KM / km; return { km, p10: v[0] * f, p50: v[1] * f, p90: v[2] * f }; }),
+    { km: MARATHON_KM, p10: cell.q[i10], p50: cell.q[i50], p90: cell.q[i90] },
   ];
-  const past = [{ km: 0, d: 0 }, ...(prev !== null && mat > 5 ? [{ km: mat - 5, d: prev - even(mat - 5) }] : []), { km: mat, d: 0 }];
-  const minD = Math.min(0, ...points.map((p) => p.p10), ...past.map((p) => p.d));
-  const maxD = Math.max(60, ...points.map((p) => p.p90));
-  const step = niceStep((maxD - minD) / 60, narrow ? 4 : 6, [1, 2, 5, 10, 15, 20, 30, 60]) * 60;
-  const lo = Math.floor(minD / step) * step;
-  const hi = Math.ceil(maxD / step) * step;
+  const own = [...(prev !== null && mat > 5 ? [{ km: mat - 5, v: (prev * MARATHON_KM) / (mat - 5) }] : []), { km: mat, v: P }];
+  const minV = Math.min(...points.map((p) => p.p10), ...own.map((p) => p.v));
+  const maxV = Math.max(...points.map((p) => p.p90), ...own.map((p) => p.v));
+  const pad = Math.max(120, (maxV - minV) * 0.08);
+  const [lo, hi] = [minV - pad, maxV + pad];
+  const step = niceStep(hi - lo, narrow ? 4 : 6, [60, 120, 300, 600, 900, 1800, 3600]);
   const H = narrow ? 250 : 290;
-  const m = { l: 40, r: 12, t: 30, b: 36 };
-  const x = (km: number) => m.l + (km / MARATHON_KM) * (width - m.l - m.r);
-  const y = (d: number) => m.t + ((d - lo) / (hi - lo)) * (H - m.t - m.b);
+  const m = { l: 46, r: 12, t: 26, b: 40 };
+  const x0 = Math.max(0, own[0].km - 2.5);
+  const x = (km: number) => m.l + ((km - x0) / (MARATHON_KM - x0)) * (width - m.l - m.r);
+  const y = (v: number) => m.t + (1 - (v - lo) / (hi - lo)) * (H - m.t - m.b);
   const ticks: number[] = [];
-  for (let v = lo; v <= hi + 1e-6; v += step) ticks.push(v);
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) ticks.push(v);
   const band = `M${points.map((p) => `${x(p.km)},${y(p.p10)}`).join('L')}L${[...points].reverse().map((p) => `${x(p.km)},${y(p.p90)}`).join('L')}Z`;
-  const median = `M${points.map((p) => `${x(p.km)},${y(p.p50)}`).join('L')}`;
-  const runner = `M${past.map((p) => `${x(p.km)},${y(p.d)}`).join('L')}`;
+  // The band starts at this mat's exact pace band; the median is only known from the next mat on.
+  const median = points.length > 2 ? `M${points.slice(1).map((p) => `${x(p.km)},${y(p.p50)}`).join('L')}` : '';
   const fin = points[points.length - 1];
-  const xLabels = MATS_KM.filter((km) => !narrow || km % 10 === 0);
-  const tickText = (v: number) => (Math.abs(v) < 1 ? '0' : `${v > 0 ? '+' : '−'}${Math.abs(v) / 60}`);
+  let lastLabel = -Infinity;
+  const xLabels = MATS_KM.filter((km) => km >= x0).filter((km) => {
+    if (x(MARATHON_KM) - x(km) < 44 || x(km) - lastLabel < 34) return false;
+    lastLabel = x(km);
+    return true;
+  });
+  const fmt = narrow ? hm : (s: number) => formatDuration(s, true);
   const finLabels = [
-    { key: 'p10', d: fin.p10, text: `10th ${formatMargin(fin.p10)}` },
-    { key: 'p50', d: fin.p50, text: `Median ${formatMargin(fin.p50)}` },
-    { key: 'p90', d: fin.p90, text: `90th ${formatMargin(fin.p90)}` },
+    { key: 'p90', v: fin.p90, text: `90th ${fmt(fin.p90)}`, dy: -7 },
+    { key: 'p50', v: fin.p50, text: `Median ${fmt(fin.p50)}`, dy: -9 },
+    { key: 'p10', v: fin.p10, text: `10th ${fmt(fin.p10)}`, dy: 15 },
   ];
-  const showRange = y(fin.p50) - y(fin.p10) > 14 && y(fin.p90) - y(fin.p50) > 14;
-  const label = `Minutes behind a constant pace from ${matName(mat, units)} to the finish for these finishes. By the finish the median was ${formatMargin(fin.p50)} and the 10th to 90th percentile range ran from ${formatMargin(fin.p10)} to ${formatMargin(fin.p90)} relative to the constant-pace projection of ${formatDuration(P, true)}.`;
+  const showRange = y(fin.p10) - y(fin.p50) > 26 && y(fin.p50) - y(fin.p90) > 16;
+  // Keep the "Now" label clear of the top edge and of the median label at the finish.
+  const nowText = `Now ${formatDuration(P, true)}`.length * 7;
+  const nowRight = x(mat) > width * 0.72 ? x(mat) : x(mat) + nowText / 2;
+  const medianLeft = x(MARATHON_KM) - 8 - (`Median ${fmt(fin.p50)}`.length * 7);
+  const nowBelow = y(P) - m.t < 30 || (nowRight > medianLeft && Math.abs((y(P) - 11) - (y(fin.p50) - 9)) < 16);
+  const label = `For these finishes, the even-pace finish a constant-pace tracker would have shown went from ${hm(cell.b)}–${hm(cell.b + bandS)} at ${matName(mat, units)} to a median of ${formatDuration(cell.q[i50], true)} at the finish, with the 10th to 90th percentile from ${formatDuration(fin.p10, true)} to ${formatDuration(fin.p90, true)}. Held at a constant pace, the times entered give ${formatDuration(P, true)}.`;
   return (
-    <div ref={ref} className="viz projector-chart">
-      <svg width={width} height={H} role="img" aria-label={label}>
-        <text x={m.l} y={12} className="axis-label">min behind (+) or ahead (−) of constant pace</text>
-        {ticks.map((v) => (
-          <g key={v} className="grid">
-            <line x1={m.l} x2={width - m.r} y1={y(v)} y2={y(v)} />
-            <text x={m.l - 8} y={y(v) + 4} textAnchor="end">{tickText(v)}</text>
-          </g>
-        ))}
-        {xLabels.map((km) => (
-          <text key={km} x={x(km)} y={H - m.b + 18} textAnchor="middle">{units === 'mi' ? (km / KM_PER_MILE).toFixed(1) : km}</text>
-        ))}
-        <text x={x(MARATHON_KM)} y={H - m.b + 18} textAnchor="end">Fin</text>
-        <text x={m.l} y={H - 4} className="axis-label">{units === 'mi' ? 'miles' : 'km'}</text>
-        <path d={band} fill={ACCENT} fillOpacity={0.16} />
-        <line x1={x(mat)} x2={x(MARATHON_KM)} y1={y(0)} y2={y(0)} stroke="var(--ink-2)" strokeWidth={1.5} strokeDasharray="5 4" />
-        <path d={runner} fill="none" stroke="var(--ink)" strokeWidth={2} />
-        <path d={median} fill="none" stroke={ACCENT_INK} strokeWidth={2.5} strokeLinejoin="round" />
-        {points.slice(1).map((p) => <circle key={p.km} cx={x(p.km)} cy={y(p.p50)} r={3} fill={ACCENT_INK} />)}
-        {past.slice(1, -1).map((p) => <circle key={p.km} cx={x(p.km)} cy={y(p.d)} r={3.5} fill="var(--card)" stroke="var(--ink)" strokeWidth={2} />)}
-        <circle cx={x(mat)} cy={y(0)} r={5.5} fill="var(--ink)" stroke="var(--card)" strokeWidth={2} />
-        <text x={x(mat)} y={y(0) - 10} textAnchor={x(mat) > width * 0.7 ? 'end' : 'middle'} className="annotation">Now</text>
-        <text x={x(MARATHON_KM) - 4} y={y(0) - 7} textAnchor="end" className="annotation-sub">constant pace</text>
-        {finLabels.filter((l) => l.key === 'p50' || showRange).map((l) => (
-          <text key={l.key} x={x(MARATHON_KM) + 2} y={y(l.d) + (l.key === 'p10' ? -6 : l.key === 'p90' ? 14 : 4)} textAnchor="end"
-            className={l.key === 'p50' ? 'annotation projector-median-label' : 'annotation-sub'} dx={-8}>{l.text}</text>
-        ))}
-      </svg>
-    </div>
+    <figure className="projector-figure">
+      <figcaption className="projector-chart-title">What a constant-pace tracker would have shown for these finishes</figcaption>
+      <ul className="projector-key" aria-hidden="true">
+        <li><i className="is-band" />10th–90th percentile</li>
+        <li><i className="is-median" />Median</li>
+        <li><i className="is-own" />Times entered</li>
+        <li><i className="is-even" />Constant pace from now</li>
+      </ul>
+      <div ref={ref} className="viz projector-chart">
+        <svg width={width} height={H} role="img" aria-label={label}>
+          {ticks.map((v) => (
+            <g key={v} className="grid">
+              <line x1={m.l} x2={width - m.r} y1={y(v)} y2={y(v)} />
+              <text x={m.l - 8} y={y(v) + 4} textAnchor="end">{hm(v)}</text>
+            </g>
+          ))}
+          {xLabels.map((km) => (
+            <g key={km}>
+              <line x1={x(km)} x2={x(km)} y1={H - m.b} y2={H - m.b + 4} stroke="var(--line-2)" />
+              <text x={x(km)} y={H - m.b + 17} textAnchor="middle">{units === 'mi' ? (km / KM_PER_MILE).toFixed(1) : km}</text>
+            </g>
+          ))}
+          <text x={x(MARATHON_KM)} y={H - m.b + 17} textAnchor="end">Finish</text>
+          <text x={m.l - 40} y={12} className="axis-label">Finish time at the pace so far</text>
+          <text x={m.l} y={H - 6} className="axis-label">{units === 'mi' ? 'miles' : 'km'}</text>
+          <path d={band} fill={ACCENT} fillOpacity={0.17} />
+          <line x1={x(mat)} x2={x(MARATHON_KM)} y1={y(P)} y2={y(P)} stroke="var(--ink)" strokeWidth={1.5} strokeDasharray="5 4" />
+          {median ? <path d={median} fill="none" stroke={ACCENT_INK} strokeWidth={2.5} strokeLinejoin="round" /> : null}
+          {points.slice(1).map((p) => <circle key={p.km} cx={x(p.km)} cy={y(p.p50)} r={3.2} fill={ACCENT_INK} />)}
+          {own.length > 1 ? <line x1={x(own[0].km)} x2={x(own[1].km)} y1={y(own[0].v)} y2={y(own[1].v)} stroke="var(--ink)" strokeWidth={2} /> : null}
+          {own.map((p, i) => <circle key={p.km} cx={x(p.km)} cy={y(p.v)} r={i === own.length - 1 ? 5.5 : 4} fill={i === own.length - 1 ? 'var(--ink)' : 'var(--card)'} stroke={i === own.length - 1 ? 'var(--card)' : 'var(--ink)'} strokeWidth={2} />)}
+          <text x={x(mat) + (x(mat) < m.l + 60 ? -6 : 0)} y={y(P) + (nowBelow ? 22 : -11)} textAnchor={x(mat) > width * 0.72 ? 'end' : x(mat) < m.l + 60 ? 'start' : 'middle'} className="annotation projector-halo">Now {formatDuration(P, true)}</text>
+          {finLabels.filter((l) => l.key === 'p50' || showRange).map((l) => (
+            <text key={l.key} x={x(MARATHON_KM) - 8} y={y(l.v) + l.dy} textAnchor="end"
+              className={`projector-halo ${l.key === 'p50' ? 'annotation projector-median-label' : 'annotation-sub'}`}>{l.text}</text>
+          ))}
+        </svg>
+      </div>
+    </figure>
   );
 }
 
@@ -415,7 +449,7 @@ function RunnerCardView({ card, index, units, onUpdate, onRemove, onOpen }: {
     { km: MARATHON_KM, lo: cell.q[i10], mid: cell.q[i50], hi: cell.q[i90] },
   ] : [];
   const nextKm = card.mat + 5;
-  const window = (lo: number, hi: number) => (card.start !== null ? clockRange(card.start + lo, card.start + hi) : `${hm(lo)}–${hm(hi)}`);
+  const windowText = (lo: number, hi: number) => (card.start !== null ? clockRange(card.start + lo, ceilMinute(card.start + hi)) : `${hmFloor(lo)}–${hmFloor(ceilMinute(hi))}`);
   return (
     <li className="projector-card">
       <div className="projector-card-head">
@@ -433,7 +467,7 @@ function RunnerCardView({ card, index, units, onUpdate, onRemove, onOpen }: {
             {rows.map((r) => (
               <tr key={r.km} className={r.km > 42 ? 'is-finish' : undefined}>
                 <th scope="row">{r.km > 42 ? 'Finish' : checkpointLabel(r.km, units)}</th>
-                <td>{window(r.lo, r.hi)}</td>
+                <td>{windowText(r.lo, r.hi)}</td>
                 <td>{card.start !== null ? formatClock(card.start + r.mid) : formatDuration(r.mid, true)}</td>
               </tr>
             ))}
@@ -594,9 +628,9 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
     results = (
       <div className="projector-unavailable" role="status">
         <p className="eyebrow">No published group</p>
-        <h2>{genderOnCourse ? `Gender groups exist for All courses only.`
-          : outside ? `No ${scopeName === 'All courses' ? '' : `${scopeName} `}group on ${hm(band)}–${hm(band + bandS)} even pace at ${matName(mat, units)} has 100 finishes.`
-            : `Fewer than 100 ${scopeName} finishes match this pace${variant === 'all' ? '' : ' and group'} at ${matName(mat, units)}.`}</h2>
+        <h2>{genderOnCourse ? 'Recorded-gender groups exist for All courses only.'
+          : outside ? `${hm(band)}–${hm(band + bandS)} even pace at ${matName(mat, units)} is outside the published range${scopeName === 'All courses' ? '' : ` for ${scopeName}`}.`
+            : `Fewer than 100 ${scopeName === 'All courses' ? '' : `${scopeName} `}finishes match this pace${variant === 'all' ? '' : ' and group'} at ${matName(mat, units)}.`}</h2>
         <p>{outside && range ? `Published groups here run from ${hm(range[0])} to ${hm(range[1] + bandS)} even pace. ` : ''}Pace Notes never shows a group with fewer than 100 finishes. {options.length ? 'You can widen the comparison:' : 'Check the time and the mat.'}</p>
         {options.length ? <div className="tool-share">{options.map((o) => <button key={o.label} type="button" className="button-secondary" onClick={() => applyFallback(o.patch, o.note)}>{o.label}</button>)}</div> : null}
       </div>
@@ -604,9 +638,11 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
   } else {
     const i10 = qIndex(Q, 0.1); const i25 = qIndex(Q, 0.25); const i50 = qIndex(Q, 0.5); const i75 = qIndex(Q, 0.75); const i90 = qIndex(Q, 0.9);
     const remainingKm = MARATHON_KM - mat;
+    const remainingText = units === 'mi' ? `${(remainingKm / KM_PER_MILE).toFixed(1)} mi` : `${remainingKm.toFixed(1)} km`;
     const showClock = start !== null && clockView === 'clock';
     const at = (elapsed: number) => (showClock ? formatClock(start! + elapsed) : formatDuration(elapsed, true));
-    const span = (a: number, b: number) => (showClock ? clockRange(start! + a, start! + b) : `${formatDuration(a, true)}–${formatDuration(b, true)}`);
+    // Windows are widened to whole minutes: the low end rounded down, the high end up.
+    const span = (a: number, b: number) => (showClock ? clockRange(start! + a, ceilMinute(start! + b)) : `${hmFloor(a)}–${hmFloor(ceilMinute(b))}`);
     const needed = target !== null && target > E ? (target - E) / remainingKm : null;
     const shareText = share ? (share.bound === 'below' ? '5% or fewer' : share.bound === 'above' ? 'more than 95%' : `about ${pctText(share.share)}`) : null;
     const laterRows = [
@@ -619,25 +655,26 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
       <>
         <div className="tool-headline projector-headline" aria-live="polite">
           <div className="projector-head">
+            <span className="evidence-badge evidence-data">Pace Notes data</span>
             <p className="projector-kicker">{scopeName} · at {matName(mat, units)}</p>
             <p className="projector-band">On {hm(cell.b)}–{hm(cell.b + bandS)} even pace</p>
             <p className="projector-group">{count(cell.n)} finishes from {cell.ed} edition{cell.ed === 1 ? '' : 's'}: {VARIANT_GROUP[variant]}.{variantNote ? ` ${variantNote}` : ''}</p>
             {activeNotice ? <p className="projector-notice">{activeNotice}</p> : null}
           </div>
           <Stat label="Median finish" value={formatDuration(cell.q[i50], true)}
-            sub={start !== null ? `about ${formatClock(start + cell.q[i50])} on the clock` : `${formatMargin(cell.q[i50] - P)} on the even-pace ${formatDuration(P, true)}`} />
-          <Stat label="10th–90th percentile" value={`${hm(cell.q[i10])}–${hm(cell.q[i90])}`}
-            sub={start !== null ? clockRange(start + cell.q[i10], start + cell.q[i90]) : `Middle half ${hm(cell.q[i25])}–${hm(cell.q[i75])}`} />
+            sub={start !== null ? `about ${formatClock(start + cell.q[i50])} on the clock` : `middle half ${hmFloor(cell.q[i25])}–${hmFloor(ceilMinute(cell.q[i75]))}`} />
+          <Stat label="10th–90th" value={`${hmFloor(cell.q[i10])}–${hmFloor(ceilMinute(cell.q[i90]))}`}
+            sub={start !== null ? clockRange(start + cell.q[i10], ceilMinute(start + cell.q[i90])) : '80% of these finishes'} />
           {target !== null && share ? (
             <Stat label={`Under ${targetText(target)}`} value={share.bound === 'below' ? '≤5%' : share.bound === 'above' ? '>95%' : pctText(share.share)}
               sub="observed share of these complete finishes, not a probability" />
           ) : (
-            <Stat label="Even-pace finish" value={formatDuration(P, true)} sub="arithmetic: what a constant-pace tracker shows" />
+            <Stat label="Sustained slowdown" value={pctText(cell.sd[0] + cell.sd[1])} sub="observed share of these complete finishes" />
           )}
           {validation ? <AccuracyLine v={validation} mat={mat} units={units} trendUsed={trendUsed} variant={variant} scope={scope} /> : null}
         </div>
 
-        <EvidencePanel kind="data" title="Where these finishes ended" meta={`Finish times of the ${count(cell.n)} finishes in this group. Each bar holds 5% of them; the darker bars are the middle half. The outer 5% on each side is not drawn.`}>
+        <EvidencePanel kind="data" title="Where these finishes ended" meta={`Finish times of the ${count(cell.n)} finishes in this group. Each bar holds 5% of them; the darker bars are the middle half, and the outer 5% on each side is not drawn. The dashed line is the even-pace arithmetic from the time entered, for reference.`}>
           <FinishChart q={cell.q} Q={Q} P={P} target={target} share={share} />
           <dl className="projector-quantiles">
             {[['10th', i10], ['25th', i25], ['Median', i50], ['75th', i75], ['90th', i90]].map(([name, i]) => (
@@ -654,8 +691,8 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
         </EvidencePanel>
 
         <EvidencePanel kind="data" title={start !== null && clockView === 'clock' ? 'When to look up at the next mats' : 'The rest of the race, mat by mat'}
-          meta="Observed elapsed times at each later mat for the same finishes, beside the constant-pace projection most trackers use. Nothing is interpolated between mats: pick the mat nearest your spot.">
-          <FanChart E={E} mat={mat} prev={prev} cell={cell} Q={Q} P={P} units={units} />
+          meta="When the same finishes reached each later mat. Nothing is interpolated between mats: spectators should pick the mat nearest their spot.">
+          <ProjectionChart E={E} mat={mat} prev={prev} cell={cell} Q={Q} P={P} bandS={bandS} units={units} />
           <div className="projector-clock-controls no-print">
             <div className="tool-field projector-start">
               <label htmlFor="projector-start">Start-line crossing time <span className="projector-optional">optional</span></label>
@@ -673,28 +710,21 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
               <thead>
                 <tr>
                   <th scope="col">Mat</th>
-                  <th scope="col">10th–90th</th>
+                  <th scope="col">{showClock ? 'Clock window' : 'Window'}<span className="projector-th-sub"> 10th–90th</span></th>
                   <th scope="col">Median</th>
-                  <th scope="col">Constant pace</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="is-mat">
-                  <td>{matName(mat, units)} · now</td>
-                  <td colSpan={2}>{at(E)}</td>
-                  <td>{at(E)}</td>
-                </tr>
                 {laterRows.map((r) => (
                   <tr key={r.km} className={r.km > 42 ? 'is-finish' : undefined}>
                     <td>{matName(r.km, units)}</td>
                     <td>{span(r.lo, r.hi)}</td>
-                    <td>{at(r.mid)}</td>
-                    <td>{at((E * r.km) / mat)}</td>
+                    <td><span className="projector-cell-label">median </span>{at(r.mid)}</td>
                   </tr>
                 ))}
               </tbody>
               <caption>
-                10th–90th and median: observed {showClock ? 'arrivals, converted to clock time by adding the start time you entered' : 'elapsed times'} of these finishes. Constant pace: arithmetic from your time at {matName(mat, units)}. These are past finishes, not live tracking; runners who stopped are not included.
+                {showClock ? 'Observed elapsed times of these finishes plus the start time you entered.' : 'Observed elapsed times of these finishes.'} Windows run from the 10th to the 90th percentile, widened to whole minutes, so about one in five arrived outside them. These are past finishes, not live tracking; runners who stopped are not included.
               </caption>
             </table>
           </div>
@@ -712,31 +742,35 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
         </EvidencePanel>
 
         <EvidencePanel kind="data" title={`After ${matName(mat, units)}: pace and sustained slowdowns`}
-          meta={`What these ${count(cell.n)} finishes did over the remaining ${units === 'mi' ? `${(remainingKm / KM_PER_MILE).toFixed(1)} mi` : `${remainingKm.toFixed(1)} km`}.`}>
+          meta={`What these ${count(cell.n)} finishes did over the remaining ${remainingText}.`}>
           <div className="projector-after">
             <Stat label="Median pace from here" value={paceText(cell.rp, units)}
-              sub={`${Math.abs((cell.rp / (E / mat) - 1) * 100).toFixed(1)}% ${cell.rp >= E / mat ? 'slower' : 'quicker'} than the ${paceText(E / mat, units)} average to ${matName(mat, units)}`} />
+              sub={`over the last ${remainingText}. Their average pace to ${matName(mat, units)} was ${formatDuration(perUnit(cell.b / MARATHON_KM, units))}–${formatDuration(perUnit((cell.b + bandS) / MARATHON_KM, units))}/${units} (the band).`} />
             <Stat label="Sustained slowdown" value={pctText(cell.sd[0] + cell.sd[1])} sub={mat >= 25 ? `${pctText(cell.sd[0])} already recorded by this mat, ${pctText(cell.sd[1])} after it` : 'all of them after this mat'} />
           </div>
           <SlowdownBar sd={cell.sd} mat={mat} units={units} />
-          <p className="tool-note">A sustained slowdown here is a 5 km section after 20 km run at least 25% slower than the runner’s own 5–20 km pace, with slowed sections totalling at least 5 km (<a href="https://doi.org/10.1371/journal.pone.0251513">published slowdown method, 2021</a>). These are observed shares among complete finishes, not a forecast. <Link href="/slowdown">More on sustained slowdowns</Link>.</p>
+          <p className="tool-note">A sustained slowdown here is a 5 km{units === 'mi' ? ` (${distanceLabel(5, 'mi')})` : ''} section after 20 km{units === 'mi' ? ` (${distanceLabel(20, 'mi')})` : ''} run at least 25% slower than the runner’s own 5–20 km pace, with slowed sections totalling at least 5 km (<a href="https://doi.org/10.1371/journal.pone.0251513">published slowdown method, 2021</a>). These are observed shares among complete finishes, not a forecast. <Link href="/slowdown">More on sustained slowdowns</Link>.</p>
         </EvidencePanel>
 
-        <EvidencePanel kind="arithmetic" title="The constant-pace arithmetic" meta="What a tracker that assumes an unchanging pace would say. Exact arithmetic from the times you entered.">
+        <EvidencePanel kind="arithmetic" title="If the pace so far were held" meta="What a tracker that assumes an unchanging pace would show. Exact arithmetic from the times entered, for comparison with the observed windows above.">
           <div className="tool-table-wrap">
-            <table className="tool-table">
+            <table className="tool-table projector-arith">
               <tbody>
                 <tr><td>Average pace to {matName(mat, units)}</td><td>{paceText(E / mat, units)}</td></tr>
-                <tr className="is-key"><td>Even-pace finish</td><td>{formatDuration(P, true)}</td></tr>
                 {trend ? (
-                  <tr><td>Last 5 km ({sectionText(mat, units)})</td><td>{paceText(trend.lastPace, units)} · {trend.r >= 0 ? '+' : '−'}{Math.abs(trend.r * 100).toFixed(1)}%</td></tr>
+                  <tr><td>Last 5 km ({sectionText(mat, units)}), against the average so far</td><td>{paceText(trend.lastPace, units)} · {trend.r >= 0 ? '+' : '−'}{Math.abs(trend.r * 100).toFixed(1)}%</td></tr>
                 ) : null}
+                {cell.later.map((_, j) => {
+                  const km = mat + 5 * (j + 1);
+                  return <tr key={km} className="is-mat"><td>At {matName(km, units)}</td><td>{at((E * km) / mat)}</td></tr>;
+                })}
+                <tr className="is-finish"><td>Even-pace finish</td><td>{at(P)}</td></tr>
                 {target !== null ? (
-                  <tr><td>Needed for {targetText(target)}</td><td>{needed !== null ? `${paceText(needed, units)} for ${units === 'mi' ? `${(remainingKm / KM_PER_MILE).toFixed(2)} mi` : `${remainingKm.toFixed(3)} km`}` : 'already past'}</td></tr>
+                  <tr><td>Needed for {targetText(target)} over the last {units === 'mi' ? `${(remainingKm / KM_PER_MILE).toFixed(2)} mi` : `${remainingKm.toFixed(3)} km`}</td><td>{needed !== null ? paceText(needed, units) : 'already past'}</td></tr>
                 ) : null}
               </tbody>
               <caption>
-                Even-pace finish = time × 42.195 ÷ {mat}. {trend ? `The last 5 km is compared with the average pace so far; within ±${(index.trend_threshold * 100).toFixed(0)}% counts as a similar trend. ` : ''}{needed !== null ? 'The needed pace is the time left to the target divided by the distance left.' : ''}
+                Even-pace times are elapsed time × distance ÷ {mat} km{showClock ? ', plus the start time entered' : ''}. {trend ? `A last 5 km within ±${(index.trend_threshold * 100).toFixed(0)}% of the average so far counts as a similar trend. ` : ''}{needed !== null ? 'The needed pace is the time left to the target divided by the distance left.' : ''}
               </caption>
             </table>
           </div>
@@ -751,7 +785,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
   return (
     <div className="projector" ref={workspaceRef}>
       {cards.length && index ? (
-        <EvidencePanel kind="data" title="Runners you’re following" meta="Saved in this browser only. Windows are the 10th–90th percentile arrivals of similar finishes, so most runners arrive inside them, not all.">
+        <EvidencePanel kind="data" title="Runners you’re following" meta="Saved in this browser only. Windows run from the 10th to the 90th percentile arrival of similar finishes, so about one in five arrives outside them. Runners who stop are not in the data.">
           <ul className="projector-cards">
             {cards.map((card) => (
               <RunnerCardView key={card.id} card={card} index={index} units={units}
@@ -769,7 +803,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
             <label htmlFor="projector-course">Course</label>
             <select id="projector-course" value={scope} onChange={(e) => setQ({ course: e.target.value })} disabled={!index}>
               {index ? index.scopes.map((s) => (
-                <option key={s.slug} value={s.slug}>{s.city ? `${s.city} (${s.editions} edition${s.editions === 1 ? '' : 's'})` : `All courses (${compact(s.finishes)} finishes)`}</option>
+                <option key={s.slug} value={s.slug}>{s.city ?? 'All courses'} · {s.editions} edition{s.editions === 1 ? '' : 's'}</option>
               )) : <option value={scope}>All courses</option>}
             </select>
           </div>
@@ -780,7 +814,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
               setEntry(v);
             }} options={[{ value: 'time', label: 'Elapsed time' }, { value: 'pace', label: 'Average pace' }]} />
             {entry === 'time' ? (
-              <ElapsedField label={`Time at ${matName(mat, units)}`} large value={E} inputRef={timeRef}
+              <ElapsedField id="projector-time" label={`Time at ${matName(mat, units)}`} large value={E} inputRef={timeRef}
                 onChange={(s) => setQ({ t: s === null ? '' : formatDuration(s) })} placeholder={mat <= 10 ? '0:49:30' : '2:21:30'}
                 hint="Chip time as the tracker shows it, e.g. 2:21:30." />
             ) : (
@@ -789,17 +823,17 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
                 placeholder={units === 'mi' ? '9:06' : '5:39'} hint={E !== null ? `Read as ${formatDuration(E, true)} at ${matName(mat, units)}.` : 'As the tracker shows it.'} />
             )}
             {E !== null && mat < 40 ? (
-              <button type="button" className="projector-link-button no-print" onClick={advance}>Passed {matName(mat + 5, units)}? Enter the next time →</button>
+              <button type="button" className="projector-link-button no-print" onClick={advance}>Passed {matName(mat + 5, units)}? Next mat →</button>
             ) : null}
           </div>
           {mat > 5 ? (
-            <ElapsedField label={<>Time at {matName(mat - 5, units)} <span className="projector-optional">optional</span></>} value={prevRaw}
+            <ElapsedField id="projector-prev" label={<>Time at {matName(mat - 5, units)} <span className="projector-optional">optional</span></>} value={prevRaw}
               onChange={(s) => setQ({ prev: s === null ? '' : formatDuration(s) })} placeholder="h:mm:ss" error={prevError}
-              hint={trend ? `Last 5 km at ${paceText(trend.lastPace, units)}: ${trend.r >= 0 ? '+' : '−'}${Math.abs(trend.r * 100).toFixed(1)}% against the average so far (${trend.kind} trend).` : 'Adds the trend: was the last 5 km quicker or slower than the average so far?'} />
+              hint={trend ? `Last 5 km at ${paceText(trend.lastPace, units)}: ${trend.r >= 0 ? '+' : '−'}${Math.abs(trend.r * 100).toFixed(1)}% against the average so far (${trend.kind} trend).${Math.abs(trend.r) > 0.3 ? ' That is an unusually large change: check both times.' : ''}` : 'Adds the trend: was the last 5 km quicker or slower than the average so far?'} />
           ) : null}
           <DurationField label={<>Target finish <span className="projector-optional">optional</span></>} value={target}
             onChange={(s) => setQ({ target: s === null ? 'none' : targetText(Math.round(s)) })} placeholder="4:00" hint="Hours and minutes, e.g. 3:59." />
-          <div className="tool-field">
+          <div className="tool-field projector-pref">
             <span className="tool-label" id="projector-pref-label">Compare with finishes on</span>
             <Choice label="Compare with finishes on" small value={pref} onChange={(v) => setQ({ v })} options={prefOptions} />
             <p className="tool-field-hint">{pref === 'trend' ? 'Same pace band, and the same last-5 km trend when the earlier time is given.' : pref === 'all' ? 'Same pace band only.' : `Same pace band, recorded as ${pref}. Not combined with trend.`}</p>
@@ -864,12 +898,12 @@ function AccuracyPanel({ index, mat, units, trendUsed }: { index: ProjectorIndex
   return (
     <EvidencePanel kind="data" title="How well this has held up" meta={`Groups built from ${first.train_years} races only, then scored on every ${first.test_years} finish on All courses. The 10th–90th range should hold 80% of finishes.`}>
       <div className="tool-table-wrap">
-        <table className="tool-table">
+        <table className="tool-table projector-acc">
           <thead><tr><th scope="col">Mat</th><th scope="col">Range held</th><th scope="col">Median miss</th><th scope="col">Even-pace miss</th></tr></thead>
           <tbody>
             {rows.map((v) => (
               <tr key={v.mat} className={v.mat === mat ? 'is-key' : undefined}>
-                <td>{matName(v.mat, units)}{v.mat === mat ? ' · this mat' : ''}</td>
+                <td>{matName(v.mat, units)}{v.mat === mat ? <span className="projector-this"> · this mat</span> : null}</td>
                 <td>{pctText(v.coverage_p10_p90)}</td>
                 <td>{formatDuration(v.median_abs_error_s)}</td>
                 <td>{formatDuration(v.even_pace_median_abs_error_s)}</td>

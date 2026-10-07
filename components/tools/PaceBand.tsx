@@ -64,7 +64,7 @@ function MatName({ km, units }: { km: number; units: UnitSystem }) {
 type Observed =
   | { state: 'off'; message: string }
   | { state: 'loading' }
-  | { state: 'unavailable'; message: string; range: string | null }
+  | { state: 'unavailable'; title: string; message: string; range: string | null }
   | { state: 'ok'; minute: number; all: Cell; held: Cell | null; slow: Cell | null; lo: number; hi: number };
 
 export default function PaceBand({ indexSha, profiles }: { indexSha: string | null; profiles: RouteProfile[] }) {
@@ -107,21 +107,21 @@ export default function PaceBand({ indexSha, profiles }: { indexSha: string | nu
   const observed: Observed = useMemo(() => {
     if (!indexSha || indexError) return { state: 'off', message: indexSha ? 'The observed data could not be loaded or verified. The even-pace band below still works.' : 'The observed data is not available in this build. The even-pace band still works.' };
     if (!index) return { state: 'loading' };
-    if (!scope) return { state: 'unavailable', message: 'That course is not in the data.', range: null };
+    if (!scope) return { state: 'unavailable', title: 'Course not found.', message: 'That course is not in the data.', range: null };
     const meta = scope.genders[gender];
     if (!meta || !index.shards?.[shardPath]) {
-      return { state: 'unavailable', message: `No goal ${where} has 100 finishes recorded as ${genderWord || 'any gender'} in its window, so nothing is published for this selection.`, range: null };
+      return { state: 'unavailable', title: 'Not published for this selection.', message: `No goal ${where} has 100 finishes recorded as ${genderWord || 'any gender'} in its window, so nothing is published for this selection.`, range: null };
     }
     const range = `Published goals ${where}${genderWord ? ` for ${genderWord}` : ''}: ${formatHM(meta.goals[0] * 60)} to ${formatHM(meta.goals[1] * 60)}${meta.count < meta.goals[1] - meta.goals[0] + 1 ? ', with gaps' : ''}.`;
-    if (minute === null) return { state: 'unavailable', message: 'Type a goal to see what finishes at that time ran.', range: null };
-    if (minute < OBS_MIN || minute > OBS_MAX) return { state: 'unavailable', message: `Observed groups cover whole-minute goals from ${formatHM(OBS_MIN * 60)} to ${formatHM(OBS_MAX * 60)}. The even-pace band works for any goal from 1:30 to 8:00.`, range: null };
+    if (minute === null) return { state: 'unavailable', title: 'No goal yet.', message: 'Type a goal to see what finishes at that time ran.', range: null };
+    if (minute < OBS_MIN || minute > OBS_MAX) return { state: 'unavailable', title: 'Outside the observed range.', message: `Observed groups cover whole-minute goals from ${formatHM(OBS_MIN * 60)} to ${formatHM(OBS_MAX * 60)}. The even-pace band works for any goal from 1:30 to 8:00.`, range: null };
     if (!shard || shard.path !== shardPath) return { state: 'loading' };
     if (!shard.data) return { state: 'off', message: 'This selection could not be loaded or verified. Try again, or choose another course.' };
     const all = cellOf(shard.data.groups.all, minute);
     const windowS = shard.data.window_s || 300;
     const lo = minute * 60 - windowS;
     const hi = minute * 60 - 1;
-    if (!all) return { state: 'unavailable', message: `Fewer than 100 finishes ran ${formatDuration(lo, true)} to ${formatDuration(hi, true)} ${where}${genderWord ? ` (recorded as ${genderWord})` : ''}, so this goal is not published.`, range };
+    if (!all) return { state: 'unavailable', title: 'Not published for this goal.', message: `Fewer than 100 finishes ran ${formatDuration(lo, true)} to ${formatDuration(hi, true)} ${where}${genderWord ? ` (recorded as ${genderWord})` : ''}, so this goal is not published.`, range };
     return { state: 'ok', minute, all, held: cellOf(shard.data.groups.held, minute), slow: cellOf(shard.data.groups.slowdown, minute), lo, hi };
   }, [indexSha, indexError, index, scope, gender, shardPath, where, genderWord, minute, shard]);
 
@@ -179,9 +179,9 @@ export default function PaceBand({ indexSha, profiles }: { indexSha: string | nu
                 <Stat label="Even pace" value={formatDuration(perUnit(pKm, units))} sub={`per ${units === 'mi' ? 'mile' : 'km'} · ${fmtPace(pKm, units === 'mi' ? 'km' : 'mi')}${overrun ? ` · watch ${fmtPace(watchTarget(pKm, overrun), units)}` : ''}`} />
                 {gap20 !== null && ok ? (
                   <Stat label="20 km gap" value={formatDuration(Math.abs(gap20))}
-                    sub={`${gap20 >= 0 ? 'earlier' : 'later'} for finishes with a sustained slowdown than for those that held pace`} />
+                    sub={`${gap20 >= 0 ? 'earlier' : 'later'}: sustained slowdown vs held pace`} />
                 ) : (
-                  <Stat label="Even pace at 20 km" value={formatDuration(pKm * 20)} sub={`${miles(20)} · arithmetic`} />
+                  <Stat label="At 20 km" value={formatDuration(pKm * 20)} sub={`even pace · ${units === 'mi' ? miles(20) : 'arithmetic'}`} />
                 )}
                 {ok && ok.all.sd !== undefined ? (
                   <Stat label="Sustained slowdown" value={pct(ok.all.sd)} sub={`observed share of ${count(ok.all.n)} complete finishes in the window`} />
@@ -214,7 +214,7 @@ export default function PaceBand({ indexSha, profiles }: { indexSha: string | nu
                     {overrun ? (
                       <p className="tool-note">If your watch reads the course {pct(overrun, 1)} long, it shows about <strong>{fmtPace(watchTarget(pKm, overrun), units)}</strong> while you are exactly on {fmtPace(pKm, units)}, and reads {((MARATHON_KM * (1 + overrun)) / (units === 'mi' ? KM_PER_MILE : 1)).toFixed(2)} {units} at the finish. The band’s times are for the course markers, not watch laps.</p>
                     ) : (
-                      <p className="tool-note">Most watches read a certified course a little long, so their pace runs quick. Pick an overrun above to see the watch pace that matches this band.</p>
+                      <p className="tool-note no-print">Most watches read a certified course a little long, so their pace runs quick. Pick an overrun above to see the watch pace that matches this band.</p>
                     )}
                   </EvidencePanel>
                 </div>
@@ -227,7 +227,7 @@ export default function PaceBand({ indexSha, profiles }: { indexSha: string | nu
                     {observed.state === 'off' ? <p className="tool-state is-error" role="alert">{observed.message}</p> : null}
                     {observed.state === 'unavailable' ? (
                       <div className="pace-band-unavailable" role="status">
-                        <p><strong>Not published for this selection.</strong> {observed.message}</p>
+                        <p><strong>{observed.title}</strong> {observed.message}</p>
                         {observed.range ? <p>{observed.range}</p> : null}
                         {q.course !== 'all' || gender !== 'all' ? <p>You can switch the observed columns to a wider group; the band itself does not change.</p> : null}
                         {fallbacks}
@@ -343,6 +343,7 @@ function ObservedTable({ cells, goal, pKm, units, onFallback }: { cells: Extract
   const even = (i: number) => (i === 8 ? goal : pKm * CHECKPOINTS[i]);
   const delta = (v: number, i: number) => <span className="pace-band-delta">{formatMargin(v - even(i))}</span>;
   const missing = [!held ? 'held pace' : null, !slow ? 'sustained slowdown' : null].filter(Boolean);
+  const single = all.ed === 1 ? ' One edition: every finish here comes from a single race.' : '';
   return (
     <>
       <div className="pace-band-view no-print">
@@ -372,11 +373,11 @@ function ObservedTable({ cells, goal, pKm, units, onFallback }: { cells: Extract
             </tbody>
             <tfoot>
               <tr><th scope="row">Finishes</th><td /><td>{held ? count(held.n) : '—'}</td><td>{slow ? count(slow.n) : '—'}</td></tr>
-              <tr><th scope="row">Editions</th><td /><td>{held ? editions(held.ed) : '—'}</td><td>{slow ? editions(slow.ed) : '—'}</td></tr>
+              <tr><th scope="row">Editions</th><td /><td>{held ? count(held.ed) : '—'}</td><td>{slow ? count(slow.ed) : '—'}</td></tr>
             </tfoot>
             <caption>
               Median elapsed time of each group at the official mats (20 km is the 20 km mat, not halfway). The smaller line is the median minus even pace for {fmtGoal(goal)}; every finish here beat the goal, so medians run a little ahead.
-              {missing.length ? ` Fewer than 100 finishes in the ${missing.join(' and ')} group, so it is not shown.` : ''}
+              {missing.length ? ` Fewer than 100 finishes in the ${missing.join(' and ')} group, so it is not shown.` : ''}{single}
             </caption>
           </table>
         ) : (
@@ -394,9 +395,9 @@ function ObservedTable({ cells, goal, pKm, units, onFallback }: { cells: Extract
             </tbody>
             <tfoot>
               <tr><th scope="row">Finishes</th><td /><td>{count(all.n)}</td><td /></tr>
-              <tr><th scope="row">Editions</th><td /><td>{editions(all.ed)}</td><td /></tr>
+              <tr><th scope="row">Editions</th><td /><td>{count(all.ed)}</td><td /></tr>
             </tfoot>
-            <caption>All finishes in the window, held and slowed together. A quarter passed each mat sooner than the 25th percentile and a quarter later than the 75th: observed spread, not uncertainty. The smaller line is the median minus even pace for {fmtGoal(goal)}.</caption>
+            <caption>All finishes in the window, held and slowed together. A quarter passed each mat sooner than the 25th percentile and a quarter later than the 75th: observed spread, not uncertainty. The smaller line is the median minus even pace for {fmtGoal(goal)}.{single}</caption>
           </table>
         )}
       </div>
@@ -437,9 +438,55 @@ function SectionChart({ held, slow, pKm, units }: { held: Cell | null; slow: Cel
     const ps = s.c.s50.map(toU);
     return `${s.name}: ${formatDuration(Math.min(...ps))} to ${formatDuration(Math.max(...ps))} per ${units === 'mi' ? 'mile' : 'km'}, slowest in ${sectionLabel(ps.indexOf(Math.max(...ps)), units)}.`;
   };
-  // Direct labels in the 5–10 km section: the faster group above its line, the other below.
-  const labelAt = 1;
-  const order = [...series].sort((a, b) => a.c.s50[labelAt] - b.c.s50[labelAt]);
+  // Direct labels placed where they clear every median line, the even-pace line and each other.
+  const lineAt = (vals: number[], px: number) => {
+    const km = ((px - m.l) / iw) * MARATHON_KM;
+    if (km <= mids[0]) return y(toU(vals[0]));
+    for (let i = 1; i < mids.length; i += 1) {
+      if (km <= mids[i]) { const f = (km - mids[i - 1]) / (mids[i] - mids[i - 1]); return y(toU(vals[i - 1] + f * (vals[i] - vals[i - 1]))); }
+    }
+    return y(toU(vals[8]));
+  };
+  type Box = { x0: number; x1: number; y0: number; y1: number };
+  const placed: Box[] = [];
+  const clear = (b: Box, skipEven = false) => {
+    if (b.x0 < m.l - 2 || b.x1 > width - m.r + 2 || b.y0 < m.t + 2 || b.y1 > m.t + ih - 2) return false;
+    for (let px = b.x0; px <= b.x1; px += 6) {
+      for (const s of series) { const ly = lineAt(s.c.s50, px); if (ly > b.y0 - 3 && ly < b.y1 + 3) return false; }
+      if (!skipEven && evenY > b.y0 - 3 && evenY < b.y1 + 3) return false;
+    }
+    return !placed.some((p) => b.x0 < p.x1 && b.x1 > p.x0 && b.y0 < p.y1 && b.y1 > p.y0);
+  };
+  const evenText = 'even pace';
+  const evenW = evenText.length * 6.6;
+  const evenLabel = [
+    { x: m.l + 4, y: evenY + 15, anchor: 'start' as const }, { x: m.l + 4, y: evenY - 7, anchor: 'start' as const },
+    { x: width - m.r - 2, y: evenY - 7, anchor: 'end' as const }, { x: width - m.r - 2, y: evenY + 15, anchor: 'end' as const },
+  ].find((c) => {
+    const x0 = c.anchor === 'start' ? c.x : c.x - evenW;
+    return clear({ x0, x1: x0 + evenW, y0: c.y - 10, y1: c.y + 2 }, true);
+  }) ?? { x: width - m.r - 2, y: evenY - 7, anchor: 'end' as const };
+  {
+    const x0 = evenLabel.anchor === 'start' ? evenLabel.x : evenLabel.x - evenW;
+    placed.push({ x0, x1: x0 + evenW, y0: evenLabel.y - 10, y1: evenLabel.y + 2 });
+  }
+  const faster = [...series].sort((a, b) => a.c.s50[1] - b.c.s50[1]);
+  const labels = faster.map((s, k) => {
+    const w = s.name.length * 7.1;
+    const dirs = k === 0 ? [-1, 1] : [1, -1];
+    for (const i of [1, 0, 2, 3, 4]) {
+      for (const dir of dirs) {
+        const lx = Math.max(m.l + 2, x(mids[i]) - 14);
+        const ly0 = lineAt(s.c.s50, lx);
+        const ly1 = lineAt(s.c.s50, lx + w);
+        const ly = dir < 0 ? Math.min(ly0, ly1) - 10 : Math.max(ly0, ly1) + 20;
+        const box = { x0: lx, x1: lx + w, y0: ly - 12, y1: ly + 3 };
+        if (clear(box)) { placed.push(box); return { s, x: lx, y: ly }; }
+      }
+    }
+    const lx = Math.max(m.l + 2, x(mids[1]) - 14);
+    return { s, x: lx, y: lineAt(s.c.s50, lx) + (k === 0 ? -10 : 20) };
+  });
   const xTicks = narrow ? [10, 20, 30, 40] : [5, 10, 15, 20, 25, 30, 35, 40];
   const pick = (clientX: number) => {
     const box = ref.current?.getBoundingClientRect();
@@ -453,14 +500,14 @@ function SectionChart({ held, slow, pKm, units }: { held: Cell | null; slow: Cel
   return (
     <>
       <div className="legend-row pace-band-legend">
-        {series.map((s) => <span key={s.key}><i style={{ background: s.colour }} />{s.name} median, middle half shaded</span>)}
+        {series.map((s) => <span key={s.key}><i style={{ background: s.colour }} />{s.name}</span>)}
         <span><i className="dashed" />Even pace {fmtPace(pKm, units)}</span>
       </div>
       <div ref={ref} className="viz pace-band-chart" onPointerMove={(e) => pick(e.clientX)} onPointerDown={(e) => pick(e.clientX)} onPointerLeave={() => setHover(null)}>
         <svg width={width} height={H} role="img"
           aria-label={`Median pace in each of nine sections. ${series.map(describe).join(' ')} Even pace is ${fmtPace(pKm, units)}.`}>
           <rect x={x(20)} y={m.t} width={x(MARATHON_KM) - x(20)} height={ih} fill="var(--paper-2)" opacity={0.6} />
-          <text x={x(20) + 6} y={m.t - 8} className="annotation-sub">after 20 km: where a sustained slowdown can start</text>
+          <text x={x(20) + 6} y={m.t - 8} className="annotation-sub">after 20 km</text>
           {ticks.map((v) => (
             <g key={v} className="grid">
               <line x1={m.l} x2={width - m.r} y1={y(v)} y2={y(v)} />
@@ -469,7 +516,7 @@ function SectionChart({ held, slow, pKm, units }: { held: Cell | null; slow: Cel
           ))}
           <text x={4} y={m.t - 8} className="axis-label">/{units} · faster ↑</text>
           {xTicks.map((km) => <text key={km} x={x(km)} y={H - 12} textAnchor="middle">{units === 'mi' ? miles(km).replace(' mi', '') : km}</text>)}
-          <text x={width - m.r} y={H - 12} textAnchor="end" className="axis-label">{units === 'mi' ? 'mi' : 'km'}</text>
+          <text x={m.l - 8} y={H - 12} textAnchor="end" className="axis-label">{units === 'mi' ? 'mi' : 'km'}</text>
           {series.map((s) => (s.c.s25 && s.c.s75 ? <path key={`${s.key}-band`} d={area(s.c.s25, s.c.s75)} fill={s.colour} opacity={0.14} /> : null))}
           <line x1={m.l} x2={width - m.r} y1={evenY} y2={evenY} stroke="var(--ink)" strokeWidth={1.6} strokeDasharray="5 4" />
           {series.map((s) => (
@@ -478,12 +525,8 @@ function SectionChart({ held, slow, pKm, units }: { held: Cell | null; slow: Cel
               {s.c.s50.map((v, i) => <circle key={i} cx={x(mids[i])} cy={y(toU(v))} r={hover === i ? 5 : 3.5} fill={s.colour} stroke="var(--card)" strokeWidth={2} />)}
             </g>
           ))}
-          {order.map((s, k) => {
-            const yy = y(toU(s.c.s50[labelAt]));
-            const above = k === 0;
-            return <text key={s.key} className="annotation pace-band-halo" x={x(mids[labelAt]) - 8} y={above ? yy - 12 : yy + 22}>{s.name}</text>;
-          })}
-          <text className="annotation-sub pace-band-halo" x={width - m.r - 2} y={evenY - 7} textAnchor="end">even pace</text>
+          {labels.map((l) => <text key={l.s.key} className="annotation pace-band-halo" x={l.x} y={l.y}>{l.s.name}</text>)}
+          <text className="annotation-sub pace-band-halo" x={evenLabel.x} y={evenLabel.y} textAnchor={evenLabel.anchor}>{evenText}</text>
           {hover !== null ? <line x1={x(mids[hover])} x2={x(mids[hover])} y1={m.t} y2={m.t + ih} stroke="var(--ink-3)" strokeWidth={1} /> : null}
         </svg>
         {hover !== null ? (
@@ -549,6 +592,10 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
   observed: Extract<Observed, { state: 'ok' }> | null; profile: RouteProfile | null; showBack: boolean; onBack: (v: boolean) => void; onPrint: (mode: 'strip' | 'page') => void;
 }) {
   const held = observed?.held ?? null;
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const wrapWidth = useWidth(wrapRef, 760);
+  const SHEET_PX = (18.4 + 0.9) * (96 / 2.54);
+  const zoom = Math.min(1, Math.max(0.3, (wrapWidth - 30) / SHEET_PX));
   // Split strips repeat every mile or km, plus halfway; the mat strip carries the 5 km mats and the finish.
   const isWhole = (v: number) => Math.abs(v - Math.round(v)) < 1e-6;
   const splitCells = interval === '5k' ? [] : rows.filter((r) => !r.finish && (r.halfway || isWhole(interval === 'mi' ? r.km / KM_PER_MILE : r.km)));
@@ -572,8 +619,8 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
           <label className="tool-check"><input type="checkbox" checked={showBack} onChange={(e) => onBack(e.target.checked)} />Add a route elevation strip for the back ({profile.city})</label>
         ) : null}
       </div>
-      <div className="pace-band-sheet-wrap" tabIndex={0} role="region" aria-label="Preview of the printed strips (scrolls sideways)">
-        <div className="pace-band-sheet">
+      <div className="pace-band-sheet-wrap" ref={wrapRef}>
+        <div className="pace-band-sheet" style={{ zoom }}>
           <p className="pace-band-sheet-head">Pace Notes · pace band · {fmtGoal(goal)} goal · {place}{genderWord ? ` · ${genderWord}` : ''} · cut along the dashed lines</p>
           <div className="pace-band-strip is-mats">
             <div className="pace-band-cell is-lead">
@@ -604,6 +651,7 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
           {showBack && profile ? <ElevationStrip profile={profile} units={units} /> : null}
         </div>
       </div>
+      {zoom < 0.98 ? <p className="tool-note no-print">Preview scaled to fit your screen. It prints at full size: about {units === 'mi' ? '7¼ in' : '18.4 cm'} long and {units === 'mi' ? '1 in' : '2.5 cm'} wide per strip.</p> : null}
     </section>
   );
 }
