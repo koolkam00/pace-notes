@@ -63,12 +63,12 @@
 
 /* ---------- Method table ---------- */
 .predictor-table tbody th { text-align: left; padding: .65rem .6rem; border-bottom: 1px solid var(--paper-2); vertical-align: top; font-weight: 600; }
-.predictor-table .predictor-m-name span { display: block; font-size: .9rem; color: var(--ink); white-space: nowrap; }
+.predictor-table .predictor-m-name span { display: block; font-size: .9rem; color: var(--ink); }
 .predictor-table .predictor-m-name small { display: block; margin-top: .1rem; font-size: .75rem; font-weight: 450; line-height: 1.35; color: var(--ink-3); white-space: normal; }
 .predictor-table td { vertical-align: top; padding-top: .7rem; }
 .predictor-table .predictor-m-time { font-weight: 700; font-size: .9375rem; color: var(--ink); }
 .predictor-table .predictor-m-time small { display: block; margin-top: .15rem; font-size: .75rem; font-weight: 500; color: var(--ink-3); }
-.predictor-table .predictor-m-note { min-width: 16rem; white-space: normal; text-align: left; font-family: var(--sans); font-size: .8125rem; line-height: 1.5; color: var(--ink-2); }
+.predictor-table .predictor-m-note { white-space: normal; text-align: left; font-family: var(--sans); font-size: .8125rem; line-height: 1.5; color: var(--ink-2); }
 .predictor-table th:last-child { text-align: left; }
 .predictor-table tr.is-key th, .predictor-table tr.is-key td { background: #F1ECFF; }
 .predictor-table tr.is-key .predictor-m-name span, .predictor-table tr.is-key .predictor-m-time { color: #3F2499; }
@@ -76,13 +76,14 @@
 .predictor-table tr.is-prompt .predictor-m-name span, .predictor-table tr.is-prompt .predictor-m-time { color: var(--ink-3); }
 .predictor-table .predictor-link-button { min-height: 0; padding: 0; font-size: inherit; }
 .predictor-warn { color: #8E1030; }
-.predictor-table-wrap { margin-top: .4rem; }
+/* The table stacks into cards by the width it actually has (the results column), not the viewport. */
+.predictor-table-wrap { margin-top: .4rem; container: predictor-table / inline-size; }
 
-@media (max-width: 760px) {
+@container predictor-table (max-width: 600px) {
   .predictor-table thead { display: none; }
   .predictor-table, .predictor-table tbody { display: block; }
   .predictor-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: .8rem; padding: .75rem .1rem .8rem; border-bottom: 1px solid var(--line); }
-  .predictor-table tr.is-key { margin: 0 -.5rem; padding-inline: .6rem; border-radius: 12px; background: #F1ECFF; }
+  .predictor-table tr.is-key { margin: 0 -.2rem; padding-inline: .45rem; border-radius: 12px; background: #F1ECFF; }
   .predictor-table tbody th, .predictor-table td { display: block; padding: 0; border: 0; background: none !important; }
   .predictor-table .predictor-m-name { grid-column: 1; grid-row: 1; }
   .predictor-table .predictor-m-name span { white-space: normal; }
@@ -107,17 +108,30 @@
 .predictor-divider span { flex: 0 1 auto; text-align: center; }
 
 /* ---------- Pace Notes data panel ---------- */
-.predictor-look { display: grid; gap: .45rem; margin-bottom: 1.1rem; }
+.predictor-look { display: grid; gap: .45rem; margin-bottom: 1.1rem; container: predictor-look / inline-size; }
 .predictor-look .segmented { display: flex; width: 100%; border-radius: 18px; }
 .predictor-look .segmented button { flex: 1 1 auto; min-height: 36px; font-weight: 600; }
 .predictor-look .segmented button b { margin-left: .3rem; font-family: var(--mono); font-weight: 700; font-variant-numeric: tabular-nums; }
 .predictor-observed { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 1rem 1.2rem; margin-bottom: 1rem; }
+/* Each stat spans three shared rows (label, value, note), so values line up even when one label wraps. */
+.predictor-observed { row-gap: 0; }
+.predictor-observed .tool-stat { grid-row: span 3; grid-template-rows: subgrid; gap: .25rem; align-content: start; margin-bottom: 1rem; }
 .predictor-observed .tool-stat-value { font-size: clamp(1.6rem, 3.4vw, 2.1rem); }
 .predictor-observed .tool-stat-sub b { color: var(--ink-2); font-family: var(--mono); font-weight: 600; }
 .predictor-strip { margin: .2rem 0 .8rem; }
 .predictor-strip .predictor-marker { font-family: var(--sans); font-size: 11.5px; font-weight: 650; }
 .predictor-strip .predictor-strip-whisker line { stroke: var(--ink-2); stroke-width: 1.5; }
 #predictor-data .tool-note a { color: inherit; text-decoration: underline; }
+.predictor-load-error { display: grid; gap: .7rem; justify-items: start; }
+
+/* Four estimate buttons: one row when they fit, otherwise two by two (never three and an orphan). */
+@container predictor-look (max-width: 600px) {
+  .predictor-look .segmented { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .predictor-look .segmented button { padding-inline: .5rem; }
+}
+
+/* A half-typed finish time keeps the last result on screen, dimmed, until the time reads again. */
+.predictor-held > :not([role="status"]) { opacity: .45; transition: opacity .15s; }
 
 /* ---------- Next steps ---------- */
 .predictor-next { line-height: 1.65; }
@@ -125,11 +139,10 @@
 @media (max-width: 560px) {
   .predictor-headline { padding: 1.15rem 1.1rem 1.2rem; }
   .predictor-headline .tool-stat-value { font-size: 1.75rem; }
-  .predictor-look .segmented { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .predictor-look .segmented button { padding-inline: .5rem; }
   .predictor-bandlinks { margin-inline: -.2rem; }
   .predictor-reasons li { padding-left: 1.85rem; font-size: .9rem; }
-  .predictor-observed { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem 1rem; }
+  .predictor-observed { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1rem; }
+  .predictor-observed .tool-stat { margin-bottom: .9rem; }
   .predictor-observed > :first-child { grid-column: 1 / -1; }
   .predictor-copy { font-size: .9rem; }
   .predictor-reasons li::before { width: 1.35rem; height: 1.35rem; font-size: .6875rem; }

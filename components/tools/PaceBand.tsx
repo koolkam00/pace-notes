@@ -56,7 +56,7 @@ function MatName({ km, units }: { km: number; units: UnitSystem }) {
   return (
     <>
       {finish ? 'Finish' : `${km} km`}
-      <span className="pace-band-sub">{finish ? (units === 'mi' ? '26.2 mi' : '42.195 km') : units === 'mi' ? miles(km) : ' '}</span>
+      <span className="pace-band-sub">{finish ? (units === 'mi' ? '26.2 mi' : '42.2 km') : units === 'mi' ? miles(km) : ' '}</span>
     </>
   );
 }
@@ -606,7 +606,7 @@ function SectionChart({ held, slow, pKm, units }: { held: Cell | null; slow: Cel
       ownMin = Math.min(ownMin, gap); ownMax = Math.max(ownMax, gap);
       for (const o of series) if (o.c !== own) otherMin = Math.min(otherMin, gapTo(b, lineAt(o.c.s50, px)));
     }
-    return ownMax <= 14 && ownMin + 2 <= otherMin;
+    return ownMax <= 14 && ownMin < otherMin;
   };
   const faster = [...series].sort((a, b) => a.c.s50[1] - b.c.s50[1]);
   const labels = faster.map((s, k) => {
@@ -662,7 +662,7 @@ function SectionChart({ held, slow, pKm, units }: { held: Cell | null; slow: Cel
               {s.c.s50.map((v, i) => <circle key={i} cx={x(mids[i])} cy={y(toU(v))} r={hover === i ? 5 : 3.5} fill={s.colour} stroke="var(--card)" strokeWidth={2} />)}
             </g>
           ))}
-          {labels.map((l) => <text key={l.s.key} className="annotation pace-band-halo" x={l.x} y={l.y}>{l.s.name}</text>)}
+          {labels.map((l) => <text key={l.s.key} className="annotation pace-band-halo" x={l.x} y={l.y} style={{ fill: l.s.key === 'held' ? HELD : 'var(--orange-ink)' }}>{l.s.name}</text>)}
           {evenLabel ? <text className="annotation-sub pace-band-halo" x={evenLabel.x} y={evenLabel.y} textAnchor={evenLabel.anchor}>{evenText}</text> : null}
           {hover !== null ? <line x1={x(mids[hover])} x2={x(mids[hover])} y1={m.t} y2={m.t + ih} stroke="var(--ink-3)" strokeWidth={1} /> : null}
         </svg>

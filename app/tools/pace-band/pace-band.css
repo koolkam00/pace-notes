@@ -13,7 +13,8 @@
 .pace-band-headline .tool-stat { align-content: start; }
 @media (max-width: 560px) {
   .tool-headline.pace-band-headline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .pace-band-headline > .tool-stat:nth-child(3) { grid-column: 1 / -1; }
+  /* Badges row, then even pace and the 20 km figure side by side, then the share across the full width. */
+  .pace-band-headline > .tool-stat:nth-child(4) { grid-column: 1 / -1; }
 }
 .pace-band-headline-note { grid-column: 1 / -1; padding-top: .95rem; border-top: 1px solid var(--night-3); font-size: .9375rem; line-height: 1.6; color: var(--night-ink-2); }
 .pace-band-headline-note b { font-family: var(--mono); font-weight: 600; color: var(--night-ink); white-space: nowrap; }
@@ -94,10 +95,11 @@
   .pace-band-table thead th { font-size: .625rem; letter-spacing: .05em; }
 }
 /* The smallest phones: a little less panel padding so the four observed columns fit without sideways scrolling. */
-@media (max-width: 359px) {
+@media (max-width: 379px) {
   #pace-band-observed, #pace-band-chart, #pace-band-onset { padding-inline: .85rem; }
   .pace-band-table th, .pace-band-table td, .pace-band-table tbody th, .pace-band-table tfoot th { padding-inline: .2rem; }
   .pace-band-table td, .pace-band-table tbody th { font-size: .75rem; }
+  .pace-band-table thead th { font-size: .5625rem; letter-spacing: .02em; }
 }
 
 /* ---------- Section pace chart ---------- */
