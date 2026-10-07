@@ -38,7 +38,7 @@ export default function UnitsProvider({ children }: { children: ReactNode }) {
 export function UnitSwitch() {
   const { units, setUnits } = useUnits();
   const path = usePathname();
-  if (path !== '/' && path !== '/about' && path !== '/slowdown' && path !== '/htw' && !['/analyses', '/runners', '/packs', '/courses'].some(route => path === route || path.startsWith(route + '/'))) return null;
+  if (path !== '/' && path !== '/about' && path !== '/slowdown' && path !== '/htw' && !['/analyses', '/runners', '/packs', '/courses', '/stories'].some(route => path === route || path.startsWith(route + '/'))) return null;
   return <div className="unit-switch" role="group" aria-label="Distance and pace units">
     <button type="button" aria-pressed={units === 'mi'} onClick={() => setUnits('mi')}>Miles</button>
     <button type="button" aria-pressed={units === 'km'} onClick={() => setUnits('km')}>Kilometres</button>

@@ -1,4 +1,9 @@
+import '@fontsource-variable/fraunces/full.css';
+import '@fontsource-variable/inter/index.css';
+import '@fontsource-variable/jetbrains-mono/index.css';
+import '@fontsource-variable/bricolage-grotesque/index.css';
 import './globals.css';
+import './story.css';
 import { UnitLink as Link, UnitSwitch } from '@/components/UnitsProvider';
 import UnitsProvider from '@/components/UnitsProvider';
 import SiteNav from '@/components/SiteNav';
@@ -7,8 +12,10 @@ import CreatorCredit from '@/components/CreatorCredit';
 
 export const metadata = {
   title: 'Pace Notes | Understand your next 26.2 miles',
-  description: 'Ten essential runner questions and new weather comparisons, drawn from millions of recorded marathon finishes.',
+  description: 'What 3.5 million marathon finishes reveal about pacing: interactive stories, race replays and ten essential runner questions.',
 };
+
+export const viewport = { themeColor: '#F5F0E6' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -26,10 +33,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </header>
         <main id="main" className="container main-content">{children}</main>
         <footer className="container footer">
-          <div className="footer-brand"><Link href="/">Pace Notes</Link><p>Every split tells part of the story.</p><CreatorCredit /></div>
+          <div className="footer-brand"><Link href="/">Pace Notes</Link><p>Every split tells part of the story. Pacing patterns from millions of recorded marathon finishes, free to explore and download.</p><CreatorCredit /></div>
           <nav aria-label="More research">
-            <Link href="/analyses">Explore analyses</Link>
+            <Link href="/stories">Stories from the data</Link>
+            <Link href="/analyses">Plan your race</Link>
             <Link href="/runners">Find a runner</Link>
+            <Link href="/courses">Courses</Link>
             <Link href="/request-analysis">Request an analysis</Link>
             <Link href="/about">About the study</Link>
             <Link href="/methodology">Methods &amp; sources</Link>

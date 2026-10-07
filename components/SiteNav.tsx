@@ -3,11 +3,14 @@ import { UnitLink as Link } from './UnitsProvider';
 import { usePathname } from 'next/navigation';
 
 export default function SiteNav() {
-  const path = usePathname();
+  const path = usePathname() || '';
+  const within = (route: string) => path === route || path.startsWith(route + '/');
   return <nav aria-label="Main navigation" className="main-nav">
-    <Link href="/analyses" aria-current={path.startsWith('/analyses') ? 'page' : undefined}>Explore analyses</Link>
-    <Link href="/runners" aria-current={path === '/runners' || path.startsWith('/runners/') ? 'page' : undefined}>Find a runner</Link>
-    <Link href="/about" aria-current={path === '/about' ? 'page' : undefined}>About the study</Link>
+    <Link href="/stories" aria-current={within('/stories') ? 'page' : undefined}>Stories</Link>
+    <Link href="/analyses" aria-current={within('/analyses') ? 'page' : undefined}>Plan your race</Link>
+    <Link href="/courses" aria-current={within('/courses') ? 'page' : undefined}>Courses</Link>
+    <Link href="/runners" aria-current={within('/runners') ? 'page' : undefined}>Find a runner</Link>
+    <Link href="/about" aria-current={path === '/about' ? 'page' : undefined}>About</Link>
     <Link href="/request-analysis" className="nav-request" aria-current={path === '/request-analysis' ? 'page' : undefined}>Request an analysis</Link>
     <a href="https://github.com/koolkam00/htw-live-study/releases" className="nav-data">Open data <span aria-hidden="true">↗</span></a>
   </nav>;
