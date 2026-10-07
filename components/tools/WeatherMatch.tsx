@@ -2,14 +2,16 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { Choice, DataState, DurationField, EvidencePanel, ShareBar } from '@/components/tools/ui';
+import { Choice, DurationField, EvidencePanel, ExampleNote, ShareBar } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
 import { loadInsight } from '@/lib/insights';
+import { courseSlug } from '@/lib/tools/links';
 import type { WeatherEdition, WeatherMatch as WeatherMatchData, WeatherRow } from '@/lib/tools/data';
 import { MARATHON_KM, perKm, perUnit } from '@/lib/tools/pace';
 import { formatClock, formatDuration, formatHM, parseClock, parseDuration } from '@/lib/tools/time';
 import { acsmFlag, cToF, dewPointBand, ely, fToC, hadley, mantzios, relativeHumidity, wetBulb, type Flag, type PercentRange } from '@/lib/tools/weather';
+import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { SECTION_BOUNDS, checkpointLabel, count, mss, sectionLabel } from '@/lib/viz/format';
 import type { UnitSystem } from '@/lib/units';
 
@@ -83,7 +85,6 @@ const pctShare = (share: number) => (share > 0 && share < 0.005 ? '<1%' : `${Mat
 const signedPct = (fraction: number) => { const v = Math.round(fraction * 1000) / 10; return `${v > 0 ? '+' : v < 0 ? MINUS : ''}${num(Math.abs(v), 1)}%`; };
 const pctNum = (v: number) => num(v, v !== 0 && Math.abs(v) < 0.1 ? 2 : 1);
 const key = (c: number, hw: number, pace: number) => `${c}|${hw}|${pace}`;
-const slug = (city: string) => city.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const plural = (n: number, one: string, many = `${one}s`) => `${n === 1 ? 'one' : count(n)} ${n === 1 ? one : many}`;
 const cap = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
@@ -110,8 +111,11 @@ function paceSeconds(sPerKm: number, units: UnitSystem, band: { lo: number; step
   return Math.min(b, Math.max(a, s));
 }
 const paceText = (sPerKm: number, units: UnitSystem, band: { lo: number; step: number } | null = null) => `${formatDuration(paceSeconds(sPerKm, units, band))}/${units}`;
-/** The 5–20 km stretch that defines each finish's own baseline pace, in the visitor's units. */
-const stretch = (units: UnitSystem) => (units === 'mi' ? '3.1–12.4 mi (5–20 km)' : '5–20 km');
+/** The 5–20 km stretch that defines each finish's own baseline pace: always named in km (the published definition), glossed in miles. */
+const stretch = (units: UnitSystem) => (units === 'mi' ? '5–20 km (3.1–12.4 mi)' : '5–20 km');
+/** Observed pace-band goals run from 2:30 to 6:30, and so do the course chooser's goals (minutes). */
+const LINK_GOALS: [number, number] = [150, 390];
+const hmMinutes = (minutes: number) => `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -181,14 +185,36 @@ function useSettled<T>(value: T, ms: number): T {
 
 type Need = 'temp' | 'dew' | 'rh' | 'dew-above' | null;
 
-export default function WeatherMatch({ sha }: { sha: string | null }) {
+const DEFAULT_GOAL = '4:00:00';
+
+/**
+ * `paceBand`: the courses the pace band publishes, each with its observed whole-minute goals as [first, last] runs
+ * (null when unknown); null when the pace band is not in this build. Read at build time by the page.
+ */
+export default function WeatherMatch({ sha, paceBand }: { sha: string | null; paceBand: Record<string, [number, number][] | null> | null }) {
   const { units } = useUnits();
-  const [q, setQ] = useQueryState({ temp: '', tu: '', hum: 'dew', dew: '', rh: '', by: '', goal: '4:00:00', pace: '', pu: '', course: '', w: '2' });
+  const [q, setQuery, ready, fromUrl] = useQueryState({ temp: '', tu: '', hum: 'dew', dew: '', rh: '', by: '', goal: DEFAULT_GOAL, pace: '', pu: '', course: '', w: '2' });
   const { data, error, retry } = useWeatherData(sha);
+  // The goal stays an example until the visitor edits it or a link supplies it (a link leaves out a 4:00:00 goal, as the default).
+  const [goalEdited, setGoalEdited] = useState(false);
+  const setQ: typeof setQuery = (patch) => {
+    if ('goal' in patch || 'by' in patch || 'pace' in patch) setGoalEdited(true);
+    setQuery(patch);
+  };
+  // An empty temperature or dew point from a link (temp=, dew=) means cleared, not the example: keep it cleared in the URL too.
+  useEffect(() => {
+    if (!ready) return;
+    const patch: { temp?: string; dew?: string } = {};
+    if (fromUrl.has('temp') && q.temp === '') patch.temp = 'none';
+    if (fromUrl.has('dew') && q.dew === '') patch.dew = 'none';
+    if (patch.temp || patch.dew) setQuery(patch);
+    // Once, when the URL has been read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
 
   /* ----- Temperature and humidity (typed in °F or °C; analysed in °C) ----- */
   const tUnit: TUnit = q.tu === 'f' || q.tu === 'c' ? q.tu : units === 'mi' ? 'f' : 'c';
-  const exampleTemp = q.temp === '';
+  const exampleTemp = q.temp === '' && !fromUrl.has('temp');
   const tempField = exampleTemp ? String(DEFAULTS.temp[tUnit]) : q.temp === 'none' ? '' : q.temp;
   const tempIn = parseNum(tempField);
   const tempC = tempIn === null ? null : fromUnit(tempIn, tUnit);
@@ -197,10 +223,10 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
 
   const hum = q.hum === 'rh' ? 'rh' : 'dew';
   // The example dew point belongs to the example forecast only: once a temperature is typed, the dew point is the visitor's to give.
-  const exampleDew = hum === 'dew' && q.dew === '' && exampleTemp;
+  const exampleDew = hum === 'dew' && q.dew === '' && !fromUrl.has('dew') && exampleTemp;
   const dewField = exampleDew ? String(DEFAULTS.dew[tUnit]) : q.dew === '' || q.dew === 'none' ? '' : q.dew;
   const rhIn = hum === 'rh' && q.rh ? parseNum(q.rh) : null;
-  const rhOk = rhIn !== null && rhIn > 0 && rhIn <= 100;
+  const rhOk = rhIn !== null && rhIn >= 1 && rhIn <= 100;
   const dewIn = hum === 'dew' ? parseNum(dewField) : null;
   let dewC: number | null = null;
   if (hum === 'dew' && dewIn !== null) dewC = fromUnit(dewIn, tUnit);
@@ -245,7 +271,8 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
   /* ----- Pace: a goal time (even pace assumed) or a planned 5–20 km pace ----- */
   // A link with ?pace= and no ?by= is a pace link.
   const by = q.by === 'pace' || (q.by === '' && q.pace !== '') ? 'pace' : 'goal';
-  const goalS = by === 'goal' && q.goal !== 'none' ? parseDuration(q.goal, 'race') : null;
+  // An empty goal (goal=) or the older goal=none means cleared.
+  const goalS = by === 'goal' && q.goal !== '' && q.goal !== 'none' ? parseDuration(q.goal, 'race') : null;
   const pu: UnitSystem = q.pu === 'km' || q.pu === 'mi' ? q.pu : units;
   const paceIn = by === 'pace' && q.pace && q.pace !== 'none' ? parseDuration(q.pace, 'pace') : null;
   const paceKm = by === 'goal' ? (goalS ? goalS / MARATHON_KM : null) : paceIn ? perKm(paceIn, pu) : null;
@@ -271,7 +298,7 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
   const courses = useMemo(() => {
     const m = new Map<string, WeatherEdition[]>();
     for (const e of data?.editions ?? []) m.set(e.city, [...(m.get(e.city) ?? []), e]);
-    return [...m.entries()].map(([city, eds]) => ({ city, slug: slug(city), editions: eds.sort((a, b) => a.year - b.year) })).sort((a, b) => a.city.localeCompare(b.city));
+    return [...m.entries()].map(([city, eds]) => ({ city, slug: courseSlug(city), editions: eds.sort((a, b) => a.year - b.year) })).sort((a, b) => a.city.localeCompare(b.city));
   }, [data]);
 
   const match: Match | null = useMemo(() => {
@@ -316,8 +343,8 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
   else if (match?.kind === 'ok') {
     const same = centre === REF.c && hw === REF.hw;
     const m = match.row.ed.length;
-    status = `${m === match.inWindow ? `${m} races started at ${winText}, each` : `${m} of ${match.inWindow} races that started at ${winText}`} with 20 or more finishes at ${bandLabel}: ${count(match.row.n)} finishes, sustained slowdown ${pctShare(match.row.sd)}.`
-      + (match.ref && !same ? ` ${refTone}, ${refText}: ${pctShare(match.ref.sd)}.` : '');
+    status = `${m === match.inWindow ? `${cap(plural(m, 'edition'))} started at ${winText}, ${m === 1 ? 'with' : 'each with'}` : `${m} of ${match.inWindow} editions that started at ${winText} had`} 20 or more finishes at ${bandLabel}, ${count(match.row.n)} finishes in all. Sustained slowdown ${pctShare(match.row.sd)}, averaged over the editions with each counted equally.`
+      + (match.ref && !same ? ` ${refTone}, ${refText}: ${pctShare(match.ref.sd)}, averaged the same way.` : '');
   } else if (match?.kind === 'no-row') status = `Not enough past mornings like ${yourTemp} at ${bandLabel}.`;
   else if (match?.kind === 'pace-range') status = match.fast ? 'Faster than any published pace band.' : 'Slower than any published pace band.';
   else if (match?.kind === 'missing') status = match.what === 'temperature' ? (tempBad ? 'Check the start temperature.' : 'Type a start temperature.') : 'Type a goal time or a 5–20 km pace.';
@@ -327,18 +354,30 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
   const dewHintId = useId();
   const sliderRange = tUnit === 'f' ? SLIDER_F : SLIDER_C;
   const sliderValue = tempIn === null ? DEFAULTS.temp[tUnit] : Math.min(sliderRange[1], Math.max(sliderRange[0], tempIn));
-  const exampleGoal = by === 'goal' && q.goal === '4:00:00';
+  const exampleGoal = by === 'goal' && q.goal === DEFAULT_GOAL && !fromUrl.has('goal') && !goalEdited;
+  // The shared example marker: shown only while the forecast and goal are the untouched examples (a linked course does not change the match).
+  const isExample = ready && exampleTemp && exampleDew && exampleGoal;
+
+  /* ----- Links to other tools: the pace band takes the whole minute at or below the time; both tools observe goals from 2:30 to 6:30 ----- */
+  const linkS = goalForResearch !== null ? Math.round(goalForResearch) : null;
+  const linkMinute = linkS !== null ? Math.floor(linkS / 60) : null;
+  const linkHM = linkMinute !== null ? hmMinutes(linkMinute) : '';
+  const goalLabel = linkS === null ? '' : linkS % 60 ? formatDuration(linkS, true) : linkHM;
+  const linkInRange = linkMinute !== null && linkMinute >= LINK_GOALS[0] && linkMinute <= LINK_GOALS[1];
+  // A course goes with the pace-band link only when the pace band publishes it with an observed window at this minute.
+  const bandKnows = course !== null && paceBand !== null && Object.prototype.hasOwnProperty.call(paceBand, course.slug);
+  const bandRuns = bandKnows ? paceBand![course!.slug] : null;
+  const bandCourse = linkInRange && bandKnows && (bandRuns === null || bandRuns.some(([a, b]) => linkMinute! >= a && linkMinute! <= b));
+  const bandHref = `/tools/pace-band?goal=${linkHM}${bandCourse ? `&course=${course!.slug}` : ''}`;
+  const bandWhy = !course || bandCourse || !linkInRange || paceBand === null ? ''
+    : bandKnows ? ` (all courses: ${course.city} had fewer than 100 such finishes)`
+      : ` (all courses: ${course.city} has no band of its own)`;
 
   return (
     <div className="weather-match">
       <div className="tool-workspace">
         <form className="tool-inputs weather-match-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Weather match inputs">
           <h2>Your race morning</h2>
-          {exampleTemp ? (
-            <p className="weather-match-example">
-              {exampleDew ? `Showing an example forecast${exampleGoal ? ' and goal' : ''}. Type yours.` : 'The start temperature is still the example. Type yours.'}
-            </p>
-          ) : null}
 
           <div className="tool-field">
             <div className="weather-match-label-row">
@@ -400,13 +439,13 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
           </div>
           {by === 'goal' ? (
             <DurationField label="Marathon goal time" large value={goalS} placeholder="4:00:00"
-              onChange={(s) => setQ({ goal: s === null ? 'none' : formatDuration(s, true) })}
+              onChange={(s) => setQ({ goal: s === null ? '' : formatDuration(s, true) })}
               hint={paceKm !== null ? <>Assumption: an even {yourPace} ({paceText(paceKm, units === 'mi' ? 'km' : 'mi', bandSpan)}), used as your 5–20 km pace.{exampleGoal ? ' 4:00:00 is an example goal.' : ''}</> : 'Type a goal such as 4:00:00 or 3:45.'} />
           ) : (
             <DurationField label={`Planned 5–20 km pace per ${units === 'mi' ? 'mile' : 'kilometre'}`} mode="pace" large placeholder={units === 'mi' ? '9:09' : '5:41'}
               value={paceIn !== null ? paceSeconds(perKm(paceIn, pu), units, bandSpan) : null}
-              onChange={(s) => setQ({ by: 'pace', pace: s === null ? 'none' : formatDuration(s), pu: units })}
-              hint={paceKm !== null ? <>The pace you plan to hold from {checkpointLabel(5, units)} to {checkpointLabel(20, units)}. Arithmetic: held for the whole race it is {formatDuration(Math.round(paceKm * MARATHON_KM), true)}.</> : `Type a pace such as ${units === 'mi' ? '9:09' : '5:41'}.`} />
+              onChange={(s) => setQ({ by: 'pace', pace: s === null ? '' : formatDuration(s), pu: units })}
+              hint={paceKm !== null ? <>The pace you plan to hold from the 5 km mat to the 20 km mat{units === 'mi' ? ' (3.1 to 12.4 mi)' : ''}. Arithmetic: held for the whole race it is {formatDuration(Math.round(paceKm * MARATHON_KM), true)}.</> : `Type a pace such as ${units === 'mi' ? '9:09' : '5:41'}.`} />
           )}
 
           <div className="tool-field">
@@ -432,38 +471,46 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
             <p className="tool-state">Loading the data…</p>
           ) : match ? (
             <>
+              {isExample ? (
+                <ExampleNote>
+                  Example forecast and goal: {DEFAULTS.temp[tUnit]} {unitSign(tUnit)} at the start, dew point {DEFAULTS.dew[tUnit]} {unitSign(tUnit)}, and a {DEFAULT_GOAL} goal.{course ? ` ${course.city}’s past race mornings are further down.` : ''} Type yours; everything updates as you type.
+                </ExampleNote>
+              ) : null}
               <ResultHead match={match} units={units} tUnit={tUnit} hw={hw} centre={centre} winText={winText} winAlt={winAlt} refText={refText} refTone={refTone}
                 bandLabel={bandLabel} yourTemp={yourTemp} yourPace={yourPace} widenLabel={widenLabel} onWiden={toggleWiden}
                 warmCount={warmCount} coldCount={coldCount} total={data.editions.length} paceLo={paceLo} paceHi={paceHi} step={step} badTemp={tempBad} />
 
               {match.kind === 'ok' ? (
                 <EvidencePanel kind="data" title="How finishes at your pace held up"
-                  meta={<>The two columns in full, then each 5 km section’s median pace against the same finishes’ own {stretch(units)} pace. Every race counts equally.</>}>
+                  meta={<>The two columns in full, then each 5 km section’s median pace against the same finishes’ own {stretch(units)} pace. Rates and medians count every edition equally.</>}>
                   <ComparisonTable match={match} units={units} winText={winText} refText={refText} refTone={refTone} bandLabel={bandLabel} centre={centre!} hw={hw} />
                   <h3 className="weather-match-subhead">Section by section</h3>
                   <ProfileChart mine={match.row.profile} reference={match.ref && !(centre === REF.c && hw === REF.hw) ? match.ref.profile : null} units={units}
                     mineLabel={`Mornings like yours, ${winText}`} refLabel={`${refTone}, ${refText}`} />
                   <p className="tool-note">
-                    <strong>Sustained slowdown</strong> means a 5 km section after 20 km run at least 25% slower than the finish’s own 5–20 km pace, with slowed sections totalling at least 5 km in a row (<a href="https://doi.org/10.1371/journal.pone.0251513" rel="noopener noreferrer">published method</a>). Shares are observed shares of complete finishes, not anyone’s chance; runners who stopped are not in the data.
+                    {SLOWDOWN_DEFINITION} Source: <a href={SLOWDOWN_CITATION.url} rel="noopener noreferrer">{SLOWDOWN_CITATION.label}</a>. Each share here is worked out per edition and averaged with every edition counted equally. Shares are observed shares of complete finishes, not anyone’s chance; runners who stopped are not in the data.
                   </p>
                 </EvidencePanel>
               ) : null}
 
               {centre !== null && (match.kind === 'ok' || match.kind === 'no-row') ? (
-                <EvidencePanel kind="data" title={match.kind === 'ok' ? `The ${plural(match.row.ed.length, 'race')} behind this window` : 'Races that started in this window'}
+                <EvidencePanel kind="data" title={match.kind === 'ok' ? `The ${plural(match.row.ed.length, 'edition')} behind this window` : 'Editions that started in this window'}
                   meta={<>
-                    {match.kind === 'ok' && match.row.ed.length < match.inWindow ? `${cap(plural(match.inWindow - match.row.ed.length, 'more race'))} started in the window with fewer than 20 finishes at your pace band; ${match.inWindow - match.row.ed.length === 1 ? 'it is' : 'they are'} grey in the shaded window below. ` : ''}
-                    Weather is the modelled hour at each race’s scheduled start, at one point in the city: context, not what any runner felt. Wave starts, sun and shade are unknown.{match.kind === 'ok' ? ' No per-race results are shown, because one race’s finishes at your pace can number fewer than 100.' : ''}
+                    {match.kind === 'ok' && match.row.ed.length < match.inWindow ? `${cap(plural(match.inWindow - match.row.ed.length, 'more edition'))} started in the window with fewer than 20 finishes at your pace band; ${match.inWindow - match.row.ed.length === 1 ? 'it is' : 'they are'} grey in the shaded window below. ` : ''}
+                    Weather is the modelled hour at each edition’s scheduled start, at one point in the city: context, not what any runner felt. Wave starts, sun and shade are unknown.{match.kind === 'ok' ? ' No per-edition results are shown, because one edition’s finishes at your pace can number fewer than 100.' : ''}
                   </>}>
                   <TempStrip editions={data.editions} tUnit={tUnit} marker={tempC} centre={centre} hw={hw} showRef
                     emphasis={new Set(match.kind === 'ok' ? match.row.ed : match.inWindow.map((e) => e.id))} emphasisTone={match.kind === 'ok' ? 'warm' : 'ink'}
-                    legend={match.kind === 'ok' ? 'Matched race (20+ finishes at your pace)' : 'Started in this window'}
-                    label={`Start temperatures of all ${data.editions.length} races in this tool's data, from ${tData(Math.min(...data.editions.map((e) => e.temp_c)), tUnit)} to ${tData(Math.max(...data.editions.map((e) => e.temp_c)), tUnit)}. ${match.kind === 'ok'
-                      ? `${match.row.ed.length} of the ${match.inWindow} races that started in your window, ${winText}, had 20 or more finishes at your pace and are highlighted.`
-                      : `${match.inWindow.length} races started in your window, ${winText}, and are highlighted.`}`} />
+                    legend={match.kind === 'ok' ? 'Matched edition (20+ finishes at your pace)' : 'Started in this window'}
+                    label={`Start temperatures of all ${data.editions.length} editions in this tool's data, from ${tData(Math.min(...data.editions.map((e) => e.temp_c)), tUnit)} to ${tData(Math.max(...data.editions.map((e) => e.temp_c)), tUnit)}. ${match.kind === 'ok'
+                      ? match.row.ed.length === match.inWindow
+                        ? `${match.inWindow === 1 ? 'The one edition' : `All ${count(match.inWindow)} editions`} that started in your window, ${winText}, had 20 or more finishes at your pace and ${match.inWindow === 1 ? 'is' : 'are'} highlighted.`
+                        : `${count(match.row.ed.length)} of the ${count(match.inWindow)} editions that started in your window, ${winText}, had 20 or more finishes at your pace and are highlighted.`
+                      : match.inWindow.length === 0 ? `No edition started in your window, ${winText}.`
+                        : `${cap(plural(match.inWindow.length, 'edition'))} started in your window, ${winText}, and ${match.inWindow.length === 1 ? 'is' : 'are'} highlighted.`}`} />
                   <EditionChips units={units} tUnit={tUnit}
                     editions={(match.kind === 'ok' ? match.row.ed.map((id) => byId.get(id)).filter((e): e is WeatherEdition => !!e) : match.inWindow).sort((a, b) => a.temp_c - b.temp_c || a.city.localeCompare(b.city))}
-                    empty="No race in this tool’s data started in this window." />
+                    empty="No edition in this tool’s data started in this window." />
                 </EvidencePanel>
               ) : null}
 
@@ -473,9 +520,19 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
 
           <ResearchPanel tempC={tempOk ? tempC : null} dewC={dewOk ? dewC : null} need={need} tUnit={tUnit} goal={goalForResearch} by={by} paceLabel={yourPace} />
 
-          {goalForResearch !== null ? (
+          {linkS !== null ? (
             <div className="tool-callout no-print">
-              <strong>Racing for {formatHM(goalForResearch)}?</strong> The <Link href={`/tools/pace-band?goal=${formatHM(goalForResearch)}${course ? `&course=${course.slug}` : ''}`}>pace band{course ? ` for ${course.city}` : ''}</Link> shows what finishes that hit it ran at each 5 km mat, and the <Link href={`/tools/course-chooser?goal=${formatHM(goalForResearch)}`}>course chooser</Link> lists each course’s race-morning temperatures beside how finishes at your pace held up.
+              <strong>{by === 'goal' ? `Racing for ${goalLabel}?` : `${yourPace} held for the whole race is ${goalLabel}.`}</strong>{' '}
+              {linkInRange ? (
+                <>
+                  The <Link href={bandHref}>pace band{bandCourse ? ` for ${course!.city}` : ''}</Link> shows what finishes that came in within five minutes under {linkHM} ran at each 5 km mat{linkS % 60 ? `, using the whole minute at or below ${goalLabel}` : ''}{bandWhy}, and the{' '}
+                  <Link href={`/tools/course-chooser?goal=${linkHM}`}>course chooser</Link> lists each course’s race-morning temperatures beside how finishes at your pace held up.
+                </>
+              ) : (
+                <>
+                  The <Link href={bandHref}>pace band</Link> prints even splits for {linkHM}. Its observed mat times, and the <Link href="/tools/course-chooser">course chooser</Link>, cover goals from 2:30 to 6:30, so the chooser opens without yours.
+                </>
+              )}
             </div>
           ) : null}
           <ShareBar />
@@ -511,8 +568,8 @@ function ResultHead({ match, units, tUnit, hw, centre, winText, winAlt, refText,
     const same = ref !== null && centre === REF.c && hw === REF.hw;
     kicker = `Mornings like ${yourTemp}`;
     title = m === inWindow
-      ? `${count(inWindow)} past marathons started at ${winText}`
-      : `${count(m)} of ${count(inWindow)} past marathons that started at ${winText} had 20+ finishes at your pace`;
+      ? `${inWindow === 1 ? 'One past marathon edition' : `${count(inWindow)} past marathon editions`} started at ${winText}`
+      : `${count(m)} of ${count(inWindow)} past marathon editions that started at ${winText} had 20+ finishes at your pace`;
     group = (
       <p>
         {m === inWindow
@@ -528,7 +585,7 @@ function ResultHead({ match, units, tUnit, hw, centre, winText, winAlt, refText,
           {ref && !same ? <HeadColumn tone="cool" title={refTone} sub={refText} row={ref} started={match.refInWindow} units={units} /> : null}
         </div>
         <p className="weather-match-foot">
-          {ref && !same ? <>Two descriptive columns, not a heat penalty: the races differ in course, field and year as well as weather.{shared ? ` ${cap(plural(shared, 'race is', 'races are'))} in both windows.` : ''} </>
+          {ref && !same ? <>Two descriptive columns, not a heat penalty: the editions differ in course, field and year as well as weather.{shared ? ` ${cap(plural(shared, 'edition is', 'editions are'))} in both windows.` : ''} </>
             : !ref ? 'The reference window has no published row at this pace band. '
               : 'Your forecast falls in the reference window itself, so there is one column. '}
           Finishes are grouped by the 5–20 km pace they actually ran that day, not by goal or ability{ref && !same ? ': on a warmer morning runners may already have started slower, so the same band can hold different runners in each column' : ''}.
@@ -551,14 +608,14 @@ function ResultHead({ match, units, tUnit, hw, centre, winText, winAlt, refText,
       <>
         <p>
           {n < 3
-            ? <>{n === 0 ? 'No race' : `Only ${plural(n, 'race')}`} in this tool’s data started at {winText}. A comparison needs at least 3 races, each with 20 or more finishes at your 5–20 km pace ({inBand}), and at least 100 such finishes in all.</>
-            : <>{count(n)} races started at {winText}, but fewer than 3 of them had 20 or more finishes at a 5–20 km pace of {inBand}, or they had fewer than 100 such finishes between them.</>}
+            ? <>{n === 0 ? 'No edition' : `Only ${plural(n, 'edition')}`} in this tool’s data started at {winText}. A comparison needs at least 3 editions, each with 20 or more finishes at your 5–20 km pace ({inBand}), and at least 100 such finishes in all.</>
+            : <>{count(n)} editions started at {winText}, but fewer than 3 of them had 20 or more finishes at a 5–20 km pace of {inBand}, or they had fewer than 100 such finishes between them.</>}
         </p>
         <p>
           {match.paces ? <>At these temperatures there are published rows for 5–20 km paces from {formatDuration(bandEnds(match.paces[0], step, units)[0])}/{units} to {formatDuration(bandEnds(match.paces[1], step, units)[1])}/{units}. </> : null}
           {match.nearest !== null ? <>At your pace, the nearest published window is centred on {tAbs(match.nearest, tUnit, tUnit === 'f' ? 1 : 0)}. </> : null}
-          {centre !== null && centre >= 15 ? <>Warm race mornings are rare: {count(warmCount)} of {count(total)} races here started at {tAbs(20, tUnit, 0)} or warmer.</> : null}
-          {centre !== null && centre <= 5 ? <>Cold race mornings are rare too: {count(coldCount)} of {count(total)} races here started at {tAbs(3, tUnit, 0)} or colder.</> : null}
+          {centre !== null && centre >= 15 ? <>Warm race mornings are rare: {count(warmCount)} of {count(total)} editions here started at {tAbs(20, tUnit, 0)} or warmer.</> : null}
+          {centre !== null && centre <= 5 ? <>Cold race mornings are rare too: {count(coldCount)} of {count(total)} editions here started at {tAbs(3, tUnit, 0)} or colder.</> : null}
         </p>
       </>
     );
@@ -590,12 +647,12 @@ function HeadColumn({ tone, title, sub, row, started, units }: { tone: Tone; tit
     <div className={`weather-match-col is-${tone}`}>
       <p className="weather-match-col-title"><i aria-hidden="true" />{title}</p>
       <p className="weather-match-col-sub">
-        <span className="weather-match-nowrap">{sub}</span> · <span className="weather-match-nowrap">{m === started ? plural(m, 'race') : `${count(m)} of ${count(started)} races`}</span> · <span className="weather-match-nowrap">{count(row.n)} finishes</span>
+        <span className="weather-match-nowrap">{sub}</span> · <span className="weather-match-nowrap">{m === started ? plural(m, 'edition') : `${count(m)} of ${count(started)} editions`}</span> · <span className="weather-match-nowrap">{count(row.n)} finishes</span> in all
       </p>
       <dl>
-        <div><dt>Sustained slowdown</dt><dd>{pctShare(row.sd)}</dd><dd className="weather-match-dd-sub">of finishes</dd></div>
-        <div><dt>After {checkpointLabel(20, units)}</dt><dd>{mss(row.after20, true)}</dd><dd className="weather-match-dd-sub">beyond the 5–20 km pace</dd></div>
-        <div><dt>Median finish</dt><dd>{formatHM(row.fin[1])}</dd><dd className="weather-match-dd-sub">10th–90th <span className="weather-match-nowrap">{formatHM(row.fin[0])}–{formatHM(row.fin[2])}</span></dd></div>
+        <div><dt>Sustained slowdown</dt><dd>{pctShare(row.sd)}</dd><dd className="weather-match-dd-sub">average of the editions, each counted equally</dd></div>
+        <div><dt>After {checkpointLabel(20, units)}</dt><dd>{mss(row.after20, true)}</dd><dd className="weather-match-dd-sub">beyond the 5–20 km pace; editions counted equally</dd></div>
+        <div><dt>Median finish</dt><dd>{formatHM(row.fin[1])}</dd><dd className="weather-match-dd-sub">all finishes pooled; 10th–90th <span className="weather-match-nowrap">{formatHM(row.fin[0])}–{formatHM(row.fin[2])}</span></dd></div>
       </dl>
     </div>
   );
@@ -613,13 +670,13 @@ function ComparisonTable({ match, units, winText, refText, refTone, bandLabel, c
   type Col = { r: WeatherRow; started: number };
   const cols: Col[] = showRef ? [{ r: row, started: match.inWindow }, { r: ref!, started: match.refInWindow }] : [{ r: row, started: match.inWindow }];
   const lines: { label: ReactNode; cell: (c: Col) => ReactNode; key?: boolean }[] = [
-    { label: 'Races that started in the window', cell: (c) => count(c.started) },
-    { label: <>Races with 20+ finishes at <span className="weather-match-nowrap">{bandLabel}</span></>, cell: (c) => count(c.r.ed.length) },
-    { label: <>Finishes at <span className="weather-match-nowrap">{bandLabel}</span> in those races</>, cell: (c) => count(c.r.n) },
-    { label: 'Sustained slowdown', cell: (c) => pctShare(c.r.sd), key: true },
+    { label: 'Editions that started in the window', cell: (c) => count(c.started) },
+    { label: <>Editions with 20+ finishes at <span className="weather-match-nowrap">{bandLabel}</span></>, cell: (c) => count(c.r.ed.length) },
+    { label: <>Finishes at <span className="weather-match-nowrap">{bandLabel}</span> in those editions (pooled)</>, cell: (c) => count(c.r.n) },
+    { label: 'Sustained slowdown (editions counted equally)', cell: (c) => pctShare(c.r.sd), key: true },
     { label: <>Median time after {checkpointLabel(20, units)} beyond the 5–20 km pace</>, cell: (c) => mss(c.r.after20, true) },
     { label: <>Median pace change, {checkpointLabel(30, units)} to finish</>, cell: (c) => signedPct(c.r.late) },
-    { label: 'Median finish (10th–90th percentile)', cell: (c) => <>{formatHM(c.r.fin[1])}<small>{formatHM(c.r.fin[0])}–{formatHM(c.r.fin[2])}</small></> },
+    { label: 'Median finish (10th–90th percentile, finishes pooled)', cell: (c) => <>{formatHM(c.r.fin[1])}<small>{formatHM(c.r.fin[0])}–{formatHM(c.r.fin[2])}</small></> },
   ];
   return (
     <div className="tool-table-wrap weather-match-compare">
@@ -640,7 +697,7 @@ function ComparisonTable({ match, units, winText, refText, refTone, bandLabel, c
           ))}
         </tbody>
         <caption>
-          Rates and medians count every race equally (each race is one weather observation); finish percentiles pool all {showRef ? 'finishes in each column' : 'the finishes'} and only describe the field. Finishes are grouped by the 5–20 km pace they ran in the race, not by goal or ability. The {checkpointLabel(30, units)}-to-finish change compares that stretch’s pace with the 5–20 km pace. Columns are never subtracted.
+          Rates and medians count every edition equally (each edition is one weather observation); the finish count and finish percentiles pool all {showRef ? 'finishes in each column' : 'the finishes'} and only describe the field. Finishes are grouped by the 5–20 km pace they ran in the race, not by goal or ability. The {checkpointLabel(30, units)}-to-finish change compares that stretch’s pace with the 5–20 km pace. Columns are never subtracted.
         </caption>
       </table>
     </div>
@@ -688,7 +745,7 @@ function ProfileChart({ mine, reference, units, mineLabel, refLabel }: { mine: n
       <div ref={box} className="viz weather-match-chart">
         <svg width={width} height={H} role="img" aria-label={aria}>
           <rect x={x(5)} y={m.t - 6} width={x(20) - x(5)} height={H - m.t - m.b + 6} className="weather-match-baseline-zone" />
-          <text x={(x(5) + x(20)) / 2} y={m.t - 12} textAnchor="middle" className="axis-label">{narrow ? 'baseline' : `${units === 'mi' ? '3.1–12.4 mi' : '5–20 km'} baseline`}</text>
+          <text x={(x(5) + x(20)) / 2} y={m.t - 12} textAnchor="middle" className="axis-label">{narrow ? 'baseline' : '5–20 km baseline'}</text>
           {ticks.map((v) => (
             <g key={v} className="grid">
               <line x1={m.l} x2={width - m.r} y1={y(v)} y2={y(v)} />
@@ -733,7 +790,7 @@ function ProfileChart({ mine, reference, units, mineLabel, refLabel }: { mine: n
                 </tr>
               ))}
             </tbody>
-            <caption>Median pace in each section against the same finishes’ 5–20 km pace (shaded rows), averaged with every race counted equally. These are observed 5 km mat sections, not mile splits.</caption>
+            <caption>Median pace in each section against the same finishes’ 5–20 km pace (shaded rows), averaged with every edition counted equally. These are observed 5 km mat sections, not mile splits.</caption>
           </table>
         </div>
       </details>
@@ -821,7 +878,7 @@ function TempStrip({ editions, tUnit, marker, centre, hw, showRef, emphasis, emp
       </div>
       <ul className="weather-match-legend is-strip" aria-hidden="true">
         {emphasis.size ? <li><i className={ring ? 'is-dot-ring' : `is-dot-${emphasisTone}`} />{legend}</li> : null}
-        <li><i className="is-dot" />Other races in this data</li>
+        <li><i className="is-dot" />Other editions in this data</li>
         {centre !== null ? <li><i className="is-zone-warm" />Your window</li> : null}
         {showRef ? <li><i className="is-zone-cool" />Reference, {tWindow(REF.c - REF.hw, REF.c + REF.hw, tUnit)}</li> : null}
       </ul>
@@ -835,21 +892,30 @@ function EditionChips({ editions, tUnit, units, empty, limit = 18, showYearFirst
   const [open, setOpen] = useState<number | null>(null);
   const [all, setAll] = useState(false);
   const detailId = useId();
+  const chipRefs = useRef(new Map<number, HTMLButtonElement>());
+  const moreRef = useRef<HTMLButtonElement>(null);
   const shown = all ? editions : editions.slice(0, limit);
   const current = editions.find((e) => e.id === open) ?? null;
+  // Close removes the detail (and its button), so focus goes back to the chip that opened it, or to "Show all" if that chip is hidden.
+  const close = () => {
+    const chip = open !== null ? chipRefs.current.get(open) : undefined;
+    setOpen(null);
+    (chip ?? moreRef.current)?.focus();
+  };
   if (!editions.length) return <p className="tool-note">{empty}</p>;
   return (
     <div className="weather-match-chipset">
       <ul className="weather-match-chips">
         {shown.map((e) => (
           <li key={e.id}>
-            <button type="button" aria-expanded={open === e.id} aria-controls={detailId} onClick={() => setOpen(open === e.id ? null : e.id)}>
+            <button type="button" aria-expanded={open === e.id} aria-controls={detailId} onClick={() => setOpen(open === e.id ? null : e.id)}
+              ref={(el) => { if (el) chipRefs.current.set(e.id, el); else chipRefs.current.delete(e.id); }}>
               <b>{showYearFirst ? e.year : `${e.city} ${e.year}`}</b><span>{tData(e.temp_c, tUnit, false)}<span className="sr-only">{tUnit === 'f' ? 'F' : 'C'}</span></span>
             </button>
           </li>
         ))}
         {editions.length > limit ? (
-          <li><button type="button" className="weather-match-more" onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show all ${editions.length}`}</button></li>
+          <li><button type="button" className="weather-match-more" ref={moreRef} onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show all ${editions.length}`}</button></li>
         ) : null}
       </ul>
       <div id={detailId} aria-live="polite">
@@ -862,9 +928,9 @@ function EditionChips({ editions, tUnit, units, empty, limit = 18, showYearFirst
               <div><dt>Wind</dt><dd>{current.wind_mps !== null ? wind(current.wind_mps, units) : '—'}</dd></div>
               <div><dt>Warming, first 4 hours</dt><dd>{current.warming_c !== null ? tDelta(current.warming_c, tUnit) : '—'}</dd></div>
             </dl>
-            <button type="button" className="weather-match-close" onClick={() => setOpen(null)}>Close</button>
+            <button type="button" className="weather-match-close" onClick={close}>Close</button>
           </div>
-        ) : <p className="weather-match-chip-hint">Tap a race for its race-morning weather.</p>}
+        ) : <p className="weather-match-chip-hint">Tap an edition for its race-morning weather.</p>}
       </div>
     </div>
   );
@@ -879,17 +945,18 @@ function CoursePanel({ course, tUnit, units, tempC, centre, hw, all }: {
   const warmer = tempC !== null ? course.editions.filter((e) => e.temp_c > tempC).length : 0;
   let relation = '';
   if (tempC !== null) {
-    if (tempC > hi) relation = `Your forecast is warmer than every ${course.city} race here.`;
-    else if (tempC < lo) relation = `Your forecast is cooler than every ${course.city} race here.`;
-    else relation = `${cap(plural(warmer, 'race'))} of ${course.editions.length} started warmer than your forecast.`;
+    const every = course.editions.length === 1 ? `the one ${course.city} edition` : `every ${course.city} edition`;
+    if (tempC > hi) relation = `Your forecast is warmer than ${every} here.`;
+    else if (tempC < lo) relation = `Your forecast is cooler than ${every} here.`;
+    else relation = `${cap(plural(warmer, 'edition'))} of ${course.editions.length} started warmer than your forecast.`;
   }
   return (
     <EvidencePanel kind="data" title={`${course.city}: past race mornings`}
-      meta={<>{course.city}: {tData(lo, tUnit, false)} to {tData(hi, tUnit)} across {plural(course.editions.length, 'race')} in this tool’s data. {centre !== null ? `${cap(plural(inWindow, 'race'))} started in your window. ` : ''}{relation}</>}>
+      meta={<>{course.city}: {lo === hi ? tData(lo, tUnit) : <>{tData(lo, tUnit, false)} to {tData(hi, tUnit)}</>} across {plural(course.editions.length, 'edition')} in this tool’s data. {centre !== null ? `${inWindow === 0 ? 'No edition' : cap(plural(inWindow, 'edition'))} started in your window. ` : ''}{relation}</>}>
       <TempStrip editions={all} tUnit={tUnit} marker={tempC} centre={centre} hw={hw} emphasis={new Set(course.editions.map((e) => e.id))} emphasisTone="ink" ring
-        legend={`${course.city} race`} label={`Start temperatures of ${course.editions.length} ${course.city} races, from ${tData(lo, tUnit)} to ${tData(hi, tUnit)}, among all races in this tool's data.`} />
+        legend={`${course.city} edition`} label={`${course.editions.length === 1 ? `Start temperature of the one ${course.city} edition, ${tData(lo, tUnit)}` : `Start temperatures of ${count(course.editions.length)} ${course.city} editions, from ${tData(lo, tUnit)} to ${tData(hi, tUnit)}`}, among all editions in this tool's data.`} />
       <EditionChips editions={course.editions} tUnit={tUnit} units={units} empty="" showYearFirst limit={24} />
-      <p className="tool-note">Races left out of this tool’s data (start-delay screens, shifted mats or missing weather) are listed under How this works.</p>
+      <p className="tool-note">Editions left out of this tool’s data (start-delay screens, shifted mats or missing weather) are listed under How this works.</p>
     </EvidencePanel>
   );
 }
@@ -931,7 +998,7 @@ function Knechtle() {
   return (
     <li className="weather-match-method is-statement">
       <p className="weather-match-method-head"><b>Knechtle et al. 2019</b><span>Study · statement only</span></p>
-      <p className="weather-match-method-body">Boston 1972–2018: across all finishers, times were about 1:47 slower for each 1 °C rise in average air temperature (1.8 °F). One race’s association, shown as reported and not applied to your goal.</p>
+      <p className="weather-match-method-body">Boston 1972–2018: across all finishers, times were about 1 min 47 s slower for each 1 °C rise in average air temperature (1.8 °F). One race’s association, shown as reported and not applied to your goal.</p>
       <p className="weather-match-cite"><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC6407773" rel="noopener noreferrer">PLoS One 14:e0212797</a></p>
     </li>
   );

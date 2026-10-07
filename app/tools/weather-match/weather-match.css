@@ -7,7 +7,7 @@
 .weather-match { --tool: #F4B23E; --wm-warm-night: #FF9A73; --wm-cool-night: #9DB6FB; --wm-violet: #5B34D6; --wm-violet-line: #E3DBFA; }
 
 /* ---------- Inputs ---------- */
-.weather-match-example { margin-top: -.55rem; font-size: .8125rem; line-height: 1.45; color: var(--gold-ink); }
+
 .weather-match-label-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .4rem .6rem; }
 .weather-match-label-row > label { font-size: .8125rem; font-weight: 600; color: var(--ink-2); }
 .weather-match-label-row .tool-choice { width: auto; }

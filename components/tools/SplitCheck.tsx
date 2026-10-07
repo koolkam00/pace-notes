@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { Choice, EvidencePanel, ShareBar } from '@/components/tools/ui';
+import { Choice, EvidencePanel, ExampleNote, ShareBar } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
 import { loadInsight, type Archetype, type Archetypes } from '@/lib/insights';
 import { loadShard, type PaceBandGroup, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
 import { MARATHON_KM, MATS_KM, perUnit } from '@/lib/tools/pace';
-import { SECTION_KM, SECTION_NAMES, classify, readSplits, validateSplits, type SplitReading } from '@/lib/tools/splits';
+import { SECTION_KM, SECTION_NAMES, SLOWDOWN_CITATION, SLOWDOWN_DEFINITION, classify, readSplits, validateSplits, type SplitReading } from '@/lib/tools/splits';
 import { formatDuration, parseDuration } from '@/lib/tools/time';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 import { SECTION_BOUNDS, count, sectionLabel, signedPct } from '@/lib/viz/format';
@@ -35,6 +35,9 @@ const GENDER_OPTIONS: { value: Gender; label: string }[] = [{ value: 'all', labe
 
 /** One of the six opening groups of the starting-pace analysis (first 5 km vs the same race's 5–20 km pace, in %). */
 export interface OpeningBand { id: string; label: string; lower: number | null; upper: number | null; lower_inclusive: boolean; upper_inclusive: boolean }
+
+/** The cohort the pacing types were fitted on (the pacing-types story's), so their shares carry their own denominator. */
+export interface TypeCohort { n: number; editions: number | null; keeps: string[] }
 
 interface Cell { n: number; ed: number; e50: number[]; s50: number[]; sd?: number }
 
@@ -240,7 +243,18 @@ const editions = (k: number) => (k === 1 ? 'one edition' : `${count(k)} editions
 const share = (v: number) => `${(v * 100).toFixed(1)}%`;
 /** Section name in the selected units ("30–35 km" or "18.6–21.7 mi"). */
 const secName = (i: number, units: UnitSystem) => (units === 'mi' ? sectionLabel(i, 'mi') : `${SECTION_NAMES[i]} km`);
-const baseName = (units: UnitSystem) => (units === 'mi' ? '3.1–12.4 mi' : '5–20 km');
+/** The reference block keeps its published name in both units; miles add a gloss where there is room. */
+const BASE = '5–20 km';
+const BASE_MI = '3.1–12.4 mi';
+/** "after 20 km" / "after 12.4 mi (20 km)". */
+const after20 = (units: UnitSystem) => (units === 'mi' ? 'after 12.4 mi (20 km)' : 'after 20 km');
+/** "the final 2.195 km" / "the final 1.36 mi (2.195 km)". */
+const finalLeg = (units: UnitSystem) => (units === 'mi' ? `the final ${(SECTION_KM[8] / KM_PER_MILE).toFixed(2)} mi (2.195 km)` : 'the final 2.195 km');
+/** A distance in km, with miles first in miles mode: "5 km" / "3.1 mi (5 km)". */
+const kmGloss = (km: number, units: UnitSystem) => {
+  const text = km.toLocaleString('en-US', { maximumFractionDigits: 3 });
+  return units === 'mi' ? `${(km / KM_PER_MILE).toFixed(1)} mi (${text} km)` : `${text} km`;
+};
 const matName = (km: number, units: UnitSystem) => (km >= 42.19 ? 'Finish' : units === 'mi' ? `${(km / KM_PER_MILE).toFixed(1)} mi` : `${km} km`);
 function ahead(seconds: number): string {
   const s = Math.round(seconds);
@@ -663,7 +677,7 @@ function Results({ times, reading, units, comparison, type, typeError, retryType
       </div>
 
       <EvidencePanel kind="arithmetic" title="Your race, section by section" id="split-check-sections"
-        meta={`Pace in each section against your own ${baseName(units)} pace (${fmtPace(reading.baseline, units)}), the reference block in the published definition. Bars show how much slower or quicker each section was.`}>
+        meta={`Pace in each section against your own ${BASE} pace (${fmtPace(reading.baseline, units)}), the reference block in the published definition. Bars show how much slower or quicker each section was.`}>
         <SectionChart reading={reading} times={times} units={units} />
         <SectionTable reading={reading} times={times} units={units} />
       </EvidencePanel>
@@ -756,7 +770,7 @@ function SectionChart({ reading, times, units }: { reading: SplitReading; times:
     setHover(i < 0 ? (km < 0 ? 0 : 8) : i);
   };
   const qualifying = reading.vsBaseline.map((v, i) => (i >= 4 && i <= 7 && qualifies(v) ? secName(i, units) : null)).filter(Boolean);
-  const aria = `Section pace chart. Your ${baseName(units)} pace is ${fmtPace(reading.baseline, units)}; 25% slower is ${fmtPace(reading.baseline * 1.25, units)}. `
+  const aria = `Section pace chart. Your ${BASE} pace is ${fmtPace(reading.baseline, units)}; 25% slower is ${fmtPace(reading.baseline * 1.25, units)}. `
     + reading.paces.map((p, i) => `${secName(i, units)}: ${fmtPace(p, units)}, ${pctSigned(reading.vsBaseline[i])}`).join('; ')
     + `. ${qualifying.length ? `At least 25% slower after 20 km: ${qualifying.join(', ')}.` : 'No 5 km section after 20 km was 25% or more slower.'}`;
   const tipX = hover === null ? 0 : Math.min(width - 96, Math.max(96, (x(SECTION_BOUNDS[hover][0]) + x(SECTION_BOUNDS[hover][1])) / 2));
@@ -768,7 +782,7 @@ function SectionChart({ reading, times, units }: { reading: SplitReading; times:
         <span><i className="swatch" style={{ background: TONE.quick.fill, boxShadow: `inset 0 0 0 1px ${TONE.quick.stroke}` }} />Quicker</span>
         <span><i className="swatch" style={{ background: TONE.slow.fill, boxShadow: `inset 0 0 0 1px ${TONE.slow.stroke}` }} />Slower</span>
         <span><i className="swatch" style={{ background: TONE.qualify.fill, boxShadow: `inset 0 0 0 1px ${TONE.qualify.stroke}` }} />≥25% slower after 20 km</span>
-        <span><i className="split-check-key-pill is-base">{formatDuration(perUnit(reading.baseline, units))}</i>{baseName(units)} pace</span>
+        <span><i className="split-check-key-pill is-base">{formatDuration(perUnit(reading.baseline, units))}</i>{BASE} pace</span>
         <span><i className="split-check-key-pill is-threshold">{formatDuration(perUnit(reading.baseline * 1.25, units))}</i>25% slower</span>
         <span><i className="split-check-key-zone" />Slowdown zone</span>
       </div>
@@ -828,11 +842,11 @@ function SectionChart({ reading, times, units }: { reading: SplitReading; times:
             <b>{secName(hover, units)}{units === 'mi' ? ` · ${SECTION_NAMES[hover]} km` : ''}</b>
             <span>Section time {formatDuration(times[hover] - (hover ? times[hover - 1] : 0))}</span>
             <span>Pace {fmtPace(reading.paces[hover], units)}</span>
-            <span>{pctSigned(reading.vsBaseline[hover])} vs your {baseName(units)} pace</span>
+            <span>{pctSigned(reading.vsBaseline[hover])} vs your {BASE} pace</span>
           </div>
         ) : null}
       </div>
-      <p className="split-check-axis-note">{units === 'mi' ? 'Miles from the start' : 'Kilometres from the start'}. Each bar runs from your {baseName(units)} pace to the section’s pace; the last is the final 2.195 km. The hatched zone is 25% or more slower than your {baseName(units)} pace, after 20 km.</p>
+      <p className="split-check-axis-note">{units === 'mi' ? 'Miles from the start' : 'Kilometres from the start'}. Each bar runs from your {BASE} pace to the section’s pace; the last is the final 2.195 km. The hatched zone is 25% or more slower than your {BASE} pace, after 20 km.</p>
     </>
   );
 }
@@ -842,7 +856,7 @@ function SectionTable({ reading, times, units }: { reading: SplitReading; times:
     <div className="tool-table-wrap split-check-table-wrap">
       <table className="tool-table split-check-table">
         <thead>
-          <tr><th scope="col">Section</th><th scope="col">Time</th><th scope="col">Pace /{units}</th><th scope="col">vs {baseName(units)} pace</th></tr>
+          <tr><th scope="col">Section</th><th scope="col">Time</th><th scope="col">Pace /{units}</th><th scope="col">vs {BASE} pace</th></tr>
         </thead>
         <tbody>
           {reading.paces.map((p, i) => {
@@ -862,10 +876,10 @@ function SectionTable({ reading, times, units }: { reading: SplitReading; times:
           })}
         </tbody>
         <tfoot>
-          <tr><th scope="row">{baseName(units)} pace</th><td>{formatDuration(times[3] - times[0])}</td><td>{formatDuration(perUnit(reading.baseline, units))}</td><td>—</td></tr>
+          <tr><th scope="row">{BASE} pace</th><td>{formatDuration(times[3] - times[0])}</td><td>{formatDuration(perUnit(reading.baseline, units))}</td><td>—</td></tr>
           <tr><th scope="row">Whole race</th><td>{formatDuration(times[8], true)}</td><td>{formatDuration(perUnit(times[8] / MARATHON_KM, units))}</td><td>{pctSigned(times[8] / MARATHON_KM / reading.baseline - 1)}</td></tr>
         </tfoot>
-        <caption>Arithmetic on your times: section time ÷ section length. Positive is slower than your {baseName(units)} pace. Mats only: no halfway or mile splits are derived.</caption>
+        <caption>Arithmetic on your times: section time ÷ section length. Positive is slower than your {BASE} pace. Mats only: no halfway or mile splits are derived.</caption>
       </table>
     </div>
   );
@@ -941,7 +955,7 @@ function OpeningPanel({ reading, units, bands, cities, place, course, gender }: 
   const href = `/analyses/starting-pace${params.toString() ? `?${params.toString()}` : ''}`;
   return (
     <EvidencePanel kind="arithmetic" id="split-check-opening"
-      title={<>Opening: {Math.abs(reading.opening) < 0.0005 ? 'level with' : `${openingPct(reading.opening)} ${reading.opening < 0 ? 'quicker' : 'slower'} than`} your {baseName(units)} pace</>}
+      title={<>Opening: {Math.abs(reading.opening) < 0.0005 ? 'level with' : `${openingPct(reading.opening)} ${reading.opening < 0 ? 'quicker' : 'slower'} than`} your {BASE} pace</>}
       meta={`First ${five} ${fmtPace(reading.paces[0], units)} against ${fmtPace(reading.baseline, units)}. The first section is not part of the reference block, so the two are compared directly.`}>
       {bands.length ? (
         <>

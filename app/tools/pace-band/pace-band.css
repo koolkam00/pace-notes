@@ -4,7 +4,6 @@
    ========================================================================== */
 
 /* ---------- Inputs ---------- */
-.pace-band-example { padding: .5rem .75rem; border-radius: 10px; background: var(--paper-2); font-size: .8125rem; line-height: 1.45; color: var(--ink-2); }
 .pace-band-optional { margin-left: .3rem; font-size: .75rem; font-weight: 500; color: var(--ink-3); }
 .pace-band-goal input { text-align: center; }
 
@@ -25,6 +24,12 @@
 .pace-band-src { font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--night-ink-2); white-space: nowrap; }
 .pace-band-src.is-data { color: #FF9A73; }
 .pace-band-headline[aria-busy='true'] .tool-stat + .tool-stat, .pace-band-headline[aria-busy='true'] .pace-band-headline-note { opacity: .45; transition: opacity .15s; }
+
+/* ---------- Held: the goal field holds text that is not a goal, so everything below shows the last good goal ---------- */
+.pace-band-held { border: 1px solid var(--line-2); color: var(--ink-2); line-height: 1.5; }
+.pace-band-held b { font-family: var(--mono); font-weight: 600; color: var(--ink); }
+.pace-band-held-dim { opacity: .45; transition: opacity .15s; }
+.pace-band-print-held { flex-basis: 100%; margin: 0; font-size: .8125rem; color: var(--ink-3); }
 
 /* ---------- Layout: band beside the observed panels on wide screens; mat table first on phones ----------
    The component renders the panels in the visual order for each width (observed, chart, band, onset on phones;
@@ -73,13 +78,13 @@
 .pace-band-table tbody th, .pace-band-table tfoot th { padding: .5rem .6rem; border-bottom: 1px solid var(--paper-2); text-align: left; white-space: nowrap;
   font-family: var(--sans); font-size: .875rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--ink-2); }
 .pace-band-table td { vertical-align: top; }
-.pace-band-table thead th:not(:first-child) { width: 26%; }
+.pace-band-table thead th:not(:first-child) { width: 30%; }
 .pace-band-table tr.is-key th { background: var(--paper-2); }
 .pace-band-table tr.is-finish th { border-top: 2px solid var(--ink); }
 .pace-band-table tfoot th, .pace-band-table tfoot td { padding-top: .45rem; padding-bottom: .3rem; border-bottom: 0; font-size: .75rem; font-weight: 500; color: var(--ink-3); }
 .pace-band-table tfoot tr:first-child > * { border-top: 1px solid var(--line); }
 .pace-band-sub { display: block; font-family: var(--mono); font-size: .6875rem; font-weight: 500; color: var(--ink-3); }
-.pace-band-delta { display: block; margin-top: .05rem; font-size: .6875rem; font-weight: 500; color: var(--ink-3); }
+.pace-band-range { display: block; margin-top: .05rem; font-size: .6875rem; font-weight: 500; color: var(--ink-3); }
 .pace-band-key { display: inline-block; width: 8px; height: 8px; margin-right: .35rem; border-radius: 50%; vertical-align: 1px; }
 .pace-band-unavailable { display: grid; gap: .6rem; padding: 1rem 1.05rem; border: 1px dashed var(--line-2); border-radius: 14px; font-size: .9375rem; line-height: 1.55; color: var(--ink-2); }
 .pace-band-unavailable p + p { margin-top: 0; }
@@ -195,7 +200,7 @@
   .pace-band-root[data-print='page'] .pace-band-wrist td { font-size: 10.5pt; }
   .pace-band-root[data-print='page'] .pace-band-wrist tr.is-finish td { font-size: 12pt; }
   .pace-band-headline-note, .pace-band-headline-note b, .pace-band-src, .pace-band-headline .evidence-badge { color: #000 !important; border-color: #000; }
-  .pace-band-dim, .pace-band-headline[aria-busy='true'] .tool-stat { opacity: 1 !important; }
+  .pace-band-dim, .pace-band-held-dim, .pace-band-headline[aria-busy='true'] .tool-stat { opacity: 1 !important; }
   .pace-band-wrist { background: #fff !important; color: #000; border: 1px solid #000; box-shadow: none; }
   .pace-band-wrist::before { display: none; }
   .pace-band-wrist *, .pace-band-wrist tr.is-mat th, .pace-band-wrist tr.is-half th { color: #000 !important; }
