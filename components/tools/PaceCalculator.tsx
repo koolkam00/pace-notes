@@ -150,7 +150,7 @@ export default function PaceCalculator() {
 
                 {goalHM ? (
                   <div className="tool-callout no-print">
-                    <strong>Racing a marathon at {goalHM}?</strong> The <Link href={`/tools/pace-band?goal=${goalHM}`}>pace band</Link> shows what finishes that hit {goalHM} actually ran at each 5 km mat, and the <Link href="/tools/course-chooser">course chooser</Link> compares courses at this pace.
+                    <strong>Racing a marathon at {goalHM}?</strong> The <Link href={`/tools/pace-band?goal=${goalHM}`}>pace band</Link> shows what finishes that hit {goalHM} actually ran at each 5 km mat, the <Link href={`/tools/course-chooser?goal=${goalHM}`}>course chooser</Link> compares courses at this pace, and the <Link href={`/tools/qualifying?t=${formatDuration(seconds!, true)}`}>qualifying checker</Link> shows which standards {formatDuration(seconds!, true)} would meet.
                   </div>
                 ) : null}
                 <ShareBar />
