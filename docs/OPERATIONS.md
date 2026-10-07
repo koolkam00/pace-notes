@@ -38,6 +38,8 @@ python analysis/audit_release.py --input /path/to/0934-input --core /path/to/093
 python -m unittest discover -s analysis -p 'test_*.py'
 ```
 
+`download_release.py` needs no token. If `GH_TOKEN` or `GITHUB_TOKEN` is set, it is sent only to `api.github.com`, including across that host's own redirects: the pinned repository name `koolkam00/htw-live-study` now redirects to the renamed repository, and an anonymous redirected request can hit GitHub's shared runner rate limit. Asset downloads, and redirects to any other host, never carry the token.
+
 Add `--previous /path/to/1107-input` to the release audit to reproduce the raw-record delta. CORE has eight allowed members; FULL adds `features.parquet`. Producer audit notes belong in separate assets. The downloader validates size/SHA-256, rejects unsafe, duplicate or unexpected members and writes provenance. Do not bypass these checks because a prior release had a different archive layout.
 
 Review the release-specific exclusions in `analysis/source_quality.py` before calculation. The policy follows explicit producer/audit evidence for invalid, incomplete, held or selected fields. Apply it after timing eligibility, include its edition counts and hashes in each output, and exclude those editions from earlier benchmarks as well as outcomes. Do not widen exclusions based on small sample size alone or remove usable records merely because age/gender is missing.

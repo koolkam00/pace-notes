@@ -11,7 +11,7 @@ import shutil
 import tarfile
 from pathlib import Path
 from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 EXPECTED = {
     "race_records.parquet", "race_conditions.parquet", "course_profiles.parquet",
@@ -25,6 +25,30 @@ def sha256(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+class GitHubApiRedirect(HTTPRedirectHandler):
+    """Follow redirects, keeping the API token only while they stay on api.github.com.
+
+    A renamed repository answers its old API URL with a redirect to the new one. Without the
+    token that second request is anonymous and shares the runners' small hourly limit. Asset
+    downloads, and any redirect to another host, still never carry credentials.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        token = req.unredirected_hdrs.get("Authorization")
+        target = urlsplit(newurl)
+        if new is not None and token and target.scheme == "https" and target.hostname == "api.github.com":
+            new.add_unredirected_header("Authorization", token)
+        return new
+
+
+_OPENER = build_opener(GitHubApiRedirect)
+
+
+def urlopen(request, timeout):
+    return _OPENER.open(request, timeout=timeout)
+
+
 def read_release(repo, tag):
     request = Request(
         f"https://api.github.com/repos/{repo}/releases/tags/{tag}",
@@ -32,7 +56,7 @@ def read_release(repo, tag):
     )
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     if token:
-        # Credentials belong only on this API request, never on redirects.
+        # Credentials belong only on GitHub API requests, never on asset or off-host redirects.
         request.add_unredirected_header("Authorization", f"Bearer {token}")
     with urlopen(request, timeout=60) as response:
         return json.load(response)
