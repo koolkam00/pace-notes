@@ -513,6 +513,13 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .home-tool-icon { grid-row: 1 / 3; width: 44px; height: 44px; color: var(--tool); }
 .home-tool-title { font-family: var(--serif); font-variation-settings: 'opsz' 72, 'SOFT' 40; font-size: 1.2rem; font-weight: 640; line-height: 1.1; letter-spacing: -.01em; align-self: end; }
 .home-tool-short { font-size: .875rem; color: var(--ink-3); line-height: 1.35; align-self: start; }
+@media (max-width: 560px) {
+  .home-tools-grid { grid-template-columns: 1fr 1fr; gap: .6rem; }
+  .home-tool { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; row-gap: .3rem; align-items: start; padding: .9rem .85rem .85rem 1rem; }
+  .home-tool-icon { grid-row: auto; width: 32px; height: 32px; }
+  .home-tool-title { font-size: 1.05rem; align-self: start; }
+  .home-tool-short { font-size: .8125rem; }
+}
 .fp-stats dd small { display: block; margin-top: .15rem; font-family: var(--sans); font-size: .6875rem; font-weight: 500; letter-spacing: 0; color: var(--ink-3); }
 
 .story-section .share-grid > .viz-card, .story-section .snapshot-grid > .viz-card { margin-top: 0; }
