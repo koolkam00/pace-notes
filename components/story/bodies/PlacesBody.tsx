@@ -58,7 +58,7 @@ export default function PlacesBody({ data, manifest }: { data: Positions; manife
         caveats={[
           'Clock ranks compare elapsed times within an edition. Because of wave starts, a clock pass is not necessarily a physical overtake on the road.',
           'Only eligible finishes are ranked: runners who did not finish or whose records were incomplete are absent.',
-          'Slowing measures and places gained both use the late kilometres, so their link is partly arithmetic; it describes, it does not predict.',
+          'Slowing measures and places gained both use the late kilometres, so part of their link is built into the measures themselves; it describes, it does not predict.',
           `${count(data.cohort_n)} finishes in ${data.editions_n} editions are ranked. Pair rates are estimated from sampled pairs with a fixed seed.`,
         ]} />
     </StoryData>

@@ -195,7 +195,7 @@ export default function Page() {
       <div className="chapter-head">
         <p className="chapter-num">Runner tools</p>
         <h2 id="tools-title" className="chapter-title">Plan your next race on <em>real</em> finishes.</h2>
-        <p className="chapter-dek">Most calculators assume you will hold your pace to the finish. These pair exact arithmetic and published research with what {toolCohort ? `${(toolCohort / 1e6).toFixed(2)} million` : 'millions of'} recorded finishes actually did, and label which is which.</p>
+        <p className="chapter-dek">Most calculators assume you will hold your pace to the finish. These pair exact calculations and published research with what {toolCohort ? `${(toolCohort / 1e6).toFixed(2)} million` : 'millions of'} recorded finishes actually did, and label which is which.</p>
       </div>
       <ul className="home-tools-grid">
         {tools.map((t) => (

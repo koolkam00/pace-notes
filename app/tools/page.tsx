@@ -28,7 +28,7 @@ export default function ToolsPage() {
           <p className="eyebrow">Runner tools</p>
           <h1 className="story-title">Tools that know how marathons <em>really</em> go.</h1>
           <p className="hero-dek">
-            Most calculators assume an even pace to the finish. Few marathons are run that way. These tools pair exact arithmetic and published
+            Most calculators assume an even pace to the finish. Few marathons are run that way. These tools pair exact calculations and published
             research with what {cohort ? `${(cohort / 1e6).toFixed(2)} million` : 'millions of'} recorded finishes actually did, and say plainly which is which.
           </p>
         </div>
@@ -57,7 +57,7 @@ export default function ToolsPage() {
           );
         })}
         <div className="tools-principles">
-          <div><b>Arithmetic is labelled as arithmetic</b><p>Even-pace splits, mile rows and pace charts are exact maths, not observations.</p></div>
+          <div><b>Calculations are exact</b><p>Even-pace splits, mile rows and pace charts come straight from your inputs. They are not observations.</p></div>
           <div><b>Data is what finishes did</b><p>Shares describe complete finishes in the data, never your personal chance. Runners who stopped are not in it.</p></div>
           <div><b>Research is cited</b><p>Prediction and heat formulas come from published studies, kept apart from Pace Notes results.</p></div>
           <div><b>Your inputs stay with you</b><p>Everything runs in your browser. Birth dates are never put in links or analytics.</p></div>

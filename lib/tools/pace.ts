@@ -1,4 +1,4 @@
-/** Even-pace arithmetic for the pace calculator and pace band. Distances in km, times in seconds, paces in s/km. */
+/** Even-pace calculations for the pace calculator and pace band. Distances in km, times in seconds, paces in s/km. */
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 
 export const MARATHON_KM = 42.195;
@@ -33,7 +33,7 @@ export interface SplitRow { km: number; elapsed: number; split: number; mat: boo
 
 /**
  * Cumulative even-pace splits at a fixed interval. With `difference` (seconds; positive = second half slower),
- * the first half runs at (T − Δ)/2 and the second at (T + Δ)/2, each even within its half. Arithmetic only.
+ * the first half runs at (T − Δ)/2 and the second at (T + Δ)/2, each even within its half. A calculation only.
  */
 export function splitTable(totalSeconds: number, km: number, interval: SplitInterval, difference = 0): SplitRow[] {
   const step = SPLIT_KM[interval];
