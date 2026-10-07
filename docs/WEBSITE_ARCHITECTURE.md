@@ -102,7 +102,7 @@ The root layout mounts `SiteAnalytics` for production-only PostHog pageviews and
 
 ## Pace Notes branding and analysis requests
 
-The public brand is **Pace Notes**, credited to [Run_with_Kam · Andrew Kam](https://www.instagram.com/run_with_kam/) on the home page, About and footer. A compact linked `by Run_with_Kam` also appears beneath the Pace Notes name in the shared header on every page. Public page titles use this name; compatibility URLs, research provenance, package names and the splithappens.run host remain stable.
+The public brand is **Pace Notes**, credited to Andrew Kam on the home page, About and footer (`CreatorCredit`). A compact unlinked `by Andrew Kam` also appears beneath the Pace Notes name in the shared header on every page. The site does not link to the Run_with_Kam Instagram account or show that handle. Public page titles use this name; compatibility URLs, research provenance, package names and the splithappens.run host remain stable.
 
 `/request-analysis` provides a question and optional context field. `AnalysisRequest` prepares an encoded email to Andrew; visitors must send it through their own email app or Gmail. A copy fallback is available. This is a client-side email composer, not a server-side delivery service: never report a draft as submitted or delivered. The page stores no request text, and analytics receives only the allowed page path. No email provider keys or runtime API are required, preserving Next static export. A visible Request an analysis button in the shared top navigation, plus footer, About and analysis-directory links, make the page discoverable on desktop and mobile.
 

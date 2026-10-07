@@ -28,7 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="container header-inner">
             <div className="header-brand">
               <Link href="/" className="site-title"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span>Pace Notes</span></Link>
-              <a className="header-credit" href="https://www.instagram.com/run_with_kam/" aria-label="Run_with_Kam on Instagram">by Run_with_Kam</a>
+              <span className="header-credit">by Andrew Kam</span>
             </div>
             <div className="header-controls"><SiteNav /><UnitSwitch /></div>
           </div>

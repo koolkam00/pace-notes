@@ -2,7 +2,7 @@
 
 ## Pace Notes presentation and requests
 
-The public name is Pace Notes, with Instagram attribution to Run_with_Kam · Andrew Kam. `/request-analysis` prepares an email request to Andrew; the visitor sends it from their email app or Gmail. It does not send mail from the server or confirm delivery. See [website architecture](WEBSITE_ARCHITECTURE.md#pace-notes-branding-and-analysis-requests). This presentation change does not recalculate analyses or alter data pins.
+The public name is Pace Notes, credited to Andrew Kam as plain text; the site no longer links to the Run_with_Kam Instagram account. `/request-analysis` prepares an email request to Andrew; the visitor sends it from their email app or Gmail. It does not send mail from the server or confirm delivery. See [website architecture](WEBSITE_ARCHITECTURE.md#pace-notes-branding-and-analysis-requests). This presentation change does not recalculate analyses or alter data pins.
 
 ## Redesign and data stories (October 2026 implementation)
 

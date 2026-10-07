@@ -150,8 +150,7 @@ summary::marker { color: var(--orange); font-size: .8em; }
 .brand-mark i:nth-child(1) { left: 6px; right: 6px; top: 9px; height: 3px; }
 .brand-mark i:nth-child(2) { left: 9px; right: 6px; top: 14.5px; height: 3px; }
 .brand-mark i:nth-child(3) { left: 6px; right: 10px; top: 20px; height: 3px; }
-.header-credit { display: inline-flex; align-items: center; min-height: 24px; margin-left: calc(30px + .6rem); color: var(--ink-3); font-family: var(--mono); font-size: .6875rem; letter-spacing: .02em; white-space: nowrap; text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
-.header-credit:hover { color: var(--orange-ink); }
+.header-credit { display: inline-flex; align-items: center; min-height: 24px; margin-left: calc(30px + .6rem); color: var(--ink-3); font-family: var(--mono); font-size: .6875rem; letter-spacing: .02em; white-space: nowrap; }
 .header-controls { display: flex; align-items: center; gap: 1.1rem; }
 .main-nav { display: flex; flex-wrap: wrap; align-items: center; gap: .15rem; }
 .main-nav a { display: inline-flex; align-items: center; min-height: 40px; padding: .4rem .8rem; border-radius: 999px; color: var(--ink-2); font-size: .875rem; font-weight: 550; letter-spacing: -.005em; white-space: nowrap; transition: background-color .15s var(--ease), color .15s var(--ease); }
@@ -213,8 +212,6 @@ summary::marker { color: var(--orange); font-size: .8em; }
 .text-link { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; color: var(--blue-ink); font-weight: 600; }
 .arrow-link { font-size: 1.15rem; color: var(--ink); }
 .creator-credit { color: var(--ink-3); font-size: .875rem; line-height: 1.6; margin-top: 1rem; }
-.creator-credit a { color: var(--ink-2); font-weight: 600; text-decoration: underline; text-decoration-color: var(--orange); text-decoration-thickness: 2px; text-underline-offset: 4px; }
-.creator-credit a:hover { color: var(--orange-ink); }
 .study-meta { font-size: .875rem; line-height: 1.6; color: var(--ink-3); }
 .method-summary { font-size: 1rem; line-height: 1.7; color: var(--ink-3); margin-top: 1.25rem; }
 .site-subtitle { color: var(--ink-3); font-size: 1rem; line-height: 1.65; }

@@ -22,7 +22,6 @@
 .hero .button-secondary { color: var(--night-ink); border-color: var(--night-3); }
 .hero .button-secondary:hover { background: var(--night-2); border-color: var(--night-ink-2); }
 .hero .creator-credit { color: var(--night-ink-2); }
-.hero .creator-credit a { color: var(--night-ink); }
 .hero-meta { display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; margin-top: 1.1rem; font-family: var(--mono); font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--night-ink-2); }
 .hero-meta b { color: var(--gold); font-weight: 600; }
 .hero-runners { position: relative; height: 120px; margin-top: 1rem; }
