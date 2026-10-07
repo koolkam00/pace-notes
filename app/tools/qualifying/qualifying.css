@@ -152,10 +152,10 @@
 .qualifying-legend i.is-cleared { background: var(--green); }
 .qualifying-legend i.is-not { background: repeating-linear-gradient(45deg, var(--paper-2) 0 2px, var(--line-2) 2px 4px); box-shadow: inset 0 0 0 1px var(--ink-3); }
 .qualifying-legend i.is-line { width: 18px; height: 0; border-top: 2px dashed var(--ink); border-radius: 0; vertical-align: 3px; }
-.qualifying-cutoff-chart .qualifying-bar-value { font-size: 10px; fill: var(--ink-2); paint-order: stroke; stroke: var(--card); stroke-width: 3px; stroke-linejoin: round; }
+.qualifying-cutoff-chart .qualifying-bar-value { font-size: 10px; fill: var(--ink-2); paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }
 .qualifying-cutoff-chart .qualifying-year-short { font-size: 9.5px; letter-spacing: -.02em; }
-.qualifying-margin-line line { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 6 4; }
-.qualifying-margin-line .annotation { paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }
+.qualifying-margin-rule { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 6 4; }
+.qualifying-margin-label { paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }
 .qualifying-row-note { display: block; font-family: var(--sans); font-size: .6875rem; font-weight: 450; line-height: 1.35; color: var(--ink-3); white-space: normal; }
 .qualifying-cutoff-table td:first-child { white-space: normal; min-width: 6.5rem; }
 .qualifying-table-note { margin-top: .7rem; font-size: .75rem; }
@@ -196,6 +196,30 @@
 }
 
 @media print {
+  /* The dark headline prints on white (tools.css): every light-on-dark colour becomes dark-on-white. */
   .qualifying-headline { color: #000; }
-  .qualifying-board-name, .qualifying-big, .qualifying-board-value b { color: #000; }
+  .qualifying-board-name, .qualifying-big, .qualifying-board-value b, .qualifying-big-sub, .qualifying-big-sub b, .qualifying-kicker,
+  .qualifying-board-axis, .qualifying-board-scale span.is-zero, .qualifying-board-caption, .qualifying-board-app, .qualifying-board-row.is-muted .qualifying-board-value b { color: #000 !important; }
+  .qualifying-head .evidence-badge { color: var(--green-ink) !important; }
+  .qualifying-board-row, .qualifying-board-caption { border-top-color: #BBB; }
+  .qualifying-board-track i { background: #CCC; }
+  .qualifying-board-track i.is-zero { background: #000; }
+  .qualifying-board-row.is-good .qualifying-board-status { color: var(--green-ink) !important; }
+  .qualifying-board-row.is-bad .qualifying-board-status { color: #B3123E !important; }
+  .qualifying-board-row.is-warn .qualifying-board-status { color: var(--gold-ink) !important; }
+  .qualifying-board-row.is-muted .qualifying-board-status { color: #444 !important; }
+  .qualifying-board-row.is-good .qualifying-board-bar { background: var(--green); color: var(--green); }
+  .qualifying-board-row.is-bad .qualifying-board-bar { background: var(--rose); color: var(--rose); }
+  .qualifying-board-row.is-muted .qualifying-board-bar { background: #777; color: #777; }
+  .qualifying-board-row { break-inside: avoid; }
+  /* Stack the Boston section as plain blocks so a table header repeated across pages cannot overlap the note. */
+  .qualifying-boston { display: block; }
+  .qualifying-boston > * + * { margin-top: .8rem; }
+  .qualifying-boston .qualifying-table-note { margin-top: .5rem; }
+  .qualifying-cutoff-table tr, .qualifying-targets tr { break-inside: avoid; }
+  /* Fine print is part of the result on paper: print it open (beforeprint also opens the <details>). */
+  .qualifying-fine::details-content { content-visibility: visible; display: block; }
+  .qualifying-fine summary { list-style: none; padding-bottom: .2rem; min-height: 0; }
+  .qualifying-fine summary::-webkit-details-marker { display: none; }
+  .qualifying-sources a::after { content: ' (' attr(href) ')'; font-size: .75em; color: #444; word-break: break-all; }
 }
