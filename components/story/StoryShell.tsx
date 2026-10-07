@@ -46,6 +46,10 @@ export function StoryMethods({ manifest, files, method, caveats }: { manifest: I
           {' '}{manifest.duplicate_edition_screen.map((d) => `${d.city} ${d.year}`).join(' and ')} are also left out here because their records duplicate the {manifest.duplicate_edition_screen[0]?.city} {manifest.duplicate_edition_screen[0]?.duplicate_of} field.
           {' '}Counts are race finishes, not unique runners.
         </p>
+        <p>
+          A <strong>sustained slowdown</strong> means running at least 25% slower than the same finish&apos;s 5–20 km pace for at least 5 km after 20 km
+          (<a href="https://doi.org/10.1371/journal.pone.0251513">published method</a>). Relative pace compares a section with a pace from the same finish, so every finish is measured against itself.
+        </p>
       </div>
       <div>
         <h3>Keep in mind</h3>

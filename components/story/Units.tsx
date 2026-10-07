@@ -2,7 +2,7 @@
 
 import { useUnits } from '@/components/UnitsProvider';
 import { KM_PER_MILE, paceLabel } from '@/lib/units';
-import { sectionLabel } from '@/lib/viz/format';
+import { checkpointLabel, sectionLabel } from '@/lib/viz/format';
 
 /** A distance in the reader's chosen units; the source value stays metric. */
 export function Distance({ km, digits = 1, unit = true }: { km: number; digits?: number; unit?: boolean }) {
@@ -52,6 +52,12 @@ export function PerDegreeRange({ lo, hi, digits = 2 }: { lo: number; hi: number;
   const { units } = useUnits();
   const k = units === 'mi' ? 1 / 1.8 : 1;
   return <>{(lo * k).toFixed(digits)} to {(hi * k).toFixed(digits)}</>;
+}
+
+/** A checkpoint distance in the reader's units, e.g. 30 → "18.6 mi". */
+export function Checkpoint({ km }: { km: number }) {
+  const { units } = useUnits();
+  return <>{checkpointLabel(km, units)}</>;
 }
 
 /** A recorded section (0 = 0–5 km … 8 = 40–42.2 km) in the reader's units. */

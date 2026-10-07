@@ -75,7 +75,7 @@ export function CourseMatched({ city, band }: { city: string; band: { lo_s: numb
   const me = rows.find((c) => c.city === city);
   return (
     <div className="viz-card">
-      <div className="viz-head"><div><p className="viz-title">Same first 20 km, compared</p><p className="viz-sub">Finishes that ran 5–20 km at {paceLabel(band.lo_s, units, false)}–{paceLabel(band.hi_s, units)}: share with a sustained slowdown, by course</p></div></div>
+      <div className="viz-head"><div><p className="viz-title">Same 5–20 km pace, compared</p><p className="viz-sub">Finishes that ran 5–20 km at {paceLabel(band.lo_s, units, false)}–{paceLabel(band.hi_s, units)}: share with a sustained slowdown, by course</p></div></div>
       <div ref={ref} className="viz">
         <svg width={width} height={H} role="img" aria-label={me ? `${city}: ${(me.slowdown * 100).toFixed(0)}% among ${rows.length} courses.` : 'Courses compared.'}>
           <line x1={x(0)} x2={x(max)} y1={46} y2={46} stroke="#D8CFBE" strokeWidth={2} />

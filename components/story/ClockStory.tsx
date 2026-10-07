@@ -146,7 +146,7 @@ export function EmptyingCourse({ editions, initial }: { editions: ReplayEditionM
       </div>
       <div className="pairs-legend"><span><i style={{ background: '#FF5B2E' }} />current section speed</span><span><i style={{ background: '#7A4DFF' }} />same runners&apos; whole-race average</span></div>
       {five?.composition_share != null ? (
-        <p className="viz-note">Since 0:10 the average speed on course fell from {toU(rows[0].current_kmh).toFixed(1)} to {toU(five.current_kmh).toFixed(1)} {units === 'mi' ? 'mph' : 'km/h'} at 5:00. About {Math.round(five.composition_share * 100)}% of that drop is who is left: the runners still out at 5:00 averaged only {toU(five.whole_race_kmh).toFixed(1)} {units === 'mi' ? 'mph' : 'km/h'} over their whole race. This is descriptive accounting, not a cause.</p>
+        <p className="viz-note">Since 0:10 the average speed on course fell from {toU(rows[0].current_kmh).toFixed(1)} to {toU(five.current_kmh).toFixed(1)} {units === 'mi' ? 'mph' : 'km/h'} at 5:00. The whole field averaged {toU(rows[0].whole_race_kmh).toFixed(1)} {units === 'mi' ? 'mph' : 'km/h'} over its race; the runners still out at 5:00 averaged only {toU(five.whole_race_kmh).toFixed(1)}. That change in who is left accounts for about {Math.round(five.composition_share * 100)}% of the drop. This is descriptive accounting, not a cause.</p>
       ) : null}
     </div>
   );

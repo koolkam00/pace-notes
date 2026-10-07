@@ -274,7 +274,7 @@ export function MatchedPace({ data }: { data: Courses }) {
   return (
     <div className="viz-card">
       <div className="viz-head">
-        <div><p className="viz-title">Same first 20 km, different last 22</p><p className="viz-sub">Finishes whose 5–20 km pace was {label(band)}. Each edition weighted equally</p></div>
+        <div><p className="viz-title">Same 5–20 km pace, different finish</p><p className="viz-sub">Finishes whose 5–20 km pace was {label(band)}. Each edition weighted equally</p></div>
         <div className="segmented" role="group" aria-label="5 to 20 km pace">
           {data.matched.map((b, i) => <button key={b.lo_s} type="button" aria-pressed={i === pick} onClick={() => setPick(i)}>{paceLabel(b.lo_s, units, false)}</button>)}
         </div>

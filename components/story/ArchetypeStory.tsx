@@ -97,7 +97,7 @@ export function ArchetypeRace({ data, focus, onFocus }: { data: Archetypes; focu
           })}
         </svg>
       </div>
-      <p className="viz-note">Same finish time, different journeys: the profiles are averages for each archetype, scaled to one finish. A runner who banks time early has to give it back later.</p>
+      <p className="viz-note">Same finish time, different journeys: the profiles are averages for each archetype, scaled to one finish. Because the finish time is fixed here, any time a profile gains early is given back later.</p>
     </div>
   );
 }
@@ -121,7 +121,7 @@ export function ArchetypeCards({ data, focus, onFocus }: { data: Archetypes; foc
             <p>{a.blurb}</p>
             <dl>
               <div><dt>Median finish</dt><dd>{hms(a.median_finish_s)}</dd></div>
-              <div><dt>Sustained slowdown</dt><dd>{(a.slowdown_share * 100).toFixed(0)}%</dd></div>
+              <div><dt>Sustained slowdown</dt><dd>{a.slowdown_share > 0 && a.slowdown_share < 0.005 ? '<1' : a.slowdown_share > 0.995 && a.slowdown_share < 1 ? '>99' : (a.slowdown_share * 100).toFixed(0)}%</dd></div>
               <div><dt>Extra time after 20 km*</dt><dd>+{a.median_after20_min.toFixed(1)} min</dd></div>
             </dl>
           </article>
@@ -269,7 +269,7 @@ export function WhichArchetype({ data }: { data: Archetypes }) {
           </div>
           <p>
             Your pacing sentence is <code>{result.sentence}</code> (F = more than 3% faster than your own average, E = within 3%, S = more than 3% slower).{' '}
-            {result.match ? <>It is shared by {count(result.match.n)} eligible finishes, about 1 in {count(Math.round(data.cohort_n / result.match.n))}.</> : <>Fewer than 100 eligible finishes share it exactly, so it is not published.</>}
+            {result.match ? <>It is shared by {count(result.match.n)} eligible finishes, about 1 in {count(Math.round(data.cohort_n / result.match.n))}.</> : <>It is not among the {count(data.sentences.published.length)} most common sentences published here, each shared by at least {count(data.sentences.published[data.sentences.published.length - 1].n)} finishes.</>}
             {' '}{(data.archetypes[result.best].share * 100).toFixed(1)}% of all finishes are {data.archetypes[result.best].name}s.
           </p>
         </div>
@@ -283,7 +283,7 @@ export function RepeatHabits({ data }: { data: Archetypes }) {
   const max = Math.max(...rows.map((r) => r.repeat_share ?? 0));
   return (
     <div className="viz-card">
-      <div className="viz-head"><div><p className="viz-title">Habits follow runners to the next race</p><p className="viz-sub">{count(data.transitions.pairs)} pairs of consecutive races by the same screened identity candidate</p></div></div>
+      <div className="viz-head"><div><p className="viz-title">The same shape often shows up in the next linked race</p><p className="viz-sub">{count(data.transitions.pairs)} pairs of consecutive races by the same screened identity candidate</p></div></div>
       <div className="repeat-rows">
         {rows.map((r, i) => (
           <div key={r.name} className="repeat-row">

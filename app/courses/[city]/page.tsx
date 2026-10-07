@@ -15,7 +15,8 @@ const slugify = slugifyCity;
 export function generateStaticParams() { return getCourseNames().map(city => ({ city: slugify(city) })); }
 export function generateMetadata({ params }: { params: { city: string } }) {
   const city = getCourseNames().find(city => slugify(city) === params.city);
-  return { title: `${city === 'New York' ? 'New York City' : city || 'Course'} | Pace Notes` };
+  const display = city === 'New York' ? 'New York City' : city || 'Course';
+  return { title: `${display} | Pace Notes`, description: `Route, elevation, pacing types, pacing fingerprint and race-morning weather for the ${display} marathon, from recorded 5 km splits.` };
 }
 
 export default function CityPage({ params }: { params: { city: string } }) {
@@ -95,7 +96,7 @@ export default function CityPage({ params }: { params: { city: string } }) {
         <section className="chapter" aria-labelledby="mornings-title">
           <div className="chapter-head">
             <p className="chapter-num">Race mornings</p>
-            <h2 id="mornings-title" className="chapter-title">{hotCool ? <>From <em><Temperature c={hotCool.cool.temp} /></em> to <em><Temperature c={hotCool.hot.temp} /></em>.</> : 'Weather and the second half.'}</h2>
+            <h2 id="mornings-title" className="chapter-title">{hotCool ? <>From <em><Temperature c={hotCool.cool.temp} /></em> to <em><Temperature c={hotCool.hot.temp} /></em>.</> : 'Weather and late-race slowing.'}</h2>
             {hotCool ? <p className="chapter-dek">{hotCool.cool.year} started coolest and {(hotCool.cool.slowdown * 100).toFixed(0)}% of finishes had a sustained slowdown; {hotCool.hot.year} started warmest, with {(hotCool.hot.slowdown * 100).toFixed(0)}%.</p> : null}
           </div>
           <div className="chapter-body course-mornings">

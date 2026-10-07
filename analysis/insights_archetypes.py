@@ -16,7 +16,7 @@ BLURBS = [
     'Holds within a couple of percent of its own average pace almost all the way.',
     'A little quicker than average early, a little slower late. The most common shape.',
     'Holds a brisk pace to about 25 km, then gives most of it back over 30–40 km.',
-    'Starts quickest of all and slows a little in every section from early on.',
+    'Starts quick and slows in every section from 10 km on, slowest over 30–35 km, then eases slightly at the end.',
     'Holds a fast pace to 25 km, then the 35–40 km section is about 40% slower than average.',
     'Very quick for 15 km, with the steepest slowing between 25 and 35 km.',
 ]
@@ -93,7 +93,8 @@ def build(f):
     lab = remap[lab]
     C = C[np.argsort(remap)]
     profiles = np.stack([R[lab == j].mean(0) for j in range(6)])
-    if not (np.abs(profiles[0][:8]).max() < 3 and profiles[4][7] > 30 and profiles[4][3] < -10 and profiles[5][0] < -15 and profiles[5][6] > profiles[5][7]):
+    if not (np.abs(profiles[0][:8]).max() < 3 and profiles[4][7] > 30 and profiles[4][3] < -10 and profiles[5][0] < -15 and profiles[5][6] > profiles[5][7]
+            and all(profiles[3][k + 1] > profiles[3][k] for k in range(1, 6)) and profiles[3][6] == profiles[3].max()):
         raise ValueError('Archetype shapes no longer match their published names')
     detected, onset = sustained_slowdown(s)
     after20_min = (s.finish - s.times[:, 3] - s.baseline * 22.195) / 60

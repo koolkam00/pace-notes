@@ -16,7 +16,7 @@ import { PacingBarcode, WhichArchetype } from '@/components/story/ArchetypeStory
 import HeroReplay, { type ReplayChoice } from '@/components/story/HeroReplay';
 import RunnerLane from '@/components/art/RunnerLane';
 import { FinishHistogram, Rescue, SecondsLens } from '@/components/story/FinishTimeStory';
-import { Distance, PerDegree, TemperatureStep } from '@/components/story/Units';
+import { Checkpoint, Distance, PerDegree, TemperatureStep } from '@/components/story/Units';
 
 const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
 
@@ -54,7 +54,7 @@ export default function Page() {
           <h1 id="hero-title" className="hero-title">The same <MarathonDistance />, run <em>3.4&nbsp;million</em> ways.</h1>
         </div>
         <div className="hero-side">
-          <p className="hero-dek">Every recorded 5 km split from two decades of big-city marathons. Press play to watch a real field spread out, then see where races are <strong>held together</strong>, where they <strong>come apart</strong> and where they are <strong>rescued in the final minutes</strong>.</p>
+          <p className="hero-dek">Every recorded 5 km split from two decades of big-city marathons. Press play to watch a real field spread out, then see where races are <strong>held together</strong>, where they <strong>come apart</strong> and where finishes <strong>slip under round numbers in the final minutes</strong>.</p>
           <div className="hero-actions">
             <a className="button-accent" href="#pacing-types">Start the story <span aria-hidden="true">↓</span></a>
             <Link className="button-secondary" href="/runners">Find your own race</Link>
@@ -65,10 +65,10 @@ export default function Page() {
       </div>
       <div className="container">
         <div className="bibs hero-bibs">
-          <a className="bib on-night" href="#finish-times"><span className="bib-tag">The 3:59 effect</span><span className="bib-number">{three.ratio.toFixed(2)}×</span><span className="bib-text">as many finishes in the minute before 3:00 as a smooth curve expects.</span></a>
-          <a className="bib on-night" href="#rescue"><span className="bib-tag">Rescued at 40 km</span><span className="bib-number">≈{count(Math.round(four.over.extra_under / 100) * 100)}</span><span className="bib-text">extra sub-4:00 finishes than comparable late-race positions would suggest.</span></a>
-          <Link className="bib on-night" href="/slowdown"><span className="bib-tag">Sustained slowdown</span><span className="bib-number">{study.rate.toFixed(1)}%</span><span className="bib-text">of eligible finishes include a stretch at least 25% slower than the 5–20 km pace.</span></Link>
-          <div className="bib on-night"><span className="bib-tag">Race clock 3:00</span><span className="bib-number"><Distance km={at3.median_km} /></span><span className="bib-text">where the median {berlin.city} {berlin.year} finisher had reached when the race clock read 3:00.</span></div>
+          <a className="bib on-night" href="#finish-times"><span className="bib-tag">The 2:59 tower</span><span className="bib-number">{three.ratio.toFixed(2)}×</span><span className="bib-text">as many finishes in the minute before 3:00 as a smooth curve expects.</span></a>
+          <a className="bib on-night" href="#rescue"><span className="bib-tag">Under 4:00 after 40 km</span><span className="bib-number">≈{count(Math.round(four.over.extra_under / 100) * 100)}</span><span className="bib-text">more sub-4:00 finishes than comparable late-race positions would suggest.</span></a>
+          <Link className="bib on-night" href="/slowdown"><span className="bib-tag">Sustained slowdown</span><span className="bib-number">{study.rate.toFixed(1)}%</span><span className="bib-text">of the {count(study.n)} finishes in the ten analyses include at least 5 km, after 20 km, run 25% or more slower than their own 5–20 km pace.</span></Link>
+          <div className="bib on-night"><span className="bib-tag">Race clock 3:00</span><span className="bib-number"><Distance km={at3.median_km} /></span><span className="bib-text">how far the median {berlin.city} {berlin.year} finisher had run when the race clock read 3:00.</span></div>
         </div>
       </div>
       <RunnerLane dark className="hero-lane" height={110} runners={[
@@ -104,11 +104,11 @@ export default function Page() {
       <div className="chapter-head">
         <p className="chapter-num">Chapter 02 · Round numbers</p>
         <h2 id="finish-times-title" className="chapter-title">The <em>3:59</em> effect.</h2>
-        <p className="chapter-dek">Finish times are not smooth. In the minutes before each hour and half-hour, the field piles up against the clock, then thins out just after it. The tallest tower stands at 2:59.</p>
+        <p className="chapter-dek">Finish times are not smooth. In the minutes before each hour and half-hour, the field piles up against the clock, then thins out just after it. Against a smooth curve, the tallest tower stands at 2:59.</p>
       </div>
       <div className="nugget">
         <span className="nugget-number">{count(three.minute_before)}</span>
-        <p className="nugget-text">finishes landed between <strong>2:59:00 and 2:59:59</strong>. A smooth curve fitted around the mark expects about {count(three.expected_minute_before)}, and the next minute holds only {count(three.minute_after)}.</p>
+        <p className="nugget-text">finishes landed between <strong>2:59:00 and 2:59:59</strong>. A smooth curve fitted around the mark expects about {count(Math.round(three.expected_minute_before))}, and the next minute holds only {count(three.minute_after)}.</p>
       </div>
       <div className="chapter-body"><FinishHistogram data={finish} /></div>
       <div className="chapter-grid chapter-body">
@@ -125,7 +125,7 @@ export default function Page() {
     <section id="places" className="chapter" aria-labelledby="places-title">
       <div className="chapter-head">
         <p className="chapter-num">Chapter 03 · Places on the clock</p>
-        <h2 id="places-title" className="chapter-title">At 30 km, a minute is <em>a coin flip</em>.</h2>
+        <h2 id="places-title" className="chapter-title">At <Checkpoint km={30} />, a minute is <em>nearly a coin flip</em>.</h2>
         <p className="chapter-dek">The order of a marathon field keeps changing long after 20 km. Most runners slow after 30 km, so what matters for places is how much you slow compared with everyone around you.</p>
       </div>
       <div className="nugget">
@@ -190,7 +190,7 @@ export default function Page() {
       <div className="chapter-head">
         <p className="chapter-num">Now make it yours</p>
         <h2 id="the-ten-title" className="chapter-title">Ten questions for your next race.</h2>
-        <p className="chapter-dek">Ranked by how useful they are to a runner and how strong the evidence is. Pick a course, a time and an age group, and every answer recalculates from the same {count(summary.n)} eligible finishes.</p>
+        <p className="chapter-dek">Ranked by how useful they are to a runner and how strong the evidence is. Pick a course, a time and an age group, and every answer recalculates from the same {count(summary.n)} eligible finishes. The stories above also leave out {manifest.duplicate_edition_screen.map((d) => `${d.city} ${d.year}`).join(' and ')}, whose records duplicate {manifest.duplicate_edition_screen[0]?.city} {manifest.duplicate_edition_screen[0]?.duplicate_of}, leaving {count(manifest.analysis_n)}.</p>
       </div>
       <div className="chapter-body"><AnalysisIndex /></div>
     </section>

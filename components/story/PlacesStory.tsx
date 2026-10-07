@@ -165,11 +165,11 @@ export function Ledger({ data }: { data: Positions }) {
   const l = data.ledger;
   return (
     <div className="ledger">
-      <div className="ledger-head"><span>Receipt · median runner after 30 km</span><span>{count(l.n)} finishes in the middle of their field</span></div>
+      <div className="ledger-head"><span>Receipt · median runner after 30 km</span><span>{count(l.n)} finishes ranked 49th–51st percentile at 30 km</span></div>
       <div className="ledger-row"><span>Other finishers passed on the clock</span><b>{count(l.median_passes)}</b></div>
-      <div className="ledger-row"><span>Passed you on the clock</span><b>−{count(l.median_passed_by)}</b></div>
-      <div className="ledger-row total"><span>Per 1,000 other finishers</span><b>{l.passes_per_1000.toFixed(0)} vs {l.passed_by_per_1000.toFixed(0)}</b></div>
-      <p>Median field: {count(l.median_field)} eligible finishes. Counts compare elapsed times at the 30 km and finish mats; swaps between mats are invisible.</p>
+      <div className="ledger-row"><span>Passed them on the clock</span><b>−{count(l.median_passed_by)}</b></div>
+      <div className="ledger-row total"><span>Median per 1,000 others, race by race</span><b>{l.passes_per_1000.toFixed(0)} vs {l.passed_by_per_1000.toFixed(0)}</b></div>
+      <p>Median field: {count(l.median_field)} eligible finishes. Counts compare elapsed times at the 30 km and finish mats; swaps between mats are invisible. Each median is taken separately, so the rows do not divide into each other.</p>
     </div>
   );
 }

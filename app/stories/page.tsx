@@ -14,7 +14,7 @@ export default function StoriesPage() {
       <section className="night night-grain bleed story-hero">
         <div className="container">
           <p className="eyebrow">Stories from the data</p>
-          <h1 className="story-title">What {count(manifest.analysis_n)} marathons know.</h1>
+          <h1 className="story-title">What {count(manifest.analysis_n)} marathon finishes show.</h1>
           <p className="hero-dek">Each story starts with one finding you can say out loud, then hands you the evidence to explore. Every number is recalculated from the same verified race records and can be downloaded.</p>
         </div>
         <RunnerLane dark height={100} runners={[{ finishMinutes: 170, label: '2:50' }, { finishMinutes: 230, label: '3:50' }, { finishMinutes: 290, label: '4:50' }, { finishMinutes: 350, label: '5:50' }]} />

@@ -20,7 +20,7 @@ export default function CoursesPage() {
         <div className="container">
           <p className="eyebrow">Courses</p>
           <h1 className="story-title">Every course has a fingerprint.</h1>
-          <p className="hero-dek">{names.length} marathons, each drawn from its supplied route file. Open a course for its elevation, how its finishers pace it and how often they hold steady.</p>
+          <p className="hero-dek">{names.length} marathons, {names.filter((n) => geometry.has(n)).length} of them drawn from a supplied route file. Open a course for its elevation, how its finishers pace it and how often they hold steady.</p>
           <div className="legend-row on-night">{archetypes.archetypes.map((a, i) => <span key={a.slug}><i className="swatch" style={{ background: ARCHETYPE_COLOURS[i] }} />{a.name}</span>)}</div>
         </div>
       </section>

@@ -2,7 +2,7 @@ import type { InsightsManifest, Kick } from '@/lib/insights';
 import { count, mss } from '@/lib/viz/format';
 import { BankAndPay, BreakRiver, GenderKick, Magnet, StateFlow, TwinRunners, WarningLight } from '../KickStory';
 import { StoryMethods, StorySection } from '../StoryShell';
-import { Distance, Section } from '../Units';
+import { Checkpoint, Distance, Section } from '../Units';
 
 const pct = (v: number, d = 0) => `${(v * 100).toFixed(d)}%`;
 
@@ -55,7 +55,7 @@ export default function KickBody({ data, manifest }: { data: Kick; manifest: Ins
         <BankAndPay data={data} />
       </StorySection>
 
-      <StorySection id="twins" kicker="06 · Twin runners" title={<>Same pace to 20 km, <em>{Math.round((twin.slowdown_finish_s - twin.other_finish_s) / 60)} minutes apart</em> at the finish.</>}
+      <StorySection id="twins" kicker="06 · Twin runners" title={<>Same pace to <Checkpoint km={20} />, <em>{Math.round((twin.slowdown_finish_s - twin.other_finish_s) / 60)} minutes apart</em> at the finish.</>}
         dek={<>Finishes with a {twin.label} marathon pace over 5–20 km reached 20 km in the same median time, with or without a sustained slowdown. Their median finishes were {mss(twin.slowdown_finish_s - twin.other_finish_s)} apart.
           Compared within the same race, recorded gender and 5 s/km band, the typical gap is {Math.round(st.median_gap_s / 60)} minutes ({count(st.strata)} groups).</>}>
         <TwinRunners data={data} />

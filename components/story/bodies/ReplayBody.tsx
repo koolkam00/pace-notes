@@ -4,7 +4,7 @@ import HeroReplay, { type ReplayChoice } from '../HeroReplay';
 import { FieldSpread } from '../MoreCharts';
 import { ClockPack, EmptyingCourse, EvenGhost, FirstFinish, StretchStrip } from '../ClockStory';
 import { StoryMethods, StorySection } from '../StoryShell';
-import { Distance } from '../Units';
+import { Checkpoint, Distance } from '../Units';
 
 export default function ReplayBody({ data, geometry, manifest }: { data: ReplayIndex; geometry: CourseGeometry[]; manifest: InsightsManifest }) {
   const routes = new Map(geometry.map((c) => [c.city, { points: c.route, km: c.route_km }]));
@@ -19,7 +19,7 @@ export default function ReplayBody({ data, geometry, manifest }: { data: ReplayI
         dek={<>Pick a race. Each dot is one recorded finish, moving at its recorded pace through each 5 km section and coloured by how that section compares with the runner&apos;s own 5–20 km pace. Switch to “On the route” to run it on the supplied course map.</>}>
         <div className="night replay-stage"><HeroReplay choices={choices} initial={ny.slug} /></div>
       </StorySection>
-      <StorySection id="snapshots" kicker="02 · Snapshots" title={<>At 3:00 on the clock, the field covers <em><Distance km={at3.front10_km - at3.back10_km} /></em>.</>}
+      <StorySection id="snapshots" kicker="02 · Snapshots" title={<>At 3:00 on the clock, the middle 80% of the field covers <em><Distance km={at3.front10_km - at3.back10_km} /></em>.</>}
         dek={<>In {ny.city === 'New York' ? 'New York City' : ny.city} {ny.year}, when the race clock read 3:00, the runner 10% from the front had reached <Distance km={at3.front10_km} /> and the runner 10% from the back only <Distance km={at3.back10_km} />. {Math.round(at3.finished_share * 100)}% had already finished.</>}>
         <div className="snapshot-grid">
           {data.editions.map((e) => (
@@ -34,7 +34,7 @@ export default function ReplayBody({ data, geometry, manifest }: { data: ReplayI
                       <i style={{ left: `${(s.back10_km / 42.195) * 100}%`, width: `${Math.max(0.5, ((s.front10_km - s.back10_km) / 42.195) * 100)}%` }} />
                       <b style={{ left: `${(s.median_km / 42.195) * 100}%` }} />
                     </span>
-                    <span>{Math.round(s.finished_share * 100)}% in</span>
+                    <span>{s.finished_share < 1 && s.finished_share >= 0.995 ? '>99' : Math.round(s.finished_share * 100)}% in</span>
                   </div>
                 ))}
               </div>
@@ -44,7 +44,7 @@ export default function ReplayBody({ data, geometry, manifest }: { data: ReplayI
         <p className="viz-note">Each bar runs from the runner 10% from the back to the runner 10% from the front, with finished runners counted at the finish line; the dot marks the median runner. Start is on the left, the finish on the right.</p>
       </StorySection>
       {london?.moments ? (
-        <StorySection id="first" kicker="03 · The first finish" title={<>When the front is home, <em>half the field</em> has not reached 20 km.</>}
+        <StorySection id="first" kicker="03 · The first finish" title={<>When the front was home in London, <em>nearly half the field</em> had not reached <Checkpoint km={20} />.</>}
           dek={<>The fastest eligible finish in {name(london)} came at {hms(london.moments.first_finish_s)} on the clock. At that moment {count(london.moments.not_past_20_at_first)} of {count(london.finishes)} eligible
             finishes ({Math.round((london.moments.not_past_20_at_first / london.finishes) * 100)}%) had not yet reached the 20 km mat, and the back of the field was <Distance km={42.195 - london.moments.back_km_at_first} /> behind the front.</>}>
           <FirstFinish editions={data.editions} initial={london.slug} />
@@ -64,13 +64,13 @@ export default function ReplayBody({ data, geometry, manifest }: { data: ReplayI
         const five = ny.composition.find((r) => r.clock_s === 18000);
         return five?.composition_share != null ? (
           <StorySection id="emptying" kicker="05 · Late in the day" title={<>The course isn&apos;t slowing down. <em>It&apos;s emptying.</em></>}
-            dek={<>At 5:00 on the clock in {name(ny)}, {count(five.on_course)} eligible finishes were still out on the course, moving far slower than the field did early on. About {Math.round(five.composition_share * 100)}% of that drop is simply who is left: slower runners were always going to be the ones still out there.</>}>
+            dek={<>At 5:00 on the clock in {name(ny)}, {count(five.on_course)} eligible finishes were still out on the course, moving far slower than the field did early on. About {Math.round(five.composition_share * 100)}% of that drop reflects who is left: the runners still out late were slower over their whole race.</>}>
             <EmptyingCourse editions={data.editions} initial={ny.slug} />
           </StorySection>
         ) : null;
       })() : null}
       {london?.pack ? (
-        <StorySection id="packs" kicker="06 · Clock packs" title={<>Pass 10 km together, finish <em>{Math.round(london.pack.finish_window_min)} minutes apart</em>.</>}
+        <StorySection id="packs" kicker="06 · Clock packs" title={<>Pass <Checkpoint km={10} /> together, finish <em>{Math.round(london.pack.finish_window_min)} minutes apart</em>.</>}
           dek={<>In {name(london)}, {count(london.pack.n)} finishes passed 10 km within the same 30 seconds of race time. The middle 80% of them finished {london.pack.finish_window_min.toFixed(0)} minutes apart.</>}>
           <ClockPack editions={data.editions} initial={london.slug} />
         </StorySection>

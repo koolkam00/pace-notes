@@ -47,7 +47,7 @@ export default function CoursesBody({ data, geometry, manifest }: { data: Course
       <StorySection id="name" kicker="02 · A course you can recognise" title={<>The shape alone <em>names the course</em>.</>}
         dek={<>Remove each race&apos;s overall fade, keep only where it ran faster or slower, and match it to the nearest course average built without it. That names the right
           course for {id.correct} of {id.editions_tested} editions ({Math.round((id.correct / id.editions_tested) * 100)}%), against {(id.chance * 100).toFixed(1)}% by chance: {perfect.join(', ')}.
-          Flat courses blur together{copenhagen ? <>: Copenhagen is named {copenhagen.correct} time{copenhagen.correct === 1 ? '' : 's'} in {copenhagen.editions}</> : null}.</>}>
+          Some courses blur together{copenhagen ? <>: Copenhagen is named {copenhagen.correct} time{copenhagen.correct === 1 ? '' : 's'} in {copenhagen.editions}</> : null}.</>}>
         <NameThatCourse data={data} geometry={geometry} />
       </StorySection>
 
@@ -59,16 +59,16 @@ export default function CoursesBody({ data, geometry, manifest }: { data: Course
         <PairsWaffle data={data} />
       </StorySection>
 
-      <StorySection id="heat" kicker="04 · Heat bends the curve" title={<>Warm mornings change <em>the shape</em>, not just the clock.</>}
+      <StorySection id="heat" kicker="04 · Warmer mornings" title={<>Warmer mornings go with a <em>different shape</em>, not just a slower clock.</>}
         dek={<>For each <TemperatureStep c={10} /> warmer start on the same course, the median finisher&apos;s first 5 km runs {Math.abs(heat[0].per_10c).toFixed(1)} points faster than their own average
-          and <Section i={7} /> runs {heat[7].per_10c.toFixed(1)} points slower. The finish-time penalty grows as it warms: about <PerDegree perC={at(5).slope} unit="min" /> near <Temperature c={5} />,
+          and <Section i={7} /> runs {heat[7].per_10c.toFixed(1)} points slower. The finish-time difference grows with temperature: about <PerDegree perC={at(5).slope} unit="min" /> near <Temperature c={5} />,
           and <PerDegree perC={at(20).slope} unit="min" /> near <Temperature c={20} />.</>}>
         <HeatCurve data={data} />
         <HotCool data={data} />
         {cph ? <p className="story-aside">Copenhagen {cph.hot.year} started at <Temperature c={cph.hot.temp} /> and {(cph.hot.slowdown * 100).toFixed(0)}% of finishes had a sustained slowdown. Copenhagen {cph.cool.year} started at <Temperature c={cph.cool.temp} />: {(cph.cool.slowdown * 100).toFixed(0)}%.</p> : null}
       </StorySection>
 
-      <StorySection id="matched" kicker="05 · Same first 20 km" title={<>The same start <em>ends differently</em> on different courses.</>}
+      <StorySection id="matched" kicker="05 · Same early pace" title={<>The same start <em>ends differently</em> on different courses.</>}
         dek={<>Take finishes that ran 5–20 km at <Pace secondsPerKm={band.lo_s} /> to <Pace secondsPerKm={band.hi_s} />. In {low.city}, {(low.slowdown * 100).toFixed(0)}% then had a sustained slowdown.
           In {high.city}, {(high.slowdown * 100).toFixed(0)}% did. Courses differ in terrain, climate, field and timing, and all of it is folded in here.</>}>
         <MatchedPace data={data} />

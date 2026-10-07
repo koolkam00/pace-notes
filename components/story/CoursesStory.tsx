@@ -19,7 +19,6 @@ function signed(v: number, digits = 1) {
 const CONTEXT: Record<string, (u: 'mi' | 'km') => string> = {
   'New York': (u) => `Course context, not measured here: ${sectionLabel(4, u)} takes in the Pulaski Bridge and the climb onto the Queensboro Bridge. The supplied elevation file reads the bridge decks as water level.`,
   Boston: (u) => `Course context, not measured here: the Newton hills, ending with Heartbreak Hill, fall between about ${u === 'mi' ? '16 and 21 mi' : '26 and 34 km'}. The ${sectionLabel(7, u)} section runs downhill towards the city.`,
-  Washington: (u) => `Course context, not measured here: the Marine Corps course finishes with a climb to the memorial, and its final ${u === 'mi' ? '1.4 mi' : '2.2 km'} is its most distinctive section.`,
 };
 const SECTION_NAMES = ['0–5', '5–10', '10–15', '15–20', '20–25', '25–30', '30–35', '35–40', '40–42.2'];
 
@@ -125,11 +124,11 @@ export function Fingerprints({ data, geometry }: { data: Courses; geometry: Cour
     <div className="viz-card fingerprints">
       <div className="fp-layout">
         <div className="fp-side">
-          <p className="viz-title">{course.city}</p>
+          <p className="viz-title">{course.city === 'New York' ? 'New York City' : course.city}</p>
           <p className="viz-sub">{course.race}</p>
           {geo ? <div className="fp-route"><RouteMap course={geo} size={220} stroke="#15171C" label={`Supplied ${course.city} route`} /></div> : <div className="fp-route fp-route-missing">No supplied route file</div>}
           <dl className="fp-stats">
-            <div><dt>Editions</dt><dd>{course.shape_editions}</dd></div>
+            <div><dt>Editions</dt><dd>{course.editions}{course.shape_editions !== course.editions ? <small> ({course.shape_editions} shape)</small> : null}</dd></div>
             <div><dt>Finishes</dt><dd>{count(course.finishes)}</dd></div>
             <div><dt>Fade</dt><dd>{course.fade?.toFixed(2)}×</dd></div>
             <div><dt>Named by shape</dt><dd>{course.identified ? `${course.identified.correct}/${course.identified.editions}` : '—'}</dd></div>

@@ -12,9 +12,9 @@ export interface StoryDefinition {
 
 export const STORIES: StoryDefinition[] = [
   { slug: 'pacing-types', file: 'archetypes.json', number: '01', kicker: 'The shape of a marathon', title: 'Six ways to run the same race',
-    dek: 'Every finish has a shape. Grouping millions of them reveals six recurring pacing types, and the habits that follow runners to their next race.', accent: '#17A673' },
+    dek: 'Every finish has a shape. Grouping millions of them reveals six recurring pacing types, and how often the same shape shows up in a runner’s next linked race.', accent: '#17A673' },
   { slug: 'round-numbers', file: 'finish-times.json', number: '02', kicker: 'Round numbers', title: 'The 3:59 effect',
-    dek: 'Finish times pile up just before every hour and half-hour. See how the bunching forms, second by second, and how many races are rescued in the final 2.2 km.', accent: '#FF5B2E' },
+    dek: 'Finish times pile up just before every hour and half-hour. See how the bunching forms, second by second, and how many more finishes slip under a round number in the final 2.195 km.', accent: '#FF5B2E' },
   { slug: 'race-replay', file: 'replay.json', number: '03', kicker: 'On the race clock', title: 'Watch a marathon unfold',
     dek: 'Replay eight big-city races from their recorded splits and watch a field of tens of thousands stretch across the course.', accent: '#F4B23E' },
   { slug: 'places', file: 'positions.json', number: '04', kicker: 'Places on the clock', title: 'Pass or be passed',

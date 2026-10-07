@@ -2,6 +2,7 @@ import type { InsightsManifest, Positions } from '@/lib/insights';
 import { count } from '@/lib/viz/format';
 import { BreakEven, GainHistogram, GapGauge, Ledger, WomenMen } from '../PlacesStory';
 import { StoryMethods, StorySection } from '../StoryShell';
+import { Checkpoint } from '../Units';
 
 export default function PlacesBody({ data, manifest }: { data: Positions; manifest: InsightsManifest }) {
   const at30 = data.coin_flip['30'].find((r) => r.gap_lo_s === 60)!;
@@ -12,7 +13,7 @@ export default function PlacesBody({ data, manifest }: { data: Positions; manife
   const late = [...data.shuffle].filter((s) => ['30–35', '35–40', '25–30', '20–25'].includes(s.section)).sort((a, b) => b.share - a.share)[0];
   return (
     <>
-      <StorySection id="gap" kicker="01 · The gap" title={<>At 30 km, a minute is <em>nearly a coin flip</em>.</>}
+      <StorySection id="gap" kicker="01 · The gap" title={<>At <Checkpoint km={30} />, a minute is <em>nearly a coin flip</em>.</>}
         dek={<>When one finish trailed another by 60–90 seconds at 30 km, the trailing one still crossed the line first {Math.round(at30.share * 100)}% of the time. From 40 km the same gap was overturned only {Math.round(at40.share * 100)}% of the time.</>}>
         <GapGauge data={data} />
       </StorySection>
@@ -26,12 +27,12 @@ export default function PlacesBody({ data, manifest }: { data: Positions; manife
           </div>
         </div>
       </StorySection>
-      <StorySection id="break-even" kicker="03 · Break-even" title={<>Everyone slows. The question is <em>how much</em>.</>}
+      <StorySection id="break-even" kicker="03 · Break-even" title={<>Most of the field slows. The question is <em>how much</em>.</>}
         dek={<>Places are relative: most of the field slows after 30 km, so slowing a little still moves you up. The typical finish held its place at about {data.breakeven_crossing?.toFixed(1)}% slower than its 5–20 km pace.</>}>
         <BreakEven data={data} />
       </StorySection>
       <StorySection id="shuffle" kicker="04 · Reshuffles" title={<>The order shuffles <em>twice</em>.</>}
-        dek={<>Pairs of runners swap clock order most often between {top.section} km, as a crowded field sorts itself out, and again between {late.section} km.</>}>
+        dek={<>Pairs of finishes swap clock order most often in the {top.section} km section, and again in the {late.section} km section.</>}>
         <div className="viz-card">
           <div className="viz-head"><div><p className="viz-title">Share of pairs that swap clock order in each section</p><p className="viz-sub">Random same-race pairs; per kilometre so the short final section compares fairly</p></div></div>
           <div className="shuffle-bars">

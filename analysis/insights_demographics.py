@@ -67,7 +67,7 @@ def build(f):
     W, M = g == 2, g == 1
     overall = dict(
         matched_weight=r(pairs, 0), editions=int(len(np.unique(ed[wt > 0]))),
-        pooled_women_block=r(np.median(block[m][W]), 3), pooled_men_block=r(np.median(block[m][M]), 3),
+        pooled_women_block=r(block[m][W].mean(), 3), pooled_men_block=r(block[m][M].mean(), 3),
         women_block=r(wmean(block[m][W], wt[W]), 3), men_block=r(wmean(block[m][M], wt[M]), 3),
         block_gap_ci95=boot_gap(block[m], wt, g, ed, 2, 1, 500, rng),
         women_slowdown=r(wmean(detected[m][W], wt[W]), 4), men_slowdown=r(wmean(detected[m][M], wt[M]), 4),
