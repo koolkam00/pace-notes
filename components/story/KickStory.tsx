@@ -6,9 +6,10 @@ import { useInView, usePrefersReducedMotion, useTicker } from '@/components/art/
 import { useUnits } from '@/components/UnitsProvider';
 import { useWidth } from '@/components/viz/useSize';
 import type { Kick } from '@/lib/insights';
-import { count, hms, mss, sectionLabel } from '@/lib/viz/format';
+import { checkpointLabel, count, hms, mss, sectionLabel } from '@/lib/viz/format';
 
 const STATE_COLOURS = ['#17A673', '#F4B23E', '#FF6A3D', '#C8202F'];
+const r2 = (v: number) => Math.round(v * 100) / 100;
 const SECTION_INDEX: Record<string, number> = { '0–5': 0, '5–10': 1, '10–15': 2, '15–20': 3, '20–25': 4, '25–30': 5, '30–35': 6, '35–40': 7, '40–42.2': 8 };
 const pct = (v: number, d = 0) => `${(v * 100).toFixed(d)}%`;
 
@@ -21,11 +22,12 @@ function useSection() {
 export function Magnet({ data }: { data: Kick }) {
   const [group, setGroup] = useState<'all' | 'slowdown'>('all');
   const sec = useSection();
+  const { units } = useUnits();
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 860);
   const reduced = usePrefersReducedMotion();
   const inView = useInView(ref);
-  const time = useTicker(inView && !reduced, 40);
+  const time = useTicker(inView && !reduced, 40, 30);
   const H = 300;
   const m = { l: 44, r: 16, t: 70, b: 44 };
   const rows = data.magnet;
@@ -55,11 +57,12 @@ export function Magnet({ data }: { data: Kick }) {
                 {isLast
                   ? <text x={x + cw * 0.32} y={y(v) + (narrow ? 22 : 34)} textAnchor="middle" className="magnet-value" style={narrow ? { fontSize: 16 } : undefined}>{pct(v)}</text>
                   : <text className="annotation" x={x + cw * 0.32} y={y(v) - 8} textAnchor="middle">{pct(v)}</text>}
-                <text x={x + cw * 0.32} y={H - 24} textAnchor="middle">{narrow ? (isLast ? 'final' : `from ${sec(r.section).split('–')[0]}`) : sec(r.section).replace(' km', '').replace(' mi', '')}</text>
+                <text x={x + cw * 0.32} y={H - 24} textAnchor="middle">{narrow ? (isLast ? 'final' : sec(r.section).split('–')[0]) : sec(r.section).replace(' km', '').replace(' mi', '')}</text>
                 {!narrow ? <text x={x + cw * 0.32} y={H - 8} textAnchor="middle" className="annotation-sub">vs {sec(r.previous).replace(' km', '').replace(' mi', '')}</text> : null}
               </g>
             );
           })}
+          {narrow ? <text x={m.l + (width - m.l - m.r) / 2} y={H - 6} textAnchor="middle" className="axis-label">section start ({units === 'mi' ? 'mi' : 'km'}), each vs the one before</text> : null}
           {(() => {
             const x0 = m.l + cw * (rows.length - 1) + cw * 0.08;
             const x1 = m.l + cw * rows.length - cw * 0.08;
@@ -73,7 +76,7 @@ export function Magnet({ data }: { data: Kick }) {
           })()}
         </svg>
       </div>
-      <p className="viz-note">The final section is only 2.195 km, so where the finish mat sits matters: 50 m shifts its pace by about 2%. Faster here means faster than the runner&apos;s own previous section, not faster than their early pace.</p>
+      <p className="viz-note">The final section is only {units === 'mi' ? '1.36 mi' : '2.195 km'}, so where the finish mat sits matters: {units === 'mi' ? '55 yards' : '50 m'} shifts its pace by about 2%. Faster here means faster than the runner&apos;s own previous section, not faster than their early pace.</p>
     </div>
   );
 }
@@ -123,12 +126,12 @@ export function StateFlow({ data }: { data: Kick }) {
     <div className="viz-card">
       <div className="viz-head">
         <div><p className="viz-title">Four states of the second half</p><p className="viz-sub">Each finish, section by section, against its own 5–20 km pace</p></div>
-        <div className="pairs-legend state-legend">
+        <div className="pairs-legend state-legend" role="group" aria-label="Follow a state">
           {st.labels.map((l, k) => <button key={l} type="button" aria-pressed={focus === k} onClick={() => setFocus(focus === k ? null : k)}><i style={{ background: STATE_COLOURS[k] }} />{l}</button>)}
         </div>
       </div>
       <div ref={ref} className="viz">
-        <svg width={width} height={H} role="img" aria-label={`Once a 5 km section was 25% or more slower, the next one stayed that slow ${pct(stay[0].stay)} of the time from ${stay[0].source} km and ${pct(stay[1].stay)} from ${stay[1].source} km.`}>
+        <svg width={width} height={H} role="img" aria-label={`Once a 5 km section was 25% or more slower, the next one stayed that slow ${pct(stay[0].stay)} of the time after the ${sec(stay[0].source)} section and ${pct(stay[1].stay)} after the ${sec(stay[1].source)} section.`}>
           {ribbons.map((rb) => (
             <path key={rb.key} d={rb.d} fill={STATE_COLOURS[rb.from]} opacity={focus == null ? 0.28 : rb.from === focus ? 0.55 : 0.06} style={{ transition: 'opacity .3s' }}>
               <title>{`${st.labels[rb.from]} → ${st.labels[rb.to]}: ${count(rb.n)} finishes`}</title>
@@ -141,6 +144,7 @@ export function StateFlow({ data }: { data: Kick }) {
           )) : null}
         </svg>
       </div>
+      <p className="sr-only" aria-live="polite">{focus != null ? `${st.labels[focus]}: ${cols.map((c) => `${sec(c.section)} ${pct(c.counts[focus] / total)}`).join(', ')}` : ''}</p>
       <p className="viz-note">Bars show the share of finishes in each state; ribbons show where they went next. Click a state to follow it. Recovery means a later section back within 10% of the runner&apos;s 5–20 km pace.</p>
     </div>
   );
@@ -159,7 +163,7 @@ export function BreakRiver({ data }: { data: Kick }) {
   const H = 320;
   const m = { l: 48, r: 14, t: 26, b: 52 };
   const cw = (width - m.l - m.r) / 9;
-  const lo = -0.12;
+  const lo = Math.min(-0.12, Math.floor(Math.min(...rows.map((r) => r.p10)) * 20) / 20 - 0.02);
   const hi = 0.5;
   const y = (v: number) => m.t + ((hi - Math.max(lo, Math.min(hi, v))) / (hi - lo)) * (H - m.t - m.b);
   const cx = (i: number) => m.l + cw * (i + 0.5);
@@ -170,15 +174,15 @@ export function BreakRiver({ data }: { data: Kick }) {
         <div><p className="viz-title">Where the field breaks</p><p className="viz-sub">Pace in each section against each runner&apos;s own 5–20 km pace: middle 50% and middle 80% of finishes</p></div>
         <label className="ghost-select">
           <span>5–20 km pace, as a marathon</span>
-          <select value={pick} onChange={(e) => setPick(Number(e.target.value))}>
+          <select aria-label="5–20 km pace, as a marathon, for where the field breaks" value={pick} onChange={(e) => setPick(Number(e.target.value))}>
             <option value={-1}>All finishes</option>
             {bands.map((b, i) => <option key={b.label} value={i}>{b.label}</option>)}
           </select>
         </label>
       </div>
       <div ref={ref} className="viz">
-        <svg width={width} height={H} role="img" aria-label={brk ? `Most of this group is more than 10% slower than their 5 to 20 km pace from ${brk} km.` : 'Most of this group never runs more than 10% slower than their 5 to 20 km pace.'}>
-          {[-0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5].map((v) => <g key={v} className="grid"><line x1={m.l} x2={width - m.r} y1={y(v)} y2={y(v)} /><text x={m.l - 8} y={y(v) + 4} textAnchor="end">{v > 0 ? '+' : ''}{Math.round(v * 100)}%</text></g>)}
+        <svg width={width} height={H} role="img" aria-label={brk ? `Most of this group is more than 10% slower than their 5 to 20 km pace from the ${sec(brk)} section.` : 'Most of this group never runs more than 10% slower than their 5 to 20 km pace.'}>
+          {[-0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5].filter((v) => v >= lo).map((v) => <g key={v} className="grid"><line x1={m.l} x2={width - m.r} y1={y(v)} y2={y(v)} /><text x={m.l - 8} y={y(v) + 4} textAnchor="end">{v > 0 ? '+' : ''}{Math.round(v * 100)}%</text></g>)}
           <line x1={m.l} x2={width - m.r} y1={y(0.1)} y2={y(0.1)} stroke="#C8202F" strokeDasharray="6 4" strokeWidth={1.5} />
           {cw >= 70 ? <text x={m.l + 4} y={y(0.1) - 6} className="annotation-sub" fill="#C8202F">10% slower than 5–20 km pace</text> : null}
           {rows.map((r, i) => (
@@ -191,7 +195,7 @@ export function BreakRiver({ data }: { data: Kick }) {
             </g>
           ))}
           <text x={m.l - 8} y={H - 30} textAnchor="end" className="annotation-sub">&gt;10%</text>
-          {crack >= 0 ? <path d={`M${cx(crack) - cw * 0.5} ${m.t - 8} l6 10 l-5 6 l8 12 l-4 8`} fill="none" stroke="#C8202F" strokeWidth={2} aria-hidden="true" /> : null}
+          {crack >= 0 ? <g aria-hidden="true"><path d={`M${cx(crack) - cw * 0.5} ${m.t - 8} l6 10 l-5 6 l8 12 l-4 8`} fill="none" stroke="#C8202F" strokeWidth={2} /><text className="annotation-sub" x={cx(crack) - cw * 0.5 + (crack > 5 ? -6 : 12)} y={m.t - 2} textAnchor={crack > 5 ? 'end' : 'start'} fill="#C8202F">the field breaks here</text></g> : null}
         </svg>
       </div>
       <p className="viz-note">
@@ -204,6 +208,7 @@ export function BreakRiver({ data }: { data: Kick }) {
 
 /** Pick how slow your latest section was; see how often a sustained slowdown followed. */
 export function WarningLight({ data }: { data: Kick }) {
+  const { units } = useUnits();
   const [w, setW] = useState(1);
   const block = data.warning[w];
   const [k, setK] = useState(Math.min(4, block.rows.length - 1));
@@ -225,7 +230,7 @@ export function WarningLight({ data }: { data: Kick }) {
           {Array.from({ length: 30 }, (_, i) => {
             const a = Math.PI * (1 - i / 29);
             const c = i / 29 < 0.15 ? '#17A673' : i / 29 < 0.45 ? '#F4B23E' : '#C8202F';
-            return <line key={i} x1={120 + Math.cos(a) * 82} y1={130 - Math.sin(a) * 82} x2={120 + Math.cos(a) * 100} y2={130 - Math.sin(a) * 100} stroke={c} strokeWidth={5} strokeLinecap="round" opacity={i / 29 <= later ? 1 : 0.22} />;
+            return <line key={i} x1={r2(120 + Math.cos(a) * 82)} y1={r2(130 - Math.sin(a) * 82)} x2={r2(120 + Math.cos(a) * 100)} y2={r2(130 - Math.sin(a) * 100)} stroke={c} strokeWidth={5} strokeLinecap="round" opacity={i / 29 <= later ? 1 : 0.22} />;
           })}
           <g style={{ transform: `rotate(${angle}deg)`, transformOrigin: '120px 130px', transition: 'transform .6s cubic-bezier(.2,.8,.2,1)' }}>
             <line x1={120} y1={130} x2={120} y2={52} stroke="var(--ink)" strokeWidth={4} strokeLinecap="round" />
@@ -236,9 +241,9 @@ export function WarningLight({ data }: { data: Kick }) {
         <div className="warning-control">
           <label className="heat-slider">
             <span>Your {sec(block.after)} section against your 5–20 km pace: <strong>{row.label}</strong></span>
-            <input type="range" min={0} max={block.rows.length - 1} step={1} value={Math.min(k, block.rows.length - 1)} onChange={(e) => setK(Number(e.target.value))} aria-label="How much slower the latest section was" />
+            <input type="range" min={0} max={block.rows.length - 1} step={1} value={Math.min(k, block.rows.length - 1)} onChange={(e) => setK(Number(e.target.value))} aria-valuetext={row.label} />
           </label>
-          <p className="warning-text"><strong>{pct(later)}</strong> of {count(row.n)} finishes in this situation went on to have a sustained slowdown before 40 km.</p>
+          <p className="warning-text"><strong>{pct(later)}</strong> of {count(row.n)} finishes in this situation went on to have a sustained slowdown before {checkpointLabel(40, units)}.</p>
         </div>
       </div>
       <p className="viz-note">A conditional frequency, not a prediction for any one runner. It is partly mechanical: a section already 20% slower needs little more to reach 25%.</p>
@@ -267,7 +272,7 @@ export function BankAndPay({ data }: { data: Kick }) {
   return (
     <div className="viz-card">
       <div className="viz-head">
-        <div><p className="viz-title">Bank time early, pay it back later</p><p className="viz-sub">Against finishes in the same race at the same 5–20 km pace: first 5 km, after 20 km and the whole race</p></div>
+        <div><p className="viz-title">Banked early, given back later</p><p className="viz-sub">Against finishes in the same race at the same 5–20 km pace: first 5 km, after 20 km and the whole race</p></div>
         <div className="pairs-legend"><span><i style={{ background: '#17A673' }} />first 5 km</span><span><i style={{ background: '#E2416B' }} />after 20 km</span><span><i style={{ background: '#15171C' }} />finish</span></div>
       </div>
       <div ref={ref} className="viz">
@@ -289,7 +294,11 @@ export function BankAndPay({ data }: { data: Kick }) {
           <text x={width - m.r} y={H - 6} textAnchor="end" className="annotation-sub">{width < 560 ? 'slower →' : 'first 5 km slower →'}</text>
         </svg>
       </div>
-      <p className="ledger-readout" aria-live="polite">
+      <label className="heat-slider ledger-slider">
+        <span>First 5 km against 5–20 km pace: <strong>{label(h.lo)}</strong></span>
+        <input type="range" min={0} max={rows.length - 1} step={1} value={Math.max(0, hover)} onChange={(e) => setHover(Number(e.target.value))} aria-valuetext={label(h.lo)} />
+      </label>
+      <p className="ledger-readout">
         First 5 km <strong>{label(h.lo)}</strong> than 5–20 km pace ({count(h.n)} finishes): {h.open_s <= 0 ? 'banked' : 'gave up'} <strong>{mss(Math.abs(h.open_s))}</strong> early,
         {h.after20_s >= 0 ? ' spent ' : ' saved '}<strong>{mss(Math.abs(h.after20_s))}</strong> after 20 km, and finished <strong>{mss(Math.abs(h.finish_s))} {h.finish_s >= 0 ? 'behind' : 'ahead of'}</strong> same-race, same-pace peers.
         Sustained slowdown: {pct(h.slowdown)} ({h.excess >= 0 ? '+' : '−'}{Math.abs(h.excess * 100).toFixed(1)} points against peers).
@@ -301,6 +310,7 @@ export function BankAndPay({ data }: { data: Kick }) {
 
 /** Same 5–20 km pace, with and without a sustained slowdown. */
 export function TwinRunners({ data }: { data: Kick }) {
+  const { units } = useUnits();
   const bands = data.cost.bands;
   const [pick, setPick] = useState(Math.max(0, bands.findIndex((b) => b.lo_min === 225)));
   const b = bands[pick];
@@ -308,7 +318,8 @@ export function TwinRunners({ data }: { data: Kick }) {
   const width = useWidth(ref, 860);
   const reduced = usePrefersReducedMotion();
   const inView = useInView(ref);
-  const time = useTicker(inView && !reduced, 50);
+  const [paused, setPaused] = useState(false);
+  const time = useTicker(inView && !reduced && !paused, 50);
   const H = 190;
   const m = { l: 18, r: 18 };
   const x = (km: number) => m.l + (km / 42.195) * (width - m.l - m.r);
@@ -323,16 +334,17 @@ export function TwinRunners({ data }: { data: Kick }) {
     <div className="viz-card twin">
       <div className="viz-head">
         <div><p className="viz-title">Two runners, one 5–20 km pace</p><p className="viz-sub">Median finishes for this 5–20 km pace, with and without a sustained slowdown</p></div>
+        {!reduced ? <button type="button" className="viz-pause" onClick={() => setPaused((p) => !p)}>{paused ? 'Play animation' : 'Pause animation'}</button> : null}
         <label className="ghost-select">
           <span>5–20 km pace, as a marathon</span>
-          <select value={pick} onChange={(e) => setPick(Number(e.target.value))}>{bands.map((x2, i) => <option key={x2.lo_min} value={i}>{x2.label}</option>)}</select>
+          <select aria-label="5–20 km pace, as a marathon, for the two runners" value={pick} onChange={(e) => setPick(Number(e.target.value))}>{bands.map((x2, i) => <option key={x2.lo_min} value={i}>{x2.label}</option>)}</select>
         </label>
       </div>
       <div ref={ref} className="viz">
         <svg width={width} height={H} role="img" aria-label={`Both reached 20 km in about ${hms(b.other_20km_s)}; median finishes ${hms(b.other_finish_s)} and ${hms(b.slowdown_finish_s)}.`}>
           {[54, 130].map((yy) => <line key={yy} x1={x(0)} x2={x(42.195)} y1={yy} y2={yy} stroke="#E3D9C6" strokeWidth={2} />)}
           <line x1={x(20)} x2={x(20)} y1={14} y2={160} stroke="#B9AE98" strokeDasharray="4 4" />
-          <text x={x(20)} y={178} textAnchor="middle" className="annotation-sub">20 km together</text>
+          <text x={x(20)} y={178} textAnchor="middle" className="annotation-sub">{checkpointLabel(20, units)} together</text>
           <line x1={x(42.195)} x2={x(42.195)} y1={14} y2={160} stroke="#F4B23E" strokeWidth={2} />
           <g style={{ color: '#000' }}>
             <RunnerGlyph phase={time * 1.5} x={x(a) - 30} y={54 - 64} scale={0.6} kit="#17A673" skin="#C68642" />
@@ -343,7 +355,7 @@ export function TwinRunners({ data }: { data: Kick }) {
       <div className="ghost-ticker">
         <div><strong>{hms(b.other_finish_s)}</strong><span>median finish without a sustained slowdown ({count(b.other_n)} finishes)</span></div>
         <div><strong>{hms(b.slowdown_finish_s)}</strong><span>median finish with one ({count(b.slowdown_n)} finishes)</span></div>
-        <div><strong>+{mss(b.slowdown_finish_s - b.other_finish_s)}</strong><span>between them, after reaching 20 km in {hms(b.other_20km_s)} and {hms(b.slowdown_20km_s)}</span></div>
+        <div><strong>+{mss(b.slowdown_finish_s - b.other_finish_s)}</strong><span>between them, after reaching {checkpointLabel(20, units)} in {hms(b.other_20km_s)} and {hms(b.slowdown_20km_s)}</span></div>
       </div>
       <p className="viz-note">Group medians, not a personal penalty: part of the gap is built into the definition, since a section 25% slower costs minutes by itself. Each runner is drawn with a straight line to its median finish.</p>
     </div>
@@ -352,6 +364,7 @@ export function TwinRunners({ data }: { data: Kick }) {
 
 /** Women and men: share faster over the final section, by 5–20 km pace band. */
 export function GenderKick({ data }: { data: Kick }) {
+  const { units } = useUnits();
   const rows = data.gender_kick;
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 860);
@@ -363,7 +376,7 @@ export function GenderKick({ data }: { data: Kick }) {
   return (
     <div className="viz-card">
       <div className="viz-head">
-        <div><p className="viz-title">Final 2.2 km faster than 35–40 km</p><p className="viz-sub">Recorded women and men at the same 5–20 km pace</p></div>
+        <div><p className="viz-title">{`Final ${units === 'mi' ? '1.4 mi' : '2.2 km'} faster than ${sectionLabel(7, units)}`}</p><p className="viz-sub">Recorded women and men at the same 5–20 km pace</p></div>
         <div className="pairs-legend"><span><i style={{ background: '#7A4DFF' }} />women</span><span><i style={{ background: '#0FA3A3' }} />men</span></div>
       </div>
       <div ref={ref} className="viz">

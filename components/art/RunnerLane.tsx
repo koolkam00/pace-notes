@@ -29,8 +29,9 @@ export default function RunnerLane({ runners, height = 120, crossing = 16, dark 
   const width = useWidth(ref, 960);
   const reduced = usePrefersReducedMotion();
   const inView = useInView(ref);
-  const time = useTicker(inView && !reduced, 50);
-  const size = Math.min(84, height * 0.7);
+  const time = useTicker(inView && !reduced, 50, 30);
+  const labelled = runners.some((r) => r.label);
+  const size = Math.min(84, height * 0.7, labelled ? (height - 32) / 1.1 : Infinity);
   const scale = size / 100;
   const span = width + size * 2;
   return (

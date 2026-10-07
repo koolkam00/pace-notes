@@ -40,8 +40,7 @@ export default function PlacesBody({ data, manifest }: { data: Positions; manife
               const max = Math.max(...data.shuffle.map((x) => x.per_km));
               return (
                 <div key={s.section} className="shuffle-bar">
-                  <i style={{ height: `${(s.per_km / max) * 100}%` }} />
-                  <b>{(s.per_km * 100).toFixed(2)}%</b>
+                  <i style={{ height: `${(s.per_km / max) * 100}%` }}><b>{(s.per_km * 100).toFixed(2)}%</b></i>
                   <span>{s.section}</span>
                 </div>
               );

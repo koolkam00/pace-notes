@@ -69,8 +69,8 @@ export function Untangle({ weather: w }: { weather: Pick<Courses['weather'], 'ed
   const fx = [0, 26];
   const focusPts = pts.filter((p) => p.e.city === focus).sort((a, b) => a.t - b.t);
   const tTicks = within
-    ? (units === 'mi' ? [-18, -9, 0, 9, 18, 27] : [-10, -5, 0, 5, 10, 15]).map((d) => ({ t: gt + (units === 'mi' ? d / 1.8 : d), label: `${d > 0 ? '+' : d < 0 ? '−' : ''}${Math.abs(d)}°` }))
-    : (units === 'mi' ? [32, 41, 50, 59, 68, 77].map((f) => (f - 32) / 1.8) : [0, 5, 10, 15, 20, 25]).map((t) => ({ t, label: tempText(t, units) }));
+    ? (units === 'mi' ? [-20, -10, 0, 10, 20] : [-10, -5, 0, 5, 10, 15]).map((d) => ({ t: gt + (units === 'mi' ? d / 1.8 : d), label: `${d > 0 ? '+' : d < 0 ? '−' : ''}${Math.abs(d)}°` }))
+    : (units === 'mi' ? [30, 40, 50, 60, 70, 80].map((f) => (f - 32) / 1.8) : [0, 5, 10, 15, 20, 25]).map((t) => ({ t, label: tempText(t, units) }));
   return (
     <div className="viz-card untangle">
       <div className="viz-head">
@@ -111,12 +111,22 @@ export function Untangle({ weather: w }: { weather: Pick<Courses['weather'], 'ed
   );
 }
 
+const PAIR_KEYS: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+
 /** Every same-course pair of editions at least 5 °C apart: did the warmer one have more sustained slowdown? */
 export function PairsWaffle({ data }: { data: Courses }) {
   const p = data.weather.pairs;
   const { units } = useUnits();
   const sorted = [...p.list].sort((a, b) => a.city.localeCompare(b.city) || (b.hot_temp - b.cool_temp) - (a.hot_temp - a.cool_temp));
   const [hover, setHover] = useState<number | null>(null);
+  const [active, setActive] = useState(0);
+  const refs = useRef<(HTMLSpanElement | null)[]>([]);
+  const move = (j: number) => {
+    const k = Math.max(0, Math.min(sorted.length - 1, j));
+    setActive(k);
+    setHover(k);
+    refs.current[k]?.focus();
+  };
   const h = hover == null ? null : sorted[hover];
   return (
     <div className="viz-card pairs">
@@ -124,15 +134,20 @@ export function PairsWaffle({ data }: { data: Courses }) {
         <div><p className="viz-title">{p.hotter_slowed_more} of {p.total} same-course pairs</p><p className="viz-sub">Pairs of editions of one course with starts at least {units === 'mi' ? '9°F' : `${p.min_gap_c}°C`} apart</p></div>
         <div className="pairs-legend"><span><i style={{ background: HOT }} />warmer one slowed more</span><span><i style={{ background: '#C9BFAB' }} />it didn&apos;t</span></div>
       </div>
-      <div className="pairs-grid" role="list" onMouseLeave={() => setHover(null)}>
+      <div className="pairs-grid" role="list" aria-label="Same-course pairs; use the arrow keys to move between them" onMouseLeave={() => setHover(null)}>
         {sorted.map((x, i) => (
-          <span key={`${x.city}${x.hot_year}${x.cool_year}`} role="listitem" tabIndex={0} className={x.hotter_slowed_more ? 'pair hit' : 'pair'}
-            onMouseEnter={() => setHover(i)} onFocus={() => setHover(i)}
+          <span key={`${x.city}${x.hot_year}${x.cool_year}`} role="listitem" className={x.hotter_slowed_more ? 'pair hit' : 'pair'}
+            ref={(el) => { refs.current[i] = el; }} tabIndex={i === active ? 0 : -1}
+            onKeyDown={(ev) => {
+              const d = PAIR_KEYS[ev.key] ?? (ev.key === 'Home' ? -Infinity : ev.key === 'End' ? Infinity : 0);
+              if (d) { ev.preventDefault(); move(Number.isFinite(d) ? i + d : d < 0 ? 0 : sorted.length - 1); }
+            }}
+            onMouseEnter={() => setHover(i)} onFocus={() => { setActive(i); setHover(i); }}
             aria-label={`${x.city}: ${x.hot_year} at ${tempText(x.hot_temp, units)} had ${(x.hot_slowdown * 100).toFixed(1)}% slowdown; ${x.cool_year} at ${tempText(x.cool_temp, units)} had ${(x.cool_slowdown * 100).toFixed(1)}%.`} />
         ))}
       </div>
-      <p className="pairs-readout" aria-live="polite">
-        {h ? <><strong>{h.city}</strong> {h.hot_year} at {tempText(h.hot_temp, units)}: {(h.hot_slowdown * 100).toFixed(1)}% · {h.cool_year} at {tempText(h.cool_temp, units)}: {(h.cool_slowdown * 100).toFixed(1)}%</> : 'Hover or tab through the squares to see each pair.'}
+      <p className="pairs-readout">
+        {h ? <><strong>{h.city}</strong> {h.hot_year} at {tempText(h.hot_temp, units)}: {(h.hot_slowdown * 100).toFixed(1)}% · {h.cool_year} at {tempText(h.cool_temp, units)}: {(h.cool_slowdown * 100).toFixed(1)}%</> : 'Hover a square, or tab to the grid and use the arrow keys, to see each pair.'}
       </p>
       <p className="viz-note">Pairs share editions, so they are not independent tests. Squares are grouped by course, alphabetically.</p>
     </div>
@@ -149,7 +164,7 @@ export function HeatCurve({ data }: { data: Courses }) {
   const width = useWidth(ref, 760);
   const reduced = usePrefersReducedMotion();
   const inView = useInView(ref);
-  const time = useTicker(inView && !reduced, 40);
+  const time = useTicker(inView && !reduced, 40, 30);
   const typical = data.typical_curve;
   const curve = typical.map((v, i) => v + ((temp - base) / 10) * w.heat_signature[i].per_10c);
   const H = 260;
@@ -184,7 +199,7 @@ export function HeatCurve({ data }: { data: Courses }) {
           <label className="heat-slider">
             <span>Start temperature <strong>{shown}{units === 'mi' ? '°F' : '°C'}</strong></span>
             <input type="range" min={fMin} max={fMax} step={1} value={shown}
-              onChange={(e) => setTemp(units === 'mi' ? (Number(e.target.value) - 32) / 1.8 : Number(e.target.value))} aria-label="Start temperature" />
+              onChange={(e) => setTemp(units === 'mi' ? (Number(e.target.value) - 32) / 1.8 : Number(e.target.value))} aria-valuetext={`${shown}${units === 'mi' ? '°F' : '°C'}`} />
           </label>
           <dl className="heat-readout">
             <div><dt>Median finish vs a {units === 'mi' ? '50°F' : '10°C'} morning</dt><dd>{Math.round(finishChange) === 0 ? '±0' : `${finishChange > 0 ? '+' : '−'}${Math.abs(Math.round(finishChange))}`} min</dd></div>

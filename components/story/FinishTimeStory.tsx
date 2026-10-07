@@ -3,14 +3,15 @@
 import { useMemo, useRef, useState } from 'react';
 import { useWidth } from '@/components/viz/useSize';
 import type { FinishTimes } from '@/lib/insights';
-import { count, hm } from '@/lib/viz/format';
+import { checkpointLabel, count, hm } from '@/lib/viz/format';
+import { useUnits } from '@/components/UnitsProvider';
 
 const MAJOR = new Set([150, 180, 210, 240, 270, 300, 330, 360]);
 const LO = 140;
 const HI = 390;
 
 function parseTime(text: string): number | null {
-  const m = text.trim().match(/^(\d{1,2}):([0-5]\d)(?::([0-5]\d))?$/);
+  const m = text.trim().replace(/[.,]/g, ':').match(/^(\d{1,2}):([0-5]\d)(?::([0-5]\d))?$/);
   if (!m) return null;
   const seconds = Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3] ?? 0);
   return seconds >= 5400 && seconds < 43200 ? seconds : null;
@@ -105,7 +106,7 @@ export function FinishHistogram({ data }: { data: FinishTimes }) {
       </div>
       <div className="finish-lookup">
         <label htmlFor="my-finish">Your finish time</label>
-        <input id="my-finish" inputMode="numeric" placeholder="e.g. 3:58:42" value={mine} onChange={(e) => setMine(e.target.value)} />
+        <input id="my-finish" inputMode="decimal" autoComplete="off" placeholder="e.g. 3:58:42" value={mine} onChange={(e) => setMine(e.target.value)} />
         <p aria-live="polite">
           {mineRow ? <>{count(mineRow.all)} eligible finishes landed in the same minute ({hm(mineRow.minute)}:00–:59){expected.has(mineRow.minute) ? <>, {(mineRow.all / expected.get(mineRow.minute)!).toFixed(2)}× the smooth curve</> : null}.</>
             : mine && mineSeconds === null ? 'Enter h:mm or h:mm:ss between 1:30 and 12:00.'
@@ -136,7 +137,7 @@ export function SecondsLens({ data }: { data: FinishTimes }) {
           <p className="viz-title">Ten-second view either side of {lens.mark}</p>
           <p className="viz-sub">Busiest slot: {lens.peak_offset_s < 0 ? `${Math.abs(lens.peak_offset_s)} s before` : 'at'} the mark, {lens.peak_ratio.toFixed(2)}× the reference</p>
         </div>
-        <div className="segmented" role="group" aria-label="Choose a finish-time mark">
+        <div className="segmented" role="group" aria-label="Mark for the ten-second view">
           {data.seconds.map((s, i) => <button key={s.mark} type="button" aria-pressed={i === pick} onClick={() => setPick(i)}>{s.mark}</button>)}
         </div>
       </div>
@@ -163,6 +164,8 @@ export function SecondsLens({ data }: { data: FinishTimes }) {
 export function Rescue({ data }: { data: FinishTimes }) {
   const [pick, setPick] = useState(2);
   const b = data.bubble[pick];
+  const { units } = useUnits();
+  const at40 = checkpointLabel(40, units);
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 640);
   const H = 280;
@@ -180,20 +183,20 @@ export function Rescue({ data }: { data: FinishTimes }) {
     <div className="viz-card">
       <div className="viz-head">
         <div>
-          <p className="viz-title">The final 2.2 km rescue</p>
-          <p className="viz-sub">Share finishing under {b.mark}, by projected margin at 40 km</p>
+          <p className="viz-title">Getting under {b.mark} after {at40}</p>
+          <p className="viz-sub">Share finishing under {b.mark}, by projected margin at {at40}</p>
         </div>
-        <div className="segmented" role="group" aria-label="Choose a finish-time mark">
+        <div className="segmented" role="group" aria-label="Mark for the after-40 km chart">
           {data.bubble.map((s, i) => <button key={s.mark} type="button" aria-pressed={i === pick} onClick={() => setPick(i)}>{s.mark}</button>)}
         </div>
       </div>
       <div className="rescue-numbers">
-        <div><strong>{Math.round(b.over.share_under * 100)}%</strong><span>of {count(b.over.n)} finishes projected 0–2 min over {b.mark} at 40 km got under it</span></div>
+        <div><strong>{Math.round(b.over.share_under * 100)}%</strong><span>of {count(b.over.n)} finishes projected 0–2 min over {b.mark} at {at40} got under it</span></div>
         <div><strong>{Math.round(b.over.expected_share_under * 100)}%</strong><span>would be expected from comparable finishes projected away from a round mark</span></div>
         <div><strong>≈{count(Math.round(b.over.extra_under / 10) * 10)}</strong><span>extra finishes under {b.mark} (interval {count(b.over.extra_under_ci95[0])}–{count(b.over.extra_under_ci95[1])})</span></div>
       </div>
       <div ref={ref} className="viz">
-        <svg width={width} height={H} role="img" aria-label={`Observed and comparison shares finishing under ${b.mark} by projected margin at 40 km.`}>
+        <svg width={width} height={H} role="img" aria-label={`Observed and comparison shares finishing under ${b.mark} by projected margin at ${at40}.`}>
           {[0, .25, .5, .75, 1].map((v) => (
             <g key={v} className="grid"><line x1={m.l} x2={width - m.r} y1={y(v)} y2={y(v)} /></g>
           ))}
@@ -206,14 +209,14 @@ export function Rescue({ data }: { data: FinishTimes }) {
           {(width < 560 ? [-120, 0, 120] : [-120, -60, 0, 60, 120, 180]).filter((s) => s >= x0 && s <= x1).map((s) => (
             <text key={s} x={x(s)} y={H - 20} textAnchor="middle">{s === 0 ? '0' : `${s > 0 ? '+' : '−'}${Math.abs(s) / 60}:00`}</text>
           ))}
-          <text x={m.l + iw / 2} y={H - 4} textAnchor="middle" className="axis-label">projected finish at 40 km, relative to the mark (min:s)</text>
+          <text x={m.l + iw / 2} y={H - 4} textAnchor="middle" className="axis-label">{width < 560 ? `margin at ${at40} (min:s)` : `projected finish at ${at40}, relative to the mark (min:s)`}</text>
         </svg>
       </div>
       <div className="legend-row">
         <span><i style={{ background: '#FF5B2E' }} />Recorded share under {b.mark}</span>
         <span><i className="dashed" />Comparison from finishes away from round marks</span>
       </div>
-      <p className="viz-note">The projection carries each finish from its 40 km time at its own 35–40 km pace. The comparison uses finishes projected the same distance from a non-round minute with similar late slowing. It is a reference, not a forecast or a measure of intent.</p>
+      <p className="viz-note">The projection carries each finish from its {at40} time at its own {units === 'mi' ? '21.7–24.9 mi' : '35–40 km'} pace. The comparison uses finishes projected the same distance from a non-round minute with similar late slowing. It is a reference, not a forecast or a measure of intent.</p>
     </div>
   );
 }

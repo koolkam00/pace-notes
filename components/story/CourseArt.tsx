@@ -19,7 +19,7 @@ export function RouteMap({ course, size = 220, animate = true, stroke = '#15171C
   const [fx, fy] = course.route[course.route.length - 1];
   const s = size - pad * 2;
   return (
-    <svg className="route-map" viewBox={`0 0 ${size} ${size}`} width="100%" role="img" aria-label={label ?? `Supplied ${course.city} marathon route, ${course.distance_km.toFixed(1)} km`}>
+    <svg className="route-map" viewBox={`0 0 ${size} ${size}`} width="100%" {...(label === '' ? { 'aria-hidden': true, focusable: 'false' } : { role: 'img', 'aria-label': label ?? `Supplied ${course.city} marathon route, ${course.distance_km.toFixed(1)} km` })}>
       {glow ? <path d={d} fill="none" stroke={stroke} strokeOpacity={0.18} strokeWidth={size / 22} strokeLinecap="round" strokeLinejoin="round" /> : null}
       <path className={animate ? 'route-line is-drawn' : 'route-line'} d={d} pathLength={1} fill="none" stroke={stroke} strokeWidth={Math.max(1.6, size / 90)} strokeLinecap="round" strokeLinejoin="round" />
       <circle cx={pad + sx * s} cy={pad + sy * s} r={size / 45} fill="#17A673" stroke="#FFFDF8" strokeWidth={size / 160} />
@@ -30,7 +30,7 @@ export function RouteMap({ course, size = 220, animate = true, stroke = '#15171C
       </g>
       {animate ? (
         <circle className="route-runner" r={size / 55} fill="#FF5B2E" stroke="#FFFDF8" strokeWidth={size / 180}>
-          <animateMotion dur="9s" repeatCount="indefinite" path={d} rotate="auto" />
+          <animateMotion dur="9s" repeatCount="1" fill="freeze" path={d} rotate="auto" />
         </circle>
       ) : null}
     </svg>

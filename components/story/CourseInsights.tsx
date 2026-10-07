@@ -42,6 +42,21 @@ export function CourseWeather({ city, editions }: { city: string; editions: Weat
   const step = units === 'mi' ? (span > 30 ? 10 : 5) : span > 16 ? 5 : 2;
   const ticks: number[] = [];
   for (let u = Math.ceil(toU(tLo) / step) * step; u <= toU(tHi); u += step) ticks.push(fromU(u));
+  const narrow = width < 560;
+  const hot = editions.reduce((a, b) => (b.temp > a.temp ? b : a));
+  const cool = editions.reduce((a, b) => (b.temp < a.temp ? b : a));
+  const boxes: [number, number][] = [];
+  const shown = new Set<number>();
+  [...editions].sort((a, b) => b.slowdown - a.slowdown).forEach((e) => {
+    const left = e === cool && narrow;
+    const lx = left ? x(e.temp) - 40 : x(e.temp) + 10;
+    const ly = y(e.slowdown) + 4;
+    if (narrow && e !== hot && e !== cool) return;
+    if (lx + 30 > width) return;
+    if (boxes.some(([bx, by]) => Math.abs(bx - lx) < 34 && Math.abs(by - ly) < 12)) return;
+    boxes.push([lx, ly]);
+    shown.add(e.year);
+  });
   return (
     <div className="viz-card">
       <div className="viz-head"><div><p className="viz-title">{city} race mornings</p><p className="viz-sub">Each edition: modelled temperature at the scheduled start and sustained slowdown share</p></div></div>
@@ -52,22 +67,22 @@ export function CourseWeather({ city, editions }: { city: string; editions: Weat
           {editions.map((e) => (
             <g key={e.year}>
               <circle cx={x(e.temp)} cy={y(e.slowdown)} r={7} fill={tempColour(e.temp)} stroke="#15171C" strokeOpacity={0.4}><title>{`${city} ${e.year}: ${fmt(e.temp)}, ${(e.slowdown * 100).toFixed(1)}%`}</title></circle>
-              <text x={x(e.temp) + 10} y={y(e.slowdown) + 4} className="annotation-sub">{e.year}</text>
+              {shown.has(e.year) ? <text x={narrow && e === cool ? x(e.temp) - 10 : x(e.temp) + 10} y={y(e.slowdown) + 4} textAnchor={narrow && e === cool ? 'end' : 'start'} className="annotation-sub" paintOrder="stroke" stroke="var(--card)" strokeWidth={3} aria-hidden="true">{e.year}</text> : null}
             </g>
           ))}
         </svg>
       </div>
-      <p className="viz-note">Weather is the supplied modelled hour at the scheduled start, never personal exposure. Other things changed between years too.</p>
+      <p className="viz-note">Weather is the supplied modelled hour at the scheduled start, never personal exposure. Other things changed between years too.{narrow ? ' Only the warmest and coolest years are labelled here; tap a dot for its year.' : ' Years are labelled where there is room.'}</p>
     </div>
   );
 }
 
 /** Where this course sits among all courses for finishes with the same 5–20 km pace. */
-export function CourseMatched({ city, band }: { city: string; band: { lo_s: number; hi_s: number; courses: { city: string; slowdown: number; finishes: number }[] } }) {
+export function CourseMatched({ city, band }: { city: string; band: { lo_s: number; hi_s: number; courses: { city: string; slowdown: number; finishes: number; editions: number }[] } }) {
   const { units } = useUnits();
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 640);
-  const rows = band.courses.filter((c) => c.finishes >= 1000 || c.city === city);
+  const rows = band.courses.filter((c) => (c.finishes >= 1000 && c.editions >= 3) || c.city === city);
   const H = 92;
   const m = { l: 12, r: 12 };
   const max = 0.5;

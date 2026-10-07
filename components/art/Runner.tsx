@@ -60,7 +60,7 @@ export function Runner({ size = 96, cadence = 1.45, offset = 0, effort = 0, clas
   const ref = useRef<SVGSVGElement>(null);
   const reduced = usePrefersReducedMotion();
   const inView = useInView(ref);
-  const time = useTicker(inView && !reduced, 50);
+  const time = useTicker(inView && !reduced, 50, 30);
   return (
     <svg ref={ref} className={className} width={size} height={size * 1.1} viewBox="0 0 100 110" role={label ? 'img' : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
       <RunnerGlyph phase={offset + time * cadence} effort={effort} {...kit} />

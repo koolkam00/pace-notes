@@ -27,6 +27,7 @@ export default function MethodologyPage() {
   const calculated = questions.filter(question => question.dataset);
   const personalized = getPersonalSummary();
   return <article className="prose">
+    <p className="eyebrow">Methods &amp; sources</p>
     <h1>How we study marathon pacing</h1>
     <p className="answer">The study follows the whole race: how runners start, distribute their speed, respond to the course, finish, and improve over time.</p>
     <h2>Four things we want to understand</h2>

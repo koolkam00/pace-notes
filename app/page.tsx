@@ -97,7 +97,7 @@ export default function Page() {
         </div>
       </div>
       <div className="chapter-body"><WhichArchetype data={types} /></div>
-      <a className="chapter-more" href="/stories/pacing-types">Explore all six pacing types <span aria-hidden="true">→</span></a>
+      <Link className="chapter-more" href="/stories/pacing-types">Explore all six pacing types <span aria-hidden="true">→</span></Link>
     </section>
 
     <section id="finish-times" className="chapter" aria-labelledby="finish-times-title">
@@ -134,7 +134,7 @@ export default function Page() {
       </div>
       <div className="chapter-body"><GapGauge data={places} /></div>
       <div className="chapter-body"><BreakEven data={places} /></div>
-      <a className="chapter-more" href="/stories/places">More on places gained and lost <span aria-hidden="true">→</span></a>
+      <Link className="chapter-more" href="/stories/places">More on places gained and lost <span aria-hidden="true">→</span></Link>
     </section>
 
     <section id="who-holds-pace" className="chapter" aria-labelledby="who-title">
@@ -148,7 +148,7 @@ export default function Page() {
         <p className="nugget-text">as many matched men&apos;s finishes as women&apos;s had a <strong>sustained slowdown</strong> ({(demo.overall.men_slowdown * 100).toFixed(0)}% against {(demo.overall.women_slowdown * 100).toFixed(0)}%). The gap appears at almost every finish time, and every women&apos;s age group paces more evenly than every men&apos;s.</p>
       </div>
       <div className="chapter-body"><GhostRace data={demo} /></div>
-      <a className="chapter-more" href="/stories/who-holds-pace">See the gap at every finish time and age <span aria-hidden="true">→</span></a>
+      <Link className="chapter-more" href="/stories/who-holds-pace">See the gap at every finish time and age <span aria-hidden="true">→</span></Link>
     </section>
 
     {courses ? <section id="courses-weather" className="chapter" aria-labelledby="courses-weather-title">
@@ -159,7 +159,7 @@ export default function Page() {
       </div>
       <div className="nugget">
         <span className="nugget-number">{courses.weather.pairs.hotter_slowed_more}<small>/{courses.weather.pairs.total}</small></span>
-        <p className="nugget-text">same-course pairs of editions at least <TemperatureStep c={courses.weather.pairs.min_gap_c} /> apart where the <strong>warmer one had more sustained slowdown</strong>. Within a course, each degree goes with <PerDegree perC={courses.weather.fits.slowdown_within.slope} unit="points" />.</p>
+        <p className="nugget-text">same-course pairs of editions at least <TemperatureStep c={courses.weather.pairs.min_gap_c} /> apart where the <strong>warmer one had more sustained slowdown</strong>. Within a course, the share with a sustained slowdown rises about <PerDegree perC={courses.weather.fits.slowdown_within.slope} unit="points" />. Pairs share editions, so they are not independent tests.</p>
       </div>
       <div className="chapter-body"><Untangle weather={{ editions: courses.weather.editions, fits: courses.weather.fits }} /></div>
       <Link className="chapter-more" href="/stories/courses">Course fingerprints, heat and two decades of races <span aria-hidden="true">→</span></Link>

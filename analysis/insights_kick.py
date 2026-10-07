@@ -22,7 +22,7 @@ from insights_stats import MIN_CELL, r
 
 EPS = 1e-12
 SECTIONS = ['0–5', '5–10', '10–15', '15–20', '20–25', '25–30', '30–35', '35–40', '40–42.2']
-STATES = ['On pace or faster', 'Drifting (5–10% slower)', 'Slowing (10–25% slower)', 'Sustained-slowdown pace (25%+ slower)']
+STATES = ['Within 5% or faster', 'Drifting (5–10% slower)', 'Slowing (10–25% slower)', 'Sustained-slowdown pace (25%+ slower)']
 KICK_ANOMALY = -0.15
 MAT_ANOMALY = -0.05
 
@@ -125,8 +125,10 @@ def build(full):
     second_wind = (full5 & (R <= .10)).any(1)
     any_back = (later & (R <= .10)).any(1)
     gen = s.gender
+    room = detected & (end_sec <= 6)  # a full 5 km section remains after the first episode
     recovery = dict(
         slowdown_n=int(detected.sum()), full_section_within_10=int(second_wind[detected].sum()), any_within_10=int(any_back[detected].sum()),
+        room_n=int(room.sum()), share_full_section_room=r(second_wind[room].mean(), 4),
         share_full_section=r(second_wind[detected].mean(), 4), share_any=r(any_back[detected].mean(), 4),
         women_n=int((detected & (gen == 2)).sum()), women_any=r(any_back[detected & (gen == 2)].mean(), 4),
         men_n=int((detected & (gen == 1)).sum()), men_any=r(any_back[detected & (gen == 1)].mean(), 4),
@@ -256,15 +258,13 @@ def build(full):
 def follow(s, detected, key, loo, ok):
     order = np.lexsort((s.year, s.profile))
     prof, year = s.profile[order], s.year[order]
-    # Keep profile-years with exactly one eligible finish.
+    # Consecutive races of one profile, where neither year holds more than one eligible finish.
     dup = (prof[1:] == prof[:-1]) & (year[1:] == year[:-1])
     single = ~(np.r_[False, dup] | np.r_[dup, False])
-    idx = order[single]
-    prof, year = s.profile[idx], s.year[idx]
     same = prof[1:] == prof[:-1]
     gap = year[1:] - year[:-1]
-    pair = same & (gap >= 1) & (gap <= 3)
-    a, b = idx[:-1][pair], idx[1:][pair]
+    pair = same & (gap >= 1) & (gap <= 3) & single[:-1] & single[1:]
+    a, b = order[:-1][pair], order[1:][pair]
     usable = ok[b]
     a, b = a[usable], b[usable]
     expected = loo[b, 3]

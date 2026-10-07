@@ -32,7 +32,7 @@ export function SectionAxis({ left, cw, y, units }: { left: number; cw: number; 
   const v = (km: number) => (units === 'mi' ? km / 1.609344 : km);
   return (
     <>
-      {BOUNDS.map((km, i) => (i % 2 === 0 || i === 9 ? (
+      {BOUNDS.map((km, i) => ((i % 2 === 0 && i !== 8) || i === 9 ? (
         <g key={km}>
           <line x1={left + cw * i} x2={left + cw * i} y1={y - 14} y2={y - 10} stroke="#B9AE98" />
           <text x={left + cw * i} y={y} textAnchor={i === 0 ? 'start' : i === 9 ? 'end' : 'middle'}>{km === 0 ? '0' : v(km).toFixed(1).replace(/\.0$/, '')}{i === 9 ? ` ${units}` : ''}</text>
@@ -128,9 +128,9 @@ export function Fingerprints({ data, geometry }: { data: Courses; geometry: Cour
           <p className="viz-sub">{course.race}</p>
           {geo ? <div className="fp-route"><RouteMap course={geo} size={220} stroke="#15171C" label={`Supplied ${course.city} route`} /></div> : <div className="fp-route fp-route-missing">No supplied route file</div>}
           <dl className="fp-stats">
-            <div><dt>Editions</dt><dd>{course.editions}{course.shape_editions !== course.editions ? <small> ({course.shape_editions} shape)</small> : null}</dd></div>
+            <div><dt>Editions</dt><dd>{course.editions}{course.shape_editions !== course.editions ? <small>{course.shape_editions} used for pace shape</small> : null}</dd></div>
             <div><dt>Finishes</dt><dd>{count(course.finishes)}</dd></div>
-            <div><dt>Fade</dt><dd>{course.fade?.toFixed(2)}×</dd></div>
+            <div><dt>Late fade vs typical</dt><dd>{course.fade?.toFixed(2)}×</dd></div>
             <div><dt>Named by shape</dt><dd>{course.identified ? `${course.identified.correct}/${course.identified.editions}` : '—'}</dd></div>
           </dl>
         </div>
@@ -140,7 +140,7 @@ export function Fingerprints({ data, geometry }: { data: Courses; geometry: Cour
           </div>
           <CourseCurve course={course} typical={data.typical_curve} />
           <BandStrips course={course} />
-          <p className="viz-note">{courseNote(course, units)}</p>
+          <p className="viz-note">{courseNote(course, units)} Late fade: how strongly this course bends the typical pace curve (1.00× = typical).</p>
         </div>
       </div>
       <div className="fp-grid" role="group" aria-label="Choose a course">
@@ -159,9 +159,12 @@ export function Fingerprints({ data, geometry }: { data: Courses; geometry: Cour
   );
 }
 
-/** Deterministic sequence of mystery editions (no Math.random during render). */
+/** Deterministic sequence of mystery editions (no Math.random during render). The step is coprime with n, so every edition appears once before any repeats. */
 function nextIndex(i: number, n: number) {
-  return (i * 37 + 11) % n;
+  const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
+  let step = 37;
+  while (gcd(step, n) !== 1) step += 1;
+  return (i + step) % n;
 }
 
 function distractors(truth: string, model: string, pool: string[], seed: number) {
@@ -227,7 +230,7 @@ export function NameThatCourse({ data, geometry }: { data: Courses; geometry: Co
             const g = geometry.find((x) => x.city === c);
             const state = !guess ? '' : c === e.city ? 'is-right' : c === guess ? 'is-wrong' : 'is-dim';
             return (
-              <button key={c} type="button" className={`name-option ${state}`} onClick={() => choose(c)} disabled={Boolean(guess)} aria-pressed={guess === c}>
+              <button key={c} type="button" className={`name-option ${state}`} onClick={() => choose(c)} aria-disabled={guess ? true : undefined} aria-pressed={guess === c}>
                 <span className="name-option-route">{g ? <RouteMap course={g} size={72} animate={false} stroke="currentColor" label="" /> : null}</span>
                 <span>{c}</span>
                 {guess && c === e.predicted ? <span className="name-model">model&apos;s pick</span> : null}
@@ -238,7 +241,7 @@ export function NameThatCourse({ data, geometry }: { data: Courses; geometry: Co
       </div>
       <div className="name-foot" aria-live="polite">
         {guess ? (
-          <p><strong>{guess === e.city ? 'Right.' : 'Not this time.'}</strong> It was {e.city} {e.year}. The model {e.predicted === e.city ? 'also named it' : `guessed ${e.predicted}`} {e.rank > 1 ? `(the right course ranked ${e.rank} of ${id.courses})` : ''}.</p>
+          <p><strong>{guess === e.city ? 'Right.' : 'Not this time.'}</strong> It was {e.city} {e.year}. The model {e.predicted === e.city ? 'also named it' : `guessed ${e.predicted}`}{e.rank > 1 ? ` (the right course ranked ${e.rank} of ${id.courses})` : ''}.</p>
         ) : <p>The model matches each edition to the nearest course average, built without that edition.</p>}
         <button type="button" className="button-secondary" onClick={next}>{guess ? 'Next mystery race' : 'Skip'}</button>
       </div>

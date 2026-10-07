@@ -107,6 +107,17 @@ export default function RaceReplay({ edition, defaultSpeed = 600, height = 460, 
   }), [rows]);
   const locate = useMemo(() => (edition.route ? routeLocator(edition.route) : null), [edition.route]);
   const mode = variant === 'route' && locate ? 'route' : 'track';
+  // Fit the route's own bounding box, so wide or tall routes fill the canvas instead of a thin band.
+  const box = useMemo(() => {
+    const pts = edition.route?.points;
+    if (!pts?.length) return null;
+    const xs = pts.map((p) => p[0]);
+    const ys = pts.map((p) => p[1]);
+    const x0 = Math.min(...xs);
+    const y0 = Math.min(...ys);
+    return { x0, y0, w: Math.max(1e-6, Math.max(...xs) - x0), h: Math.max(1e-6, Math.max(...ys) - y0) };
+  }, [edition.route]);
+  const canvasHeight = mode === 'route' && box && width < 640 ? Math.min(height, Math.max(300, Math.round(((width - 36) / box.w) * box.h + 80))) : height;
 
   useEffect(() => {
     const node = wrap.current;
@@ -168,7 +179,7 @@ export default function RaceReplay({ edition, defaultSpeed = 600, height = 460, 
     if (!node) return;
     const dpr = Math.min(2, typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1);
     const W = width;
-    const H = height;
+    const H = canvasHeight;
     if (node.width !== Math.round(W * dpr)) node.width = Math.round(W * dpr);
     if (node.height !== Math.round(H * dpr)) node.height = Math.round(H * dpr);
     const g = node.getContext('2d');
@@ -181,9 +192,10 @@ export default function RaceReplay({ edition, defaultSpeed = 600, height = 460, 
     let place: (km: number, lane: number) => [number, number];
 
     if (mode === 'route' && locate) {
-      const size = Math.min(W - padX * 2, H - 40);
-      const ox = (W - size) / 2;
-      const oy = (H - size) / 2;
+      const b = box ?? { x0: 0, y0: 0, w: 1, h: 1 };
+      const size = Math.min((W - padX * 2) / b.w, (H - 40) / b.h);
+      const ox = (W - b.w * size) / 2 - b.x0 * size;
+      const oy = (H - b.h * size) / 2 - b.y0 * size;
       const pts = edition.route!.points;
       g.strokeStyle = 'rgba(245,240,230,0.10)';
       g.lineWidth = 10;
@@ -192,8 +204,8 @@ export default function RaceReplay({ edition, defaultSpeed = 600, height = 460, 
       g.beginPath();
       pts.forEach(([x, y], i) => (i ? g.lineTo(ox + x * size, oy + y * size) : g.moveTo(ox + x * size, oy + y * size)));
       g.stroke();
-      g.strokeStyle = 'rgba(47,91,255,0.55)';
-      g.lineWidth = 1.5;
+      g.strokeStyle = 'rgba(47,91,255,0.9)';
+      g.lineWidth = 2;
       g.stroke();
       place = (km, lane) => {
         const [x, y] = locate(km);
@@ -266,7 +278,7 @@ export default function RaceReplay({ edition, defaultSpeed = 600, height = 460, 
       g.arc(x, y, 3, 0, Math.PI * 2);
       g.fill();
     }
-  }, [width, height, mode, locate, edition.route, rows, time, lanes, ghostMinutes, units]);
+  }, [width, canvasHeight, box, mode, locate, edition.route, rows, time, lanes, ghostMinutes, units]);
 
   useEffect(() => {
     draw();
@@ -289,7 +301,7 @@ export default function RaceReplay({ edition, defaultSpeed = 600, height = 460, 
   return (
     <div ref={wrap} className={`replay ${className ?? ''}`}>
       <div className="replay-hud" aria-live="off">
-        <div className="replay-clock" aria-label={`Race clock ${clock(time)}`}>{clock(time)}</div>
+        <div className="replay-clock" aria-hidden="true">{clock(time)}</div>
         <dl className="replay-stats">
           <div><dt>Still running</dt><dd>{share(stats.running)}%</dd></div>
           <div><dt>Finished</dt><dd>{share(stats.finished)}%</dd></div>
@@ -297,9 +309,9 @@ export default function RaceReplay({ edition, defaultSpeed = 600, height = 460, 
           <div><dt>Leading runner on the clock</dt><dd>{stats.running ? lead : 'all home'}</dd></div>
         </dl>
       </div>
-      <canvas ref={canvas} style={{ width: '100%', height }} role="img" aria-label={`Animated replay of ${edition.sample.toLocaleString()} sampled finishes from ${edition.city} ${edition.year}. At race-clock ${clock(time)}, ${share(stats.finished)}% have finished.`} />
+      <canvas ref={canvas} style={{ width: '100%', height: canvasHeight }} role="img" aria-label={`Animated replay of ${edition.sample.toLocaleString()} sampled finishes from ${edition.city} ${edition.year}. Use the race clock slider to step through it.`} />
       <div className="replay-controls">
-        <button type="button" className="replay-play" onClick={toggle} aria-pressed={playing} aria-label={playing ? 'Pause replay' : 'Play replay'}>
+        <button type="button" className="replay-play" onClick={toggle} aria-label={playing ? 'Pause replay' : 'Play replay'}>
           {playing ? (
             <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="3" y="2" width="3.5" height="12" rx="1" fill="currentColor" /><rect x="9.5" y="2" width="3.5" height="12" rx="1" fill="currentColor" /></svg>
           ) : (

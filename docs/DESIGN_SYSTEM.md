@@ -49,16 +49,20 @@ The fonts are self-hosted through `@fontsource-variable/*`, imported in `app/lay
 - **Illustration**:
   - `components/art/Runner.tsx`: a jointed runner, driven by Catmull–Rom gait keyframes in `lib/art/gait.ts`, with an `effort` parameter.
   - `RunnerLane`.
-  - `useTicker` / `useInView` / `usePrefersReducedMotion`: animation runs only while visible and stops under reduced motion.
-  - `components/story/CourseArt.tsx`: supplied routes with an `animateMotion` runner, and elevation profiles.
+  - `useTicker` / `useInView` / `usePrefersReducedMotion`: animation runs only while visible and stops under reduced motion or the site-wide pause.
+  - `useTicker(active, fps, limit)`: decorative loops (runner lanes, the magnet runner, the gap gauge, the heat runner) pass `limit = 30` so they settle after 30 s on screen.
+  - `components/story/CourseArt.tsx`: supplied routes with an `animateMotion` runner that runs the course once and stops at the finish, and elevation profiles.
 - **Replay**: `components/viz/RaceReplay.tsx`, a Canvas field with Gaussian lanes, straight and route views, and a HUD.
 
 ## Rules
 
 - **Units.** Miles are the default. Any distance, pace, elevation or temperature in client copy goes through `useUnits` (`Distance`, `Pace`, `Section`, `Temperature`, `TemperatureStep`, `PerDegree` in `components/story/Units.tsx`). Analysis thresholds stay metric. Recorded sections are labelled by their boundaries, never as invented mile splits.
 - **Language.** Say "sustained slowdown", never "the wall". Use association language only. Counts are finishes. Story copy contains no release tags.
+- **Motion.** The footer's `MotionToggle` pauses every animated figure for the whole site. It is stored per browser, sets `data-motion-off` on `<html>` and feeds `usePrefersReducedMotion`. Content animations that loop (six runners, the ghost race, the two runners) also have their own `.viz-pause` button. The replay has play and pause controls.
 - **Charts.**
-  - Every SVG has `role="img"` and an `aria-label` stating the finding.
+  - Every SVG has `role="img"` and an `aria-label` stating the finding. Labels stay static; they do not change every frame.
+  - Anything shown only on hover also has a keyboard path: a range input (`.heat-slider`), a select, or arrow keys with a roving `tabIndex` (the same-course pairs grid).
+  - Repeated controls on one page get distinct accessible names (for example each replay chart's race picker).
   - Tick density adapts to width; nine-section axes switch to boundary labels on narrow screens (`SectionAxis`).
   - Charts never depend on colour alone when a label fits.
 - **Server and client.**

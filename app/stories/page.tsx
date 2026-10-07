@@ -23,11 +23,11 @@ export default function StoriesPage() {
         {stories.map((s) => (
           <li key={s.slug}>
             <Link href={storyHref(s)} className="story-card" style={{ ['--story' as string]: s.accent }}>
-              <span className="story-card-number">{s.number}</span>
+              <span className="story-card-number" aria-hidden="true">{s.number}</span>
               <span className="story-card-kicker">{s.kicker}</span>
-              <span className="story-card-title">{s.title}</span>
+              <h2 className="story-card-title">{s.title}</h2>
               <span className="story-card-dek">{s.dek}</span>
-              <span className="story-card-go">Read the story <span aria-hidden="true">→</span></span>
+              <span className="story-card-go" aria-hidden="true">Read the story →</span>
             </Link>
           </li>
         ))}

@@ -106,7 +106,7 @@ export default function CityPage({ params }: { params: { city: string } }) {
         </section>
       ) : null}
       <section className="chapter course-profile">
-        <ResearchQuestion question={individual} standalone />
+        <ResearchQuestion question={individual} standalone headingLevel={2} />
       </section>
       {choices.length ? (
         <section className="chapter" aria-labelledby="replay-title">

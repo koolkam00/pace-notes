@@ -23,7 +23,7 @@ export function CourseTypes({ data }: { data: Archetypes }) {
         {rows.map((c) => (
           <div key={c.city} className="course-type-row">
             <span className="course-type-name">{c.city === 'New York' ? 'New York City' : c.city}<small>{c.editions} edition{c.editions === 1 ? '' : 's'}</small></span>
-            <span className="course-type-bar" aria-label={`${c.city}: ${data.archetypes.map((a, i) => `${a.name} ${(c.shares[i] * 100).toFixed(0)}%`).join(', ')}`}>
+            <span className="course-type-bar" role="img" aria-label={`${c.city}: ${data.archetypes.map((a, i) => `${a.name} ${(c.shares[i] * 100).toFixed(0)}%`).join(', ')}`}>
               {c.shares.map((v, i) => <i key={i} style={{ width: `${v * 100}%`, background: ARCHETYPE_COLOURS[i], opacity: i === sortBy ? 1 : 0.45 }} />)}
             </span>
             <strong>{(c.shares[sortBy] * 100).toFixed(0)}%</strong>
@@ -52,7 +52,7 @@ export function FieldSpread({ data }: { data: ReplayIndex }) {
   const last = rows[rows.length - 1];
   return (
     <div className="viz-card">
-      <div className="viz-head"><div><p className="viz-title">How far apart the field gets</p><p className="viz-sub">Elapsed time at each checkpoint: middle 50% and middle 80% of eligible finishes</p></div></div>
+      <div className="viz-head"><div><p className="viz-title">How far apart the field gets</p><p className="viz-sub">Elapsed time at each checkpoint, every eligible finish from every race pooled: middle 50% and middle 80%</p></div></div>
       <div ref={ref} className="viz">
         <svg width={width} height={H} role="img" aria-label="Fan chart of elapsed time against distance. The gap between faster and slower finishers widens steadily to the finish.">
           {[3600, 7200, 10800, 14400, 18000, 21600].filter((s) => s <= maxT).map((s) => (
@@ -70,7 +70,7 @@ export function FieldSpread({ data }: { data: ReplayIndex }) {
           <text className="annotation" x={x(42.195) - 4} y={y(last.p10_s) + 18} textAnchor="end">fastest 10% by {hms(last.p10_s)}</text>
         </svg>
       </div>
-      <p className="viz-note">At the finish the middle 80% of the field spans {hms(last.p90_s - last.p10_s)}: the slowest tenth is still out on the course long after the fastest tenth has finished.</p>
+      <p className="viz-note">Pooled across races, the middle 80% of finishes spans {hms(last.p90_s - last.p10_s)} at the finish, and the gap widens at every checkpoint.</p>
     </div>
   );
 }

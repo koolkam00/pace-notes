@@ -36,7 +36,8 @@ export function GhostRace({ data }: { data: Demographics }) {
   const width = useWidth(ref, 900);
   const reduced = usePrefersReducedMotion();
   const inView = useInView(ref);
-  const time = useTicker(inView && !reduced, 50);
+  const [paused, setPaused] = useState(false);
+  const time = useTicker(inView && !reduced && !paused, 50);
   const { units } = useUnits();
   const finish = (band.lo_min + 5) * 60;
   const men = useMemo(() => cumulative(band.men_profile, finish), [band, finish]);
@@ -65,6 +66,7 @@ export function GhostRace({ data }: { data: Demographics }) {
     <div className="viz-card ghost-race">
       <div className="viz-head">
         <div><p className="viz-title">Same finish, different race</p><p className="viz-sub">Matched women and men finishing {band.label}, averaged section by section</p></div>
+        {!reduced ? <button type="button" className="viz-pause" onClick={() => setPaused((p) => !p)}>{paused ? 'Play animation' : 'Pause animation'}</button> : null}
         <label className="ghost-select">
           <span>Finish band</span>
           <select value={pick} onChange={(e) => setPick(Number(e.target.value))}>
@@ -74,7 +76,7 @@ export function GhostRace({ data }: { data: Demographics }) {
       </div>
       <div ref={ref} className="viz">
         <svg width={width} height={H} role="img" aria-label={`Animated ghost race: in the ${band.label} band, matched men are ${mss(band.ghost_s[3])} ahead at 20 km and the two finish together.`}>
-          {[0, 10, 20, 30, 40, 42.195].map((km) => <g key={km}><line x1={X(km)} x2={X(km)} y1={20} y2={H - 30} stroke={km === 0 || km > 42 ? '#F4B23E' : '#E3D9C6'} strokeDasharray={km === 0 || km > 42 ? undefined : '3 5'} /><text x={X(km)} y={H - 12} textAnchor="middle">{km === 0 ? 'start' : km > 42 ? 'finish' : units === 'mi' ? `${(km / 1.609344).toFixed(1)} mi` : `${km} km`}</text></g>)}
+          {(width < 640 ? [0, 10, 20, 30, 42.195] : [0, 10, 20, 30, 40, 42.195]).map((km) => <g key={km}><line x1={X(km)} x2={X(km)} y1={20} y2={H - 30} stroke={km === 0 || km > 42 ? '#F4B23E' : '#E3D9C6'} strokeDasharray={km === 0 || km > 42 ? undefined : '3 5'} /><text x={X(km)} y={H - 12} textAnchor="middle">{km === 0 ? 'start' : km > 42 ? 'finish' : units === 'mi' ? `${(km / 1.609344).toFixed(1)} mi` : `${km} km`}</text></g>)}
           <line x1={X(0)} x2={X(42.195)} y1={74} y2={74} stroke="#E3D9C6" strokeWidth={2} />
           <line x1={X(0)} x2={X(42.195)} y1={146} y2={146} stroke="#E3D9C6" strokeWidth={2} />
           <rect x={Math.min(X(wKm), X(mKm))} y={84} width={Math.abs(X(mKm) - X(wKm))} height={52} rx={6} fill="rgba(244,178,62,.18)" />
@@ -202,7 +204,7 @@ export function WomenShare({ data }: { data: Demographics }) {
           <div key={c.city} className="viz-card share-card">
             <p className="viz-title">{c.city === 'New York' ? 'New York City' : c.city}</p>
             <p className="share-delta"><strong>{Math.round(ys[0].women_share * 100)}% → {Math.round(ys[ys.length - 1].women_share * 100)}%</strong><span>{y0}–{y1}</span></p>
-            <svg viewBox="0 0 200 76" aria-label={`Women's share of eligible finishes in ${c.city} from ${y0} to ${y1}`}>
+            <svg viewBox="0 0 200 76" role="img" aria-label={`Women's share of eligible finishes in ${c.city} from ${y0} to ${y1}`}>
               <line x1={0} x2={200} y1={py(0.5)} y2={py(0.5)} stroke="#DCD3C2" strokeDasharray="3 3" />
               <path d={ys.map((y, i) => `${i ? 'L' : 'M'}${px(y.year).toFixed(1)} ${py(y.women_share).toFixed(1)}`).join(' ')} fill="none" stroke={WOMEN} strokeWidth={2.5} />
               {ys.map((y) => <circle key={y.year} cx={px(y.year)} cy={py(y.women_share)} r={2.4} fill={WOMEN} />)}

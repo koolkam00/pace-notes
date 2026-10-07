@@ -105,14 +105,28 @@ def correlation_distance(a, b):
     return 1.0 - float(np.corrcoef(a, b)[0, 1])
 
 
-def identify(pool, key, distance):
-    """Leave-one-edition-out nearest course centroid. pool: rows with 'city' and vector `key`."""
+def identify(pool, key, distance, shape=None):
+    """Leave-one-edition-out nearest course centroid.
+
+    Without `shape`, rows carry a precomputed vector `key`. With `shape` (every shape edition, each with a `curve`), the
+    held-out edition is also left out of the typical curve, and every vector is rebuilt from that typical curve: `key`
+    'residual' removes each edition's fade, 'deviation' subtracts the typical curve.
+    """
     out = []
     for k, row in enumerate(pool):
         rest = [p for j, p in enumerate(pool) if j != k]
+        if shape is None:
+            vec = lambda p: p[key]
+        else:
+            others = [p for p in shape if p is not row]
+            names = sorted({p['city'] for p in others})
+            typical = np.median(np.array([np.mean([p['curve'] for p in others if p['city'] == c], axis=0) for c in names]), axis=0)
+            vec = (lambda p, t=typical: fade_fit(p['curve'], t)[1]) if key == 'residual' else (lambda p, t=typical: p['curve'] - t)
         cities = sorted({p['city'] for p in rest})
-        centroids = {c: np.mean([p[key] for p in rest if p['city'] == c], axis=0) for c in cities}
-        ranked = sorted(cities, key=lambda c: distance(row[key], centroids[c]))
+        vectors = [(p['city'], vec(p)) for p in rest]
+        centroids = {c: np.mean([v for city, v in vectors if city == c], axis=0) for c in cities}
+        x = vec(row)
+        ranked = sorted(cities, key=lambda c: distance(x, centroids[c]))
         out.append(dict(city=row['city'], year=row['year'], predicted=ranked[0], rank=ranked.index(row['city']) + 1,
                         candidates=len(cities)))
     return out
@@ -227,7 +241,7 @@ def build(f):
                                 ('Fade removed, correlation', 'residual', correlation_distance),
                                 ('Raw deviation, weighted distance', 'deviation', weighted_distance),
                                 ('Raw deviation, correlation', 'deviation', correlation_distance)):
-        result = identify(pool, key, distance)
+        result = identify(pool, key, distance, shape)
         variants[name] = r(np.mean([x['predicted'] == x['city'] for x in result]), 4)
         if chosen is None:
             chosen = result
@@ -442,7 +456,8 @@ def build(f):
     era_summary['spread'] = dict(change=r(spread.mean(), 4), ci95=[r(np.percentile(boots, 2.5), 4), r(np.percentile(boots, 97.5), 4)],
                                  lower=int((spread < 0).sum()), higher=int((spread > 0).sum()))
     temp_d = [x['temp'][1] - x['temp'][0] for x in hc if x['temp']]
-    era_summary['temp'] = dict(change=r(np.mean(temp_d), 3), courses=len(temp_d))
+    era_summary['temp'] = dict(change=r(np.mean(temp_d), 3), median_change=r(np.median(temp_d), 3), warmer=int(sum(d > 0 for d in temp_d)),
+                               cooler=int(sum(d < 0 for d in temp_d)), courses=len(temp_d))
     recovery = []
     for c in sorted({p['city'] for p in rows}):
         g = {p['year']: p['n'] for p in rows if p['city'] == c}

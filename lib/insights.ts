@@ -196,7 +196,7 @@ export interface Courses {
   years: {
     by_year: { year: number; editions: number; courses: number; finishes: number; pooled_median_s: number; median_s: number; slowdown: number }[];
     cells: { city: string; year: number; n: number; median_s: number; slowdown: number; temp: number | null }[];
-    eras: { pre: [number, number]; post: [number, number]; coverage_rule: number; high_coverage_courses: string[]; summary: Record<'p10' | 'median' | 'p90' | 'sub3' | 'slowdown' | 'spread', EraChange> & { temp: { change: number; courses: number } }; courses: EraCourse[] };
+    eras: { pre: [number, number]; post: [number, number]; coverage_rule: number; high_coverage_courses: string[]; summary: Record<'p10' | 'median' | 'p90' | 'sub3' | 'slowdown' | 'spread', EraChange> & { temp: { change: number; median_change: number; warmer: number; cooler: number; courses: number } }; courses: EraCourse[] };
     recovery: { city: string; n2019: number; first_back_year: number | null; first_back_n: number | null; latest_year: number; latest_n: number }[];
     trends: Record<'median' | 'p10' | 'p90' | 'sub3' | 'slowdown', Slope>;
   };
@@ -213,7 +213,7 @@ export interface Kick {
   magnet: { section: string; previous: string; all: number; slowdown: number }[];
   by_35_40: { label: string; n: number; share: number; median_gain_s: number; final_vs_baseline: number }[];
   states: { labels: string[]; occupancy: { section: string; counts: number[] }[]; flows: { source: string; target: string; counts: number[][] }[] };
-  recovery: { slowdown_n: number; full_section_within_10: number; any_within_10: number; share_full_section: number; share_any: number;
+  recovery: { slowdown_n: number; full_section_within_10: number; any_within_10: number; room_n: number; share_full_section_room: number; share_full_section: number; share_any: number;
     women_n: number; women_any: number; men_n: number; men_any: number; stay: { source: string; target: string; n: number; stay: number; back_within_10: number }[] };
   breaks: { all: { n: number; sections: KickSectionRow[] }; bands: { label: string; n: number; slowdown: number; break_section: string | null; sections: KickSectionRow[] }[] };
   warning: { after: string; rows: { label: string; n: number; later: number }[] }[];

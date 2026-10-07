@@ -1,4 +1,5 @@
 import '@fontsource-variable/fraunces/full.css';
+import '@fontsource-variable/fraunces/full-italic.css';
 import '@fontsource-variable/inter/index.css';
 import '@fontsource-variable/jetbrains-mono/index.css';
 import '@fontsource-variable/bricolage-grotesque/index.css';
@@ -9,6 +10,7 @@ import UnitsProvider from '@/components/UnitsProvider';
 import SiteNav from '@/components/SiteNav';
 import SiteAnalytics from '@/components/SiteAnalytics';
 import CreatorCredit from '@/components/CreatorCredit';
+import MotionToggle from '@/components/MotionToggle';
 
 export const metadata = {
   title: 'Pace Notes | Understand your next 26.2 miles',
@@ -33,7 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </header>
         <main id="main" className="container main-content">{children}</main>
         <footer className="container footer">
-          <div className="footer-brand"><Link href="/">Pace Notes</Link><p>Every split tells part of the story. Pacing patterns from millions of recorded marathon finishes, free to explore and download.</p><CreatorCredit /></div>
+          <div className="footer-brand"><Link href="/">Pace Notes</Link><p>Every split tells part of the story. Pacing patterns from millions of recorded marathon finishes, free to explore and download.</p><CreatorCredit /><MotionToggle /></div>
           <nav aria-label="More research">
             <Link href="/stories">Stories from the data</Link>
             <Link href="/analyses">Plan your race</Link>

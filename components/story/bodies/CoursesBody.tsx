@@ -2,7 +2,7 @@ import type { CourseGeometry, Courses, InsightsManifest } from '@/lib/insights';
 import { count } from '@/lib/viz/format';
 import { Fingerprints, NameThatCourse } from '../CoursesStory';
 import { StoryMethods, StorySection } from '../StoryShell';
-import { Pace, PerDegree, PerDegreeRange, Section, Temperature, TemperatureStep } from '../Units';
+import { Distance, Pace, PerDegree, PerDegreeRange, Section, Temperature, TemperatureStep } from '../Units';
 import { HeatCurve, HotCool, MatchedPace, PairsWaffle, Untangle } from '../WeatherStory';
 import { EraArrows, YearsStrip } from '../YearsStory';
 
@@ -52,16 +52,16 @@ export default function CoursesBody({ data, geometry, manifest }: { data: Course
       </StorySection>
 
       <StorySection id="weather" kicker="03 · Same course, different day" title={<>Temperature hides <em>until you compare a course with itself</em>.</>}
-        dek={<>Across all {w.cohort.editions} race editions, the start temperature explains about a tenth of the spread in sustained slowdown (R² {f.slowdown_across.r2.toFixed(2)}).
-          Within each course it explains about a third (R² {f.slowdown_within.r2.toFixed(2)}): each degree warmer goes with <PerDegree perC={f.slowdown_within.slope} unit="points" /> of
-          finishes in sustained slowdown (interval <PerDegreeRange lo={f.slowdown_within.ci95[0]} hi={f.slowdown_within.ci95[1]} />).</>}>
+        dek={<>Across the {w.cohort.editions} race editions with a weather record, the start temperature explains about a tenth of the spread in sustained slowdown (R² {f.slowdown_across.r2.toFixed(2)}).
+          Within each course it explains about a third (R² {f.slowdown_within.r2.toFixed(2)}): the share of finishes with a sustained slowdown rises about <PerDegree perC={f.slowdown_within.slope} unit="points" />
+          (95% interval <PerDegreeRange lo={f.slowdown_within.ci95[0]} hi={f.slowdown_within.ci95[1]} />).</>}>
         <Untangle weather={{ editions: w.editions, fits: w.fits }} />
         <PairsWaffle data={data} />
       </StorySection>
 
       <StorySection id="heat" kicker="04 · Warmer mornings" title={<>Warmer mornings go with a <em>different shape</em>, not just a slower clock.</>}
-        dek={<>For each <TemperatureStep c={10} /> warmer start on the same course, the median finisher&apos;s first 5 km runs {Math.abs(heat[0].per_10c).toFixed(1)} points faster than their own average
-          and <Section i={7} /> runs {heat[7].per_10c.toFixed(1)} points slower. The finish-time difference grows with temperature: about <PerDegree perC={at(5).slope} unit="min" /> near <Temperature c={5} />,
+        dek={<>For each <TemperatureStep c={10} /> warmer start on the same course, the median finisher&apos;s first <Distance km={5} /> moves {Math.abs(heat[0].per_10c).toFixed(1)} points further ahead of their own average pace
+          and <Section i={7} /> moves {heat[7].per_10c.toFixed(1)} points further behind it. The finish-time difference grows with temperature: about <PerDegree perC={at(5).slope} unit="min" /> near <Temperature c={5} />,
           and <PerDegree perC={at(20).slope} unit="min" /> near <Temperature c={20} />.</>}>
         <HeatCurve data={data} />
         <HotCool data={data} />
@@ -87,7 +87,7 @@ export default function CoursesBody({ data, geometry, manifest }: { data: Course
         <p className="story-aside">
           {recovery.length ? <>{recovery.map((r) => r.city).join(', ').replace(/, ([^,]*)$/, ' and $1')} came back in 2021 at {recovery.map((r) => `${Math.round((r.first_back_n! / r.n2019) * 100)}%`).join(', ').replace(/, ([^,]*)$/, ' and $1')} of their 2019 fields.</> : null}
           {' '}The largest fields in the data came after: {biggest.map((c) => `${c.city} ${c.year} (${count(c.n)})`).join(', ')}.
-          Start temperatures in these courses averaged <TemperatureStep c={s.temp.change} digits={1} /> warmer after the pandemic, so the faster front did not come with cooler mornings.
+          Start temperatures in these courses barely changed (median <TemperatureStep c={s.temp.median_change} digits={1} /> warmer; {s.temp.warmer} of {s.temp.courses} courses warmer), so the faster front did not come with cooler mornings.
         </p>
       </StorySection>
 

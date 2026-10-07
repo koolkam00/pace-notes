@@ -7,7 +7,7 @@ import { useWidth } from '@/components/viz/useSize';
 import { useUnits } from '@/components/UnitsProvider';
 import { SKIN_TONES } from '@/lib/art/gait';
 import type { Archetypes } from '@/lib/insights';
-import { count, hms, paceColour } from '@/lib/viz/format';
+import { checkpointLabel, count, hms, paceColour } from '@/lib/viz/format';
 import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
 
 const SECTION_KM = [5, 5, 5, 5, 5, 5, 5, 5, 2.195];
@@ -36,7 +36,8 @@ export function ArchetypeRace({ data, focus, onFocus }: { data: Archetypes; focu
   const width = useWidth(ref, 960);
   const reduced = usePrefersReducedMotion();
   const inView = useInView(ref);
-  const time = useTicker(inView && !reduced, 50);
+  const [paused, setPaused] = useState(false);
+  const time = useTicker(inView && !reduced && !paused, 50);
   const { units } = useUnits();
   const lanes = data.archetypes;
   const mobile = width < 640;
@@ -54,7 +55,7 @@ export function ArchetypeRace({ data, focus, onFocus }: { data: Archetypes; focu
   const cums = useMemo(() => lanes.map((a) => timeline(a.profile)), [lanes]);
   const leader = Math.max(...cums.map((c) => distanceAt(c, u).km));
   const size = laneH * 0.86;
-  const marks = mobile ? [0, 21.0975, 42.195] : units === 'mi' ? [0, 5, 10, 15, 20, 25].map((mi) => mi * 1.609344).concat([42.195]) : [0, 10, 20, 30, 40, 42.195];
+  const marks = mobile ? [0, 21.0975, 42.195] : units === 'mi' ? [0, 5, 10, 15, 20].map((mi) => mi * 1.609344).concat([42.195]) : [0, 10, 20, 30, 42.195];
   return (
     <div className="viz-card dark archetype-race">
       <div className="viz-head">
@@ -62,6 +63,7 @@ export function ArchetypeRace({ data, focus, onFocus }: { data: Archetypes; focu
           <p className="viz-title">Six runners, one finish time</p>
           <p className="viz-sub">Each runner follows one archetype&apos;s average profile. They all finish together.</p>
         </div>
+        {!reduced ? <button type="button" className="viz-pause" onClick={() => setPaused((p) => !p)}>{paused ? 'Play animation' : 'Pause animation'}</button> : null}
         <span className="race-clock">{u >= 1 ? 'Finish' : `${Math.round(u * 100)}% of race time`}</span>
       </div>
       <div ref={ref} className="viz">
@@ -108,7 +110,7 @@ export function ArchetypeCards({ data, focus, onFocus }: { data: Archetypes; foc
       {data.archetypes.map((a, i) => {
         const pts = a.profile.map((v, k) => [((BOUNDS[k] + BOUNDS[k + 1]) / 2 / 42.195) * 100, Math.max(3, Math.min(57, 30 - v * 0.66))] as const);
         return (
-          <article key={a.slug} className={`archetype-card ${focus === i ? 'is-focus' : ''}`} onMouseEnter={() => onFocus(i)} onMouseLeave={() => onFocus(null)} onFocus={() => onFocus(i)} tabIndex={0} style={{ ['--arch' as string]: ARCHETYPE_COLOURS[i] }}>
+          <article key={a.slug} className={`archetype-card ${focus === i ? 'is-focus' : ''}`} onMouseEnter={() => onFocus(i)} onMouseLeave={() => onFocus(null)} style={{ ['--arch' as string]: ARCHETYPE_COLOURS[i] }}>
             <header>
               <span className="archetype-dot" />
               <h3>{a.name}</h3>
@@ -147,6 +149,10 @@ export function PacingBarcode({ data }: { data: Archetypes }) {
   const cw = iw / 9;
   const hovered = hover === null ? null : rows[hover];
   const labelRows = [0, 20, 40, 60, 80, 100, 120, 140, 160, 180, 199];
+  // 1,800 cells: built once per size, not on every hover, with rounded coordinates to keep the markup small.
+  const cells = useMemo(() => rows.map((row, i) => row.median.map((v, k) => (
+    <rect key={`${i}-${k}`} x={+(m.l + cw * k).toFixed(1)} y={+(m.t + i * rh).toFixed(2)} width={+(cw + 0.5).toFixed(1)} height={+(rh + 0.5).toFixed(2)} fill={paceColour(v, 14)} />
+  ))), [rows, cw, rh, m.l, m.t]);
   return (
     <div className="viz-card">
       <div className="viz-head">
@@ -164,10 +170,8 @@ export function PacingBarcode({ data }: { data: Archetypes }) {
             if (mobile && (k % 2 === 1 || k === 8) && k !== 9) return null;
             return <text key={k} x={m.l + cw * k} y={m.t - 10} textAnchor={k === 0 ? 'start' : k === 9 ? 'end' : 'middle'}>{label}</text>;
           })}
-          {rows.map((row, i) => row.median.map((v, k) => (
-            <rect key={`${i}-${k}`} x={m.l + cw * k} y={m.t + i * rh} width={cw + 0.5} height={rh + 0.5} fill={paceColour(v, 14)} />
-          )))}
-          {labelRows.map((i) => <text key={i} x={m.l - 8} y={m.t + i * rh + rh / 2 + 4} textAnchor="end">{hms(rows[i].lo_s).slice(0, -3)}</text>)}
+          {cells}
+          {labelRows.map((i) => <text key={i} x={m.l - 8} y={m.t + i * rh + rh / 2 + 4} textAnchor="end">{i === 0 ? 'fastest' : hms(rows[i].lo_s).slice(0, -3)}</text>)}
           {hover !== null ? <rect x={m.l} y={m.t + hover * rh - 1} width={iw} height={rh + 2} fill="none" stroke="#15171C" strokeWidth={1.5} /> : null}
           <rect x={m.l} y={m.t} width={iw} height={ih} fill="transparent" onMouseMove={(e) => {
             const box = (e.currentTarget as SVGRectElement).getBoundingClientRect();
@@ -183,6 +187,11 @@ export function PacingBarcode({ data }: { data: Archetypes }) {
           </div>
         ) : null}
       </div>
+      <label className="heat-slider ledger-slider">
+        <span>Finish-time group <strong>{hms(rows[hover ?? 0].lo_s).slice(0, -3)}–{hms(rows[hover ?? 0].hi_s).slice(0, -3)}</strong></span>
+        <input type="range" min={0} max={rows.length - 1} step={1} value={hover ?? 0} onChange={(e) => setHover(Number(e.target.value))}
+          aria-valuetext={`Finishes ${hms(rows[hover ?? 0].lo_s)} to ${hms(rows[hover ?? 0].hi_s)}; slowest section ${Math.max(...rows[hover ?? 0].median).toFixed(1)}% slower than own average`} />
+      </label>
       <p className="viz-note">Blue sections are quicker than that finish&apos;s own average pace, red sections slower. The fastest finishes stay pale almost all the way; the red arrives earlier and deeper as finish times lengthen.</p>
     </div>
   );
@@ -225,13 +234,14 @@ const SECTIONS_INPUT = ['5', '10', '15', '20', '25', '30', '35', '40', 'Finish']
 
 function parseClock(text: string): number | null {
   const t = text.trim();
-  const m = t.match(/^(?:(\d{1,2}):)?([0-5]?\d):([0-5]\d)$/);
+  const m = t.replace(/[.,]/g, ':').match(/^(?:(\d{1,2}):)?([0-5]?\d):([0-5]\d)$/);
   if (!m) return null;
   return Number(m[1] ?? 0) * 3600 + Number(m[2]) * 60 + Number(m[3]);
 }
 
 /** Classify a reader's own nine checkpoint times with the published classifier. Runs entirely in the browser. */
 export function WhichArchetype({ data }: { data: Archetypes }) {
+  const { units } = useUnits();
   const [values, setValues] = useState<string[]>(['0:25:30', '0:51:00', '1:16:40', '1:42:30', '2:08:50', '2:36:10', '3:05:00', '3:36:00', '3:51:00']);
   const times = values.map(parseClock);
   const valid = times.every((t) => t !== null) && times.every((t, i) => i === 0 || (t as number) > (times[i - 1] as number));
@@ -240,6 +250,7 @@ export function WhichArchetype({ data }: { data: Archetypes }) {
     const t = times as number[];
     const finish = t[8];
     if (finish < 5400 || finish > 43200) return null;
+    if (t.some((v, i) => { const pace = (v - (i ? t[i - 1] : 0)) / SECTION_KM[i]; return pace < 120 || pace > 1200; })) return null;
     const avg = finish / 42.195;
     const rel = t.map((v, i) => 100 * (((v - (i ? t[i - 1] : 0)) / SECTION_KM[i]) / avg - 1));
     const c = data.classifier;
@@ -256,24 +267,26 @@ export function WhichArchetype({ data }: { data: Archetypes }) {
       <div className="which-grid">
         {SECTIONS_INPUT.map((label, i) => (
           <label key={label}>
-            <span>{label === 'Finish' ? 'Finish' : `${label} km`}</span>
-            <input value={values[i]} inputMode="numeric" onChange={(e) => setValues(values.map((v, k) => (k === i ? e.target.value : v)))} aria-invalid={times[i] === null} />
+            <span>{label === 'Finish' ? 'Finish' : checkpointLabel(Number(label), units)}</span>
+            <input value={values[i]} inputMode="decimal" aria-describedby={times[i] === null ? 'which-error' : undefined} onChange={(e) => setValues(values.map((v, k) => (k === i ? e.target.value : v)))} aria-invalid={times[i] === null} />
           </label>
         ))}
       </div>
       {result ? (
         <div className="which-result" style={{ ['--arch' as string]: ARCHETYPE_COLOURS[result.best] }}>
           <div className="which-name"><span className="archetype-dot" /> You ran like a <strong>{data.archetypes[result.best].name}</strong></div>
-          <div className="which-strip" aria-label={`Pacing sentence ${result.sentence}`}>
-            {result.rel.map((v, i) => <span key={i} style={{ background: paceColour(v, 14) }}><b>{result.sentence[i]}</b><small>{v > 0 ? '+' : ''}{v.toFixed(1)}%</small></span>)}
+          <div className="which-strip">
+            {result.rel.map((v, i) => <span key={i} style={{ background: paceColour(v, 14), color: v <= -10.5 || v >= 12.5 ? '#FFFDF8' : 'var(--ink)' }}><b>{result.sentence[i]}</b><small>{v > 0 ? '+' : v < 0 ? '−' : ''}{Math.abs(v) >= 10 ? Math.abs(v).toFixed(0) : Math.abs(v).toFixed(1)}</small></span>)}
           </div>
+          <p className="which-strip-note">% against your own average pace, section by section</p>
           <p>
             Your pacing sentence is <code>{result.sentence}</code> (F = more than 3% faster than your own average, E = within 3%, S = more than 3% slower).{' '}
             {result.match ? <>It is shared by {count(result.match.n)} eligible finishes, about 1 in {count(Math.round(data.cohort_n / result.match.n))}.</> : <>It is not among the {count(data.sentences.published.length)} most common sentences published here, each shared by at least {count(data.sentences.published[data.sentences.published.length - 1].n)} finishes.</>}
             {' '}{(data.archetypes[result.best].share * 100).toFixed(1)}% of all finishes are {data.archetypes[result.best].name}s.
           </p>
         </div>
-      ) : <p className="viz-note">Check that every time is h:mm:ss, increasing, with a finish between 1:30:00 and 12:00:00.</p>}
+      ) : <p className="viz-note" id="which-error">Check that every time is h:mm:ss, increasing, with a finish between 1:30:00 and 12:00:00 and every section between 2 and 20 minutes per kilometre.</p>}
+      <p className="sr-only" aria-live="polite">{result ? `You ran like a ${data.archetypes[result.best].name}; pacing sentence ${result.sentence}.` : 'Times not yet valid.'}</p>
     </div>
   );
 }

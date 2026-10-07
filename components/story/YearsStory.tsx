@@ -86,8 +86,15 @@ export function YearsStrip({ data }: { data: Courses }) {
         </svg>
       </div>
       <div className="years-foot">
+        <label className="ghost-select years-pick">
+          <span className="sr-only">Show an edition</span>
+          <select value={hover ?? ''} onChange={(e) => setHover(e.target.value || null)}>
+            <option value="">Choose an edition</option>
+            {[...y.cells].sort((a, b) => a.city.localeCompare(b.city) || a.year - b.year).map((c) => <option key={c.city + c.year} value={`${c.city}${c.year}`}>{c.city} {c.year}</option>)}
+          </select>
+        </label>
         <p className="pairs-readout" aria-live="polite">
-          {cell ? <><strong>{cell.city} {cell.year}</strong> · {count(cell.n)} finishes · median {hms(cell.median_s)} · {(cell.slowdown * 100).toFixed(0)}% slowdown{cell.temp == null ? ' · no valid weather' : ` · ${tempStr(cell.temp)}`}</> : 'Hover a circle for the edition.'}
+          {cell ? <><strong>{cell.city} {cell.year}</strong> · {count(cell.n)} finishes · median {hms(cell.median_s)} · {(cell.slowdown * 100).toFixed(0)}% slowdown{cell.temp == null ? ' · no valid weather' : ` · ${tempStr(cell.temp)}`}</> : 'Hover a circle, or choose an edition.'}
         </p>
         <div className="years-legend">
           {fill === 'temp'

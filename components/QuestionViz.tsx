@@ -49,6 +49,10 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
     label: distanceAxis && finite(row.label) !== null ? distanceValue(Number(row.label), selectedUnits) : row.label,
     ...(spec.band ? { interval: [row[spec.band.lower], row[spec.band.upper]] } : {}),
   }));
+  const xs = chartRows.map(row => finite(row.label)).filter((v): v is number => v !== null);
+  const sectionTicks = spec.sectionEnds && distanceAxis && xs.length
+    ? [5, 10, 20, 30, 40, 42.195].map(km => distanceValue(km, selectedUnits)).filter(v => v >= Math.min(...xs) - 1e-9 && v <= Math.max(...xs) + 1e-9)
+    : undefined;
   const percentileLabels = ['10th percentile', 'Median', '90th percentile'];
   const percentileKeys = spec.kind !== 'line' && spec.series.length === 3
     ? [['p10', 'median', 'p90'], ['low', 'value', 'high']].find(keys => keys.every((key, index) => spec.series.some(series => series.key === key && series.label === percentileLabels[index])))
@@ -130,7 +134,7 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <ComposedChart data={chartRows} margin={{ top: 20, right: 16, bottom: 24, left: 0 }} accessibilityLayer>
               <CartesianGrid vertical={false} stroke="#DCD3C2" />
-              <XAxis dataKey="label" type={spec.xNumeric ? 'number' : 'category'} domain={spec.xNumeric ? ['dataMin', 'dataMax'] : undefined} tickCount={5} tickLine={false} axisLine={false} minTickGap={28} tick={{ fontSize: 14, fill: '#66625A' }} tickFormatter={v => distanceAxis && typeof v === 'number' ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(v) : typeof v === 'number' ? formatNumber(v, spec.xUnit) : text(String(v))} label={{ value: text(spec.xLabel), position: 'insideBottom', offset: -18, fontSize: 14, fill: '#66625A' }} />
+              <XAxis dataKey="label" type={spec.xNumeric ? 'number' : 'category'} domain={spec.xNumeric ? ['dataMin', 'dataMax'] : undefined} ticks={sectionTicks} tickCount={5} tickLine={false} axisLine={false} minTickGap={28} tick={{ fontSize: 14, fill: '#66625A' }} tickFormatter={v => distanceAxis && typeof v === 'number' ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(v) : typeof v === 'number' ? formatNumber(v, spec.xUnit) : text(String(v))} label={{ value: text(spec.xLabel), position: 'insideBottom', offset: -18, fontSize: 14, fill: '#66625A' }} />
               <YAxis width={58} tickLine={false} axisLine={false} tick={{ fontSize: 14, fill: '#66625A' }} tickFormatter={axisValue} domain={signed || spec.unit === 'min/km' ? ['auto', 'auto'] : [0, 'auto']} />
               {signed && <ReferenceLine y={0} stroke="#66625A" />}
               {spec.band && <Area type="linear" dataKey="interval" stroke="none" fill={COLORS[0]} fillOpacity={0.12} tooltipType="none" isAnimationActive={false} />}
