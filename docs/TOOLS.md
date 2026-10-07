@@ -54,10 +54,21 @@ Shared code:
 - `lib/tools/predictor.ts`: Riegel, the Daniels–Gilbert equations, a personal exponent from two races, and Tanda.
 - `lib/tools/weather.ts`: relative humidity, Stull wet-bulb, shade WBGT with the ACSM flag, Ely, Mantzios, Hadley and dew-point bands.
 - `lib/tools/qualifying.ts`: standards, age rules and Boston cut-off history.
-- `lib/tools/splits.ts`: split validation, sustained-slowdown reading and pacing class.
+- `lib/tools/splits.ts`: split validation, sustained-slowdown reading and pacing class. It also holds `SLOWDOWN_DEFINITION` and `SLOWDOWN_CITATION`, the one wording and neutral citation every tool uses.
 - `lib/tools/data.ts`: JSON types, `loadShard`, and `shareUnder`, which interpolates a share between published percentiles.
 - `components/tools/ToolShell.tsx` (server) and `components/tools/ui.tsx` (client): the shared tool layout and inputs.
-- `components/tools/useQueryState.ts`: shareable URL state.
+- `components/tools/useQueryState.ts`: shareable URL state. A value equal to its default stays out of the URL. A cleared field is written as `key=`, so it stays cleared after a reload. The hook also reports which keys the visitor's link supplied, so a linked 4:00 is not mistaken for the example 4:00.
+- `components/tools/ui.tsx` `ExampleNote`: the one marker for results computed from example inputs.
+- `lib/tools/links.ts` and `components/tools/RelatedTool.tsx`: deep links from other pages. Analysis pages end with a related-tool card that carries the reader's course (only when the tool publishes it) and goal.
+
+### Links between tools
+
+Every link from one tool to another follows the same rules:
+- **Pace band:** `goal` is the whole minute at or below the time, as H:MM. `course` is added only when the pace band publishes that course, and `g` only when the visitor chose a recorded gender.
+- **Course chooser:** `goal` is passed only within 2:30–6:30, the range it covers.
+- **Projector:** gets the exact `target`, the `course` only when published, and `t=none`, so it waits for a tracker time instead of showing its example runner.
+- **Qualifying checker:** never receives a predicted or goal time as if it had been run.
+- **Units:** links carry the visitor's units, but only once the preference has been read. A link clicked before the page finishes loading falls back to the stored preference.
 
 ## Data families
 
@@ -134,7 +145,12 @@ Qualifying standards and windows change every year. `lib/tools/qualifying.ts` re
 7. Update `sources`, then `VERIFIED_AT`. Update the golden values in `scripts/verify-tools.cjs` and run `npm run verify:data`.
 8. Never forecast a cut-off. The cut-off table shows only past cut-offs the visitor's margin would have cleared.
 
-Dated application windows show an "open now / upcoming / closed" badge, computed from the visitor's own date. A stale entry looks closed rather than wrong, but it still needs this review.
+Dated application windows show an "open now / upcoming / closed" badge. Where a race states a time of day (London 16:00 GMT; Chicago 8 a.m. and 2 p.m. CT), `opensAt` and `closesAt` hold the UTC instant and the badge compares it with the current time. Otherwise it uses the visitor's calendar date. A stale entry looks closed rather than wrong, but it still needs this review.
+
+Points checked against official pages on 2026-10-07:
+- **Boston:** the downhill index uses the B.A.A.'s own metric bounds for drops typed in metres: 457.2, 914.2 and 1,828.6 m. These are not exact conversions of 1,500, 3,000 and 6,000 ft. The 2028 race date (April 17) is confirmed. The end of the qualifying window, 2027 registration week, is not yet dated.
+- **Time equal to the standard:** New York ("at least as fast as") and Chicago ("within the standards") state that an equal time qualifies. Boston, Berlin and Sydney do not, and the checker says it assumes an equal time counts. London requires strictly under.
+- **New York:** NYRR guaranteed entry needs a time from the 2026 TCS New York City Marathon (November 1, 2026) or a listed NYRR half. The pool cut-offs (2025: 13:20, top 25%; 2026: 22:52, top 10%) are both from NYRR press releases.
 
 ## Adding a tool
 
