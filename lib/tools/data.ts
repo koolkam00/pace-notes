@@ -1,7 +1,15 @@
 /** Types and verified loading for the /tools data families (public/data/insights/tools). */
 import { loadInsight } from '@/lib/insights';
 
-export interface ToolIndexBase { family: string; release_tag: string; cohort_n: number; method: string; shards?: Record<string, string> }
+export interface ToolScreens {
+  start_offset?: { city: string; year: number; finishes?: number; median_gap_points?: number }[];
+  grid?: { city: string; year: number; finishes?: number; reason?: string }[];
+  note?: string;
+}
+export interface ToolIndexBase {
+  family: string; release_tag: string; cohort_n: number; method: string; shards?: Record<string, string>;
+  screens?: ToolScreens; duplicate_edition_screen?: { city: string; year: number; duplicate_of: number }[];
+}
 
 export interface ProjectorValidation {
   mat: number; variant: 'all' | 'trend'; test_finishes: number; test_years: string; train_years: string;
@@ -16,7 +24,7 @@ export interface ProjectorCells { b: number[]; n: number[]; ed: number[]; q: num
 export interface ProjectorShard { scope: string; city: string | null; mat_km: number; band_s: number; cells: Record<string, ProjectorCells> }
 
 export interface PaceBandIndex extends ToolIndexBase {
-  window_s: number; goals: [number, number]; onset_sections: number[];
+  editions: number; window_s: number; goals: [number, number]; onset_sections: number[];
   scopes: { slug: string; city: string | null; finishes: number; editions: number; genders: Record<string, { goals: [number, number]; count: number; held: number; slowdown: number }> }[];
 }
 export interface PaceBandGroup { g: number[]; n: number[]; ed: number[]; e50: number[][]; s50: number[][]; e25?: number[][]; e75?: number[][]; s25?: number[][]; s75?: number[][]; sd?: number[]; onset?: number[][] }

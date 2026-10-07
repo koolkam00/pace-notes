@@ -121,8 +121,12 @@ a.tool-card:hover { text-decoration: none; transform: translateY(-3px); box-shad
 .tool-table th { font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); text-align: right; padding: .5rem .6rem;
   border-bottom: 1px solid var(--line); white-space: nowrap; }
 .tool-table th:first-child, .tool-table td:first-child { text-align: left; }
+/* Row headers read like first-column cells, not like the uppercase column heads. */
+.tool-table tbody th { font-family: var(--sans); font-size: .9375rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--ink-2); text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--paper-2); }
 .tool-table td { padding: .5rem .6rem; text-align: right; border-bottom: 1px solid var(--paper-2); white-space: nowrap; font-family: var(--mono); font-size: .875rem; }
 .tool-table td:first-child { font-family: var(--sans); font-weight: 600; color: var(--ink-2); }
+/* Opt in when the first column holds words that may need two lines on a phone. */
+.tool-table.wrap-first td:first-child { white-space: normal; min-width: 7rem; }
 .tool-table tr.is-mat td { background: rgba(255, 91, 46, .06); }
 .tool-table tr.is-mat td:first-child { color: var(--orange-ink); }
 .tool-table tr.is-key td { background: var(--paper-2); font-weight: 650; }
@@ -159,7 +163,7 @@ a.tool-card:hover { text-decoration: none; transform: translateY(-3px); box-shad
 /* ---------- Print: tools print their result panels only ---------- */
 .print-only { display: none; }
 @media print {
-  .site-header, .footer, .tool-inputs, .tool-next, .tool-method, .tool-share, .no-print, .tool-header .tool-badges { display: none !important; }
+  .site-header, .footer, .skip-link, .tool-inputs, .tool-next, .tool-method, .tool-share, .no-print, .tool-header .tool-badges { display: none !important; }
   .print-only { display: block; }
   .tool-workspace { grid-template-columns: 1fr; }
   .tool-panel, .tool-headline { box-shadow: none; break-inside: avoid; }

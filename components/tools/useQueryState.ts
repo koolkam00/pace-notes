@@ -31,7 +31,9 @@ export function useQueryState<T extends Record<string, string>>(defaults: T): [T
       if (value === '' || value === defaults[key]) url.searchParams.delete(key);
       else url.searchParams.set(key, value);
     }
-    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    // Colons and commas are valid in a query; keeping them makes shared links readable (goal=3:30, s=0:25:10,0:50:31).
+    const search = url.searchParams.toString().replace(/%3A/gi, ':').replace(/%2C/gi, ',');
+    window.history.replaceState(window.history.state, '', url.pathname + (search ? `?${search}` : '') + url.hash);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, ready]);
   const update = useCallback((patch: Partial<T>) => setState((s) => ({ ...s, ...patch })), []);
