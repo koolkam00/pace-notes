@@ -17,19 +17,30 @@
 }
 .pace-band-headline-note { grid-column: 1 / -1; padding-top: .95rem; border-top: 1px solid var(--night-3); font-size: .9375rem; line-height: 1.6; color: var(--night-ink-2); }
 .pace-band-headline-note b { font-family: var(--mono); font-weight: 600; color: var(--night-ink); white-space: nowrap; }
+/* Evidence labels on the dark headline: one badge per source, and the same words in front of each number. */
+.pace-band-headline-badges { grid-column: 1 / -1; margin-bottom: -.2rem; }
+.pace-band-headline .evidence-arithmetic { color: var(--night-ink-2); }
+.pace-band-headline .evidence-data { color: #FF9A73; }
+.pace-band-src { font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--night-ink-2); white-space: nowrap; }
+.pace-band-src.is-data { color: #FF9A73; }
+.pace-band-headline[aria-busy='true'] .tool-stat + .tool-stat, .pace-band-headline[aria-busy='true'] .pace-band-headline-note { opacity: .45; transition: opacity .15s; }
 
-/* ---------- Layout: band beside the observed panels on wide screens; mat table first on phones ---------- */
+/* ---------- Layout: band beside the observed panels on wide screens; mat table first on phones ----------
+   The component renders the panels in the visual order for each width (observed, chart, band, onset on phones;
+   band first from 1100 px), so focus and reading order follow what is on screen. No CSS `order` on screen. */
 .pace-band-layout { display: flex; flex-direction: column; gap: 1.2rem; min-width: 0; }
-.pace-band-col { display: contents; }
-#pace-band-observed { order: 1; }
-#pace-band-chart { order: 2; }
-#pace-band-band { order: 3; }
-#pace-band-onset { order: 4; }
 @media (min-width: 1100px) {
-  .pace-band-layout { display: grid; grid-template-columns: minmax(15.5rem, 17rem) minmax(0, 1fr); align-items: start; }
-  .pace-band-col { display: grid; gap: 1.2rem; min-width: 0; }
-  .pace-band-col.is-band .tool-panel { padding-inline: 1.1rem; }
+  .pace-band-layout { display: grid; grid-template-columns: minmax(15.5rem, 17rem) minmax(0, 1fr); grid-template-rows: auto auto auto 1fr;
+    grid-template-areas: 'band observed' 'band chart' 'band onset' 'band .'; align-items: start; }
+  #pace-band-band { grid-area: band; padding-inline: 1.1rem; }
+  #pace-band-observed { grid-area: observed; }
+  #pace-band-chart { grid-area: chart; }
+  #pace-band-onset { grid-area: onset; }
 }
+.pace-band-dim { opacity: .45; transition: opacity .15s; }
+.pace-band-busy { margin-bottom: .9rem; }
+.pace-band-error { display: grid; gap: .7rem; justify-items: start; }
+.pace-band-error button { min-height: 40px; padding: .45rem .95rem; font-size: .875rem; }
 
 /* ---------- The on-screen band (arithmetic) ---------- */
 .pace-band-controls { display: grid; gap: .8rem; margin-bottom: 1rem; }
@@ -74,12 +85,19 @@
 .pace-band-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 .pace-band-actions:empty { display: none; }
 .pace-band-actions button { min-height: 40px; padding: .45rem .95rem; font-size: .875rem; }
-.tool-table-wrap + .no-print .pace-band-actions { margin-top: .8rem; }
+.pace-band-caption { margin-top: .7rem; font-size: .75rem; line-height: 1.5; color: var(--ink-3); }
+.pace-band-caption + .no-print .pace-band-actions { margin-top: .8rem; }
 @media (max-width: 560px) {
   .pace-band-table th, .pace-band-table td, .pace-band-table tbody th, .pace-band-table tfoot th { padding: .45rem .3rem; }
   .pace-band-table td { font-size: .8125rem; }
   .pace-band-table tbody th { font-size: .8125rem; }
   .pace-band-table thead th { font-size: .625rem; letter-spacing: .05em; }
+}
+/* The smallest phones: a little less panel padding so the four observed columns fit without sideways scrolling. */
+@media (max-width: 359px) {
+  #pace-band-observed, #pace-band-chart, #pace-band-onset { padding-inline: .85rem; }
+  .pace-band-table th, .pace-band-table td, .pace-band-table tbody th, .pace-band-table tfoot th { padding-inline: .2rem; }
+  .pace-band-table td, .pace-band-table tbody th { font-size: .75rem; }
 }
 
 /* ---------- Section pace chart ---------- */
@@ -140,7 +158,8 @@
 @media print {
   .pace-band-goalbar, .pace-band-details, .pace-band-view { display: none !important; }
   .pace-band-sheet-wrap { overflow: visible; margin: 0; padding: 0; background: none; }
-  .pace-band-sheet { padding: 0 0 0 .45cm; box-shadow: none; zoom: 1 !important; }
+  /* Width follows the printable area (strip 18.4 cm + .45 cm for the scissor marks), so A4 and Letter print unscaled. */
+  .pace-band-sheet { width: auto; max-width: calc(var(--strip) + .45cm); padding: 0 0 0 .45cm; box-shadow: none; zoom: 1 !important; }
   .pace-band-legend i, .pace-band-key, .pace-band-onset-bar, .pace-band-onset-bar i, .pace-band-tip i { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .pace-band-strip, .pace-band-cell, .pace-band-cell.is-half { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
@@ -153,9 +172,11 @@
   /* Full page: every panel, the method line and caveats, no strips */
   .pace-band-root[data-print='page'] .pace-band-print-panel { display: none !important; }
   .pace-band-root[data-print='page'] .pace-band-layout { display: flex; flex-direction: column; gap: 0; }
-  .pace-band-root[data-print='page'] .pace-band-col { display: contents; }
+  /* Paper has no focus order: the observed panels first, the band last, at any screen width. */
+  .pace-band-root[data-print='page'] #pace-band-observed { order: 1; }
+  .pace-band-root[data-print='page'] #pace-band-chart { order: 2; }
   .pace-band-root[data-print='page'] #pace-band-onset { order: 3; }
-  .pace-band-root[data-print='page'] #pace-band-band { order: 4; break-inside: auto; }
+  .pace-band-root[data-print='page'] #pace-band-band { order: 4; break-inside: auto; padding-inline: .45cm; }
   .pace-band-root[data-print='page'] .tool-panel { margin-bottom: .35cm; }
   .pace-band-root[data-print='page'] .pace-band-print-notes { display: block; font-size: 8.5pt; line-height: 1.45; }
   .pace-band-root[data-print='page'] .tool-panel { padding: .35cm .45cm; }
@@ -169,7 +190,8 @@
   .pace-band-root[data-print='page'] .pace-band-wrist tbody th, .pace-band-root[data-print='page'] .pace-band-wrist td { padding-top: .06cm; padding-bottom: .06cm; }
   .pace-band-root[data-print='page'] .pace-band-wrist td { font-size: 10.5pt; }
   .pace-band-root[data-print='page'] .pace-band-wrist tr.is-finish td { font-size: 12pt; }
-  .pace-band-headline-note, .pace-band-headline-note b { color: #000; border-color: #000; }
+  .pace-band-headline-note, .pace-band-headline-note b, .pace-band-src, .pace-band-headline .evidence-badge { color: #000 !important; border-color: #000; }
+  .pace-band-dim, .pace-band-headline[aria-busy='true'] .tool-stat { opacity: 1 !important; }
   .pace-band-wrist { background: #fff !important; color: #000; border: 1px solid #000; box-shadow: none; }
   .pace-band-wrist::before { display: none; }
   .pace-band-wrist *, .pace-band-wrist tr.is-mat th, .pace-band-wrist tr.is-half th { color: #000 !important; }

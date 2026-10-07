@@ -5,7 +5,7 @@ import './projector.css';
 
 export const metadata = {
   title: 'Race-day marathon projector and spectator tracker | Pace Notes',
-  description: 'Type a tracker time from any 5 km mat. See the finish range and arrival windows at the next mats from what finishes on the same pace actually ran next, with the accuracy measured on races the projection never saw.',
+  description: 'Type a tracker time from any 5 km mat. See the finish range and arrival windows at the next mats from what finishes on the same pace actually ran next, with accuracy measured by rebuilding the groups from earlier years and scoring later races.',
 };
 
 const INDEX = 'tools/projector.json';
