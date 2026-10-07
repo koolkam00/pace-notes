@@ -5,7 +5,7 @@ import { getWeatherAnalyses, getWeatherEvidence } from '@/lib/weather-data';
 import DataCoverage from '@/components/DataCoverage';
 import CreatorCredit from '@/components/CreatorCredit';
 
-export const metadata = { title: 'About | Pace Notes' };
+export const metadata = { title: 'About | Pace Notes', description: 'Why Pace Notes exists, what the race records can and cannot tell you, and who made it.' };
 export default function AboutPage() {
   const { summary } = getAnalysisStart();
   const weather = getWeatherEvidence();

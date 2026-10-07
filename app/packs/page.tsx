@@ -3,7 +3,7 @@ import { QUESTIONS, EXTRA_TITLES, THEMES } from '@/lib/question-catalog';
 import { PERSONAL_QUESTIONS } from '@/lib/personalized-catalog';
 import { broaderArchive } from '@/lib/broader-analysis-catalog';
 
-export const metadata = { title: 'Research archive | Pace Notes' };
+export const metadata = { title: 'Research archive | Pace Notes', description: 'The broader research archive: every extension question calculated from the current marathon race records.' };
 export default function AnalysesPage() {
   return <div className="prose">
     <h1>The research archive.</h1>

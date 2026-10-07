@@ -968,7 +968,85 @@ function checkCourses(doc) {
   };
 }
 
-const checkers = { 'finish-times': checkFinishTimes, archetypes: checkArchetypes, positions: checkPositions, demographics: checkDemographics, replay: checkReplay, courses: checkCourses };
+// kick.json: grid screen, kick and magnet shares, section breaks, warning lights, stay rates, cost and gender counts.
+function checkKick(doc) {
+  const pace = (o, k) => (times[o + k] - (k ? times[o + k - 1] : 0)) / lengths[k];
+  const rel = (o, k) => pace(o, k) / ((times[o + 3] - times[o]) / 15) - 1;
+  const grid = [];
+  for (const e of shapeEditions) {
+    const rows = rowsOf(e);
+    if (rows.length < MIN_CELL) continue;
+    const kicks = new Float64Array(rows.length), secs = [4, 5, 6, 7].map(() => new Float64Array(rows.length));
+    rows.forEach((i, j) => { const o = i * 9; kicks[j] = pace(o, 8) / pace(o, 7) - 1; secs.forEach((a, k) => { a[j] = rel(o, k + 4); }); });
+    const mk = median(kicks), mr = secs.map(median), low = Math.min(...mr);
+    if (mk < -0.15 || low < -0.05) grid.push({ edition: e, city: editions[e].city, year: editions[e].year, finishes: rows.length });
+  }
+  assert.deepEqual(doc.grid_screen.map(g => [g.city, g.year, g.finishes]).sort(), grid.map(g => [g.city, g.year, g.finishes]).sort(), 'Kick grid screen editions');
+  doc.grid_screen.forEach(g => assert.equal(typeof g.reason, 'string', `${g.city} ${g.year}: grid screen reason`));
+  const gridSet = new Set(grid.map(g => g.edition)), kickEditions = shapeEditions.filter(e => !gridSet.has(e));
+  const n = sum(kickEditions.map(e => storyCount[e]));
+  assert.equal(doc.cohort_n, n, 'Kick cohort: shape cohort without grid-screened editions');
+  assert.equal(doc.editions, kickEditions.filter(e => storyCount[e] > 0).length, 'Kick editions');
+  let faster = 0, slow = 0, slowFaster = 0;
+  const mAll = new Float64Array(5), mSlow = new Float64Array(5), over10 = new Float64Array(9), over25 = new Float64Array(9);
+  const warn = [4, 5, 6].map(() => Array.from({ length: 6 }, () => [0, 0]));
+  const bins = [-10, 0, 0.05, 0.10, 0.15, 0.20, 0.25];
+  const stay = [5, 6].map(() => [0, 0]);
+  const gk = new Map();
+  const bandEdges = [150, 180, 210, 240, 270, 300, 330, 360];
+  eachRow(kickEditions, i => {
+    const o = i * 9, R9 = Array.from({ length: 9 }, (_, k) => rel(o, k));
+    const hit = [4, 5, 6, 7].map(k => R9[k] + 1e-12 >= .25), d = hit.some(Boolean);
+    const isFaster = pace(o, 8) / pace(o, 7) - 1 < 0;
+    if (isFaster) faster++;
+    if (d) { slow++; if (isFaster) slowFaster++; }
+    for (let k = 4; k < 9; k++) { const f = pace(o, k) < pace(o, k - 1) ? 1 : 0; mAll[k - 4] += f; if (d) mSlow[k - 4] += f; }
+    for (let k = 0; k < 9; k++) { if (R9[k] > .10) over10[k]++; if (R9[k] + 1e-12 >= .25) over25[k]++; }
+    [4, 5, 6].forEach((sec, w) => {
+      if (hit.slice(0, sec - 3).some(Boolean)) return;
+      const b = bins.findIndex((lo, j) => j < 6 && R9[sec] >= lo && R9[sec] < bins[j + 1]);
+      if (b < 0) return;
+      warn[w][b][0]++; if (hit.slice(sec - 3).some(Boolean)) warn[w][b][1]++;
+    });
+    [5, 6].forEach((sec, j) => { if (R9[sec] + 1e-12 >= .25) { stay[j][0]++; if (R9[sec + 1] + 1e-12 >= .25) stay[j][1]++; } });
+    const sex = genderOf[i];
+    if (sex === 1 || sex === 2) {
+      const band = bandEdges.filter(edge => ((times[o + 3] - times[o]) / 15) * 42.195 / 60 >= edge).length;
+      const key = `${band}:${sex}`, cell = gk.get(key) || [0, 0];
+      cell[0]++; if (isFaster) cell[1]++; gk.set(key, cell);
+    }
+  });
+  const K = doc.kick;
+  assert.deepEqual([K.n, K.faster, K.slowdown_n, K.slowdown_faster], [n, faster, slow, slowFaster], 'Kick counts');
+  near(K.share, faster / n, 'Kick share', 1e-4); near(K.slowdown_share, slowFaster / slow, 'Kick share among sustained slowdowns', 1e-4);
+  doc.magnet.forEach((row, j) => { near(row.all, mAll[j] / n, `${row.section}: faster than previous`, 1e-4); near(row.slowdown, mSlow[j] / slow, `${row.section}: faster than previous among slowdowns`, 1e-4); });
+  doc.breaks.all.sections.forEach((row, k) => { near(row.over10, over10[k] / n, `${row.section}: more than 10% slower`, 1e-4); near(row.over25, over25[k] / n, `${row.section}: 25% or more slower`, 1e-4); });
+  assert.equal(doc.breaks.all.n, n, 'Break chart cohort');
+  doc.warning.forEach((block, w) => {
+    const labels = ['Faster', '0–5% slower', '5–10% slower', '10–15% slower', '15–20% slower', '20–25% slower'];
+    const expected = warn[w].map((cell, b) => ({ label: labels[b], n: cell[0], later: cell[1] / cell[0] })).filter(row => row.n >= MIN_CELL);
+    assert.deepEqual(block.rows.map(row => [row.label, row.n]), expected.map(row => [row.label, row.n]), `Warning after ${block.after}: rows`);
+    block.rows.forEach((row, j) => near(row.later, expected[j].later, `Warning after ${block.after} ${row.label}`, 1e-4));
+  });
+  doc.recovery.stay.forEach((row, j) => { assert.equal(row.n, stay[j][0], `Stay ${row.source}: finishes at sustained-slowdown pace`); near(row.stay, stay[j][1] / stay[j][0], `Stay ${row.source}`, 1e-4); });
+  doc.gender_kick.forEach(row => {
+    const band = ['Under 2:30', '2:30–3:00', '3:00–3:30', '3:30–4:00', '4:00–4:30', '4:30–5:00', '5:00–5:30', '5:30–6:00', '6:00 and over'].indexOf(row.label);
+    const w = gk.get(`${band}:2`), m = gk.get(`${band}:1`);
+    assert.deepEqual([row.women_n, row.men_n], [w[0], m[0]], `${row.label}: women and men counts`);
+    near(row.women, w[1] / w[0], `${row.label}: women kick share`, 1e-4); near(row.men, m[1] / m[0], `${row.label}: men kick share`, 1e-4);
+  });
+  // Cost bands use the story cohort: same 5–20 km pace (15-minute marathon equivalent), with and without a sustained slowdown.
+  const cost = new Map();
+  eachRow(storyEditions, i => {
+    const o = i * 9, equiv = ((times[o + 3] - times[o]) / 15) * 42.195 / 60, lo = 150 + 15 * Math.floor((equiv - 150) / 15);
+    if (equiv < 150 || lo >= 360) return;
+    const cell = cost.get(lo) || [0, 0]; cell[sustained(times, o) ? 0 : 1]++; cost.set(lo, cell);
+  });
+  doc.cost.bands.forEach(row => assert.deepEqual([row.slowdown_n, row.other_n], cost.get(row.lo_min), `${row.label}: cost-band counts`));
+  return { cohort_n: n, grid_screen: grid.length, faster, slowdown_n: slow, warning_rows: sum(doc.warning.map(b => b.rows.length)), cost_bands: doc.cost.bands.length };
+}
+
+const checkers = { 'finish-times': checkFinishTimes, archetypes: checkArchetypes, positions: checkPositions, demographics: checkDemographics, replay: checkReplay, courses: checkCourses, kick: checkKick };
 const recounted = {}, genericOnly = [];
 for (const [family, doc] of families) {
   if (checkers[family]) recounted[family] = checkers[family](doc); else genericOnly.push(family);

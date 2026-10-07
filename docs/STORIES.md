@@ -78,14 +78,25 @@ node scripts/verify-insights.cjs                       # independent recount (â‰
 
 ## Verifier
 
-`scripts/verify-insights.cjs` streams all 7,766 runner shards and rebuilds the eligible cohort and the duplicate and start-offset screens. It then recounts:
+`scripts/verify-insights.cjs` streams all 7,766 runner shards and rebuilds the eligible cohort and the duplicate and start-offset screens. It then recounts, independently of the Python builders:
 - the finish-time histogram, marks and cliffs;
 - all six archetype counts with the published centroids, and the 600 published sentences;
 - position ranks, coin flips and women-ahead editions;
 - the matched demographic shares;
-- every replay sample row.
+- every replay sample row, the first-finish moments, the even-pace ghosts, the clock packs, the on-course counts and the field stretch;
+- for courses:
+  - edition rows and year cells;
+  - the typical curve and course curves;
+  - the weather cohort, the same-course pairs and both slopes;
+  - the matched-pace cells and the identification tallies;
+- for the final kick:
+  - the grid screen and the kick and magnet shares;
+  - section breaks, warning lights and stay rates;
+  - the cost-band and gender counts.
 
-For every file it also checks provenance and structure: finite numbers, groups of at least 100, no identifier or name keys, no recorded runner names in text, and no release-tag strings in copy. `courses.json` currently receives the generic checks only (`generic_only` in the summary).
+Bootstrap intervals and leave-one-out stratum means are checked for structure only.
+
+For every file it also checks provenance and structure: finite numbers, groups of at least 100, no identifier or name keys, no recorded runner names in text, and no release-tag strings in copy.
 
 ## Interpretation limits
 
