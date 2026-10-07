@@ -9,6 +9,7 @@ import { SKIN_TONES } from '@/lib/art/gait';
 import type { Archetypes } from '@/lib/insights';
 import { checkpointLabel, count, hms, paceColour } from '@/lib/viz/format';
 import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
+import { paceLabel } from '@/lib/units';
 import { useStoryData } from './StoryData';
 
 const SECTION_KM = [5, 5, 5, 5, 5, 5, 5, 5, 2.195];
@@ -64,7 +65,7 @@ export function ArchetypeRace({ data, focus, onFocus }: { data: Archetypes; focu
           <p className="viz-title">Six runners, one finish time</p>
           <p className="viz-sub">Each runner follows one archetype&apos;s average profile. They all finish together.</p>
         </div>
-        {!reduced ? <button type="button" className="viz-pause" onClick={() => setPaused((p) => !p)}>{paused ? 'Play animation' : 'Pause animation'}</button> : null}
+        {!reduced ? <button type="button" className="viz-pause" onClick={() => setPaused((p) => !p)}>{paused ? 'Play animation' : 'Pause animation'}<span className="sr-only"> of the six-runner race</span></button> : null}
         <span className="race-clock">{u >= 1 ? 'Finish' : `${Math.round(u * 100)}% of race time`}</span>
       </div>
       <div ref={ref} className="viz">
@@ -114,7 +115,7 @@ export function ArchetypeCards({ data, focus, onFocus }: { data: Archetypes; foc
           <article key={a.slug} className={`archetype-card ${focus === i ? 'is-focus' : ''}`} onMouseEnter={() => onFocus(i)} onMouseLeave={() => onFocus(null)} style={{ ['--arch' as string]: ARCHETYPE_COLOURS[i] }}>
             <header>
               <span className="archetype-dot" />
-              <h3>{a.name}</h3>
+              <h3><button type="button" className="archetype-pick" aria-pressed={focus === i} onClick={() => onFocus(focus === i ? null : i)}>{a.name}</button></h3>
               <strong>{(a.share * 100).toFixed(1)}%</strong>
             </header>
             <svg viewBox="0 0 100 60" className="archetype-spark" aria-hidden="true" preserveAspectRatio="none">
@@ -289,7 +290,7 @@ export function WhichArchetype({ data: given }: { data?: Archetypes }) {
             {' '}{(data.archetypes[result.best].share * 100).toFixed(1)}% of all finishes are {data.archetypes[result.best].name}s.
           </p>
         </div>
-      ) : <p className="viz-note" id="which-error">Check that every time is h:mm:ss, increasing, with a finish between 1:30:00 and 12:00:00 and every section between 2 and 20 minutes per kilometre.</p>}
+      ) : <p className="viz-note" id="which-error">Check that every time is h:mm:ss, increasing, with a finish between 1:30:00 and 12:00:00 and every section paced between {paceLabel(120, units)} and {paceLabel(1200, units)}.</p>}
       <p className="sr-only" aria-live="polite">{result ? `You ran like a ${data.archetypes[result.best].name}; pacing sentence ${result.sentence}.` : 'Times not yet valid.'}</p>
     </div>
   );

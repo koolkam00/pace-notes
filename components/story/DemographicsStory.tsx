@@ -68,7 +68,7 @@ export function GhostRace({ data: given }: { data?: Demographics }) {
     <div className="viz-card ghost-race">
       <div className="viz-head">
         <div><p className="viz-title">Same finish, different race</p><p className="viz-sub">Matched women and men finishing {band.label}, averaged section by section</p></div>
-        {!reduced ? <button type="button" className="viz-pause" onClick={() => setPaused((p) => !p)}>{paused ? 'Play animation' : 'Pause animation'}</button> : null}
+        {!reduced ? <button type="button" className="viz-pause" onClick={() => setPaused((p) => !p)}>{paused ? 'Play animation' : 'Pause animation'}<span className="sr-only"> of the matched ghost race</span></button> : null}
         <label className="ghost-select">
           <span>Finish band</span>
           <select value={pick} onChange={(e) => setPick(Number(e.target.value))}>
@@ -188,6 +188,13 @@ export function AgeLadder({ data: given }: { data?: Demographics }) {
           return <div className="viz-tooltip" style={{ left: x(r.slowdown_vs_field * 100), top: y(r.age) }}><b>{r.gender} {r.age}</b><span>{(r.slowdown_vs_field * 100).toFixed(1)} points vs the field</span><span>{(r.slowdown * 100).toFixed(0)}% had a sustained slowdown · {count(r.n)} finishes</span></div>;
         })() : null}
       </div>
+      <label className="ghost-select years-pick">
+        <span className="sr-only">Show an age group</span>
+        <select value={hover ?? ''} onChange={(e) => setHover(e.target.value || null)}>
+          <option value="">Choose an age group</option>
+          {rows.map((r) => <option key={r.gender + r.age} value={r.gender + r.age}>{r.gender} {r.age}: {r.slowdown_vs_field > 0 ? '+' : ''}{(r.slowdown_vs_field * 100).toFixed(1)} points vs the field, {count(r.n)} finishes</option>)}
+        </select>
+      </label>
       <div className="legend-row"><span><i className="swatch" style={{ background: WOMEN }} />Women</span><span><i className="swatch" style={{ background: MEN }} />Men</span><span>Exact ages from {data.granular_age_cities.join(', ')}</span></div>
       <p className="viz-note">Different people at different ages, not the same runners getting older. Ages come only from sources that record exact ages; some sources record age-group floors and are left out.</p>
     </div>

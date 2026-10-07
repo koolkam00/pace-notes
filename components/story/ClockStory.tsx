@@ -241,7 +241,7 @@ export function StretchStrip({ stretch: given }: { stretch?: NonNullable<ReplayI
           {[1, 1.05, 1.1, 1.15, 1.2].map((v) => <text key={v} x={x(v)} y={H - 6} textAnchor="middle">{v.toFixed(2)}×</text>)}
         </svg>
       </div>
-      <p className="viz-note">Each dot is one race edition with at least 1,000 eligible finishes. Narrowest stretch: {stretch.min.city} {stretch.min.year} ({stretch.min.stretch.toFixed(2)}×); widest: {stretch.max.city} {stretch.max.year} ({stretch.max.stretch.toFixed(2)}×). These are percentiles at each block, not the same runners. The 13 editions whose first 5 km looks inflated by start delays are left out.</p>
+      <p className="viz-note">Each dot is one race edition with at least 1,000 eligible finishes. Narrowest stretch: {stretch.min.city} {stretch.min.year} ({stretch.min.stretch.toFixed(2)}×); widest: {stretch.max.city} {stretch.max.year} ({stretch.max.stretch.toFixed(2)}×). These are percentiles at each block, not the same runners. The 13 editions whose first {checkpointLabel(5, units)} looks inflated by start delays are left out.</p>
     </div>
   );
 }

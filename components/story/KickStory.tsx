@@ -260,6 +260,8 @@ export function WarningLight({ data: given }: { data?: Kick }) {
 export function BankAndPay({ data: given }: { data?: Kick }) {
   const data = useStoryData('kick', given);
   const rows = data.bank.curve;
+  const { units } = useUnits();
+  const at20 = checkpointLabel(20, units);
   const [hover, setHover] = useState(rows.findIndex((r) => r.lo === -10));
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 860);
@@ -278,8 +280,8 @@ export function BankAndPay({ data: given }: { data?: Kick }) {
   return (
     <div className="viz-card">
       <div className="viz-head">
-        <div><p className="viz-title">Banked early, given back later</p><p className="viz-sub">Against finishes in the same race at the same 5–20 km pace: first 5 km, after 20 km and the whole race</p></div>
-        <div className="pairs-legend"><span><i style={{ background: '#17A673' }} />first 5 km</span><span><i style={{ background: '#E2416B' }} />after 20 km</span><span><i style={{ background: '#15171C' }} />finish</span></div>
+        <div><p className="viz-title">Banked early, given back later</p><p className="viz-sub">Against finishes in the same race at the same 5–20 km pace: first 5 km, after {at20} and the whole race</p></div>
+        <div className="pairs-legend"><span><i style={{ background: '#17A673' }} />first 5 km</span><span><i style={{ background: '#E2416B' }} />after {at20}</span><span><i style={{ background: '#15171C' }} />finish</span></div>
       </div>
       <div ref={ref} className="viz">
         <svg width={width} height={H} role="img" aria-label={`The best average finish relative to same-race, same-pace peers went with a first 5 km ${label(rows[best].lo)} than the 5 to 20 km pace.`}>
@@ -306,7 +308,7 @@ export function BankAndPay({ data: given }: { data?: Kick }) {
       </label>
       <p className="ledger-readout">
         First 5 km <strong>{label(h.lo)}</strong> than 5–20 km pace ({count(h.n)} finishes): {h.open_s <= 0 ? 'banked' : 'gave up'} <strong>{mss(Math.abs(h.open_s))}</strong> early,
-        {h.after20_s >= 0 ? ' spent ' : ' saved '}<strong>{mss(Math.abs(h.after20_s))}</strong> after 20 km, and finished <strong>{mss(Math.abs(h.finish_s))} {h.finish_s >= 0 ? 'behind' : 'ahead of'}</strong> same-race, same-pace peers.
+        {h.after20_s >= 0 ? ' spent ' : ' saved '}<strong>{mss(Math.abs(h.after20_s))}</strong> after {at20}, and finished <strong>{mss(Math.abs(h.finish_s))} {h.finish_s >= 0 ? 'behind' : 'ahead of'}</strong> same-race, same-pace peers.
         Sustained slowdown: {pct(h.slowdown)} ({h.excess >= 0 ? '+' : '−'}{Math.abs(h.excess * 100).toFixed(1)} points against peers).
       </p>
       <p className="viz-note">Peers share the race and a 5 s/km band of 5–20 km pace; each finish is left out of its own comparison. The 5–20 km pace is measured after the opening, so it can already reflect it. This describes what went together, not pacing advice.</p>
@@ -341,7 +343,7 @@ export function TwinRunners({ data: given }: { data?: Kick }) {
     <div className="viz-card twin">
       <div className="viz-head">
         <div><p className="viz-title">Two runners, one 5–20 km pace</p><p className="viz-sub">Median finishes for this 5–20 km pace, with and without a sustained slowdown</p></div>
-        {!reduced ? <button type="button" className="viz-pause" onClick={() => setPaused((p) => !p)}>{paused ? 'Play animation' : 'Pause animation'}</button> : null}
+        {!reduced ? <button type="button" className="viz-pause" onClick={() => setPaused((p) => !p)}>{paused ? 'Play animation' : 'Pause animation'}<span className="sr-only"> of the two runners</span></button> : null}
         <label className="ghost-select">
           <span>5–20 km pace, as a marathon</span>
           <select aria-label="5–20 km pace, as a marathon, for the two runners" value={pick} onChange={(e) => setPick(Number(e.target.value))}>{bands.map((x2, i) => <option key={x2.lo_min} value={i}>{x2.label}</option>)}</select>

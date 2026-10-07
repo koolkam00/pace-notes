@@ -15,16 +15,16 @@ export default function PlacesBody({ data, manifest }: { data: Positions; manife
   return (
     <StoryData value={{ positions: data }}>
       <StorySection id="gap" kicker="01 · The gap" title={<>At <Checkpoint km={30} />, a minute is <em>nearly a coin flip</em>.</>}
-        dek={<>When one finish trailed another by 60–90 seconds at 30 km, the trailing one still crossed the line first {Math.round(at30.share * 100)}% of the time. From 40 km the same gap was overturned only {Math.round(at40.share * 100)}% of the time.</>}>
+        dek={<>When one finish trailed another by 60–90 seconds at <Checkpoint km={30} />, the trailing one still crossed the line first {Math.round(at30.share * 100)}% of the time. From <Checkpoint km={40} /> the same gap was overturned only {Math.round(at40.share * 100)}% of the time.</>}>
         <GapGauge />
       </StorySection>
       <StorySection id="gains" kicker="02 · Gains and losses" title={<>Small gains for many, <em>big losses</em> for a few.</>}
-        dek={<>{Math.round(data.gained_share * 100)}% of finishes moved up the clock order after 30 km. Only {(data.surger_share * 100).toFixed(1)}% rose by 10 percentile points or more, while {(data.sinker_share * 100).toFixed(1)}% fell that far.</>}>
+        dek={<>{Math.round(data.gained_share * 100)}% of finishes moved up the clock order after <Checkpoint km={30} />. Only {(data.surger_share * 100).toFixed(1)}% rose by 10 percentile points or more, while {(data.sinker_share * 100).toFixed(1)}% fell that far.</>}>
         <div className="chapter-grid">
           <GainHistogram />
           <div className="chapter-aside">
             <Ledger />
-            <div className="bib"><span className="bib-tag">Who moves up late</span><span className="bib-number">{(fast.gained * 100).toFixed(1)}%</span><span className="bib-text">of finishes with a faster second 20 km gained places after 30 km, against {(slow.gained * 100).toFixed(0)}% of finishes with a sustained slowdown.</span></div>
+            <div className="bib"><span className="bib-tag">Who moves up late</span><span className="bib-number">{(fast.gained * 100).toFixed(1)}%</span><span className="bib-text">of finishes with a faster second 20 km gained places after <Checkpoint km={30} />, against {(slow.gained * 100).toFixed(0)}% of finishes with a sustained slowdown.</span></div>
           </div>
         </div>
       </StorySection>
@@ -51,7 +51,7 @@ export default function PlacesBody({ data, manifest }: { data: Positions; manife
         </div>
       </StorySection>
       <StorySection id="women" kicker="05 · Recorded gender" title={<>Women move up <em>in every race</em>.</>}
-        dek={<>In all {data.women_ahead_editions} of {data.gender_editions.length} race editions with at least 100 recorded women and men, women&apos;s average change in clock position after 30 km was better than men&apos;s. Women are {(data.women_share * 100).toFixed(0)}% of these finishes but {(data.women_share_of_surgers * 100).toFixed(0)}% of late surgers and {(data.women_share_of_sinkers * 100).toFixed(0)}% of late sinkers.</>}>
+        dek={<>In all {data.women_ahead_editions} of {data.gender_editions.length} race editions with at least 100 recorded women and men, women&apos;s average change in clock position after <Checkpoint km={30} /> was better than men&apos;s. Women are {(data.women_share * 100).toFixed(0)}% of these finishes but {(data.women_share_of_surgers * 100).toFixed(0)}% of late surgers and {(data.women_share_of_sinkers * 100).toFixed(0)}% of late sinkers.</>}>
         <WomenMen />
       </StorySection>
       <StoryMethods manifest={manifest} files={['positions.json']} method={data.method}

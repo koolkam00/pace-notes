@@ -166,7 +166,10 @@ summary::marker { color: var(--orange); font-size: .8em; }
 @media (max-width: 1180px) { .header-controls { gap: .6rem; } .main-nav a { padding-inline: .6rem; } .header-controls .nav-data { display: none; } }
 @media (max-width: 980px) {
   .header-controls { display: contents; }
-  .header-controls .main-nav { order: 3; flex-basis: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -.25rem; padding: .1rem .25rem .25rem; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+  .header-controls .main-nav { order: 3; flex-basis: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -.25rem; padding: .1rem .25rem .25rem; }
+  .header-controls .main-nav[data-more-right] { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+  .header-controls .main-nav[data-more-left] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 28px); mask-image: linear-gradient(90deg, transparent, #000 28px); }
+  .header-controls .main-nav[data-more-left][data-more-right] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
   .header-controls .main-nav a:focus-visible { outline-offset: -3px; }
   .header-controls .main-nav::-webkit-scrollbar { display: none; }
   .header-controls .unit-switch { order: 2; margin-left: auto; }

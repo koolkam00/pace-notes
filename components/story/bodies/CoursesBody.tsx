@@ -54,7 +54,7 @@ export default function CoursesBody({ data, geometry, manifest }: { data: Course
 
       <StorySection id="weather" kicker="03 · Same course, different day" title={<>Temperature hides <em>until you compare a course with itself</em>.</>}
         dek={<>Across the {w.cohort.editions} race editions with a weather record, the start temperature explains about a tenth of the spread in sustained slowdown (R² {f.slowdown_across.r2.toFixed(2)}).
-          Within each course it explains about a third (R² {f.slowdown_within.r2.toFixed(2)}): the share of finishes with a sustained slowdown rises about <PerDegree perC={f.slowdown_within.slope} unit="points" />
+          Within each course it explains about a third (R² {f.slowdown_within.r2.toFixed(2)}): the share of finishes with a sustained slowdown rises about <PerDegree perC={f.slowdown_within.slope} unit="points" />{' '}
           (95% interval <PerDegreeRange lo={f.slowdown_within.ci95[0]} hi={f.slowdown_within.ci95[1]} />).</>}>
         <Untangle />
         <PairsWaffle />

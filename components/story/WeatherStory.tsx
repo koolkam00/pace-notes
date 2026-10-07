@@ -115,7 +115,7 @@ export function Untangle({ weather: given }: { weather?: Pick<Courses['weather']
   );
 }
 
-const PAIR_KEYS: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+const PAIR_KEYS: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1 };
 
 /** Every same-course pair of editions at least 5 °C apart: did the warmer one have more sustained slowdown? */
 export function PairsWaffle({ data: given }: { data?: Courses }) {
@@ -144,7 +144,13 @@ export function PairsWaffle({ data: given }: { data?: Courses }) {
           <span key={`${x.city}${x.hot_year}${x.cool_year}`} role="listitem" className={x.hotter_slowed_more ? 'pair hit' : 'pair'}
             ref={(el) => { refs.current[i] = el; }} tabIndex={i === active ? 0 : -1}
             onKeyDown={(ev) => {
-              const d = PAIR_KEYS[ev.key] ?? (ev.key === 'Home' ? -Infinity : ev.key === 'End' ? Infinity : 0);
+              let d = PAIR_KEYS[ev.key] ?? (ev.key === 'Home' ? -Infinity : ev.key === 'End' ? Infinity : 0);
+              if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+                // Up and down move by one row of the wrapped grid, measured from the first row.
+                const top = refs.current[0]?.offsetTop;
+                const cols = Math.max(1, refs.current.filter((el) => el?.offsetTop === top).length);
+                d = ev.key === 'ArrowDown' ? cols : -cols;
+              }
               if (d) { ev.preventDefault(); move(Number.isFinite(d) ? i + d : d < 0 ? 0 : sorted.length - 1); }
             }}
             onMouseEnter={() => setHover(i)} onFocus={() => { setActive(i); setHover(i); }}

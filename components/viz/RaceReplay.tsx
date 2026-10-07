@@ -130,6 +130,7 @@ export default function RaceReplay({ edition, defaultSpeed = 600, height = 460, 
   // Start once visible unless the reader prefers reduced motion; show a meaningful still otherwise.
   useEffect(() => {
     if (reduced) {
+      setPlaying(false);
       timeRef.current = Math.round(firstFinish * 1.15);
       setTime(timeRef.current);
       return;

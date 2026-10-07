@@ -7,10 +7,27 @@ export default function SiteNav() {
   const path = usePathname() || '';
   const within = (route: string) => path === route || path.startsWith(route + '/');
   const ref = useRef<HTMLElement>(null);
+  // On phones the nav scrolls sideways: bring the current page into view only when it is cut off.
   useEffect(() => {
     const nav = ref.current;
     const active = nav?.querySelector<HTMLElement>('[aria-current="page"]');
-    if (nav && active && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2;
+    if (!nav || !active || nav.scrollWidth <= nav.clientWidth) return;
+    const outer = nav.getBoundingClientRect();
+    const box = active.getBoundingClientRect();
+    if (box.left < outer.left || box.right > outer.right) nav.scrollLeft += box.left - outer.left - (outer.width - box.width) / 2;
+  }, [path]);
+  // Fade an edge only while more links lie beyond it.
+  useEffect(() => {
+    const nav = ref.current;
+    if (!nav) return;
+    const update = () => {
+      nav.toggleAttribute('data-more-left', nav.scrollLeft > 1);
+      nav.toggleAttribute('data-more-right', nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 1);
+    };
+    update();
+    nav.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => { nav.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
   }, [path]);
   return <nav ref={ref} aria-label="Main navigation" className="main-nav">
     <Link href="/stories" aria-current={within('/stories') ? 'page' : undefined}>Stories</Link>

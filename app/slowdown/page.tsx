@@ -13,7 +13,7 @@ export default function Page() {
   const figures = getStudyFigures();
   return <>
     <header className="directory-heading">
-      <p className="eyebrow">The study</p>
+      <p className="eyebrow">Late-race slowing</p>
       <h1>Understanding sustained slowdown.</h1>
       <p>Explore one form of late-race slowing, recalculated from the same data release as the rest of the study.</p>
     </header>

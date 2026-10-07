@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useUnits } from '@/components/UnitsProvider';
 import { useWidth } from '@/components/viz/useSize';
 import type { CourseSummary, WeatherEdition } from '@/lib/insights';
@@ -43,36 +43,61 @@ export function CourseWeather({ city, editions }: { city: string; editions: Weat
   const ticks: number[] = [];
   for (let u = Math.ceil(toU(tLo) / step) * step; u <= toU(tHi); u += step) ticks.push(fromU(u));
   const narrow = width < 560;
+  const [sel, setSel] = useState<number | null>(null);
   const hot = editions.reduce((a, b) => (b.temp > a.temp ? b : a));
   const cool = editions.reduce((a, b) => (b.temp < a.temp ? b : a));
-  const boxes: [number, number][] = [];
-  const shown = new Set<number>();
-  [...editions].sort((a, b) => b.slowdown - a.slowdown).forEach((e) => {
-    const left = e === cool && narrow;
-    const lx = left ? x(e.temp) - 40 : x(e.temp) + 10;
-    const ly = y(e.slowdown) + 4;
+  // Year labels: warmest and coolest first, then the rest by slowdown where there is room.
+  // Each label tries right, left, then above its dot, and never covers another label, a dot or the axis gutter.
+  const LW = 30;
+  type Spot = { tx: number; ty: number; anchor: 'start' | 'end' | 'middle'; x0: number; x1: number };
+  const boxes: Spot[] = [];
+  const placed = new Map<number, Spot>();
+  const order = [hot, ...(cool !== hot ? [cool] : []), ...editions.filter((e) => e !== hot && e !== cool).sort((a, b) => b.slowdown - a.slowdown)];
+  order.forEach((e) => {
     if (narrow && e !== hot && e !== cool) return;
-    if (lx + 30 > width) return;
-    if (boxes.some(([bx, by]) => Math.abs(bx - lx) < 34 && Math.abs(by - ly) < 12)) return;
-    boxes.push([lx, ly]);
-    shown.add(e.year);
+    const cx = x(e.temp);
+    const cy = y(e.slowdown);
+    const right: Spot = { tx: cx + 10, ty: cy + 4, anchor: 'start', x0: cx + 10, x1: cx + 10 + LW };
+    const left: Spot = { tx: cx - 10, ty: cy + 4, anchor: 'end', x0: cx - 10 - LW, x1: cx - 10 };
+    const above: Spot = { tx: cx, ty: cy - 11, anchor: 'middle', x0: cx - LW / 2, x1: cx + LW / 2 };
+    const spots = e === cool ? [left, right, above] : [right, left, above];
+    const inBounds = (c: Spot) => c.x0 >= m.l && c.x1 <= width - 2 && c.ty - 10 >= 0;
+    const clear = (c: Spot) => !boxes.some((b) => c.x0 < b.x1 && c.x1 > b.x0 && Math.abs(b.ty - c.ty) < 12)
+      && !editions.some((o) => o !== e && x(o.temp) + 7 > c.x0 && x(o.temp) - 7 < c.x1 && Math.abs(y(o.slowdown) - (c.ty - 4)) < 10);
+    const spot = spots.find((c) => inBounds(c) && clear(c)) ?? (e === hot || e === cool ? spots.find(inBounds) : undefined);
+    if (!spot) return;
+    boxes.push(spot);
+    placed.set(e.year, spot);
   });
+  const picked = sel == null ? null : editions.find((e) => e.year === sel) ?? null;
   return (
     <div className="viz-card">
       <div className="viz-head"><div><p className="viz-title">{city} race mornings</p><p className="viz-sub">Each edition: modelled temperature at the scheduled start and sustained slowdown share</p></div></div>
       <div ref={ref} className="viz">
-        <svg width={width} height={H} role="img" aria-label={`${editions.length} ${city} editions plotted by start temperature and sustained slowdown.`}>
+        <svg width={width} height={H} role="img" aria-label={`${editions.length} ${city} editions plotted by start temperature and sustained slowdown. Warmest: ${hot.year} at ${fmt(hot.temp)}, ${(hot.slowdown * 100).toFixed(0)}%. Coolest: ${cool.year} at ${fmt(cool.temp)}, ${(cool.slowdown * 100).toFixed(0)}%.`}>
           {Array.from({ length: Math.round(sHi * 10) + 1 }, (_, i) => i / 10).map((s) => <g key={s} className="grid"><line x1={m.l} x2={width - m.r} y1={y(s)} y2={y(s)} /><text x={m.l - 8} y={y(s) + 4} textAnchor="end">{Math.round(s * 100)}%</text></g>)}
           {ticks.map((t) => <text key={t} x={x(t)} y={H - 14} textAnchor="middle">{fmt(t)}</text>)}
           {editions.map((e) => (
-            <g key={e.year}>
-              <circle cx={x(e.temp)} cy={y(e.slowdown)} r={7} fill={tempColour(e.temp)} stroke="#15171C" strokeOpacity={0.4}><title>{`${city} ${e.year}: ${fmt(e.temp)}, ${(e.slowdown * 100).toFixed(1)}%`}</title></circle>
-              {shown.has(e.year) ? <text x={narrow && e === cool ? x(e.temp) - 10 : x(e.temp) + 10} y={y(e.slowdown) + 4} textAnchor={narrow && e === cool ? 'end' : 'start'} className="annotation-sub" paintOrder="stroke" stroke="var(--card)" strokeWidth={3} aria-hidden="true">{e.year}</text> : null}
-            </g>
+            <circle key={e.year} cx={x(e.temp)} cy={y(e.slowdown)} r={7} fill={tempColour(e.temp)} stroke="#15171C" strokeOpacity={sel === e.year ? 1 : 0.4} strokeWidth={sel === e.year ? 2.5 : 1}
+              style={{ cursor: 'pointer' }} onMouseEnter={() => setSel(e.year)} onClick={() => setSel(e.year)} />
           ))}
+          {editions.map((e) => {
+            const spot = placed.get(e.year);
+            return spot ? <text key={e.year} x={spot.tx} y={spot.ty} textAnchor={spot.anchor} className="annotation-sub" paintOrder="stroke" stroke="var(--card)" strokeWidth={3} aria-hidden="true">{e.year}</text> : null;
+          })}
         </svg>
       </div>
-      <p className="viz-note">Weather is the supplied modelled hour at the scheduled start, never personal exposure. Other things changed between years too.{narrow ? ' Only the warmest and coolest years are labelled here; tap a dot for its year.' : ' Years are labelled where there is room.'}</p>
+      <div className="years-foot">
+        <label className="ghost-select years-pick">
+          <span className="sr-only">Show a {city} race year</span>
+          <select value={sel ?? ''} onChange={(ev) => setSel(ev.target.value ? Number(ev.target.value) : null)}>
+            <option value="">Choose a year</option>
+            {[...editions].sort((a, b) => a.year - b.year).map((e) => <option key={e.year} value={e.year}>{e.year}</option>)}
+          </select>
+        </label>
+        <p className="pairs-readout" aria-live="polite">{picked ? <><strong>{city} {picked.year}</strong> · {fmt(picked.temp)} at the start · {(picked.slowdown * 100).toFixed(1)}% sustained slowdown</> : narrow ? 'Tap a dot, or choose a year.' : 'Hover a dot, or choose a year.'}</p>
+      </div>
+      <p className="viz-note">Weather is the supplied modelled hour at the scheduled start, never personal exposure. Other things changed between years too.{narrow ? ' Only the warmest and coolest years are labelled on small screens.' : ''}</p>
     </div>
   );
 }

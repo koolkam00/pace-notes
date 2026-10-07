@@ -190,7 +190,7 @@ export function Rescue({ data: given }: { data?: FinishTimes }) {
           <p className="viz-title">Getting under {b.mark} after {at40}</p>
           <p className="viz-sub">Share finishing under {b.mark}, by projected margin at {at40}</p>
         </div>
-        <div className="segmented" role="group" aria-label="Mark for the after-40 km chart">
+        <div className="segmented" role="group" aria-label={`Mark for the after-${at40} chart`}>
           {data.bubble.map((s, i) => <button key={s.mark} type="button" aria-pressed={i === pick} onClick={() => setPick(i)}>{s.mark}</button>)}
         </div>
       </div>

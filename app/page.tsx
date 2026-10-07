@@ -67,7 +67,7 @@ export default function Page() {
       <div className="container">
         <div className="bibs hero-bibs">
           <a className="bib on-night" href="#finish-times"><span className="bib-tag">The 2:59 tower</span><span className="bib-number">{three.ratio.toFixed(2)}×</span><span className="bib-text">as many finishes in the minute before 3:00 as a smooth curve expects.</span></a>
-          <a className="bib on-night" href="#rescue"><span className="bib-tag">Under 4:00 after 40 km</span><span className="bib-number">≈{count(Math.round(four.over.extra_under / 100) * 100)}</span><span className="bib-text">more sub-4:00 finishes than comparable late-race positions would suggest.</span></a>
+          <a className="bib on-night" href="#rescue"><span className="bib-tag">Under 4:00 after <Checkpoint km={40} /></span><span className="bib-number">≈{count(Math.round(four.over.extra_under / 100) * 100)}</span><span className="bib-text">more sub-4:00 finishes than comparable late-race positions would suggest.</span></a>
           <Link className="bib on-night" href="/slowdown"><span className="bib-tag">Sustained slowdown</span><span className="bib-number">{study.rate.toFixed(1)}%</span><span className="bib-text">of the {count(study.n)} finishes in the ten analyses include at least 5 km, after 20 km, run 25% or more slower than their own 5–20 km pace.</span></Link>
           <div className="bib on-night"><span className="bib-tag">Race clock 3:00</span><span className="bib-number"><Distance km={at3.median_km} /></span><span className="bib-text">how far the median {berlin.city} {berlin.year} finisher had run when the race clock read 3:00.</span></div>
         </div>
@@ -86,7 +86,7 @@ export default function Page() {
       </div>
       <div className="nugget">
         <span className="nugget-number">{(metronome.share * 100).toFixed(0)}%</span>
-        <p className="nugget-text">of finishes are <strong>Metronomes</strong>, holding within a couple of percent of their own average pace to 40 km. The most common shape is the <strong>Gentle fader</strong> ({(types.archetypes[1].share * 100).toFixed(0)}%), and {(cliff.share * 100).toFixed(1)}% run a <strong>Cliff</strong>: fast to 25 km, then about 40% slower than average over 35–40 km.</p>
+        <p className="nugget-text">of finishes are <strong>Metronomes</strong>, holding within a couple of percent of their own average pace to <Checkpoint km={40} />. The most common shape is the <strong>Gentle fader</strong> ({(types.archetypes[1].share * 100).toFixed(0)}%), and {(cliff.share * 100).toFixed(1)}% run a <strong>Cliff</strong>: fast to 25 km, then about 40% slower than average over 35–40 km.</p>
       </div>
       <div className="chapter-body"><ArchetypeChapter /></div>
       <div className="chapter-grid chapter-body">
@@ -127,11 +127,11 @@ export default function Page() {
       <div className="chapter-head">
         <p className="chapter-num">Chapter 03 · Places on the clock</p>
         <h2 id="places-title" className="chapter-title">At <Checkpoint km={30} />, a minute is <em>nearly a coin flip</em>.</h2>
-        <p className="chapter-dek">The order of a marathon field keeps changing long after 20 km. Most runners slow after 30 km, so what matters for places is how much you slow compared with everyone around you.</p>
+        <p className="chapter-dek">The order of a marathon field keeps changing long after <Checkpoint km={20} />. Most runners slow after <Checkpoint km={30} />, so what matters for places is how much you slow compared with everyone around you.</p>
       </div>
       <div className="nugget">
         <span className="nugget-number">{Math.round(coin30.share * 100)}%</span>
-        <p className="nugget-text">of the time, a finish <strong>60–90 seconds behind another at 30 km</strong> still crossed the line first. There are about {(places.sinker_share / places.surger_share).toFixed(0)} late sinkers for every late surger, and women gained on men after 30 km in <strong>all {places.women_ahead_editions} race editions</strong> compared.</p>
+        <p className="nugget-text">of the time, a finish <strong>60–90 seconds behind another at <Checkpoint km={30} /></strong> still crossed the line first. There are about {(places.sinker_share / places.surger_share).toFixed(0)} late sinkers for every late surger, and women gained on men after <Checkpoint km={30} /> in <strong>all {places.women_ahead_editions} race editions</strong> compared.</p>
       </div>
       <div className="chapter-body"><GapGauge /></div>
       <div className="chapter-body"><BreakEven /></div>
@@ -142,7 +142,7 @@ export default function Page() {
       <div className="chapter-head">
         <p className="chapter-num">Chapter 04 · Gender and age</p>
         <h2 id="who-title" className="chapter-title">Same finish time, <em>different race</em>.</h2>
-        <p className="chapter-dek">Compare recorded women and men who finished the same race in the same minute. The men were well ahead at 20 km; the women caught them by the line.</p>
+        <p className="chapter-dek">Compare recorded women and men who finished the same race in the same minute. The men were well ahead at <Checkpoint km={20} />; the women caught them by the line.</p>
       </div>
       <div className="nugget">
         <span className="nugget-number">{(demo.overall.men_slowdown / demo.overall.women_slowdown).toFixed(1)}×</span>

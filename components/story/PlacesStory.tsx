@@ -29,6 +29,9 @@ export function GapGauge({ data: given }: { data?: Positions }) {
   const rows = data.coin_flip[cp];
   const row = rows.find((r) => gap >= r.gap_lo_s && gap < r.gap_lo_s + 30) ?? rows[rows.length - 1];
   const share = row.share;
+  const binLo = row.gap_lo_s === 0 ? 1 : row.gap_lo_s; // tied clock times are never paired
+  const binHi = row.gap_lo_s >= 870 ? 900 : row.gap_lo_s + 29; // the last bin includes exactly 15:00
+  const span = `${mmss(binLo)}–${mmss(binHi)}`;
   const H = 300;
   const m = { l: 46, r: 16, t: 20, b: 40 };
   const iw = width - m.l - m.r;
@@ -49,7 +52,7 @@ export function GapGauge({ data: given }: { data?: Positions }) {
       <div className="gap-top">
         <div className="gap-number">
           <strong>{Math.round(share * 100)}%</strong>
-          <span>of the time, a finish <b>{mmss(row.gap_lo_s)}–{mmss(row.gap_lo_s + 29)}</b> behind at {label} still crossed the line first.</span>
+          <span>of the time, a finish <b>{span}</b> behind at {label} still crossed the line first.</span>
         </div>
         <svg className="gap-runners" viewBox="0 -16 320 106" aria-hidden="true">
           <line x1={0} x2={320} y1={84} y2={84} stroke="currentColor" opacity={0.2} />
@@ -60,8 +63,8 @@ export function GapGauge({ data: given }: { data?: Positions }) {
         </svg>
       </div>
       <label className="gap-slider">
-        <span>Gap on the clock at {label}: <b>{mmss(row.gap_lo_s)}–{mmss(row.gap_lo_s + 29)}</b></span>
-        <input type="range" min={0} max={870} step={30} value={gap} onChange={(e) => setGap(Number(e.target.value))} aria-valuetext={`${mmss(row.gap_lo_s)} to ${mmss(row.gap_lo_s + 29)} behind`} />
+        <span>Gap on the clock at {label}: <b>{span}</b></span>
+        <input type="range" min={0} max={870} step={30} value={gap} onChange={(e) => setGap(Number(e.target.value))} aria-valuetext={`${mmss(binLo)} to ${mmss(binHi)} behind`} />
       </label>
       <div ref={ref} className="viz">
         <svg width={width} height={H} role="img" aria-label="Share of pairs where the trailing finish ends ahead, by clock gap, for four checkpoints. The share falls fastest from 40 km.">
@@ -105,9 +108,9 @@ export function GainHistogram({ data: given }: { data?: Positions }) {
           {rows.map((r) => <rect key={r.lo} x={x(r.lo) + 0.5} y={y(r.share)} width={Math.max(1, bw)} height={m.t + ih - y(r.share)} fill={r.lo <= -10 ? '#E2416B' : r.lo >= 10 ? '#17A673' : r.lo < 0 ? '#F6A7B9' : '#9BD8C0'} />)}
           <line x1={x(0)} x2={x(0)} y1={m.t - 8} y2={m.t + ih} stroke="#15171C" />
           <text className="annotation" x={x(-29)} y={m.t + 4}>{narrow ? 'Lost 10+ points' : 'Late sinkers · lost 10+ points'}</text>
-          <text className="annotation-sub" x={x(-29)} y={m.t + 20}>{(data.sinker_share * 100).toFixed(1)}% of finishes</text>
+          <text className="annotation-sub" x={x(-29)} y={m.t + 20}>{(data.sinker_share * 100).toFixed(1)}%{narrow ? '' : ' of finishes'}</text>
           <text className="annotation" x={x(14.5)} y={m.t + 4} textAnchor="end">{narrow ? 'Gained 10+' : 'Late surgers · gained 10+'}</text>
-          <text className="annotation-sub" x={x(14.5)} y={m.t + 20} textAnchor="end">{(data.surger_share * 100).toFixed(1)}% of finishes</text>
+          <text className="annotation-sub" x={x(14.5)} y={m.t + 20} textAnchor="end">{(data.surger_share * 100).toFixed(1)}%{narrow ? '' : ' of finishes'}</text>
           {[-30, -20, -10, 0, 10].map((v) => <text key={v} x={x(v)} y={H - 20} textAnchor="middle">{v > 0 ? `+${v}` : v}</text>)}
           <text x={m.l + iw / 2} y={H - 4} textAnchor="middle" className="axis-label">{narrow ? `points gained, ${at30} to finish` : `percentile points gained from ${at30} to the finish`}</text>
         </svg>
@@ -136,10 +139,14 @@ export function BreakEven({ data: given }: { data?: Positions }) {
   const y = (v: number) => m.t + ih - ((v - yMin) / (yMax - yMin)) * ih;
   const band = `${rows.map((r, i) => `${i ? 'L' : 'M'}${x(r.x)} ${y(r.p90)}`).join(' ')} ${[...rows].reverse().map((r) => `L${x(r.x)} ${y(r.p10)}`).join(' ')} Z`;
   const hov = hover === null ? null : rows[hover];
+  const { units } = useUnits();
+  const late = units === 'mi' ? '18.6–24.9 mi' : '30–40 km';
+  const slowText = (v: number) => (v === 0 ? 'the same pace' : v > 0 ? `${v}% slower` : `${-v}% faster`);
+  const zero = rows.reduce((b, r, k) => (Math.abs(r.x) < Math.abs(rows[b].x) ? k : b), 0);
   const cross = data.breakeven_crossing ?? 0;
   return (
     <div className="viz-card">
-      <div className="viz-head"><div><p className="viz-title">How much slowing costs places</p><p className="viz-sub">30–40 km pace compared with the same finish&apos;s 5–20 km pace</p></div></div>
+      <div className="viz-head"><div><p className="viz-title">How much slowing costs places</p><p className="viz-sub">{late} pace compared with the same finish&apos;s 5–20 km pace</p></div></div>
       <div ref={ref} className="viz" style={{ position: 'relative' }} onMouseLeave={() => setHover(null)}>
         <svg width={width} height={H} role="img" aria-label={`Median percentile points gained after ${at30} falls as 30–40 km slowing grows, crossing zero at about ${cross.toFixed(0)}% slower.`}>
           <path d={band} fill="rgba(47,91,255,.14)" />
@@ -159,10 +166,15 @@ export function BreakEven({ data: given }: { data?: Positions }) {
             rows.forEach((r, i) => { if (Math.abs(r.x - v) < Math.abs(rows[best].x - v)) best = i; });
             setHover(best);
           }} />
-          <text x={m.l + iw / 2} y={H - 4} textAnchor="middle" className="axis-label">30–40 km pace vs own 5–20 km pace</text>
+          <text x={m.l + iw / 2} y={H - 4} textAnchor="middle" className="axis-label">{late} pace vs own 5–20 km pace</text>
         </svg>
-        {hov ? <div className="viz-tooltip" style={{ left: Math.min(width - 90, Math.max(90, x(hov.x))), top: y(hov.median) }}><b>{hov.x > 0 ? '+' : ''}{hov.x}% slower</b><span>Median {hov.median > 0 ? '+' : ''}{hov.median.toFixed(1)} points</span><span>{Math.round(hov.gained * 100)}% gained places · {count(hov.n)} finishes</span></div> : null}
+        {hov ? <div className="viz-tooltip" style={{ left: Math.min(width - 90, Math.max(90, x(hov.x))), top: y(hov.median) }}><b>{slowText(hov.x)}</b><span>Median {hov.median > 0 ? '+' : ''}{hov.median.toFixed(1)} points</span><span>{Math.round(hov.gained * 100)}% gained places · {count(hov.n)} finishes</span></div> : null}
       </div>
+      <label className="heat-slider ledger-slider">
+        <span>{late} pace vs own 5–20 km pace: <strong>{slowText((hov ?? rows[zero]).x)}</strong></span>
+        <input type="range" min={0} max={rows.length - 1} step={1} value={hover ?? zero} onChange={(e) => setHover(Number(e.target.value))}
+          aria-valuetext={`${slowText((hov ?? rows[zero]).x)}: median ${(hov ?? rows[zero]).median.toFixed(1)} points, ${Math.round((hov ?? rows[zero]).gained * 100)}% gained places, ${count((hov ?? rows[zero]).n)} finishes`} />
+      </label>
       <p className="viz-note">Shaded: the middle 80% of finishes at each level of slowing. Everyone around you is slowing too, so a typical finish holds its place until it slows by about {cross.toFixed(0)}%. Both measures overlap the same late kilometres, so this describes the link rather than predicting it.</p>
     </div>
   );
@@ -223,6 +235,13 @@ export function WomenMen({ data: given }: { data?: Positions }) {
         </svg>
         {hov ? <div className="viz-tooltip" style={{ left: Math.min(width - 90, Math.max(90, x(hover!))), top: y(hov.women) }}><b>{hov.city === 'New York' ? 'New York City' : hov.city} {hov.year}</b><span>Women {hov.women > 0 ? '+' : ''}{hov.women.toFixed(2)} · Men {hov.men > 0 ? '+' : ''}{hov.men.toFixed(2)} points</span><span>{count(hov.women_n)} women · {count(hov.men_n)} men</span></div> : null}
       </div>
+      <label className="ghost-select years-pick">
+        <span className="sr-only">Show a race edition</span>
+        <select value={hover ?? ''} onChange={(e) => setHover(e.target.value === '' ? null : Number(e.target.value))}>
+          <option value="">Choose a race edition</option>
+          {rows.map((r, k) => <option key={`${r.city}${r.year}`} value={k}>{r.city === 'New York' ? 'New York City' : r.city} {r.year}: women {r.women > 0 ? '+' : ''}{r.women.toFixed(2)}, men {r.men > 0 ? '+' : ''}{r.men.toFixed(2)} points</option>)}
+        </select>
+      </label>
       <p className="viz-note">Mean percentile points gained on the mixed-gender clock from {at30} to the finish. On a shared clock, one group&apos;s gains are others&apos; losses. Recorded gender as published; the comparison says nothing about why.</p>
     </div>
   );

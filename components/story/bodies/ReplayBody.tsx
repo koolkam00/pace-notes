@@ -65,7 +65,7 @@ export default function ReplayBody({ data, geometry, manifest }: { data: ReplayI
       {ny?.composition ? (() => {
         const five = ny.composition.find((r) => r.clock_s === 18000);
         return five?.composition_share != null ? (
-          <StorySection id="emptying" kicker="05 · Late in the day" title={<>The course slows down <em>mostly because it empties</em>.</>}
+          <StorySection id="emptying" kicker="05 · Late in the day" title={<>Most of the late slowdown on course <em>reflects who is left</em>.</>}
             dek={<>At 5:00 of elapsed time in {name(ny)}, {count(five.on_course)} eligible finishes were still out on the course, moving far slower than the field did early on. About {Math.round(five.composition_share * 100)}% of that drop reflects who is left, since the runners still out late were slower over their whole race; the rest is those runners going slower than their own race average.</>}>
             <EmptyingCourse initial={ny.slug} />
           </StorySection>
@@ -77,7 +77,7 @@ export default function ReplayBody({ data, geometry, manifest }: { data: ReplayI
           <ClockPack initial={london.slug} />
         </StorySection>
       ) : null}
-      <StorySection id="spread" kicker="07 · Every course" title={<>The field keeps <em>stretching</em>.</>} dek={data.stretch ? <>In every one of the {data.stretch.editions.length} race editions with at least 1,000 eligible finishes and a usable first 5 km, the field is relatively wider from <Checkpoint km={20} /> to <Checkpoint km={40} /> than over the first <Checkpoint km={20} />.</> : 'Pooled across every eligible finish, the gap between faster and slower runners widens in every section.'}>
+      <StorySection id="spread" kicker="07 · Every course" title={<>The field keeps <em>stretching</em>.</>} dek={data.stretch ? <>In every one of the {data.stretch.editions.length} race editions with at least 1,000 eligible finishes and a usable first <Checkpoint km={5} />, the field is relatively wider from <Checkpoint km={20} /> to <Checkpoint km={40} /> than over the first <Checkpoint km={20} />.</> : 'Pooled across every eligible finish, the gap between faster and slower runners widens in every section.'}>
         {data.stretch ? <StretchStrip /> : null}
         <FieldSpread />
       </StorySection>

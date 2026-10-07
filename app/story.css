@@ -204,6 +204,9 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .archetype-card.is-focus { transform: translateY(-3px); box-shadow: var(--shadow-lift); border-color: var(--arch); }
 .archetype-card header { display: flex; align-items: center; gap: .55rem; }
 .archetype-card h3 { font-family: var(--serif); font-size: 1.25rem; font-weight: 640; flex: 1; }
+.archetype-pick { all: unset; cursor: pointer; }
+.archetype-pick:focus-visible { outline: 2px solid var(--arch); outline-offset: 3px; border-radius: 4px; }
+.archetype-card:has(.archetype-pick:focus-visible), .archetype-card:has(.archetype-pick[aria-pressed='true']) { transform: translateY(-3px); box-shadow: var(--shadow-lift); border-color: var(--arch); }
 .archetype-card header strong { font-family: var(--bib); font-size: 1.6rem; font-weight: 780; letter-spacing: -.02em; }
 .archetype-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--arch); box-shadow: 0 0 0 3px color-mix(in srgb, var(--arch) 22%, transparent); flex-shrink: 0; }
 .archetype-spark { display: block; width: 100%; height: 56px; margin: .6rem 0 .3rem; color: var(--ink-3); }
@@ -328,7 +331,7 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .shuffle-bars { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: .6rem; height: 220px; align-items: end; padding-top: 1.4rem; }
 .shuffle-bar { position: relative; display: grid; grid-template-rows: 1fr auto; height: 100%; align-items: end; text-align: center; }
 .shuffle-bar i { position: relative; display: block; width: 100%; border-radius: 8px 8px 2px 2px; background: linear-gradient(180deg, var(--blue), #9DB6FB); align-self: end; }
-.shuffle-bar b { position: absolute; left: -4px; right: -4px; bottom: 100%; padding-bottom: .2rem; font-family: var(--mono); font-size: .6875rem; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.shuffle-bar b { font-style: normal; position: absolute; left: -4px; right: -4px; bottom: 100%; padding-bottom: .2rem; font-family: var(--mono); font-size: .6875rem; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
 @media (max-width: 560px) { .shuffle-bars { gap: .25rem; } .shuffle-bar b, .shuffle-bar span { font-size: .5625rem; } .shuffle-bar span { white-space: nowrap; } }
 .shuffle-bar span { font-family: var(--mono); font-size: .6875rem; color: var(--ink-3); padding-top: .4rem; }
 
@@ -509,6 +512,8 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .story-grid > li:last-child:nth-child(3n + 1) { grid-column: 1 / -1; }
 .hero-replay-bar .segmented button:focus-visible, .fp-grid .fp-chip:focus-visible { outline-offset: -3px; }
 .viz-pause { min-height: 36px; padding: .3rem .8rem; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--ink-2); font-size: .75rem; font-weight: 650; }
-.viz-pause[aria-pressed='true'] { background: var(--ink); color: var(--paper); }
+.viz-head > .viz-pause { margin-left: auto; }
 .dark .viz-pause, .night .viz-pause { background: var(--night-2); border-color: var(--night-3); color: var(--night-ink-2); }
 @media (max-width: 720px) { .replay-controls { flex-wrap: wrap; } .replay-scrub { order: 3; flex: 1 1 100%; } .replay-speed { margin-left: auto; } }
+.years-pick { margin-top: .6rem; max-width: 100%; }
+.years-pick select { max-width: 100%; }
