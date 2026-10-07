@@ -32,26 +32,47 @@ type TUnit = 'f' | 'c';
 type Tone = 'warm' | 'cool';
 
 const MINUS = '−';
-/** Trimmed fixed-point number with a typographic minus: 60.8, 68, −1.5. */
-function num(v: number, digits = 1): string {
+/** Fixed-point number with a typographic minus: 60.8, 68, −1.5. Trailing zeros are trimmed unless `fixed` (5.0, not 5). */
+function num(v: number, digits = 1, fixed = false): string {
   if (!Number.isFinite(v)) return '—';
   const f = 10 ** digits;
   const r = Math.round(v * f) / f;
-  return String(r === 0 ? 0 : r).replace('-', MINUS);
+  return (fixed ? (r === 0 ? 0 : r).toFixed(digits) : String(r === 0 ? 0 : r)).replace('-', MINUS);
 }
-/** Lenient number parsing: accepts a typographic minus and a decimal comma. */
+/** Lenient number parsing: accepts a typographic minus, a decimal comma, and a trailing °, °F, F, °C, C or %. */
 function parseNum(text: string): number | null {
-  const t = text.trim().replace(/[−–]/g, '-').replace(',', '.').replace(/°\s*[cf]?$/i, '').trim();
+  const t = text.trim().replace(/[−–]/g, '-').replace(',', '.').replace(/\s*(?:°\s*[cf]?|[cf]|%)$/i, '').trim();
   if (!t || !/^-?\d*\.?\d+$|^-?\d+\.$/.test(t)) return null;
   const v = Number(t);
   return Number.isFinite(v) ? v : null;
 }
+/** The unit letter typed after a temperature ("64F", "18 °C"), if any. */
+function typedUnit(text: string): TUnit | null {
+  const m = text.trim().match(/\d\.?\s*°?\s*([cf])$/i);
+  return m ? (m[1].toLowerCase() as TUnit) : null;
+}
+/** A half-typed number ("-", ".") is not flagged as an error while the visitor is still typing. */
+const partial = (text: string) => /^[-−–.,]$/.test(text.trim());
 const toUnit = (c: number, u: TUnit) => (u === 'f' ? cToF(c) : c);
 const fromUnit = (v: number, u: TUnit) => (u === 'f' ? fToC(v) : v);
 const unitSign = (u: TUnit) => (u === 'f' ? '°F' : '°C');
 const other = (u: TUnit): TUnit => (u === 'f' ? 'c' : 'f');
 /** An absolute temperature: 64 °F, 17.8 °C. */
 const tAbs = (c: number, u: TUnit, digits = u === 'f' ? 0 : 1) => `${num(toUnit(c, u), digits)} ${unitSign(u)}`;
+/** A recorded race temperature: whole °F, or °C always with one decimal (5.0 °C beside 5.4 °C). */
+const tData = (c: number, u: TUnit, sign = true) => `${num(toUnit(c, u), u === 'f' ? 0 : 1, u === 'c')}${sign ? ` ${unitSign(u)}` : '°'}`;
+/**
+ * A temperature converted for the other unit's field, with the fewest decimals (1, then 2) that keep the
+ * matched centre (the whole °C it rounds to) unchanged, so switching units never moves the window.
+ */
+function convertTemp(c: number, u: TUnit): string {
+  for (const digits of [1, 2]) {
+    const f = 10 ** digits;
+    const v = Math.round(toUnit(c, u) * f) / f;
+    if (Math.round(fromUnit(v, u)) === Math.round(c)) return String(v);
+  }
+  return String(Math.round(toUnit(c, u) * 1000) / 1000);
+}
 /** A window of start temperatures: "60.8–68 °F", "16–20 °C". */
 const tWindow = (lo: number, hi: number, u: TUnit) => `${num(toUnit(lo, u), 1)}${toUnit(lo, u) < 0 ? ' to ' : '–'}${num(toUnit(hi, u), 1)} ${unitSign(u)}`;
 /** A temperature difference (×1.8, no +32): "±3.6 °F". */
@@ -66,13 +87,29 @@ const slug = (city: string) => city.toLowerCase().replace(/[^a-z0-9]+/g, '-').re
 const plural = (n: number, one: string, many = `${one}s`) => `${n === 1 ? 'one' : count(n)} ${n === 1 ? one : many}`;
 const cap = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
-/** "8:51–9:14/mi": a 15 s/km band shown in the visitor's units, ends inclusive to the second. */
+/**
+ * The whole-second paces per unit that fall in a band [lo, lo + step) s/km: the first is the smallest whole second at or
+ * above the band's start, the last the largest whole second below its end. Every pace inside the label maps back to the band.
+ */
+function bandEnds(lo: number, step: number, units: UnitSystem): [number, number] {
+  return [Math.ceil(perUnit(lo, units) - 1e-9), Math.ceil(perUnit(lo + step, units) - 1e-9) - 1];
+}
+/** "8:52–9:15/mi": a 15 s/km band shown in the visitor's units, ends inclusive to the second. */
 function bandText(lo: number, step: number, units: UnitSystem): string {
-  const a = Math.round(perUnit(lo, units));
-  const b = Math.round(perUnit(lo + step, units)) - 1;
+  const [a, b] = bandEnds(lo, step, units);
   return `${formatDuration(a)}–${formatDuration(b)}/${units}`;
 }
-const paceText = (sPerKm: number, units: UnitSystem) => `${formatDuration(perUnit(sPerKm, units))}/${units}`;
+/**
+ * A pace shown to the whole second. With a band, the rounded value is kept inside that band's label, so a goal's
+ * even pace (329.9 s/km) never reads as 5:30/km beside a band of 5:15–5:29/km. The shift is under one second.
+ */
+function paceSeconds(sPerKm: number, units: UnitSystem, band: { lo: number; step: number } | null = null): number {
+  const s = Math.round(perUnit(sPerKm, units));
+  if (!band) return s;
+  const [a, b] = bandEnds(band.lo, band.step, units);
+  return Math.min(b, Math.max(a, s));
+}
+const paceText = (sPerKm: number, units: UnitSystem, band: { lo: number; step: number } | null = null) => `${formatDuration(paceSeconds(sPerKm, units, band))}/${units}`;
 /** The 5–20 km stretch that defines each finish's own baseline pace, in the visitor's units. */
 const stretch = (units: UnitSystem) => (units === 'mi' ? '3.1–12.4 mi (5–20 km)' : '5–20 km');
 
@@ -103,22 +140,27 @@ function dewFromRh(t: number, rh: number): number {
 /* Data                                                                */
 /* ------------------------------------------------------------------ */
 
+/** The verified data file. `retry` re-runs the load after a failure (the loader drops failed requests from its cache). */
 function useWeatherData(sha: string | null) {
   const [state, setState] = useState<{ data: WeatherMatchData | null; error: string | null }>({ data: null, error: null });
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!sha) return;
     let live = true;
+    setState((s) => (s.error ? { data: null, error: null } : s));
     loadInsight<WeatherMatchData>(DATA_PATH, sha).then(
       (data) => { if (live) setState({ data, error: null }); },
-      (e: unknown) => { if (live) setState({ data: null, error: e instanceof Error ? e.message : 'Could not load the weather match data.' }); },
+      (e: unknown) => { if (live) setState({ data: null, error: e instanceof Error ? e.message : 'This data could not be loaded. Check the connection and try again.' }); },
     );
     return () => { live = false; };
-  }, [sha]);
-  return sha ? state : { data: null, error: 'The weather match data is not part of this build, so only the published-research panel can be shown.' };
+  }, [sha, attempt]);
+  const retry = () => setAttempt((n) => n + 1);
+  return sha ? { ...state, retry: state.error ? retry : null } : { data: null, error: 'The weather match data is not part of this build.', retry: null };
 }
 
 type Match =
-  | { kind: 'ok'; row: WeatherRow; ref: WeatherRow | null; shared: number }
+  /** `inWindow` and `refInWindow`: every race that started in each window, matched or not (a race matches with 20+ finishes at the pace band). */
+  | { kind: 'ok'; row: WeatherRow; ref: WeatherRow | null; shared: number; inWindow: number; refInWindow: number }
   | { kind: 'no-row'; inWindow: WeatherEdition[]; paces: [number, number] | null; nearest: number | null; widenHelps: boolean }
   | { kind: 'pace-range'; fast: boolean }
   | { kind: 'missing'; what: 'temperature' | 'pace' };
