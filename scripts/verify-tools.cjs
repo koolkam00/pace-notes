@@ -39,7 +39,7 @@ checks += 11;
 assert.deepEqual(time.parseTrackerText('25K 2:05:31\n30 km 02:31:07 4:59/km\nHalf 1:52:10\n5K 25:30'), [
   { km: 25, elapsed: 7531 }, { km: 30, elapsed: 9067 }, { km: 5, elapsed: 1530 }]); ok();
 
-// ---- pace arithmetic
+// ---- pace calculations
 near(pace.paceFrom(12600, pace.MARATHON_KM), 298.613, 0.001, 'marathon pace'); ok();
 assert.equal(Math.round(pace.perUnit(pace.paceFrom(12600, pace.MARATHON_KM), 'mi')), 481); ok(); // 8:01/mi for 3:30
 near(pace.mph(pace.paceFrom(12600, pace.MARATHON_KM)), 7.4908, 0.0005, 'mph'); ok();
@@ -228,13 +228,21 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
     checks++;
   }
   const slugs = registry.TOOLS.map((t) => t.slug);
+  // The site never uses the word 'arithmetic' (owner's preference): plain calculations carry no badge and are described in plain words.
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => d.isDirectory() ? walk(path.join(dir, d.name)) : [path.join(dir, d.name)]);
+  for (const dir of ['app', 'components', 'lib']) {
+    for (const file of walk(path.join(__dirname, '..', dir)).filter((f) => /\.(tsx?|css)$/.test(f))) {
+      assert.ok(!/arithmetic/i.test(fs.readFileSync(file, 'utf8')), `${path.relative(path.join(__dirname, '..'), file)} mentions 'arithmetic'`);
+    }
+  }
+  checks++;
   // Every evidence kind a tool renders is listed in its registry entry (the header and index badges).
   const COMPONENT = { 'pace-calculator': 'PaceCalculator', predictor: 'Predictor', 'pace-band': 'PaceBand', 'course-chooser': 'CourseChooser',
     'weather-match': 'WeatherMatch', projector: 'Projector', 'split-check': 'SplitCheck', qualifying: 'QualifyingChecker' };
   for (const t of registry.TOOLS) {
     const source = fs.readFileSync(path.join(__dirname, '..', 'components/tools', `${COMPONENT[t.slug]}.tsx`), 'utf8');
-    const used = new Set([...source.matchAll(/kind=(?:"|\{')(arithmetic|data|research|official)/g), ...source.matchAll(/evidence-(arithmetic|data|research|official)\b/g),
-      ...source.matchAll(/evidence(?:Kind)?[:=]\s*'(arithmetic|data|research|official)'/g)].map((m) => m[1]));
+    const used = new Set([...source.matchAll(/kind=(?:"|\{')(data|research|official)/g), ...source.matchAll(/evidence-(data|research|official)\b/g),
+      ...source.matchAll(/evidence(?:Kind)?[:=]\s*'(data|research|official)'/g)].map((m) => m[1]));
     for (const kind of used) assert.ok(t.evidence.includes(kind), `${t.slug}: renders ${kind} evidence but the registry lists ${t.evidence.join(', ')}`);
     checks++;
   }
@@ -243,4 +251,4 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   checks += 1 + registry.TOOLS.length;
 }
 
-console.log(`Tool libraries passed ${checks} checks: time parsing, pace arithmetic and splits, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading and the pacing-type classifier.`);
+console.log(`Tool libraries passed ${checks} checks: time parsing, pace calculations and splits, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading and the pacing-type classifier.`);

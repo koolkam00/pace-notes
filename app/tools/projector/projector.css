@@ -88,16 +88,16 @@
 .projector-clock-controls .projector-start { flex: 1 1 15rem; max-width: 22rem; }
 .projector-clock-controls .tool-choice { width: auto; margin-bottom: 1.4rem; }
 .projector-table td:nth-child(2) { color: var(--ink); font-weight: 650; }
-.projector-table tr.is-finish th, .projector-arith tr.is-finish th { border-top: 2px solid var(--ink); color: var(--ink); }
+.projector-table tr.is-finish th, .projector-even tr.is-finish th { border-top: 2px solid var(--ink); color: var(--ink); }
 .projector-table tbody th { white-space: nowrap; }
 .projector-th-sub { font-weight: 500; }
 .projector-cell-label { display: none; }
-.projector-arith tbody th { white-space: normal; line-height: 1.4; font-size: .875rem; }
-.projector-arith tr.is-mat th { background: rgba(255, 91, 46, .06); color: var(--orange-ink); }
+.projector-even tbody th { white-space: normal; line-height: 1.4; font-size: .875rem; }
+.projector-even tr.is-mat th { background: rgba(255, 91, 46, .06); color: var(--orange-ink); }
 .projector-acc th { white-space: normal; vertical-align: bottom; }
 .projector-acc tbody th { font-size: .875rem; vertical-align: middle; }
 .projector-acc tr.is-key th { background: var(--paper-2); color: var(--ink); }
-.projector-arith td:last-child { vertical-align: top; }
+.projector-even td:last-child { vertical-align: top; }
 .projector-save { display: grid; grid-template-columns: minmax(0, 1fr); gap: .5rem; margin-top: 1.2rem; padding: 1rem; border-radius: 14px; background: var(--paper-2); }
 .projector-save-title { font-weight: 650; font-size: .9375rem; }
 .projector-save-row { display: flex; flex-wrap: wrap; gap: .5rem; }

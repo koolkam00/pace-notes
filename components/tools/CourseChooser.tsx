@@ -395,7 +395,7 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
               <div className="tool-headline course-chooser-headline">
                 <div className="course-chooser-head">
                   <span className="evidence-badge evidence-data">Pace Notes data</span>
-                  <p className="course-chooser-kicker">Goal {goalText} · even pace {paceText(evenKm, units)} <span>(arithmetic)</span></p>
+                  <p className="course-chooser-kicker">Goal {goalText} · even pace {paceText(evenKm, units)} <span>(calculated)</span></p>
                   <h2 className="course-chooser-title">{published.length} of {totalCourses} courses have enough finishes at {goalText} pace</h2>
                 </div>
                 <div className="course-chooser-stats">

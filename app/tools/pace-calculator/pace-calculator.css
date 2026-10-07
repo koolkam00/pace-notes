@@ -3,9 +3,5 @@
    Builds on app/tools/tools.css (workspace, panels, tables, presets).
    ========================================================================== */
 
-/* The evidence badge sits on its own row above the three headline numbers, as on the other tools' headlines. */
-.pace-calculator-headline > .evidence-badge { grid-column: 1 / -1; justify-self: start; color: var(--night-ink-2); }
-@media print { .pace-calculator-headline > .evidence-badge { color: #000; } }
-
 /* The two-column watch table fits a phone: its long headings wrap instead of scrolling the table sideways. */
 .pace-calculator-watch th { white-space: normal; }

@@ -132,7 +132,7 @@ function startText(start: string | null): string | null {
   return s === null ? start : formatClock(s);
 }
 
-/** Dew point (°C) from air temperature (°C) and relative humidity (%), inverting the same Magnus form. Arithmetic. */
+/** Dew point (°C) from air temperature (°C) and relative humidity (%), inverting the same Magnus form. A direct calculation. */
 function dewFromRh(t: number, rh: number): number {
   const a = 17.625;
   const b = 243.04;
@@ -445,7 +445,7 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
             <DurationField label={`Planned 5–20 km pace per ${units === 'mi' ? 'mile' : 'kilometre'}`} mode="pace" large placeholder={units === 'mi' ? '9:09' : '5:41'}
               value={paceIn !== null ? paceSeconds(perKm(paceIn, pu), units, bandSpan) : null}
               onChange={(s) => setQ({ by: 'pace', pace: s === null ? '' : formatDuration(s), pu: units })}
-              hint={paceKm !== null ? <>The pace you plan to hold from the 5 km mat to the 20 km mat{units === 'mi' ? ' (3.1 to 12.4 mi)' : ''}. Arithmetic: held for the whole race it is {formatDuration(Math.round(paceKm * MARATHON_KM), true)}.</> : `Type a pace such as ${units === 'mi' ? '9:09' : '5:41'}.`} />
+              hint={paceKm !== null ? <>The pace you plan to hold from the 5 km mat to the 20 km mat{units === 'mi' ? ' (3.1 to 12.4 mi)' : ''}. Held for the whole race, it works out to {formatDuration(Math.round(paceKm * MARATHON_KM), true)}.</> : `Type a pace such as ${units === 'mi' ? '9:09' : '5:41'}.`} />
           )}
 
           <div className="tool-field">
@@ -1085,7 +1085,7 @@ function ResearchPanel({ tempC, dewC, need, tUnit, goal, by, paceLabel }: {
 
   return (
     <EvidencePanel kind="research" id="weather-match-research" title="What published research and rules of thumb suggest"
-      meta={<>Not calculated from Pace Notes data. Each method is shown on its own, as a range, with its source; none is combined with another or with the Pace Notes columns, and none is used by any other tool.{goalText ? <> Minutes are arithmetic: the published percentage × {by === 'goal' ? `your ${goalText} goal` : `${goalText}, your ${paceLabel} held for the whole race`}.</> : null}</>}>
+      meta={<>Not calculated from Pace Notes data. Each method is shown on its own, as a range, with its source; none is combined with another or with the Pace Notes columns, and none is used by any other tool.{goalText ? <> Minutes are our own calculation: the published percentage × {by === 'goal' ? `your ${goalText} goal` : `${goalText}, your ${paceLabel} held for the whole race`}.</> : null}</>}>
       <div className="weather-match-conditions">
         <div>
           <span>Relative humidity</span>

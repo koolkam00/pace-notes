@@ -178,14 +178,13 @@ export default function PaceCalculator() {
             {ready ? (
               <>
                 {isExample ? <ExampleNote>These results are for a 3:30:00 marathon. Type your own distance, time or pace; everything updates as you type.</ExampleNote> : null}
-                <div className="tool-headline pace-calculator-headline">
-                  <span className="evidence-badge evidence-arithmetic">Arithmetic</span>
+                <div className="tool-headline">
                   <Stat label="Time" value={formatDuration(seconds!, true)} sub={`for ${fmtDistance(km!, units)}`} />
                   <Stat label={`Pace /${units}`} value={formatDuration(perUnit(paceKm!, units))} sub={`${fmtPace(paceKm!, units === 'mi' ? 'km' : 'mi')}`} />
                   <Stat label="Treadmill speed" value={units === 'mi' ? mph(paceKm!).toFixed(1) : kmh(paceKm!).toFixed(1)} sub={units === 'mi' ? `mph · ${kmh(paceKm!).toFixed(1)} km/h` : `km/h · ${mph(paceKm!).toFixed(1)} mph`} />
                 </div>
 
-                <EvidencePanel kind="arithmetic" title="Splits at an even pace" meta="Elapsed time at each split if every step is run at the same pace. Rows marked as timing mats match the 5 km checkpoints official trackers show.">
+                <EvidencePanel title="Splits at an even pace" meta="Elapsed time at each split if every step is run at the same pace. Rows marked as timing mats match the 5 km checkpoints official trackers show.">
                   <div className="tool-split-controls no-print">
                     <Choice label="Split every" small value={interval} onChange={(v) => setQ({ split: v })} options={intervalOptions} />
                     <label className="tool-inline">
@@ -209,12 +208,12 @@ export default function PaceCalculator() {
                           </tr>
                         ))}
                       </tbody>
-                      <caption>Arithmetic only. {diff ? `The first half runs at ${formatDuration((seconds! - diff) / 2)} and the second at ${formatDuration((seconds! + diff) / 2)}, each even within its half. ` : ''}Halfway and mile rows are calculated, not recorded splits.</caption>
+                      <caption>Even-pace times from your inputs. {diff ? `The first half runs at ${formatDuration((seconds! - diff) / 2)} and the second at ${formatDuration((seconds! + diff) / 2)}, each even within its half. ` : ''}Halfway and mile rows are calculated, not recorded splits.</caption>
                     </table>
                   </div>
                 </EvidencePanel>
 
-                <EvidencePanel kind="arithmetic" title="The same pace at other distances" meta="Pace × distance. This is not a predicted race time: marathons in particular rarely hold a shorter race’s pace.">
+                <EvidencePanel title="The same pace at other distances" meta="Pace × distance. This is not a predicted race time: marathons in particular rarely hold a shorter race’s pace.">
                   <div className="tool-table-wrap">
                     <table className="tool-table">
                       <thead><tr><th scope="col">Distance</th><th scope="col">At {fmtPace(paceKm!, units)}</th></tr></thead>
@@ -224,7 +223,7 @@ export default function PaceCalculator() {
                   <p className="tool-note">For a realistic marathon estimate from a shorter race, use the <Link href="/tools/predictor">finish-time predictor</Link>.</p>
                 </EvidencePanel>
 
-                <EvidencePanel kind="arithmetic" title="What your watch will say" meta="Certified courses are measured on the shortest possible line. Most watches read a little long, so the pace they show is a little quicker than your course pace.">
+                <EvidencePanel title="What your watch will say" meta="Certified courses are measured on the shortest possible line. Most watches read a little long, so the pace they show is a little quicker than your course pace.">
                   <div className="tool-table-wrap">
                     <table className="tool-table wrap-first pace-calculator-watch">
                       <thead><tr><th scope="col">If your watch reads</th><th scope="col">It shows an average of</th></tr></thead>
@@ -265,9 +264,8 @@ function PaceChart({ units, from, setFrom }: { units: UnitSystem; from: number; 
   const to = from + (units === 'mi' ? 600 : 360);
   const rows = paceChart(from, to, step, units);
   return (
-    <section className="tool-panel panel-arithmetic pace-chart" aria-labelledby="pace-chart-title">
+    <section className="tool-panel panel-plain pace-chart" aria-labelledby="pace-chart-title">
       <header className="tool-panel-head">
-        <span className="evidence-badge evidence-arithmetic">Arithmetic</span>
         <h2 className="tool-panel-title" id="pace-chart-title">Pace chart: {formatDuration(from)} to {formatDuration(to)} per {units === 'mi' ? 'mile' : 'kilometre'}</h2>
         <p className="tool-panel-meta">Finish times at an even pace, every {step} seconds per {units}. Print it, or move the range.</p>
       </header>

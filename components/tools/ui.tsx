@@ -85,13 +85,16 @@ export function Stat({ label, value, sub, tone }: { label: ReactNode; value: Rea
   );
 }
 
-/** A panel whose header says what kind of evidence is inside. */
-export function EvidencePanel({ kind, title, meta, children, id }: { kind: 'arithmetic' | 'data' | 'research' | 'official'; title: ReactNode; meta?: ReactNode; children: ReactNode; id?: string }) {
-  const label = { arithmetic: 'Arithmetic', data: 'Pace Notes data', research: 'Published research', official: 'Official standards' }[kind];
+/**
+ * A panel whose header says what kind of evidence is inside: Pace Notes data, published research or official standards.
+ * Panels of plain calculations from the visitor's own inputs (splits, pace charts) leave out `kind` and carry no badge.
+ */
+export function EvidencePanel({ kind, title, meta, children, id }: { kind?: 'data' | 'research' | 'official'; title: ReactNode; meta?: ReactNode; children: ReactNode; id?: string }) {
+  const label = kind ? { data: 'Pace Notes data', research: 'Published research', official: 'Official standards' }[kind] : null;
   return (
-    <section className={`tool-panel panel-${kind}`} id={id}>
+    <section className={`tool-panel panel-${kind ?? 'plain'}`} id={id}>
       <header className="tool-panel-head">
-        <span className={`evidence-badge evidence-${kind}`}>{label}</span>
+        {label ? <span className={`evidence-badge evidence-${kind}`}>{label}</span> : null}
         <h2 className="tool-panel-title">{title}</h2>
         {meta ? <p className="tool-panel-meta">{meta}</p> : null}
       </header>

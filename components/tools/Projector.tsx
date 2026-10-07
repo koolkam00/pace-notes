@@ -418,7 +418,7 @@ function FinishChart({ q, Q, P, target, targetTag }: { q: number[]; Q: number[];
 /**
  * What a constant-pace tracker would have shown for these finishes at each later mat: the percentiles of
  * elapsed × 42.195 ÷ distance (a fixed scaling, so percentiles carry over exactly), ending at their actual finish times.
- * The visitor's own points and the constant-pace line are drawn as a separate, arithmetic series.
+ * The visitor's own points and the constant-pace line are drawn as a separate series, calculated from their inputs.
  */
 function ProjectionChart({ E, mat, prev, cell, Q, P, bandS, units }: { E: number; mat: number; prev: number | null; cell: CellView; Q: number[]; P: number; bandS: number; units: UnitSystem }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -857,7 +857,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
           {validation ? <AccuracyLine v={validation} mat={mat} units={units} trendUsed={trendUsed} variant={variant} scope={scope} /> : null}
         </div>
 
-        <EvidencePanel kind="data" title="Where these finishes ended" meta={`Finish times of the ${count(cell.n)} finishes in this group. Each bar holds 5% of them; the darker bars are the middle half, and the outer 5% on each side is not drawn. The bracket under the bars marks the 10th–90th percentile. The dashed line is the even-pace arithmetic from the time entered, for reference.`}>
+        <EvidencePanel kind="data" title="Where these finishes ended" meta={`Finish times of the ${count(cell.n)} finishes in this group. Each bar holds 5% of them; the darker bars are the middle half, and the outer 5% on each side is not drawn. The bracket under the bars marks the 10th–90th percentile. The dashed line is the even-pace finish calculated from the time entered, for reference.`}>
           <FinishChart q={cell.q} Q={Q} P={P} target={passed ? null : target} targetTag={targetTag} />
           <dl className="projector-quantiles">
             {[['10th', i10], ['25th', i25], ['Median', i50], ['75th', i75], ['90th', i90]].map(([name, i]) => (
@@ -937,9 +937,9 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
           <p className="tool-note">{SLOWDOWN_DEFINITION}{units === 'mi' ? ` In miles, 5 km is ${distanceLabel(5, 'mi', 1)} and 20 km is ${distanceLabel(20, 'mi', 1)}.` : ''} Source: <a href={SLOWDOWN_CITATION.url} rel="noopener noreferrer">{SLOWDOWN_CITATION.label}</a>. These are observed shares among complete finishes, not a forecast. <Link href="/slowdown">More on sustained slowdowns</Link>.</p>
         </EvidencePanel>
 
-        <EvidencePanel kind="arithmetic" title="If the pace so far were held" meta="What a tracker that assumes an unchanging pace would show. Exact arithmetic from the times entered, for comparison with the observed windows above.">
+        <EvidencePanel title="If the pace so far were held" meta="What a tracker that assumes an unchanging pace would show. Calculated exactly from the times entered, for comparison with the observed windows above.">
           <div className="tool-table-wrap">
-            <table className="tool-table projector-arith">
+            <table className="tool-table projector-even">
               <tbody>
                 <tr><th scope="row">Average pace to {matName(mat, units)}</th><td>{paceText(E / mat, units)}</td></tr>
                 {trend ? (

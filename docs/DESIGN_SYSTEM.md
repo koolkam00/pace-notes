@@ -56,7 +56,7 @@ The fonts are self-hosted through `@fontsource-variable/*`, imported in `app/lay
 - **Tools** (`app/tools/tools.css`, `components/tools`):
   - `ToolHeader` (icon, title, dek, evidence badges), `ToolMethod` (method, limits, sources) and `ToolNext` (related tools), all server components.
   - `.tool-workspace`: inputs (`.tool-inputs`) beside results (`.tool-results`) on desktop, stacked on phones. A headline result (`.tool-headline` with `Stat`) comes first, then detail.
-  - `EvidencePanel`: every result panel's header names its evidence kind with a coloured `.evidence-badge` and text (arithmetic, Pace Notes data, published research, official standards).
+  - `EvidencePanel`: a panel of Pace Notes data, published research or official standards names its evidence kind with a coloured `.evidence-badge`; panels of plain calculations from the visitor's inputs carry no badge. The site never uses the word "arithmetic".
   - Inputs: `DurationField` keeps the visitor's text while typing and accepts `3:30:00`, `3:30`, `3h30`, `210` and keypad dots. `Choice` is a `.segmented` group; `Stepper` nudges a value by a minute.
   - `ShareBar` (copy link, print) and `.print-only` / `.no-print` for printable pace charts and wristbands.
   - Each tool's card and icon use its registry accent (`--tool`).

@@ -665,18 +665,21 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
 
 type TypeResult = { name: string; arch: Archetype; colour: string; all: Archetype[] } | null;
 
-const EVIDENCE_LABEL = { arithmetic: 'Arithmetic', data: 'Pace Notes data', research: 'Published research' } as const;
+const EVIDENCE_LABEL = { data: 'Pace Notes data', research: 'Published research' } as const;
 
-/** A headline number with its evidence kind, so arithmetic, the published definition and Pace Notes data are never mixed up. */
+/**
+ * A headline number. Pace Notes data and the published definition carry their evidence badge; a number calculated from
+ * your own times carries none, so the three are never mixed up.
+ */
 function HeadStat({ label, value, sub, tone, evidence, className }: {
-  label: string; value: ReactNode; sub: ReactNode; tone?: 'good' | 'bad'; evidence: keyof typeof EVIDENCE_LABEL; className?: string;
+  label: string; value: ReactNode; sub: ReactNode; tone?: 'good' | 'bad'; evidence?: keyof typeof EVIDENCE_LABEL; className?: string;
 }) {
   return (
     <div className={`tool-stat${tone ? ` is-${tone}` : ''}${className ? ` ${className}` : ''}`}>
       <span className="tool-stat-label">{label}</span>
       <strong className="tool-stat-value">{value}</strong>
       <span className="tool-stat-sub">{sub}</span>
-      <span className={`evidence-badge evidence-${evidence} split-check-tag`}>{EVIDENCE_LABEL[evidence]}</span>
+      {evidence ? <span className={`evidence-badge evidence-${evidence} split-check-tag`}>{EVIDENCE_LABEL[evidence]}</span> : null}
     </div>
   );
 }
@@ -702,9 +705,9 @@ function Results({ times, reading, units, comparison, type, typeError, retryType
           <p className="split-check-lead">{lead}</p>
           {more.length ? <p className="split-check-more">{more.join(' ')}</p> : null}
         </div>
-        <HeadStat label="Finish" value={finish} sub={`average ${fmtPace(avg, units)}`} evidence="arithmetic" className={times[8] >= 36000 ? 'split-check-long' : undefined} />
+        <HeadStat label="Finish" value={finish} sub={`average ${fmtPace(avg, units)}`} className={times[8] >= 36000 ? 'split-check-long' : undefined} />
         <HeadStat label={`${BASE} pace`} value={formatDuration(perUnit(reading.baseline, units))}
-          sub={`per ${unitWord(units)}${units === 'mi' ? ` (${BASE_MI})` : ''} · 25% slower is ${fmtPace(reading.baseline * 1.25, units)}`} evidence="arithmetic" />
+          sub={`per ${unitWord(units)}${units === 'mi' ? ` (${BASE_MI})` : ''} · 25% slower is ${fmtPace(reading.baseline * 1.25, units)}`} />
         <HeadStat label="Sustained slowdown" value={reading.slowdown ? 'Yes' : 'No'} tone={reading.slowdown ? 'bad' : 'good'} evidence="research"
           sub={reading.slowdown && reading.onsetKm !== null ? `from ${kmGloss(reading.onsetKm, units)}, by the published definition` : 'by the published definition'} />
         <HeadStat label="Pacing type" className="split-check-type-stat" evidence="data"
@@ -712,7 +715,7 @@ function Results({ times, reading, units, comparison, type, typeError, retryType
           sub={type ? 'nearest of six Pace Notes pacing types' : typeError ? 'classifier unavailable' : 'loading the classifier'} />
       </div>
 
-      <EvidencePanel kind="arithmetic" title="Your race, section by section" id="split-check-sections"
+      <EvidencePanel title="Your race, section by section" id="split-check-sections"
         meta={`Pace in each section against your own ${BASE} pace${units === 'mi' ? ` (${BASE_MI})` : ''}, ${fmtPace(reading.baseline, units)}: the reference block in the published definition. Bars show how much slower or quicker each section was.`}>
         <SectionChart reading={reading} times={times} units={units} />
         <SectionTable reading={reading} times={times} units={units} />
@@ -746,7 +749,7 @@ function formatHMGoal(seconds: number): string {
 }
 
 /* ------------------------------------------------------------------ */
-/* Section chart (arithmetic)                                          */
+/* Section chart (calculated from your times)                          */
 /* ------------------------------------------------------------------ */
 
 function SectionChart({ reading, times, units }: { reading: SplitReading; times: number[]; units: UnitSystem }) {
@@ -915,7 +918,7 @@ function SectionTable({ reading, times, units }: { reading: SplitReading; times:
           <tr><th scope="row">{BASE} pace</th><td>{formatDuration(times[3] - times[0])}</td><td>{formatDuration(perUnit(reading.baseline, units))}</td><td>—</td></tr>
           <tr><th scope="row">Whole race</th><td>{formatDuration(times[8], true)}</td><td>{formatDuration(perUnit(times[8] / MARATHON_KM, units))}</td><td>{pctSigned(times[8] / MARATHON_KM / reading.baseline - 1)}</td></tr>
         </tfoot>
-        <caption>Arithmetic on your times: section time ÷ section length. Positive is slower than your {BASE} pace. Mats only: no halfway or mile splits are derived.</caption>
+        <caption>Calculated from your times: section time ÷ section length. Positive is slower than your {BASE} pace. Mats only: no halfway or mile splits are derived.</caption>
       </table>
     </div>
   );
@@ -961,7 +964,7 @@ function SlowdownPanel({ reading, units }: { reading: SplitReading; units: UnitS
 }
 
 /* ------------------------------------------------------------------ */
-/* Opening (arithmetic, mapped to the six published opening groups)    */
+/* Opening (calculated, mapped to the six published opening groups)    */
 /* ------------------------------------------------------------------ */
 
 function bandOf(pct: number, bands: OpeningBand[]): OpeningBand | null {
@@ -989,7 +992,7 @@ function OpeningPanel({ reading, units, bands, cities, place, course, gender }: 
   if (gender !== 'all') params.set('gender', gender === 'men' ? 'Men' : 'Women');
   const href = `/analyses/starting-pace${params.toString() ? `?${params.toString()}` : ''}`;
   return (
-    <EvidencePanel kind="arithmetic" id="split-check-opening"
+    <EvidencePanel id="split-check-opening"
       title={<>Opening: {Math.abs(reading.opening) < 0.0005 ? 'level with' : `${openingPct(reading.opening)} ${reading.opening < 0 ? 'quicker' : 'slower'} than`} your {BASE} pace</>}
       meta={`First ${five} ${fmtPace(reading.paces[0], units)} against ${fmtPace(reading.baseline, units)}. The first section is not part of the reference block, so the two are compared directly.`}>
       {bands.length ? (

@@ -860,7 +860,7 @@ function TargetsPanel({ items, seconds, buffer, setBuffer, drop, units, gender }
   // The buttons stay focusable at 0 and 30 (aria-disabled), so a keyboard user's focus never falls back to the page.
   const set = (n: number) => setBuffer(Math.max(0, Math.min(30, n)));
   return (
-    <EvidencePanel kind="arithmetic" title="Times to aim for" meta="Each standard minus the buffer you choose, and the even pace for it. Arithmetic on the official standards: it does not forecast a cut-off.">
+    <EvidencePanel title="Times to aim for" meta="Each standard minus the buffer you choose, and the even pace for it. Calculated from the official standards: it does not forecast a cut-off.">
       <div className="qualifying-buffer no-print">
         <span className="tool-label" id="qualifying-buffer-label">Buffer under each standard</span>
         <div className="tool-stepper" role="group" aria-labelledby="qualifying-buffer-label">
@@ -892,7 +892,7 @@ function TargetsPanel({ items, seconds, buffer, setBuffer, drop, units, gender }
         </table>
       </div>
       <p className="tool-note qualifying-table-note">
-        Your margin is how far your {fmtTime(seconds)} is under (+) or over (−) each target. Paces are even-pace arithmetic over {units === 'mi' ? '26.22 mi' : '42.195 km'}. {rows.some((it) => it.s.comparison === 'strictly-under') ? 'London needs a time strictly under its standard, so its target is a second inside. ' : ''}
+        Your margin is how far your {fmtTime(seconds)} is under (+) or over (−) each target. Paces are calculated for an even pace over {units === 'mi' ? '26.22 mi' : '42.195 km'}. {rows.some((it) => it.s.comparison === 'strictly-under') ? 'London needs a time strictly under its standard, so its target is a second inside. ' : ''}
         {bostonIndex ? `Boston’s target includes the ${bostonIndex / 60}:00 downhill index for your course. ` : ''}{leftOut.length ? `${leftOut.join(' and ')} ${leftOut.length > 1 ? 'are' : 'is'} left out: ${leftOut.length > 1 ? 'they do' : 'it does'} not accept a course with this drop. ` : ''}{allLinked ? 'Each target links to a pace band for its whole minute.' : 'Targets from 1:30 to 8:00 link to a pace band for their whole minute.'}
       </p>
       {focus && focusT !== null && within(focusT, BAND_RANGE) ? (

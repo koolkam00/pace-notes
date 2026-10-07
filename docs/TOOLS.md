@@ -18,15 +18,14 @@ Rejected, and why:
 - **A fastest-course ranking or course time converter.** Cross-course differences are confounded. The course chooser shows descriptive same-pace outcomes, sorted alphabetically by default.
 - **A grade-adjusted (GAP) pace band.** The supplied route profiles are current and of unknown historical validity; elevation stays context.
 - **"Your chance" of a goal, BQ or cut-off.** Shares describe complete finishes; runners who stopped are not in the data.
-- **Observed mile, halfway or cheer-spot splits between mats.** These would invent timing points. Even-pace arithmetic rows are labelled as arithmetic.
+- **Observed mile, halfway or cheer-spot splits between mats.** These would invent timing points. Even-pace rows are plain calculations and are described as such.
 
 ## Evidence kinds
 
-Every panel carries exactly one badge (`EvidencePanel` in `components/tools/ui.tsx`):
+Panels of Pace Notes data, published research or official standards carry one badge (`EvidencePanel` in `components/tools/ui.tsx`). Plain calculations from the visitor's own inputs carry no badge: exact even-pace times, unit conversion, splits and targets. Copy calls them calculations. The site never uses the word "arithmetic", and `verify-tools` checks this.
 
 | Badge | Meaning |
 | --- | --- |
-| Arithmetic | Exact even-pace maths and unit conversion. No assumptions about how a race unfolds. |
 | Pace Notes data | Observed from the 3,260,661 screened finishes below. Always shows finishes and editions. Descriptive, never a personal probability. |
 | Published research | Cited formulas and studies, shown as ranges. Not fitted to Pace Notes data. |
 | Official standards | Transcribed from official race pages, with the date they were checked. |
@@ -37,20 +36,20 @@ Numbers from different badges are never combined into one figure.
 
 | Route | Component | Evidence | Data |
 | --- | --- | --- | --- |
-| `/tools/pace-calculator` | `PaceCalculator` | Arithmetic | none |
+| `/tools/pace-calculator` | `PaceCalculator` | (calculations only) | none |
 | `/tools/predictor` | `Predictor` | Research, data | `tools/projector.json` + `tools/projector/all/20.json` |
-| `/tools/pace-band` | `PaceBand` | Arithmetic, data | `tools/pace-band.json` + shards |
-| `/tools/course-chooser` | `CourseChooser` | Data, arithmetic | `tools/course-goal.json` |
+| `/tools/pace-band` | `PaceBand` | Data | `tools/pace-band.json` + shards |
+| `/tools/course-chooser` | `CourseChooser` | Data | `tools/course-goal.json` |
 | `/tools/weather-match` | `WeatherMatch` | Data, research | `tools/weather-match.json` |
-| `/tools/projector` | `Projector` | Data, arithmetic | `tools/projector.json` + shards |
-| `/tools/split-check` | `SplitCheck` | Data, arithmetic, research | `tools/pace-band.json` + shards, `archetypes.json` |
-| `/tools/qualifying` | `QualifyingChecker` | Official, arithmetic | none (`lib/tools/qualifying.ts`) |
+| `/tools/projector` | `Projector` | Data | `tools/projector.json` + shards |
+| `/tools/split-check` | `SplitCheck` | Data, research | `tools/pace-band.json` + shards, `archetypes.json` |
+| `/tools/qualifying` | `QualifyingChecker` | Official | none (`lib/tools/qualifying.ts`) |
 
 `lib/tools/registry.ts` lists the tools, their order and their evidence kinds. The index (`app/tools/page.tsx`) shows a data tool only when its file is in the verified insights manifest.
 
 Shared code:
 - `lib/tools/time.ts`: forgiving duration input. It accepts `3:30:00`, `3:30`, `3h30`, `210` (minutes) and keypad dots (`8.05` is 8:05 for a pace and `3.30` is 3:30 for a race time). It also parses clock times and tracker text.
-- `lib/tools/pace.ts`: paces, speeds, split tables, pace charts and watch-overrun arithmetic.
+- `lib/tools/pace.ts`: paces, speeds, split tables, pace charts and watch-overrun calculations.
 - `lib/tools/predictor.ts`: Riegel, the Daniels–Gilbert equations, a personal exponent from two races, and Tanda.
 - `lib/tools/weather.ts`: relative humidity, Stull wet-bulb, shade WBGT with the ACSM flag, Ely, Mantzios, Hadley and dew-point bands.
 - `lib/tools/qualifying.ts`: standards, age rules and Boston cut-off history.

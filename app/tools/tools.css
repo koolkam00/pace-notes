@@ -1,7 +1,7 @@
 /* ==========================================================================
    Pace Notes — runner tools (/tools)
    Inputs on the left, results on the right; one column on phones.
-   Evidence colours: arithmetic (ink), Pace Notes data (orange), published research (violet), official (green).
+   Evidence colours: Pace Notes data (orange), published research (violet), official (green). Plain calculations carry no badge.
    ========================================================================== */
 
 /* ---------- Index ---------- */
@@ -32,11 +32,9 @@ a.tool-card:hover { text-decoration: none; transform: translateY(-3px); box-shad
 .evidence-badge { display: inline-flex; align-items: center; gap: .35rem; min-height: 24px; padding: .15rem .55rem; border-radius: 999px; font-family: var(--mono); font-size: .6875rem;
   font-weight: 600; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; border: 1px solid currentColor; }
 .evidence-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.evidence-arithmetic { color: var(--ink-2); }
 .evidence-data { color: var(--orange-ink); }
 .evidence-research { color: #5B34D6; }
 .evidence-official { color: var(--green-ink); }
-.night .evidence-arithmetic { color: var(--night-ink-2); }
 .night .evidence-data { color: #FF9A73; }
 .night .evidence-research { color: #B8A2FF; }
 .night .evidence-official { color: #6FD9AE; }

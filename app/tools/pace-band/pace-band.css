@@ -12,15 +12,12 @@
 .pace-band-headline .tool-stat { align-content: start; }
 @media (max-width: 560px) {
   .tool-headline.pace-band-headline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  /* Badges row, then even pace and the 20 km figure side by side, then the share across the full width. */
-  .pace-band-headline > .tool-stat:nth-child(4) { grid-column: 1 / -1; }
+  /* Even pace and the 20 km figure side by side, then the third figure across the full width. */
+  .pace-band-headline > .tool-stat + .tool-stat + .tool-stat { grid-column: 1 / -1; }
 }
 .pace-band-headline-note { grid-column: 1 / -1; padding-top: .95rem; border-top: 1px solid var(--night-3); font-size: .9375rem; line-height: 1.6; color: var(--night-ink-2); }
 .pace-band-headline-note b { font-family: var(--mono); font-weight: 600; color: var(--night-ink); white-space: nowrap; }
-/* Evidence labels on the dark headline: one badge per source, and the same words in front of each number. */
-.pace-band-headline-badges { grid-column: 1 / -1; margin-bottom: -.2rem; }
-.pace-band-headline .evidence-arithmetic { color: var(--night-ink-2); }
-.pace-band-headline .evidence-data { color: #FF9A73; }
+/* Pace Notes data on the dark headline: the words "Pace Notes data" in front of each observed number, so the even-pace figure beside them carries no data label. */
 .pace-band-src { font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--night-ink-2); white-space: nowrap; }
 .pace-band-src.is-data { color: #FF9A73; }
 .pace-band-headline[aria-busy='true'] .tool-stat + .tool-stat, .pace-band-headline[aria-busy='true'] .pace-band-headline-note { opacity: .45; transition: opacity .15s; }
@@ -48,7 +45,7 @@
 .pace-band-error { display: grid; gap: .7rem; justify-items: start; }
 .pace-band-error button { min-height: 40px; padding: .45rem .95rem; font-size: .875rem; }
 
-/* ---------- The on-screen band (arithmetic) ---------- */
+/* ---------- The on-screen band (even-pace calculation) ---------- */
 .pace-band-controls { display: grid; gap: .8rem; margin-bottom: 1rem; }
 .pace-band-controls .tool-choice { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100%; }
 .pace-band-controls .tool-choice button { padding-inline: .3rem; white-space: nowrap; }
@@ -199,7 +196,7 @@
   .pace-band-root[data-print='page'] .pace-band-wrist tbody th, .pace-band-root[data-print='page'] .pace-band-wrist td { padding-top: .06cm; padding-bottom: .06cm; }
   .pace-band-root[data-print='page'] .pace-band-wrist td { font-size: 10.5pt; }
   .pace-band-root[data-print='page'] .pace-band-wrist tr.is-finish td { font-size: 12pt; }
-  .pace-band-headline-note, .pace-band-headline-note b, .pace-band-src, .pace-band-headline .evidence-badge { color: #000 !important; border-color: #000; }
+  .pace-band-headline-note, .pace-band-headline-note b, .pace-band-src { color: #000 !important; border-color: #000; }
   .pace-band-dim, .pace-band-held-dim, .pace-band-headline[aria-busy='true'] .tool-stat { opacity: 1 !important; }
   .pace-band-wrist { background: #fff !important; color: #000; border: 1px solid #000; box-shadow: none; }
   .pace-band-wrist::before { display: none; }

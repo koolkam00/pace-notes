@@ -32,9 +32,9 @@
 .split-check-headline .tool-stat { align-content: start; }
 .split-check-type-stat .tool-stat-value { display: flex; align-items: center; gap: .45rem; font-size: clamp(1.15rem, 2.2vw, 1.45rem) !important; line-height: 1.15; letter-spacing: -.01em; }
 .split-check-type-stat .tool-stat-value i { flex: none; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2px var(--night-3); }
-/* Evidence kind under each headline number, in the night-card colours of the evidence badges. */
+/* Evidence kind under the headline numbers from Pace Notes data or published research, in the night-card colours of the
+   evidence badges. Numbers calculated from your own times carry no badge. */
 .split-check-headline .split-check-tag { justify-self: start; min-height: 20px; margin-top: .2rem; padding: .05rem .45rem; font-size: .625rem; }
-.split-check-headline .evidence-arithmetic { color: var(--night-ink-2); }
 .split-check-headline .evidence-data { color: #FF9A73; }
 .split-check-headline .evidence-research { color: #B8A2FF; }
 
