@@ -596,26 +596,25 @@ function SectionChart({ held, slow, pKm, units }: { held: Cell | null; slow: Cel
     const x0 = evenLabel.anchor === 'start' ? evenLabel.x : evenLabel.x - evenW;
     placed.push({ x0, x1: x0 + evenW, y0: evenLabel.y - 10, y1: evenLabel.y + 2 });
   }
-  // The label's own line must be the nearest line to it, and close (its near edge within 12 px).
+  // A direct label belongs to its own line: that line stays within 14 px of the label's near edge, and comes closer
+  // to the label than any other line (the other group, even pace) does.
+  const gapTo = (b: Box, ly: number) => (ly < b.y0 ? b.y0 - ly : ly > b.y1 ? ly - b.y1 : 0);
   const ownsBox = (b: Box, own: Cell) => {
-    const cy = (b.y0 + b.y1) / 2;
-    for (let px = b.x0; px <= b.x1; px += 6) {
-      const ly = lineAt(own.s50, px);
-      const d = Math.abs(ly - cy);
-      const edge = ly < b.y0 ? b.y0 - ly : ly > b.y1 ? ly - b.y1 : 0;
-      if (edge > 12) return false;
-      if (Math.abs(evenY - cy) < d) return false;
-      if (series.some((o) => o.c !== own && Math.abs(lineAt(o.c.s50, px) - cy) < d)) return false;
+    let ownMin = Infinity; let ownMax = 0; let otherMin = gapTo(b, evenY);
+    for (let px = b.x0; px <= b.x1 + 0.1; px += Math.max(1, (b.x1 - b.x0) / 8)) {
+      const gap = gapTo(b, lineAt(own.s50, px));
+      ownMin = Math.min(ownMin, gap); ownMax = Math.max(ownMax, gap);
+      for (const o of series) if (o.c !== own) otherMin = Math.min(otherMin, gapTo(b, lineAt(o.c.s50, px)));
     }
-    return true;
+    return ownMax <= 14 && ownMin + 2 <= otherMin;
   };
   const faster = [...series].sort((a, b) => a.c.s50[1] - b.c.s50[1]);
   const labels = faster.map((s, k) => {
     const w = s.name.length * 7.1;
     const dirs = k === 0 ? [-1, 1] : [1, -1];
-    for (const i of [1, 0, 2, 3, 4]) {
-      for (const dir of dirs) {
-        const lx = Math.max(m.l + 2, x(mids[i]) - 14);
+    for (const i of [1, 0, 2, 3, 4, 5, 6, 7]) {
+      for (const [dir, shift] of dirs.flatMap((d) => [[d, -14], [d, 14 - w]])) {
+        const lx = Math.min(width - m.r - 2 - w, Math.max(m.l + 2, x(mids[i]) + shift));
         const ly0 = lineAt(s.c.s50, lx);
         const ly1 = lineAt(s.c.s50, lx + w);
         const ly = dir < 0 ? Math.min(ly0, ly1) - 10 : Math.max(ly0, ly1) + 20;
