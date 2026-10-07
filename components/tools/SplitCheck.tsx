@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { Choice, EvidencePanel, ShareBar, Stat } from '@/components/tools/ui';
+import { Choice, EvidencePanel, ShareBar } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
 import { loadInsight, type Archetype, type Archetypes } from '@/lib/insights';
@@ -44,28 +44,46 @@ interface Cell { n: number; ed: number; e50: number[]; s50: number[]; sd?: numbe
 
 /**
  * One elapsed mat time as trackers print it. Three groups are h:mm:ss. Two groups are mm:ss when the first is 10 or more
- * ("25:50") and h:mm below 10 ("3:58"): no marathon mat is passed in under ten minutes. Also "2h05m31s" and keypad dots.
+ * ("25:50") and h:mm below 10 ("3:58"): no marathon mat is passed in under ten minutes. Given the previous mat's time, a
+ * two-group entry that would go backwards as mm:ss is read as h:mm up to 12 hours ("10:30" after a 9:20:00 40 km mat).
+ * Also "2h05m31s" and keypad dots.
  */
-export function parseMatTime(input: string): number | null {
+export function parseMatTime(input: string, prev: number | null = null): number | null {
   const text = input.trim().toLowerCase();
   if (!text) return null;
+  const twoGroups = (a: number, b: number, fraction: number) => {
+    if (a < 10) return a * 3600 + b * 60;
+    const mmss = Math.round(a * 60 + b + fraction);
+    return prev !== null && mmss <= prev && a <= 12 && !fraction ? a * 3600 + b * 60 : mmss;
+  };
   const colon = text.match(/^(\d{1,3}(?::\d{1,2}){1,2})(?:\.(\d{1,3}))?$/);
   if (colon) {
     const parts = colon[1].split(':').map(Number);
     if (parts.slice(1).some((p) => p >= 60)) return null;
     const fraction = colon[2] ? Number(`0.${colon[2]}`) : 0;
     if (parts.length === 3) return Math.round(parts[0] * 3600 + parts[1] * 60 + parts[2] + fraction);
-    const [a, b] = parts;
-    return a >= 10 ? Math.round(a * 60 + b + fraction) : a * 3600 + b * 60;
+    return twoGroups(parts[0], parts[1], fraction);
   }
   const keypad = text.match(/^(\d{1,3})[.,](\d{2})$/);
   if (keypad) {
     const [a, b] = [Number(keypad[1]), Number(keypad[2])];
     if (b >= 60) return null;
-    return a >= 10 ? a * 60 + b : a * 3600 + b * 60;
+    return twoGroups(a, b, 0);
   }
   const seconds = parseDuration(text, 'race');
   return seconds !== null && seconds > 0 ? Math.round(seconds) : null;
+}
+
+/** The nine fields in order, each read in the context of the last earlier mat that has a time. */
+export function parseAll(texts: string[]): (number | null)[] {
+  const out: (number | null)[] = [];
+  let prev: number | null = null;
+  for (const text of texts) {
+    const t = parseMatTime(text, prev);
+    out.push(t);
+    if (t !== null) prev = t;
+  }
+  return out;
 }
 
 /** Duration-looking tokens in a line, leaving out paces ("5:10/km", "8:19 min/mi") and clock times ("9:12:35 am"). */
@@ -84,7 +102,9 @@ function timeTokens(line: string): string[] {
 }
 
 const MAT_RE = /(?:^|[^\d.,])0?(5|10|15|20|25|30|35|40)\s*(?:k\b|km\b|kms\b|kilomet)(?!\s*\/\s*h)/i;
-const FINISH_RE = /\b(?:finish|fin|final|ziel|zielzeit|netto|net\s*time|chip\s*time|arriv[ée]e|llegada)\b|\b42[.,]\d*\s*(?:k|km)\b|\b26[.,]2\s*mi/i;
+const FINISH_RE = /\b(?:finish|fin|final|ziel|zielzeit|netto|net\s*time|chip\s*time|official\s*time|arriv[ée]e|llegada)\b|\b42[.,]\d*\s*(?:k|km)\b|\b42\s*km?\b|\b26[.,]2\s*mi/i;
+/** "Marathon 4:03:31": a finish label only when no explicit finish line gives a time (a page title can say Marathon too). */
+const WEAK_FINISH_RE = /\bmarathon\b/i;
 const HALF_RE = /\b(?:half|halfway|halb|hm|semi|mitad|21[.,]1\d*|13[.,]1)\b/i;
 
 export interface PasteResult { times: (number | null)[]; found: number; labelled: boolean; tokens: number; skippedHalf?: boolean }
@@ -95,26 +115,31 @@ export interface PasteResult { times: (number | null)[]; found: number; labelled
  */
 export function readPasted(text: string): PasteResult {
   // Every plausible time on each labelled line, in order (a results table may also hold time of day and section times).
+  // For each mat the first labelled line that holds a time wins (a header row of labels holds none); finish lines add up,
+  // explicit labels before "Marathon".
   const candidates: number[][] = CHECKPOINTS.map(() => []);
-  const seen = new Set<number>();
+  const weakFinish: number[] = [];
   let labelled = false;
   for (const raw of text.split(/[\n;|]+/)) {
     const line = raw.trim();
     if (!line) continue;
     const mat = line.match(MAT_RE);
     let index = -1;
+    let weak = false;
     if (mat) index = MATS_KM.indexOf(Number(mat[1]) as (typeof MATS_KM)[number]);
-    else if (FINISH_RE.test(line) && !HALF_RE.test(line)) index = 8;
+    else if (!HALF_RE.test(line) && FINISH_RE.test(line)) index = 8;
+    else if (!HALF_RE.test(line) && WEAK_FINISH_RE.test(line)) { index = 8; weak = true; }
     if (index < 0) continue;
     labelled = true;
-    if (seen.has(index)) continue;
-    seen.add(index);
+    if (index < 8 && candidates[index].length) continue;
     const km = CHECKPOINTS[index];
+    const target = weak ? weakFinish : candidates[index];
     for (const token of timeTokens(mat ? line.slice((mat.index ?? 0) + mat[0].length) : line)) {
       const s = parseMatTime(token);
-      if (s !== null && s / km >= 120 && s / km <= 1200 && !candidates[index].includes(s)) candidates[index].push(s);
+      if (s !== null && s / km >= 120 && s / km <= 1200 && !target.includes(s)) target.push(s);
     }
   }
+  for (const s of weakFinish) if (!candidates[8].includes(s)) candidates[8].push(s);
   const times = chooseSequence(candidates);
   const found = times.filter((t) => t !== null).length;
   if (labelled && found) return { times, found, labelled: true, tokens: found };
@@ -162,9 +187,11 @@ function chooseSequence(candidates: number[][]): (number | null)[] {
 const serialize = (times: (number | null)[]) => (times.every((t) => t === null) ? '' : times.map((t) => (t === null ? '' : formatDuration(t, true))).join(','));
 const fromQuery = (s: string) => {
   const parts = s.split(',');
-  return CHECKPOINTS.map((_, i) => (parts[i] ? parseMatTime(parts[i]) : null));
+  return parseAll(CHECKPOINTS.map((_, i) => parts[i] ?? ''));
 };
-const displayTime = (t: number | null) => (t === null ? '' : formatDuration(t));
+/** A field's text: mm:ss is kept for the first two mats under an hour; from 15 km the hours always show, so a misread is visible. */
+const displayTime = (t: number | null, i: number) => (t === null ? '' : formatDuration(t, i >= 2));
+const displayAll = (times: (number | null)[]) => times.map(displayTime);
 
 /* ------------------------------------------------------------------ */
 /* Formatting                                                          */
@@ -173,14 +200,42 @@ const displayTime = (t: number | null) => (t === null ? '' : formatDuration(t));
 const fmtPace = (sPerKm: number, units: UnitSystem) => `${formatDuration(perUnit(sPerKm, units))}/${units}`;
 const unitWord = (units: UnitSystem) => (units === 'mi' ? 'mile' : 'km');
 const qualifies = (frac: number) => frac + EPS >= 0.25;
-/** "27%"; one decimal when rounding would hide which side of 25% a value is on, or round a real change to 0%. */
-function pctAbs(frac: number): string {
-  const p = frac * 100;
-  const r = Math.round(Math.abs(p));
-  if ((r >= 25) !== qualifies(Math.abs(frac)) || (r === 0 && Math.abs(p) >= 0.05)) return `${Math.abs(p).toFixed(1)}%`;
-  return `${r}%`;
+/**
+ * |frac| as a percentage with `digits` decimals, never rounded across the 25% threshold: a section 24.99% slower shows as
+ * 24.99, not 25.0 (more decimals first, then truncation), and a qualifying one never shows below 25.
+ */
+function pctNum(frac: number, digits: number): string {
+  const p = Math.abs(frac) * 100;
+  if (frac > 0 && !qualifies(frac)) {
+    for (let d = digits; d <= 2; d += 1) {
+      const text = p.toFixed(d);
+      if (Number(text) < 25) return text;
+    }
+    return '24.99';
+  }
+  if (frac > 0 && p < 25) return (25).toFixed(digits);
+  return p.toFixed(digits);
 }
-const pctSigned = (frac: number) => signedPct(frac * 100, 1);
+/** "27%"; more decimals when rounding would hide which side of 25% a value is on, or round a real change to 0%. */
+function pctAbs(frac: number): string {
+  const p = Math.abs(frac) * 100;
+  if (Math.round(p) === 0 && p >= 0.05) return `${p.toFixed(1)}%`;
+  return `${pctNum(frac, 0)}%`;
+}
+/** "+27.3%" / "−4.1%", threshold-safe like pctNum. */
+function pctSigned(frac: number, digits = 1): string {
+  if (!Number.isFinite(frac)) return '—';
+  const text = pctNum(frac, digits);
+  return `${Number(text) === 0 ? '' : frac > 0 ? '+' : '−'}${text}%`;
+}
+/** The opening as a percentage: whole numbers, with decimals near the 2, 5 and 10% edges of the opening groups. */
+function openingPct(frac: number): string {
+  const p = Math.abs(frac) * 100;
+  const r = Math.round(p);
+  if (![2, 5, 10].includes(r) || p === r) return pctAbs(frac);
+  const one = p.toFixed(1);
+  return `${Number(one) === r ? p.toFixed(2) : one}%`;
+}
 const editions = (k: number) => (k === 1 ? 'one edition' : `${count(k)} editions`);
 const share = (v: number) => `${(v * 100).toFixed(1)}%`;
 /** Section name in the selected units ("30–35 km" or "18.6–21.7 mi"). */
@@ -239,7 +294,7 @@ function summarize(r: SplitReading, units: UnitSystem): { lead: string; more: st
     if (qualifies(vs[8])) more.push(`Your final ${units === 'mi' ? '1.4 mi' : '2.2 km'} was ${pctAbs(vs[8])} slower, but the last 2.195 km cannot count as a sustained slowdown on its own.`);
   }
   const o = r.opening;
-  more.push(Math.abs(o) < 0.0005 ? `You ran the first ${five} at your ${base} pace.` : `You ran the first ${five} ${pctAbs(o)} ${o < 0 ? 'quicker' : 'slower'} than that pace.`);
+  more.push(Math.abs(o) < 0.0005 ? `You ran the first ${five} at your ${base} pace.` : `You ran the first ${five} ${openingPct(o)} ${o < 0 ? 'quicker' : 'slower'} than that pace.`);
   return { lead, more };
 }
 
@@ -247,27 +302,35 @@ function summarize(r: SplitReading, units: UnitSystem): { lead: string; more: st
 /* Data hooks                                                          */
 /* ------------------------------------------------------------------ */
 
-function useVerified<T>(path: string, sha: string | null): { data: T | null; error: boolean } {
-  const [state, setState] = useState<{ data: T | null; error: boolean }>({ data: null, error: false });
+/** The loader's own neutral message ("could not be loaded" / "could not be verified"); a browser network error reads as the first. */
+const errorText = (e: unknown) => (e instanceof Error && e.message.startsWith('This data') ? e.message : 'This data could not be loaded. Check the connection and try again.');
+
+/** One verified insights file. `error` holds the loader's message; `retry` runs the load again (failed loads are not cached). */
+function useVerified<T>(path: string, sha: string | null): { data: T | null; error: string | null; retry: () => void } {
+  const [attempt, setAttempt] = useState(0);
+  const [state, setState] = useState<{ data: T | null; error: string | null }>({ data: null, error: null });
   useEffect(() => {
     if (!sha) return;
     let live = true;
-    loadInsight<T>(path, sha).then((data) => { if (live) setState({ data, error: false }); }, () => { if (live) setState({ data: null, error: true }); });
+    loadInsight<T>(path, sha).then((data) => { if (live) setState({ data, error: null }); }, (e: unknown) => { if (live) setState({ data: null, error: errorText(e) }); });
     return () => { live = false; };
-  }, [path, sha]);
-  return sha ? state : { data: null, error: true };
+  }, [path, sha, attempt]);
+  const retry = useCallback(() => { setState({ data: null, error: null }); setAttempt((a) => a + 1); }, []);
+  return sha ? { ...state, retry } : { data: null, error: 'missing', retry };
 }
 
 function useShard(index: PaceBandIndex | null, path: string) {
-  const [state, setState] = useState<{ path: string; data: PaceBandShard | null; error: boolean } | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [state, setState] = useState<{ path: string; attempt: number; data: PaceBandShard | null; error: string | null } | null>(null);
   const listed = Boolean(index?.shards?.[path]);
   useEffect(() => {
     if (!index || !listed) return;
     let live = true;
-    loadShard<PaceBandShard>(index, path).then((data) => { if (live) setState({ path, data, error: false }); }, () => { if (live) setState({ path, data: null, error: true }); });
+    loadShard<PaceBandShard>(index, path).then((data) => { if (live) setState({ path, attempt, data, error: null }); }, (e: unknown) => { if (live) setState({ path, attempt, data: null, error: errorText(e) }); });
     return () => { live = false; };
-  }, [index, path, listed]);
-  return state && state.path === path ? state : null;
+  }, [index, path, listed, attempt]);
+  const retry = useCallback(() => setAttempt((a) => a + 1), []);
+  return { result: state && state.path === path && state.attempt === attempt ? state : null, retry };
 }
 
 function cellOf(group: PaceBandGroup | undefined, minute: number): Cell | null {
@@ -282,44 +345,69 @@ function cellOf(group: PaceBandGroup | undefined, minute: number): Cell | null {
 /* ------------------------------------------------------------------ */
 
 type Comparison =
-  | { state: 'off'; message: string }
+  | { state: 'off'; message: string; retry?: () => void }
   | { state: 'loading' }
   | { state: 'unavailable'; title: string; message: string }
   | { state: 'ok'; minute: number; lo: number; hi: number; all: Cell; held: Cell | null; slow: Cell | null };
+
+/** `value`, except while `hold` is true: then the value from the last render without the hold. */
+function useHeld<T>(value: T, hold: boolean): T {
+  const [kept, setKept] = useState(value);
+  if (!hold && !Object.is(kept, value)) setKept(value);
+  return hold ? kept : value;
+}
+
+type FieldIssue = 'unreadable' | 'order' | 'pace' | 'finish';
+const matLabel = (i: number) => (i === 8 ? 'finish' : `${CHECKPOINTS[i]} km`);
+
+/** What is wrong with one field, naming the mats involved. */
+function issueText(i: number, kind: FieldIssue, parsed: (number | null)[]): string {
+  if (kind === 'unreadable') return `Couldn’t read the ${matLabel(i)} time. Use h:mm:ss (1:45:54), or mm:ss before the first hour (25:50).`;
+  if (kind === 'order') return `The ${matLabel(i)} time must be later than the ${matLabel(i - 1)} time.`;
+  if (kind === 'finish') return 'The finish must be between 1:30:00 and 12:00:00.';
+  const pace = ((parsed[i] ?? 0) - (i ? parsed[i - 1] ?? 0 : 0)) / SECTION_KM[i];
+  return `The ${SECTION_NAMES[i]} km section works out at ${formatDuration(pace)} per km; every section must be between 2:00 and 20:00 per km. Check the ${i ? `${matLabel(i - 1)} and ${matLabel(i)} times` : `${matLabel(i)} time`}.`;
+}
 
 export default function SplitCheck({ indexSha, archetypesSha, openingBands, openingCities }: {
   indexSha: string | null; archetypesSha: string | null; openingBands: OpeningBand[]; openingCities: string[];
 }) {
   const { units } = useUnits();
   const [q, setQ, ready] = useQueryState(DEFAULTS);
-  const [texts, setTexts] = useState<string[]>(() => fromQuery(EXAMPLE).map(displayTime));
-  const [touched, setTouched] = useState<boolean[]>(() => Array(9).fill(false));
+  const [texts, setTexts] = useState<string[]>(() => Array(9).fill(''));
+  const [loaded, setLoaded] = useState(false);
+  // The field being typed in: changed since it took focus. Cleared when focus leaves it.
+  const [typing, setTyping] = useState<number | null>(null);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [pasteNote, setPasteNote] = useState<string | null>(null);
+  const [droppedCourse, setDroppedCourse] = useState(false);
   const formId = useId();
 
-  // The URL is read once after mount; the nine fields follow it then, and every edit is mirrored back.
+  // The URL is read once after mount, and nothing is read before it, so a shared link never shows the example race first.
+  // The nine fields follow the URL then, and every edit is mirrored back.
   useEffect(() => {
-    if (ready) setTexts(fromQuery(q.s).map(displayTime));
+    if (!ready) return;
+    setTexts(displayAll(fromQuery(q.s)));
+    setLoaded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
-  const parsed = useMemo(() => texts.map(parseMatTime), [texts]);
+  const parsed = useMemo(() => parseAll(texts), [texts]);
   const setTimes = (next: (number | null)[]) => {
-    setTexts(next.map(displayTime));
-    setTouched(Array(9).fill(false));
+    setTexts(displayAll(next));
     setQ({ s: serialize(next) });
   };
   const editField = (i: number, value: string) => {
     const next = texts.map((t, k) => (k === i ? value : t));
+    setTyping(i);
     setTexts(next);
-    setQ({ s: serialize(next.map(parseMatTime)) });
+    setQ({ s: serialize(parseAll(next)) });
   };
   const blurField = (i: number) => {
-    setTouched((prev) => prev.map((v, k) => (k === i ? true : v)));
+    setTyping(null);
     const s = parsed[i];
-    if (s !== null) setTexts((prev) => prev.map((t, k) => (k === i ? displayTime(s) : t)));
+    if (s !== null) setTexts((prev) => prev.map((t, k) => (k === i ? displayTime(s, i) : t)));
   };
   const onPaste = (value: string) => {
     setPasteText(value);
@@ -342,7 +430,7 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
   };
 
   // Field-level problems, so the exact box is marked, plus the shared eligibility rules for the whole race.
-  const fieldProblem = parsed.map((t, i): string | null => {
+  const fieldProblem = parsed.map((t, i): FieldIssue | null => {
     if (texts[i].trim() && t === null) return 'unreadable';
     if (t === null) return null;
     const prev = i ? parsed[i - 1] : 0;
@@ -354,46 +442,73 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
     return null;
   });
   const entered = parsed.filter((t) => t !== null).length;
-  const unreadable = fieldProblem.findIndex((p) => p === 'unreadable');
   const complete = entered === 9;
   const problem = complete ? validateSplits(parsed) : null;
   const times = complete && !problem ? (parsed as number[]) : null;
-  const reading = useMemo(() => (times ? readSplits(times) : null), [times]);
-  const isExample = q.s === EXAMPLE;
+  const editing = typing !== null;
+  // While a field is being typed in its text may be half done, so neither it nor the next field (checked against it) is flagged.
+  const quiet = (i: number) => typing !== null && (i === typing || i === typing + 1);
+  const firstIssue = (skip: (i: number) => boolean) => {
+    const i = fieldProblem.findIndex((p, k) => p !== null && !skip(k));
+    return i < 0 ? null : issueText(i, fieldProblem[i] as FieldIssue, parsed);
+  };
+  const blockMessage = firstIssue(() => false) ?? problem;
+  const hintIssue = firstIssue(quiet) ?? (editing ? null : problem);
+
+  // What the results column shows, as a key. While a field is being typed in and does not yet make a valid race, the
+  // column keeps what it showed before (the last valid race, dimmed), instead of jumping between states on each keystroke.
+  const currentView = !loaded ? 'l' : times ? `r${times.join(',')}` : blockMessage ? `e${blockMessage}` : 'p';
+  const view = useHeld(currentView, editing && !times);
+  const shownTimes = useMemo(() => (view[0] === 'r' ? view.slice(1).split(',').map(Number) : null), [view]);
+  const reading = useMemo(() => (shownTimes ? readSplits(shownTimes) : null), [shownTimes]);
+  const stale = shownTimes !== null && !times;
+  const isExample = loaded && q.s === EXAMPLE;
 
   // Verified data: the pace-band index and one shard per course and recorded gender; the pacing-type classifier.
   const index = useVerified<PaceBandIndex>(INDEX_PATH, indexSha);
   const archetypes = useVerified<Archetypes>(ARCHETYPES_PATH, archetypesSha);
   const gender: Gender = q.g === 'men' || q.g === 'women' ? q.g : 'all';
   const shardPath = `tools/pace-band/${q.course}/${gender}.json`;
-  const shard = useShard(index.data, shardPath);
+  const { result: shard, retry: retryShard } = useShard(index.data, shardPath);
   const scope = index.data?.scopes.find((s) => s.slug === q.course) ?? null;
   const place = q.course === 'all' ? 'all courses' : scope?.city ?? q.course;
   const where = q.course === 'all' ? 'on all courses' : `in ${place}`;
   const genderWord = gender === 'all' ? '' : gender;
 
+  // A link naming a course that is no longer in the data falls back to All courses, with a note by the course list.
+  useEffect(() => {
+    if (!index.data || q.course === 'all' || index.data.scopes.some((s) => s.slug === q.course)) return;
+    setDroppedCourse(true);
+    setQ({ course: 'all' });
+  }, [index.data, q.course, setQ]);
+
+  const indexError = index.error;
+  const retryIndex = index.retry;
   const comparison: Comparison = useMemo(() => {
-    if (!times) return { state: 'loading' };
-    if (index.error) return { state: 'off', message: indexSha ? 'The comparison data could not be loaded or verified. Your own splits above are unaffected.' : 'The comparison data is not part of this build. Your own splits above are unaffected.' };
+    if (!shownTimes) return { state: 'loading' };
+    if (indexError) {
+      return indexSha ? { state: 'off', message: `${indexError} Your own splits above are unaffected.`, retry: retryIndex }
+        : { state: 'off', message: 'The comparison data is not part of this build. Your own splits above are unaffected.' };
+    }
     if (!index.data) return { state: 'loading' };
-    if (!scope) return { state: 'unavailable', title: 'Course not found.', message: 'That course is not in the data. Choose another, or All courses.' };
+    if (!scope) return q.course === 'all' ? { state: 'off', message: 'The comparison data has no All courses group, so nothing is shown.' } : { state: 'loading' };
     const [g0, g1] = index.data.goals;
-    const minute = Math.floor(times[8] / 60) + 3;
+    const minute = Math.floor(shownTimes[8] / 60) + 3;
     if (minute < g0 || minute > g1) {
-      return { state: 'unavailable', title: 'Outside the compared range.', message: `Comparison windows cover finishes from ${formatDuration((g0 - 3) * 60, true)} to ${formatDuration((g1 - 2) * 60 - 1, true)}. Your section paces, slowdown reading and pacing type above still apply.` };
+      return { state: 'unavailable', title: 'Outside the compared range.', message: `Comparisons are available for finishes from ${formatDuration((g0 - 3) * 60, true)} to ${formatDuration((g1 - 2) * 60 - 1, true)}, so that the 5-minute window has at least two minutes on each side of your time. Your section paces, slowdown reading and pacing type still apply.` };
     }
     if (!scope.genders[gender] || !index.data.shards?.[shardPath]) {
       return { state: 'unavailable', title: 'Not published for this selection.', message: `No finish window ${where} has 100 finishes recorded as ${genderWord || 'any gender'}, so nothing is shown.` };
     }
     if (!shard) return { state: 'loading' };
-    if (shard.error || !shard.data) return { state: 'off', message: 'This course and gender could not be loaded or verified. Try again, or choose All courses.' };
+    if (shard.error || !shard.data) return { state: 'off', message: shard.error ?? 'This data could not be loaded. Check the connection and try again.', retry: retryShard };
     const windowS = shard.data.window_s || index.data.window_s || 300;
     const lo = minute * 60 - windowS;
     const hi = minute * 60 - 1;
     const all = cellOf(shard.data.groups.all, minute);
     if (!all) return { state: 'unavailable', title: 'Too few finishes at your time.', message: `Fewer than 100 complete finishes ran ${formatDuration(lo, true)} to ${formatDuration(hi, true)} ${where}${genderWord ? ` (recorded as ${genderWord})` : ''}, so this window is not published.` };
     return { state: 'ok', minute, lo, hi, all, held: cellOf(shard.data.groups.held, minute), slow: cellOf(shard.data.groups.slowdown, minute) };
-  }, [times, index, indexSha, scope, gender, shardPath, shard, where, genderWord]);
+  }, [shownTimes, indexError, retryIndex, indexSha, index.data, scope, q.course, gender, shardPath, shard, retryShard, where, genderWord]);
 
   const type = useMemo(() => {
     if (!reading || !archetypes.data) return null;
@@ -405,18 +520,20 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
     return { name, arch, colour: ARCHETYPE_COLOURS[(at >= 0 ? at : k) % ARCHETYPE_COLOURS.length], all: archetypes.data.archetypes };
   }, [reading, archetypes.data]);
 
-  const fallbacks = (
-    <div className="split-check-actions">
+  const fallbacks = q.course !== 'all' || gender !== 'all' ? (
+    <>
       {q.course !== 'all' ? <button type="button" className="button-secondary" onClick={() => setQ({ course: 'all' })}>Switch to All courses</button> : null}
       {gender !== 'all' ? <button type="button" className="button-secondary" onClick={() => setQ({ g: 'all' })}>Switch to all genders</button> : null}
-    </div>
-  );
+    </>
+  ) : null;
+
+  // One short status line for screen readers, updated only when no field is being typed in.
+  const settled = view === 'l' ? '' : reading && shownTimes && !stale ? `${summarize(reading, units).lead} Finish ${formatDuration(shownTimes[8], true)}.`
+    : view[0] === 'e' ? `Check your times. ${view.slice(1)}` : '';
+  const status = useHeld(settled, editing);
 
   const hintId = `${formId}-grid-hint`;
-  const gridMessage = unreadable >= 0
-    ? `Couldn’t read the ${unreadable === 8 ? 'finish' : `${CHECKPOINTS[unreadable]} km`} time. Use h:mm:ss (1:45:54), or mm:ss before the first hour (25:50).`
-    : !complete ? (entered ? `${entered} of 9 entered. Every mat is needed; gaps are never filled in.` : 'Type or paste your nine mat times.')
-    : problem;
+  const gridMessage = hintIssue ?? (!complete ? (entered ? `${entered} of 9 entered. Every mat is needed; gaps are never filled in.` : 'Type or paste your nine mat times.') : null);
 
   return (
     <div className="split-check-root">
@@ -436,7 +553,7 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
           <fieldset className="split-check-grid" aria-describedby={hintId}>
             <legend className="sr-only">Elapsed time at each 5 km mat and the finish</legend>
             {CHECKPOINTS.map((km, i) => {
-              const bad = fieldProblem[i] !== null && (fieldProblem[i] !== 'unreadable' || touched[i] || texts[i].length > 4);
+              const bad = fieldProblem[i] !== null && !quiet(i);
               return (
                 <div key={km} className={`split-check-cell${i === 8 ? ' is-finish' : ''}`}>
                   <label htmlFor={`${formId}-t${i}`}>
@@ -450,42 +567,48 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
               );
             })}
           </fieldset>
-          <p className={`tool-field-hint${(unreadable >= 0 && touched[unreadable]) || problem ? ' is-error' : ''}`} id={hintId}>
+          <p className={`tool-field-hint${hintIssue ? ' is-error' : ''}`} id={hintId}>
             {gridMessage ?? 'Elapsed chip time at each mat: h:mm:ss, or mm:ss before the first hour.'}
           </p>
           <div className="split-check-buttons">
             <button type="button" className="button-secondary" onClick={() => { setTimes(Array(9).fill(null)); setPasteText(''); setPasteNote(null); }}>Clear</button>
-            {!isExample ? <button type="button" className="button-secondary" onClick={() => { setTimes(fromQuery(EXAMPLE)); setPasteText(''); setPasteNote(null); }}>Load the example</button> : null}
+            {loaded && !isExample ? <button type="button" className="button-secondary" onClick={() => { setTimes(fromQuery(EXAMPLE)); setPasteText(''); setPasteNote(null); }}>Load the example</button> : null}
           </div>
 
           <div className="tool-field">
             <label htmlFor={`${formId}-course`}>Compare with finishes on</label>
-            <select id={`${formId}-course`} value={q.course} onChange={(e) => setQ({ course: e.target.value })}>
+            <select id={`${formId}-course`} value={q.course} onChange={(e) => { setDroppedCourse(false); setQ({ course: e.target.value }); }}
+              aria-describedby={`${formId}-course-hint`}>
               <option value="all">All courses{index.data ? ` · ${editions(index.data.scopes.find((s) => s.slug === 'all')?.editions ?? 0)}` : ''}</option>
               {index.data ? index.data.scopes.filter((s) => s.slug !== 'all').map((s) => <option key={s.slug} value={s.slug}>{s.city ?? s.slug} · {editions(s.editions)}</option>)
                 : q.course !== 'all' ? <option value={q.course}>{q.course}</option> : null}
             </select>
-            <p className="tool-field-hint">Race not listed? All courses compares you with finishes from other races.</p>
+            <p className={`tool-field-hint${droppedCourse ? ' is-error' : ''}`} id={`${formId}-course-hint`}>
+              {droppedCourse ? 'The course in this link is not in the current data, so All courses is shown.' : 'Race not listed? All courses compares you with finishes from other races.'}
+            </p>
           </div>
           <div className="tool-field">
             <span className="tool-label" id={`${formId}-gender`}>Recorded gender <span className="split-check-optional">optional</span></span>
             <div role="group" aria-labelledby={`${formId}-gender`}><Choice label="Recorded gender" value={gender} onChange={(v) => setQ({ g: v })} options={GENDER_OPTIONS} small /></div>
           </div>
-          <p className="tool-field-hint split-check-privacy">Your times stay in this browser. They sit in the page address only so you can share a link; nothing is sent or recorded.</p>
+          <p className="tool-field-hint split-check-privacy">Everything is calculated in this browser. Your times sit in the page address only so a copied link reproduces this page; data files are requested by course and gender alone, and analytics never record your times.</p>
         </form>
 
-        <div className="tool-results">
-          {!reading || !times ? (
-            <div className={problem ? 'tool-state is-error' : 'tool-empty'} role={problem ? 'alert' : undefined}>
-              {problem ? <><strong>Check your times.</strong> {problem}</> : <>Enter all nine elapsed times (5, 10, 15, 20, 25, 30, 35 and 40 km, and the finish) to read your race. {entered ? `${entered} of 9 so far.` : ''} Missing mats are never estimated.</>}
-            </div>
-          ) : (
-            <Results times={times} reading={reading} units={units} comparison={comparison} type={type} typeError={archetypes.error}
-              where={where} place={place} genderWord={genderWord} course={q.course} gender={gender} fallbacks={fallbacks}
-              openingBands={openingBands} openingCities={openingCities} />
-          )}
+        <div className={`tool-results split-check-results${stale ? ' is-stale' : ''}`}>
+          {stale ? <p className="split-check-updating" aria-hidden="true">Showing your last complete race</p> : null}
+          {view === 'l' ? <div className="tool-state">Reading the times…</div>
+            : reading && shownTimes ? (
+              <Results times={shownTimes} reading={reading} units={units} comparison={comparison} type={type} typeError={archetypes.error} retryType={archetypes.retry}
+                where={where} place={place} genderWord={genderWord} course={q.course} gender={gender} fallbacks={fallbacks}
+                openingBands={openingBands} openingCities={openingCities} isExample={isExample} />
+            ) : view[0] === 'e' ? (
+              <div className="tool-state is-error"><strong>Check your times.</strong> {view.slice(1)}</div>
+            ) : (
+              <div className="tool-empty">Enter all nine elapsed times (5, 10, 15, 20, 25, 30, 35 and 40 km, and the finish) to read your race. {entered ? `${entered} of 9 so far.` : ''} Missing mats are never estimated.</div>
+            )}
         </div>
       </div>
+      <p className="sr-only" role="status">{status}</p>
     </div>
   );
 }
@@ -496,30 +619,47 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
 
 type TypeResult = { name: string; arch: Archetype; colour: string; all: Archetype[] } | null;
 
-function Results({ times, reading, units, comparison, type, typeError, where, place, genderWord, course, gender, fallbacks, openingBands, openingCities }: {
-  times: number[]; reading: SplitReading; units: UnitSystem; comparison: Comparison; type: TypeResult; typeError: boolean;
-  where: string; place: string; genderWord: string; course: string; gender: Gender; fallbacks: ReactNode; openingBands: OpeningBand[]; openingCities: string[];
+const EVIDENCE_LABEL = { arithmetic: 'Arithmetic', data: 'Pace Notes data', research: 'Published research' } as const;
+
+/** A headline number with its evidence kind, so arithmetic, the published definition and Pace Notes data are never mixed up. */
+function HeadStat({ label, value, sub, tone, evidence, className }: {
+  label: string; value: ReactNode; sub: ReactNode; tone?: 'good' | 'bad'; evidence: keyof typeof EVIDENCE_LABEL; className?: string;
+}) {
+  return (
+    <div className={`tool-stat${tone ? ` is-${tone}` : ''}${className ? ` ${className}` : ''}`}>
+      <span className="tool-stat-label">{label}</span>
+      <strong className="tool-stat-value">{value}</strong>
+      <span className="tool-stat-sub">{sub}</span>
+      <span className={`evidence-badge evidence-${evidence} split-check-tag`}>{EVIDENCE_LABEL[evidence]}</span>
+    </div>
+  );
+}
+
+function Results({ times, reading, units, comparison, type, typeError, retryType, where, place, genderWord, course, gender, fallbacks, openingBands, openingCities, isExample }: {
+  times: number[]; reading: SplitReading; units: UnitSystem; comparison: Comparison; type: TypeResult; typeError: string | null; retryType: () => void;
+  where: string; place: string; genderWord: string; course: string; gender: Gender; fallbacks: ReactNode; openingBands: OpeningBand[]; openingCities: string[]; isExample: boolean;
 }) {
   const { lead, more } = summarize(reading, units);
   const avg = times[8] / MARATHON_KM;
-  const onsetIndex = reading.onsetKm !== null ? (reading.onsetKm - 20) / 5 + 4 : null;
+  const finish = formatDuration(times[8], true);
+  const bandGoal = times[8] >= 5400 && times[8] <= 28800 ? `goal=${formatHMGoal(times[8])}` : '';
+  const bandQuery = [bandGoal, course !== 'all' ? `course=${course}` : ''].filter(Boolean).join('&');
   return (
     <>
-      <div className="tool-headline split-check-headline" aria-live="polite">
+      <div className="tool-headline split-check-headline">
         <div className="split-check-summary">
+          {isExample ? <span className="split-check-example-tag">Example race</span> : null}
           <p className="split-check-lead">{lead}</p>
           {more.length ? <p className="split-check-more">{more.join(' ')}</p> : null}
         </div>
-        <Stat label="Finish" value={formatDuration(times[8], true)} sub={`average ${fmtPace(avg, units)}`} />
-        <Stat label="5–20 km pace" value={formatDuration(perUnit(reading.baseline, units))}
-          sub={`per ${unitWord(units)}${units === 'mi' ? ' (3.1–12.4 mi)' : ''} · 25% slower is ${fmtPace(reading.baseline * 1.25, units)}`} />
-        <Stat label="Sustained slowdown" value={reading.slowdown ? 'Yes' : 'No'} tone={reading.slowdown ? 'bad' : 'good'}
-          sub={reading.slowdown && onsetIndex !== null ? `from ${units === 'mi' ? `${(reading.onsetKm! / KM_PER_MILE).toFixed(1)} mi (${reading.onsetKm} km)` : `${reading.onsetKm} km`} · published definition` : 'published definition: ≥25% for ≥5 km after 20 km'} />
-        <div className="tool-stat split-check-type-stat">
-          <span className="tool-stat-label">Pacing type</span>
-          <strong className="tool-stat-value">{type ? <><i style={{ background: type.colour }} aria-hidden="true" />{type.name}</> : typeError ? '—' : '…'}</strong>
-          <span className="tool-stat-sub">{type ? 'nearest of six published shapes' : typeError ? 'classifier unavailable' : 'loading the classifier'}</span>
-        </div>
+        <HeadStat label="Finish" value={finish} sub={`average ${fmtPace(avg, units)}`} evidence="arithmetic" />
+        <HeadStat label="5–20 km pace" value={formatDuration(perUnit(reading.baseline, units))}
+          sub={`per ${unitWord(units)}${units === 'mi' ? ' (3.1–12.4 mi)' : ''} · 25% slower is ${fmtPace(reading.baseline * 1.25, units)}`} evidence="arithmetic" />
+        <HeadStat label="Sustained slowdown" value={reading.slowdown ? 'Yes' : 'No'} tone={reading.slowdown ? 'bad' : 'good'} evidence="research"
+          sub={reading.slowdown && reading.onsetKm !== null ? `from ${units === 'mi' ? `${(reading.onsetKm / KM_PER_MILE).toFixed(1)} mi (${reading.onsetKm} km)` : `${reading.onsetKm} km`}, by the published definition` : '≥25% slower for ≥5 km after 20 km, by the published definition'} />
+        <HeadStat label="Pacing type" className="split-check-type-stat" evidence="data"
+          value={type ? <><i style={{ background: type.colour }} aria-hidden="true" />{type.name}</> : typeError ? '—' : '…'}
+          sub={type ? 'nearest of six Pace Notes pacing types' : typeError ? 'classifier unavailable' : 'loading the classifier'} />
       </div>
 
       <EvidencePanel kind="arithmetic" title="Your race, section by section" id="split-check-sections"
@@ -535,14 +675,14 @@ function Results({ times, reading, units, comparison, type, typeError, where, pl
 
       <ComparisonPanel comparison={comparison} times={times} units={units} where={where} course={course} genderWord={genderWord} fallbacks={fallbacks} />
 
-      <TypePanel reading={reading} type={type} error={typeError} units={units} />
+      <TypePanel reading={reading} type={type} error={typeError} retry={retryType} units={units} />
 
       <div className="print-only split-check-print">
-        <p>Pace Notes split check. Mat times entered: {CHECKPOINTS.map((km, i) => `${i === 8 ? 'Finish' : `${km} km`} ${formatDuration(times[i], true)}`).join(' · ')}.</p>
+        <p>Pace Notes split check{isExample ? ' (example race)' : ''}. Mat times entered: {CHECKPOINTS.map((km, i) => `${i === 8 ? 'Finish' : `${km} km`} ${formatDuration(times[i], true)}`).join(' · ')}.</p>
       </div>
 
       <div className="tool-callout no-print">
-        <strong>Next race?</strong> Turn a goal into a wristband beside the mat times of finishes that hit it with the <Link href={`/tools/pace-band?goal=${formatHMGoal(times[8])}${course !== 'all' ? `&course=${course}` : ''}`}>pace band</Link>, see how openings like yours played out in <Link href="/analyses/starting-pace">starting pace</Link>, and meet all six shapes in <Link href="/stories/pacing-types">six ways to run the same race</Link>.
+        <strong>Next race?</strong> Turn a goal into a wristband beside the mat times of finishes that hit it with the <Link href={`/tools/pace-band${bandQuery ? `?${bandQuery}` : ''}`}>pace band</Link>, see which qualifying standards {finish} meets with the <Link href={`/tools/qualifying?t=${finish}`}>qualifying checker</Link>, see how openings like yours played out in <Link href="/analyses/starting-pace">starting pace</Link>, and meet all six shapes in <Link href="/stories/pacing-types">six ways to run the same race</Link>.
       </div>
       <ShareBar />
     </>
@@ -593,8 +733,7 @@ function SectionChart({ reading, times, units }: { reading: SplitReading; times:
     const [a, b] = SECTION_BOUNDS[i];
     const cx = (x(a) + x(b)) / 2;
     const yp = y(paces[i]);
-    const whole = Math.round(Math.abs(v * 100));
-    const text = narrow || Math.abs(v) >= 0.1 ? (whole === 0 ? '0%' : `${v > 0 ? '+' : '−'}${whole}%`) : pctSigned(v);
+    const text = pctSigned(v, narrow || Math.abs(v) >= 0.1 ? 0 : 1);
     const w = text.length * 6.3;
     const down = v >= 0;
     let ly = down ? Math.max(yp, yB) + 13 : Math.min(yp, yB) - 5;
@@ -621,7 +760,7 @@ function SectionChart({ reading, times, units }: { reading: SplitReading; times:
     + reading.paces.map((p, i) => `${secName(i, units)}: ${fmtPace(p, units)}, ${pctSigned(reading.vsBaseline[i])}`).join('; ')
     + `. ${qualifying.length ? `At least 25% slower after 20 km: ${qualifying.join(', ')}.` : 'No 5 km section after 20 km was 25% or more slower.'}`;
   const tipX = hover === null ? 0 : Math.min(width - 96, Math.max(96, (x(SECTION_BOUNDS[hover][0]) + x(SECTION_BOUNDS[hover][1])) / 2));
-  const after = units === 'mi' ? 'after 12.4 mi (20 km)' : 'after 20 km';
+  const after = units === 'km' ? 'after 20 km' : narrow ? 'after 12.4 mi' : 'after 12.4 mi (20 km)';
 
   return (
     <>
@@ -712,7 +851,7 @@ function SectionTable({ reading, times, units }: { reading: SplitReading; times:
             const note = i === 0 ? 'opening' : i >= 1 && i <= 3 ? 'reference' : i === 8 ? 'final 2.195 km' : null;
             return (
               <tr key={i} className={`${i >= 1 && i <= 3 ? 'is-base' : ''}${tone === 'qualify' ? ' is-qualify' : ''}`.trim() || undefined}>
-                <th scope="row"><span className="split-check-sec">{secName(i, units)}</span><span className="split-check-sub">{units === 'mi' ? `${SECTION_NAMES[i]} km` : ''}{units === 'mi' && note ? ' · ' : ''}{note ?? ''}</span></th>
+                <th scope="row"><span className="split-check-sec">{secName(i, units)}</span><span className="split-check-sub">{units === 'mi' ? `${SECTION_NAMES[i]} km` : ''}{note ? <span className="split-check-note">{units === 'mi' ? ' · ' : ''}{note}</span> : null}</span></th>
                 <td>{formatDuration(times[i] - (i ? times[i - 1] : 0))}</td>
                 <td>{formatDuration(perUnit(p, units))}</td>
                 <td className={v >= 0.02 ? 'is-plus' : v <= -0.02 ? 'is-minus' : undefined}>
@@ -802,7 +941,7 @@ function OpeningPanel({ reading, units, bands, cities, place, course, gender }: 
   const href = `/analyses/starting-pace${params.toString() ? `?${params.toString()}` : ''}`;
   return (
     <EvidencePanel kind="arithmetic" id="split-check-opening"
-      title={<>Opening: {Math.abs(reading.opening) < 0.0005 ? 'level with' : `${pctAbs(reading.opening)} ${reading.opening < 0 ? 'quicker' : 'slower'} than`} your {baseName(units)} pace</>}
+      title={<>Opening: {Math.abs(reading.opening) < 0.0005 ? 'level with' : `${openingPct(reading.opening)} ${reading.opening < 0 ? 'quicker' : 'slower'} than`} your {baseName(units)} pace</>}
       meta={`First ${five} ${fmtPace(reading.paces[0], units)} against ${fmtPace(reading.baseline, units)}. The first section is not part of the reference block, so the two are compared directly.`}>
       {bands.length ? (
         <>
@@ -839,18 +978,30 @@ function ComparisonPanel({ comparison, times, units, where, course, genderWord, 
   return (
     <EvidencePanel kind="data" id="split-check-compare" title={title}
       meta={ok ? <>Complete finishes{genderWord ? ` recorded as ${genderWord}` : ''} in the 5-minute window that holds your {formatDuration(times[8], true)}, grouped by whether they had a sustained slowdown. Observed, not a grade or a plan.</> : undefined}>
-      {comparison.state === 'loading' ? <p className="tool-state" aria-live="polite">Loading the finishes at your time…</p> : null}
-      {comparison.state === 'off' ? <p className="tool-state is-error" role="alert">{comparison.message}</p> : null}
+      {comparison.state === 'loading' ? <p className="tool-state">Loading the finishes at your time…</p> : null}
+      {comparison.state === 'off' ? (
+        <div className="tool-state is-error split-check-off">
+          <p>{comparison.message}</p>
+          {comparison.retry ? (
+            <div className="split-check-actions no-print">
+              <button type="button" className="button-secondary" onClick={comparison.retry}>Try again</button>
+              {fallbacks}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       {comparison.state === 'unavailable' ? (
-        <div className="split-check-unavailable" role="status">
+        <div className="split-check-unavailable">
           <p><strong>{comparison.title}</strong> {comparison.message}</p>
-          {fallbacks}
+          {fallbacks ? <div className="split-check-actions no-print">{fallbacks}</div> : null}
         </div>
       ) : null}
       {ok ? <ComparisonBody ok={ok} times={times} units={units} where={where} course={course} fallbacks={fallbacks} /> : null}
     </EvidencePanel>
   );
 }
+
+type Column = { key: string; name: string; colour: string; cell: Cell | null };
 
 function ComparisonBody({ ok, times, units, where, course, fallbacks }: {
   ok: Extract<Comparison, { state: 'ok' }>; times: number[]; units: UnitSystem; where: string; course: string; fallbacks: ReactNode;
@@ -861,7 +1012,15 @@ function ComparisonBody({ ok, times, units, where, course, fallbacks }: {
   const h20 = at20(held);
   const s20 = at20(slow);
   const closer = h20 !== null && s20 !== null ? (Math.abs(s20) < Math.abs(h20) ? 'slow' : 'held') : null;
-  const missing = [!held ? 'held-pace' : null, !slow ? 'sustained-slowdown' : null].filter(Boolean);
+  const neither = !held && !slow;
+  // Each group with 100 finishes gets a column; when neither does, the column is the whole window instead.
+  const columns: Column[] = neither ? [{ key: 'all', name: 'All finishes', colour: 'var(--ink-3)', cell: all }]
+    : [{ key: 'held', name: 'Held pace', colour: HELD, cell: held }, { key: 'slow', name: 'Sustained slowdown', colour: SLOW, cell: slow }];
+  const missingNote = neither
+    ? ` Fewer than 100 finishes in each of the held-pace and sustained-slowdown groups, so neither is shown; the column gives the median of all ${count(all.n)} finishes in the window instead.`
+    : !held ? ' Fewer than 100 finishes in the held-pace group, so it is not shown.'
+      : !slow ? ' Fewer than 100 finishes in the sustained-slowdown group, so it is not shown.' : '';
+  const a20 = neither ? times[3] - all.e50[3] : null;
   return (
     <>
       <div className="split-check-facts">
@@ -871,18 +1030,21 @@ function ComparisonBody({ ok, times, units, where, course, fallbacks }: {
       {h20 !== null || s20 !== null ? (
         <p className="split-check-takeaway">
           At the 20 km mat you were {h20 !== null ? <Rel seconds={h20} what="the held-pace median" /> : null}{h20 !== null && s20 !== null ? ' and ' : null}{s20 !== null ? <Rel seconds={s20} what="the sustained-slowdown median" /> : null}.
-          {closer ? <> Through 20 km your times were closer to the median of finishes that {closer === 'slow' ? 'later had a sustained slowdown' : 'held pace'}.</> : null}
+          {closer ? <span className="split-check-closer"> Through 20 km your times were closer to the median of finishes that {closer === 'slow' ? 'later had a sustained slowdown' : 'held pace'}.</span> : null}
         </p>
+      ) : a20 !== null ? (
+        <p className="split-check-takeaway">At the 20 km mat you were <Rel seconds={a20} what="the median of all finishes in the window" />.</p>
       ) : null}
-      {held || slow ? <GapChart times={times} held={held} slow={slow} units={units} /> : null}
+      {!neither ? <GapChart times={times} held={held} slow={slow} units={units} /> : null}
       <div className="tool-table-wrap">
         <table className="tool-table split-check-compare">
           <thead>
             <tr>
               <th scope="col">Mat</th>
               <th scope="col" className="split-check-you-cell">You</th>
-              <th scope="col"><i className="split-check-dot" style={{ background: HELD }} aria-hidden="true" />Held pace<span className="split-check-th-sub">median · you vs it</span></th>
-              <th scope="col"><i className="split-check-dot" style={{ background: SLOW }} aria-hidden="true" />Sustained slowdown<span className="split-check-th-sub">median · you vs it</span></th>
+              {columns.map((c) => (
+                <th key={c.key} scope="col"><i className="split-check-dot" style={{ background: c.colour }} aria-hidden="true" />{c.name}<span className="split-check-th-sub">median · you vs it</span></th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -894,22 +1056,23 @@ function ComparisonBody({ ok, times, units, where, course, fallbacks }: {
                   <span className="split-check-you-inline">you {formatDuration(times[i])}</span>
                 </th>
                 <td className="split-check-you-cell">{formatDuration(times[i])}</td>
-                <td>{held ? <>{formatDuration(held.e50[i])}<span className={`split-check-delta${times[i] - held.e50[i] < 0 ? ' is-ahead' : ''}`}>{ahead(times[i] - held.e50[i])}</span></> : '—'}</td>
-                <td>{slow ? <>{formatDuration(slow.e50[i])}<span className={`split-check-delta${times[i] - slow.e50[i] < 0 ? ' is-ahead' : ''}`}>{ahead(times[i] - slow.e50[i])}</span></> : '—'}</td>
+                {columns.map((c) => (
+                  <td key={c.key}>{c.cell ? <>{formatDuration(c.cell.e50[i])}<span className={`split-check-delta${times[i] - c.cell.e50[i] < 0 ? ' is-ahead' : ''}`}>{ahead(times[i] - c.cell.e50[i])}</span></> : '—'}</td>
+                ))}
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr><th scope="row">Finishes</th><td className="split-check-you-cell" /><td>{held ? count(held.n) : '—'}</td><td>{slow ? count(slow.n) : '—'}</td></tr>
-            <tr><th scope="row">Editions</th><td className="split-check-you-cell" /><td>{held ? count(held.ed) : '—'}</td><td>{slow ? count(slow.ed) : '—'}</td></tr>
+            <tr><th scope="row">Finishes</th><td className="split-check-you-cell" />{columns.map((c) => <td key={c.key}>{c.cell ? count(c.cell.n) : '—'}</td>)}</tr>
+            <tr><th scope="row">Editions</th><td className="split-check-you-cell" />{columns.map((c) => <td key={c.key}>{c.cell ? count(c.cell.ed) : '—'}</td>)}</tr>
           </tfoot>
           <caption>
-            Median elapsed time of each group at the official mats, and how far ahead or behind it you were (ahead = you passed that mat earlier). The groups are selected by how their races ended, so the differences describe those races; they do not show what caused them.
-            {missing.length ? ` Fewer than 100 finishes in the ${missing.join(' and ')} group, so it is not shown.` : ''}
+            Median elapsed time {neither ? 'of all finishes in the window' : 'of each group'} at the official mats, and how far ahead or behind it you were (ahead = you passed that mat earlier).{neither ? '' : ' The groups are selected by how their races ended, so the differences describe those races; they do not show what caused them.'}
+            {missingNote}
           </caption>
         </table>
       </div>
-      {missing.length ? <div className="no-print">{fallbacks}</div> : null}
+      {(neither || !held || !slow) && fallbacks ? <div className="split-check-actions no-print">{fallbacks}</div> : null}
       <p className="tool-note">
         {course === 'all'
           ? <>All courses pools {editions(all.ed)} from the races in Pace Notes. If your race is not one of them, this group comes from other races and courses. </>
@@ -931,7 +1094,8 @@ function GapChart({ times, held, slow, units }: { times: number[]; held: Cell | 
   const width = useWidth(ref, 640);
   const narrow = width < 480;
   const H = narrow ? 220 : 250;
-  const m = { l: 50, r: narrow ? 70 : 96, t: 24, b: 28 };
+  // On a phone the end labels move into a key under the chart, so they are never cut off.
+  const m = { l: 50, r: narrow ? 12 : 104, t: 24, b: 28 };
   const series = [
     held ? { key: 'held', name: 'vs held pace', colour: HELD, ink: '#2346E6', d: [0, ...times.map((t, i) => t - held.e50[i])] } : null,
     slow ? { key: 'slow', name: 'vs slowdown', colour: SLOW, ink: '#B4380D', d: [0, ...times.map((t, i) => t - slow.e50[i])] } : null,
@@ -975,13 +1139,20 @@ function GapChart({ times, held, slow, units }: { times: number[]; held: Cell | 
             {s.d.slice(1).map((v, i) => <circle key={i} cx={x(CHECKPOINTS[i])} cy={y(v)} r={3.2} fill={s.colour} stroke="var(--card)" strokeWidth={1.5} />)}
           </g>
         ))}
-        {ends.map(({ s, ly }) => (
+        {narrow ? null : ends.map(({ s, ly }) => (
           <g key={s.key}>
             <text x={m.l + iw + 8} y={ly - 1} className="split-check-end" style={{ fill: s.ink }}>{s.name}</text>
             <text x={m.l + iw + 8} y={ly + 11} className="split-check-end-sub">{ahead(s.d[9])}</text>
           </g>
         ))}
       </svg>
+      {narrow ? (
+        <ul className="split-check-gap-key" aria-hidden="true">
+          {series.map((s) => (
+            <li key={s.key}><i style={{ background: s.colour }} /><b style={{ color: s.ink }}>{s.name}</b><span>{ahead(s.d[9])} at the finish</span></li>
+          ))}
+        </ul>
+      ) : null}
       <p className="split-check-axis-note">{units === 'mi' ? 'Miles' : 'Kilometres'} from the start. At zero you matched that group’s median elapsed time; every finish compared here finished in your window.</p>
     </div>
   );
@@ -991,12 +1162,16 @@ function GapChart({ times, held, slow, units }: { times: number[]; held: Cell | 
 /* Pacing type (Pace Notes data: clusters of complete finishes)        */
 /* ------------------------------------------------------------------ */
 
-function TypePanel({ reading, type, error, units }: { reading: SplitReading; type: TypeResult; error: boolean; units: UnitSystem }) {
+function TypePanel({ reading, type, error, retry, units }: { reading: SplitReading; type: TypeResult; error: string | null; retry: () => void; units: UnitSystem }) {
   if (!type) {
     return (
       <EvidencePanel kind="data" title="Pacing type" id="split-check-type">
-        {error ? <p className="tool-state is-error" role="alert">The pacing-type classifier could not be loaded or verified. Everything else on this page still applies.</p>
-          : <p className="tool-state" aria-live="polite">Loading the pacing types…</p>}
+        {error ? (
+          <div className="tool-state is-error split-check-off">
+            <p>{error === 'missing' ? 'The pacing-type classifier is not part of this build.' : `${error}`} Everything else on this page still applies.</p>
+            {error !== 'missing' ? <div className="split-check-actions no-print"><button type="button" className="button-secondary" onClick={retry}>Try again</button></div> : null}
+          </div>
+        ) : <p className="tool-state">Loading the pacing types…</p>}
       </EvidencePanel>
     );
   }
