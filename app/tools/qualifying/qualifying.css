@@ -12,8 +12,6 @@
 .qualifying-date-row { display: flex; gap: .5rem; align-items: stretch; }
 .qualifying-date-row input { flex: 1 1 auto; min-width: 0; }
 .qualifying-link-button { flex: 0 0 auto; min-height: 46px; padding: .4rem .9rem; font-size: .8125rem; }
-.qualifying-example { display: inline-block; margin-left: .35rem; padding: .05rem .5rem; border-radius: 999px; background: #FDF1D8; color: var(--gold-ink); font-family: var(--mono);
-  font-size: .625rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; vertical-align: 1px; }
 .qualifying-more { border-top: 1px solid var(--line); }
 .qualifying-more summary { display: list-item; min-height: 46px; padding: .75rem 0 .6rem; font-size: .9rem; font-weight: 600; color: var(--ink-2); }
 .qualifying-summary-value { display: inline-block; margin-left: .45rem; padding: .1rem .5rem; border-radius: 999px; background: var(--paper-2); color: var(--ink-2); font-family: var(--mono);
@@ -72,8 +70,6 @@
 .qualifying-board-row.is-muted .qualifying-board-status { color: var(--night-ink-2); }
 .qualifying-board-row.is-muted .qualifying-board-value b { color: var(--night-ink-2); }
 .qualifying-board-caption { margin-top: .5rem; padding-top: .55rem; border-top: 1px solid var(--night-3); font-size: .75rem; line-height: 1.5; color: var(--night-ink-2); }
-
-.qualifying-example-note { border-left: 4px solid var(--gold); font-size: .875rem; }
 
 /* ---------- Race cards ---------- */
 .qualifying-app { position: absolute; top: 1.3rem; right: 1.4rem; display: inline-flex; align-items: center; min-height: 24px; padding: .15rem .6rem; border-radius: 999px;
@@ -161,6 +157,8 @@
 /* ---------- Targets ---------- */
 .qualifying-buffer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; margin-bottom: .9rem; }
 .qualifying-buffer .tool-stepper { width: 12rem; }
+/* At 0 and 30 the buttons stay focusable (aria-disabled, not disabled) so keyboard focus stays put. */
+.qualifying-buffer .tool-stepper > button[aria-disabled='true'] { opacity: .45; cursor: default; }
 .qualifying-buffer-value { font-family: var(--bib); font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .qualifying-targets td a { font-weight: 700; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); text-underline-offset: 3px; }
 .qualifying-targets td:first-child { min-width: 8rem; }

@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { Choice, DataState, DurationField, EvidencePanel, ShareBar, Stat } from '@/components/tools/ui';
+import { Choice, DataState, DurationField, EvidencePanel, ExampleNote, ShareBar, Stat } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
 import { loadInsight } from '@/lib/insights';
 import { loadShard, shareUnder, type ProjectorIndex, type ProjectorShard } from '@/lib/tools/data';
 import { HALF_KM, MARATHON_KM, perKm, perUnit, unitKm } from '@/lib/tools/pace';
 import { REALISTIC_B, RIEGEL_B, TANDA_RANGE_S, marathonRange, personalExponent, riegel, tandaPace, timeForVdot, vdot, type MarathonRange } from '@/lib/tools/predictor';
+import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
 import { count } from '@/lib/viz/format';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
@@ -55,6 +56,13 @@ const AGO = [
   { value: '6+', label: 'More than 6 months ago' },
 ];
 const DEFAULTS = { d: 'half', km: '', t: '1:55:00', ago: '', to: 'marathon', d2: '', km2: '', t2: '', ago2: '', wk: '', tp: '' };
+/** Links to other tools. The pace band takes a goal from 1:30 to 8:00 and the course chooser from 2:30 to 6:30 (whole minutes). */
+const BAND_MIN_S = 90 * 60;
+const BAND_MAX_S = 480 * 60;
+const CHOOSER_MIN_S = 150 * 60;
+const CHOOSER_MAX_S = 390 * 60;
+/** The goal another tool is given for an estimate: the whole minute at or below it, so every tool reads 4:11:41 as 4:11. */
+const goalMinute = (s: number) => Math.floor(Math.round(s) / 60) * 60;
 type Query = typeof DEFAULTS;
 type LookKey = 'median' | 'riegel' | 'low' | 'high';
 interface Look { key: LookKey; label: string; chip: string; seconds: number }
@@ -479,7 +487,8 @@ function useProjector(sha: string | null, enabled: boolean) {
         ({ index, shard }) => setState({ index, shard, error: null }),
         (e: unknown) => {
           started.current = false;
-          setState({ index: null, shard: null, error: `${e instanceof Error ? e.message : 'This data could not be loaded.'} The published estimates above are unaffected.` });
+          const reason = e instanceof Error && e.message ? e.message.trim() : 'This data could not be loaded.';
+          setState({ index: null, shard: null, error: `${/[.!?]$/.test(reason) ? reason : `${reason}.`} The published estimates above are unaffected.` });
         },
       );
   }, [sha, enabled, attempt]);
@@ -571,6 +580,7 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
   indexSha: string | null; est: Estimates; looks: Look[]; look: LookKey; setLook: (k: LookKey) => void; units: UnitSystem;
 }) {
   const { index, shard, error, retry } = useProjector(indexSha, est.isMarathon);
+  const lookRef = useRef<HTMLDivElement>(null);
   const title = 'What happened to finishes on this pace at 20 km';
   if (!est.isMarathon) {
     return (
@@ -596,7 +606,7 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
   const Q = index?.quantiles ?? [];
   const i10 = qIndex(Q, 0.1); const i50 = qIndex(Q, 0.5); const i90 = qIndex(Q, 0.9);
   const lookChoice = (
-    <div className="predictor-look no-print">
+    <div className="predictor-look no-print" ref={lookRef}>
       <span className="tool-label" id="predictor-look-label">Even pace at 20 km for</span>
       <div className="segmented tool-choice is-small" role="group" aria-labelledby="predictor-look-label">
         {looks.map((l) => <button key={l.key} type="button" aria-pressed={l.key === chosen.key} onClick={() => setLook(l.key)}>{l.chip} <b>{fmtShort(l.seconds)}</b></button>)}
@@ -605,11 +615,6 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
   );
   const bandRange = `${fmtShort(band)}–${fmtShort(band + bandS)}`;
   const at20 = (s: number) => formatDuration((s * 20) / MARATHON_KM, true);
-  // The projector link's 20 km time, a whole second that lands in this same 2-minute group.
-  let link20 = Math.round((T * 20) / MARATHON_KM);
-  const groupOf = (e: number) => Math.floor((e * MARATHON_KM) / 20 / bandS) * bandS;
-  if (groupOf(link20) < band) link20 += 1;
-  else if (groupOf(link20) > band) link20 -= 1;
   const meta = (
     <>All courses. Complete finishes whose 20 km time put them on {bandRange} even pace (20 km in {at20(band)} to {at20(band + bandS)}), the pace of the {chosen.label.toLowerCase()}. This describes those finishes, not you.</>
   );
@@ -618,14 +623,8 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
   return (
     <EvidencePanel kind="data" title={title} meta={meta} id="predictor-data">
       {lookChoice}
-      {error ? (
-        <div className="predictor-load-error">
-          <p className="tool-state is-error">{error}</p>
-          <button type="button" className="button-secondary" onClick={retry}>Try again</button>
-        </div>
-      ) : null}
-      <DataState loading={!error && (!index || !shard)}>
-        {error ? null : cells && i >= 0 ? (() => {
+      <DataState error={error} loading={!error && (!index || !shard)}>
+        {cells && i >= 0 ? (() => {
           const q = cells.q[i];
           const share = shareUnder(T, q, Q);
           const sd = cells.sd[i][0] + cells.sd[i][1];
@@ -643,10 +642,10 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
                 {' '}Each bar holds 5% of the finishes; the darker bars are the middle half, and the bracket under the axis spans the 10th to 90th percentile.
               </p>
               <p className="tool-note">
-                <strong>{count(cells.n[i])} finishes from {count(cells.ed[i])} race editions.</strong> They include every runner who passed 20 km on this pace, whatever their training, goal or weather: a reality check on fading, not a prediction. Shares are interpolated between stored percentiles. Runners who stopped are not in the data. A sustained slowdown is a 5 km section after 20 km at least 25% slower than the runner’s own 5–20 km pace, with contiguous slowed sections totalling at least 5 km (<a href="https://doi.org/10.1371/journal.pone.0251513" rel="noopener noreferrer">published method</a>).
+                <strong>{count(cells.n[i])} finishes from {count(cells.ed[i])} race editions.</strong> They are every complete finish that passed 20 km on this pace, whatever the runner’s training, goal or weather: a reality check on fading, not a prediction. Shares are interpolated between stored percentiles. Runners who stopped are not in the data. {SLOWDOWN_DEFINITION} Source: <a href={SLOWDOWN_CITATION.url} rel="noopener noreferrer">{SLOWDOWN_CITATION.label}</a>.
               </p>
               <p className="predictor-copy no-print">
-                <Link href={`/tools/projector?mat=20&t=${formatDuration(link20, true)}&target=${formatDuration(T, true)}&v=all`}>Open this group in the race-day projector</Link> for the arrival windows at each later mat, or to pick one course.
+                On race day, the <Link href={`/tools/projector?mat=20&target=${formatDuration(T, true)}&t=none&v=all`}>race-day projector</Link> takes your tracker time at 20 km or any other 5 km mat and shows where finishes on that pace went. This link opens it with {fmtTime(T)} as the target, waiting for your time.
               </p>
             </>
           );
@@ -657,6 +656,13 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
           </p>
         )}
       </DataState>
+      {error ? (
+        <button type="button" className="button-secondary predictor-retry" onClick={() => {
+          // The button goes away while the data reloads, so focus moves to the estimate buttons above it first.
+          lookRef.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus();
+          retry();
+        }}>Try again</button>
+      ) : null}
     </EvidencePanel>
   );
 }
@@ -667,7 +673,11 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
 
 export default function Predictor({ indexSha }: { indexSha: string | null }) {
   const { units } = useUnits();
-  const [q, setQ, ready] = useQueryState<Query>(DEFAULTS);
+  const [q, setQuery, ready, fromUrl] = useQueryState<Query>(DEFAULTS);
+  // The example note shows while every input is the untouched example; any change, or a link with values, hides it.
+  const [edited, setEdited] = useState(false);
+  const setQ = useCallback((patch: Partial<Query>) => { setEdited(true); setQuery(patch); }, [setQuery]);
+  const isExample = !edited && fromUrl.size === 0;
   const [converted, setConverted] = useState<string | null>(null);
   const [open2, setOpen2] = useState(false);
   const [openT, setOpenT] = useState(false);
@@ -675,6 +685,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
   const [typing, setTyping] = useState(false);
   const lastGood = useRef<{ km: number; seconds: number } | null>(null);
   const race2Ref = useRef<HTMLInputElement>(null);
+  const second = useRef<HTMLElement>(null);
   const tandaRef = useRef<HTMLDetailsElement>(null);
   const uid = useId();
 
@@ -778,12 +789,14 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
   }
   const chartLabel = est ? `Predicted ${est.target.name} times by method. ${rows.map((r) => `${r.label}: ${r.kind === 'range' ? `${fmtTime(r.lo!)} to ${fmtTime(r.hi!)}, median ${fmtTime(r.mid!)}` : r.value}`).join('. ')}.` : '';
 
+  // Pace-band goals: the whole minute at or below each estimate, inside the band's 1:30 to 8:00.
   const bandTimes = est?.range
-    ? [...new Set([est.riegel, est.range.low, est.range.median, est.range.high].map((s) => Math.round(s / 60) * 60))].filter((s) => s >= 5400 && s <= 28800).sort((a, b) => a - b)
+    ? [...new Set([est.riegel, est.range.low, est.range.median, est.range.high].map(goalMinute))].filter((s) => s >= BAND_MIN_S && s <= BAND_MAX_S).sort((a, b) => a - b)
     : [];
 
-  const medianMinute = est?.range ? Math.round(est.range.median / 60) * 60 : null;
+  const medianMinute = est?.range ? goalMinute(est.range.median) : null;
   const medianGoal = medianMinute !== null && bandTimes.includes(medianMinute) ? medianMinute : null;
+  const chooserGoal = medianMinute !== null && medianMinute >= CHOOSER_MIN_S && medianMinute <= CHOOSER_MAX_S ? medianMinute : null;
 
   const openSecond = () => { setOpen2(true); setTimeout(() => race2Ref.current?.focus(), 30); };
   const openTanda = () => { setOpenT(true); setTimeout(() => tandaRef.current?.querySelector('input')?.focus(), 30); };
@@ -825,7 +838,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
           </div>
 
           <details className="predictor-more" open={open2} onToggle={(e) => setOpen2(e.currentTarget.open)}>
-            <summary>
+            <summary ref={second}>
               Add a second race <span className="predictor-optional">optional</span>
               {race2?.ok && est?.personal && 'b' in est.personal ? <span className="predictor-summary-value">exponent {est.personal.b.toFixed(2)}</span> : null}
             </summary>
@@ -841,7 +854,13 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
                 hint={race2?.ok && t2 !== null ? `Read as ${spoken(t2)} · ${fmtPace(race2.seconds / race2.km, units)}` : undefined}
                 onText={(text) => setQ({ t2: text, d2: q.d2 || dist2.key })} />
               <AgoSelect id={`${uid}-ago2`} value={q.ago2} onChange={(v) => setQ({ ago2: v })} />
-              {q.t2 ? <button type="button" className="predictor-link-button" onClick={() => setQ({ t2: '', d2: '', km2: '', ago2: '' })}>Remove the second race</button> : null}
+              {q.t2 ? (
+                <button type="button" className="predictor-link-button" onClick={() => {
+                  // This button goes away with the race, so focus moves to the disclosure it sits in first.
+                  second.current?.focus();
+                  setQ({ t2: '', d2: '', km2: '', ago2: '' });
+                }}>Remove the second race</button>
+              ) : null}
             </div>
           </details>
 
@@ -857,11 +876,18 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
                 hint={tandaIssue?.field === 'wk' && tandaIssue.missing ? tandaIssue.error : undefined}
                 error={tandaIssue?.field === 'wk' && !tandaIssue.missing ? tandaIssue.error : null}
                 onChange={(km) => setQ({ wk: km === null ? '' : String(km) })} />
-              <DurationField label={`Average training pace (per ${units === 'mi' ? 'mile' : 'km'})`} mode="pace" value={tp === null ? null : perUnit(tp, units)} placeholder={units === 'mi' ? '9:30' : '5:55'}
+              {/* The pace is stored per km to 0.1 s; shown in whole seconds per unit, so a typed 9:30/mi reads back as 9:30 and the text is never rewritten mid-typing. */}
+              <DurationField label={`Average training pace (per ${units === 'mi' ? 'mile' : 'km'})`} mode="pace" value={tp === null ? null : Math.round(perUnit(tp, units))} placeholder={units === 'mi' ? '9:30' : '5:55'}
                 onChange={(s) => setQ({ tp: s === null ? '' : String(Math.round(perKm(s, units) * 10) / 10) })}
                 hint={tandaIssue?.field === 'tp' && tandaIssue.missing ? `${tandaIssue.error} All runs, not just easy ones.` : 'All runs, not just easy ones.'}
                 error={tandaIssue?.field === 'tp' && !tandaIssue.missing ? tandaIssue.error : undefined} />
-              {q.wk || q.tp ? <button type="button" className="predictor-link-button" onClick={() => setQ({ wk: '', tp: '' })}>Clear training volume</button> : null}
+              {q.wk || q.tp ? (
+                <button type="button" className="predictor-link-button" onClick={() => {
+                  // This button goes away with the values, so focus moves to the weekly distance first.
+                  tandaRef.current?.querySelector('input')?.focus();
+                  setQ({ wk: '', tp: '' });
+                }}>Clear training volume</button>
+              ) : null}
             </div>
           </details>
         </form>
@@ -872,6 +898,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
             <p className="tool-empty">{emptyText}</p>
           ) : (
             <>
+              {isExample ? <ExampleNote>Example: a {DEFAULTS.t} half marathon run in the last 3 months. Type your own recent race; everything updates as you type.</ExampleNote> : null}
               <Headline est={est} dist={dist1} units={units} />
               {stale.length ? (
                 <p className="tool-callout predictor-stale"><strong>{stale.join(' and ')} {stale.length > 1 ? 'were' : 'was'} more than 6 months ago.</strong> Every method here assumes the race reflects your fitness now; a recent race predicts better.</p>
@@ -887,7 +914,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
                 ) : null}
                 {bandTimes.length ? (
                   <div className="predictor-bandlinks no-print">
-                    <span>Make a pace band at</span>
+                    <span>Make a pace band at the minute at or below each estimate</span>
                     <ul>
                       {bandTimes.map((s) => <li key={s}><Link href={`/tools/pace-band?goal=${formatHM(s)}`}>{formatHM(s)}</Link></li>)}
                     </ul>
@@ -905,10 +932,13 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
                 <strong>Next steps.</strong>{' '}
                 {est.range ? (
                   <>
-                    {medianGoal !== null ? <>Print a <Link href={`/tools/pace-band?goal=${formatHM(medianGoal)}`}>pace band for {formatHM(medianGoal)}</Link>, compare courses near this pace in the <Link href={`/tools/course-chooser?goal=${formatHM(medianGoal)}`}>course chooser</Link>, or check</> : 'Check'}
-                    {' '}the median estimate, {formatDuration(est.range.median, true)}, against Boston, New York, London and others in the <Link href={`/tools/qualifying?t=${formatDuration(est.range.median, true)}`}>qualifying checker</Link>.
+                    {medianGoal !== null ? <>Print a <Link href={`/tools/pace-band?goal=${formatHM(medianGoal)}`}>pace band for {formatHM(medianGoal)}</Link>, the whole minute at or below the median estimate ({formatDuration(est.range.median, true)}).{' '}</> : null}
+                    {chooserGoal !== null
+                      ? <>Compare courses near this pace in the <Link href={`/tools/course-chooser?goal=${formatHM(chooserGoal)}`}>course chooser</Link>,</>
+                      : <>Compare courses in the <Link href="/tools/course-chooser">course chooser</Link>, which covers goals from 2:30 to 6:30 (so it opens without this one),</>}
+                    {' '}or look up the standards for your age group in the <Link href="/tools/qualifying">qualifying checker</Link>.
                   </>
-                ) : <>Check a marathon time against Boston, New York, London and others in the <Link href="/tools/qualifying">qualifying checker</Link>.</>}
+                ) : <>Look up the marathon standards for your age group, from Boston, New York, London and others, in the <Link href="/tools/qualifying">qualifying checker</Link>.</>}
               </div>
               <ShareBar />
             </>
