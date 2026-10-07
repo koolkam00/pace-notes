@@ -1,0 +1,114 @@
+'use client';
+
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { formatDuration, parseDuration, type DurationMode } from '@/lib/tools/time';
+
+/**
+ * A duration input that keeps the visitor's text while they type and reports seconds (or null) upward.
+ * Accepts h:mm:ss, mm:ss, "3h30", minutes, and keypad dots ("8.05").
+ */
+export function DurationField({ label, value, onChange, mode = 'race', placeholder, hint, id, autoFocus, large = false }: {
+  label: ReactNode; value: number | null; onChange: (seconds: number | null) => void; mode?: DurationMode;
+  placeholder?: string; hint?: ReactNode; id?: string; autoFocus?: boolean; large?: boolean;
+}) {
+  const auto = useId();
+  const inputId = id ?? auto;
+  const [text, setText] = useState(value === null ? '' : formatDuration(value, mode === 'race'));
+  const [touched, setTouched] = useState(false);
+  const last = useRef(value);
+  useEffect(() => {
+    // Follow outside changes (steppers, presets) without fighting the visitor's typing.
+    if (value !== last.current) {
+      last.current = value;
+      if (value === null || parseDuration(text, mode) !== value) setText(value === null ? '' : formatDuration(value, mode === 'race'));
+    }
+  }, [value, mode, text]);
+  const parsed = text.trim() ? parseDuration(text, mode) : null;
+  const invalid = touched && text.trim() !== '' && parsed === null;
+  return (
+    <div className={`tool-field${large ? ' is-large' : ''}`}>
+      <label htmlFor={inputId}>{label}</label>
+      <input id={inputId} inputMode="decimal" autoComplete="off" spellCheck={false} placeholder={placeholder} autoFocus={autoFocus}
+        value={text} aria-invalid={invalid || undefined} aria-describedby={hint || invalid ? `${inputId}-hint` : undefined}
+        onChange={(e) => {
+          setText(e.target.value);
+          const next = e.target.value.trim() ? parseDuration(e.target.value, mode) : null;
+          last.current = next;
+          onChange(next);
+        }}
+        onBlur={() => { setTouched(true); if (parsed !== null) setText(formatDuration(parsed, mode === 'race')); }} />
+      {invalid ? <p className="tool-field-hint is-error" id={`${inputId}-hint`}>Try {mode === 'race' ? '3:30:00, 3:30 or 210' : '8:05'}.</p>
+        : hint ? <p className="tool-field-hint" id={`${inputId}-hint`}>{hint}</p> : null}
+    </div>
+  );
+}
+
+/** Pill buttons for choosing one option. */
+export function Choice<T extends string | number>({ label, options, value, onChange, small = false }: {
+  label: string; options: { value: T; label: ReactNode }[]; value: T; onChange: (v: T) => void; small?: boolean;
+}) {
+  return (
+    <div className={`segmented tool-choice${small ? ' is-small' : ''}`} role="group" aria-label={label}>
+      {options.map((o) => <button key={String(o.value)} type="button" aria-pressed={o.value === value} onClick={() => onChange(o.value)}>{o.label}</button>)}
+    </div>
+  );
+}
+
+/** − / + buttons around a value, for nudging a goal by a minute. */
+export function Stepper({ label, onStep, step = 60, children }: { label: string; onStep: (delta: number) => void; step?: number; children: ReactNode }) {
+  return (
+    <div className="tool-stepper">
+      <button type="button" aria-label={`${label}: ${step >= 60 ? `${step / 60} minute` : `${step} seconds`} faster`} onClick={() => onStep(-step)}>−</button>
+      <div className="tool-stepper-value">{children}</div>
+      <button type="button" aria-label={`${label}: ${step >= 60 ? `${step / 60} minute` : `${step} seconds`} slower`} onClick={() => onStep(step)}>+</button>
+    </div>
+  );
+}
+
+/** A big number with a label, for headline results. */
+export function Stat({ label, value, sub, tone }: { label: ReactNode; value: ReactNode; sub?: ReactNode; tone?: 'good' | 'warn' | 'bad' | 'muted' }) {
+  return (
+    <div className={`tool-stat${tone ? ` is-${tone}` : ''}`}>
+      <span className="tool-stat-label">{label}</span>
+      <strong className="tool-stat-value">{value}</strong>
+      {sub ? <span className="tool-stat-sub">{sub}</span> : null}
+    </div>
+  );
+}
+
+/** A panel whose header says what kind of evidence is inside. */
+export function EvidencePanel({ kind, title, meta, children, id }: { kind: 'arithmetic' | 'data' | 'research' | 'official'; title: ReactNode; meta?: ReactNode; children: ReactNode; id?: string }) {
+  const label = { arithmetic: 'Arithmetic', data: 'Pace Notes data', research: 'Published research', official: 'Official standards' }[kind];
+  return (
+    <section className={`tool-panel panel-${kind}`} id={id}>
+      <header className="tool-panel-head">
+        <span className={`evidence-badge evidence-${kind}`}>{label}</span>
+        <h2 className="tool-panel-title">{title}</h2>
+        {meta ? <p className="tool-panel-meta">{meta}</p> : null}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+/** Copy-link and print buttons. */
+export function ShareBar({ print = true, extra }: { print?: boolean; extra?: ReactNode }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="tool-share no-print">
+      <button type="button" className="button-secondary" onClick={async () => {
+        try { await navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { /* clipboard unavailable */ }
+      }}>{copied ? 'Link copied' : 'Copy link'}</button>
+      {print ? <button type="button" className="button-secondary" onClick={() => window.print()}>Print</button> : null}
+      {extra}
+      <span className="sr-only" aria-live="polite">{copied ? 'Link copied to the clipboard' : ''}</span>
+    </div>
+  );
+}
+
+/** Loading and error states for data panels. */
+export function DataState({ error, loading, children }: { error?: string | null; loading?: boolean; children?: ReactNode }) {
+  if (error) return <p className="tool-state is-error" role="alert">{error}</p>;
+  if (loading) return <p className="tool-state" aria-live="polite">Loading the data…</p>;
+  return <>{children}</>;
+}

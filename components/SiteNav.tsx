@@ -30,6 +30,7 @@ export default function SiteNav() {
     return () => { nav.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
   }, [path]);
   return <nav ref={ref} aria-label="Main navigation" className="main-nav">
+    <Link href="/tools" aria-current={within('/tools') ? 'page' : undefined}>Tools</Link>
     <Link href="/stories" aria-current={within('/stories') ? 'page' : undefined}>Stories</Link>
     <Link href="/analyses" aria-current={within('/analyses') ? 'page' : undefined}>Plan your race</Link>
     <Link href="/courses" aria-current={within('/courses') ? 'page' : undefined}>Courses</Link>
