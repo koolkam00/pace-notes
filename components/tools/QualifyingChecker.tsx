@@ -584,7 +584,7 @@ function RaceCard({ it, birth, raceDate, seconds, division, dropFeet, dropShown,
           <div className="is-key">
             <dt>{s.key === 'boston' ? 'Time counted' : 'Your time'}</dt>
             <dd>
-              {s.key === 'boston' && index === null ? <><b>—</b><span>A net drop of {dropShown} is 6,000 ft or more: not accepted.</span></>
+              {s.key === 'boston' && index === null ? <><b>—</b><span>A {dropShown} net drop: 6,000 ft or more is not accepted.</span></>
                 : s.key === 'boston' && index ? <><b>{fmtTime(r.counted)}</b><span>{fmtTime(seconds)} chip + {index / 60}:00 downhill index for a {dropShown} net drop</span></>
                 : <><b>{fmtTime(seconds)}</b><span>{s.key === 'boston' ? (dropFeet !== undefined ? `Chip time; no downhill index for a ${dropShown} drop (under 1,500 ft)` : 'Chip time; add a course drop for the downhill index') : timeHint}</span></>}
             </dd>
