@@ -113,9 +113,17 @@ export function ShareBar({ print = true, extra }: { print?: boolean; extra?: Rea
   );
 }
 
-/** Loading and error states for data panels. */
+/**
+ * Loading and error states for data panels. The status sits in one region that stays mounted while the panel is,
+ * so screen readers hear each change once instead of a region appearing and disappearing.
+ */
 export function DataState({ error, loading, children }: { error?: string | null; loading?: boolean; children?: ReactNode }) {
-  if (error) return <p className="tool-state is-error" role="alert">{error}</p>;
-  if (loading) return <p className="tool-state" aria-live="polite">Loading the data…</p>;
-  return <>{children}</>;
+  return (
+    <>
+      {/* Visually hidden and absolutely positioned, so it adds no gap inside grid layouts. */}
+      <p className="sr-only" aria-live="polite">{error ?? (loading ? 'Loading the data…' : '')}</p>
+      {/* The live region above carries the text for assistive tech; the visible copy is not read twice. */}
+      {error ? <p className="tool-state is-error" aria-hidden="true">{error}</p> : loading ? <p className="tool-state" aria-hidden="true">Loading the data…</p> : children}
+    </>
+  );
 }

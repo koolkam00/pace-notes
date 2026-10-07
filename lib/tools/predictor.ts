@@ -50,6 +50,7 @@ export const tandaPace = (kmPerWeek: number, trainingPace: number) => 17.1 + 140
 export interface MarathonRange {
   /** Riegel 1.06: the familiar calculator answer, best case if fully marathon-trained. */
   riegel: number;
+  /** NaN when the Daniels–Gilbert solution lies beyond 48 hours (walking paces); callers must check. */
   daniels: number;
   low: number;
   median: number;
