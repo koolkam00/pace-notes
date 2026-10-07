@@ -149,6 +149,8 @@ a.tool-card:hover { text-decoration: none; transform: translateY(-3px); box-shad
 .tool-method { margin-top: 2rem; padding: .2rem 1.3rem; border: 1px solid var(--line); border-radius: 16px; background: var(--card); }
 .tool-method-body { padding: .3rem 0 1.2rem; display: grid; gap: .8rem; color: var(--ink-2); font-size: .9375rem; line-height: 1.65; max-width: 52rem; }
 .tool-sources { display: grid; gap: .35rem; padding-left: 1.1rem; font-size: .875rem; }
+/* Grid gap spaces the cards; cancel the site-wide stacked-list margin. */
+.tool-next li + li { margin-top: 0; }
 .tool-next { margin: 3rem 0 1rem; }
 .tool-next ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); gap: .6rem; list-style: none; padding: 0; margin: .8rem 0 0; }
 .tool-next a { display: grid; gap: .15rem; padding: .8rem 1rem; border: 1px solid var(--line); border-left: 4px solid var(--tool); border-radius: 12px; background: var(--card); color: var(--ink); }

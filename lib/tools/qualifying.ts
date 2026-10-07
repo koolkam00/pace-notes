@@ -202,8 +202,18 @@ export function evaluate(s: Standard, input: QualifyInput): QualifyResult {
   if (!band) return { standard: s, age, ageLabel, band: null, limit: null, counted, margin: null, status: 'not-eligible', notes: [`No standard for age ${age}.`] };
   const limit = input.division === 'nonbinary' ? band.nonbinary ?? null : band[input.division];
   if (limit === null) return { standard: s, age, ageLabel, band, limit: null, counted, margin: null, status: 'no-category', notes: [s.nonbinaryNote] };
+  if (s.maxNetDropM !== undefined && input.dropFeet !== undefined && input.dropFeet * 0.3048 > s.maxNetDropM) {
+    const metres = Math.round(input.dropFeet * 0.3048).toLocaleString('en-US');
+    return { standard: s, age, ageLabel, band, limit, counted, margin: null, status: 'not-eligible',
+      notes: [`Courses with a net drop of more than ${s.maxNetDropM} m are not accepted; this one drops about ${metres} m.`] };
+  }
   const margin = limit - counted;
-  const inside = input.raceDate >= s.windowStart && (!s.windowEnd || input.raceDate <= s.windowEnd);
+  // A time must be run inside the window and before applications close for this edition.
+  const end = [s.windowEnd, s.applications?.closes].filter((d): d is string => Boolean(d)).sort()[0];
+  const inside = input.raceDate >= s.windowStart && (!end || input.raceDate <= end);
+  if (end && end === s.applications?.closes && end !== s.windowEnd && input.raceDate > end) {
+    notes.push(`Applications for this edition close ${end}, so a time run after that cannot be submitted for it.`);
+  }
   const passes = s.comparison === 'strictly-under' ? margin > 0 : margin >= 0;
   if (s.key === 'london' && input.ukResident === false) notes.push('London Good For Age places are for UK residents only.');
   if (s.key === 'nyc') notes.push(input.nyrr ? 'An NYRR race time meeting the standard gives guaranteed entry.' : 'A non-NYRR time enters the capped, fastest-first pool.');

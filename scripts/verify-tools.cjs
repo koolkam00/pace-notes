@@ -178,6 +178,20 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   assert.ok(cut && cut.note.includes(boston.randomSelection.drawn.toLocaleString('en-US')), 'Boston random selection matches the cut-off history');
   checks += 3;
 }
+// Windows end at the earlier of the qualifying window and the application deadline; Sydney rejects big drops.
+{
+  const q = (key) => qualifying.STANDARDS.find((s) => s.key === key);
+  const runner = { birth: '1985-06-01', division: 'women', seconds: H(3, 0) };
+  assert.equal(qualifying.evaluate(q('berlin'), { ...runner, raceDate: '2026-11-01' }).status, 'meets');
+  assert.equal(qualifying.evaluate(q('berlin'), { ...runner, raceDate: '2026-11-20' }).status, 'outside-window', 'Berlin: run after registration closes');
+  assert.equal(qualifying.evaluate(q('sydney'), { ...runner, raceDate: '2026-09-01' }).status, 'meets');
+  assert.equal(qualifying.evaluate(q('sydney'), { ...runner, raceDate: '2026-10-01' }).status, 'outside-window', 'Sydney: run after the application window');
+  const steep = qualifying.evaluate(q('sydney'), { ...runner, raceDate: '2026-09-01', dropFeet: 500 / 0.3048 });
+  assert.equal(steep.status, 'not-eligible'); assert.equal(steep.limit, H(3, 27)); assert.equal(steep.margin, null);
+  assert.equal(qualifying.evaluate(q('sydney'), { ...runner, raceDate: '2026-09-01', dropFeet: 450 / 0.3048 }).status, 'meets');
+  assert.equal(qualifying.evaluate(q('london'), { ...runner, raceDate: '2026-09-30' }).status, 'meets', 'London window end wins over its later application close');
+  checks += 8;
+}
 // Deep links carry only times and a course slug.
 {
   const links = require('../lib/tools/links.ts');
