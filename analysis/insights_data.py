@@ -63,6 +63,7 @@ class Finishes:
         for name in ('times', 'edition', 'gender', 'age', 'exact_age', 'profile', 'paces', 'baseline', 'finish', 'city', 'year'):
             setattr(out, name, getattr(self, name)[mask])
         out.editions, out.cities = self.editions, self.cities
+        out.raw_by_edition = getattr(self, 'raw_by_edition', None)
         out.edition_city, out.edition_year = self.edition_city, self.edition_year
         out.n = int(mask.sum()) if mask.dtype == bool else len(mask)
         return out
@@ -81,6 +82,7 @@ def read_finishes(runner_root, pin, script_root):
     manifest, manifest_sha = verified_manifest(runner_root, pin, script_root)
     editions = manifest['editions']
     times, edition, gender, age, exact, profile = array('d'), array('H'), array('B'), array('B'), array('d'), array('Q')
+    raw_by_edition = np.zeros(len(editions), dtype=np.int64)
     record_ids = array('Q')
     raw = eligible = 0
     for relative, expected in sorted(manifest['shards'].items()):
@@ -95,6 +97,7 @@ def read_finishes(runner_root, pin, script_root):
         for p in shard['profiles']:
             for race in p['races']:
                 raw += 1
+                raw_by_edition[race['edition']] += 1
                 record_ids.append(race['id'])
                 if not race['eligible']:
                     continue
@@ -124,6 +127,7 @@ def read_finishes(runner_root, pin, script_root):
                         np.frombuffer(exact, dtype=np.float64).copy(),
                         np.frombuffer(profile, dtype=np.uint64).copy(),
                         editions)
+    finishes.raw_by_edition = raw_by_edition
     return finishes, manifest, manifest_sha
 
 
@@ -188,3 +192,16 @@ def start_offset_screen(f):
             audit.append(dict(city=ed['city'], year=ed['year'], finishes=n, median_gap_points=round(g, 2)))
     keep = ~np.isin(f.edition, flagged)
     return keep, sorted(audit, key=lambda a: (a['city'], a['year']))
+
+
+def granular_age_editions(f):
+    """Editions whose recorded ages look like exact ages: at least 30 distinct integer ages and under 40% multiples of 5.
+
+    Some sources record age-group floors (30, 35, 40, …) in the age field; those are never treated as exact ages.
+    """
+    keep = []
+    for e in np.unique(f.edition):
+        a = f.exact_age[(f.edition == e) & np.isfinite(f.exact_age)]
+        if len(a) >= 100 and len(np.unique(a)) >= 30 and np.mean(a % 5 == 0) < .4:
+            keep.append(int(e))
+    return keep

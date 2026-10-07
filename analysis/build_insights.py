@@ -80,6 +80,7 @@ def load_cohort(cache=None):
         manifest, manifest_sha = verified_manifest(runner_root, pin, ROOT / 'analysis')
         z = np.load(cache)
         f = insights_data.Finishes(z['times'], z['edition'], z['gender'], z['age'], z['exact_age'], z['profile'], manifest['editions'])
+        f.raw_by_edition = z['raw_by_edition'] if 'raw_by_edition' in z else None
         if f.n != manifest['eligible_records']:
             raise ValueError('Cached arrays do not match the runner manifest')
     else:

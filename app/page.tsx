@@ -6,14 +6,16 @@ import { count } from '@/lib/personalized';
 import CreatorCredit from '@/components/CreatorCredit';
 import { getStudyEvidence } from '@/lib/research-data';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
-import type { Archetypes, CourseGeometry, FinishTimes, Positions, ReplayIndex } from '@/lib/insights';
+import type { Archetypes, CourseGeometry, Courses, Demographics, FinishTimes, Positions, ReplayIndex } from '@/lib/insights';
+import { Untangle } from '@/components/story/WeatherStory';
+import { GhostRace } from '@/components/story/DemographicsStory';
 import { BreakEven, GapGauge } from '@/components/story/PlacesStory';
 import ArchetypeChapter from '@/components/story/ArchetypeChapter';
 import { PacingBarcode, WhichArchetype } from '@/components/story/ArchetypeStory';
 import HeroReplay, { type ReplayChoice } from '@/components/story/HeroReplay';
 import RunnerLane from '@/components/art/RunnerLane';
 import { FinishHistogram, Rescue, SecondsLens } from '@/components/story/FinishTimeStory';
-import { Distance } from '@/components/story/Units';
+import { Distance, PerDegree, TemperatureStep } from '@/components/story/Units';
 
 export default function Page() {
   const { summary } = getAnalysisStart();
@@ -30,6 +32,7 @@ export default function Page() {
   const cliffRepeat = types.transitions.rows[4];
   const places = readInsight<Positions>('positions.json');
   const coin30 = places.coin_flip['30'].find((r) => r.gap_lo_s === 60)!;
+  const demo = readInsight<Demographics>('demographics.json');
   const geometry = readInsight<{ courses: CourseGeometry[] }>('course-geometry.json');
   const routes = new Map(geometry.courses.map((c) => [c.city, { points: c.route, km: c.route_km }]));
   const choices: ReplayChoice[] = replay.editions.map((e) => ({ ...e, version: manifest.files[e.file].sha256, route: routes.get(e.city) ?? null }));
@@ -38,6 +41,7 @@ export default function Page() {
   const three = finish.marks.find((m) => m.minutes === 180)!;
   const four = finish.bubble.find((b) => b.minutes === 240)!;
   const years = manifest.cohort;
+  const courses = manifest.files['courses.json'] ? readInsight<Courses>('courses.json') : null;
   return <div className="home">
     <section className="night night-grain bleed hero" aria-labelledby="hero-title">
       <div className="container hero-inner">
@@ -128,6 +132,34 @@ export default function Page() {
       <div className="chapter-body"><BreakEven data={places} /></div>
       <a className="chapter-more" href="/stories/places">More on places gained and lost <span aria-hidden="true">→</span></a>
     </section>
+
+    <section id="who-holds-pace" className="chapter" aria-labelledby="who-title">
+      <div className="chapter-head">
+        <p className="chapter-num">Chapter 04 · Gender and age</p>
+        <h2 id="who-title" className="chapter-title">Same finish time, <em>different race</em>.</h2>
+        <p className="chapter-dek">Compare recorded women and men who finished the same race in the same minute. The men were well ahead at halfway; the women caught them by the line.</p>
+      </div>
+      <div className="nugget">
+        <span className="nugget-number">{(demo.overall.men_slowdown / demo.overall.women_slowdown).toFixed(1)}×</span>
+        <p className="nugget-text">as many matched men&apos;s finishes as women&apos;s had a <strong>sustained slowdown</strong> ({(demo.overall.men_slowdown * 100).toFixed(0)}% against {(demo.overall.women_slowdown * 100).toFixed(0)}%). The gap appears at almost every finish time, and every women&apos;s age group paces more evenly than every men&apos;s.</p>
+      </div>
+      <div className="chapter-body"><GhostRace data={demo} /></div>
+      <a className="chapter-more" href="/stories/who-holds-pace">See the gap at every finish time and age <span aria-hidden="true">→</span></a>
+    </section>
+
+    {courses ? <section id="courses-weather" className="chapter" aria-labelledby="courses-weather-title">
+      <div className="chapter-head">
+        <p className="chapter-num">Chapter 05 · Courses and weather</p>
+        <h2 id="courses-weather-title" className="chapter-title">Same course, <em>warmer morning</em>.</h2>
+        <p className="chapter-dek">Pool every race and the start temperature barely seems to matter. Compare each course only with itself and a clear pattern appears: warmer editions of the same course had more finishes with a sustained slowdown.</p>
+      </div>
+      <div className="nugget">
+        <span className="nugget-number">{courses.weather.pairs.hotter_slowed_more}<small>/{courses.weather.pairs.total}</small></span>
+        <p className="nugget-text">same-course pairs of editions at least <TemperatureStep c={courses.weather.pairs.min_gap_c} /> apart where the <strong>warmer one had more sustained slowdown</strong>. Within a course, each degree goes with <PerDegree perC={courses.weather.fits.slowdown_within.slope} unit="points" />.</p>
+      </div>
+      <div className="chapter-body"><Untangle weather={{ editions: courses.weather.editions, fits: courses.weather.fits }} /></div>
+      <Link className="chapter-more" href="/stories/courses">Course fingerprints, heat and two decades of races <span aria-hidden="true">→</span></Link>
+    </section> : null}
 
     <section id="the-ten" className="chapter home-analyses" aria-labelledby="the-ten-title">
       <div className="chapter-head">

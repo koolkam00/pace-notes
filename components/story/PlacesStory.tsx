@@ -70,7 +70,7 @@ export function GapGauge({ data }: { data: Positions }) {
           })}
           <line x1={x(gap)} x2={x(gap)} y1={m.t} y2={m.t + ih} stroke="#15171C" strokeDasharray="3 3" />
           <circle cx={x(row.gap_lo_s + 15)} cy={y(share)} r={6} fill={colours[cp]} stroke="#FFFDF8" strokeWidth={2} />
-          {[0, 120, 240, 360, 480, 600, 720, 840].map((s) => <text key={s} x={x(s)} y={H - 20} textAnchor="middle">{s / 60} min</text>)}
+          {(width < 560 ? [0, 240, 480, 720] : [0, 120, 240, 360, 480, 600, 720, 840]).map((s) => <text key={s} x={x(s)} y={H - 20} textAnchor="middle">{s / 60} min</text>)}
           <text x={m.l + iw / 2} y={H - 4} textAnchor="middle" className="axis-label">gap behind on the clock at the checkpoint</text>
         </svg>
       </div>
@@ -142,7 +142,7 @@ export function BreakEven({ data }: { data: Positions }) {
           <text className="annotation" x={x(cross) + 6} y={m.t + 12}>break-even ≈ {cross.toFixed(1)}% slower</text>
           <text className="annotation-sub" x={x(x0 + 1)} y={y(0) - 8}>gained places ↑</text>
           <text className="annotation-sub" x={x(x0 + 1)} y={y(0) + 18}>lost places ↓</text>
-          {[-10, 0, 10, 20, 30, 40, 50, 60].filter((v) => v >= x0 && v <= x1).map((v) => <text key={v} x={x(v)} y={H - 20} textAnchor="middle">{v > 0 ? `+${v}%` : `${v}%`}</text>)}
+          {(width < 560 ? [-10, 10, 30, 50] : [-10, 0, 10, 20, 30, 40, 50, 60]).filter((v) => v >= x0 && v <= x1).map((v) => <text key={v} x={x(v)} y={H - 20} textAnchor="middle">{v > 0 ? `+${v}%` : `${v}%`}</text>)}
           {[-10, -5, 0, 5, 10].filter((v) => v >= yMin && v <= yMax).map((v) => <text key={v} x={m.l - 8} y={y(v) + 4} textAnchor="end">{v > 0 ? `+${v}` : v}</text>)}
           {hov ? <circle cx={x(hov.x)} cy={y(hov.median)} r={5} fill="#2346E6" stroke="#FFFDF8" strokeWidth={2} /> : null}
           <rect x={m.l} y={m.t} width={iw} height={ih} fill="transparent" onMouseMove={(e) => {

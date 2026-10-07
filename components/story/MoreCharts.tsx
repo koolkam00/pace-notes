@@ -5,7 +5,7 @@ import { useWidth } from '@/components/viz/useSize';
 import { useUnits } from '@/components/UnitsProvider';
 import type { Archetypes, ReplayIndex } from '@/lib/insights';
 import { hms } from '@/lib/viz/format';
-import { ARCHETYPE_COLOURS } from './ArchetypeStory';
+import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
 
 /** Archetype mix by course (each edition weighted equally), sortable by any type. */
 export function CourseTypes({ data }: { data: Archetypes }) {

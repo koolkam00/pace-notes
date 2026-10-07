@@ -40,10 +40,19 @@ export interface ReplayEditionMeta {
   slug: string; city: string; year: number; race: string; finishes: number; sample: number;
   first_finish_s: number; median_finish_s: number; last_finish_s: number; file: string;
   snapshots: { clock_s: number; finished_share: number; front10_km: number; median_km: number; back10_km: number }[];
+  moments?: {
+    first_finish_s: number; not_past_20_at_first: number; not_past_10_at_first: number; past_30_at_first: number; back_km_at_first: number;
+    half_home_s: number; half_home_ratio: number; finish_quantiles_s: Record<string, number>; peak_minute: number; peak_minute_n: number; minute_240_n: number;
+  };
+  composition?: { clock_s: number; on_course: number; current_kmh: number; whole_race_kmh: number; composition_share?: number | null }[];
+  ghosts?: { target_s: number; ahead: number[]; net_passes: number; typical_20km_s: number | null; even_20km_s: number; near_n: number | null }[];
+  pack?: { checkpoint_km: number; window_start_s: number; n: number; quantiles: { km: number; p10_s: number; p50_s: number; p90_s: number }[]; finish_window_min: number };
 }
 export interface ReplayIndex {
   editions: ReplayEditionMeta[];
   field_spread: { km: number; p10_s: number; p25_s: number; p50_s: number; p75_s: number; p90_s: number }[];
+  stretch?: { editions: { city: string; year: number; n: number; stretch: number }[]; wider_after_20: number; mean: number;
+    min: { city: string; year: number; n: number; stretch: number }; max: { city: string; year: number; n: number; stretch: number } };
   method: string;
 }
 export interface ReplayRows { slug: string; city: string; year: number; finishes: number; sample: number; rows: number[][] }
@@ -111,5 +120,85 @@ export interface Positions {
   gender_editions: { city: string; year: number; women: number; men: number; women_n: number; men_n: number }[];
   women_ahead_editions: number;
   groups: { label: string; n: number; median: number; gained: number; surgers: number; sinkers: number }[];
+  method: string;
+}
+
+export interface DemographicBand {
+  lo_min: number; label: string; matched_weight: number; women_n: number; men_n: number;
+  women_slowdown: number; men_slowdown: number; women_block: number; men_block: number; women_kick: number; men_kick: number;
+  ghost_s: number[]; women_profile: number[]; men_profile: number[];
+}
+export interface Demographics {
+  cohort_n: number;
+  overall: { matched_weight: number; editions: number; pooled_women_block: number; pooled_men_block: number; women_block: number; men_block: number; block_gap_ci95: [number, number];
+    women_slowdown: number; men_slowdown: number; slowdown_gap_ci95: [number, number]; women_kick: number; men_kick: number; women_negative: number; men_negative: number };
+  ghost_s: number[];
+  bands: DemographicBand[];
+  ladder: { gender: 'Men' | 'Women'; age: string; n: number; median_finish_s: number; slowdown: number; slowdown_vs_field: number; block_vs_field: number }[];
+  age_contrast: { young: string; older: string; young_n: number; older_n: number; matched_weight: number; young_slowdown: number; older_slowdown: number; young_block: number; older_block: number; young_ahead_at_20km_s: number; slowdown_gap_ci95: [number, number] };
+  granular_age_cities: string[]; granular_age_n: number;
+  composition_flagged: { city: string; year: number }[];
+  women_share_by_band: { lo_min: number; label: string; n: number; women_share: number }[];
+  women_share_by_city: { city: string; years: { year: number; n: number; women_share: number }[] }[];
+  method: string;
+}
+
+export interface CourseSummary {
+  city: string; race: string; finishes: number; editions: number; years: number[];
+  median_s: number; slowdown: number; slowdown_range: [number, number]; slowdown_range_years: [number, number];
+  block10: number; after20_s: number; shape_editions: number;
+  curve?: number[]; deviation?: number[]; signature?: number[]; fade?: number; fade_range?: [number, number];
+  signature_section?: string; signature_points?: number; slowest_section?: string;
+  bands?: { band: string; n: number; deviation: number[] }[];
+  grade_pct?: number[]; identified?: { editions: number; correct: number };
+}
+export interface Slope { slope: number; ci95: [number, number]; r2: number; editions: number; courses: number }
+export interface WeatherEdition { city: string; year: number; n: number; temp: number; dew: number; wind: number; humidity: number; slowdown: number; median_s: number; fade: number | null }
+export interface EraCourse {
+  city: string; pre_editions: number; post_editions: number; coverage_pre: number; coverage_post: number; high_coverage: boolean;
+  p10: [number, number]; median: [number, number]; p90: [number, number]; sub3: [number, number]; slowdown: [number, number]; temp: [number, number] | null;
+}
+export interface EraChange { change: number; ci95: [number, number]; lower: number; higher: number }
+export interface Courses {
+  sections: string[]; typical_curve: number[];
+  shape_cohort: { editions: number; courses: number; finishes: number; start_offset_editions: { city: string; year: number; finishes: number; median_gap_points: number }[] };
+  edition_cohort: { editions: number; courses: number; finishes: number };
+  courses: CourseSummary[];
+  identification: {
+    method: string; variants: Record<string, number>; editions_tested: number; courses: number; correct: number; top3: number; chance: number;
+    per_course: { city: string; editions: number; correct: number }[];
+    editions: { city: string; year: number; n: number; predicted: string; rank: number; signature: number[] }[];
+  };
+  grade_association: { slope: number; ci95: [number, number]; pearson_r: number; course_sections: number; courses: number };
+  weather: {
+    cohort: { editions: number; courses: number; finishes: number };
+    excluded: { city: string; year: number; n: number; reason: string }[];
+    mean_start_temp: number;
+    editions: WeatherEdition[];
+    fits: {
+      slowdown_across: { slope: number; r2: number; editions: number };
+      slowdown_within: Slope; finish_within: Slope; block_within: Slope; dew_within: Slope; warming_within: Slope; wind_within: Slope; humidity_within: Slope; fade_within: Slope;
+      slowdown_within_year_control: { slope: number; ci95: [number, number]; year_slope: number; year_ci95: [number, number] };
+      slowdown_within_leave_one_course_out: [number, number];
+    };
+    curvature: {
+      finish_min_per_c: { temp: number; slope: number; ci95: [number, number] }[];
+      slowdown_points_per_c: { temp: number; slope: number; ci95: [number, number] }[];
+      finish_min_curve: { temp: number; change: number }[];
+      slowdown_points_curve: { temp: number; change: number }[];
+    };
+    heat_signature: { section: string; per_10c: number; ci95: [number, number] }[];
+    pairs: { min_gap_c: number; total: number; hotter_slowed_more: number; list: { city: string; hot_year: number; cool_year: number; hot_temp: number; cool_temp: number; hot_slowdown: number; cool_slowdown: number; hotter_slowed_more: boolean }[] };
+    hot_cool: { city: string; editions: number; hot: { year: number; temp: number; slowdown: number; median_s: number }; cool: { year: number; temp: number; slowdown: number; median_s: number } }[];
+    per_course_slopes: { city: string; editions: number; slope: number; pearson_r: number }[];
+  };
+  matched: { lo_s: number; hi_s: number; label: string; courses: { city: string; editions: number; finishes: number; slowdown: number; after20_s: number; mean_baseline_s: number }[] }[];
+  years: {
+    by_year: { year: number; editions: number; courses: number; finishes: number; pooled_median_s: number; median_s: number; slowdown: number }[];
+    cells: { city: string; year: number; n: number; median_s: number; slowdown: number; temp: number | null }[];
+    eras: { pre: [number, number]; post: [number, number]; coverage_rule: number; high_coverage_courses: string[]; summary: Record<'p10' | 'median' | 'p90' | 'sub3' | 'slowdown' | 'spread', EraChange> & { temp: { change: number; courses: number } }; courses: EraCourse[] };
+    recovery: { city: string; n2019: number; first_back_year: number | null; first_back_n: number | null; latest_year: number; latest_n: number }[];
+    trends: Record<'median' | 'p10' | 'p90' | 'sub3' | 'slowdown', Slope>;
+  };
   method: string;
 }

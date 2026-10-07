@@ -1,8 +1,21 @@
 import AnalysisIndex from '@/components/AnalysisIndex';
 import WeatherIndex from '@/components/WeatherIndex';
 import { UnitLink as Link } from '@/components/UnitsProvider';
+import RunnerLane from '@/components/art/RunnerLane';
 
-export const metadata = { title: 'Explore the analyses | Pace Notes', description: 'Ten essential runner questions, plus new weather comparisons grounded in race-edition evidence.' };
+export const metadata = { title: 'Plan your race | Pace Notes', description: 'Ten essential runner questions, plus weather comparisons grounded in race-edition evidence.' };
 export default function AnalysesPage() {
-  return <section className="analyses-directory"><header className="directory-heading"><p className="eyebrow">One race. A better understanding.</p><h1>Find your<br /><span>next question.</span></h1><p>Start with the essential ten, in priority order. Change the comparison to make it relevant to your race, or explore the new weather questions below.</p></header><AnalysisIndex /><WeatherIndex /><section className="analysis-request-callout"><div><p className="eyebrow">Your next question</p><h2>What else should we explore?</h2><p>Tell Andrew what you would like to learn from the marathon data.</p></div><Link className="text-link" href="/request-analysis">Request an analysis <span aria-hidden="true">↗</span></Link></section></section>;
+  return <section className="analyses-directory">
+    <header className="night night-grain bleed story-hero directory-hero">
+      <div className="container">
+        <p className="eyebrow">Plan your race · the essential ten</p>
+        <h1 className="story-title">Find your next question.</h1>
+        <p className="hero-dek">Ten questions in priority order. Pick a course, a finish time and an age group and every answer recalculates from millions of eligible finishes. Weather questions that passed a separate evidence check follow below.</p>
+      </div>
+      <RunnerLane dark height={96} runners={[{ finishMinutes: 180, label: '3:00' }, { finishMinutes: 240, label: '4:00' }, { finishMinutes: 300, label: '5:00' }]} />
+    </header>
+    <div className="directory-body"><AnalysisIndex /></div>
+    <WeatherIndex />
+    <section className="analysis-request-callout"><div><p className="eyebrow">Your next question</p><h2>What else should we explore?</h2><p>Tell Andrew what you would like to learn from the marathon data.</p></div><Link className="text-link" href="/request-analysis">Request an analysis <span aria-hidden="true">↗</span></Link></section>
+  </section>;
 }

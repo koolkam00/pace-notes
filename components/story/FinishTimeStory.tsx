@@ -148,7 +148,7 @@ export function SecondsLens({ data }: { data: FinishTimes }) {
           <path d={lens.bins.map((b, i) => `${i ? 'L' : 'M'}${(x(b.offset_s) + bw / 2).toFixed(1)} ${y(b.expected).toFixed(1)}`).join(' ')} fill="none" stroke="#15171C" strokeDasharray="4 3" strokeWidth={1.3} />
           <line x1={x(0)} x2={x(0)} y1={m.t - 6} y2={m.t + ih} stroke="#15171C" strokeWidth={1.5} />
           <text className="annotation" x={x(0) + 6} y={m.t + 4}>{lens.mark}:00</text>
-          {[-300, -240, -180, -120, -60, 0, 60, 120, 180, 240].map((o) => (
+          {(width < 560 ? [-300, -180, -60, 0, 120, 240] : [-300, -240, -180, -120, -60, 0, 60, 120, 180, 240]).map((o) => (
             <text key={o} x={x(o)} y={H - 12} textAnchor="middle">{o === 0 ? '0' : `${o > 0 ? '+' : '−'}${Math.abs(o) / 60}:00`}</text>
           ))}
         </svg>
@@ -203,7 +203,7 @@ export function Rescue({ data }: { data: FinishTimes }) {
           <path d={line('share_under')} fill="none" stroke="#FF5B2E" strokeWidth={3} strokeLinejoin="round" />
           <line x1={x(0)} x2={x(0)} y1={m.t} y2={m.t + ih} stroke="#15171C" />
           <text className="annotation" x={x(0) + 6} y={m.t + 12}>on pace for {b.mark}:00</text>
-          {[-120, -60, 0, 60, 120, 180].filter((s) => s >= x0 && s <= x1).map((s) => (
+          {(width < 560 ? [-120, 0, 120] : [-120, -60, 0, 60, 120, 180]).filter((s) => s >= x0 && s <= x1).map((s) => (
             <text key={s} x={x(s)} y={H - 20} textAnchor="middle">{s === 0 ? '0' : `${s > 0 ? '+' : '−'}${Math.abs(s) / 60}:00`}</text>
           ))}
           <text x={m.l + iw / 2} y={H - 4} textAnchor="middle" className="axis-label">projected finish at 40 km, relative to the mark (min:s)</text>

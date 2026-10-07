@@ -87,7 +87,9 @@ def run(profiles, output, context_manifest):
     actual = sha256(profiles)
     require(actual == expected, 'course_profiles.parquet does not match the adopted runner-context input')
     db = duckdb.connect()
-    rows = db.execute('SELECT * FROM read_parquet(?) ORDER BY city', [str(profiles)]).df().to_dict('records')
+    result = db.execute('SELECT * FROM read_parquet(?) ORDER BY city', [str(profiles)])
+    columns = [c[0] for c in result.description]
+    rows = [dict(zip(columns, row)) for row in result.fetchall()]
     courses = [course(row) for row in rows]
     require(len({c['city'] for c in courses}) == len(courses), 'Expected one supplied profile per city')
     payload = dict(schema_version=1, release_tag=manifest['release_tag'], input_as_of=manifest['input_as_of'],

@@ -8,8 +8,8 @@ import { useUnits } from '@/components/UnitsProvider';
 import { SKIN_TONES } from '@/lib/art/gait';
 import type { Archetypes } from '@/lib/insights';
 import { count, hms, paceColour } from '@/lib/viz/format';
+import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
 
-export const ARCHETYPE_COLOURS = ['#17A673', '#2F5BFF', '#F4B23E', '#7A4DFF', '#E2416B', '#FF5B2E'];
 const SECTION_KM = [5, 5, 5, 5, 5, 5, 5, 5, 2.195];
 const BOUNDS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 42.195];
 
@@ -54,7 +54,7 @@ export function ArchetypeRace({ data, focus, onFocus }: { data: Archetypes; focu
   const cums = useMemo(() => lanes.map((a) => timeline(a.profile)), [lanes]);
   const leader = Math.max(...cums.map((c) => distanceAt(c, u).km));
   const size = laneH * 0.86;
-  const marks = units === 'mi' ? [0, 5, 10, 15, 20, 25].map((mi) => mi * 1.609344).concat([42.195]) : [0, 10, 20, 30, 40, 42.195];
+  const marks = mobile ? [0, 21.0975, 42.195] : units === 'mi' ? [0, 5, 10, 15, 20, 25].map((mi) => mi * 1.609344).concat([42.195]) : [0, 10, 20, 30, 40, 42.195];
   return (
     <div className="viz-card dark archetype-race">
       <div className="viz-head">
@@ -69,7 +69,7 @@ export function ArchetypeRace({ data, focus, onFocus }: { data: Archetypes; focu
           {marks.map((km) => (
             <g key={km}>
               <line x1={X(km)} x2={X(km)} y1={8} y2={H - 30} stroke={km === 0 || km >= 42 ? '#F4B23E' : '#252B36'} strokeDasharray={km === 0 || km >= 42 ? undefined : '2 5'} />
-              <text x={X(km)} y={H - 12} textAnchor="middle">{km === 0 ? 'start' : km >= 42 ? 'finish' : units === 'mi' ? `${Math.round(km / 1.609344)} mi` : `${km} km`}</text>
+              <text x={X(km)} y={H - 12} textAnchor={km === 0 ? 'start' : km >= 42 ? 'end' : 'middle'}>{km === 0 ? 'start' : km >= 42 ? 'finish' : units === 'mi' ? `${(km / 1.609344).toFixed(km === 21.0975 ? 1 : 0)} mi` : `${km % 1 ? km.toFixed(1) : km} km`}</text>
             </g>
           ))}
           {lanes.map((a, i) => {
@@ -91,7 +91,7 @@ export function ArchetypeRace({ data, focus, onFocus }: { data: Archetypes; focu
                 ) : null}
                 <RunnerGlyph phase={time * (1.6 - effort * 0.5) + i * 0.17} effort={effort} x={X(pos.km) - size * 0.46} y={y + laneH - 10 - size * 1.08} scale={size / 100}
                   kit={ARCHETYPE_COLOURS[i]} skin={SKIN_TONES[(i * 2 + 1) % SKIN_TONES.length]} shorts="#0B0E12" shadow={false} />
-                {mobile ? <text x={X(pos.km) + size * 0.35} y={y + 16} className="lane-name-sm" fill={ARCHETYPE_COLOURS[i]}>{a.name}</text> : null}
+                {mobile ? <text x={trackX1} y={y + 12} textAnchor="end" className="lane-name-sm" fill={ARCHETYPE_COLOURS[i]}>{a.name}</text> : null}
               </g>
             );
           })}
@@ -161,7 +161,7 @@ export function PacingBarcode({ data }: { data: Archetypes }) {
           {Array.from({ length: 10 }, (_, k) => {
             const km = BOUNDS[k];
             const label = k === 0 ? '0' : k === 9 ? (units === 'mi' ? '26.2 mi' : '42.2 km') : units === 'mi' ? (km / 1.609344).toFixed(1) : String(km);
-            if (mobile && k % 2 === 1 && k !== 9) return null;
+            if (mobile && (k % 2 === 1 || k === 8) && k !== 9) return null;
             return <text key={k} x={m.l + cw * k} y={m.t - 10} textAnchor={k === 0 ? 'start' : k === 9 ? 'end' : 'middle'}>{label}</text>;
           })}
           {rows.map((row, i) => row.median.map((v, k) => (
