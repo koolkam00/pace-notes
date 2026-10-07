@@ -7,6 +7,8 @@ import CreatorCredit from '@/components/CreatorCredit';
 import { getStudyEvidence } from '@/lib/research-data';
 import { clientArchetypes, getInsightsManifest, readInsight, replayChoices } from '@/lib/insights-server';
 import { STORIES, storyHref } from '@/lib/stories';
+import { TOOLS, toolHref } from '@/lib/tools/registry';
+import ToolIcon from '@/components/tools/ToolIcon';
 import type { Archetypes, CourseGeometry, Courses, Demographics, FinishTimes, Positions, ReplayIndex } from '@/lib/insights';
 import { Untangle } from '@/components/story/WeatherStory';
 import { GhostRace } from '@/components/story/DemographicsStory';
@@ -47,6 +49,8 @@ export default function Page() {
   const years = manifest.cohort;
   const courses = manifest.files['courses.json'] ? readInsight<Courses>('courses.json') : null;
   const stories = STORIES.filter((s) => manifest.files[s.file]);
+  const tools = TOOLS.filter((t) => !t.file || manifest.files[t.file]);
+  const toolCohort = manifest.files['tools/projector.json'] ? readInsight<{ cohort_n: number }>('tools/projector.json').cohort_n : null;
   return <StoryData value={{ archetypes: types, finish, positions: places }}><div className="home">
     <section className="night night-grain bleed hero" aria-labelledby="hero-title">
       <div className="container hero-inner">
@@ -186,6 +190,26 @@ export default function Page() {
         ))}
       </ol>
     </section>
+
+    {tools.length ? <section id="tools" className="chapter home-tools" aria-labelledby="tools-title">
+      <div className="chapter-head">
+        <p className="chapter-num">Runner tools</p>
+        <h2 id="tools-title" className="chapter-title">Plan your next race on <em>real</em> finishes.</h2>
+        <p className="chapter-dek">Most calculators assume you will hold your pace to the finish. These pair exact arithmetic and published research with what {toolCohort ? `${(toolCohort / 1e6).toFixed(2)} million` : 'millions of'} recorded finishes actually did, and label which is which.</p>
+      </div>
+      <ul className="home-tools-grid">
+        {tools.map((t) => (
+          <li key={t.slug}>
+            <Link href={toolHref(t)} className="home-tool" style={{ ['--tool' as string]: t.accent }}>
+              <ToolIcon slug={t.slug} className="home-tool-icon" />
+              <span className="home-tool-title">{t.title}</span>
+              <span className="home-tool-short">{t.short}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <Link className="chapter-more" href="/tools">All runner tools <span aria-hidden="true">→</span></Link>
+    </section> : null}
 
     <section id="the-ten" className="chapter home-analyses" aria-labelledby="the-ten-title">
       <div className="chapter-head">

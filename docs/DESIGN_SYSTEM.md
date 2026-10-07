@@ -53,11 +53,19 @@ The fonts are self-hosted through `@fontsource-variable/*`, imported in `app/lay
   - `useTicker(active, fps, limit)`: decorative loops (runner lanes, the magnet runner, the gap gauge, the heat runner) pass `limit = 30` so they settle after 30 s on screen.
   - `components/story/CourseArt.tsx`: supplied routes with an `animateMotion` runner that runs the course once and stops at the finish, and elevation profiles.
 - **Replay**: `components/viz/RaceReplay.tsx`, a Canvas field with Gaussian lanes, straight and route views, and a HUD.
+- **Tools** (`app/tools/tools.css`, `components/tools`):
+  - `ToolHeader` (icon, title, dek, evidence badges), `ToolMethod` (method, limits, sources) and `ToolNext` (related tools), all server components.
+  - `.tool-workspace`: inputs (`.tool-inputs`) beside results (`.tool-results`) on desktop, stacked on phones. A headline result (`.tool-headline` with `Stat`) comes first, then detail.
+  - `EvidencePanel`: every result panel's header names its evidence kind with a coloured `.evidence-badge` and text (arithmetic, Pace Notes data, published research, official standards).
+  - Inputs: `DurationField` keeps the visitor's text while typing and accepts `3:30:00`, `3:30`, `3h30`, `210` and keypad dots. `Choice` is a `.segmented` group; `Stepper` nudges a value by a minute.
+  - `ShareBar` (copy link, print) and `.print-only` / `.no-print` for printable pace charts and wristbands.
+  - Each tool's card and icon use its registry accent (`--tool`).
 
 ## Rules
 
 - **Units.** Miles are the default. Any distance, pace, elevation or temperature in client copy goes through `useUnits` (`Distance`, `Pace`, `Section`, `Temperature`, `TemperatureStep`, `PerDegree` in `components/story/Units.tsx`). Analysis thresholds stay metric. Recorded sections are labelled by their boundaries, never as invented mile splits.
-- **Language.** Say "sustained slowdown", never "the wall". Use association language only. Counts are finishes. Story copy contains no release tags.
+- **Language.** Say "sustained slowdown", never "the wall". Use association language only. Counts are finishes. Story copy contains no release tags. Tool results from data are observed shares of complete finishes, never "your chance".
+- **Tools.** Results appear instantly without a submit button and default to a full example (a 4:00 goal). The results region is `aria-live="polite"`. Inputs live in the URL so links can be shared, except birth dates.
 - **Motion.** The footer's `MotionToggle` pauses every animated figure for the whole site. It is stored per browser, sets `data-motion-off` on `<html>` and feeds `usePrefersReducedMotion`. Content animations that loop (six runners, the ghost race, the two runners) also have their own `.viz-pause` button. The replay has play and pause controls.
 - **Charts.**
   - Every SVG has `role="img"` and an `aria-label` stating the finding. Labels stay static; they do not change every frame.

@@ -160,4 +160,19 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   checks += 4;
 }
 
+// Registry copy that quotes the tool cohort must match the published data.
+{
+  const registry = require('../lib/tools/registry.ts');
+  const projector = path.join(__dirname, '..', 'public/data/insights/tools/projector.json');
+  if (fs.existsSync(projector)) {
+    const n = JSON.parse(fs.readFileSync(projector, 'utf8')).cohort_n;
+    assert.ok(registry.EVIDENCE_TEXT.data.includes(`${(n / 1e6).toFixed(2)} million`), 'Evidence text quotes the tool cohort');
+    checks++;
+  }
+  const slugs = registry.TOOLS.map((t) => t.slug);
+  assert.equal(new Set(slugs).size, slugs.length, 'Tool slugs are unique');
+  for (const t of registry.TOOLS) assert.ok(fs.existsSync(path.join(__dirname, '..', 'app/tools', t.slug, 'page.tsx')), `${t.slug}: page exists`);
+  checks += 1 + registry.TOOLS.length;
+}
+
 console.log(`Tool libraries passed ${checks} checks: time parsing, pace arithmetic and splits, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading and the pacing-type classifier.`);

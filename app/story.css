@@ -505,6 +505,14 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 }
 .course-mornings { display: grid; gap: 1.25rem; }
 .home-story-grid { margin-top: 1.6rem; }
+.home-tools-grid { list-style: none; margin: 1.6rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr)); gap: .8rem; }
+.home-tools-grid li + li { margin: 0; }
+.home-tool { position: relative; display: grid; grid-template-columns: 44px 1fr; grid-template-rows: auto auto; column-gap: .9rem; row-gap: .1rem; align-items: center; height: 100%; padding: 1rem 1.1rem; border-radius: 16px; background: var(--card); border: 1px solid var(--line); color: var(--ink); overflow: hidden; transition: transform .2s var(--ease), box-shadow .2s var(--ease), border-color .2s var(--ease); }
+.home-tool::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--tool, var(--orange)); }
+.home-tool:hover { text-decoration: none; transform: translateY(-2px); box-shadow: var(--shadow); border-color: color-mix(in srgb, var(--tool) 40%, var(--line)); }
+.home-tool-icon { grid-row: 1 / 3; width: 44px; height: 44px; color: var(--tool); }
+.home-tool-title { font-family: var(--serif); font-variation-settings: 'opsz' 72, 'SOFT' 40; font-size: 1.2rem; font-weight: 640; line-height: 1.1; letter-spacing: -.01em; align-self: end; }
+.home-tool-short { font-size: .875rem; color: var(--ink-3); line-height: 1.35; align-self: start; }
 .fp-stats dd small { display: block; margin-top: .15rem; font-family: var(--sans); font-size: .6875rem; font-weight: 500; letter-spacing: 0; color: var(--ink-3); }
 
 .story-section .share-grid > .viz-card, .story-section .snapshot-grid > .viz-card { margin-top: 0; }

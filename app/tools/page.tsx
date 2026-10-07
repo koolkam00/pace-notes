@@ -2,7 +2,7 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import RunnerLane from '@/components/art/RunnerLane';
 import ToolIcon from '@/components/tools/ToolIcon';
 import { EvidenceBadge } from '@/components/tools/ToolShell';
-import { getInsightsManifest } from '@/lib/insights-server';
+import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { TOOLS, toolHref, type ToolGroup } from '@/lib/tools/registry';
 
 export const metadata = {
@@ -20,6 +20,7 @@ const GROUPS: { group: ToolGroup; title: string }[] = [
 export default function ToolsPage() {
   const manifest = getInsightsManifest();
   const available = TOOLS.filter((t) => !t.file || manifest.files[t.file]);
+  const cohort = manifest.files['tools/projector.json'] ? readInsight<{ cohort_n: number }>('tools/projector.json').cohort_n : null;
   return (
     <div className="tools-page">
       <section className="night night-grain bleed tools-hero">
@@ -28,7 +29,7 @@ export default function ToolsPage() {
           <h1 className="story-title">Tools that know how marathons <em>really</em> go.</h1>
           <p className="hero-dek">
             Most calculators assume you will hold your pace to the finish. Most runners don’t. These tools pair exact arithmetic and published
-            research with what 3.26 million recorded finishes actually did, and say plainly which is which.
+            research with what {cohort ? `${(cohort / 1e6).toFixed(2)} million` : 'millions of'} recorded finishes actually did, and say plainly which is which.
           </p>
         </div>
         <RunnerLane dark height={100} runners={[{ finishMinutes: 180, label: '3:00' }, { finishMinutes: 210, label: '3:30' }, { finishMinutes: 240, label: '4:00' }, { finishMinutes: 300, label: '5:00' }]} />

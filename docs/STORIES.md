@@ -33,6 +33,7 @@ Every count is a race finish, not a unique person. No published group has fewer 
 | Who holds their pace (`/stories/who-holds-pace`) | `insights_demographics.py` | `demographics.json` | Women and men matched within edition × finish minute, the ghost race, 10-minute bands, the exact-age ladder and women's share. |
 | Every course has a fingerprint (`/stories/courses`) | `insights_courses.py` | `courses.json` | Course pace curves against the typical curve, the fade multiplier and signature, leave-one-out course identification, weather (within-course slopes, same-course pairs, heat signature), a matched 5–20 km pace comparison, and years and pandemic eras. |
 | (course art) | `build_course_geometry.py` | `course-geometry.json` | Simplified supplied routes and elevation every 0.5 km, used for illustrations only. |
+| (runner tools) | `insights_tool_projector.py`, `insights_tool_paceband.py`, `insights_tool_weather.py`, `insights_tool_coursegoal.py` | `tools/*.json` plus shards | Data for the `/tools` pages on the final-kick cohort; see [runner tools](TOOLS.md). |
 
 `manifest.json` binds all of these to:
 - the release tag;
