@@ -1,9 +1,13 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { createHash } from 'node:crypto';
 import CourseChooser, { type ScreenedCourse } from '@/components/tools/CourseChooser';
 import { ToolHeader, ToolMethod, ToolNext } from '@/components/tools/ToolShell';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { getCourseNames, slugifyCity } from '@/lib/course-data';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
-import type { CourseGoal } from '@/lib/tools/data';
+import type { InsightsManifest } from '@/lib/insights';
+import type { CourseGoal, PaceBandShard } from '@/lib/tools/data';
 import './course-chooser.css';
 
 export const metadata = {
@@ -13,12 +17,40 @@ export const metadata = {
 
 const FILE = 'tools/course-goal.json';
 
-function load(): { sha: string | null; data: CourseGoal | null } {
+function load(): { sha: string | null; data: CourseGoal | null; bandGoals: Record<string, number[]> | null } {
   try {
-    const sha = getInsightsManifest().files[FILE]?.sha256 ?? null;
-    return { sha, data: sha ? readInsight<CourseGoal>(FILE) : null };
+    const manifest = getInsightsManifest();
+    const sha = manifest.files[FILE]?.sha256 ?? null;
+    const data = sha ? readInsight<CourseGoal>(FILE) : null;
+    return { sha, data, bandGoals: data ? paceBandGoals(manifest, data) : null };
   } catch {
-    return { sha: null, data: null };
+    return { sha: null, data: null, bandGoals: null };
+  }
+}
+
+/**
+ * For each course, the goals on this tool's grid where the pace band has observed data for that course
+ * (100 or more finishes in the five minutes under the goal). A row whose goal is missing links to the
+ * all-course band instead. Each shard is checked against the verified manifest digest; null when the
+ * pace-band family is not in this build, so links fall back to the course and the pace band explains.
+ */
+function paceBandGoals(manifest: InsightsManifest, data: CourseGoal): Record<string, number[]> | null {
+  try {
+    const out: Record<string, number[]> = {};
+    for (const course of data.courses) {
+      const name = `tools/pace-band/${course.slug}/all.json`;
+      const meta = manifest.files[name];
+      if (!meta) { out[course.slug] = []; continue; }
+      const bytes = fs.readFileSync(path.join(process.cwd(), 'public/data/insights', name));
+      if (createHash('sha256').update(bytes).digest('hex') !== meta.sha256) return null;
+      const shard = JSON.parse(bytes.toString()) as PaceBandShard & { release_tag?: string };
+      if (shard.release_tag !== manifest.release_tag) return null;
+      const observed = new Set(shard.groups.all?.g ?? []);
+      out[course.slug] = data.rows.filter((r) => r.city === course.city && observed.has(r.goal)).map((r) => r.goal);
+    }
+    return out;
+  } catch {
+    return null;
   }
 }
 
@@ -50,7 +82,7 @@ function yearRuns(years: number[]): string {
 }
 
 export default function CourseChooserPage() {
-  const { sha, data } = load();
+  const { sha, data, bandGoals } = load();
   const pages = coursePages();
   const offsets = data?.screens?.start_offset ?? [];
   const grid = data?.screens?.grid ?? [];
@@ -72,7 +104,7 @@ export default function CourseChooserPage() {
   return (
     <div className="container tool-page">
       <ToolHeader slug="course-chooser" />
-      <CourseChooser sha={sha} pages={pages.map((p) => p.slug)} screened={screened} />
+      <CourseChooser sha={sha} pages={pages.map((p) => p.slug)} screened={screened} bandGoals={bandGoals} />
       <ToolMethod sources={[
         { label: 'Smyth B (2021). PLOS ONE 16(5): e0251513, the published definition of a sustained slowdown used here. doi:10.1371/journal.pone.0251513', url: 'https://doi.org/10.1371/journal.pone.0251513' },
       ]}>
@@ -88,7 +120,7 @@ export default function CourseChooserPage() {
           {grid.length ? <> Left out because the mat grid was shifted: {editionList(grid)}.</> : null}
           {fewEditions.length ? <> Never published, with fewer than {data?.min_editions ?? 3} editions after these screens: {fewEditions.map((c) => c.city).join(', ')}{screened.length ? `, plus ${screened.map((s) => s.city).join(' and ')}, which ${screened.length === 1 ? 'has' : 'have'} none` : ''}.</> : null}
         </p>
-        <p><strong>Related.</strong> The <Link href="/analyses/course-comparison">course comparison</Link> uses wider pace bands and shows each course’s pacing fingerprint. For any course here, the <Link href="/tools/pace-band">pace band</Link> shows what finishes that hit your goal ran at each 5 km mat.</p>
+        <p><strong>Related.</strong> The <Link href="/analyses/course-comparison">course comparison</Link> uses wider pace bands and shows each course’s pacing fingerprint. For any course here, the <Link href="/tools/pace-band">pace band</Link> shows what finishes that came in within five minutes under your goal ran at each 5 km mat. That is a different group from a row here, which is chosen on 5–20 km pace, so a course can have a row at a goal and still have fewer than 100 finishes just under it; those rows link to the all-course band, marked “all courses”.</p>
       </ToolMethod>
       <ToolNext current="course-chooser" />
     </div>

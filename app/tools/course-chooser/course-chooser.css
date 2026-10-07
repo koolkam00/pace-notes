@@ -28,6 +28,7 @@
 .course-chooser-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr)); gap: 1rem .9rem; }
 .course-chooser-stats .tool-stat-value { white-space: nowrap; font-size: clamp(1.45rem, 6.2vw, 2.6rem); }
 .course-chooser-foot { padding-top: .95rem; border-top: 1px solid var(--night-3); font-size: .875rem; line-height: 1.6; color: var(--night-ink-2); }
+.course-chooser-retry { justify-self: start; margin-top: .6rem; }
 
 /* ---------- Panel, toolbar, caveat ---------- */
 .course-chooser-toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); align-items: end; gap: .8rem 1rem; margin-bottom: .9rem; }
@@ -44,6 +45,12 @@
 
 .course-chooser-defs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: .7rem 1.4rem; margin: 0 0 1.1rem; padding: .9rem 1rem; border-radius: 14px; background: var(--paper); }
 .course-chooser-defs > div { display: grid; align-content: start; gap: .2rem; min-width: 0; }
+.course-chooser-defs-narrow { display: none; margin: 0 0 1rem; border-radius: 14px; background: var(--paper); }
+.course-chooser-defs-narrow > summary { display: flex; align-items: center; gap: .45rem; min-height: 44px; padding: 0 1rem; font-size: .8125rem; font-weight: 600; color: var(--ink-2); list-style: none; cursor: pointer; }
+.course-chooser-defs-narrow > summary::-webkit-details-marker { display: none; }
+.course-chooser-defs-narrow > summary::before { content: ''; width: 0; height: 0; border-left: 6px solid var(--cc-ink); border-top: 4.5px solid transparent; border-bottom: 4.5px solid transparent; transition: transform .15s var(--ease); }
+.course-chooser-defs-narrow[open] > summary::before { transform: rotate(90deg); }
+.course-chooser-defs-narrow .course-chooser-defs { margin: 0; padding-top: .1rem; background: none; }
 .course-chooser-defs dt { font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
 .course-chooser-defs dd { margin: 0; font-size: .8125rem; line-height: 1.5; color: var(--ink-3); }
 
@@ -81,6 +88,8 @@ th.is-sorted .course-chooser-arrow { color: var(--cc-ink); }
 .course-chooser-goal-line { stroke: var(--ink); stroke-width: 1.6; }
 .course-chooser-grid { stroke: var(--line); stroke-dasharray: 2 4; }
 .course-chooser-goal-text { font-family: var(--mono); font-size: 10.5px; font-weight: 700; fill: var(--ink); }
+.course-chooser-tick { font-family: var(--mono); font-size: 10px; font-weight: 500; fill: var(--ink-3); }
+.is-goal > .course-chooser-tick { font-weight: 700; fill: var(--ink); }
 .course-chooser-axis { display: block; width: 168px; max-width: none; height: 20px; overflow: visible; }
 .course-chooser-axis text { font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: 0; text-transform: none; fill: var(--ink-3); }
 .course-chooser-axis line { stroke: var(--line-2); }
@@ -89,7 +98,7 @@ th.is-sorted .course-chooser-arrow { color: var(--cc-ink); }
 .course-chooser-goal-mark { fill: var(--ink); }
 
 /* ---------- Cards (phones and tablets) ---------- */
-.course-chooser-cards { display: none; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: .75rem; list-style: none; margin: 0; padding: 0; }
+.course-chooser-cards { display: none; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); align-items: start; gap: .75rem; list-style: none; margin: 0; padding: 0; }
 .course-chooser-cards > li + li { margin-top: 0; }
 .course-chooser-card { display: grid; align-content: start; gap: .75rem; min-width: 0; padding: .95rem 1rem 1rem; border: 1px solid var(--line); border-radius: 16px; background: var(--card); }
 .course-chooser-card-head { display: grid; gap: .2rem; }
@@ -120,15 +129,19 @@ th.is-sorted .course-chooser-arrow { color: var(--cc-ink); }
 .course-chooser-card-links a:last-child::after { content: '→'; margin-left: .3rem; }
 
 @media (max-width: 1239px) {
-  .course-chooser-table-wrap { display: none; }
+  .course-chooser-table-wrap, .course-chooser-defs-wide { display: none; }
   .course-chooser-cards { display: grid; }
+  .course-chooser-defs-narrow { display: block; }
 }
 @media (max-width: 600px) {
   .course-chooser-list > .tool-panel { padding: 1.1rem .85rem 1rem; }
   .course-chooser-defs { padding: .8rem .85rem; }
   .course-chooser-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem .6rem; }
   .course-chooser-toolbar > :not(.course-chooser-filter) { grid-column: 1 / -1; }
-  .course-chooser-filter select { padding-left: .65rem; padding-right: 2rem; font-size: .875rem; background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%; }
+  /* 16px or more, so iOS Safari does not zoom the page when a select gets focus. */
+  .course-chooser-toolbar select { font-size: 16px; }
+  .course-chooser-filter select { padding-left: .65rem; padding-right: 2rem; background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%; }
+  .course-chooser-order .tool-choice.is-small button { min-height: 44px; }
   .course-chooser-card-links { gap: .35rem; }
   .course-chooser-card-links a { padding: .3rem .6rem; font-size: .75rem; }
 }
@@ -145,8 +158,16 @@ th.is-sorted .course-chooser-arrow { color: var(--cc-ink); }
 
 /* ---------- Print: the table, never the cards ---------- */
 @media print {
-  .course-chooser-cards { display: none !important; }
-  .course-chooser-table-wrap { display: block !important; overflow: visible; }
+  .course-chooser-cards, .course-chooser-defs-narrow { display: none !important; }
+  .course-chooser-table-wrap, .course-chooser-defs-wide { display: block !important; overflow: visible; }
+  /* tools.css prints the headline black on white; this tool's own headline text is light-on-dark on screen. */
+  .course-chooser-title, .course-chooser-kicker, .course-chooser-kicker span, .course-chooser-foot, .course-chooser-head .evidence-badge { color: #000 !important; }
+  .course-chooser-foot { border-top-color: #000; }
+  /* The course list is longer than a page: let it start on page 1 and repeat the column heads. */
+  .course-chooser-list > .tool-panel { break-inside: auto; }
+  .course-chooser-table thead { display: table-header-group; }
+  .course-chooser-table tr { break-inside: avoid; }
+  .course-chooser-table th:last-child, .course-chooser-table td:last-child { display: none; }
   .course-chooser-table { font-size: 8.5pt; }
   .course-chooser-table td, .course-chooser-table tbody th, .course-chooser-table thead th { padding: .2rem .3rem; }
   .course-chooser-defs { break-inside: avoid; }
