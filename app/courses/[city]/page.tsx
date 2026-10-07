@@ -85,7 +85,8 @@ export default function CityPage({ params }: { params: { city: string } }) {
             <h2 id="fingerprint-title" className="chapter-title">Most distinctive: <em><Section i={courses.sections.indexOf(shaped.signature_section ?? '')} /></em>.</h2>
             <p className="chapter-dek">How the median finisher&apos;s pace bends across {shaped.shape_editions} edition{shaped.shape_editions === 1 ? '' : 's'}, against the typical curve across {courses.shape_cohort.courses} courses.
               {shaped.identified ? <> Its shape alone names the course in {shaped.identified.correct} of {shaped.identified.editions} editions. </> : ' '}
-              <Link href="/stories/courses">Every course has a fingerprint</Link>.</p>
+              <Link href="/stories/courses">Every course has a fingerprint</Link>.
+              {manifest.duplicate_edition_screen.some((d) => d.city === name) ? <> These story charts leave out {manifest.duplicate_edition_screen.filter((d) => d.city === name).map((d) => d.year).join(' and ')}, whose records duplicate the {name} {manifest.duplicate_edition_screen.find((d) => d.city === name)?.duplicate_of} field; the course profile below still includes them.</> : null}</p>
           </div>
           <div className="chapter-body"><CourseFingerprint course={shaped} typical={courses.typical_curve} /></div>
         </section>

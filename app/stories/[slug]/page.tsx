@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
-import type { Archetypes, CourseGeometry, Courses, Demographics, FinishTimes, Positions, ReplayIndex } from '@/lib/insights';
+import type { Archetypes, CourseGeometry, Courses, Demographics, FinishTimes, Kick, Positions, ReplayIndex } from '@/lib/insights';
 import { STORIES } from '@/lib/stories';
 import { StoryHeader, StoryNav } from '@/components/story/StoryShell';
 import PacingTypesBody from '@/components/story/bodies/PacingTypesBody';
@@ -9,8 +9,9 @@ import ReplayBody from '@/components/story/bodies/ReplayBody';
 import PlacesBody from '@/components/story/bodies/PlacesBody';
 import DemographicsBody from '@/components/story/bodies/DemographicsBody';
 import CoursesBody from '@/components/story/bodies/CoursesBody';
+import KickBody from '@/components/story/bodies/KickBody';
 
-const BODIES: Record<string, true> = { 'pacing-types': true, 'round-numbers': true, 'race-replay': true, places: true, 'who-holds-pace': true, courses: true };
+const BODIES: Record<string, true> = { 'pacing-types': true, 'round-numbers': true, 'race-replay': true, places: true, 'who-holds-pace': true, courses: true, 'final-kick': true };
 
 function available() {
   const manifest = getInsightsManifest();
@@ -35,6 +36,7 @@ export default function StoryPage({ params }: { params: { slug: string } }) {
   if (story.slug === 'pacing-types') body = <PacingTypesBody data={readInsight<Archetypes>('archetypes.json')} manifest={manifest} />;
   else if (story.slug === 'round-numbers') body = <RoundNumbersBody data={readInsight<FinishTimes>('finish-times.json')} manifest={manifest} />;
   else if (story.slug === 'who-holds-pace') body = <DemographicsBody data={readInsight<Demographics>('demographics.json')} manifest={manifest} />;
+  else if (story.slug === 'final-kick') body = <KickBody data={readInsight<Kick>('kick.json')} manifest={manifest} />;
   else if (story.slug === 'courses') body = <CoursesBody data={readInsight<Courses>('courses.json')} geometry={readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses} manifest={manifest} />;
   else if (story.slug === 'places') body = <PlacesBody data={readInsight<Positions>('positions.json')} manifest={manifest} />;
   else body = <ReplayBody data={readInsight<ReplayIndex>('replay.json')} geometry={readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses} manifest={manifest} />;

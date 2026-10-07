@@ -115,8 +115,8 @@ export function EmptyingCourse({ editions, initial }: { editions: ReplayEditionM
   const { units } = useUnits();
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 760);
-  const H = 280;
-  const m = { l: 48, r: 18, t: 18, b: 34 };
+  const H = 290;
+  const m = { l: 48, r: 18, t: 28, b: 34 };
   const toU = (kmh: number) => (units === 'mi' ? kmh / 1.609344 : kmh);
   const maxT = rows[rows.length - 1].clock_s;
   const lo = Math.floor(toU(Math.min(...rows.map((r) => r.current_kmh))) - 0.5);
@@ -136,7 +136,7 @@ export function EmptyingCourse({ editions, initial }: { editions: ReplayEditionM
       <div ref={ref} className="viz">
         <svg width={width} height={H} role="img" aria-label={five ? `At 5:00 on the clock, ${count(five.on_course)} finishes were still on course at ${toU(five.current_kmh).toFixed(1)} ${units === 'mi' ? 'mph' : 'km/h'}; their own race average was ${toU(five.whole_race_kmh).toFixed(1)}.` : 'Speeds of runners still on course.'}>
           {ticks.map((v) => <g key={v} className="grid"><line x1={m.l} x2={width - m.r} y1={m.t + ((hi - v) / (hi - lo)) * (H - m.t - m.b)} y2={m.t + ((hi - v) / (hi - lo)) * (H - m.t - m.b)} /><text x={m.l - 8} y={m.t + ((hi - v) / (hi - lo)) * (H - m.t - m.b) + 4} textAnchor="end">{v}</text></g>)}
-          <text x={m.l} y={H - 0} className="annotation-sub">{units === 'mi' ? 'mph' : 'km/h'}</text>
+          <text x={m.l - 8} y={10} textAnchor="end" className="annotation-sub">{units === 'mi' ? 'mph' : 'km/h'}</text>
           <path d={`${line('whole_race_kmh')} ${[...rows].reverse().map((r) => `L${x(r.clock_s).toFixed(1)} ${y(r.current_kmh).toFixed(1)}`).join(' ')} Z`} fill="#FF5B2E" opacity={0.12} />
           <path d={line('whole_race_kmh')} fill="none" stroke="#7A4DFF" strokeWidth={2.6} strokeDasharray="6 4" />
           <path d={line('current_kmh')} fill="none" stroke="#FF5B2E" strokeWidth={3} />
@@ -218,7 +218,7 @@ export function StretchStrip({ stretch }: { stretch: NonNullable<ReplayIndex['st
   const cy = (lane: number) => 92 - (lane % 2 === 0 ? 1 : -1) * Math.ceil(lane / 2) * 9;
   return (
     <div className="viz-card">
-      <div className="viz-head"><div><p className="viz-title">{stretch.wider_after_20} of {stretch.editions.length} races stretch after halfway</p><p className="viz-sub">Width of the field (90th ÷ 10th percentile block time) over 20–40 km, relative to 0–20 km</p></div></div>
+      <div className="viz-head"><div><p className="viz-title">{stretch.wider_after_20} of {stretch.editions.length} races stretch after 20 km</p><p className="viz-sub">Width of the field (90th ÷ 10th percentile block time) over 20–40 km, relative to 0–20 km</p></div></div>
       <div ref={ref} className="viz">
         <svg width={width} height={H} role="img" aria-label={`All ${stretch.editions.length} editions sit to the right of 1, from ${stretch.min.stretch.toFixed(2)} to ${stretch.max.stretch.toFixed(2)}.`}>
           <line x1={x(1)} x2={x(1)} y1={14} y2={H - 30} stroke="var(--ink)" strokeWidth={1.5} />

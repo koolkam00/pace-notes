@@ -12,6 +12,7 @@ from insights_data import Finishes, granular_age_editions, relative_pace, screen
 from insights_stats import kmeans, poisson_poly_fit, quantile, r
 import insights_archetypes
 import insights_courses
+import insights_kick
 import insights_positions
 import insights_round
 from build_fast_start import digest
@@ -165,6 +166,35 @@ class Courses(unittest.TestCase):
         out = insights_courses.identify(rows, 'v', lambda a, b: float(np.abs(a - b).sum()))
         self.assertEqual([x['predicted'] for x in out], ['A'] * 3 + ['B'] * 3)
         self.assertTrue(all(x['candidates'] == 2 for x in out))
+
+
+class Kick(unittest.TestCase):
+    def test_episode_extends_through_contiguous_slow_sections(self):
+        R = np.zeros((3, 9))
+        R[0, 5:7] = .3            # 25–30 and 30–35 km: one episode ending at section 6
+        R[1, 7] = .26             # 35–40 km only
+        R[1, 8] = .4              # continues into the final section
+        detected, first, end = insights_kick.episodes(R)
+        self.assertEqual(detected.tolist(), [True, True, False])
+        self.assertEqual(first[:2].tolist(), [5, 7])
+        self.assertEqual(end[:2].tolist(), [6, 8])
+
+    def test_leave_one_out_strata(self):
+        keys = np.array([1] * 100 + [2] * 50)
+        values = np.c_[np.arange(150, dtype=float)]
+        loo = insights_kick.strata_loo(keys, values)
+        self.assertAlmostEqual(loo[0, 0], (np.arange(100).sum() - 0) / 99)
+        self.assertTrue(np.isnan(loo[120, 0]))
+
+    def test_grid_screen_flags_an_inflated_final_section(self):
+        normal = [(0, 1, None, [300] * 4 + [320, 330, 340, 350, 340], i) for i in range(120)]
+        odd = [(1, 1, None, [300] * 4 + [320, 330, 340, 350, 280], 500 + i) for i in range(120)]
+        f = make(normal + odd, [dict(city='A', year=2020), dict(city='B', year=2021)])
+        R = f.paces / f.baseline[:, None] - 1
+        kick = f.paces[:, 8] / f.paces[:, 7] - 1
+        keep, audit = insights_kick.grid_screen(f, R, kick)
+        self.assertEqual([a['city'] for a in audit], ['B'])
+        self.assertEqual(int(keep.sum()), 120)
 
 
 class Reader(unittest.TestCase):

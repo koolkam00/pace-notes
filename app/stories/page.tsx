@@ -4,7 +4,7 @@ import { getInsightsManifest } from '@/lib/insights-server';
 import { STORIES, storyHref } from '@/lib/stories';
 import { count } from '@/lib/viz/format';
 
-export const metadata = { title: 'Stories from the data | Pace Notes', description: 'Interactive stories from millions of recorded marathon finishes: pacing types, round-number finishes, race replays and more.' };
+export const metadata = { title: 'Stories from the data | Pace Notes', description: 'Interactive stories from millions of recorded marathon finishes: pacing types, round-number finishes, race replays, places, the final kick, gender and age, and course fingerprints with race-morning weather.' };
 
 export default function StoriesPage() {
   const manifest = getInsightsManifest();

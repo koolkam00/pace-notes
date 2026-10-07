@@ -118,6 +118,20 @@ npm run build
 
 The history verifier checks every cell's count, edition coverage and onset, then independently recomputes every numeric metric for the complete unfiltered cohort and five filtered cohorts. The separate all-finisher verifier covers its full eligible population, exact opening boundaries, published and sparse-cell counts, onset denominators and new time outcomes. Preserve evidence of each verifier's actual checks; passing one mode does not validate the other. Each view uses its selected opening group except its clearly labeled cross-group time-distribution chart. Source pins, lookup hashes and calculation hashes cannot be relabeled to avoid rebuilding. The dedicated [workflow](../.github/workflows/fast-start.yml) recalculates and verifies evidence artifacts; it does not import or deploy. Record CI and anonymous production-payload checks separately. See [definitions and evidence](FAST_START_ANALYSIS.md).
 
+## Data story refresh
+
+Rebuild the stories after the runner or runner-context manifests change:
+
+```bash
+python -m unittest discover -s analysis -p 'test_insights.py'
+python analysis/build_insights.py
+python analysis/build_course_geometry.py --profiles <CORE export>/course_profiles.parquet
+python analysis/build_insights.py --only manifest
+node scripts/verify-insights.cjs
+```
+
+The **Story analyses** workflow repeats the build into a temporary directory and requires byte-identical family files. See [data stories](STORIES.md).
+
 ## Producer operations and missing information
 
 The live producer database, scheduled ingestion, retries and recovery scripts are external to this checkout. A consistent SQLite snapshot is made through SQLite's backup mechanism or an equivalent supported snapshot; do not blindly copy a changing database or replace ingestion with a downloaded backup. Publish checksummed full-record snapshots with anonymous opening instructions. Public snapshot access does not require exposing the live service or its credentials.

@@ -202,3 +202,27 @@ export interface Courses {
   };
   method: string;
 }
+
+export interface KickSectionRow { section: string; p10: number; p25: number; p50: number; p75: number; p90: number; over10: number; over25: number }
+export interface Kick {
+  cohort_n: number; editions: number;
+  start_offset_editions: { city: string; year: number; finishes: number; median_gap_points: number }[];
+  grid_screen: { city: string; year: number; finishes: number; reason: string }[];
+  kick: { n: number; faster: number; share: number; median_kick: number; median_gain_s: number; slowdown_n: number; slowdown_faster: number; slowdown_share: number;
+    slowdown_final_below_baseline: number; other_final_below_baseline: number; slowdown_final_median_vs_baseline: number };
+  magnet: { section: string; previous: string; all: number; slowdown: number }[];
+  by_35_40: { label: string; n: number; share: number; median_gain_s: number; final_vs_baseline: number }[];
+  states: { labels: string[]; occupancy: { section: string; counts: number[] }[]; flows: { source: string; target: string; counts: number[][] }[] };
+  recovery: { slowdown_n: number; full_section_within_10: number; any_within_10: number; share_full_section: number; share_any: number;
+    women_n: number; women_any: number; men_n: number; men_any: number; stay: { source: string; target: string; n: number; stay: number; back_within_10: number }[] };
+  breaks: { all: { n: number; sections: KickSectionRow[] }; bands: { label: string; n: number; slowdown: number; break_section: string | null; sections: KickSectionRow[] }[] };
+  warning: { after: string; rows: { label: string; n: number; later: number }[] }[];
+  bank: { curve: { lo: number; n: number; slowdown: number; excess: number; open_s: number; after20_s: number; finish_s: number }[];
+    bands: { label: string; n: number; slowdown: number; expected: number; open_s: number; after20_s: number; finish_s: number }[] };
+  cost: { bands: { label: string; lo_min: number; slowdown_n: number; other_n: number; slowdown_20km_s: number; other_20km_s: number; slowdown_finish_s: number; other_finish_s: number }[];
+    stratified: { strata: number; slowdown_finishes: number; mean_gap_s: number; median_gap_s: number } };
+  gender_kick: { label: string; women_n: number; women: number; women_35_40: number; men_n: number; men: number; men_35_40: number }[];
+  recurrence: { pairs: number; after_slowdown: { pairs: number; observed: number; expected: number } | null; after_none: { pairs: number; observed: number; expected: number } | null;
+    after_slowdown_same_course: { pairs: number; observed: number; expected: number } | null; after_slowdown_other_course: { pairs: number; observed: number; expected: number } | null; note: string };
+  method: string;
+}

@@ -44,7 +44,7 @@ export default function ReplayBody({ data, geometry, manifest }: { data: ReplayI
         <p className="viz-note">Each bar runs from the runner 10% from the back to the runner 10% from the front, with finished runners counted at the finish line; the dot marks the median runner. Start is on the left, the finish on the right.</p>
       </StorySection>
       {london?.moments ? (
-        <StorySection id="first" kicker="03 · The first finish" title={<>When the front is home, <em>half the field</em> has not reached halfway.</>}
+        <StorySection id="first" kicker="03 · The first finish" title={<>When the front is home, <em>half the field</em> has not reached 20 km.</>}
           dek={<>The fastest eligible finish in {name(london)} came at {hms(london.moments.first_finish_s)} on the clock. At that moment {count(london.moments.not_past_20_at_first)} of {count(london.finishes)} eligible
             finishes ({Math.round((london.moments.not_past_20_at_first / london.finishes) * 100)}%) had not yet reached the 20 km mat, and the back of the field was <Distance km={42.195 - london.moments.back_km_at_first} /> behind the front.</>}>
           <FirstFinish editions={data.editions} initial={london.slug} />

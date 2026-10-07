@@ -6,6 +6,7 @@ import { count } from '@/lib/personalized';
 import CreatorCredit from '@/components/CreatorCredit';
 import { getStudyEvidence } from '@/lib/research-data';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
+import { STORIES, storyHref } from '@/lib/stories';
 import type { Archetypes, CourseGeometry, Courses, Demographics, FinishTimes, Positions, ReplayIndex } from '@/lib/insights';
 import { Untangle } from '@/components/story/WeatherStory';
 import { GhostRace } from '@/components/story/DemographicsStory';
@@ -16,6 +17,8 @@ import HeroReplay, { type ReplayChoice } from '@/components/story/HeroReplay';
 import RunnerLane from '@/components/art/RunnerLane';
 import { FinishHistogram, Rescue, SecondsLens } from '@/components/story/FinishTimeStory';
 import { Distance, PerDegree, TemperatureStep } from '@/components/story/Units';
+
+const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
 
 export default function Page() {
   const { summary } = getAnalysisStart();
@@ -42,6 +45,7 @@ export default function Page() {
   const four = finish.bubble.find((b) => b.minutes === 240)!;
   const years = manifest.cohort;
   const courses = manifest.files['courses.json'] ? readInsight<Courses>('courses.json') : null;
+  const stories = STORIES.filter((s) => manifest.files[s.file]);
   return <div className="home">
     <section className="night night-grain bleed hero" aria-labelledby="hero-title">
       <div className="container hero-inner">
@@ -122,7 +126,7 @@ export default function Page() {
       <div className="chapter-head">
         <p className="chapter-num">Chapter 03 · Places on the clock</p>
         <h2 id="places-title" className="chapter-title">At 30 km, a minute is <em>a coin flip</em>.</h2>
-        <p className="chapter-dek">The order of a marathon field keeps changing long after halfway. Most runners slow after 30 km, so what matters for places is how much you slow compared with everyone around you.</p>
+        <p className="chapter-dek">The order of a marathon field keeps changing long after 20 km. Most runners slow after 30 km, so what matters for places is how much you slow compared with everyone around you.</p>
       </div>
       <div className="nugget">
         <span className="nugget-number">{Math.round(coin30.share * 100)}%</span>
@@ -137,7 +141,7 @@ export default function Page() {
       <div className="chapter-head">
         <p className="chapter-num">Chapter 04 · Gender and age</p>
         <h2 id="who-title" className="chapter-title">Same finish time, <em>different race</em>.</h2>
-        <p className="chapter-dek">Compare recorded women and men who finished the same race in the same minute. The men were well ahead at halfway; the women caught them by the line.</p>
+        <p className="chapter-dek">Compare recorded women and men who finished the same race in the same minute. The men were well ahead at 20 km; the women caught them by the line.</p>
       </div>
       <div className="nugget">
         <span className="nugget-number">{(demo.overall.men_slowdown / demo.overall.women_slowdown).toFixed(1)}×</span>
@@ -160,6 +164,27 @@ export default function Page() {
       <div className="chapter-body"><Untangle weather={{ editions: courses.weather.editions, fits: courses.weather.fits }} /></div>
       <Link className="chapter-more" href="/stories/courses">Course fingerprints, heat and two decades of races <span aria-hidden="true">→</span></Link>
     </section> : null}
+
+    <section id="all-stories" className="chapter" aria-labelledby="all-stories-title">
+      <div className="chapter-head">
+        <p className="chapter-num">Keep reading</p>
+        <h2 id="all-stories-title" className="chapter-title">{WORDS[stories.length] ?? stories.length} stories, <em>one set of race records</em>.</h2>
+        <p className="chapter-dek">Each story starts with one finding you can say out loud, then hands you the evidence to explore.</p>
+      </div>
+      <ol className="story-grid home-story-grid">
+        {stories.map((s) => (
+          <li key={s.slug}>
+            <Link href={storyHref(s)} className="story-card" style={{ ['--story' as string]: s.accent }}>
+              <span className="story-card-number">{s.number}</span>
+              <span className="story-card-kicker">{s.kicker}</span>
+              <span className="story-card-title">{s.title}</span>
+              <span className="story-card-dek">{s.dek}</span>
+              <span className="story-card-go">Read the story <span aria-hidden="true">→</span></span>
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </section>
 
     <section id="the-ten" className="chapter home-analyses" aria-labelledby="the-ten-title">
       <div className="chapter-head">
