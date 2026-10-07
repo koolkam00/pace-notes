@@ -158,6 +158,8 @@ a.tool-card:hover { text-decoration: none; transform: translateY(-3px); box-shad
 
 /* ---------- Chips list (matched editions etc.) ---------- */
 .tool-chips { display: flex; flex-wrap: wrap; gap: .35rem; list-style: none; padding: 0; margin: 0; }
+/* Flex gap spaces chips; cancel the site-wide stacked-list margin so wrapped rows line up. */
+.tool-chips li + li { margin-top: 0; }
 .tool-chips li { padding: .25rem .55rem; border-radius: 999px; background: var(--paper-2); font-size: .75rem; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 
 /* ---------- Print: tools print their result panels only ---------- */

@@ -80,7 +80,8 @@ assert.equal(weather.acsmFlag(17.9), 'green'); assert.equal(weather.acsmFlag(18)
 assert.deepEqual(weather.hadley(80, 70), { low: 3, high: 4.5 }); assert.equal(weather.hadley(100, 81), null); assert.deepEqual(weather.hadley(50, 40), { low: 0, high: 0 }); checks += 3;
 assert.deepEqual(weather.dewPointBand(70), { low: 5, high: 8 }); assert.equal(weather.dewPointBand(80), null); checks += 2;
 assert.deepEqual(weather.ely(12), { men: 2.5, women: 3.2 }); assert.equal(weather.ely(4), null); assert.equal(weather.ely(26), null); checks += 3;
-assert.deepEqual(weather.mantzios(20), { low: 0.3 * 5, high: 0.4 * 5 }); ok();
+// Mantzios 2022: marathon 0.2%/°C WBGT above 15 °C, all endurance events 0.4%/°C (PMC8677617).
+assert.deepEqual(weather.mantzios(20), { low: 0.2 * 5, high: 0.4 * 5 }); assert.deepEqual(weather.mantzios(12), { low: 0, high: 0 }); ok();
 
 // ---- qualifying standards (official worked examples and boundaries)
 const std = (key) => qualifying.STANDARDS.find((s) => s.key === key);

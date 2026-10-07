@@ -57,8 +57,11 @@ export function ely(wbgt: number): { men: number; women: number } | null {
   return null;
 }
 
-/** Mantzios et al. (2022), elite: about 0.3–0.4% slower per °C WBGT above 15 °C. */
+/**
+ * Mantzios et al. (2022), Med Sci Sports Exerc 54:153–161, top finishers: performance fell about 0.2% per °C WBGT above
+ * the 7.5–15 °C optimum in the marathon, and 0.4% ± 0.4% per °C across all endurance events studied.
+ */
 export function mantzios(wbgt: number): PercentRange {
   const excess = Math.max(0, wbgt - 15);
-  return { low: 0.3 * excess, high: 0.4 * excess };
+  return { low: 0.2 * excess, high: 0.4 * excess };
 }
