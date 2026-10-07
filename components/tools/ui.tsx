@@ -58,13 +58,16 @@ export function Choice<T extends string | number>({ label, options, value, onCha
   );
 }
 
-/** − / + buttons around a value, for nudging a goal by a minute. */
-export function Stepper({ label, onStep, step = 60, children }: { label: string; onStep: (delta: number) => void; step?: number; children: ReactNode }) {
+/** − / + buttons around a value, for nudging a goal by a minute. `labels` names the two directions (default faster / slower). */
+export function Stepper({ label, onStep, step = 60, labels = ['faster', 'slower'], children }: {
+  label: string; onStep: (delta: number) => void; step?: number; labels?: [string, string]; children: ReactNode;
+}) {
+  const amount = step >= 60 ? `${step / 60} minute` : `${step} seconds`;
   return (
     <div className="tool-stepper">
-      <button type="button" aria-label={`${label}: ${step >= 60 ? `${step / 60} minute` : `${step} seconds`} faster`} onClick={() => onStep(-step)}>−</button>
+      <button type="button" aria-label={`${label}: ${amount} ${labels[0]}`} onClick={() => onStep(-step)}>−</button>
       <div className="tool-stepper-value">{children}</div>
-      <button type="button" aria-label={`${label}: ${step >= 60 ? `${step / 60} minute` : `${step} seconds`} slower`} onClick={() => onStep(step)}>+</button>
+      <button type="button" aria-label={`${label}: ${amount} ${labels[1]}`} onClick={() => onStep(step)}>+</button>
     </div>
   );
 }

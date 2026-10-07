@@ -63,16 +63,20 @@ const grouped = (n: number) => Math.round(n).toLocaleString('en-US');
 /* ---------- Application windows ---------- */
 
 type AppKind = 'open' | 'upcoming' | 'closed' | 'unknown';
-interface AppInfo { kind: AppKind; label: string; detail: string }
+interface AppInfo { kind: AppKind; label: string; short: string; detail: string }
 
 /** Open / upcoming / closed from the visitor's own date and the dated application window, if one is listed. */
 function applicationInfo(s: Standard, today: string): AppInfo {
   const opens = s.applications?.opens;
   const closes = s.applications?.closes;
-  if (!opens && !closes) return { kind: 'unknown', label: 'Dates not announced', detail: 'No application dates listed yet' };
-  if (closes && today > closes) return { kind: 'closed', label: 'Closed', detail: `Closed ${fmtDate(closes)}` };
-  if (opens && today < opens) return { kind: 'upcoming', label: 'Upcoming', detail: `Opens ${fmtDay(opens)} (${inDays(daysBetween(today, opens))})` };
-  return { kind: 'open', label: 'Open now', detail: closes ? `Closes ${fmtDay(closes)} (${inDays(daysBetween(today, closes))})` : 'Open' };
+  if (!opens && !closes) return { kind: 'unknown', label: 'Dates not announced', short: 'Not announced', detail: '' };
+  if (closes && today > closes) return { kind: 'closed', label: 'Closed', short: 'Closed', detail: '' };
+  if (opens && today < opens) {
+    const d = daysBetween(today, opens);
+    return { kind: 'upcoming', label: 'Upcoming', short: d <= 1 ? `Opens ${inDays(d)}` : `Opens ${fmtDay(opens)}`, detail: `Opens ${inDays(d)}.` };
+  }
+  const d = closes ? daysBetween(today, closes) : null;
+  return { kind: 'open', label: 'Open now', short: 'Open now', detail: d === null ? '' : `Closes ${inDays(d)}.` };
 }
 const APP_RANK: Record<AppKind, number> = { open: 0, upcoming: 1, unknown: 2, closed: 3 };
 
@@ -99,7 +103,7 @@ function verdict(r: QualifyResult, opts: { uk: boolean; nyrr: boolean; dropFeet?
     case 'misses':
       return { tone: 'bad', label: 'Misses the standard', short: 'Misses' };
     default: {
-      if (key === 'london' && !opts.uk) return { tone: 'warn', label: 'Meets the time · UK residents only', short: 'UK only', route: 'Good For Age places are for UK residents only.' };
+      if (key === 'london' && !opts.uk) return { tone: 'warn', label: 'Meets the time · UK residents only', short: 'UK only', route: 'If you live in the UK, tick it under “Course and entry details”.' };
       const route: Record<string, string> = {
         boston: 'You can apply. Acceptance depends on the cut-off.',
         nyc: opts.nyrr ? 'Guaranteed entry: an NYRR race time.' : 'Enters the capped pool, fastest first.',
@@ -160,6 +164,7 @@ export default function QualifyingChecker() {
   const [nyrr, setNyrr] = useState(false);
   const [uk, setUk] = useState(false);
   const [buffer, setBuffer] = useState(0);
+  const [storageRead, setStorageRead] = useState(false);
 
   // The visitor's own date (after mount, so the static HTML and first render agree) and any remembered birth date.
   useEffect(() => {
@@ -168,13 +173,16 @@ export default function QualifyingChecker() {
       const stored = window.localStorage.getItem(STORAGE_KEY);
       if (stored && validDate(stored)) { setBirth(stored); setExample(false); setRemember(true); }
     } catch { /* storage unavailable: nothing remembered */ }
+    setStorageRead(true);
   }, []);
+  // Write or forget only after the stored value has been read, and only when the visitor asked to be remembered.
   useEffect(() => {
+    if (!storageRead) return;
     try {
       if (remember && !example && validDate(birth)) window.localStorage.setItem(STORAGE_KEY, birth);
       else if (!remember) window.localStorage.removeItem(STORAGE_KEY);
     } catch { /* storage unavailable */ }
-  }, [remember, birth, example]);
+  }, [storageRead, remember, birth, example]);
 
   const division = (DIVISIONS.find((d) => d.value === q.div) ?? DIVISIONS[1]).division;
   const seconds = q.t ? parseDuration(q.t, 'race') : null;
@@ -337,10 +345,10 @@ function dropNote(feet: number): string {
 
 function BostonLine({ it }: { it: Item }) {
   const { r } = it;
-  if (r.margin === null) return <>Boston {yearOf(it.s)}: {it.v.reason ?? it.v.label}.</>;
+  if (r.margin === null) return <>Boston {yearOf(it.s)}: {(it.v.reason ?? it.v.label).replace(/\.$/, '')}.</>;
   const sum = cutoffSummary(r.margin);
   const lead = <>Boston {yearOf(it.s)}: <b>{formatMargin(r.margin)}</b> {marginWord(r.margin)} the standard</>;
-  if (r.status === 'outside-window') return <>{lead}, but the race date is outside the 2028 window (from {fmtDate(it.s.windowStart)}).</>;
+  if (r.status === 'outside-window') return <>{lead}, but the race date is outside the {yearOf(it.s)} window (from {fmtDate(it.s.windowStart)}).</>;
   if (r.margin < 0) return <>{lead}.</>;
   return <>{lead}. That margin would have cleared {sum.recent} of the last 4 cut-offs ({sum.span}). Past cut-offs, not a forecast.</>;
 }
@@ -353,7 +361,7 @@ function Scoreboard({ items }: { items: Item[] }) {
   const lo = Math.max(-CAP, Math.floor(Math.min(-300, ...margins) / 300) * 300);
   const hi = Math.min(CAP, Math.ceil(Math.max(300, ...margins) / 300) * 300);
   const span = hi - lo;
-  const step = span > 1800 ? 600 : 300;
+  const step = span > 2400 ? 1200 : span > 1200 ? 600 : 300;
   const pct = (v: number) => ((Math.min(hi, Math.max(lo, v)) - lo) / span) * 100;
   const ticks: number[] = [];
   for (let t = Math.ceil(lo / step) * step; t <= hi; t += step) ticks.push(t);
@@ -374,7 +382,7 @@ function Scoreboard({ items }: { items: Item[] }) {
             <li key={s.key} className={`qualifying-board-row is-${v.tone}`}>
               <a className="qualifying-board-name" href={`#qualifying-${s.key}`}>
                 <b>{SHORT[s.key]} {yearOf(s)}</b>
-                <span className={`qualifying-board-app is-${app.kind}`}>{app.label}</span>
+                <span className={`qualifying-board-app is-${app.kind}`}>{app.short}</span>
               </a>
               <div className="qualifying-board-track" aria-hidden="true">
                 {ticks.map((t) => <i key={t} className={t === 0 ? 'is-zero' : undefined} style={{ left: `${pct(t)}%` }} />)}
@@ -407,6 +415,13 @@ function RaceCard({ it, birth, raceDate, seconds, division, dropFeet, nyrr }: {
   const inside = raceDate >= s.windowStart && (!s.windowEnd || raceDate <= s.windowEnd);
   const index = s.key === 'boston' && dropFeet !== undefined ? bostonDownhillIndex(dropFeet) : 0;
   const notes = r.notes.filter((n) => !n.startsWith('Downhill index') && !n.startsWith('London Good For Age places') && !n.startsWith('An NYRR race') && !n.startsWith('A non-NYRR') && n !== v.reason);
+  // What it would take, in chip time on this course: the standard less any downhill index (and a second for a strict "under").
+  const needed = r.limit !== null && index !== null ? r.limit - (index ?? 0) - (s.comparison === 'strictly-under' ? 1 : 0) : null;
+  const passesTime = r.margin !== null && (s.comparison === 'strictly-under' ? r.margin > 0 : r.margin >= 0);
+  const extraNote = v.tone === 'muted' ? null
+    : r.status === 'misses' && needed !== null ? `To meet it: ${fmtTime(needed)} or faster${index ? ' on this course' : ''}.`
+    : r.status === 'outside-window' ? `The time ${passesTime ? 'would meet' : 'would also miss'} the standard, but ${fmtDate(raceDate)} is outside this edition’s window.`
+    : null;
   const fine = [...(s.extra ?? []), s.nonbinaryNote];
   if (s.key === 'boston') fine.push('B.A.A. statements differ on how long the downhill index lasts: the June 2025 rule said at least two years; the September 2026 registration update says it may change before 2028 registration.');
   if (s.key === 'london') fine.push('London publishes no acceptance cut-off.');
@@ -419,9 +434,10 @@ function RaceCard({ it, birth, raceDate, seconds, division, dropFeet, nyrr }: {
           {r.margin !== null ? (
             <p className="qualifying-margin"><b>{formatMargin(r.margin)}</b> <span>{marginWord(r.margin)} the standard</span></p>
           ) : null}
-          {v.route || v.reason || notes.length ? (
+          {v.route || v.reason || extraNote || notes.length ? (
             <ul className="qualifying-verdict-notes">
               {v.route ? <li>{v.route}</li> : null}
+              {extraNote ? <li>{extraNote}</li> : null}
               {v.reason ? <li>{v.reason}</li> : null}
               {notes.map((n) => <li key={n}>{n}</li>)}
               {s.key === 'boston' && r.margin === 0 ? <li>Exactly on the standard. The B.A.A. does not say outright whether an equal time qualifies; acceptance goes to those furthest under.</li> : null}
@@ -430,15 +446,15 @@ function RaceCard({ it, birth, raceDate, seconds, division, dropFeet, nyrr }: {
         </div>
 
         <dl className="qualifying-facts">
-          <div><dt>Age used</dt><dd><b>{age.value}</b><span>{age.rule}</span></dd></div>
-          <div>
+          <div className="is-key"><dt>Age used</dt><dd><b>{age.value}</b><span>{age.rule}</span></dd></div>
+          <div className="is-key">
             <dt>Standard</dt>
             <dd>
               {r.limit !== null && r.band ? <><b>{fmtTime(r.limit)}</b><span>{bandText(s, r.band, division)}{division === 'nonbinary' && r.band.nonbinary === r.band.women ? ' (equal to the women’s)' : ''} · {s.comparison === 'strictly-under' ? 'strictly under' : 'at or under'}</span></>
                 : <><b>—</b><span>{v.reason ?? 'No standard applies.'}</span></>}
             </dd>
           </div>
-          <div>
+          <div className="is-key">
             <dt>{s.key === 'boston' ? 'Time counted' : 'Your time'}</dt>
             <dd>
               {s.key === 'boston' && index === null ? <><b>—</b><span>A net drop of 6,000 ft or more is not accepted.</span></>
@@ -446,15 +462,15 @@ function RaceCard({ it, birth, raceDate, seconds, division, dropFeet, nyrr }: {
                 : <><b>{fmtTime(seconds)}</b><span>{s.key === 'boston' ? (dropFeet !== undefined ? 'Chip time; no downhill index under 1,500 ft' : 'Chip time; add a course drop for the downhill index') : 'Chip (net) time'}</span></>}
             </dd>
           </div>
-          <div>
+          <div className="is-half">
             <dt>Window</dt>
             <dd><b className={inside ? 'is-in' : 'is-out'}><span aria-hidden="true">{inside ? '✓ ' : '✕ '}</span>{inside ? 'Inside' : 'Outside'}</b><span>{s.windowNote}</span></dd>
           </div>
-          <div>
+          <div className="is-half">
             <dt>Applications</dt>
-            <dd><b className={`qualifying-app-inline is-${app.kind}`}>{app.label}</b><span>{app.kind !== 'unknown' ? `${app.detail}. ` : ''}{s.applications?.note ?? 'Application dates for this edition are not listed yet.'}{app.kind === 'closed' && s.key === 'sydney' ? ' Shown for reference.' : ''}</span></dd>
+            <dd><b className={`qualifying-app-inline is-${app.kind}`}>{app.label}</b><span>{app.detail ? `${app.detail} ` : ''}{s.applications?.note ?? 'Application dates for this edition are not listed yet.'}{app.kind === 'closed' && s.key === 'sydney' ? ' Shown for reference.' : ''}</span></dd>
           </div>
-          <div><dt>Entry</dt><dd><span className="qualifying-entry">{s.entry}</span></dd></div>
+          <div className="is-wide"><dt>Entry</dt><dd><span className="qualifying-entry">{s.entry}</span></dd></div>
         </dl>
 
         {s.key === 'boston' ? <BostonHistory margin={r.margin} outside={r.status === 'outside-window'} /> : null}
@@ -497,7 +513,7 @@ function BostonHistory({ margin, outside }: { margin: number | null; outside: bo
       <CutoffChart margin={margin} />
       <div className="tool-table-wrap">
         <table className="tool-table qualifying-cutoff-table">
-          <thead><tr><th scope="col">Race</th><th scope="col">Cut-off</th><th scope="col">Not accepted</th><th scope="col">Your margin</th></tr></thead>
+          <thead><tr><th scope="col">Race</th><th scope="col">Cut-off</th><th scope="col">Turned away</th><th scope="col">Cleared</th></tr></thead>
           <tbody>
             {[...BOSTON_CUTOFFS].reverse().map((c) => {
               const cleared = margin !== null && margin >= c.cutoff;
@@ -506,14 +522,14 @@ function BostonHistory({ margin, outside }: { margin: number | null; outside: bo
                   <td>{c.year}{c.note ? <span className="qualifying-row-note">{c.note}</span> : null}</td>
                   <td>{formatDuration(c.cutoff)}</td>
                   <td>{grouped(c.notAccepted)}</td>
-                  <td className={cleared ? 'is-minus' : undefined}>{cleared ? '✓ cleared' : <span className="qualifying-dim">not cleared</span>}</td>
+                  <td className={cleared ? 'is-minus' : undefined}>{cleared ? '✓ yes' : <span className="qualifying-dim">no</span>}</td>
                 </tr>
               );
             })}
           </tbody>
-          <caption>B.A.A. cut-offs: how far under their standard applicants had to be. “Not accepted” counts qualifiers who applied and were turned away. No cut-off is listed for {BOSTON_CUTOFFS[0].year + 1}.</caption>
         </table>
       </div>
+      <p className="tool-note qualifying-table-note">Cut-off: how far under their standard applicants had to be, as announced by the B.A.A. “Turned away” counts qualifiers who applied and were not accepted. “Cleared” means your margin was at least the cut-off. No cut-off is listed for {BOSTON_CUTOFFS[0].year + 1}.</p>
       <p className="tool-callout qualifying-draw">
         <strong>2027 random selection.</strong> For 2027 the B.A.A. also drew about {grouped(BOSTON_DRAWN_2027)} qualifiers at random from those who missed the {formatDuration(draw.cutoff)} cut-off. By our derivation from B.A.A. counts ({grouped(BOSTON_DRAWN_2027)} ÷ ({grouped(draw.notAccepted)} turned away + {grouped(BOSTON_DRAWN_2027)} drawn)), that was about {Math.round(share * 100)}% of that group. The B.A.A. has not said whether the draw will continue.
       </p>
@@ -574,7 +590,7 @@ function CutoffChart({ margin }: { margin: number | null }) {
                 fill={cleared ? 'var(--green)' : 'url(#qualifying-hatch)'} stroke={cleared ? 'var(--green-ink)' : 'var(--ink-3)'} strokeWidth={cleared ? 0 : 1} />
                 : <rect x={x(i) - barW / 2} y={m.t + plotH - 2} width={barW} height={2} fill={cleared ? 'var(--green-ink)' : 'var(--ink-3)'} />}
               {!narrow ? <text x={x(i)} y={top - 6} textAnchor="middle" className="qualifying-bar-value">{formatDuration(c.cutoff)}</text> : null}
-              <text x={x(i)} y={H - 8} textAnchor="middle">{narrow ? `’${String(c.year).slice(2)}` : c.year}</text>
+              <text x={x(i)} y={H - 8} textAnchor="middle" className={narrow ? 'qualifying-year-short' : undefined}>{narrow ? String(c.year).slice(2) : c.year}</text>
             </g>
           );
         })}
@@ -582,7 +598,7 @@ function CutoffChart({ margin }: { margin: number | null }) {
         {lineY !== null ? (
           <g className="qualifying-margin-line">
             <line x1={m.l} x2={width - m.r} y1={lineY} y2={lineY} />
-            <text className="annotation" x={width - m.r} y={lineY - 7} textAnchor="end">
+            <text className="annotation" x={m.l + 4} y={lineY - 7}>
               {above ? `Your margin ${formatMargin(margin!)} is above every cut-off ▲` : `Your margin ${formatMargin(margin!)}`}
             </text>
           </g>
@@ -619,7 +635,7 @@ function TargetsPanel({ items, seconds, buffer, setBuffer, dropFeet, units }: {
       </div>
       <div className="tool-table-wrap">
         <table className="tool-table wrap-first qualifying-targets">
-          <thead><tr><th scope="col">Race</th><th scope="col">Aim for</th><th scope="col">Pace /{units}</th><th scope="col">Your time</th></tr></thead>
+          <thead><tr><th scope="col">Race</th><th scope="col">Aim for</th><th scope="col" className="qualifying-pace-col">Pace /{units}</th><th scope="col">Your margin</th></tr></thead>
           <tbody>
             {rows.map((it) => {
               const t = target(it);
@@ -627,19 +643,22 @@ function TargetsPanel({ items, seconds, buffer, setBuffer, dropFeet, units }: {
               return (
                 <tr key={it.s.key} className={it === focus ? 'is-key' : undefined}>
                   <td>{SHORT[it.s.key]} {yearOf(it.s)}<span className="qualifying-row-note">standard {fmtTime(it.r.limit!)}{it.s.key === 'boston' && bostonIndex ? `, −${bostonIndex / 60}:00 index` : ''}</span></td>
-                  <td>{linkable(t) ? <Link href={`/tools/pace-band?goal=${goalParam(t)}`} aria-label={`Pace band for ${fmtTime(t)}`}>{fmtTime(t)}</Link> : fmtTime(t)}</td>
-                  <td>{formatDuration(perUnit(t / MARATHON_KM, units))}</td>
-                  <td className={diff >= 0 ? 'is-minus' : 'is-plus'}>{diff >= 0 ? `${formatDuration(diff)} inside` : `${formatDuration(-diff)} to find`}</td>
+                  <td>
+                    {linkable(t) ? <Link href={`/tools/pace-band?goal=${goalParam(t)}`} aria-label={`${fmtTime(t)}: pace band for this target`}>{fmtTime(t)}</Link> : fmtTime(t)}
+                    <span className="qualifying-pace-inline">{formatDuration(perUnit(t / MARATHON_KM, units))}/{units}</span>
+                  </td>
+                  <td className="qualifying-pace-col">{formatDuration(perUnit(t / MARATHON_KM, units))}</td>
+                  <td className={diff >= 0 ? 'is-minus' : 'is-plus'}>{formatMargin(diff)}</td>
                 </tr>
               );
             })}
           </tbody>
-          <caption>
-            Even-pace arithmetic on a {units === 'mi' ? '26.22 mi' : '42.195 km'} course. {rows.some((it) => it.s.comparison === 'strictly-under') ? 'London needs a time strictly under its standard, so its target is a second inside. ' : ''}
-            {bostonIndex ? `Boston’s target includes the ${bostonIndex / 60}:00 downhill index for your course. ` : ''}Each target links to a pace band for it.
-          </caption>
         </table>
       </div>
+      <p className="tool-note qualifying-table-note">
+        Your margin is how far your {fmtTime(seconds)} is under (+) or over (−) each target. Paces are even-pace arithmetic over {units === 'mi' ? '26.22 mi' : '42.195 km'}. {rows.some((it) => it.s.comparison === 'strictly-under') ? 'London needs a time strictly under its standard, so its target is a second inside. ' : ''}
+        {bostonIndex ? `Boston’s target includes the ${bostonIndex / 60}:00 downhill index for your course. ` : ''}Each target links to a pace band for it.
+      </p>
       {focus && linkable(target(focus)) ? (
         <p className="tool-callout qualifying-plan no-print">
           <strong>Planning a {SHORT[focus.s.key]} attempt at {fmtTime(target(focus))}?</strong> The <Link href={`/tools/pace-band?goal=${goalParam(target(focus))}`}>pace band</Link> shows what finishes near that time actually ran at each 5 km mat, and the <Link href={`/tools/course-chooser?goal=${goalParam(target(focus))}`}>course chooser</Link> compares courses at that pace.
