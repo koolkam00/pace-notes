@@ -132,6 +132,14 @@ Rebuilding with `--only` keeps every other family's file and rewrites the manife
 
 Tools compute in the browser and send no inputs anywhere. Tool state is kept in the URL so a visitor can share a link: goals, paces, splits, course and units. Typing updates the URL with `history.replaceState`, which makes no request. The site's referrer policy is `strict-origin` (root `metadata.referrer`), and `loadInsight` fetches data with `referrerPolicy: 'no-referrer'`, so later requests never carry the query string. Opening a shared link does send that URL to the host, like any page request. A birth date is never in the URL. The qualifying checker keeps it in component state, plus `localStorage` only if the visitor ticks "remember on this device". Projector runner cards and the start-line clock are stored only in `localStorage`; the start clock expires after 12 hours, and card labels never go into links. Analytics records only the tool's path (`/tools/<slug>`); `lib/analytics-policy.ts` strips every query string and fragment, and `scripts/verify-analytics.cjs` tests that tool inputs are removed.
 
+## Known limitations
+
+- **Referrer leak on first load:** the referrer policy is a `<meta>` tag, so the CSS and JavaScript requested before it is parsed still send the page URL to the same host. That host already received the URL with the page request. An HTTP `Referrer-Policy: strict-origin` header from the host would close this gap; it is not configured in the repository.
+- **Projector shard size:** the All-courses projector shards are about 80–95 KB gzipped, because they include the men and women variants. Splitting those into separate files would make each smaller.
+- **Course chooser temperatures:** a course's start-temperature range covers all of its editions, not only the editions in the row, and the page labels it that way.
+- **Projector at 40 km:** the projector is no more accurate than even pace at 40 km (see the accuracy table), and says so on the page.
+- **Boston window end:** the end of Boston 2028's qualifying window (2027 registration week) is not yet dated. The checker treats times after September 30, 2027 as outside it and flags September 2027.
+
 ## Annual maintenance: qualifying standards
 
 Qualifying standards and windows change every year. `lib/tools/qualifying.ts` records `VERIFIED_AT` (currently 2026-10-07), and every card shows it. Before each registration season, and at least every September:
