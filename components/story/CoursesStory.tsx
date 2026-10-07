@@ -6,6 +6,7 @@ import { useWidth } from '@/components/viz/useSize';
 import type { CourseGeometry, CourseSummary, Courses } from '@/lib/insights';
 import { count, paceColour, sectionLabel } from '@/lib/viz/format';
 import { RouteMap } from './CourseArt';
+import { useStoryData } from './StoryData';
 
 const SLOWER = '#FF5B2E';
 const FASTER = '#2F5BFF';
@@ -114,7 +115,9 @@ export function courseNote(course: ShapedCourse, units: 'mi' | 'km') {
 }
 
 /** Every course's pace curve against the typical marathon, with the signature by finish band. */
-export function Fingerprints({ data, geometry }: { data: Courses; geometry: CourseGeometry[] }) {
+export function Fingerprints({ data: given, geometry: givenGeometry }: { data?: Courses; geometry?: CourseGeometry[] }) {
+  const data = useStoryData('courses', given);
+  const geometry = useStoryData('geometry', givenGeometry);
   const courses = shapeCourses(data);
   const [city, setCity] = useState('New York');
   const course = courses.find((c) => c.city === city) ?? courses[0];
@@ -181,7 +184,9 @@ function distractors(truth: string, model: string, pool: string[], seed: number)
 }
 
 /** A guessing game: one edition's fade-removed pace signature; which course was it? */
-export function NameThatCourse({ data, geometry }: { data: Courses; geometry: CourseGeometry[] }) {
+export function NameThatCourse({ data: given, geometry: givenGeometry }: { data?: Courses; geometry?: CourseGeometry[] }) {
+  const data = useStoryData('courses', given);
+  const geometry = useStoryData('geometry', givenGeometry);
   const id = data.identification;
   const pool = useMemo(() => [...new Set(id.editions.map((e) => e.city))].sort(), [id]);
   const start = Math.max(0, id.editions.findIndex((e) => e.city === 'Boston'));

@@ -7,6 +7,7 @@ import { useWidth } from '@/components/viz/useSize';
 import { useUnits } from '@/components/UnitsProvider';
 import type { Demographics } from '@/lib/insights';
 import { count, mss } from '@/lib/viz/format';
+import { useStoryData } from './StoryData';
 
 const WOMEN = '#7A4DFF';
 const MEN = '#0FA3A3';
@@ -29,7 +30,8 @@ function at(cum: number[], clock: number) {
 }
 
 /** Two runners with the same finish time, one pacing like matched women and one like matched men. */
-export function GhostRace({ data }: { data: Demographics }) {
+export function GhostRace({ data: given }: { data?: Demographics }) {
+  const data = useStoryData('demographics', given);
   const [pick, setPick] = useState(Math.max(0, data.bands.findIndex((b) => b.lo_min === 260)));
   const band = data.bands[pick];
   const ref = useRef<HTMLDivElement>(null);
@@ -105,7 +107,8 @@ const METRICS: Record<Metric, { label: string; w: (b: Demographics['bands'][numb
   kick: { label: 'Final 2.2 km faster than own 0–40 km average', w: (b) => b.women_kick * 100, m: (b) => b.men_kick * 100, fmt: (v) => `${v.toFixed(0)}%`, max: 50 },
 };
 
-export function GenderDumbbell({ data }: { data: Demographics }) {
+export function GenderDumbbell({ data: given }: { data?: Demographics }) {
+  const data = useStoryData('demographics', given);
   const [metric, setMetric] = useState<Metric>('slowdown');
   const spec = METRICS[metric];
   const ref = useRef<HTMLDivElement>(null);
@@ -147,7 +150,8 @@ export function GenderDumbbell({ data }: { data: Demographics }) {
   );
 }
 
-export function AgeLadder({ data }: { data: Demographics }) {
+export function AgeLadder({ data: given }: { data?: Demographics }) {
+  const data = useStoryData('demographics', given);
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 900);
   const rows = data.ladder;
@@ -190,7 +194,8 @@ export function AgeLadder({ data }: { data: Demographics }) {
   );
 }
 
-export function WomenShare({ data }: { data: Demographics }) {
+export function WomenShare({ data: given }: { data?: Demographics }) {
+  const data = useStoryData('demographics', given);
   const cities = data.women_share_by_city.filter((c) => c.years.length >= 5).sort((a, b) => b.years.reduce((s, y) => s + y.n, 0) - a.years.reduce((s, y) => s + y.n, 0)).slice(0, 8);
   return (
     <div className="share-grid">

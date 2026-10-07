@@ -5,7 +5,7 @@ import { getAnalysisStart } from '@/lib/analysis-server';
 import { count } from '@/lib/personalized';
 import CreatorCredit from '@/components/CreatorCredit';
 import { getStudyEvidence } from '@/lib/research-data';
-import { getInsightsManifest, readInsight } from '@/lib/insights-server';
+import { clientArchetypes, getInsightsManifest, readInsight, replayChoices } from '@/lib/insights-server';
 import { STORIES, storyHref } from '@/lib/stories';
 import type { Archetypes, CourseGeometry, Courses, Demographics, FinishTimes, Positions, ReplayIndex } from '@/lib/insights';
 import { Untangle } from '@/components/story/WeatherStory';
@@ -13,7 +13,8 @@ import { GhostRace } from '@/components/story/DemographicsStory';
 import { BreakEven, GapGauge } from '@/components/story/PlacesStory';
 import ArchetypeChapter from '@/components/story/ArchetypeChapter';
 import { PacingBarcode, WhichArchetype } from '@/components/story/ArchetypeStory';
-import HeroReplay, { type ReplayChoice } from '@/components/story/HeroReplay';
+import HeroReplay from '@/components/story/HeroReplay';
+import { StoryData } from '@/components/story/StoryData';
 import RunnerLane from '@/components/art/RunnerLane';
 import { FinishHistogram, Rescue, SecondsLens } from '@/components/story/FinishTimeStory';
 import { Checkpoint, Distance, PerDegree, TemperatureStep } from '@/components/story/Units';
@@ -29,7 +30,7 @@ export default function Page() {
   const manifest = getInsightsManifest();
   const replay = readInsight<ReplayIndex>('replay.json');
   const finish = readInsight<FinishTimes>('finish-times.json');
-  const types = readInsight<Archetypes>('archetypes.json');
+  const types = clientArchetypes(readInsight<Archetypes>('archetypes.json'));
   const metronome = types.archetypes[0];
   const cliff = types.archetypes[4];
   const cliffRepeat = types.transitions.rows[4];
@@ -38,7 +39,7 @@ export default function Page() {
   const demo = readInsight<Demographics>('demographics.json');
   const geometry = readInsight<{ courses: CourseGeometry[] }>('course-geometry.json');
   const routes = new Map(geometry.courses.map((c) => [c.city, { points: c.route, km: c.route_km }]));
-  const choices: ReplayChoice[] = replay.editions.map((e) => ({ ...e, version: manifest.files[e.file].sha256, route: routes.get(e.city) ?? null }));
+  const choices = replayChoices(replay.editions, manifest, routes);
   const berlin = replay.editions.find((e) => e.city === 'Berlin') ?? replay.editions[0];
   const at3 = berlin.snapshots.find((s) => s.clock_s === 10800)!;
   const three = finish.marks.find((m) => m.minutes === 180)!;
@@ -46,7 +47,7 @@ export default function Page() {
   const years = manifest.cohort;
   const courses = manifest.files['courses.json'] ? readInsight<Courses>('courses.json') : null;
   const stories = STORIES.filter((s) => manifest.files[s.file]);
-  return <div className="home">
+  return <StoryData value={{ archetypes: types, finish, positions: places }}><div className="home">
     <section className="night night-grain bleed hero" aria-labelledby="hero-title">
       <div className="container hero-inner">
         <div className="hero-head">
@@ -87,16 +88,16 @@ export default function Page() {
         <span className="nugget-number">{(metronome.share * 100).toFixed(0)}%</span>
         <p className="nugget-text">of finishes are <strong>Metronomes</strong>, holding within a couple of percent of their own average pace to 40 km. The most common shape is the <strong>Gentle fader</strong> ({(types.archetypes[1].share * 100).toFixed(0)}%), and {(cliff.share * 100).toFixed(1)}% run a <strong>Cliff</strong>: fast to 25 km, then about 40% slower than average over 35–40 km.</p>
       </div>
-      <div className="chapter-body"><ArchetypeChapter data={types} /></div>
+      <div className="chapter-body"><ArchetypeChapter /></div>
       <div className="chapter-grid chapter-body">
-        <PacingBarcode data={types} />
+        <PacingBarcode />
         <div className="chapter-aside">
           <div className="bib"><span className="bib-tag">Habits repeat</span><span className="bib-number">{((cliffRepeat.repeat_share ?? 0) / cliffRepeat.overall_share).toFixed(1)}×</span><span className="bib-text">After a Cliff race, the next linked race is a Cliff {((cliffRepeat.repeat_share ?? 0) * 100).toFixed(0)}% of the time, against {(cliffRepeat.overall_share * 100).toFixed(1)}% of all next races.</span></div>
           <div className="bib"><span className="bib-tag">Same finish band</span><span className="bib-number">{(types.gender.men.standardized_shares[4] / types.gender.women.standardized_shares[4]).toFixed(1)}×</span><span className="bib-text">Cliffs are {(types.gender.men.standardized_shares[4] * 100).toFixed(1)}% of men&apos;s finishes and {(types.gender.women.standardized_shares[4] * 100).toFixed(1)}% of women&apos;s once finish times are matched.</span></div>
           <div className="note">Types are assigned after the race from its own splits. They describe shapes, not physiology or advice, and profiles form a continuum: many races sit between two types.</div>
         </div>
       </div>
-      <div className="chapter-body"><WhichArchetype data={types} /></div>
+      <div className="chapter-body"><WhichArchetype /></div>
       <Link className="chapter-more" href="/stories/pacing-types">Explore all six pacing types <span aria-hidden="true">→</span></Link>
     </section>
 
@@ -110,15 +111,15 @@ export default function Page() {
         <span className="nugget-number">{count(three.minute_before)}</span>
         <p className="nugget-text">finishes landed between <strong>2:59:00 and 2:59:59</strong>. A smooth curve fitted around the mark expects about {count(Math.round(three.expected_minute_before))}, and the next minute holds only {count(three.minute_after)}.</p>
       </div>
-      <div className="chapter-body"><FinishHistogram data={finish} /></div>
+      <div className="chapter-body"><FinishHistogram /></div>
       <div className="chapter-grid chapter-body">
-        <SecondsLens data={finish} />
+        <SecondsLens />
         <div className="chapter-aside">
           <div className="bib"><span className="bib-tag">Across every hour and half-hour</span><span className="bib-number">≈{count(Math.round(finish.total_excess_hour_half_hour / 1000) * 1000)}</span><span className="bib-text">finishes sit in the five minutes before a mark beyond what the smooth curve expects, {(100 * finish.total_excess_hour_half_hour / manifest.analysis_n).toFixed(1)}% of the field.</span></div>
           <div className="note">These are observed finishing patterns. Goals, pacers and pace bands are not recorded, so the data cannot say why any runner sped up, only that the field bunches before round numbers.</div>
         </div>
       </div>
-      <div id="rescue" className="chapter-body"><Rescue data={finish} /></div>
+      <div id="rescue" className="chapter-body"><Rescue /></div>
       <Link className="chapter-more" href="/stories/round-numbers">The full round-number story <span aria-hidden="true">→</span></Link>
     </section>
 
@@ -132,8 +133,8 @@ export default function Page() {
         <span className="nugget-number">{Math.round(coin30.share * 100)}%</span>
         <p className="nugget-text">of the time, a finish <strong>60–90 seconds behind another at 30 km</strong> still crossed the line first. There are about {(places.sinker_share / places.surger_share).toFixed(0)} late sinkers for every late surger, and women gained on men after 30 km in <strong>all {places.women_ahead_editions} race editions</strong> compared.</p>
       </div>
-      <div className="chapter-body"><GapGauge data={places} /></div>
-      <div className="chapter-body"><BreakEven data={places} /></div>
+      <div className="chapter-body"><GapGauge /></div>
+      <div className="chapter-body"><BreakEven /></div>
       <Link className="chapter-more" href="/stories/places">More on places gained and lost <span aria-hidden="true">→</span></Link>
     </section>
 
@@ -207,5 +208,5 @@ export default function Page() {
       </div>
     </section>
     <section className="home-purpose"><p className="eyebrow">Why this study exists</p><div><h2>A finish time is only part of the story.</h2><p>Pace Notes looks at the distance between the start and the finish. It makes race patterns easier to explore, so runners can ask better questions about their own marathons.</p><p>{count(study.cohort.raw)} race records are in the database; {count(summary.n)} pass the timing and race-quality checks used by the analyses. Counts are finishes, not unique runners.</p><Link className="text-link" href="/methodology#data-quality">Why the totals differ <span aria-hidden="true">↗</span></Link></div></section>
-  </div>;
+  </div></StoryData>;
 }

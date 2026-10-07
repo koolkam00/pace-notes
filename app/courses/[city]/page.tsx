@@ -2,13 +2,13 @@ import { notFound } from 'next/navigation';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import ResearchQuestion from '@/components/ResearchQuestion';
 import { getCourseNames, getIndividualCourseAnswer, slugifyCity } from '@/lib/course-data';
-import { getInsightsManifest, readInsight } from '@/lib/insights-server';
+import { getInsightsManifest, readInsight, replayChoices } from '@/lib/insights-server';
 import type { Archetypes, CourseGeometry, Courses, ReplayIndex } from '@/lib/insights';
 import { CourseFingerprint, CourseMatched, CourseWeather } from '@/components/story/CourseInsights';
 import { Section, Temperature } from '@/components/story/Units';
 import { ElevationProfile, RouteMap } from '@/components/story/CourseArt';
 import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
-import HeroReplay, { type ReplayChoice } from '@/components/story/HeroReplay';
+import HeroReplay from '@/components/story/HeroReplay';
 import { Distance, Elevation } from '@/components/story/Units';
 
 const slugify = slugifyCity;
@@ -29,7 +29,7 @@ export default function CityPage({ params }: { params: { city: string } }) {
   const types = archetypes.courses.find((c) => c.city === name);
   const replay = readInsight<ReplayIndex>('replay.json').editions.filter((e) => e.city === name);
   const manifest = getInsightsManifest();
-  const choices: ReplayChoice[] = replay.map((e) => ({ ...e, version: manifest.files[e.file].sha256, route: geometry ? { points: geometry.route, km: geometry.route_km } : null }));
+  const choices = replayChoices(replay, manifest, new Map(geometry ? [[name, { points: geometry.route, km: geometry.route_km }]] : []));
   const race = encodeURIComponent(name);
   const steadiest = types ? archetypes.archetypes[types.shares.indexOf(Math.max(...types.shares))] : null;
   const courses = manifest.files['courses.json'] ? readInsight<Courses>('courses.json') : null;

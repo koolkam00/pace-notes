@@ -6,9 +6,11 @@ import { useUnits } from '@/components/UnitsProvider';
 import type { Archetypes, ReplayIndex } from '@/lib/insights';
 import { hms } from '@/lib/viz/format';
 import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
+import { useStoryData } from './StoryData';
 
 /** Archetype mix by course (each edition weighted equally), sortable by any type. */
-export function CourseTypes({ data }: { data: Archetypes }) {
+export function CourseTypes({ data: given }: { data?: Archetypes }) {
+  const data = useStoryData('archetypes', given);
   const [sortBy, setSortBy] = useState(0);
   const rows = [...data.courses].filter((c) => c.finishes >= 1000).sort((a, b) => b.shares[sortBy] - a.shares[sortBy]);
   return (
@@ -36,7 +38,8 @@ export function CourseTypes({ data }: { data: Archetypes }) {
 }
 
 /** The field stretching out: elapsed-time quantiles at each checkpoint, drawn as a fan. */
-export function FieldSpread({ data }: { data: ReplayIndex }) {
+export function FieldSpread({ data: given }: { data?: ReplayIndex }) {
+  const data = useStoryData('replay', given);
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 900);
   const { units } = useUnits();

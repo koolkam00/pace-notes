@@ -6,6 +6,7 @@ import { useWidth } from '@/components/viz/useSize';
 import type { Courses } from '@/lib/insights';
 import { compact, count, hms } from '@/lib/viz/format';
 import { tempColour } from './WeatherStory';
+import { useStoryData } from './StoryData';
 
 type Fill = 'temp' | 'slowdown';
 
@@ -17,7 +18,8 @@ function slowColour(s: number) {
 }
 
 /** Courses × years: circles sized by eligible finishes, coloured by start temperature or slowdown. */
-export function YearsStrip({ data }: { data: Courses }) {
+export function YearsStrip({ data: given }: { data?: Courses }) {
+  const data = useStoryData('courses', given);
   const y = data.years;
   const [fill, setFill] = useState<Fill>('temp');
   const [hover, setHover] = useState<string | null>(null);
@@ -108,7 +110,8 @@ export function YearsStrip({ data }: { data: Courses }) {
 }
 
 /** Pre- and post-pandemic finish-time quantiles for the high-coverage courses. */
-export function EraArrows({ data }: { data: Courses }) {
+export function EraArrows({ data: given }: { data?: Courses }) {
+  const data = useStoryData('courses', given);
   const e = data.years.eras;
   const rows = e.courses.filter((c) => c.high_coverage).sort((a, b) => a.median[0] - b.median[0]);
   const ref = useRef<HTMLDivElement>(null);

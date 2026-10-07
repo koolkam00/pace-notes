@@ -2,12 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import RaceReplay, { type ReplayEdition } from '@/components/viz/RaceReplay';
-import { loadInsight, type ReplayEditionMeta, type ReplayRows } from '@/lib/insights';
+import { loadInsight, type ReplayRows } from '@/lib/insights';
+import type { ReplayChoice } from '@/lib/insights-server';
 
-export interface ReplayChoice extends ReplayEditionMeta {
-  version: string;
-  route: { points: [number, number][]; km: number[] } | null;
-}
+export type { ReplayChoice };
 
 export default function HeroReplay({ choices, initial }: { choices: ReplayChoice[]; initial: string }) {
   const [slug, setSlug] = useState(initial);

@@ -100,7 +100,8 @@ export interface Archetypes {
   gender: Record<'men' | 'women', { n: number; standardized_shares: number[]; raw_shares: number[] }>;
   courses: { city: string; editions: number; finishes: number; shares: number[] }[];
   barcode: { lo_s: number; hi_s: number; n: number; median: number[]; archetype: number[] }[];
-  barcode_minutes: { minute: number; n: number; median: number[]; metronome_share: number }[];
+  /** Published for download; no chart reads it, so pages drop it before passing data to the browser. */
+  barcode_minutes?: { minute: number; n: number; median: number[]; metronome_share: number }[];
   sentences: { total_distinct: number; published: { sentence: string; n: number }[]; published_n: number; all_even_n: number };
   transitions: { pairs: number; repeat_share: number; rows: { name: string; pairs: number; next_shares: number[]; repeat_share: number | null; overall_share: number }[] };
   classifier: { section_km: number[]; clip_lo: number[]; clip_hi: number[]; weights: number[]; centroids: number[][]; names: string[]; rule: string };

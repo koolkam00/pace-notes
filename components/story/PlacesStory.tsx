@@ -7,6 +7,7 @@ import { useWidth } from '@/components/viz/useSize';
 import { useUnits } from '@/components/UnitsProvider';
 import type { Positions } from '@/lib/insights';
 import { count, checkpointLabel } from '@/lib/viz/format';
+import { useStoryData } from './StoryData';
 
 const CHECKPOINTS = ['20', '30', '35', '40'] as const;
 
@@ -15,7 +16,8 @@ function mmss(s: number) {
 }
 
 /** Drag the gap, pick a checkpoint: how often the trailing finish crossed the line first. */
-export function GapGauge({ data }: { data: Positions }) {
+export function GapGauge({ data: given }: { data?: Positions }) {
+  const data = useStoryData('positions', given);
   const [gap, setGap] = useState(60);
   const [cp, setCp] = useState<(typeof CHECKPOINTS)[number]>('30');
   const ref = useRef<HTMLDivElement>(null);
@@ -80,7 +82,8 @@ export function GapGauge({ data }: { data: Positions }) {
   );
 }
 
-export function GainHistogram({ data }: { data: Positions }) {
+export function GainHistogram({ data: given }: { data?: Positions }) {
+  const data = useStoryData('positions', given);
   const at30 = checkpointLabel(30, useUnits().units);
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 900);
@@ -114,7 +117,8 @@ export function GainHistogram({ data }: { data: Positions }) {
   );
 }
 
-export function BreakEven({ data }: { data: Positions }) {
+export function BreakEven({ data: given }: { data?: Positions }) {
+  const data = useStoryData('positions', given);
   const at30 = checkpointLabel(30, useUnits().units);
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 900);
@@ -164,7 +168,8 @@ export function BreakEven({ data }: { data: Positions }) {
   );
 }
 
-export function Ledger({ data }: { data: Positions }) {
+export function Ledger({ data: given }: { data?: Positions }) {
+  const data = useStoryData('positions', given);
   const at30 = checkpointLabel(30, useUnits().units);
   const l = data.ledger;
   return (
@@ -178,7 +183,8 @@ export function Ledger({ data }: { data: Positions }) {
   );
 }
 
-export function WomenMen({ data }: { data: Positions }) {
+export function WomenMen({ data: given }: { data?: Positions }) {
+  const data = useStoryData('positions', given);
   const at30 = checkpointLabel(30, useUnits().units);
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 900);

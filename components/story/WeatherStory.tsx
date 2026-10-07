@@ -9,6 +9,7 @@ import type { Courses } from '@/lib/insights';
 import { paceLabel } from '@/lib/units';
 import { count, mss } from '@/lib/viz/format';
 import { SectionAxis } from './CoursesStory';
+import { useOptionalStoryData, useStoryData } from './StoryData';
 
 const COOL = '#2F5BFF';
 const HOT = '#FF5B2E';
@@ -34,7 +35,10 @@ export function tempColour(c: number) {
 }
 
 /** 190 editions: start temperature against sustained slowdown, pooled and then within each course. */
-export function Untangle({ weather: w }: { weather: Pick<Courses['weather'], 'editions' | 'fits'> }) {
+export function Untangle({ weather: given }: { weather?: Pick<Courses['weather'], 'editions' | 'fits'> }) {
+  const fromContext = useOptionalStoryData('courses');
+  const w = given ?? fromContext?.weather;
+  if (!w) throw new Error('Untangle needs weather data.');
   const [within, setWithin] = useState(false);
   const cities = useMemo(() => [...new Set(w.editions.map((e) => e.city))].sort(), [w]);
   const [focus, setFocus] = useState('Copenhagen');
@@ -114,7 +118,8 @@ export function Untangle({ weather: w }: { weather: Pick<Courses['weather'], 'ed
 const PAIR_KEYS: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
 
 /** Every same-course pair of editions at least 5 °C apart: did the warmer one have more sustained slowdown? */
-export function PairsWaffle({ data }: { data: Courses }) {
+export function PairsWaffle({ data: given }: { data?: Courses }) {
+  const data = useStoryData('courses', given);
   const p = data.weather.pairs;
   const { units } = useUnits();
   const sorted = [...p.list].sort((a, b) => a.city.localeCompare(b.city) || (b.hot_temp - b.cool_temp) - (a.hot_temp - a.cool_temp));
@@ -155,7 +160,8 @@ export function PairsWaffle({ data }: { data: Courses }) {
 }
 
 /** Drag the start temperature; the typical pace curve bends by the heat signature. */
-export function HeatCurve({ data }: { data: Courses }) {
+export function HeatCurve({ data: given }: { data?: Courses }) {
+  const data = useStoryData('courses', given);
   const w = data.weather;
   const base = w.mean_start_temp;
   const [temp, setTemp] = useState(20);
@@ -227,7 +233,8 @@ export function HeatCurve({ data }: { data: Courses }) {
 }
 
 /** Each course's hottest and coolest edition. */
-export function HotCool({ data }: { data: Courses }) {
+export function HotCool({ data: given }: { data?: Courses }) {
+  const data = useStoryData('courses', given);
   const rows = data.weather.hot_cool;
   const { units } = useUnits();
   const ref = useRef<HTMLDivElement>(null);
@@ -267,7 +274,8 @@ export function HotCool({ data }: { data: Courses }) {
 }
 
 /** Courses compared among finishes with the same 5–20 km pace. */
-export function MatchedPace({ data }: { data: Courses }) {
+export function MatchedPace({ data: given }: { data?: Courses }) {
+  const data = useStoryData('courses', given);
   const [pick, setPick] = useState(Math.max(0, data.matched.findIndex((b) => b.lo_s === 300)));
   const band = data.matched[pick];
   const { units } = useUnits();

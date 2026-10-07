@@ -2,6 +2,7 @@ import type { FinishTimes, InsightsManifest } from '@/lib/insights';
 import { count } from '@/lib/viz/format';
 import { FinishHistogram, Rescue, SecondsLens } from '../FinishTimeStory';
 import { StoryMethods, StorySection } from '../StoryShell';
+import { StoryData } from '../StoryData';
 
 export default function RoundNumbersBody({ data, manifest }: { data: FinishTimes; manifest: InsightsManifest }) {
   const marks = data.marks;
@@ -15,10 +16,10 @@ export default function RoundNumbersBody({ data, manifest }: { data: FinishTimes
   const slowFive = fiveMin.filter((c) => c.minute >= 270);
   const med = (v: number[]) => [...v].sort((a, b) => a - b)[Math.floor(v.length / 2)] ?? NaN;
   return (
-    <>
+    <StoryData value={{ finish: data }}>
       <StorySection id="towers" kicker="01 · The towers" title={<>Against the curve, the tallest tower is <em>2:59</em>.</>}
         dek={<>{count(three.minute_before)} finishes landed between 2:59:00 and 2:59:59, {three.ratio.toFixed(2)}× what a smooth curve expects. In raw counts the busiest minutes are just before 4:00, where far more runners finish; relative to the curve, 2:59 stands tallest. The minute before 3:30 holds {half.ratio.toFixed(2)}×, before 4:00 {four.ratio.toFixed(2)}×, and before 5:00 {five.ratio.toFixed(2)}×.</>}>
-        <FinishHistogram data={data} />
+        <FinishHistogram />
       </StorySection>
       <StorySection id="scoreboard" kicker="02 · Every mark" title={<>Faster finish times bunch at <em>more marks</em>.</>}
         dek={<>Below 3:30 even five-minute marks leave a step (median cliff index {med(fastFive.map((c) => c.cliff)).toFixed(2)}); after 4:30 the hours and half-hours leave the clearest steps, while five-minute marks barely do (median {med(slowFive.map((c) => c.cliff)).toFixed(2)}, where 1.00 means no step).</>}>
@@ -43,11 +44,11 @@ export default function RoundNumbersBody({ data, manifest }: { data: FinishTimes
       </StorySection>
       <StorySection id="seconds" kicker="03 · Seconds" title={<>The cushion is widest before <em>5:00</em>.</>}
         dek="Zoom to ten-second bins. Before 3:00 the pile sits tight against the line; before 5:00 it spreads back over several minutes.">
-        <SecondsLens data={data} />
+        <SecondsLens />
       </StorySection>
       <StorySection id="rescue" kicker="04 · After 40 km" title={<>More finishes <em>slip under 4:00</em> after 40 km.</>}
         dek={<>Of {count(b4.over.n)} finishes projected 0–2 minutes over 4:00 at 40 km, {Math.round(b4.over.share_under * 100)}% got under it, against {Math.round(b4.over.expected_share_under * 100)}% for comparable finishes away from a round mark. Over the final 2.195 km they finished a median {b4.over.median_final_gain_s.toFixed(0)} seconds ahead of their own 35–40 km pace{b4.over.expected_median_final_gain_s != null ? `, against ${b4.over.expected_median_final_gain_s.toFixed(0)} seconds for the comparison finishes` : ""}.</>}>
-        <Rescue data={data} />
+        <Rescue />
       </StorySection>
       <StoryMethods manifest={manifest} files={['finish-times.json']} method={data.method}
         caveats={[
@@ -56,6 +57,6 @@ export default function RoundNumbersBody({ data, manifest }: { data: FinishTimes
           'Elapsed times are as published by the timing sources; wave and start offsets are not recorded.',
           `Across hours and half-hours from 2:30 to 6:00, about ${count(Math.round(data.total_excess_hour_half_hour / 1000) * 1000)} finishes sit in the five minutes before a mark beyond the curve. That total is sensitive to the fitting window.`,
         ]} />
-    </>
+    </StoryData>
   );
 }

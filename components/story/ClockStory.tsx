@@ -5,6 +5,7 @@ import { useUnits } from '@/components/UnitsProvider';
 import { useWidth } from '@/components/viz/useSize';
 import type { ReplayEditionMeta, ReplayIndex } from '@/lib/insights';
 import { checkpointLabel, count, hms } from '@/lib/viz/format';
+import { useOptionalStoryData, useStoryData } from './StoryData';
 
 const KM = [5, 10, 15, 20, 25, 30, 35, 40, 42.195];
 const name = (e: ReplayEditionMeta) => `${e.city === 'New York' ? 'New York City' : e.city} ${e.year}`;
@@ -20,7 +21,9 @@ function EditionPicker({ editions, value, onChange, label }: { editions: ReplayE
 }
 
 /** Where the whole field was when the fastest eligible finish crossed the line. */
-export function FirstFinish({ editions, initial }: { editions: ReplayEditionMeta[]; initial: string }) {
+export function FirstFinish({ editions: given, initial }: { editions?: ReplayEditionMeta[]; initial: string }) {
+  const fromContext = useOptionalStoryData('replay');
+  const editions = given ?? fromContext?.editions ?? [];
   const list = editions.filter((e) => e.moments);
   const [slug, setSlug] = useState(initial);
   const e = list.find((x) => x.slug === slug) ?? list[0];
@@ -55,7 +58,9 @@ export function FirstFinish({ editions, initial }: { editions: ReplayEditionMeta
 }
 
 /** An even-paced ghost against the real field: share of finishes ahead on the clock at each checkpoint. */
-export function EvenGhost({ editions, initial }: { editions: ReplayEditionMeta[]; initial: string }) {
+export function EvenGhost({ editions: given, initial }: { editions?: ReplayEditionMeta[]; initial: string }) {
+  const fromContext = useOptionalStoryData('replay');
+  const editions = given ?? fromContext?.editions ?? [];
   const list = editions.filter((e) => e.ghosts?.length);
   const [slug, setSlug] = useState(initial);
   const e = list.find((x) => x.slug === slug) ?? list[0];
@@ -107,7 +112,9 @@ export function EvenGhost({ editions, initial }: { editions: ReplayEditionMeta[]
 }
 
 /** The emptying-course illusion: who is left explains much of the apparent slowdown. */
-export function EmptyingCourse({ editions, initial }: { editions: ReplayEditionMeta[]; initial: string }) {
+export function EmptyingCourse({ editions: given, initial }: { editions?: ReplayEditionMeta[]; initial: string }) {
+  const fromContext = useOptionalStoryData('replay');
+  const editions = given ?? fromContext?.editions ?? [];
   const list = editions.filter((e) => e.composition?.length);
   const [slug, setSlug] = useState(initial);
   const e = list.find((x) => x.slug === slug) ?? list[0];
@@ -153,7 +160,9 @@ export function EmptyingCourse({ editions, initial }: { editions: ReplayEditionM
 }
 
 /** One 30-second clock pack at 10 km and how far apart its members finish. */
-export function ClockPack({ editions, initial }: { editions: ReplayEditionMeta[]; initial: string }) {
+export function ClockPack({ editions: given, initial }: { editions?: ReplayEditionMeta[]; initial: string }) {
+  const fromContext = useOptionalStoryData('replay');
+  const editions = given ?? fromContext?.editions ?? [];
   const list = editions.filter((e) => e.pack);
   const [slug, setSlug] = useState(initial);
   const e = list.find((x) => x.slug === slug) ?? list[0];
@@ -196,7 +205,10 @@ export function ClockPack({ editions, initial }: { editions: ReplayEditionMeta[]
 }
 
 /** Every edition's stretch: how much wider the field is over 20–40 km than over 0–20 km. */
-export function StretchStrip({ stretch }: { stretch: NonNullable<ReplayIndex['stretch']> }) {
+export function StretchStrip({ stretch: given }: { stretch?: NonNullable<ReplayIndex['stretch']> }) {
+  const fromContext = useOptionalStoryData('replay');
+  const stretch = given ?? fromContext?.stretch;
+  if (!stretch) throw new Error('StretchStrip needs replay stretch data.');
   const { units } = useUnits();
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 860);

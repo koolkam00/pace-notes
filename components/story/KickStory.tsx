@@ -7,6 +7,7 @@ import { useUnits } from '@/components/UnitsProvider';
 import { useWidth } from '@/components/viz/useSize';
 import type { Kick } from '@/lib/insights';
 import { checkpointLabel, count, hms, mss, sectionLabel } from '@/lib/viz/format';
+import { useStoryData } from './StoryData';
 
 const STATE_COLOURS = ['#17A673', '#F4B23E', '#FF6A3D', '#C8202F'];
 const r2 = (v: number) => Math.round(v * 100) / 100;
@@ -19,7 +20,8 @@ function useSection() {
 }
 
 /** Share of finishes faster than their previous section, for each section after 20 km. */
-export function Magnet({ data }: { data: Kick }) {
+export function Magnet({ data: given }: { data?: Kick }) {
+  const data = useStoryData('kick', given);
   const [group, setGroup] = useState<'all' | 'slowdown'>('all');
   const sec = useSection();
   const { units } = useUnits();
@@ -82,7 +84,8 @@ export function Magnet({ data }: { data: Kick }) {
 }
 
 /** States after 20 km and how finishes move between them, section by section. */
-export function StateFlow({ data }: { data: Kick }) {
+export function StateFlow({ data: given }: { data?: Kick }) {
+  const data = useStoryData('kick', given);
   const st = data.states;
   const sec = useSection();
   const [focus, setFocus] = useState<number | null>(3);
@@ -151,7 +154,8 @@ export function StateFlow({ data }: { data: Kick }) {
 }
 
 /** Spread of pace by section, with the line where most of the field is more than 10% slower. */
-export function BreakRiver({ data }: { data: Kick }) {
+export function BreakRiver({ data: given }: { data?: Kick }) {
+  const data = useStoryData('kick', given);
   const bands = data.breaks.bands;
   const [pick, setPick] = useState(-1);
   const rows = pick < 0 ? data.breaks.all.sections : bands[pick].sections;
@@ -207,7 +211,8 @@ export function BreakRiver({ data }: { data: Kick }) {
 }
 
 /** Pick how slow your latest section was; see how often a sustained slowdown followed. */
-export function WarningLight({ data }: { data: Kick }) {
+export function WarningLight({ data: given }: { data?: Kick }) {
+  const data = useStoryData('kick', given);
   const { units } = useUnits();
   const [w, setW] = useState(1);
   const block = data.warning[w];
@@ -252,7 +257,8 @@ export function WarningLight({ data }: { data: Kick }) {
 }
 
 /** Same race, same 5–20 km pace: what a fast or slow first 5 km went with. */
-export function BankAndPay({ data }: { data: Kick }) {
+export function BankAndPay({ data: given }: { data?: Kick }) {
+  const data = useStoryData('kick', given);
   const rows = data.bank.curve;
   const [hover, setHover] = useState(rows.findIndex((r) => r.lo === -10));
   const ref = useRef<HTMLDivElement>(null);
@@ -309,7 +315,8 @@ export function BankAndPay({ data }: { data: Kick }) {
 }
 
 /** Same 5–20 km pace, with and without a sustained slowdown. */
-export function TwinRunners({ data }: { data: Kick }) {
+export function TwinRunners({ data: given }: { data?: Kick }) {
+  const data = useStoryData('kick', given);
   const { units } = useUnits();
   const bands = data.cost.bands;
   const [pick, setPick] = useState(Math.max(0, bands.findIndex((b) => b.lo_min === 225)));
@@ -363,7 +370,8 @@ export function TwinRunners({ data }: { data: Kick }) {
 }
 
 /** Women and men: share faster over the final section, by 5–20 km pace band. */
-export function GenderKick({ data }: { data: Kick }) {
+export function GenderKick({ data: given }: { data?: Kick }) {
+  const data = useStoryData('kick', given);
   const { units } = useUnits();
   const rows = data.gender_kick;
   const ref = useRef<HTMLDivElement>(null);

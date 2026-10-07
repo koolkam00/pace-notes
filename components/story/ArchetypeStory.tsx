@@ -9,6 +9,7 @@ import { SKIN_TONES } from '@/lib/art/gait';
 import type { Archetypes } from '@/lib/insights';
 import { checkpointLabel, count, hms, paceColour } from '@/lib/viz/format';
 import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
+import { useStoryData } from './StoryData';
 
 const SECTION_KM = [5, 5, 5, 5, 5, 5, 5, 5, 2.195];
 const BOUNDS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 42.195];
@@ -134,7 +135,8 @@ export function ArchetypeCards({ data, focus, onFocus }: { data: Archetypes; foc
   );
 }
 
-export function PacingBarcode({ data }: { data: Archetypes }) {
+export function PacingBarcode({ data: given }: { data?: Archetypes }) {
+  const data = useStoryData('archetypes', given);
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 900);
   const { units } = useUnits();
@@ -197,7 +199,8 @@ export function PacingBarcode({ data }: { data: Archetypes }) {
   );
 }
 
-export function ArchetypeRiver({ data }: { data: Archetypes }) {
+export function ArchetypeRiver({ data: given }: { data?: Archetypes }) {
+  const data = useStoryData('archetypes', given);
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 900);
   const H = 300;
@@ -240,7 +243,8 @@ function parseClock(text: string): number | null {
 }
 
 /** Classify a reader's own nine checkpoint times with the published classifier. Runs entirely in the browser. */
-export function WhichArchetype({ data }: { data: Archetypes }) {
+export function WhichArchetype({ data: given }: { data?: Archetypes }) {
+  const data = useStoryData('archetypes', given);
   const { units } = useUnits();
   const [values, setValues] = useState<string[]>(['0:25:30', '0:51:00', '1:16:40', '1:42:30', '2:08:50', '2:36:10', '3:05:00', '3:36:00', '3:51:00']);
   const times = values.map(parseClock);
@@ -291,7 +295,8 @@ export function WhichArchetype({ data }: { data: Archetypes }) {
   );
 }
 
-export function RepeatHabits({ data }: { data: Archetypes }) {
+export function RepeatHabits({ data: given }: { data?: Archetypes }) {
+  const data = useStoryData('archetypes', given);
   const rows = data.transitions.rows;
   const max = Math.max(...rows.map((r) => r.repeat_share ?? 0));
   return (

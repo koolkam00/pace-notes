@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getInsightsManifest, readInsight } from '@/lib/insights-server';
+import { getInsightsManifest, readInsight, clientArchetypes } from '@/lib/insights-server';
 import type { Archetypes, CourseGeometry, Courses, Demographics, FinishTimes, Kick, Positions, ReplayIndex } from '@/lib/insights';
 import { STORIES } from '@/lib/stories';
 import { StoryHeader, StoryNav } from '@/components/story/StoryShell';
@@ -33,7 +33,7 @@ export default function StoryPage({ params }: { params: { slug: string } }) {
   const manifest = getInsightsManifest();
   const files = new Set(available().map((s) => s.file));
   let body;
-  if (story.slug === 'pacing-types') body = <PacingTypesBody data={readInsight<Archetypes>('archetypes.json')} manifest={manifest} />;
+  if (story.slug === 'pacing-types') body = <PacingTypesBody data={clientArchetypes(readInsight<Archetypes>('archetypes.json'))} manifest={manifest} />;
   else if (story.slug === 'round-numbers') body = <RoundNumbersBody data={readInsight<FinishTimes>('finish-times.json')} manifest={manifest} />;
   else if (story.slug === 'who-holds-pace') body = <DemographicsBody data={readInsight<Demographics>('demographics.json')} manifest={manifest} />;
   else if (story.slug === 'final-kick') body = <KickBody data={readInsight<Kick>('kick.json')} manifest={manifest} />;

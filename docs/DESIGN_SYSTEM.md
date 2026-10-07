@@ -66,5 +66,6 @@ The fonts are self-hosted through `@fontsource-variable/*`, imported in `app/lay
   - Tick density adapts to width; nine-section axes switch to boundary labels on narrow screens (`SectionAxis`).
   - Charts never depend on colour alone when a label fits.
 - **Server and client.**
-  - Story bodies are server components that pass only the needed data to client charts.
+  - Story bodies are server components. Each wraps its section in `<StoryData value={{ … }}>` (`components/story/StoryData.tsx`) so a dataset crosses to the browser once; charts read it with `useStoryData(key, given)`. Passing the same object to several client components makes React serialize it twice, which doubled the story pages.
+  - Pages pass only what the browser needs: `clientArchetypes` drops the per-minute barcode and `replayChoices` keeps only the replay picker's fields (`lib/insights-server.ts`).
   - Shared constants used by server components must not live in `'use client'` modules (see `lib/viz/palette.ts`).

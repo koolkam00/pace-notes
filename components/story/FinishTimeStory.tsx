@@ -5,6 +5,7 @@ import { useWidth } from '@/components/viz/useSize';
 import type { FinishTimes } from '@/lib/insights';
 import { checkpointLabel, count, hm } from '@/lib/viz/format';
 import { useUnits } from '@/components/UnitsProvider';
+import { useStoryData } from './StoryData';
 
 const MAJOR = new Set([150, 180, 210, 240, 270, 300, 330, 360]);
 const LO = 140;
@@ -17,7 +18,8 @@ function parseTime(text: string): number | null {
   return seconds >= 5400 && seconds < 43200 ? seconds : null;
 }
 
-export function FinishHistogram({ data }: { data: FinishTimes }) {
+export function FinishHistogram({ data: given }: { data?: FinishTimes }) {
+  const data = useStoryData('finish', given);
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 960);
   const [series, setSeries] = useState<'all' | 'men' | 'women'>('all');
@@ -117,7 +119,8 @@ export function FinishHistogram({ data }: { data: FinishTimes }) {
   );
 }
 
-export function SecondsLens({ data }: { data: FinishTimes }) {
+export function SecondsLens({ data: given }: { data?: FinishTimes }) {
+  const data = useStoryData('finish', given);
   const [pick, setPick] = useState(2);
   const lens = data.seconds[pick];
   const ref = useRef<HTMLDivElement>(null);
@@ -161,7 +164,8 @@ export function SecondsLens({ data }: { data: FinishTimes }) {
   );
 }
 
-export function Rescue({ data }: { data: FinishTimes }) {
+export function Rescue({ data: given }: { data?: FinishTimes }) {
+  const data = useStoryData('finish', given);
   const [pick, setPick] = useState(2);
   const b = data.bubble[pick];
   const { units } = useUnits();
