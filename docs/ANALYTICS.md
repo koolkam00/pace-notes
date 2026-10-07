@@ -2,6 +2,13 @@
 
 Implemented September 17, 2026. Account configuration and production ingestion must be verified separately before claiming analytics is live.
 
+**Production status (checked October 7, 2026):** analytics is live.
+- **Where the data goes:** PostHog US Cloud, organization "Run With Kam", project "Default project" (id 614669). The "Burger Index" organization is a separate site's project.
+- **Settings:** cookieless server hash mode is on (stateful), and `https://splithappens.run` is an authorized URL.
+- **Vercel:** the Production environment holds `NEXT_PUBLIC_POSTHOG_KEY` (that project's public token) and `NEXT_PUBLIC_POSTHOG_HOST`, and the live bundle loads them.
+- **Traffic:** in the 30 days to that date the project recorded 947 `$pageview` events from `splithappens.run`, plus the declared feature events (`analysis_filters_applied`, runner search and profile events, `race_comparison_opened`, `units_changed`, `data_download_clicked`).
+- **Runner tools:** the tools report only their path (`/tools/<slug>`).
+
 The site uses PostHog Cloud through `posthog-js`, loaded after hydration by `SiteAnalytics`. It supports the existing Next.js 14 static export; no server, database, instrumentation-client upgrade or proxy is required. Production capture is restricted to `splithappens.run`, `www.splithappens.run` and the original `htw-live-study.vercel.app` domain. Preview deployments and local development send nothing.
 
 ## Configuration and launch
