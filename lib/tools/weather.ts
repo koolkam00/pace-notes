@@ -23,7 +23,7 @@ export function wetBulb(t: number, rh: number): number {
 export const shadeWbgt = (t: number, td: number) => 0.7 * wetBulb(t, relativeHumidity(t, td)) + 0.3 * t;
 
 export type Flag = 'green' | 'yellow' | 'red' | 'black';
-/** ACSM race-day WBGT flags: green < 18, yellow 18–23, red 23–28, black > 28 °C. */
+/** Race-day WBGT flags from the ACSM position stand on heat and cold illnesses in distance running (Armstrong et al. 1996, Med Sci Sports Exerc 28(12)): green < 18, yellow 18–23, red 23–28, black > 28 °C. */
 export function acsmFlag(wbgt: number): Flag {
   if (wbgt < 18) return 'green';
   if (wbgt < 23) return 'yellow';

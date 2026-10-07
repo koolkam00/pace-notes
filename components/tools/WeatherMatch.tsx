@@ -303,7 +303,7 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
   const winAlt = centre !== null ? tWindow(centre - hw, centre + hw, other(tUnit)) : '';
   const refText = tWindow(REF.c - REF.hw, REF.c + REF.hw, tUnit);
   const bandLabel = band !== null ? bandText(band, step, units) : '';
-  const yourTemp = tempOk ? tAbs(tempC!, tUnit, tUnit === 'f' ? 0 : 1) : '';
+  const yourTemp = tempOk ? tAbs(tempC!, tUnit, 1) : '';
   const refTone = centre === null ? 'Reference' : centre - hw > REF.c + REF.hw ? 'Cooler mornings' : centre + hw < REF.c - REF.hw ? 'Warmer mornings' : 'Reference window';
   const widenLabel = hw === 2 ? `Widen to ±${tSpan(3, tUnit)}` : `Back to ±${tSpan(2, tUnit)}`;
   const toggleWiden = () => setQ({ w: hw === 2 ? '3' : '2' });
@@ -315,7 +315,8 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
   else if (!data) status = sha ? 'Loading the data.' : '';
   else if (match?.kind === 'ok') {
     const same = centre === REF.c && hw === REF.hw;
-    status = `${match.row.ed.length} of ${match.inWindow} races that started at ${winText} had 20 or more finishes at ${bandLabel}: ${count(match.row.n)} finishes, sustained slowdown ${pctShare(match.row.sd)}.`
+    const m = match.row.ed.length;
+    status = `${m === match.inWindow ? `${m} races started at ${winText}, each` : `${m} of ${match.inWindow} races that started at ${winText}`} with 20 or more finishes at ${bandLabel}: ${count(match.row.n)} finishes, sustained slowdown ${pctShare(match.row.sd)}.`
       + (match.ref && !same ? ` ${refTone}, ${refText}: ${pctShare(match.ref.sd)}.` : '');
   } else if (match?.kind === 'no-row') status = `Not enough past mornings like ${yourTemp} at ${bandLabel}.`;
   else if (match?.kind === 'pace-range') status = match.fast ? 'Faster than any published pace band.' : 'Slower than any published pace band.';
@@ -613,8 +614,8 @@ function ComparisonTable({ match, units, winText, refText, refTone, bandLabel, c
   const cols: Col[] = showRef ? [{ r: row, started: match.inWindow }, { r: ref!, started: match.refInWindow }] : [{ r: row, started: match.inWindow }];
   const lines: { label: ReactNode; cell: (c: Col) => ReactNode; key?: boolean }[] = [
     { label: 'Races that started in the window', cell: (c) => count(c.started) },
-    { label: <>Races with 20+ finishes at {bandLabel}</>, cell: (c) => count(c.r.ed.length) },
-    { label: <>Finishes at {bandLabel} in those races</>, cell: (c) => count(c.r.n) },
+    { label: <>Races with 20+ finishes at <span className="weather-match-nowrap">{bandLabel}</span></>, cell: (c) => count(c.r.ed.length) },
+    { label: <>Finishes at <span className="weather-match-nowrap">{bandLabel}</span> in those races</>, cell: (c) => count(c.r.n) },
     { label: 'Sustained slowdown', cell: (c) => pctShare(c.r.sd), key: true },
     { label: <>Median time after {checkpointLabel(20, units)} beyond the 5–20 km pace</>, cell: (c) => mss(c.r.after20, true) },
     { label: <>Median pace change, {checkpointLabel(30, units)} to finish</>, cell: (c) => signedPct(c.r.late) },
