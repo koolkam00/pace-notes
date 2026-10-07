@@ -161,6 +161,14 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   checks += 4;
 }
 
+// Daniels–Gilbert search is not capped at 12 hours: slow inputs give their real solution or NaN, never a pinned bound.
+{
+  const slow = predictor.timeForVdot(predictor.vdot(5, 90 * 60), 42.195);
+  assert.ok(Number.isNaN(slow) || (slow > 12 * 3600 && Math.abs(predictor.vdot(42.195, slow) - predictor.vdot(5, 90 * 60)) < 1e-6), `slow 5K marathon equivalent ${slow}`);
+  const moderate = predictor.timeForVdot(predictor.vdot(5, 50 * 60), 42.195);
+  assert.ok(Math.abs(predictor.vdot(42.195, moderate) - predictor.vdot(5, 50 * 60)) < 1e-6 && moderate < 12 * 3600);
+  checks += 2;
+}
 // Structured qualifying values agree with the transcribed prose, so the annual review changes them together.
 {
   const nyc = qualifying.STANDARDS.find((s) => s.key === 'nyc'), sydney = qualifying.STANDARDS.find((s) => s.key === 'sydney'), boston = qualifying.STANDARDS.find((s) => s.key === 'boston');

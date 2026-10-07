@@ -23,10 +23,17 @@ export function vdot(km: number, seconds: number): number {
   return danielsVO2((km * 1000) / t) / danielsFraction(t);
 }
 
-/** Time (s) at which a race of `km` gives the same VDOT, by bisection. */
+/**
+ * Time (s) at which a race of `km` gives the same VDOT, by bisection. VDOT falls as time grows, so the upper bound is
+ * widened until it brackets the answer; NaN when it lies beyond 48 hours (walking paces the equations were not fitted to).
+ */
 export function timeForVdot(value: number, km: number): number {
   let lo = 60;
-  let hi = 12 * 3600;
+  let hi = 6 * 3600;
+  while (vdot(km, hi) > value) {
+    if (hi >= 48 * 3600) return NaN;
+    hi *= 2;
+  }
   for (let i = 0; i < 200; i += 1) {
     const mid = (lo + hi) / 2;
     if (vdot(km, mid) > value) lo = mid;
