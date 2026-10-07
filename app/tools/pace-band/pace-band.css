@@ -158,7 +158,9 @@
 
 /* ---------- Print ---------- */
 @media print {
-  .pace-band-goalbar, .pace-band-details, .pace-band-view { display: none !important; }
+  .pace-band-goalbar, .pace-band-details, .pace-band-view, .pace-band-tip { display: none !important; }
+  /* The chart is sized for the screen; on paper it keeps that size or shrinks to the panel, never overflows. */
+  .pace-band-chart svg { max-width: 100%; height: auto; }
   .pace-band-sheet-wrap { overflow: visible; margin: 0; padding: 0; background: none; }
   /* Width follows the printable area (strip 18.4 cm + .45 cm for the scissor marks), so A4 and Letter print unscaled. */
   .pace-band-sheet { width: auto; max-width: calc(var(--strip) + .45cm); padding: 0 0 0 .45cm; box-shadow: none; zoom: 1 !important; }

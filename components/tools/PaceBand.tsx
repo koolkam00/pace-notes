@@ -641,7 +641,7 @@ function SectionChart({ held, slow, pKm, units }: { held: Cell | null; slow: Cel
         <span><i className="dashed" />Even pace {fmtPace(pKm, units)}</span>
       </div>
       <div ref={ref} className="viz pace-band-chart" onPointerMove={(e) => pick(e.clientX)} onPointerDown={(e) => pick(e.clientX)} onPointerLeave={(e) => { if (e.pointerType === 'mouse') setHover(null); }}>
-        <svg width={width} height={H} role="img"
+        <svg width={width} height={H} viewBox={`0 0 ${width} ${H}`} role="img"
           aria-label={`Median pace in each of nine sections. ${series.map(describe).join(' ')} Even pace is ${fmtPace(pKm, units)}.`}>
           <rect x={x(20)} y={m.t} width={x(MARATHON_KM) - x(20)} height={ih} fill="var(--paper-2)" opacity={0.6} />
           <text x={x(20) + 6} y={m.t - 8} className="annotation-sub">after 20 km</text>
