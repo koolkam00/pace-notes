@@ -40,7 +40,7 @@ export const TOOLS: ToolDefinition[] = [
     dek: 'For your goal pace, how finishes that ran it through 20 km held up on each course, with race month, morning temperatures and route profile.' },
   { slug: 'weather-match', title: 'Weather match', short: 'Mornings like your forecast', group: 'Plan', evidence: ['data', 'research'], accent: '#F4B23E', file: 'tools/weather-match.json',
     dek: 'Past marathons that started at your forecast temperature, and how finishes at your pace held up there, beside published heat guidance.' },
-  { slug: 'projector', title: 'Race-day projector', short: 'Live finish range from any mat', group: 'Race day', evidence: ['data'], accent: '#E2416B', file: 'tools/projector.json',
+  { slug: 'projector', title: 'Race-day projector', short: 'Finish range from any 5 km mat', group: 'Race day', evidence: ['data', 'arithmetic'], accent: '#E2416B', file: 'tools/projector.json',
     dek: 'Type a time from the tracker at any 5 km mat. See the finish range and the next mats’ arrival windows from what similar finishes actually ran, not a constant-pace guess.' },
   { slug: 'split-check', title: 'Split check', short: 'Read your race afterwards', group: 'Afterwards', evidence: ['data'], accent: '#17A673', file: 'tools/pace-band.json',
     dek: 'Paste your nine mat times. See your section paces, whether you had a sustained slowdown, your pacing type and how you compare with finishes at your time.' },
