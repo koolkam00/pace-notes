@@ -74,7 +74,8 @@ export function loadInsight<T>(name: string, sha256: string): Promise<T> {
   const key = name + '@' + sha256;
   if (!cache.has(key)) {
     const request = (async () => {
-      const response = await fetch((process.env.NEXT_PUBLIC_BASE_PATH || '') + '/data/insights/' + name + '?v=' + sha256);
+      // No referrer: the page URL can hold a visitor's tool inputs.
+      const response = await fetch((process.env.NEXT_PUBLIC_BASE_PATH || '') + '/data/insights/' + name + '?v=' + sha256, { referrerPolicy: 'no-referrer' });
       if (!response.ok) throw new Error('This data could not be loaded. Check the connection and try again.');
       const buffer = await response.arrayBuffer();
       if (typeof crypto !== 'undefined' && crypto.subtle && (await digest(buffer)) !== sha256) throw new Error('This data could not be verified, so it is not shown.');

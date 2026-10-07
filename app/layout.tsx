@@ -15,6 +15,8 @@ import MotionToggle from '@/components/MotionToggle';
 export const metadata = {
   title: 'Pace Notes | Understand your next 26.2 miles',
   description: 'What 3.5 million marathon finishes reveal about pacing: interactive stories, race replays and ten essential runner questions.',
+  // Tool inputs (goals, race times) live in the page URL; send only the origin as the referrer, even to this site.
+  referrer: 'strict-origin',
 };
 
 export const viewport = { themeColor: '#F5F0E6' };
