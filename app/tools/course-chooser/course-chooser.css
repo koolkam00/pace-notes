@@ -11,7 +11,8 @@
 .course-chooser-workspace .tool-inputs { position: static; }
 .course-chooser-goal { display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px; align-items: center; gap: .5rem; }
 .course-chooser-goal > button { width: 48px; height: 48px; min-height: 48px; padding: 0; font-size: 1.4rem; font-weight: 500; line-height: 1; }
-.course-chooser-goal > button:disabled { opacity: .35; cursor: not-allowed; }
+/* At the end of the range a stepper stays focusable (aria-disabled), so it fades its glyph, not its focus ring. */
+.course-chooser-goal > button[aria-disabled="true"], .course-chooser-goal > button[aria-disabled="true"]:hover { border-color: var(--line); color: var(--line-2); cursor: not-allowed; }
 .course-chooser-goal select { min-height: 58px; padding: .4rem 2.2rem .4rem 1.2rem; font-family: var(--bib); font-size: 1.7rem; font-weight: 650; letter-spacing: -.01em;
   font-variant-numeric: tabular-nums; text-align: center; text-align-last: center; }
 .course-chooser-inputs .tool-presets button { min-width: 3.6rem; font-variant-numeric: tabular-nums; }
@@ -25,8 +26,9 @@
 .course-chooser-kicker span { color: var(--night-ink-2); font-weight: 500; }
 .course-chooser-title { font-family: var(--serif); font-variation-settings: 'opsz' 96, 'SOFT' 40; font-size: clamp(1.45rem, 3.2vw, 2.05rem); font-weight: 640; line-height: 1.12;
   letter-spacing: -.015em; color: var(--night-ink); }
-.course-chooser-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr)); gap: 1rem .9rem; }
-.course-chooser-stats .tool-stat-value { white-space: nowrap; font-size: clamp(1.45rem, 6.2vw, 2.6rem); }
+/* Each value is a range ("10%–25%", 4.9em wide), so a column is at least 13rem: the widest range at the shared headline size (tools.css, at most 2.6rem). */
+.course-chooser-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: 1rem .9rem; }
+.course-chooser-stats .tool-stat-value { white-space: nowrap; }
 .course-chooser-foot { padding-top: .95rem; border-top: 1px solid var(--night-3); font-size: .875rem; line-height: 1.6; color: var(--night-ink-2); }
 .course-chooser-retry { justify-self: start; margin-top: .6rem; }
 

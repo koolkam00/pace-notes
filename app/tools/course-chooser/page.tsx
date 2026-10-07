@@ -7,7 +7,8 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import { getCourseNames, slugifyCity } from '@/lib/course-data';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import type { InsightsManifest } from '@/lib/insights';
-import type { CourseGoal, PaceBandShard } from '@/lib/tools/data';
+import type { CourseGoal, PaceBandIndex, PaceBandShard } from '@/lib/tools/data';
+import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import './course-chooser.css';
 
 export const metadata = {
@@ -30,17 +31,21 @@ function load(): { sha: string | null; data: CourseGoal | null; bandGoals: Recor
 
 /**
  * For each course, the goals on this tool's grid where the pace band has observed data for that course
- * (100 or more finishes in the five minutes under the goal). A row whose goal is missing links to the
- * all-course band instead. Each shard is checked against the verified manifest digest; null when the
- * pace-band family is not in this build, so links fall back to the course and the pace band explains.
+ * (100 or more finishes in the five minutes under the goal). A course the pace band does not publish
+ * (not in its index scopes) gets no goals, and a row whose goal is missing links to the all-course band
+ * instead, so a link carries course= only when the pace band publishes that course. Each shard is checked
+ * against the verified manifest digest; null when the pace-band family is not in this build or cannot be
+ * checked, and every row then links to the all-course band.
  */
 function paceBandGoals(manifest: InsightsManifest, data: CourseGoal): Record<string, number[]> | null {
   try {
+    if (!manifest.files['tools/pace-band.json']) return null;
+    const scopes = new Set(readInsight<PaceBandIndex>('tools/pace-band.json').scopes.map((s) => s.slug).filter((s) => s !== 'all'));
     const out: Record<string, number[]> = {};
     for (const course of data.courses) {
       const name = `tools/pace-band/${course.slug}/all.json`;
       const meta = manifest.files[name];
-      if (!meta) { out[course.slug] = []; continue; }
+      if (!meta || !scopes.has(course.slug)) { out[course.slug] = []; continue; }
       const bytes = fs.readFileSync(path.join(process.cwd(), 'public/data/insights', name));
       if (createHash('sha256').update(bytes).digest('hex') !== meta.sha256) return null;
       const shard = JSON.parse(bytes.toString()) as PaceBandShard & { release_tag?: string };
@@ -105,12 +110,10 @@ export default function CourseChooserPage() {
     <div className="container tool-page">
       <ToolHeader slug="course-chooser" />
       <CourseChooser sha={sha} pages={pages.map((p) => p.slug)} screened={screened} bandGoals={bandGoals} />
-      <ToolMethod sources={[
-        { label: 'Smyth B (2021). PLOS ONE 16(5): e0251513, the published definition of a sustained slowdown used here. doi:10.1371/journal.pone.0251513', url: 'https://doi.org/10.1371/journal.pone.0251513' },
-      ]}>
+      <ToolMethod sources={[SLOWDOWN_CITATION]}>
         <p><strong>Who is in each row.</strong> For a goal G, even pace is G ÷ 42.195 km. On each course, a finish is counted when its 5–20 km pace, (20 km time − 5 km time) ÷ 15, is within ±2% of that even pace. An edition counts when it has at least {data?.min_edition_finishes ?? 20} such finishes, and a course row is published only with at least {data?.min_editions ?? 3} counted editions and 100 finishes in all; smaller groups are never shown. The 5–20 km pace is measured during the race, so each row describes finishes that happened to run that pace, chosen after the fact. It is not an estimate of what you can run.</p>
         <p><strong>The figures.</strong> <em>Under goal</em> is the share of the row’s finishes with a finish time below G, all counted editions pooled, so large editions weigh more. The <em>sustained-slowdown share</em> and the <em>time after 20 km</em> are worked out per edition and then averaged with every edition counted equally. Time after 20 km is the median of (finish − 20 km time) − 22.195 × the 5–20 km pace per km: how much longer the last 22.195 km took than at the pace held from 5 to 20 km. Finish-time percentiles (10th, median, 90th) pool all of the row’s finishes. Every share is an observed share of complete finishes, never anyone’s chance.</p>
-        <p><strong>Sustained slowdown.</strong> A recorded 5 km section after 20 km run at least 25% slower than the finish’s own 5–20 km pace, with contiguous slowed sections totalling at least 5 km. The definition follows the published method cited below.</p>
+        <p><strong>Sustained slowdown.</strong> {SLOWDOWN_DEFINITION} The definition follows the published slowdown method cited below.</p>
         <p><strong>Why this is not a ranking.</strong> The default order is alphabetical, and no course is called fast, slow, easy or hard. Courses differ in field composition, qualifying rules (e.g. Boston, which has qualifying times), weather, era and route. Averaging editions equally stops one large or unusual year from dominating a row, but it does not remove those differences, and nothing here shows that a course causes a finish to hold up or fade. No course factor or equivalent time is calculated. At slow goals, a course’s closing time matters too: finishes after a course closes are not recorded, so a row near a time limit describes only those who finished inside it.</p>
         <p><strong>Context columns.</strong> Race months come from the dates of editions with a weather row. Start temperature is the range, across editions, of one supplied modelled observation per edition for the hour of the scheduled start at one point in the city. It is not anyone’s personal exposure. The route profile is the supplied current route: climb, descent and the endpoint net change are shown exactly as supplied (net is not climb minus descent), and historical routes may differ. A downhill opening means the first 5 km of that profile drops more than 25 m (82 ft). Weather and elevation are context only: no figure is adjusted for either. For how warm and cool races compare see <Link href="/analyses/race-day-weather">race-day weather</Link>, and for downhill openings see <Link href="/analyses/downhill-start">downhill starts</Link>.</p>
         <p><strong>Who is not here.</strong> Only complete finishes with all nine 5 km checkpoints are counted, so runners who stopped are not in the data. Counts are finishes, not people: one runner can appear in several editions.
