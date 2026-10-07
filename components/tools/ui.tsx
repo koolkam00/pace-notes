@@ -7,9 +7,11 @@ import { formatDuration, parseDuration, type DurationMode } from '@/lib/tools/ti
  * A duration input that keeps the visitor's text while they type and reports seconds (or null) upward.
  * Accepts h:mm:ss, mm:ss, "3h30", minutes, and keypad dots ("8.05").
  */
-export function DurationField({ label, value, onChange, mode = 'race', placeholder, hint, id, autoFocus, large = false }: {
+export function DurationField({ label, value, onChange, mode = 'race', placeholder, hint, error, id, autoFocus, large = false }: {
   label: ReactNode; value: number | null; onChange: (seconds: number | null) => void; mode?: DurationMode;
   placeholder?: string; hint?: ReactNode; id?: string; autoFocus?: boolean; large?: boolean;
+  /** A message from the caller (e.g. a value outside a method's range); shown as an error in place of the hint. */
+  error?: ReactNode;
 }) {
   const auto = useId();
   const inputId = id ?? auto;
@@ -24,7 +26,8 @@ export function DurationField({ label, value, onChange, mode = 'race', placehold
     }
   }, [value, mode, text]);
   const parsed = text.trim() ? parseDuration(text, mode) : null;
-  const invalid = touched && text.trim() !== '' && parsed === null;
+  const unreadable = touched && text.trim() !== '' && parsed === null;
+  const invalid = unreadable || Boolean(error);
   return (
     <div className={`tool-field${large ? ' is-large' : ''}`}>
       <label htmlFor={inputId}>{label}</label>
@@ -37,7 +40,8 @@ export function DurationField({ label, value, onChange, mode = 'race', placehold
           onChange(next);
         }}
         onBlur={() => { setTouched(true); if (parsed !== null) setText(formatDuration(parsed, mode === 'race')); }} />
-      {invalid ? <p className="tool-field-hint is-error" id={`${inputId}-hint`}>Try {mode === 'race' ? '3:30:00, 3:30 or 210' : '8:05'}.</p>
+      {unreadable ? <p className="tool-field-hint is-error" id={`${inputId}-hint`}>Try {mode === 'race' ? '3:30:00, 3:30 or 210' : '8:05'}.</p>
+        : error ? <p className="tool-field-hint is-error" id={`${inputId}-hint`}>{error}</p>
         : hint ? <p className="tool-field-hint" id={`${inputId}-hint`}>{hint}</p> : null}
     </div>
   );
