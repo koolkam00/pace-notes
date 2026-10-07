@@ -37,7 +37,7 @@ export const TOOLS: ToolDefinition[] = [
   { slug: 'pace-band', title: 'Pace band', short: 'Wristband for your goal', group: 'Plan', evidence: ['arithmetic', 'data'], accent: '#FF5B2E', file: 'tools/pace-band.json',
     dek: 'A printable even-pace band, next to what finishes that actually hit your goal on your course ran at every 5 km mat, split by whether they held pace.' },
   { slug: 'course-chooser', title: 'Course chooser', short: 'Your goal pace, every course', group: 'Plan', evidence: ['data'], accent: '#0FA3A3', file: 'tools/course-goal.json',
-    dek: 'For your goal pace, how finishes that ran it through 20 km held up on each course, with race month, morning temperatures and route profile.' },
+    dek: 'For your goal, how finishes that ran its pace from 5 to 20 km held up on each course, with race month, morning temperatures and route profile.' },
   { slug: 'weather-match', title: 'Weather match', short: 'Mornings like your forecast', group: 'Plan', evidence: ['data', 'research'], accent: '#F4B23E', file: 'tools/weather-match.json',
     dek: 'Past marathons that started at your forecast temperature, and how finishes at your pace held up there, beside published heat guidance.' },
   { slug: 'projector', title: 'Race-day projector', short: 'Finish range from any 5 km mat', group: 'Race day', evidence: ['data', 'arithmetic'], accent: '#E2416B', file: 'tools/projector.json',
