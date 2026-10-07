@@ -104,34 +104,5 @@ export default function FastStartAnalysis({ starts, defaultOpening = 'fast10', t
       <section className="fs-method"><h2>What this can tell you</h2><p>The comparison follows {count(start.analysis_n)} eligible finishes{!all && ' with a usable recent recorded benchmark'}. It includes complete finishers only. Withdrawals, intended targets, fitness, training and fueling are not measured, and the same runner may contribute several races. Incomplete results remain available in <Link href="/runners">Find a runner</Link>.</p><details><summary>Definitions, coverage and limits</summary>{all ? <p>No earlier race or cross-race identity link is needed. Each eligible result contributes once. A runner who holds the same pace through {distanceLabel(20, units)} and then fades can have a similar opening in this view. It does not identify every overly ambitious start. The reference section is observed after the opening, and both opening and later-slowdown ratios share it.</p> : <p>Candidate identities use the database’s screened links; they are not independently verified people. Earlier bests use eligible finishes in the two strictly earlier calendar years. No current-year result can supply the benchmark.</p>}<p>Every displayed group needs at least {count(start.min_cell)} finishes. Filters select the exact requested cohort; sparse selections are not silently widened. Age uses recorded exact ages from 18 to 89. Missing age or gender remains in All and is not inferred.</p><p>Sustained slowdown uses the study’s established 25% threshold over at least {distanceLabel(5, units)} after {distanceLabel(20, units)}, compared with {distanceLabel(5, units)}–{distanceLabel(20, units)} pace. Onset is a recorded section boundary. An isolated short final section cannot meet the distance requirement.</p><p>Neither finish-time differences nor the early/later time accounting establish a causal penalty. Weather, historical course changes, fitness and selection into recorded complete finishes remain mixed together.</p></details><p><a href={(process.env.NEXT_PUBLIC_BASE_PATH || '') + '/data/fast-start/' + (all ? 'all-finishers.json' : 'evidence.json')}>Download the analysis data</a> · <a href={sourceReleaseHref(start.release_tag)}>Open the source data</a> · <Link href="/methodology#fast-start-method">Study methods</Link></p></section>
       <nav className="analysis-next" aria-label="Continue exploring"><Link href={'/analyses/pacing-pattern' + navSearch}>← Your pacing pattern</Link><Link href={'/analyses/checkpoint' + navSearch}>From here to the finish →</Link></nav>
     </article>
-    <style jsx global>{`
-      .fs-controls { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; align-items:end; }
-      .fs-controls label { min-width:0; }
-      .fs-controls select { width:100%; }
-      .fs-controls button { min-height:44px; }
-      .fs-controls-all { grid-template-columns:repeat(2,minmax(0,1fr)); }
-      .fs-controls-all button { grid-column:1/-1; justify-self:start; }
-      .fs-modes { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin:2rem 0 1rem; }
-      .fs-modes button { text-align:left; border:1px solid var(--rule); border-radius:8px; padding:1rem; background:transparent; color:var(--ink); font:inherit; cursor:pointer; }
-      .fs-modes button[aria-pressed="true"] { border-color:var(--ink); background:var(--paper); box-shadow:inset 0 0 0 1px var(--ink); }
-      .fs-modes span { display:block; margin-top:.3rem; font-size:.75rem; color:var(--slate); }
-      .fs-coverage { color:var(--slate); max-width:47rem; font-size:.9rem; margin-bottom:1.5rem; }
-      .fs-finding h2 { max-width:40rem; }
-      .fs-numbers { display:grid; grid-template-columns:1.25fr 1fr 1fr; gap:1.6rem; margin:2rem 0; }
-      .fs-numbers strong { display:block; font-size:clamp(1.45rem,2.5vw,2rem); font-weight:500; letter-spacing:-.035em; line-height:1.2; }
-      .fs-numbers span,.fs-numbers small { display:block; color:var(--slate); font-size:.8rem; margin-top:.5rem; }
-      .fs-numbers small { font-size:.7rem; line-height:1.5; }
-      .fs-caution { color:var(--slate); font-size:.85rem; border-left:2px solid var(--rule); padding-left:1rem; max-width:46rem; }
-      .fs-section { margin-top:3.5rem; padding-top:2.2rem; border-top:1px solid var(--rule); }
-      .fs-section > h2,.fs-method > h2 { font-size:clamp(1.5rem,2.8vw,2rem); font-weight:500; letter-spacing:-.035em; line-height:1.2; }
-      .fs-section > p,.fs-method p { color:var(--slate); max-width:47rem; }
-      .fs-section .study-figure { margin-top:1.5rem; }
-      .fs-method { border-top:1px solid var(--rule); padding-top:2rem; margin-top:3.5rem; }
-      .fs-method p { font-size:.85rem; }
-      .fs-method details { margin:1.5rem 0; }
-      .fs-method summary { font-size:.875rem; }
-      @media(max-width:700px) { .fs-controls { grid-template-columns:1fr 1fr; } .fs-numbers { grid-template-columns:1fr 1fr; } .fs-numbers > div:first-child { grid-column:1/-1; } .fs-section { margin-top:2.5rem; padding-top:1.5rem; } }
-      @media(max-width:420px) { .fs-controls,.fs-modes { grid-template-columns:1fr; } }
-    `}</style>
   </div>;
 }

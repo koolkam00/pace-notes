@@ -1,6 +1,6 @@
 # Pace Notes
 
-By [Run_with_Kam · Andrew Kam](https://www.instagram.com/run_with_kam/). [Explore the site](https://splithappens.run) or [request an analysis](https://splithappens.run/request-analysis).
+By Andrew Kam. [Explore the site](https://splithappens.run) or [request an analysis](https://splithappens.run/request-analysis).
 
 Pace Notes helps runners explore pacing patterns, compare courses, prepare for a race and understand a past result. The main experience presents ten ranked analyses, one question per page at `/analyses/{slug}`, with comparisons that respond to the supported course, time, age, recorded gender and earlier-performance controls. The [ten-analysis guide](docs/TOP_TEN_ANALYSES.md) maps each question to its methods and limits. The wider 35-question catalog, 33 calculated broad packs, course summaries and sustained-slowdown figures remain a research archive; the shared personalized engine retains 12 calculation paths.
 

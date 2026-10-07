@@ -16,14 +16,15 @@ The primary ten are accompanied by any weather candidates that pass the fixed sc
 
 | Route | Source / renderer | Purpose |
 | --- | --- | --- |
-| / | app/page.tsx; PacingPreview / AnalysisIndex | Study introduction and the ranked ten analyses |
+| / | app/page.tsx; HeroReplay, story chapters, AnalysisIndex | Race-replay hero, five story chapters, then the ranked ten analyses |
+| /stories and /stories/[slug] | app/stories; lib/stories.ts; components/story/bodies | Seven data stories built from `public/data/insights` ([data stories](STORIES.md)) |
 | /analyses | app/analyses/page.tsx; AnalysisIndex | Primary ten-question directory |
 | /analyses/[slug] | app/analyses/[slug]/page.tsx; AnalysisExplorer / AnalysisChart | One primary question, supported controls, observed results and methods |
 | /about | app/about/page.tsx | Study purpose and interpretation |
 | /packs and /packs/[packId] | app/packs; ResearchQuestion / PackClientPage | Broader current-source research and compatibility aliases |
 | /slowdown | app/slowdown/page.tsx; sustained-slowdown dashboard | Current-source slowdown prevalence, onset, sensitivity, age and recorded-history figures |
 | /htw and /packs/smyth_htw | Legacy route files | Compatibility URLs retained for existing links |
-| /courses and /courses/[city] | app/courses; lib/course-data.ts | Course-specific supporting summaries |
+| /courses and /courses/[city] | app/courses; lib/course-data.ts; course-geometry.json / courses.json | Route-map directory; per-course route, elevation, pacing types, fingerprint, race mornings, profile and replay |
 | /your-race | Legacy personalized entry | Client compatibility redirect preserving mapped question hashes and profile query parameters |
 | /research/personalized | Archived PersonalizedGuide | All twelve backing questions in the earlier guide layout |
 | /runners | app/runners/page.tsx; RunnerSearch / RunnerContext | Search names, confirm races, compare recorded performances and same-edition peers, inspect weather/current-route context |
@@ -101,8 +102,12 @@ The root layout mounts `SiteAnalytics` for production-only PostHog pageviews and
 
 ## Pace Notes branding and analysis requests
 
-The public brand is **Pace Notes**, credited to [Run_with_Kam · Andrew Kam](https://www.instagram.com/run_with_kam/) on the home page, About and footer. A compact linked `by Run_with_Kam` also appears beneath the Pace Notes name in the shared header on every page. Public page titles use this name; compatibility URLs, research provenance, package names and the splithappens.run host remain stable.
+The public brand is **Pace Notes**, credited to Andrew Kam on the home page, About and footer (`CreatorCredit`). A compact unlinked `by Andrew Kam` also appears beneath the Pace Notes name in the shared header on every page. The site does not link to the Run_with_Kam Instagram account or show that handle. Public page titles use this name; compatibility URLs, research provenance, package names and the splithappens.run host remain stable.
 
 `/request-analysis` provides a question and optional context field. `AnalysisRequest` prepares an encoded email to Andrew; visitors must send it through their own email app or Gmail. A copy fallback is available. This is a client-side email composer, not a server-side delivery service: never report a draft as submitted or delivered. The page stores no request text, and analytics receives only the allowed page path. No email provider keys or runtime API are required, preserving Next static export. A visible Request an analysis button in the shared top navigation, plus footer, About and analysis-directory links, make the page discoverable on desktop and mobile.
 
 The homepage distinguishes raw race records from analyzed finishes. Both totals come from current calculation outputs, with a build-time check that the supporting study and personalized cohort agree. The explanation links to `/methodology#data-quality`; counts are performances, not unique runners.
+
+## Visual system and stories
+
+The redesign is documented in [the design system](DESIGN_SYSTEM.md). Fonts are self-hosted with `@fontsource-variable`. Story charts are hand-drawn SVG or Canvas components in `components/story`, `components/viz` and `components/art`. Recharts remains in the legacy analysis components, which were retheme-only changes. Story data is read at build time and verified by `lib/insights-server.ts`. Replay samples load in the browser through `lib/insights.ts`, which checks each file's SHA-256 against the manifest. A story page is generated only when its file is in the verified manifest.

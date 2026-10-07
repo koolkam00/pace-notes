@@ -51,7 +51,7 @@ export function SectionComparison({ focus, reference, manifest, units }: { focus
     <div className="rc-pair-summary"><strong>{timeDifference(focus.metrics.finish - reference.metrics.finish)}</strong><p>{titleFor(focus.race, manifest)} compared with {titleFor(reference.race, manifest)}.</p></div>
     <p className="rc-copy">{Math.abs(largest.delta) < 0.0005 ? 'Every recorded section took the same time.' : <>The largest section difference was {distanceLabel(largest.start, units)}–{distanceLabel(largest.end, units)}: {runnerDuration(Math.abs(largest.delta))} {largest.delta < 0 ? 'less' : 'more'} time in the focus race.</>} {sameCourse ? 'The races share a course name; historical route changes are not verified.' : 'These are different courses. Each row compares the same distance interval on each course.'}</p>
     <div className="rc-delta-legend"><span>← Less time in focus race</span><span>More time in focus race →</span></div>
-    <div className="rc-delta-bars">{rows.map(row => <div className="rc-delta-row" key={row.end}><span>{distanceLabel(row.start, units)}–{distanceLabel(row.end, units)}</span><div className="rc-delta-track" aria-hidden="true"><i /><b style={{ left: row.delta < 0 ? `${50 - 50 * Math.abs(row.delta) / max}%` : '50%', width: `${50 * Math.abs(row.delta) / max}%`, background: row.delta < 0 ? 'var(--course)' : '#935033' }} /></div><strong>{Math.abs(row.delta) < 0.0005 ? 'No change' : `${row.delta < 0 ? '−' : '+'}${runnerDuration(Math.abs(row.delta))}`}</strong></div>)}</div>
+    <div className="rc-delta-bars">{rows.map(row => <div className="rc-delta-row" key={row.end}><span>{distanceLabel(row.start, units)}–{distanceLabel(row.end, units)}</span><div className="rc-delta-track" aria-hidden="true"><i /><b style={{ left: row.delta < 0 ? `${50 - 50 * Math.abs(row.delta) / max}%` : '50%', width: `${50 * Math.abs(row.delta) / max}%`, background: row.delta < 0 ? 'var(--course)' : '#B4380D' }} /></div><strong>{Math.abs(row.delta) < 0.0005 ? 'No change' : `${row.delta < 0 ? '−' : '+'}${runnerDuration(Math.abs(row.delta))}`}</strong></div>)}</div>
     <p className="rc-note">Section differences add up to the finish-time difference. This is a comparison of elapsed time, with no weather, terrain or fitness correction.</p>
     <details className="rc-details"><summary>Compare exact section times</summary><div className="rc-table-wrap" role="region" aria-label="Selected race section comparison" tabIndex={0}><table><caption>Focus race minus comparison race</caption><thead><tr><th scope="col">Section</th><th scope="col">Focus race</th><th scope="col">Comparison race</th><th scope="col">Difference</th></tr></thead><tbody>{rows.map((row, i) => <tr key={row.end}><th scope="row">{distanceLabel(row.start, units)}–{distanceLabel(row.end, units)}</th><td>{runnerDuration(row.elapsed)}</td><td>{runnerDuration(reference.metrics.sections[i].elapsed)}</td><td>{Math.abs(row.delta) < 0.0005 ? 'No change' : `${row.delta < 0 ? '−' : '+'}${runnerDuration(Math.abs(row.delta))}`}</td></tr>)}</tbody></table></div></details>
   </>;
@@ -72,10 +72,10 @@ export function RunnerPeerComparison({ comparison, metrics, units }: { compariso
     {pace ? <section className="rc-peer-pacing"><h3>How you paced it, beside similar finish times.</h3><p className="rc-copy">{count(pace.n)} finishes in this comparison group, from {runnerDuration(pace.from_sec)} to under {runnerDuration(pace.to_sec)} in this same edition. This achieved-time band describes pacing patterns; it does not reveal intended race goals.</p>
       <p className="rc-takeaway">Your late-race pace change was {lateDifference !== null && Math.abs(lateDifference) < 0.05 ? 'about the same as' : `${decimal(Math.abs(lateDifference!))} percentage points ${lateDifference! > 0 ? 'higher than' : 'lower than'}`} the group median ({decimal(pace.late_change.median)}%). Higher means more slowing relative to early pace.</p>
       <div className="rc-legend"><span><i className="rc-you-key" />Your pace</span><span><i className="rc-peer-key" />Group median</span><span><i className="rc-range-key" />Middle 50%</span></div>
-      <div className="rc-chart"><ResponsiveContainer width="100%" height="100%" minWidth={0}><ComposedChart data={rows} margin={{ top: 12, right: 18, bottom: 28, left: 4 }}><CartesianGrid stroke="#dfe5ee" vertical={false} /><XAxis dataKey="distance" type="number" domain={['dataMin', 'dataMax']} tick={{ fontSize: 12 }} tickFormatter={value => decimal(value, 1)} tickLine={false} axisLine={false} label={{ value: `Section end (${units})`, position: 'insideBottom', offset: -18, fontSize: 12 }} /><YAxis type="number" domain={['auto', 'auto']} tick={{ fontSize: 12 }} tickFormatter={paceTick} width={48} tickLine={false} axisLine={false} /><Tooltip content={({ active, payload }) => {
+      <div className="rc-chart"><ResponsiveContainer width="100%" height="100%" minWidth={0}><ComposedChart data={rows} margin={{ top: 12, right: 18, bottom: 28, left: 4 }}><CartesianGrid stroke="#DCD3C2" vertical={false} /><XAxis dataKey="distance" type="number" domain={['dataMin', 'dataMax']} tick={{ fontSize: 12 }} tickFormatter={value => decimal(value, 1)} tickLine={false} axisLine={false} label={{ value: `Section end (${units})`, position: 'insideBottom', offset: -18, fontSize: 12 }} /><YAxis type="number" domain={['auto', 'auto']} tick={{ fontSize: 12 }} tickFormatter={paceTick} width={48} tickLine={false} axisLine={false} /><Tooltip content={({ active, payload }) => {
         const row = payload?.[0]?.payload as typeof rows[number] | undefined;
         return active && row ? <div className="rc-tooltip"><strong>{row.section}</strong><p>Your pace: {paceTick(row.yours)}/{units}</p><p>Group median: {paceTick(row.median!)}/{units}</p><p>Middle 50%: {paceTick(row.range![0])}–{paceTick(row.range![1])}/{units}</p></div> : null;
-      }} /><Area dataKey="range" type="linear" stroke="none" fill="#aab5c3" fillOpacity={.22} isAnimationActive={false} /><Line dataKey="median" type="linear" stroke="#697789" strokeDasharray="5 4" strokeWidth={2} dot={false} isAnimationActive={false} /><Line dataKey="yours" type="linear" stroke="#0758c7" strokeWidth={2.5} dot={{ r: 3 }} isAnimationActive={false} /></ComposedChart></ResponsiveContainer></div>
+      }} /><Area dataKey="range" type="linear" stroke="none" fill="#2F5BFF" fillOpacity={.22} isAnimationActive={false} /><Line dataKey="median" type="linear" stroke="#66625A" strokeDasharray="5 4" strokeWidth={2} dot={false} isAnimationActive={false} /><Line dataKey="yours" type="linear" stroke="#FF5B2E" strokeWidth={2.5} dot={{ r: 3 }} isAnimationActive={false} /></ComposedChart></ResponsiveContainer></div>
       <p className="rc-note">Pace is minutes:seconds per {units === 'mi' ? 'mile' : 'kilometre'}. The shaded range is the middle half of individual section paces, not an uncertainty interval or a recommended pacing plan. The group contains your own result. Late change uses {distanceLabel(30, units)}–finish relative to {distanceLabel(5, units)}–{distanceLabel(20, units)}.</p>
       <details className="rc-details"><summary>See your pace beside the group</summary><div className="rc-table-wrap" role="region" aria-label="Runner and peer section paces" tabIndex={0}><table><caption>Same-edition achieved-time group</caption><thead><tr><th scope="col">Section</th><th scope="col">Your pace</th><th scope="col">Median</th><th scope="col">Middle 50%</th></tr></thead><tbody>{metrics.sections.map((section, i) => <tr key={section.end}><th scope="row">{distanceLabel(section.start, units)}–{distanceLabel(section.end, units)}</th><td>{paceLabel(section.pace, units)}</td><td>{paceLabel(pace.median[i], units)}</td><td>{paceLabel(pace.q25[i], units)}–{paceLabel(pace.q75[i], units)}</td></tr>)}</tbody></table></div></details>
     </section> : <div className="rc-empty"><h3>The finish comparison is available. The pace group is too small.</h3><p>The narrower group of similar achieved finish times needs at least 101 eligible finishes. Choose a broader age or gender comparison to look for a supported pacing profile.</p></div>}
@@ -87,7 +87,7 @@ function WeatherContext({ weather, units }: { weather: RunnerWeather; units: Uni
   return <section className="rc-weather"><h3>The weather recorded for this race day.</h3><p className="rc-copy">{weather.context_label}</p>
     <div className="rc-environment-numbers"><div><strong>{temperature(weather.temp_c, units)}</strong><span>Near the scheduled start</span></div><div><strong>{decimal(weather.humidity_pct)}%</strong><span>Relative humidity</span></div><div><strong>{wind(weather.wind_mps, units)}</strong><span>Start-hour wind</span></div><div><strong>{weather.warming_c > 0 ? '+' : ''}{temperature(weather.warming_c, units, true)}</strong><span>Temperature change over four hours</span></div></div>
     <p className="rc-note">Scheduled start: {localHour(weather.scheduled_start)} local time. Start-hour observation: {localHour(weather.start_hour)}. Dew point: {temperature(weather.dewpoint_c, units)}.{weather.feels_like_c !== null && <> Apparent temperature: {temperature(weather.feels_like_c, units)}.</>}</p>
-    {rows.length > 1 && <><h4 className="rc-chart-heading">Temperature from the scheduled start window</h4><div className="rc-chart rc-weather-chart"><ResponsiveContainer width="100%" height="100%" minWidth={0}><ComposedChart data={rows} margin={{ top: 12, right: 18, bottom: 12, left: 0 }}><CartesianGrid stroke="#dfe5ee" vertical={false} /><XAxis dataKey="time" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} /><YAxis domain={['auto', 'auto']} tickFormatter={value => decimal(value, 0) + '°'} tick={{ fontSize: 12 }} width={42} tickLine={false} axisLine={false} /><Tooltip formatter={value => [decimal(Number(value)) + (units === 'mi' ? '°F' : '°C'), 'Temperature']} labelFormatter={value => `${value} local time`} /><Line dataKey="temperature" stroke="#0758c7" strokeWidth={2.5} dot={{ r: 3 }} type="linear" isAnimationActive={false} /></ComposedChart></ResponsiveContainer></div></>}
+    {rows.length > 1 && <><h4 className="rc-chart-heading">Temperature from the scheduled start window</h4><div className="rc-chart rc-weather-chart"><ResponsiveContainer width="100%" height="100%" minWidth={0}><ComposedChart data={rows} margin={{ top: 12, right: 18, bottom: 12, left: 0 }}><CartesianGrid stroke="#DCD3C2" vertical={false} /><XAxis dataKey="time" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} /><YAxis domain={['auto', 'auto']} tickFormatter={value => decimal(value, 0) + '°'} tick={{ fontSize: 12 }} width={42} tickLine={false} axisLine={false} /><Tooltip formatter={value => [decimal(Number(value)) + (units === 'mi' ? '°F' : '°C'), 'Temperature']} labelFormatter={value => `${value} local time`} /><Line dataKey="temperature" stroke="#FF5B2E" strokeWidth={2.5} dot={{ r: 3 }} type="linear" isAnimationActive={false} /></ComposedChart></ResponsiveContainer></div></>}
     <p className="rc-note">This is modeled weather near the scheduled start, not a measurement of your personal exposure. Wave starts are unavailable. The fixed four-hour window can extend beyond a faster finish.</p>
     <details className="rc-details"><summary>More weather readings and sources</summary><div className="rc-table-wrap" role="region" aria-label="Hourly recorded weather" tabIndex={0}><table><caption>Local hourly readings</caption><thead><tr><th scope="col">Time</th><th scope="col">Temperature</th><th scope="col">Humidity</th><th scope="col">Wind</th><th scope="col">Preceding-hour precipitation</th></tr></thead><tbody>{weather.hours.map(hour => <tr key={hour.time}><th scope="row">{localHour(hour.time)}</th><td>{temperature(hour.temp_c, units)}</td><td>{hour.humidity_pct === null ? 'Not available' : decimal(hour.humidity_pct) + '%'}</td><td>{hour.wind_mps === null ? 'Not available' : wind(hour.wind_mps, units)}</td><td>{precipitation(hour.precip_mm, units)}</td></tr>)}</tbody></table></div><p className="rc-note">{weather.precipitation_note}</p><p className="rc-note">Cloud cover: {weather.cloud_pct === null ? 'not available' : decimal(weather.cloud_pct) + '%'}. Pressure: {weather.pressure_hpa === null ? 'not available' : decimal(weather.pressure_hpa) + ' hPa'}. Wind direction: {weather.wind_dir_deg === null ? 'not available' : decimal(weather.wind_dir_deg, 0) + '°'}; this does not identify headwind along the course.</p>{weather.notes && <p className="rc-note">{weather.notes}</p>}<p className="rc-note">Source: {weather.source_url ? <a href={weather.source_url}>{weather.source}</a> : weather.source}.</p></details>
   </section>;
@@ -101,7 +101,7 @@ function TerrainContext({ terrain, metrics, units }: { terrain: RunnerTerrain; m
     <div className="rc-terrain-heading"><span>Recorded section</span><span>Net elevation change</span><span>Your pace</span></div>
     <div className="rc-terrain-bars">{terrain.sections.map(section => {
       const pace = metrics.sections.find(row => Math.abs(row.start - section.start_km) < 0.0001 && Math.abs(row.end - section.end_km) < 0.0001)?.pace;
-      return <div className="rc-terrain-row" key={section.end_km}><span>{distanceLabel(section.start_km, units)}–{distanceLabel(section.end_km, units)}</span><div className="rc-terrain-change"><div className="rc-delta-track" aria-hidden="true"><i /><b style={{ left: section.net_m < 0 ? `${50 - 50 * Math.abs(section.net_m) / max}%` : '50%', width: `${50 * Math.abs(section.net_m) / max}%`, background: section.net_m < 0 ? '#697789' : '#0758c7' }} /></div><small>{section.net_m > 0 ? '+' : ''}{elevationLabel(section.net_m, units)}</small></div><strong>{pace === undefined ? 'Not available' : paceLabel(pace, units)}</strong></div>;
+      return <div className="rc-terrain-row" key={section.end_km}><span>{distanceLabel(section.start_km, units)}–{distanceLabel(section.end_km, units)}</span><div className="rc-terrain-change"><div className="rc-delta-track" aria-hidden="true"><i /><b style={{ left: section.net_m < 0 ? `${50 - 50 * Math.abs(section.net_m) / max}%` : '50%', width: `${50 * Math.abs(section.net_m) / max}%`, background: section.net_m < 0 ? '#66625A' : '#FF5B2E' }} /></div><small>{section.net_m > 0 ? '+' : ''}{elevationLabel(section.net_m, units)}</small></div><strong>{pace === undefined ? 'Not available' : paceLabel(pace, units)}</strong></div>;
     })}</div>
     <p className="rc-note">Net change can hide climbs followed by descents. Showing terrain beside pace does not establish that elevation caused a pacing change.</p>
     <details className="rc-details"><summary>See terrain measurements and limitations</summary><div className="rc-table-wrap" role="region" aria-label="Supplied terrain by section" tabIndex={0}><table><caption>Supplied course sections</caption><thead><tr><th scope="col">Section</th><th scope="col">Climbing</th><th scope="col">Descending</th><th scope="col">Net change</th></tr></thead><tbody>{terrain.sections.map(section => <tr key={section.end_km}><th scope="row">{distanceLabel(section.start_km, units)}–{distanceLabel(section.end_km, units)}</th><td>{elevationLabel(section.gain_m, units)}</td><td>{elevationLabel(section.loss_m, units)}</td><td>{elevationLabel(section.net_m, units)}</td></tr>)}</tbody></table></div><p className="rc-note">{unitText(terrain.aggregation_method, units)}</p><p className="rc-note">Reported profile distance: {distanceLabel(terrain.profile_distance_km, units)}. Supplied segment span: {distanceLabel(terrain.segment_span_km, units)}.{terrain.reported_profile_gain_m !== null && <> Separately reported profile climbing: {elevationLabel(terrain.reported_profile_gain_m, units)}.</>}{terrain.reported_profile_loss_m !== null && <> Separately reported profile descending: {elevationLabel(terrain.reported_profile_loss_m, units)}.</>}</p>{terrain.notes && <p className="rc-note">{unitText(terrain.notes, units)}</p>}<p className="rc-note">Source: {terrain.source_url ? <a href={terrain.source_url}>{terrain.source}</a> : terrain.source}.</p></details>
@@ -160,85 +160,5 @@ export default function RunnerContext({ races, manifest, units }: { races: Runne
       <p className="rc-note">When only age or gender is usable, the percentile uses that broader group, named in the cell. When neither is usable, it uses all eligible finishes. Sparse groups remain unavailable. Precipitation is the preceding-hour total at the start observation, including snow; it is not rainfall over your full race. Climbing comes from supplied route sections with unverified historical validity.</p>
     </section>}
     <p className="rc-next"><UnitLink href={`/analyses/pacing-pattern?race=${encodeURIComponent(manifest.editions[focus.race.edition].city)}&goal=${Math.round(focus.metrics.finish / 60)}&age=all&gender=all`}>Explore pacing across the wider study <span aria-hidden="true">→</span></UnitLink></p>
-    <style jsx global>{`
-      .runner-context { margin-top:2.5rem; }
-      .rc-heading h2,.rc-multi > h2 { font-size:1.8rem; font-weight:500; margin-top:.6rem; }
-      .rc-heading > label,.rc-multi > label,.rc-group-control { display:grid; gap:.4rem; max-width:38rem; font-size:.8125rem; color:var(--slate); margin-top:1.25rem; }
-      .rc-heading select,.rc-multi select,.rc-group-control select { width:100%; font-size:.9375rem; }
-      .rc-tabs { display:flex; gap:.3rem; padding:.35rem; border:1px solid var(--rule); border-radius:10px; background:var(--wash); margin-top:1.5rem; }
-      .rc-tabs button { flex:1; background:transparent; border:0; border-radius:6px; min-height:44px; color:var(--slate); font-size:.8125rem; }
-      .rc-tabs button[aria-pressed=true] { background:white; color:var(--ink); box-shadow:0 1px 3px #17202312; }
-      .rc-panel { padding:2rem 0; }
-      .rc-panel h3,.rc-multi h3 { font-size:1.35rem; font-weight:500; line-height:1.4; }
-      .rc-copy { font-size:.875rem; color:var(--slate); margin-top:.7rem; max-width:48rem; }
-      .rc-note { font-size:.75rem; color:var(--slate); margin-top:.65rem; line-height:1.75; }
-      .rc-chart-heading { font-size:1rem!important; font-weight:550!important; margin:1.5rem 0 .4rem; }
-      .rc-pace-bars { margin-top:1.25rem; }
-      .rc-pace-row,.rc-delta-row,.rc-terrain-row { display:grid; grid-template-columns:10rem minmax(0,1fr) 6.5rem; gap:1rem; align-items:center; padding:.55rem 0; }
-      .rc-pace-row > span,.rc-delta-row > span,.rc-terrain-row > span { font-size:.75rem; color:var(--slate); }
-      .rc-pace-row > strong,.rc-delta-row > strong,.rc-terrain-row > strong { font-size:.8125rem; font-weight:500; text-align:right; font-variant-numeric:tabular-nums; }
-      .rc-track { height:8px; background:var(--wash); border-radius:3px; overflow:hidden; }
-      .rc-track > div { height:100%; background:var(--course); border-radius:3px; }
-      .rc-details { margin-top:1rem; }
-      .rc-details summary { font-size:.8125rem; color:var(--slate); }
-      .rc-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; margin-top:.8rem; }
-      .rc-table-wrap table { width:100%; border-collapse:collapse; font-size:.8125rem; }
-      .rc-table-wrap caption { font-size:.75rem; color:var(--slate); text-align:left; padding:.6rem 0; }
-      .rc-table-wrap th,.rc-table-wrap td { text-align:left; border-bottom:1px solid var(--rule); padding:.75rem 1rem .75rem 0; font-variant-numeric:tabular-nums; }
-      .rc-table-wrap th { font-weight:500; }
-      .rc-table-wrap thead { color:var(--slate); }
-      .rc-table-wrap td { white-space:nowrap; }
-      .rc-table-wrap small { display:block; font-size:.6875rem; color:var(--slate); white-space:normal; }
-      .rc-group-control { margin-top:0; }
-      .rc-placement { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; padding:1.7rem 0 .5rem; }
-      .rc-placement strong { font-size:clamp(2rem,4vw,3rem); font-weight:500; letter-spacing:-.05em; }
-      .rc-placement strong span { font-size:1.1rem; color:var(--slate); letter-spacing:0; }
-      .rc-placement p { font-size:.8125rem; }
-      .rc-placement small { display:block; font-size:.6875rem; color:var(--slate); }
-      .rc-peer-pacing { border-top:1px solid var(--rule); margin-top:1.8rem; padding-top:1.8rem; }
-      .rc-takeaway { margin-top:1.1rem; font-size:1rem; }
-      .rc-legend { display:flex; flex-wrap:wrap; gap:.4rem 1.3rem; margin-top:1.5rem; color:var(--slate); font-size:.75rem; }
-      .rc-legend span { display:flex; gap:.45rem; align-items:center; }
-      .rc-legend i { display:block; width:20px; height:0; }
-      .rc-you-key { border-top:3px solid #0758c7; }.rc-peer-key { border-top:2px dashed #697789; }.rc-range-key { height:9px!important; background:#aab5c350; }
-      .rc-chart { width:100%; height:320px; margin-top:.5rem; }
-      .rc-weather-chart { height:245px; }
-      .rc-tooltip { background:white; border:1px solid var(--rule); padding:.8rem 1rem; border-radius:8px; box-shadow:0 3px 15px #17243a10; font-size:.75rem; }
-      .rc-tooltip p { margin-top:.3rem; }
-      .rc-empty { padding:1.8rem 0; }
-      .rc-empty p { font-size:.875rem; color:var(--slate); margin-top:.7rem; }
-      .rc-empty button { margin-top:1rem; }
-      .rc-environment-numbers { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.3rem 2rem; margin:1.5rem 0; }
-      .rc-environment-numbers strong { display:block; font-size:1.75rem; font-weight:500; letter-spacing:-.04em; }
-      .rc-environment-numbers span { display:block; font-size:.75rem; color:var(--slate); }
-      .rc-terrain { border-top:1px solid var(--rule); margin-top:2rem; padding-top:2rem; }
-      .rc-terrain-heading { display:grid; grid-template-columns:10rem minmax(0,1fr) 6.5rem; gap:1rem; margin-top:1.5rem; padding-bottom:.5rem; color:var(--slate); font-size:.6875rem; }
-      .rc-terrain-heading span:last-child { text-align:right; }
-      .rc-terrain-change { display:grid; grid-template-columns:minmax(0,1fr) 4.5rem; align-items:center; gap:.8rem; }
-      .rc-terrain-change small { text-align:right; color:var(--slate); font-size:.6875rem; }
-      .rc-delta-track { height:18px; position:relative; }
-      .rc-delta-track i { position:absolute; left:50%; top:0; height:100%; border-left:1px solid #adb8c6; }
-      .rc-delta-track b { position:absolute; top:5px; height:8px; border-radius:2px; }
-      .rc-multi { border-top:1px solid var(--rule); padding-top:2.5rem; margin-top:1rem; }
-      .rc-pair-summary { margin-top:1.8rem; }
-      .rc-pair-summary > strong { font-size:1.6rem; font-weight:500; letter-spacing:-.035em; }
-      .rc-pair-summary p { color:var(--slate); font-size:.8125rem; margin-top:.3rem; }
-      .rc-delta-legend { display:flex; justify-content:space-between; gap:1rem; margin-top:1.4rem; padding-left:11rem; padding-right:7.5rem; font-size:.625rem; color:var(--slate); }
-      .rc-next { padding:1.5rem 0; font-size:.875rem; }
-      @media(max-width:600px) {
-        .rc-heading h2,.rc-multi > h2 { font-size:1.55rem; }
-        .rc-tabs { gap:.1rem; }.rc-tabs button { padding:.5rem .35rem; font-size:.75rem; }
-        .rc-panel h3,.rc-multi h3 { font-size:1.2rem; }
-        .rc-pace-row,.rc-delta-row,.rc-terrain-row { grid-template-columns:7.6rem minmax(0,1fr) 5.2rem; gap:.45rem; }
-        .rc-pace-row > span,.rc-delta-row > span,.rc-terrain-row > span { font-size:.625rem; }
-        .rc-pace-row > strong,.rc-delta-row > strong,.rc-terrain-row > strong { font-size:.6875rem; }
-        .rc-chart { height:280px; }.rc-weather-chart { height:220px; }
-        .rc-placement { gap:.8rem; }.rc-placement strong { font-size:2.15rem; }.rc-placement strong span { font-size:.9375rem; }
-        .rc-terrain-heading { grid-template-columns:7.6rem minmax(0,1fr) 5.2rem; gap:.45rem; font-size:.625rem; }
-        .rc-terrain-change { grid-template-columns:1fr; gap:.1rem; }.rc-terrain-change small { text-align:center; }
-        .rc-delta-legend { padding:0; margin-top:1.6rem; font-size:.625rem; }
-        .rc-environment-numbers strong { font-size:1.5rem; }
-      }
-    `}</style>
   </section>;
 }

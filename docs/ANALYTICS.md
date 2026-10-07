@@ -31,7 +31,7 @@ Cookieless mode strips IPs before enrichment, so the geographic map and IP-based
 | `data_download_clicked` | Click on a project Release link or site data file; does not prove download completed | `destination`: release/site_data |
 | `units_changed` | Visitor chooses miles or kilometres | `units`: mi/km |
 
-Use Web Analytics for visitors, page views, referrers and devices. A starter product dashboard should include daily unique `$pageview` visitors; top pages by `$pathname`; searches by `outcome`; race comparisons; download clicks; and a same-day funnel from `runner_search_submitted` to `runner_profile_opened` to `race_comparison_opened`. Cookieless identity cannot support reliable return-visitor/retention analysis across days. Courses and archive detail URLs are grouped at their section path; main analysis pages retain their registered public slug.
+Use Web Analytics for visitors, page views, referrers and devices. A starter product dashboard should include daily unique `$pageview` visitors; top pages by `$pathname`; searches by `outcome`; race comparisons; download clicks; and a same-day funnel from `runner_search_submitted` to `runner_profile_opened` to `race_comparison_opened`. Cookieless identity cannot support reliable return-visitor/retention analysis across days. Courses, story and archive detail URLs are grouped at their section path (`/courses`, `/stories`, `/packs`); main analysis pages retain their registered public slug.
 
 ## Data collection boundary
 

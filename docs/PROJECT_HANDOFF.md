@@ -2,7 +2,11 @@
 
 ## Pace Notes presentation and requests
 
-The public name is Pace Notes, with Instagram attribution to Run_with_Kam · Andrew Kam. `/request-analysis` prepares an email request to Andrew; the visitor sends it from their email app or Gmail. It does not send mail from the server or confirm delivery. See [website architecture](WEBSITE_ARCHITECTURE.md#pace-notes-branding-and-analysis-requests). This presentation change does not recalculate analyses or alter data pins.
+The public name is Pace Notes, credited to Andrew Kam as plain text; the site no longer links to the Run_with_Kam Instagram account. `/request-analysis` prepares an email request to Andrew; the visitor sends it from their email app or Gmail. It does not send mail from the server or confirm delivery. See [website architecture](WEBSITE_ARCHITECTURE.md#pace-notes-branding-and-analysis-requests). This presentation change does not recalculate analyses or alter data pins.
+
+## Redesign and data stories (October 2026 implementation)
+
+The site has a new visual system ([design system](DESIGN_SYSTEM.md)) and a `/stories` section with seven narrative analyses. The stories are built from the unchanged `private-export-20260912-0934` runner shards by `analysis/build_insights.py` and recounted by `scripts/verify-insights.cjs`, which is now part of `npm run verify:data`. The homepage leads with a race replay and story chapters, then the ten analyses. Course pages add each course's pacing fingerprint and its race mornings. A footer control pauses every animation site-wide, and every hover-only readout has a keyboard path (see the motion and chart rules in the design system). The stories leave out Chicago 2018 and 2019 because they duplicate Chicago 2024 (see [known issues](KNOWN_ISSUES.md)); existing analyses are unchanged. Methods, screens and reproduction are in [data stories](STORIES.md). The repository state described here is separate from deployment: confirm the production commit before claiming the redesign is live.
 
 ## Broader analysis views (September 17 implementation)
 
@@ -13,7 +17,7 @@ Updated September 17, 2026 for the expanded [fast-start analysis](FAST_START_ANA
 ## Read in order
 
 1. [Data architecture](DATA_ARCHITECTURE.md)
-2. [Website architecture](WEBSITE_ARCHITECTURE.md)
+2. [Website architecture](WEBSITE_ARCHITECTURE.md), with the [design system](DESIGN_SYSTEM.md) and [data stories](STORIES.md)
 3. [Analysis catalog](ANALYSIS_CATALOG.md)
 4. [Operations](OPERATIONS.md)
 5. [Known issues](KNOWN_ISSUES.md)

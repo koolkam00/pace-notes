@@ -1,0 +1,65 @@
+name: Story analyses
+
+on:
+  pull_request:
+    paths:
+      - 'analysis/insights_*.py'
+      - 'analysis/build_insights.py'
+      - 'analysis/build_course_geometry.py'
+      - 'analysis/test_insights.py'
+      - 'analysis/build_fast_start.py'
+      - 'analysis/build_all_finisher_context.py'
+      - 'analysis/release.json'
+      - 'analysis/requirements.txt'
+      - 'public/data/insights/**'
+      - 'public/data/runners/**'
+      - 'public/data/runner-context/**'
+      - 'scripts/verify-insights.cjs'
+      - '.github/workflows/insights.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install -r analysis/requirements.txt
+      - name: Test story calculations
+        run: python -m unittest discover -s analysis -p 'test_insights.py'
+      - name: Independently recount the published story data
+        run: node scripts/verify-insights.cjs
+      - name: Download the pinned and verified CORE export (course files)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python analysis/download_release.py --bundle CORE --output "$RUNNER_TEMP/release"
+      - name: Rebuild every story family from the verified runner shards
+        run: |
+          python analysis/build_insights.py --output "$RUNNER_TEMP/insights"
+          python analysis/build_course_geometry.py --profiles "$RUNNER_TEMP/release/course_profiles.parquet" --output "$RUNNER_TEMP/insights/course-geometry.json"
+          python analysis/build_insights.py --output "$RUNNER_TEMP/insights" --only manifest
+      - name: Recount the rebuilt data
+        run: node scripts/verify-insights.cjs --input "$RUNNER_TEMP/insights"
+      - name: Rebuilt family files must match the published bytes
+        run: |
+          cd public/data/insights
+          find . -name '*.json' ! -name manifest.json ! -name course-geometry.json | sort | while read -r file; do
+            cmp "$file" "$RUNNER_TEMP/insights/$file"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: story-data
+          path: ${{ runner.temp }}/insights/
+          if-no-files-found: error
+          retention-days: 30

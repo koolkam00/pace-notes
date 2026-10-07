@@ -3,9 +3,10 @@ import { QUESTIONS, EXTRA_TITLES, THEMES } from '@/lib/question-catalog';
 import { PERSONAL_QUESTIONS } from '@/lib/personalized-catalog';
 import { broaderArchive } from '@/lib/broader-analysis-catalog';
 
-export const metadata = { title: 'Research archive | Pace Notes' };
+export const metadata = { title: 'Research archive | Pace Notes', description: 'The broader research archive: every extension question calculated from the current marathon race records.' };
 export default function AnalysesPage() {
   return <div className="prose">
+    <p className="eyebrow">Beyond the ten analyses</p>
     <h1>The research archive.</h1>
     <p className="answer-detail">The wider work behind the study: {QUESTIONS.length} questions about race strategy, conditions, goals, runner differences, and improvement.</p>
     <p>New here? <Link href="/analyses">Start with the ten essential analyses</Link> for a guided, personalized view of the strongest results.</p>

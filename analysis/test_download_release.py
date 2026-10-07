@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from urllib.request import HTTPRedirectHandler
+from urllib.request import HTTPRedirectHandler, Request
 
 import download_release
 
@@ -91,6 +91,21 @@ class PublicReleaseDownloads(unittest.TestCase):
                 with patch.object(download_release, "urlopen", return_value=io.BytesIO(payload)) as request_asset:
                     download_release.download_asset(release_asset(payload), Path(folder) / "asset")
                 self.assertIsNone(request_asset.call_args.args[0].get_header("Authorization"))
+
+    def test_token_follows_only_github_api_redirects(self):
+        # A renamed repository redirects its old API URL to api.github.com; keep the token there only.
+        with patch.dict(os.environ, {"GH_TOKEN": "synthetic-test-token"}, clear=True), \
+                patch.object(download_release, "urlopen", return_value=io.BytesIO(b"{}")) as request_api:
+            download_release.read_release(REPO, TAG)
+        request = request_api.call_args.args[0]
+        handler = download_release.GitHubApiRedirect()
+        renamed = handler.redirect_request(request, None, 301, "Moved Permanently", {}, "https://api.github.com/repositories/42/releases/tags/" + TAG)
+        self.assertEqual(renamed.get_header("Authorization"), "Bearer synthetic-test-token")
+        for url in ["https://release-assets.githubusercontent.com/fixture", "http://api.github.com/repos/x", "https://api.github.com.example.org/repos/x"]:
+            with self.subTest(url=url):
+                self.assertIsNone(handler.redirect_request(request, None, 302, "Found", {}, url).get_header("Authorization"))
+        anonymous = Request("https://api.github.com/repos/x", headers={"User-Agent": "test"})
+        self.assertIsNone(handler.redirect_request(anonymous, None, 301, "Moved Permanently", {}, "https://api.github.com/repos/y").get_header("Authorization"))
 
     def test_corrupt_asset_is_rejected_and_removed(self):
         with tempfile.TemporaryDirectory() as folder:

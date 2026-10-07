@@ -34,6 +34,7 @@ export function analyticsPath(value: string, basePath = ''): string {
     if (pages.has(path)) return path;
     if (path === '/courses' || path.startsWith('/courses/')) return '/courses';
     if (path === '/packs' || path.startsWith('/packs/')) return '/packs';
+    if (path === '/stories' || path.startsWith('/stories/')) return '/stories';
   } catch {}
   return '/other';
 }

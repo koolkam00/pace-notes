@@ -12,10 +12,11 @@ export const metadata = {
 export default function Page() {
   const figures = getStudyFigures();
   return <>
-    <section className="study-intro">
+    <header className="directory-heading">
+      <p className="eyebrow">Late-race slowing</p>
       <h1>Understanding sustained slowdown.</h1>
       <p>Explore one form of late-race slowing, recalculated from the same data release as the rest of the study.</p>
-    </section>
+    </header>
     <ResearchQuestion question={getStudyAnswer()} />
     <ResearchQuestion question={getWallTimingAnswer()} />
     {figures.length ? figures.map(figure => <StudyFigure key={figure.id} figure={figure} />) : <p>Supporting figures are not available for the current release.</p>}

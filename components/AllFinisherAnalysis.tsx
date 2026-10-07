@@ -102,34 +102,5 @@ export default function AllFinisherAnalysis({ kind, start, history, title, descr
       {related}
       <nav className="analysis-next" aria-label="Continue exploring"><Link href="/analyses">← The essential ten</Link><Link href="/runners">Explore your recorded races →</Link></nav>
     </article></div>}
-    <style jsx global>{`
-      .af-modes { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin:2rem 0 1rem; }
-      .af-modes button { text-align:left; border:1px solid var(--rule); border-radius:8px; padding:1rem; background:transparent; color:var(--ink); font:inherit; cursor:pointer; }
-      .af-modes button[aria-pressed="true"] { border-color:var(--ink); background:var(--paper); box-shadow:inset 0 0 0 1px var(--ink); }
-      .af-modes span { display:block; margin-top:.3rem; font-size:.75rem; color:var(--slate); }
-      .af-history-switch { max-width:760px; margin:0 auto 2rem; padding:0 1.25rem; }
-      .af-coverage { color:var(--slate); max-width:47rem; font-size:.9rem; margin-bottom:1.5rem; }
-      .af-controls,.af-line-controls { display:grid; grid-template-columns:1fr 1fr; gap:1rem; align-items:end; }
-      .af-controls label,.af-line-controls label { min-width:0; }
-      .af-controls select,.af-line-controls select { width:100%; }
-      .af-controls button { min-height:44px; }
-      .af-line-controls { margin:2rem 0; }
-      .af-line-controls label { display:flex; flex-direction:column; gap:.5rem; font-size:.8rem; color:var(--slate); }
-      .af-line-controls select { min-height:44px; padding:.7rem; border:1px solid var(--rule); background:var(--paper); color:var(--ink); border-radius:4px; font:inherit; }
-      .af-numbers { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1.5rem; margin:1.5rem 0; }
-      .af-numbers strong { display:block; font-size:clamp(1.45rem,2.5vw,2rem); font-weight:500; letter-spacing:-.035em; line-height:1.2; }
-      .af-numbers span,.af-numbers small { display:block; color:var(--slate); font-size:.8rem; margin-top:.5rem; }
-      .af-numbers small { font-size:.7rem; line-height:1.5; }
-      .af-section,.af-method { margin-top:3rem; padding-top:2rem; border-top:1px solid var(--rule); }
-      .af-section>h2,.af-method>h2 { font-size:clamp(1.5rem,2.8vw,2rem); font-weight:500; letter-spacing:-.035em; line-height:1.2; }
-      .af-section>p,.af-method p { color:var(--slate); max-width:47rem; }
-      .af-method p { font-size:.85rem; }
-      .af-method details { margin:1.5rem 0; }
-      .af-method summary,.af-coverage-details summary { font-size:.875rem; }
-      .af-coverage-details { margin-top:1.5rem; color:var(--slate); font-size:.85rem; }
-      .af-page .analysis-next { display:flex; flex-wrap:wrap; gap:1rem 2rem; justify-content:space-between; margin-top:3rem; }
-      @media(max-width:650px) { .af-numbers { grid-template-columns:1fr 1fr; } .af-numbers>div:last-child { grid-column:1/-1; } }
-      @media(max-width:420px) { .af-controls,.af-line-controls,.af-modes { grid-template-columns:1fr; } }
-    `}</style>
   </>;
 }

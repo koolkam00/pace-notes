@@ -38,6 +38,8 @@ python analysis/audit_release.py --input /path/to/0934-input --core /path/to/093
 python -m unittest discover -s analysis -p 'test_*.py'
 ```
 
+`download_release.py` needs no token. If `GH_TOKEN` or `GITHUB_TOKEN` is set, it is sent only to `api.github.com`, including across that host's own redirects: the pinned repository name `koolkam00/htw-live-study` now redirects to the renamed repository, and an anonymous redirected request can hit GitHub's shared runner rate limit. Asset downloads, and redirects to any other host, never carry the token.
+
 Add `--previous /path/to/1107-input` to the release audit to reproduce the raw-record delta. CORE has eight allowed members; FULL adds `features.parquet`. Producer audit notes belong in separate assets. The downloader validates size/SHA-256, rejects unsafe, duplicate or unexpected members and writes provenance. Do not bypass these checks because a prior release had a different archive layout.
 
 Review the release-specific exclusions in `analysis/source_quality.py` before calculation. The policy follows explicit producer/audit evidence for invalid, incomplete, held or selected fields. Apply it after timing eligibility, include its edition counts and hashes in each output, and exclude those editions from earlier benchmarks as well as outcomes. Do not widen exclusions based on small sample size alone or remove usable records merely because age/gender is missing.
@@ -117,6 +119,20 @@ npm run build
 ```
 
 The history verifier checks every cell's count, edition coverage and onset, then independently recomputes every numeric metric for the complete unfiltered cohort and five filtered cohorts. The separate all-finisher verifier covers its full eligible population, exact opening boundaries, published and sparse-cell counts, onset denominators and new time outcomes. Preserve evidence of each verifier's actual checks; passing one mode does not validate the other. Each view uses its selected opening group except its clearly labeled cross-group time-distribution chart. Source pins, lookup hashes and calculation hashes cannot be relabeled to avoid rebuilding. The dedicated [workflow](../.github/workflows/fast-start.yml) recalculates and verifies evidence artifacts; it does not import or deploy. Record CI and anonymous production-payload checks separately. See [definitions and evidence](FAST_START_ANALYSIS.md).
+
+## Data story refresh
+
+Rebuild the stories after the runner or runner-context manifests change:
+
+```bash
+python -m unittest discover -s analysis -p 'test_insights.py'
+python analysis/build_insights.py
+python analysis/build_course_geometry.py --profiles <CORE export>/course_profiles.parquet
+python analysis/build_insights.py --only manifest
+node scripts/verify-insights.cjs
+```
+
+The **Story analyses** workflow repeats the build into a temporary directory and requires byte-identical family files. See [data stories](STORIES.md).
 
 ## Producer operations and missing information
 

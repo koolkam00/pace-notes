@@ -16,7 +16,7 @@ export default function StudyFigure({ figure }: { figure: StudyFigureData }) {
     <p className="answer">{text(figure.answer)}</p>
     <div className="chart-controls">
       <label htmlFor={`${id}-chart`}>Comparison
-        <select id={`${id}-chart`} value={choice} onChange={event => setChoice(Number(event.target.value))}>
+        <select id={`${id}-chart`} aria-label={`Comparison for ${text(figure.title)}`} value={choice} onChange={event => setChoice(Number(event.target.value))}>
           {figure.charts.map((chart, index) => <option key={index} value={index}>{text(chart.title)}</option>)}
         </select>
       </label>

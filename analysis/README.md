@@ -108,6 +108,10 @@ The **Marathon pacing analysis** workflow responds to matching release publicati
 
 The original sustained-slowdown definition remains unchanged: at least 25% slowing for at least 5 km after 20 km versus the 5–20 km baseline, with a neutral [published-method citation](https://doi.org/10.1371/journal.pone.0251513). The current supporting study recomputes that definition from the same eligible raw timings as the main analyses. The original undocumented cost and adjustment models are not republished as current results.
 
+## Data stories
+
+`build_insights.py` writes the story families (`insights_round.py`, `insights_replay.py`, `insights_archetypes.py`, `insights_positions.py`, `insights_demographics.py`, `insights_kick.py` and `insights_courses.py`) to `public/data/insights/`. It reads the verified runner shards through `insights_data.py` and applies a duplicate-edition screen (Chicago 2018/2019) specific to the stories. Shape statistics also leave out start-offset editions. `build_course_geometry.py` simplifies the supplied routes for illustrations. Tests are in `test_insights.py`; the independent recount is `scripts/verify-insights.cjs`. Methods are in [data stories](../docs/STORIES.md).
+
 ## Public name search and selected-race analysis
 
 `build_public_explorer.py` shares the timing parser, canonical-ID audit, identity checks and reviewed edition exclusions with the existing builders. It writes `study/evidence.json` and `runners/manifest.json` plus deterministic gzip JSON shards. `import_public_explorer.py` invokes the full Node verifier before replacing only these two folders and current `live.json` compatibility metadata. Node must be on PATH. The **Public runner explorer** workflow rebuilds these outputs and uploads `public-runner-explorer`; it does not import or deploy them.

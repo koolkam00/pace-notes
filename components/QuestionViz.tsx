@@ -9,7 +9,7 @@ import { sectionLabel } from '@/lib/section-labels';
 import { distanceValue, elevationValue, paceLabel, paceValue, unitText, type UnitSystem } from '@/lib/units';
 import { useUnits } from './UnitsProvider';
 
-const COLORS = ['#2463eb', '#bb6844', '#687785'];
+const COLORS = ['#2346E6', '#FF5B2E', '#66625A'];
 
 export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { spec: ChartSpec; headingLevel?: 2 | 3; unitSystem?: UnitSystem }) {
   const id = useId();
@@ -49,6 +49,10 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
     label: distanceAxis && finite(row.label) !== null ? distanceValue(Number(row.label), selectedUnits) : row.label,
     ...(spec.band ? { interval: [row[spec.band.lower], row[spec.band.upper]] } : {}),
   }));
+  const xs = chartRows.map(row => finite(row.label)).filter((v): v is number => v !== null);
+  const sectionTicks = spec.sectionEnds && distanceAxis && xs.length
+    ? [5, 10, 20, 30, 40, 42.195].map(km => distanceValue(km, selectedUnits)).filter(v => v >= Math.min(...xs) - 1e-9 && v <= Math.max(...xs) + 1e-9)
+    : undefined;
   const percentileLabels = ['10th percentile', 'Median', '90th percentile'];
   const percentileKeys = spec.kind !== 'line' && spec.series.length === 3
     ? [['p10', 'median', 'p90'], ['low', 'value', 'high']].find(keys => keys.every((key, index) => spec.series.some(series => series.key === key && series.label === percentileLabels[index])))
@@ -118,7 +122,7 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
             return <div className="range-row" key={`${row.label}-${i}`}>
               <div className="range-label">{label(row.label)}</div>
               <div className="range-track" aria-hidden="true" style={{ position: 'relative', height: 28 }}>{complete && <>
-                {rangeStart <= 0 && rangeEnd >= 0 && <span className="range-zero" style={{ position: 'absolute', left: `${rangePosition(0)}%`, top: 3, bottom: 3, borderLeft: '1px solid #c9d2dd' }} />}
+                {rangeStart <= 0 && rangeEnd >= 0 && <span className="range-zero" style={{ position: 'absolute', left: `${rangePosition(0)}%`, top: 3, bottom: 3, borderLeft: '1px solid #9A907D' }} />}
                 <span className="range-span" style={{ position: 'absolute', left: `${rangePosition(low)}%`, width: `${rangePosition(high) - rangePosition(low)}%`, top: 13, height: 2, borderRadius: 1, background: COLORS[2] }} />
                 <span className="range-marker" style={{ position: 'absolute', left: `${rangePosition(median)}%`, top: 7, width: 14, height: 14, transform: 'translateX(-50%)', borderRadius: '50%', background: COLORS[0], border: '2px solid white' }} />
               </>}</div>
@@ -129,12 +133,12 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
         : spec.kind === 'line' ? <div className="chart">
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <ComposedChart data={chartRows} margin={{ top: 20, right: 16, bottom: 24, left: 0 }} accessibilityLayer>
-              <CartesianGrid vertical={false} stroke="#dfe5ee" />
-              <XAxis dataKey="label" type={spec.xNumeric ? 'number' : 'category'} domain={spec.xNumeric ? ['dataMin', 'dataMax'] : undefined} tickCount={5} tickLine={false} axisLine={false} minTickGap={28} tick={{ fontSize: 14, fill: '#687785' }} tickFormatter={v => distanceAxis && typeof v === 'number' ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(v) : typeof v === 'number' ? formatNumber(v, spec.xUnit) : text(String(v))} label={{ value: text(spec.xLabel), position: 'insideBottom', offset: -18, fontSize: 14, fill: '#687785' }} />
-              <YAxis width={58} tickLine={false} axisLine={false} tick={{ fontSize: 14, fill: '#687785' }} tickFormatter={axisValue} domain={signed || spec.unit === 'min/km' ? ['auto', 'auto'] : [0, 'auto']} />
-              {signed && <ReferenceLine y={0} stroke="#687785" />}
+              <CartesianGrid vertical={false} stroke="#DCD3C2" />
+              <XAxis dataKey="label" type={spec.xNumeric ? 'number' : 'category'} domain={spec.xNumeric ? ['dataMin', 'dataMax'] : undefined} ticks={sectionTicks} tickCount={5} tickLine={false} axisLine={false} minTickGap={28} tick={{ fontSize: 14, fill: '#66625A' }} tickFormatter={v => distanceAxis && typeof v === 'number' ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(v) : typeof v === 'number' ? formatNumber(v, spec.xUnit) : text(String(v))} label={{ value: text(spec.xLabel), position: 'insideBottom', offset: -18, fontSize: 14, fill: '#66625A' }} />
+              <YAxis width={58} tickLine={false} axisLine={false} tick={{ fontSize: 14, fill: '#66625A' }} tickFormatter={axisValue} domain={signed || spec.unit === 'min/km' ? ['auto', 'auto'] : [0, 'auto']} />
+              {signed && <ReferenceLine y={0} stroke="#66625A" />}
               {spec.band && <Area type="linear" dataKey="interval" stroke="none" fill={COLORS[0]} fillOpacity={0.12} tooltipType="none" isAnimationActive={false} />}
-              <Tooltip formatter={v => value(v)} labelFormatter={v => spec.sectionEnds ? `Average over ${label(v, true)}` : `${text(spec.xLabel)}: ${label(v, true)}`} contentStyle={{ fontSize: 14, border: '1px solid #dfe5ee', borderRadius: 4, maxWidth: 250 }} />
+              <Tooltip formatter={v => value(v)} labelFormatter={v => spec.sectionEnds ? `Average over ${label(v, true)}` : `${text(spec.xLabel)}: ${label(v, true)}`} contentStyle={{ fontSize: 13, border: '1px solid #DCD3C2', borderRadius: 10, maxWidth: 250, background: '#FFFDF8' }} />
               {spec.series.map((series, i) => <Line key={series.key} dataKey={series.key} name={text(series.label)} stroke={spec.band && i > 0 ? COLORS[0] : COLORS[i % COLORS.length]} strokeOpacity={spec.band && i > 0 ? 0.35 : 1} strokeWidth={spec.band && i > 0 ? 1 : 2.5} strokeDasharray={i === 1 ? '6 4' : undefined} type="linear" dot={spec.band && i > 0 ? false : { r: 3 }} activeDot={{ r: 5 }} connectNulls={false} isAnimationActive={false} />)}
             </ComposedChart>
           </ResponsiveContainer>
