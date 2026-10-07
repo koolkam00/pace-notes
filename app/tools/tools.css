@@ -170,6 +170,8 @@ a.tool-card:hover { text-decoration: none; transform: translateY(-3px); box-shad
   .site-header, .footer, .skip-link, .tool-inputs, .tool-next, .tool-method, .tool-share, .no-print, .tool-header .tool-badges { display: none !important; }
   .print-only { display: block; }
   .tool-workspace { grid-template-columns: 1fr; }
+  /* Fixed-width charts shrink to the printable width instead of overflowing the page. */
+  .tool-page svg[viewBox] { max-width: 100%; height: auto; }
   .tool-panel, .tool-headline { box-shadow: none; break-inside: avoid; }
   .tool-headline { background: #fff; color: #000; border: 1px solid #000; }
   .tool-headline .tool-stat-value, .tool-headline .tool-stat-label, .tool-headline .tool-stat-sub { color: #000 !important; }

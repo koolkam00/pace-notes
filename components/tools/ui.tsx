@@ -2,6 +2,8 @@
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { formatDuration, parseDuration, type DurationMode } from '@/lib/tools/time';
+import { useUnits } from '@/components/UnitsProvider';
+import { withUnits } from '@/lib/unit-preference';
 
 /**
  * A duration input that keeps the visitor's text while they type and reports seconds (or null) upward.
@@ -98,13 +100,15 @@ export function EvidencePanel({ kind, title, meta, children, id }: { kind: 'arit
   );
 }
 
-/** Copy-link and print buttons. */
+/** Copy-link and print buttons. The copied link carries the units on screen, so it opens the same way for someone else. */
 export function ShareBar({ print = true, extra }: { print?: boolean; extra?: ReactNode }) {
   const [copied, setCopied] = useState(false);
+  const { units } = useUnits();
   return (
     <div className="tool-share no-print">
       <button type="button" className="button-secondary" onClick={async () => {
-        try { await navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { /* clipboard unavailable */ }
+        const { origin, pathname, search, hash } = window.location;
+        try { await navigator.clipboard.writeText(origin + withUnits(pathname + search + hash, units)); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { /* clipboard unavailable */ }
       }}>{copied ? 'Link copied' : 'Copy link'}</button>
       {print ? <button type="button" className="button-secondary" onClick={() => window.print()}>Print</button> : null}
       {extra}
