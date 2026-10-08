@@ -1,10 +1,13 @@
 import AnalysisRequest from '@/components/AnalysisRequest';
 import { UnitLink as Link } from '@/components/UnitsProvider';
+import { pageMetadata } from '@/lib/seo';
 
-export const metadata = {
+export const metadata = pageMetadata({
   title: 'Request an analysis | Pace Notes',
   description: 'Have a marathon question? Suggest the next analysis for Pace Notes to explore.',
-};
+  path: '/request-analysis',
+  noindex: true,
+});
 
 export default function RequestAnalysisPage() {
   return <article className="request-page">

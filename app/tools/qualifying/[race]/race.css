@@ -1,0 +1,141 @@
+/* ==========================================================================
+   Per-race qualifying standards (/tools/qualifying/[race]) and the race list on the checker.
+   Every class is prefixed qrace-. Built on the shared tool styles in app/tools/tools.css.
+   ========================================================================== */
+
+/* ---------- Header ---------- */
+.qrace-header { padding-bottom: 1.4rem; }
+.qrace-header .tool-title { font-size: clamp(2.2rem, 5.6vw, 4rem); text-wrap: balance; max-width: 15em; }
+.qrace-provenance { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .8rem; margin-top: 1.1rem; font-size: .8125rem; line-height: 1.45; color: var(--ink-3); }
+
+/* ---------- Layout: the facts card beside the panels on wide screens, after the standards table on phones ---------- */
+.qrace-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.2rem; align-items: start; }
+@media (min-width: 980px) {
+  .qrace-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 20rem); column-gap: clamp(1.2rem, 3vw, 2.2rem); }
+  .qrace-layout > * { grid-column: 1; }
+  /* Spans every panel row (count set inline), so the card can stay in view while the panels scroll. */
+  .qrace-layout > .qrace-glance { grid-column: 2; grid-row: 1 / span var(--qrace-rows, 4); align-self: start; position: sticky; top: 5.5rem; }
+}
+
+/* ---------- At a glance ---------- */
+.qrace-glance { display: grid; gap: 1rem; padding: 1.2rem 1.25rem 1.3rem; background: var(--card); border: 1px solid var(--line); border-top: 5px solid var(--green); border-radius: 20px;
+  box-shadow: var(--shadow); min-width: 0; }
+.qrace-glance-title { font-family: var(--mono); font-size: .75rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.qrace-facts { display: grid; margin: 0; }
+/* align-content: start keeps the label and value at the top of their cell when a neighbour in the same row is taller (two columns from 620 px). */
+.qrace-facts > div { display: grid; gap: .15rem; align-content: start; padding: .65rem 0; border-top: 1px solid var(--paper-2); }
+.qrace-facts > div:first-child { border-top: 0; padding-top: 0; }
+.qrace-facts dt { font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.qrace-facts dd { display: grid; gap: .15rem; margin: 0; min-width: 0; }
+.qrace-facts dd > b { font-size: 1rem; font-weight: 650; line-height: 1.35; color: var(--ink); }
+.qrace-facts dd > span { font-size: .8125rem; line-height: 1.5; color: var(--ink-3); }
+.qrace-cta { display: grid; gap: .55rem; padding-top: .2rem; }
+.qrace-cta .button-primary { width: 100%; text-align: center; }
+.qrace-cta p { font-size: .75rem; line-height: 1.5; color: var(--ink-3); }
+@media (min-width: 620px) and (max-width: 979px) {
+  .qrace-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1.4rem; }
+  .qrace-facts > div:nth-child(2) { border-top: 0; padding-top: 0; }
+  .qrace-cta { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 1rem; }
+  .qrace-cta .button-primary { width: auto; }
+}
+
+/* ---------- Tables ---------- */
+.qrace-table { min-width: 0; }
+.qrace-table tbody th { font-family: var(--mono); font-size: .875rem; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.qrace-table td { font-size: .9375rem; color: var(--ink); }
+.qrace-table td.qrace-age { font-family: var(--mono); font-weight: 600; color: var(--ink-2); text-align: left; }
+.qrace-table thead th:first-child { text-align: left; }
+.qrace-table tbody tr:hover td, .qrace-table tbody tr:hover th { background: rgba(23, 166, 115, .06); }
+.qrace-table caption { max-width: 40rem; }
+.qrace-pace-table td { color: var(--ink-2); font-size: .875rem; }
+.qrace-row-note { display: block; margin-top: .1rem; font-family: var(--sans); font-size: .6875rem; font-weight: 450; line-height: 1.35; color: var(--ink-3); white-space: normal; }
+.qrace-cutoff-table tbody th { white-space: normal; min-width: 6.5rem; }
+/* Birth-year tables (Berlin): the age column sits left, next to the birth years, which may wrap on a phone. */
+.qrace-table[data-race='berlin'] thead th:nth-child(2) { text-align: left; }
+.qrace-table[data-race='berlin'] tbody th { white-space: normal; min-width: 5.5rem; }
+
+/* ---------- Sources, rules, entry ---------- */
+.qrace-sources { display: flex; flex-wrap: wrap; align-items: baseline; gap: .35rem 1rem; margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--paper-2); font-size: .8125rem; }
+.qrace-sources a { color: var(--blue-ink); }
+.qrace-checked { margin-left: auto; font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .04em; color: var(--green-ink); white-space: nowrap; }
+.qrace-rules { display: grid; margin: 0; }
+.qrace-rules > div { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: 1rem; padding: .7rem 0; border-top: 1px solid var(--paper-2); }
+.qrace-rules > div:first-child { border-top: 0; padding-top: 0; }
+.qrace-rules dt { padding-top: .15rem; font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.qrace-rules dd { margin: 0; font-size: .9375rem; line-height: 1.6; color: var(--ink-2); min-width: 0; }
+.qrace-subhead { margin: 1.2rem 0 .5rem; font-family: var(--serif); font-variation-settings: 'opsz' 72, 'SOFT' 40; font-size: 1.15rem; font-weight: 640; letter-spacing: -.005em; }
+.qrace-list { margin: 0; padding-left: 1.1rem; font-size: .9375rem; line-height: 1.6; color: var(--ink-2); }
+.qrace-list li + li { margin-top: .35rem; }
+.qrace-entry { border-left: 4px solid var(--green); }
+.qrace-draw { margin-top: .9rem; font-size: .875rem; border-left: 4px solid var(--green); }
+
+/* ---------- Other races ---------- */
+.qrace-more { margin-top: 2.4rem; }
+.qrace-more-title { font-family: var(--mono); font-size: .75rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin-bottom: .8rem; }
+.qrace-links { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr)); gap: .6rem; list-style: none; padding: 0; margin: 0; }
+/* Grid gap spaces the links; cancel the site-wide stacked-list margin. */
+.qrace-links li + li { margin-top: 0; }
+.qrace-links a { display: grid; gap: .1rem; min-height: 44px; padding: .65rem .9rem; border: 1px solid var(--line); border-left: 4px solid var(--green); border-radius: 12px; background: var(--card); color: var(--ink); }
+/* Cards, not text links: globals.css underlines 'li > a:not([class])', so these selectors are more specific than that rule. */
+ul.qrace-links > li > a { text-decoration: none; }
+ul.qrace-links > li > a:hover { text-decoration: none; border-color: var(--ink-2); border-left-color: var(--green); }
+ul.qrace-links > li > a:hover b, ul.qrace-links > li > a:focus-visible b { text-decoration: underline; text-decoration-color: var(--green); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+ul.qrace-links > li > a:focus-visible { outline: 2px solid var(--green-ink); outline-offset: 2px; }
+.qrace-links b { font-size: .9375rem; }
+.qrace-links span { font-size: .75rem; color: var(--ink-3); }
+.qrace-more-links { margin-top: .9rem; font-size: .9375rem; }
+.qrace-more-links a { color: var(--blue-ink); font-weight: 600; }
+/* On the checker page, inside the tool header: one wrapped row of pills. */
+.qrace-index { margin-top: 1.2rem; }
+.qrace-index > p { margin-bottom: .5rem; font-size: .8125rem; font-weight: 600; color: var(--ink-2); }
+.qrace-links.is-compact { display: flex; flex-wrap: wrap; gap: .4rem; }
+.qrace-links.is-compact a { display: inline-flex; align-items: center; min-height: 40px; padding: .35rem .85rem; border: 1px solid var(--line-2); border-radius: 999px; background: var(--card); }
+ul.qrace-links.is-compact > li > a:hover { border-color: var(--ink); background: var(--paper-2); }
+.qrace-links.is-compact b { font-size: .875rem; font-weight: 600; }
+
+/* ---------- Phones ---------- */
+@media (max-width: 560px) {
+  .qrace .tool-panel { padding-inline: 1.1rem; }
+  .qrace-table th, .qrace-table td { padding-inline: .3rem; }
+  .qrace-table th:first-child, .qrace-table td:first-child { padding-left: .15rem; }
+  .qrace-cutoff-table tbody th { min-width: 5.4rem; }
+  .qrace-table[data-race='berlin'] tbody th { min-width: 4.6rem; }
+  .qrace-table thead th { white-space: normal; vertical-align: bottom; letter-spacing: .04em; }
+  .qrace-table td { font-size: .875rem; }
+  .qrace-pace-table td { font-size: .8125rem; }
+  .qrace-rules > div { grid-template-columns: minmax(0, 1fr); gap: .25rem; }
+  .qrace-checked { margin-left: 0; }
+}
+
+@media (max-width: 380px) {
+  .qrace-table td { font-size: .8125rem; }
+  .qrace-pace-table td { font-size: .75rem; }
+}
+
+/* ---------- Print: the tables and rules, without navigation ---------- */
+@media print {
+  /* No bottom padding: it would spill onto a blank last page. */
+  .qrace.tool-page { padding-bottom: 0; }
+  .qrace-layout { display: block; }
+  .qrace-glance { position: static; box-shadow: none; border: 1px solid #999; border-top: 3px solid var(--green); margin-bottom: 1rem; break-inside: avoid; }
+  .qrace-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1.4rem; }
+  .qrace-facts > div:nth-child(2) { border-top: 0; padding-top: 0; }
+  .qrace-layout > * + * { margin-top: 1rem; }
+  .qrace-more, .qrace-index { display: none; }
+  .qrace-table tr { break-inside: avoid; }
+  .qrace-table tbody tr:hover td, .qrace-table tbody tr:hover th { background: none; }
+  .qrace-sources a::after { content: ' (' attr(href) ')'; font-size: .75em; color: #444; word-break: break-all; }
+  .qrace-provenance .evidence-badge { display: none; }
+  /* Long panels may run across pages (tools.css keeps panels whole); rows, headings and the facts card stay together. */
+  .qrace .tool-panel { break-inside: auto; padding: .8rem 1rem; border-color: #BBB; }
+  .qrace .tool-panel-head { break-after: avoid; margin-bottom: .5rem; }
+  /* Long panels (New York's entry with its pool table, the rules) may split between pages; each rule, callout and list item stays whole. */
+  .qrace-rules > div, .qrace-entry, .qrace-draw, .qrace-list li, .qrace .tool-note { break-inside: avoid; }
+  .qrace-table { font-size: 10pt; }
+  .qrace-table th, .qrace-table td { padding-block: .2rem; }
+  .qrace-table thead { display: table-header-group; }
+  .qrace-subhead { break-after: avoid; }
+  .qrace-header { padding-bottom: .4rem; }
+  /* The panel headings already say what these two tables are (and that the paces are calculated at even pace). */
+  .qrace-table:not(.qrace-cutoff-table):not(.qrace-pool-table) caption { display: none; }
+}

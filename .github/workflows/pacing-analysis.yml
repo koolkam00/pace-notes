@@ -57,7 +57,7 @@ jobs:
           PY
       - name: Read current public snapshot date
         run: |
-          curl --fail --silent --show-error https://htw-live-study.vercel.app/data/live.json > "$RUNNER_TEMP/pacing-live.json"
+          curl --fail --silent --show-error https://splithappens.run/data/live.json > "$RUNNER_TEMP/pacing-live.json"
           python -c 'import json,os; d=json.load(open(os.environ["RUNNER_TEMP"]+"/pacing-live.json")); assert d["status"] in ("ready","ok"); print("PACING_LIVE_AS_OF="+d["as_of"])' >> "$GITHUB_ENV"
       - name: Calculate aggregate pacing packs
         run: python analysis/build_pacing.py --input "$RUNNER_TEMP/pacing-input" --output "$RUNNER_TEMP/pacing-aggregates" --live-as-of "$PACING_LIVE_AS_OF"

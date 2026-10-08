@@ -1,12 +1,15 @@
 import QualifyingChecker from '@/components/tools/QualifyingChecker';
+import { QualifyingRaceLinks } from '@/components/tools/QualifyingRaceLinks';
 import { ToolHeader, ToolMethod, ToolNext } from '@/components/tools/ToolShell';
+import { pageMetadata } from '@/lib/seo';
 import { BOSTON_CUTOFFS, STANDARDS, VERIFIED_AT } from '@/lib/tools/qualifying';
 import './qualifying.css';
 
-export const metadata = {
-  title: 'Marathon qualifying checker: Boston, NYC, London, Chicago, Berlin, Sydney | Pace Notes',
-  description: 'Check a marathon time against the Boston, New York, London Good For Age, Chicago, Berlin and Sydney standards, each with its own age rule and window. Boston includes the new downhill index and every past cut-off; nothing is forecast.',
-};
+export const metadata = pageMetadata({
+  title: 'Marathon Qualifying Times Checker: Boston, NYC, Chicago',
+  description: 'Check a marathon time against Boston, NYC, Chicago, London, Berlin and Sydney standards for your age, with each window and every published Boston cut-off.',
+  path: '/tools/qualifying',
+});
 
 /** Every official page the standards were transcribed from, plus the B.A.A. announcements behind the cut-off history. */
 const SOURCES = [
@@ -22,7 +25,12 @@ const last = BOSTON_CUTOFFS[BOSTON_CUTOFFS.length - 1].year;
 export default function QualifyingPage() {
   return (
     <div className="container tool-page">
-      <ToolHeader slug="qualifying" />
+      <ToolHeader slug="qualifying">
+        <nav className="qrace-index" aria-labelledby="qrace-index-title">
+          <p id="qrace-index-title">Every standard by age group, race by race</p>
+          <QualifyingRaceLinks races={STANDARDS} compact />
+        </nav>
+      </ToolHeader>
       <QualifyingChecker />
       <ToolMethod sources={SOURCES}>
         <p><strong>Official rules only.</strong> Every standard, age rule, qualifying window and application date was transcribed from the race’s own pages and checked on {VERIFIED_AT}. Standards change every year, so each card links its source and shows that date; Pace Notes reviews them before every registration season. Meeting a standard is not entry: each race then applies its own cut-off, cap, review or lottery, and each card says which.</p>

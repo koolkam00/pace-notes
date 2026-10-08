@@ -59,6 +59,14 @@
 /* ---------- Base ---------- */
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-padding-top: 5.5rem; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* In-page anchors land about 14 px below the sticky header, whose height (measured October 8, 2026) is 74 px when the
+   nav fits on one row, 126 px where the nav wraps at 1181–1222 px and 981–1056 px, 128 px at 601–980 px, 123 px on
+   phones and 169 px under 325 px wide, where the units switch wraps. Each band ends with some slack before the width
+   at which the header grows, since that width follows the font and nav text. */
+@media (min-width: 1181px) and (max-width: 1259px) { html { scroll-padding-top: 8.75rem; } }
+@media (max-width: 1099px) { html { scroll-padding-top: 8.875rem; } }
+@media (max-width: 600px) { html { scroll-padding-top: 8.625rem; } }
+@media (max-width: 339px) { html { scroll-padding-top: 11.5rem; } }
 body {
   margin: 0;
   background: var(--paper);

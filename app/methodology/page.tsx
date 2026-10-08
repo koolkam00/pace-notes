@@ -1,12 +1,61 @@
-import Link from 'next/link';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 import { getStudyEvidence, getStudyAnswer, getQuestions } from '@/lib/research-data';
 import { QUESTIONS } from '@/lib/question-catalog';
 import { getExtensions } from '@/lib/extension-data';
 import { getPersonalMethod, getPersonalSummary } from '@/lib/personalized-data';
 import { TEN_ANALYSES, analysisHref } from '@/lib/ten-analyses';
 import { PERSONAL_QUESTIONS } from '@/lib/personalized-catalog';
+import { getInsightsManifest } from '@/lib/insights-server';
+import { STORIES, courseSpan } from '@/lib/stories';
+import { JsonLd, absoluteUrl, pageMetadata } from '@/lib/seo';
+import { dataDate } from '@/lib/seo-routes';
 
-export const metadata = { title: 'Methodology | Pace Notes', description: 'Definitions, cohorts, timing checks and limitations behind every Pace Notes analysis and story.' };
+export const metadata = pageMetadata({
+  title: 'Methodology: How Pace Notes Studies Marathon Splits',
+  description: 'Definitions, cohorts, timing checks and limits behind the Pace Notes marathon analyses, data stories and research archive, and what they cannot show.',
+  path: '/methodology',
+});
+
+/** What each story's downloadable summary file holds. Every one is an aggregate; none holds a runner name or a single runner's record. */
+const STORY_FILE_TOPICS: Record<string, string> = {
+  'archetypes.json': 'pacing-type shares',
+  'finish-times.json': 'finish-time distributions',
+  'replay.json': 'race replay snapshots of how fields spread out',
+  'positions.json': 'place changes after 20 km',
+  'kick.json': 'final-stretch pace',
+  'demographics.json': 'pacing by recorded gender and age group',
+  'courses.json': 'course pacing profiles with race-morning weather as context',
+};
+
+/**
+ * schema.org Dataset for the aggregate story summaries (Dataset Search only). Every number is read from the
+ * verified story data; the distribution lists only the aggregate files the story pages already offer for download.
+ * No licence is given because the repository does not state one.
+ */
+function storyDataset() {
+  const manifest = getInsightsManifest();
+  const span = courseSpan();
+  const files = STORIES.filter((s) => manifest.files[s.file] && STORY_FILE_TOPICS[s.file]).map((s) => s.file);
+  if (!span || !files.length) return null;
+  const topics = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' }).format(files.map((f) => STORY_FILE_TOPICS[f]));
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Dataset',
+    name: 'Pace Notes marathon pacing summaries',
+    description: `Aggregate marathon pacing summaries behind the Pace Notes data stories, drawn from ${new Intl.NumberFormat('en-US').format(manifest.analysis_n)} screened finishes with recorded 5 km checkpoint splits at ${manifest.cohort.cities} marathons, ${span.first}–${span.last}. Files cover ${topics}. Counts are finishes, not unique runners; each file states its own cohort, screens and method.`,
+    url: absoluteUrl('/methodology'),
+    creator: { '@type': 'Person', name: 'Andrew Kam' },
+    isAccessibleForFree: true,
+    temporalCoverage: `${span.first}/${span.last}`,
+    dateModified: dataDate('insights'),
+    variableMeasured: [
+      '5 km checkpoint split times', 'Finish time', 'Section pace relative to the same finish’s own pace',
+      'Sustained slowdown (25% or more slower than the 5–20 km pace for at least 5 km after 20 km)',
+      'Recorded gender', 'Age group', 'Modelled race-morning temperature',
+    ],
+    distribution: files.map((f) => ({ '@type': 'DataDownload', name: f, encodingFormat: 'application/json', contentUrl: absoluteUrl(`/data/insights/${f}`) })),
+  };
+}
 
 const additions = [
   { name: 'Hourly weather', fields: 'Temperature, dew point, humidity, rain, wind, cloud cover, and solar radiation.', benefit: 'Match conditions to the time each runner reaches a segment. Use a consistent historical model across years.', href: 'https://open-meteo.com/en/docs/historical-weather-api', source: 'Open-Meteo historical weather', coverage: 'Broad historical coverage; modeled grid estimates, not conditions measured at the runner.' },
@@ -26,6 +75,7 @@ export default function MethodologyPage() {
   const questions = getQuestions();
   const calculated = questions.filter(question => question.dataset);
   const personalized = getPersonalSummary();
+  const dataset = storyDataset();
   return <article className="prose">
     <p className="eyebrow">Methods &amp; sources</p>
     <h1>How we study marathon pacing</h1>
@@ -164,5 +214,6 @@ export default function MethodologyPage() {
       </div>
     </details>
     <div className="source-links"><Link href="/">Return to the study</Link><a href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/data/study/evidence.json`}>Download the current supporting study</a></div>
+    {dataset ? <JsonLd data={dataset} /> : null}
   </article>;
 }

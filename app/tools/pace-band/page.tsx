@@ -1,5 +1,6 @@
 import PaceBand, { type RouteProfile, type UnpublishedCourse } from '@/components/tools/PaceBand';
 import { ToolHeader, ToolMethod, ToolNext } from '@/components/tools/ToolShell';
+import { pageMetadata } from '@/lib/seo';
 import type { CourseGeometry } from '@/lib/insights';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import type { PaceBandIndex } from '@/lib/tools/data';
@@ -7,10 +8,11 @@ import { courseSlug } from '@/lib/tools/links';
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import './pace-band.css';
 
-export const metadata = {
-  title: 'Marathon pace band: printable wristband and real mat-by-mat splits | Pace Notes',
-  description: 'A printable even-pace marathon wristband for any goal, every mile, kilometre or 5 km mat, next to what finishes that actually hit that goal on your course ran at each mat, split by whether they held pace or had a sustained slowdown.',
-};
+export const metadata = pageMetadata({
+  title: 'Printable Marathon Pace Band for Any Goal | Pace Notes',
+  description: 'Print a free even-pace marathon wristband for any goal time, by mile, km or 5 km mat, beside what finishes at that goal ran at each mat on your course.',
+  path: '/tools/pace-band',
+});
 
 const INDEX = 'tools/pace-band.json';
 

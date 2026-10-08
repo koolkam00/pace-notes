@@ -6,6 +6,7 @@ import { distanceLabel, paceLabel, type UnitSystem } from '@/lib/units';
 import RunnerContext from './RunnerContext';
 import { sourceLabel, sourceReleaseHref } from '@/lib/data-source';
 import { trackAnalytics } from '@/lib/analytics';
+import { unitHref } from '@/lib/unit-preference';
 import {
   loadRunnerManifest, loadRunnerProfile, normalizeRunnerName, runnerDuration, runnerProgression, runnerSearchPage, searchRunnerNames, RUNNER_PAGE_SIZE,
   type RunnerManifest, type RunnerMatch, type RunnerProfile, type RunnerRace,
@@ -20,6 +21,28 @@ const percent = (value: number) => Math.abs(value).toFixed(1) + '%';
 const changeDescription = (value: number) => Math.abs(value) < 0.05 ? 'the same pace' : `${percent(value)} ${value > 0 ? 'slower' : 'faster'}`;
 const finishLabel = (race: RunnerRace) => race.raw_times?.[8] || runnerDuration(race.times[8]);
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'The records could not load. Please try again.';
+const MAX_QUERY = 120;
+
+/**
+ * Runner names never go in the page address. A search is kept in this tab's history entry (history.state.runnerQuery),
+ * so Back, Forward and reload restore it without the name reaching a shared link, the host's logs or analytics.
+ * Old links carried the name as ?q=; that value is still read once.
+ */
+function savedRunnerQuery(): string {
+  const legacy = new URLSearchParams(window.location.search).get('q');
+  const state: unknown = window.history.state;
+  const kept = state && typeof state === 'object' ? (state as { runnerQuery?: unknown }).runnerQuery : undefined;
+  return (legacy ?? (typeof kept === 'string' ? kept : '')).slice(0, MAX_QUERY);
+}
+
+/** Takes an old ?q= out of the address, keeping the search in this history entry only. */
+function stripLegacyQuery(value: string) {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has('q')) return;
+  url.searchParams.delete('q');
+  // A fresh state object: Next.js's patched replaceState then copies its own router state and adopts the clean address.
+  window.history.replaceState({ runnerQuery: value }, '', url.pathname + url.search + url.hash);
+}
 
 export function RunnerRecordDetails({ race, manifest }: { race: RunnerRace; manifest: RunnerManifest }) {
   return <><strong>{raceLabel(race, manifest)}</strong><span className="runner-race-name">{race.name || 'Name not recorded'}</span><small>{manifest.editions[race.edition].race} · {race.age === null ? 'Age not recorded' : `Recorded age ${race.age}${race.age < 18 || race.age > 89 ? ' (outside the usable age range)' : ''}`} · {race.sex ? `Recorded gender ${race.sex}` : 'Gender not recorded'}</small><span className="runner-recorded-finish">Recorded finish: {finishLabel(race)}</span><span className={race.eligible ? 'runner-eligible' : 'runner-ineligible'}>{race.eligible ? 'Pacing analysis available' : 'Recorded result · limited analysis'}</span>{!race.eligible && <small>{race.reason || 'The timings or edition need further verification.'} Pacing and peer comparisons are unavailable for this record.</small>}</>;
@@ -100,19 +123,29 @@ export default function RunnerSearch() {
     loadRunnerManifest(controller.signal).then(source => {
       if (controller.signal.aborted) return;
       setManifest(source);
-      const initial = (new URLSearchParams(window.location.search).get('q') || '').slice(0, 120);
-      setQuery(initial); if (initial) void runSearch(initial, source);
+      // Only a saved search fills the field, so a name typed while the search data loads is kept.
+      const initial = savedRunnerQuery();
+      if (initial) { setQuery(initial); void runSearch(initial, source); }
     }).catch(error => { if (!controller.signal.aborted) setManifestError(errorMessage(error)); });
     return () => { controller.abort(); searchController.current?.abort(); profileController.current?.abort(); };
   }, [manifestRetry, runSearch]);
   useEffect(() => {
+    // An old ?q= link: clean the address straight away. The timeout lets Next.js finish patching history on first load,
+    // so its router adopts the clean address instead of restoring the old one.
+    const initial = savedRunnerQuery();
+    const timer = window.setTimeout(() => stripLegacyQuery(initial), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+  useEffect(() => {
     if (!manifest) return;
+    let timer = 0;
     const restore = () => {
-      const value = (new URLSearchParams(window.location.search).get('q') || '').slice(0, 120);
+      const value = savedRunnerQuery();
+      window.clearTimeout(timer); timer = window.setTimeout(() => stripLegacyQuery(value), 0);
       setQuery(value); if (value) void runSearch(value, manifest);
       else { searchController.current?.abort(); profileController.current?.abort(); setSearched(''); setMatches([]); setSearchError(''); setSearchLoading(false); setProfileLoading(null); setProfileError(''); setProfile(null); }
     };
-    window.addEventListener('popstate', restore); return () => window.removeEventListener('popstate', restore);
+    window.addEventListener('popstate', restore); return () => { window.clearTimeout(timer); window.removeEventListener('popstate', restore); };
   }, [manifest, runSearch]);
 
   const openProfile = async (id: number) => {
@@ -138,10 +171,15 @@ export default function RunnerSearch() {
     {manifest && <RunnerSearchCoverage manifest={manifest} />}
     <form className="comparison-controls runner-search-form" role="search" onSubmit={event => {
       event.preventDefault(); if (!manifest) return;
-      const next = new URL(window.location.href); next.searchParams.set('q', query.trim()); next.searchParams.set('units', units);
-      window.history.pushState(null, '', next.pathname + next.search);
+      // The name stays in this history entry, never in the address (see savedRunnerQuery). Repeating a search adds no entry.
+      const value = query.trim().slice(0, MAX_QUERY);
+      const address = new URL(window.location.href); address.searchParams.delete('q');
+      const href = unitHref(address.pathname + address.search + address.hash, units);
+      const state: unknown = window.history.state;
+      if (state && typeof state === 'object' && (state as { runnerQuery?: unknown }).runnerQuery === value) window.history.replaceState({ runnerQuery: value }, '', href);
+      else window.history.pushState({ runnerQuery: value }, '', href);
       void runSearch(query, manifest);
-    }}><label htmlFor="runner-name">Recorded name</label><div className="runner-search-fields"><input id="runner-name" name="q" type="search" autoComplete="name" maxLength={120} value={query} onChange={event => setQuery(event.target.value)} placeholder="First name, last name, or both" aria-describedby="runner-name-help" /><button className="button-primary" type="submit" disabled={!manifest || searchLoading}>{searchLoading ? 'Searching…' : 'Find races'}</button></div><p id="runner-name-help" className="control-help">Name order and accents do not matter. You can use the beginning of a name with at least three letters; shorter parts must match a whole recorded name part.</p></form>
+    }}><label htmlFor="runner-name">Recorded name</label><div className="runner-search-fields"><input id="runner-name" type="search" autoComplete="name" maxLength={120} value={query} onChange={event => setQuery(event.target.value)} placeholder="First name, last name, or both" aria-describedby="runner-name-help" /><button className="button-primary" type="submit" disabled={!manifest || searchLoading}>{searchLoading ? 'Searching…' : 'Find races'}</button></div><p id="runner-name-help" className="control-help">Name order and accents do not matter. You can use the beginning of a name with at least three letters; shorter parts must match a whole recorded name part.</p></form>
     {!manifest && !manifestError && <p className="loading-message" role="status">Loading search information…</p>}
     {manifestError && <div className="feedback-error" role="alert"><p>{manifestError}</p><button type="button" onClick={() => setManifestRetry(value => value + 1)}>Try again</button></div>}
     {searchError && <div className="feedback-error" role="alert"><p>{searchError}</p>{searched && <button type="button" onClick={() => manifest && void runSearch(searched, manifest)}>Try again</button>}</div>}

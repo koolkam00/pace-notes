@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useMemo, useState } from 'react';
-import { ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts';
+import dynamic from 'next/dynamic';
 import { finite, formatNumber } from '@/lib/csv';
 import type { ChartSpec } from '@/lib/research-data';
 import { filterOptions, resolveSelection } from '@/lib/chart-selection';
@@ -10,6 +10,13 @@ import { distanceValue, elevationValue, paceLabel, paceValue, unitText, type Uni
 import { useUnits } from './UnitsProvider';
 
 const COLORS = ['#2346E6', '#FF5B2E', '#66625A'];
+
+// Recharts only ever draws in the browser (the server HTML held an empty box), so its chunk loads after hydration
+// instead of with the page. The placeholder fills the fixed-height .chart box, so nothing shifts when the chart arrives.
+const QuestionLineChart = dynamic(() => import('./QuestionLineChart'), {
+  ssr: false,
+  loading: () => <div className="chart-placeholder" style={{ width: '100%', height: '100%' }} aria-hidden="true" />,
+});
 
 export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { spec: ChartSpec; headingLevel?: 2 | 3; unitSystem?: UnitSystem }) {
   const id = useId();
@@ -131,17 +138,7 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
           })}
         </div>
         : spec.kind === 'line' ? <div className="chart">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            <ComposedChart data={chartRows} margin={{ top: 20, right: 16, bottom: 24, left: 0 }} accessibilityLayer>
-              <CartesianGrid vertical={false} stroke="#DCD3C2" />
-              <XAxis dataKey="label" type={spec.xNumeric ? 'number' : 'category'} domain={spec.xNumeric ? ['dataMin', 'dataMax'] : undefined} ticks={sectionTicks} tickCount={5} tickLine={false} axisLine={false} minTickGap={28} tick={{ fontSize: 14, fill: '#66625A' }} tickFormatter={v => distanceAxis && typeof v === 'number' ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(v) : typeof v === 'number' ? formatNumber(v, spec.xUnit) : text(String(v))} label={{ value: text(spec.xLabel), position: 'insideBottom', offset: -18, fontSize: 14, fill: '#66625A' }} />
-              <YAxis width={58} tickLine={false} axisLine={false} tick={{ fontSize: 14, fill: '#66625A' }} tickFormatter={axisValue} domain={signed || spec.unit === 'min/km' ? ['auto', 'auto'] : [0, 'auto']} />
-              {signed && <ReferenceLine y={0} stroke="#66625A" />}
-              {spec.band && <Area type="linear" dataKey="interval" stroke="none" fill={COLORS[0]} fillOpacity={0.12} tooltipType="none" isAnimationActive={false} />}
-              <Tooltip formatter={v => value(v)} labelFormatter={v => spec.sectionEnds ? `Average over ${label(v, true)}` : `${text(spec.xLabel)}: ${label(v, true)}`} contentStyle={{ fontSize: 13, border: '1px solid #DCD3C2', borderRadius: 10, maxWidth: 250, background: '#FFFDF8' }} />
-              {spec.series.map((series, i) => <Line key={series.key} dataKey={series.key} name={text(series.label)} stroke={spec.band && i > 0 ? COLORS[0] : COLORS[i % COLORS.length]} strokeOpacity={spec.band && i > 0 ? 0.35 : 1} strokeWidth={spec.band && i > 0 ? 1 : 2.5} strokeDasharray={i === 1 ? '6 4' : undefined} type="linear" dot={spec.band && i > 0 ? false : { r: 3 }} activeDot={{ r: 5 }} connectNulls={false} isAnimationActive={false} />)}
-            </ComposedChart>
-          </ResponsiveContainer>
+          <QuestionLineChart spec={spec} chartRows={chartRows} sectionTicks={sectionTicks} distanceAxis={distanceAxis} signed={signed} colors={COLORS} text={text} value={value} label={label} axisValue={axisValue} />
         </div> : <div className="bars">
           {rows.map((row, i) => <div className="bar-item" key={`${row.label}-${i}`}>
             <div className="bar-label"><span>{label(row.label)}</span>{spec.series.length === 1 && <strong>{value(row[spec.series[0].key])}</strong>}</div>

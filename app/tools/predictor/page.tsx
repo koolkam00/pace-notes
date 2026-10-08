@@ -1,13 +1,15 @@
 import Predictor from '@/components/tools/Predictor';
 import { ToolHeader, ToolMethod, ToolNext } from '@/components/tools/ToolShell';
+import { pageMetadata } from '@/lib/seo';
 import { getInsightsManifest } from '@/lib/insights-server';
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import './predictor.css';
 
-export const metadata = {
-  title: 'Marathon finish-time predictor with honest ranges | Pace Notes',
-  description: 'Predict a marathon from a recent 5K, 10K, 10-mile race or half: Riegel, the Daniels–Gilbert equations, the half-to-full exponents runners actually show, a two-race personal exponent and Tanda, each with its known error, and what happened to real finishes on that pace at 20 km.',
-};
+export const metadata = pageMetadata({
+  title: 'Marathon Time Predictor from a 5K, 10K or Half | Pace Notes',
+  description: 'A marathon range from a recent 5K, 10K or half with Riegel, Daniels–Gilbert and typical exponents, and where finishes on that pace at 20 km finished.',
+  path: '/tools/predictor',
+});
 
 const INDEX = 'tools/projector.json';
 const SHARD = 'tools/projector/all/20.json';

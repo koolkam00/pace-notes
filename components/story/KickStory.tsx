@@ -366,7 +366,7 @@ export function TwinRunners({ data: given }: { data?: Kick }) {
         <div><strong>{hms(b.slowdown_finish_s)}</strong><span>median finish with one ({count(b.slowdown_n)} finishes)</span></div>
         <div><strong>+{mss(b.slowdown_finish_s - b.other_finish_s)}</strong><span>between them, after reaching {checkpointLabel(20, units)} in {hms(b.other_20km_s)} and {hms(b.slowdown_20km_s)}</span></div>
       </div>
-      <p className="viz-note">Group medians, not a personal penalty: part of the gap is built into the definition, since a section 25% slower costs minutes by itself. Each runner is drawn with a straight line to its median finish.</p>
+      <p className="viz-note">Group medians, not a personal penalty: part of the gap is built into the definition, since a section 25% slower adds minutes by itself. Each runner is drawn with a straight line to its median finish.</p>
     </div>
   );
 }

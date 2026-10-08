@@ -12,26 +12,56 @@ The current refresh adopts the 0934 source across primary analyses, supporting s
 
 The primary ten are accompanied by any weather candidates that pass the fixed screen in `public/data/weather/evidence.json`. `weather-data.ts` exposes only ready candidates; `WeatherIndex` adds their links to the homepage and directory, and the temperature page links them as well. `WeatherAnalysis` renders an adjusted percentage-point estimate and uncertainty plus a browser for unadjusted edition observations. Browsing does not refit the overall estimate. The full refresh uses `private-export-20260912-0934` for both inputs; the [refresh record](REFRESH_20260912_0934.md) separately records import and deployment. Read [weather methods and decisions](WEATHER_ANALYSES.md) for the current ready/withheld results.
 
-[package.json](../package.json) pins Next.js 14.2.5, React 18.3.1, Recharts 2.12.7 and TypeScript 5.5.4. [next.config.mjs](../next.config.mjs) sets static export, unoptimized images and optional NEXT_PUBLIC_BASE_PATH/assetPrefix. The public host is [Pace Notes](https://splithappens.run); the original [Vercel address](https://htw-live-study.vercel.app) remains available.
+[package.json](../package.json) pins Next.js 14.2.5, React 18.3.1, Recharts 2.12.7 and TypeScript 5.5.4. [next.config.mjs](../next.config.mjs) sets static export, unoptimized images and optional NEXT_PUBLIC_BASE_PATH/assetPrefix. The public host is [Pace Notes](https://splithappens.run). The root [vercel.json](../vercel.json) permanently redirects the original `htw-live-study.vercel.app` address to it, and `/htw` and `/packs/smyth_htw` to `/slowdown`. Canonical links, Open Graph tags, `robots.txt`, `sitemap.xml` and the web manifest come from `lib/seo.tsx`, `lib/seo-routes.ts` and `app/{robots,sitemap,manifest}.ts`; see [SEO](SEO.md) for the route policy.
 
 | Route | Source / renderer | Purpose |
 | --- | --- | --- |
 | / | app/page.tsx; HeroReplay, story chapters, AnalysisIndex | Race-replay hero, five story chapters, then the ranked ten analyses |
 | /stories and /stories/[slug] | app/stories; lib/stories.ts; components/story/bodies | Seven data stories built from `public/data/insights` ([data stories](STORIES.md)) |
 | /tools and /tools/[tool] | app/tools; lib/tools/registry.ts; components/tools | Eight runner tools: pace calculator, predictor, pace band, course chooser, weather match, race-day projector, split check, qualifying checker ([runner tools](TOOLS.md)) |
+| /tools/marathon-pace-chart and /tools/half-marathon-pace-chart | app/tools/{marathon,half-marathon}-pace-chart; PaceChartTable; lib/tools/pace-chart.ts | Printable pace charts by goal time, calculated at even pace ([runner tools](TOOLS.md#pace-charts-goal-pages-and-qualifying-race-pages)) |
+| /tools/marathon-pace/[goal] | app/tools/marathon-pace/[goal]; GoalPace; `GOAL_PAGE_MINUTES` | Five goal pages (3-00, 3-30, 4-00, 4-30, 5-00): even-pace splits beside observed mat times from the pace-band family and finish-time bunching |
+| /tools/qualifying/[race] | app/tools/qualifying/[race]; QualifyingRace, QualifyingRaceText; `STANDARDS` in lib/tools/qualifying.ts | One page per race (boston, nyc, london, chicago, berlin, sydney): official standards, rules, entry and even pace per standard |
+| /finish-times | app/finish-times; FinishTimeSummary; lib/finish-times-summary.ts | Median finish, minute-by-minute spread, observed shares under round times and percentiles from `finish-times.json` and `courses.json`; checked by `scripts/verify-finish-times.cjs` |
 | /analyses | app/analyses/page.tsx; AnalysisIndex | Primary ten-question directory |
 | /analyses/[slug] | app/analyses/[slug]/page.tsx; AnalysisExplorer / AnalysisChart | One primary question, supported controls, observed results and methods |
 | /about | app/about/page.tsx | Study purpose and interpretation |
 | /packs and /packs/[packId] | app/packs; ResearchQuestion / PackClientPage | Broader current-source research and compatibility aliases |
 | /slowdown | app/slowdown/page.tsx; sustained-slowdown dashboard | Current-source slowdown prevalence, onset, sensitivity, age and recorded-history figures |
-| /htw and /packs/smyth_htw | Legacy route files | Compatibility URLs retained for existing links |
+| /htw and /packs/smyth_htw | Legacy route files | On Vercel, `vercel.json` sends both to /slowdown with a 308; the noindex pages remain for GitHub Pages builds |
 | /courses and /courses/[city] | app/courses; lib/course-data.ts; course-geometry.json / courses.json | Route-map directory; per-course route, elevation, pacing types, fingerprint, race mornings, profile and replay |
 | /your-race | Legacy personalized entry | Client compatibility redirect preserving mapped question hashes and profile query parameters |
 | /research/personalized | Archived PersonalizedGuide | All twelve backing questions in the earlier guide layout |
 | /runners | app/runners/page.tsx; RunnerSearch / RunnerContext | Search names, confirm races, compare recorded performances and same-edition peers, inspect weather/current-route context |
 | /methodology | app/methodology/page.tsx | Definitions, cohorts and limitations |
+| /robots.txt, /sitemap.xml, /manifest.webmanifest | app/robots.ts, app/sitemap.ts, app/manifest.ts; lib/seo-routes.ts, lib/seo-pages/ | Crawl rules, the list of indexable pages with data-derived `lastmod`, and the install manifest ([SEO](SEO.md)) |
 
 [lib/ten-analyses.ts](../lib/ten-analyses.ts) is the primary ordering and route registry: pacing pattern, opening pace, checkpoint, section differences, courses, weather, terrain, target context, improvement and age. The [ten-analysis guide](TOP_TEN_ANALYSES.md) maps these pages to data and limitations. The 35-question catalog in `lib/question-catalog.ts` and 33 broad extension packs remain a research archive; the personalized catalog retains 12 backing calculation paths. These are overlapping views, not independent datasets. `/your-race#guide-{id}` maps the primary ten to their new analysis pages; `#guide-downhill` opens `/analyses/downhill-start`; `#guide-return` opens the retained twelve-question guide at `/research/personalized`. The `/packs` archive links to the ten and keeps the twelve-question list collapsed.
+
+## Search, sharing and host rules
+
+The policy and its checks are in [SEO](SEO.md); this is where each piece lives.
+
+- **Route policy.** `lib/seo-routes.ts` holds `SITE_URL`, the noindex list (`/runners`, `/your-race`, `/request-analysis`, `/htw`, `/packs/smyth_htw`), the thin packs, the pack canonicals and the sitemap list. Every page's metadata comes from `pageMetadata()` in `lib/seo.tsx` (title, description, absolute canonical, Open Graph, X card, robots); `app/layout.tsx` only sets defaults and `metadataBase` `https://splithappens.run`. Runner profiles are never indexable.
+- **robots.txt** (`app/robots.ts`) allows everything but the two runner-name folders, `/data/runners/index/` and `/data/runners/profiles/`, and names the sitemap.
+- **sitemap.xml** (`app/sitemap.ts`, from `sitemapEntries()`) lists the 115 indexable, self-canonical pages (October 8, 2026), with `lastmod` from the data `as_of` dates or `CONTENT_DATES`, never the build date. Search pages register their paths in `lib/seo-pages/` (`pace.ts`, `qualifying.ts`, `finish-times.ts`), collected by `EXTRA_SITEMAP_PAGES`.
+- **manifest.webmanifest** (`app/manifest.ts`): name Pace Notes, the paper colour, `display: browser` and the icons in `public/icons/`.
+- **Share cards.** `public/og/` holds 1200×630 cards rendered by `scripts/build-og-images.cjs` (words only); `lib/og-paths.ts` picks the most specific one for each page: its own card, then the parent tool's, the section's, or `og/default.png`. On Vercel preview deployments Next.js points `og:image` at the preview host by design (`VERCEL_ENV=preview`); production uses `https://splithappens.run`.
+- **[vercel.json](../vercel.json)** (Next.js `redirects()` and `headers()` do not run with `output: 'export'`):
+
+  | Rule | Effect |
+  | --- | --- |
+  | Host `htw-live-study.vercel.app`, any path | 308 to `https://splithappens.run/<same path>` |
+  | `/htw`, `/packs/smyth_htw` | 308 to `/slowdown` |
+  | `/tools/marathon-pace` | 308 to `/tools/marathon-pace-chart` |
+  | Every path | `Referrer-Policy: strict-origin` (the same policy as the layout's referrer `<meta>` tag) |
+  | Every `.txt` path except `/robots.txt` | `X-Robots-Tag: noindex` (the React Server Components payloads) |
+  | `/data/*` | `X-Robots-Tag: noindex` (files stay downloadable) |
+  | `/runners` with a `q` query | `X-Robots-Tag: noindex, nofollow` |
+  | `trailingSlash: false` | `/tools/` goes to `/tools` in one hop |
+
+  The www host's 308 to the apex is a Vercel domain setting, not in the file.
+- **Checks.** `npm run verify:seo` reads the build (CI runs it after `npm run build`); `npm run og:check` checks the cards without a browser; `npm run verify:seo:live` checks the production host after each deploy.
 
 ## Full-data access and current data paths
 
@@ -116,3 +146,5 @@ The redesign is documented in [the design system](DESIGN_SYSTEM.md). Fonts are s
 ## Runner tools
 
 `/tools` holds eight client-side tools, each a static route under `app/tools/<slug>` with a client component in `components/tools`. They share the tool shell and inputs (`ToolShell`, `ui.tsx`), shareable URL state (`useQueryState`) and pure libraries in `lib/tools`. The data tools read the `tools/*` insights files in the browser through `loadInsight` and `loadShard`, which check SHA-256 against the manifest and the index's `shards` map. The index page lists a data tool only when its file is in the verified manifest. Panels of Pace Notes data, published research and official standards carry a badge; plain calculations carry none. Methods, data families, validation, privacy and the annual qualifying review are in [runner tools](TOOLS.md). The nav's first link is Tools; the footer links Runner tools.
+
+Beside the tools, `/tools` has server-rendered reference pages for search: the marathon and half-marathon pace charts, five goal pages (`/tools/marathon-pace/<goal>`) and one page per qualifying race (`/tools/qualifying/<race>`). `/finish-times` sits at the top level. Their routes are in the table above; what they show is in [runner tools](TOOLS.md#pace-charts-goal-pages-and-qualifying-race-pages) and how they register for search is in [SEO](SEO.md#search-pages-october-2026).

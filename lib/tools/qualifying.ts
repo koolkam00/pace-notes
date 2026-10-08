@@ -4,7 +4,7 @@
  * Meeting a standard is not entry: each race applies its own cut-off, cap, review or lottery.
  */
 
-export const VERIFIED_AT = '2026-10-07';
+export const VERIFIED_AT = '2026-10-08';
 
 export type Division = 'men' | 'women' | 'nonbinary';
 export type AgeRule = 'race-day' | 'time-run' | 'birth-year';
@@ -87,20 +87,37 @@ export function bostonDownhillIndexMetres(dropMetres: number): number | null {
   return null;
 }
 
+/**
+ * How the B.A.A. describes the downhill index's lifetime. Its statements differ, so the race page (under "Other rules")
+ * and the checker (Boston's fine print, from `extra`) both give the two side by side.
+ */
+export const BOSTON_INDEX_TERM = 'B.A.A. statements differ on how long the downhill index lasts: the June 2025 rule says the indexes will be in place for at least the next two years; the September 2026 registration update says they are subject to change ahead of the 2028 registration period.';
+
+/** Chicago's application window and fee deadline, shared by its entry text and the checker's verdict so the two state the same conditions. */
+const CHICAGO_WINDOW = 'October 8–29, 2026';
+const CHICAGO_FEE_DAY = 'November 10, 2026';
+const CHICAGO_FEE_DUE = `11:59 p.m. CT on ${CHICAGO_FEE_DAY}`;
+/**
+ * The checker's short verdict for a Chicago time that meets the standard: guaranteed entry on the same three conditions
+ * as the entry text (apply in the window, the result approved, the fee paid), which the checker card shows in full under Entry.
+ */
+export const CHICAGO_ROUTE = `Guaranteed entry if you apply in the window (${CHICAGO_WINDOW}), the result is approved and the fee is paid by ${CHICAGO_FEE_DAY}. No cut-off is listed.`;
+
 export const STANDARDS: Standard[] = [
   {
     key: 'boston', race: 'Boston Marathon', edition: '2028 (132nd, April 17, 2028)', ageRule: 'race-day', ageDate: '2028-04-17',
-    comparison: 'at-or-under', comparisonStated: false, windowStart: '2026-09-19', windowNote: 'Times from September 19, 2026 through 2027 registration week count for 2028.',
-    applications: { note: 'Registration week is usually mid-September (2027 race: September 14–18, 2026). Accepted runners are those fastest relative to their standard.' },
+    comparison: 'at-or-under', comparisonStated: false, windowStart: '2026-09-19', windowNote: 'Times from September 19, 2026 through the end of registration week in September 2027 count for the 2028 race.',
+    applications: { note: 'Registration week for the 2028 race is in September 2027; the B.A.A. will announce its dates after the 2027 race. (Registration for the 2027 race ran September 14–18, 2026.) Accepted runners are those fastest relative to their standard.' },
     entry: 'Meeting the standard lets you apply. Acceptance depends on the cut-off (and, for 2027, a random selection of about 1,000 qualifiers who missed it).',
     randomSelection: { year: 2027, drawn: 1000 },
     bands: majorBands([[18, 34, hm(2, 55), hm(3, 25)], [35, 39, hm(3, 0), hm(3, 30)], [40, 44, hm(3, 5), hm(3, 35)], [45, 49, hm(3, 15), hm(3, 45)],
       [50, 54, hm(3, 20), hm(3, 50)], [55, 59, hm(3, 30), hm(4, 0)], [60, 64, hm(3, 50), hm(4, 20)], [65, 69, hm(4, 5), hm(4, 35)],
       [70, 74, hm(4, 20), hm(4, 50)], [75, 79, hm(4, 35), hm(5, 5)], [80, 120, hm(4, 50), hm(5, 20)]]),
     nonbinaryNote: 'Non-binary standards equal the women’s. A non-binary time must come from a race that offered the category, unless it offered none.',
-    extra: ['Race date April 17, 2028 (B.A.A. registration update, September 21, 2026). The end of the qualifying window, 2027 registration week, is not yet dated.',
+    extra: ['Race date April 17, 2028 (B.A.A. registration update, September 21, 2026). The qualifying window ends with registration week in September 2027, which is not yet dated.',
       'Net (chip) time on a certified course. No virtual, indoor, treadmill or time-trial marathons.',
-      'From 2027 registration, courses with a net drop of 1,500–2,999 ft (457.2–914.1 m) add 5:00, 3,000–5,999 ft (914.2–1,828.5 m) add 10:00, and 6,000 ft (1,828.6 m) or more are not accepted.'],
+      'From 2027 registration, courses with a net drop of 1,500–2,999 ft (457.2–914.1 m) add 5:00, 3,000–5,999 ft (914.2–1,828.5 m) add 10:00, and 6,000 ft (1,828.6 m) or more are not accepted.',
+      BOSTON_INDEX_TERM],
     sources: [{ label: 'B.A.A. qualifying standards and history', url: 'https://www.baa.org/races/boston-marathon/qualify/' },
       { label: 'B.A.A. Boston Marathon rules and policies (non-binary entries)', url: 'https://www.baa.org/sites/default/files/2024-08/Boston_Marathon_Rules_and_Policies%20August%2021%202024.pdf' },
       { label: 'B.A.A. 2027 registration update', url: 'https://www.baa.org/news/2027-boston-marathon-presented-by-bank-of-america-registration-update/' }],
@@ -117,9 +134,9 @@ export const STANDARDS: Standard[] = [
       [70, 74, hm(4, 10), hm(5, 30)], [75, 79, hm(4, 30), hm(6, 0)], [80, 120, hm(4, 55), hm(6, 35)]]),
     nonbinaryNote: 'Non-binary standards equal the women’s. Apply in the gender your result was posted under, or as non-binary if the race offered no non-binary option.',
     extra: ['Half-marathon times count only from NYRR half marathons.', 'Net (chip) time; “at least as fast as” the standard.'],
-    sources: [{ label: 'NYRR time qualifiers', url: 'https://www.nyrr.org/tcsnycmarathon/runners/marathon-time-qualifiers' },
-      { label: 'NYRR 2026 drawing results', url: 'https://www.nyrr.org/media-center/press-release/2026_0304_tcsnycmdrawingday' },
-      { label: 'NYRR 2025 drawing results', url: 'https://www.nyrr.org/media-center/press-release/2025_0305_tcsnycmdrawingday' }],
+    sources: [{ label: 'NYRR time qualifiers', url: 'https://www.nyrr.org/tcsnycmarathon/time-qualifiers' },
+      { label: 'NYRR 2026 drawing results', url: 'https://www.nyrr.org/media-center/news/2026/03/04/new-york-road-runners-sets-record-with-240-000-applications-for-2026-tcs-new-york-city' },
+      { label: 'NYRR 2025 drawing results', url: 'https://www.nyrr.org/media-center/news/2025/03/05/new-york-road-runners-announces-record-breaking-demand-for-2025-tcs-new-york-city' }],
   },
   {
     key: 'london', race: 'London Marathon (Good For Age)', edition: '2027 (April 24–25, 2027)', ageRule: 'time-run',
@@ -138,7 +155,7 @@ export const STANDARDS: Standard[] = [
     key: 'chicago', race: 'Chicago Marathon', edition: '2027 (October 10, 2027)', ageRule: 'race-day', ageDate: '2027-10-10',
     comparison: 'at-or-under', comparisonStated: true, windowStart: '2025-01-01', windowEnd: '2026-10-29', windowNote: 'Times run January 1, 2025 – October 29, 2026.',
     applications: { opens: '2026-10-08', closes: '2026-10-29', opensAt: '2026-10-08T13:00:00Z', closesAt: '2026-10-29T19:00:00Z', note: 'Applications open 8 a.m. CT October 8 and close 2 p.m. CT October 29, 2026.' },
-    entry: 'Time qualifiers who meet the standard are guaranteed entry; there is no cut-off.',
+    entry: `A time that meets the standard gives a guaranteed entry if you apply as a time qualifier in the application window (${CHICAGO_WINDOW}), the Chicago Marathon verifies and approves the result, and you pay the entry fee by ${CHICAGO_FEE_DUE}. Chicago lists no cut-off under the standard.`,
     bands: majorBands([[16, 34, hm(2, 50), hm(3, 20)], [35, 39, hm(2, 55), hm(3, 25)], [40, 44, hm(3, 0), hm(3, 30)], [45, 49, hm(3, 10), hm(3, 40)],
       [50, 54, hm(3, 15), hm(3, 50)], [55, 59, hm(3, 25), hm(3, 55)], [60, 64, hm(3, 40), hm(4, 15)], [65, 69, hm(3, 55), hm(4, 30)],
       [70, 74, hm(4, 15), hm(4, 45)], [75, 79, hm(4, 30), hm(5, 0)], [80, 120, hm(4, 50), hm(5, 20)]]),
@@ -166,6 +183,7 @@ export const STANDARDS: Standard[] = [
       [50, 54, hm(3, 0), hm(3, 43)], [55, 59, hm(3, 6), hm(3, 51)], [60, 64, hm(3, 17), hm(4, 13)], [65, 69, hm(3, 41), hm(4, 24)],
       [70, 74, hm(4, 7), hm(4, 35)], [75, 79, hm(4, 43), hm(5, 30)], [80, 120, hm(5, 46), hm(6, 36)]]),
     nonbinaryNote: 'Non-binary standards equal the women’s.',
+    extra: ['Qualifying times may be assessed by gun time or net (chip) time.'],
     sources: [{ label: 'Sydney Marathon High Performance Program', url: 'https://www.tcssydneymarathon.com/high-performance-program' }],
   },
 ];
@@ -254,3 +272,13 @@ export function evaluate(s: Standard, input: QualifyInput): QualifyResult {
 
 /** Past Boston cut-offs this margin would have cleared (descriptive, not a forecast). */
 export const clearedCutoffs = (margin: number) => BOSTON_CUTOFFS.filter((c) => margin >= c.cutoff);
+
+/** The words for how a time is compared with the standard, shared by the checker and the race pages. */
+export const ASSUMED_COMPARISON = '(assumed; not stated by the race)';
+export function comparisonText(s: Standard): string {
+  if (s.comparison === 'strictly-under') return 'strictly under';
+  return s.comparisonStated ? 'at or under' : `at or under ${ASSUMED_COMPARISON}`;
+}
+
+/** Whether the race page lists past cut-offs: Boston's published history or New York's capped-pool results. */
+export const hasPublishedCutoffs = (s: Standard) => (s.key === 'boston' && BOSTON_CUTOFFS.length > 0) || (s.poolHistory?.length ?? 0) > 0;

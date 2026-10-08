@@ -8,6 +8,7 @@ import { weatherFinding, weatherLabel, weatherNumber, weatherUnit, weatherValue 
 import { unitText } from '@/lib/units';
 import { sourceLabel, sourceReleaseHref } from '@/lib/data-source';
 import { trackAnalytics } from '@/lib/analytics';
+import { unitHref } from '@/lib/unit-preference';
 import type { WeatherCandidate, WeatherDefinition, WeatherEdition, WeatherEvidence } from '@/lib/weather-types';
 
 export default function WeatherAnalysis({ definition, candidate, evidence, questions }: { definition: WeatherDefinition; candidate: WeatherCandidate; evidence: WeatherEvidence; questions: WeatherDefinition[] }) {
@@ -60,7 +61,7 @@ export default function WeatherAnalysis({ definition, candidate, evidence, quest
           const value = event.target.value; setCourse(value);
           trackAnalytics('analysis_filters_applied', { analysis: candidate.id, course_scope: value === 'All courses' ? 'all' : 'single' });
           const url = new URL(window.location.href); if (value === 'All courses') url.searchParams.delete('course'); else url.searchParams.set('course', value);
-          url.searchParams.set('units', units); window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+          window.history.replaceState(window.history.state, '', unitHref(url.pathname + url.search + url.hash, units));
         }}><option>All courses</option>{courses.map(city => <option key={city}>{city}</option>)}</select></label>
         <p className="study-meta" aria-live="polite">Showing {rows.length} {rows.length === 1 ? 'edition' : 'editions'}{course === 'All courses' ? ' across all courses' : ' in ' + course}.</p>
         <div className="chart weather-scatter"><ResponsiveContainer width="100%" height="100%" minWidth={0}><ScatterChart margin={{ top: 15, right: 16, bottom: 30, left: 0 }}><CartesianGrid stroke="#DCD3C2" /><XAxis dataKey="exposure" type="number" name={exposureHeading} tickLine={false} axisLine={false} tick={{ fontSize: 13 }} tickFormatter={value => weatherNumber(value, 0)} domain={['dataMin', 'dataMax']} label={{ value: ({ warming: 'Temperature rise', wind: 'Wind speed', humidity: 'Dew point' }[candidate.id]) + ' (' + weatherUnit(candidate.id, units) + ')', position: 'insideBottom', offset: -18, fontSize: 13 }} /><YAxis dataKey="pace_change_pct" type="number" name="Late-race slowing" width={48} tickLine={false} axisLine={false} tick={{ fontSize: 13 }} tickFormatter={value => weatherNumber(value, 0) + '%'} /><ZAxis range={[44, 44]} /><Tooltip cursor={{ strokeDasharray: '3 3' }} content={({ active, payload }) => {

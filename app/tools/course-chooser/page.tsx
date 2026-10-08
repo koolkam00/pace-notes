@@ -3,6 +3,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import CourseChooser, { type ScreenedCourse } from '@/components/tools/CourseChooser';
 import { ToolHeader, ToolMethod, ToolNext } from '@/components/tools/ToolShell';
+import { pageMetadata } from '@/lib/seo';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { getCourseNames, slugifyCity } from '@/lib/course-data';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
@@ -11,10 +12,11 @@ import type { CourseGoal, PaceBandIndex, PaceBandShard } from '@/lib/tools/data'
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import './course-chooser.css';
 
-export const metadata = {
-  title: 'Marathon course chooser: your goal pace on every course | Pace Notes',
-  description: 'Pick a marathon goal and compare courses side by side: how finishes that ran that pace from 5 to 20 km held up on each course, with the share under the goal, sustained-slowdown share, time after 20 km, race month, start temperatures and route profile.',
-};
+export const metadata = pageMetadata({
+  title: 'Compare Marathon Courses at Your Goal Pace | Pace Notes',
+  description: 'Pick a goal and compare marathon courses side by side: how finishes on that pace held up, race month, start temperatures and elevation. Not a ranking.',
+  path: '/tools/course-chooser',
+});
 
 const FILE = 'tools/course-goal.json';
 

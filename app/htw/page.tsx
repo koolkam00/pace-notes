@@ -1,11 +1,13 @@
 import Link from 'next/link';
+import { pageMetadata } from '@/lib/seo';
 
-export const metadata = {
-  title: 'Sustained slowdown | Pace Notes',
-  description: 'Explore the sustained slowdown analysis at its new address.',
-  alternates: { canonical: 'https://htw-live-study.vercel.app/slowdown' },
-  robots: { index: false, follow: true },
-};
+// An old address kept for bookmarks: noindex, no canonical (the host redirects it to /slowdown).
+export const metadata = pageMetadata({
+  title: 'Sustained Slowdown Analysis Has Moved | Pace Notes',
+  description: 'The Pace Notes sustained slowdown analysis has moved to a new address on splithappens.run.',
+  path: '/htw',
+  noindex: true,
+});
 
 // Keep earlier bookmarks usable in the static export.
 export default function LegacySlowdownPage() {

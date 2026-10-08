@@ -11,6 +11,7 @@ import { FAST_START_DEFAULT, PRIOR_OPTIONS, fastStartCharts, fastStartRow, fastS
   type FastStartEvidence, type FastStartGroup, type FastStartRow, type FastStartSelection, type FastStartStart, type FastStartStarts, type FastStartMode } from '@/lib/fast-start';
 import QuestionViz from './QuestionViz';
 import { trackAnalytics } from '@/lib/analytics';
+import { dropDefaults, unitHref } from '@/lib/unit-preference';
 
 const count = (n: number) => n.toLocaleString('en-US');
 const percent = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 1 }) + '%';
@@ -77,9 +78,10 @@ export default function FastStartAnalysis({ starts, defaultOpening = 'fast10', t
   const apply = (next: FastStartSelection) => {
     trackAnalytics('analysis_filters_applied', { analysis: 'opening', course_scope: next.city === 'All courses' ? 'all' : 'single' });
     setSelection(next); setDraft(next);
-    window.history.pushState(null, '', window.location.pathname + fastStartSearch(next) + '&units=' + units);
+    window.history.pushState(null, '', unitHref(window.location.pathname + fastStartSearch(next), units));
   };
-  const navSearch = '?' + new URLSearchParams({ race: selection.city, age: selection.age, gender: selection.gender, units }).toString();
+  // Filters at their defaults stay out of the links; UnitLink adds units=km for a kilometres visitor.
+  const navSearch = dropDefaults({ race: selection.city, age: selection.age, gender: selection.gender });
   const pending = loading || (!initialRow && !data && !error);
   return <div className="analysis-layout">
     <aside className="analysis-sidebar"><Link href="/analyses" className="sidebar-heading">The essential ten</Link><nav aria-label="The ten ranked analyses"><ol>{TEN_ANALYSES.map(item => <li key={item.id}><Link href={analysisHref(item) + navSearch} aria-current={item.id === 'opening' ? 'page' : undefined}><span>{String(item.rank).padStart(2, '0')}</span>{unitText(item.shortTitle, units)}</Link></li>)}</ol></nav><p>One question at a time.</p></aside>

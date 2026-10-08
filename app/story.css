@@ -152,7 +152,8 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 /* ---------- Homepage hero specifics ---------- */
 .hero-inner { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); align-items: end; gap: 1.6rem clamp(2rem, 4vw, 4rem); }
 .hero-inner .hero-replay { grid-column: 1 / -1; margin-top: 1rem; }
-.hero-head .hero-title { margin-top: 1rem; max-width: 12.5ch; }
+/* Heading widths use em, not ch: ch follows whichever font is loaded, so the box narrowed while the fallback font showed and the heading reflowed when Fraunces arrived (layout shift). 7.893em is the old 12.5ch measured in Fraunces, so line breaks are unchanged. */
+.hero-head .hero-title { margin-top: 1rem; max-width: 7.893em; }
 .hero-side { padding-bottom: .6rem; }
 .hero-side .hero-dek { margin-top: 0; }
 @media (max-width: 960px) { .hero-inner { grid-template-columns: 1fr; } .hero-side { padding-bottom: 0; } }
@@ -249,7 +250,7 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 /* ---------- Story pages ---------- */
 .story-hero { padding: clamp(3rem, 7vw, 5.5rem) 0 1rem; }
 .story-hero .eyebrow a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
-.story-title { margin-top: 1rem; font-family: var(--serif); font-variation-settings: 'opsz' 144, 'SOFT' 50, 'WONK' 1; font-weight: 680; font-size: clamp(2.8rem, 7vw, 6rem); line-height: .95; letter-spacing: -.026em; max-width: 16ch; }
+.story-title { margin-top: 1rem; font-family: var(--serif); font-variation-settings: 'opsz' 144, 'SOFT' 50, 'WONK' 1; font-weight: 680; font-size: clamp(2.8rem, 7vw, 6rem); line-height: .95; letter-spacing: -.026em; max-width: 10.103em; } /* = the old 16ch in Fraunces; em keeps the box steady while the web font loads */
 .story-hero .hero-dek { margin-top: 1.2rem; }
 .story-section .chapter-title.story-section-title { font-size: clamp(2rem, 4.4vw, 3.4rem); }
 .story-methods { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 2.5rem; margin-top: clamp(4rem, 8vw, 6rem); padding: 2rem; border-radius: 22px; background: var(--paper-2); border: 1px solid var(--line); }

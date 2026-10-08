@@ -145,18 +145,22 @@ export function getResearchAnswer(def: QuestionDefinition): ResearchAnswer {
 
 export function getQuestions() { return QUESTIONS.map(getResearchAnswer); }
 
+/** Supporting packs whose page now shows the current answer of another question (also read by lib/seo-routes.ts). */
+export const PACK_REPLACEMENTS: Readonly<Record<string, string>> = { rn3_heat_curves: 'r15_weather_penalty_who', p1_pace_band_planner: 'r10_unravel_typology', p2_halfway_calculator: 'r08_early_blowup_signal' };
+
 export function getExtraAnswer(id: string): ResearchAnswer {
   const extension = extensionForPack(id);
   if (extension) {
     if (extension.exportId !== release.tag.replace('private-export-', 'private-')) throw new Error(`Stale research result: ${id}`);
-    return { id, title: extension.title, aliases: [], ...extension.answer };
+    // The catalog holds the current wording of each question; a pack_meta title can predate it, so it is only a fallback.
+    return { id, title: questionForPack(extension.questionId)?.title ?? extension.title, aliases: [], ...extension.answer };
   }
   if (id === 'smyth_htw') return getStudyAnswer();
   const canonical = questionForPack(id);
   if (canonical) return getResearchAnswer(canonical);
   if (id === 'rn1_wall_severity') return studyAnswer(id, 'severity', EXTRA_TITLES[id]);
   if (id === 'rn4_reference_dependence') return studyAnswer(id, 'landmarks', EXTRA_TITLES[id]);
-  const replacement = ({ rn3_heat_curves: 'r15_weather_penalty_who', p1_pace_band_planner: 'r10_unravel_typology', p2_halfway_calculator: 'r08_early_blowup_signal' } as Record<string, string>)[id];
+  const replacement = PACK_REPLACEMENTS[id];
   if (replacement) {
     const answer = getResearchAnswer(QUESTIONS.find(question => question.id === replacement)!);
     const related = id === 'p1_pace_band_planner' ? [{ href: '/analyses/pacing-pattern', label: 'Choose a course, age group and finish-time group' }]

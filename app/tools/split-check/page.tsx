@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import SplitCheck, { type OpeningBand, type TypeCohort } from '@/components/tools/SplitCheck';
 import { ToolHeader, ToolMethod, ToolNext } from '@/components/tools/ToolShell';
+import { pageMetadata } from '@/lib/seo';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { getFastStartStart } from '@/lib/fast-start-server';
 import type { Archetypes } from '@/lib/insights';
@@ -11,10 +12,11 @@ import { courseSlug } from '@/lib/tools/links';
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import './split-check.css';
 
-export const metadata = {
-  title: 'Marathon split check: section paces, sustained slowdown and pacing type | Pace Notes',
-  description: 'Type or paste your nine 5 km mat times. See every section’s pace against your own 5–20 km pace, whether you had a sustained slowdown, your opening, your pacing type, and how you compare with finishes at your time.',
-};
+export const metadata = pageMetadata({
+  title: 'Marathon Split Analysis: Check Your 5K Splits | Pace Notes',
+  description: 'Paste your nine mat times to see each section’s pace, whether you had a sustained slowdown, your pacing type and how finishes at your time paced.',
+  path: '/tools/split-check',
+});
 
 const INDEX = 'tools/pace-band.json';
 const ARCHETYPES = 'archetypes.json';

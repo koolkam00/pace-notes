@@ -4,11 +4,14 @@ import ToolIcon from '@/components/tools/ToolIcon';
 import { EvidenceBadge } from '@/components/tools/ToolShell';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { TOOLS, toolHref, type ToolGroup } from '@/lib/tools/registry';
+import { pageMetadata } from '@/lib/seo';
+import { GOAL_PAGE_MINUTES, HALF_CHART, MARATHON_CHART, goalLabel, goalPagePath } from '@/lib/tools/pace-chart';
 
-export const metadata = {
-  title: 'Runner tools | Pace Notes',
-  description: 'Free marathon tools built on millions of real finishes: pace calculator and chart, honest finish-time predictor, course-aware pace band, race-day projector, weather match, course chooser, split check and qualifying checker.',
-};
+export const metadata = pageMetadata({
+  title: 'Free Marathon Calculators and Pacing Tools | Pace Notes',
+  description: 'Free marathon tools: pace calculator, time predictor, pace band, course chooser, weather match, race-day projector, split check and qualifying times.',
+  path: '/tools',
+});
 
 const GROUPS: { group: ToolGroup; title: string }[] = [
   { group: 'Plan', title: 'Plan the race' },
@@ -56,9 +59,20 @@ export default function ToolsPage() {
             </section>
           );
         })}
+        <section className="tools-group" aria-labelledby="tools-pace-charts">
+          <h2 id="tools-pace-charts">Pace charts</h2>
+          <ul className="tools-chart-links">
+            <li><Link href="/tools/marathon-pace-chart"><b>Marathon pace chart</b><span>Every goal from {goalLabel(MARATHON_CHART.goals[0])} to {goalLabel(MARATHON_CHART.goals[MARATHON_CHART.goals.length - 1])}</span></Link></li>
+            <li><Link href="/tools/half-marathon-pace-chart"><b>Half marathon pace chart</b><span>Every goal from {goalLabel(HALF_CHART.goals[0])} to {goalLabel(HALF_CHART.goals[HALF_CHART.goals.length - 1])}</span></Link></li>
+            <li className="tools-chart-goals">
+              <b>Marathon pace by goal</b>
+              <span>{GOAL_PAGE_MINUTES.map((m, i) => <span key={m}>{i ? ' · ' : ''}<Link href={goalPagePath(m)} aria-label={`${goalLabel(m)} marathon pace`}>{goalLabel(m)}</Link></span>)}</span>
+            </li>
+          </ul>
+        </section>
         <div className="tools-principles">
           <div><b>Calculations are exact</b><p>Even-pace splits, mile rows and pace charts come straight from your inputs. They are not observations.</p></div>
-          <div><b>Data is what finishes did</b><p>Shares describe complete finishes in the data, never your personal chance. Runners who stopped are not in it.</p></div>
+          <div><b>Data is what finishes did</b><p>Every share is an observed share of complete finishes in the data, not a forecast for any one runner. Runners who stopped are not in it.</p></div>
           <div><b>Research is cited</b><p>Prediction and heat formulas come from published studies, kept apart from Pace Notes results.</p></div>
           <div><b>Your inputs stay with you</b><p>Everything runs in your browser. Birth dates are never put in links or analytics.</p></div>
         </div>

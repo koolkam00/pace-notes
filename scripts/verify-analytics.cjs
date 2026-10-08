@@ -3,8 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const Module = require('node:module');
 const ts = require('typescript');
-require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
+for (const extension of ['.ts', '.tsx']) require.extensions[extension] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true, jsx: ts.JsxEmit.ReactJSX },
 }).outputText, filename);
 const resolve = Module._resolveFilename;
 Module._resolveFilename = function(request, ...args) { return resolve.call(this, request.startsWith('@/') ? path.join(__dirname, '..', request.slice(2)) : request, ...args); };
@@ -40,6 +40,31 @@ assert.equal(policy.analyticsPath('/courses/Private-Name'), '/courses');
 assert.equal(policy.analyticsPath('/tools/split-check?s=0:25:00,0:50:00#x'), '/tools/split-check', 'Tool pages keep their path, never their inputs');
 assert.equal(policy.analyticsPath('/tools/qualifying?born=1990-01-01'), '/tools/qualifying');
 assert.equal(policy.analyticsPath('/tools/Private-Name'), '/other');
+
+// The search pages keep their own clean path; their inputs never survive. Lists come from the pages' own sources.
+const { GOAL_PAGE_MINUTES, goalPagePath } = require('../lib/tools/pace-chart.ts');
+const { STANDARDS } = require('../lib/tools/qualifying.ts');
+const searchPages = ['/tools/marathon-pace-chart', '/tools/half-marathon-pace-chart', '/finish-times', ...GOAL_PAGE_MINUTES.map(goalPagePath), ...STANDARDS.map(s => '/tools/qualifying/' + s.key)];
+assert.ok(GOAL_PAGE_MINUTES.length >= 5 && STANDARDS.length >= 6, 'The goal and qualifying race lists loaded');
+for (const page of searchPages) {
+  assert.equal(policy.analyticsPath(page), page, `${page} keeps its path`);
+  assert.equal(policy.analyticsPath(`https://splithappens.run${page}/?units=km&goal=4:00&born=1990-01-01#cutoffs`), page, `${page} drops its query, fragment and trailing slash`);
+  const event = policy.sanitizeAnalyticsEvent({ ...dirty, properties: { ...dirty.properties, $current_url: `https://splithappens.run${page}?q=Private+Name#x`, $pathname: page } });
+  assert.equal(event.properties.$current_url, 'https://splithappens.run' + page);
+  assert.equal(event.properties.$pathname, page);
+}
+for (const unknown of ['/tools/marathon-pace/3-15', '/tools/marathon-pace/Private-Name', '/tools/marathon-pace', '/tools/qualifying/Private-Name', '/finish-times/Private-Name']) assert.equal(policy.analyticsPath(unknown), '/other', `${unknown} is not a known page`);
+
+// Every page in the sitemap is recorded under its own path, or its section's for courses, stories and packs; none falls to /other.
+process.chdir(path.join(__dirname, '..')); // lib/insights-server.ts reads public/data from the working directory, as next build does.
+const { sitemapEntries, EXTRA_SITEMAP_PAGES } = require('../lib/seo-routes.ts');
+for (const { path: page } of EXTRA_SITEMAP_PAGES) assert.ok(searchPages.includes(page), `${page} is a registered search page; add it to this check and to lib/analytics-policy.ts`);
+const sections = ['/courses', '/stories', '/packs'];
+const sitemap = sitemapEntries();
+for (const { path: page } of sitemap) {
+  const section = sections.find(root => page.startsWith(root + '/'));
+  assert.equal(policy.analyticsPath(page), section ?? page, `sitemap page ${page} is recorded as ${section ?? 'itself'}`);
+}
 assert.equal(policy.referringDomain('javascript:alert(1)'), '');
 assert.equal(policy.downloadDestination('https://github.com/koolkam00/htw-live-study/releases/tag/example'), 'release');
 assert.equal(policy.downloadDestination('/data/weather/evidence.json'), 'site_data');
@@ -109,6 +134,6 @@ async function main() {
   sdk.capture = () => { throw new Error('blocked analytics'); };
   analytics.trackAnalytics('runner_search_submitted', {}); await settle(); // No unhandled rejection or broken site action.
   Module._load = originalLoad;
-  console.log('Analytics checks passed: URL/name redaction, event allowlists, cookieless settings, production gating, pageview deduplication, opt-out/DNT/GPC and SDK failure isolation.');
+  console.log(`Analytics checks passed: URL/name redaction, event allowlists, ${searchPages.length} search pages and all ${sitemap.length} sitemap pages recorded under their clean path, cookieless settings, production gating, pageview deduplication, opt-out/DNT/GPC and SDK failure isolation.`);
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

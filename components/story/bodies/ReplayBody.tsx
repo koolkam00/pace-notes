@@ -15,9 +15,10 @@ export default function ReplayBody({ data, geometry, manifest }: { data: ReplayI
   const at3 = ny.snapshots.find((s) => s.clock_s === 10800)!;
   const london = data.editions.find((e) => e.city === 'London');
   const name = (e: { city: string; year: number }) => `${e.city === 'New York' ? 'New York City' : e.city} ${e.year}`;
+  const fields = data.editions.map((e) => e.finishes);
   return (
     <StoryData value={{ replay: data }}>
-      <StorySection id="replay" kicker="01 · Press play" title={<>Tens of thousands of runners, <em>one race clock</em>.</>}
+      <StorySection id="replay" kicker="01 · Press play" title={<>{count(Math.min(...fields))} to {count(Math.max(...fields))} finishes, <em>one race clock</em>.</>}
         dek={<>Pick a race. Each dot is one recorded finish, moving at its recorded pace through each 5 km section and coloured by how that section compares with the runner&apos;s own 5–20 km pace. Switch to “On the route” to run it on the supplied course map.</>}>
         <div className="night replay-stage"><HeroReplay choices={choices} initial={ny.slug} /></div>
       </StorySection>

@@ -2,9 +2,20 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import RunnerLane from '@/components/art/RunnerLane';
 import { getInsightsManifest } from '@/lib/insights-server';
 import { STORIES, storyHref } from '@/lib/stories';
+import { finishesM, pageMetadata } from '@/lib/seo';
 import { count } from '@/lib/viz/format';
 
-export const metadata = { title: 'Stories from the data | Pace Notes', description: 'Interactive stories from millions of recorded marathon finishes: pacing types, round-number finishes, race replays, places, the final kick, gender and age, and course fingerprints with race-morning weather.' };
+const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+
+export function generateMetadata() {
+  const manifest = getInsightsManifest();
+  const published = STORIES.filter((s) => manifest.files[s.file]).length;
+  // The topic list names every story, so it is used only when all of them are published.
+  const description = published === STORIES.length && WORDS[published]
+    ? `${WORDS[published]} data stories from ${finishesM()} million recorded marathon finishes: pacing types, the 3:59 effect, race replays, places, the final kick, age and courses.`
+    : `Data stories from ${finishesM()} million recorded marathon finishes, each starting with one finding and the evidence to explore.`;
+  return pageMetadata({ title: `Marathon Data Stories from ${finishesM()}M Finishes | Pace Notes`, description, path: '/stories' });
+}
 
 export default function StoriesPage() {
   const manifest = getInsightsManifest();

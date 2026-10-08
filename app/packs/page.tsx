@@ -1,9 +1,14 @@
-import Link from 'next/link';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 import { QUESTIONS, EXTRA_TITLES, THEMES } from '@/lib/question-catalog';
 import { PERSONAL_QUESTIONS } from '@/lib/personalized-catalog';
 import { broaderArchive } from '@/lib/broader-analysis-catalog';
+import { pageMetadata } from '@/lib/seo';
 
-export const metadata = { title: 'Research archive | Pace Notes', description: 'The broader research archive: every extension question calculated from the current marathon race records.' };
+export const metadata = pageMetadata({
+  title: 'Marathon Pacing Research Archive | Pace Notes',
+  description: `${QUESTIONS.length} marathon pacing research questions explored with recorded 5 km splits: fast starts, bad patches, courses, weather, age, race history and more.`,
+  path: '/packs',
+});
 export default function AnalysesPage() {
   return <div className="prose">
     <p className="eyebrow">Beyond the ten analyses</p>

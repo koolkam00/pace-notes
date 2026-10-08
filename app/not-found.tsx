@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Runner } from '@/components/art/Runner';
 
-export const metadata = { title: 'Page not found | Pace Notes', description: 'This page is not on the route. Head back to the start or read the stories from the data.' };
+export const metadata = { title: 'Page not found | Pace Notes', description: 'This page is not on the route. Head back to the start or read the stories from the data.', robots: { index: false, follow: true } };
 
 export default function NotFound() {
   return (

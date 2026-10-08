@@ -29,7 +29,7 @@ export default function PlacesBody({ data, manifest }: { data: Positions; manife
         </div>
       </StorySection>
       <StorySection id="break-even" kicker="03 · Break-even" title={<>Most of the field slows. The question is <em>how much</em>.</>}
-        dek={<>Places are relative: most of the field slows after 30 km, so slowing a little still moves you up. The typical finish held its place at about {data.breakeven_crossing?.toFixed(1)}% slower than its 5–20 km pace.</>}>
+        dek={<>Places are relative, and most of the field slowed after <Checkpoint km={30} />, so finishes that slowed only a little still tended to move up the clock order. The median change in places reached zero at about {data.breakeven_crossing?.toFixed(1)}% slower than a finish&apos;s own 5–20 km pace.</>}>
         <BreakEven />
       </StorySection>
       <StorySection id="shuffle" kicker="04 · Reshuffles" title={<>The order shuffles <em>twice</em>.</>}
@@ -50,8 +50,8 @@ export default function PlacesBody({ data, manifest }: { data: Positions; manife
           <p className="viz-note">Section labels are kilometres. A swap means the pair&apos;s clock order at the end of the section differs from the start.</p>
         </div>
       </StorySection>
-      <StorySection id="women" kicker="05 · Recorded gender" title={<>Women move up <em>in every race</em>.</>}
-        dek={<>In all {data.women_ahead_editions} of {data.gender_editions.length} race editions with at least 100 recorded women and men, women&apos;s average change in clock position after <Checkpoint km={30} /> was better than men&apos;s. Women are {(data.women_share * 100).toFixed(0)}% of these finishes but {(data.women_share_of_surgers * 100).toFixed(0)}% of late surgers and {(data.women_share_of_sinkers * 100).toFixed(0)}% of late sinkers.</>}>
+      <StorySection id="women" kicker="05 · Recorded gender" title={<>Women gained on men <em>in {data.women_ahead_editions} of {data.gender_editions.length}</em> compared editions.</>}
+        dek={<>{data.women_ahead_editions === data.gender_editions.length ? 'In all' : 'In'} {data.women_ahead_editions} of {data.gender_editions.length} race editions with at least 100 recorded women and men, women&apos;s average change in clock position after <Checkpoint km={30} /> was better than men&apos;s. Women are {(data.women_share * 100).toFixed(0)}% of these finishes but {(data.women_share_of_surgers * 100).toFixed(0)}% of late surgers and {(data.women_share_of_sinkers * 100).toFixed(0)}% of late sinkers.</>}>
         <WomenMen />
       </StorySection>
       <StoryMethods manifest={manifest} files={['positions.json']} method={data.method}

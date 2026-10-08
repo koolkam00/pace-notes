@@ -2,6 +2,8 @@
 
 The `/tools` section has eight free marathon tools. Three are everyday utilities done carefully: a pace calculator, a finish-time predictor and a qualifying checker. Five use what only this dataset can show, because it has all nine 5 km checkpoints for every finish: a pace band, a race-day projector, a weather match, a course chooser and a split check. Everything runs in the visitor's browser from static files. These tools are an addition: they do not change the release pins, the source-quality policy or any existing analysis output.
 
+Since October 8, 2026 the section also has static reference pages written for what runners search for: two pace charts, five goal-time pages and one qualifying page per race ([below](#pace-charts-goal-pages-and-qualifying-race-pages)). They are not in the tools registry. Their search setup (sitemap, share cards, checks) is in [SEO](SEO.md#search-pages-october-2026).
+
 ## Why these tools
 
 Research behind the selection (October 2026; Reddit and LetsRun refused automated reads, so community evidence came from Garmin forums, app-store reviews and running publications):
@@ -50,6 +52,7 @@ Numbers from different badges are never combined into one figure.
 Shared code:
 - `lib/tools/time.ts`: forgiving duration input. It accepts `3:30:00`, `3:30`, `3h30`, `210` (minutes) and keypad dots (`8.05` is 8:05 for a pace and `3.30` is 3:30 for a race time). It also parses clock times and tracker text.
 - `lib/tools/pace.ts`: paces, speeds, split tables, pace charts and watch-overrun calculations.
+- `lib/tools/pace-chart.ts`: the goal lists and timing points of the two pace charts (`MARATHON_CHART`, `HALF_CHART`), `chartRows()`, the goal pages' list (`GOAL_PAGE_MINUTES`), slugs and links into the other tools.
 - `lib/tools/predictor.ts`: Riegel, the Daniels–Gilbert equations, a personal exponent from two races, and Tanda.
 - `lib/tools/weather.ts`: relative humidity, Stull wet-bulb, shade WBGT with the ACSM flag, Ely, Mantzios, Hadley and dew-point bands.
 - `lib/tools/qualifying.ts`: standards, age rules and Boston cut-off history.
@@ -68,6 +71,21 @@ Every link from one tool to another follows the same rules:
 - **Projector:** gets the exact `target`, the `course` only when published, and `t=none`, so it waits for a tracker time instead of showing its example runner.
 - **Qualifying checker:** never receives a predicted or goal time as if it had been run.
 - **Units:** links carry the visitor's units, but only once the preference has been read. A link clicked before the page finishes loading falls back to the stored preference.
+
+## Pace charts, goal pages and qualifying race pages
+
+Server-rendered reference pages under `/tools`. Every number on them is computed at build time from the libraries and data below; the copy rules in `AGENTS.md` apply as on the tools.
+
+| Route | Files | What it shows | Evidence |
+| --- | --- | --- | --- |
+| `/tools/marathon-pace-chart` | `app/tools/marathon-pace-chart/page.tsx`, `components/tools/PaceChartTable.tsx` | One row per goal in `MARATHON_CHART` (2:30 to 6:30 every 5 minutes): pace per mile and per km, the elapsed time at each 5 km mat and at halfway, and mile markers every 5 miles. Each row links its pace band; goals with a goal page are underlined. Printable. | Calculated at even pace, labelled "calculated, not recorded" (no badge) |
+| `/tools/half-marathon-pace-chart` | `app/tools/half-marathon-pace-chart/page.tsx`, `PaceChartTable` | The same for `HALF_CHART` (1:10 to 3:00): 5, 10, 15 and 20 km, and 5 and 10 miles | Calculated |
+| `/tools/marathon-pace/<goal>` | `app/tools/marathon-pace/[goal]/page.tsx`, `components/tools/GoalPace.tsx` | One page per `GOAL_PAGE_MINUTES` (3:00, 3:30, 4:00, 4:30, 5:00): even-pace splits; what finishes in the five minutes under the goal ran at each mat (median and middle half); the same finishes split into held pace and sustained slowdown; finish times bunching just under the goal, only when the ratio's whole 95% interval is above 1; every mile or km at even pace | Even-pace panels calculated; observed panels badged Pace Notes data |
+| `/tools/qualifying/<race>` | `app/tools/qualifying/[race]/page.tsx`, `components/tools/QualifyingRace.tsx`, `QualifyingRaceText.tsx`, `QualifyingRaceLinks.tsx` | One page per race in `STANDARDS` (Boston, New York, London Good For Age, Chicago, Berlin, Sydney): the standards table, an at-a-glance card (race date, age rule, window, time rule), window, age and application rules, "meeting the standard is not entry by itself", every published Boston cut-off (Boston only), even pace for each standard, links to the other races, the checker and the race's course page where Pace Notes has one | Official standards with `VERIFIED_AT`; even pace calculated |
+
+**Data and sources.** The pace charts use no data: `chartRows()` spreads each goal evenly over 42.195 km or 21.0975 km (a mile is 1.609344 km), rounding to whole seconds once, at display. The goal pages' observed panels read the verified pace-band family (`tools/pace-band.json` and its All courses, all recorded genders shard, the same groups the pace band shows) and the bunching panel reads `finish-times.json`, the data behind the 3:59 effect story; if the pace-band files are not in the verified manifest or the shard digest does not match, the observed panel says the mat times are not available in this build and the other observed panels are left out; the bunching panel is left out when `finish-times.json` is missing. Counts are finishes in the tool cohort, editions pooled; there are no observed halfway or mile splits, because the source records only the 5 km mats. The goal pages cite the published slowdown method (`SLOWDOWN_CITATION`). The race pages read only `lib/tools/qualifying.ts` and cite each race's own `sources`. The per-race words (organiser, entry route, London's "Good For Age times", the search name "NYC Marathon") are maps in `QualifyingRaceText.tsx`, and the course link is `COURSE_CITY` in the route.
+
+**Why only five goal pages.** One page per minute would be near-duplicate pages. To add a goal, add it to `GOAL_PAGE_MINUTES` (inside the pace band's 2:30–6:30 range): the page, the sitemap entry and the share card follow from that list. Update the goal-page assertions in `scripts/verify-tools.cjs` and run `npm run og:images`.
 
 ## Data families
 
@@ -119,7 +137,7 @@ Rebuilding with `--only` keeps every other family's file and rewrites the manife
   - every pace-band group count, with sampled medians and slowdown shares;
   - the weather editions, rows, matched editions and edition-balanced shares;
   - the course-goal rows, the unavailable list and the course list.
-- `scripts/verify-tools.cjs` (in `npm run verify:data`) checks 168 golden values: parsing, split tables, Riegel and Daniels values, Tanda's range, heat formulas against published tables, age rules and standards for every race, the Boston downhill index and cut-off history, and split reading.
+- `scripts/verify-tools.cjs` (in `npm run verify:data`) checks golden values (225 on October 8, 2026): parsing, split tables, the pace charts' even-pace values recomputed by hand, the goal-page list, slugs and links, Riegel and Daniels values, Tanda's range, heat formulas against published tables, age rules and standards for every race, the Boston downhill index and cut-off history, and split reading.
 - `analysis/test_insights.py` (`Tools` class) covers:
   - the slug rule;
   - projector bands, trend variants and the slowdown split;
@@ -133,7 +151,7 @@ Tools compute in the browser and send no inputs anywhere. Tool state is kept in 
 
 ## Known limitations
 
-- **Referrer leak on first load:** the referrer policy is a `<meta>` tag, so the CSS and JavaScript requested before it is parsed still send the page URL to the same host. That host already received the URL with the page request. An HTTP `Referrer-Policy: strict-origin` header from the host would close this gap; it is not configured in the repository.
+- **Referrer on first load:** the referrer policy is a `<meta>` tag, so on its own it would let the CSS and JavaScript requested before it is parsed send the page URL to the same host. On Vercel, `vercel.json` also sends an HTTP `Referrer-Policy: strict-origin` header on every path, which closes that gap. A build served without that header (the optional GitHub Pages build) still sends the URL on those first requests, to the host that already received it with the page request.
 - **Projector shard size:** the All-courses projector shards are about 80–95 KB gzipped, because they include the men and women variants. Splitting those into separate files would make each smaller.
 - **Course chooser temperatures:** a course's start-temperature range covers all of its editions, not only the editions in the row, and the page labels it that way.
 - **Projector at 40 km:** the projector is no more accurate than even pace at 40 km (see the accuracy table), and says so on the page.
@@ -141,7 +159,7 @@ Tools compute in the browser and send no inputs anywhere. Tool state is kept in 
 
 ## Annual maintenance: qualifying standards
 
-Qualifying standards and windows change every year. `lib/tools/qualifying.ts` records `VERIFIED_AT` (currently 2026-10-07), and every card shows it. Before each registration season, and at least every September:
+Qualifying standards and windows change every year. `lib/tools/qualifying.ts` records `VERIFIED_AT` (currently 2026-10-08), and every checker card and race page shows it. The review covers the checker and the race pages (`/tools/qualifying/<race>`) together: both read the same `STANDARDS`, and the race pages' sitemap `lastmod` is `VERIFIED_AT`. Before each registration season, and at least every September:
 
 1. **Boston.** Check the standards for the next edition, the qualifying window start, the age date (race day), and the downhill-course rule (the index thresholds in `bostonDownhillIndex`). After registration closes, append the new cut-off, field and not-accepted counts to `BOSTON_CUTOFFS` from the B.A.A. announcement.
 2. **New York.** Check the time-qualifier bands, which NYRR races count, the age rule and the application window.
@@ -151,6 +169,7 @@ Qualifying standards and windows change every year. `lib/tools/qualifying.ts` re
 6. **Sydney.** Check the High Performance Program standards and window.
 7. Update `sources`, then `VERIFIED_AT`. Update the golden values in `scripts/verify-tools.cjs` and run `npm run verify:data`.
 8. Never forecast a cut-off. The cut-off table shows only past cut-offs the visitor's margin would have cleared.
+9. **Race pages.** Open each `/tools/qualifying/<race>` page in a build. Check the title and heading year (read from `edition`), the at-a-glance card, the window end (an application deadline or an undated end is shown as such), the entry text and the per-race words in `components/tools/QualifyingRaceText.tsx` (organiser, entry route, page noun, search name). A race added to `STANDARDS` gets a page, a sitemap entry and a share card from that list, but also needs those word maps and `COURSE_CITY` in `app/tools/qualifying/[race]/page.tsx`. If a race name changes, run `npm run og:images` and commit the new card. Then `npm run build` and `npm run verify:seo`.
 
 Dated application windows show an "open now / upcoming / closed" badge. Where a race states a time of day (London 16:00 GMT; Chicago 8 a.m. and 2 p.m. CT), `opensAt` and `closesAt` hold the UTC instant and the badge compares it with the current time. Otherwise it uses the visitor's calendar date. A stale entry looks closed rather than wrong, but it still needs this review.
 

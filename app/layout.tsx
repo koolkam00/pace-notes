@@ -11,10 +11,19 @@ import SiteNav from '@/components/SiteNav';
 import SiteAnalytics from '@/components/SiteAnalytics';
 import CreatorCredit from '@/components/CreatorCredit';
 import MotionToggle from '@/components/MotionToggle';
+import type { Metadata } from 'next';
+import { DEFAULT_OG_IMAGE, OG_IMAGE_SIZE, OG_LOCALE, SITE_NAME, SITE_URL, finishesM } from '@/lib/seo';
 
-export const metadata = {
+// Site-wide defaults only. Pages set their own title, description, canonical and full openGraph through
+// pageMetadata() in lib/seo.tsx. Never put a canonical, openGraph.url or title.template here (docs/SEO.md).
+export const metadata: Metadata = {
+  // Hard-coded so canonical and social URLs never fall back to a Vercel deployment host.
+  metadataBase: new URL(SITE_URL),
   title: 'Pace Notes | Understand your next 26.2 miles',
-  description: 'What 3.5 million marathon finishes reveal about pacing: interactive stories, race replays and ten essential runner questions.',
+  description: `What ${finishesM()} million recorded marathon finishes reveal about pacing: interactive stories, race replays and ten essential runner questions.`,
+  openGraph: { type: 'website', siteName: SITE_NAME, locale: OG_LOCALE, images: [{ url: DEFAULT_OG_IMAGE, ...OG_IMAGE_SIZE, alt: SITE_NAME }] },
+  twitter: { card: 'summary_large_image', images: [DEFAULT_OG_IMAGE] },
+  robots: { index: true, follow: true, 'max-image-preview': 'large' },
   // Tool inputs (goals, race times) live in the page URL; send only the origin as the referrer, even to this site.
   referrer: 'strict-origin',
 };

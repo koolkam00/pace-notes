@@ -34,7 +34,7 @@ The downloader verifies release asset size/SHA-256, rejects unsafe, duplicate or
 
 ## Rebuild every analysis
 
-Read `https://htw-live-study.vercel.app/data/live.json` and substitute its actual `as_of` below. Use the same verified FULL directory for all builders.
+Read `https://splithappens.run/data/live.json` and substitute its actual `as_of` below. Use the same verified FULL directory for all builders.
 
 ```bash
 python analysis/build_pacing.py --input /path/to/0934-input --output /path/to/0934-aggregates --live-as-of CURRENT_PUBLIC_LIVE_AS_OF

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useState, type ComponentProps, type ReactNode } from 'react';
 import { DEFAULT_UNITS, unitText, type UnitSystem } from '@/lib/units';
-import { unitsFromSearch, withUnits } from '@/lib/unit-preference';
+import { unitHref, unitsFromSearch } from '@/lib/unit-preference';
 import { trackAnalytics } from '@/lib/analytics';
 
 const STORAGE_KEY = 'marathon-study-units';
@@ -33,7 +33,7 @@ export default function UnitsProvider({ children }: { children: ReactNode }) {
     trackAnalytics('units_changed', { units: next });
     updateUnits(next);
     try { window.localStorage.setItem(STORAGE_KEY, next); } catch {}
-    window.history.replaceState(window.history.state, '', withUnits(window.location.pathname + window.location.search + window.location.hash, next));
+    window.history.replaceState(window.history.state, '', unitHref(window.location.pathname + window.location.search + window.location.hash, next));
   }, []);
   return <UnitsContext.Provider value={{ units, setUnits, resolved }}>{children}</UnitsContext.Provider>;
 }
@@ -41,7 +41,7 @@ export default function UnitsProvider({ children }: { children: ReactNode }) {
 export function UnitSwitch() {
   const { units, setUnits } = useUnits();
   const path = usePathname();
-  if (path !== '/' && path !== '/about' && path !== '/slowdown' && path !== '/htw' && !['/analyses', '/runners', '/packs', '/courses', '/stories', '/tools'].some(route => path === route || path.startsWith(route + '/'))) return <div className="unit-switch unit-switch-placeholder" aria-hidden="true"><button type="button" tabIndex={-1}>Miles</button><button type="button" tabIndex={-1}>Kilometres</button></div>;
+  if (path !== '/' && path !== '/about' && path !== '/slowdown' && path !== '/htw' && !['/analyses', '/runners', '/packs', '/courses', '/stories', '/tools', '/finish-times'].some(route => path === route || path.startsWith(route + '/'))) return <div className="unit-switch unit-switch-placeholder" aria-hidden="true"><button type="button" tabIndex={-1}>Miles</button><button type="button" tabIndex={-1}>Kilometres</button></div>;
   return <div className="unit-switch" role="group" aria-label="Distance and pace units">
     <button type="button" aria-pressed={units === 'mi'} onClick={() => setUnits('mi')}>Miles</button>
     <button type="button" aria-pressed={units === 'km'} onClick={() => setUnits('km')}>Kilometres</button>
@@ -59,10 +59,11 @@ export function MarathonDistance() {
 }
 
 /**
- * A link that carries the visitor's units. Until the preference is read (server HTML and the first client render) it
- * adds no units, so a click before hydration falls back to the stored preference instead of forcing the default.
+ * A link that carries the visitor's units. Miles, the default, add nothing (and drop any units= in the href), so every page
+ * has one clean link; kilometres add units=km. Until the preference is read (server HTML and the first client render) the
+ * href is left as written, so a click before hydration falls back to the stored preference instead of forcing the default.
  */
 export function UnitLink({ href, prefetch = false, ...props }: ComponentProps<typeof Link>) {
   const { units, resolved } = useUnits();
-  return <Link {...props} prefetch={prefetch} href={typeof href === 'string' && resolved ? withUnits(href, units) : href} />;
+  return <Link {...props} prefetch={prefetch} href={typeof href === 'string' && resolved ? unitHref(href, units) : href} />;
 }

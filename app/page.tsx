@@ -6,7 +6,8 @@ import { count } from '@/lib/personalized';
 import CreatorCredit from '@/components/CreatorCredit';
 import { getStudyEvidence } from '@/lib/research-data';
 import { clientArchetypes, getInsightsManifest, readInsight, replayChoices } from '@/lib/insights-server';
-import { STORIES, storyHref } from '@/lib/stories';
+import { STORIES, capital, countWord, courseSpan, storyHref } from '@/lib/stories';
+import { JsonLd, SITE_URL, finishesM, pageMetadata } from '@/lib/seo';
 import { TOOLS, toolHref } from '@/lib/tools/registry';
 import ToolIcon from '@/components/tools/ToolIcon';
 import type { Archetypes, CourseGeometry, Courses, Demographics, FinishTimes, Positions, ReplayIndex } from '@/lib/insights';
@@ -19,9 +20,20 @@ import HeroReplay from '@/components/story/HeroReplay';
 import { StoryData } from '@/components/story/StoryData';
 import RunnerLane from '@/components/art/RunnerLane';
 import { FinishHistogram, Rescue, SecondsLens } from '@/components/story/FinishTimeStory';
-import { Checkpoint, Distance, PerDegree, TemperatureStep } from '@/components/story/Units';
+import { Checkpoint, Distance, PerDegree, Section, TemperatureStep } from '@/components/story/Units';
 
 const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+
+/** The site description, with every number read from the verified story data. */
+function homeDescription() {
+  const span = courseSpan();
+  const where = span ? ` at ${getInsightsManifest().cohort.cities} marathons, ${span.first}–${span.last},` : '';
+  return `How ${finishesM()} million recorded finishes${where} were paced: data stories, free pacing tools and course pages. By Andrew Kam.`;
+}
+
+export function generateMetadata() {
+  return pageMetadata({ title: `Pace Notes: Marathon Pacing from ${finishesM()} Million Finishes`, description: homeDescription(), path: '/' });
+}
 
 export default function Page() {
   const { summary } = getAnalysisStart();
@@ -51,15 +63,27 @@ export default function Page() {
   const stories = STORIES.filter((s) => manifest.files[s.file]);
   const tools = TOOLS.filter((t) => !t.file || manifest.files[t.file]);
   const toolCohort = manifest.files['tools/projector.json'] ? readInsight<{ cohort_n: number }>('tools/projector.json').cohort_n : null;
-  return <StoryData value={{ archetypes: types, finish, positions: places }}><div className="home">
+  const span = courseSpan();
+  /** Race years the course data covers, counted inclusively (2005–2026 is 22 years). */
+  const yearsCovered = span ? span.last - span.first + 1 : null;
+  /** The number of pacing types, in words where it has one. */
+  const typeCount = countWord(types.archetypes.length) ?? String(types.archetypes.length);
+  /** The minute before the round-number mark that stands tallest against the smooth curve (2:59 before 3:00). */
+  const tallest = finish.marks.reduce((a, m) => (m.ratio > a.ratio ? m : a), finish.marks[0]);
+  const tallestMinute = `${Math.floor((tallest.minutes - 1) / 60)}:${String((tallest.minutes - 1) % 60).padStart(2, '0')}`;
+  const website = {
+    '@context': 'https://schema.org', '@type': 'WebSite', name: 'Pace Notes', alternateName: 'splithappens.run', url: `${SITE_URL}/`,
+    inLanguage: 'en', description: homeDescription(), creator: { '@type': 'Person', name: 'Andrew Kam' },
+  };
+  return <><StoryData value={{ archetypes: types, finish, positions: places }}><div className="home">
     <section className="night night-grain bleed hero" aria-labelledby="hero-title">
       <div className="container hero-inner">
         <div className="hero-head">
-          <p className="eyebrow">Pace Notes · {count(manifest.analysis_n)} marathon finishes · {years.cities} cities · 2005–2026</p>
-          <h1 id="hero-title" className="hero-title">The same <MarathonDistance />, run <em>3.4&nbsp;million</em> ways.</h1>
+          <p className="eyebrow">Pace Notes · {count(manifest.analysis_n)} marathon finishes · {years.cities} cities{span ? ` · ${span.first}–${span.last}` : ''}</p>
+          <h1 id="hero-title" className="hero-title">The same <MarathonDistance />, run <em>{finishesM()}&nbsp;million</em> ways.</h1>
         </div>
         <div className="hero-side">
-          <p className="hero-dek">Every recorded 5 km split from two decades of big-city marathons. Press play to watch a real field spread out, then see where races are <strong>held together</strong>, where they <strong>come apart</strong> and where finishes <strong>slip under round numbers in the final minutes</strong>.</p>
+          <p className="hero-dek">Every recorded 5 km split from {yearsCovered ? `${yearsCovered} years of ` : ''}big-city marathons. Press play to watch a real field spread out, then see where races are <strong>held together</strong>, where they <strong>come apart</strong> and where finishes <strong>slip under round numbers in the final minutes</strong>.</p>
           <div className="hero-actions">
             <a className="button-accent" href="#pacing-types">Start the story <span aria-hidden="true">↓</span></a>
             <Link className="button-secondary" href="/runners">Find your own race</Link>
@@ -85,12 +109,12 @@ export default function Page() {
     <section id="pacing-types" className="chapter" aria-labelledby="pacing-types-title">
       <div className="chapter-head">
         <p className="chapter-num">Chapter 01 · The shape of a marathon</p>
-        <h2 id="pacing-types-title" className="chapter-title">Six ways to run <em>the same race</em>.</h2>
-        <p className="chapter-dek">Strip away the finish time and every marathon has a shape: the rhythm of nine recorded sections against the runner&apos;s own average. Grouping {count(types.cohort_n)} of those shapes reveals six recurring types.</p>
+        <h2 id="pacing-types-title" className="chapter-title">{capital(typeCount)} ways to run <em>the same race</em>.</h2>
+        <p className="chapter-dek">Strip away the finish time and every marathon has a shape: the rhythm of nine recorded sections against the runner&apos;s own average. Grouping {count(types.cohort_n)} of those shapes reveals {typeCount} recurring types.</p>
       </div>
       <div className="nugget">
         <span className="nugget-number">{(metronome.share * 100).toFixed(0)}%</span>
-        <p className="nugget-text">of finishes are <strong>Metronomes</strong>, holding within a couple of percent of their own average pace to <Checkpoint km={40} />. The most common shape is the <strong>Gentle fader</strong> ({(types.archetypes[1].share * 100).toFixed(0)}%), and {(cliff.share * 100).toFixed(1)}% run a <strong>Cliff</strong>: fast to 25 km, then about 40% slower than average over 35–40 km.</p>
+        <p className="nugget-text">of finishes are <strong>Metronomes</strong>, holding within a couple of percent of their own average pace to <Checkpoint km={40} />. The most common shape is the <strong>Gentle fader</strong> ({(types.archetypes[1].share * 100).toFixed(0)}%), and {(cliff.share * 100).toFixed(1)}% run a <strong>Cliff</strong>: fast to <Checkpoint km={25} />, then about {Math.round(cliff.profile[7] / 5) * 5}% slower than average over <Section i={7} />.</p>
       </div>
       <div className="chapter-body"><ArchetypeChapter /></div>
       <div className="chapter-grid chapter-body">
@@ -102,14 +126,14 @@ export default function Page() {
         </div>
       </div>
       <div className="chapter-body"><WhichArchetype /></div>
-      <Link className="chapter-more" href="/stories/pacing-types">Explore all six pacing types <span aria-hidden="true">→</span></Link>
+      <Link className="chapter-more" href="/stories/pacing-types">Explore all {typeCount} pacing types <span aria-hidden="true">→</span></Link>
     </section>
 
     <section id="finish-times" className="chapter" aria-labelledby="finish-times-title">
       <div className="chapter-head">
         <p className="chapter-num">Chapter 02 · Round numbers</p>
         <h2 id="finish-times-title" className="chapter-title">The <em>3:59</em> effect.</h2>
-        <p className="chapter-dek">Finish times are not smooth. In the minutes before each hour and half-hour, the field piles up against the clock, then thins out just after it. Against a smooth curve, the tallest tower stands at 2:59.</p>
+        <p className="chapter-dek">Finish times are not smooth. In the minutes before each hour and half-hour, the field piles up against the clock, then thins out just after it. Against a smooth curve, the tallest tower stands at {tallestMinute}.</p>
       </div>
       <div className="nugget">
         <span className="nugget-number">{count(three.minute_before)}</span>
@@ -131,7 +155,7 @@ export default function Page() {
       <div className="chapter-head">
         <p className="chapter-num">Chapter 03 · Places on the clock</p>
         <h2 id="places-title" className="chapter-title">At <Checkpoint km={30} />, a minute is <em>nearly a coin flip</em>.</h2>
-        <p className="chapter-dek">The order of a marathon field keeps changing long after <Checkpoint km={20} />. Most runners slow after <Checkpoint km={30} />, so what matters for places is how much you slow compared with everyone around you.</p>
+        <p className="chapter-dek">The order of a marathon field keeps changing long after <Checkpoint km={20} />. Most finishes slowed after <Checkpoint km={30} />; the ones that moved up the clock order were those that slowed less than the finishes around them.</p>
       </div>
       <div className="nugget">
         <span className="nugget-number">{Math.round(coin30.share * 100)}%</span>
@@ -167,7 +191,7 @@ export default function Page() {
         <p className="nugget-text">same-course pairs of editions at least <TemperatureStep c={courses.weather.pairs.min_gap_c} /> apart where the <strong>warmer one had more sustained slowdown</strong>. Within a course, the share with a sustained slowdown rises about <PerDegree perC={courses.weather.fits.slowdown_within.slope} unit="points" />. Pairs share editions, so they are not independent tests.</p>
       </div>
       <div className="chapter-body"><Untangle weather={{ editions: courses.weather.editions, fits: courses.weather.fits }} /></div>
-      <Link className="chapter-more" href="/stories/courses">Course fingerprints, heat and two decades of races <span aria-hidden="true">→</span></Link>
+      <Link className="chapter-more" href="/stories/courses">Course fingerprints, heat and {yearsCovered ? `${yearsCovered} years of ` : ''}races <span aria-hidden="true">→</span></Link>
     </section> : null}
 
     <section id="all-stories" className="chapter" aria-labelledby="all-stories-title">
@@ -232,5 +256,5 @@ export default function Page() {
       </div>
     </section>
     <section className="home-purpose"><p className="eyebrow">Why this study exists</p><div><h2>A finish time is only part of the story.</h2><p>Pace Notes looks at the distance between the start and the finish. It makes race patterns easier to explore, so runners can ask better questions about their own marathons.</p><p>{count(study.cohort.raw)} race records are in the database; {count(summary.n)} pass the timing and race-quality checks used by the analyses. Counts are finishes, not unique runners.</p><Link className="text-link" href="/methodology#data-quality">Why the totals differ <span aria-hidden="true">↗</span></Link></div></section>
-  </div></StoryData>;
+  </div></StoryData><JsonLd data={website} /></>;
 }
