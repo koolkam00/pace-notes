@@ -15,6 +15,8 @@ import MotionToggle from '@/components/MotionToggle';
 export const metadata = {
   title: 'Pace Notes | Understand your next 26.2 miles',
   description: 'What 3.5 million marathon finishes reveal about pacing: interactive stories, race replays and ten essential runner questions.',
+  // Tool inputs (goals, race times) live in the page URL; send only the origin as the referrer, even to this site.
+  referrer: 'strict-origin',
 };
 
 export const viewport = { themeColor: '#F5F0E6' };
@@ -38,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="footer-brand"><Link href="/">Pace Notes</Link><p>Every split tells part of the story. Pacing patterns from millions of recorded marathon finishes, free to explore and download.</p><CreatorCredit /><MotionToggle /></div>
           <nav aria-label="More research">
             <Link href="/stories">Stories from the data</Link>
+            <Link href="/tools">Runner tools</Link>
             <Link href="/analyses">Plan your race</Link>
             <Link href="/runners">Find a runner</Link>
             <Link href="/courses">Courses</Link>

@@ -1,0 +1,7 @@
+/* ==========================================================================
+   Pace calculator (/tools/pace-calculator). Every class here is prefixed pace-calculator-.
+   Builds on app/tools/tools.css (workspace, panels, tables, presets).
+   ========================================================================== */
+
+/* The two-column watch table fits a phone: its long headings wrap instead of scrolling the table sideways. */
+.pace-calculator-watch th { white-space: normal; }

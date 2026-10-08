@@ -45,6 +45,10 @@ def optional_families():
         ('demographics', 'insights_demographics', 'demographics.json'),
         ('courses', 'insights_courses', 'courses.json'),
         ('kick', 'insights_kick', 'kick.json'),
+        ('tool-projector', 'insights_tool_projector', 'tools/projector.json'),
+        ('tool-pace-band', 'insights_tool_paceband', 'tools/pace-band.json'),
+        ('tool-weather-match', 'insights_tool_weather', 'tools/weather-match.json'),
+        ('tool-course-goal', 'insights_tool_coursegoal', 'tools/course-goal.json'),
     ):
         path = Path(__file__).with_name(module_name + '.py')
         if path.exists():
@@ -113,10 +117,15 @@ def run(output, only=None, cache=None):
         t = time.time()
         result = module.build(cohort)
         extra = result.pop('extra_files', {})
+        shards = {}
         for extra_name, extra_payload in extra.items():
             extra_data = encode(dict(family=name, release_tag=common['release_tag'], runner_manifest_sha256=manifest_sha, **extra_payload))
             write(output / extra_name, extra_data)
             files[extra_name] = dict(bytes=len(extra_data), sha256=sha256_bytes(extra_data))
+            shards[extra_name] = files[extra_name]['sha256']
+        if name.startswith('tool-') and shards:
+            # Tool pages load one verified index; it lists every shard's SHA-256 for the browser to check.
+            result['shards'] = dict(sorted(shards.items()))
         data = encode(dict(family=name, **common, **result))
         write(output / filename, data)
         files[filename] = dict(bytes=len(data), sha256=sha256_bytes(data))

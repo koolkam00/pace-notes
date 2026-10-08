@@ -85,6 +85,7 @@ assert.equal(selectedLink, '/analyses/pacing-pattern?race=All+courses&goal=195&a
 assert.equal(withUnits(selectedLink, 'km'), selectedLink.replace('units=mi', 'units=km'));
 assert.equal(withUnits('/analyses?units=mi&units=mi', 'km'), '/analyses?units=km');
 assert.equal(withUnits('/#analyses', 'mi'), '/?units=mi#analyses');
+assert.equal(withUnits('/tools/split-check?s=0:25:00,0:50:00&course=new-york', 'km'), '/tools/split-check?s=0:25:00,0:50:00&course=new-york&units=km', 'Tool links keep readable colons and commas');
 assert.equal(withUnits('/analyses', 'km'), '/analyses?units=km');
 for (const href of ['https://example.org/5km?units=km#source', '//example.org/data', 'mailto:study@example.org', '#method', 'relative/path']) {
   assert.equal(withUnits(href, 'mi'), href, 'Do not rewrite external, relative or fragment links');

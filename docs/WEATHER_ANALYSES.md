@@ -53,6 +53,10 @@ npm run build
 
 The [Weather evidence screen workflow](../.github/workflows/weather-analysis.yml) accepts an explicit release tag and produces an evidence artifact. It does not import data, change either source pin or deploy. Before adoption, verify source identity, schema, scientific decisions, provenance and the exact site diff. The full three-candidate audit must remain available even when only a subset is displayed.
 
+## Weather match tool
+
+`/tools/weather-match` ([runner tools](TOOLS.md)) is descriptive and separate from these estimates. For a typed forecast start temperature and 5–20 km pace, it lists editions whose supplied start-hour temperature is within ±2 or ±3 °C. Each edition needs at least 20 finishes in the 15 s/km pace band; a row needs 3 editions and 100 finishes. The tool shows the edition-balanced sustained-slowdown share and finish percentiles beside an 8–12 °C reference row. The two rows are never subtracted into a heat penalty or an adjusted time. Its separate Published research panel shows Ely et al. 2007, Mantzios et al. 2022, Hadley's table and RunnersConnect's dew-point bands as cited ranges. Mantzios is 0.2% per °C WBGT above 15 °C for marathon top finishers and 0.4% across all endurance events. Hadley and RunnersConnect are rules of thumb. None of these figures is fitted to Pace Notes data, combined with it, or passed to the pace band or any other tool. The withheld humidity result is not used.
+
 ## Current calculation evidence
 
 All 53 Python tests passed. The explicit-tag [weather workflow](https://github.com/koolkam00/htw-live-study/actions/runs/34698526747) succeeded on reviewed code commit `1325f105c550c5d943140c9395d5075db9c7c448`. Its artifact SHA-256 is `774b18aef78d75d6df0b30280bf721de8735578855f6cdc740ac2e526e12c392`. Warming and wind pass the unchanged gate; humidity remains withheld. Source, import and deployment evidence are recorded in [the refresh record](REFRESH_20260912_0934.md).

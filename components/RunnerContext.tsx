@@ -5,6 +5,7 @@ import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip,
 import { distanceLabel, distanceValue, elevationLabel, paceLabel, paceValue, unitText, type UnitSystem } from '@/lib/units';
 import { runnerDuration, runnerMetrics, type RunnerManifest, type RunnerMetrics, type RunnerRace } from '@/lib/runner-search';
 import { UnitLink } from './UnitsProvider';
+import { splitCheckHref } from '@/lib/tools/links';
 import { loadRaceInsights, runnerAgeBand, runnerGender, type ComparisonKey, type PeerComparison, type RaceInsights, type RunnerTerrain, type RunnerWeather } from '@/lib/runner-context';
 
 const count = (value: number) => value.toLocaleString('en-US');
@@ -25,6 +26,7 @@ export const defaultGroup = (race: RunnerRace): ComparisonKey => runnerAgeBand(r
 export function PacingReadings({ race, metrics, manifest, units }: MeasuredRace & { manifest: RunnerManifest; units: UnitSystem }) {
   const id = useId();
   const max = Math.max(...metrics.sections.map(section => section.pace));
+  const splitHref = splitCheckHref(metrics.sections.map(section => section.cumulative), manifest.editions[race.edition]?.city);
   return <section aria-labelledby={`${id}-title`}>
     <h3 id={`${id}-title`}>Late in this race, your pace was {difference(metrics.lateChange)} your early pace.</h3>
     <p className="rc-copy">The opening section was {difference(metrics.openingChange)} the early baseline. These comparisons describe the recorded paces; they do not establish why your pace changed.</p>
@@ -39,6 +41,7 @@ export function PacingReadings({ race, metrics, manifest, units }: MeasuredRace 
     <details className="rc-details"><summary>See exact checkpoint readings</summary><p className="rc-note">Elapsed and section times are shown to the nearest millisecond. Displayed pace is rounded to the nearest second per {units === 'mi' ? 'mile' : 'kilometre'}.</p>
       <div className="rc-table-wrap" role="region" aria-label="Recorded checkpoints" tabIndex={0}><table><caption className="sr-only">Recorded elapsed times and calculated section paces</caption><thead><tr><th scope="col">Checkpoint</th><th scope="col">Elapsed</th><th scope="col">Section time</th><th scope="col">Section pace</th></tr></thead><tbody>{metrics.sections.map(section => <tr key={section.end}><th scope="row">{distanceLabel(section.end, units)}</th><td>{runnerDuration(section.cumulative)}</td><td>{runnerDuration(section.elapsed)}</td><td>{paceLabel(section.pace, units)}</td></tr>)}</tbody></table></div>
     </details>
+    {splitHref && <p className="rc-note"><UnitLink href={splitHref}>Read this race in the split check</UnitLink>: section paces against the 5–20 km pace, the sustained-slowdown reading and finishes in the same five-minute window.</p>}
   </section>;
 }
 

@@ -18,6 +18,7 @@ The primary ten are accompanied by any weather candidates that pass the fixed sc
 | --- | --- | --- |
 | / | app/page.tsx; HeroReplay, story chapters, AnalysisIndex | Race-replay hero, five story chapters, then the ranked ten analyses |
 | /stories and /stories/[slug] | app/stories; lib/stories.ts; components/story/bodies | Seven data stories built from `public/data/insights` ([data stories](STORIES.md)) |
+| /tools and /tools/[tool] | app/tools; lib/tools/registry.ts; components/tools | Eight runner tools: pace calculator, predictor, pace band, course chooser, weather match, race-day projector, split check, qualifying checker ([runner tools](TOOLS.md)) |
 | /analyses | app/analyses/page.tsx; AnalysisIndex | Primary ten-question directory |
 | /analyses/[slug] | app/analyses/[slug]/page.tsx; AnalysisExplorer / AnalysisChart | One primary question, supported controls, observed results and methods |
 | /about | app/about/page.tsx | Study purpose and interpretation |
@@ -111,3 +112,7 @@ The homepage distinguishes raw race records from analyzed finishes. Both totals 
 ## Visual system and stories
 
 The redesign is documented in [the design system](DESIGN_SYSTEM.md). Fonts are self-hosted with `@fontsource-variable`. Story charts are hand-drawn SVG or Canvas components in `components/story`, `components/viz` and `components/art`. Recharts remains in the legacy analysis components, which were retheme-only changes. Story data is read at build time and verified by `lib/insights-server.ts`. Replay samples load in the browser through `lib/insights.ts`, which checks each file's SHA-256 against the manifest. A story page is generated only when its file is in the verified manifest.
+
+## Runner tools
+
+`/tools` holds eight client-side tools, each a static route under `app/tools/<slug>` with a client component in `components/tools`. They share the tool shell and inputs (`ToolShell`, `ui.tsx`), shareable URL state (`useQueryState`) and pure libraries in `lib/tools`. The data tools read the `tools/*` insights files in the browser through `loadInsight` and `loadShard`, which check SHA-256 against the manifest and the index's `shards` map. The index page lists a data tool only when its file is in the verified manifest. Panels of Pace Notes data, published research and official standards carry a badge; plain calculations carry none. Methods, data families, validation, privacy and the annual qualifying review are in [runner tools](TOOLS.md). The nav's first link is Tools; the footer links Runner tools.

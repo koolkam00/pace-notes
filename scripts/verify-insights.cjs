@@ -220,7 +220,7 @@ assert.deepEqual(present.filter(file => !(file in manifest.files)).sort(), [], '
 assert.deepEqual(listed.filter(file => !present.includes(file)), [], 'Listed insights files are missing');
 const docs = new Map();
 for (const file of listed) {
-  assert.match(file, /^[a-z0-9]+(-[a-z0-9]+)*(\/[a-z0-9]+(-[a-z0-9]+)*)?\.json$/, `${file}: published path`);
+  assert.match(file, /^[a-z0-9]+(-[a-z0-9]+)*(\/[a-z0-9]+(-[a-z0-9]+)*)?\.json$|^tools\/[a-z0-9]+(-[a-z0-9]+)*(\/[a-z0-9]+(-[a-z0-9]+)*){0,2}\.json$/, `${file}: published path`);
   const meta = manifest.files[file], bytes = fs.readFileSync(path.join(input, file));
   assert.deepEqual(Object.keys(meta).sort(), ['bytes', 'sha256'], `${file}: file metadata`);
   assert.equal(bytes.length, meta.bytes, `${file}: bytes`);
@@ -234,14 +234,33 @@ const modules = { 'finish-times': 'insights_round.py', replay: 'insights_replay.
 for (const [family, module] of Object.entries(modules)) {
   assert.equal(`${family}.json` in manifest.files, module in manifest.scripts, `${family}.json is published exactly when ${module} is bound`);
 }
+// Runner tools: family 'tool-x' publishes tools/x.json (an index listing every shard under tools/x/ with its SHA-256).
+const toolModules = { 'tool-projector': ['tools/projector.json', 'insights_tool_projector.py'], 'tool-pace-band': ['tools/pace-band.json', 'insights_tool_paceband.py'],
+  'tool-weather-match': ['tools/weather-match.json', 'insights_tool_weather.py'], 'tool-course-goal': ['tools/course-goal.json', 'insights_tool_coursegoal.py'] };
+for (const [family, [file, module]] of Object.entries(toolModules)) {
+  assert.equal(file in manifest.files, module in manifest.scripts, `${file} is published exactly when ${module} is bound`);
+}
+const familyOf = file => {
+  const parts = file.split('/');
+  if (parts[0] === 'tools') return { family: `tool-${parts[1].replace(/\.json$/, '')}`, index: `tools/${parts[1].replace(/\.json$/, '')}.json`, shard: parts.length > 2 };
+  return { family: parts[1] ? parts[0] : parts[0].replace(/\.json$/, ''), index: `${parts[0].replace(/\.json$/, '')}.json`, shard: parts.length > 1 };
+};
 const families = new Map();
 for (const [file, doc] of docs) {
   if (file === 'course-geometry.json') continue;
-  const [first, second] = file.split('/'), family = second ? first : first.replace(/\.json$/, '');
+  const { family, index, shard } = familyOf(file);
   assert.equal(doc.family, family, `${file}: family label`);
   assert.equal(doc.release_tag, pin.tag, `${file}: release`);
   assert.equal(doc.runner_manifest_sha256, runnerSha, `${file}: exact runner manifest`);
-  if (second) { assert.ok(`${family}.json` in manifest.files, `${file}: belongs to a listed family`); continue; }
+  if (shard) {
+    assert.ok(index in manifest.files, `${file}: belongs to a listed family`);
+    if (family.startsWith('tool-')) assert.equal(docs.get(index).shards?.[file], manifest.files[file].sha256, `${file}: listed with its SHA-256 in ${index}`);
+    continue;
+  }
+  if (family.startsWith('tool-')) {
+    const listedShards = Object.keys(doc.shards || {}), onDisk = listed.filter(f => f.startsWith(file.replace(/\.json$/, '/')));
+    assert.deepEqual(listedShards.sort(), onDisk.sort(), `${file}: index lists exactly its shards`);
+  }
   for (const key of ['schema_version', 'input_as_of', 'runner_manifest_as_of', 'eligible_records', 'analysis_n', 'duplicate_edition_screen']) {
     assert.deepEqual(doc[key], manifest[key], `${file}: shared provenance ${key}`);
   }
@@ -277,12 +296,18 @@ function scan(value, where, key) {
   if (Array.isArray(value)) return value.forEach((item, i) => scan(item, `${where}[${i}]`, key));
   if (value && typeof value === 'object') {
     for (const [name, item] of Object.entries(value)) {
-      if (identityKey.test(name)) {
+      if (name === 'id' && where.startsWith('tools/weather-match.json.editions[')) {
+        assert.equal(item, Number(where.match(/\[(\d+)\]$/)[1]), `${where}.id: edition row index`);
+      } else if (identityKey.test(name)) {
         // Only the archetype labels may use a name field; anything else could carry a runner identity.
         const values = Array.isArray(item) ? item : [item];
         assert.ok(['name', 'names'].includes(name) && values.every(x => labelNames.has(x)), `${where}.${name}: record identifier or name field`);
       }
-      if (groupKey(name) && typeof value.reason !== 'string') assert.ok(finite(item) && item >= MIN_CELL, `${where}.${name}: published group below ${MIN_CELL} finishes`);
+      if (groupKey(name) && typeof value.reason !== 'string') {
+        // Tool shards store column arrays: one entry per published cell.
+        const values = Array.isArray(item) ? item : [item];
+        assert.ok(values.length && values.every(x => finite(x) && x >= MIN_CELL), `${where}.${name}: published group below ${MIN_CELL} finishes`);
+      }
       scan(item, `${where}.${name}`, name);
     }
     return;
@@ -1046,7 +1071,208 @@ function checkKick(doc) {
   return { cohort_n: n, grid_screen: grid.length, faster, slowdown_n: slow, warning_rows: sum(doc.warning.map(b => b.rows.length)), cost_bands: doc.cost.bands.length };
 }
 
-const checkers = { 'finish-times': checkFinishTimes, archetypes: checkArchetypes, positions: checkPositions, demographics: checkDemographics, replay: checkReplay, courses: checkCourses, kick: checkKick };
+// 11. Runner tools: the final-kick cohort (story cohort without start-offset and grid-screened editions).
+let toolEditionCache = null;
+function toolEditions() {
+  if (toolEditionCache) return toolEditionCache;
+  const pace = (o, k) => (times[o + k] - (k ? times[o + k - 1] : 0)) / lengths[k];
+  const grid = new Set();
+  for (const e of shapeEditions) {
+    const rows = rowsOf(e);
+    if (rows.length < MIN_CELL) continue;
+    const kicks = new Float64Array(rows.length), secs = [4, 5, 6, 7].map(() => new Float64Array(rows.length));
+    rows.forEach((i, j) => { const o = i * 9, base = (times[o + 3] - times[o]) / 15; kicks[j] = pace(o, 8) / pace(o, 7) - 1; secs.forEach((a, k) => { a[j] = pace(o, k + 4) / base - 1; }); });
+    if (median(kicks) < -0.15 || Math.min(...secs.map(median)) < -0.05) grid.add(e);
+  }
+  toolEditionCache = shapeEditions.filter(e => !grid.has(e) && storyCount[e] > 0);
+  return toolEditionCache;
+}
+const slugify = name => name.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+// numpy.quantile (linear) on a sorted array
+const npQuantile = (sorted, p) => { const h = (sorted.length - 1) * p, lo = Math.floor(h); return lo + 1 < sorted.length ? sorted[lo] + (h - lo) * (sorted[lo + 1] - sorted[lo]) : sorted[lo]; };
+const toolSlowdown = o => sustained(times, o);
+function onsetKm(o) {
+  const base = (times[o + 3] - times[o]) / 15;
+  for (let k = 4; k < 8; k++) if ((times[o + k] - times[o + k - 1]) / 5 / base - 1 + 1e-12 >= .25) return 20 + 5 * (k - 4);
+  return -1;
+}
+function toolCohortCheck(doc, label) {
+  const eds = toolEditions(), n = sum(eds.map(e => storyCount[e]));
+  assert.equal(doc.cohort_n, n, `${label}: tool cohort is the final-kick cohort`);
+  return eds;
+}
+
+function checkProjector(doc) {
+  const eds = toolCohortCheck(doc, 'Projector');
+  const MATS = [5, 10, 15, 20, 25, 30, 35, 40], VARIANTS = ['all', 'men', 'women', 'faster', 'similar', 'slower'];
+  const slugOf = new Map(eds.map(e => [e, slugify(editions[e].city)]));
+  let cells = 0, sampled = 0;
+  for (let k = 0; k < 8; k++) {
+    const km = MATS[k], counts = new Map(), sample = new Map();
+    eachRow(eds, (i, e) => {
+      const o = i * 9, t = times[o + k], band = Math.floor(t * 42.195 / km / 120);
+      const variants = ['all'];
+      if (genderOf[i] === 1) variants.push('men'); else if (genderOf[i] === 2) variants.push('women');
+      if (k > 0) { const r = ((t - times[o + k - 1]) / 5) / (t / km) - 1; variants.push(r < -0.02 ? 'faster' : Math.abs(r) <= 0.02 ? 'similar' : 'slower'); }
+      for (const scope of ['all', slugOf.get(e)]) for (const v of variants) {
+        if (scope !== 'all' && (v === 'men' || v === 'women')) continue;
+        const key = `${scope}|${v}|${band}`, c = counts.get(key) || { n: 0, eds: new Set() };
+        c.n++; c.eds.add(e); counts.set(key, c);
+      }
+      if (km === 20 || km === 30) { const key = band; const list = sample.get(key) || []; list.push(i); sample.set(key, list); }
+    });
+    // every published cell matches the recount; every recount group of 100+ is published
+    const published = new Set();
+    for (const [file, sha] of Object.entries(doc.shards)) {
+      const m = file.match(/^tools\/projector\/([a-z0-9-]+)\/(\d+)\.json$/);
+      assert.ok(m, `${file}: projector shard path`);
+      if (Number(m[2]) !== km) continue;
+      const shard = docs.get(file);
+      assert.equal(shard.mat_km, km); assert.equal(shard.scope, m[1]); assert.equal(shard.band_s, 120);
+      for (const [v, col] of Object.entries(shard.cells)) {
+        assert.ok(VARIANTS.includes(v), `${file}: variant ${v}`);
+        col.b.forEach((b, j) => {
+          const c = counts.get(`${m[1]}|${v}|${b / 120}`);
+          assert.ok(c, `${file} ${v} ${b}: band exists in the cohort`);
+          assert.equal(col.n[j], c.n, `${file} ${v} ${b}: finishes`); assert.equal(col.ed[j], c.eds.size, `${file} ${v} ${b}: editions`);
+          assert.equal(col.q[j].length, 19); assert.ok(col.q[j].every((x, h) => !h || x >= col.q[j][h - 1]), `${file} ${v} ${b}: percentiles increase`);
+          assert.equal(col.later[j].length, 7 - k, `${file} ${v} ${b}: later mats`);
+          published.add(`${m[1]}|${v}|${b / 120}`); cells++;
+        });
+      }
+    }
+    for (const [key, c] of counts) if (c.n >= MIN_CELL) assert.ok(published.has(key), `Projector ${km} km ${key}: a group of ${c.n} finishes is missing`);
+    if (km === 20 || km === 30) {
+      // Exact percentiles, slowdown split and remaining pace for every All-courses, all-finishes cell at 20 and 30 km.
+      const col = docs.get(`tools/projector/all/${km}.json`).cells.all;
+      col.b.forEach((b, j) => {
+        const rows = sample.get(b / 120); const fin = Float64Array.from(rows, i => times[i * 9 + 8]).sort();
+        doc.quantiles.forEach((p, h) => assert.ok(Math.abs(col.q[j][h] - npQuantile(fin, p)) <= 0.51, `Projector ${km} km ${b}: p${Math.round(p * 100)}`));
+        let already = 0, later = 0;
+        const rem = Float64Array.from(rows, i => (times[i * 9 + 8] - times[i * 9 + k]) / (42.195 - km)).sort();
+        rows.forEach(i => { const on = onsetKm(i * 9); if (on >= 0) { if (on + 5 <= km) already++; else later++; } });
+        near(col.sd[j][0], already / rows.length, `Projector ${km} km ${b}: slowdown already recorded`, 1e-4);
+        near(col.sd[j][1], later / rows.length, `Projector ${km} km ${b}: slowdown after this mat`, 1e-4);
+        near(col.rp[j], npQuantile(rem, 0.5), `Projector ${km} km ${b}: median remaining pace`, 0.051);
+        sampled++;
+      });
+    }
+  }
+  assert.ok(doc.validation.length >= 15 && doc.validation.every(v => v.coverage_p10_p90 > 0.7 && v.coverage_p10_p90 < 0.9), 'Projector held-out validation is reported');
+  return { cells, sampled_exact: sampled, scopes: doc.scopes.length, validation_rows: doc.validation.length };
+}
+
+function checkPaceBand(doc) {
+  const eds = toolCohortCheck(doc, 'Pace band');
+  const counts = new Map(), slugOf = new Map(eds.map(e => [e, slugify(editions[e].city)]));
+  const SAMPLE = new Set([180, 210, 240, 270, 300]), sample = new Map();
+  eachRow(eds, (i, e) => {
+    const o = i * 9, F = times[o + 8], slow = toolSlowdown(o) ? 'slowdown' : 'held';
+    const g = genderOf[i] === 1 ? 'men' : genderOf[i] === 2 ? 'women' : null;
+    for (let G = Math.floor(F / 60) + 1; G * 60 - 300 <= F; G++) {
+      if (G < 150 || G > 390) continue;
+      for (const scope of ['all', slugOf.get(e)]) for (const gender of g ? ['all', g] : ['all']) for (const group of ['all', slow]) {
+        const key = `${scope}|${gender}|${group}|${G}`; counts.set(key, (counts.get(key) || 0) + 1);
+      }
+      if (SAMPLE.has(G)) { const list = sample.get(G) || []; list.push(i); sample.set(G, list); }
+    }
+  });
+  let groups = 0;
+  const published = new Set();
+  for (const file of Object.keys(doc.shards)) {
+    const m = file.match(/^tools\/pace-band\/([a-z0-9-]+)\/(all|men|women)\.json$/);
+    assert.ok(m, `${file}: pace band shard path`);
+    const shard = docs.get(file);
+    assert.equal(shard.window_s, 300);
+    for (const [group, col] of Object.entries(shard.groups)) {
+      col.g.forEach((G, j) => {
+        assert.equal(col.n[j], counts.get(`${m[1]}|${m[2]}|${group}|${G}`), `${file} ${group} ${G}: finishes in [G − 5:00, G)`);
+        assert.equal(col.e50[j].length, 9); assert.ok(col.e50[j].every((x, h) => !h || x > col.e50[j][h - 1]), `${file} ${group} ${G}: elapsed medians increase`);
+        published.add(`${m[1]}|${m[2]}|${group}|${G}`); groups++;
+      });
+    }
+  }
+  // A goal is listed when its all-finishes window has 100+; held and slowdown appear only where they reach 100 on their own.
+  for (const [key, n] of counts) {
+    const [scope, gender, group, G] = key.split('|');
+    if (n >= MIN_CELL && (group === 'all' || (counts.get(`${scope}|${gender}|all|${G}`) || 0) >= MIN_CELL)) assert.ok(published.has(key), `Pace band ${key}: a group of ${n} finishes is missing`);
+  }
+  const all = docs.get('tools/pace-band/all/all.json').groups.all;
+  for (const [G, rows] of sample) {
+    const j = all.g.indexOf(G);
+    assert.ok(j >= 0, `Pace band ${G}: sampled goal is published`);
+    for (let k = 0; k < 9; k++) {
+      const v = Float64Array.from(rows, i => times[i * 9 + k]).sort();
+      assert.ok(Math.abs(all.e50[j][k] - npQuantile(v, 0.5)) <= 0.51, `Pace band ${G}: median elapsed at point ${k}`);
+    }
+    near(all.sd[j], rows.filter(i => toolSlowdown(i * 9)).length / rows.length, `Pace band ${G}: sustained-slowdown share`, 1e-4);
+  }
+  return { groups, sampled_goals: sample.size };
+}
+
+function toolWeather(eds) {
+  const weather = contextWeather(eds), out = new Map();
+  for (const e of eds) {
+    const w = weather.get(e);
+    if (w && foldName(w.weather_race) === foldName(editions[e].race || '')) out.set(e, w);
+  }
+  return out;
+}
+
+function checkWeatherMatch(doc) {
+  const eds = toolCohortCheck(doc, 'Weather match'), valid = toolWeather(eds);
+  assert.deepEqual(doc.editions.map(r => [r.city, r.year]), eds.filter(e => valid.has(e)).map(e => [editions[e].city, editions[e].year]), 'Weather match: editions with a valid, matching weather row');
+  const byId = doc.editions.map(r => editionIndex.get(editionKey(r.city, r.year)));
+  doc.editions.forEach((r, j) => near(r.temp_c, Math.round(valid.get(byId[j]).temp_c * 10) / 10, `${r.city} ${r.year}: start temperature`, 1e-9));
+  const per = new Map();
+  for (const e of byId) {
+    const bands = new Map();
+    for (const i of rowsOf(e)) {
+      const o = i * 9, base = (times[o + 3] - times[o]) / 15, k = Math.floor((base - 180) / 15);
+      if (k < 0 || k >= 33) continue;
+      const b = bands.get(k) || []; b.push(i); bands.set(k, b);
+    }
+    per.set(e, bands);
+  }
+  const expected = [];
+  for (let c = -2; c <= 28; c++) for (const hw of [2, 3]) for (let k = 0; k < 33; k++) {
+    const matched = byId.map((e, id) => [e, id]).filter(([e]) => Math.abs(valid.get(e).temp_c - c) <= hw + 1e-9 && (per.get(e).get(k)?.length || 0) >= 20);
+    const n = sum(matched.map(([e]) => per.get(e).get(k).length));
+    if (matched.length >= 3 && n >= MIN_CELL) expected.push({ c, hw, pace: 180 + 15 * k, n, ed: matched.map(([, id]) => id), sd: mean(matched.map(([e]) => per.get(e).get(k).filter(i => toolSlowdown(i * 9)).length / per.get(e).get(k).length)) });
+  }
+  assert.deepEqual(doc.rows.map(r => [r.c, r.hw, r.pace, r.n, r.ed]), expected.map(r => [r.c, r.hw, r.pace, r.n, r.ed]), 'Weather match rows, finishes and matched editions');
+  doc.rows.forEach((r, j) => near(r.sd, expected[j].sd, `Weather ${r.c}±${r.hw} °C, ${r.pace} s/km: edition-balanced slowdown share`, 1e-4));
+  return { editions: doc.editions.length, rows: doc.rows.length };
+}
+
+function checkCourseGoal(doc) {
+  const eds = toolCohortCheck(doc, 'Course goal');
+  const cities = [...new Set(eds.map(e => editions[e].city))].sort(byText);
+  const expectedRows = [], expectedGaps = [];
+  for (const city of cities) {
+    const cityEds = eds.filter(e => editions[e].city === city);
+    for (let G = 150; G <= 390; G += 5) {
+      const g = G * 60 / 42.195, parts = [];
+      for (const e of cityEds) {
+        const sel = Array.from(rowsOf(e)).filter(i => Math.abs(((times[i * 9 + 3] - times[i * 9]) / 15) / g - 1) <= 0.02);
+        if (sel.length >= 20) parts.push(sel);
+      }
+      const n = sum(parts.map(p => p.length));
+      if (parts.length < 3 || n < MIN_CELL) { expectedGaps.push([G, city]); continue; }
+      const pooled = parts.flat();
+      expectedRows.push({ goal: G, city, n, ed: parts.length, under: pooled.filter(i => times[i * 9 + 8] < G * 60).length / n,
+        sd: mean(parts.map(p => p.filter(i => toolSlowdown(i * 9)).length / p.length)) });
+    }
+  }
+  assert.deepEqual(doc.rows.map(r => [r.goal, r.city, r.n, r.ed]), expectedRows.map(r => [r.goal, r.city, r.n, r.ed]), 'Course goal rows');
+  doc.rows.forEach((r, j) => { near(r.under, expectedRows[j].under, `${r.city} ${r.goal}: under goal`, 1e-4); near(r.sd, expectedRows[j].sd, `${r.city} ${r.goal}: slowdown share`, 1e-4); });
+  assert.deepEqual(doc.unavailable.map(u => [u.goal, u.city]), expectedGaps, 'Course goal unavailable rows');
+  assert.deepEqual(doc.courses.map(c => c.city), cities, 'Course goal course list');
+  return { rows: doc.rows.length, unavailable: doc.unavailable.length };
+}
+
+const checkers = { 'finish-times': checkFinishTimes, archetypes: checkArchetypes, positions: checkPositions, demographics: checkDemographics, replay: checkReplay, courses: checkCourses, kick: checkKick,
+  'tool-projector': checkProjector, 'tool-pace-band': checkPaceBand, 'tool-weather-match': checkWeatherMatch, 'tool-course-goal': checkCourseGoal };
 const recounted = {}, genericOnly = [];
 for (const [family, doc] of families) {
   if (checkers[family]) recounted[family] = checkers[family](doc); else genericOnly.push(family);

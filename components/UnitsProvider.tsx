@@ -7,11 +7,13 @@ import { unitsFromSearch, withUnits } from '@/lib/unit-preference';
 import { trackAnalytics } from '@/lib/analytics';
 
 const STORAGE_KEY = 'marathon-study-units';
-const UnitsContext = createContext<{ units: UnitSystem; setUnits: (units: UnitSystem) => void }>({ units: DEFAULT_UNITS, setUnits: () => {} });
+/** `resolved` turns true once the URL and stored preference have been read; before that, units are only the default. */
+const UnitsContext = createContext<{ units: UnitSystem; setUnits: (units: UnitSystem) => void; resolved: boolean }>({ units: DEFAULT_UNITS, setUnits: () => {}, resolved: false });
 export const useUnits = () => useContext(UnitsContext);
 
 export default function UnitsProvider({ children }: { children: ReactNode }) {
   const [units, updateUnits] = useState<UnitSystem>(DEFAULT_UNITS);
+  const [resolved, setResolved] = useState(false);
   const pathname = usePathname();
   useEffect(() => {
     const restore = () => {
@@ -20,6 +22,7 @@ export default function UnitsProvider({ children }: { children: ReactNode }) {
       try { stored = window.localStorage.getItem(STORAGE_KEY); } catch { /* Storage may be unavailable. URL preference still works. */ }
       const next = requested || (stored === 'mi' || stored === 'km' ? stored : DEFAULT_UNITS);
       updateUnits(next);
+      setResolved(true);
       if (requested) { try { window.localStorage.setItem(STORAGE_KEY, requested); } catch {} }
     };
     restore();
@@ -32,13 +35,13 @@ export default function UnitsProvider({ children }: { children: ReactNode }) {
     try { window.localStorage.setItem(STORAGE_KEY, next); } catch {}
     window.history.replaceState(window.history.state, '', withUnits(window.location.pathname + window.location.search + window.location.hash, next));
   }, []);
-  return <UnitsContext.Provider value={{ units, setUnits }}>{children}</UnitsContext.Provider>;
+  return <UnitsContext.Provider value={{ units, setUnits, resolved }}>{children}</UnitsContext.Provider>;
 }
 
 export function UnitSwitch() {
   const { units, setUnits } = useUnits();
   const path = usePathname();
-  if (path !== '/' && path !== '/about' && path !== '/slowdown' && path !== '/htw' && !['/analyses', '/runners', '/packs', '/courses', '/stories'].some(route => path === route || path.startsWith(route + '/'))) return <div className="unit-switch unit-switch-placeholder" aria-hidden="true"><button type="button" tabIndex={-1}>Miles</button><button type="button" tabIndex={-1}>Kilometres</button></div>;
+  if (path !== '/' && path !== '/about' && path !== '/slowdown' && path !== '/htw' && !['/analyses', '/runners', '/packs', '/courses', '/stories', '/tools'].some(route => path === route || path.startsWith(route + '/'))) return <div className="unit-switch unit-switch-placeholder" aria-hidden="true"><button type="button" tabIndex={-1}>Miles</button><button type="button" tabIndex={-1}>Kilometres</button></div>;
   return <div className="unit-switch" role="group" aria-label="Distance and pace units">
     <button type="button" aria-pressed={units === 'mi'} onClick={() => setUnits('mi')}>Miles</button>
     <button type="button" aria-pressed={units === 'km'} onClick={() => setUnits('km')}>Kilometres</button>
@@ -55,7 +58,11 @@ export function MarathonDistance() {
   return <>{units === 'mi' ? '26.2 miles' : '42.195 km'}</>;
 }
 
+/**
+ * A link that carries the visitor's units. Until the preference is read (server HTML and the first client render) it
+ * adds no units, so a click before hydration falls back to the stored preference instead of forcing the default.
+ */
 export function UnitLink({ href, prefetch = false, ...props }: ComponentProps<typeof Link>) {
-  const { units } = useUnits();
-  return <Link {...props} prefetch={prefetch} href={typeof href === 'string' ? withUnits(href, units) : href} />;
+  const { units, resolved } = useUnits();
+  return <Link {...props} prefetch={prefetch} href={typeof href === 'string' && resolved ? withUnits(href, units) : href} />;
 }

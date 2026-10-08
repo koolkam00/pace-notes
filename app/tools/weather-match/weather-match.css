@@ -1,0 +1,182 @@
+/* ==========================================================================
+   Weather match (/tools/weather-match). Every class is prefixed weather-match-.
+   Built on the shared tool workspace in app/tools/tools.css.
+   Warm (your window) = orange, solid line, circles. Reference = blue, dashed line, squares.
+   ========================================================================== */
+
+.weather-match { --tool: #F4B23E; --wm-warm-night: #FF9A73; --wm-cool-night: #9DB6FB; --wm-violet: #5B34D6; --wm-violet-line: #E3DBFA; }
+
+/* ---------- Inputs ---------- */
+
+.weather-match-label-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .4rem .6rem; }
+.weather-match-label-row > label { font-size: .8125rem; font-weight: 600; color: var(--ink-2); }
+.weather-match-label-row .tool-choice { width: auto; }
+.weather-match-inputs .tool-choice.is-small button { min-height: 32px; }
+.weather-match-optional { margin-left: .3rem; font-family: var(--mono); font-size: .625rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.weather-match-temp { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: .5rem; }
+.weather-match-nudge { width: 44px; padding: 0; font-size: 1.3rem; font-weight: 500; }
+.weather-match-num { position: relative; min-width: 0; }
+.weather-match-num input { padding-right: 2.8rem; font-family: var(--mono); font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.weather-match-num.is-large input { min-height: 58px; padding-left: 2.8rem; font-family: var(--bib); font-size: 1.7rem; font-weight: 650; letter-spacing: -.01em; text-align: center; }
+.weather-match-num > span { position: absolute; top: 50%; right: .85rem; transform: translateY(-50%); font-family: var(--mono); font-size: .875rem; font-weight: 600; color: var(--ink-3); pointer-events: none; }
+.weather-match-num input[aria-invalid='true'] { border-color: var(--rose); box-shadow: 0 0 0 3px rgba(226, 65, 107, .14); }
+.weather-match-slider { width: 100%; margin-top: .1rem; }
+
+/* ---------- Headline ---------- */
+.weather-match-headline { grid-template-columns: minmax(0, 1fr); gap: 1.1rem; }
+.weather-match-head { display: grid; gap: .45rem; }
+.weather-match-head .evidence-badge { justify-self: start; margin-bottom: .15rem; }
+.weather-match-kicker { font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+.weather-match-title { font-family: var(--serif); font-variation-settings: 'opsz' 96, 'SOFT' 40; font-size: clamp(1.5rem, 3.6vw, 2.15rem); font-weight: 640; line-height: 1.1;
+  letter-spacing: -.015em; color: var(--night-ink); }
+.weather-match-group { max-width: 46rem; font-size: .875rem; line-height: 1.55; color: var(--night-ink-2); }
+.weather-match-group p + p { margin-top: .55rem; }
+.weather-match-widen { justify-self: start; min-height: 40px; margin-top: .2rem; padding: .35rem .95rem; border-color: var(--night-3); background: transparent; color: var(--night-ink);
+  font-size: .8125rem; font-weight: 600; }
+.weather-match-widen:hover { border-color: var(--gold); color: var(--gold); }
+.weather-match-widen[aria-pressed='true'] { border-color: var(--gold); background: var(--gold); color: var(--ink); }
+.weather-match-widen:focus-visible { outline-color: var(--gold); }
+.weather-match-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .8rem; margin-top: .2rem; }
+.weather-match-actions .weather-match-widen { margin-top: 0; }
+.weather-match-actions span { font-size: .8125rem; color: var(--night-ink-2); }
+.weather-match-error { display: grid; justify-items: start; gap: .7rem; }
+
+.weather-match-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+.weather-match-cols.is-single { grid-template-columns: minmax(0, 1fr); }
+.weather-match-col { container-type: inline-size; min-width: 0; padding: .9rem 1rem 1rem; border: 1px solid var(--night-3); border-top: 3px solid var(--wm-warm-night); border-radius: 14px;
+  background: var(--night-2); }
+.weather-match-col.is-cool { border-top: 3px dashed var(--wm-cool-night); }
+.weather-match-col-title { display: flex; align-items: center; gap: .45rem; font-size: .9375rem; font-weight: 700; line-height: 1.25; color: var(--night-ink); }
+.weather-match-col-title i { flex-shrink: 0; width: 18px; border-top: 3px solid var(--wm-warm-night); }
+.weather-match-col.is-cool .weather-match-col-title i { border-top: 2px dashed var(--wm-cool-night); }
+.weather-match-col-sub { margin-top: .2rem; font-size: .75rem; line-height: 1.45; color: var(--night-ink-2); }
+.weather-match-col dl { display: grid; gap: .8rem; margin: .85rem 0 0; }
+.weather-match-col dl > div { display: grid; align-content: start; gap: .15rem; min-width: 0; }
+.weather-match-col dt { font-family: var(--mono); font-size: .625rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+.weather-match-col dd { margin: 0; font-family: var(--bib); font-size: clamp(1.55rem, 3.4vw, 2.1rem); font-weight: 720; line-height: 1.05; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums; color: var(--night-ink); }
+.weather-match-col dd.weather-match-dd-sub { font-family: var(--sans); font-size: .75rem; font-weight: 400; line-height: 1.35; letter-spacing: 0; color: var(--night-ink-2); }
+@container (min-width: 22rem) {
+  .weather-match-col dl { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; }
+}
+.weather-match-foot { padding-top: .15rem; font-size: .8125rem; line-height: 1.5; color: var(--night-ink-2); }
+
+/* ---------- Charts ---------- */
+.weather-match-figure { margin: 0; }
+.weather-match-chart, .weather-match-strip { margin: .2rem 0 .4rem; }
+.weather-match-legend { display: flex; flex-wrap: wrap; gap: .35rem 1.1rem; list-style: none; margin: 0 0 .5rem; padding: 0; font-size: .75rem; line-height: 1.35; color: var(--ink-3); }
+.weather-match-legend.is-strip { margin: .1rem 0 0; }
+.weather-match-legend li { display: inline-flex; align-items: center; gap: .45rem; }
+.weather-match-legend i { position: relative; display: inline-block; flex-shrink: 0; }
+.weather-match-legend i.is-warm-line { width: 24px; border-top: 2.6px solid var(--orange); }
+.weather-match-legend i.is-warm-line::after { content: ''; position: absolute; left: 8px; top: -5.3px; width: 8px; height: 8px; border-radius: 50%; background: var(--orange); }
+.weather-match-legend i.is-cool-line { width: 24px; border-top: 2px dashed var(--blue); }
+.weather-match-legend i.is-cool-line::after { content: ''; position: absolute; left: 8px; top: -5px; width: 8px; height: 8px; box-sizing: border-box; border: 1.8px solid var(--blue); background: var(--card); }
+.weather-match-legend i.is-dot, .weather-match-legend i[class^='is-dot-'] { width: 9px; height: 9px; border-radius: 50%; background: var(--line-2); }
+.weather-match-legend i.is-dot-warm { background: var(--orange); }
+.weather-match-legend i.is-dot-ink { background: var(--ink-2); }
+.weather-match-legend i.is-dot-ring { box-sizing: border-box; border: 2px solid var(--ink); background: var(--card); }
+.weather-match-legend i.is-zone-warm, .weather-match-legend i.is-zone-cool { width: 16px; height: 11px; border-radius: 2px; background: rgba(255, 91, 46, .18); }
+.weather-match-legend i.is-zone-cool { background: rgba(47, 91, 255, .13); }
+.weather-match-chart .weather-match-baseline-zone { fill: var(--paper-2); opacity: .75; }
+.weather-match-chart .weather-match-end { font-size: 12px; paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }
+.weather-match-chart .weather-match-end.is-warm { fill: var(--orange-ink); }
+.weather-match-chart .weather-match-end.is-cool { fill: var(--blue-ink); }
+.weather-match-strip .weather-match-zone.is-warm { fill: rgba(255, 91, 46, .14); }
+.weather-match-strip .weather-match-zone.is-cool { fill: rgba(47, 91, 255, .09); }
+.weather-match-strip .weather-match-dot { fill: var(--line-2); }
+.weather-match-strip .weather-match-dot.is-warm { fill: var(--orange); stroke: var(--card); stroke-width: 1; }
+.weather-match-strip .weather-match-dot.is-ink { fill: var(--ink-2); stroke: var(--card); stroke-width: 1; }
+.weather-match-strip .weather-match-dot.is-ring { fill: var(--card); stroke: var(--ink); stroke-width: 1.8; }
+.weather-match-strip .annotation { paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }
+.weather-match-details { margin-top: .3rem; border-top: 1px solid var(--line); }
+.weather-match-details summary { display: flex; align-items: center; min-height: 44px; font-size: .875rem; font-weight: 600; color: var(--ink-2); }
+.weather-match-details[open] summary { margin-bottom: .2rem; }
+
+/* ---------- Comparison table ---------- */
+.weather-match-compare { margin-top: 1.1rem; }
+.weather-match-compare th { white-space: normal; vertical-align: bottom; line-height: 1.35; }
+.weather-match-compare td { white-space: nowrap; vertical-align: top; }
+.weather-match-compare tbody th { white-space: normal; vertical-align: top; }
+.weather-match-compare th small { display: block; margin-top: .2rem; font-family: var(--mono); font-size: .6875rem; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--ink-3); white-space: nowrap; }
+.weather-match-compare td small { display: block; margin-top: .1rem; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
+.weather-match-compare tbody th { min-width: 8rem; font-size: .8125rem; font-weight: 500; line-height: 1.4; }
+.weather-match-key { display: inline-block; width: 16px; margin-right: .4rem; border-top: 2.6px solid var(--orange); vertical-align: middle; }
+.weather-match-key.is-cool { border-top: 2px dashed var(--blue); }
+
+/* ---------- Race chips ---------- */
+.weather-match-chipset { margin-top: .5rem; }
+.weather-match-chips { display: flex; flex-wrap: wrap; gap: .4rem; list-style: none; margin: .4rem 0 0; padding: 0; }
+.weather-match-chips button { display: inline-flex; align-items: baseline; gap: .45rem; min-height: 36px; padding: .3rem .75rem; border-color: transparent; border-radius: 999px;
+  background: var(--paper-2); font-size: .8125rem; font-weight: 500; line-height: 1.2; }
+.weather-match-chips button:hover { border-color: var(--line-2); }
+.weather-match-chips button b { font-weight: 650; }
+.weather-match-chips button span { font-family: var(--mono); font-size: .75rem; font-variant-numeric: tabular-nums; color: var(--ink-3); }
+.weather-match-chips button[aria-expanded='true'] { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+.weather-match-chips button[aria-expanded='true'] span { color: var(--gold); }
+.weather-match-chips .weather-match-more { border: 1px dashed var(--line-2); background: transparent; color: var(--ink-2); font-weight: 600; }
+.weather-match-chip-hint { margin-top: .6rem; font-size: .75rem; color: var(--ink-3); }
+.weather-match-detail { position: relative; margin-top: .8rem; padding: .9rem 1rem 1rem; border-radius: 14px; background: var(--paper-2); }
+.weather-match-detail-title { padding-right: 4.8rem; font-size: .9375rem; line-height: 1.45; }
+.weather-match-detail-title span { color: var(--ink-3); }
+.weather-match-detail dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 7.5rem), 1fr)); gap: .7rem 1rem; margin: .7rem 0 0; }
+.weather-match-detail dt { font-family: var(--mono); font-size: .625rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.weather-match-detail dd { margin: .15rem 0 0; font-family: var(--mono); font-size: .9375rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.weather-match-detail dd small { font-size: .75rem; font-weight: 400; color: var(--ink-3); }
+.weather-match-close { position: absolute; top: .55rem; right: .55rem; min-height: 34px; padding: .2rem .75rem; font-size: .75rem; }
+
+/* ---------- Published research ---------- */
+.weather-match-conditions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; }
+.weather-match-conditions > div { display: grid; align-content: start; gap: .2rem; min-width: 0; padding: .75rem .85rem .8rem; border: 1px solid var(--wm-violet-line); border-radius: 14px; background: var(--card); }
+.weather-match-conditions span { font-family: var(--mono); font-size: .625rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--wm-violet); }
+.weather-match-conditions b { display: flex; align-items: center; font-family: var(--bib); font-size: 1.5rem; font-weight: 700; line-height: 1.1; letter-spacing: -.015em; font-variant-numeric: tabular-nums; }
+.weather-match-conditions small { font-size: .75rem; line-height: 1.4; color: var(--ink-3); }
+.weather-match-flag b i { display: inline-block; flex-shrink: 0; width: 14px; height: 14px; margin-right: .45rem; border-radius: 3px; background: var(--line-2); }
+.weather-match-flag.is-green b i { background: var(--green); }
+.weather-match-flag.is-yellow b i { background: var(--gold); }
+.weather-match-flag.is-red b i { background: #D21F3C; }
+.weather-match-flag.is-black b i { background: var(--ink); }
+@media (max-width: 1180px) { .weather-match-conditions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.weather-match-methods { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16.5rem), 1fr)); gap: .7rem; list-style: none; margin: 1rem 0 0; padding: 0; }
+.weather-match-method { display: grid; align-content: start; gap: .35rem; min-width: 0; padding: .9rem 1rem 1rem; border: 1px solid var(--wm-violet-line); border-radius: 14px; background: var(--card); }
+.weather-match-method.is-statement { border-style: dashed; background: transparent; }
+.weather-match-method-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .15rem .6rem; }
+.weather-match-method-head b { font-size: .9375rem; line-height: 1.3; }
+.weather-match-method-head span { font-family: var(--mono); font-size: .625rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--wm-violet); }
+.weather-match-method-range { font-family: var(--bib); font-size: 1.9rem; font-weight: 720; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: #3B1F9E; }
+.weather-match-method-min { font-family: var(--mono); font-size: .8125rem; color: var(--ink-2); }
+.weather-match-method-body { font-size: .8125rem; line-height: 1.5; color: var(--ink-3); }
+.weather-match-cite { margin-top: .1rem; font-size: .75rem; }
+.weather-match-cite a { color: var(--wm-violet); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(91, 52, 214, .4); }
+.weather-match-ely { width: 100%; margin-top: .2rem; border-collapse: collapse; font-family: var(--mono); font-size: .75rem; font-variant-numeric: tabular-nums; }
+.weather-match-ely th { padding: .25rem .35rem; border-bottom: 1px solid var(--wm-violet-line); font-size: .625rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); text-align: right; }
+.weather-match-ely td { padding: .25rem .35rem; text-align: right; color: var(--ink-2); }
+.weather-match-ely th:first-child, .weather-match-ely td:first-child { text-align: left; }
+.weather-match-ely tr.is-current td { background: #EFE9FF; color: var(--ink); font-weight: 700; }
+#weather-match-research .tool-state { margin-top: .8rem; }
+.weather-match-disagree { margin-top: 1rem; padding: .85rem 1rem; border-radius: 12px; background: #F1ECFF; font-size: .875rem; line-height: 1.55; color: var(--ink-2); }
+.weather-match-disagree strong { color: var(--ink); }
+
+@media print {
+  .weather-match-nudge, .weather-match-slider, .weather-match-widen, .weather-match-chip-hint, .weather-match-close, .weather-match-more { display: none !important; }
+  /* The headline prints black on white: these beat the shared .night h2 colour (0,1,1). */
+  .weather-match .weather-match-col { background: #fff; border-color: #000; }
+  .weather-match .weather-match-title, .weather-match .weather-match-col dd, .weather-match .weather-match-col-title { color: #000; }
+  .weather-match .weather-match-kicker, .weather-match .weather-match-col dt { color: #000; }
+  .weather-match .weather-match-group, .weather-match .weather-match-col-sub, .weather-match .weather-match-col dd.weather-match-dd-sub,
+  .weather-match .weather-match-foot, .weather-match .weather-match-actions span { color: #444; }
+}
+
+/* ---------- Fixes for shared list spacing and small helpers ---------- */
+.weather-match li + li { margin-top: 0; }
+.weather-match-nowrap { white-space: nowrap; }
+.weather-match-subhead { margin: 1.4rem 0 .5rem; padding-top: 1.1rem; border-top: 1px solid var(--line); font-size: .9375rem; font-weight: 700; letter-spacing: -.005em; }
+@media (max-width: 560px) {
+  .weather-match-chips { gap: .35rem; }
+  .weather-match-chips button { gap: .35rem; min-height: 36px; padding: .3rem .6rem; font-size: .78rem; }
+  .weather-match-compare td, .weather-match-compare th { padding: .5rem .4rem; }
+  .weather-match-compare tbody th { min-width: 6.5rem; }
+  .weather-match-compare td { font-size: .8125rem; }
+}
+.weather-match-warning { margin-top: .8rem; padding: .8rem 1rem; border-left: 4px solid #D21F3C; border-radius: 0 12px 12px 0; background: #FDECEF; font-size: .875rem; line-height: 1.55; color: #6E0C25; }
+.weather-match-warning strong { color: #8E1030; }

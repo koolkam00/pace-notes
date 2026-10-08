@@ -1,12 +1,14 @@
 import type { CaptureResult } from 'posthog-js';
 import { TEN_ANALYSES } from './ten-analyses';
+import { TOOLS } from './tools/registry';
 import { WEATHER_QUESTIONS } from './weather-catalog';
 
 export const ANALYTICS_PREFERENCE = 'marathon-analytics-disabled';
 export const ANALYTICS_CHANGED = 'marathon-analytics-changed';
 export const ANALYTICS_HOSTS = new Set(['splithappens.run', 'www.splithappens.run', 'htw-live-study.vercel.app']);
 const pages = new Set(['/', '/analyses', '/analyses/downhill-start', '/runners', '/about', '/methodology', '/privacy', '/request-analysis', '/slowdown', '/htw', '/your-race', '/research/personalized',
-  ...TEN_ANALYSES.map(item => '/analyses/' + item.slug), ...WEATHER_QUESTIONS.map(item => '/analyses/' + item.slug)]);
+  ...TEN_ANALYSES.map(item => '/analyses/' + item.slug), ...WEATHER_QUESTIONS.map(item => '/analyses/' + item.slug),
+  '/tools', ...TOOLS.map(tool => '/tools/' + tool.slug)]);
 const analyses = new Set([...TEN_ANALYSES.map(item => item.id), ...WEATHER_QUESTIONS.map(item => item.id)]);
 
 export type AnalyticsEvents = {

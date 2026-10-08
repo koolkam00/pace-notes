@@ -14,5 +14,6 @@ export function withUnits(href: string, units: UnitSystem): string {
   const path = queryIndex < 0 ? pathAndQuery : pathAndQuery.slice(0, queryIndex);
   const query = new URLSearchParams(queryIndex < 0 ? '' : pathAndQuery.slice(queryIndex + 1));
   query.set('units', units);
-  return path + '?' + query.toString() + hash;
+  // Colons and commas are valid in a query and keep tool links readable (goal=3:30, s=0:25:10,0:50:31).
+  return path + '?' + query.toString().replace(/%3A/gi, ':').replace(/%2C/gi, ',') + hash;
 }

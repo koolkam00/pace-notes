@@ -505,6 +505,34 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 }
 .course-mornings { display: grid; gap: 1.25rem; }
 .home-story-grid { margin-top: 1.6rem; }
+.home-tools-grid { list-style: none; margin: 1.6rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr)); gap: .8rem; }
+.home-tools-grid li + li { margin: 0; }
+.home-tool { position: relative; display: grid; grid-template-columns: 44px 1fr; grid-template-rows: auto auto; column-gap: .9rem; row-gap: .1rem; align-items: center; height: 100%; padding: 1rem 1.1rem; border-radius: 16px; background: var(--card); border: 1px solid var(--line); color: var(--ink); overflow: hidden; transition: transform .2s var(--ease), box-shadow .2s var(--ease), border-color .2s var(--ease); }
+.home-tool::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--tool, var(--orange)); }
+.home-tool:hover { text-decoration: none; transform: translateY(-2px); box-shadow: var(--shadow); border-color: color-mix(in srgb, var(--tool) 40%, var(--line)); }
+.home-tool-icon { grid-row: 1 / 3; width: 44px; height: 44px; color: var(--tool); }
+.home-tool-title { font-family: var(--serif); font-variation-settings: 'opsz' 72, 'SOFT' 40; font-size: 1.2rem; font-weight: 640; line-height: 1.1; letter-spacing: -.01em; align-self: end; }
+.home-tool-short { font-size: .875rem; color: var(--ink-3); line-height: 1.35; align-self: start; }
+/* Sits under the analysis layout, aligned with its main column (see .analysis-layout in globals.css). */
+.related-tool { margin: 0 0 2.5rem calc(220px + 4rem); }
+@media (max-width: 1100px) { .related-tool { margin-left: calc(190px + 2.5rem); } }
+@media (max-width: 880px) { .related-tool { max-width: 800px; margin: 0 auto 2rem; } }
+.related-tool-card { display: grid; grid-template-columns: 48px 1fr auto; gap: 1rem; align-items: center; padding: 1.1rem 1.3rem; border-radius: 18px; background: var(--card); border: 1px solid var(--line); border-left: 5px solid var(--tool, var(--orange)); color: var(--ink); transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
+.related-tool-card:hover { text-decoration: none; transform: translateY(-2px); box-shadow: var(--shadow); }
+.related-tool-icon { width: 48px; height: 48px; color: var(--tool); }
+.related-tool-text { display: grid; gap: .2rem; }
+.related-tool-text strong { font-family: var(--serif); font-variation-settings: 'opsz' 72, 'SOFT' 40; font-size: 1.3rem; font-weight: 640; line-height: 1.1; }
+.related-tool-text > span:last-child { color: var(--ink-3); font-size: .9375rem; line-height: 1.45; }
+.related-tool-kicker { font-family: var(--mono); font-size: .6875rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+.related-tool-go { font-size: 1.4rem; color: var(--tool); }
+@media (max-width: 560px) { .related-tool-card { grid-template-columns: 36px 1fr; } .related-tool-icon { width: 36px; height: 36px; align-self: start; } .related-tool-go { display: none; } }
+@media (max-width: 560px) {
+  .home-tools-grid { grid-template-columns: 1fr 1fr; gap: .6rem; }
+  .home-tool { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; row-gap: .3rem; align-items: start; padding: .9rem .85rem .85rem 1rem; }
+  .home-tool-icon { grid-row: auto; width: 32px; height: 32px; }
+  .home-tool-title { font-size: 1.05rem; align-self: start; }
+  .home-tool-short { font-size: .8125rem; }
+}
 .fp-stats dd small { display: block; margin-top: .15rem; font-family: var(--sans); font-size: .6875rem; font-weight: 500; letter-spacing: 0; color: var(--ink-3); }
 
 .story-section .share-grid > .viz-card, .story-section .snapshot-grid > .viz-card { margin-top: 0; }

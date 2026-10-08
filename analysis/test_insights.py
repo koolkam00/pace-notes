@@ -15,6 +15,11 @@ import insights_courses
 import insights_kick
 import insights_positions
 import insights_round
+import insights_tool_coursegoal
+import insights_tool_paceband
+import insights_tool_projector
+import insights_tool_weather
+import insights_tools_common
 from build_fast_start import digest
 
 KM = [5, 10, 15, 20, 25, 30, 35, 40, 42.195]
@@ -195,6 +200,100 @@ class Kick(unittest.TestCase):
         keep, audit = insights_kick.grid_screen(f, R, kick)
         self.assertEqual([a['city'] for a in audit], ['B'])
         self.assertEqual(int(keep.sum()), 120)
+
+
+class Tools(unittest.TestCase):
+    """The /tools data families: windows, trends, gates and slugs."""
+
+    def patch(self, module, name, value):
+        self.addCleanup(setattr, module, name, getattr(module, name))
+        setattr(module, name, value)
+
+    def plain_cohort(self, module, f):
+        detected, onset = sustained_slowdown(f)
+        self.patch(module, 'tool_cohort', lambda c: (c, detected, onset, {}))
+
+    def test_slug_rule_matches_course_pages(self):
+        self.assertEqual(insights_tools_common.slugify('New York'), 'new-york')
+        self.assertEqual(insights_tools_common.slugify('Gold Coast'), 'gold-coast')
+        self.assertEqual(insights_tools_common.slugify('São Paulo'), 'sao-paulo')
+
+    def test_projector_band_and_trend(self):
+        # Even 300 s/km to 20 km, then a runner whose 15–20 km was 10% quicker than the average so far.
+        even = [300] * 9
+        quick = [310, 310, 310, 279] + [300] * 5
+        f = make([(0, 1, None, even, 1), (0, 2, None, quick, 2)], [dict(city='A', year=2020)])
+        band = insights_tool_projector.band_of(f, 3)
+        self.assertEqual(int(band[0]) * 120, int(np.floor(6000 * 42.195 / 20 / 120)) * 120)
+        self.assertEqual(insights_tool_projector.variant_mask(f, 3, 'similar').tolist(), [True, False])
+        self.assertEqual(insights_tool_projector.variant_mask(f, 3, 'faster').tolist(), [False, True])
+        self.assertEqual(insights_tool_projector.variant_mask(f, 3, 'women').tolist(), [False, True])
+        self.assertFalse(insights_tool_projector.variant_mask(f, 0, 'faster').any())
+
+    def test_projector_cell_splits_slowdowns_by_mat(self):
+        rows = [(0, 1, None, [300] * 4 + [300, 400, 400, 300, 300], i) for i in range(50)]       # slowdown from 25 km
+        rows += [(0, 1, None, [300] * 9, 100 + i) for i in range(50)]                              # held pace
+        f = make(rows, [dict(city='A', year=2020)])
+        detected, onset = sustained_slowdown(f)
+        cell = insights_tool_projector.cell(f, np.arange(f.n), 5, detected, onset)               # at 30 km
+        self.assertEqual(cell['n'], 100)
+        self.assertEqual(cell['sd'], [0.5, 0.0])                                                  # all recorded by 30 km
+        cell20 = insights_tool_projector.cell(f, np.arange(f.n), 3, detected, onset)             # at 20 km
+        self.assertEqual(cell20['sd'], [0.0, 0.5])
+        self.assertEqual(len(cell20['later']), 4)
+        self.assertEqual(len(cell20['q']), 19)
+
+    def test_pace_band_window_excludes_the_goal_minute(self):
+        base = [(0, 1, None, [334.0] * 9, i) for i in range(100)]
+        f = make(base, [dict(city='A', year=2020)])
+        f.times[:, 8] = np.r_[np.full(50, 235 * 60 - 300.0), np.full(50, 235 * 60 - 0.5)]   # 3:50:00 and 3:54:59.5
+        f.finish = f.times[:, 8]
+        self.plain_cohort(insights_tool_paceband, f)
+        out = insights_tool_paceband.build(f)
+        shard = out['extra_files']['tools/pace-band/all/all.json']['groups']['all']
+        self.assertEqual(shard['g'], [235])
+        self.assertEqual(shard['n'], [100])
+        f.times[:50, 8] = 235 * 60.0                                     # exactly 3:55:00 is not under a 3:55 goal
+        f.finish = f.times[:, 8]
+        goals = insights_tool_paceband.build(f)['extra_files']['tools/pace-band/all/all.json']['groups']['all']['g']
+        self.assertNotIn(235, goals)                                     # only 50 finishes left in [3:50:00, 3:55:00)
+        self.assertIn(236, goals)
+
+    def context(self, temps):
+        return [dict(weather=None if t is None else dict(temp_c=t, dewpoint_c=5.0, wind_mps=2.0, warming_c=3.0, weather_race='R',
+                                                         date='2020-10-01', scheduled_start='09:00'),
+                     terrain=dict(gain_m=10.0, loss_m=12.0, net_m=-2.0, sections=[dict(net_m=-1.0)])) for t in temps]
+
+    def test_weather_rows_need_three_editions_and_balance_them(self):
+        editions = [dict(city=c, year=2020, race='R') for c in 'ABCD']
+        rows = []
+        for e, n in enumerate([20, 20, 80, 19]):
+            rows += [(e, 1, None, [330] * 4 + [340 + 10 * e] * 5, 1000 * e + i) for i in range(n)]
+        f = make(rows, editions)
+        self.plain_cohort(insights_tool_weather, f)
+        self.patch(insights_tool_weather, 'edition_context', lambda eds: self.context([10, 11, 9, 10]))
+        out = insights_tool_weather.build(f)
+        row = [x for x in out['rows'] if x['c'] == 10 and x['hw'] == 2 and x['pace'] == 330][0]
+        self.assertEqual(row['ed'], [0, 1, 2])                           # D has 19 finishes in the band
+        self.assertEqual(row['n'], 120)
+        self.assertEqual(row['after20'], int(round(np.mean([(340 + 10 * e - 330) * 22.195 for e in range(3)]))))
+        self.patch(insights_tool_weather, 'edition_context', lambda eds: self.context([10, 11, 20, 10]))
+        self.assertFalse([x for x in insights_tool_weather.build(f)['rows'] if x['c'] == 10 and x['pace'] == 330 and x['hw'] == 2])
+
+    def test_course_goal_tolerance_and_gate(self):
+        goal_pace = 210 * 60 / 42.195
+        editions = [dict(city='A', year=2020 + e, race='R') for e in range(3)]
+        rows = []
+        for e in range(3):
+            rows += [(e, 1, None, [goal_pace * 1.019] * 9, 100 * e + i) for i in range(40)]
+            rows += [(e, 1, None, [goal_pace * 1.03] * 9, 1000 + 100 * e + i) for i in range(40)]   # outside ±2%
+        f = make(rows, editions)
+        self.plain_cohort(insights_tool_coursegoal, f)
+        self.patch(insights_tool_coursegoal, 'edition_context', lambda eds: self.context([8, 12, 15]))
+        out = insights_tool_coursegoal.build(f)
+        row = [x for x in out['rows'] if x['goal'] == 210][0]
+        self.assertEqual((row['n'], row['ed'], row['under']), (120, 3, 0.0))
+        self.assertEqual(out['courses'][0]['start_temp_c'], [8.0, 15.0])
 
 
 class Reader(unittest.TestCase):
