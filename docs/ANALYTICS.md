@@ -3,14 +3,14 @@
 Implemented September 17, 2026. Account configuration and production ingestion must be verified separately before claiming analytics is live.
 
 **Production status (checked October 7, 2026):** analytics is live.
-- **Where the data goes:** PostHog US Cloud, organization "Run With Kam", project "Default project" (id 614669). The "Burger Index" organization is a separate site's project.
+- **Where the data goes:** PostHog US Cloud, organization "Run With Kam", project "Pace Notes" (id 614669; renamed from "Default project" on October 8, 2026). The "Burger Index" organization is a separate site's project.
 - **Settings:** cookieless server hash mode is on (stateful), and `https://splithappens.run` is an authorized URL.
 - **Vercel:** the Production environment holds `NEXT_PUBLIC_POSTHOG_KEY` (that project's public token) and `NEXT_PUBLIC_POSTHOG_HOST`, and the live bundle loads them.
 - **Traffic:** in the 30 days to that date the project recorded 947 `$pageview` events from `splithappens.run`, plus the declared feature events (`analysis_filters_applied`, runner search and profile events, `race_comparison_opened`, `units_changed`, `data_download_clicked`).
 - **Runner tools:** the tools report only their path (`/tools/<slug>`).
 - **Checking capture with a headless browser:** `posthog-js` drops events from automated browsers (a `HeadlessChrome` brand in `navigator.userAgentData`, or `navigator.webdriver`), so a plain Playwright run sees no PostHog requests. On October 8, 2026, after the PR #51 deploy, a check that hid those signals and blocked the requests (so nothing was recorded) saw the live site send its `$pageview` to `https://us.i.posthog.com/e/`.
 
-The site uses PostHog Cloud through `posthog-js`, loaded after hydration by `SiteAnalytics`. It supports the existing Next.js 14 static export; no server, database, instrumentation-client upgrade or proxy is required. Production capture is restricted to `splithappens.run`, `www.splithappens.run` and the original `htw-live-study.vercel.app` domain. Preview deployments and local development send nothing.
+The site uses PostHog Cloud through `posthog-js`, loaded after hydration by `SiteAnalytics`. It supports the existing Next.js 14 static export; no server, database, instrumentation-client upgrade or proxy is required. Production capture is restricted to `splithappens.run`, `www.splithappens.run` and the original `htw-live-study.vercel.app` domain. `vercel.json` sends every request on the original domain to `splithappens.run` with a permanent redirect, so after that deploy it serves no pages (confirm it with the post-deploy checks in [SEO](SEO.md)); its entry in `lib/analytics-policy.ts` stays as a harmless fallback. Preview deployments and local development send nothing. Search metadata (canonical links, the sitemap and robots.txt) never contains query strings, runner names or search text, matching the analytics rules below.
 
 ## Configuration and launch
 

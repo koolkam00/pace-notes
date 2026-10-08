@@ -12,7 +12,7 @@ The current refresh adopts the 0934 source across primary analyses, supporting s
 
 The primary ten are accompanied by any weather candidates that pass the fixed screen in `public/data/weather/evidence.json`. `weather-data.ts` exposes only ready candidates; `WeatherIndex` adds their links to the homepage and directory, and the temperature page links them as well. `WeatherAnalysis` renders an adjusted percentage-point estimate and uncertainty plus a browser for unadjusted edition observations. Browsing does not refit the overall estimate. The full refresh uses `private-export-20260912-0934` for both inputs; the [refresh record](REFRESH_20260912_0934.md) separately records import and deployment. Read [weather methods and decisions](WEATHER_ANALYSES.md) for the current ready/withheld results.
 
-[package.json](../package.json) pins Next.js 14.2.5, React 18.3.1, Recharts 2.12.7 and TypeScript 5.5.4. [next.config.mjs](../next.config.mjs) sets static export, unoptimized images and optional NEXT_PUBLIC_BASE_PATH/assetPrefix. The public host is [Pace Notes](https://splithappens.run); the original [Vercel address](https://htw-live-study.vercel.app) remains available.
+[package.json](../package.json) pins Next.js 14.2.5, React 18.3.1, Recharts 2.12.7 and TypeScript 5.5.4. [next.config.mjs](../next.config.mjs) sets static export, unoptimized images and optional NEXT_PUBLIC_BASE_PATH/assetPrefix. The public host is [Pace Notes](https://splithappens.run). The root [vercel.json](../vercel.json) permanently redirects the original `htw-live-study.vercel.app` address to it, and `/htw` and `/packs/smyth_htw` to `/slowdown`. Canonical links, Open Graph tags, `robots.txt`, `sitemap.xml` and the web manifest come from `lib/seo.tsx`, `lib/seo-routes.ts` and `app/{robots,sitemap,manifest}.ts`; see [SEO](SEO.md) for the route policy.
 
 | Route | Source / renderer | Purpose |
 | --- | --- | --- |
@@ -24,12 +24,13 @@ The primary ten are accompanied by any weather candidates that pass the fixed sc
 | /about | app/about/page.tsx | Study purpose and interpretation |
 | /packs and /packs/[packId] | app/packs; ResearchQuestion / PackClientPage | Broader current-source research and compatibility aliases |
 | /slowdown | app/slowdown/page.tsx; sustained-slowdown dashboard | Current-source slowdown prevalence, onset, sensitivity, age and recorded-history figures |
-| /htw and /packs/smyth_htw | Legacy route files | Compatibility URLs retained for existing links |
+| /htw and /packs/smyth_htw | Legacy route files | On Vercel, `vercel.json` sends both to /slowdown with a 308; the noindex pages remain for GitHub Pages builds |
 | /courses and /courses/[city] | app/courses; lib/course-data.ts; course-geometry.json / courses.json | Route-map directory; per-course route, elevation, pacing types, fingerprint, race mornings, profile and replay |
 | /your-race | Legacy personalized entry | Client compatibility redirect preserving mapped question hashes and profile query parameters |
 | /research/personalized | Archived PersonalizedGuide | All twelve backing questions in the earlier guide layout |
 | /runners | app/runners/page.tsx; RunnerSearch / RunnerContext | Search names, confirm races, compare recorded performances and same-edition peers, inspect weather/current-route context |
 | /methodology | app/methodology/page.tsx | Definitions, cohorts and limitations |
+| /robots.txt, /sitemap.xml, /manifest.webmanifest | app/robots.ts, app/sitemap.ts, app/manifest.ts; lib/seo-routes.ts | Crawl rules, the list of indexable pages with data-derived `lastmod`, and the install manifest ([SEO](SEO.md)) |
 
 [lib/ten-analyses.ts](../lib/ten-analyses.ts) is the primary ordering and route registry: pacing pattern, opening pace, checkpoint, section differences, courses, weather, terrain, target context, improvement and age. The [ten-analysis guide](TOP_TEN_ANALYSES.md) maps these pages to data and limitations. The 35-question catalog in `lib/question-catalog.ts` and 33 broad extension packs remain a research archive; the personalized catalog retains 12 backing calculation paths. These are overlapping views, not independent datasets. `/your-race#guide-{id}` maps the primary ten to their new analysis pages; `#guide-downhill` opens `/analyses/downhill-start`; `#guide-return` opens the retained twelve-question guide at `/research/personalized`. The `/packs` archive links to the ten and keeps the twelve-question list collapsed.
 

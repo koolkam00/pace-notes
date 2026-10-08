@@ -1,0 +1,25 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "htw-live-study.vercel.app" }],
+      "destination": "https://splithappens.run/:path*",
+      "permanent": true
+    },
+    { "source": "/htw", "destination": "/slowdown", "permanent": true },
+    { "source": "/packs/smyth_htw", "destination": "/slowdown", "permanent": true }
+  ],
+  "headers": [
+    {
+      "source": "/data/:path*",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
+    },
+    {
+      "source": "/runners",
+      "has": [{ "type": "query", "key": "q" }],
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+    }
+  ]
+}
