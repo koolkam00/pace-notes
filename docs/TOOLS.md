@@ -119,7 +119,7 @@ Rebuilding with `--only` keeps every other family's file and rewrites the manife
   - every pace-band group count, with sampled medians and slowdown shares;
   - the weather editions, rows, matched editions and edition-balanced shares;
   - the course-goal rows, the unavailable list and the course list.
-- `scripts/verify-tools.cjs` (in `npm run verify:data`) checks 125 golden values: parsing, split tables, Riegel and Daniels values, Tanda's range, heat formulas against published tables, age rules and standards for every race, the Boston downhill index and cut-off history, and split reading.
+- `scripts/verify-tools.cjs` (in `npm run verify:data`) checks 168 golden values: parsing, split tables, Riegel and Daniels values, Tanda's range, heat formulas against published tables, age rules and standards for every race, the Boston downhill index and cut-off history, and split reading.
 - `analysis/test_insights.py` (`Tools` class) covers:
   - the slug rule;
   - projector bands, trend variants and the slowdown split;

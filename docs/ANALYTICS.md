@@ -8,6 +8,7 @@ Implemented September 17, 2026. Account configuration and production ingestion m
 - **Vercel:** the Production environment holds `NEXT_PUBLIC_POSTHOG_KEY` (that project's public token) and `NEXT_PUBLIC_POSTHOG_HOST`, and the live bundle loads them.
 - **Traffic:** in the 30 days to that date the project recorded 947 `$pageview` events from `splithappens.run`, plus the declared feature events (`analysis_filters_applied`, runner search and profile events, `race_comparison_opened`, `units_changed`, `data_download_clicked`).
 - **Runner tools:** the tools report only their path (`/tools/<slug>`).
+- **Checking capture with a headless browser:** `posthog-js` drops events from automated browsers (a `HeadlessChrome` brand in `navigator.userAgentData`, or `navigator.webdriver`), so a plain Playwright run sees no PostHog requests. On October 8, 2026, after the PR #51 deploy, a check that hid those signals and blocked the requests (so nothing was recorded) saw the live site send its `$pageview` to `https://us.i.posthog.com/e/`.
 
 The site uses PostHog Cloud through `posthog-js`, loaded after hydration by `SiteAnalytics`. It supports the existing Next.js 14 static export; no server, database, instrumentation-client upgrade or proxy is required. Production capture is restricted to `splithappens.run`, `www.splithappens.run` and the original `htw-live-study.vercel.app` domain. Preview deployments and local development send nothing.
 
