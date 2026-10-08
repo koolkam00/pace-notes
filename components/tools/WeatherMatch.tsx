@@ -744,7 +744,7 @@ function ProfileChart({ mine, reference, units, mineLabel, refLabel }: { mine: n
       </ul>
       <div ref={box} className="viz weather-match-chart">
         <svg width={width} height={H} role="img" aria-label={aria}>
-          <rect x={x(5)} y={m.t - 6} width={x(20) - x(5)} height={H - m.t - m.b + 6} className="weather-match-baseline-zone" />
+          <rect x={x(5)} y={m.t - 6} width={Math.max(0, x(20) - x(5))} height={H - m.t - m.b + 6} className="weather-match-baseline-zone" />
           <text x={(x(5) + x(20)) / 2} y={m.t - 12} textAnchor="middle" className="axis-label">{narrow ? 'baseline' : '5–20 km baseline'}</text>
           {ticks.map((v) => (
             <g key={v} className="grid">
@@ -851,8 +851,8 @@ function TempStrip({ editions, tUnit, marker, centre, hw, showRef, emphasis, emp
     <figure className="weather-match-figure">
       <div ref={box} className="viz weather-match-strip">
         <svg width={width} height={H} role="img" aria-label={label}>
-          {showRef ? <rect x={x(REF.c - REF.hw)} y={top} width={x(REF.c + REF.hw) - x(REF.c - REF.hw)} height={base - top - 6} className="weather-match-zone is-cool" /> : null}
-          {centre !== null ? <rect x={x(centre - hw)} y={top} width={x(centre + hw) - x(centre - hw)} height={base - top - 6} className="weather-match-zone is-warm" /> : null}
+          {showRef ? <rect x={x(REF.c - REF.hw)} y={top} width={Math.max(0, x(REF.c + REF.hw) - x(REF.c - REF.hw))} height={base - top - 6} className="weather-match-zone is-cool" /> : null}
+          {centre !== null ? <rect x={x(centre - hw)} y={top} width={Math.max(0, x(centre + hw) - x(centre - hw))} height={base - top - 6} className="weather-match-zone is-warm" /> : null}
           <line x1={m.l} x2={width - m.r} y1={base} y2={base} stroke="var(--line-2)" />
           {shownTicks.map((c) => (
             <g key={c}>
