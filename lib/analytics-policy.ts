@@ -6,9 +6,16 @@ import { WEATHER_QUESTIONS } from './weather-catalog';
 export const ANALYTICS_PREFERENCE = 'marathon-analytics-disabled';
 export const ANALYTICS_CHANGED = 'marathon-analytics-changed';
 export const ANALYTICS_HOSTS = new Set(['splithappens.run', 'www.splithappens.run', 'htw-live-study.vercel.app']);
+// The search pages (docs/SEO.md), named here rather than imported: this module ships to every page, and importing the
+// qualifying standards and pace-chart helpers just for their paths would add them to every page's JavaScript.
+// scripts/verify-analytics.cjs builds the same list from those sources and checks every sitemap page keeps its own
+// path, so a new or renamed page cannot fall to /other unnoticed.
+const searchPages = ['/tools/marathon-pace-chart', '/tools/half-marathon-pace-chart', '/finish-times',
+  ...['3-00', '3-30', '4-00', '4-30', '5-00'].map(goal => '/tools/marathon-pace/' + goal),
+  ...['boston', 'nyc', 'london', 'chicago', 'berlin', 'sydney'].map(race => '/tools/qualifying/' + race)];
 const pages = new Set(['/', '/analyses', '/analyses/downhill-start', '/runners', '/about', '/methodology', '/privacy', '/request-analysis', '/slowdown', '/htw', '/your-race', '/research/personalized',
   ...TEN_ANALYSES.map(item => '/analyses/' + item.slug), ...WEATHER_QUESTIONS.map(item => '/analyses/' + item.slug),
-  '/tools', ...TOOLS.map(tool => '/tools/' + tool.slug)]);
+  '/tools', ...TOOLS.map(tool => '/tools/' + tool.slug), ...searchPages]);
 const analyses = new Set([...TEN_ANALYSES.map(item => item.id), ...WEATHER_QUESTIONS.map(item => item.id)]);
 
 export type AnalyticsEvents = {

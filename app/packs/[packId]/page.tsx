@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 import { notFound } from 'next/navigation';
 import { PACK_IDS, getPackInfo } from '@/lib/packs';
 import { getExtraAnswer } from '@/lib/research-data';
@@ -27,15 +27,17 @@ const mi = (km: number) => distanceLabel(km, DEFAULT_UNITS, 1);
 /**
  * Search titles for pages whose own question runs past 60 characters, targets a search phrase, or is worded
  * causally or as a time translation the page says it does not give (r12, r16, r24, r33).
+ * r32 measures the gain on an earlier recorded best, not a personal best, and r12 compares linked finishes
+ * (candidate links, not verified people), so neither title says "personal best" or "runners".
  * Metadata only: each page keeps its question as the heading.
  */
 const SEO_TITLES: Record<string, string> = {
   r30_negative_split_success: 'Marathon Negative Splits and Improved Finishes | Pace Notes',
   r03_accel_vs_decel_20k: `Pace Trend at ${mi(20)} and the Marathon Finish | Pace Notes`,
   r17_milestone_kick: 'Finishing Speed Near a Marathon Time Milestone | Pace Notes',
-  r32_where_pbs_are_gained: 'Where Do Runners Gain Time for a Personal Best? | Pace Notes',
+  r32_where_pbs_are_gained: 'Where Marathons Gain Time on an Earlier Best | Pace Notes',
   p4_even_effort_gap: 'Does Pacing Change After Course Adjustment? | Pace Notes',
-  r12_fastest_by_ability: 'Same Runners on Different Marathon Courses | Pace Notes',
+  r12_fastest_by_ability: 'Linked Finishes on Different Marathon Courses | Pace Notes',
   r24_interval_after_pb: 'Time Between Marathons and the Next Finish | Pace Notes',
   r16_groups_hold_or_fall: 'Running in a Group During a Marathon | Pace Notes',
   r33_start_congestion: 'Crowded Marathon Starts and Later Pace | Pace Notes',
@@ -50,6 +52,8 @@ const SEO_DESCRIPTIONS: Record<string, string> = {
   r30_negative_split_success: `How often marathon finishes improved on an earlier benchmark, by split pattern: a faster second 20 km (${mi(20)}), even 20 km blocks or slowing.`,
   r03_accel_vs_decel_20k: `At the same 20 km (${mi(20)}) time, how did marathon finishes that were speeding up, steady or slowing go on to finish? Matched comparisons from 5 km splits.`,
   r07_wall_clock_vs_distance: 'Do marathon slowdowns line up with distance covered or with time on the clock? Compare where the first slow section ended with the elapsed time there.',
+  // The answer's first sentence alone reads as a course-speed verdict without the caveat that follows it; no figures here.
+  r12_fastest_by_ability: 'Time differences between linked marathon finishes on two courses, with both race orders weighted equally. Fitness, weather and selection still differ.',
   r09_bad_patch_recoverable: `How often marathon finishes regained their rhythm in the next 5 km (${mi(5)}) after a first bad patch, and how that varied with where the patch came.`,
   r14_knowing_course: 'A matched Boston comparison of late-race slowing for finishes with and without an earlier recorded Boston finish. An association, not proof of a benefit.',
   r17_milestone_kick: `How much marathon finishes sped up in the final section when a round finish time was within reach at 40 km (${mi(40)}), just ahead of it or just behind.`,

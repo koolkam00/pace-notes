@@ -45,6 +45,9 @@ function metricProseToMiles(text: string): string {
       (_match, minutes: string, seconds: string) => paceLabel(Number(minutes) * 60 + Number(seconds), 'mi'))
     .replace(new RegExp(`(?<![\\w:.])(${NUMBER_PHRASE})\\s*(min(?:utes?)?|sec(?:onds?)?)\\s*(?:/|per\\s+)\\s*${KM_UNIT}\\b`, 'gi'),
       (_match, value: string, label: string) => `${convertPhrase(value, KM_PER_MILE, 2)} ${label}/mi`)
+    // "37.0 seconds gained per km": a rate with one or two words before "per km" converts its number too.
+    .replace(new RegExp(`(?<![\\w:.])(${NUMBER_PHRASE})\\s*(min(?:utes?)?|sec(?:onds?)?)((?:\\s+[a-z]+){1,2})\\s+per\\s+${KM_UNIT}\\b`, 'gi'),
+      (_match, value: string, label: string, words: string) => `${convertPhrase(value, KM_PER_MILE, 2)} ${label}${words} per mile`)
     .replace(new RegExp(`(?<![\\w:.])(${NUMBER_PHRASE})(\\s*-\\s*|\\s*)(${KM_UNIT})\\b`, 'gi'),
       (_match, values: string, separator: string, unit: string) => {
         const converted = convertPhrase(values, 1 / KM_PER_MILE, 2);

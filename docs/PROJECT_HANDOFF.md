@@ -1,5 +1,24 @@
 # Project handoff
 
+## Search optimisation (October 2026)
+
+**This describes repository state on the SEO pull-request branch (October 8, 2026), not the live site.** After the merge, confirm production with `npm run verify:seo:live`; before this work was deployed, 3 of its 13 checks passed (the rest wait on the deploy and the www redirect). Do not report any of this as live until that run passes.
+
+What changed:
+- **Foundations.** `metadataBase` `https://splithappens.run`; `robots.txt` blocking only the two runner-name data folders; `sitemap.xml` (115 indexable, self-canonical pages) with `lastmod` from data `as_of` dates, never the build date; a web manifest and PNG icons; `vercel.json` 308s from the old `htw-live-study.vercel.app` host and from `/htw` and `/packs/smyth_htw` to `/slowdown`, and `X-Robots-Tag` headers on `/data/*` and on `/runners?q=`.
+- **Every page.** Its own title and description, an absolute canonical without query strings, full Open Graph and X tags, and JSON-LD (breadcrumbs; `WebSite` on the home page; `Article` on stories; a `Dataset` on `/methodology`). `/runners`, `/your-race`, `/request-analysis`, the legacy slowdown routes and six thin packs are noindex; 45 pack aliases point their canonical at the primary pack. No runner names, birth dates or search text in URLs, the sitemap, structured data or analytics.
+- **Share cards.** 63 words-only 1200×630 cards in `public/og/` (stories, tools, pace charts, goal pages, qualifying race pages, courses, `/finish-times`, sections), rendered by `npm run og:images`.
+- **New pages.** `/tools/marathon-pace-chart` and `/tools/half-marathon-pace-chart` (calculated at even pace), five goal pages `/tools/marathon-pace/<goal>` (even-pace splits beside recorded mat times), six qualifying race pages `/tools/qualifying/<race>`, and `/finish-times` (median and distribution of recorded finishes).
+
+Where the policy lives: [SEO](SEO.md) (rules, metadata, sitemap, share cards, checks, preview behaviour, owner checklist), with the code in `lib/seo-routes.ts`, `lib/seo.tsx`, `lib/og-paths.ts` and `lib/seo-pages/`. What the new pages show is in [runner tools](TOOLS.md#pace-charts-goal-pages-and-qualifying-race-pages); the routes are in [website architecture](WEBSITE_ARCHITECTURE.md#search-sharing-and-host-rules).
+
+Checks: `npm run verify:seo` on the build (CI runs it after `npm run build`); `npm run og:check` for the cards; `npm run verify:data`, which now ends with `verify-finish-times` (every `/finish-times` number recounted, down to the runner shards) and includes the pace-chart and goal-page values in `verify-tools`; `npm run verify:seo:live` after each production deploy. On Vercel previews `og:image` names the preview host by design (`VERCEL_ENV=preview`); production uses `https://splithappens.run`.
+
+Owner decisions still open:
+- **"Washington Marathon".** The course data names that race "Washington Marathon", and the site shows it so. It may really be the Marine Corps Marathon; this needs the owner.
+- **A licence for the Dataset JSON-LD** on `/methodology`. None is stated because the repository has none.
+- **Search Console and Bing.** Verify the `splithappens.run` Domain property and submit the sitemap in both; set the Vercel `www` redirect to 308. The full list is the [owner checklist](SEO.md#owner-checklist-outside-the-repo-after-the-deploy).
+
 ## Pace Notes presentation and requests
 
 The public name is Pace Notes, credited to Andrew Kam as plain text; the site no longer links to the Run_with_Kam Instagram account. `/request-analysis` prepares an email request to Andrew; the visitor sends it from their email app or Gmail. It does not send mail from the server or confirm delivery. See [website architecture](WEBSITE_ARCHITECTURE.md#pace-notes-branding-and-analysis-requests). This presentation change does not recalculate analyses or alter data pins.

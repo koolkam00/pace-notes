@@ -2,10 +2,11 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import PaceChartTable from '@/components/tools/PaceChartTable';
 import { ToolMethod, ToolNext } from '@/components/tools/ToolShell';
 import { JsonLd, breadcrumbs, pageMetadata } from '@/lib/seo';
-import { GOAL_PAGE_MINUTES, MARATHON_CHART, goalLabel, goalPagePath } from '@/lib/tools/pace-chart';
+import { GOAL_PAGE_MINUTES, HALF_CHART, MARATHON_CHART, goalLabel, goalPagePath } from '@/lib/tools/pace-chart';
 
 const first = goalLabel(MARATHON_CHART.goals[0]);
 const last = goalLabel(MARATHON_CHART.goals[MARATHON_CHART.goals.length - 1]);
+const halfRange = `${goalLabel(HALF_CHART.goals[0])} to ${goalLabel(HALF_CHART.goals[HALF_CHART.goals.length - 1])}`;
 
 export const metadata = pageMetadata({
   title: 'Marathon Pace Chart by Goal Time (Miles & km) | Pace Notes',
@@ -36,7 +37,7 @@ export default function MarathonPaceChartPage() {
         </div>
         <div>
           <h2>How to use it</h2>
-          <p>Find your goal row. Its <b>Pace band</b> link prints that goal as a wristband; the <Link href="/tools/pace-calculator">pace calculator</Link> gives splits every 400 m, kilometre or mile.</p>
+          <p>Find your goal row. Its <b>Pace band</b> link prints that goal as a wristband; the <Link href="/tools/pace-calculator">pace calculator</Link> gives splits every 400 m, kilometre or mile. Running a half? The <Link href="/tools/half-marathon-pace-chart">half marathon pace chart</Link> covers goals from {halfRange}.</p>
         </div>
         <div>
           <h2>What recorded finishes ran</h2>

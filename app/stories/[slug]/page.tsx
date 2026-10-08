@@ -3,7 +3,7 @@ import { getInsightsManifest, readInsight, clientArchetypes } from '@/lib/insigh
 import type { Archetypes, CourseGeometry, Courses, Demographics, FinishTimes, Kick, Positions, ReplayIndex } from '@/lib/insights';
 import { STORIES, storyHref, type StoryDefinition } from '@/lib/stories';
 import { JsonLd, absoluteUrl, breadcrumbs, pageMetadata } from '@/lib/seo';
-import { dataDate } from '@/lib/seo-routes';
+import { sitemapEntries } from '@/lib/seo-routes';
 import { DEFAULT_OG_IMAGE, ogImageFor } from '@/lib/og-paths';
 import { StoryHeader, StoryNav } from '@/components/story/StoryShell';
 import PacingTypesBody from '@/components/story/bodies/PacingTypesBody';
@@ -21,12 +21,17 @@ function available() {
   return STORIES.filter((s) => BODIES[s.slug] && manifest.files[s.file]);
 }
 
+/** The sitemap's lastmod for each story (the later of its CONTENT_DATES entry and the insights as_of day), read once per build. */
+let lastmods: Map<string, string | undefined> | null = null;
+const sitemapLastmod = (path: string) => (lastmods ??= new Map(sitemapEntries().map((entry) => [entry.path, entry.lastmod]))).get(path);
+
 /** Search and social text for a story: its SEO fields, or the visible title and dek. */
 function storySeo(story: StoryDefinition) {
   const path = storyHref(story);
   const description = story.seoDescription ?? story.dek;
-  // The insights as_of day; never earlier than the day the story was first published.
-  const modified = [story.published, dataDate('insights')].sort().pop()!;
+  // The same date as the story's sitemap lastmod, so dateModified, article:modified_time and the sitemap agree;
+  // never earlier than the day the story was first published.
+  const modified = [story.published, sitemapLastmod(path)].filter((date): date is string => !!date).sort().pop()!;
   return { path, title: story.seoTitle ?? `${story.title} | Pace Notes`, description, published: story.published, modified };
 }
 

@@ -72,7 +72,7 @@ export default function ToolsPage() {
         </section>
         <div className="tools-principles">
           <div><b>Calculations are exact</b><p>Even-pace splits, mile rows and pace charts come straight from your inputs. They are not observations.</p></div>
-          <div><b>Data is what finishes did</b><p>Shares describe complete finishes in the data, never your personal chance. Runners who stopped are not in it.</p></div>
+          <div><b>Data is what finishes did</b><p>Every share is an observed share of complete finishes in the data, not a forecast for any one runner. Runners who stopped are not in it.</p></div>
           <div><b>Research is cited</b><p>Prediction and heat formulas come from published studies, kept apart from Pace Notes results.</p></div>
           <div><b>Your inputs stay with you</b><p>Everything runs in your browser. Birth dates are never put in links or analytics.</p></div>
         </div>

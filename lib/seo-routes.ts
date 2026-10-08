@@ -43,6 +43,8 @@ export const ROBOTS_DISALLOW: readonly string[] = ['/data/runners/index/', '/dat
  * Hand-kept dates for pages whose main content is written text rather than data.
  * Change the date when the visible content of that page changes in a meaningful way.
  * Pages without an entry (and without data) get no lastmod, which is better than a wrong one.
+ * Story and primary pack pages also show data: their lastmod is the later of this date and their data date,
+ * so an entry here only matters when their wording changed after the data did.
  */
 export const CONTENT_DATES: Readonly<Record<string, string>> = {
   '/': '2026-10-08',
@@ -57,6 +59,25 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   '/slowdown': '2026-10-08',
   '/research/personalized': '2026-10-08',
   '/privacy': '2026-10-08',
+  // Stories whose headings, deks or chart text were reworded on this date (who-holds-pace was not).
+  '/stories/pacing-types': '2026-10-08',
+  '/stories/round-numbers': '2026-10-08',
+  '/stories/race-replay': '2026-10-08',
+  '/stories/places': '2026-10-08',
+  '/stories/final-kick': '2026-10-08',
+  '/stories/courses': '2026-10-08',
+  // Primary research questions whose question (the heading, or the heading of the recorded-history section) was reworded on this date.
+  '/packs/r01_banking_time': '2026-10-08',
+  '/packs/r11_course_section_traps': '2026-10-08',
+  '/packs/r12_fastest_by_ability': '2026-10-08',
+  '/packs/r13_great_day_vs_consistency': '2026-10-08',
+  '/packs/r14_knowing_course': '2026-10-08',
+  '/packs/r15_weather_penalty_who': '2026-10-08',
+  '/packs/r18_bq_rule_changes': '2026-10-08',
+  '/packs/r19_near_miss_return': '2026-10-08',
+  '/packs/r24_interval_after_pb': '2026-10-08',
+  '/packs/r32_where_pbs_are_gained': '2026-10-08',
+  '/packs/r35_course_adaptation': '2026-10-08',
 };
 
 export type SitemapEntry = { path: string; lastmod?: string };
@@ -215,7 +236,7 @@ export function sitemapEntries(): SitemapEntry[] {
   add('/', 'content', 'insights', 'study', 'personalized');
 
   add('/stories', 'content', 'insights');
-  for (const story of STORIES.filter(s => manifest.files[s.file])) add(`/stories/${story.slug}`, 'insights');
+  for (const story of STORIES.filter(s => manifest.files[s.file])) add(`/stories/${story.slug}`, 'content', 'insights');
 
   add('/tools', 'content', 'insights');
   for (const tool of TOOLS.filter(t => !t.file || manifest.files[t.file])) {
@@ -239,7 +260,7 @@ export function sitemapEntries(): SitemapEntry[] {
 
   add('/packs', 'content');
   for (const id of primaryPackIds()) {
-    const lastmod = packDate(id);
+    const lastmod = latest(packDate(id), own(CONTENT_DATES, `/packs/${id}`));
     entries.push({ path: `/packs/${id}`, ...(lastmod ? { lastmod } : {}) });
   }
 
@@ -247,7 +268,7 @@ export function sitemapEntries(): SitemapEntry[] {
   add('/methodology', 'content', 'study');
   add('/slowdown', 'content', 'study');
   add('/research/personalized', 'content', 'personalized');
-  add('/privacy');
+  add('/privacy', 'content');
 
   for (const extra of EXTRA_SITEMAP_PAGES) {
     const lastmod = typeof extra.lastmod === 'function' ? extra.lastmod() : extra.lastmod;

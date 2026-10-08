@@ -152,7 +152,8 @@ export function getExtraAnswer(id: string): ResearchAnswer {
   const extension = extensionForPack(id);
   if (extension) {
     if (extension.exportId !== release.tag.replace('private-export-', 'private-')) throw new Error(`Stale research result: ${id}`);
-    return { id, title: extension.title, aliases: [], ...extension.answer };
+    // The catalog holds the current wording of each question; a pack_meta title can predate it, so it is only a fallback.
+    return { id, title: questionForPack(extension.questionId)?.title ?? extension.title, aliases: [], ...extension.answer };
   }
   if (id === 'smyth_htw') return getStudyAnswer();
   const canonical = questionForPack(id);

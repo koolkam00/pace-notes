@@ -155,7 +155,7 @@ export default function Page() {
       <div className="chapter-head">
         <p className="chapter-num">Chapter 03 · Places on the clock</p>
         <h2 id="places-title" className="chapter-title">At <Checkpoint km={30} />, a minute is <em>nearly a coin flip</em>.</h2>
-        <p className="chapter-dek">The order of a marathon field keeps changing long after <Checkpoint km={20} />. Most finishes slow after <Checkpoint km={30} />, so what matters for places is how much you slow compared with everyone around you.</p>
+        <p className="chapter-dek">The order of a marathon field keeps changing long after <Checkpoint km={20} />. Most finishes slowed after <Checkpoint km={30} />; the ones that moved up the clock order were those that slowed less than the finishes around them.</p>
       </div>
       <div className="nugget">
         <span className="nugget-number">{Math.round(coin30.share * 100)}%</span>

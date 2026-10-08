@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { UnitLink as Link } from './UnitsProvider';
 import QuestionViz from './QuestionViz';
 import { BROADER_GUIDE } from '@/lib/broader-analysis-catalog';
 import { AGE_OPTIONS, GOAL_PRESETS, type Profile, type Focus } from '@/lib/personalized-catalog';

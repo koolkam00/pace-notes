@@ -33,14 +33,19 @@ function courseSeo(name: string) {
   const courses = getInsightsManifest().files['courses.json'] ? readInsight<Courses>('courses.json') : null;
   const summary = courses?.courses.find((c) => c.city === name);
   const race = raceName(name, geometry, summary);
+  // The count is the section profile's (the /courses card and the page's own section table show it). Where that
+  // cohort differs from the story summary's (Chicago's profile keeps the 2018 and 2019 editions the stories screen
+  // out as duplicates of 2024), the summary's edition count and years do not describe it, so they are left out.
+  const profile = getIndividualCourseAnswer(name)?.dataset?.n;
+  const sameCohort = !!summary?.finishes && summary.finishes === profile;
   // Two courses have no supplied route, so their pages show no elevation; their titles say so.
   const branded = `${race} Course: ${geometry ? 'Elevation and Pacing' : 'Pacing by Section'} | Pace Notes`;
   const title = branded.length <= MAX_TITLE ? branded : branded.replace(/ \| Pace Notes$/, '');
   const years = summary?.years?.length ? [Math.min(...summary.years), Math.max(...summary.years)] : null;
-  const editions = summary?.editions ? (summary.editions === 1 && years ? ` in its ${years[0]} edition` : ` across ${count(summary.editions)} editions${years && years[0] !== years[1] ? ` (${years[0]}–${years[1]})` : ''}`) : '';
+  const editions = sameCohort && summary?.editions ? (summary.editions === 1 && years ? ` in its ${years[0]} edition` : ` across ${count(summary.editions)} editions${years && years[0] !== years[1] ? ` (${years[0]}–${years[1]})` : ''}`) : '';
   const weather = (courses?.weather.editions.filter((e) => e.city === name).length ?? 0) >= 2;
   // Without a supplied route the page shows no elevation, so the race name moves into the pacing clause.
-  const finishes = (recorded: boolean) => [summary?.finishes ? count(summary.finishes) : '', recorded ? 'recorded' : '', geometry ? '' : race, 'finishes'].filter(Boolean).join(' ');
+  const finishes = (recorded: boolean) => [profile ? count(profile) : '', recorded ? 'recorded' : '', geometry ? '' : race, 'finishes'].filter(Boolean).join(' ');
   // Richest wording first; clauses drop out when the data is missing or the text would run long.
   const variants = [editions, ''].flatMap((span) => [weather, false].flatMap((withWeather) => [true, false].map((recorded) => {
     const pacing = `${finishes(recorded)} paced each 5 km section${span}${withWeather ? ', and race-morning temperatures' : ''}`;

@@ -6,6 +6,7 @@
  *   node scripts/verify-seo.cjs --out <dir>   check another export folder (default: out/)
  *   node scripts/verify-seo.cjs --all         list every page in each failed group (default: the first 25)
  *   node scripts/verify-seo.cjs --today YYYY-MM-DD   the date a sitemap lastmod may not pass (default: today, UTC)
+ *   node scripts/verify-seo.cjs --self-test   only the built-in fixtures (the banned-words patterns); no export needed
  *
  * The route policy comes from lib/seo-routes.ts (NOINDEX, THIN_PACKS, pack aliases, sitemapEntries()), loaded with
  * the same TypeScript require hook as scripts/verify-units.cjs, and the finish count from finishesM() in lib/seo.tsx.
@@ -22,6 +23,7 @@ const args = process.argv.slice(2);
 const option = (name) => { const at = args.indexOf(name); return at >= 0 ? args[at + 1] : undefined; };
 const OUT = path.resolve(option('--out') || path.join(ROOT, 'out'));
 const SHOW_ALL = args.includes('--all');
+const SELF_TEST_ONLY = args.includes('--self-test');
 const TODAY = option('--today') || new Date().toISOString().slice(0, 10);
 const LIMIT = 25;
 
@@ -39,6 +41,8 @@ process.chdir(ROOT); // lib/insights-server.ts reads public/data from the workin
 const routes = require(path.join(ROOT, 'lib/seo-routes.ts'));
 const { finishesM } = require(path.join(ROOT, 'lib/seo.tsx'));
 const { ogImageCandidates } = require(path.join(ROOT, 'lib/og-paths.ts'));
+// The cards scripts/build-og-images.cjs makes (no browser needed), as image paths: /og/tools/qualifying/boston.png.
+const PLANNED_CARDS = new Set(require(path.join(ROOT, 'scripts/build-og-images.cjs')).plannedCards().map((file) => `/og/${file}`));
 const { SITE_URL, NOINDEX, THIN_PACKS, ROBOTS_DISALLOW } = routes;
 const SITE_HOST = new URL(SITE_URL).host;
 const OLD_HOST = 'htw-live-study.vercel.app';
@@ -57,7 +61,7 @@ const CHECKS = {
   sitemap: 'sitemap.xml parses, lists exactly the indexable self-canonical pages (sitemapEntries()), with honest lastmod dates',
   'robots-txt': 'robots.txt names the sitemap and blocks only the runner-name folders',
   'json-ld': 'JSON-LD parses, uses schema.org, names no Person but Andrew Kam (without a URL), none on /runners, breadcrumbs 1..n on the host',
-  'banned-words': '"the wall", "arithmetic" and "your chance" appear nowhere: visible text, alt text, metadata or JSON-LD',
+  'banned-words': '"the wall", "arithmetic" and "your chance" (also with up to two words between, as in "your personal chance") appear nowhere: visible text, alt text, metadata or JSON-LD',
   fastest: '"fastest" is in no title, description, H1 or og/twitter tag',
   'runner-counts': 'Titles and descriptions count finishes, never runners',
   'personal-data': 'No q= in a canonical, og:url, the sitemap or JSON-LD, and /runners is noindex',
@@ -68,7 +72,7 @@ const CHECKS = {
 const WARNINGS = {
   'title-length': 'Titles over 60 characters',
   'description-length': 'Descriptions over 155 characters',
-  'og-image-fallback': 'Pages that could have their own share card but use a fallback (run npm run og:images)',
+  'og-image-fallback': 'Pages that use a less specific share card than the one scripts/build-og-images.cjs makes for them (run npm run og:images)',
   policy: 'Policy notes',
 };
 const failures = new Map(Object.keys(CHECKS).map((key) => [key, []]));
@@ -129,8 +133,8 @@ function pagePath(file) {
   return '/' + bare;
 }
 
-function parsePage(file) {
-  const html = fs.readFileSync(path.join(OUT, file), 'utf8');
+const parsePage = (file) => parseHtml(fs.readFileSync(path.join(OUT, file), 'utf8'), file);
+function parseHtml(html, file) {
   const headStart = html.search(/<head\b/i);
   const headEnd = html.search(/<\/head>/i);
   const head = headStart >= 0 && headEnd > headStart ? html.slice(headStart, headEnd) : '';
@@ -161,6 +165,64 @@ function parsePage(file) {
     social, visible: textOf(body), attributeText,
   };
 }
+
+// ---------- Banned wording ----------
+
+/**
+ * Wording the site never uses. "your chance" covers every form: "your chances", and up to two words between
+ * ("your personal chance", "your own personal chances"). Words are letters, digits, hyphens and apostrophes, so the
+ * pattern does not reach across a sentence ("your race. Chance …").
+ */
+const BANNED = [
+  [/\bthe\s+wall\b/i, '"the wall" (say "sustained slowdown")'],
+  [/arithmetic/i, '"arithmetic"'],
+  [/\byour\s+(?:[\p{L}\p{N}’'-]+\s+){0,2}chances?\b/iu, '"your chance"'],
+];
+
+/** The texts of a page that must not carry banned wording: metadata, the H1, visible text and alt/title/aria-label text. */
+function pageTexts(page) {
+  const metaTexts = [
+    ['title', page.titles.join(' ')],
+    ['description', page.descriptions.join(' ')],
+    ...Object.entries(page.social).filter(([key]) => /:(title|description|image:alt|site_name)$/.test(key)).map(([key, values]) => [key, values.join(' ')]),
+  ];
+  return { metaTexts, sources: [...metaTexts, ['h1', page.h1.join(' ')], ['visible text', page.visible], ['alt/title/aria-label', page.attributeText.join(' | ')]] };
+}
+
+/** Each banned pattern's first hit in each of a page's texts: { label, source, text }. */
+function bannedHits(page) {
+  const hits = [];
+  for (const [pattern, label] of BANNED) {
+    for (const [source, text] of pageTexts(page).sources) {
+      const match = pattern.exec(text);
+      if (match) hits.push({ label, source, text: snippet(text, match.index, match[0].length) });
+    }
+  }
+  return hits;
+}
+
+/** Fixtures for the banned-words check, run before every check of an export (and alone with --self-test). */
+function selfTest() {
+  const problems = [];
+  const yourChance = BANNED.find(([, label]) => label === '"your chance"')[0];
+  const caught = ['your chance', 'your chances', 'Your Chance', 'your personal chance', 'your own personal chances', 'your best possible chance', 'what are your\nreal chances'];
+  const allowed = ['your race. Chance plays no part', 'your three extra words chance', 'yourchance', 'your chancellor', 'a chance for you'];
+  for (const text of caught) if (!yourChance.test(text)) problems.push(`"your chance" pattern misses ${JSON.stringify(text)}`);
+  for (const text of allowed) if (yourChance.test(text)) problems.push(`"your chance" pattern wrongly catches ${JSON.stringify(text)}`);
+  const fixture = parseHtml(`<!doctype html><html><head><title>Fixture | Pace Notes</title>
+    <meta name="description" content="What is your personal chance of a sub-4 finish?"><meta property="og:title" content="Your chances | Pace Notes"></head>
+    <body><h1>Fixture</h1><p>Read <em>your own personal</em> chances here.</p><img src="/x.png" alt="your best possible chance"><p>Pick your race. Chance plays no part.</p></body></html>`, 'fixture.html');
+  const hits = bannedHits(fixture).filter((hit) => hit.label === '"your chance"').map((hit) => hit.source).sort();
+  const want = ['alt/title/aria-label', 'description', 'og:title', 'visible text'];
+  if (JSON.stringify(hits) !== JSON.stringify(want)) problems.push(`the fixture page should hit "your chance" in ${want.join(', ')}; it hit ${hits.join(', ') || 'nothing'}`);
+  if (problems.length) {
+    console.error(`verify-seo self-test failed:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`);
+    process.exit(1);
+  }
+  return `${caught.length + allowed.length} pattern fixtures and a fixture page`;
+}
+const SELF_TEST = selfTest();
+if (SELF_TEST_ONLY) { console.log(`verify-seo self-test passed: ${SELF_TEST}.`); process.exit(0); }
 
 if (!fs.existsSync(OUT) || !fs.existsSync(path.join(OUT, 'index.html'))) {
   console.error(`verify-seo: no export at ${OUT}. Run npm run build first (output: 'export' writes out/).`);
@@ -295,8 +357,9 @@ for (const page of pages) {
     for (const value of page.social[key] || []) if (value !== want) fail('og-image', where, `${key} is ${value}, not ${want}`);
   }
   if (!page.notFound && !noindexExpected && images.length) {
-    const candidates = ogImageCandidates(page.path);
-    const own = candidates.length === 3 ? candidates[0] : null; // a section with per-page cards
+    // The most specific card the script makes for this page: its own card (a story, tool, goal page, qualifying race,
+    // course or /finish-times), else the parent tool's or the section's. Pages with none (about, …) use the default.
+    const own = ogImageCandidates(page.path).find((candidate) => PLANNED_CARDS.has(candidate)) ?? null;
     const used = (() => { try { return new URL(images[0]).pathname; } catch { return ''; } })();
     const usable = used && !imageSize(path.join(OUT, decodeURIComponent(used))).error; // a missing image is already a failure
     if (own && usable && used !== own) {
@@ -318,21 +381,10 @@ for (const page of pages) {
   if (unitLinks.size) fail('units-links', where, `${unitLinks.size} link${unitLinks.size === 1 ? '' : 's'} with units=mi, e.g. ${[...unitLinks].slice(0, 2).join(' , ')}`);
 
   // Words: metadata, H1, visible text, alt text and JSON-LD
-  const metaTexts = [
-    ['title', page.titles.join(' ')],
-    ['description', page.descriptions.join(' ')],
-    ...Object.entries(page.social).filter(([key]) => /:(title|description|image:alt|site_name)$/.test(key)).map(([key, values]) => [key, values.join(' ')]),
-  ];
+  const { metaTexts } = pageTexts(page);
   const headline = [['title', page.title], ['description', page.descriptions[0] || ''], ...metaTexts.filter(([key]) => /^(og|twitter):(title|description)$/.test(key))];
 
-  const banned = [[/\bthe\s+wall\b/i, '"the wall" (say "sustained slowdown")'], [/arithmetic/i, '"arithmetic"'], [/\byour\s+chances?\b/i, '"your chance"']];
-  const sources = [...metaTexts, ['h1', page.h1.join(' ')], ['visible text', page.visible], ['alt/title/aria-label', page.attributeText.join(' | ')]];
-  for (const [pattern, label] of banned) {
-    for (const [source, text] of sources) {
-      const match = pattern.exec(text);
-      if (match) fail('banned-words', where, `${label} in ${source}: ${snippet(text, match.index, match[0].length)}`);
-    }
-  }
+  for (const hit of bannedHits(page)) fail('banned-words', where, `${hit.label} in ${hit.source}: ${hit.text}`);
   for (const [source, text] of [...metaTexts, ['h1', page.h1.join(' ')]]) {
     const match = /fastest/i.exec(text);
     if (match) fail('fastest', where, `"fastest" in ${source}: ${snippet(text, match.index, match[0].length)}`);
@@ -346,7 +398,7 @@ for (const page of pages) {
   }
 
   // JSON-LD
-  checkJsonLd(page, where, banned);
+  checkJsonLd(page, where, BANNED);
 
   // Length warnings
   if (!page.notFound && page.title && chars(page.title) > 60) warn('title-length', where, `${chars(page.title)} characters: "${page.title}"`);
@@ -605,7 +657,7 @@ const warned = [...warnings].filter(([, list]) => list.length);
 const noindexCount = pages.filter((p) => !p.notFound && expectNoindex(p)).length;
 const aliasCount = indexable.filter((p) => routes.canonicalPathFor(p.path) !== p.path).length;
 const outLabel = OUT === ROOT || OUT.startsWith(ROOT + path.sep) ? path.relative(ROOT, OUT) || '.' : OUT;
-console.log(`verify-seo: ${outLabel}/ has ${pages.length} HTML pages (${indexable.length - aliasCount} indexable, ${aliasCount} aliases, ${noindexCount} noindex, ${pages.filter((p) => p.notFound).length} not-found); sitemap lists ${sitemapLocs.length} URLs; finishesM() = ${FINISHES_M}.\n`);
+console.log(`verify-seo: ${outLabel}/ has ${pages.length} HTML pages (${indexable.length - aliasCount} indexable, ${aliasCount} aliases, ${noindexCount} noindex, ${pages.filter((p) => p.notFound).length} not-found); sitemap lists ${sitemapLocs.length} URLs; finishesM() = ${FINISHES_M}; self-test passed (${SELF_TEST}).\n`);
 
 function printGroup(kind, key, title, list) {
   const pagesHit = new Set(list.map((item) => item.page)).size;

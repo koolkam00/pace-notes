@@ -79,12 +79,17 @@ function pacingCohortMillions(): string | null {
   return types ? (types.cohort_n / 1e6).toFixed(1) : null;
 }
 
-/** Replayed races in replay.json and the largest field among them, or null when the file is not in this build. */
-function replayFields(): { races: string; largest: string } | null {
+/**
+ * Replayed races in replay.json and the finishes each replay draws: a sample of each field ("1,500", or "up to 1,500"
+ * when the samples differ), never the whole field. Null when the file is not in this build.
+ */
+function replayFields(): { races: string; sample: string } | null {
   const replay = insight<ReplayIndex>('replay.json');
   if (!replay) return null;
   const races = countWord(replay.editions.length);
-  return races ? { races, largest: Math.max(...replay.editions.map((e) => e.finishes)).toLocaleString('en-US') } : null;
+  const samples = replay.editions.map((e) => e.sample);
+  const largest = Math.max(...samples).toLocaleString('en-US');
+  return races ? { races, sample: samples.every((n) => n === samples[0]) ? largest : `up to ${largest}` } : null;
 }
 
 /** Courses in courses.json and the first and last race year they cover, or null when the course data is not in this build. */
@@ -142,8 +147,8 @@ export const STORIES: StoryDefinition[] = [
     get dek() {
       const fields = replayFields();
       return fields
-        ? `Replay ${fields.races} big-city races from their recorded splits and watch fields of up to ${fields.largest} finishes stretch across the course.`
-        : 'Replay big-city races from their recorded splits and watch a whole field stretch across the course.';
+        ? `Replay ${fields.races} big-city races from their recorded splits and watch ${fields.sample} sampled finishes from each field stretch across the course.`
+        : 'Replay big-city races from their recorded splits and watch a sample of each field stretch across the course.';
     },
     accent: '#F4B23E',
     published: '2026-10-07',
@@ -151,8 +156,8 @@ export const STORIES: StoryDefinition[] = [
     get seoDescription() {
       const fields = replayFields();
       return fields
-        ? `Replay ${fields.races} big-city marathons from their recorded 5 km splits and watch fields of up to ${fields.largest} finishes spread out along the course.`
-        : 'Replay big-city marathons from their recorded 5 km splits and watch a whole field spread out along the course.';
+        ? `Replay ${fields.races} big-city marathons from their recorded 5 km splits and watch ${fields.sample} sampled finishes from each field spread out along the course.`
+        : 'Replay big-city marathons from their recorded 5 km splits and watch a sample of each field spread out along the course.';
     } },
   { slug: 'places', file: 'positions.json', number: '04', kicker: 'Places on the clock', title: 'Pass or be passed',
     dek: 'How much the order of a field changes after 20 km, who moves up late and which section reshuffles the race the most.', accent: '#2F5BFF',

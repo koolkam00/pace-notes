@@ -9,9 +9,18 @@
       "permanent": true
     },
     { "source": "/htw", "destination": "/slowdown", "permanent": true },
-    { "source": "/packs/smyth_htw", "destination": "/slowdown", "permanent": true }
+    { "source": "/packs/smyth_htw", "destination": "/slowdown", "permanent": true },
+    { "source": "/tools/marathon-pace", "destination": "/tools/marathon-pace-chart", "permanent": true }
   ],
   "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [{ "key": "Referrer-Policy", "value": "strict-origin" }]
+    },
+    {
+      "source": "/((?!robots\\.txt$).*\\.txt)",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
+    },
     {
       "source": "/data/:path*",
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]

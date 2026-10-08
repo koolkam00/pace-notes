@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { EvidencePanel } from '@/components/tools/ui';
 import { HALF_KM } from '@/lib/tools/pace';
@@ -11,6 +11,43 @@ import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 const RACE_NAME: Record<ChartRace, string> = { marathon: 'Marathon', half: 'Half marathon' };
 const oneDecimal = (v: number) => (Math.round(v * 10) / 10).toFixed(1);
 const elapsed = (s: number) => formatDuration(s, s >= 3600);
+/** Long tables repeat their column heads every this many rows, so a phone that has scrolled down still sees which column is which. */
+const REPEAT_EVERY = 10;
+/** Only tables longer than this repeat them (the marathon chart, not the half). */
+const REPEAT_MIN_ROWS = 30;
+const repeatBefore = (i: number, rows: number) => rows > REPEAT_MIN_ROWS && i > 0 && i % REPEAT_EVERY === 0 && rows - i >= 3;
+
+/**
+ * The horizontal scroller for a wide table, with a hint above it while the table is wider than its box (phones). The
+ * table's caption is visually hidden (it names the table for screen readers); the explanation goes below the scroller
+ * as a normal paragraph, so it wraps to the screen instead of to the table's full width.
+ */
+function ChartScroller({ labelledBy, note, children }: { labelledBy: string; note: ReactNode; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [overflow, setOverflow] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setOverflow(el.scrollWidth > el.clientWidth + 1);
+    check();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(check);
+    observer.observe(el);
+    if (el.firstElementChild) observer.observe(el.firstElementChild);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <>
+      <p className="goal-chart-hint no-print" hidden={!overflow}>
+        <span aria-hidden="true">↔</span> The table is wider than the screen: scroll it sideways for every column. The goal column stays in place.
+      </p>
+      <div ref={ref} className="tool-table-wrap goal-chart-wrap" role="region" aria-labelledby={labelledBy} tabIndex={0}>
+        {children}
+      </div>
+      <p className="tool-note goal-chart-caption">{note}</p>
+    </>
+  );
+}
 
 /** Column head for a timing point: the km point, with its mile equivalent when the visitor reads miles. Halfway names both. */
 function PointHead({ point, units }: { point: ChartPoint; units: UnitSystem }) {
@@ -42,10 +79,10 @@ export default function PaceChartTable({ race }: { race: ChartRace }) {
         <div className="tool-share no-print">
           <button type="button" className="button-secondary" onClick={() => window.print()}>Print chart</button>
         </div>
-        <div className="tool-table-wrap goal-chart-wrap" role="region" aria-labelledby={`${tableId}-caption`} tabIndex={0}>
+        <ChartScroller labelledBy={`${tableId}-caption`} note="These are not recorded splits: every time is calculated at even pace from the goal and rounded to whole seconds.">
           <table className="tool-table goal-chart-table" id={tableId}>
-            <caption id={`${tableId}-caption`}>
-              {name} pace chart, calculated at even pace for each goal from {first} to {last}. These are not recorded splits. Times are rounded to whole seconds.
+            <caption id={`${tableId}-caption`} className="sr-only">
+              {name} pace chart, calculated at even pace for each goal from {first} to {last}.
             </caption>
             <thead>
               <tr>
@@ -60,11 +97,20 @@ export default function PaceChartTable({ race }: { race: ChartRace }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => {
+              {rows.map((r, i) => {
                 const label = goalLabel(r.goal);
                 const page = race === 'marathon' && hasGoalPage(r.goal);
                 return (
-                  <tr key={r.goal} className={r.goal % 30 === 0 ? 'is-key' : undefined}>
+                  <Fragment key={r.goal}>
+                  {repeatBefore(i, rows.length) ? (
+                    <tr className="goal-chart-rehead" aria-hidden="true">
+                      <td className="goal-chart-goal">Goal</td>
+                      {paceUnits.map((u) => <td key={u}>/{u}</td>)}
+                      {spec.points.map((p) => <td key={p.km}><PointHead point={p} units={units} /></td>)}
+                      <td className="goal-chart-plan no-print" />
+                    </tr>
+                  ) : null}
+                  <tr className={r.goal % 30 === 0 ? 'is-key' : undefined}>
                     <th scope="row" className="goal-chart-goal">
                       {page ? <Link href={goalPagePath(r.goal)} aria-label={`${label} marathon pace page`}>{label}</Link> : label}
                     </th>
@@ -76,11 +122,12 @@ export default function PaceChartTable({ race }: { race: ChartRace }) {
                         : <Link href={calculatorHref('half', r.goal)} aria-label={`Splits for a ${label} half marathon`}>Splits</Link>}
                     </td>
                   </tr>
+                  </Fragment>
                 );
               })}
             </tbody>
           </table>
-        </div>
+        </ChartScroller>
         <p className="tool-note no-print">
           {race === 'marathon'
             ? <>Each <b>Pace band</b> link opens the printable band for that goal, beside what recorded finishes at that goal ran at each mat. Underlined goals link to their own page.</>
@@ -91,10 +138,11 @@ export default function PaceChartTable({ race }: { race: ChartRace }) {
       {units === 'mi' ? (
         <EvidencePanel id={`${tableId}-miles-panel`} title="Mile markers at even pace"
           meta={`Calculated at even pace, not recorded times: the elapsed time at ${race === 'marathon' ? 'every fifth mile and at halfway' : '5 and 10 miles'} for each goal.`}>
-          <div className="tool-table-wrap goal-chart-wrap" role="region" aria-labelledby={`${tableId}-miles-caption`} tabIndex={0}>
+          <ChartScroller labelledBy={`${tableId}-miles-caption`}
+            note={race === 'marathon' ? 'Not recorded splits: the official timing mats are every 5 km.' : 'Not recorded splits: every time is calculated at even pace from the goal.'}>
             <table className="tool-table goal-chart-table goal-chart-miles">
-              <caption id={`${tableId}-miles-caption`}>
-                {name} mile markers, calculated at even pace for each goal from {first} to {last}. Not recorded splits: the official timing mats are every 5 km.
+              <caption id={`${tableId}-miles-caption`} className="sr-only">
+                {name} mile markers, calculated at even pace for each goal from {first} to {last}.
               </caption>
               <thead>
                 <tr>
@@ -106,16 +154,25 @@ export default function PaceChartTable({ race }: { race: ChartRace }) {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
-                  <tr key={r.goal} className={r.goal % 30 === 0 ? 'is-key' : undefined}>
-                    <th scope="row" className="goal-chart-goal">{goalLabel(r.goal)}</th>
-                    <td>{formatDuration(r.perMile)}</td>
-                    {r.miles.map((t, i) => <td key={spec.miles[i].km} className={spec.miles[i].halfway ? 'goal-chart-half' : undefined}>{elapsed(t)}</td>)}
-                  </tr>
+                {rows.map((r, i) => (
+                  <Fragment key={r.goal}>
+                    {repeatBefore(i, rows.length) ? (
+                      <tr className="goal-chart-rehead" aria-hidden="true">
+                        <td className="goal-chart-goal">Goal</td>
+                        <td>/mi</td>
+                        {spec.miles.map((p) => <td key={p.km}>{p.halfway ? <>Half<span className="goal-chart-sub">{oneDecimal(p.mi ?? 0)} mi</span></> : `${p.mi} mi`}</td>)}
+                      </tr>
+                    ) : null}
+                    <tr className={r.goal % 30 === 0 ? 'is-key' : undefined}>
+                      <th scope="row" className="goal-chart-goal">{goalLabel(r.goal)}</th>
+                      <td>{formatDuration(r.perMile)}</td>
+                      {r.miles.map((t, j) => <td key={spec.miles[j].km} className={spec.miles[j].halfway ? 'goal-chart-half' : undefined}>{elapsed(t)}</td>)}
+                    </tr>
+                  </Fragment>
                 ))}
               </tbody>
             </table>
-          </div>
+          </ChartScroller>
         </EvidencePanel>
       ) : null}
     </>

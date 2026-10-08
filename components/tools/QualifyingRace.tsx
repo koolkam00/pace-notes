@@ -15,7 +15,7 @@ import {
 } from '@/components/tools/QualifyingRaceText';
 import { JsonLd, breadcrumbs } from '@/lib/seo';
 import { MARATHON_KM } from '@/lib/tools/pace';
-import { BOSTON_CUTOFFS, VERIFIED_AT, type Standard } from '@/lib/tools/qualifying';
+import { ASSUMED_COMPARISON, BOSTON_CUTOFFS, VERIFIED_AT, hasPublishedCutoffs, type Standard } from '@/lib/tools/qualifying';
 import { toolBySlug } from '@/lib/tools/registry';
 
 const grouped = (n: number) => n.toLocaleString('en-US');
@@ -37,10 +37,12 @@ function ageRule(s: Standard): { value: string; detail: string; column: string; 
     sentence: `The age you reach during ${s.ageYear}, so the groups go by birth year.` };
 }
 
+/** The time rule in the checker's words (comparisonText in lib/tools/qualifying.ts), driven by `comparison` and `comparisonStated`. */
 function timeRule(s: Standard): { value: string; detail: string } {
   if (s.comparison === 'strictly-under') return { value: 'Strictly under the standard', detail: 'A time equal to the standard does not qualify.' };
   if (s.comparisonStated) return { value: 'At or under the standard', detail: 'A time equal to the standard qualifies.' };
-  return { value: 'Under the standard', detail: `${capital(organiser(s))} does not say whether a time exactly equal to the standard qualifies.` };
+  return { value: `At or under the standard ${ASSUMED_COMPARISON}`,
+    detail: `${capital(organiser(s))} does not say whether a time exactly equal to the standard qualifies; this page and the checker count it as meeting the standard.` };
 }
 
 /**
@@ -114,7 +116,7 @@ export default function QualifyingRace({ s, others, course }: { s: Standard; oth
           </div>
           <p className="tool-note">{s.nonbinaryNote}</p>
           <p className="qrace-sources">
-            {sources.map((src) => <a key={src.url} href={src.url} rel="noopener noreferrer">{src.label}<span aria-hidden="true"> ↗</span></a>)}
+            {sources.map((src) => <a key={src.url} href={src.url} rel="noopener noreferrer">{src.label}<span aria-hidden="true">{'\u00a0'}↗</span></a>)}
             <span className="qrace-checked">Checked <time dateTime={VERIFIED_AT}>{checkedDate()}</time></span>
           </p>
         </EvidencePanel>
@@ -208,7 +210,7 @@ export default function QualifyingRace({ s, others, course }: { s: Standard; oth
         <summary>How this page works</summary>
         <div className="tool-method-body">
           <p><strong>Official rules only.</strong> Every standard, age rule, window and application date on this page was transcribed from {possessive(organiser(s))} own page{sources.length > 1 ? 's' : ''} and checked on {checkedDate()}. Standards change from year to year, so check the official page before you apply. Pace Notes reviews them before each registration season.</p>
-          <p><strong>Past cut-offs are not a forecast.</strong> Where a race publishes how far under the standard its accepted qualifiers had to be, this page lists those figures as published. Nothing here estimates a future cut-off or whether anyone will be accepted.</p>
+          {hasPublishedCutoffs(s) ? <p><strong>Past cut-offs are not a forecast.</strong> Where a race publishes how far under the standard its accepted qualifiers had to be, this page lists those figures as published. Nothing here estimates a future cut-off or whether anyone will be accepted.</p> : null}
           <p><strong>The even-pace table</strong> divides each standard by the marathon distance. It is calculated, not recorded, and real races are rarely run at an even pace.</p>
           <ul className="tool-sources">{sources.map((src) => <li key={src.url}><a href={src.url} rel="noopener noreferrer">{src.label}</a></li>)}</ul>
         </div>

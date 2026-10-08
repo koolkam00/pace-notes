@@ -7,7 +7,7 @@ import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
 import { MARATHON_KM, perUnit } from '@/lib/tools/pace';
 import {
-  BOSTON_CUTOFFS, STANDARDS, VERIFIED_AT, bostonDownhillIndex, bostonDownhillIndexMetres, clearedCutoffs, evaluate,
+  BOSTON_CUTOFFS, CHICAGO_ROUTE, STANDARDS, VERIFIED_AT, bostonDownhillIndex, bostonDownhillIndexMetres, clearedCutoffs, comparisonText, evaluate,
   type Band, type Division, type QualifyInput, type QualifyResult, type Standard,
 } from '@/lib/tools/qualifying';
 import { formatDuration, formatMargin, parseDuration } from '@/lib/tools/time';
@@ -193,7 +193,7 @@ function verdict(r: QualifyResult, opts: { uk: boolean; nyrrGuaranteed: boolean;
         boston: 'You can apply. Acceptance depends on the cut-off.',
         nyc: opts.nyrrGuaranteed ? 'Guaranteed entry: a time from the 2026 TCS New York City Marathon.' : 'Enters the capped pool, fastest first.',
         london: 'Places go fastest first, relative to the standard.',
-        chicago: 'Guaranteed entry. There is no cut-off.',
+        chicago: CHICAGO_ROUTE,
         berlin: 'Not guaranteed: proof is reviewed.',
         sydney: 'Not guaranteed: places go fastest first.',
       };
@@ -625,7 +625,6 @@ function RaceCard({ it, birth, raceDate, seconds, division, drop, dropIgnored, n
   const myway = s.key === 'london' && r.age !== null ? [...LONDON_MYWAY_HALF].reverse().find(([min]) => r.age! >= min) : undefined;
   const champ = s.key === 'london' && division !== 'nonbinary' ? LONDON_CHAMPIONSHIP[division] : null;
   const fine = [...(s.extra ?? []), s.nonbinaryNote];
-  if (s.key === 'boston') fine.push('B.A.A. statements differ on how long the downhill index lasts: the June 2025 rule said at least two years; the September 2026 registration update says it may change before 2028 registration.');
   if (s.key === 'london') {
     fine.push(`MyWay: if your only qualifying time is from the virtual TCS London Marathon MyWay, you also need an in-person half marathon run in the same window on a certified course${myway && division !== 'nonbinary' ? `, under ${formatDuration(division === 'men' ? myway[1] : myway[2])} for ${division} in your age band` : ''}.`);
     fine.push(`Championship entry (a separate route for members of a UK athletics body, open to non-residents): marathon under ${formatDuration(LONDON_CHAMPIONSHIP.men)} for men or ${formatDuration(LONDON_CHAMPIONSHIP.women)} for women, run in the same window; 1,200 places, fastest first; applications close 16:00 BST, ${fmtDate(LONDON_CHAMPIONSHIP.closes)}.`);
@@ -666,7 +665,7 @@ function RaceCard({ it, birth, raceDate, seconds, division, drop, dropIgnored, n
           <div className="is-key">
             <dt>Standard</dt>
             <dd>
-              {limit !== null && r.band ? <><b>{fmtTime(limit)}</b><span>{bandText(s, r.band, division)}{division === 'nonbinary' && r.band.nonbinary === r.band.women ? ' (equal to the women’s)' : ''} · {s.comparison === 'strictly-under' ? 'strictly under' : s.comparisonStated ? 'at or under' : 'at or under (assumed; not stated by the race)'}</span></>
+              {limit !== null && r.band ? <><b>{fmtTime(limit)}</b><span>{bandText(s, r.band, division)}{division === 'nonbinary' && r.band.nonbinary === r.band.women ? ' (equal to the women’s)' : ''} · {comparisonText(s)}</span></>
                 : <><b>—</b><span>{v.reason ?? 'No standard applies.'}</span></>}
             </dd>
           </div>
@@ -711,7 +710,7 @@ function RaceCard({ it, birth, raceDate, seconds, division, drop, dropIgnored, n
         </details>
 
         <p className="qualifying-sources">
-          {sources.map((src) => <a key={src.url} href={src.url} rel="noopener noreferrer">{src.label}<span aria-hidden="true"> ↗</span></a>)}
+          {sources.map((src) => <a key={src.url} href={src.url} rel="noopener noreferrer">{src.label}<span aria-hidden="true">{'\u00a0'}↗</span></a>)}
           <Link className="no-print" href={`/tools/qualifying/${s.key}`}>Every {SHORT[s.key] ?? s.race} age group</Link>
           <span className="qualifying-checked">Checked <time dateTime={VERIFIED_AT}>{VERIFIED_AT}</time></span>
         </p>

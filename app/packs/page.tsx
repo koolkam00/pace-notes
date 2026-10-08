@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 import { QUESTIONS, EXTRA_TITLES, THEMES } from '@/lib/question-catalog';
 import { PERSONAL_QUESTIONS } from '@/lib/personalized-catalog';
 import { broaderArchive } from '@/lib/broader-analysis-catalog';

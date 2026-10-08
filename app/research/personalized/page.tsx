@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 import PersonalizedGuide from '@/components/PersonalizedGuide';
 import { getPersonalSummary } from '@/lib/personalized-data';
 import { pageMetadata } from '@/lib/seo';

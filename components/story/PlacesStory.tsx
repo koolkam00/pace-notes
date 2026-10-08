@@ -67,7 +67,7 @@ export function GapGauge({ data: given }: { data?: Positions }) {
         <input type="range" min={0} max={870} step={30} value={gap} onChange={(e) => setGap(Number(e.target.value))} aria-valuetext={`${mmss(binLo)} to ${mmss(binHi)} behind`} />
       </label>
       <div ref={ref} className="viz">
-        <svg width={width} height={H} role="img" aria-label="Share of pairs where the trailing finish ends ahead, by clock gap, for four checkpoints. The share falls fastest from 40 km.">
+        <svg width={width} height={H} role="img" aria-label={`Share of pairs where the trailing finish ends ahead, by clock gap, for four checkpoints. The share falls fastest from ${checkpointLabel(40, units)}.`}>
           {[0, .1, .2, .3, .4, .5].map((v) => <g key={v}><g className="grid"><line x1={m.l} x2={width - m.r} y1={y(v)} y2={y(v)} /></g><text x={m.l - 8} y={y(v) + 4} textAnchor="end">{v * 100}%</text></g>)}
           {CHECKPOINTS.map((c) => {
             const rs = data.coin_flip[c];
@@ -146,9 +146,9 @@ export function BreakEven({ data: given }: { data?: Positions }) {
   const cross = data.breakeven_crossing ?? 0;
   return (
     <div className="viz-card">
-      <div className="viz-head"><div><p className="viz-title">How much slowing costs places</p><p className="viz-sub">{late} pace compared with the same finish&apos;s 5–20 km pace</p></div></div>
+      <div className="viz-head"><div><p className="viz-title">How late slowing lines up with places gained or lost</p><p className="viz-sub">{late} pace compared with the same finish&apos;s 5–20 km pace</p></div></div>
       <div ref={ref} className="viz" style={{ position: 'relative' }} onMouseLeave={() => setHover(null)}>
-        <svg width={width} height={H} role="img" aria-label={`Median percentile points gained after ${at30} falls as 30–40 km slowing grows, crossing zero at about ${cross.toFixed(0)}% slower.`}>
+        <svg width={width} height={H} role="img" aria-label={`Median percentile points gained after ${at30} falls as ${late} slowing grows, crossing zero at about ${cross.toFixed(1)}% slower.`}>
           <path d={band} fill="rgba(47,91,255,.14)" />
           <line x1={m.l} x2={width - m.r} y1={y(0)} y2={y(0)} stroke="#15171C" />
           <path d={rows.map((r, i) => `${i ? 'L' : 'M'}${x(r.x)} ${y(r.median)}`).join(' ')} fill="none" stroke="#2346E6" strokeWidth={3} />
@@ -175,7 +175,7 @@ export function BreakEven({ data: given }: { data?: Positions }) {
         <input type="range" min={0} max={rows.length - 1} step={1} value={hover ?? zero} onChange={(e) => setHover(Number(e.target.value))}
           aria-valuetext={`${slowText((hov ?? rows[zero]).x)}: median ${(hov ?? rows[zero]).median.toFixed(1)} points, ${Math.round((hov ?? rows[zero]).gained * 100)}% gained places, ${count((hov ?? rows[zero]).n)} finishes`} />
       </label>
-      <p className="viz-note">Shaded: the middle 80% of finishes at each level of slowing. Everyone around you is slowing too, so a typical finish holds its place until it slows by about {cross.toFixed(0)}%. Both measures overlap the same late kilometres, so this describes the link rather than predicting it.</p>
+      <p className="viz-note">Shaded: the middle 80% of finishes at each level of slowing. Most of the field slowed too, so the median finish held its place until it slowed by about {cross.toFixed(1)}%. Both measures overlap the same late kilometres, so this describes the link rather than predicting it.</p>
     </div>
   );
 }

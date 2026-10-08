@@ -32,6 +32,7 @@ export default function FinishTimeSummary({ summary }: { summary: Summary }) {
         <h1 className="tool-title">Marathon finish times</h1>
         <p className="tool-dek">
           The median recorded finish in {coverage.races} large city marathons is <strong>{percentileLabel(all.median, summary.lastMinute)}</strong>.
+          When this page says average, it means that median: the middle finish when all {count(all.total)} are ranked by time. It does not show a mean.
           Here is how {count(coverage.finishes)} finishes from {coverage.firstYear} to {coverage.lastYear} spread out, for recorded women and recorded men,
           and the share that came in under each round time.
         </p>
@@ -100,9 +101,9 @@ export default function FinishTimeSummary({ summary }: { summary: Summary }) {
             Women and men are as each race recorded them. {count(coverage.otherOrNotRecorded)} finishes have another or no recorded gender; they count in all finishes only.
           </Note>
           <Note title="The median, not the mean">
-            The minute counts published for these stories run from {clockMinute(summary.firstMinute)} to {clockMinute(summary.lastMinute)}, so finishes outside them cannot enter a mean.
-            The median needs only how many there are. {count(all.outside)} finishes ({(outsideShare * 100).toFixed(1)}%) fall outside those minutes; they stay in every total and count as slower than {clockMinute(summary.lastMinute)}.
-            Checked against the full finish records, that changes no figure on this page.
+            The minute counts published for these stories run from {clockMinute(summary.firstMinute)} to {clockMinute(summary.lastMinute)}, so finishes outside them have no published time and cannot enter a mean.
+            The median needs only how many there are. {count(all.outside)} finishes ({(outsideShare * 100).toFixed(1)}%) fall outside those minutes, faster than {clockMinute(summary.firstMinute)}:00 or slower than {clockMinute(summary.lastMinute)}:59; the published counts do not say how many are on each side.
+            They stay in every total, and for ranks and shares they are counted as slower than {clockMinute(summary.lastMinute)}. Checked against the full finish records, that changes no figure on this page.
           </Note>
           <Note title="No age groups here">
             Exact ages are recorded in only some of these races, so this page does not split finish times by age. <Link href="/stories/who-holds-pace">Who holds their pace</Link> compares age groups where ages are recorded.

@@ -197,6 +197,10 @@ for (const [unit, value, imperial, metric] of [
 
 assert.equal(unitText('between 2 and 20 minutes per km', 'mi'), 'between 3.22 and 32.19 minutes/mi');
 assert.equal(unitText('2–20 min/km', 'mi'), '3.22–32.19 min/mi');
+// A rate with words between the unit and "per km" converts its number, not only its label.
+assert.equal(unitText('37.0 seconds gained per km, versus 17.8 seconds per km in the opening 10 km.', 'mi'), '59.55 seconds gained per mile, versus 28.65 seconds/mi in the opening 6.21 mi.');
+assert.equal(unitText('10 minutes or more per km', 'mi'), '16.09 minutes or more per mile');
+assert.equal(unitText('18.7 minutes. The final 12.195 km', 'mi'), '18.7 minutes. The final 7.58 mi');
 assert.equal(unitText('2 to 20 min/km', 'mi'), '3.22 to 32.19 min/mi');
 
 // Current supporting charts and their prose follow the same display preference.

@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 import { getStudyEvidence, getStudyAnswer, getQuestions } from '@/lib/research-data';
 import { QUESTIONS } from '@/lib/question-catalog';
 import { getExtensions } from '@/lib/extension-data';

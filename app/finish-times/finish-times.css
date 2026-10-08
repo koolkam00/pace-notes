@@ -66,7 +66,8 @@
 .ft-note h3 { margin: 0 0 .35rem; font-family: var(--sans); font-size: .9375rem; font-weight: 700; line-height: 1.4; letter-spacing: 0; color: var(--ink); }
 .ft-note p { margin: 0; font-size: .9375rem; line-height: 1.6; color: var(--ink-2); }
 .ft-races-title { margin: 2rem 0 .7rem; font-family: var(--mono); font-size: .75rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
-.ft-races { columns: 9.5rem; column-gap: 1.4rem; list-style: none; padding: 0; margin: 0; font-size: .875rem; line-height: 1.4; }
+/* 9rem columns: two fit a 390 px phone (2 × 9rem + the gap is under its 326 px). */
+.ft-races { columns: 9rem; column-gap: 1.4rem; list-style: none; padding: 0; margin: 0; font-size: .875rem; line-height: 1.4; }
 .ft-races li { break-inside: avoid; padding: .2rem 0; }
 .ft-races li + li { margin-top: 0; }
 .ft-races-note { margin-top: .7rem; font-size: .8125rem; color: var(--ink-3); }

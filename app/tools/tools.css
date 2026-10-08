@@ -155,7 +155,11 @@ a.tool-card:hover { text-decoration: none; transform: translateY(-3px); box-shad
 .tool-next { margin: 3rem 0 1rem; }
 .tool-next ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); gap: .6rem; list-style: none; padding: 0; margin: .8rem 0 0; }
 .tool-next a { display: grid; gap: .15rem; padding: .8rem 1rem; border: 1px solid var(--line); border-left: 4px solid var(--tool); border-radius: 12px; background: var(--card); color: var(--ink); }
-.tool-next a:hover { text-decoration: none; border-color: var(--ink-3); border-left-color: var(--tool); }
+/* Cards, not text links: globals.css underlines 'li > a:not([class])', so these selectors are more specific than that rule (here and in the card lists below). */
+.tool-next ul > li > a { text-decoration: none; }
+.tool-next ul > li > a:hover { text-decoration: none; border-color: var(--ink-2); border-left-color: var(--tool); }
+.tool-next ul > li > a:hover b, .tool-next ul > li > a:focus-visible b { text-decoration: underline; text-decoration-color: var(--tool); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.tool-next ul > li > a:focus-visible { outline: 2px solid var(--tool, var(--blue)); outline-offset: 2px; }
 .tool-next b { font-size: .9375rem; }
 .tool-next span { font-size: .8125rem; color: var(--ink-3); }
 
@@ -220,11 +224,22 @@ a.tool-card:hover { text-decoration: none; transform: translateY(-3px); box-shad
 .goal-chart-table td.goal-chart-plan { font-family: var(--sans); font-size: .8125rem; }
 .goal-chart-table tbody th a { color: inherit; text-decoration: underline; text-decoration-color: var(--tool, var(--blue)); text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .goal-chart-print-note { margin-top: .8rem; font-size: 9pt; color: #000; }
+/* The table's explanation sits under its scroller as a paragraph (the caption itself is visually hidden), so on a phone it wraps to the screen, not to the table. */
+.goal-chart-caption { margin-top: .7rem; max-width: 48rem; }
+/* Shown by PaceChartTable only while the table is wider than its box. No display rule here, so [hidden] keeps working. */
+.goal-chart-hint { margin: 0 0 .55rem; font-size: .8125rem; line-height: 1.45; color: var(--ink-2); }
+.goal-chart-hint span { margin-right: .35rem; font-weight: 700; color: var(--tool, var(--blue)); }
+/* Column heads repeated every ten rows in the long marathon tables. */
+.goal-chart-table tr.goal-chart-rehead td { padding: .45rem .6rem .35rem; background: var(--card); border-top: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); vertical-align: bottom; }
+.goal-chart-table tr.goal-chart-rehead td.goal-chart-goal { text-align: left; color: var(--ink-3); }
 /* /tools index: the pace charts and goal pages, as a compact link list under the tool cards. */
 .tools-chart-links { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); gap: .6rem; list-style: none; padding: 0; margin: 0; }
 .tools-chart-links li + li { margin-top: 0; }
 .tools-chart-links > li > a, .tools-chart-goals { display: grid; gap: .15rem; height: 100%; padding: .8rem 1rem; border: 1px solid var(--line); border-left: 4px solid var(--blue); border-radius: 12px; background: var(--card); color: var(--ink); text-decoration: none; }
-.tools-chart-links > li > a:hover { text-decoration: none; border-color: var(--ink-3); border-left-color: var(--blue); }
+ul.tools-chart-links > li > a { text-decoration: none; }
+ul.tools-chart-links > li > a:hover { text-decoration: none; border-color: var(--ink-2); border-left-color: var(--blue); }
+ul.tools-chart-links > li > a:hover b, ul.tools-chart-links > li > a:focus-visible b { text-decoration: underline; text-decoration-color: var(--blue); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+ul.tools-chart-links > li > a:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .tools-chart-links b { font-size: .9375rem; }
 .tools-chart-goals a { font-family: var(--mono); font-size: .875rem; font-weight: 600; color: var(--blue-ink); }
 .tools-chart-links li > span, .tools-chart-links a span { font-size: .8125rem; color: var(--ink-3); }
@@ -234,7 +249,10 @@ a.tool-card:hover { text-decoration: none; transform: translateY(-3px); box-shad
 .goal-chart-goals ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr)); gap: .6rem; list-style: none; padding: 0; margin: .8rem 0 0; }
 .goal-chart-goals li + li { margin-top: 0; }
 .goal-chart-goals a, .goal-chart-goals li > span { display: grid; text-decoration: none; gap: .1rem; height: 100%; padding: .75rem 1rem; border: 1px solid var(--line); border-left: 4px solid var(--tool, var(--blue)); border-radius: 12px; background: var(--card); color: var(--ink); }
-.goal-chart-goals a:hover { text-decoration: none; border-color: var(--ink-3); border-left-color: var(--tool, var(--blue)); }
+.goal-chart-goals ul > li > a { text-decoration: none; }
+.goal-chart-goals ul > li > a:hover { text-decoration: none; border-color: var(--ink-2); border-left-color: var(--tool, var(--blue)); }
+.goal-chart-goals ul > li > a:hover b, .goal-chart-goals ul > li > a:focus-visible b { text-decoration: underline; text-decoration-color: var(--tool, var(--blue)); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.goal-chart-goals ul > li > a:focus-visible { outline: 2px solid var(--tool, var(--blue)); outline-offset: 2px; }
 .goal-chart-goals li > span { background: var(--paper-2); border-left-color: var(--ink); }
 .goal-chart-goals b { font-family: var(--bib); font-size: 1.25rem; font-weight: 720; letter-spacing: -.01em; }
 .goal-chart-goals span span, .goal-chart-goals a span { font-size: .8125rem; color: var(--ink-3); }
@@ -242,10 +260,25 @@ a.tool-card:hover { text-decoration: none; transform: translateY(-3px); box-shad
 /* Goal pages: even pace beside what recorded finishes ran. */
 .tool-headline.goal-pace-headline { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); }
 .goal-pace-src { margin-left: .35rem; font-size: .625rem; letter-spacing: .06em; color: #FF9A73; white-space: nowrap; }
+/* Reading width for the sentence panels (the median against even pace, the bunching under the goal). */
+.goal-pace-measure { max-width: 48rem; }
 .goal-pace-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.2rem; align-items: start; min-width: 0; }
 @media (min-width: 900px) { .goal-pace-pair { grid-template-columns: minmax(0, 4fr) minmax(0, 6fr); } }
-/* The two tables share their rows (5 km mats, halfway, finish), so on wide screens they line up across the panels. */
-.goal-pace-pair .tool-panel-head { min-height: 8.6rem; align-content: start; }
+/* The two tables share their rows (5 km mats, halfway, finish), so side by side they line up across the panels: the panels
+   share two grid rows (head, table) through subgrid, the column heads keep one line and every body row has the same height.
+   Without subgrid the heads fall back to a shared minimum height. */
+.goal-pace-pair .tool-panel-head { align-content: start; }
+@media (min-width: 900px) {
+  .goal-pace-pair { grid-template-rows: auto auto; }
+  .goal-pace-pair .tool-panel-head { min-height: 8.6rem; }
+  .goal-pace-pair .goal-pace-table thead th { white-space: nowrap; height: 2.6rem; }
+  .goal-pace-pair .goal-pace-observed td.goal-pace-range { white-space: nowrap; }
+  .goal-pace-pair .goal-pace-none td { white-space: normal; line-height: 1.3; }
+  @supports (grid-template-rows: subgrid) {
+    .goal-pace-pair > .tool-panel { display: grid; grid-row: span 2; grid-template-rows: subgrid; row-gap: 0; align-content: start; }
+    .goal-pace-pair .tool-panel-head { min-height: 0; }
+  }
+}
 .goal-pace-table tbody th { white-space: nowrap; }
 .goal-pace-table tr.is-key th { background: var(--paper-2); }
 .goal-pace-table tr.is-finish th { border-top: 2px solid var(--ink); }
@@ -291,8 +324,14 @@ a.tool-card:hover { text-decoration: none; transform: translateY(-3px); box-shad
   #goal-chart-marathon-miles-panel { break-before: page; }
   .goal-chart-wrap { overflow: visible; }
   .goal-chart-print-note { margin-top: .2rem; font-size: 7pt; }
-  .goal-pace-pair { grid-template-columns: 1fr 1fr; gap: .8rem; }
+  .goal-chart-caption { margin-top: 4px; font-size: 7pt; }
+  .goal-chart-table tr.goal-chart-rehead { display: none; }
+  .goal-pace-pair { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; gap: .8rem; }
   .goal-pace-pair .tool-panel-head { min-height: 0; }
+  @supports (grid-template-rows: subgrid) { .goal-pace-pair > .tool-panel { display: grid; grid-row: span 2; grid-template-rows: subgrid; row-gap: 0; align-content: start; } }
+  .goal-pace-pair .goal-pace-table thead th { white-space: nowrap; }
+  /* The tag's screen colour is for the dark headline; on paper it needs the dark orange. */
+  .goal-pace-src { color: var(--orange-ink); }
   .goal-pace-stack { gap: .8rem; }
   .goal-pace-stack .tool-panel { padding: .7rem .9rem; }
   .goal-pace-stack .tool-panel-title { font-size: 1.05rem; }

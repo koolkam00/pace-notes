@@ -99,6 +99,54 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.equal(chart.formatTenths(59.96), '1:00.0'); assert.equal(chart.formatTenths(3725.25), '1:02:05.3'); checks += 2;
 }
 
+// ---- goal-page sentences (lib/tools/goal-facts.ts): built only from a goal's pace-band values; checked on fixed inputs
+{
+  const F = require('../lib/tools/goal-facts.ts');
+  const said = [];
+  const say = (text) => { said.push(text); return text; };
+  assert.deepEqual([0, 1, 59.4, 60, 3725].map(F.span), ['0 seconds', '1 second', '59 seconds', '1:00', '1:02:05']); ok();
+  assert.equal(F.sections([1, 2]), 'between 5 and 15 km'); assert.equal(F.sections([0]), 'between the start and 5 km');
+  assert.equal(F.sections([8]), 'between 40 km and the finish'); assert.equal(F.sections([4, 1]), 'between 5 and 10 km and between 20 and 25 km'); checks += 4;
+  // 4:00 (the published All-courses medians as of October 2026, typed here so the check needs no data files).
+  // Even pace at 20 km is 1:53:45 (6825 s), at 30 km 2:50:38 (10238 s), at 35 km 3:19:05 (11945 s).
+  const e50 = [1638, 3266, 4899, 6544, 8218, 9920, 11676, 13483, 14258];
+  assert.equal(say(F.evenPaceGapText(240, e50)), 'At 20 km the median recorded time was 4:41 ahead of the calculated even-pace time for 4:00; at 35 km it was 4:29 ahead, so the gap narrowed by 12 seconds between the two mats. The gap was widest at 30 km (5:18 ahead), and the median finish was 2:22 under the goal.'); ok();
+  // Behind even pace, the gap widening, the finish over the goal; and level at 20 km (no change clause).
+  const even = pace.MATS_KM.concat(pace.MARATHON_KM).map((km) => Math.round(14400 * km / pace.MARATHON_KM));
+  assert.equal(say(F.evenPaceGapText(240, even.map((t, i) => t + 10 * (i + 1)))), 'At 20 km the median recorded time was 40 seconds behind the calculated even-pace time for 4:00; at 35 km it was 1:10 behind, so the gap widened by 30 seconds between the two mats. The gap was widest at 40 km (1:20 behind), and the median finish was 1:30 over the goal.'); ok();
+  assert.ok(say(F.evenPaceGapText(240, even.map((t, i) => (i === 3 ? t : t - 5)))).startsWith('At 20 km the median recorded time was level with the calculated even-pace time for 4:00; at 35 km it was 5 seconds ahead. The gap was widest at 5 km, 10 km, 15 km, 25 km, 30 km, 35 km and 40 km (5 seconds ahead)')); ok();
+  // Ties at the widest mat are all named (5:00: 20 and 25 km are both 11:37 ahead at whole seconds).
+  const tied = pace.MATS_KM.concat(pace.MARATHON_KM).map((km, i) => Math.round(18000 * km / pace.MARATHON_KM) - (i === 3 || i === 4 ? 697 : 100));
+  assert.ok(say(F.evenPaceGapText(300, tied)).includes('The gap was widest at 20 km and 25 km (11:37 ahead), and the median finish was 1:40 under the goal.')); ok();
+  // Section paces: the furthest section in the visitor's units, ties merged, the other side named when there is one.
+  const s50 = [328, 325, 326, 329, 334, 340, 350, 360, 349];   // 4:00; even pace is 341.27 s/km
+  assert.equal(say(F.sectionPaceText(240, s50, 'mi')), 'Section by section, the median pace was furthest from even pace between 35 and 40 km, 30 seconds per mile slower; on the fast side it was furthest between 5 and 10 km, 26 seconds per mile faster.'); ok();
+  assert.equal(say(F.sectionPaceText(240, s50, 'km')), 'Section by section, the median pace was furthest from even pace between 35 and 40 km, 19 seconds per km slower; on the fast side it was furthest between 5 and 10 km, 16 seconds per km faster.'); ok();
+  assert.ok(say(F.sectionPaceText(180, [250, 249, 249, 250, 251, 253, 257, 261, 258], 'mi')).startsWith('Section by section, the median pace was furthest from even pace between 5 and 15 km, 11 seconds per mile faster; on the slow side')); ok();
+  assert.ok(say(F.sectionPaceText(240, s50.map((v) => v + 40), 'km')).endsWith('; every section’s median was slower than even pace.')); ok();
+  assert.ok(say(F.sectionPaceText(300, [384, 386, 392, 402, 423, 439, 464, 471, 436], 'mi')).includes('1:11 per mile slower; on the fast side it was furthest between the start and 5 km, 1:09 per mile faster')); ok();
+  // Held pace against sustained slowdown (4:00 and 5:00 medians).
+  const held = [1656, 3300, 4947, 6603, 8281, 9980, 11720, 13498, 14259], slow = [1518, 3023, 4545, 6099, 7736, 9471, 11365, 13412, 14253];
+  assert.equal(say(F.groupGapText(held, slow)), 'At 20 km the median time of the finishes with a sustained slowdown was 8:24 ahead of the median of those that held pace; the two medians were furthest apart at 25 km (9:05), and at the finish the slowdown group’s median was 6 seconds faster.'); ok();
+  assert.ok(say(F.groupGapText([1986, 3992, 6017, 8077, 10213, 12393, 14645, 16910, 17845], [1833, 3668, 5540, 7493, 9606, 11866, 14319, 16841, 17846])).endsWith('at the finish the slowdown group’s median was 1 second slower.')); ok();
+  assert.ok(say(F.groupGapText(held, held)).endsWith('level with the median of those that held pace, and at the finish the two medians were level.')); ok();
+  // Where the slowdowns began: the most common onset section, with ties named.
+  assert.equal(say(F.onsetText([546, 3299, 13127, 15378], [20, 25, 30, 35])), 'The sustained slowdown most often began in the 35 to 40 km section: 15,378 of the 32,350 finishes with one (47.5%).'); ok();
+  assert.equal(say(F.onsetText([10, 30, 30, 0], [20, 25, 30, 35])), 'The sustained slowdown most often began in the 25 to 30 km and 30 to 35 km sections: 30 of the 70 finishes with one in each (42.9% each).'); ok();
+  assert.equal(F.onsetText([0, 0, 0, 0], [20, 25, 30, 35]), null); assert.equal(F.onsetText([1, 2], [20, 25, 30]), null); checks += 2;
+  assert.deepEqual([F.editionsText(179, 179), F.editionsText(177, 179), F.editionsText(5, null)], ['all 179 race editions', '177 of the 179 race editions', '5 race editions']); ok();
+  // Ranks among the goal pages, counted from the nearer end.
+  assert.deepEqual([5, 4, 3, 2, 1].map((v) => F.rankAmong(v, [1, 2, 3, 4, 5], 'highest', 'lowest')), ['the highest', 'the second highest', 'the third highest', 'the second lowest', 'the lowest']); ok();
+  assert.equal(F.rankAmong(4, [1, 4, 4, 2, 3], 'most', 'fewest'), 'the joint most'); assert.equal(F.rankAmong(1, [1, 2], 'most', 'fewest'), null); checks += 2;
+  const peers = [{ goal: 180, n: 59925, sd: 0.0431 }, { goal: 210, n: 112412, sd: 0.1261 }, { goal: 240, n: 171033, sd: 0.1891 }, { goal: 270, n: 117684, sd: 0.3817 }, { goal: 300, n: 82315, sd: 0.45 }];
+  assert.equal(say(F.windowRankText(300, peers)), 'This goal’s window holds the second fewest finishes of the five goal pages.'); ok();
+  assert.equal(say(F.slowdownRankText(240, peers)), 'Of the five goal pages, that share is the third highest; it runs from 4.3% at 3:00 to 45.0% at 5:00.'); ok();
+  assert.equal(F.slowdownRankText(240, peers.map((p) => (p.goal === 180 ? { ...p, sd: null } : p))), null); ok();
+  // Copy rules: observed wording only, no causal verbs and none of the owner's banned phrases.
+  for (const text of said) assert.ok(!/\b(the wall|arithmetic|your chance|causes?|caused|costs?|leads? to|because of|makes?|affects?|improves?|produces?|helps?)\b/i.test(text), `goal-page sentence breaks a copy rule: ${text}`);
+  ok();
+}
+
 // ---- predictor models (values recomputed independently in Python)
 const H = (h, m, s = 0) => h * 3600 + m * 60 + s;
 near(predictor.vdot(5, 1200), 49.8, 0.06, 'VDOT of a 20:00 5K'); ok();
@@ -247,6 +295,46 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   assert.deepEqual(nyc.poolHistory.map((p) => [p.year, p.seconds]), [[2025, 800], [2026, 1372]]);
   assert.deepEqual(qualifying.STANDARDS.filter((s) => !s.comparisonStated).map((s) => s.key), ['boston', 'berlin', 'sydney'], 'races that do not state the equal-time rule');
   checks += 8;
+  // Race pages print "Past cut-offs are not a forecast" only where they list past cut-offs (Boston's history, New York's pool).
+  assert.deepEqual(qualifying.STANDARDS.filter(qualifying.hasPublishedCutoffs).map((s) => s.key), ['boston', 'nyc']); ok();
+  // Chicago's guaranteed entry is conditional: its entry text names the application window it is tied to.
+  const chicago = qualifying.STANDARDS.find((s) => s.key === 'chicago');
+  const md = (d) => new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' });
+  assert.ok(chicago.entry.includes(`${md(chicago.applications.opens)}–${md(chicago.applications.closes).split(' ')[1]}, ${chicago.applications.closes.slice(0, 4)}`) && /\bif you apply\b/.test(chicago.entry), 'Chicago entry text matches its application window');
+  ok();
+  // The checker's Chicago verdict states the same conditions as the race page's entry text (same window, same fee deadline).
+  const window = `${md(chicago.applications.opens)}–${md(chicago.applications.closes).split(' ')[1]}, ${chicago.applications.closes.slice(0, 4)}`;
+  assert.ok(qualifying.CHICAGO_ROUTE.startsWith('Guaranteed entry if you apply') && qualifying.CHICAGO_ROUTE.includes(window), 'Chicago verdict is conditional on the window');
+  const fee = /pay the entry fee by [^,]* on (\w+ \d+, \d{4})\./.exec(chicago.entry)?.[1];
+  assert.ok(fee && qualifying.CHICAGO_ROUTE.includes(`fee is paid by ${fee}`) && /result is approved/.test(qualifying.CHICAGO_ROUTE), 'Chicago verdict names the same conditions and fee deadline as the entry text');
+  const checkerSource = fs.readFileSync(path.join(__dirname, '..', 'components/tools/QualifyingChecker.tsx'), 'utf8');
+  assert.ok(/chicago: CHICAGO_ROUTE/.test(checkerSource) && !/There is no cut-off/.test(checkerSource), 'checker uses the shared Chicago verdict');
+  checks += 3;
+  // One wording for the equal-time rule, on the checker and the race pages: assumed where the race does not state it.
+  assert.deepEqual(qualifying.STANDARDS.map((s) => [s.key, qualifying.comparisonText(s)]), [['boston', 'at or under (assumed; not stated by the race)'], ['nyc', 'at or under'],
+    ['london', 'strictly under'], ['chicago', 'at or under'], ['berlin', 'at or under (assumed; not stated by the race)'], ['sydney', 'at or under (assumed; not stated by the race)']]);
+  const raceSource = fs.readFileSync(path.join(__dirname, '..', 'components/tools/QualifyingRace.tsx'), 'utf8');
+  assert.ok(raceSource.includes('`At or under the standard ${ASSUMED_COMPARISON}`') && !/'Under the standard'/.test(raceSource) && checkerSource.includes('{comparisonText(s)}'), 'race pages and checker share the equal-time wording');
+  checks += 2;
+  // Boston's downhill-index lifetime: both B.A.A. statements, once, in the rules both pages print from `extra`.
+  assert.equal(boston.extra.filter((e) => e === qualifying.BOSTON_INDEX_TERM).length, 1);
+  assert.ok(/at least the next two years/.test(qualifying.BOSTON_INDEX_TERM) && /subject to change ahead of the 2028 registration period/.test(qualifying.BOSTON_INDEX_TERM));
+  assert.ok(!boston.extra.some((e) => e !== qualifying.BOSTON_INDEX_TERM && /subject to change|two years/.test(e)) && !/statements differ/.test(checkerSource), 'Boston index statements appear once');
+  checks += 3;
+}
+// Goal pages: the observed window's race editions are set against every edition in the data. The pace band's screens must
+// account for the difference exactly, or the page's "The other N editions … are left out" sentence is dropped.
+{
+  const dir = path.join(__dirname, '..', 'public/data/insights');
+  if (fs.existsSync(path.join(dir, 'tools/pace-band.json'))) {
+    const band = JSON.parse(fs.readFileSync(path.join(dir, 'tools/pace-band.json'), 'utf8'));
+    const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
+    const screened = [...(band.screens?.start_offset ?? []), ...(band.screens?.grid ?? [])];
+    assert.ok(manifest.cohort.editions > band.editions, 'the pace band screens out some editions');
+    assert.equal(band.editions + screened.length, manifest.cohort.editions, 'pace-band editions plus screened editions = editions in the data');
+    assert.equal(screened.reduce((sum, e) => sum + e.finishes, 0), manifest.analysis_n - band.cohort_n, 'screened editions hold every finish left out of the pace band');
+    checks += 3;
+  }
 }
 // Deep links carry only times and a course slug.
 {
@@ -290,4 +378,4 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   checks += 1 + registry.TOOLS.length;
 }
 
-console.log(`Tool libraries passed ${checks} checks: time parsing, pace calculations and splits, pace charts by goal time and goal-page links, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading and the pacing-type classifier.`);
+console.log(`Tool libraries passed ${checks} checks: time parsing, pace calculations and splits, pace charts by goal time and goal-page links, goal-page sentences, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading and the pacing-type classifier.`);

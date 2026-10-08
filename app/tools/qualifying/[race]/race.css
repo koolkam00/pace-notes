@@ -22,7 +22,8 @@
   box-shadow: var(--shadow); min-width: 0; }
 .qrace-glance-title { font-family: var(--mono); font-size: .75rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
 .qrace-facts { display: grid; margin: 0; }
-.qrace-facts > div { display: grid; gap: .15rem; padding: .65rem 0; border-top: 1px solid var(--paper-2); }
+/* align-content: start keeps the label and value at the top of their cell when a neighbour in the same row is taller (two columns from 620 px). */
+.qrace-facts > div { display: grid; gap: .15rem; align-content: start; padding: .65rem 0; border-top: 1px solid var(--paper-2); }
 .qrace-facts > div:first-child { border-top: 0; padding-top: 0; }
 .qrace-facts dt { font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
 .qrace-facts dd { display: grid; gap: .15rem; margin: 0; min-width: 0; }
@@ -75,7 +76,11 @@
 /* Grid gap spaces the links; cancel the site-wide stacked-list margin. */
 .qrace-links li + li { margin-top: 0; }
 .qrace-links a { display: grid; gap: .1rem; min-height: 44px; padding: .65rem .9rem; border: 1px solid var(--line); border-left: 4px solid var(--green); border-radius: 12px; background: var(--card); color: var(--ink); }
-.qrace-links a:hover { text-decoration: none; border-color: var(--ink-3); border-left-color: var(--green); }
+/* Cards, not text links: globals.css underlines 'li > a:not([class])', so these selectors are more specific than that rule. */
+ul.qrace-links > li > a { text-decoration: none; }
+ul.qrace-links > li > a:hover { text-decoration: none; border-color: var(--ink-2); border-left-color: var(--green); }
+ul.qrace-links > li > a:hover b, ul.qrace-links > li > a:focus-visible b { text-decoration: underline; text-decoration-color: var(--green); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+ul.qrace-links > li > a:focus-visible { outline: 2px solid var(--green-ink); outline-offset: 2px; }
 .qrace-links b { font-size: .9375rem; }
 .qrace-links span { font-size: .75rem; color: var(--ink-3); }
 .qrace-more-links { margin-top: .9rem; font-size: .9375rem; }
@@ -85,7 +90,7 @@
 .qrace-index > p { margin-bottom: .5rem; font-size: .8125rem; font-weight: 600; color: var(--ink-2); }
 .qrace-links.is-compact { display: flex; flex-wrap: wrap; gap: .4rem; }
 .qrace-links.is-compact a { display: inline-flex; align-items: center; min-height: 40px; padding: .35rem .85rem; border: 1px solid var(--line-2); border-radius: 999px; background: var(--card); }
-.qrace-links.is-compact a:hover { border-color: var(--ink-2); }
+ul.qrace-links.is-compact > li > a:hover { border-color: var(--ink); background: var(--paper-2); }
 .qrace-links.is-compact b { font-size: .875rem; font-weight: 600; }
 
 /* ---------- Phones ---------- */
@@ -124,7 +129,8 @@
   /* Long panels may run across pages (tools.css keeps panels whole); rows, headings and the facts card stay together. */
   .qrace .tool-panel { break-inside: auto; padding: .8rem 1rem; border-color: #BBB; }
   .qrace .tool-panel-head { break-after: avoid; margin-bottom: .5rem; }
-  .qrace #entry, .qrace #rules { break-inside: avoid; }
+  /* Long panels (New York's entry with its pool table, the rules) may split between pages; each rule, callout and list item stays whole. */
+  .qrace-rules > div, .qrace-entry, .qrace-draw, .qrace-list li, .qrace .tool-note { break-inside: avoid; }
   .qrace-table { font-size: 10pt; }
   .qrace-table th, .qrace-table td { padding-block: .2rem; }
   .qrace-table thead { display: table-header-group; }

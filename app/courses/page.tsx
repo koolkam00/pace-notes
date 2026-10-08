@@ -16,8 +16,10 @@ export function generateMetadata() {
   const drawn = names.filter((n) => routes.has(n)).length;
   const span = names.length > 1 ? `, from ${displayName(names[0])} to ${displayName(names[names.length - 1])}` : '';
   const describe = (from: string) => `Pacing by 5 km section for ${names.length} marathon courses${from}, with route and elevation profiles for ${drawn}. Alphabetical, not ranked.`;
+  // Every course has a pacing profile; only those with a supplied route file have elevation, so the title counts both.
+  const title = drawn === names.length ? `Marathon Courses: Elevation and Pacing for ${names.length} Races` : `Marathon Courses: Pacing for ${names.length} Races, Elevation for ${drawn}`;
   return pageMetadata({
-    title: `Marathon Courses: Elevation and Pacing for ${names.length} Races`,
+    title,
     description: describe(span).length <= 155 ? describe(span) : describe(''),
     path: '/courses',
   });

@@ -2,13 +2,18 @@
 /**
  * Renders the 1200x630 social share cards (Open Graph and X) into public/og/:
  *   public/og/stories/<slug>.png   one per story in lib/stories.ts (kicker and title)
- *   public/og/tools/<slug>.png     one per tool in lib/tools/registry.ts (group and heading)
+ *   public/og/tools/<slug>.png     one per tool in lib/tools/registry.ts (group and heading), plus the marathon and
+ *                                  half-marathon pace charts
+ *   public/og/tools/marathon-pace/<goal>.png  one per goal page in GOAL_PAGE_MINUTES (lib/tools/pace-chart.ts): "4:00 marathon pace"
+ *   public/og/tools/qualifying/<race>.png     one per race in STANDARDS (lib/tools/qualifying.ts): the race name and
+ *                                             "qualifying times" (London: "Good For Age times", as its page says)
  *   public/og/courses/<slug>.png   one per course page (the race name, and the supplied route outline when there is one)
+ *   public/og/pages/<page>.png     top-level pages outside the sections: /finish-times
  *   public/og/sections/<name>.png  stories, tools, courses, analyses and packs (the research archive)
  * public/og/default.png is kept as it is. lib/og-paths.ts picks the image for each page.
  *
  * Cards carry words only: the brand, a section label, the title or race name and the credit. No data numbers
- * (they would go stale) and no runner names. The design is the default card's: the site's fonts from
+ * (they would go stale) and no runner names. A goal time ("4:00 marathon pace") is the page's name, not a data number. The design is the default card's: the site's fonts from
  * node_modules/@fontsource-variable and the colour tokens from app/globals.css.
  *
  * Usage:
@@ -22,6 +27,7 @@
  * for a given Chromium and font build; another machine may anti-alias slightly differently.
  * Needs Playwright with Chromium: `playwright` from node_modules, else /opt/node-tools/node_modules/playwright.
  * It is not a project dependency; the generated PNGs are committed. See docs/SEO.md.
+ * scripts/verify-seo.cjs requires this file for plannedCards() (no browser), to know which pages have their own card.
  */
 'use strict';
 const fs = require('node:fs');
@@ -36,11 +42,15 @@ const WIDTH = 1200;
 const HEIGHT = 630;
 const MAX_BYTES = 120 * 1024;
 const CHUNK_KEY = 'pace-notes-og';
-const GROUPS = ['stories', 'tools', 'courses', 'sections'];
+const GROUPS = ['stories', 'tools', 'courses', 'pages', 'sections'];
 
 // ---------- TypeScript registries (the same require hook as scripts/verify-units.cjs) ----------
 
+let typeScriptLoaded = false;
 function loadTypeScript() {
+  // verify-seo.cjs installs the same hooks before it requires this file; installing them again is harmless.
+  if (typeScriptLoaded) return;
+  typeScriptLoaded = true;
   const ts = require('typescript');
   for (const extension of ['.ts', '.tsx']) require.extensions[extension] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true, jsx: ts.JsxEmit.ReactJSX },
@@ -84,10 +94,24 @@ function raceName(city, geometry, summary) {
   return (geometry && geometry.race) || (summary && summary.race) || `${city} Marathon`;
 }
 
+/** Pages under /tools that are not in the tools registry, with their own card: the page's eyebrow and H1, and its accent. */
+const PACE_CHART_CARDS = [
+  { slug: 'marathon-pace-chart', eyebrow: 'Runner tools · Pace charts', title: 'Marathon pace chart', accent: TOKENS.blue },
+  { slug: 'half-marathon-pace-chart', eyebrow: 'Runner tools · Pace charts', title: 'Half marathon pace chart', accent: TOKENS.blue },
+];
+
+/** Top-level pages outside the sections, with their own card in public/og/pages/: the page's H1 (components/FinishTimeSummary.tsx). */
+const PAGE_CARDS = [
+  { slug: 'finish-times', eyebrow: 'Finish times · Median and distribution', title: 'Marathon finish times', accent: TOKENS.orange },
+];
+
 function cardSpecs() {
   loadTypeScript();
   const { STORIES } = require(path.join(ROOT, 'lib/stories.ts'));
-  const { TOOLS } = require(path.join(ROOT, 'lib/tools/registry.ts'));
+  const { TOOLS, toolBySlug } = require(path.join(ROOT, 'lib/tools/registry.ts'));
+  const { GOAL_PAGE_MINUTES, goalLabel, goalPagePath } = require(path.join(ROOT, 'lib/tools/pace-chart.ts'));
+  const { STANDARDS } = require(path.join(ROOT, 'lib/tools/qualifying.ts'));
+  const { pageNoun, raceName: qualifyingRaceName, racePath } = require(path.join(ROOT, 'components/tools/QualifyingRaceText.tsx'));
   const { getCourseNames, slugifyCity } = require(path.join(ROOT, 'lib/course-data.ts'));
   const { getInsightsManifest, readInsight } = require(path.join(ROOT, 'lib/insights-server.ts'));
   const manifest = getInsightsManifest();
@@ -101,16 +125,41 @@ function cardSpecs() {
   for (const tool of TOOLS) {
     cards.push({ file: `tools/${slug(tool.slug)}.png`, eyebrow: `Runner tools · ${tool.group}`, title: tool.heading || tool.title, accent: tool.accent });
   }
+  for (const chart of PACE_CHART_CARDS) cards.push({ file: `tools/${slug(chart.slug)}.png`, eyebrow: chart.eyebrow, title: chart.title, accent: chart.accent });
+  // The goal pages (app/tools/marathon-pace/[goal]): the page's own path, eyebrow and H1, and the pace band's accent as on the page.
+  const paceBand = toolBySlug('pace-band');
+  for (const minutes of GOAL_PAGE_MINUTES) {
+    cards.push({ file: cardFile(goalPagePath(minutes), slug), eyebrow: 'Runner tools · Marathon pace chart', title: `${goalLabel(minutes)} marathon pace`, accent: paceBand.accent });
+  }
+  // The qualifying race pages (app/tools/qualifying/[race]): the race name and the page's noun ("qualifying times",
+  // London's "Good For Age times"), without the race year, in the qualifying checker's colours.
+  const qualifying = toolBySlug('qualifying');
+  for (const standard of STANDARDS) {
+    cards.push({ file: cardFile(racePath(standard), slug), eyebrow: 'Runner tools · Qualifying times', title: `${qualifyingRaceName(standard)} ${pageNoun(standard)}`, accent: qualifying.accent });
+  }
   for (const city of getCourseNames()) {
     const route = geometry.find((c) => c.city === city);
     const summary = summaries.find((c) => c.city === city);
     cards.push({ file: `courses/${slug(slugifyCity(city))}.png`, eyebrow: 'Courses · Course profile', title: raceName(city, route, summary), accent: TOKENS.teal,
       route: route ? route.route.map(([x, y]) => [Number(x.toFixed(4)), Number(y.toFixed(4))]) : null });
   }
+  for (const page of PAGE_CARDS) cards.push({ file: `pages/${slug(page.slug)}.png`, eyebrow: page.eyebrow, title: page.title, accent: page.accent });
   for (const section of SECTION_CARDS) cards.push({ file: `sections/${section.name}.png`, eyebrow: section.eyebrow, title: section.title, accent: section.accent, markup: true });
   const files = cards.map((c) => c.file);
   if (new Set(files).size !== files.length) throw new Error('Two cards would share one file name.');
   return cards;
+}
+
+/** "/tools/qualifying/boston" → "tools/qualifying/boston.png": a page below /tools keeps its card at its own path. */
+function cardFile(pagePath, slug) {
+  const parts = pagePath.split('/').filter(Boolean);
+  if (parts[0] !== 'tools' || parts.length < 3) throw new Error(`Not a page below a tool: ${pagePath}`);
+  return `${parts.map(slug).join('/')}.png`;
+}
+
+/** The card files this script makes ("tools/qualifying/boston.png"), in order, without a browser. verify-seo.cjs reads it. */
+function plannedCards() {
+  return cardSpecs().map((card) => card.file);
 }
 
 // ---------- HTML template ----------
@@ -281,11 +330,18 @@ function readPng(buffer) {
 
 // ---------- Check (no browser) ----------
 
+/** Every PNG under the card folders, nested ones included (tools/qualifying/boston.png), as paths relative to public/og. */
 function existingCards() {
-  return GROUPS.flatMap((group) => {
-    const dir = path.join(OG_DIR, group);
-    return fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.png')).sort().map((f) => `${group}/${f}`) : [];
-  });
+  const walk = (relative) => {
+    const dir = path.join(OG_DIR, relative);
+    if (!fs.existsSync(dir)) return [];
+    return fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name)).flatMap((entry) => {
+      const child = `${relative}/${entry.name}`;
+      if (entry.isDirectory()) return walk(child);
+      return entry.name.endsWith('.png') ? [child] : [];
+    });
+  };
+  return GROUPS.flatMap(walk);
 }
 
 /** Problems with the committed cards. Orphans are reported separately: a failure for --check, a reminder after rendering. */
@@ -304,7 +360,7 @@ function check(cards, fonts) {
     if (!info.stamp || info.stamp.hash !== expected.hash) problems.push(`changed  ${card.file}: ${info.stamp ? `was "${info.stamp.title}"` : 'no stamp'}, now "${expected.title}"`);
   }
   if (!fs.existsSync(path.join(OG_DIR, 'default.png'))) problems.push('missing  default.png');
-  const orphans = existingCards().filter((file) => !wanted.has(file)).map((file) => `orphan   ${file} (no story, tool, course or section uses it; delete it)`);
+  const orphans = existingCards().filter((file) => !wanted.has(file)).map((file) => `orphan   ${file} (no story, tool, tool page, course, page or section uses it; delete it)`);
   return { problems, orphans };
 }
 
@@ -385,7 +441,7 @@ async function main() {
       for (const line of problems) console.error('  ' + line);
       process.exit(1);
     }
-    console.log(`Share cards up to date: ${cards.length} cards in public/og/{${GROUPS.join(',')}}, each ${WIDTH}x${HEIGHT} and at most ${MAX_BYTES / 1024} KB.`);
+    console.log(`Share cards up to date: ${cards.length} cards in public/og/{${GROUPS.join(',')}}/, each ${WIDTH}x${HEIGHT} and at most ${MAX_BYTES / 1024} KB.`);
     return;
   }
   const results = await render(cards, fonts, { force, only });
@@ -396,4 +452,5 @@ async function main() {
   console.log(`\n${results.filter((r) => !r.skipped).length} rendered, ${results.filter((r) => r.skipped).length} unchanged.`);
 }
 
-main().catch((error) => { console.error(error.stack || error.message); process.exit(1); });
+module.exports = { plannedCards };
+if (require.main === module) main().catch((error) => { console.error(error.stack || error.message); process.exit(1); });
