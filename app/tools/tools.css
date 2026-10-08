@@ -195,3 +195,111 @@ a.tool-card:hover { text-decoration: none; transform: translateY(-3px); box-shad
 .tool-split-controls .tool-choice { width: auto; }
 .pace-chart-table td:first-child { font-family: var(--mono); font-weight: 700; }
 @media print { .pace-chart-table { font-size: 10pt; } .pace-chart-table td, .pace-chart-table th { padding: .15rem .4rem; } }
+
+/* ---------- Pace charts by goal time (/tools/marathon-pace-chart, /tools/half-marathon-pace-chart) and goal pages (/tools/marathon-pace/*) ---------- */
+.goal-chart-intro { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem; margin: 0 0 1.6rem; }
+.goal-chart-intro > div { padding: .2rem 0 .2rem 1.1rem; border-left: 3px solid var(--tool, var(--line-2)); }
+.goal-chart-intro h2 { margin-bottom: .35rem; font-family: var(--sans); font-size: .9375rem; font-weight: 700; letter-spacing: 0; line-height: 1.4; color: var(--ink); }
+.goal-chart-intro p { font-size: .9375rem; line-height: 1.6; color: var(--ink-2); }
+.goal-chart-stack, .goal-pace-stack { display: grid; gap: 1.2rem; min-width: 0; }
+.goal-chart-stack .tool-share { margin-bottom: .9rem; }
+/* Long tables scroll inside their panel on phones, with the goal column pinned. */
+.goal-chart-wrap { border-radius: 10px; }
+.goal-chart-wrap:focus-visible { outline: 2px solid var(--tool, var(--blue)); outline-offset: 2px; }
+.goal-chart-table .goal-chart-goal { position: sticky; left: 0; z-index: 1; background: var(--card); box-shadow: inset -1px 0 0 var(--line); }
+.goal-chart-table tbody th.goal-chart-goal { font-family: var(--mono); font-size: .875rem; font-weight: 700; color: var(--ink); }
+.goal-chart-table tr.is-key th.goal-chart-goal { background: var(--paper-2); }
+.goal-chart-table thead th { vertical-align: bottom; }
+.goal-chart-table thead tr + tr th:first-child { text-align: right; }
+.goal-chart-table thead tr:first-child th.goal-chart-group { text-align: center; color: var(--ink-2); border-bottom: 1px solid var(--line-2); }
+.goal-chart-table thead tr:first-child th.goal-chart-group + th.goal-chart-group { border-left: 1px solid var(--line); }
+/* On phones the table scrolls; start the group labels at their first column so "calculated" is in view before scrolling. */
+@media (max-width: 899px) { .goal-chart-table thead tr:first-child th.goal-chart-group { text-align: left; } }
+.goal-chart-sub, .goal-pace-table .goal-chart-sub { display: block; margin-top: .1rem; font-family: var(--mono); font-size: .625rem; font-weight: 500; letter-spacing: .04em; text-transform: none; color: var(--ink-3); }
+.goal-chart-table td.goal-chart-half { font-weight: 650; color: var(--ink); }
+.goal-chart-table td.goal-chart-plan { font-family: var(--sans); font-size: .8125rem; }
+.goal-chart-table tbody th a { color: inherit; text-decoration: underline; text-decoration-color: var(--tool, var(--blue)); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.goal-chart-print-note { margin-top: .8rem; font-size: 9pt; color: #000; }
+/* /tools index: the pace charts and goal pages, as a compact link list under the tool cards. */
+.tools-chart-links { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); gap: .6rem; list-style: none; padding: 0; margin: 0; }
+.tools-chart-links li + li { margin-top: 0; }
+.tools-chart-links > li > a, .tools-chart-goals { display: grid; gap: .15rem; height: 100%; padding: .8rem 1rem; border: 1px solid var(--line); border-left: 4px solid var(--blue); border-radius: 12px; background: var(--card); color: var(--ink); text-decoration: none; }
+.tools-chart-links > li > a:hover { text-decoration: none; border-color: var(--ink-3); border-left-color: var(--blue); }
+.tools-chart-links b { font-size: .9375rem; }
+.tools-chart-goals a { font-family: var(--mono); font-size: .875rem; font-weight: 600; color: var(--blue-ink); }
+.tools-chart-links li > span, .tools-chart-links a span { font-size: .8125rem; color: var(--ink-3); }
+/* Links to the goal pages and the other charts. */
+.goal-chart-goals { margin: 2rem 0 0; }
+.goal-chart-goals h2 { font-family: var(--mono); font-size: .75rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.goal-chart-goals ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr)); gap: .6rem; list-style: none; padding: 0; margin: .8rem 0 0; }
+.goal-chart-goals li + li { margin-top: 0; }
+.goal-chart-goals a, .goal-chart-goals li > span { display: grid; text-decoration: none; gap: .1rem; height: 100%; padding: .75rem 1rem; border: 1px solid var(--line); border-left: 4px solid var(--tool, var(--blue)); border-radius: 12px; background: var(--card); color: var(--ink); }
+.goal-chart-goals a:hover { text-decoration: none; border-color: var(--ink-3); border-left-color: var(--tool, var(--blue)); }
+.goal-chart-goals li > span { background: var(--paper-2); border-left-color: var(--ink); }
+.goal-chart-goals b { font-family: var(--bib); font-size: 1.25rem; font-weight: 720; letter-spacing: -.01em; }
+.goal-chart-goals span span, .goal-chart-goals a span { font-size: .8125rem; color: var(--ink-3); }
+
+/* Goal pages: even pace beside what recorded finishes ran. */
+.tool-headline.goal-pace-headline { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); }
+.goal-pace-src { margin-left: .35rem; font-size: .625rem; letter-spacing: .06em; color: #FF9A73; white-space: nowrap; }
+.goal-pace-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.2rem; align-items: start; min-width: 0; }
+@media (min-width: 900px) { .goal-pace-pair { grid-template-columns: minmax(0, 4fr) minmax(0, 6fr); } }
+/* The two tables share their rows (5 km mats, halfway, finish), so on wide screens they line up across the panels. */
+.goal-pace-pair .tool-panel-head { min-height: 8.6rem; align-content: start; }
+.goal-pace-table tbody th { white-space: nowrap; }
+.goal-pace-table tr.is-key th { background: var(--paper-2); }
+.goal-pace-table tr.is-finish th { border-top: 2px solid var(--ink); }
+.goal-pace-split { display: grid; gap: .4rem 2rem; align-items: start; }
+.goal-pace-split .goal-pace-lead { margin-bottom: .3rem; }
+.goal-pace-split .goal-pace-split-note { margin-top: .5rem; }
+@media (min-width: 900px) {
+  .goal-pace-split { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); grid-template-areas: 'lead table' 'note table'; grid-template-rows: auto 1fr; }
+  .goal-pace-split .goal-pace-lead { grid-area: lead; }
+  .goal-pace-split .goal-pace-split-table { grid-area: table; }
+  .goal-pace-split .goal-pace-split-note { grid-area: note; margin-top: 0; }
+}
+.goal-pace-table thead th { white-space: normal; vertical-align: bottom; }
+@media (min-width: 900px) { .goal-pace-pair .goal-pace-table tbody th, .goal-pace-pair .goal-pace-table td { height: 3.1rem; } }
+.goal-pace-observed td.goal-pace-range { white-space: normal; }
+.goal-pace-none td { font-family: var(--sans); font-size: .8125rem; font-style: italic; color: var(--ink-3); text-align: center; }
+.goal-pace-lead { margin-bottom: .9rem; font-size: 1rem; line-height: 1.55; color: var(--ink-2); }
+.goal-pace-lead b { font-family: var(--bib); font-size: 1.35rem; font-weight: 720; color: var(--orange-ink); }
+.goal-pace-details summary { cursor: pointer; padding: .6rem 0; font-weight: 600; color: var(--ink-2); }
+.goal-pace-details[open] summary { margin-bottom: .6rem; }
+@media (max-width: 899px) { .goal-pace-pair .tool-panel-head { min-height: 0; } }
+@media print {
+  /* One page per table on Letter or A4: tight rows, no sticky column, panels allowed to split if a browser needs it. */
+  .goal-chart-table .goal-chart-goal { position: static; box-shadow: none; }
+  .goal-chart-table { font-size: 7.5pt; line-height: 1.15; }
+  .goal-chart-table td, .goal-chart-table tbody th { padding: 1px 4px; font-size: 7.5pt; line-height: 1.15; }
+  .goal-chart-table thead th { padding: 2px 4px; }
+  .goal-chart-table tbody th.goal-chart-goal { font-size: 7.5pt; line-height: 1.15; }
+  .goal-chart-page .tool-header .eyebrow { display: none; }
+  .goal-chart-stack .tool-panel-meta { font-size: 7.5pt; }
+  .goal-chart-table thead th { font-size: 6.5pt; }
+  .goal-chart-sub { font-size: 6pt; }
+  .goal-chart-table caption { padding-top: 4px; font-size: 7pt; }
+  .goal-chart-table tbody th a { text-decoration: none; }
+  .goal-chart-stack .tool-panel { padding: .2rem 0; border: 0; break-inside: auto; }
+  .goal-chart-stack .tool-panel::before { display: none; }
+  .goal-chart-stack { display: block; }
+  .goal-chart-stack .tool-panel + .tool-panel { margin-top: .3rem; }
+  .goal-chart-stack .tool-panel-head { margin-bottom: .3rem; gap: .2rem; }
+  .goal-chart-page .tool-header { padding-bottom: .2rem; }
+  .goal-chart-page .tool-title { font-size: 1.4rem; }
+  .goal-chart-stack .tool-panel-title { font-size: 1rem; }
+  #goal-chart-marathon-miles-panel { break-before: page; }
+  .goal-chart-wrap { overflow: visible; }
+  .goal-chart-print-note { margin-top: .2rem; font-size: 7pt; }
+  .goal-pace-pair { grid-template-columns: 1fr 1fr; gap: .8rem; }
+  .goal-pace-pair .tool-panel-head { min-height: 0; }
+  .goal-pace-stack { gap: .8rem; }
+  .goal-pace-stack .tool-panel { padding: .7rem .9rem; }
+  .goal-pace-stack .tool-panel-title { font-size: 1.05rem; }
+  .goal-pace-stack .tool-panel-meta, .goal-pace-stack .tool-note, .goal-pace-table caption { font-size: 7.5pt; }
+  .goal-pace-table td, .goal-pace-table tbody th { padding: 2px 5px; font-size: 8pt; line-height: 1.2; }
+  .goal-pace-table .goal-chart-sub { display: inline; margin: 0 0 0 .3rem; }
+  .goal-pace-headline { padding: .7rem 1rem; }
+  .goal-pace-stack .tool-panel { break-inside: avoid; }
+  .goal-pace-details:not([open]) > :not(summary) { display: none; }
+}

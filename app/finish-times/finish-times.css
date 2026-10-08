@@ -1,0 +1,100 @@
+/* ==========================================================================
+   /finish-times: marathon finish times (median bibs, distribution, tables, coverage notes).
+   Builds on the tool page header, panels and tables (app/tools/tools.css) and the story bibs (app/story.css).
+   Recorded women violet, recorded men teal, as in the design system.
+   ========================================================================== */
+.ft-page { --ft-all: var(--ink); --ft-women: #7A4DFF; --ft-men: #0FA3A3; --ft-women-ink: #5B34D6; --ft-men-ink: #0A7373; padding-bottom: 2rem; }
+.ft-header { --tool: var(--orange); }
+.ft-header .tool-dek strong { color: var(--ink); font-weight: 700; }
+
+/* ---------- Median bibs ---------- */
+.ft-bibs { grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); margin-top: .4rem; }
+.ft-bib.is-women .bib-tag { color: var(--ft-women-ink); }
+.ft-bib.is-men .bib-tag { color: var(--ft-men-ink); }
+.ft-bib .bib-foot { line-height: 1.5; }
+.ft-bib-note { margin: .9rem 0 0; max-width: 52rem; font-size: .8125rem; line-height: 1.55; color: var(--ink-3); }
+.ft-stack { display: grid; gap: 1.2rem; margin-top: 2rem; min-width: 0; }
+
+/* ---------- Distribution ---------- */
+.ft-figure { margin: 0; min-width: 0; }
+.ft-plot { position: relative; height: clamp(170px, 28vw, 270px); border-bottom: 1px solid var(--line-2); }
+.ft-plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.ft-grid { stroke: var(--line); stroke-width: 1; }
+.ft-area { fill: rgba(21, 23, 28, .14); }
+.ft-line { fill: none; stroke-width: 1.4; stroke-linejoin: round; }
+.ft-line.is-women { stroke: var(--ft-women); }
+.ft-line.is-men { stroke: var(--ft-men); }
+.ft-median { stroke: var(--orange); stroke-width: 2; stroke-dasharray: 5 4; }
+.ft-plot-labels { position: absolute; inset: 0; pointer-events: none; }
+.ft-grid-label { position: absolute; left: 0; margin-bottom: 2px; font-family: var(--mono); font-size: .625rem; line-height: 1; color: var(--ink-3); }
+.ft-median-label { position: absolute; top: 0; margin-left: 6px; padding: .1rem .35rem; border-radius: 6px; background: var(--card); font-family: var(--mono); font-size: .6875rem; font-weight: 700; color: var(--orange-ink); white-space: nowrap; }
+.ft-axis { position: relative; height: 1.5rem; margin-top: .3rem; }
+.ft-axis span { position: absolute; top: 0; transform: translateX(-50%); font-family: var(--mono); font-size: .6875rem; color: var(--ink-3); white-space: nowrap; }
+.ft-axis span:first-child { transform: none; }
+.ft-axis span:last-child { transform: translateX(-100%); }
+.ft-ranges { display: grid; gap: .55rem; margin-top: .9rem; }
+.ft-range-label { margin: 0 0 .2rem; font-size: .8125rem; line-height: 1.4; color: var(--ink-3); }
+.ft-range-label b { margin-right: .35rem; color: var(--ink); font-weight: 650; }
+.ft-range-label span { white-space: nowrap; }
+.ft-range.is-women .ft-range-label b { color: var(--ft-women-ink); }
+.ft-range.is-men .ft-range-label b { color: var(--ft-men-ink); }
+.ft-range-track { position: relative; height: 14px; }
+.ft-range-whisker { position: absolute; top: 6px; height: 2px; border-radius: 2px; background: var(--ft-c, var(--ft-all)); opacity: .55; }
+.ft-range-box { position: absolute; top: 2px; height: 10px; border-radius: 5px; background: var(--ft-c, var(--ft-all)); }
+.ft-range-dot { position: absolute; top: 0; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--card); border: 3px solid var(--orange); }
+.ft-range.is-all { --ft-c: var(--ft-all); }
+.ft-range.is-women { --ft-c: var(--ft-women); }
+.ft-range.is-men { --ft-c: var(--ft-men); }
+.ft-legend { display: flex; flex-wrap: wrap; gap: .4rem 1.3rem; margin-top: 1rem; font-size: .8125rem; color: var(--ink-2); }
+.ft-legend > span { display: inline-flex; align-items: center; gap: .5rem; }
+.ft-legend i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; }
+.ft-legend i.is-all { width: 14px; height: 10px; border-radius: 2px; background: rgba(21, 23, 28, .14); border-top: 2px solid var(--ink-3); }
+.ft-legend i.is-women { background: var(--ft-women); }
+.ft-legend i.is-men { background: var(--ft-men); }
+.ft-legend .ft-legend-ranges { flex-basis: 100%; display: block; color: var(--ink-3); line-height: 1.5; }
+
+/* ---------- Tables (side by side on wide screens) ---------- */
+.ft-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: 1.2rem; align-items: start; }
+.ft-table thead th { vertical-align: bottom; }
+.ft-table tbody th { white-space: nowrap; }
+
+/* ---------- Coverage notes and races ---------- */
+.ft-notes { margin-top: clamp(2.6rem, 6vw, 4rem); }
+.ft-notes > h2 { font-family: var(--serif); font-variation-settings: 'opsz' 72, 'SOFT' 40; font-size: clamp(1.6rem, 3.2vw, 2.2rem); font-weight: 640; line-height: 1.1; letter-spacing: -.012em; }
+.ft-notes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 1.1rem 1.6rem; margin-top: 1.3rem; }
+.ft-note { padding: .2rem 0 .2rem 1.1rem; border-left: 3px solid var(--line-2); }
+.ft-note h3 { margin: 0 0 .35rem; font-family: var(--sans); font-size: .9375rem; font-weight: 700; line-height: 1.4; letter-spacing: 0; color: var(--ink); }
+.ft-note p { margin: 0; font-size: .9375rem; line-height: 1.6; color: var(--ink-2); }
+.ft-races-title { margin: 2rem 0 .7rem; font-family: var(--mono); font-size: .75rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.ft-races { columns: 9.5rem; column-gap: 1.4rem; list-style: none; padding: 0; margin: 0; font-size: .875rem; line-height: 1.4; }
+.ft-races li { break-inside: avoid; padding: .2rem 0; }
+.ft-races li + li { margin-top: 0; }
+.ft-races-note { margin-top: .7rem; font-size: .8125rem; color: var(--ink-3); }
+.ft-next { margin-top: clamp(2.6rem, 6vw, 4rem); }
+
+@media (max-width: 640px) {
+  .ft-axis span.is-half { display: none; }
+  .ft-bibs .bib { padding: 1.1rem 1.2rem 1rem; }
+  /* Four columns fit a phone: column heads wrap to two lines and cells tighten. */
+  .ft-table thead th { white-space: normal; font-size: .625rem; letter-spacing: .02em; padding: .45rem .35rem; }
+  .ft-table td, .ft-table tbody th { padding: .5rem .35rem; }
+  .ft-table tr.is-key th { white-space: normal; }
+}
+
+@media print {
+  .ft-page { padding-bottom: 0; }
+  .ft-header .tool-dek { display: block; font-size: 10pt; }
+  .ft-bibs { grid-template-columns: repeat(3, 1fr); gap: .6rem; }
+  .ft-bibs .bib { box-shadow: none; padding: .7rem .8rem; break-inside: avoid; }
+  .ft-bibs .bib-number { font-size: 2rem; }
+  .ft-figure, .ft-plot, .ft-ranges, .ft-legend, .ft-range-dot { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .ft-plot { height: 200px; }
+  .ft-stack { gap: .8rem; margin-top: 1rem; }
+  .ft-tables { grid-template-columns: 1fr; gap: .8rem; }
+  .ft-notes { margin-top: 1.4rem; break-inside: auto; }
+  .ft-notes > h2, .ft-races-title { break-after: avoid; }
+  .ft-print-note { margin-top: 1rem; font-size: 8pt; color: #000; }
+  .ft-note { break-inside: avoid; }
+  .ft-races { columns: 4; font-size: 8.5pt; }
+  .ft-races a { color: inherit; text-decoration: none; }
+}

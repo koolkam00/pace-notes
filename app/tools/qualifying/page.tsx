@@ -1,4 +1,5 @@
 import QualifyingChecker from '@/components/tools/QualifyingChecker';
+import { QualifyingRaceLinks } from '@/components/tools/QualifyingRaceLinks';
 import { ToolHeader, ToolMethod, ToolNext } from '@/components/tools/ToolShell';
 import { pageMetadata } from '@/lib/seo';
 import { BOSTON_CUTOFFS, STANDARDS, VERIFIED_AT } from '@/lib/tools/qualifying';
@@ -24,7 +25,12 @@ const last = BOSTON_CUTOFFS[BOSTON_CUTOFFS.length - 1].year;
 export default function QualifyingPage() {
   return (
     <div className="container tool-page">
-      <ToolHeader slug="qualifying" />
+      <ToolHeader slug="qualifying">
+        <nav className="qrace-index" aria-labelledby="qrace-index-title">
+          <p id="qrace-index-title">Every standard by age group, race by race</p>
+          <QualifyingRaceLinks races={STANDARDS} compact />
+        </nav>
+      </ToolHeader>
       <QualifyingChecker />
       <ToolMethod sources={SOURCES}>
         <p><strong>Official rules only.</strong> Every standard, age rule, qualifying window and application date was transcribed from the race’s own pages and checked on {VERIFIED_AT}. Standards change every year, so each card links its source and shows that date; Pace Notes reviews them before every registration season. Meeting a standard is not entry: each race then applies its own cut-off, cap, review or lottery, and each card says which.</p>

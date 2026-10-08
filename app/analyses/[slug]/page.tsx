@@ -55,7 +55,12 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
 }
 export default function AnalysisPage({ params }: { params: { slug: string } }) {
   const seo = seoFor(params.slug);
-  return <>{seo ? <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Plan your race', '/analyses'], [seo.crumb ?? seo.title]])} /> : null}{analysisBody(params)}<RelatedTool analysis={params.slug} /></>;
+  return <>{seo ? <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Plan your race', '/analyses'], [seo.crumb ?? seo.title]])} /> : null}{analysisBody(params)}{params.slug === 'finish-time-context' ? <FinishTimesLink /> : null}<RelatedTool analysis={params.slug} /></>;
+}
+
+/** The whole-field view of finish times, linked from the target-in-context analysis. */
+function FinishTimesLink() {
+  return <aside className="related-tool" aria-label="Marathon finish times"><p>For the whole field at once, <Link href="/finish-times">marathon finish times</Link> gives the median, the percentiles and the share of finishes under each round time, for recorded women and recorded men.</p></aside>;
 }
 
 function analysisBody(params: { slug: string }) {

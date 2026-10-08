@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "export": "next export",
-    "verify:data": "node scripts/verify-research.cjs && node scripts/verify-personalized.cjs && node scripts/verify-ten-analyses.cjs && node scripts/verify-units.cjs && node scripts/verify-tools.cjs && node scripts/verify-weather.cjs && node scripts/verify-public-explorer.cjs && node scripts/verify-runner-search.cjs && node scripts/verify-runner-context.cjs && node scripts/verify-runner-context-client.cjs && node scripts/verify-runner-context-ui.cjs && node scripts/verify-fast-start.cjs && node scripts/verify-fast-start-all.cjs && node scripts/verify-fast-start-client.cjs && node scripts/verify-all-finisher-context.cjs && node scripts/verify-all-finisher-context-client.cjs && node scripts/verify-insights.cjs",
+    "verify:data": "node scripts/verify-research.cjs && node scripts/verify-personalized.cjs && node scripts/verify-ten-analyses.cjs && node scripts/verify-units.cjs && node scripts/verify-tools.cjs && node scripts/verify-weather.cjs && node scripts/verify-public-explorer.cjs && node scripts/verify-runner-search.cjs && node scripts/verify-runner-context.cjs && node scripts/verify-runner-context-client.cjs && node scripts/verify-runner-context-ui.cjs && node scripts/verify-fast-start.cjs && node scripts/verify-fast-start-all.cjs && node scripts/verify-fast-start-client.cjs && node scripts/verify-all-finisher-context.cjs && node scripts/verify-all-finisher-context-client.cjs && node scripts/verify-insights.cjs && node scripts/verify-finish-times.cjs",
     "verify:analytics": "node scripts/verify-analytics.cjs",
     "verify:seo": "node scripts/verify-seo.cjs",
     "verify:seo:live": "node scripts/verify-seo-live.cjs",

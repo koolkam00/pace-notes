@@ -4,6 +4,7 @@ import { FinishHistogram, Rescue, SecondsLens } from '../FinishTimeStory';
 import { StoryMethods, StorySection } from '../StoryShell';
 import { StoryData } from '../StoryData';
 import { Checkpoint, Distance, Section } from '../Units';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 
 export default function RoundNumbersBody({ data, manifest }: { data: FinishTimes; manifest: InsightsManifest }) {
   const marks = data.marks;
@@ -19,7 +20,7 @@ export default function RoundNumbersBody({ data, manifest }: { data: FinishTimes
   return (
     <StoryData value={{ finish: data }}>
       <StorySection id="towers" kicker="01 · The towers" title={<>Against the curve, the tallest tower is <em>2:59</em>.</>}
-        dek={<>{count(three.minute_before)} finishes landed between 2:59:00 and 2:59:59, {three.ratio.toFixed(2)}× what a smooth curve expects. In raw counts the busiest minutes are just before 4:00, where far more runners finish; relative to the curve, 2:59 stands tallest. The minute before 3:30 holds {half.ratio.toFixed(2)}×, before 4:00 {four.ratio.toFixed(2)}×, and before 5:00 {five.ratio.toFixed(2)}×.</>}>
+        dek={<>{count(three.minute_before)} finishes landed between 2:59:00 and 2:59:59, {three.ratio.toFixed(2)}× what a smooth curve expects. In raw counts the busiest minutes are just before 4:00, where far more finishes land; relative to the curve, 2:59 stands tallest. The minute before 3:30 holds {half.ratio.toFixed(2)}×, before 4:00 {four.ratio.toFixed(2)}×, and before 5:00 {five.ratio.toFixed(2)}×. For the median and the whole spread of finish times, see <Link href="/finish-times">marathon finish times</Link>.</>}>
         <FinishHistogram />
       </StorySection>
       <StorySection id="scoreboard" kicker="02 · Every mark" title={<>Faster finish times bunch at <em>more marks</em>.</>}

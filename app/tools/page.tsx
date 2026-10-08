@@ -5,6 +5,7 @@ import { EvidenceBadge } from '@/components/tools/ToolShell';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { TOOLS, toolHref, type ToolGroup } from '@/lib/tools/registry';
 import { pageMetadata } from '@/lib/seo';
+import { GOAL_PAGE_MINUTES, HALF_CHART, MARATHON_CHART, goalLabel, goalPagePath } from '@/lib/tools/pace-chart';
 
 export const metadata = pageMetadata({
   title: 'Free Marathon Calculators and Pacing Tools | Pace Notes',
@@ -58,6 +59,17 @@ export default function ToolsPage() {
             </section>
           );
         })}
+        <section className="tools-group" aria-labelledby="tools-pace-charts">
+          <h2 id="tools-pace-charts">Pace charts</h2>
+          <ul className="tools-chart-links">
+            <li><Link href="/tools/marathon-pace-chart"><b>Marathon pace chart</b><span>Every goal from {goalLabel(MARATHON_CHART.goals[0])} to {goalLabel(MARATHON_CHART.goals[MARATHON_CHART.goals.length - 1])}</span></Link></li>
+            <li><Link href="/tools/half-marathon-pace-chart"><b>Half marathon pace chart</b><span>Every goal from {goalLabel(HALF_CHART.goals[0])} to {goalLabel(HALF_CHART.goals[HALF_CHART.goals.length - 1])}</span></Link></li>
+            <li className="tools-chart-goals">
+              <b>Marathon pace by goal</b>
+              <span>{GOAL_PAGE_MINUTES.map((m, i) => <span key={m}>{i ? ' · ' : ''}<Link href={goalPagePath(m)} aria-label={`${goalLabel(m)} marathon pace`}>{goalLabel(m)}</Link></span>)}</span>
+            </li>
+          </ul>
+        </section>
         <div className="tools-principles">
           <div><b>Calculations are exact</b><p>Even-pace splits, mile rows and pace charts come straight from your inputs. They are not observations.</p></div>
           <div><b>Data is what finishes did</b><p>Shares describe complete finishes in the data, never your personal chance. Runners who stopped are not in it.</p></div>

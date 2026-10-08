@@ -45,17 +45,18 @@ export const ROBOTS_DISALLOW: readonly string[] = ['/data/runners/index/', '/dat
  * Pages without an entry (and without data) get no lastmod, which is better than a wrong one.
  */
 export const CONTENT_DATES: Readonly<Record<string, string>> = {
-  '/': '2026-10-07',
+  '/': '2026-10-08',
   '/about': '2026-10-07',
-  '/methodology': '2026-10-07',
-  '/stories': '2026-10-07',
-  '/tools': '2026-10-07',
-  '/tools/pace-calculator': '2026-10-07',
-  '/analyses': '2026-10-07',
-  '/courses': '2026-10-07',
-  '/packs': '2026-10-07',
-  '/slowdown': '2026-10-07',
-  '/research/personalized': '2026-09-17',
+  '/methodology': '2026-10-08',
+  '/stories': '2026-10-08',
+  '/tools': '2026-10-08',
+  '/tools/pace-calculator': '2026-10-08',
+  '/analyses': '2026-10-08',
+  '/courses': '2026-10-08',
+  '/packs': '2026-10-08',
+  '/slowdown': '2026-10-08',
+  '/research/personalized': '2026-10-08',
+  '/privacy': '2026-10-08',
 };
 
 export type SitemapEntry = { path: string; lastmod?: string };

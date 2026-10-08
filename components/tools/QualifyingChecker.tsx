@@ -712,6 +712,7 @@ function RaceCard({ it, birth, raceDate, seconds, division, drop, dropIgnored, n
 
         <p className="qualifying-sources">
           {sources.map((src) => <a key={src.url} href={src.url} rel="noopener noreferrer">{src.label}<span aria-hidden="true"> ↗</span></a>)}
+          <Link className="no-print" href={`/tools/qualifying/${s.key}`}>Every {SHORT[s.key] ?? s.race} age group</Link>
           <span className="qualifying-checked">Checked <time dateTime={VERIFIED_AT}>{VERIFIED_AT}</time></span>
         </p>
       </div>

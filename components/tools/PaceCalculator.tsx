@@ -268,6 +268,7 @@ function PaceChart({ units, from, setFrom }: { units: UnitSystem; from: number; 
       <header className="tool-panel-head">
         <h2 className="tool-panel-title" id="pace-chart-title">Pace chart: {formatDuration(from)} to {formatDuration(to)} per {units === 'mi' ? 'mile' : 'kilometre'}</h2>
         <p className="tool-panel-meta">Finish times at an even pace, every {step} seconds per {units}. Print it, or move the range.</p>
+        <p className="tool-panel-meta no-print">Know your goal time instead? The <Link href="/tools/marathon-pace-chart">marathon pace chart</Link> and <Link href="/tools/half-marathon-pace-chart">half marathon pace chart</Link> list every goal with its splits.</p>
       </header>
       <div className="tool-share no-print">
         <button type="button" className="button-secondary" onClick={() => setFrom(Math.max(units === 'mi' ? 240 : 150, from - (units === 'mi' ? 300 : 180)))}>Faster paces</button>

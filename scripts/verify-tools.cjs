@@ -60,6 +60,45 @@ near(pace.mph(pace.paceFrom(12600, pace.MARATHON_KM)), 7.4908, 0.0005, 'mph'); o
 }
 near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
 
+// ---- pace charts by goal time and the goal pages (lib/tools/pace-chart.ts): even-pace values recomputed by hand
+{
+  const chart = require('../lib/tools/pace-chart.ts');
+  const M = chart.MARATHON_CHART;
+  const half = chart.HALF_CHART;
+  assert.equal(M.goals.length, 49); assert.equal(M.goals[0], 150); assert.equal(M.goals.at(-1), 390); checks += 3;   // 2:30 to 6:30 every 5 minutes
+  assert.equal(half.goals.length, 23); assert.equal(half.goals[0], 70); assert.equal(half.goals.at(-1), 180); checks += 3;  // 1:10 to 3:00
+  assert.deepEqual(M.points.map((p) => p.km), [5, 10, 15, 20, 21.0975, 25, 30, 35, 40]); ok();
+  assert.deepEqual(half.points.map((p) => p.km), [5, 10, 15, 20]); ok();
+  const rows = chart.chartRows(M);
+  const four = rows.find((r) => r.goal === 240);
+  near(four.perKm, 14400 / 42.195, 1e-9, '4:00 pace per km'); near(four.perMile, 14400 / 42.195 * 1.609344, 1e-9, '4:00 pace per mile'); checks += 2;
+  assert.equal(chart.formatTenths(four.perMile), '9:09.2'); assert.equal(chart.formatTenths(four.perKm), '5:41.3'); checks += 2;
+  assert.equal(time.formatDuration(four.perMile), '9:09'); assert.equal(time.formatDuration(four.perKm), '5:41'); checks += 2;
+  assert.equal(four.times[4], 7200); assert.equal(time.formatDuration(four.times[4], true), '2:00:00'); checks += 2;   // halfway of 4:00
+  assert.equal(chart.formatTenths(four.times[0]), '28:26.4'); assert.equal(time.formatDuration(four.times[0]), '28:26'); checks += 2;  // 5 km at 4:00
+  assert.equal(time.formatDuration(four.times[8], true), '3:47:31'); ok();   // 40 km at 4:00
+  const three = rows.find((r) => r.goal === 180);
+  assert.equal(time.formatDuration(three.perMile), '6:52'); assert.equal(time.formatDuration(three.perKm), '4:16'); assert.equal(three.times[4], 5400); checks += 3;
+  near(four.miles[2], 7200, 1e-9, 'halfway in the mile table'); near(four.miles[0], 14400 * 5 * 1.609344 / 42.195, 1e-9, '5 miles at 4:00'); checks += 2;
+  for (const r of [...rows, ...chart.chartRows(half)]) {
+    assert.ok(r.times.every((t, i) => i === 0 || t > r.times[i - 1]) && r.times.at(-1) < r.seconds, `${r.goal}: times increase and stay under the goal`);
+  }
+  ok();
+  const twoHalf = chart.chartRows(half).find((r) => r.goal === 120);
+  near(twoHalf.perKm, 7200 / 21.0975, 1e-9, '2:00 half pace'); assert.equal(time.formatDuration(twoHalf.perMile), '9:09'); assert.equal(time.formatDuration(twoHalf.times[3], true), '1:53:45'); checks += 3;
+  // Goal pages: five round goals, slugs both ways, inside the pace band's observed range (2:30–6:30) and on the chart.
+  assert.deepEqual([...chart.GOAL_PAGE_MINUTES], [180, 210, 240, 270, 300]); ok();
+  assert.deepEqual(chart.GOAL_PAGE_MINUTES.map(chart.goalSlug), ['3-00', '3-30', '4-00', '4-30', '5-00']); ok();
+  for (const m of chart.GOAL_PAGE_MINUTES) { assert.equal(chart.goalFromSlug(chart.goalSlug(m)), m); assert.ok(m >= 150 && m <= 390 && M.goals.includes(m)); checks += 2; }
+  for (const bad of ['4-05', '4:00', '04-00', '4-60', '', '10-00']) { assert.equal(chart.goalFromSlug(bad), null, `no goal page for ${bad}`); ok(); }
+  assert.equal(chart.goalPagePath(240), '/tools/marathon-pace/4-00'); assert.equal(chart.goalSearchName(240), '4 Hour'); assert.equal(chart.goalSearchName(210), '3:30'); checks += 3;
+  // Links use the forms the other tools read: the pace band and course chooser parse goal=H:MM, the calculator d and t.
+  assert.equal(chart.paceBandHref(240), '/tools/pace-band?goal=4:00'); assert.equal(time.parseDuration('4:00', 'race'), 14400); checks += 2;
+  assert.equal(chart.paceBandHref(150), '/tools/pace-band?goal=2:30'); assert.equal(chart.courseChooserHref(270), '/tools/course-chooser?goal=4:30'); checks += 2;
+  assert.equal(chart.calculatorHref('half', 105), '/tools/pace-calculator?d=half&t=1:45:00'); assert.equal(time.parseDuration('1:45:00', 'race'), 6300); checks += 2;
+  assert.equal(chart.formatTenths(59.96), '1:00.0'); assert.equal(chart.formatTenths(3725.25), '1:02:05.3'); checks += 2;
+}
+
 // ---- predictor models (values recomputed independently in Python)
 const H = (h, m, s = 0) => h * 3600 + m * 60 + s;
 near(predictor.vdot(5, 1200), 49.8, 0.06, 'VDOT of a 20:00 5K'); ok();
@@ -251,4 +290,4 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   checks += 1 + registry.TOOLS.length;
 }
 
-console.log(`Tool libraries passed ${checks} checks: time parsing, pace calculations and splits, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading and the pacing-type classifier.`);
+console.log(`Tool libraries passed ${checks} checks: time parsing, pace calculations and splits, pace charts by goal time and goal-page links, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading and the pacing-type classifier.`);

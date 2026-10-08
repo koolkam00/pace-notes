@@ -4,8 +4,30 @@ import { BankAndPay, BreakRiver, GenderKick, Magnet, StateFlow, TwinRunners, War
 import { StoryMethods, StorySection } from '../StoryShell';
 import { Checkpoint, Distance, Section } from '../Units';
 import { StoryData } from '../StoryData';
+import { shareInWords } from '@/lib/stories';
 
 const pct = (v: number, d = 0) => `${(v * 100).toFixed(d)}%`;
+
+/** Start of a section label in km ("35–40" gives 35), for ordering break sections. */
+const sectionStart = (section: string) => Number.parseFloat(section);
+
+/**
+ * The break pattern across 5–20 km pace bands, read from the data: the bands that never reach a break before the first one that does,
+ * and the run of bands from there in which the break comes no later as the early pace gets slower. Each limit is the band label's
+ * upper marathon time ("2:30–3:00" or "Under 3:00" gives 3:00), or null when the data do not show that part of the pattern.
+ */
+function breakPattern(bands: Kick['breaks']['bands']) {
+  const first = bands.findIndex((b) => b.break_section);
+  if (first < 0) return { neverUnder: null, earlierUpTo: null };
+  let last = first;
+  while (last + 1 < bands.length && bands[last + 1].break_section && sectionStart(bands[last + 1].break_section!) <= sectionStart(bands[last].break_section!)) last += 1;
+  const upper = (label: string) => (/^(?:[^–]+–|Under )(\d+:\d{2})$/.exec(label)?.[1] ?? null);
+  const earlier = sectionStart(bands[last].break_section!) < sectionStart(bands[first].break_section!);
+  return {
+    neverUnder: first > 0 ? upper(bands[first - 1].label) : null,
+    earlierUpTo: earlier && last < bands.length - 1 ? upper(bands[last].label) : null,
+  };
+}
 
 export default function KickBody({ data, manifest }: { data: Kick; manifest: InsightsManifest }) {
   const k = data.kick;
@@ -25,15 +47,16 @@ export default function KickBody({ data, manifest }: { data: Kick; manifest: Ins
   const exceptions = data.gender_kick.filter((r) => r.women <= r.men).map((r) => r.label);
   const rc = data.recurrence;
   const firstGk = data.gender_kick.find((r) => r.label === '3:30–4:00');
+  const pattern = breakPattern(data.breaks.bands);
   return (
     <StoryData value={{ kick: data }}>
-      <StorySection id="magnet" kicker="01 · The finish-line magnet" title={<>Three in four <em>speed up</em> for the last <Distance km={2.195} />.</>}
+      <StorySection id="magnet" kicker="01 · The finish-line magnet" title={<>{shareInWords(k.share)} finishes <em>speed up</em> for the last <Distance km={2.195} />.</>}
         dek={<>{pct(k.share, 1)} of {count(k.n)} finishes ran the final <Distance km={2.195} /> faster than their <Section i={7} />. In each earlier 5 km section after <Checkpoint km={20} />, only {pct(Math.min(...earlier))} to {pct(Math.max(...earlier))} beat the section before.
           Even among finishes with a sustained slowdown, {pct(k.slowdown_share)} found a final kick.</>}>
         <Magnet />
       </StorySection>
 
-      <StorySection id="states" kicker="02 · No second wind" title={<>A kick at the end <em>doesn&apos;t undo</em> a sustained slowdown.</>}
+      <StorySection id="states" kicker="02 · No second wind" title={<>After a sustained slowdown, <em>{rec.share_any < 0.2 ? 'few finishes' : rec.share_any < 0.5 ? 'most finishes do not' : 'many finishes'}</em> get back to their early pace.</>}
         dek={<>Once a 5 km section was 25% or more slower than the runner&apos;s 5–20 km pace, the next 5 km was still 25% or more slower {pct(stay[0].stay)} of the time from <Section i={5} /> and {pct(stay[1].stay)} from <Section i={6} />.
           Of the {count(rec.room_n)} finishes whose sustained slowdown ended in time to leave a full 5 km section, {pct(rec.share_full_section_room, 1)} ran one back within 10% of their early pace. Only {pct(k.slowdown_final_below_baseline, 1)} of all finishes with a sustained slowdown ran the final section faster than their early pace, against {pct(k.other_final_below_baseline)} of the rest.</>}>
         <StateFlow />
@@ -41,7 +64,7 @@ export default function KickBody({ data, manifest }: { data: Kick; manifest: Ins
       </StorySection>
 
       <StorySection id="break" kicker="03 · The break" title={<>At <Section i={6} />, most of the field is <em>more than 10% off</em> its early pace.</>}
-        dek={<>Through <Checkpoint km={15} /> almost everyone runs close to their own 5–20 km pace. By <Section i={6} />, {pct(at30.over10, 1)} of finishes are more than 10% slower than it, and the middle half of the field is spread {((at30.p75 - at30.p25) / (brk[0].p75 - brk[0].p25)).toFixed(1)} times wider than over <Section i={0} />, the only early section outside the 5–20 km baseline. Up to a 6:00 marathon pace, the slower the early pace, the earlier the break; paces under 3:00 never reach it.</>}>
+        dek={<>Through <Checkpoint km={15} /> almost everyone runs close to their own 5–20 km pace. By <Section i={6} />, {pct(at30.over10, 1)} of finishes are more than 10% slower than it, and the middle half of the field is spread {((at30.p75 - at30.p25) / (brk[0].p75 - brk[0].p25)).toFixed(1)} times wider than over <Section i={0} />, the only early section outside the 5–20 km baseline.{pattern.earlierUpTo ? <> Up to a {pattern.earlierUpTo} marathon pace, the slower the early pace, the earlier the break</> : null}{pattern.neverUnder ? <>{pattern.earlierUpTo ? '; p' : ' P'}aces under {pattern.neverUnder} never reach it</> : null}{pattern.earlierUpTo || pattern.neverUnder ? '.' : null}</>}>
         <BreakRiver />
       </StorySection>
 
