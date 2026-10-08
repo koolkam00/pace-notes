@@ -6,7 +6,8 @@ import { count } from '@/lib/personalized';
 import CreatorCredit from '@/components/CreatorCredit';
 import { getStudyEvidence } from '@/lib/research-data';
 import { clientArchetypes, getInsightsManifest, readInsight, replayChoices } from '@/lib/insights-server';
-import { STORIES, storyHref } from '@/lib/stories';
+import { STORIES, courseSpan, storyHref } from '@/lib/stories';
+import { JsonLd, SITE_URL, finishesM, pageMetadata } from '@/lib/seo';
 import { TOOLS, toolHref } from '@/lib/tools/registry';
 import ToolIcon from '@/components/tools/ToolIcon';
 import type { Archetypes, CourseGeometry, Courses, Demographics, FinishTimes, Positions, ReplayIndex } from '@/lib/insights';
@@ -22,6 +23,17 @@ import { FinishHistogram, Rescue, SecondsLens } from '@/components/story/FinishT
 import { Checkpoint, Distance, PerDegree, TemperatureStep } from '@/components/story/Units';
 
 const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+
+/** The site description, with every number read from the verified story data. */
+function homeDescription() {
+  const span = courseSpan();
+  const where = span ? ` at ${getInsightsManifest().cohort.cities} marathons, ${span.first}–${span.last},` : '';
+  return `How ${finishesM()} million recorded finishes${where} were paced: data stories, free pacing tools and course pages. By Andrew Kam.`;
+}
+
+export function generateMetadata() {
+  return pageMetadata({ title: `Pace Notes: Marathon Pacing from ${finishesM()} Million Finishes`, description: homeDescription(), path: '/' });
+}
 
 export default function Page() {
   const { summary } = getAnalysisStart();
@@ -51,12 +63,17 @@ export default function Page() {
   const stories = STORIES.filter((s) => manifest.files[s.file]);
   const tools = TOOLS.filter((t) => !t.file || manifest.files[t.file]);
   const toolCohort = manifest.files['tools/projector.json'] ? readInsight<{ cohort_n: number }>('tools/projector.json').cohort_n : null;
-  return <StoryData value={{ archetypes: types, finish, positions: places }}><div className="home">
+  const span = courseSpan();
+  const website = {
+    '@context': 'https://schema.org', '@type': 'WebSite', name: 'Pace Notes', alternateName: 'splithappens.run', url: `${SITE_URL}/`,
+    inLanguage: 'en', description: homeDescription(), creator: { '@type': 'Person', name: 'Andrew Kam' },
+  };
+  return <><StoryData value={{ archetypes: types, finish, positions: places }}><div className="home">
     <section className="night night-grain bleed hero" aria-labelledby="hero-title">
       <div className="container hero-inner">
         <div className="hero-head">
-          <p className="eyebrow">Pace Notes · {count(manifest.analysis_n)} marathon finishes · {years.cities} cities · 2005–2026</p>
-          <h1 id="hero-title" className="hero-title">The same <MarathonDistance />, run <em>3.4&nbsp;million</em> ways.</h1>
+          <p className="eyebrow">Pace Notes · {count(manifest.analysis_n)} marathon finishes · {years.cities} cities{span ? ` · ${span.first}–${span.last}` : ''}</p>
+          <h1 id="hero-title" className="hero-title">The same <MarathonDistance />, run <em>{finishesM()}&nbsp;million</em> ways.</h1>
         </div>
         <div className="hero-side">
           <p className="hero-dek">Every recorded 5 km split from two decades of big-city marathons. Press play to watch a real field spread out, then see where races are <strong>held together</strong>, where they <strong>come apart</strong> and where finishes <strong>slip under round numbers in the final minutes</strong>.</p>
@@ -232,5 +249,5 @@ export default function Page() {
       </div>
     </section>
     <section className="home-purpose"><p className="eyebrow">Why this study exists</p><div><h2>A finish time is only part of the story.</h2><p>Pace Notes looks at the distance between the start and the finish. It makes race patterns easier to explore, so runners can ask better questions about their own marathons.</p><p>{count(study.cohort.raw)} race records are in the database; {count(summary.n)} pass the timing and race-quality checks used by the analyses. Counts are finishes, not unique runners.</p><Link className="text-link" href="/methodology#data-quality">Why the totals differ <span aria-hidden="true">↗</span></Link></div></section>
-  </div></StoryData>;
+  </div></StoryData><JsonLd data={website} /></>;
 }

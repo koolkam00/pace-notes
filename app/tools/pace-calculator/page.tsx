@@ -1,11 +1,13 @@
 import PaceCalculator from '@/components/tools/PaceCalculator';
 import { ToolHeader, ToolMethod, ToolNext } from '@/components/tools/ToolShell';
+import { pageMetadata } from '@/lib/seo';
 import './pace-calculator.css';
 
-export const metadata = {
-  title: 'Pace calculator and marathon pace chart | Pace Notes',
-  description: 'Solve pace, time or distance instantly in miles or kilometres. Splits every 400 m, quarter mile, kilometre, mile or 5 km mat, treadmill speed, watch-reading scenarios and a printable marathon pace chart.',
-};
+export const metadata = pageMetadata({
+  title: 'Running Pace Calculator: Pace, Time and Splits | Pace Notes',
+  description: 'Free running pace calculator: enter any two of distance, time and pace. Even-pace splits by mile, km or 5 km mat, and what a GPS watch would show.',
+  path: '/tools/pace-calculator',
+});
 
 /** Course measurement rules behind the watch table. Checked against the English edition on this date. */
 const MEASUREMENT_CHECKED = 'October 7, 2026';

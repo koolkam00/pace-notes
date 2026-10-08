@@ -10,7 +10,8 @@ import { loadShard, type PaceBandGroup, type PaceBandIndex, type PaceBandShard }
 import { MARATHON_KM, MATS_KM, perUnit, splitTable, watchTarget, type SplitInterval } from '@/lib/tools/pace';
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
-import { KM_PER_MILE, elevationLabel, type UnitSystem } from '@/lib/units';
+import { DEFAULT_UNITS, KM_PER_MILE, elevationLabel, type UnitSystem } from '@/lib/units';
+import { unitHref } from '@/lib/unit-preference';
 import { SECTION_BOUNDS, count, sectionLabel } from '@/lib/viz/format';
 
 /** Supplied route elevation (every `step` km) for the optional printed back strip. Context only. */
@@ -120,7 +121,8 @@ export default function PaceBand({ indexSha, profiles, screened, projectorScopes
     setGoal((delta > 0 ? Math.floor(m) + delta / 60 : Math.ceil(m) + delta / 60) * 60);
   };
 
-  // A shared link always carries the units it was viewed in, so the recipient sees the same band (rows follow the units).
+  // The address carries units=km when the band is in kilometres (rows follow the units); miles, the default, need no
+  // parameter, so the miles address stays clean. The Copy link button always names the units on screen.
   // A goal from a link or from the visitor stays in the URL even when it is 4:00 (useQueryState drops defaults), so a
   // reload or a shared link does not present it as the example.
   const goalExplicit = fromUrl.has('goal') || changed.goal;
@@ -128,11 +130,11 @@ export default function PaceBand({ indexSha, profiles, screened, projectorScopes
     if (!ready) return;
     const url = new URL(window.location.href);
     let dirty = false;
-    if (url.searchParams.get('units') !== units) { url.searchParams.set('units', units); dirty = true; }
+    if (url.searchParams.get('units') !== (units === DEFAULT_UNITS ? null : units)) dirty = true;
     if (goalExplicit && !url.searchParams.has('goal')) { url.searchParams.set('goal', q.goal); dirty = true; }
     if (!dirty) return;
     const search = url.searchParams.toString().replace(/%3A/gi, ':').replace(/%2C/gi, ',');
-    window.history.replaceState(window.history.state, '', `${url.pathname}?${search}${url.hash}`);
+    window.history.replaceState(window.history.state, '', unitHref(`${url.pathname}${search ? `?${search}` : ''}${url.hash}`, units));
   }, [ready, units, q, goalExplicit]);
 
   // Verified index, then one verified shard per course × recorded gender. `retry` re-runs both loads.

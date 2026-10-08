@@ -91,6 +91,59 @@ for (const href of ['https://example.org/5km?units=km#source', '//example.org/da
   assert.equal(withUnits(href, 'mi'), href, 'Do not rewrite external, relative or fragment links');
 }
 
+// Internal links and addresses: miles (the default) carry no units parameter, so each page has one clean URL;
+// kilometres keep units=km so the choice travels with every link even when stored preferences are unavailable.
+const { unitHref, dropDefaults, FILTER_DEFAULTS } = require('../lib/unit-preference.ts');
+assert.equal(unitHref('/analyses', 'mi'), '/analyses');
+assert.equal(unitHref('/analyses', 'km'), '/analyses?units=km');
+assert.equal(unitHref('/analyses?units=mi', 'mi'), '/analyses', 'Miles remove a stale units=mi');
+assert.equal(unitHref('/analyses?units=km', 'mi'), '/analyses', 'Switching to miles removes units=km');
+assert.equal(unitHref('/analyses?units=mi&units=km', 'mi'), '/analyses', 'Every units value goes');
+assert.equal(unitHref('/analyses?units=mi', 'km'), '/analyses?units=km');
+assert.equal(unitHref('/#analyses', 'mi'), '/#analyses');
+assert.equal(unitHref('/?units=mi#analyses', 'mi'), '/#analyses', 'Fragments survive');
+assert.equal(unitHref('/#analyses', 'km'), withUnits('/#analyses', 'km'));
+assert.equal(unitHref(selectedLink, 'mi'), '/analyses/pacing-pattern?race=All+courses&goal=195&age=all&gender=all#comparison', 'Other parameters keep their order');
+assert.equal(unitHref(selectedLink, 'km'), withUnits(selectedLink, 'km'));
+assert.equal(unitHref('/tools/split-check?s=0:25:00,0:50:00&units=mi&course=new-york', 'mi'), '/tools/split-check?s=0:25:00,0:50:00&course=new-york', 'Tool links keep readable colons and commas');
+assert.equal(unitHref('/tools/split-check?s=0:25:00,0:50:00&course=new-york', 'km'), '/tools/split-check?s=0:25:00,0:50:00&course=new-york&units=km');
+assert.equal(unitHref('/tools/pace-band?goal=3%3A30', 'mi'), '/tools/pace-band?goal=3%3A30', 'A link with no units parameter is returned exactly as written');
+assert.equal(unitHref('/runners?units=km', 'mi'), '/runners');
+for (const href of ['https://example.org/5km?units=km#source', '//example.org/data?units=mi', 'mailto:study@example.org', '#method', 'relative/path?units=mi']) {
+  assert.equal(unitHref(href, 'mi'), href, 'Do not rewrite external, relative or fragment links');
+  assert.equal(unitHref(href, 'km'), href, 'Do not rewrite external, relative or fragment links');
+}
+for (const units of ['mi', 'km']) for (const href of ['/', '/courses/berlin', '/analyses/pacing-pattern?race=Boston&goal=210#comparison', '/tools/split-check?s=0:25:00,0:50:00']) {
+  const once = unitHref(href, units);
+  assert.equal(unitHref(once, units), once, 'unitHref is idempotent');
+  assert.equal(unitsFromSearch(once.split('#')[0].slice(once.indexOf('?') < 0 ? once.length : once.indexOf('?'))), units === 'mi' ? null : 'km', 'Miles links read as no request, so the stored preference applies');
+  assert.doesNotMatch(once, /units=mi/);
+}
+
+// Filters at their defaults (every course, age group and recorded gender) stay out of links.
+assert.deepEqual({ ...FILTER_DEFAULTS }, { race: 'All courses', age: 'all', gender: 'all' });
+const { EXAMPLE_PROFILE, profileSearch } = require('../lib/analysis-profile.ts');
+const { ALL_FINISHER_DEFAULT } = require('../lib/all-finisher-context.ts');
+const { FAST_START_DEFAULT } = require('../lib/fast-start.ts');
+for (const selection of [EXAMPLE_PROFILE, ALL_FINISHER_DEFAULT, FAST_START_DEFAULT]) {
+  assert.equal(selection.city, FILTER_DEFAULTS.race, 'The course default matches every comparison page');
+  assert.equal(selection.age, FILTER_DEFAULTS.age); assert.equal(selection.gender, FILTER_DEFAULTS.gender);
+}
+assert.equal(dropDefaults({ race: 'All courses', age: 'all', gender: 'all' }), '');
+assert.equal(dropDefaults(new URLSearchParams({ race: 'All courses', age: 'all', gender: 'all' })), '');
+assert.equal(dropDefaults({ race: 'New York', age: 'all', gender: 'Women' }), '?race=New+York&gender=Women');
+assert.equal(dropDefaults({ race: 'All courses', age: '40–44', gender: 'all' }), '?age=' + encodeURIComponent('40–44'));
+assert.equal(dropDefaults(profileSearch({ ...EXAMPLE_PROFILE, goal: 195 })), '?goal=195', 'Other parameters stay');
+assert.equal(dropDefaults(profileSearch({ ...EXAMPLE_PROFILE, previous: 230 })), '?goal=240&previous=230');
+assert.equal(dropDefaults('?race=All+courses&s=0:25:00,0:50:00&units=km'), '?s=0:25:00,0:50:00&units=km', 'Readable colons and commas; units untouched');
+assert.equal(dropDefaults(''), '');
+assert.equal(dropDefaults('?race=all&age=All'), '?race=all&age=All', 'Only exact default values are dropped');
+const { readAnalysisProfile } = require('../lib/analysis-profile.ts');
+const profileSummary = { cities: [{ city: 'All courses' }, { city: 'Boston' }] };
+for (const profile of [EXAMPLE_PROFILE, { ...EXAMPLE_PROFILE, goal: 195 }, { ...EXAMPLE_PROFILE, city: 'Boston', age: '40–44' }, { ...EXAMPLE_PROFILE, gender: 'Women', previous: 230 }]) {
+  assert.deepEqual(readAnalysisProfile(dropDefaults(profileSearch(profile)), profileSummary), profile, 'A link without default filters reads back as the same comparison');
+}
+
 const { findingText } = require('../lib/analysis-display.ts');
 const paceFinding = {
   answer: 'Among recorded finishes, 40–42.195 km has the slowest median section pace: 5:00/km.',

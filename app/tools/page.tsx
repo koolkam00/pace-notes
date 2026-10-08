@@ -4,11 +4,13 @@ import ToolIcon from '@/components/tools/ToolIcon';
 import { EvidenceBadge } from '@/components/tools/ToolShell';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { TOOLS, toolHref, type ToolGroup } from '@/lib/tools/registry';
+import { pageMetadata } from '@/lib/seo';
 
-export const metadata = {
-  title: 'Runner tools | Pace Notes',
-  description: 'Free marathon tools built on millions of real finishes: pace calculator and chart, honest finish-time predictor, course-aware pace band, race-day projector, weather match, course chooser, split check and qualifying checker.',
-};
+export const metadata = pageMetadata({
+  title: 'Free Marathon Calculators and Pacing Tools | Pace Notes',
+  description: 'Free marathon tools: pace calculator, time predictor, pace band, course chooser, weather match, race-day projector, split check and qualifying times.',
+  path: '/tools',
+});
 
 const GROUPS: { group: ToolGroup; title: string }[] = [
   { group: 'Plan', title: 'Plan the race' },

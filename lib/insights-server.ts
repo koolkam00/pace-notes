@@ -7,8 +7,22 @@ import type { Archetypes, InsightsManifest, ReplayEditionMeta } from './insights
 const ROOT = () => path.join(process.cwd(), 'public/data/insights');
 const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
 
-/** Read and verify the story manifest: release pin, runner-manifest binding and every file digest. */
+let verified: { key: string; manifest: InsightsManifest } | undefined;
+
+/**
+ * Read and verify the story manifest: release pin, runner-manifest binding and every file digest.
+ * The full check runs once per process for a given manifest file; metadata and story text read it many times per build.
+ */
 export function getInsightsManifest(): InsightsManifest {
+  const stat = fs.statSync(path.join(ROOT(), 'manifest.json'));
+  const key = `${stat.size}:${stat.mtimeMs}`;
+  if (verified?.key === key) return verified.manifest;
+  const manifest = verifyInsightsManifest();
+  verified = { key, manifest };
+  return manifest;
+}
+
+function verifyInsightsManifest(): InsightsManifest {
   const bytes = fs.readFileSync(path.join(ROOT(), 'manifest.json'));
   const manifest = JSON.parse(bytes.toString()) as InsightsManifest;
   const runnerBytes = fs.readFileSync(path.join(process.cwd(), 'public/data/runners/manifest.json'));
@@ -21,7 +35,7 @@ export function getInsightsManifest(): InsightsManifest {
   return manifest;
 }
 
-/** Read one verified story file. The manifest check runs first on every call. */
+/** Read one verified story file, after the manifest check. */
 export function readInsight<T>(name: string): T {
   const manifest = getInsightsManifest();
   if (!manifest.files[name]) throw new Error(`Unknown story data file: ${name}`);

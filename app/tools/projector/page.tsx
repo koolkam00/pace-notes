@@ -1,13 +1,15 @@
 import Projector, { ProjectorExclusions } from '@/components/tools/Projector';
 import { ToolHeader, ToolMethod, ToolNext } from '@/components/tools/ToolShell';
+import { pageMetadata } from '@/lib/seo';
 import { getInsightsManifest } from '@/lib/insights-server';
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import './projector.css';
 
-export const metadata = {
-  title: 'Race-day marathon projector: finish range and next-mat windows | Pace Notes',
-  description: 'Type a tracker time from any 5 km mat. See the finish range and arrival windows at the next mats from what finishes on the same pace actually ran next, with accuracy measured by rebuilding the groups from earlier years and scoring later races.',
-};
+export const metadata = pageMetadata({
+  title: 'Marathon Finish Time Projector from Tracker Splits',
+  description: 'Type a tracker time from any 5 km mat to see a finish range and next-mat arrival windows from what finishes on the same pace ran next.',
+  path: '/tools/projector',
+});
 
 const INDEX = 'tools/projector.json';
 

@@ -1,15 +1,17 @@
 import WeatherMatch from '@/components/tools/WeatherMatch';
 import { ToolHeader, ToolMethod, ToolNext } from '@/components/tools/ToolShell';
+import { pageMetadata } from '@/lib/seo';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import type { PaceBandIndex, PaceBandShard, WeatherMatch as WeatherMatchData } from '@/lib/tools/data';
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import './weather-match.css';
 
-export const metadata = {
-  title: 'Marathon weather match: past races at your forecast temperature | Pace Notes',
-  description: 'Type your race-morning forecast and pace. See the past marathons that started at a similar temperature, how finishes at your 5–20 km pace held up there beside cooler mornings, and what published heat research and rules of thumb suggest.',
-};
+export const metadata = pageMetadata({
+  title: 'Marathon Weather: Races at Your Forecast Temperature',
+  description: 'Enter your race-morning forecast and pace. See past marathons that started at a similar temperature and how finishes at that pace held up there.',
+  path: '/tools/weather-match',
+});
 
 const FILE = 'tools/weather-match.json';
 

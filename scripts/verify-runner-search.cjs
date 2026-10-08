@@ -179,6 +179,27 @@ async function main() {
     assert.equal(runnerProgression(loadedLimited.races, limitedSource), null);
     assertLimitedRecordsVisible(render(loadedLimited.races, 'mi'));
   } finally { global.fetch = originalFetch; }
-  console.log('Runner search checks passed: Unicode/token matching, complete pagination, all-ineligible search/profile views, retained source readings, explicit eligibility, year-only progression, mi/km readings and verified versioned gzip loading.');
+
+  // Privacy: a searched name never enters the page address, and the lookup page is not indexable.
+  const RunnerSearch = require('../components/RunnerSearch.tsx').default;
+  const pageHtml = renderToStaticMarkup(React.createElement(RunnerSearch));
+  const input = pageHtml.match(/<input id="runner-name"[^>]*>/)?.[0];
+  assert.ok(input, 'The search field renders');
+  assert.doesNotMatch(input, /\sname=/, 'The search field has no name, so a form submitted without JavaScript cannot put ?q= in the address');
+  assert.doesNotMatch(pageHtml.match(/<form[^>]*>/)[0], /\saction=|\smethod=/i);
+  const source = fs.readFileSync(path.join(__dirname, '../components/RunnerSearch.tsx'), 'utf8');
+  assert.doesNotMatch(source, /searchParams\.(?:set|append)\(\s*['"]q['"]/, 'Never write the search text into the address');
+  assert.doesNotMatch(source, /[?&]q=\$\{|['"]q=['"]?\s*\+/, 'Never build a ?q= link');
+  const historyCalls = source.match(/history\.(?:push|replace)State\([^)]*\)/g) || [];
+  assert.ok(historyCalls.some(call => call.startsWith('history.pushState')), 'A search adds a history entry, so Back returns to the previous results');
+  for (const call of historyCalls) {
+    assert.match(call, /^history\.(?:push|replace)State\(\{ runnerQuery: value \}, '', (?:href|url\.pathname \+ url\.search \+ url\.hash)\)$/, `History entries keep the name in state only: ${call}`);
+  }
+  assert.match(source, /url\.searchParams\.delete\('q'\)/, 'Old ?q= links are cleaned');
+  const { metadata } = require('../app/runners/page.tsx');
+  assert.deepEqual(metadata.robots, { index: false, follow: true }, '/runners is noindex, follow');
+  assert.equal(metadata.alternates, undefined, 'A noindex page has no canonical');
+  assert.doesNotMatch(JSON.stringify(metadata), /[?&]q=/);
+  console.log('Runner search checks passed: Unicode/token matching, complete pagination, all-ineligible search/profile views, retained source readings, explicit eligibility, year-only progression, mi/km readings, verified versioned gzip loading, and names kept out of the address with /runners noindex.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

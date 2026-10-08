@@ -4,8 +4,13 @@ import { count } from '@/lib/personalized';
 import { getWeatherAnalyses, getWeatherEvidence } from '@/lib/weather-data';
 import DataCoverage from '@/components/DataCoverage';
 import CreatorCredit from '@/components/CreatorCredit';
+import { pageMetadata } from '@/lib/seo';
 
-export const metadata = { title: 'About | Pace Notes', description: 'Why Pace Notes exists, what the race records can and cannot tell you, and who made it.' };
+export const metadata = pageMetadata({
+  title: 'About Pace Notes: Marathon Pacing Research',
+  description: 'Why Pace Notes exists, what recorded marathon splits can and cannot tell you, and who made it: Andrew Kam.',
+  path: '/about',
+});
 export default function AboutPage() {
   const { summary } = getAnalysisStart();
   const weather = getWeatherEvidence();

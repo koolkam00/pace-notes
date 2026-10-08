@@ -1,12 +1,14 @@
 import QualifyingChecker from '@/components/tools/QualifyingChecker';
 import { ToolHeader, ToolMethod, ToolNext } from '@/components/tools/ToolShell';
+import { pageMetadata } from '@/lib/seo';
 import { BOSTON_CUTOFFS, STANDARDS, VERIFIED_AT } from '@/lib/tools/qualifying';
 import './qualifying.css';
 
-export const metadata = {
-  title: 'Marathon qualifying checker: Boston, NYC, London, Chicago, Berlin, Sydney | Pace Notes',
-  description: 'Check a marathon time against the Boston, New York, London Good For Age, Chicago, Berlin and Sydney standards, each with its own age rule and window. Boston includes the new downhill index and every past cut-off; nothing is forecast.',
-};
+export const metadata = pageMetadata({
+  title: 'Marathon Qualifying Times Checker: Boston, NYC, Chicago',
+  description: 'Check a marathon time against Boston, NYC, Chicago, London, Berlin and Sydney standards for your age, with each window and every published Boston cut-off.',
+  path: '/tools/qualifying',
+});
 
 /** Every official page the standards were transcribed from, plus the B.A.A. announcements behind the cut-off history. */
 const SOURCES = [

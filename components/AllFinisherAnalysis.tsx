@@ -8,6 +8,7 @@ import { clock } from '@/lib/personalized';
 import { TEN_ANALYSES, analysisHref } from '@/lib/ten-analyses';
 import { sourceReleaseHref } from '@/lib/data-source';
 import { trackAnalytics } from '@/lib/analytics';
+import { dropDefaults, unitHref } from '@/lib/unit-preference';
 import { ALL_FINISHER_DEFAULT, allFinisherCharts, allFinisherFamily, allFinisherGroupLabel, allFinisherGroups, allFinisherRow, allFinisherSearch, earlyPaceLabel, loadAllFinisherContext, readAllFinisherSelection,
   type AllFinisherEvidence, type AllFinisherGroup, type AllFinisherKind, type AllFinisherSelection, type AllFinisherStart } from '@/lib/all-finisher-context';
 
@@ -67,21 +68,22 @@ export default function AllFinisherAnalysis({ kind, start, history, title, descr
   const groups = useMemo(() => row ? allFinisherGroups(row, kind, selection.opening) : [], [row, kind, selection.opening]);
   const focus = groups.find(group => group.id === focusId) || groups[0];
   const comparison = comparisonId === 'none' ? undefined : groups.find(group => group.id === comparisonId && group.id !== focus?.id) || groups.find(group => group.id !== focus?.id);
-  const apply = (next: AllFinisherSelection) => { if (kind === 'courses' || kind === 'weather') trackAnalytics('analysis_filters_applied', { analysis: kind, course_scope: next.city === 'All courses' ? 'all' : 'single' }); setSelection(next); setDraft(next); setFocusId(''); setComparisonId(''); window.history.pushState(null, '', window.location.pathname + allFinisherSearch(next) + '&units=' + units); };
+  const apply = (next: AllFinisherSelection) => { if (kind === 'courses' || kind === 'weather') trackAnalytics('analysis_filters_applied', { analysis: kind, course_scope: next.city === 'All courses' ? 'all' : 'single' }); setSelection(next); setDraft(next); setFocusId(''); setComparisonId(''); window.history.pushState(null, '', unitHref(window.location.pathname + allFinisherSearch(next), units)); };
   const mode = (value: 'all' | 'history') => {
-    const params = new URLSearchParams(window.location.search); params.set('comparison', value); params.set('units', units);
+    const params = new URLSearchParams(window.location.search); params.set('comparison', value);
     if (value === 'all') { params.delete('previous'); params.delete('prior'); }
-    window.history.pushState(null, '', window.location.pathname + '?' + params.toString()); window.dispatchEvent(new PopStateEvent('popstate'));
+    window.history.pushState(null, '', unitHref(window.location.pathname + '?' + params.toString(), units)); window.dispatchEvent(new PopStateEvent('popstate'));
   };
   const chooseLine = (id: string, comparisonLine = false) => {
     if (comparisonLine) setComparisonId(id); else setFocusId(id);
-    const params = new URLSearchParams(window.location.search); params.set(comparisonLine ? 'compare' : 'focus', id); params.set('units', units);
-    window.history.pushState(null, '', window.location.pathname + '?' + params.toString());
+    const params = new URLSearchParams(window.location.search); params.set(comparisonLine ? 'compare' : 'focus', id);
+    window.history.pushState(null, '', unitHref(window.location.pathname + '?' + params.toString(), units));
   };
   const raceDay = kind === 'race-day';
   const family = allFinisherFamily(kind), primaryId = family === 'courses' ? 'courses' : family === 'weather' ? 'weather' : undefined;
   const main = TEN_ANALYSES.find(item => item.id === primaryId);
-  const navSearch = '?' + new URLSearchParams({ race: selection.city, age: selection.age, gender: selection.gender, units }).toString();
+  // Filters at their defaults stay out of the links; UnitLink adds units=km for a kilometres visitor.
+  const navSearch = dropDefaults({ race: selection.city, age: selection.age, gender: selection.gender });
   const pending = all && !initial && !data && !error;
   const modes = history && <div className="af-modes" role="group" aria-label="Choose the comparison"><button type="button" aria-pressed={all} onClick={() => mode('all')}>All eligible finishes<span>No previous race needed</span></button><button type="button" aria-pressed={!all} onClick={() => mode('history')}>With an earlier result<span>Compare with recorded race history</span></button></div>;
   return <>

@@ -37,7 +37,7 @@ Query strings (`?units=`, `?race=`, `?goal=` and so on) never appear in a canoni
   - `pageMetadata({ title, description, path, type, noindex, canonicalPath, image, imageAlt, publishedTime, modifiedTime })` returns the title, description, absolute canonical, the full Open Graph block, the X card and robots. It throws if `path` contains `?` or `#`. A page-level `openGraph` replaces the layout's, so the helper always returns the whole object.
   - `finishesM()` gives the analysis cohort in millions ("3.4"), read from `analysis_n` in `public/data/insights/manifest.json`. Use it for every "N.N million" in a title or description, never a typed number.
   - `JsonLd` renders a JSON-LD block with `<` escaped. `breadcrumbs()` builds a BreadcrumbList.
-- **[`lib/og-paths.ts`](../lib/og-paths.ts)** picks the social image for a page. Today every page uses `/og/default.png`.
+- **[`lib/og-paths.ts`](../lib/og-paths.ts)** picks the social image for a page: its own card for a story, tool or course, else its section's card, else `/og/default.png`. It only returns files that exist in `public/`. See [Share cards](#share-cards-publicog).
 
 How a page uses it:
 
@@ -67,7 +67,98 @@ pageMetadata({ title, description, path, noindex: isNoindex(path), canonicalPath
 - `app/manifest.ts` writes `out/manifest.webmanifest`: name Pace Notes, paper colour `#F5F0E6`, `display: browser`, icons in `public/icons/` (192, 512 and a maskable 512).
   - With `NEXT_PUBLIC_BASE_PATH` set (the optional GitHub Pages build), the manifest's own paths carry the base path, but Next.js 14.2.5 writes the `<link rel="manifest">` tag as `/manifest.webmanifest` without it, so the manifest does not load there. Favicons, canonicals, Open Graph images and the sitemap are unaffected. The Vercel site has no base path.
 - `app/icon1.png` (192 px) gives Google a PNG favicon; SVG is not a Google favicon format. `app/icon.svg`, `favicon.ico` and `apple-icon.png` stay.
-- `public/og/default.png` is the 1200×630 share card: the brand mark, "Pace Notes", a tagline and the credit. It has no numbers (they would go stale) and no runner names. It was rendered with Playwright from an HTML card using the site's fonts and colour tokens. If you replace it, keep it 1200×630 and under 150 KB.
+- `public/og/default.png` is the 1200×630 share card for pages without a more specific one: the brand mark, "Pace Notes", a tagline and the credit. It has no numbers (they would go stale) and no runner names. It was rendered with Playwright from an HTML card using the site's fonts and colour tokens. If you replace it, keep it 1200×630 and at most 120 KB, like the other cards. The other cards are described in [Share cards](#share-cards-publicog).
+
+## Share cards (`public/og/`)
+
+Every page's `og:image` and X card is a 1200×630 PNG picked by `ogImageFor(path)` in [`lib/og-paths.ts`](../lib/og-paths.ts). It returns the most specific card that exists in `public/`:
+
+| Page | Card | Text on the card |
+| --- | --- | --- |
+| `/stories/<slug>` | `og/stories/<slug>.png` | "Data story" and the kicker, the story title (`lib/stories.ts`) |
+| `/tools/<slug>` and pages below it | `og/tools/<slug>.png` | "Runner tools" and the group, the heading or title (`lib/tools/registry.ts`) |
+| `/courses/<slug>` | `og/courses/<slug>.png` | "Courses · Course profile", the race name, and the supplied route outline when there is one |
+| `/stories`, `/tools`, `/courses` | `og/sections/<section>.png` | the section's own line |
+| `/analyses` and every analysis page | `og/sections/analyses.png` | |
+| `/packs` and every pack page | `og/sections/packs.png` (the research archive) | |
+| everything else (home, about, methodology, slowdown, …) | `og/default.png` | |
+
+If a story, tool or course has no card yet, its page falls back to the section card, then to the default, so a page never points at a missing file. `verify-seo` warns about those fallbacks.
+
+**Rules for the cards:** words only (the brand, a section label, the title or race name, and "by Andrew Kam"); no data numbers, because they would go stale; no runner names; 1200×630; at most 120 KB each (49 cards, 32–81 KB, 2.6 MB in all on October 8, 2026). The race name follows the course page's rule: the supplied route's race name, else the course summary's, else the city plus " Marathon". "Washington Marathon" is shown as the data names it; if the owner renames that race, re-run the script.
+
+**Making them.** [`scripts/build-og-images.cjs`](../scripts/build-og-images.cjs) renders the cards with Playwright and headless Chromium from an HTML template in the default card's design: Fraunces and Inter from `node_modules/@fontsource-variable` (the same stylesheets `app/layout.tsx` imports), the night background and accents from `app/globals.css` (the script stops if those tokens change), and each story's or tool's accent colour. It adds no project dependency: it loads `playwright` from `node_modules` if present, else `/opt/node-tools/node_modules/playwright`. Install it outside the project if you have neither (`npm i -g playwright && npx playwright install chromium`, then run with `NODE_PATH` set to the global modules folder).
+
+```bash
+npm run og:images                                  # render missing or changed cards; unchanged ones are skipped
+node scripts/build-og-images.cjs --force           # render every card again
+node scripts/build-og-images.cjs --only courses/   # only cards whose file name contains the text
+npm run og:check                                   # no browser: report missing, changed, oversized or orphaned cards
+```
+
+Re-run it, and commit the PNGs, when you add or rename a story, tool or course, change a title, kicker, tool heading or accent, or change the card design. Delete the cards it reports as orphans. Then run `npm run build` so the pages pick up the new files.
+
+The card list comes from the registries in a fixed order, so runs are repeatable. Each PNG carries a `tEXt` chunk (`pace-notes-og`) with a hash of its HTML (text, layout, colours and the font package versions); that is how the script skips unchanged cards and how `og:check` spots stale ones without a browser. Pixels are identical between runs on the same machine; another Chromium or font build may anti-alias slightly differently, which only shows up as a binary change.
+
+## Automated checks: `verify-seo`
+
+[`scripts/verify-seo.cjs`](../scripts/verify-seo.cjs) reads the static export and fails if any page breaks the rules on this page. It loads `lib/seo-routes.ts` (and `finishesM()` from `lib/seo.tsx`) with the same TypeScript require hook as `scripts/verify-units.cjs`, so it checks the build against the same policy the pages were built from. It has no dependencies and takes a few seconds.
+
+```bash
+npm run build && npm run verify:seo
+node scripts/verify-seo.cjs --out <folder>    # another export folder
+node scripts/verify-seo.cjs --all             # list every page in a failed group, not just the first 25
+```
+
+CI runs it after `npm run build` in [`site-validation.yml`](../.github/workflows/site-validation.yml). Failures are grouped by check, with the page and the reason; the script exits 1 if any check fails.
+
+| Check | Fails when |
+| --- | --- |
+| `head-tags` | a page (404 excepted) lacks exactly one non-empty `<title>`, meta description or `<h1>` |
+| `robots-meta` | noindex is missing from a `NOINDEX` path, a `THIN_PACKS` page or the 404, is on any other page, or two robots tags disagree; or a pack is noindex only because `packCanonical()` found no primary page |
+| `canonical` | an indexable page lacks exactly one canonical, or it is off `https://splithappens.run`, has `?`, `#` or a trailing slash, or differs from `canonicalPathFor(path)`; or a noindex page has one |
+| `aliases` | a pack alias's primary page is not indexable, was not built, or is not its own canonical |
+| `social-tags` | an indexable page lacks `og:title`, `og:description`, `og:image`, `twitter:card` or `og:url`, or `og:url` is not the canonical |
+| `og-image` | an `og:image` or `twitter:image` is off the host, missing from the export, or not 1200×630 (read from the PNG, JPEG or WebP header) |
+| `duplicates` | two indexable pages (aliases included) share a title or a description |
+| `sitemap` | `sitemap.xml` does not parse, repeats a `<loc>`, has a relative or unclean `<loc>`, lists a page that is missing, noindex, an alias or not its own canonical, misses an indexable self-canonical page, disagrees with `sitemapEntries()`, or has a `lastmod` in the future or not among the data and content dates |
+| `robots-txt` | the `Sitemap:` line is missing, a group disallows `/`, any group blocks the pages, `/_next/`, `/data/` (outside the two runner folders), `/og/` or `/icons/`, or the runner folders are not blocked |
+| `json-ld` | a block does not parse, its `@context` is not schema.org, a `Person` is anyone but "Andrew Kam" or carries a URL, `/runners` has any, a `ProfilePage` appears, a site URL has a query, or breadcrumb positions are not 1..n or point off the host |
+| `banned-words` | "the wall", "arithmetic" or "your chance" is in visible text, alt, title or aria-label text, metadata or JSON-LD |
+| `fastest` | "fastest" is in a title, description, `<h1>` or og/X tag (body text may use it) |
+| `runner-counts` | a title or description says "million runners" or "N runners" (counts are finishes) |
+| `personal-data` | `q=` is in a canonical, `og:url`, the sitemap or JSON-LD, or `/runners` is not noindex |
+| `units-links` | an internal `href` in the static HTML carries `units=mi`, the default unit |
+| `old-host` | `htw-live-study.vercel.app` is in any `<head>` (or in JSON-LD) |
+| `finish-counts` | an "N.N million" or "N.NM" in a title or description is not `finishesM()` |
+
+Warnings only: titles over 60 characters, descriptions over 155 (the site's limits), story, tool and course pages that use a fallback card, and policy notes (noindex pages that also say nofollow, JSON-LD on pages the plan keeps without it, `changefreq` or `priority` in the sitemap).
+
+## After a deploy: `verify-seo-live`
+
+[`scripts/verify-seo-live.cjs`](../scripts/verify-seo-live.cjs) checks what only the live site can show. Run it by hand right after each production deploy; it prints PASS or FAIL per check and exits 1 on any failure.
+
+```bash
+npm run verify:seo:live
+node scripts/verify-seo-live.cjs --base https://<preview>.vercel.app   # path checks only; host checks are skipped
+```
+
+| Check | Passes when |
+| --- | --- |
+| www host | `https://www.splithappens.run/tools?x=1` answers 308 to `https://splithappens.run/tools?x=1` |
+| old host | `https://htw-live-study.vercel.app/slowdown?a=1` answers 308 to `https://splithappens.run/slowdown?a=1` |
+| `/htw`, `/packs/smyth_htw` | each answers 308 to `/slowdown` |
+| `/robots.txt` | 200 `text/plain`, with the `Sitemap:` line and no `Disallow: /` |
+| `/sitemap.xml` | 200 XML with a sitemaps.org `<urlset>`, and every `<loc>` answers 200 without a redirect |
+| `/data/insights/manifest.json` | sends `X-Robots-Tag: noindex` |
+| `/runners?q=x` | sends `X-Robots-Tag: noindex, nofollow` |
+| `/tools/`, `/tools.html` | `/tools/` answers 308 to `/tools` (which answers 200) in one hop; `/tools.html` answers 404 |
+| `/data/live.json` | answers 200 and parses as JSON (the pacing-analysis workflow reads it with `curl --fail`, no `-L`) |
+| home page | has the canonical `https://splithappens.run` and an `og:image` that loads as a 1200×630 PNG |
+
+On a preview, the host checks are skipped, and Vercel already sends `x-robots-tag: noindex` on every preview response, so the header checks prove only that a header is there.
+
+Status on October 8, 2026, before this work was deployed: 3 of 13 checks pass (`/tools/`, `/tools.html` and `/data/live.json`), 9 fail and the sitemap-URL check is skipped because there is no sitemap yet. www answers 307, not 308 (an owner setting; see the checklist below). The old host, `/htw` and `/packs/smyth_htw` answer 200. `robots.txt` and `sitemap.xml` are 404. Neither `X-Robots-Tag` header is sent, and the home page has no canonical. All of those should pass once the integration branch is deployed and the www redirect is changed.
 
 ## Redirects and headers ([`vercel.json`](../vercel.json))
 
@@ -89,7 +180,7 @@ The pacing-analysis workflow reads `https://splithappens.run/data/live.json` dir
 - **The host redirect.** Preview URLs have a different host, so the rule never fires there. Previews also already send `x-robots-tag: noindex`, so check that the `/data` and `/runners?q=` headers are present, not their value.
 - **Whether a redirect beats an existing static file** (`out/htw.html`) and **whether query strings survive the host 308.** Neither is verified yet; check both in production.
 
-Right after each production deploy (keep Vercel Instant Rollback ready):
+Right after each production deploy (keep Vercel Instant Rollback ready), run `npm run verify:seo:live` ([above](#after-a-deploy-verify-seo-live)). It makes these requests and more; the same checks by hand:
 
 ```bash
 curl -sI 'https://htw-live-study.vercel.app/slowdown?a=1'   # 308, location https://splithappens.run/slowdown?a=1

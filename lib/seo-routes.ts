@@ -19,6 +19,10 @@ import { PACK_IDS } from './packs';
 import { broaderArchive } from './broader-analysis-catalog';
 import { getPersonalSummary } from './personalized-data';
 import { getInsightsManifest } from './insights-server';
+import type { ExtraPage } from './seo-pages/types';
+import { PACE_PAGES } from './seo-pages/pace';
+import { QUALIFYING_PAGES } from './seo-pages/qualifying';
+import { FINISH_TIME_PAGES } from './seo-pages/finish-times';
 
 /** The one production host. Canonicals, Open Graph URLs, the sitemap and JSON-LD all use it. */
 export const SITE_URL = 'https://splithappens.run';
@@ -57,12 +61,12 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
 export type SitemapEntry = { path: string; lastmod?: string };
 
 /**
- * New content pages register here (for example the qualifying-race or finish-time pages).
+ * New content pages register in their own module under lib/seo-pages/ (pace, qualifying, finish-times), collected here.
  * `lastmod` is a YYYY-MM-DD date or a function returning one at build time, e.g.
  * `{ path: '/finish-times', lastmod: () => dataDate('insights') }`. Leave it out when unknown.
  * Every path must be clean, indexable and its own canonical, or the sitemap build throws.
  */
-export const EXTRA_SITEMAP_PAGES: { path: string; lastmod?: string | (() => string | undefined) }[] = [];
+export const EXTRA_SITEMAP_PAGES: ExtraPage[] = [...PACE_PAGES, ...QUALIFYING_PAGES, ...FINISH_TIME_PAGES];
 
 // ---------- Paths ----------
 
@@ -187,10 +191,11 @@ const ANALYSIS_SOURCES: Record<AnalysisId, DataSource[]> = {
   ambition: ['personalized'], gains: ['personalized'], age: ['personalized'],
 };
 
-/** Every date a sitemap lastmod may take: the data as_of dates, the pack dates and CONTENT_DATES. */
+/** Every date a sitemap lastmod may take: the data as_of dates, the pack dates, CONTENT_DATES and the registered extra pages' dates. */
 export function allSourceDates(): string[] {
   const sources: DataSource[] = ['insights', 'study', 'weather', 'personalized', 'fastStart', 'allFinisher', 'qualifying'];
-  return [...new Set([...sources.map(dataDate), ...packRouteIds().map(packDate), ...Object.values(CONTENT_DATES)].filter((date): date is string => !!date))].sort();
+  const extras = EXTRA_SITEMAP_PAGES.map(page => typeof page.lastmod === 'function' ? page.lastmod() : page.lastmod);
+  return [...new Set([...sources.map(dataDate), ...packRouteIds().map(packDate), ...Object.values(CONTENT_DATES), ...extras].filter((date): date is string => !!date))].sort();
 }
 
 // ---------- Sitemap ----------

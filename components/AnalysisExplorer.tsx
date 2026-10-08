@@ -13,6 +13,7 @@ import { loadAnalysisAggregate } from '@/lib/analysis-aggregates';
 import AnalysisChart from './AnalysisChart';
 import CheckpointExplorer from './CheckpointExplorer';
 import { trackAnalytics } from '@/lib/analytics';
+import { dropDefaults, unitHref } from '@/lib/unit-preference';
 import { weatherHref } from '@/lib/weather-catalog';
 import type { WeatherDefinition } from '@/lib/weather-types';
 
@@ -39,7 +40,8 @@ export default function AnalysisExplorer({ definition, summary, initialAnswer, w
     setRefining(next.age !== 'all' || next.gender !== 'all' || next.previous !== null);
   };
   useEffect(() => {
-    const restore = () => { setSelection(readAnalysisProfile(window.location.search, summary)); setChanged(!!window.location.search); setFormError(''); };
+    // units=km alone is not a comparison: a kilometres visitor arriving from a link still starts with the example.
+    const restore = () => { const query = new URLSearchParams(window.location.search); query.delete('units'); setSelection(readAnalysisProfile(window.location.search, summary)); setChanged(query.toString() !== ''); setFormError(''); };
     restore(); window.addEventListener('popstate', restore);
     return () => window.removeEventListener('popstate', restore);
   }, [summary]);
@@ -61,11 +63,12 @@ export default function AnalysisExplorer({ definition, summary, initialAnswer, w
   const needsCourse = definition.id === 'terrain' && profile.city === 'All courses';
   const hasResults = !!answer?.charts.length && !needsCourse;
   const previous = TEN_ANALYSES[definition.rank - 2], next = TEN_ANALYSES[definition.rank];
-  const search = profileSearch(profile) + '&units=' + units;
+  // Links to the other analyses carry the visitor's comparison, minus filters left at every course/age/gender; the example needs no query. UnitLink adds units=km.
+  const search = sameProfile(profile, EXAMPLE_PROFILE) ? '' : dropDefaults(profileSearch(profile));
   const applyProfile = (nextProfile: Profile) => {
     trackAnalytics('analysis_filters_applied', { analysis: definition.id, course_scope: nextProfile.city === 'All courses' ? 'all' : 'single' });
     setSelection(nextProfile); setChanged(true); setFormError('');
-    window.history.pushState(null, '', window.location.pathname + profileSearch(nextProfile) + (historyMode ? '&comparison=history' : '') + '&units=' + units);
+    window.history.pushState(null, '', unitHref(window.location.pathname + profileSearch(nextProfile) + (historyMode ? '&comparison=history' : ''), units));
   };
   const visibleAnswer = definition.id === 'courses' && answer?.charts[0]?.rows.length
     ? 'Compare ' + answer.charts[0].rows.length + (answer.charts[0].rows.length === 1 ? ' course' : ' courses') + ' with enough results to show a meaningful range.'

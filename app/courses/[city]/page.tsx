@@ -10,13 +10,51 @@ import { ElevationProfile, RouteMap } from '@/components/story/CourseArt';
 import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
 import HeroReplay from '@/components/story/HeroReplay';
 import { Distance, Elevation } from '@/components/story/Units';
+import { JsonLd, breadcrumbs, pageMetadata } from '@/lib/seo';
 
 const slugify = slugifyCity;
 export function generateStaticParams() { return getCourseNames().map(city => ({ city: slugify(city) })); }
+
+const MAX_TITLE = 60;
+const MAX_DESCRIPTION = 155;
+const count = (n: number) => n.toLocaleString('en-US');
+
+/**
+ * The course's own race name from the data: the supplied route's race, else the course summary's race,
+ * else the city plus " Marathon". Names are shown as the data has them, never renamed here.
+ */
+function raceName(name: string, geometry?: CourseGeometry, summary?: { race?: string }) {
+  return geometry?.race || summary?.race || `${name} Marathon`;
+}
+
+/** Search title and description for one course page, built from the same data the page shows. */
+function courseSeo(name: string) {
+  const geometry = readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses.find((c) => c.city === name);
+  const courses = getInsightsManifest().files['courses.json'] ? readInsight<Courses>('courses.json') : null;
+  const summary = courses?.courses.find((c) => c.city === name);
+  const race = raceName(name, geometry, summary);
+  // Two courses have no supplied route, so their pages show no elevation; their titles say so.
+  const branded = `${race} Course: ${geometry ? 'Elevation and Pacing' : 'Pacing by Section'} | Pace Notes`;
+  const title = branded.length <= MAX_TITLE ? branded : branded.replace(/ \| Pace Notes$/, '');
+  const years = summary?.years?.length ? [Math.min(...summary.years), Math.max(...summary.years)] : null;
+  const editions = summary?.editions ? (summary.editions === 1 && years ? ` in its ${years[0]} edition` : ` across ${count(summary.editions)} editions${years && years[0] !== years[1] ? ` (${years[0]}–${years[1]})` : ''}`) : '';
+  const weather = (courses?.weather.editions.filter((e) => e.city === name).length ?? 0) >= 2;
+  // Without a supplied route the page shows no elevation, so the race name moves into the pacing clause.
+  const finishes = (recorded: boolean) => [summary?.finishes ? count(summary.finishes) : '', recorded ? 'recorded' : '', geometry ? '' : race, 'finishes'].filter(Boolean).join(' ');
+  // Richest wording first; clauses drop out when the data is missing or the text would run long.
+  const variants = [editions, ''].flatMap((span) => [weather, false].flatMap((withWeather) => [true, false].map((recorded) => {
+    const pacing = `${finishes(recorded)} paced each 5 km section${span}${withWeather ? ', and race-morning temperatures' : ''}`;
+    return geometry ? `${race} elevation profile, how ${pacing}.` : `How ${pacing}.`;
+  })));
+  const description = variants.find((text) => text.length <= MAX_DESCRIPTION) ?? variants[variants.length - 1];
+  return { race, title, description };
+}
+
 export function generateMetadata({ params }: { params: { city: string } }) {
   const city = getCourseNames().find(city => slugify(city) === params.city);
-  const display = city === 'New York' ? 'New York City' : city || 'Course';
-  return { title: `${display} | Pace Notes`, description: `Route, elevation, pacing types, pacing fingerprint and race-morning weather for the ${display} marathon, from recorded 5 km splits.` };
+  if (!city) return { title: 'Course not found | Pace Notes', robots: { index: false, follow: true } };
+  const { title, description } = courseSeo(city);
+  return pageMetadata({ title, description, path: `/courses/${params.city}` });
 }
 
 export default function CityPage({ params }: { params: { city: string } }) {
@@ -30,7 +68,7 @@ export default function CityPage({ params }: { params: { city: string } }) {
   const replay = readInsight<ReplayIndex>('replay.json').editions.filter((e) => e.city === name);
   const manifest = getInsightsManifest();
   const choices = replayChoices(replay, manifest, new Map(geometry ? [[name, { points: geometry.route, km: geometry.route_km }]] : []));
-  const race = encodeURIComponent(name);
+  const raceQuery = encodeURIComponent(name);
   const steadiest = types ? archetypes.archetypes[types.shares.indexOf(Math.max(...types.shares))] : null;
   const courses = manifest.files['courses.json'] ? readInsight<Courses>('courses.json') : null;
   const summary = courses?.courses.find((c) => c.city === name);
@@ -38,13 +76,15 @@ export default function CityPage({ params }: { params: { city: string } }) {
   const weather = courses ? courses.weather.editions.filter((e) => e.city === name) : [];
   const hotCool = courses?.weather.hot_cool.find((h) => h.city === name);
   const band = courses?.matched.find((b) => b.lo_s === 300);
+  const race = raceName(name, geometry, summary);
   return (
     <div className="course-page">
+      <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Courses', '/courses'], [race]])} />
       <section className="night night-grain bleed story-hero course-hero">
         <div className="container course-hero-grid">
           <div>
-            <p className="eyebrow"><Link href="/courses">Courses</Link> · {geometry?.race ?? `${name} Marathon`}</p>
-            <h1 className="story-title">{display}</h1>
+            <p className="eyebrow"><Link href="/courses">Courses</Link> · Course profile</p>
+            <h1 className="story-title">{race}</h1>
             {geometry ? (
               <dl className="course-stats">
                 <div><dt>Supplied route</dt><dd><Distance km={geometry.distance_km} /></dd></div>
@@ -54,8 +94,8 @@ export default function CityPage({ params }: { params: { city: string } }) {
               </dl>
             ) : <p className="hero-dek">No supplied route profile is available for this course.</p>}
             <div className="hero-actions">
-              <Link className="button-accent" href={`/analyses/course-comparison?race=${race}`}>Compare this course</Link>
-              <Link className="button-secondary" href={`/analyses/hills-and-pacing?race=${race}`}>Hills and pacing</Link>
+              <Link className="button-accent" href={`/analyses/course-comparison?race=${raceQuery}`}>Compare this course</Link>
+              <Link className="button-secondary" href={`/analyses/hills-and-pacing?race=${raceQuery}`}>Hills and pacing</Link>
             </div>
           </div>
           {geometry ? <div className="course-hero-map"><RouteMap course={geometry} size={420} stroke="#F5F0E6" glow /></div> : null}
