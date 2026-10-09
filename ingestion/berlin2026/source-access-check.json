@@ -1,0 +1,21 @@
+{
+  "checked_at": "2026-09-28T00:53:30Z",
+  "source_url": "https://berlin.r.mikatiming.com/2026/?event=BML_HCH3C0OH37C&num_results=100&pid=search&search%5Bsex%5D=%25&search%5Bage_class%5D=%25&search_sort=place_nosex",
+  "environment": "GitHub-hosted ubuntu-latest runner",
+  "run_url": "https://github.com/koolkam00/pace-notes/actions/runs/36363866151",
+  "run_id": 36363866151,
+  "job_id": 108746268087,
+  "commit": "71fecc4d9bfacc7a2c6a17d14896068cd3c615cf",
+  "http_status": 403,
+  "status": "source_rejected_request",
+  "collected_runner_records": 0,
+  "database_modified": false,
+  "release_published": false,
+  "website_updated": false,
+  "archive_alternative": {
+    "url": "https://api.results.scc-events.com/event/BM",
+    "http_status": 200,
+    "latest_available_edition": 2025,
+    "berlin_2026_available": false
+  }
+}
