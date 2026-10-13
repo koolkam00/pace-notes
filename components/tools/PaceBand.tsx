@@ -363,7 +363,7 @@ export default function PaceBand({ indexSha, profiles, screened, projectorScopes
           </div>
           <div className="tool-field">
             <span className="tool-label" id="pace-band-gender">Recorded gender <span className="pace-band-optional">optional</span></span>
-            <div role="group" aria-labelledby="pace-band-gender"><Choice label="Recorded gender" value={gender} onChange={(v) => setQ({ g: v })} options={GENDER_OPTIONS} small /></div>
+            <div role="group" aria-labelledby="pace-band-gender" className="ph-no-capture"><Choice label="Recorded gender" value={gender} onChange={(v) => setQ({ g: v })} options={GENDER_OPTIONS} small /></div>
           </div>
           <p className="tool-field-hint">The band is calculated for any goal. The observed columns use the course and recorded gender you choose; nothing about you leaves this page.</p>
         </form>

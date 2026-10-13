@@ -418,7 +418,8 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
 
       {data && !noGoal ? (
         <>
-          <div className="course-chooser-list">
+          {/* Every row, heading and axis below follows the visitor's goal, so session replays leave these panels out. */}
+          <div className="course-chooser-list ph-no-capture">
             <EvidencePanel kind="data" id="course-chooser-courses" title={`Every course at ${goalText}`}
               meta={`One row per course with at least ${minEditions} editions of ${minEditionFinishes} or more finishes at this pace and 100 finishes in all. The order is alphabetical unless you choose another.`}>
               <div className="course-chooser-toolbar no-print">
@@ -574,25 +575,27 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
             </EvidencePanel>
           </div>
 
-          <EvidencePanel kind="data" title={`Not published at ${goalText}`}
-            meta={`No substitute course is shown. A row needs ${minEditions} editions with at least ${minEditionFinishes} finishes at this pace and 100 finishes in all; groups smaller than that are never published.`}>
-            <div className="course-chooser-unavail">
-              <div>
-                <h3>Not enough finishes at this pace</h3>
-                {unavailable.pace.length ? (
-                  <ul>{unavailable.pace.map((u) => <li key={u.city}><b>{courseLink(u.city)}</b> <span>{u.reason}</span></li>)}</ul>
-                ) : <p className="course-chooser-none">Every course with {minEditions} or more editions has a row at {goalText}.</p>}
-              </div>
-              {unavailable.structural.length ? (
+          <div className="ph-no-capture">
+            <EvidencePanel kind="data" title={`Not published at ${goalText}`}
+              meta={`No substitute course is shown. A row needs ${minEditions} editions with at least ${minEditionFinishes} finishes at this pace and 100 finishes in all; groups smaller than that are never published.`}>
+              <div className="course-chooser-unavail">
                 <div>
-                  <h3>Too few editions for any goal</h3>
-                  <ul>{unavailable.structural.map((u) => <li key={u.city}><b>{courseLink(u.city)}</b> <span>{u.reason}</span></li>)}</ul>
+                  <h3>Not enough finishes at this pace</h3>
+                  {unavailable.pace.length ? (
+                    <ul>{unavailable.pace.map((u) => <li key={u.city}><b>{courseLink(u.city)}</b> <span>{u.reason}</span></li>)}</ul>
+                  ) : <p className="course-chooser-none">Every course with {minEditions} or more editions has a row at {goalText}.</p>}
                 </div>
-              ) : null}
-            </div>
-          </EvidencePanel>
+                {unavailable.structural.length ? (
+                  <div>
+                    <h3>Too few editions for any goal</h3>
+                    <ul>{unavailable.structural.map((u) => <li key={u.city}><b>{courseLink(u.city)}</b> <span>{u.reason}</span></li>)}</ul>
+                  </div>
+                ) : null}
+              </div>
+            </EvidencePanel>
+          </div>
 
-          <div className="tool-callout no-print">
+          <div className="tool-callout no-print ph-no-capture">
             <strong>Picked a course?</strong> Each row’s pace band link opens a printable <Link href={`/tools/pace-band?goal=${goalText}`}>pace band for {goalText}</Link> with what finishes that came in within five minutes under {goalText} on that course ran at each 5 km mat. Where a course had fewer than 100 such finishes, the link is marked “all courses” and opens the band for every course together. To compare race mornings at your pace, try the <Link href={`/tools/weather-match?goal=${goalText}:00`}>weather match</Link>.
           </div>
           <ShareBar />

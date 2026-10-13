@@ -7,8 +7,10 @@ import { ANALYTICS_CHANGED, downloadDestination } from '@/lib/analytics-policy';
 
 export default function SiteAnalytics() {
   const pathname = usePathname();
+  // Each navigation also stops session replay on the runner-search pages and resumes it after them (lib/analytics.ts).
   useEffect(() => { trackPage(pathname); }, [pathname]);
   useEffect(() => {
+    // An opt-out here or in another tab stops the recorder as well as events.
     const changed = () => trackPage(window.location.pathname);
     const clicked = (event: MouseEvent) => {
       if (event.button !== 0 && event.button !== 1) return;

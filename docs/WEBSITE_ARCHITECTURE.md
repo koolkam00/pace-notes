@@ -129,7 +129,7 @@ About lists the marathon names and exact recorded years from the runner manifest
 
 ## Visitor analytics
 
-The root layout mounts `SiteAnalytics` for production-only PostHog pageviews and explicit feature events. The `/privacy` route documents collection and provides a browser opt-out. See [analytics configuration, event definitions and verification](ANALYTICS.md). Search terms, runner IDs, personal filter values and URL queries are excluded; analytics does not read or change the public research data.
+The root layout mounts `SiteAnalytics` for production-only PostHog pageviews, explicit feature events and masked session replays (never on runner-search pages or pages opened from a runner's profile). The `/privacy` route documents collection and provides a browser opt-out. See [analytics configuration, event definitions and verification](ANALYTICS.md). Search terms, runner IDs, personal filter values and URL queries are excluded; analytics does not read or change the public research data.
 
 ## Pace Notes branding and analysis requests
 

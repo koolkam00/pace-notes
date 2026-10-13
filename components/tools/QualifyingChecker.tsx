@@ -398,7 +398,8 @@ export default function QualifyingChecker() {
           </div>
           <div className="tool-field">
             <span className="tool-label" aria-hidden="true">Division</span>
-            <Choice label="Division" value={divEntry.value} onChange={(v) => { mark('div'); setQ({ div: v }); }} options={DIVISIONS.map(({ value, label }) => ({ value, label }))} />
+            {/* Left out of session replays: the division is the visitor's gender. */}
+            <div className="ph-no-capture"><Choice label="Division" value={divEntry.value} onChange={(v) => { mark('div'); setQ({ div: v }); }} options={DIVISIONS.map(({ value, label }) => ({ value, label }))} /></div>
           </div>
           <div className="tool-field">
             <label htmlFor={`${ids}-race`}>Race date</label>
