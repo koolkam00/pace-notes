@@ -2,7 +2,7 @@
 
 ## Search optimisation (October 2026)
 
-**This describes repository state on the SEO pull-request branch (October 8, 2026), not the live site.** After the merge, confirm production with `npm run verify:seo:live`; before this work was deployed, 3 of its 13 checks passed (the rest wait on the deploy and the www redirect). Do not report any of this as live until that run passes.
+**Deployed:** merged to `main` in PR #53 (merge commit `248487e`) and live on splithappens.run. After the www domain was set to a 308 redirect, `npm run verify:seo:live` passed all 13 checks, and it passed again on October 13, 2026. The Google Search Console domain-verification TXT record is in public DNS; submitting the sitemap in Search Console and importing into Bing are owner steps (see [SEO](SEO.md)). For later changes, confirm the production commit and rerun `npm run verify:seo:live` before claiming they are live.
 
 What changed:
 - **Foundations.** `metadataBase` `https://splithappens.run`; `robots.txt` blocking only the two runner-name data folders; `sitemap.xml` (115 indexable, self-canonical pages) with `lastmod` from data `as_of` dates, never the build date; a web manifest and PNG icons; `vercel.json` 308s from the old `htw-live-study.vercel.app` host and from `/htw` and `/packs/smyth_htw` to `/slowdown`, and `X-Robots-Tag` headers on `/data/*` and on `/runners?q=`.
@@ -50,7 +50,7 @@ The [analysis README](../analysis/README.md) gives calculation and import contra
 
 ## Website analytics
 
-The [PostHog integration](ANALYTICS.md) adds page and feature analytics under a per-tab `sessionStorage` ID (no cookies), with search/identity redaction, a visitor opt-out, and session replay for every visitor: inputs and tool results masked or left out, `/runners`, `/your-race` and pages opened from a runner's profile never recorded, addresses without query strings. Account setup, build variables and production event verification are separate launch requirements; see that runbook before claiming collection is live. This integration does not change research inputs or calculations.
+The [PostHog integration](ANALYTICS.md) adds page and feature analytics under a per-tab `sessionStorage` ID (no cookies), with search/identity redaction, a visitor opt-out, and session replay for every visitor: inputs and tool results masked or left out, `/runners`, `/your-race` and pages opened from a runner's profile never recorded, addresses without query strings. Account setup, build variables and production event verification are separate launch requirements; see that runbook before claiming collection is live. This integration does not change research inputs or calculations. **Deployed:** cookieless analytics went live with PR #51 (October 8, 2026). Session replay and the per-tab ID were merged in PR #54 (merge commit `e62e194`) and are live from October 13, 2026, about 21:14 UTC. That day a real session on the live site produced a recording with only clean page paths. Nothing from `/runners` or the runner-handoff page was in it, and no typed value or runner detail appeared in any request. PostHog dashboard "Pace Notes — Site usage" (2107381) tracks site use; a project annotation marks the identity change.
 
 ## Verified 0934 input and analytical cohort
 
