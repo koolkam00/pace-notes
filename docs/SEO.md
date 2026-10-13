@@ -190,7 +190,7 @@ node scripts/verify-seo-live.cjs --base https://<preview>.vercel.app   # path ch
 
 On a preview, the host checks are skipped, and Vercel already sends `x-robots-tag: noindex` on every preview response, so the header checks prove only that a header is there.
 
-Status on October 8, 2026, before this work was deployed: 3 of 13 checks pass (`/tools/`, `/tools.html` and `/data/live.json`), 9 fail and the sitemap-URL check is skipped because there is no sitemap yet. www answers 307, not 308 (an owner setting; see the checklist below). The old host, `/htw` and `/packs/smyth_htw` answer 200. `robots.txt` and `sitemap.xml` are 404. Neither `X-Robots-Tag` header is sent, and the home page has no canonical. All of those should pass once the integration branch is deployed and the www redirect is changed.
+Status on October 8, 2026, before this work was deployed: 3 of 13 checks pass (`/tools/`, `/tools.html` and `/data/live.json`), 9 fail and the sitemap-URL check is skipped because there is no sitemap yet. www answers 307, not 308 (an owner setting; see the checklist below). The old host, `/htw` and `/packs/smyth_htw` answer 200. `robots.txt` and `sitemap.xml` are 404. Neither `X-Robots-Tag` header is sent, and the home page has no canonical. All of those should pass once the integration branch is deployed and the www redirect is changed. **After the deploy (PR #53, `248487e`) and the www change to 308, all 13 checks passed; they passed again on October 13, 2026.**
 
 ## Redirects and headers ([`vercel.json`](../vercel.json))
 
@@ -234,10 +234,10 @@ curl -sf 'https://splithappens.run/data/live.json' | python3 -m json.tool > /dev
 
 ## Owner checklist (outside the repo, after the deploy)
 
-- [ ] **Right after the production deploy.** Run `npm run verify:seo:live` ([above](#after-a-deploy-verify-seo-live)); every check should PASS once the www redirect below is 308. Keep Vercel Instant Rollback ready.
-- [ ] **Vercel www redirect.** Project → Settings → Domains. Set `www.splithappens.run` to "Redirect to splithappens.run" with **308 Permanent** (add it if it is not listed). Today it answers 307. Check: `curl -sI 'https://www.splithappens.run/tools?x=1'` returns 308 to `https://splithappens.run/tools?x=1`.
-- [ ] **Old vercel.app host.** Run the first `curl` above. If it does not return 308, set the redirect in Settings → Domains instead. Do not remove the domain.
-- [ ] **Google Search Console.** Add a Domain property for `splithappens.run` and verify it with a TXT record in Vercel DNS. Submit `sitemap.xml`. Request indexing for `/`, `/tools/pace-calculator`, `/tools/qualifying`, `/tools/marathon-pace-chart`, `/finish-times`, `/courses`, `/courses/boston`, `/stories/round-numbers` and `/slowdown`.
+- [x] **Right after the production deploy.** (Done: 13 of 13 passed after PR #53 and again on October 13, 2026.) Run `npm run verify:seo:live` ([above](#after-a-deploy-verify-seo-live)); every check should PASS once the www redirect below is 308. Keep Vercel Instant Rollback ready.
+- [x] **Vercel www redirect.** (Done: `www.splithappens.run` redirects with 308.) Project → Settings → Domains. Set `www.splithappens.run` to "Redirect to splithappens.run" with **308 Permanent** (add it if it is not listed). Before the change it answered 307. Check: `curl -sI 'https://www.splithappens.run/tools?x=1'` returns 308 to `https://splithappens.run/tools?x=1`.
+- [x] **Old vercel.app host.** (Done: covered by the live check, which passes.) Run the first `curl` above. If it does not return 308, set the redirect in Settings → Domains instead. Do not remove the domain.
+- [ ] **Google Search Console.** (The `google-site-verification` TXT record was added in Vercel DNS and resolves publicly; the owner finishes verification in Search Console.) Add a Domain property for `splithappens.run` and verify it with a TXT record in Vercel DNS. Submit `sitemap.xml`. Request indexing for `/`, `/tools/pace-calculator`, `/tools/qualifying`, `/tools/marathon-pace-chart`, `/finish-times`, `/courses`, `/courses/boston`, `/stories/round-numbers` and `/slowdown`.
 - [ ] **After two to three weeks.** Inspect `/slowdown`: Google's chosen canonical should be on `splithappens.run`. In the Pages report, "Alternate page with proper canonical" is expected for pack aliases. Look into any "Duplicate, Google chose different canonical".
 - [ ] **Bing Webmaster Tools.** Import the site from Search Console, or add it and verify by DNS. Submit `https://splithappens.run/sitemap.xml`.
 - [ ] **GitHub.** Set the repository's About → Website to `https://splithappens.run`.
