@@ -972,7 +972,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
     <div className="projector" ref={workspaceRef}>
       {cards.length && index ? (
         <EvidencePanel kind="data" title="Runners you’re following" meta="Saved in this browser only. Windows run from the 10th to the 90th percentile arrival of similar finishes, so about one in five arrives outside them. Runners who stop are not in the data.">
-          <ul className="projector-cards">
+          <ul className="projector-cards ph-no-capture">
             {cards.map((card) => (
               <RunnerCardView key={card.id} card={card} index={index} units={units}
                 onUpdate={(next) => updateCards(cards.map((c) => (c.id === card.id ? next : c)))}

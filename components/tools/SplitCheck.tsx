@@ -634,7 +634,7 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
           </div>
           <div className="tool-field">
             <span className="tool-label" id={`${formId}-gender`}>Recorded gender <span className="split-check-optional">optional</span></span>
-            <div role="group" aria-labelledby={`${formId}-gender`}><Choice label="Recorded gender" value={gender} onChange={(v) => setQ({ g: v })} options={GENDER_OPTIONS} small /></div>
+            <div role="group" aria-labelledby={`${formId}-gender`} className="ph-no-capture"><Choice label="Recorded gender" value={gender} onChange={(v) => setQ({ g: v })} options={GENDER_OPTIONS} small /></div>
           </div>
           <p className="tool-field-hint split-check-privacy">Everything is calculated in this browser. Your times sit in the page address only so a copied link reproduces this page; data files are requested by course and gender alone, and analytics never record your times.</p>
         </form>

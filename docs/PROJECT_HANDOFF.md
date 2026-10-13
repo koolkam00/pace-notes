@@ -50,7 +50,7 @@ The [analysis README](../analysis/README.md) gives calculation and import contra
 
 ## Website analytics
 
-The [PostHog integration](ANALYTICS.md) adds cookieless page and feature analytics, with search/identity redaction, session recordings disabled and a visitor opt-out. Account setup, build variables and production event verification are separate launch requirements; see that runbook before claiming collection is live. This integration does not change research inputs or calculations.
+The [PostHog integration](ANALYTICS.md) adds page and feature analytics under a per-tab `sessionStorage` ID (no cookies), with search/identity redaction, a visitor opt-out, and session replay for every visitor: inputs and tool results masked or left out, `/runners`, `/your-race` and pages opened from a runner's profile never recorded, addresses without query strings. Account setup, build variables and production event verification are separate launch requirements; see that runbook before claiming collection is live. This integration does not change research inputs or calculations.
 
 ## Verified 0934 input and analytical cohort
 

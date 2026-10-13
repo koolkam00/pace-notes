@@ -6,6 +6,7 @@ import { distanceLabel, distanceValue, elevationLabel, paceLabel, paceValue, uni
 import { runnerDuration, runnerMetrics, type RunnerManifest, type RunnerMetrics, type RunnerRace } from '@/lib/runner-search';
 import { UnitLink } from './UnitsProvider';
 import { splitCheckHref } from '@/lib/tools/links';
+import { runnerHandoffHref } from '@/lib/analytics-policy';
 import { loadRaceInsights, runnerAgeBand, runnerGender, type ComparisonKey, type PeerComparison, type RaceInsights, type RunnerTerrain, type RunnerWeather } from '@/lib/runner-context';
 
 const count = (value: number) => value.toLocaleString('en-US');
@@ -41,7 +42,7 @@ export function PacingReadings({ race, metrics, manifest, units }: MeasuredRace 
     <details className="rc-details"><summary>See exact checkpoint readings</summary><p className="rc-note">Elapsed and section times are shown to the nearest millisecond. Displayed pace is rounded to the nearest second per {units === 'mi' ? 'mile' : 'kilometre'}.</p>
       <div className="rc-table-wrap" role="region" aria-label="Recorded checkpoints" tabIndex={0}><table><caption className="sr-only">Recorded elapsed times and calculated section paces</caption><thead><tr><th scope="col">Checkpoint</th><th scope="col">Elapsed</th><th scope="col">Section time</th><th scope="col">Section pace</th></tr></thead><tbody>{metrics.sections.map(section => <tr key={section.end}><th scope="row">{distanceLabel(section.end, units)}</th><td>{runnerDuration(section.cumulative)}</td><td>{runnerDuration(section.elapsed)}</td><td>{paceLabel(section.pace, units)}</td></tr>)}</tbody></table></div>
     </details>
-    {splitHref && <p className="rc-note"><UnitLink href={splitHref}>Read this race in the split check</UnitLink>: section paces against the 5–20 km pace, the sustained-slowdown reading and finishes in the same five-minute window.</p>}
+    {splitHref && <p className="rc-note"><UnitLink href={runnerHandoffHref(splitHref)}>Read this race in the split check</UnitLink>: section paces against the 5–20 km pace, the sustained-slowdown reading and finishes in the same five-minute window.</p>}
   </section>;
 }
 
@@ -146,7 +147,7 @@ export default function RunnerContext({ races, manifest, units }: { races: Runne
   const others = valid.filter(row => row.race.id !== focus.race.id);
   const reference = others.find(row => row.race.id === referenceId) || others.find(row => manifest.editions[row.race.edition].city === manifest.editions[focus.race.edition].city) || others[0];
   const unavailable = <>{loading && <p className="rc-copy" role="status">Loading this edition’s comparisons and conditions…</p>}{failure && <div className="feedback-error" role="alert"><p>{failure}</p><button type="button" onClick={() => setRetry(value => value + 1)}>Try again</button></div>}</>;
-  return <section className="runner-context" aria-labelledby={`${id}-title`}>
+  return <section className="runner-context ph-no-capture" aria-labelledby={`${id}-title`}>
     <header className="rc-heading"><p className="eyebrow">A closer look</p><h2 id={`${id}-title`}>Your race, in context.</h2><label htmlFor={`${id}-focus`}>Focus race<select id={`${id}-focus`} value={focus.race.id} onChange={event => setFocusId(Number(event.target.value))}>{valid.map(({ race, metrics }) => <option key={race.id} value={race.id}>{titleFor(race, manifest)} · {runnerDuration(metrics.finish)} · record {race.id}</option>)}</select></label></header>
     <div className="rc-tabs" role="group" aria-label="Race detail view">{([{ id: 'pacing', title: 'Your pacing' }, { id: 'peers', title: 'Similar runners' }, { id: 'conditions', title: 'Conditions' }] as const).map(item => <button type="button" key={item.id} aria-pressed={tab === item.id} aria-controls={`${id}-panel`} onClick={() => setTab(item.id)}>{item.title}</button>)}</div>
     <div className="rc-panel" id={`${id}-panel`}>
@@ -162,6 +163,6 @@ export default function RunnerContext({ races, manifest, units }: { races: Runne
       })}</tbody></table></div>}
       <p className="rc-note">When only age or gender is usable, the percentile uses that broader group, named in the cell. When neither is usable, it uses all eligible finishes. Sparse groups remain unavailable. Precipitation is the preceding-hour total at the start observation, including snow; it is not rainfall over your full race. Climbing comes from supplied route sections with unverified historical validity.</p>
     </section>}
-    <p className="rc-next"><UnitLink href={`/analyses/pacing-pattern?race=${encodeURIComponent(manifest.editions[focus.race.edition].city)}&goal=${Math.round(focus.metrics.finish / 60)}&age=all&gender=all`}>Explore pacing across the wider study <span aria-hidden="true">→</span></UnitLink></p>
+    <p className="rc-next"><UnitLink href={runnerHandoffHref(`/analyses/pacing-pattern?race=${encodeURIComponent(manifest.editions[focus.race.edition].city)}&goal=${Math.round(focus.metrics.finish / 60)}&age=all&gender=all`)}>Explore pacing across the wider study <span aria-hidden="true">→</span></UnitLink></p>
   </section>;
 }
