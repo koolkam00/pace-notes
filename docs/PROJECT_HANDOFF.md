@@ -1,5 +1,17 @@
 # Project handoff
 
+## Autopilot machinery (October 14, 2026)
+
+**Repository state:** on branch `setup/autopilot` (the setup pull request), not yet merged. **Deployed state:** not yet deployed or active; nothing can merge automatically until this is on `main`, the `privacy-e2e` check and the `playwright` dev dependency exist (both from the visit-signals pull request) and the scheduled session is turned on.
+
+What it adds, all described for the owner in [autopilot](AUTOPILOT.md):
+- `scripts/autopilot-guard.cjs`: what an `autopilot/` pull request may change (protected paths, page deletions, the analytics tags in the root layout, forbidden code and copy in added lines, size limits, the ledger). Git only; it never runs pull-request code.
+- `scripts/autopilot-merge.cjs` and `.github/workflows/autopilot-merge.yml`: the only merger. It runs from `main` every 15 minutes and after CI, checks every gate (labels, author, pause issue, `AUTOPILOT_MERGE` variable, `verify` and `privacy-e2e` on the head commit, the Vercel status and preview, main's guard, review threads and change requests, 15 minutes ready, mergeable and up to date), smoke-tests the preview, squash-merges pinned to the head commit, waits for the production deploy, smoke-tests production and runs `verify:seo:live`, and reverts plus opens an `autopilot:paused` incident issue when the live checks fail.
+- `scripts/autopilot-smoke.cjs` (Playwright; pages, old-Safari mode, third-party-request tripwire, home-page lab performance), `scripts/autopilot-stats.cjs` (small-sample A/B and before/after statistics, sample sizes), `.github/workflows/autopilot-guard.yml` (early guard feedback on pull requests), and `npm run verify:autopilot` in CI.
+- `public/version.json`, written by `scripts/write-version.cjs` at the start of `npm run build` (git-ignored; `no-store` and `noindex` in `vercel.json`; not in the sitemap), so deploy checks can confirm which commit is live.
+
+Measured on October 14, 2026 against production (commit `510eb20`, before this change): the quick smoke test (23 pages, about 80 s) passed every normal page and failed in old-Safari mode on 5 of 23 (`/`, `/analyses`, `/analyses/pacing-pattern`, `/courses/amsterdam`, `/about`: the known lookbehind crash the old-Safari fix addresses); the full run (117 pages, 142 checks, about 2 min 43 s) failed only those 5; `--expect-sha` fails until `version.json` is deployed. Vercel previews load Vercel's own toolbar from `vercel.live`; the smoke test counts it separately on `*.vercel.app` only. Details are in [autopilot](AUTOPILOT.md#measured-on-october-14-2026). The rules themselves are in `autopilot/CONSTITUTION.md`, written separately.
+
 ## Older Safari fix and error pages (October 14, 2026)
 
 **Repository state:** in this change (branch `fix/old-safari-crash`). **Deployed state:** not yet deployed. Until it is, splithappens.run still runs the code that crashed in the emulated check below.
