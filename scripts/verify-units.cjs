@@ -66,14 +66,66 @@ const conversions = [
   ['5 kilometres at a pace per kilometre', '3.11 miles at a pace per mile'],
   ['https://example.org/5km?unit=km and 5 km', 'https://example.org/5km?unit=km and 3.11 mi'],
   ['www.example.org/km/5-km — 5 km', 'www.example.org/km/5-km — 3.11 mi'],
+  // The character before a number decides whether it converts: a sign, bracket, comma, quote, space or the start of
+  // the text does; a word character, colon or dot does not (only the bare unit after it changes).
+  ['x-5 km', 'x-3.11 mi'],
+  ['x−10 m', 'x−32.8 ft'],
+  ['(-5 km)', '(-3.11 mi)'],
+  ['-5 km', '-3.11 mi'],
+  ['5 km,10 km', '3.11 mi,6.21 mi'],
+  ['5km-10km', '3.11 mi-6.21 mi'],
+  ['1:05:00 per km', '1:05:00 per mile'],
+  ['12:5:00/km', '12:5:00/mi'],
+  ['v2.5 km', 'v2.5 mi'],
+  ['.5 km', '.5 mi'],
+  [':5 km', ':5 mi'],
+  ['5 km.5 km', '3.11 mi.5 mi'],
+  ['5 m/5 m', '5 m/16.4 ft'],
+  ['42.195-km race', '26.22-mi race'],
+  ['2 seconds lost per km', '3.22 seconds lost per mile'],
+  ['\n5 km', '\n3.11 mi'],
+  ['‘5 km’', '‘3.11 mi’'],
+  ['_5 km', '_5 mi'],
+  ['5_km', '5_km'],
 ];
 for (const [canonical, imperial] of conversions) {
   assert.equal(unitText(canonical, 'mi'), imperial, canonical);
   assert.equal(unitText(canonical, 'km'), canonical, 'Metric prose must remain unchanged');
 }
-for (const text of ['4:00 finish; 10:00–100:00 elapsed', '25% pace change at 15–19.9°C', '2,739,842 finishes across 162 editions', 'No published measurements', '3:20, 30 minutes', '30 m/s']) {
+const unchanged = ['4:00 finish; 10:00–100:00 elapsed', '25% pace change at 15–19.9°C', '2,739,842 finishes across 162 editions', 'No published measurements', '3:20, 30 minutes', '30 m/s'];
+for (const text of unchanged) {
   assert.equal(unitText(text, 'mi'), text, 'Do not change non-distance quantities');
 }
+
+// Safari before 16.4 throws when a lookbehind RegExp is built, which crashed every page showing converted prose. Run the
+// whole table again with RegExp failing the same way: same outputs, and no lookbehind built. Regex literals do not go
+// through the constructor, so the source is checked for them too.
+const unitsPath = require.resolve('../lib/units.ts');
+assert.doesNotMatch(fs.readFileSync(unitsPath, 'utf8'), /\(\?<[=!]/, 'lib/units.ts has no lookbehind');
+const NativeRegExp = RegExp;
+let lookbehindsBuilt = 0;
+const refuseLookbehind = args => {
+  if (!/\(\?<[=!]/.test(args[0] instanceof NativeRegExp ? args[0].source : String(args[0]))) return;
+  lookbehindsBuilt++;
+  throw new SyntaxError('Invalid regular expression: invalid group specifier name');
+};
+const tableTexts = [...conversions.map(([canonical]) => canonical), ...unchanged];
+const loadedUnits = require.cache[unitsPath];
+let oldSafariOutputs;
+global.RegExp = new Proxy(NativeRegExp, {
+  construct(target, args, newTarget) { refuseLookbehind(args); return Reflect.construct(target, args, newTarget); },
+  apply(target, self, args) { refuseLookbehind(args); return Reflect.apply(target, self, args); },
+});
+try {
+  delete require.cache[unitsPath];
+  const oldSafari = require(unitsPath);
+  oldSafariOutputs = tableTexts.map(text => [oldSafari.unitText(text, 'mi'), oldSafari.unitText(text, 'km')]);
+} finally {
+  global.RegExp = NativeRegExp;
+  require.cache[unitsPath] = loadedUnits;
+}
+assert.equal(lookbehindsBuilt, 0, 'lib/units.ts builds no lookbehind RegExp');
+assert.deepEqual(oldSafariOutputs, tableTexts.map(text => [unitText(text, 'mi'), unitText(text, 'km')]), 'Safari before 16.4 gets the same conversions');
 
 const { unitsFromSearch, withUnits } = require('../lib/unit-preference.ts');
 assert.equal(unitsFromSearch('?units=mi'), 'mi');
@@ -236,4 +288,4 @@ for (const row of profileSpec.rows) {
 assert.match(render(profileSpec, 'km'), /40–42\.195 km/);
 assert.equal(JSON.stringify(profileSpec), sourceProfile, 'Rendering both modes must preserve all source values');
 
-console.log('Verified display-only mile, pace and elevation conversions, source precision, checkpoint labels, prose ranges, URL preservation, rendered measurements, unchanged samples and real profile sections in both units.');
+console.log('Verified display-only mile, pace and elevation conversions, source precision, checkpoint labels, prose ranges, URL preservation, rendered measurements, unchanged samples and real profile sections in both units, and the same conversions where a lookbehind RegExp cannot be built (Safari before 16.4).');

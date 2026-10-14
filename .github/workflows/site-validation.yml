@@ -25,7 +25,11 @@ jobs:
         run: npm run verify:data
       - name: Validate analytics collection boundaries
         run: npm run verify:analytics
+      - name: Check the source for older-browser crashes
+        run: npm run verify:compat
       - name: Build the static site
         run: npm run build
+      - name: Check the build for older-browser crashes
+        run: npm run verify:compat -- --build
       - name: Validate search and social metadata in the build
         run: npm run verify:seo
