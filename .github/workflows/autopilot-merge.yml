@@ -1,0 +1,158 @@
+name: Autopilot merge
+
+# The only way an autopilot pull request reaches main (docs/AUTOPILOT.md). Every gate is in
+# scripts/autopilot-merge.cjs, and this workflow always runs main's copy of it: workflow_run, schedule and
+# workflow_dispatch use the default branch's workflow file, pull_request_target uses the base branch's, and the
+# checkout below is always main. A pull request therefore cannot change the policy that merges it.
+
+on:
+  workflow_run:
+    workflows: ["Website data validation"]
+    types: [completed]
+  pull_request_target:
+    types: [labeled, unlabeled, ready_for_review, synchronize, reopened]
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Evaluate the gates only (no comments, no smoke test, no merge)
+        type: boolean
+        default: false
+
+concurrency:
+  group: autopilot-merge
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  checks: read
+  statuses: read
+  deployments: read
+  actions: read
+
+jobs:
+  autopilot-merge:
+    if: github.repository == 'koolkam00/pace-notes'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      AUTOPILOT_MERGE: ${{ vars.AUTOPILOT_MERGE }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
+    steps:
+      # pull_request_target gives this job a token that can write. That is safe only because no step checks out,
+      # installs or runs code from a pull request: the checkout is always main, npm ci installs main's lockfile, and
+      # a pull request's head is only fetched as a git ref that main's copy of scripts/autopilot-guard.cjs diffs.
+      # Never point this checkout at a pull request's head, merge ref or branch.
+      - name: Check out main (never the pull request)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Evaluate the merge gates
+        id: evaluate
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            node scripts/autopilot-merge.cjs evaluate --dry-run
+          else
+            node scripts/autopilot-merge.cjs evaluate
+          fi
+
+      - name: Install dependencies for the smoke test (main's lockfile)
+        if: steps.evaluate.outputs.eligible == 'true'
+        run: npm ci
+
+      - name: Install Chromium
+        if: steps.evaluate.outputs.eligible == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Smoke-test the preview deployment
+        id: preview_smoke
+        if: steps.evaluate.outputs.eligible == 'true'
+        continue-on-error: true
+        env:
+          PREVIEW_URL: ${{ steps.evaluate.outputs.preview_url }}
+          HEAD_SHA: ${{ steps.evaluate.outputs.sha }}
+        run: node scripts/autopilot-smoke.cjs --base "$PREVIEW_URL" --quick --expect-sha "$HEAD_SHA" --json "$RUNNER_TEMP/preview-smoke.json"
+
+      - name: Record the preview smoke result on the pull request
+        if: steps.evaluate.outputs.eligible == 'true'
+        env:
+          PR: ${{ steps.evaluate.outputs.pr }}
+          HEAD_SHA: ${{ steps.evaluate.outputs.sha }}
+          OUTCOME: ${{ steps.preview_smoke.outcome }}
+        run: node scripts/autopilot-merge.cjs smoke-result --pr "$PR" --sha "$HEAD_SHA" --outcome "$OUTCOME" --json "$RUNNER_TEMP/preview-smoke.json"
+
+      - name: Merge (squash, pinned to the evaluated commit)
+        id: merge
+        if: steps.evaluate.outputs.eligible == 'true' && steps.preview_smoke.outcome == 'success'
+        env:
+          PR: ${{ steps.evaluate.outputs.pr }}
+          HEAD_SHA: ${{ steps.evaluate.outputs.sha }}
+        run: node scripts/autopilot-merge.cjs merge --pr "$PR" --sha "$HEAD_SHA"
+
+      - name: Wait for the production deploy
+        id: deploy
+        if: steps.merge.outputs.merge_sha != ''
+        continue-on-error: true
+        shell: bash
+        env:
+          MERGE_SHA: ${{ steps.merge.outputs.merge_sha }}
+        run: node scripts/autopilot-merge.cjs wait-deploy --sha "$MERGE_SHA" 2>&1 | tee "$RUNNER_TEMP/wait-deploy.log"
+
+      - name: Smoke-test production (every sitemap page)
+        id: live_smoke
+        if: steps.deploy.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          MERGE_SHA: ${{ steps.merge.outputs.merge_sha }}
+        run: node scripts/autopilot-smoke.cjs --base https://splithappens.run --expect-sha "$MERGE_SHA" --json "$RUNNER_TEMP/live-smoke.json" 2>&1 | tee "$RUNNER_TEMP/live-checks.log"
+
+      - name: Check live search metadata
+        id: live_seo
+        if: steps.deploy.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: npm run verify:seo:live 2>&1 | tee -a "$RUNNER_TEMP/live-checks.log"
+
+      - name: Report a deploy problem (no revert)
+        if: steps.deploy.outcome == 'failure'
+        env:
+          PR: ${{ steps.evaluate.outputs.pr }}
+          MERGE_SHA: ${{ steps.merge.outputs.merge_sha }}
+        run: >-
+          node scripts/autopilot-merge.cjs incident --pr "$PR" --sha "$MERGE_SHA" --step "production deploy"
+          --reason "Vercel did not finish deploying the merge, or splithappens.run did not start serving it, in time. The change itself was not checked, so it was not reverted."
+          --log "$RUNNER_TEMP/wait-deploy.log"
+
+      - name: Revert the merge and report (live checks failed)
+        if: steps.deploy.outcome == 'success' && (steps.live_smoke.outcome == 'failure' || steps.live_seo.outcome == 'failure')
+        env:
+          PR: ${{ steps.evaluate.outputs.pr }}
+          MERGE_SHA: ${{ steps.merge.outputs.merge_sha }}
+          SMOKE: ${{ steps.live_smoke.outcome }}
+          SEO: ${{ steps.live_seo.outcome }}
+        run: >-
+          node scripts/autopilot-merge.cjs incident --revert --pr "$PR" --sha "$MERGE_SHA" --step "live checks"
+          --reason "On https://splithappens.run after the deploy: smoke test $SMOKE, verify:seo:live $SEO."
+          --log "$RUNNER_TEMP/live-checks.log"
+
+      - name: Fail the run when a check failed
+        if: steps.preview_smoke.outcome == 'failure' || steps.deploy.outcome == 'failure' || steps.live_smoke.outcome == 'failure' || steps.live_seo.outcome == 'failure'
+        env:
+          PREVIEW: ${{ steps.preview_smoke.outcome }}
+          DEPLOY: ${{ steps.deploy.outcome }}
+          SMOKE: ${{ steps.live_smoke.outcome }}
+          SEO: ${{ steps.live_seo.outcome }}
+        run: |
+          echo "Preview smoke test: ${PREVIEW:-not run}; production deploy: ${DEPLOY:-not run}; live smoke test: ${SMOKE:-not run}; verify:seo:live: ${SEO:-not run}"
+          exit 1

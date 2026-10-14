@@ -27,6 +27,8 @@ jobs:
         run: npm run verify:analytics
       - name: Check the source for older-browser crashes
         run: npm run verify:compat
+      - name: Self-test the autopilot guard, merge gate and stats
+        run: npm run verify:autopilot
       - name: Build the static site
         run: npm run build
       - name: Check the build for older-browser crashes
