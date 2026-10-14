@@ -29,7 +29,7 @@ const { execFileSync } = require('node:child_process');
  */
 const PROTECTED = [
   'analysis/**', 'public/data/**', 'data/**', 'docs/evidence/**',
-  'lib/analytics.*', 'lib/analytics-policy.*', 'lib/replay-policy.*', 'lib/event-policy.*', 'lib/data-fetch.*', 'lib/experiment-runtime.*',
+  'lib/analytics.*', 'lib/analytics-policy.*', 'lib/replay-policy.*', 'lib/event-policy.*', 'lib/data-fetch.*', 'lib/experiment-runtime.*', 'lib/chunk-reload.*',
   'components/SiteAnalytics.*', 'components/AnalyticsPreference.*', 'components/PageFeedback.*', 'components/SectionTracker.*', 'components/Experiment.*',
   'app/privacy/**', 'app/**/error.*', 'app/**/global-error.*', 'app/**/not-found.*',
   'scripts/**', '.github/**', '.claude/**', 'CLAUDE.md', 'AGENTS.md',
