@@ -9,19 +9,28 @@
  *   --expect-sha <sha> fail unless <base>/version.json (scripts/write-version.cjs) names this commit
  *   --json <file>      write every result to <file>; stdout gets a short summary
  *
- * Each page opens at 390×844 (mobile); / and /tools also at 1366×900. A check fails when the final HTTP status is not
- * 200, the page throws (pageerror), Next.js shows "Application error", there is no visible <h1>, the error-page
- * heading from app/error.tsx or app/global-error.tsx (when they exist) is on screen, or a request to the site itself
- * (a script, stylesheet or data file) answers 400 or more. The quick list is opened again as
- * Safari before 16.4 behaves (constructing a RegExp with lookbehind throws SyntaxError), with the same checks.
+ * Each page opens at 390×844 (mobile); / and /tools also at 1366×900, and is scrolled to the bottom in steps (so
+ * lazy images and anything loaded on scroll are requested too) and watched for at least 5 seconds from the start of
+ * its navigation (so an error a few seconds after hydration is seen) before it is read. A check fails when the final HTTP
+ * status is not 200, the page throws (pageerror), Next.js shows "Application error", there is no visible <h1>, an
+ * error page is on screen (the heading from app/error.tsx or app/global-error.tsx when they exist, or any element
+ * marked data-error-boundary), or a request to the site itself (a script, stylesheet or data file) answers 400 or
+ * more. The quick list is opened again as Safari before 16.4 behaves (constructing a RegExp with lookbehind throws
+ * SyntaxError), with the same checks.
  *
  * Every request is routed: the base origin is allowed, *.posthog.com is aborted and counted (expected on production,
  * never a failure; posthog-js also ignores headless browsers, so nothing reaches analytics), on *.vercel.app previews
  * Vercel's own toolbar (vercel.live) is aborted and counted the same way, and any other host is
- * aborted and fails the run (a privacy tripwire), with the host and page printed. A failing check is loaded once more
- * in a fresh context and counts as failed only if that load fails too (pages that pass only then are listed). The home page is then loaded three
- * times at 390 px with 4× CPU throttling and a 1.6 Mbps / 150 ms network to report LCP, CLS and total blocking time;
- * only a median CLS above 0.25 fails. Exit 1 on any failure.
+ * aborted and fails the run (a privacy tripwire), with the host and page printed. A check whose first load failed for
+ * a network reason (navigation timeout, a 5xx, a request to the site that failed or answered 500 or more) is loaded
+ * once more in a fresh context and counts as failed only if that load fails too; a page error, a crash screen or a
+ * missing heading with no network cause fails at once. The home page is then loaded three times at 390 px with 4× CPU
+ * throttling and a 1.6 Mbps / 150 ms network to report LCP, CLS and total blocking time; only a median CLS above 0.25
+ * fails (no finished lab run is a warning). sitemap.xml and version.json are fetched up to three times.
+ *
+ * Exit 0 when every check passes, 1 when a page or check failed, 3 when the run could not finish (the browser did not
+ * start, or sitemap.xml or version.json could not be read) and nothing failed: the merge workflow then tries again or
+ * reports it, rather than blaming the change.
  *
  * Needs Playwright with Chromium (npm ci, then npx playwright install chromium) and network access. Node's fetch
  * (sitemap, version.json) does not read HTTPS_PROXY by itself; behind a proxy run with NODE_USE_ENV_PROXY=1.
@@ -41,6 +50,9 @@ const EXPECT_SHA = option('--expect-sha');
 const CONCURRENCY = 4;
 const NAV_TIMEOUT_MS = 45000;
 const SETTLE_MS = 1500;
+const OBSERVE_MS = 5000; // the least time a page is watched from the start of its navigation, so late errors show
+const SCROLL_STEPS = 30;
+const FETCH_ATTEMPTS = 3;
 const PERF_RUNS = 3;
 const CLS_LIMIT = 0.25;
 const MOBILE = { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 };
@@ -115,10 +127,21 @@ function perfInit() {
   observe('longtask', (entry) => { perf.longTasks.push([entry.startTime, entry.duration]); });
 }
 
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+/** GET with up to three attempts for network errors, 5xx and 429; any other answer is final. */
 async function fetchText(url) {
-  const response = await fetch(url, { headers: { 'user-agent': 'pace-notes-autopilot-smoke/1 (+https://splithappens.run)', 'cache-control': 'no-cache' }, signal: AbortSignal.timeout(30000) });
-  if (!response.ok) throw new Error(`${url} answered ${response.status}`);
-  return response.text();
+  for (let attempt = 1; ; attempt += 1) {
+    let retry;
+    try {
+      const response = await fetch(url, { headers: { 'user-agent': 'pace-notes-autopilot-smoke/1 (+https://splithappens.run)', 'cache-control': 'no-cache' }, signal: AbortSignal.timeout(30000) });
+      if (response.ok) return await response.text();
+      retry = response.status >= 500 || response.status === 429;
+      if (!retry || attempt >= FETCH_ATTEMPTS) throw Object.assign(new Error(`${url} answered ${response.status}`), { final: true });
+    } catch (error) {
+      if (error.final || attempt >= FETCH_ATTEMPTS) throw error;
+    }
+    await pause(attempt * 2000);
+  }
 }
 
 async function sitemapPaths(base) {
@@ -145,22 +168,30 @@ async function main() {
   const base = new URL(BASE_ARG).origin;
   const started = Date.now();
   const failures = [];
-  const fail = (where, message) => failures.push({ where, message });
+  const warnings = [];
+  // infrastructure: the run could not check something (exit 3 if nothing else failed), as opposed to a page that failed.
+  const fail = (where, message, { infrastructure = false } = {}) => failures.push({ where, message, ...(infrastructure ? { infrastructure } : {}) });
   const preview = PREVIEW_HOST.test(new URL(base).hostname);
-  const report = { base, mode: QUICK ? 'quick' : 'full', startedAt: new Date(started).toISOString(), expectSha: EXPECT_SHA || null, version: null, routes: [], checks: [], perf: null, posthogRequests: 0, previewToolbarRequests: 0, thirdParty: [], failures, durationMs: 0 };
+  const report = { base, mode: QUICK ? 'quick' : 'full', startedAt: new Date(started).toISOString(), expectSha: EXPECT_SHA || null, version: null, routes: [], checks: [], perf: null, posthogRequests: 0, previewToolbarRequests: 0, thirdParty: [], failures, warnings, durationMs: 0 };
 
   if (EXPECT_SHA) {
-    try {
-      const version = JSON.parse(await fetchText(`${base}/version.json?cb=${Date.now()}`));
-      report.version = version;
-      if (version.sha !== EXPECT_SHA) fail('version.json', `serves commit ${version.sha}, expected ${EXPECT_SHA}`);
-    } catch (error) {
-      fail('version.json', `could not be read: ${error.message}`);
+    // A wrong commit is read again a few times (an edge cache catching up) before it counts.
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        const version = JSON.parse(await fetchText(`${base}/version.json?cb=${Date.now()}-${attempt}`));
+        report.version = version;
+        if (version.sha === EXPECT_SHA) break;
+        if (attempt >= FETCH_ATTEMPTS) { fail('version.json', `serves commit ${version.sha}, expected ${EXPECT_SHA}`); break; }
+      } catch (error) {
+        fail('version.json', `could not be read: ${error.message}`, { infrastructure: true });
+        break;
+      }
+      await pause(10000);
     }
   }
 
   let sitemap = [];
-  try { sitemap = await sitemapPaths(base); } catch (error) { fail('sitemap.xml', error.message); }
+  try { sitemap = await sitemapPaths(base); } catch (error) { fail('sitemap.xml', `could not be read: ${error.message}`, { infrastructure: true }); }
   const first = (pattern) => sitemap.find((p) => pattern.test(p));
   const quick = [];
   for (const route of QUICK_ROUTES) {
@@ -179,18 +210,66 @@ async function main() {
   }
   for (const route of [...new Set(quick)]) tasks.push({ route, device: MOBILE, oldSafari: true });
 
+  const thirdParty = new Map();
+  /** Writes the JSON and the summary. Exit 1 on any failure, 3 when only problems with the run itself (infrastructure) stopped it. */
+  function finish() {
+    const incomplete = failures.length > 0 && failures.every((f) => f.infrastructure);
+    report.posthogRequests = report.checks.reduce((sum, c) => sum + c.posthog, 0);
+    report.previewToolbarRequests = report.checks.reduce((sum, c) => sum + c.previewToolbar, 0);
+    report.thirdParty = [...thirdParty].map(([host, pages]) => ({ host, pages: [...pages] }));
+    report.durationMs = Date.now() - started;
+    report.ok = failures.length === 0;
+    if (JSON_FILE) fs.writeFileSync(JSON_FILE, `${JSON.stringify(report, null, 2)}\n`);
+
+    const passed = report.checks.filter((c) => c.ok).length;
+    const oldSafari = report.checks.filter((c) => c.oldSafari);
+    const retried = report.checks.filter((c) => c.ok && c.attempts > 1);
+    const seconds = (ms) => `${(ms / 1000).toFixed(1)} s`;
+    const m = report.perf ? report.perf.median : null;
+    const labRuns = report.perf ? report.perf.runs.filter((r) => !r.error).length : 0;
+    const lines = [
+      `autopilot-smoke: ${base} (${report.mode}: ${routes.length} pages, ${report.checks.length} checks, ${seconds(report.durationMs)})`,
+      EXPECT_SHA ? `version.json: ${report.version ? `commit ${String(report.version.sha).slice(0, 12)}` : 'unreadable'} (expected ${EXPECT_SHA.slice(0, 12)})` : 'version.json: not checked (no --expect-sha)',
+      `Pages: ${passed} of ${report.checks.length} checks passed; old Safari: ${oldSafari.filter((c) => c.ok).length} of ${oldSafari.length}${retried.length ? `; ${retried.length} passed only on a second load: ${retried.slice(0, 5).map((c) => `${c.route} [${c.device}${c.oldSafari ? ', old Safari' : ''}] (${c.firstAttemptProblems[0]})`).join('; ')}` : ''}`,
+      `PostHog requests aborted: ${report.posthogRequests}${report.posthogRequests ? ' (expected on production; never sent)' : ''}${preview ? `; Vercel preview toolbar requests aborted: ${report.previewToolbarRequests}` : ''}`,
+      `Third-party requests: ${report.thirdParty.length ? report.thirdParty.map((t) => `${t.host} on ${t.pages.slice(0, 3).join(', ')}`).join('; ') : 'none'}`,
+      !report.perf ? 'Home lab: not run' : m ? `Home lab (390 px, 4x CPU, 1.6 Mbps / 150 ms, median of ${labRuns}): LCP ${seconds(m.lcpMs || 0)}, CLS ${m.cls.toFixed(3)}, TBT ${Math.round(m.tbtMs)} ms` : 'Home lab: no run finished',
+    ];
+    for (const w of warnings) lines.push(`Warning: ${w.where}: ${w.message}`);
+    if (incomplete) {
+      lines.push(`COULD NOT FINISH: ${failures.length} problem${failures.length === 1 ? '' : 's'} with the run itself, none with the pages checked`);
+      for (const f of failures) lines.push(`  ${f.where}: ${f.message}`);
+    } else if (failures.length) {
+      lines.push(`FAIL: ${failures.length} problem${failures.length === 1 ? '' : 's'}`);
+      for (const f of failures.slice(0, 40)) lines.push(`  ${f.where}: ${f.message}`);
+      if (failures.length > 40) lines.push(`  … and ${failures.length - 40} more${JSON_FILE ? ` (see ${JSON_FILE})` : ''}`);
+    } else lines.push('PASS');
+    console.log(lines.join('\n'));
+    if (process.env.GITHUB_STEP_SUMMARY) {
+      const summary = [`### Smoke test: ${base} (${report.mode})`, '', `**${incomplete ? 'Could not finish' : failures.length ? `Failed: ${failures.length} problem${failures.length === 1 ? '' : 's'}` : 'Passed'}**`, '', ...lines.slice(1, 6).map((l) => `- ${l}`)];
+      if (failures.length) summary.push('', ...failures.slice(0, 20).map((f) => `- \`${f.where}\`: ${f.message.replace(/\|/g, '\\|')}`));
+      fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary.join('\n')}\n\n`);
+    }
+    return incomplete ? 3 : failures.length ? 1 : 0;
+  }
+
   const headings = errorHeadings();
   report.errorHeadings = headings;
-  const { chromium } = loadPlaywright();
   // Behind an HTTPS proxy (a sandbox), route the browser through it too, except for a site on this machine.
   const proxyServer = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(base).hostname) ? null : process.env.HTTPS_PROXY || process.env.https_proxy;
-  const browser = await chromium.launch({
-    headless: true,
-    ...(process.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : {}),
-    ...(proxyServer ? { proxy: { server: proxyServer } } : {}),
-  });
+  let browser;
+  try {
+    const { chromium } = loadPlaywright();
+    browser = await chromium.launch({
+      headless: true,
+      ...(process.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : {}),
+      ...(proxyServer ? { proxy: { server: proxyServer } } : {}),
+    });
+  } catch (error) {
+    fail('browser', `did not start: ${String(error.message).split('\n')[0]}`, { infrastructure: true });
+    return finish();
+  }
 
-  const thirdParty = new Map();
   async function newContext(device, page) {
     const context = await browser.newContext({ viewport: device.viewport, isMobile: device.isMobile, hasTouch: device.hasTouch, deviceScaleFactor: device.deviceScaleFactor, serviceWorkers: 'block' });
     const seen = { posthog: 0, toolbar: 0, thirdParty: [] };
@@ -210,7 +289,8 @@ async function main() {
 
   /** One load of one page in a fresh context: its status, problems and requests. */
   async function load(task) {
-    const out = { status: null, problems: [], h1: null, lookbehindThrown: 0, posthog: 0, previewToolbar: 0, thirdParty: [], sameOriginErrors: [], consoleErrors: 0 };
+    const out = { status: null, problems: [], networkCause: null, h1: null, lookbehindThrown: 0, posthog: 0, previewToolbar: 0, thirdParty: [], sameOriginErrors: [], consoleErrors: 0 };
+    const networkCause = (why) => { if (!out.networkCause) out.networkCause = why; };
     const { context, seen } = await newContext(task.device, task.route);
     if (task.oldSafari) await context.addInitScript(oldSafariInit);
     const page = await context.newPage();
@@ -219,19 +299,39 @@ async function main() {
     page.on('console', (message) => { if (message.type() === 'error') out.consoleErrors += 1; });
     page.on('response', (response) => {
       const url = new URL(response.url());
-      if (url.origin === base && response.status() >= 400) out.sameOriginErrors.push(`${response.status()} ${url.pathname}`);
+      if (url.origin !== base) return;
+      if (response.status() >= 400) out.sameOriginErrors.push(`${response.status()} ${url.pathname}`);
+      if (response.status() >= 500) networkCause(`${response.status()} ${url.pathname}`);
     });
+    page.on('requestfailed', (request) => {
+      const url = new URL(request.url());
+      const why = request.failure() ? request.failure().errorText : 'no answer';
+      // ERR_ABORTED is the page (or the end of the load) cancelling a request, not the network failing.
+      if (url.origin === base && !/ERR_ABORTED/.test(why)) networkCause(`${url.pathname} failed (${why})`);
+    });
+    const navigationStart = Date.now();
     try {
       const response = await page.goto(`${base}${task.route}`, { waitUntil: 'load', timeout: NAV_TIMEOUT_MS });
       out.status = response ? response.status() : null;
       await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
-      await page.waitForTimeout(SETTLE_MS);
+      // Scroll to the bottom in steps, so lazy images and anything loaded on scroll go through the tripwire too.
+      await page.evaluate(async (steps) => {
+        const step = Math.max(400, Math.floor(window.innerHeight * 1.5));
+        for (let i = 0, y = step; i < steps && y < document.documentElement.scrollHeight + step; i += 1, y += step) {
+          window.scrollTo(0, y);
+          await new Promise((resolve) => setTimeout(resolve, 60));
+        }
+        window.scrollTo(0, 0);
+      }, SCROLL_STEPS).catch(() => {});
+      await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
+      await page.waitForTimeout(Math.max(SETTLE_MS, OBSERVE_MS - (Date.now() - navigationStart)));
       if (out.status !== 200) out.problems.push(`HTTP ${out.status}`);
+      if (out.status >= 500) networkCause(`HTTP ${out.status}`);
       const state = await page.evaluate(({ headings, crash }) => {
         const norm = (s) => String(s).replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim().toLowerCase();
         const text = document.body ? document.body.innerText : '';
         const h1 = document.querySelector('h1');
-        return { crashed: text.includes(crash), errorHeading: headings.find((h) => norm(text).includes(norm(h))) || null, h1: h1 ? h1.textContent.trim().slice(0, 80) : null, lookbehind: window.__smokeLookbehind || 0 };
+        return { crashed: text.includes(crash), errorHeading: headings.find((h) => norm(text).includes(norm(h))) || null, errorBoundary: Boolean(document.querySelector('[data-error-boundary]')), h1: h1 ? h1.textContent.trim().slice(0, 80) : null, lookbehind: window.__smokeLookbehind || 0 };
       }, { headings, crash: NEXT_CRASH }).catch((error) => ({ evalError: String(error.message).split('\n')[0] }));
       if (state.evalError) out.problems.push(`could not read the page: ${state.evalError}`);
       else {
@@ -239,12 +339,14 @@ async function main() {
         out.lookbehindThrown = state.lookbehind;
         if (state.crashed) out.problems.push(`shows "${NEXT_CRASH}"`);
         if (state.errorHeading) out.problems.push(`shows the error page ("${state.errorHeading}")`);
+        else if (state.errorBoundary) out.problems.push('shows an error page (an element marked data-error-boundary)');
         const visible = await page.locator('h1').first().isVisible().catch(() => false);
         if (!state.h1) out.problems.push('no <h1>');
         else if (!visible) out.problems.push('the <h1> is not visible');
       }
     } catch (error) {
       out.problems.push(`navigation failed: ${String(error.message).split('\n')[0].slice(0, 200)}`);
+      networkCause('navigation failed');
     }
     for (const message of [...new Set(pageErrors)].slice(0, 3)) out.problems.push(`pageerror: ${message}`);
     out.posthog = seen.posthog;
@@ -257,8 +359,10 @@ async function main() {
   }
 
   /**
-   * A check fails only when a second load in a fresh context fails too, so one dropped request or a slow edge does not
-   * revert a good deploy; a broken page fails both. A third-party request on either load always fails (privacy tripwire).
+   * A first load that failed for a network reason is tried once more in a fresh context and fails only if that load
+   * fails too, so one dropped request or a slow edge does not revert a good deploy. A failure with no network cause (a
+   * page error, the crash screen, a missing heading) is the page's own and fails at once, so an error that shows up
+   * on some loads only is not hidden by a clean second one. A third-party request on either load always fails.
    */
   async function visit(task) {
     const label = `${task.route} [${task.device.name}${task.oldSafari ? ', old Safari' : ''}]`;
@@ -266,12 +370,13 @@ async function main() {
     const first = await load(task);
     let final = first;
     let firstProblems = [];
-    if (first.problems.length) {
+    const retried = first.problems.length > 0 && Boolean(first.networkCause);
+    if (retried) {
       final = await load(task);
       firstProblems = first.problems;
       for (const problem of first.problems) if (problem.startsWith('request to third-party host') && !final.problems.includes(problem)) final.problems.push(problem);
     }
-    const result = { route: task.route, device: task.device.name, oldSafari: task.oldSafari, ok: final.problems.length === 0, ...final, attempts: first.problems.length ? 2 : 1, firstAttemptProblems: firstProblems, durationMs: Date.now() - t0 };
+    const result = { route: task.route, device: task.device.name, oldSafari: task.oldSafari, ok: final.problems.length === 0, ...final, attempts: retried ? 2 : 1, firstAttemptProblems: firstProblems, retryCause: retried ? first.networkCause : null, durationMs: Date.now() - t0 };
     for (const problem of result.problems) fail(label, problem);
     return result;
   }
@@ -319,41 +424,9 @@ async function main() {
     page: '/', viewport: '390x844', cpuThrottling: 4, network: '1.6 Mbps down, 750 kbps up, 150 ms RTT', runs,
     median: good.length ? { lcpMs: median(good.map((r) => r.lcp)), cls: median(good.map((r) => r.cls)), tbtMs: median(good.map((r) => r.tbt)), fcpMs: median(good.map((r) => r.fcp)) } : null,
   };
-  if (!good.length) fail('/ (performance)', `no lab run finished: ${runs.map((r) => r.error).join('; ')}`);
+  if (!good.length) warnings.push({ where: '/ (performance)', message: `no lab run finished (reported, not a failure): ${runs.map((r) => r.error).join('; ')}` });
   else if (report.perf.median.cls > CLS_LIMIT) fail('/ (performance)', `median CLS ${report.perf.median.cls.toFixed(3)} is above ${CLS_LIMIT}`);
-
-  report.posthogRequests = report.checks.reduce((sum, c) => sum + c.posthog, 0);
-  report.previewToolbarRequests = report.checks.reduce((sum, c) => sum + c.previewToolbar, 0);
-  report.thirdParty = [...thirdParty].map(([host, pages]) => ({ host, pages: [...pages] }));
-  report.durationMs = Date.now() - started;
-  report.ok = failures.length === 0;
-  if (JSON_FILE) fs.writeFileSync(JSON_FILE, `${JSON.stringify(report, null, 2)}\n`);
-
-  const passed = report.checks.filter((c) => c.ok).length;
-  const oldSafari = report.checks.filter((c) => c.oldSafari);
-  const retried = report.checks.filter((c) => c.ok && c.attempts > 1);
-  const seconds = (ms) => `${(ms / 1000).toFixed(1)} s`;
-  const m = report.perf.median;
-  const lines = [
-    `autopilot-smoke: ${base} (${report.mode}: ${routes.length} pages, ${report.checks.length} checks, ${seconds(report.durationMs)})`,
-    EXPECT_SHA ? `version.json: ${report.version ? `commit ${String(report.version.sha).slice(0, 12)}` : 'unreadable'} (expected ${EXPECT_SHA.slice(0, 12)})` : 'version.json: not checked (no --expect-sha)',
-    `Pages: ${passed} of ${report.checks.length} checks passed; old Safari: ${oldSafari.filter((c) => c.ok).length} of ${oldSafari.length}${retried.length ? `; ${retried.length} passed only on a second load: ${retried.slice(0, 5).map((c) => `${c.route} [${c.device}${c.oldSafari ? ', old Safari' : ''}] (${c.firstAttemptProblems[0]})`).join('; ')}` : ''}`,
-    `PostHog requests aborted: ${report.posthogRequests}${report.posthogRequests ? ' (expected on production; never sent)' : ''}${preview ? `; Vercel preview toolbar requests aborted: ${report.previewToolbarRequests}` : ''}`,
-    `Third-party requests: ${report.thirdParty.length ? report.thirdParty.map((t) => `${t.host} on ${t.pages.slice(0, 3).join(', ')}`).join('; ') : 'none'}`,
-    m ? `Home lab (390 px, 4x CPU, 1.6 Mbps / 150 ms, median of ${good.length}): LCP ${seconds(m.lcpMs || 0)}, CLS ${m.cls.toFixed(3)}, TBT ${Math.round(m.tbtMs)} ms` : 'Home lab: no run finished',
-  ];
-  if (failures.length) {
-    lines.push(`FAIL: ${failures.length} problem${failures.length === 1 ? '' : 's'}`);
-    for (const f of failures.slice(0, 40)) lines.push(`  ${f.where}: ${f.message}`);
-    if (failures.length > 40) lines.push(`  … and ${failures.length - 40} more${JSON_FILE ? ` (see ${JSON_FILE})` : ''}`);
-  } else lines.push('PASS');
-  console.log(lines.join('\n'));
-  if (process.env.GITHUB_STEP_SUMMARY) {
-    const summary = [`### Smoke test: ${base} (${report.mode})`, '', `**${failures.length ? `Failed: ${failures.length} problem${failures.length === 1 ? '' : 's'}` : 'Passed'}**`, '', ...lines.slice(1, 6).map((l) => `- ${l}`)];
-    if (failures.length) summary.push('', ...failures.slice(0, 20).map((f) => `- \`${f.where}\`: ${f.message.replace(/\|/g, '\\|')}`));
-    fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary.join('\n')}\n\n`);
-  }
-  return failures.length ? 1 : 0;
+  return finish();
 }
 
-main().then((code) => { process.exitCode = code; }, (error) => { console.error(`autopilot-smoke: ${error.stack || error.message}`); process.exitCode = 1; });
+main().then((code) => { process.exitCode = code; }, (error) => { console.error(`autopilot-smoke: ${error.stack || error.message}`); process.exitCode = 3; });

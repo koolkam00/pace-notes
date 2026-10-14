@@ -1,8 +1,9 @@
 name: Autopilot guard
 
 # Early feedback on what an autopilot pull request may change (scripts/autopilot-guard.cjs, docs/AUTOPILOT.md).
-# Branches that do not start with autopilot/ pass at once. This run uses the pull request's own copy of the guard;
-# the authoritative run is the Autopilot merge workflow's, which runs main's copy before it merges anything.
+# Branches that do not start with autopilot/ pass at once. This run uses the pull request's own copy of this file and
+# of the guard, so a pull request that edits them can make it pass: it is feedback, not a control. The authoritative
+# run is the Autopilot merge workflow's, which runs main's copy before it merges anything.
 
 on:
   pull_request:
@@ -28,4 +29,5 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
           HEAD_REF: ${{ github.head_ref }}
-        run: node scripts/autopilot-guard.cjs --base "origin/$BASE_REF" --head HEAD --branch "$HEAD_REF"
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/autopilot-guard.cjs --base "origin/$BASE_REF" --head HEAD --branch "$HEAD_REF" --pr "$PR_NUMBER"
