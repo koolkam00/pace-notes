@@ -13,6 +13,7 @@ import CreatorCredit from '@/components/CreatorCredit';
 import MotionToggle from '@/components/MotionToggle';
 import type { Metadata } from 'next';
 import { DEFAULT_OG_IMAGE, OG_IMAGE_SIZE, OG_LOCALE, SITE_NAME, SITE_URL, finishesM } from '@/lib/seo';
+import { RELOAD_ON_FAILED_FILE } from '@/lib/chunk-reload';
 
 // Site-wide defaults only. Pages set their own title, description, canonical and full openGraph through
 // pageMetadata() in lib/seo.tsx. Never put a canonical, openGraph.url or title.template here (docs/SEO.md).
@@ -33,6 +34,7 @@ export const viewport = { themeColor: '#F5F0E6' };
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head><script type="module" async dangerouslySetInnerHTML={{ __html: RELOAD_ON_FAILED_FILE }} /></head>
       <body><UnitsProvider>
         <a className="skip-link" href="#main">Skip to content</a>
         <header className="site-header">

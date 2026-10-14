@@ -312,6 +312,8 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .not-found h1, .page-error h1 { font-size: clamp(2.4rem, 6vw, 4rem); }
 .not-found p:not(.eyebrow), .page-error p:not(.eyebrow) { color: var(--ink-2); font-size: 1.1rem; }
 .not-found .hero-actions, .page-error .hero-actions { justify-content: center; }
+/* The error heading takes focus only so a screen reader announces it; it is not a control, so it shows no ring. */
+.page-error h1:focus { outline: none; }
 
 /* ---------- Places ---------- */
 .gap-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 320px); gap: 1rem; align-items: center; }
