@@ -113,6 +113,35 @@ All underlying distances and analytical definitions remain in kilometres. Use th
 
 The current supporting pages and runner view convert visible measurements together with their charts when the unit switch is offered. Source schemas and methods remain metric. Any retained metric-only guide must explicitly force matching metric prose and figures rather than mixing units. Technical source schemas, historical method quotations and release assets also keep original metric units. They describe the calculation contract and should not be rewritten as if the source measured mile splits. The historical display-only update left source pins and aggregate numbers unchanged; the separate 0934 data refresh recalculates those outputs. See the [September 11 display verification](evidence/2026-09-11/miles-display.md) for local checks and measured browser examples.
 
+## Older browsers and error pages
+
+Added October 14, 2026; not yet deployed.
+
+**Older Safari.** Safari before 16.4 (iOS 15 and iOS 16.0–16.3) cannot parse a regular-expression lookbehind (`(?<=`, `(?<!`): building one throws a `SyntaxError`. The miles conversion in `lib/units.ts` built five of them, and it runs in the root layout, so before this change 79 of the 115 sitemap pages showed Next.js's "Application error" screen on those browsers and sent no analytics (measured in Chromium with the `RegExp` constructor made to throw on lookbehind, as old Safari does). The conversion now matches the character before a number as its first group and writes it back unchanged (`START`); on 4,361 distinct strings from the published data and the source its output is identical to the old one. The sentence splits on `/slowdown` and in the pack descriptions run only at build time, but no longer use lookbehind either.
+
+Guards:
+- `npm run verify:compat` (`scripts/verify-browser-compat.cjs`) scans `app/`, `components/`, `lib/`, `hooks/` and `context/` for lookbehind and for built-ins Safari added in 15.4 or later that Next.js 14 does not polyfill: `structuredClone`, `findLast`/`findLastIndex`, `toSorted`/`toReversed`/`toSpliced`/`with`, `Object.groupBy`/`Map.groupBy`. The comment at the top of the script lists what it covers.
+- `npm run verify:compat -- --build` scans the built JavaScript in `out/_next/static`, third-party code included, for lookbehind.
+- CI runs the source scan before the build and the build scan after it. `verify:analytics` runs the same source scan, because a page that crashes sends no analytics.
+- `verify-units` runs its whole conversion table again with the `RegExp` constructor refusing lookbehind, and checks that `lib/units.ts` has no lookbehind literal.
+
+Not covered: CSS, other syntax (Next.js compiles it down for Safari 12) and real devices. The browser checks emulate old Safari in Chromium; the Playwright WebKit browser is not installed here.
+
+**Error pages.**
+- `app/error.tsx` replaces a page that throws while loading or rendering, inside the normal header and footer.
+- `app/global-error.tsx` replaces the whole document when the root layout fails. It renders its own `<html>` with inline styles, because the site's stylesheets may be missing.
+- Both say "This page didn't load properly", offer "Reload the page" (a full reload) and a link to the home page, and never show the error message.
+- In the RSC payload the root layout's client components share the page's chunk list, so a page chunk that fails to load is usually caught by `global-error.tsx`.
+
+**Reloading after a failed chunk.** When the error is a failed chunk load (`ChunkLoadError`, or the browser's message for a failed dynamic import or CSS chunk), `lib/chunk-reload.ts` reloads the page by itself once. It keeps the time of that reload in this tab's sessionStorage (`pace-notes-chunk-reload`, a timestamp and nothing else) and does not reload by itself again within five minutes. Where sessionStorage is unavailable, it does not reload by itself at all. The window is five minutes, not one, because webpack reports a failed script that the page's HTML names only after its two-minute chunk timeout. With a one-minute window such a page reloaded every two minutes (measured). During those two minutes the static HTML stays visible but does not respond. When the failure happens during a client-side navigation, the address has not changed yet, so a reload (automatic or from the button) reopens the page the visitor was leaving, with fresh files.
+
+**Checked October 14, 2026** on local static builds in Playwright Chromium, with every request beyond the site aborted:
+- Every sitemap page (115) with old Safari emulated: a build of `main` showed "Application error" on 79 pages; this change showed it on none, with no error page, no page error, no lookbehind built and one document load per page. That held at 390×844 and 1366×900, and with and without the emulation.
+- Page chunk aborted during a client-side navigation: one automatic reload. A second failure within five minutes showed the error page with its reload button, and no second automatic reload. With sessionStorage blocked, the error page showed and nothing reloaded by itself.
+- Page or layout chunk aborted on first load: webpack reported the failure after 120 s. Then came one automatic reload, and at 240 s the error page stayed. Two document loads in 420 s.
+- An error thrown while rendering a page component showed `error.tsx` inside the header and footer. One thrown in a root-layout component showed `global-error.tsx`. Neither reloaded by itself.
+- Not tested: real iOS devices and WebKit.
+
 ## Data to rendering to deployment
 
 The chart calculations produce aggregate artifacts; the current data-access policy also covers full source records. Importers validate and write the designated public folders. Build reads those files and generates static output. The Vercel project deploys the main branch and serves the verified `splithappens.run` custom domain. Check the new commit and production bytes after each merge. During takeover, all 401 checked-in public aggregate files matched the production responses byte for byte, including September 7 extension metadata. This dated evidence predates the September 11 presentation update; it does not establish the deployment state of later changes.
