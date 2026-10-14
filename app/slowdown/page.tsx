@@ -20,8 +20,10 @@ export function generateMetadata() {
 export default function Page() {
   const figures = getStudyFigures();
   const study = getStudyAnswer();
-  // The definition comes from the study's own method text, shown in the reader's units.
-  const definition = study.method[0]?.split(/(?<=\.)\s+/)[0];
+  // The definition is the first sentence of the study's own method text, shown in the reader's units.
+  const method = study.method[0];
+  const firstStop = method ? /\.\s/.exec(method) : null;
+  const definition = method && firstStop ? method.slice(0, firstStop.index + 1) : method;
   return <>
     <header className="directory-heading">
       <p className="eyebrow">Late-race slowing</p>

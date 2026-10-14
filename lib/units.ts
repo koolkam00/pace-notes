@@ -39,24 +39,30 @@ const convertPhrase = (phrase: string, factor: number, precision: number) => phr
   new RegExp(NUMBER, 'g'), value => number(numeric(value) * factor, precision),
 );
 
+// No lookbehind: Safari before 16.4 cannot build one, and every page showing converted prose would crash there. The
+// character before a number (or the start of the text) is matched as the first group and written back unchanged, so a
+// number glued to a word character, colon or dot is still left alone. Every pattern below ends in a word character, so
+// a match never takes the character the next match needs as its start.
+const START = '(^|[^\\w:.])';
+
 function metricProseToMiles(text: string): string {
   return text
-    .replace(new RegExp(`(?<![\\w:.])([0-9]+):([0-5][0-9])\\s*(?:/|per\\s+)\\s*${KM_UNIT}\\b`, 'gi'),
-      (_match, minutes: string, seconds: string) => paceLabel(Number(minutes) * 60 + Number(seconds), 'mi'))
-    .replace(new RegExp(`(?<![\\w:.])(${NUMBER_PHRASE})\\s*(min(?:utes?)?|sec(?:onds?)?)\\s*(?:/|per\\s+)\\s*${KM_UNIT}\\b`, 'gi'),
-      (_match, value: string, label: string) => `${convertPhrase(value, KM_PER_MILE, 2)} ${label}/mi`)
+    .replace(new RegExp(`${START}([0-9]+):([0-5][0-9])\\s*(?:/|per\\s+)\\s*${KM_UNIT}\\b`, 'gi'),
+      (_match, start: string, minutes: string, seconds: string) => start + paceLabel(Number(minutes) * 60 + Number(seconds), 'mi'))
+    .replace(new RegExp(`${START}(${NUMBER_PHRASE})\\s*(min(?:utes?)?|sec(?:onds?)?)\\s*(?:/|per\\s+)\\s*${KM_UNIT}\\b`, 'gi'),
+      (_match, start: string, value: string, label: string) => `${start}${convertPhrase(value, KM_PER_MILE, 2)} ${label}/mi`)
     // "37.0 seconds gained per km": a rate with one or two words before "per km" converts its number too.
-    .replace(new RegExp(`(?<![\\w:.])(${NUMBER_PHRASE})\\s*(min(?:utes?)?|sec(?:onds?)?)((?:\\s+[a-z]+){1,2})\\s+per\\s+${KM_UNIT}\\b`, 'gi'),
-      (_match, value: string, label: string, words: string) => `${convertPhrase(value, KM_PER_MILE, 2)} ${label}${words} per mile`)
-    .replace(new RegExp(`(?<![\\w:.])(${NUMBER_PHRASE})(\\s*-\\s*|\\s*)(${KM_UNIT})\\b`, 'gi'),
-      (_match, values: string, separator: string, unit: string) => {
+    .replace(new RegExp(`${START}(${NUMBER_PHRASE})\\s*(min(?:utes?)?|sec(?:onds?)?)((?:\\s+[a-z]+){1,2})\\s+per\\s+${KM_UNIT}\\b`, 'gi'),
+      (_match, start: string, value: string, label: string, words: string) => `${start}${convertPhrase(value, KM_PER_MILE, 2)} ${label}${words} per mile`)
+    .replace(new RegExp(`${START}(${NUMBER_PHRASE})(\\s*-\\s*|\\s*)(${KM_UNIT})\\b`, 'gi'),
+      (_match, start: string, values: string, separator: string, unit: string) => {
         const converted = convertPhrase(values, 1 / KM_PER_MILE, 2);
         const hyphenated = separator.includes('-');
         const name = unit.toLowerCase() === 'km' ? 'mi' : hyphenated || converted === '1' ? 'mile' : 'miles';
-        return `${converted}${hyphenated ? '-' : ' '}${name}`;
+        return `${start}${converted}${hyphenated ? '-' : ' '}${name}`;
       })
-    .replace(new RegExp(`(?<![\\w:.])(${NUMBER_PHRASE})(\\s*-\\s*|\\s*)(?:m|metres?|meters?)\\b(?!/)`, 'gi'),
-      (_match, values: string, separator: string) => `${convertPhrase(values, 1 / METRES_PER_FOOT, 1)}${separator.includes('-') ? '-' : ' '}ft`)
+    .replace(new RegExp(`${START}(${NUMBER_PHRASE})(\\s*-\\s*|\\s*)(?:m|metres?|meters?)\\b(?!/)`, 'gi'),
+      (_match, start: string, values: string, separator: string) => `${start}${convertPhrase(values, 1 / METRES_PER_FOOT, 1)}${separator.includes('-') ? '-' : ' '}ft`)
     .replace(/\bkilomet(?:re|er)s\b/gi, 'miles')
     .replace(/\bkilomet(?:re|er)\b/gi, 'mile')
     .replace(/\bmet(?:re|er)s\b/gi, 'feet')

@@ -221,8 +221,11 @@ assert.match(read('lib/analytics.ts'), /export function trackPage[^}]*?noteRunne
 // The projector's saved runner cards show the visitor's labels, mat times and start clocks outside its workspace.
 assert.ok(hasClasses(read('components/tools/Projector.tsx'), 'projector-cards', 'ph-no-capture'), 'Projector: the saved runner cards carry ph-no-capture');
 assert.ok(blockedSelectors.includes('.projector-cards'), 'The saved runner cards are left out of replays');
-// Safari before 16.4 cannot parse a lookbehind, and a parse error in these modules would stop all analytics there.
-for (const file of ['lib/analytics.ts', 'lib/analytics-policy.ts', 'lib/replay-policy.ts']) assert.doesNotMatch(read(file), /\(\?<[=!]/, `${file} uses no lookbehind`);
+// A page that crashes sends no analytics. Older Safari crashes on a lookbehind or a newer built-in anywhere in the page's
+// JavaScript, so the shared check (npm run verify:compat) covers every browser source file, not only the analytics ones.
+const compat = require('./verify-browser-compat.cjs');
+const compatProblems = compat.sourceProblems().problems;
+assert.equal(compatProblems.length, 0, compat.describe(compatProblems));
 // The course chooser's list of every course follows the visitor's goal, outside its workspace.
 const courseChooser = read('components/tools/CourseChooser.tsx');
 assert.ok(hasClasses(courseChooser, 'course-chooser-list', 'ph-no-capture') && hasClasses(courseChooser, 'tool-callout', 'ph-no-capture'), 'CourseChooser: the course list and pace-band callout carry ph-no-capture');

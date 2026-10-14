@@ -81,7 +81,8 @@ function ownDescription(id: string): string {
   }
   const source = miles(broaderArchive(id)?.description || getExtraAnswer(id).answer).trim();
   let text = '';
-  for (const sentence of source.split(/(?<=[.!?])\s+(?=[A-Z0-9“"(])/)) {
+  // A sentence ends at . ! or ? followed by space and a capital, digit, quote or bracket.
+  for (const sentence of source.replace(/([.!?])\s+(?=[A-Z0-9“"(])/g, '$1\u0000').split('\u0000')) {
     const next = text ? `${text} ${sentence}` : sentence;
     if (next.length > MAX_DESCRIPTION) break;
     text = next;

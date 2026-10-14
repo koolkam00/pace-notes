@@ -37,9 +37,11 @@ Open `http://localhost:3000`. Before reviewing website or aggregate changes, run
 
 ```bash
 npm run verify:data
+npm run verify:compat
 npm run build
+npm run verify:compat -- --build
 ```
 
-The build creates static output in `out/`. The configured public host is [Pace Notes](https://splithappens.run); deployment is a separate authorized step. An optional `NEXT_PUBLIC_BASE_PATH` supports hosting under a subpath.
+The build creates static output in `out/`. `verify:compat` checks the browser source, and then the build, for code that crashes Safari before 16.4 (see [website architecture](docs/WEBSITE_ARCHITECTURE.md#older-browsers-and-error-pages)). The configured public host is [Pace Notes](https://splithappens.run); deployment is a separate authorized step. An optional `NEXT_PUBLIC_BASE_PATH` supports hosting under a subpath.
 
 Calculations, checksums, imports and per-release ID contracts are documented in [analysis/README.md](analysis/README.md). Keep missing measurements explicit, preserve source citations and make the full underlying data available alongside the chart aggregates. Existing repository names, file keys and compatibility URLs remain stable where required by the data contract.

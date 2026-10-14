@@ -1,5 +1,16 @@
 # Project handoff
 
+## Older Safari fix and error pages (October 14, 2026)
+
+**Repository state:** in this change (branch `fix/old-safari-crash`). **Deployed state:** not yet deployed. Until it is, splithappens.run still runs the code that crashed in the emulated check below.
+
+What changed:
+- **The crash.** Safari before 16.4 (iOS 15, iOS 16.0–16.3) cannot build a regular-expression lookbehind, and the miles conversion in `lib/units.ts` built five of them in code the root layout runs. With old Safari emulated in Chromium, a build of `main` showed "Application error" on 79 of the 115 sitemap pages; this change shows it on none. A crashed page sends no analytics. So PostHog's browser breakdown could not show these visitors. The conversion now works without lookbehind and gives the same output on 4,361 distinct published and source strings. The two build-time sentence splits (`/slowdown`, pack descriptions) were rewritten too.
+- **Guards.** `npm run verify:compat` scans the browser source for lookbehind and for built-ins that need Safari 15.4 or later. `npm run verify:compat -- --build` scans the built JavaScript for lookbehind. CI runs both, and `verify:analytics` runs the same source scan. `verify-units` reruns its conversion table with lookbehind refused.
+- **Error pages.** `app/error.tsx` (inside the site's header and footer) and `app/global-error.tsx` (when the root layout fails) replace Next.js's blank "Application error" screen. Each offers "Reload the page" and a link home, moves focus to its heading and sets the tab's title. After a failed script load, the page reloads by itself once. A sessionStorage timestamp (`pace-notes-chunk-reload`) stops it doing so again within five minutes. A small script in the root layout's `<head>` makes that reload happen at once when a script or stylesheet named in the page's HTML fails; without it webpack waits two minutes, and a failed React file never reaches an error page. A chart whose chunk fails shows a note in its box instead of the error page replacing the whole page.
+
+Methods, measurements and limits: [website architecture](WEBSITE_ARCHITECTURE.md#older-browsers-and-error-pages). Not verified: real iOS 15/16 devices (the checks emulate old Safari in Chromium), and how many visitors were affected. Release pins and data are unchanged.
+
 ## Search optimisation (October 2026)
 
 **Deployed:** merged to `main` in PR #53 (merge commit `248487e`) and live on splithappens.run. After the www domain was set to a 308 redirect, `npm run verify:seo:live` passed all 13 checks, and it passed again on October 13, 2026. The Google Search Console domain-verification TXT record is in public DNS; submitting the sitemap in Search Console and importing into Bing are owner steps (see [SEO](SEO.md)). For later changes, confirm the production commit and rerun `npm run verify:seo:live` before claiming they are live.

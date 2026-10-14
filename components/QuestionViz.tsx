@@ -7,13 +7,21 @@ import type { ChartSpec } from '@/lib/research-data';
 import { filterOptions, resolveSelection } from '@/lib/chart-selection';
 import { sectionLabel } from '@/lib/section-labels';
 import { distanceValue, elevationValue, paceLabel, paceValue, unitText, type UnitSystem } from '@/lib/units';
+import { reloadAfterChunkError } from '@/lib/chunk-reload';
 import { useUnits } from './UnitsProvider';
+import type { QuestionLineChartProps } from './QuestionLineChart';
 
 const COLORS = ['#2346E6', '#FF5B2E', '#66625A'];
 
 // Recharts only ever draws in the browser (the server HTML held an empty box), so its chunk loads after hydration
 // instead of with the page. The placeholder fills the fixed-height .chart box, so nothing shifts when the chart arrives.
-const QuestionLineChart = dynamic(() => import('./QuestionLineChart'), {
+// If the chunk fails, the page reloads once as for any failed chunk; after that only the box says so and the text and
+// exact values stay, instead of the error page replacing the whole page.
+const ChartUnavailable = () => <div style={{ display: 'grid', placeItems: 'center', height: '100%', textAlign: 'center' }}><p className="chart-note">This chart didn&apos;t load. Reload the page to try again, or see the exact values below.</p></div>;
+const QuestionLineChart = dynamic<QuestionLineChartProps>(() => import('./QuestionLineChart').catch((error: Error) => {
+  reloadAfterChunkError(error);
+  return { default: ChartUnavailable };
+}), {
   ssr: false,
   loading: () => <div className="chart-placeholder" style={{ width: '100%', height: '100%' }} aria-hidden="true" />,
 });
