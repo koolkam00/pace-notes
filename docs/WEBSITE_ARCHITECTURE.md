@@ -124,6 +124,7 @@ Guards:
 - `npm run verify:compat -- --build` scans the built JavaScript in `out/_next/static`, third-party code included, for lookbehind.
 - CI runs the source scan before the build and the build scan after it. `verify:analytics` runs the same source scan, because a page that crashes sends no analytics.
 - `verify-units` runs its whole conversion table again with the `RegExp` constructor refusing lookbehind, and checks that `lib/units.ts` has no lookbehind literal.
+- `npm run verify:replay-e2e` (CI job `privacy-e2e`) opens every sitemap page with old Safari emulated, as in the check below, and fails on a crash, an error page, a page error, a lookbehind built or a served script that holds one (scenario S5 in [analytics](ANALYTICS.md#browser-privacy-checks)).
 
 Not covered: CSS, other syntax (Next.js compiles it down for Safari 12) and real devices. The browser checks emulate old Safari in Chromium; the Playwright WebKit browser is not installed here.
 
