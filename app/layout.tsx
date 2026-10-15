@@ -40,7 +40,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head><script type="module" async dangerouslySetInnerHTML={{ __html: RELOAD_ON_FAILED_FILE }} /><ExperimentHead /></head>
       <body><UnitsProvider>
         <a className="skip-link" href="#main">Skip to content</a>
-        <SiteHeader />
+        <SiteHeader
+          brand={<div className="header-brand">
+            <Link href="/" className="site-title"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span>Pace Notes</span></Link>
+            <span className="header-credit">by Andrew Kam</span>
+          </div>}
+          menuIcon={<><span className="nav-toggle-label">Menu</span><svg viewBox="0 0 10 6" width="10" height="6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg></>}
+        />
         <main id="main" className="container main-content">{children}</main>
         <footer className="container footer">
           <div className="footer-brand"><Link href="/">Pace Notes</Link><p>Every split tells part of the story. Pacing patterns from millions of recorded marathon finishes, free to explore and download.</p><CreatorCredit /><MotionToggle /></div>

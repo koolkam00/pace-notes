@@ -1,7 +1,7 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { UnitLink as Link, UnitSwitch } from './UnitsProvider';
+import { UnitSwitch } from './UnitsProvider';
 import SiteNav from './SiteNav';
 import { usePrefersReducedMotion } from './art/useTicker';
 
@@ -15,7 +15,11 @@ function keyboardFocus(element: Element) {
   try { return element.matches(':focus-visible'); } catch { return true; }
 }
 
-export default function SiteHeader() {
+/**
+ * `brand` (the Pace Notes link and the credit) and `menuIcon` come from the root layout, a server component, so their
+ * markup is not part of every page's JavaScript.
+ */
+export default function SiteHeader({ brand, menuIcon }: { brand: ReactNode; menuIcon: ReactNode }) {
   const header = useRef<HTMLElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -75,14 +79,10 @@ export default function SiteHeader() {
   return (
     <header ref={header} className="site-header" data-open={open || undefined}>
       <div className="container header-inner">
-        <div className="header-brand">
-          <Link href="/" className="site-title"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span>Pace Notes</span></Link>
-          <span className="header-credit">by Andrew Kam</span>
-        </div>
+        {brand}
         <div className="header-controls">
           <button ref={toggle} type="button" className="nav-toggle" aria-expanded={open} aria-controls="site-menu" onClick={() => setOpen(!open)}>
-            <span className="nav-toggle-label">Menu</span>
-            <svg viewBox="0 0 10 6" width="10" height="6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            {menuIcon}
           </button>
           <SiteNav id="site-menu" onFollow={() => setOpen(false)} />
           <UnitSwitch />
