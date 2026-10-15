@@ -904,8 +904,8 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
               {stale.length ? (
                 <p className="tool-callout predictor-stale"><strong>{stale.join(' and ')} {stale.length > 1 ? 'were' : 'was'} more than 6 months ago.</strong> Every method here assumes the race reflects your fitness now; a recent race predicts better.</p>
               ) : null}
-              {/* The median estimate to the whole minute, as every tool reads it (4:11:41 is 4:11). */}
-              {medianMinute !== null ? <MarathonHandoffs label="With this estimate" minutes={medianMinute / 60} /> : null}
+              {/* The median estimate, handed on as the whole minute at or below it, as every tool reads it (4:11:41 is 4:11). */}
+              {est.range ? <MarathonHandoffs label="With this estimate" seconds={Math.round(est.range.median)} /> : null}
 
               <EvidencePanel kind="research" title="Every published method, side by side" id="predictor-methods"
                 meta={est.isMarathon ? <>Each row is one published model applied to your {fmtTime(est.fromS)} {raceName(dist1, units)}. The shaded column is the typical recreational range, Pace Notes’ composition of published estimates; the dashed line is its median. Tap or hover a row for details.</> : <>Each row is one published model applied to your {fmtTime(est.fromS)} {raceName(dist1, units)}. Tap or hover a row for details.</>}>

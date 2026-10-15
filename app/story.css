@@ -16,6 +16,8 @@
 .hero-inner { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2.4rem; }
 .hero-title { font-family: var(--serif); font-variation-settings: 'opsz' 144, 'SOFT' 50, 'WONK' 1; font-weight: 680; font-size: clamp(2.9rem, 7.6vw, 6.6rem); line-height: .94; letter-spacing: -.028em; }
 .hero-title em { font-style: italic; font-weight: 600; color: var(--orange); }
+/* From 339 px down the title fills its three lines in Fraunces and needs four in its fallback, so it steps down there. */
+@media (max-width: 339px) { .hero-title { font-size: 2.65rem; } }
 .hero-dek { max-width: 38rem; margin-top: 1.4rem; font-size: clamp(1.05rem, 1.8vw, 1.3rem); line-height: 1.55; color: var(--night-ink-2); }
 .hero-dek strong { color: var(--night-ink); font-weight: 650; }
 .hero-actions { display: flex; flex-wrap: wrap; gap: .8rem; margin-top: 2rem; }
@@ -83,7 +85,9 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .chapter-body { margin-top: 2.2rem; }
 .chapter-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 2rem; align-items: start; }
 .chapter-aside { display: grid; gap: 1rem; }
-.chapter-more { display: inline-flex; align-items: center; gap: .55rem; margin-top: 1.4rem; font-weight: 650; color: var(--ink); border-bottom: 2px solid var(--orange); padding-bottom: .1rem; }
+.chapter-more { position: relative; display: inline-flex; align-items: center; gap: .55rem; margin-top: 1.4rem; font-weight: 650; color: var(--ink); border-bottom: 2px solid var(--orange); padding-bottom: .1rem; }
+/* The one-line link is 31 px tall; a 44 px tap target around it, without moving the underline. */
+.chapter-more::before { content: ''; position: absolute; inset: -7px 0 -6px; }
 .chapter-more:hover { text-decoration: none; color: var(--orange-ink); }
 /* A home chapter ends with its full story and, quieter, "Try it with your race": the tool or analysis for that question. */
 .chapter-links { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1.1rem 2.6rem; margin-top: 1.4rem; }
@@ -188,7 +192,7 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .hero-goal { display: grid; gap: .9rem; max-width: 30rem; }
 .hero-goal .tool-field { display: grid; gap: .45rem; min-width: 0; }
 .hero-goal label { font-family: var(--mono); font-size: .75rem; line-height: 1.5; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
-.hero-goal input { min-height: 54px; padding-inline: 1.2rem; border-color: var(--night-3); border-radius: 999px; background: var(--night-2); color: var(--night-ink); font-family: var(--mono); font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.hero-goal input { min-height: 54px; padding-inline: 1.2rem; border-color: color-mix(in srgb, var(--night-ink-2) 55%, var(--night)); border-radius: 999px; background: var(--night-2); color: var(--night-ink); font-family: var(--mono); font-size: 1.25rem; font-variant-numeric: tabular-nums; }
 .hero-goal input::placeholder { color: var(--night-ink-2); opacity: .75; }
 .hero-goal input:hover { border-color: var(--night-ink-2); }
 .hero-goal input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(244, 178, 62, .22); }
@@ -205,6 +209,8 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .hero-door-text { font-size: .875rem; line-height: 1.35; color: var(--night-ink-2); }
 .hero-door-go { color: var(--orange); transition: transform .2s var(--ease); }
 .hero-door:hover .hero-door-go { transform: translateX(3px); }
+/* From 380 px down a narrower title column keeps each way in on one line at 360 px. */
+@media (max-width: 380px) { .hero-door { grid-template-columns: 6.6rem minmax(0, 1fr) auto; gap: .2rem .75rem; } }
 .hero-intro .hero-dek { margin-top: 0; }
 .hero .chapter-more { color: var(--night-ink); }
 .hero .chapter-more:hover { color: var(--gold); }

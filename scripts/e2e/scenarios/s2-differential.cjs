@@ -116,8 +116,8 @@ const CASES = {
   'home': { path: '/', async drive(page, v, log) { await step(log, 'my finish', () => type(page, '#my-finish', v.marathon)); } },
   // The "make it yours" hero (experiment home-hero-v1), forced for this tab: a time typed as h:mm opens the pacing
   // analysis with it as whole minutes in the address (`?goal=197`), which analytics strips. The time, in every form the
-  // page holds it (as typed, as the field shows it after leaving it, in seconds, in minutes, as the address's goal),
-  // must appear nowhere in the PostHog traffic: not in an event, a page address or a recording.
+  // page may hold it (as typed, which the field keeps after leaving it, with seconds, in seconds, in minutes, as the
+  // address's goal), must appear nowhere in the PostHog traffic: not in an event, a page address or a recording.
   'home-hero': { path: '/', options: v => ({ plant: { session: { 'pace-notes-exp:home-hero-v1': 'make-it-yours' } },
     needles: [`${v.hm}:00`, String(Number(v.goalMin) * 60), `goal=${v.goalMin}`, `goal%3D${v.goalMin}`].map(token) }),
   async drive(page, v, log) {

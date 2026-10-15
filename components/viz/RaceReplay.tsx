@@ -89,7 +89,9 @@ export default function RaceReplay({ edition, defaultSpeed = 600, height = 460, 
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const reduced = usePrefersReducedMotion();
-  const inView = useInView(wrap, '0px');
+  // On screen once its top is above the screen's bottom fifth: a replay that only peeks in under a phone's first screen
+  // (its clock showing, the field not) stays still while the page loads.
+  const inView = useInView(wrap, '0px 0px -20% 0px');
   const { units } = useUnits();
   const [width, setWidth] = useState(960);
   const [time, setTime] = useState(0);

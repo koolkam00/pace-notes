@@ -184,7 +184,7 @@ export default function PaceCalculator() {
                   <Stat label={`Pace /${units}`} value={formatDuration(perUnit(paceKm!, units))} sub={`${fmtPace(paceKm!, units === 'mi' ? 'km' : 'mi')}`} />
                   <Stat label="Treadmill speed" value={units === 'mi' ? mph(paceKm!).toFixed(1) : kmh(paceKm!).toFixed(1)} sub={units === 'mi' ? `mph · ${kmh(paceKm!).toFixed(1)} km/h` : `km/h · ${mph(paceKm!).toFixed(1)} mph`} />
                 </div>
-                {goalMinutes !== null ? <MarathonHandoffs label="With this marathon time" minutes={goalMinutes} /> : null}
+                {goalMinutes !== null ? <MarathonHandoffs label="With this marathon time" seconds={shownSeconds!} /> : null}
 
                 <EvidencePanel title="Splits at an even pace" meta="Elapsed time at each split if every step is run at the same pace. Rows marked as timing mats match the 5 km checkpoints official trackers show.">
                   <div className="tool-split-controls no-print">

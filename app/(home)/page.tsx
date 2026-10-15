@@ -201,7 +201,7 @@ export default function Page() {
       <div className="chapter-body"><BreakEven /></div>
       <div className="chapter-links">
         <Link className="chapter-more" href="/stories/places">More on places gained and lost <span aria-hidden="true">→</span></Link>
-        <TryLink href="/tools/projector">Project a finish from any timing mat</TryLink>
+        <TryLink href="/tools/projector">Project a finish from any 5 km mat</TryLink>
       </div>
     </section>
 

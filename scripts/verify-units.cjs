@@ -54,7 +54,9 @@ assert.deepEqual(exampleMiles, { ticks: [480, 510, 540, 570, 600, 630], domain: 
 assert.deepEqual(tickLabels(exampleMiles, 'mi'), ['8:00', '8:30', '9:00', '9:30', '10:00', '10:30'], 'A tick label reads back as its own grid value');
 assert.deepEqual(paceTicks(5.13 * 60, 6.49 * 60, 'km'), { ticks: [300, 330, 360, 390], domain: [300, 390] }, 'Seven 0:15/km ticks are too many: 0:30/km');
 assert.deepEqual(paceTicks(5.1 * 60, 5.9 * 60, 'km').ticks, [300, 315, 330, 345, 360], 'A narrow kilometre range keeps a 0:15 grid');
-assert.deepEqual(paceTicks(540, 545, 'mi'), { ticks: [540, 570], domain: [540, 570] }, 'A narrow mile range keeps the 0:30 grid, two ticks at least');
+assert.deepEqual(paceTicks(552, 590, 'mi').ticks, [540, 555, 570, 585, 600], 'A narrow mile range (9:12 to 9:50) takes 0:15, where 0:30 would leave three ticks');
+assert.deepEqual(paceTicks(540, 545, 'mi'), { ticks: [540, 555], domain: [540, 555] }, 'Two ticks at least');
+assert.deepEqual(paceTicks(495, 585, 'mi').ticks, [480, 510, 540, 570, 600], 'Miles keep 0:30 when it gives four ticks or more');
 assert.deepEqual(paceTicks(540, 540, 'km').ticks, [540, 555], 'One value still gets an axis');
 assert.deepEqual(paceTicks(480, 600, 'mi').ticks, [480, 510, 540, 570, 600], 'Values on the grid add no tick beyond them');
 assert.deepEqual(paceTicks(480 + 1e-9, 600 - 1e-9, 'mi').ticks, [480, 510, 540, 570, 600], 'A rounding error does not add a tick');
@@ -66,7 +68,11 @@ for (let lo = 240; lo < 900; lo += 7.3) for (const span of [4, 45, 130, 260, 600
   const axis = paceTicks(lo, lo + span, units);
   assert.ok(axis.domain[0] <= lo + 1e-6 && axis.domain[1] >= lo + span - 1e-6, 'The axis covers every value');
   assert.ok(axis.ticks.length >= 2 && axis.ticks.length <= 6);
-  assert.ok(axis.ticks.every(t => t % (units === 'mi' ? 30 : 15) === 0), `${units} ticks sit on the ${units === 'mi' ? '0:30' : '0:15'} grid`);
+  assert.ok(axis.ticks.every(t => t % 15 === 0), `${units} ticks sit on the 0:15 grid`);
+  if (units === 'mi' && axis.ticks[1] - axis.ticks[0] === 15) {
+    const lo30 = Math.floor(lo / 30 + 1e-9) * 30, hi30 = Math.max(lo30 + 30, Math.ceil((lo + span) / 30 - 1e-9) * 30);
+    assert.ok((hi30 - lo30) / 30 + 1 < 4, 'Miles take 0:15 only where 0:30 would leave fewer than four ticks');
+  }
   assert.equal(axis.ticks[0], axis.domain[0]); assert.equal(axis.ticks[axis.ticks.length - 1], axis.domain[1]);
 }
 
@@ -314,7 +320,7 @@ assert.match(render(profileSpec, 'km'), /40–42\.195 km/);
 assert.equal(JSON.stringify(profileSpec), sourceProfile, 'Rendering both modes must preserve all source values');
 // The real pacing-pattern chart's axis in both units: every value covered, every label on its own grid.
 const profilePaces = profileSpec.rows.flatMap(row => profileSpec.series.map(series => row[series.key] * 60));
-for (const [units, ending] of [['mi', /:(?:00|30)$/], ['km', /:(?:00|15|30|45)$/]]) {
+for (const [units, ending] of [['mi', /:(?:00|15|30|45)$/], ['km', /:(?:00|15|30|45)$/]]) {
   const shown = profilePaces.map(seconds => paceValue(seconds, units));
   const axis = paceTicks(Math.min(...shown), Math.max(...shown), units);
   assert.ok(axis.domain[0] <= Math.min(...shown) && axis.domain[1] >= Math.max(...shown), `${units}: the pacing-pattern axis covers every pace`);

@@ -61,10 +61,12 @@
   --accent: var(--blue-ink);
   --panel: var(--paper-2);
   /* Type */
-  --serif: 'Fraunces Variable', 'Fraunces', 'Fraunces Fallback', 'Fraunces Fallback Android', Georgia, 'Times New Roman', serif;
-  --sans: 'Inter Variable', 'Inter', 'Inter Fallback', 'Inter Fallback Android', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --mono: 'JetBrains Mono Variable', 'JetBrains Mono', 'JetBrains Mono Fallback', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --bib: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', 'Bricolage Grotesque Fallback', var(--sans);
+  /* Each web font's metric-matched fallback comes before the same family installed on the device: an installed static
+     Inter draws the 650 of bold copy at 700, so it rewraps a paragraph when the web font arrives and the fallback does not. */
+  --serif: 'Fraunces Variable', 'Fraunces Fallback', 'Fraunces Fallback Android', 'Fraunces', Georgia, 'Times New Roman', serif;
+  --sans: 'Inter Variable', 'Inter Fallback', 'Inter Fallback Android', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'JetBrains Mono Variable', 'JetBrains Mono Fallback', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --bib: 'Bricolage Grotesque Variable', 'Bricolage Grotesque Fallback', 'Bricolage Grotesque', var(--sans);
   /* Shape */
   --radius: 14px;
   --radius-sm: 9px;
@@ -214,6 +216,8 @@ summary::marker { color: var(--orange); font-size: .8em; }
 @media (max-width: 720px) {
   .site-header { transition: transform .25s var(--ease); }
   .site-header[data-hidden] { transform: translateY(-100%); }
+  /* Open, the row and its panel are one solid sheet, so a night section does not tint the row through the blur. */
+  .site-header[data-open] { background: var(--paper); }
   .header-inner { flex-wrap: nowrap; min-height: 56px; padding-block: .5rem; gap: .5rem; }
   .header-credit { display: none; }
   .header-controls { display: flex; gap: .5rem; margin-left: auto; }
@@ -641,7 +645,7 @@ summary::marker { color: var(--orange); font-size: .8em; }
 /* No match: the marathons searched, then cards like the tools' "More tools" (app/tools/tools.css .tool-next). */
 .runner-nomatch { margin-top: 1.25rem; display: grid; gap: 1.5rem; }
 .runner-covered { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.runner-covered ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); gap: .1rem 1.5rem; list-style: none; padding: 0; margin: .2rem 0 .8rem; }
+.runner-covered ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap: .1rem 1.5rem; list-style: none; padding: 0; margin: .2rem 0 .8rem; }
 .runner-covered li + li { margin-top: 0; }
 .runner-covered li { display: flex; justify-content: space-between; align-items: baseline; gap: .75rem; padding: .35rem 0; border-bottom: 1px solid var(--paper-3); font-size: .875rem; }
 .runner-covered small { font-family: var(--mono); font-size: .6875rem; color: var(--ink-3); white-space: nowrap; }

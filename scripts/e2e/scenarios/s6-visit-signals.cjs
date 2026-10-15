@@ -434,6 +434,40 @@ async function heroGoalFailure(h) {
   h.check('once the file loads, the same press opens the analysis with the time in minutes', opened);
 }
 
+// Pressing the button first takes focus from the field, so on a slow phone both of the box's checks wait for the time
+// parsing together: the text the field tidies to (4.15 becomes 4:15) must not cancel the press. Digits alone, which
+// the tools read as minutes, are shown as the time they read as on the first press and used on the second.
+async function heroGoalPress(h) {
+  const chunks = parserChunks(h.out);
+  const run = await h.run('time box pressed while its parsing loads', { ...PHONE, plant: { session: { 'pace-notes-exp:home-hero-v1': 'make-it-yours' } }, needles: ['4\\.15', '4:15', '415', '6:55'].map(v => new RegExp(`(^|[^0-9a-z:.-])${v}($|[^0-9a-z:.-])`)) });
+  const undelay = run.delay(url => chunks.has(url.pathname), 1500);
+  const page = await run.newPage();
+  const field = page.locator('#hero-goal-time');
+  const button = page.getByRole('button', { name: /See how finishers near your time paced/ });
+  const analysis = goal => page.waitForURL(url => new URL(url).pathname === '/analyses/pacing-pattern' && new URL(url).search === `?goal=${goal}`, { timeout: 15000 }).then(() => true, () => false);
+  await page.goto(SITE + '/', { waitUntil: 'load' });
+  await field.click();
+  await field.pressSequentially('4.15', { delay: 15 });
+  await button.click();
+  const opened = await analysis(255);
+  undelay();
+  await page.goto(SITE + '/', { waitUntil: 'load' });
+  await field.click();
+  await field.pressSequentially('415', { delay: 15 });
+  await button.click();
+  const shown = await waitFor(async () => /415 minutes \(6:55\)/.test(await page.locator('#hero-goal-time-hint').textContent()), 8000);
+  await page.waitForTimeout(500);
+  const stayed = { path: new URL(page.url()).pathname, value: await field.inputValue() };
+  await button.click();
+  const second = await analysis(415);
+  await page.waitForTimeout(1500);
+  await run.closePage(page, { unload: true });
+  await run.close();
+  h.check('a press while the time parsing loads still opens the analysis', opened, page.url());
+  h.check('digits alone: the first press shows them as minutes and stays on the page', shown && stayed.path === '/' && stayed.value === '6:55', stayed);
+  h.check('the second press opens the analysis at those minutes', second);
+}
+
 // Every page that fetches data, with each of its data requests failing. Tools are taken from the registry.
 const ERROR_STATE = '.tool-state.is-error, .projector-quick-text.is-error, [role="alert"], .feedback-error, .guide-error';
 const OTHER_DATA_PAGES = [
@@ -480,7 +514,7 @@ module.exports = {
       { name: 'experiment before first paint', weight: 14, run: paintOrder },
       { name: 'error page', weight: 20, run: errorPages },
       { name: 'failed file on a direct load', weight: 14, run: reloadedPage },
-      ...(quick ? [] : [{ name: 'home time box chunk failing', weight: 12, run: heroGoalFailure }]),
+      ...(quick ? [] : [{ name: 'home time box chunk failing', weight: 12, run: heroGoalFailure }, { name: 'home time box pressed while loading', weight: 10, run: heroGoalPress }]),
       ...targets.filter(t => !quick || ['/tools/pace-band', '/'].includes(t.path)).map(t => ({ name: `data failure ${t.label || t.path}`, weight: t.needsData === false ? 4 : 3, run: h => dataFailure(h, t) })),
     ];
   },

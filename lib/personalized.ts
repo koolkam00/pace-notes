@@ -74,8 +74,12 @@ const profileChart = (row: Distribution, title: string): ChartSpec => ({
 
 export function buildGuide(data: CityData, summary: PersonalSummary, profile: Profile): GuideAnswer[] {
   const target = profile.goal, bucket = String(targetBucket(target));
+  // Already every course and runner: there is nothing broader to suggest, and the finish time is what lacks finishes.
+  const broadest = profile.city === 'All courses' && profile.age === 'all' && profile.gender === 'all' && profile.previous === null;
   return PERSONAL_QUESTIONS.map(question => {
-    const answer: GuideAnswer = { ...question, answer: 'There are not enough eligible observations for this comparison on the selected course.', detail: 'Choose a broader profile or All courses. A missing result is never filled with an invented estimate.', charts: [] };
+    const answer: GuideAnswer = broadest
+      ? { ...question, answer: 'There are not enough eligible observations for this comparison at this finish time.', detail: 'Every course and runner is already included. A missing result is never filled with an invented estimate.', charts: [] }
+      : { ...question, answer: 'There are not enough eligible observations for this comparison on the selected course.', detail: 'Choose a broader profile or All courses. A missing result is never filled with an invented estimate.', charts: [] };
     const use = (cohort: PersonalCohort, sample: Sample = cohort) => {
       answer.comparison = comparisonLabel(data.city, cohort); answer.widened = widening(profile, cohort); answer.sample = sample;
     };

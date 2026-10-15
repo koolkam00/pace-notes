@@ -123,18 +123,23 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   const React = require('react');
   const { renderToStaticMarkup } = require('react-dom/server');
   const { MarathonHandoffs } = require('../components/tools/Handoffs.tsx');
-  const handoffs = (minutes) => renderToStaticMarkup(React.createElement(MarathonHandoffs, { label: 'With this estimate', minutes }));
+  const handoffs = (minutes, extra = 0) => renderToStaticMarkup(React.createElement(MarathonHandoffs, { label: 'With this estimate', seconds: minutes * 60 + extra }));
   const hrefs = (html) => [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
   assert.deepEqual(hrefs(handoffs(237)), ['/tools/pace-band?goal=3:57', '/analyses/pacing-pattern?goal=237']); ok();
   assert.match(handoffs(237), /Turn this into a pace band[\s\S]*mat times of finishes that just beat it[\s\S]*See how finishers near this time paced/); ok();
   assert.match(handoffs(140), /Even splits for 2:20, ready to print/, 'Outside 2:30–6:30 the pace band has no observed mat times'); ok();
   assert.deepEqual(hrefs(handoffs(600)), ['/analyses/pacing-pattern?goal=600'], 'Past the pace band\'s 8:00 only the analysis link stays'); ok();
   assert.equal(handoffs(60), '', 'Nothing to hand off outside both ranges'); ok();
+  // A time with seconds opens both at the minute at or below it, and the band's card says which minute that is.
+  assert.deepEqual(hrefs(handoffs(251, 41)), ['/tools/pace-band?goal=4:11', '/analyses/pacing-pattern?goal=251']); ok();
+  assert.match(handoffs(251, 41), /Even splits for 4:11 \(the minute at or below 4:11:41\), beside/); ok();
+  assert.doesNotMatch(handoffs(251), /minute at or below/, 'A whole-minute time needs no note'); ok();
   assert.doesNotMatch(handoffs(237), /<button|your chance|arithmetic/i, 'Links only (never counted as a tool edit), in the site\'s words'); ok();
   // Each tool hands on the whole minute at or below its time, the way every tool reads 4:11:41 as 4:11.
   const source = (name) => fs.readFileSync(path.join(__dirname, '..', 'components/tools', name), 'utf8');
-  assert.match(source('Predictor.tsx'), /const medianMinute = est\?\.range \? goalMinute\(est\.range\.median\) : null;[\s\S]*<MarathonHandoffs label="With this estimate" minutes=\{medianMinute \/ 60\} \/>/); ok();
-  assert.match(source('PaceCalculator.tsx'), /const goalMinutes = shownSeconds !== null && isMarathon \? Math\.floor\(shownSeconds \/ 60\) : null;[\s\S]*<MarathonHandoffs label="With this marathon time" minutes=\{goalMinutes\} \/>/); ok();
+  assert.match(source('Predictor.tsx'), /\{est\.range \? <MarathonHandoffs label="With this estimate" seconds=\{Math\.round\(est\.range\.median\)\} \/> : null\}/); ok();
+  assert.match(source('PaceCalculator.tsx'), /const shownSeconds = ready \? Math\.round\(seconds!\) : null;[\s\S]*<MarathonHandoffs label="With this marathon time" seconds=\{shownSeconds!\} \/>/); ok();
+  assert.match(source('Handoffs.tsx'), /const minutes = Math\.floor\(seconds \/ 60\);/, 'The cards take the minute at or below the time'); ok();
 }
 
 // ---- goal-page sentences (lib/tools/goal-facts.ts): built only from a goal's pace-band values; checked on fixed inputs
