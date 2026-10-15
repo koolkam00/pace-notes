@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useMemo, useState } from 'react';
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { distanceLabel, distanceValue, elevationLabel, paceLabel, paceTicks, paceValue, unitText, type UnitSystem } from '@/lib/units';
+import { distanceLabel, distanceValue, elevationLabel, paceLabel, paceValue, unitText, type UnitSystem } from '@/lib/units';
+import { paceTicks } from '@/lib/pace-ticks';
 import { runnerDuration, runnerMetrics, type RunnerManifest, type RunnerMetrics, type RunnerRace } from '@/lib/runner-search';
 import { UnitLink } from './UnitsProvider';
 import { splitCheckHref } from '@/lib/tools/links';

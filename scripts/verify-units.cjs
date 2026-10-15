@@ -13,8 +13,9 @@ Module._resolveFilename = function (request, ...args) {
 };
 const {
   DEFAULT_UNITS, KM_PER_MILE, METRES_PER_FOOT, distanceValue, distanceLabel,
-  paceValue, paceLabel, paceTicks, elevationValue, elevationLabel, unitText,
+  paceValue, paceLabel, elevationValue, elevationLabel, unitText,
 } = require(path.join(__dirname, '../lib/units.ts'));
+const { paceTicks } = require(path.join(__dirname, '../lib/pace-ticks.ts'));
 
 assert.equal(DEFAULT_UNITS, 'mi');
 assert.equal(KM_PER_MILE, 1.609344);

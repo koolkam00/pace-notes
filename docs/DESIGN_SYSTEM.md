@@ -84,7 +84,7 @@ The fonts are self-hosted through `@fontsource-variable/*`, imported in `app/lay
   - Anything shown only on hover also has a keyboard path: a range input (`.heat-slider`), a select, or arrow keys with a roving `tabIndex` (the same-course pairs grid).
   - Repeated controls on one page get distinct accessible names (for example each replay chart's race picker).
   - Tick density adapts to width; nine-section axes switch to boundary labels on narrow screens (`SectionAxis`).
-  - Pace axes tick on a round minutes:seconds grid in the units shown: every 0:30 per mile (whole minutes for a wide range), every 0:15 or 0:30 per kilometre (`paceTicks` in `lib/units.ts`). Never convert a kilometre grid, which reads 8:15, 8:48, 9:21/mi. Distance axes of section charts tick at the recorded section ends.
+  - Pace axes tick on a round minutes:seconds grid in the units shown: every 0:30 per mile (whole minutes for a wide range), every 0:15 or 0:30 per kilometre (`paceTicks` in `lib/pace-ticks.ts`). Never convert a kilometre grid, which reads 8:15, 8:48, 9:21/mi. Distance axes of section charts tick at the recorded section ends.
   - Charts never depend on colour alone when a label fits.
 - **Server and client.**
   - Story bodies are server components. Each wraps its section in `<StoryData value={{ … }}>` (`components/story/StoryData.tsx`) so a dataset crosses to the browser once; charts read it with `useStoryData(key, given)`. Passing the same object to several client components makes React serialize it twice, which doubled the story pages.
