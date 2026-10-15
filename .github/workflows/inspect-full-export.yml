@@ -21,7 +21,7 @@ permissions:
 jobs:
   inspect:
     if: >-
-      github.repository == 'koolkam00/htw-live-study'
+      github.repository == 'koolkam00/pace-notes'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
