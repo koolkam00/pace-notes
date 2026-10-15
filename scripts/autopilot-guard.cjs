@@ -165,6 +165,8 @@ const METRIC_NAME = /^[a-z][a-z0-9_]*@v\d+$/;
  * guardrails, so they register a minimum sample and at least one guardrail.
  */
 const JUDGED_KINDS = ['change', 'experiment'];
+/** ledgerEntryProblems() messages for rules that bind new entries only; an existing line that breaks them only warns. */
+const NEW_ENTRY_ONLY = /^(?:a change requires "min_sample"|"(?:hypothesis|decision_rule)" is empty$)/;
 
 // ---------- Small helpers ----------
 
@@ -587,7 +589,14 @@ function checkLedger(baseText, headText, { violations, warnings, branchDate, bra
       for (const problem of ledgerEntryProblems(old.value)) w(old.number, `${problem} (already on the base)`);
       continue;
     }
-    for (const problem of [...existingEntryProblems(old.value, now.value), ...ledgerEntryProblems(now.value)]) v(now.number, `entry "${old.value.id}": ${problem}`);
+    // A change's minimum sample and a nonblank hypothesis and decision rule are asked of new entries. Those fields never
+    // change, so an edit neither caused a gap the base line already had nor can fill it: it stays a warning, and the
+    // line can still be shipped, concluded or reverted.
+    const inherited = new Set(ledgerEntryProblems(old.value).filter((problem) => NEW_ENTRY_ONLY.test(problem)));
+    for (const problem of [...existingEntryProblems(old.value, now.value), ...ledgerEntryProblems(now.value)]) {
+      if (inherited.has(problem)) w(now.number, `entry "${old.value.id}": ${problem} (already on the base)`);
+      else v(now.number, `entry "${old.value.id}": ${problem}`);
+    }
   }
   const added = head.filter((entry) => !taken.has(entry));
   if (!added.length && !bookkeeping) v(null, `adds no line (the base has ${base.length}, the head ${head.length}); append one entry for this change (only a pull request that changes nothing but existing ledger lines, autopilot/backlog.md and autopilot/LEARNINGS.md needs none)`);
@@ -1425,7 +1434,8 @@ function selfTest() {
     const invalidExperimentBase = untidyBase('base-invalid-experiment', `${oldExperiment({ min_sample: undefined, max_days: 43 })}\n`);
     expect('unchanged historical experiment schema errors are warnings', { base: invalidExperimentBase, setup: () => {}, warned: ['requires "min_sample"', 'requires "max_days"'] });
     expect('edited historical experiment still has its schema checked', { base: invalidExperimentBase, ledger: false, setup: () => write(LEDGER, `${oldExperiment({ min_sample: undefined, max_days: 43, notes: 'Still running.' })}\n`), rules: ['ledger'], messages: ['requires "min_sample"', 'requires "max_days"'] });
-    // The same for a change: its minimum sample is fixed once registered, and a blank or missing one on the base only warns while untouched.
+    // A change's minimum sample is fixed once registered too. A base line without one, or with a blank hypothesis or
+    // decision rule, only warns, also when a bookkeeping pull request ships, concludes or reverts it: it cannot be filled in.
     const oldChange = (extra = {}) => entry('2026-10-01-change', extra);
     const changeBase = untidyBase('base-change', `${oldChange()}\n`);
     expect('bookkeeping ships a change with its registered minimum sample', { base: changeBase, ledger: false, setup: () => write(LEDGER, `${oldChange({ status: 'shipped', pr: 59, shipped_on: '2026-10-03' })}\n`) });
@@ -1435,7 +1445,18 @@ function selfTest() {
     const UNREGISTERED = { min_sample: undefined, hypothesis: ' ', decision_rule: '' };
     const invalidChangeBase = untidyBase('base-invalid-change', `${oldChange(UNREGISTERED)}\n`);
     expect('an untouched historical change without a minimum sample or with blank text only warns', { base: invalidChangeBase, setup: () => write('components/Card.tsx', 'export const y = 2;\n'), warned: ['a change requires "min_sample"', '"hypothesis" is empty', '"decision_rule" is empty'] });
-    expect('an edited historical change still has its pre-registration checked', { base: invalidChangeBase, ledger: false, setup: () => write(LEDGER, `${oldChange({ ...UNREGISTERED, notes: 'Still waiting.' })}\n`), rules: ['ledger'], messages: ['a change requires "min_sample"', '"hypothesis" is empty', '"decision_rule" is empty'] });
+    const inherited = ['a change requires "min_sample" to be a positive safe integer (already on the base)', '"hypothesis" is empty (already on the base)', '"decision_rule" is empty (already on the base)'];
+    const LEGACY_SHIPPING = { pr: 59, shipped_on: '2026-10-03' };
+    for (const [label, extra] of [
+      ['a note added to', { notes: 'Still waiting.' }],
+      ['shipping', { status: 'shipped', ...LEGACY_SHIPPING }],
+      ['concluding', { status: 'concluded', ...LEGACY_SHIPPING, verdict: 'keep', result: { rate: 0.45, n: 200 }, evaluated_on: '2026-10-20' }],
+      ['reverting', { status: 'reverted', ...LEGACY_SHIPPING, verdict: 'revert', evaluated_on: '2026-10-05', notes: 'Worse on phones; reverted in #61.' }],
+    ]) {
+      expect(`${label} a historical change without a minimum sample or with blank text only warns`, { base: invalidChangeBase, ledger: false, setup: () => write(LEDGER, `${oldChange({ ...UNREGISTERED, ...extra })}\n`), warned: inherited });
+    }
+    expect('a historical change cannot be given a minimum sample later', { base: invalidChangeBase, ledger: false, setup: () => write(LEDGER, `${oldChange({ ...UNREGISTERED, min_sample: 150 })}\n`), rules: ['ledger'], messages: ['changed "min_sample"'], absent: ['a change requires "min_sample"', '"hypothesis" is empty'], warned: ['"hypothesis" is empty (already on the base)'] });
+    expect('a historical change cannot be turned into an experiment without stopping rules', { base: invalidChangeBase, ledger: false, setup: () => write(LEDGER, `${oldChange({ ...UNREGISTERED, kind: 'experiment', experiment: 'home-hero', pages: ['/'] })}\n`), rules: ['ledger'], messages: ['changed "kind"', 'an experiment requires "min_sample"', 'an experiment requires "max_days"'] });
     const shippedBase = untidyBase('base-shipped', `${entry('2026-10-01-first', { ...FIRST, shipped_on: '2026-10-02' })}\n`);
     expect('a ship date changed once set', { base: shippedBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, shipped_on: '2026-10-03' })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"shipped_on" was already'] });
 
@@ -1531,6 +1552,7 @@ function selfTest() {
     expect('a broken line on the base is a warning', { base: brokenBase, setup: () => {}, warned: ['does not parse as JSON', 'already on the base'] });
     expect('a broken base line repaired with registered metrics', { base: brokenBase, ledger: false, setup: () => write(LEDGER, `${repair()}${proposal()}\n`) });
     expect('a broken base line repaired with an invented metric and no guardrail', { base: brokenBase, ledger: false, setup: () => write(LEDGER, `${repair({ primary_metric: 'made_up_metric', guardrails: [] })}${proposal()}\n`), rules: ['ledger'], messages: ['"primary_metric" "made_up_metric" is not a metric defined', '"guardrails" is empty; a "change" entry needs at least one'] });
+    expect('a broken base line repaired without a minimum sample or with blank text', { base: brokenBase, ledger: false, setup: () => write(LEDGER, `${repair(UNREGISTERED)}${proposal()}\n`), rules: ['ledger'], messages: ['a change requires "min_sample"', '"hypothesis" is empty', '"decision_rule" is empty'] });
     expect('a broken base line repaired with an invented guardrail by a bookkeeping pull request', { base: brokenBase, ledger: false, setup: () => write(LEDGER, repair({ guardrails: ['bounce'] })), rules: ['ledger'], messages: ['"guardrails" "bounce" is not a metric'] });
     run('checkout', '-q', '-f', brokenBase); run('checkout', '-q', '-B', 'base-broken-no-metrics'); remove(METRICS); run('add', '-A'); run('commit', '-q', '-m', 'broken line, no metrics');
     expect('a repaired base line fails closed without the metrics file', { base: 'base-broken-no-metrics', ledger: false, setup: () => write(LEDGER, repair()), rules: ['ledger'], messages: [`${METRICS}:null is missing on the base`] });
