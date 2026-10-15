@@ -99,7 +99,7 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.equal(chart.formatTenths(59.96), '1:00.0'); assert.equal(chart.formatTenths(3725.25), '1:02:05.3'); checks += 2;
 }
 
-// ---- handoffs from a result (MarathonHandoffs in components/tools/ui.tsx): the predictor's median estimate and the pace
+// ---- handoffs from a result (MarathonHandoffs in components/tools/Handoffs.tsx): the predictor's median estimate and the pace
 // calculator's marathon time open the pace band and the pacing-pattern analysis with the time filled in, in the forms
 // those pages read and inside the ranges they take, as if typed there.
 {
@@ -122,7 +122,7 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
 
   const React = require('react');
   const { renderToStaticMarkup } = require('react-dom/server');
-  const { MarathonHandoffs } = require('../components/tools/ui.tsx');
+  const { MarathonHandoffs } = require('../components/tools/Handoffs.tsx');
   const handoffs = (minutes) => renderToStaticMarkup(React.createElement(MarathonHandoffs, { label: 'With this estimate', minutes }));
   const hrefs = (html) => [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
   assert.deepEqual(hrefs(handoffs(237)), ['/tools/pace-band?goal=3:57', '/analyses/pacing-pattern?goal=237']); ok();

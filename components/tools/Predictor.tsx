@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { Choice, DataState, DurationField, EvidencePanel, ExampleNote, MarathonHandoffs, ShareBar, Stat } from '@/components/tools/ui';
+import { Choice, DataState, DurationField, EvidencePanel, ExampleNote, ShareBar, Stat } from '@/components/tools/ui';
+import { MarathonHandoffs } from '@/components/tools/Handoffs';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
 import { loadInsight } from '@/lib/insights';

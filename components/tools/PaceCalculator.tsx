@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useMemo, useState } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { Choice, DurationField, EvidencePanel, ExampleNote, MarathonHandoffs, ShareBar, Stat } from '@/components/tools/ui';
+import { Choice, DurationField, EvidencePanel, ExampleNote, ShareBar, Stat } from '@/components/tools/ui';
+import { MarathonHandoffs } from '@/components/tools/Handoffs';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { DISTANCES, MARATHON_KM, SPLIT_KM, kmh, mph, paceChart, paceFrom, perKm, perUnit, splitTable, unitKm, type SplitInterval } from '@/lib/tools/pace';
 import { formatDuration, parseDuration } from '@/lib/tools/time';
