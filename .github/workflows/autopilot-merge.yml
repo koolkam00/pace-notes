@@ -7,7 +7,7 @@ name: Autopilot merge
 #
 # Five jobs, so that the two that open pages in a browser (the pull request's preview, and production after the
 # merge) run on machines of their own with a read-only token and no credentials on disk:
-#   gate     check every gate and output the first eligible pull request (writes status comments and incidents)
+#   gate     check every gate and output the eligible pull request, if any (writes status comments and incidents)
 #   preview  smoke test and verify:seo:live on the pull request's Vercel preview, then a full smoke test of
 #            production as a baseline (read-only)
 #   merge    record the preview checks, squash-merge pinned to the checked commit, wait for the production deploy

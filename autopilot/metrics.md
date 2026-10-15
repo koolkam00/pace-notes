@@ -212,6 +212,7 @@ Each entry is a single line; the example below is one line too (scroll sideways)
 ```
 
 - `id` is `YYYY-MM-DD-slug`, unique. For a change's own entry it is the branch name without `autopilot/`, so its pull request can be found later.
+- `primary_metric` is one metric name from the §1 table, written exactly as there, version included (`answered_visit_rate@v1`). `guardrails` is a list of such names: at least one for `change` and `experiment`, and possibly none for `fix`, `revert` and `conclude`. The guard refuses any other name in a new entry, such as a name without its version or one that only appears outside the §1 table. To measure something new, the owner adds it to §1 first.
 - `kind` is one of `change`, `experiment`, `conclude`, `revert` or `fix`. `evaluate_after` is a date, or null for `fix`, `revert` and `conclude`, which are not judged later.
 - `status` is one of `proposed`, `shipped`, `reverted` or `concluded`.
 - `verdict` is null or one of `keep`, `revert`, `inconclusive`, `iterate`, `ship-variant` or `keep-control`.

@@ -153,8 +153,8 @@ Priority:
    - `AGENTS.md` asks for handoff documents to be updated; that does not apply to autopilot runs. They never edit `docs/PROJECT_HANDOFF.md`, `AGENTS.md`, `docs/AUTOPILOT.md` or `docs/ANALYTICS.md` (all protected). The ledger, `LEARNINGS.md` and the log issue are the record.
 3. **Pre-register.** Append one line to `autopilot/ledger.jsonl`: one JSON object on one line, with `id` equal to the branch name without `autopilot/`, `status: "proposed"`, and `pr`, `verdict`, `result` and `shipped_on` null. The schema is in `autopilot/metrics.md` §4. It must include:
    - the hypothesis, in plain words;
-   - the primary metric (normally `answered_visit_rate@v1`, or the page-level metric that matches);
-   - the guardrails;
+   - the primary metric: a name copied exactly from the table in `autopilot/metrics.md` §1, version included (normally `answered_visit_rate@v1`, or the page-level metric that matches). The guard refuses any other name;
+   - the guardrails: at least one name, again copied exactly from §1 (a `fix`, `revert` or `conclude` entry may have none). If no defined metric fits, don't invent a name: open an `autopilot:needs-owner` issue that proposes one;
    - the baseline numbers with n;
    - the minimum sample;
    - the decision rule;
@@ -181,7 +181,7 @@ Priority:
 
 ## 6. Ship
 1. Push the branch: `git push -u origin <branch>`.
-2. Open the PR. It starts as a draft per the session rules. Title it "Autopilot: <what changes, in plain words>". The body contains:
+2. Open the PR, but never a second autopilot PR while one is open (step 1.3). While two are open, the merge workflow merges neither of them. A PR counts as an autopilot PR if its branch starts with `autopilot/`, with or without the label, or if it has the `autopilot` label. It starts as a draft per the session rules. Title it "Autopilot: <what changes, in plain words>". The body contains:
    - **Why:** the evidence, as aggregates with n;
    - **What changed:** short;
    - **Screens:** describe what you saw at each width;

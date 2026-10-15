@@ -157,6 +157,11 @@ const LEDGER_STATUSES = ['proposed', 'shipped', 'reverted', 'concluded'];
 const LEDGER_NEXT = { proposed: ['shipped', 'concluded', 'reverted'], shipped: ['concluded', 'reverted'], concluded: ['reverted'], reverted: [] };
 const LEDGER_VERDICTS = ['keep', 'revert', 'inconclusive', 'iterate', 'ship-variant', 'keep-control'];
 const LEDGER_ID = /^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$/;
+/** The registered metrics: a new entry's primary_metric and guardrails are names from the §1 Definitions table, `name@vN`. */
+const METRICS = 'autopilot/metrics.md';
+const METRIC_NAME = /^[a-z][a-z0-9_]*@v\d+$/;
+/** Kinds that are judged later, against their guardrails, so they need at least one. */
+const GUARDED_KINDS = ['change', 'experiment'];
 
 // ---------- Small helpers ----------
 
@@ -431,6 +436,37 @@ function ledgerEntryProblems(value) {
 }
 
 /**
+ * The metric names autopilot/metrics.md defines: every backticked `name@vN` in the first cell of a row of its
+ * "## 1. Definitions" table. A name mentioned anywhere else (prose, the queries, the §4 example) is not defined by
+ * it. null when the file is missing; an empty set when it defines nothing.
+ */
+function metricNames(text) {
+  if (text === null || text === undefined) return null;
+  const names = new Set();
+  let inDefinitions = false;
+  for (const line of String(text).replace(/\r/g, '').split('\n')) {
+    if (/^##\s/.test(line)) { inDefinitions = /^##\s+1\.\s+Definitions\b/.test(line); continue; }
+    if (!inDefinitions || !line.trim().startsWith('|')) continue;
+    const first = line.trim().slice(1).split('|')[0];
+    for (const [, name] of first.matchAll(/`([^`]*)`/g)) if (METRIC_NAME.test(name)) names.add(name);
+  }
+  return names;
+}
+
+/** primary_metric and every guardrail must be a defined name, exactly; a change or an experiment names at least one guardrail. */
+function metricProblems(value, names) {
+  const problems = [];
+  const choices = `use ${names.size === 1 ? 'its name' : 'one of its names'} exactly: ${[...names].join(', ')}`;
+  if (typeof value.primary_metric === 'string' && !names.has(value.primary_metric)) problems.push(`"primary_metric" ${brief(value.primary_metric)} is not a metric defined in ${METRICS} §1; ${choices}`);
+  if (Array.isArray(value.guardrails)) {
+    const unknown = value.guardrails.filter((name) => typeof name !== 'string' || !names.has(name));
+    if (unknown.length) problems.push(`"guardrails" ${unknown.map(brief).join(', ')} ${unknown.length === 1 ? 'is not a metric' : 'are not metrics'} defined in ${METRICS} §1; ${choices}`);
+    if (!value.guardrails.length && GUARDED_KINDS.includes(value.kind)) problems.push(`"guardrails" is empty; ${value.kind === 'experiment' ? 'an' : 'a'} "${value.kind}" entry needs at least one from ${METRICS} §1 (only fix, revert and conclude entries may have none)`);
+  }
+  return problems;
+}
+
+/**
  * A new entry is pre-registered: proposed, with no verdict, no result and no shipped_on (it is marked shipped once its
  * pull request has merged), with the branch's id, dated within two days of the branch, naming this pull request or none.
  * The one exception is the record of an earlier change whose pull request closed without merging: status reverted, verdict null or
@@ -493,8 +529,10 @@ function existingEntryProblems(old, now) {
  * position), so a deleted line is reported once, as a deletion; every head line no base line matches is new.
  * `bookkeeping` (the pull request changes nothing but the three autopilot record files) waives the new line.
  * Otherwise the change needs its own proposed entry; records of closed-unmerged pull requests alone do not count.
+ * `metrics` is metricNames() of the base's autopilot/metrics.md: new entries must use its names, and without any
+ * (the file missing, or defining none) every new entry fails. Unknown names on existing lines are only warnings.
  */
-function checkLedger(baseText, headText, { violations, warnings, branchDate, branchId, pr, bookkeeping = false }) {
+function checkLedger(baseText, headText, { violations, warnings, branchDate, branchId, pr, bookkeeping = false, metrics = null }) {
   const v = (line, message) => violations.push({ rule: 'ledger', file: LEDGER, line, message });
   const w = (line, message) => warnings.push({ rule: 'ledger', file: LEDGER, line, message });
   const head = parseLedger(headText);
@@ -516,6 +554,7 @@ function checkLedger(baseText, headText, { violations, warnings, branchDate, bra
     const misplaced = base.findIndex((old, index) => head[index] !== matched.get(old));
     if (misplaced >= 0) v(matched.get(base[misplaced]).number, `existing entry ${idOf(base[misplaced]) ? `"${idOf(base[misplaced])}" ` : ''}moved from line ${base[misplaced].number}; existing lines stay where they are and new lines go at the end`);
   }
+  const names = metrics instanceof Set && metrics.size ? metrics : null;
   const ids = new Map();
   for (const [old, now] of matched) {
     if (old.error) {
@@ -526,6 +565,8 @@ function checkLedger(baseText, headText, { violations, warnings, branchDate, bra
       continue;
     }
     if (typeof now.value.id === 'string') ids.set(now.value.id, now.number);
+    // The metric fields never change once written (existingEntryProblems), so an unknown name here came with the base.
+    if (names) for (const problem of metricProblems(old.value, names)) w(old.number, `${problem} (already on the base)`);
     if (now.raw === old.raw) {
       for (const problem of ledgerEntryProblems(old.value)) w(old.number, `${problem} (already on the base)`);
       continue;
@@ -536,9 +577,15 @@ function checkLedger(baseText, headText, { violations, warnings, branchDate, bra
   if (!added.length && !bookkeeping) v(null, `adds no line (the base has ${base.length}, the head ${head.length}); append one entry for this change (only a pull request that changes nothing but existing ledger lines, autopilot/backlog.md and autopilot/LEARNINGS.md needs none)`);
   if (added.length && !bookkeeping && branchId && !added.some((entry) => entry.value?.id === branchId && entry.value.status === 'proposed')) v(null, `append a new "proposed" entry with id "${branchId}" for this change; a closed-unmerged record does not pre-register a site change`);
   if (added.length > LIMITS.ledgerLines) v(null, `adds ${added.length} lines; at most ${LIMITS.ledgerLines} per pull request`);
+  // Fail closed: without the registered names no new entry's metrics can be checked.
+  if (!names && added.some((entry) => !entry.error)) {
+    violations.push({ rule: 'ledger', file: METRICS, line: null, message: metrics instanceof Set
+      ? 'defines no metric names on the base (a backticked name@vN in the first column of its "## 1. Definitions" table), so the metrics of new ledger entries cannot be checked'
+      : 'is missing on the base, so the metrics of new ledger entries cannot be checked (its "## 1. Definitions" table defines the names)' });
+  }
   for (const entry of added) {
     if (entry.error) { v(entry.number, `line ${entry.error}`); continue; }
-    for (const problem of [...ledgerEntryProblems(entry.value), ...newEntryProblems(entry.value, { branchDate, branchId, pr })]) v(entry.number, problem);
+    for (const problem of [...ledgerEntryProblems(entry.value), ...newEntryProblems(entry.value, { branchDate, branchId, pr }), ...(names ? metricProblems(entry.value, names) : [])]) v(entry.number, problem);
     if (typeof entry.value.id === 'string') {
       if (ids.has(entry.value.id)) v(entry.number, `id "${entry.value.id}" is already used on line ${ids.get(entry.value.id)}`);
       else ids.set(entry.value.id, entry.number);
@@ -828,7 +875,10 @@ function check({ cwd = process.cwd(), base, head, branch, pr = null } = {}) {
   }
 
   const bookkeeping = entries.length > 0 && entries.every((entry) => [entry.oldPath, entry.newPath].filter(Boolean).every((file) => BOOKKEEPING.includes(file)));
-  checkLedger(showFile(cwd, mergeBase, LEDGER), showFile(cwd, headSha, LEDGER), { violations, warnings: result.warnings, branchDate, branchId, pr, bookkeeping });
+  // Metric names come from the base ref itself: autopilot/metrics.md is protected, so the head's copy is the same on
+  // an autopilot pull request, and a pull request cannot register a name for its own entry.
+  const metrics = metricNames(showFile(cwd, baseSha, METRICS));
+  checkLedger(showFile(cwd, mergeBase, LEDGER), showFile(cwd, headSha, LEDGER), { violations, warnings: result.warnings, branchDate, branchId, pr, bookkeeping, metrics });
   checkExperiments(showFile(cwd, mergeBase, LEDGER), showFile(cwd, headSha, LEDGER), showFile(cwd, mergeBase, EXPERIMENT_REGISTRY), showFile(cwd, headSha, EXPERIMENT_REGISTRY), violations, result.warnings);
 
   // The guard reads commits. Run on HEAD with work not yet committed, it would check (and pass) something else.
@@ -872,13 +922,23 @@ function selfTest() {
   const run = (...args) => execFileSync('git', ['-c', 'user.name=Self Test', '-c', 'user.email=self-test@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' });
   const write = (file, content) => { fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true }); fs.writeFileSync(path.join(dir, file), content); };
   const remove = (file) => fs.rmSync(path.join(dir, file), { force: true });
-  const entry = (id, extra = {}) => JSON.stringify({ id, date: id.slice(0, 10), kind: 'change', title: 'A change', hypothesis: 'Clearer copy helps.', primary_metric: 'engaged_visit_rate', guardrails: ['bounce'], baseline: { rate: 0.4, n: 120 }, decision_rule: 'Keep if the rate rises.', evaluate_after: '2026-10-28', status: 'proposed', pr: null, verdict: null, result: null, ...extra });
+  const entry = (id, extra = {}) => JSON.stringify({ id, date: id.slice(0, 10), kind: 'change', title: 'A change', hypothesis: 'Clearer copy helps.', primary_metric: 'answered_visit_rate@v1', guardrails: ['one_page_no_action_rate@v1'], baseline: { rate: 0.4, n: 120 }, decision_rule: 'Keep if the rate rises.', evaluate_after: '2026-10-28', status: 'proposed', pr: null, verdict: null, result: null, ...extra });
   const CHANGE_ID = '2026-10-14-test';
   const proposal = (extra = {}) => entry(CHANGE_ID, extra);
   const FIRST = { status: 'shipped', pr: 60 };
   const BASE_LEDGER = `${entry('2026-10-01-first', FIRST)}\n`;
   const STORE = "export function read() {\n  try { return window.localStorage.getItem('units'); } catch { return null; }\n}\nexport function other() {\n  return 1;\n}\n";
   const TICKER = '/**\n * Advances the clock once a frame.\n */\nexport function tick() {\n  return 1;\n}\n';
+  // The §1 table defines three names; the others in the file are only mentioned.
+  const METRICS_TEXT = [
+    '# Metrics', '', 'An earlier draft used `engaged_visit_rate@v1`.', '',
+    '## 1. Definitions', '', '| Metric | Definition | Direction |', '|---|---|---|',
+    '| `answered_visit_rate@v1` (**north star**) | Share of visits with an answer signal. | Higher is better. |',
+    '| `one_page_no_action_rate@v1` (guardrail) | One page view and no answer signal. | Lower is better. |',
+    '| `error_visit_rate@v1` (guardrail) | Share of visits with a `site_error`. | At most 1%. |', '',
+    'An answer signal is a `tool_used@v1` event, among others.', '',
+    '## 2. Queries', '', '| `bounce_rate@v1` | not a definition |', '',
+  ].join('\n');
   const LAYOUT = "import SiteAnalytics from '@/components/SiteAnalytics';\nexport default function RootLayout({ children }) {\n  return <html><body>{children}<SiteAnalytics /></body></html>;\n}\n";
   const failures = [];
   let cases = 0;
@@ -899,6 +959,7 @@ function selfTest() {
     write('README.md', '# Pace Notes\n');
     write('public/og/card.png', Buffer.concat([Buffer.from('\x89PNG\r\n\x1a\n', 'binary'), Buffer.alloc(64)]));
     write(LEDGER, BASE_LEDGER);
+    write(METRICS, METRICS_TEXT);
     run('add', '-A'); run('commit', '-q', '-m', 'base');
 
     const expect = (label, { branch = 'autopilot/2026-10-14-test', base = 'main', ledger = true, pr = null, setup, dirty, rules = [], messages = [], absent = [], warned = [] }) => {
@@ -1124,6 +1185,21 @@ function selfTest() {
     ledgerCase('change may leave duration null', proposal({ min_sample: 150, max_days: null }), []);
     ledgerCase('closed-unmerged experiment keeps valid stopping rules', entry('2026-09-20-stuck', { ...EXPERIMENT, status: 'reverted', verdict: 'inconclusive', pr: 55 }), [], { pr: 61 });
     ledgerCase('closed-unmerged exception does not waive experiment stopping rules', entry('2026-09-20-stuck', { kind: 'experiment', status: 'reverted', verdict: 'inconclusive', pr: 55 }), ['ledger'], { pr: 61, messages: ['requires "min_sample"', 'requires "max_days"'] });
+    // Ledger: a new entry's metrics are names the base's autopilot/metrics.md §1 table defines, exactly.
+    ledgerCase('registered primary metric and guardrails', proposal({ guardrails: ['one_page_no_action_rate@v1', 'error_visit_rate@v1'] }), []);
+    for (const [label, name] of [['empty', ''], ['invented', 'engagement_score@v1'], ['unversioned', 'answered_visit_rate'], ['another version', 'answered_visit_rate@v2'], ['in capitals', 'Answered_visit_rate@v1'], ['with its backticks', '`answered_visit_rate@v1`'], ['with a space', 'answered_visit_rate@v1 '], ['only mentioned above the table', 'engaged_visit_rate@v1'], ['only mentioned in §1 prose', 'tool_used@v1'], ['in a table outside §1', 'bounce_rate@v1']]) {
+      ledgerCase(`primary_metric ${label}`, proposal({ primary_metric: name }), ['ledger'], { messages: [`"primary_metric" ${JSON.stringify(name)} is not a metric defined in ${METRICS} §1`, 'answered_visit_rate@v1, one_page_no_action_rate@v1, error_visit_rate@v1'] });
+    }
+    for (const [label, guardrails, message] of [['invented', ['bounce'], '"guardrails" "bounce" is not a metric'], ['one of two invented', ['error_visit_rate@v1', 'bounce_rate@v1'], '"guardrails" "bounce_rate@v1" is not a metric'], ['two invented', ['bounce', ''], '"guardrails" "bounce", "" are not metrics'], ['not a string', [1], '"guardrails" 1 is not a metric'], ['an object', [{ name: 'error_visit_rate@v1' }], '"guardrails" {"name":"error_visit_rate@v1"} is not a metric']]) {
+      ledgerCase(`guardrails ${label}`, proposal({ guardrails }), ['ledger'], { messages: [message] });
+    }
+    ledgerCase('a change with no guardrail', proposal({ guardrails: [] }), ['ledger'], { messages: ['"guardrails" is empty; a "change" entry needs at least one'] });
+    ledgerCase('an experiment with no guardrail', proposal({ kind: 'experiment', experiment: 'home-hero', pages: ['/'], min_sample: 150, max_days: 42, guardrails: [] }), ['ledger'], { messages: ['"guardrails" is empty; an "experiment" entry needs at least one'] });
+    for (const kind of ['fix', 'revert', 'conclude']) {
+      ledgerCase(`a ${kind} with no guardrail`, proposal({ kind, evaluate_after: null, guardrails: [] }), []);
+      ledgerCase(`a ${kind} with an invented guardrail`, proposal({ kind, evaluate_after: null, guardrails: ['bounce'] }), ['ledger'], { messages: ['"guardrails" "bounce" is not a metric'] });
+    }
+    ledgerCase('a closed-unmerged record is a new entry too', entry('2026-09-20-stuck', { status: 'reverted', verdict: 'inconclusive', pr: 55, primary_metric: 'engaged_visit_rate' }), ['ledger'], { pr: 61, messages: ['"primary_metric" "engaged_visit_rate" is not a metric'] });
     // Ledger: each new proposal belongs to this branch, including ledger-only proposals.
     for (const kind of LEDGER_KINDS) {
       const fields = { ...(kind === 'experiment' ? EXPERIMENT : {}), kind };
@@ -1383,6 +1459,38 @@ function selfTest() {
     expect('a change not yet committed', { setup: () => {}, dirty: () => write('components/Card.tsx', component('window.localStorage.setItem("k", v);')), rules: ['uncommitted'], messages: ['components/Card.tsx', 'not committed'] });
     expect('an untracked file is a warning', { setup: () => {}, dirty: () => write('components/Draft.tsx', 'export const d = 1;\n'), warned: ['untracked'] });
 
+    // Metric names: read from the base, never the pull request; unknown names already on the base only warn.
+    expect('a pull request cannot register a metric name for its own entry', { ledger: false, setup: () => { write(METRICS, METRICS_TEXT.replace('\n\nAn answer signal', '\n| `new_metric@v1` | Added by this pull request. | Higher is better. |\n\nAn answer signal')); fs.appendFileSync(path.join(dir, LEDGER), `${proposal({ primary_metric: 'new_metric@v1' })}\n`); }, rules: ['ledger', 'protected-path'], messages: ['"primary_metric" "new_metric@v1" is not a metric defined', 'autopilot/metrics.md'] });
+    const metricsBase = (label, text) => { run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', label); if (text === null) remove(METRICS); else write(METRICS, text); run('add', '-A'); run('commit', '-q', '-m', label); return label; };
+    const noMetrics = metricsBase('base-no-metrics', null);
+    expect('a missing metrics file fails every new entry closed', { base: noMetrics, setup: () => {}, rules: ['ledger'], messages: [`${METRICS}:null is missing on the base`] });
+    expect('a missing metrics file does not block bookkeeping without new lines', { base: noMetrics, ledger: false, setup: () => write('autopilot/backlog.md', '# Backlog\n- Re-ranked.\n') });
+    for (const [label, text] of [['no Definitions section', METRICS_TEXT.replace('## 1. Definitions', '## 1. Terms')], ['unversioned names', METRICS_TEXT.replace(/@v1`/g, '`')], ['names outside the first column', METRICS_TEXT.replace(/\| `([a-z_]+@v1)` \(([^)]+)\) \|/g, '| $2 | `$1` |')], ['an empty file', '']]) {
+      expect(`a metrics file with ${label} fails every new entry closed`, { base: metricsBase(`base-metrics-${cases}`, text), setup: () => {}, rules: ['ledger'], messages: [`${METRICS}:null defines no metric names on the base`] });
+    }
+    const unknownLine = entry('2026-10-01-old', { primary_metric: 'engaged_visit_rate', guardrails: ['bounce'] });
+    const unknownBase = untidyBase('base-unknown-metrics', `${unknownLine}\n`);
+    expect('unknown metric names on an untouched base line only warn', { base: unknownBase, setup: () => write('components/Card.tsx', 'export const y = 2;\n'), warned: ['"primary_metric" "engaged_visit_rate" is not a metric defined', '"guardrails" "bounce" is not a metric', 'already on the base'] });
+    expect('unknown metric names on a base line being shipped only warn', { base: unknownBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-old', { primary_metric: 'engaged_visit_rate', guardrails: ['bounce'], status: 'shipped', pr: 59, shipped_on: '2026-10-03' })}\n`), warned: ['"primary_metric" "engaged_visit_rate" is not a metric defined', 'already on the base'], absent: ['engaged_visit_rate'] });
+    expect('unknown metric names on a base line cannot be rewritten', { base: unknownBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-old')}\n`), rules: ['ledger'], messages: ['changed "primary_metric", "guardrails"'] });
+    // The repository's own metrics file defines the names its seed ledger line and its §4 example use.
+    {
+      cases += 1;
+      const root = path.join(__dirname, '..');
+      const text = fs.readFileSync(path.join(root, METRICS), 'utf8');
+      const names = metricNames(text) || new Set();
+      const example = /^## 4\.[\s\S]*?```json\n(.+)\n```/m.exec(text);
+      const lines = [...fs.readFileSync(path.join(root, LEDGER), 'utf8').split('\n').filter((line) => line.trim()), example ? example[1] : '{}'];
+      const used = ['answered_visit_rate@v1', 'one_page_no_action_rate@v1', 'error_visit_rate@v1', 'web_vitals_p75@v1'];
+      if (!used.every((name) => names.has(name)) || [...names].some((name) => !METRIC_NAME.test(name))) failures.push(`repository ${METRICS}: names ${JSON.stringify([...names])}`);
+      if (!example) failures.push(`repository ${METRICS}: no §4 example line`);
+      for (const line of lines) {
+        const value = JSON.parse(line);
+        const problems = [...ledgerEntryProblems(value), ...metricProblems(value, names)];
+        if (problems.length) failures.push(`repository ledger line ${value.id}: ${problems.join('; ')}`);
+      }
+    }
+
     run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', 'main-noledger'); remove(LEDGER); run('add', '-A'); run('commit', '-q', '-m', 'no ledger');
     expect('first ledger line on a base without one', { base: 'main-noledger', ledger: false, setup: () => write(LEDGER, `${proposal()}\n`) });
     expect('ledger missing on head', { base: 'main-noledger', ledger: false, setup: () => write('components/Card.tsx', 'export const z = 3;\n'), rules: ['ledger'], messages: ['missing'] });
@@ -1419,6 +1527,6 @@ function main(argv) {
   }
 }
 
-module.exports = { PROTECTED, ALLOWED, FORBIDDEN, BANNED, LIMITS, check, checkLedger, protectedBy };
+module.exports = { PROTECTED, ALLOWED, FORBIDDEN, BANNED, LIMITS, check, checkLedger, metricNames, protectedBy };
 
 if (require.main === module) process.exitCode = main(process.argv.slice(2));

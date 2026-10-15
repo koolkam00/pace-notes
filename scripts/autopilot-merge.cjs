@@ -14,9 +14,10 @@
  *   node scripts/autopilot-merge.cjs --self-test     every gate against a mocked GitHub API, and reverts in temporary repositories
  *
  * evaluate first makes sure every autopilot merge of the last 14 days was live-checked (reconcile, below), then checks
- * every open pull request labelled `autopilot`, keeps one status comment on each up to date (only when its text
- * changes) and outputs the first fully eligible one (eligible, pr, sha, preview_url). --pr evaluates one pull request
- * whatever its labels; --dry-run writes nothing. smoke-result records the preview checks on that comment and outputs
+ * every open autopilot pull request (a branch starting autopilot/, here or in a fork, or the `autopilot` label),
+ * keeps one status comment on each up to date (only when its text changes) and outputs the eligible one (eligible,
+ * pr, sha, preview_url). While more than one is open, none is eligible. --pr evaluates one pull request whatever its
+ * labels; --dry-run writes nothing. smoke-result records the preview checks on that comment and outputs
  * outcome=pass|fail|incomplete. merge checks every gate again and squash-merges with the head commit pinned.
  * wait-deploy waits for Vercel's Production deployment of the merge commit and for /version.json to name it.
  * record-live leaves the "live checks passed" record on the pull request. incident optionally reverts the merge on
@@ -69,7 +70,9 @@ const VERCEL_LOGIN = 'vercel[bot]';
 /** Vercel's own address for one preview deployment of this project. */
 const PREVIEW_HOST = /^htw-live-study-[a-z0-9-]+-koolkam00s-projects\.vercel\.app$/;
 const CHECKS_APP = 'github-actions';
+/** How a check run may end: any check cleanly, a required one only by succeeding. */
 const CLEAN_CONCLUSIONS = ['success', 'neutral', 'skipped'];
+const REQUIRED_CONCLUSIONS = ['success'];
 const RECONCILE_DAYS = 14;
 const VERSION_TIMEOUT_MINUTES = 5;
 const POLL_MS = 20000;
@@ -182,9 +185,10 @@ function createClient({ token, fetchImpl, apiUrl, dryRun, log, sleep = defaultSl
 const latestFirst = (a, b) => (Date.parse(b.started_at || b.created_at || 0) - Date.parse(a.started_at || a.created_at || 0)) || (b.id - a.id);
 
 /**
- * Every check run on the head commit, not only the required ones: per app and name, the latest attempt must have
- * completed with success, neutral or skipped. Anything queued or running waits; any other conclusion fails. The
- * required checks must also be there, from GitHub Actions. This workflow's own jobs are left out.
+ * Every check run on the head commit, not only the required ones: per app and name, only the latest attempt counts.
+ * The required checks must be there, from GitHub Actions, and must have succeeded: skipped or neutral means they never
+ * passed (a job whose condition was false), so it fails. Every other check must have completed with success, neutral
+ * or skipped. Anything queued or running waits; any other conclusion fails. This workflow's own jobs are left out.
  */
 async function checksGate(gh, repo, sha) {
   const runs = await gh.list(`/repos/${repo}/commits/${sha}/check-runs?filter=all&per_page=100`, { key: 'check_runs' });
@@ -199,15 +203,15 @@ async function checksGate(gh, repo, sha) {
   const parts = [];
   let ok = true;
   const waiting = () => { if (ok) ok = null; };
-  const describe = ({ run, attempts }, label) => {
+  const describe = ({ run, attempts }, label, { required = false } = {}) => {
     if (run.status !== 'completed') { waiting(); return `${label}: ${String(run.status).replace('_', ' ')}`; }
-    if (!CLEAN_CONCLUSIONS.includes(run.conclusion)) { ok = false; return `${label}: ${run.conclusion}`; }
+    if (!(required ? REQUIRED_CONCLUSIONS : CLEAN_CONCLUSIONS).includes(run.conclusion)) { ok = false; return `${label}: ${run.conclusion}${required ? ' (a required check must succeed)' : ''}`; }
     return `${label}: ${run.conclusion}${attempts > 1 ? ` (attempt ${attempts})` : ''}`;
   };
   for (const name of CONFIG.requiredChecks) {
     const found = latest.get(`${CHECKS_APP}/${name}`);
     if (!found) { parts.push(`${name}: not reported for this commit yet`); waiting(); continue; }
-    parts.push(describe(found, name));
+    parts.push(describe(found, name, { required: true }));
   }
   const others = [...latest].filter(([key]) => !CONFIG.requiredChecks.some((name) => key === `${CHECKS_APP}/${name}`));
   const notClean = others.filter(([, { run }]) => run.status !== 'completed' || !CLEAN_CONCLUSIONS.includes(run.conclusion));
@@ -350,9 +354,10 @@ const GATE_LABELS = {
   label: `Has the ${CONFIG.label} label`,
   'block-labels': `None of ${CONFIG.blockLabels.join(', ')}`,
   pause: `No open issue or pull request labelled ${CONFIG.pauseLabel}`,
+  'one-open': 'One open autopilot pull request',
   variable: 'Repository variable AUTOPILOT_MERGE is unset or "on"',
   history: `Every autopilot merge of the last ${RECONCILE_DAYS} days was live-checked`,
-  checks: `Every check passed on the head commit (including ${CONFIG.requiredChecks.join(', ')})`,
+  checks: `${CONFIG.requiredChecks.join(' and ')} succeeded and every other check passed on the head commit`,
   statuses: `Status passed on the head commit (${CONFIG.requiredStatuses.join(', ')}, from ${VERCEL_LOGIN})`,
   guard: "Autopilot guard (main's copy) passes",
   threads: 'No unresolved review threads',
@@ -366,7 +371,7 @@ const GATE_LABELS = {
 };
 
 /** Every gate for one pull request. ok: true passes, false fails, null is still waiting (or could not be checked). */
-async function evaluateGates(gh, deps, pr, { pause, statusComment, unchecked = { items: [], error: null } }) {
+async function evaluateGates(gh, deps, pr, { pause, autopilot, statusComment, unchecked = { items: [], error: null } }) {
   const repo = deps.repo;
   const sha = pr.head.sha;
   const gates = [];
@@ -386,6 +391,12 @@ async function evaluateGates(gh, deps, pr, { pause, statusComment, unchecked = {
   const blocking = CONFIG.blockLabels.filter((label) => labels.includes(label));
   add('block-labels', blocking.length === 0, blocking.length ? `labelled ${blocking.join(', ')}` : 'none');
   add('pause', pause.length === 0, pause.length ? `${pause.slice(0, 3).map((i) => `#${i.number}`).join(', ')} ${pause.length === 1 ? 'is' : 'are'} labelled ${CONFIG.pauseLabel}; close ${pause.length === 1 ? 'it' : 'them'} or remove the label to resume` : 'none');
+  // One autopilot pull request at a time (constitution §4.1): while more than one is open, none of them merges.
+  if (!Array.isArray(autopilot)) add('one-open', null, 'the open autopilot pull requests were not listed');
+  else {
+    const others = autopilot.filter((p) => p.number !== pr.number);
+    add('one-open', others.length === 0, others.length ? `${others.map((p) => `#${p.number}`).join(', ')} ${others.length === 1 ? 'is' : 'are'} open too; no autopilot pull request merges while more than one is open, so close all but one` : 'no other autopilot pull request is open');
+  }
   // Fail closed: anything but no value or "on" (off, false, 0, no, paused, …) stops merges.
   const variable = String(deps.env.AUTOPILOT_MERGE || '').trim();
   const variableOn = variable === '' || variable.toLowerCase() === 'on';
@@ -411,6 +422,17 @@ async function evaluateGates(gh, deps, pr, { pause, statusComment, unchecked = {
   const eligible = gates.every((g) => g.ok === true);
   const preview = gates.find((g) => g.id === 'preview');
   return { number: pr.number, title: pr.title, sha, headRef: pr.head.ref, gates, eligible, previewUrl: preview && preview.url ? preview.url : null, notes, smokeFailed };
+}
+
+/**
+ * Every open autopilot pull request: its branch starts with autopilot/ (in this repository or a fork), or it carries
+ * the autopilot label. A label alone is not enough to find them, because a branch can be opened without it.
+ */
+async function openAutopilotPrs(gh, repo) {
+  const open = await gh.list(`/repos/${repo}/pulls?state=open&per_page=100`);
+  return open.filter((p) => (p.head && String(p.head.ref || '').startsWith(CONFIG.branchPrefix)) || (p.labels || []).some((l) => l.name === CONFIG.label))
+    .map((p) => ({ number: p.number, title: p.title, headRef: p.head ? p.head.ref : null }))
+    .sort((a, b) => a.number - b.number);
 }
 
 async function pausedItems(gh, repo) {
@@ -516,21 +538,17 @@ async function cmdEvaluate(argv, deps) {
   let unchecked = { items: [], error: null };
   try { unchecked = { ...(await reconcileMerges(gh, deps)), error: null }; } catch (error) { unchecked = { items: [], error: error.message }; }
   const pause = await pausedItems(gh, deps.repo);
-  let prs;
-  if (only) prs = [await gh.get(`/repos/${deps.repo}/pulls/${Number(only)}`)];
-  else {
-    const open = await gh.list(`/repos/${deps.repo}/pulls?state=open&per_page=100`);
-    const labelled = open.filter((p) => (p.labels || []).some((l) => l.name === CONFIG.label)).sort((a, b) => a.number - b.number);
-    prs = [];
-    for (const p of labelled) prs.push(await gh.get(`/repos/${deps.repo}/pulls/${p.number}`));
-  }
-  deps.log(`autopilot-merge evaluate${dryRun ? ' (dry run)' : ''}: ${deps.repo}; ${only ? `pull request #${only}` : `${prs.length} open pull request${prs.length === 1 ? '' : 's'} labelled ${CONFIG.label}`}; ${pause.length ? `paused by ${pause.map((i) => `#${i.number}`).join(', ')}` : 'not paused'}; ${unchecked.error ? `merge history not checked (${unchecked.error})` : unchecked.found && unchecked.found.length ? `${plural(unchecked.found.length, 'merge')} without a live-check record (${unchecked.found.map((m) => `#${m.number}`).join(', ')})` : 'every recent autopilot merge accounted for'}; AUTOPILOT_MERGE ${deps.env.AUTOPILOT_MERGE ? `"${deps.env.AUTOPILOT_MERGE}"` : 'not set'}; ${gh.authenticated ? 'authenticated' : 'unauthenticated (read-only)'}`);
+  const autopilot = await openAutopilotPrs(gh, deps.repo);
+  const prs = [];
+  for (const p of only ? [{ number: Number(only) }] : autopilot) prs.push(await gh.get(`/repos/${deps.repo}/pulls/${p.number}`));
+  const several = autopilot.length > 1 ? autopilot.map((p) => `#${p.number}`).join(', ') : null;
+  deps.log(`autopilot-merge evaluate${dryRun ? ' (dry run)' : ''}: ${deps.repo}; ${only ? `pull request #${only}; ` : ''}${plural(autopilot.length, 'open autopilot pull request')}${autopilot.length ? ` (${autopilot.map((p) => `#${p.number}`).join(', ')})` : ''}${several ? ', so none merges' : ''}; ${pause.length ? `paused by ${pause.map((i) => `#${i.number}`).join(', ')}` : 'not paused'}; ${unchecked.error ? `merge history not checked (${unchecked.error})` : unchecked.found && unchecked.found.length ? `${plural(unchecked.found.length, 'merge')} without a live-check record (${unchecked.found.map((m) => `#${m.number}`).join(', ')})` : 'every recent autopilot merge accounted for'}; AUTOPILOT_MERGE ${deps.env.AUTOPILOT_MERGE ? `"${deps.env.AUTOPILOT_MERGE}"` : 'not set'}; ${gh.authenticated ? 'authenticated' : 'unauthenticated (read-only)'}`);
 
   const results = [];
   for (const pr of prs) {
     let statusComment = null;
     try { statusComment = await findStatusComment(gh, deps.repo, pr.number); } catch (error) { deps.log(`#${pr.number}: could not read comments: ${error.message}`); }
-    const result = await evaluateGates(gh, deps, pr, { pause, statusComment, unchecked });
+    const result = await evaluateGates(gh, deps, pr, { pause, autopilot, statusComment, unchecked });
     results.push({ ...result, statusComment });
     deps.log(`\n#${pr.number} ${pr.title} (${short(result.sha)}): ${result.eligible ? 'ELIGIBLE' : 'not eligible'}`);
     for (const g of result.gates) deps.log(`  ${g.ok === true ? 'pass   ' : g.ok === false ? 'FAIL   ' : 'waiting'} ${g.id.padEnd(13)} ${g.detail}`);
@@ -544,13 +562,13 @@ async function cmdEvaluate(argv, deps) {
   if (chosen) fs.writeFileSync(statePath(deps), JSON.stringify({ number: chosen.number, title: chosen.title, sha: chosen.sha, headRef: chosen.headRef, gates: chosen.gates, previewUrl: chosen.previewUrl, notes: chosen.notes }));
 
   const summary = [`## Autopilot merge gate${dryRun ? ' (dry run)' : ''}`, ''];
-  if (!results.length) summary.push(`No open pull request is labelled \`${CONFIG.label}\`.${pause.length ? ` Merges are paused by ${pause.map((i) => `#${i.number}`).join(', ')}.` : ''}`);
+  if (several) summary.push(`**${autopilot.length} autopilot pull requests are open (${several}), so none merges in this run.** Only one may be open at a time: close all but one.`, '');
+  if (!results.length) summary.push(`No open autopilot pull request (a branch starting \`${CONFIG.branchPrefix}\` or the \`${CONFIG.label}\` label).${pause.length ? ` Merges are paused by ${pause.map((i) => `#${i.number}`).join(', ')}.` : ''}`);
   for (const result of results) summary.push(`### #${result.number} ${cell(result.title)}`, '', headline(result), '', ...gateTable(result.gates), '');
   if (chosen) summary.push(dryRun ? `Dry run: #${chosen.number} would go to the preview checks and merge next.` : `#${chosen.number} goes to the preview checks next.`);
   deps.summary(summary.join('\n'));
 
   for (const result of results) {
-    if (result.number !== (chosen && chosen.number) && result.eligible) result.gates.push({ id: 'queue', label: 'First in line', ok: null, detail: `waiting for #${chosen.number}` });
     const body = statusBody(deps, result);
     try {
       const done = await upsertStatusComment(gh, deps, result.number, result.statusComment, body);
@@ -634,8 +652,9 @@ async function cmdMerge(argv, deps) {
   let unchecked;
   try { unchecked = { items: await uncheckedMerges(gh, deps), error: null }; } catch (error) { unchecked = { items: [], error: error.message }; }
   const pause = await pausedItems(gh, deps.repo);
+  const autopilot = await openAutopilotPrs(gh, deps.repo);
   const statusComment = await findStatusComment(gh, deps.repo, number);
-  const result = await evaluateGates(gh, deps, pr, { pause, statusComment, unchecked });
+  const result = await evaluateGates(gh, deps, pr, { pause, autopilot, statusComment, unchecked });
   if (pr.head.sha !== sha) {
     result.gates.push({ id: 'pinned', label: 'Head commit unchanged since evaluation', ok: false, detail: `head is now ${short(pr.head.sha)}, evaluated ${short(sha)}` });
     result.eligible = false;
@@ -1005,7 +1024,15 @@ function mockFetch(state, calls) {
     const p = u.pathname.replace(`/repos/${state.repo}`, '');
     let m;
     if (method === 'POST' && u.pathname === '/graphql') return json(200, { data: { repository: { pullRequest: { reviewThreads: { totalCount: (state.threads[body.variables.number] || []).length, nodes: state.threads[body.variables.number] || [] } } } } });
-    if (method === 'GET' && p === '/pulls') { const wanted = u.searchParams.get('state') || 'open'; return json(200, Object.values(state.prs).filter((pr) => pr.state === wanted).map(({ mergeable, merged_by: mergedBy, ...rest }) => rest)); }
+    if (method === 'GET' && p === '/pulls') {
+      // Pages of state.pullsPerPage when it is set, to exercise Link pagination.
+      const wanted = u.searchParams.get('state') || 'open';
+      const all = Object.values(state.prs).filter((pr) => pr.state === wanted).map(({ mergeable, merged_by: mergedBy, ...rest }) => rest);
+      const size = state.pullsPerPage || Math.max(all.length, 1);
+      const page = Number(u.searchParams.get('page') || 1);
+      const more = page * size < all.length;
+      return json(200, all.slice((page - 1) * size, page * size), more ? { link: `<${u.origin}${u.pathname}?state=${wanted}&per_page=100&page=${page + 1}>; rel="next"` } : {});
+    }
     if (method === 'GET' && (m = /^\/pulls\/(\d+)$/.exec(p))) return state.prs[m[1]] ? json(200, state.prs[m[1]]) : json(404, { message: 'Not Found' });
     if (method === 'GET' && p === '/issues') {
       const wanted = u.searchParams.get('state') || 'open';
@@ -1098,14 +1125,17 @@ async function selfTestAsync() {
     const gh = deps.client({ dryRun: true });
     const pr = await gh.get(`/repos/${state.repo}/pulls/7`);
     const statusComment = await findStatusComment(gh, state.repo, 7);
-    const result = await evaluateGates(gh, deps, pr, { pause: await pausedItems(gh, state.repo), statusComment, unchecked: { items: await uncheckedMerges(gh, deps), error: null } });
+    const result = await evaluateGates(gh, deps, pr, { pause: await pausedItems(gh, state.repo), autopilot: await openAutopilotPrs(gh, state.repo), statusComment, unchecked: { items: await uncheckedMerges(gh, deps), error: null } });
     return { ...result, counts };
   };
   const failing = (result) => result.gates.filter((g) => g.ok !== true).map((g) => g.id).sort().join(',');
   const gate = (result, id) => result.gates.find((g) => g.id === id) || {};
+  const bodyOf = (state, number) => ((state.comments[number] || [])[0] || {}).body || '';
   const head = SHA('a');
   const old = SHA('b');
   const merged = SHA('d');
+  // Another open pull request, a copy of #7 (an autopilot one unless extra says otherwise).
+  const openPr = (s, number, extra = {}) => { s.prs[number] = { ...JSON.parse(JSON.stringify(s.prs[7])), number, title: `Another change ${number}`, ...extra }; s.reviews[number] = []; s.timeline[number] = []; s.threads[number] = []; s.comments[number] = []; };
   // A merged autopilot pull request in the recent past, as GitHub lists it.
   const mergedPr = (s, number, extra = {}) => { s.prs[number] = { ...JSON.parse(JSON.stringify(s.prs[7])), number, title: `Earlier change ${number}`, state: 'closed', merged: true, merged_at: '2026-10-13T09:00:00Z', merge_commit_sha: SHA('f'), merged_by: { login: 'koolkam00' }, ...extra }; s.comments[number] = s.comments[number] || []; };
 
@@ -1131,7 +1161,12 @@ async function selfTestAsync() {
       ['pause', (s) => { s.issues.push({ number: 3, state: 'open', title: 'Autopilot log', labels: [{ name: 'autopilot:paused' }] }); }],
       ['variable: OFF', null, ['variable'], { env: { AUTOPILOT_MERGE: ' OFF ' } }],
       ['history', (s) => mergedPr(s, 5)],
+      ['one-open: another labelled autopilot pull request', (s) => openPr(s, 8)],
+      ['one-open: an unlabelled autopilot/ branch', (s) => openPr(s, 8, { labels: [], head: { ref: 'autopilot/2026-10-14-other', sha: old, repo: { full_name: s.repo } } })],
+      ['one-open: an autopilot/ branch in a fork', (s) => openPr(s, 8, { labels: [], user: { login: 'someone' }, head: { ref: 'autopilot/2026-10-14-fork', sha: old, repo: { full_name: 'someone/pace-notes' } } })],
       ['checks: verify failed', (s) => { s.checkRuns[0].conclusion = 'failure'; }, ['checks']],
+      ['checks: verify skipped', (s) => { s.checkRuns[0].conclusion = 'skipped'; }, ['checks']],
+      ['checks: privacy-e2e neutral', (s) => { s.checkRuns[1].conclusion = 'neutral'; }, ['checks']],
       ['checks: privacy-e2e missing', (s) => { s.checkRuns.splice(1, 1); }, ['checks']],
       ['checks: another check failed', (s) => { s.checkRuns.push({ id: 105, name: 'build', head_sha: head, status: 'completed', conclusion: 'failure', started_at: '2026-10-14T10:06:00Z', app: { slug: 'github-actions' }, check_suite: { id: 4 } }); }, ['checks']],
       ['checks: the PR\'s own guard check failed', (s) => { s.checkRuns[3].conclusion = 'failure'; }, ['checks']],
@@ -1198,6 +1233,18 @@ async function selfTestAsync() {
     ok("this workflow's own running job is left out", ownJob.eligible, failing(ownJob));
     const neutral = await gatesOf(fresh((s) => { s.checkRuns.push({ id: 105, name: 'optional', head_sha: head, status: 'completed', conclusion: 'skipped', started_at: '2026-10-14T10:06:00Z', app: { slug: 'github-actions' }, check_suite: { id: 4 } }); }));
     ok('a skipped check passes', neutral.eligible && gate(neutral, 'checks').detail.includes('3 other checks passed'), gate(neutral, 'checks').detail);
+    const neutralOther = await gatesOf(fresh((s) => { s.checkRuns[2].conclusion = 'neutral'; }));
+    ok('a neutral check from another app passes', neutralOther.eligible, failing(neutralOther));
+    // A required check passes only by succeeding: skipped or neutral (a job whose condition was false) never passed.
+    for (const [index, conclusion] of [[0, 'skipped'], [0, 'neutral'], [1, 'skipped'], [1, 'neutral'], [0, 'cancelled']]) {
+      const result = await gatesOf(fresh((s) => { s.checkRuns[index].conclusion = conclusion; }));
+      const name = index === 0 ? 'verify' : 'privacy-e2e';
+      ok(`required check ${name} ${conclusion} fails, naming it`, !result.eligible && gate(result, 'checks').ok === false && gate(result, 'checks').detail.includes(`${name}: ${conclusion} (a required check must succeed)`), gate(result, 'checks').detail);
+    }
+    const rerunSkipped = await gatesOf(fresh((s) => { s.checkRuns.push({ ...s.checkRuns[0], id: 201, conclusion: 'skipped', started_at: '2026-10-14T11:00:00Z' }); }));
+    ok('latest attempt: success then a skipped re-run of a required check fails', !rerunSkipped.eligible && gate(rerunSkipped, 'checks').ok === false && gate(rerunSkipped, 'checks').detail.includes('verify: skipped'), gate(rerunSkipped, 'checks').detail);
+    const otherAppSuccess = await gatesOf(fresh((s) => { s.checkRuns[0].conclusion = 'skipped'; s.checkRuns.push({ ...s.checkRuns[0], id: 202, conclusion: 'success', app: { slug: 'some-app' }, check_suite: { id: 6 } }); }));
+    ok('a same-named success from another app does not stand in for a skipped required check', !otherAppSuccess.eligible && gate(otherAppSuccess, 'checks').ok === false, gate(otherAppSuccess, 'checks').detail);
     const rerunFixed = await gatesOf(fresh((s) => { s.checkRuns[0].conclusion = 'failure'; s.checkRuns.push({ ...s.checkRuns[0], id: 201, conclusion: 'success', started_at: '2026-10-14T11:00:00Z' }); }));
     ok('latest attempt: failure then a successful re-run passes', rerunFixed.eligible, failing(rerunFixed));
     const rerunBroke = await gatesOf(fresh((s) => { s.checkRuns.push({ ...s.checkRuns[0], id: 201, conclusion: 'failure', started_at: '2026-10-14T11:00:00Z' }); }));
@@ -1228,15 +1275,17 @@ async function selfTestAsync() {
     const anon = await gatesOf(fresh(), { token: '' });
     ok('unauthenticated: review threads wait for a token', !anon.eligible && gate(anon, 'threads').detail.includes('GITHUB_TOKEN'));
 
-    // evaluate: outputs, one PR per run, the pause issue, the sticky comment, dry runs.
+    // evaluate: outputs, one open autopilot pull request at a time, the pause issue, the sticky comment, dry runs.
     {
-      const state = fresh((s) => { s.prs[8] = JSON.parse(JSON.stringify(s.prs[7])); s.prs[8].number = 8; s.reviews[8] = []; s.timeline[8] = []; s.threads[8] = []; s.comments[8] = []; });
+      const state = fresh((s) => { openPr(s, 8); openPr(s, 9, { labels: [], head: { ref: 'feature/other', sha: old, repo: { full_name: s.repo } } }); });
       const run = mockDeps(state);
       const code = await cmdEvaluate([], run.deps);
       ok('evaluate: exits 0', code === 0);
-      ok('evaluate: outputs the first eligible PR only', run.outputs.eligible === 'true' && run.outputs.pr === '7' && run.outputs.sha === head && run.outputs.preview_url.startsWith('https://htw-live-study-'), JSON.stringify(run.outputs));
-      ok('evaluate: creates one status comment per PR', state.comments[7].length === 1 && state.comments[8].length === 1 && state.comments[7][0].body.startsWith(MARKER));
-      ok('evaluate: the second eligible PR waits its turn', state.comments[8][0].body.includes('waiting for #7'));
+      ok('evaluate: two labelled autopilot pull requests: neither merges', run.outputs.eligible === 'false' && run.outputs.candidate === 'false' && run.outputs.pr === '', JSON.stringify(run.outputs));
+      ok('evaluate: each status comment fails the one-open gate, naming the other', state.comments[7].length === 1 && state.comments[8].length === 1 && state.comments[7][0].body.startsWith(MARKER)
+        && bodyOf(state, 7).includes('| One open autopilot pull request | **fail** | #8 is open too;') && bodyOf(state, 8).includes('| One open autopilot pull request | **fail** | #7 is open too;'), bodyOf(state, 7));
+      ok('evaluate: the job summary says why nothing merges', run.summaries.some((text) => text.includes('2 autopilot pull requests are open (#7, #8), so none merges in this run')));
+      ok('evaluate: another open pull request is not an autopilot one and is not evaluated', state.comments[9].length === 0 && run.logs.some((l) => l.includes('2 open autopilot pull requests (#7, #8), so none merges')), run.logs[0]);
       const writes = () => run.calls.filter((c) => c.method !== 'GET' && c.path !== '/graphql').length;
       const before = writes();
       await cmdEvaluate([], run.deps);
@@ -1244,8 +1293,41 @@ async function selfTestAsync() {
       state.checkRuns[0].conclusion = 'failure';
       await cmdEvaluate([], run.deps);
       const patched = run.calls.filter((c) => c.method === 'PATCH');
-      ok('evaluate: a changed status edits the same comment', patched.length === 2 && state.comments[7].length === 1 && state.comments[8].length === 1 && state.comments[7][0].body.includes('**fail**'), `${patched.length} edits`);
-      ok('evaluate: blocked PR is not output', run.outputs.eligible === 'false' && run.outputs.pr === '', JSON.stringify(run.outputs));
+      ok('evaluate: a changed status edits the same comment', patched.length === 2 && state.comments[7].length === 1 && state.comments[8].length === 1 && state.comments[7][0].body.includes('verify: failure'), `${patched.length} edits`);
+      state.checkRuns[0].conclusion = 'success';
+      state.prs[8].state = 'closed';
+      await cmdEvaluate([], run.deps);
+      ok('evaluate: once the other is closed, the one left merges', run.outputs.eligible === 'true' && run.outputs.pr === '7' && run.outputs.sha === head && run.outputs.preview_url.startsWith('https://htw-live-study-'), JSON.stringify(run.outputs));
+      ok('evaluate: its status comment says the gate passes now', state.comments[7].length === 1 && state.comments[7][0].body.includes('| One open autopilot pull request | pass | no other autopilot pull request is open |'));
+    }
+    {
+      // An unlabelled autopilot/ branch, found on the second page of open pull requests.
+      const state = fresh((s) => { s.pullsPerPage = 1; openPr(s, 8, { labels: [], head: { ref: 'autopilot/2026-10-14-other', sha: old, repo: { full_name: s.repo } } }); });
+      const run = mockDeps(state);
+      await cmdEvaluate([], run.deps);
+      ok('evaluate: an unlabelled autopilot/ branch on page 2 blocks the labelled one', run.outputs.eligible === 'false' && bodyOf(state, 7).includes('#8 is open too'), bodyOf(state, 7));
+      ok('evaluate: and is evaluated itself, failing the label gate too', state.comments[8].length === 1 && bodyOf(state, 8).includes('| Has the autopilot label | **fail** | missing |') && bodyOf(state, 8).includes('#7 is open too'));
+    }
+    {
+      const state = fresh((s) => openPr(s, 8, { labels: [], user: { login: 'someone' }, head: { ref: 'autopilot/2026-10-14-fork', sha: old, repo: { full_name: 'someone/pace-notes' } } }));
+      const run = mockDeps(state);
+      let guardRuns = 0;
+      run.deps.runGuard = () => { guardRuns += 1; return { ok: true, detail: 'within the rules' }; };
+      await cmdEvaluate([], run.deps);
+      ok('evaluate: an autopilot/ branch in a fork blocks the labelled one', run.outputs.eligible === 'false' && bodyOf(state, 7).includes('#8 is open too'));
+      ok("evaluate: the fork's own table fails, and the guard never runs on it", bodyOf(state, 8).includes('head is in someone/pace-notes') && guardRuns === 1, `guard ran ${guardRuns} times`);
+    }
+    {
+      const state = fresh((s) => openPr(s, 9, { labels: [], head: { ref: 'feature/other', sha: old, repo: { full_name: s.repo } } }));
+      const run = mockDeps(state);
+      await cmdEvaluate([], run.deps);
+      ok('evaluate: a single autopilot pull request still merges next to an ordinary one', run.outputs.eligible === 'true' && run.outputs.pr === '7' && state.comments[9].length === 0 && run.logs.some((l) => l.includes('1 open autopilot pull request (#7);')), JSON.stringify(run.outputs));
+    }
+    {
+      const state = fresh((s) => openPr(s, 8));
+      const run = mockDeps(state);
+      await cmdEvaluate(['--pr', '7', '--dry-run'], run.deps);
+      ok('evaluate --pr: the one-open gate still counts the others', run.outputs.eligible === 'false' && run.outputs.candidate === 'false' && run.logs.some((l) => /FAIL\s+one-open\s+#8 is open too/.test(l)));
     }
     {
       const state = fresh((s) => { s.issues.push({ number: 3, state: 'open', title: 'Autopilot log', labels: [{ name: 'autopilot:paused' }] }); s.prs[8] = JSON.parse(JSON.stringify(s.prs[7])); s.prs[8].number = 8; s.reviews[8] = []; s.timeline[8] = []; s.threads[8] = []; s.comments[8] = []; });
@@ -1417,6 +1499,9 @@ async function selfTestAsync() {
       const switchedOff = fresh();
       const run4 = mockDeps(switchedOff, { env: { AUTOPILOT_MERGE: 'false' } });
       ok('merge: refuses while AUTOPILOT_MERGE is not on', (await cmdMerge(['--pr', '7', '--sha', head], run4.deps)) === 1 && switchedOff.merges.length === 0);
+      const second = fresh((s) => openPr(s, 8, { labels: [], head: { ref: 'autopilot/2026-10-14-other', sha: old, repo: { full_name: s.repo } } }));
+      const run5 = mockDeps(second);
+      ok('merge: refuses while another autopilot pull request is open', (await cmdMerge(['--pr', '7', '--sha', head], run5.deps)) === 1 && second.merges.length === 0 && run5.logs.some((l) => l.includes('one-open: #8 is open too')));
     }
 
     // wait-deploy.
@@ -1536,7 +1621,7 @@ async function selfTestAsync() {
   }
 
   // Reverts in real temporary repositories: pushed, conflicting, rejected; the ledger keeps its entries.
-  const ledgerLine = (id, extra = {}) => JSON.stringify({ id, date: id.slice(0, 10), kind: 'change', title: 'A change', hypothesis: 'Clearer copy helps.', primary_metric: 'engaged_visit_rate', guardrails: [], baseline: {}, decision_rule: 'Keep if the rate rises.', evaluate_after: '2026-10-28', status: 'proposed', pr: null, verdict: null, result: null, ...extra });
+  const ledgerLine = (id, extra = {}) => JSON.stringify({ id, date: id.slice(0, 10), kind: 'change', title: 'A change', hypothesis: 'Clearer copy helps.', primary_metric: 'answered_visit_rate@v1', guardrails: ['one_page_no_action_rate@v1'], baseline: {}, decision_rule: 'Keep if the rate rises.', evaluate_after: '2026-10-28', status: 'proposed', pr: null, verdict: null, result: null, ...extra });
   const revertCase = async (label, setup, expectPushed, { ledger = false, sameFailures = false } = {}) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'autopilot-revert-'));
     const g = (cwd, ...a) => execFileSync('git', ['-c', 'user.name=Self Test', '-c', 'user.email=self-test@example.invalid', '-c', 'commit.gpgsign=false', ...a], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
@@ -1583,8 +1668,9 @@ async function selfTestAsync() {
         ok(`revert: ${label}: the entry is dated the day it was reverted`, reverted && /^\d{4}-\d{2}-\d{2}$/.test(reverted.evaluated_on) && reverted.notes.includes(`Reverted automatically on ${reverted.evaluated_on}:`), JSON.stringify(reverted));
         // The guard's own ledger rules (as a later pull request touching the line would apply them) accept the record.
         const ruled = { violations: [], warnings: [] };
-        require('./autopilot-guard.cjs').checkLedger(g(origin, 'show', `main~1:${LEDGER}`), g(origin, 'show', `main:${LEDGER}`), { ...ruled, bookkeeping: true });
-        ok(`revert: ${label}: the reverted entry passes the guard's ledger rules`, ruled.violations.length === 0, JSON.stringify(ruled.violations));
+        const guard = require('./autopilot-guard.cjs');
+        guard.checkLedger(g(origin, 'show', `main~1:${LEDGER}`), g(origin, 'show', `main:${LEDGER}`), { ...ruled, bookkeeping: true, metrics: guard.metricNames(fs.readFileSync(path.join(ROOT, 'autopilot/metrics.md'), 'utf8')) });
+        ok(`revert: ${label}: the reverted entry passes the guard's ledger rules, metric names included`, ruled.violations.length === 0 && !ruled.warnings.some((w) => w.message.includes('metrics.md')), JSON.stringify([...ruled.violations, ...ruled.warnings]));
         ok(`revert: ${label}: the learnings keep the reverted change's line`, g(origin, 'show', `main:${LEARNINGS}`).includes('phone visitors read the first screen'));
         if (ledger) ok(`revert: ${label}: a later entry on main is left alone`, lines.some((entry) => entry.id === '2026-10-14-c' && entry.status === 'proposed'), JSON.stringify(lines));
         ok(`revert: ${label}: one commit`, g(origin, 'rev-list', '--count', 'main') === String(Number(g(work, 'rev-list', '--count', mergeSha)) + (ledger ? 2 : 1)));
@@ -1606,7 +1692,7 @@ async function selfTestAsync() {
     for (const failure of failures) console.error(`  ${failure}`);
     return 1;
   }
-  console.log(`autopilot-merge self-test: ${checks} checks passed (every gate on its own, pause, merge history, every check run, stale and re-run checks, reviews, status comment and its notes, dry run, retried reads, merge and lost or refused merges, deploy wait, live failure-set comparisons, live record, incident, report-driven reverts that keep the ledger and the learnings)`);
+  console.log(`autopilot-merge self-test: ${checks} checks passed (every gate on its own, pause, one open autopilot pull request, merge history, every check run and required checks that must succeed, stale and re-run checks, reviews, status comment and its notes, dry run, retried reads, merge and lost or refused merges, deploy wait, live failure-set comparisons, live record, incident, report-driven reverts that keep the ledger and the learnings)`);
   return 0;
 }
 function selfTest() { return selfTestAsync(); }
