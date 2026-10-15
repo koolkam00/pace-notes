@@ -196,7 +196,7 @@ export default function PaceCalculator() {
                     </label>
                   </div>
                   {intervalOptions.length < INTERVALS.length ? <p className="tool-note no-print">Shorter splits are not offered for {fmtDistance(km!, units)}: they would need more than {MAX_ROWS} rows.</p> : null}
-                  <div className="tool-table-wrap">
+                  <div className="tool-table-wrap" role="region" aria-label="Splits at an even pace" tabIndex={0}>
                     <table className="tool-table">
                       <thead><tr><th scope="col">Split</th><th scope="col">Elapsed</th><th scope="col">Split time</th><th scope="col">Pace</th></tr></thead>
                       <tbody>
@@ -276,7 +276,7 @@ function PaceChart({ units, from, setFrom }: { units: UnitSystem; from: number; 
         <button type="button" className="button-secondary" onClick={() => setFrom(Math.min(units === 'mi' ? 1200 : 750, from + (units === 'mi' ? 300 : 180)))}>Slower paces</button>
         <button type="button" className="button-secondary" data-not-edit onClick={() => window.print()}>Print chart</button>
       </div>
-      <div className="tool-table-wrap">
+      <div className="tool-table-wrap" role="region" aria-label="Pace chart" tabIndex={0}>
         <table className="tool-table pace-chart-table">
           <thead><tr><th scope="col">Pace /{units}</th><th scope="col">/{units === 'mi' ? 'km' : 'mi'}</th>{DISTANCES.map((d) => <th key={d.key} scope="col">{d.label}</th>)}</tr></thead>
           <tbody>
