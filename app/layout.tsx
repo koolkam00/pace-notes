@@ -5,9 +5,9 @@ import '@fontsource-variable/jetbrains-mono/index.css';
 import '@fontsource-variable/bricolage-grotesque/index.css';
 import './globals.css';
 import './story.css';
-import { UnitLink as Link, UnitSwitch } from '@/components/UnitsProvider';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 import UnitsProvider from '@/components/UnitsProvider';
-import SiteNav from '@/components/SiteNav';
+import SiteHeader from '@/components/SiteHeader';
 import SiteAnalytics from '@/components/SiteAnalytics';
 import SectionTracker from '@/components/SectionTracker';
 import { ExperimentHead } from '@/components/Experiment';
@@ -40,15 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head><script type="module" async dangerouslySetInnerHTML={{ __html: RELOAD_ON_FAILED_FILE }} /><ExperimentHead /></head>
       <body><UnitsProvider>
         <a className="skip-link" href="#main">Skip to content</a>
-        <header className="site-header">
-          <div className="container header-inner">
-            <div className="header-brand">
-              <Link href="/" className="site-title"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span>Pace Notes</span></Link>
-              <span className="header-credit">by Andrew Kam</span>
-            </div>
-            <div className="header-controls"><SiteNav /><UnitSwitch /></div>
-          </div>
-        </header>
+        <SiteHeader />
         <main id="main" className="container main-content">{children}</main>
         <footer className="container footer">
           <div className="footer-brand"><Link href="/">Pace Notes</Link><p>Every split tells part of the story. Pacing patterns from millions of recorded marathon finishes, free to explore and download.</p><CreatorCredit /><MotionToggle /></div>

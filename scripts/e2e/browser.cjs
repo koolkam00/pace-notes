@@ -383,6 +383,17 @@ async function wiggle(page, moves = 6) {
   } catch { /* the page navigated or closed meanwhile */ }
 }
 
+/**
+ * On a phone the main links open from the header's Menu button: scroll up a little, the way a reader brings the header
+ * back after scrolling down, then open it. Does nothing where the links are already on screen (wider windows).
+ */
+async function openMenu(page) {
+  const toggle = page.locator('.site-header .nav-toggle');
+  if (!(await toggle.isVisible()) || (await toggle.getAttribute('aria-expanded')) === 'true') return;
+  await page.mouse.wheel(0, -240); await page.waitForTimeout(400);
+  await toggle.click();
+}
+
 /** Types into a field the way a visitor does: click, clear, type, then Tab out. */
 async function type(page, locator, value) {
   const field = typeof locator === 'string' ? page.locator(locator).first() : locator;
@@ -393,4 +404,4 @@ async function type(page, locator, value) {
   await page.keyboard.press('Tab');
 }
 
-module.exports = { SITE, SITE_HOSTS, PREVIEW_HOST, LOOKBEHIND, SELF_TEST_PATH, launch, Run, waitFor, wiggle, type, foreignReferences };
+module.exports = { SITE, SITE_HOSTS, PREVIEW_HOST, LOOKBEHIND, SELF_TEST_PATH, launch, Run, waitFor, wiggle, type, openMenu, foreignReferences };

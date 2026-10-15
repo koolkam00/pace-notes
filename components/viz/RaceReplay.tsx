@@ -29,6 +29,8 @@ interface Props {
   autoplay?: boolean;
   onTime?: (seconds: number) => void;
   className?: string;
+  /** Shown in place of the field while its rows load (or after they fail). The frame keeps its full size, so the page does not move when they arrive. */
+  status?: { message: string; loading: boolean };
 }
 
 function clock(seconds: number) {
@@ -83,7 +85,7 @@ function routeLocator(route: NonNullable<ReplayEdition['route']>) {
   };
 }
 
-export default function RaceReplay({ edition, defaultSpeed = 600, height = 460, variant = 'track', ghostMinutes = null, autoplay = true, onTime, className }: Props) {
+export default function RaceReplay({ edition, defaultSpeed = 600, height = 460, variant = 'track', ghostMinutes = null, autoplay = true, onTime, className, status }: Props) {
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const reduced = usePrefersReducedMotion();
@@ -97,7 +99,7 @@ export default function RaceReplay({ edition, defaultSpeed = 600, height = 460, 
   const timeRef = useRef(0);
   const rows = edition.rows;
   const lastFinish = useMemo(() => rows.reduce((m, r) => Math.max(m, r[8]), 0), [rows]);
-  const firstFinish = useMemo(() => rows.reduce((m, r) => Math.min(m, r[8]), Infinity), [rows]);
+  const firstFinish = useMemo(() => (rows.length ? rows.reduce((m, r) => Math.min(m, r[8]), Infinity) : 0), [rows]);
   // Gaussian lanes (Box–Muller on stable hashes) so the field reads like a road: dense centre, soft edges.
   const lanes = useMemo(() => rows.map((_, i) => {
     const u = Math.max(1e-6, hash(i));
@@ -135,9 +137,9 @@ export default function RaceReplay({ edition, defaultSpeed = 600, height = 460, 
       setTime(timeRef.current);
       return;
     }
-    if (autoplay && inView && !userPaused.current) setPlaying(true);
+    if (autoplay && inView && !userPaused.current && rows.length) setPlaying(true);
     if (!inView) setPlaying(false);
-  }, [autoplay, inView, reduced, firstFinish]);
+  }, [autoplay, inView, reduced, firstFinish, rows.length]);
 
   useEffect(() => {
     if (!playing) return;
@@ -300,29 +302,33 @@ export default function RaceReplay({ edition, defaultSpeed = 600, height = 460, 
   const lead = units === 'mi' ? `${(stats.lead / 1.609344).toFixed(1)} mi` : `${stats.lead.toFixed(1)} km`;
 
   return (
-    <div ref={wrap} className={`replay ${className ?? ''}`}>
+    <div ref={wrap} className={`replay ${className ?? ''}`} aria-busy={status?.loading || undefined}>
       <div className="replay-hud" aria-live="off">
         <div className="replay-clock" aria-hidden="true">{clock(time)}</div>
         <dl className="replay-stats">
-          <div><dt>Still running</dt><dd>{share(stats.running)}%</dd></div>
-          <div><dt>Finished</dt><dd>{share(stats.finished)}%</dd></div>
-          <div><dt>In a section ≥25% slower than their 5–20 km pace</dt><dd>{share(stats.slow)}%</dd></div>
-          <div><dt>Leading runner on the clock</dt><dd>{stats.running ? lead : 'all home'}</dd></div>
+          <div><dt>Still running</dt><dd>{status ? '–' : `${share(stats.running)}%`}</dd></div>
+          <div><dt>Finished</dt><dd>{status ? '–' : `${share(stats.finished)}%`}</dd></div>
+          <div><dt>In a section ≥25% slower than their 5–20 km pace</dt><dd>{status ? '–' : `${share(stats.slow)}%`}</dd></div>
+          <div><dt>Leading runner on the clock</dt><dd>{status ? '–' : stats.running ? lead : 'all home'}</dd></div>
         </dl>
       </div>
-      <canvas ref={canvas} style={{ width: '100%', height: canvasHeight }} role="img" aria-label={`Animated replay of ${edition.sample.toLocaleString()} sampled finishes from ${edition.city} ${edition.year}. Use the race clock slider to step through it.`} />
+      {status ? (
+        <div className="replay-loading" style={{ height: canvasHeight }}><p>{status.message}</p></div>
+      ) : (
+        <canvas ref={canvas} style={{ width: '100%', height: canvasHeight }} role="img" aria-label={`Animated replay of ${edition.sample.toLocaleString()} sampled finishes from ${edition.city} ${edition.year}. Use the race clock slider to step through it.`} />
+      )}
       <div className="replay-controls">
-        <button type="button" className="replay-play" onClick={toggle} aria-label={playing ? 'Pause replay' : 'Play replay'}>
+        <button type="button" className="replay-play" onClick={toggle} disabled={Boolean(status)} aria-label={playing ? 'Pause replay' : 'Play replay'}>
           {playing ? (
             <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="3" y="2" width="3.5" height="12" rx="1" fill="currentColor" /><rect x="9.5" y="2" width="3.5" height="12" rx="1" fill="currentColor" /></svg>
           ) : (
             <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 2.5v11l9.5-5.5z" fill="currentColor" /></svg>
           )}
         </button>
-        <input className="replay-scrub" type="range" min={0} max={Math.ceil(lastFinish + 300)} step={10} value={Math.round(time)} onChange={(e) => scrub(Number(e.target.value))} aria-label="Race clock" aria-valuetext={clock(time)} />
+        <input className="replay-scrub" type="range" min={0} max={Math.ceil(lastFinish + 300)} step={10} value={Math.round(time)} onChange={(e) => scrub(Number(e.target.value))} disabled={Boolean(status)} aria-label="Race clock" aria-valuetext={clock(time)} />
         <label className="replay-speed">
           <span className="sr-only">Replay speed</span>
-          <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
+          <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))} disabled={Boolean(status)}>
             <option value={240}>4 min / s</option>
             <option value={600}>10 min / s</option>
             <option value={1200}>20 min / s</option>
