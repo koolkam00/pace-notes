@@ -5,10 +5,10 @@
  *
  *   node scripts/autopilot-merge.cjs evaluate [--dry-run] [--pr <n>]
  *   node scripts/autopilot-merge.cjs smoke-result --pr <n> --sha <head sha> --smoke-exit <code> --seo-exit <code> [--dir <results>]
- *   node scripts/autopilot-merge.cjs merge --pr <n> --sha <head sha>
+ *   node scripts/autopilot-merge.cjs merge --pr <n> --sha <head sha> --base <main sha>
  *   node scripts/autopilot-merge.cjs wait-deploy --sha <merge sha>
  *   node scripts/autopilot-merge.cjs record-live --pr <n> --sha <merge sha> [--note <text>]
- *   node scripts/autopilot-merge.cjs report-live --pr <n> --sha <merge sha> --smoke-exit <code> --seo-exit <code> --version-after-seo-exit <code> --baseline-exit <code> --baseline <file> --live <file> [--log <file>]
+ *   node scripts/autopilot-merge.cjs report-live --pr <n> --sha <merge sha> --smoke-exit <code> --seo-exit <code> --version-after-seo-exit <code> --baseline-exit <code> --baseline <file> --live <file> [--on-checked-base true|false] [--log <file>]
  *   node scripts/autopilot-merge.cjs incident --pr <n> --sha <merge sha> --reason <text> [--revert] [--step <name>] [--log <file>]
  *   node scripts/autopilot-merge.cjs reconcile [--dry-run]
  *   node scripts/autopilot-merge.cjs --self-test     every gate against a mocked GitHub API, and reverts in temporary repositories
@@ -16,9 +16,11 @@
  * evaluate first makes sure every autopilot merge of the last 14 days was live-checked (reconcile, below), then checks
  * every open autopilot pull request (a branch starting autopilot/, here or in a fork, or the `autopilot` label),
  * keeps one status comment on each up to date (only when its text changes) and outputs the eligible one (eligible,
- * pr, sha, preview_url). While more than one is open, none is eligible. --pr evaluates one pull request whatever its
- * labels; --dry-run writes nothing. smoke-result records the preview checks on that comment and outputs
- * outcome=pass|fail|incomplete. merge checks every gate again and squash-merges with the head commit pinned.
+ * pr, sha, base, preview_url; base is the main commit the gates checked). While more than one is open, none is
+ * eligible. --pr evaluates one pull request whatever its labels; --dry-run writes nothing. smoke-result records the
+ * preview checks on that comment and outputs outcome=pass|fail|incomplete. merge checks every gate again and
+ * squash-merges with the head commit pinned, only while main is still the --base the gates checked (GitHub's merge
+ * API pins only the head), and outputs on_checked_base: whether the squash commit's parent is that commit.
  * wait-deploy waits for Vercel's Production deployment of the merge commit and for /version.json to name it.
  * record-live leaves the "live checks passed" record on the pull request. incident optionally reverts the merge on
  * main as github-actions[bot] (keeping the ledger and the learnings, and the experiment registry when the merge only
@@ -92,7 +94,8 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 function option(argv, name) { const at = argv.indexOf(name); return at >= 0 ? argv[at + 1] : undefined; }
 function required(argv, name) { const value = option(argv, name); if (!value) throw new UsageError(`${name} is required`); return value; }
 function prNumber(argv) { const n = Number(required(argv, '--pr')); if (!Number.isInteger(n) || n < 1) throw new UsageError('--pr must be a pull request number'); return n; }
-function shaArg(argv) { const sha = required(argv, '--sha'); if (!/^[0-9a-f]{40}$/.test(sha)) throw new UsageError('--sha must be a full 40-character commit SHA'); return sha; }
+function shaArg(argv, name = '--sha') { const sha = required(argv, name); if (!/^[0-9a-f]{40}$/.test(sha)) throw new UsageError(`${name} must be a full 40-character commit SHA`); return sha; }
+const isSha = (sha) => /^[0-9a-f]{40}$/.test(sha || '');
 
 function firstParagraph(body) {
   const text = String(body || '').replace(/<!--[\s\S]*?-->/g, '').replace(/\r\n/g, '\n').trim();
@@ -283,12 +286,22 @@ async function readyGate(gh, repo, pr, now) {
   return now() >= due ? { ok: true, detail } : { ok: null, detail: `${detail}; can merge from ${utc(due)}` };
 }
 
+/** Also records `base`, the main commit it compared with: the merge job merges only while main is still that commit. */
 async function mergeableGate(gh, repo, pr) {
   const compare = await gh.get(`/repos/${repo}/compare/${encodeURIComponent(CONFIG.base)}...${pr.head.sha}`);
   if (compare.behind_by > 0) return { ok: false, detail: `needs main merged in (${compare.behind_by} commit${compare.behind_by === 1 ? '' : 's'} behind)` };
+  const base = compare.base_commit ? compare.base_commit.sha : null;
+  if (!isSha(base)) return { ok: null, detail: 'the comparison with main did not name main\'s commit' };
   if (pr.mergeable === null || pr.mergeable === undefined) return { ok: null, detail: 'GitHub is still working out whether it merges cleanly' };
   if (pr.mergeable !== true) return { ok: false, detail: `does not merge cleanly (${pr.mergeable_state || 'conflicts'})` };
-  return { ok: true, detail: 'merges cleanly; up to date with main' };
+  return { ok: true, detail: `merges cleanly; up to date with main at ${short(base)}`, base };
+}
+
+/** main's current commit, read just before the merge request. */
+async function mainSha(gh, repo) {
+  const ref = await gh.get(`/repos/${repo}/git/ref/heads/${encodeURIComponent(CONFIG.base)}`);
+  if (!ref || !ref.object || !isSha(ref.object.sha)) throw new Error(`could not read ${CONFIG.base}'s commit`);
+  return ref.object.sha;
 }
 
 /** Vercel's deployments for a commit in one environment (Preview or Production), newest first, each with Vercel's latest status. */
@@ -333,7 +346,7 @@ function runGuardWithGit(pr, { cwd = ROOT } = {}) {
   try { result = JSON.parse(run.stdout); } catch { return { ok: false, detail: `the guard did not run (exit ${run.status}): ${String(run.stderr || '').trim().split('\n')[0]}` }; }
   if (result.error) return { ok: false, detail: `guard error: ${result.error}` };
   if (result.skipped) return { ok: false, detail: 'the guard checks only autopilot/ branches' };
-  if (run.status === 0 && result.ok) return { ok: true, detail: `${result.files} files, ${result.changedLines} changed lines; within the rules` };
+  if (run.status === 0 && result.ok) return { ok: true, detail: `${result.files} files, ${result.changedLines} changed lines; within the rules`, base: git(['rev-parse', `refs/remotes/origin/${CONFIG.base}`]) };
   const listed = result.violations.slice(0, 3).map((v) => `${v.rule}${v.file ? ` ${v.file}${v.line ? `:${v.line}` : ''}` : ''}: ${v.message}`).join('; ');
   return { ok: false, detail: `${result.violations.length} violation${result.violations.length === 1 ? '' : 's'}: ${listed}${result.violations.length > 3 ? '; …' : ''}` };
 }
@@ -418,6 +431,10 @@ async function evaluateGates(gh, deps, pr, { pause, autopilot, statusComment, un
   await attempt('reviews', () => reviewsGate(gh, repo, pr.number));
   await attempt('ready', () => readyGate(gh, repo, pr, deps.now));
   await attempt('mergeable', () => mergeableGate(gh, repo, pr));
+  // The guard fetched main itself: it and the comparison must have seen the same commit, the one the merge is pinned to.
+  const guarded = gates.find((g) => g.id === 'guard');
+  const compared = gates.find((g) => g.id === 'mergeable');
+  if (compared.ok === true && guarded.base && guarded.base !== compared.base) Object.assign(compared, { ok: null, detail: `main moved while the gates were checked (the guard read ${short(guarded.base)}, the comparison ${short(compared.base)}); checks again next run` });
   await attempt('preview', () => previewGate(gh, repo, sha));
   const notes = readNotes(statusComment, sha);
   const smokeFailed = 'smoke-failed' in notes;
@@ -428,7 +445,7 @@ async function evaluateGates(gh, deps, pr, { pause, autopilot, statusComment, un
   if (gates.every((g) => g.ok === true)) await attempt('production', () => deps.runLiveSeo());
   const eligible = gates.every((g) => g.ok === true);
   const preview = gates.find((g) => g.id === 'preview');
-  return { number: pr.number, title: pr.title, sha, headRef: pr.head.ref, gates, eligible, previewUrl: preview && preview.url ? preview.url : null, notes, smokeFailed };
+  return { number: pr.number, title: pr.title, sha, headRef: pr.head.ref, gates, eligible, baseSha: compared.ok === true ? compared.base : null, previewUrl: preview && preview.url ? preview.url : null, notes, smokeFailed };
 }
 
 /**
@@ -504,6 +521,7 @@ function headline(result, { stage } = {}) {
   if (stage === 'smoke-failed') return '**Blocked: the preview checks failed on this commit.** Push a fix, or an empty commit to try again.';
   if (stage === 'smoke-incomplete') return '**Not merging yet:** the preview checks did not finish. The workflow tries again on its next run.';
   if (stage === 'merge-refused') return '**Blocked: GitHub refused to merge this commit.** The reason is in the table. Push a commit to try again.';
+  if (stage === 'moved') return '**Not merged in this run:** `main` or the pull request changed after the gates checked them (last row). The next run checks again.';
   const failing = result.gates.filter((g) => g.ok === false).map((g) => g.id);
   const waiting = result.gates.filter((g) => g.ok === null).map((g) => g.id);
   if (!failing.length && !waiting.length) return '**All gates pass.** Next: the preview checks, then a squash merge pinned to this commit.';
@@ -568,6 +586,7 @@ async function cmdEvaluate(argv, deps) {
   deps.setOutput('candidate', chosen ? 'true' : 'false');
   deps.setOutput('pr', chosen ? String(chosen.number) : '');
   deps.setOutput('sha', chosen ? chosen.sha : '');
+  deps.setOutput('base', chosen ? chosen.baseSha : '');
   deps.setOutput('preview_url', chosen ? chosen.previewUrl : '');
   if (chosen) fs.writeFileSync(statePath(deps), JSON.stringify({ number: chosen.number, title: chosen.title, sha: chosen.sha, headRef: chosen.headRef, gates: chosen.gates, previewUrl: chosen.previewUrl, notes: chosen.notes }));
 
@@ -575,7 +594,7 @@ async function cmdEvaluate(argv, deps) {
   if (several) summary.push(`**${autopilot.length} autopilot pull requests are open (${several}), so none merges in this run.** Only one may be open at a time: close all but one.`, '');
   if (!results.length) summary.push(`No open autopilot pull request (a branch starting \`${CONFIG.branchPrefix}\` or the \`${CONFIG.label}\` label).${pause.length ? ` Merges are paused by ${pause.map((i) => `#${i.number}`).join(', ')}.` : ''}`);
   for (const result of results) summary.push(`### #${result.number} ${cell(result.title)}`, '', headline(result), '', ...gateTable(result.gates), '');
-  if (chosen) summary.push(dryRun ? `Dry run: #${chosen.number} would go to the preview checks and merge next.` : `#${chosen.number} goes to the preview checks next.`);
+  if (chosen) summary.push(`${dryRun ? `Dry run: #${chosen.number} would go to the preview checks and merge next` : `#${chosen.number} goes to the preview checks next`}, checked against main at \`${short(chosen.baseSha)}\`.`);
   deps.summary(summary.join('\n'));
 
   for (const result of results) {
@@ -657,6 +676,7 @@ async function mergedAnyway(gh, deps, number, sha) {
 async function cmdMerge(argv, deps) {
   const number = prNumber(argv);
   const sha = shaArg(argv);
+  const base = shaArg(argv, '--base');
   const gh = deps.client({ dryRun: false });
   const pr = await gh.get(`/repos/${deps.repo}/pulls/${number}`);
   let unchecked;
@@ -673,6 +693,24 @@ async function cmdMerge(argv, deps) {
     const blocked = result.gates.filter((g) => g.ok !== true);
     deps.log(`#${number}: not merging; ${blocked.map((g) => `${g.id}: ${g.detail}`).join('; ')}`);
     deps.summary(`### Not merged: #${number}\n\n${gateTable(result.gates).join('\n')}\n`);
+    return 1;
+  }
+  // GitHub's merge API pins only the head commit (sha), never main, and the gates above take minutes (the production
+  // SEO check last). Read main and the pull request once more: if either is not what the gates checked (main as the
+  // gate job and this job saw it), the squash would land on a combination no gate checked, so this run does not merge.
+  const latest = await gh.get(`/repos/${deps.repo}/pulls/${number}`);
+  const mainNow = await mainSha(gh, deps.repo);
+  const changed = mainNow !== base || result.baseSha !== base
+    ? `\`${CONFIG.base}\` moved to \`${short(mainNow !== base ? mainNow : result.baseSha)}\` after the gates checked it at \`${short(base)}\``
+    : latest.state !== 'open' || latest.merged || latest.head.sha !== sha
+      ? `the pull request is now ${latest.merged ? 'merged' : latest.state !== 'open' ? latest.state : `at \`${short(latest.head.sha)}\``}, not open at \`${short(sha)}\``
+      : null;
+  if (changed) {
+    const detail = `${changed}: not merged in this run, since GitHub's merge API pins only the head commit. The next run checks the pull request against the current ${CONFIG.base}`;
+    deps.log(`#${number}: not merging; ${detail}`);
+    deps.summary(`### Not merged: #${number}\n\n${cell(detail)}.\n`);
+    const row = { id: 'unchanged', label: `${CONFIG.base} and the pull request unchanged since the gates checked them`, ok: false, detail };
+    try { await upsertStatusComment(gh, deps, number, statusComment, statusBody(deps, result, { stage: 'moved', extraRows: [row] })); } catch (error) { deps.log(`#${number}: could not update the status comment: ${error.message}`); }
     return 1;
   }
   const commitMessage = [firstParagraph(pr.body), 'Merged by the autopilot merge workflow after all gates passed.'].filter(Boolean).join('\n\n');
@@ -695,8 +733,31 @@ async function cmdMerge(argv, deps) {
       throw error;
     }
   }
+  // Main can still move in the seconds between that read and the merge, and GitHub squashes onto it anyway. The squash
+  // commit's parent must be the main the gates checked. If it is not, this combination was never checked: the paused
+  // incident opens without a revert (the change was not found broken), and the report job does not revert it either.
+  let parent = null;
+  try {
+    const commit = await gh.get(`/repos/${deps.repo}/git/commits/${mergeSha}`);
+    parent = commit && Array.isArray(commit.parents) && commit.parents[0] && isSha(commit.parents[0].sha) ? commit.parents[0].sha : null;
+  } catch (error) { deps.log(`#${number}: could not read the merge commit's parent: ${error.message}`); }
+  const onCheckedBase = parent === base;
+  deps.setOutput('on_checked_base', onCheckedBase ? 'true' : 'false');
   deps.setOutput('merge_sha', mergeSha);
-  const body = [`Merged by the **Autopilot merge** workflow as \`${short(mergeSha)}\` (squash, pinned to \`${short(sha)}\`) after all gates and the preview checks passed.${deps.runUrl ? ` [Workflow run](${deps.runUrl}).` : ''}`, '', ...gateTable(result.gates), '', `Next: the workflow waits for the production deploy, checks ${CONFIG.productionUrl} and reverts this merge automatically if the live site is broken.`].join('\n');
+  if (!onCheckedBase) {
+    const why = parent
+      ? `GitHub squashed it onto \`${short(parent)}\`, but the gates checked \`${CONFIG.base}\` at \`${short(base)}\`; \`${CONFIG.base}\` moved in the seconds between the last check and the merge, so the change on that \`${CONFIG.base}\` was never guarded or checked`
+      : `the merge commit's parent could not be read, so nothing confirms the squash sits on \`${short(base)}\`, the \`${CONFIG.base}\` the gates checked`;
+    const reason = `merged onto a main the gate did not check: ${why}. The live checks still run, but a failure opens an incident instead of reverting; check the combined change by hand`;
+    deps.log(`#${number}: ${reason}`);
+    try {
+      await openIncident(gh, deps, { number, title: pr.title, sha: mergeSha, step: 'merge base check', reason, revert: { pushed: false, detail: 'not attempted: the change was not found broken, and a merge onto a main the gates did not check is never reverted automatically' } });
+    } catch (error) { deps.log(`#${number}: could not open the incident: ${error.message}`); }
+  }
+  const next = onCheckedBase
+    ? `Next: the workflow waits for the production deploy, checks ${CONFIG.productionUrl} and reverts this merge automatically if the live site is broken.`
+    : `It landed on a \`${CONFIG.base}\` the gates did not check (see the incident), so the live checks of ${CONFIG.productionUrl} that follow open an incident instead of reverting it.`;
+  const body = [`Merged by the **Autopilot merge** workflow as \`${short(mergeSha)}\` (squash, pinned to \`${short(sha)}\`, onto \`${CONFIG.base}\` at ${parent ? `\`${short(parent)}\`` : 'an unread commit'}) after all gates and the preview checks passed.${deps.runUrl ? ` [Workflow run](${deps.runUrl}).` : ''}`, '', ...gateTable(result.gates), '', next].join('\n');
   try { await gh.write('POST', `/repos/${deps.repo}/issues/${number}/comments`, { body }, `comment on #${number}`); } catch (error) { deps.log(`#${number}: merged, but the comment failed: ${error.message}`); }
   deps.log(`#${number}: merged as ${mergeSha}`);
   deps.summary(`### Merged #${number} as \`${short(mergeSha)}\`\n\n${gateTable(result.gates).join('\n')}\n`);
@@ -948,7 +1009,18 @@ const otherCommitSeen = (live) => Boolean(live && live.base === CONFIG.productio
 const servedMergeThroughout = (live, sha) => Boolean(sha && live && live.base === CONFIG.productionUrl && !otherCommitSeen(live) &&
   live.version && live.version.sha === sha && live.versionAfter && live.versionAfter.sha === sha);
 
-function liveCheckDecision({ sha, smoke, seo, versionAfterSeo, baselineExit, baseline, live }) {
+/**
+ * The decision for the live checks. A merge that landed on a main the gates did not check (the merge job's
+ * on_checked_base is "false") is never reverted automatically, as in the other unconfirmed cases: a live failure may
+ * come from that combination rather than from the change, and an incident is already open for it.
+ */
+function liveCheckDecision({ onCheckedBase, ...checks }) {
+  const decision = liveChecksJudged(checks);
+  if (decision.action !== 'revert' || onCheckedBase !== 'false') return decision;
+  return { action: 'incident', reason: `${decision.reason} It was not reverted: the merge landed on a ${CONFIG.base} commit the gates did not check (see the merge's incident), so the failure cannot be tied to the change alone.` };
+}
+
+function liveChecksJudged({ sha, smoke, seo, versionAfterSeo, baselineExit, baseline, live }) {
   // verify:seo:live runs after the smoke test's last version.json reading, so another deploy can replace production
   // before or during the SEO requests. The workflow reads version.json once more after it (smoke --version-only:
   // 0 names the merge commit, 3 another commit or unreadable); only 0 shows the SEO check saw the merge throughout.
@@ -992,7 +1064,7 @@ async function cmdReportLive(argv, deps) {
     try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
     catch (error) { deps.log(`report-live: ${flag} could not be read: ${error.message}`); return null; }
   };
-  const decision = liveCheckDecision({ sha, smoke: option(argv, '--smoke-exit'), seo: option(argv, '--seo-exit'), versionAfterSeo: option(argv, '--version-after-seo-exit'), baselineExit: option(argv, '--baseline-exit'), baseline: read('--baseline'), live: read('--live') });
+  const decision = liveCheckDecision({ sha, smoke: option(argv, '--smoke-exit'), seo: option(argv, '--seo-exit'), versionAfterSeo: option(argv, '--version-after-seo-exit'), baselineExit: option(argv, '--baseline-exit'), baseline: read('--baseline'), live: read('--live'), onCheckedBase: option(argv, '--on-checked-base') });
   deps.setOutput('live_action', decision.action);
   deps.log(`report-live: ${decision.action}: ${decision.reason}`);
   if (decision.action === 'pass') return cmdRecordLive(['--pr', String(number), '--sha', sha], deps);
@@ -1032,7 +1104,7 @@ function realDeps(env = process.env) {
 }
 
 const COMMANDS = { evaluate: cmdEvaluate, 'smoke-result': cmdSmokeResult, merge: cmdMerge, 'wait-deploy': cmdWaitDeploy, 'record-live': cmdRecordLive, 'report-live': cmdReportLive, incident: cmdIncident, reconcile: cmdReconcile };
-const USAGE = 'Usage: node scripts/autopilot-merge.cjs evaluate [--dry-run] [--pr <n>] | smoke-result --pr <n> --sha <sha> --smoke-exit <code> --seo-exit <code> [--dir <dir>] | merge --pr <n> --sha <sha> | wait-deploy --sha <sha> | record-live --pr <n> --sha <sha> [--note <text>] | report-live --pr <n> --sha <sha> --smoke-exit <code> --seo-exit <code> --version-after-seo-exit <code> --baseline-exit <code> --baseline <file> --live <file> [--log <file>] | incident --pr <n> --sha <sha> --reason <text> [--revert] [--step <name>] [--log <file>] | reconcile [--dry-run] | --self-test';
+const USAGE = 'Usage: node scripts/autopilot-merge.cjs evaluate [--dry-run] [--pr <n>] | smoke-result --pr <n> --sha <sha> --smoke-exit <code> --seo-exit <code> [--dir <dir>] | merge --pr <n> --sha <sha> --base <sha> | wait-deploy --sha <sha> | record-live --pr <n> --sha <sha> [--note <text>] | report-live --pr <n> --sha <sha> --smoke-exit <code> --seo-exit <code> --version-after-seo-exit <code> --baseline-exit <code> --baseline <file> --live <file> [--on-checked-base true|false] [--log <file>] | incident --pr <n> --sha <sha> --reason <text> [--revert] [--step <name>] [--log <file>] | reconcile [--dry-run] | --self-test';
 
 async function main(argv, deps = realDeps()) {
   if (argv.includes('--self-test')) return selfTest();
@@ -1082,6 +1154,9 @@ function fixture() {
     createdIssues: [],
     merges: [],
     faults: [],
+    // main's tip, and the parent of each merge commit the mock makes (GitHub squashes onto main as it is then).
+    mainSha: SHA('1'),
+    mergeParents: {},
     nextId: 9000,
   };
 }
@@ -1114,7 +1189,9 @@ function mockFetch(state, calls) {
     if (method === 'GET' && (m = /^\/commits\/([0-9a-f]+)\/statuses$/.exec(p))) return json(200, state.statuses[m[1]] || []);
     if (method === 'GET' && (m = /^\/pulls\/(\d+)\/reviews$/.exec(p))) return json(200, state.reviews[m[1]] || []);
     if (method === 'GET' && (m = /^\/issues\/(\d+)\/timeline$/.exec(p))) return json(200, state.timeline[m[1]] || []);
-    if (method === 'GET' && (m = /^\/compare\/main\.\.\.([0-9a-f]+)$/.exec(p))) return json(200, { behind_by: state.behind[m[1]] || 0, ahead_by: 1 });
+    if (method === 'GET' && (m = /^\/compare\/main\.\.\.([0-9a-f]+)$/.exec(p))) return json(200, { behind_by: state.behind[m[1]] || 0, ahead_by: 1, base_commit: { sha: state.mainSha }, merge_base_commit: { sha: state.mainSha } });
+    if (method === 'GET' && p === '/git/ref/heads/main') return json(200, { ref: 'refs/heads/main', object: { sha: state.mainSha, type: 'commit' } });
+    if (method === 'GET' && (m = /^\/git\/commits\/([0-9a-f]{40})$/.exec(p))) return state.mergeParents[m[1]] ? json(200, { sha: m[1], parents: [{ sha: state.mergeParents[m[1]] }] }) : json(404, { message: 'Not Found' });
     if (method === 'GET' && p === '/deployments') return json(200, state.deployments.filter((d) => d.sha === u.searchParams.get('sha')));
     if (method === 'GET' && (m = /^\/deployments\/(\d+)\/statuses$/.exec(p))) return json(200, state.deploymentStatuses[m[1]] || []);
     if (method === 'GET' && (m = /^\/issues\/(\d+)\/comments$/.exec(p))) {
@@ -1130,7 +1207,10 @@ function mockFetch(state, calls) {
     if (method === 'PUT' && (m = /^\/pulls\/(\d+)\/merge$/.exec(p))) {
       const pr = state.prs[m[1]];
       if (body.sha !== pr.head.sha) return json(409, { message: 'Head branch was modified' });
+      if (state.onMerge) state.onMerge();
       state.merges.push({ number: Number(m[1]), ...body });
+      state.mergeParents[SHA('d')] = state.mainSha;
+      state.mainSha = SHA('d');
       Object.assign(pr, { state: 'closed', merged: true, merged_at: new Date(state.now).toISOString(), merge_commit_sha: SHA('d'), merged_by: { login: BOT_LOGIN } });
       return json(200, { sha: SHA('d'), merged: true, message: 'Pull Request successfully merged' });
     }
@@ -1204,6 +1284,9 @@ async function selfTestAsync() {
   const head = SHA('a');
   const old = SHA('b');
   const merged = SHA('d');
+  // main's tip as the gates check it, and main after another merge lands meanwhile.
+  const checkedBase = SHA('1');
+  const movedBase = SHA('2');
   // Another open pull request, a copy of #7 (an autopilot one unless extra says otherwise).
   const openPr = (s, number, extra = {}) => { s.prs[number] = { ...JSON.parse(JSON.stringify(s.prs[7])), number, title: `Another change ${number}`, ...extra }; s.reviews[number] = []; s.timeline[number] = []; s.threads[number] = []; s.comments[number] = []; };
   // A merged autopilot pull request in the recent past, as GitHub lists it.
@@ -1395,7 +1478,7 @@ async function selfTestAsync() {
       ok('evaluate: more than 30 pages of open pull requests fails the run instead of missing one', threw && threw.message.includes('has more than 30 pages') && run2.outputs.eligible !== 'true' && truncated.comments[7].length === 0, threw ? threw.message : JSON.stringify(run2.outputs));
       const run3 = mockDeps(truncated);
       threw = null;
-      try { await cmdMerge(['--pr', '7', '--sha', head], run3.deps); } catch (error) { threw = error; }
+      try { await cmdMerge(['--pr', '7', '--sha', head, '--base', checkedBase], run3.deps); } catch (error) { threw = error; }
       ok('merge: refuses when the open pull requests cannot all be listed', threw && threw.message.includes('has more than 30 pages') && truncated.merges.length === 0, threw ? threw.message : 'did not throw');
     }
     {
@@ -1550,7 +1633,7 @@ async function selfTestAsync() {
     {
       const state = fresh();
       const run = mockDeps(state);
-      const code = await cmdMerge(['--pr', '7', '--sha', head], run.deps);
+      const code = await cmdMerge(['--pr', '7', '--sha', head, '--base', checkedBase], run.deps);
       const merge = state.merges[0];
       ok('merge: squash with the head SHA pinned', code === 0 && merge && merge.merge_method === 'squash' && merge.sha === head, JSON.stringify(merge));
       ok('merge: commit title is "<title> (#n)"', merge && merge.commit_title === 'Clearer home hero (#7)', merge && merge.commit_title);
@@ -1558,6 +1641,11 @@ async function selfTestAsync() {
       ok('merge: outputs the merge commit', run.outputs.merge_sha === merged);
       ok('merge: comments on the PR with the gate table', state.comments[7].some((c) => c.body.includes('Merged by the **Autopilot merge** workflow') && c.body.includes('| Gate | Result | Detail |')));
       ok('merge: re-checks the live baseline first', run.counts.liveSeo === 1);
+      const put = run.calls.findIndex((c) => c.method === 'PUT');
+      const compared = run.calls.reduce((at, c, i) => (c.path.includes('/compare/') ? i : at), -1);
+      const reread = run.calls.slice(compared + 1, put);
+      ok('merge: reads main and the pull request again after the last gate, just before the merge request', reread.some((c) => c.method === 'GET' && c.path === `/repos/${state.repo}/git/ref/heads/main`) && reread.some((c) => c.method === 'GET' && c.path === `/repos/${state.repo}/pulls/7`), JSON.stringify(reread.map((c) => c.path)));
+      ok('merge: main unchanged, so the squash sits on the main the gates checked: no incident', run.outputs.on_checked_base === 'true' && state.createdIssues.length === 0, JSON.stringify(run.outputs));
       const record = mockDeps(state);
       ok('record-live: leaves the record', (await cmdRecordLive(['--pr', '7', '--sha', merged], record.deps)) === 0 && state.comments[7].some((c) => c.body.includes(liveOkMarker(merged))));
       ok('record-live: the merge is then accounted for', (await uncheckedMerges(record.deps.client({ dryRun: true }), record.deps)).length === 0);
@@ -1565,15 +1653,58 @@ async function selfTestAsync() {
     {
       const state = fresh((s) => { s.faults.push({ method: 'PUT', path: /\/merge$/, lost: true, times: 1 }); });
       const run = mockDeps(state);
-      const code = await cmdMerge(['--pr', '7', '--sha', head], run.deps);
+      const code = await cmdMerge(['--pr', '7', '--sha', head, '--base', checkedBase], run.deps);
       ok('merge: an answer lost after GitHub merged still outputs the merge commit', code === 0 && run.outputs.merge_sha === merged && state.merges.length === 1, `code ${code}, ${JSON.stringify(run.outputs)}`);
+      ok('merge: an answer lost after GitHub merged still checks the squash commit\'s parent', run.outputs.on_checked_base === 'true' && state.createdIssues.length === 0);
+    }
+    // GitHub's merge API pins only the head (sha): main moving after the gates checked it must stop this run's merge.
+    {
+      const state = fresh();
+      const run = mockDeps(state);
+      await cmdEvaluate([], run.deps);
+      ok('evaluate: outputs the main commit the gates checked', run.outputs.eligible === 'true' && run.outputs.base === checkedBase, JSON.stringify(run.outputs));
+      await cmdSmokeResult(['--pr', '7', '--sha', head, '--smoke-exit', '0', '--seo-exit', '0'], run.deps);
+      // Another merge lands while the production SEO check (the last gate) runs.
+      run.deps.runLiveSeo = () => { state.mainSha = movedBase; return { ok: true, detail: 'passes' }; };
+      const code = await cmdMerge(['--pr', '7', '--sha', head, '--base', checkedBase], run.deps);
+      ok('merge: main moved after the gates checked it: no merge in this run', code === 1 && state.merges.length === 0 && !run.outputs.merge_sha && !run.calls.some((c) => c.method === 'PUT'), `code ${code}`);
+      ok('merge: main moved: the status comment says so and that the next run checks again', state.comments[7].length === 1 && state.comments[7][0].body.includes('Not merged in this run') && state.comments[7][0].body.includes(short(movedBase)) && state.comments[7][0].body.includes(short(checkedBase)) && state.comments[7][0].body.includes('next run'), state.comments[7][0].body);
+      ok('merge: main moved: the run summary says so', run.summaries.some((t) => t.includes('Not merged: #7') && t.includes(short(movedBase)) && t.includes('next run')), run.summaries.join('\n'));
+      ok('merge: main moved: no incident (nothing merged)', state.createdIssues.length === 0);
+    }
+    {
+      // main moved between the gate job and the merge job: the merge job's own checks see the new main, which is still not the one the gate job checked.
+      const state = fresh((s) => { s.mainSha = movedBase; });
+      const run = mockDeps(state);
+      ok('merge: main moved since the gate job: no merge', (await cmdMerge(['--pr', '7', '--sha', head, '--base', checkedBase], run.deps)) === 1 && state.merges.length === 0 && state.comments[7].some((c) => c.body.includes('Not merged in this run')));
+      const pushed = fresh();
+      const run2 = mockDeps(pushed);
+      run2.deps.runLiveSeo = () => { pushed.prs[7].head.sha = old; return { ok: true, detail: 'passes' }; };
+      let changed;
+      try { changed = await cmdMerge(['--pr', '7', '--sha', head, '--base', checkedBase], run2.deps); } catch (error) { changed = error.message; }
+      ok('merge: the pull request changed after the gates: no merge', changed === 1 && pushed.merges.length === 0 && !run2.calls.some((c) => c.method === 'PUT'), String(changed));
+      const guarded = await gatesOf(fresh(), { guard: { ok: true, detail: 'within the rules', base: movedBase } });
+      ok('gates: the guard and the up-to-date check must have read the same main', gate(guarded, 'mergeable').ok === null && /main moved while the gates were checked/.test(gate(guarded, 'mergeable').detail) && !guarded.eligible, gate(guarded, 'mergeable').detail);
+      const same = await gatesOf(fresh(), { guard: { ok: true, detail: 'within the rules', base: checkedBase } });
+      ok('gates: the same main for both passes, and is the checked base', same.eligible && same.baseSha === checkedBase, failing(same));
+    }
+    {
+      // main moves in the seconds between the last read and the merge: GitHub squashes onto it anyway.
+      const state = fresh((s) => { s.onMerge = () => { s.mainSha = movedBase; }; });
+      const run = mockDeps(state);
+      run.deps.revert = () => { throw new Error('must not revert'); };
+      const code = await cmdMerge(['--pr', '7', '--sha', head, '--base', checkedBase], run.deps);
+      const issue = state.createdIssues[0];
+      ok('merge: a squash onto a main the gates did not check still outputs the merge, marked off the checked main', code === 0 && run.outputs.merge_sha === merged && run.outputs.on_checked_base === 'false', `code ${code}, ${JSON.stringify(run.outputs)}`);
+      ok('merge: a squash onto a main the gates did not check opens the paused incident, without a revert', state.createdIssues.length === 1 && issue.labels.some((l) => l.name === CONFIG.pauseLabel) && issue.body.includes('merged onto a main the gate did not check') && issue.body.includes(short(movedBase)) && issue.body.includes(short(checkedBase)) && issue.body.includes('not attempted'), issue && issue.body);
+      ok('merge: that merge is then accounted for', (await uncheckedMerges(run.deps.client({ dryRun: true }), run.deps)).length === 0);
     }
     {
       const state = fresh((s) => { s.faults.push({ method: 'PUT', path: /\/merge$/, status: 405, message: 'Repository rule violations found', times: 1 }); });
       const run = mockDeps(state);
       await cmdEvaluate([], run.deps);
       let threw = null;
-      try { await cmdMerge(['--pr', '7', '--sha', head], run.deps); } catch (error) { threw = error; }
+      try { await cmdMerge(['--pr', '7', '--sha', head, '--base', checkedBase], run.deps); } catch (error) { threw = error; }
       ok('merge: a refused merge fails the step', threw && threw.status === 405 && !run.outputs.merge_sha);
       ok('merge: a refusal is recorded on the status comment', state.comments[7][0].body.includes('GitHub refused to merge this commit') && state.comments[7][0].body.includes('Repository rule violations found'), state.comments[7][0].body);
       await cmdEvaluate([], run.deps);
@@ -1584,27 +1715,27 @@ async function selfTestAsync() {
       const run = mockDeps(state);
       await cmdEvaluate([], run.deps);
       let threw = null;
-      try { await cmdMerge(['--pr', '7', '--sha', head], run.deps); } catch (error) { threw = error; }
+      try { await cmdMerge(['--pr', '7', '--sha', head, '--base', checkedBase], run.deps); } catch (error) { threw = error; }
       await cmdEvaluate([], run.deps);
       ok('merge: a 5xx that did not merge is tried again next run', threw && run.outputs.eligible === 'true');
     }
     {
       const state = fresh();
       const run = mockDeps(state);
-      const code = await cmdMerge(['--pr', '7', '--sha', old], run.deps);
+      const code = await cmdMerge(['--pr', '7', '--sha', old, '--base', checkedBase], run.deps);
       ok('merge: refuses when the head moved since evaluation', code === 1 && state.merges.length === 0);
       const blocked = fresh((s) => { s.checkRuns[0].conclusion = 'failure'; });
       const run2 = mockDeps(blocked);
-      ok('merge: re-checks the gates and refuses when one fails', (await cmdMerge(['--pr', '7', '--sha', head], run2.deps)) === 1 && blocked.merges.length === 0);
+      ok('merge: re-checks the gates and refuses when one fails', (await cmdMerge(['--pr', '7', '--sha', head, '--base', checkedBase], run2.deps)) === 1 && blocked.merges.length === 0);
       const paused = fresh((s) => { s.issues.push({ number: 3, state: 'open', title: 'log', labels: [{ name: 'autopilot:paused' }] }); });
       const run3 = mockDeps(paused);
-      ok('merge: refuses while paused', (await cmdMerge(['--pr', '7', '--sha', head], run3.deps)) === 1 && paused.merges.length === 0);
+      ok('merge: refuses while paused', (await cmdMerge(['--pr', '7', '--sha', head, '--base', checkedBase], run3.deps)) === 1 && paused.merges.length === 0);
       const switchedOff = fresh();
       const run4 = mockDeps(switchedOff, { env: { AUTOPILOT_MERGE: 'false' } });
-      ok('merge: refuses while AUTOPILOT_MERGE is not on', (await cmdMerge(['--pr', '7', '--sha', head], run4.deps)) === 1 && switchedOff.merges.length === 0);
+      ok('merge: refuses while AUTOPILOT_MERGE is not on', (await cmdMerge(['--pr', '7', '--sha', head, '--base', checkedBase], run4.deps)) === 1 && switchedOff.merges.length === 0);
       const second = fresh((s) => openPr(s, 8, { labels: [], head: { ref: 'autopilot/2026-10-14-other', sha: old, repo: { full_name: s.repo } } }));
       const run5 = mockDeps(second);
-      ok('merge: refuses while another autopilot pull request is open', (await cmdMerge(['--pr', '7', '--sha', head], run5.deps)) === 1 && second.merges.length === 0 && run5.logs.some((l) => l.includes('one-open: #8 is open too')));
+      ok('merge: refuses while another autopilot pull request is open', (await cmdMerge(['--pr', '7', '--sha', head, '--base', checkedBase], run5.deps)) === 1 && second.merges.length === 0 && run5.logs.some((l) => l.includes('one-open: #8 is open too')));
     }
 
     // wait-deploy.
@@ -1712,7 +1843,7 @@ async function selfTestAsync() {
         run.deps.revert = (sha, pr) => { reverts += 1; ok(`report-live ${label}: revert target is pinned`, sha === merged && pr === 7); return { pushed: true, revertSha: SHA('e'), detail: 'test revert' }; };
         const code = await main(['report-live', '--pr', '7', '--sha', merged, '--smoke-exit', smoke, '--seo-exit', seo,
           ...(versionAfterSeo === null ? [] : ['--version-after-seo-exit', versionAfterSeo]),
-          '--baseline-exit', baselineExit, '--baseline', baselineFile, '--live', liveFile], run.deps);
+          '--baseline-exit', baselineExit, '--baseline', baselineFile, '--live', liveFile, '--on-checked-base', 'true'], run.deps);
         ok(`report-live ${label}: correct action`, code === 0 && run.outputs.live_action === action && reverts === (action === 'revert' ? 1 : 0), JSON.stringify(run.outputs));
         ok(`report-live ${label}: recorded or paused`, action === 'pass'
           ? state.createdIssues.length === 0 && state.comments[7].some((c) => c.body.includes(liveOkMarker(merged)))
@@ -1723,8 +1854,29 @@ async function selfTestAsync() {
         if ((seo === '1' || (smoke === '0' && seo === '0')) && versionAfterSeo !== '0') ok(`report-live ${label}: the incident says production changed or could not be confirmed after the SEO check`, state.createdIssues.length === 1 && state.createdIssues[0].body.includes('production changed or could not be confirmed after the SEO check'), state.createdIssues[0] && state.createdIssues[0].body.split('\n')[2]);
         if (smoke === '0' && seo === '0' && versionAfterSeo !== '0') ok(`report-live ${label}: the incident says the live result is unconfirmed`, state.createdIssues[0] && state.createdIssues[0].body.includes('the live result for this merge is unconfirmed'), state.createdIssues[0] && state.createdIssues[0].body.split('\n')[2]);
       }
+      // A merge that landed on a main the gates did not check: a live failure cannot be tied to the change alone, so it
+      // opens an incident without a revert, like the other unconfirmed cases; a pass is still recorded.
+      for (const [label, smoke, seo, before, after, action] of [
+        ['a new smoke failure', '1', '0', existing, changed, 'incident'],
+        ['a failed SEO check on the merge commit', '0', '1', existing, report([]), 'incident'],
+        ['both checks passed', '0', '0', existing, report([]), 'pass'],
+      ]) {
+        write(baselineFile, before); write(liveFile, after);
+        const state = fresh();
+        const run = mockDeps(state);
+        let reverts = 0;
+        run.deps.revert = () => { reverts += 1; return { pushed: true, revertSha: SHA('e'), detail: 'test revert' }; };
+        await main(['report-live', '--pr', '7', '--sha', merged, '--smoke-exit', smoke, '--seo-exit', seo, '--version-after-seo-exit', '0',
+          '--baseline-exit', '1', '--baseline', baselineFile, '--live', liveFile, '--on-checked-base', 'false'], run.deps);
+        ok(`report-live off the checked main, ${label}: ${action}, never a revert`, run.outputs.live_action === action && reverts === 0 && (action === 'pass' ? state.comments[7].some((c) => c.body.includes(liveOkMarker(merged))) : state.createdIssues.length === 1 && state.createdIssues[0].body.includes('did not check')), JSON.stringify(run.outputs));
+      }
       const workflow = fs.readFileSync(path.join(ROOT, OWN_WORKFLOW), 'utf8');
       const reportJob = workflow.slice(workflow.indexOf('  report:'));
+      const gateJob = workflow.slice(workflow.indexOf('  gate:'), workflow.indexOf('  preview:'));
+      const mergeJob = workflow.slice(workflow.indexOf('  merge:'), workflow.indexOf('  live:'));
+      ok('workflow: the gate job outputs the main commit the gates checked', gateJob.includes('base: ${{ steps.evaluate.outputs.base }}'));
+      ok('workflow: the merge job passes it to the merge command', mergeJob.includes('BASE_SHA: ${{ needs.gate.outputs.base }}') && mergeJob.includes('autopilot-merge.cjs merge --pr "$PR" --sha "$HEAD_SHA" --base "$BASE_SHA"'));
+      ok('workflow: the merge job outputs whether the squash sits on it, and the report job passes that to report-live', mergeJob.includes('on_checked_base: ${{ steps.merge.outputs.on_checked_base }}') && reportJob.includes('ON_CHECKED_BASE: ${{ needs.merge.outputs.on_checked_base }}') && reportJob.includes('--on-checked-base "$ON_CHECKED_BASE"'));
       ok('workflow: report job downloads baseline artifacts', /name: preview-checks[\s\S]*path: \$\{\{ runner.temp \}\}\/preview/.test(reportJob));
       ok('workflow: delegates the live decision to the tested command with both artifacts', reportJob.includes('autopilot-merge.cjs report-live') && reportJob.includes('--baseline "$RUNNER_TEMP/preview/baseline.json" --live "$RUNNER_TEMP/live/smoke.json"'));
       ok('workflow: production baseline has full coverage, not quick-only', workflow.includes('--base https://splithappens.run --json "$RUNNER_TEMP/preview/baseline.json"') && !workflow.includes('--quick --json "$RUNNER_TEMP/preview/baseline.json"'));
@@ -1737,13 +1889,14 @@ async function selfTestAsync() {
       // there is no live-check record for the merge, so the run cannot succeed either. Runs the step's script itself.
       const failStep = /- name: Fail the run when a check failed\n(?: {8}.*\n)*? {8}run: \|\n((?: {10}.*\n?)+)/.exec(reportJob);
       const runStatus = (env) => (failStep ? spawnSync('bash', ['-c', failStep[1].replace(/^ {10}/gm, '')], { env: { PATH: process.env.PATH, ...env }, encoding: 'utf8' }).status : null);
-      const allPassed = { PREVIEW: 'pass', MERGE_SHA: merged, DEPLOY: 'success', SMOKE: '0', SEO: '0' };
+      const allPassed = { PREVIEW: 'pass', MERGE_SHA: merged, DEPLOY: 'success', SMOKE: '0', SEO: '0', ON_CHECKED_BASE: 'true' };
       for (const [reading, status] of [['0', 0], ['3', 1], ['', 1], [undefined, 1]]) {
         const env = reading === undefined ? allPassed : { ...allPassed, VERSION_AFTER_SEO: reading };
         ok(`workflow: with both live checks passed, the run ${status ? 'fails' : 'passes'} when the reading after the SEO check is ${reading === undefined ? 'missing' : reading ? `exit ${reading}` : 'empty'}`, runStatus(env) === status, String(runStatus(env)));
       }
       ok('workflow: a run that merged nothing is not failed for the reading it never took', runStatus({ PREVIEW: 'pass' }) === 0);
       ok('workflow: a failed SEO check still fails the run when the reading names the merge', runStatus({ ...allPassed, SEO: '1', VERSION_AFTER_SEO: '0' }) === 1);
+      ok('workflow: a merge onto a main the gates did not check fails the run (its incident is open) even when the live checks pass', runStatus({ ...allPassed, VERSION_AFTER_SEO: '0', ON_CHECKED_BASE: 'false' }) === 1 && runStatus({ ...allPassed, VERSION_AFTER_SEO: '0', ON_CHECKED_BASE: '' }) === 1);
     }
 
     // incident.
@@ -1863,7 +2016,7 @@ async function selfTestAsync() {
     for (const failure of failures) console.error(`  ${failure}`);
     return 1;
   }
-  console.log(`autopilot-merge self-test: ${checks} checks passed (every gate on its own, pause, one open autopilot pull request, merge history, every check run and required checks that must succeed, stale and re-run checks, reviews, status comment and its notes, dry run, retried reads, merge and lost or refused merges, deploy wait, live failure-set comparisons, the version.json reading after the SEO check, live record, incident, report-driven reverts that keep the ledger and the learnings, and a stopped experiment stopped)`);
+  console.log(`autopilot-merge self-test: ${checks} checks passed (every gate on its own, pause, one open autopilot pull request, merge history, every check run and required checks that must succeed, stale and re-run checks, reviews, status comment and its notes, dry run, retried reads, merge pinned to the main the gates checked, and lost or refused merges, deploy wait, live failure-set comparisons, the version.json reading after the SEO check, live record, incident, report-driven reverts that keep the ledger and the learnings, and a stopped experiment stopped)`);
   return 0;
 }
 function selfTest() { return selfTestAsync(); }

@@ -10,7 +10,8 @@ name: Autopilot merge
 #   gate     check every gate and output the eligible pull request, if any (writes status comments and incidents)
 #   preview  smoke test and verify:seo:live on the pull request's Vercel preview, then a full smoke test of
 #            production as a baseline (read-only)
-#   merge    record the preview checks, squash-merge pinned to the checked commit, wait for the production deploy
+#   merge    record the preview checks, squash-merge pinned to the checked commit while main is still the commit the
+#            gate checked (GitHub's merge API pins only the head), wait for the production deploy
 #   live     smoke test and verify:seo:live on https://splithappens.run, then version.json once more (read-only)
 #   report   record that the live checks passed, or open an incident (reverting when a live check failed), and
 #            then, whatever happened, make sure every autopilot merge is accounted for
@@ -54,6 +55,7 @@ jobs:
       eligible: ${{ steps.evaluate.outputs.eligible }}
       pr: ${{ steps.evaluate.outputs.pr }}
       sha: ${{ steps.evaluate.outputs.sha }}
+      base: ${{ steps.evaluate.outputs.base }}
       preview_url: ${{ steps.evaluate.outputs.preview_url }}
     env:
       GITHUB_TOKEN: ${{ github.token }}
@@ -181,6 +183,7 @@ jobs:
     outputs:
       outcome: ${{ steps.record.outputs.outcome }}
       merge_sha: ${{ steps.merge.outputs.merge_sha }}
+      on_checked_base: ${{ steps.merge.outputs.on_checked_base }}
       deploy: ${{ steps.deploy.outcome }}
       deploy_reason: ${{ steps.deploy.outputs.reason }}
     env:
@@ -188,6 +191,7 @@ jobs:
       AUTOPILOT_MERGE: ${{ vars.AUTOPILOT_MERGE }}
       PR: ${{ needs.gate.outputs.pr }}
       HEAD_SHA: ${{ needs.gate.outputs.sha }}
+      BASE_SHA: ${{ needs.gate.outputs.base }}
     steps:
       # As in the gate job: scripts/ only, file contents fetched when git needs them.
       - name: Check out main (never the pull request)
@@ -221,11 +225,14 @@ jobs:
           SEO: ${{ needs.preview.outputs.seo }}
         run: node scripts/autopilot-merge.cjs smoke-result --pr "$PR" --sha "$HEAD_SHA" --smoke-exit "$SMOKE" --seo-exit "$SEO" --dir "$RUNNER_TEMP/preview"
 
-      # Checks every gate again (the live baseline, the pause label and the guard included), then merges.
-      - name: Merge (squash, pinned to the checked commit)
+      # Checks every gate again (the live baseline, the pause label and the guard included), reads main once more and
+      # merges only while it is still the commit the gate job checked. Afterwards it checks the squash commit's parent:
+      # if main moved in the seconds before the merge, it opens the paused incident and outputs on_checked_base=false,
+      # and the report job then never reverts that merge.
+      - name: Merge (squash, pinned to the checked commit and main)
         id: merge
         if: steps.record.outputs.outcome == 'pass'
-        run: node scripts/autopilot-merge.cjs merge --pr "$PR" --sha "$HEAD_SHA"
+        run: node scripts/autopilot-merge.cjs merge --pr "$PR" --sha "$HEAD_SHA" --base "$BASE_SHA"
 
       - name: Wait for the production deploy
         id: deploy
@@ -325,6 +332,7 @@ jobs:
       SEO: ${{ needs.live.outputs.seo }}
       VERSION_AFTER_SEO: ${{ needs.live.outputs.version_after_seo }}
       BASELINE: ${{ needs.preview.outputs.baseline }}
+      ON_CHECKED_BASE: ${{ needs.merge.outputs.on_checked_base }}
     steps:
       # Main only; the revert below pushes to it with this job's token.
       - name: Check out main
@@ -373,7 +381,7 @@ jobs:
           node scripts/autopilot-merge.cjs report-live --pr "$PR" --sha "$MERGE_SHA"
           --smoke-exit "$SMOKE" --seo-exit "$SEO" --version-after-seo-exit "$VERSION_AFTER_SEO" --baseline-exit "$BASELINE"
           --baseline "$RUNNER_TEMP/preview/baseline.json" --live "$RUNNER_TEMP/live/smoke.json"
-          --log "$RUNNER_TEMP/live/checks.log"
+          --on-checked-base "$ON_CHECKED_BASE" --log "$RUNNER_TEMP/live/checks.log"
 
       # Last, whatever happened above (a cancelled or timed-out job, a lost answer, an incident that could not be
       # opened): any autopilot merge with neither the live-check record nor an incident gets an incident now.
@@ -383,11 +391,12 @@ jobs:
 
       # A merge passes only with the version.json reading after verify:seo:live naming it (0): otherwise the live checks
       # may have seen another commit, report-live opens an incident (no revert) and records no pass, so the run fails too.
+      # A merge onto a main the gate did not check fails the run as well: its incident is open whatever the live checks say.
       - name: Fail the run when a check failed
         if: always()
         run: |
-          echo "Preview checks: ${PREVIEW:-not recorded}; merge commit: ${MERGE_SHA:-none}; production deploy: ${DEPLOY:-not run}; live smoke test exit: ${SMOKE:-not run}; verify:seo:live exit: ${SEO:-not run}; version.json after it: ${VERSION_AFTER_SEO:-not read}"
+          echo "Preview checks: ${PREVIEW:-not recorded}; merge commit: ${MERGE_SHA:-none}; on the main the gate checked: ${ON_CHECKED_BASE:-not recorded}; production deploy: ${DEPLOY:-not run}; live smoke test exit: ${SMOKE:-not run}; verify:seo:live exit: ${SEO:-not run}; version.json after it: ${VERSION_AFTER_SEO:-not read}"
           status=0
           [ "$PREVIEW" = "pass" ] || status=1
-          if [ -n "$MERGE_SHA" ] && { [ "$DEPLOY" != "success" ] || [ "$SMOKE" != "0" ] || [ "$SEO" != "0" ] || [ "$VERSION_AFTER_SEO" != "0" ]; }; then status=1; fi
+          if [ -n "$MERGE_SHA" ] && { [ "$ON_CHECKED_BASE" != "true" ] || [ "$DEPLOY" != "success" ] || [ "$SMOKE" != "0" ] || [ "$SEO" != "0" ] || [ "$VERSION_AFTER_SEO" != "0" ]; }; then status=1; fi
           exit $status

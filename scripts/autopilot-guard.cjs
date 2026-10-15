@@ -394,13 +394,154 @@ const withoutComments = (source) => source
   .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, ' ')
   .replace(/\/\*[\s\S]*?\*\//g, ' ')
   .replace(/(^|[\s;{}])\/\/.*$/gm, '$1');
-/** A pattern check, not a proof: the tag appears outside comments and not behind an always-false `false &&`. */
-function rendersTag(source, tag) {
-  const live = withoutComments(source);
-  for (const match of live.matchAll(new RegExp(`<${tag}\\b`, 'g'))) {
-    if (!/(?:\bfalse|\b0|\bnull|\bundefined)\s*&&\s*\(?\s*$/.test(live.slice(Math.max(0, match.index - 40), match.index))) return true;
+// ---------- The root layout's required tags ----------
+
+/**
+ * Tags app/layout.tsx must render where main does: SiteAnalytics always, ExperimentHead once main renders it. A
+ * condition of any kind cannot be allowed around them, not only an always-false one: Vercel sets VERCEL_ENV per
+ * deployment, so `{process.env.VERCEL_ENV !== 'production' && <SiteAnalytics />}` keeps analytics in the privacy build
+ * and the preview, which every check before the merge sees, and removes it from production.
+ */
+const LAYOUT_TAGS = ['SiteAnalytics', 'ExperimentHead'];
+const JSX_NAME = /[A-Za-z_$][\w$.:-]*/y;
+
+/** Index just after the string or template literal that starts at i. */
+function skipQuoted(src, i) {
+  const quote = src[i];
+  let j = i + 1;
+  while (j < src.length) {
+    if (src[j] === '\\') j += 2;
+    else if (quote === '`' && src[j] === '$' && src[j + 1] === '{') j = skipCode(src, j + 2, '}');
+    else if (src[j] === quote) return j + 1;
+    else j += 1;
   }
-  return false;
+  throw new Error('a string is not closed');
+}
+/** Does the `<` at i start JSX? Only after an operator, an opening bracket or `return`; after a name it is a comparison or a type. */
+function jsxAt(src, i) {
+  if (!/[A-Za-z_$>]/.test(src[i + 1] || '')) return false;
+  let j = i - 1;
+  while (j >= 0 && /\s/.test(src[j])) j -= 1;
+  return j < 0 || /[(,=?:&|{[!;]/.test(src[j]) || (src[j] === '>' && src[j - 1] === '=') || /\breturn$/.test(src.slice(Math.max(0, j - 6), j + 1));
+}
+/** Index just after the code that starts at i and ends with `close`, past nested brackets, strings and JSX. */
+function skipCode(src, i, close) {
+  const open = [close];
+  for (let j = i; j < src.length; j += 1) {
+    const c = src[j];
+    if (c === '"' || c === "'" || c === '`') j = skipQuoted(src, j) - 1;
+    else if (c === '(') open.push(')');
+    else if (c === '[') open.push(']');
+    else if (c === '{') open.push('}');
+    else if (c === ')' || c === ']' || c === '}') {
+      if (open.pop() !== c) throw new Error(`an unexpected "${c}"`);
+      if (!open.length) return j + 1;
+    } else if (c === '<' && jsxAt(src, j)) j = readJsx(src, j).end - 1;
+  }
+  throw new Error(`a "${close}" is missing`);
+}
+/**
+ * The JSX element that starts at i: its name ('' for a fragment), where it ends, and its plain children, the elements
+ * written directly inside it. An element inside a {…} expression (after &&, ||, ??, in a ternary, a map, anything)
+ * or an attribute is skipped, so it is never a plain child.
+ */
+function readJsx(src, i) {
+  JSX_NAME.lastIndex = i + 1;
+  const named = JSX_NAME.exec(src);
+  const name = named ? named[0] : '';
+  let j = i + 1 + name.length;
+  for (;;) {
+    if (j >= src.length) throw new Error(`<${name}> is not closed`);
+    const c = src[j];
+    if (c === '/' && src[j + 1] === '>') return { name, start: i, end: j + 2, children: [] };
+    if (c === '>') { j += 1; break; }
+    if (c === '"' || c === "'") j = skipQuoted(src, j);
+    else if (c === '{') j = skipCode(src, j + 1, '}');
+    else j += 1;
+  }
+  const children = [];
+  for (;;) {
+    if (j >= src.length) throw new Error(`<${name}> has no closing tag`);
+    if (src[j] === '{') { j = skipCode(src, j + 1, '}'); continue; }
+    if (src[j] !== '<') { j += 1; continue; }
+    if (src[j + 1] === '/') {
+      const closing = /^<\/\s*([A-Za-z_$][\w$.:-]*)?\s*>/.exec(src.slice(j, j + 200));
+      if (!closing || (closing[1] || '') !== name) throw new Error(`<${name}> is closed by ${closing ? closing[0] : 'something else'}`);
+      return { name, start: i, end: j + closing[0].length, children };
+    }
+    const child = readJsx(src, j);
+    children.push(child);
+    j = child.end;
+  }
+}
+
+/**
+ * What the root layout renders unconditionally, read from its source without running it. The default export must be
+ * a function that returns one JSX element (as main's does, `return (<html …>…</html>);`), so an early return or a
+ * conditional root cannot hide a tag; `preamble` is the code before that return, which must stay as main has it. For
+ * each tag in LAYOUT_TAGS: the plain chain of elements from the root to it (null when it is only inside an expression,
+ * a comment or a function other than the default export), its own source text, and the module it is imported from.
+ * Components the layout defines itself are listed, since one of them around a tag could render nothing in production.
+ */
+function readLayout(source) {
+  const src = withoutComments(source);
+  const shape = { problem: null, preamble: null, tags: {}, imports: {}, local: new Set() };
+  for (const match of src.matchAll(/\b(?:function|class|const|let|var)\s+([A-Za-z_$][\w$]*)/g)) shape.local.add(match[1]);
+  for (const tag of LAYOUT_TAGS) {
+    shape.tags[tag] = null;
+    const imported = new RegExp(`^\\s*import\\b[^;]*?(?<![\\w$])${tag}(?![\\w$])[^;]*?from\\s*(['"])([^'"]+)\\1`, 'm').exec(src);
+    shape.imports[tag] = imported && !new RegExp(`\\bas\\s+${tag}\\b`).test(imported[0]) ? imported[2] : null;
+  }
+  try {
+    const exported = /\bexport\s+default\s+(?:async\s+)?function\s*[A-Za-z_$]*\s*\(/.exec(src);
+    if (!exported) throw new Error('its default export is not a function declaration');
+    const afterParams = skipCode(src, exported.index + exported[0].length, ')');
+    const opening = /^\s*(?::[^{=]*)?\{/.exec(src.slice(afterParams));
+    if (!opening) throw new Error("its default export's body could not be read");
+    const bodyStart = afterParams + opening[0].length;
+    const body = src.slice(bodyStart, skipCode(src, bodyStart, '}') - 1);
+    const returned = /\breturn\s*(\(\s*)?</.exec(body);
+    if (!returned) throw new Error('its default export does not return a JSX element directly (return (<html …>…</html>))');
+    shape.preamble = body.slice(0, returned.index).replace(/\s+/g, ' ').trim();
+    const root = readJsx(body, returned.index + returned[0].length - 1);
+    if (!new RegExp(`^\\s*${returned[1] ? '\\)' : ''}\\s*;?\\s*$`).test(body.slice(root.end))) throw new Error('its default export returns more than one JSX element, or something after it');
+    const walk = (element, chain) => {
+      for (const child of element.children) {
+        if (LAYOUT_TAGS.includes(child.name) && !shape.tags[child.name]) shape.tags[child.name] = { chain, text: body.slice(child.start, child.end).replace(/\s+/g, ' ') };
+        walk(child, [...chain, child.name || '<>']);
+      }
+    };
+    walk({ children: [root] }, []);
+  } catch (error) {
+    shape.problem = error.message;
+  }
+  return shape;
+}
+
+/**
+ * The required tags, judged against main's layout. Each must be a plain element of the default export's JSX, inside
+ * the same chain of elements as on main (no new wrapper, defined here or in another file), written as on main,
+ * imported from the same module, and neither it nor a component around it may be defined in the layout itself.
+ */
+function layoutProblems(layout, layoutBefore) {
+  const after = readLayout(layout);
+  const before = layoutBefore === null ? null : readLayout(layoutBefore);
+  const problems = [];
+  if (after.problem) problems.push(`could not be read as a root layout (${after.problem}); the default export returns its <html> element directly, as on main`);
+  else if (before && !before.problem && before.preamble !== after.preamble) problems.push('changes the code before the default export\'s return; it stays as on main, so nothing before the return can choose what the layout renders');
+  for (const tag of LAYOUT_TAGS) {
+    const was = before && before.tags[tag];
+    if (tag !== 'SiteAnalytics' && !was) continue;
+    const now = after.tags[tag];
+    const where = (placed) => placed.chain.map((name) => `<${name === '<>' ? '' : name}>`).join(' ');
+    if (!now) { problems.push(`must still render <${tag} /> as a plain element of the default export's JSX, outside comments, {…} expressions (&&, ||, ??, ? :) and other functions`); continue; }
+    if (was && where(was) !== where(now)) problems.push(`must still render <${tag} /> exactly where main does (inside ${where(was)}), not inside ${where(now)}: a new wrapper could render nothing in production`);
+    else if (was && was.text !== now.text) problems.push(`must still render <${tag} /> written as on main (${was.text}), not ${now.text}`);
+    const defined = [tag, ...now.chain.filter((name) => /^[A-Z]/.test(name))].filter((name) => after.local.has(name));
+    if (defined.length) problems.push(`must still render <${tag} /> from its own module: the layout defines ${defined.map((name) => `<${name}>`).join(', ')} itself`);
+    if (before && before.imports[tag] && after.imports[tag] !== before.imports[tag]) problems.push(`must still import ${tag} from '${before.imports[tag]}', as main does`);
+  }
+  return problems;
 }
 
 // ---------- The ledger ----------
@@ -1324,10 +1465,7 @@ function check({ cwd = process.cwd(), base, head, branch, pr = null, now = new D
   const layout = showFile(cwd, headSha, 'app/layout.tsx');
   const layoutBefore = showFile(cwd, mergeBase, 'app/layout.tsx');
   if (layout === null) add('required-content', 'app/layout.tsx', null, 'is missing');
-  else {
-    if (!rendersTag(layout, 'SiteAnalytics')) add('required-content', 'app/layout.tsx', null, 'must still render <SiteAnalytics /> (outside comments and conditions)');
-    if (layoutBefore !== null && rendersTag(layoutBefore, 'ExperimentHead') && !rendersTag(layout, 'ExperimentHead')) add('required-content', 'app/layout.tsx', null, 'must still render <ExperimentHead />');
-  }
+  else for (const problem of layoutProblems(layout, layoutBefore)) add('required-content', 'app/layout.tsx', null, problem);
 
   const bookkeeping = entries.length > 0 && entries.every((entry) => [entry.oldPath, entry.newPath].filter(Boolean).every((file) => BOOKKEEPING.includes(file)));
   // Metric names come from the base ref itself: autopilot/metrics.md is protected, so the head's copy is the same on
@@ -1508,6 +1646,38 @@ function selfTest() {
     run('add', '-A'); run('commit', '-q', '-m', 'experiments');
     expect('ExperimentHead kept', { base: 'main-exp', setup: () => write('components/Card.tsx', 'export const x = 1;\n') });
     expect('ExperimentHead removed', { base: 'main-exp', setup: () => write('app/layout.tsx', LAYOUT), rules: ['required-content'], messages: ['ExperimentHead'] });
+    // A condition of any kind around a required tag, a wrapper, or an early return: Vercel sets VERCEL_ENV per
+    // deployment, so a production-only condition passes every check before the merge and removes analytics after it.
+    const wrapped = (replacement, extra = '') => LAYOUT.replace('<SiteAnalytics />', replacement).replace('export default', `${extra}export default`);
+    for (const [label, replacement, extra] of [
+      ['SiteAnalytics behind a production-only condition', "{process.env.VERCEL_ENV !== 'production' && <SiteAnalytics />}"],
+      ['SiteAnalytics in a ternary', "{process.env.VERCEL_ENV === 'production' ? null : <SiteAnalytics />}"],
+      ['SiteAnalytics after ||', "{process.env.VERCEL_ENV === 'production' || <SiteAnalytics />}"],
+      ['SiteAnalytics after ??', '{process.env.NEXT_PUBLIC_NO_ANALYTICS ?? <SiteAnalytics />}'],
+      ['SiteAnalytics in a fragment behind a condition', "{process.env.VERCEL_ENV !== 'production' && <><SiteAnalytics /></>}"],
+      ['SiteAnalytics in a wrapper the layout defines', '<DevOnly><SiteAnalytics /></DevOnly>', "function DevOnly({ children }) {\n  return process.env.VERCEL_ENV === 'production' ? null : children;\n}\n"],
+      ['SiteAnalytics replaced by a component the layout defines', '<SiteAnalytics />', 'function SiteAnalytics() {\n  return null;\n}\n'],
+    ]) {
+      expect(label, { setup: () => write('app/layout.tsx', label.includes('replaced') ? wrapped(replacement, extra).replace("import SiteAnalytics from '@/components/SiteAnalytics';\n", '') : wrapped(replacement, extra)), rules: ['required-content'], messages: ['SiteAnalytics'] });
+    }
+    expect('SiteAnalytics in a wrapper from another file', { setup: () => { write('components/DevOnly.tsx', "export default function DevOnly({ children }) {\n  return process.env.VERCEL_ENV === 'production' ? null : children;\n}\n"); write('app/layout.tsx', wrapped('<DevOnly><SiteAnalytics /></DevOnly>', "import DevOnly from '@/components/DevOnly';\n")); }, rules: ['required-content'], messages: ['SiteAnalytics'] });
+    expect('SiteAnalytics after an early production-only return', { setup: () => write('app/layout.tsx', LAYOUT.replace('  return <html>', "  if (process.env.VERCEL_ENV === 'production') return <html><body>{children}</body></html>;\n  return <html>")), rules: ['required-content'] });
+    expect('a production-only root element', { setup: () => write('app/layout.tsx', LAYOUT.replace('return <html><body>{children}<SiteAnalytics /></body></html>;', "return process.env.VERCEL_ENV === 'production' ? <html><body>{children}</body></html> : <html><body>{children}<SiteAnalytics /></body></html>;")), rules: ['required-content'] });
+    expect('ExperimentHead behind a production-only condition', { base: 'main-exp', setup: () => write('app/layout.tsx', LAYOUT.replace('<html>', "<html><head>{process.env.VERCEL_ENV !== 'production' && <ExperimentHead />}</head>")), rules: ['required-content'], messages: ['ExperimentHead'] });
+    expect('a new meta tag beside ExperimentHead passes', { base: 'main-exp', setup: () => write('app/layout.tsx', LAYOUT.replace('<html>', '<html><head><meta name="format-detection" content="telephone=no" /><ExperimentHead /></head>')) });
+    expect('a className on body passes', { setup: () => write('app/layout.tsx', LAYOUT.replace('<body>', '<body className="site">')) });
+    // The real root layout (main's, on an up-to-date branch): unchanged, and with the edits above.
+    const realLayout = (() => { try { return fs.readFileSync(path.join(__dirname, '..', 'app', 'layout.tsx'), 'utf8'); } catch { return null; } })();
+    if (realLayout === null || !realLayout.includes('<SiteAnalytics />') || !realLayout.includes('<body>')) failures.push('the real app/layout.tsx could not be read, or no longer has <SiteAnalytics /> and <body>: run the self-test in a full checkout, and update these cases with the layout');
+    else {
+      run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', 'main-real');
+      write('app/layout.tsx', realLayout);
+      run('add', '-A'); run('commit', '-q', '-m', 'the real layout');
+      expect("main's layout unchanged passes", { base: 'main-real', setup: () => write('components/Card.tsx', 'export const x = 1;\n') });
+      expect("a className on main's body passes", { base: 'main-real', setup: () => write('app/layout.tsx', realLayout.replace('<body>', '<body className="site">')) });
+      expect("main's layout with a production-only SiteAnalytics", { base: 'main-real', setup: () => write('app/layout.tsx', realLayout.replace('<SiteAnalytics />', "{process.env.VERCEL_ENV !== 'production' && <SiteAnalytics />}")), rules: ['required-content'], messages: ['SiteAnalytics'] });
+      expect("main's layout with SiteAnalytics moved out of UnitsProvider", { base: 'main-real', setup: () => write('app/layout.tsx', realLayout.replace('        <SiteAnalytics />\n', '').replace('</UnitsProvider></body>', '</UnitsProvider><SiteAnalytics /></body>')), rules: ['required-content'], messages: ['SiteAnalytics'] });
+    }
 
     // Forbidden patterns: each on its own, in a component
     const FORBIDDEN_CASES = [
