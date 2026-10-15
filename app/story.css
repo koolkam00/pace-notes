@@ -212,8 +212,6 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
   .hero-inner .hero-intro { grid-column: 1; grid-row: 2; align-self: start; }
   .hero-inner .hero-doors { grid-column: 2; grid-row: 2; align-self: start; }
 }
-/* The header already credits Andrew Kam on phones. */
-@media (max-width: 600px) { .hero .creator-credit { display: none; } }
 
 /* ---------- Finish-time chapter ---------- */
 .finish-lookup { display: grid; grid-template-columns: auto minmax(10rem, 14rem) minmax(0, 1fr); align-items: center; gap: .6rem 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
