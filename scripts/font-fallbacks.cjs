@@ -81,11 +81,18 @@ const LOCAL = {
  * (`minOpsz`). Bricolage Grotesque only sets figures, at 700–780. The Android faces are single regular faces (Android
  * draws them bold the way it draws any bold system text), so they are measured on every run against the regular
  * Liberation font and scaled by the capsize widths in `scale`.
+ *
+ * `narrow` scales a face below its average match. Fraunces italics are short phrases inside headings, and the italic
+ * file arrives after the upright one, so for a moment a heading is upright Fraunces with its italic phrase in the
+ * fallback. Single phrases range from 0.84 to 1.11 times their Fraunces width in the matched fallback. Over the first
+ * screens of the 38 pages with an italic heading, at 21 widths from 320 to 1920 px, the average match changed a heading's
+ * line count 17 times, as the upright arrived or then the italic (12 of them the race replay story's first section
+ * title, at every width from 1280 px: CLS 0.075); 96.5% of the average, 3 times (October 15, 2026).
  */
 const FACES = [
   { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '100 659', minOpsz: 96, local: LOCAL.serifBold, measure: 'Liberation Serif Bold', file: 'fraunces/files/fraunces-latin-full-normal.woff2' },
   { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '660 900', minOpsz: 96, local: LOCAL.serifBold, measure: 'Liberation Serif Bold', file: 'fraunces/files/fraunces-latin-full-normal.woff2' },
-  { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '100 900', style: 'italic', minOpsz: 96, local: LOCAL.serifBoldItalic, measure: 'Liberation Serif Bold Italic', file: 'fraunces/files/fraunces-latin-full-italic.woff2' },
+  { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '100 900', style: 'italic', minOpsz: 96, narrow: 0.965, local: LOCAL.serifBoldItalic, measure: 'Liberation Serif Bold Italic', file: 'fraunces/files/fraunces-latin-full-italic.woff2' },
   { family: 'Fraunces Fallback Android', web: 'Fraunces Variable', minOpsz: 96, local: LOCAL.notoSerif, measure: 'Liberation Serif', scale: ['timesNewRoman', 'notoSerif'], file: 'fraunces/files/fraunces-latin-full-normal.woff2' },
   { family: 'Inter Fallback', web: 'Inter Variable', weight: '100 599', local: LOCAL.sans, measure: 'Liberation Sans', file: 'inter/files/inter-latin-wght-normal.woff2' },
   { family: 'Inter Fallback', web: 'Inter Variable', weight: '600 900', local: LOCAL.sansBold, measure: 'Liberation Sans Bold', file: 'inter/files/inter-latin-wght-normal.woff2' },
@@ -174,7 +181,7 @@ async function rules() {
   const width = (name) => capsize[name].xWidthAvg / capsize[name].unitsPerEm;
   return FACES.map((face, i) => {
     if (!totals[i][1]) throw new Error(`No text on the measured pages is set the way ${face.family} ${face.weight || ''} ${face.style || ''} expects`);
-    const scale = (totals[i][0] / totals[i][1]) * (face.scale ? width(face.scale[0]) / width(face.scale[1]) : 1);
+    const scale = (totals[i][0] / totals[i][1]) * (face.scale ? width(face.scale[0]) / width(face.scale[1]) : 1) * (face.narrow || 1);
     const { ascent, descent, lineGap } = verticalMetrics(path.join(FONTSOURCE, face.file));
     // Browsers apply the metric overrides to the size-adjusted font, so each is divided by the scale.
     return `@font-face { font-family: '${face.family}'; src: ${face.local.map((name) => `local('${name}')`).join(', ')};`
