@@ -78,6 +78,7 @@ The authoritative rules are `ALLOWED` and `PROTECTED` in `scripts/autopilot-guar
 - privacy and measurement, under any file extension:
   - `lib/analytics.*`, `lib/analytics-policy.*`, `lib/replay-policy.*`, `lib/event-policy.*`, `lib/data-fetch.*`, `lib/experiment-runtime.*`, `lib/chunk-reload.*`;
   - `components/SiteAnalytics.*`, `components/AnalyticsPreference.*`, `components/PageFeedback.*`, `components/SectionTracker.*`, and every `components/Experiment*` file (the experiment framework; the registry `lib/experiments.ts` is open);
+  - the root layout `app/layout.*` and `components/UnitsProvider.*`, which render and wrap the analytics and experiment tags;
 - `app/privacy/**`;
 - every error, global-error and not-found page;
 - checks and tooling: `scripts/**`, `.github/**`, `.claude/**`, any `package.json`, `package-lock.json`, `next.config.*`, `vercel.json`, `tsconfig.json`, and every root file and dotfile;

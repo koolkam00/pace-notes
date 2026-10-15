@@ -33,6 +33,9 @@ const PROTECTED = [
   'analysis/**', 'public/data/**', 'data/**', 'docs/evidence/**',
   'lib/analytics.*', 'lib/analytics-policy.*', 'lib/replay-policy.*', 'lib/event-policy.*', 'lib/data-fetch.*', 'lib/experiment-runtime.*', 'lib/chunk-reload.*',
   'components/SiteAnalytics.*', 'components/AnalyticsPreference.*', 'components/PageFeedback.*', 'components/SectionTracker.*', 'components/Experiment*',
+  // The root layout renders the analytics and experiment tags, and UnitsProvider wraps them: an edit to either could
+  // drop or condition them in production only, which no check before the merge would see.
+  'app/layout.*', 'components/UnitsProvider.*',
   'app/privacy/**', 'app/**/error.*', 'app/**/global-error.*', 'app/**/not-found.*',
   'scripts/**', '.github/**', '.claude/**', 'CLAUDE.md', 'AGENTS.md',
   'autopilot/CONSTITUTION.md', 'autopilot/metrics.md',
@@ -1465,7 +1468,9 @@ function check({ cwd = process.cwd(), base, head, branch, pr = null, now = new D
   const layout = showFile(cwd, headSha, 'app/layout.tsx');
   const layoutBefore = showFile(cwd, mergeBase, 'app/layout.tsx');
   if (layout === null) add('required-content', 'app/layout.tsx', null, 'is missing');
-  else for (const problem of layoutProblems(layout, layoutBefore)) add('required-content', 'app/layout.tsx', null, problem);
+  // app/layout.* is protected, so this only matters when the pull request changed it (and fails anyway); an unchanged
+  // layout is main's own and is not re-read, so main's wording can never block an unrelated pull request.
+  else if (layout !== layoutBefore) for (const problem of layoutProblems(layout, layoutBefore)) add('required-content', 'app/layout.tsx', null, problem);
 
   const bookkeeping = entries.length > 0 && entries.every((entry) => [entry.oldPath, entry.newPath].filter(Boolean).every((file) => BOOKKEEPING.includes(file)));
   // Metric names come from the base ref itself: autopilot/metrics.md is protected, so the head's copy is the same on
@@ -1614,7 +1619,7 @@ function selfTest() {
     expect('protected file deleted', { setup: () => remove('lib/analytics.ts'), rules: ['protected-path'] });
     expect('protected file renamed out', { setup: () => { remove('lib/analytics.ts'); write('lib/stats.ts', 'export const on = true;\n'); }, rules: ['protected-path'], messages: ['lib/analytics.ts'] });
     expect('file renamed into a protected folder', { setup: () => { remove('components/Card.tsx'); write('scripts/Card.tsx', 'export function Card() {\n  return <div>Card</div>;\n}\n'); }, rules: ['protected-path'], messages: ['scripts/Card.tsx'] });
-    for (const file of ['public/data/x.json', 'analysis/release.json', 'app/privacy/page.tsx', 'app/error.tsx', 'app/global-error.tsx', 'app/tools/error.tsx', 'app/tools/not-found.tsx', 'components/ExperimentVariant.tsx', 'next.config.mjs', 'LICENSE', 'package.json', 'lib/package.json', 'autopilot/CONSTITUTION.md', '.claude/skills/x/SKILL.md', 'CLAUDE.md', 'docs/ANALYTICS.md', 'docs/AUTOPILOT.md', 'docs/PROJECT_HANDOFF.md', 'docs/evidence/x/audit.md']) {
+    for (const file of ['public/data/x.json', 'analysis/release.json', 'components/UnitsProvider.tsx', 'app/privacy/page.tsx', 'app/error.tsx', 'app/global-error.tsx', 'app/tools/error.tsx', 'app/tools/not-found.tsx', 'components/ExperimentVariant.tsx', 'next.config.mjs', 'LICENSE', 'package.json', 'lib/package.json', 'autopilot/CONSTITUTION.md', '.claude/skills/x/SKILL.md', 'CLAUDE.md', 'docs/ANALYTICS.md', 'docs/AUTOPILOT.md', 'docs/PROJECT_HANDOFF.md', 'docs/evidence/x/audit.md']) {
       expect(`protected ${file}`, { setup: () => write(file, '{}\n'), rules: ['protected-path'] });
     }
     expect('protected app/not-found.tsx changed', { setup: () => write('app/not-found.tsx', 'export default function NotFound() { return <h1>Lost?</h1>; }\n'), rules: ['protected-path'] });
@@ -1636,16 +1641,16 @@ function selfTest() {
     expect('page added', { setup: () => write('app/guide/page.tsx', 'export default function Guide() { return <h1>Guide</h1>; }\n') });
 
     // Required content
-    expect('SiteAnalytics removed', { setup: () => write('app/layout.tsx', LAYOUT.replace('<SiteAnalytics />', '')), rules: ['required-content'] });
-    expect('SiteAnalytics commented out', { setup: () => write('app/layout.tsx', LAYOUT.replace('<SiteAnalytics />', '{/* <SiteAnalytics /> */}')), rules: ['required-content'] });
-    expect('SiteAnalytics only in a trailing comment', { setup: () => write('app/layout.tsx', LAYOUT.replace('{children}<SiteAnalytics /></body></html>;', '{children}</body></html>; // <SiteAnalytics /> moved later')), rules: ['required-content'] });
-    expect('SiteAnalytics behind false &&', { setup: () => write('app/layout.tsx', LAYOUT.replace('<SiteAnalytics />', '{false && <SiteAnalytics />}')), rules: ['required-content'] });
-    expect('ExperimentHead absent on base and head', { setup: () => write('app/layout.tsx', LAYOUT.replace('<html>', '<html lang="en">')) });
+    expect('SiteAnalytics removed', { setup: () => write('app/layout.tsx', LAYOUT.replace('<SiteAnalytics />', '')), rules: ['protected-path', 'required-content'] });
+    expect('SiteAnalytics commented out', { setup: () => write('app/layout.tsx', LAYOUT.replace('<SiteAnalytics />', '{/* <SiteAnalytics /> */}')), rules: ['protected-path', 'required-content'] });
+    expect('SiteAnalytics only in a trailing comment', { setup: () => write('app/layout.tsx', LAYOUT.replace('{children}<SiteAnalytics /></body></html>;', '{children}</body></html>; // <SiteAnalytics /> moved later')), rules: ['protected-path', 'required-content'] });
+    expect('SiteAnalytics behind false &&', { setup: () => write('app/layout.tsx', LAYOUT.replace('<SiteAnalytics />', '{false && <SiteAnalytics />}')), rules: ['protected-path', 'required-content'] });
+    expect('ExperimentHead absent on base and head is refused only as a protected path', { setup: () => write('app/layout.tsx', LAYOUT.replace('<html>', '<html lang="en">')), rules: ['protected-path'] });
     run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', 'main-exp');
     write('app/layout.tsx', LAYOUT.replace('<html>', '<html><head><ExperimentHead /></head>'));
     run('add', '-A'); run('commit', '-q', '-m', 'experiments');
     expect('ExperimentHead kept', { base: 'main-exp', setup: () => write('components/Card.tsx', 'export const x = 1;\n') });
-    expect('ExperimentHead removed', { base: 'main-exp', setup: () => write('app/layout.tsx', LAYOUT), rules: ['required-content'], messages: ['ExperimentHead'] });
+    expect('ExperimentHead removed', { base: 'main-exp', setup: () => write('app/layout.tsx', LAYOUT), rules: ['protected-path', 'required-content'], messages: ['ExperimentHead'] });
     // A condition of any kind around a required tag, a wrapper, or an early return: Vercel sets VERCEL_ENV per
     // deployment, so a production-only condition passes every check before the merge and removes analytics after it.
     const wrapped = (replacement, extra = '') => LAYOUT.replace('<SiteAnalytics />', replacement).replace('export default', `${extra}export default`);
@@ -1658,14 +1663,14 @@ function selfTest() {
       ['SiteAnalytics in a wrapper the layout defines', '<DevOnly><SiteAnalytics /></DevOnly>', "function DevOnly({ children }) {\n  return process.env.VERCEL_ENV === 'production' ? null : children;\n}\n"],
       ['SiteAnalytics replaced by a component the layout defines', '<SiteAnalytics />', 'function SiteAnalytics() {\n  return null;\n}\n'],
     ]) {
-      expect(label, { setup: () => write('app/layout.tsx', label.includes('replaced') ? wrapped(replacement, extra).replace("import SiteAnalytics from '@/components/SiteAnalytics';\n", '') : wrapped(replacement, extra)), rules: ['required-content'], messages: ['SiteAnalytics'] });
+      expect(label, { setup: () => write('app/layout.tsx', label.includes('replaced') ? wrapped(replacement, extra).replace("import SiteAnalytics from '@/components/SiteAnalytics';\n", '') : wrapped(replacement, extra)), rules: ['protected-path', 'required-content'], messages: ['SiteAnalytics'] });
     }
-    expect('SiteAnalytics in a wrapper from another file', { setup: () => { write('components/DevOnly.tsx', "export default function DevOnly({ children }) {\n  return process.env.VERCEL_ENV === 'production' ? null : children;\n}\n"); write('app/layout.tsx', wrapped('<DevOnly><SiteAnalytics /></DevOnly>', "import DevOnly from '@/components/DevOnly';\n")); }, rules: ['required-content'], messages: ['SiteAnalytics'] });
-    expect('SiteAnalytics after an early production-only return', { setup: () => write('app/layout.tsx', LAYOUT.replace('  return <html>', "  if (process.env.VERCEL_ENV === 'production') return <html><body>{children}</body></html>;\n  return <html>")), rules: ['required-content'] });
-    expect('a production-only root element', { setup: () => write('app/layout.tsx', LAYOUT.replace('return <html><body>{children}<SiteAnalytics /></body></html>;', "return process.env.VERCEL_ENV === 'production' ? <html><body>{children}</body></html> : <html><body>{children}<SiteAnalytics /></body></html>;")), rules: ['required-content'] });
-    expect('ExperimentHead behind a production-only condition', { base: 'main-exp', setup: () => write('app/layout.tsx', LAYOUT.replace('<html>', "<html><head>{process.env.VERCEL_ENV !== 'production' && <ExperimentHead />}</head>")), rules: ['required-content'], messages: ['ExperimentHead'] });
-    expect('a new meta tag beside ExperimentHead passes', { base: 'main-exp', setup: () => write('app/layout.tsx', LAYOUT.replace('<html>', '<html><head><meta name="format-detection" content="telephone=no" /><ExperimentHead /></head>')) });
-    expect('a className on body passes', { setup: () => write('app/layout.tsx', LAYOUT.replace('<body>', '<body className="site">')) });
+    expect('SiteAnalytics in a wrapper from another file', { setup: () => { write('components/DevOnly.tsx', "export default function DevOnly({ children }) {\n  return process.env.VERCEL_ENV === 'production' ? null : children;\n}\n"); write('app/layout.tsx', wrapped('<DevOnly><SiteAnalytics /></DevOnly>', "import DevOnly from '@/components/DevOnly';\n")); }, rules: ['protected-path', 'required-content'], messages: ['SiteAnalytics'] });
+    expect('SiteAnalytics after an early production-only return', { setup: () => write('app/layout.tsx', LAYOUT.replace('  return <html>', "  if (process.env.VERCEL_ENV === 'production') return <html><body>{children}</body></html>;\n  return <html>")), rules: ['protected-path', 'required-content'] });
+    expect('a production-only root element', { setup: () => write('app/layout.tsx', LAYOUT.replace('return <html><body>{children}<SiteAnalytics /></body></html>;', "return process.env.VERCEL_ENV === 'production' ? <html><body>{children}</body></html> : <html><body>{children}<SiteAnalytics /></body></html>;")), rules: ['protected-path', 'required-content'] });
+    expect('ExperimentHead behind a production-only condition', { base: 'main-exp', setup: () => write('app/layout.tsx', LAYOUT.replace('<html>', "<html><head>{process.env.VERCEL_ENV !== 'production' && <ExperimentHead />}</head>")), rules: ['protected-path', 'required-content'], messages: ['ExperimentHead'] });
+    expect('a new meta tag beside ExperimentHead is refused only as a protected path', { base: 'main-exp', setup: () => write('app/layout.tsx', LAYOUT.replace('<html>', '<html><head><meta name="format-detection" content="telephone=no" /><ExperimentHead /></head>')), rules: ['protected-path'] });
+    expect('a className on body is refused only as a protected path', { setup: () => write('app/layout.tsx', LAYOUT.replace('<body>', '<body className="site">')), rules: ['protected-path'] });
     // The real root layout (main's, on an up-to-date branch): unchanged, and with the edits above.
     const realLayout = (() => { try { return fs.readFileSync(path.join(__dirname, '..', 'app', 'layout.tsx'), 'utf8'); } catch { return null; } })();
     if (realLayout === null || !realLayout.includes('<SiteAnalytics />') || !realLayout.includes('<body>')) failures.push('the real app/layout.tsx could not be read, or no longer has <SiteAnalytics /> and <body>: run the self-test in a full checkout, and update these cases with the layout');
@@ -1674,9 +1679,9 @@ function selfTest() {
       write('app/layout.tsx', realLayout);
       run('add', '-A'); run('commit', '-q', '-m', 'the real layout');
       expect("main's layout unchanged passes", { base: 'main-real', setup: () => write('components/Card.tsx', 'export const x = 1;\n') });
-      expect("a className on main's body passes", { base: 'main-real', setup: () => write('app/layout.tsx', realLayout.replace('<body>', '<body className="site">')) });
-      expect("main's layout with a production-only SiteAnalytics", { base: 'main-real', setup: () => write('app/layout.tsx', realLayout.replace('<SiteAnalytics />', "{process.env.VERCEL_ENV !== 'production' && <SiteAnalytics />}")), rules: ['required-content'], messages: ['SiteAnalytics'] });
-      expect("main's layout with SiteAnalytics moved out of UnitsProvider", { base: 'main-real', setup: () => write('app/layout.tsx', realLayout.replace('        <SiteAnalytics />\n', '').replace('</UnitsProvider></body>', '</UnitsProvider><SiteAnalytics /></body>')), rules: ['required-content'], messages: ['SiteAnalytics'] });
+      expect("a className on main's body is refused only as a protected path", { base: 'main-real', setup: () => write('app/layout.tsx', realLayout.replace('<body>', '<body className="site">')), rules: ['protected-path'] });
+      expect("main's layout with a production-only SiteAnalytics", { base: 'main-real', setup: () => write('app/layout.tsx', realLayout.replace('<SiteAnalytics />', "{process.env.VERCEL_ENV !== 'production' && <SiteAnalytics />}")), rules: ['protected-path', 'required-content'], messages: ['SiteAnalytics'] });
+      expect("main's layout with SiteAnalytics moved out of UnitsProvider", { base: 'main-real', setup: () => write('app/layout.tsx', realLayout.replace('        <SiteAnalytics />\n', '').replace('</UnitsProvider></body>', '</UnitsProvider><SiteAnalytics /></body>')), rules: ['protected-path', 'required-content'], messages: ['SiteAnalytics'] });
     }
 
     // Forbidden patterns: each on its own, in a component
