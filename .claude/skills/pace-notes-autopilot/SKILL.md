@@ -170,7 +170,7 @@ Priority:
    Move the backlog item to "In flight" and link it.
 4. **Verify. All of these are required:**
    - Commit first: the guard checks commits, not the working tree, and fails while tracked files have uncommitted changes.
-   - `npm run autopilot:check`, which runs the data, analytics, older-browser, build, SEO, autopilot self-test and guard checks (CI adds the privacy end-to-end tests as the `privacy-e2e` check, which the merge gate requires). It must pass in full; fix the cause of any failure, never the check.
+   - `npm run autopilot:check`, which runs the data, analytics, older-browser, build, SEO, autopilot self-test, browser privacy (`autopilot:privacy`, the same tests as CI's `privacy-e2e` check, which the merge gate requires) and guard checks. It must pass in full; fix the cause of any failure, never the check.
    - Screenshots before and after of every changed page at 390×844 and 1366×900, plus any experiment variant (set its `sessionStorage` key `pace-notes-exp:<key>` with a Playwright init script). Look at them. Check spacing, wrapping, contrast, focus states and the first phone screen.
    - Keyboard navigation and visible focus on anything interactive you added. Respect reduced motion.
    - Copy: read every new sentence against the constitution's §2 and §3.
