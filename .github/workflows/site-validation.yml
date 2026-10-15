@@ -33,3 +33,37 @@ jobs:
         run: npm run verify:compat -- --build
       - name: Validate search and social metadata in the build
         run: npm run verify:seo
+
+  # Browser privacy checks (scripts/verify-replay-e2e.cjs): real Chromium visits to a build with analytics compiled in,
+  # PostHog answered by a local mock so nothing is sent anywhere. The dummy key is safe here because Vercel builds
+  # production separately with the real one. The autopilot's merge gate requires a check run with this exact name.
+  privacy-e2e:
+    name: privacy-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Build the static site with analytics compiled in (dummy key)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_POSTHOG_KEY: phc_test_dummy
+          NEXT_PUBLIC_POSTHOG_HOST: https://us.i.posthog.com
+      - name: Check recordings, events and storage in the browser
+        run: npm run verify:replay-e2e -- --keep e2e-failures
+      - name: Keep what the failed checks captured
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: privacy-e2e-failures
+          path: e2e-failures/
+          retention-days: 7
+          if-no-files-found: ignore

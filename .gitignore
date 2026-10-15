@@ -22,3 +22,6 @@ __pycache__/
 
 # DuckDB spill files from local calculations
 .tmp/
+
+# Captures from failed browser privacy checks (npm run verify:replay-e2e -- --keep e2e-failures)
+e2e-failures/

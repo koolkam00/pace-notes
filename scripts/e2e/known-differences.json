@@ -1,0 +1,30 @@
+{
+  "*": [
+    {
+      "pattern": "^attr:src\\|https://splithappens\\.run/_next/static/[\\w/.%-]+\\.js$",
+      "reason": "Webpack adds a script element for each chunk it loads and removes it once loaded, so whether a recording catches one depends on timing. Build file names, never a visitor's value."
+    },
+    {
+      "pattern": "^attr:rr_(width|height|left|top)\\|-?[0-9.]+px$",
+      "reason": "rrweb keeps the box size and position of a left-out element (tool results, charts) so the replay keeps its layout. They change with how much a panel shows, such as more rows or a longer note, never with the text or values inside it."
+    },
+    {
+      "pattern": "^attr:rr_scroll(Top|Left)\\|[0-9.]+$",
+      "reason": "The scroll position of a scrolling element when the snapshot was taken: timing, not input."
+    },
+    {
+      "pattern": "^attr:(id|for|aria-labelledby|aria-describedby|aria-controls)\\|:r[0-9a-z]+:[\\w-]*$",
+      "reason": "React's generated element ids (useId) count components in render order, so they shift when a panel shows or not. Generated, never a visitor's value."
+    },
+    {
+      "pattern": "^attr:(aria-invalid\\|(true|false|null)|class\\|tool-field-hint( is-error)?)$",
+      "reason": "Whether a typed value was accepted: a field's aria-invalid state and its hint's error class. The value and the hint's text stay masked."
+    }
+  ],
+  "analysis": [
+    {
+      "pattern": "^attr:class\\|(empty-comparison|button-secondary|coverage-notice)$",
+      "reason": "With set A's filters the comparison has too few finishes, so the page shows its 'not enough results' panel and reset button where set B shows the chart and its coverage note. Which panel shows, not the filters or the numbers (the text in .analysis-layout is masked)."
+    }
+  ]
+}
