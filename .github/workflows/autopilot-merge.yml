@@ -11,7 +11,7 @@ name: Autopilot merge
 #   preview  smoke test and verify:seo:live on the pull request's Vercel preview, then a full smoke test of
 #            production as a baseline (read-only)
 #   merge    record the preview checks, squash-merge pinned to the checked commit, wait for the production deploy
-#   live     smoke test and verify:seo:live on https://splithappens.run (read-only)
+#   live     smoke test and verify:seo:live on https://splithappens.run, then version.json once more (read-only)
 #   report   record that the live checks passed, or open an incident (reverting when a live check failed), and
 #            then, whatever happened, make sure every autopilot merge is accounted for
 
@@ -259,6 +259,7 @@ jobs:
     outputs:
       smoke: ${{ steps.checks.outputs.smoke }}
       seo: ${{ steps.checks.outputs.seo }}
+      version_after_seo: ${{ steps.checks.outputs.version_after_seo }}
     steps:
       - name: Check out main
         uses: actions/checkout@v4
@@ -276,7 +277,10 @@ jobs:
           npx playwright install --with-deps chromium
 
       # Exit codes: 0 passed, 1 a page or check failed (the merge is reverted), 3 could not finish, including production
-      # serving another commit before or after the pages, whatever else failed (reported, no revert).
+      # serving another commit before or after the pages, whatever else failed (reported, no revert). verify:seo:live
+      # runs after the smoke test's last version.json reading, so version.json is read once more after it (0 names the
+      # merge commit, 3 another commit or unreadable): a failed SEO check reverts only when production still served
+      # the merge.
       - name: Smoke-test every sitemap page and check search metadata on production
         id: checks
         shell: bash
@@ -289,6 +293,8 @@ jobs:
           echo "smoke=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
           node scripts/verify-seo-live.cjs 2>&1 | tee -a "$RUNNER_TEMP/live/checks.log"
           echo "seo=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          node scripts/autopilot-smoke.cjs --base https://splithappens.run --expect-sha "$MERGE_SHA" --version-only 2>&1 | tee -a "$RUNNER_TEMP/live/checks.log"
+          echo "version_after_seo=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
       - name: Keep the results
         if: always()
@@ -317,6 +323,7 @@ jobs:
       DEPLOY: ${{ needs.merge.outputs.deploy }}
       SMOKE: ${{ needs.live.outputs.smoke }}
       SEO: ${{ needs.live.outputs.seo }}
+      VERSION_AFTER_SEO: ${{ needs.live.outputs.version_after_seo }}
       BASELINE: ${{ needs.preview.outputs.baseline }}
     steps:
       # Main only; the revert below pushes to it with this job's token.
@@ -364,7 +371,7 @@ jobs:
         if: env.MERGE_SHA != '' && env.DEPLOY == 'success'
         run: >-
           node scripts/autopilot-merge.cjs report-live --pr "$PR" --sha "$MERGE_SHA"
-          --smoke-exit "$SMOKE" --seo-exit "$SEO" --baseline-exit "$BASELINE"
+          --smoke-exit "$SMOKE" --seo-exit "$SEO" --version-after-seo-exit "$VERSION_AFTER_SEO" --baseline-exit "$BASELINE"
           --baseline "$RUNNER_TEMP/preview/baseline.json" --live "$RUNNER_TEMP/live/smoke.json"
           --log "$RUNNER_TEMP/live/checks.log"
 
@@ -377,7 +384,7 @@ jobs:
       - name: Fail the run when a check failed
         if: always()
         run: |
-          echo "Preview checks: ${PREVIEW:-not recorded}; merge commit: ${MERGE_SHA:-none}; production deploy: ${DEPLOY:-not run}; live smoke test exit: ${SMOKE:-not run}; verify:seo:live exit: ${SEO:-not run}"
+          echo "Preview checks: ${PREVIEW:-not recorded}; merge commit: ${MERGE_SHA:-none}; production deploy: ${DEPLOY:-not run}; live smoke test exit: ${SMOKE:-not run}; verify:seo:live exit: ${SEO:-not run}; version.json after it: ${VERSION_AFTER_SEO:-not read}"
           status=0
           [ "$PREVIEW" = "pass" ] || status=1
           if [ -n "$MERGE_SHA" ] && { [ "$DEPLOY" != "success" ] || [ "$SMOKE" != "0" ] || [ "$SEO" != "0" ]; }; then status=1; fi

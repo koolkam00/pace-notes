@@ -4,6 +4,7 @@
  *
  *   node scripts/autopilot-smoke.cjs --base https://splithappens.run                    every sitemap page
  *   node scripts/autopilot-smoke.cjs --base https://<preview>.vercel.app --quick --expect-sha <sha> --json smoke.json
+ *   node scripts/autopilot-smoke.cjs --base https://splithappens.run --expect-sha <sha> --version-only
  *
  *   --quick            a fixed list of key pages instead of the whole sitemap
  *   --expect-sha <sha> fail unless <base>/version.json (scripts/write-version.cjs) names this commit, read before the
@@ -11,6 +12,9 @@
  *                      commit is a failure. On any other address (production), where a later deploy can replace it,
  *                      another commit at either reading means the run could not check this commit: exit 3 whatever
  *                      else failed, because what the pages showed may belong to the other commit
+ *   --version-only     with --expect-sha: read <base>/version.json only, as a full run reads it (no browser, no
+ *                      pages): exit 0 when it names that commit, 3 when it names another commit or cannot be read. The
+ *                      merge workflow runs it after verify:seo:live, which comes after the smoke test's last reading
  *   --json <file>      write every result to <file>; stdout gets a short summary
  *   --self-test        the exit codes and the third-party tripwire against a stand-in browser and site (no network)
  *
@@ -157,6 +161,22 @@ async function servedVersion(base, expected, deps) {
   return version;
 }
 
+/** --version-only: exit 0 when <base>/version.json names `expected`, 3 when it names another commit or cannot be read. */
+async function versionOnly(base, expected, deps) {
+  let code = 3;
+  let line;
+  try {
+    const version = await servedVersion(base, expected, deps);
+    if (version.sha === expected) { code = 0; line = `serves commit ${expected}`; }
+    else line = `serves commit ${version.sha}, expected ${expected}`;
+  } catch (error) {
+    line = `could not be read: ${error.message} (expected ${expected})`;
+  }
+  deps.log(`autopilot-smoke: ${base}/version.json ${line}`);
+  if (deps.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(deps.env.GITHUB_STEP_SUMMARY, `### version.json: ${base}\n\n**${code === 0 ? 'Names the expected commit' : 'Does not name the expected commit'}**: ${line.replace(/\|/g, '\\|')}\n\n`);
+  return code;
+}
+
 async function sitemapPaths(base, deps) {
   const xml = await fetchText(`${base}/sitemap.xml`, deps);
   const paths = [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((m) => {
@@ -179,11 +199,13 @@ async function main(argv, deps) {
   const QUICK = argv.includes('--quick');
   const JSON_FILE = option('--json');
   const EXPECT_SHA = option('--expect-sha');
-  if (!BASE_ARG) {
-    console.error('Usage: node scripts/autopilot-smoke.cjs --base <url> [--quick] [--json <file>] [--expect-sha <sha>] | --self-test');
+  const VERSION_ONLY = argv.includes('--version-only');
+  if (!BASE_ARG || (VERSION_ONLY && !EXPECT_SHA)) {
+    console.error('Usage: node scripts/autopilot-smoke.cjs --base <url> [--quick] [--json <file>] [--expect-sha <sha>] | --base <url> --expect-sha <sha> --version-only | --self-test');
     return 2;
   }
   const base = new URL(BASE_ARG).origin;
+  if (VERSION_ONLY) return versionOnly(base, EXPECT_SHA, deps);
   const started = Date.now();
   const failures = [];
   const warnings = [];
@@ -552,6 +574,16 @@ async function selfTest() {
     return { code, out: logs.join('\n'), report: JSON.parse(read(json) || '{}'), summary: read(stepSummary), reads };
   };
   const failed = (r, where, text) => r.report.failures.some((f) => f.where === where && f.message.includes(text));
+  /** One --version-only run against the stand-in: its exit code, printed line, version.json reads and whether a browser started. */
+  const versionOnlyRun = async (versions) => {
+    const { reads, deps } = standIn({ versions });
+    const logs = [];
+    let launched = false;
+    deps.log = (text) => logs.push(text);
+    deps.launch = async () => { launched = true; throw new Error('no browser in --version-only'); };
+    const code = await main(['--base', PRODUCTION, '--expect-sha', THIS, '--version-only'], deps);
+    return { code, out: logs.join('\n'), reads, launched };
+  };
   const MOVED = 'COULD NOT FINISH: production is serving another commit';
 
   try {
@@ -581,6 +613,16 @@ async function selfTest() {
     ok('production: version.json unreadable and a page fails: exit 1', r.code === 1, `exit ${r.code}`);
     r = await run({ pages: brokenPage }, { expect: null });
     ok('without --expect-sha version.json is never read', r.code === 1 && r.reads.version === 0 && r.out.includes('version.json: not checked'), `exit ${r.code}, ${r.reads.version} reads`);
+
+    // --version-only (the merge workflow's reading after verify:seo:live): version.json alone, read as a full run reads it.
+    let v = await versionOnlyRun([THIS]);
+    ok('--version-only: this commit: exit 0, one reading, no browser', v.code === 0 && v.reads.version === 1 && !v.launched && v.out === `autopilot-smoke: ${PRODUCTION}/version.json serves commit ${THIS}`, `exit ${v.code}, ${v.reads.version} reads: ${v.out}`);
+    v = await versionOnlyRun([OTHER]);
+    ok('--version-only: another commit: exit 3 after three readings, naming both commits', v.code === 3 && v.reads.version === 3 && !v.launched && v.out.includes(`serves commit ${OTHER}, expected ${THIS}`), `exit ${v.code}, ${v.reads.version} reads: ${v.out}`);
+    v = await versionOnlyRun([OTHER, THIS]);
+    ok('--version-only: an edge cache that catches up on a second reading is this commit: exit 0', v.code === 0 && v.reads.version === 2, `exit ${v.code}, ${v.reads.version} reads`);
+    v = await versionOnlyRun([null]);
+    ok('--version-only: version.json unreadable (503 on every try): exit 3', v.code === 3 && v.reads.version === 3 && v.out.includes('could not be read') && v.out.includes(`(expected ${THIS})`), `exit ${v.code}, ${v.reads.version} reads: ${v.out}`);
 
     // On a preview, whose address is one deployment, another commit is the change's own failure.
     r = await run({ versions: [OTHER] }, { base: PREVIEW });
@@ -621,7 +663,7 @@ async function selfTest() {
     for (const failure of failures) console.error(`  ${failure}`);
     return 1;
   }
-  console.log(`autopilot-smoke self-test: ${checks} checks passed (version.json before and after the pages on production and on a preview, exit codes, the third-party tripwire in checks and lab runs; a stand-in browser, no network)`);
+  console.log(`autopilot-smoke self-test: ${checks} checks passed (version.json before and after the pages on production and on a preview, --version-only, exit codes, the third-party tripwire in checks and lab runs; a stand-in browser, no network)`);
   return 0;
 }
 

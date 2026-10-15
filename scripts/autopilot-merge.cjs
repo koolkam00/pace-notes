@@ -7,8 +7,8 @@
  *   node scripts/autopilot-merge.cjs smoke-result --pr <n> --sha <head sha> --smoke-exit <code> --seo-exit <code> [--dir <results>]
  *   node scripts/autopilot-merge.cjs merge --pr <n> --sha <head sha>
  *   node scripts/autopilot-merge.cjs wait-deploy --sha <merge sha>
- *   node scripts/autopilot-merge.cjs record-live --pr <n> --sha <merge sha>
- *   node scripts/autopilot-merge.cjs report-live --pr <n> --sha <merge sha> --smoke-exit <code> --seo-exit <code> --baseline-exit <code> --baseline <file> --live <file> [--log <file>]
+ *   node scripts/autopilot-merge.cjs record-live --pr <n> --sha <merge sha> [--note <text>]
+ *   node scripts/autopilot-merge.cjs report-live --pr <n> --sha <merge sha> --smoke-exit <code> --seo-exit <code> --version-after-seo-exit <code> --baseline-exit <code> --baseline <file> --live <file> [--log <file>]
  *   node scripts/autopilot-merge.cjs incident --pr <n> --sha <merge sha> --reason <text> [--revert] [--step <name>] [--log <file>]
  *   node scripts/autopilot-merge.cjs reconcile [--dry-run]
  *   node scripts/autopilot-merge.cjs --self-test     every gate against a mocked GitHub API, and reverts in temporary repositories
@@ -747,8 +747,9 @@ async function cmdWaitDeploy(argv, deps) {
 async function cmdRecordLive(argv, deps) {
   const number = prNumber(argv);
   const sha = shaArg(argv);
+  const note = option(argv, '--note');
   const gh = deps.client({ dryRun: false });
-  const body = `${liveOkMarker(sha)}\nThe live checks passed on ${CONFIG.productionUrl} for merge commit \`${short(sha)}\`: the smoke test of every sitemap page and \`npm run verify:seo:live\`.${deps.runUrl ? ` [Workflow run](${deps.runUrl}).` : ''}`;
+  const body = `${liveOkMarker(sha)}\nThe live checks passed on ${CONFIG.productionUrl} for merge commit \`${short(sha)}\`: the smoke test of every sitemap page and \`npm run verify:seo:live\`.${note ? ` ${note}` : ''}${deps.runUrl ? ` [Workflow run](${deps.runUrl}).` : ''}`;
   await retrying(deps, 'record-live', () => gh.write('POST', `/repos/${deps.repo}/issues/${number}/comments`, { body }, `record the live checks on #${number}`));
   deps.log(`#${number}: recorded that the live checks passed for ${sha}`);
   deps.summary(`### Live checks passed for \`${short(sha)}\` (#${number})\n`);
@@ -909,31 +910,43 @@ const otherCommitSeen = (live) => Boolean(live && live.base === CONFIG.productio
 /**
  * Positive evidence that the live checks ran against the merge commit: the production smoke report read version.json
  * before and after the pages, and both readings named it. verify:seo:live runs right after the smoke test, so when
- * the smoke test could not finish (exit 3) only this ties a failed SEO check to the change. A report that is missing,
- * malformed, from another address or without both readings is no such evidence.
+ * the smoke test could not finish (exit 3) only this, with the reading after verify:seo:live, ties a failed SEO check
+ * to the change. A report that is missing, malformed, from another address or without both readings is no such evidence.
  */
 const servedMergeThroughout = (live, sha) => Boolean(sha && live && live.base === CONFIG.productionUrl && !otherCommitSeen(live) &&
   live.version && live.version.sha === sha && live.versionAfter && live.versionAfter.sha === sha);
 
-function liveCheckDecision({ sha, smoke, seo, baselineExit, baseline, live }) {
-  if (smoke === '0' && seo === '0') return { action: 'pass', reason: 'Both live checks passed.' };
+function liveCheckDecision({ sha, smoke, seo, versionAfterSeo, baselineExit, baseline, live }) {
+  // verify:seo:live runs after the smoke test's last version.json reading, so another deploy can replace production
+  // before or during the SEO requests. The workflow reads version.json once more after it (smoke --version-only:
+  // 0 names the merge commit, 3 another commit or unreadable); only 0 shows the SEO check saw the merge throughout.
+  const afterSeo = `${CONFIG.productionUrl}/version.json reading after verify:seo:live ${versionAfterSeo === '3' ? 'named another commit or could not be read (exit 3)' : versionAfterSeo ? `ended with exit ${versionAfterSeo}` : 'has no result'}`;
+  if (smoke === '0' && seo === '0') {
+    if (versionAfterSeo === '0') return { action: 'pass', reason: 'Both live checks passed.' };
+    // Both passed: the smoke test named the merge commit before and after its pages, so the merge was checked.
+    const note = `The ${afterSeo}: production has since moved on or could not be confirmed.`;
+    return { action: 'pass', reason: `Both live checks passed. ${note}`, note };
+  }
   if (smoke === '3' && !servedMergeThroughout(live, sha)) {
     // The smoke test found production serving another commit: verify:seo:live, run after it, saw that commit too.
     if (otherCommitSeen(live)) return { action: 'incident', reason: `Production was serving another commit than the merge during the live checks (smoke test exit 3; verify:seo:live exit ${seo || 'none'}), so neither check could judge this change and it was not reverted.` };
     if (seo === '1') return { action: 'incident', reason: `verify:seo:live failed, but the live smoke test could not finish (exit 3) and its report does not show production serving the merge commit before and after the pages (the report is missing, unreadable, not from ${CONFIG.productionUrl} or without both version.json readings), so the failure cannot be tied to this change and it was not reverted.` };
   }
-  if (seo === '1') return { action: 'revert', reason: 'verify:seo:live failed after the deploy (the pre-merge SEO check passed).' };
+  if (seo === '1' && versionAfterSeo === '0') return { action: 'revert', reason: 'verify:seo:live failed after the deploy (the pre-merge SEO check passed).' };
+  // From here a failed SEO check is not counted against the change: production changed or could not be confirmed.
+  const seoNotCounted = seo === '1' ? ` verify:seo:live failed too, but the ${afterSeo}, so production changed or could not be confirmed after the SEO check and that failure was not counted against the change.` : '';
   if (smoke === '1') {
     const before = baselineExit === '1' ? smokeFailureSet(baseline) : null;
     const after = smokeFailureSet(live);
     if (before && after) {
       const added = [...after].filter((failure) => !before.has(failure));
-      if (!added.length) return { action: 'incident', reason: `Every live smoke failure (${after.size}) exactly matches a failure recorded before the merge, by page, viewport, browser mode and message. No new smoke failure was observed, so the change was not reverted.${seo === '0' ? '' : ' The SEO check also did not finish.'}` };
+      if (!added.length) return { action: 'incident', reason: `Every live smoke failure (${after.size}) exactly matches a failure recorded before the merge, by page, viewport, browser mode and message. No new smoke failure was observed, so the change was not reverted.${seo === '0' ? '' : seo === '1' ? seoNotCounted : ' The SEO check also did not finish.'}` };
       const detail = added.slice(0, 10).map((failure) => { const [where, message] = JSON.parse(failure); return `${where}: ${message}`; }).join('; ');
-      return { action: 'revert', reason: `The live smoke test has ${added.length} new failure(s) absent from the pre-merge baseline: ${detail}` };
+      return { action: 'revert', reason: `The live smoke test has ${added.length} new failure(s) absent from the pre-merge baseline: ${detail}.${seoNotCounted}` };
     }
-    return { action: 'revert', reason: `The live smoke test failed and matching pre-existing failures could not be established (baseline exit ${baselineExit || 'none'}; baseline/live artifacts missing, invalid or without comparable page failures).` };
+    return { action: 'revert', reason: `The live smoke test failed and matching pre-existing failures could not be established (baseline exit ${baselineExit || 'none'}; baseline/live artifacts missing, invalid or without comparable page failures).${seoNotCounted}` };
   }
+  if (seo === '1') return { action: 'incident', reason: `verify:seo:live failed, but the ${afterSeo}: production changed or could not be confirmed after the SEO check, so the failure may be another commit's and the merge was not reverted.` };
   return { action: 'incident', reason: `The live checks did not finish (smoke test exit ${smoke || 'none'}, verify:seo:live exit ${seo || 'none'}; 3 means the run could not complete). The change was not found broken and was not reverted; check the live site.` };
 }
 
@@ -947,10 +960,10 @@ async function cmdReportLive(argv, deps) {
     try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
     catch (error) { deps.log(`report-live: ${flag} could not be read: ${error.message}`); return null; }
   };
-  const decision = liveCheckDecision({ sha, smoke: option(argv, '--smoke-exit'), seo: option(argv, '--seo-exit'), baselineExit: option(argv, '--baseline-exit'), baseline: read('--baseline'), live: read('--live') });
+  const decision = liveCheckDecision({ sha, smoke: option(argv, '--smoke-exit'), seo: option(argv, '--seo-exit'), versionAfterSeo: option(argv, '--version-after-seo-exit'), baselineExit: option(argv, '--baseline-exit'), baseline: read('--baseline'), live: read('--live') });
   deps.setOutput('live_action', decision.action);
   deps.log(`report-live: ${decision.action}: ${decision.reason}`);
-  if (decision.action === 'pass') return cmdRecordLive(['--pr', String(number), '--sha', sha], deps);
+  if (decision.action === 'pass') return cmdRecordLive(['--pr', String(number), '--sha', sha, ...(decision.note ? ['--note', decision.note] : [])], deps);
   const log = option(argv, '--log');
   return cmdIncident(['--pr', String(number), '--sha', sha, '--step', 'live checks', '--reason', decision.reason,
     ...(decision.action === 'revert' ? ['--revert'] : []), ...(log ? ['--log', log] : [])], deps);
@@ -987,7 +1000,7 @@ function realDeps(env = process.env) {
 }
 
 const COMMANDS = { evaluate: cmdEvaluate, 'smoke-result': cmdSmokeResult, merge: cmdMerge, 'wait-deploy': cmdWaitDeploy, 'record-live': cmdRecordLive, 'report-live': cmdReportLive, incident: cmdIncident, reconcile: cmdReconcile };
-const USAGE = 'Usage: node scripts/autopilot-merge.cjs evaluate [--dry-run] [--pr <n>] | smoke-result --pr <n> --sha <sha> --smoke-exit <code> --seo-exit <code> [--dir <dir>] | merge --pr <n> --sha <sha> | wait-deploy --sha <sha> | record-live --pr <n> --sha <sha> | report-live --pr <n> --sha <sha> --smoke-exit <code> --seo-exit <code> --baseline-exit <code> --baseline <file> --live <file> [--log <file>] | incident --pr <n> --sha <sha> --reason <text> [--revert] [--step <name>] [--log <file>] | reconcile [--dry-run] | --self-test';
+const USAGE = 'Usage: node scripts/autopilot-merge.cjs evaluate [--dry-run] [--pr <n>] | smoke-result --pr <n> --sha <sha> --smoke-exit <code> --seo-exit <code> [--dir <dir>] | merge --pr <n> --sha <sha> | wait-deploy --sha <sha> | record-live --pr <n> --sha <sha> [--note <text>] | report-live --pr <n> --sha <sha> --smoke-exit <code> --seo-exit <code> --version-after-seo-exit <code> --baseline-exit <code> --baseline <file> --live <file> [--log <file>] | incident --pr <n> --sha <sha> --reason <text> [--revert] [--step <name>] [--log <file>] | reconcile [--dry-run] | --self-test';
 
 async function main(argv, deps = realDeps()) {
   if (argv.includes('--self-test')) return selfTest();
@@ -1639,23 +1652,39 @@ async function selfTestAsync() {
         ['a preview report is no evidence the live checks ran on the merge', '3', '1', '1', existing, report([infrastructure], { ...servedMerge, base: 'https://preview.vercel.app' }), 'incident'],
         ['unfinished smoke alone never reverts', '3', '0', '1', existing, report([infrastructure]), 'incident'],
         ['unfinished SEO alone never reverts', '0', '3', '0', report([]), report([]), 'incident'],
-        ['missing outputs open an incident without reverting', '', '', '', null, null, 'incident'],
+        ['missing outputs open an incident without reverting', '', '', '', null, null, 'incident', ''],
+        // The last column is the version.json reading after verify:seo:live (0 by default; null: the flag is not passed).
+        ['SEO failure reverts when production still serves the merge after it', '0', '1', '1', existing, report([]), 'revert', '0'],
+        ['SEO failure with another commit (or unreadable) after it opens an incident', '0', '1', '1', existing, report([]), 'incident', '3'],
+        ['SEO failure with the reading after it empty opens an incident', '0', '1', '1', existing, report([]), 'incident', ''],
+        ['SEO failure without the reading after it opens an incident', '0', '1', '1', existing, report([]), 'incident', null],
+        ['SEO failure on an unfinished smoke run that served the merge, then another commit, opens an incident', '3', '1', '1', existing, report([infrastructure], servedMerge), 'incident', '3'],
+        ['identical smoke failures and an SEO failure with another commit after it open an incident', '1', '1', '1', existing, existing, 'incident', '3'],
+        ['both checks pass and production moved on after them: the pass is recorded', '0', '0', '1', existing, report([]), 'pass', '3'],
+        ['both checks pass and the reading after them is missing: the pass is recorded', '0', '0', '1', existing, report([]), 'pass', null],
+        ['a new smoke failure reverts whatever the reading after the SEO check', '1', '0', '1', existing, changed, 'revert', '3'],
+        ['a new smoke failure reverts even when an SEO failure cannot be counted', '1', '1', '1', existing, changed, 'revert', '3'],
+        ['a smoke failure without a baseline reverts whatever the reading after the SEO check', '1', '1', '', null, existing, 'revert', null],
       ];
       const baselineFile = path.join(tmp, 'baseline.json');
       const liveFile = path.join(tmp, 'live.json');
       const write = (file, value) => { if (value === null) fs.rmSync(file, { force: true }); else fs.writeFileSync(file, typeof value === 'string' ? value : JSON.stringify(value)); };
-      for (const [label, smoke, seo, baselineExit, before, after, action] of cases) {
+      for (const [label, smoke, seo, baselineExit, before, after, action, versionAfterSeo = '0'] of cases) {
         write(baselineFile, before); write(liveFile, after);
         const state = fresh();
         const run = mockDeps(state);
         let reverts = 0;
         run.deps.revert = (sha, pr) => { reverts += 1; ok(`report-live ${label}: revert target is pinned`, sha === merged && pr === 7); return { pushed: true, revertSha: SHA('e'), detail: 'test revert' }; };
         const code = await main(['report-live', '--pr', '7', '--sha', merged, '--smoke-exit', smoke, '--seo-exit', seo,
+          ...(versionAfterSeo === null ? [] : ['--version-after-seo-exit', versionAfterSeo]),
           '--baseline-exit', baselineExit, '--baseline', baselineFile, '--live', liveFile], run.deps);
         ok(`report-live ${label}: correct action`, code === 0 && run.outputs.live_action === action && reverts === (action === 'revert' ? 1 : 0), JSON.stringify(run.outputs));
         ok(`report-live ${label}: recorded or paused`, action === 'pass'
           ? state.createdIssues.length === 0 && state.comments[7].some((c) => c.body.includes(liveOkMarker(merged)))
           : state.createdIssues.length === 1 && state.createdIssues[0].labels.some((l) => l.name === CONFIG.pauseLabel));
+        // A pass with production no longer confirmed afterwards says so on the record; an uncounted SEO failure says why.
+        if (action === 'pass') ok(`report-live ${label}: the record says whether production has since moved on`, state.comments[7].some((c) => c.body.includes(liveOkMarker(merged)) && c.body.includes('production has since moved on') === (versionAfterSeo !== '0')));
+        if (seo === '1' && versionAfterSeo !== '0') ok(`report-live ${label}: the incident says production changed or could not be confirmed after the SEO check`, state.createdIssues.length === 1 && state.createdIssues[0].body.includes('production changed or could not be confirmed after the SEO check'), state.createdIssues[0] && state.createdIssues[0].body.split('\n')[2]);
       }
       const workflow = fs.readFileSync(path.join(ROOT, OWN_WORKFLOW), 'utf8');
       const reportJob = workflow.slice(workflow.indexOf('  report:'));
@@ -1663,6 +1692,9 @@ async function selfTestAsync() {
       ok('workflow: delegates the live decision to the tested command with both artifacts', reportJob.includes('autopilot-merge.cjs report-live') && reportJob.includes('--baseline "$RUNNER_TEMP/preview/baseline.json" --live "$RUNNER_TEMP/live/smoke.json"'));
       ok('workflow: production baseline has full coverage, not quick-only', workflow.includes('--base https://splithappens.run --json "$RUNNER_TEMP/preview/baseline.json"') && !workflow.includes('--quick --json "$RUNNER_TEMP/preview/baseline.json"'));
       ok('workflow: no aggregate baseline exit-code exemption remains', !reportJob.includes("env.BASELINE == '1'") && !reportJob.includes("env.BASELINE != '1'"));
+      const liveJob = workflow.slice(workflow.indexOf('  live:'), workflow.indexOf('  report:'));
+      ok('workflow: the live job reads version.json again after verify:seo:live and outputs the exit code', /verify-seo-live\.cjs[^\n]*\n[^\n]*seo=[^\n]*\n\s*node scripts\/autopilot-smoke\.cjs --base https:\/\/splithappens\.run --expect-sha "\$MERGE_SHA" --version-only[^\n]*\n\s*echo "version_after_seo=\$\{PIPESTATUS\[0\]\}"/.test(liveJob) && liveJob.includes('version_after_seo: ${{ steps.checks.outputs.version_after_seo }}'));
+      ok('workflow: the report job passes that reading to report-live through env', reportJob.includes('VERSION_AFTER_SEO: ${{ needs.live.outputs.version_after_seo }}') && reportJob.includes('--version-after-seo-exit "$VERSION_AFTER_SEO"'));
     }
 
     // incident.
@@ -1760,7 +1792,7 @@ async function selfTestAsync() {
     for (const failure of failures) console.error(`  ${failure}`);
     return 1;
   }
-  console.log(`autopilot-merge self-test: ${checks} checks passed (every gate on its own, pause, one open autopilot pull request, merge history, every check run and required checks that must succeed, stale and re-run checks, reviews, status comment and its notes, dry run, retried reads, merge and lost or refused merges, deploy wait, live failure-set comparisons, live record, incident, report-driven reverts that keep the ledger and the learnings)`);
+  console.log(`autopilot-merge self-test: ${checks} checks passed (every gate on its own, pause, one open autopilot pull request, merge history, every check run and required checks that must succeed, stale and re-run checks, reviews, status comment and its notes, dry run, retried reads, merge and lost or refused merges, deploy wait, live failure-set comparisons, the version.json reading after the SEO check, live record, incident, report-driven reverts that keep the ledger and the learnings)`);
   return 0;
 }
 function selfTest() { return selfTestAsync(); }
