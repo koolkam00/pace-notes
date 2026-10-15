@@ -1,3 +1,6 @@
+// The home page lives in the (home) route group, not at app/page.tsx: Next.js 14 hands pages under app/ the client
+// chunks of a page in a parent folder for any client component they share, so with this file at app/page.tsx /privacy,
+// /htw and /runners loaded the home page's charts (about 37 KB gzipped). The route group keeps the URL `/`.
 import type { ReactNode } from 'react';
 import { UnitLink as Link, MarathonDistance } from '@/components/UnitsProvider';
 import AnalysisIndex from '@/components/AnalysisIndex';

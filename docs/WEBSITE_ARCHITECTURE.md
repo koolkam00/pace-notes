@@ -16,7 +16,7 @@ The primary ten are accompanied by any weather candidates that pass the fixed sc
 
 | Route | Source / renderer | Purpose |
 | --- | --- | --- |
-| / | app/page.tsx; HeroReplay, story chapters, AnalysisIndex | Race-replay hero, five story chapters, then the ranked ten analyses |
+| / | app/(home)/page.tsx (a route group: see below the table); HeroReplay, story chapters, AnalysisIndex | Race-replay hero, five story chapters, then the ranked ten analyses |
 | /stories and /stories/[slug] | app/stories; lib/stories.ts; components/story/bodies | Seven data stories built from `public/data/insights` ([data stories](STORIES.md)) |
 | /tools and /tools/[tool] | app/tools; lib/tools/registry.ts; components/tools | Eight runner tools: pace calculator, predictor, pace band, course chooser, weather match, race-day projector, split check, qualifying checker ([runner tools](TOOLS.md)) |
 | /tools/marathon-pace-chart and /tools/half-marathon-pace-chart | app/tools/{marathon,half-marathon}-pace-chart; PaceChartTable; lib/tools/pace-chart.ts | Printable pace charts by goal time, calculated at even pace ([runner tools](TOOLS.md#pace-charts-goal-pages-and-qualifying-race-pages)) |
@@ -35,6 +35,8 @@ The primary ten are accompanied by any weather candidates that pass the fixed sc
 | /runners | app/runners/page.tsx; RunnerSearch / RunnerContext | Search names, confirm races, compare recorded performances and same-edition peers, inspect weather/current-route context |
 | /methodology | app/methodology/page.tsx | Definitions, cohorts and limitations |
 | /robots.txt, /sitemap.xml, /manifest.webmanifest | app/robots.ts, app/sitemap.ts, app/manifest.ts; lib/seo-routes.ts, lib/seo-pages/ | Crawl rules, the list of indexable pages with data-derived `lastmod`, and the install manifest ([SEO](SEO.md)) |
+
+The home page is `app/(home)/page.tsx`, inside a route group that adds nothing to its URL, rather than `app/page.tsx` (since October 15, 2026; repository state, not yet deployed). Next.js 14 builds each page's list of client chunks from its own entry and from the entries in its parent folders, and a page directly in `app/` is in every other page's parent folder: a shared client component such as `UnitsProvider` was then loaded on `/privacy`, `/htw` and `/runners` with the home page's chunks, about 37 KB gzipped of its charts and replay. Keep the home page in its group.
 
 [lib/ten-analyses.ts](../lib/ten-analyses.ts) is the primary ordering and route registry: pacing pattern, opening pace, checkpoint, section differences, courses, weather, terrain, target context, improvement and age. The [ten-analysis guide](TOP_TEN_ANALYSES.md) maps these pages to data and limitations. The 35-question catalog in `lib/question-catalog.ts` and 33 broad extension packs remain a research archive; the personalized catalog retains 12 backing calculation paths. These are overlapping views, not independent datasets. `/your-race#guide-{id}` maps the primary ten to their new analysis pages; `#guide-downhill` opens `/analyses/downhill-start`; `#guide-return` opens the retained twelve-question guide at `/research/personalized`. The `/packs` archive links to the ten and keeps the twelve-question list collapsed.
 
