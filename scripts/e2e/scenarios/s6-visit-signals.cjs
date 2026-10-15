@@ -146,6 +146,11 @@ async function using(h) {
   await page.locator('#runner-name').pressSequentially('Qzxqzxq', { delay: 15 });
   await page.click('button[type="submit"]');
   await page.waitForTimeout(2500);
+  // The ways on after no match are fixed addresses: the search text goes nowhere.
+  await page.locator('.runner-nomatch-next a:has-text("Ask for your race")').click();
+  await page.waitForURL(/\/request-analysis/);
+  const onward = page.url();
+  await page.waitForTimeout(800);
   // Web Vitals on a fresh load: an interaction, then the tab is hidden.
   await page.goto(SITE + '/tools/predictor', { waitUntil: 'load' });
   await page.waitForTimeout(1200);
@@ -167,6 +172,7 @@ async function using(h) {
   h.check('site_error by kind, once per kind per page view; a failed image is not one', JSON.stringify(errors) === '["js_error","unhandled_rejection"]', shown(named(run, 'site_error')));
   const search = named(run, 'runner_search_completed').map(p => `${p.outcome}:${p.results}`);
   h.check('runner_search_completed with its result band', search.includes('matches:6+') && search.includes('no_matches:0'), search);
+  h.check('a link on from no match carries no search text', new URL(onward).pathname === '/request-analysis' && !new URL(onward).search && !onward.includes('Qzxqzxq'), onward);
   // A tap, then the tab closes: all four values go out as it closes, INP and CLS included.
   const vitals = named(run, '$web_vitals').filter(p => p.$pathname === '/tools/predictor');
   h.check('closing a tab after a tap sends its LCP, INP, CLS and FCP', vitals.some(p => ['LCP', 'INP', 'FCP'].every(k => Number.isInteger(p[`$web_vitals_${k}_value`])) && typeof p.$web_vitals_CLS_value === 'number'), shown(named(run, '$web_vitals')));
@@ -267,6 +273,13 @@ async function toolEdits(h) {
   await page.waitForTimeout(1200);
   await page.locator('button:has-text("Full result ↓")').first().click();
   await page.waitForTimeout(500);
+  // A result's next step is not an edit, on the tool it leaves or on the one it opens with the time filled in.
+  await page.goto(SITE + '/tools/predictor', { waitUntil: 'load' });
+  await page.waitForTimeout(1200);
+  await page.locator('.tool-handoffs a:has-text("Turn this into a pace band")').click();
+  await page.waitForURL(/\/tools\/pace-band\?goal=\d:\d\d$/);
+  const handedOn = page.url();
+  await page.waitForTimeout(1500);
   await page.goto(SITE + '/tools/pace-band', { waitUntil: 'load' });
   await page.waitForTimeout(1200);
   // window.print() would open the print dialog: the page's beforeprint stands in for it.
@@ -278,6 +291,7 @@ async function toolEdits(h) {
   h.check('changing the course chooser\'s list is one edit', JSON.stringify(used.filter(u => u.startsWith('/tools/course-chooser'))) === '["/tools/course-chooser:edit"]', used);
   h.check('"Full result ↓" is not an edit', !used.some(u => u.startsWith('/tools/projector')), used);
   h.check('printing the pace band is a print, not an edit', JSON.stringify(used.filter(u => u.startsWith('/tools/pace-band'))) === '["/tools/pace-band:print"]', used);
+  h.check('following a result\'s next step is not an edit', !used.some(u => u.startsWith('/tools/predictor')) && named(run, '$pageview').filter(p => p.$pathname === '/tools/pace-band').length === 2, { used, handedOn });
 }
 
 // The experiment boot script names this tab's variant on <html> before the first paint, on a slow phone. With no

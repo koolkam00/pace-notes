@@ -1,8 +1,8 @@
 {
   "*": [
     {
-      "pattern": "^attr:src\\|https://splithappens\\.run/_next/static/[\\w/.%-]+\\.js$",
-      "reason": "Webpack adds a script element for each chunk it loads and removes it once loaded, so whether a recording catches one depends on timing. Build file names, never a visitor's value."
+      "pattern": "^attr:src\\|https://splithappens\\.run/_next/static/[\\w/.%()-]+\\.js$",
+      "reason": "Webpack adds a script element for each chunk it loads and removes it once loaded, so whether a recording catches one depends on timing. Build file names, never a visitor's value (a route group such as app/(home) keeps its parentheses in the path)."
     },
     {
       "pattern": "^attr:rr_(width|height|left|top)\\|-?[0-9.]+px$",

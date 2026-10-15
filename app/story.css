@@ -16,6 +16,8 @@
 .hero-inner { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2.4rem; }
 .hero-title { font-family: var(--serif); font-variation-settings: 'opsz' 144, 'SOFT' 50, 'WONK' 1; font-weight: 680; font-size: clamp(2.9rem, 7.6vw, 6.6rem); line-height: .94; letter-spacing: -.028em; }
 .hero-title em { font-style: italic; font-weight: 600; color: var(--orange); }
+/* From 339 px down the title fills its three lines in Fraunces and needs four in its fallback, so it steps down there. */
+@media (max-width: 339px) { .hero-title { font-size: 2.65rem; } }
 .hero-dek { max-width: 38rem; margin-top: 1.4rem; font-size: clamp(1.05rem, 1.8vw, 1.3rem); line-height: 1.55; color: var(--night-ink-2); }
 .hero-dek strong { color: var(--night-ink); font-weight: 650; }
 .hero-actions { display: flex; flex-wrap: wrap; gap: .8rem; margin-top: 2rem; }
@@ -83,8 +85,18 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .chapter-body { margin-top: 2.2rem; }
 .chapter-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 2rem; align-items: start; }
 .chapter-aside { display: grid; gap: 1rem; }
-.chapter-more { display: inline-flex; align-items: center; gap: .55rem; margin-top: 1.4rem; font-weight: 650; color: var(--ink); border-bottom: 2px solid var(--orange); padding-bottom: .1rem; }
+.chapter-more { position: relative; display: inline-flex; align-items: center; gap: .55rem; margin-top: 1.4rem; font-weight: 650; color: var(--ink); border-bottom: 2px solid var(--orange); padding-bottom: .1rem; }
+/* The one-line link is 31 px tall, 29 px inside its underline (the box ::before is placed against): -7 and -9 px make a 45 px tap target without moving the underline, and z-index keeps the next chapter from covering its lower edge. */
+.chapter-more::before { content: ''; position: absolute; inset: -7px 0 -9px; z-index: 1; }
 .chapter-more:hover { text-decoration: none; color: var(--orange-ink); }
+/* A home chapter ends with its full story and, quieter, "Try it with your race": the tool or analysis for that question. */
+.chapter-links { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1.1rem 2.6rem; margin-top: 1.4rem; }
+.chapter-links .chapter-more { margin-top: 0; }
+.chapter-try { display: grid; justify-items: start; gap: .2rem; color: var(--ink-2); font-size: .9375rem; font-weight: 550; }
+.chapter-try:hover { text-decoration: none; color: var(--ink); }
+.chapter-try-kicker { font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.chapter-try-text { padding-bottom: .1rem; border-bottom: 1px solid var(--line-2); }
+.chapter-try:hover .chapter-try-text { border-bottom-color: var(--ink-2); }
 @media (max-width: 900px) { .chapter-grid { grid-template-columns: 1fr; } }
 
 /* The big nugget line under a chapter title */
@@ -164,7 +176,7 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .hero-replay-bar .segmented button { white-space: nowrap; }
 .hero-replay .replay { margin-top: .8rem; }
 .hero-replay-note { margin-top: .7rem; font-size: .8125rem; line-height: 1.5; color: var(--night-ink-2); max-width: 46rem; }
-.replay-loading { display: grid; place-items: center; min-height: 420px; color: var(--night-ink-2); font-family: var(--mono); font-size: .8125rem; }
+.replay-loading { display: grid; place-items: center; padding: 1rem; border-radius: 12px; color: var(--night-ink-2); font-family: var(--mono); font-size: .8125rem; text-align: center; }
 .hero-bibs { margin-top: clamp(2.2rem, 5vw, 3.5rem); }
 .hero-lane { margin-top: 1.5rem; }
 .runner-lane { width: 100%; overflow: hidden; }
@@ -502,9 +514,6 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
   .archetype-foot { flex: 0 0 82%; align-self: center; }
   .chapter-title { font-size: clamp(2rem, 9vw, 2.6rem); }
   .nugget-number { font-size: clamp(3rem, 16vw, 4.2rem); }
-}
-@media (max-width: 980px) {
-  .header-controls .main-nav a.nav-request { order: -1; margin-left: 0; }
 }
 .course-mornings { display: grid; gap: 1.25rem; }
 .home-story-grid { margin-top: 1.6rem; }

@@ -7,6 +7,7 @@ import type { ChartSpec } from '@/lib/research-data';
 import { filterOptions, resolveSelection } from '@/lib/chart-selection';
 import { sectionLabel } from '@/lib/section-labels';
 import { distanceValue, elevationValue, paceLabel, paceValue, unitText, type UnitSystem } from '@/lib/units';
+import { paceTicks } from '@/lib/pace-ticks';
 import { chunkLoadFailed, reloadAfterChunkError } from '@/lib/chunk-reload';
 import { trackFailure } from '@/lib/analytics';
 import { useUnits } from './UnitsProvider';
@@ -70,6 +71,9 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
   const sectionTicks = spec.sectionEnds && distanceAxis && xs.length
     ? [5, 10, 20, 30, 40, 42.195].map(km => distanceValue(km, selectedUnits)).filter(v => v >= Math.min(...xs) - 1e-9 && v <= Math.max(...xs) + 1e-9)
     : undefined;
+  // A pace axis on a round minutes:seconds grid in the units shown, never a kilometre grid converted (lib/units.ts).
+  // The chart's values are minutes per unit.
+  const paceAxis = spec.unit === 'min/km' && allValues.length ? paceTicks(Math.min(...allValues) * 60, Math.max(...allValues) * 60, selectedUnits) : null;
   const percentileLabels = ['10th percentile', 'Median', '90th percentile'];
   const percentileKeys = spec.kind !== 'line' && spec.series.length === 3
     ? [['p10', 'median', 'p90'], ['low', 'value', 'high']].find(keys => keys.every((key, index) => spec.series.some(series => series.key === key && series.label === percentileLabels[index])))
@@ -148,7 +152,7 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
           })}
         </div>
         : spec.kind === 'line' ? <div className="chart">
-          <QuestionLineChart spec={spec} chartRows={chartRows} sectionTicks={sectionTicks} distanceAxis={distanceAxis} signed={signed} colors={COLORS} text={text} value={value} label={label} axisValue={axisValue} />
+          <QuestionLineChart spec={spec} chartRows={chartRows} sectionTicks={sectionTicks} paceTicks={paceAxis ? paceAxis.ticks.map(seconds => seconds / 60) : undefined} distanceAxis={distanceAxis} signed={signed} colors={COLORS} text={text} value={value} label={label} axisValue={axisValue} />
         </div> : <div className="bars">
           {rows.map((row, i) => <div className="bar-item" key={`${row.label}-${i}`}>
             <div className="bar-label"><span>{label(row.label)}</span>{spec.series.length === 1 && <strong>{value(row[spec.series[0].key])}</strong>}</div>

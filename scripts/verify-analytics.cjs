@@ -623,7 +623,7 @@ for (const file of ['app', 'components', 'lib', 'hooks', 'context'].flatMap(sour
 for (const file of ['app', 'components'].flatMap(sourceFiles)) {
   for (const m of withoutComments(file).matchAll(/data-track-section=(?:"([^"]*)"|\{([^}]*)\})/g)) assert.ok(m[1] !== undefined && policy.TRACKED_SECTIONS.includes(m[1]), `${file}: data-track-section ${m[1] ?? m[2]} must be a literal id from TRACKED_SECTIONS`);
 }
-const homeSource = read('app/page.tsx');
+const homeSource = read('app/(home)/page.tsx');
 const homeSections = [...homeSource.matchAll(/data-track-section="([^"]+)"/g)];
 const chapters = homeSections.map(m => m[1]).filter(id => id.startsWith('chapter-'));
 assert.ok(chapters.length >= 4, 'The home page chapters are marked');

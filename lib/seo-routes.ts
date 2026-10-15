@@ -47,12 +47,12 @@ export const ROBOTS_DISALLOW: readonly string[] = ['/data/runners/index/', '/dat
  * so an entry here only matters when their wording changed after the data did.
  */
 export const CONTENT_DATES: Readonly<Record<string, string>> = {
-  '/': '2026-10-08',
+  '/': '2026-10-15',
   '/about': '2026-10-07',
   '/methodology': '2026-10-08',
   '/stories': '2026-10-08',
   '/tools': '2026-10-08',
-  '/tools/pace-calculator': '2026-10-08',
+  '/tools/pace-calculator': '2026-10-15',
   '/analyses': '2026-10-08',
   '/courses': '2026-10-08',
   '/packs': '2026-10-08',

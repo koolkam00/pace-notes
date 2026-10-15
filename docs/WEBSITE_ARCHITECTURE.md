@@ -16,7 +16,7 @@ The primary ten are accompanied by any weather candidates that pass the fixed sc
 
 | Route | Source / renderer | Purpose |
 | --- | --- | --- |
-| / | app/page.tsx; HeroReplay, story chapters, AnalysisIndex | Race-replay hero, five story chapters, then the ranked ten analyses |
+| / | app/(home)/page.tsx (a route group: see below the table); HeroReplay, story chapters, AnalysisIndex | Race-replay hero, five story chapters, then the ranked ten analyses |
 | /stories and /stories/[slug] | app/stories; lib/stories.ts; components/story/bodies | Seven data stories built from `public/data/insights` ([data stories](STORIES.md)) |
 | /tools and /tools/[tool] | app/tools; lib/tools/registry.ts; components/tools | Eight runner tools: pace calculator, predictor, pace band, course chooser, weather match, race-day projector, split check, qualifying checker ([runner tools](TOOLS.md)) |
 | /tools/marathon-pace-chart and /tools/half-marathon-pace-chart | app/tools/{marathon,half-marathon}-pace-chart; PaceChartTable; lib/tools/pace-chart.ts | Printable pace charts by goal time, calculated at even pace ([runner tools](TOOLS.md#pace-charts-goal-pages-and-qualifying-race-pages)) |
@@ -35,6 +35,8 @@ The primary ten are accompanied by any weather candidates that pass the fixed sc
 | /runners | app/runners/page.tsx; RunnerSearch / RunnerContext | Search names, confirm races, compare recorded performances and same-edition peers, inspect weather/current-route context |
 | /methodology | app/methodology/page.tsx | Definitions, cohorts and limitations |
 | /robots.txt, /sitemap.xml, /manifest.webmanifest | app/robots.ts, app/sitemap.ts, app/manifest.ts; lib/seo-routes.ts, lib/seo-pages/ | Crawl rules, the list of indexable pages with data-derived `lastmod`, and the install manifest ([SEO](SEO.md)) |
+
+The home page is `app/(home)/page.tsx`, inside a route group that adds nothing to its URL, rather than `app/page.tsx` (since October 15, 2026; repository state, not yet deployed). Next.js 14 builds each page's list of client chunks from its own entry and from the entries in its parent folders, and a page directly in `app/` is in every other page's parent folder: a shared client component such as `UnitsProvider` was then loaded on `/privacy`, `/htw` and `/runners` with the home page's chunks, about 37 KB gzipped of its charts and replay. Keep the home page in its group.
 
 [lib/ten-analyses.ts](../lib/ten-analyses.ts) is the primary ordering and route registry: pacing pattern, opening pace, checkpoint, section differences, courses, weather, terrain, target context, improvement and age. The [ten-analysis guide](TOP_TEN_ANALYSES.md) maps these pages to data and limitations. The 35-question catalog in `lib/question-catalog.ts` and 33 broad extension packs remain a research archive; the personalized catalog retains 12 backing calculation paths. These are overlapping views, not independent datasets. `/your-race#guide-{id}` maps the primary ten to their new analysis pages; `#guide-downhill` opens `/analyses/downhill-start`; `#guide-return` opens the retained twelve-question guide at `/research/personalized`. The `/packs` archive links to the ten and keeps the twelve-question list collapsed.
 
@@ -104,6 +106,8 @@ The all-finisher primary outcome is actual time after 20 km minus time at the re
 ## Display units
 
 The homepage, About page and ten primary analyses default to miles and minutes per mile. The Miles / Kilometres switch updates these pages together, including distance labels, pace values and axes, exact-value tables, checkpoint controls, and explanatory prose. Miles mode also displays elevation in feet; finish durations, percentages, cohort membership and sample sizes do not change. Weather retains its published temperature bands.
+
+Pace axes tick on a round minutes:seconds grid in the units shown, with at least the five ticks Recharts drew (`paceTicks` in `lib/pace-ticks.ts`), so a miles chart reads 8:30, 9:00, 9:30 rather than a kilometre grid converted.
 
 The URL parameter `units=mi|km` makes a shared comparison explicit. A valid URL selection takes precedence over the saved browser preference; absent either, the default is miles. The browser remembers changes, and navigation among analysis pages retains the selection. Unit changes are presentation state, not a reason to download or recalculate new cohorts.
 
@@ -175,7 +179,7 @@ Added October 14, 2026 (not yet deployed):
 
 ## Pace Notes branding and analysis requests
 
-The public brand is **Pace Notes**, credited to Andrew Kam on the home page, About and footer (`CreatorCredit`). A compact unlinked `by Andrew Kam` also appears beneath the Pace Notes name in the shared header on every page. The site does not link to the Run_with_Kam Instagram account or show that handle. Public page titles use this name; compatibility URLs, research provenance, package names and the splithappens.run host remain stable.
+The public brand is **Pace Notes**, credited to Andrew Kam on the home page, About and footer (`CreatorCredit`). A compact unlinked `by Andrew Kam` also appears beneath the Pace Notes name in the shared header on every page, inside the one-row phone header (`components/SiteHeader.tsx`) too. The site does not link to the Run_with_Kam Instagram account or show that handle. Public page titles use this name; compatibility URLs, research provenance, package names and the splithappens.run host remain stable.
 
 `/request-analysis` provides a question and optional context field. `AnalysisRequest` prepares an encoded email to Andrew; visitors must send it through their own email app or Gmail. A copy fallback is available. This is a client-side email composer, not a server-side delivery service: never report a draft as submitted or delivered. The page stores no request text, and analytics receives only the allowed page path. No email provider keys or runtime API are required, preserving Next static export. A visible Request an analysis button in the shared top navigation, plus footer, About and analysis-directory links, make the page discoverable on desktop and mobile.
 
@@ -183,7 +187,7 @@ The homepage distinguishes raw race records from analyzed finishes. Both totals 
 
 ## Visual system and stories
 
-The redesign is documented in [the design system](DESIGN_SYSTEM.md). Fonts are self-hosted with `@fontsource-variable`. Story charts are hand-drawn SVG or Canvas components in `components/story`, `components/viz` and `components/art`. Recharts remains in the legacy analysis components, which were retheme-only changes. Story data is read at build time and verified by `lib/insights-server.ts`. Replay samples load in the browser through `lib/insights.ts`, which checks each file's SHA-256 against the manifest. A story page is generated only when its file is in the verified manifest.
+The redesign is documented in [the design system](DESIGN_SYSTEM.md). Fonts are self-hosted with `@fontsource-variable`; each family has a metric-matched local fallback (top of `app/globals.css`, values from `scripts/font-fallbacks.cjs`), so text keeps its line breaks when the fonts arrive. Story charts are hand-drawn SVG or Canvas components in `components/story`, `components/viz` and `components/art`. Recharts remains in the legacy analysis components, which were retheme-only changes. Story data is read at build time and verified by `lib/insights-server.ts`. Replay samples load in the browser through `lib/insights.ts`, which checks each file's SHA-256 against the manifest. A story page is generated only when its file is in the verified manifest.
 
 ## Runner tools
 

@@ -3,7 +3,8 @@ import { useEffect, useRef } from 'react';
 import { UnitLink as Link } from './UnitsProvider';
 import { usePathname } from 'next/navigation';
 
-export default function SiteNav() {
+/** The main links, in the order visitors use them. On phones they open from the header's Menu button (SiteHeader); `onFollow` runs when one is followed. */
+export default function SiteNav({ id, onFollow }: { id?: string; onFollow?: () => void }) {
   const path = usePathname() || '';
   const within = (route: string) => path === route || path.startsWith(route + '/');
   const ref = useRef<HTMLElement>(null);
@@ -29,12 +30,12 @@ export default function SiteNav() {
     window.addEventListener('resize', update);
     return () => { nav.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
   }, [path]);
-  return <nav ref={ref} aria-label="Main navigation" className="main-nav">
+  return <nav ref={ref} id={id} aria-label="Main navigation" className="main-nav" onClick={(event) => { if ((event.target as Element).closest('a')) onFollow?.(); }}>
+    <Link href="/analyses" aria-current={within('/analyses') ? 'page' : undefined}>Plan your race</Link>
     <Link href="/stories" aria-current={within('/stories') ? 'page' : undefined}>Stories</Link>
     <Link href="/tools" aria-current={within('/tools') ? 'page' : undefined}>Tools</Link>
-    <Link href="/analyses" aria-current={within('/analyses') ? 'page' : undefined}>Plan your race</Link>
-    <Link href="/courses" aria-current={within('/courses') ? 'page' : undefined}>Courses</Link>
     <Link href="/runners" aria-current={within('/runners') ? 'page' : undefined}>Find a runner</Link>
+    <Link href="/courses" aria-current={within('/courses') ? 'page' : undefined}>Courses</Link>
     <Link href="/about" aria-current={path === '/about' ? 'page' : undefined}>About</Link>
     <Link href="/request-analysis" className="nav-request" aria-current={path === '/request-analysis' ? 'page' : undefined}>Request an analysis</Link>
     <a href="https://github.com/koolkam00/htw-live-study/releases" className="nav-data">Open data <span aria-hidden="true">↗</span></a>

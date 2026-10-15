@@ -53,6 +53,17 @@ const CASES = {
     await step(log, 'tp', () => type(page, label(page, /Average training pace/, false), v.tp));
   } },
   'predictor-url': { path: v => `/tools/predictor?t=${v.half}&d=half&t2=${v.tenK}&d2=10k&wk=${v.weekly}&tp=${v.tp}` },
+  // The result's next steps open the pace band and the pacing-pattern analysis with a time worked out from the typed one
+  // in their address: those pages must record it no more than a time typed there.
+  'predictor-handoff': { path: '/tools/predictor', async drive(page, v, log) {
+    await step(log, 't1', () => type(page, 'input[id$="-t1"]', v.half));
+    await page.waitForTimeout(1200);
+    await step(log, 'pace band', async () => { await page.locator('.tool-handoffs a:has-text("Turn this into a pace band")').click(); await page.waitForURL(/\/tools\/pace-band\?goal=\d:\d\d$/); });
+    await page.waitForTimeout(2000); await wiggle(page, 5);
+    await step(log, 'back', () => page.goBack()); await page.waitForTimeout(1500);
+    await step(log, 'pacing pattern', async () => { await page.locator('.tool-handoffs a:has-text("See how finishers near this time paced")').click(); await page.waitForURL(/\/analyses\/pacing-pattern\?goal=\d+$/); });
+    await page.waitForTimeout(2500); await wiggle(page, 5);
+  } },
   'weather-match': { path: '/tools/weather-match', async drive(page, v, log) {
     await step(log, 'temp', () => type(page, '#weather-match-temp', v.temp));
     await step(log, 'dew', () => type(page, '#weather-match-hum', v.dew));
@@ -121,7 +132,10 @@ const known = name => [...(KNOWN['*'] || []), ...(KNOWN[name] || [])].map(entry 
 
 async function drive(h, name, id) {
   const c = CASES[name], v = V[id], log = [];
-  const run = await h.run(id, { reducedMotion: 'reduce' });
+  // Both runs of a case see the same variant of each running experiment (its control), so their recordings differ only
+  // by what was typed: a tab's variant is drawn at random and named on <html>.
+  const pinned = Object.fromEntries([...h.inspect.RUNNING].map(([key, variants]) => ['pace-notes-exp:' + key, variants[0]]));
+  const run = await h.run(id, { reducedMotion: 'reduce', plant: { session: pinned } });
   const page = await run.newPage();
   await page.goto(SITE + (typeof c.path === 'function' ? c.path(v) : c.path), { waitUntil: 'load' });
   const started = await run.waitForRecording(page);
@@ -174,6 +188,6 @@ module.exports = {
   title: 'Every tool, analysis and calculator with two sets of values (typed and in the address)',
   jobs: ({ quick }) => [
     { name: 'every tool has a case', weight: 1, run: async h => everyTool(h) },
-    ...Object.keys(CASES).filter(name => !quick || QUICK.includes(name)).map(name => ({ name, weight: CASES[name].reload ? 32 : name === 'analysis' ? 25 : 18, run: h => differential(h, name) })),
+    ...Object.keys(CASES).filter(name => !quick || QUICK.includes(name)).map(name => ({ name, weight: CASES[name].reload ? 32 : name === 'analysis' || name === 'predictor-handoff' ? 25 : 18, run: h => differential(h, name) })),
   ],
 };
