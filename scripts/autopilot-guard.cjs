@@ -529,8 +529,9 @@ function existingEntryProblems(old, now) {
  * position), so a deleted line is reported once, as a deletion; every head line no base line matches is new.
  * `bookkeeping` (the pull request changes nothing but the three autopilot record files) waives the new line.
  * Otherwise the change needs its own proposed entry; records of closed-unmerged pull requests alone do not count.
- * `metrics` is metricNames() of the base's autopilot/metrics.md: new entries must use its names, and without any
- * (the file missing, or defining none) every new entry fails. Unknown names on existing lines are only warnings.
+ * `metrics` is metricNames() of the base's autopilot/metrics.md: new entries, and broken base lines repaired into
+ * entries, must use its names, and without any (the file missing, or defining none) they fail. Unknown names on
+ * existing lines are only warnings.
  */
 function checkLedger(baseText, headText, { violations, warnings, branchDate, branchId, pr, bookkeeping = false, metrics = null }) {
   const v = (line, message) => violations.push({ rule: 'ledger', file: LEDGER, line, message });
@@ -556,12 +557,17 @@ function checkLedger(baseText, headText, { violations, warnings, branchDate, bra
   }
   const names = metrics instanceof Set && metrics.size ? metrics : null;
   const ids = new Map();
+  let repaired = false;
   for (const [old, now] of matched) {
     if (old.error) {
-      // A broken line already on the base is reported, not held against this change; it may be repaired.
+      // A broken line already on the base is reported, not held against this change; it may be repaired. The repaired
+      // line's fields were never on the base, so its metric names are checked as a new entry's are.
       if (now.raw === old.raw) w(old.number, `line ${old.error} (already on the base)`);
       else if (now.error) v(now.number, `line ${now.error}`);
-      else for (const problem of ledgerEntryProblems(now.value)) v(now.number, problem);
+      else {
+        repaired = true;
+        for (const problem of [...ledgerEntryProblems(now.value), ...(names ? metricProblems(now.value, names) : [])]) v(now.number, problem);
+      }
       continue;
     }
     if (typeof now.value.id === 'string') ids.set(now.value.id, now.number);
@@ -577,11 +583,11 @@ function checkLedger(baseText, headText, { violations, warnings, branchDate, bra
   if (!added.length && !bookkeeping) v(null, `adds no line (the base has ${base.length}, the head ${head.length}); append one entry for this change (only a pull request that changes nothing but existing ledger lines, autopilot/backlog.md and autopilot/LEARNINGS.md needs none)`);
   if (added.length && !bookkeeping && branchId && !added.some((entry) => entry.value?.id === branchId && entry.value.status === 'proposed')) v(null, `append a new "proposed" entry with id "${branchId}" for this change; a closed-unmerged record does not pre-register a site change`);
   if (added.length > LIMITS.ledgerLines) v(null, `adds ${added.length} lines; at most ${LIMITS.ledgerLines} per pull request`);
-  // Fail closed: without the registered names no new entry's metrics can be checked.
-  if (!names && added.some((entry) => !entry.error)) {
+  // Fail closed: without the registered names no new or repaired entry's metrics can be checked.
+  if (!names && (repaired || added.some((entry) => !entry.error))) {
     violations.push({ rule: 'ledger', file: METRICS, line: null, message: metrics instanceof Set
-      ? 'defines no metric names on the base (a backticked name@vN in the first column of its "## 1. Definitions" table), so the metrics of new ledger entries cannot be checked'
-      : 'is missing on the base, so the metrics of new ledger entries cannot be checked (its "## 1. Definitions" table defines the names)' });
+      ? 'defines no metric names on the base (a backticked name@vN in the first column of its "## 1. Definitions" table), so the metrics of new or repaired ledger entries cannot be checked'
+      : 'is missing on the base, so the metrics of new or repaired ledger entries cannot be checked (its "## 1. Definitions" table defines the names)' });
   }
   for (const entry of added) {
     if (entry.error) { v(entry.number, `line ${entry.error}`); continue; }
@@ -1473,6 +1479,16 @@ function selfTest() {
     expect('unknown metric names on an untouched base line only warn', { base: unknownBase, setup: () => write('components/Card.tsx', 'export const y = 2;\n'), warned: ['"primary_metric" "engaged_visit_rate" is not a metric defined', '"guardrails" "bounce" is not a metric', 'already on the base'] });
     expect('unknown metric names on a base line being shipped only warn', { base: unknownBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-old', { primary_metric: 'engaged_visit_rate', guardrails: ['bounce'], status: 'shipped', pr: 59, shipped_on: '2026-10-03' })}\n`), warned: ['"primary_metric" "engaged_visit_rate" is not a metric defined', 'already on the base'], absent: ['engaged_visit_rate'] });
     expect('unknown metric names on a base line cannot be rewritten', { base: unknownBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-old')}\n`), rules: ['ledger'], messages: ['changed "primary_metric", "guardrails"'] });
+    // A broken base line may be repaired, but its fields were never on the base: its metric names are checked as a new entry's are.
+    const brokenBase = untidyBase('base-broken-line', `${BASE_LEDGER}{"id": "2026-10-10-broken", "kind": "change", oops\n`);
+    const repair = (extra = {}) => `${BASE_LEDGER}${entry('2026-10-10-broken', extra)}\n`;
+    expect('a broken line on the base is a warning', { base: brokenBase, setup: () => {}, warned: ['does not parse as JSON', 'already on the base'] });
+    expect('a broken base line repaired with registered metrics', { base: brokenBase, ledger: false, setup: () => write(LEDGER, `${repair()}${proposal()}\n`) });
+    expect('a broken base line repaired with an invented metric and no guardrail', { base: brokenBase, ledger: false, setup: () => write(LEDGER, `${repair({ primary_metric: 'made_up_metric', guardrails: [] })}${proposal()}\n`), rules: ['ledger'], messages: ['"primary_metric" "made_up_metric" is not a metric defined', '"guardrails" is empty; a "change" entry needs at least one'] });
+    expect('a broken base line repaired with an invented guardrail by a bookkeeping pull request', { base: brokenBase, ledger: false, setup: () => write(LEDGER, repair({ guardrails: ['bounce'] })), rules: ['ledger'], messages: ['"guardrails" "bounce" is not a metric'] });
+    run('checkout', '-q', '-f', brokenBase); run('checkout', '-q', '-B', 'base-broken-no-metrics'); remove(METRICS); run('add', '-A'); run('commit', '-q', '-m', 'broken line, no metrics');
+    expect('a repaired base line fails closed without the metrics file', { base: 'base-broken-no-metrics', ledger: false, setup: () => write(LEDGER, repair()), rules: ['ledger'], messages: [`${METRICS}:null is missing on the base`] });
+    expect('an untouched broken line does not need the metrics file', { base: 'base-broken-no-metrics', ledger: false, setup: () => write('autopilot/backlog.md', '# Backlog\n- Re-ranked.\n'), warned: ['does not parse as JSON'] });
     // The repository's own metrics file defines the names its seed ledger line and its §4 example use.
     {
       cases += 1;

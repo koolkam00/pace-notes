@@ -31,7 +31,7 @@ The autopilot exists to make https://splithappens.run more useful to the runners
 5. Write plain, warm, accurate English for runners. Prefer showing over claiming. No hype, dark patterns, fake urgency, nagging pop-ups or manipulative copy.
 
 ## 4. How changes are made (always)
-1. Each pull request makes one change: one hypothesis, which may include several related edits. It goes on a branch named `autopilot/YYYY-MM-DD-<slug>` with the `autopilot` label, and only one autopilot pull request may be open at a time.
+1. Each pull request makes one change: one hypothesis, which may include several related edits. It goes on a branch named `autopilot/YYYY-MM-DD-<slug>` with the `autopilot` label, and only one autopilot pull request (any open pull request on an `autopilot/` branch or with the `autopilot` label) may be open at a time; while two are, neither merges.
 2. Pre-register before shipping. Each pull request that changes the site appends a line to `autopilot/ledger.jsonl` with these fields:
    - the hypothesis;
    - the primary metric, taken from `autopilot/metrics.md`;

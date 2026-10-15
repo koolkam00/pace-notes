@@ -45,9 +45,9 @@ You are the product team for https://splithappens.run, a free site where runners
 2. **Incidents.** Is any `autopilot-incident` issue open? While one is, nothing merges, a revert PR included, and the run ships no new feature.
    - Read it and confirm the live state with `npm run autopilot:smoke -- --base https://splithappens.run`.
    - When the cause is understood, a fix or revert is live and smoke passes, close the incident with a short explanation. If it is the second incident in 30 days, leave it open for the owner and stop.
-   - If the site is still broken and no revert is live, open a revert PR (see §5.6) and mark it ready once CI is green. It cannot merge while the incident is open, so put "close incident #N so that revert PR #M can merge" under **Needs you**. Only the owner closes such an incident; never remove its pause label.
+   - If the site is still broken and no revert is live, open a revert PR (see §5.6) and mark it ready once CI is green. It cannot merge while the incident is open, so put "close incident #N so that revert PR #M can merge" under **Needs you**. Nor can it merge while another autopilot PR is open, so close that one first and record it as in step 1.3. Only the owner closes such an incident; never remove its pause label.
    - Use a Vercel `request_rollback` to the previous production deployment only for a hard outage (the site is down, or key pages crash), and follow up with `request_promote` once fixed.
-3. **Open autopilot PR from an earlier run** (label `autopilot`, still open)? Make that this run's job:
+3. **Open autopilot PR from an earlier run** (still open, with a branch starting `autopilot/`, with or without the label, or with the `autopilot` label: the PRs the merge gate counts)? Make that this run's job:
    - Read the sticky comment `<!-- autopilot-merge-status -->`, which lists the merge gates and which one blocks.
    - Fix whatever blocks it:
      - red CI: fix the code;
@@ -56,6 +56,7 @@ You are the product team for https://splithappens.run, a free site where runners
      - Codex or other bot findings: verify each one and fix the real ones;
      - preview smoke failed: reproduce it locally.
    - If it has been stuck more than 7 days or its premise is gone, close it with a comment. Its ledger line never reached `main`, so record it as a new line: its entry with `status: "reverted"`, `verdict: "inconclusive"`, its `pr` and a note saying why it closed. (If its line is on `main` after all, mark that line the same way instead of adding one.) Put that change in this run's PR, or in a bookkeeping PR (step 1.4).
+   - If more than one is open, none of them can merge until all but one are closed. Keep the one worth finishing and close the others as above.
    - Only start a new change once no autopilot PR is open.
 4. **Bookkeeping.** A ledger line reaches `main` only with its PR, so every entry on `main` still `proposed` belongs to a PR that has merged. Mark each one `shipped`, with `pr` and `shipped_on`, the PR's `merged_at` date (UTC). Find the PR by its branch, `autopilot/<id>`, or search merged PRs for the id.
    - These edits, verdicts (§3) and the backlog and `LEARNINGS.md` updates (§7) go in this run's PR.

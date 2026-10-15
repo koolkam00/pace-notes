@@ -151,8 +151,11 @@ function createClient({ token, fetchImpl, apiUrl, dryRun, log, sleep = defaultSl
       const res = await read(route, absolute(route), allow404);
       return res.status === 404 ? null : res.data;
     },
-    /** Every item of a paginated list (follows Link: rel="next", at most `pages` pages). `key` names the array in object responses. */
-    async list(route, { key, pages = 10 } = {}) {
+    /**
+     * Every item of a paginated list (follows Link: rel="next", at most `pages` pages). `key` names the array in object
+     * responses. `complete` throws instead of returning a list cut short by the page limit.
+     */
+    async list(route, { key, pages = 10, complete = false } = {}) {
       const items = [];
       let url = absolute(route);
       for (let page = 0; url && page < pages; page += 1) {
@@ -161,6 +164,7 @@ function createClient({ token, fetchImpl, apiUrl, dryRun, log, sleep = defaultSl
         const next = /<([^>]+)>;\s*rel="next"/.exec(res.link);
         url = next ? next[1] : null;
       }
+      if (complete && url) throw new Error(`GET ${route} has more than ${pages} pages, so the list would be incomplete`);
       return items;
     },
     async graphql(query, variables) {
@@ -426,10 +430,13 @@ async function evaluateGates(gh, deps, pr, { pause, autopilot, statusComment, un
 
 /**
  * Every open autopilot pull request: its branch starts with autopilot/ (in this repository or a fork), or it carries
- * the autopilot label. A label alone is not enough to find them, because a branch can be opened without it.
+ * the autopilot label. A label alone is not enough to find them, because a branch can be opened without it. Fails
+ * closed: a list longer than the page limit throws rather than miss one, and a pull request that moved to the next
+ * page while the pages were read (another one opened meanwhile) counts once.
  */
 async function openAutopilotPrs(gh, repo) {
-  const open = await gh.list(`/repos/${repo}/pulls?state=open&per_page=100`);
+  const listed = await gh.list(`/repos/${repo}/pulls?state=open&per_page=100`, { pages: 30, complete: true });
+  const open = [...new Map(listed.map((p) => [p.number, p])).values()];
   return open.filter((p) => (p.head && String(p.head.ref || '').startsWith(CONFIG.branchPrefix)) || (p.labels || []).some((l) => l.name === CONFIG.label))
     .map((p) => ({ number: p.number, title: p.title, headRef: p.head ? p.head.ref : null }))
     .sort((a, b) => a.number - b.number);
@@ -1025,8 +1032,10 @@ function mockFetch(state, calls) {
     let m;
     if (method === 'POST' && u.pathname === '/graphql') return json(200, { data: { repository: { pullRequest: { reviewThreads: { totalCount: (state.threads[body.variables.number] || []).length, nodes: state.threads[body.variables.number] || [] } } } } });
     if (method === 'GET' && p === '/pulls') {
-      // Pages of state.pullsPerPage when it is set, to exercise Link pagination.
+      // Pages of state.pullsPerPage when it is set, to exercise Link pagination; state.beforePullsPage(page) may change
+      // the pull requests between pages.
       const wanted = u.searchParams.get('state') || 'open';
+      if (state.beforePullsPage) state.beforePullsPage(Number(u.searchParams.get('page') || 1));
       const all = Object.values(state.prs).filter((pr) => pr.state === wanted).map(({ mergeable, merged_by: mergedBy, ...rest }) => rest);
       const size = state.pullsPerPage || Math.max(all.length, 1);
       const page = Number(u.searchParams.get('page') || 1);
@@ -1307,6 +1316,39 @@ async function selfTestAsync() {
       await cmdEvaluate([], run.deps);
       ok('evaluate: an unlabelled autopilot/ branch on page 2 blocks the labelled one', run.outputs.eligible === 'false' && bodyOf(state, 7).includes('#8 is open too'), bodyOf(state, 7));
       ok('evaluate: and is evaluated itself, failing the label gate too', state.comments[8].length === 1 && bodyOf(state, 8).includes('| Has the autopilot label | **fail** | missing |') && bodyOf(state, 8).includes('#7 is open too'));
+    }
+    {
+      // One pull request a page: #7, `ordinary` other pull requests, then an unlabelled autopilot/ branch on the last page.
+      const crowded = (ordinary) => fresh((s) => {
+        s.pullsPerPage = 1;
+        for (let n = 100; n < 100 + ordinary; n += 1) openPr(s, n, { labels: [], head: { ref: `feature/${n}`, sha: old, repo: { full_name: s.repo } } });
+        openPr(s, 300, { labels: [], head: { ref: 'autopilot/2026-10-14-late', sha: old, repo: { full_name: s.repo } } });
+      });
+      const full = crowded(28);
+      const run = mockDeps(full);
+      ok('evaluate: an autopilot/ branch on page 30 of open pull requests is found', (await cmdEvaluate([], run.deps)) === 0 && run.outputs.eligible === 'false' && bodyOf(full, 7).includes('#300 is open too'), bodyOf(full, 7));
+      const truncated = crowded(29);
+      const run2 = mockDeps(truncated);
+      let threw = null;
+      try { await cmdEvaluate([], run2.deps); } catch (error) { threw = error; }
+      ok('evaluate: more than 30 pages of open pull requests fails the run instead of missing one', threw && threw.message.includes('has more than 30 pages') && run2.outputs.eligible !== 'true' && truncated.comments[7].length === 0, threw ? threw.message : JSON.stringify(run2.outputs));
+      const run3 = mockDeps(truncated);
+      threw = null;
+      try { await cmdMerge(['--pr', '7', '--sha', head], run3.deps); } catch (error) { threw = error; }
+      ok('merge: refuses when the open pull requests cannot all be listed', threw && threw.message.includes('has more than 30 pages') && truncated.merges.length === 0, threw ? threw.message : 'did not throw');
+    }
+    {
+      // #5 opens while the pages are read, so #7 is listed on page 1 and again on page 2: it counts once.
+      const state = fresh((s) => {
+        s.pullsPerPage = 1;
+        openPr(s, 9, { labels: [], head: { ref: 'feature/other', sha: old, repo: { full_name: s.repo } } });
+        s.beforePullsPage = (page) => { if (page === 2 && !s.prs[5]) openPr(s, 5, { labels: [], head: { ref: 'feature/new', sha: old, repo: { full_name: s.repo } } }); };
+      });
+      const run = mockDeps(state);
+      await cmdEvaluate([], run.deps);
+      const listed = run.calls.filter((c) => c.method === 'GET' && /\/pulls\?state=open/.test(c.path)).length;
+      const read7 = run.calls.filter((c) => c.method === 'GET' && c.path === `/repos/${state.repo}/pulls/7`).length;
+      ok('evaluate: a pull request listed twice while the pages shift counts once', listed === 3 && read7 === 1 && run.outputs.eligible === 'true' && run.outputs.pr === '7' && bodyOf(state, 7).includes('| One open autopilot pull request | pass |') && run.logs.some((l) => l.includes('1 open autopilot pull request (#7);')), `${listed} pages, #7 read ${read7} times; ${run.logs[0]}`);
     }
     {
       const state = fresh((s) => openPr(s, 8, { labels: [], user: { login: 'someone' }, head: { ref: 'autopilot/2026-10-14-fork', sha: old, repo: { full_name: 'someone/pace-notes' } } }));
