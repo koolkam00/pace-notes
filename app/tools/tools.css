@@ -163,6 +163,18 @@ a.tool-card:hover { text-decoration: none; transform: translateY(-3px); box-shad
 .tool-next b { font-size: .9375rem; }
 .tool-next span { font-size: .8125rem; color: var(--ink-3); }
 
+/* Next steps from a result (ToolHandoffs): the same cards, two up beside each other where they fit. */
+.tool-handoffs { display: grid; gap: .5rem; }
+.tool-handoffs-label { font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.tool-handoffs ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: .6rem; list-style: none; padding: 0; margin: 0; }
+.tool-handoffs li + li { margin-top: 0; }
+.tool-handoffs ul > li > a { display: grid; gap: .2rem; height: 100%; padding: .85rem 1rem; border: 1px solid var(--line); border-left: 4px solid var(--tool); border-radius: 12px; background: var(--card); color: var(--ink); text-decoration: none; }
+.tool-handoffs ul > li > a:hover { text-decoration: none; border-color: var(--ink-2); border-left-color: var(--tool); }
+.tool-handoffs ul > li > a:hover b, .tool-handoffs ul > li > a:focus-visible b { text-decoration: underline; text-decoration-color: var(--tool); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.tool-handoffs ul > li > a:focus-visible { outline: 2px solid var(--tool, var(--blue)); outline-offset: 2px; }
+.tool-handoffs b { font-size: .9375rem; }
+.tool-handoffs a > span { font-size: .8125rem; line-height: 1.45; color: var(--ink-3); }
+
 /* ---------- Chips list (matched editions etc.) ---------- */
 .tool-chips { display: flex; flex-wrap: wrap; gap: .35rem; list-style: none; padding: 0; margin: 0; }
 /* Shared example marker (ExampleNote). */

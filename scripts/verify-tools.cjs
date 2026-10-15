@@ -99,6 +99,44 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.equal(chart.formatTenths(59.96), '1:00.0'); assert.equal(chart.formatTenths(3725.25), '1:02:05.3'); checks += 2;
 }
 
+// ---- handoffs from a result (MarathonHandoffs in components/tools/ui.tsx): the predictor's median estimate and the pace
+// calculator's marathon time open the pace band and the pacing-pattern analysis with the time filled in, in the forms
+// those pages read and inside the ranges they take, as if typed there.
+{
+  const links = require('../lib/tools/links.ts');
+  const { GOAL_MIN, GOAL_MAX } = require('../lib/personalized-catalog.ts');
+  const { readAnalysisProfile } = require('../lib/analysis-profile.ts');
+  const query = (href) => new URL(href, 'https://splithappens.run').searchParams;
+  for (const m of [90, 237, 240, 480]) {
+    const href = links.paceBandGoalHref(m);
+    assert.equal(href, `/tools/pace-band?goal=${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`);
+    assert.deepEqual([...query(href).keys()], ['goal']); assert.equal(time.parseDuration(query(href).get('goal'), 'race'), m * 60); checks += 3;
+  }
+  for (const bad of [89, 481, 237.5, NaN, Infinity]) { assert.equal(links.paceBandGoalHref(bad), null, `no pace band link for ${bad}`); ok(); }
+  for (const m of [GOAL_MIN, 237, GOAL_MAX]) {
+    const href = links.pacingPatternHref(m);
+    assert.equal(href, `/analyses/pacing-pattern?goal=${m}`);
+    assert.equal(readAnalysisProfile(href.slice(href.indexOf('?')), { cities: [{ city: 'All courses' }] }).goal, m, 'The analysis reads the goal it is given'); checks += 2;
+  }
+  for (const bad of [GOAL_MIN - 1, GOAL_MAX + 1, 237.5, NaN]) { assert.equal(links.pacingPatternHref(bad), null, `no pacing-pattern link for ${bad}`); ok(); }
+
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const { MarathonHandoffs } = require('../components/tools/ui.tsx');
+  const handoffs = (minutes) => renderToStaticMarkup(React.createElement(MarathonHandoffs, { label: 'With this estimate', minutes }));
+  const hrefs = (html) => [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
+  assert.deepEqual(hrefs(handoffs(237)), ['/tools/pace-band?goal=3:57', '/analyses/pacing-pattern?goal=237']); ok();
+  assert.match(handoffs(237), /Turn this into a pace band[\s\S]*mat times of finishes that just beat it[\s\S]*See how finishers near this time paced/); ok();
+  assert.match(handoffs(140), /Even splits for 2:20, ready to print/, 'Outside 2:30–6:30 the pace band has no observed mat times'); ok();
+  assert.deepEqual(hrefs(handoffs(600)), ['/analyses/pacing-pattern?goal=600'], 'Past the pace band\'s 8:00 only the analysis link stays'); ok();
+  assert.equal(handoffs(60), '', 'Nothing to hand off outside both ranges'); ok();
+  assert.doesNotMatch(handoffs(237), /<button|your chance|arithmetic/i, 'Links only (never counted as a tool edit), in the site\'s words'); ok();
+  // Each tool hands on the whole minute at or below its time, the way every tool reads 4:11:41 as 4:11.
+  const source = (name) => fs.readFileSync(path.join(__dirname, '..', 'components/tools', name), 'utf8');
+  assert.match(source('Predictor.tsx'), /const medianMinute = est\?\.range \? goalMinute\(est\.range\.median\) : null;[\s\S]*<MarathonHandoffs label="With this estimate" minutes=\{medianMinute \/ 60\} \/>/); ok();
+  assert.match(source('PaceCalculator.tsx'), /const goalMinutes = shownSeconds !== null && isMarathon \? Math\.floor\(shownSeconds \/ 60\) : null;[\s\S]*<MarathonHandoffs label="With this marathon time" minutes=\{goalMinutes\} \/>/); ok();
+}
+
 // ---- goal-page sentences (lib/tools/goal-facts.ts): built only from a goal's pace-band values; checked on fixed inputs
 {
   const F = require('../lib/tools/goal-facts.ts');
@@ -378,4 +416,4 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   checks += 1 + registry.TOOLS.length;
 }
 
-console.log(`Tool libraries passed ${checks} checks: time parsing, pace calculations and splits, pace charts by goal time and goal-page links, goal-page sentences, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading and the pacing-type classifier.`);
+console.log(`Tool libraries passed ${checks} checks: time parsing, pace calculations and splits, pace charts by goal time and goal-page links, result handoffs to the pace band and the pacing-pattern analysis, goal-page sentences, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading and the pacing-type classifier.`);
