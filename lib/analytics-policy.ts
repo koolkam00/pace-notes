@@ -98,10 +98,11 @@ export function referringDomain(value: string): string {
   try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) ? url.hostname : ''; } catch { return ''; }
 }
 
+// The repository's releases, under its current name or its former one (the site's links still use the former).
 export function downloadDestination(href: string): 'release' | 'site_data' | null {
   try {
     const url = new URL(href, 'https://splithappens.run');
-    if (url.hostname === 'github.com' && /^\/koolkam00\/htw-live-study\/releases(?:\/|$)/.test(url.pathname)) return 'release';
+    if (url.hostname === 'github.com' && /^\/koolkam00\/(?:pace-notes|htw-live-study)\/releases(?:\/|$)/.test(url.pathname)) return 'release';
     if (ANALYTICS_HOSTS.has(url.hostname) && url.pathname.startsWith('/data/')) return 'site_data';
   } catch {}
   return null;
