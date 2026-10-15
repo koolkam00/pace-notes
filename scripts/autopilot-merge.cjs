@@ -769,12 +769,20 @@ const showAt = (cwd, spec) => { try { return execFileSync('git', ['show', spec],
  * that cannot be read is reverted in full too.
  */
 function keepsRegistry(sha, cwd) {
-  const { readExperimentRegistry } = require('./autopilot-guard.cjs');
-  const running = (spec) => { try { return new Set((readExperimentRegistry(showAt(cwd, spec)) || []).filter((e) => e && e.status === 'running').map((e) => e.key)); } catch { return null; } };
-  const before = running(`${sha}^:${REGISTRY}`);
-  const after = running(`${sha}:${REGISTRY}`);
+  const { readExperimentRegistry, runningChanges } = require('./autopilot-guard.cjs');
+  const entries = (spec) => { try { return readExperimentRegistry(showAt(cwd, spec)) || []; } catch { return null; } };
+  const before = entries(`${sha}^:${REGISTRY}`);
+  const after = entries(`${sha}:${REGISTRY}`);
   if (!before || !after || showAt(cwd, `refs/remotes/origin/${CONFIG.base}:${REGISTRY}`) === null) return false;
-  return [...before].some((key) => !after.has(key)) && ![...after].some((key) => !before.has(key));
+  const { stopped, started } = runningChanges(before, after);
+  if (!stopped.length) return false; // it started experiments, or stopped none: reverted in full
+  if (!started.length) return true; // it only stopped experiments: they stay stopped
+  // It did both. That cannot be an autopilot merge: the guard refuses a pull request that stops one experiment and
+  // starts another (or gives a running key a new run), and this workflow merges only pull requests that pass main's
+  // guard and are up to date with main, so the merge's registry change is the one the guard saw. Rewriting
+  // lib/experiments.ts here to keep only the stopped keys stopped would be code no check has seen, so a merge that did
+  // both (an owner's) is reverted in full, as one that started an experiment is.
+  return false;
 }
 
 /**
@@ -1724,6 +1732,18 @@ async function selfTestAsync() {
       const liveJob = workflow.slice(workflow.indexOf('  live:'), workflow.indexOf('  report:'));
       ok('workflow: the live job reads version.json again after verify:seo:live and outputs the exit code', /verify-seo-live\.cjs[^\n]*\n[^\n]*seo=[^\n]*\n\s*node scripts\/autopilot-smoke\.cjs --base https:\/\/splithappens\.run --expect-sha "\$MERGE_SHA" --version-only[^\n]*\n\s*echo "version_after_seo=\$\{PIPESTATUS\[0\]\}"/.test(liveJob) && liveJob.includes('version_after_seo: ${{ steps.checks.outputs.version_after_seo }}'));
       ok('workflow: the report job passes that reading to report-live through env', reportJob.includes('VERSION_AFTER_SEO: ${{ needs.live.outputs.version_after_seo }}') && reportJob.includes('--version-after-seo-exit "$VERSION_AFTER_SEO"'));
+      // The run's own status: it fails unless every check passed, the reading after the SEO check included. Without
+      // that reading naming the merge, the live checks may have seen another commit, report-live opens an incident and
+      // there is no live-check record for the merge, so the run cannot succeed either. Runs the step's script itself.
+      const failStep = /- name: Fail the run when a check failed\n(?: {8}.*\n)*? {8}run: \|\n((?: {10}.*\n?)+)/.exec(reportJob);
+      const runStatus = (env) => (failStep ? spawnSync('bash', ['-c', failStep[1].replace(/^ {10}/gm, '')], { env: { PATH: process.env.PATH, ...env }, encoding: 'utf8' }).status : null);
+      const allPassed = { PREVIEW: 'pass', MERGE_SHA: merged, DEPLOY: 'success', SMOKE: '0', SEO: '0' };
+      for (const [reading, status] of [['0', 0], ['3', 1], ['', 1], [undefined, 1]]) {
+        const env = reading === undefined ? allPassed : { ...allPassed, VERSION_AFTER_SEO: reading };
+        ok(`workflow: with both live checks passed, the run ${status ? 'fails' : 'passes'} when the reading after the SEO check is ${reading === undefined ? 'missing' : reading ? `exit ${reading}` : 'empty'}`, runStatus(env) === status, String(runStatus(env)));
+      }
+      ok('workflow: a run that merged nothing is not failed for the reading it never took', runStatus({ PREVIEW: 'pass' }) === 0);
+      ok('workflow: a failed SEO check still fails the run when the reading names the merge', runStatus({ ...allPassed, SEO: '1', VERSION_AFTER_SEO: '0' }) === 1);
     }
 
     // incident.
@@ -1833,6 +1853,9 @@ async function selfTestAsync() {
   await revertCase('a revert keeps an experiment the merge removed removed', () => {}, true, { registryBefore: [hero('running')], registryAfter: [], expectRegistry: [] });
   await revertCase('a revert keeps a stopped experiment stopped despite a later registry change', ({ g, work }) => { fs.writeFileSync(path.join(work, REGISTRY), registryText([hero('paused'), { ...menu, status: 'paused' }])); fs.appendFileSync(path.join(work, LEDGER), `${ledgerLine('2026-10-14-c')}\n`); g(work, 'commit', '-q', '-am', 'later registry change'); g(work, 'push', '-q', 'origin', 'main'); g(work, 'reset', '-q', '--hard', 'HEAD~1'); }, true, { ledger: true, registryBefore: [hero('running')], registryAfter: [hero('paused')], expectRegistry: [hero('paused'), { ...menu, status: 'paused' }] });
   await revertCase('a revert stops an experiment the merge started', () => {}, true, { registryBefore: [hero('paused')], registryAfter: [hero('paused'), menu], expectRegistry: [hero('paused')] });
+  // The guard refuses a pull request that stops one experiment and starts another, so no autopilot merge does both;
+  // one that did (an owner's, say) is reverted in full, as before: lib/experiments.ts is not rewritten here.
+  await revertCase('a revert of a merge that stopped one experiment and started another reverts the registry in full', () => {}, true, { registryBefore: [hero('running')], registryAfter: [hero('paused'), menu], expectRegistry: [hero('running')] });
   await revertCase('a revert of a merge that left the registry alone leaves it alone', () => {}, true, { registryBefore: [hero('running')], expectRegistry: [hero('running')] });
 
   if (failures.length) {

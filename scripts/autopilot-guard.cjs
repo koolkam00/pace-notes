@@ -1027,6 +1027,18 @@ function runProblems(before, after, baseEntries, headEntries, today) {
 }
 
 /**
+ * The keys a registry change stops and starts: one running before it and paused or gone after it is stopped; one
+ * running after it and not before (added running, or resumed) is started; a running key given a new run (another
+ * `started`, `variants` or `weights`, as a new registration sets) is both. The automatic revert reads this too.
+ */
+function runningChanges(baseEntries, headEntries) {
+  const runs = (entries) => new Map((entries || []).filter((e) => isObject(e) && e.status === 'running' && typeof e.key === 'string').map((e) => [e.key, JSON.stringify(RUN_FIELDS.map((field) => e[field] ?? null))]));
+  const before = runs(baseEntries);
+  const after = runs(headEntries);
+  return { stopped: [...before].filter(([key, run]) => after.get(key) !== run).map(([key]) => key), started: [...after].filter(([key, run]) => before.get(key) !== run).map(([key]) => key) };
+}
+
+/**
  * Keep each running key on its registered scope and run, and reserve slots for proposed/shipped ledger experiments AND
  * running registry entries; count a shared key once. `today` is the UTC day of the check (null: not compared).
  */
@@ -1095,6 +1107,15 @@ function checkExperiments(baseLedger, headLedger, baseRegistry, headRegistry, vi
     // Its scope was checked against its registration above. Count it even if bookkeeping has already marked its
     // ledger entry concluded or reverted.
     occupied.set(entry.key, value);
+  }
+  // Stop experiments or start them, never both: an automatic revert keeps main's registry after a merge that only
+  // stopped some, so a concluded experiment stays stopped, and reverts it after one that started one, so it stops with
+  // its code. A merge that did both could not be reverted without restarting the stopped experiment.
+  const { stopped, started } = runningChanges(oldRegistry, registry);
+  if (stopped.length && started.length) {
+    const named = (keys) => `${keys.length === 1 ? 'experiment' : 'experiments'} ${keys.map((key) => `"${key}"`).join(', ')}`;
+    const again = started.some((key) => stopped.includes(key)) ? ' (a running key given a new run counts as both)' : '';
+    fail(`this pull request stops ${named(stopped)} and starts ${named(started)}${again}; conclude or pause the running experiment in one pull request and start the new one in the next: an automatic revert keeps lib/experiments.ts as main has it after a merge that only stops experiments, and reverts it after one that starts any, so it could not undo both`, EXPERIMENT_REGISTRY);
   }
   if (occupied.size > 2) fail(`${occupied.size} experiments would be active; at most 2 may be proposed, shipped or running`);
   const entries = [...occupied];
@@ -1905,7 +1926,8 @@ function selfTest() {
       }
       check('a fix entry cannot widen a running key to the whole site', [{ ...a, area: 'hero' }], [{ ...a, area: 'hero' }, { ...change, kind: 'fix', experiment: 'a', pages: ['*'], area: '*' }], registry([reg('a', ['/'], { area: 'hero' })]), registry([reg('a', ['*'])]), ['runs on ["*"] but was registered for ["/"] area "hero"']);
       const wide = { ...a, id: '2026-10-14-a-wide', date: '2026-10-14', status: 'proposed', pr: null, shipped_on: null, pages: ['/', '/tools'] };
-      check('a running key can move under a new experiment entry', [judged(a, 'concluded')], [judged(a, 'concluded'), wide], registry([reg('a', ['/'])]), registry([reg('a', ['/tools', '/'], { started: '2026-10-14' })]));
+      // Paused by an earlier pull request: one that also gave the running key its new run would stop and start it at once.
+      check('a paused key can run on other pages under a new experiment entry', [judged(a, 'concluded')], [judged(a, 'concluded'), wide], registry([reg('a', ['/'], { status: 'paused' })]), registry([reg('a', ['/tools', '/'], { started: '2026-10-14' })]));
       // A key's run (its start and arms) is set by the pull request that registers its experiment, and then fixed: the
       // readout counts from the start and compares the arms, so a later change would pick them after seeing the data.
       const RUN = { started: '2026-10-02', variants: ['control', 'short-dek'], weights: [50, 50] };
@@ -1926,10 +1948,28 @@ function selfTest() {
       check('a paused key may resume with its run', [a], [a, change], registry([reg('a', ['/'], { ...RUN, status: 'paused' })]), running);
       check('a running key may be removed', [judged(a, 'concluded')], [judged(a, 'concluded'), change], running, registry([]));
       check('a removed key cannot be added again under its old registration', [a], [a, change], registry([]), running, ['experiment "a" is added under "2026-10-01-a", which is already on main']);
-      // A new registration sets a new run: from its date, and not in the future.
-      for (const started of ['2026-10-14', '2026-10-16']) check(`a new registration's run may start on ${started}`, [judged(a, 'concluded')], [judged(a, 'concluded'), wide], running, registry([reg('a', ['/', '/tools'], { ...RUN, started, variants: ['control', 'wide'] })]));
+      // A pull request stops experiments or starts them, never both: an automatic revert keeps main's registry after a
+      // merge that only stopped some (a concluded experiment stays stopped) and reverts it after one that started one (it
+      // stops with its code), so it could not undo a merge that did both without restarting a stopped experiment.
+      {
+        const menuEntry = { ...b, id: '2026-10-14-b', date: '2026-10-14', status: 'proposed', pr: null, shipped_on: null };
+        const menuRun = reg('b', ['/tools'], { started: '2026-10-14', variants: ['control', 'grid'], weights: [50, 50] });
+        const menuShipped = reg('b', ['/tools'], { started: '2026-10-02', variants: ['control', 'grid'], weights: [50, 50] });
+        const paused = (value) => ({ ...value, status: 'paused' });
+        const NEXT = 'conclude or pause the running experiment in one pull request and start the new one in the next';
+        check('pausing one experiment and starting another in one pull request fails', [a], [judged(a, 'concluded'), menuEntry], running, registry([paused(reg('a', ['/'], RUN)), menuRun]), ['this pull request stops experiment "a" and starts experiment "b"', NEXT]);
+        check('removing one experiment and starting another in one pull request fails', [a], [judged(a, 'concluded'), menuEntry], running, registry([menuRun]), ['this pull request stops experiment "a" and starts experiment "b"', NEXT]);
+        check('pausing one experiment and resuming another in one pull request fails', [a, b], [judged(a, 'concluded'), b], registry([reg('a', ['/'], RUN), paused(menuShipped)]), registry([paused(reg('a', ['/'], RUN)), menuShipped]), ['this pull request stops experiment "a" and starts experiment "b"', NEXT]);
+        check('giving a running key a new run under a new registration in one pull request fails', [judged(a, 'concluded')], [judged(a, 'concluded'), wide], running, registry([reg('a', ['/', '/tools'], { ...RUN, started: '2026-10-14', variants: ['control', 'wide'] })]), ['this pull request stops experiment "a" and starts experiment "a"', 'a running key given a new run counts as both', NEXT]);
+        check('stopping two experiments in one pull request passes', [a, b], [judged(a, 'concluded'), judged(b, 'concluded')], registry([reg('a', ['/'], RUN), menuShipped]), registry([paused(reg('a', ['/'], RUN))]));
+        check('starting an experiment beside a running one passes', [a], [a, menuEntry], running, registry([reg('a', ['/'], RUN), menuRun]));
+        check('pausing one of two running experiments and changing nothing else passes', [a, b], [judged(a, 'concluded'), b], registry([reg('a', ['/'], RUN), menuShipped]), registry([paused(reg('a', ['/'], RUN)), menuShipped]));
+      }
+      // A new registration sets a new run: from its date, and not in the future (of a key an earlier pull request paused).
+      const pausedRun = registry([reg('a', ['/'], { ...RUN, status: 'paused' })]);
+      for (const started of ['2026-10-14', '2026-10-16']) check(`a new registration's run may start on ${started}`, [judged(a, 'concluded')], [judged(a, 'concluded'), wide], pausedRun, registry([reg('a', ['/', '/tools'], { ...RUN, started, variants: ['control', 'wide'] })]));
       for (const started of ['2026-10-13', '2026-10-17', '2026-13-01', 20261015]) {
-        check(`a new registration's run cannot start on ${started}`, [judged(a, 'concluded')], [judged(a, 'concluded'), wide], running, registry([reg('a', ['/', '/tools'], { ...RUN, started })]), [`experiment "a" starts on ${JSON.stringify(started)}; a run registered by "2026-10-14-a-wide" starts on or after its date 2026-10-14 and not after today (2026-10-15`]);
+        check(`a new registration's run cannot start on ${started}`, [judged(a, 'concluded')], [judged(a, 'concluded'), wide], pausedRun, registry([reg('a', ['/', '/tools'], { ...RUN, started })]), [`experiment "a" starts on ${JSON.stringify(started)}; a run registered by "2026-10-14-a-wide" starts on or after its date 2026-10-14 and not after today (2026-10-15`]);
       }
       check('a new experiment\'s run cannot start before it is registered', [], [{ ...a, id: '2026-10-14-a', date: '2026-10-14', status: 'proposed', pr: null, shipped_on: null }], registry([]), registry([reg('a', ['/'], { started: '2026-10-01' })]), ['experiment "a" starts on "2026-10-01"']);
       // The framework (lib/experiment-runtime.ts) refuses a registry entry without a start, so a new run names one.
@@ -2421,6 +2461,6 @@ function main(argv) {
   }
 }
 
-module.exports = { PROTECTED, ALLOWED, FORBIDDEN, BANNED, LIMITS, check, checkLedger, metricNames, protectedBy, readExperimentRegistry };
+module.exports = { PROTECTED, ALLOWED, FORBIDDEN, BANNED, LIMITS, check, checkLedger, metricNames, protectedBy, readExperimentRegistry, runningChanges };
 
 if (require.main === module) process.exitCode = main(process.argv.slice(2));

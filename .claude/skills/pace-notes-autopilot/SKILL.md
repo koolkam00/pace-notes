@@ -126,6 +126,7 @@ For each due ledger entry:
    - Make the winner the default.
    - Set the experiment's `status` to `paused`, or remove it from the registry.
    - Record a `conclude` ledger entry.
+   - Start no experiment in the same pull request: the guard refuses one that stops a running key (pauses or removes it) and starts one (adds a running key or resumes a paused one; giving a running key a new run counts as both), because the automatic revert could not undo both, so register the next experiment in a later pull request.
 
 ## 4. Choose this run's change (exactly one)
 Priority:

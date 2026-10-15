@@ -381,11 +381,13 @@ jobs:
         if: always()
         run: node scripts/autopilot-merge.cjs reconcile
 
+      # A merge passes only with the version.json reading after verify:seo:live naming it (0): otherwise the live checks
+      # may have seen another commit, report-live opens an incident (no revert) and records no pass, so the run fails too.
       - name: Fail the run when a check failed
         if: always()
         run: |
           echo "Preview checks: ${PREVIEW:-not recorded}; merge commit: ${MERGE_SHA:-none}; production deploy: ${DEPLOY:-not run}; live smoke test exit: ${SMOKE:-not run}; verify:seo:live exit: ${SEO:-not run}; version.json after it: ${VERSION_AFTER_SEO:-not read}"
           status=0
           [ "$PREVIEW" = "pass" ] || status=1
-          if [ -n "$MERGE_SHA" ] && { [ "$DEPLOY" != "success" ] || [ "$SMOKE" != "0" ] || [ "$SEO" != "0" ]; }; then status=1; fi
+          if [ -n "$MERGE_SHA" ] && { [ "$DEPLOY" != "success" ] || [ "$SMOKE" != "0" ] || [ "$SEO" != "0" ] || [ "$VERSION_AFTER_SEO" != "0" ]; }; then status=1; fi
           exit $status
