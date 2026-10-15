@@ -6,10 +6,11 @@ import { ANALYTICS_HOSTS, RUNNER_HANDOFF, analyticsPath, blockedPagePath, contin
 // it is in a page's initial JavaScript. lib/analytics-policy.ts keeps what pages need before then: the event allowlist
 // and which pages (REPLAY_BLOCKED_PAGES, and runner handoff links) are never recorded.
 
-// Regions that show back what the visitor typed or chose: the tools, the analysis pages and personalized guide, and the
-// stories' "your time" calculators. Status lines, alerts and live regions anywhere also announce results (a tool's
-// screen-reader summary sits outside its workspace), so their text is masked too.
-const MASKED_REGIONS = ['.tool-workspace', '.analysis-layout', '.personalized-guide', '.which-card', '.finish-lookup'];
+// Regions that show back what the visitor typed or chose: the tools, the analysis pages and personalized guide, the
+// stories' "your time" calculators and the home page's marathon-time box (`.hero-goal`, whose hint follows the time).
+// Status lines, alerts and live regions anywhere also announce results (a tool's screen-reader summary sits outside its
+// workspace), so their text is masked too.
+const MASKED_REGIONS = ['.tool-workspace', '.analysis-layout', '.personalized-guide', '.which-card', '.finish-lookup', '.hero-goal'];
 export const REPLAY_MASKED_TEXT = [...MASKED_REGIONS, '[role="status"]', '[role="alert"]', '[aria-live]'].join(', ');
 // Left out of recordings: rrweb records an empty box of the same size and nothing inside it. Every tool's results panel,
 // and the charts in the masked regions, whose shapes and positions encode the visitor's or a runner's times. The story

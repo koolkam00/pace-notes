@@ -14,9 +14,11 @@ const V = {
   B: { marathon: '3:52:19', hm: '3:52', tenK: '47:28', half: '1:51:06', dob: '1971-09-27', race: '2026-10-11', mat25: '2:24:52', mat20: '1:55:40', start: '8:27 am', label: 'Wilhelmina Ostrova', temp: '71', dew: '61', drop: '263', weekly: '23', tp: '10:13', prev: '4:01', fiveK: '27:14', goalMin: '232', goalIdx: 9, ageIdx: 8, genderIdx: 2,
     splits: ['0:26:02', '0:52:14', '1:18:39', '1:45:07', '2:12:01', '2:39:22', '3:07:15', '3:36:40', '3:49:58'], text: 'Wilhelmina Ostrova born 1971-09-27 bib 8823 w.ostrova@example.org' },
 };
-// The values of each set, matched as whole tokens: not inside a longer number, time, date, timestamp or random ID.
+// The values of each set, matched as whole tokens: not inside a longer number, time, date, timestamp or random ID. Each
+// set's `hm` is `goalMin` minutes, so the home page's time box (h:mm in, whole minutes out) is checked in both forms.
+const token = value => new RegExp('(^|[^0-9a-z:.-])' + value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^0-9a-z:.-])', 'i');
 const NEEDLES = Object.fromEntries(Object.entries(V).map(([id, v]) => [id, [...new Set([v.marathon, v.hm, v.tenK, v.half, v.dob, v.dob.slice(0, 4), v.race, v.mat25, v.mat20, v.start.split(' ')[0], ...v.label.split(' '), v.text.match(/bib (\d+)/)[1], v.text.split('@')[1], v.prev, v.fiveK, v.goalMin, ...v.splits, v.tp])]
-  .map(value => new RegExp('(^|[^0-9a-z:.-])' + value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^0-9a-z:.-])', 'i'))]));
+  .map(token)]));
 
 const label = (page, text, exact = true) => page.getByLabel(text, { exact }).first();
 // Optional fields sit in a closed <details> until the visitor opens it.
@@ -101,6 +103,25 @@ const CASES = {
     await step(log, 'age', () => label(page, 'Age group', false).selectOption({ index: v.ageIdx }));
   } },
   'home': { path: '/', async drive(page, v, log) { await step(log, 'my finish', () => type(page, '#my-finish', v.marathon)); } },
+  // The "make it yours" hero (experiment home-hero-v1), forced for this tab: a time typed as h:mm opens the pacing
+  // analysis with it as whole minutes in the address (`?goal=197`), which analytics strips. The time, in every form the
+  // page holds it (as typed, as the field shows it after leaving it, in seconds, in minutes, as the address's goal),
+  // must appear nowhere in the PostHog traffic: not in an event, a page address or a recording.
+  'home-hero': { path: '/', options: v => ({ plant: { session: { 'pace-notes-exp:home-hero-v1': 'make-it-yours' } },
+    needles: [`${v.hm}:00`, String(Number(v.goalMin) * 60), `goal=${v.goalMin}`, `goal%3D${v.goalMin}`].map(token) }),
+  async drive(page, v, log) {
+    await step(log, 'the make-it-yours hero shows', async () => { if (!await page.locator('.hero-goal').isVisible()) throw new Error('no .hero-goal on screen'); });
+    await step(log, 'time', () => type(page, label(page, 'Your marathon time'), v.hm));
+    await step(log, 'submit', () => page.getByRole('button', { name: /See how finishers near your time paced/ }).click());
+    await step(log, 'opened the analysis with the time in minutes', () => page.waitForURL(url => new URL(url).pathname === '/analyses/pacing-pattern' && new URL(url).search === `?goal=${v.goalMin}`, { timeout: 15000 }));
+    await page.waitForTimeout(2500); await wiggle(page, 5);
+  },
+  check(h, run, id) {
+    const views = run.events().filter(({ e }) => e.event === '$pageview').map(({ e }) => e.properties);
+    const analysis = views.find(p => p.$pathname === '/analyses/pacing-pattern');
+    h.check(`${id}: the analysis page view comes from / and carries the variant, without the goal`, analysis && analysis.$prev_pageview_pathname === '/' && analysis['$feature/home-hero-v1'] === 'make-it-yours' && analysis.$current_url === 'https://splithappens.run/analyses/pacing-pattern',
+      views.map(p => [p.$pathname, p.$prev_pageview_pathname, p['$feature/home-hero-v1'], p.$current_url]));
+  } },
   'round-numbers': { path: '/stories/round-numbers', async drive(page, v, log) { await step(log, 'my finish', () => type(page, '#my-finish', v.marathon)); } },
   'pacing-types': { path: '/stories/pacing-types', async drive(page, v, log) {
     const inputs = page.locator('.which-card input');
@@ -114,14 +135,14 @@ const CASES = {
     await step(log, 'details', () => type(page, '#analysis-details', v.text + ' ' + v.dob));
   } },
 };
-const QUICK = ['pace-calculator', 'split-check-url', 'projector'];
+const QUICK = ['pace-calculator', 'split-check-url', 'projector', 'home-hero'];
 
 const KNOWN = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'known-differences.json'), 'utf8'));
 const known = name => [...(KNOWN['*'] || []), ...(KNOWN[name] || [])].map(entry => new RegExp(entry.pattern));
 
 async function drive(h, name, id) {
   const c = CASES[name], v = V[id], log = [];
-  const run = await h.run(id, { reducedMotion: 'reduce' });
+  const run = await h.run(id, { reducedMotion: 'reduce', ...(c.options ? c.options(v) : {}) });
   const page = await run.newPage();
   await page.goto(SITE + (typeof c.path === 'function' ? c.path(v) : c.path), { waitUntil: 'load' });
   const started = await run.waitForRecording(page);
@@ -147,6 +168,7 @@ async function differential(h, name) {
     const id = r === a ? 'A' : 'B';
     h.check(`${id}: every input was filled`, !r.log.some(line => line.startsWith('FAIL')), r.log.filter(line => line.startsWith('FAIL')));
     h.check(`${id}: recorded before and after the inputs`, r.started && r.flushed, { started: r.started, flushed: r.flushed });
+    if (CASES[name].check) CASES[name].check(h, r.run, id);
   }
   // I4 for the run's own values, unless the other run (which never used them) shows the same string.
   for (const [mine, other, id] of [[a, b, 'A'], [b, a, 'B']]) {

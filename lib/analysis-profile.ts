@@ -3,6 +3,10 @@ import type { PersonalSummary } from './personalized-types';
 
 export const EXAMPLE_PROFILE: Profile = { city: 'All courses', age: 'all', gender: 'all', goal: 240, previous: null, focus: 'prepare' };
 
+export { GOAL_MIN, GOAL_MAX };
+/** Whether a `goal` (whole minutes) is one the analyses read from the address; any other value shows the 4:00 example. */
+export const isAnalysisGoal = (goal: number) => Number.isInteger(goal) && goal >= GOAL_MIN && goal <= GOAL_MAX;
+
 export function readAnalysisProfile(search: string, summary: PersonalSummary): Profile {
   const params = new URLSearchParams(search);
   const requestedCity = params.get('race') === 'NYC' ? 'New York' : params.get('race');
@@ -12,7 +16,7 @@ export function readAnalysisProfile(search: string, summary: PersonalSummary): P
     city: summary.cities.some(row => row.city === requestedCity) ? requestedCity! : EXAMPLE_PROFILE.city,
     age: AGE_OPTIONS.includes(params.get('age') || '') ? params.get('age')! : 'all',
     gender: ['Men', 'Women'].includes(params.get('gender') || '') ? params.get('gender')! : 'all',
-    goal: params.has('goal') && Number.isInteger(goal) && goal >= GOAL_MIN && goal <= GOAL_MAX ? goal : 240,
+    goal: params.has('goal') && isAnalysisGoal(goal) ? goal : 240,
     previous: params.has('previous') && Number.isInteger(previous) && previous >= 90 && previous <= 720 ? previous : null,
   };
 }
