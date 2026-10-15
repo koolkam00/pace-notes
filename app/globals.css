@@ -202,11 +202,6 @@ summary::marker { color: var(--orange); font-size: .8em; }
 @media (max-width: 600px) {
   .header-inner { min-height: 60px; gap: .35rem .75rem; }
   .site-title { font-size: 1.15rem; }
-  .brand-mark { width: 26px; height: 26px; }
-  .brand-mark i:nth-child(1) { left: 5px; right: 5px; top: 7.5px; height: 2.6px; }
-  .brand-mark i:nth-child(2) { left: 8px; right: 5px; top: 12.4px; height: 2.6px; }
-  .brand-mark i:nth-child(3) { left: 5px; right: 9px; top: 17.3px; height: 2.6px; }
-  .header-credit { margin-left: calc(26px + .6rem); }
   .main-nav a { font-size: .8125rem; min-height: 38px; }
   .unit-switch button { min-height: 32px; padding: .3rem .55rem; }
 }
@@ -217,9 +212,15 @@ summary::marker { color: var(--orange); font-size: .8em; }
   .site-header { transition: transform .25s var(--ease); }
   .site-header[data-hidden] { transform: translateY(-100%); }
   /* Open, the row and its panel are one solid sheet, so a night section does not tint the row through the blur. */
-  .site-header[data-open] { background: var(--paper); }
+  .site-header[data-open] { background: var(--paper); border-bottom-color: transparent; }
   .header-inner { flex-wrap: nowrap; min-height: 56px; padding-block: .5rem; gap: .5rem; }
-  .header-credit { display: none; }
+  /* The credit stays, on a tight line under the brand: a 26 px mark keeps both inside the one row. */
+  .site-title { min-height: 26px; }
+  .brand-mark { width: 26px; height: 26px; }
+  .brand-mark i:nth-child(1) { left: 5px; right: 5px; top: 7.5px; height: 2.6px; }
+  .brand-mark i:nth-child(2) { left: 8px; right: 5px; top: 12.4px; height: 2.6px; }
+  .brand-mark i:nth-child(3) { left: 5px; right: 9px; top: 17.3px; height: 2.6px; }
+  .header-credit { display: block; min-height: 0; margin: 1px 0 0 calc(26px + .6rem); line-height: 1.1; }
   .header-controls { display: flex; gap: .5rem; margin-left: auto; }
   .nav-toggle { display: inline-flex; align-items: center; gap: .5rem; min-height: 40px; padding: 0 .85rem; border: 1px solid var(--line); border-radius: 999px; background: var(--paper-2); color: var(--ink-2); font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
   .nav-toggle svg { transition: transform .2s var(--ease); }
