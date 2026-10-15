@@ -1,4 +1,5 @@
 import release from '@/analysis/release.json';
+import { dataFetch } from './data-fetch';
 
 export type RunnerEdition = { city: string; year: number; race: string };
 export type RunnerManifest = {
@@ -61,7 +62,7 @@ export function validateRunnerManifest(value: unknown): RunnerManifest {
   return data;
 }
 export async function loadRunnerManifest(signal?: AbortSignal): Promise<RunnerManifest> {
-  const response = await fetch(basePath + '/data/runners/manifest.json?v=' + encodeURIComponent(RUNNER_RELEASE), { signal });
+  const response = await dataFetch(basePath + '/data/runners/manifest.json?v=' + encodeURIComponent(RUNNER_RELEASE), { signal });
   if (!response.ok) throw new Error('Runner search could not load. Check your connection and try again.');
   const bytes = await response.arrayBuffer();
   const manifest = validateRunnerManifest(JSON.parse(new TextDecoder().decode(bytes)));
@@ -76,7 +77,7 @@ async function loadShard(path: string, manifest: RunnerManifest, signal: AbortSi
   const key = manifest.release_tag + ':' + path + ':' + expected.sha256;
   const cached = shardCache.get(key);
   if (cached) return cached;
-  const response = await fetch(basePath + '/data/runners/' + path + '?v=' + expected.sha256, { signal });
+  const response = await dataFetch(basePath + '/data/runners/' + path + '?v=' + expected.sha256, { signal });
   if (!response.ok) throw new Error('The matching records could not load. Check your connection and try again.');
   const bytes = await response.arrayBuffer();
   if (bytes.byteLength !== expected.bytes) throw problem();

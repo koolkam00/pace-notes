@@ -7,9 +7,15 @@ const RELOAD_KEY = 'pace-notes-chunk-reload';
 const RELOAD_AFTER_MS = 5 * 60_000;
 const CHUNK_FAILURE = /Loading (CSS )?chunk|ChunkLoadError|Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i;
 
+/** Whether an error (or a rejection's reason) is a JavaScript or CSS file that failed to load. */
+export function chunkLoadFailed(error: unknown): boolean {
+  const { name, message } = (error ?? {}) as { name?: unknown; message?: unknown };
+  return name === 'ChunkLoadError' || CHUNK_FAILURE.test(String(message));
+}
+
 /** Reload the page if the error is a failed chunk load and this tab has not reloaded for one in the last five minutes. */
 export function reloadAfterChunkError(error: Error): boolean {
-  if (error?.name !== 'ChunkLoadError' && !CHUNK_FAILURE.test(String(error?.message))) return false;
+  if (!chunkLoadFailed(error)) return false;
   try {
     const last = Number(window.sessionStorage.getItem(RELOAD_KEY));
     if (last && Date.now() - last < RELOAD_AFTER_MS) return false;
@@ -19,6 +25,21 @@ export function reloadAfterChunkError(error: Error): boolean {
   }
   window.location.reload();
   return true;
+}
+
+// The reload itself is reported by the page it loads: the <head> script below reloads before any of the site's code has
+// run, and a page about to reload may never send what it reported.
+const RELOADED_WITHIN_MS = 30_000;
+/** Whether this page load is the reload that a failed file started (here or in the <head> script) moments ago. */
+export function reloadedAfterChunkError(): boolean {
+  try {
+    const [navigation] = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
+    if (navigation?.type !== 'reload') return false;
+    const last = Number(window.sessionStorage.getItem(RELOAD_KEY));
+    return !!last && Date.now() - last < RELOADED_WITHIN_MS;
+  } catch {
+    return false;
+  }
 }
 
 // For the root layout's <head>, with the same once-per-five-minutes reload. Webpack does not notice when a script the

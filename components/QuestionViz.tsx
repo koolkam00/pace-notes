@@ -7,7 +7,8 @@ import type { ChartSpec } from '@/lib/research-data';
 import { filterOptions, resolveSelection } from '@/lib/chart-selection';
 import { sectionLabel } from '@/lib/section-labels';
 import { distanceValue, elevationValue, paceLabel, paceValue, unitText, type UnitSystem } from '@/lib/units';
-import { reloadAfterChunkError } from '@/lib/chunk-reload';
+import { chunkLoadFailed, reloadAfterChunkError } from '@/lib/chunk-reload';
+import { trackFailure } from '@/lib/analytics';
 import { useUnits } from './UnitsProvider';
 import type { QuestionLineChartProps } from './QuestionLineChart';
 
@@ -19,7 +20,8 @@ const COLORS = ['#2346E6', '#FF5B2E', '#66625A'];
 // exact values stay, instead of the error page replacing the whole page.
 const ChartUnavailable = () => <div style={{ display: 'grid', placeItems: 'center', height: '100%', textAlign: 'center' }}><p className="chart-note">This chart didn&apos;t load. Reload the page to try again, or see the exact values below.</p></div>;
 const QuestionLineChart = dynamic<QuestionLineChartProps>(() => import('./QuestionLineChart').catch((error: Error) => {
-  reloadAfterChunkError(error);
+  // A reload is reported by the page it loads (components/SiteAnalytics.tsx); a chart that stays missing, here.
+  if (!reloadAfterChunkError(error)) { if (chunkLoadFailed(error)) trackFailure('chunk_load'); else trackFailure('js_error'); }
   return { default: ChartUnavailable };
 }), {
   ssr: false,

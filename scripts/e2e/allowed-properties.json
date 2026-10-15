@@ -1,0 +1,71 @@
+{
+  "note": "What an event may carry, written out here on its own so the browser checks (I2) do not take lib/analytics-policy.ts's word for it: an event fails if it has a property not listed for it, or a value of another kind. A change to the allowlist there needs the same change here, reviewed with it. Kinds: \"text\" (a string the SDK measures), \"number\" (a finite number the SDK measures), \"uuid\", \"path\" (a clean page path, no query or fragment), \"site url\" (https://splithappens.run and a path), \"referrer\" ($direct or https://<host>), \"domain\" ($direct or a host name), \"host\" (splithappens.run), false, a list of the only strings allowed, or [min, max, step] for a measured number on that grid. null: not on this event. $feature/<key> is checked against the running experiments in lib/experiments.ts.",
+  "every event": {
+    "token": "text",
+    "distinct_id": "uuid",
+    "$session_id": "uuid",
+    "$window_id": "uuid",
+    "$raw_user_agent": "text",
+    "$lib": "text",
+    "$lib_version": "text",
+    "$browser": "text",
+    "$browser_version": "number",
+    "$os": "text",
+    "$os_version": "text",
+    "$device_type": "text",
+    "$screen_height": "number",
+    "$screen_width": "number",
+    "$viewport_height": "number",
+    "$viewport_width": "number",
+    "$config_defaults": "text",
+    "$current_url": "site url",
+    "$pathname": "path",
+    "$host": "host",
+    "$referrer": "referrer",
+    "$referring_domain": "domain",
+    "$process_person_profile": false,
+    "$is_identified": false,
+    "$pageview_id": "uuid",
+    "$prev_pageview_id": "uuid"
+  },
+  "events": {
+    "$pageview": {
+      "utm_source": ["instagram"],
+      "utm_medium": ["social"],
+      "utm_content": ["bio", "story", "highlight", "reel", "post"],
+      "$prev_pageview_pathname": "path",
+      "$prev_pageview_duration": [0, 3600, 1],
+      "$prev_pageview_max_scroll_percentage": [0, 1, 0.05],
+      "$prev_pageview_max_content_percentage": [0, 1, 0.05]
+    },
+    "$pageleave": {
+      "$prev_pageview_pathname": "path",
+      "$prev_pageview_duration": [0, 3600, 1],
+      "$prev_pageview_max_scroll_percentage": [0, 1, 0.05],
+      "$prev_pageview_max_content_percentage": [0, 1, 0.05]
+    },
+    "$web_vitals": {
+      "$pageview_id": null,
+      "$prev_pageview_id": null,
+      "$web_vitals_LCP_value": [0, 60000, 1],
+      "$web_vitals_FCP_value": [0, 60000, 1],
+      "$web_vitals_INP_value": [0, 60000, 1],
+      "$web_vitals_CLS_value": [0, 10, 0.001]
+    },
+    "runner_search_submitted": {},
+    "runner_search_completed": { "outcome": ["matches", "no_matches", "error"], "results": ["0", "1", "2-5", "6+"] },
+    "runner_profile_opened": {},
+    "race_comparison_opened": { "selection": ["one", "multiple"], "availability": ["eligible", "mixed", "limited"] },
+    "analysis_filters_applied": {
+      "analysis": ["profile", "opening", "checkpoint", "sections", "courses", "weather", "terrain", "ambition", "gains", "age", "humidity", "warming", "wind"],
+      "course_scope": ["all", "single"]
+    },
+    "data_download_clicked": { "destination": ["release", "site_data"] },
+    "units_changed": { "units": ["mi", "km"] },
+    "tool_used": { "action": ["edit", "print", "copy_link"] },
+    "page_feedback": { "answer": ["yes", "no"] },
+    "page_feedback_reason": { "reason": ["hard_to_follow", "not_what_i_needed", "numbers_look_wrong", "something_broke"] },
+    "site_error": { "category": ["js_error", "unhandled_rejection", "chunk_load", "data_fetch", "render"] },
+    "section_viewed": { "section": ["hero", "chapter-1", "chapter-2", "chapter-3", "chapter-4", "chapter-5", "chapter-6", "chapter-7", "chapter-8", "stories", "tools", "analyses", "cta", "faq", "related"] }
+  }
+}

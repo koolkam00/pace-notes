@@ -520,6 +520,21 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .related-tool { margin: 0 0 2.5rem calc(220px + 4rem); }
 @media (max-width: 1100px) { .related-tool { margin-left: calc(190px + 2.5rem); } }
 @media (max-width: 880px) { .related-tool { max-width: 800px; margin: 0 auto 2rem; } }
+/* "Was this useful?" (components/PageFeedback.tsx): one quiet row above the links onward, a second after "No". */
+.page-feedback { margin: 2.5rem 0 0; padding-top: 1rem; border-top: 1px solid var(--line); }
+.page-feedback-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
+.page-feedback-row + .page-feedback-row { margin-top: .7rem; }
+.page-feedback-label { margin: 0; font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.page-feedback-options { display: flex; flex-wrap: wrap; gap: .45rem; }
+.page-feedback-options button { min-height: 40px; padding: .4rem .95rem; font-size: .875rem; }
+.page-feedback-options button[aria-pressed=true] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.page-feedback-options button[aria-disabled=true] { cursor: default; }
+.page-feedback-options button[aria-disabled=true]:not([aria-pressed=true]) { color: var(--ink-3); border-color: var(--line); }
+.page-feedback-thanks { margin: .6rem 0 0; color: var(--ink-2); font-size: .9375rem; }
+.page-feedback-thanks:empty { margin: 0; }
+.page-feedback-analysis { margin: 0 0 2rem calc(220px + 4rem); }
+@media (max-width: 1100px) { .page-feedback-analysis { margin-left: calc(190px + 2.5rem); } }
+@media (max-width: 880px) { .page-feedback-analysis { max-width: 800px; margin: 0 auto 2rem; } }
 .related-tool-card { display: grid; grid-template-columns: 48px 1fr auto; gap: 1rem; align-items: center; padding: 1.1rem 1.3rem; border-radius: 18px; background: var(--card); border: 1px solid var(--line); border-left: 5px solid var(--tool, var(--orange)); color: var(--ink); transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
 .related-tool-card:hover { text-decoration: none; transform: translateY(-2px); box-shadow: var(--shadow); }
 .related-tool-icon { width: 48px; height: 48px; color: var(--tool); }

@@ -59,6 +59,8 @@ The fonts are self-hosted through `@fontsource-variable/*`, imported in `app/lay
   - `EvidencePanel`: a panel of Pace Notes data, published research or official standards names its evidence kind with a coloured `.evidence-badge`; panels of plain calculations from the visitor's inputs carry no badge. The site never uses the word "arithmetic".
   - Inputs: `DurationField` keeps the visitor's text while typing and accepts `3:30:00`, `3:30`, `3h30`, `210` and keypad dots. `Choice` is a `.segmented` group; `Stepper` nudges a value by a minute.
   - `ShareBar` (copy link, print) and `.print-only` / `.no-print` for printable pace charts and wristbands.
+- **Feedback** (`components/PageFeedback.tsx`, styles in `app/story.css`): one quiet row, "Was this useful?" with Yes and No as small pill buttons, a mono uppercase label and a hairline above; after No a second row offers four fixed reasons, then a one-line thank-you. The chosen button is filled ink. It has no text box. It sits at the end of stories (before the pagination), tools (before More tools) and analyses (before the related tool, aligned with the analysis column on desktop).
+- **Experiments** (`components/Experiment.tsx`): wrap each version of the markup a test changes in `<Variant experiment="<key>" show="<variant>">` (`as="span"` inside a paragraph). The wrapper is `display: contents`, so it adds no box and the layout is the same as without it; give every variant the same structure and classes where you can.
   - Each tool's card and icon use its registry accent (`--tool`).
 
 ## Rules
