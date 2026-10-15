@@ -129,7 +129,8 @@ export function ToolHandoffs({ label, links }: { label: string; links: { href: s
       <ul>
         {links.map((l) => (
           <li key={l.href} style={{ ['--tool' as string]: l.accent }}>
-            <Link href={l.href}><b>{l.title} <span aria-hidden="true">→</span></b><span>{l.text}</span></Link>
+            {/* A no-break space keeps the arrow on the title's last line. */}
+            <Link href={l.href}><b>{l.title}{'\u00a0'}<span aria-hidden="true">→</span></b><span>{l.text}</span></Link>
           </li>
         ))}
       </ul>

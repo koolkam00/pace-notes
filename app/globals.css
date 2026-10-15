@@ -601,9 +601,9 @@ summary::marker { color: var(--orange); font-size: .8em; }
 .runner-covered li { display: flex; justify-content: space-between; align-items: baseline; gap: .75rem; padding: .35rem 0; border-bottom: 1px solid var(--paper-3); font-size: .875rem; }
 .runner-covered small { font-family: var(--mono); font-size: .6875rem; color: var(--ink-3); white-space: nowrap; }
 .runner-covered .control-help { margin-bottom: 1rem; }
-.runner-nomatch-next ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: .6rem; list-style: none; padding: 0; margin: .6rem 0 0; }
+.runner-nomatch-next ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: .6rem; list-style: none; padding: 0; margin: .6rem 0 0; }
 .runner-nomatch-next li + li { margin-top: 0; }
-.runner-nomatch-next ul > li > a { display: grid; gap: .15rem; height: 100%; padding: .8rem 1rem; border: 1px solid var(--line); border-left: 4px solid var(--link-accent); border-radius: 12px; background: var(--card); color: var(--ink); text-decoration: none; }
+.runner-nomatch-next ul > li > a { display: grid; align-content: start; gap: .15rem; height: 100%; padding: .8rem 1rem; border: 1px solid var(--line); border-left: 4px solid var(--link-accent); border-radius: 12px; background: var(--card); color: var(--ink); text-decoration: none; }
 .runner-nomatch-next ul > li > a:hover { border-color: var(--ink-2); border-left-color: var(--link-accent); }
 .runner-nomatch-next ul > li > a:hover b, .runner-nomatch-next ul > li > a:focus-visible b { text-decoration: underline; text-decoration-color: var(--link-accent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .runner-nomatch-next ul > li > a:focus-visible { outline: 2px solid var(--link-accent); outline-offset: 2px; }
