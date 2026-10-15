@@ -105,6 +105,8 @@ The all-finisher primary outcome is actual time after 20 km minus time at the re
 
 The homepage, About page and ten primary analyses default to miles and minutes per mile. The Miles / Kilometres switch updates these pages together, including distance labels, pace values and axes, exact-value tables, checkpoint controls, and explanatory prose. Miles mode also displays elevation in feet; finish durations, percentages, cohort membership and sample sizes do not change. Weather retains its published temperature bands.
 
+Pace axes tick on a round grid in the units shown (0:30 per mile, 0:15 or 0:30 per km; `paceTicks` in `lib/units.ts`), so a miles chart reads 8:30, 9:00, 9:30 rather than a kilometre grid converted.
+
 The URL parameter `units=mi|km` makes a shared comparison explicit. A valid URL selection takes precedence over the saved browser preference; absent either, the default is miles. The browser remembers changes, and navigation among analysis pages retains the selection. Unit changes are presentation state, not a reason to download or recalculate new cohorts.
 
 The new weather pages also display °F differences and mph in miles mode, or °C differences and km/h in kilometres mode. Their percentage-point outcomes stay unchanged. Course browsing is stored as `course=` and survives unit changes/reloads. The retained earlier-result temperature analysis keeps its published °C bands; the new all-finisher temperature labels convert between °C and °F.

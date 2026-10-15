@@ -71,6 +71,7 @@ Every link from one tool to another follows the same rules:
 - **Projector:** gets the exact `target`, the `course` only when published, and `t=none`, so it waits for a tracker time instead of showing its example runner.
 - **Qualifying checker:** never receives a predicted or goal time as if it had been run.
 - **Units:** links carry the visitor's units, but only once the preference has been read. A link clicked before the page finishes loading falls back to the stored preference.
+- **Next steps after a result (October 15, 2026):** right under the headline, the predictor (for its median estimate) and the pace calculator (for a marathon time) show two cards, `MarathonHandoffs` in `components/tools/ui.tsx`. "Turn this into a pace band" opens `/tools/pace-band?goal=H:MM` with the whole minute at or below the time, within the band's 1:30–8:00 (`paceBandGoalHref`). "See how finishers near this time paced" opens `/analyses/pacing-pattern?goal=<minutes>`, within the 1:30–12:00 that `readAnalysisProfile` accepts (`pacingPatternHref`, both in `lib/tools/links.ts`). Both pages already read these parameters and check them as they check a typed value; a card is left out when its page would not take the time. The cards are links, so following one is not a `tool_used` edit.
 
 ## Pace charts, goal pages and qualifying race pages
 
@@ -137,7 +138,7 @@ Rebuilding with `--only` keeps every other family's file and rewrites the manife
   - every pace-band group count, with sampled medians and slowdown shares;
   - the weather editions, rows, matched editions and edition-balanced shares;
   - the course-goal rows, the unavailable list and the course list.
-- `scripts/verify-tools.cjs` (in `npm run verify:data`) checks golden values (225 on October 8, 2026): parsing, split tables, the pace charts' even-pace values recomputed by hand, the goal-page list, slugs and links, Riegel and Daniels values, Tanda's range, heat formulas against published tables, age rules and standards for every race, the Boston downhill index and cut-off history, and split reading.
+- `scripts/verify-tools.cjs` (in `npm run verify:data`) checks golden values (225 on October 8, 2026): parsing, split tables, the pace charts' even-pace values recomputed by hand, the goal-page list, slugs and links, Riegel and Daniels values, Tanda's range, heat formulas against published tables, age rules and standards for every race, the Boston downhill index and cut-off history, and split reading; since October 15, 2026 (302 checks) also the result handoffs: each link's form and range against what the pace band and `readAnalysisProfile` read, and the rendered cards.
 - `analysis/test_insights.py` (`Tools` class) covers:
   - the slug rule;
   - projector bands, trend variants and the slowdown split;
