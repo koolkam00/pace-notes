@@ -176,7 +176,7 @@ Priority:
 6. **Reverting a change** (an incident whose automatic revert was not pushed, or a `revert` verdict):
    - Branch `autopilot/<date>-revert-<slug>` from `origin/main`, then run `git revert --no-edit <merge sha>`.
    - Run `git checkout origin/main -- autopilot/ledger.jsonl autopilot/LEARNINGS.md`. The revert would delete the change's ledger line and its learnings, and neither file ever loses a line.
-   - Set the original entry's `status` to `reverted`, its `verdict` to `revert` (unless it already has one) and add a note. Then append a `revert` entry (`evaluate_after: null`).
+   - Set the original entry's `status` to `reverted`, its `verdict` to `revert` (unless it already has one), its `pr` and `shipped_on` if they are still null, and add a note. Then append a `revert` entry (`evaluate_after: null`).
    - If the change added a page, reverting it deletes that page, which only the owner may do: open an `autopilot:needs-owner` issue instead.
 
 ## 6. Ship

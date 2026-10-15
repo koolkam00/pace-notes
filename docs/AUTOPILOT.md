@@ -178,6 +178,15 @@ After the review fixes (pages scrolled to the bottom and watched for at least 5 
 - `verify:seo:live` with retries passed twice in a row against production, and its path checks passed against the `3268ae5` preview (without retries, the same preview run had failed two checks on dropped connections).
 - Fault injection on a local copy of the older-Safari-fix build (quick run): a clean copy passed (48 of 48 checks, old Safari included); a 502 on the first request for `version.json` and for `sitemap.xml` passed after the retry; `sitemap.xml` always answering 502 ended with exit 3 ("could not finish"), not a failure; a page script throwing 2.5 seconds after it ran failed `/tools` on all three checks with no second load (before the 5-second watch, it passed); an image from another host far below the fold, loaded lazily, failed `/tools` (the scroll reached it); an element marked `data-error-boundary` failed `/about`.
 
+## Measured on October 15, 2026
+
+After the second review round, from the same sandbox:
+
+- Quick run on production (now with the older-Safari fix): 23 pages, 48 checks, about 102 seconds, every check passed (old Safari 23 of 23); 48 PostHog requests aborted, no other host; home lab LCP about 1.5 s, CLS 0.003, total blocking time about 0.9 s.
+- A local copy of the build whose `version.json` named another commit: every page passed and the run ended "could not finish" (exit 3), not failed.
+- The guard in a partial, `scripts/`-only clone of the repository (as the workflows now check out) fetched the file contents it needed and checked an 18-file change in about 12 seconds through the sandbox's proxy.
+- `actionlint` 1.7.7 reports nothing on the three workflows.
+
 ## Files
 
 - `autopilot/CONSTITUTION.md`: the rules, which override everything else the autopilot reads; only you change it.
