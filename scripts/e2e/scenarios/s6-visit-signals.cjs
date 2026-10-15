@@ -4,7 +4,8 @@
 // (a story read to the end stays so after a client-side navigation to a longer page, and its $pageleave names it),
 // "Was this useful?", tool use (edits outside the workspace count; jump and print buttons do not), runner search
 // results, Web Vitals sent as a tab closes (with and without a tap) and errors by kind only. Then the error page (a
-// render error, and a page chunk that fails to load), and every page that fetches data with its data requests failing:
+// render error, and a page chunk that fails to load), a file the page's HTML names failing on a direct load (the
+// page reloads itself and reports it once), and every page that fetches data with its data requests failing:
 // each reports data_fetch and shows its own error state. `$feature/*` may appear only for a running experiment in
 // lib/experiments.ts; the runs plant a stale variant and an unknown one, which must never be sent. Last, the experiment
 // boot script names the variant before the first paint with the CPU slowed 6x.
@@ -81,6 +82,9 @@ async function reading(h) {
   // On the first home page view (the visit comes back to / later, which is a page view of its own).
   const sections = named(run, 'section_viewed').filter(p => p.$pathname === '/' && views[0] && p.$pageview_id === views[0].$pageview_id).map(p => p.section);
   h.check('each home section is counted once, in page order', JSON.stringify(sections) === JSON.stringify(order), { sent: sections, page: order });
+  // Once the SDK has loaded, the site's events join its batch (sent every few seconds) instead of one request each.
+  const perRequest = run.sent.map(r => (r.events || []).filter(e => e.event === 'section_viewed').length).filter(n => n);
+  h.check('section views are sent in batches, not one request each', perRequest.some(n => n >= 2), perRequest);
   h.check('units_changed only on a real change (km, then mi)', JSON.stringify(named(run, 'units_changed').map(p => p.units)) === '["km","mi"]', shown(named(run, 'units_changed')));
   const story = views.find(p => p.$pathname === storyA);
   h.check('the story\'s page view names the home page and its reading figures', story && story.$prev_pageview_pathname === '/' && Number.isInteger(story.$prev_pageview_duration) && story.$prev_pageview_max_scroll_percentage > 0, story && shown([story]));
@@ -294,6 +298,34 @@ async function errorPages(h) {
   run.options.needles = [{ needle: 'e2e-missing-chunk', allowAt: IN_RECORDING }, 'ChunkLoadError', 'Loading chunk'];
 }
 
+// A script the page's HTML names that fails on a direct load (a page chunk, or Next.js's own main-app script): the
+// <head> script reloads the page before any of the site's code runs, so the page it reloads into reports the failure,
+// once. Only the first request for the file fails.
+const DIRECT_LOAD_FILES = [
+  { path: '/about', file: /\/_next\/static\/chunks\/app\/about\/page-[^/]+\.js$/ },
+  { path: '/tools/pace-calculator', file: /\/_next\/static\/chunks\/main-app-[^/]+\.js$/ },
+];
+async function reloadedPage(h) {
+  for (const target of DIRECT_LOAD_FILES) {
+    const run = await h.run(target.path, { ...PHONE });
+    let requests = 0;
+    run.block(url => target.file.test(url.pathname) && requests++ === 0);
+    const page = await run.newPage();
+    // The reload can interrupt the first load.
+    await page.goto(SITE + target.path, { waitUntil: 'load' }).catch(() => {});
+    const loads = () => run.navs.filter(nav => nav.url && new URL(nav.url).pathname === target.path).length;
+    const reloaded = await waitFor(() => loads() >= 2, 15000);
+    await page.waitForLoadState('load').catch(() => {});
+    await page.waitForTimeout(3000);
+    await run.closePage(page, { unload: true });
+    await run.close();
+    const errors = named(run, 'site_error').map(p => `${p.$pathname}:${p.category}`);
+    h.check(`${target.path}: its file failed, the page reloaded itself and the file loaded`, requests >= 2 && reloaded, { requests, loads: loads() });
+    h.check(`${target.path}: the reloaded page reports one chunk_load, and nothing else`, JSON.stringify(errors) === JSON.stringify([`${target.path}:chunk_load`]), errors);
+    h.check(`${target.path}: the reloaded page sends its page view`, named(run, '$pageview').some(p => p.$pathname === target.path), shown(named(run, '$pageview')));
+  }
+}
+
 // Every page that fetches data, with each of its data requests failing. Tools are taken from the registry.
 const ERROR_STATE = '.tool-state.is-error, .projector-quick-text.is-error, [role="alert"], .feedback-error, .guide-error';
 const OTHER_DATA_PAGES = [
@@ -339,6 +371,7 @@ module.exports = {
       { name: 'back-forward cache', weight: 6, run: restored },
       { name: 'experiment before first paint', weight: 14, run: paintOrder },
       { name: 'error page', weight: 20, run: errorPages },
+      { name: 'failed file on a direct load', weight: 14, run: reloadedPage },
       ...targets.filter(t => !quick || ['/tools/pace-band', '/'].includes(t.path)).map(t => ({ name: `data failure ${t.label || t.path}`, weight: t.needsData === false ? 4 : 3, run: h => dataFailure(h, t) })),
     ];
   },

@@ -162,9 +162,18 @@ async function differential(h, name) {
   h.check('I9 recordings differ only as known-differences.json allows', !unexplained.length, unexplained.slice(0, 12).map(s => s.slice(0, 240)));
 }
 
+// Every tool in lib/tools/registry.ts is typed into: a new tool needs its case here.
+function everyTool(h) {
+  const { TOOLS } = require(path.join(h.inspect.ROOT, 'lib/tools/registry.ts'));
+  const missing = TOOLS.filter(tool => !CASES[tool.slug] || !CASES[tool.slug].drive || CASES[tool.slug].path !== '/tools/' + tool.slug);
+  h.check('every tool in lib/tools/registry.ts has a case that types into it', TOOLS.length && !missing.length, missing.map(tool => '/tools/' + tool.slug));
+}
+
 module.exports = {
   id: 'S2',
   title: 'Every tool, analysis and calculator with two sets of values (typed and in the address)',
-  jobs: ({ quick }) => Object.keys(CASES).filter(name => !quick || QUICK.includes(name))
-    .map(name => ({ name, weight: CASES[name].reload ? 32 : name === 'analysis' ? 25 : 18, run: h => differential(h, name) })),
+  jobs: ({ quick }) => [
+    { name: 'every tool has a case', weight: 1, run: async h => everyTool(h) },
+    ...Object.keys(CASES).filter(name => !quick || QUICK.includes(name)).map(name => ({ name, weight: CASES[name].reload ? 32 : name === 'analysis' ? 25 : 18, run: h => differential(h, name) })),
+  ],
 };

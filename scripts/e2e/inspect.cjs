@@ -1,8 +1,10 @@
 'use strict';
 // What a run sent and stored, and the invariants every run must keep (I1–I9; I10, the JavaScript budget, is in
-// scenarios/s8-budget.cjs). The rules come from the site's own TypeScript sources, loaded with the same require hook as
-// scripts/verify-analytics.cjs, so the allowlist these checks hold the browser to is the one the site ships:
-// sanitizeAnalyticsEvent and analyticsPath from lib/analytics-policy.ts, the runner-page rules, and lib/experiments.ts.
+// scenarios/s8-budget.cjs). Most rules come from the site's own TypeScript sources, loaded with the same require hook as
+// scripts/verify-analytics.cjs, so the browser is held to the allowlist the site ships: sanitizeAnalyticsEvent and
+// analyticsPath from lib/analytics-policy.ts, the runner-page rules, and lib/experiments.ts. Where a widened rule there
+// would let something out unnoticed, these checks also hold their own copy: the properties each event may carry
+// (allowed-properties.json), the pages that are never recorded, and PostHog's own storage keys.
 const fs = require('node:fs');
 const path = require('node:path');
 const Module = require('node:module');
@@ -22,6 +24,7 @@ const { SITE_HOSTS, PREVIEW_HOST } = require('./browser.cjs');
 const { POSTHOG_HOST } = require('./posthog-mock.cjs');
 
 const SITE = 'https://splithappens.run';
+const ALLOWED = JSON.parse(fs.readFileSync(path.join(__dirname, 'allowed-properties.json'), 'utf8'));
 const RUNNING = new Map(EXPERIMENTS.filter(def => def.status === 'running').map(def => [def.key, def.variants]));
 
 /**
@@ -119,11 +122,33 @@ function hosts(run) {
   const allowed = host => SITE_HOSTS.has(host) || host === PREVIEW_HOST || host === 'localhost' || host === '127.0.0.1' || POSTHOG_HOST.test(host);
   const problems = [...new Set(run.requests.filter(r => !allowed(r.host)).map(r => `contacted ${r.host} (${r.url.slice(0, 100)})`))];
   for (const r of run.requests) if (POSTHOG_HOST.test(r.host) && r.path.endsWith('.js')) problems.push(`requested a PostHog script ${r.url.slice(0, 100)} (external dependency loading must stay off)`);
+  // What the site served makes every visitor's browser contact another host, whether or not this run saw the request.
+  for (const ref of run.foreign || []) problems.push(`served ${ref}, another host every visitor's browser would contact`);
   return problems;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CLEAN_PATH = /^\/(?:[a-z0-9_-]+(?:\/[a-z0-9_-]+)*)?$/;
+const KINDS = {
+  text: value => typeof value === 'string', number: value => typeof value === 'number' && Number.isFinite(value), uuid: value => typeof value === 'string' && UUID.test(value),
+  path: value => typeof value === 'string' && CLEAN_PATH.test(value), 'site url': value => typeof value === 'string' && value.startsWith(SITE) && CLEAN_PATH.test(value.slice(SITE.length)),
+  referrer: value => value === '$direct' || (typeof value === 'string' && /^https:\/\/[a-z0-9.-]+$/i.test(value)), domain: value => value === '$direct' || (typeof value === 'string' && /^[a-z0-9.-]+$/i.test(value)),
+  host: value => value === 'splithappens.run',
+};
+/** Whether a value is of a kind in allowed-properties.json. */
+function fits(kind, value) {
+  if (kind === false) return value === false;
+  if (typeof kind === 'string') return KINDS[kind](value);
+  if (kind.length === 3 && kind.every(n => typeof n === 'number')) {
+    const [min, max, step] = kind;
+    return typeof value === 'number' && value >= min && value <= max && Math.abs(value / step - Math.round(value / step)) < 1e-6;
+  }
+  return kind.includes(value);
+}
+
 // I2: every event is exactly what the allowlist lets through: sanitizing it again changes nothing, so its name, keys and
-// enumerated values are allowed and its numbers are in range and on their grid. Its address is the clean path.
+// enumerated values are allowed and its numbers are in range and on their grid. Its address is the clean path. And it
+// carries only what allowed-properties.json lists for it, each value of the kind listed there.
 function events(run) {
   const problems = [];
   for (const { e } of run.events()) {
@@ -144,6 +169,14 @@ function events(run) {
     for (const key of Object.keys(props).filter(k => k.startsWith('$feature/'))) {
       const variants = RUNNING.get(key.slice('$feature/'.length));
       if (!variants || !variants.includes(props[key])) problems.push(`${name}.${key}: not a running experiment and one of its variants`);
+    }
+    const listed = Object.prototype.hasOwnProperty.call(ALLOWED.events, name) ? ALLOWED.events[name] : null;
+    if (!listed) { problems.push(`${name}: not an event in scripts/e2e/allowed-properties.json`); continue; }
+    for (const [key, value] of Object.entries(props)) {
+      if (key.startsWith('$feature/')) continue;
+      const kind = Object.prototype.hasOwnProperty.call(listed, key) ? listed[key] : Object.prototype.hasOwnProperty.call(ALLOWED['every event'], key) ? ALLOWED['every event'][key] : null;
+      if (kind === null) problems.push(`${name}.${key}: not a property scripts/e2e/allowed-properties.json allows on ${name} (${JSON.stringify(value).slice(0, 60)})`);
+      else if (!fits(kind, value)) problems.push(`${name}.${key}: ${JSON.stringify(value).slice(0, 60)} is not ${typeof kind === 'string' ? `a ${kind}` : JSON.stringify(kind)} (scripts/e2e/allowed-properties.json)`);
     }
   }
   return problems;
@@ -223,9 +256,14 @@ function withExperiments(html, defs) {
   return html.replace(built, () => markup);
 }
 
+// The pages that are never recorded, named here as well as in lib/analytics-policy.ts (REPLAY_BLOCKED_PAGES and the
+// runner handoff marker), so a page dropped from the site's list is still checked.
+const NEVER_RECORDED = url => { try { const { pathname, searchParams } = new URL(url, SITE); return /^\/(runners|your-race)(\/|$)/i.test(pathname) || searchParams.get('via') === 'runner'; } catch { return false; } };
+
 /**
- * The address open in each page over time, and whether the site's own rules let it be recorded at that moment
- * (recordingBlocked, plus a runner handoff continuing in that tab), replayed through lib/analytics-policy.ts.
+ * The address open in each page over time, and whether it may be recorded at that moment: the site's own rules
+ * (recordingBlocked, plus a runner handoff continuing in that tab, replayed through lib/analytics-policy.ts) and
+ * NEVER_RECORDED.
  */
 function pageTimeline(run) {
   const segments = [];
@@ -239,7 +277,7 @@ function pageTimeline(run) {
     navs.forEach((nav, i) => {
       if (!nav.url) return;
       policy.noteRunnerHandoff(nav.url);
-      const blocked = policy.recordingBlocked(nav.url) || policy.continuesRunnerHandoff(nav.url);
+      const blocked = policy.recordingBlocked(nav.url) || policy.continuesRunnerHandoff(nav.url) || NEVER_RECORDED(nav.url);
       segments.push({ page, from: nav.at, to: i + 1 < navs.length ? navs[i + 1].at : Infinity, url: nav.url, blocked });
     });
   }
@@ -251,16 +289,20 @@ function pageTimeline(run) {
 function blockedPages(run) {
   const problems = new Set();
   const segments = pageTimeline(run);
-  const recorded = new Map();
+  const recorded = new Map(), open = new Set();
   for (const { ev } of run.rrweb()) {
-    const open = segments.filter(s => s.from <= ev.timestamp && ev.timestamp < s.to);
-    if (open.length && open.every(s => s.blocked)) problems.add(`rrweb ${labelOf(ev)} recorded while ${open.map(s => short(s.url)).join(' and ')} was open`);
-    for (const s of open) if (!s.blocked) recorded.set(short(s.url), (recorded.get(short(s.url)) || 0) + 1);
+    const during = segments.filter(s => s.from <= ev.timestamp && ev.timestamp < s.to);
+    if (during.length && during.every(s => s.blocked)) problems.add(`rrweb ${labelOf(ev)} recorded while ${during.map(s => short(s.url)).join(' and ')} was open`);
+    for (const s of during) {
+      open.add(short(s.url));
+      if (!s.blocked) recorded.set(short(s.url), (recorded.get(short(s.url)) || 0) + 1);
+    }
     const d = ev.data || {};
     const href = ev.type === 4 ? d.href : ev.type === 5 && d.payload ? d.payload.href : null;
-    if (typeof href === 'string' && policy.recordingBlocked(href)) problems.add(`a recording names the blocked page ${short(href)}`);
+    if (typeof href === 'string' && (policy.recordingBlocked(href) || NEVER_RECORDED(href))) problems.add(`a recording names the blocked page ${short(href)}`);
   }
   run.recordedPages = recorded;
+  run.openWhileRecording = open; // every page open while something was recorded, whatever the rules say about it
   return [...problems];
 }
 
@@ -268,14 +310,25 @@ const ALLOWED_LOCAL = new Set(['marathon-analytics-disabled', 'marathon-study-un
   // Written by the tools only when the visitor saves something on this device (docs/TOOLS.md), and the site's motion
   // switch; never analytics.
   'pace-notes-qualifying-birth', 'pace-notes-projector-runners', 'pace-notes-projector-start', 'pace-notes-motion']);
-const allowedSession = key => key.startsWith('ph_') || key === 'pace-notes-runner-handoff' || /^pace-notes-exp:[a-z0-9-]+$/.test(key) || key === 'pace-notes-chunk-reload' || key.startsWith('__e2e');
+// PostHog's own keys are ph_<project token>_… (the token compiled into the build); no other ph_ key is the SDK's.
+const tokens = new Map();
+function posthogPrefix(out) {
+  if (!tokens.has(out)) {
+    const dir = path.join(out, '_next', 'static', 'chunks');
+    let token = null;
+    for (const file of fs.readdirSync(dir, { recursive: true }).filter(f => f.endsWith('.js'))) { token = (fs.readFileSync(path.join(dir, file), 'utf8').match(/["'](phc_\w+)["']/) || [])[1]; if (token) break; }
+    tokens.set(out, token ? `ph_${token}_` : null);
+  }
+  return tokens.get(out);
+}
+const allowedSession = (key, prefix) => (!!prefix && key.startsWith(prefix)) || key === 'pace-notes-runner-handoff' || /^pace-notes-exp:[a-z0-9-]+$/.test(key) || key === 'pace-notes-chunk-reload' || key.startsWith('__e2e');
 // Feature probes that write a test key and remove it in the same call (posthog-js and lib/replay-policy.ts).
 const PROBES = { local: new Set(['__mplssupport__', 'test']), session: new Set(['__support__', '__pace_notes_ss__']) };
-const allowedKey = (where, key) => where === 'local' ? ALLOWED_LOCAL.has(key) : allowedSession(key);
-
 // I6: no cookie, and only the listed keys in localStorage and sessionStorage.
 function storage(run) {
   const problems = new Set();
+  const prefix = posthogPrefix(run.out);
+  const allowedKey = (where, key) => where === 'local' ? ALLOWED_LOCAL.has(key) : allowedSession(key, prefix);
   for (const r of run.reports) {
     if (r.kind === 'cookie') problems.add(`a cookie was written: ${r.value.split('=')[0]} on ${r.path}`);
     if (r.kind === 'storage' && r.op === 'setItem' && !allowedKey(r.area, r.key) && !PROBES[r.area].has(r.key)) problems.add(`${r.area}Storage key ${r.key} written on ${r.path}`);
@@ -284,7 +337,7 @@ function storage(run) {
   for (const state of run.storage) {
     if (state.error) continue;
     for (const key of Object.keys(state.local || {})) if (!ALLOWED_LOCAL.has(key)) problems.add(`localStorage holds ${key} (${state.path})`);
-    for (const key of Object.keys(state.session || {})) if (key !== '__unreadable__' && !allowedSession(key)) problems.add(`sessionStorage holds ${key} (${state.path})`);
+    for (const key of Object.keys(state.session || {})) if (key !== '__unreadable__' && !allowedSession(key, prefix)) problems.add(`sessionStorage holds ${key} (${state.path})`);
     if (state.cookie) problems.add(`document.cookie is "${state.cookie.slice(0, 60)}" (${state.path})`);
   }
   for (const cookie of run.cookies || []) problems.add(`the browser holds cookie ${cookie.name} for ${cookie.domain}`);
@@ -314,7 +367,8 @@ function privacy(run) {
 }
 
 // I8: no uncaught page error (other than the ones a scenario causes on purpose), no "Application error" screen, no error
-// page unless the scenario expects one, and, in the old-Safari emulation, no script that holds a lookbehind.
+// page unless the scenario expects one, in the old-Safari emulation no script that holds a lookbehind, and no request
+// the harness itself failed to answer.
 function errors(run) {
   const expected = run.options.expectErrors || [];
   const problems = run.errors.filter(error => !expected.some(pattern => pattern.test(error.message))).map(error => `page error on ${error.path}: ${error.message.slice(0, 160)}`);
@@ -323,6 +377,7 @@ function errors(run) {
     if (r.kind === 'error-page' && !run.options.allowErrorPage) problems.push(`the ${r.which === 'global' ? 'whole-document (global) ' : ''}error page showed on ${r.path}`);
   }
   for (const script of run.lookbehindScripts) problems.push(`${script} holds a lookbehind, which Safari before 16.4 cannot parse`);
+  for (const error of run.routeErrors || []) problems.push(`the harness could not serve ${error.path}: ${error.message.slice(0, 200)}`);
   return [...new Set(problems)];
 }
 
@@ -349,4 +404,4 @@ function labelOf(ev) {
 // A page's path, with any query shown only as `?…`: a handoff page's query holds a runner's times.
 const short = url => String(url).replace(/^https?:\/\/[^/]+/, '').replace(/\?.*$/, '?…') || '/';
 
-module.exports = { ROOT, SITE, policy, RUNNING, experimentPlant, expectedFeatures, experimentHead, withExperiments, search, unread, domStrings, diffStrings, invariants };
+module.exports = { ROOT, SITE, policy, RUNNING, NEVER_RECORDED, experimentPlant, expectedFeatures, experimentHead, withExperiments, search, unread, domStrings, diffStrings, invariants };

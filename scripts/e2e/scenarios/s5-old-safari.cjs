@@ -1,7 +1,8 @@
 'use strict';
 // S5: every sitemap page with Safari before 16.4 emulated (building a lookbehind RegExp throws, and any served script
-// that holds one counts as a crash there), on a phone. No page may crash or show the error page, every page must still
-// send its page view, and none may report a site_error. Then the lazily loaded analytics chunks failing one at a time
+// that holds one counts as a crash there), on a phone, with its lazily loaded images and frames loaded and scrolled to
+// the end, so any other host they name is contacted here (I1). No page may crash or show the error page, every page
+// must still send its page view, and none may report a site_error. Then the lazily loaded analytics chunks failing one at a time
 // (the recorder, and the replay policy with the Web Vitals code): analytics stays off for that page and the page still
 // works.
 const fs = require('node:fs');
@@ -26,6 +27,8 @@ async function sweep(h, pages) {
     await page.goto(SITE + pathname, { waitUntil: 'load', timeout: 45000 }).catch(() => { loaded = false; });
     // Long enough for the SDK to load and initialise (its remote config request), then leave, so the page view goes out.
     const initialised = await waitFor(() => run.requests.some(r => r.at > opened && /\/array\/[^/]+\/config$/.test(r.path)), 8000);
+    // Everything the page would load as a visitor reads on: lazy images and frames at once, and what loads on scrolling.
+    await page.evaluate(() => { for (const el of document.querySelectorAll('[loading="lazy"]')) el.loading = 'eager'; window.scrollTo(0, document.documentElement.scrollHeight); }).catch(() => {});
     await page.waitForTimeout(600);
     const lookbehind = await page.evaluate(() => window.__e2eLookbehind.length).catch(() => -1);
     await run.closePage(page, { unload: true });

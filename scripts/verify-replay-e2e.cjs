@@ -27,12 +27,14 @@
  * page unloads, S8 the JavaScript budget.
  *
  * Every visitor (run) is checked for:
- *   I1 no host contacted but the site and the PostHog mock      I5 nothing recorded on a runner or handoff page
- *   I2 every event exactly as the allowlist lets it through      I6 no cookie; only the listed storage keys
- *   I3 recording chunks with only their nine fields, and no      I7 nothing captured after an opt-out is sent, and
- *      query, fragment, checked state, console or canvas            nothing at all with Do Not Track, GPC, a preview
- *                                                                    host or localhost
- *   I4 no typed value, runner detail, error text or junk tag     I8 no page error, crash screen or unexpected error page
+ *   I1 no host contacted, or named by a page or stylesheet the site served, but the site and the PostHog mock
+ *   I2 every event exactly as the allowlist lets it through, and with only what allowed-properties.json lists for it
+ *   I3 recording chunks with only their nine fields, and no query, fragment, checked state, console or canvas
+ *   I4 no typed value, runner detail, error text or junk tag
+ *   I5 nothing recorded on a runner or handoff page
+ *   I6 no cookie; only the listed storage keys
+ *   I7 nothing captured after an opt-out is sent, and nothing at all with Do Not Track, GPC, a preview host or localhost
+ *   I8 no page error, crash screen, unexpected error page or request the harness could not answer
  * and S2 compares its two runs (I9: scripts/e2e/known-differences.json), S8 the budget (I10: scripts/e2e/budget.json).
  */
 'use strict';
@@ -113,7 +115,7 @@ async function runJob(browser, job) {
   const failed = !!error || checks.some(c => !c.ok) || runResults.some(r => Object.values(r.problems).some(p => p.length));
   if (failed && KEEP) {
     fs.mkdirSync(KEEP, { recursive: true });
-    const keep = runs.map(run => ({ name: run.name, options: run.options, start: run.start, navs: run.navs, requests: run.requests, sent: run.sent, wire: run.wire, reports: run.reports, errors: run.errors, storage: run.storage, cookies: run.cookies, privacySignalAt: run.privacySignalAt }));
+    const keep = runs.map(run => ({ name: run.name, options: run.options, start: run.start, navs: run.navs, requests: run.requests, sent: run.sent, wire: run.wire, reports: run.reports, errors: run.errors, routeErrors: run.routeErrors, foreign: [...run.foreign], storage: run.storage, cookies: run.cookies, privacySignalAt: run.privacySignalAt }));
     fs.writeFileSync(path.join(KEEP, `${job.scenario.id}-${job.name.replace(/[^\w-]+/g, '_')}.json`), JSON.stringify(keep));
   }
   return { scenario: job.scenario.id, title: job.scenario.title, job: job.name, ms: Date.now() - started, failed, error, checks, notes, runs: runResults };
@@ -133,6 +135,11 @@ function printJob(result) {
   }
   for (const note of result.notes) console.log(`       note: ${note}`);
 }
+
+// A rejection nothing handled (in a scenario or Playwright's routing) fails the run at the end, with the summary and the
+// other jobs' results, instead of ending the process at once.
+const stray = [];
+process.on('unhandledRejection', error => { stray.push(String(error && error.stack || error).split('\n').slice(0, 3).join(' | ')); console.error(`unhandled rejection: ${stray.at(-1)}`); });
 
 (async () => {
   const started = Date.now();
@@ -162,6 +169,7 @@ function printJob(result) {
   }
   const failedJobs = results.filter(r => r.failed);
   console.log(`\n${failedJobs.length ? `${failedJobs.length} of ${results.length} jobs failed` : `All ${results.length} jobs passed`} in ${seconds(Date.now() - started)} (wall time).`);
-  if (REPORT) fs.writeFileSync(REPORT, JSON.stringify({ shard: SHARD.join('/'), quick: QUICK, wallMs: Date.now() - started, results }, null, 1));
-  process.exit(failedJobs.length ? 1 : 0);
+  for (const error of stray) console.log(`FAIL unhandled rejection: ${error}`);
+  if (REPORT) fs.writeFileSync(REPORT, JSON.stringify({ shard: SHARD.join('/'), quick: QUICK, wallMs: Date.now() - started, results, unhandledRejections: stray }, null, 1));
+  process.exit(failedJobs.length || stray.length ? 1 : 0);
 })().catch(error => { console.error(error); process.exit(1); });

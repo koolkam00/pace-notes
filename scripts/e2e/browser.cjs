@@ -25,6 +25,36 @@ const LOOKBEHIND = /\(\?<[=!]/;
 // Where S7's self-test sends a planted beacon (a path posthog-js never uses), so it is searched but not taken for an event.
 const SELF_TEST_PATH = '/e2e-self-test/';
 
+// A page or stylesheet the site serves may not make the browser contact another host (I1): Playwright does not report
+// every such request (a preconnect, an image or frame that loads only when scrolled to), so what the site serves is
+// read too. Links (<a href>, a form's action) and text are not fetched, nor are these <link> relations.
+const NOT_FETCHED = /^(?:canonical|alternate|author|license|me|next|prev|help|bookmark|external|nofollow|noopener|noreferrer|opener|tag|privacy-policy|terms-of-service)$/i;
+/** Absolute URLs on another host that markup (or a stylesheet, when `css`) makes the browser fetch or connect to. */
+function foreignReferences(text, css) {
+  const found = [];
+  const add = (value, where) => {
+    const url = (/^\s*((?:[a-z][a-z0-9+.-]*:)?\/\/[^\s"'<>)]+)/i.exec(String(value)) || [])[1];
+    if (!url) return;
+    try { if (!SITE_HOSTS.has(new URL(url, SITE).hostname)) found.push(`${where} ${url.slice(0, 120)}`); } catch { /* not a URL */ }
+  };
+  const cssUrls = (source, where) => { for (const m of source.matchAll(/url\(\s*(['"]?)([^'")]*)\1\s*\)|@import\s+(['"])([^'"]+)\3/gi)) add(m[2] ?? m[4], where); };
+  if (css) { cssUrls(text, 'a stylesheet url()'); return found; }
+  // A script's contents are not markup (the page's data and JSON-LD are there); a style's url()s are checked as CSS.
+  const markup = text.replace(/(<script\b[^>]*>)[\s\S]*?<\/script>/gi, '$1</script>').replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gi, (_, style) => { cssUrls(style, '<style> url()'); return ''; });
+  for (const [, tag, attributes] of markup.matchAll(/<([a-z][\w:-]*)\b([^>]*)>/gi)) {
+    const name = tag.toLowerCase(), attrs = {};
+    for (const m of attributes.matchAll(/([^\s=\/"'>]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)) attrs[m[1].toLowerCase()] = (m[2] ?? m[3] ?? m[4] ?? '').replace(/&amp;/g, '&');
+    for (const key of ['src', 'poster', 'background', 'ping', 'manifest']) if (attrs[key]) for (const part of key === 'ping' ? attrs[key].split(/\s+/) : [attrs[key]]) add(part, `<${name} ${key}>`);
+    if (name === 'object' && attrs.data) add(attrs.data, '<object data>');
+    for (const key of ['srcset', 'imagesrcset']) if (attrs[key]) for (const part of attrs[key].split(',')) add(part, `<${name} ${key}>`);
+    if (['base', 'image', 'use', 'feimage', 'script'].includes(name)) for (const key of ['href', 'xlink:href']) if (attrs[key]) add(attrs[key], `<${name} ${key}>`);
+    if (name === 'link' && attrs.href && !(attrs.rel || '').split(/\s+/).filter(Boolean).every(rel => NOT_FETCHED.test(rel))) add(attrs.href, `<link rel="${attrs.rel || ''}">`);
+    if (attrs.style) cssUrls(attrs.style, `<${name} style> url()`);
+  }
+  return found;
+}
+const scanned = new Map(); // a file served unchanged is read once
+
 /** Playwright's Chromium (PLAYWRIGHT_CHROMIUM_PATH, when set, names another executable). */
 function launch() {
   return chromium.launch({
@@ -155,6 +185,8 @@ class Run {
     this.reports = [];    // from the init script: storage and cookie writes, error screens
     this.storage = [];    // each page's storage when it closed
     this.lookbehindScripts = [];
+    this.foreign = new Set(); // what a served page or stylesheet names on another host: "<path>: <where> <url>"
+    this.routeErrors = [];    // requests the harness itself could not answer: { at, path, message }
     this.blockers = [];
     this.delays = [];
     this.pages = new Set();
@@ -197,19 +229,41 @@ class Run {
   }
 
   async route(route) {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (mock.POSTHOG_HOST.test(url.hostname)) return mock.answer(route, url, { blocklist: this.options.blocklist });
-    if (SITE_HOSTS.has(url.hostname) || url.hostname === PREVIEW_HOST || LOCAL_HOSTS.has(url.hostname)) {
-      if (this.blockers.some(block => block(url))) return route.abort('failed');
-      const file = respond(this.out, url.pathname);
-      if (this.options.safari15 && file.contentType === 'application/javascript' && LOOKBEHIND.test(file.body.toString('latin1'))) this.lookbehindScripts.push(url.pathname);
-      // A scenario may change a page as served (S6 puts a fixture experiment's <head> markup in place of the build's).
-      const body = this.options.html && file.contentType.startsWith('text/html') ? Buffer.from(this.options.html(file.body.toString('utf8'), url.pathname)) : file.body;
-      for (const delay of this.delays) if (delay.test(url)) await new Promise(resolve => setTimeout(resolve, delay.ms));
-      return route.fulfill({ status: file.status, contentType: file.contentType, body });
+    const url = new URL(route.request().url());
+    let answer;
+    try {
+      answer = await this.answer(url);
+    } catch (error) {
+      // A failure of the harness itself (a scenario's change to the page, say): the request fails and I8 reports it,
+      // and the other jobs carry on.
+      this.routeErrors.push({ at: Date.now(), path: url.pathname, message: String(error && error.message || error).slice(0, 300) });
+      answer = { abort: 'failed' };
     }
-    return route.abort(); // any other host (I1 reports it)
+    try {
+      if (answer.mock) await mock.answer(route, url, { blocklist: this.options.blocklist });
+      else if (answer.abort !== undefined) await route.abort(answer.abort || undefined);
+      else await route.fulfill(answer);
+    } catch { /* the page or its context closed meanwhile */ }
+  }
+
+  /** What to answer a request with: the PostHog mock, a file from out/, or a failure (any other host: I1 reports it). */
+  async answer(url) {
+    if (mock.POSTHOG_HOST.test(url.hostname)) return { mock: true };
+    if (!(SITE_HOSTS.has(url.hostname) || url.hostname === PREVIEW_HOST || LOCAL_HOSTS.has(url.hostname))) return { abort: '' };
+    if (this.blockers.some(block => block(url))) return { abort: 'failed' };
+    const file = respond(this.out, url.pathname);
+    if (this.options.safari15 && file.contentType === 'application/javascript' && LOOKBEHIND.test(file.body.toString('latin1'))) this.lookbehindScripts.push(url.pathname);
+    // A scenario may change a page as served (S6 puts a fixture experiment's <head> markup in place of the build's).
+    const html = file.contentType.startsWith('text/html'), css = file.contentType === 'text/css';
+    const body = this.options.html && html ? Buffer.from(this.options.html(file.body.toString('utf8'), url.pathname)) : file.body;
+    if (html || css) {
+      const key = body === file.body ? url.pathname : null;
+      const refs = (key && scanned.get(key)) || foreignReferences(body.toString('utf8'), css);
+      if (key) scanned.set(key, refs);
+      for (const ref of refs) this.foreign.add(`${url.pathname}: ${ref}`);
+    }
+    for (const delay of this.delays) if (delay.test(url)) await new Promise(resolve => setTimeout(resolve, delay.ms));
+    return { status: file.status, contentType: file.contentType, body };
   }
 
   /** Answers requests to the site `ms` later while `predicate(url)` holds (a slow network); returns a function that ends it. */
@@ -339,4 +393,4 @@ async function type(page, locator, value) {
   await page.keyboard.press('Tab');
 }
 
-module.exports = { SITE, SITE_HOSTS, PREVIEW_HOST, LOOKBEHIND, SELF_TEST_PATH, launch, Run, waitFor, wiggle, type };
+module.exports = { SITE, SITE_HOSTS, PREVIEW_HOST, LOOKBEHIND, SELF_TEST_PATH, launch, Run, waitFor, wiggle, type, foreignReferences };

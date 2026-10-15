@@ -99,6 +99,9 @@ async function journey(h, blocklist) {
   h.inspect.invariants(run);
   const recorded = [...run.recordedPages.keys()];
   h.check('/stories and /tools were recorded (so I5 is not empty)', recorded.includes('/stories') && recorded.includes('/tools'), recorded);
+  // Whatever the site's own list of blocked pages says (I5 also names them itself).
+  const runnerPages = [...run.openWhileRecording].filter(page => h.inspect.NEVER_RECORDED(page));
+  h.check('nothing was recorded while /runners, /your-race or a runner handoff page was open', !runnerPages.length, runnerPages);
   h.note(`recorded: ${recorded.join(', ')}; ${run.options.needles.length} of the runner's values searched for`);
 }
 
