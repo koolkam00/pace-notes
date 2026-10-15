@@ -1,5 +1,19 @@
 # Project handoff
 
+## Home hero experiment and chapter links (October 15, 2026)
+
+**Repository state:** in this change (part of PR B, built on `feat/visit-signals`). **Deployed state:** not yet deployed; the experiment starts only once it is. The orchestrator sets the final `started` date at merge.
+
+What changed:
+- **Experiment `home-hero-v1`** (`lib/experiments.ts`): running on `/` (area `hero`), `control` against `make-it-yours`, equal weights. `make-it-yours` puts a marathon-time box under the title (`components/story/HeroGoal.tsx`), three ways in (Stories, Tools, Find my race) and then the dek with a quieter "Start the story ↓". A time typed the way the tools accept it opens `/analyses/pacing-pattern?goal=<whole minutes>` (1:30 to 12:00, `lib/analysis-goal.ts`, the rule the analyses read the address with); anything else stays with a hint. The eyebrow and the one H1 are outside both versions. How it is assigned, reported and judged: [analytics](ANALYTICS.md#experiments).
+- **Both versions:** the dek says "Watch a real field spread out in the replay below" (it said "Press play", but the replay starts by itself once on screen), and the hero's "By Andrew Kam" is hidden at 600 px and narrower, where the header already credits him. If the phone header stops showing its credit, show the hero's again.
+- **"Try it with your race"** at the end of each home chapter, after its story link: 01 pacing types → `/analyses/pacing-pattern`, 02 round numbers → `/tools/pace-band`, 03 places → `/tools/projector`, 04 gender and age → `/analyses/age-and-pacing`, 05 courses and weather → `/tools/weather-match` (every target is in the sitemap).
+- **Privacy:** the box sends nothing (no event, nothing stored, no named field) and is a masked replay region (`.hero-goal`); the time is only in the next page's address, which analytics strips. `verify-analytics` guards the box's source and the goal rule; the browser checks type a time into it (S2 `home-hero`) and fail its parsing file (S6). S2 now pins the same experiment variant for both runs of a case.
+
+Measured (dummy-key builds, locally, PostHog mocked):
+- **Initial JavaScript** on `/`: +1,458 B gzipped over `scripts/e2e/budget.json` (tolerance 1,536 B, so the budget is unchanged). The first version was +5,961 B: the analysis catalog came in with the goal bounds (now `lib/analysis-goal.ts`) and the tools' time field with its parsing (the parsing now loads when the box is first focused). `/runners`, `/privacy` and `/htw` share the chunk and moved by the same amount.
+- **Layout shift** on `/`, 3 loads each: phone 390 px 0 in both versions (4× CPU and 1.6 Mbps/150 ms: control 0.030, `make-it-yours` 0.003; with font files 1.5 s late, control 0.03–0.08 from the dek re-wrapping, `make-it-yours` 0.002). Desktop 1366 px: control 0.21–0.22 and `make-it-yours` 0.18–0.19, the Fraunces swap that reflows the title, as before this change (0.21–0.22); the variant is named before the first paint in every load. Loading the whole box with `next/dynamic` was tried and dropped: in 3 of 10 phone loads React replaced its server HTML with the empty fallback (the units context changes right after hydration), a shift of 0.095.
+
 ## Visit signals and an experiments framework (October 14, 2026)
 
 **Repository state:** in this change (branch `feat/visit-signals`, built on `fix/old-safari-crash`). **Deployed state:** not yet deployed. Until it is, PostHog receives none of the signals below.

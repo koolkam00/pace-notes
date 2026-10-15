@@ -195,7 +195,8 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .hero-goal input[aria-invalid='true'] { border-color: var(--rose); box-shadow: 0 0 0 3px rgba(226, 65, 107, .22); }
 .hero-goal .tool-field-hint { padding-left: 1.2rem; font-size: .8125rem; line-height: 1.45; color: var(--night-ink-2); }
 .hero-goal .tool-field-hint.is-error { color: #FF8FA6; }
-.hero-goal .button-accent { justify-self: start; }
+.hero-goal .button-accent { justify-self: start; text-wrap: balance; }
+@media (max-width: 400px) { .hero-goal .button-accent { padding-inline: 1rem; font-size: .875rem; } }
 .hero-doors { list-style: none; margin: 0; padding: 0; max-width: 30rem; border-bottom: 1px solid var(--night-3); }
 .hero-doors li + li { margin: 0; }
 .hero-door { display: grid; grid-template-columns: 7.2rem minmax(0, 1fr) auto; align-items: baseline; gap: .2rem 1rem; padding: .85rem .15rem; border-top: 1px solid var(--night-3); color: var(--night-ink); }

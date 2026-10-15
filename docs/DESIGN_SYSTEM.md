@@ -62,6 +62,11 @@ The fonts are self-hosted through `@fontsource-variable/*`, imported in `app/lay
 - **Feedback** (`components/PageFeedback.tsx`, styles in `app/story.css`): one quiet row, "Was this useful?" with Yes and No as small pill buttons, a mono uppercase label and a hairline above; after No a second row offers four fixed reasons, then a one-line thank-you. The chosen button is filled ink. It has no text box. It sits at the end of stories (before the pagination), tools (before More tools) and analyses (before the related tool, aligned with the analysis column on desktop).
 - **Experiments** (`components/Experiment.tsx`): wrap each version of the markup a test changes in `<Variant experiment="<key>" show="<variant>">` (`as="span"` inside a paragraph). The wrapper is `display: contents`, so it adds no box and the layout is the same as without it; give every variant the same structure and classes where you can.
   - Each tool's card and icon use its registry accent (`--tool`).
+- **Home page ways in** (`app/page.tsx`, styles in `app/story.css`; October 15, 2026):
+  - The marathon-time box (`.hero-goal`, `components/story/HeroGoal.tsx`, the `make-it-yours` version of experiment `home-hero-v1`): a gold mono label, a pill field on `--night-2` (gold focus ring, rose when the time cannot be used), a hint that turns into the message, and a `.button-accent`. It accepts what the tools' `DurationField` accepts, with the same messages, and tidies the time on leaving the field. At 400 px and narrower the button text steps down to .875rem so it stays on one line from 360 px.
+  - Ways in (`.hero-doors`): a list of rows with hairlines in `--night-3`, a serif title, a short line in `--night-ink-2` and an orange arrow that moves 3 px on hover. Beside the box on desktop, under it on phones, so the first one is on a 390×664 first screen.
+  - On the night band, `.chapter-more` (the quieter "Start the story ↓") is `--night-ink` and turns gold on hover.
+  - A home chapter ends with `.chapter-links`: its `.chapter-more` story link and, quieter, `.chapter-try` ("Try it with your race", a mono kicker over an ink-2 link with a hairline underline) to the tool or analysis that asks the chapter's question of the visitor's race.
 
 ## Rules
 
