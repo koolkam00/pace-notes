@@ -521,13 +521,17 @@ for (const file of sourceFiles('components/tools')) {
 // sent (no analytics call, no stored value), and the time leaves only as whole minutes in the analysis page's address,
 // which analytics strips. The analysis reads exactly what isAnalysisGoal accepts, so the box never sends a time it ignores.
 const heroGoal = read('components/story/HeroGoal.tsx');
-assert.ok(hasClass(heroGoal, 'hero-goal') && /<form className="hero-goal"[\s\S]*<DurationField [\s\S]*<\/form>/.test(heroGoal) && (heroGoal.match(/<form\b/g) || []).length === 1, 'HeroGoal: the time field sits inside the masked .hero-goal form');
+assert.ok(hasClass(heroGoal, 'hero-goal') && /<form className="hero-goal"[\s\S]*<input [\s\S]*<\/form>/.test(heroGoal) && (heroGoal.match(/<form\b/g) || []).length === 1, 'HeroGoal: the time field sits inside the masked .hero-goal form');
 assert.equal([...heroGoal.matchAll(/<(?:DurationField|input|textarea|select)\b/g)].length, 1, 'HeroGoal has exactly one form field');
-assert.doesNotMatch(heroGoal, /@\/lib\/analytics|track(?:Analytics|Failure|Page)\(|posthog|localStorage|sessionStorage|\bname=/, 'HeroGoal sends and stores nothing, and its field has no name a plain form submission would put in the address');
+assert.doesNotMatch(heroGoal, /track(?:Analytics|Page)\(|posthog|localStorage|sessionStorage|\bname=/, 'HeroGoal sends and stores nothing, and its field has no name a plain form submission would put in the address');
+assert.deepEqual([...heroGoal.matchAll(/trackFailure\(([^)]*)\)/g)].map(m => m[1]), ["'chunk_load'"], 'HeroGoal reports only that its time parsing failed to load');
+assert.match(heroGoal, /import\('@\/lib\/tools\/time'\)/, 'HeroGoal reads times with the tools\' parser');
 const heroPushes = [...heroGoal.matchAll(/router\.(?:push|replace)\(([^;]*)\);/g)].map(m => m[1]);
-assert.ok(heroPushes.length === 1 && /`\/analyses\/pacing-pattern\?goal=\$\{minutes\}`/.test(heroGoal) && /isAnalysisGoal\(minutes\)/.test(heroGoal), 'HeroGoal navigates once, to /analyses/pacing-pattern?goal=<whole minutes the analysis accepts>');
+assert.ok(heroPushes.length === 1 && /`\/analyses\/pacing-pattern\?goal=\$\{read\.minutes\}`/.test(heroGoal) && /isAnalysisGoal\(minutes\)/.test(heroGoal) && /from '@\/lib\/analysis-goal'/.test(heroGoal), 'HeroGoal navigates once, to /analyses/pacing-pattern?goal=<whole minutes the analysis accepts>');
+assert.match(read('lib/analysis-profile.ts'), /goal: params\.has\('goal'\) && isAnalysisGoal\(goal\)/, 'The analyses read a goal with the same rule the box checks');
 {
-  const { isAnalysisGoal, readAnalysisProfile } = require('../lib/analysis-profile.ts');
+  const { isAnalysisGoal } = require('../lib/analysis-goal.ts');
+  const { readAnalysisProfile } = require('../lib/analysis-profile.ts');
   const summary = { cities: [] };
   for (const goal of [90, 197, 240, 720]) assert.ok(isAnalysisGoal(goal) && readAnalysisProfile(`?goal=${goal}`, summary).goal === goal, `goal=${goal} is read as sent`);
   for (const goal of [89, 721, 197.5, NaN]) assert.ok(!isAnalysisGoal(goal) && readAnalysisProfile(`?goal=${goal}`, summary).goal === 240, `goal=${goal} is refused`);

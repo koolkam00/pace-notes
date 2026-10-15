@@ -1,11 +1,8 @@
-import { AGE_OPTIONS, GOAL_MIN, GOAL_MAX, type Profile } from './personalized-catalog';
+import { AGE_OPTIONS, type Profile } from './personalized-catalog';
+import { isAnalysisGoal } from './analysis-goal';
 import type { PersonalSummary } from './personalized-types';
 
 export const EXAMPLE_PROFILE: Profile = { city: 'All courses', age: 'all', gender: 'all', goal: 240, previous: null, focus: 'prepare' };
-
-export { GOAL_MIN, GOAL_MAX };
-/** Whether a `goal` (whole minutes) is one the analyses read from the address; any other value shows the 4:00 example. */
-export const isAnalysisGoal = (goal: number) => Number.isInteger(goal) && goal >= GOAL_MIN && goal <= GOAL_MAX;
 
 export function readAnalysisProfile(search: string, summary: PersonalSummary): Profile {
   const params = new URLSearchParams(search);

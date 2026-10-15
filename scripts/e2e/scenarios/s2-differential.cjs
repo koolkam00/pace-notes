@@ -142,7 +142,11 @@ const known = name => [...(KNOWN['*'] || []), ...(KNOWN[name] || [])].map(entry 
 
 async function drive(h, name, id) {
   const c = CASES[name], v = V[id], log = [];
-  const run = await h.run(id, { reducedMotion: 'reduce', ...(c.options ? c.options(v) : {}) });
+  // Both runs of a case see the same variant of each running experiment (the control, unless the case forces one), so
+  // their recordings differ only by what was typed: a tab's variant is drawn at random and named on <html>.
+  const options = c.options ? c.options(v) : {};
+  const pinned = Object.fromEntries([...h.inspect.RUNNING].map(([key, variants]) => ['pace-notes-exp:' + key, variants[0]]));
+  const run = await h.run(id, { reducedMotion: 'reduce', ...options, plant: { session: { ...pinned, ...(options.plant && options.plant.session) } } });
   const page = await run.newPage();
   await page.goto(SITE + (typeof c.path === 'function' ? c.path(v) : c.path), { waitUntil: 'load' });
   const started = await run.waitForRecording(page);
