@@ -2,7 +2,7 @@
 // S1: an ordinary visit, with client-side navigation the whole way: the home page, a story, the tools, an analysis and
 // the privacy page. Each page view is sent with its clean path and the previous page's reading figures, and each page
 // is recorded.
-const { SITE, wiggle } = require('../browser.cjs');
+const { SITE, wiggle, openMenu } = require('../browser.cjs');
 const { experimentPlant } = require('../inspect.cjs');
 
 const DESKTOP = { viewport: { width: 1280, height: 900 } };
@@ -12,6 +12,7 @@ async function browse(h, device) {
   const run = await h.run('visit', { ...device, plant: experimentPlant() });
   const page = await run.newPage();
   const click = async (selector, pathname) => {
+    if (selector.startsWith('nav.main-nav')) await openMenu(page);
     await page.locator(selector).first().scrollIntoViewIfNeeded();
     await page.locator(selector).first().click();
     await page.waitForURL(url => pathname instanceof RegExp ? pathname.test(new URL(url).pathname) : new URL(url).pathname === pathname, { timeout: 15000 });
