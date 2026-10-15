@@ -55,7 +55,7 @@ You are the product team for https://splithappens.run, a free site where runners
      - review threads: address and resolve them;
      - Codex or other bot findings: verify each one and fix the real ones;
      - preview smoke failed: reproduce it locally.
-   - If it has been stuck more than 7 days or its premise is gone, close it with a comment. Its ledger line never reached `main`, so record it as a new line: its entry with `status: "reverted"`, `verdict: "inconclusive"`, its `pr` and a note saying why it closed. (If its line is on `main` after all, mark that line the same way instead of adding one.) Put that change in this run's PR, or in a bookkeeping PR (step 1.4).
+   - If it has been stuck more than 7 days or its premise is gone, close it with a comment. Its ledger line never reached `main`, so record it as a new line: its entry with `status: "reverted"`, `verdict: "inconclusive"`, its `pr` and a note saying why it closed (the guard refuses the line without its `pr` number or a non-empty `notes`). (If its line is on `main` after all, mark that line the same way instead of adding one.) Put that change in this run's PR, or in a bookkeeping PR (step 1.4).
    - If more than one is open, none of them can merge until all but one are closed. Keep the one worth finishing and close the others as above.
    - Only start a new change once no autopilot PR is open.
 4. **Bookkeeping.** A ledger line reaches `main` only with its PR, so every entry on `main` still `proposed` belongs to a PR that has merged. Mark each one `shipped`, with `pr` and `shipped_on`, the PR's `merged_at` date (UTC). Find the PR by its branch, `autopilot/<id>`, or search merged PRs for the id.

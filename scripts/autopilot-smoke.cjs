@@ -6,11 +6,13 @@
  *   node scripts/autopilot-smoke.cjs --base https://<preview>.vercel.app --quick --expect-sha <sha> --json smoke.json
  *
  *   --quick            a fixed list of key pages instead of the whole sitemap
- *   --expect-sha <sha> fail unless <base>/version.json (scripts/write-version.cjs) names this commit. On a preview
- *                      (*.vercel.app, one address per deployment) another commit is a failure; on any other address,
- *                      where a later deploy can replace it, the run could not check this commit (exit 3 unless a
- *                      page fails too)
+ *   --expect-sha <sha> fail unless <base>/version.json (scripts/write-version.cjs) names this commit, read before the
+ *                      pages and again after them. On a preview (*.vercel.app, one address per deployment) another
+ *                      commit is a failure. On any other address (production), where a later deploy can replace it,
+ *                      another commit at either reading means the run could not check this commit: exit 3 whatever
+ *                      else failed, because what the pages showed may belong to the other commit
  *   --json <file>      write every result to <file>; stdout gets a short summary
+ *   --self-test        the exit codes and the third-party tripwire against a stand-in browser and site (no network)
  *
  * Each page opens at 390×844 (mobile); / and /tools also at 1366×900, and is scrolled to the bottom in steps (so
  * lazy images and anything loaded on scroll are requested too) and watched for at least 5 seconds from the start of
@@ -21,35 +23,31 @@
  * more. The quick list is opened again as Safari before 16.4 behaves (constructing a RegExp with lookbehind throws
  * SyntaxError), with the same checks.
  *
- * Every request is routed: the base origin is allowed, *.posthog.com is aborted and counted (expected on production,
- * never a failure; posthog-js also ignores headless browsers, so nothing reaches analytics), on *.vercel.app previews
- * Vercel's own toolbar (vercel.live) is aborted and counted the same way, and any other host is
- * aborted and fails the run (a privacy tripwire), with the host and page printed. A check whose first load failed for
- * a network reason (navigation timeout, a 5xx, a request to the site that failed or answered 500 or more) is loaded
- * once more in a fresh context and counts as failed only if that load fails too; a page error, a crash screen or a
- * missing heading with no network cause fails at once. The home page is then loaded three times at 390 px with 4× CPU
- * throttling and a 1.6 Mbps / 150 ms network to report LCP, CLS and total blocking time; only a median CLS above 0.25
- * fails (no finished lab run is a warning). sitemap.xml and version.json are fetched up to three times.
+ * Every request, in every browser context (each check, its second load and each lab run below), is routed: the base
+ * origin is allowed, *.posthog.com is aborted and counted (expected on production, never a failure; posthog-js also
+ * ignores headless browsers, so nothing reaches analytics), on *.vercel.app previews Vercel's own toolbar (vercel.live)
+ * is aborted and counted the same way, and any other host is aborted and fails the run (a privacy tripwire), with the
+ * host and page printed. A check whose first load failed for a network reason (navigation timeout, a 5xx, a request to
+ * the site that failed or answered 500 or more) is loaded once more in a fresh context and counts as failed only if
+ * that load fails too; a page error, a crash screen or a missing heading with no network cause fails at once. The
+ * home page is then loaded three times at 390 px with 4× CPU throttling and a 1.6 Mbps / 150 ms network to report
+ * LCP, CLS and total blocking time; only a median CLS above 0.25 fails (no finished lab run is a warning). sitemap.xml
+ * and version.json are fetched up to three times.
  *
- * Exit 0 when every check passes, 1 when a page or check failed, 3 when the run could not finish (the browser did not
- * start, sitemap.xml or version.json could not be read, or production already serves another commit) and nothing
- * failed: the merge workflow then tries again or reports it, rather than blaming the change.
+ * Exit 0 when every check passes, 1 when a page or check failed, 3 when the run could not finish: the browser did not
+ * start, or sitemap.xml or version.json could not be read, and nothing failed; or production served another commit
+ * before or after the pages, whatever else failed. The merge workflow then tries again or reports it, rather than
+ * blaming the change.
  *
  * Needs Playwright with Chromium (npm ci, then npx playwright install chromium) and network access. Node's fetch
  * (sitemap, version.json) does not read HTTPS_PROXY by itself; behind a proxy run with NODE_USE_ENV_PROXY=1.
  */
 'use strict';
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
-const args = process.argv.slice(2);
-const option = (name) => { const at = args.indexOf(name); return at >= 0 ? args[at + 1] : undefined; };
-const BASE_ARG = option('--base');
-const QUICK = args.includes('--quick');
-const JSON_FILE = option('--json');
-const EXPECT_SHA = option('--expect-sha');
-
 const CONCURRENCY = 4;
 const NAV_TIMEOUT_MS = 45000;
 const SETTLE_MS = 1500;
@@ -132,23 +130,35 @@ function perfInit() {
 
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /** GET with up to three attempts for network errors, 5xx and 429; any other answer is final. */
-async function fetchText(url) {
+async function fetchText(url, deps) {
   for (let attempt = 1; ; attempt += 1) {
     let retry;
     try {
-      const response = await fetch(url, { headers: { 'user-agent': 'pace-notes-autopilot-smoke/1 (+https://splithappens.run)', 'cache-control': 'no-cache' }, signal: AbortSignal.timeout(30000) });
+      const response = await deps.fetch(url, { headers: { 'user-agent': 'pace-notes-autopilot-smoke/1 (+https://splithappens.run)', 'cache-control': 'no-cache' }, signal: AbortSignal.timeout(30000) });
       if (response.ok) return await response.text();
       retry = response.status >= 500 || response.status === 429;
       if (!retry || attempt >= FETCH_ATTEMPTS) throw Object.assign(new Error(`${url} answered ${response.status}`), { final: true });
     } catch (error) {
       if (error.final || attempt >= FETCH_ATTEMPTS) throw error;
     }
-    await pause(attempt * 2000);
+    await deps.pause(attempt * 2000);
   }
 }
 
-async function sitemapPaths(base) {
-  const xml = await fetchText(`${base}/sitemap.xml`);
+/** <base>/version.json, read again while it names another commit than `expected` (an edge cache catching up): three reads at most, 10 s apart. */
+async function servedVersion(base, expected, deps) {
+  let version = null;
+  for (let attempt = 1; attempt <= FETCH_ATTEMPTS; attempt += 1) {
+    if (attempt > 1) await deps.pause(10000);
+    version = JSON.parse(await fetchText(`${base}/version.json?cb=${Date.now()}-${attempt}`, deps));
+    if (!version || typeof version !== 'object') throw new Error('is not a JSON object');
+    if (version.sha === expected) break;
+  }
+  return version;
+}
+
+async function sitemapPaths(base, deps) {
+  const xml = await fetchText(`${base}/sitemap.xml`, deps);
   const paths = [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((m) => {
     try { return new URL(m[1]).pathname.replace(/\/$/, '') || '/'; } catch { return null; }
   }).filter(Boolean);
@@ -163,9 +173,14 @@ const median = (values) => {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 };
 
-async function main() {
+async function main(argv, deps) {
+  const option = (name) => { const at = argv.indexOf(name); return at >= 0 ? argv[at + 1] : undefined; };
+  const BASE_ARG = option('--base');
+  const QUICK = argv.includes('--quick');
+  const JSON_FILE = option('--json');
+  const EXPECT_SHA = option('--expect-sha');
   if (!BASE_ARG) {
-    console.error('Usage: node scripts/autopilot-smoke.cjs --base <url> [--quick] [--json <file>] [--expect-sha <sha>]');
+    console.error('Usage: node scripts/autopilot-smoke.cjs --base <url> [--quick] [--json <file>] [--expect-sha <sha>] | --self-test');
     return 2;
   }
   const base = new URL(BASE_ARG).origin;
@@ -173,30 +188,31 @@ async function main() {
   const failures = [];
   const warnings = [];
   // infrastructure: the run could not check something (exit 3 if nothing else failed), as opposed to a page that failed.
-  const fail = (where, message, { infrastructure = false } = {}) => failures.push({ where, message, ...(infrastructure ? { infrastructure } : {}) });
+  // otherCommit: production served another commit, so nothing the run saw is about this one (exit 3 whatever else failed).
+  const fail = (where, message, { infrastructure = false, otherCommit = false } = {}) => failures.push({ where, message, ...(infrastructure ? { infrastructure } : {}), ...(otherCommit ? { otherCommit } : {}) });
   const preview = PREVIEW_HOST.test(new URL(base).hostname);
-  const report = { base, mode: QUICK ? 'quick' : 'full', startedAt: new Date(started).toISOString(), expectSha: EXPECT_SHA || null, version: null, routes: [], checks: [], perf: null, posthogRequests: 0, previewToolbarRequests: 0, thirdParty: [], failures, warnings, durationMs: 0 };
+  const report = { base, mode: QUICK ? 'quick' : 'full', startedAt: new Date(started).toISOString(), expectSha: EXPECT_SHA || null, version: null, versionAfter: null, routes: [], checks: [], perf: null, posthogRequests: 0, previewToolbarRequests: 0, thirdParty: [], failures, warnings, durationMs: 0 };
 
-  if (EXPECT_SHA) {
-    // A wrong commit is read again a few times (an edge cache catching up) before it counts. A preview's address
-    // belongs to one deployment, so another commit there is a failure. Production can move on to a later commit
-    // (another merge) between the deploy wait and this run, which says nothing about this one: could not finish.
-    for (let attempt = 1; ; attempt += 1) {
-      try {
-        const version = JSON.parse(await fetchText(`${base}/version.json?cb=${Date.now()}-${attempt}`));
-        report.version = version;
-        if (version.sha === EXPECT_SHA) break;
-        if (attempt >= FETCH_ATTEMPTS) { fail('version.json', `serves commit ${version.sha}, expected ${EXPECT_SHA}`, { infrastructure: !preview }); break; }
-      } catch (error) {
-        fail('version.json', `could not be read: ${error.message}`, { infrastructure: true });
-        break;
-      }
-      await pause(10000);
+  // A preview's address belongs to one deployment, so another commit there is a failure. Production can move on to
+  // another commit (a later merge, a deploy or rollback by hand) before the pages are checked or while they are, and
+  // then a page that fails may be the other commit's: the run could not check this one, whatever the pages showed.
+  // So version.json is read before the pages and again after them (and the lab runs).
+  let versionReadAfter = false;
+  async function checkVersion(when) {
+    const where = when ? `version.json (${when})` : 'version.json';
+    try {
+      const version = await servedVersion(base, EXPECT_SHA, deps);
+      if (version.sha !== EXPECT_SHA) fail(where, `serves commit ${version.sha}, expected ${EXPECT_SHA}`, preview ? {} : { infrastructure: true, otherCommit: true });
+      return version;
+    } catch (error) {
+      fail(where, `could not be read: ${error.message}`, { infrastructure: true });
+      return null;
     }
   }
+  if (EXPECT_SHA) report.version = await checkVersion('');
 
   let sitemap = [];
-  try { sitemap = await sitemapPaths(base); } catch (error) { fail('sitemap.xml', `could not be read: ${error.message}`, { infrastructure: true }); }
+  try { sitemap = await sitemapPaths(base, deps); } catch (error) { fail('sitemap.xml', `could not be read: ${error.message}`, { infrastructure: true }); }
   const first = (pattern) => sitemap.find((p) => pattern.test(p));
   const quick = [];
   for (const route of QUICK_ROUTES) {
@@ -216,9 +232,13 @@ async function main() {
   for (const route of [...new Set(quick)]) tasks.push({ route, device: MOBILE, oldSafari: true });
 
   const thirdParty = new Map();
-  /** Writes the JSON and the summary. Exit 1 on any failure, 3 when only problems with the run itself (infrastructure) stopped it. */
+  /**
+   * Writes the JSON and the summary. Exit 1 on any failure; 3 when only problems with the run itself (infrastructure)
+   * stopped it, or when production served another commit, whatever else failed.
+   */
   function finish() {
-    const incomplete = failures.length > 0 && failures.every((f) => f.infrastructure);
+    const otherCommit = failures.find((f) => f.otherCommit);
+    const incomplete = Boolean(otherCommit) || (failures.length > 0 && failures.every((f) => f.infrastructure));
     report.posthogRequests = report.checks.reduce((sum, c) => sum + c.posthog, 0);
     report.previewToolbarRequests = report.checks.reduce((sum, c) => sum + c.previewToolbar, 0);
     report.thirdParty = [...thirdParty].map(([host, pages]) => ({ host, pages: [...pages] }));
@@ -232,28 +252,34 @@ async function main() {
     const seconds = (ms) => `${(ms / 1000).toFixed(1)} s`;
     const m = report.perf ? report.perf.median : null;
     const labRuns = report.perf ? report.perf.runs.filter((r) => !r.error).length : 0;
+    const commit = (version) => (version ? `commit ${String(version.sha).slice(0, 12)}` : 'unreadable');
     const lines = [
       `autopilot-smoke: ${base} (${report.mode}: ${routes.length} pages, ${report.checks.length} checks, ${seconds(report.durationMs)})`,
-      EXPECT_SHA ? `version.json: ${report.version ? `commit ${String(report.version.sha).slice(0, 12)}` : 'unreadable'} (expected ${EXPECT_SHA.slice(0, 12)})` : 'version.json: not checked (no --expect-sha)',
+      EXPECT_SHA ? `version.json: ${commit(report.version)}${versionReadAfter ? ` before the pages, ${commit(report.versionAfter)} after them` : ''} (expected ${EXPECT_SHA.slice(0, 12)})` : 'version.json: not checked (no --expect-sha)',
       `Pages: ${passed} of ${report.checks.length} checks passed; old Safari: ${oldSafari.filter((c) => c.ok).length} of ${oldSafari.length}${retried.length ? `; ${retried.length} passed only on a second load: ${retried.slice(0, 5).map((c) => `${c.route} [${c.device}${c.oldSafari ? ', old Safari' : ''}] (${c.firstAttemptProblems[0]})`).join('; ')}` : ''}`,
       `PostHog requests aborted: ${report.posthogRequests}${report.posthogRequests ? ' (expected on production; never sent)' : ''}${preview ? `; Vercel preview toolbar requests aborted: ${report.previewToolbarRequests}` : ''}`,
       `Third-party requests: ${report.thirdParty.length ? report.thirdParty.map((t) => `${t.host} on ${t.pages.slice(0, 3).join(', ')}`).join('; ') : 'none'}`,
       !report.perf ? 'Home lab: not run' : m ? `Home lab (390 px, 4x CPU, 1.6 Mbps / 150 ms, median of ${labRuns}): LCP ${seconds(m.lcpMs || 0)}, CLS ${m.cls.toFixed(3)}, TBT ${Math.round(m.tbtMs)} ms` : 'Home lab: no run finished',
     ];
     for (const w of warnings) lines.push(`Warning: ${w.where}: ${w.message}`);
-    if (incomplete) {
+    const listed = failures.slice(0, 40).map((f) => `  ${f.where}: ${f.message}`);
+    if (failures.length > 40) listed.push(`  … and ${failures.length - 40} more${JSON_FILE ? ` (see ${JSON_FILE})` : ''}`);
+    if (otherCommit) {
+      const others = failures.length - 1;
+      lines.push(`COULD NOT FINISH: production is serving another commit (${otherCommit.where}: ${otherCommit.message}), so this run cannot tell whether ${EXPECT_SHA.slice(0, 12)} works${others ? `; the ${others} other problem${others === 1 ? '' : 's'} listed may be the other commit's` : ''}`);
+      lines.push(...listed);
+    } else if (incomplete) {
       lines.push(`COULD NOT FINISH: ${failures.length} problem${failures.length === 1 ? '' : 's'} with the run itself, none with the pages checked`);
       for (const f of failures) lines.push(`  ${f.where}: ${f.message}`);
     } else if (failures.length) {
-      lines.push(`FAIL: ${failures.length} problem${failures.length === 1 ? '' : 's'}`);
-      for (const f of failures.slice(0, 40)) lines.push(`  ${f.where}: ${f.message}`);
-      if (failures.length > 40) lines.push(`  … and ${failures.length - 40} more${JSON_FILE ? ` (see ${JSON_FILE})` : ''}`);
+      lines.push(`FAIL: ${failures.length} problem${failures.length === 1 ? '' : 's'}`, ...listed);
     } else lines.push('PASS');
-    console.log(lines.join('\n'));
-    if (process.env.GITHUB_STEP_SUMMARY) {
-      const summary = [`### Smoke test: ${base} (${report.mode})`, '', `**${incomplete ? 'Could not finish' : failures.length ? `Failed: ${failures.length} problem${failures.length === 1 ? '' : 's'}` : 'Passed'}**`, '', ...lines.slice(1, 6).map((l) => `- ${l}`)];
+    deps.log(lines.join('\n'));
+    if (deps.env.GITHUB_STEP_SUMMARY) {
+      const verdict = otherCommit ? 'Could not finish: production is serving another commit' : incomplete ? 'Could not finish' : failures.length ? `Failed: ${failures.length} problem${failures.length === 1 ? '' : 's'}` : 'Passed';
+      const summary = [`### Smoke test: ${base} (${report.mode})`, '', `**${verdict}**`, '', ...lines.slice(1, 6).map((l) => `- ${l}`)];
       if (failures.length) summary.push('', ...failures.slice(0, 20).map((f) => `- \`${f.where}\`: ${f.message.replace(/\|/g, '\\|')}`));
-      fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary.join('\n')}\n\n`);
+      fs.appendFileSync(deps.env.GITHUB_STEP_SUMMARY, `${summary.join('\n')}\n\n`);
     }
     return incomplete ? 3 : failures.length ? 1 : 0;
   }
@@ -261,13 +287,12 @@ async function main() {
   const headings = errorHeadings();
   report.errorHeadings = headings;
   // Behind an HTTPS proxy (a sandbox), route the browser through it too, except for a site on this machine.
-  const proxyServer = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(base).hostname) ? null : process.env.HTTPS_PROXY || process.env.https_proxy;
+  const proxyServer = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(base).hostname) ? null : deps.env.HTTPS_PROXY || deps.env.https_proxy;
   let browser;
   try {
-    const { chromium } = loadPlaywright();
-    browser = await chromium.launch({
+    browser = await deps.launch({
       headless: true,
-      ...(process.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : {}),
+      ...(deps.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: deps.env.PLAYWRIGHT_CHROMIUM_PATH } : {}),
       ...(proxyServer ? { proxy: { server: proxyServer } } : {}),
     });
   } catch (error) {
@@ -397,10 +422,11 @@ async function main() {
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, tasks.length) }, worker));
   report.checks.sort((a, b) => tasks.findIndex((t) => t.route === a.route && t.device.name === a.device && t.oldSafari === a.oldSafari) - tasks.findIndex((t) => t.route === b.route && t.device.name === b.device && t.oldSafari === b.oldSafari));
 
-  // Home page lab performance, one load at a time.
+  // Home page lab performance, one load at a time. Its requests go through the same tripwire as a check's: another host fails the run.
   const runs = [];
+  const labThirdParty = new Set();
   for (let i = 0; i < PERF_RUNS; i += 1) {
-    const { context } = await newContext(MOBILE, '/ (performance)');
+    const { context, seen } = await newContext(MOBILE, '/ (performance)');
     await context.addInitScript(perfInit);
     const page = await context.newPage();
     try {
@@ -422,8 +448,10 @@ async function main() {
       runs.push({ error: String(error.message).split('\n')[0] });
     }
     await context.close();
+    for (const host of seen.thirdParty) labThirdParty.add(host);
   }
   await browser.close();
+  for (const host of labThirdParty) fail('/ (performance)', `request to third-party host ${host} (aborted)`);
   const good = runs.filter((r) => !r.error);
   report.perf = {
     page: '/', viewport: '390x844', cpuThrottling: 4, network: '1.6 Mbps down, 750 kbps up, 150 ms RTT', runs,
@@ -431,7 +459,177 @@ async function main() {
   };
   if (!good.length) warnings.push({ where: '/ (performance)', message: `no lab run finished (reported, not a failure): ${runs.map((r) => r.error).join('; ')}` });
   else if (report.perf.median.cls > CLS_LIMIT) fail('/ (performance)', `median CLS ${report.perf.median.cls.toFixed(3)} is above ${CLS_LIMIT}`);
+  // Read again unless the first reading already named another commit: production may have moved on during the run.
+  if (EXPECT_SHA && !(report.version && report.version.sha !== EXPECT_SHA)) {
+    report.versionAfter = await checkVersion('after the pages');
+    versionReadAfter = true;
+  }
   return finish();
 }
 
-main().then((code) => { process.exitCode = code; }, (error) => { console.error(`autopilot-smoke: ${error.stack || error.message}`); process.exitCode = 3; });
+// ---------- Self-test ----------
+
+const SELF_TEST_SITEMAP = ['/', '/stories/final-kick', '/tools', '/tools/pace-band', '/courses/amsterdam', '/about'];
+
+/**
+ * The site and Chromium, stood in for: just enough of fetch and of Playwright's API for main(). Every page answers
+ * 200 with a visible heading unless site.pages says otherwise ({ h1: null } is a page that fails on its own). A page
+ * asks for its `requests` as it loads, and each lab run for site.lab; they go through the context's route handler as
+ * a real browser's requests do. version.json answers site.versions in turn (the last one from then on; null is a 503).
+ */
+function standIn(site) {
+  const reads = { version: 0 };
+  const fetchStub = async (url) => {
+    const { origin, pathname } = new URL(url);
+    if (pathname === '/sitemap.xml') return new Response(`<urlset>${SELF_TEST_SITEMAP.map((p) => `<url><loc>${origin}${p}</loc></url>`).join('')}</urlset>`);
+    if (pathname !== '/version.json') return new Response('not found', { status: 404 });
+    const sha = site.versions[Math.min(reads.version, site.versions.length - 1)];
+    reads.version += 1;
+    return sha === null ? new Response('unavailable', { status: 503 }) : new Response(JSON.stringify({ sha }));
+  };
+  const browser = {
+    async close() {},
+    async newContext() {
+      let handler = null;
+      const scripts = [];
+      return {
+        async route(pattern, fn) { handler = fn; },
+        async addInitScript(fn) { scripts.push(fn); },
+        async newCDPSession() { return { send: async () => {} }; },
+        async close() {},
+        async newPage() {
+          let shown = {};
+          return {
+            on() {},
+            async goto(url) {
+              shown = (site.pages || {})[new URL(url).pathname] || {};
+              const requests = scripts.includes(perfInit) ? site.lab || [] : shown.requests || [];
+              for (const request of [url, ...requests]) await handler({ request: () => ({ url: () => request }), continue: async () => {}, abort: async () => {} });
+              return { status: () => 200 };
+            },
+            async waitForLoadState() {},
+            async waitForTimeout() {},
+            // main() reads a page three ways: the scroll (a step count), its state (the error headings) and the lab readout.
+            async evaluate(fn, arg) {
+              if (typeof arg === 'number') return undefined;
+              if (arg && arg.headings) return { crashed: false, errorHeading: null, errorBoundary: false, h1: 'h1' in shown ? shown.h1 : 'A heading', lookbehind: 0 };
+              return { lcp: 1200, cls: 0.01, tbt: 80, fcp: 800, longTasks: 1 };
+            },
+            locator() { return { first: () => ({ isVisible: async () => true }) }; },
+          };
+        },
+      };
+    },
+  };
+  return { reads, deps: { env: {}, fetch: fetchStub, pause: async () => {}, launch: async () => browser, log: () => {} } };
+}
+
+async function selfTest() {
+  const failures = [];
+  let checks = 0;
+  const ok = (label, condition, detail = '') => { checks += 1; if (!condition) failures.push(`${label}${detail ? `: ${detail}` : ''}`); };
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'autopilot-smoke-'));
+  const THIS = 'a'.repeat(40);
+  const OTHER = 'b'.repeat(40);
+  const PRODUCTION = 'https://splithappens.run';
+  const PREVIEW = 'https://pace-notes-git-autopilot-koolkam00s-projects.vercel.app';
+  const brokenPage = { '/tools': { h1: null } };
+  let runs = 0;
+  /** One run of main() against the stand-in: its exit code, printed summary, JSON report and step summary. */
+  const run = async (site, { base = PRODUCTION, expect = THIS } = {}) => {
+    runs += 1;
+    const json = path.join(tmp, `run-${runs}.json`);
+    const stepSummary = path.join(tmp, `summary-${runs}.md`);
+    const { reads, deps } = standIn({ versions: [THIS], ...site });
+    const logs = [];
+    deps.log = (text) => logs.push(text);
+    deps.env = { GITHUB_STEP_SUMMARY: stepSummary };
+    const code = await main(['--base', base, '--quick', '--json', json, ...(expect ? ['--expect-sha', expect] : [])], deps);
+    const read = (file) => { try { return fs.readFileSync(file, 'utf8'); } catch { return ''; } };
+    return { code, out: logs.join('\n'), report: JSON.parse(read(json) || '{}'), summary: read(stepSummary), reads };
+  };
+  const failed = (r, where, text) => r.report.failures.some((f) => f.where === where && f.message.includes(text));
+  const MOVED = 'COULD NOT FINISH: production is serving another commit';
+
+  try {
+    // version.json on production: another commit at either reading dominates (exit 3), whatever the pages showed.
+    let r = await run({});
+    ok('production: this commit before and after, every page passes: exit 0', r.code === 0 && r.out.includes('\nPASS'), `exit ${r.code}`);
+    ok('production: version.json is read before and after the pages', r.reads.version === 2 && r.out.includes(`version.json: commit ${THIS.slice(0, 12)} before the pages, commit ${THIS.slice(0, 12)} after them`), `${r.reads.version} reads`);
+    r = await run({ pages: brokenPage });
+    ok('production: this commit before and after, a page fails: exit 1', r.code === 1 && r.out.includes('\nFAIL: ') && failed(r, '/tools [mobile]', 'no <h1>'), `exit ${r.code}`);
+    r = await run({ versions: [OTHER], pages: brokenPage });
+    ok('production: another commit before the pages, a page fails too: exit 3', r.code === 3, `exit ${r.code}`);
+    ok('production: another commit before the pages is said so, with the page failure still listed', r.out.includes(MOVED) && r.out.includes(`version.json: serves commit ${OTHER}, expected ${THIS}`) && r.out.includes('/tools [mobile]: no <h1>') && r.out.includes("the 3 other problems listed may be the other commit's"), r.out.split('\n').slice(-5).join(' | '));
+    ok('production: another commit before the pages is read three times, and not again after them', r.reads.version === 3, `${r.reads.version} reads`);
+    ok('production: another commit is marked in the JSON report', r.report.ok === false && r.report.failures.some((f) => f.where === 'version.json' && f.otherCommit === true && f.infrastructure === true), JSON.stringify(r.report.failures[0]));
+    ok('production: the step summary says production is serving another commit', r.summary.includes('**Could not finish: production is serving another commit**'), r.summary.split('\n')[2]);
+    r = await run({ versions: [THIS, OTHER] });
+    ok('production: this commit before the pages, another after them: exit 3', r.code === 3 && r.out.includes(MOVED) && failed(r, 'version.json (after the pages)', `serves commit ${OTHER}`), `exit ${r.code}`);
+    ok('production: another commit after the pages is read three times first', r.reads.version === 4 && r.out.includes(`before the pages, commit ${OTHER.slice(0, 12)} after them`), `${r.reads.version} reads`);
+    r = await run({ versions: [THIS, OTHER], pages: brokenPage });
+    ok('production: this commit before the pages, another after them, a page fails too: exit 3', r.code === 3 && r.out.includes(MOVED) && r.out.includes('/tools [mobile]: no <h1>'), `exit ${r.code}`);
+    r = await run({ versions: [OTHER, THIS] });
+    ok('production: an edge cache that catches up on a second reading is this commit', r.code === 0 && r.reads.version === 3, `exit ${r.code}, ${r.reads.version} reads`);
+    // An unreadable version.json says nothing about which commit is served: could not finish, unless a page failed.
+    r = await run({ versions: [null] });
+    ok('production: version.json unreadable and nothing else wrong: exit 3', r.code === 3 && failed(r, 'version.json', 'could not be read') && !r.out.includes(MOVED), `exit ${r.code}`);
+    r = await run({ versions: [null], pages: brokenPage });
+    ok('production: version.json unreadable and a page fails: exit 1', r.code === 1, `exit ${r.code}`);
+    r = await run({ pages: brokenPage }, { expect: null });
+    ok('without --expect-sha version.json is never read', r.code === 1 && r.reads.version === 0 && r.out.includes('version.json: not checked'), `exit ${r.code}, ${r.reads.version} reads`);
+
+    // On a preview, whose address is one deployment, another commit is the change's own failure.
+    r = await run({ versions: [OTHER] }, { base: PREVIEW });
+    ok('preview: another commit and every page passes: exit 1', r.code === 1 && r.out.includes('\nFAIL: 1 problem') && failed(r, 'version.json', `serves commit ${OTHER}`) && !r.report.failures.some((f) => f.infrastructure || f.otherCommit), `exit ${r.code}`);
+    r = await run({ versions: [OTHER], pages: brokenPage }, { base: PREVIEW });
+    ok('preview: another commit and a page fails: exit 1', r.code === 1 && !r.out.includes('COULD NOT FINISH'), `exit ${r.code}`);
+    r = await run({ versions: [THIS, OTHER] }, { base: PREVIEW });
+    ok('preview: another commit after the pages: exit 1', r.code === 1 && failed(r, 'version.json (after the pages)', `serves commit ${OTHER}`), `exit ${r.code}`);
+
+    // The third-party tripwire, in the checks and in the lab runs alike.
+    const tag = 'https://cdn.example.com/pixel.gif';
+    r = await run({ lab: [tag] });
+    ok('a third-party request seen only in the lab runs fails the run: exit 1', r.code === 1 && r.report.checks.every((c) => c.ok), `exit ${r.code}`);
+    ok('the lab-only request names its host and page, once for the three runs', r.report.failures.filter((f) => f.where === '/ (performance)').length === 1 && failed(r, '/ (performance)', 'request to third-party host cdn.example.com (aborted)') && r.out.includes('Third-party requests: cdn.example.com on / (performance)'), r.out.split('\n').slice(-3).join(' | '));
+    r = await run({ pages: { '/about': { requests: [tag] } } });
+    ok('a third-party request in a page check fails the run: exit 1', r.code === 1 && failed(r, '/about [mobile]', 'request to third-party host cdn.example.com (aborted)'), `exit ${r.code}`);
+    r = await run({ lab: ['https://us.i.posthog.com/e/', 'https://us-assets.i.posthog.com/static/array.js'], pages: { '/': { requests: ['https://us.i.posthog.com/flags/'] } } });
+    ok('PostHog requests in checks and lab runs are counted, never a failure', r.code === 0 && r.report.posthogRequests > 0 && r.report.thirdParty.length === 0, `exit ${r.code}`);
+    const toolbar = 'https://vercel.live/_next-live/feedback/feedback.js';
+    r = await run({ lab: [toolbar], pages: { '/tools': { requests: [toolbar] } } }, { base: PREVIEW });
+    ok("preview: Vercel's toolbar in checks and lab runs is counted, never a failure", r.code === 0 && r.report.previewToolbarRequests > 0 && r.report.thirdParty.length === 0, `exit ${r.code}`);
+    r = await run({ lab: [toolbar] });
+    ok("production: Vercel's toolbar in a lab run is a third-party request", r.code === 1 && failed(r, '/ (performance)', 'request to third-party host vercel.live (aborted)'), `exit ${r.code}`);
+    r = await run({ versions: [THIS, OTHER], lab: [tag] });
+    ok('production: another commit after the pages still dominates a lab third-party request: exit 3', r.code === 3 && failed(r, '/ (performance)', 'cdn.example.com'), `exit ${r.code}`);
+  } catch (error) {
+    failures.push(`threw ${error.stack || error.message}`);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+  if (failures.length) {
+    console.error(`autopilot-smoke self-test: ${failures.length} of ${checks} checks failed`);
+    for (const failure of failures) console.error(`  ${failure}`);
+    return 1;
+  }
+  console.log(`autopilot-smoke self-test: ${checks} checks passed (version.json before and after the pages on production and on a preview, exit codes, the third-party tripwire in checks and lab runs; a stand-in browser, no network)`);
+  return 0;
+}
+
+// ---------- Wiring ----------
+
+function realDeps() {
+  return {
+    env: process.env,
+    fetch: (url, init) => globalThis.fetch(url, init),
+    pause,
+    launch: (options) => loadPlaywright().chromium.launch(options),
+    log: (text) => console.log(text),
+  };
+}
+
+if (require.main === module) {
+  const argv = process.argv.slice(2);
+  (argv.includes('--self-test') ? selfTest() : main(argv, realDeps())).then((code) => { process.exitCode = code; }, (error) => { console.error(`autopilot-smoke: ${error.stack || error.message}`); process.exitCode = 3; });
+}

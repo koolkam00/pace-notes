@@ -470,7 +470,7 @@ function metricProblems(value, names) {
  * A new entry is pre-registered: proposed, with no verdict, no result and no shipped_on (it is marked shipped once its
  * pull request has merged), with the branch's id, dated within two days of the branch, naming this pull request or none.
  * The one exception is the record of an earlier change whose pull request closed without merging: status reverted, verdict null or
- * inconclusive, any earlier date, and that pull request's number.
+ * inconclusive, any earlier date and id, and its provenance: that pull request's number and a note saying why it closed.
  */
 function newEntryProblems(value, { branchDate, branchId, pr }) {
   const problems = [];
@@ -480,7 +480,10 @@ function newEntryProblems(value, { branchDate, branchId, pr }) {
   if (value.result !== null && value.result !== undefined) problems.push('a new entry starts with "result": null; the result is written when it is evaluated');
   if (value.shipped_on !== null && value.shipped_on !== undefined) problems.push('a new entry has no "shipped_on"; it is set once its pull request has merged');
   if (recordOfClosed) {
-    if (![null, undefined, 'inconclusive'].includes(value.verdict)) problems.push('a new "reverted" entry (the record of a pull request that closed unmerged) has "verdict" null or "inconclusive"');
+    const record = 'a new "reverted" entry (the record of a pull request that closed unmerged)';
+    if (![null, undefined, 'inconclusive'].includes(value.verdict)) problems.push(`${record} has "verdict" null or "inconclusive"`);
+    if (!(Number.isInteger(value.pr) && value.pr > 0)) problems.push(`${record} requires "pr", the number of the pull request that closed`);
+    if (!(typeof value.notes === 'string' && value.notes.trim())) problems.push(`${record} requires "notes" saying why it closed`);
   } else if (value.verdict !== null && value.verdict !== undefined) problems.push('a new entry starts with "verdict": null; the verdict is written when it is evaluated');
   if (branchDate && validDate(value.date)) {
     const days = (Date.parse(value.date) - Date.parse(branchDate)) / 86400000;
@@ -1189,8 +1192,10 @@ function selfTest() {
     ledgerCase('experiment duration exceeds 42 days', proposal({ ...EXPERIMENT, max_days: 43 }), ['ledger'], { messages: ['"max_days" to be an integer from 1 to 42'] });
     ledgerCase('experiment cannot substitute evaluate_after for stopping rules', proposal({ ...EXPERIMENT, min_sample: undefined, max_days: undefined }), ['ledger'], { messages: ['requires "min_sample"', 'requires "max_days"'] });
     ledgerCase('change may leave duration null', proposal({ min_sample: 150, max_days: null }), []);
-    ledgerCase('closed-unmerged experiment keeps valid stopping rules', entry('2026-09-20-stuck', { ...EXPERIMENT, status: 'reverted', verdict: 'inconclusive', pr: 55 }), [], { pr: 61 });
-    ledgerCase('closed-unmerged exception does not waive experiment stopping rules', entry('2026-09-20-stuck', { kind: 'experiment', status: 'reverted', verdict: 'inconclusive', pr: 55 }), ['ledger'], { pr: 61, messages: ['requires "min_sample"', 'requires "max_days"'] });
+    // The record of a pull request that closed unmerged (skill step 1.3): reverted, verdict inconclusive or null, its pr and why it closed.
+    const CLOSED = { status: 'reverted', verdict: 'inconclusive', pr: 55, notes: 'Closed unmerged after 7 days; its premise is gone.' };
+    ledgerCase('closed-unmerged experiment keeps valid stopping rules', entry('2026-09-20-stuck', { ...EXPERIMENT, ...CLOSED }), [], { pr: 61 });
+    ledgerCase('closed-unmerged exception does not waive experiment stopping rules', entry('2026-09-20-stuck', { kind: 'experiment', ...CLOSED }), ['ledger'], { pr: 61, messages: ['requires "min_sample"', 'requires "max_days"'] });
     // Ledger: a new entry's metrics are names the base's autopilot/metrics.md §1 table defines, exactly.
     ledgerCase('registered primary metric and guardrails', proposal({ guardrails: ['one_page_no_action_rate@v1', 'error_visit_rate@v1'] }), []);
     for (const [label, name] of [['empty', ''], ['invented', 'engagement_score@v1'], ['unversioned', 'answered_visit_rate'], ['another version', 'answered_visit_rate@v2'], ['in capitals', 'Answered_visit_rate@v1'], ['with its backticks', '`answered_visit_rate@v1`'], ['with a space', 'answered_visit_rate@v1 '], ['only mentioned above the table', 'engaged_visit_rate@v1'], ['only mentioned in §1 prose', 'tool_used@v1'], ['in a table outside §1', 'bounce_rate@v1']]) {
@@ -1205,7 +1210,7 @@ function selfTest() {
       ledgerCase(`a ${kind} with no guardrail`, proposal({ kind, evaluate_after: null, guardrails: [] }), []);
       ledgerCase(`a ${kind} with an invented guardrail`, proposal({ kind, evaluate_after: null, guardrails: ['bounce'] }), ['ledger'], { messages: ['"guardrails" "bounce" is not a metric'] });
     }
-    ledgerCase('a closed-unmerged record is a new entry too', entry('2026-09-20-stuck', { status: 'reverted', verdict: 'inconclusive', pr: 55, primary_metric: 'engaged_visit_rate' }), ['ledger'], { pr: 61, messages: ['"primary_metric" "engaged_visit_rate" is not a metric'] });
+    ledgerCase('a closed-unmerged record is a new entry too', entry('2026-09-20-stuck', { ...CLOSED, primary_metric: 'engaged_visit_rate' }), ['ledger'], { pr: 61, messages: ['"primary_metric" "engaged_visit_rate" is not a metric'] });
     // Ledger: each new proposal belongs to this branch, including ledger-only proposals.
     for (const kind of LEDGER_KINDS) {
       const fields = { ...(kind === 'experiment' ? EXPERIMENT : {}), kind };
@@ -1229,16 +1234,24 @@ function selfTest() {
     ledgerCase('new entry dated the day before the branch', proposal({ date: '2026-10-13' }), []);
     ledgerCase('new entry naming another pull request', proposal({ pr: 12 }), ['ledger'], { pr: 61 });
     ledgerCase('new entry naming this pull request', proposal({ pr: 61 }), [], { pr: 61 });
-    ledgerCase('record of a pull request that closed unmerged', entry('2026-09-20-stuck', { status: 'reverted', verdict: 'inconclusive', pr: 55, notes: 'Closed after 7 days.' }), [], { pr: 61 });
-    ledgerCase('closed-unmerged record may have a null verdict', entry('2026-09-20-stuck', { status: 'reverted', verdict: null, pr: 55 }), [], { pr: 61 });
-    ledgerCase('record of a closed pull request with verdict revert', entry('2026-09-20-stuck', { status: 'reverted', verdict: 'revert', pr: 55 }), ['ledger'], { pr: 61 });
-    const closed = (id = '2026-09-20-stuck') => entry(id, { status: 'reverted', verdict: 'inconclusive', pr: 55 });
+    ledgerCase('record of a pull request that closed unmerged', entry('2026-09-20-stuck', CLOSED), [], { pr: 61 });
+    ledgerCase('closed-unmerged record may have a null verdict', entry('2026-09-20-stuck', { ...CLOSED, verdict: null }), [], { pr: 61 });
+    ledgerCase('record of a closed pull request with verdict revert', entry('2026-09-20-stuck', { ...CLOSED, verdict: 'revert' }), ['ledger'], { pr: 61, messages: ['has "verdict" null or "inconclusive"'] });
+    // Its provenance is required: the pull request that closed, and a note saying why. Its other exceptions stay.
+    for (const [label, value] of [['missing', undefined], ['null', null], ['zero', 0], ['negative', -55], ['a fraction', 5.5], ['a string', '55'], ['a URL', 'https://github.com/koolkam00/pace-notes/pull/55']]) {
+      ledgerCase(`closed-unmerged record with pr ${label}`, entry('2026-09-20-stuck', { ...CLOSED, pr: value }), ['ledger'], { pr: 61, messages: ['requires "pr", the number of the pull request that closed'], absent: ['requires "notes"', '"id" must be', '"date"'] });
+    }
+    for (const [label, value] of [['missing', undefined], ['null', null], ['empty', ''], ['blank', '   '], ['a number', 7], ['a list', ['Closed.']]]) {
+      ledgerCase(`closed-unmerged record with notes ${label}`, entry('2026-09-20-stuck', { ...CLOSED, notes: value }), ['ledger'], { pr: 61, messages: ['requires "notes" saying why it closed'], absent: ['requires "pr"', '"id" must be', '"date"'] });
+    }
+    ledgerCase('closed-unmerged record with neither pr nor notes', entry('2026-09-20-stuck', { ...CLOSED, pr: null, notes: undefined }), ['ledger'], { pr: 61, messages: ['requires "pr"', 'requires "notes" saying why it closed'] });
+    const closed = (id = '2026-09-20-stuck') => entry(id, CLOSED);
     for (const id of ['2026-09-20-stuck', CHANGE_ID]) {
       expect(`a closed-unmerged record (${id}) cannot register a site change`, { ledger: false, setup: () => { fs.appendFileSync(path.join(dir, LEDGER), `${closed(id)}\n`); write('components/Card.tsx', 'export const y = 2;\n'); }, rules: ['ledger'], messages: ['a closed-unmerged record does not pre-register a site change'] });
     }
     expect('a site change and a closed-unmerged record with its own proposal', { setup: () => { fs.appendFileSync(path.join(dir, LEDGER), `${closed()}\n`); write('components/Card.tsx', 'export const y = 2;\n'); } });
-    expect('ten new ledger lines', { ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), Array.from({ length: 10 }, (_, i) => `${entry(`2026-10-14-bulk-${i}`, { status: 'reverted', verdict: 'inconclusive', pr: 40 + i })}\n`).join('')) });
-    expect('eleven new ledger lines', { ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), Array.from({ length: 11 }, (_, i) => `${entry(`2026-10-14-bulk-${i}`, { status: 'reverted', verdict: 'inconclusive', pr: 40 + i })}\n`).join('')), rules: ['ledger'], messages: ['adds 11 lines'] });
+    expect('ten new ledger lines', { ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), Array.from({ length: 10 }, (_, i) => `${entry(`2026-10-14-bulk-${i}`, { ...CLOSED, pr: 40 + i })}\n`).join('')) });
+    expect('eleven new ledger lines', { ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), Array.from({ length: 11 }, (_, i) => `${entry(`2026-10-14-bulk-${i}`, { ...CLOSED, pr: 40 + i })}\n`).join('')), rules: ['ledger'], messages: ['adds 11 lines'] });
     // Ledger: existing entries
     expect('existing ledger line removed', { ledger: false, setup: () => write(LEDGER, `${proposal()}\n`), rules: ['ledger'] });
     expect('existing ledger line moved', { ledger: false, setup: () => write(LEDGER, `${proposal()}\n${BASE_LEDGER}`), rules: ['ledger'], messages: ['moved from line 1'] });

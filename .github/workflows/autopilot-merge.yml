@@ -275,7 +275,8 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
 
-      # Exit codes: 0 passed, 1 a page or check failed (the merge is reverted), 3 could not finish (reported, no revert).
+      # Exit codes: 0 passed, 1 a page or check failed (the merge is reverted), 3 could not finish, including production
+      # serving another commit before or after the pages, whatever else failed (reported, no revert).
       - name: Smoke-test every sitemap page and check search metadata on production
         id: checks
         shell: bash
