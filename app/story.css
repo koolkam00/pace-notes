@@ -164,7 +164,7 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .hero-replay-bar .segmented button { white-space: nowrap; }
 .hero-replay .replay { margin-top: .8rem; }
 .hero-replay-note { margin-top: .7rem; font-size: .8125rem; line-height: 1.5; color: var(--night-ink-2); max-width: 46rem; }
-.replay-loading { display: grid; place-items: center; min-height: 420px; color: var(--night-ink-2); font-family: var(--mono); font-size: .8125rem; }
+.replay-loading { display: grid; place-items: center; padding: 1rem; border-radius: 12px; color: var(--night-ink-2); font-family: var(--mono); font-size: .8125rem; text-align: center; }
 .hero-bibs { margin-top: clamp(2.2rem, 5vw, 3.5rem); }
 .hero-lane { margin-top: 1.5rem; }
 .runner-lane { width: 100%; overflow: hidden; }

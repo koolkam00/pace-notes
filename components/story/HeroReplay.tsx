@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import RaceReplay, { type ReplayEdition } from '@/components/viz/RaceReplay';
 import { loadInsight, type ReplayRows } from '@/lib/insights';
 import type { ReplayChoice } from '@/lib/insights-server';
@@ -13,6 +13,9 @@ export default function HeroReplay({ choices, initial }: { choices: ReplayChoice
   const [edition, setEdition] = useState<ReplayEdition | null>(null);
   const [error, setError] = useState('');
   const choice = choices.find((c) => c.slug === slug) ?? choices[0];
+  // Until the rows arrive the replay is drawn empty at its full size, so the page below it does not move when they do.
+  const waiting = useMemo<ReplayEdition>(() => ({ city: choice.city, year: choice.year, finishes: choice.finishes, sample: choice.sample, rows: [], route: choice.route }), [choice]);
+  const loaded = edition && edition.city === choice.city && edition.year === choice.year ? edition : null;
 
   useEffect(() => {
     let live = true;
@@ -40,13 +43,10 @@ export default function HeroReplay({ choices, initial }: { choices: ReplayChoice
           </div>
         ) : null}
       </div>
-      {edition && edition.city === choice.city && edition.year === choice.year ? (
-        <RaceReplay key={choice.slug + variant} edition={edition} variant={variant} height={variant === 'route' ? 520 : 420} />
-      ) : (
-        <div className="replay replay-loading" aria-busy={!error}>
-          <p>{error || `Loading ${choice.sample.toLocaleString('en-US')} finishes from ${choice.city} ${choice.year}…`}</p>
-        </div>
-      )}
+      <RaceReplay
+        key={choice.slug + variant} edition={loaded ?? waiting} variant={variant} height={variant === 'route' ? 520 : 420}
+        status={loaded ? undefined : { message: error || `Loading ${choice.sample.toLocaleString('en-US')} finishes from ${choice.city} ${choice.year}…`, loading: !error }}
+      />
       <p className="hero-replay-note">
         A sample of {choice.sample.toLocaleString('en-US')} of the {choice.finishes.toLocaleString('en-US')} eligible finishes, spaced evenly by finish time.
         Everyone starts together on the race clock because wave and start offsets are not recorded.
