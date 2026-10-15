@@ -170,7 +170,8 @@ Priority:
    Move the backlog item to "In flight" and link it.
 4. **Verify. All of these are required:**
    - Commit first: the guard checks commits, not the working tree, and fails while tracked files have uncommitted changes.
-   - `npm run autopilot:check`, which runs the data, analytics, older-browser, build, SEO, autopilot self-test, browser privacy (`autopilot:privacy`, the same tests as CI's `privacy-e2e` check, which the merge gate requires) and guard checks. It must pass in full; fix the cause of any failure, never the check.
+   - `npm run autopilot:quick`: the guard first (it fails in under a second on a protected path, a forbidden pattern or a ledger mistake), then the analytics, older-browser, build, SEO and autopilot self-test checks, about 6 minutes. It must pass in full before you push; fix the cause of any failure, never the check.
+   - Then push the branch and open the draft PR at once (§6 steps 1–3), so CI runs the two slow suites while you do the rest of this step and step 5: `verify:data` (CI's `verify` check) and the browser privacy tests (`privacy-e2e`), both required by the merge gate. Push fixes as new commits. To reproduce a CI failure locally, run the command that failed, or `npm run autopilot:check` (everything, about 25 minutes).
    - Screenshots before and after of every changed page at 390×844 and 1366×900, plus any experiment variant (set its `sessionStorage` key `pace-notes-exp:<key>` with a Playwright init script). Look at them. Check spacing, wrapping, contrast, focus states and the first phone screen.
    - Keyboard navigation and visible focus on anything interactive you added. Respect reduced motion.
    - Copy: read every new sentence against the constitution's §2 and §3.
@@ -187,7 +188,7 @@ Priority:
    - If the change added a page, reverting it deletes that page, which only the owner may do: open an `autopilot:needs-owner` issue instead.
 
 ## 6. Ship
-1. Push the branch: `git push -u origin <branch>`.
+1. Push the branch: `git push -u origin <branch>`, as soon as `npm run autopilot:quick` passes (step 5.4).
 2. Open the PR, but never a second autopilot PR while one is open (step 1.3). While two are open, the merge workflow merges neither of them. A PR counts as an autopilot PR if its branch starts with `autopilot/`, with or without the label, or if it has the `autopilot` label. It starts as a draft per the session rules. Title it "Autopilot: <what changes, in plain words>". The body contains:
    - **Why:** the evidence, as aggregates with n;
    - **What changed:** short;
@@ -198,7 +199,7 @@ Priority:
 
    End with the attribution lines the session requires.
 3. Add the `autopilot` label and subscribe to PR activity.
-4. When CI is green on the latest commit, mark the PR ready for review. The "Autopilot merge" workflow then merges it once every gate passes, at least 15 minutes after it is ready. It smoke-tests the Vercel preview first, then deploys and checks the live site. If the live checks fail, it reverts automatically and opens an incident.
+4. When CI is green on the latest commit and steps 5.4 and 5.5 are done, with every real finding fixed, mark the PR ready for review. The "Autopilot merge" workflow then merges it once every gate passes, at least 15 minutes after it is ready. It smoke-tests the Vercel preview first, then deploys and checks the live site. If the live checks fail, it reverts automatically and opens an incident.
 5. Drive the PR to green under the session's PR rules:
    - fix red CI;
    - answer and resolve review comments, including the Codex bot's after you verify them;

@@ -47,7 +47,7 @@ The autopilot exists to make https://splithappens.run more useful to the runners
 4. Never edit protected paths (§6). Never skip, weaken, disable or delete a test, verifier or check, or change how one runs.
 5. Never push to `main`. Never force-push, rewrite history or delete branches you did not create.
 6. Every pull request must pass these before it is marked ready:
-   - `npm run autopilot:check`;
+   - `npm run autopilot:quick`, and CI's full checks on its latest commit (`verify` and `privacy-e2e`, the same suites as `npm run autopilot:check`);
    - a visual check of the changed pages at 390 px and 1366 px;
    - an independent adversarial review against this constitution, when subagents are available.
 7. Run at most two experiments at the same time, never two on the same part of the same page. Every experiment has a minimum sample and a maximum duration set before it starts.
