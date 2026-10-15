@@ -177,6 +177,8 @@ const PROSE_RE = compile(PROSE);
 const matching = (list, file) => (list.find(([, re]) => re.test(file)) || [])[0] || null;
 /** Why a path is off limits ("lib/analytics.* is protected"), or null. */
 function protectedBy(file) {
+  // The guard inspects this exact data module; alternate extensions/directory indexes can shadow it.
+  if (file !== 'lib/experiments.ts' && /^lib\/experiments(?:[./]|$)/.test(file)) return 'experiment registry aliases are protected; use only lib/experiments.ts';
   const glob = matching(PROTECTED_RE, file);
   if (glob) return `${glob} is protected`;
   if (file.split('/').some((segment) => segment.startsWith('.'))) return 'dotfiles are protected';
@@ -420,6 +422,11 @@ function ledgerEntryProblems(value) {
   if (has('verdict') && !(value.verdict === null || LEDGER_VERDICTS.includes(value.verdict))) problems.push(`"verdict" must be null or one of ${LEDGER_VERDICTS.join(', ')}`);
   if (has('result') && !(value.result === null || isObject(value.result))) problems.push('"result" must be null or an object');
   for (const key of ['evaluated_on', 'shipped_on']) if (has(key) && !(value[key] === null || validDate(value[key]))) problems.push(`"${key}" must be null or a YYYY-MM-DD date`);
+  // A concluded entry leaves the evaluation queue, so its shipping record and outcome must be complete.
+  // Reverted entries retain their separate automatic-rollback and closed-unmerged exceptions.
+  const stateRequired = ['shipped', 'concluded'].includes(value.status) ? ['pr', 'shipped_on'] : [];
+  if (value.status === 'concluded') stateRequired.push('verdict', 'result', 'evaluated_on');
+  for (const key of stateRequired) if (value[key] === undefined || value[key] === null) problems.push(`"${value.status}" entry requires non-null "${key}"`);
   return problems;
 }
 
@@ -518,6 +525,135 @@ function checkLedger(baseText, headText, { violations, warnings, branchDate, bra
       if (ids.has(entry.value.id)) v(entry.number, `id "${entry.value.id}" is already used on line ${ids.get(entry.value.id)}`);
       else ids.set(entry.value.id, entry.number);
     }
+  }
+}
+
+// ---------- Experiment occupancy ----------
+
+const EXPERIMENT_REGISTRY = 'lib/experiments.ts';
+const ACTIVE_EXPERIMENT = new Set(['proposed', 'shipped']);
+const EXPERIMENT_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const EXPERIMENT_PAGE = /^(?:\*|\/(?:[a-z0-9_-]+(?:\/[a-z0-9_-]+)*)?)$/;
+
+/**
+ * Read data, never execute PR code. The registry is one exported literal EXPERIMENTS array, with optional
+ * `as const`; comments, quoted/unquoted keys and trailing commas are fine. Dynamic expressions, spreads,
+ * imports and later mutations fail closed. Keep types/helpers in the protected experiment framework.
+ */
+function readExperimentRegistry(source) {
+  if (source === null) return null;
+  let at = 0;
+  const tokens = [];
+  while (at < source.length) {
+    const rest = source.slice(at);
+    const space = /^(?:\s+|\/\/[^\r\n\u2028\u2029]*(?:[\r\n\u2028\u2029]|$)|\/\*[\s\S]*?\*\/)/.exec(rest);
+    if (space) { at += space[0].length; continue; }
+    const string = /^(?:"(?:[^"\\\r\n]|\\.)*"|'(?:[^'\\\r\n]|\\.)*')/.exec(rest);
+    if (string) {
+      // JSON escapes plus escaped single quotes. No template evaluation or JavaScript string execution.
+      const raw = string[0];
+      const value = raw[0] === '"' ? JSON.parse(raw) : JSON.parse('"' + raw.slice(1, -1).replace(/\\'/g, "'").replace(/(?<!\\)"/g, '\\"') + '"');
+      tokens.push({ kind: 'string', value }); at += raw.length; continue;
+    }
+    const word = /^(?:[A-Za-z_$][\w$]*|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/.exec(rest);
+    if (word) { tokens.push({ kind: 'word', value: word[0] }); at += word[0].length; continue; }
+    tokens.push({ kind: 'symbol', value: source[at++] });
+  }
+  let i = 0;
+  const is = (value) => tokens[i]?.value === value && tokens[i]?.kind !== 'string';
+  const need = (value) => { if (!is(value)) throw new Error(`expected ${value} in a data-only EXPERIMENTS registry`); i += 1; };
+  const literal = (depth = 0) => {
+    if (depth > 20) throw new Error('registry nesting is too deep');
+    if (is('[')) {
+      i += 1; const out = [];
+      while (!is(']')) { out.push(literal(depth + 1)); if (!is(',')) break; i += 1; }
+      need(']'); return out;
+    }
+    if (is('{')) {
+      i += 1; const out = Object.create(null);
+      while (!is('}')) {
+        const key = tokens[i++];
+        if (!key || !['string', 'word'].includes(key.kind) || Object.hasOwn(out, key.value)) throw new Error('invalid or duplicate registry property');
+        need(':'); out[key.value] = literal(depth + 1); if (!is(',')) break; i += 1;
+      }
+      need('}'); return out;
+    }
+    const token = tokens[i++];
+    if (token?.kind === 'string') return token.value;
+    if (token?.kind === 'word') {
+      if (token.value === 'true') return true;
+      if (token.value === 'false') return false;
+      if (token.value === 'null') return null;
+      if (/^-?\d/.test(token.value) && Number.isFinite(Number(token.value))) return Number(token.value);
+    }
+    throw new Error('registry values must be literals (no imports, spreads or executable expressions)');
+  };
+  need('export'); need('const'); need('EXPERIMENTS'); need('=');
+  const result = literal();
+  if (is('as')) { i += 1; need('const'); }
+  if (is(';')) i += 1;
+  if (i !== tokens.length || !Array.isArray(result)) throw new Error('registry must contain only export const EXPERIMENTS = [literal entries]');
+  return result;
+}
+
+/** Reserve slots for proposed/shipped ledger experiments AND running registry entries; count a shared key once. */
+function checkExperiments(baseLedger, headLedger, baseRegistry, headRegistry, violations) {
+  const before = parseLedger(baseLedger) || [];
+  const after = parseLedger(headLedger) || [];
+  const prior = new Set(before.filter((e) => e.value).map((e) => e.value.id));
+  const newExperiments = after.filter((e) => e.value?.kind === 'experiment' && ACTIVE_EXPERIMENT.has(e.value.status) && !prior.has(e.value.id));
+  const changedRegistry = baseRegistry !== headRegistry;
+  if (!newExperiments.length && !changedRegistry) return;
+  const fail = (message, file = LEDGER) => violations.push({ rule: 'experiment', file, line: null, message });
+  if (after.some((e) => e.error)) { fail('cannot establish experiment occupancy from an invalid ledger line'); return; }
+  if (headRegistry === null && baseRegistry !== null) { fail('the experiment registry cannot be removed; pause or remove its entries instead', EXPERIMENT_REGISTRY); return; }
+  if (headRegistry === null && newExperiments.length) { fail('cannot start an experiment until the data-only lib/experiments.ts registry exists'); return; }
+  let registry; let oldRegistry;
+  try { registry = readExperimentRegistry(headRegistry) || []; oldRegistry = readExperimentRegistry(baseRegistry) || []; }
+  catch (error) { fail(`cannot establish experiment occupancy: ${error.message}`, EXPERIMENT_REGISTRY); return; }
+  const scope = (entry, label) => {
+    if (!Array.isArray(entry.pages) || !entry.pages.length || entry.pages.some((page) => typeof page !== 'string' || !EXPERIMENT_PAGE.test(page)) || new Set(entry.pages).size !== entry.pages.length) {
+      fail(`${label} requires nonempty, unique canonical "pages" (site paths or "*")`); return null;
+    }
+    const area = entry.area === undefined ? '*' : entry.area;
+    if (area !== '*' && (typeof area !== 'string' || !EXPERIMENT_KEY.test(area))) { fail(`${label} "area" must be a lower-case slug or "*"`); return null; }
+    return { pages: [...entry.pages].sort(), area };
+  };
+  const occupied = new Map();
+  const ledgerEntries = new Map();
+  for (const entry of after.map((e) => e.value).filter((e) => e?.kind === 'experiment' && ACTIVE_EXPERIMENT.has(e.status))) {
+    const key = entry.experiment;
+    if (typeof key !== 'string' || !EXPERIMENT_KEY.test(key)) { fail(`active ledger experiment "${entry.id}" requires its registry "experiment" key`); continue; }
+    if (ledgerEntries.has(key)) { fail(`more than one active ledger entry uses experiment key "${key}"`); continue; }
+    ledgerEntries.set(key, entry);
+    const value = scope(entry, `experiment "${key}"`);
+    if (value) occupied.set(key, value);
+  }
+  const registryKeys = new Set();
+  const previouslyRunning = new Set(oldRegistry.filter((e) => e?.status === 'running').map((e) => e.key));
+  for (const entry of registry) {
+    if (!isObject(entry) || typeof entry.key !== 'string' || !EXPERIMENT_KEY.test(entry.key) || !['running', 'paused'].includes(entry.status) || registryKeys.has(entry.key)) {
+      fail('registry entries require unique keys and status "running" or "paused"', EXPERIMENT_REGISTRY); continue;
+    }
+    registryKeys.add(entry.key);
+    if (entry.status !== 'running') continue;
+    const value = scope(entry, `registry experiment "${entry.key}"`);
+    if (!value) continue;
+    if (!previouslyRunning.has(entry.key)) {
+      const registration = ledgerEntries.get(entry.key);
+      if (!registration || ledgerEntryProblems(registration).length) fail(`newly running registry experiment "${entry.key}" needs a valid active, pre-registered experiment ledger entry`, EXPERIMENT_REGISTRY);
+    }
+    const registered = occupied.get(entry.key);
+    if (registered && !sameJson(registered, value)) fail(`registry and ledger scopes disagree for experiment "${entry.key}"`, EXPERIMENT_REGISTRY);
+    // Include registry state even if bookkeeping has already marked its ledger entry concluded/reverted.
+    occupied.set(entry.key, value);
+  }
+  if (occupied.size > 2) fail(`${occupied.size} experiments would be active; at most 2 may be proposed, shipped or running`);
+  const entries = [...occupied];
+  for (let a = 0; a < entries.length; a += 1) for (let b = a + 1; b < entries.length; b += 1) {
+    const [ka, sa] = entries[a]; const [kb, sb] = entries[b];
+    const pagesOverlap = sa.pages.includes('*') || sb.pages.includes('*') || sa.pages.some((page) => sb.pages.includes(page));
+    if (pagesOverlap && (sa.area === '*' || sb.area === '*' || sa.area === sb.area)) fail(`experiments "${ka}" and "${kb}" overlap on the same page area (an omitted area reserves the whole page)`);
   }
 }
 
@@ -637,6 +773,7 @@ function check({ cwd = process.cwd(), base, head, branch, pr = null } = {}) {
 
   const bookkeeping = entries.length > 0 && entries.every((entry) => [entry.oldPath, entry.newPath].filter(Boolean).every((file) => BOOKKEEPING.includes(file)));
   checkLedger(showFile(cwd, mergeBase, LEDGER), showFile(cwd, headSha, LEDGER), { violations, warnings: result.warnings, branchDate, branchId, pr, bookkeeping });
+  checkExperiments(showFile(cwd, mergeBase, LEDGER), showFile(cwd, headSha, LEDGER), showFile(cwd, mergeBase, EXPERIMENT_REGISTRY), showFile(cwd, headSha, EXPERIMENT_REGISTRY), violations);
 
   // The guard reads commits. Run on HEAD with work not yet committed, it would check (and pass) something else.
   if (head === 'HEAD') {
@@ -700,6 +837,7 @@ function selfTest() {
     write('components/Store.tsx', STORE);
     write('components/Ticker.tsx', TICKER);
     write('lib/analytics.ts', 'export const on = true;\n');
+    write(EXPERIMENT_REGISTRY, 'export const EXPERIMENTS = [];\n');
     write('docs/NOTES.md', '# Notes\n');
     write('docs/snippet.md', STORE);
     write('README.md', '# Pace Notes\n');
@@ -915,7 +1053,7 @@ function selfTest() {
     ledgerCase('ledger line wrapped over two lines', `${proposal().replace(',"title"', ',\n"title"')}`, ['ledger'], { messages: ['one JSON object on one line'] });
     ledgerCase('ledger with extra keys', proposal({ notes: 'context', evaluated_on: null, experiment: 'home-hero' }), []);
     // Ledger: experiments need explicit, finite, pre-registered stopping rules; other kinds keep their schema.
-    const EXPERIMENT = { kind: 'experiment', min_sample: 150, max_days: 42 };
+    const EXPERIMENT = { kind: 'experiment', experiment: 'home-hero', pages: ['/'], min_sample: 150, max_days: 42 };
     ledgerCase('experiment with the default sample and duration', proposal(EXPERIMENT), []);
     ledgerCase('experiment with the smallest sample and duration', proposal({ ...EXPERIMENT, min_sample: 1, max_days: 1 }), []);
     ledgerCase('experiment with the largest exactly representable integer sample', proposal({ ...EXPERIMENT, min_sample: Number.MAX_SAFE_INTEGER }), []);
@@ -926,7 +1064,7 @@ function selfTest() {
       ledgerCase(`experiment ${field} overflows to infinity`, proposal(EXPERIMENT).replace(`"${field}":${EXPERIMENT[field]}`, `"${field}":1e309`), ['ledger'], { messages: [`requires "${field}"`] });
     }
     ledgerCase('experiment duration exceeds 42 days', proposal({ ...EXPERIMENT, max_days: 43 }), ['ledger'], { messages: ['"max_days" to be an integer from 1 to 42'] });
-    ledgerCase('experiment cannot substitute evaluate_after for stopping rules', proposal({ kind: 'experiment' }), ['ledger'], { messages: ['requires "min_sample"', 'requires "max_days"'] });
+    ledgerCase('experiment cannot substitute evaluate_after for stopping rules', proposal({ ...EXPERIMENT, min_sample: undefined, max_days: undefined }), ['ledger'], { messages: ['requires "min_sample"', 'requires "max_days"'] });
     ledgerCase('change may leave duration null', proposal({ min_sample: 150, max_days: null }), []);
     ledgerCase('closed-unmerged experiment keeps valid stopping rules', entry('2026-09-20-stuck', { ...EXPERIMENT, status: 'reverted', verdict: 'inconclusive', pr: 55 }), [], { pr: 61 });
     ledgerCase('closed-unmerged exception does not waive experiment stopping rules', entry('2026-09-20-stuck', { kind: 'experiment', status: 'reverted', verdict: 'inconclusive', pr: 55 }), ['ledger'], { pr: 61, messages: ['requires "min_sample"', 'requires "max_days"'] });
@@ -968,7 +1106,7 @@ function selfTest() {
     expect('existing ledger line moved', { ledger: false, setup: () => write(LEDGER, `${proposal()}\n${BASE_LEDGER}`), rules: ['ledger'], messages: ['moved from line 1'] });
     expect('existing ledger entry title changed', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, title: 'Rewritten' })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"title"'] });
     expect('existing ledger entry decision rule changed', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, decision_rule: 'Anything goes.' })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"decision_rule"'] });
-    expect('existing ledger entry evaluated', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { status: 'concluded', pr: 60, verdict: 'keep', result: { rate: 0.45 }, evaluated_on: '2026-10-14', notes: 'Held up.' })}\n${proposal({ kind: 'conclude' })}\n`) });
+    expect('existing ledger entry evaluated', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { status: 'concluded', pr: 60, shipped_on: '2026-10-02', verdict: 'keep', result: { rate: 0.45 }, evaluated_on: '2026-10-14', notes: 'Held up.' })}\n${proposal({ kind: 'conclude' })}\n`) });
     expect('existing ledger entry pr changed', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, pr: 12 })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"pr" was already 60'] });
     run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', 'main-judged');
     write(LEDGER, `${entry('2026-10-01-hero', { status: 'reverted', pr: 58, verdict: 'revert', result: { delta: -0.04 } })}\n${entry('2026-10-02-menu', { status: 'proposed' })}\n`);
@@ -986,6 +1124,75 @@ function selfTest() {
     expect('an earlier line deleted and a revert entry appended', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${HERO}\n${proposal({ kind: 'revert', evaluate_after: null })}\n`), rules: ['ledger'], messages: ['existing entry "2026-10-02-menu" was removed'], absent: ['adds no line', 'moved from line', '2026-10-01-hero'] });
     expect('the first line deleted', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${entry('2026-10-02-menu', { status: 'proposed' })}\n${proposal()}\n`), rules: ['ledger'], messages: ['existing entry "2026-10-01-hero" was removed'], absent: ['adds no line', 'moved from line', '"2026-10-02-menu"'] });
     expect('an empty change still needs a ledger line', { ledger: false, setup: () => {}, rules: ['ledger'] });
+    // Experiment concurrency: count the union of active ledger entries and running registry entries.
+    {
+      const exp = (key, pages, extra = {}) => JSON.parse(entry(`2026-10-01-${key}`, { kind: 'experiment', status: 'shipped', pr: 60, shipped_on: '2026-10-02', min_sample: 150, max_days: 42, experiment: key, pages, ...extra }));
+      const reg = (key, pages, extra = {}) => ({ key, pages, status: 'running', ...extra });
+      const ledger = (values) => values.map((v) => JSON.stringify(v)).join('\n');
+      const registry = (values) => `export const EXPERIMENTS = ${JSON.stringify(values)} as const;`;
+      const a = exp('a', ['/']); const b = exp('b', ['/tools']); const c = exp('c', ['/about'], { status: 'proposed' });
+      const check = (label, base, head, before, after, expected = []) => {
+        cases += 1;
+        const problems = [];
+        try { checkExperiments(ledger(base), ledger(head), before, after, problems); }
+        catch (error) { failures.push(`experiment ${label}: threw ${error.message}`); return; }
+        if ((!expected.length && problems.length) || expected.some((text) => !problems.some((p) => p.message.includes(text)))) failures.push(`experiment ${label}: ${JSON.stringify(problems)}`);
+      };
+      check('two separate pages are allowed', [a], [a, b], registry([reg('a', ['/'])]), registry([reg('a', ['/']), reg('b', ['/tools'])]));
+      check('a third ledger experiment is refused', [a, b], [a, b, c], registry([]), registry([]), ['3 experiments']);
+      check('proposed entries reserve a slot too', [{ ...a, status: 'proposed' }, b], [{ ...a, status: 'proposed' }, b, c], registry([]), registry([]), ['3 experiments']);
+      check('a matching ledger and registry key count once', [a], [a, b], registry([reg('a', ['/'])]), registry([reg('a', ['/']), reg('b', ['/tools'])]));
+      check('registry-only active experiments count', [], [c], registry([reg('a', ['/']), reg('b', ['/tools'])]), registry([reg('a', ['/']), reg('b', ['/tools'])]), ['3 experiments']);
+      check('concluded bookkeeping cannot hide a running registry experiment', [{ ...a, status: 'concluded' }, b], [{ ...a, status: 'concluded' }, b, c], registry([reg('a', ['/'])]), registry([reg('a', ['/'])]), ['3 experiments']);
+      check('a concluded and paused experiment frees its slot', [{ ...a, status: 'concluded' }, b], [{ ...a, status: 'concluded' }, b, c], registry([reg('a', ['/'], { status: 'paused' })]), registry([reg('a', ['/'], { status: 'paused' })]));
+      check('unmerged historical records do not occupy slots', [{ ...a, status: 'reverted' }, b], [{ ...a, status: 'reverted' }, b, c], registry([]), registry([]));
+      check('two experiments on one unknown page area fail', [a], [a, { ...b, pages: ['/'] }], registry([]), registry([]), ['overlap on the same page area']);
+      check('one common page in a multi-page scope fails', [a], [a, { ...b, pages: ['/tools', '/'] }], registry([]), registry([]), ['overlap']);
+      check('distinct explicit areas on a page are allowed', [{ ...a, area: 'hero' }], [{ ...a, area: 'hero' }, { ...b, pages: ['/'], area: 'footer' }], registry([]), registry([]));
+      check('the same explicit area fails', [{ ...a, area: 'hero' }], [{ ...a, area: 'hero' }, { ...b, pages: ['/'], area: 'hero' }], registry([]), registry([]), ['overlap']);
+      check('unknown area overlaps a known area', [a], [a, { ...b, pages: ['/'], area: 'hero' }], registry([]), registry([]), ['overlap']);
+      check('site-wide scope overlaps any page', [{ ...a, pages: ['*'] }], [{ ...a, pages: ['*'] }, b], registry([]), registry([]), ['overlap']);
+      check('registry/ledger scope disagreement fails', [], [a], registry([]), registry([reg('a', ['/tools'])]), ['scopes disagree']);
+      check('registry/ledger area disagreement fails', [], [{ ...a, area: 'hero' }], registry([]), registry([reg('a', ['/'], { area: 'footer' })]), ['scopes disagree']);
+      check('registry activation cannot bypass experiment preregistration', [], [], registry([]), registry([reg('a', ['/'])]), ['needs a valid active, pre-registered']);
+      check('a paused registry experiment cannot be resumed without preregistration', [], [], registry([reg('a', ['/'], { status: 'paused' })]), registry([reg('a', ['/'])]), ['needs a valid active, pre-registered']);
+      check('an invalid historical pre-registration cannot be activated', [{ ...a, min_sample: undefined }], [{ ...a, min_sample: undefined }], registry([]), registry([reg('a', ['/'])]), ['needs a valid active, pre-registered']);
+      check('duplicate active ledger keys are refused', [a], [a, { ...b, experiment: 'a' }], registry([]), registry([]), ['more than one active ledger entry']);
+      check('duplicate registry keys are refused', [], [a], registry([]), registry([reg('a', ['/']), reg('a', ['/'])]), ['unique keys']);
+      check('unknown registry status is refused', [], [a], registry([]), registry([reg('a', ['/'], { status: 'runing' })]), ['status "running" or "paused"']);
+      check('missing registry blocks new experiments', [], [a], null, null, ['registry exists']);
+      check('removing the registry is refused even without a new experiment', [], [], registry([]), null, ['registry cannot be removed']);
+      check('ordinary changes do not need a registry', [], [{ id: '2026-10-14-change', kind: 'change', status: 'proposed' }], null, null);
+      check('unknown historical scope blocks new experiments', [{ ...a, pages: undefined }], [{ ...a, pages: undefined }, b], registry([]), registry([]), ['canonical "pages"']);
+      check('missing registry key blocks new experiments', [], [{ ...a, experiment: undefined }], registry([]), registry([]), ['requires its registry "experiment" key']);
+      for (const pages of [undefined, [], ['/','/'], ['/tools/'], ['/tools/../'], ['https://example.com'], ['/%2f'], ['/?q=name']]) check(`invalid scope ${JSON.stringify(pages)} is refused`, [], [{ ...a, pages }], registry([]), registry([]), ['canonical "pages"']);
+      for (const area of ['', null, 1, 'hero footer']) check(`invalid area ${JSON.stringify(area)} is refused`, [], [{ ...a, area }], registry([]), registry([]), ['"area" must be']);
+      for (const source of [
+        'export const EXPERIMENTS = loadExperiments();',
+        'export const EXPERIMENTS = [...other];',
+        'export const EXPERIMENTS = []; EXPERIMENTS.push({key:"a"});',
+        'const hidden = "export const EXPERIMENTS = []";',
+        'export const EXPERIMENTS = []; export const OTHER = [];',
+        'export const EXPERIMENTS = [{key:"a",key:"b",status:"running",pages:["/"]}];',
+        'export const EXPERIMENTS = [{key:"a",status: process.exit(99),pages:["/"]}];',
+      ]) check('uninspectable or executable registry fails closed', [], [a], registry([]), source, ['cannot establish experiment occupancy']);
+      for (const terminator of ['\r', '\u2028', '\u2029']) check('code after a JavaScript line-comment terminator is rejected', [], [a], registry([]), `export const EXPERIMENTS = []; // comment${terminator}EXPERIMENTS.push({key:'hidden',status:'running',pages:['/']});`, ['cannot establish experiment occupancy']);
+      check('literal TypeScript registry supports comments, single quotes, and trailing commas', [], [a], registry([]), "/* data */ export const EXPERIMENTS = [{key:'a',status:'running',pages:['/'],},] as const; // done\n");
+      check('paused entries need no active scope', [], [a], registry([]), registry([{ key: 'old', status: 'paused' }, reg('a', ['/'])]));
+      check('null registry entry is refused', [], [a], registry([]), registry([null]), ['unique keys']);
+      check('malformed baseline registry fails closed', [], [a], 'not a registry', registry([reg('a', ['/'])]), ['cannot establish experiment occupancy']);
+      cases += 1;
+      const malformed = [];
+      checkExperiments('', '{broken\n' + ledger([a]), registry([]), registry([]), malformed);
+      if (!malformed.some((p) => p.message.includes('invalid ledger line'))) failures.push('experiment malformed ledger did not fail closed');
+      for (const alias of ['lib/experiments.tsx', 'lib/experiments.mts', 'lib/experiments.cts', 'lib/experiments/index.ts', 'lib/experiments']) {
+        expect(`registry alias ${alias} cannot bypass inspection`, { setup: () => write(alias, registry([reg('a', ['/']), reg('b', ['/']), reg('c', ['/'])])), rules: ['protected-path'], messages: ['registry aliases are protected'] });
+      }
+      expect('renaming the registry cannot bypass inspection', { setup: () => { remove(EXPERIMENT_REGISTRY); write('lib/experiments.tsx', registry([reg('a', ['/']), reg('b', ['/']), reg('c', ['/'])])); }, rules: ['protected-path', 'experiment'], messages: ['registry aliases are protected', 'registry cannot be removed'] });
+      expect('experiment concurrency is wired into the git guard', { ledger: false, setup: () => { write(LEDGER, `${BASE_LEDGER}${proposal(EXPERIMENT)}\n`); write(EXPERIMENT_REGISTRY, registry([reg('home-hero', ['/']), reg('unregistered', ['/tools'])])); }, rules: ['experiment'], messages: ['needs a valid active, pre-registered'] });
+      expect('new experiment without a registry is refused by the git guard', { ledger: false, setup: () => { write(LEDGER, `${BASE_LEDGER}${proposal(EXPERIMENT)}\n`); remove(EXPERIMENT_REGISTRY); }, rules: ['experiment'], messages: ['registry cannot be removed'] });
+    }
+
     // Ledger: a base that is already untidy does not block every later pull request.
     const untidyBase = (label, text) => { run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', label); write(LEDGER, text); run('add', '-A'); run('commit', '-q', '-m', label); return label; };
     expect('a trailing blank line on the base', { base: untidyBase('base-blank', `${BASE_LEDGER}\n`), ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), `${proposal()}\n`) });
@@ -1004,6 +1211,44 @@ function selfTest() {
     expect('edited historical experiment still has its schema checked', { base: invalidExperimentBase, ledger: false, setup: () => write(LEDGER, `${oldExperiment({ min_sample: undefined, max_days: 43, notes: 'Still running.' })}\n`), rules: ['ledger'], messages: ['requires "min_sample"', 'requires "max_days"'] });
     const shippedBase = untidyBase('base-shipped', `${entry('2026-10-01-first', { ...FIRST, shipped_on: '2026-10-02' })}\n`);
     expect('a ship date changed once set', { base: shippedBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, shipped_on: '2026-10-03' })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"shipped_on" was already'] });
+
+    // Ledger: leaving the evaluation queue requires a complete outcome and shipping record.
+    const lifecycleId = '2026-10-01-lifecycle';
+    const lifecycleShipping = { pr: 59, shipped_on: '2026-10-03' };
+    const lifecycleOutcome = { verdict: 'keep', result: { rate: 0.45, n: 200 }, evaluated_on: '2026-10-14' };
+    for (const initialStatus of ['proposed', 'shipped']) {
+      const initialShipping = initialStatus === 'shipped' ? lifecycleShipping : {};
+      const lifecycleBase = untidyBase(`base-lifecycle-${initialStatus}`, `${entry(lifecycleId, { status: initialStatus, ...initialShipping })}\n`);
+      const conclude = (extra = {}) => entry(lifecycleId, { status: 'concluded', ...lifecycleShipping, ...lifecycleOutcome, ...extra });
+      expect(`${initialStatus} entry can conclude with all shipping and outcome fields`, { base: lifecycleBase, ledger: false, setup: () => write(LEDGER, `${conclude()}\n`) });
+      for (const field of ['pr', 'shipped_on', 'verdict', 'result', 'evaluated_on']) {
+        for (const [label, value] of [['missing', undefined], ['null', null]]) {
+          expect(`${initialStatus} entry cannot conclude with ${label} ${field}`, { base: lifecycleBase, ledger: false, setup: () => write(LEDGER, `${conclude({ [field]: value })}\n`), rules: ['ledger'], messages: [`"concluded" entry requires non-null "${field}"`] });
+        }
+      }
+      for (const [field, value] of [['pr', '59'], ['pr', 0], ['shipped_on', '2026-02-30'], ['verdict', 'won'], ['result', []], ['result', 'good'], ['evaluated_on', '2026-02-30']]) {
+        expect(`${initialStatus} entry cannot conclude with invalid ${field} ${JSON.stringify(value)}`, { base: lifecycleBase, ledger: false, setup: () => write(LEDGER, `${conclude({ [field]: value })}\n`), rules: ['ledger'], messages: [`"${field}" must be`] });
+      }
+      expect(`${initialStatus} entry can be automatically reverted before evaluation`, { base: lifecycleBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { status: 'reverted', ...lifecycleShipping, verdict: 'revert', result: null, notes: 'Reverted automatically after a smoke failure.' })}\n`) });
+      if (initialStatus === 'proposed') {
+        for (const field of ['pr', 'shipped_on']) {
+          for (const [label, value] of [['missing', undefined], ['null', null]]) {
+            expect(`proposed entry cannot ship with ${label} ${field}`, { base: lifecycleBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { status: 'shipped', ...lifecycleShipping, [field]: value })}\n`), rules: ['ledger'], messages: [`"shipped" entry requires non-null "${field}"`] });
+          }
+        }
+      }
+    }
+    const incompleteConclusion = entry(lifecycleId, { status: 'concluded', pr: null, shipped_on: null, verdict: null, result: null, evaluated_on: null });
+    const incompleteConclusionBase = untidyBase('base-incomplete-conclusion', `${incompleteConclusion}\n`);
+    expect('unchanged incomplete historical conclusion is a warning', { base: incompleteConclusionBase, setup: () => {}, warned: ['requires non-null "pr"', 'requires non-null "shipped_on"', 'requires non-null "verdict"', 'requires non-null "result"', 'requires non-null "evaluated_on"'] });
+    expect('editing an incomplete historical conclusion requires completing it', { base: incompleteConclusionBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { ...JSON.parse(incompleteConclusion), notes: 'Reviewed again.' })}\n`), rules: ['ledger'], messages: ['requires non-null "verdict"', 'requires non-null "result"', 'requires non-null "evaluated_on"'] });
+    expect('an incomplete historical conclusion can be completed without changing its status', { base: incompleteConclusionBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { status: 'concluded', ...lifecycleShipping, ...lifecycleOutcome })}\n`) });
+    const completeConclusion = entry(lifecycleId, { status: 'concluded', ...lifecycleShipping, ...lifecycleOutcome });
+    const completeConclusionBase = untidyBase('base-complete-conclusion', `${completeConclusion}\n`);
+    expect('a complete conclusion permits notes-only bookkeeping', { base: completeConclusionBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { ...JSON.parse(completeConclusion), notes: 'Added context.' })}\n`) });
+    for (const field of ['pr', 'shipped_on', 'verdict', 'result', 'evaluated_on']) {
+      expect(`completed ${field} cannot be cleared`, { base: completeConclusionBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { ...JSON.parse(completeConclusion), [field]: null })}\n`), rules: ['ledger'], messages: [`"${field}" was already`, `"concluded" entry requires non-null "${field}"`] });
+    }
 
     // The guard reads commits: work not yet committed fails the check; an untracked file is a warning.
     expect('a change not yet committed', { setup: () => {}, dirty: () => write('components/Card.tsx', component('window.localStorage.setItem("k", v);')), rules: ['uncommitted'], messages: ['components/Card.tsx', 'not committed'] });

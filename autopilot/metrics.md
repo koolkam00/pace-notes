@@ -215,12 +215,26 @@ Each entry is a single line; the example below is one line too (scroll sideways)
 - `kind` is one of `change`, `experiment`, `conclude`, `revert` or `fix`. `evaluate_after` is a date, or null for `fix`, `revert` and `conclude`, which are not judged later.
 - `status` is one of `proposed`, `shipped`, `reverted` or `concluded`.
 - `verdict` is null or one of `keep`, `revert`, `inconclusive`, `iterate`, `ship-variant` or `keep-control`.
+- An `experiment` entry requires positive safe-integer `min_sample` and integer `max_days` from 1 to 42. An active (`proposed` or `shipped`) experiment also requires `experiment` (its lower-case, hyphenated registry key), nonempty unique `pages` (canonical paths such as `/` or `/tools`, or `"*"` for all pages), and optionally `area` (a lower-case, hyphenated slug). An omitted area or `"*"` reserves the entire page. These pre-registered fields are immutable.
 - `shipped_on` is the day the entry's pull request merged (UTC), or null. Before/after windows and experiment readouts count from it.
 
 **Lifecycle.**
 1. **Proposed:** the change's pull request appends the entry with `status: "proposed"` and `pr`, `shipped_on`, `verdict` and `result` null.
-2. **Shipped:** once that pull request has merged, the next run sets `status: "shipped"`, `pr` and `shipped_on`.
-3. **Concluded or reverted:** when judged, the entry gets `verdict`, `result`, `evaluated_on` and `notes`, and `status: "concluded"`, or `"reverted"` for a `revert` verdict. An automatic revert by the merge workflow marks the entry `reverted` itself, with verdict `revert`, `pr` and `shipped_on`.
+2. **Shipped:** once that pull request has merged, the next run sets `status: "shipped"`, `pr` and `shipped_on`. The guard requires both shipping fields to be non-null.
+3. **Concluded or reverted:** the guard requires a concluded entry to have non-null `pr`, `shipped_on`, `verdict`, `result` and `evaluated_on`. When judged, the entry gets `verdict`, `result`, `evaluated_on` and `notes`, and `status: "concluded"`, or `"reverted"` for a `revert` verdict. An automatic revert by the merge workflow marks the entry `reverted` itself, with verdict `revert`, `pr` and `shipped_on`.
 4. **Closed unmerged:** a pull request that closed without merging never put its line on `main`. It is recorded as a new line: `status: "reverted"`, `verdict: "inconclusive"` (or null), its `pr` and a note.
 
 Once a line is written, only `status`, `verdict`, `result`, `evaluated_on`, `pr`, `shipped_on` and `notes` may change. `verdict`, `result`, `evaluated_on`, `pr` and `shipped_on` change only once, from null. The status only moves forward. The guard enforces all of this on autopilot pull requests. Entries the owner adds in a pull request of their own follow the same schema; one that has already shipped carries its `pr` and `shipped_on`.
+
+
+**Experiment registry and occupancy.** Before starting experiments, the measurement framework must provide `lib/experiments.ts`. It is a data-only file: one `export const EXPERIMENTS = [literal entries]`, optionally followed by `as const` and a semicolon. Comments, single/double quotes, nested literal data and trailing commas are supported; imports, type declarations, spreads, expressions and later mutations are not. Keep types and runtime helpers in the protected experiment framework. The privileged guard parses git objects without importing or executing this file. Alternate `lib/experiments.*` implementations and directory indexes are protected, and the registry file cannot be removed; pause or remove its entries instead.
+
+Each registry entry has a unique `key` and `status` (`running` or `paused`). A running entry has the same `pages` and optional `area` as its active ledger entry. For example:
+
+```ts
+export const EXPERIMENTS = [
+  { key: 'home-hero', status: 'running', pages: ['/'], area: 'hero', started: '2026-10-19' },
+] as const;
+```
+
+The union of proposed/shipped ledger experiments and running registry keys may contain at most two keys, with no overlap on the same page area. A matching ledger/registry key counts once; a concluded or reverted ledger record still occupies a slot if its registry entry runs. Pausing the registry alone does not release a proposed/shipped reservation. A newly running or resumed key requires active pre-registration. Missing or ambiguous occupancy blocks a new experiment until repaired; the guard does not guess from incomplete history. Ordinary changes and bookkeeping do not require a registry when it is unchanged.

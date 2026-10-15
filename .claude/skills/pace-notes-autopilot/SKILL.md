@@ -159,7 +159,7 @@ Priority:
    - the minimum sample;
    - the decision rule;
    - `evaluate_after`: at least 14 days after the expected ship date, or the experiment's planned end;
-   - for experiments, the maximum duration (at most 42 days).
+   - for experiments, positive-integer `min_sample`, the maximum duration (at most 42 days), the registry `experiment` key, and canonical `pages` with optional `area`. Follow the data-only registry and occupancy contract in `autopilot/metrics.md` §4: at most two active reservations/running keys, with no overlapping page areas; an omitted area reserves the whole page.
 
    Move the backlog item to "In flight" and link it.
 4. **Verify. All of these are required:**
