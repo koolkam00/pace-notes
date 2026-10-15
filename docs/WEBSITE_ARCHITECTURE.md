@@ -175,7 +175,7 @@ Added October 14, 2026 (not yet deployed):
 
 ## Pace Notes branding and analysis requests
 
-The public brand is **Pace Notes**, credited to Andrew Kam on the home page, About and footer (`CreatorCredit`). A compact unlinked `by Andrew Kam` also appears beneath the Pace Notes name in the shared header on every page. The site does not link to the Run_with_Kam Instagram account or show that handle. Public page titles use this name; compatibility URLs, research provenance, package names and the splithappens.run host remain stable.
+The public brand is **Pace Notes**, credited to Andrew Kam on the home page, About and footer (`CreatorCredit`). A compact unlinked `by Andrew Kam` also appears beneath the Pace Notes name in the shared header on every page wider than 720 px; the one-row phone header (`components/SiteHeader.tsx`) leaves it out, so on a phone the credit is in the home hero and the footer. The site does not link to the Run_with_Kam Instagram account or show that handle. Public page titles use this name; compatibility URLs, research provenance, package names and the splithappens.run host remain stable.
 
 `/request-analysis` provides a question and optional context field. `AnalysisRequest` prepares an encoded email to Andrew; visitors must send it through their own email app or Gmail. A copy fallback is available. This is a client-side email composer, not a server-side delivery service: never report a draft as submitted or delivered. The page stores no request text, and analytics receives only the allowed page path. No email provider keys or runtime API are required, preserving Next static export. A visible Request an analysis button in the shared top navigation, plus footer, About and analysis-directory links, make the page discoverable on desktop and mobile.
 
@@ -183,7 +183,7 @@ The homepage distinguishes raw race records from analyzed finishes. Both totals 
 
 ## Visual system and stories
 
-The redesign is documented in [the design system](DESIGN_SYSTEM.md). Fonts are self-hosted with `@fontsource-variable`. Story charts are hand-drawn SVG or Canvas components in `components/story`, `components/viz` and `components/art`. Recharts remains in the legacy analysis components, which were retheme-only changes. Story data is read at build time and verified by `lib/insights-server.ts`. Replay samples load in the browser through `lib/insights.ts`, which checks each file's SHA-256 against the manifest. A story page is generated only when its file is in the verified manifest.
+The redesign is documented in [the design system](DESIGN_SYSTEM.md). Fonts are self-hosted with `@fontsource-variable`; each family has a metric-matched local fallback (top of `app/globals.css`, values from `scripts/font-fallbacks.cjs`), so text keeps its line breaks when the fonts arrive. Story charts are hand-drawn SVG or Canvas components in `components/story`, `components/viz` and `components/art`. Recharts remains in the legacy analysis components, which were retheme-only changes. Story data is read at build time and verified by `lib/insights-server.ts`. Replay samples load in the browser through `lib/insights.ts`, which checks each file's SHA-256 against the manifest. A story page is generated only when its file is in the verified manifest.
 
 ## Runner tools
 

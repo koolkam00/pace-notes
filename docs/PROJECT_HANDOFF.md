@@ -1,5 +1,25 @@
 # Project handoff
 
+## Phone header and steadier loading (October 15, 2026)
+
+**Repository state:** in this change (part of PR B, built on `feat/visit-signals`). **Deployed state:** not yet deployed.
+
+What changed:
+- **Phone header.** At 720 px and below the sticky header is one 57 px row (it was 123 px, 18.5% of an Instagram-sized 664 px screen): the brand, a Menu button and the units switch (MI / KM; the buttons keep "Miles" and "Kilometres" as their accessible names). The links open as a panel of the site's pills below it, in the order visitors use them: Plan your race, Stories, Tools, Find a runner, Courses, About, then Request an analysis (it was first on phones). Escape closes it and returns focus to Menu; so do a tap outside, a followed link and a wider window. While the reader scrolls down the header slides out of view and returns on any scroll up (`components/SiteHeader.tsx`: a passive scroll listener checked once per frame, toggling a transform, so nothing below moves). It stays near the top of the page, while its menu is open, while it holds keyboard focus, and always under reduced motion or the site's animation pause. The phone header leaves out the `by Andrew Kam` line; the credit stays in the home hero and the footer. Wider windows keep their header with the links in the new order. In-page anchors land 15 px below the phone header (`scroll-padding-top: 4.5rem`). The browser privacy checks open the Menu before following a header link on a phone (`openMenu` in `scripts/e2e/browser.cjs`).
+- **Font fallbacks.** The desktop home page shifted by 0.18–0.23 (CLS, live site) because its title lost a line when Fraunces replaced the unscaled system serif (Georgia or Times New Roman), and paragraphs rewrapped when Inter replaced Arial or the system sans. Each family now names a metric-matched local fallback right after its web font (the `@font-face` rules at the top of `app/globals.css`): Times New Roman Bold for Fraunces (titles at 680 and headings at 600–640 matched separately, italics on their own), Arial and Arial Bold for Inter, Courier New for JetBrains Mono, Arial Bold for Bricolage Grotesque's figures, and Noto Serif and Roboto on Android; Liberation, Tinos, Arimo and Cousine share those metrics on Linux and ChromeOS. Which fonts load is unchanged. `node scripts/font-fallbacks.cjs` computes the values after a build: vertical metrics from the fontsource WOFF2 tables (head, hhea, OS/2), widths by measuring every run of web-font text on twelve built pages in Chromium against the Liberation fonts, and the Android faces scaled by the capsize widths bundled with Next.js; `--check` compares them with `app/globals.css`.
+- **Home replay.** While a race's rows load, the replay draws its own frame at full size (clock, empty stats, disabled controls) with the message where the field will be, so the page below no longer moves when they arrive (the loading box was 420 px; the replay is 624 px on a desktop and 781 px on a phone).
+
+Measured (October 15, 2026, local static build, PostHog blocked, the worst of 3 loads, desktop 1366 × 900 at 10 Mbps / 40 ms and phone 390 × 844 at 1.6 Mbps / 150 ms with the CPU slowed 4×), CLS before → after:
+
+| Page | Desktop, this machine's fonts | Phone, this machine's fonts | Desktop, Inter not installed | Phone, Inter not installed | Fonts held back 1.5 s, desktop / phone |
+| --- | --- | --- | --- | --- | --- |
+| `/` | 0.2289 → 0.0015 | 0.0026 → 0.0005 | 0.5156 → 0.0017 | 0.1517 → 0.0006 | 0.5088 → 0.0033 / 0.2103 → 0.0010 |
+| `/stories` | 0.0041 → 0.0025 | 0.0011 → 0 | 0.0137 → 0.0024 | 0.0013 → 0 | 0.0137 → 0.0024 / 0.0015 → 0 |
+| `/stories/pacing-types` | 0.0048 → 0.0001 | 0.0007 → 0 | 0.0049 → 0 | 0.0092 → 0 | 0.0060 → 0 / 0.0237 → 0 |
+| `/tools/predictor` | 0.0014 → 0.0016 | 0 → 0 | 0.0021 → 0.0007 | 0 → 0 | 0.0021 → 0.0008 / 0 → 0 |
+
+The test machine has Inter installed as a system font, which hides the Inter swap, so the columns with Inter hidden from the browser stand for most visitors; the last column holds every web font back so each page is first drawn in its fallbacks. The phone header is 57 px at every width from 320 to 720 px with no label cut, hiding and showing it caused no layout shift, and axe-core 4.10.2 found no violations on the home page (menu closed and open), a story, the predictor and `/tools`. Not verified: real iOS and Android devices, in particular that they match the `local()` names (Times New Roman Bold, Arial, Noto Serif, Roboto); Safari before 17 ignores `size-adjust` and older Safari the metric overrides, so there the fallbacks behave as before. Card titles set at Fraunces' smaller optical sizes (story and tool cards) can still gain a line when the font arrives (0.002 on `/stories`). The pace band tool shifts by 0.04–0.05 on a desktop after it hydrates, unrelated to fonts and not changed here. Release pins and data are unchanged.
+
 ## Visit signals and an experiments framework (October 14, 2026)
 
 **Repository state:** in this change (branch `feat/visit-signals`, built on `fix/old-safari-crash`). **Deployed state:** not yet deployed. Until it is, PostHog receives none of the signals below.

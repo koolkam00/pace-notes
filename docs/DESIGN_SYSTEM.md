@@ -13,6 +13,9 @@ The site's look is "race-day paper": warm paper pages, a few night sections for 
 
 The fonts are self-hosted through `@fontsource-variable/*`, imported in `app/layout.tsx`. Verifier-loaded components must not import CSS or fonts.
 
+- **Fallbacks.** Each stack names a metric-matched fallback right after its web font (the `@font-face` rules at the top of `app/globals.css`): a system font scaled to the width of the site's copy in the web font (`size-adjust`) and given the web font's ascent, descent and line gap, so text keeps its line breaks when the web font swaps in. Fraunces falls back to Times New Roman Bold (titles at 680 and headings at 600–640 matched separately, italics on their own, all at their display optical sizes), Inter to Arial and Arial Bold, JetBrains Mono to Courier New, Bricolage Grotesque's figures to Arial Bold; Android, which has none of these, gets Noto Serif and Roboto. Card titles set at optical size 72 or below are wider in Fraunces than the display match, so they can gain a line when it arrives.
+- After changing a font package, a weight or a title's variation settings, rebuild and run `node scripts/font-fallbacks.cjs` (it needs the Liberation fonts, which share Times New Roman, Arial and Courier New's metrics) and paste its rules; `--check` compares them with `app/globals.css`.
+
 ## Colour
 
 | Token | Hex | Meaning |
@@ -33,6 +36,7 @@ The fonts are self-hosted through `@fontsource-variable/*`, imported in `app/lay
 
 ## Components
 
+- **Site header** (`components/SiteHeader.tsx`, styles in `app/globals.css`): the brand, `SiteNav` and the units switch. At 720 px and below it is one 57 px row (brand, a Menu button styled like the units switch, the units as MI / KM) and the links open as a two-column panel of the same pills below it; the credit line is left out there. On phones it slides up while the reader scrolls down and returns on any scroll up (transform only, so nothing shifts); it stays while its menu is open or it holds keyboard focus, and never moves under reduced motion or the site's pause switch. The links' order is Plan your race, Stories, Tools, Find a runner, Courses, About, then Request an analysis (orange) at every width.
 - **Story shell** (`components/story/StoryShell.tsx`):
   - `StoryHeader`: night hero with a runner lane.
   - `StorySection`: kicker, title, dek, body.
@@ -52,7 +56,7 @@ The fonts are self-hosted through `@fontsource-variable/*`, imported in `app/lay
   - `useTicker` / `useInView` / `usePrefersReducedMotion`: animation runs only while visible and stops under reduced motion or the site-wide pause.
   - `useTicker(active, fps, limit)`: decorative loops (runner lanes, the magnet runner, the gap gauge, the heat runner) pass `limit = 30` so they settle after 30 s on screen.
   - `components/story/CourseArt.tsx`: supplied routes with an `animateMotion` runner that runs the course once and stops at the finish, and elevation profiles.
-- **Replay**: `components/viz/RaceReplay.tsx`, a Canvas field with Gaussian lanes, straight and route views, and a HUD.
+- **Replay**: `components/viz/RaceReplay.tsx`, a Canvas field with Gaussian lanes, straight and route views, and a HUD. While its rows load (`status`), it draws its frame at full size with the message where the field will be, so the page below does not move when they arrive.
 - **Tools** (`app/tools/tools.css`, `components/tools`):
   - `ToolHeader` (icon, title, dek, evidence badges), `ToolMethod` (method, limits, sources) and `ToolNext` (related tools), all server components.
   - `.tool-workspace`: inputs (`.tool-inputs`) beside results (`.tool-results`) on desktop, stacked on phones. A headline result (`.tool-headline` with `Stat`) comes first, then detail.
@@ -68,7 +72,7 @@ The fonts are self-hosted through `@fontsource-variable/*`, imported in `app/lay
 - **Units.** Miles are the default. Any distance, pace, elevation or temperature in client copy goes through `useUnits` (`Distance`, `Pace`, `Section`, `Temperature`, `TemperatureStep`, `PerDegree` in `components/story/Units.tsx`). Analysis thresholds stay metric. Recorded sections are labelled by their boundaries, never as invented mile splits.
 - **Language.** Say "sustained slowdown", never "the wall". Use association language only. Counts are finishes. Story copy contains no release tags. Tool results from data are observed shares of complete finishes, never "your chance".
 - **Tools.** Results appear instantly without a submit button and default to a full example (a 4:00 goal). The results region is `aria-live="polite"`. Inputs live in the URL so links can be shared, except birth dates.
-- **Motion.** The footer's `MotionToggle` pauses every animated figure for the whole site. It is stored per browser, sets `data-motion-off` on `<html>` and feeds `usePrefersReducedMotion`. Content animations that loop (six runners, the ghost race, the two runners) also have their own `.viz-pause` button. The replay has play and pause controls.
+- **Motion.** The footer's `MotionToggle` pauses every animated figure for the whole site, and keeps the phone header in place. It is stored per browser, sets `data-motion-off` on `<html>` and feeds `usePrefersReducedMotion`. Content animations that loop (six runners, the ghost race, the two runners) also have their own `.viz-pause` button. The replay has play and pause controls.
 - **Charts.**
   - Every SVG has `role="img"` and an `aria-label` stating the finding. Labels stay static; they do not change every frame.
   - Anything shown only on hover also has a keyboard path: a range input (`.heat-slider`), a select, or arrow keys with a roving `tabIndex` (the same-course pairs grid).
