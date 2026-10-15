@@ -201,31 +201,60 @@ Then run `npm run autopilot:stats -- ab --a <answered>/<visits of control> --b <
 - maximum 42 days;
 - decision rule: ship the variant at P(variant better) ≥ 0.90 with guardrails intact, keep control at P ≤ 0.10, otherwise inconclusive at the maximum.
 
-**Before/after changes:** compare the 14 (or 28) full days before the entry's `shipped_on` date with the same number of full days starting the day after it. Use `npm run autopilot:stats -- prepost`. Each window needs at least the entry's `min_sample` visits; with fewer, the verdict is `inconclusive`.
+**Before/after changes:** compare the entry's `window_days` (14 or 28) full days before its `shipped_on` date with the same number of full days starting the day after it. Use `npm run autopilot:stats -- prepost`. Each window needs at least the entry's `min_sample` visits; with fewer, the verdict is `inconclusive`.
 
 ## 4. Ledger line schema (`autopilot/ledger.jsonl`, one JSON object per line)
 
 Each entry is a single line; the example below is one line too (scroll sideways):
 
 ```json
-{"id":"2026-10-19-home-doors","date":"2026-10-19","kind":"change","title":"Three doors under the home hero","pages":["/"],"hypothesis":"Phone visitors who land on the home page find a personal path sooner when the first screen offers one.","primary_metric":"answered_visit_rate@v1","guardrails":["one_page_no_action_rate@v1","error_visit_rate@v1","web_vitals_p75@v1"],"baseline":{"window":"2026-09-21..2026-10-18","answered":120,"visits":548},"min_sample":150,"max_days":null,"decision_rule":"Keep if not worse (P(worse) < 0.9) and guardrails hold; revert if P(worse) >= 0.9 or a guardrail breaks.","evaluate_after":"2026-11-03","status":"proposed","pr":null,"shipped_on":null,"verdict":null,"result":null}
+{"id":"2026-10-19-home-doors","date":"2026-10-19","kind":"change","title":"Three doors under the home hero","pages":["/"],"hypothesis":"Phone visitors who land on the home page find a personal path sooner when the first screen offers one.","primary_metric":"answered_visit_rate@v1","guardrails":["one_page_no_action_rate@v1","error_visit_rate@v1","web_vitals_p75@v1"],"baseline":{"window":"2026-09-21..2026-10-18","answered":120,"visits":548},"min_sample":150,"window_days":14,"max_days":null,"decision_rule":"Keep if not worse (P(worse) < 0.9) and guardrails hold; revert if P(worse) >= 0.9 or a guardrail breaks.","evaluate_after":"2026-11-03","status":"proposed","pr":null,"shipped_on":null,"verdict":null,"result":null}
 ```
 
-- `id` is `YYYY-MM-DD-slug`, unique. For a change's own entry it is the branch name without `autopilot/`, so its pull request can be found later.
-- `primary_metric` is one metric name from the §1 table, written exactly as there, version included (`answered_visit_rate@v1`). `guardrails` is a list of such names: at least one for `change` and `experiment`, and possibly none for `fix`, `revert` and `conclude`. The guard refuses any other name in a new entry, such as a name without its version or one that only appears outside the §1 table. To measure something new, the owner adds it to §1 first.
-- `kind` is one of `change`, `experiment`, `conclude`, `revert` or `fix`. `evaluate_after` is a date, or null for `fix`, `revert` and `conclude`, which are not judged later.
-- `title`, `hypothesis` and `decision_rule` cannot be blank in a new entry: the guard refuses one that is empty or only spaces.
-- A new `change` entry requires `min_sample`, a positive safe integer: the fewest visits each before/after window needs (§3). Like an experiment's stopping rules, it is fixed once written. `fix`, `revert` and `conclude` entries need none. An older `change` line on `main` without it, or an older line with a blank hypothesis or decision rule, only gets a warning, also when it is shipped, concluded or reverted, because those fields can never be filled in.
-- `status` is one of `proposed`, `shipped`, `reverted` or `concluded`.
-- `verdict` is null or one of `keep`, `revert`, `inconclusive`, `iterate`, `ship-variant` or `keep-control`.
-- An `experiment` entry requires positive safe-integer `min_sample` and integer `max_days` from 1 to 42. An active (`proposed` or `shipped`) experiment also requires `experiment` (its lower-case, hyphenated registry key), nonempty unique `pages` (canonical paths such as `/` or `/tools`, or `"*"` for all pages), and optionally `area` (a lower-case, hyphenated slug). An omitted area or `"*"` reserves the entire page. These pre-registered fields are immutable.
-- `shipped_on` is the day the entry's pull request merged (UTC), or null. Before/after windows and experiment readouts count from it.
+**Fields, by kind.** Every field a later step reads is registered here, so none can be missing, blank, out of range or at odds with another field when the entry is written. The guard checks every new entry, every edited line and every repaired line against this table (`LEDGER_SCHEMA` in `scripts/autopilot-guard.cjs`, which has the same rules). "Date + N" means N days after the entry's `date`.
+
+| Field | `change` | `experiment` | `fix`, `revert`, `conclude` |
+|---|---|---|---|
+| `id` | `YYYY-MM-DD-slug`, unique. A new entry's is its branch name without `autopilot/`, so its pull request can be found later | same | same |
+| `kind` | a before/after change, judged later | an A/B experiment, judged later | a fix, a revert, or the conclusion of an experiment: not judged later |
+| `date` | the UTC day the entry is written (`date -u +%F`): within 2 days of the branch date, and not after the commit that adds it | same | same |
+| `title`, `hypothesis`, `decision_rule` | text, never blank | same | same |
+| `primary_metric` | one name from the §1 table, exactly, version included (`answered_visit_rate@v1`) | same | same |
+| `guardrails` | a list of §1 names, at least one | at least one | may be empty |
+| `baseline` | measured before the entry: `window`, `"YYYY-MM-DD..YYYY-MM-DD"`, 7 to 56 whole UTC days counting both ends, ending on or before `date`; `visits` (or `n`; if both, the same), the visits in that window, a positive whole number; any other numbers non-negative and finite. Text, and lists and objects of numbers and text, are fine; leave out a number you do not have | measured, as for a change | any object, such as `{"note": "…"}` |
+| `min_sample` | the fewest visits each before/after window needs, a positive whole number | the fewest exposed visits each arm needs, a positive whole number | null or left out (or a positive whole number) |
+| `window_days` | `14` or `28`: the full days in each before/after window (§3) | null or left out | null or left out |
+| `max_days` | null or left out | the maximum duration, a whole number from 1 to 42 | null or left out |
+| `evaluate_after` | date + 14 to date + 90, and at least date + `window_days` | date + 7 to date + `max_days` + 14 (time to ship) | null, or a check-up from date + 0 to date + 90 |
+| `experiment` | optional: a registry key it names | its key in `lib/experiments.ts` (lower-case words joined by hyphens) | optional, as for a change |
+| `pages`, `area` | optional, as for an experiment | `pages`: nonempty, unique canonical paths (`/`, `/tools`) or `"*"` for all pages; `area`: optional, a lower-case hyphenated slug or `"*"`. An omitted area reserves the whole page | optional, as for an experiment |
+| `status` | `proposed`, `shipped`, `reverted` or `concluded` (see below) | same | same |
+| `pr` | null or the pull request's number | same | same |
+| `shipped_on` | null, or the UTC day its pull request merged: on or after `date`, and not after the commit that records it (a day of slack for clocks) | same | same |
+| `verdict` | null or one of `keep`, `revert`, `inconclusive`, `iterate`, `ship-variant`, `keep-control` | same | same |
+| `result` | null, or an object with the numbers and their n (never `{}`) | same | same |
+| `evaluated_on` | null, or the day it was judged: on or after `date` and `shipped_on`, and not after the commit that records it | same | same |
+| `notes` | optional text | same | same |
+
+**What each status needs**, so that no entry drops out of the evaluation:
+
+| Status | Must be set | Must still be null |
+|---|---|---|
+| `proposed` | (nothing more) | `shipped_on`, `verdict`, `result`, `evaluated_on` |
+| `shipped` | `pr`, `shipped_on` | `verdict`, `result`, `evaluated_on` (the evaluation picks shipped entries whose verdict is null) |
+| `concluded` | `pr`, `shipped_on`, `verdict`, `result`, `evaluated_on` | (nothing) |
+| `reverted` | when an entry moves there: verdict `revert` or `inconclusive`, `pr` and a new note; with verdict `revert`, also `shipped_on` and `evaluated_on`. A new closed-unmerged record: step 4 below | |
+
+**When an entry is due.** The evaluation waits for the data, whatever `evaluate_after` says: an entry is due on the later of `evaluate_after` and, for a `change`, `shipped_on` + `window_days` + 1 day (the first day after its after-window); for an `experiment`, its start (`shipped_on`, or the registry's `started` date if later) + `max_days`. `evaluate_after` never changes, so a change that ships late is judged later, never on shorter windows. Before its due date, an experiment's stopping rule may still decide it (the skill's §3).
+
+- `primary_metric` and `guardrails` in a new entry must be names from the §1 table, written exactly as there. The guard refuses any other name, such as a name without its version or one that only appears outside the §1 table. To measure something new, the owner adds it to §1 first. An experiment's readout (§3) computes the answered-visit, one-page-no-action and error-visit rates by variant, so those are its natural primary metric and guardrails.
+- A line already on `main` that breaks a rule added after it was written, about a field that is fixed once written (such as a missing `min_sample` or `window_days`, a blank hypothesis or decision rule, an unmeasured baseline, an `evaluate_after` out of range, or a `shipped_on` before its date), only gets a warning, also when it is shipped, concluded or reverted, because those fields can never be filled in or changed. Its other problems must be fixed when the line is edited. A broken line that is repaired meets the whole schema.
 
 **Lifecycle.**
 1. **Proposed:** the change's pull request appends the entry with `status: "proposed"` and `pr`, `shipped_on`, `verdict` and `result` null.
-2. **Shipped:** once that pull request has merged, the next run sets `status: "shipped"`, `pr` and `shipped_on`. The guard requires both shipping fields to be non-null.
-3. **Concluded or reverted:** the guard requires a concluded entry to have non-null `pr`, `shipped_on`, `verdict`, `result` and `evaluated_on`. When judged, the entry gets `verdict`, `result`, `evaluated_on` and `notes`, and `status: "concluded"`, or `"reverted"` for a `revert` verdict. An entry that moves to `reverted` needs verdict `revert` or `inconclusive`, its `pr` and a note saying why (added to any note it already had); with verdict `revert` (it shipped and was rolled back) it also needs `shipped_on` and `evaluated_on`. So an entry judged anything else cannot be marked reverted; a later revert of it is recorded by its `revert` entry. An automatic revert by the merge workflow marks the entry `reverted` itself, with verdict `revert`, `pr`, `shipped_on`, `evaluated_on` (the day of the revert) and a dated note.
-4. **Closed unmerged:** a pull request that closed without merging never put its line on `main`. It is recorded as a new line: `status: "reverted"`, `verdict: "inconclusive"` (or null), its `pr` (the number of the pull request that closed) and `notes` saying why it closed; the guard refuses the line without either. Its date and id stay those of the original change. A line already on `main` whose pull request closed unmerged is marked the same way, with verdict `inconclusive`.
+2. **Shipped:** once that pull request has merged, the next run sets `status: "shipped"`, `pr` and `shipped_on` (the merge's UTC day).
+3. **Concluded or reverted:** when judged, the entry gets `verdict`, `result`, `evaluated_on` and `notes`, and `status: "concluded"`, or `"reverted"` for a `revert` verdict. An entry that moves to `reverted` needs verdict `revert` or `inconclusive`, its `pr` and a note saying why (added to any note it already had); with verdict `revert` (it shipped and was rolled back) it also needs `shipped_on` and `evaluated_on`. So an entry judged anything else cannot be marked reverted; a later revert of it is recorded by its `revert` entry. An automatic revert by the merge workflow marks the entry `reverted` itself, with verdict `revert`, `pr`, `shipped_on`, `evaluated_on` (the day of the revert) and a dated note.
+4. **Closed unmerged:** a pull request that closed without merging never put its line on `main`. It is recorded as a new line: `status: "reverted"`, `verdict: "inconclusive"` (or null), `shipped_on` and `result` null, its `pr` (the number of the pull request that closed) and `notes` saying why it closed; the guard refuses the line without either. Its date and id stay those of the original change. A line already on `main` whose pull request closed unmerged is marked the same way, with verdict `inconclusive`.
 
 Once a line is written, only `status`, `verdict`, `result`, `evaluated_on`, `pr`, `shipped_on` and `notes` may change. `verdict`, `result`, `evaluated_on`, `pr` and `shipped_on` change only once, from null. The status only moves forward. The guard enforces all of this on autopilot pull requests. Entries the owner adds in a pull request of their own follow the same schema; one that has already shipped carries its `pr` and `shipped_on`.
 

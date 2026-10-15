@@ -55,10 +55,10 @@ You are the product team for https://splithappens.run, a free site where runners
      - review threads: address and resolve them;
      - Codex or other bot findings: verify each one and fix the real ones;
      - preview smoke failed: reproduce it locally.
-   - If it has been stuck more than 7 days or its premise is gone, close it with a comment. Its ledger line never reached `main`, so record it as a new line: its entry with `status: "reverted"`, `verdict: "inconclusive"`, its `pr` and a note saying why it closed (the guard refuses the line without its `pr` number or a non-empty `notes`). (If its line is on `main` after all, mark that line the same way instead of adding one.) Put that change in this run's PR, or in a bookkeeping PR (step 1.4).
+   - If it has been stuck more than 7 days or its premise is gone, close it with a comment. Its ledger line never reached `main`, so record it as a new line: its entry with `status: "reverted"`, `verdict: "inconclusive"`, `shipped_on` and `result` null, its `pr` and a note saying why it closed (the guard refuses the line without its `pr` number or a non-empty `notes`). (If its line is on `main` after all, mark that line the same way instead of adding one.) Put that change in this run's PR, or in a bookkeeping PR (step 1.4).
    - If more than one is open, none of them can merge until all but one are closed. Keep the one worth finishing and close the others as above.
    - Only start a new change once no autopilot PR is open.
-4. **Bookkeeping.** A ledger line reaches `main` only with its PR, so every entry on `main` still `proposed` belongs to a PR that has merged. Mark each one `shipped`, with `pr` and `shipped_on`, the PR's `merged_at` date (UTC). Find the PR by its branch, `autopilot/<id>`, or search merged PRs for the id.
+4. **Bookkeeping.** A ledger line reaches `main` only with its PR, so every entry on `main` still `proposed` belongs to a PR that has merged. Mark each one `shipped`, with `pr` and `shipped_on`, the PR's `merged_at` date (UTC), which is never before the entry's `date` or after today. Leave `evaluate_after` as it is: it never changes, and the due date in step 2.3 allows for a late ship. Find the PR by its branch, `autopilot/<id>`, or search merged PRs for the id.
    - These edits, verdicts (§3) and the backlog and `LEARNINGS.md` updates (§7) go in this run's PR.
    - If this run opens no other PR, put them in a bookkeeping PR: branch `autopilot/<date>-ledger`, label `autopilot`, changing only existing ledger lines, `autopilot/backlog.md` and `autopilot/LEARNINGS.md`. It needs no new ledger line and goes through the normal pipeline.
 5. **Streak check.** Do the last two `change` or `experiment` entries that shipped (those with a `shipped_on` date) both have verdict `revert`? If so, add `autopilot:paused` to the log issue, explain why in a comment, and stop.
@@ -73,7 +73,11 @@ Collect evidence. Keep a private working note in `/tmp/autopilot/notes.md`; the 
 
    Split by phone versus desktop where the query allows. Note the sample size with every number.
 2. **Experiments.** For each experiment marked `running` in `lib/experiments.ts`, run the readout query in §3 and compute the comparison with `npm run autopilot:stats -- ab --a x/n --b x/n`.
-3. **Due evaluations.** Ledger entries with `status: "shipped"`, `verdict: null` and an `evaluate_after` on or before today (after the bookkeeping in step 1.4). Run each one's pre-registered comparison (see §3).
+3. **Due evaluations.** Ledger entries with `status: "shipped"` and `verdict: null` (after the bookkeeping in step 1.4) whose due date is today or earlier. The due date is the later of `evaluate_after` and:
+   - for a `change`, `shipped_on` + `window_days` + 1 day, the first day after its after-window;
+   - for an `experiment`, its start (`shipped_on`, or the registry's `started` date if later) + `max_days`.
+
+   So a change that shipped late is judged on its full windows, never on too little data. Run each one's pre-registered comparison (see §3). A running experiment whose readout (step 2) already meets its stopping rule is judged in §3 too, before its due date.
 4. **Behaviour.**
    - Look at the newest recordings since the last run with `query-session-recordings-list`. Choose up to about 20 across the important groups:
      - home landings that left within 30 s;
@@ -106,12 +110,12 @@ For each due ledger entry:
      - each arm has at least the pre-registered minimum sample;
      - no guardrail is worse beyond its threshold.
    - Keep control when P ≤ 0.10, or a guardrail is broken.
-   - Otherwise wait, up to the experiment's maximum duration. At the maximum, record `inconclusive` and choose with judgement:
+   - Otherwise wait, up to the experiment's maximum duration (its due date, step 2.3). At the maximum, record `inconclusive` and choose with judgement:
      - keep the simpler option;
      - or keep the variant if it fixes a documented usability problem and is neutral or better.
 
      Say which you chose and why.
-3. **Before/after changes.** Run `npm run autopilot:stats -- prepost` on the pre-registered windows, counted from the entry's `shipped_on`.
+3. **Before/after changes.** Run `npm run autopilot:stats -- prepost` on the pre-registered windows: the entry's `window_days` full days before its `shipped_on`, and as many starting the day after it.
    - Revert when a guardrail is clearly broken, or the primary metric is worse with P(worse) ≥ 0.90.
    - Keep when the change is better or neutral.
    - Use `inconclusive` for samples below the entry's minimum. Before/after comparisons are confounded by traffic mix and seasonality, so call them evidence, not proof.
@@ -152,14 +156,15 @@ Priority:
 1. Start a branch from the latest `main`: `git checkout -B autopilot/$(date -u +%F)-<slug> origin/main`. The slug is lowercase words joined by hyphens.
 2. Implement the change. Match the surrounding code and the design system, keep text server-rendered where it is today, and keep pages fast. Experiments use `lib/experiments.ts` (registry) and the `Variant` component and `useVariant` hook from `components/Experiment.tsx`. Never hide content from search engines in a way that changes a page's meaning.
    - `AGENTS.md` asks for handoff documents to be updated; that does not apply to autopilot runs. They never edit `docs/PROJECT_HANDOFF.md`, `AGENTS.md`, `docs/AUTOPILOT.md` or `docs/ANALYTICS.md` (all protected). The ledger, `LEARNINGS.md` and the log issue are the record.
-3. **Pre-register.** Append one line to `autopilot/ledger.jsonl`: one JSON object on one line, with `id` equal to the branch name without `autopilot/`, `status: "proposed"`, and `pr`, `verdict`, `result` and `shipped_on` null. The schema is in `autopilot/metrics.md` §4. It must include:
+3. **Pre-register.** Append one line to `autopilot/ledger.jsonl`: one JSON object on one line, with `id` equal to the branch name without `autopilot/`, `date` today (`date -u +%F`), `status: "proposed"`, and `pr`, `verdict`, `result` and `shipped_on` null. The schema, field by field for each kind, is in `autopilot/metrics.md` §4; the guard refuses a line that breaks it. It must include:
    - the hypothesis, in plain words (the guard refuses a blank one);
    - the primary metric: a name copied exactly from the table in `autopilot/metrics.md` §1, version included (normally `answered_visit_rate@v1`, or the page-level metric that matches). The guard refuses any other name;
-   - the guardrails: at least one name, again copied exactly from §1 (a `fix`, `revert` or `conclude` entry may have none). If no defined metric fits, don't invent a name: open an `autopilot:needs-owner` issue that proposes one;
-   - the baseline numbers with n;
+   - the guardrails: at least one name, again copied exactly from §1 (a `fix`, `revert` or `conclude` entry may have none). If no defined metric fits, don't invent a name: open an `autopilot:needs-owner` issue that proposes one. An experiment's readout (`autopilot/metrics.md` §3) computes the answered-visit, one-page-no-action and error-visit rates by variant, so use those for an experiment;
+   - the baseline, measured from the scorecard before you write the entry: for a `change` or `experiment`, `window` (`"YYYY-MM-DD..YYYY-MM-DD"`, 7 to 56 whole UTC days ending on or before the entry's date), `visits` (or `n`), the visits in that window, and the numbers behind the primary metric, such as `answered`. A `fix`, `revert` or `conclude` may record any object, such as `{"note": "…"}`;
    - the minimum sample, `min_sample`: a positive whole number of visits that each before/after window (or each experiment arm) needs. A `change` or `experiment` must have it; a `fix`, `revert` or `conclude` needs none;
+   - for a `change`, `window_days`: 14 or 28, the full days in each before/after window;
    - the decision rule, in plain words (never blank either);
-   - `evaluate_after`: at least 14 days after the expected ship date, or the experiment's planned end;
+   - `evaluate_after`: for a `change`, 14 to 90 days after the entry's date, and at least `window_days` (normally the expected ship date + `window_days` + 1); for an `experiment`, 7 days to `max_days` + 14 days after it (normally its planned end); for a `fix`, `revert` or `conclude`, null. It never changes once written;
    - for experiments, also the maximum duration (`max_days`, at most 42 days), the registry `experiment` key, and canonical `pages` with optional `area`. Follow the data-only registry and occupancy contract in `autopilot/metrics.md` §4: at most two active reservations/running keys, with no overlapping page areas; an omitted area reserves the whole page. A running key keeps the pages and area of its latest experiment entry, even after that entry is concluded; to change them, register a new experiment. Another kind of entry, or the record of a pull request that closed unmerged, does not change them.
 
    Move the backlog item to "In flight" and link it.

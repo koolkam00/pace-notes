@@ -1721,7 +1721,7 @@ async function selfTestAsync() {
   }
 
   // Reverts in real temporary repositories: pushed, conflicting, rejected; the ledger keeps its entries.
-  const ledgerLine = (id, extra = {}) => JSON.stringify({ id, date: id.slice(0, 10), kind: 'change', title: 'A change', hypothesis: 'Clearer copy helps.', primary_metric: 'answered_visit_rate@v1', guardrails: ['one_page_no_action_rate@v1'], baseline: {}, min_sample: 150, decision_rule: 'Keep if the rate rises.', evaluate_after: '2026-10-28', status: 'proposed', pr: null, verdict: null, result: null, ...extra });
+  const ledgerLine = (id, extra = {}) => JSON.stringify({ id, date: id.slice(0, 10), kind: 'change', title: 'A change', hypothesis: 'Clearer copy helps.', primary_metric: 'answered_visit_rate@v1', guardrails: ['one_page_no_action_rate@v1'], baseline: { window: '2026-09-03..2026-09-30', answered: 120, visits: 548 }, min_sample: 150, window_days: 14, decision_rule: 'Keep if the rate rises.', evaluate_after: '2026-10-28', status: 'proposed', pr: null, verdict: null, result: null, ...extra });
   const revertCase = async (label, setup, expectPushed, { ledger = false, sameFailures = false } = {}) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'autopilot-revert-'));
     const g = (cwd, ...a) => execFileSync('git', ['-c', 'user.name=Self Test', '-c', 'user.email=self-test@example.invalid', '-c', 'commit.gpgsign=false', ...a], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();

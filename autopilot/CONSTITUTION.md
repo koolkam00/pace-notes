@@ -100,9 +100,10 @@ The authoritative rules are `ALLOWED` and `PROTECTED` in `scripts/autopilot-guar
 A change that needs any of these goes to an `autopilot:needs-owner` issue with a concrete proposal (a branch is fine, but never with the `autopilot` label). Then pick other work.
 
 **Ledger rules (also enforced by the guard):**
-- Each entry is one JSON object on one line (schema in `autopilot/metrics.md` §4).
+- Each entry is one JSON object on one line, and meets the schema for its kind in `autopilot/metrics.md` §4, which registers everything its evaluation later needs.
 - A new entry's `primary_metric` and guardrails are names from the `autopilot/metrics.md` §1 table, written exactly; a change or experiment has at least one guardrail.
-- A new entry's hypothesis and decision rule are never blank. A new change or experiment also records its minimum sample (`min_sample`, a positive whole number), which never changes once written. An older change line without one, or with a blank hypothesis or decision rule, can still be marked shipped, concluded or reverted.
+- A new entry's hypothesis and decision rule are never blank. A new change or experiment also records its minimum sample (`min_sample`, a positive whole number), its measured baseline (the window it was counted over and its visits), its windows (`window_days` for a change, `max_days` for an experiment) and an `evaluate_after` in the range its kind allows; none of these ever changes once written. An older line that lacks one of them, or has a blank hypothesis or decision rule, can still be marked shipped, concluded or reverted.
+- `shipped_on` and `evaluated_on` are never before the entry's date (nor the evaluation before the ship), nor after the day they are recorded.
 - New entries start as `proposed`, with `verdict`, `result` and `shipped_on` null, dated within 2 days of the branch date. The one exception is the record of a pull request that closed unmerged: `reverted`, with verdict null or `inconclusive`, its own date, and always its `pr` and a note saying why it closed.
 - Once its pull request has merged, an entry is marked `shipped`, with `pr` and `shipped_on`. When judged it becomes `concluded` (or `reverted`). `status` only moves forward.
 - An entry moved to `reverted` needs verdict `revert` or `inconclusive`, its `pr` and a new note saying why; a `revert` verdict also needs `shipped_on` and `evaluated_on`.
