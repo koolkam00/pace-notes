@@ -132,7 +132,7 @@ export function ShareBar({ print = true, extra }: { print?: boolean; extra?: Rea
           setCopied(true); setTimeout(() => setCopied(false), 1800);
         } catch { /* clipboard unavailable */ }
       }}>{copied ? 'Link copied' : 'Copy link'}</button>
-      {print ? <button type="button" className="button-secondary" onClick={() => window.print()}>Print</button> : null}
+      {print ? <button type="button" className="button-secondary" data-not-edit onClick={() => window.print()}>Print</button> : null}
       {extra}
       <span className="sr-only" aria-live="polite">{copied ? 'Link copied to the clipboard' : ''}</span>
     </div>

@@ -49,8 +49,10 @@ export type AnalyticsEvents = {
   section_viewed: { section: (typeof TRACKED_SECTIONS)[number] };
 };
 // The fixed tags on the owner's own Instagram links. Only the first page view of a tab carries them (lib/analytics.ts).
+// Each value names a place many people see the same link. A link sent in a direct message would single out the one
+// person who opened it, so no value names that.
 export const CAMPAIGN: Record<'utm_source' | 'utm_medium' | 'utm_content', readonly string[]> = {
-  utm_source: ['instagram'], utm_medium: ['social'], utm_content: ['bio', 'story', 'highlight', 'reel', 'post', 'dm'],
+  utm_source: ['instagram'], utm_medium: ['social'], utm_content: ['bio', 'story', 'highlight', 'reel', 'post'],
 };
 const eventProperties: Record<keyof AnalyticsEvents | '$pageview' | '$pageleave' | '$web_vitals', Record<string, readonly string[]>> = {
   $pageview: CAMPAIGN, $pageleave: {}, $web_vitals: {},
@@ -202,9 +204,12 @@ export function sanitizeAnalyticsEvent(event: CaptureResult | null, basePath = '
     const value = source[key];
     if (typeof value === 'number' && value >= min && value <= max) properties[key] = Math.round(value * scale) / scale;
   }
-  // The page a reading-depth figure belongs to, and the random page-view IDs that join it to that page view.
-  if (event.event === '$pageview' && typeof source.$prev_pageview_pathname === 'string') properties.$prev_pageview_pathname = analyticsPath(source.$prev_pageview_pathname, basePath);
-  for (const key of ['$pageview_id', '$prev_pageview_id']) if (typeof source[key] === 'string' && UUID.test(source[key] as string)) properties[key] = source[key];
+  // The page a reading-depth figure belongs to (on $pageleave, the page being left), and the random page-view IDs that
+  // join it to that page view. Web Vitals have no page-view ID: they are reported when the visitor first taps or leaves,
+  // which can be after a client-side navigation, so the SDK's ID there would name the next page view. They join to
+  // their page by $pathname and $session_id.
+  if ((event.event === '$pageview' || event.event === '$pageleave') && typeof source.$prev_pageview_pathname === 'string') properties.$prev_pageview_pathname = analyticsPath(source.$prev_pageview_pathname, basePath);
+  if (event.event !== '$web_vitals') for (const key of ['$pageview_id', '$prev_pageview_id']) if (typeof source[key] === 'string' && UUID.test(source[key] as string)) properties[key] = source[key];
   // Which version of a page this tab was shown, for a running experiment (lib/experiments.ts) and one of its variants.
   for (const { key, variants, status } of experiments) {
     const value = source['$feature/' + key];

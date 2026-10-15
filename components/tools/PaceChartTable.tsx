@@ -77,7 +77,7 @@ export default function PaceChartTable({ race }: { race: ChartRace }) {
       <EvidencePanel id={`${tableId}-panel`} title={`${name} pace chart, ${first} to ${last}`}
         meta={<>Calculated at even pace, not recorded times: each goal spread evenly over {distance}. Elapsed time at each {race === 'marathon' ? '5 km timing mat and at halfway' : '5 km point'}; whole hours and half hours shaded.</>}>
         <div className="tool-share no-print">
-          <button type="button" className="button-secondary" onClick={() => window.print()}>Print chart</button>
+          <button type="button" className="button-secondary" data-not-edit onClick={() => window.print()}>Print chart</button>
         </div>
         <ChartScroller labelledBy={`${tableId}-caption`} note="These are not recorded splits: every time is calculated at even pace from the goal and rounded to whole seconds.">
           <table className="tool-table goal-chart-table" id={tableId}>

@@ -846,8 +846,8 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
         <p className="tool-panel-meta">Strips about 2.5 cm wide, with dashed cut guides. Big numbers are even-pace elapsed times; the small “H” line is the held-pace median at each mat. Print at 100% scale.</p>
       </header>
       <div className="pace-band-print-controls no-print">
-        <button type="button" className="button-primary" disabled={waiting} aria-describedby={waiting ? 'pace-band-print-held' : undefined} onClick={() => onPrint('strip')}>Print wristband strips</button>
-        <button type="button" className="button-secondary" disabled={waiting} aria-describedby={waiting ? 'pace-band-print-held' : undefined} onClick={() => onPrint('page')}>Print full page</button>
+        <button type="button" className="button-primary" data-not-edit disabled={waiting} aria-describedby={waiting ? 'pace-band-print-held' : undefined} onClick={() => onPrint('strip')}>Print wristband strips</button>
+        <button type="button" className="button-secondary" data-not-edit disabled={waiting} aria-describedby={waiting ? 'pace-band-print-held' : undefined} onClick={() => onPrint('page')}>Print full page</button>
         {waiting ? <p className="pace-band-print-held" id="pace-band-print-held">Fix the goal above to print. The preview still shows {fmtGoal(goal)}.</p> : null}
         {profile ? (
           <label className="tool-check"><input type="checkbox" checked={showBack} onChange={(e) => onBack(e.target.checked)} />Add a route elevation strip for the back ({profile.city})</label>

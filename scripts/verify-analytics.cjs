@@ -130,8 +130,10 @@ assert.deepEqual([...policy.TRACKED_SECTIONS], ['hero', ...[1, 2, 3, 4, 5, 6, 7,
 // Campaign tags: only the owner's fixed Instagram values, and only on a page view.
 const tagged = kept('$pageview', { utm_source: 'instagram', utm_medium: 'social', utm_content: 'bio', utm_campaign: 'Private Name', utm_term: 'x', gclid: 'abc', fbclid: 'abc' });
 assert.deepEqual([tagged.utm_source, tagged.utm_medium, tagged.utm_content, tagged.utm_campaign, tagged.utm_term, tagged.gclid, tagged.fbclid], ['instagram', 'social', 'bio', undefined, undefined, undefined, undefined]);
-for (const content of ['bio', 'story', 'highlight', 'reel', 'post', 'dm']) assert.equal(kept('$pageview', { utm_content: content }).utm_content, content);
-for (const [key, value] of [['utm_source', 'facebook'], ['utm_source', 'Instagram'], ['utm_medium', 'email'], ['utm_content', 'Private Name'], ['utm_content', 'bio2']]) assert.equal(kept('$pageview', { [key]: value })[key], undefined, `${key}=${value} is not one of the fixed tags`);
+for (const content of ['bio', 'story', 'highlight', 'reel', 'post']) assert.equal(kept('$pageview', { utm_content: content }).utm_content, content);
+assert.deepEqual(policy.CAMPAIGN.utm_content, ['bio', 'story', 'highlight', 'reel', 'post'], 'Every campaign value names a place many people see the link');
+// A link sent in a direct message would tie the one person who opened it to the whole tab, so dm is not a value.
+for (const [key, value] of [['utm_source', 'facebook'], ['utm_source', 'Instagram'], ['utm_medium', 'email'], ['utm_content', 'Private Name'], ['utm_content', 'bio2'], ['utm_content', 'dm']]) assert.equal(kept('$pageview', { [key]: value })[key], undefined, `${key}=${value} is not one of the fixed tags`);
 for (const event of ['$pageleave', '$web_vitals', 'tool_used', 'units_changed']) assert.equal(kept(event, { utm_source: 'instagram', utm_medium: 'social', utm_content: 'bio' }).utm_source, undefined, `${event} never carries campaign tags`);
 // Time on page and scroll depth: in range, on their grid (whole seconds, 5% steps), with no floating-point noise.
 const view = kept('$pageview', { $prev_pageview_duration: 12.3456, $prev_pageview_max_scroll_percentage: 0.1499, $prev_pageview_max_content_percentage: 0.8523,
@@ -142,7 +144,11 @@ assert.deepEqual([view.$pageview_id, view.$prev_pageview_id], [UUID_A, UUID_B]);
 for (const key of ['$prev_pageview_last_scroll', '$prev_pageview_max_scroll', '$prev_pageview_last_scroll_percentage']) assert.equal(view[key], undefined, `${key} is not kept`);
 assert.equal(kept('$pageview', { $prev_pageview_pathname: '/runners?q=Private+Name' }).$prev_pageview_pathname, '/runners');
 for (const page of ['/runners/Private-Name', '/Private-Name']) assert.equal(kept('$pageview', { $prev_pageview_pathname: page }).$prev_pageview_pathname, '/other');
-assert.equal(kept('$pageleave', { $prev_pageview_pathname: '/tools' }).$prev_pageview_pathname, undefined, '$pageleave is about the page it leaves, already in $pathname');
+// $pageleave names the page it leaves too, cleaned the same way: the autopilot's story-completion figures read it there.
+const leaving = kept('$pageleave', { $current_url: 'https://splithappens.run/stories/final-kick?x=1', $prev_pageview_pathname: '/stories/final-kick?x=Private+Name#end', $prev_pageview_max_scroll_percentage: 0.97, $prev_pageview_duration: 184.6, $pageview_id: UUID_A, $prev_pageview_id: UUID_B });
+assert.deepEqual([leaving.$pathname, leaving.$prev_pageview_pathname, leaving.$prev_pageview_max_scroll_percentage, leaving.$prev_pageview_duration, leaving.$prev_pageview_id], ['/stories/final-kick', '/stories/final-kick', 0.95, 185, UUID_B]);
+for (const page of ['/runners/Private-Name', '/stories/Private-Name']) assert.notEqual(kept('$pageleave', { $prev_pageview_pathname: page }).$prev_pageview_pathname, page, `$pageleave never names ${page}`);
+for (const event of ['tool_used', '$web_vitals', 'section_viewed']) assert.equal(kept(event, { $prev_pageview_pathname: '/tools' }).$prev_pageview_pathname, undefined, `${event} names no previous page`);
 for (let step = 0; step <= 20; step++) {
   const share = kept('$pageleave', { $prev_pageview_max_scroll_percentage: step === 20 ? 0.996 : step / 20 + 0.004 }).$prev_pageview_max_scroll_percentage;
   assert.equal(String(share), String(step / 20), `scroll depth ${step / 20} is on the 5% grid with no rounding noise`);
@@ -166,9 +172,48 @@ const vitals = kept('$web_vitals', { $current_url: 'https://splithappens.run/too
   $web_vitals_allowed_metrics: ['LCP'], $web_vitals_enabled_server_side: true });
 assert.deepEqual([vitals.$web_vitals_LCP_value, vitals.$web_vitals_FCP_value, vitals.$web_vitals_INP_value, vitals.$web_vitals_CLS_value], [1235, 800, 56, 0.123]);
 assert.equal(vitals.$current_url, 'https://splithappens.run/tools/split-check');
+// Web Vitals arrive when the visitor first taps or leaves, possibly after a client-side navigation, so the SDK's page-view
+// ID on them can name the next page view: they join to their page by $pathname and $session_id instead.
+const vitalsIds = kept('$web_vitals', { $web_vitals_LCP_value: 900, $pageview_id: UUID_A, $prev_pageview_id: UUID_B });
+assert.deepEqual([vitalsIds.$pageview_id, vitalsIds.$prev_pageview_id, vitalsIds.$session_id], [undefined, undefined, dirty.properties.$session_id], 'Web Vitals carry no page-view ID');
 assert.doesNotMatch(JSON.stringify(vitals), /_event|attribution|runner-name|0:24:11|TTFB|allowed_metrics|enabled_server_side/, 'Web Vitals keep their values only');
 for (const [key, bad] of [['$web_vitals_LCP_value', 60001], ['$web_vitals_FCP_value', -5], ['$web_vitals_INP_value', '56'], ['$web_vitals_CLS_value', 10.5], ['$web_vitals_CLS_value', NaN]]) assert.equal(kept('$web_vitals', { [key]: bad })[key], undefined, `${key}=${String(bad)} is dropped`);
 assert.equal(kept('$web_vitals', { $web_vitals_CLS_value: 0.1 + 0.2 }).$web_vitals_CLS_value, 0.3, 'CLS is on its 0.001 grid with no rounding noise');
+// The site's Web Vitals: every value waits until the page is hidden, then all go at once by beacon, each once per load.
+{
+  const reporters = {}, listeners = [], captured = [];
+  const library = Object.fromEntries(['LCP', 'INP', 'CLS', 'FCP'].map(name => ['on' + name, report => { reporters[name] = report; }]));
+  const saved = { window: global.window, document: global.document };
+  global.window = { addEventListener: (type, listener, options) => listeners.push({ type, listener, options }), location: { href: 'https://splithappens.run/tools?x=1' } };
+  global.document = { visibilityState: 'visible' };
+  try {
+    replay.measureWebVitals({ capture: (...args) => captured.push(args) }, library);
+    assert.deepEqual(Object.keys(reporters).sort(), ['CLS', 'FCP', 'INP', 'LCP'], 'LCP, INP, CLS and FCP are measured');
+    assert.deepEqual(listeners.map(l => [l.type, l.options]), [['visibilitychange', undefined]], 'One bubbling visibilitychange listener on window, after the library\'s own capturing one');
+    const hide = () => { global.document.visibilityState = 'hidden'; for (const l of listeners) l.listener(); };
+    const metric = (name, value, id) => ({ name, value, id, navigationURL: 'https://splithappens.run/stories/final-kick?q=Private+Name#x', attribution: { target: '#runner-name' } });
+    reporters.FCP(metric('FCP', 208.4, 'v5-f1')); reporters.LCP(metric('LCP', 1234.5, 'v5-l1'));
+    global.document.visibilityState = 'visible'; for (const l of listeners) l.listener();
+    assert.equal(captured.length, 0, 'Nothing is sent while the page is visible');
+    // As the tab closes, the library reports CLS and INP in its own listener; this one then sends everything at once.
+    reporters.CLS(metric('CLS', 0.0213, 'v5-c1')); reporters.INP(metric('INP', 48, 'v5-i1')); hide();
+    assert.equal(captured.length, 1, 'One event when the page is hidden');
+    const [name, properties, options] = captured[0];
+    assert.equal(name, '$web_vitals');
+    assert.deepEqual(properties, { $current_url: 'https://splithappens.run/stories/final-kick?q=Private+Name#x', $web_vitals_FCP_value: 208.4, $web_vitals_LCP_value: 1234.5, $web_vitals_CLS_value: 0.0213, $web_vitals_INP_value: 48 }, 'Values only, for the page that loaded');
+    assert.deepEqual(options, { send_instantly: true, transport: 'sendBeacon' }, 'Sent at once by beacon, which outlives a closing tab');
+    const sentVitals = policy.sanitizeAnalyticsEvent({ ...dirty, event: '$web_vitals', properties: { ...dirty.properties, ...properties } }).properties;
+    assert.deepEqual([sentVitals.$pathname, sentVitals.$web_vitals_LCP_value, sentVitals.$web_vitals_CLS_value, sentVitals.$web_vitals_INP_value, sentVitals.$web_vitals_FCP_value], ['/stories/final-kick', 1235, 0.021, 48, 208]);
+    global.document.visibilityState = 'visible'; reporters.CLS(metric('CLS', 0.05, 'v5-c1')); hide();
+    assert.equal(captured.length, 1, 'A value already sent for this page load is not sent again when the tab is hidden once more');
+    reporters.FCP(metric('FCP', 31, 'v5-f2')); reporters.LCP(metric('LCP', 31, 'v5-l2')); global.document.visibilityState = 'visible'; hide();
+    assert.deepEqual(Object.keys(captured[1][1]).filter(key => key.endsWith('_value')), ['$web_vitals_FCP_value', '$web_vitals_LCP_value'], 'A page restored from the back/forward cache reports its own new values');
+    library.onINP = () => { throw new Error('unsupported'); }; listeners.length = 0;
+    replay.measureWebVitals({ capture: () => assert.fail('nothing to send') }, library);
+    assert.equal(listeners.length, 0, 'A browser the library cannot measure in sends nothing, and nothing throws');
+  } finally { global.window = saved.window; global.document = saved.document; }
+}
+
 // The SDK's capture-time override markers (from capture(..., { timestamp })) never leave.
 assert.equal(kept('$pageview', { $event_time_override_provided: true, $event_time_override_system_time: new Date() }).$event_time_override_provided, undefined);
 
@@ -485,12 +530,20 @@ for (const [file, argument] of failureCalls) {
 for (const [file, count] of [['components/SiteAnalytics.tsx', 5], ['app/error.tsx', 2], ['app/global-error.tsx', 2], ['lib/data-fetch.ts', 2]]) assert.equal(failureCalls.filter(([f]) => f === file).length, count, `${file} reports its failures`);
 assert.match(read('components/UnitsProvider.tsx'), /const setUnits = useCallback\(\(next: UnitSystem\) => \{\s*if \(next === shown\.current\) return;\s*shown\.current = next;\s*trackAnalytics\('units_changed'/, 'units_changed is sent only when the units really change');
 assert.ok(hasClasses(read('components/tools/ui.tsx'), 'tool-share', 'share-bar'), 'ShareBar carries .share-bar');
-assert.match(read('components/SiteAnalytics.tsx'), /closest\('\.share-bar'\)/, 'The copy-link and print buttons are not counted as edits');
-assert.doesNotMatch(read('components/SiteAnalytics.tsx'), /closest\('\.tool-share'\)/, 'Other .tool-share rows (faster or slower paces, the projector fallbacks) are edits');
-// The controls that count as an edit: every tool's workspace, and the pace calculator's view switch and pace chart,
-// which sit outside it (a rename there would stop counting them).
-assert.match(read('components/SiteAnalytics.tsx'), /const TOOL_CONTROLS = '\.tool-workspace, \.tool-tabs, \.pace-chart';[\s\S]*closest\(TOOL_CONTROLS\)/, 'Edits are counted in the tool controls');
-for (const token of ['tool-tabs', 'pace-chart']) assert.ok(hasClass(read('components/tools/PaceCalculator.tsx'), token), `PaceCalculator still renders .${token}`);
+// The controls that count as an edit: every tool's workspace, and the controls a tool keeps outside it, marked
+// data-tool-controls. Buttons that only scroll, print or copy the link are not edits (.share-bar, data-not-edit).
+const siteAnalyticsSource = read('components/SiteAnalytics.tsx');
+assert.match(siteAnalyticsSource, /const TOOL_CONTROLS = '\.tool-workspace, \[data-tool-controls\]';\s*const NOT_EDITS = '\.share-bar, \[data-not-edit\]';[\s\S]*!target\?\.closest\(TOOL_CONTROLS\) \|\| target\.closest\(NOT_EDITS\)/, 'Edits are counted in the tool controls, without the copy-link, print and jump buttons');
+assert.doesNotMatch(siteAnalyticsSource, /closest\('\.tool-share'\)|NOT_EDITS = '[^']*\.tool-share/, 'Other .tool-share rows (faster or slower paces, the projector fallbacks) are edits');
+for (const [file, opening] of [['components/tools/PaceCalculator.tsx', '<div className="tool-tabs no-print"'], ['components/tools/PaceCalculator.tsx', '<section className="tool-panel panel-plain pace-chart"'], ['components/tools/CourseChooser.tsx', '<div className="course-chooser-list ph-no-capture"']]) {
+  const tag = read(file).split(opening)[1];
+  assert.ok(tag !== undefined && /^[^>]*\sdata-tool-controls[\s>]/.test(tag), `${file}: ${opening}> is marked data-tool-controls, so its controls count as edits`);
+}
+for (const file of sourceFiles('components/tools')) {
+  for (const m of read(file).matchAll(/<button\b[^>]*>(?:(?!<\/button>)[\s\S])*?<\/button>/g)) {
+    if (/window\.print\(\)|onPrint\(|scrollIntoView|onClick=\{toResult\}/.test(m[0])) assert.match(m[0], /\sdata-not-edit[\s>]/, `${file}: a print or jump button is marked data-not-edit: ${m[0].slice(0, 90)}`);
+  }
+}
 // Every event the site can send is described on /privacy and in docs/ANALYTICS.md.
 const eventKeys = [...policySource.match(/export type AnalyticsEvents = \{([\s\S]*?)\n\};/)[1].matchAll(/^\s+(\w+):/gm)].map(m => m[1]);
 assert.ok(eventKeys.length >= 12 && eventKeys.includes('section_viewed'), 'AnalyticsEvents read from lib/analytics-policy.ts');
@@ -660,7 +713,9 @@ async function main() {
   assert.equal(sdkLoads, 1); assert.equal(events.length, 1, 'One initial pageview, including React Strict Mode');
   assert.equal(recorderLoads, 1, 'The recorder is bundled and loaded with the SDK');
   const source = fs.readFileSync(path.join(__dirname, '../lib/analytics.ts'), 'utf8');
-  assert.match(source, /Promise\.all\(\[import\('posthog-js'\), import\('posthog-js\/dist\/posthog-recorder'\), import\('\.\/replay-policy'\), import\('posthog-js\/dist\/web-vitals'\)\]\)/, 'The recorder, the Web Vitals code and the replay policy are imported inside the dynamic import');
+  assert.match(source, /Promise\.all\(\[import\('posthog-js'\), import\('posthog-js\/dist\/posthog-recorder'\), import\('\.\/replay-policy'\)\]\)/, 'The recorder and the replay policy (with the Web Vitals code) are imported inside the dynamic import');
+  assert.doesNotMatch(source, /posthog-js\/dist\/web-vitals|from 'web-vitals'/, "The SDK's Web Vitals bundle is not loaded; the site measures them in lib/replay-policy.ts");
+  assert.match(read('lib/replay-policy.ts'), /^import \{ onCLS, onFCP, onINP, onLCP, type Metric \} from 'web-vitals';$/m, 'The Web Vitals library comes with the lazily loaded replay policy');
   assert.doesNotMatch(source, /^import\s(?!type\s)[^;]*['"](?:posthog-js(\/[^'"]*)?|\.\/replay-policy)['"]/m, 'Neither the SDK, the recorder nor the replay policy is a static import, so none enters the initial page JavaScript');
   assert.deepEqual(window.__PosthogExtensions__.rrwebPlugins, {}, 'The console and network recording plugins are removed');
   // The SDK configuration: per-tab sessionStorage identity, recording with masking, everything else off.
@@ -673,8 +728,8 @@ async function main() {
   await runIdle(); assert.deepEqual(recordingCalls, ['start'], 'Recording starts once the page is idle');
   go('/'); analytics.trackPage('/'); await settle();
   assert.equal(config.enable_recording_console_log, false);
-  assert.deepEqual(config.capture_performance, { web_vitals: true, web_vitals_attribution: false, web_vitals_allowed_metrics: ['LCP', 'INP', 'CLS', 'FCP'], web_vitals_delayed_flush_ms: 2000, network_timing: false },
-    'Web Vitals values only: no attribution (it names page elements) and no network timing in recordings');
+  assert.deepEqual(config.capture_performance, { web_vitals: false, network_timing: false },
+    "The SDK's own Web Vitals capture is off (the site sends them; see measureWebVitals), and recordings hold no network timing");
   assert.equal(config.capture_pageleave, true, '$pageleave carries the last page view\'s time on page and scroll depth');
   const recording = config.session_recording;
   assert.deepEqual(Object.keys(recording).sort(), Object.keys(replay.replayRecordingOptions()).sort(), 'The recording options come from lib/replay-policy.ts');
@@ -826,6 +881,45 @@ async function main() {
   navigator.doNotTrack = '1'; visit('/about', '?utm_source=instagram&utm_content=Private&units=km'); fresh2.analytics.trackPage('/about'); await settle(); navigator.doNotTrack = '0';
   assert.deepEqual(addresses, ['/about?units=km'], 'The tags leave the address with analytics off as well');
   assert.equal(events.length, before, 'and nothing is sent');
+  // Reading depth is the site's own, per page view: a client-side navigation to a longer page does not dilute the story's
+  // depth, the previous page is the one that was open, $pageleave names the page it leaves, and a page restored from the
+  // back/forward cache starts a new page view without reporting the closed one again.
+  {
+    fresh2 = signals(); events.length = 0;
+    const scrolled = [];
+    const page = { scrollHeight: 6000, clientHeight: 800, scrollTop: 0 };
+    window.addEventListener = (type, listener) => { if (type === 'scroll') scrolled.push(listener); };
+    global.document.documentElement = page;
+    const scrollTo = y => { window.scrollY = y; for (const listener of scrolled) listener(); };
+    // The SDK adds its own reading figures to a page view and a page leave; the site's replace them.
+    const sdkCapture = sdk.capture;
+    sdk.capture = (event, properties, options) => sdkCapture(event, event === '$pageview' ? { ...properties, $prev_pageview_pathname: window.location.pathname, $prev_pageview_max_scroll_percentage: 0.5, $prev_pageview_duration: 184 } : properties, options);
+    try {
+      visit('/stories/final-kick'); fresh2.analytics.trackPage('/stories/final-kick'); await settle();
+      const first = events.at(-1).properties;
+      assert.deepEqual(Object.keys(first).filter(key => key.startsWith('$prev_pageview_')), [], 'The first page view of a tab has no previous page');
+      assert.equal(scrolled.length, 1, 'One scroll listener for the tab');
+      for (const y of [1200, 3600, 5200]) scrollTo(y);
+      // Next.js lays out the next, longer page and scrolls it to the top before the next page view is sent.
+      visit('/'); page.scrollHeight = 12000; scrollTo(0); scrollTo(400);
+      fresh2.analytics.trackPage('/'); await settle();
+      const next = events.at(-1).properties;
+      assert.deepEqual([next.$prev_pageview_pathname, next.$prev_pageview_max_scroll_percentage, next.$prev_pageview_max_content_percentage, next.$prev_pageview_duration], ['/stories/final-kick', 1, 1, 184], 'A story read to the end stays read to the end, under its own path');
+      scrollTo(2600);
+      const leave = config.before_send({ event: '$pageleave', properties: { ...dirty.properties, $current_url: 'https://splithappens.run/', $prev_pageview_pathname: '/stories/final-kick', $prev_pageview_max_scroll_percentage: 0.1, $prev_pageview_duration: 31.4 } }).properties;
+      assert.deepEqual([leave.$pathname, leave.$prev_pageview_pathname, leave.$prev_pageview_max_scroll_percentage, leave.$prev_pageview_max_content_percentage, leave.$prev_pageview_duration], ['/', '/', 0.25, 0.3, 31], '$pageleave reports the page it leaves, measured by the site');
+      fresh2.analytics.trackRestoredPage(); await settle();
+      const restored = events.at(-1);
+      assert.equal(restored.event, '$pageview', 'A page restored from the back/forward cache is a new page view');
+      assert.deepEqual(Object.keys(restored.properties).filter(key => key.startsWith('$prev_pageview_')), [], 'and it does not report the page view its $pageleave already closed');
+      // Two page views before the SDK has loaded: the second names the page the visitor was on, not the one now open.
+      fresh2 = signals(); events.length = 0;
+      visit('/stories'); fresh2.analytics.trackPage('/stories'); scrollTo(900);
+      visit('/stories/pacing-types'); fresh2.analytics.trackPage('/stories/pacing-types'); await settle();
+      assert.deepEqual(events.slice(-2).map(event => [event.properties.$pathname, event.properties.$prev_pageview_pathname]), [['/stories', undefined], ['/stories/pacing-types', '/stories']], 'A quick navigation names the right previous page');
+      assert.ok(events.every(event => !('pace_notes_previous_page' in event.properties)), 'The site\'s own note of the previous page never leaves');
+    } finally { sdk.capture = sdkCapture; delete window.addEventListener; delete window.scrollY; delete global.document.documentElement; }
+  }
   // Failures: one per kind per page view, five per page load, and only the kind.
   fresh2 = signals(); events.length = 0;
   visit('/tools/pace-band'); fresh2.analytics.trackPage('/tools/pace-band'); await settle();

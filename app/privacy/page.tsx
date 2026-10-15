@@ -24,7 +24,7 @@ const COUNTED: Record<keyof AnalyticsEvents, string> = {
   site_error: 'the kind of error if something breaks, such as a file that did not load, never its message',
   section_viewed: 'which parts of a page, such as the home page’s chapters, come into view',
 };
-// Measured by PostHog itself or added to every event, rather than counted as an action.
+// Measured in the browser (by PostHog or the site) or added to every event, rather than counted as an action.
 const MEASURED = [
   'how long a page stays open and how far down it is scrolled',
   'page-speed measurements: how quickly a page appears, responds and stays still while it loads',

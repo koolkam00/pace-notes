@@ -1,4 +1,5 @@
-import type { BeforeSendFn, CaptureResult, PostHogConfig, SessionRecordingOptions } from 'posthog-js';
+import type { BeforeSendFn, CaptureResult, PostHog, PostHogConfig, SessionRecordingOptions } from 'posthog-js';
+import { onCLS, onFCP, onINP, onLCP, type Metric } from 'web-vitals';
 import { ANALYTICS_HOSTS, RUNNER_HANDOFF, analyticsPath, blockedPagePath, continuesRunnerHandoff, noteRunnerHandoff, recordingBlocked, runnerHandoff, sanitizeAnalyticsEvent, sdkIds } from './analytics-policy';
 
 // Session replay policy and the SDK options. lib/analytics.ts loads this module with the SDK and the recorder, so none of
@@ -146,10 +147,9 @@ export function posthogOptions(apiHost: string, basePath: string, beforeSend: Be
     capture_dead_clicks: false,
     capture_exceptions: false,
     capture_heatmaps: false,
-    // Core Web Vitals values (lib/analytics.ts bundles the measuring code) without attribution, which names page
-    // elements. Sent 2 s after the first measurement instead of 5 s, so short visits keep theirs. Network timing stays off,
-    // so recordings hold no requests.
-    capture_performance: { web_vitals: true, web_vitals_attribution: false, web_vitals_allowed_metrics: ['LCP', 'INP', 'CLS', 'FCP'], web_vitals_delayed_flush_ms: 2000, network_timing: false },
+    // The SDK's own Web Vitals capture is off: the site measures and sends them (measureWebVitals, below). Network timing
+    // stays off, so recordings hold no requests.
+    capture_performance: { web_vitals: false, network_timing: false },
     disable_session_recording: true,
     enable_recording_console_log: false,
     session_recording: replayRecordingOptions(basePath),
@@ -168,6 +168,32 @@ export function posthogOptions(apiHost: string, basePath: string, beforeSend: Be
     respect_dnt: true,
     before_send: beforeSend,
   };
+}
+
+/**
+ * Core Web Vitals (LCP, INP, CLS, FCP) of the page load, measured with Google's web-vitals library (the version
+ * posthog-js bundles) and sent as `$web_vitals` with the values only. The SDK's own capture holds the values the library
+ * reports as the page is hidden (LCP when the visitor never tapped, INP and CLS) for a flush delay and has no unload
+ * flush, so a visit that ended by closing the tab never sent them. Here every value waits until the page is hidden,
+ * then all go at once in one event by beacon, which outlives the page. Each value is sent once per page load (or
+ * back/forward-cache restore), so a tab hidden and shown again is not counted twice; a value that grows after that
+ * (CLS, INP) is not sent again. The library does not follow client-side navigations, so the values are the loaded page's.
+ */
+export function measureWebVitals(posthog: Pick<PostHog, 'capture'>, library = { onLCP, onINP, onCLS, onFCP }): void {
+  if (typeof PerformanceObserver === 'undefined' || typeof document === 'undefined' || typeof window.addEventListener !== 'function') return;
+  const pending = new Map<string, Metric>();
+  const sent = new Set<string>();
+  const keep = (metric: Metric) => { if (!sent.has(metric.id)) pending.set(metric.name, metric); };
+  try { for (const on of [library.onLCP, library.onINP, library.onCLS, library.onFCP]) on(keep); } catch { return; }
+  // A bubbling listener on window runs after the library's own (capture phase), which reports as the page is hidden.
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'hidden' || !pending.size) return;
+    const metrics = [...pending.values()];
+    pending.clear();
+    const properties: Record<string, unknown> = { $current_url: metrics[0].navigationURL || window.location.href };
+    for (const metric of metrics) { sent.add(metric.id); properties[`$web_vitals_${metric.name}_value`] = metric.value; }
+    try { posthog.capture('$web_vitals', properties, { send_instantly: true, transport: 'sendBeacon' }); } catch { /* Analytics must never interrupt the page. */ }
+  });
 }
 
 const RECORDER_DELAY_MS = 3000;

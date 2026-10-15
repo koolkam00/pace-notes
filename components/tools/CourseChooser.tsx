@@ -419,7 +419,7 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
       {data && !noGoal ? (
         <>
           {/* Every row, heading and axis below follows the visitor's goal, so session replays leave these panels out. */}
-          <div className="course-chooser-list ph-no-capture">
+          <div className="course-chooser-list ph-no-capture" data-tool-controls>
             <EvidencePanel kind="data" id="course-chooser-courses" title={`Every course at ${goalText}`}
               meta={`One row per course with at least ${minEditions} editions of ${minEditionFinishes} or more finishes at this pace and 100 finishes in all. The order is alphabetical unless you choose another.`}>
               <div className="course-chooser-toolbar no-print">

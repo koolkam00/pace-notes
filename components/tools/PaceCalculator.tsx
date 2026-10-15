@@ -133,7 +133,7 @@ export default function PaceCalculator() {
   return (
     <>
       <p className="sr-only" role="status">{settledStatus}</p>
-      <div className="tool-tabs no-print">
+      <div className="tool-tabs no-print" data-tool-controls>
         <Choice label="View" value={q.view} onChange={(v) => setQ({ view: v })} options={[{ value: 'calc', label: 'Calculator' }, { value: 'chart', label: 'Pace chart' }]} />
       </div>
       {q.view === 'chart' ? <PaceChart units={units} from={chartFrom} setFrom={setChartFrom} /> : (
@@ -264,7 +264,7 @@ function PaceChart({ units, from, setFrom }: { units: UnitSystem; from: number; 
   const to = from + (units === 'mi' ? 600 : 360);
   const rows = paceChart(from, to, step, units);
   return (
-    <section className="tool-panel panel-plain pace-chart" aria-labelledby="pace-chart-title">
+    <section className="tool-panel panel-plain pace-chart" data-tool-controls aria-labelledby="pace-chart-title">
       <header className="tool-panel-head">
         <h2 className="tool-panel-title" id="pace-chart-title">Pace chart: {formatDuration(from)} to {formatDuration(to)} per {units === 'mi' ? 'mile' : 'kilometre'}</h2>
         <p className="tool-panel-meta">Finish times at an even pace, every {step} seconds per {units}. Print it, or move the range.</p>
@@ -273,7 +273,7 @@ function PaceChart({ units, from, setFrom }: { units: UnitSystem; from: number; 
       <div className="tool-share no-print">
         <button type="button" className="button-secondary" onClick={() => setFrom(Math.max(units === 'mi' ? 240 : 150, from - (units === 'mi' ? 300 : 180)))}>Faster paces</button>
         <button type="button" className="button-secondary" onClick={() => setFrom(Math.min(units === 'mi' ? 1200 : 750, from + (units === 'mi' ? 300 : 180)))}>Slower paces</button>
-        <button type="button" className="button-secondary" onClick={() => window.print()}>Print chart</button>
+        <button type="button" className="button-secondary" data-not-edit onClick={() => window.print()}>Print chart</button>
       </div>
       <div className="tool-table-wrap">
         <table className="tool-table pace-chart-table">

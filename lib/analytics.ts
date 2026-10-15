@@ -1,4 +1,4 @@
-import type { PostHog } from 'posthog-js';
+import type { CaptureResult, PostHog } from 'posthog-js';
 import { ANALYTICS_CHANGED, ANALYTICS_HOSTS, ANALYTICS_PREFERENCE, CAMPAIGN, analyticsPath, noteRunnerHandoff, type AnalyticsEvents } from './analytics-policy';
 import { activeVariants } from './experiment-runtime';
 
@@ -54,19 +54,69 @@ function syncRecording(posthog: PostHog): void {
   } catch { /* Recording must never interrupt the page. */ }
 }
 
+// Reading depth, kept by the site for each page view. posthog-js measures it too, but it keeps the tallest page it has
+// seen since the last page view, and a client-side navigation lays out and scrolls the next page before that page view
+// is sent, so a story read to the end and followed by a longer page counted as half read; and a page view sent before
+// the SDK had loaded named the page after it as its previous page. So the page a view belongs to and how far down it
+// was scrolled are measured here, only while the address is still that page's. before_send (withReading) puts them on
+// the $pageview that follows, as they were when that page view started, and on $pageleave.
+type Reading = { pathname: string; scrollY: number; scrollHeight: number; contentY: number; contentHeight: number; closed: boolean };
+let reading: Reading | null = null;
+let measuring = false;
+const PREVIOUS_PAGE = 'pace_notes_previous_page';
+function measure(): void {
+  if (!reading || window.location.pathname !== reading.pathname) return;
+  try {
+    const root = document.documentElement;
+    const y = Math.max(0, window.scrollY || root.scrollTop || 0);
+    reading.scrollY = Math.max(reading.scrollY, y);
+    reading.scrollHeight = Math.max(reading.scrollHeight, root.scrollHeight - root.clientHeight);
+    reading.contentY = Math.max(reading.contentY, y + root.clientHeight);
+    reading.contentHeight = Math.max(reading.contentHeight, root.scrollHeight);
+  } catch { /* Measuring must never interrupt the page. */ }
+}
+// The SDK's own figures (posthog-js lib/src/page-view.js): the share of the scrollable height, 1 when the page does not scroll.
+const share = (part: number, whole: number) => Math.ceil(whole) <= 1 ? 1 : Math.min(1, Math.max(0, Math.ceil(part) / Math.ceil(whole)));
+const readingFigures = (page: Reading) => ({ $prev_pageview_pathname: page.pathname, $prev_pageview_max_scroll_percentage: share(page.scrollY, page.scrollHeight), $prev_pageview_max_content_percentage: share(page.contentY, page.contentHeight) });
+function startReading(): Record<string, unknown> | null {
+  if (!measuring && typeof window.addEventListener === 'function') {
+    measuring = true;
+    for (const type of ['scroll', 'resize']) window.addEventListener(type, measure, { passive: true });
+  }
+  const previous = reading;
+  reading = { pathname: window.location.pathname, scrollY: 0, scrollHeight: 0, contentY: 0, contentHeight: 0, closed: false };
+  measure();
+  // A page view already closed by $pageleave (the tab went into the back/forward cache) is not reported twice.
+  return previous && !previous.closed ? readingFigures(previous) : null;
+}
+function withReading(event: CaptureResult | null): CaptureResult | null {
+  if (event?.event === '$pageview' && PREVIOUS_PAGE in event.properties) {
+    const previous = event.properties[PREVIOUS_PAGE] as Record<string, unknown> | null;
+    delete event.properties[PREVIOUS_PAGE];
+    if (previous) Object.assign(event.properties, previous);
+    else for (const key of Object.keys(event.properties)) if (key.startsWith('$prev_pageview_')) delete event.properties[key];
+  } else if (event?.event === '$pageleave' && reading) {
+    measure();
+    Object.assign(event.properties, readingFigures(reading));
+    reading.closed = true;
+  }
+  return event;
+}
+
 async function client(): Promise<PostHog | null> {
   if (!analyticsConfigured() || analyticsDisabled()) return null;
   if (!loading) {
-    // The recorder, the Web Vitals measurements and the replay policy (with the SDK options) are bundled into these lazily
-    // loaded chunks (disable_external_dependency_loading stops the SDK fetching them from PostHog's CDN), so none of them
-    // enters the page's initial JavaScript.
-    loading = Promise.all([import('posthog-js'), import('posthog-js/dist/posthog-recorder'), import('./replay-policy'), import('posthog-js/dist/web-vitals')]).then(([{ default: posthog }, , replay]) => {
+    // The recorder and the replay policy (with the SDK options and the Web Vitals measurements) are bundled into these
+    // lazily loaded chunks (disable_external_dependency_loading stops the SDK fetching them from PostHog's CDN), so none
+    // of them enters the page's initial JavaScript.
+    loading = Promise.all([import('posthog-js'), import('posthog-js/dist/posthog-recorder'), import('./replay-policy')]).then(([{ default: posthog }, , replay]) => {
       if (analyticsDisabled()) return null;
       const base = basePath();
-      posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, replay.posthogOptions(process.env.NEXT_PUBLIC_POSTHOG_HOST!, base, event => analyticsDisabled() ? null : replay.sanitizeEvent(event, base)));
+      posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, replay.posthogOptions(process.env.NEXT_PUBLIC_POSTHOG_HOST!, base, event => analyticsDisabled() ? null : replay.sanitizeEvent(withReading(event), base)));
       // Every event from this tab names the version of each running experiment it was shown (lib/experiment-runtime.ts).
       const variants = Object.entries(activeVariants());
       if (variants.length) posthog.register(Object.fromEntries(variants.map(([key, variant]) => ['$feature/' + key, variant])));
+      replay.measureWebVitals(posthog);
       instance = posthog;
       replayPolicy = replay;
       // Recording starts only once the page has loaded and gone idle; the page or choice may have changed by then.
@@ -150,6 +200,12 @@ export function trackPage(pathname: string): void {
   // Filters and unit changes update the URL but are not additional page views.
   if (pathname === lastPage) return;
   lastPage = pathname;
-  void send('$pageview', campaign);
+  void send('$pageview', { ...campaign, [PREVIOUS_PAGE]: startReading() });
   campaign = {};
+}
+
+/** A page restored from the back/forward cache is a new page view: its last one was closed by $pageleave as it left. */
+export function trackRestoredPage(): void {
+  lastPage = null;
+  trackPage(window.location.pathname);
 }
