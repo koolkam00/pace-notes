@@ -989,6 +989,100 @@ async function main() {
   for (const category of ['js_error', 'render', 'unhandled_rejection', 'data_fetch']) fresh2.analytics.trackFailure(category); await settle();
   assert.deepEqual(failures(), ['js_error', 'data_fetch', 'chunk_load', 'js_error', 'render'], 'and at most five per page load, so a loop of errors cannot flood the project');
   assert.deepEqual(Object.keys(events.find(event => event.event === 'site_error').properties).filter(key => !key.startsWith('$') && !['token', 'distinct_id'].includes(key)), ['category']);
+  // The trackers as the page runs them (components/SiteAnalytics.tsx, SectionTracker.tsx and PageFeedback.tsx), with a
+  // minimal React: state, effects (after each render whose dependencies changed, the previous cleanup first) and
+  // external stores. Each page view sends its first edit, each section's first view and each kind of failure once. A
+  // page restored from the back/forward cache (pageshow with persisted) is a new page view, so each counts once more,
+  // within the five failures per page load; "Was this useful?" keeps the answer already given on that page.
+  {
+    const COMPONENTS = path.join(__dirname, '../components') + path.sep;
+    let hooks = null;
+    const react = { useId: () => ':r0:', ...Object.fromEntries(['useState', 'useEffect', 'useSyncExternalStore'].map(name => [name, (...args) => hooks[name](...args)])) };
+    const navigation = { usePathname: () => window.location.pathname };
+    const mount = Component => {
+      const slots = [], host = { tree: null };
+      host.render = () => {
+        const effects = [];
+        let index = 0;
+        hooks = {
+          useState(initial) { const slot = slots[index++] ??= { value: initial }; return [slot.value, value => { slot.value = value; host.render(); }]; },
+          useEffect(effect, deps) { const i = index++, slot = slots[i]; if (!slot || deps.some((dep, k) => !Object.is(dep, slot.deps[k]))) effects.push(() => { slot?.cleanup?.(); slots[i] = { deps, cleanup: effect() }; }); },
+          useSyncExternalStore(subscribe, get) { slots[index++] ??= { cleanup: subscribe(() => host.render()) }; return get(); },
+        };
+        host.tree = Component({});
+        hooks = null;
+        for (const run of effects) run();
+      };
+      host.unmount = () => { for (const slot of slots) if (typeof slot?.cleanup === 'function') slot.cleanup(); };
+      host.render();
+      return host;
+    };
+    const component = file => { const name = require.resolve(`../components/${file}.tsx`); delete require.cache[name]; return require(name).default; };
+    const listeners = () => {
+      const all = new Map();
+      return { addEventListener: (type, fn) => { all.set(type, [...(all.get(type) || []), fn]); }, removeEventListener: (type, fn) => { all.set(type, (all.get(type) || []).filter(other => other !== fn)); },
+        fire: (type, event = {}) => { for (const fn of all.get(type) || []) fn({ type, ...event }); } };
+    };
+    const win = listeners(), doc = listeners(), observers = new Set();
+    class Element { closest() { return null; } }
+    // A field in a tool's workspace, a site script that failed to load, and the home page's first two sections.
+    const field = Object.assign(new Element(), { closest: selector => selector.includes('.tool-workspace') ? field : null });
+    const HTMLScriptElement = class extends Element {}, script = Object.assign(new HTMLScriptElement(), { src: 'https://splithappens.run/_next/static/chunks/app/page-e2e.js' });
+    const hero = { dataset: { trackSection: 'hero' } }, chapter = { dataset: { trackSection: 'chapter-1' } };
+    // A section wholly on screen: each observer still watching it is told, as the browser does when it first observes one.
+    const show = section => { for (const observer of [...observers]) if (observer.targets.has(section)) observer.callback([{ target: section, isIntersecting: true, intersectionRect: { height: 400 }, boundingClientRect: { height: 400 }, rootBounds: { height: 800 } }]); };
+    const restore = () => win.fire('pageshow', { persisted: true });
+    const loadNow = Module._load;
+    Module._load = function(request, parent, ...rest) {
+      if (parent?.filename?.startsWith(COMPONENTS) && request === 'react') return react;
+      if (parent?.filename?.startsWith(COMPONENTS) && request === 'next/navigation') return navigation;
+      return loadNow.call(this, request, parent, ...rest);
+    };
+    Object.assign(global, { Element, HTMLScriptElement, HTMLLinkElement: class extends Element {}, IntersectionObserver: class {
+      constructor(callback) { this.callback = callback; this.targets = new Set(); observers.add(this); }
+      observe(target) { this.targets.add(target); } unobserve(target) { this.targets.delete(target); } disconnect() { this.targets.clear(); observers.delete(this); }
+    } });
+    Object.assign(window, { addEventListener: win.addEventListener, removeEventListener: win.removeEventListener });
+    Object.assign(global.document, { addEventListener: doc.addEventListener, removeEventListener: doc.removeEventListener, querySelectorAll: () => [hero, chapter], documentElement: { ...html, scrollHeight: 2400, clientHeight: 800, scrollTop: 0 } });
+    const mounted = [];
+    try {
+      fresh2 = signals(); events.length = 0;
+      const signal = event => event.event === 'tool_used' ? event.properties.action : event.event === 'section_viewed' ? event.properties.section : event.event === 'site_error' ? event.properties.category : event.event === 'page_feedback' ? `answer:${event.properties.answer}` : event.event;
+      const since = start => events.slice(start).map(signal);
+      const edit = () => { doc.fire('input', { target: field }); doc.fire('input', { target: field }); };
+      const fail = () => { win.fire('error', { target: window, message: 'TypeError: Private Name is not defined' }); win.fire('error', { target: window, message: 'TypeError: again' }); win.fire('unhandledrejection', { reason: new Error('Private Name') }); };
+      visit('/');
+      const site = mount(component('SiteAnalytics')); mounted.push(site, mount(component('SectionTracker')));
+      show(hero); show(hero); show(chapter); win.fire('pageshow', { persisted: false }); await settle();
+      assert.deepEqual(since(0), ['$pageview', 'hero', 'chapter-1'], 'Each section counts once per page view, and a page shown from a normal load is no new page view');
+      restore(); show(hero); show(hero); show(chapter); await settle();
+      assert.deepEqual(since(3), ['$pageview', 'hero', 'chapter-1'], 'A page restored from the back/forward cache is a new page view: a section seen before counts once more');
+      visit('/tools/pace-calculator'); site.render();
+      const answers = mount(component('PageFeedback')); mounted.push(answers);
+      const elements = node => !node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(elements) : [node, ...elements(node.props?.children)];
+      const button = label => elements(answers.tree).find(node => node.type === 'button' && node.props.children === label);
+      const thanked = () => /Thank you/.test(elements(answers.tree).find(node => node.props?.role === 'status').props.children);
+      edit(); fail(); button('Yes').props.onClick(); await settle();
+      assert.deepEqual(since(6), ['$pageview', 'edit', 'js_error', 'unhandled_rejection', 'answer:yes'], 'A client-side navigation is a new page view: one edit, one report per kind of failure, one answer');
+      restore(); edit(); fail(); win.fire('error', { target: script }); button('Yes').props.onClick(); button('No').props.onClick(); await settle();
+      assert.deepEqual(since(11), ['$pageview', 'edit', 'js_error', 'unhandled_rejection', 'chunk_load'], 'After a restore the first edit and each kind of failure count once more, and the answer already given is not asked for again');
+      assert.ok(button('Yes').props['aria-pressed'] === true && button('No').props['aria-disabled'] === true && thanked(), 'The restored page still shows its answer and thanks the visitor');
+      restore(); edit(); fail(); win.fire('error', { target: script }); await settle();
+      assert.deepEqual(since(16), ['$pageview', 'edit'], 'Failures stay within five per page load, restores included');
+      assert.equal(failures().length, 5);
+      assert.doesNotMatch(JSON.stringify(events), /Private Name|TypeError|page-e2e/, 'Failures are sent by kind only');
+      visit('/tools/predictor'); answers.render();
+      assert.ok(button('Yes').props['aria-pressed'] === false && !thanked(), 'Another page starts unanswered');
+    } finally {
+      for (const host of mounted) host.unmount();
+      Module._load = loadNow;
+      for (const key of ['Element', 'HTMLScriptElement', 'HTMLLinkElement', 'IntersectionObserver']) delete global[key];
+      delete window.addEventListener; delete window.removeEventListener;
+      for (const key of ['addEventListener', 'removeEventListener', 'querySelectorAll']) delete global.document[key];
+      global.document.documentElement = html;
+    }
+    assert.equal(observers.size, 0, 'SectionTracker disconnects its observer');
+  }
   // Data requests: a failure or error status is reported as data_fetch; the response or error is passed on unchanged.
   fresh2 = signals(); events.length = 0;
   visit('/tools/projector'); fresh2.analytics.trackPage('/tools/projector'); await settle();
@@ -1050,6 +1144,6 @@ export const EXPERIMENTS = [
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   }
   if (process.env.VERIFY_ANALYTICS_REGISTRY) { console.log(`Analytics checks passed with the registry in ${registryFile}.`); return; }
-  console.log(`Analytics checks passed: URL/name redaction, event allowlists with session IDs, ${searchPages.length} search pages and all ${sitemap.length} sitemap pages recorded under their clean path, session replay (sessionStorage identity with an in-memory fallback, bundled recorder and lazily loaded replay policy, recording started after load, masking without length, results panels and charts left out, console/network capture off, snapshot field allowlist, clean page addresses and links, blocked /runners, /your-race and runner handoff pages), per-file masking guards, production gating, pageview deduplication, opt-out/DNT/GPC stopping events and recording, SDK failure isolation, and the visit signals (enumerated values, reading figures and Web Vitals on their grid, campaign tags on the first page view only and removed from the address, failures by kind with rate limits, every data request through dataFetch, section ids, the experiments registry, boot script, CSS and $feature allowlist, and every event described on /privacy and in docs/ANALYTICS.md), all of it again with experiments running.`);
+  console.log(`Analytics checks passed: URL/name redaction, event allowlists with session IDs, ${searchPages.length} search pages and all ${sitemap.length} sitemap pages recorded under their clean path, session replay (sessionStorage identity with an in-memory fallback, bundled recorder and lazily loaded replay policy, recording started after load, masking without length, results panels and charts left out, console/network capture off, snapshot field allowlist, clean page addresses and links, blocked /runners, /your-race and runner handoff pages), per-file masking guards, production gating, pageview deduplication, opt-out/DNT/GPC stopping events and recording, SDK failure isolation, and the visit signals (enumerated values, reading figures and Web Vitals on their grid, campaign tags on the first page view only and removed from the address, failures by kind with rate limits, the once-per-page-view trackers through navigation and back/forward-cache restores with the feedback answer kept, every data request through dataFetch, section ids, the experiments registry, boot script, CSS and $feature allowlist, and every event described on /privacy and in docs/ANALYTICS.md), all of it again with experiments running.`);
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

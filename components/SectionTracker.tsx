@@ -1,8 +1,7 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
-import { useEffect } from 'react';
-import { analyticsConfigured, analyticsDisabled, trackAnalytics } from '@/lib/analytics';
+import { useEffect, useSyncExternalStore } from 'react';
+import { analyticsConfigured, analyticsDisabled, currentPageView, onPageView, trackAnalytics } from '@/lib/analytics';
 import { TRACKED_SECTIONS, type AnalyticsEvents } from '@/lib/analytics-policy';
 
 type Section = AnalyticsEvents['section_viewed']['section'];
@@ -14,11 +13,12 @@ const THRESHOLDS = [0, 0.01, 0.02, 0.03, ...Array.from({ length: 20 }, (_, i) =>
 /**
  * section_viewed: the first time on each page view that a marked section (data-track-section="<id>", one of
  * TRACKED_SECTIONS) is really seen, meaning at least half of it, or half the screen's height of it if it is taller, is
- * on screen at once. Only the section's id is sent. Mounted once in the root layout; it looks for sections again after
- * each client-side navigation.
+ * on screen at once. Only the section's id is sent. Mounted once in the root layout; it starts again, looking for
+ * sections afresh, with each page view (currentPageView: a client-side navigation, or a page restored from the
+ * back/forward cache, whose sections count again). The server and the first render see page view 0.
  */
 export default function SectionTracker() {
-  const pathname = usePathname();
+  const pageView = useSyncExternalStore(onPageView, currentPageView, () => 0);
   useEffect(() => {
     if (!analyticsConfigured() || analyticsDisabled() || typeof IntersectionObserver === 'undefined') return;
     const seen = new Set<string>();
@@ -36,6 +36,6 @@ export default function SectionTracker() {
       if (known.has(element.dataset.trackSection ?? '')) observer.observe(element);
     });
     return () => observer.disconnect();
-  }, [pathname]);
+  }, [pageView]);
   return null;
 }

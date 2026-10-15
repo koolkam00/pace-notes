@@ -176,7 +176,11 @@ async function using(h) {
 
 // A page restored from the back/forward cache. Headless Chromium does not keep pages there under Playwright, so the
 // browser's own pagehide and pageshow (persisted) are dispatched: posthog-js sends $pageleave on the first, and the site
-// starts a new page view on the second, which must not report the closed one again.
+// starts a new page view on the second, which must not report the closed one again. What is sent once per page view
+// counts once more on the restored page (the first edit, each section seen, each kind of failure, within five failures
+// per page load), and "Was this useful?" keeps the answer already given, sending nothing more.
+const away = page => page.evaluate(() => { window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })); });
+const back = page => page.evaluate(() => { window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })); });
 async function restored(h) {
   const run = await h.run('back-forward cache', { ...PHONE });
   const page = await run.newPage();
@@ -184,9 +188,9 @@ async function restored(h) {
   await page.waitForTimeout(1500);
   for (let i = 0; i < 4; i++) { await page.mouse.wheel(0, 800); await page.waitForTimeout(100); }
   await page.waitForTimeout(500);
-  await page.evaluate(() => { window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })); });
+  await away(page);
   await page.waitForTimeout(800);
-  await page.evaluate(() => { window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })); });
+  await back(page);
   await page.waitForTimeout(1500);
   await run.closePage(page, { unload: true });
   await new Promise(resolve => setTimeout(resolve, 1000));
@@ -194,6 +198,58 @@ async function restored(h) {
   const views = named(run, '$pageview'), leaves = named(run, '$pageleave');
   h.check('the restored page is a new page view, which does not report the one already closed', views.length === 2 && views[1].$pathname === '/stories/final-kick' && !Object.keys(views[1]).some(k => k.startsWith('$prev_pageview_')), shown(views));
   h.check('each page view is closed by its own $pageleave', views.length === 2 && leaves.length === 2 && leaves[0].$prev_pageview_id === views[0].$pageview_id && leaves[1].$prev_pageview_id === views[1].$pageview_id, { views: views.map(p => p.$pageview_id), leaves: leaves.map(p => p.$prev_pageview_id) });
+
+  const signals = await h.run('back-forward cache signals', { ...PHONE, expectErrors: [/E2E sentinel/] });
+  const tab = await signals.newPage();
+  const restore = async () => { await away(tab); await tab.waitForTimeout(500); await back(tab); await tab.waitForTimeout(1200); };
+  // Two uncaught errors, then a rejected promise.
+  const fail = async () => {
+    for (const how of ['thrown', 'again', 'rejected']) {
+      await tab.evaluate(([sentinel, how]) => { if (how === 'rejected') Promise.reject(new Error(sentinel + ' rejected')); else setTimeout(() => { throw new Error(sentinel + ' ' + how); }, 0); }, [SENTINEL, how]);
+      await tab.waitForTimeout(250);
+    }
+  };
+  // The home page: the sections on screen as it opens count on each page view, once, even scrolled away and back.
+  await tab.goto(SITE + '/', { waitUntil: 'load' });
+  await tab.waitForTimeout(1500);
+  await restore();
+  await tab.mouse.wheel(0, 900); await tab.waitForTimeout(400); await tab.mouse.wheel(0, -900); await tab.waitForTimeout(800);
+  // A tool: an edit, two kinds of failure and an answer; restored, the same again and a failed file; restored again,
+  // failures that would be the sixth and seventh of the page load.
+  await tab.goto(SITE + '/tools/pace-calculator', { waitUntil: 'load' });
+  await tab.waitForTimeout(1200);
+  const time = tab.getByLabel('Time', { exact: true });
+  await type(tab, time, '3:17:43'); await type(tab, time, '3:16:41');
+  await fail();
+  const feedback = tab.locator('.page-feedback');
+  await feedback.locator('button:has-text("Yes")').click();
+  await tab.waitForTimeout(300);
+  await restore();
+  await type(tab, time, '3:17:43'); await type(tab, time, '3:16:41');
+  await fail();
+  await tab.evaluate(() => { const el = document.createElement('script'); el.src = '/_next/static/chunks/e2e-restored-chunk.js'; document.head.appendChild(el); });
+  await tab.waitForTimeout(600);
+  const kept = await feedback.evaluate(el => ({ yes: el.querySelector('button[aria-pressed="true"]')?.textContent, thanks: el.querySelector('[role="status"]').textContent }));
+  await feedback.locator('button:has-text("No")').click({ force: true });
+  await feedback.locator('button:has-text("Yes")').click({ force: true });
+  await tab.waitForTimeout(300);
+  await restore();
+  await fail();
+  await tab.waitForTimeout(1500);
+  await signals.closePage(tab, { unload: true });
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  await signals.close();
+  signals.options.needles = ['3:17:43', '3:16:41', { needle: 'e2e-restored-chunk', allowAt: IN_RECORDING }];
+  const all = props(signals);
+  const perView = pathname => named(signals, '$pageview').filter(p => p.$pathname === pathname).map(view => all.filter(p => p.$pageview_id === view.$pageview_id && p.event !== '$pageview'));
+  const home = perView('/').map(list => list.filter(p => p.event === 'section_viewed').map(p => p.section));
+  h.check('home: the restored page is a new page view whose sections on screen count once more, each once', home.length === 2 && home[0].length > 0 && home[0].includes('hero') && home[0].every(s => home[1].includes(s)) && home.every(list => new Set(list).size === list.length), home);
+  const tool = perView('/tools/pace-calculator').map(list => list.filter(p => ['tool_used', 'site_error', 'page_feedback', 'page_feedback_reason'].includes(p.event)).map(p => p.event === 'tool_used' ? p.action : p.event === 'site_error' ? p.category : `${p.event}:${p.answer || p.reason}`));
+  h.check('tool: one edit, one report per kind of failure and one answer on the first page view', JSON.stringify(tool[0]) === '["edit","js_error","unhandled_rejection","page_feedback:yes"]', tool);
+  h.check('tool: after a restore, the first edit and each kind of failure count once more, and no answer is asked for again', JSON.stringify(tool[1]) === '["edit","js_error","unhandled_rejection","chunk_load"]', tool);
+  h.check('tool: failures stay within five per page load, restores included', tool.length === 3 && tool[2].length === 0, tool);
+  h.check('tool: the restored page still shows its answer and thanks the visitor', kept.yes === 'Yes' && /Thank you/.test(kept.thanks), kept);
+  h.check('page_feedback once on the tool, as sent', named(signals, 'page_feedback').length === 1 && named(signals, 'page_feedback_reason').length === 0, shown(named(signals, 'page_feedback')));
 }
 
 // Edits outside a tool's workspace (the course chooser's list) count; buttons that only jump down the page or print do not.
@@ -368,7 +424,7 @@ module.exports = {
       { name: 'reading signals', weight: 26, run: reading },
       { name: 'tool signals and errors', weight: 16, run: using },
       { name: 'tool edits', weight: 8, run: toolEdits },
-      { name: 'back-forward cache', weight: 6, run: restored },
+      { name: 'back-forward cache', weight: 16, run: restored },
       { name: 'experiment before first paint', weight: 14, run: paintOrder },
       { name: 'error page', weight: 20, run: errorPages },
       { name: 'failed file on a direct load', weight: 14, run: reloadedPage },

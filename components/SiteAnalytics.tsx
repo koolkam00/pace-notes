@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
-import { trackAnalytics, trackFailure, trackPage, trackRestoredPage } from '@/lib/analytics';
+import { currentPageView, trackAnalytics, trackFailure, trackPage, trackRestoredPage } from '@/lib/analytics';
 import { ANALYTICS_CHANGED, downloadDestination } from '@/lib/analytics-policy';
 import { chunkLoadFailed, reloadedAfterChunkError } from '@/lib/chunk-reload';
 
@@ -16,21 +16,21 @@ export default function SiteAnalytics() {
   const pathname = usePathname();
   // Each navigation also stops session replay on the runner-search pages and resumes it after them (lib/analytics.ts).
   useEffect(() => { trackPage(pathname); }, [pathname]);
-  // The first change a visitor makes in a tool on each page view: typing, choosing or pressing one of its buttons. Only
-  // that it happened is sent, never which field or what was entered. Copying the link and printing are counted as their
-  // own actions instead.
+  // The first change a visitor makes in a tool on each page view (currentPageView, so a page restored from the
+  // back/forward cache counts again): typing, choosing or pressing one of its buttons. Only that it happened is sent,
+  // never which field or what was entered. Copying the link and printing are counted as their own actions instead.
   useEffect(() => {
-    let edited = false;
+    let edited = -1; // the page view whose first edit was counted
     const edit = (event: Event) => {
       const target = event.target instanceof Element ? event.target : null;
-      if (edited || !target?.closest(TOOL_CONTROLS) || target.closest(NOT_EDITS)) return;
+      if (edited === currentPageView() || !target?.closest(TOOL_CONTROLS) || target.closest(NOT_EDITS)) return;
       if (event.type === 'click' && !target.closest('button')) return;
-      edited = true;
+      edited = currentPageView();
       trackAnalytics('tool_used', { action: 'edit' });
     };
     for (const type of ['input', 'change', 'click']) document.addEventListener(type, edit, true);
     return () => { for (const type of ['input', 'change', 'click']) document.removeEventListener(type, edit, true); };
-  }, [pathname]);
+  }, []);
   useEffect(() => {
     // An opt-out here or in another tab stops the recorder as well as events.
     const changed = () => trackPage(window.location.pathname);
@@ -52,7 +52,8 @@ export default function SiteAnalytics() {
       if (chunkLoadFailed(event as ErrorEvent)) trackFailure('chunk_load'); else trackFailure('js_error');
     };
     const rejected = (event: PromiseRejectionEvent) => { if (chunkLoadFailed(event.reason)) trackFailure('chunk_load'); else trackFailure('unhandled_rejection'); };
-    // Back from another site to a page kept in the back/forward cache: a new page view (the SDK sent $pageleave as it left).
+    // Back from another site to a page kept in the back/forward cache: a new page view (the SDK sent $pageleave as it
+    // left), so the edit above, section views and failures count again; the page keeps its state, feedback included.
     const restored = (event: PageTransitionEvent) => { if (event.persisted) trackRestoredPage(); };
     // A file that failed to load reloads the page (lib/chunk-reload.ts), usually before this listener exists: the page
     // it reloads into reports that failure.

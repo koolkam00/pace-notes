@@ -146,14 +146,29 @@ export function trackAnalytics<E extends keyof AnalyticsEvents>(event: E, proper
   void send(event, properties);
 }
 
-// At most one report per kind of failure per page view, and five per page load, so a loop of errors cannot flood the project.
+// Page views as the site counts them: each $pageview it sends starts one (a page opened or navigated to, a page restored
+// from the back/forward cache, or analytics switched back on). What is sent at most once per page view (tool_used edit,
+// section_viewed, each kind of site_error) keys on this number, not on the path, which a restored page keeps. It changes
+// only in trackPage, which runs after the first render, so the server and that render both see 0.
+let pageView = 0;
+const pageViewListeners = new Set<() => void>();
+/** The number of the page view now open: 0 until the first $pageview, then one more for each. */
+export const currentPageView = (): number => pageView;
+/** Calls `listener` as each page view starts; returns the function that stops it (useSyncExternalStore's subscribe). */
+export function onPageView(listener: () => void): () => void {
+  pageViewListeners.add(listener);
+  return () => { pageViewListeners.delete(listener); };
+}
+
+// At most one report per kind of failure per page view, and five per page load (a page restored from the back/forward
+// cache is a new page view but not a new load), so a loop of errors cannot flood the project.
 const failures = new Set<string>();
-let failurePage: string | null = null;
+let failureView = -1;
 let failuresSent = 0;
 /** A failure, by its kind only: never its message, stack, address or the data involved. */
 export function trackFailure(category: AnalyticsEvents['site_error']['category']): void {
   if (typeof window === 'undefined') return;
-  if (failurePage !== window.location.pathname) { failurePage = window.location.pathname; failures.clear(); }
+  if (failureView !== pageView) { failureView = pageView; failures.clear(); }
   if (failures.has(category) || failuresSent >= 5) return;
   failures.add(category);
   failuresSent++;
@@ -202,11 +217,16 @@ export function trackPage(pathname: string): void {
   // Filters and unit changes update the URL but are not additional page views.
   if (pathname === lastPage) return;
   lastPage = pathname;
+  pageView++;
   void send('$pageview', { ...campaign, [PREVIOUS_PAGE]: startReading() });
   campaign = {};
+  for (const listener of pageViewListeners) listener();
 }
 
-/** A page restored from the back/forward cache is a new page view: its last one was closed by $pageleave as it left. */
+/**
+ * A page restored from the back/forward cache is a new page view (its last one was closed by $pageleave as it left), so
+ * what is sent once per page view can be sent once more; the page's own state, a feedback answer included, is kept.
+ */
 export function trackRestoredPage(): void {
   lastPage = null;
   trackPage(window.location.pathname);

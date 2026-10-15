@@ -11,7 +11,9 @@ const REASONS: readonly [Reason, string][] = [['hard_to_follow', 'Hard to follow
 
 /**
  * "Was this useful?" at the end of a story, tool or analysis: Yes or No and, after No, four fixed reasons. There is no
- * text box, so nothing a visitor types is ever sent. One answer per page view, held only in the page's memory.
+ * text box, so nothing a visitor types is ever sent. At most one answer per page view, held only in the page's memory
+ * and kept by page: a page restored from the back/forward cache is a new page view of a page already answered, so a
+ * visitor who comes Back sees their answer and is not asked again.
  */
 export default function PageFeedback({ className = '' }: { className?: string }) {
   const pathname = usePathname();
