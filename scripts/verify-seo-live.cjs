@@ -8,7 +8,10 @@
  *   npm run verify:seo:live
  *   node scripts/verify-seo-live.cjs --base https://<preview>.vercel.app   path checks only; the host checks are skipped
  *
- * Needs network access and Node 18+ (fetch). Nothing is written anywhere.
+ * Needs network access and Node 18+ (fetch). Nothing is written anywhere. Each request is tried up to three times when
+ * the network fails or the site answers 5xx or 429, so one dropped connection does not fail a check (the autopilot
+ * merge workflow reverts a merge when this script fails after a deploy). Exit 0 when every check passes, 1 when one
+ * fails, 3 when the only failures are requests that never got an answer (the site could not be checked).
  */
 'use strict';
 
@@ -19,10 +22,22 @@ const BASE = (at >= 0 ? args[at + 1] : PRODUCTION).replace(/\/$/, '');
 const IS_PRODUCTION = BASE === PRODUCTION;
 const TIMEOUT_MS = 20000;
 const CONCURRENCY = 8;
+const ATTEMPTS = 3;
 
+/** A request that never got an answer after every attempt; a check that fails only for these could not be checked. */
+const unanswered = (error) => Object.assign(error, { unanswered: true });
 async function request(url, method = 'GET') {
-  const response = await fetch(url, { method, redirect: 'manual', signal: AbortSignal.timeout(TIMEOUT_MS), headers: { 'user-agent': 'pace-notes-verify-seo-live/1 (+https://splithappens.run)' } });
-  return response;
+  for (let attempt = 1; ; attempt += 1) {
+    let response = null;
+    try {
+      response = await fetch(url, { method, redirect: 'manual', signal: AbortSignal.timeout(TIMEOUT_MS), headers: { 'user-agent': 'pace-notes-verify-seo-live/1 (+https://splithappens.run)' } });
+    } catch (error) {
+      if (attempt >= ATTEMPTS) throw unanswered(error);
+    }
+    if (response && ((response.status < 500 && response.status !== 429) || attempt >= ATTEMPTS)) return response;
+    if (response) await response.arrayBuffer().catch(() => {});
+    await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
+  }
 }
 const header = (response, name) => response.headers.get(name) || '';
 const target = (response, from) => { const location = header(response, 'location'); return location ? new URL(location, from).href : ''; };
@@ -33,7 +48,7 @@ async function check(name, fn) {
     const detail = await fn();
     results.push({ name, ok: true, detail });
   } catch (error) {
-    results.push({ name, ok: false, detail: error.name === 'TimeoutError' ? `timed out after ${TIMEOUT_MS / 1000}s` : error.cause ? `${error.message} (${error.cause.code || error.cause.message})` : error.message });
+    results.push({ name, ok: false, unanswered: Boolean(error.unanswered), detail: error.name === 'TimeoutError' ? `timed out after ${TIMEOUT_MS / 1000}s (${ATTEMPTS} tries)` : error.cause ? `${error.message} (${error.cause.code || error.cause.message})` : error.message });
   }
 }
 function skip(name, why) { results.push({ name, ok: null, detail: why }); }
@@ -85,16 +100,18 @@ async function main() {
   if (locs.length) {
     await check('every sitemap <loc>: 200 without a redirect', async () => {
       const bad = [];
+      let answered = false;
       const queue = locs.map((loc) => (IS_PRODUCTION ? loc : loc.replace(PRODUCTION, BASE)));
       await Promise.all(Array.from({ length: CONCURRENCY }, async () => {
         for (let url = queue.shift(); url; url = queue.shift()) {
           try {
             let response = await request(url, 'HEAD');
             if (response.status === 405) response = await request(url);
-            if (response.status !== 200) bad.push(`${url} ${response.status}${target(response, url) ? ` to ${target(response, url)}` : ''}`);
+            if (response.status !== 200) { bad.push(`${url} ${response.status}${target(response, url) ? ` to ${target(response, url)}` : ''}`); answered = true; }
           } catch (error) { bad.push(`${url} ${error.name === 'TimeoutError' ? 'timed out' : error.message}`); }
         }
       }));
+      if (bad.length && !answered) throw unanswered(new Error(`${bad.length} of ${locs.length} never answered: ${bad.slice(0, 8).join('; ')}${bad.length > 8 ? '; …' : ''}`));
       expect(!bad.length, `${bad.length} of ${locs.length} did not answer 200: ${bad.slice(0, 8).join('; ')}${bad.length > 8 ? '; …' : ''}`);
       return `${locs.length} of ${locs.length} answered 200`;
     });
@@ -158,7 +175,7 @@ async function main() {
   if (failed.some((r) => /fetch failed/.test(r.detail)) && (process.env.HTTPS_PROXY || process.env.https_proxy) && !process.env.NODE_USE_ENV_PROXY) {
     console.log('Network errors behind a proxy: re-run with NODE_USE_ENV_PROXY=1 (Node 22.21+ or 24+).');
   }
-  process.exit(failed.length ? 1 : 0);
+  process.exit(!failed.length ? 0 : failed.every((r) => r.unanswered) ? 3 : 1);
 }
 
 main().catch((error) => { console.error(error.stack || error.message); process.exit(1); });

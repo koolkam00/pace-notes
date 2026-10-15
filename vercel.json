@@ -26,6 +26,13 @@
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
     },
     {
+      "source": "/version.json",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "X-Robots-Tag", "value": "noindex" }
+      ]
+    },
+    {
       "source": "/runners",
       "has": [{ "type": "query", "key": "q" }],
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]

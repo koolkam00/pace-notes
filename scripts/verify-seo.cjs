@@ -64,7 +64,7 @@ const CHECKS = {
   'banned-words': '"the wall", "arithmetic" and "your chance" (also with up to two words between, as in "your personal chance") appear nowhere: visible text, alt text, metadata or JSON-LD',
   fastest: '"fastest" is in no title, description, H1 or og/twitter tag',
   'runner-counts': 'Titles and descriptions count finishes, never runners',
-  'personal-data': 'No q= in a canonical, og:url, the sitemap or JSON-LD, and /runners is noindex',
+  'personal-data': 'No q= in a canonical, og:url, the sitemap or JSON-LD; /runners is noindex; NOINDEX and ROBOTS_DISALLOW keep the personal pages and runner-name folders',
   'units-links': 'No internal link in the static HTML carries units=mi (the default unit)',
   'old-host': `${OLD_HOST} is in no <head>`,
   'finish-counts': `Every "N.N million" or "N.NM" in a title or description equals finishesM() ("${FINISHES_M}")`,
@@ -488,6 +488,10 @@ if (!pages.some((p) => p.notFound)) fail('robots-meta', '404', 'the export has n
 const runners = byPath.get('/runners');
 if (!runners) fail('personal-data', '/runners', 'no /runners page in the export to check');
 else if (!hasNoindex(runners)) fail('personal-data', '/runners', 'is not noindex; runner lookups must never be indexable');
+// Privacy floors written here rather than read from lib/seo-routes.ts, so editing that file (which autopilot pull
+// requests may do) cannot loosen them: the runner-name folders stay out of robots.txt and the personal pages noindex.
+for (const folder of ['/data/runners/index/', '/data/runners/profiles/']) if (!ROBOTS_DISALLOW.includes(folder)) fail('personal-data', 'lib/seo-routes.ts', `ROBOTS_DISALLOW no longer lists ${folder} (it holds recorded runner names)`);
+for (const page of ['/runners', '/your-race']) if (!NOINDEX.includes(page)) fail('personal-data', 'lib/seo-routes.ts', `NOINDEX no longer lists ${page} (a personal lookup page)`);
 
 // ---------- Sitemap ----------
 

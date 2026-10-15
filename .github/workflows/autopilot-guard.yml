@@ -1,0 +1,37 @@
+name: Autopilot guard
+
+# Early feedback on what an autopilot pull request may change (scripts/autopilot-guard.cjs, docs/AUTOPILOT.md).
+# Branches that do not start with autopilot/ pass at once. This run uses the pull request's own copy of this file and
+# of the guard, so a pull request that edits them can make it pass: it is feedback, not a control. The authoritative
+# run is the Autopilot merge workflow's, which runs main's copy before it merges anything.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  autopilot-guard:
+    name: autopilot-guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # The guard reads git objects only, so only scripts/ is checked out and file contents are fetched when git
+      # needs them (the full tree is several hundred megabytes).
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: scripts
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # Branch names reach the shell through env, never by ${{ }} expansion inside the script.
+      - name: Check what this pull request changes
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/autopilot-guard.cjs --base "origin/$BASE_REF" --head HEAD --branch "$HEAD_REF" --pr "$PR_NUMBER"

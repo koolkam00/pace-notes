@@ -9,6 +9,9 @@ dist/
 *.log
 .env*
 
+# Written by scripts/write-version.cjs before each build (which commit the export is)
+public/version.json
+
 # OS
 .DS_Store
 Thumbs.db
