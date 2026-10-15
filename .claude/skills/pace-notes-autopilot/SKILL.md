@@ -55,7 +55,7 @@ You are the product team for https://splithappens.run, a free site where runners
      - review threads: address and resolve them;
      - Codex or other bot findings: verify each one and fix the real ones;
      - preview smoke failed: reproduce it locally.
-   - If it has been stuck more than 7 days or its premise is gone, close it with a comment. Its ledger line never reached `main`, so record it as a new line: its entry with `status: "reverted"`, `verdict: "inconclusive"`, its `pr` and a note. Put that line in this run's PR, or in a bookkeeping PR (step 1.4).
+   - If it has been stuck more than 7 days or its premise is gone, close it with a comment. Its ledger line never reached `main`, so record it as a new line: its entry with `status: "reverted"`, `verdict: "inconclusive"`, its `pr` and a note saying why it closed. (If its line is on `main` after all, mark that line the same way instead of adding one.) Put that change in this run's PR, or in a bookkeeping PR (step 1.4).
    - Only start a new change once no autopilot PR is open.
 4. **Bookkeeping.** A ledger line reaches `main` only with its PR, so every entry on `main` still `proposed` belongs to a PR that has merged. Mark each one `shipped`, with `pr` and `shipped_on`, the PR's `merged_at` date (UTC). Find the PR by its branch, `autopilot/<id>`, or search merged PRs for the id.
    - These edits, verdicts (§3) and the backlog and `LEARNINGS.md` updates (§7) go in this run's PR.
@@ -159,7 +159,7 @@ Priority:
    - the minimum sample;
    - the decision rule;
    - `evaluate_after`: at least 14 days after the expected ship date, or the experiment's planned end;
-   - for experiments, positive-integer `min_sample`, the maximum duration (at most 42 days), the registry `experiment` key, and canonical `pages` with optional `area`. Follow the data-only registry and occupancy contract in `autopilot/metrics.md` §4: at most two active reservations/running keys, with no overlapping page areas; an omitted area reserves the whole page.
+   - for experiments, positive-integer `min_sample`, the maximum duration (at most 42 days), the registry `experiment` key, and canonical `pages` with optional `area`. Follow the data-only registry and occupancy contract in `autopilot/metrics.md` §4: at most two active reservations/running keys, with no overlapping page areas; an omitted area reserves the whole page. A running key keeps the pages and area it was registered with, even after its entry is concluded; to change them, register a new experiment.
 
    Move the backlog item to "In flight" and link it.
 4. **Verify. All of these are required:**
@@ -176,7 +176,7 @@ Priority:
 6. **Reverting a change** (an incident whose automatic revert was not pushed, or a `revert` verdict):
    - Branch `autopilot/<date>-revert-<slug>` from `origin/main`, then run `git revert --no-edit <merge sha>`.
    - Run `git checkout origin/main -- autopilot/ledger.jsonl autopilot/LEARNINGS.md`. The revert would delete the change's ledger line and its learnings, and neither file ever loses a line.
-   - Set the original entry's `status` to `reverted`, its `verdict` to `revert` (unless it already has one), its `pr` and `shipped_on` if they are still null, and add a note. Then append a `revert` entry (`evaluate_after: null`).
+   - Set the original entry's `status` to `reverted`, its `verdict` to `revert` if it is still null, its `pr`, `shipped_on` and `evaluated_on` (today) if they are still null, and a note saying why. The guard accepts `reverted` only with verdict `revert` or `inconclusive`; an entry already judged anything else keeps its status. Then append a `revert` entry (`evaluate_after: null`).
    - If the change added a page, reverting it deletes that page, which only the owner may do: open an `autopilot:needs-owner` issue instead.
 
 ## 6. Ship

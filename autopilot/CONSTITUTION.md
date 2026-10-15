@@ -103,6 +103,7 @@ A change that needs any of these goes to an `autopilot:needs-owner` issue with a
 - Each entry is one JSON object on one line (schema in `autopilot/metrics.md` §4).
 - New entries start as `proposed`, with `verdict`, `result` and `shipped_on` null, dated within 2 days of the branch date. The one exception is the record of a pull request that closed unmerged: `reverted`, with verdict null or `inconclusive`, and its own date.
 - Once its pull request has merged, an entry is marked `shipped`, with `pr` and `shipped_on`. When judged it becomes `concluded` (or `reverted`). `status` only moves forward.
+- An entry moved to `reverted` needs verdict `revert` or `inconclusive`, its `pr` and a note saying why; a `revert` verdict also needs `shipped_on` and `evaluated_on`.
 - `verdict`, `result`, `evaluated_on`, `pr` and `shipped_on` are set once and then frozen. Only those fields, `status` and `notes` ever change.
 - No line is ever deleted or moved.
 

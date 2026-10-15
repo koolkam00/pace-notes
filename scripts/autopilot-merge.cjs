@@ -732,7 +732,8 @@ async function cmdRecordLive(argv, deps) {
 /**
  * The auto-revert reverses the whole squash merge, its ledger line and learnings included. Put main's ledger and
  * LEARNINGS.md back, so nothing recorded is lost (both are append-only), and mark the ledger entries the merge added
- * as reverted, with the pull request and the day it shipped. Returns their ids.
+ * as reverted: verdict revert, the pull request, the day it shipped, the day it was reverted as its evaluation date,
+ * and a note saying why (a complete record, as the guard requires of any entry moving to reverted). Returns their ids.
  */
 function keepRecordsAfterRevert(sha, { cwd, git, pr = null }) {
   const show = (spec) => { try { return execFileSync('git', ['show', spec], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); } catch { return null; } };
@@ -753,6 +754,7 @@ function keepRecordsAfterRevert(sha, { cwd, git, pr = null }) {
     if (entry.verdict === null || entry.verdict === undefined) entry.verdict = 'revert';
     if ((entry.pr === null || entry.pr === undefined) && pr) entry.pr = pr;
     if (entry.shipped_on === null || entry.shipped_on === undefined) entry.shipped_on = shippedOn;
+    if (entry.evaluated_on === null || entry.evaluated_on === undefined) entry.evaluated_on = date;
     entry.notes = [entry.notes, `Reverted automatically on ${date}: the live checks failed after merge ${short(sha)}.`].filter(Boolean).join(' ');
     marked.push(entry.id);
     return JSON.stringify(entry);
@@ -1534,7 +1536,7 @@ async function selfTestAsync() {
   }
 
   // Reverts in real temporary repositories: pushed, conflicting, rejected; the ledger keeps its entries.
-  const ledgerLine = (id, extra = {}) => JSON.stringify({ id, status: 'proposed', verdict: null, ...extra });
+  const ledgerLine = (id, extra = {}) => JSON.stringify({ id, date: id.slice(0, 10), kind: 'change', title: 'A change', hypothesis: 'Clearer copy helps.', primary_metric: 'engaged_visit_rate', guardrails: [], baseline: {}, decision_rule: 'Keep if the rate rises.', evaluate_after: '2026-10-28', status: 'proposed', pr: null, verdict: null, result: null, ...extra });
   const revertCase = async (label, setup, expectPushed, { ledger = false, sameFailures = false } = {}) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'autopilot-revert-'));
     const g = (cwd, ...a) => execFileSync('git', ['-c', 'user.name=Self Test', '-c', 'user.email=self-test@example.invalid', '-c', 'commit.gpgsign=false', ...a], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
@@ -1578,6 +1580,11 @@ async function selfTestAsync() {
         const reverted = lines.find((entry) => entry.id === '2026-10-14-b');
         ok(`revert: ${label}: the ledger keeps the reverted change's entry, marked reverted`, lines[0].id === '2026-10-01-a' && lines[0].status === 'shipped' && reverted && reverted.status === 'reverted' && reverted.verdict === 'revert' && /Reverted automatically/.test(reverted.notes), JSON.stringify(lines));
         ok(`revert: ${label}: the entry names the pull request and the day it shipped`, reverted && reverted.pr === 7 && reverted.shipped_on === new Date(g(work, 'show', '-s', '--format=%cI', mergeSha)).toISOString().slice(0, 10), JSON.stringify(reverted));
+        ok(`revert: ${label}: the entry is dated the day it was reverted`, reverted && /^\d{4}-\d{2}-\d{2}$/.test(reverted.evaluated_on) && reverted.notes.includes(`Reverted automatically on ${reverted.evaluated_on}:`), JSON.stringify(reverted));
+        // The guard's own ledger rules (as a later pull request touching the line would apply them) accept the record.
+        const ruled = { violations: [], warnings: [] };
+        require('./autopilot-guard.cjs').checkLedger(g(origin, 'show', `main~1:${LEDGER}`), g(origin, 'show', `main:${LEDGER}`), { ...ruled, bookkeeping: true });
+        ok(`revert: ${label}: the reverted entry passes the guard's ledger rules`, ruled.violations.length === 0, JSON.stringify(ruled.violations));
         ok(`revert: ${label}: the learnings keep the reverted change's line`, g(origin, 'show', `main:${LEARNINGS}`).includes('phone visitors read the first screen'));
         if (ledger) ok(`revert: ${label}: a later entry on main is left alone`, lines.some((entry) => entry.id === '2026-10-14-c' && entry.status === 'proposed'), JSON.stringify(lines));
         ok(`revert: ${label}: one commit`, g(origin, 'rev-list', '--count', 'main') === String(Number(g(work, 'rev-list', '--count', mergeSha)) + (ledger ? 2 : 1)));
