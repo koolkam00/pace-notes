@@ -1062,13 +1062,13 @@ async function main() {
       const elements = node => !node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(elements) : [node, ...elements(node.props?.children)];
       const button = label => elements(answers.tree).find(node => node.type === 'button' && node.props.children === label);
       const thanked = () => /Thank you/.test(elements(answers.tree).find(node => node.props?.role === 'status').props.children);
-      edit(); fail(); button('Yes').props.onClick(); await settle();
-      assert.deepEqual(since(6), ['$pageview', 'edit', 'js_error', 'unhandled_rejection', 'answer:yes'], 'A client-side navigation is a new page view: one edit, one report per kind of failure, one answer');
+      show(hero); edit(); fail(); button('Yes').props.onClick(); await settle();
+      assert.deepEqual(since(6), ['$pageview', 'hero', 'edit', 'js_error', 'unhandled_rejection', 'answer:yes'], 'A client-side navigation is a new page view: a section seen before counts once more, one edit, one report per kind of failure, one answer');
       restore(); edit(); fail(); win.fire('error', { target: script }); button('Yes').props.onClick(); button('No').props.onClick(); await settle();
-      assert.deepEqual(since(11), ['$pageview', 'edit', 'js_error', 'unhandled_rejection', 'chunk_load'], 'After a restore the first edit and each kind of failure count once more, and the answer already given is not asked for again');
+      assert.deepEqual(since(12), ['$pageview', 'edit', 'js_error', 'unhandled_rejection', 'chunk_load'], 'After a restore the first edit and each kind of failure count once more, and the answer already given is not asked for again');
       assert.ok(button('Yes').props['aria-pressed'] === true && button('No').props['aria-disabled'] === true && thanked(), 'The restored page still shows its answer and thanks the visitor');
       restore(); edit(); fail(); win.fire('error', { target: script }); await settle();
-      assert.deepEqual(since(16), ['$pageview', 'edit'], 'Failures stay within five per page load, restores included');
+      assert.deepEqual(since(17), ['$pageview', 'edit'], 'Failures stay within five per page load, restores included');
       assert.equal(failures().length, 5);
       assert.doesNotMatch(JSON.stringify(events), /Private Name|TypeError|page-e2e/, 'Failures are sent by kind only');
       visit('/tools/predictor'); answers.render();
