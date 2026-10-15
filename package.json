@@ -14,7 +14,7 @@
     "verify:seo": "node scripts/verify-seo.cjs",
     "verify:replay-e2e": "node scripts/verify-replay-e2e.cjs",
     "verify:seo:live": "node scripts/verify-seo-live.cjs",
-    "verify:autopilot": "node scripts/autopilot-guard.cjs --self-test && node scripts/autopilot-merge.cjs --self-test && node scripts/autopilot-smoke.cjs --self-test && node scripts/autopilot-stats.cjs --self-test",
+    "verify:autopilot": "node scripts/autopilot-guard.cjs --self-test && node scripts/autopilot-merge.cjs --self-test && node scripts/autopilot-smoke.cjs --self-test && node scripts/autopilot-stats.cjs --self-test && node scripts/e2e/scenarios/s8-budget.cjs --self-test",
     "autopilot:guard": "node scripts/autopilot-guard.cjs",
     "autopilot:smoke": "node scripts/autopilot-smoke.cjs",
     "autopilot:stats": "node scripts/autopilot-stats.cjs",

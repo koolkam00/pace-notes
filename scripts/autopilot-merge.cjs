@@ -21,7 +21,8 @@
  * outcome=pass|fail|incomplete. merge checks every gate again and squash-merges with the head commit pinned.
  * wait-deploy waits for Vercel's Production deployment of the merge commit and for /version.json to name it.
  * record-live leaves the "live checks passed" record on the pull request. incident optionally reverts the merge on
- * main as github-actions[bot] (keeping the ledger and the learnings) and always opens an issue labelled autopilot-incident and
+ * main as github-actions[bot] (keeping the ledger and the learnings, and the experiment registry when the merge only
+ * stopped experiments) and always opens an issue labelled autopilot-incident and
  * autopilot:paused, which stops every further merge until someone closes it. reconcile opens such an issue for any
  * autopilot pull request merged with neither record: one merged by hand, or a run that was cancelled or timed out.
  *
@@ -56,6 +57,8 @@ const OWN_WORKFLOW = '.github/workflows/autopilot-merge.yml';
 const LEDGER = 'autopilot/ledger.jsonl';
 /** Records an automatic revert keeps as they are on main: the ledger is append-only, and so is what was learned. */
 const LEARNINGS = 'autopilot/LEARNINGS.md';
+/** The experiment registry, which a revert keeps as main has it when the merge stopped an experiment (keepsRegistry). */
+const REGISTRY = 'lib/experiments.ts';
 const MARKER = '<!-- autopilot-merge-status -->';
 /** Hidden notes on the status comment, per head commit: the preview checks failed, or GitHub refused the merge. */
 const noteMarker = (kind, sha, detail) => `<!-- autopilot-${kind}:${sha}${detail ? ` ${encodeURIComponent(detail)}` : ''} -->`;
@@ -756,15 +759,35 @@ async function cmdRecordLive(argv, deps) {
   return 0;
 }
 
+const showAt = (cwd, spec) => { try { return execFileSync('git', ['show', spec], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); } catch { return null; } };
+
+/**
+ * Whether the revert keeps main's experiment registry: when the merge stopped an experiment (a key running before it
+ * is paused or gone after it, as when an experiment is concluded) and started none. A concluded experiment never runs
+ * again, and no pull request could restart it (the guard requires an active registration), so a revert does not
+ * either. A merge that started or resumed a key is reverted in full, so that experiment stops with its code. A registry
+ * that cannot be read is reverted in full too.
+ */
+function keepsRegistry(sha, cwd) {
+  const { readExperimentRegistry } = require('./autopilot-guard.cjs');
+  const running = (spec) => { try { return new Set((readExperimentRegistry(showAt(cwd, spec)) || []).filter((e) => e && e.status === 'running').map((e) => e.key)); } catch { return null; } };
+  const before = running(`${sha}^:${REGISTRY}`);
+  const after = running(`${sha}:${REGISTRY}`);
+  if (!before || !after || showAt(cwd, `refs/remotes/origin/${CONFIG.base}:${REGISTRY}`) === null) return false;
+  return [...before].some((key) => !after.has(key)) && ![...after].some((key) => !before.has(key));
+}
+
 /**
  * The auto-revert reverses the whole squash merge, its ledger line and learnings included. Put main's ledger and
  * LEARNINGS.md back, so nothing recorded is lost (both are append-only), and mark the ledger entries the merge added
  * as reverted: verdict revert, the pull request, the day it shipped, the day it was reverted as its evaluation date,
- * and a note saying why (a complete record, as the guard requires of any entry moving to reverted). Returns their ids.
+ * and a note saying why (a complete record, as the guard requires of any entry moving to reverted). With `registry`
+ * (keepsRegistry), main's lib/experiments.ts is kept as well. Returns their ids.
  */
-function keepRecordsAfterRevert(sha, { cwd, git, pr = null }) {
-  const show = (spec) => { try { return execFileSync('git', ['show', spec], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); } catch { return null; } };
+function keepRecordsAfterRevert(sha, { cwd, git, pr = null, registry = false }) {
+  const show = (spec) => showAt(cwd, spec);
   if (show(`refs/remotes/origin/${CONFIG.base}:${LEARNINGS}`) !== null) git(['checkout', `refs/remotes/origin/${CONFIG.base}`, '--', LEARNINGS]);
+  if (registry) git(['checkout', `refs/remotes/origin/${CONFIG.base}`, '--', REGISTRY]);
   const onMain = show(`refs/remotes/origin/${CONFIG.base}:${LEDGER}`);
   if (onMain === null) return [];
   const ids = (text) => new Set(String(text || '').split('\n').map((line) => { try { return JSON.parse(line).id; } catch { return null; } }).filter(Boolean));
@@ -807,12 +830,13 @@ function revertOnMain(sha, { cwd = ROOT, pr = null } = {}) {
     return { pushed: false, detail: `not pushed: ${short(sha)} is not on ${CONFIG.base}` };
   }
   git(['checkout', '--quiet', '--force', '--detach', `refs/remotes/origin/${CONFIG.base}`]);
+  const registry = keepsRegistry(sha, cwd);
   try {
     git([...bot, 'revert', '--no-commit', sha]);
   } catch (error) {
-    // A conflict only in the ledger or the learnings (a later line appended next to the merge's) is fine: main's
-    // copies are kept below.
-    const kept = [LEDGER, LEARNINGS];
+    // A conflict only in the ledger or the learnings (a later line appended next to the merge's), or in a registry
+    // that is kept, is fine: main's copies are kept below.
+    const kept = [LEDGER, LEARNINGS, ...(registry ? [REGISTRY] : [])];
     const conflicted = (() => { try { return git(['diff', '--name-only', '--diff-filter=U']).split('\n').filter(Boolean); } catch { return []; } })();
     if (!conflicted.length || conflicted.some((file) => !kept.includes(file))) {
       abort();
@@ -821,7 +845,7 @@ function revertOnMain(sha, { cwd = ROOT, pr = null } = {}) {
   }
   let marked = [];
   try {
-    marked = keepRecordsAfterRevert(sha, { cwd, git, pr });
+    marked = keepRecordsAfterRevert(sha, { cwd, git, pr, registry });
     git([...bot, 'commit', '--quiet', '--no-edit']);
   } catch (error) {
     abort();
@@ -833,7 +857,7 @@ function revertOnMain(sha, { cwd = ROOT, pr = null } = {}) {
   } catch (error) {
     return { pushed: false, revertSha, detail: `not pushed: the push to ${CONFIG.base} was rejected (${firstLine(error)})` };
   }
-  return { pushed: true, revertSha, detail: `pushed to ${CONFIG.base} as ${revertSha}${marked.length ? `; the ledger keeps ${marked.map((id) => `"${id}"`).join(', ')}, marked reverted` : ''}; the ledger and the learnings stay as they are on ${CONFIG.base}` };
+  return { pushed: true, revertSha, detail: `pushed to ${CONFIG.base} as ${revertSha}${marked.length ? `; the ledger keeps ${marked.map((id) => `"${id}"`).join(', ')}, marked reverted` : ''}; the ledger and the learnings stay as they are on ${CONFIG.base}${registry ? `; the experiment registry stays as it is on ${CONFIG.base} too, since the merge stopped an experiment and a stopped experiment never runs again` : ''}` };
 }
 
 /** Opens the incident issue (with both labels) and comments on the pull request. Returns the issue, or null on a dry run. */
@@ -923,9 +947,9 @@ function liveCheckDecision({ sha, smoke, seo, versionAfterSeo, baselineExit, bas
   const afterSeo = `${CONFIG.productionUrl}/version.json reading after verify:seo:live ${versionAfterSeo === '3' ? 'named another commit or could not be read (exit 3)' : versionAfterSeo ? `ended with exit ${versionAfterSeo}` : 'has no result'}`;
   if (smoke === '0' && seo === '0') {
     if (versionAfterSeo === '0') return { action: 'pass', reason: 'Both live checks passed.' };
-    // Both passed: the smoke test named the merge commit before and after its pages, so the merge was checked.
-    const note = `The ${afterSeo}: production has since moved on or could not be confirmed.`;
-    return { action: 'pass', reason: `Both live checks passed. ${note}`, note };
+    // The smoke test saw the merge, but the SEO check may have seen another commit: the live result is unconfirmed,
+    // so it is not recorded as passed. Nothing shows the change broken either, so there is no revert.
+    return { action: 'incident', reason: `Both live checks passed, but the ${afterSeo}: production changed or could not be confirmed after the SEO check, so verify:seo:live may have checked another commit and the live result for this merge is unconfirmed. It was not reverted; check the live site (npm run verify:seo:live) and close this issue once it passes.` };
   }
   if (smoke === '3' && !servedMergeThroughout(live, sha)) {
     // The smoke test found production serving another commit: verify:seo:live, run after it, saw that commit too.
@@ -963,7 +987,7 @@ async function cmdReportLive(argv, deps) {
   const decision = liveCheckDecision({ sha, smoke: option(argv, '--smoke-exit'), seo: option(argv, '--seo-exit'), versionAfterSeo: option(argv, '--version-after-seo-exit'), baselineExit: option(argv, '--baseline-exit'), baseline: read('--baseline'), live: read('--live') });
   deps.setOutput('live_action', decision.action);
   deps.log(`report-live: ${decision.action}: ${decision.reason}`);
-  if (decision.action === 'pass') return cmdRecordLive(['--pr', String(number), '--sha', sha, ...(decision.note ? ['--note', decision.note] : [])], deps);
+  if (decision.action === 'pass') return cmdRecordLive(['--pr', String(number), '--sha', sha], deps);
   const log = option(argv, '--log');
   return cmdIncident(['--pr', String(number), '--sha', sha, '--step', 'live checks', '--reason', decision.reason,
     ...(decision.action === 'revert' ? ['--revert'] : []), ...(log ? ['--log', log] : [])], deps);
@@ -1660,8 +1684,11 @@ async function selfTestAsync() {
         ['SEO failure without the reading after it opens an incident', '0', '1', '1', existing, report([]), 'incident', null],
         ['SEO failure on an unfinished smoke run that served the merge, then another commit, opens an incident', '3', '1', '1', existing, report([infrastructure], servedMerge), 'incident', '3'],
         ['identical smoke failures and an SEO failure with another commit after it open an incident', '1', '1', '1', existing, existing, 'incident', '3'],
-        ['both checks pass and production moved on after them: the pass is recorded', '0', '0', '1', existing, report([]), 'pass', '3'],
-        ['both checks pass and the reading after them is missing: the pass is recorded', '0', '0', '1', existing, report([]), 'pass', null],
+        // Both pass, but the reading after the SEO check does not name the merge: that check may have seen another commit,
+        // so the live result is unconfirmed. Nothing shows the change broken, so the incident opens without a revert.
+        ['both checks pass and production moved on after them: an incident, no revert', '0', '0', '1', existing, report([]), 'incident', '3'],
+        ['both checks pass and the reading after them is empty: an incident, no revert', '0', '0', '1', existing, report([]), 'incident', ''],
+        ['both checks pass and the reading after them is missing: an incident, no revert', '0', '0', '1', existing, report([]), 'incident', null],
         ['a new smoke failure reverts whatever the reading after the SEO check', '1', '0', '1', existing, changed, 'revert', '3'],
         ['a new smoke failure reverts even when an SEO failure cannot be counted', '1', '1', '1', existing, changed, 'revert', '3'],
         ['a smoke failure without a baseline reverts whatever the reading after the SEO check', '1', '1', '', null, existing, 'revert', null],
@@ -1682,9 +1709,11 @@ async function selfTestAsync() {
         ok(`report-live ${label}: recorded or paused`, action === 'pass'
           ? state.createdIssues.length === 0 && state.comments[7].some((c) => c.body.includes(liveOkMarker(merged)))
           : state.createdIssues.length === 1 && state.createdIssues[0].labels.some((l) => l.name === CONFIG.pauseLabel));
-        // A pass with production no longer confirmed afterwards says so on the record; an uncounted SEO failure says why.
-        if (action === 'pass') ok(`report-live ${label}: the record says whether production has since moved on`, state.comments[7].some((c) => c.body.includes(liveOkMarker(merged)) && c.body.includes('production has since moved on') === (versionAfterSeo !== '0')));
-        if (seo === '1' && versionAfterSeo !== '0') ok(`report-live ${label}: the incident says production changed or could not be confirmed after the SEO check`, state.createdIssues.length === 1 && state.createdIssues[0].body.includes('production changed or could not be confirmed after the SEO check'), state.createdIssues[0] && state.createdIssues[0].body.split('\n')[2]);
+        // A pass is recorded only when production still served the merge after the SEO check; when it may not have, the
+        // incident says so, whether the SEO check failed (not counted against the change) or passed (unconfirmed).
+        if (action === 'pass') ok(`report-live ${label}: a pass is recorded only with the reading after the SEO check naming the merge`, versionAfterSeo === '0');
+        if ((seo === '1' || (smoke === '0' && seo === '0')) && versionAfterSeo !== '0') ok(`report-live ${label}: the incident says production changed or could not be confirmed after the SEO check`, state.createdIssues.length === 1 && state.createdIssues[0].body.includes('production changed or could not be confirmed after the SEO check'), state.createdIssues[0] && state.createdIssues[0].body.split('\n')[2]);
+        if (smoke === '0' && seo === '0' && versionAfterSeo !== '0') ok(`report-live ${label}: the incident says the live result is unconfirmed`, state.createdIssues[0] && state.createdIssues[0].body.includes('the live result for this merge is unconfirmed'), state.createdIssues[0] && state.createdIssues[0].body.split('\n')[2]);
       }
       const workflow = fs.readFileSync(path.join(ROOT, OWN_WORKFLOW), 'utf8');
       const reportJob = workflow.slice(workflow.indexOf('  report:'));
@@ -1722,7 +1751,8 @@ async function selfTestAsync() {
 
   // Reverts in real temporary repositories: pushed, conflicting, rejected; the ledger keeps its entries.
   const ledgerLine = (id, extra = {}) => JSON.stringify({ id, date: id.slice(0, 10), kind: 'change', title: 'A change', hypothesis: 'Clearer copy helps.', primary_metric: 'answered_visit_rate@v1', guardrails: ['one_page_no_action_rate@v1'], baseline: { window: '2026-09-03..2026-09-30', answered: 120, visits: 548 }, min_sample: 150, window_days: 14, decision_rule: 'Keep if the rate rises.', evaluate_after: '2026-10-28', status: 'proposed', pr: null, verdict: null, result: null, ...extra });
-  const revertCase = async (label, setup, expectPushed, { ledger = false, sameFailures = false } = {}) => {
+  const registryText = (entries) => `export const EXPERIMENTS = ${JSON.stringify(entries)} as const;\n`;
+  const revertCase = async (label, setup, expectPushed, { ledger = false, sameFailures = false, registryBefore, registryAfter, expectRegistry } = {}) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'autopilot-revert-'));
     const g = (cwd, ...a) => execFileSync('git', ['-c', 'user.name=Self Test', '-c', 'user.email=self-test@example.invalid', '-c', 'commit.gpgsign=false', ...a], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
     try {
@@ -1735,11 +1765,14 @@ async function selfTestAsync() {
       fs.mkdirSync(path.join(work, 'autopilot'));
       fs.writeFileSync(path.join(work, LEDGER), `${ledgerLine('2026-10-01-a', { status: 'shipped' })}\n`);
       fs.writeFileSync(path.join(work, LEARNINGS), '# Learnings\n- 2026-10-01: first.\n');
+      const writeRegistry = (entries) => { fs.mkdirSync(path.join(work, 'lib'), { recursive: true }); if (entries === null) fs.rmSync(path.join(work, REGISTRY), { force: true }); else fs.writeFileSync(path.join(work, REGISTRY), registryText(entries)); };
+      if (registryBefore !== undefined) writeRegistry(registryBefore);
       g(work, 'add', '-A'); g(work, 'commit', '-q', '-m', 'base'); g(work, 'push', '-q', 'origin', 'main');
       fs.writeFileSync(path.join(work, 'page.txt'), 'one\nTWO\nthree\n');
       fs.appendFileSync(path.join(work, LEDGER), `${ledgerLine('2026-10-14-b')}\n`);
       fs.appendFileSync(path.join(work, LEARNINGS), '- 2026-10-14: phone visitors read the first screen.\n');
-      g(work, 'commit', '-q', '-am', 'Autopilot change (#7)'); g(work, 'push', '-q', 'origin', 'main');
+      if (registryAfter !== undefined) writeRegistry(registryAfter);
+      g(work, 'add', '-A'); g(work, 'commit', '-q', '-m', 'Autopilot change (#7)'); g(work, 'push', '-q', 'origin', 'main');
       const mergeSha = g(work, 'rev-parse', 'HEAD');
       setup({ g, origin, work });
       // Exercise the real report command and real git revert/push against this disposable local origin.
@@ -1772,6 +1805,11 @@ async function selfTestAsync() {
         guard.checkLedger(g(origin, 'show', `main~1:${LEDGER}`), g(origin, 'show', `main:${LEDGER}`), { ...ruled, bookkeeping: true, metrics: guard.metricNames(fs.readFileSync(path.join(ROOT, 'autopilot/metrics.md'), 'utf8')) });
         ok(`revert: ${label}: the reverted entry passes the guard's ledger rules, metric names included`, ruled.violations.length === 0 && !ruled.warnings.some((w) => w.message.includes('metrics.md')), JSON.stringify([...ruled.violations, ...ruled.warnings]));
         ok(`revert: ${label}: the learnings keep the reverted change's line`, g(origin, 'show', `main:${LEARNINGS}`).includes('phone visitors read the first screen'));
+        if (expectRegistry !== undefined) {
+          const shown = (() => { try { return `${g(origin, 'show', `main:${REGISTRY}`)}\n`; } catch { return null; } })();
+          ok(`revert: ${label}: the experiment registry on main is as expected`, shown === (expectRegistry === null ? null : registryText(expectRegistry)), shown);
+          ok(`revert: ${label}: the incident says whether the registry was kept`, /the experiment registry stays as it is on main/.test(result.detail) === (registryAfter !== undefined && JSON.stringify(expectRegistry) !== JSON.stringify(registryBefore)), result.detail);
+        }
         if (ledger) ok(`revert: ${label}: a later entry on main is left alone`, lines.some((entry) => entry.id === '2026-10-14-c' && entry.status === 'proposed'), JSON.stringify(lines));
         ok(`revert: ${label}: one commit`, g(origin, 'rev-list', '--count', 'main') === String(Number(g(work, 'rev-list', '--count', mergeSha)) + (ledger ? 2 : 1)));
       } else {
@@ -1786,13 +1824,23 @@ async function selfTestAsync() {
   await revertCase('a later commit on main is kept', ({ g, work }) => { fs.writeFileSync(path.join(work, 'other.txt'), 'x\n'); fs.appendFileSync(path.join(work, LEDGER), `${ledgerLine('2026-10-14-c')}\n`); fs.appendFileSync(path.join(work, LEARNINGS), '- 2026-10-15: a later learning.\n'); g(work, 'add', '-A'); g(work, 'commit', '-q', '-m', 'later'); g(work, 'push', '-q', 'origin', 'main'); g(work, 'reset', '-q', '--hard', 'HEAD~1'); }, true, { ledger: true });
   await revertCase('a conflict is skipped', ({ g, work }) => { fs.writeFileSync(path.join(work, 'page.txt'), 'one\nTWO!\nthree\n'); g(work, 'commit', '-q', '-am', 'later edit'); g(work, 'push', '-q', 'origin', 'main'); }, false);
   await revertCase('a rejected push is skipped', ({ origin }) => { fs.writeFileSync(path.join(origin, 'hooks', 'pre-receive'), '#!/bin/sh\necho "protected branch" >&2\nexit 1\n', { mode: 0o755 }); }, false);
+  // A merge that stopped an experiment (a conclusion pauses or removes its key) and started none is reverted with the
+  // registry kept as main has it: a concluded experiment never runs again, and no pull request could restart it (the
+  // guard needs an active registration). A merge that started one is reverted in full, so its experiment stops.
+  const hero = (status) => ({ key: 'home-hero', status, pages: ['/'], started: '2026-10-02', variants: ['control', 'short-dek'] });
+  const menu = { key: 'menu', status: 'running', pages: ['/tools'], started: '2026-10-14', variants: ['control', 'grid'] };
+  await revertCase('a revert keeps an experiment the merge paused paused', () => {}, true, { registryBefore: [hero('running')], registryAfter: [hero('paused')], expectRegistry: [hero('paused')] });
+  await revertCase('a revert keeps an experiment the merge removed removed', () => {}, true, { registryBefore: [hero('running')], registryAfter: [], expectRegistry: [] });
+  await revertCase('a revert keeps a stopped experiment stopped despite a later registry change', ({ g, work }) => { fs.writeFileSync(path.join(work, REGISTRY), registryText([hero('paused'), { ...menu, status: 'paused' }])); fs.appendFileSync(path.join(work, LEDGER), `${ledgerLine('2026-10-14-c')}\n`); g(work, 'commit', '-q', '-am', 'later registry change'); g(work, 'push', '-q', 'origin', 'main'); g(work, 'reset', '-q', '--hard', 'HEAD~1'); }, true, { ledger: true, registryBefore: [hero('running')], registryAfter: [hero('paused')], expectRegistry: [hero('paused'), { ...menu, status: 'paused' }] });
+  await revertCase('a revert stops an experiment the merge started', () => {}, true, { registryBefore: [hero('paused')], registryAfter: [hero('paused'), menu], expectRegistry: [hero('paused')] });
+  await revertCase('a revert of a merge that left the registry alone leaves it alone', () => {}, true, { registryBefore: [hero('running')], expectRegistry: [hero('running')] });
 
   if (failures.length) {
     console.error(`autopilot-merge self-test: ${failures.length} of ${checks} checks failed`);
     for (const failure of failures) console.error(`  ${failure}`);
     return 1;
   }
-  console.log(`autopilot-merge self-test: ${checks} checks passed (every gate on its own, pause, one open autopilot pull request, merge history, every check run and required checks that must succeed, stale and re-run checks, reviews, status comment and its notes, dry run, retried reads, merge and lost or refused merges, deploy wait, live failure-set comparisons, the version.json reading after the SEO check, live record, incident, report-driven reverts that keep the ledger and the learnings)`);
+  console.log(`autopilot-merge self-test: ${checks} checks passed (every gate on its own, pause, one open autopilot pull request, merge history, every check run and required checks that must succeed, stale and re-run checks, reviews, status comment and its notes, dry run, retried reads, merge and lost or refused merges, deploy wait, live failure-set comparisons, the version.json reading after the SEO check, live record, incident, report-driven reverts that keep the ledger and the learnings, and a stopped experiment stopped)`);
   return 0;
 }
 function selfTest() { return selfTestAsync(); }

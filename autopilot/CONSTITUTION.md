@@ -86,7 +86,9 @@ The authoritative rules are `ALLOWED` and `PROTECTED` in `scripts/autopilot-guar
 **Owner-only actions:**
 - deleting or renaming a page route;
 - adding a new JavaScript (`.js`, `.mjs`, `.cjs`) file in the site's code folders;
-- adding a custom error boundary.
+- adding a custom error boundary;
+- adding a tool (an entry in `lib/tools/registry.ts`): its typed-value privacy test and its verifier entry live in `scripts/`;
+- growing a page's initial JavaScript more than 1.5 KB past its figure in `scripts/e2e/budget.json` (a new page without a figure of its own: past the largest figure in its section, or of all pages in a new section). A new page within that is fine.
 
 **Rejected in added lines:**
 - a load from another host, anywhere except as a link destination;
@@ -99,18 +101,20 @@ The authoritative rules are `ALLOWED` and `PROTECTED` in `scripts/autopilot-guar
 
 A change that needs any of these goes to an `autopilot:needs-owner` issue with a concrete proposal (a branch is fine, but never with the `autopilot` label). Then pick other work.
 
+A revert pull request may put back, unchanged and in the same file, the lines that the merge it reverts deleted, when it marks that merge's ledger entry `reverted` with verdict `revert`: they were on `main` before that merge.
+
 **Ledger rules (also enforced by the guard):**
 - Each entry is one JSON object on one line, and meets the schema for its kind in `autopilot/metrics.md` §4, which registers everything its evaluation later needs.
 - A new entry's `primary_metric` and guardrails are names from the `autopilot/metrics.md` §1 table, written exactly; a change or experiment has at least one guardrail.
 - A new entry's hypothesis and decision rule are never blank. A new change or experiment also records its minimum sample (`min_sample`, a positive whole number), its measured baseline (the window it was counted over and its visits), its windows (`window_days` for a change, `max_days` for an experiment) and an `evaluate_after` in the range its kind allows; a fix, revert or conclusion has `evaluate_after` null. None of these ever changes once written. An older line that lacks one of them, or has a blank hypothesis or decision rule, can still be marked shipped, concluded or reverted.
-- `shipped_on` and `evaluated_on` are never before the entry's date (nor the evaluation before the ship), nor after today (the head commit's UTC day, or the clock's if that is earlier). `shipped_on` is the UTC day the entry's line reached `main`: its pull request's merge. A change is concluded only on or after its due date, on its full windows.
+- `shipped_on` and `evaluated_on` are never before the entry's date (nor the evaluation before the ship), nor after today (the head commit's UTC day, or the clock's if that is earlier). `shipped_on` is the UTC day the entry's line reached `main`: its pull request's merge. A change is concluded, or reverted as `inconclusive`, only on or after its due date, on its full windows; before it, a shipped change leaves the evaluation only as rolled back (verdict `revert`).
 - A verdict is one the entry's kind can reach (`autopilot/metrics.md` §4), and verdict `revert` goes only with status `reverted`.
-- An experiment's registry `started`, `variants` and `weights` are set by the pull request that registers it, and never change while that registration stands.
-- New entries start as `proposed`, with `verdict`, `result` and `shipped_on` null, dated within 2 days of the branch date. The one exception is the record of a pull request that closed unmerged: `reverted`, with verdict null or `inconclusive`, its own date, and always its `pr` and a note saying why it closed.
+- An experiment's registry `started` (required), `variants` and `weights` are set by the pull request that registers it, and never change while that registration stands. A concluded experiment never runs again: a revert keeps its key paused or removed, as `main` has it.
+- New entries start as `proposed`, with `verdict`, `result` and `shipped_on` null, dated within 2 days of the branch date. The one exception is the record of a pull request that closed unmerged: `reverted`, with verdict null or `inconclusive`, its own date, and always its `pr` and a note saying why it closed. It never shipped, so its `shipped_on`, `result` and `evaluated_on` stay null, then and later.
 - Once its pull request has merged, an entry is marked `shipped`, with `pr` and `shipped_on`. When judged it becomes `concluded` (or `reverted`). `status` only moves forward.
 - An entry moved to `reverted` needs verdict `revert` or `inconclusive`, its `pr` and a new note saying why; a `revert` verdict also needs `shipped_on` and `evaluated_on`.
 - `verdict`, `result`, `evaluated_on`, `pr` and `shipped_on` are set once and then frozen. Only those fields, `status` and `notes` ever change.
-- No line is ever deleted or moved.
+- No line is ever deleted or moved. A line that no longer parses may be repaired; it is then held to the line as it last parsed on `main`, as an edited line is (a line that never parsed there meets the whole schema, and its `shipped_on` is the day its text reached `main`).
 
 ## 7. What is open
 Everything else, with creativity encouraged:
@@ -119,7 +123,7 @@ Everything else, with creativity encouraged:
 - visual design within `docs/DESIGN_SYSTEM.md`, and evolving the design system itself;
 - page speed;
 - accessibility;
-- new explanations, stories, charts and tools built on the existing published data;
+- new explanations, stories, charts and pages built on the existing published data (a new tool needs the owner, §6);
 - onboarding paths;
 - links between pages;
 - the backlog, the learnings file and the ledger.
