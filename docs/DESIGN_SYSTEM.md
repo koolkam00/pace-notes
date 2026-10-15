@@ -63,6 +63,7 @@ The fonts are self-hosted through `@fontsource-variable/*`, imported in `app/lay
   - `EvidencePanel`: a panel of Pace Notes data, published research or official standards names its evidence kind with a coloured `.evidence-badge`; panels of plain calculations from the visitor's inputs carry no badge. The site never uses the word "arithmetic".
   - Inputs: `DurationField` keeps the visitor's text while typing and accepts `3:30:00`, `3:30`, `3h30`, `210` and keypad dots. `Choice` is a `.segmented` group; `Stepper` nudges a value by a minute.
   - `ShareBar` (copy link, print) and `.print-only` / `.no-print` for printable pace charts and wristbands.
+  - `ToolHandoffs` (`.tool-handoffs`): next-step cards under a headline result, in the "More tools" card style with the target's accent on the left edge, two up where they fit and stacked on phones. `MarathonHandoffs` fills them for a marathon time (the pace band and the pacing-pattern analysis). The runner search's no-match result uses the same cards (`.runner-nomatch-next`).
 - **Feedback** (`components/PageFeedback.tsx`, styles in `app/story.css`): one quiet row, "Was this useful?" with Yes and No as small pill buttons, a mono uppercase label and a hairline above; after No a second row offers four fixed reasons, then a one-line thank-you. The chosen button is filled ink. It has no text box. It sits at the end of stories (before the pagination), tools (before More tools) and analyses (before the related tool, aligned with the analysis column on desktop).
 - **Experiments** (`components/Experiment.tsx`): wrap each version of the markup a test changes in `<Variant experiment="<key>" show="<variant>">` (`as="span"` inside a paragraph). The wrapper is `display: contents`, so it adds no box and the layout is the same as without it; give every variant the same structure and classes where you can.
   - Each tool's card and icon use its registry accent (`--tool`).
@@ -83,6 +84,7 @@ The fonts are self-hosted through `@fontsource-variable/*`, imported in `app/lay
   - Anything shown only on hover also has a keyboard path: a range input (`.heat-slider`), a select, or arrow keys with a roving `tabIndex` (the same-course pairs grid).
   - Repeated controls on one page get distinct accessible names (for example each replay chart's race picker).
   - Tick density adapts to width; nine-section axes switch to boundary labels on narrow screens (`SectionAxis`).
+  - Pace axes tick on a round minutes:seconds grid in the units shown: every 0:30 per mile (whole minutes for a wide range), every 0:15 or 0:30 per kilometre (`paceTicks` in `lib/units.ts`). Never convert a kilometre grid, which reads 8:15, 8:48, 9:21/mi. Distance axes of section charts tick at the recorded section ends.
   - Charts never depend on colour alone when a label fits.
 - **Server and client.**
   - Story bodies are server components. Each wraps its section in `<StoryData value={{ … }}>` (`components/story/StoryData.tsx`) so a dataset crosses to the browser once; charts read it with `useStoryData(key, given)`. Passing the same object to several client components makes React serialize it twice, which doubled the story pages.

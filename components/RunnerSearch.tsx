@@ -58,6 +58,33 @@ function LimitedRecords({ races, manifest, units }: { races: RunnerRace[]; manif
   return <ul className="runner-races runner-limited-records">{races.map(race => <li className="runner-race" key={race.id}><RunnerRecordDetails race={race} manifest={manifest} /><RecordedCheckpoints race={race} manifest={manifest} units={units} /></li>)}</ul>;
 }
 
+/** The marathons the search covers and their recorded years, from the search data already on the page. */
+function coveredRaces(manifest: RunnerManifest) {
+  const races = new Map<string, Set<number>>();
+  for (const edition of manifest.editions) races.set(edition.race, (races.get(edition.race) ?? new Set<number>()).add(edition.year));
+  return [...races].map(([race, years]) => ({ name: race.replace(/ Marathon$/, ''), first: Math.min(...years), last: Math.max(...years), years: years.size }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * After a search finds no name: which marathons were searched, and three ways on that need no name. The links are fixed
+ * addresses, so the search text never travels with them.
+ */
+export function NoMatchNext({ manifest }: { manifest: RunnerManifest }) {
+  const races = useMemo(() => coveredRaces(manifest), [manifest]);
+  return <div className="runner-nomatch">
+    <details className="runner-covered"><summary>The {count(races.length)} marathons searched</summary>
+      <ul>{races.map(race => <li key={race.name}><span>{race.name}</span><small>{race.first === race.last ? race.first : `${race.first}–${race.last}`} · {count(race.years)} {race.years === 1 ? 'year' : 'years'}</small></li>)}</ul>
+      <p className="control-help">Years with recorded results, including partial ones. <Link href="/about#data-coverage">Every year and recorded field</Link>.</p>
+    </details>
+    <nav className="runner-nomatch-next" aria-label="Start without a name"><p className="eyebrow">Or start without a name</p><ul>
+      <li style={{ ['--link-accent' as string]: 'var(--blue)' }}><Link href="/analyses/finish-time-context"><b>Compare a finish time</b><span>See where a time falls among comparable recorded finishes.</span></Link></li>
+      <li style={{ ['--link-accent' as string]: 'var(--green)' }}><Link href="/tools/split-check"><b>Have your splits? Check them</b><span>Paste your nine mat times to see how you paced.</span></Link></li>
+      <li style={{ ['--link-accent' as string]: 'var(--orange)' }}><Link href="/request-analysis"><b>Ask for your race</b><span>Tell Andrew which marathon or year is missing.</span></Link></li>
+    </ul></nav>
+  </div>;
+}
+
 export function RunnerSearchCoverage({ manifest }: { manifest: RunnerManifest }) {
   return <p className="control-help runner-search-coverage"><strong>Search all {count(manifest.named_records)} named race records.</strong> Incomplete results and editions awaiting review are included. You can view a recorded result even when pacing analysis is unavailable.</p>;
 }
@@ -187,8 +214,9 @@ export default function RunnerSearch() {
     {searchError && <div className="feedback-error" role="alert"><p>{searchError}</p>{searched && <button type="button" onClick={() => manifest && void runSearch(searched, manifest)}>Try again</button>}</div>}
     {searchLoading && <p className="loading-message" role="status">Finding matching names…</p>}
     {manifest && searched && !searchLoading && !searchError && <section className="runner-results ph-no-capture" aria-labelledby="runner-results-title">
-      <h2 id="runner-results-title" role="status">{matches.length ? `${count(matches.length)} matching ${matches.length === 1 ? 'record group' : 'record groups'}` : 'No matching recorded name'}</h2>
+      <h2 id="runner-results-title"><span role="status">{matches.length ? `${count(matches.length)} matching ${matches.length === 1 ? 'record group' : 'record groups'}` : 'No matching recorded name'}</span></h2>
       <p className="control-help">{matches.length ? `Results for “${searched}”. People can share a name, and one person can appear in separate groups. Open a match and check the races before combining them.` : 'Try the spelling on the original result, a surname, or fewer name parts. Missing splits do not hide a name from search. A result may be absent from the database or have an unusable recorded name.'}</p>
+      {!matches.length && <NoMatchNext manifest={manifest} />}
       {matches.length > 0 && <ul className="runner-matches">{visibleMatches.map(row => <li key={row[1]}><button className="runner-match" type="button" aria-expanded={profile?.id === row[1]} aria-controls="runner-profile" onClick={() => void openProfile(row[1])}><span><strong>{row[0]}</strong><small>{count(row[2])} {row[2] === 1 ? 'race' : 'races'} · {row[3] === row[4] ? row[3] : `${row[3]}–${row[4]}`} · {row[2] > 1 ? 'Including ' : ''}{row[5]}</small></span><span className="runner-match-action">{profileLoading === row[1] ? 'Loading…' : 'See races'} <span aria-hidden="true">→</span></span></button></li>)}</ul>}
       {pages > 1 && <nav className="runner-pagination" aria-label="Search result pages"><button type="button" disabled={page === 0} onClick={() => setPage(value => value - 1)}>Previous</button><span>Page {count(page + 1)} of {count(pages)} · {count(page * RUNNER_PAGE_SIZE + 1)}–{count(Math.min(matches.length, (page + 1) * RUNNER_PAGE_SIZE))} of {count(matches.length)}</span><button type="button" disabled={page + 1 >= pages} onClick={() => setPage(value => value + 1)}>Next</button></nav>}
     </section>}

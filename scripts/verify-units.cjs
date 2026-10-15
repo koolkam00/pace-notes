@@ -13,7 +13,7 @@ Module._resolveFilename = function (request, ...args) {
 };
 const {
   DEFAULT_UNITS, KM_PER_MILE, METRES_PER_FOOT, distanceValue, distanceLabel,
-  paceValue, paceLabel, elevationValue, elevationLabel, unitText,
+  paceValue, paceLabel, paceTicks, elevationValue, elevationLabel, unitText,
 } = require(path.join(__dirname, '../lib/units.ts'));
 
 assert.equal(DEFAULT_UNITS, 'mi');
@@ -44,6 +44,30 @@ assert.equal(elevationValue(100, 'km'), 100);
 assert.equal(elevationLabel(100, 'mi'), '328.1 ft');
 assert.equal(elevationLabel(-10, 'mi'), '-32.8 ft');
 assert.equal(elevationLabel(100, 'km'), '100 m');
+
+// Pace axes: a round minutes:seconds grid in the units shown, never a kilometre grid converted to miles (which read
+// 8:15, 8:48, 9:21/mi on the pacing-pattern chart). Ticks are seconds per displayed unit; the domain is first to last.
+const tickLabels = (axis, units) => axis.ticks.map(t => paceLabel(t / paceValue(1, units), units, false));
+const exampleMiles = paceTicks(8.25 * 60, 10.45 * 60, 'mi');
+assert.deepEqual(exampleMiles, { ticks: [480, 510, 540, 570, 600, 630], domain: [480, 630] });
+assert.deepEqual(tickLabels(exampleMiles, 'mi'), ['8:00', '8:30', '9:00', '9:30', '10:00', '10:30'], 'A tick label reads back as its own grid value');
+assert.deepEqual(paceTicks(5.13 * 60, 6.49 * 60, 'km'), { ticks: [300, 330, 360, 390], domain: [300, 390] }, 'Seven 0:15/km ticks are too many: 0:30/km');
+assert.deepEqual(paceTicks(5.1 * 60, 5.9 * 60, 'km').ticks, [300, 315, 330, 345, 360], 'A narrow kilometre range keeps a 0:15 grid');
+assert.deepEqual(paceTicks(540, 545, 'mi'), { ticks: [540, 570], domain: [540, 570] }, 'A narrow mile range keeps the 0:30 grid, two ticks at least');
+assert.deepEqual(paceTicks(540, 540, 'km').ticks, [540, 555], 'One value still gets an axis');
+assert.deepEqual(paceTicks(480, 600, 'mi').ticks, [480, 510, 540, 570, 600], 'Values on the grid add no tick beyond them');
+assert.deepEqual(paceTicks(480 + 1e-9, 600 - 1e-9, 'mi').ticks, [480, 510, 540, 570, 600], 'A rounding error does not add a tick');
+assert.deepEqual(paceTicks(300, 1200, 'mi').ticks, [300, 600, 900, 1200], 'A wide range steps up to whole minutes');
+assert.ok(paceTicks(250, 1350, 'km').ticks.length <= 6);
+for (const [min, max, units] of [[0, 0, 'mi'], [0, 7200, 'km'], [1e-6, 3e4, 'mi']]) assert.ok(paceTicks(min, max, units).ticks.length <= 6, 'Six ticks at most, however wide the range');
+for (const [min, max] of [[NaN, 600], [600, Infinity], [600, 540]]) assert.equal(paceTicks(min, max, 'mi'), null);
+for (let lo = 240; lo < 900; lo += 7.3) for (const span of [4, 45, 130, 260, 600]) for (const units of ['mi', 'km']) {
+  const axis = paceTicks(lo, lo + span, units);
+  assert.ok(axis.domain[0] <= lo + 1e-6 && axis.domain[1] >= lo + span - 1e-6, 'The axis covers every value');
+  assert.ok(axis.ticks.length >= 2 && axis.ticks.length <= 6);
+  assert.ok(axis.ticks.every(t => t % (units === 'mi' ? 30 : 15) === 0), `${units} ticks sit on the ${units === 'mi' ? '0:30' : '0:15'} grid`);
+  assert.equal(axis.ticks[0], axis.domain[0]); assert.equal(axis.ticks[axis.ticks.length - 1], axis.domain[1]);
+}
 
 const conversions = [
   ['First 5 km', 'First 3.11 mi'],
@@ -287,5 +311,18 @@ for (const row of profileSpec.rows) {
 }
 assert.match(render(profileSpec, 'km'), /40–42\.195 km/);
 assert.equal(JSON.stringify(profileSpec), sourceProfile, 'Rendering both modes must preserve all source values');
+// The real pacing-pattern chart's axis in both units: every value covered, every label on its own grid.
+const profilePaces = profileSpec.rows.flatMap(row => profileSpec.series.map(series => row[series.key] * 60));
+for (const [units, ending] of [['mi', /:(?:00|30)$/], ['km', /:(?:00|15|30|45)$/]]) {
+  const shown = profilePaces.map(seconds => paceValue(seconds, units));
+  const axis = paceTicks(Math.min(...shown), Math.max(...shown), units);
+  assert.ok(axis.domain[0] <= Math.min(...shown) && axis.domain[1] >= Math.max(...shown), `${units}: the pacing-pattern axis covers every pace`);
+  for (const text of tickLabels(axis, units)) assert.match(text, ending, `${units}: pacing-pattern tick ${text} is on the round grid`);
+}
+// Both Recharts pace axes take these ticks rather than Recharts' decimal-minute ones.
+const chartSource = name => fs.readFileSync(path.join(__dirname, '../components', name), 'utf8');
+assert.match(chartSource('QuestionViz.tsx'), /paceTicks\(Math\.min\(\.\.\.allValues\) \* 60, Math\.max\(\.\.\.allValues\) \* 60, selectedUnits\)/);
+assert.match(chartSource('QuestionLineChart.tsx'), /<YAxis [^>]*ticks=\{paceTicks\}[^>]*domain=\{paceTicks \? \[paceTicks\[0\], paceTicks\[paceTicks\.length - 1\]\]/);
+assert.match(chartSource('RunnerContext.tsx'), /<YAxis [^>]*domain=\{paceAxis \? paceAxis\.domain : \['auto', 'auto'\]\} ticks=\{paceAxis\?\.ticks\}/);
 
-console.log('Verified display-only mile, pace and elevation conversions, source precision, checkpoint labels, prose ranges, URL preservation, rendered measurements, unchanged samples and real profile sections in both units, and the same conversions where a lookbehind RegExp cannot be built (Safari before 16.4).');
+console.log('Verified display-only mile, pace and elevation conversions, source precision, checkpoint labels, prose ranges, URL preservation, rendered measurements, unchanged samples, real profile sections and round pace-axis ticks in both units, and the same conversions where a lookbehind RegExp cannot be built (Safari before 16.4).');

@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { formatDuration, parseDuration, type DurationMode } from '@/lib/tools/time';
-import { useUnits } from '@/components/UnitsProvider';
+import { formatDuration, formatHM, parseDuration, type DurationMode } from '@/lib/tools/time';
+import { paceBandGoalHref, pacingPatternHref } from '@/lib/tools/links';
+import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { withUnits } from '@/lib/unit-preference';
 import { trackAnalytics } from '@/lib/analytics';
 
@@ -111,6 +112,45 @@ export function ExampleNote({ children }: { children?: ReactNode }) {
       <span className="tool-example-tag">Example</span>
       <span>{children ?? 'These results use example inputs. Type yours; everything updates as you type.'}</span>
     </p>
+  );
+}
+
+/**
+ * Next steps from a result: cards that open another tool or analysis with the result filled in. The value travels in
+ * the link's query only (analytics keeps a page's path alone), and the page it opens shows it in its own masked
+ * workspace, as if typed. Following a link is not a tool edit: components/SiteAnalytics.tsx counts typing, choices
+ * and buttons.
+ */
+export function ToolHandoffs({ label, links }: { label: string; links: { href: string; title: string; text: ReactNode; accent: string }[] }) {
+  if (!links.length) return null;
+  return (
+    <nav className="tool-handoffs no-print" aria-label={label}>
+      <p className="tool-handoffs-label">{label}</p>
+      <ul>
+        {links.map((l) => (
+          <li key={l.href} style={{ ['--tool' as string]: l.accent }}>
+            {/* A no-break space keeps the arrow on the title's last line. */}
+            <Link href={l.href}><b>{l.title}{'\u00a0'}<span aria-hidden="true">→</span></b><span>{l.text}</span></Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+/** Where a marathon time (whole minutes) goes next: a pace band for it, and how finishes near it were paced. */
+export function MarathonHandoffs({ label, minutes }: { label: string; minutes: number }) {
+  const band = paceBandGoalHref(minutes);
+  const pacing = pacingPatternHref(minutes);
+  const time = formatHM(minutes * 60);
+  // The pace band shows observed mat times for goals from 2:30 to 6:30, and an even-pace band alone outside them.
+  const observed = minutes >= 150 && minutes <= 390;
+  return (
+    <ToolHandoffs label={label} links={[
+      ...(band ? [{ href: band, accent: 'var(--orange)', title: 'Turn this into a pace band',
+        text: observed ? `Even splits for ${time}, beside the mat times of finishes that just beat it.` : `Even splits for ${time}, ready to print.` }] : []),
+      ...(pacing ? [{ href: pacing, accent: 'var(--blue)', title: 'See how finishers near this time paced', text: `Pace through each section for finishes near ${time}.` }] : []),
+    ]} />
   );
 }
 
