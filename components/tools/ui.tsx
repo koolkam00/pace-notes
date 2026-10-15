@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { formatDuration, parseDuration, type DurationMode } from '@/lib/tools/time';
 import { useUnits } from '@/components/UnitsProvider';
 import { withUnits } from '@/lib/unit-preference';
+import { trackAnalytics } from '@/lib/analytics';
 
 /**
  * A duration input that keeps the visitor's text while they type and reports seconds (or null) upward.
@@ -113,15 +114,23 @@ export function ExampleNote({ children }: { children?: ReactNode }) {
   );
 }
 
-/** Copy-link and print buttons. The copied link carries the units on screen, so it opens the same way for someone else. */
+/**
+ * Copy-link and print buttons. The copied link carries the units on screen, so it opens the same way for someone else.
+ * `.share-bar` keeps these out of the count of tool edits (components/SiteAnalytics.tsx): a copied link is counted on
+ * its own, and so is printing.
+ */
 export function ShareBar({ print = true, extra }: { print?: boolean; extra?: ReactNode }) {
   const [copied, setCopied] = useState(false);
   const { units } = useUnits();
   return (
-    <div className="tool-share no-print">
+    <div className="tool-share share-bar no-print">
       <button type="button" className="button-secondary" onClick={async () => {
         const { origin, pathname, search, hash } = window.location;
-        try { await navigator.clipboard.writeText(origin + withUnits(pathname + search + hash, units)); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { /* clipboard unavailable */ }
+        try {
+          await navigator.clipboard.writeText(origin + withUnits(pathname + search + hash, units));
+          trackAnalytics('tool_used', { action: 'copy_link' });
+          setCopied(true); setTimeout(() => setCopied(false), 1800);
+        } catch { /* clipboard unavailable */ }
       }}>{copied ? 'Link copied' : 'Copy link'}</button>
       {print ? <button type="button" className="button-secondary" onClick={() => window.print()}>Print</button> : null}
       {extra}

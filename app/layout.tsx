@@ -9,6 +9,8 @@ import { UnitLink as Link, UnitSwitch } from '@/components/UnitsProvider';
 import UnitsProvider from '@/components/UnitsProvider';
 import SiteNav from '@/components/SiteNav';
 import SiteAnalytics from '@/components/SiteAnalytics';
+import SectionTracker from '@/components/SectionTracker';
+import { ExperimentHead } from '@/components/Experiment';
 import CreatorCredit from '@/components/CreatorCredit';
 import MotionToggle from '@/components/MotionToggle';
 import type { Metadata } from 'next';
@@ -33,8 +35,9 @@ export const viewport = { themeColor: '#F5F0E6' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <head><script type="module" async dangerouslySetInnerHTML={{ __html: RELOAD_ON_FAILED_FILE }} /></head>
+    // The experiments script (ExperimentHead) names this tab's variants on <html> before React hydrates it.
+    <html lang="en" suppressHydrationWarning>
+      <head><script type="module" async dangerouslySetInnerHTML={{ __html: RELOAD_ON_FAILED_FILE }} /><ExperimentHead /></head>
       <body><UnitsProvider>
         <a className="skip-link" href="#main">Skip to content</a>
         <header className="site-header">
@@ -64,6 +67,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </nav>
         </footer>
         <SiteAnalytics />
+        <SectionTracker />
       </UnitsProvider></body>
     </html>
   );

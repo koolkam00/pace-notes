@@ -21,6 +21,8 @@ const percent = (value: number) => Math.abs(value).toFixed(1) + '%';
 const changeDescription = (value: number) => Math.abs(value) < 0.05 ? 'the same pace' : `${percent(value)} ${value > 0 ? 'slower' : 'faster'}`;
 const finishLabel = (race: RunnerRace) => race.raw_times?.[8] || runnerDuration(race.times[8]);
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'The records could not load. Please try again.';
+/** How many matches a search found, in the bands analytics allows: never the names or the exact count. */
+const resultBucket = (n: number) => n === 0 ? '0' : n === 1 ? '1' : n <= 5 ? '2-5' : '6+';
 const MAX_QUERY = 120;
 
 /**
@@ -114,7 +116,7 @@ export default function RunnerSearch() {
     trackAnalytics('runner_search_submitted', {});
     try {
       const results = await searchRunnerNames(value, source, controller.signal);
-      if (!controller.signal.aborted) { setMatches(results); setSearchLoading(false); trackAnalytics('runner_search_completed', { outcome: results.length ? 'matches' : 'no_matches' }); }
+      if (!controller.signal.aborted) { setMatches(results); setSearchLoading(false); trackAnalytics('runner_search_completed', { outcome: results.length ? 'matches' : 'no_matches', results: resultBucket(results.length) }); }
     } catch (error) { if (!controller.signal.aborted) { setSearchError(errorMessage(error)); setSearchLoading(false); trackAnalytics('runner_search_completed', { outcome: 'error' }); } }
   }, []);
 

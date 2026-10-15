@@ -1,4 +1,5 @@
 import type { CaptureResult } from 'posthog-js';
+import { EXPERIMENTS } from './experiments';
 import { TEN_ANALYSES } from './ten-analyses';
 import { TOOLS } from './tools/registry';
 import { WEATHER_QUESTIONS } from './weather-catalog';
@@ -13,26 +14,60 @@ export const ANALYTICS_HOSTS = new Set(['splithappens.run', 'www.splithappens.ru
 const searchPages = ['/tools/marathon-pace-chart', '/tools/half-marathon-pace-chart', '/finish-times',
   ...['3-00', '3-30', '4-00', '4-30', '5-00'].map(goal => '/tools/marathon-pace/' + goal),
   ...['boston', 'nyc', 'london', 'chicago', 'berlin', 'sydney'].map(race => '/tools/qualifying/' + race)];
+// Story and course pages keep their own path, named here because lib/stories.ts and lib/course-data.ts read files at
+// build time. verify-analytics checks both lists against STORIES and getCourseNames(), so a new story or course cannot
+// fall to its section unnoticed; a URL under either section that is not on the list (a typed name) still does.
+export const STORY_SLUGS: readonly string[] = ['pacing-types', 'round-numbers', 'race-replay', 'places', 'final-kick', 'who-holds-pace', 'courses'];
+export const COURSE_SLUGS: readonly string[] = ['amsterdam', 'auckland', 'austin', 'barcelona', 'berlin', 'boston', 'chicago', 'copenhagen', 'dubai', 'eindhoven', 'frankfurt', 'gold-coast',
+  'hamburg', 'helsinki', 'london', 'madrid', 'melbourne', 'new-york', 'oslo', 'paris', 'prague', 'rotterdam', 'singapore', 'stockholm', 'sydney', 'valencia', 'vienna', 'warsaw', 'washington'];
 const pages = new Set(['/', '/analyses', '/analyses/downhill-start', '/runners', '/about', '/methodology', '/privacy', '/request-analysis', '/slowdown', '/htw', '/your-race', '/research/personalized',
   ...TEN_ANALYSES.map(item => '/analyses/' + item.slug), ...WEATHER_QUESTIONS.map(item => '/analyses/' + item.slug),
-  '/tools', ...TOOLS.map(tool => '/tools/' + tool.slug), ...searchPages]);
+  '/tools', ...TOOLS.map(tool => '/tools/' + tool.slug), ...searchPages,
+  '/stories', ...STORY_SLUGS.map(slug => '/stories/' + slug), '/courses', ...COURSE_SLUGS.map(slug => '/courses/' + slug)]);
 const analyses = new Set([...TEN_ANALYSES.map(item => item.id), ...WEATHER_QUESTIONS.map(item => item.id)]);
+
+// The page sections whose first view is counted (section_viewed). Pages mark them with data-track-section="<id>";
+// components/SectionTracker.tsx watches them, and any other id is dropped here.
+export const TRACKED_SECTIONS = ['hero', 'chapter-1', 'chapter-2', 'chapter-3', 'chapter-4', 'chapter-5', 'chapter-6', 'chapter-7', 'chapter-8',
+  'stories', 'tools', 'analyses', 'cta', 'faq', 'related'] as const;
 
 export type AnalyticsEvents = {
   runner_search_submitted: Record<string, never>;
-  runner_search_completed: { outcome: 'matches' | 'no_matches' | 'error' };
+  runner_search_completed: { outcome: 'matches' | 'no_matches' | 'error'; results?: '0' | '1' | '2-5' | '6+' };
   runner_profile_opened: Record<string, never>;
   race_comparison_opened: { selection: 'one' | 'multiple'; availability: 'eligible' | 'mixed' | 'limited' };
   analysis_filters_applied: { analysis: string; course_scope: 'all' | 'single' };
   data_download_clicked: { destination: 'release' | 'site_data' };
   units_changed: { units: 'mi' | 'km' };
+  tool_used: { action: 'edit' | 'print' | 'copy_link' };
+  page_feedback: { answer: 'yes' | 'no' };
+  page_feedback_reason: { reason: 'hard_to_follow' | 'not_what_i_needed' | 'numbers_look_wrong' | 'something_broke' };
+  site_error: { category: 'js_error' | 'unhandled_rejection' | 'chunk_load' | 'data_fetch' | 'render' };
+  section_viewed: { section: (typeof TRACKED_SECTIONS)[number] };
 };
-const eventProperties: Record<keyof AnalyticsEvents | '$pageview', Record<string, readonly string[]>> = {
-  $pageview: {}, runner_search_submitted: {}, runner_search_completed: { outcome: ['matches', 'no_matches', 'error'] },
+// The fixed tags on the owner's own Instagram links. Only the first page view of a tab carries them (lib/analytics.ts).
+export const CAMPAIGN: Record<'utm_source' | 'utm_medium' | 'utm_content', readonly string[]> = {
+  utm_source: ['instagram'], utm_medium: ['social'], utm_content: ['bio', 'story', 'highlight', 'reel', 'post', 'dm'],
+};
+const eventProperties: Record<keyof AnalyticsEvents | '$pageview' | '$pageleave' | '$web_vitals', Record<string, readonly string[]>> = {
+  $pageview: CAMPAIGN, $pageleave: {}, $web_vitals: {},
+  runner_search_submitted: {}, runner_search_completed: { outcome: ['matches', 'no_matches', 'error'], results: ['0', '1', '2-5', '6+'] },
   runner_profile_opened: {}, race_comparison_opened: { selection: ['one', 'multiple'], availability: ['eligible', 'mixed', 'limited'] },
   analysis_filters_applied: { analysis: [...analyses], course_scope: ['all', 'single'] },
   data_download_clicked: { destination: ['release', 'site_data'] }, units_changed: { units: ['mi', 'km'] },
+  tool_used: { action: ['edit', 'print', 'copy_link'] }, page_feedback: { answer: ['yes', 'no'] },
+  page_feedback_reason: { reason: ['hard_to_follow', 'not_what_i_needed', 'numbers_look_wrong', 'something_broke'] },
+  site_error: { category: ['js_error', 'unhandled_rejection', 'chunk_load', 'data_fetch', 'render'] },
+  section_viewed: { section: TRACKED_SECTIONS },
 };
+
+// Numbers the SDK measures itself, as [min, max, scale]: kept only when inside [min, max] and rounded to 1/scale. Time on
+// the previous page in whole seconds and how far down it was scrolled in 5% steps ($pageview after a navigation,
+// $pageleave when the tab closes), and Core Web Vitals in whole milliseconds (CLS, a score, in steps of 0.001).
+type Range = readonly [number, number, number];
+const reading: Record<string, Range> = { $prev_pageview_duration: [0, 3600, 1], $prev_pageview_max_scroll_percentage: [0, 1, 20], $prev_pageview_max_content_percentage: [0, 1, 20] };
+const numericProperties: Record<string, Record<string, Range>> = { $pageview: reading, $pageleave: reading, $web_vitals: {
+  $web_vitals_LCP_value: [0, 60000, 1], $web_vitals_FCP_value: [0, 60000, 1], $web_vitals_INP_value: [0, 60000, 1], $web_vitals_CLS_value: [0, 10, 1000] } };
 
 // The application route of a URL or path, without the deployment's base path, query string, fragment or trailing slash.
 function routePath(value: string, basePath: string): string {
@@ -47,9 +82,9 @@ export function analyticsPath(value: string, basePath = ''): string {
   try {
     const path = routePath(value, basePath);
     if (pages.has(path)) return path;
-    if (path === '/courses' || path.startsWith('/courses/')) return '/courses';
+    if (path.startsWith('/courses/')) return '/courses';
     if (path === '/packs' || path.startsWith('/packs/')) return '/packs';
-    if (path === '/stories' || path.startsWith('/stories/')) return '/stories';
+    if (path.startsWith('/stories/')) return '/stories';
   } catch {}
   return '/other';
 }
@@ -103,8 +138,10 @@ export function recordingBlocked(value: string, basePath = ''): boolean {
 // the SDK or the recorder is ready, so a quick filter change cannot hide the handoff.
 const HANDOFF_FLAG = 'pace-notes-runner-handoff';
 let handoffInTab = false;
+// The units choice and link tags (campaign and click IDs that social apps add) are not a runner's data.
+const neutralQueryKey = (key: string) => key === 'units' || key === 'fbclid' || key === 'igshid' || key.startsWith('utm_');
 function hasRunnerQuery(value: string): boolean {
-  try { return Array.from(new URL(value, 'https://splithappens.run').searchParams.keys()).some(key => key !== 'units'); } catch { return true; }
+  try { return Array.from(new URL(value, 'https://splithappens.run').searchParams.keys()).some(key => !neutralQueryKey(key)); } catch { return true; }
 }
 /** Notes the start of a runner handoff (a page carrying the marker) or its end (a page without a query). */
 export function noteRunnerHandoff(value: string): void {
@@ -157,6 +194,18 @@ export function sanitizeAnalyticsEvent(event: CaptureResult | null, basePath = '
   properties.$is_identified = false;
   for (const [key, values] of Object.entries(eventProperties[event.event as keyof typeof eventProperties])) {
     if (typeof source[key] === 'string' && values.includes(source[key])) properties[key] = source[key];
+  }
+  for (const [key, [min, max, scale]] of Object.entries(numericProperties[event.event] ?? {})) {
+    const value = source[key];
+    if (typeof value === 'number' && value >= min && value <= max) properties[key] = Math.round(value * scale) / scale;
+  }
+  // The page a reading-depth figure belongs to, and the random page-view IDs that join it to that page view.
+  if (event.event === '$pageview' && typeof source.$prev_pageview_pathname === 'string') properties.$prev_pageview_pathname = analyticsPath(source.$prev_pageview_pathname, basePath);
+  for (const key of ['$pageview_id', '$prev_pageview_id']) if (typeof source[key] === 'string' && UUID.test(source[key] as string)) properties[key] = source[key];
+  // Which version of a page this tab was shown, for a running experiment (lib/experiments.ts) and one of its variants.
+  for (const { key, variants, status } of EXPERIMENTS) {
+    const value = source['$feature/' + key];
+    if (status === 'running' && typeof value === 'string' && variants.includes(value)) properties['$feature/' + key] = value;
   }
   return { uuid: event.uuid, event: event.event, timestamp: event.timestamp, properties };
 }

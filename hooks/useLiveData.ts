@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import type { LiveJson } from '@/lib/types';
+import { dataFetch } from '@/lib/data-fetch';
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
@@ -12,7 +13,7 @@ export function useLiveData(pollMs: number = 60000) {
   async function load() {
     setError(null);
     try {
-      const res = await fetch(`${BASE_PATH}/data/live.json`, {
+      const res = await dataFetch(`${BASE_PATH}/data/live.json`, {
         cache: 'no-store',
         headers: { 'Content-Type': 'application/json' },
       });

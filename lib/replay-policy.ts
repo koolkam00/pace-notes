@@ -140,11 +140,16 @@ export function posthogOptions(apiHost: string, basePath: string, beforeSend: Be
     autocapture: false,
     rageclick: false,
     capture_pageview: false,
-    capture_pageleave: false,
+    // $pageleave when the tab closes or leaves the site: the SDK's time on page and scroll depth for the last page view
+    // (before_send keeps only those numbers and the page-view IDs).
+    capture_pageleave: true,
     capture_dead_clicks: false,
     capture_exceptions: false,
     capture_heatmaps: false,
-    capture_performance: false,
+    // Core Web Vitals values (lib/analytics.ts bundles the measuring code) without attribution, which names page
+    // elements. Sent 2 s after the first measurement instead of 5 s, so short visits keep theirs. Network timing stays off,
+    // so recordings hold no requests.
+    capture_performance: { web_vitals: true, web_vitals_attribution: false, web_vitals_allowed_metrics: ['LCP', 'INP', 'CLS', 'FCP'], web_vitals_delayed_flush_ms: 2000, network_timing: false },
     disable_session_recording: true,
     enable_recording_console_log: false,
     session_recording: replayRecordingOptions(basePath),

@@ -166,6 +166,11 @@ About lists the marathon names and exact recorded years from the runner manifest
 
 The root layout mounts `SiteAnalytics` for production-only PostHog pageviews, explicit feature events and masked session replays (never on runner-search pages or pages opened from a runner's profile). The `/privacy` route documents collection and provides a browser opt-out. See [analytics configuration, event definitions and verification](ANALYTICS.md). Search terms, runner IDs, personal filter values and URL queries are excluded; analytics does not read or change the public research data.
 
+Added October 14, 2026 (not yet deployed):
+- `SiteAnalytics` also counts tool use (`tool_used`), printing, and failures by kind (`site_error`); `SectionTracker`, mounted once beside it, counts the first view of each section marked `data-track-section` (the home page's hero, chapters, story list, tools, analyses and closing call). `PageFeedback` ("Was this useful?", fixed buttons only) sits before `StoryNav`'s pagination, in `ToolNext` and before each analysis page's related tool.
+- Every browser request for the site's data goes through `dataFetch` (`lib/data-fetch.ts`), which reports a failed request as `site_error` `data_fetch` and otherwise behaves like `fetch`; `verify-analytics` refuses a direct `fetch(` anywhere else in `app/`, `components/`, `lib/`, `hooks/` or `context/`.
+- `ExperimentHead` (`components/Experiment.tsx`) in the root layout's `<head>` holds the experiments CSS and, when an experiment in `lib/experiments.ts` is running, the script that gives the tab its variant before the first paint; `<Variant>` wraps each version's markup. No experiment is registered yet. The rules are in [Experiments](ANALYTICS.md#experiments).
+
 ## Pace Notes branding and analysis requests
 
 The public brand is **Pace Notes**, credited to Andrew Kam on the home page, About and footer (`CreatorCredit`). A compact unlinked `by Andrew Kam` also appears beneath the Pace Notes name in the shared header on every page. The site does not link to the Run_with_Kam Instagram account or show that handle. Public page titles use this name; compatibility URLs, research provenance, package names and the splithappens.run host remain stable.
