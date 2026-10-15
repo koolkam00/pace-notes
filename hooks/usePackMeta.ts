@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { dataFetch } from '@/lib/data-fetch';
 
 export interface PackMeta {
   status: 'ready' | 'ok' | 'empty' | 'enrichment' | 'coming-soon' | 'stub';
@@ -18,7 +19,7 @@ export function usePackMeta(packId: string, initialMeta?: PackMeta | null) {
     async function load() {
       setLoading(true);
       try {
-        const res = await fetch(`${BASE_PATH}/data/packs/${packId}/pack_meta.json`, {
+        const res = await dataFetch(`${BASE_PATH}/data/packs/${packId}/pack_meta.json`, {
           cache: 'no-store',
           headers: { 'Content-Type': 'application/json' },
         });

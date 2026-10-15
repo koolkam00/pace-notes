@@ -10,6 +10,7 @@ import { getFastStartStarts } from '@/lib/fast-start-server';
 import AllFinisherAnalysis from '@/components/AllFinisherAnalysis';
 import { getAllFinisherContextStart } from '@/lib/all-finisher-context-server';
 import { UnitLink as Link } from '@/components/UnitsProvider';
+import PageFeedback from '@/components/PageFeedback';
 import RelatedTool from '@/components/tools/RelatedTool';
 import { JsonLd, breadcrumbs, pageMetadata } from '@/lib/seo';
 
@@ -55,7 +56,7 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
 }
 export default function AnalysisPage({ params }: { params: { slug: string } }) {
   const seo = seoFor(params.slug);
-  return <>{seo ? <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Plan your race', '/analyses'], [seo.crumb ?? seo.title]])} /> : null}{analysisBody(params)}{params.slug === 'finish-time-context' ? <FinishTimesLink /> : null}<RelatedTool analysis={params.slug} /></>;
+  return <>{seo ? <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Plan your race', '/analyses'], [seo.crumb ?? seo.title]])} /> : null}{analysisBody(params)}<PageFeedback className="page-feedback-analysis" />{params.slug === 'finish-time-context' ? <FinishTimesLink /> : null}<RelatedTool analysis={params.slug} /></>;
 }
 
 /** The whole-field view of finish times, linked from the target-in-context analysis. */

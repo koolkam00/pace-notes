@@ -76,7 +76,7 @@ export default function Page() {
     inLanguage: 'en', description: homeDescription(), creator: { '@type': 'Person', name: 'Andrew Kam' },
   };
   return <><StoryData value={{ archetypes: types, finish, positions: places }}><div className="home">
-    <section className="night night-grain bleed hero" aria-labelledby="hero-title">
+    <section className="night night-grain bleed hero" aria-labelledby="hero-title" data-track-section="hero">
       <div className="container hero-inner">
         <div className="hero-head">
           <p className="eyebrow">Pace Notes · {count(manifest.analysis_n)} marathon finishes · {years.cities} cities{span ? ` · ${span.first}–${span.last}` : ''}</p>
@@ -106,7 +106,7 @@ export default function Page() {
       ]} />
     </section>
 
-    <section id="pacing-types" className="chapter" aria-labelledby="pacing-types-title">
+    <section id="pacing-types" className="chapter" aria-labelledby="pacing-types-title" data-track-section="chapter-1">
       <div className="chapter-head">
         <p className="chapter-num">Chapter 01 · The shape of a marathon</p>
         <h2 id="pacing-types-title" className="chapter-title">{capital(typeCount)} ways to run <em>the same race</em>.</h2>
@@ -129,7 +129,7 @@ export default function Page() {
       <Link className="chapter-more" href="/stories/pacing-types">Explore all {typeCount} pacing types <span aria-hidden="true">→</span></Link>
     </section>
 
-    <section id="finish-times" className="chapter" aria-labelledby="finish-times-title">
+    <section id="finish-times" className="chapter" aria-labelledby="finish-times-title" data-track-section="chapter-2">
       <div className="chapter-head">
         <p className="chapter-num">Chapter 02 · Round numbers</p>
         <h2 id="finish-times-title" className="chapter-title">The <em>3:59</em> effect.</h2>
@@ -151,7 +151,7 @@ export default function Page() {
       <Link className="chapter-more" href="/stories/round-numbers">The full round-number story <span aria-hidden="true">→</span></Link>
     </section>
 
-    <section id="places" className="chapter" aria-labelledby="places-title">
+    <section id="places" className="chapter" aria-labelledby="places-title" data-track-section="chapter-3">
       <div className="chapter-head">
         <p className="chapter-num">Chapter 03 · Places on the clock</p>
         <h2 id="places-title" className="chapter-title">At <Checkpoint km={30} />, a minute is <em>nearly a coin flip</em>.</h2>
@@ -166,7 +166,7 @@ export default function Page() {
       <Link className="chapter-more" href="/stories/places">More on places gained and lost <span aria-hidden="true">→</span></Link>
     </section>
 
-    <section id="who-holds-pace" className="chapter" aria-labelledby="who-title">
+    <section id="who-holds-pace" className="chapter" aria-labelledby="who-title" data-track-section="chapter-4">
       <div className="chapter-head">
         <p className="chapter-num">Chapter 04 · Gender and age</p>
         <h2 id="who-title" className="chapter-title">Same finish time, <em>different race</em>.</h2>
@@ -180,7 +180,7 @@ export default function Page() {
       <Link className="chapter-more" href="/stories/who-holds-pace">See the gap at every finish time and age <span aria-hidden="true">→</span></Link>
     </section>
 
-    {courses ? <section id="courses-weather" className="chapter" aria-labelledby="courses-weather-title">
+    {courses ? <section id="courses-weather" className="chapter" aria-labelledby="courses-weather-title" data-track-section="chapter-5">
       <div className="chapter-head">
         <p className="chapter-num">Chapter 05 · Courses and weather</p>
         <h2 id="courses-weather-title" className="chapter-title">Same course, <em>warmer morning</em>.</h2>
@@ -194,7 +194,7 @@ export default function Page() {
       <Link className="chapter-more" href="/stories/courses">Course fingerprints, heat and {yearsCovered ? `${yearsCovered} years of ` : ''}races <span aria-hidden="true">→</span></Link>
     </section> : null}
 
-    <section id="all-stories" className="chapter" aria-labelledby="all-stories-title">
+    <section id="all-stories" className="chapter" aria-labelledby="all-stories-title" data-track-section="stories">
       <div className="chapter-head">
         <p className="chapter-num">Keep reading</p>
         <h2 id="all-stories-title" className="chapter-title">{WORDS[stories.length] ?? stories.length} stories, <em>one set of race records</em>.</h2>
@@ -215,7 +215,7 @@ export default function Page() {
       </ol>
     </section>
 
-    {tools.length ? <section id="tools" className="chapter home-tools" aria-labelledby="tools-title">
+    {tools.length ? <section id="tools" className="chapter home-tools" aria-labelledby="tools-title" data-track-section="tools">
       <div className="chapter-head">
         <p className="chapter-num">Runner tools</p>
         <h2 id="tools-title" className="chapter-title">Plan your next race on <em>real</em> finishes.</h2>
@@ -235,7 +235,7 @@ export default function Page() {
       <Link className="chapter-more" href="/tools">All runner tools <span aria-hidden="true">→</span></Link>
     </section> : null}
 
-    <section id="the-ten" className="chapter home-analyses" aria-labelledby="the-ten-title">
+    <section id="the-ten" className="chapter home-analyses" aria-labelledby="the-ten-title" data-track-section="analyses">
       <div className="chapter-head">
         <p className="chapter-num">Now make it yours</p>
         <h2 id="the-ten-title" className="chapter-title">Ten questions for your next race.</h2>
@@ -244,7 +244,7 @@ export default function Page() {
       <div className="chapter-body"><AnalysisIndex /></div>
     </section>
     <WeatherIndex />
-    <section className="night bleed cta-band-wrap" aria-labelledby="cta-title">
+    <section className="night bleed cta-band-wrap" aria-labelledby="cta-title" data-track-section="cta">
       <div className="container cta-band">
         <div>
           <p className="eyebrow">Your splits are in here</p>

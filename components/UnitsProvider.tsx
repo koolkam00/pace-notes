@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { createContext, useCallback, useContext, useEffect, useState, type ComponentProps, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
 import { DEFAULT_UNITS, unitText, type UnitSystem } from '@/lib/units';
 import { unitHref, unitsFromSearch } from '@/lib/unit-preference';
 import { trackAnalytics } from '@/lib/analytics';
@@ -15,6 +15,9 @@ export default function UnitsProvider({ children }: { children: ReactNode }) {
   const [units, updateUnits] = useState<UnitSystem>(DEFAULT_UNITS);
   const [resolved, setResolved] = useState(false);
   const pathname = usePathname();
+  // The units on screen, for setUnits: pressing the button already chosen is not a change.
+  const shown = useRef<UnitSystem>(DEFAULT_UNITS);
+  useEffect(() => { shown.current = units; }, [units]);
   useEffect(() => {
     const restore = () => {
       const requested = unitsFromSearch(window.location.search);
@@ -30,6 +33,8 @@ export default function UnitsProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('popstate', restore);
   }, [pathname]);
   const setUnits = useCallback((next: UnitSystem) => {
+    if (next === shown.current) return;
+    shown.current = next;
     trackAnalytics('units_changed', { units: next });
     updateUnits(next);
     try { window.localStorage.setItem(STORAGE_KEY, next); } catch {}

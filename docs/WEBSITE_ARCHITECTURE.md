@@ -124,6 +124,7 @@ Guards:
 - `npm run verify:compat -- --build` scans the built JavaScript in `out/_next/static`, third-party code included, for lookbehind.
 - CI runs the source scan before the build and the build scan after it. `verify:analytics` runs the same source scan, because a page that crashes sends no analytics.
 - `verify-units` runs its whole conversion table again with the `RegExp` constructor refusing lookbehind, and checks that `lib/units.ts` has no lookbehind literal.
+- `npm run verify:replay-e2e` (CI job `privacy-e2e`) opens every sitemap page with old Safari emulated, as in the check below, and fails on a crash, an error page, a page error, a lookbehind built or a served script that holds one (scenario S5 in [analytics](ANALYTICS.md#browser-privacy-checks)).
 
 Not covered: CSS, other syntax (Next.js compiles it down for Safari 12) and real devices. The browser checks emulate old Safari in Chromium; the Playwright WebKit browser is not installed here.
 
@@ -134,6 +135,7 @@ Not covered: CSS, other syntax (Next.js compiles it down for Safari 12) and real
 - Unless the page is reloading by itself, both move focus to their heading (no focus ring: it is not a control), so a screen reader announces it. Both set the tab's title to "This page didn't load properly | Pace Notes", and after a client-side navigation Next.js's route announcer reads that title rather than the failed page's.
 - In the RSC payload the root layout's client components share the page's chunk list, so a page chunk that fails to load is usually caught by `global-error.tsx`.
 - A chart's own chunk (the Recharts line chart that `QuestionViz` loads after hydration: 50 sitemap pages, every course page, six analyses, 13 packs, `/slowdown` and `/research/personalized`) does not reach these pages. If it fails, the page reloads by itself once as below; after that the chart box says "This chart didn't load", and the page's text and exact-values table stay.
+- Reporting (`site_error`, [analytics](ANALYTICS.md)): a page that reloads by itself reports nothing; the page it reloads into reports `chunk_load` once (`reloadedAfterChunkError`: loaded by a reload, with `pace-notes-chunk-reload` less than 30 s old). The error pages and the chart box report the failure when they show without reloading.
 
 **Reloading after a failed chunk.** When the error is a failed chunk load (`ChunkLoadError`, or the browser's message for a failed dynamic import or CSS chunk), `lib/chunk-reload.ts` reloads the page by itself once. It keeps the time of that reload in this tab's sessionStorage (`pace-notes-chunk-reload`, a timestamp and nothing else) and does not reload by itself again within five minutes. Where sessionStorage is unavailable, it does not reload by itself at all. When the failure happens during a client-side navigation, the address has not changed yet, so a reload (automatic or from the button) reopens the page the visitor was leaving, with fresh files.
 
@@ -165,6 +167,11 @@ About lists the marathon names and exact recorded years from the runner manifest
 ## Visitor analytics
 
 The root layout mounts `SiteAnalytics` for production-only PostHog pageviews, explicit feature events and masked session replays (never on runner-search pages or pages opened from a runner's profile). The `/privacy` route documents collection and provides a browser opt-out. See [analytics configuration, event definitions and verification](ANALYTICS.md). Search terms, runner IDs, personal filter values and URL queries are excluded; analytics does not read or change the public research data.
+
+Added October 14, 2026 (not yet deployed):
+- `SiteAnalytics` also counts tool use (`tool_used`), printing, and failures by kind (`site_error`); `SectionTracker`, mounted once beside it, counts the first view of each section marked `data-track-section` (the home page's hero, chapters, story list, tools, analyses and closing call). `PageFeedback` ("Was this useful?", fixed buttons only) sits before `StoryNav`'s pagination, in `ToolNext` and before each analysis page's related tool.
+- Every browser request for the site's data goes through `dataFetch` (`lib/data-fetch.ts`), which reports a failed request as `site_error` `data_fetch` and otherwise behaves like `fetch`; `verify-analytics` refuses a direct `fetch(` anywhere else in `app/`, `components/`, `lib/`, `hooks/` or `context/`.
+- `ExperimentHead` (`components/Experiment.tsx`) in the root layout's `<head>` holds the experiments CSS and, when an experiment in `lib/experiments.ts` is running, the classic inline script that gives the tab its variant before the first paint (it waits for the stylesheets, and while it does Chromium holds back the page's script downloads; no script, no wait, when nothing runs); `<Variant>` wraps each version's markup. `lib/experiments.ts` is data only (one literal `EXPERIMENTS` array, read by the autopilot guard without running it); the type and the checks are in `lib/experiment-runtime.ts`. No experiment is registered yet. The rules are in [Experiments](ANALYTICS.md#experiments).
 
 ## Pace Notes branding and analysis requests
 

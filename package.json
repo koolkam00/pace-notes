@@ -12,6 +12,7 @@
     "verify:analytics": "node scripts/verify-analytics.cjs",
     "verify:compat": "node scripts/verify-browser-compat.cjs",
     "verify:seo": "node scripts/verify-seo.cjs",
+    "verify:replay-e2e": "node scripts/verify-replay-e2e.cjs",
     "verify:seo:live": "node scripts/verify-seo-live.cjs",
     "og:images": "node scripts/build-og-images.cjs",
     "og:check": "node scripts/build-og-images.cjs --check"
@@ -25,7 +26,8 @@
     "posthog-js": "1.433.10",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "recharts": "2.12.7"
+    "recharts": "2.12.7",
+    "web-vitals": "6.2.2"
   },
   "devDependencies": {
     "@types/node": "20.14.10",
@@ -33,6 +35,7 @@
     "@types/react-dom": "18.3.0",
     "eslint": "8.57.0",
     "eslint-config-next": "14.2.5",
+    "playwright": "1.56.1",
     "typescript": "5.5.4"
   }
 }

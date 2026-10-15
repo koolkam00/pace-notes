@@ -42,6 +42,13 @@ npm run build
 npm run verify:compat -- --build
 ```
 
-The build creates static output in `out/`. `verify:compat` checks the browser source, and then the build, for code that crashes Safari before 16.4 (see [website architecture](docs/WEBSITE_ARCHITECTURE.md#older-browsers-and-error-pages)). The configured public host is [Pace Notes](https://splithappens.run); deployment is a separate authorized step. An optional `NEXT_PUBLIC_BASE_PATH` supports hosting under a subpath.
+The build creates static output in `out/`. `verify:compat` checks the browser source, and then the build, for code that crashes Safari before 16.4 (see [website architecture](docs/WEBSITE_ARCHITECTURE.md#older-browsers-and-error-pages)). For analytics or session-replay changes, also build with the dummy key and run the browser privacy checks (`npx playwright install chromium` once; see [analytics](docs/ANALYTICS.md#browser-privacy-checks)):
+
+```bash
+NEXT_PUBLIC_POSTHOG_KEY=phc_test_dummy NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com npm run build
+npm run verify:replay-e2e
+```
+
+The configured public host is [Pace Notes](https://splithappens.run); deployment is a separate authorized step. An optional `NEXT_PUBLIC_BASE_PATH` supports hosting under a subpath.
 
 Calculations, checksums, imports and per-release ID contracts are documented in [analysis/README.md](analysis/README.md). Keep missing measurements explicit, preserve source citations and make the full underlying data available alongside the chart aggregates. Existing repository names, file keys and compatibility URLs remain stable where required by the data contract.

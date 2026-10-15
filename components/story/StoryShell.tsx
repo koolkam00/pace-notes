@@ -4,6 +4,7 @@ import RunnerLane from '@/components/art/RunnerLane';
 import type { InsightsManifest } from '@/lib/insights';
 import { STORIES, storyHref, type StoryDefinition } from '@/lib/stories';
 import { count } from '@/lib/viz/format';
+import PageFeedback from '@/components/PageFeedback';
 
 export function StoryHeader({ story, children }: { story: StoryDefinition; children?: ReactNode }) {
   return (
@@ -72,9 +73,12 @@ export function StoryNav({ current, available }: { current: string; available: S
   const prev = i > 0 ? list[i - 1] : null;
   const next = i >= 0 && i < list.length - 1 ? list[i + 1] : null;
   return (
-    <nav className="analysis-pagination story-pagination" aria-label="More stories">
-      {prev ? <Link href={storyHref(prev)}><span>Previous story</span><strong>{prev.title}</strong></Link> : null}
-      {next ? <Link href={storyHref(next)}><span>Next story</span><strong>{next.title}</strong></Link> : <Link href="/analyses"><span>Make it personal</span><strong>Ten questions for your next race</strong></Link>}
-    </nav>
+    <>
+      <PageFeedback />
+      <nav className="analysis-pagination story-pagination" aria-label="More stories">
+        {prev ? <Link href={storyHref(prev)}><span>Previous story</span><strong>{prev.title}</strong></Link> : null}
+        {next ? <Link href={storyHref(next)}><span>Next story</span><strong>{next.title}</strong></Link> : <Link href="/analyses"><span>Make it personal</span><strong>Ten questions for your next race</strong></Link>}
+      </nav>
+    </>
   );
 }

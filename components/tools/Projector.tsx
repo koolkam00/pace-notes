@@ -788,7 +788,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
     quick = (
       <>
         <p className="projector-quick-text"><b>No published group</b> for this time and comparison.</p>
-        <button type="button" className="projector-link-button" onClick={toResult}>See the options ↓</button>
+        <button type="button" className="projector-link-button" data-not-edit onClick={toResult}>See the options ↓</button>
       </>
     );
     results = (
@@ -823,7 +823,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
         {isExample ? <p className="projector-quick-text">Example time. Type your runner’s tracker time above.</p> : null}
         <p className="projector-quick-text"><b>On {bandText} even pace.</b> Median finish {formatDuration(cell.q[i50], true)}, 10th–90th {rangeText}.</p>
         {nextRow.km < 42 ? <p className="projector-quick-text">{matName(nextRow.km, units)}: <b>{span(nextRow.lo, nextRow.hi)}</b></p> : null}
-        <button type="button" className="projector-link-button" onClick={toResult}>Full result ↓</button>
+        <button type="button" className="projector-link-button" data-not-edit onClick={toResult}>Full result ↓</button>
       </>
     );
     results = (

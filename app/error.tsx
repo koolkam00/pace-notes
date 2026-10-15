@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { reloadAfterChunkError } from '@/lib/chunk-reload';
+import { chunkLoadFailed, reloadAfterChunkError } from '@/lib/chunk-reload';
+import { trackFailure } from '@/lib/analytics';
 
 const TITLE = "This page didn't load properly | Pace Notes";
 
@@ -10,7 +11,13 @@ const TITLE = "This page didn't load properly | Pace Notes";
 export default function PageError({ error }: { error: Error & { digest?: string } }) {
   const heading = useRef<HTMLHeadingElement>(null);
   // Unless the page is reloading, focus the heading so a screen reader says what happened.
-  useEffect(() => { if (!reloadAfterChunkError(error)) heading.current?.focus(); }, [error]);
+  useEffect(() => {
+    // A reload is reported by the page it loads (components/SiteAnalytics.tsx). Otherwise only the kind of failure is
+    // reported, never the error's message.
+    if (reloadAfterChunkError(error)) return;
+    if (chunkLoadFailed(error)) trackFailure('chunk_load'); else trackFailure('render');
+    heading.current?.focus();
+  }, [error]);
   // The tab, and the announcement after a client-side navigation, would otherwise name the page that failed.
   useEffect(() => {
     const previous = document.title;

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { EVIDENCE_LABEL, EVIDENCE_TEXT, TOOLS, toolBySlug, toolHref, type ToolEvidence } from '@/lib/tools/registry';
 import { JsonLd, breadcrumbs } from '@/lib/seo';
+import PageFeedback from '@/components/PageFeedback';
 
 export function EvidenceBadge({ kind, compact = false }: { kind: ToolEvidence; compact?: boolean }) {
   return <span className={`evidence-badge evidence-${kind}`} title={compact ? EVIDENCE_TEXT[kind] : undefined}>{EVIDENCE_LABEL[kind]}</span>;
@@ -41,15 +42,18 @@ export function ToolMethod({ children, sources = [] }: { children: ReactNode; so
 export function ToolNext({ current }: { current: string }) {
   const others = TOOLS.filter((t) => t.slug !== current);
   return (
-    <nav className="tool-next" aria-label="More runner tools">
-      <p className="eyebrow">More tools</p>
-      <ul>
-        {others.map((t) => (
-          <li key={t.slug} style={{ ['--tool' as string]: t.accent }}>
-            <Link href={toolHref(t)}><b>{t.title}</b><span>{t.short}</span></Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
+    <>
+      <PageFeedback />
+      <nav className="tool-next" aria-label="More runner tools">
+        <p className="eyebrow">More tools</p>
+        <ul>
+          {others.map((t) => (
+            <li key={t.slug} style={{ ['--tool' as string]: t.accent }}>
+              <Link href={toolHref(t)}><b>{t.title}</b><span>{t.short}</span></Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </>
   );
 }

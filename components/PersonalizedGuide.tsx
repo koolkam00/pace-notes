@@ -7,6 +7,7 @@ import { BROADER_GUIDE } from '@/lib/broader-analysis-catalog';
 import { AGE_OPTIONS, GOAL_PRESETS, type Profile, type Focus } from '@/lib/personalized-catalog';
 import type { CityData, PersonalSummary, CheckpointData } from '@/lib/personalized-types';
 import { buildGuide, checkpointResult, clock, count, defaultProfile, fmt, GUIDE_PACK, parseElapsed, parseMinutes, parseSection, percentUnder, type GuideAnswer } from '@/lib/personalized';
+import { dataFetch } from '@/lib/data-fetch';
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const cache = new Map<string, unknown>();
@@ -14,7 +15,7 @@ async function loadAggregate<T>(file: string, vintage: string, signal: AbortSign
   if (!/^(city|checkpoint)_[0-9]{2,3}\.json$/.test(file)) throw new Error('This comparison file is not available.');
   const key = `${file}:${vintage}`;
   if (cache.has(key)) return cache.get(key) as T;
-  const response = await fetch(`${basePath}/data/packs/${GUIDE_PACK}/tables/${file}?v=${encodeURIComponent(vintage)}`, { signal });
+  const response = await dataFetch(`${basePath}/data/packs/${GUIDE_PACK}/tables/${file}?v=${encodeURIComponent(vintage)}`, { signal });
   if (!response.ok) throw new Error('The comparison could not load. Please try again.');
   const decoded: unknown = await response.json();
   cache.set(key, decoded);

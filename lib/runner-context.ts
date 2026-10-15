@@ -1,4 +1,5 @@
 import { RUNNER_RELEASE, RUNNER_POINTS, runnerMetrics, runnerManifestDigest, type RunnerRace, type RunnerManifest, type RunnerEdition } from './runner-search';
+import { dataFetch } from './data-fetch';
 
 export type Quantiles = { q25: number; median: number; q75: number };
 export type PacePeers = { n: number; from_sec: number; to_sec: number; q25: number[]; median: number[]; q75: number[]; late_change: Quantiles };
@@ -95,7 +96,7 @@ export function validateEditionContext(value: unknown, index: number, runners: R
 async function loadEdition(index: number, manifest: ContextManifest, runners: RunnerManifest, signal: AbortSignal) {
   const meta = manifest.editions[String(index)], key = manifest.release_tag + ':' + meta.file + ':' + meta.sha256;
   const previous = cache.get(key); if (previous) return previous;
-  const response = await fetch(base + meta.file + '?v=' + meta.sha256, { signal });
+  const response = await dataFetch(base + meta.file + '?v=' + meta.sha256, { signal });
   if (!response.ok) throw new Error('Race comparisons could not load. Check your connection and try again.');
   const bytes = await response.arrayBuffer();
   if (bytes.byteLength !== meta.bytes || await checksum(bytes) !== meta.sha256) throw error();
@@ -107,7 +108,7 @@ async function loadEdition(index: number, manifest: ContextManifest, runners: Ru
 export async function loadRaceInsights(races: RunnerRace[], runners: RunnerManifest, signal: AbortSignal): Promise<Record<number, RaceInsights>> {
   const digest = runnerManifestDigest(runners);
   if (!digest) throw error();
-  const response = await fetch(base + 'manifest.json?v=' + encodeURIComponent(RUNNER_RELEASE), { signal });
+  const response = await dataFetch(base + 'manifest.json?v=' + encodeURIComponent(RUNNER_RELEASE), { signal });
   if (!response.ok) throw new Error('Race comparisons could not load. Check your connection and try again.');
   const manifest = validateContextManifest(await response.json(), runners, digest);
   const editions = [...new Set(races.map(r => r.edition))], result: Record<number, RaceInsights> = {};

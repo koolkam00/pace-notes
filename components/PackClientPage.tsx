@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getPackInfo, isEnrichment, isParked } from '@/lib/packs';
 import { usePackMeta, type PackMeta } from '@/hooks/usePackMeta';
+import { dataFetch } from '@/lib/data-fetch';
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
@@ -49,7 +50,7 @@ export default function PackClientPage({
     async function load() {
       setDataError(null);
       try {
-        const summaryRes = await fetch(`${BASE_PATH}/data/packs/${packId}/summary.json`, {
+        const summaryRes = await dataFetch(`${BASE_PATH}/data/packs/${packId}/summary.json`, {
           cache: 'no-store',
         });
         if (summaryRes.ok) {
@@ -72,7 +73,7 @@ export default function PackClientPage({
         const loaded: { name: string; headers: string[]; rows: string[][] }[] = [];
         for (const rel of tablePaths) {
           const url = `${BASE_PATH}/data/packs/${packId}/${rel}`;
-          const res = await fetch(url, { cache: 'no-store' });
+          const res = await dataFetch(url, { cache: 'no-store' });
           if (!res.ok) continue;
           const text = await res.text();
           const parsed = parseCsv(text);

@@ -2,6 +2,7 @@ import release from '@/analysis/release.json';
 import { AGE_OPTIONS } from './personalized-catalog';
 import { MARATHON_SECTION_ENDS } from './section-labels';
 import type { ChartSpec } from './research-data';
+import { dataFetch } from './data-fetch';
 
 export type FastStartGroup = {
   band: string; n: number; editions: number;
@@ -87,7 +88,7 @@ export function fastStartCharts(row: FastStartRow, focus: FastStartGroup, bands:
 let cache: { sha256: string; evidence: FastStartEvidence } | null = null;
 export async function loadFastStartEvidence(start: FastStartStart, signal: AbortSignal): Promise<FastStartEvidence> {
   if (cache?.sha256 === start.sha256) return cache.evidence;
-  const response = await fetch((process.env.NEXT_PUBLIC_BASE_PATH || '') + '/data/fast-start/' + (start.mode === 'all' ? 'all-finishers.json' : 'evidence.json') + '?v=' + start.sha256, { signal });
+  const response = await dataFetch((process.env.NEXT_PUBLIC_BASE_PATH || '') + '/data/fast-start/' + (start.mode === 'all' ? 'all-finishers.json' : 'evidence.json') + '?v=' + start.sha256, { signal });
   if (!response.ok) throw new Error('The starting-pace data could not load. Please try again.');
   const bytes = await response.arrayBuffer();
   const sha = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join('');
