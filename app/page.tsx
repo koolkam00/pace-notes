@@ -113,7 +113,7 @@ export default function Page() {
           </ul>
           <div className="hero-intro">
             {dek}
-            <a className="chapter-more hero-start" href="#pacing-types">Start the story <span aria-hidden="true">↓</span></a>
+            <a className="chapter-more" href="#pacing-types">Start the story <span aria-hidden="true">↓</span></a>
             <CreatorCredit />
           </div>
         </Variant>
