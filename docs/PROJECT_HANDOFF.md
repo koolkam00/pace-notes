@@ -1,5 +1,11 @@
 # Project handoff
 
+## Workflow repository-name conditions (October 15, 2026)
+
+**Repository state:** in the pull request that changes `.github/workflows/pacing-analysis.yml` and `.github/workflows/inspect-full-export.yml`; not on `main` until it merges. The two jobs were gated on the repository's old name, `koolkam00/htw-live-study`, and had been skipped without failing since the rename (last successful pacing run September 17, 2026; last successful inspection September 11, 2026). They now check `koolkam00/pace-notes`, so the pacing calculation runs again on `analysis/**` pull requests and on a newly published `private-export-*` release. A tag with no reviewed edition policy in `analysis/source_quality.py` is only downloaded and inspected; the run then fails, saying the policy and audit must be added before anything is calculated. No analysis code, data, pin or deployed page changes. Details are in [operations](OPERATIONS.md).
+
+The Chicago 2018 and 2019 duplicate editions ([known issues](KNOWN_ISSUES.md)) are still unresolved in the published numbers. On October 15, 2026 the owner said a corrected database upload is being prepared separately; adopting it is a release change (new pin, full rebuild and verification), not part of this fix.
+
 ## Visit signals and an experiments framework (October 14, 2026)
 
 **Repository state:** on `main` since October 15, 2026 (PR #58, squash commit `320d70a`). **Deployed state:** live on splithappens.run since about 13:45 UTC on October 15, 2026 (the production smoke test passed 142 of 142 checks with no third-party requests); PostHog receives the signals below from then on, so any window that starts earlier does not have them.

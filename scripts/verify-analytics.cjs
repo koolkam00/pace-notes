@@ -640,8 +640,11 @@ const freshReplay = () => { delete require.cache[replayPath]; return require(rep
 const replayPolicy = freshReplay();
 const meta = (href, timestamp = 1) => ({ type: 4, data: { href, width: 1280, height: 800 }, timestamp });
 const custom = (tag, payload, timestamp = 1) => ({ type: 5, data: { tag, payload }, timestamp });
-const element = (tagName, attributes, childNodes = []) => ({ type: 2, tagName, attributes, childNodes, id: Math.floor(Math.random() * 1e6) });
-const text = textContent => ({ type: 3, textContent, id: Math.floor(Math.random() * 1e6) });
+// Node ids count up from a fixed start: random ids could contain a watched string such as 1990 and fail the
+// doesNotMatch checks below by chance, and could collide with the fixed ids the mutations refer to.
+let nodeId = 100000;
+const element = (tagName, attributes, childNodes = []) => ({ type: 2, tagName, attributes, childNodes, id: nodeId++ });
+const text = textContent => ({ type: 3, textContent, id: nodeId++ });
 const fullSnapshot = (...children) => ({ type: 2, data: { node: { type: 0, childNodes: [element('html', {}, [element('body', {}, children)])] }, initialOffset: { top: 0, left: 0 } }, timestamp: 2 });
 const snapshot = (data, extra = {}) => ({ event: '$snapshot', uuid: 'snapshot-event', timestamp: new Date(), properties: {
   token: 'test-project', distinct_id: TAB_ID, $session_id: SESSION_ID, $window_id: WINDOW_ID, $snapshot_bytes: 999, $snapshot_host: 'preview.vercel.app',
