@@ -196,10 +196,22 @@ async function main() {
     assert.match(call, /^history\.(?:push|replace)State\(\{ runnerQuery: value \}, '', (?:href|url\.pathname \+ url\.search \+ url\.hash)\)$/, `History entries keep the name in state only: ${call}`);
   }
   assert.match(source, /url\.searchParams\.delete\('q'\)/, 'Old ?q= links are cleaned');
+  // No match: the marathons searched, from the search data already loaded, and fixed links on that carry no search text.
+  const { NoMatchNext } = require('../components/RunnerSearch.tsx');
+  const published = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/data/runners/manifest.json'), 'utf8'));
+  const noMatchHtml = renderToStaticMarkup(React.createElement(NoMatchNext, { manifest: published }));
+  const marathons = new Set(published.editions.map(edition => edition.race));
+  assert.equal((noMatchHtml.match(/<li><span>/g) || []).length, marathons.size, 'Every marathon searched is listed once');
+  assert.ok(noMatchHtml.includes(`The ${marathons.size} marathons searched`));
+  const london = published.editions.filter(edition => edition.race === 'London Marathon').map(edition => edition.year);
+  assert.ok(noMatchHtml.includes(`<li><span>London</span><small>${Math.min(...london)}–${Math.max(...london)} · ${new Set(london).size} years</small></li>`), 'Each marathon shows its first and last recorded year and how many years');
+  assert.match(renderToStaticMarkup(React.createElement(NoMatchNext, { manifest })), /<li><span>Berlin<\/span><small>2021 · 1 year<\/small><\/li>/);
+  assert.deepEqual([...noMatchHtml.matchAll(/href="([^"]*)"/g)].map(m => m[1]), ['/about#data-coverage', '/analyses/finish-time-context', '/tools/split-check', '/request-analysis']);
+  assert.match(source, /\{!matches\.length && <NoMatchNext manifest=\{manifest\} \/>\}/, 'The no-match block is given the search data only, never the search text');
   const { metadata } = require('../app/runners/page.tsx');
   assert.deepEqual(metadata.robots, { index: false, follow: true }, '/runners is noindex, follow');
   assert.equal(metadata.alternates, undefined, 'A noindex page has no canonical');
   assert.doesNotMatch(JSON.stringify(metadata), /[?&]q=/);
-  console.log('Runner search checks passed: Unicode/token matching, complete pagination, all-ineligible search/profile views, retained source readings, explicit eligibility, year-only progression, mi/km readings, verified versioned gzip loading, and names kept out of the address with /runners noindex.');
+  console.log('Runner search checks passed: Unicode/token matching, complete pagination, all-ineligible search/profile views, retained source readings, explicit eligibility, year-only progression, mi/km readings, verified versioned gzip loading, the no-match ways on without the search text, and names kept out of the address with /runners noindex.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

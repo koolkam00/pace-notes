@@ -593,6 +593,22 @@ summary::marker { color: var(--orange); font-size: .8em; }
 .runner-match strong { display: block; font-size: 1.0625rem; font-weight: 650; overflow-wrap: anywhere; }
 .runner-match small { display: block; font-size: .8125rem; color: var(--ink-3); margin-top: .25rem; }
 .runner-match-action { font-size: .8125rem; font-weight: 650; color: var(--blue-ink); flex-shrink: 0; }
+/* No match: the marathons searched, then cards like the tools' "More tools" (app/tools/tools.css .tool-next). */
+.runner-nomatch { margin-top: 1.25rem; display: grid; gap: 1.5rem; }
+.runner-covered { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.runner-covered ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); gap: .1rem 1.5rem; list-style: none; padding: 0; margin: .2rem 0 .8rem; }
+.runner-covered li + li { margin-top: 0; }
+.runner-covered li { display: flex; justify-content: space-between; align-items: baseline; gap: .75rem; padding: .35rem 0; border-bottom: 1px solid var(--paper-3); font-size: .875rem; }
+.runner-covered small { font-family: var(--mono); font-size: .6875rem; color: var(--ink-3); white-space: nowrap; }
+.runner-covered .control-help { margin-bottom: 1rem; }
+.runner-nomatch-next ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: .6rem; list-style: none; padding: 0; margin: .6rem 0 0; }
+.runner-nomatch-next li + li { margin-top: 0; }
+.runner-nomatch-next ul > li > a { display: grid; gap: .15rem; height: 100%; padding: .8rem 1rem; border: 1px solid var(--line); border-left: 4px solid var(--link-accent); border-radius: 12px; background: var(--card); color: var(--ink); text-decoration: none; }
+.runner-nomatch-next ul > li > a:hover { border-color: var(--ink-2); border-left-color: var(--link-accent); }
+.runner-nomatch-next ul > li > a:hover b, .runner-nomatch-next ul > li > a:focus-visible b { text-decoration: underline; text-decoration-color: var(--link-accent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.runner-nomatch-next ul > li > a:focus-visible { outline: 2px solid var(--link-accent); outline-offset: 2px; }
+.runner-nomatch-next b { font-size: .9375rem; }
+.runner-nomatch-next span { font-size: .8125rem; color: var(--ink-3); }
 .runner-pagination { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; }
 .runner-pagination span { font-family: var(--mono); font-size: .75rem; color: var(--ink-3); text-align: center; }
 .runner-pagination button { min-height: 44px; font-size: .8125rem; }
