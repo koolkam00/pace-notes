@@ -5,6 +5,12 @@
 // either. An init script hides the headless signals posthog-js drops events for (navigator.webdriver, a HeadlessChrome
 // brand), applies a run's privacy and storage modes, emulates Safari before 16.4 when asked, and reports every storage
 // and cookie write, so the checks in inspect.cjs see what the page did as well as what it sent.
+//
+// What was sent to PostHog is read inside the page: the init script reports every body the page hands to fetch,
+// XMLHttpRequest or sendBeacon for a PostHog host, as it is handed over. Playwright and the DevTools protocol can report a
+// beacon sent while its page unloads without its body (and every batch goes to the same address), so a body is never
+// matched to a request by its address. The network log only checks that every PostHog request the browser made was one
+// the page handed over (inspect.cjs counts them per address); one that was not, or a body that could not be read, fails.
 const { chromium } = require('playwright');
 const { respond } = require('./server.cjs');
 const mock = require('./posthog-mock.cjs');
@@ -16,6 +22,8 @@ const PREVIEW_HOST = 'htw-live-study-git-e2e-koolkam00.vercel.app';
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
 const USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
 const LOOKBEHIND = /\(\?<[=!]/;
+// Where S7's self-test sends a planted beacon (a path posthog-js never uses), so it is searched but not taken for an event.
+const SELF_TEST_PATH = '/e2e-self-test/';
 
 /** Playwright's Chromium (PLAYWRIGHT_CHROMIUM_PATH, when set, names another executable). */
 function launch() {
@@ -59,6 +67,51 @@ const INIT = ({ dnt, gpc, storage, safari15, plant }) => {
     };
   }
   if (storage === 'throw') Object.defineProperty(window, 'sessionStorage', { configurable: true, get() { throw new DOMException('The operation is insecure.', 'SecurityError'); } });
+  // Every PostHog body as the page hands it over. A Blob's bytes cannot be read at once (and a beacon's page may be gone
+  // a moment later), so the parts each Blob is made of are kept as it is made.
+  const NativeBlob = window.Blob;
+  const blobParts = new WeakMap();
+  class RecordedBlob extends NativeBlob {
+    constructor(parts, options) { super(parts, options); blobParts.set(this, Array.from(parts || [])); }
+    static [Symbol.hasInstance](value) { return value instanceof NativeBlob; }
+  }
+  window.Blob = RecordedBlob;
+  const encoder = new TextEncoder();
+  const bytesOf = body => {
+    if (body === null || body === undefined) return new Uint8Array(0);
+    if (typeof body === 'string') return encoder.encode(body);
+    if (body instanceof URLSearchParams) return encoder.encode(body.toString());
+    if (body instanceof ArrayBuffer) return new Uint8Array(body);
+    if (ArrayBuffer.isView(body)) return new Uint8Array(body.buffer, body.byteOffset, body.byteLength);
+    const parts = body instanceof NativeBlob ? blobParts.get(body) : null;
+    if (!parts) return null; // a Blob the page did not build (or FormData): unreadable here, so reported as such
+    const chunks = parts.map(bytesOf);
+    if (chunks.some(chunk => !chunk)) return null;
+    const all = new Uint8Array(chunks.reduce((n, chunk) => n + chunk.length, 0));
+    chunks.reduce((at, chunk) => { all.set(chunk, at); return at + chunk.length; }, 0);
+    return all;
+  };
+  const base64 = bytes => { let text = ''; for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(text); };
+  const toPostHog = url => { try { return /(^|\.)posthog\.(com|net)$/.test(new URL(url, location.href).hostname); } catch { return false; } };
+  const handed = (via, url, body) => {
+    if (!toPostHog(url)) return;
+    let bytes = null;
+    try { bytes = bytesOf(body); } catch { /* reported as unreadable */ }
+    report({ kind: 'posthog-body', via, url: new URL(url, location.href).href, body: bytes ? base64(bytes) : null, path: location.pathname });
+  };
+  const sendBeacon = Navigator.prototype.sendBeacon;
+  Navigator.prototype.sendBeacon = function (url, data) { handed('sendBeacon', url, data); return sendBeacon.call(this, url, data); };
+  const nativeFetch = window.fetch;
+  window.fetch = function (input, init) {
+    try {
+      const request = typeof input === 'string' || input instanceof URL ? null : input;
+      if (String((init && init.method) || (request && request.method) || 'GET').toUpperCase() === 'POST') handed('fetch', request ? request.url : String(input), init && 'body' in init ? init.body : request ? request : null);
+    } catch { /* never in the page's way */ }
+    return nativeFetch.apply(this, arguments);
+  };
+  const xhrOpen = XMLHttpRequest.prototype.open, xhrSend = XMLHttpRequest.prototype.send, xhrTarget = new WeakMap();
+  XMLHttpRequest.prototype.open = function (method, url) { xhrTarget.set(this, [String(method).toUpperCase(), String(url)]); return xhrOpen.apply(this, arguments); };
+  XMLHttpRequest.prototype.send = function (body) { const [method, url] = xhrTarget.get(this) || []; if (method === 'POST') handed('xhr', url, body); return xhrSend.apply(this, arguments); };
   const cookie = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie');
   Object.defineProperty(Document.prototype, 'cookie', { configurable: true, get() { return cookie.get.call(this); }, set(value) { report({ kind: 'cookie', value: String(value).split(';')[0].slice(0, 80), path: location.pathname }); return cookie.set.call(this, value); } });
   // Next.js's "Application error" screen (a crash) and the site's own error pages, once per document: app/error.tsx
@@ -80,6 +133,8 @@ const INIT = ({ dnt, gpc, storage, safari15, plant }) => {
  *   safari15                                          emulate Safari before 16.4
  *   blocklist (default true)                          the project's URL blocklist in the mock remote config
  *   plant: { session, html }                          sessionStorage values and <html> attributes set before load
+ *   initScript: function                              another script to run in every document before the page's own
+ *   html: (text, path) => text                        a change to each HTML page as it is served
  *   expectNoPostHog                                   no PostHog request may be made at all (I7)
  *   expectErrors: [RegExp]                            page errors the scenario causes on purpose (I8)
  *   allowErrorPage                                    the site's error page may show (I8)
@@ -93,14 +148,15 @@ class Run {
     this.options = { blocklist: true, ...options };
     this.start = Date.now();
     this.requests = [];   // every request the browser made: { at, url, host, method, type }
-    this.sent = [];       // every PostHog POST, decoded: { at, path, url, events, raw, decodeError }
-    this.bodies = new Map();
+    this.sent = [];       // every body the page handed to PostHog, decoded: { at, path, url, via, events, raw, decodeError }
+    this.wire = [];       // every PostHog POST the browser made: { at, path, url }
     this.navs = [];       // main-frame addresses over time, per page: { at, page, url } (url null when the page closed)
     this.errors = [];     // uncaught page errors: { at, path, message }
     this.reports = [];    // from the init script: storage and cookie writes, error screens
     this.storage = [];    // each page's storage when it closed
     this.lookbehindScripts = [];
     this.blockers = [];
+    this.delays = [];
     this.pages = new Set();
     this.pageCount = 0;
     this.privacySignalAt = null;
@@ -112,8 +168,15 @@ class Run {
       userAgent: USER_AGENT, viewport: o.viewport || { width: 1280, height: 900 }, isMobile: !!o.mobile, hasTouch: !!o.mobile,
       locale: 'en-US', timezoneId: 'America/New_York', reducedMotion: o.reducedMotion || 'no-preference', serviceWorkers: 'block',
     });
-    await this.context.exposeBinding('__e2eReport', (source, entry) => { this.reports.push({ at: Date.now(), ...entry }); });
+    await this.context.exposeBinding('__e2eReport', (source, entry) => {
+      if (entry && entry.kind === 'posthog-body') {
+        const url = new URL(entry.url);
+        const decoded = entry.body === null ? { events: null } : mock.decodeBody(entry.url, Buffer.from(entry.body, 'base64'));
+        this.sent.push({ at: Date.now(), path: url.pathname, url: entry.url, via: entry.via, page: entry.path, ...decoded });
+      } else this.reports.push({ at: Date.now(), ...entry });
+    });
     await this.context.addInitScript(INIT, { dnt: !!o.dnt, gpc: !!o.gpc, storage: o.storage || null, safari15: !!o.safari15, plant: o.plant || null });
+    if (o.initScript) await this.context.addInitScript(o.initScript);
     this.context.on('request', request => this.onRequest(request));
     await this.context.route('**/*', route => this.route(route));
     return this;
@@ -124,28 +187,13 @@ class Run {
     if (url.protocol === 'data:' || url.protocol === 'blob:') return;
     const entry = { at: Date.now(), url: request.url(), host: url.hostname, path: url.pathname, method: request.method(), type: request.resourceType() };
     this.requests.push(entry);
-    if (mock.POSTHOG_HOST.test(url.hostname) && request.method() === 'POST') {
-      const sent = { at: entry.at, path: url.pathname, url: request.url(), ...mock.decodeBody(request.url(), request.postDataBuffer()) };
-      // A beacon sent while its page unloads can reach this listener without its body; the DevTools protocol copy
-      // (watch) fills it in, whichever arrives first.
-      if (!sent.events && !sent.raw && this.bodies.has(sent.url)) Object.assign(sent, this.bodies.get(sent.url));
-      this.sent.push(sent);
-    }
+    if (mock.POSTHOG_HOST.test(url.hostname) && request.method() === 'POST') this.wire.push({ at: entry.at, path: url.pathname, url: request.url() });
   }
 
-  /** Request bodies as the renderer sends them, from the DevTools protocol, for beacons Playwright reports without one. */
-  async watch(page) {
+  /** Slows the page's CPU by `rate` (6 is a slow phone), through the DevTools protocol. */
+  async throttle(page, rate) {
     const cdp = await this.context.newCDPSession(page);
-    await cdp.send('Network.enable', { maxPostDataSize: 50_000_000 });
-    cdp.on('Network.requestWillBeSent', ({ request }) => {
-      if (request.method !== 'POST' || !request.hasPostData || !mock.POSTHOG_HOST.test(new URL(request.url).hostname)) return;
-      const body = Buffer.concat((request.postDataEntries || []).map(part => Buffer.from(part.bytes || '', 'base64')));
-      if (!body.length) return;
-      const decoded = mock.decodeBody(request.url, body);
-      this.bodies.set(request.url, decoded);
-      const waiting = this.sent.find(r => r.url === request.url && !r.events && !r.raw);
-      if (waiting) Object.assign(waiting, decoded);
-    });
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate });
   }
 
   async route(route) {
@@ -156,9 +204,19 @@ class Run {
       if (this.blockers.some(block => block(url))) return route.abort('failed');
       const file = respond(this.out, url.pathname);
       if (this.options.safari15 && file.contentType === 'application/javascript' && LOOKBEHIND.test(file.body.toString('latin1'))) this.lookbehindScripts.push(url.pathname);
-      return route.fulfill({ status: file.status, contentType: file.contentType, body: file.body });
+      // A scenario may change a page as served (S6 puts a fixture experiment's <head> markup in place of the build's).
+      const body = this.options.html && file.contentType.startsWith('text/html') ? Buffer.from(this.options.html(file.body.toString('utf8'), url.pathname)) : file.body;
+      for (const delay of this.delays) if (delay.test(url)) await new Promise(resolve => setTimeout(resolve, delay.ms));
+      return route.fulfill({ status: file.status, contentType: file.contentType, body });
     }
     return route.abort(); // any other host (I1 reports it)
+  }
+
+  /** Answers requests to the site `ms` later while `predicate(url)` holds (a slow network); returns a function that ends it. */
+  delay(predicate, ms) {
+    const delay = { test: predicate, ms };
+    this.delays.push(delay);
+    return () => { this.delays = this.delays.filter(other => other !== delay); };
   }
 
   /** Makes requests to the site fail while `predicate(url)` holds; returns a function that lifts the block. */
@@ -169,7 +227,6 @@ class Run {
 
   async newPage() {
     const page = await this.context.newPage();
-    await this.watch(page);
     const id = ++this.pageCount;
     this.pages.add(page);
     page.on('pageerror', error => this.errors.push({ at: Date.now(), path: safePath(page.url()), message: String(error && error.message || error).slice(0, 300) }));
@@ -199,10 +256,11 @@ class Run {
 
   /**
    * Analytics events (not recording chunks), as sent: { at, path, e }. A request still open when its page unloads is
-   * sent again as a beacon; PostHog keeps one event per uuid, and so does this.
+   * sent again as a beacon; PostHog keeps one event per uuid, and so does this. The harness's own self-test beacon
+   * (SELF_TEST_PATH, S7) is not an event; it is still searched with everything else.
    */
   events() {
-    return once(this.sent.filter(r => !/^\/s\/?$/.test(r.path)).flatMap(r => (r.events || []).map(e => ({ at: r.at, path: r.path, e }))));
+    return once(this.sent.filter(r => !/^\/s\/?$/.test(r.path) && r.path !== SELF_TEST_PATH).flatMap(r => (r.events || []).map(e => ({ at: r.at, path: r.path, e }))));
   }
 
   /** The `$snapshot` events (recording chunks), as sent, one per uuid. */
@@ -281,4 +339,4 @@ async function type(page, locator, value) {
   await page.keyboard.press('Tab');
 }
 
-module.exports = { SITE, SITE_HOSTS, PREVIEW_HOST, LOOKBEHIND, launch, Run, waitFor, wiggle, type };
+module.exports = { SITE, SITE_HOSTS, PREVIEW_HOST, LOOKBEHIND, SELF_TEST_PATH, launch, Run, waitFor, wiggle, type };

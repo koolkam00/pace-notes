@@ -113,7 +113,7 @@ async function runJob(browser, job) {
   const failed = !!error || checks.some(c => !c.ok) || runResults.some(r => Object.values(r.problems).some(p => p.length));
   if (failed && KEEP) {
     fs.mkdirSync(KEEP, { recursive: true });
-    const keep = runs.map(run => ({ name: run.name, options: run.options, start: run.start, navs: run.navs, requests: run.requests, sent: run.sent, reports: run.reports, errors: run.errors, storage: run.storage, cookies: run.cookies, privacySignalAt: run.privacySignalAt }));
+    const keep = runs.map(run => ({ name: run.name, options: run.options, start: run.start, navs: run.navs, requests: run.requests, sent: run.sent, wire: run.wire, reports: run.reports, errors: run.errors, storage: run.storage, cookies: run.cookies, privacySignalAt: run.privacySignalAt }));
     fs.writeFileSync(path.join(KEEP, `${job.scenario.id}-${job.name.replace(/[^\w-]+/g, '_')}.json`), JSON.stringify(keep));
   }
   return { scenario: job.scenario.id, title: job.scenario.title, job: job.name, ms: Date.now() - started, failed, error, checks, notes, runs: runResults };

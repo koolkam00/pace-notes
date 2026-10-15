@@ -184,9 +184,43 @@ const ON_HTML = /\.attributes\.(<key>|data-exp-[\w-]+)$/;
 const SENTINELS = ['Private Name', 'E2E sentinel', 'utm_campaign', 'fbclid', 'igshid', 'via=runner', 'pace-notes-runner-handoff',
   { needle: 'e2e-fixture', allowAt: ON_HTML }, { needle: 'E2E-PLANT', allowAt: ON_HTML }, 'Zebulon', 'Quixote', 'Wilhelmina', 'Ostrova', 'Testperson'];
 function needles(run, extra = run.options.needles || []) {
-  // A body that could not be read was not searched, so it counts as a problem too.
-  const unread = run.sent.filter(r => !r.events).map(r => `the body of POST ${r.path} could not be ${r.raw ? 'decoded' : 'read'}, so it was not searched`);
-  return [...unread, ...search(run, [...SENTINELS, ...extra]).map(hit => `"${hit.needle}" in ${hit.at}: …${hit.excerpt.replace(/\s+/g, ' ').slice(0, 220)}…`)];
+  return [...unread(run), ...search(run, [...SENTINELS, ...extra]).map(hit => `"${hit.needle}" in ${hit.at}: …${hit.excerpt.replace(/\s+/g, ' ').slice(0, 220)}…`)];
+}
+
+/**
+ * What was sent but not searched: a body the page handed over that could not be read or decoded, and any PostHog POST
+ * the browser made that the page did not hand over through fetch, XMLHttpRequest or sendBeacon (more requests to an
+ * address than bodies handed over for it), whose body was therefore never seen. The page may hand over more than the
+ * browser sends (a beacon refused, then retried): those bodies are searched as well.
+ */
+function unread(run) {
+  const problems = run.sent.filter(r => !r.events).map(r => `the body of POST ${r.path} (${r.via}) could not be ${r.raw ? 'decoded' : 'read'}, so it was not searched`);
+  const handed = new Map();
+  for (const r of run.sent) handed.set(r.url, (handed.get(r.url) || 0) + 1);
+  const made = new Map();
+  for (const r of run.wire) made.set(r.url, (made.get(r.url) || 0) + 1);
+  for (const [url, count] of made) if (count > (handed.get(url) || 0)) problems.push(`${count - (handed.get(url) || 0)} of ${count} PostHog POSTs to ${new URL(url).pathname} were not handed over by the page, so their bodies were not searched`);
+  return problems;
+}
+
+/**
+ * The markup components/Experiment.tsx renders into <head> for a registry (the CSS, and the boot script when an
+ * experiment runs), rendered with React as the build renders it. The registry array is swapped for `defs` only while
+ * it renders, which is synchronous, so nothing else here sees the fixture.
+ */
+function experimentHead(defs) {
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const { ExperimentHead } = require(path.join(ROOT, 'components/Experiment.tsx'));
+  const saved = EXPERIMENTS.splice(0, EXPERIMENTS.length, ...defs);
+  try { return renderToStaticMarkup(React.createElement(ExperimentHead)); } finally { EXPERIMENTS.splice(0, EXPERIMENTS.length, ...saved); }
+}
+/** A built page with its <head> experiments markup (the build's registry) replaced by the one for `defs`. */
+function withExperiments(html, defs) {
+  const built = /<style>\[data-exp-show\][^<]*<\/style>(?:<script>[\s\S]*?<\/script>)?/;
+  if (!built.test(html)) throw new Error('the page has no experiments markup in <head> (components/Experiment.tsx)');
+  const markup = experimentHead(defs);
+  return html.replace(built, () => markup);
 }
 
 /**
@@ -315,4 +349,4 @@ function labelOf(ev) {
 // A page's path, with any query shown only as `?…`: a handoff page's query holds a runner's times.
 const short = url => String(url).replace(/^https?:\/\/[^/]+/, '').replace(/\?.*$/, '?…') || '/';
 
-module.exports = { ROOT, SITE, policy, RUNNING, experimentPlant, expectedFeatures, search, domStrings, diffStrings, invariants };
+module.exports = { ROOT, SITE, policy, RUNNING, experimentPlant, expectedFeatures, experimentHead, withExperiments, search, unread, domStrings, diffStrings, invariants };

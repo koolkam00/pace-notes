@@ -2,7 +2,8 @@
 // S5: every sitemap page with Safari before 16.4 emulated (building a lookbehind RegExp throws, and any served script
 // that holds one counts as a crash there), on a phone. No page may crash or show the error page, every page must still
 // send its page view, and none may report a site_error. Then the lazily loaded analytics chunks failing one at a time
-// (the recorder, the replay policy, the Web Vitals code): analytics stays off for that page and the page still works.
+// (the recorder, and the replay policy with the Web Vitals code): analytics stays off for that page and the page still
+// works.
 const fs = require('node:fs');
 const path = require('node:path');
 const { SITE, wiggle, type, waitFor } = require('../browser.cjs');
@@ -43,8 +44,8 @@ async function sweep(h, pages) {
 // The lazily loaded chunks, found by what only each of them holds.
 const CHUNKS = {
   recorder: text => text.includes('rrwebPlugins') && text.includes('MutationObserver') && !text.includes('__pace_notes_ss__'),
-  'replay policy': text => text.includes('__pace_notes_ss__'),
-  'Web Vitals': text => text.includes('postHogWebVitalsCallbacks') && text.includes('onINP') && !text.includes('capture_pageview'),
+  // The replay policy holds the SDK options and the Web Vitals measurements, with Google's web-vitals library.
+  'replay policy': text => text.includes('__pace_notes_ss__') && text.includes('visibilitychange'),
 };
 
 async function chunkFails(h, name) {
