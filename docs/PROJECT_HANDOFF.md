@@ -1,5 +1,18 @@
 # Project handoff
 
+## Visit signals and an experiments framework (October 14, 2026)
+
+**Repository state:** in this change (branch `feat/visit-signals`, built on `fix/old-safari-crash`). **Deployed state:** not yet deployed. Until it is, PostHog receives none of the signals below.
+
+What changed:
+- **Signals for judging a change.** New events, all through the existing `before_send` allowlist, so each carries only enumerated values or bounded numbers: `tool_used` (`edit`, `print`, `copy_link`), `page_feedback` and `page_feedback_reason` (a "Was this useful?" row with fixed buttons at the end of stories, tools and analyses; no text box), `site_error` by kind only (`js_error`, `unhandled_rejection`, `chunk_load`, `data_fetch`, `render`; at most one per kind per page view and five per page load), `section_viewed` (the home page's hero, chapters, story list, tools, analyses and closing call), `$pageleave` with the SDK's time on page and scroll depth (also on the next `$pageview`), `$web_vitals` values (LCP, FCP, INP, CLS), result bands on `runner_search_completed`, and the fixed tags on the owner's Instagram links (`utm_source=instagram`, `utm_medium=social`, `utm_content` bio/story/highlight/reel/post/dm) on a tab's first page view; every `utm_*` is then removed from the address. Typed values, names, messages and addresses never leave.
+- **Fixes.** `units_changed` is sent only on a real change; story and course pages keep their own analytics path (literal lists checked against the published stories and courses); each event carries the time the site asked for it, so the first page's time on page is not cut short.
+- **Data requests.** Every browser request for the site's data goes through `lib/data-fetch.ts`, which reports a network failure or an error status as `site_error` `data_fetch` (not a request the page cancelled) and otherwise behaves like `fetch`. `verify-analytics` refuses a direct `fetch(` in client code.
+- **Experiments framework.** `lib/experiments.ts` is the registry (data only; empty). `lib/experiment-runtime.ts` and `components/Experiment.tsx` give each tab one variant of each running experiment before the first paint, with no feature-flag request, keep it in sessionStorage (`pace-notes-exp:<key>`), show it with CSS (`<Variant>`), and add `$feature/<key>` to that tab's events. Paused experiments, blocked storage and no JavaScript all show the control and report nothing.
+- **Privacy page and docs.** `/privacy` lists every counted action from a map that `verify-analytics` checks against the event list, and says which version of a page you were shown, when we test two designs. The events table, storage keys and experiments rules are in [analytics](ANALYTICS.md).
+
+Measured (dummy-key builds, PostHog mocked so nothing left the machine): initial JavaScript +1.5 KB gzipped on `/` (+1.3 to 2.6 KB on other page types; Web Vitals add 3.9 KB to the lazily loaded SDK chunks only). Details, the browser checks and their limits are in [analytics](ANALYTICS.md#verification). Not verified: real iOS devices, `beforeprint` on iOS, `$pageleave` when a tab is closed (seen when leaving for another page), and whether Instagram's in-app browser adds other tags. The committed browser privacy harness (`verify:replay-e2e`) follows in a later change. Release pins and data are unchanged.
+
 ## Older Safari fix and error pages (October 14, 2026)
 
 **Repository state:** in this change (branch `fix/old-safari-crash`). **Deployed state:** not yet deployed. Until it is, splithappens.run still runs the code that crashed in the emulated check below.
