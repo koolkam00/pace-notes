@@ -160,8 +160,11 @@ const LEDGER_ID = /^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$/;
 /** The registered metrics: a new entry's primary_metric and guardrails are names from the §1 Definitions table, `name@vN`. */
 const METRICS = 'autopilot/metrics.md';
 const METRIC_NAME = /^[a-z][a-z0-9_]*@v\d+$/;
-/** Kinds that are judged later, against their guardrails, so they need at least one. */
-const GUARDED_KINDS = ['change', 'experiment'];
+/**
+ * Kinds that are judged later, on a sample (an experiment's arms, a change's before/after windows) and against their
+ * guardrails, so they register a minimum sample and at least one guardrail.
+ */
+const JUDGED_KINDS = ['change', 'experiment'];
 
 // ---------- Small helpers ----------
 
@@ -409,13 +412,17 @@ function ledgerEntryProblems(value) {
   if (has('date') && !validDate(value.date)) problems.push('"date" must be a YYYY-MM-DD date');
   if (has('kind') && !LEDGER_KINDS.includes(value.kind)) problems.push(`"kind" must be one of ${LEDGER_KINDS.join(', ')}`);
   for (const key of ['title', 'hypothesis', 'primary_metric', 'decision_rule']) if (has(key) && typeof value[key] !== 'string') problems.push(`"${key}" must be a string`);
-  if (has('title') && typeof value.title === 'string' && !value.title.trim()) problems.push('"title" is empty');
+  // A blank (or whitespace-only) title, hypothesis or decision rule registers nothing.
+  for (const key of ['title', 'hypothesis', 'decision_rule']) if (has(key) && typeof value[key] === 'string' && !value[key].trim()) problems.push(`"${key}" is empty`);
   if (has('guardrails') && !Array.isArray(value.guardrails)) problems.push('"guardrails" must be an array');
   if (has('baseline') && !isObject(value.baseline)) problems.push('"baseline" must be an object');
-  // Experiment stopping rules are registered before launch and are immutable thereafter.
-  if (value.kind === 'experiment') {
-    if (!(Number.isSafeInteger(value.min_sample) && value.min_sample > 0)) problems.push('an experiment requires "min_sample" to be a positive safe integer');
-    if (!(Number.isSafeInteger(value.max_days) && value.max_days >= 1 && value.max_days <= LIMITS.experimentMaxDays)) problems.push(`an experiment requires "max_days" to be an integer from 1 to ${LIMITS.experimentMaxDays}`);
+  // Stopping rules are registered before launch and are immutable thereafter: an experiment's minimum sample and
+  // maximum duration, and a before/after change's minimum sample (a smaller window is judged inconclusive).
+  if (JUDGED_KINDS.includes(value.kind) && !(Number.isSafeInteger(value.min_sample) && value.min_sample > 0)) {
+    problems.push(`${value.kind === 'experiment' ? 'an experiment' : 'a change'} requires "min_sample" to be a positive safe integer`);
+  }
+  if (value.kind === 'experiment' && !(Number.isSafeInteger(value.max_days) && value.max_days >= 1 && value.max_days <= LIMITS.experimentMaxDays)) {
+    problems.push(`an experiment requires "max_days" to be an integer from 1 to ${LIMITS.experimentMaxDays}`);
   }
   if (has('evaluate_after')) {
     // A fix, a revert and the conclusion of an experiment are not judged later.
@@ -461,7 +468,7 @@ function metricProblems(value, names) {
   if (Array.isArray(value.guardrails)) {
     const unknown = value.guardrails.filter((name) => typeof name !== 'string' || !names.has(name));
     if (unknown.length) problems.push(`"guardrails" ${unknown.map(brief).join(', ')} ${unknown.length === 1 ? 'is not a metric' : 'are not metrics'} defined in ${METRICS} §1; ${choices}`);
-    if (!value.guardrails.length && GUARDED_KINDS.includes(value.kind)) problems.push(`"guardrails" is empty; ${value.kind === 'experiment' ? 'an' : 'a'} "${value.kind}" entry needs at least one from ${METRICS} §1 (only fix, revert and conclude entries may have none)`);
+    if (!value.guardrails.length && JUDGED_KINDS.includes(value.kind)) problems.push(`"guardrails" is empty; ${value.kind === 'experiment' ? 'an' : 'a'} "${value.kind}" entry needs at least one from ${METRICS} §1 (only fix, revert and conclude entries may have none)`);
   }
   return problems;
 }
@@ -931,7 +938,7 @@ function selfTest() {
   const run = (...args) => execFileSync('git', ['-c', 'user.name=Self Test', '-c', 'user.email=self-test@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' });
   const write = (file, content) => { fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true }); fs.writeFileSync(path.join(dir, file), content); };
   const remove = (file) => fs.rmSync(path.join(dir, file), { force: true });
-  const entry = (id, extra = {}) => JSON.stringify({ id, date: id.slice(0, 10), kind: 'change', title: 'A change', hypothesis: 'Clearer copy helps.', primary_metric: 'answered_visit_rate@v1', guardrails: ['one_page_no_action_rate@v1'], baseline: { rate: 0.4, n: 120 }, decision_rule: 'Keep if the rate rises.', evaluate_after: '2026-10-28', status: 'proposed', pr: null, verdict: null, result: null, ...extra });
+  const entry = (id, extra = {}) => JSON.stringify({ id, date: id.slice(0, 10), kind: 'change', title: 'A change', hypothesis: 'Clearer copy helps.', primary_metric: 'answered_visit_rate@v1', guardrails: ['one_page_no_action_rate@v1'], baseline: { rate: 0.4, n: 120 }, min_sample: 150, decision_rule: 'Keep if the rate rises.', evaluate_after: '2026-10-28', status: 'proposed', pr: null, verdict: null, result: null, ...extra });
   const CHANGE_ID = '2026-10-14-test';
   const proposal = (extra = {}) => entry(CHANGE_ID, extra);
   const FIRST = { status: 'shipped', pr: 60 };
@@ -1178,6 +1185,13 @@ function selfTest() {
     ledgerCase('ledger evaluate_after null for a conclusion', proposal({ kind: 'conclude', evaluate_after: null }), []);
     ledgerCase('ledger line wrapped over two lines', `${proposal().replace(',"title"', ',\n"title"')}`, ['ledger'], { messages: ['one JSON object on one line'] });
     ledgerCase('ledger with extra keys', proposal({ notes: 'context', evaluated_on: null, experiment: 'home-hero' }), []);
+    // Ledger: the title, hypothesis and decision rule are never blank, in any kind of entry.
+    for (const field of ['title', 'hypothesis', 'decision_rule']) {
+      for (const [label, value] of [['empty', ''], ['blank', ' \t ']]) ledgerCase(`ledger ${field} ${label}`, proposal({ [field]: value }), ['ledger'], { messages: [`"${field}" is empty`] });
+      ledgerCase(`ledger ${field} not a string`, proposal({ [field]: ['text'] }), ['ledger'], { messages: [`"${field}" must be a string`], absent: [`"${field}" is empty`] });
+    }
+    ledgerCase('a fix with a blank decision rule', proposal({ kind: 'fix', evaluate_after: null, decision_rule: '  ' }), ['ledger'], { messages: ['"decision_rule" is empty'] });
+    ledgerCase('a closed-unmerged record with a blank hypothesis', entry('2026-09-20-stuck', { status: 'reverted', verdict: 'inconclusive', pr: 55, notes: 'Closed unmerged.', hypothesis: '' }), ['ledger'], { pr: 61, messages: ['"hypothesis" is empty'] });
     // Ledger: experiments need explicit, finite, pre-registered stopping rules; other kinds keep their schema.
     const EXPERIMENT = { kind: 'experiment', experiment: 'home-hero', pages: ['/'], min_sample: 150, max_days: 42 };
     ledgerCase('experiment with the default sample and duration', proposal(EXPERIMENT), []);
@@ -1195,7 +1209,15 @@ function selfTest() {
     // The record of a pull request that closed unmerged (skill step 1.3): reverted, verdict inconclusive or null, its pr and why it closed.
     const CLOSED = { status: 'reverted', verdict: 'inconclusive', pr: 55, notes: 'Closed unmerged after 7 days; its premise is gone.' };
     ledgerCase('closed-unmerged experiment keeps valid stopping rules', entry('2026-09-20-stuck', { ...EXPERIMENT, ...CLOSED }), [], { pr: 61 });
-    ledgerCase('closed-unmerged exception does not waive experiment stopping rules', entry('2026-09-20-stuck', { kind: 'experiment', ...CLOSED }), ['ledger'], { pr: 61, messages: ['requires "min_sample"', 'requires "max_days"'] });
+    ledgerCase('closed-unmerged exception does not waive experiment stopping rules', entry('2026-09-20-stuck', { kind: 'experiment', ...CLOSED, min_sample: undefined }), ['ledger'], { pr: 61, messages: ['requires "min_sample"', 'requires "max_days"'] });
+    // Ledger: a before/after change pre-registers its minimum sample too; fix, revert and conclude entries are not judged on one.
+    ledgerCase('change with the smallest sample', proposal({ min_sample: 1 }), []);
+    for (const [label, value] of [['missing', undefined], ['null', null], ['zero', 0], ['negative', -1], ['fraction', 1.5], ['string', '150'], ['boolean', true], ['array', [150]], ['unsafe integer', Number.MAX_SAFE_INTEGER + 1]]) {
+      ledgerCase(`change min_sample is ${label}`, proposal({ min_sample: value }), ['ledger'], { messages: ['a change requires "min_sample" to be a positive safe integer'] });
+    }
+    ledgerCase('change min_sample overflows to infinity', proposal().replace('"min_sample":150', '"min_sample":1e309'), ['ledger'], { messages: ['a change requires "min_sample"'] });
+    for (const kind of ['fix', 'revert', 'conclude']) ledgerCase(`a ${kind} needs no min_sample`, proposal({ kind, evaluate_after: null, min_sample: undefined }), []);
+    ledgerCase('closed-unmerged exception does not waive a change\'s minimum sample', entry('2026-09-20-stuck', { ...CLOSED, min_sample: undefined }), ['ledger'], { pr: 61, messages: ['a change requires "min_sample"'] });
     // Ledger: a new entry's metrics are names the base's autopilot/metrics.md §1 table defines, exactly.
     ledgerCase('registered primary metric and guardrails', proposal({ guardrails: ['one_page_no_action_rate@v1', 'error_visit_rate@v1'] }), []);
     for (const [label, name] of [['empty', ''], ['invented', 'engagement_score@v1'], ['unversioned', 'answered_visit_rate'], ['another version', 'answered_visit_rate@v2'], ['in capitals', 'Answered_visit_rate@v1'], ['with its backticks', '`answered_visit_rate@v1`'], ['with a space', 'answered_visit_rate@v1 '], ['only mentioned above the table', 'engaged_visit_rate@v1'], ['only mentioned in §1 prose', 'tool_used@v1'], ['in a table outside §1', 'bounce_rate@v1']]) {
@@ -1403,6 +1425,17 @@ function selfTest() {
     const invalidExperimentBase = untidyBase('base-invalid-experiment', `${oldExperiment({ min_sample: undefined, max_days: 43 })}\n`);
     expect('unchanged historical experiment schema errors are warnings', { base: invalidExperimentBase, setup: () => {}, warned: ['requires "min_sample"', 'requires "max_days"'] });
     expect('edited historical experiment still has its schema checked', { base: invalidExperimentBase, ledger: false, setup: () => write(LEDGER, `${oldExperiment({ min_sample: undefined, max_days: 43, notes: 'Still running.' })}\n`), rules: ['ledger'], messages: ['requires "min_sample"', 'requires "max_days"'] });
+    // The same for a change: its minimum sample is fixed once registered, and a blank or missing one on the base only warns while untouched.
+    const oldChange = (extra = {}) => entry('2026-10-01-change', extra);
+    const changeBase = untidyBase('base-change', `${oldChange()}\n`);
+    expect('bookkeeping ships a change with its registered minimum sample', { base: changeBase, ledger: false, setup: () => write(LEDGER, `${oldChange({ status: 'shipped', pr: 59, shipped_on: '2026-10-03' })}\n`) });
+    for (const value of [200, undefined]) {
+      expect(`existing change min_sample cannot change to ${value}`, { base: changeBase, ledger: false, setup: () => write(LEDGER, `${oldChange({ min_sample: value })}\n`), rules: ['ledger'], messages: ['changed "min_sample"'] });
+    }
+    const UNREGISTERED = { min_sample: undefined, hypothesis: ' ', decision_rule: '' };
+    const invalidChangeBase = untidyBase('base-invalid-change', `${oldChange(UNREGISTERED)}\n`);
+    expect('an untouched historical change without a minimum sample or with blank text only warns', { base: invalidChangeBase, setup: () => write('components/Card.tsx', 'export const y = 2;\n'), warned: ['a change requires "min_sample"', '"hypothesis" is empty', '"decision_rule" is empty'] });
+    expect('an edited historical change still has its pre-registration checked', { base: invalidChangeBase, ledger: false, setup: () => write(LEDGER, `${oldChange({ ...UNREGISTERED, notes: 'Still waiting.' })}\n`), rules: ['ledger'], messages: ['a change requires "min_sample"', '"hypothesis" is empty', '"decision_rule" is empty'] });
     const shippedBase = untidyBase('base-shipped', `${entry('2026-10-01-first', { ...FIRST, shipped_on: '2026-10-02' })}\n`);
     expect('a ship date changed once set', { base: shippedBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, shipped_on: '2026-10-03' })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"shipped_on" was already'] });
 

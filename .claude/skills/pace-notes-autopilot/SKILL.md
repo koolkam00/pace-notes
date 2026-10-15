@@ -153,14 +153,14 @@ Priority:
 2. Implement the change. Match the surrounding code and the design system, keep text server-rendered where it is today, and keep pages fast. Experiments use `lib/experiments.ts` (registry) and the `Variant` component and `useVariant` hook from `components/Experiment.tsx`. Never hide content from search engines in a way that changes a page's meaning.
    - `AGENTS.md` asks for handoff documents to be updated; that does not apply to autopilot runs. They never edit `docs/PROJECT_HANDOFF.md`, `AGENTS.md`, `docs/AUTOPILOT.md` or `docs/ANALYTICS.md` (all protected). The ledger, `LEARNINGS.md` and the log issue are the record.
 3. **Pre-register.** Append one line to `autopilot/ledger.jsonl`: one JSON object on one line, with `id` equal to the branch name without `autopilot/`, `status: "proposed"`, and `pr`, `verdict`, `result` and `shipped_on` null. The schema is in `autopilot/metrics.md` §4. It must include:
-   - the hypothesis, in plain words;
+   - the hypothesis, in plain words (the guard refuses a blank one);
    - the primary metric: a name copied exactly from the table in `autopilot/metrics.md` §1, version included (normally `answered_visit_rate@v1`, or the page-level metric that matches). The guard refuses any other name;
    - the guardrails: at least one name, again copied exactly from §1 (a `fix`, `revert` or `conclude` entry may have none). If no defined metric fits, don't invent a name: open an `autopilot:needs-owner` issue that proposes one;
    - the baseline numbers with n;
-   - the minimum sample;
-   - the decision rule;
+   - the minimum sample, `min_sample`: a positive whole number of visits that each before/after window (or each experiment arm) needs. A `change` or `experiment` must have it; a `fix`, `revert` or `conclude` needs none;
+   - the decision rule, in plain words (never blank either);
    - `evaluate_after`: at least 14 days after the expected ship date, or the experiment's planned end;
-   - for experiments, positive-integer `min_sample`, the maximum duration (at most 42 days), the registry `experiment` key, and canonical `pages` with optional `area`. Follow the data-only registry and occupancy contract in `autopilot/metrics.md` §4: at most two active reservations/running keys, with no overlapping page areas; an omitted area reserves the whole page. A running key keeps the pages and area of its latest experiment entry, even after that entry is concluded; to change them, register a new experiment. Another kind of entry, or the record of a pull request that closed unmerged, does not change them.
+   - for experiments, also the maximum duration (`max_days`, at most 42 days), the registry `experiment` key, and canonical `pages` with optional `area`. Follow the data-only registry and occupancy contract in `autopilot/metrics.md` §4: at most two active reservations/running keys, with no overlapping page areas; an omitted area reserves the whole page. A running key keeps the pages and area of its latest experiment entry, even after that entry is concluded; to change them, register a new experiment. Another kind of entry, or the record of a pull request that closed unmerged, does not change them.
 
    Move the backlog item to "In flight" and link it.
 4. **Verify. All of these are required:**

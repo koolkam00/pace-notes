@@ -201,7 +201,7 @@ Then run `npm run autopilot:stats -- ab --a <answered>/<visits of control> --b <
 - maximum 42 days;
 - decision rule: ship the variant at P(variant better) ≥ 0.90 with guardrails intact, keep control at P ≤ 0.10, otherwise inconclusive at the maximum.
 
-**Before/after changes:** compare the 14 (or 28) full days before the entry's `shipped_on` date with the same number of full days starting the day after it. Use `npm run autopilot:stats -- prepost`.
+**Before/after changes:** compare the 14 (or 28) full days before the entry's `shipped_on` date with the same number of full days starting the day after it. Use `npm run autopilot:stats -- prepost`. Each window needs at least the entry's `min_sample` visits; with fewer, the verdict is `inconclusive`.
 
 ## 4. Ledger line schema (`autopilot/ledger.jsonl`, one JSON object per line)
 
@@ -214,6 +214,8 @@ Each entry is a single line; the example below is one line too (scroll sideways)
 - `id` is `YYYY-MM-DD-slug`, unique. For a change's own entry it is the branch name without `autopilot/`, so its pull request can be found later.
 - `primary_metric` is one metric name from the §1 table, written exactly as there, version included (`answered_visit_rate@v1`). `guardrails` is a list of such names: at least one for `change` and `experiment`, and possibly none for `fix`, `revert` and `conclude`. The guard refuses any other name in a new entry, such as a name without its version or one that only appears outside the §1 table. To measure something new, the owner adds it to §1 first.
 - `kind` is one of `change`, `experiment`, `conclude`, `revert` or `fix`. `evaluate_after` is a date, or null for `fix`, `revert` and `conclude`, which are not judged later.
+- `title`, `hypothesis` and `decision_rule` cannot be blank: the guard refuses one that is empty or only spaces.
+- A `change` entry requires `min_sample`, a positive safe integer: the fewest visits each before/after window needs (§3). Like an experiment's stopping rules, it is fixed once written. `fix`, `revert` and `conclude` entries need none.
 - `status` is one of `proposed`, `shipped`, `reverted` or `concluded`.
 - `verdict` is null or one of `keep`, `revert`, `inconclusive`, `iterate`, `ship-variant` or `keep-control`.
 - An `experiment` entry requires positive safe-integer `min_sample` and integer `max_days` from 1 to 42. An active (`proposed` or `shipped`) experiment also requires `experiment` (its lower-case, hyphenated registry key), nonempty unique `pages` (canonical paths such as `/` or `/tools`, or `"*"` for all pages), and optionally `area` (a lower-case, hyphenated slug). An omitted area or `"*"` reserves the entire page. These pre-registered fields are immutable.

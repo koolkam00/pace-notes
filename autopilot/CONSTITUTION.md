@@ -102,6 +102,7 @@ A change that needs any of these goes to an `autopilot:needs-owner` issue with a
 **Ledger rules (also enforced by the guard):**
 - Each entry is one JSON object on one line (schema in `autopilot/metrics.md` §4).
 - A new entry's `primary_metric` and guardrails are names from the `autopilot/metrics.md` §1 table, written exactly; a change or experiment has at least one guardrail.
+- A new entry's hypothesis and decision rule are never blank. A change or experiment also records its minimum sample (`min_sample`, a positive whole number), which never changes once written.
 - New entries start as `proposed`, with `verdict`, `result` and `shipped_on` null, dated within 2 days of the branch date. The one exception is the record of a pull request that closed unmerged: `reverted`, with verdict null or `inconclusive`, its own date, and always its `pr` and a note saying why it closed.
 - Once its pull request has merged, an entry is marked `shipped`, with `pr` and `shipped_on`. When judged it becomes `concluded` (or `reverted`). `status` only moves forward.
 - An entry moved to `reverted` needs verdict `revert` or `inconclusive`, its `pr` and a new note saying why; a `revert` verdict also needs `shipped_on` and `evaluated_on`.

@@ -904,11 +904,23 @@ function smokeFailureSet(report) {
   return failures.length ? new Set(failures.map((f) => JSON.stringify([f.where, f.message]))) : null;
 }
 
-function liveCheckDecision({ smoke, seo, baselineExit, baseline, live }) {
+/** The live smoke report says production served another commit than the merge (the smoke test then exits 3). */
+const otherCommitSeen = (live) => Boolean(live && live.base === CONFIG.productionUrl && Array.isArray(live.failures) && live.failures.some((f) => f && f.otherCommit === true));
+/**
+ * Positive evidence that the live checks ran against the merge commit: the production smoke report read version.json
+ * before and after the pages, and both readings named it. verify:seo:live runs right after the smoke test, so when
+ * the smoke test could not finish (exit 3) only this ties a failed SEO check to the change. A report that is missing,
+ * malformed, from another address or without both readings is no such evidence.
+ */
+const servedMergeThroughout = (live, sha) => Boolean(sha && live && live.base === CONFIG.productionUrl && !otherCommitSeen(live) &&
+  live.version && live.version.sha === sha && live.versionAfter && live.versionAfter.sha === sha);
+
+function liveCheckDecision({ sha, smoke, seo, baselineExit, baseline, live }) {
   if (smoke === '0' && seo === '0') return { action: 'pass', reason: 'Both live checks passed.' };
-  // The smoke test found production serving another commit (exit 3): verify:seo:live, run after it, saw that commit too.
-  if (smoke === '3' && live && live.base === CONFIG.productionUrl && Array.isArray(live.failures) && live.failures.some((f) => f && f.otherCommit === true)) {
-    return { action: 'incident', reason: `Production was serving another commit than the merge during the live checks (smoke test exit 3; verify:seo:live exit ${seo || 'none'}), so neither check could judge this change and it was not reverted.` };
+  if (smoke === '3' && !servedMergeThroughout(live, sha)) {
+    // The smoke test found production serving another commit: verify:seo:live, run after it, saw that commit too.
+    if (otherCommitSeen(live)) return { action: 'incident', reason: `Production was serving another commit than the merge during the live checks (smoke test exit 3; verify:seo:live exit ${seo || 'none'}), so neither check could judge this change and it was not reverted.` };
+    if (seo === '1') return { action: 'incident', reason: `verify:seo:live failed, but the live smoke test could not finish (exit 3) and its report does not show production serving the merge commit before and after the pages (the report is missing, unreadable, not from ${CONFIG.productionUrl} or without both version.json readings), so the failure cannot be tied to this change and it was not reverted.` };
   }
   if (seo === '1') return { action: 'revert', reason: 'verify:seo:live failed after the deploy (the pre-merge SEO check passed).' };
   if (smoke === '1') {
@@ -935,7 +947,7 @@ async function cmdReportLive(argv, deps) {
     try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
     catch (error) { deps.log(`report-live: ${flag} could not be read: ${error.message}`); return null; }
   };
-  const decision = liveCheckDecision({ smoke: option(argv, '--smoke-exit'), seo: option(argv, '--seo-exit'), baselineExit: option(argv, '--baseline-exit'), baseline: read('--baseline'), live: read('--live') });
+  const decision = liveCheckDecision({ sha, smoke: option(argv, '--smoke-exit'), seo: option(argv, '--seo-exit'), baselineExit: option(argv, '--baseline-exit'), baseline: read('--baseline'), live: read('--live') });
   deps.setOutput('live_action', decision.action);
   deps.log(`report-live: ${decision.action}: ${decision.reason}`);
   if (decision.action === 'pass') return cmdRecordLive(['--pr', String(number), '--sha', sha], deps);
@@ -1588,6 +1600,7 @@ async function selfTestAsync() {
       const report = (failures, extra = {}) => ({ base: CONFIG.productionUrl, mode: 'full', ok: failures.length === 0, failures, ...extra });
       const existing = report([oldFailure]);
       const changed = report([oldFailure, newFailure]);
+      const servedMerge = { version: { sha: merged }, versionAfter: { sha: merged } };
       const cases = [
         ['both checks pass even with a failed baseline', '0', '0', '1', existing, report([]), 'pass'],
         ['pre-existing failure plus a new route failure reverts', '1', '0', '1', existing, changed, 'revert'],
@@ -1614,10 +1627,16 @@ async function selfTestAsync() {
         ['known failures with an incomplete SEO run open an incident', '1', '3', '1', existing, existing, 'incident'],
         ['known failures and an infrastructure error open an incident', '1', '0', '1', existing, report([oldFailure, infrastructure]), 'incident'],
         ['SEO failure reverts even with identical smoke failures', '1', '1', '1', existing, existing, 'revert'],
-        ['SEO failure reverts even if smoke could not finish', '3', '1', '1', existing, null, 'revert'],
-        ['SEO failure reverts when smoke could not finish for another reason', '3', '1', '1', existing, report([infrastructure]), 'revert'],
-        ['another production commit dominates an SEO failure', '3', '1', '1', existing, report([{ where: 'version.json (after the pages)', message: `serves commit ${SHA('b')}, expected ${merged}`, infrastructure: true, otherCommit: true }]), 'incident'],
-        ['another commit on a preview report cannot suppress an SEO revert', '3', '1', '1', existing, report([{ where: 'version.json', message: 'serves commit b', infrastructure: true, otherCommit: true }], { base: 'https://preview.vercel.app' }), 'revert'],
+        // Smoke exit 3: an SEO failure reverts only when the live report shows production serving the merge before and after the pages.
+        ['SEO failure reverts when smoke could not finish on the merge commit', '3', '1', '1', existing, report([infrastructure], servedMerge), 'revert'],
+        ['an unfinished smoke test without its report keeps an SEO failure from reverting', '3', '1', '1', existing, null, 'incident'],
+        ['an unfinished smoke test with a malformed report keeps an SEO failure from reverting', '3', '1', '1', existing, '{broken', 'incident'],
+        ['an unfinished smoke report without version readings keeps an SEO failure from reverting', '3', '1', '1', existing, report([infrastructure]), 'incident'],
+        ['an unfinished smoke report without the reading after the pages keeps an SEO failure from reverting', '3', '1', '1', existing, report([{ where: 'browser', message: 'did not start', infrastructure: true }], { version: { sha: merged }, versionAfter: null }), 'incident'],
+        ['an unfinished smoke report naming another commit keeps an SEO failure from reverting', '3', '1', '1', existing, report([infrastructure], { version: { sha: merged }, versionAfter: { sha: SHA('b') } }), 'incident'],
+        ['another production commit dominates an SEO failure', '3', '1', '1', existing, report([{ where: 'version.json (after the pages)', message: `serves commit ${SHA('b')}, expected ${merged}`, infrastructure: true, otherCommit: true }], { version: { sha: merged }, versionAfter: { sha: SHA('b') } }), 'incident'],
+        ['another commit in the report dominates readings that name the merge', '3', '1', '1', existing, report([{ where: 'version.json', message: 'serves commit b', infrastructure: true, otherCommit: true }], servedMerge), 'incident'],
+        ['a preview report is no evidence the live checks ran on the merge', '3', '1', '1', existing, report([infrastructure], { ...servedMerge, base: 'https://preview.vercel.app' }), 'incident'],
         ['unfinished smoke alone never reverts', '3', '0', '1', existing, report([infrastructure]), 'incident'],
         ['unfinished SEO alone never reverts', '0', '3', '0', report([]), report([]), 'incident'],
         ['missing outputs open an incident without reverting', '', '', '', null, null, 'incident'],
@@ -1670,7 +1689,7 @@ async function selfTestAsync() {
   }
 
   // Reverts in real temporary repositories: pushed, conflicting, rejected; the ledger keeps its entries.
-  const ledgerLine = (id, extra = {}) => JSON.stringify({ id, date: id.slice(0, 10), kind: 'change', title: 'A change', hypothesis: 'Clearer copy helps.', primary_metric: 'answered_visit_rate@v1', guardrails: ['one_page_no_action_rate@v1'], baseline: {}, decision_rule: 'Keep if the rate rises.', evaluate_after: '2026-10-28', status: 'proposed', pr: null, verdict: null, result: null, ...extra });
+  const ledgerLine = (id, extra = {}) => JSON.stringify({ id, date: id.slice(0, 10), kind: 'change', title: 'A change', hypothesis: 'Clearer copy helps.', primary_metric: 'answered_visit_rate@v1', guardrails: ['one_page_no_action_rate@v1'], baseline: {}, min_sample: 150, decision_rule: 'Keep if the rate rises.', evaluate_after: '2026-10-28', status: 'proposed', pr: null, verdict: null, result: null, ...extra });
   const revertCase = async (label, setup, expectPushed, { ledger = false, sameFailures = false } = {}) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'autopilot-revert-'));
     const g = (cwd, ...a) => execFileSync('git', ['-c', 'user.name=Self Test', '-c', 'user.email=self-test@example.invalid', '-c', 'commit.gpgsign=false', ...a], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
