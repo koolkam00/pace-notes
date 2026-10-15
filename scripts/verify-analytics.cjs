@@ -475,9 +475,9 @@ assert.equal(replay.replayAttribute('d', 'M70.6 60.4 L131.7 58.9', () => { looke
 assert.equal(lookedUp, 0, 'The masked region is only looked up for attributes that can be masked');
 assert.equal(replay.maskText('Women'), '***'); assert.equal(replay.maskText('Non-binary'), '***'); assert.equal(replay.maskText('  '), '  ');
 const maskedSelectors = replay.REPLAY_MASKED_TEXT.split(', ');
-for (const selector of ['.tool-workspace', '.analysis-layout', '.personalized-guide', '.which-card', '.finish-lookup', '[role="status"]', '[role="alert"]', '[aria-live]']) assert.ok(maskedSelectors.includes(selector), `${selector} text is masked in replays`);
+for (const selector of ['.tool-workspace', '.analysis-layout', '.personalized-guide', '.which-card', '.finish-lookup', '.hero-goal', '[role="status"]', '[role="alert"]', '[aria-live]']) assert.ok(maskedSelectors.includes(selector), `${selector} text is masked in replays`);
 const blockedSelectors = replay.REPLAY_BLOCKED_ELEMENTS.split(', ');
-for (const selector of ['.tool-results', '.tool-workspace svg', '.analysis-layout svg', '.personalized-guide svg', '.which-card svg', '.finish-lookup svg', '.viz svg', '.replay']) assert.ok(blockedSelectors.includes(selector), `${selector} is left out of replays`);
+for (const selector of ['.tool-results', '.tool-workspace svg', '.analysis-layout svg', '.personalized-guide svg', '.which-card svg', '.finish-lookup svg', '.hero-goal svg', '.viz svg', '.replay']) assert.ok(blockedSelectors.includes(selector), `${selector} is left out of replays`);
 
 // The replay policy is not in a page's initial JavaScript: analytics-policy.ts (imported by every page) has none of it,
 // and replay-policy.ts is only ever loaded by the SDK's dynamic import.
@@ -505,7 +505,8 @@ const toolComponents = TOOLS.map(tool => {
 assert.equal(new Set(toolComponents).size, TOOLS.length, 'Every registered tool has its own component');
 const required = { 'tool-workspace': toolComponents, 'tool-results': toolComponents,
   'analysis-layout': ['components/AnalysisExplorer.tsx', 'components/AllFinisherAnalysis.tsx', 'components/FastStartAnalysis.tsx', 'components/WeatherAnalysis.tsx'],
-  'personalized-guide': ['components/PersonalizedGuide.tsx'], 'which-card': ['components/story/ArchetypeStory.tsx'], 'finish-lookup': ['components/story/FinishTimeStory.tsx'] };
+  'personalized-guide': ['components/PersonalizedGuide.tsx'], 'which-card': ['components/story/ArchetypeStory.tsx'], 'finish-lookup': ['components/story/FinishTimeStory.tsx'],
+  'hero-goal': ['components/story/HeroGoal.tsx'] };
 for (const [token, files] of Object.entries(required)) {
   for (const file of files) assert.ok(hasClass(read(file), token), `${file} still renders .${token}`);
   assert.ok(maskedSelectors.includes('.' + token) || blockedSelectors.includes('.' + token), `.${token} is masked or left out`);
@@ -516,6 +517,27 @@ for (const file of sourceFiles('components/tools')) {
   if (file.endsWith('ui.tsx') || !/<(?:input|textarea|select|DurationField)\b/.test(source)) continue;
   assert.ok(toolComponents.includes(file) && hasClass(source, 'tool-workspace'), `${file} has form fields outside a .tool-workspace`);
 }
+// The home page's marathon-time box (experiment home-hero-v1): its field sits inside the masked form, nothing in it is
+// sent (no analytics call, no stored value), and the time leaves only as whole minutes in the analysis page's address,
+// which analytics strips. The analysis reads exactly what isAnalysisGoal accepts, so the box never sends a time it ignores.
+const heroGoal = read('components/story/HeroGoal.tsx');
+assert.ok(hasClass(heroGoal, 'hero-goal') && /<form className="hero-goal"[\s\S]*<input [\s\S]*<\/form>/.test(heroGoal) && (heroGoal.match(/<form\b/g) || []).length === 1, 'HeroGoal: the time field sits inside the masked .hero-goal form');
+assert.equal([...heroGoal.matchAll(/<(?:DurationField|input|textarea|select)\b/g)].length, 1, 'HeroGoal has exactly one form field');
+assert.doesNotMatch(heroGoal, /track(?:Analytics|Page)\(|posthog|localStorage|sessionStorage|\bname=/, 'HeroGoal sends and stores nothing, and its field has no name a plain form submission would put in the address');
+assert.deepEqual([...heroGoal.matchAll(/trackFailure\(([^)]*)\)/g)].map(m => m[1]), ["'chunk_load'"], 'HeroGoal reports only that its time parsing failed to load');
+assert.match(heroGoal, /import\('@\/lib\/tools\/time'\)/, 'HeroGoal reads times with the tools\' parser');
+const heroPushes = [...heroGoal.matchAll(/router\.(?:push|replace)\(([^;]*)\);/g)].map(m => m[1]);
+assert.ok(heroPushes.length === 1 && /`\/analyses\/pacing-pattern\?goal=\$\{read\.minutes\}`/.test(heroGoal) && /isAnalysisGoal\(minutes\)/.test(heroGoal) && /from '@\/lib\/analysis-goal'/.test(heroGoal), 'HeroGoal navigates once, to /analyses/pacing-pattern?goal=<whole minutes the analysis accepts>');
+assert.match(read('lib/analysis-profile.ts'), /goal: params\.has\('goal'\) && isAnalysisGoal\(goal\)/, 'The analyses read a goal with the same rule the box checks');
+{
+  const { isAnalysisGoal } = require('../lib/analysis-goal.ts');
+  const { readAnalysisProfile } = require('../lib/analysis-profile.ts');
+  const summary = { cities: [] };
+  for (const goal of [90, 197, 240, 720]) assert.ok(isAnalysisGoal(goal) && readAnalysisProfile(`?goal=${goal}`, summary).goal === goal, `goal=${goal} is read as sent`);
+  for (const goal of [89, 721, 197.5, NaN]) assert.ok(!isAnalysisGoal(goal) && readAnalysisProfile(`?goal=${goal}`, summary).goal === 240, `goal=${goal} is refused`);
+}
+assert.equal(policy.analyticsPath('/analyses/pacing-pattern?goal=197&units=km'), '/analyses/pacing-pattern', 'The page the box opens is recorded without its goal');
+assert.equal(replay.replayPageUrl('/analyses/pacing-pattern?goal=197'), 'https://splithappens.run/analyses/pacing-pattern', 'and so is its recorded address');
 // Status lines, alerts and live regions are masked by attribute wherever they are, so none may set its role dynamically.
 for (const file of [...sourceFiles('components')]) assert.doesNotMatch(read(file), /role=\{[^}]*['"](?:status|alert)['"]|aria-live=\{/, `${file}: write role="status"/"alert" and aria-live as plain attributes so replay masks them`);
 // Runner names and search text: ph-no-capture on the very element, as a class token.

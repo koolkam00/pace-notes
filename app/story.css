@@ -85,6 +85,14 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .chapter-aside { display: grid; gap: 1rem; }
 .chapter-more { display: inline-flex; align-items: center; gap: .55rem; margin-top: 1.4rem; font-weight: 650; color: var(--ink); border-bottom: 2px solid var(--orange); padding-bottom: .1rem; }
 .chapter-more:hover { text-decoration: none; color: var(--orange-ink); }
+/* A home chapter ends with its full story and, quieter, "Try it with your race": the tool or analysis for that question. */
+.chapter-links { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1.1rem 2.6rem; margin-top: 1.4rem; }
+.chapter-links .chapter-more { margin-top: 0; }
+.chapter-try { display: grid; justify-items: start; gap: .2rem; color: var(--ink-2); font-size: .9375rem; font-weight: 550; }
+.chapter-try:hover { text-decoration: none; color: var(--ink); }
+.chapter-try-kicker { font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.chapter-try-text { padding-bottom: .1rem; border-bottom: 1px solid var(--line-2); }
+.chapter-try:hover .chapter-try-text { border-bottom-color: var(--ink-2); }
 @media (max-width: 900px) { .chapter-grid { grid-template-columns: 1fr; } }
 
 /* The big nugget line under a chapter title */
@@ -173,6 +181,39 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .runner-lane.is-dark .lane-tag { fill: var(--night-ink); }
 .cta-band-wrap { margin-top: clamp(4rem, 9vw, 7rem); padding: clamp(3rem, 6vw, 5rem) 0; }
 .cta-band-wrap .cta-band { margin-top: 0; padding: 0; }
+
+/* "Make it yours" (experiment home-hero-v1, components/story/HeroGoal.tsx): the visitor's time beside the title, then
+   three ways in, then the dek and the story. One column on phones in that order, so the time box, its button and the
+   first way in sit on the first screen. */
+.hero-goal { display: grid; gap: .9rem; max-width: 30rem; }
+.hero-goal .tool-field { display: grid; gap: .45rem; min-width: 0; }
+.hero-goal label { font-family: var(--mono); font-size: .75rem; line-height: 1.5; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+.hero-goal input { min-height: 54px; padding-inline: 1.2rem; border-color: var(--night-3); border-radius: 999px; background: var(--night-2); color: var(--night-ink); font-family: var(--mono); font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.hero-goal input::placeholder { color: var(--night-ink-2); opacity: .75; }
+.hero-goal input:hover { border-color: var(--night-ink-2); }
+.hero-goal input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(244, 178, 62, .22); }
+.hero-goal input[aria-invalid='true'] { border-color: var(--rose); box-shadow: 0 0 0 3px rgba(226, 65, 107, .22); }
+.hero-goal .tool-field-hint { padding-left: 1.2rem; font-size: .8125rem; line-height: 1.45; color: var(--night-ink-2); }
+.hero-goal .tool-field-hint.is-error { color: #FF8FA6; }
+.hero-goal .button-accent { justify-self: start; text-wrap: balance; }
+@media (max-width: 400px) { .hero-goal .button-accent { padding-inline: 1rem; font-size: .875rem; } }
+.hero-doors { list-style: none; margin: 0; padding: 0; max-width: 30rem; border-bottom: 1px solid var(--night-3); }
+.hero-doors li + li { margin: 0; }
+.hero-door { display: grid; grid-template-columns: 7.2rem minmax(0, 1fr) auto; align-items: baseline; gap: .2rem 1rem; padding: .85rem .15rem; border-top: 1px solid var(--night-3); color: var(--night-ink); }
+.hero-door:hover { text-decoration: none; }
+.hero-door-title { font-family: var(--serif); font-variation-settings: 'opsz' 72, 'SOFT' 40; font-size: 1.15rem; font-weight: 640; line-height: 1.1; letter-spacing: -.01em; }
+.hero-door-text { font-size: .875rem; line-height: 1.35; color: var(--night-ink-2); }
+.hero-door-go { color: var(--orange); transition: transform .2s var(--ease); }
+.hero-door:hover .hero-door-go { transform: translateX(3px); }
+.hero-intro .hero-dek { margin-top: 0; }
+.hero .chapter-more { color: var(--night-ink); }
+.hero .chapter-more:hover { color: var(--gold); }
+@media (min-width: 961px) {
+  .hero-inner .hero-intro { grid-column: 1; grid-row: 2; align-self: start; }
+  .hero-inner .hero-doors { grid-column: 2; grid-row: 2; align-self: start; }
+}
+/* The header already credits Andrew Kam on phones. */
+@media (max-width: 600px) { .hero .creator-credit { display: none; } }
 
 /* ---------- Finish-time chapter ---------- */
 .finish-lookup { display: grid; grid-template-columns: auto minmax(10rem, 14rem) minmax(0, 1fr); align-items: center; gap: .6rem 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }

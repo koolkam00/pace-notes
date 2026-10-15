@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { UnitLink as Link, MarathonDistance } from '@/components/UnitsProvider';
 import AnalysisIndex from '@/components/AnalysisIndex';
 import WeatherIndex from '@/components/WeatherIndex';
@@ -17,10 +18,17 @@ import { BreakEven, GapGauge } from '@/components/story/PlacesStory';
 import ArchetypeChapter from '@/components/story/ArchetypeChapter';
 import { PacingBarcode, WhichArchetype } from '@/components/story/ArchetypeStory';
 import HeroReplay from '@/components/story/HeroReplay';
+import HeroGoal from '@/components/story/HeroGoal';
+import { Variant } from '@/components/Experiment';
 import { StoryData } from '@/components/story/StoryData';
 import RunnerLane from '@/components/art/RunnerLane';
 import { FinishHistogram, Rescue, SecondsLens } from '@/components/story/FinishTimeStory';
 import { Checkpoint, Distance, PerDegree, Section, TemperatureStep } from '@/components/story/Units';
+
+/** After a home chapter's link to its full story, a quieter one to the tool or analysis that asks its question of the visitor's own race. */
+function TryLink({ href, children }: { href: string; children: ReactNode }) {
+  return <Link className="chapter-try" href={href}><span className="chapter-try-kicker">Try it with your race</span><span className="chapter-try-text">{children} <span aria-hidden="true">→</span></span></Link>;
+}
 
 const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
 
@@ -75,6 +83,8 @@ export default function Page() {
     '@context': 'https://schema.org', '@type': 'WebSite', name: 'Pace Notes', alternateName: 'splithappens.run', url: `${SITE_URL}/`,
     inLanguage: 'en', description: homeDescription(), creator: { '@type': 'Person', name: 'Andrew Kam' },
   };
+  // Both versions of the hero (experiment home-hero-v1) say this; the replay starts by itself once it is on screen.
+  const dek = <p className="hero-dek">Every recorded 5 km split from {yearsCovered ? `${yearsCovered} years of ` : ''}big-city marathons. Watch a real field spread out in the replay below, then see where races are <strong>held together</strong>, where they <strong>come apart</strong> and where finishes <strong>slip under round numbers in the final minutes</strong>.</p>;
   return <><StoryData value={{ archetypes: types, finish, positions: places }}><div className="home">
     <section className="night night-grain bleed hero" aria-labelledby="hero-title" data-track-section="hero">
       <div className="container hero-inner">
@@ -82,14 +92,31 @@ export default function Page() {
           <p className="eyebrow">Pace Notes · {count(manifest.analysis_n)} marathon finishes · {years.cities} cities{span ? ` · ${span.first}–${span.last}` : ''}</p>
           <h1 id="hero-title" className="hero-title">The same <MarathonDistance />, run <em>{finishesM()}&nbsp;million</em> ways.</h1>
         </div>
-        <div className="hero-side">
-          <p className="hero-dek">Every recorded 5 km split from {yearsCovered ? `${yearsCovered} years of ` : ''}big-city marathons. Press play to watch a real field spread out, then see where races are <strong>held together</strong>, where they <strong>come apart</strong> and where finishes <strong>slip under round numbers in the final minutes</strong>.</p>
-          <div className="hero-actions">
-            <a className="button-accent" href="#pacing-types">Start the story <span aria-hidden="true">↓</span></a>
-            <Link className="button-secondary" href="/runners">Find your own race</Link>
+        <Variant experiment="home-hero-v1" show="control">
+          <div className="hero-side">
+            {dek}
+            <div className="hero-actions">
+              <a className="button-accent" href="#pacing-types">Start the story <span aria-hidden="true">↓</span></a>
+              <Link className="button-secondary" href="/runners">Find your own race</Link>
+            </div>
+            <CreatorCredit />
           </div>
-          <CreatorCredit />
-        </div>
+        </Variant>
+        {/* The visitor's own time first, three ways in, then the story: on a phone the time box, its button and the
+            first way in fit the first screen under the title. */}
+        <Variant experiment="home-hero-v1" show="make-it-yours">
+          <div className="hero-side"><HeroGoal /></div>
+          <ul className="hero-doors" aria-label="More ways in">
+            <li><Link className="hero-door" href="/stories"><span className="hero-door-title">Stories</span><span className="hero-door-text">What the data shows</span><span className="hero-door-go" aria-hidden="true">→</span></Link></li>
+            <li><Link className="hero-door" href="/tools"><span className="hero-door-title">Tools</span><span className="hero-door-text">Plan with your numbers</span><span className="hero-door-go" aria-hidden="true">→</span></Link></li>
+            <li><Link className="hero-door" href="/runners"><span className="hero-door-title">Find my race</span><span className="hero-door-text">Look up a recorded finish</span><span className="hero-door-go" aria-hidden="true">→</span></Link></li>
+          </ul>
+          <div className="hero-intro">
+            {dek}
+            <a className="chapter-more" href="#pacing-types">Start the story <span aria-hidden="true">↓</span></a>
+            <CreatorCredit />
+          </div>
+        </Variant>
         <HeroReplay choices={choices} initial={berlin.slug} />
       </div>
       <div className="container">
@@ -126,7 +153,10 @@ export default function Page() {
         </div>
       </div>
       <div className="chapter-body"><WhichArchetype /></div>
-      <Link className="chapter-more" href="/stories/pacing-types">Explore all {typeCount} pacing types <span aria-hidden="true">→</span></Link>
+      <div className="chapter-links">
+        <Link className="chapter-more" href="/stories/pacing-types">Explore all {typeCount} pacing types <span aria-hidden="true">→</span></Link>
+        <TryLink href="/analyses/pacing-pattern">How finishes near your time paced</TryLink>
+      </div>
     </section>
 
     <section id="finish-times" className="chapter" aria-labelledby="finish-times-title" data-track-section="chapter-2">
@@ -148,7 +178,10 @@ export default function Page() {
         </div>
       </div>
       <div id="rescue" className="chapter-body"><Rescue /></div>
-      <Link className="chapter-more" href="/stories/round-numbers">The full round-number story <span aria-hidden="true">→</span></Link>
+      <div className="chapter-links">
+        <Link className="chapter-more" href="/stories/round-numbers">The full round-number story <span aria-hidden="true">→</span></Link>
+        <TryLink href="/tools/pace-band">A pace band for your goal time</TryLink>
+      </div>
     </section>
 
     <section id="places" className="chapter" aria-labelledby="places-title" data-track-section="chapter-3">
@@ -163,7 +196,10 @@ export default function Page() {
       </div>
       <div className="chapter-body"><GapGauge /></div>
       <div className="chapter-body"><BreakEven /></div>
-      <Link className="chapter-more" href="/stories/places">More on places gained and lost <span aria-hidden="true">→</span></Link>
+      <div className="chapter-links">
+        <Link className="chapter-more" href="/stories/places">More on places gained and lost <span aria-hidden="true">→</span></Link>
+        <TryLink href="/tools/projector">Project a finish from any timing mat</TryLink>
+      </div>
     </section>
 
     <section id="who-holds-pace" className="chapter" aria-labelledby="who-title" data-track-section="chapter-4">
@@ -177,7 +213,10 @@ export default function Page() {
         <p className="nugget-text">as many matched men&apos;s finishes as women&apos;s had a <strong>sustained slowdown</strong> ({(demo.overall.men_slowdown * 100).toFixed(0)}% against {(demo.overall.women_slowdown * 100).toFixed(0)}%). The gap appears at almost every finish time, and every women&apos;s age group paces more evenly than every men&apos;s.</p>
       </div>
       <div className="chapter-body"><GhostRace data={demo} /></div>
-      <Link className="chapter-more" href="/stories/who-holds-pace">See the gap at every finish time and age <span aria-hidden="true">→</span></Link>
+      <div className="chapter-links">
+        <Link className="chapter-more" href="/stories/who-holds-pace">See the gap at every finish time and age <span aria-hidden="true">→</span></Link>
+        <TryLink href="/analyses/age-and-pacing">Pacing by age group at your finish time</TryLink>
+      </div>
     </section>
 
     {courses ? <section id="courses-weather" className="chapter" aria-labelledby="courses-weather-title" data-track-section="chapter-5">
@@ -191,7 +230,10 @@ export default function Page() {
         <p className="nugget-text">same-course pairs of editions at least <TemperatureStep c={courses.weather.pairs.min_gap_c} /> apart where the <strong>warmer one had more sustained slowdown</strong>. Within a course, the share with a sustained slowdown rises about <PerDegree perC={courses.weather.fits.slowdown_within.slope} unit="points" />. Pairs share editions, so they are not independent tests.</p>
       </div>
       <div className="chapter-body"><Untangle weather={{ editions: courses.weather.editions, fits: courses.weather.fits }} /></div>
-      <Link className="chapter-more" href="/stories/courses">Course fingerprints, heat and {yearsCovered ? `${yearsCovered} years of ` : ''}races <span aria-hidden="true">→</span></Link>
+      <div className="chapter-links">
+        <Link className="chapter-more" href="/stories/courses">Course fingerprints, heat and {yearsCovered ? `${yearsCovered} years of ` : ''}races <span aria-hidden="true">→</span></Link>
+        <TryLink href="/tools/weather-match">Past mornings like your race-day forecast</TryLink>
+      </div>
     </section> : null}
 
     <section id="all-stories" className="chapter" aria-labelledby="all-stories-title" data-track-section="stories">

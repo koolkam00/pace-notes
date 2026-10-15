@@ -9,6 +9,7 @@
 // each reports data_fetch and shows its own error state. `$feature/*` may appear only for a running experiment in
 // lib/experiments.ts; the runs plant a stale variant and an unknown one, which must never be sent. Last, the experiment
 // boot script names the variant before the first paint with the CPU slowed 6x.
+const fs = require('node:fs');
 const path = require('node:path');
 const { SITE, type, waitFor } = require('../browser.cjs');
 const { ROOT } = require('../inspect.cjs');
@@ -382,6 +383,43 @@ async function reloadedPage(h) {
   }
 }
 
+// The home page's marathon-time box (experiment home-hero-v1, forced) loads the tools' time parsing when it is first
+// focused (components/story/HeroGoal.tsx). With that file failing, pressing the button says so under the field and
+// reports one chunk_load, and the page stays as it is: no reload (it would lose the typed time), no error page, no
+// navigation. Once the file loads, the same press opens the analysis.
+function parserChunks(out) {
+  const dir = path.join(out, '_next', 'static', 'chunks');
+  const home = new Set([...fs.readFileSync(path.join(out, 'index.html'), 'utf8').matchAll(/<script[^>]+src="([^"]+)"/g)].map(m => m[1]));
+  const files = fs.readdirSync(dir).filter(name => name.endsWith('.js') && !home.has('/_next/static/chunks/' + name) && fs.readFileSync(path.join(dir, name), 'utf8').includes('h(?:rs?|ours?)'));
+  if (!files.length) throw new Error('no chunk outside the home page\'s own scripts holds the time parsing (lib/tools/time.ts)');
+  return new Set(files.map(name => '/_next/static/chunks/' + name));
+}
+async function heroGoalFailure(h) {
+  const chunks = parserChunks(h.out);
+  const run = await h.run('time parsing fails', { ...PHONE, plant: { session: { 'pace-notes-exp:home-hero-v1': 'make-it-yours' } }, needles: ['3:17', '197'].map(v => new RegExp(`(^|[^0-9a-z:.-])${v}($|[^0-9a-z:.-])`)) });
+  let blocked = 0, loads = 0;
+  const unblock = run.block(url => chunks.has(url.pathname) && ++blocked > 0);
+  const page = await run.newPage();
+  page.on('load', () => loads++);
+  await page.goto(SITE + '/', { waitUntil: 'load' });
+  await page.locator('#hero-goal-time').click();
+  await page.locator('#hero-goal-time').pressSequentially('3:17', { delay: 15 });
+  await page.keyboard.press('Enter');
+  const said = await waitFor(async () => /did not load/.test(await page.locator('#hero-goal-time-hint').textContent()), 8000);
+  await page.waitForTimeout(1500);
+  const stayed = new URL(page.url()).pathname === '/' && loads === 1;
+  unblock();
+  await page.keyboard.press('Enter');
+  const opened = await page.waitForURL(url => new URL(url).pathname === '/analyses/pacing-pattern' && new URL(url).search === '?goal=197', { timeout: 15000 }).then(() => true, () => false);
+  await page.waitForTimeout(2000);
+  await run.closePage(page, { unload: true });
+  await run.close();
+  const errors = named(run, 'site_error').map(p => `${p.$pathname}:${p.category}`);
+  h.check('without the time parsing, the box says so and the page stays put', blocked > 0 && said && stayed, { blocked, said, loads, url: page.url() });
+  h.check('the failure is reported once, as chunk_load', JSON.stringify(errors) === JSON.stringify(['/:chunk_load']), errors);
+  h.check('once the file loads, the same press opens the analysis with the time in minutes', opened);
+}
+
 // Every page that fetches data, with each of its data requests failing. Tools are taken from the registry.
 const ERROR_STATE = '.tool-state.is-error, .projector-quick-text.is-error, [role="alert"], .feedback-error, .guide-error';
 const OTHER_DATA_PAGES = [
@@ -428,6 +466,7 @@ module.exports = {
       { name: 'experiment before first paint', weight: 14, run: paintOrder },
       { name: 'error page', weight: 20, run: errorPages },
       { name: 'failed file on a direct load', weight: 14, run: reloadedPage },
+      ...(quick ? [] : [{ name: 'home time box chunk failing', weight: 12, run: heroGoalFailure }]),
       ...targets.filter(t => !quick || ['/tools/pace-band', '/'].includes(t.path)).map(t => ({ name: `data failure ${t.label || t.path}`, weight: t.needsData === false ? 4 : 3, run: h => dataFailure(h, t) })),
     ];
   },

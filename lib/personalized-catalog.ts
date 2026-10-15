@@ -1,3 +1,5 @@
+import { GOAL_MAX, GOAL_MIN } from './analysis-goal';
+
 export const PERSONAL_QUESTIONS = [
   { id: 'profile', title: 'What does a race near my target look like?', focuses: ['prepare', 'review'], method: 'Select finishes in the displayed 15-minute finish-time band, centered on the nearest 15-minute target preset. Show each section’s median pace and middle 50% of observed paces. These are achieved times, not declared goals, and the profile is not an optimal pacing plan.' },
   { id: 'opening', title: 'Which openings are associated with finishing under my target?', focuses: ['prepare'], method: 'Use runners with a recorded best in the two strictly earlier calendar years. Classify the first 10 km as more than 2% faster than that benchmark’s marathon pace, within 2%, or more than 2% slower. For each group, count finishes strictly below the selected time. Groups are observational and pool available editions; a prior-time filter narrows ability but does not eliminate confounding.' },
@@ -13,8 +15,7 @@ export const PERSONAL_QUESTIONS = [
   { id: 'gains', title: 'Where did runners improving toward this time gain minutes?', focuses: ['prepare', 'review'], method: 'Select finishes in the displayed achieved-time band that beat the runner’s fastest recorded finish from strictly earlier years. Compare durations in the opening 10 km, middle 20 km and final 12.195 km with that earlier result. Mean block gains sum to mean finish improvement. This is an earlier recorded best, not a lifetime personal best or a prescription for a future improvement.' },
 ] as const;
 
-export const GOAL_MIN = 90;
-export const GOAL_MAX = 720;
+export { GOAL_MIN, GOAL_MAX };
 export const GOAL_PRESETS = Array.from({ length: (GOAL_MAX - GOAL_MIN) / 15 + 1 }, (_, i) => GOAL_MIN + i * 15);
 export const AGE_OPTIONS = ['all', '18–24', ...Array.from({ length: 13 }, (_, i) => `${25 + i * 5}–${29 + i * 5}`)];
 export type Focus = 'prepare' | 'choose' | 'review';
