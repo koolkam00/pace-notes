@@ -44,28 +44,42 @@ jobs:
         run: python analysis/download_release.py --bundle FULL --output "$RUNNER_TEMP/pacing-input" --tag "$PACING_RELEASE_TAG"
       - name: Inspect available fields and coverage
         run: python analysis/inspect_export.py --input "$RUNNER_TEMP/pacing-input" --output "$RUNNER_TEMP/pacing-inspection"
+      # A release without a reviewed edition policy in analysis/source_quality.py would be calculated with no
+      # exclusions, letting held or invalid editions supply outcomes. Such a tag is downloaded and inspected only;
+      # the run then fails at the end, after uploading the inspection, until its policy and audit are added.
       - name: Audit synchronized raw and feature records
+        id: audit
         run: |
           python - <<'PY'
-          import json, os, subprocess
+          import json, os, subprocess, sys
+          sys.path.insert(0, 'analysis')
+          import source_quality
           root = os.environ['RUNNER_TEMP']
           tag = json.load(open(root + '/pacing-input/provenance.json'))['release_tag']
-          if tag in ('private-export-20260911-1107', 'private-export-20260912-0934'):
+          reviewed = tag in source_quality.REVIEWED_POLICIES
+          if reviewed:
               subprocess.run(['python', 'analysis/audit_release.py', '--input', root + '/pacing-input', '--output', root + '/pacing-inspection/release-contract.json'], check=True)
           else:
-              print('Canonical-release audit is not declared for this legacy or unreviewed tag:', tag)
+              print('No reviewed edition policy or canonical-release audit for this tag; inspecting only:', tag)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write('reviewed=' + ('true' if reviewed else 'false') + '\n')
           PY
       - name: Read current public snapshot date
+        if: steps.audit.outputs.reviewed == 'true'
         run: |
           curl --fail --silent --show-error https://splithappens.run/data/live.json > "$RUNNER_TEMP/pacing-live.json"
           python -c 'import json,os; d=json.load(open(os.environ["RUNNER_TEMP"]+"/pacing-live.json")); assert d["status"] in ("ready","ok"); print("PACING_LIVE_AS_OF="+d["as_of"])' >> "$GITHUB_ENV"
       - name: Calculate aggregate pacing packs
+        if: steps.audit.outputs.reviewed == 'true'
         run: python analysis/build_pacing.py --input "$RUNNER_TEMP/pacing-input" --output "$RUNNER_TEMP/pacing-aggregates" --live-as-of "$PACING_LIVE_AS_OF"
       - name: Calculate full-race, forecast and linked-history analyses
+        if: steps.audit.outputs.reviewed == 'true'
         run: python analysis/build_extended.py --input "$RUNNER_TEMP/pacing-input" --output "$RUNNER_TEMP/pacing-aggregates" --personalized-output "$RUNNER_TEMP/pacing-personalized" --live-as-of "$PACING_LIVE_AS_OF"
       - name: Write numerical findings from verified aggregates
+        if: steps.audit.outputs.reviewed == 'true'
         run: python analysis/write_findings.py --output "$RUNNER_TEMP/pacing-aggregates"
       - uses: actions/upload-artifact@v4
+        if: steps.audit.outputs.reviewed == 'true'
         with:
           name: pacing-aggregate-packs
           path: ${{ runner.temp }}/pacing-aggregates/
@@ -78,8 +92,14 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - uses: actions/upload-artifact@v4
+        if: steps.audit.outputs.reviewed == 'true'
         with:
           name: pacing-personalized-aggregates
           path: ${{ runner.temp }}/pacing-personalized/
           if-no-files-found: error
           retention-days: 30
+      - name: Stop before calculating an unreviewed release
+        if: steps.audit.outputs.reviewed != 'true'
+        run: |
+          echo "::error::This export tag has no reviewed edition policy in analysis/source_quality.py, so nothing was calculated. Its inspection is in the pacing-export-inspection artifact. Review the release, add its rules to REVIEWED_POLICIES and declare its audit, then run this workflow again."
+          exit 1
