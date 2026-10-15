@@ -12,9 +12,11 @@ export default function PageError({ error }: { error: Error & { digest?: string 
   const heading = useRef<HTMLHeadingElement>(null);
   // Unless the page is reloading, focus the heading so a screen reader says what happened.
   useEffect(() => {
-    // Only the kind of failure is reported, never the error's message.
+    // A reload is reported by the page it loads (components/SiteAnalytics.tsx). Otherwise only the kind of failure is
+    // reported, never the error's message.
+    if (reloadAfterChunkError(error)) return;
     if (chunkLoadFailed(error)) trackFailure('chunk_load'); else trackFailure('render');
-    if (!reloadAfterChunkError(error)) heading.current?.focus();
+    heading.current?.focus();
   }, [error]);
   // The tab, and the announcement after a client-side navigation, would otherwise name the page that failed.
   useEffect(() => {

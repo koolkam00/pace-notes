@@ -3,7 +3,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const Module = require('node:module');
 const ts = require('typescript');
-for (const extension of ['.ts', '.tsx']) require.extensions[extension] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+// VERIFY_ANALYTICS_REGISTRY names a registry file to run every check with in place of lib/experiments.ts. This script
+// runs itself that way once (at the end), with experiments running, so no check depends on the registry being empty.
+const REGISTRY = path.join(__dirname, '../lib/experiments.ts');
+const registryFile = process.env.VERIFY_ANALYTICS_REGISTRY || REGISTRY;
+for (const extension of ['.ts', '.tsx']) require.extensions[extension] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename === REGISTRY ? registryFile : filename, 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true, jsx: ts.JsxEmit.ReactJSX },
 }).outputText, filename);
 const resolve = Module._resolveFilename;
@@ -228,48 +232,77 @@ const { EXPERIMENTS } = require('../lib/experiments.ts');
 assert.deepEqual(runtime.experimentProblems(EXPERIMENTS), [], 'lib/experiments.ts is a valid registry');
 assert.equal(runtime.EXPERIMENT_DEFINITIONS, EXPERIMENTS, 'The framework reads the registry itself');
 // The registry is data only (the autopilot guard reads it without running it): one exported literal array, optionally
-// `as const`, and nothing else. This reader follows the guard's rules: comments, either quote and trailing commas are
-// fine; imports, types, spreads, calls, other statements and later changes are not.
+// `as const`, and nothing else. This reader is the guard's own (readExperimentRegistry in scripts/autopilot-guard.cjs),
+// copied without change, so a registry the guard accepts is one this check accepts: comments, either quote, escapes,
+// numbers with exponents and trailing commas are fine; imports, types, spreads, calls, other statements and later
+// changes are not.
 function readRegistry(source) {
+  if (source === null) return null;
+  let at = 0;
   const tokens = [];
-  for (let at = 0; at < source.length;) {
+  while (at < source.length) {
     const rest = source.slice(at);
     const space = /^(?:\s+|\/\/[^\r\n\u2028\u2029]*(?:[\r\n\u2028\u2029]|$)|\/\*[\s\S]*?\*\/)/.exec(rest);
     if (space) { at += space[0].length; continue; }
     const string = /^(?:"(?:[^"\\\r\n]|\\.)*"|'(?:[^'\\\r\n]|\\.)*')/.exec(rest);
-    if (string) { tokens.push({ kind: 'string', value: string[0][0] === '"' ? JSON.parse(string[0]) : JSON.parse('"' + string[0].slice(1, -1).replace(/\\'/g, "'").replace(/"/g, '\\"') + '"') }); at += string[0].length; continue; }
-    const word = /^(?:[A-Za-z_$][\w$]*|-?\d+(?:\.\d+)?)/.exec(rest);
+    if (string) {
+      // JSON escapes plus escaped single quotes. No template evaluation or JavaScript string execution.
+      const raw = string[0];
+      const value = raw[0] === '"' ? JSON.parse(raw) : JSON.parse('"' + raw.slice(1, -1).replace(/\\'/g, "'").replace(/(?<!\\)"/g, '\\"') + '"');
+      tokens.push({ kind: 'string', value }); at += raw.length; continue;
+    }
+    const word = /^(?:[A-Za-z_$][\w$]*|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/.exec(rest);
     if (word) { tokens.push({ kind: 'word', value: word[0] }); at += word[0].length; continue; }
     tokens.push({ kind: 'symbol', value: source[at++] });
   }
   let i = 0;
-  const is = value => tokens[i] && tokens[i].kind !== 'string' && tokens[i].value === value;
-  const need = value => { if (!is(value)) throw new Error(`expected ${value} at token ${i}`); i++; };
-  const literal = () => {
-    if (is('[')) { i++; const out = []; while (!is(']')) { out.push(literal()); if (!is(',')) break; i++; } need(']'); return out; }
+  const is = (value) => tokens[i]?.value === value && tokens[i]?.kind !== 'string';
+  const need = (value) => { if (!is(value)) throw new Error(`expected ${value} in a data-only EXPERIMENTS registry`); i += 1; };
+  const literal = (depth = 0) => {
+    if (depth > 20) throw new Error('registry nesting is too deep');
+    if (is('[')) {
+      i += 1; const out = [];
+      while (!is(']')) { out.push(literal(depth + 1)); if (!is(',')) break; i += 1; }
+      need(']'); return out;
+    }
     if (is('{')) {
-      i++; const out = {};
-      while (!is('}')) { const key = tokens[i++]; if (!key || key.kind === 'symbol' || key.value in out) throw new Error('a bad or repeated key'); need(':'); out[key.value] = literal(); if (!is(',')) break; i++; }
+      i += 1; const out = Object.create(null);
+      while (!is('}')) {
+        const key = tokens[i++];
+        if (!key || !['string', 'word'].includes(key.kind) || Object.hasOwn(out, key.value)) throw new Error('invalid or duplicate registry property');
+        need(':'); out[key.value] = literal(depth + 1); if (!is(',')) break; i += 1;
+      }
       need('}'); return out;
     }
     const token = tokens[i++];
-    if (token && token.kind === 'string') return token.value;
-    if (token && token.kind === 'word' && ['true', 'false', 'null'].includes(token.value)) return JSON.parse(token.value);
-    if (token && token.kind === 'word' && /^-?\d/.test(token.value)) return Number(token.value);
-    throw new Error(`not a literal: ${token ? token.value : 'end of file'}`);
+    if (token?.kind === 'string') return token.value;
+    if (token?.kind === 'word') {
+      if (token.value === 'true') return true;
+      if (token.value === 'false') return false;
+      if (token.value === 'null') return null;
+      if (/^-?\d/.test(token.value) && Number.isFinite(Number(token.value))) return Number(token.value);
+    }
+    throw new Error('registry values must be literals (no imports, spreads or executable expressions)');
   };
   need('export'); need('const'); need('EXPERIMENTS'); need('=');
-  const value = literal();
-  if (is('as')) { i++; need('const'); }
-  if (is(';')) i++;
-  if (i !== tokens.length || !Array.isArray(value)) throw new Error('more than one exported literal array');
-  return value;
+  const result = literal();
+  if (is('as')) { i += 1; need('const'); }
+  if (is(';')) i += 1;
+  if (i !== tokens.length || !Array.isArray(result)) throw new Error('registry must contain only export const EXPERIMENTS = [literal entries]');
+  return result;
 }
-assert.deepEqual(readRegistry(fs.readFileSync(path.join(__dirname, '../lib/experiments.ts'), 'utf8')), JSON.parse(JSON.stringify(EXPERIMENTS)), 'lib/experiments.ts is one literal EXPERIMENTS array, read without running it');
-assert.deepEqual(readRegistry("/* data */ export const EXPERIMENTS = [{key:'a-b',status:\"running\",pages:['/'],weights:[50,50,],},] as const; // done\n"), [{ key: 'a-b', status: 'running', pages: ['/'], weights: [50, 50] }], 'Comments, either quote and trailing commas are fine');
+const plain = value => JSON.parse(JSON.stringify(value));
+assert.deepEqual(plain(readRegistry(fs.readFileSync(registryFile, 'utf8'))), plain(EXPERIMENTS), 'lib/experiments.ts is one literal EXPERIMENTS array, read without running it');
+for (const [source, entries] of [
+  ["/* data */ export const EXPERIMENTS = [{key:'a-b',status:\"running\",pages:['/'],weights:[50,50,],},] as const; // done\n", [{ key: 'a-b', status: 'running', pages: ['/'], weights: [50, 50] }]],
+  ["export const EXPERIMENTS = [{ hypothesis: 'A bolder \\\"Try a tool\\\" call gets more visitors into a tool.', note: 'it\\'s \"quoted\"' }];", [{ hypothesis: 'A bolder "Try a tool" call gets more visitors into a tool.', note: 'it\'s "quoted"' }]],
+  ['export const EXPERIMENTS = [{ weights: [5e1, 5E+1], depth: -2.5e-1 }];', [{ weights: [50, 50], depth: -0.25 }]],
+  ["export const EXPERIMENTS = [{ constructor: 'x', toString: 'y', hasOwnProperty: 'z' }];", [{ constructor: 'x', toString: 'y', hasOwnProperty: 'z' }]],
+]) assert.deepEqual(plain(readRegistry(source)), entries, `Comments, either quote, escapes, exponents, trailing commas and any field name are fine: ${source}`);
 for (const bad of ["import { X } from './x';\nexport const EXPERIMENTS = [];", 'export const EXPERIMENTS: readonly ExperimentDefinition[] = [];', 'export type E = {};\nexport const EXPERIMENTS = [];',
   'export const EXPERIMENTS = [...OTHER];', 'export const EXPERIMENTS = [make()];', 'export const EXPERIMENTS = []; EXPERIMENTS.push({ key: "x" });', 'export const EXPERIMENTS = [{ key: `x` }];',
-  'export const EXPERIMENTS = [{ key: "a", key: "b" }];', 'const EXPERIMENTS = [];', 'export const EXPERIMENTS = [{ started: 2026 - 10 }];', 'export const EXPERIMENTS = []; // x\u2028EXPERIMENTS.length = 0;']) {
+  'export const EXPERIMENTS = [{ key: "a", key: "b" }];', 'const EXPERIMENTS = [];', 'export const EXPERIMENTS = [{ started: 2026 - 10 }];', 'export const EXPERIMENTS = []; // x\u2028EXPERIMENTS.length = 0;',
+  'export const EXPERIMENTS = [{ weights: [1e999] }];', 'export const EXPERIMENTS = [' + '['.repeat(25) + ']'.repeat(25) + '];']) {
   assert.throws(() => readRegistry(bad), `Not a data-only registry: ${bad.replace(/\n/g, ' ')}`);
 }
 const FIXTURE = [
@@ -359,16 +392,19 @@ global.document = { documentElement: { getAttribute: name => ({ 'data-exp-home-h
 assert.deepEqual(runtime.activeVariants(FIXTURE), { 'home-hero': 'short-dek' });
 delete global.document;
 assert.deepEqual(runtime.activeVariants(FIXTURE), {}, 'No document (the build): no variant');
-// The event allowlist keeps $feature/<key> only for a running experiment and one of its variants.
-assert.equal(kept('$pageview', { '$feature/home-hero': 'short-dek' })['$feature/home-hero'], undefined, 'An experiment not in the registry is dropped');
-EXPERIMENTS.push(...FIXTURE);
+// The event allowlist keeps $feature/<key> only for a running experiment and one of its variants. These checks put the
+// fixture in place of the registry's entries and put the entries back afterwards, so they hold whatever the registry
+// holds (and nothing else here sees the fixture).
+const registryEntries = EXPERIMENTS.splice(0, EXPERIMENTS.length);
 try {
+  assert.equal(kept('$pageview', { '$feature/home-hero': 'short-dek' })['$feature/home-hero'], undefined, 'An experiment not in the registry is dropped');
+  EXPERIMENTS.push(...FIXTURE);
   const featured = kept('$pageview', { '$feature/home-hero': 'short-dek', '$feature/tool-order': 'band-first', '$feature/story-end': 'cards', '$feature/gone': 'control', '$feature/home-hero-2': 'control', $feature_flag: 'x', $active_feature_flags: ['home-hero'] });
   assert.equal(featured['$feature/home-hero'], 'short-dek'); assert.equal(featured['$feature/tool-order'], 'band-first');
   for (const key of ['$feature/story-end', '$feature/gone', '$feature/home-hero-2', '$feature_flag', '$active_feature_flags']) assert.equal(featured[key], undefined, `${key} is dropped (paused, unknown or not an experiment property)`);
   for (const value of ['Private Name', 'Control', 'short-dek ', 1, true, null, ['short-dek']]) assert.equal(kept('tool_used', { '$feature/home-hero': value })['$feature/home-hero'], undefined, `$feature/home-hero=${JSON.stringify(value)} is not one of its variants`);
   for (const event of [...Object.keys(enumerated), '$pageview', '$pageleave', '$web_vitals', 'runner_search_submitted']) assert.equal(kept(event, { '$feature/home-hero': 'control' })['$feature/home-hero'], 'control', `${event} carries the tab's variant`);
-} finally { EXPERIMENTS.length = 0; }
+} finally { EXPERIMENTS.splice(0, EXPERIMENTS.length, ...registryEntries); }
 
 // Session replay: blocked pages, page addresses and DOM attributes.
 for (const page of ['/runners', '/your-race', '/runners/', '/RUNNERS', '/runners/Private-Name', '/your-race?age=40#guide', 'https://www.splithappens.run/runners?q=Private+Name']) {
@@ -527,7 +563,25 @@ for (const [file, argument] of failureCalls) {
   if (file === 'lib/analytics.ts' && argument.startsWith('category:')) continue; // The definition.
   assert.match(argument, /^'(?:js_error|unhandled_rejection|chunk_load|data_fetch|render)'$/, `${file}: trackFailure(${argument}) must name one literal category, never a message`);
 }
-for (const [file, count] of [['components/SiteAnalytics.tsx', 5], ['app/error.tsx', 2], ['app/global-error.tsx', 2], ['lib/data-fetch.ts', 2]]) assert.equal(failureCalls.filter(([f]) => f === file).length, count, `${file} reports its failures`);
+for (const [file, count] of [['components/SiteAnalytics.tsx', 6], ['app/error.tsx', 2], ['app/global-error.tsx', 2], ['components/QuestionViz.tsx', 2], ['lib/data-fetch.ts', 2]]) assert.equal(failureCalls.filter(([f]) => f === file).length, count, `${file} reports its failures`);
+// A failed file reloads the page, usually before any of the site's code runs (the <head> script in lib/chunk-reload.ts):
+// the page it reloads into reports chunk_load, once, and a page that is about to reload reports nothing.
+assert.match(read('components/SiteAnalytics.tsx'), /if \(reloadedAfterChunkError\(\)\) trackFailure\('chunk_load'\);/, 'The page a failed file reloaded reports it');
+for (const file of ['app/error.tsx', 'app/global-error.tsx']) assert.match(read(file), /if \(reloadAfterChunkError\(error\)\) return;\s*if \(chunkLoadFailed\(error\)\) trackFailure\('chunk_load'\); else trackFailure\('render'\);/, `${file} reports a failure only when the page is not reloading for it`);
+{
+  const { reloadedAfterChunkError } = require('../lib/chunk-reload.ts');
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'performance'), savedWindow = global.window;
+  const load = (type, marker, storage = 'ok') => {
+    Object.defineProperty(globalThis, 'performance', { configurable: true, value: { getEntriesByType: kind => kind === 'navigation' && type ? [{ type }] : [] } });
+    global.window = { sessionStorage: { getItem(key) { if (storage === 'throw') throw new Error('SecurityError'); return key === 'pace-notes-chunk-reload' && marker !== undefined ? String(marker) : null; } } };
+    return reloadedAfterChunkError();
+  };
+  try {
+    assert.equal(load('reload', Date.now() - 1500), true, 'A reload moments after a failed file is that failure');
+    for (const [type, marker, storage, label] of [['navigate', Date.now() - 1500, 'ok', 'a new visit in the same tab'], ['back_forward', Date.now() - 1500, 'ok', 'Back to the page'], ['reload', Date.now() - 60_000, 'ok', 'the visitor reloading later'],
+      ['reload', undefined, 'ok', 'a reload with no failed file'], ['reload', Date.now(), 'throw', 'storage that cannot be read'], [undefined, Date.now(), 'ok', 'a browser without navigation timing']]) assert.equal(load(type, marker, storage), false, `Not reported: ${label}`);
+  } finally { Object.defineProperty(globalThis, 'performance', descriptor); global.window = savedWindow; }
+}
 assert.match(read('components/UnitsProvider.tsx'), /const setUnits = useCallback\(\(next: UnitSystem\) => \{\s*if \(next === shown\.current\) return;\s*shown\.current = next;\s*trackAnalytics\('units_changed'/, 'units_changed is sent only when the units really change');
 assert.ok(hasClasses(read('components/tools/ui.tsx'), 'tool-share', 'share-bar'), 'ShareBar carries .share-bar');
 // The controls that count as an edit: every tool's workspace, and the controls a tool keeps outside it, marked
@@ -691,7 +745,9 @@ async function main() {
   const history = { state: { tree: 'next' }, replaceState(state, _unused, url) { assert.equal(state, history.state, 'The router state is kept'); addresses.push(url); const parsed = new URL(url, 'https://splithappens.run'); Object.assign(window.location, { pathname: parsed.pathname, search: parsed.search, hash: parsed.hash }); } };
   global.window = { location: { hostname: 'splithappens.run', pathname: '/', search: '', hash: '' }, history, localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) }, sessionStorage,
     dispatchEvent: event => target.dispatchEvent(event), requestIdleCallback: (callback, options) => { assert.ok(options.timeout > 0, 'Idle callbacks have a timeout'); idle.push(callback); return idle.length; } };
-  global.document = { referrer: 'https://www.google.com/search?q=Private+Name', readyState: 'complete' };
+  // <html> names no experiment variant (the boot script found no running experiment, or storage was blocked).
+  const html = { getAttribute: () => null };
+  global.document = { referrer: 'https://www.google.com/search?q=Private+Name', readyState: 'complete', documentElement: html };
   Object.defineProperty(global, 'navigator', { configurable: true, value: { doNotTrack: '0', globalPrivacyControl: false } });
   process.env.NODE_ENV = 'production';
   process.env.NEXT_PUBLIC_POSTHOG_KEY = 'test-project';
@@ -866,9 +922,11 @@ async function main() {
   assert.equal(landing.properties.$current_url, 'https://splithappens.run/tools/pace-calculator');
   assert.deepEqual(addresses, ['/tools/pace-calculator?goal=3:30&dist=marathon#result'], "Every utm_* leaves the address; the tool's own query stays as written");
   const when = captureOptions.at(-1)?.timestamp;
-  assert.ok(when instanceof Date && when.getTime() >= asked && when.getTime() <= Date.now(), 'Each event carries the moment it was asked for, from before the SDK loaded');
+  assert.ok(when instanceof Date && when.getTime() >= asked && when.getTime() <= Date.now(), 'An event asked for before the SDK loaded carries the moment it was asked for');
   visit('/stories'); fresh2.analytics.trackPage('/stories'); await settle();
   assert.equal(events.at(-1).event, '$pageview'); assert.equal(events.at(-1).properties.utm_source, undefined, 'Only the first page view of a tab carries campaign tags');
+  // posthog-js sends any capture given options at once, one request each; once it has loaded, events join its batch.
+  assert.equal(captureOptions.at(-1), undefined, 'An event once the SDK has loaded is captured without options, so it joins the batch');
   assert.equal(addresses.length, 1, 'An address without tags is left alone');
   for (const search of ['?utm_source=instagram&utm_medium=social&utm_content=bio&utm_campaign=Private+Name', '?utm_source=instagram&utm_source=Private', '?utm_source=facebook', '?utm_content=Private%20Name&utm_source=instagram']) {
     fresh2 = signals(); events.length = 0; addresses.length = 0;
@@ -887,7 +945,7 @@ async function main() {
   {
     fresh2 = signals(); events.length = 0;
     const scrolled = [];
-    const page = { scrollHeight: 6000, clientHeight: 800, scrollTop: 0 };
+    const page = { ...html, scrollHeight: 6000, clientHeight: 800, scrollTop: 0 };
     window.addEventListener = (type, listener) => { if (type === 'scroll') scrolled.push(listener); };
     global.document.documentElement = page;
     const scrollTo = y => { window.scrollY = y; for (const listener of scrolled) listener(); };
@@ -918,7 +976,7 @@ async function main() {
       visit('/stories/pacing-types'); fresh2.analytics.trackPage('/stories/pacing-types'); await settle();
       assert.deepEqual(events.slice(-2).map(event => [event.properties.$pathname, event.properties.$prev_pageview_pathname]), [['/stories', undefined], ['/stories/pacing-types', '/stories']], 'A quick navigation names the right previous page');
       assert.ok(events.every(event => !('pace_notes_previous_page' in event.properties)), 'The site\'s own note of the previous page never leaves');
-    } finally { sdk.capture = sdkCapture; delete window.addEventListener; delete window.scrollY; delete global.document.documentElement; }
+    } finally { sdk.capture = sdkCapture; delete window.addEventListener; delete window.scrollY; global.document.documentElement = html; }
   }
   // Failures: one per kind per page view, five per page load, and only the kind.
   fresh2 = signals(); events.length = 0;
@@ -954,7 +1012,7 @@ async function main() {
     assert.doesNotMatch(JSON.stringify(events), /data\/x|projector\.json|Failed to fetch/, 'Never the address or the message');
   } finally { global.fetch = previousFetch; }
   // Experiments: every event of the tab carries the variant named on <html>, and before_send keeps only valid ones.
-  EXPERIMENTS.push(...FIXTURE);
+  const entries = EXPERIMENTS.splice(0, EXPERIMENTS.length, ...FIXTURE);
   global.document.documentElement = { getAttribute: name => ({ 'data-exp-home-hero': 'short-dek', 'data-exp-story-end': 'cards', 'data-exp-tool-order': 'Private Name' })[name] ?? null };
   try {
     fresh2 = signals(); events.length = 0; for (const key of Object.keys(registered)) delete registered[key];
@@ -968,9 +1026,30 @@ async function main() {
     assert.equal(events.at(-1).properties['$feature/gone'], undefined, 'nor one no longer in the registry');
     registered['$feature/home-hero'] = 'Private Name'; fresh2.analytics.trackAnalytics('tool_used', { action: 'edit' }); await settle();
     assert.equal(events.at(-1).properties['$feature/home-hero'], undefined, 'nor a value that is not one of its variants');
-  } finally { EXPERIMENTS.length = 0; delete global.document.documentElement; for (const key of Object.keys(registered)) delete registered[key]; }
+  } finally { EXPERIMENTS.splice(0, EXPERIMENTS.length, ...entries); global.document.documentElement = html; for (const key of Object.keys(registered)) delete registered[key]; }
   Module._load = originalLoad;
   global.setTimeout = realSetTimeout;
-  console.log(`Analytics checks passed: URL/name redaction, event allowlists with session IDs, ${searchPages.length} search pages and all ${sitemap.length} sitemap pages recorded under their clean path, session replay (sessionStorage identity with an in-memory fallback, bundled recorder and lazily loaded replay policy, recording started after load, masking without length, results panels and charts left out, console/network capture off, snapshot field allowlist, clean page addresses and links, blocked /runners, /your-race and runner handoff pages), per-file masking guards, production gating, pageview deduplication, opt-out/DNT/GPC stopping events and recording, SDK failure isolation, and the visit signals (enumerated values, reading figures and Web Vitals on their grid, campaign tags on the first page view only and removed from the address, failures by kind with rate limits, every data request through dataFetch, section ids, the experiments registry, boot script, CSS and $feature allowlist, and every event described on /privacy and in docs/ANALYTICS.md).`);
+  // Every check again with experiments running, as the autopilot will write them: the example in lib/experiments.ts's
+  // header and a story experiment, both running, and a paused one, with keys and variants the fixtures above use too.
+  // A check that holds only while the registry is empty fails here.
+  if (!process.env.VERIFY_ANALYTICS_REGISTRY) {
+    const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'verify-analytics-'));
+    const file = path.join(dir, 'experiments.ts');
+    fs.writeFileSync(file, `// Written by scripts/verify-analytics.cjs.
+export const EXPERIMENTS = [
+  { key: 'home-hero', status: 'running', pages: ['/'], area: 'hero', variants: ['control', 'short-dek'],
+    started: '2026-10-19', hypothesis: 'A shorter first line gets more phone visitors to the first chapter.' },
+  { key: "story-end", status: "running", pages: ["/stories/pacing-types"], variants: ["control", "cards"], weights: [50, 50,],
+    started: "2026-10-19", hypothesis: "Story cards at the end get more next stories opened.", },
+  { key: 'tool-order', status: 'paused', pages: ['/tools'], variants: ['control', 'calc-first', 'band-first'], started: '2026-10-01', hypothesis: 'Listing the calculator first gets more tools used.' },
+] as const;
+`);
+    try {
+      const child = require('node:child_process').spawnSync(process.execPath, [__filename], { env: { ...process.env, VERIFY_ANALYTICS_REGISTRY: file }, encoding: 'utf8' });
+      assert.equal(child.status, 0, `With experiments running (${file}), a check fails:\n${(child.stderr || child.stdout).slice(-3000)}`);
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  }
+  if (process.env.VERIFY_ANALYTICS_REGISTRY) { console.log(`Analytics checks passed with the registry in ${registryFile}.`); return; }
+  console.log(`Analytics checks passed: URL/name redaction, event allowlists with session IDs, ${searchPages.length} search pages and all ${sitemap.length} sitemap pages recorded under their clean path, session replay (sessionStorage identity with an in-memory fallback, bundled recorder and lazily loaded replay policy, recording started after load, masking without length, results panels and charts left out, console/network capture off, snapshot field allowlist, clean page addresses and links, blocked /runners, /your-race and runner handoff pages), per-file masking guards, production gating, pageview deduplication, opt-out/DNT/GPC stopping events and recording, SDK failure isolation, and the visit signals (enumerated values, reading figures and Web Vitals on their grid, campaign tags on the first page view only and removed from the address, failures by kind with rate limits, every data request through dataFetch, section ids, the experiments registry, boot script, CSS and $feature allowlist, and every event described on /privacy and in docs/ANALYTICS.md), all of it again with experiments running.`);
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

@@ -27,6 +27,21 @@ export function reloadAfterChunkError(error: Error): boolean {
   return true;
 }
 
+// The reload itself is reported by the page it loads: the <head> script below reloads before any of the site's code has
+// run, and a page about to reload may never send what it reported.
+const RELOADED_WITHIN_MS = 30_000;
+/** Whether this page load is the reload that a failed file started (here or in the <head> script) moments ago. */
+export function reloadedAfterChunkError(): boolean {
+  try {
+    const [navigation] = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
+    if (navigation?.type !== 'reload') return false;
+    const last = Number(window.sessionStorage.getItem(RELOAD_KEY));
+    return !!last && Date.now() - last < RELOADED_WITHIN_MS;
+  } catch {
+    return false;
+  }
+}
+
 // For the root layout's <head>, with the same once-per-five-minutes reload. Webpack does not notice when a script the
 // page's HTML names fails (it waits out its two-minute timeout), and when that script is React or webpack itself no
 // error page ever shows, so this listens for those failures as they happen. Only the HTML's own scripts and stylesheets

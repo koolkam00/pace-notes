@@ -132,11 +132,13 @@ async function client(): Promise<PostHog | null> {
 async function send(event: keyof AnalyticsEvents | '$pageview', properties: Record<string, unknown>): Promise<void> {
   if (!analyticsConfigured() || analyticsDisabled()) return;
   const safeProperties = { ...properties, $current_url: 'https://splithappens.run' + analyticsPath(window.location.pathname, basePath()), $referrer: document.referrer };
-  // The moment it happened, not when the SDK finished loading: the first page view's time on page starts here.
-  const at = new Date();
+  // Before the SDK has loaded, the moment it happened, not when loading finished: the first page view's time on page
+  // starts here. After that the SDK's own time is the same moment, and an event without options joins the SDK's batch
+  // (given any options, posthog-js sends it at once, one request each).
+  const at = instance ? undefined : { timestamp: new Date() };
   try {
     const posthog = await client();
-    if (posthog && !analyticsDisabled()) posthog.capture(event, safeProperties, { timestamp: at });
+    if (posthog && !analyticsDisabled()) posthog.capture(event, safeProperties, at);
   } catch { /* Analytics must never interrupt a search, comparison or download. */ }
 }
 

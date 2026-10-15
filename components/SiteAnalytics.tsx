@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { trackAnalytics, trackFailure, trackPage, trackRestoredPage } from '@/lib/analytics';
 import { ANALYTICS_CHANGED, downloadDestination } from '@/lib/analytics-policy';
-import { chunkLoadFailed } from '@/lib/chunk-reload';
+import { chunkLoadFailed, reloadedAfterChunkError } from '@/lib/chunk-reload';
 
 // Where a tool's own controls are: its workspace, and any it keeps outside it, marked data-tool-controls (the pace
 // calculator's view switch and pace chart, the course chooser's list). Pressing a button that only moves the page,
@@ -54,6 +54,9 @@ export default function SiteAnalytics() {
     const rejected = (event: PromiseRejectionEvent) => { if (chunkLoadFailed(event.reason)) trackFailure('chunk_load'); else trackFailure('unhandled_rejection'); };
     // Back from another site to a page kept in the back/forward cache: a new page view (the SDK sent $pageleave as it left).
     const restored = (event: PageTransitionEvent) => { if (event.persisted) trackRestoredPage(); };
+    // A file that failed to load reloads the page (lib/chunk-reload.ts), usually before this listener exists: the page
+    // it reloads into reports that failure.
+    if (reloadedAfterChunkError()) trackFailure('chunk_load');
     window.addEventListener(ANALYTICS_CHANGED, changed);
     window.addEventListener('storage', changed);
     window.addEventListener('beforeprint', printed);
