@@ -86,8 +86,8 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .chapter-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 2rem; align-items: start; }
 .chapter-aside { display: grid; gap: 1rem; }
 .chapter-more { position: relative; display: inline-flex; align-items: center; gap: .55rem; margin-top: 1.4rem; font-weight: 650; color: var(--ink); border-bottom: 2px solid var(--orange); padding-bottom: .1rem; }
-/* The one-line link is 31 px tall; a 44 px tap target around it, without moving the underline. */
-.chapter-more::before { content: ''; position: absolute; inset: -7px 0 -6px; }
+/* The one-line link is 31 px tall, 29 px inside its underline (the box ::before is placed against): -7 and -9 px make a 45 px tap target without moving the underline, and z-index keeps the next chapter from covering its lower edge. */
+.chapter-more::before { content: ''; position: absolute; inset: -7px 0 -9px; z-index: 1; }
 .chapter-more:hover { text-decoration: none; color: var(--orange-ink); }
 /* A home chapter ends with its full story and, quieter, "Try it with your race": the tool or analysis for that question. */
 .chapter-links { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1.1rem 2.6rem; margin-top: 1.4rem; }
