@@ -5,6 +5,7 @@ import { UnitLink as Link, useUnits } from './UnitsProvider';
 import { distanceLabel, paceLabel, type UnitSystem } from '@/lib/units';
 import RunnerContext from './RunnerContext';
 import { sourceLabel, sourceReleaseHref } from '@/lib/data-source';
+import { copyEditionOf, copyEditionSentence, isCopyEdition, type CopyEdition } from '@/lib/duplicate-editions-shared';
 import { trackAnalytics } from '@/lib/analytics';
 import { unitHref } from '@/lib/unit-preference';
 import {
@@ -24,6 +25,11 @@ const errorMessage = (error: unknown) => error instanceof Error ? error.message 
 /** How many matches a search found, in the bands analytics allows: never the names or the exact count. */
 const resultBucket = (n: number) => n === 0 ? '0' : n === 1 ? '1' : n <= 5 ? '2-5' : '6+';
 const MAX_QUERY = 120;
+const NO_COPIES: CopyEdition[] = [];
+/** A copy edition (lib/duplicate-editions-shared.ts) repeats another year's field, so its records show recorded times only. */
+const inCopyEdition = (race: RunnerRace, manifest: RunnerManifest, copies: readonly CopyEdition[]) => isCopyEdition(manifest.editions[race.edition], copies);
+/** A race the pacing and comparison views use: eligible, and not in a copy edition. */
+const analysed = (race: RunnerRace, manifest: RunnerManifest, copies: readonly CopyEdition[]) => race.eligible && !inCopyEdition(race, manifest, copies);
 
 /**
  * Runner names never go in the page address. A search is kept in this tab's history entry (history.state.runnerQuery),
@@ -46,16 +52,23 @@ function stripLegacyQuery(value: string) {
   window.history.replaceState({ runnerQuery: value }, '', url.pathname + url.search + url.hash);
 }
 
-export function RunnerRecordDetails({ race, manifest }: { race: RunnerRace; manifest: RunnerManifest }) {
-  return <><strong>{raceLabel(race, manifest)}</strong><span className="runner-race-name">{race.name || 'Name not recorded'}</span><small>{manifest.editions[race.edition].race} · {race.age === null ? 'Age not recorded' : `Recorded age ${race.age}${race.age < 18 || race.age > 89 ? ' (outside the usable age range)' : ''}`} · {race.sex ? `Recorded gender ${race.sex}` : 'Gender not recorded'}</small><span className="runner-recorded-finish">Recorded finish: {finishLabel(race)}</span><span className={race.eligible ? 'runner-eligible' : 'runner-ineligible'}>{race.eligible ? 'Pacing analysis available' : 'Recorded result · limited analysis'}</span>{!race.eligible && <small>{race.reason || 'The timings or edition need further verification.'} Pacing and peer comparisons are unavailable for this record.</small>}</>;
+export function RunnerRecordDetails({ race, manifest, copyEditions = NO_COPIES }: { race: RunnerRace; manifest: RunnerManifest; copyEditions?: readonly CopyEdition[] }) {
+  const copy = race.eligible && inCopyEdition(race, manifest, copyEditions);
+  return <><strong>{raceLabel(race, manifest)}</strong><span className="runner-race-name">{race.name || 'Name not recorded'}</span><small>{manifest.editions[race.edition].race} · {race.age === null ? 'Age not recorded' : `Recorded age ${race.age}${race.age < 18 || race.age > 89 ? ' (outside the usable age range)' : ''}`} · {race.sex ? `Recorded gender ${race.sex}` : 'Gender not recorded'}</small><span className="runner-recorded-finish">Recorded finish: {finishLabel(race)}</span><span className={copy ? 'runner-ineligible runner-copy' : race.eligible ? 'runner-eligible' : 'runner-ineligible'}>{copy ? 'Recorded times only' : race.eligible ? 'Pacing analysis available' : 'Recorded result · limited analysis'}</span>{!race.eligible && <small>{race.reason || 'The timings or edition need further verification.'} Pacing and peer comparisons are unavailable for this record.</small>}</>;
 }
 
 function RecordedCheckpoints({ race, manifest, units }: { race: RunnerRace; manifest: RunnerManifest; units: UnitSystem }) {
   return <details className="runner-raw"><summary>See original recorded checkpoints</summary><div className="runner-table-wrap"><table><caption className="sr-only">Original source readings for record {race.id}</caption><thead><tr><th scope="col">Checkpoint</th><th scope="col">Recorded elapsed time</th></tr></thead><tbody>{manifest.points_km.map((end, i) => <tr key={end}><th scope="row">{distanceLabel(end, units)}</th><td>{race.raw_times?.[i] || runnerDuration(race.times[i])}</td></tr>)}</tbody></table></div><p className="control-help">Record {race.id}. These are the original source readings; missing or inconsistent timings are not filled in or used to calculate pace.</p></details>;
 }
 
-function LimitedRecords({ races, manifest, units }: { races: RunnerRace[]; manifest: RunnerManifest; units: UnitSystem }) {
-  return <ul className="runner-races runner-limited-records">{races.map(race => <li className="runner-race" key={race.id}><RunnerRecordDetails race={race} manifest={manifest} /><RecordedCheckpoints race={race} manifest={manifest} units={units} /></li>)}</ul>;
+function LimitedRecords({ races, manifest, units, copyEditions }: { races: RunnerRace[]; manifest: RunnerManifest; units: UnitSystem; copyEditions: readonly CopyEdition[] }) {
+  return <ul className="runner-races runner-limited-records">{races.map(race => <li className="runner-race" key={race.id}><RunnerRecordDetails race={race} manifest={manifest} copyEditions={copyEditions} /><RecordedCheckpoints race={race} manifest={manifest} units={units} /></li>)}</ul>;
+}
+
+/** Once for each copy edition in the selection, however many of its records were chosen. */
+function CopyEditionNotes({ races, manifest, copyEditions }: { races: RunnerRace[]; manifest: RunnerManifest; copyEditions: readonly CopyEdition[] }) {
+  const copies = copyEditions.filter(copy => races.some(race => copyEditionOf(manifest.editions[race.edition], copyEditions) === copy));
+  return <>{copies.map(copy => <p className="control-help runner-copy-note" key={`${copy.city}-${copy.year}`}>{copyEditionSentence(copy)}</p>)}</>;
 }
 
 /** The marathons the search covers and their recorded years, from the search data already on the page. */
@@ -89,14 +102,16 @@ export function RunnerSearchCoverage({ manifest }: { manifest: RunnerManifest })
   return <p className="control-help runner-search-coverage"><strong>Search all {count(manifest.named_records)} named race records.</strong> Incomplete results and editions awaiting review are included. You can view a recorded result even when pacing analysis is unavailable.</p>;
 }
 
-export function SelectedAnalysis({ races, manifest, units }: { races: RunnerRace[]; manifest: RunnerManifest; units: UnitSystem }) {
-  const progression = useMemo(() => runnerProgression(races, manifest), [races, manifest]);
+export function SelectedAnalysis({ races, manifest, units, copyEditions = NO_COPIES }: { races: RunnerRace[]; manifest: RunnerManifest; units: UnitSystem; copyEditions?: readonly CopyEdition[] }) {
+  // Copy-edition records join the limited records: no best, count, year span, change or table row comes from them.
+  const progression = useMemo(() => runnerProgression(races.filter(race => !inCopyEdition(race, manifest, copyEditions)), manifest), [races, manifest, copyEditions]);
   const valid = progression?.valid || [];
-  const limited = races.filter(race => !race.eligible);
+  const limited = races.filter(race => !analysed(race, manifest, copyEditions));
   if (!progression) return <section className="runner-analysis" aria-labelledby="runner-analysis-title">
     <header className="analysis-finding"><p className="eyebrow">Your selected records</p><h2 id="runner-analysis-title">Your race records are here.</h2>
       <p>You can view the recorded names, races, finish times and available checkpoints below. These records need more complete or verified data before they can support pacing or peer comparisons. Each race explains what is missing or awaiting review.</p></header>
-    <LimitedRecords races={races} manifest={manifest} units={units} />
+    <CopyEditionNotes races={races} manifest={manifest} copyEditions={copyEditions} />
+    <LimitedRecords races={races} manifest={manifest} units={units} copyEditions={copyEditions} />
   </section>;
   const { best, earliestYear, latestYear, yearChange } = progression;
   return <section className="runner-analysis" aria-labelledby="runner-analysis-title">
@@ -108,12 +123,12 @@ export function SelectedAnalysis({ races, manifest, units }: { races: RunnerRace
     <div className="runner-table-wrap"><table><caption>All eligible races you selected</caption><thead><tr><th scope="col">Race</th><th scope="col">Finish</th><th scope="col">Average pace</th><th scope="col">Late vs early pace</th></tr></thead><tbody>
       {valid.map(({ race, metrics }) => <tr key={race.id}><th scope="row">{raceLabel(race, manifest)}</th><td>{runnerDuration(metrics.finish)}</td><td>{paceLabel(metrics.pace, units)}</td><td>{changeDescription(metrics.lateChange)}</td></tr>)}
     </tbody></table></div>
-    {limited.length > 0 && <section className="runner-limited" aria-labelledby="runner-limited-title"><h3 id="runner-limited-title">Your other selected race records</h3><p className="control-help">These results remain available to view. Their timings do not contribute to the fastest finish, pacing or peer comparisons.</p><LimitedRecords races={limited} manifest={manifest} units={units} /></section>}
-    <RunnerContext races={races} manifest={manifest} units={units} />
+    {limited.length > 0 && <section className="runner-limited" aria-labelledby="runner-limited-title"><h3 id="runner-limited-title">Your other selected race records</h3><p className="control-help">These results remain available to view. Their timings do not contribute to the fastest finish, pacing or peer comparisons.</p><CopyEditionNotes races={limited} manifest={manifest} copyEditions={copyEditions} /><LimitedRecords races={limited} manifest={manifest} units={units} copyEditions={copyEditions} /></section>}
+    <RunnerContext races={races} manifest={manifest} units={units} copyEditions={copyEditions} />
   </section>;
 }
 
-export default function RunnerSearch() {
+export default function RunnerSearch({ copyEditions = NO_COPIES }: { copyEditions?: CopyEdition[] }) {
   const { units } = useUnits();
   const [manifest, setManifest] = useState<RunnerManifest | null>(null);
   const [manifestError, setManifestError] = useState('');
@@ -222,12 +237,12 @@ export default function RunnerSearch() {
     </section>}
     {profileError && <div className="feedback-error" role="alert">{profileError} Select the match again to retry.</div>}
     <div id="runner-profile" className="ph-no-capture">{manifest && profile && <section className="runner-profile" aria-labelledby="runner-profile-title"><h2 id="runner-profile-title" tabIndex={-1} ref={profileHeading}>{profile.names.filter(Boolean).join(' / ') || 'Recorded race group'}</h2><p className="control-help">Choose only the races you recognize. The database suggests this grouping; it is not proof that these records belong to one person. You can add races from other search matches to the same selection.</p>
-      <ul className="runner-races">{orderedRaces.map(race => <li className="runner-race" key={race.id}><label><input type="checkbox" checked={selected.some(row => row.id === race.id)} onChange={() => toggleRace(race)} /><span><RunnerRecordDetails race={race} manifest={manifest} /></span></label>
-        {!race.eligible && <RecordedCheckpoints race={race} manifest={manifest} units={units} />}
+      <ul className="runner-races">{orderedRaces.map(race => <li className="runner-race" key={race.id}><label><input type="checkbox" checked={selected.some(row => row.id === race.id)} onChange={() => toggleRace(race)} /><span><RunnerRecordDetails race={race} manifest={manifest} copyEditions={copyEditions} /></span></label>
+        {!analysed(race, manifest, copyEditions) && <RecordedCheckpoints race={race} manifest={manifest} units={units} />}
       </li>)}</ul>
     </section>}</div>
-    {manifest && selected.length > 0 && <section className="runner-selection ph-no-capture" aria-labelledby="runner-selection-title"><h2 id="runner-selection-title">{count(selected.length)} {selected.length === 1 ? 'race' : 'races'} selected</h2><p className="control-help">Choose only the races you recognize. View them together, with pacing and comparisons available for results that pass the timing and edition checks.</p><ul>{selected.map(race => <li key={race.id}><span>{race.name || 'Name not recorded'} · {raceLabel(race, manifest)} · {finishLabel(race)}{!race.eligible && <small>Recorded result · limited analysis</small>}</span><button type="button" onClick={() => toggleRace(race)} aria-label={`Remove ${race.name}, ${raceLabel(race, manifest)}, record ${race.id}`}>Remove</button></li>)}</ul><div className="runner-selection-actions"><button className="button-primary" type="button" onClick={() => { trackAnalytics('race_comparison_opened', { selection: selected.length === 1 ? 'one' : 'multiple', availability: selected.every(race => race.eligible) ? 'eligible' : selected.some(race => race.eligible) ? 'mixed' : 'limited' }); setConfirmed([...selected]); requestAnimationFrame(() => analysisRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })); }}>View selected races <span aria-hidden="true">→</span></button><button className="button-secondary" type="button" onClick={() => { setSelected([]); setConfirmed(null); }}>Clear selection</button></div></section>}
-    <div ref={analysisRef} className="ph-no-capture">{confirmed && manifest && <SelectedAnalysis races={confirmed} manifest={manifest} units={units} />}</div>
+    {manifest && selected.length > 0 && <section className="runner-selection ph-no-capture" aria-labelledby="runner-selection-title"><h2 id="runner-selection-title">{count(selected.length)} {selected.length === 1 ? 'race' : 'races'} selected</h2><p className="control-help">Choose only the races you recognize. View them together, with pacing and comparisons available for results that pass the timing and edition checks.</p><ul>{selected.map(race => <li key={race.id}><span>{race.name || 'Name not recorded'} · {raceLabel(race, manifest)} · {finishLabel(race)}{!race.eligible ? <small>Recorded result · limited analysis</small> : inCopyEdition(race, manifest, copyEditions) && <small>Recorded times only</small>}</span><button type="button" onClick={() => toggleRace(race)} aria-label={`Remove ${race.name}, ${raceLabel(race, manifest)}, record ${race.id}`}>Remove</button></li>)}</ul><div className="runner-selection-actions"><button className="button-primary" type="button" onClick={() => { trackAnalytics('race_comparison_opened', { selection: selected.length === 1 ? 'one' : 'multiple', availability: selected.every(race => analysed(race, manifest, copyEditions)) ? 'eligible' : selected.some(race => analysed(race, manifest, copyEditions)) ? 'mixed' : 'limited' }); setConfirmed([...selected]); requestAnimationFrame(() => analysisRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })); }}>View selected races <span aria-hidden="true">→</span></button><button className="button-secondary" type="button" onClick={() => { setSelected([]); setConfirmed(null); }}>Clear selection</button></div></section>}
+    <div ref={analysisRef} className="ph-no-capture">{confirmed && manifest && <SelectedAnalysis races={confirmed} manifest={manifest} units={units} copyEditions={copyEditions} />}</div>
     {manifest && <footer className="runner-source"><p>{count(manifest.named_records)} race records have searchable names, out of {count(manifest.raw_records)} records in the database. These are finishes and source records, not a count of unique people.{manifest.raw_records > manifest.named_records && <> The remaining {count(manifest.raw_records - manifest.named_records)} records have no usable name for lookup; they are retained in the complete data download.</>}</p><p>Source: <a href={sourceReleaseHref(manifest.release_tag)}>{sourceLabel(manifest.input_as_of, manifest.release_tag)}</a>. <a href={sourceReleaseHref(manifest.release_tag)}>Download the complete data</a>. <Link href="/about#data-coverage">Marathons, years and recorded fields</Link>.</p><details><summary>How search and analysis work</summary><p>Search matches the recorded name parts after normalizing accents, punctuation and letter case. Suggested groups use the database’s candidate links with consistency checks. Shared names, changed names and incomplete source fields can leave false or separate matches, so you choose the records explicitly.</p><p>All named results can appear, including records with missing timings or excluded editions. Pacing calculations use only selected results that pass the same timing and source-quality checks as the study. Finish-time comparisons are descriptive: they do not adjust for weather, terrain or fitness, and they are not predictions.</p><p>Races are ordered by recorded year. Races in the same year are not assumed to be in chronological order. A fastest selected time is not necessarily a lifetime personal best.</p></details></footer>}
   </article>;
 }

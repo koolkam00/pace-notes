@@ -77,4 +77,22 @@ assert.match(sparse, /pace group is too small/); assert.match(sparse, /101 eligi
 const paired = render(SectionComparison, { focus: { race, metrics }, reference: { race: reference, metrics: runnerMetrics(reference) }, manifest, units: 'mi' });
 assert.match(paired, /0:14:03\.9 faster/); assert.match(paired, /0:01:40 less/); assert.match(paired, /differences add up to the finish-time difference/);
 assert.doesNotMatch(paired, /improved|previous race|earlier race/, 'A same-year pair is an A/B comparison without inferred chronology');
-console.log('Runner context UI passed: unchanged source values, weather/terrain units, missing versus zero, peer tie/rank/pace definitions, exact checkpoints and same-year section differences.');
+
+// A copy edition (lib/duplicate-editions.ts), synthetic: the later year repeats the earlier field, so without the screen
+// it would be the default focus race. With it, the copy is no focus option, comparison, context row or split-check link.
+const RunnerContext = require('../components/RunnerContext.tsx').default;
+const copyManifest = { editions: [{ city: 'Lakeside', year: 2021, race: 'Lakeside Marathon' }, { city: 'Lakeside', year: 2025, race: 'Lakeside Marathon' }] };
+const source = { ...race, id: 31, edition: 0 }, repeated = { ...race, id: 32, edition: 1 };
+const screen = [{ city: 'Lakeside', year: 2025, duplicate_of: 2021, eligible_removed: 400, identical_nine_time_twins: 390 }];
+const contextView = copyEditions => render(RunnerContext, { races: [source, repeated], manifest: copyManifest, units: 'mi', copyEditions });
+const focusOptions = html => (html.match(/<select id="[^"]*-focus"[^>]*>([\s\S]*?)<\/select>/)?.[1].match(/<option /g) || []).length;
+const without = contextView([]), withCopy = contextView(screen);
+assert.equal(focusOptions(without), 2); assert.match(without, /<option value="32" selected="">Lakeside 2025/); assert.match(without, /Across your selected races/);
+assert.equal(without, render(RunnerContext, { races: [source, repeated], manifest: copyManifest, units: 'mi' }), 'An empty screen leaves the view as it was');
+assert.equal(focusOptions(withCopy), 1, 'One focus option');
+assert.equal((withCopy.match(/<option /g) || []).length, 1, 'No other race to compare with');
+assert.match(withCopy, /<option value="31" selected="">Lakeside 2021/);
+assert.doesNotMatch(withCopy, /2025|record 32|Across your selected races|rc-multi/, 'The copy appears nowhere in the view');
+assert.equal((withCopy.match(/Read this race in the split check/g) || []).length, 1, 'One split-check link, for the source race');
+assert.equal(render(RunnerContext, { races: [repeated], manifest: copyManifest, units: 'mi', copyEditions: screen }), '', 'A selection of copies alone has no context view');
+console.log('Runner context UI passed: unchanged source values, weather/terrain units, missing versus zero, peer tie/rank/pace definitions, exact checkpoints, same-year section differences, and no focus option, comparison or split-check link for a copy edition.');

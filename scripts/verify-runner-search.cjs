@@ -110,6 +110,60 @@ async function main() {
   assertLimitedRecordsVisible(render([held, missing], 'mi'));
   assertLimitedRecordsVisible(render([held, missing], 'km'));
 
+  // Copy editions (lib/duplicate-editions.ts): synthetic editions whose records repeat a later field, as Chicago 2018
+  // and 2019 repeat Chicago 2024 in the adopted release. They stay visible as recorded times and reach no summary,
+  // comparison, focus option or split-check link; each one's sentence is shown once.
+  const { copyEditions, copyEditionSentence, isCopyEdition, RunnerRecordDetails } = { ...require('../lib/duplicate-editions.ts'), ...require('../components/RunnerSearch.tsx') };
+  const lakeside = { ...manifest, editions: [...manifest.editions, { city: 'Lakeside', year: 2018, race: 'Lakeside Marathon' }, { city: 'Lakeside', year: 2019, race: 'Lakeside Marathon' }, { city: 'Lakeside', year: 2024, race: 'Lakeside Marathon' }] };
+  const copies = [
+    { city: 'Lakeside', year: 2018, duplicate_of: 2024, eligible_removed: 51690, identical_nine_time_twins: 51372 },
+    { city: 'Lakeside', year: 2019, duplicate_of: 2024, eligible_removed: 51530, identical_nine_time_twins: 51212 },
+  ];
+  assert.equal(copyEditionSentence(copies[1]), "Lakeside 2019's records largely repeat the Lakeside 2024 field (51,212 of its 51,530 finishes share all nine checkpoint times with a 2024 finish), so they are shown as recorded times only, without pacing, peer or weather comparisons.");
+  assert.equal(isCopyEdition({ city: 'Lakeside', year: 2019 }, copies), true);
+  assert.equal(isCopyEdition({ city: 'Lakeside', year: 2024 }, copies), false, 'The source edition is not a copy');
+  assert.equal(isCopyEdition({ city: 'Bayview', year: 2019 }, copies), false, 'A copy is one city and year');
+  // The same nine times in three editions, as in the copies, and a held copy record that keeps its own reason.
+  const repeat = (id, edition) => race(id, edition, 290, { name: 'Fixture Runner' });
+  const [copy2018, copy2019, real2024] = [repeat(21, 3), repeat(22, 4), repeat(23, 5)];
+  const heldCopy = race(24, 4, 300, { eligible: false, reason: 'Missing source checkpoint', times: [null, ...base.times.slice(1)] });
+  const renderCopies = (races, screen) => renderToStaticMarkup(React.createElement(SelectedAnalysis, { races, manifest: lakeside, units: 'mi', copyEditions: screen }));
+  const copyHtml = renderCopies([copy2018, copy2019, real2024, heldCopy], copies);
+  const occurrences = (html, text) => html.split(text).length - 1;
+  assert.match(copyHtml, /One race\. A closer look\./, 'One eligible race once the copies are left out');
+  assert.match(copyHtml, /<strong>1<\/strong><span>Eligible selected finish<\/span><small>2024<\/small>/, 'The count and year span leave the copies out');
+  assert.doesNotMatch(copyHtml, /Your fastest selected finish in/, 'No year-over-year change from a copy');
+  assert.equal(occurrences(copyHtml.match(/<caption>All eligible races you selected<\/caption>[\s\S]*?<\/table>/)[0], '<th scope="row">'), 1, 'One row in the eligible table');
+  assert.match(copyHtml, /3 selected records have limited analysis/);
+  for (const copy of copies) assert.equal(occurrences(copyHtml, copyEditionSentence(copy).replace(/'/g, '&#x27;')), 1, `${copy.city} ${copy.year}: its sentence once`);
+  assert.equal(occurrences(copyHtml, 'Recorded times only'), 2, 'Each eligible copy record says so');
+  assert.match(copyHtml, /Missing source checkpoint/, 'A held record in a copy edition keeps its own reason');
+  assert.equal(occurrences(copyHtml, '<option '), 1, 'One focus option, the 2024 race');
+  assert.doesNotMatch(copyHtml, /Lakeside 2018 ·|Lakeside 2019 ·|Across your selected races|rc-multi/, 'No copy in the focus options or the side-by-side comparison');
+  assert.equal(occurrences(copyHtml, 'Read this race in the split check'), 1, 'One split-check link, for the 2024 race');
+  // Only copies selected: the records view, with each sentence once and no calculated figure.
+  const onlyCopies = renderCopies([copy2018, copy2019], copies);
+  assert.match(onlyCopies, /Your race records are here/);
+  assert.doesNotMatch(onlyCopies, /Fastest selected eligible finish|runner-context|[0-9]:[0-5][0-9]\/(?:mi|km)/, 'No figure is calculated from a copy');
+  for (const copy of copies) assert.equal(occurrences(onlyCopies, copyEditionSentence(copy).replace(/'/g, '&#x27;')), 1);
+  // An empty screen, or one naming other editions, leaves the page as it was.
+  assert.equal(renderCopies([copy2018, copy2019, real2024], []), renderToStaticMarkup(React.createElement(SelectedAnalysis, { races: [copy2018, copy2019, real2024], manifest: lakeside, units: 'mi' })));
+  assert.equal(renderCopies([base, changed, later], copies), render([base, changed, later], 'mi'));
+  assert.match(renderCopies([copy2018, copy2019, real2024], []), /3 races\. Your recorded progression\./);
+  const details = (row, screen) => renderToStaticMarkup(React.createElement(RunnerRecordDetails, { race: row, manifest: lakeside, copyEditions: screen }));
+  assert.match(details(copy2019, copies), /Recorded times only/); assert.doesNotMatch(details(copy2019, copies), /Pacing analysis available/);
+  assert.match(details(copy2019, []), /Pacing analysis available/);
+  assert.match(details(heldCopy, copies), /Recorded result · limited analysis/);
+  // The published screen: read from the verified story manifest, never typed in, and every sentence from its counts only.
+  const story = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/data/insights/manifest.json'), 'utf8'));
+  const screen = copyEditions();
+  assert.deepEqual(screen, (story.duplicate_edition_screen ?? []).map(({ reason: _reason, ...entry }) => entry).sort((a, b) => a.city.localeCompare(b.city) || a.year - b.year));
+  for (const entry of screen) {
+    const sentence = copyEditionSentence(entry);
+    assert.ok(sentence.includes(`(${entry.identical_nine_time_twins.toLocaleString('en-US')} of its ${entry.eligible_removed.toLocaleString('en-US')} finishes`), `${entry.city} ${entry.year}: counts from the manifest`);
+    assert.doesNotMatch(sentence, /the same names|participant|\ball (?!nine checkpoint times)/i, `${entry.city} ${entry.year}: never "the same names" or "all" records`);
+  }
+
   const originalFetch = global.fetch;
   const requests = [];
   let served;
@@ -212,6 +266,6 @@ async function main() {
   assert.deepEqual(metadata.robots, { index: false, follow: true }, '/runners is noindex, follow');
   assert.equal(metadata.alternates, undefined, 'A noindex page has no canonical');
   assert.doesNotMatch(JSON.stringify(metadata), /[?&]q=/);
-  console.log('Runner search checks passed: Unicode/token matching, complete pagination, all-ineligible search/profile views, retained source readings, explicit eligibility, year-only progression, mi/km readings, verified versioned gzip loading, the no-match ways on without the search text, and names kept out of the address with /runners noindex.');
+  console.log('Runner search checks passed: Unicode/token matching, complete pagination, all-ineligible search/profile views, retained source readings, explicit eligibility, year-only progression, mi/km readings, verified versioned gzip loading, the no-match ways on without the search text, copy editions kept out of every summary with their sentence once, and names kept out of the address with /runners noindex.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

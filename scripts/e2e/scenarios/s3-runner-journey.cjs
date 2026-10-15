@@ -4,10 +4,110 @@
 // onward link that keeps a query), then the site's navigation, which ends the handoff, and Back and Forward through
 // the history. I5 checks every rrweb event against the page open when it was recorded; the runner's name, record IDs,
 // times and the values in the handoff links are searched for in all PostHog traffic. It runs with the project's URL
-// blocklist in the mock (as deployed) and without it (the site's own rules alone).
+// blocklist in the mock (as deployed) and without it (the site's own rules alone). A third visitor opens a real profile
+// with copy-edition records (lib/duplicate-editions.ts) and checks they reach no summary, comparison or link.
+const fs = require('node:fs');
+const path = require('node:path');
+const zlib = require('node:zlib');
+const crypto = require('node:crypto');
 const { SITE, wiggle, waitFor } = require('../browser.cjs');
 
 const SURNAME = 'Johnson';
+
+// Name search as lib/runner-search.ts does it (normalizeRunnerName, runnerNameMatches, runnerShardKey).
+const normalize = value => value.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ');
+const nameMatches = (name, query) => {
+  const words = normalize(name).split(' '), tokens = normalize(query).split(' ').filter(Boolean);
+  return tokens.length > 0 && tokens.every(token => words.some(word => Array.from(token).length < 3 ? word === token : word.startsWith(token)));
+};
+const shardKey = value => crypto.createHash('sha256').update(value).digest('hex').slice(0, 3);
+
+/**
+ * A real candidate profile holding exactly one record in each of a copy edition's group (Chicago 2018, 2019 and 2024
+ * in the adopted release: the two copies and the field they repeat), all eligible, under one name that the search
+ * finds for this profile alone. It is looked up in the published shards when the check runs, so no runner's name is
+ * written in the repository; the checks and notes below never print it. Null when the release has no copy editions.
+ */
+function copyEditionProfile(out) {
+  const data = file => fs.readFileSync(path.join(out, 'data', file));
+  const runners = JSON.parse(data('runners/manifest.json'));
+  const screen = JSON.parse(data('insights/manifest.json')).duplicate_edition_screen ?? [];
+  if (!screen.length) return null;
+  const { city, duplicate_of: source } = screen[0];
+  const copies = screen.filter(entry => entry.city === city && entry.duplicate_of === source);
+  const years = [...copies.map(entry => entry.year), source];
+  const wanted = new Set(years.map(year => runners.editions.findIndex(edition => edition.city === city && edition.year === year)));
+  const shard = file => JSON.parse(zlib.gunzipSync(data('runners/' + file)));
+  for (const file of Object.keys(runners.shards).filter(file => file.startsWith('profiles/')).sort()) {
+    for (const profile of shard(file).profiles) {
+      const races = profile.races, query = normalize(races[0].name || '');
+      if (races.length !== wanted.size || new Set(races.map(race => race.edition)).size !== wanted.size || !races.every(race => race.eligible && wanted.has(race.edition))) continue;
+      if (!/^[a-z]{3,}(?: [a-z]{3,})+$/.test(query) || !races.every(race => normalize(race.name) === query)) continue;
+      const longest = query.split(' ').reduce((best, token) => token.length > best.length ? token : best);
+      const index = `index/${shardKey(longest.slice(0, 3))}.json.gz`;
+      if (!runners.shards[index]) continue;
+      const found = new Set(shard(index).rows.filter(row => nameMatches(row[0], query)).map(row => row[1]));
+      if (found.size === 1 && found.has(profile.id)) return { query, records: races.map(race => race.id), city, source, copies };
+    }
+  }
+  return null;
+}
+
+// S3 copy editions: that profile on /runners, every record selected. The copies say "Recorded times only" and reach no
+// summary, focus option, comparison or split-check link; one eligible race is analysed, and each copy's sentence shows once.
+async function copyEditionJourney(h) {
+  const found = copyEditionProfile(h.out);
+  if (!found) { h.note('this release has no copy editions with a matching candidate profile: nothing to check'); return; }
+  const { query, records, city, source, copies } = found;
+  const run = await h.run('copy-edition profile', {
+    needles: [query, ...query.split(' ').filter(word => word.length > 3), ...records.map(id => new RegExp(`(^|[^0-9a-f-])${id}($|[^0-9a-f-])`))],
+  });
+  const page = await run.newPage();
+  await page.goto(SITE + '/stories', { waitUntil: 'load' });
+  h.check('the recorder starts on /stories', await run.waitForRecording(page));
+  await page.click('nav.main-nav a[href="/runners"]');
+  await page.waitForURL('**/runners');
+  await page.waitForSelector('#runner-name:not([disabled])', { timeout: 30000 });
+  await page.locator('#runner-name').fill(query);
+  await page.click('.runner-search-form button[type="submit"]');
+  await page.waitForSelector('.runner-matches li', { timeout: 30000 });
+  h.check('the name finds one record group', await page.locator('.runner-match').count() === 1);
+  await page.locator('.runner-match').first().click();
+  await page.waitForSelector('.runner-profile', { timeout: 30000 });
+  const labels = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, item.querySelector('.runner-eligible, .runner-ineligible')?.textContent])));
+  const expected = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 'Recorded times only']), [`${city} ${source}`, 'Pacing analysis available']]);
+  h.check('each copy record says "Recorded times only"; the field it repeats has pacing analysis', JSON.stringify(labels, Object.keys(expected).sort()) === JSON.stringify(expected, Object.keys(expected).sort()), labels);
+  const boxes = page.locator('.runner-races input[type="checkbox"]');
+  for (let i = 0; i < await boxes.count(); i++) await boxes.nth(i).check();
+  await page.click('.runner-selection-actions .button-primary');
+  await page.waitForSelector('.runner-context', { timeout: 30000 });
+  await page.waitForTimeout(1500);
+  const view = await page.evaluate(() => {
+    const analysis = document.querySelector('.runner-analysis'), context = analysis?.querySelector('.runner-context');
+    const eligible = [...(analysis?.querySelectorAll('table') || [])].find(table => table.caption?.textContent === 'All eligible races you selected');
+    return {
+      heading: analysis?.querySelector('h2')?.textContent, rows: eligible ? eligible.tBodies[0].rows.length : null,
+      count: analysis?.querySelector('.runner-numbers > div:nth-child(3)')?.innerText.split('\n').join(' · '),
+      focus: [...(context?.querySelector('select')?.options || [])].map(option => option.textContent.split(' · ')[0]),
+      multi: !!context?.querySelector('.rc-multi'), split: [...(context?.querySelectorAll('a') || [])].filter(a => a.textContent.includes('split check')).length,
+      text: document.body.innerText, contextText: context?.innerText || '',
+    };
+  });
+  h.check('one eligible race: the heading, the count with its year and one table row', view.heading === 'One race. A closer look.' && view.rows === 1 && view.count === `1 · Eligible selected finish · ${source}`, { heading: view.heading, rows: view.rows, count: view.count });
+  for (const copy of copies) {
+    const sentence = `${city} ${copy.year}'s records largely repeat the ${city} ${source} field (${copy.identical_nine_time_twins.toLocaleString('en-US')} of its ${copy.eligible_removed.toLocaleString('en-US')} finishes`;
+    h.check(`${city} ${copy.year}: its sentence shows once`, view.text.split(sentence).length - 1 === 1, view.text.split(sentence).length - 1);
+    h.check(`${city} ${copy.year}: not in the race context view`, !view.contextText.includes(`${city} ${copy.year}`));
+  }
+  h.check('one focus option, no side-by-side comparison and one split-check link', JSON.stringify(view.focus) === JSON.stringify([`${city} ${source}`]) && !view.multi && view.split === 1, { focus: view.focus, multi: view.multi, split: view.split });
+  await wiggle(page, 4);
+  await run.flush(page);
+  await run.close();
+  h.inspect.invariants(run);
+  const runnerPages = [...run.openWhileRecording].filter(page => h.inspect.NEVER_RECORDED(page));
+  h.check('/stories was recorded and nothing while /runners was open', run.recordedPages.has('/stories') && !runnerPages.length, { recorded: [...run.recordedPages.keys()], runnerPages });
+  h.note(`a ${city} profile with ${records.length} records (${[...copies.map(copy => copy.year), source].join(', ')}); its name and record IDs were searched for in all PostHog traffic`);
+}
 
 async function journey(h, blocklist) {
   const run = await h.run(blocklist ? 'with the project blocklist' : 'site rules alone', { blocklist });
@@ -107,9 +207,10 @@ async function journey(h, blocklist) {
 
 module.exports = {
   id: 'S3',
-  title: 'Runner search journey: profile, handoff links, reload, Back and Forward',
+  title: 'Runner search journey: profile, handoff links, reload, Back and Forward; a copy-edition profile',
   jobs: ({ quick }) => [
     { name: 'site rules alone', weight: 95, run: h => journey(h, false) },
     ...(quick ? [] : [{ name: 'with the project blocklist', weight: 95, run: h => journey(h, true) }]),
+    { name: 'copy editions', weight: 30, run: copyEditionJourney },
   ],
 };
