@@ -267,7 +267,8 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.match(html, /Per mile[\s\S]*9:09[\s\S]*Per km[\s\S]*5:41/, '4:00 even pace: 9:09/mi and 5:41/km, miles first'); ok();
   assert.deepEqual([...html.matchAll(/class="plan-mats-k">[^<]*(?:<small>[^<]*<\/small>)?<\/span><b>([^<]+)<\/b>/g)].map((m) => m[1]),
     ['28:26', '56:53', '1:25:19', '1:53:45', '2:22:12', '2:50:38', '3:19:05', '3:47:31', '4:00:00'], 'Even-pace time at each mat for 4:00 (14,400 s ÷ 42.195 km × each mat)'); ok();
-  assert.deepEqual([...html.matchAll(/data-track-section="([^"]+)"/g)].map((m) => m[1]), ['result', 'pace-band'], 'The result and the pace band are tracked; the comparison appears with its data'); ok();
+  // The tracker looks for sections once per page view, so all three are mounted from the start; the comparison is hidden until its data shows.
+  assert.deepEqual([...html.matchAll(/<div data-track-section="([^"]+)"( hidden="")?>/g)].map((m) => m[1] + (m[2] ? ' (hidden)' : '')), ['result', 'comparison (hidden)', 'pace-band']); ok();
   assert.match(html, /Print wristband strips[\s\S]*Print this plan[\s\S]*class="tool-share share-bar no-print"/); ok();
   assert.match(html, /\/tools\/weather-match\?goal=4:00:00[\s\S]*\/tools\/projector\?target=4:00:00&amp;t=none[\s\S]*\/analyses\/pacing-pattern\?goal=240[\s\S]*\/analyses\/hills-and-pacing\?goal=240[\s\S]*\/tools\/split-check"/, 'Links carry the goal in each target\'s own form'); ok();
   assert.doesNotMatch(html, /your chance|the wall|arithmetic|adjusted/i); ok();

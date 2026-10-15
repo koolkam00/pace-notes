@@ -236,6 +236,7 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
   }, [summary]);
 
   const fieldError = read !== null && goal === null ? problem : undefined;
+  const planned = goal !== null && pKm !== null && minute !== null;
   const city = course?.city ?? null;
 
   return (
@@ -263,9 +264,7 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
 
         <div className="tool-results">
           <p className="sr-only" aria-live="polite">{status}</p>
-          {goal === null || pKm === null || minute === null ? (
-            <p className="tool-empty plan-problem">{problem}</p>
-          ) : (
+          {!planned ? <p className="tool-empty plan-problem">{problem}</p> : (
             <>
               <div className="print-only plan-print-head">
                 <p className="plan-print-kicker">Pace Notes · race plan</p>
@@ -292,48 +291,58 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
                   ))}
                 </ol>
               </section>
+            </>
+          )}
 
-              <div data-track-section="result">
-                <EvidencePanel kind="data" id="plan-result" title={isAll ? <>On all courses, at {fmtGoal(goal)} pace</> : course ? <>On {course.city}, at {fmtGoal(goal)} pace</> : <>Course not found</>}
-                  meta={isAll ? <>All courses together: the pace band’s group of finishes that came in from {formatDuration(minute * 60 - windowS, true)} to {formatDuration(minute * 60 - 1, true)}, every course and edition pooled. Choose a course for its own results.</>
-                    : course ? <>Observed shares of complete finishes that ran 5–20 km within {Math.round((goalData.data?.tolerance ?? 0.02) * 100)}% of your goal pace. Not a prediction.</> : undefined}>
-                  {unknown ? (
-                    <p className="plan-unavailable">This link names a course that is not in the data. Choose one above; your plan and pace band below still work.</p>
-                  ) : isAll ? (
-                    !paceBandSha ? <p className="plan-unavailable">The observed finishes are not available in this build. Your plan and pace band still work.</p>
-                      : bandIndex.error || shard.error ? <DataProblem error={(bandIndex.error ?? shard.error)!} onRetry={() => { bandIndex.retry(); shard.retry(); }} />
-                      : !inBand ? <p className="plan-unavailable"><strong>Outside the observed range.</strong> Observed groups cover whole-minute goals from {formatHM(bandGoals[0] * 60)} to {formatHM(bandGoals[1] * 60)}. Your plan and pace band below work for any goal from 1:30 to 8:00.</p>
-                      : !shard.data ? <p className="tool-state">Loading the observed finishes…</p>
-                      : all ? <AllCourses all={all} goal={goal} minute={minute} units={units} />
-                      : <p className="plan-unavailable"><strong>Not published for this goal.</strong> Fewer than 100 finishes came in during the five minutes up to {formatHM(minute * 60)}, so no group is shown.</p>
-                  ) : course ? (
-                    !courseGoalSha ? <p className="plan-unavailable">The course results are not available in this build. Your plan and pace band still work.</p>
-                      : goalData.error ? <DataProblem error={goalData.error} onRetry={goalData.retry} />
-                      : !result ? <p className="tool-state">Loading the course results…</p>
-                      : result.state === 'row' ? <CourseRow result={result} goal={goal} units={units} step={goalData.data!.goal_step_min} />
-                      : (
-                        <div className="plan-unavailable">
-                          <p><strong>No course results for {course.city} at this goal.</strong> {result.reason}</p>
-                          <p>Your plan above and your pace band below still work.</p>
-                          {result.course ? <CourseContextList course={result.course} units={units} /> : null}
-                        </div>
-                      )
-                  ) : null}
-                </EvidencePanel>
-              </div>
+          {/* SectionTracker looks for the marked sections once per page view, so each stays mounted, hidden while it has
+              nothing to show (no goal, no observed group for this course), and counts when it first shows. */}
+          <div data-track-section="result" hidden={!planned}>
+            {planned ? (
+              <EvidencePanel kind="data" id="plan-result" title={isAll ? <>On all courses, at {fmtGoal(goal)} pace</> : course ? <>On {course.city}, at {fmtGoal(goal)} pace</> : <>Course not found</>}
+                meta={isAll ? <>All courses together: the pace band’s group of finishes that came in from {formatDuration(minute * 60 - windowS, true)} to {formatDuration(minute * 60 - 1, true)}, every course and edition pooled. Choose a course for its own results.</>
+                  : course ? <>Observed shares of complete finishes that ran 5–20 km within {Math.round((goalData.data?.tolerance ?? 0.02) * 100)}% of your goal pace. Not a prediction.</> : undefined}>
+                {unknown ? (
+                  <p className="plan-unavailable">This link names a course that is not in the data. Choose one above; your plan and pace band below still work.</p>
+                ) : isAll ? (
+                  !paceBandSha ? <p className="plan-unavailable">The observed finishes are not available in this build. Your plan and pace band still work.</p>
+                    : bandIndex.error || shard.error ? <DataProblem error={(bandIndex.error ?? shard.error)!} onRetry={() => { bandIndex.retry(); shard.retry(); }} />
+                    : !inBand ? <p className="plan-unavailable"><strong>Outside the observed range.</strong> Observed groups cover whole-minute goals from {formatHM(bandGoals[0] * 60)} to {formatHM(bandGoals[1] * 60)}. Your plan and pace band below work for any goal from 1:30 to 8:00.</p>
+                    : !shard.data ? <p className="tool-state">Loading the observed finishes…</p>
+                    : all ? <AllCourses all={all} goal={goal} minute={minute} units={units} />
+                    : <p className="plan-unavailable"><strong>Not published for this goal.</strong> Fewer than 100 finishes came in during the five minutes up to {formatHM(minute * 60)}, so no group is shown.</p>
+                ) : course ? (
+                  !courseGoalSha ? <p className="plan-unavailable">The course results are not available in this build. Your plan and pace band still work.</p>
+                    : goalData.error ? <DataProblem error={goalData.error} onRetry={goalData.retry} />
+                    : !result ? <p className="tool-state">Loading the course results…</p>
+                    : result.state === 'row' ? <CourseRow result={result} goal={goal} units={units} step={goalData.data!.goal_step_min} />
+                    : (
+                      <div className="plan-unavailable">
+                        <p><strong>No course results for {course.city} at this goal.</strong> {result.reason}</p>
+                        <p>Your plan above and your pace band below still work.</p>
+                        {result.course ? <CourseContextList course={result.course} units={units} /> : null}
+                      </div>
+                    )
+                ) : null}
+              </EvidencePanel>
+            ) : null}
+          </div>
 
-              {comparison ? (
-                <div data-track-section="comparison">
-                  <EvidencePanel kind="data" id="plan-comparison" title={<>Where finishes near {fmtGoal(goal)} were at each mat</>}
-                    meta={<>Finishes that came in from {formatDuration(comparison.lo, true)} to {formatDuration(comparison.hi, true)} {where}, all recorded genders: the median elapsed time at each official mat, by whether they had a sustained slowdown. Observed, not a recommended plan.{goal % 60 ? ` Your goal has seconds, so the window uses the whole minute below it, ${formatHM(comparison.minute * 60)}.` : ''}</>}>
-                    <MatTable goal={goal} pKm={pKm} units={units} observed={comparison} />
-                    <p className="plan-caption">
-                      20 km is the 20 km mat, not halfway. Your even-pace times are calculated from your goal; the other columns are what finishes ran, and no number mixes the two. Counts are finishes, not people.
-                      {!comparison.held ? ' The held-pace group has fewer than 100 finishes in this window, so it is not shown.' : !comparison.slow ? ' The sustained-slowdown group has fewer than 100 finishes in this window, so it is not shown.' : ''}
-                    </p>
-                  </EvidencePanel>
-                </div>
-              ) : !isAll && course?.band && shard.error ? (
+          <div data-track-section="comparison" hidden={!planned || !comparison}>
+            {planned && comparison ? (
+              <EvidencePanel kind="data" id="plan-comparison" title={<>Where finishes near {fmtGoal(goal)} were at each mat</>}
+                meta={<>Finishes that came in from {formatDuration(comparison.lo, true)} to {formatDuration(comparison.hi, true)} {where}, all recorded genders: the median elapsed time at each official mat, by whether they had a sustained slowdown. Observed, not a recommended plan.{goal % 60 ? ` Your goal has seconds, so the window uses the whole minute below it, ${formatHM(comparison.minute * 60)}.` : ''}</>}>
+                <MatTable goal={goal} pKm={pKm} units={units} observed={comparison} />
+                <p className="plan-caption">
+                  20 km is the 20 km mat, not halfway. Your even-pace times are calculated from your goal; the other columns are what finishes ran, and no number mixes the two. Counts are finishes, not people.
+                  {!comparison.held ? ' The held-pace group has fewer than 100 finishes in this window, so it is not shown.' : !comparison.slow ? ' The sustained-slowdown group has fewer than 100 finishes in this window, so it is not shown.' : ''}
+                </p>
+              </EvidencePanel>
+            ) : null}
+          </div>
+
+          {planned ? (
+            <>
+              {!comparison && !isAll && course?.band && shard.error ? (
                 <EvidencePanel kind="data" id="plan-comparison-error" title={<>Where finishes near {fmtGoal(goal)} were at each mat</>}>
                   <DataProblem error={shard.error} onRetry={shard.retry} />
                 </EvidencePanel>
@@ -345,8 +354,12 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
               ) : sameGoal !== null && sameGoalRows.length ? (
                 <SameGoal rows={sameGoalRows} minutes={sameGoal} chosen={city} units={units} tolerance={goalData.data!.tolerance} />
               ) : null}
+            </>
+          ) : null}
 
-              <section className="tool-panel plan-band" id="plan-band" data-track-section="pace-band" aria-labelledby="plan-band-title">
+          <div data-track-section="pace-band" hidden={!planned}>
+            {planned ? (
+              <section className="tool-panel plan-band" id="plan-band" aria-labelledby="plan-band-title">
                 <header className="tool-panel-head">
                   <h2 className="tool-panel-title" id="plan-band-title">Your pace band</h2>
                   <p className="tool-panel-meta">Your plan, ready to cut out: the exact even-pace time at each 5 km mat and every {units === 'mi' ? 'mile' : 'kilometre'}, with the held-pace median (“H”) at each mat where Pace Notes data publishes one. Strips are about 2.5 cm wide; print at 100% scale.</p>
@@ -362,6 +375,11 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
                   <Link href={`${paceBandGoalHref(minute) ?? '/tools/pace-band'}${course?.band ? `&course=${course.slug}` : ''}`}>Open the full pace band</Link> for a watch that reads long, recorded-gender groups and a route elevation strip for the back.
                 </p>
               </section>
+            ) : null}
+          </div>
+
+          {planned ? (
+            <>
               <p className="print-only plan-print-source">Pace Notes data · splithappens.run/tools/plan</p>
 
               <section className="plan-next no-print" aria-labelledby="plan-before-title">
@@ -392,7 +410,7 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
                 ]} />
               </section>
             </>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

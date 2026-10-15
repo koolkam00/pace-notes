@@ -100,7 +100,7 @@
   .plan-print-head { order: 1; display: grid; gap: .08cm; padding-bottom: .2cm; border-bottom: 1.5pt solid #000; font-size: 9pt; color: #000; }
   .plan-print-kicker { font-family: var(--mono); font-size: 7.5pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
   .plan-print-title { font-family: var(--serif); font-size: 18pt; font-weight: 680; line-height: 1.1; }
-  #plan-band { order: 2; }
+  .plan-root [data-track-section='pace-band'] { order: 2; }
   .plan-root [data-track-section='comparison'], .plan-print-mats { order: 3; }
   .plan-print-source { order: 4; padding-top: .15cm; border-top: .5pt solid #000; font-family: var(--mono); font-size: 7.5pt; color: #000; }
   #plan-comparison .tool-panel-head { margin-bottom: .15cm; }
@@ -117,5 +117,5 @@
   .plan-key { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
   /* Wristband strips only */
-  .plan-root[data-print='strip'] .tool-results > :not(#plan-band) { display: none !important; }
+  .plan-root[data-print='strip'] .tool-results > :not([data-track-section='pace-band']) { display: none !important; }
 }
