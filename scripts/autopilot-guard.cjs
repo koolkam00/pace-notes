@@ -25,12 +25,14 @@ const { execFileSync } = require('node:child_process');
  * autopilot/CONSTITUTION.md §6; only the owner changes it, in a pull request that is not on an autopilot/ branch.
  * `**` matches across folders (and `**` followed by a slash also matches no folder at all), `*` within one path segment.
  * The privacy modules are protected under every extension: webpack resolves .js and .mjs before .tsx and .ts, so a
- * sibling such as lib/analytics.js would otherwise replace lib/analytics.ts in the bundle.
+ * sibling such as lib/analytics.js would otherwise replace lib/analytics.ts in the bundle. Every components/Experiment*
+ * file is the experiment framework (Experiment.tsx and ExperimentVariant.tsx, which holds useVariant); the registry,
+ * lib/experiments.ts, is not protected.
  */
 const PROTECTED = [
   'analysis/**', 'public/data/**', 'data/**', 'docs/evidence/**',
   'lib/analytics.*', 'lib/analytics-policy.*', 'lib/replay-policy.*', 'lib/event-policy.*', 'lib/data-fetch.*', 'lib/experiment-runtime.*', 'lib/chunk-reload.*',
-  'components/SiteAnalytics.*', 'components/AnalyticsPreference.*', 'components/PageFeedback.*', 'components/SectionTracker.*', 'components/Experiment.*',
+  'components/SiteAnalytics.*', 'components/AnalyticsPreference.*', 'components/PageFeedback.*', 'components/SectionTracker.*', 'components/Experiment*',
   'app/privacy/**', 'app/**/error.*', 'app/**/global-error.*', 'app/**/not-found.*',
   'scripts/**', '.github/**', '.claude/**', 'CLAUDE.md', 'AGENTS.md',
   'autopilot/CONSTITUTION.md', 'autopilot/metrics.md',
@@ -47,12 +49,14 @@ const ALLOWED = ['app/**', 'components/**', 'lib/**', 'hooks/**', 'context/**', 
 
 /** Written for people, never built into the site: the only files whose added lines are not scanned. */
 const PROSE = ['docs/**/*.md', 'autopilot/ledger.jsonl', 'autopilot/backlog.md', 'autopilot/LEARNINGS.md'];
+/** A pull request that changes only these (existing ledger lines, the backlog, the learnings) is bookkeeping: it needs no new ledger line. */
+const BOOKKEEPING = ['autopilot/ledger.jsonl', 'autopilot/backlog.md', 'autopilot/LEARNINGS.md'];
 
 const BRANCH_PREFIX = 'autopilot/';
 const BRANCH_NAME = /^autopilot\/(\d{4}-\d{2}-\d{2})-[a-z0-9]+(-[a-z0-9]+)*$/;
 const BRANCH_MAX = 80;
 const LIMITS = {
-  files: 30, lines: 1500,
+  files: 60, lines: 1500,
   binaryBytes: 600 * 1024, binaryTotalBytes: 2 * 1024 * 1024,
   textBytes: 200 * 1024, textTotalBytes: 1024 * 1024,
   lineLength: 3000, ledgerLines: 10, ledgerDateDays: 2,
@@ -63,9 +67,15 @@ const LEDGER = 'autopilot/ledger.jsonl';
 const ROUTE_FILE = /^app\/(?:.+\/)?(?:page|route)\.(?:tsx?|jsx?|mdx?)$|^app\/(?:robots|sitemap|manifest)\.(?:tsx?|jsx?)$/;
 /** New JavaScript in site code: it is not type-checked (allowJs is false), and webpack prefers it to a .ts file of the same name. */
 const SITE_JS = /^(?:app|components|lib|hooks|context|styles)\/.+\.(?:js|jsx|mjs|cjs)$/;
-/** The only binary files an autopilot pull request may add or change (under public/, not public/data/). Every other file must be UTF-8 text, and is scanned. */
-const MEDIA_TYPES = ['png', 'jpg', 'jpeg', 'webp', 'avif', 'gif', 'ico', 'woff', 'woff2', 'pdf', 'mp4', 'webm'];
+/**
+ * The only binary files an autopilot pull request may add or change: under public/ (not public/data/), and the
+ * Next.js metadata images under app/ (favicon.ico, icon, apple-icon, opengraph-image and twitter-image files). Every
+ * other file must be UTF-8 text, and is scanned.
+ */
+const MEDIA_TYPES = ['png', 'jpg', 'jpeg', 'webp', 'avif', 'gif', 'ico', 'woff', 'woff2', 'ttf', 'otf', 'pdf', 'mp4', 'webm'];
 const MEDIA = new RegExp(`\\.(?:${MEDIA_TYPES.join('|')})$`, 'i');
+const METADATA_IMAGE = /^app\/(?:.+\/)?(?:favicon\.ico|(?:icon|apple-icon|opengraph-image|twitter-image)\d*\.(?:png|jpe?g|gif|ico))$/;
+const binaryAllowedAt = (file) => (file.startsWith('public/') && !file.startsWith('public/data/')) || METADATA_IMAGE.test(file);
 const SCRIPT_FILE = /\.(?:[cm]?[jt]sx?)$/i;
 const MARKUP_FILE = /\.(?:html?|svg|xml)$/i;
 
@@ -93,13 +103,16 @@ const FORBIDDEN = [
   ['new WebSocket', /\bWebSocket\b/],
   ['EventSource(', /\bEventSource\b/],
   ['PostHog', /posthog/i],
-  ['<iframe, <embed or <object', /<(?:iframe|frame|embed|object)\b/i, /<(?:iframe|frame|embed|object)\b/],
+  // In script files <object is a tag only when no type punctuation follows it (Array<object>, Map<object, …>).
+  ['<iframe, <embed or <object', /<(?:iframe|frame|embed|object)\b/i, /<(?:iframe|frame|embed)\b|<object\b(?!\s*[,|&>)\]])/],
   ['<base', /<base\b/i, /<base\b/],
-  ['javascript: URL', /javascript:/i],
+  // In script files only an address (after a quote, "(" or "="), so copy such as "needs JavaScript: …" is fine.
+  ['javascript: URL', /javascript:/i, /[\x60'"(=]\s*javascript\s*:/i],
   ['fetch( of an absolute URL', new RegExp(String.raw`\b(?:fetch|Request)\s*\(\s*(?:new\s+URL\s*\(\s*)?${EXTERNAL}`, 'i')],
   ['import( of an http(s) URL', new RegExp(String.raw`\bimport\s*\(\s*(?:\/\*[\s\S]*?\*\/\s*)?${EXTERNAL}|\bfrom\s+${EXTERNAL}`, 'i')],
   ['src=/srcSet= of an absolute URL', new RegExp(String.raw`\b(?:src|poster|action|formaction|ping|background)\s*=\s*\{?\s*${EXTERNAL}|\b(?:image)?srcset\s*=\s*\{?\s*[\x60'"][^\x60'"]*?(?:https?:)?\/\/`, 'i')],
-  ['url( of an absolute URL', new RegExp(String.raw`\burl\s*\(\s*${EXTERNAL_BARE}`, 'i')],
+  // Lower case in script files, so the URL constructor is left to the address scan below (which knows the site's own host).
+  ['url( of an absolute URL', new RegExp(String.raw`\burl\s*\(\s*${EXTERNAL_BARE}`, 'i'), new RegExp(String.raw`\burl\s*\(\s*${EXTERNAL_BARE}`)],
   ['@import of an http(s) URL', new RegExp(String.raw`@import\s+(?:url\s*\(\s*)?${EXTERNAL_BARE}`, 'i')],
   ['<link>/<image>/<use> of an absolute URL', new RegExp(String.raw`<(?:link|image|use|feimage)\b[^>]*\b(?:xlink:)?href\s*=\s*\{?\s*${EXTERNAL}`, 'i'), new RegExp(String.raw`<(?:link|image|use|feImage)\b[^>]*\b(?:xlink:)?href\s*=\s*\{?\s*${EXTERNAL}`)],
   ['RTCPeerConnection / WebTransport', /RTCPeerConnection|WebTransport/],
@@ -116,28 +129,32 @@ const FORBIDDEN_MARKUP = [['inline event handler (onload=, onerror=, …)', /\bo
 const URL_ALLOWED = ['splithappens.run', 'www.splithappens.run', 'doi.org', 'schema.org', 'www.w3.org', 'www.sitemaps.org', 'github.com/koolkam00/'];
 // An address in code: after a quote, a space, a comma, "(" or "="; protocol-relative ones only right after a quote, "(" or "=".
 const URL_IN_CODE = /(^|[\x60'"\s,(=])((?:https?:)?\/\/)([a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,})(?::\d+)?(\/[^\s\x60'")]*)?/gi;
-// Where an address is a destination rather than something the page loads: href= (an <a> or a next/link <Link>), or
-// an href, url or link field of a list of links. <link>, <use> and <image> hrefs have their own rule above.
-const LINK_CONTEXT = /(?:\bhref\s*=\s*\{?\s*|\b(?:href|url|link)\s*:\s*)$/i;
+// Where an address is a destination or an identifier rather than something the page loads: href= (an <a> or a
+// next/link <Link>); an href, url or link field of a list of links; the JSON-LD identifier fields license, sameAs,
+// citation and @id; an XML namespace (xmlns:inkscape="http://…"). <link>, <use> and <image> hrefs have their own rule above.
+const LINK_CONTEXT = /(?:\bhref\s*=\s*\{?\s*|\bxmlns(?::[\w-]+)?\s*=\s*|\b(?:href|url|link|license|sameAs|citation)\s*:\s*|[\x60'"]@id[\x60'"]\s*:\s*)$/i;
+// An address whose host is computed (`https://${host}/…`, 'https://' + host): the address scan cannot read the host.
+const COMPUTED_HOST = /([\x60'"])\s*(?:https?:)?\/\/(?:\$\{|\1\s*\+)/g;
 
 /** Wording the site never uses (autopilot/CONSTITUTION.md §3), and release identifiers that never appear in visible copy. */
 const BANNED = [
   ['"arithmetic"', /arithmetic/i],
-  ['"the wall" (say "sustained slowdown")', /\bthe\s+wall\b/i],
+  ['"the wall" (say "sustained slowdown")', /\bthe\s+wall\b(?![\s-]*clock)/i],
   ['"hit the wall"', /\bhit(s|ting)?\s+the\s+wall\b/i],
   ['"your chance" (shares are observed, never a chance)', /your\s+chance/i],
-  ['"private-export" (release tags stay out of copy)', /private-export/i],
+  // The tag itself; the prefix alone is how the data loaders check a release (release.tag.replace('private-export-', …)).
+  ['"private-export-…" (release tags stay out of copy)', /private-export-\d/i],
   ['"20260912" (release tags stay out of copy)', /20260912/],
 ];
 
 const LEDGER_REQUIRED = ['id', 'date', 'kind', 'title', 'hypothesis', 'primary_metric', 'guardrails', 'baseline', 'decision_rule', 'evaluate_after', 'status', 'pr', 'verdict', 'result'];
-const LEDGER_MUTABLE = new Set(['status', 'verdict', 'result', 'evaluated_on', 'pr', 'notes']);
+const LEDGER_MUTABLE = new Set(['status', 'verdict', 'result', 'evaluated_on', 'pr', 'shipped_on', 'notes']);
 /** Fields that may be filled in once (from null or absent) and are then fixed, so a recorded outcome cannot be rewritten. */
-const LEDGER_SET_ONCE = ['verdict', 'result', 'evaluated_on', 'pr'];
+const LEDGER_SET_ONCE = ['verdict', 'result', 'evaluated_on', 'pr', 'shipped_on'];
 const LEDGER_KINDS = ['change', 'experiment', 'conclude', 'revert', 'fix'];
 const LEDGER_STATUSES = ['proposed', 'shipped', 'reverted', 'concluded'];
-/** How an entry's status may move; it never moves back. */
-const LEDGER_NEXT = { proposed: ['shipped', 'reverted'], shipped: ['concluded', 'reverted'], concluded: ['reverted'], reverted: [] };
+/** How an entry's status may move; it never moves back. (proposed to concluded: marked shipped and judged in one pull request.) */
+const LEDGER_NEXT = { proposed: ['shipped', 'concluded', 'reverted'], shipped: ['concluded', 'reverted'], concluded: ['reverted'], reverted: [] };
 const LEDGER_VERDICTS = ['keep', 'revert', 'inconclusive', 'iterate', 'ship-variant', 'keep-control'];
 const LEDGER_ID = /^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$/;
 
@@ -228,12 +245,12 @@ function isText(buffer) {
   try { UTF8.decode(buffer); return true; } catch { return false; }
 }
 
-/** Added lines (with their line numbers in the new file) and the number of deleted lines of one text change. */
+/** Added lines (with their line numbers in the new file) and the deleted lines of one text change. */
 function textChange(cwd, from, to, entry) {
   const paths = [...new Set([entry.oldPath, entry.newPath].filter(Boolean))];
   const patch = git(cwd, ['diff', '--text', '-U0', '--no-color', '--no-ext-diff', '--no-textconv', '-M', from, to, '--', ...paths]);
   const added = [];
-  let deleted = 0;
+  const deleted = [];
   let inHunk = false;
   let next = 0;
   for (const line of patch.split('\n')) {
@@ -242,7 +259,7 @@ function textChange(cwd, from, to, entry) {
     if (hunk) { inHunk = true; next = Number(hunk[1]); continue; }
     if (!inHunk) continue;
     if (line.startsWith('+')) { added.push({ line: next, text: line.slice(1) }); next += 1; }
-    else if (line.startsWith('-')) deleted += 1;
+    else if (line.startsWith('-')) deleted.push(line.slice(1));
   }
   return { added, deleted };
 }
@@ -266,7 +283,14 @@ function lineAt(block, offset) {
   }
   return block.lines[block.lines.length - 1];
 }
-function scan(file, blocks, rules, rule, violations) {
+/** True when every line a match spans is a line moved here unchanged from elsewhere in the change (see check()). */
+function movedMatch(block, match, moved) {
+  if (!moved.size) return false;
+  const first = lineAt(block, match.index);
+  const last = lineAt(block, match.index + Math.max(0, match[0].length - 1));
+  return block.lines.filter((line) => line >= first && line <= last).every((line) => moved.has(line));
+}
+function scan(file, blocks, rules, rule, violations, moved = new Set()) {
   const reported = new Set();
   const script = SCRIPT_FILE.test(file);
   for (const block of blocks) {
@@ -274,6 +298,7 @@ function scan(file, blocks, rules, rule, violations) {
       const chosen = script && scriptPattern ? scriptPattern : pattern;
       const global = new RegExp(chosen.source, chosen.flags.includes('g') ? chosen.flags : `${chosen.flags}g`);
       for (const match of block.text.matchAll(global)) {
+        if (movedMatch(block, match, moved)) continue;
         const line = lineAt(block, match.index);
         const key = `${name}:${line}`;
         if (reported.has(key)) continue;
@@ -284,31 +309,52 @@ function scan(file, blocks, rules, rule, violations) {
   }
 }
 
-/** Comments blanked out (same length, so offsets still map to lines): addresses in comments are notes, not loads. */
+/** Is position `at` inside a quoted string on its line? An odd number of one kind of quote before it says so. */
+const inString = (text, at) => {
+  const before = text.slice(text.lastIndexOf('\n', at - 1) + 1, at);
+  return ["'", '"', '`'].some((quote) => before.split(quote).length % 2 === 0);
+};
+const blank = (text) => text.replace(/[^\n]/g, ' ');
+/**
+ * Comments blanked out (same length, so offsets still map to lines): addresses in comments are notes, not loads. A
+ * comment marker inside a string ('/*', ' //') is code, and a line inside a JSDoc comment whose opening line is not
+ * part of the change (" * see https://…") is still a comment.
+ */
 const blankComments = (text) => text
-  .replace(/\/\*[\s\S]*?\*\/|<!--[\s\S]*?-->/g, (comment) => comment.replace(/[^\n]/g, ' '))
-  .replace(/(^|[\s;{}])(\/\/.*)$/gm, (all, before, comment) => before + ' '.repeat(comment.length));
+  .replace(/\/\*[\s\S]*?\*\/|<!--[\s\S]*?-->/g, (comment, at, all) => (inString(all, at) ? comment : blank(comment)))
+  .replace(/(^|[\s;{}])(\/\/.*)$/gm, (match, before, comment, at, all) => (inString(all, at + before.length) ? match : before + blank(comment)))
+  .replace(/^(\s*)(\*(?:\s(?:(?!\*\/).)*)?)(?=\*\/|$)/gm, (match, indent, comment) => indent + blank(comment));
 
 function urlAllowed(host, rest) {
-  const target = `${host.toLowerCase()}${rest || '/'}`;
+  // Compared with a trailing slash, so github.com/koolkam00 matches the entry github.com/koolkam00/ (and github.com/koolkam00x does not).
+  const target = `${host.toLowerCase()}${rest || '/'}/`;
   return URL_ALLOWED.some((entry) => (entry.includes('/') ? target.startsWith(entry) : host.toLowerCase() === entry));
 }
+const linkContext = (text, at) => LINK_CONTEXT.test(text.slice(Math.max(0, at - 60), at));
 /** Added addresses on another host, wherever they are (constants, data, srcset lists, templates), unless they are a link's destination. */
-function scanUrls(file, blocks, violations) {
+function scanUrls(file, blocks, violations, moved = new Set()) {
   const reported = new Set();
+  const report = (block, match, host, message) => {
+    if (movedMatch(block, match, moved)) return;
+    const line = lineAt(block, match.index);
+    const key = `${host}:${line}`;
+    if (reported.has(key)) return;
+    reported.add(key);
+    violations.push({ rule: 'forbidden-pattern', file, line, message });
+  };
   for (const block of blocks) {
     const text = blankComments(block.text);
     for (const match of text.matchAll(URL_IN_CODE)) {
       const [, before, scheme, host, rest] = match;
       const quote = /[\x60'"]/.test(before);
       if (scheme === '//' && !(quote || before === '(' || before === '=')) continue;
-      if (quote && LINK_CONTEXT.test(text.slice(Math.max(0, match.index - 60), match.index))) continue;
+      if (quote && linkContext(text, match.index)) continue;
       if (urlAllowed(host, rest)) continue;
-      const line = lineAt(block, match.index);
-      const key = `${host}:${line}`;
-      if (reported.has(key)) continue;
-      reported.add(key);
-      violations.push({ rule: 'forbidden-pattern', file, line, message: `an address on another host (${host}) outside a link: pages may not load anything from another host (it reveals visitors' IP addresses); a link's address goes in href= or in a url/href/link field` });
+      report(block, match, host, `an address on another host (${host}) outside a link: pages may not load anything from another host (it reveals visitors' IP addresses); a link's address goes in href= or in a url/href/link field`);
+    }
+    for (const match of text.matchAll(COMPUTED_HOST)) {
+      if (linkContext(text, match.index)) continue;
+      report(block, match, '(computed)', `an address whose host is computed ("${match[0].trim().slice(0, 30)}") outside a link: the guard cannot tell which host it loads from; write the address out in full`);
     }
   }
 }
@@ -341,7 +387,7 @@ function parseLedger(text) {
     const raw = line.replace(/\r$/, '');
     if (!raw.trim()) return;
     let value; let error = null;
-    try { value = JSON.parse(raw); } catch (e) { error = `does not parse as JSON (${e.message})`; }
+    try { value = JSON.parse(raw); } catch (e) { error = `does not parse as JSON (${e.message}); each entry is one JSON object on one line`; }
     if (!error && !isObject(value)) error = 'is not a JSON object';
     entries.push({ number: index + 1, raw, value: error ? null : value, error });
   });
@@ -360,30 +406,32 @@ function ledgerEntryProblems(value) {
   if (has('guardrails') && !Array.isArray(value.guardrails)) problems.push('"guardrails" must be an array');
   if (has('baseline') && !isObject(value.baseline)) problems.push('"baseline" must be an object');
   if (has('evaluate_after')) {
-    const nullable = value.kind === 'fix' || value.kind === 'revert';
-    if (!(validDate(value.evaluate_after) || (nullable && value.evaluate_after === null))) problems.push(`"evaluate_after" must be a YYYY-MM-DD date${nullable ? ' or null' : ' (null only for fix and revert)'}`);
+    // A fix, a revert and the conclusion of an experiment are not judged later.
+    const nullable = ['fix', 'revert', 'conclude'].includes(value.kind);
+    if (!(validDate(value.evaluate_after) || (nullable && value.evaluate_after === null))) problems.push(`"evaluate_after" must be a YYYY-MM-DD date${nullable ? ' or null' : ' (null only for fix, revert and conclude)'}`);
   }
   if (has('status') && !LEDGER_STATUSES.includes(value.status)) problems.push(`"status" must be one of ${LEDGER_STATUSES.join(', ')}`);
   if (has('pr') && !(value.pr === null || (Number.isInteger(value.pr) && value.pr > 0))) problems.push('"pr" must be a pull request number or null');
   if (has('verdict') && !(value.verdict === null || LEDGER_VERDICTS.includes(value.verdict))) problems.push(`"verdict" must be null or one of ${LEDGER_VERDICTS.join(', ')}`);
   if (has('result') && !(value.result === null || isObject(value.result))) problems.push('"result" must be null or an object');
-  if (has('evaluated_on') && !(value.evaluated_on === null || validDate(value.evaluated_on))) problems.push('"evaluated_on" must be null or a YYYY-MM-DD date');
+  for (const key of ['evaluated_on', 'shipped_on']) if (has(key) && !(value[key] === null || validDate(value[key]))) problems.push(`"${key}" must be null or a YYYY-MM-DD date`);
   return problems;
 }
 
 /**
- * A new entry is pre-registered: proposed (shipped only for a fix or revert), with no verdict and no result, dated
- * within two days of the branch, naming this pull request or none. The one exception is the record of an earlier
- * change whose pull request closed without merging: status reverted, verdict null, inconclusive or revert.
+ * A new entry is pre-registered: proposed, with no verdict, no result and no shipped_on (it is marked shipped once its
+ * pull request has merged), dated within two days of the branch, naming this pull request or none. The one exception
+ * is the record of an earlier change whose pull request closed without merging: status reverted, verdict null or
+ * inconclusive, any earlier date, and that pull request's number.
  */
 function newEntryProblems(value, { branchDate, pr }) {
   const problems = [];
   const recordOfClosed = value.status === 'reverted';
-  if (value.status === 'concluded') problems.push('a new entry cannot start "concluded"; it is concluded later, when it is evaluated');
-  if (value.status === 'shipped' && !['fix', 'revert'].includes(value.kind)) problems.push('a new entry starts "proposed" ("shipped" only for fix and revert entries)');
+  if (!recordOfClosed && value.status !== 'proposed' && LEDGER_STATUSES.includes(value.status)) problems.push(`a new entry starts "proposed", not "${value.status}"; it is marked shipped once its pull request has merged`);
   if (value.result !== null && value.result !== undefined) problems.push('a new entry starts with "result": null; the result is written when it is evaluated');
+  if (value.shipped_on !== null && value.shipped_on !== undefined) problems.push('a new entry has no "shipped_on"; it is set once its pull request has merged');
   if (recordOfClosed) {
-    if (![null, undefined, 'inconclusive', 'revert'].includes(value.verdict)) problems.push('a new "reverted" entry (a pull request that closed unmerged) has "verdict" null, "inconclusive" or "revert"');
+    if (![null, undefined, 'inconclusive'].includes(value.verdict)) problems.push('a new "reverted" entry (the record of a pull request that closed unmerged) has "verdict" null or "inconclusive"');
   } else if (value.verdict !== null && value.verdict !== undefined) problems.push('a new entry starts with "verdict": null; the verdict is written when it is evaluated');
   if (branchDate && validDate(value.date)) {
     const days = (Date.parse(value.date) - Date.parse(branchDate)) / 86400000;
@@ -409,34 +457,51 @@ function existingEntryProblems(old, now) {
   return problems;
 }
 
-function checkLedger(baseText, headText, { violations, warnings, branchDate, pr }) {
+/**
+ * The head's ledger against the base's. Existing lines are matched by id (a line that is not a valid entry, by
+ * position), so a deleted line is reported once, as a deletion; every head line no base line matches is new.
+ * `bookkeeping` (the pull request changes nothing but the three autopilot record files) waives the new line.
+ */
+function checkLedger(baseText, headText, { violations, warnings, branchDate, pr, bookkeeping = false }) {
   const v = (line, message) => violations.push({ rule: 'ledger', file: LEDGER, line, message });
   const w = (line, message) => warnings.push({ rule: 'ledger', file: LEDGER, line, message });
   const head = parseLedger(headText);
   if (!head) { v(null, 'missing: every autopilot pull request appends a line to autopilot/ledger.jsonl'); return; }
   const base = parseLedger(baseText) || [];
+  const idOf = (entry) => (entry.value && typeof entry.value.id === 'string' ? entry.value.id : null);
+  const headById = new Map();
+  for (const entry of head) if (idOf(entry) !== null && !headById.has(idOf(entry))) headById.set(idOf(entry), entry);
+  const matched = new Map();
+  const taken = new Set();
+  for (const [index, old] of base.entries()) {
+    const now = idOf(old) !== null ? headById.get(idOf(old)) : head[index];
+    if (now && !taken.has(now)) { matched.set(old, now); taken.add(now); }
+  }
+  const removed = base.filter((old) => !matched.has(old));
+  for (const old of removed) v(old.number, idOf(old) !== null ? `existing entry "${idOf(old)}" was removed; ledger lines are never deleted (an undone change is marked "reverted")` : 'an existing line was removed');
+  // Existing lines stay first and in their order (checked only when none was removed, so one deletion is not reported again as a move).
+  if (!removed.length) {
+    const misplaced = base.findIndex((old, index) => head[index] !== matched.get(old));
+    if (misplaced >= 0) v(matched.get(base[misplaced]).number, `existing entry ${idOf(base[misplaced]) ? `"${idOf(base[misplaced])}" ` : ''}moved from line ${base[misplaced].number}; existing lines stay where they are and new lines go at the end`);
+  }
   const ids = new Map();
-  base.forEach((old, index) => {
-    const now = head[index];
-    if (!now) { v(old.number, 'an existing line was removed'); return; }
+  for (const [old, now] of matched) {
     if (old.error) {
       // A broken line already on the base is reported, not held against this change; it may be repaired.
       if (now.raw === old.raw) w(old.number, `line ${old.error} (already on the base)`);
       else if (now.error) v(now.number, `line ${now.error}`);
       else for (const problem of ledgerEntryProblems(now.value)) v(now.number, problem);
-      return;
+      continue;
     }
-    if (now.error) { v(now.number, `line ${now.error}`); return; }
-    if (old.value.id !== now.value.id) { v(now.number, `existing entry "${old.value.id}" was removed or moved; only append new lines`); return; }
     if (typeof now.value.id === 'string') ids.set(now.value.id, now.number);
     if (now.raw === old.raw) {
       for (const problem of ledgerEntryProblems(old.value)) w(old.number, `${problem} (already on the base)`);
-      return;
+      continue;
     }
     for (const problem of [...existingEntryProblems(old.value, now.value), ...ledgerEntryProblems(now.value)]) v(now.number, `entry "${old.value.id}": ${problem}`);
-  });
-  const added = head.slice(base.length);
-  if (!added.length) v(null, `adds no line (the base has ${base.length}, the head ${head.length}); append one entry for this change`);
+  }
+  const added = head.filter((entry) => !taken.has(entry));
+  if (!added.length && !bookkeeping) v(null, `adds no line (the base has ${base.length}, the head ${head.length}); append one entry for this change (only a pull request that changes nothing but existing ledger lines, autopilot/backlog.md and autopilot/LEARNINGS.md needs none)`);
   if (added.length > LIMITS.ledgerLines) v(null, `adds ${added.length} lines; at most ${LIMITS.ledgerLines} per pull request`);
   for (const entry of added) {
     if (entry.error) { v(entry.number, `line ${entry.error}`); continue; }
@@ -480,6 +545,11 @@ function check({ cwd = process.cwd(), base, head, branch, pr = null } = {}) {
   const entries = changedEntries(cwd, mergeBase, headSha);
   result.files = entries.length;
   const verbs = { A: 'added', D: 'deleted', M: 'changed', R: 'renamed', C: 'copied', T: 'changed type' };
+  const scanned = (file) => !isProse(file) && !protectedBy(file);
+  // Lines deleted from scanned files, by trimmed text. An added line identical to one of them is existing code that
+  // moved (a component split in two, functions reordered), so a pattern it already had is not reported again.
+  const deletedPool = new Map();
+  const pending = [];
   for (const entry of entries) {
     const verb = verbs[entry.status] || 'changed';
     for (const file of new Set([entry.oldPath, entry.newPath].filter(Boolean))) {
@@ -499,7 +569,7 @@ function check({ cwd = process.cwd(), base, head, branch, pr = null } = {}) {
     const where = entry.newPath || entry.oldPath;
     const newBlob = entry.newPath ? blob(cwd, entry.newSha) : null;
     if (MEDIA.test(where)) {
-      if (!where.startsWith('public/') || where.startsWith('public/data/')) add('binary', where, null, 'images, fonts and media may change only under public/ (not public/data/)');
+      if (!binaryAllowedAt(where)) add('binary', where, null, 'images, fonts and media may change only under public/ (not public/data/), or as a Next.js icon or share image under app/ (favicon.ico, icon, apple-icon, opengraph-image, twitter-image)');
       if (newBlob) {
         result.binaryBytes += newBlob.length;
         if (newBlob.length > LIMITS.binaryBytes) add('binary', entry.newPath, null, `${Math.round(newBlob.length / 1024)} KB; each binary file may be at most ${LIMITS.binaryBytes / 1024} KB`);
@@ -515,7 +585,10 @@ function check({ cwd = process.cwd(), base, head, branch, pr = null } = {}) {
     const { added, deleted } = textChange(cwd, mergeBase, headSha, entry);
     const addedBytes = added.reduce((sum, item) => sum + Buffer.byteLength(item.text) + 1, 0);
     result.textBytes += addedBytes;
-    if (where !== LEDGER) result.changedLines += added.length + deleted;
+    if (where !== LEDGER) result.changedLines += added.length + deleted.length;
+    if (entry.oldPath && scanned(entry.oldPath)) {
+      for (const text of deleted) if (text.trim()) deletedPool.set(text.trim(), (deletedPool.get(text.trim()) || 0) + 1);
+    }
     if (addedBytes > LIMITS.textBytes) add('size', where, null, `adds ${Math.round(addedBytes / 1024)} KB of text; at most ${LIMITS.textBytes / 1024} KB per file`);
     if (!entry.newPath || isProse(entry.newPath)) continue;
     if (!entry.newPath.startsWith('public/')) {
@@ -523,12 +596,22 @@ function check({ cwd = process.cwd(), base, head, branch, pr = null } = {}) {
       if (long) add('size', entry.newPath, long.line, `a line of ${long.text.length} characters; at most ${LIMITS.lineLength} (no minified or inlined blobs)`);
     }
     // A file moved here from a path that was never scanned (documentation, or somewhere off limits) is read in full.
-    const movedIn = entry.oldPath && entry.oldPath !== entry.newPath && (isProse(entry.oldPath) || protectedBy(entry.oldPath));
-    const blocks = addedBlocks(movedIn ? allLines(newBlob.toString('utf8')) : added);
-    scan(entry.newPath, blocks, FORBIDDEN, 'forbidden-pattern', violations);
-    if (MARKUP_FILE.test(entry.newPath)) scan(entry.newPath, blocks, FORBIDDEN_MARKUP, 'forbidden-pattern', violations);
-    scanUrls(entry.newPath, blocks, violations);
-    scan(entry.newPath, blocks, BANNED, 'banned-copy', violations);
+    const movedIn = entry.oldPath && entry.oldPath !== entry.newPath && !scanned(entry.oldPath);
+    pending.push({ file: entry.newPath, lines: movedIn ? allLines(newBlob.toString('utf8')) : added, movedIn });
+  }
+  for (const { file, lines, movedIn } of pending) {
+    const moved = new Set();
+    if (!movedIn) {
+      for (const item of lines) {
+        const count = deletedPool.get(item.text.trim()) || 0;
+        if (count > 0) { moved.add(item.line); deletedPool.set(item.text.trim(), count - 1); }
+      }
+    }
+    const blocks = addedBlocks(lines);
+    scan(file, blocks, FORBIDDEN, 'forbidden-pattern', violations, moved);
+    if (MARKUP_FILE.test(file)) scan(file, blocks, FORBIDDEN_MARKUP, 'forbidden-pattern', violations, moved);
+    scanUrls(file, blocks, violations, moved);
+    scan(file, blocks, BANNED, 'banned-copy', violations, moved);
   }
   if (result.binaryBytes > LIMITS.binaryTotalBytes) add('size', null, null, `binary files total ${(result.binaryBytes / 1024 / 1024).toFixed(2)} MB; at most ${LIMITS.binaryTotalBytes / 1024 / 1024} MB`);
   if (result.textBytes > LIMITS.textTotalBytes) add('size', null, null, `adds ${(result.textBytes / 1024 / 1024).toFixed(2)} MB of text; at most ${LIMITS.textTotalBytes / 1024 / 1024} MB`);
@@ -543,7 +626,26 @@ function check({ cwd = process.cwd(), base, head, branch, pr = null } = {}) {
     if (layoutBefore !== null && rendersTag(layoutBefore, 'ExperimentHead') && !rendersTag(layout, 'ExperimentHead')) add('required-content', 'app/layout.tsx', null, 'must still render <ExperimentHead />');
   }
 
-  checkLedger(showFile(cwd, mergeBase, LEDGER), showFile(cwd, headSha, LEDGER), { violations, warnings: result.warnings, branchDate, pr });
+  const bookkeeping = entries.length > 0 && entries.every((entry) => [entry.oldPath, entry.newPath].filter(Boolean).every((file) => BOOKKEEPING.includes(file)));
+  checkLedger(showFile(cwd, mergeBase, LEDGER), showFile(cwd, headSha, LEDGER), { violations, warnings: result.warnings, branchDate, pr, bookkeeping });
+
+  // The guard reads commits. Run on HEAD with work not yet committed, it would check (and pass) something else.
+  if (head === 'HEAD') {
+    const status = git(cwd, ['status', '--porcelain=v1', '-z'], { allowFail: true });
+    const items = [];
+    if (status) {
+      const tokens = status.split('\0').filter(Boolean);
+      for (let i = 0; i < tokens.length; i += 1) {
+        items.push({ code: tokens[i].slice(0, 2), file: tokens[i].slice(3) });
+        if (/^[RC]/.test(tokens[i])) i += 1; // a rename or copy is followed by its old path
+      }
+    }
+    const tracked = items.filter((item) => item.code !== '??');
+    const untracked = items.filter((item) => item.code === '??');
+    const some = (list) => `${list.slice(0, 3).map((item) => item.file).join(', ')}${list.length > 3 ? ', …' : ''}`;
+    if (tracked.length) add('uncommitted', null, null, `${tracked.length} changed file${tracked.length === 1 ? ' is' : 's are'} not committed (${some(tracked)}); the guard checks commits, not the working tree: commit, then run it again`);
+    if (untracked.length) result.warnings.push({ rule: 'uncommitted', file: null, line: null, message: `${untracked.length} untracked file${untracked.length === 1 ? ' is' : 's are'} not checked (${some(untracked)}); commit ${untracked.length === 1 ? 'it' : 'them'} if ${untracked.length === 1 ? 'it belongs' : 'they belong'} to the change` });
+  }
   result.ok = violations.length === 0;
   return result;
 }
@@ -572,6 +674,7 @@ function selfTest() {
   const FIRST = { status: 'shipped', pr: 60 };
   const BASE_LEDGER = `${entry('2026-10-01-first', FIRST)}\n`;
   const STORE = "export function read() {\n  try { return window.localStorage.getItem('units'); } catch { return null; }\n}\nexport function other() {\n  return 1;\n}\n";
+  const TICKER = '/**\n * Advances the clock once a frame.\n */\nexport function tick() {\n  return 1;\n}\n';
   const LAYOUT = "import SiteAnalytics from '@/components/SiteAnalytics';\nexport default function RootLayout({ children }) {\n  return <html><body>{children}<SiteAnalytics /></body></html>;\n}\n";
   const failures = [];
   let cases = 0;
@@ -584,6 +687,7 @@ function selfTest() {
     write('app/not-found.tsx', 'export default function NotFound() { return <h1>Not found</h1>; }\n');
     write('components/Card.tsx', 'export function Card() {\n  return <div>Card</div>;\n}\n');
     write('components/Store.tsx', STORE);
+    write('components/Ticker.tsx', TICKER);
     write('lib/analytics.ts', 'export const on = true;\n');
     write('docs/NOTES.md', '# Notes\n');
     write('docs/snippet.md', STORE);
@@ -592,7 +696,7 @@ function selfTest() {
     write(LEDGER, BASE_LEDGER);
     run('add', '-A'); run('commit', '-q', '-m', 'base');
 
-    const expect = (label, { branch = 'autopilot/2026-10-14-test', base = 'main', ledger = true, pr = null, setup, rules = [], messages = [], warned = [] }) => {
+    const expect = (label, { branch = 'autopilot/2026-10-14-test', base = 'main', ledger = true, pr = null, setup, dirty, rules = [], messages = [], absent = [], warned = [] }) => {
       cases += 1;
       run('checkout', '-q', '-f', base);
       run('clean', '-q', '-fdx');
@@ -601,12 +705,14 @@ function selfTest() {
       setup();
       run('add', '-A');
       run('commit', '-q', '--allow-empty', '-m', label);
+      if (dirty) dirty();
       let result;
       try { result = check({ cwd: dir, base, head: 'HEAD', branch, pr }); } catch (error) { failures.push(`${label}: threw ${error.message}`); return; }
       const got = [...new Set(result.violations.map((v) => v.rule))].sort();
       const want = [...new Set(rules)].sort();
       if (JSON.stringify(got) !== JSON.stringify(want)) failures.push(`${label}: expected [${want.join(', ') || 'pass'}], got [${got.join(', ') || 'pass'}]${result.violations.length ? `: ${result.violations.map((v) => `${v.rule} ${v.file || ''}:${v.line || ''} ${v.message}`).join(' | ')}` : ''}`);
       for (const text of messages) if (!result.violations.some((v) => `${v.file}:${v.line} ${v.message}`.includes(text))) failures.push(`${label}: no violation mentions "${text}"`);
+      for (const text of absent) if (result.violations.some((v) => `${v.file}:${v.line} ${v.message}`.includes(text))) failures.push(`${label}: a violation mentions "${text}"`);
       for (const text of warned) if (!result.warnings.some((v) => `${v.file}:${v.line} ${v.message}`.includes(text))) failures.push(`${label}: no warning mentions "${text}"`);
       return result;
     };
@@ -629,7 +735,7 @@ function selfTest() {
     expect('protected file deleted', { setup: () => remove('lib/analytics.ts'), rules: ['protected-path'] });
     expect('protected file renamed out', { setup: () => { remove('lib/analytics.ts'); write('lib/stats.ts', 'export const on = true;\n'); }, rules: ['protected-path'], messages: ['lib/analytics.ts'] });
     expect('file renamed into a protected folder', { setup: () => { remove('components/Card.tsx'); write('scripts/Card.tsx', 'export function Card() {\n  return <div>Card</div>;\n}\n'); }, rules: ['protected-path'], messages: ['scripts/Card.tsx'] });
-    for (const file of ['public/data/x.json', 'analysis/release.json', 'app/privacy/page.tsx', 'app/error.tsx', 'app/global-error.tsx', 'app/tools/error.tsx', 'app/tools/not-found.tsx', 'next.config.mjs', 'LICENSE', 'package.json', 'lib/package.json', 'autopilot/CONSTITUTION.md', '.claude/skills/x/SKILL.md', 'CLAUDE.md', 'docs/ANALYTICS.md', 'docs/AUTOPILOT.md', 'docs/PROJECT_HANDOFF.md', 'docs/evidence/x/audit.md']) {
+    for (const file of ['public/data/x.json', 'analysis/release.json', 'app/privacy/page.tsx', 'app/error.tsx', 'app/global-error.tsx', 'app/tools/error.tsx', 'app/tools/not-found.tsx', 'components/ExperimentVariant.tsx', 'next.config.mjs', 'LICENSE', 'package.json', 'lib/package.json', 'autopilot/CONSTITUTION.md', '.claude/skills/x/SKILL.md', 'CLAUDE.md', 'docs/ANALYTICS.md', 'docs/AUTOPILOT.md', 'docs/PROJECT_HANDOFF.md', 'docs/evidence/x/audit.md']) {
       expect(`protected ${file}`, { setup: () => write(file, '{}\n'), rules: ['protected-path'] });
     }
     expect('protected app/not-found.tsx changed', { setup: () => write('app/not-found.tsx', 'export default function NotFound() { return <h1>Lost?</h1>; }\n'), rules: ['protected-path'] });
@@ -642,6 +748,7 @@ function selfTest() {
     expect('.mjs sibling of a protected component', { setup: () => write('components/SiteAnalytics.mjs', 'export default function SiteAnalytics() { return null; }\n'), rules: ['file-type', 'protected-path'] });
     expect('a new JavaScript file in site code', { setup: () => write('lib/helper.jsx', 'export const x = 1;\n'), rules: ['file-type'] });
     expect('a TypeScript helper next to a protected module is fine', { setup: () => write('lib/analytics-labels.ts', "export const LABEL = 'Visits';\n") });
+    expect('the experiment registry may change', { setup: () => write('lib/experiments.ts', "export const EXPERIMENTS = [];\n") });
 
     // Routes
     expect('page deleted', { setup: () => remove('app/tools/page.tsx'), rules: ['route-deletion'] });
@@ -694,6 +801,13 @@ function selfTest() {
       "const repo = 'https://github.com/someone-else/x/raw/main/a.png';",
     ];
     for (const code of ANOTHER_HOST) expect(`another host: ${code}`, { setup: () => write('components/Card.tsx', component(code)), rules: ['forbidden-pattern'], messages: ['components/Card.tsx:2 an address on another host'] });
+    // Comment markers inside strings do not hide the code after them.
+    for (const code of ["const OPEN = '/*', PIXEL = 'https://pixel.example.net/p.gif', CLOSE = '*/';", "const PIXEL = [' //', 'https://pixel.example.net/p.gif'][1];"]) {
+      expect(`a comment marker in a string: ${code}`, { setup: () => write('components/Card.tsx', component(code)), rules: ['forbidden-pattern'], messages: ['components/Card.tsx:2 an address on another host (pixel.example.net)'] });
+    }
+    for (const code of ['const PIXEL = `https://${HOST}/p.gif`;', "const PIXEL = 'https://' + HOST + '/p.gif';"]) {
+      expect(`a computed host: ${code}`, { setup: () => write('components/Card.tsx', component(code)), rules: ['forbidden-pattern'], messages: ['components/Card.tsx:2 an address whose host is computed'] });
+    }
     expect('forbidden pattern split over lines', { setup: () => write('components/Card.tsx', 'export function Card() {\n  return <link\n    rel="stylesheet"\n    href="https://fonts.example.com/a.css" />;\n}\n'), rules: ['forbidden-pattern'], messages: ['components/Card.tsx:2'] });
     expect('forbidden pattern in a CSS file', { setup: () => write('app/x.css', '.a { background: url("//images.example.com/a.png"); }\n'), rules: ['forbidden-pattern'] });
     expect('forbidden pattern in an SVG under public', { setup: () => write('public/x.svg', '<svg><script>alert(1)</script></svg>\n'), rules: ['forbidden-pattern'] });
@@ -716,9 +830,25 @@ function selfTest() {
         '',
       ].join('\n')),
     });
+    // Ordinary code and copy that only looks like a rule.
+    expect('allowed: type arguments named object', { setup: () => write('lib/chart-types.ts', "const rows: Array<object> = [];\nconst cache = new WeakMap<object, string>();\nexport function useRow(useState: <T>(v: T) => [T, (v: T) => void]) { return useState<object | null>(null); }\nexport { rows, cache };\n") });
+    expect('<object split over lines is still a tag', { setup: () => write('components/Card.tsx', 'export function Card() {\n  return <object\n    data="/x.pdf" />;\n}\n'), rules: ['forbidden-pattern'], messages: ['<object'] });
+    expect('allowed: "JavaScript:" in copy', { setup: () => write('components/Card.tsx', component('const note = <noscript>This chart needs JavaScript: turn it on to see it.</noscript>;')) });
+    expect("allowed: the URL constructor with the site's own address", { setup: () => write('components/Card.tsx', component("const url = new URL('https://splithappens.run' + path);")) });
+    expect('allowed: "the wall clock"', { setup: () => write('components/Card.tsx', component('const gun = <p>Gun time is what the wall clock over the finish showed.</p>;')) });
+    expect('allowed: the release-tag prefix in a data loader', { setup: () => write('lib/pack-data.ts', "export const inputId = (tag: string) => tag.replace('private-export-', 'private-');\n") });
+    expect('allowed: namespaces in an exported SVG', { setup: () => write('public/art/badge.svg', '<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"><path d="M0 0h1"/></svg>\n') });
+    expect('allowed: JSON-LD identifiers', { setup: () => write('components/Card.tsx', component("const LD = { '@type': 'Dataset', license: 'https://creativecommons.org/licenses/by/4.0/', '@id': 'https://splithappens.run/#dataset', sameAs: 'https://www.wikidata.org/wiki/Q1' };")) });
+    expect("allowed: the owner's GitHub profile", { setup: () => write('components/Card.tsx', component("const PROFILE = 'https://github.com/koolkam00';")) });
+    expect('allowed: a computed address in a link', { setup: () => write('components/Card.tsx', component('const go = <a href={`https://${host}/x`}>x</a>;')) });
+    expect('allowed: a line added inside an existing JSDoc comment', { setup: () => write('components/Ticker.tsx', TICKER.replace(' * Advances the clock once a frame.\n', ' * Advances the clock once a frame.\n * Frame budget: https://web.dev/articles/rendering-performance\n')) });
     expect('allowed: words in docs and the backlog', { setup: () => { write('docs/NOTES.md', 'PostHog, localStorage and the wall, written in docs.\n'); write('autopilot/backlog.md', 'Check posthog funnels; avoid "arithmetic".\n'); } });
     expect('only added lines are scanned', { setup: () => write('components/Store.tsx', STORE.replace('return 1;', 'return 2;')) });
     expect('a scanned file renamed within site code keeps its old lines unscanned', { setup: () => { remove('components/Store.tsx'); write('components/Saved.tsx', STORE); } });
+    const [READ, OTHER] = [STORE.slice(0, STORE.indexOf('export function other')), STORE.slice(STORE.indexOf('export function other'))];
+    expect('existing code moved to a new file is not reported again', { setup: () => { write('components/Store.tsx', OTHER); write('components/store-read.ts', READ); } });
+    expect('a moved line that is edited is reported', { setup: () => { write('components/Store.tsx', OTHER); write('components/store-read.ts', READ.replace("'units'", "'unit-pref'")); }, rules: ['forbidden-pattern'], messages: ['components/store-read.ts:2 browser storage'] });
+    expect('a line copied, not moved, is reported', { setup: () => write('components/store-read.ts', READ), rules: ['forbidden-pattern'], messages: ['components/store-read.ts:2 browser storage'] });
 
     // Banned copy
     for (const [label, text] of [['arithmetic', 'Simple arithmetic.'], ['the wall', 'Runners hit the wall.'], ['the wall', 'Before the  wall'], ['your chance', 'Your chance of finishing'], ['private-export', 'From private-export-20260912-0934'], ['20260912', 'Built 20260912']]) {
@@ -726,8 +856,8 @@ function selfTest() {
     }
 
     // Size, binaries and text
-    expect('31 changed files', { setup: () => { for (let i = 0; i < 30; i += 1) write(`components/gen/F${i}.tsx`, `export const f${i} = ${i};\n`); }, rules: ['size'], messages: ['31 changed files'] });
-    expect('30 changed files', { setup: () => { for (let i = 0; i < 29; i += 1) write(`components/gen/F${i}.tsx`, `export const f${i} = ${i};\n`); } });
+    expect('61 changed files', { setup: () => { for (let i = 0; i < 60; i += 1) write(`components/gen/F${i}.tsx`, `export const f${i} = ${i};\n`); }, rules: ['size'], messages: ['61 changed files'] });
+    expect('60 changed files', { setup: () => { for (let i = 0; i < 59; i += 1) write(`components/gen/F${i}.tsx`, `export const f${i} = ${i};\n`); } });
     expect('1,501 changed lines', { setup: () => write('components/Long.tsx', Array.from({ length: 1501 }, (_, i) => `export const v${i} = ${i};`).join('\n') + '\n'), rules: ['size'], messages: ['1501 changed lines'] });
     expect('1,500 changed lines', { setup: () => write('components/Long.tsx', Array.from({ length: 1500 }, (_, i) => `export const v${i} = ${i};`).join('\n') + '\n') });
     expect('a multi-megabyte line of text', { setup: () => write('components/Hero.tsx', `export const HERO = "data:image/png;base64,${'A'.repeat(5 * 1024 * 1024)}";\n`), rules: ['size'], messages: ['KB of text', 'characters'] });
@@ -738,6 +868,10 @@ function selfTest() {
     const gif = (kb) => Buffer.concat([Buffer.from('GIF89a', 'binary'), Buffer.alloc(kb * 1024 - 6, 0x21)]);
     expect('binary under public', { setup: () => write('public/og/new.png', png(100)) });
     expect('binary outside public', { setup: () => write('components/x.png', png(1)), rules: ['binary'] });
+    expect('a TrueType font under public', { setup: () => write('public/fonts/Display.ttf', Buffer.concat([Buffer.from([0, 1, 0, 0]), Buffer.alloc(2048, 7)])) });
+    expect('a font outside public', { setup: () => write('components/Display.otf', Buffer.concat([Buffer.from('OTTO', 'binary'), Buffer.alloc(2048, 0)])), rules: ['binary'] });
+    expect('Next.js icons and share images under app', { setup: () => { write('app/apple-icon.png', png(20)); write('app/icon1.png', png(5)); write('app/finish-times/opengraph-image.png', png(80)); write('app/favicon.ico', png(4)); } });
+    expect('another image under app', { setup: () => write('app/hero.png', png(20)), rules: ['binary'], messages: ['app/hero.png'] });
     expect('a GIF with no NUL byte outside public', { setup: () => write('components/blob.gif', gif(10)), rules: ['binary'], messages: ['components/blob.gif'] });
     expect('binary deleted under public', { setup: () => remove('public/og/card.png') });
     expect('binary over 600 KB', { setup: () => write('public/og/big.png', png(601)), rules: ['binary'], messages: ['601 KB'] });
@@ -765,11 +899,15 @@ function selfTest() {
     ledgerCase('ledger result not an object', entry('2026-10-14-result', { result: 'good' }));
     ledgerCase('ledger evaluate_after null for a change', entry('2026-10-14-eval', { evaluate_after: null }));
     ledgerCase('ledger evaluate_after null for a fix', entry('2026-10-14-fix', { kind: 'fix', evaluate_after: null }), []);
-    ledgerCase('ledger evaluate_after null for a revert', entry('2026-10-14-revert', { kind: 'revert', evaluate_after: null, status: 'shipped' }), []);
+    ledgerCase('ledger evaluate_after null for a revert', entry('2026-10-14-revert', { kind: 'revert', evaluate_after: null }), []);
+    ledgerCase('ledger evaluate_after null for a conclusion', entry('2026-10-14-conclude', { kind: 'conclude', evaluate_after: null }), []);
+    ledgerCase('ledger line wrapped over two lines', `${entry('2026-10-14-wrapped').replace(',"title"', ',\n"title"')}`, ['ledger'], { messages: ['one JSON object on one line'] });
     ledgerCase('ledger with extra keys', entry('2026-10-14-extra', { notes: 'context', evaluated_on: null, experiment: 'home-hero' }), []);
     // Ledger: a new entry is pre-registered
     ledgerCase('new entry already concluded', entry('2026-10-14-done', { status: 'concluded', verdict: 'keep', result: { delta: 0.1 } }));
     ledgerCase('new change already shipped', entry('2026-10-14-shipped', { status: 'shipped' }));
+    ledgerCase('new revert entry already shipped', entry('2026-10-14-revert-shipped', { kind: 'revert', evaluate_after: null, status: 'shipped' }));
+    ledgerCase('new entry with a ship date', entry('2026-10-14-ship-date', { shipped_on: '2026-10-14' }));
     ledgerCase('new entry with a verdict', entry('2026-10-14-verdict-early', { verdict: 'keep' }));
     ledgerCase('new entry with a result', entry('2026-10-14-result-early', { result: { delta: 0.1 } }));
     ledgerCase('new entry backdated', entry('2026-09-01-new', { date: '2026-09-01' }));
@@ -778,11 +916,12 @@ function selfTest() {
     ledgerCase('new entry naming another pull request', entry('2026-10-14-other', { pr: 12 }), ['ledger'], { pr: 61 });
     ledgerCase('new entry naming this pull request', entry('2026-10-14-this', { pr: 61 }), [], { pr: 61 });
     ledgerCase('record of a pull request that closed unmerged', entry('2026-09-20-stuck', { status: 'reverted', verdict: 'inconclusive', pr: 55, notes: 'Closed after 7 days.' }), [], { pr: 61 });
+    ledgerCase('record of a closed pull request with verdict revert', entry('2026-09-20-stuck', { status: 'reverted', verdict: 'revert', pr: 55 }), ['ledger'], { pr: 61 });
     expect('ten new ledger lines', { ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), Array.from({ length: 10 }, (_, i) => `${entry(`2026-10-14-bulk-${i}`)}\n`).join('')) });
     expect('eleven new ledger lines', { ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), Array.from({ length: 11 }, (_, i) => `${entry(`2026-10-14-bulk-${i}`)}\n`).join('')), rules: ['ledger'], messages: ['adds 11 lines'] });
     // Ledger: existing entries
     expect('existing ledger line removed', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-14-only')}\n`), rules: ['ledger'] });
-    expect('existing ledger line moved', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-14-new')}\n${BASE_LEDGER}`), rules: ['ledger'] });
+    expect('existing ledger line moved', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-14-new')}\n${BASE_LEDGER}`), rules: ['ledger'], messages: ['moved from line 1'] });
     expect('existing ledger entry title changed', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, title: 'Rewritten' })}\n${entry('2026-10-14-new')}\n`), rules: ['ledger'], messages: ['"title"'] });
     expect('existing ledger entry decision rule changed', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, decision_rule: 'Anything goes.' })}\n${entry('2026-10-14-new')}\n`), rules: ['ledger'], messages: ['"decision_rule"'] });
     expect('existing ledger entry evaluated', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { status: 'concluded', pr: 60, verdict: 'keep', result: { rate: 0.45 }, evaluated_on: '2026-10-14', notes: 'Held up.' })}\n${entry('2026-10-14-conclude', { kind: 'conclude' })}\n`) });
@@ -791,8 +930,17 @@ function selfTest() {
     write(LEDGER, `${entry('2026-10-01-hero', { status: 'reverted', pr: 58, verdict: 'revert', result: { delta: -0.04 } })}\n${entry('2026-10-02-menu', { status: 'proposed' })}\n`);
     run('add', '-A'); run('commit', '-q', '-m', 'judged');
     expect('a reverted entry flipped to keep', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-hero', { status: 'shipped', pr: 58, verdict: 'keep', result: { delta: 0.06 } })}\n${entry('2026-10-02-menu', { status: 'proposed' })}\n${entry('2026-10-14-new')}\n`), rules: ['ledger'], messages: ['"status" cannot go from "reverted"', '"verdict" was already', '"result" was already'] });
-    expect('a proposed entry shipped with its pull request', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-hero', { status: 'reverted', pr: 58, verdict: 'revert', result: { delta: -0.04 } })}\n${entry('2026-10-02-menu', { status: 'shipped', pr: 59 })}\n${entry('2026-10-14-new')}\n`) });
-    expect('a proposed entry concluded without shipping', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-hero', { status: 'reverted', pr: 58, verdict: 'revert', result: { delta: -0.04 } })}\n${entry('2026-10-02-menu', { status: 'concluded', verdict: 'keep' })}\n${entry('2026-10-14-new')}\n`), rules: ['ledger'], messages: ['"status" cannot go from "proposed" to "concluded"'] });
+    const HERO = entry('2026-10-01-hero', { status: 'reverted', pr: 58, verdict: 'revert', result: { delta: -0.04 } });
+    expect('a proposed entry shipped with its pull request and date', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${HERO}\n${entry('2026-10-02-menu', { status: 'shipped', pr: 59, shipped_on: '2026-10-03' })}\n${entry('2026-10-14-new')}\n`) });
+    expect('a proposed entry marked shipped and judged in one pull request', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${HERO}\n${entry('2026-10-02-menu', { status: 'concluded', pr: 59, shipped_on: '2026-10-03', verdict: 'keep', result: { rate: 0.45 }, evaluated_on: '2026-10-14' })}\n${entry('2026-10-14-new')}\n`) });
+    expect('a ship date that is not a date', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${HERO}\n${entry('2026-10-02-menu', { status: 'shipped', pr: 59, shipped_on: 'Oct 3' })}\n${entry('2026-10-14-new')}\n`), rules: ['ledger'], messages: ['"shipped_on" must be null or a YYYY-MM-DD date'] });
+    // Bookkeeping: a pull request that changes only existing ledger lines, the backlog and the learnings needs no new line.
+    expect('bookkeeping only: ledger, backlog and learnings', { base: 'main-judged', ledger: false, setup: () => { write(LEDGER, `${HERO}\n${entry('2026-10-02-menu', { status: 'shipped', pr: 59, shipped_on: '2026-10-03' })}\n`); write('autopilot/backlog.md', '# Backlog\n- Menu shipped.\n'); write('autopilot/LEARNINGS.md', '- 2026-10-14 (recordings, 9): phones stop at chapter 2.\n'); } });
+    expect('bookkeeping only: the backlog alone', { ledger: false, setup: () => write('autopilot/backlog.md', '# Backlog\n- Re-ranked.\n') });
+    expect('bookkeeping and a site change still need a new line', { base: 'main-judged', ledger: false, setup: () => { write(LEDGER, `${HERO}\n${entry('2026-10-02-menu', { status: 'shipped', pr: 59 })}\n`); write('components/Card.tsx', 'export const y = 2;\n'); }, rules: ['ledger'], messages: ['adds no line'] });
+    // Deleted lines are reported once, as deletions (as after a plain git revert of the merge).
+    expect('an earlier line deleted and a revert entry appended', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${HERO}\n${entry('2026-10-14-revert-menu', { kind: 'revert', evaluate_after: null })}\n`), rules: ['ledger'], messages: ['existing entry "2026-10-02-menu" was removed'], absent: ['adds no line', 'moved from line', '2026-10-01-hero'] });
+    expect('the first line deleted', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${entry('2026-10-02-menu', { status: 'proposed' })}\n${entry('2026-10-14-new')}\n`), rules: ['ledger'], messages: ['existing entry "2026-10-01-hero" was removed'], absent: ['adds no line', 'moved from line', '"2026-10-02-menu"'] });
     expect('an empty change still needs a ledger line', { ledger: false, setup: () => {}, rules: ['ledger'] });
     // Ledger: a base that is already untidy does not block every later pull request.
     const untidyBase = (label, text) => { run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', label); write(LEDGER, text); run('add', '-A'); run('commit', '-q', '-m', label); return label; };
@@ -800,6 +948,13 @@ function selfTest() {
     expect('a blank line on the base replaced by the new entry', { base: 'base-blank', ledger: false, setup: () => write(LEDGER, `${BASE_LEDGER}${entry('2026-10-14-in-blank')}\n`) });
     expect('a byte-order mark on the base', { base: untidyBase('base-bom', `﻿${BASE_LEDGER}`), ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), `${entry('2026-10-14-after-bom')}\n`) });
     expect('an invalid entry already on the base is a warning', { base: untidyBase('base-invalid', `${entry('2026-10-01-old', { evaluate_after: null })}\n`), ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), `${entry('2026-10-14-after-invalid')}\n`), warned: ['evaluate_after'] });
+    const shippedBase = untidyBase('base-shipped', `${entry('2026-10-01-first', { ...FIRST, shipped_on: '2026-10-02' })}\n`);
+    expect('a ship date changed once set', { base: shippedBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, shipped_on: '2026-10-03' })}\n${entry('2026-10-14-new')}\n`), rules: ['ledger'], messages: ['"shipped_on" was already'] });
+
+    // The guard reads commits: work not yet committed fails the check; an untracked file is a warning.
+    expect('a change not yet committed', { setup: () => {}, dirty: () => write('components/Card.tsx', component('window.localStorage.setItem("k", v);')), rules: ['uncommitted'], messages: ['components/Card.tsx', 'not committed'] });
+    expect('an untracked file is a warning', { setup: () => {}, dirty: () => write('components/Draft.tsx', 'export const d = 1;\n'), warned: ['untracked'] });
+
     run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', 'main-noledger'); remove(LEDGER); run('add', '-A'); run('commit', '-q', '-m', 'no ledger');
     expect('first ledger line on a base without one', { base: 'main-noledger', ledger: false, setup: () => write(LEDGER, `${entry('2026-10-14-first')}\n`) });
     expect('ledger missing on head', { base: 'main-noledger', ledger: false, setup: () => write('components/Card.tsx', 'export const z = 3;\n'), rules: ['ledger'], messages: ['missing'] });
