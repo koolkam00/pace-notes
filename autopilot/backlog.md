@@ -1,0 +1,91 @@
+# Autopilot backlog
+
+The autopilot re-ranks this list every run against fresh evidence, adds what it learns, and moves items between sections. Each item says:
+- what is wrong and the evidence (aggregates, dated);
+- the hypothesis;
+- the metric it should move;
+- reach, effort and risk.
+
+The first entries were seeded on 2026-10-14 from a full diagnosis of the live site and 30 days of PostHog data. In that window there were about 510 visits: 78% on phones, 83% landing on the home page, mostly direct or from Instagram.
+
+Score = reach × expected effect × evidence ÷ effort, adjusted for risk. Don't let the backlog grow past about 25 items: merge duplicates and drop stale ones, giving the reason in the item.
+
+## In flight
+- **Home hero, "make it yours" (experiment `home-hero-v1`)**
+  - Variant: a "Your marathon time" entry plus three doors (Stories, Tools, Find my race) on the first phone screen.
+  - Shipped with the 2026-10-14 setup.
+  - Evaluate per its ledger line.
+- **First improvement bundle** (2026-10-14 setup), evaluated before/after:
+  - no-match search path;
+  - phone header that hides on scroll;
+  - links from each home chapter to the matching tool;
+  - round mile ticks;
+  - hero copy fixes;
+  - tool-to-tool handoffs;
+  - desktop font-swap layout-shift fix.
+
+## Ready (ranked)
+
+1. **Make the home page lighter on phones**
+   - **Evidence (2026-10-14, lab, 390 px, 4× CPU, 1.6 Mbps):**
+     - total blocking time 1.6–4.1 s;
+     - FCP/LCP 1.9–3.3 s;
+     - page weight 895 KB, of which 395 KB is fonts and 325 KB is JS;
+     - home HTML 667 KB raw, about 300 KB of it inline SVG (2,152 rects);
+     - 3,929 elements before interactive;
+     - 27 phone screens long.
+   - **Change:**
+     - Draw the below-the-fold charts (PacingBarcode, FinishHistogram, SecondsLens, GapGauge, BreakEven, GhostRace, Untangle) only when they come within about one screen, using fixed-height placeholders. Keep the text server-rendered.
+     - Subset or trim the Fraunces "full" fonts (119 + 147 KB). Load the italic only where it is used.
+   - **Metric:** quick_exit_rate, phone LCP p75, home_continuation_rate.
+   - Reach: very high. Effort: M–L. Risk: medium (visual), so check screenshots carefully.
+2. **Cut idle animation cost**
+   - **Evidence:** with the page idle at 4× CPU, main-thread work per 10 s was 2.6 s on `/stories` and `/tools` (RunnerLane redraws 50×/s via React state in `components/art/useTicker.ts`) and 4.0 s on the home page with the replay playing.
+   - **Change:** move RunnerLane to CSS or Web Animations transforms. Cap the replay at 30 fps and update its stats panel at 4 Hz or less. Pause animations that are off screen.
+   - **Metric:** INP p75 and battery-friendliness; lab total blocking time.
+   - Reach: high. Effort: S–M. Risk: low.
+3. **Shorten or restructure the 27-screen home story for phones**
+   - **Evidence:** in recordings, the deepest home scroll was 2,063–5,389 px out of 22.8k on phones. People who stay do read: before the redesign the median time before a second page was 6.5 s, after it 46.5 s.
+   - **Change ideas** (pick one per run):
+     - a sticky chapter index;
+     - collapse each chapter to a "key finding" card with "read the full chapter";
+     - move the strongest chapter first.
+   - Use `home_depth@v1` and `section_viewed` to see where readers stop before choosing.
+   - **Metric:** home_depth, answered_visit_rate.
+   - Reach: very high. Effort: M. Risk: medium. Best run as an experiment after `home-hero-v1` concludes.
+4. **Explain why totals differ**
+   - **Evidence:** the home page shows 3,414,116 finishes, "3.4 million", 3,517,336 and 4.46 million records, while the tools page says 3.26 million. "Why the totals differ" sits at screen 26.
+   - **Change:** one shared "About these numbers" popover, placed near the first figure on each page. It reads the existing manifests (no new calculations) and says finishes, not runners.
+   - **Metric:** feedback `numbers_look_wrong` share, trust (qualitative).
+   - Reach: high. Effort: S. Risk: low.
+5. **Lighten `/runners` (UI part only)**
+   - **Evidence:**
+     - it downloads a 326.7 KB `manifest.json` before search works, about 1 MB in total;
+     - phone CLS is 0.078;
+     - 23.6% of searches find nothing.
+   - **Change:** reserve space for the coverage panel and show the search box immediately, with a clear "loading names…" state. Splitting the manifest touches the data export, so it needs the owner.
+   - **Metric:** no_match_search_rate, `/runners` quick exits, CLS.
+   - Reach: medium. Effort: S. Risk: low.
+6. **Investigate rage clicks on tool steppers**
+   - **Evidence:** one phone recording (2026-10) had 50 rage clicks across `/courses` and then the tools. They may come from repeated taps on stepper buttons.
+   - **Change:** check whether stepper buttons need press-and-hold or larger steps on phones. Fix this only if recordings show frustration rather than deliberate repeated taps.
+   - Reach: low–medium. Effort: S.
+7. **Story pages: a clear "what next" at the end**
+   - **Evidence:** 18 `/stories` → `/stories` moves were hidden before per-story paths existed. Story completion is now measurable (`story_completion_rate@v1`).
+   - **Change:** at the end of each story, add one strong next step that matches the story: the related tool prefilled, or the next story. Consider a reading-progress cue.
+   - **Metric:** story_completion_rate, answered_visit_rate.
+   - Reach: medium. Effort: S.
+8. **Predictor page as a landing page**
+   - **Evidence:** the predictor is the most-opened tool (19 visits in 30 days) and the most common exit page after the home page. All 4 visits that landed on it left after one page.
+   - **Change:** after a result, offer the two most useful next steps prominently: the pace band and "how did finishers near this time pace?". The tool handoffs in the setup bundle start this; evaluate them first.
+   - Reach: medium. Effort: S.
+
+## Needs the owner (open an `autopilot:needs-owner` issue once; don't duplicate)
+- **Point each Instagram post at the story it previews**, with `utm_source=instagram&utm_medium=social&utm_content=post` (or `story`, `reel`, `bio`, `highlight`, `dm`). Instagram brings about a third of visits and they all land on the home page. This is owner-side: it changes the post links.
+- **Start recording replays earlier** (protected: `lib/replay-policy.ts`). Recording starts at least 3 s after load plus an idle moment, so quick exits are never recorded.
+- **Move the event sanitizer into the lazily loaded SDK chunk** (protected). This is an estimated 0.8–1.2 KB gzip saving on every page.
+- **Split the runner-search manifest** (data export).
+- **Verify the site in Google Search Console and submit the sitemap; import into Bing Webmaster Tools.**
+
+## Done
+- 2026-10-14: old-Safari crash fix (79 of 115 pages crashed on iOS < 16.4), error pages with one-time reload, privacy-safe visit signals, experiments framework, browser privacy test in CI. This was the setup, shipped by the owner's session.

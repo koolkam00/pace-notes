@@ -1,0 +1,402 @@
+name: Autopilot merge
+
+# The only way an autopilot pull request reaches main (docs/AUTOPILOT.md). Every gate is in
+# scripts/autopilot-merge.cjs, and this workflow always runs main's copy of it: workflow_run, schedule and
+# workflow_dispatch use the default branch's workflow file, pull_request_target uses the base branch's, and every
+# checkout below is main. A pull request therefore cannot change the policy that merges it.
+#
+# Five jobs, so that the two that open pages in a browser (the pull request's preview, and production after the
+# merge) run on machines of their own with a read-only token and no credentials on disk:
+#   gate     check every gate and output the eligible pull request, if any (writes status comments and incidents)
+#   preview  smoke test and verify:seo:live on the pull request's Vercel preview, then a full smoke test of
+#            production as a baseline (read-only)
+#   merge    record the preview checks, squash-merge pinned to the checked commit while main is still the commit the
+#            gate checked (GitHub's merge API pins only the head), wait for the production deploy
+#   live     smoke test and verify:seo:live on https://splithappens.run, then version.json once more (read-only)
+#   report   record that the live checks passed, or open an incident (reverting when a live check failed), and
+#            then, whatever happened, make sure every autopilot merge is accounted for
+
+on:
+  workflow_run:
+    workflows: ["Website data validation"]
+    types: [completed]
+  pull_request_target:
+    types: [labeled, unlabeled, ready_for_review, synchronize, reopened]
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Evaluate the gates only (no comments, no preview checks, no merge)
+        type: boolean
+        default: false
+
+concurrency:
+  group: autopilot-merge
+  cancel-in-progress: false
+
+# Each job asks for what it needs.
+permissions: {}
+
+jobs:
+  gate:
+    if: github.repository == 'koolkam00/pace-notes'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      checks: read
+      statuses: read
+      deployments: read
+      actions: read
+    outputs:
+      eligible: ${{ steps.evaluate.outputs.eligible }}
+      pr: ${{ steps.evaluate.outputs.pr }}
+      sha: ${{ steps.evaluate.outputs.sha }}
+      base: ${{ steps.evaluate.outputs.base }}
+      preview_url: ${{ steps.evaluate.outputs.preview_url }}
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      AUTOPILOT_MERGE: ${{ vars.AUTOPILOT_MERGE }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
+    steps:
+      # pull_request_target gives these jobs a token that can write. That is safe only because no step checks out,
+      # installs or runs code from a pull request: every checkout is main, npm ci installs main's lockfile, and a
+      # pull request's head is only fetched as a git ref that main's copy of scripts/autopilot-guard.cjs diffs.
+      # Never point a checkout at a pull request's head, merge ref or branch.
+      # Only scripts/ is checked out, and file contents are fetched when git needs them: this job runs Node scripts
+      # that read git objects (the guard's diff), not the site, and the full tree is several hundred megabytes.
+      - name: Check out main (never the pull request)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: scripts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Evaluate the merge gates
+        id: evaluate
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            node scripts/autopilot-merge.cjs evaluate --dry-run
+          else
+            node scripts/autopilot-merge.cjs evaluate
+          fi
+
+      - name: Keep the gate table for the merge job
+        if: steps.evaluate.outputs.eligible == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-state
+          path: ${{ runner.temp }}/autopilot-merge-state.json
+          overwrite: true
+          retention-days: 7
+
+  preview:
+    needs: gate
+    if: needs.gate.outputs.eligible == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # This job opens the pull request's preview in Chromium, so the pull request's own JavaScript runs here. It gets a
+    # read-only token and leaves no credentials on disk; its results reach the merge job as exit codes and an artifact.
+    permissions:
+      contents: read
+    outputs:
+      smoke: ${{ steps.checks.outputs.smoke }}
+      seo: ${{ steps.checks.outputs.seo }}
+      baseline: ${{ steps.baseline.outputs.baseline }}
+    steps:
+      - name: Check out main (never the pull request)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies (main's lockfile) and Chromium
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      # Exit codes: 0 passed, 1 a page or check failed (blocks this commit), 3 the run could not finish (tried again).
+      - name: Smoke-test every sitemap page and check search metadata on the preview
+        id: checks
+        shell: bash
+        env:
+          PREVIEW_URL: ${{ needs.gate.outputs.preview_url }}
+          HEAD_SHA: ${{ needs.gate.outputs.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/preview"
+          set +e
+          node scripts/autopilot-smoke.cjs --base "$PREVIEW_URL" --expect-sha "$HEAD_SHA" --json "$RUNNER_TEMP/preview/smoke.json"
+          echo "smoke=$?" >> "$GITHUB_OUTPUT"
+          node scripts/verify-seo-live.cjs --base "$PREVIEW_URL" 2>&1 | tee "$RUNNER_TEMP/preview/seo.log"
+          echo "seo=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      # Production runs code the previews do not (analytics is on only there), so a problem can exist on production
+      # alone. Capture the same full route coverage used after deploy. The report job compares individual failures:
+      # only exact pre-existing failures are exempt from a revert; any newly broken page/check still reverts.
+      # The baseline never blocks the merge, so a change that fixes a production-only problem can still ship.
+      - name: Smoke-test production before the merge (baseline)
+        id: baseline
+        if: steps.checks.outputs.smoke == '0' && steps.checks.outputs.seo == '0'
+        shell: bash
+        run: |
+          set +e
+          node scripts/autopilot-smoke.cjs --base https://splithappens.run --json "$RUNNER_TEMP/preview/baseline.json"
+          echo "baseline=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-checks
+          path: ${{ runner.temp }}/preview/
+          overwrite: true
+          retention-days: 7
+          if-no-files-found: ignore
+
+  merge:
+    needs: [gate, preview]
+    # Runs after a failed or timed-out preview job too (it then records "did not finish" and does not merge), but
+    # never in a cancelled run: a cancelled run must not merge.
+    if: ${{ !cancelled() && needs.gate.outputs.eligible == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      checks: read
+      statuses: read
+      deployments: read
+      actions: read
+    outputs:
+      outcome: ${{ steps.record.outputs.outcome }}
+      merge_sha: ${{ steps.merge.outputs.merge_sha }}
+      on_checked_base: ${{ steps.merge.outputs.on_checked_base }}
+      deploy: ${{ steps.deploy.outcome }}
+      deploy_reason: ${{ steps.deploy.outputs.reason }}
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      AUTOPILOT_MERGE: ${{ vars.AUTOPILOT_MERGE }}
+      PR: ${{ needs.gate.outputs.pr }}
+      HEAD_SHA: ${{ needs.gate.outputs.sha }}
+      BASE_SHA: ${{ needs.gate.outputs.base }}
+    steps:
+      # As in the gate job: scripts/ only, file contents fetched when git needs them.
+      - name: Check out main (never the pull request)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: scripts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: gate-state
+          path: ${{ runner.temp }}
+
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: preview-checks
+          path: ${{ runner.temp }}/preview
+
+      - name: Record the preview checks on the pull request
+        id: record
+        env:
+          SMOKE: ${{ needs.preview.outputs.smoke }}
+          SEO: ${{ needs.preview.outputs.seo }}
+        run: node scripts/autopilot-merge.cjs smoke-result --pr "$PR" --sha "$HEAD_SHA" --smoke-exit "$SMOKE" --seo-exit "$SEO" --dir "$RUNNER_TEMP/preview"
+
+      # Checks every gate again (the live baseline, the pause label and the guard included), reads main once more and
+      # merges only while it is still the commit the gate job checked. Afterwards it checks the squash commit's parent:
+      # if main moved in the seconds before the merge, it opens the paused incident and outputs on_checked_base=false,
+      # and the report job then never reverts that merge.
+      - name: Merge (squash, pinned to the checked commit and main)
+        id: merge
+        if: steps.record.outputs.outcome == 'pass'
+        run: node scripts/autopilot-merge.cjs merge --pr "$PR" --sha "$HEAD_SHA" --base "$BASE_SHA"
+
+      - name: Wait for the production deploy
+        id: deploy
+        if: always() && steps.merge.outputs.merge_sha != ''
+        timeout-minutes: 40
+        continue-on-error: true
+        shell: bash
+        env:
+          MERGE_SHA: ${{ steps.merge.outputs.merge_sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/deploy"
+          node scripts/autopilot-merge.cjs wait-deploy --sha "$MERGE_SHA" 2>&1 | tee "$RUNNER_TEMP/deploy/wait-deploy.log"
+
+      - name: Keep the deploy log
+        if: always() && steps.merge.outputs.merge_sha != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-log
+          path: ${{ runner.temp }}/deploy/
+          overwrite: true
+          retention-days: 30
+          if-no-files-found: ignore
+
+  live:
+    needs: merge
+    if: always() && needs.merge.outputs.merge_sha != '' && needs.merge.outputs.deploy == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      smoke: ${{ steps.checks.outputs.smoke }}
+      seo: ${{ steps.checks.outputs.seo }}
+      version_after_seo: ${{ steps.checks.outputs.version_after_seo }}
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies (main's lockfile) and Chromium
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      # Exit codes: 0 passed, 1 a page or check failed (the merge is reverted), 3 could not finish, including production
+      # serving another commit before or after the pages, whatever else failed (reported, no revert). verify:seo:live
+      # runs after the smoke test's last version.json reading, so version.json is read once more after it (0 names the
+      # merge commit, 3 another commit or unreadable): a failed SEO check reverts only when production still served
+      # the merge.
+      - name: Smoke-test every sitemap page and check search metadata on production
+        id: checks
+        shell: bash
+        env:
+          MERGE_SHA: ${{ needs.merge.outputs.merge_sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/live"
+          set +e
+          node scripts/autopilot-smoke.cjs --base https://splithappens.run --expect-sha "$MERGE_SHA" --json "$RUNNER_TEMP/live/smoke.json" 2>&1 | tee "$RUNNER_TEMP/live/checks.log"
+          echo "smoke=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          node scripts/verify-seo-live.cjs 2>&1 | tee -a "$RUNNER_TEMP/live/checks.log"
+          echo "seo=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          node scripts/autopilot-smoke.cjs --base https://splithappens.run --expect-sha "$MERGE_SHA" --version-only 2>&1 | tee -a "$RUNNER_TEMP/live/checks.log"
+          echo "version_after_seo=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-checks
+          path: ${{ runner.temp }}/live/
+          overwrite: true
+          retention-days: 30
+          if-no-files-found: ignore
+
+  report:
+    needs: [gate, preview, merge, live]
+    if: always() && needs.gate.outputs.eligible == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      PR: ${{ needs.gate.outputs.pr }}
+      PREVIEW: ${{ needs.merge.outputs.outcome }}
+      MERGE_SHA: ${{ needs.merge.outputs.merge_sha }}
+      DEPLOY: ${{ needs.merge.outputs.deploy }}
+      SMOKE: ${{ needs.live.outputs.smoke }}
+      SEO: ${{ needs.live.outputs.seo }}
+      VERSION_AFTER_SEO: ${{ needs.live.outputs.version_after_seo }}
+      BASELINE: ${{ needs.preview.outputs.baseline }}
+      ON_CHECKED_BASE: ${{ needs.merge.outputs.on_checked_base }}
+    steps:
+      # Main only; the revert below pushes to it with this job's token.
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: actions/download-artifact@v4
+        if: env.MERGE_SHA != ''
+        continue-on-error: true
+        with:
+          name: deploy-log
+          path: ${{ runner.temp }}/deploy
+
+      - uses: actions/download-artifact@v4
+        if: env.MERGE_SHA != ''
+        continue-on-error: true
+        with:
+          name: live-checks
+          path: ${{ runner.temp }}/live
+
+      - uses: actions/download-artifact@v4
+        if: env.MERGE_SHA != ''
+        continue-on-error: true
+        with:
+          name: preview-checks
+          path: ${{ runner.temp }}/preview
+
+      - name: Report a deploy problem (no revert)
+        if: env.MERGE_SHA != '' && env.DEPLOY != 'success'
+        env:
+          REASON: ${{ needs.merge.outputs.deploy_reason }}
+        run: >-
+          node scripts/autopilot-merge.cjs incident --pr "$PR" --sha "$MERGE_SHA" --step "production deploy"
+          --reason "${REASON:-The wait for the production deploy did not finish (the step was cancelled or timed out). The change itself was not checked, so it was not reverted.}"
+          --log "$RUNNER_TEMP/deploy/wait-deploy.log"
+
+      - name: Compare live failures with the baseline, then record or revert
+        if: env.MERGE_SHA != '' && env.DEPLOY == 'success'
+        run: >-
+          node scripts/autopilot-merge.cjs report-live --pr "$PR" --sha "$MERGE_SHA"
+          --smoke-exit "$SMOKE" --seo-exit "$SEO" --version-after-seo-exit "$VERSION_AFTER_SEO" --baseline-exit "$BASELINE"
+          --baseline "$RUNNER_TEMP/preview/baseline.json" --live "$RUNNER_TEMP/live/smoke.json"
+          --on-checked-base "$ON_CHECKED_BASE" --log "$RUNNER_TEMP/live/checks.log"
+
+      # Last, whatever happened above (a cancelled or timed-out job, a lost answer, an incident that could not be
+      # opened): any autopilot merge with neither the live-check record nor an incident gets an incident now.
+      - name: Make sure every autopilot merge is accounted for
+        if: always()
+        run: node scripts/autopilot-merge.cjs reconcile
+
+      # A merge passes only with the version.json reading after verify:seo:live naming it (0): otherwise the live checks
+      # may have seen another commit, report-live opens an incident (no revert) and records no pass, so the run fails too.
+      # A merge onto a main the gate did not check fails the run as well: its incident is open whatever the live checks say.
+      - name: Fail the run when a check failed
+        if: always()
+        run: |
+          echo "Preview checks: ${PREVIEW:-not recorded}; merge commit: ${MERGE_SHA:-none}; on the main the gate checked: ${ON_CHECKED_BASE:-not recorded}; production deploy: ${DEPLOY:-not run}; live smoke test exit: ${SMOKE:-not run}; verify:seo:live exit: ${SEO:-not run}; version.json after it: ${VERSION_AFTER_SEO:-not read}"
+          status=0
+          [ "$PREVIEW" = "pass" ] || status=1
+          if [ -n "$MERGE_SHA" ] && { [ "$ON_CHECKED_BASE" != "true" ] || [ "$DEPLOY" != "success" ] || [ "$SMOKE" != "0" ] || [ "$SEO" != "0" ] || [ "$VERSION_AFTER_SEO" != "0" ]; }; then status=1; fi
+          exit $status
