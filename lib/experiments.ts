@@ -20,8 +20,4 @@
 //   { key: 'home-hero', status: 'running', pages: ['/'], area: 'hero', variants: ['control', 'short-dek'],
 //     started: '2026-10-19', hypothesis: 'A shorter first line gets more phone visitors to the first chapter.' },
 
-export const EXPERIMENTS = [
-  // The home hero: today's (control), or a marathon-time box and three ways in on the first phone screen.
-  { key: 'home-hero-v1', status: 'running', pages: ['/'], area: 'hero', variants: ['control', 'make-it-yours'],
-    started: '2026-10-16', hypothesis: 'Visitors who land on the home page reach a personal answer more often when the first phone screen offers their own marathon time as the way in.' },
-] as const;
+export const EXPERIMENTS = [] as const;

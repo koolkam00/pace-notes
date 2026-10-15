@@ -21,8 +21,6 @@ import { BreakEven, GapGauge } from '@/components/story/PlacesStory';
 import ArchetypeChapter from '@/components/story/ArchetypeChapter';
 import { PacingBarcode, WhichArchetype } from '@/components/story/ArchetypeStory';
 import HeroReplay from '@/components/story/HeroReplay';
-import HeroGoal from '@/components/story/HeroGoal';
-import { Variant } from '@/components/Experiment';
 import { StoryData } from '@/components/story/StoryData';
 import RunnerLane from '@/components/art/RunnerLane';
 import { FinishHistogram, Rescue, SecondsLens } from '@/components/story/FinishTimeStory';
@@ -86,8 +84,6 @@ export default function Page() {
     '@context': 'https://schema.org', '@type': 'WebSite', name: 'Pace Notes', alternateName: 'splithappens.run', url: `${SITE_URL}/`,
     inLanguage: 'en', description: homeDescription(), creator: { '@type': 'Person', name: 'Andrew Kam' },
   };
-  // Both versions of the hero (experiment home-hero-v1) say this; the replay starts by itself once it is on screen.
-  const dek = <p className="hero-dek">Every recorded 5 km split from {yearsCovered ? `${yearsCovered} years of ` : ''}big-city marathons. Watch a real field spread out in the replay below, then see where races are <strong>held together</strong>, where they <strong>come apart</strong> and where finishes <strong>slip under round numbers in the final minutes</strong>.</p>;
   return <><StoryData value={{ archetypes: types, finish, positions: places }}><div className="home">
     <section className="night night-grain bleed hero" aria-labelledby="hero-title" data-track-section="hero">
       <div className="container hero-inner">
@@ -95,31 +91,15 @@ export default function Page() {
           <p className="eyebrow">Pace Notes · {count(manifest.analysis_n)} marathon finishes · {years.cities} cities{span ? ` · ${span.first}–${span.last}` : ''}</p>
           <h1 id="hero-title" className="hero-title">The same <MarathonDistance />, run <em>{finishesM()}&nbsp;million</em> ways.</h1>
         </div>
-        <Variant experiment="home-hero-v1" show="control">
-          <div className="hero-side">
-            {dek}
-            <div className="hero-actions">
-              <a className="button-accent" href="#pacing-types">Start the story <span aria-hidden="true">↓</span></a>
-              <Link className="button-secondary" href="/runners">Find your own race</Link>
-            </div>
-            <CreatorCredit />
+        <div className="hero-side">
+          {/* The replay starts by itself once it is on screen, so the dek points to it rather than to a play button. */}
+          <p className="hero-dek">Every recorded 5 km split from {yearsCovered ? `${yearsCovered} years of ` : ''}big-city marathons. Watch a real field spread out in the replay below, then see where races are <strong>held together</strong>, where they <strong>come apart</strong> and where finishes <strong>slip under round numbers in the final minutes</strong>.</p>
+          <div className="hero-actions">
+            <a className="button-accent" href="#pacing-types">Start the story <span aria-hidden="true">↓</span></a>
+            <Link className="button-secondary" href="/runners">Find your own race</Link>
           </div>
-        </Variant>
-        {/* The visitor's own time first, three ways in, then the story: on a phone the time box, its button and the
-            first way in fit the first screen under the title. */}
-        <Variant experiment="home-hero-v1" show="make-it-yours">
-          <div className="hero-side"><HeroGoal /></div>
-          <ul className="hero-doors" aria-label="More ways in">
-            <li><Link className="hero-door" href="/stories"><span className="hero-door-title">Stories</span><span className="hero-door-text">What the data shows</span><span className="hero-door-go" aria-hidden="true">→</span></Link></li>
-            <li><Link className="hero-door" href="/tools"><span className="hero-door-title">Tools</span><span className="hero-door-text">Plan with your numbers</span><span className="hero-door-go" aria-hidden="true">→</span></Link></li>
-            <li><Link className="hero-door" href="/runners"><span className="hero-door-title">Find my race</span><span className="hero-door-text">Look up a recorded finish</span><span className="hero-door-go" aria-hidden="true">→</span></Link></li>
-          </ul>
-          <div className="hero-intro">
-            {dek}
-            <a className="chapter-more" href="#pacing-types">Start the story <span aria-hidden="true">↓</span></a>
-            <CreatorCredit />
-          </div>
-        </Variant>
+          <CreatorCredit />
+        </div>
         <HeroReplay choices={choices} initial={berlin.slug} />
       </div>
       <div className="container">
@@ -201,7 +181,7 @@ export default function Page() {
       <div className="chapter-body"><BreakEven /></div>
       <div className="chapter-links">
         <Link className="chapter-more" href="/stories/places">More on places gained and lost <span aria-hidden="true">→</span></Link>
-        <TryLink href="/tools/projector">Project a finish from any 5 km mat</TryLink>
+        <TryLink href="/tools/projector">A finish range from your time at any 5 km mat</TryLink>
       </div>
     </section>
 
