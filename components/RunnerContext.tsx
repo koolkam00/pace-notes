@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useState } from 'react';
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { distanceLabel, distanceValue, elevationLabel, paceLabel, paceValue, unitText, type UnitSystem } from '@/lib/units';
+import { distanceLabel, distanceValue, elevationLabel, paceLabel, paceTicks, paceValue, unitText, type UnitSystem } from '@/lib/units';
 import { runnerDuration, runnerMetrics, type RunnerManifest, type RunnerMetrics, type RunnerRace } from '@/lib/runner-search';
 import { UnitLink } from './UnitsProvider';
 import { splitCheckHref } from '@/lib/tools/links';
@@ -69,6 +69,9 @@ export function RunnerPeerComparison({ comparison, metrics, units }: { compariso
     range: pace ? [paceValue(pace.q25[i], units), paceValue(pace.q75[i], units)] : null,
   }));
   const paceTick = (value: number) => paceLabel(value / paceValue(1, units), units, false);
+  // The pace axis on a round grid in the units shown (0:30 per mile), not Recharts' decimal steps.
+  const plotted = rows.flatMap(row => [row.yours, ...(row.median === null ? [] : [row.median]), ...(row.range ?? [])]);
+  const paceAxis = paceTicks(Math.min(...plotted), Math.max(...plotted), units);
   const lateDifference = pace ? metrics.lateChange - pace.late_change.median : null;
   return <>
     <div className="rc-placement"><div><strong>{decimal(comparison.percentile)}<span>%</span></strong><p>Finish percentile</p><small>Higher means faster</small></div><div><strong>{count(comparison.rank)}<span> / {count(comparison.n)}</span></strong><p>Observed finish rank</p><small>{comparison.ties ? `${count(comparison.ties)} other ${comparison.ties === 1 ? 'finish shares' : 'finishes share'} this time` : 'No other finish shares this time'}</small></div></div>
@@ -76,7 +79,7 @@ export function RunnerPeerComparison({ comparison, metrics, units }: { compariso
     {pace ? <section className="rc-peer-pacing"><h3>How you paced it, beside similar finish times.</h3><p className="rc-copy">{count(pace.n)} finishes in this comparison group, from {runnerDuration(pace.from_sec)} to under {runnerDuration(pace.to_sec)} in this same edition. This achieved-time band describes pacing patterns; it does not reveal intended race goals.</p>
       <p className="rc-takeaway">Your late-race pace change was {lateDifference !== null && Math.abs(lateDifference) < 0.05 ? 'about the same as' : `${decimal(Math.abs(lateDifference!))} percentage points ${lateDifference! > 0 ? 'higher than' : 'lower than'}`} the group median ({decimal(pace.late_change.median)}%). Higher means more slowing relative to early pace.</p>
       <div className="rc-legend"><span><i className="rc-you-key" />Your pace</span><span><i className="rc-peer-key" />Group median</span><span><i className="rc-range-key" />Middle 50%</span></div>
-      <div className="rc-chart"><ResponsiveContainer width="100%" height="100%" minWidth={0}><ComposedChart data={rows} margin={{ top: 12, right: 18, bottom: 28, left: 4 }}><CartesianGrid stroke="#DCD3C2" vertical={false} /><XAxis dataKey="distance" type="number" domain={['dataMin', 'dataMax']} tick={{ fontSize: 12 }} tickFormatter={value => decimal(value, 1)} tickLine={false} axisLine={false} label={{ value: `Section end (${units})`, position: 'insideBottom', offset: -18, fontSize: 12 }} /><YAxis type="number" domain={['auto', 'auto']} tick={{ fontSize: 12 }} tickFormatter={paceTick} width={48} tickLine={false} axisLine={false} /><Tooltip content={({ active, payload }) => {
+      <div className="rc-chart"><ResponsiveContainer width="100%" height="100%" minWidth={0}><ComposedChart data={rows} margin={{ top: 12, right: 18, bottom: 28, left: 4 }}><CartesianGrid stroke="#DCD3C2" vertical={false} /><XAxis dataKey="distance" type="number" domain={['dataMin', 'dataMax']} tick={{ fontSize: 12 }} tickFormatter={value => decimal(value, 1)} tickLine={false} axisLine={false} label={{ value: `Section end (${units})`, position: 'insideBottom', offset: -18, fontSize: 12 }} /><YAxis type="number" domain={paceAxis ? paceAxis.domain : ['auto', 'auto']} ticks={paceAxis?.ticks} interval={paceAxis ? 0 : undefined} tick={{ fontSize: 12 }} tickFormatter={paceTick} width={48} tickLine={false} axisLine={false} /><Tooltip content={({ active, payload }) => {
         const row = payload?.[0]?.payload as typeof rows[number] | undefined;
         return active && row ? <div className="rc-tooltip"><strong>{row.section}</strong><p>Your pace: {paceTick(row.yours)}/{units}</p><p>Group median: {paceTick(row.median!)}/{units}</p><p>Middle 50%: {paceTick(row.range![0])}–{paceTick(row.range![1])}/{units}</p></div> : null;
       }} /><Area dataKey="range" type="linear" stroke="none" fill="#2F5BFF" fillOpacity={.22} isAnimationActive={false} /><Line dataKey="median" type="linear" stroke="#66625A" strokeDasharray="5 4" strokeWidth={2} dot={false} isAnimationActive={false} /><Line dataKey="yours" type="linear" stroke="#FF5B2E" strokeWidth={2.5} dot={{ r: 3 }} isAnimationActive={false} /></ComposedChart></ResponsiveContainer></div>
