@@ -60,7 +60,8 @@ const LIMITS = {
   binaryBytes: 600 * 1024, binaryTotalBytes: 2 * 1024 * 1024,
   textBytes: 200 * 1024, textTotalBytes: 1024 * 1024,
   lineLength: 3000, ledgerLines: 10, ledgerDateDays: 2, experimentMaxDays: 42,
-  // shipped_on and evaluated_on may be this many days after the commit's own (UTC) date, for clock and time-zone slack.
+  // shipped_on, evaluated_on and an experiment's registry start may be this many days after today (the head commit's
+  // UTC day, or the clock's if that is earlier), for clock and time-zone slack.
   ledgerClockDays: 1,
 };
 const LEDGER = 'autopilot/ledger.jsonl';
@@ -158,6 +159,14 @@ const LEDGER_STATUSES = ['proposed', 'shipped', 'reverted', 'concluded'];
 /** How an entry's status may move; it never moves back. (proposed to concluded: marked shipped and judged in one pull request.) */
 const LEDGER_NEXT = { proposed: ['shipped', 'concluded', 'reverted'], shipped: ['concluded', 'reverted'], concluded: ['reverted'], reverted: [] };
 const LEDGER_VERDICTS = ['keep', 'revert', 'inconclusive', 'iterate', 'ship-variant', 'keep-control'];
+/** The verdicts each kind can reach (autopilot/metrics.md §3); "revert" is in every set, since anything shipped can be rolled back. */
+const LEDGER_KIND_VERDICTS = {
+  change: ['keep', 'revert', 'inconclusive', 'iterate'],
+  experiment: ['ship-variant', 'keep-control', 'inconclusive', 'revert'],
+  fix: ['keep', 'revert', 'inconclusive'],
+  revert: ['keep', 'revert', 'inconclusive'],
+  conclude: ['keep', 'revert', 'inconclusive'],
+};
 const LEDGER_ID = /^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$/;
 /** The registered metrics: a new entry's primary_metric and guardrails are names from the §1 Definitions table, `name@vN`. */
 const METRICS = 'autopilot/metrics.md';
@@ -463,27 +472,39 @@ function measuredBaselineProblems(entry) {
 }
 
 /**
- * When an entry is first evaluated, in days after its date. A change: 14 to 90, and no sooner than its windows allow
- * (window_days). An experiment: 7 to its max_days plus 14 days to ship. fix, revert and conclude are not judged
- * later: null, or a check-up within 90 days. Whatever the date, the evaluation waits for the data (the skill's §2.3).
+ * When a change or an experiment is first evaluated, in days after its date. A change: 14 to 90, and no sooner than its
+ * windows allow (window_days). An experiment: at its planned end, from 7 days (or its max_days, if shorter) to its
+ * max_days plus a day to ship; a later ship is covered by the due date (changeDueDate, and the skill's §2.3), so a later
+ * evaluate_after would only run it past its registered maximum. fix, revert and conclude have none (their own row).
  */
 function evaluateAfterProblems(entry) {
-  if (!validDate(entry.evaluate_after) || !validDate(entry.date)) return null; // reported by the "evaluate_after" row
+  if (!validDate(entry.evaluate_after) || !validDate(entry.date)) return null; // reported by the "evaluate_after" rows
   const days = daysFrom(entry.date, entry.evaluate_after);
   const said = `"evaluate_after" ${entry.evaluate_after} is ${daysApart(days)} the entry's date ${entry.date}`;
   if (entry.kind === 'change') {
     const from = Math.max(14, WINDOW_DAYS.includes(entry.window_days) ? entry.window_days : 14);
     if (days < from || days > 90) return `${said}; a change is evaluated ${from} to 90 days after it is registered (at least 14 days, and no sooner than its "window_days")`;
   } else if (entry.kind === 'experiment') {
-    const to = isMaxDays(entry.max_days) ? entry.max_days + 14 : null;
-    if (days < 7 || (to !== null && days > to)) return `${said}; an experiment is evaluated 7 to ${to === null ? '"max_days" + 14' : to} days after it is registered (its "max_days" plus 14 days to ship)`;
-  } else if (days < 0 || days > 90) return `${said}; ${aKind(entry.kind)} is not judged later, so "evaluate_after" is null, or a check-up 0 to 90 days after it is registered`;
+    const from = isMaxDays(entry.max_days) ? Math.min(7, entry.max_days) : 7;
+    const to = isMaxDays(entry.max_days) ? entry.max_days + 1 : null;
+    if (days < from || (to !== null && days > to)) return `${said}; an experiment is evaluated ${from} to ${to === null ? '"max_days" + 1' : to} days after it is registered (at its planned end: its "max_days", plus a day to ship; a later ship moves its due date, not this)`;
+  }
   return null;
 }
 
 /**
+ * A change's due date (autopilot/metrics.md §4, the skill's §2.3): the later of evaluate_after and the first day after
+ * its after-window, shipped_on + window_days + 1. null until it has shipped.
+ */
+function changeDueDate(entry) {
+  if (entry.kind !== 'change' || !validDate(entry.shipped_on)) return null;
+  const windowsEnd = addDays(entry.shipped_on, (WINDOW_DAYS.includes(entry.window_days) ? entry.window_days : 14) + 1);
+  return validDate(entry.evaluate_after) && entry.evaluate_after > windowsEnd ? entry.evaluate_after : windowsEnd;
+}
+
+/**
  * shipped_on (the UTC day its pull request merged) and evaluated_on (the day it was judged) have happened: neither is
- * before the entry's date, the evaluation is not before the ship, and neither is after the commit being checked.
+ * before the entry's date, the evaluation is not before the ship, and neither is after today (a day of slack aside).
  */
 function eventDateProblems(entry, field, today) {
   const day = entry[field];
@@ -492,8 +513,22 @@ function eventDateProblems(entry, field, today) {
   const problems = [];
   if (validDate(entry.date) && day < entry.date) problems.push(`"${field}" ${day} is before the entry's date ${entry.date}; it is ${what}`);
   if (field === 'evaluated_on' && validDate(entry.shipped_on) && day < entry.shipped_on) problems.push(`"evaluated_on" ${day} is before "shipped_on" ${entry.shipped_on}; an entry is judged after it ships`);
-  if (today && day > addDays(today, LIMITS.ledgerClockDays)) problems.push(`"${field}" ${day} is in the future (this commit is from ${today}); it is ${what}`);
+  if (today && day > addDays(today, LIMITS.ledgerClockDays)) problems.push(`"${field}" ${day} is in the future (today is ${today}, UTC); it is ${what}`);
   return problems;
+}
+
+/**
+ * A concluded change was judged on its full windows: on or after its due date, and so was the check (a day of clock
+ * slack on evaluated_on cannot bring the judgement forward). An experiment's stopping rule may decide it sooner, and
+ * any entry may be reverted sooner (an incident, a broken guardrail), so neither is held to it.
+ */
+function concludedEarlyProblems(entry, today) {
+  if (entry.status !== 'concluded' || !validDate(entry.evaluated_on)) return null;
+  const due = changeDueDate(entry);
+  if (!due) return null;
+  const late = today && today < entry.evaluated_on ? today : entry.evaluated_on;
+  if (late >= due) return null;
+  return `a change is judged on or after its due date ${due} (the later of "evaluate_after" and "shipped_on" + "window_days" + 1), on its full windows; it was judged on ${entry.evaluated_on}${late !== entry.evaluated_on ? ` and today is ${today}` : ''}. Leave it "shipped" until then`;
 }
 
 /**
@@ -532,9 +567,10 @@ const LEGACY = true;
  *
  * The rows check new entries, repaired lines and edited lines alike. newEntryProblems() and existingEntryProblems()
  * add what depends on a line being new or edited, and metricProblems() the metric names, which come from the base.
- * A LEGACY row is a rule newer than lines already on main, about a field that is fixed once written: an edited line
- * that broke it on the base already only warns, since no edit can repair it. `today` is the UTC day of the commit
- * being checked (null when unknown: then no date is compared with it).
+ * A LEGACY row is about a field that is fixed once written (or a rule newer than lines already on main): an edited line
+ * that broke it on the base already only warns, since no edit can repair it, so the line can still be shipped,
+ * concluded or reverted. `today` is the UTC day of the check (the head commit's, or the clock's if that is earlier;
+ * null when unknown: then no date is compared with it).
  */
 const LEDGER_SCHEMA = [
   // What the entry is.
@@ -552,18 +588,17 @@ const LEDGER_SCHEMA = [
   // Stopping rules and windows, registered before launch and immutable: a minimum sample for every judged kind (a
   // smaller window or arm is judged inconclusive), a change's before/after window length, an experiment's maximum duration.
   ['min_sample', ['change'], LEGACY, (e) => !isCount(e.min_sample) && 'a change requires "min_sample" to be a positive safe integer'],
-  ['min_sample', ['experiment'], false, (e) => !isCount(e.min_sample) && 'an experiment requires "min_sample" to be a positive safe integer'],
+  ['min_sample', ['experiment'], LEGACY, (e) => !isCount(e.min_sample) && 'an experiment requires "min_sample" to be a positive safe integer'],
   ['min_sample', except(...JUDGED_KINDS), LEGACY, (e) => !isNull(e.min_sample) && !isCount(e.min_sample) && '"min_sample" must be a positive safe integer or null'],
   ['window_days', ['change'], LEGACY, (e) => !WINDOW_DAYS.includes(e.window_days) && `a change requires "window_days", ${WINDOW_DAYS.join(' or ')}: the full days in each of its before/after windows, counted from "shipped_on"`],
   ['window_days', except('change'), LEGACY, (e) => !isNull(e.window_days) && `only a change has "window_days"; ${aKind(e.kind)} leaves it out or null${e.kind === 'experiment' ? ' (its window is "max_days")' : ''}`],
-  ['max_days', ['experiment'], false, (e) => !isMaxDays(e.max_days) && `an experiment requires "max_days" to be an integer from 1 to ${LIMITS.experimentMaxDays}`],
+  ['max_days', ['experiment'], LEGACY, (e) => !isMaxDays(e.max_days) && `an experiment requires "max_days" to be an integer from 1 to ${LIMITS.experimentMaxDays}`],
   ['max_days', except('experiment'), LEGACY, (e) => !isNull(e.max_days) && `only an experiment has "max_days"; ${aKind(e.kind)} leaves it out or null`],
-  // When it is evaluated. A fix, a revert and the conclusion of an experiment are not judged later.
-  ['evaluate_after', EVERY, false, (e) => {
-    const nullable = except(...JUDGED_KINDS).includes(e.kind);
-    return given(e.evaluate_after) && !(validDate(e.evaluate_after) || (nullable && e.evaluate_after === null)) && `"evaluate_after" must be a YYYY-MM-DD date${nullable ? ' or null' : ' (null only for fix, revert and conclude)'}`;
-  }],
-  ['evaluate_after', LEDGER_KINDS, LEGACY, evaluateAfterProblems],
+  // When it is evaluated. A fix, a revert and the conclusion of an experiment are not judged later: no windows, sample
+  // or comparison is registered for them, so a date would leave those to be chosen when it is judged.
+  ['evaluate_after', JUDGED_KINDS, LEGACY, (e) => given(e.evaluate_after) && !validDate(e.evaluate_after) && '"evaluate_after" must be a YYYY-MM-DD date (null only for fix, revert and conclude)'],
+  ['evaluate_after', except(...JUDGED_KINDS), LEGACY, (e) => !isNull(e.evaluate_after) && `${aKind(e.kind)} is not judged later, so "evaluate_after" is null (it registers no windows or sample to judge it on), not ${shown(e.evaluate_after)}`],
+  ['evaluate_after', JUDGED_KINDS, LEGACY, evaluateAfterProblems],
   // Where it runs: an experiment's registry key and pages (and optional area), as its readout and the occupancy check
   // read them; another kind may name them too.
   ['experiment', ['experiment'], LEGACY, (e) => !(typeof e.experiment === 'string' && EXPERIMENT_KEY.test(e.experiment)) && 'an experiment requires "experiment", its key in lib/experiments.ts (lower-case words joined by hyphens)'],
@@ -576,11 +611,16 @@ const LEDGER_SCHEMA = [
   ['status', EVERY, false, stateProblems],
   ['pr', EVERY, false, (e) => given(e.pr) && !(e.pr === null || (Number.isInteger(e.pr) && e.pr > 0)) && '"pr" must be a pull request number or null'],
   ['verdict', EVERY, false, (e) => given(e.verdict) && !(e.verdict === null || LEDGER_VERDICTS.includes(e.verdict)) && `"verdict" must be null or one of ${LEDGER_VERDICTS.join(', ')}`],
+  // A verdict is one its kind's comparison can reach, and "revert" is recorded where the change is undone, so a change
+  // judged harmful never sits "concluded" and live with nothing due.
+  ['verdict', LEDGER_KINDS, LEGACY, (e) => LEDGER_VERDICTS.includes(e.verdict) && !LEDGER_KIND_VERDICTS[e.kind].includes(e.verdict) && `"verdict" "${e.verdict}" is not a verdict for ${aKind(e.kind)}; it is one of ${LEDGER_KIND_VERDICTS[e.kind].join(', ')}`],
+  ['verdict', EVERY, LEGACY, (e) => e.verdict === 'revert' && e.status === 'concluded' && 'verdict "revert" goes with status "reverted", in the pull request that reverts the change (until then the entry stays "shipped" with verdict null, and the next run judges it again)'],
   ['result', EVERY, false, (e) => given(e.result) && !(e.result === null || isObject(e.result)) && '"result" must be null or an object'],
   ['result', EVERY, LEGACY, (e) => isObject(e.result) && !Object.keys(e.result).length && '"result" is an empty object; record the numbers, with n, or leave it null'],
   ['shipped_on, evaluated_on', EVERY, false, (e) => ['evaluated_on', 'shipped_on'].filter((key) => given(e[key]) && !(e[key] === null || validDate(e[key]))).map((key) => `"${key}" must be null or a YYYY-MM-DD date`)],
   ['shipped_on', EVERY, LEGACY, (e, { today }) => eventDateProblems(e, 'shipped_on', today)],
   ['evaluated_on', EVERY, LEGACY, (e, { today }) => eventDateProblems(e, 'evaluated_on', today)],
+  ['evaluated_on', ['change'], LEGACY, (e, { today }) => concludedEarlyProblems(e, today)],
   ['notes', EVERY, false, (e) => !isNull(e.notes) && typeof e.notes !== 'string' && '"notes" must be text'],
 ];
 
@@ -650,7 +690,7 @@ function newEntryProblems(value, { branchDate, branchId, pr, today = null }) {
     const days = daysFrom(branchDate, value.date);
     if (days > LIMITS.ledgerDateDays || (days < -LIMITS.ledgerDateDays && !recordOfClosed)) problems.push(`"date" ${value.date} is more than ${LIMITS.ledgerDateDays} days from the branch date ${branchDate}`);
   }
-  if (today && validDate(value.date) && value.date > today) problems.push(`"date" ${value.date} is after this commit's date ${today}; a new entry is dated the UTC day it is written (date -u +%F)`);
+  if (today && validDate(value.date) && value.date > today) problems.push(`"date" ${value.date} is after today, ${today} (UTC); a new entry is dated the UTC day it is written (date -u +%F)`);
   if (pr && Number.isInteger(value.pr) && value.pr !== pr && !recordOfClosed) problems.push(`"pr" is ${value.pr}; a new entry names this pull request (#${pr}) or null`);
   return problems;
 }
@@ -690,28 +730,44 @@ function existingEntryProblems(old, now) {
 }
 
 /**
+ * shipped_on, set on a line already on the base, is the day that line reached the base: its pull request's (squash)
+ * merge, the same day the automatic revert records. Bookkeeping fills it in after the merge, when data from after the
+ * ship already exists, so a free choice would let it pick where an entry's windows fall.
+ */
+function shippedOnProblems(old, now, mergedOn) {
+  if (!mergedOn || !isNull(old.shipped_on) || !validDate(now.shipped_on) || typeof old.id !== 'string') return [];
+  const merged = mergedOn(old.id);
+  if (!merged) return [`"shipped_on" ${now.shipped_on} cannot be checked: no commit in the base's first-parent history adds this entry's line (with a shallow clone, fetch the full history: git fetch --unshallow)`];
+  if (merged.day !== now.shipped_on) return [`"shipped_on" is ${now.shipped_on}, but the entry's line reached main on ${merged.day} (commit ${merged.commit.slice(0, 7)}, its pull request's merge); "shipped_on" is that UTC day`];
+  return [];
+}
+
+/**
  * The head's ledger against the base's. Existing lines are matched by id (a line that is not a valid entry, by
  * position), so a deleted line is reported once, as a deletion; every head line no base line matches is new.
  * `bookkeeping` (the pull request changes nothing but the three autopilot record files) waives the new line.
  * Otherwise the change needs its own proposed entry; records of closed-unmerged pull requests alone do not count.
  * `metrics` is metricNames() of the base's autopilot/metrics.md: new entries, and broken base lines repaired into
  * entries, must use its names, and without any (the file missing, or defining none) they fail. Unknown names on
- * existing lines are only warnings. `today` is the UTC day of the head commit: no shipped_on or evaluated_on may be
- * after it (LIMITS.ledgerClockDays aside), nor a new entry's date.
+ * existing lines are only warnings. `today` is the UTC day of the check (the head commit's, or the clock's if that is
+ * earlier): no shipped_on or evaluated_on may be after it (LIMITS.ledgerClockDays aside), nor a new entry's date.
+ * `mergedOn(id)` gives the day an existing entry's line reached the base ({ day, commit }, or null when the history
+ * cannot show it): the day it shipped, which a shipped_on set on that line now must be. Without it, that is not checked.
  */
-function checkLedger(baseText, headText, { violations, warnings, branchDate, branchId, pr, bookkeeping = false, metrics = null, today = null }) {
+function checkLedger(baseText, headText, { violations, warnings, branchDate, branchId, pr, bookkeeping = false, metrics = null, today = null, mergedOn = null }) {
   const v = (line, message) => violations.push({ rule: 'ledger', file: LEDGER, line, message });
   const w = (line, message) => warnings.push({ rule: 'ledger', file: LEDGER, line, message });
   const head = parseLedger(headText);
   if (!head) { v(null, 'missing: every autopilot pull request appends a line to autopilot/ledger.jsonl'); return; }
   const base = parseLedger(baseText) || [];
   const idOf = (entry) => (entry.value && typeof entry.value.id === 'string' ? entry.value.id : null);
+  // Lines with the same id are matched in order, so ids already used twice on the base (a hand edit) never wedge the ledger.
   const headById = new Map();
-  for (const entry of head) if (idOf(entry) !== null && !headById.has(idOf(entry))) headById.set(idOf(entry), entry);
+  for (const entry of head) if (idOf(entry) !== null) headById.set(idOf(entry), [...(headById.get(idOf(entry)) || []), entry]);
   const matched = new Map();
   const taken = new Set();
   for (const [index, old] of base.entries()) {
-    const now = idOf(old) !== null ? headById.get(idOf(old)) : head[index];
+    const now = idOf(old) !== null ? (headById.get(idOf(old)) || []).find((entry) => !taken.has(entry)) : head[index];
     if (now && !taken.has(now)) { matched.set(old, now); taken.add(now); }
   }
   const removed = base.filter((old) => !matched.has(old));
@@ -723,21 +779,31 @@ function checkLedger(baseText, headText, { violations, warnings, branchDate, bra
   }
   const names = metrics instanceof Set && metrics.size ? metrics : null;
   const schema = (value) => ledgerEntryProblems(value, { today });
+  // Every id on the base is taken first, by its own line, so neither a repaired line nor a new one can reuse it.
   const ids = new Map();
+  for (const [old, now] of matched) {
+    if (old.error || idOf(old) === null) continue;
+    if (ids.has(idOf(old))) w(now.number, `id "${idOf(old)}" is also used on line ${ids.get(idOf(old))} (already on the base); each entry's id is unique`);
+    else ids.set(idOf(old), now.number);
+  }
   let repaired = false;
   for (const [old, now] of matched) {
     if (old.error) {
       // A broken line already on the base is reported, not held against this change; it may be repaired. The repaired
-      // line's fields were never on the base, so the whole schema binds it, and its metric names are checked as a new entry's are.
+      // line's fields were never on the base, so the whole schema binds it, its metric names are checked as a new
+      // entry's are, and its id is not one another line already uses.
       if (now.raw === old.raw) w(old.number, `line ${old.error} (already on the base)`);
       else if (now.error) v(now.number, `line ${now.error}`);
       else {
         repaired = true;
         for (const problem of [...schema(now.value).map((p) => p.message), ...(names ? metricProblems(now.value, names) : [])]) v(now.number, problem);
+        if (typeof now.value.id === 'string') {
+          if (ids.has(now.value.id)) v(now.number, `id "${now.value.id}" is already used on line ${ids.get(now.value.id)}; a repaired line keeps an id of its own`);
+          else ids.set(now.value.id, now.number);
+        }
       }
       continue;
     }
-    if (typeof now.value.id === 'string') ids.set(now.value.id, now.number);
     // The metric fields never change once written (existingEntryProblems), so an unknown name here came with the base.
     if (names) for (const problem of metricProblems(old.value, names)) w(old.number, `${problem} (already on the base)`);
     if (now.raw === old.raw) {
@@ -747,7 +813,7 @@ function checkLedger(baseText, headText, { violations, warnings, branchDate, bra
     // A LEGACY rule's field never changes once written, so an edit neither caused a gap the base line already had nor
     // can fill it: it stays a warning, and the line can still be shipped, concluded or reverted.
     const inherited = new Set(schema(old.value).filter((problem) => problem.legacy).map((problem) => problem.message));
-    for (const problem of [...existingEntryProblems(old.value, now.value), ...schema(now.value).map((p) => p.message)]) {
+    for (const problem of [...existingEntryProblems(old.value, now.value), ...schema(now.value).map((p) => p.message), ...shippedOnProblems(old.value, now.value, mergedOn)]) {
       if (inherited.has(problem)) w(now.number, `entry "${old.value.id}": ${problem} (already on the base)`);
       else v(now.number, `entry "${old.value.id}": ${problem}`);
     }
@@ -847,24 +913,63 @@ const scopeText = ({ pages, area }) => `${JSON.stringify(pages)}${area === '*' ?
  * entry still binds a key that keeps running. Other kinds only name the key, and a closed-unmerged record (reverted,
  * never shipped) never ran, so neither registers it. Returns key → { message, registered }.
  */
+const registrationOf = (values, key) => values.filter((value) => value.kind === 'experiment' && value.experiment === key && !(value.status === 'reverted' && !value.shipped_on)).pop();
 function registrationMismatches(ledger, registry) {
   const values = ledger.map((e) => e.value).filter(Boolean);
   const mismatches = new Map();
   for (const entry of registry) {
     if (!isObject(entry) || entry.status !== 'running' || typeof entry.key !== 'string') continue;
     const runs = scopeOf(entry);
-    const registration = values.filter((value) => value.kind === 'experiment' && value.experiment === entry.key && !(value.status === 'reverted' && !value.shipped_on)).pop();
+    const registration = registrationOf(values, entry.key);
     if (!registration) mismatches.set(entry.key, { registered: false, message: `experiment "${entry.key}" runs on ${scopeText(runs)} but no experiment ledger entry registers it; register a new experiment instead` });
     else if (!sameJson(runs, scopeOf(registration))) mismatches.set(entry.key, { registered: true, message: `experiment "${entry.key}" runs on ${scopeText(runs)} but was registered for ${scopeText(scopeOf(registration))}; register a new experiment instead` });
   }
   return mismatches;
 }
 
+/** What an experiment's run is in the registry, besides its scope: the day it starts and its arms. */
+const RUN_FIELDS = ['started', 'variants', 'weights'];
+
 /**
- * Keep each running key on its registered scope, and reserve slots for proposed/shipped ledger experiments AND running
- * registry entries; count a shared key once.
+ * A key's run is set by the pull request that registers its experiment, and then fixed while that registration stands:
+ * the readout counts from `started` (and the due date from it), and compares `variants`, weighted by `weights`, so
+ * moving any of them later would choose the windows or the arms after seeing the data. A new registration starts on or
+ * after its date and not after today; a key whose registration is already on the base keeps the base's run, whether it
+ * runs or is paused (it may be removed), and cannot be added again under it. Keys no experiment registers are left to
+ * the pre-registration check.
  */
-function checkExperiments(baseLedger, headLedger, baseRegistry, headRegistry, violations, warnings = []) {
+function runProblems(before, after, baseEntries, headEntries, today) {
+  const problems = [];
+  const baseIds = new Set(before.filter((e) => e.value).map((e) => e.value.id));
+  const values = after.map((e) => e.value).filter(Boolean);
+  const onBase = new Map((baseEntries || []).filter((e) => isObject(e) && typeof e.key === 'string').map((e) => [e.key, e]));
+  for (const entry of headEntries) {
+    if (!isObject(entry) || typeof entry.key !== 'string') continue;
+    const registration = registrationOf(values, entry.key);
+    if (!registration) continue;
+    const label = `experiment "${entry.key}"`;
+    if (!baseIds.has(registration.id)) {
+      const latest = today ? addDays(today, LIMITS.ledgerClockDays) : null;
+      if (given(entry.started) && !(validDate(entry.started) && (!validDate(registration.date) || entry.started >= registration.date) && (!latest || entry.started <= latest))) {
+        problems.push(`${label} starts on ${shown(entry.started)}; a run registered by "${registration.id}" starts on or after its date ${registration.date} and not after today (${today || 'unknown'}, a day of slack aside), as YYYY-MM-DD`);
+      }
+      continue;
+    }
+    if (!baseEntries) continue; // the base's registry cannot be read: nothing to compare with
+    const old = onBase.get(entry.key);
+    if (!old) { problems.push(`${label} is added under "${registration.id}", which is already on main; a key's run (its start and arms) is set by the pull request that registers its experiment, so register a new experiment to run it again`); continue; }
+    for (const field of RUN_FIELDS) {
+      if (!sameJson(old[field], entry[field])) problems.push(`${label} changes "${field}" from ${shown(old[field])} to ${shown(entry[field])} while "${registration.id}" registers it; a run keeps its start and arms (pause or remove it, or register a new experiment)`);
+    }
+  }
+  return problems;
+}
+
+/**
+ * Keep each running key on its registered scope and run, and reserve slots for proposed/shipped ledger experiments AND
+ * running registry entries; count a shared key once. `today` is the UTC day of the check (null: not compared).
+ */
+function checkExperiments(baseLedger, headLedger, baseRegistry, headRegistry, violations, warnings = [], { today = null } = {}) {
   const before = parseLedger(baseLedger) || [];
   const after = parseLedger(headLedger) || [];
   const fail = (message, file = LEDGER) => violations.push({ rule: 'experiment', file, line: null, message });
@@ -873,7 +978,8 @@ function checkExperiments(baseLedger, headLedger, baseRegistry, headRegistry, vi
   const readable = (source) => { try { return readExperimentRegistry(source) || []; } catch { return null; } };
   const headEntries = readable(headRegistry);
   if (headEntries) {
-    const baseEntries = readable(baseRegistry) || [];
+    const baseParsed = readable(baseRegistry);
+    const baseEntries = baseParsed || [];
     const already = registrationMismatches(before, baseEntries);
     const runningBefore = new Set(baseEntries.filter((e) => isObject(e) && e.status === 'running').map((e) => e.key));
     for (const [key, { registered, message }] of registrationMismatches(after, headEntries)) {
@@ -881,6 +987,7 @@ function checkExperiments(baseLedger, headLedger, baseRegistry, headRegistry, vi
       // A newly running key without any registration is reported below, as a missing pre-registration.
       else if (registered || runningBefore.has(key)) fail(message, EXPERIMENT_REGISTRY);
     }
+    for (const message of runProblems(before, after, baseParsed, headEntries, today)) fail(message, EXPERIMENT_REGISTRY);
   }
   const prior = new Set(before.filter((e) => e.value).map((e) => e.value.id));
   const newExperiments = after.filter((e) => e.value?.kind === 'experiment' && ACTIVE_EXPERIMENT.has(e.value.status) && !prior.has(e.value.id));
@@ -945,10 +1052,37 @@ function currentBranch(cwd) {
 }
 
 /**
+ * The day each ledger entry's line reached `commit`'s history: the UTC committer day of the first first-parent commit
+ * whose ledger has a line with that id (on main, its pull request's squash merge, the day the automatic revert records
+ * as shipped_on). `git log -G` finds the commits whose ledger diff touches such a line, and each is confirmed by parsing
+ * its ledger. null when the history cannot show it (a shallow clone's boundary, or an id written with escapes).
+ */
+function mergedOnBase(cwd, commit) {
+  const found = new Map();
+  let shallow = null;
+  return (id) => {
+    if (found.has(id)) return found.get(id);
+    const literal = id.replace(/[.*+?^$|()[\]{}\\]/g, (char) => `\\${char}`);
+    const pattern = `"id" *: *"${literal}"`;
+    const out = git(cwd, ['log', '--first-parent', '--reverse', '--format=%H %cI %P', `-G${pattern}`, commit, '--', LEDGER], { allowFail: true }) || '';
+    let day = null;
+    for (const line of out.split('\n').filter(Boolean)) {
+      const [sha, date, ...parents] = line.split(' ').filter(Boolean);
+      if (!(parseLedger(showFile(cwd, sha, LEDGER)) || []).some((entry) => entry.value?.id === id)) continue;
+      if (shallow === null) shallow = (git(cwd, ['rev-parse', '--is-shallow-repository'], { allowFail: true }) || '').trim() === 'true';
+      if (!(shallow && !parents.length)) day = { day: new Date(date).toISOString().slice(0, 10), commit: sha };
+      break;
+    }
+    found.set(id, day);
+    return day;
+  };
+}
+
+/**
  * Checks one change. Returns { ok, skipped, branch, base, head, mergeBase, files, changedLines, textBytes, binaryBytes,
  * violations, warnings }. Each violation or warning is { rule, file, line, message }; warnings never fail the check.
  */
-function check({ cwd = process.cwd(), base, head, branch, pr = null } = {}) {
+function check({ cwd = process.cwd(), base, head, branch, pr = null, now = new Date() } = {}) {
   if (!base || !head) throw new GitError('--base and --head are required');
   let name = branch || process.env.GITHUB_HEAD_REF || '';
   if (!name && head === 'HEAD') name = currentBranch(cwd) || '';
@@ -1055,10 +1189,14 @@ function check({ cwd = process.cwd(), base, head, branch, pr = null } = {}) {
   // Metric names come from the base ref itself: autopilot/metrics.md is protected, so the head's copy is the same on
   // an autopilot pull request, and a pull request cannot register a name for its own entry.
   const metrics = metricNames(showFile(cwd, baseSha, METRICS));
-  // The ledger's dates are compared with the day of the head commit (UTC), not the clock, so a result never changes with the day it is run.
-  const today = new Date(git(cwd, ['show', '-s', '--format=%cI', headSha]).trim()).toISOString().slice(0, 10);
-  checkLedger(showFile(cwd, mergeBase, LEDGER), showFile(cwd, headSha, LEDGER), { violations, warnings: result.warnings, branchDate, branchId, pr, bookkeeping, metrics, today });
-  checkExperiments(showFile(cwd, mergeBase, LEDGER), showFile(cwd, headSha, LEDGER), showFile(cwd, mergeBase, EXPERIMENT_REGISTRY), showFile(cwd, headSha, EXPERIMENT_REGISTRY), violations, result.warnings);
+  // The ledger's dates are compared with the UTC day of the head commit, so a result never changes with the day it is
+  // run, or with the clock's day if that is earlier: anyone can set a commit's date, and one dated in the future would
+  // let an entry claim days that have not happened yet.
+  const commitDay = new Date(git(cwd, ['show', '-s', '--format=%cI', headSha]).trim()).toISOString().slice(0, 10);
+  const clockDay = new Date(now).toISOString().slice(0, 10);
+  const today = commitDay < clockDay ? commitDay : clockDay;
+  checkLedger(showFile(cwd, mergeBase, LEDGER), showFile(cwd, headSha, LEDGER), { violations, warnings: result.warnings, branchDate, branchId, pr, bookkeeping, metrics, today, mergedOn: mergedOnBase(cwd, mergeBase) });
+  checkExperiments(showFile(cwd, mergeBase, LEDGER), showFile(cwd, headSha, LEDGER), showFile(cwd, mergeBase, EXPERIMENT_REGISTRY), showFile(cwd, headSha, EXPERIMENT_REGISTRY), violations, result.warnings, { today });
 
   // The guard reads commits. Run on HEAD with work not yet committed, it would check (and pass) something else.
   if (head === 'HEAD') {
@@ -1101,7 +1239,8 @@ function selfTest() {
   // Every commit is from the same day, which the ledger's dates are checked against.
   const COMMIT_DATE = '2026-10-15T12:00:00+00:00';
   const env = { ...process.env, GIT_AUTHOR_DATE: COMMIT_DATE, GIT_COMMITTER_DATE: COMMIT_DATE };
-  const run = (...args) => execFileSync('git', ['-c', 'user.name=Self Test', '-c', 'user.email=self-test@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd: dir, env, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' });
+  const runAt = (date, ...args) => execFileSync('git', ['-c', 'user.name=Self Test', '-c', 'user.email=self-test@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd: dir, env: { ...env, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date }, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' });
+  const run = (...args) => runAt(COMMIT_DATE, ...args);
   const write = (file, content) => { fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true }); fs.writeFileSync(path.join(dir, file), content); };
   const remove = (file) => fs.rmSync(path.join(dir, file), { force: true });
   // A valid change by default: a 28-day baseline that ends the day before the entry, and 14-day before/after windows
@@ -1152,7 +1291,9 @@ function selfTest() {
     write(METRICS, METRICS_TEXT);
     run('add', '-A'); run('commit', '-q', '-m', 'base');
 
-    const expect = (label, { branch = 'autopilot/2026-10-14-test', base = 'main', ledger = true, pr = null, setup, dirty, rules = [], messages = [], absent = [], warned = [] }) => {
+    // The clock reads the same day as the commits unless a case says otherwise (`now`), and a case may date its own
+    // commit (`commitDate`), as anyone can.
+    const expect = (label, { branch = 'autopilot/2026-10-14-test', base = 'main', ledger = true, pr = null, commitDate = COMMIT_DATE, now = COMMIT_DATE, setup, dirty, rules = [], messages = [], absent = [], warned = [] }) => {
       cases += 1;
       run('checkout', '-q', '-f', base);
       run('clean', '-q', '-fdx');
@@ -1160,10 +1301,10 @@ function selfTest() {
       if (ledger) fs.appendFileSync(path.join(dir, LEDGER), `${proposal()}\n`);
       setup();
       run('add', '-A');
-      run('commit', '-q', '--allow-empty', '-m', label);
+      runAt(commitDate, 'commit', '-q', '--allow-empty', '-m', label);
       if (dirty) dirty();
       let result;
-      try { result = check({ cwd: dir, base, head: 'HEAD', branch, pr }); } catch (error) { failures.push(`${label}: threw ${error.message}`); return; }
+      try { result = check({ cwd: dir, base, head: 'HEAD', branch, pr, now: new Date(now) }); } catch (error) { failures.push(`${label}: threw ${error.message}`); return; }
       const got = [...new Set(result.violations.map((v) => v.rule))].sort();
       const want = [...new Set(rules)].sort();
       if (JSON.stringify(got) !== JSON.stringify(want)) failures.push(`${label}: expected [${want.join(', ') || 'pass'}], got [${got.join(', ') || 'pass'}]${result.violations.length ? `: ${result.violations.map((v) => `${v.rule} ${v.file || ''}:${v.line || ''} ${v.message}`).join(' | ')}` : ''}`);
@@ -1369,7 +1510,7 @@ function selfTest() {
     // Ledger: experiments need explicit, finite, pre-registered stopping rules; other kinds keep their schema.
     const EXPERIMENT = { kind: 'experiment', experiment: 'home-hero', pages: ['/'], min_sample: 150, max_days: 42 };
     ledgerCase('experiment with the default sample and duration', proposal(EXPERIMENT), []);
-    ledgerCase('experiment with the smallest sample and duration', proposal({ ...EXPERIMENT, min_sample: 1, max_days: 1 }), []);
+    ledgerCase('experiment with the smallest sample and duration', proposal({ ...EXPERIMENT, min_sample: 1, max_days: 1, evaluate_after: '2026-10-15' }), []);
     ledgerCase('experiment with the largest exactly representable integer sample', proposal({ ...EXPERIMENT, min_sample: Number.MAX_SAFE_INTEGER }), []);
     for (const field of ['min_sample', 'max_days']) {
       for (const [label, value] of [['missing', undefined], ['null', null], ['zero', 0], ['negative', -1], ['fraction', 1.5], ['string', '150'], ['boolean', true], ['array', [150]], ['object', { n: 150 }], ['unsafe integer', Number.MAX_SAFE_INTEGER + 1]]) {
@@ -1457,13 +1598,17 @@ function selfTest() {
     for (const days of [14, 90]) ledgerCase(`change evaluated ${days} days after its date`, evaluatedAfter(days), []);
     for (const days of [13, 91, 0, -1, 400]) ledgerCase(`change evaluated ${days} days after its date`, evaluatedAfter(days), ['ledger'], { messages: ['a change is evaluated 14 to 90 days after it is registered'] });
     ledgerCase('change with 28-day windows evaluated 27 days after its date', evaluatedAfter(27, { window_days: 28 }), ['ledger'], { messages: ['a change is evaluated 28 to 90 days after it is registered'] });
-    for (const [days, maxDays] of [[7, 42], [56, 42], [7, 7], [21, 7], [15, 1]]) ledgerCase(`experiment of ${maxDays} days evaluated ${days} days after its date`, evaluatedAfter(days, { ...EXPERIMENT, max_days: maxDays }), []);
-    for (const [days, maxDays] of [[6, 42], [57, 42], [22, 7], [-3, 42], [365, 42]]) {
-      ledgerCase(`experiment of ${maxDays} days evaluated ${days} days after its date`, evaluatedAfter(days, { ...EXPERIMENT, max_days: maxDays }), ['ledger'], { messages: [`an experiment is evaluated 7 to ${maxDays + 14} days after it is registered`] });
+    // An experiment is evaluated at its planned end: no later than its max_days plus a day to ship (a later ship moves
+    // its due date instead), and from 7 days, or its max_days if shorter.
+    for (const [days, maxDays] of [[7, 42], [14, 42], [43, 42], [7, 7], [8, 7], [1, 1], [2, 1], [3, 3], [4, 3]]) ledgerCase(`experiment of ${maxDays} days evaluated ${days} days after its date`, evaluatedAfter(days, { ...EXPERIMENT, max_days: maxDays }), []);
+    for (const [days, maxDays] of [[6, 42], [44, 42], [56, 42], [42, 28], [9, 7], [21, 7], [0, 1], [3, 1], [15, 1], [2, 3], [-3, 42], [365, 42]]) {
+      ledgerCase(`experiment of ${maxDays} days evaluated ${days} days after its date`, evaluatedAfter(days, { ...EXPERIMENT, max_days: maxDays }), ['ledger'], { messages: [`an experiment is evaluated ${Math.min(7, maxDays)} to ${maxDays + 1} days after it is registered`] });
     }
+    // A fix, a revert and a conclusion register no windows or sample, so they have no evaluation date to fall due on.
     for (const kind of ['fix', 'revert', 'conclude']) {
-      for (const days of [0, 90]) ledgerCase(`a ${kind} with a check-up ${days} days after its date`, evaluatedAfter(days, { kind }), []);
-      for (const days of [-1, 91]) ledgerCase(`a ${kind} with a check-up ${days} days after its date`, evaluatedAfter(days, { kind }), ['ledger'], { messages: [`${aKind(kind)} is not judged later, so "evaluate_after" is null, or a check-up 0 to 90 days after`] });
+      for (const [label, value] of [['0 days after its date', '2026-10-14'], ['30 days after its date', '2026-11-13'], ['90 days after its date', '2027-01-12'], ['before its date', '2026-10-13'], ['that is not a date', 'soon']]) {
+        ledgerCase(`a ${kind} with an evaluation date ${label}`, proposal({ kind, evaluate_after: value }), ['ledger'], { messages: [`${aKind(kind)} is not judged later, so "evaluate_after" is null`] });
+      }
     }
     // Ledger: an experiment names its registry key and pages, and may name an area; any entry that names them uses valid ones.
     for (const [label, fields, message] of [
@@ -1489,7 +1634,13 @@ function selfTest() {
     // Ledger: notes are text; a new entry is dated the day it is written, never after its commit (2026-10-15 here).
     for (const notes of [7, ['why'], { why: 'x' }]) ledgerCase(`a new entry with notes ${JSON.stringify(notes)}`, proposal({ notes }), ['ledger'], { messages: ['"notes" must be text'] });
     ledgerCase('a new entry with null notes', proposal({ notes: null }), []);
-    ledgerCase('a new entry dated after its commit', proposal({ date: '2026-10-16', evaluate_after: '2026-10-30' }), ['ledger'], { messages: ['"date" 2026-10-16 is after this commit\'s date 2026-10-15'] });
+    ledgerCase('a new entry dated after its commit', proposal({ date: '2026-10-16', evaluate_after: '2026-10-30' }), ['ledger'], { messages: ['"date" 2026-10-16 is after today, 2026-10-15 (UTC)'] });
+    // Today is the head commit's day, or the clock's if that is earlier: anyone can date a commit in the future, and
+    // a later clock never loosens an honest commit's bound, so a result does not change with the day it is run.
+    const FUTURE = { date: '2026-12-01', baseline: { window: '2026-11-03..2026-11-30', visits: 548 }, evaluate_after: '2026-12-20' };
+    expect('a commit dated in the future cannot date an entry in the future', { branch: 'autopilot/2026-12-01-hero', ledger: false, commitDate: '2026-12-01T12:00:00+00:00', setup: () => { fs.appendFileSync(path.join(dir, LEDGER), `${entry('2026-12-01-hero', FUTURE)}\n`); write('components/Card.tsx', 'export const y = 2;\n'); }, rules: ['ledger'], messages: ['"date" 2026-12-01 is after today, 2026-10-15 (UTC)'] });
+    expect('the same entry passes once its day has come', { branch: 'autopilot/2026-12-01-hero', ledger: false, commitDate: '2026-12-01T12:00:00+00:00', now: '2026-12-01T13:00:00+00:00', setup: () => { fs.appendFileSync(path.join(dir, LEDGER), `${entry('2026-12-01-hero', FUTURE)}\n`); write('components/Card.tsx', 'export const y = 2;\n'); } });
+    expect('a later clock does not loosen an honest commit', { ledger: false, now: '2026-12-01T12:00:00+00:00', setup: () => fs.appendFileSync(path.join(dir, LEDGER), `${proposal({ date: '2026-10-16', evaluate_after: '2026-10-30' })}\n`), rules: ['ledger'], messages: ['"date" 2026-10-16 is after today, 2026-10-15 (UTC)'] });
     // Ledger: a new proposed entry has not shipped or been judged.
     for (const [field, value] of [['shipped_on', '2026-10-14'], ['verdict', 'keep'], ['result', { rate: 0.45 }], ['evaluated_on', '2026-10-14']]) {
       ledgerCase(`a new proposed entry with ${field}`, proposal({ [field]: value }), ['ledger'], { messages: [`"${field}" is ${JSON.stringify(value)} on a "proposed" entry; it stays null until`] });
@@ -1511,7 +1662,7 @@ function selfTest() {
     ledgerCase('a closed-unmerged record is a new entry too', entry('2026-09-20-stuck', { ...CLOSED, primary_metric: 'engaged_visit_rate' }), ['ledger'], { pr: 61, messages: ['"primary_metric" "engaged_visit_rate" is not a metric'] });
     // Ledger: each new proposal belongs to this branch, including ledger-only proposals.
     for (const kind of LEDGER_KINDS) {
-      const fields = { ...(kind === 'experiment' ? EXPERIMENT : {}), kind };
+      const fields = { ...(kind === 'experiment' ? EXPERIMENT : {}), ...(JUDGED_KINDS.includes(kind) ? {} : { evaluate_after: null }), kind };
       ledgerCase(`${kind} entry matches the branch id`, proposal(fields), []);
       ledgerCase(`${kind} entry has another slug`, entry('2026-10-14-other', fields), ['ledger'], { messages: [`"id" must be "${CHANGE_ID}"`] });
     }
@@ -1557,15 +1708,13 @@ function selfTest() {
     expect('existing ledger line moved', { ledger: false, setup: () => write(LEDGER, `${proposal()}\n${BASE_LEDGER}`), rules: ['ledger'], messages: ['moved from line 1'] });
     expect('existing ledger entry title changed', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, title: 'Rewritten' })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"title"'] });
     expect('existing ledger entry decision rule changed', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, decision_rule: 'Anything goes.' })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"decision_rule"'] });
-    expect('existing ledger entry evaluated', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { status: 'concluded', pr: 60, shipped_on: '2026-10-02', verdict: 'keep', result: { rate: 0.45 }, evaluated_on: '2026-10-14', notes: 'Held up.' })}\n${proposal({ kind: 'conclude' })}\n`) });
     expect('existing ledger entry pr changed', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, pr: 12 })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"pr" was already 60'] });
     run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', 'main-judged');
     write(LEDGER, `${entry('2026-10-01-hero', { status: 'reverted', pr: 58, verdict: 'revert', result: { delta: -0.04 } })}\n${entry('2026-10-02-menu', { status: 'proposed' })}\n`);
-    run('add', '-A'); run('commit', '-q', '-m', 'judged');
+    run('add', '-A'); runAt('2026-10-03T16:00:00+00:00', 'commit', '-q', '-m', 'judged (the menu change merged on 2026-10-03)');
     expect('a reverted entry flipped to keep', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-hero', { status: 'shipped', pr: 58, verdict: 'keep', result: { delta: 0.06 } })}\n${entry('2026-10-02-menu', { status: 'proposed' })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"status" cannot go from "reverted"', '"verdict" was already', '"result" was already'] });
     const HERO = entry('2026-10-01-hero', { status: 'reverted', pr: 58, verdict: 'revert', result: { delta: -0.04 } });
     expect('a proposed entry shipped with its pull request and date', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${HERO}\n${entry('2026-10-02-menu', { status: 'shipped', pr: 59, shipped_on: '2026-10-03' })}\n${proposal()}\n`) });
-    expect('a proposed entry marked shipped and judged in one pull request', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${HERO}\n${entry('2026-10-02-menu', { status: 'concluded', pr: 59, shipped_on: '2026-10-03', verdict: 'keep', result: { rate: 0.45 }, evaluated_on: '2026-10-14' })}\n${proposal()}\n`) });
     expect('a ship date that is not a date', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${HERO}\n${entry('2026-10-02-menu', { status: 'shipped', pr: 59, shipped_on: 'Oct 3' })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"shipped_on" must be null or a YYYY-MM-DD date'] });
     // Bookkeeping: a pull request that changes only existing ledger lines, the backlog and the learnings needs no new line.
     expect('bookkeeping only: ledger, backlog and learnings', { base: 'main-judged', ledger: false, setup: () => { write(LEDGER, `${HERO}\n${entry('2026-10-02-menu', { status: 'shipped', pr: 59, shipped_on: '2026-10-03' })}\n`); write('autopilot/backlog.md', '# Backlog\n- Menu shipped.\n'); write('autopilot/LEARNINGS.md', '- 2026-10-14 (recordings, 9): phones stop at chapter 2.\n'); } });
@@ -1586,7 +1735,7 @@ function selfTest() {
         cases += 1;
         const problems = [];
         const warnings = [];
-        try { checkExperiments(ledger(base), ledger(head), before, after, problems, warnings); }
+        try { checkExperiments(ledger(base), ledger(head), before, after, problems, warnings, { today: '2026-10-15' }); }
         catch (error) { failures.push(`experiment ${label}: threw ${error.message}`); return; }
         if ((!expected.length && problems.length) || expected.some((text) => !problems.some((p) => p.message.includes(text)))) failures.push(`experiment ${label}: ${JSON.stringify(problems)}`);
         if (warned.some((text) => !warnings.some((w) => w.message.includes(text)))) failures.push(`experiment ${label}: warnings ${JSON.stringify(warnings)}`);
@@ -1614,7 +1763,8 @@ function selfTest() {
         check(`a running key cannot move pages after its entry is ${status}`, [judged(a, status)], [judged(a, status)], registry([reg('a', ['/'])]), registry([reg('a', ['/tools'])]), ['experiment "a" runs on ["/tools"] but was registered for ["/"]; register a new experiment instead']);
         check(`a running key cannot add pages after its entry is ${status}`, [judged(a, status)], [judged(a, status)], registry([reg('a', ['/'])]), registry([reg('a', ['/', '/tools'])]), ['runs on ["/","/tools"] but was registered for ["/"]']);
         check(`a running key cannot move area after its entry is ${status}`, [judged({ ...a, area: 'hero' }, status)], [judged({ ...a, area: 'hero' }, status)], registry([reg('a', ['/'], { area: 'hero' })]), registry([reg('a', ['/'], { area: 'footer' })]), ['runs on ["/"] area "footer" but was registered for ["/"] area "hero"']);
-        check(`a running key that keeps its scope passes after its entry is ${status}`, [judged(a, status)], [judged(a, status), change], registry([reg('a', ['/'])]), registry([reg('a', ['/'], { started: '2026-10-02' })]));
+        check(`a running key that keeps its scope and run passes after its entry is ${status}`, [judged(a, status)], [judged(a, status), change], registry([reg('a', ['/'], { started: '2026-10-02' })]), registry([reg('a', ['/'], { started: '2026-10-02' })]));
+        check(`a running key cannot be given a start after its entry is ${status}`, [judged(a, status)], [judged(a, status), change], registry([reg('a', ['/'])]), registry([reg('a', ['/'], { started: '2026-10-02' })]), ['experiment "a" changes "started" from missing to "2026-10-02" while "2026-10-01-a" registers it']);
       }
       check('the latest registration of a key binds it', [{ ...judged(a, 'concluded'), pages: ['/tools'] }, judged(a, 'reverted')], [{ ...judged(a, 'concluded'), pages: ['/tools'] }, judged(a, 'reverted')], registry([reg('a', ['/'])]), registry([reg('a', ['/tools'])]), ['runs on ["/tools"] but was registered for ["/"]']);
       // Only an experiment entry registers a key: other kinds only name it, and a closed-unmerged record never ran.
@@ -1626,7 +1776,35 @@ function selfTest() {
         check(`a ${kind} entry naming a running key without pages passes`, [a], [a, { ...change, kind, experiment: 'a' }], registry([reg('a', ['/'])]), registry([reg('a', ['/'])]));
       }
       check('a fix entry cannot widen a running key to the whole site', [{ ...a, area: 'hero' }], [{ ...a, area: 'hero' }, { ...change, kind: 'fix', experiment: 'a', pages: ['*'], area: '*' }], registry([reg('a', ['/'], { area: 'hero' })]), registry([reg('a', ['*'])]), ['runs on ["*"] but was registered for ["/"] area "hero"']);
-      check('a running key can move under a new experiment entry', [judged(a, 'concluded')], [judged(a, 'concluded'), { ...a, id: '2026-10-14-a-wide', status: 'proposed', pr: null, shipped_on: null, pages: ['/', '/tools'] }], registry([reg('a', ['/'])]), registry([reg('a', ['/tools', '/'])]));
+      const wide = { ...a, id: '2026-10-14-a-wide', date: '2026-10-14', status: 'proposed', pr: null, shipped_on: null, pages: ['/', '/tools'] };
+      check('a running key can move under a new experiment entry', [judged(a, 'concluded')], [judged(a, 'concluded'), wide], registry([reg('a', ['/'])]), registry([reg('a', ['/tools', '/'])]));
+      // A key's run (its start and arms) is set by the pull request that registers its experiment, and then fixed: the
+      // readout counts from the start and compares the arms, so a later change would pick them after seeing the data.
+      const RUN = { started: '2026-10-02', variants: ['control', 'short-dek'], weights: [50, 50] };
+      const running = registry([reg('a', ['/'], RUN)]);
+      check('a running key that keeps its run passes beside a new change', [a], [a, change], running, running);
+      for (const [label, extra, message] of [
+        ['moves its start later', { started: '2026-10-12' }, 'changes "started" from "2026-10-02" to "2026-10-12" while "2026-10-01-a" registers it; a run keeps its start and arms'],
+        ['moves its start into the future', { started: '2027-06-01' }, 'changes "started" from "2026-10-02" to "2027-06-01"'],
+        ['drops its start', { started: undefined }, 'changes "started" from "2026-10-02" to missing'],
+        ['renames an arm', { variants: ['control', 'short-dek-2'] }, 'changes "variants" from ["control","short-dek"] to ["control","short-dek-2"]'],
+        ['adds an arm', { variants: ['control', 'short-dek', 'long-dek'], weights: [34, 33, 33] }, 'changes "variants"'],
+        ['reweights its arms', { weights: [90, 10] }, 'changes "weights" from [50,50] to [90,10]'],
+      ]) {
+        check(`a running key that ${label} fails`, [a], [a, change], running, registry([reg('a', ['/'], { ...RUN, ...extra })]), [message]);
+        check(`a paused key that ${label} fails`, [a], [a, change], registry([reg('a', ['/'], { ...RUN, status: 'paused' })]), registry([reg('a', ['/'], { ...RUN, ...extra, status: 'paused' })]), [message]);
+      }
+      check('a running key may be paused', [a], [a, change], running, registry([reg('a', ['/'], { ...RUN, status: 'paused' })]));
+      check('a paused key may resume with its run', [a], [a, change], registry([reg('a', ['/'], { ...RUN, status: 'paused' })]), running);
+      check('a running key may be removed', [judged(a, 'concluded')], [judged(a, 'concluded'), change], running, registry([]));
+      check('a removed key cannot be added again under its old registration', [a], [a, change], registry([]), running, ['experiment "a" is added under "2026-10-01-a", which is already on main']);
+      // A new registration sets a new run: from its date, and not in the future.
+      for (const started of ['2026-10-14', '2026-10-16']) check(`a new registration's run may start on ${started}`, [judged(a, 'concluded')], [judged(a, 'concluded'), wide], running, registry([reg('a', ['/', '/tools'], { ...RUN, started, variants: ['control', 'wide'] })]));
+      for (const started of ['2026-10-13', '2026-10-17', '2026-13-01', 20261015]) {
+        check(`a new registration's run cannot start on ${started}`, [judged(a, 'concluded')], [judged(a, 'concluded'), wide], running, registry([reg('a', ['/', '/tools'], { ...RUN, started })]), [`experiment "a" starts on ${JSON.stringify(started)}; a run registered by "2026-10-14-a-wide" starts on or after its date 2026-10-14 and not after today (2026-10-15`]);
+      }
+      check('a new experiment\'s run cannot start before it is registered', [], [{ ...a, id: '2026-10-14-a', date: '2026-10-14', status: 'proposed', pr: null, shipped_on: null }], registry([]), registry([reg('a', ['/'], { started: '2026-10-01' })]), ['experiment "a" starts on "2026-10-01"']);
+      check('a new experiment may leave its start to the day it ships', [], [{ ...a, id: '2026-10-14-a', date: '2026-10-14', status: 'proposed', pr: null, shipped_on: null }], registry([]), registry([reg('a', ['/'])]));
       check('a running key with no registration cannot change scope', [], [change], registry([reg('a', ['/'])]), registry([reg('a', ['/tools'])]), ['experiment "a" runs on ["/tools"] but no experiment ledger entry registers it']);
       check('a running key with no registration already on the base only warns', [], [change], registry([reg('a', ['/'])]), registry([reg('a', ['/'])]), [], ['no experiment ledger entry registers it; register a new experiment instead (already on the base)']);
       check('a scope mismatch already on the base only warns', [judged(a, 'concluded')], [judged(a, 'concluded'), change], registry([reg('a', ['/tools'])]), registry([reg('a', ['/tools'])]), [], ['experiment "a" runs on ["/tools"] but was registered for ["/"]; register a new experiment instead (already on the base)']);
@@ -1672,7 +1850,7 @@ function selfTest() {
       expect('new experiment without a registry is refused by the git guard', { ledger: false, setup: () => { write(LEDGER, `${BASE_LEDGER}${proposal(EXPERIMENT)}\n`); remove(EXPERIMENT_REGISTRY); }, rules: ['experiment'], messages: ['registry cannot be removed'] });
       // A running key's registration is checked through the git guard too; a mismatch already on main never blocks.
       const concludedHero = entry('2026-10-01-hero', { ...EXPERIMENT, status: 'concluded', pr: 58, shipped_on: '2026-10-02', verdict: 'keep-control', result: { control: 80, variant: 75 }, evaluated_on: '2026-10-14' });
-      const runningBase = (label, pages, line = concludedHero) => { run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', label); write(LEDGER, `${BASE_LEDGER}${line}\n`); write(EXPERIMENT_REGISTRY, registry([reg('home-hero', pages)])); run('add', '-A'); run('commit', '-q', '-m', label); return label; };
+      const runningBase = (label, pages, line = concludedHero, runFields = {}) => { run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', label); write(LEDGER, `${BASE_LEDGER}${line}\n`); write(EXPERIMENT_REGISTRY, registry([reg('home-hero', pages, runFields)])); run('add', '-A'); run('commit', '-q', '-m', label); return label; };
       const heroRunning = runningBase('base-hero-running', ['/']);
       expect('a running key cannot move pages after its experiment concluded', { base: heroRunning, setup: () => write(EXPERIMENT_REGISTRY, registry([reg('home-hero', ['/tools'])])), rules: ['experiment'], messages: ['lib/experiments.ts:null experiment "home-hero" runs on ["/tools"] but was registered for ["/"]; register a new experiment instead'] });
       expect('a running key that keeps its scope does not block a site change', { base: heroRunning, setup: () => write('components/Card.tsx', 'export const y = 2;\n') });
@@ -1685,42 +1863,64 @@ function selfTest() {
       expect('a closed-unmerged record cannot widen a running key', { base: heroRunning, setup: () => { fs.appendFileSync(path.join(dir, LEDGER), `${wider('2026-09-20-old', { pr: 55 })}\n`); write(EXPERIMENT_REGISTRY, registry([reg('home-hero', ['/', '/tools'])])); }, rules: ['experiment'], messages: ['runs on ["/","/tools"] but was registered for ["/"]'] });
       const heroShipped = runningBase('base-hero-shipped', ['/'], entry('2026-10-01-hero', { ...EXPERIMENT, status: 'shipped', pr: 58, shipped_on: '2026-10-02' }));
       expect('a change entry naming a running key cannot widen it', { base: heroShipped, ledger: false, setup: () => { fs.appendFileSync(path.join(dir, LEDGER), `${proposal({ experiment: 'home-hero', pages: ['/', '/tools'] })}\n`); write(EXPERIMENT_REGISTRY, registry([reg('home-hero', ['/', '/tools'])])); }, rules: ['experiment'], messages: ['runs on ["/","/tools"] but was registered for ["/"]'] });
+      // A running experiment's start and arms are checked through the git guard too, on any pull request.
+      const heroRun = runningBase('base-hero-run', ['/'], entry('2026-10-01-hero', { ...EXPERIMENT, status: 'shipped', pr: 58, shipped_on: '2026-10-02' }), { started: '2026-10-02', variants: ['control', 'short-dek'] });
+      expect('a site change beside a running experiment that keeps its run passes', { base: heroRun, setup: () => write('components/Card.tsx', 'export const y = 2;\n') });
+      expect('a site change cannot move a running experiment\'s start', { base: heroRun, setup: () => { write(EXPERIMENT_REGISTRY, registry([reg('home-hero', ['/'], { started: '2026-10-12', variants: ['control', 'short-dek'] })])); write('components/Card.tsx', 'export const y = 2;\n'); }, rules: ['experiment'], messages: ['experiment "home-hero" changes "started" from "2026-10-02" to "2026-10-12" while "2026-10-01-hero" registers it'] });
     }
 
-    // Ledger: a base that is already untidy does not block every later pull request.
-    const untidyBase = (label, text) => { run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', label); write(LEDGER, text); run('add', '-A'); run('commit', '-q', '-m', label); return label; };
+    // Ledger: a base that is already untidy does not block every later pull request. A base made here is committed
+    // on `at`: the day its lines reached main, which is the day a line it adds ships (shipped_on, once set).
+    const untidyBase = (label, text, at = COMMIT_DATE) => { run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', label); write(LEDGER, text); run('add', '-A'); runAt(at, 'commit', '-q', '-m', label); return label; };
+    const MERGED_OCT_3 = '2026-10-03T16:00:00+00:00';
     expect('a trailing blank line on the base', { base: untidyBase('base-blank', `${BASE_LEDGER}\n`), ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), `${proposal()}\n`) });
     expect('a blank line on the base replaced by the new entry', { base: 'base-blank', ledger: false, setup: () => write(LEDGER, `${BASE_LEDGER}${proposal()}\n`) });
     expect('a byte-order mark on the base', { base: untidyBase('base-bom', `﻿${BASE_LEDGER}`), ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), `${proposal()}\n`) });
     expect('an invalid entry already on the base is a warning', { base: untidyBase('base-invalid', `${entry('2026-10-01-old', { evaluate_after: null })}\n`), ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), `${proposal()}\n`), warned: ['evaluate_after'] });
     const oldExperiment = (extra = {}) => entry('2026-10-01-experiment', { ...EXPERIMENT, ...extra });
-    const experimentBase = untidyBase('base-experiment', `${oldExperiment()}\n`);
+    const experimentBase = untidyBase('base-experiment', `${oldExperiment()}\n`, MERGED_OCT_3);
     expect('bookkeeping ships an experiment with its historical id and stopping rules', { base: experimentBase, ledger: false, setup: () => write(LEDGER, `${oldExperiment({ status: 'shipped', pr: 59, shipped_on: '2026-10-03' })}\n`) });
+    // An experiment's stopping rule may decide it before its maximum, so it is not held to a due date.
     expect('bookkeeping concludes an experiment with its historical id and stopping rules', { base: experimentBase, ledger: false, setup: () => write(LEDGER, `${oldExperiment({ status: 'concluded', pr: 59, shipped_on: '2026-10-03', verdict: 'keep-control', result: { control: 80, variant: 75 }, evaluated_on: '2026-10-14' })}\n`) });
     for (const [field, value] of [['min_sample', 200], ['max_days', 21], ['min_sample', undefined], ['max_days', null]]) {
       expect(`existing experiment ${field} cannot change to ${value}`, { base: experimentBase, ledger: false, setup: () => write(LEDGER, `${oldExperiment({ [field]: value })}\n`), rules: ['ledger'], messages: [`changed "${field}"`] });
     }
-    const invalidExperimentBase = untidyBase('base-invalid-experiment', `${oldExperiment({ min_sample: undefined, max_days: 43 })}\n`);
+    // An older experiment without valid stopping rules (an owner's line) can still be shipped, judged or closed, since
+    // they can never be filled in; it only warns. It cannot start running (the occupancy check's pre-registration).
+    const NO_STOPPING_RULES = { min_sample: undefined, max_days: 43 };
+    const invalidExperimentBase = untidyBase('base-invalid-experiment', `${oldExperiment(NO_STOPPING_RULES)}\n`, MERGED_OCT_3);
+    const stoppingWarnings = ['requires "min_sample" to be a positive safe integer (already on the base)', 'requires "max_days" to be an integer from 1 to 42 (already on the base)'];
     expect('unchanged historical experiment schema errors are warnings', { base: invalidExperimentBase, setup: () => {}, warned: ['requires "min_sample"', 'requires "max_days"'] });
-    expect('edited historical experiment still has its schema checked', { base: invalidExperimentBase, ledger: false, setup: () => write(LEDGER, `${oldExperiment({ min_sample: undefined, max_days: 43, notes: 'Still running.' })}\n`), rules: ['ledger'], messages: ['requires "min_sample"', 'requires "max_days"'] });
+    for (const [label, extra] of [
+      ['a note added to', { notes: 'Still running.' }],
+      ['shipping', { status: 'shipped', pr: 59, shipped_on: '2026-10-03' }],
+      ['closing as unmerged', { status: 'reverted', verdict: 'inconclusive', pr: 59, notes: 'Closed unmerged.' }],
+    ]) expect(`${label} a historical experiment without stopping rules only warns`, { base: invalidExperimentBase, ledger: false, setup: () => write(LEDGER, `${oldExperiment({ ...NO_STOPPING_RULES, ...extra })}\n`), warned: stoppingWarnings });
+    expect('a historical experiment cannot be given stopping rules later', { base: invalidExperimentBase, ledger: false, setup: () => write(LEDGER, `${oldExperiment({ ...NO_STOPPING_RULES, min_sample: 150 })}\n`), rules: ['ledger'], messages: ['changed "min_sample"'] });
+    // A change without an evaluation date on main can be shipped and judged too.
+    const undatedBase = untidyBase('base-undated-change', `${entry('2026-09-01-undated', { evaluate_after: null })}\n`, '2026-09-03T16:00:00+00:00');
+    expect('shipping a historical change without an evaluation date only warns', { base: undatedBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-09-01-undated', { evaluate_after: null, status: 'shipped', pr: 59, shipped_on: '2026-09-03' })}\n`), warned: ['"evaluate_after" must be a YYYY-MM-DD date (null only for fix, revert and conclude) (already on the base)'] });
+    expect('concluding a historical change without an evaluation date after its windows only warns', { base: undatedBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-09-01-undated', { evaluate_after: null, status: 'concluded', pr: 59, shipped_on: '2026-09-03', verdict: 'keep', result: { rate: 0.45, n: 200 }, evaluated_on: '2026-09-18' })}\n`), warned: ['"evaluate_after" must be a YYYY-MM-DD date'] });
     // A change's minimum sample is fixed once registered too. A base line without one, or with a blank hypothesis or
     // decision rule, only warns, also when a bookkeeping pull request ships, concludes or reverts it: it cannot be filled in.
-    const oldChange = (extra = {}) => entry('2026-10-01-change', extra);
-    const changeBase = untidyBase('base-change', `${oldChange()}\n`);
-    expect('bookkeeping ships a change with its registered minimum sample', { base: changeBase, ledger: false, setup: () => write(LEDGER, `${oldChange({ status: 'shipped', pr: 59, shipped_on: '2026-10-03' })}\n`) });
+    // These changes are dated 2026-09-01 and reached main on 2026-09-03, so they are due by 2026-09-20.
+    const MERGED_SEP_3 = '2026-09-03T16:00:00+00:00';
+    const LEGACY_SHIPPING = { pr: 59, shipped_on: '2026-09-03' };
+    const oldChange = (extra = {}) => entry('2026-09-01-change', { evaluate_after: '2026-09-20', ...extra });
+    const changeBase = untidyBase('base-change', `${oldChange()}\n`, MERGED_SEP_3);
+    expect('bookkeeping ships a change with its registered minimum sample', { base: changeBase, ledger: false, setup: () => write(LEDGER, `${oldChange({ status: 'shipped', ...LEGACY_SHIPPING })}\n`) });
     for (const value of [200, undefined]) {
       expect(`existing change min_sample cannot change to ${value}`, { base: changeBase, ledger: false, setup: () => write(LEDGER, `${oldChange({ min_sample: value })}\n`), rules: ['ledger'], messages: ['changed "min_sample"'] });
     }
     const UNREGISTERED = { min_sample: undefined, hypothesis: ' ', decision_rule: '' };
-    const invalidChangeBase = untidyBase('base-invalid-change', `${oldChange(UNREGISTERED)}\n`);
+    const invalidChangeBase = untidyBase('base-invalid-change', `${oldChange(UNREGISTERED)}\n`, MERGED_SEP_3);
     expect('an untouched historical change without a minimum sample or with blank text only warns', { base: invalidChangeBase, setup: () => write('components/Card.tsx', 'export const y = 2;\n'), warned: ['a change requires "min_sample"', '"hypothesis" is empty', '"decision_rule" is empty'] });
     const inherited = ['a change requires "min_sample" to be a positive safe integer (already on the base)', '"hypothesis" is empty (already on the base)', '"decision_rule" is empty (already on the base)'];
-    const LEGACY_SHIPPING = { pr: 59, shipped_on: '2026-10-03' };
     for (const [label, extra] of [
       ['a note added to', { notes: 'Still waiting.' }],
       ['shipping', { status: 'shipped', ...LEGACY_SHIPPING }],
       ['concluding', { status: 'concluded', ...LEGACY_SHIPPING, verdict: 'keep', result: { rate: 0.45, n: 200 }, evaluated_on: '2026-10-15' }],
-      ['reverting', { status: 'reverted', ...LEGACY_SHIPPING, verdict: 'revert', evaluated_on: '2026-10-05', notes: 'Worse on phones; reverted in #61.' }],
+      ['reverting', { status: 'reverted', ...LEGACY_SHIPPING, verdict: 'revert', evaluated_on: '2026-09-05', notes: 'Worse on phones; reverted in #61.' }],
     ]) {
       expect(`${label} a historical change without a minimum sample or with blank text only warns`, { base: invalidChangeBase, ledger: false, setup: () => write(LEDGER, `${oldChange({ ...UNREGISTERED, ...extra })}\n`), warned: inherited });
     }
@@ -1730,27 +1930,36 @@ function selfTest() {
     expect('a ship date changed once set', { base: shippedBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, shipped_on: '2026-10-03' })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"shipped_on" was already'] });
     // A line on main from before the schema (no measured baseline, no window_days, evaluate_after out of range) only
     // warns, also when a bookkeeping pull request ships, concludes or reverts it: those fields never change.
-    const preSchema = (extra = {}) => entry('2026-10-01-old-change', { baseline: {}, window_days: undefined, evaluate_after: '2027-06-01', ...extra });
-    const preSchemaBase = untidyBase('base-pre-schema', `${preSchema()}\n`);
-    const preSchemaWarnings = ['needs "baseline"."window"', 'a change requires "window_days"', '"evaluate_after" 2027-06-01', 'already on the base'];
+    const preSchema = (extra = {}) => entry('2026-09-01-old-change', { baseline: {}, window_days: undefined, evaluate_after: '2026-09-05', ...extra });
+    const preSchemaBase = untidyBase('base-pre-schema', `${preSchema()}\n`, MERGED_SEP_3);
+    const preSchemaWarnings = ['needs "baseline"."window"', 'a change requires "window_days"', '"evaluate_after" 2026-09-05', 'already on the base'];
     expect('an untouched line from before the schema only warns', { base: preSchemaBase, setup: () => write('components/Card.tsx', 'export const y = 2;\n'), warned: preSchemaWarnings });
     for (const [label, extra] of [
       ['shipping', { status: 'shipped', ...LEGACY_SHIPPING }],
       ['concluding', { status: 'concluded', ...LEGACY_SHIPPING, verdict: 'keep', result: { rate: 0.45, n: 200 }, evaluated_on: '2026-10-15' }],
-      ['reverting', { status: 'reverted', ...LEGACY_SHIPPING, verdict: 'revert', evaluated_on: '2026-10-05', notes: 'Worse on phones; reverted in #61.' }],
+      ['reverting', { status: 'reverted', ...LEGACY_SHIPPING, verdict: 'revert', evaluated_on: '2026-09-05', notes: 'Worse on phones; reverted in #61.' }],
     ]) {
       expect(`${label} a line from before the schema only warns`, { base: preSchemaBase, ledger: false, setup: () => write(LEDGER, `${preSchema(extra)}\n`), warned: preSchemaWarnings });
     }
-    expect('a line from before the schema cannot be given a baseline later', { base: preSchemaBase, ledger: false, setup: () => write(LEDGER, `${preSchema({ baseline: { window: '2026-09-03..2026-09-30', visits: 548 } })}\n`), rules: ['ledger'], messages: ['changed "baseline"'] });
+    expect('a line from before the schema cannot be given a baseline later', { base: preSchemaBase, ledger: false, setup: () => write(LEDGER, `${preSchema({ baseline: { window: '2026-08-04..2026-08-31', visits: 548 } })}\n`), rules: ['ledger'], messages: ['changed "baseline"'] });
+    // Ids are unique. Two lines already sharing one on main (a hand edit) are matched in order and only warn, so they
+    // never block every later pull request; neither a repaired line nor a new one can take an id already in use.
+    const dupBase = untidyBase('base-duplicate-ids', `${entry('2026-10-01-dup', { title: 'First' })}\n${entry('2026-10-01-dup', { title: 'Second' })}\n`);
+    expect('two lines sharing an id on main only warn', { base: dupBase, setup: () => write('components/Card.tsx', 'export const y = 2;\n'), warned: ['id "2026-10-01-dup" is also used on line 1 (already on the base)'] });
+    expect('the second of two lines sharing an id on main can be edited', { base: dupBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-dup', { title: 'First' })}\n${entry('2026-10-01-dup', { title: 'Second', notes: 'A note.' })}\n`), warned: ['also used on line 1'] });
+    expect('the second of two lines sharing an id on main cannot be removed', { base: dupBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-dup', { title: 'First' })}\n`), rules: ['ledger'], messages: ['existing entry "2026-10-01-dup" was removed'] });
 
-    // Ledger: leaving the evaluation queue requires a complete outcome and shipping record.
-    const lifecycleId = '2026-10-01-lifecycle';
-    const lifecycleShipping = { pr: 59, shipped_on: '2026-10-03' };
+    // Ledger: leaving the evaluation queue requires a complete outcome and shipping record. The lifecycle change is
+    // dated 2026-09-01, evaluated after 2026-09-20, and its line reached main on 2026-09-03 (its merge), so it ships on
+    // 2026-09-03 and falls due on 2026-09-20 (later than 2026-09-03 + 14 + 1).
+    const lifecycleId = '2026-09-01-lifecycle';
+    const lifecycle = (extra = {}) => entry(lifecycleId, { evaluate_after: '2026-09-20', ...extra });
+    const lifecycleShipping = { pr: 59, shipped_on: '2026-09-03' };
     const lifecycleOutcome = { verdict: 'keep', result: { rate: 0.45, n: 200 }, evaluated_on: '2026-10-14' };
+    const conclude = (extra = {}) => lifecycle({ status: 'concluded', ...lifecycleShipping, ...lifecycleOutcome, ...extra });
     for (const initialStatus of ['proposed', 'shipped']) {
       const initialShipping = initialStatus === 'shipped' ? lifecycleShipping : {};
-      const lifecycleBase = untidyBase(`base-lifecycle-${initialStatus}`, `${entry(lifecycleId, { status: initialStatus, ...initialShipping })}\n`);
-      const conclude = (extra = {}) => entry(lifecycleId, { status: 'concluded', ...lifecycleShipping, ...lifecycleOutcome, ...extra });
+      const lifecycleBase = untidyBase(`base-lifecycle-${initialStatus}`, `${lifecycle({ status: initialStatus, ...initialShipping })}\n`, MERGED_SEP_3);
       expect(`${initialStatus} entry can conclude with all shipping and outcome fields`, { base: lifecycleBase, ledger: false, setup: () => write(LEDGER, `${conclude()}\n`) });
       for (const field of ['pr', 'shipped_on', 'verdict', 'result', 'evaluated_on']) {
         for (const [label, value] of [['missing', undefined], ['null', null]]) {
@@ -1761,9 +1970,9 @@ function selfTest() {
         expect(`${initialStatus} entry cannot conclude with invalid ${field} ${JSON.stringify(value)}`, { base: lifecycleBase, ledger: false, setup: () => write(LEDGER, `${conclude({ [field]: value })}\n`), rules: ['ledger'], messages: [`"${field}" must be`] });
       }
       // Exactly what the merge workflow's automatic revert writes (scripts/autopilot-merge.cjs keepRecordsAfterRevert).
-      expect(`${initialStatus} entry can be automatically reverted before evaluation`, { base: lifecycleBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { status: 'reverted', ...lifecycleShipping, verdict: 'revert', result: null, evaluated_on: '2026-10-14', notes: 'Reverted automatically on 2026-10-14: the live checks failed after merge abc1234.' })}\n`) });
+      expect(`${initialStatus} entry can be automatically reverted before evaluation`, { base: lifecycleBase, ledger: false, setup: () => write(LEDGER, `${lifecycle({ status: 'reverted', ...lifecycleShipping, verdict: 'revert', result: null, evaluated_on: '2026-09-04', notes: 'Reverted automatically on 2026-09-04: the live checks failed after merge abc1234.' })}\n`) });
       // Moving to reverted records how: verdict revert (with its ship and evaluation dates) or inconclusive, the pull request, and why.
-      const revert = (extra = {}) => entry(lifecycleId, { status: 'reverted', ...lifecycleShipping, verdict: 'revert', result: { rate: 0.31, n: 210 }, evaluated_on: '2026-10-14', notes: 'Worse on phones; reverted in #61.', ...extra });
+      const revert = (extra = {}) => lifecycle({ status: 'reverted', ...lifecycleShipping, verdict: 'revert', result: { rate: 0.31, n: 210 }, evaluated_on: '2026-10-14', notes: 'Worse on phones; reverted in #61.', ...extra });
       expect(`${initialStatus} entry can be reverted with a complete record`, { base: lifecycleBase, ledger: false, setup: () => write(LEDGER, `${revert()}\n`) });
       for (const [field, message] of [['verdict', '"reverted" entry requires "verdict" "revert" or "inconclusive"'], ['pr', '"reverted" entry requires non-null "pr"'], ['shipped_on', '"reverted" entry with verdict "revert" requires non-null "shipped_on"'], ['evaluated_on', '"reverted" entry with verdict "revert" requires non-null "evaluated_on"'], ['notes', '"reverted" entry requires "notes" saying why']]) {
         for (const [label, value] of [['missing', undefined], ['null', null]]) {
@@ -1774,66 +1983,116 @@ function selfTest() {
         expect(`${initialStatus} entry cannot be reverted with ${field} ${JSON.stringify(value)}`, { base: lifecycleBase, ledger: false, setup: () => write(LEDGER, `${revert({ [field]: value })}\n`), rules: ['ledger'], messages: [message] });
       }
       expect(`${initialStatus} entry can be reverted as inconclusive without an evaluation date`, { base: lifecycleBase, ledger: false, setup: () => write(LEDGER, `${revert({ verdict: 'inconclusive', result: null, evaluated_on: null })}\n`) });
+      // A revert verdict is recorded where the change is undone: never on a concluded entry, which would stay live with nothing due.
+      expect(`${initialStatus} entry cannot conclude with verdict revert`, { base: lifecycleBase, ledger: false, setup: () => write(LEDGER, `${conclude({ verdict: 'revert' })}\n`), rules: ['ledger'], messages: ['verdict "revert" goes with status "reverted"'] });
       if (initialStatus === 'proposed') {
         for (const field of ['pr', 'shipped_on']) {
           for (const [label, value] of [['missing', undefined], ['null', null]]) {
-            expect(`proposed entry cannot ship with ${label} ${field}`, { base: lifecycleBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { status: 'shipped', ...lifecycleShipping, [field]: value })}\n`), rules: ['ledger'], messages: [`"shipped" entry requires non-null "${field}"`] });
+            expect(`proposed entry cannot ship with ${label} ${field}`, { base: lifecycleBase, ledger: false, setup: () => write(LEDGER, `${lifecycle({ status: 'shipped', ...lifecycleShipping, [field]: value })}\n`), rules: ['ledger'], messages: [`"shipped" entry requires non-null "${field}"`] });
           }
         }
       }
     }
-    // An existing proposed entry whose pull request closed unmerged (skill step 1.3): reverted, inconclusive, its pr and a note.
     const proposedBase = 'base-lifecycle-proposed';
-    expect('a proposed entry can be marked closed unmerged', { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { status: 'reverted', verdict: 'inconclusive', pr: 61, notes: 'Closed unmerged after 7 days; its premise is gone.' })}\n`) });
-    expect('a proposed entry closed unmerged still needs its pr and a note', { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { status: 'reverted', verdict: 'inconclusive' })}\n`), rules: ['ledger'], messages: ['"reverted" entry requires non-null "pr"', '"reverted" entry requires "notes" saying why'], absent: ['"shipped_on"', '"evaluated_on"'] });
-    expect('a proposed entry closed unmerged cannot keep a null verdict', { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { status: 'reverted', pr: 61, notes: 'Closed unmerged.' })}\n`), rules: ['ledger'], messages: ['"verdict" "revert" or "inconclusive"'] });
-    const keptBase = untidyBase('base-lifecycle-kept', `${entry(lifecycleId, { status: 'concluded', ...lifecycleShipping, ...lifecycleOutcome })}\n`);
-    expect('a kept conclusion cannot be marked reverted', { base: keptBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { status: 'reverted', ...lifecycleShipping, ...lifecycleOutcome, notes: 'Rolled back.' })}\n`), rules: ['ledger'], messages: ['"verdict" "revert" or "inconclusive"'] });
-    const inconclusiveBase = untidyBase('base-lifecycle-inconclusive', `${entry(lifecycleId, { status: 'concluded', ...lifecycleShipping, ...lifecycleOutcome, verdict: 'inconclusive' })}\n`);
-    expect('an inconclusive conclusion can be marked reverted with a note', { base: inconclusiveBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { status: 'reverted', ...lifecycleShipping, ...lifecycleOutcome, verdict: 'inconclusive', notes: 'The simpler option won; the variant was removed.' })}\n`) });
+    const lifecycleShippedBase = 'base-lifecycle-shipped';
+    expect('an existing entry evaluated, with a conclude entry appended', { base: lifecycleShippedBase, ledger: false, setup: () => write(LEDGER, `${conclude({ notes: 'Held up.' })}\n${proposal({ kind: 'conclude', evaluate_after: null })}\n`) });
+    // Each kind records a verdict its comparison can reach.
+    for (const [label, verdict] of [['an experiment\'s ship-variant', 'ship-variant'], ['an experiment\'s keep-control', 'keep-control']]) {
+      expect(`a change cannot conclude with ${label}`, { base: lifecycleShippedBase, ledger: false, setup: () => write(LEDGER, `${conclude({ verdict })}\n`), rules: ['ledger'], messages: [`"verdict" "${verdict}" is not a verdict for a change; it is one of keep, revert, inconclusive, iterate`] });
+    }
+    for (const verdict of ['inconclusive', 'iterate']) expect(`a change can conclude ${verdict}`, { base: lifecycleShippedBase, ledger: false, setup: () => write(LEDGER, `${conclude({ verdict })}\n`) });
+    const shippedExperiment = untidyBase('base-shipped-experiment', `${oldExperiment({ status: 'shipped', pr: 59, shipped_on: '2026-10-03' })}\n`);
+    const judgedExperiment = (verdict) => oldExperiment({ status: 'concluded', pr: 59, shipped_on: '2026-10-03', verdict, result: { control: 80, variant: 95 }, evaluated_on: '2026-10-14' });
+    for (const verdict of ['ship-variant', 'inconclusive']) expect(`an experiment can conclude ${verdict}`, { base: shippedExperiment, ledger: false, setup: () => write(LEDGER, `${judgedExperiment(verdict)}\n`) });
+    for (const verdict of ['keep', 'iterate']) expect(`an experiment cannot conclude ${verdict}`, { base: shippedExperiment, ledger: false, setup: () => write(LEDGER, `${judgedExperiment(verdict)}\n`), rules: ['ledger'], messages: [`"verdict" "${verdict}" is not a verdict for an experiment; it is one of ship-variant, keep-control, inconclusive, revert`] });
+    const shippedFix = untidyBase('base-shipped-fix', `${entry('2026-10-01-fix', { kind: 'fix', evaluate_after: null, status: 'shipped', pr: 59, shipped_on: '2026-10-02' })}\n`);
+    expect('a fix cannot conclude with an experiment\'s verdict', { base: shippedFix, ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-fix', { kind: 'fix', evaluate_after: null, status: 'concluded', pr: 59, shipped_on: '2026-10-02', verdict: 'ship-variant', result: { errors: 0, n: 90 }, evaluated_on: '2026-10-14' })}\n`), rules: ['ledger'], messages: ['is not a verdict for a fix; it is one of keep, revert, inconclusive'] });
+    // A verdict already on main cannot change, so a wrong one only warns, and the entry can still move to reverted.
+    const revertConcludedBase = untidyBase('base-lifecycle-concluded-revert', `${conclude({ verdict: 'revert' })}\n`, MERGED_SEP_3);
+    expect('a concluded revert verdict on main only warns on a note', { base: revertConcludedBase, ledger: false, setup: () => write(LEDGER, `${conclude({ verdict: 'revert', notes: 'Waiting for the revert.' })}\n`), warned: ['verdict "revert" goes with status "reverted"', 'already on the base'] });
+    expect('a concluded revert verdict on main can move to reverted', { base: revertConcludedBase, ledger: false, setup: () => write(LEDGER, `${conclude({ verdict: 'revert', status: 'reverted', notes: 'Reverted in #61.' })}\n`) });
+    // An existing proposed entry whose pull request closed unmerged (skill step 1.3): reverted, inconclusive, its pr and a note.
+    expect('a proposed entry can be marked closed unmerged', { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${lifecycle({ status: 'reverted', verdict: 'inconclusive', pr: 61, notes: 'Closed unmerged after 7 days; its premise is gone.' })}\n`) });
+    expect('a proposed entry closed unmerged still needs its pr and a note', { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${lifecycle({ status: 'reverted', verdict: 'inconclusive' })}\n`), rules: ['ledger'], messages: ['"reverted" entry requires non-null "pr"', '"reverted" entry requires "notes" saying why'], absent: ['"shipped_on"', '"evaluated_on"'] });
+    expect('a proposed entry closed unmerged cannot keep a null verdict', { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${lifecycle({ status: 'reverted', pr: 61, notes: 'Closed unmerged.' })}\n`), rules: ['ledger'], messages: ['"verdict" "revert" or "inconclusive"'] });
+    const keptBase = untidyBase('base-lifecycle-kept', `${conclude()}\n`, MERGED_SEP_3);
+    expect('a kept conclusion cannot be marked reverted', { base: keptBase, ledger: false, setup: () => write(LEDGER, `${lifecycle({ status: 'reverted', ...lifecycleShipping, ...lifecycleOutcome, notes: 'Rolled back.' })}\n`), rules: ['ledger'], messages: ['"verdict" "revert" or "inconclusive"'] });
+    const inconclusiveBase = untidyBase('base-lifecycle-inconclusive', `${conclude({ verdict: 'inconclusive' })}\n`, MERGED_SEP_3);
+    expect('an inconclusive conclusion can be marked reverted with a note', { base: inconclusiveBase, ledger: false, setup: () => write(LEDGER, `${lifecycle({ status: 'reverted', ...lifecycleShipping, ...lifecycleOutcome, verdict: 'inconclusive', notes: 'The simpler option won; the variant was removed.' })}\n`) });
     // The note it already had does not say why it was reverted.
-    const notedBase = untidyBase('base-lifecycle-noted', `${entry(lifecycleId, { status: 'shipped', ...lifecycleShipping, notes: 'Watch mobile first.' })}\n`);
-    const notedRevert = (notes) => entry(lifecycleId, { status: 'reverted', ...lifecycleShipping, verdict: 'revert', evaluated_on: '2026-10-15', notes });
+    const notedBase = untidyBase('base-lifecycle-noted', `${lifecycle({ status: 'shipped', ...lifecycleShipping, notes: 'Watch mobile first.' })}\n`, MERGED_SEP_3);
+    const notedRevert = (notes) => lifecycle({ status: 'reverted', ...lifecycleShipping, verdict: 'revert', evaluated_on: '2026-10-15', notes });
     expect('a reverted entry cannot keep only the note it had', { base: notedBase, ledger: false, setup: () => write(LEDGER, `${notedRevert('Watch mobile first.')}\n`), rules: ['ledger'], messages: ['"reverted" entry requires "notes" saying why'] });
     expect('a reverted entry can add to the note it had', { base: notedBase, ledger: false, setup: () => write(LEDGER, `${notedRevert('Watch mobile first. Worse on phones; reverted in #61.')}\n`) });
     // A reverted line already on the base is not re-judged: an untouched incomplete one never blocks a pull request.
-    const oldRevertBase = untidyBase('base-old-revert', `${entry(lifecycleId, { status: 'reverted', verdict: null, pr: null })}\n`);
+    const oldRevertBase = untidyBase('base-old-revert', `${lifecycle({ status: 'reverted', verdict: null, pr: null })}\n`, MERGED_SEP_3);
     expect('an untouched incomplete reverted entry on the base does not block', { base: oldRevertBase, setup: () => write('components/Card.tsx', 'export const y = 2;\n') });
-    const incompleteConclusion = entry(lifecycleId, { status: 'concluded', pr: null, shipped_on: null, verdict: null, result: null, evaluated_on: null });
-    const incompleteConclusionBase = untidyBase('base-incomplete-conclusion', `${incompleteConclusion}\n`);
+    const incompleteConclusion = lifecycle({ status: 'concluded', pr: null, shipped_on: null, verdict: null, result: null, evaluated_on: null });
+    const incompleteConclusionBase = untidyBase('base-incomplete-conclusion', `${incompleteConclusion}\n`, MERGED_SEP_3);
     expect('unchanged incomplete historical conclusion is a warning', { base: incompleteConclusionBase, setup: () => {}, warned: ['requires non-null "pr"', 'requires non-null "shipped_on"', 'requires non-null "verdict"', 'requires non-null "result"', 'requires non-null "evaluated_on"'] });
-    expect('editing an incomplete historical conclusion requires completing it', { base: incompleteConclusionBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { ...JSON.parse(incompleteConclusion), notes: 'Reviewed again.' })}\n`), rules: ['ledger'], messages: ['requires non-null "verdict"', 'requires non-null "result"', 'requires non-null "evaluated_on"'] });
-    expect('an incomplete historical conclusion can be completed without changing its status', { base: incompleteConclusionBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { status: 'concluded', ...lifecycleShipping, ...lifecycleOutcome })}\n`) });
-    const completeConclusion = entry(lifecycleId, { status: 'concluded', ...lifecycleShipping, ...lifecycleOutcome });
-    const completeConclusionBase = untidyBase('base-complete-conclusion', `${completeConclusion}\n`);
-    expect('a complete conclusion permits notes-only bookkeeping', { base: completeConclusionBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { ...JSON.parse(completeConclusion), notes: 'Added context.' })}\n`) });
+    expect('editing an incomplete historical conclusion requires completing it', { base: incompleteConclusionBase, ledger: false, setup: () => write(LEDGER, `${lifecycle({ ...JSON.parse(incompleteConclusion), notes: 'Reviewed again.' })}\n`), rules: ['ledger'], messages: ['requires non-null "verdict"', 'requires non-null "result"', 'requires non-null "evaluated_on"'] });
+    expect('an incomplete historical conclusion can be completed without changing its status', { base: incompleteConclusionBase, ledger: false, setup: () => write(LEDGER, `${conclude()}\n`) });
+    const completeConclusion = conclude();
+    const completeConclusionBase = untidyBase('base-complete-conclusion', `${completeConclusion}\n`, MERGED_SEP_3);
+    expect('a complete conclusion permits notes-only bookkeeping', { base: completeConclusionBase, ledger: false, setup: () => write(LEDGER, `${lifecycle({ ...JSON.parse(completeConclusion), notes: 'Added context.' })}\n`) });
     for (const field of ['pr', 'shipped_on', 'verdict', 'result', 'evaluated_on']) {
-      expect(`completed ${field} cannot be cleared`, { base: completeConclusionBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { ...JSON.parse(completeConclusion), [field]: null })}\n`), rules: ['ledger'], messages: [`"${field}" was already`, `"concluded" entry requires non-null "${field}"`] });
+      expect(`completed ${field} cannot be cleared`, { base: completeConclusionBase, ledger: false, setup: () => write(LEDGER, `${lifecycle({ ...JSON.parse(completeConclusion), [field]: null })}\n`), rules: ['ledger'], messages: [`"${field}" was already`, `"concluded" entry requires non-null "${field}"`] });
     }
 
-    // Ledger: the dates of an entry's lifecycle happen in order and not after the commit that records them (2026-10-15
-    // here, with a day of slack): shipped on or after its date, judged on or after it shipped.
-    const lifecycleShippedBase = 'base-lifecycle-shipped';
-    const shipOn = (day) => entry(lifecycleId, { status: 'shipped', ...lifecycleShipping, shipped_on: day });
-    for (const day of ['2026-10-01', '2026-10-15', '2026-10-16']) expect(`an entry dated 2026-10-01 marked shipped on ${day}`, { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${shipOn(day)}\n`) });
-    expect('an entry marked shipped before its date', { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${shipOn('2026-09-30')}\n`), rules: ['ledger'], messages: ['"shipped_on" 2026-09-30 is before the entry\'s date 2026-10-01; it is the UTC day its pull request merged'] });
-    expect('an entry marked shipped in the future', { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${shipOn('2026-10-17')}\n`), rules: ['ledger'], messages: ['"shipped_on" 2026-10-17 is in the future (this commit is from 2026-10-15)'] });
-    const judgedOn = (day, extra = {}) => entry(lifecycleId, { status: 'concluded', ...lifecycleShipping, ...lifecycleOutcome, evaluated_on: day, ...extra });
-    for (const day of ['2026-10-03', '2026-10-16']) expect(`an entry shipped on 2026-10-03 judged on ${day}`, { base: lifecycleShippedBase, ledger: false, setup: () => write(LEDGER, `${judgedOn(day)}\n`) });
-    expect('an entry judged before it shipped', { base: lifecycleShippedBase, ledger: false, setup: () => write(LEDGER, `${judgedOn('2026-10-02')}\n`), rules: ['ledger'], messages: ['"evaluated_on" 2026-10-02 is before "shipped_on" 2026-10-03'] });
-    expect('an entry judged before its date', { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${judgedOn('2026-09-30')}\n`), rules: ['ledger'], messages: ['"evaluated_on" 2026-09-30 is before the entry\'s date 2026-10-01'] });
-    expect('an entry judged in the future', { base: lifecycleShippedBase, ledger: false, setup: () => write(LEDGER, `${judgedOn('2026-10-17')}\n`), rules: ['ledger'], messages: ['"evaluated_on" 2026-10-17 is in the future (this commit is from 2026-10-15)'] });
+    // Ledger: the dates of an entry's lifecycle happen in order and not after today (2026-10-15 here, with a day of
+    // slack). shipped_on, once set on a line on main, is the day that line reached main: its merge (2026-09-03 here).
+    const shipOn = (day) => lifecycle({ status: 'shipped', ...lifecycleShipping, shipped_on: day });
+    const notMerged = (day) => `"shipped_on" is ${day}, but the entry's line reached main on 2026-09-03`;
+    expect('an entry marked shipped on the day its line reached main', { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${shipOn('2026-09-03')}\n`) });
+    for (const day of ['2026-09-01', '2026-09-02', '2026-09-04', '2026-10-15']) expect(`an entry merged on 2026-09-03 marked shipped on ${day}`, { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${shipOn(day)}\n`), rules: ['ledger'], messages: [notMerged(day)] });
+    expect('an entry marked shipped before its date', { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${shipOn('2026-08-31')}\n`), rules: ['ledger'], messages: ['"shipped_on" 2026-08-31 is before the entry\'s date 2026-09-01; it is the UTC day its pull request merged', notMerged('2026-08-31')] });
+    expect('an entry marked shipped in the future', { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${shipOn('2026-10-17')}\n`), rules: ['ledger'], messages: ['"shipped_on" 2026-10-17 is in the future (today is 2026-10-15, UTC)', notMerged('2026-10-17')] });
+    // Marked shipped and judged in one pull request, after the data is in: the ship day is still the merge's.
+    expect('a proposed entry marked shipped and judged in one pull request', { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${conclude()}\n`) });
+    expect('a proposed entry judged in one pull request cannot pick a later ship day', { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${conclude({ shipped_on: '2026-09-25' })}\n`), rules: ['ledger'], messages: [notMerged('2026-09-25')] });
+    // The merge is found however the line is spaced, and through a merge commit; a line the history cannot show fails closed.
+    const spaced = untidyBase('base-spaced-line', `${lifecycle().replace(/":/g, '": ').replace(/,"/g, ', "')}\n`, MERGED_SEP_3);
+    expect('a spaced line on main is found by its id', { base: spaced, ledger: false, setup: () => write(LEDGER, `${shipOn('2026-09-03')}\n`) });
+    run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', 'base-merged-in'); run('checkout', '-q', '-b', 'side-branch');
+    write(LEDGER, `${BASE_LEDGER}${lifecycle()}\n`); run('add', '-A'); runAt('2026-09-02T09:00:00+00:00', 'commit', '-q', '-m', 'the change, on its own branch');
+    run('checkout', '-q', 'base-merged-in'); runAt(MERGED_SEP_3, 'merge', '-q', '--no-ff', '-m', 'merge the change', 'side-branch');
+    expect('a line merged with a merge commit ships on the merge\'s day', { base: 'base-merged-in', ledger: false, setup: () => write(LEDGER, `${BASE_LEDGER}${shipOn('2026-09-03')}\n`) });
+    expect('a line merged with a merge commit does not ship on its branch commit\'s day', { base: 'base-merged-in', ledger: false, setup: () => write(LEDGER, `${BASE_LEDGER}${shipOn('2026-09-02')}\n`), rules: ['ledger'], messages: [notMerged('2026-09-02')] });
+    const escaped = untidyBase('base-escaped-id', `${lifecycle().replace(`"id":"${lifecycleId}"`, `"id":"${lifecycleId.replace('l', '\\u006c')}"`)}\n`, MERGED_SEP_3);
+    expect('a line whose id the history cannot show cannot be marked shipped', { base: escaped, ledger: false, setup: () => write(LEDGER, `${shipOn('2026-09-03')}\n`), rules: ['ledger'], messages: ['"shipped_on" 2026-09-03 cannot be checked: no commit in the base\'s first-parent history adds this entry\'s line'] });
+    // A ship date the owner wrote with the line, or set earlier, is not re-checked.
+    const ownerShipped = untidyBase('base-owner-shipped', `${lifecycle({ status: 'shipped', ...lifecycleShipping })}\n`);
+    expect('an entry already shipped on main is judged without re-checking its ship day', { base: ownerShipped, ledger: false, setup: () => write(LEDGER, `${conclude()}\n`) });
+    // A change is judged on or after its due date: the later of evaluate_after and shipped_on + window_days + 1.
+    const judgedOn = (day, extra = {}) => conclude({ evaluated_on: day, ...extra });
+    for (const day of ['2026-09-20', '2026-10-16']) expect(`an entry due on 2026-09-20 judged on ${day}`, { base: lifecycleShippedBase, ledger: false, setup: () => write(LEDGER, `${judgedOn(day)}\n`) });
+    expect('an entry judged before its due date', { base: lifecycleShippedBase, ledger: false, setup: () => write(LEDGER, `${judgedOn('2026-09-19')}\n`), rules: ['ledger'], messages: ['a change is judged on or after its due date 2026-09-20 (the later of "evaluate_after" and "shipped_on" + "window_days" + 1), on its full windows; it was judged on 2026-09-19'] });
+    const dueBase = (label, extra) => untidyBase(label, `${lifecycle({ status: 'shipped', ...lifecycleShipping, ...extra })}\n`, MERGED_SEP_3);
+    const due28 = dueBase('base-due-28', { window_days: 28, evaluate_after: '2026-09-29' });
+    expect('an entry with 28-day windows judged the day they end', { base: due28, ledger: false, setup: () => write(LEDGER, `${judgedOn('2026-10-02', { window_days: 28, evaluate_after: '2026-09-29' })}\n`) });
+    expect('an entry with 28-day windows judged before they end', { base: due28, ledger: false, setup: () => write(LEDGER, `${judgedOn('2026-10-01', { window_days: 28, evaluate_after: '2026-09-29' })}\n`), rules: ['ledger'], messages: ['its due date 2026-10-02'] });
+    const dueLater = dueBase('base-due-later', { evaluate_after: '2026-10-10' });
+    expect('an entry judged on its evaluate_after', { base: dueLater, ledger: false, setup: () => write(LEDGER, `${judgedOn('2026-10-10', { evaluate_after: '2026-10-10' })}\n`) });
+    expect('an entry judged before its evaluate_after', { base: dueLater, ledger: false, setup: () => write(LEDGER, `${judgedOn('2026-10-09', { evaluate_after: '2026-10-10' })}\n`), rules: ['ledger'], messages: ['its due date 2026-10-10'] });
+    const dueTomorrow = dueBase('base-due-tomorrow', { evaluate_after: '2026-10-16' });
+    expect('an entry due tomorrow cannot use the clock slack to be judged today', { base: dueTomorrow, ledger: false, setup: () => write(LEDGER, `${judgedOn('2026-10-16', { evaluate_after: '2026-10-16' })}\n`), rules: ['ledger'], messages: ['its due date 2026-10-16', 'and today is 2026-10-15'] });
+    expect('an entry can be reverted before its due date', { base: dueLater, ledger: false, setup: () => write(LEDGER, `${lifecycle({ status: 'reverted', ...lifecycleShipping, evaluate_after: '2026-10-10', verdict: 'revert', result: { rate: 0.2, n: 90 }, evaluated_on: '2026-09-10', notes: 'A guardrail broke; reverted in #61.' })}\n`) });
+    const earlyConclusionBase = untidyBase('base-early-conclusion', `${conclude({ evaluated_on: '2026-09-10' })}\n`, MERGED_SEP_3);
+    expect('an early conclusion already on main only warns on a note', { base: earlyConclusionBase, ledger: false, setup: () => write(LEDGER, `${conclude({ evaluated_on: '2026-09-10', notes: 'Context.' })}\n`), warned: ['its due date 2026-09-20', 'already on the base'] });
+    expect('an entry judged before it shipped', { base: lifecycleShippedBase, ledger: false, setup: () => write(LEDGER, `${judgedOn('2026-09-02')}\n`), rules: ['ledger'], messages: ['"evaluated_on" 2026-09-02 is before "shipped_on" 2026-09-03'] });
+    expect('an entry judged before its date', { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${judgedOn('2026-08-31')}\n`), rules: ['ledger'], messages: ['"evaluated_on" 2026-08-31 is before the entry\'s date 2026-09-01'] });
+    expect('an entry judged in the future', { base: lifecycleShippedBase, ledger: false, setup: () => write(LEDGER, `${judgedOn('2026-10-17')}\n`), rules: ['ledger'], messages: ['"evaluated_on" 2026-10-17 is in the future (today is 2026-10-15, UTC)'] });
     expect('an entry concluded with an empty result', { base: lifecycleShippedBase, ledger: false, setup: () => write(LEDGER, `${judgedOn('2026-10-14', { result: {} })}\n`), rules: ['ledger'], messages: ['"result" is an empty object'] });
     // A ship date before the entry's date that is already on main cannot change, so it only warns.
-    const earlyShipBase = untidyBase('base-early-ship', `${shipOn('2026-09-30')}\n`);
-    expect('a ship date before its date on main only warns when the entry is concluded', { base: earlyShipBase, ledger: false, setup: () => write(LEDGER, `${judgedOn('2026-10-14', { shipped_on: '2026-09-30' })}\n`), warned: ['"shipped_on" 2026-09-30 is before the entry\'s date 2026-10-01', 'already on the base'] });
+    const earlyShipBase = untidyBase('base-early-ship', `${shipOn('2026-08-31')}\n`);
+    expect('a ship date before its date on main only warns when the entry is concluded', { base: earlyShipBase, ledger: false, setup: () => write(LEDGER, `${judgedOn('2026-10-14', { shipped_on: '2026-08-31' })}\n`), warned: ['"shipped_on" 2026-08-31 is before the entry\'s date 2026-09-01', 'already on the base'] });
     // Until it ships an entry has no shipped_on, verdict, result or evaluation date, and until it is judged no verdict,
     // result or evaluation date: otherwise bookkeeping could not mark it shipped, or the evaluation would never pick it.
-    expect('a proposed entry given a ship date without being marked shipped', { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { shipped_on: '2026-10-03' })}\n`), rules: ['ledger'], messages: ['"shipped_on" is "2026-10-03" on a "proposed" entry; it stays null until its pull request has merged and the entry is marked shipped'] });
+    expect('a proposed entry given a ship date without being marked shipped', { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${lifecycle({ shipped_on: '2026-09-03' })}\n`), rules: ['ledger'], messages: ['"shipped_on" is "2026-09-03" on a "proposed" entry; it stays null until its pull request has merged and the entry is marked shipped'] });
     for (const [field, value] of [['verdict', 'keep'], ['result', { rate: 0.45 }], ['evaluated_on', '2026-10-14']]) {
       const message = `"${field}" is ${JSON.stringify(value)} on a "shipped" entry; it stays null until the entry is judged, when its status moves to concluded or reverted`;
-      expect(`a proposed entry marked shipped with ${field} already set`, { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { status: 'shipped', ...lifecycleShipping, [field]: value })}\n`), rules: ['ledger'], messages: [message] });
-      expect(`a shipped entry given ${field} without being concluded`, { base: lifecycleShippedBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { status: 'shipped', ...lifecycleShipping, [field]: value })}\n`), rules: ['ledger'], messages: [message] });
+      expect(`a proposed entry marked shipped with ${field} already set`, { base: proposedBase, ledger: false, setup: () => write(LEDGER, `${lifecycle({ status: 'shipped', ...lifecycleShipping, [field]: value })}\n`), rules: ['ledger'], messages: [message] });
+      expect(`a shipped entry given ${field} without being concluded`, { base: lifecycleShippedBase, ledger: false, setup: () => write(LEDGER, `${lifecycle({ status: 'shipped', ...lifecycleShipping, [field]: value })}\n`), rules: ['ledger'], messages: [message] });
     }
     // The guard reads commits: work not yet committed fails the check; an untracked file is a warning.
     expect('a change not yet committed', { setup: () => {}, dirty: () => write('components/Card.tsx', component('window.localStorage.setItem("k", v);')), rules: ['uncommitted'], messages: ['components/Card.tsx', 'not committed'] });
@@ -1849,11 +2108,11 @@ function selfTest() {
       expect(`a metrics file with ${label} fails every new entry closed`, { base: metricsBase(`base-metrics-${cases}`, text), setup: () => {}, rules: ['ledger'], messages: [`${METRICS}:null defines no metric names on the base`] });
     }
     const unknownLine = entry('2026-10-01-old', { primary_metric: 'engaged_visit_rate', guardrails: ['bounce'] });
-    const unknownBase = untidyBase('base-unknown-metrics', `${unknownLine}\n`);
+    const unknownBase = untidyBase('base-unknown-metrics', `${unknownLine}\n`, MERGED_OCT_3);
     expect('unknown metric names on an untouched base line only warn', { base: unknownBase, setup: () => write('components/Card.tsx', 'export const y = 2;\n'), warned: ['"primary_metric" "engaged_visit_rate" is not a metric defined', '"guardrails" "bounce" is not a metric', 'already on the base'] });
     expect('unknown metric names on a base line being shipped only warn', { base: unknownBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-old', { primary_metric: 'engaged_visit_rate', guardrails: ['bounce'], status: 'shipped', pr: 59, shipped_on: '2026-10-03' })}\n`), warned: ['"primary_metric" "engaged_visit_rate" is not a metric defined', 'already on the base'], absent: ['engaged_visit_rate'] });
     expect('unknown metric names on a base line cannot be rewritten', { base: unknownBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-old')}\n`), rules: ['ledger'], messages: ['changed "primary_metric", "guardrails"'] });
-    const noGuardrailBase = untidyBase('base-no-guardrail', `${entry('2026-10-01-old', { guardrails: [] })}\n`);
+    const noGuardrailBase = untidyBase('base-no-guardrail', `${entry('2026-10-01-old', { guardrails: [] })}\n`, MERGED_OCT_3);
     expect('a base line without a guardrail only warns when it is shipped', { base: noGuardrailBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-old', { guardrails: [], status: 'shipped', pr: 59, shipped_on: '2026-10-03' })}\n`), warned: ['"guardrails" is empty; a "change" entry needs at least one', 'already on the base'] });
     // A broken base line may be repaired, but its fields were never on the base: its metric names are checked as a new entry's are.
     const brokenBase = untidyBase('base-broken-line', `${BASE_LEDGER}{"id": "2026-10-10-broken", "kind": "change", oops\n`);
@@ -1864,6 +2123,12 @@ function selfTest() {
     expect('a broken base line repaired without a minimum sample or with blank text', { base: brokenBase, ledger: false, setup: () => write(LEDGER, `${repair(UNREGISTERED)}${proposal()}\n`), rules: ['ledger'], messages: ['a change requires "min_sample"', '"hypothesis" is empty', '"decision_rule" is empty'] });
     expect('a broken base line repaired with an invented guardrail by a bookkeeping pull request', { base: brokenBase, ledger: false, setup: () => write(LEDGER, repair({ guardrails: ['bounce'] })), rules: ['ledger'], messages: ['"guardrails" "bounce" is not a metric'] });
     expect('a broken base line repaired without a measured baseline or windows', { base: brokenBase, ledger: false, setup: () => write(LEDGER, `${repair({ baseline: {}, window_days: undefined })}${proposal()}\n`), rules: ['ledger'], messages: ['needs "baseline"."window"', 'a change requires "window_days"'] });
+    // A repaired line keeps an id of its own: a copy of another entry would leave two lines with one id on main.
+    expect('a broken base line repaired into a copy of an earlier entry', { base: brokenBase, ledger: false, setup: () => write(LEDGER, `${BASE_LEDGER}${entry('2026-10-01-first', { ...FIRST, shipped_on: '2026-10-02' })}\n`), rules: ['ledger'], messages: ['id "2026-10-01-first" is already used on line 1; a repaired line keeps an id of its own'] });
+    const brokenMiddle = untidyBase('base-broken-middle', `${BASE_LEDGER}{"id": "2026-10-10-broken", oops\n${entry('2026-10-05-later')}\n`);
+    expect('a broken base line repaired with the id of a later line', { base: brokenMiddle, ledger: false, setup: () => write(LEDGER, `${BASE_LEDGER}${entry('2026-10-05-later')}\n${entry('2026-10-05-later')}\n`), rules: ['ledger'], messages: ['id "2026-10-05-later" is already used on line 3'] });
+    expect('a broken base line repaired with the id of this pull request\'s proposal', { base: brokenBase, ledger: false, setup: () => write(LEDGER, `${BASE_LEDGER}${proposal()}\n${proposal()}\n`), rules: ['ledger'], messages: [`id "${CHANGE_ID}" is already used on line 2`] });
+    expect('a broken base line repaired with an id of its own beside a later line', { base: brokenMiddle, ledger: false, setup: () => write(LEDGER, `${BASE_LEDGER}${entry('2026-10-10-broken')}\n${entry('2026-10-05-later')}\n`) });
     run('checkout', '-q', '-f', brokenBase); run('checkout', '-q', '-B', 'base-broken-no-metrics'); remove(METRICS); run('add', '-A'); run('commit', '-q', '-m', 'broken line, no metrics');
     expect('a repaired base line fails closed without the metrics file', { base: 'base-broken-no-metrics', ledger: false, setup: () => write(LEDGER, repair()), rules: ['ledger'], messages: [`${METRICS}:null is missing on the base`] });
     expect('an untouched broken line does not need the metrics file', { base: 'base-broken-no-metrics', ledger: false, setup: () => write('autopilot/backlog.md', '# Backlog\n- Re-ranked.\n'), warned: ['does not parse as JSON'] });

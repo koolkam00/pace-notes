@@ -42,7 +42,7 @@ The autopilot exists to make https://splithappens.run more useful to the runners
 
    Judge the change later by that rule and its windows only. Never move the goalposts, cherry-pick windows or redefine metrics. If a metric is broken, say so and mark the entry `inconclusive`.
 
-   A bookkeeping pull request changes only existing ledger lines, `autopilot/backlog.md` and `autopilot/LEARNINGS.md` (marking entries shipped, recording verdicts), and appends no line.
+   A bookkeeping pull request changes only existing ledger lines, `autopilot/backlog.md` and `autopilot/LEARNINGS.md` (marking entries shipped, recording verdicts), and appends no line other than the record of a pull request that closed unmerged.
 3. Never merge a pull request yourself. The "Autopilot merge" GitHub workflow, running from `main`, is the only merger.
 4. Never edit protected paths (§6). Never skip, weaken, disable or delete a test, verifier or check, or change how one runs.
 5. Never push to `main`. Never force-push, rewrite history or delete branches you did not create.
@@ -102,8 +102,10 @@ A change that needs any of these goes to an `autopilot:needs-owner` issue with a
 **Ledger rules (also enforced by the guard):**
 - Each entry is one JSON object on one line, and meets the schema for its kind in `autopilot/metrics.md` §4, which registers everything its evaluation later needs.
 - A new entry's `primary_metric` and guardrails are names from the `autopilot/metrics.md` §1 table, written exactly; a change or experiment has at least one guardrail.
-- A new entry's hypothesis and decision rule are never blank. A new change or experiment also records its minimum sample (`min_sample`, a positive whole number), its measured baseline (the window it was counted over and its visits), its windows (`window_days` for a change, `max_days` for an experiment) and an `evaluate_after` in the range its kind allows; none of these ever changes once written. An older line that lacks one of them, or has a blank hypothesis or decision rule, can still be marked shipped, concluded or reverted.
-- `shipped_on` and `evaluated_on` are never before the entry's date (nor the evaluation before the ship), nor after the day they are recorded.
+- A new entry's hypothesis and decision rule are never blank. A new change or experiment also records its minimum sample (`min_sample`, a positive whole number), its measured baseline (the window it was counted over and its visits), its windows (`window_days` for a change, `max_days` for an experiment) and an `evaluate_after` in the range its kind allows; a fix, revert or conclusion has `evaluate_after` null. None of these ever changes once written. An older line that lacks one of them, or has a blank hypothesis or decision rule, can still be marked shipped, concluded or reverted.
+- `shipped_on` and `evaluated_on` are never before the entry's date (nor the evaluation before the ship), nor after today (the head commit's UTC day, or the clock's if that is earlier). `shipped_on` is the UTC day the entry's line reached `main`: its pull request's merge. A change is concluded only on or after its due date, on its full windows.
+- A verdict is one the entry's kind can reach (`autopilot/metrics.md` §4), and verdict `revert` goes only with status `reverted`.
+- An experiment's registry `started`, `variants` and `weights` are set by the pull request that registers it, and never change while that registration stands.
 - New entries start as `proposed`, with `verdict`, `result` and `shipped_on` null, dated within 2 days of the branch date. The one exception is the record of a pull request that closed unmerged: `reverted`, with verdict null or `inconclusive`, its own date, and always its `pr` and a note saying why it closed.
 - Once its pull request has merged, an entry is marked `shipped`, with `pr` and `shipped_on`. When judged it becomes `concluded` (or `reverted`). `status` only moves forward.
 - An entry moved to `reverted` needs verdict `revert` or `inconclusive`, its `pr` and a new note saying why; a `revert` verdict also needs `shipped_on` and `evaluated_on`.
