@@ -16,6 +16,18 @@ Pacing comparisons additionally use a half-open 15-minute achieved-time interval
 
 Individual early pace covers 5–20 km, opening pace 0–5 km and late pace 30 km–finish. Late change is `100 × (late pace / early pace − 1)`. The final recorded section is 40–42.195 km. Between-race comparisons subtract matching recorded section elapsed times; those differences sum to the finish-time difference. Sharing a city name does not verify the same historical route. Selection, fitness, field composition, age, route changes and conditions can differ; no weather, terrain or aging effect is identified and no adjusted finish time is calculated.
 
+## Copy editions
+
+Added October 15, 2026 (repository state: branch `fix/duplicate-edition-guard`; not yet deployed). An edition listed in the story manifest's `duplicate_edition_screen` largely repeats another edition's field: in the adopted release, Chicago 2018 and 2019 repeat Chicago 2024, so 47,639 candidate profiles hold the same finish three times, each with its own year's weather and the 2024 field as peers ([measured impact](KNOWN_ISSUES.md#chicago-2018-and-2019-measured-impact-october-15-2026)). The runner-context files are unchanged; the runner view stops presenting the copies as analysable races:
+
+- `app/runners/page.tsx` reads the list at build time with `copyEditions()` (`lib/duplicate-editions.ts`, from the verified manifest; no year or count is typed in) and passes it to `RunnerSearch`, which passes it to `RunnerContext`. The client components use the pure helpers in `lib/duplicate-editions-shared.ts`.
+- A copy-edition record stays searchable and visible with its recorded names, finish and checkpoints, labelled "Recorded times only" instead of "Pacing analysis available".
+- It is left out of the selection summary (fastest finish, eligible count, year span, year-over-year change, the eligible table) and listed with the readings-only records under `copyEditionSentence()`, shown once per copy edition, for example: "Chicago 2019's records largely repeat the Chicago 2024 field (51,212 of its 51,530 finishes share all nine checkpoint times with a 2024 finish), so they are shown as recorded times only, without pacing, peer or weather comparisons." The sentence is built from the screen's counts, never its `reason` text, and never says "the same names" or "all" finishes.
+- `RunnerContext` gives it no focus option, no peer or weather context, no "Across your selected races" comparison or row, and no split-check or analysis link; its edition file is not fetched. `race_comparison_opened` counts a selection of copies as `limited`.
+- With an empty screen the view is unchanged, so adopting a release without copies turns the guard off with no code change.
+
+`verify-runner-search` and `verify-runner-context-ui` render synthetic copy-edition fixtures; the S3 browser check opens a real Chicago 2018/2019/2024 profile, found in the published shards when it runs (its name is never written down), and checks one eligible race and each sentence once.
+
 ## Weather contract and gaps
 
 `analysis/runner_environment.py` reuses the weather study's start-hour validation. A city/year must identify one raw race and one weather row, with trimmed case-insensitive race names agreeing. Race-date year must match; the archived hour must be within 30 minutes of the supplied scheduled start, with an exact four-hour endpoint. The runner view additionally requires each of the five exact hourly readings from start through four hours later; it never interpolates. Request URL dates, timezone, coordinates and units are checked. Required temperature, dew point, humidity and wind values must be finite and physically consistent. Additional invalid/missing fields become null with reasons, not zero.
