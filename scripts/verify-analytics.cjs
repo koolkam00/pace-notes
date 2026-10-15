@@ -181,8 +181,54 @@ const vm = require('node:vm');
 const runtime = require('../lib/experiment-runtime.ts');
 const { EXPERIMENTS } = require('../lib/experiments.ts');
 assert.deepEqual(runtime.experimentProblems(EXPERIMENTS), [], 'lib/experiments.ts is a valid registry');
+assert.equal(runtime.EXPERIMENT_DEFINITIONS, EXPERIMENTS, 'The framework reads the registry itself');
+// The registry is data only (the autopilot guard reads it without running it): one exported literal array, optionally
+// `as const`, and nothing else. This reader follows the guard's rules: comments, either quote and trailing commas are
+// fine; imports, types, spreads, calls, other statements and later changes are not.
+function readRegistry(source) {
+  const tokens = [];
+  for (let at = 0; at < source.length;) {
+    const rest = source.slice(at);
+    const space = /^(?:\s+|\/\/[^\r\n\u2028\u2029]*(?:[\r\n\u2028\u2029]|$)|\/\*[\s\S]*?\*\/)/.exec(rest);
+    if (space) { at += space[0].length; continue; }
+    const string = /^(?:"(?:[^"\\\r\n]|\\.)*"|'(?:[^'\\\r\n]|\\.)*')/.exec(rest);
+    if (string) { tokens.push({ kind: 'string', value: string[0][0] === '"' ? JSON.parse(string[0]) : JSON.parse('"' + string[0].slice(1, -1).replace(/\\'/g, "'").replace(/"/g, '\\"') + '"') }); at += string[0].length; continue; }
+    const word = /^(?:[A-Za-z_$][\w$]*|-?\d+(?:\.\d+)?)/.exec(rest);
+    if (word) { tokens.push({ kind: 'word', value: word[0] }); at += word[0].length; continue; }
+    tokens.push({ kind: 'symbol', value: source[at++] });
+  }
+  let i = 0;
+  const is = value => tokens[i] && tokens[i].kind !== 'string' && tokens[i].value === value;
+  const need = value => { if (!is(value)) throw new Error(`expected ${value} at token ${i}`); i++; };
+  const literal = () => {
+    if (is('[')) { i++; const out = []; while (!is(']')) { out.push(literal()); if (!is(',')) break; i++; } need(']'); return out; }
+    if (is('{')) {
+      i++; const out = {};
+      while (!is('}')) { const key = tokens[i++]; if (!key || key.kind === 'symbol' || key.value in out) throw new Error('a bad or repeated key'); need(':'); out[key.value] = literal(); if (!is(',')) break; i++; }
+      need('}'); return out;
+    }
+    const token = tokens[i++];
+    if (token && token.kind === 'string') return token.value;
+    if (token && token.kind === 'word' && ['true', 'false', 'null'].includes(token.value)) return JSON.parse(token.value);
+    if (token && token.kind === 'word' && /^-?\d/.test(token.value)) return Number(token.value);
+    throw new Error(`not a literal: ${token ? token.value : 'end of file'}`);
+  };
+  need('export'); need('const'); need('EXPERIMENTS'); need('=');
+  const value = literal();
+  if (is('as')) { i++; need('const'); }
+  if (is(';')) i++;
+  if (i !== tokens.length || !Array.isArray(value)) throw new Error('more than one exported literal array');
+  return value;
+}
+assert.deepEqual(readRegistry(fs.readFileSync(path.join(__dirname, '../lib/experiments.ts'), 'utf8')), JSON.parse(JSON.stringify(EXPERIMENTS)), 'lib/experiments.ts is one literal EXPERIMENTS array, read without running it');
+assert.deepEqual(readRegistry("/* data */ export const EXPERIMENTS = [{key:'a-b',status:\"running\",pages:['/'],weights:[50,50,],},] as const; // done\n"), [{ key: 'a-b', status: 'running', pages: ['/'], weights: [50, 50] }], 'Comments, either quote and trailing commas are fine');
+for (const bad of ["import { X } from './x';\nexport const EXPERIMENTS = [];", 'export const EXPERIMENTS: readonly ExperimentDefinition[] = [];', 'export type E = {};\nexport const EXPERIMENTS = [];',
+  'export const EXPERIMENTS = [...OTHER];', 'export const EXPERIMENTS = [make()];', 'export const EXPERIMENTS = []; EXPERIMENTS.push({ key: "x" });', 'export const EXPERIMENTS = [{ key: `x` }];',
+  'export const EXPERIMENTS = [{ key: "a", key: "b" }];', 'const EXPERIMENTS = [];', 'export const EXPERIMENTS = [{ started: 2026 - 10 }];', 'export const EXPERIMENTS = []; // x\u2028EXPERIMENTS.length = 0;']) {
+  assert.throws(() => readRegistry(bad), `Not a data-only registry: ${bad.replace(/\n/g, ' ')}`);
+}
 const FIXTURE = [
-  { key: 'home-hero', variants: ['control', 'short-dek'], pages: ['/'], status: 'running', started: '2026-10-14', hypothesis: 'A shorter hero line gets more visitors to the first chapter.' },
+  { key: 'home-hero', variants: ['control', 'short-dek'], pages: ['/'], area: 'hero', status: 'running', started: '2026-10-14', hypothesis: 'A shorter hero line gets more visitors to the first chapter.' },
   { key: 'tool-order', variants: ['control', 'calc-first', 'band-first'], weights: [50, 30, 20], pages: ['/tools', '/tools/pace-calculator'], status: 'running', started: '2026-10-14', hypothesis: 'Listing the calculator first gets more tools used.' },
   { key: 'story-end', variants: ['control', 'cards'], pages: ['/stories/pacing-types'], status: 'paused', started: '2026-10-01', hypothesis: 'Story cards at the end get more next stories opened.' },
 ];
@@ -191,14 +237,23 @@ const refused = (patch, index = 0) => runtime.experimentProblems(FIXTURE.map((de
 for (const patch of [{ key: 'Home_Hero' }, { key: 'hh' }, { key: 'a'.repeat(41) }, { key: '-home' }, { key: 'home--hero' }, { key: 'home-hero-' },
   { variants: ['control'] }, { variants: ['control', 'a', 'b', 'c', 'd'] }, { variants: ['a', 'control'] }, { variants: ['control', 'Short Dek'] }, { variants: ['control', 'control'] }, { variants: ['control', 'x'.repeat(25)] },
   { weights: [50, 49] }, { weights: [50.5, 49.5] }, { weights: [100] }, { weights: [0, 100] }, { weights: ['50', '50'] },
-  { pages: [] }, { pages: ['/unknown'] }, { pages: ['/tools?x=1'] }, { pages: ['/other'] }, { pages: ['/courses/Private-Name'] }, { pages: ['/tools/'] },
+  { pages: [] }, { pages: ['/unknown'] }, { pages: ['/tools?x=1'] }, { pages: ['/other'] }, { pages: ['/courses/Private-Name'] }, { pages: ['/tools/'] }, { pages: ['/', '/'] }, { pages: ['*', '/tools'] }, { pages: '/' },
+  { area: 'Hero' }, { area: '' }, { area: 'first screen' }, { area: 'hero-' }, { area: 7 },
   { status: 'live' }, { status: undefined }, { started: '2026-13-01' }, { started: '14/10/2026' }, { started: '2026-02-30' }, { started: undefined },
   { hypothesis: '' }, { hypothesis: 'Line one.\nLine two.' }, { hypothesis: 'Too short' }]) {
   assert.ok(refused(patch).length, `A registry entry with ${JSON.stringify(patch)} is refused`);
 }
 assert.ok(runtime.experimentProblems([...FIXTURE, { ...FIXTURE[0] }]).length, 'A key used twice is refused');
-assert.match(runtime.experimentProblems([0, 1, 2, 3].map(i => ({ ...FIXTURE[0], key: 'test-' + i }))).join(' '), /three/, 'At most three experiments run at once');
-assert.deepEqual(runtime.experimentProblems([0, 1, 2, 3].map(i => ({ ...FIXTURE[0], key: 'test-' + i, status: i ? 'running' : 'paused' }))), [], 'A fourth, paused experiment is allowed');
+for (const [patch, index] of [[{ pages: ['*'] }, 2], [{ area: '*' }, 0], [{ area: undefined }, 0], [{ area: 'closing-cta' }, 0]]) assert.deepEqual(refused(patch, index), [], `A registry entry with ${JSON.stringify(patch)} is valid`);
+const onPage = (key, pages, area, status = 'running') => ({ ...FIXTURE[0], key, pages, area, status });
+assert.equal(runtime.MAX_RUNNING_EXPERIMENTS, 2);
+assert.match(runtime.experimentProblems([onPage('test-a', ['/']), onPage('test-b', ['/tools']), onPage('test-c', ['/stories'])]).join(' '), /At most 2 experiments/, 'At most two experiments run at once');
+assert.deepEqual(runtime.experimentProblems([onPage('test-a', ['/']), onPage('test-b', ['/tools']), onPage('test-c', ['/stories'], undefined, 'paused'), onPage('test-d', ['/'], undefined, 'paused')]), [], 'Paused experiments do not count');
+for (const [a, b] of [[onPage('test-a', ['/']), onPage('test-b', ['/'])], [onPage('test-a', ['/'], 'hero'), onPage('test-b', ['/', '/tools'])], [onPage('test-a', ['/'], 'hero'), onPage('test-b', ['/'], 'hero')], [onPage('test-a', ['*'], 'hero'), onPage('test-b', ['/tools'])], [onPage('test-a', ['/'], '*'), onPage('test-b', ['/'], 'cta')]]) {
+  assert.match(runtime.experimentProblems([a, b]).join(' '), /same area of a page/, `${a.key} on ${a.pages} (${a.area ?? 'whole page'}) and ${b.key} on ${b.pages} (${b.area ?? 'whole page'}) overlap`);
+}
+assert.deepEqual(runtime.experimentProblems([onPage('test-a', ['/'], 'hero'), onPage('test-b', ['/', '/tools'], 'cta')]), [], 'Two running experiments may share a page in different areas');
+assert.deepEqual(runtime.experimentProblems([onPage('test-a', ['/']), onPage('test-b', ['/'], undefined, 'paused')]), [], 'A paused experiment occupies nothing');
 // The boot script, run in a sandbox that holds only what it may touch: sessionStorage, <html> and Math.random.
 assert.equal(runtime.experimentBootScript([]), '', 'No running experiment: no script');
 assert.equal(runtime.experimentBootScript([FIXTURE[2]]), '', 'A paused experiment needs no script');
@@ -469,6 +524,9 @@ assert.deepEqual(homeSections.map(m => m[1]), ['hero', ...chapters.map((_, i) =>
 for (const m of homeSections.filter(m => m[1].startsWith('chapter-'))) assert.equal(homeSource.slice(m.index).match(/Chapter (\d+) ·/)?.[1], m[1].slice(8).padStart(2, '0'), `${m[1]} marks the chapter it is numbered as`);
 const layoutSource = read('app/layout.tsx');
 assert.match(layoutSource, /<head>[^\n]*<ExperimentHead \/>[^\n]*<\/head>/, 'The experiments CSS and script are in <head>, before the page paints');
+// A classic inline script: the parser runs it before building the body, so before the first paint. An async or module
+// script can run after that paint on a slow phone, and the visitor would see the control first.
+assert.match(read('components/Experiment.tsx'), /\{script \? <script dangerouslySetInnerHTML=\{\{ __html: script \}\} \/> : null\}/, 'The experiment boot script is a classic, parser-blocking script');
 assert.equal((layoutSource.match(/<SectionTracker \/>/g) || []).length, 1, 'SectionTracker is mounted once, in the root layout');
 
 const freshReplay = () => { delete require.cache[replayPath]; return require(replayPath); };

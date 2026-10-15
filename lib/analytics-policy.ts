@@ -1,4 +1,5 @@
 import type { CaptureResult } from 'posthog-js';
+import type { ExperimentDefinition } from './experiment-runtime';
 import { EXPERIMENTS } from './experiments';
 import { TEN_ANALYSES } from './ten-analyses';
 import { TOOLS } from './tools/registry';
@@ -25,6 +26,8 @@ const pages = new Set(['/', '/analyses', '/analyses/downhill-start', '/runners',
   '/tools', ...TOOLS.map(tool => '/tools/' + tool.slug), ...searchPages,
   '/stories', ...STORY_SLUGS.map(slug => '/stories/' + slug), '/courses', ...COURSE_SLUGS.map(slug => '/courses/' + slug)]);
 const analyses = new Set([...TEN_ANALYSES.map(item => item.id), ...WEATHER_QUESTIONS.map(item => item.id)]);
+// The experiments registry (data only), typed as lib/experiment-runtime.ts defines an entry.
+const experiments: readonly ExperimentDefinition[] = EXPERIMENTS;
 
 // The page sections whose first view is counted (section_viewed). Pages mark them with data-track-section="<id>";
 // components/SectionTracker.tsx watches them, and any other id is dropped here.
@@ -203,7 +206,7 @@ export function sanitizeAnalyticsEvent(event: CaptureResult | null, basePath = '
   if (event.event === '$pageview' && typeof source.$prev_pageview_pathname === 'string') properties.$prev_pageview_pathname = analyticsPath(source.$prev_pageview_pathname, basePath);
   for (const key of ['$pageview_id', '$prev_pageview_id']) if (typeof source[key] === 'string' && UUID.test(source[key] as string)) properties[key] = source[key];
   // Which version of a page this tab was shown, for a running experiment (lib/experiments.ts) and one of its variants.
-  for (const { key, variants, status } of EXPERIMENTS) {
+  for (const { key, variants, status } of experiments) {
     const value = source['$feature/' + key];
     if (status === 'running' && typeof value === 'string' && variants.includes(value)) properties['$feature/' + key] = value;
   }
