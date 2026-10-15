@@ -171,7 +171,7 @@ For an experiment `<key>` whose `pages` are listed in `lib/experiments.ts`:
 - The primary metric is the answered-visit rate among exposed visits, by variant.
 - The guardrails are the one-page-no-action rate and the error-visit rate, by variant.
 
-Count from the experiment's `started` date, or from its ledger ship date if that is later.
+Count from the experiment's `started` date, or from its ledger entry's `shipped_on` if that is later.
 
 ```sql
 WITH v AS (
@@ -201,21 +201,26 @@ Then run `npm run autopilot:stats -- ab --a <answered>/<visits of control> --b <
 - maximum 42 days;
 - decision rule: ship the variant at P(variant better) ≥ 0.90 with guardrails intact, keep control at P ≤ 0.10, otherwise inconclusive at the maximum.
 
-**Before/after changes:** compare the 14 (or 28) full days before the ship date with the same number of full days starting the day after the ship date. Use `npm run autopilot:stats -- prepost`.
+**Before/after changes:** compare the 14 (or 28) full days before the entry's `shipped_on` date with the same number of full days starting the day after it. Use `npm run autopilot:stats -- prepost`.
 
 ## 4. Ledger line schema (`autopilot/ledger.jsonl`, one JSON object per line)
 
+Each entry is a single line; the example below is one line too (scroll sideways):
+
 ```json
-{"id":"2026-10-19-home-doors","date":"2026-10-19","kind":"change","title":"Three doors under the home hero","pages":["/"],
- "hypothesis":"Phone visitors who land on the home page find a personal path sooner when the first screen offers one.",
- "primary_metric":"answered_visit_rate@v1","guardrails":["one_page_no_action_rate@v1","error_visit_rate@v1","web_vitals_p75@v1"],
- "baseline":{"window":"2026-09-21..2026-10-18","answered":120,"visits":548},
- "min_sample":150,"max_days":null,
- "decision_rule":"Keep if not worse (P(worse) < 0.9) and guardrails hold; revert if P(worse) >= 0.9 or a guardrail breaks.",
- "evaluate_after":"2026-11-03","status":"proposed","pr":null,"verdict":null,"result":null}
+{"id":"2026-10-19-home-doors","date":"2026-10-19","kind":"change","title":"Three doors under the home hero","pages":["/"],"hypothesis":"Phone visitors who land on the home page find a personal path sooner when the first screen offers one.","primary_metric":"answered_visit_rate@v1","guardrails":["one_page_no_action_rate@v1","error_visit_rate@v1","web_vitals_p75@v1"],"baseline":{"window":"2026-09-21..2026-10-18","answered":120,"visits":548},"min_sample":150,"max_days":null,"decision_rule":"Keep if not worse (P(worse) < 0.9) and guardrails hold; revert if P(worse) >= 0.9 or a guardrail breaks.","evaluate_after":"2026-11-03","status":"proposed","pr":null,"shipped_on":null,"verdict":null,"result":null}
 ```
 
-- `kind` is one of `change`, `experiment`, `conclude`, `revert` or `fix`.
+- `id` is `YYYY-MM-DD-slug`, unique. For a change's own entry it is the branch name without `autopilot/`, so its pull request can be found later.
+- `kind` is one of `change`, `experiment`, `conclude`, `revert` or `fix`. `evaluate_after` is a date, or null for `fix`, `revert` and `conclude`, which are not judged later.
 - `status` is one of `proposed`, `shipped`, `reverted` or `concluded`.
 - `verdict` is null or one of `keep`, `revert`, `inconclusive`, `iterate`, `ship-variant` or `keep-control`.
-- Once a line is written, only `status`, `verdict`, `result`, `evaluated_on`, `pr` and `notes` may change. The guard enforces this.
+- `shipped_on` is the day the entry's pull request merged (UTC), or null. Before/after windows and experiment readouts count from it.
+
+**Lifecycle.**
+1. **Proposed:** the change's pull request appends the entry with `status: "proposed"` and `pr`, `shipped_on`, `verdict` and `result` null.
+2. **Shipped:** once that pull request has merged, the next run sets `status: "shipped"`, `pr` and `shipped_on`.
+3. **Concluded or reverted:** when judged, the entry gets `verdict`, `result`, `evaluated_on` and `notes`, and `status: "concluded"`, or `"reverted"` for a `revert` verdict. An automatic revert by the merge workflow marks the entry `reverted` itself, with verdict `revert`, `pr` and `shipped_on`.
+4. **Closed unmerged:** a pull request that closed without merging never put its line on `main`. It is recorded as a new line: `status: "reverted"`, `verdict: "inconclusive"` (or null), its `pr` and a note.
+
+Once a line is written, only `status`, `verdict`, `result`, `evaluated_on`, `pr`, `shipped_on` and `notes` may change. `verdict`, `result`, `evaluated_on`, `pr` and `shipped_on` change only once, from null. The status only moves forward. The guard enforces all of this on autopilot pull requests. Entries the owner adds in a pull request of their own follow the same schema; one that has already shipped carries its `pr` and `shipped_on`.

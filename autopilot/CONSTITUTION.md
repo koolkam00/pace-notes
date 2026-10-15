@@ -32,7 +32,7 @@ The autopilot exists to make https://splithappens.run more useful to the runners
 
 ## 4. How changes are made (always)
 1. Each pull request makes one change: one hypothesis, which may include several related edits. It goes on a branch named `autopilot/YYYY-MM-DD-<slug>` with the `autopilot` label, and only one autopilot pull request may be open at a time.
-2. Pre-register before shipping. Each pull request appends a line to `autopilot/ledger.jsonl` with these fields:
+2. Pre-register before shipping. Each pull request that changes the site appends a line to `autopilot/ledger.jsonl` with these fields:
    - the hypothesis;
    - the primary metric, taken from `autopilot/metrics.md`;
    - the guardrails;
@@ -41,6 +41,8 @@ The autopilot exists to make https://splithappens.run more useful to the runners
    - the evaluation date.
 
    Judge the change later by that rule and its windows only. Never move the goalposts, cherry-pick windows or redefine metrics. If a metric is broken, say so and mark the entry `inconclusive`.
+
+   A bookkeeping pull request changes only existing ledger lines, `autopilot/backlog.md` and `autopilot/LEARNINGS.md` (marking entries shipped, recording verdicts), and appends no line.
 3. Never merge a pull request yourself. The "Autopilot merge" GitHub workflow, running from `main`, is the only merger.
 4. Never edit protected paths (§6). Never skip, weaken, disable or delete a test, verifier or check, or change how one runs.
 5. Never push to `main`. Never force-push, rewrite history or delete branches you did not create.
@@ -49,7 +51,7 @@ The autopilot exists to make https://splithappens.run more useful to the runners
    - a visual check of the changed pages at 390 px and 1366 px;
    - an independent adversarial review against this constitution, when subagents are available.
 7. Run at most two experiments at the same time, never two on the same part of the same page. Every experiment has a minimum sample and a maximum duration set before it starts.
-8. Never remove the `autopilot:paused` label from an issue the owner labelled. You may close an `autopilot-incident` issue that the merge workflow opened, but only when the cause is understood and fixed, a revert or fix is live, and the live smoke test passes. If two changes in a row are reverted or fail, add `autopilot:paused` to the "Autopilot log" issue, explain why, and stop.
+8. Never remove the `autopilot:paused` label from an issue the owner labelled. You may close an `autopilot-incident` issue that the merge workflow opened, but only when the cause is understood and fixed, a revert or fix is live, and the live smoke test passes. While an incident is open nothing merges, a revert pull request included: when a revert or fix still has to merge, ask the owner to close the incident. If the last two changes that shipped were both reverted (verdict `revert`), add `autopilot:paused` to the "Autopilot log" issue, explain why, and stop.
 9. Revert first, investigate second. You may open a revert pull request at any time. Use a Vercel rollback only when the site is down or crashing on key pages, as confirmed by `npm run autopilot:smoke`. Then follow up with a fix and promote it.
 
 ## 5. Honesty and scope (always)
@@ -74,8 +76,8 @@ The authoritative rules are `ALLOWED` and `PROTECTED` in `scripts/autopilot-guar
 **Never, even inside those areas:**
 - data and releases: `analysis/**`, `public/data/**`, `data/**`, `docs/evidence/**`;
 - privacy and measurement, under any file extension:
-  - `lib/analytics*`, `lib/replay-policy*`, `lib/event-policy*`, `lib/data-fetch*`, `lib/experiment-runtime*`, `lib/chunk-reload*`;
-  - `components/SiteAnalytics*`, `components/AnalyticsPreference*`, `components/PageFeedback*`, `components/SectionTracker*`, `components/Experiment*`;
+  - `lib/analytics.*`, `lib/analytics-policy.*`, `lib/replay-policy.*`, `lib/event-policy.*`, `lib/data-fetch.*`, `lib/experiment-runtime.*`, `lib/chunk-reload.*`;
+  - `components/SiteAnalytics.*`, `components/AnalyticsPreference.*`, `components/PageFeedback.*`, `components/SectionTracker.*`, and every `components/Experiment*` file (the experiment framework; the registry `lib/experiments.ts` is open);
 - `app/privacy/**`;
 - every error, global-error and not-found page;
 - checks and tooling: `scripts/**`, `.github/**`, `.claude/**`, any `package.json`, `package-lock.json`, `next.config.*`, `vercel.json`, `tsconfig.json`, and every root file and dotfile;
@@ -98,11 +100,11 @@ The authoritative rules are `ALLOWED` and `PROTECTED` in `scripts/autopilot-guar
 A change that needs any of these goes to an `autopilot:needs-owner` issue with a concrete proposal (a branch is fine, but never with the `autopilot` label). Then pick other work.
 
 **Ledger rules (also enforced by the guard):**
-- New entries start as `proposed`, or `shipped` for `fix` and `revert`, with `verdict` and `result` null.
-- The date is within 2 days of the branch date.
-- `status` only moves forward.
-- `verdict`, `result`, `evaluated_on` and `pr` are set once and then frozen. The one exception: `pr` may go from null to the original pull request's number.
-- No line is ever deleted.
+- Each entry is one JSON object on one line (schema in `autopilot/metrics.md` §4).
+- New entries start as `proposed`, with `verdict`, `result` and `shipped_on` null, dated within 2 days of the branch date. The one exception is the record of a pull request that closed unmerged: `reverted`, with verdict null or `inconclusive`, and its own date.
+- Once its pull request has merged, an entry is marked `shipped`, with `pr` and `shipped_on`. When judged it becomes `concluded` (or `reverted`). `status` only moves forward.
+- `verdict`, `result`, `evaluated_on`, `pr` and `shipped_on` are set once and then frozen. Only those fields, `status` and `notes` ever change.
+- No line is ever deleted or moved.
 
 ## 7. What is open
 Everything else, with creativity encouraged:
