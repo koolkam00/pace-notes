@@ -19,7 +19,7 @@
  * outcome=pass|fail|incomplete. merge checks every gate again and squash-merges with the head commit pinned.
  * wait-deploy waits for Vercel's Production deployment of the merge commit and for /version.json to name it.
  * record-live leaves the "live checks passed" record on the pull request. incident optionally reverts the merge on
- * main as github-actions[bot] (keeping the ledger's entries) and always opens an issue labelled autopilot-incident and
+ * main as github-actions[bot] (keeping the ledger and the learnings) and always opens an issue labelled autopilot-incident and
  * autopilot:paused, which stops every further merge until someone closes it. reconcile opens such an issue for any
  * autopilot pull request merged with neither record: one merged by hand, or a run that was cancelled or timed out.
  *
@@ -52,6 +52,8 @@ const GUARD = path.join(__dirname, 'autopilot-guard.cjs');
 const SEO_LIVE = path.join(__dirname, 'verify-seo-live.cjs');
 const OWN_WORKFLOW = '.github/workflows/autopilot-merge.yml';
 const LEDGER = 'autopilot/ledger.jsonl';
+/** Records an automatic revert keeps as they are on main: the ledger is append-only, and so is what was learned. */
+const LEARNINGS = 'autopilot/LEARNINGS.md';
 const MARKER = '<!-- autopilot-merge-status -->';
 /** Hidden notes on the status comment, per head commit: the preview checks failed, or GitHub refused the merge. */
 const noteMarker = (kind, sha, detail) => `<!-- autopilot-${kind}:${sha}${detail ? ` ${encodeURIComponent(detail)}` : ''} -->`;
@@ -112,10 +114,11 @@ async function retrying(deps, what, fn, attempts = 3) {
     }
   }
 }
+const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // ---------- GitHub API ----------
 
-function createClient({ token, fetchImpl, apiUrl, dryRun, log }) {
+function createClient({ token, fetchImpl, apiUrl, dryRun, log, sleep = defaultSleep }) {
   const headers = () => ({
     accept: 'application/vnd.github+json',
     'x-github-api-version': '2022-11-28',
@@ -131,21 +134,25 @@ function createClient({ token, fetchImpl, apiUrl, dryRun, log }) {
   }
   const absolute = (route) => (route.startsWith('http') ? route : `${apiUrl}${route}`);
   const failure = (method, route, res) => Object.assign(new Error(`${method} ${route} answered ${res.status}: ${res.data && res.data.message ? res.data.message : String(res.data).slice(0, 200)}`), { status: res.status, apiMessage: res.data && res.data.message ? String(res.data.message) : '' });
+  /** A read, tried up to three times on 5xx, 429 or a failed request, so one bad answer does not fail a scheduled run. */
+  const read = (route, url, allow404) => retrying({ log, sleep }, `GET ${route}`, async () => {
+    const res = await send('GET', url);
+    if (res.status === 404 && allow404) return res;
+    if (!res.ok) throw failure('GET', route, res);
+    return res;
+  });
   return {
     authenticated: Boolean(token),
     async get(route, { allow404 = false } = {}) {
-      const res = await send('GET', absolute(route));
-      if (res.status === 404 && allow404) return null;
-      if (!res.ok) throw failure('GET', route, res);
-      return res.data;
+      const res = await read(route, absolute(route), allow404);
+      return res.status === 404 ? null : res.data;
     },
     /** Every item of a paginated list (follows Link: rel="next", at most `pages` pages). `key` names the array in object responses. */
     async list(route, { key, pages = 10 } = {}) {
       const items = [];
       let url = absolute(route);
       for (let page = 0; url && page < pages; page += 1) {
-        const res = await send('GET', url);
-        if (!res.ok) throw failure('GET', route, res);
+        const res = await read(route, url, false);
         items.push(...(key ? res.data[key] || [] : res.data));
         const next = /<([^>]+)>;\s*rel="next"/.exec(res.link);
         url = next ? next[1] : null;
@@ -722,17 +729,20 @@ async function cmdRecordLive(argv, deps) {
 }
 
 /**
- * The auto-revert reverses the whole squash merge, ledger line included. Put main's ledger back, so the entries stay
- * (the ledger is append-only), and mark the entries the merge added as reverted. Returns their ids.
+ * The auto-revert reverses the whole squash merge, its ledger line and learnings included. Put main's ledger and
+ * LEARNINGS.md back, so nothing recorded is lost (both are append-only), and mark the ledger entries the merge added
+ * as reverted, with the pull request and the day it shipped. Returns their ids.
  */
-function keepLedgerAfterRevert(sha, { cwd, git }) {
+function keepRecordsAfterRevert(sha, { cwd, git, pr = null }) {
   const show = (spec) => { try { return execFileSync('git', ['show', spec], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); } catch { return null; } };
+  if (show(`refs/remotes/origin/${CONFIG.base}:${LEARNINGS}`) !== null) git(['checkout', `refs/remotes/origin/${CONFIG.base}`, '--', LEARNINGS]);
   const onMain = show(`refs/remotes/origin/${CONFIG.base}:${LEDGER}`);
   if (onMain === null) return [];
   const ids = (text) => new Set(String(text || '').split('\n').map((line) => { try { return JSON.parse(line).id; } catch { return null; } }).filter(Boolean));
   const before = ids(show(`${sha}^:${LEDGER}`));
   const addedByMerge = [...ids(show(`${sha}:${LEDGER}`))].filter((id) => !before.has(id));
   const date = new Date().toISOString().slice(0, 10);
+  const shippedOn = (() => { try { return new Date(git(['show', '-s', '--format=%cI', sha])).toISOString().slice(0, 10); } catch { return date; } })();
   const marked = [];
   const text = onMain.split('\n').map((line) => {
     let entry;
@@ -740,6 +750,8 @@ function keepLedgerAfterRevert(sha, { cwd, git }) {
     if (!entry || typeof entry !== 'object' || !addedByMerge.includes(entry.id) || entry.status === 'reverted') return line;
     entry.status = 'reverted';
     if (entry.verdict === null || entry.verdict === undefined) entry.verdict = 'revert';
+    if ((entry.pr === null || entry.pr === undefined) && pr) entry.pr = pr;
+    if (entry.shipped_on === null || entry.shipped_on === undefined) entry.shipped_on = shippedOn;
     entry.notes = [entry.notes, `Reverted automatically on ${date}: the live checks failed after merge ${short(sha)}.`].filter(Boolean).join(' ');
     marked.push(entry.id);
     return JSON.stringify(entry);
@@ -751,7 +763,7 @@ function keepLedgerAfterRevert(sha, { cwd, git }) {
 }
 
 /** Reverts the merge commit on an up-to-date main and pushes it as github-actions[bot]. Never forces anything. */
-function revertOnMain(sha, { cwd = ROOT } = {}) {
+function revertOnMain(sha, { cwd = ROOT, pr = null } = {}) {
   const git = (gitArgs) => execFileSync('git', gitArgs, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   const bot = ['-c', `user.name=${BOT_LOGIN}`, '-c', `user.email=${BOT_EMAIL}`, '-c', 'commit.gpgsign=false'];
   const firstLine = (error) => String(error.stderr || error.message).trim().split('\n').filter(Boolean).pop() || 'unknown error';
@@ -768,16 +780,18 @@ function revertOnMain(sha, { cwd = ROOT } = {}) {
   try {
     git([...bot, 'revert', '--no-commit', sha]);
   } catch (error) {
-    // A conflict in the ledger alone (a later line appended next to the merge's) is fine: main's copy is kept below.
+    // A conflict only in the ledger or the learnings (a later line appended next to the merge's) is fine: main's
+    // copies are kept below.
+    const kept = [LEDGER, LEARNINGS];
     const conflicted = (() => { try { return git(['diff', '--name-only', '--diff-filter=U']).split('\n').filter(Boolean); } catch { return []; } })();
-    if (!conflicted.length || conflicted.some((file) => file !== LEDGER)) {
+    if (!conflicted.length || conflicted.some((file) => !kept.includes(file))) {
       abort();
-      return { pushed: false, detail: `not pushed: the revert conflicts with later commits on ${CONFIG.base} (${conflicted.filter((file) => file !== LEDGER).join(', ') || firstLine(error)}); revert by hand` };
+      return { pushed: false, detail: `not pushed: the revert conflicts with later commits on ${CONFIG.base} (${conflicted.filter((file) => !kept.includes(file)).join(', ') || firstLine(error)}); revert by hand` };
     }
   }
   let marked = [];
   try {
-    marked = keepLedgerAfterRevert(sha, { cwd, git });
+    marked = keepRecordsAfterRevert(sha, { cwd, git, pr });
     git([...bot, 'commit', '--quiet', '--no-edit']);
   } catch (error) {
     abort();
@@ -789,7 +803,7 @@ function revertOnMain(sha, { cwd = ROOT } = {}) {
   } catch (error) {
     return { pushed: false, revertSha, detail: `not pushed: the push to ${CONFIG.base} was rejected (${firstLine(error)})` };
   }
-  return { pushed: true, revertSha, detail: `pushed to ${CONFIG.base} as ${revertSha}${marked.length ? `; the ledger keeps ${marked.map((id) => `"${id}"`).join(', ')}, marked reverted` : ''}` };
+  return { pushed: true, revertSha, detail: `pushed to ${CONFIG.base} as ${revertSha}${marked.length ? `; the ledger keeps ${marked.map((id) => `"${id}"`).join(', ')}, marked reverted` : ''}; the ledger and the learnings stay as they are on ${CONFIG.base}` };
 }
 
 /** Opens the incident issue (with both labels) and comments on the pull request. Returns the issue, or null on a dry run. */
@@ -834,7 +848,7 @@ async function cmdIncident(argv, deps) {
   try { pr = await gh.get(`/repos/${deps.repo}/pulls/${number}`); } catch (error) { deps.log(`incident: could not read #${number}: ${error.message}`); }
   let revert = { pushed: false, detail: 'not attempted: the change itself was not found broken' };
   if (argv.includes('--revert')) {
-    try { revert = deps.revert(sha); } catch (error) { revert = { pushed: false, detail: `not pushed: ${error.message.split('\n')[0]}` }; }
+    try { revert = deps.revert(sha, number); } catch (error) { revert = { pushed: false, detail: `not pushed: ${error.message.split('\n')[0]}` }; }
     deps.log(`incident: revert ${revert.detail}`);
     if (revert.revertSha) deps.setOutput('revert_sha', revert.revertSha);
   }
@@ -870,7 +884,7 @@ function realDeps(env = process.env) {
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     runGuard: (pr) => runGuardWithGit(pr),
     runLiveSeo: () => runProductionSeo(),
-    revert: (sha) => revertOnMain(sha),
+    revert: (sha, number) => revertOnMain(sha, { pr: number }),
     setOutput: (key, value) => { if (env.GITHUB_OUTPUT) fs.appendFileSync(env.GITHUB_OUTPUT, `${key}=${String(value ?? '').replace(/[\r\n]/g, ' ')}\n`); },
     summary: (text) => { if (env.GITHUB_STEP_SUMMARY) fs.appendFileSync(env.GITHUB_STEP_SUMMARY, `${text}\n`); },
   };
@@ -1006,7 +1020,7 @@ function mockDeps(state, { token = 'test-token', env = {}, guard = { ok: true, d
   const deps = {
     repo: state.repo, serverUrl: 'https://github.com', env: { RUNNER_TEMP: state.tmp, ...env }, runUrl: 'https://github.com/koolkam00/pace-notes/actions/runs/1',
     log: (line) => logs.push(line),
-    client: ({ dryRun }) => createClient({ token, fetchImpl, apiUrl: 'https://api.github.test', dryRun, log: (line) => logs.push(line) }),
+    client: ({ dryRun }) => createClient({ token, fetchImpl, apiUrl: 'https://api.github.test', dryRun, log: (line) => logs.push(line), sleep: (ms) => deps.sleep(ms) }),
     fetchPublic: async () => (version ? version() : new Response(JSON.stringify({ sha: SHA('d') }), { status: 200 })),
     now: () => time,
     sleep: async (ms) => { time += ms; if (state.onSleep) state.onSleep(time); },
@@ -1203,6 +1217,22 @@ async function selfTestAsync() {
       const run = mockDeps(state, { token: '' });
       await cmdEvaluate([], run.deps);
       ok('unauthenticated evaluate: reads without a token and writes nothing', run.calls.every((c) => !c.auth) && run.calls.every((c) => c.method === 'GET') && state.comments[7].length === 0 && run.outputs.eligible === 'false');
+    }
+
+    // Reads are retried: one bad answer from GitHub does not fail a scheduled run; a refusal is not retried.
+    {
+      const state = fresh((s) => { s.faults.push({ method: 'GET', path: /\/pulls$/, status: 502, times: 2 }, { method: 'GET', path: /\/issues$/, status: 429, times: 1 }); });
+      const run = mockDeps(state);
+      const code = await cmdEvaluate([], run.deps);
+      ok('evaluate: a 502 and a 429 on reads are tried again', code === 0 && run.outputs.eligible === 'true' && run.logs.some((l) => /answered 502.*trying again/.test(l)), JSON.stringify(run.outputs));
+      const down = fresh((s) => { s.faults.push({ method: 'GET', path: /\/pulls$/, status: 503, times: 9 }); });
+      const threw = await cmdEvaluate([], mockDeps(down).deps).then(() => false, (error) => error.status === 503);
+      ok('evaluate: a read that keeps failing still fails the run', threw);
+      // Two reads of the list (the merge history, then the open pull requests), each tried once.
+      const refused = fresh((s) => { s.faults.push({ method: 'GET', path: /\/pulls$/, status: 403, times: 9 }); });
+      const refusedRun = mockDeps(refused);
+      const refusedThrew = await cmdEvaluate([], refusedRun.deps).then(() => false, (error) => error.status === 403);
+      ok('evaluate: a 403 is not tried again', refusedThrew && refusedRun.calls.filter((c) => c.path.startsWith('/repos/koolkam00/pace-notes/pulls?')).length === 2, String(refusedRun.calls.filter((c) => c.path.startsWith('/repos/koolkam00/pace-notes/pulls?')).length));
     }
 
     // Merges that were never live-checked: merged by hand, or a run that ended before the live checks.
@@ -1402,13 +1432,15 @@ async function selfTestAsync() {
       fs.writeFileSync(path.join(work, 'page.txt'), 'one\ntwo\nthree\n');
       fs.mkdirSync(path.join(work, 'autopilot'));
       fs.writeFileSync(path.join(work, LEDGER), `${ledgerLine('2026-10-01-a', { status: 'shipped' })}\n`);
+      fs.writeFileSync(path.join(work, LEARNINGS), '# Learnings\n- 2026-10-01: first.\n');
       g(work, 'add', '-A'); g(work, 'commit', '-q', '-m', 'base'); g(work, 'push', '-q', 'origin', 'main');
       fs.writeFileSync(path.join(work, 'page.txt'), 'one\nTWO\nthree\n');
       fs.appendFileSync(path.join(work, LEDGER), `${ledgerLine('2026-10-14-b')}\n`);
+      fs.appendFileSync(path.join(work, LEARNINGS), '- 2026-10-14: phone visitors read the first screen.\n');
       g(work, 'commit', '-q', '-am', 'Autopilot change (#7)'); g(work, 'push', '-q', 'origin', 'main');
       const mergeSha = g(work, 'rev-parse', 'HEAD');
       setup({ g, origin, work });
-      const result = revertOnMain(mergeSha, { cwd: work });
+      const result = revertOnMain(mergeSha, { cwd: work, pr: 7 });
       ok(`revert: ${label}`, result.pushed === expectPushed, result.detail);
       if (expectPushed) {
         ok(`revert: ${label}: main has the old text`, g(origin, 'show', 'main:page.txt') === 'one\ntwo\nthree');
@@ -1416,6 +1448,8 @@ async function selfTestAsync() {
         const lines = g(origin, 'show', `main:${LEDGER}`).split('\n').map((line) => JSON.parse(line));
         const reverted = lines.find((entry) => entry.id === '2026-10-14-b');
         ok(`revert: ${label}: the ledger keeps the reverted change's entry, marked reverted`, lines[0].id === '2026-10-01-a' && lines[0].status === 'shipped' && reverted && reverted.status === 'reverted' && reverted.verdict === 'revert' && /Reverted automatically/.test(reverted.notes), JSON.stringify(lines));
+        ok(`revert: ${label}: the entry names the pull request and the day it shipped`, reverted && reverted.pr === 7 && reverted.shipped_on === new Date(g(work, 'show', '-s', '--format=%cI', mergeSha)).toISOString().slice(0, 10), JSON.stringify(reverted));
+        ok(`revert: ${label}: the learnings keep the reverted change's line`, g(origin, 'show', `main:${LEARNINGS}`).includes('phone visitors read the first screen'));
         if (ledger) ok(`revert: ${label}: a later entry on main is left alone`, lines.some((entry) => entry.id === '2026-10-14-c' && entry.status === 'proposed'), JSON.stringify(lines));
         ok(`revert: ${label}: one commit`, g(origin, 'rev-list', '--count', 'main') === String(Number(g(work, 'rev-list', '--count', mergeSha)) + (ledger ? 2 : 1)));
       } else {
@@ -1426,7 +1460,7 @@ async function selfTestAsync() {
     }
   };
   revertCase('a clean revert is pushed', () => {}, true);
-  revertCase('a later commit on main is kept', ({ g, work }) => { fs.writeFileSync(path.join(work, 'other.txt'), 'x\n'); fs.appendFileSync(path.join(work, LEDGER), `${ledgerLine('2026-10-14-c')}\n`); g(work, 'add', '-A'); g(work, 'commit', '-q', '-m', 'later'); g(work, 'push', '-q', 'origin', 'main'); g(work, 'reset', '-q', '--hard', 'HEAD~1'); }, true, { ledger: true });
+  revertCase('a later commit on main is kept', ({ g, work }) => { fs.writeFileSync(path.join(work, 'other.txt'), 'x\n'); fs.appendFileSync(path.join(work, LEDGER), `${ledgerLine('2026-10-14-c')}\n`); fs.appendFileSync(path.join(work, LEARNINGS), '- 2026-10-15: a later learning.\n'); g(work, 'add', '-A'); g(work, 'commit', '-q', '-m', 'later'); g(work, 'push', '-q', 'origin', 'main'); g(work, 'reset', '-q', '--hard', 'HEAD~1'); }, true, { ledger: true });
   revertCase('a conflict is skipped', ({ g, work }) => { fs.writeFileSync(path.join(work, 'page.txt'), 'one\nTWO!\nthree\n'); g(work, 'commit', '-q', '-am', 'later edit'); g(work, 'push', '-q', 'origin', 'main'); }, false);
   revertCase('a rejected push is skipped', ({ origin }) => { fs.writeFileSync(path.join(origin, 'hooks', 'pre-receive'), '#!/bin/sh\necho "protected branch" >&2\nexit 1\n', { mode: 0o755 }); }, false);
 
@@ -1435,7 +1469,7 @@ async function selfTestAsync() {
     for (const failure of failures) console.error(`  ${failure}`);
     return 1;
   }
-  console.log(`autopilot-merge self-test: ${checks} checks passed (every gate on its own, pause, merge history, every check run, stale and re-run checks, reviews, status comment and its notes, dry run, merge and lost or refused merges, deploy wait, live record, incident, reverts that keep the ledger)`);
+  console.log(`autopilot-merge self-test: ${checks} checks passed (every gate on its own, pause, merge history, every check run, stale and re-run checks, reviews, status comment and its notes, dry run, retried reads, merge and lost or refused merges, deploy wait, live record, incident, reverts that keep the ledger and the learnings)`);
   return 0;
 }
 function selfTest() { return selfTestAsync(); }
