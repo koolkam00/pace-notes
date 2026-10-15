@@ -906,6 +906,10 @@ function smokeFailureSet(report) {
 
 function liveCheckDecision({ smoke, seo, baselineExit, baseline, live }) {
   if (smoke === '0' && seo === '0') return { action: 'pass', reason: 'Both live checks passed.' };
+  // The smoke test found production serving another commit (exit 3): verify:seo:live, run after it, saw that commit too.
+  if (smoke === '3' && live && live.base === CONFIG.productionUrl && Array.isArray(live.failures) && live.failures.some((f) => f && f.otherCommit === true)) {
+    return { action: 'incident', reason: `Production was serving another commit than the merge during the live checks (smoke test exit 3; verify:seo:live exit ${seo || 'none'}), so neither check could judge this change and it was not reverted.` };
+  }
   if (seo === '1') return { action: 'revert', reason: 'verify:seo:live failed after the deploy (the pre-merge SEO check passed).' };
   if (smoke === '1') {
     const before = baselineExit === '1' ? smokeFailureSet(baseline) : null;
@@ -1611,6 +1615,9 @@ async function selfTestAsync() {
         ['known failures and an infrastructure error open an incident', '1', '0', '1', existing, report([oldFailure, infrastructure]), 'incident'],
         ['SEO failure reverts even with identical smoke failures', '1', '1', '1', existing, existing, 'revert'],
         ['SEO failure reverts even if smoke could not finish', '3', '1', '1', existing, null, 'revert'],
+        ['SEO failure reverts when smoke could not finish for another reason', '3', '1', '1', existing, report([infrastructure]), 'revert'],
+        ['another production commit dominates an SEO failure', '3', '1', '1', existing, report([{ where: 'version.json (after the pages)', message: `serves commit ${SHA('b')}, expected ${merged}`, infrastructure: true, otherCommit: true }]), 'incident'],
+        ['another commit on a preview report cannot suppress an SEO revert', '3', '1', '1', existing, report([{ where: 'version.json', message: 'serves commit b', infrastructure: true, otherCommit: true }], { base: 'https://preview.vercel.app' }), 'revert'],
         ['unfinished smoke alone never reverts', '3', '0', '1', existing, report([infrastructure]), 'incident'],
         ['unfinished SEO alone never reverts', '0', '3', '0', report([]), report([]), 'incident'],
         ['missing outputs open an incident without reverting', '', '', '', null, null, 'incident'],

@@ -232,6 +232,7 @@ async function main(argv, deps) {
   for (const route of [...new Set(quick)]) tasks.push({ route, device: MOBILE, oldSafari: true });
 
   const thirdParty = new Map();
+  const labRequests = { posthog: 0, toolbar: 0 }; // PostHog and preview-toolbar requests of the home-page lab runs
   /**
    * Writes the JSON and the summary. Exit 1 on any failure; 3 when only problems with the run itself (infrastructure)
    * stopped it, or when production served another commit, whatever else failed.
@@ -239,8 +240,8 @@ async function main(argv, deps) {
   function finish() {
     const otherCommit = failures.find((f) => f.otherCommit);
     const incomplete = Boolean(otherCommit) || (failures.length > 0 && failures.every((f) => f.infrastructure));
-    report.posthogRequests = report.checks.reduce((sum, c) => sum + c.posthog, 0);
-    report.previewToolbarRequests = report.checks.reduce((sum, c) => sum + c.previewToolbar, 0);
+    report.posthogRequests = report.checks.reduce((sum, c) => sum + c.posthog, 0) + labRequests.posthog;
+    report.previewToolbarRequests = report.checks.reduce((sum, c) => sum + c.previewToolbar, 0) + labRequests.toolbar;
     report.thirdParty = [...thirdParty].map(([host, pages]) => ({ host, pages: [...pages] }));
     report.durationMs = Date.now() - started;
     report.ok = failures.length === 0;
@@ -448,6 +449,8 @@ async function main(argv, deps) {
       runs.push({ error: String(error.message).split('\n')[0] });
     }
     await context.close();
+    labRequests.posthog += seen.posthog;
+    labRequests.toolbar += seen.toolbar;
     for (const host of seen.thirdParty) labThirdParty.add(host);
   }
   await browser.close();
@@ -594,11 +597,16 @@ async function selfTest() {
     ok('the lab-only request names its host and page, once for the three runs', r.report.failures.filter((f) => f.where === '/ (performance)').length === 1 && failed(r, '/ (performance)', 'request to third-party host cdn.example.com (aborted)') && r.out.includes('Third-party requests: cdn.example.com on / (performance)'), r.out.split('\n').slice(-3).join(' | '));
     r = await run({ pages: { '/about': { requests: [tag] } } });
     ok('a third-party request in a page check fails the run: exit 1', r.code === 1 && failed(r, '/about [mobile]', 'request to third-party host cdn.example.com (aborted)'), `exit ${r.code}`);
-    r = await run({ lab: ['https://us.i.posthog.com/e/', 'https://us-assets.i.posthog.com/static/array.js'], pages: { '/': { requests: ['https://us.i.posthog.com/flags/'] } } });
-    ok('PostHog requests in checks and lab runs are counted, never a failure', r.code === 0 && r.report.posthogRequests > 0 && r.report.thirdParty.length === 0, `exit ${r.code}`);
+    const posthog = ['https://us.i.posthog.com/e/', 'https://us-assets.i.posthog.com/static/array.js'];
+    r = await run({ lab: posthog });
+    ok('PostHog requests in the lab runs only are counted (2 in each of 3 runs), never a failure', r.code === 0 && r.report.posthogRequests === 6 && r.report.thirdParty.length === 0, `exit ${r.code}, ${r.report.posthogRequests} counted`);
+    r = await run({ lab: posthog, pages: { '/': { requests: ['https://us.i.posthog.com/flags/'] } } });
+    ok('PostHog requests in checks (3 of /) and lab runs (6) add up', r.code === 0 && r.report.posthogRequests === 9 && r.out.includes('PostHog requests aborted: 9 '), `exit ${r.code}, ${r.report.posthogRequests} counted`);
     const toolbar = 'https://vercel.live/_next-live/feedback/feedback.js';
+    r = await run({ lab: [toolbar] }, { base: PREVIEW });
+    ok("preview: Vercel's toolbar in the lab runs only is counted, never a failure", r.code === 0 && r.report.previewToolbarRequests === 3 && r.report.thirdParty.length === 0, `exit ${r.code}, ${r.report.previewToolbarRequests} counted`);
     r = await run({ lab: [toolbar], pages: { '/tools': { requests: [toolbar] } } }, { base: PREVIEW });
-    ok("preview: Vercel's toolbar in checks and lab runs is counted, never a failure", r.code === 0 && r.report.previewToolbarRequests > 0 && r.report.thirdParty.length === 0, `exit ${r.code}`);
+    ok("preview: Vercel's toolbar in checks (3 of /tools) and lab runs (3) adds up, never a failure", r.code === 0 && r.report.previewToolbarRequests === 6 && r.report.thirdParty.length === 0, `exit ${r.code}, ${r.report.previewToolbarRequests} counted`);
     r = await run({ lab: [toolbar] });
     ok("production: Vercel's toolbar in a lab run is a third-party request", r.code === 1 && failed(r, '/ (performance)', 'request to third-party host vercel.live (aborted)'), `exit ${r.code}`);
     r = await run({ versions: [THIS, OTHER], lab: [tag] });
