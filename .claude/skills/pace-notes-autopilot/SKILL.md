@@ -159,7 +159,7 @@ Priority:
    - the minimum sample;
    - the decision rule;
    - `evaluate_after`: at least 14 days after the expected ship date, or the experiment's planned end;
-   - for experiments, positive-integer `min_sample`, the maximum duration (at most 42 days), the registry `experiment` key, and canonical `pages` with optional `area`. Follow the data-only registry and occupancy contract in `autopilot/metrics.md` §4: at most two active reservations/running keys, with no overlapping page areas; an omitted area reserves the whole page. A running key keeps the pages and area it was registered with, even after its entry is concluded; to change them, register a new experiment.
+   - for experiments, positive-integer `min_sample`, the maximum duration (at most 42 days), the registry `experiment` key, and canonical `pages` with optional `area`. Follow the data-only registry and occupancy contract in `autopilot/metrics.md` §4: at most two active reservations/running keys, with no overlapping page areas; an omitted area reserves the whole page. A running key keeps the pages and area of its latest experiment entry, even after that entry is concluded; to change them, register a new experiment. Another kind of entry, or the record of a pull request that closed unmerged, does not change them.
 
    Move the backlog item to "In flight" and link it.
 4. **Verify. All of these are required:**
@@ -176,7 +176,7 @@ Priority:
 6. **Reverting a change** (an incident whose automatic revert was not pushed, or a `revert` verdict):
    - Branch `autopilot/<date>-revert-<slug>` from `origin/main`, then run `git revert --no-edit <merge sha>`.
    - Run `git checkout origin/main -- autopilot/ledger.jsonl autopilot/LEARNINGS.md`. The revert would delete the change's ledger line and its learnings, and neither file ever loses a line.
-   - Set the original entry's `status` to `reverted`, its `verdict` to `revert` if it is still null, its `pr`, `shipped_on` and `evaluated_on` (today) if they are still null, and a note saying why. The guard accepts `reverted` only with verdict `revert` or `inconclusive`; an entry already judged anything else keeps its status. Then append a `revert` entry (`evaluate_after: null`).
+   - Set the original entry's `status` to `reverted`, its `verdict` to `revert` if it is still null, its `pr`, `shipped_on` and `evaluated_on` (today) if they are still null, and add a note saying why (the note it already had does not count). The guard accepts `reverted` only with verdict `revert` or `inconclusive`; an entry already judged anything else keeps its status. Then append a `revert` entry (`evaluate_after: null`).
    - If the change added a page, reverting it deletes that page, which only the owner may do: open an `autopilot:needs-owner` issue instead.
 
 ## 6. Ship

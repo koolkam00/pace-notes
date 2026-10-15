@@ -457,15 +457,17 @@ function newEntryProblems(value, { branchDate, branchId, pr }) {
 /**
  * An existing entry moving to "reverted" leaves the evaluation queue too, so it records how: verdict "revert" (it
  * shipped and was rolled back, so also the day it shipped and the day it was judged) or "inconclusive" (its pull
- * request closed unmerged, or no verdict was reached), its pull request, and a note saying why.
+ * request closed unmerged, or no verdict was reached), its pull request, and a note saying why. The note it already
+ * had does not say why, so the note must change.
  */
-function revertedEntryProblems(value) {
+function revertedEntryProblems(value, old = {}) {
   const problems = [];
+  const note = (notes) => (typeof notes === 'string' ? notes.trim() : '');
   if (!['revert', 'inconclusive'].includes(value.verdict)) problems.push('"reverted" entry requires "verdict" "revert" or "inconclusive"');
   for (const key of value.verdict === 'revert' ? ['pr', 'shipped_on', 'evaluated_on'] : ['pr']) {
     if (value[key] === undefined || value[key] === null) problems.push(`"reverted" entry${key === 'pr' ? '' : ' with verdict "revert"'} requires non-null "${key}"`);
   }
-  if (typeof value.notes !== 'string' || !value.notes.trim()) problems.push('"reverted" entry requires "notes" saying why');
+  if (!note(value.notes) || note(value.notes) === note(old.notes)) problems.push('"reverted" entry requires "notes" saying why (add to the note it already had)');
   return problems;
 }
 
@@ -478,7 +480,7 @@ function existingEntryProblems(old, now) {
   if (old.status !== now.status && LEDGER_STATUSES.includes(old.status) && !LEDGER_NEXT[old.status].includes(now.status)) {
     problems.push(`"status" cannot go from "${old.status}" to "${now.status}"${LEDGER_NEXT[old.status].length ? ` (only to ${LEDGER_NEXT[old.status].join(' or ')})` : ''}`);
   }
-  if (now.status === 'reverted' && old.status !== 'reverted') problems.push(...revertedEntryProblems(now));
+  if (now.status === 'reverted' && old.status !== 'reverted') problems.push(...revertedEntryProblems(now, old));
   for (const key of LEDGER_SET_ONCE) {
     const before = old[key] === undefined ? null : old[key];
     if (before !== null && !sameJson(before, now[key] === undefined ? null : now[key])) problems.push(`"${key}" was already ${brief(before)}; once set it cannot change`);
@@ -616,9 +618,10 @@ const scopeOf = (entry) => ({ pages: Array.isArray(entry.pages) ? [...entry.page
 const scopeText = ({ pages, area }) => `${JSON.stringify(pages)}${area === '*' ? '' : ` area ${JSON.stringify(area)}`}`;
 
 /**
- * Each running registry key against its registration: the latest ledger entry, of any status, whose "experiment" is
- * that key. Pages and area are fixed when an experiment is registered, so a concluded or reverted entry still binds a
- * key that keeps running. Returns key → { message, registered }.
+ * Each running registry key against its registration: the latest experiment ledger entry, of any status, whose
+ * "experiment" is that key. Pages and area are fixed when an experiment is registered, so a concluded or reverted
+ * entry still binds a key that keeps running. Other kinds only name the key, and a closed-unmerged record (reverted,
+ * never shipped) never ran, so neither registers it. Returns key → { message, registered }.
  */
 function registrationMismatches(ledger, registry) {
   const values = ledger.map((e) => e.value).filter(Boolean);
@@ -626,8 +629,8 @@ function registrationMismatches(ledger, registry) {
   for (const entry of registry) {
     if (!isObject(entry) || entry.status !== 'running' || typeof entry.key !== 'string') continue;
     const runs = scopeOf(entry);
-    const registration = values.filter((value) => value.experiment === entry.key).pop();
-    if (!registration) mismatches.set(entry.key, { registered: false, message: `experiment "${entry.key}" runs on ${scopeText(runs)} but no ledger entry registers it; register a new experiment instead` });
+    const registration = values.filter((value) => value.kind === 'experiment' && value.experiment === entry.key && !(value.status === 'reverted' && !value.shipped_on)).pop();
+    if (!registration) mismatches.set(entry.key, { registered: false, message: `experiment "${entry.key}" runs on ${scopeText(runs)} but no experiment ledger entry registers it; register a new experiment instead` });
     else if (!sameJson(runs, scopeOf(registration))) mismatches.set(entry.key, { registered: true, message: `experiment "${entry.key}" runs on ${scopeText(runs)} but was registered for ${scopeText(scopeOf(registration))}; register a new experiment instead` });
   }
   return mismatches;
@@ -1219,9 +1222,18 @@ function selfTest() {
         check(`a running key that keeps its scope passes after its entry is ${status}`, [judged(a, status)], [judged(a, status), change], registry([reg('a', ['/'])]), registry([reg('a', ['/'], { started: '2026-10-02' })]));
       }
       check('the latest registration of a key binds it', [{ ...judged(a, 'concluded'), pages: ['/tools'] }, judged(a, 'reverted')], [{ ...judged(a, 'concluded'), pages: ['/tools'] }, judged(a, 'reverted')], registry([reg('a', ['/'])]), registry([reg('a', ['/tools'])]), ['runs on ["/tools"] but was registered for ["/"]']);
-      check('a later ledger entry for a running key must match its scope', [judged(a, 'concluded')], [judged(a, 'concluded'), { ...a, id: '2026-09-20-stuck', status: 'reverted', verdict: 'inconclusive', pages: ['/tools'] }], registry([reg('a', ['/'])]), registry([reg('a', ['/'])]), ['runs on ["/"] but was registered for ["/tools"]']);
-      check('a running key with no registration cannot change scope', [], [change], registry([reg('a', ['/'])]), registry([reg('a', ['/tools'])]), ['experiment "a" runs on ["/tools"] but no ledger entry registers it']);
-      check('a running key with no registration already on the base only warns', [], [change], registry([reg('a', ['/'])]), registry([reg('a', ['/'])]), [], ['no ledger entry registers it; register a new experiment instead (already on the base)']);
+      // Only an experiment entry registers a key: other kinds only name it, and a closed-unmerged record never ran.
+      const stuck = { ...a, id: '2026-09-20-stuck', status: 'reverted', verdict: 'inconclusive', pr: 70, shipped_on: null, pages: ['/tools'], notes: 'Closed unmerged.' };
+      check('a closed-unmerged record of a running key does not register it', [judged(a, 'concluded')], [judged(a, 'concluded'), stuck], registry([reg('a', ['/'])]), registry([reg('a', ['/'])]));
+      check('a closed-unmerged record cannot move a running key', [judged(a, 'concluded')], [judged(a, 'concluded'), stuck], registry([reg('a', ['/'])]), registry([reg('a', ['/tools'])]), ['runs on ["/tools"] but was registered for ["/"]']);
+      for (const kind of ['change', 'fix']) {
+        check(`a ${kind} entry naming a running key cannot move it`, [a], [a, { ...change, kind, experiment: 'a', pages: ['/', '/tools'] }], registry([reg('a', ['/'])]), registry([reg('a', ['/', '/tools'])]), ['runs on ["/","/tools"] but was registered for ["/"]']);
+        check(`a ${kind} entry naming a running key without pages passes`, [a], [a, { ...change, kind, experiment: 'a' }], registry([reg('a', ['/'])]), registry([reg('a', ['/'])]));
+      }
+      check('a fix entry cannot widen a running key to the whole site', [{ ...a, area: 'hero' }], [{ ...a, area: 'hero' }, { ...change, kind: 'fix', experiment: 'a', pages: ['*'], area: '*' }], registry([reg('a', ['/'], { area: 'hero' })]), registry([reg('a', ['*'])]), ['runs on ["*"] but was registered for ["/"] area "hero"']);
+      check('a running key can move under a new experiment entry', [judged(a, 'concluded')], [judged(a, 'concluded'), { ...a, id: '2026-10-14-a-wide', status: 'proposed', pr: null, shipped_on: null, pages: ['/', '/tools'] }], registry([reg('a', ['/'])]), registry([reg('a', ['/tools', '/'])]));
+      check('a running key with no registration cannot change scope', [], [change], registry([reg('a', ['/'])]), registry([reg('a', ['/tools'])]), ['experiment "a" runs on ["/tools"] but no experiment ledger entry registers it']);
+      check('a running key with no registration already on the base only warns', [], [change], registry([reg('a', ['/'])]), registry([reg('a', ['/'])]), [], ['no experiment ledger entry registers it; register a new experiment instead (already on the base)']);
       check('a scope mismatch already on the base only warns', [judged(a, 'concluded')], [judged(a, 'concluded'), change], registry([reg('a', ['/tools'])]), registry([reg('a', ['/tools'])]), [], ['experiment "a" runs on ["/tools"] but was registered for ["/"]; register a new experiment instead (already on the base)']);
       check('a registry change elsewhere does not turn a mismatch on the base into a failure', [judged(a, 'concluded')], [judged(a, 'concluded')], registry([reg('a', ['/tools'])]), registry([reg('a', ['/tools']), { key: 'old', status: 'paused' }]), [], ['already on the base']);
       check('a mismatch on the base cannot be changed into another one', [judged(a, 'concluded')], [judged(a, 'concluded')], registry([reg('a', ['/tools'])]), registry([reg('a', ['/about'])]), ['runs on ["/about"] but was registered for ["/"]']);
@@ -1265,13 +1277,19 @@ function selfTest() {
       expect('new experiment without a registry is refused by the git guard', { ledger: false, setup: () => { write(LEDGER, `${BASE_LEDGER}${proposal(EXPERIMENT)}\n`); remove(EXPERIMENT_REGISTRY); }, rules: ['experiment'], messages: ['registry cannot be removed'] });
       // A running key's registration is checked through the git guard too; a mismatch already on main never blocks.
       const concludedHero = entry('2026-10-01-hero', { ...EXPERIMENT, status: 'concluded', pr: 58, shipped_on: '2026-10-02', verdict: 'keep-control', result: { control: 80, variant: 75 }, evaluated_on: '2026-10-14' });
-      const runningBase = (label, pages) => { run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', label); write(LEDGER, `${BASE_LEDGER}${concludedHero}\n`); write(EXPERIMENT_REGISTRY, registry([reg('home-hero', pages)])); run('add', '-A'); run('commit', '-q', '-m', label); return label; };
+      const runningBase = (label, pages, line = concludedHero) => { run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', label); write(LEDGER, `${BASE_LEDGER}${line}\n`); write(EXPERIMENT_REGISTRY, registry([reg('home-hero', pages)])); run('add', '-A'); run('commit', '-q', '-m', label); return label; };
       const heroRunning = runningBase('base-hero-running', ['/']);
       expect('a running key cannot move pages after its experiment concluded', { base: heroRunning, setup: () => write(EXPERIMENT_REGISTRY, registry([reg('home-hero', ['/tools'])])), rules: ['experiment'], messages: ['lib/experiments.ts:null experiment "home-hero" runs on ["/tools"] but was registered for ["/"]; register a new experiment instead'] });
       expect('a running key that keeps its scope does not block a site change', { base: heroRunning, setup: () => write('components/Card.tsx', 'export const y = 2;\n') });
       const heroMismatch = runningBase('base-hero-mismatch', ['/tools']);
       expect('a scope mismatch already on main is a warning for a site change', { base: heroMismatch, setup: () => write('components/Card.tsx', 'export const y = 2;\n'), warned: ['runs on ["/tools"] but was registered for ["/"]; register a new experiment instead (already on the base)'] });
       expect('a scope mismatch already on main does not block a pull request that changes neither the registry nor the ledger', { base: heroMismatch, ledger: false, setup: () => write('autopilot/backlog.md', '# Backlog\n- Re-ranked.\n'), warned: ['already on the base'] });
+      // Only an experiment entry that ran or is being registered binds the key (skill step 1.3 records a closed v2).
+      const wider = (id, extra = {}) => entry(id, { ...EXPERIMENT, pages: ['/', '/tools'], status: 'reverted', verdict: 'inconclusive', notes: 'Closed unmerged after 7 days.', ...extra });
+      expect('a closed-unmerged record of a running key passes in a bookkeeping pull request', { base: heroRunning, branch: 'autopilot/2026-10-15-bookkeeping', ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), `${wider('2026-10-10-hero-wide', { pr: 70 })}\n`) });
+      expect('a closed-unmerged record cannot widen a running key', { base: heroRunning, setup: () => { fs.appendFileSync(path.join(dir, LEDGER), `${wider('2026-09-20-old', { pr: 55 })}\n`); write(EXPERIMENT_REGISTRY, registry([reg('home-hero', ['/', '/tools'])])); }, rules: ['experiment'], messages: ['runs on ["/","/tools"] but was registered for ["/"]'] });
+      const heroShipped = runningBase('base-hero-shipped', ['/'], entry('2026-10-01-hero', { ...EXPERIMENT, status: 'shipped', pr: 58, shipped_on: '2026-10-02' }));
+      expect('a change entry naming a running key cannot widen it', { base: heroShipped, ledger: false, setup: () => { fs.appendFileSync(path.join(dir, LEDGER), `${proposal({ experiment: 'home-hero', pages: ['/', '/tools'] })}\n`); write(EXPERIMENT_REGISTRY, registry([reg('home-hero', ['/', '/tools'])])); }, rules: ['experiment'], messages: ['runs on ["/","/tools"] but was registered for ["/"]'] });
     }
 
     // Ledger: a base that is already untidy does not block every later pull request.
@@ -1341,6 +1359,11 @@ function selfTest() {
     expect('a kept conclusion cannot be marked reverted', { base: keptBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { status: 'reverted', ...lifecycleShipping, ...lifecycleOutcome, notes: 'Rolled back.' })}\n`), rules: ['ledger'], messages: ['"verdict" "revert" or "inconclusive"'] });
     const inconclusiveBase = untidyBase('base-lifecycle-inconclusive', `${entry(lifecycleId, { status: 'concluded', ...lifecycleShipping, ...lifecycleOutcome, verdict: 'inconclusive' })}\n`);
     expect('an inconclusive conclusion can be marked reverted with a note', { base: inconclusiveBase, ledger: false, setup: () => write(LEDGER, `${entry(lifecycleId, { status: 'reverted', ...lifecycleShipping, ...lifecycleOutcome, verdict: 'inconclusive', notes: 'The simpler option won; the variant was removed.' })}\n`) });
+    // The note it already had does not say why it was reverted.
+    const notedBase = untidyBase('base-lifecycle-noted', `${entry(lifecycleId, { status: 'shipped', ...lifecycleShipping, notes: 'Watch mobile first.' })}\n`);
+    const notedRevert = (notes) => entry(lifecycleId, { status: 'reverted', ...lifecycleShipping, verdict: 'revert', evaluated_on: '2026-10-15', notes });
+    expect('a reverted entry cannot keep only the note it had', { base: notedBase, ledger: false, setup: () => write(LEDGER, `${notedRevert('Watch mobile first.')}\n`), rules: ['ledger'], messages: ['"reverted" entry requires "notes" saying why'] });
+    expect('a reverted entry can add to the note it had', { base: notedBase, ledger: false, setup: () => write(LEDGER, `${notedRevert('Watch mobile first. Worse on phones; reverted in #61.')}\n`) });
     // A reverted line already on the base is not re-judged: an untouched incomplete one never blocks a pull request.
     const oldRevertBase = untidyBase('base-old-revert', `${entry(lifecycleId, { status: 'reverted', verdict: null, pr: null })}\n`);
     expect('an untouched incomplete reverted entry on the base does not block', { base: oldRevertBase, setup: () => write('components/Card.tsx', 'export const y = 2;\n') });
