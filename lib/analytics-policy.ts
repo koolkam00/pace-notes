@@ -30,9 +30,10 @@ const analyses = new Set([...TEN_ANALYSES.map(item => item.id), ...WEATHER_QUEST
 const experiments: readonly ExperimentDefinition[] = EXPERIMENTS;
 
 // The page sections whose first view is counted (section_viewed). Pages mark them with data-track-section="<id>";
-// components/SectionTracker.tsx watches them, and any other id is dropped here.
+// components/SectionTracker.tsx watches them, and any other id is dropped here. The race planner (/tools/plan) marks its
+// course result, its mat comparison and its pace band.
 export const TRACKED_SECTIONS = ['hero', 'chapter-1', 'chapter-2', 'chapter-3', 'chapter-4', 'chapter-5', 'chapter-6', 'chapter-7', 'chapter-8',
-  'stories', 'tools', 'analyses', 'cta', 'faq', 'related'] as const;
+  'stories', 'tools', 'analyses', 'cta', 'faq', 'related', 'result', 'comparison', 'pace-band'] as const;
 
 export type AnalyticsEvents = {
   runner_search_submitted: Record<string, never>;

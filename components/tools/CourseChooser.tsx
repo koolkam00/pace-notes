@@ -6,7 +6,9 @@ import { Choice, DataState, EvidencePanel, ExampleNote, ShareBar, Stat } from '@
 import { useQueryState } from '@/components/tools/useQueryState';
 import { loadInsight } from '@/lib/insights';
 import type { CourseContext, CourseGoal, CourseGoalRow } from '@/lib/tools/data';
+import { planHref } from '@/lib/tools/links';
 import { MARATHON_KM, perUnit } from '@/lib/tools/pace';
+import { courseGoalReason, tooFewEditions } from '@/lib/tools/plan';
 import { SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { formatDuration, formatHM, formatMargin, parseDuration } from '@/lib/tools/time';
 import { KM_PER_MILE, METRES_PER_FOOT, distanceLabel, elevationLabel, type UnitSystem } from '@/lib/units';
@@ -90,16 +92,6 @@ function readGoal(text: string, range: [number, number], step: number): { minute
   }
   if (Math.abs(snapped * 60 - seconds) >= 1) return { minutes: snapped, note: `Goals come in ${step}-minute steps, so ${formatDuration(seconds, true)} shows as ${hm(snapped)}.` };
   return { minutes: snapped, note: null };
-}
-
-/** Plain-words reason for a course without a row at this goal. Small finish counts are never printed. */
-function reasonText(reason: string, minEditions: number): string {
-  const m = reason.match(/^(\d+) editions? with at least (\d+) finishes at this pace; (\d+) finishes$/);
-  if (!m) return reason;
-  const [ed, per, n] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  if (ed === 0) return `No edition had ${per} or more finishes at this pace.`;
-  if (ed < minEditions) return `${ed === 1 ? 'Only one edition' : `Only ${ed} editions`} had ${per} or more finishes at this pace${n >= 100 ? ` (${count(n)} finishes)` : ''}; ${minEditions} are needed.`;
-  return `${ed} editions had ${per} or more finishes at this pace, but fewer than 100 finishes in all.`;
 }
 
 /** One shared time scale for every bar at this goal, with round ticks. */
@@ -285,8 +277,8 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
     const structural: { city: string; reason: string }[] = [];
     for (const u of data.unavailable.filter((x) => x.goal === goal).sort((a, b) => a.city.localeCompare(b.city))) {
       const c = courseByCity.get(u.city);
-      if (c && c.editions < minEditions) structural.push({ city: u.city, reason: `${c.editions === 1 ? 'Only one edition' : `Only ${c.editions} editions`} passed the data screens; ${minEditions} are needed for any goal.` });
-      else pace.push({ city: u.city, reason: reasonText(u.reason, minEditions) });
+      if (c && c.editions < minEditions) structural.push({ city: u.city, reason: tooFewEditions(c.editions, minEditions) });
+      else pace.push({ city: u.city, reason: courseGoalReason(u.reason, minEditions) });
     }
     for (const s of screened) structural.push({ city: s.city, reason: s.reason });
     structural.sort((a, b) => a.city.localeCompare(b.city));
@@ -518,8 +510,11 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
                                 <span className="course-chooser-sub">{course.net_m !== null ? `net ${elev(course.net_m, units, true)}` : 'no supplied profile'}</span>
                                 {course.downhill_opening ? <span className="course-chooser-tag">Downhill opening</span> : null}</td>
                               <td>
-                                {b.own ? <Link className="course-chooser-band" href={b.href}>Pace band<span className="sr-only"> for {goalText} in {course.city}</span></Link>
-                                  : <><Link className="course-chooser-band" href={b.href}>Pace band<span className="sr-only"> for {goalText}, all courses: {b.why}</span></Link><span className="course-chooser-sub" aria-hidden="true">all courses</span></>}
+                                <div className="course-chooser-row-links">
+                                  <Link className="course-chooser-band" href={planHref(course.city, goal) ?? '/tools/plan'}>Plan<span className="sr-only"> {goalText} in {course.city}</span></Link>
+                                  {b.own ? <Link className="course-chooser-band" href={b.href}>Pace band<span className="sr-only"> for {goalText} in {course.city}</span></Link>
+                                    : <span><Link className="course-chooser-band" href={b.href}>Pace band<span className="sr-only"> for {goalText}, all courses: {b.why}</span></Link><span className="course-chooser-sub" aria-hidden="true">all courses</span></span>}
+                                </div>
                               </td>
                             </tr>
                           );
@@ -558,6 +553,7 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
                           </details>
                           <div className="course-chooser-card-links">
                             {pageSet.has(course.slug) ? <Link href={`/courses/${course.slug}`}>Course page<span className="sr-only"> for {course.city}</span></Link> : null}
+                            <Link href={planHref(course.city, goal) ?? '/tools/plan'}>Plan {goalText}<span className="sr-only"> in {course.city}</span></Link>
                             {b.own ? <Link href={b.href}>Pace band for {goalText}<span className="sr-only"> in {course.city}</span></Link>
                               : <Link href={b.href}>Pace band for {goalText}, all courses<span className="sr-only">: {b.why}</span></Link>}
                           </div>

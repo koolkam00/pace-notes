@@ -78,6 +78,8 @@ th.is-sorted .course-chooser-arrow { color: var(--cc-ink); }
 .course-chooser-th-bar, .course-chooser-td-bar { width: 176px; min-width: 176px; padding-left: .2rem !important; padding-right: .2rem !important; }
 .course-chooser-band { display: inline-flex; align-items: center; gap: .25rem; font-family: var(--sans); font-size: .8125rem; font-weight: 600; white-space: nowrap; }
 .course-chooser-band::after { content: '→'; }
+/* Each row's links: the planner for this course and goal, then the pace band. */
+.course-chooser-row-links { display: grid; justify-items: start; gap: .35rem; }
 .course-chooser-table caption { max-width: 60rem; }
 
 /* ---------- Finish spread (SVG) ---------- */

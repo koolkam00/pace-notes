@@ -6,6 +6,11 @@
 
 export const VERIFIED_AT = '2026-10-08';
 
+/** The Pace Notes course (its city in the data) of each race in STANDARDS, by race key. The race page links to it; the planner links back. */
+export const QUALIFYING_COURSE: Readonly<Record<string, string>> = { boston: 'Boston', nyc: 'New York', chicago: 'Chicago', london: 'London', berlin: 'Berlin', sydney: 'Sydney' };
+/** The key of the race whose qualifying standards belong to a course city, or null (the reverse of QUALIFYING_COURSE). */
+export const qualifyingKeyForCity = (city: string): string | null => Object.keys(QUALIFYING_COURSE).find((key) => QUALIFYING_COURSE[key] === city) ?? null;
+
 export type Division = 'men' | 'women' | 'nonbinary';
 export type AgeRule = 'race-day' | 'time-run' | 'birth-year';
 export type Comparison = 'at-or-under' | 'strictly-under';

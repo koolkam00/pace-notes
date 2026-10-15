@@ -11,6 +11,16 @@ export function paceBandGoalHref(minutes: number): string | null {
 }
 
 /**
+ * /tools/plan, the race planner, for a course (by city; left out for all courses) and a goal in whole minutes, as it reads
+ * them (course=<slug>, goal=H:MM); null for a goal outside the 1:30 to 8:00 it takes.
+ */
+export function planHref(city?: string, goalMinutes?: number): string | null {
+  if (goalMinutes !== undefined && !(Number.isInteger(goalMinutes) && goalMinutes >= 90 && goalMinutes <= 480)) return null;
+  const params = [city ? `course=${courseSlug(city)}` : '', goalMinutes !== undefined ? `goal=${hm(goalMinutes)}` : ''].filter(Boolean);
+  return `/tools/plan${params.length ? `?${params.join('&')}` : ''}`;
+}
+
+/**
  * The pacing-pattern analysis for finishes near a time in whole minutes, as readAnalysisProfile (lib/analysis-profile.ts)
  * reads it (goal=<minutes>, from GOAL_MIN to GOAL_MAX: 1:30 to 12:00); null outside that range.
  */
