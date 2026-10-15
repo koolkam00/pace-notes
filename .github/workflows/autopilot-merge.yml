@@ -8,7 +8,7 @@ name: Autopilot merge
 # Five jobs, so that the two that open pages in a browser (the pull request's preview, and production after the
 # merge) run on machines of their own with a read-only token and no credentials on disk:
 #   gate     check every gate and output the first eligible pull request (writes status comments and incidents)
-#   preview  smoke test and verify:seo:live on the pull request's Vercel preview, then a quick smoke test of
+#   preview  smoke test and verify:seo:live on the pull request's Vercel preview, then a full smoke test of
 #            production as a baseline (read-only)
 #   merge    record the preview checks, squash-merge pinned to the checked commit, wait for the production deploy
 #   live     smoke test and verify:seo:live on https://splithappens.run (read-only)
@@ -141,16 +141,16 @@ jobs:
           echo "seo=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
       # Production runs code the previews do not (analytics is on only there), so a problem can exist on production
-      # alone. If production already fails the quick smoke test before the merge, a live smoke failure afterwards may
-      # not be this change's: the report job then opens the incident without reverting. It never blocks the merge, so
-      # a change that fixes such a problem can still ship.
+      # alone. Capture the same full route coverage used after deploy. The report job compares individual failures:
+      # only exact pre-existing failures are exempt from a revert; any newly broken page/check still reverts.
+      # The baseline never blocks the merge, so a change that fixes a production-only problem can still ship.
       - name: Smoke-test production before the merge (baseline)
         id: baseline
         if: steps.checks.outputs.smoke == '0' && steps.checks.outputs.seo == '0'
         shell: bash
         run: |
           set +e
-          node scripts/autopilot-smoke.cjs --base https://splithappens.run --quick --json "$RUNNER_TEMP/preview/baseline.json"
+          node scripts/autopilot-smoke.cjs --base https://splithappens.run --json "$RUNNER_TEMP/preview/baseline.json"
           echo "baseline=$?" >> "$GITHUB_OUTPUT"
 
       - name: Keep the results
@@ -343,9 +343,12 @@ jobs:
           name: live-checks
           path: ${{ runner.temp }}/live
 
-      - name: Record that the live checks passed
-        if: env.MERGE_SHA != '' && env.DEPLOY == 'success' && env.SMOKE == '0' && env.SEO == '0'
-        run: node scripts/autopilot-merge.cjs record-live --pr "$PR" --sha "$MERGE_SHA"
+      - uses: actions/download-artifact@v4
+        if: env.MERGE_SHA != ''
+        continue-on-error: true
+        with:
+          name: preview-checks
+          path: ${{ runner.temp }}/preview
 
       - name: Report a deploy problem (no revert)
         if: env.MERGE_SHA != '' && env.DEPLOY != 'success'
@@ -356,25 +359,12 @@ jobs:
           --reason "${REASON:-The wait for the production deploy did not finish (the step was cancelled or timed out). The change itself was not checked, so it was not reverted.}"
           --log "$RUNNER_TEMP/deploy/wait-deploy.log"
 
-      - name: Revert the merge and report (a live check failed)
-        if: env.MERGE_SHA != '' && env.DEPLOY == 'success' && (env.SEO == '1' || (env.SMOKE == '1' && env.BASELINE != '1'))
+      - name: Compare live failures with the baseline, then record or revert
+        if: env.MERGE_SHA != '' && env.DEPLOY == 'success'
         run: >-
-          node scripts/autopilot-merge.cjs incident --revert --pr "$PR" --sha "$MERGE_SHA" --step "live checks"
-          --reason "On https://splithappens.run after the deploy: smoke test exit $SMOKE, verify:seo:live exit $SEO (0 passed, 1 failed)."
-          --log "$RUNNER_TEMP/live/checks.log"
-
-      - name: Report a live smoke failure that production already had (no revert)
-        if: env.MERGE_SHA != '' && env.DEPLOY == 'success' && env.SMOKE == '1' && env.SEO != '1' && env.BASELINE == '1'
-        run: >-
-          node scripts/autopilot-merge.cjs incident --pr "$PR" --sha "$MERGE_SHA" --step "live checks"
-          --reason "The live smoke test failed after the deploy, but production already failed the quick smoke test just before this merge (the preview job's baseline), so the failure may not be this change's. It was not reverted: compare the baseline in the preview-checks artifact with the live results, and revert by hand if this change made things worse."
-          --log "$RUNNER_TEMP/live/checks.log"
-
-      - name: Report live checks that did not finish (no revert)
-        if: env.MERGE_SHA != '' && env.DEPLOY == 'success' && env.SMOKE != '1' && env.SEO != '1' && !(env.SMOKE == '0' && env.SEO == '0')
-        run: >-
-          node scripts/autopilot-merge.cjs incident --pr "$PR" --sha "$MERGE_SHA" --step "live checks"
-          --reason "The live checks on https://splithappens.run did not finish (smoke test exit ${SMOKE:-none}, verify:seo:live exit ${SEO:-none}; 3 means the site could not be reached, or it was already serving a later commit). The change was not reverted; check the live site."
+          node scripts/autopilot-merge.cjs report-live --pr "$PR" --sha "$MERGE_SHA"
+          --smoke-exit "$SMOKE" --seo-exit "$SEO" --baseline-exit "$BASELINE"
+          --baseline "$RUNNER_TEMP/preview/baseline.json" --live "$RUNNER_TEMP/live/smoke.json"
           --log "$RUNNER_TEMP/live/checks.log"
 
       # Last, whatever happened above (a cancelled or timed-out job, a lost answer, an incident that could not be

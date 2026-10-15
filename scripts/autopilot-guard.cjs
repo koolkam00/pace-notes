@@ -59,7 +59,7 @@ const LIMITS = {
   files: 60, lines: 1500,
   binaryBytes: 600 * 1024, binaryTotalBytes: 2 * 1024 * 1024,
   textBytes: 200 * 1024, textTotalBytes: 1024 * 1024,
-  lineLength: 3000, ledgerLines: 10, ledgerDateDays: 2,
+  lineLength: 3000, ledgerLines: 10, ledgerDateDays: 2, experimentMaxDays: 42,
 };
 const LEDGER = 'autopilot/ledger.jsonl';
 
@@ -405,6 +405,11 @@ function ledgerEntryProblems(value) {
   if (has('title') && typeof value.title === 'string' && !value.title.trim()) problems.push('"title" is empty');
   if (has('guardrails') && !Array.isArray(value.guardrails)) problems.push('"guardrails" must be an array');
   if (has('baseline') && !isObject(value.baseline)) problems.push('"baseline" must be an object');
+  // Experiment stopping rules are registered before launch and are immutable thereafter.
+  if (value.kind === 'experiment') {
+    if (!(Number.isSafeInteger(value.min_sample) && value.min_sample > 0)) problems.push('an experiment requires "min_sample" to be a positive safe integer');
+    if (!(Number.isSafeInteger(value.max_days) && value.max_days >= 1 && value.max_days <= LIMITS.experimentMaxDays)) problems.push(`an experiment requires "max_days" to be an integer from 1 to ${LIMITS.experimentMaxDays}`);
+  }
   if (has('evaluate_after')) {
     // A fix, a revert and the conclusion of an experiment are not judged later.
     const nullable = ['fix', 'revert', 'conclude'].includes(value.kind);
@@ -420,13 +425,14 @@ function ledgerEntryProblems(value) {
 
 /**
  * A new entry is pre-registered: proposed, with no verdict, no result and no shipped_on (it is marked shipped once its
- * pull request has merged), dated within two days of the branch, naming this pull request or none. The one exception
- * is the record of an earlier change whose pull request closed without merging: status reverted, verdict null or
+ * pull request has merged), with the branch's id, dated within two days of the branch, naming this pull request or none.
+ * The one exception is the record of an earlier change whose pull request closed without merging: status reverted, verdict null or
  * inconclusive, any earlier date, and that pull request's number.
  */
-function newEntryProblems(value, { branchDate, pr }) {
+function newEntryProblems(value, { branchDate, branchId, pr }) {
   const problems = [];
   const recordOfClosed = value.status === 'reverted';
+  if (!recordOfClosed && branchId && value.id !== branchId) problems.push(`"id" must be "${branchId}", the branch name without "${BRANCH_PREFIX}"; only records of closed-unmerged pull requests may use another id`);
   if (!recordOfClosed && value.status !== 'proposed' && LEDGER_STATUSES.includes(value.status)) problems.push(`a new entry starts "proposed", not "${value.status}"; it is marked shipped once its pull request has merged`);
   if (value.result !== null && value.result !== undefined) problems.push('a new entry starts with "result": null; the result is written when it is evaluated');
   if (value.shipped_on !== null && value.shipped_on !== undefined) problems.push('a new entry has no "shipped_on"; it is set once its pull request has merged');
@@ -461,8 +467,9 @@ function existingEntryProblems(old, now) {
  * The head's ledger against the base's. Existing lines are matched by id (a line that is not a valid entry, by
  * position), so a deleted line is reported once, as a deletion; every head line no base line matches is new.
  * `bookkeeping` (the pull request changes nothing but the three autopilot record files) waives the new line.
+ * Otherwise the change needs its own proposed entry; records of closed-unmerged pull requests alone do not count.
  */
-function checkLedger(baseText, headText, { violations, warnings, branchDate, pr, bookkeeping = false }) {
+function checkLedger(baseText, headText, { violations, warnings, branchDate, branchId, pr, bookkeeping = false }) {
   const v = (line, message) => violations.push({ rule: 'ledger', file: LEDGER, line, message });
   const w = (line, message) => warnings.push({ rule: 'ledger', file: LEDGER, line, message });
   const head = parseLedger(headText);
@@ -502,10 +509,11 @@ function checkLedger(baseText, headText, { violations, warnings, branchDate, pr,
   }
   const added = head.filter((entry) => !taken.has(entry));
   if (!added.length && !bookkeeping) v(null, `adds no line (the base has ${base.length}, the head ${head.length}); append one entry for this change (only a pull request that changes nothing but existing ledger lines, autopilot/backlog.md and autopilot/LEARNINGS.md needs none)`);
+  if (added.length && !bookkeeping && branchId && !added.some((entry) => entry.value?.id === branchId && entry.value.status === 'proposed')) v(null, `append a new "proposed" entry with id "${branchId}" for this change; a closed-unmerged record does not pre-register a site change`);
   if (added.length > LIMITS.ledgerLines) v(null, `adds ${added.length} lines; at most ${LIMITS.ledgerLines} per pull request`);
   for (const entry of added) {
     if (entry.error) { v(entry.number, `line ${entry.error}`); continue; }
-    for (const problem of [...ledgerEntryProblems(entry.value), ...newEntryProblems(entry.value, { branchDate, pr })]) v(entry.number, problem);
+    for (const problem of [...ledgerEntryProblems(entry.value), ...newEntryProblems(entry.value, { branchDate, branchId, pr })]) v(entry.number, problem);
     if (typeof entry.value.id === 'string') {
       if (ids.has(entry.value.id)) v(entry.number, `id "${entry.value.id}" is already used on line ${ids.get(entry.value.id)}`);
       else ids.set(entry.value.id, entry.number);
@@ -536,6 +544,7 @@ function check({ cwd = process.cwd(), base, head, branch, pr = null } = {}) {
   const branchMatch = BRANCH_NAME.exec(name);
   if (!branchMatch || name.length > BRANCH_MAX || !validDate(branchMatch[1])) add('branch-name', null, null, `"${name}" must match autopilot/YYYY-MM-DD-slug (a real date; lower-case letters, digits and single hyphens) and be at most ${BRANCH_MAX} characters`);
   const branchDate = branchMatch && validDate(branchMatch[1]) ? branchMatch[1] : null;
+  const branchId = branchDate && name.length <= BRANCH_MAX ? name.slice(BRANCH_PREFIX.length) : null;
 
   const headSha = git(cwd, ['rev-parse', '--verify', '--quiet', `${head}^{commit}`]).trim();
   const baseSha = git(cwd, ['rev-parse', '--verify', '--quiet', `${base}^{commit}`]).trim();
@@ -627,7 +636,7 @@ function check({ cwd = process.cwd(), base, head, branch, pr = null } = {}) {
   }
 
   const bookkeeping = entries.length > 0 && entries.every((entry) => [entry.oldPath, entry.newPath].filter(Boolean).every((file) => BOOKKEEPING.includes(file)));
-  checkLedger(showFile(cwd, mergeBase, LEDGER), showFile(cwd, headSha, LEDGER), { violations, warnings: result.warnings, branchDate, pr, bookkeeping });
+  checkLedger(showFile(cwd, mergeBase, LEDGER), showFile(cwd, headSha, LEDGER), { violations, warnings: result.warnings, branchDate, branchId, pr, bookkeeping });
 
   // The guard reads commits. Run on HEAD with work not yet committed, it would check (and pass) something else.
   if (head === 'HEAD') {
@@ -671,6 +680,8 @@ function selfTest() {
   const write = (file, content) => { fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true }); fs.writeFileSync(path.join(dir, file), content); };
   const remove = (file) => fs.rmSync(path.join(dir, file), { force: true });
   const entry = (id, extra = {}) => JSON.stringify({ id, date: id.slice(0, 10), kind: 'change', title: 'A change', hypothesis: 'Clearer copy helps.', primary_metric: 'engaged_visit_rate', guardrails: ['bounce'], baseline: { rate: 0.4, n: 120 }, decision_rule: 'Keep if the rate rises.', evaluate_after: '2026-10-28', status: 'proposed', pr: null, verdict: null, result: null, ...extra });
+  const CHANGE_ID = '2026-10-14-test';
+  const proposal = (extra = {}) => entry(CHANGE_ID, extra);
   const FIRST = { status: 'shipped', pr: 60 };
   const BASE_LEDGER = `${entry('2026-10-01-first', FIRST)}\n`;
   const STORE = "export function read() {\n  try { return window.localStorage.getItem('units'); } catch { return null; }\n}\nexport function other() {\n  return 1;\n}\n";
@@ -701,7 +712,7 @@ function selfTest() {
       run('checkout', '-q', '-f', base);
       run('clean', '-q', '-fdx');
       run('checkout', '-q', '-B', `case-${cases}`);
-      if (ledger) fs.appendFileSync(path.join(dir, LEDGER), `${entry(`2026-10-14-case-${cases}`)}\n`);
+      if (ledger) fs.appendFileSync(path.join(dir, LEDGER), `${proposal()}\n`);
       setup();
       run('add', '-A');
       run('commit', '-q', '--allow-empty', '-m', label);
@@ -886,77 +897,120 @@ function selfTest() {
     const ledgerCase = (label, lineText, wanted = ['ledger'], options = {}) => expect(label, { ledger: false, ...options, setup: () => fs.appendFileSync(path.join(dir, LEDGER), `${lineText}\n`), rules: wanted });
     ledgerCase('ledger line is not JSON', '{not json');
     ledgerCase('ledger line is an array', '[1,2]');
-    ledgerCase('ledger key missing', JSON.stringify((({ hypothesis, ...rest }) => rest)(JSON.parse(entry('2026-10-14-missing')))));
+    ledgerCase('ledger key missing', JSON.stringify((({ hypothesis, ...rest }) => rest)(JSON.parse(proposal()))));
     ledgerCase('ledger id malformed', entry('Home Hero'));
     ledgerCase('ledger id reused', entry('2026-10-01-first'));
-    ledgerCase('ledger date invalid', entry('2026-10-14-date', { date: '2026-02-30' }));
-    ledgerCase('ledger kind unknown', entry('2026-10-14-kind', { kind: 'tweak' }));
-    ledgerCase('ledger status unknown', entry('2026-10-14-status', { status: 'done' }));
-    ledgerCase('ledger verdict unknown', entry('2026-10-14-verdict', { verdict: 'win' }));
-    ledgerCase('ledger pr is a string', entry('2026-10-14-pr', { pr: '61' }));
-    ledgerCase('ledger guardrails not an array', entry('2026-10-14-guard', { guardrails: 'bounce' }));
-    ledgerCase('ledger baseline not an object', entry('2026-10-14-baseline', { baseline: 0.4 }));
-    ledgerCase('ledger result not an object', entry('2026-10-14-result', { result: 'good' }));
-    ledgerCase('ledger evaluate_after null for a change', entry('2026-10-14-eval', { evaluate_after: null }));
-    ledgerCase('ledger evaluate_after null for a fix', entry('2026-10-14-fix', { kind: 'fix', evaluate_after: null }), []);
-    ledgerCase('ledger evaluate_after null for a revert', entry('2026-10-14-revert', { kind: 'revert', evaluate_after: null }), []);
-    ledgerCase('ledger evaluate_after null for a conclusion', entry('2026-10-14-conclude', { kind: 'conclude', evaluate_after: null }), []);
-    ledgerCase('ledger line wrapped over two lines', `${entry('2026-10-14-wrapped').replace(',"title"', ',\n"title"')}`, ['ledger'], { messages: ['one JSON object on one line'] });
-    ledgerCase('ledger with extra keys', entry('2026-10-14-extra', { notes: 'context', evaluated_on: null, experiment: 'home-hero' }), []);
+    ledgerCase('ledger date invalid', proposal({ date: '2026-02-30' }));
+    ledgerCase('ledger kind unknown', proposal({ kind: 'tweak' }));
+    ledgerCase('ledger status unknown', proposal({ status: 'done' }));
+    ledgerCase('ledger verdict unknown', proposal({ verdict: 'win' }));
+    ledgerCase('ledger pr is a string', proposal({ pr: '61' }));
+    ledgerCase('ledger guardrails not an array', proposal({ guardrails: 'bounce' }));
+    ledgerCase('ledger baseline not an object', proposal({ baseline: 0.4 }));
+    ledgerCase('ledger result not an object', proposal({ result: 'good' }));
+    ledgerCase('ledger evaluate_after null for a change', proposal({ evaluate_after: null }));
+    ledgerCase('ledger evaluate_after null for a fix', proposal({ kind: 'fix', evaluate_after: null }), []);
+    ledgerCase('ledger evaluate_after null for a revert', proposal({ kind: 'revert', evaluate_after: null }), []);
+    ledgerCase('ledger evaluate_after null for a conclusion', proposal({ kind: 'conclude', evaluate_after: null }), []);
+    ledgerCase('ledger line wrapped over two lines', `${proposal().replace(',"title"', ',\n"title"')}`, ['ledger'], { messages: ['one JSON object on one line'] });
+    ledgerCase('ledger with extra keys', proposal({ notes: 'context', evaluated_on: null, experiment: 'home-hero' }), []);
+    // Ledger: experiments need explicit, finite, pre-registered stopping rules; other kinds keep their schema.
+    const EXPERIMENT = { kind: 'experiment', min_sample: 150, max_days: 42 };
+    ledgerCase('experiment with the default sample and duration', proposal(EXPERIMENT), []);
+    ledgerCase('experiment with the smallest sample and duration', proposal({ ...EXPERIMENT, min_sample: 1, max_days: 1 }), []);
+    ledgerCase('experiment with the largest exactly representable integer sample', proposal({ ...EXPERIMENT, min_sample: Number.MAX_SAFE_INTEGER }), []);
+    for (const field of ['min_sample', 'max_days']) {
+      for (const [label, value] of [['missing', undefined], ['null', null], ['zero', 0], ['negative', -1], ['fraction', 1.5], ['string', '150'], ['boolean', true], ['array', [150]], ['object', { n: 150 }], ['unsafe integer', Number.MAX_SAFE_INTEGER + 1]]) {
+        ledgerCase(`experiment ${field} is ${label}`, proposal({ ...EXPERIMENT, [field]: value }), ['ledger'], { messages: [`requires "${field}"`] });
+      }
+      ledgerCase(`experiment ${field} overflows to infinity`, proposal(EXPERIMENT).replace(`"${field}":${EXPERIMENT[field]}`, `"${field}":1e309`), ['ledger'], { messages: [`requires "${field}"`] });
+    }
+    ledgerCase('experiment duration exceeds 42 days', proposal({ ...EXPERIMENT, max_days: 43 }), ['ledger'], { messages: ['"max_days" to be an integer from 1 to 42'] });
+    ledgerCase('experiment cannot substitute evaluate_after for stopping rules', proposal({ kind: 'experiment' }), ['ledger'], { messages: ['requires "min_sample"', 'requires "max_days"'] });
+    ledgerCase('change may leave duration null', proposal({ min_sample: 150, max_days: null }), []);
+    ledgerCase('closed-unmerged experiment keeps valid stopping rules', entry('2026-09-20-stuck', { ...EXPERIMENT, status: 'reverted', verdict: 'inconclusive', pr: 55 }), [], { pr: 61 });
+    ledgerCase('closed-unmerged exception does not waive experiment stopping rules', entry('2026-09-20-stuck', { kind: 'experiment', status: 'reverted', verdict: 'inconclusive', pr: 55 }), ['ledger'], { pr: 61, messages: ['requires "min_sample"', 'requires "max_days"'] });
+    // Ledger: each new proposal belongs to this branch, including ledger-only proposals.
+    for (const kind of LEDGER_KINDS) {
+      const fields = { ...(kind === 'experiment' ? EXPERIMENT : {}), kind };
+      ledgerCase(`${kind} entry matches the branch id`, proposal(fields), []);
+      ledgerCase(`${kind} entry has another slug`, entry('2026-10-14-other', fields), ['ledger'], { messages: [`"id" must be "${CHANGE_ID}"`] });
+    }
+    ledgerCase('new entry date in range does not excuse an id with another date', entry('2026-10-13-test'), ['ledger'], { messages: [`"id" must be "${CHANGE_ID}"`] });
+    ledgerCase('new entry id cannot merely extend the branch id', entry(`${CHANGE_ID}-extra`), ['ledger'], { messages: [`"id" must be "${CHANGE_ID}"`] });
+    ledgerCase('new entry id is bound even when its pr matches', entry('2026-10-14-other', { pr: 61 }), ['ledger'], { pr: 61, messages: [`"id" must be "${CHANGE_ID}"`] });
+    ledgerCase('new entry id follows another valid branch', entry('2026-10-15-home-hero'), [], { branch: 'autopilot/2026-10-15-home-hero' });
+    ledgerCase('an extra proposal cannot borrow the matching entry id', `${proposal()}\n${entry('2026-10-14-other')}`, ['ledger'], { messages: [`"id" must be "${CHANGE_ID}"`] });
     // Ledger: a new entry is pre-registered
-    ledgerCase('new entry already concluded', entry('2026-10-14-done', { status: 'concluded', verdict: 'keep', result: { delta: 0.1 } }));
-    ledgerCase('new change already shipped', entry('2026-10-14-shipped', { status: 'shipped' }));
-    ledgerCase('new revert entry already shipped', entry('2026-10-14-revert-shipped', { kind: 'revert', evaluate_after: null, status: 'shipped' }));
-    ledgerCase('new entry with a ship date', entry('2026-10-14-ship-date', { shipped_on: '2026-10-14' }));
-    ledgerCase('new entry with a verdict', entry('2026-10-14-verdict-early', { verdict: 'keep' }));
-    ledgerCase('new entry with a result', entry('2026-10-14-result-early', { result: { delta: 0.1 } }));
-    ledgerCase('new entry backdated', entry('2026-09-01-new', { date: '2026-09-01' }));
-    ledgerCase('new entry dated in the future', entry('2026-10-20-later'));
-    ledgerCase('new entry dated the day before the branch', entry('2026-10-13-yesterday'), []);
-    ledgerCase('new entry naming another pull request', entry('2026-10-14-other', { pr: 12 }), ['ledger'], { pr: 61 });
-    ledgerCase('new entry naming this pull request', entry('2026-10-14-this', { pr: 61 }), [], { pr: 61 });
+    ledgerCase('new entry already concluded', proposal({ status: 'concluded', verdict: 'keep', result: { delta: 0.1 } }));
+    ledgerCase('new change already shipped', proposal({ status: 'shipped' }));
+    ledgerCase('new revert entry already shipped', proposal({ kind: 'revert', evaluate_after: null, status: 'shipped' }));
+    ledgerCase('new entry with a ship date', proposal({ shipped_on: '2026-10-14' }));
+    ledgerCase('new entry with a verdict', proposal({ verdict: 'keep' }));
+    ledgerCase('new entry with a result', proposal({ result: { delta: 0.1 } }));
+    ledgerCase('new entry backdated', proposal({ date: '2026-09-01' }));
+    ledgerCase('new entry dated in the future', proposal({ date: '2026-10-20' }));
+    ledgerCase('new entry dated the day before the branch', proposal({ date: '2026-10-13' }), []);
+    ledgerCase('new entry naming another pull request', proposal({ pr: 12 }), ['ledger'], { pr: 61 });
+    ledgerCase('new entry naming this pull request', proposal({ pr: 61 }), [], { pr: 61 });
     ledgerCase('record of a pull request that closed unmerged', entry('2026-09-20-stuck', { status: 'reverted', verdict: 'inconclusive', pr: 55, notes: 'Closed after 7 days.' }), [], { pr: 61 });
+    ledgerCase('closed-unmerged record may have a null verdict', entry('2026-09-20-stuck', { status: 'reverted', verdict: null, pr: 55 }), [], { pr: 61 });
     ledgerCase('record of a closed pull request with verdict revert', entry('2026-09-20-stuck', { status: 'reverted', verdict: 'revert', pr: 55 }), ['ledger'], { pr: 61 });
-    expect('ten new ledger lines', { ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), Array.from({ length: 10 }, (_, i) => `${entry(`2026-10-14-bulk-${i}`)}\n`).join('')) });
-    expect('eleven new ledger lines', { ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), Array.from({ length: 11 }, (_, i) => `${entry(`2026-10-14-bulk-${i}`)}\n`).join('')), rules: ['ledger'], messages: ['adds 11 lines'] });
+    const closed = (id = '2026-09-20-stuck') => entry(id, { status: 'reverted', verdict: 'inconclusive', pr: 55 });
+    for (const id of ['2026-09-20-stuck', CHANGE_ID]) {
+      expect(`a closed-unmerged record (${id}) cannot register a site change`, { ledger: false, setup: () => { fs.appendFileSync(path.join(dir, LEDGER), `${closed(id)}\n`); write('components/Card.tsx', 'export const y = 2;\n'); }, rules: ['ledger'], messages: ['a closed-unmerged record does not pre-register a site change'] });
+    }
+    expect('a site change and a closed-unmerged record with its own proposal', { setup: () => { fs.appendFileSync(path.join(dir, LEDGER), `${closed()}\n`); write('components/Card.tsx', 'export const y = 2;\n'); } });
+    expect('ten new ledger lines', { ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), Array.from({ length: 10 }, (_, i) => `${entry(`2026-10-14-bulk-${i}`, { status: 'reverted', verdict: 'inconclusive', pr: 40 + i })}\n`).join('')) });
+    expect('eleven new ledger lines', { ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), Array.from({ length: 11 }, (_, i) => `${entry(`2026-10-14-bulk-${i}`, { status: 'reverted', verdict: 'inconclusive', pr: 40 + i })}\n`).join('')), rules: ['ledger'], messages: ['adds 11 lines'] });
     // Ledger: existing entries
-    expect('existing ledger line removed', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-14-only')}\n`), rules: ['ledger'] });
-    expect('existing ledger line moved', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-14-new')}\n${BASE_LEDGER}`), rules: ['ledger'], messages: ['moved from line 1'] });
-    expect('existing ledger entry title changed', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, title: 'Rewritten' })}\n${entry('2026-10-14-new')}\n`), rules: ['ledger'], messages: ['"title"'] });
-    expect('existing ledger entry decision rule changed', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, decision_rule: 'Anything goes.' })}\n${entry('2026-10-14-new')}\n`), rules: ['ledger'], messages: ['"decision_rule"'] });
-    expect('existing ledger entry evaluated', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { status: 'concluded', pr: 60, verdict: 'keep', result: { rate: 0.45 }, evaluated_on: '2026-10-14', notes: 'Held up.' })}\n${entry('2026-10-14-conclude', { kind: 'conclude' })}\n`) });
-    expect('existing ledger entry pr changed', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, pr: 12 })}\n${entry('2026-10-14-new')}\n`), rules: ['ledger'], messages: ['"pr" was already 60'] });
+    expect('existing ledger line removed', { ledger: false, setup: () => write(LEDGER, `${proposal()}\n`), rules: ['ledger'] });
+    expect('existing ledger line moved', { ledger: false, setup: () => write(LEDGER, `${proposal()}\n${BASE_LEDGER}`), rules: ['ledger'], messages: ['moved from line 1'] });
+    expect('existing ledger entry title changed', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, title: 'Rewritten' })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"title"'] });
+    expect('existing ledger entry decision rule changed', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, decision_rule: 'Anything goes.' })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"decision_rule"'] });
+    expect('existing ledger entry evaluated', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { status: 'concluded', pr: 60, verdict: 'keep', result: { rate: 0.45 }, evaluated_on: '2026-10-14', notes: 'Held up.' })}\n${proposal({ kind: 'conclude' })}\n`) });
+    expect('existing ledger entry pr changed', { ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, pr: 12 })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"pr" was already 60'] });
     run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', 'main-judged');
     write(LEDGER, `${entry('2026-10-01-hero', { status: 'reverted', pr: 58, verdict: 'revert', result: { delta: -0.04 } })}\n${entry('2026-10-02-menu', { status: 'proposed' })}\n`);
     run('add', '-A'); run('commit', '-q', '-m', 'judged');
-    expect('a reverted entry flipped to keep', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-hero', { status: 'shipped', pr: 58, verdict: 'keep', result: { delta: 0.06 } })}\n${entry('2026-10-02-menu', { status: 'proposed' })}\n${entry('2026-10-14-new')}\n`), rules: ['ledger'], messages: ['"status" cannot go from "reverted"', '"verdict" was already', '"result" was already'] });
+    expect('a reverted entry flipped to keep', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-hero', { status: 'shipped', pr: 58, verdict: 'keep', result: { delta: 0.06 } })}\n${entry('2026-10-02-menu', { status: 'proposed' })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"status" cannot go from "reverted"', '"verdict" was already', '"result" was already'] });
     const HERO = entry('2026-10-01-hero', { status: 'reverted', pr: 58, verdict: 'revert', result: { delta: -0.04 } });
-    expect('a proposed entry shipped with its pull request and date', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${HERO}\n${entry('2026-10-02-menu', { status: 'shipped', pr: 59, shipped_on: '2026-10-03' })}\n${entry('2026-10-14-new')}\n`) });
-    expect('a proposed entry marked shipped and judged in one pull request', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${HERO}\n${entry('2026-10-02-menu', { status: 'concluded', pr: 59, shipped_on: '2026-10-03', verdict: 'keep', result: { rate: 0.45 }, evaluated_on: '2026-10-14' })}\n${entry('2026-10-14-new')}\n`) });
-    expect('a ship date that is not a date', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${HERO}\n${entry('2026-10-02-menu', { status: 'shipped', pr: 59, shipped_on: 'Oct 3' })}\n${entry('2026-10-14-new')}\n`), rules: ['ledger'], messages: ['"shipped_on" must be null or a YYYY-MM-DD date'] });
+    expect('a proposed entry shipped with its pull request and date', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${HERO}\n${entry('2026-10-02-menu', { status: 'shipped', pr: 59, shipped_on: '2026-10-03' })}\n${proposal()}\n`) });
+    expect('a proposed entry marked shipped and judged in one pull request', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${HERO}\n${entry('2026-10-02-menu', { status: 'concluded', pr: 59, shipped_on: '2026-10-03', verdict: 'keep', result: { rate: 0.45 }, evaluated_on: '2026-10-14' })}\n${proposal()}\n`) });
+    expect('a ship date that is not a date', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${HERO}\n${entry('2026-10-02-menu', { status: 'shipped', pr: 59, shipped_on: 'Oct 3' })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"shipped_on" must be null or a YYYY-MM-DD date'] });
     // Bookkeeping: a pull request that changes only existing ledger lines, the backlog and the learnings needs no new line.
     expect('bookkeeping only: ledger, backlog and learnings', { base: 'main-judged', ledger: false, setup: () => { write(LEDGER, `${HERO}\n${entry('2026-10-02-menu', { status: 'shipped', pr: 59, shipped_on: '2026-10-03' })}\n`); write('autopilot/backlog.md', '# Backlog\n- Menu shipped.\n'); write('autopilot/LEARNINGS.md', '- 2026-10-14 (recordings, 9): phones stop at chapter 2.\n'); } });
     expect('bookkeeping only: the backlog alone', { ledger: false, setup: () => write('autopilot/backlog.md', '# Backlog\n- Re-ranked.\n') });
     expect('bookkeeping and a site change still need a new line', { base: 'main-judged', ledger: false, setup: () => { write(LEDGER, `${HERO}\n${entry('2026-10-02-menu', { status: 'shipped', pr: 59 })}\n`); write('components/Card.tsx', 'export const y = 2;\n'); }, rules: ['ledger'], messages: ['adds no line'] });
     // Deleted lines are reported once, as deletions (as after a plain git revert of the merge).
-    expect('an earlier line deleted and a revert entry appended', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${HERO}\n${entry('2026-10-14-revert-menu', { kind: 'revert', evaluate_after: null })}\n`), rules: ['ledger'], messages: ['existing entry "2026-10-02-menu" was removed'], absent: ['adds no line', 'moved from line', '2026-10-01-hero'] });
-    expect('the first line deleted', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${entry('2026-10-02-menu', { status: 'proposed' })}\n${entry('2026-10-14-new')}\n`), rules: ['ledger'], messages: ['existing entry "2026-10-01-hero" was removed'], absent: ['adds no line', 'moved from line', '"2026-10-02-menu"'] });
+    expect('an earlier line deleted and a revert entry appended', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${HERO}\n${proposal({ kind: 'revert', evaluate_after: null })}\n`), rules: ['ledger'], messages: ['existing entry "2026-10-02-menu" was removed'], absent: ['adds no line', 'moved from line', '2026-10-01-hero'] });
+    expect('the first line deleted', { base: 'main-judged', ledger: false, setup: () => write(LEDGER, `${entry('2026-10-02-menu', { status: 'proposed' })}\n${proposal()}\n`), rules: ['ledger'], messages: ['existing entry "2026-10-01-hero" was removed'], absent: ['adds no line', 'moved from line', '"2026-10-02-menu"'] });
     expect('an empty change still needs a ledger line', { ledger: false, setup: () => {}, rules: ['ledger'] });
     // Ledger: a base that is already untidy does not block every later pull request.
     const untidyBase = (label, text) => { run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', label); write(LEDGER, text); run('add', '-A'); run('commit', '-q', '-m', label); return label; };
-    expect('a trailing blank line on the base', { base: untidyBase('base-blank', `${BASE_LEDGER}\n`), ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), `${entry('2026-10-14-after-blank')}\n`) });
-    expect('a blank line on the base replaced by the new entry', { base: 'base-blank', ledger: false, setup: () => write(LEDGER, `${BASE_LEDGER}${entry('2026-10-14-in-blank')}\n`) });
-    expect('a byte-order mark on the base', { base: untidyBase('base-bom', `﻿${BASE_LEDGER}`), ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), `${entry('2026-10-14-after-bom')}\n`) });
-    expect('an invalid entry already on the base is a warning', { base: untidyBase('base-invalid', `${entry('2026-10-01-old', { evaluate_after: null })}\n`), ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), `${entry('2026-10-14-after-invalid')}\n`), warned: ['evaluate_after'] });
+    expect('a trailing blank line on the base', { base: untidyBase('base-blank', `${BASE_LEDGER}\n`), ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), `${proposal()}\n`) });
+    expect('a blank line on the base replaced by the new entry', { base: 'base-blank', ledger: false, setup: () => write(LEDGER, `${BASE_LEDGER}${proposal()}\n`) });
+    expect('a byte-order mark on the base', { base: untidyBase('base-bom', `﻿${BASE_LEDGER}`), ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), `${proposal()}\n`) });
+    expect('an invalid entry already on the base is a warning', { base: untidyBase('base-invalid', `${entry('2026-10-01-old', { evaluate_after: null })}\n`), ledger: false, setup: () => fs.appendFileSync(path.join(dir, LEDGER), `${proposal()}\n`), warned: ['evaluate_after'] });
+    const oldExperiment = (extra = {}) => entry('2026-10-01-experiment', { ...EXPERIMENT, ...extra });
+    const experimentBase = untidyBase('base-experiment', `${oldExperiment()}\n`);
+    expect('bookkeeping ships an experiment with its historical id and stopping rules', { base: experimentBase, ledger: false, setup: () => write(LEDGER, `${oldExperiment({ status: 'shipped', pr: 59, shipped_on: '2026-10-03' })}\n`) });
+    expect('bookkeeping concludes an experiment with its historical id and stopping rules', { base: experimentBase, ledger: false, setup: () => write(LEDGER, `${oldExperiment({ status: 'concluded', pr: 59, shipped_on: '2026-10-03', verdict: 'keep-control', result: { control: 80, variant: 75 }, evaluated_on: '2026-10-14' })}\n`) });
+    for (const [field, value] of [['min_sample', 200], ['max_days', 21], ['min_sample', undefined], ['max_days', null]]) {
+      expect(`existing experiment ${field} cannot change to ${value}`, { base: experimentBase, ledger: false, setup: () => write(LEDGER, `${oldExperiment({ [field]: value })}\n`), rules: ['ledger'], messages: [`changed "${field}"`] });
+    }
+    const invalidExperimentBase = untidyBase('base-invalid-experiment', `${oldExperiment({ min_sample: undefined, max_days: 43 })}\n`);
+    expect('unchanged historical experiment schema errors are warnings', { base: invalidExperimentBase, setup: () => {}, warned: ['requires "min_sample"', 'requires "max_days"'] });
+    expect('edited historical experiment still has its schema checked', { base: invalidExperimentBase, ledger: false, setup: () => write(LEDGER, `${oldExperiment({ min_sample: undefined, max_days: 43, notes: 'Still running.' })}\n`), rules: ['ledger'], messages: ['requires "min_sample"', 'requires "max_days"'] });
     const shippedBase = untidyBase('base-shipped', `${entry('2026-10-01-first', { ...FIRST, shipped_on: '2026-10-02' })}\n`);
-    expect('a ship date changed once set', { base: shippedBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, shipped_on: '2026-10-03' })}\n${entry('2026-10-14-new')}\n`), rules: ['ledger'], messages: ['"shipped_on" was already'] });
+    expect('a ship date changed once set', { base: shippedBase, ledger: false, setup: () => write(LEDGER, `${entry('2026-10-01-first', { ...FIRST, shipped_on: '2026-10-03' })}\n${proposal()}\n`), rules: ['ledger'], messages: ['"shipped_on" was already'] });
 
     // The guard reads commits: work not yet committed fails the check; an untracked file is a warning.
     expect('a change not yet committed', { setup: () => {}, dirty: () => write('components/Card.tsx', component('window.localStorage.setItem("k", v);')), rules: ['uncommitted'], messages: ['components/Card.tsx', 'not committed'] });
     expect('an untracked file is a warning', { setup: () => {}, dirty: () => write('components/Draft.tsx', 'export const d = 1;\n'), warned: ['untracked'] });
 
     run('checkout', '-q', '-f', 'main'); run('checkout', '-q', '-B', 'main-noledger'); remove(LEDGER); run('add', '-A'); run('commit', '-q', '-m', 'no ledger');
-    expect('first ledger line on a base without one', { base: 'main-noledger', ledger: false, setup: () => write(LEDGER, `${entry('2026-10-14-first')}\n`) });
+    expect('first ledger line on a base without one', { base: 'main-noledger', ledger: false, setup: () => write(LEDGER, `${proposal()}\n`) });
     expect('ledger missing on head', { base: 'main-noledger', ledger: false, setup: () => write('components/Card.tsx', 'export const z = 3;\n'), rules: ['ledger'], messages: ['missing'] });
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

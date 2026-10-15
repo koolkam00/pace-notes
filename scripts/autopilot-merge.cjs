@@ -8,6 +8,7 @@
  *   node scripts/autopilot-merge.cjs merge --pr <n> --sha <head sha>
  *   node scripts/autopilot-merge.cjs wait-deploy --sha <merge sha>
  *   node scripts/autopilot-merge.cjs record-live --pr <n> --sha <merge sha>
+ *   node scripts/autopilot-merge.cjs report-live --pr <n> --sha <merge sha> --smoke-exit <code> --seo-exit <code> --baseline-exit <code> --baseline <file> --live <file> [--log <file>]
  *   node scripts/autopilot-merge.cjs incident --pr <n> --sha <merge sha> --reason <text> [--revert] [--step <name>] [--log <file>]
  *   node scripts/autopilot-merge.cjs reconcile [--dry-run]
  *   node scripts/autopilot-merge.cjs --self-test     every gate against a mocked GitHub API, and reverts in temporary repositories
@@ -860,6 +861,57 @@ async function cmdIncident(argv, deps) {
   return 0;
 }
 
+/**
+ * A baseline is evidence only for the exact failures it observed, never a blanket exemption for smoke exit 1.
+ * Keep route, viewport, browser mode AND message in the identity: another failure on an already broken page is
+ * still new. Do not fuzzy-match messages (including measured CLS values), which could hide a worse failure.
+ * Infrastructure failures are not page failures. Missing/malformed artifacts cannot prove a failure pre-existing.
+ */
+function smokeFailureSet(report) {
+  if (!report || report.base !== CONFIG.productionUrl || !['quick', 'full'].includes(report.mode) || report.ok !== false ||
+      !Array.isArray(report.failures) || !report.failures.length ||
+      !report.failures.every((f) => f && typeof f.where === 'string' && f.where.length && typeof f.message === 'string' && f.message.length &&
+        (f.infrastructure === undefined || typeof f.infrastructure === 'boolean'))) return null;
+  const failures = report.failures.filter((f) => !f.infrastructure);
+  return failures.length ? new Set(failures.map((f) => JSON.stringify([f.where, f.message]))) : null;
+}
+
+function liveCheckDecision({ smoke, seo, baselineExit, baseline, live }) {
+  if (smoke === '0' && seo === '0') return { action: 'pass', reason: 'Both live checks passed.' };
+  if (seo === '1') return { action: 'revert', reason: 'verify:seo:live failed after the deploy (the pre-merge SEO check passed).' };
+  if (smoke === '1') {
+    const before = baselineExit === '1' ? smokeFailureSet(baseline) : null;
+    const after = smokeFailureSet(live);
+    if (before && after) {
+      const added = [...after].filter((failure) => !before.has(failure));
+      if (!added.length) return { action: 'incident', reason: `Every live smoke failure (${after.size}) exactly matches a failure recorded before the merge, by page, viewport, browser mode and message. No new smoke failure was observed, so the change was not reverted.${seo === '0' ? '' : ' The SEO check also did not finish.'}` };
+      const detail = added.slice(0, 10).map((failure) => { const [where, message] = JSON.parse(failure); return `${where}: ${message}`; }).join('; ');
+      return { action: 'revert', reason: `The live smoke test has ${added.length} new failure(s) absent from the pre-merge baseline: ${detail}` };
+    }
+    return { action: 'revert', reason: `The live smoke test failed and matching pre-existing failures could not be established (baseline exit ${baselineExit || 'none'}; baseline/live artifacts missing, invalid or without comparable page failures).` };
+  }
+  return { action: 'incident', reason: `The live checks did not finish (smoke test exit ${smoke || 'none'}, verify:seo:live exit ${seo || 'none'}; 3 means the run could not complete). The change was not found broken and was not reverted; check the live site.` };
+}
+
+/** The workflow calls this one command so its artifact comparison and revert decision are covered by self-tests. */
+async function cmdReportLive(argv, deps) {
+  const number = prNumber(argv);
+  const sha = shaArg(argv);
+  const read = (flag) => {
+    const file = option(argv, flag);
+    if (!file) return null;
+    try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
+    catch (error) { deps.log(`report-live: ${flag} could not be read: ${error.message}`); return null; }
+  };
+  const decision = liveCheckDecision({ smoke: option(argv, '--smoke-exit'), seo: option(argv, '--seo-exit'), baselineExit: option(argv, '--baseline-exit'), baseline: read('--baseline'), live: read('--live') });
+  deps.setOutput('live_action', decision.action);
+  deps.log(`report-live: ${decision.action}: ${decision.reason}`);
+  if (decision.action === 'pass') return cmdRecordLive(['--pr', String(number), '--sha', sha], deps);
+  const log = option(argv, '--log');
+  return cmdIncident(['--pr', String(number), '--sha', sha, '--step', 'live checks', '--reason', decision.reason,
+    ...(decision.action === 'revert' ? ['--revert'] : []), ...(log ? ['--log', log] : [])], deps);
+}
+
 /** Opens an incident for every autopilot merge with no live-check record and no incident. The workflow runs it last, whatever happened. */
 async function cmdReconcile(argv, deps) {
   const dryRun = argv.includes('--dry-run');
@@ -890,8 +942,8 @@ function realDeps(env = process.env) {
   };
 }
 
-const COMMANDS = { evaluate: cmdEvaluate, 'smoke-result': cmdSmokeResult, merge: cmdMerge, 'wait-deploy': cmdWaitDeploy, 'record-live': cmdRecordLive, incident: cmdIncident, reconcile: cmdReconcile };
-const USAGE = 'Usage: node scripts/autopilot-merge.cjs evaluate [--dry-run] [--pr <n>] | smoke-result --pr <n> --sha <sha> --smoke-exit <code> --seo-exit <code> [--dir <dir>] | merge --pr <n> --sha <sha> | wait-deploy --sha <sha> | record-live --pr <n> --sha <sha> | incident --pr <n> --sha <sha> --reason <text> [--revert] [--step <name>] [--log <file>] | reconcile [--dry-run] | --self-test';
+const COMMANDS = { evaluate: cmdEvaluate, 'smoke-result': cmdSmokeResult, merge: cmdMerge, 'wait-deploy': cmdWaitDeploy, 'record-live': cmdRecordLive, 'report-live': cmdReportLive, incident: cmdIncident, reconcile: cmdReconcile };
+const USAGE = 'Usage: node scripts/autopilot-merge.cjs evaluate [--dry-run] [--pr <n>] | smoke-result --pr <n> --sha <sha> --smoke-exit <code> --seo-exit <code> [--dir <dir>] | merge --pr <n> --sha <sha> | wait-deploy --sha <sha> | record-live --pr <n> --sha <sha> | report-live --pr <n> --sha <sha> --smoke-exit <code> --seo-exit <code> --baseline-exit <code> --baseline <file> --live <file> [--log <file>] | incident --pr <n> --sha <sha> --reason <text> [--revert] [--step <name>] [--log <file>] | reconcile [--dry-run] | --self-test';
 
 async function main(argv, deps = realDeps()) {
   if (argv.includes('--self-test')) return selfTest();
@@ -1395,6 +1447,69 @@ async function selfTestAsync() {
       ok('wait-deploy: version.json never naming the merge fails, with the reason', (await cmdWaitDeploy(['--sha', merged], staleRun.deps)) === 1 && /version\.json still names/.test(staleRun.outputs.reason || ''));
     }
 
+    // The exact command called by the report job: artifacts -> failure-set comparison -> record/incident/revert.
+    {
+      const oldFailure = { where: '/about [mobile, old Safari]', message: 'pageerror: old Safari crash' };
+      const newFailure = { where: '/stories/example [mobile]', message: 'HTTP 404' };
+      const infrastructure = { where: 'sitemap.xml', message: 'could not be read', infrastructure: true };
+      const report = (failures, extra = {}) => ({ base: CONFIG.productionUrl, mode: 'full', ok: failures.length === 0, failures, ...extra });
+      const existing = report([oldFailure]);
+      const changed = report([oldFailure, newFailure]);
+      const cases = [
+        ['both checks pass even with a failed baseline', '0', '0', '1', existing, report([]), 'pass'],
+        ['pre-existing failure plus a new route failure reverts', '1', '0', '1', existing, changed, 'revert'],
+        ['same count but a different failure reverts', '1', '0', '1', existing, report([newFailure]), 'revert'],
+        ['another failure on the same page reverts', '1', '0', '1', existing, report([{ ...oldFailure, message: 'HTTP 500' }]), 'revert'],
+        ['a different viewport reverts', '1', '0', '1', existing, report([{ ...oldFailure, where: '/about [desktop]' }]), 'revert'],
+        ['a different browser mode reverts', '1', '0', '1', existing, report([{ ...oldFailure, where: '/about [mobile]' }]), 'revert'],
+        ['only identical pre-existing failures do not revert', '1', '0', '1', existing, existing, 'incident'],
+        ['a subset of earlier failures does not revert', '1', '0', '1', changed, existing, 'incident'],
+        ['ordering and duplicate failure messages do not matter', '1', '0', '1', changed, report([newFailure, oldFailure, oldFailure]), 'incident'],
+        ['a passed baseline never suppresses a failure', '1', '0', '0', existing, existing, 'revert'],
+        ['an incomplete baseline never suppresses a failure', '1', '0', '3', existing, existing, 'revert'],
+        ['missing baseline output never suppresses a failure', '1', '0', '', existing, existing, 'revert'],
+        ['missing baseline artifact never suppresses a failure', '1', '0', '1', null, existing, 'revert'],
+        ['malformed baseline JSON never suppresses a failure', '1', '0', '1', '{broken', existing, 'revert'],
+        ['invalid baseline entries never suppress a failure', '1', '0', '1', report([oldFailure, null]), existing, 'revert'],
+        ['empty baseline failure list never suppresses a failure', '1', '0', '1', report([]), existing, 'revert'],
+        ['preview artifacts cannot count as production baseline', '1', '0', '1', report([oldFailure], { base: 'https://preview.vercel.app' }), existing, 'revert'],
+        ['missing live artifact cannot prove failures pre-existing', '1', '0', '1', existing, null, 'revert'],
+        ['malformed live JSON cannot prove failures pre-existing', '1', '0', '1', existing, '{broken', 'revert'],
+        ['invalid live entries cannot prove failures pre-existing', '1', '0', '1', existing, report([oldFailure, {}]), 'revert'],
+        ['an inconsistent passed report cannot suppress failure', '1', '0', '1', report([oldFailure], { ok: true }), existing, 'revert'],
+        ['infrastructure failures do not disguise a new page failure', '1', '0', '1', report([oldFailure, { ...newFailure, infrastructure: true }]), changed, 'revert'],
+        ['known failures with an incomplete SEO run open an incident', '1', '3', '1', existing, existing, 'incident'],
+        ['known failures and an infrastructure error open an incident', '1', '0', '1', existing, report([oldFailure, infrastructure]), 'incident'],
+        ['SEO failure reverts even with identical smoke failures', '1', '1', '1', existing, existing, 'revert'],
+        ['SEO failure reverts even if smoke could not finish', '3', '1', '1', existing, null, 'revert'],
+        ['unfinished smoke alone never reverts', '3', '0', '1', existing, report([infrastructure]), 'incident'],
+        ['unfinished SEO alone never reverts', '0', '3', '0', report([]), report([]), 'incident'],
+        ['missing outputs open an incident without reverting', '', '', '', null, null, 'incident'],
+      ];
+      const baselineFile = path.join(tmp, 'baseline.json');
+      const liveFile = path.join(tmp, 'live.json');
+      const write = (file, value) => { if (value === null) fs.rmSync(file, { force: true }); else fs.writeFileSync(file, typeof value === 'string' ? value : JSON.stringify(value)); };
+      for (const [label, smoke, seo, baselineExit, before, after, action] of cases) {
+        write(baselineFile, before); write(liveFile, after);
+        const state = fresh();
+        const run = mockDeps(state);
+        let reverts = 0;
+        run.deps.revert = (sha, pr) => { reverts += 1; ok(`report-live ${label}: revert target is pinned`, sha === merged && pr === 7); return { pushed: true, revertSha: SHA('e'), detail: 'test revert' }; };
+        const code = await main(['report-live', '--pr', '7', '--sha', merged, '--smoke-exit', smoke, '--seo-exit', seo,
+          '--baseline-exit', baselineExit, '--baseline', baselineFile, '--live', liveFile], run.deps);
+        ok(`report-live ${label}: correct action`, code === 0 && run.outputs.live_action === action && reverts === (action === 'revert' ? 1 : 0), JSON.stringify(run.outputs));
+        ok(`report-live ${label}: recorded or paused`, action === 'pass'
+          ? state.createdIssues.length === 0 && state.comments[7].some((c) => c.body.includes(liveOkMarker(merged)))
+          : state.createdIssues.length === 1 && state.createdIssues[0].labels.some((l) => l.name === CONFIG.pauseLabel));
+      }
+      const workflow = fs.readFileSync(path.join(ROOT, OWN_WORKFLOW), 'utf8');
+      const reportJob = workflow.slice(workflow.indexOf('  report:'));
+      ok('workflow: report job downloads baseline artifacts', /name: preview-checks[\s\S]*path: \$\{\{ runner.temp \}\}\/preview/.test(reportJob));
+      ok('workflow: delegates the live decision to the tested command with both artifacts', reportJob.includes('autopilot-merge.cjs report-live') && reportJob.includes('--baseline "$RUNNER_TEMP/preview/baseline.json" --live "$RUNNER_TEMP/live/smoke.json"'));
+      ok('workflow: production baseline has full coverage, not quick-only', workflow.includes('--base https://splithappens.run --json "$RUNNER_TEMP/preview/baseline.json"') && !workflow.includes('--quick --json "$RUNNER_TEMP/preview/baseline.json"'));
+      ok('workflow: no aggregate baseline exit-code exemption remains', !reportJob.includes("env.BASELINE == '1'") && !reportJob.includes("env.BASELINE != '1'"));
+    }
+
     // incident.
     {
       const state = fresh((s) => { s.faults.push({ method: 'POST', path: /\/issues$/, status: 502, times: 1 }); });
@@ -1420,7 +1535,7 @@ async function selfTestAsync() {
 
   // Reverts in real temporary repositories: pushed, conflicting, rejected; the ledger keeps its entries.
   const ledgerLine = (id, extra = {}) => JSON.stringify({ id, status: 'proposed', verdict: null, ...extra });
-  const revertCase = (label, setup, expectPushed, { ledger = false } = {}) => {
+  const revertCase = async (label, setup, expectPushed, { ledger = false, sameFailures = false } = {}) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'autopilot-revert-'));
     const g = (cwd, ...a) => execFileSync('git', ['-c', 'user.name=Self Test', '-c', 'user.email=self-test@example.invalid', '-c', 'commit.gpgsign=false', ...a], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
     try {
@@ -1440,8 +1555,22 @@ async function selfTestAsync() {
       g(work, 'commit', '-q', '-am', 'Autopilot change (#7)'); g(work, 'push', '-q', 'origin', 'main');
       const mergeSha = g(work, 'rev-parse', 'HEAD');
       setup({ g, origin, work });
-      const result = revertOnMain(mergeSha, { cwd: work, pr: 7 });
+      // Exercise the real report command and real git revert/push against this disposable local origin.
+      const before = { base: CONFIG.productionUrl, mode: 'full', ok: false, failures: [{ where: '/about [mobile]', message: 'pageerror: existing problem' }] };
+      const after = { ...before, failures: [...before.failures, ...(sameFailures ? [] : [{ where: '/tools [mobile]', message: 'pageerror: new regression' }])] };
+      fs.writeFileSync(path.join(dir, 'baseline.json'), JSON.stringify(before));
+      fs.writeFileSync(path.join(dir, 'live.json'), JSON.stringify(after));
+      const state = fixture(); state.tmp = dir;
+      const run = mockDeps(state);
+      let result = { pushed: false, detail: 'not attempted' };
+      let attempts = 0;
+      run.deps.revert = (sha, number) => { attempts += 1; result = revertOnMain(sha, { cwd: work, pr: number }); return result; };
+      await cmdReportLive(['--pr', '7', '--sha', mergeSha, '--smoke-exit', '1', '--seo-exit', '0', '--baseline-exit', '1',
+        '--baseline', path.join(dir, 'baseline.json'), '--live', path.join(dir, 'live.json')], run.deps);
+      ok(`revert: ${label}: report command selects the correct action`, run.outputs.live_action === (sameFailures ? 'incident' : 'revert') && attempts === (sameFailures ? 0 : 1));
+      ok(`revert: ${label}: an incident pauses future merges`, state.createdIssues.length === 1 && state.createdIssues[0].labels.some((l) => l.name === CONFIG.pauseLabel));
       ok(`revert: ${label}`, result.pushed === expectPushed, result.detail);
+      if (sameFailures) ok(`revert: ${label}: remote stays at the original merge`, g(origin, 'rev-parse', 'main') === mergeSha && g(origin, 'show', 'main:page.txt') === 'one\nTWO\nthree');
       if (expectPushed) {
         ok(`revert: ${label}: main has the old text`, g(origin, 'show', 'main:page.txt') === 'one\ntwo\nthree');
         ok(`revert: ${label}: authored by github-actions[bot]`, g(origin, 'log', '-1', '--format=%an <%ae>', 'main') === `${BOT_LOGIN} <${BOT_EMAIL}>`);
@@ -1459,21 +1588,22 @@ async function selfTestAsync() {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   };
-  revertCase('a clean revert is pushed', () => {}, true);
-  revertCase('a later commit on main is kept', ({ g, work }) => { fs.writeFileSync(path.join(work, 'other.txt'), 'x\n'); fs.appendFileSync(path.join(work, LEDGER), `${ledgerLine('2026-10-14-c')}\n`); fs.appendFileSync(path.join(work, LEARNINGS), '- 2026-10-15: a later learning.\n'); g(work, 'add', '-A'); g(work, 'commit', '-q', '-m', 'later'); g(work, 'push', '-q', 'origin', 'main'); g(work, 'reset', '-q', '--hard', 'HEAD~1'); }, true, { ledger: true });
-  revertCase('a conflict is skipped', ({ g, work }) => { fs.writeFileSync(path.join(work, 'page.txt'), 'one\nTWO!\nthree\n'); g(work, 'commit', '-q', '-am', 'later edit'); g(work, 'push', '-q', 'origin', 'main'); }, false);
-  revertCase('a rejected push is skipped', ({ origin }) => { fs.writeFileSync(path.join(origin, 'hooks', 'pre-receive'), '#!/bin/sh\necho "protected branch" >&2\nexit 1\n', { mode: 0o755 }); }, false);
+  await revertCase('only pre-existing failures leave main untouched', () => {}, false, { sameFailures: true });
+  await revertCase('a clean revert is pushed', () => {}, true);
+  await revertCase('a later commit on main is kept', ({ g, work }) => { fs.writeFileSync(path.join(work, 'other.txt'), 'x\n'); fs.appendFileSync(path.join(work, LEDGER), `${ledgerLine('2026-10-14-c')}\n`); fs.appendFileSync(path.join(work, LEARNINGS), '- 2026-10-15: a later learning.\n'); g(work, 'add', '-A'); g(work, 'commit', '-q', '-m', 'later'); g(work, 'push', '-q', 'origin', 'main'); g(work, 'reset', '-q', '--hard', 'HEAD~1'); }, true, { ledger: true });
+  await revertCase('a conflict is skipped', ({ g, work }) => { fs.writeFileSync(path.join(work, 'page.txt'), 'one\nTWO!\nthree\n'); g(work, 'commit', '-q', '-am', 'later edit'); g(work, 'push', '-q', 'origin', 'main'); }, false);
+  await revertCase('a rejected push is skipped', ({ origin }) => { fs.writeFileSync(path.join(origin, 'hooks', 'pre-receive'), '#!/bin/sh\necho "protected branch" >&2\nexit 1\n', { mode: 0o755 }); }, false);
 
   if (failures.length) {
     console.error(`autopilot-merge self-test: ${failures.length} of ${checks} checks failed`);
     for (const failure of failures) console.error(`  ${failure}`);
     return 1;
   }
-  console.log(`autopilot-merge self-test: ${checks} checks passed (every gate on its own, pause, merge history, every check run, stale and re-run checks, reviews, status comment and its notes, dry run, retried reads, merge and lost or refused merges, deploy wait, live record, incident, reverts that keep the ledger and the learnings)`);
+  console.log(`autopilot-merge self-test: ${checks} checks passed (every gate on its own, pause, merge history, every check run, stale and re-run checks, reviews, status comment and its notes, dry run, retried reads, merge and lost or refused merges, deploy wait, live failure-set comparisons, live record, incident, report-driven reverts that keep the ledger and the learnings)`);
   return 0;
 }
 function selfTest() { return selfTestAsync(); }
 
-module.exports = { CONFIG, evaluateGates, revertOnMain };
+module.exports = { CONFIG, evaluateGates, revertOnMain, liveCheckDecision, cmdReportLive };
 
 if (require.main === module) main(process.argv.slice(2)).then((code) => { process.exitCode = code; }, (error) => { console.error(`autopilot-merge: ${error.stack || error.message}`); process.exitCode = 1; });
