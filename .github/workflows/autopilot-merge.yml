@@ -8,7 +8,8 @@ name: Autopilot merge
 # Five jobs, so that the two that open pages in a browser (the pull request's preview, and production after the
 # merge) run on machines of their own with a read-only token and no credentials on disk:
 #   gate     check every gate and output the first eligible pull request (writes status comments and incidents)
-#   preview  smoke test and verify:seo:live on the pull request's Vercel preview (read-only)
+#   preview  smoke test and verify:seo:live on the pull request's Vercel preview, then a quick smoke test of
+#            production as a baseline (read-only)
 #   merge    record the preview checks, squash-merge pinned to the checked commit, wait for the production deploy
 #   live     smoke test and verify:seo:live on https://splithappens.run (read-only)
 #   report   record that the live checks passed, or open an incident (reverting when a live check failed), and
@@ -63,11 +64,15 @@ jobs:
       # installs or runs code from a pull request: every checkout is main, npm ci installs main's lockfile, and a
       # pull request's head is only fetched as a git ref that main's copy of scripts/autopilot-guard.cjs diffs.
       # Never point a checkout at a pull request's head, merge ref or branch.
+      # Only scripts/ is checked out, and file contents are fetched when git needs them: this job runs Node scripts
+      # that read git objects (the guard's diff), not the site, and the full tree is several hundred megabytes.
       - name: Check out main (never the pull request)
         uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: scripts
 
       - uses: actions/setup-node@v4
         with:
@@ -103,6 +108,7 @@ jobs:
     outputs:
       smoke: ${{ steps.checks.outputs.smoke }}
       seo: ${{ steps.checks.outputs.seo }}
+      baseline: ${{ steps.baseline.outputs.baseline }}
     steps:
       - name: Check out main (never the pull request)
         uses: actions/checkout@v4
@@ -134,6 +140,19 @@ jobs:
           node scripts/verify-seo-live.cjs --base "$PREVIEW_URL" 2>&1 | tee "$RUNNER_TEMP/preview/seo.log"
           echo "seo=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
+      # Production runs code the previews do not (analytics is on only there), so a problem can exist on production
+      # alone. If production already fails the quick smoke test before the merge, a live smoke failure afterwards may
+      # not be this change's: the report job then opens the incident without reverting. It never blocks the merge, so
+      # a change that fixes such a problem can still ship.
+      - name: Smoke-test production before the merge (baseline)
+        id: baseline
+        if: steps.checks.outputs.smoke == '0' && steps.checks.outputs.seo == '0'
+        shell: bash
+        run: |
+          set +e
+          node scripts/autopilot-smoke.cjs --base https://splithappens.run --quick --json "$RUNNER_TEMP/preview/baseline.json"
+          echo "baseline=$?" >> "$GITHUB_OUTPUT"
+
       - name: Keep the results
         if: always()
         uses: actions/upload-artifact@v4
@@ -146,7 +165,9 @@ jobs:
 
   merge:
     needs: [gate, preview]
-    if: always() && needs.gate.outputs.eligible == 'true'
+    # Runs after a failed or timed-out preview job too (it then records "did not finish" and does not merge), but
+    # never in a cancelled run: a cancelled run must not merge.
+    if: ${{ !cancelled() && needs.gate.outputs.eligible == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 55
     permissions:
@@ -168,11 +189,14 @@ jobs:
       PR: ${{ needs.gate.outputs.pr }}
       HEAD_SHA: ${{ needs.gate.outputs.sha }}
     steps:
+      # As in the gate job: scripts/ only, file contents fetched when git needs them.
       - name: Check out main (never the pull request)
         uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: scripts
 
       - uses: actions/setup-node@v4
         with:
@@ -276,7 +300,7 @@ jobs:
           if-no-files-found: ignore
 
   report:
-    needs: [gate, merge, live]
+    needs: [gate, preview, merge, live]
     if: always() && needs.gate.outputs.eligible == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -292,6 +316,7 @@ jobs:
       DEPLOY: ${{ needs.merge.outputs.deploy }}
       SMOKE: ${{ needs.live.outputs.smoke }}
       SEO: ${{ needs.live.outputs.seo }}
+      BASELINE: ${{ needs.preview.outputs.baseline }}
     steps:
       # Main only; the revert below pushes to it with this job's token.
       - name: Check out main
@@ -332,17 +357,24 @@ jobs:
           --log "$RUNNER_TEMP/deploy/wait-deploy.log"
 
       - name: Revert the merge and report (a live check failed)
-        if: env.MERGE_SHA != '' && env.DEPLOY == 'success' && (env.SMOKE == '1' || env.SEO == '1')
+        if: env.MERGE_SHA != '' && env.DEPLOY == 'success' && (env.SEO == '1' || (env.SMOKE == '1' && env.BASELINE != '1'))
         run: >-
           node scripts/autopilot-merge.cjs incident --revert --pr "$PR" --sha "$MERGE_SHA" --step "live checks"
           --reason "On https://splithappens.run after the deploy: smoke test exit $SMOKE, verify:seo:live exit $SEO (0 passed, 1 failed)."
+          --log "$RUNNER_TEMP/live/checks.log"
+
+      - name: Report a live smoke failure that production already had (no revert)
+        if: env.MERGE_SHA != '' && env.DEPLOY == 'success' && env.SMOKE == '1' && env.SEO != '1' && env.BASELINE == '1'
+        run: >-
+          node scripts/autopilot-merge.cjs incident --pr "$PR" --sha "$MERGE_SHA" --step "live checks"
+          --reason "The live smoke test failed after the deploy, but production already failed the quick smoke test just before this merge (the preview job's baseline), so the failure may not be this change's. It was not reverted: compare the baseline in the preview-checks artifact with the live results, and revert by hand if this change made things worse."
           --log "$RUNNER_TEMP/live/checks.log"
 
       - name: Report live checks that did not finish (no revert)
         if: env.MERGE_SHA != '' && env.DEPLOY == 'success' && env.SMOKE != '1' && env.SEO != '1' && !(env.SMOKE == '0' && env.SEO == '0')
         run: >-
           node scripts/autopilot-merge.cjs incident --pr "$PR" --sha "$MERGE_SHA" --step "live checks"
-          --reason "The live checks on https://splithappens.run did not finish (smoke test exit ${SMOKE:-none}, verify:seo:live exit ${SEO:-none}; 3 means the site could not be reached). The change was not reverted; check the live site."
+          --reason "The live checks on https://splithappens.run did not finish (smoke test exit ${SMOKE:-none}, verify:seo:live exit ${SEO:-none}; 3 means the site could not be reached, or it was already serving a later commit). The change was not reverted; check the live site."
           --log "$RUNNER_TEMP/live/checks.log"
 
       # Last, whatever happened above (a cancelled or timed-out job, a lost answer, an incident that could not be

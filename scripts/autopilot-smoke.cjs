@@ -6,7 +6,10 @@
  *   node scripts/autopilot-smoke.cjs --base https://<preview>.vercel.app --quick --expect-sha <sha> --json smoke.json
  *
  *   --quick            a fixed list of key pages instead of the whole sitemap
- *   --expect-sha <sha> fail unless <base>/version.json (scripts/write-version.cjs) names this commit
+ *   --expect-sha <sha> fail unless <base>/version.json (scripts/write-version.cjs) names this commit. On a preview
+ *                      (*.vercel.app, one address per deployment) another commit is a failure; on any other address,
+ *                      where a later deploy can replace it, the run could not check this commit (exit 3 unless a
+ *                      page fails too)
  *   --json <file>      write every result to <file>; stdout gets a short summary
  *
  * Each page opens at 390×844 (mobile); / and /tools also at 1366×900, and is scrolled to the bottom in steps (so
@@ -29,8 +32,8 @@
  * fails (no finished lab run is a warning). sitemap.xml and version.json are fetched up to three times.
  *
  * Exit 0 when every check passes, 1 when a page or check failed, 3 when the run could not finish (the browser did not
- * start, or sitemap.xml or version.json could not be read) and nothing failed: the merge workflow then tries again or
- * reports it, rather than blaming the change.
+ * start, sitemap.xml or version.json could not be read, or production already serves another commit) and nothing
+ * failed: the merge workflow then tries again or reports it, rather than blaming the change.
  *
  * Needs Playwright with Chromium (npm ci, then npx playwright install chromium) and network access. Node's fetch
  * (sitemap, version.json) does not read HTTPS_PROXY by itself; behind a proxy run with NODE_USE_ENV_PROXY=1.
@@ -175,13 +178,15 @@ async function main() {
   const report = { base, mode: QUICK ? 'quick' : 'full', startedAt: new Date(started).toISOString(), expectSha: EXPECT_SHA || null, version: null, routes: [], checks: [], perf: null, posthogRequests: 0, previewToolbarRequests: 0, thirdParty: [], failures, warnings, durationMs: 0 };
 
   if (EXPECT_SHA) {
-    // A wrong commit is read again a few times (an edge cache catching up) before it counts.
+    // A wrong commit is read again a few times (an edge cache catching up) before it counts. A preview's address
+    // belongs to one deployment, so another commit there is a failure. Production can move on to a later commit
+    // (another merge) between the deploy wait and this run, which says nothing about this one: could not finish.
     for (let attempt = 1; ; attempt += 1) {
       try {
         const version = JSON.parse(await fetchText(`${base}/version.json?cb=${Date.now()}-${attempt}`));
         report.version = version;
         if (version.sha === EXPECT_SHA) break;
-        if (attempt >= FETCH_ATTEMPTS) { fail('version.json', `serves commit ${version.sha}, expected ${EXPECT_SHA}`); break; }
+        if (attempt >= FETCH_ATTEMPTS) { fail('version.json', `serves commit ${version.sha}, expected ${EXPECT_SHA}`, { infrastructure: !preview }); break; }
       } catch (error) {
         fail('version.json', `could not be read: ${error.message}`, { infrastructure: true });
         break;

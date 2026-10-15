@@ -17,9 +17,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # The guard reads git objects only, so only scripts/ is checked out and file contents are fetched when git
+      # needs them (the full tree is several hundred megabytes).
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: scripts
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:

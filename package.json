@@ -17,7 +17,7 @@
     "autopilot:guard": "node scripts/autopilot-guard.cjs",
     "autopilot:smoke": "node scripts/autopilot-smoke.cjs",
     "autopilot:stats": "node scripts/autopilot-stats.cjs",
-    "autopilot:check": "npm run verify:data && npm run verify:analytics && npm run build && npm run verify:seo && npm run verify:autopilot && node scripts/autopilot-guard.cjs --base origin/main --head HEAD",
+    "autopilot:check": "npm run verify:data && npm run verify:analytics && npm run verify:compat && npm run build && npm run verify:compat -- --build && npm run verify:seo && npm run verify:autopilot && node scripts/autopilot-guard.cjs --base origin/main --head HEAD",
     "og:images": "node scripts/build-og-images.cjs",
     "og:check": "node scripts/build-og-images.cjs --check"
   },
