@@ -3,8 +3,8 @@
  * (courses.json, archetypes.json, course-geometry.json, replay.json), the course chooser's rows (tools/course-goal.json),
  * the tools' and analyses' scopes (the course comparison's from its all-finisher file), the duplicate-edition screen, the
  * course-profile pack's source policy and, for each edition's race date, scheduled start (with the weather record's own
- * verification flag and source) and the supplied route's 5 km sections, the checksum-verified runner-context shards.
- * Every field is printed as published; nothing is re-derived from the records. `scripts/verify-courses.cjs` recounts
+ * verification flag and source) and the supplied route's 5 km sections, the checksum-verified runner-context shards,
+ * whose manifest must be the exact one the story data was built from. Every field is printed as published; nothing is re-derived from the records. `scripts/verify-courses.cjs` recounts
  * each figure from the files on its own and checks the built pages (docs/SEO.md, "Course pages").
  */
 import fs from 'node:fs';
