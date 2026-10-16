@@ -13,6 +13,8 @@
 .course-section .chapter-dek { font-size: clamp(1rem, 1.4vw, 1.12rem); max-width: 46rem; }
 .course-section .chapter-body { margin-top: 1.6rem; display: grid; gap: 1.1rem; min-width: 0; }
 .course-section .chapter-body > * { min-width: 0; }
+/* Sections take focus when a contents link scrolls to one (SectionLink), so Tab carries on from there; no ring on the whole section. */
+.course-section[tabindex="-1"]:focus { outline: none; }
 
 /* At a glance and the contents */
 .course-glance { display: grid; gap: .7rem; max-width: 46rem; }
@@ -26,18 +28,24 @@
 .course-toc ul > li > a, .course-others ul > li > a, .course-toc ul > li > a:hover, .course-others ul > li > a:hover { text-decoration: none; }
 .course-toc ul > li > a:hover, .course-others ul > li > a:hover { border-color: var(--ink-2); }
 
-/* Tables: the tool table, compact on phones, with the first column pinned while the rest scroll. */
+/* Tables: the tool table, compact on phones, with the first column pinned while the rest scroll. Column heads wrap
+   (the tools' heads stay on one line), so a narrow screen shows more columns before scrolling. */
 .course-table-wrap { border: 1px solid var(--line); border-radius: 16px; background: var(--card); padding: .3rem .5rem .8rem; }
+.course-table-wrap:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .course-table caption { padding: .7rem .2rem 0; }
+.course-table thead th { white-space: normal; vertical-align: bottom; }
 .course-table tbody th { white-space: nowrap; }
 .course-table tbody th, .course-table thead th:first-child { position: sticky; left: 0; z-index: 1; background: var(--card); }
 .course-table td { vertical-align: top; }
-.course-goals-table tbody th a { display: inline-flex; align-items: center; min-height: 44px; font-family: var(--mono); font-weight: 700; }
+.course-goals-table tbody th a { display: inline-flex; align-items: center; min-width: 44px; min-height: 44px; font-family: var(--mono); font-weight: 700;
+  text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); }
+.course-goals-table tbody th a:hover { text-decoration-color: currentColor; }
 .course-cell-sub { display: block; margin-top: .15rem; font-size: .75rem; color: var(--ink-3); white-space: nowrap; }
 .course-table tr.is-copy th, .course-table tr.is-copy td { color: var(--ink-3); }
 .course-table td.course-copy-cell, .course-table td.course-reason { text-align: left; white-space: normal; font-family: var(--sans); font-size: .875rem; font-weight: 400; color: var(--ink-3); }
 @media (max-width: 640px) {
   .course-table { font-size: .875rem; }
+  .course-table thead th { min-width: 4.5rem; }
   .course-table th, .course-table td, .course-table tbody th { padding: .45rem .4rem; }
   .course-table td { font-size: .8125rem; }
   .course-table td.course-reason, .course-table td.course-copy-cell { min-width: 14rem; }
@@ -78,3 +86,11 @@
 /* Other courses */
 .course-feedback { margin-top: 3rem; }
 .course-others + .course-others { margin-top: .4rem; }
+
+/* Print: tables at full width on paper, where nothing can scroll sideways. */
+@media print {
+  .course-table-wrap { overflow: visible; }
+  .course-table th, .course-table td, .course-table tbody th { padding: .2rem .3rem; font-size: 8.5pt; }
+  .course-table tbody th, .course-table thead th:first-child { position: static; }
+  .course-cell-sub { white-space: normal; }
+}

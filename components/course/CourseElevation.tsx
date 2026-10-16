@@ -2,7 +2,7 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import { ElevationProfile } from '@/components/story/CourseArt';
 import { Distance, Elevation, Section } from '@/components/story/Units';
 import type { CoursePageData } from '@/lib/course-page';
-import { CourseSection, Fact } from './Fact';
+import { CourseSection, CourseTable, Fact } from './Fact';
 import { NetElevation } from './CourseUnits';
 
 const FULL_KM = 42.195;
@@ -40,28 +40,25 @@ export default function CourseElevation({ page }: { page: CoursePageData }) {
         ) : null}
       </dl>
       {terrain ? (
-        <div className="tool-table-wrap course-table-wrap">
-          <table className="tool-table course-table">
-            <caption className="sr-only">Climb, descent and net change in each 5 km section of the supplied route</caption>
-            <thead><tr><th scope="col">Section</th><th scope="col">Climb</th><th scope="col">Descent</th><th scope="col">Net</th></tr></thead>
-            <tbody>
-              {terrain.map((t, i) => (
-                <tr key={i}>
-                  <th scope="row"><Section i={i} /></th>
-                  <td><Fact k={`t.gain@${i}`} v={t.gain_m}><Elevation metres={t.gain_m} /></Fact></td>
-                  <td><Fact k={`t.loss@${i}`} v={t.loss_m}><Elevation metres={t.loss_m} /></Fact></td>
-                  <td><Fact k={`t.net@${i}`} v={t.net_m}><NetElevation metres={t.net_m} /></Fact></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <CourseTable id="elevation-caption" caption="Climb, descent and net change in each 5 km section of the supplied route">
+          <thead><tr><th scope="col">Section</th><th scope="col">Climb</th><th scope="col">Descent</th><th scope="col">Net</th></tr></thead>
+          <tbody>
+            {terrain.map((t, i) => (
+              <tr key={i}>
+                <th scope="row"><Section i={i} /></th>
+                <td><Fact k={`t.gain@${i}`} v={t.gain_m}><Elevation metres={t.gain_m} /></Fact></td>
+                <td><Fact k={`t.loss@${i}`} v={t.loss_m}><Elevation metres={t.loss_m} /></Fact></td>
+                <td><Fact k={`t.net@${i}`} v={t.net_m}><NetElevation metres={t.net_m} /></Fact></td>
+              </tr>
+            ))}
+          </tbody>
+        </CourseTable>
       ) : null}
       {terrain ? <p className="course-note">Each 5 km section of the supplied current route, as the tools and the race reports use it.</p> : null}
       {context?.downhill_opening ? <p className="course-note">A downhill opening: the first 5 km of the supplied route drops more than <Elevation metres={DOWNHILL_OPENING_M} /> net, the course chooser’s mark.</p> : null}
       {g.distance_km < FULL_KM ? <p className="course-note">The supplied profile covers <Fact k="geo.distance2" v={g.distance_km}><Distance km={g.distance_km} digits={2} /></Fact>, a little short of the full marathon distance.</p> : null}
       <p className="course-note">{context?.terrain_note ?? 'Supplied current route profile; historical routes may differ.'} Whether earlier editions ran this exact route is not known, and no time on this page is adjusted for elevation.
-        {scopes.analyses ? <> <Link href={`/analyses/hills-and-pacing?race=${encodeURIComponent(city)}`}>Hills and pacing on this route</Link>.</> : null}</p>
+        {scopes.hills ? <> <Link href={`/analyses/hills-and-pacing?race=${encodeURIComponent(city)}`}>Hills and pacing on this route</Link>.</> : null}</p>
     </CourseSection>
   );
 }

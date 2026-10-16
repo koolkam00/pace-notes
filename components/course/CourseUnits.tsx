@@ -1,6 +1,22 @@
 'use client';
 
 import { useUnits } from '@/components/UnitsProvider';
+import type { UnitSystem } from '@/lib/units';
+
+/**
+ * A temperature in whole °F (miles mode) or °C, from Celsius, rounded first and then signed with a true minus, so a
+ * value that rounds to zero never prints as "−0": −0.4 °C is "0°C", −1.2 °C is "−1°C".
+ */
+export function degreesText(c: number, units: UnitSystem): string {
+  const value = Number((units === 'mi' ? c * 1.8 + 32 : c).toFixed(0)) || 0;
+  return `${value < 0 ? '−' : ''}${Math.abs(value)}°${units === 'mi' ? 'F' : 'C'}`;
+}
+
+/** A temperature in the reader's units (degreesText). */
+export function Degrees({ c }: { c: number }) {
+  const { units } = useUnits();
+  return <>{degreesText(c, units)}</>;
+}
 
 /** A wind speed in mph (miles mode) or km/h, from metres per second, one decimal. */
 export function Wind({ mps }: { mps: number }) {

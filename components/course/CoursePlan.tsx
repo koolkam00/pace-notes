@@ -31,10 +31,10 @@ export default function CoursePlan({ page }: { page: CoursePageData }) {
         <ToolHandoffs label="After the race" links={[
           { href: scopes.band ? `/tools/split-check?course=${slug}` : '/tools/split-check', accent: accent('split-check', 'var(--green)'), title: 'Split check', text: <>Paste your nine splits for a report you can print, save or share{scopes.band ? `, compared with ${display} finishes at your time` : ''}.</> },
         ]} />
-        {scopes.analyses ? (
+        {scopes.compare || scopes.hills ? (
           <ToolHandoffs label="Analyses" links={[
-            { href: `/analyses/course-comparison?race=${raceParam}`, accent: 'var(--blue)', title: 'Compare this course', text: <>{display} beside the other courses for finishes at the same early pace.</> },
-            { href: `/analyses/hills-and-pacing?race=${raceParam}`, accent: 'var(--green)', title: 'Hills and pacing', text: <>The supplied elevation profile beside the section paces of finishes near a time.</> },
+            ...(scopes.compare ? [{ href: `/analyses/course-comparison?race=${raceParam}`, accent: 'var(--blue)', title: 'Compare this course', text: <>{display} beside the other courses for finishes at the same early pace.</> }] : []),
+            ...(scopes.hills ? [{ href: `/analyses/hills-and-pacing?race=${raceParam}`, accent: 'var(--green)', title: 'Hills and pacing', text: <>The supplied elevation profile beside the section paces of finishes near a time.</> }] : []),
           ]} />
         ) : null}
         {standard ? (

@@ -52,6 +52,8 @@ export default function CoursesPage() {
         <ol className="course-grid">
           {names.map((city) => {
             const individual = getIndividualCourseAnswer(city);
+            // The count the course page's hero prints (the story data, without copy editions), not the pooled profile's.
+            const finishes = summaries.get(city)?.finishes ?? individual?.dataset?.n ?? 0;
             const g = geometry.get(city);
             const t = types.get(city);
             return (
@@ -60,7 +62,7 @@ export default function CoursesPage() {
                   <span className="course-card-map">{g ? <RouteMap course={g} size={180} animate={false} /> : <span className="course-card-nomap">No supplied route</span>}</span>
                   <span className="course-card-body">
                     <span className="course-card-name">{displayName(city)}</span>
-                    <span className="course-card-meta">{formatNumber(individual?.dataset?.n || 0, 'finishes')} with complete splits</span>
+                    <span className="course-card-meta">{formatNumber(finishes, 'finishes')} with complete splits</span>
                     {g ? <span className="course-card-meta">Supplied route climbs <Elevation metres={g.gain_m} /></span> : null}
                     {t ? (
                       <span className="course-card-types" aria-label={`Pacing types: ${archetypes.archetypes.map((a, i) => `${a.name} ${Math.round(t.shares[i] * 100)}%`).join(', ')}`}>

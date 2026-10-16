@@ -11,7 +11,11 @@ import { CourseSection, Fact } from './Fact';
 export default function CourseSlowdown({ page }: { page: CoursePageData }) {
   const { summary: s, editions } = page;
   const single = editions.length === 1 ? editions[0] : null;
-  const scope = single ? <>of finishes in the {single.year} edition</> : <>of finishes in an average edition, across <Fact k="editions" v={s.editions}>{count(s.editions)}</Fact> editions weighted equally</>;
+  // The shares are means over the editions with a row, so their finishes are the rows' (Amsterdam's total also counts 14 from 2023).
+  const rowFinishes = editions.reduce((sum, e) => sum + e.n, 0);
+  const scope = single
+    ? <>of the <Fact k={`n@${single.year}`} v={single.n}>{count(single.n)}</Fact> finishes in the {single.year} edition</>
+    : <>of finishes in an average edition, across <Fact k="editions" v={s.editions}>{count(s.editions)}</Fact> editions weighted equally (<Fact k="rows.finishes" v={rowFinishes}>{count(rowFinishes)}</Fact> finishes)</>;
   return (
     <CourseSection id="slowdown" track="chapter-5" kicker="Holding pace" title="How often finishers held pace"
       dek={<>{SLOWDOWN_DEFINITION} The definition follows the <a href={SLOWDOWN_CITATION.url} rel="noopener noreferrer">{SLOWDOWN_CITATION.label}</a>.</>}>

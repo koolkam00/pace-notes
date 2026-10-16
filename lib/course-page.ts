@@ -1,18 +1,21 @@
 /**
  * Everything a course page (/courses/<slug>) prints, read at build time from published files only: the story summaries
  * (courses.json, archetypes.json, course-geometry.json, replay.json), the course chooser's rows (tools/course-goal.json),
- * the tools' scopes, the duplicate-edition screen, the course-profile pack's source policy and, for each edition's race
- * date, scheduled start and the supplied route's 5 km sections, the checksum-verified runner-context shards. Every field
- * is printed as published; nothing is re-derived from the records. `scripts/verify-courses.cjs` recounts each figure from
- * the files on its own and checks the built pages (docs/SEO.md, "Course pages").
+ * the tools' and analyses' scopes (the course comparison's from its all-finisher file), the duplicate-edition screen, the
+ * course-profile pack's source policy and, for each edition's race date, scheduled start (with the weather record's own
+ * verification flag and source) and the supplied route's 5 km sections, the checksum-verified runner-context shards.
+ * Every field is printed as published; nothing is re-derived from the records. `scripts/verify-courses.cjs` recounts
+ * each figure from the files on its own and checks the built pages (docs/SEO.md, "Course pages").
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { createHash } from 'node:crypto';
 import release from '@/analysis/release.json';
+import { ALL_FINISHER_DEFAULT, allFinisherGroups, allFinisherRow, type AllFinisherEvidence } from './all-finisher-context';
+import { getAllFinisherContextStart } from './all-finisher-context-server';
 import { getCourseNames, getIndividualCourseAnswer } from './course-data';
-import { copyEditions, isCopyEdition, type CopyEdition } from './duplicate-editions';
+import { copyEditionSentence, copyEditions, isCopyEdition, type CopyEdition } from './duplicate-editions';
 import type { Archetypes, CourseGeometry, Courses, CourseSummary, WeatherEdition } from './insights';
 import { getInsightsManifest, readInsight } from './insights-server';
 import { getPersonalSummary } from './personalized-data';
@@ -117,6 +120,19 @@ export function courseDescription(race: string, summary: Pick<CourseSummary, 'fi
   return variants.find((text) => text.length <= MAX_DESCRIPTION) ?? variants[variants.length - 1];
 }
 
+/**
+ * The line under the finish-times table for a copy edition: D2's `copyEditionSentence()`, whose evidence comes only from
+ * the screen's counts, with its ending replaced. That ending describes the runner search ("shown as recorded times only,
+ * without pacing, peer or weather comparisons"); this page prints no figure for a copy and counts it only in the pooled
+ * pace profile.
+ */
+export function courseCopySentence(entry: CopyEdition): string {
+  const sentence = copyEditionSentence(entry);
+  const end = sentence.lastIndexOf(', so ');
+  if (end < 0) throw new Error('copyEditionSentence() no longer ends in ", so …": update courseCopySentence().');
+  return `${sentence.slice(0, end)}, so this page counts them only in the pooled pace profile.`;
+}
+
 /** The plain words for a source-policy category. */
 export const EXCLUSION_LABEL: Record<string, string> = {
   invalid_split_grid: 'Invalid split grid', incomplete_ingestion: 'Incomplete ingestion', unreconciled_hold: 'Held pending reconciliation', selected_field: 'Selected field only',
@@ -125,7 +141,13 @@ export const EXCLUSION_LABEL: Record<string, string> = {
 // ---------- Runner-context shards: race dates, scheduled starts and 5 km sections ----------
 
 export type TerrainSection = { start_km: number; end_km: number; gain_m: number; loss_m: number; net_m: number };
-export type EditionContext = { eligible: number; date: string | null; start: string | null; terrain: TerrainSection[] | null };
+export type EditionContext = {
+  eligible: number; date: string | null; start: string | null; terrain: TerrainSection[] | null;
+  /** The weather record's own flag: false when the data producer's race date and scheduled start were not independently verified. */
+  startVerified: boolean | null;
+  /** The weather record's source and its documentation page (Open-Meteo's historical weather archive today). */
+  source: { name: string; url: string } | null;
+};
 
 const DATA = () => path.join(process.cwd(), 'public/data');
 const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
@@ -160,8 +182,11 @@ export function editionContexts(): Map<string, EditionContext> {
     if (shard.edition?.city !== edition.city || shard.edition?.year !== edition.year || !Number.isInteger(shard.eligible_n)) throw new Error(`Runner context shard ${meta.file} is for another edition.`);
     const sections: TerrainSection[] | null = Array.isArray(shard.terrain?.sections) && shard.terrain.sections.length === 9
       ? shard.terrain.sections.map(({ start_km, end_km, gain_m, loss_m, net_m }: TerrainSection) => ({ start_km, end_km, gain_m, loss_m, net_m })) : null;
+    const w = shard.weather;
     found.set(editionKey(edition.city, edition.year), {
-      eligible: shard.eligible_n, date: shard.weather?.date ?? null, start: shard.weather?.scheduled_start ?? null, terrain: sections,
+      eligible: shard.eligible_n, date: w?.date ?? null, start: w?.scheduled_start ?? null, terrain: sections,
+      startVerified: typeof w?.start_time_independently_verified === 'boolean' ? w.start_time_independently_verified : null,
+      source: typeof w?.source === 'string' && typeof w?.documentation_url === 'string' && /^https:\/\//.test(w.documentation_url) ? { name: w.source, url: w.documentation_url } : null,
     });
   });
   contexts = found;
@@ -198,6 +223,10 @@ export type CoursePageData = {
   terrain: TerrainSection[] | null;
   weather: WeatherRow[];
   weatherMissing: { year: number; reason: string }[];
+  /** True when a printed race date or scheduled start comes from a weather record that says it was not independently verified. */
+  datesUnverified: boolean;
+  /** The weather rows' source, when they all name the same one. */
+  weatherSource: { name: string; url: string } | null;
   hotCool: HotCool | null;
   minGapC: number;
   slope: Slope | null;
@@ -214,7 +243,12 @@ export type CoursePageData = {
   matched: Matched | null;
   exclusions: { year: number; category: string; reason: string }[];
   profileN: number | null;
-  scopes: { band: boolean; projector: boolean; weather: boolean; plan: boolean; analyses: boolean };
+  /**
+   * Where each linked tool and analysis publishes this course: `analyses` is the personalized summary's course list,
+   * `compare` the course comparison's own all-finisher row for the course (it needs three qualifying editions), and
+   * `hills` the hills-and-pacing analysis, which needs the supplied route.
+   */
+  scopes: { band: boolean; projector: boolean; weather: boolean; plan: boolean; analyses: boolean; compare: boolean; hills: boolean };
   qualifyingKey: string | null;
   months: number[];
   neighbours: string[];
@@ -229,6 +263,20 @@ function optional<T>(name: string): T | null {
 /** The course's own race name from the data: the supplied route's race, else the course summary's, else the city plus " Marathon". */
 export function raceName(city: string, geometry?: CourseGeometry | null, summary?: { race?: string } | null): string {
   return geometry?.race || summary?.race || `${city} Marathon`;
+}
+
+/**
+ * The courses the course comparison (/analyses/course-comparison?race=<city>) has a result for: the all-finisher file's
+ * default row for the course (all ages, genders and early paces) holds a course group. The file is checked against the
+ * adopted release and the runner records first, as the analysis page checks it.
+ */
+function comparisonCities(names: string[]): Set<string> {
+  getAllFinisherContextStart();
+  const { rows } = JSON.parse(fs.readFileSync(path.join(DATA(), 'all-finisher-context/evidence.json'), 'utf8')) as AllFinisherEvidence;
+  return new Set(names.filter((city) => {
+    const row = allFinisherRow(rows, { ...ALL_FINISHER_DEFAULT, city });
+    return !!row && allFinisherGroups(row, 'courses', ALL_FINISHER_DEFAULT.opening).length > 0;
+  }));
 }
 
 /** The course-profile pack's source policy (the reviewed release's edition exclusions), bound to the adopted release. */
@@ -252,6 +300,7 @@ export function coursePages(): Map<string, CoursePageData> {
   const projector = optional<ProjectorIndex>('tools/projector.json');
   const weatherMatch = optional<WeatherMatch>('tools/weather-match.json');
   const analysisCities = new Set((getPersonalSummary()?.cities ?? []).map((c) => c.city));
+  const compareCities = comparisonCities(names);
   const policy = sourcePolicy();
   const copies = copyEditions();
   const all = editionContexts();
@@ -281,6 +330,8 @@ export function coursePages(): Map<string, CoursePageData> {
     const terrain = terrains.length && terrains.every((t) => JSON.stringify(t) === JSON.stringify(terrains[0])) ? terrains[0] : null;
     const weather = courses.weather.editions.filter((e) => e.city === city).sort((a, b) => a.year - b.year)
       .map((e) => ({ ...e, start: all.get(editionKey(city, e.year))?.start ?? null }));
+    const dated = [...cells.map((c) => c.year), ...weather.map((w) => w.year)].map((year) => all.get(editionKey(city, year))).filter((ctx) => ctx && (ctx.date || ctx.start));
+    const sources = [...new Map(weather.map((w) => all.get(editionKey(city, w.year))?.source).filter((x): x is { name: string; url: string } => !!x).map((x) => [x.url, x])).values()];
     const types = archetypes.courses.find((c) => c.city === city) ?? null;
     const context = goal?.courses.find((c) => c.city === city) ?? null;
     // Too few editions for any goal: one sentence instead of five rows saying the same thing.
@@ -298,6 +349,8 @@ export function coursePages(): Map<string, CoursePageData> {
       copies: copies.filter((c) => c.city === city),
       small, terrain, weather,
       weatherMissing: courses.weather.excluded.filter((e) => e.city === city).map(({ year, reason }) => ({ year, reason })),
+      datesUnverified: dated.some((ctx) => ctx?.startVerified === false),
+      weatherSource: sources.length === 1 ? sources[0] : null,
       hotCool: hotCoolShown(courses.weather.hot_cool.find((h) => h.city === city), courses.weather.pairs.min_gap_c),
       minGapC: courses.weather.pairs.min_gap_c,
       slope: courses.weather.per_course_slopes.find((s) => s.city === city) ?? null,
@@ -311,7 +364,10 @@ export function coursePages(): Map<string, CoursePageData> {
       matched: matched && matched.courses.some((c) => c.city === city) ? matched : null,
       exclusions: policy.filter((e) => e.city === city).map(({ year, category, reason }) => ({ year, category, reason })).sort((a, b) => a.year - b.year),
       profileN: getIndividualCourseAnswer(city)?.dataset?.n ?? null,
-      scopes: { band: bandSlugs.has(slug), projector: projectorSlugs.has(slug), weather: weatherSlugs.has(slug), plan: planCities.has(city), analyses: analysisCities.has(city) },
+      scopes: {
+        band: bandSlugs.has(slug), projector: projectorSlugs.has(slug), weather: weatherSlugs.has(slug), plan: planCities.has(city), analyses: analysisCities.has(city),
+        compare: compareCities.has(city), hills: analysisCities.has(city) && !!route,
+      },
       qualifyingKey: qualifyingKeyForCity(city),
       months: months.get(city) ?? [],
       neighbours: alphabeticalNeighbours(names, city),

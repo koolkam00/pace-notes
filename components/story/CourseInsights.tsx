@@ -22,8 +22,12 @@ export function CourseFingerprint({ course, typical }: { course: Shaped; typical
   );
 }
 
-/** This course's editions: start temperature against sustained slowdown. */
-export function CourseWeather({ city, editions }: { city: string; editions: WeatherEdition[] }) {
+/**
+ * This course's editions: start temperature against sustained slowdown. `pairing` false leaves the warmest and coolest
+ * editions out of the chart's accessible name, for a course whose two starts are too close for that pairing (the course
+ * pages' 5 °C gate).
+ */
+export function CourseWeather({ city, editions, pairing = true }: { city: string; editions: WeatherEdition[]; pairing?: boolean }) {
   const { units } = useUnits();
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 640);
@@ -74,7 +78,7 @@ export function CourseWeather({ city, editions }: { city: string; editions: Weat
     <div className="viz-card">
       <div className="viz-head"><div><p className="viz-title">{city} race mornings</p><p className="viz-sub">Each edition: modelled temperature at the scheduled start and sustained slowdown share</p></div></div>
       <div ref={ref} className="viz">
-        <svg width={width} height={H} role="img" aria-label={`${editions.length} ${city} editions plotted by start temperature and sustained slowdown. Warmest: ${hot.year} at ${fmt(hot.temp)}, ${(hot.slowdown * 100).toFixed(0)}%. Coolest: ${cool.year} at ${fmt(cool.temp)}, ${(cool.slowdown * 100).toFixed(0)}%.`}>
+        <svg width={width} height={H} role="img" aria-label={`${editions.length} ${city} editions plotted by start temperature and sustained slowdown.${pairing ? ` Warmest: ${hot.year} at ${fmt(hot.temp)}, ${(hot.slowdown * 100).toFixed(0)}%. Coolest: ${cool.year} at ${fmt(cool.temp)}, ${(cool.slowdown * 100).toFixed(0)}%.` : ''}`}>
           {Array.from({ length: Math.round(sHi * 10) + 1 }, (_, i) => i / 10).map((s) => <g key={s} className="grid"><line x1={m.l} x2={width - m.r} y1={y(s)} y2={y(s)} /><text x={m.l - 8} y={y(s) + 4} textAnchor="end">{Math.round(s * 100)}%</text></g>)}
           {ticks.map((t) => <text key={t} x={x(t)} y={H - 14} textAnchor="middle">{fmt(t)}</text>)}
           {editions.map((e) => (
