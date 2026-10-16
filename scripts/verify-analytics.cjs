@@ -554,7 +554,8 @@ const siteAnalytics = read('components/SiteAnalytics.tsx');
 assert.match(siteAnalytics, /document\.addEventListener\('click', leaving, true\)/, 'SiteAnalytics hears link clicks in the capture phase, before the router');
 assert.match(siteAnalytics, /pauseRecordingBefore\(link\.href\)/, 'A followed link to a blocked page stops the recorder first');
 const pauseSource = read('lib/analytics.ts').match(/export function pauseRecordingBefore[\s\S]*?\n\}/)?.[0] ?? '';
-assert.ok(pauseSource && !/startSessionRecording/.test(pauseSource) && /recordingBlocked\(value, basePath\(\)\) \|\| continuesRunnerHandoff\(value\)/.test(pauseSource), 'pauseRecordingBefore only stops recording, for a blocked or continued-handoff page');
+assert.ok(pauseSource && !/startSessionRecording/.test(pauseSource) && /recordingBlocked\(value, basePath\(\)\) \|\| continuesRunnerHandoff\(value\)/.test(pauseSource), 'pauseRecordingBefore stops recording for a blocked or continued-handoff page, and never starts it itself (only syncRecording, which checks the page)');
+assert.ok(/replayPolicy\?\.pauseReplay\(\)/.test(pauseSource) && /leavingFrom === null && recordingAllowed\(\)/.test(read('lib/analytics.ts')), 'The pause drops what the stopped recorder still hands over, and keeps a recorder not yet started off while the blocked page is pending');
 // A split check opened from a runner's record keeps the marker in its race report link (reportLink drops g with it).
 assert.match(read('components/tools/SplitCheck.tsx'), /reportLink\(times, reportCity, gender, fromRunner\)/, 'The split check passes the runner handoff on to its race report link');
 assert.match(read('components/tools/SplitCheck.tsx'), /setFromRunner\(runnerHandoff\(window\.location\.href\)\)/, 'The split check reads the handoff marker from its own address');

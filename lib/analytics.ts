@@ -45,10 +45,15 @@ function recordingAllowed(): boolean {
   return !!replayPolicy && !analyticsDisabled() && replayPolicy.pageRecordable(window.location.pathname + window.location.search, basePath());
 }
 
+// The path a link (or Back or Forward) to a never-recorded page was followed from, while that page may still be being
+// built. The recorder stays off, and does not start, until the address names another page (trackPage) or the visitor
+// follows a link to a page that may be recorded instead (pauseRecordingBefore), which also ends a navigation left pending.
+let leavingFrom: string | null = null;
+
 // Starts or stops the recorder to match the current page and privacy choice; only a change calls the SDK.
 function syncRecording(posthog: PostHog): void {
   try {
-    const record = recorderReady && recordingAllowed();
+    const record = recorderReady && leavingFrom === null && recordingAllowed();
     if (record && posthog.config.disable_session_recording) posthog.startSessionRecording();
     else if (!record && !posthog.config.disable_session_recording) posthog.stopSessionRecording();
   } catch { /* Recording must never interrupt the page. */ }
@@ -57,16 +62,28 @@ function syncRecording(posthog: PostHog): void {
 /**
  * Stops the recorder at once when the visitor follows a link to a page that must not be recorded, before that page is
  * built: React sets up the next page's fields and inserts its markup before the address changes and trackPage runs, and
- * the recorder caught some of it (an rrweb input event, timestamped after the address changed, on /runners). It only
- * ever stops recording; trackPage starts it again on the next page that may be recorded.
+ * the recorder caught some of it (an rrweb input event, timestamped after the address changed, on /runners). What the
+ * stopped recorder still hands over (its last throttled batch of mouse positions) is dropped as from a blocked page, and
+ * a recorder not yet started stays off until the address moves on. A later link to a page that may be recorded replaces
+ * a navigation still pending (a slow page the visitor gave up on, still on the old address), so the recorder follows
+ * the address again once that click has been handled; trackPage does the same on the next page.
  */
 export function pauseRecordingBefore(href: string): void {
   try {
-    if (!instance || instance.config.disable_session_recording) return;
     const url = new URL(href, window.location.href);
     if (url.origin !== window.location.origin) return;
     const value = url.pathname + url.search;
-    if (recordingBlocked(value, basePath()) || continuesRunnerHandoff(value)) instance.stopSessionRecording();
+    const here = window.location.pathname + window.location.search;
+    if (recordingBlocked(value, basePath()) || continuesRunnerHandoff(value)) {
+      // Back or Forward has already put the blocked page's address in place, which keeps the recorder off by itself.
+      if (value !== here) leavingFrom = window.location.pathname;
+      if (!instance || instance.config.disable_session_recording) return;
+      replayPolicy?.pauseReplay();
+      instance.stopSessionRecording();
+    } else if (leavingFrom !== null && !(url.hash && value === here)) { // A jump within the page leaves it pending.
+      leavingFrom = null;
+      setTimeout(() => { if (instance) syncRecording(instance); }, 0);
+    }
   } catch { /* Recording must never interrupt the page. */ }
 }
 
@@ -228,6 +245,7 @@ export function trackPage(pathname: string): void {
   // A runner handoff is noted as the page opens, before the SDK or the recorder is ready (see noteRunnerHandoff).
   if (analyticsConfigured() && !analyticsDisabled()) noteRunnerHandoff(window.location.pathname + window.location.search);
   // Navigation and privacy changes also start or stop the recorder: it stops before a blocked page's view is sent.
+  if (leavingFrom !== null && window.location.pathname !== leavingFrom) leavingFrom = null;
   if (instance) syncRecording(instance);
   if (!analyticsConfigured() || analyticsDisabled()) return;
   // Filters and unit changes update the URL but are not additional page views.
@@ -245,5 +263,6 @@ export function trackPage(pathname: string): void {
  */
 export function trackRestoredPage(): void {
   lastPage = null;
+  leavingFrom = null;
   trackPage(window.location.pathname);
 }
