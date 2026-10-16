@@ -61,9 +61,11 @@ const VARIANT_GROUP: Record<string, string> = {
 
 /** Elapsed chip time as trackers show it. "24:53" (or "24:53.4") is minutes:seconds; "2:21" is hours:minutes; three groups are h:mm:ss. */
 export function parseElapsed(input: string): number | null {
-  const text = input.trim();
+  // One time, never a list, so a comma is a keypad's dot ("24:53,4" is 24:53.4).
+  const text = input.trim().replace(/,/g, '.');
   if (!text || text === 'none') return null;
-  const two = text.match(/^(\d{1,2})[:.,](\d{2})(?:\.(\d{1,3}))?$/);
+  // Tenths only after a real colon: a dotted "10.30.15" is a walker's h:mm:ss, read below.
+  const two = text.match(/^(\d{1,2})[:.](\d{2})$/) ?? text.match(/^(\d{1,2}):(\d{2})\.(\d{1,3})$/);
   if (two && (!two[3] || Number(two[1]) >= 10)) {
     const [a, b] = [Number(two[1]), Number(two[2])];
     if (b >= 60) return null;
@@ -71,7 +73,7 @@ export function parseElapsed(input: string): number | null {
   }
   // The keypad's 25.50.12 shows 25:50:12 (lib/keypad.ts). From 13 up, three groups are minutes, seconds and hundredths:
   // no mat is reached in under 13 minutes or after 13 hours.
-  const hundredths = text.match(/^(\d{2,3}):([0-5]\d):(\d{1,3})$/);
+  const hundredths = text.match(/^(\d{2,3})[:.]([0-5]\d)[:.](\d{1,3})$/);
   if (hundredths && Number(hundredths[1]) >= 13) return Number(hundredths[1]) * 60 + Number(hundredths[2]) + Number(`0.${hundredths[3]}`);
   const seconds = parseDuration(text, 'race');
   return seconds !== null && seconds > 0 ? seconds : null;

@@ -47,17 +47,18 @@ const GENDER_OPTIONS: { value: Gender; label: string }[] = [{ value: 'all', labe
  * two-group entry that would go backwards as mm:ss is read as h:mm up to 12 hours ("10:30" after a 9:20:00 40 km mat).
  * Also "2h05m31s" and keypad dots.
  */
-export function parseMatTime(input: string, prev: number | null = null): number | null {
-  const text = input.trim().toLowerCase();
+export function parseMatTime(input: string, prev: number | null = null, typed = false): number | null {
+  const text = typed ? input.trim().toLowerCase().replace(/,/g, '.') : input.trim().toLowerCase();
   if (!text) return null;
   const twoGroups = (a: number, b: number, fraction: number) => {
     if (a < 10) return a * 3600 + b * 60;
     const mmss = Math.round(a * 60 + b + fraction);
     return prev !== null && mmss <= prev && a <= 12 && !fraction ? a * 3600 + b * 60 : mmss;
   };
-  // The keypad's 25.50.12 shows 25:50:12 (lib/keypad.ts). From 13 up, three groups are minutes, seconds and hundredths:
-  // no mat is reached in under 13 minutes, and the split check reads no time past 12 hours.
-  const hundredths = text.match(/^(\d{2,3}):([0-5]\d):(\d{1,3})$/);
+  // The keypad's 25.50.12 shows 25:50:12 (lib/keypad.ts). In a typed box, from 13 up, three groups are minutes, seconds and
+  // hundredths: no mat is reached in under 13 minutes, and the split check reads no time past 12 hours. Pasted tracker text
+  // keeps its clocks, since its time-of-day column can read 13:26:31.
+  const hundredths = typed ? text.match(/^(\d{2,3})[:.]([0-5]\d)[:.](\d{1,3})$/) : null;
   if (hundredths && Number(hundredths[1]) >= 13) return Math.round(Number(hundredths[1]) * 60 + Number(hundredths[2]) + Number(`0.${hundredths[3]}`));
   // Two digits after each colon: a lone digit ("22:5", the keypad's 22.5) is parseDuration's decimal minutes.
   const colon = text.match(/^(\d{1,3}(?::\d{2}){1,2})(?:\.(\d{1,3}))?$/);
@@ -83,7 +84,7 @@ export function parseAll(texts: string[]): (number | null)[] {
   const out: (number | null)[] = [];
   let prev: number | null = null;
   for (const text of texts) {
-    const t = parseMatTime(text, prev);
+    const t = parseMatTime(text, prev, true);
     out.push(t);
     if (t !== null) prev = t;
   }

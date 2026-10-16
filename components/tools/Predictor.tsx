@@ -114,10 +114,10 @@ export function parseRaceTime(text: string, km: number | null): number | null {
     const off = (s: number) => (s / km < PACE_MIN ? Math.log(PACE_MIN / (s / km)) : Math.log(s / km / PACE_MAX));
     read = plausible(long) ? long : plausible(short) ? short : off(short) <= off(long) ? short : long;
   }
-  // The keypad's 25.50.12 shows 25:50:12 (lib/keypad.ts): from 10 up, three groups can be minutes, seconds and hundredths,
-  // which a short race's time is when its hours reading is not a plausible pace.
-  const hundredths = /^(\d{2,3}):([0-5]\d):(\d{1,3})$/.exec(text.trim());
-  if (hundredths && Number(hundredths[1]) >= 10 && !(read !== null && plausible(read))) {
+  // The keypad's 25.50.12 shows 25:50:12, and a mile's 5:45 with tenths typed after it shows 5:45:3 (lib/keypad.ts): three
+  // groups can be minutes, seconds and hundredths, which a short race's time is when its hours reading is not a plausible pace.
+  const hundredths = /^(\d{1,3})[:.,]([0-5]\d)[:.,](\d{1,3})$/.exec(text.trim());
+  if (hundredths && !(read !== null && plausible(read))) {
     const minutes = Number(hundredths[1]) * 60 + Number(hundredths[2]) + Number(`0.${hundredths[3]}`);
     if (plausible(minutes)) read = minutes;
   }
