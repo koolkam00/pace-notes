@@ -258,7 +258,7 @@ function withExperiments(html, defs) {
 
 // The pages that are never recorded, named here as well as in lib/analytics-policy.ts (REPLAY_BLOCKED_PAGES and the
 // runner handoff marker), so a page dropped from the site's list is still checked.
-const NEVER_RECORDED = url => { try { const { pathname, searchParams } = new URL(url, SITE); return /^\/(runners|your-race)(\/|$)/i.test(pathname) || searchParams.get('via') === 'runner'; } catch { return false; } };
+const NEVER_RECORDED = url => { try { const { pathname, searchParams } = new URL(url, SITE); return /^\/(runners|your-race|report)(\/|$)/i.test(pathname) || searchParams.get('via') === 'runner'; } catch { return false; } };
 
 /**
  * The address open in each page over time, and whether it may be recorded at that moment: the site's own rules

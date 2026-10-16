@@ -95,4 +95,13 @@ assert.match(withCopy, /<option value="31" selected="">Lakeside 2021/);
 assert.doesNotMatch(withCopy, /2025|record 32|Across your selected races|rc-multi/, 'The copy appears nowhere in the view');
 assert.equal((withCopy.match(/Read this race in the split check/g) || []).length, 1, 'One split-check link, for the source race');
 assert.equal(render(RunnerContext, { races: [repeated], manifest: copyManifest, units: 'mi', copyEditions: screen }), '', 'A selection of copies alone has no context view');
-console.log('Runner context UI passed: unchanged source values, weather/terrain units, missing versus zero, peer tie/rank/pace definitions, exact checkpoints, same-year section differences, and no focus option, comparison or split-check link for a copy edition.');
+// The race report (components/report/RaceReport.tsx, loaded on request): one "Make a race report" button, for the
+// focus race, and none for a copy edition, which has no focus option; without the build's report data, no panel.
+const reportData = { indexSha: null, archetypesSha: null, openingBands: [], typeCohort: null, courses: {} };
+const withReport = render(RunnerContext, { races: [source, repeated], manifest: copyManifest, units: 'mi', copyEditions: screen, report: reportData });
+assert.equal((withReport.match(/>Make a race report</g) || []).length, 1, 'One report button, for the eligible focus race');
+assert.match(withReport, /Lakeside 2021 on one page\./); assert.doesNotMatch(withReport.split('rc-report')[1], /2025/, 'The report panel never names the copy');
+assert.doesNotMatch(withReport, /record 32/);
+assert.equal(render(RunnerContext, { races: [repeated], manifest: copyManifest, units: 'mi', copyEditions: screen, report: reportData }), '', 'A copy edition alone has no report button');
+assert.doesNotMatch(render(RunnerContext, { races: [source], manifest: copyManifest, units: 'mi' }), /Make a race report/, 'No report panel without the report data');
+console.log('Runner context UI passed: unchanged source values, weather/terrain units, missing versus zero, peer tie/rank/pace definitions, exact checkpoints, same-year section differences, and no focus option, comparison, split-check link or race report button for a copy edition.');

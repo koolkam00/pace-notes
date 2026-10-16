@@ -121,8 +121,9 @@ const enumerated = {
   tool_used: { action: ['edit', 'print', 'copy_link'] },
   page_feedback: { answer: ['yes', 'no'] },
   page_feedback_reason: { reason: ['hard_to_follow', 'not_what_i_needed', 'numbers_look_wrong', 'something_broke'] },
-  site_error: { category: ['js_error', 'unhandled_rejection', 'chunk_load', 'data_fetch', 'render'] },
+  site_error: { category: ['js_error', 'unhandled_rejection', 'chunk_load', 'data_fetch', 'render', 'export'] },
   section_viewed: { section: [...policy.TRACKED_SECTIONS] },
+  report_exported: { format: ['image', 'share'] },
   units_changed: { units: ['mi', 'km'] },
   data_download_clicked: { destination: ['release', 'site_data'] },
   race_comparison_opened: { selection: ['one', 'multiple'], availability: ['eligible', 'mixed', 'limited'] },
@@ -136,8 +137,10 @@ for (const [event, fields] of Object.entries(enumerated)) {
 }
 assert.equal(kept('site_error', { category: 'js_error', message: 'boom 3:16:41 Private Name', stack: 'at x (https://splithappens.run/tools?t=3:16:41)', filename: 'https://splithappens.run/_next/x.js' }).message, undefined);
 assert.doesNotMatch(JSON.stringify(sanitize('site_error', { category: 'js_error', message: 'boom 3:16:41 Private Name', stack: 'at x', $exception_list: [{ value: 'Private' }] })), /boom|3:16:41|Private|stack|exception/, 'An error report carries its kind only');
-assert.deepEqual([...policy.TRACKED_SECTIONS], ['hero', ...[1, 2, 3, 4, 5, 6, 7, 8].map(n => 'chapter-' + n), 'stories', 'tools', 'analyses', 'cta', 'faq', 'related', 'result', 'comparison', 'pace-band']);
-for (const value of ['pace_band', 'Result', 'comparison ', 'result,comparison']) assert.equal(kept('section_viewed', { section: value }).section, undefined, `section_viewed.section=${value} is dropped`);
+assert.deepEqual([...policy.TRACKED_SECTIONS], ['hero', ...[1, 2, 3, 4, 5, 6, 7, 8].map(n => 'chapter-' + n), 'stories', 'tools', 'analyses', 'cta', 'faq', 'related', 'result', 'comparison', 'pace-band', 'report']);
+for (const value of ['pace_band', 'Result', 'comparison ', 'result,comparison', 'Report', 'report ']) assert.equal(kept('section_viewed', { section: value }).section, undefined, `section_viewed.section=${value} is dropped`);
+// A race report export carries its kind only: never the times, the course, the link or the file.
+assert.deepEqual(Object.keys(kept('report_exported', { format: 'share', s: '0:25:50,0:52:24', course: 'berlin', url: 'https://splithappens.run/report?s=0:25:50', file: 'pace-notes-race-report.png', title: 'Race report' })).filter(key => !key.startsWith('$') && !['token', 'distinct_id'].includes(key)), ['format'], 'report_exported carries only its format');
 // Campaign tags: only the owner's fixed Instagram values, and only on a page view.
 const tagged = kept('$pageview', { utm_source: 'instagram', utm_medium: 'social', utm_content: 'bio', utm_campaign: 'Private Name', utm_term: 'x', gclid: 'abc', fbclid: 'abc' });
 assert.deepEqual([tagged.utm_source, tagged.utm_medium, tagged.utm_content, tagged.utm_campaign, tagged.utm_term, tagged.gclid, tagged.fbclid], ['instagram', 'social', 'bio', undefined, undefined, undefined, undefined]);
@@ -414,11 +417,13 @@ try {
 } finally { EXPERIMENTS.splice(0, EXPERIMENTS.length, ...registryEntries); }
 
 // Session replay: blocked pages, page addresses and DOM attributes.
-for (const page of ['/runners', '/your-race', '/runners/', '/RUNNERS', '/runners/Private-Name', '/your-race?age=40#guide', 'https://www.splithappens.run/runners?q=Private+Name']) {
+for (const page of ['/runners', '/your-race', '/runners/', '/RUNNERS', '/runners/Private-Name', '/your-race?age=40#guide', 'https://www.splithappens.run/runners?q=Private+Name',
+  '/report', '/report?s=0:25:50,0:52:24,1:19:06,1:45:54,2:13:18,2:42:41,3:16:39,3:49:12,4:03:31&course=berlin', '/REPORT/', 'https://splithappens.run/report?s=0:25:50&course=berlin&via=runner']) {
   assert.equal(policy.recordingBlocked(page), true, `${page} is never recorded`);
 }
+assert.equal(policy.analyticsPath('/report?s=0:25:50,0:52:24&course=berlin&g=women#x'), '/report', 'The race report keeps its own path, without its times');
 assert.equal(policy.recordingBlocked('/htw-live-study/runners', '/htw-live-study'), true, 'Blocked pages are found under a base path');
-for (const page of ['/', '/tools/qualifying', '/analyses', '/runnersclub', '/privacy', '/tools/split-check?s=0:24:11,0:48:33&course=boston', '/tools/split-check?via=other']) assert.equal(policy.recordingBlocked(page), false, `${page} can be recorded`);
+for (const page of ['/', '/tools/qualifying', '/analyses', '/runnersclub', '/reports', '/privacy', '/tools/split-check?s=0:24:11,0:48:33&course=boston', '/tools/split-check?via=other']) assert.equal(policy.recordingBlocked(page), false, `${page} can be recorded`);
 // A link from a runner's profile carries that runner's times, so the page it opens is never recorded.
 const handoff = policy.runnerHandoffHref('/tools/split-check?s=0:36:33,1:12:57,1:52:01,2:32:22,3:16:40,4:00:35,4:44:20,5:28:08,5:46:49&course=london');
 assert.equal(handoff, '/tools/split-check?s=0:36:33,1:12:57,1:52:01,2:32:22,3:16:40,4:00:35,4:44:20,5:28:08,5:46:49&course=london&via=runner');
@@ -535,6 +540,20 @@ for (const attribute of ['id="runner-profile"', 'ref={analysisRef}']) {
 }
 const runnerContext = read('components/RunnerContext.tsx');
 assert.ok(hasClasses(runnerContext, 'runner-context', 'ph-no-capture'), 'RunnerContext carries ph-no-capture');
+// The race report shows one race's times (typed, or a runner's record): its card is left out of any recording, a link
+// from a record carries the handoff marker, and the image code loads only when asked for.
+const raceReport = read('components/report/RaceReport.tsx');
+assert.ok(hasClasses(raceReport, 'race-report', 'ph-no-capture'), 'RaceReport: the report card carries ph-no-capture');
+assert.match(read('lib/report-shared.ts'), /if \(fromRecord\) return runnerHandoffHref\(href\);/, 'A report link built from a runner record carries the handoff marker and nothing else');
+assert.match(read('components/report/ReportView.tsx'), /<div className="report-tracked" data-track-section="report" hidden=\{!times\}>/, '/report marks its report from the first render, hidden until one shows');
+for (const file of [...sourceFiles('components'), ...sourceFiles('app'), ...sourceFiles('lib')]) {
+  if (file === path.join('components', 'report', 'ReportActions.tsx')) continue;
+  assert.doesNotMatch(read(file), /['"](?:@\/lib\/|\.\.?\/)*(?:lib\/)?report-image['"]/, `${file} must not import lib/report-image.ts: ReportActions loads it with import() on a press`);
+}
+assert.match(read('components/report/ReportActions.tsx'), /await import\('@\/lib\/report-image'\)/, 'ReportActions loads the image code with import()');
+assert.doesNotMatch(read('components/report/ReportActions.tsx'), /^import\s(?!type\s)[^;]*report-image/m, 'ReportActions imports the image code only dynamically');
+assert.match(runnerContext, /const RaceReport = lazy(?:<[^(]*>)?\(\(\) => import\('\.\/report\/RaceReport'\)/, 'The runner view loads the race report only when one is asked for');
+assert.doesNotMatch(runnerContext, /^import\s(?!type\s)[^;]*report\/RaceReport/m, 'RunnerContext imports the race report only dynamically');
 // Every link from a runner's profile to another page of the site carries the handoff marker (the others are sources).
 const contextLinks = [...runnerContext.matchAll(/<(UnitLink|Link|a)\s[^<>]*?href=\{([^}]*)/g)].filter(m => m[1] !== 'a' || !/source_url$/.test(m[2].trim())).map(m => m[2].trim());
 assert.ok(contextLinks.length >= 2, 'RunnerContext links found');
@@ -568,7 +587,7 @@ const analyticsSource = read('lib/analytics.ts');
 const failureCalls = ['app', 'components', 'lib', 'hooks', 'context'].flatMap(sourceFiles).flatMap(file => [...read(file).matchAll(/\btrackFailure\(([^)]*)\)/g)].map(m => [file, m[1].trim()]));
 for (const [file, argument] of failureCalls) {
   if (file === 'lib/analytics.ts' && argument.startsWith('category:')) continue; // The definition.
-  assert.match(argument, /^'(?:js_error|unhandled_rejection|chunk_load|data_fetch|render)'$/, `${file}: trackFailure(${argument}) must name one literal category, never a message`);
+  assert.match(argument, /^'(?:js_error|unhandled_rejection|chunk_load|data_fetch|render|export)'$/, `${file}: trackFailure(${argument}) must name one literal category, never a message`);
 }
 for (const [file, count] of [['components/SiteAnalytics.tsx', 6], ['app/error.tsx', 2], ['app/global-error.tsx', 2], ['components/QuestionViz.tsx', 2], ['lib/data-fetch.ts', 2]]) assert.equal(failureCalls.filter(([f]) => f === file).length, count, `${file} reports its failures`);
 // A failed file reloads the page, usually before any of the site's code runs (the <head> script in lib/chunk-reload.ts):
@@ -1155,6 +1174,6 @@ export const EXPERIMENTS = [
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   }
   if (process.env.VERIFY_ANALYTICS_REGISTRY) { console.log(`Analytics checks passed with the registry in ${registryFile}.`); return; }
-  console.log(`Analytics checks passed: URL/name redaction, event allowlists with session IDs, ${searchPages.length} search pages and all ${sitemap.length} sitemap pages recorded under their clean path, session replay (sessionStorage identity with an in-memory fallback, bundled recorder and lazily loaded replay policy, recording started after load, masking without length, results panels and charts left out, console/network capture off, snapshot field allowlist, clean page addresses and links, blocked /runners, /your-race and runner handoff pages), per-file masking guards, production gating, pageview deduplication, opt-out/DNT/GPC stopping events and recording, SDK failure isolation, and the visit signals (enumerated values, reading figures and Web Vitals on their grid, campaign tags on the first page view only and removed from the address, failures by kind with rate limits, the once-per-page-view trackers through navigation and back/forward-cache restores with the feedback answer kept, every data request through dataFetch, section ids, the experiments registry, boot script, CSS and $feature allowlist, and every event described on /privacy and in docs/ANALYTICS.md), all of it again with experiments running.`);
+  console.log(`Analytics checks passed: URL/name redaction, event allowlists with session IDs, ${searchPages.length} search pages and all ${sitemap.length} sitemap pages recorded under their clean path, session replay (sessionStorage identity with an in-memory fallback, bundled recorder and lazily loaded replay policy, recording started after load, masking without length, results panels and charts left out, console/network capture off, snapshot field allowlist, clean page addresses and links, blocked /runners, /your-race, /report and runner handoff pages), per-file masking guards (the race report's card left out, its record links marked, its image code loaded on request), production gating, pageview deduplication, opt-out/DNT/GPC stopping events and recording, SDK failure isolation, and the visit signals (enumerated values, reading figures and Web Vitals on their grid, campaign tags on the first page view only and removed from the address, failures by kind with rate limits, the once-per-page-view trackers through navigation and back/forward-cache restores with the feedback answer kept, every data request through dataFetch, section ids, the experiments registry, boot script, CSS and $feature allowlist, and every event described on /privacy and in docs/ANALYTICS.md), all of it again with experiments running.`);
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

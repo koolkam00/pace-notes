@@ -65,7 +65,8 @@
     "tool_used": { "action": ["edit", "print", "copy_link"] },
     "page_feedback": { "answer": ["yes", "no"] },
     "page_feedback_reason": { "reason": ["hard_to_follow", "not_what_i_needed", "numbers_look_wrong", "something_broke"] },
-    "site_error": { "category": ["js_error", "unhandled_rejection", "chunk_load", "data_fetch", "render"] },
-    "section_viewed": { "section": ["hero", "chapter-1", "chapter-2", "chapter-3", "chapter-4", "chapter-5", "chapter-6", "chapter-7", "chapter-8", "stories", "tools", "analyses", "cta", "faq", "related", "result", "comparison", "pace-band"] }
+    "site_error": { "category": ["js_error", "unhandled_rejection", "chunk_load", "data_fetch", "render", "export"] },
+    "section_viewed": { "section": ["hero", "chapter-1", "chapter-2", "chapter-3", "chapter-4", "chapter-5", "chapter-6", "chapter-7", "chapter-8", "stories", "tools", "analyses", "cta", "faq", "related", "result", "comparison", "pace-band", "report"] },
+    "report_exported": { "format": ["image", "share"] }
   }
 }
