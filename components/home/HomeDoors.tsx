@@ -16,7 +16,7 @@ export default function HomeDoors({ courses, storyCount, analysisCount }: { cour
   return (
     <section className="home-doors" aria-labelledby="home-doors-title" data-track-section="paths">
       <h2 id="home-doors-title" className="sr-only">Three ways to start</h2>
-      <form className="home-door home-plan" action="/tools/plan" method="get" aria-labelledby="home-plan-title">
+      <form className="home-door home-plan" action={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/tools/plan`} method="get" aria-labelledby="home-plan-title">
         <h3 id="home-plan-title" className="home-door-title">Plan your next marathon</h3>
         <div className="home-plan-fields">
           <div className="home-plan-field">
