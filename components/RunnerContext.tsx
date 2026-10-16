@@ -1,15 +1,19 @@
 'use client';
 
-import { useEffect, useId, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useId, useMemo, useState, type ComponentType } from 'react';
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { distanceLabel, distanceValue, elevationLabel, paceLabel, paceValue, unitText, type UnitSystem } from '@/lib/units';
 import { paceTicks } from '@/lib/pace-ticks';
 import { runnerDuration, runnerMetrics, type RunnerManifest, type RunnerMetrics, type RunnerRace } from '@/lib/runner-search';
 import { UnitLink } from './UnitsProvider';
-import { splitCheckHref } from '@/lib/tools/links';
+import { courseSlug, splitCheckHref } from '@/lib/tools/links';
 import { runnerHandoffHref } from '@/lib/analytics-policy';
+import { trackFailure } from '@/lib/analytics';
+import { chunkLoadFailed } from '@/lib/chunk-reload';
 import { isCopyEdition, type CopyEdition } from '@/lib/duplicate-editions-shared';
+import type { ReportData } from '@/lib/report';
 import { loadRaceInsights, runnerAgeBand, runnerGender, type ComparisonKey, type PeerComparison, type RaceInsights, type RunnerTerrain, type RunnerWeather } from '@/lib/runner-context';
+import type { RaceReportProps } from './report/RaceReport';
 
 const count = (value: number) => value.toLocaleString('en-US');
 const decimal = (value: number, digits = 1) => value.toLocaleString('en-US', { maximumFractionDigits: digits });
@@ -25,6 +29,20 @@ const localHour = (value: string) => {
   return match ? `${match[1].padStart(2, '0')}:${match[2]}` : 'Not available';
 };
 const NO_COPIES: CopyEdition[] = [];
+// The race report's code loads only when a report is asked for, so /runners keeps its initial JavaScript.
+const ReportUnavailable = () => <p className="rc-copy">The race report didn&apos;t load. Reload the page to try again.</p>;
+const RaceReport = lazy<ComponentType<RaceReportProps>>(() => import('./report/RaceReport').catch((error: Error) => {
+  if (chunkLoadFailed(error)) trackFailure('chunk_load'); else trackFailure('js_error');
+  return { default: ReportUnavailable };
+}));
+/**
+ * The record's nine times to the whole second, as its split-check and report links carry them. The record already passed
+ * the eligibility checks (runnerMetrics); rounding can only tie two mats, and then there is no report.
+ */
+const wholeSeconds = (metrics: RunnerMetrics) => {
+  const times = metrics.sections.map(section => Math.round(section.cumulative));
+  return times.every((time, i) => time > (i ? times[i - 1] : 0)) ? times : null;
+};
 export const defaultGroup = (race: RunnerRace): ComparisonKey => runnerAgeBand(race.age) && runnerGender(race.sex) ? 'age_gender' : runnerGender(race.sex) ? 'gender' : runnerAgeBand(race.age) ? 'age' : 'all';
 
 export function PacingReadings({ race, metrics, manifest, units }: MeasuredRace & { manifest: RunnerManifest; units: UnitSystem }) {
@@ -124,7 +142,7 @@ export function RunnerConditions({ context, metrics, units }: { context: RaceIns
   return <>{context.weather ? <WeatherContext weather={context.weather} units={units} /> : <section className="rc-empty"><h3>Weather is not available for this edition.</h3><p>{context.weather_reason || 'This export does not supply a verified scheduled-start weather match.'}</p></section>}{context.terrain ? <TerrainContext terrain={context.terrain} metrics={metrics} units={units} /> : <section className="rc-empty"><h3>A usable supplied route is not available.</h3><p>{context.terrain_reason || 'This export does not supply a route that can be aligned with the recorded timing sections.'}</p></section>}</>;
 }
 
-export default function RunnerContext({ races: selected, manifest, units, copyEditions = NO_COPIES }: { races: RunnerRace[]; manifest: RunnerManifest; units: UnitSystem; copyEditions?: readonly CopyEdition[] }) {
+export default function RunnerContext({ races: selected, manifest, units, copyEditions = NO_COPIES, report }: { races: RunnerRace[]; manifest: RunnerManifest; units: UnitSystem; copyEditions?: readonly CopyEdition[]; report?: ReportData }) {
   const id = useId();
   // A copy edition repeats another year's field: it is no focus race, comparison, context row or split-check link.
   const races = useMemo(() => selected.filter(race => !isCopyEdition(manifest.editions[race.edition], copyEditions)), [selected, manifest, copyEditions]);
@@ -137,6 +155,10 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
   const [loading, setLoading] = useState(true);
   const [failure, setFailure] = useState('');
   const [retry, setRetry] = useState(0);
+  // The race whose report is open; another focus race closes it. Only a press moves focus into the report: coming back
+  // to that focus race shows it again where it was.
+  const [reportFor, setReportFor] = useState<number | null>(null);
+  const [reportPressed, setReportPressed] = useState(false);
   useEffect(() => {
     const controller = new AbortController(); setLoading(true); setFailure(''); setContexts({});
     loadRaceInsights(races, manifest, controller.signal).then(data => { if (!controller.signal.aborted) { setContexts(data); setLoading(false); } }).catch(error => { if (!controller.signal.aborted) { setFailure(error instanceof Error ? error.message : 'Race context could not load. Try again.'); setLoading(false); } });
@@ -157,14 +179,26 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
   const others = valid.filter(row => row.race.id !== focus.race.id);
   const reference = others.find(row => row.race.id === referenceId) || others.find(row => manifest.editions[row.race.edition].city === manifest.editions[focus.race.edition].city) || others[0];
   const unavailable = <>{loading && <p className="rc-copy" role="status">Loading this edition’s comparisons and conditions…</p>}{failure && <div className="feedback-error" role="alert"><p>{failure}</p><button type="button" onClick={() => setRetry(value => value + 1)}>Try again</button></div>}</>;
+  const edition = manifest.editions[focus.race.edition];
+  const reportTimes = report ? wholeSeconds(focus.metrics) : null;
   return <section className="runner-context ph-no-capture" aria-labelledby={`${id}-title`}>
-    <header className="rc-heading"><p className="eyebrow">A closer look</p><h2 id={`${id}-title`}>Your race, in context.</h2><label htmlFor={`${id}-focus`}>Focus race<select id={`${id}-focus`} value={focus.race.id} onChange={event => setFocusId(Number(event.target.value))}>{valid.map(({ race, metrics }) => <option key={race.id} value={race.id}>{titleFor(race, manifest)} · {runnerDuration(metrics.finish)} · record {race.id}</option>)}</select></label></header>
+    <header className="rc-heading"><p className="eyebrow">A closer look</p><h2 id={`${id}-title`}>Your race, in context.</h2><label htmlFor={`${id}-focus`}>Focus race<select id={`${id}-focus`} value={focus.race.id} onChange={event => { setReportPressed(false); setFocusId(Number(event.target.value)); }}>{valid.map(({ race, metrics }) => <option key={race.id} value={race.id}>{titleFor(race, manifest)} · {runnerDuration(metrics.finish)} · record {race.id}</option>)}</select></label></header>
     <div className="rc-tabs" role="group" aria-label="Race detail view">{([{ id: 'pacing', title: 'Your pacing' }, { id: 'peers', title: 'Similar runners' }, { id: 'conditions', title: 'Conditions' }] as const).map(item => <button type="button" key={item.id} aria-pressed={tab === item.id} aria-controls={`${id}-panel`} onClick={() => setTab(item.id)}>{item.title}</button>)}</div>
     <div className="rc-panel" id={`${id}-panel`}>
       {tab === 'pacing' && <PacingReadings {...focus} manifest={manifest} units={units} />}
       {tab === 'peers' && <><label className="rc-group-control" htmlFor={`${id}-group`}>Compare with runners in this edition<select id={`${id}-group`} value={selectedGroup} onChange={event => setGroupState({ race: focus.race.id, key: event.target.value as ComparisonKey })}>{groupOptions.map(option => <option key={option.key} value={option.key} disabled={!option.available}>{option.label}</option>)}</select></label>{context && <p className="rc-note">{count(context.eligible_n)} eligible finishes in {titleFor(focus.race, manifest)}. Usable exact age: {count(context.age_n)}; recorded gender: {count(context.gender_n)}.{!age && ' This record has no usable exact age; its age is not inferred.'}{!gender && ' This record has no usable gender for a gender comparison.'}</p>}{unavailable}{context && (comparison ? <RunnerPeerComparison comparison={comparison} metrics={focus.metrics} units={units} /> : <div className="rc-empty"><h3>This group is too small for a reliable comparison.</h3><p>The selected group needs at least 101 eligible finishes in this edition. Your recorded pacing remains available in “Your pacing.”</p>{selectedGroup !== 'all' && <button type="button" className="button-secondary" onClick={() => setGroupState({ race: focus.race.id, key: 'all' })}>Compare with all eligible runners</button>}</div>)}</>}
       {tab === 'conditions' && <>{unavailable}{context && <RunnerConditions context={context} metrics={focus.metrics} units={units} />}</>}
     </div>
+    {report && reportTimes && <section className="rc-report" aria-labelledby={`${id}-report-title`}>
+      <p className="eyebrow">Race report</p>
+      <h3 id={`${id}-report-title`}>{titleFor(focus.race, manifest)} on one page.</h3>
+      <p className="rc-copy">The section paces, the sustained-slowdown reading, the pacing type and finishes at the same time, with this edition’s finish comparison, weather and climb, to print or save as a PDF. A saved image shows the race, its finish and section paces and the comparison; a copied link carries only the nine times and the course. Neither holds a name or a record ID; the image shows the edition and this race’s times.</p>
+      {/* Marked for section_viewed: the section tracker watches sections that join the page after it first looked. */}
+      {reportFor === focus.race.id
+        ? <div data-track-section="report"><Suspense fallback={<p className="rc-copy" role="status">Loading the race report…</p>}><RaceReport times={reportTimes} course={courseSlug(edition.city)} gender="all" data={report} level={3}
+          record={{ edition: { city: edition.city, year: edition.year }, context: context ?? null, error: failure || null, lateChange: focus.metrics.lateChange }} focusOnOpen={reportPressed} /></Suspense></div>
+        : <button type="button" className="button-secondary" onClick={() => { setReportPressed(true); setReportFor(focus.race.id); }}>Make a race report</button>}
+    </section>}
     {reference && <section className="rc-multi" aria-labelledby={`${id}-comparison-title`}><p className="eyebrow">Across your selected races</p><h2 id={`${id}-comparison-title`}>Where did your time change?</h2><label htmlFor={`${id}-reference`}>Compare the focus race with<select id={`${id}-reference`} value={reference.race.id} onChange={event => setReferenceId(Number(event.target.value))}>{others.map(({ race, metrics }) => <option key={race.id} value={race.id}>{titleFor(race, manifest)} · {runnerDuration(metrics.finish)} · record {race.id}</option>)}</select></label><SectionComparison focus={focus} reference={reference} manifest={manifest} units={units} />
       <h3 className="rc-chart-heading">Read the races side by side.</h3><p className="rc-note">Weather and terrain remain context. Percentiles compare different race fields and do not turn the results into adjusted finish times.</p>{unavailable}
       {!loading && !failure && <div className="rc-table-wrap" role="region" aria-label="Selected race context comparison" tabIndex={0}><table><caption>Race-day context for your eligible selected races</caption><thead><tr><th scope="col">Race</th><th scope="col">Finish</th><th scope="col">Age/gender finish percentile</th><th scope="col">Start temperature</th><th scope="col">Humidity</th><th scope="col">Wind</th><th scope="col">Start-hour precipitation</th><th scope="col">Supplied climbing</th></tr></thead><tbody>{valid.map(({ race, metrics }) => {

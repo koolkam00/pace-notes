@@ -28,7 +28,7 @@ import { FINISH_TIME_PAGES } from './seo-pages/finish-times';
 export const SITE_URL = 'https://splithappens.run';
 
 /** Pages that carry `noindex, follow`, have no canonical and stay out of the sitemap. */
-export const NOINDEX: readonly string[] = ['/runners', '/your-race', '/request-analysis', '/htw', '/packs/smyth_htw'];
+export const NOINDEX: readonly string[] = ['/runners', '/your-race', '/request-analysis', '/htw', '/packs/smyth_htw', '/report'];
 
 /**
  * Research-archive pages too thin to index: four say the current release cannot answer the question,
@@ -58,7 +58,7 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   '/packs': '2026-10-08',
   '/slowdown': '2026-10-08',
   '/research/personalized': '2026-10-08',
-  '/privacy': '2026-10-08',
+  '/privacy': '2026-10-16',
   // Stories whose headings, deks or chart text were reworded on this date (who-holds-pace was not).
   '/stories/pacing-types': '2026-10-08',
   '/stories/round-numbers': '2026-10-08',

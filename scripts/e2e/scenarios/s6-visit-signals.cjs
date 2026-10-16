@@ -91,6 +91,13 @@ async function reading(h) {
   // A story read to the end, then a client-side navigation to a longer page, stays read to the end (the next page's
   // height does not count), under the story's own path.
   const home = views.find(p => p.$pathname === '/' && p.$prev_pageview_pathname === storyA);
+  // The client-side return to /: one hero, under the / page view. The story's page view, still open as the router puts
+  // the home page in place, must not count it too.
+  const heroes = named(run, 'section_viewed').filter(p => p.section === 'hero' && (!views[0] || p.$pageview_id !== views[0].$pageview_id));
+  h.check('after a client-side navigation to /, exactly one hero, carrying the / page view\'s $pageview_id', home && heroes.length === 1 && heroes[0].$pageview_id === home.$pageview_id, { home: home && home.$pageview_id, heroes: heroes.map(p => `${p.$pathname} ${p.$pageview_id}`) });
+  const viewPath = new Map(views.map(p => [p.$pageview_id, p.$pathname]));
+  const misfiled = named(run, 'section_viewed').filter(p => viewPath.get(p.$pageview_id) !== p.$pathname);
+  h.check('every section view carries the page view of its own page', !misfiled.length, misfiled.map(p => `${p.section} ${p.$pathname} ${p.$pageview_id}`));
   h.check('after a story read to the end, the next page view reports it read to the end', home && home.$prev_pageview_max_scroll_percentage >= 0.9 && home.$prev_pageview_max_content_percentage >= 0.9, home ? shown([home]) : shown(views));
   h.check('one answer and one reason per page view', JSON.stringify(named(run, 'page_feedback').map(p => p.answer)) === '["no"]' && JSON.stringify(named(run, 'page_feedback_reason').map(p => p.reason)) === '["numbers_look_wrong"]', shown([...named(run, 'page_feedback'), ...named(run, 'page_feedback_reason')]));
   const leave = named(run, '$pageleave');
@@ -323,6 +330,63 @@ async function planner(h) {
   h.check('planner: the copied link opens the same course, goal and units, and carries nothing else', link && link.pathname === '/tools/plan' && JSON.stringify([...link.searchParams].sort()) === JSON.stringify([['course', 'berlin'], ['goal', '3:30'], ['units', 'mi']]), copied);
 }
 
+// The race report on /report: its section is seen once; a failed image is site_error export, once (twice pressed), and
+// then Save image is one report_exported image; a cancelled share sends nothing and a share that goes through one
+// report_exported share;
+// Print is a print and Copy link a copied link, never an edit; the copied link carries exactly the times and course.
+const REPORT_S = '0:25:50,0:52:24,1:19:06,1:45:54,2:13:18,2:42:41,3:16:39,3:49:12,4:03:31';
+async function raceReport(h) {
+  const run = await h.run('race report', { ...PHONE, needles: REPORT_S.split(',') });
+  const page = await run.newPage();
+  await page.goto(`${SITE}/report?s=${REPORT_S}&course=berlin`, { waitUntil: 'load' });
+  await page.waitForSelector('.race-report-table', { timeout: 20000 });
+  for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, 500); await page.waitForTimeout(250); }
+  const button = name => page.locator('.race-report-actions button', { hasText: name });
+  // First an image the browser cannot encode: the export fails, reported once, with the button's own message.
+  await page.evaluate(() => { window.__e2eToBlob = HTMLCanvasElement.prototype.toBlob; HTMLCanvasElement.prototype.toBlob = function (callback) { callback(null); }; });
+  for (let i = 0; i < 2; i++) { await button('Save image').click(); await page.waitForTimeout(800); }
+  const message = await page.locator('.race-report-note').textContent();
+  await page.evaluate(() => { HTMLCanvasElement.prototype.toBlob = window.__e2eToBlob; });
+  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), button('Save image').click()]);
+  const saved = download.suggestedFilename();
+  await page.waitForTimeout(400);
+  // The share sheet: first cancelled, then sent (with the image file, as iOS Safari offers it).
+  await page.evaluate(() => {
+    window.__e2eShares = 0;
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: data => Boolean(data && data.files) });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async () => { window.__e2eShares += 1; if (window.__e2eShares === 1) throw new DOMException('Share canceled', 'AbortError'); } });
+  });
+  await button('Share').click();
+  await waitFor(() => page.evaluate(() => window.__e2eShares === 1), 10000, 200);
+  await page.waitForTimeout(400);
+  await button('Share').click();
+  await waitFor(() => page.evaluate(() => window.__e2eShares === 2), 10000, 200);
+  await page.waitForTimeout(400);
+  // window.print() would open the print dialog: the page's beforeprint stands in for it.
+  await page.evaluate(() => { window.print = () => { window.dispatchEvent(new Event('beforeprint')); window.dispatchEvent(new Event('afterprint')); }; });
+  await button('Print or save as PDF').click();
+  await page.waitForTimeout(300);
+  // The browser's clipboard is shared by the jobs running at once, so the copied text is caught in the page instead.
+  await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.__e2eCopied = text; } } }); });
+  await button('Copy link').click();
+  await page.waitForTimeout(400);
+  const copied = await page.evaluate(() => window.__e2eCopied || '');
+  await run.close();
+  h.inspect.invariants(run);
+  const exported = named(run, 'report_exported').map(p => `${p.$pathname}:${p.format}`);
+  const used = named(run, 'tool_used').map(p => `${p.$pathname}:${p.action}`);
+  const errors = named(run, 'site_error').map(p => p.category);
+  h.check('race report: the image is saved as pace-notes-race-report.png', saved === 'pace-notes-race-report.png', saved);
+  h.check('race report: one report_exported image and one share; the cancelled share sends nothing', JSON.stringify(exported) === '["/report:image","/report:share"]', exported);
+  h.check('race report: Print is a print and Copy link a copied link; nothing is an edit', JSON.stringify(used) === '["/report:print","/report:copy_link"]', used);
+  h.check('race report: an image that cannot be made is one site_error export, with its message', JSON.stringify(errors) === '["export"]' && /could not be made/.test(message || ''), { errors, message });
+  h.check('race report: its section is seen once', JSON.stringify(named(run, 'section_viewed').filter(p => p.$pathname === '/report').map(p => p.section)) === '["report"]', shown(named(run, 'section_viewed')));
+  let link = null;
+  try { link = new URL(copied); } catch { /* checked below */ }
+  h.check('race report: the copied link carries exactly the times and the course', link && link.pathname === '/report' && JSON.stringify([...link.searchParams]) === JSON.stringify([['s', REPORT_S], ['course', 'berlin']]), copied.replace(/s=[^&]*/, 's=…'));
+  h.check('race report: nothing was recorded on /report', ![...run.recordedPages.keys()].includes('/report'), [...run.recordedPages.keys()]);
+}
+
 // The experiment boot script names this tab's variant on <html> before the first paint, on a slow phone. With no
 // experiment in the registry, pages are served with a fixture registry's <head> markup, rendered from
 // components/Experiment.tsx exactly as the build renders it and put where the build puts it.
@@ -432,6 +496,7 @@ const OTHER_DATA_PAGES = [
   { path: '/stories/race-replay' },
   { path: '/courses/boston' },
   { path: '/research/personalized' },
+  { path: '/report?s=0:25:50,0:52:24,1:19:06,1:45:54,2:13:18,2:42:41,3:16:39,3:49:12,4:03:31&course=berlin', label: 'the race report' },
   { path: '/runners', act: async page => { await page.locator('#runner-name').fill('Smith'); await page.keyboard.press('Enter'); } },
   { path: '/analyses/pacing-pattern', label: 'an analysis after a filter change', act: async page => { await page.locator('.profile-refinements summary').click(); await page.getByLabel('Age group', { exact: false }).first().selectOption({ index: 3 }); await page.getByRole('button', { name: /Update comparison/ }).click(); } },
 ];
@@ -468,6 +533,7 @@ module.exports = {
       { name: 'tool signals and errors', weight: 16, run: using },
       { name: 'tool edits', weight: 8, run: toolEdits },
       { name: 'planner sections, print and copy link', weight: 8, run: planner },
+      { name: 'race report exports', weight: 8, run: raceReport },
       { name: 'back-forward cache', weight: 16, run: restored },
       { name: 'experiment before first paint', weight: 14, run: paintOrder },
       { name: 'error page', weight: 20, run: errorPages },

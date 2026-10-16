@@ -39,3 +39,12 @@ export function splitCheckHref(cumulativeSeconds: number[], city?: string): stri
   const course = city ? `&course=${courseSlug(city)}` : '';
   return `/tools/split-check?s=${cumulativeSeconds.map(clock).join(',')}${course}`;
 }
+
+/**
+ * /report, the race report, for the same nine cumulative mat times and course as the split check reads them. The runner
+ * view wraps it in runnerHandoffHref (lib/analytics-policy.ts), so a link from a record carries s, course and via only.
+ */
+export function reportHref(cumulativeSeconds: number[], city?: string): string | null {
+  const split = splitCheckHref(cumulativeSeconds, city);
+  return split && split.replace(/^\/tools\/split-check\?/, '/report?');
+}

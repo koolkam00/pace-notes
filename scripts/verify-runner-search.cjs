@@ -271,10 +271,18 @@ async function main() {
   assert.match(renderToStaticMarkup(React.createElement(NoMatchNext, { manifest })), /<li><span>Berlin<\/span><small>2021 · 1 year<\/small><\/li>/);
   assert.deepEqual([...noMatchHtml.matchAll(/href="([^"]*)"/g)].map(m => m[1]), ['/about#data-coverage', '/analyses/finish-time-context', '/tools/split-check', '/request-analysis']);
   assert.match(source, /\{!matches\.length && <NoMatchNext manifest=\{manifest\} \/>\}/, 'The no-match block is given the search data only, never the search text');
-  const { metadata } = require('../app/runners/page.tsx');
+  const { metadata, default: RunnersPage } = require('../app/runners/page.tsx');
+  // The page: one heading, "Analyze a past race", and two ways in without a name: the split check, and a finish time
+  // that opens the pacing-pattern analysis (its field has no name, so a form sent without JavaScript carries nothing).
+  const runnersHtml = renderToStaticMarkup(React.createElement(RunnersPage));
+  assert.deepEqual([...runnersHtml.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/g)].map(m => m[1]), ['Analyze a past race']);
+  assert.match(runnersHtml, /<a class="runner-start" href="\/tools\/split-check"><b>Have your splits\? Paste them<\/b>/);
+  const finishForm = runnersHtml.match(/<form class="runner-start runner-start-time"[^>]*>[\s\S]*?<\/form>/)?.[0] ?? '';
+  assert.match(finishForm, /action="\/analyses\/pacing-pattern" method="get"/); assert.match(finishForm, /Only know your finish time\?/); assert.match(finishForm, /See how finishes near it were paced/);
+  assert.doesNotMatch(finishForm, /<input[^>]*\sname=/, 'The finish-time field has no name');
   assert.deepEqual(metadata.robots, { index: false, follow: true }, '/runners is noindex, follow');
   assert.equal(metadata.alternates, undefined, 'A noindex page has no canonical');
   assert.doesNotMatch(JSON.stringify(metadata), /[?&]q=/);
-  console.log('Runner search checks passed: Unicode/token matching, complete pagination, all-ineligible search/profile views, retained source readings, explicit eligibility, year-only progression, mi/km readings, verified versioned gzip loading, the no-match ways on without the search text, copy editions kept out of every summary with their sentence once, and names kept out of the address with /runners noindex.');
+  console.log('Runner search checks passed: Unicode/token matching, complete pagination, all-ineligible search/profile views, retained source readings, explicit eligibility, year-only progression, mi/km readings, verified versioned gzip loading, the no-match ways on without the search text, copy editions kept out of every summary with their sentence once, the page heading and its two ways in without a name, and names kept out of the address with /runners noindex.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

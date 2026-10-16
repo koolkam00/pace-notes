@@ -13,7 +13,7 @@ The route policy lives in [`lib/seo-routes.ts`](../lib/seo-routes.ts). The sitem
 | The 33 primary research questions under `/packs` | index, follow | the page itself | yes |
 | 45 pack aliases (`ext_*`, most `s*`, `rn3`, `p1`, `p2`) | index, follow | the primary pack (`packCanonical(id)`) | no |
 | `THIN_PACKS`: p3, p4, r16, r33, rn1, rn4 | noindex, follow | none | no |
-| `NOINDEX`: `/runners`, `/your-race`, `/request-analysis`, `/htw`, `/packs/smyth_htw` | noindex, follow | none | no |
+| `NOINDEX`: `/runners`, `/your-race`, `/request-analysis`, `/htw`, `/packs/smyth_htw`, `/report` | noindex, follow | none | no |
 | 404 | noindex, follow (`app/not-found.tsx`; see the note below) | none | no |
 
 `app/not-found.tsx` sets `robots: { index: false, follow: true }`, which replaces the layout's `index, follow`. Next.js adds its own `noindex` tag to the not-found page as well, so `out/404.html` carries two robots tags, `noindex` and `noindex, follow`, and they agree. The page is also served with a 404 status, so it is never indexed.
@@ -23,6 +23,7 @@ Reasons:
 - **Thin packs** have fewer than 170 words of text. Four only say the current release cannot answer the question.
 - **`/runners`** looks up recorded names. Runner profiles must never be indexable.
 - **`/your-race`** is a client-side redirect. **`/request-analysis`** is an email form.
+- **`/report`** (October 16, 2026; repository state, not yet deployed) is one race's report, read from the nine times in its own address: no canonical, no structured data, no share card of its own (it uses the default words-only card) and not in the sitemap.
 - **`/htw` and `/packs/smyth_htw`** are old addresses. On Vercel they redirect to `/slowdown`.
 
 Query strings (`?units=`, `?race=`, `?goal=` and so on) never appear in a canonical, an `og:url` or the sitemap. The static export serves the same HTML for every query, so the canonical on the clean path covers all of them. Runner names, birth dates, labels and search text never go in a URL, the sitemap, structured data or analytics.

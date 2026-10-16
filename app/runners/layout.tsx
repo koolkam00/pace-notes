@@ -1,0 +1,9 @@
+import type { ReactNode } from 'react';
+import '../report/report.css';
+import './runners.css';
+
+// The race report opens inside the runner view, so its styles come with the page (not its JavaScript, which loads on
+// request). Kept in a layout so scripts/verify-runner-search.cjs can still load the page module.
+export default function RunnersLayout({ children }: { children: ReactNode }) {
+  return <>{children}</>;
+}

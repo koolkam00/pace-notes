@@ -3,14 +3,19 @@
 // analysis and the split check (runner handoff pages: never recorded, also after a filter change, a reload or an
 // onward link that keeps a query), then the site's navigation, which ends the handoff, and Back and Forward through
 // the history. I5 checks every rrweb event against the page open when it was recorded; the runner's name, record IDs,
-// times and the values in the handoff links are searched for in all PostHog traffic. It runs with the project's URL
-// blocklist in the mock (as deployed) and without it (the site's own rules alone). A third visitor opens a real profile
-// with copy-edition records (lib/duplicate-editions.ts) and checks they reach no summary, comparison or link.
+// times and the values in the handoff links are searched for in all PostHog traffic. Its race report is opened too:
+// Save image (the download intercepted), Share (navigator.share stubbed), Copy link (exactly s, course and via) and a
+// print of one page, then the copied link in a second tab, where /report shows the times' blocks only. It runs with the
+// project's URL blocklist in the mock (as deployed) and without it (the site's own rules alone). A third visitor opens a
+// real profile with copy-edition records (lib/duplicate-editions.ts) and checks they reach no summary, comparison, link
+// or race report button.
 const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
 const crypto = require('node:crypto');
 const { SITE, wiggle, waitFor } = require('../browser.cjs');
+// REPORT_IMAGE_NAME in lib/report.ts (scripts/verify-report.cjs checks it there): no course, year or time in it.
+const REPORT_IMAGE_NAME = 'pace-notes-race-report.png';
 
 const SURNAME = 'Johnson';
 
@@ -104,6 +109,16 @@ async function copyEditionJourney(h) {
     h.check(`${city} ${copy.year}: not in the race context view`, !view.contextText.includes(`${city} ${copy.year}`));
   }
   h.check('one focus option, no side-by-side comparison and one split-check link', JSON.stringify(view.focus) === JSON.stringify([`${city} ${source}`]) && !view.multi && view.split === 1, { focus: view.focus, multi: view.multi, split: view.split });
+  // One race report button, for the field the copies repeat; with the copies alone selected, none, and only the sentences.
+  const reports = await page.evaluate(() => ({ buttons: [...document.querySelectorAll('.rc-report button')].filter(b => b.textContent.includes('Make a race report')).length, title: document.querySelector('.rc-report h3')?.textContent || '' }));
+  h.check('one race report button, for the eligible race only', reports.buttons === 1 && reports.title.startsWith(`${city} ${source}`) && !copies.some(copy => reports.title.includes(String(copy.year))), reports);
+  await page.locator('#runner-profile .runner-race', { has: page.locator('strong', { hasText: `${city} ${source}` }) }).locator('input[type="checkbox"]').uncheck();
+  await page.click('.runner-selection-actions .button-primary');
+  await page.waitForSelector('.runner-analysis', { timeout: 30000 });
+  await page.waitForTimeout(1000);
+  const copiesOnly = await page.evaluate(() => ({ context: !!document.querySelector('.runner-context'), report: [...document.querySelectorAll('button')].some(b => b.textContent.includes('Make a race report')), text: document.body.innerText }));
+  h.check('the copy editions alone: no race report button and no context view', !copiesOnly.context && !copiesOnly.report, { context: copiesOnly.context, report: copiesOnly.report });
+  for (const copy of copies) h.check(`${city} ${copy.year}: still its sentence, once, with the copies alone`, copiesOnly.text.split(`${city} ${copy.year}'s records largely repeat`).length - 1 === 1);
   await wiggle(page, 4);
   await run.flush(page);
   await run.close();
@@ -111,6 +126,72 @@ async function copyEditionJourney(h) {
   const runnerPages = [...run.openWhileRecording].filter(page => h.inspect.NEVER_RECORDED(page));
   h.check('/stories was recorded and nothing while /runners was open', run.recordedPages.has('/stories') && !runnerPages.length, { recorded: [...run.recordedPages.keys()], runnerPages });
   h.note(`a ${city} profile with ${records.length} records (${[...copies.map(copy => copy.year), source].join(', ')}); its name and record IDs were searched for in all PostHog traffic`);
+}
+
+/**
+ * The focus race's report on /runners: opened in place, then Save image (a 1080 × 1350 PNG named without the race), Share
+ * (navigator.share stubbed, with a file), Copy link (exactly s, course and via) and a print that fits one Letter page;
+ * then the copied link in a second tab, which shows the blocks read from the times and nothing from the record.
+ */
+async function raceReport(h, run, page, step) {
+  const out = { link: null, year: null };
+  await step('race report', async () => {
+    await page.locator('.rc-report button', { hasText: 'Make a race report' }).click();
+    await page.waitForSelector('.rc-report .race-report-record dl, .rc-report .race-report-record .tool-state', { timeout: 30000 });
+    await page.waitForSelector('.rc-report .race-report-table, .rc-report .race-report-block p strong', { timeout: 30000 }).catch(() => {});
+    h.check('the report, opened by a press, takes focus at its title', await page.evaluate(() => document.activeElement?.classList.contains('race-report-title') ?? false));
+  });
+  const race = await page.locator('.rc-report .race-report-race').textContent().catch(() => '');
+  out.year = (/\b(?:19|20)\d\d\b/.exec(race || '') || [])[0] || null;
+  await step('save image', async () => {
+    const [download] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.locator('.rc-report .race-report-actions button', { hasText: 'Save image' }).click()]);
+    const bytes = fs.readFileSync(await download.path());
+    h.check('Save image downloads a 1080 × 1350 PNG named without the race', download.suggestedFilename() === REPORT_IMAGE_NAME && bytes.readUInt32BE(0) === 0x89504E47 && bytes.readUInt32BE(16) === 1080 && bytes.readUInt32BE(20) === 1350,
+      { name: download.suggestedFilename(), width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) });
+  });
+  await step('share', async () => {
+    await page.evaluate(() => {
+      window.__e2eShared = [];
+      Object.defineProperty(navigator, 'canShare', { configurable: true, value: data => Boolean(data && data.files && data.files.length) });
+      Object.defineProperty(navigator, 'share', { configurable: true, value: async data => { window.__e2eShared.push({ files: (data.files || []).map(f => [f.name, f.type, f.size > 0]), url: data.url || null }); } });
+    });
+    await page.locator('.rc-report .race-report-actions button', { hasText: 'Share' }).click();
+    await waitFor(() => page.evaluate(() => window.__e2eShared.length > 0), 15000, 200);
+    const shared = await page.evaluate(() => window.__e2eShared);
+    h.check('Share hands the share sheet the image file, and no link', JSON.stringify(shared) === JSON.stringify([{ files: [[REPORT_IMAGE_NAME, 'image/png', true]], url: null }]), shared);
+  });
+  await step('copy link', async () => {
+    // The browser's clipboard is shared by the jobs running at once, so the copied text is caught in the page instead.
+    await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.__e2eCopied = text; } } }); });
+    await page.locator('.rc-report .race-report-actions button', { hasText: 'Copy link' }).click();
+    await page.waitForTimeout(400);
+    out.link = await page.evaluate(() => window.__e2eCopied || '');
+    const url = new URL(out.link);
+    h.check('the copied link is /report with exactly s, course and via=runner', url.origin === SITE && url.pathname === '/report' && JSON.stringify([...url.searchParams.keys()]) === '["s","course","via"]'
+      && url.searchParams.get('via') === 'runner' && url.searchParams.get('s').split(',').length === 9, out.link.replace(/s=[^&]*/, 's=…'));
+  });
+  await step('print', async () => {
+    // window.print would open the dialog; the button marks what prints first. page.pdf then prints it (and sends afterprint).
+    await page.evaluate(() => { window.print = () => {}; });
+    await page.locator('.rc-report .race-report-actions button', { hasText: 'Print or save as PDF' }).click();
+    const pdf = (await page.pdf({ format: 'Letter', printBackground: true })).toString('latin1');
+    const pages = (pdf.match(/\/Type\s*\/Page[^s]/g) || []).length;
+    h.check('the printed report, with this edition\'s blocks, fits one Letter page', pages === 1, pages);
+  });
+  if (out.link) {
+    await step('the copied link in a second tab', async () => {
+      const tab = await run.newPage();
+      await tab.goto(out.link, { waitUntil: 'load' });
+      await tab.waitForSelector('.race-report-foot', { timeout: 30000 });
+      await tab.waitForTimeout(1500);
+      const shown = await tab.evaluate(() => ({ record: !!document.querySelector('.race-report-record'), title: document.querySelector('.race-report-race')?.textContent || '' }));
+      h.check('/report from the copied link shows the times\' blocks only: no edition comparison and no year', !shown.record && !/\b(?:19|20)\d\d\b/.test(shown.title), shown);
+      await wiggle(tab, 6);
+      await tab.waitForTimeout(4000);
+      await run.closePage(tab);
+    });
+  }
+  return out;
 }
 
 async function journey(h, blocklist) {
@@ -159,6 +240,12 @@ async function journey(h, blocklist) {
   run.options.needles = [...found.names, ...found.names.flatMap(name => name.split(/\s+/).filter(word => word.length > 3)),
     ...found.ids.map(id => new RegExp(`(^|[^0-9a-f-])${id}($|[^0-9a-f-])`)), ...found.times, ...linked];
   await wiggle(page, 6);
+  const report = await raceReport(h, run, page, step);
+  if (report.link) {
+    // Its times and its race's year must reach no event or address either (recordings are I5's: none on these pages).
+    run.options.needles.push(...new URL(report.link).searchParams.get('s').split(','));
+    if (report.year) run.options.needles.push({ needle: new RegExp(`(^|[^0-9A-Za-z.:+-])${report.year}($|[^0-9A-Za-z.:+-])`), allowAt: /\$snapshot_data/ });
+  }
 
   await step('analysis link (handoff)', async () => { await page.locator('.runner-context a', { hasText: 'Explore pacing across the wider study' }).first().click(); await page.waitForURL('**/analyses/**'); });
   await settle(3000);
@@ -173,6 +260,20 @@ async function journey(h, blocklist) {
   await step('profile again', openProfile);
   await step('split check link (handoff)', async () => { await page.locator('.runner-context a', { hasText: 'Read this race in the split check' }).first().click(); await page.waitForURL('**/tools/split-check**'); });
   await settle(3000);
+  // Its race report link keeps the marker and never carries g, nor does the report it opens.
+  await step('the handoff split check\'s race report', async () => {
+    const href = await page.locator('a', { hasText: 'Make a race report' }).first().getAttribute('href');
+    const keys = [...new URL(href, SITE).searchParams.keys()];
+    h.check('the handoff split check\'s report link carries s, course and via=runner, never g', keys.includes('s') && keys.includes('via') && !keys.includes('g') && new URL(href, SITE).searchParams.get('via') === 'runner', keys);
+    await page.locator('a', { hasText: 'Make a race report' }).first().click();
+    await page.waitForURL('**/report?**');
+    const address = new URL(page.url());
+    h.check('the report opened from it keeps via=runner and has no g', address.searchParams.get('via') === 'runner' && !address.searchParams.has('g'), [...address.searchParams.keys()]);
+    await page.waitForSelector('.race-report-foot', { timeout: 30000 });
+    await page.goBack();
+    await page.waitForURL('**/tools/split-check**');
+  });
+  await settle(2000);
   const onward = await page.evaluate(() => [...document.querySelectorAll('a[href^="/tools/"], a[href^="/analyses/"]')].map(a => a.getAttribute('href')).filter(href => href.includes('?') && !href.includes('split-check')));
   for (const [key, pattern] of [['pace band', /^\/tools\/pace-band/], ['starting pace', /^\/analyses\/starting-pace/], ['qualifying', /^\/tools\/qualifying/]]) {
     const href = onward.find(link => pattern.test(link));
@@ -200,18 +301,21 @@ async function journey(h, blocklist) {
   await run.close();
 
   h.check('every step ran', !log.some(line => line.startsWith('FAIL')), log.filter(line => line.startsWith('FAIL')));
+  // The report joins /runners after a press, after the section tracker first looked: it is still seen, once.
+  const reportViews = run.events().filter(({ e }) => e.event === 'section_viewed' && e.properties.section === 'report').map(({ e }) => e.properties.$pathname);
+  h.check('the race report on /runners is one section_viewed report there', reportViews.filter(p => p === '/runners').length === 1, reportViews);
   h.inspect.invariants(run);
   const recorded = [...run.recordedPages.keys()];
   h.check('/stories and /tools were recorded (so I5 is not empty)', recorded.includes('/stories') && recorded.includes('/tools'), recorded);
   // Whatever the site's own list of blocked pages says (I5 also names them itself).
   const runnerPages = [...run.openWhileRecording].filter(page => h.inspect.NEVER_RECORDED(page));
-  h.check('nothing was recorded while /runners, /your-race or a runner handoff page was open', !runnerPages.length, runnerPages);
+  h.check('nothing was recorded while /runners, /your-race, /report or a runner handoff page was open', !runnerPages.length, runnerPages);
   h.note(`recorded: ${recorded.join(', ')}; ${run.options.needles.length} of the runner's values searched for`);
 }
 
 module.exports = {
   id: 'S3',
-  title: 'Runner search journey: profile, handoff links, reload, Back and Forward; a copy-edition profile',
+  title: 'Runner search journey: profile, its race report, handoff links, reload, Back and Forward; a copy-edition profile',
   jobs: ({ quick }) => [
     { name: 'site rules alone', weight: 95, run: h => journey(h, false) },
     ...(quick ? [] : [{ name: 'with the project blocklist', weight: 95, run: h => journey(h, true) }]),

@@ -239,6 +239,8 @@ function cleanPayload(value: unknown, basePath: string): unknown {
 // Whether this tab's recording is on a page that must not be recorded. Unknown (dropped) until a Meta event names the
 // page; rrweb starts every recording and every full snapshot with one, and PostHog marks later SPA navigations.
 let onBlockedPage: boolean | undefined;
+/** The recorder was stopped for a link to a blocked page: what it still hands over is dropped until the next Meta event. */
+export function pauseReplay(): void { onBlockedPage = true; }
 
 /**
  * The rrweb events of one `$snapshot` (uncompressed: recording options turn off per-event compression so they can be

@@ -46,7 +46,7 @@ export default function UnitsProvider({ children }: { children: ReactNode }) {
 export function UnitSwitch() {
   const { units, setUnits } = useUnits();
   const path = usePathname();
-  if (path !== '/' && path !== '/about' && path !== '/slowdown' && path !== '/htw' && !['/analyses', '/runners', '/packs', '/courses', '/stories', '/tools', '/finish-times'].some(route => path === route || path.startsWith(route + '/'))) return <div className="unit-switch unit-switch-placeholder" aria-hidden="true"><button type="button" tabIndex={-1}>Miles</button><button type="button" tabIndex={-1}>Kilometres</button></div>;
+  if (path !== '/' && path !== '/about' && path !== '/slowdown' && path !== '/htw' && !['/analyses', '/runners', '/report', '/packs', '/courses', '/stories', '/tools', '/finish-times'].some(route => path === route || path.startsWith(route + '/'))) return <div className="unit-switch unit-switch-placeholder" aria-hidden="true"><button type="button" tabIndex={-1}>Miles</button><button type="button" tabIndex={-1}>Kilometres</button></div>;
   // Phones show the short forms; the full names stay as the buttons' accessible names.
   return <div className="unit-switch" role="group" aria-label="Distance and pace units">
     <button type="button" aria-pressed={units === 'mi'} onClick={() => setUnits('mi')}><span className="unit-name">Miles</span><span className="unit-short" aria-hidden="true">mi</span></button>
