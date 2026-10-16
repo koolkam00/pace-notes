@@ -136,7 +136,8 @@ for (const [event, fields] of Object.entries(enumerated)) {
 }
 assert.equal(kept('site_error', { category: 'js_error', message: 'boom 3:16:41 Private Name', stack: 'at x (https://splithappens.run/tools?t=3:16:41)', filename: 'https://splithappens.run/_next/x.js' }).message, undefined);
 assert.doesNotMatch(JSON.stringify(sanitize('site_error', { category: 'js_error', message: 'boom 3:16:41 Private Name', stack: 'at x', $exception_list: [{ value: 'Private' }] })), /boom|3:16:41|Private|stack|exception/, 'An error report carries its kind only');
-assert.deepEqual([...policy.TRACKED_SECTIONS], ['hero', ...[1, 2, 3, 4, 5, 6, 7, 8].map(n => 'chapter-' + n), 'stories', 'tools', 'analyses', 'cta', 'faq', 'related']);
+assert.deepEqual([...policy.TRACKED_SECTIONS], ['hero', ...[1, 2, 3, 4, 5, 6, 7, 8].map(n => 'chapter-' + n), 'stories', 'tools', 'analyses', 'cta', 'faq', 'related', 'result', 'comparison', 'pace-band']);
+for (const value of ['pace_band', 'Result', 'comparison ', 'result,comparison']) assert.equal(kept('section_viewed', { section: value }).section, undefined, `section_viewed.section=${value} is dropped`);
 // Campaign tags: only the owner's fixed Instagram values, and only on a page view.
 const tagged = kept('$pageview', { utm_source: 'instagram', utm_medium: 'social', utm_content: 'bio', utm_campaign: 'Private Name', utm_term: 'x', gclid: 'abc', fbclid: 'abc' });
 assert.deepEqual([tagged.utm_source, tagged.utm_medium, tagged.utm_content, tagged.utm_campaign, tagged.utm_term, tagged.gclid, tagged.fbclid], ['instagram', 'social', 'bio', undefined, undefined, undefined, undefined]);

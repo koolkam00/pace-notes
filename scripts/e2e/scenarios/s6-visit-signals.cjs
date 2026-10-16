@@ -294,6 +294,35 @@ async function toolEdits(h) {
   h.check('following a result\'s next step is not an edit', !used.some(u => u.startsWith('/tools/predictor')) && named(run, '$pageview').filter(p => p.$pathname === '/tools/pace-band').length === 2, { used, handedOn });
 }
 
+// The race planner: its course result, mat comparison and pace band are each seen once, in page order; its two print
+// buttons are prints and its Copy link a copied link, none of them an edit; the copied link keeps the course and goal.
+async function planner(h) {
+  const run = await h.run('planner', { ...PHONE });
+  await run.context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: SITE });
+  const page = await run.newPage();
+  await page.goto(SITE + '/tools/plan?course=berlin&goal=3:30', { waitUntil: 'load' });
+  await page.waitForSelector('#plan-comparison', { timeout: 20000 });
+  await page.waitForTimeout(800);
+  for (let i = 0; i < 14; i++) { await page.mouse.wheel(0, 500); await page.waitForTimeout(250); }
+  // window.print() would open the print dialog: the page's beforeprint stands in for it.
+  await page.evaluate(() => { window.print = () => { window.dispatchEvent(new Event('beforeprint')); window.dispatchEvent(new Event('afterprint')); }; });
+  await page.locator('button:has-text("Print wristband strips")').click();
+  await page.waitForTimeout(500);
+  await page.locator('button:has-text("Print this plan")').click();
+  await page.waitForTimeout(500);
+  await page.locator('#plan-band .share-bar button:has-text("Copy link")').click();
+  await page.waitForTimeout(500);
+  const copied = await page.evaluate(() => navigator.clipboard.readText()).catch(() => '');
+  await run.close();
+  const used = named(run, 'tool_used').map(p => `${p.$pathname}:${p.action}`);
+  const sections = named(run, 'section_viewed').filter(p => p.$pathname === '/tools/plan').map(p => p.section);
+  h.check('planner: the course result, the mat comparison and the pace band are each seen once, in page order', JSON.stringify(sections) === '["result","comparison","pace-band"]', sections);
+  h.check('planner: both print buttons are prints and Copy link a copied link; none is an edit', JSON.stringify(used) === '["/tools/plan:print","/tools/plan:print","/tools/plan:copy_link"]', used);
+  let link = null;
+  try { link = new URL(copied); } catch { /* checked below */ }
+  h.check('planner: the copied link opens the same course, goal and units, and carries nothing else', link && link.pathname === '/tools/plan' && JSON.stringify([...link.searchParams].sort()) === JSON.stringify([['course', 'berlin'], ['goal', '3:30'], ['units', 'mi']]), copied);
+}
+
 // The experiment boot script names this tab's variant on <html> before the first paint, on a slow phone. With no
 // experiment in the registry, pages are served with a fixture registry's <head> markup, rendered from
 // components/Experiment.tsx exactly as the build renders it and put where the build puts it.
@@ -438,6 +467,7 @@ module.exports = {
       { name: 'reading signals', weight: 26, run: reading },
       { name: 'tool signals and errors', weight: 16, run: using },
       { name: 'tool edits', weight: 8, run: toolEdits },
+      { name: 'planner sections, print and copy link', weight: 8, run: planner },
       { name: 'back-forward cache', weight: 16, run: restored },
       { name: 'experiment before first paint', weight: 14, run: paintOrder },
       { name: 'error page', weight: 20, run: errorPages },

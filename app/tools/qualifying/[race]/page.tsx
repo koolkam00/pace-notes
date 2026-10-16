@@ -3,7 +3,7 @@ import QualifyingRace, { type CourseLink } from '@/components/tools/QualifyingRa
 import { pageDescription, pageTitle, raceName, racePath, standardByKey } from '@/components/tools/QualifyingRaceText';
 import { getCourseNames, slugifyCity } from '@/lib/course-data';
 import { pageMetadata } from '@/lib/seo';
-import { STANDARDS } from '@/lib/tools/qualifying';
+import { QUALIFYING_COURSE, STANDARDS } from '@/lib/tools/qualifying';
 import './race.css';
 
 /**
@@ -21,11 +21,9 @@ export function generateMetadata({ params }: { params: { race: string } }) {
   return pageMetadata({ title: pageTitle(s), description: pageDescription(s), path: racePath(s) });
 }
 
-/** The course list's city for each race, where Pace Notes has a course page for it. */
-const COURSE_CITY: Record<string, string> = { boston: 'Boston', nyc: 'New York', chicago: 'Chicago', london: 'London', berlin: 'Berlin', sydney: 'Sydney' };
-
+/** The race's course page, where Pace Notes has one. */
 function courseLink(key: string, race: string): CourseLink {
-  const city = COURSE_CITY[key];
+  const city = QUALIFYING_COURSE[key];
   if (!city || !getCourseNames().includes(city)) return null;
   return { href: `/courses/${slugifyCity(city)}`, label: `${race} course and pacing` };
 }

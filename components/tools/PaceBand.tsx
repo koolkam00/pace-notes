@@ -2,29 +2,28 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
+import PaceBandStrip, { type RouteProfile } from '@/components/tools/PaceBandStrip';
 import { Choice, EvidencePanel, ExampleNote, ShareBar, Stat, Stepper } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
 import { loadInsight } from '@/lib/insights';
-import { loadShard, type PaceBandGroup, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
-import { MARATHON_KM, MATS_KM, perUnit, splitTable, watchTarget, type SplitInterval } from '@/lib/tools/pace';
+import { loadShard, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
+import { MARATHON_KM, perUnit, splitTable, watchTarget, type SplitInterval } from '@/lib/tools/pace';
+import { CHECKPOINTS, PACE_BAND_INDEX, cellOf, fmtGoal, fmtPace, paceBandShardPath, type PaceBandCell as Cell } from '@/lib/tools/pace-band-data';
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
-import { DEFAULT_UNITS, KM_PER_MILE, elevationLabel, type UnitSystem } from '@/lib/units';
+import { DEFAULT_UNITS, KM_PER_MILE, type UnitSystem } from '@/lib/units';
 import { unitHref } from '@/lib/unit-preference';
 import { SECTION_BOUNDS, count, sectionLabel } from '@/lib/viz/format';
 
-/** Supplied route elevation (every `step` km) for the optional printed back strip. Context only. */
-export interface RouteProfile { slug: string; city: string; race: string; km: number; step: number; m: number[]; min: number; max: number; gain: number; loss: number }
+export type { RouteProfile };
 /** A course other Pace Notes data knows but the pace band does not publish, with the reason (built at export time). */
 export interface UnpublishedCourse { city: string; note: string }
 
-const INDEX_PATH = 'tools/pace-band.json';
 const GOAL_MIN_S = 90 * 60;
 const GOAL_MAX_S = 480 * 60;
 const OBS_MIN = 150;
 const OBS_MAX = 390;
-const CHECKPOINTS = [...MATS_KM, MARATHON_KM];
 const HELD = '#2F5BFF';
 const SLOW = '#FF5B2E';
 const PRESETS = [180, 210, 240, 270, 300];
@@ -43,21 +42,7 @@ const GENDER_OPTIONS: { value: Gender; label: string }[] = [{ value: 'all', labe
 const ROW_OPTIONS: { value: SplitInterval; label: string }[] = [{ value: 'mi', label: '1 mi' }, { value: 'km', label: '1 km' }, { value: '5k', label: '5 km mats' }];
 const WATCH_OPTIONS = [{ value: '0', label: 'Exact' }, { value: '0.5', label: '+0.5%' }, { value: '1', label: '+1%' }, { value: '1.5', label: '+1.5%' }];
 
-interface Cell { n: number; ed: number; e50: number[]; s50: number[]; e25?: number[]; e75?: number[]; s25?: number[]; s75?: number[]; sd?: number; onset?: number[] }
-
-function cellOf(group: PaceBandGroup | undefined, minute: number): Cell | null {
-  if (!group) return null;
-  const i = group.g.indexOf(minute);
-  if (i < 0) return null;
-  return {
-    n: group.n[i], ed: group.ed[i], e50: group.e50[i], s50: group.s50[i],
-    e25: group.e25?.[i], e75: group.e75?.[i], s25: group.s25?.[i], s75: group.s75?.[i], sd: group.sd?.[i], onset: group.onset?.[i],
-  };
-}
-
 const clampGoal = (s: number) => Math.min(GOAL_MAX_S, Math.max(GOAL_MIN_S, s));
-const fmtGoal = (s: number) => (Math.round(s) % 60 === 0 ? formatHM(s) : formatDuration(s, true));
-const fmtPace = (sPerKm: number, units: UnitSystem) => `${formatDuration(perUnit(sPerKm, units))}/${units}`;
 const editions = (k: number) => (k === 1 ? 'one edition' : `${count(k)} editions`);
 const pct = (v: number, digits = 1) => `${(v * 100).toFixed(digits)}%`;
 const miles = (km: number) => `${(km / KM_PER_MILE).toFixed(1)} mi`;
@@ -144,10 +129,10 @@ export default function PaceBand({ indexSha, profiles, screened, projectorScopes
   useEffect(() => {
     if (!indexSha) return;
     let live = true;
-    loadInsight<PaceBandIndex>(INDEX_PATH, indexSha).then((d) => { if (live) { setIndex(d); setIndexError(false); } }, () => { if (live) setIndexError(true); });
+    loadInsight<PaceBandIndex>(PACE_BAND_INDEX, indexSha).then((d) => { if (live) { setIndex(d); setIndexError(false); } }, () => { if (live) setIndexError(true); });
     return () => { live = false; };
   }, [indexSha, retry]);
-  const shardPath = `tools/pace-band/${course}/${gender}.json`;
+  const shardPath = paceBandShardPath(course, gender);
   const [shard, setShard] = useState<{ path: string; data: PaceBandShard | null } | null>(null);
   useEffect(() => {
     if (!index || !index.shards?.[shardPath]) return;
@@ -825,19 +810,6 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
   waiting: boolean;
 }) {
   const held = observed?.held ?? null;
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const wrapWidth = useWidth(wrapRef, 760);
-  const SHEET_PX = (18.4 + 0.9) * (96 / 2.54);
-  const zoom = Math.min(1, Math.max(0.3, (wrapWidth - 30) / SHEET_PX));
-  // Split strips repeat every mile or km, plus halfway; the mat strip carries the 5 km mats and the finish.
-  const isWhole = (v: number) => Math.abs(v - Math.round(v)) < 1e-6;
-  const splitCells = interval === '5k' ? [] : rows.filter((r) => !r.finish && (r.halfway || isWhole(interval === 'mi' ? r.km / KM_PER_MILE : r.km)));
-  const perStrip = splitCells.length ? Math.ceil(splitCells.length / Math.ceil(splitCells.length / 12)) : 0;
-  const strips: (typeof splitCells)[] = [];
-  for (let i = 0; i < splitCells.length; i += perStrip) strips.push(splitCells.slice(i, i + perStrip));
-  const caption = held && observed
-    ? `H = held-pace median of ${count(held.n)} finishes ${formatDuration(observed.lo, true)}–${formatDuration(observed.hi, true)}, ${observed.place}${observed.genderWord ? `, ${observed.genderWord}` : ''}, no sustained slowdown (Pace Notes data; observed, not a plan). Big numbers: exact even-pace times.`
-    : 'Exact even-pace times. No observed held-pace group is published for this selection.';
   return (
     <section className="tool-panel pace-band-print-panel" aria-labelledby="pace-band-print-title">
       <header className="tool-panel-head">
@@ -853,76 +825,8 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
           <label className="tool-check"><input type="checkbox" checked={showBack} onChange={(e) => onBack(e.target.checked)} />Add a route elevation strip for the back ({profile.city})</label>
         ) : null}
       </div>
-      <div className={`pace-band-sheet-wrap${waiting ? ' pace-band-held-dim' : ''}`} ref={wrapRef}>
-        <div className="pace-band-sheet" style={{ zoom }}>
-          <p className="pace-band-sheet-head">Pace Notes · pace band · {fmtGoal(goal)} goal · {place}{genderWord ? ` · ${genderWord}` : ''} · cut along the dashed lines</p>
-          <div className="pace-band-strip is-mats">
-            <div className="pace-band-cell is-lead">
-              <span className="k">Goal</span>
-              <b>{fmtGoal(goal)}</b>
-              <span className="h">{formatDuration(perUnit(pKm, 'mi'))}/mi · {formatDuration(pKm)}/km{overrun ? ` · watch ${fmtPace(watchTarget(pKm, overrun), units)}` : ''}</span>
-            </div>
-            {CHECKPOINTS.map((km, i) => (
-              <div key={km} className={`pace-band-cell${i === 8 ? ' is-finish' : ''}`}>
-                <span className="k">{i === 8 ? 'Finish' : `${km}K`} <small>{i === 8 ? '26.2mi' : `${(km / KM_PER_MILE).toFixed(1)}mi`}</small></span>
-                <b>{formatDuration(i === 8 ? goal : pKm * km)}</b>
-                <span className="h">{held ? `H ${formatDuration(held.e50[i])}` : ' '}</span>
-              </div>
-            ))}
-            <p className="pace-band-strip-caption">{caption}</p>
-          </div>
-          {strips.map((cells, s) => (
-            <div key={s} className="pace-band-strip is-splits" style={{ ['--cells' as string]: cells.length }}>
-              {cells.map((r) => (
-                <div key={r.km} className={`pace-band-cell${r.halfway ? ' is-half' : r.mat ? ' is-mat' : ''}`}>
-                  <span className="k">{r.halfway ? 'Half' : interval === 'mi' ? `Mi ${Math.round(r.km / KM_PER_MILE)}` : `Km ${Math.round(r.km)}`}</span>
-                  <b>{formatDuration(r.elapsed)}</b>
-                </div>
-              ))}
-              <p className="pace-band-strip-caption">Even pace {fmtGoal(goal)} · {interval === 'mi' ? 'each mile' : 'each km'} · strip {s + 1} of {strips.length}</p>
-            </div>
-          ))}
-          {showBack && profile ? <ElevationStrip profile={profile} units={units} /> : null}
-        </div>
-      </div>
-      {zoom < 0.98 ? <p className="tool-note no-print">Preview scaled to fit your screen. It prints at full size: about {units === 'mi' ? '7¼ in' : '18.4 cm'} long and {units === 'mi' ? '1 in' : '2.5 cm'} wide per strip.</p> : null}
+      <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={interval} overrun={overrun} place={place} genderWord={genderWord}
+        observed={observed} profile={profile} showBack={showBack} waiting={waiting} />
     </section>
-  );
-}
-
-/** Full height of the printed elevation strip, the same on every course, so flat courses print flat. */
-const ELEVATION_SCALE_M = 200;
-
-/** Supplied route elevation as a strip for the back of the band. Context only; never used in a calculation. */
-function ElevationStrip({ profile, units }: { profile: RouteProfile; units: UnitSystem }) {
-  const W = 700;
-  const H = 62;
-  const top = 6;
-  const pts = profile.m;
-  const lo = Math.min(...pts);
-  const hi = Math.max(...pts);
-  const range = Math.max(hi - lo, ELEVATION_SCALE_M);
-  const x = (km: number) => (km / profile.km) * W;
-  const y = (v: number) => top + (1 - (v - lo) / range) * (H - top - 4);
-  // The supplied profile stops at its last sample (e.g. 42.0 of 42.184 km); nothing is drawn beyond it.
-  const lastKm = Math.min((pts.length - 1) * profile.step, profile.km);
-  const coords = pts.map((v, i) => `${x(Math.min(i * profile.step, profile.km)).toFixed(1)},${y(v).toFixed(1)}`);
-  const fill = `M0 ${H} L${coords.join(' L')} L${x(lastKm).toFixed(1)} ${H} Z`;
-  const scale = units === 'mi' ? `${Math.round(ELEVATION_SCALE_M * 3.28084)} ft` : `${ELEVATION_SCALE_M} m`;
-  return (
-    <div className="pace-band-strip is-back">
-      <svg viewBox={`0 0 ${W} ${H + 12}`} preserveAspectRatio="none" role="img"
-        aria-label={`Supplied route elevation for ${profile.city}, from ${elevationLabel(profile.min, units)} to ${elevationLabel(profile.max, units)}, drawn on a fixed ${scale} vertical scale.`}>
-        <path d={fill} fill="#D9D2C3" stroke="none" />
-        <polyline points={coords.join(' ')} fill="none" stroke="#15171C" strokeWidth={1} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-        {[5, 10, 15, 20, 25, 30, 35, 40].filter((km) => km < profile.km).map((km) => (
-          <g key={km}>
-            <line x1={x(km)} x2={x(km)} y1={top} y2={H} stroke="#15171C" strokeWidth={0.6} strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
-            <text x={x(km)} y={H + 10} textAnchor="middle" fontSize="8.5" fontFamily="var(--mono)">{km}K</text>
-          </g>
-        ))}
-      </svg>
-      <p className="pace-band-strip-caption">Back · {profile.race} route elevation, {elevationLabel(profile.min, units)} to {elevationLabel(profile.max, units)} · same vertical scale on every course: strip height = {scale} · supplied current route; historical validity unknown; bridge decks may be missing · context only, not used in any time</p>
-    </div>
   );
 }

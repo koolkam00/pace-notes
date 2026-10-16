@@ -125,13 +125,13 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   const { MarathonHandoffs } = require('../components/tools/Handoffs.tsx');
   const handoffs = (minutes, extra = 0) => renderToStaticMarkup(React.createElement(MarathonHandoffs, { label: 'With this estimate', seconds: minutes * 60 + extra }));
   const hrefs = (html) => [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
-  assert.deepEqual(hrefs(handoffs(237)), ['/tools/pace-band?goal=3:57', '/analyses/pacing-pattern?goal=237']); ok();
-  assert.match(handoffs(237), /Turn this into a pace band[\s\S]*mat times of finishes that just beat it[\s\S]*See how finishers near this time paced/); ok();
+  assert.deepEqual(hrefs(handoffs(237)), ['/tools/plan?goal=3:57', '/tools/pace-band?goal=3:57', '/analyses/pacing-pattern?goal=237']); ok();
+  assert.match(handoffs(237), /Plan this goal[\s\S]*Pick your course: even pace for 3:57[\s\S]*Turn this into a pace band[\s\S]*mat times of finishes that just beat it[\s\S]*See how finishers near this time paced/); ok();
   assert.match(handoffs(140), /Even splits for 2:20, ready to print/, 'Outside 2:30–6:30 the pace band has no observed mat times'); ok();
-  assert.deepEqual(hrefs(handoffs(600)), ['/analyses/pacing-pattern?goal=600'], 'Past the pace band\'s 8:00 only the analysis link stays'); ok();
+  assert.deepEqual(hrefs(handoffs(600)), ['/analyses/pacing-pattern?goal=600'], 'Past the pace band\'s and the planner\'s 8:00 only the analysis link stays'); ok();
   assert.equal(handoffs(60), '', 'Nothing to hand off outside both ranges'); ok();
   // A time with seconds opens both at the minute at or below it, and the band's card says which minute that is.
-  assert.deepEqual(hrefs(handoffs(251, 41)), ['/tools/pace-band?goal=4:11', '/analyses/pacing-pattern?goal=251']); ok();
+  assert.deepEqual(hrefs(handoffs(251, 41)), ['/tools/plan?goal=4:11', '/tools/pace-band?goal=4:11', '/analyses/pacing-pattern?goal=251']); ok();
   assert.match(handoffs(251, 41), /Even splits for 4:11 \(the minute at or below 4:11:41\), beside/); ok();
   assert.doesNotMatch(handoffs(251), /minute at or below/, 'A whole-minute time needs no note'); ok();
   assert.doesNotMatch(handoffs(237), /<button|your chance|arithmetic/i, 'Links only (never counted as a tool edit), in the site\'s words'); ok();
@@ -140,6 +140,141 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.match(source('Predictor.tsx'), /\{est\.range \? <MarathonHandoffs label="With this estimate" seconds=\{Math\.round\(est\.range\.median\)\} \/> : null\}/); ok();
   assert.match(source('PaceCalculator.tsx'), /const shownSeconds = ready \? Math\.round\(seconds!\) : null;[\s\S]*<MarathonHandoffs label="With this marathon time" seconds=\{shownSeconds!\} \/>/); ok();
   assert.match(source('Handoffs.tsx'), /const minutes = Math\.floor\(seconds \/ 60\);/, 'The cards take the minute at or below the time'); ok();
+}
+
+// ---- the race planner (/tools/plan): its link, its reading of a goal, the course-goal row it shows for a course and goal
+// (lib/tools/plan.ts), that row recounted from the runner records, the pace band window beside it, and the rendered plan.
+{
+  const links = require('../lib/tools/links.ts');
+  const plan = require('../lib/tools/plan.ts');
+  const band = require('../lib/tools/pace-band-data.ts');
+  const query = (href) => new URL(href, 'https://splithappens.run').searchParams;
+  // planHref: the course slug and H:MM, the forms the planner reads; null outside the 1:30 to 8:00 it takes.
+  assert.equal(links.planHref('Berlin', 210), '/tools/plan?course=berlin&goal=3:30');
+  assert.equal(links.planHref('New York', 251), '/tools/plan?course=new-york&goal=4:11');
+  assert.equal(links.planHref(undefined, 90), '/tools/plan?goal=1:30'); assert.equal(links.planHref('Gold Coast'), '/tools/plan?course=gold-coast'); assert.equal(links.planHref(), '/tools/plan');
+  checks += 5;
+  for (const bad of [89, 481, 237.5, NaN]) { assert.equal(links.planHref('Berlin', bad), null, `no planner link for ${bad}`); ok(); }
+  for (const m of [90, 237, 480]) { assert.equal(plan.readPlanGoal(query(links.planHref('Boston', m)).get('goal')).seconds, m * 60, 'The planner reads the goal its link carries'); ok(); }
+  // readPlanGoal: every form the tools parse, whole seconds, and the two messages.
+  assert.deepEqual(['3:30', '3:30:00', '210', '3h30', '3.30', '3:32:30'].map((t) => plan.readPlanGoal(t).seconds), [12600, 12600, 12600, 12600, 12600, 12750]); ok();
+  assert.deepEqual([plan.readPlanGoal('1:20'), plan.readPlanGoal('8:00:01'), plan.readPlanGoal('abc')].map((r) => [r.seconds, r.read, r.problem]),
+    [[null, 4800, 'Pick a goal between 1:30 and 8:00.'], [null, 28801, 'Pick a goal between 1:30 and 8:00.'], [null, null, 'Pick a goal between 1:30 and 8:00.']]); ok();
+  assert.equal(plan.readPlanGoal(' ').problem, plan.EMPTY_GOAL_PROBLEM); assert.deepEqual([plan.readPlanGoal('1:30').seconds, plan.readPlanGoal('8:00').seconds], [5400, 28800]); checks += 2;
+  assert.deepEqual([band.fmtGoal(12600), band.fmtGoal(12750), band.fmtGoal(4800)], ['3:30', '3:32:30', '1:20'], 'The address keeps H:MM, or H:MM:SS with seconds'); ok();
+  // publishedGoal: the nearest goal on the file's 5-minute grid, half a step beyond each end and no further.
+  const grid = (s) => plan.publishedGoal(s, [150, 390], 5);
+  assert.deepEqual([12720, 12780, 12600, 12750].map((s) => grid(s)), [{ minutes: 210, rounded: true }, { minutes: 215, rounded: true }, { minutes: 210, rounded: false }, { minutes: 215, rounded: true }]); ok();
+  assert.deepEqual([147.5 * 60, 147 * 60, 392.5 * 60, 393 * 60].map((s) => grid(s)?.minutes ?? null), [150, null, 390, null]); ok();
+  assert.equal(plan.roundedNote(210, 12720, 5), 'Results are published every 5 minutes; showing 3:30 for your 3:32.'); ok();
+  assert.equal(plan.roundedNote(210, 12630, 5), 'Results are published every 5 minutes; showing 3:30 for your 3:30:30.'); ok();
+  // The file's own unavailable[] reasons, in the course chooser's plain words (one function for both pages).
+  assert.equal(plan.courseGoalReason('0 editions with at least 20 finishes at this pace; 0 finishes', 3), 'No edition had 20 or more finishes at this pace.');
+  assert.equal(plan.courseGoalReason('2 editions with at least 20 finishes at this pace; 640 finishes', 3), 'Only 2 editions had 20 or more finishes at this pace (640 finishes); 3 are needed.');
+  assert.equal(plan.courseGoalReason('1 edition with at least 20 finishes at this pace; 31 finishes', 3), 'Only one edition had 20 or more finishes at this pace; 3 are needed.');
+  assert.equal(plan.courseGoalReason('4 editions with at least 20 finishes at this pace; 96 finishes', 3), '4 editions had 20 or more finishes at this pace, but fewer than 100 finishes in all.');
+  checks += 4;
+  const sourceOf = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+  assert.match(sourceOf('components/tools/CourseChooser.tsx'), /import \{ courseGoalReason, tooFewEditions \} from '@\/lib\/tools\/plan';/, 'The course chooser prints the same reasons'); ok();
+  assert.match(sourceOf('components/tools/CourseChooser.tsx'), /href=\{planHref\(course\.city, goal\) \?\? '\/tools\/plan'\}>Plan<[\s\S]*href=\{planHref\(course\.city, goal\) \?\? '\/tools\/plan'\}>Plan \{goalText\}/, 'Each course chooser row (table and card) links to the planner for its course and goal'); ok();
+  assert.match(sourceOf('app/tools/qualifying/[race]/page.tsx'), /import \{ QUALIFYING_COURSE, STANDARDS \} from '@\/lib\/tools\/qualifying';/, 'The race pages read the shared course map'); ok();
+  assert.deepEqual(qualifying.STANDARDS.map((s) => qualifying.QUALIFYING_COURSE[s.key]), ['Boston', 'New York', 'London', 'Chicago', 'Berlin', 'Sydney'], 'Every race with standards names its course');
+  assert.deepEqual(['Boston', 'New York', 'Prague'].map(qualifying.qualifyingKeyForCity), ['boston', 'nyc', null]); checks += 2;
+
+  const dir = path.join(__dirname, '..', 'public/data/insights');
+  const file = (name) => JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
+  if (fs.existsSync(path.join(dir, 'tools/course-goal.json')) && fs.existsSync(path.join(dir, 'tools/pace-band.json'))) {
+    const goals = file('tools/course-goal.json');
+    // Every published row is the one the planner shows for its course and goal, and its numbers are the file's.
+    for (const row of goals.rows) {
+      const r = plan.courseGoalResult(goals, row.city, row.goal * 60, null);
+      assert.ok(r.state === 'row' && r.row === row && !r.rounded, `${row.city} ${row.goal}: the planner shows the published row`);
+    }
+    ok();
+    const berlin = plan.courseGoalResult(goals, 'Berlin', 12720, null);
+    assert.equal(berlin.state, 'row'); assert.equal(berlin.minutes, 210); assert.equal(berlin.rounded, true); checks += 3;
+    const notListed = goals.courses.map((c) => c.city);
+    const prague = plan.courseGoalResult(goals, 'Prague', 14400, plan.screenedReason('Prague', goals.screens));
+    assert.ok(!notListed.includes('Prague') && prague.state === 'unavailable', 'Prague has no course-goal course');
+    assert.equal(prague.reason, 'No edition passed the data screens (start delays inflate the first split in 2016–2019).'); checks += 2;
+    const melbourne = goals.courses.find((c) => c.city === 'Melbourne');
+    assert.equal(plan.courseGoalResult(goals, 'Melbourne', 14400, null).reason, plan.tooFewEditions(melbourne.editions, goals.min_editions)); ok();
+    const gap = goals.unavailable.find((u) => goals.courses.find((c) => c.city === u.city).editions >= goals.min_editions);
+    assert.equal(plan.courseGoalResult(goals, gap.city, gap.goal * 60, null).reason, plan.courseGoalReason(gap.reason, goals.min_editions), 'A gap prints the file\'s reason'); ok();
+    assert.equal(plan.courseGoalResult(goals, 'Berlin', 7 * 3600, null).reason, 'Course results are published for goals from 2:30 to 6:30.'); ok();
+
+    // The row the planner shows for its worked example (Berlin, 3:30), recounted from the checksum-verified runner records
+    // with the course chooser's rule: 5–20 km pace within ±2% of the goal's even pace; editions with 20 such finishes, at
+    // least 3 and 100 in all; pooled share under the goal and finish percentiles; edition-balanced sustained slowdown and
+    // time after 20 km. verify-insights recounts every row's finishes, editions and shares; this adds the times.
+    const zlib = require('node:zlib');
+    const crypto = require('node:crypto');
+    const runnersDir = path.join(__dirname, '..', 'public/data/runners');
+    const runners = JSON.parse(fs.readFileSync(path.join(runnersDir, 'manifest.json'), 'utf8'));
+    const screened = new Set([...(goals.duplicate_edition_screen ?? []), ...(goals.screens?.start_offset ?? []), ...(goals.screens?.grid ?? [])].map((e) => `${e.city} ${e.year}`));
+    const CITY = 'Berlin', G = 210, row = goals.rows.find((r) => r.city === CITY && r.goal === G);
+    const editionsOf = new Set(runners.editions.flatMap((e, i) => (e.city === CITY && !screened.has(`${e.city} ${e.year}`) ? [i] : [])));
+    const g = G * 60 / 42.195, byEdition = new Map();
+    for (const [name, meta] of Object.entries(runners.shards).filter(([name]) => name.startsWith('profiles/'))) {
+      const bytes = fs.readFileSync(path.join(runnersDir, name));
+      assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'), meta.sha256, `${name}: runner shard checksum`);
+      for (const profile of JSON.parse(zlib.gunzipSync(bytes)).profiles) {
+        for (const r of profile.races) {
+          if (!r.eligible || !editionsOf.has(r.edition)) continue;
+          const t = r.times;
+          assert.ok(t.length === 9 && t.every(Number.isFinite), 'An eligible record has nine times');
+          const base = (t[3] - t[0]) / 15;
+          if (Math.abs(base / g - 1) > 0.02) continue;
+          if (!byEdition.has(r.edition)) byEdition.set(r.edition, []);
+          byEdition.get(r.edition).push(t);
+        }
+      }
+    }
+    const parts = [...byEdition.values()].filter((p) => p.length >= goals.min_edition_finishes);
+    const pooled = parts.flat();
+    const sustained = (t) => { const base = (t[3] - t[0]) / 15; for (let k = 4; k < 8; k++) if ((t[k] - t[k - 1]) / 5 / base - 1 + 1e-12 >= 0.25) return true; return false; };
+    const median = (values) => { const v = Float64Array.from(values).sort(), h = v.length >> 1; return v.length % 2 ? v[h] : (v[h - 1] + v[h]) / 2; };
+    const quantile = (sorted, q) => { const pos = (sorted.length - 1) * q, lo = Math.floor(pos), hi = Math.min(lo + 1, sorted.length - 1); return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo); };
+    const mean = (values) => values.reduce((a, b) => a + b, 0) / values.length;
+    const finishes = Float64Array.from(pooled, (t) => t[8]).sort();
+    assert.equal(row.n, pooled.length, `${CITY} ${G}: finishes`); assert.equal(row.ed, parts.length, `${CITY} ${G}: editions`);
+    near(row.under, pooled.filter((t) => t[8] < G * 60).length / pooled.length, 5.1e-5, `${CITY} ${G}: share under the goal`);
+    near(row.sd, mean(parts.map((p) => p.filter(sustained).length / p.length)), 5.1e-5, `${CITY} ${G}: sustained-slowdown share`);
+    near(row.after20, mean(parts.map((p) => median(p.map((t) => (t[8] - t[3]) - (42.195 - 20) * ((t[3] - t[0]) / 15))))), 0.5000001, `${CITY} ${G}: time after 20 km`);
+    [0.1, 0.5, 0.9].forEach((q, i) => near(row.fin[i], quantile(finishes, q), 0.5000001, `${CITY} ${G}: finish percentile ${q}`));
+    checks += 8;
+
+    // The pace band window beside it: the planner's cell is the shard's own, and held pace and sustained slowdown split it.
+    const index = file('tools/pace-band.json');
+    const shardPath = band.paceBandShardPath('berlin', 'all');
+    assert.ok(index.shards[shardPath], 'The pace band publishes Berlin'); ok();
+    const shard = file(shardPath);
+    const [all, held, slow] = ['all', 'held', 'slowdown'].map((k) => band.cellOf(shard.groups[k], G));
+    const i = shard.groups.all.g.indexOf(G);
+    assert.deepEqual([all.n, all.ed, all.e50], [shard.groups.all.n[i], shard.groups.all.ed[i], shard.groups.all.e50[i]]); ok();
+    assert.equal(held.n + slow.n, all.n, 'Held pace and sustained slowdown split the window'); ok();
+    assert.equal(band.cellOf(shard.groups.all, 149), null, 'No cell outside the published goals'); ok();
+    assert.equal(band.paceBandShardPath('all', 'all'), 'tools/pace-band/all/all.json'); assert.equal(band.PACE_BAND_INDEX, 'tools/pace-band.json'); checks += 2;
+  }
+
+  // The plan as first rendered (the 4:00 example on all courses, before any data loads): the calculated plan only, inside the
+  // masked workspace and the left-out results, with its tracked sections and every pace naming its unit.
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const RacePlan = require('../components/tools/RacePlan.tsx').default;
+  const html = renderToStaticMarkup(React.createElement(RacePlan, { courseGoalSha: null, paceBandSha: null, courses: [] }));
+  assert.match(html, /class="tool-workspace"[\s\S]*class="tool-inputs"[\s\S]*class="tool-results"><p class="sr-only" aria-live="polite">/); ok();
+  assert.match(html, /Per mile[\s\S]*9:09[\s\S]*Per km[\s\S]*5:41/, '4:00 even pace: 9:09/mi and 5:41/km, miles first'); ok();
+  assert.deepEqual([...html.matchAll(/class="plan-mats-k">[^<]*(?:<small>[^<]*<\/small>)?<\/span><b>([^<]+)<\/b>/g)].map((m) => m[1]),
+    ['28:26', '56:53', '1:25:19', '1:53:45', '2:22:12', '2:50:38', '3:19:05', '3:47:31', '4:00:00'], 'Even-pace time at each mat for 4:00 (14,400 s ÷ 42.195 km × each mat)'); ok();
+  // The tracker looks for sections once per page view, so all three are mounted from the start; the comparison is hidden until its data shows.
+  assert.deepEqual([...html.matchAll(/<div data-track-section="([^"]+)"( hidden="")?>/g)].map((m) => m[1] + (m[2] ? ' (hidden)' : '')), ['result', 'comparison (hidden)', 'pace-band']); ok();
+  assert.match(html, /class="tool-share share-bar no-print"><button[^>]*>Copy link<\/button><button[^>]*>Print wristband strips<\/button><button[^>]*>Print this plan<\/button>/, 'Copy link and both print buttons share one row'); ok();
+  assert.match(html, /\/tools\/pace-band\?goal=4:00"[\s\S]*\/tools\/weather-match\?goal=4:00:00[\s\S]*\/tools\/projector\?target=4:00:00&amp;t=none[\s\S]*\/analyses\/pacing-pattern\?goal=240[\s\S]*\/analyses\/hills-and-pacing\?goal=240[\s\S]*\/tools\/split-check"/, 'Links carry the goal in each target\'s own form'); ok();
+  assert.doesNotMatch(html, /your chance|the wall|arithmetic|adjusted/i); ok();
+  const planSource = sourceOf('components/tools/RacePlan.tsx');
+  assert.match(planSource, /useQueryState\(DEFAULTS\)/); assert.match(planSource, /const DEFAULTS = \{ course: 'all', goal: '4:00' \};/, 'The planner keeps exactly course and goal in its address'); checks += 2;
+  assert.doesNotMatch(planSource, /trackAnalytics|posthog/i, 'The planner sends no event of its own'); ok();
 }
 
 // ---- goal-page sentences (lib/tools/goal-facts.ts): built only from a goal's pace-band values; checked on fixed inputs
@@ -407,7 +542,7 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   }
   checks++;
   // Every evidence kind a tool renders is listed in its registry entry (the header and index badges).
-  const COMPONENT = { 'pace-calculator': 'PaceCalculator', predictor: 'Predictor', 'pace-band': 'PaceBand', 'course-chooser': 'CourseChooser',
+  const COMPONENT = { plan: 'RacePlan', 'pace-calculator': 'PaceCalculator', predictor: 'Predictor', 'pace-band': 'PaceBand', 'course-chooser': 'CourseChooser',
     'weather-match': 'WeatherMatch', projector: 'Projector', 'split-check': 'SplitCheck', qualifying: 'QualifyingChecker' };
   for (const t of registry.TOOLS) {
     const source = fs.readFileSync(path.join(__dirname, '..', 'components/tools', `${COMPONENT[t.slug]}.tsx`), 'utf8');
@@ -421,4 +556,4 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   checks += 1 + registry.TOOLS.length;
 }
 
-console.log(`Tool libraries passed ${checks} checks: time parsing, pace calculations and splits, pace charts by goal time and goal-page links, result handoffs to the pace band and the pacing-pattern analysis, goal-page sentences, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading and the pacing-type classifier.`);
+console.log(`Tool libraries passed ${checks} checks: time parsing, pace calculations and splits, pace charts by goal time and goal-page links, result handoffs to the planner, the pace band and the pacing-pattern analysis, the race planner (its goal, the course-goal row it shows, recounted from the runner records, and the rendered plan), goal-page sentences, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading and the pacing-type classifier.`);

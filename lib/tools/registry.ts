@@ -32,6 +32,8 @@ export const EVIDENCE_TEXT: Record<ToolEvidence, string> = {
 };
 
 export const TOOLS: ToolDefinition[] = [
+  { slug: 'plan', title: 'Race planner', heading: 'Marathon race planner', short: 'Course, goal and pace band', group: 'Plan', evidence: ['data'], accent: '#1D3FD8', file: 'tools/course-goal.json',
+    dek: 'Choose your course and goal. See your even-pace splits, how finishes at that pace held up on that course, and the pace band to print, with the next steps before and after race day.' },
   { slug: 'pace-calculator', title: 'Pace calculator', heading: 'Running pace calculator', short: 'Pace, time and splits', group: 'Plan', evidence: [], accent: '#2F5BFF',
     dek: 'Solve any two of pace, time and distance. Splits every 400 m, quarter mile, kilometre, mile or timing mat, a printable pace chart, and what your watch will say if it reads long.' },
   { slug: 'predictor', title: 'Finish-time predictor', heading: 'Marathon time predictor', short: 'From a recent race', group: 'Plan', evidence: ['research', 'data'], accent: '#7A4DFF', file: 'tools/projector.json',

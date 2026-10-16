@@ -51,7 +51,7 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   '/about': '2026-10-07',
   '/methodology': '2026-10-08',
   '/stories': '2026-10-08',
-  '/tools': '2026-10-08',
+  '/tools': '2026-10-15',
   '/tools/pace-calculator': '2026-10-15',
   '/analyses': '2026-10-08',
   '/courses': '2026-10-08',

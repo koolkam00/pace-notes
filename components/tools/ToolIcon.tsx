@@ -1,5 +1,6 @@
 /** Simple line icons for the runner tools (decorative). */
 const PATHS: Record<string, JSX.Element> = {
+  plan: <><path d="M10 8h22l6 6v26H10z" /><path d="M32 8v6h6M16 20h16M16 27h16M16 34h9" /><circle cx="33" cy="35" r="2.5" /></>,
   'pace-calculator': <><circle cx="24" cy="27" r="15" /><path d="M24 27l7-7M20 7h8M24 7v5M36 14l3-3" /></>,
   predictor: <><path d="M6 38l10-12 8 6 9-14 9 6" /><path d="M33 18l9 6M6 42h36" /><circle cx="42" cy="24" r="2.5" /></>,
   'pace-band': <><rect x="12" y="5" width="24" height="38" rx="6" /><path d="M17 13h14M17 19h14M17 25h14M17 31h14M17 37h9" /></>,
