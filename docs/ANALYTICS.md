@@ -37,9 +37,9 @@ The anonymous ID lives in one browser tab's `sessionStorage`, so a "unique visit
 | `runner_search_submitted` | A non-empty search starts, including opening/restoring a shared search link | None |
 | `runner_search_completed` | The latest non-aborted search returns or fails | `outcome`: matches, no_matches, error; `results`: 0, 1, 2-5, 6+ (matches found; not sent on error) |
 | `runner_profile_opened` | A result group's race records finish loading | None |
-| `race_comparison_opened` | Visitor presses View selected races | `selection`: one/multiple; `availability`: eligible/mixed/limited |
+| `race_comparison_opened` | Visitor presses View selected races | `selection`: one/multiple; `availability`: eligible/mixed/limited (from October 15, 2026, not yet deployed, a record in a copy edition such as Chicago 2018 or 2019 counts as limited, as the page shows it) |
 | `analysis_filters_applied` | Main, fast-start or weather filters are explicitly applied | Analysis ID and all/single course scope |
-| `data_download_clicked` | Click on a project Release link or site data file; does not prove download completed | `destination`: release/site_data |
+| `data_download_clicked` | Click on a project Release link (`koolkam00/pace-notes` or its former name `koolkam00/htw-live-study`, which the site's links still use) or site data file; does not prove download completed | `destination`: release/site_data |
 | `units_changed` | Visitor switches between miles and kilometres (pressing the units already shown sends nothing) | `units`: mi/km |
 | `tool_used` | In a tool: the first change per page view (typing, choosing or pressing a button inside `.tool-workspace` or a region marked `data-tool-controls`), printing a page that has a tool, or a copied tool link. 13 `/tools/…` pages have nothing to edit (the five `/tools/marathon-pace/<goal>` and six `/tools/qualifying/<race>` pages, and the two pace charts, which can only print), so a tool-engagement rate over every `/tools/` page reads low for reasons unrelated to the tools | `action`: edit, print, copy_link |
 | `page_feedback` | "Was this useful?" answered at the end of a story, tool or analysis (at most once per page view; a page restored from the back/forward cache keeps the answer already given and is not asked again) | `answer`: yes, no |

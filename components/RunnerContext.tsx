@@ -8,6 +8,7 @@ import { runnerDuration, runnerMetrics, type RunnerManifest, type RunnerMetrics,
 import { UnitLink } from './UnitsProvider';
 import { splitCheckHref } from '@/lib/tools/links';
 import { runnerHandoffHref } from '@/lib/analytics-policy';
+import { isCopyEdition, type CopyEdition } from '@/lib/duplicate-editions-shared';
 import { loadRaceInsights, runnerAgeBand, runnerGender, type ComparisonKey, type PeerComparison, type RaceInsights, type RunnerTerrain, type RunnerWeather } from '@/lib/runner-context';
 
 const count = (value: number) => value.toLocaleString('en-US');
@@ -23,6 +24,7 @@ const localHour = (value: string) => {
   const match = /^(?:\d{4}-\d{2}-\d{2}T)?(\d{1,2}):(\d{2})/.exec(value);
   return match ? `${match[1].padStart(2, '0')}:${match[2]}` : 'Not available';
 };
+const NO_COPIES: CopyEdition[] = [];
 export const defaultGroup = (race: RunnerRace): ComparisonKey => runnerAgeBand(race.age) && runnerGender(race.sex) ? 'age_gender' : runnerGender(race.sex) ? 'gender' : runnerAgeBand(race.age) ? 'age' : 'all';
 
 export function PacingReadings({ race, metrics, manifest, units }: MeasuredRace & { manifest: RunnerManifest; units: UnitSystem }) {
@@ -122,8 +124,10 @@ export function RunnerConditions({ context, metrics, units }: { context: RaceIns
   return <>{context.weather ? <WeatherContext weather={context.weather} units={units} /> : <section className="rc-empty"><h3>Weather is not available for this edition.</h3><p>{context.weather_reason || 'This export does not supply a verified scheduled-start weather match.'}</p></section>}{context.terrain ? <TerrainContext terrain={context.terrain} metrics={metrics} units={units} /> : <section className="rc-empty"><h3>A usable supplied route is not available.</h3><p>{context.terrain_reason || 'This export does not supply a route that can be aligned with the recorded timing sections.'}</p></section>}</>;
 }
 
-export default function RunnerContext({ races, manifest, units }: { races: RunnerRace[]; manifest: RunnerManifest; units: UnitSystem }) {
+export default function RunnerContext({ races: selected, manifest, units, copyEditions = NO_COPIES }: { races: RunnerRace[]; manifest: RunnerManifest; units: UnitSystem; copyEditions?: readonly CopyEdition[] }) {
   const id = useId();
+  // A copy edition repeats another year's field: it is no focus race, comparison, context row or split-check link.
+  const races = useMemo(() => selected.filter(race => !isCopyEdition(manifest.editions[race.edition], copyEditions)), [selected, manifest, copyEditions]);
   const valid = useMemo(() => races.flatMap(race => { const metrics = runnerMetrics(race); return metrics ? [{ race, metrics }] : []; }).sort((a, b) => manifest.editions[a.race.edition].year - manifest.editions[b.race.edition].year || a.race.id - b.race.id), [races, manifest]);
   const [focusId, setFocusId] = useState<number | null>(null);
   const [referenceId, setReferenceId] = useState<number | null>(null);

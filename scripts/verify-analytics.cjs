@@ -95,10 +95,16 @@ for (const { path: page } of sitemap) {
   assert.equal(policy.analyticsPath(page), section ?? page, `sitemap page ${page} is recorded as ${section ?? 'itself'}`);
 }
 assert.equal(policy.referringDomain('javascript:alert(1)'), '');
-assert.equal(policy.downloadDestination('https://github.com/koolkam00/htw-live-study/releases/tag/example'), 'release');
+// Releases under the repository's current name and its former one (the site's links still use the former).
+for (const repository of ['pace-notes', 'htw-live-study']) {
+  assert.equal(policy.downloadDestination(`https://github.com/koolkam00/${repository}/releases/tag/example`), 'release', `${repository}: a release tag`);
+  assert.equal(policy.downloadDestination(`https://github.com/koolkam00/${repository}/releases`), 'release', `${repository}: the releases page`);
+  assert.equal(policy.downloadDestination(`https://github.com/koolkam00/${repository}/releases-malicious`), null, `${repository}: only the releases path`);
+}
 assert.equal(policy.downloadDestination('/data/weather/evidence.json'), 'site_data');
 assert.equal(policy.downloadDestination('https://evil.example/data/x.json'), null);
-assert.equal(policy.downloadDestination('https://github.com/koolkam00/htw-live-study/releases-malicious'), null);
+assert.equal(policy.downloadDestination('https://github.com/koolkam00/pace-notes-fork/releases/tag/example'), null, 'Another repository is not a data download');
+assert.equal(policy.downloadDestination('https://github.com/other/pace-notes/releases/tag/example'), null, 'Another owner is not a data download');
 const action = policy.sanitizeAnalyticsEvent({ ...dirty, event: 'analysis_filters_applied', properties: { ...dirty.properties, analysis: 'opening', course_scope: 'single', goal: 240, previous: 210 } });
 assert.equal(action.properties.analysis, 'opening');
 assert.equal(action.properties.course_scope, 'single');
@@ -453,7 +459,7 @@ assert.equal(replay.replayAttribute('href', '/tools/pace-calculator?t=3:30:00#re
 assert.equal(replay.replayAttribute('href', 'https://www.splithappens.run/courses/berlin?units=km', false, 'a'), 'https://splithappens.run/courses/berlin');
 assert.equal(replay.replayAttribute('href', 'https://splithappens.run/courses/Private-Name', false, 'a'), 'https://splithappens.run/courses', 'A course path that is not a published course falls to its section');
 assert.equal(replay.replayAttribute('action', '/runners?q=Smith, Clara', false, 'form'), 'https://splithappens.run/runners');
-assert.equal(replay.replayAttribute('href', 'https://github.com/koolkam00/htw-live-study/releases?q=Smith, Clara#x', false, 'a'), 'https://github.com/koolkam00/htw-live-study/releases', 'Other sites keep their path, never a query');
+for (const repository of ['pace-notes', 'htw-live-study']) assert.equal(replay.replayAttribute('href', `https://github.com/koolkam00/${repository}/releases?q=Smith, Clara#x`, false, 'a'), `https://github.com/koolkam00/${repository}/releases`, 'Other sites keep their path, never a query');
 assert.equal(replay.replayAttribute('href', 'mailto:someone@example.com?subject=Analysis&body=Private%20Name', false, 'a'), 'mailto:someone@example.com');
 assert.equal(replay.replayAttribute('href', '/_next/static/css/app.css?v=1', false, 'link'), '/_next/static/css/app.css', 'Stylesheets keep their own address');
 assert.equal(replay.replayAttribute('srcset', '/a.png?x=1 1x, /b.png?y=2 2x'), '/a.png 1x, /b.png 2x');
@@ -646,7 +652,8 @@ let nodeId = 100000;
 const element = (tagName, attributes, childNodes = []) => ({ type: 2, tagName, attributes, childNodes, id: nodeId++ });
 const text = textContent => ({ type: 3, textContent, id: nodeId++ });
 const fullSnapshot = (...children) => ({ type: 2, data: { node: { type: 0, childNodes: [element('html', {}, [element('body', {}, children)])] }, initialOffset: { top: 0, left: 0 } }, timestamp: 2 });
-const snapshot = (data, extra = {}) => ({ event: '$snapshot', uuid: 'snapshot-event', timestamp: new Date(), properties: {
+// A fixed time: the clock's own digits (20:24:10 serialised) could match a watched string such as 0:24: below.
+const snapshot = (data, extra = {}) => ({ event: '$snapshot', uuid: 'snapshot-event', timestamp: new Date('2026-01-01T12:00:00Z'), properties: {
   token: 'test-project', distinct_id: TAB_ID, $session_id: SESSION_ID, $window_id: WINDOW_ID, $snapshot_bytes: 999, $snapshot_host: 'preview.vercel.app',
   $lib: 'web', $lib_version: '1.433.10', $config_defaults: '2026-05-30', $cookieless_mode: true, $sdk_debug_replay_unstringifiable_events_dropped: 1,
   name: 'Private Name', $current_url: 'https://splithappens.run/?q=Private', $snapshot_data: data, ...extra,

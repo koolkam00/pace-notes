@@ -56,9 +56,9 @@ function allStrings(run) {
 
 const escape = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const asPattern = needle => needle instanceof RegExp ? needle : new RegExp(escape(needle), 'i');
-// Matches that are not visitor data: the public release links in the site's header, footer and methods pages, and the
-// project's URL blocklist, which the recorder echoes in its options marker.
-const KNOWN_HARMLESS = /github\.com\/koolkam00\/htw-live-study\/releases(\/(tag|download)\/[\w.-]+)?|\[\?&\]via=runner\(&\|#\|\$\)/g;
+// Matches that are not visitor data: the public release links in the site's header, footer and methods pages (under the
+// repository's current name or its former one), and the project's URL blocklist, which the recorder echoes in its options marker.
+const KNOWN_HARMLESS = /github\.com\/koolkam00\/(?:pace-notes|htw-live-study)\/releases(\/(tag|download)\/[\w.-]+)?|\[\?&\]via=runner\(&\|#\|\$\)/g;
 
 /**
  * Where each needle appears in the run's PostHog traffic: [{ needle, at, excerpt }]. A needle is a string (matched
