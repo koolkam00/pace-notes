@@ -665,6 +665,11 @@ for (const file of ['app', 'components', 'lib', 'hooks', 'context'].flatMap(sour
   if (file === path.join('lib', 'data-fetch.ts') || BUILD_TIME_FETCH.includes(file)) continue;
   assert.doesNotMatch(withoutComments(file), /(?<![\w$])fetch\s*\(|\.fetch\s*\(/, `${file} calls fetch directly; use dataFetch from lib/data-fetch.ts so failures are reported`);
 }
+// maskAllInputs leaves hidden inputs unmasked: the one hidden field, the home form's units, is masked only by the
+// .home-plan region it sits in (its value attribute). A new hidden field needs a masked region too (docs/ANALYTICS.md).
+const hiddenFields = ['app', 'components'].flatMap(sourceFiles).filter(file => /\btype=(?:"hidden"|'hidden'|\{\s*['"]hidden['"]\s*\})/.test(withoutComments(file)));
+assert.deepEqual(hiddenFields, [path.join('components', 'home', 'PlanFormUnits.tsx')], 'The only hidden input is the home form\'s units field');
+assert.match(read('components/home/HomeDoors.tsx'), /<form className="home-door home-plan"[^]*?<PlanFormUnits \/>[^]*?<\/form>/, 'The units field is inside the masked .home-plan form');
 // Sections whose first view is counted: known ids only, and the home page marks its parts in reading order.
 for (const file of ['app', 'components'].flatMap(sourceFiles)) {
   for (const m of withoutComments(file).matchAll(/data-track-section=(?:"([^"]*)"|\{([^}]*)\})/g)) assert.ok(m[1] !== undefined && policy.TRACKED_SECTIONS.includes(m[1]), `${file}: data-track-section ${m[1] ?? m[2]} must be a literal id from TRACKED_SECTIONS`);

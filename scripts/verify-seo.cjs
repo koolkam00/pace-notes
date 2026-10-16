@@ -69,6 +69,7 @@ const CHECKS = {
   'old-host': `${OLD_HOST} is in no <head>`,
   'finish-counts': `Every "N.N million" or "N.NM" in a title or description equals finishesM() ("${FINISHES_M}")`,
   orphans: 'Every story and analysis page is linked from /research, and every other sitemap page from at least one other page',
+  'home-form': "The home page's course list (#home-plan-course) has the planner's options (#plan-course), values and names in the same order",
 };
 const WARNINGS = {
   'title-length': 'Titles over 60 characters',
@@ -624,6 +625,24 @@ let sitemapLocs = [];
     const from = inbound.get(path) || new Set();
     if (/^\/(stories|analyses)\/[^/]+$/.test(path)) { if (hub && !from.has('/research')) fail('orphans', path, 'is not linked from /research'); }
     else if (path !== '/' && !from.size) fail('orphans', path, 'no other page in the export links to it');
+  }
+})();
+
+// ---------- The home page's plan form ----------
+
+// The home page builds its course list from the course pages, the planner from its own data: a course on one list and
+// not the other would send the visitor to "a course that is not in the data", or hide one the planner offers.
+(function checkHomeForm() {
+  const options = (pagePath, id) => {
+    const select = (byPath.get(pagePath)?.html ?? '').match(new RegExp(`<select\\b[^>]*\\bid="${id}"[^>]*>([\\s\\S]*?)</select>`, 'i'));
+    return select ? [...select[1].matchAll(/<option\b([^>]*)>([\s\S]*?)<\/option>/gi)].map((m) => `${attributes(`<option${m[1]}>`).value ?? ''}=${textOf(m[2])}`) : null;
+  };
+  const home = options('/', 'home-plan-course');
+  const planner = options('/tools/plan', 'plan-course');
+  if (!home || !planner) fail('home-form', home ? '/tools/plan' : '/', `no ${home ? '#plan-course' : '#home-plan-course'} select in the export`);
+  else if (home.length < 2 || JSON.stringify(home) !== JSON.stringify(planner)) {
+    const only = (a, b) => a.filter((option) => !b.includes(option));
+    fail('home-form', '/', `the course list differs from the planner's (home only: ${only(home, planner).join(', ') || 'none'}; planner only: ${only(planner, home).join(', ') || 'none'}; ${home.length} and ${planner.length} options)`);
   }
 })();
 

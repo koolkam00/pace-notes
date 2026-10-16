@@ -91,7 +91,8 @@ async function firstScreen(h) {
 }
 
 // 200% zoom halves the page's width in CSS pixels: 390 and 402 px phones become 195 and 201. Nothing may run off the
-// screen, overlap or be cut off in the hero.
+// screen, overlap or be cut off in the hero, with a long goal typed into the form; and in the open Menu every link can
+// be scrolled into view, with its text inside its pill.
 async function zoomed(h) {
   for (const viewport of [{ width: 195, height: 332 }, { width: 201, height: 357 }]) {
     const run = await h.run(`200% zoom ${viewport.width} px`, { viewport });
@@ -99,6 +100,12 @@ async function zoomed(h) {
     await page.goto(SITE + '/', { waitUntil: 'load' });
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(800);
+    await type(page, '#home-plan-goal', '3:45:00');
+    const goal = await page.locator('#home-plan-goal').evaluate(el => ({ value: el.value, clientWidth: el.clientWidth, scrollWidth: el.scrollWidth }));
+    h.check(`200% zoom (${viewport.width} px): a typed 3:45:00 shows in full in the goal field`, goal.value === '3:45:00' && goal.scrollWidth <= goal.clientWidth, goal);
+    // Typing scrolled the field into view, under the sticky header: measure the hero from the top again.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(500);
     const seen = await page.evaluate(() => {
       const named = el => (typeof el.className === 'string' && el.className) || el.tagName;
       const parts = [...document.querySelectorAll('.site-header .header-brand, .site-header .nav-toggle, .site-header .unit-switch, #hero-title, .home-hero-dek, .home-plan-field label, .home-plan select, .home-plan input:not([type=hidden]), .home-plan-button, .home-door-link')]
@@ -113,14 +120,32 @@ async function zoomed(h) {
       const wide = [...document.querySelectorAll('main *, .site-header *')].filter(el => !el.closest('.sr-only, .hero-replay, .runner-lane, .main-nav') && el.getClientRects().length && el.getBoundingClientRect().right > innerWidth + 1).map(named).slice(0, 8);
       return { innerWidth, scrollWidth: document.documentElement.scrollWidth, overlaps, clipped, wide };
     });
-    await run.close();
     h.check(`200% zoom (${viewport.width} px): no sideways scroll, nothing past the screen's edge, overlapping or cut off`, seen.scrollWidth <= seen.innerWidth && !seen.wide.length && !seen.overlaps.length && !seen.clipped.length, seen);
+    await openMenu(page);
+    await page.waitForTimeout(300);
+    const menu = await page.evaluate(async () => {
+      const links = [];
+      for (const a of document.querySelectorAll('#site-menu a')) {
+        a.scrollIntoView({ block: 'nearest' });
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const box = a.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(a);
+        const text = range.getBoundingClientRect();
+        links.push({ text: a.textContent.trim(), top: Math.round(box.top), bottom: Math.round(box.bottom), overflow: Math.round(Math.max(0, text.right - box.right, box.left - text.left)) });
+      }
+      return { innerHeight, links };
+    });
+    await run.close();
+    h.check(`200% zoom (${viewport.width} px): every link in the open Menu can be scrolled into view, its text inside its pill`,
+      menu.links.length >= 8 && menu.links.every(l => l.top >= 0 && l.bottom <= menu.innerHeight && l.overflow <= 1), menu);
   }
 }
 
 // The form submits a GET to /tools/plan with the planner's own parameters: before any script runs, with the page's
-// JavaScript (units=km only when kilometres are chosen) and with an empty goal, which is left out so the planner opens
-// at its 4:00 example.
+// JavaScript (units=km only when kilometres are chosen) and with an empty goal. The page's script leaves an empty goal
+// out, so the planner opens at its 4:00 example; without it (or before it runs) the form sends goal=, which the planner
+// reads as a cleared goal and asks for one.
 async function homeForm(h) {
   const submit = async (options, { km = false, goal = '3:30', course = 'berlin' } = {}) => {
     const run = await h.run(`form${options.javaScript === false ? ' without JavaScript' : ''}${km ? ', kilometres' : ''}${goal ? '' : ', empty goal'}`, { ...PHONE, ...options });
@@ -150,6 +175,25 @@ async function homeForm(h) {
   h.check('with kilometres chosen it adds units=km', sent(km) === sent([['course', 'berlin'], ['goal', '3:30'], ['units', 'km']]), km);
   const empty = await submit({}, { goal: '' });
   h.check('an empty goal is left out, so the planner opens at its example', sent(empty) === sent([['course', 'berlin']]), empty);
+  const emptyNoScript = await submit({ javaScript: false }, { goal: '' });
+  h.check('without JavaScript an empty goal is sent as goal=', sent(emptyNoScript) === sent([['course', 'berlin'], ['goal', '']]), emptyNoScript);
+  // What the planner then shows, for each address (with its JavaScript).
+  const planner = async (query) => {
+    const run = await h.run(`planner ${query}`, PHONE);
+    const page = await run.newPage();
+    await page.goto(SITE + '/tools/plan?' + query, { waitUntil: 'load' });
+    await page.waitForTimeout(1500);
+    const shown = await page.evaluate(() => ({
+      plan: document.querySelector('#plan-headline-title')?.textContent.trim() ?? null,
+      asks: /Type a goal between/.test(document.querySelector('.tool-workspace')?.textContent ?? ''),
+    }));
+    await run.close();
+    return shown;
+  };
+  const example = await planner('course=berlin');
+  h.check('with the goal left out the planner opens at its 4:00 example on the chosen course', example.plan === '4:00 in Berlin' && !example.asks, example);
+  const cleared = await planner('course=berlin&goal=');
+  h.check('with goal= the planner shows no plan and asks for a goal (its rule: a cleared goal stays cleared)', cleared.plan === null && cleared.asks, cleared);
 }
 
 // A course page's in-page links (the contents, "sustained slowdown", "finish times by year") go through the router, so
@@ -188,7 +232,7 @@ module.exports = {
     ...(quick ? [] : [{ name: 'phone', weight: 34, run: h => browse(h, PHONE) }]),
     { name: 'home first screen', weight: 6, run: firstScreen },
     { name: 'home at 200% zoom', weight: 5, run: zoomed },
-    ...(quick ? [] : [{ name: 'home form', weight: 12, run: homeForm }]),
+    ...(quick ? [] : [{ name: 'home form', weight: 16, run: homeForm }]),
     { name: 'course page Back', weight: 8, run: h => courseBack(h, PHONE) },
   ],
 };

@@ -118,10 +118,11 @@ const CASES = {
     await step(log, '5 km', () => type(page, label(page, /Latest 5 km/, false), v.fiveK));
     await step(log, 'age', () => label(page, 'Age group', false).selectOption({ index: v.ageIdx }));
   } },
-  // The home page's course-and-goal form, then the planner it opens. The courses are not among the hero replay's races,
-  // whose names are page content in both runs. The form must be masked in the recording (homeFormMasked).
-  'home': { path: '/', needles: { A: ['Valencia'], B: ['Copenhagen'] }, after: homeFormMasked, async drive(page, v, log) {
-    await step(log, 'course', () => page.selectOption('#home-plan-course', v === V.A ? 'valencia' : 'copenhagen'));
+  // The home page's course-and-goal form, then the planner it opens. Both courses are ones neither page names by itself
+  // (the hero replay's races and the planner's method note are page content in both runs, so a needle among them could
+  // never fail). The form must be masked in the recording (homeFormMasked).
+  'home': { path: '/', needles: { A: ['Helsinki'], B: ['Copenhagen'] }, after: homeFormMasked, async drive(page, v, log) {
+    await step(log, 'course', () => page.selectOption('#home-plan-course', v === V.A ? 'helsinki' : 'copenhagen'));
     await step(log, 'goal', () => type(page, '#home-plan-goal', v.hm));
     await step(log, 'plan your race', async () => { await page.locator('.home-plan-button').click(); await page.waitForURL(url => new URL(url).pathname === '/tools/plan'); });
     await page.waitForTimeout(1500); await wiggle(page, 5);
