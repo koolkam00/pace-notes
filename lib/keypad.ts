@@ -26,14 +26,30 @@ export function keypadColons(text: string, mode: DurationMode = 'race'): string 
 }
 
 /**
- * For a field's change (React's onChange, with e.nativeEvent) or input event: puts keypadColons into the field itself, the
- * caret where it was (the text keeps its length), and returns the field's text. Pasted or dropped text stays as it is,
- * since every time reader accepts dots and commas and a pasted "25:50.12" keeps its tenths.
+ * For a field's change (React's onChange, with e.nativeEvent) or input event: turns the dot or comma that this keystroke
+ * typed into a colon, in the field itself with the caret where it was (the text keeps its length), and returns the field's
+ * text. Only what was just typed changes: text already in the field, such as a pasted "25:50.12", keeps its dots when it is
+ * edited later, and pasting, dropping or deleting changes nothing. Without an event that says what was typed, the whole
+ * text is read as keypadColons reads it.
  */
 export function keypadInput(field: HTMLInputElement, event?: Event, mode: DurationMode = 'race'): string {
-  const kind = (event as InputEvent | undefined)?.inputType ?? '';
-  if (/^insertFrom(?:Paste|Drop)/.test(kind)) return field.value;
-  const next = keypadColons(field.value, mode);
+  const input = event as InputEvent | undefined;
+  const value = field.value;
+  if (!input?.inputType) return place(field, keypadColons(value, mode));
+  if (mode !== 'race' || !/^insert(?:Text|CompositionText)$/.test(input.inputType) || !input.data || !/[.,]/.test(input.data) || /[a-z]/i.test(value)) return value;
+  const end = field.selectionStart ?? value.length;
+  const start = Math.max(0, end - input.data.length);
+  if (value.slice(start, end) !== input.data) return value;
+  const typed = value.slice(start, end);
+  let colons = (value.slice(0, start) + value.slice(end)).match(/:/g)?.length ?? 0;
+  let out = '';
+  for (const ch of typed) {
+    if ((ch === '.' || ch === ',') && colons < 2) { out += ':'; colons += 1; } else out += ch;
+  }
+  return place(field, value.slice(0, start) + out + value.slice(end));
+}
+
+function place(field: HTMLInputElement, next: string): string {
   if (next !== field.value) {
     const [start, end] = [field.selectionStart, field.selectionEnd];
     field.value = next;

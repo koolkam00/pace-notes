@@ -63,13 +63,22 @@ assert.deepEqual(time.parseTrackerText('25K 2:05:31\n30 km 02:31:07 4:59/km\nHal
   }
   assert.equal(time.parseDuration('8:30 min', 'pace'), null, 'a pace colon with a unit is not read as a dot'); ok();
   assert.equal(time.parseDuration('3:30:00 h', 'race'), null, 'two colons with a unit stay unreadable'); ok();
-  // keypadInput changes the field in place with the caret kept; pasted or dropped text is left as it is.
-  const field = (value) => ({ value, selectionStart: 2, selectionEnd: 2, setSelectionRange(a, b) { this.caret = [a, b]; } });
-  const typedField = field('3.30');
-  assert.equal(keypad.keypadInput(typedField, { inputType: 'insertText' }), '3:30'); assert.equal(typedField.value, '3:30'); assert.deepEqual(typedField.caret, [2, 2]);
-  for (const inputType of ['insertFromPaste', 'insertFromDrop']) { const pasted = field('25:50.12'); assert.equal(keypad.keypadInput(pasted, { inputType }), '25:50.12'); assert.equal(pasted.value, '25:50.12'); }
-  assert.equal(keypad.keypadInput(field('8.5'), { inputType: 'insertText' }, 'pace'), '8.5');
-  checks += 6;
+  // keypadInput changes only the dot or comma just typed, in place with the caret kept. Pasted or dropped text is left as it
+  // is, and so are its dots when it is edited later: a pasted "25:50.12" with its last digit deleted, or a digit added, keeps
+  // its tenths.
+  const field = (value, caret = 2) => ({ value, selectionStart: caret, selectionEnd: caret, setSelectionRange(a, b) { this.caret = [a, b]; } });
+  const typedField = field('3.');
+  assert.equal(keypad.keypadInput(typedField, { inputType: 'insertText', data: '.' }), '3:'); assert.equal(typedField.value, '3:'); assert.deepEqual(typedField.caret, [2, 2]);
+  assert.equal(keypad.keypadInput(field('3:30.', 5), { inputType: 'insertText', data: '.' }), '3:30:');
+  assert.equal(keypad.keypadInput(field('1:12:55.', 8), { inputType: 'insertText', data: '.' }), '1:12:55.', 'a third group stays a dot');
+  for (const inputType of ['insertFromPaste', 'insertFromDrop']) { const pasted = field('25:50.12', 8); assert.equal(keypad.keypadInput(pasted, { inputType, data: null }), '25:50.12'); assert.equal(pasted.value, '25:50.12'); }
+  const edited = field('25:50.1', 7);
+  assert.equal(keypad.keypadInput(edited, { inputType: 'deleteContentBackward', data: null }), '25:50.1', 'a deletion changes nothing'); assert.equal(edited.value, '25:50.1');
+  assert.equal(keypad.keypadInput(field('25:50.123', 9), { inputType: 'insertText', data: '3' }), '25:50.123', 'a digit leaves earlier dots alone');
+  assert.equal(keypad.keypadInput(field('3.30', 4), { inputType: 'insertText', data: '0' }), '3.30', 'only the key just typed changes');
+  assert.equal(keypad.keypadInput(field('8.', 2), { inputType: 'insertText', data: '.' }, 'pace'), '8.');
+  assert.equal(keypad.keypadInput(field('3.30')), '3:30', 'without an event the whole text is read');
+  checks += 11;
 
   // Every reader behind a time field.
   for (const [text, mode, expected] of [['1.12.55', 'race', 4375], ['3,30', 'race', 12600], ['3,30,15', 'race', 12615], ['8,05', 'pace', 485], ['8.5', 'pace', 510], ['8.50', 'pace', 530]]) {
