@@ -365,8 +365,11 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
             {planned ? (
               <section className="tool-panel plan-band" id="plan-band" aria-labelledby="plan-band-title">
                 <header className="tool-panel-head">
+                  {/* The strips are the visitor's own even-pace times; the small "H" line is observed, so the panel carries the
+                      data badge whenever that line is drawn, as the pace band's own print panel does. */}
+                  {comparison?.held ? <span className="evidence-badge evidence-data">Pace Notes data</span> : null}
                   <h2 className="tool-panel-title" id="plan-band-title">Your pace band</h2>
-                  <p className="tool-panel-meta">Your plan, ready to cut out: the exact even-pace time at each 5 km mat and every {units === 'mi' ? 'mile' : 'kilometre'}, with the held-pace median (“H”) at each mat where Pace Notes data publishes one. Print at 100% scale.</p>
+                  <p className="tool-panel-meta">Your plan, ready to cut out: the big numbers are the exact even-pace times at each 5 km mat and every {units === 'mi' ? 'mile' : 'kilometre'}, calculated from your goal.{comparison?.held ? ' The small “H” line is Pace Notes data: the median elapsed time at each mat of the finishes in the comparison above that held their pace.' : ''} Print at 100% scale.</p>
                 </header>
                 <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={units === 'mi' ? 'mi' : 'km'} overrun={0} place={place} genderWord=""
                   observed={comparison ? { held: comparison.held, lo: comparison.lo, hi: comparison.hi, place, genderWord: '' } : null} profile={null} showBack={false} waiting={false} />
@@ -383,7 +386,8 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
 
           {planned ? (
             <>
-              <p className="print-only plan-print-source">Pace Notes data · splithappens.run/tools/plan</p>
+              {/* Only a page that prints observed columns (the comparison's table and "H" line) is attributed to the data. */}
+              <p className="print-only plan-print-source">{comparison ? 'Your plan beside Pace Notes data' : 'Your plan, calculated from your goal'} · splithappens.run/tools/plan</p>
 
               <section className="plan-next no-print" aria-labelledby="plan-before-title">
                 <h2 className="plan-next-title" id="plan-before-title">Before race day</h2>
