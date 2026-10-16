@@ -304,7 +304,7 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
             {planned ? (
               <EvidencePanel kind="data" id="plan-result" title={isAll ? <>On all courses, at {fmtGoal(goal)} pace</> : course ? <>On {course.city}, at {fmtGoal(goal)} pace</> : <>Course not found</>}
                 meta={isAll && inBand && all ? <>All courses together: the pace band’s group of finishes that came in from {formatDuration(minute * 60 - windowS, true)} to {formatDuration(minute * 60 - 1, true)}, every course and edition pooled. Choose a course for its own results.</>
-                  : course && result?.state === 'row' ? <>Observed shares of complete finishes that ran 5–20 km within {Math.round((goalData.data?.tolerance ?? 0.02) * 100)}% of your goal pace. Not a prediction.</> : undefined}>
+                  : course && result?.state === 'row' ? <>Observed shares of complete finishes that ran 5–20 km within {Math.round((goalData.data?.tolerance ?? 0.02) * 100)}% of {result.rounded ? <>the {formatHM(result.minutes * 60)} pace, the published goal nearest yours</> : 'your goal pace'}. Not a prediction.</> : undefined}>
                 {unknown ? (
                   <p className="plan-unavailable">This link names a course that is not in the data. Choose one above; your plan and pace band below still work.</p>
                 ) : isAll ? (
@@ -346,9 +346,9 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
 
           {planned ? (
             <>
-              {!comparison && !isAll && course?.band && shard.error ? (
+              {!comparison && !isAll && course?.band && (bandIndex.error || shard.error) ? (
                 <EvidencePanel kind="data" id="plan-comparison-error" title={<>Where finishes near {fmtGoal(goal)} were at each mat</>}>
-                  <DataProblem error={shard.error} onRetry={retry} />
+                  <DataProblem error={(bandIndex.error ?? shard.error)!} onRetry={retry} />
                 </EvidencePanel>
               ) : null}
               {!comparison ? <div className="print-only plan-print-mats"><MatTable goal={goal} pKm={pKm} units={units} observed={null} /></div> : null}
