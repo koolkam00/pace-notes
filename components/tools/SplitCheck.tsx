@@ -55,7 +55,12 @@ export function parseMatTime(input: string, prev: number | null = null): number 
     const mmss = Math.round(a * 60 + b + fraction);
     return prev !== null && mmss <= prev && a <= 12 && !fraction ? a * 3600 + b * 60 : mmss;
   };
-  const colon = text.match(/^(\d{1,3}(?::\d{1,2}){1,2})(?:\.(\d{1,3}))?$/);
+  // The keypad's 25.50.12 shows 25:50:12 (lib/keypad.ts). From 13 up, three groups are minutes, seconds and hundredths:
+  // no mat is reached in under 13 minutes, and the split check reads no time past 12 hours.
+  const hundredths = text.match(/^(\d{2,3}):([0-5]\d):(\d{1,3})$/);
+  if (hundredths && Number(hundredths[1]) >= 13) return Math.round(Number(hundredths[1]) * 60 + Number(hundredths[2]) + Number(`0.${hundredths[3]}`));
+  // Two digits after each colon: a lone digit ("22:5", the keypad's 22.5) is parseDuration's decimal minutes.
+  const colon = text.match(/^(\d{1,3}(?::\d{2}){1,2})(?:\.(\d{1,3}))?$/);
   if (colon) {
     const parts = colon[1].split(':').map(Number);
     if (parts.slice(1).some((p) => p >= 60)) return null;
@@ -142,7 +147,7 @@ export function readPasted(text: string): PasteResult {
   const times = chooseSequence(candidates);
   const found = times.filter((t) => t !== null).length;
   if (labelled && found) return { times, found, labelled: true, tokens: found };
-  const tokens = timeTokens(text).map(parseMatTime).filter((t): t is number => t !== null);
+  const tokens = timeTokens(text).map((token) => parseMatTime(token)).filter((t): t is number => t !== null);
   if (tokens.length === 9) return { times: tokens, found: 9, labelled: false, tokens: 9 };
   // An unlabelled list with halfway in it: ten times, the fifth between 20 and 25 km at a plausible pace from the 20 km mat.
   if (tokens.length === 10) {

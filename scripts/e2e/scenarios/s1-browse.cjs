@@ -230,7 +230,8 @@ async function keypad(h) {
   await deskPage.waitForTimeout(600);
   const deskHint = await hintOf(deskPage, '.home-plan .keypad-hint');
   h.check('desktop: the home goal has the keypad hint, not shown (a fine pointer)', deskHint && !deskHint.shown && !deskHint.coarse, deskHint);
-  // A unit typed after a dot: the dot became a colon before the letter came ("3:5h"), and the reading is still 3.5 hours.
+  // A keyboard has a colon key, so on a desktop a typed dot stays a dot (the phone's keypad makes it a colon before a
+  // letter arrives, "3:5h", which parseDuration still reads as 3.5 hours): either way the reading is 3.5 hours.
   await deskPage.goto(SITE + '/tools/plan?course=berlin', { waitUntil: 'load' });
   await deskPage.waitForTimeout(1200);
   const units = [];

@@ -69,6 +69,10 @@ export function parseElapsed(input: string): number | null {
     if (b >= 60) return null;
     return a >= 10 ? a * 60 + b + (two[3] ? Number(`0.${two[3]}`) : 0) : a * 3600 + b * 60;
   }
+  // The keypad's 25.50.12 shows 25:50:12 (lib/keypad.ts). From 13 up, three groups are minutes, seconds and hundredths:
+  // no mat is reached in under 13 minutes or after 13 hours.
+  const hundredths = text.match(/^(\d{2,3}):([0-5]\d):(\d{1,3})$/);
+  if (hundredths && Number(hundredths[1]) >= 13) return Number(hundredths[1]) * 60 + Number(hundredths[2]) + Number(`0.${hundredths[3]}`);
   const seconds = parseDuration(text, 'race');
   return seconds !== null && seconds > 0 ? seconds : null;
 }

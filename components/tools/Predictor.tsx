@@ -101,18 +101,25 @@ function paceWords(secondsPerKm: number, units: UnitSystem): string {
 
 /**
  * Read a race time the way runners type it for this distance: "22:30" is minutes for a 5K, "1:55" is hours for a half.
- * Only two-group times are ambiguous; the reading that gives a plausible pace wins. When neither does, the reading nearer
+ * Two-group times are ambiguous, and so is the keypad's "25:50:12"; the reading that gives a plausible pace wins. When neither does, the reading nearer
  * the plausible paces wins, so "12:00" for a 5K is read as 12 minutes (too fast) rather than 12 hours. Zero is unreadable.
  */
 export function parseRaceTime(text: string, km: number | null): number | null {
   const long = parseDuration(text, 'race');
   const short = parseDuration(text, 'pace');
+  const plausible = (s: number) => km !== null && s / km >= PACE_MIN && s / km <= PACE_MAX;
   let read: number | null;
   if (long === null || short === null || long === short || km === null) read = long ?? short;
   else {
-    const plausible = (s: number) => s / km >= PACE_MIN && s / km <= PACE_MAX;
     const off = (s: number) => (s / km < PACE_MIN ? Math.log(PACE_MIN / (s / km)) : Math.log(s / km / PACE_MAX));
     read = plausible(long) ? long : plausible(short) ? short : off(short) <= off(long) ? short : long;
+  }
+  // The keypad's 25.50.12 shows 25:50:12 (lib/keypad.ts): from 10 up, three groups can be minutes, seconds and hundredths,
+  // which a short race's time is when its hours reading is not a plausible pace.
+  const hundredths = /^(\d{2,3}):([0-5]\d):(\d{1,3})$/.exec(text.trim());
+  if (hundredths && Number(hundredths[1]) >= 10 && !(read !== null && plausible(read))) {
+    const minutes = Number(hundredths[1]) * 60 + Number(hundredths[2]) + Number(`0.${hundredths[3]}`);
+    if (plausible(minutes)) read = minutes;
   }
   return read !== null && read > 0 ? read : null;
 }

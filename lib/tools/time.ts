@@ -37,8 +37,11 @@ export function parseDuration(input: string, mode: DurationMode = 'race'): numbe
     if (b >= 60) return null;
     return mode === 'race' ? a * 3600 + b * 60 : a * 60 + b;
   }
-  if (NUM.test(text)) {
-    const minutes = Number(text);
+  // The keypad types a race time's dot as a colon before the next key arrives (lib/keypad.ts), so "45.5" reaches here as
+  // "45:5" and "3.5" as "3:5". A lone colon before a single last digit is read as that dot: decimal minutes, as typed.
+  const decimal = mode === 'race' ? /^(\d+):(\d)$/.exec(text) : null;
+  if (NUM.test(text) || decimal) {
+    const minutes = Number(decimal ? `${decimal[1]}.${decimal[2]}` : text);
     return minutes > 0 ? Math.round(minutes * 60 * 1000) / 1000 : null;
   }
   let parts = text.split(':');
@@ -58,9 +61,6 @@ export function parseDuration(input: string, mode: DurationMode = 'race'): numbe
   }
   const [a, b] = nums;
   if (b >= 60) return null;
-  // "12:30.15" as the keypad types 12.30.15 after ten or more hours (lib/keypad.ts): the seconds follow the dot.
-  const late = mode === 'race' && a >= 10 ? /^(\d{1,2})\.(\d{2})$/.exec(parts[1]) : null;
-  if (late) return Number(late[2]) < 60 ? a * 3600 + Number(late[1]) * 60 + Number(late[2]) : null;
   return mode === 'race' ? a * 3600 + b * 60 : a * 60 + b;
 }
 

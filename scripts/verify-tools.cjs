@@ -85,15 +85,34 @@ assert.deepEqual(time.parseTrackerText('25K 2:05:31\n30 km 02:31:07 4:59/km\nHal
   assert.equal(keypad.keypadInput(field('1.12.55.', 8), { inputType: 'insertText', data: '.' }), '1.12.55.');
   assert.equal(time.parseDuration('1.12:55.3'), 4375.3, 'tenths after the last colon stay tenths');
   for (const bad of ['1.12:', '1.:30', '1.2.3:4', '1.75:30']) { assert.equal(time.parseDuration(bad), null, `reject ${bad}`); }
-  // After ten or more the first group is minutes: the second dot is the seconds' decimal point ("25:50.12"), as the split
-  // check and the projector read "25:50"; an ultra's 12.30.15 shows 12:30.15 and still reads 12:30:15. A kept comma shows a dot.
+  const splitTool = require('../components/tools/SplitCheck.tsx');
+  const projectorTool = require('../components/tools/Projector.tsx');
+  const predictorTool = require('../components/tools/Predictor.tsx');
+  const planTool = require('../lib/tools/plan.ts');
+  // Typed key by key the keypad makes two colons, then dots ("1,12,55,3" shows 1:12:55.3); the readers of short times
+  // read "25:50:12" as 25 minutes 50.12 seconds where hours cannot be meant, and every other race time as h:mm:ss, so a
+  // walker's 10.30.15 is 10:30:15.
   const keyed = (typed) => [...typed].reduce((f, key) => { f.value += key; f.selectionStart = f.selectionEnd = f.value.length; keypad.keypadInput(f, { inputType: 'insertText', data: key }); return f; }, field('', 0)).value;
-  for (const [typed, shown] of [['25.50.12', '25:50.12'], ['25,50,12', '25:50.12'], ['12.30.15', '12:30.15'], ['1.12.55', '1:12:55'], ['0.25.50', '0:25:50'], ['09.05.30', '09:05:30']]) {
+  for (const [typed, shown] of [['25.50.12', '25:50:12'], ['25,50,12', '25:50:12'], ['10.30.15', '10:30:15'], ['1.12.55', '1:12:55'], ['0.25.50', '0:25:50'], ['1.12.55.3', '1:12:55.3'], ['1,12,55,3', '1:12:55.3'], ['45.5', '45:5']]) {
     assert.equal(keyed(typed), shown, `typed key by key: ${typed}`); assert.equal(keypad.keypadColons(typed), shown, `keypadColons: ${typed}`);
   }
-  assert.equal(time.parseDuration('12:30.15'), 45015, 'an ultra typed on the keypad'); assert.equal(time.parseDuration('3:30.15'), 12609, 'under ten hours a dot after the minutes is still a decimal');
-  assert.equal(time.parseDuration('12:30.75'), null);
-  checks += 15;
+  assert.deepEqual([splitTool.parseMatTime('25:50:12'), splitTool.parseMatTime('51:20:4', 1550), splitTool.parseMatTime('10:30:15', 34200), splitTool.parseMatTime('12:00:00')], [1550, 3080, 37815, 43200]);
+  assert.deepEqual([projectorTool.parseElapsed('25:50:12'), projectorTool.parseElapsed('10:30:15'), projectorTool.parseElapsed('25:50.12'), projectorTool.parseElapsed('12:05:00')], [1550.12, 37815, 1550.12, 43500]);
+  assert.deepEqual([predictorTool.parseRaceTime('25:50:12', 5), predictorTool.parseRaceTime('10:30:15', 42.195), predictorTool.parseRaceTime('10:30:15', 3), predictorTool.parseRaceTime('3:30:15', 42.195)], [1550.12, 37815, 630.15, 12615]);
+  // A lone colon before a single last digit is the keypad's decimal: 45.5 and 22.5 minutes, as before the keypad change, and
+  // a marathon goal typed 3.5 is 3.5 minutes (out of range), never 3:05. A pace's colon is a colon.
+  assert.deepEqual([time.parseDuration('45:5'), time.parseDuration('22:5'), time.parseDuration('3:5'), time.parseDuration('8:5', 'pace')], [2730, 1350, 210, 485]);
+  assert.deepEqual([splitTool.parseMatTime('22:5'), predictorTool.parseRaceTime('45:5', 10), predictorTool.parseRaceTime('22:5', 5), planTool.readPlanGoal('3:5').seconds], [1350, 2730, 1350, null]);
+  // A keyboard's whole-word insert (a clipboard suggestion) is kept as it came, like a paste.
+  for (const data of ['2:05:31.4', '25:50.12', '1,12,55']) { const f = field(data, data.length); assert.equal(keypad.keypadInput(f, { inputType: 'insertText', data }), data); }
+  // A keyboard has a colon key, so off touch screens (a fine pointer) a typed dot stays a dot: a mile's 5:45.3 reads 5:45.3.
+  global.matchMedia = (query) => ({ matches: query !== '(pointer: coarse)' });
+  try {
+    assert.equal(keypad.keypadInput(field('5:45.', 5), { inputType: 'insertText', data: '.' }), '5:45.');
+    assert.equal(keypad.keypadInput(field('3.30')), '3.30');
+    assert.equal(predictorTool.parseRaceTime('5:45.3', 1.609344), 345.3);
+  } finally { delete global.matchMedia; }
+  checks += 27;
 
   // Every reader behind a time field.
   for (const [text, mode, expected] of [['1.12.55', 'race', 4375], ['3,30', 'race', 12600], ['3,30,15', 'race', 12615], ['8,05', 'pace', 485], ['8.5', 'pace', 510], ['8.50', 'pace', 530]]) {

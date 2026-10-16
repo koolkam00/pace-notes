@@ -2,7 +2,7 @@
 
 ## Time fields: the keypad's dot types a colon (October 16, 2026)
 
-**Repository state:** branch `fix/keypad-colon` from `main` at c0f9207; not merged. **Deployed state:** not deployed. The owner reported (iPhone, the home page's goal field) that the keypad has no colon; in every single race-time field the dot or comma key now types a colon, pace fields show m:ss when left, every time reader takes dots, and touch screens show "Tap . for :" ([tools](TOOLS.md), "Time fields and the keypad"). `analysis/**`, `public/data/**` and the pins are unchanged.
+**Repository state:** branch `fix/keypad-colon` from `main` at c0f9207; not merged. **Deployed state:** not deployed. The owner reported (iPhone, the home page's goal field) that the keypad has no colon; in every single race-time field the dot or comma key now types a colon on touch screens, pace fields show m:ss when left, every time reader takes dots, and touch screens show "Tap . for :" ([tools](TOOLS.md), "Time fields and the keypad"). `analysis/**`, `public/data/**` and the pins are unchanged.
 
 ## StoryBrand series: what is live and what is open (October 16, 2026)
 
