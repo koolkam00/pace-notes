@@ -194,6 +194,7 @@ CI runs it after `npm run build` in [`site-validation.yml`](../.github/workflows
 | `old-host` | `htw-live-study.vercel.app` is in any `<head>` (or in JSON-LD) |
 | `finish-counts` | an "N.N million" or "N.NM" in a title or description is not `finishesM()` |
 | `orphans` | a story or analysis page in the sitemap is not linked from `/research`, or any other sitemap page but the home page is linked from no other page in the export (October 16, 2026) |
+| `home-form` | the home page's course select (`#home-plan-course`) does not have the planner's options (`#plan-course` on `/tools/plan`), the same values and names in the same order: the home list comes from the course pages, the planner's from its own data (October 16, 2026) |
 
 Warnings only: titles over 60 characters, descriptions over 155 (the site's limits), `og-image-fallback` (a page that uses a less specific card than the one `scripts/build-og-images.cjs` makes for it: a stale build or a missing card), and policy notes (noindex pages that also say nofollow, JSON-LD on pages the plan keeps without it, `changefreq` or `priority` in the sitemap).
 
