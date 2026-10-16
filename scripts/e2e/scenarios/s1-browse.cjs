@@ -4,8 +4,11 @@
 // clean path and the previous page's reading figures, and each page is recorded except the runner search, which never
 // is. Then the home page's first screen on the two common iPhone sizes (the plan button and the other two ways to start
 // show without scrolling, and that button is the only orange control there), the hero at 200% zoom, and its
-// course-and-goal form, which goes to the planner by GET with and without the page's JavaScript.
-// Then a course page's contents link, a link away and Back.
+// course-and-goal form, which goes to the planner by GET with and without the page's JavaScript. Last, the units
+// switch: it works on /research opened directly, and every page served with the inert placeholder reads the same in
+// miles and kilometres. Then a course page's contents link, a link away and Back.
+const fs = require('node:fs');
+const path = require('node:path');
 const { SITE, wiggle, openMenu, type } = require('../browser.cjs');
 const { experimentPlant } = require('../inspect.cjs');
 
@@ -196,6 +199,41 @@ async function homeForm(h) {
   h.check('with goal= the planner shows no plan and asks for a goal (its rule: a cleared goal stays cleared)', cleared.plan === null && cleared.asks, cleared);
 }
 
+// Every page whose text changes with the units has the header's working switch (lib/unit-preference.ts; the build stops
+// otherwise). /research, opened directly, converts its list of analyses when Kilometres is pressed (it showed the inert
+// placeholder before); every page the export serves with the placeholder (404.html aside) reads the same in both units.
+async function unitSwitch(h) {
+  const run = await h.run('units switch', DESKTOP);
+  const page = await run.newPage();
+  const seen = () => page.evaluate(() => {
+    const control = document.querySelector('.site-header .unit-switch');
+    return {
+      working: !!control && !control.classList.contains('unit-switch-placeholder') && control.getAttribute('role') === 'group' && getComputedStyle(control).visibility === 'visible',
+      analyses: (document.querySelector('#analyses')?.innerText ?? '').match(/[^\n]*the first [^\n]* to the finish\./)?.[0] ?? null, search: location.search,
+    };
+  });
+  await page.goto(SITE + '/research', { waitUntil: 'load' });
+  await page.waitForTimeout(800);
+  const miles = await seen();
+  h.check('/research, opened directly, has the working units switch', miles.working, miles);
+  if (miles.working) { await page.click('.site-header .unit-switch button:has-text("Kilometres")'); await page.waitForTimeout(400); }
+  const km = await seen();
+  h.check('pressing Kilometres on /research converts its analyses (the first 3.11 mi, then the first 5 km) and adds units=km',
+    /the first 3\.11 mi to/.test(miles.analyses) && /the first 5 km to/.test(km.analyses) && km.search === '?units=km', { miles, km });
+  const placeholders = fs.readdirSync(h.out, { recursive: true }).filter(file => file.endsWith('.html') && file !== '404.html'
+    && fs.readFileSync(path.join(h.out, file), 'utf8').includes('unit-switch-placeholder')).map(file => '/' + file.replace(/\.html$/, '').replace(/(^|\/)index$/, '')).sort();
+  const differ = [];
+  for (const at of placeholders) {
+    const text = async units => { await page.goto(`${SITE}${at}?units=${units}`, { waitUntil: 'load' }); await page.waitForTimeout(800); return page.evaluate(() => document.querySelector('main')?.innerText ?? ''); };
+    const [mi, kilometres] = [await text('mi'), await text('km')];
+    const line = mi.split('\n').findIndex((text, i) => text !== kilometres.split('\n')[i]);
+    if (!mi || mi !== kilometres) differ.push({ page: at, miles: mi.split('\n')[line], km: kilometres.split('\n')[line] });
+  }
+  await run.close();
+  h.check('every page served with the inert placeholder reads the same in miles and kilometres', placeholders.length && !differ.length && !placeholders.includes('/research'), { placeholders, differ });
+  h.note(`units switch: placeholder pages ${placeholders.join(', ')}`);
+}
+
 // A course page's in-page links (the contents, "sustained slowdown", "finish times by year") go through the router, so
 // after one of them, following any other link and going Back shows the course page again, with its own page view; a
 // plain fragment link left the address on the course page and the page left on screen.
@@ -226,13 +264,14 @@ async function courseBack(h, device) {
 
 module.exports = {
   id: 'S1',
-  title: 'Browsing: home, story, the five main links, an analysis, privacy; the home page\'s first screen and form; Back to a course page',
+  title: 'Browsing: home, story, the five main links, an analysis, privacy; the home page\'s first screen and form; the units switch; Back to a course page',
   jobs: ({ quick }) => [
     { name: 'desktop', weight: 34, run: h => browse(h, DESKTOP) },
     ...(quick ? [] : [{ name: 'phone', weight: 34, run: h => browse(h, PHONE) }]),
     { name: 'home first screen', weight: 6, run: firstScreen },
     { name: 'home at 200% zoom', weight: 5, run: zoomed },
     ...(quick ? [] : [{ name: 'home form', weight: 16, run: homeForm }]),
+    { name: 'units switch', weight: 12, run: unitSwitch },
     { name: 'course page Back', weight: 8, run: h => courseBack(h, PHONE) },
   ],
 };

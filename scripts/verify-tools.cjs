@@ -555,5 +555,38 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   for (const t of registry.TOOLS) assert.ok(fs.existsSync(path.join(__dirname, '..', 'app/tools', t.slug, 'page.tsx')), `${t.slug}: page exists`);
   checks += 1 + registry.TOOLS.length;
 }
+// The cohort note (home page and /research) and the home guide's bib say which pages start from the screened finishes.
+// Only the tools with a Pace Notes data badge do; the note says what each other tool uses, from its badges, and never
+// that every page or every tool starts from the finishes. A data tool without a data file, or whose file starts from
+// another total, stops the render (and so the build).
+if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json'))) {
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const registry = require('../lib/tools/registry.ts');
+  const { countWord } = require('../lib/stories.ts');
+  const cohortNote = require('../components/CohortNote.tsx');
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'public/data/insights/manifest.json'), 'utf8'));
+  const shown = registry.TOOLS.filter((t) => !t.file || manifest.files[t.file]);
+  const dataTools = shown.filter((t) => t.evidence.includes('data'));
+  const otherTools = shown.filter((t) => !t.evidence.includes('data'));
+  const render = () => renderToStaticMarkup(React.createElement(cohortNote.default)).replace(/<[^>]+>/g, '');
+  const note = render();
+  const dataPhrase = `the ${countWord(dataTools.length)} tools that use ${registry.EVIDENCE_LABEL.data}`;
+  assert.ok(dataTools.length > 1 && note.includes(dataPhrase), `The cohort note names the ${dataTools.length} data tools: ${note}`);
+  assert.equal(note.match(/\btools?\b/g).length, 1, `"tools" only in "${dataPhrase}": ${note}`);
+  assert.doesNotMatch(note, /every page|every tool|all (?:the )?tools/i, 'No claim that every page or tool starts from the finishes');
+  for (const t of otherTools) {
+    const from = t.evidence.length ? t.evidence.map((kind) => registry.EVIDENCE_LABEL[kind].toLowerCase()).join(' and ') : 'only your own inputs';
+    assert.ok(note.includes(`${t.title.toLowerCase()} uses ${from}`), `The cohort note says the ${t.slug} tool uses ${from}: ${note}`);
+  }
+  assert.equal(cohortNote.screenedPages(), `the stories, the course pages and ${dataPhrase}`);
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'app/(home)/page.tsx'), 'utf8'), /the base for \{screenedPages\(\)\}\./, 'The home guide\'s bib takes its list from the cohort note');
+  for (const [fake, error] of [[{ slug: 'fake', evidence: ['data'] }, /fake tool has a Pace Notes data badge but no data file/], [{ slug: 'fake', evidence: ['data'], file: 'replay/berlin-2024.json' }, /must start from the story manifest's analysis_n/]]) {
+    registry.TOOLS.push(fake);
+    try { assert.throws(render, error); } finally { registry.TOOLS.pop(); }
+  }
+  assert.equal(render(), note, 'The registry is as it was');
+  checks += 8 + otherTools.length;
+}
 
-console.log(`Tool libraries passed ${checks} checks: time parsing, pace calculations and splits, pace charts by goal time and goal-page links, result handoffs to the planner, the pace band and the pacing-pattern analysis, the race planner (its goal, the course-goal row it shows, recounted from the runner records, and the rendered plan), goal-page sentences, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading and the pacing-type classifier.`);
+console.log(`Tool libraries passed ${checks} checks: time parsing, pace calculations and splits, pace charts by goal time and goal-page links, result handoffs to the planner, the pace band and the pacing-pattern analysis, the race planner (its goal, the course-goal row it shows, recounted from the runner records, and the rendered plan), goal-page sentences, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading, the pacing-type classifier, and the cohort note, which says only the tools with Pace Notes data start from the screened finishes.`);

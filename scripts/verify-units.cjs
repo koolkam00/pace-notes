@@ -333,4 +333,36 @@ assert.match(chartSource('QuestionViz.tsx'), /paceTicks\(Math\.min\(\.\.\.allVal
 assert.match(chartSource('QuestionLineChart.tsx'), /<YAxis [^>]*ticks=\{paceTicks\}[^>]*domain=\{paceTicks \? \[paceTicks\[0\], paceTicks\[paceTicks\.length - 1\]\]/);
 assert.match(chartSource('RunnerContext.tsx'), /<YAxis [^>]*domain=\{paceAxis \? paceAxis\.domain : \['auto', 'auto'\]\} ticks=\{paceAxis\?\.ticks\}/);
 
-console.log('Verified display-only mile, pace and elevation conversions, source precision, checkpoint labels, prose ranges, URL preservation, rendered measurements, unchanged samples, real profile sections and round pace-axis ticks in both units, and the same conversions where a lookbehind RegExp cannot be built (Safari before 16.4).');
+// The header's units switch works on every page that shows text changing with the units (lib/unit-preference.ts), and
+// the server render stops (so the build stops) when such text is on a page where the switch is inert.
+{
+  const { unitSwitchShown } = require('../lib/unit-preference.ts');
+  for (const page of ['/', '/about', '/slowdown', '/htw', '/research', '/your-race', '/analyses', '/analyses/pacing-pattern', '/runners', '/packs', '/packs/smyth_htw',
+    '/courses', '/courses/boston', '/stories', '/stories/final-kick', '/tools', '/tools/plan', '/tools/qualifying/boston', '/finish-times']) assert.ok(unitSwitchShown(page), `The units switch works on ${page}`);
+  for (const page of ['/research/personalized', '/methodology', '/privacy', '/request-analysis', '/_not-found', '/toolsx', '/research-notes']) assert.equal(unitSwitchShown(page), false, `${page} keeps the inert placeholder`);
+  // A second copy of the provider whose next/navigation reports a chosen page, as the static export's render does.
+  const providerFile = require.resolve('../components/UnitsProvider.tsx');
+  let pathname = '/privacy';
+  const realLoad = Module._load;
+  const cached = require.cache[providerFile];
+  delete require.cache[providerFile];
+  Module._load = function (request, parent, ...rest) {
+    if (parent?.filename === providerFile && request === 'next/navigation') return { usePathname: () => pathname };
+    return realLoad.call(this, request, parent, ...rest);
+  };
+  let units;
+  try { units = require(providerFile); } finally { Module._load = realLoad; require.cache[providerFile] = cached; }
+  const page = (...children) => renderToStaticMarkup(React.createElement(units.default, null, ...children));
+  const e = React.createElement;
+  const inert = /\/privacy shows text that changes with the units, but the header's units switch is inert there/;
+  assert.throws(() => page(e(units.UnitText, null, 'From the first 5 km to the finish.')), inert, 'Converted prose on an inert page stops the build');
+  assert.throws(() => page(e(units.MarathonDistance)), inert);
+  assert.throws(() => page(e(function Chart() { return `${units.useUnits().units} axis`; })), inert, 'So does any figure that reads the units');
+  assert.equal(page(e(units.UnitText, null, 'Methods and sources.')), 'Methods and sources.', 'Prose with no kilometre figure is the same in both units and may go anywhere');
+  assert.match(page(e(units.UnitSwitch), e(units.UnitLink, { href: '/tools' }, 'Tools')), /^<div class="unit-switch unit-switch-placeholder" aria-hidden="true">.*<a href="\/tools">Tools<\/a>$/, 'Links and the placeholder render on every page');
+  pathname = '/research';
+  assert.equal(page(e(units.UnitText, null, 'From the first 5 km to the finish.')), 'From the first 3.11 mi to the finish.');
+  assert.match(page(e(units.UnitSwitch)), /^<div class="unit-switch" role="group" aria-label="Distance and pace units">/, '/research has the working switch');
+}
+
+console.log('Verified display-only mile, pace and elevation conversions, source precision, checkpoint labels, prose ranges, URL preservation, rendered measurements, unchanged samples, real profile sections and round pace-axis ticks in both units, the same conversions where a lookbehind RegExp cannot be built (Safari before 16.4), and the working units switch on every page whose text changes with the units (the build stops otherwise).');
