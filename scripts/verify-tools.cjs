@@ -85,7 +85,15 @@ assert.deepEqual(time.parseTrackerText('25K 2:05:31\n30 km 02:31:07 4:59/km\nHal
   assert.equal(keypad.keypadInput(field('1.12.55.', 8), { inputType: 'insertText', data: '.' }), '1.12.55.');
   assert.equal(time.parseDuration('1.12:55.3'), 4375.3, 'tenths after the last colon stay tenths');
   for (const bad of ['1.12:', '1.:30', '1.2.3:4', '1.75:30']) { assert.equal(time.parseDuration(bad), null, `reject ${bad}`); }
-  checks += 10;
+  // After ten or more the first group is minutes: the second dot is the seconds' decimal point ("25:50.12"), as the split
+  // check and the projector read "25:50"; an ultra's 12.30.15 shows 12:30.15 and still reads 12:30:15. A kept comma shows a dot.
+  const keyed = (typed) => [...typed].reduce((f, key) => { f.value += key; f.selectionStart = f.selectionEnd = f.value.length; keypad.keypadInput(f, { inputType: 'insertText', data: key }); return f; }, field('', 0)).value;
+  for (const [typed, shown] of [['25.50.12', '25:50.12'], ['25,50,12', '25:50.12'], ['12.30.15', '12:30.15'], ['1.12.55', '1:12:55'], ['0.25.50', '0:25:50'], ['09.05.30', '09:05:30']]) {
+    assert.equal(keyed(typed), shown, `typed key by key: ${typed}`); assert.equal(keypad.keypadColons(typed), shown, `keypadColons: ${typed}`);
+  }
+  assert.equal(time.parseDuration('12:30.15'), 45015, 'an ultra typed on the keypad'); assert.equal(time.parseDuration('3:30.15'), 12609, 'under ten hours a dot after the minutes is still a decimal');
+  assert.equal(time.parseDuration('12:30.75'), null);
+  checks += 15;
 
   // Every reader behind a time field.
   for (const [text, mode, expected] of [['1.12.55', 'race', 4375], ['3,30', 'race', 12600], ['3,30,15', 'race', 12615], ['8,05', 'pace', 485], ['8.5', 'pace', 510], ['8.50', 'pace', 530]]) {
@@ -114,6 +122,8 @@ assert.deepEqual(time.parseTrackerText('25K 2:05:31\n30 km 02:31:07 4:59/km\nHal
     [1350, 6900, 6900, 12600, 4375, null, null]); ok();
   const projector = require('../components/tools/Projector.tsx');
   assert.deepEqual(['24.53', '2.21', '2.21.30', '1,12,55', '24.75', 'x'].map(projector.parseElapsed), [1493, 8460, 8490, 4375, null, null]); ok();
+  // The keypad's 25:50.12 at an early mat or in a short race is 25 minutes 50.12 seconds in every reader that takes it.
+  assert.deepEqual([projector.parseElapsed('25:50.12'), split.parseMatTime('25:50.12'), predictor.parseRaceTime('25:50.12', 5)], [1550.12, 1550, 1550.12]); ok();
   // The readers that fall back to parseDuration keep a typed unit too ("3.5h" shows "3:5h").
   assert.deepEqual([predictor.parseRaceTime('3:5h', 42.195), predictor.parseRaceTime('22:5 min', 5), projector.parseElapsed('2:5h'), split.parseMatTime('2:5h')],
     [12600, 1350, 9000, 9000]); ok();

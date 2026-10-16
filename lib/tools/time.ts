@@ -58,6 +58,9 @@ export function parseDuration(input: string, mode: DurationMode = 'race'): numbe
   }
   const [a, b] = nums;
   if (b >= 60) return null;
+  // "12:30.15" as the keypad types 12.30.15 after ten or more hours (lib/keypad.ts): the seconds follow the dot.
+  const late = mode === 'race' && a >= 10 ? /^(\d{1,2})\.(\d{2})$/.exec(parts[1]) : null;
+  if (late) return Number(late[2]) < 60 ? a * 3600 + Number(late[1]) * 60 + Number(late[2]) : null;
   return mode === 'race' ? a * 3600 + b * 60 : a * 60 + b;
 }
 

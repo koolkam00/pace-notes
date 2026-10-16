@@ -59,15 +59,15 @@ const VARIANT_GROUP: Record<string, string> = {
   slower: 'finishes on this pace whose last 5 km was slower than their average so far',
 };
 
-/** Elapsed chip time as trackers show it. "24:53" is minutes:seconds; "2:21" is hours:minutes; three groups are h:mm:ss. */
+/** Elapsed chip time as trackers show it. "24:53" (or "24:53.4") is minutes:seconds; "2:21" is hours:minutes; three groups are h:mm:ss. */
 export function parseElapsed(input: string): number | null {
   const text = input.trim();
   if (!text || text === 'none') return null;
-  const two = text.match(/^(\d{1,2})[:.,](\d{2})$/);
-  if (two) {
+  const two = text.match(/^(\d{1,2})[:.,](\d{2})(?:\.(\d{1,3}))?$/);
+  if (two && (!two[3] || Number(two[1]) >= 10)) {
     const [a, b] = [Number(two[1]), Number(two[2])];
     if (b >= 60) return null;
-    return a >= 10 ? a * 60 + b : a * 3600 + b * 60;
+    return a >= 10 ? a * 60 + b + (two[3] ? Number(`0.${two[3]}`) : 0) : a * 3600 + b * 60;
   }
   const seconds = parseDuration(text, 'race');
   return seconds !== null && seconds > 0 ? seconds : null;
