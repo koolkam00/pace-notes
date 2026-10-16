@@ -65,7 +65,7 @@ try {
   fs.readFileSync = () => JSON.stringify({ ...evidence, input: { ...evidence.input, release_tag: 'private-export-20260907-1318' } });
   assert.throws(() => getWeatherEvidence(), /must match the current study release/, 'The page reader must reject stale weather payloads');
 } finally { fs.readFileSync = readFileSync; }
-for (const tag of [weatherRelease, mainRelease]) assert.match(tag, /^private-export-\d{8}-\d{4}$/);
+for (const tag of [weatherRelease, mainRelease]) assert.match(tag, /^(?:private-export-\d{8}-\d{4}|htw-db-\d{4}-\d{2}-\d{2}-\d{4})$/);
 assert.equal(evidence.calculation.script_sha256, digest('analysis/build_weather.py'), 'Weather evidence must be regenerated after changing its calculation');
 assert.equal(evidence.calculation.pacing_script_sha256, digest('analysis/build_pacing.py'), 'The exact eligibility parser must match the recorded provenance');
 for (const key of ['asset_sha256', 'manifest_sha256', 'race_conditions_sha256']) assert.match(evidence.input[key], /^[0-9a-f]{64}$/);
