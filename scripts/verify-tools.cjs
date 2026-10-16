@@ -269,8 +269,8 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
     ['28:26', '56:53', '1:25:19', '1:53:45', '2:22:12', '2:50:38', '3:19:05', '3:47:31', '4:00:00'], 'Even-pace time at each mat for 4:00 (14,400 s ÷ 42.195 km × each mat)'); ok();
   // The tracker looks for sections once per page view, so all three are mounted from the start; the comparison is hidden until its data shows.
   assert.deepEqual([...html.matchAll(/<div data-track-section="([^"]+)"( hidden="")?>/g)].map((m) => m[1] + (m[2] ? ' (hidden)' : '')), ['result', 'comparison (hidden)', 'pace-band']); ok();
-  assert.match(html, /Print wristband strips[\s\S]*Print this plan[\s\S]*class="tool-share share-bar no-print"/); ok();
-  assert.match(html, /\/tools\/weather-match\?goal=4:00:00[\s\S]*\/tools\/projector\?target=4:00:00&amp;t=none[\s\S]*\/analyses\/pacing-pattern\?goal=240[\s\S]*\/analyses\/hills-and-pacing\?goal=240[\s\S]*\/tools\/split-check"/, 'Links carry the goal in each target\'s own form'); ok();
+  assert.match(html, /class="tool-share share-bar no-print"><button[^>]*>Copy link<\/button><button[^>]*>Print wristband strips<\/button><button[^>]*>Print this plan<\/button>/, 'Copy link and both print buttons share one row'); ok();
+  assert.match(html, /\/tools\/pace-band\?goal=4:00"[\s\S]*\/tools\/weather-match\?goal=4:00:00[\s\S]*\/tools\/projector\?target=4:00:00&amp;t=none[\s\S]*\/analyses\/pacing-pattern\?goal=240[\s\S]*\/analyses\/hills-and-pacing\?goal=240[\s\S]*\/tools\/split-check"/, 'Links carry the goal in each target\'s own form'); ok();
   assert.doesNotMatch(html, /your chance|the wall|arithmetic|adjusted/i); ok();
   const planSource = sourceOf('components/tools/RacePlan.tsx');
   assert.match(planSource, /useQueryState\(DEFAULTS\)/); assert.match(planSource, /const DEFAULTS = \{ course: 'all', goal: '4:00' \};/, 'The planner keeps exactly course and goal in its address'); checks += 2;

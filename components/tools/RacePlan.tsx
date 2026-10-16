@@ -8,7 +8,6 @@ import { DurationField, EvidencePanel, ExampleNote, ShareBar, Stat, Stepper } fr
 import { useQueryState } from '@/components/tools/useQueryState';
 import { loadInsight } from '@/lib/insights';
 import { loadShard, type CourseContext, type CourseGoal, type CourseGoalRow, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
-import { paceBandGoalHref } from '@/lib/tools/links';
 import { MARATHON_KM, perUnit, splitTable } from '@/lib/tools/pace';
 import { CHECKPOINTS, PACE_BAND_INDEX, cellOf, fmtGoal, fmtPace, paceBandShardPath, type PaceBandCell } from '@/lib/tools/pace-band-data';
 import { COURSE_GOAL_FILE, PLAN_GOAL_MAX_S, PLAN_GOAL_MIN_S, courseGoalResult, publishedGoal, readPlanGoal, roundedNote } from '@/lib/tools/plan';
@@ -167,10 +166,11 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
     if (ready && read !== null && fmtGoal(read) !== q.goal) setQuery({ goal: fmtGoal(read) });
   }, [ready, read, q.goal, setQuery]);
   const setGoal = (s: number | null) => setQ({ goal: s === null ? '' : fmtGoal(s) });
-  // ±1 minute, snapping in the direction of travel when the goal has seconds (3:30:30 → 3:31 or 3:30).
+  // ±1 minute, snapping in the direction of travel when the goal has seconds (3:30:30 → 3:31 or 3:30). A goal outside
+  // 1:30–8:00 goes to the nearer end first.
   const step = (delta: number) => {
-    const from = goal ?? (read !== null ? clampGoal(read) : 4 * 3600);
-    const m = from / 60;
+    if (goal === null && read !== null) { setGoal(clampGoal(read)); return; }
+    const m = (goal ?? 4 * 3600) / 60;
     setGoal(clampGoal((delta > 0 ? Math.floor(m) + delta / 60 : Math.ceil(m) + delta / 60) * 60));
   };
 
@@ -218,11 +218,15 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
 
   // One always-mounted, visually hidden status line, debounced while typing. The first settled result is not announced.
   const loading = Boolean(course && courseGoalSha && !goalData.data && !goalData.error) || (isAll && (shard.loading || Boolean(paceBandSha && !bandIndex.data && !bandIndex.error)));
+  const dataError = goalData.error ?? bandIndex.error ?? shard.error;
+  // One "Try again" loads every file that failed (a failed index also stops its shard), so either error box clears both.
+  const retry = () => { if (goalData.error) goalData.retry(); if (bandIndex.error) bandIndex.retry(); if (shard.error) shard.retry(); };
   const summary = goal === null || pKm === null ? problem : loading ? null : [
     `${fmtGoal(goal)} goal${course ? ` in ${course.city}` : ''}: even pace ${fmtPace(pKm, units)}, calculated from your goal.`,
     result?.state === 'row' ? `Pace Notes data: of ${count(result.row.n)} finishes that ran 5–20 km at ${formatHM(result.minutes * 60)} pace, ${pctText(result.row.under)} finished under ${formatHM(result.minutes * 60)} and ${pctText(result.row.sd)} had a sustained slowdown.` : '',
     result?.state === 'unavailable' ? `No course results for this goal. ${result.reason}` : '',
     isAll && all?.sd !== undefined && minute !== null ? `Pace Notes data: ${pctText(all.sd)} of ${count(all.n)} finishes in the five minutes up to ${formatHM(minute * 60)} had a sustained slowdown.` : '',
+    dataError ?? '',
   ].filter(Boolean).join(' ');
   const [status, setStatus] = useState('');
   const announced = useRef<string | null>(null);
@@ -269,7 +273,7 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
               <div className="print-only plan-print-head">
                 <p className="plan-print-kicker">Pace Notes · race plan</p>
                 <p className="plan-print-title">{place} · {fmtGoal(goal)} goal</p>
-                <p>Even pace {fmtPace(pKm, 'mi')} · {fmtPace(pKm, 'km')}, calculated from the goal. Cut the strips out along the dashed lines.</p>
+                <p>Even pace {fmtPace(pKm, units)} · {fmtPace(pKm, units === 'mi' ? 'km' : 'mi')}, calculated from the goal. Cut the strips out along the dashed lines.</p>
               </div>
 
               <section className="tool-headline plan-headline" aria-labelledby="plan-headline-title">
@@ -299,20 +303,20 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
           <div data-track-section="result" hidden={!planned}>
             {planned ? (
               <EvidencePanel kind="data" id="plan-result" title={isAll ? <>On all courses, at {fmtGoal(goal)} pace</> : course ? <>On {course.city}, at {fmtGoal(goal)} pace</> : <>Course not found</>}
-                meta={isAll ? <>All courses together: the pace band’s group of finishes that came in from {formatDuration(minute * 60 - windowS, true)} to {formatDuration(minute * 60 - 1, true)}, every course and edition pooled. Choose a course for its own results.</>
-                  : course ? <>Observed shares of complete finishes that ran 5–20 km within {Math.round((goalData.data?.tolerance ?? 0.02) * 100)}% of your goal pace. Not a prediction.</> : undefined}>
+                meta={isAll && inBand && all ? <>All courses together: the pace band’s group of finishes that came in from {formatDuration(minute * 60 - windowS, true)} to {formatDuration(minute * 60 - 1, true)}, every course and edition pooled. Choose a course for its own results.</>
+                  : course && result?.state === 'row' ? <>Observed shares of complete finishes that ran 5–20 km within {Math.round((goalData.data?.tolerance ?? 0.02) * 100)}% of your goal pace. Not a prediction.</> : undefined}>
                 {unknown ? (
                   <p className="plan-unavailable">This link names a course that is not in the data. Choose one above; your plan and pace band below still work.</p>
                 ) : isAll ? (
                   !paceBandSha ? <p className="plan-unavailable">The observed finishes are not available in this build. Your plan and pace band still work.</p>
-                    : bandIndex.error || shard.error ? <DataProblem error={(bandIndex.error ?? shard.error)!} onRetry={() => { bandIndex.retry(); shard.retry(); }} />
+                    : bandIndex.error || shard.error ? <DataProblem error={(bandIndex.error ?? shard.error)!} onRetry={retry} />
                     : !inBand ? <p className="plan-unavailable"><strong>Outside the observed range.</strong> Observed groups cover whole-minute goals from {formatHM(bandGoals[0] * 60)} to {formatHM(bandGoals[1] * 60)}. Your plan and pace band below work for any goal from 1:30 to 8:00.</p>
                     : !shard.data ? <p className="tool-state">Loading the observed finishes…</p>
                     : all ? <AllCourses all={all} goal={goal} minute={minute} units={units} />
                     : <p className="plan-unavailable"><strong>Not published for this goal.</strong> Fewer than 100 finishes came in during the five minutes up to {formatHM(minute * 60)}, so no group is shown.</p>
                 ) : course ? (
                   !courseGoalSha ? <p className="plan-unavailable">The course results are not available in this build. Your plan and pace band still work.</p>
-                    : goalData.error ? <DataProblem error={goalData.error} onRetry={goalData.retry} />
+                    : goalData.error ? <DataProblem error={goalData.error} onRetry={retry} />
                     : !result ? <p className="tool-state">Loading the course results…</p>
                     : result.state === 'row' ? <CourseRow result={result} goal={goal} units={units} step={goalData.data!.goal_step_min} />
                     : (
@@ -344,13 +348,13 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
             <>
               {!comparison && !isAll && course?.band && shard.error ? (
                 <EvidencePanel kind="data" id="plan-comparison-error" title={<>Where finishes near {fmtGoal(goal)} were at each mat</>}>
-                  <DataProblem error={shard.error} onRetry={shard.retry} />
+                  <DataProblem error={shard.error} onRetry={retry} />
                 </EvidencePanel>
               ) : null}
               {!comparison ? <div className="print-only plan-print-mats"><MatTable goal={goal} pKm={pKm} units={units} observed={null} /></div> : null}
 
               {goalData.error && isAll ? (
-                <DataProblem error={goalData.error} onRetry={goalData.retry} />
+                <DataProblem error={goalData.error} onRetry={retry} />
               ) : sameGoal !== null && sameGoalRows.length ? (
                 <SameGoal rows={sameGoalRows} minutes={sameGoal} chosen={city} units={units} tolerance={goalData.data!.tolerance} />
               ) : null}
@@ -362,17 +366,16 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
               <section className="tool-panel plan-band" id="plan-band" aria-labelledby="plan-band-title">
                 <header className="tool-panel-head">
                   <h2 className="tool-panel-title" id="plan-band-title">Your pace band</h2>
-                  <p className="tool-panel-meta">Your plan, ready to cut out: the exact even-pace time at each 5 km mat and every {units === 'mi' ? 'mile' : 'kilometre'}, with the held-pace median (“H”) at each mat where Pace Notes data publishes one. Strips are about 2.5 cm wide; print at 100% scale.</p>
+                  <p className="tool-panel-meta">Your plan, ready to cut out: the exact even-pace time at each 5 km mat and every {units === 'mi' ? 'mile' : 'kilometre'}, with the held-pace median (“H”) at each mat where Pace Notes data publishes one. Print at 100% scale.</p>
                 </header>
                 <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={units === 'mi' ? 'mi' : 'km'} overrun={0} place={place} genderWord=""
                   observed={comparison ? { held: comparison.held, lo: comparison.lo, hi: comparison.hi, place, genderWord: '' } : null} profile={null} showBack={false} waiting={false} />
-                <div className="plan-band-actions no-print">
+                <ShareBar print={false} extra={<>
                   <button type="button" className="button-primary" data-not-edit onClick={() => printAs('strip')}>Print wristband strips</button>
                   <button type="button" className="button-secondary" data-not-edit onClick={() => printAs('plan')}>Print this plan</button>
-                </div>
-                <ShareBar print={false} />
+                </>} />
                 <p className="tool-note no-print">
-                  <Link href={`${paceBandGoalHref(minute) ?? '/tools/pace-band'}${course?.band ? `&course=${course.slug}` : ''}`}>Open the full pace band</Link> for a watch that reads long, recorded-gender groups and a route elevation strip for the back.
+                  <Link href={`/tools/pace-band?goal=${fmtGoal(goal)}${course?.band ? `&course=${course.slug}` : ''}`}>Open the full pace band</Link> for a watch that reads long, recorded-gender groups and a route elevation strip for the back.
                 </p>
               </section>
             ) : null}
@@ -481,7 +484,7 @@ function SameGoal({ rows, minutes, chosen, units, tolerance }: { rows: CourseGoa
       <div className="plan-every-body">
         <span className="evidence-badge evidence-data">Pace Notes data</span>
         <p className="tool-panel-meta">Each course’s published row at {goalText}: finishes that ran 5–20 km within {Math.round(tolerance * 100)}% of its even pace. Alphabetical, not a ranking: courses differ in field, qualifying rules, weather, era and route.</p>
-        <div className="tool-table-wrap">
+        <div className="tool-table-wrap" role="region" aria-label={`Same goal on every course at ${goalText}`} tabIndex={0}>
           <table className="tool-table plan-every-table">
             <thead>
               <tr><th scope="col">Course</th><th scope="col">Finishes</th><th scope="col">Under {goalText}</th><th scope="col">Sustained slowdown</th><th scope="col">After {at20}</th><th scope="col">Median finish</th></tr>

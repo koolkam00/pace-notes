@@ -9,7 +9,7 @@ import { GOAL_PAGE_MINUTES, HALF_CHART, MARATHON_CHART, goalLabel, goalPagePath 
 
 export const metadata = pageMetadata({
   title: 'Free Marathon Calculators and Pacing Tools | Pace Notes',
-  description: 'Free marathon tools: pace calculator, time predictor, pace band, course chooser, weather match, race-day projector, split check and qualifying times.',
+  description: 'Free marathon tools: race planner, pace calculator, predictor, pace band, course chooser, weather match, projector, split check and qualifying times.',
   path: '/tools',
 });
 

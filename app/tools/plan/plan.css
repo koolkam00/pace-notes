@@ -13,6 +13,10 @@
 .plan-goal input { grid-area: input; min-width: 0; text-align: center; }
 .plan-goal .tool-field-hint { grid-area: hint; text-align: left; }
 
+/* The tracked-section wrappers are the results' grid items: like a panel, they may shrink below their content (the pace band
+   preview before it measures itself, the mat table), so the column never takes a wide child's width. */
+.plan-root [data-track-section] { min-width: 0; }
+
 /* ---------- Your plan (calculated): the headline ---------- */
 .tool-headline.plan-headline { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem 1.2rem; }
 .plan-headline-head { grid-column: 1 / -1; display: grid; gap: .3rem; }
@@ -38,7 +42,7 @@
 .plan-unavailable p + p { margin-top: 0; }
 .plan-unavailable .plan-context { margin-top: .2rem; }
 .plan-error { display: grid; gap: .7rem; justify-items: start; }
-.plan-error button { min-height: 40px; padding: .45rem .95rem; font-size: .875rem; }
+.plan-error button { min-height: 44px; padding: .5rem 1rem; font-size: .875rem; }
 .plan-problem { font-size: 1rem; }
 .plan-context { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .7rem 1.2rem; margin: 1rem 0 0; padding-top: .9rem; border-top: 1px solid var(--paper-2); }
 .plan-context dt { font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
@@ -70,27 +74,30 @@
 
 /* Same goal on every course: a closed card under the comparison. */
 .plan-every { padding-top: .2rem; padding-bottom: .2rem; }
-.plan-every > summary { min-height: 44px; display: flex; align-items: center; font-weight: 600; cursor: pointer; }
+.plan-every > summary { font-weight: 600; cursor: pointer; }
 .plan-every-body { display: grid; gap: .7rem; padding: .3rem 0 1rem; }
 .plan-every-body .evidence-badge { justify-self: start; }
 .plan-every-table tr.is-chosen th, .plan-every-table tr.is-chosen td { background: var(--paper-2); font-weight: 700; }
 .plan-every-table tr.is-chosen th { box-shadow: inset 3px 0 0 var(--orange); }
+/* On a phone the table scrolls sideways; the course column stays in view. */
+.plan-every-table tbody th, .plan-every-table thead th:first-child { position: sticky; left: 0; z-index: 1; background: var(--card); }
 
-/* ---------- Your pace band ---------- */
-.plan-band-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1rem; }
-.plan-band-actions button { min-height: 44px; padding: .5rem 1rem; font-size: .875rem; }
-.plan-band .tool-share { margin-top: .6rem; }
+/* ---------- Your pace band: Copy link and the two print buttons in one row ---------- */
+.plan-band .tool-share { margin-top: 1rem; }
+.plan-band .tool-share button { min-height: 44px; padding: .5rem 1rem; }
 
 /* ---------- Before and after race day ---------- */
 .plan-next { display: grid; gap: .9rem; margin-top: .6rem; }
 .plan-next-title { font-family: var(--serif); font-variation-settings: 'opsz' 72, 'SOFT' 40; font-size: clamp(1.3rem, 2.4vw, 1.65rem); font-weight: 640; line-height: 1.15; letter-spacing: -.01em; }
 .plan-next .tool-handoffs a .evidence-badge { margin-right: .3rem; vertical-align: 1px; }
 
-/* ---------- Print: one page (the plan), or the wristband strips alone ---------- */
+/* ---------- Print: one Letter or A4 page at the browser's default margins (the plan), or the wristband strips alone ---------- */
 @media print {
-  .plan-root .tool-results { display: flex; flex-direction: column; gap: .35cm; }
-  .plan-headline, #plan-result, .plan-every, .plan-next, .plan-root [data-track-section='result'] { display: none !important; }
+  .plan-root .tool-results { display: flex; flex-direction: column; gap: .25cm; }
+  .plan-headline, #plan-result, .plan-every, .plan-next, .plan-root [data-track-section='result'], .plan-error, #plan-comparison-error { display: none !important; }
   body:has(.plan-root) .skip-link, .tool-page:has(.plan-root) .tool-header { display: none !important; }
+  /* Nothing below the source line, so a full page does not spill onto a blank second one. */
+  .tool-page:has(.plan-root) { padding-bottom: 0; }
   /* The band keeps its orange cut edges; everything else is ink on white. */
   .plan-root .pace-band-strip { border-color: #FF5B2E; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .plan-root .tool-panel { padding: 0; border: 0; background: none; box-shadow: none; }
@@ -98,6 +105,9 @@
 
   /* The plan: the header, the strips, the mat table and the source line, in that order. */
   .plan-print-head { order: 1; display: grid; gap: .08cm; padding-bottom: .2cm; border-bottom: 1.5pt solid #000; font-size: 9pt; color: #000; }
+  .plan-print-head > * { margin: 0; }
+  /* The header names the course and goal, so the plan leaves out the strips' own heading line (the strips alone keep it). */
+  .plan-root[data-print='plan'] .pace-band-sheet-head { display: none; }
   .plan-print-kicker { font-family: var(--mono); font-size: 7.5pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
   .plan-print-title { font-family: var(--serif); font-size: 18pt; font-weight: 680; line-height: 1.1; }
   .plan-root [data-track-section='pace-band'] { order: 2; }
@@ -105,10 +115,11 @@
   .plan-print-source { order: 4; padding-top: .15cm; border-top: .5pt solid #000; font-family: var(--mono); font-size: 7.5pt; color: #000; }
   #plan-comparison .tool-panel-head { margin-bottom: .15cm; }
   #plan-comparison .tool-panel-title { font-size: 12pt; }
-  #plan-comparison .tool-panel-meta, .plan-caption { font-size: 7.5pt; color: #000; }
-  .plan-root .evidence-badge { color: #000; border-color: #000; }
+  #plan-comparison .tool-panel-meta { font-size: 7.5pt; color: #000; }
+  /* The table's group headings mark the Pace Notes data columns, and the meta line names the window and says it is observed. */
+  #plan-comparison .evidence-badge, .plan-caption { display: none; }
   #plan-comparison, .plan-print-mats { break-inside: auto; }
-  .plan-mat-table th, .plan-mat-table td, .plan-mat-table tbody th { padding-top: .05cm !important; padding-bottom: .05cm !important; font-size: 8.5pt; color: #000 !important; }
+  .plan-mat-table th, .plan-mat-table td, .plan-mat-table tbody th { padding-top: .03cm !important; padding-bottom: .03cm !important; font-size: 8.5pt; line-height: 1.25; color: #000 !important; }
   .plan-mat-table thead th { font-size: 6.5pt; }
   .plan-mat-table tbody th small { display: inline; margin-left: .2cm; font-size: 7pt; }
   .plan-mat-table tr { break-inside: avoid; }
