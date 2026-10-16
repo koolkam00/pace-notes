@@ -137,7 +137,7 @@ for (const [event, fields] of Object.entries(enumerated)) {
 }
 assert.equal(kept('site_error', { category: 'js_error', message: 'boom 3:16:41 Private Name', stack: 'at x (https://splithappens.run/tools?t=3:16:41)', filename: 'https://splithappens.run/_next/x.js' }).message, undefined);
 assert.doesNotMatch(JSON.stringify(sanitize('site_error', { category: 'js_error', message: 'boom 3:16:41 Private Name', stack: 'at x', $exception_list: [{ value: 'Private' }] })), /boom|3:16:41|Private|stack|exception/, 'An error report carries its kind only');
-assert.deepEqual([...policy.TRACKED_SECTIONS], ['hero', ...[1, 2, 3, 4, 5, 6, 7, 8].map(n => 'chapter-' + n), 'stories', 'tools', 'analyses', 'cta', 'faq', 'related', 'result', 'comparison', 'pace-band', 'report']);
+assert.deepEqual([...policy.TRACKED_SECTIONS], ['hero', ...[1, 2, 3, 4, 5, 6, 7, 8].map(n => 'chapter-' + n), 'stories', 'tools', 'analyses', 'cta', 'faq', 'related', 'result', 'comparison', 'pace-band', 'report', 'paths', 'stakes', 'guide', 'steps']);
 for (const value of ['pace_band', 'Result', 'comparison ', 'result,comparison', 'Report', 'report ']) assert.equal(kept('section_viewed', { section: value }).section, undefined, `section_viewed.section=${value} is dropped`);
 // A race report export carries its kind only: never the times, the course, the link or the file.
 assert.deepEqual(Object.keys(kept('report_exported', { format: 'share', s: '0:25:50,0:52:24', course: 'berlin', url: 'https://splithappens.run/report?s=0:25:50', file: 'pace-notes-race-report.png', title: 'Race report' })).filter(key => !key.startsWith('$') && !['token', 'distinct_id'].includes(key)), ['format'], 'report_exported carries only its format');
@@ -487,7 +487,7 @@ assert.equal(replay.replayAttribute('d', 'M70.6 60.4 L131.7 58.9', () => { looke
 assert.equal(lookedUp, 0, 'The masked region is only looked up for attributes that can be masked');
 assert.equal(replay.maskText('Women'), '***'); assert.equal(replay.maskText('Non-binary'), '***'); assert.equal(replay.maskText('  '), '  ');
 const maskedSelectors = replay.REPLAY_MASKED_TEXT.split(', ');
-for (const selector of ['.tool-workspace', '.analysis-layout', '.personalized-guide', '.which-card', '.finish-lookup', '[role="status"]', '[role="alert"]', '[aria-live]']) assert.ok(maskedSelectors.includes(selector), `${selector} text is masked in replays`);
+for (const selector of ['.tool-workspace', '.analysis-layout', '.personalized-guide', '.which-card', '.finish-lookup', '.home-plan', '[role="status"]', '[role="alert"]', '[aria-live]']) assert.ok(maskedSelectors.includes(selector), `${selector} text is masked in replays`);
 const blockedSelectors = replay.REPLAY_BLOCKED_ELEMENTS.split(', ');
 for (const selector of ['.tool-results', '.tool-workspace svg', '.analysis-layout svg', '.personalized-guide svg', '.which-card svg', '.finish-lookup svg', '.viz svg', '.replay']) assert.ok(blockedSelectors.includes(selector), `${selector} is left out of replays`);
 
@@ -517,7 +517,8 @@ const toolComponents = TOOLS.map(tool => {
 assert.equal(new Set(toolComponents).size, TOOLS.length, 'Every registered tool has its own component');
 const required = { 'tool-workspace': toolComponents, 'tool-results': toolComponents,
   'analysis-layout': ['components/AnalysisExplorer.tsx', 'components/AllFinisherAnalysis.tsx', 'components/FastStartAnalysis.tsx', 'components/WeatherAnalysis.tsx'],
-  'personalized-guide': ['components/PersonalizedGuide.tsx'], 'which-card': ['components/story/ArchetypeStory.tsx'], 'finish-lookup': ['components/story/FinishTimeStory.tsx'] };
+  'personalized-guide': ['components/PersonalizedGuide.tsx'], 'which-card': ['components/story/ArchetypeStory.tsx'], 'finish-lookup': ['components/story/FinishTimeStory.tsx'],
+  'home-plan': ['components/home/HomeDoors.tsx'] };
 for (const [token, files] of Object.entries(required)) {
   for (const file of files) assert.ok(hasClass(read(file), token), `${file} still renders .${token}`);
   assert.ok(maskedSelectors.includes('.' + token) || blockedSelectors.includes('.' + token), `.${token} is masked or left out`);
@@ -528,6 +529,12 @@ for (const file of sourceFiles('components/tools')) {
   if (file.endsWith('ui.tsx') || !/<(?:input|textarea|select|DurationField)\b/.test(source)) continue;
   assert.ok(toolComponents.includes(file) && hasClass(source, 'tool-workspace'), `${file} has form fields outside a .tool-workspace`);
 }
+// The home page's form fields sit in its masked course-and-goal form, and the form goes to the planner by GET.
+for (const file of sourceFiles('components/home')) {
+  const source = read(file);
+  if (/<(?:input|textarea|select)\b/.test(source)) assert.ok(file === path.join('components', 'home', 'HomeDoors.tsx') || file === path.join('components', 'home', 'PlanFormUnits.tsx'), `${file} has form fields outside the home page's .home-plan form`);
+}
+assert.match(read('components/home/HomeDoors.tsx'), /<form className="home-door home-plan" action="\/tools\/plan" method="get"/, 'The home form is the masked .home-plan region and submits to /tools/plan by GET');
 // Status lines, alerts and live regions are masked by attribute wherever they are, so none may set its role dynamically.
 for (const file of [...sourceFiles('components')]) assert.doesNotMatch(read(file), /role=\{[^}]*['"](?:status|alert)['"]|aria-live=\{/, `${file}: write role="status"/"alert" and aria-live as plain attributes so replay masks them`);
 // Runner names and search text: ph-no-capture on the very element, as a class token.
@@ -662,12 +669,14 @@ for (const file of ['app', 'components', 'lib', 'hooks', 'context'].flatMap(sour
 for (const file of ['app', 'components'].flatMap(sourceFiles)) {
   for (const m of withoutComments(file).matchAll(/data-track-section=(?:"([^"]*)"|\{([^}]*)\})/g)) assert.ok(m[1] !== undefined && policy.TRACKED_SECTIONS.includes(m[1]), `${file}: data-track-section ${m[1] ?? m[2]} must be a literal id from TRACKED_SECTIONS`);
 }
-const homeSource = read('app/(home)/page.tsx');
-const homeSections = [...homeSource.matchAll(/data-track-section="([^"]+)"/g)];
-const chapters = homeSections.map(m => m[1]).filter(id => id.startsWith('chapter-'));
-assert.ok(chapters.length >= 4, 'The home page chapters are marked');
-assert.deepEqual(homeSections.map(m => m[1]), ['hero', ...chapters.map((_, i) => 'chapter-' + (i + 1)), 'stories', 'tools', 'analyses', 'cta'], 'Home sections: hero, the chapters in order, all stories, tools, the ten analyses and the closing call');
-for (const m of homeSections.filter(m => m[1].startsWith('chapter-'))) assert.equal(homeSource.slice(m.index).match(/Chapter (\d+) ·/)?.[1], m[1].slice(8).padStart(2, '0'), `${m[1]} marks the chapter it is numbered as`);
+// The three ways to start (components/home/HomeDoors.tsx) are read where the page renders them. Since October 16, 2026
+// the home page has no chapter-* sections: autopilot/metrics.md counts chapter-* on / for home_depth@v1 and the answer
+// signal "at least 3 home chapters", which must not become automatic (docs/ANALYTICS.md).
+const homeSource = read('app/(home)/page.tsx').replace(/<HomeDoors\b/, tag => read('components/home/HomeDoors.tsx') + tag);
+const homeSections = [...withoutComments('app/(home)/page.tsx').replace(/<HomeDoors\b/, tag => withoutComments('components/home/HomeDoors.tsx') + tag).matchAll(/data-track-section="([^"]+)"/g)].map(m => m[1]);
+assert.deepEqual(homeSections, ['hero', 'paths', 'stakes', 'guide', 'steps', 'stories', 'cta'], 'Home sections: hero, the three ways to start, stakes, guide, the three steps, the story teaser and the closing call');
+assert.ok(!homeSections.some(id => id.startsWith('chapter-')), 'The home page has no chapter-* sections');
+assert.match(homeSource, /<HomeDoors\b/, 'The home page renders its three ways to start');
 const layoutSource = read('app/layout.tsx');
 assert.match(layoutSource, /<head>[^\n]*<ExperimentHead \/>[^\n]*<\/head>/, 'The experiments CSS and script are in <head>, before the page paints');
 // A classic inline script: the parser runs it before building the body, so before the first paint. An async or module

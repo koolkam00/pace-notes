@@ -64,11 +64,11 @@ async function chunkFails(h, name) {
   const status = await page.locator('.tool-workspace [role="status"], .tool-results').first().innerText().catch(() => '');
   h.check('the tool still works', /\d:\d\d/.test(status), status.slice(0, 120));
   await wiggle(page, 6);
-  await page.locator('nav.main-nav a[href="/stories"]').click();
-  await page.waitForURL(url => new URL(url).pathname === '/stories');
+  await page.locator('nav.main-nav a[href="/research"]').click();
+  await page.waitForURL(url => new URL(url).pathname === '/research');
   await wiggle(page, 6);
   await page.waitForTimeout(7000);
-  h.check('the page still navigates', new URL(page.url()).pathname === '/stories');
+  h.check('the page still navigates', new URL(page.url()).pathname === '/research');
   await run.close();
   h.check(`the ${name} chunk was requested (and failed)`, run.requests.some(r => r.path.endsWith(files[0])));
   const sent = run.posthogRequests().filter(r => r.method === 'POST');

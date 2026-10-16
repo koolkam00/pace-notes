@@ -8,6 +8,11 @@
 // edit scripts/ (an autopilot one) can still add a page; the owner then measures its own figure. The lazily loaded
 // analytics chunks (the SDK, the recorder, Web Vitals, the replay policy) are not initial JavaScript and are not counted.
 //
+// A second job measures layout shift in the lab (CLS, Chromium's layout-shift entries in session windows, as web-vitals
+// counts them): a phone at 390 px with the CPU slowed 4x loads each page in LAB_PAGES, waits, then scrolls to the
+// bottom; CLS must stay at or below 0.1. iOS Safari reports no CLS in the field (docs/ANALYTICS.md), so this is the only
+// phone CLS figure. It also notes each page's LCP, which here has no network delay (the files are served locally).
+//
 //   node scripts/e2e/scenarios/s8-budget.cjs --self-test     the budget rules against a stand-in build (no browser)
 const fs = require('node:fs');
 const path = require('node:path');
@@ -102,6 +107,48 @@ function budget(h, write, { app = APP, file = BUDGET } = {}) {
   h.note('initial JS gzip, bytes (budget): ' + rows.map(r => `${r.page} ${r.bytes} (${r.budget})`).join(', '));
 }
 
+// /report (the race report) joins this list when its branch is put together with this one.
+const LAB_PAGES = ['/', '/tools/plan', '/courses/boston'];
+const CLS_LIMIT = 0.1;
+// In every document before the page's own scripts: CLS as the largest session window of layout shifts not caused by
+// input (gaps under 1 s, windows under 5 s), and the latest largest-contentful-paint time.
+const OBSERVE = () => {
+  const lab = window.__e2eLab = { cls: 0, lcp: null, shifts: [] };
+  let session = 0, first = 0, last = 0;
+  try {
+    new PerformanceObserver(list => {
+      for (const entry of list.getEntries()) {
+        if (entry.hadRecentInput) continue;
+        if (session && entry.startTime - last < 1000 && entry.startTime - first < 5000) { session += entry.value; last = entry.startTime; }
+        else { session = entry.value; first = last = entry.startTime; }
+        lab.cls = Math.max(lab.cls, session);
+        if (lab.shifts.length < 6) lab.shifts.push({ at: Math.round(entry.startTime), value: +entry.value.toFixed(4), nodes: (entry.sources || []).map(s => s.node && s.node.nodeType === 1 ? String(s.node.className || s.node.tagName).slice(0, 40) : '#text').slice(0, 3) });
+      }
+    }).observe({ type: 'layout-shift', buffered: true });
+    new PerformanceObserver(list => { for (const entry of list.getEntries()) lab.lcp = Math.round(entry.startTime); }).observe({ type: 'largest-contentful-paint', buffered: true });
+  } catch { /* not Chromium: nothing to measure */ }
+};
+
+async function labShift(h) {
+  const { SITE } = require('../browser.cjs');
+  const rows = [];
+  for (const pathname of LAB_PAGES) {
+    const run = await h.run(`lab ${pathname}`, { viewport: { width: 390, height: 844 }, mobile: true, initScript: OBSERVE });
+    const page = await run.newPage();
+    await run.throttle(page, 4);
+    await page.goto(SITE + pathname, { waitUntil: 'load', timeout: 90000 });
+    await page.waitForTimeout(3000);
+    const lcp = await page.evaluate(() => window.__e2eLab.lcp);
+    for (let i = 0; i < 60 && await page.evaluate(() => scrollY + innerHeight < document.documentElement.scrollHeight - 2); i++) { await page.mouse.wheel(0, 700); await page.waitForTimeout(250); }
+    await page.waitForTimeout(1500);
+    const { cls, shifts } = await page.evaluate(() => window.__e2eLab);
+    await run.close();
+    rows.push({ pathname, cls: +cls.toFixed(4), lcp, shifts });
+  }
+  h.check(`lab CLS at most ${CLS_LIMIT} on a 390 px phone with the CPU slowed 4x`, rows.every(r => r.cls <= CLS_LIMIT), rows.filter(r => r.cls > CLS_LIMIT));
+  h.note('lab, 390 px, CPU 4x, no network delay: ' + rows.map(r => `${r.pathname} CLS ${r.cls}, LCP ${r.lcp} ms`).join('; '));
+}
+
 /** The rules above against a stand-in app/ folder, build and budget in a temporary folder. */
 function selfTest() {
   const os = require('node:os');
@@ -160,8 +207,11 @@ function selfTest() {
 
 module.exports = {
   id: 'S8',
-  title: 'Initial JavaScript budget',
-  jobs: ({ args }) => [{ name: 'initial JavaScript', weight: 1, run: async h => budget(h, args.includes('--write-budget')) }],
+  title: 'Initial JavaScript budget; lab layout shift',
+  jobs: ({ args }) => [
+    { name: 'initial JavaScript', weight: 1, run: async h => budget(h, args.includes('--write-budget')) },
+    { name: 'lab layout shift and LCP', weight: 30, run: labShift },
+  ],
 };
 
 if (require.main === module && process.argv.includes('--self-test')) process.exitCode = selfTest();

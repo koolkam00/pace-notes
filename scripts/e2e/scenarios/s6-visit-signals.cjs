@@ -14,6 +14,7 @@ const { SITE, type, waitFor } = require('../browser.cjs');
 const { ROOT } = require('../inspect.cjs');
 
 const PHONE = { viewport: { width: 390, height: 844 }, mobile: true };
+const HOME_SECTIONS = ['hero', 'paths', 'stakes', 'guide', 'steps', 'stories', 'cta'];
 const SENTINEL = 'E2E sentinel Private Name 3:16:41';
 // A recording shows the elements a test adds to the page (a broken image, a missing script) like any other.
 const IN_RECORDING = /\(\/s\/\)/;
@@ -82,6 +83,9 @@ async function reading(h) {
   // On the first home page view (the visit comes back to / later, which is a page view of its own).
   const sections = named(run, 'section_viewed').filter(p => p.$pathname === '/' && views[0] && p.$pageview_id === views[0].$pageview_id).map(p => p.section);
   h.check('each home section is counted once, in page order', JSON.stringify(sections) === JSON.stringify(order), { sent: sections, page: order });
+  // The home page's sections since October 16, 2026, and none of them a chapter-* (autopilot/metrics.md counts those on /).
+  h.check('the home page marks hero, paths, stakes, guide, steps, stories and cta, in that order', JSON.stringify(order) === JSON.stringify(HOME_SECTIONS), order);
+  h.check('no chapter-* section is sent from the home page', !named(run, 'section_viewed').some(p => p.$pathname === '/' && String(p.section).startsWith('chapter-')), shown(named(run, 'section_viewed').filter(p => p.$pathname === '/')));
   // Once the SDK has loaded, the site's events join its batch (sent every few seconds) instead of one request each.
   const perRequest = run.sent.map(r => (r.events || []).filter(e => e.event === 'section_viewed').length).filter(n => n);
   h.check('section views are sent in batches, not one request each', perRequest.some(n => n >= 2), perRequest);

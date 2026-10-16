@@ -21,10 +21,11 @@
  * nothing to check. Playwright's Chromium is used (`npx playwright install chromium`); PLAYWRIGHT_CHROMIUM_PATH names
  * another executable.
  *
- * Scenarios (scripts/e2e/scenarios): S1 browsing, S2 every tool and calculator with two sets of values (typed and in
- * the address), S3 the runner search journey, S4 privacy signals and blocked storage, S5 every sitemap page in emulated
- * Safari 15 and failed analytics chunks, S6 the visit signals, error pages and data failures, S7 beacons sent while a
- * page unloads, S8 the JavaScript budget.
+ * Scenarios (scripts/e2e/scenarios): S1 browsing (and the home page's first phone screen, 200% zoom and its form), S2
+ * every tool and calculator with two sets of values (typed and in the address), S3 the runner search journey, S4
+ * privacy signals and blocked storage, S5 every sitemap page in emulated Safari 15 and failed analytics chunks, S6 the
+ * visit signals, error pages and data failures, S7 beacons sent while a page unloads, S8 the JavaScript budget and lab
+ * layout shift.
  *
  * Every visitor (run) is checked for:
  *   I1 no host contacted, or named by a page or stylesheet the site served, but the site and the PostHog mock

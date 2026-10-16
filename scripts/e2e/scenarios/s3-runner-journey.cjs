@@ -289,7 +289,7 @@ async function journey(h, blocklist) {
   h.check('the handoff flag is cleared', await flag() === null);
   const toolsAt = Date.now();
   h.check('recording resumes on /tools', await waitFor(async () => { await wiggle(page, 2); return run.rrweb().some(({ ev }) => ev.timestamp > toolsAt); }, 30000, 500));
-  await step('Stories in the navigation', async () => { await page.click('nav.main-nav a[href="/stories"]'); await page.waitForURL(url => new URL(url).pathname === '/stories'); });
+  await step('Research in the navigation', async () => { await page.click('nav.main-nav a[href="/research"]'); await page.waitForURL(url => new URL(url).pathname === '/research'); });
   await settle(2000);
   await step('Back', async () => { await page.goBack(); await page.waitForURL(url => new URL(url).pathname === '/tools'); });
   await settle(1500);

@@ -118,7 +118,14 @@ const CASES = {
     await step(log, '5 km', () => type(page, label(page, /Latest 5 km/, false), v.fiveK));
     await step(log, 'age', () => label(page, 'Age group', false).selectOption({ index: v.ageIdx }));
   } },
-  'home': { path: '/', async drive(page, v, log) { await step(log, 'my finish', () => type(page, '#my-finish', v.marathon)); } },
+  // The home page's course-and-goal form, then the planner it opens. The courses are not among the hero replay's races,
+  // whose names are page content in both runs. The form must be masked in the recording (homeFormMasked).
+  'home': { path: '/', needles: { A: ['Valencia'], B: ['Copenhagen'] }, after: homeFormMasked, async drive(page, v, log) {
+    await step(log, 'course', () => page.selectOption('#home-plan-course', v === V.A ? 'valencia' : 'copenhagen'));
+    await step(log, 'goal', () => type(page, '#home-plan-goal', v.hm));
+    await step(log, 'plan your race', async () => { await page.locator('.home-plan-button').click(); await page.waitForURL(url => new URL(url).pathname === '/tools/plan'); });
+    await page.waitForTimeout(1500); await wiggle(page, 5);
+  } },
   'round-numbers': { path: '/stories/round-numbers', async drive(page, v, log) { await step(log, 'my finish', () => type(page, '#my-finish', v.marathon)); } },
   'pacing-types': { path: '/stories/pacing-types', async drive(page, v, log) {
     const inputs = page.locator('.which-card input');
@@ -133,6 +140,27 @@ const CASES = {
   } },
 };
 const QUICK = ['pace-calculator', 'split-check-url', 'projector'];
+
+/** The home form (`.home-plan`) in every full snapshot of the recording: there, with no unmasked text or value. */
+function homeFormMasked(h, run, id) {
+  let forms = 0;
+  const leaks = [];
+  const walk = (node, inside) => {
+    if (!node || typeof node !== 'object') return;
+    const here = inside || /(^|\s)home-plan(\s|$)/.test(String((node.attributes && node.attributes.class) || ''));
+    if (here && !inside) forms += 1;
+    if (here) {
+      if (node.type === 3 && typeof node.textContent === 'string' && node.textContent.trim() && node.textContent.trim() !== '***') leaks.push('text ' + node.textContent.trim().slice(0, 40));
+      for (const key of ['value', 'placeholder', 'label', 'aria-label']) {
+        const value = node.attributes && node.attributes[key];
+        if (typeof value === 'string' && value.trim() && value !== '***') leaks.push(`${node.tagName || ''} ${key}=${value.slice(0, 40)}`);
+      }
+    }
+    (node.childNodes || []).forEach(child => walk(child, here));
+  };
+  for (const { ev } of run.rrweb()) if (ev.type === 2) walk(ev.data && ev.data.node, false);
+  h.check(`${id}: the home form is in the recording, with every text and value masked`, forms > 0 && !leaks.length, { forms, leaks: leaks.slice(0, 8) });
+}
 
 const KNOWN = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'known-differences.json'), 'utf8'));
 const known = name => [...(KNOWN['*'] || []), ...(KNOWN[name] || [])].map(entry => new RegExp(entry.pattern));
@@ -182,6 +210,7 @@ async function differential(h, name) {
     // fail: the case must pick a value the page does not name by itself.
     if (own.length) h.check(`I4 ${id}: the case's own values are not page content`, !own.some(needle => content.has(String(needle))), own.map(String).filter(needle => content.has(needle)));
   }
+  if (CASES[name].after) for (const [r, id] of [[a, 'A'], [b, 'B']]) CASES[name].after(h, r.run, id);
   // I9
   const allowed = known(name);
   const { onlyA, onlyB } = h.inspect.diffStrings(a.run, b.run);
