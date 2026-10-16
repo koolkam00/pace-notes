@@ -1,18 +1,22 @@
 // Checks the course pages (/courses/<slug>, lib/course-page.ts and components/course/) and the /courses index.
 //   Data checks (the last step of `npm run verify:data`):
-//     1. the page helpers on small hand-made fixtures (formats, the 5 °C gate, year lists, neighbours, months, titles);
+//     1. the page helpers on small hand-made fixtures (formats, temperatures that round to zero, the 5 °C gate, year
+//        lists, neighbours, months, titles, the copy-edition line);
 //     2. an independent recount from the published files, written without the page code: every edition's finishes
 //        against its checksum-verified runner-context shard, the course totals, medians and sustained-slowdown range
 //        against the editions, the weather in courses.json against the shards and the weather-match file, the route's
-//        5 km sections against the course chooser's totals, and the course-profile pack against the story cohort.
+//        5 km sections against the course chooser's totals, the course-profile pack against the story cohort, and which
+//        courses the two linked analyses have a result for.
 //   Built-page checks (`--html`, appended to `npm run verify:seo`, after the build), on all 29 pages:
 //     3. every printed figure (<data data-k>) against its file, both its value and the text shown (the default miles
 //        view), every edition and goal row present, no other number in a table cell; one H1, no empty heading, the
 //        sections the data supports and no others; the DOI where "sustained slowdown" is defined; banned and rank words;
-//        copy editions never printed with numbers; both elevation labels; the 5 °C gate; links only to exported pages,
-//        with course presets only where the target tool publishes the course; the planner on every page and the
-//        qualifying page on the six qualifying courses; no structured data beyond the breadcrumbs; and the ItemList on
-//        /courses.
+//        copy editions never printed with numbers, with this page's own line; both elevation labels; the 5 °C gate, in
+//        the text and in the chart's accessible name; the weather source and the unverified race dates; each section's
+//        own finishes; table regions with names; links only to exported pages, with course presets only where the
+//        target tool publishes the course and analyses only where they have a result; the planner on every page and the
+//        qualifying page on the six qualifying courses; no structured data beyond the breadcrumbs; and on /courses the
+//        ItemList and each card's count, the course page's.
 // Usage: node scripts/verify-courses.cjs [--html] [--out <folder>]
 //
 // Key grammar for <data data-k="key">: a field name, then `@<year>`, `@<goal minutes>` or `@<index>` where the field is
@@ -77,7 +81,7 @@ const F = {
   netft: (m) => { const v = Math.round(Math.abs(m) / 0.3048); return `${v === 0 ? '' : m < 0 ? '−' : '+'}${v.toLocaleString('en-US')} ft`; },
   mi1: (km) => `${(km / KM_PER_MILE).toFixed(1)} mi`,
   mi2: (km) => `${(km / KM_PER_MILE).toFixed(2)} mi`,
-  degF: (c) => `${(c * 1.8 + 32).toFixed(0)}°F`,
+  degF: (c) => { const v = Number((c * 1.8 + 32).toFixed(0)) || 0; return `${v < 0 ? '−' : ''}${Math.abs(v)}°F`; },
   mph: (mps) => `${(mps * 2.2369362920544).toFixed(1)} mph`,
   rh: (h) => `${Math.round(h)}%`,
   date: (iso) => `${MONTH_SHORT[Number(iso.slice(5, 7)) - 1]} ${Number(iso.slice(8, 10))}`,
@@ -89,7 +93,22 @@ const F = {
 
 // ---------- 1. Helpers on hand-made fixtures ----------
 const P = require(path.join(root, 'lib/course-page.ts'));
+const U = require(path.join(root, 'components/course/CourseUnits.tsx'));
 {
+  // Temperatures: rounded first, a true minus, never "−0" (Boston 2026's dew point is −0.1 °C, Valencia 2023's −0.4 °C).
+  assert.equal(U.degreesText(-0.1, 'km'), '0°C');
+  assert.equal(U.degreesText(-0.4, 'km'), '0°C');
+  assert.equal(U.degreesText(-1.2, 'km'), '−1°C');
+  assert.equal(U.degreesText(6.4, 'km'), '6°C');
+  assert.equal(U.degreesText(6.4, 'mi'), '44°F');
+  assert.equal(U.degreesText(-17.8, 'mi'), '0°F');
+  assert.equal(U.degreesText(-20, 'mi'), '−4°F');
+  for (const c of [-20, -17.8, -0.4, 0, 6.4, 13.7, 24.95]) assert.equal(F.degF(c), U.degreesText(c, 'mi'), 'The verifier and the page print °F alike');
+  // The copy-edition line: D2's evidence, word for word, with this page's ending.
+  const copy = { city: 'X', year: 2018, duplicate_of: 2024, eligible_removed: 1200, identical_nine_time_twins: 1100 };
+  assert.equal(P.courseCopySentence(copy), "X 2018's records largely repeat the X 2024 field (1,100 of its 1,200 finishes share all nine checkpoint times with a 2024 finish), so this page counts them only in the pooled pace profile.");
+  const d2 = require(path.join(root, 'lib/duplicate-editions-shared.ts')).copyEditionSentence(copy);
+  assert.equal(P.courseCopySentence(copy).split(', so ')[0], d2.split(', so ')[0], "the evidence is copyEditionSentence()'s");
   assert.equal(P.pct(0.2181), '21.8%');
   assert.equal(P.pct(0), '0.0%');
   assert.equal(P.clock(13111), '3:38:31');
@@ -256,12 +275,22 @@ for (const city of CITIES) {
 }
 check(CITIES.every((city) => slugOf(city) === P.coursePages().get(slugOf(city))?.slug), 'data', 'the page model has every course');
 
+// The two linked analyses, from their own files: the course comparison has a result for a course when its all-finisher
+// row (all ages, genders and early paces) holds a course group; hills and pacing when the course's analysis file holds the
+// supplied route's nine sections, which must be exactly the courses with a supplied route.
+const allFinisherRows = read('public/data/all-finisher-context/evidence.json').rows;
+const COMPARE = new Set(CITIES.filter((city) => (allFinisherRows.find((r) => r.city === city && r.age === 'all' && r.gender === 'all' && r.early_pace === 'all')?.courses ?? []).length > 0));
+const guide = read('public/data/packs/ext_personalized_guide/summary.json');
+const HILLS = new Set(guide.cities.filter((c) => CITIES.includes(c.city) && (read(`public/data/packs/ext_personalized_guide/tables/${c.file}`).terrain ?? []).filter((t) => [5, 10, 15, 20, 25, 30, 35, 40, 42.195].includes(t.end)).length === 9).map((c) => c.city));
+for (const city of CITIES) check(HILLS.has(city) === !!facts.get(city)?.route, `data ${city}`, `hills and pacing ${HILLS.has(city) ? 'has' : 'lacks'} terrain against the supplied route`);
+for (const city of CITIES) check(P.coursePages().get(slugOf(city))?.scopes.compare === COMPARE.has(city) && P.coursePages().get(slugOf(city))?.scopes.hills === HILLS.has(city), `data ${city}`, 'the page model\'s analysis scopes');
+
 // ---------- 3. Built pages ----------
 const KINDS = {
   finishes: 'count', editions: 'count', median: 'clock', 'median.lo': 'clock', 'median.hi': 'clock', 'median.lo.year': 'year', 'median.hi.year': 'year',
   slowdown: 'pct', 'slowdown.lo': 'pct', 'slowdown.hi': 'pct', 'slowdown.lo.year': 'year', 'slowdown.hi.year': 'year', block10: 'pct', after20: 'min', years: 'years',
   'shape.editions': 'count', 'shape.courses': 'count', 'identified.correct': 'count', 'identified.editions': 'count', slowest: 'section',
-  n: 'count', 'median@': 'clock', sd: 'pct', temp: 'degF', date: 'date', small: 'count',
+  n: 'count', 'median@': 'clock', sd: 'pct', temp: 'degF', date: 'date', small: 'count', 'rows.finishes': 'count',
   'geo.distance': 'mi1', 'geo.distance2': 'mi2', 'geo.gain': 'ft', 'geo.loss': 'ft', 'geo.min': 'ft', 'geo.max': 'ft',
   'cg.gain': 'ft', 'cg.loss': 'ft', 'cg.net': 'netft', 'cg.editions': 'count', 'cg.finishes': 'count', 't.gain': 'ft', 't.loss': 'ft', 't.net': 'netft',
   'g.n': 'count', 'g.ed': 'count', 'g.under': 'pct', 'g.sd': 'pct', 'g.after20': 'min', 'g.p10': 'clock', 'g.p50': 'clock', 'g.p90': 'clock',
@@ -306,6 +335,7 @@ function resolve(dataKey, f) {
     case 'temp': return cell?.temp ?? undefined;
     case 'date': return shards.get(key(f.s.city, arg))?.weather?.date;
     case 'small': return f.smallFinishes;
+    case 'rows.finishes': return f.cells.reduce((sum, c) => sum + c.n, 0);
     case 'geo.distance': case 'geo.distance2': return f.route?.distance_km;
     case 'geo.gain': return f.route?.gain_m;
     case 'geo.loss': return f.route?.loss_m;
@@ -460,6 +490,9 @@ if (html) {
     check(/sustained slowdown/i.test(visible), where, 'never says sustained slowdown');
     check(textOf(slowdown).includes('A sustained slowdown is at least 5 km after 20 km run at least 25% slower') && textOf(slowdown).includes(DOI) && slowdown.includes(`href="${DOI_URL}"`), where, 'the definition and its DOI are not in #slowdown');
 
+    // Each section names its own finishes: the sustained-slowdown shares are means over the editions with a row.
+    check(f.cells.length === 1 ? slowdown.includes(`data-k="n@${f.cells[0].year}"`) : slowdown.includes('data-k="rows.finishes"'), where, '#slowdown does not print its finishes');
+
     // Words: banned anywhere in the visible page or its head; rank words in the course content.
     const head = /<head\b[\s\S]*?<\/head>/.exec(full)?.[0] ?? '';
     const metaText = [...head.matchAll(/<title>([\s\S]*?)<\/title>|content="([^"]*)"/g)].map((m) => decode(m[1] ?? m[2] ?? '')).join(' ');
@@ -471,8 +504,9 @@ if (html) {
     for (const copy of f.copies) {
       const row = new RegExp(`<tr class="is-copy" data-copy-year="${copy.year}">([\\s\\S]*?)</tr>`).exec(main);
       check(row && !/\d/.test(innerText(row[1]).replace(String(copy.year), '')), where, `copy edition ${copy.year}: its row is missing or has a number`);
-      const sentence = `${city} ${copy.year}'s records largely repeat the ${city} ${copy.duplicate_of} field (${copy.identical_nine_time_twins.toLocaleString('en-US')} of its ${copy.eligible_removed.toLocaleString('en-US')} finishes share all nine checkpoint times with a ${copy.duplicate_of} finish), so they are shown as recorded times only, without pacing, peer or weather comparisons.`;
+      const sentence = `${city} ${copy.year}'s records largely repeat the ${city} ${copy.duplicate_of} field (${copy.identical_nine_time_twins.toLocaleString('en-US')} of its ${copy.eligible_removed.toLocaleString('en-US')} finishes share all nine checkpoint times with a ${copy.duplicate_of} finish), so this page counts them only in the pooled pace profile.`;
       check(textOf(sectionOf(body, 'finish-times') ?? '').split(sentence).length === 2, where, `copy edition ${copy.year}: its sentence is not under the table exactly once`);
+      check(!visible.includes('shown as recorded times only'), where, 'the runner search\'s ending of the copy-edition sentence, which is not true of this page');
       if (f.allFinisherPct) check(!visible.includes(f.allFinisherPct), where, `the all-finisher figure ${f.allFinisherPct}, which counts the copies, is printed`);
     }
 
@@ -488,6 +522,19 @@ if (html) {
     const gap = f.hotCool ? Math.round((f.hotCool.hot.temp - f.hotCool.cool.temp) * 10) / 10 : null;
     check(body.includes('class="course-hotcool"') === (gap !== null && gap >= courses.weather.pairs.min_gap_c), where, `the coolest/warmest sentence against a ${gap} °C gap`);
     check(body.includes('class="course-slope"') === !!f.slope, where, 'the within-course slope sentence');
+    if (!body.includes('class="course-hotcool"')) {
+      const names = [...(sectionOf(body, 'weather') ?? '').matchAll(/\s(?:aria-label|title)="([^"]*)"/g)].map((m) => decode(m[1])).filter((n) => /warmest|coolest/i.test(n));
+      check(!names.length, where, `the warmest/coolest pairing in an accessible name without the 5 °C gap: ${names[0]}`);
+    }
+    // Race dates and scheduled starts come from the weather records, which say they were not independently verified.
+    const printed = [...f.cells.map((c) => c.year), ...f.weather.map((w) => w.year)].map((y) => shards.get(key(city, y))?.weather).filter((w) => w && (w.date || w.scheduled_start));
+    const unverified = 'The data producer supplied the race dates and scheduled starts; they have not been independently verified.';
+    if (printed.some((w) => w.start_time_independently_verified === false)) {
+      if (f.cells.some((c) => shards.get(key(city, c.year))?.weather?.date)) check(textOf(sectionOf(body, 'finish-times') ?? '').includes(unverified), where, 'the race dates without "not independently verified"');
+      if (f.weather.length) check(textOf(sectionOf(body, 'weather') ?? '').includes(unverified), where, 'the scheduled starts without "not independently verified"');
+    }
+    const sources = [...new Set(f.weather.map((w) => shards.get(key(city, w.year))?.weather?.documentation_url).filter(Boolean))];
+    if (f.weather.length) check(sources.length === 1 && (sectionOf(body, 'weather') ?? '').includes(`href="${sources[0]}"`), where, `the weather source link (${sources})`);
     if (f.weather.length) check(/context only, not an adjustment/i.test(textOf(sectionOf(body, 'weather') ?? '')), where, 'weather without "context only, not an adjustment"');
 
     // Start delays: noted where the shape views leave editions out.
@@ -499,7 +546,7 @@ if (html) {
     const ids = new Set([...body.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
     for (const href of hrefs) {
       if (href.startsWith('#')) { check(ids.has(href.slice(1)), where, `${href} has no target`); continue; }
-      if (/^https?:/.test(href)) { check(href === DOI_URL || href.startsWith('https://splithappens.run/') || /^https:\/\/github\.com\/koolkam00\//.test(href), where, `outside link ${href}`); continue; }
+      if (/^https?:/.test(href)) { check(href === DOI_URL || href.startsWith('https://splithappens.run/') || /^https:\/\/github\.com\/koolkam00\//.test(href) || sources.includes(href), where, `outside link ${href}`); continue; }
       if (href.startsWith('/data/')) { check(fs.existsSync(path.join(root, 'public', href.split('?')[0])), where, `${href} is not a published file`); continue; }
       const url = new URL(href, 'https://splithappens.run');
       check(exported(url.pathname), where, `${href} is not an exported page`);
@@ -513,6 +560,8 @@ if (html) {
       if (goal !== null && url.pathname === '/tools/plan') check(/^\d:\d\d$/.test(goal) && P.COURSE_GOALS.some((g) => P.goalText(g) === goal), where, `${href}: goal`);
       const raceParam = url.searchParams.get('race');
       if (raceParam !== null) check(url.pathname.startsWith('/analyses/') && analysisCities.has(raceParam) && raceParam === city, where, `${href}: race ${raceParam}`);
+      if (url.pathname === '/analyses/course-comparison' && raceParam !== null) check(COMPARE.has(city), where, `${href}: the course comparison has no result for ${city}`);
+      if (url.pathname === '/analyses/hills-and-pacing' && raceParam !== null) check(HILLS.has(city), where, `${href}: hills and pacing has no route for ${city}`);
       const qualifying = /^\/tools\/qualifying\/([a-z]+)$/.exec(url.pathname);
       if (qualifying) check(QUALIFYING_COURSE[qualifying[1]] === city, where, `${href} is another race's qualifying page`);
     }
@@ -521,6 +570,29 @@ if (html) {
     const key_ = Object.keys(QUALIFYING_COURSE).find((k) => QUALIFYING_COURSE[k] === city);
     check(hrefs.includes(`/tools/qualifying/${key_}`) === !!key_, where, key_ ? 'no link back to its qualifying page' : 'a qualifying link on a course without standards');
     if (bandSlugs.has(slug)) check(hrefs.includes(`/tools/pace-band?course=${slug}`) && hrefs.includes(`/tools/split-check?course=${slug}`), where, 'no pace band or split check preset for a course they publish');
+    const raceQuery = `?race=${encodeURIComponent(city)}`;
+    check(hrefs.includes(`/analyses/course-comparison${raceQuery}`) === COMPARE.has(city), where, `the course comparison link against its result (${COMPARE.has(city)})`);
+    check(hrefs.includes(`/analyses/hills-and-pacing${raceQuery}`) === HILLS.has(city), where, `the hills-and-pacing link against the route (${HILLS.has(city)})`);
+
+    // Tables scroll sideways in a named region that takes keyboard focus, labelled by the table's caption.
+    for (const m of main.matchAll(/<div\b([^>]*class="tool-table-wrap course-table-wrap"[^>]*)>\s*<table\b[^>]*>\s*<caption\b([^>]*)>/g)) {
+      const labelledBy = attr(m[1], 'aria-labelledby');
+      check(attr(m[1], 'role') === 'region' && attr(m[1], 'tabindex') === '0' && labelledBy && attr(m[2], 'id') === labelledBy, where, `a table region without its name: ${m[1]}`);
+    }
+    check((main.match(/class="tool-table-wrap course-table-wrap"/g) ?? []).length === (main.match(/<table class="[^"]*course-table/g) ?? []).length, where, 'a course table outside its region');
+    // Goal links name where they go; the dek promises five rows only over the table.
+    for (const m of main.matchAll(/<th scope="row"><a\b([^>]*)>([^<]*)<\/a><\/th>/g)) {
+      if (/\/tools\/plan/.test(attr(m[1], 'href') ?? '')) check(attr(m[1], 'aria-label') === `Plan a ${m[2]} ${f.race}`, where, `goal link ${m[2]}: name "${attr(m[1], 'aria-label')}"`);
+    }
+    const hasGoalRows = /class="tool-table course-table course-goals-table"/.test(main);
+    check(/For five goal times/.test(textOf(sectionOf(body, 'goals') ?? '')) === hasGoalRows, where, 'the goals dek against the table');
+
+    // Editions in the data with no row (fewer than 100 finishes) are named wherever a count includes them.
+    if (f.smallYears.length) {
+      check(textOf(sectionOf(body, 'finish-times') ?? '').includes(`years not listed are not in the data, except ${F.years(f.smallYears.join(','))} (below)`), where, 'the table note does not name the small editions');
+      const listedRows = f.cells.length - courses.shape_cohort.start_offset_editions.filter((e) => e.city === city).length - (courseGoal.screens.grid ?? []).filter((e) => e.city === city).length;
+      if (f.ctx && f.ctx.editions - listedRows === f.smallYears.length) check(textOf(sectionOf(body, 'data') ?? '').includes(`including the ${F.years(f.smallYears.join(','))} edition`), where, 'the goal rows\' editions include a small edition the page does not name');
+    }
 
     // Structured data: the breadcrumbs only.
     const types = [...full.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => [].concat(JSON.parse(m[1])).map((x) => x['@type']));
@@ -539,6 +611,13 @@ if (html) {
       const city = CITIES[i];
       check(item['@type'] === 'ListItem' && item.position === i + 1 && item.url === `https://splithappens.run/courses/${slugOf(city)}` && item.name === facts.get(city)?.race, where, `item ${i + 1}: ${JSON.stringify(item)}`);
     });
+    // Each card's count is the one its course page's hero prints (the story data, without copy editions).
+    const cards = new Map([...markup(full).matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)].filter((m) => attr(m[1], 'class') === 'course-card')
+      .map((m) => [(attr(m[1], 'href') ?? '').replace(/^\/courses\//, ''), textOf(m[2])]));
+    for (const city of CITIES) {
+      const text = cards.get(slugOf(city));
+      check(text && text.includes(`${F.count(facts.get(city).s.finishes)} finishes with complete splits`), where, `the ${city} card: "${text}" against the page's ${F.count(facts.get(city).s.finishes)} finishes`);
+    }
   }
   words.sort((a, b) => a[1] - b[1]);
   console.log(`Course pages: ${CITIES.length} pages, ${factCount} printed figures checked; ${words[0][1]}–${words[words.length - 1][1]} words of main text (${words[0][0]} to ${words[words.length - 1][0]}).`);
