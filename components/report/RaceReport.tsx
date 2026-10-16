@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { useUnits } from '@/components/UnitsProvider';
 import { loadInsight, type Archetypes } from '@/lib/insights';
 import {
@@ -13,7 +13,7 @@ import { PACE_BAND_INDEX } from '@/lib/tools/pace-band-data';
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { formatDuration } from '@/lib/tools/time';
 import { elevationLabel, type UnitSystem } from '@/lib/units';
-import ReportActions from './ReportActions';
+import ReportActions, { ReportJump } from './ReportActions';
 
 const ARCHETYPES = 'archetypes.json';
 const count = (value: number) => value.toLocaleString('en-US');
@@ -70,6 +70,8 @@ export interface RaceReportProps {
   fromRecord?: boolean;
   /** A runner record on /runners: its edition, that edition's context and the record's own late change. Never in a link. */
   record?: { edition: { city: string; year: number }; context: RaceInsights | null; error: string | null; lateChange: number };
+  /** Opened by a press (the runner view): focus moves to the card's title once it shows, so a screen reader hears it. */
+  focusOnOpen?: boolean;
 }
 
 /**
@@ -77,7 +79,7 @@ export interface RaceReportProps {
  * cohort and finishes, then the print, image, share and copy-link actions. The same component serves /report (typed or
  * linked times) and the runner view, where it adds the record's own edition and never names the runner.
  */
-export default function RaceReport({ times, course, gender, data, level, fromRecord = false, record }: RaceReportProps) {
+export default function RaceReport({ times, course, gender, data, level, fromRecord = false, record, focusOnOpen = false }: RaceReportProps) {
   const { units } = useUnits();
   const id = useId();
   const index = useVerified<PaceBandIndex>(PACE_BAND_INDEX, data.indexSha);
@@ -95,17 +97,28 @@ export default function RaceReport({ times, course, gender, data, level, fromRec
   const link = reportLink(times, city, gender, fromRecord || Boolean(record));
   const retry = () => { if (index.error) index.retry(); else retryShard(); };
   const cardId = `${id}-card`;
+  const actionsId = `${id}-actions`;
+  useEffect(() => { if (focusOnOpen) document.getElementById(`${cardId}-title`)?.focus(); }, [focusOnOpen, cardId]);
   return (
     <div className="race-report-root ph-no-capture">
-      <ReportCard id={cardId} model={model} units={units} level={level} gender={gender} dropped={dropped} retryComparison={retry} retryType={archetypes.retry} />
-      <ReportActions model={model} units={units} link={link} cardId={cardId} />
+      <ReportCard id={cardId} model={model} units={units} level={level} gender={gender} dropped={dropped} retryComparison={retry} retryType={archetypes.retry}
+        jump={<ReportJump cardId={cardId} actionsId={actionsId} />} />
+      <ReportActions id={actionsId} model={model} units={units} link={link} cardId={cardId} gender={gender} />
     </div>
   );
 }
 
+/** A pace with its unit set smaller ("9:17" and "/mi"), so a narrow tile never breaks inside it. */
+function PaceValue({ text }: { text: string }) {
+  const slash = text.indexOf('/');
+  return slash < 0 ? <>{text}</> : <>{text.slice(0, slash)}<small className="race-report-unit">{text.slice(slash)}</small></>;
+}
+
 /** The card itself, from a built model (exported for scripts/verify-report.cjs, which renders it without the data hooks). */
-export function ReportCard({ id, model, units, level, gender, dropped, retryComparison, retryType }: {
+export function ReportCard({ id, model, units, level, gender, dropped, retryComparison, retryType, jump }: {
   id: string; model: ReportModel; units: UnitSystem; level: 1 | 3; gender: ReportGender; dropped: string | null; retryComparison: () => void; retryType: () => void;
+  /** The print and "Save or share" buttons under the title (not printed). */
+  jump?: ReactNode;
 }) {
   const Title = level === 1 ? 'h1' : 'h3';
   const Head = level === 1 ? 'h2' : 'h4';
@@ -116,13 +129,14 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
     <article className="race-report ph-no-capture" id={id} aria-labelledby={`${id}-title`}>
       <header className="race-report-head">
         <p className="race-report-brand">Pace Notes</p>
-        <Title className="race-report-title" id={`${id}-title`}>Race report</Title>
+        <Title className="race-report-title" id={`${id}-title`} tabIndex={-1}>Race report</Title>
         <p className="race-report-race">{model.race ?? 'Marathon'}<span> · {units === 'mi' ? '26.2 mi' : '42.2 km'}</span></p>
       </header>
+      {jump}
 
       <div className="race-report-stats">
         <div className="race-report-stat"><span>Finish</span><strong>{lines.finish}</strong><small>{lines.pace}</small></div>
-        <div className="race-report-stat"><span>5–20 km pace</span><strong>{baseline}</strong><small>25% slower is {paceText(model.baseline * 1.25, units)}</small></div>
+        <div className="race-report-stat"><span>5–20 km pace</span><strong><PaceValue text={baseline} /></strong><small>25% slower is {paceText(model.baseline * 1.25, units)}</small></div>
         <div className={`race-report-stat is-${slowdown.yes ? 'bad' : 'good'}`}><span>Sustained slowdown</span><strong>{slowdown.yes ? 'Yes' : 'No'}</strong>
           <small>{slowdown.yes && slowdown.onsetKm !== null ? `from ${kmText(slowdown.onsetKm, units)}` : 'by the published definition'}</small></div>
       </div>
@@ -162,7 +176,7 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
       {model.record ? <RecordBlock id={`${id}-record`} Head={Head} record={model.record} units={units} /> : null}
 
       <footer className="race-report-foot">
-        <p><strong>splithappens.run</strong> · Calculated from nine official mat times{model.record ? ' of a recorded result' : ''}. Shares are observed in complete finishes; nothing here is a prediction, and weather and elevation are context, never adjustments.</p>
+        <p><strong>splithappens.run</strong> · Calculated from nine {model.record ? 'official mat times of a recorded result' : 'mat times as entered'}. Shares are observed in complete finishes; nothing here is a prediction, and weather and elevation are context, never adjustments.</p>
       </footer>
     </article>
   );

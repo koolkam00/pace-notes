@@ -5,6 +5,7 @@ import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { Choice, EvidencePanel, ExampleNote, ShareBar } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
+import { runnerHandoff } from '@/lib/analytics-policy';
 import { loadInsight, type Archetype, type Archetypes } from '@/lib/insights';
 import { TONE, openingBandOf, openingPct, pctAbs, pctSigned, qualifies, reportLink, toneOf, windowCells, windowCheck, type OpeningBand, type TypeCohort } from '@/lib/report-shared';
 import { loadShard, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
@@ -344,6 +345,10 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
   const [droppedCourse, setDroppedCourse] = useState<string | null>(null);
   // The visitor has changed the times on this page (typed, pasted, cleared or loaded the example).
   const [touched, setTouched] = useState(false);
+  // Opened from a runner's record (via=runner): the race report link keeps the marker and never carries g, as the
+  // report's own links do, so the pages it leads to are not recorded either.
+  const [fromRunner, setFromRunner] = useState(false);
+  useEffect(() => { setFromRunner(runnerHandoff(window.location.href)); }, []);
   const formId = useId();
 
   // The URL is read once after mount, and nothing is read before it, so a shared link never shows the example race first.
@@ -576,7 +581,7 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
                 where={where} place={place} genderWord={genderWord} course={q.course} gender={gender} fallbacks={fallbacks}
                 openingBands={openingBands} openingCities={openingCities} isExample={isExample}
                 bandCourse={knownCourses?.includes(q.course) && q.course !== 'all' ? q.course : null} typeCohort={typeCohort}
-                reportCity={q.course !== 'all' ? scope?.city ?? null : null} />
+                reportCity={q.course !== 'all' ? scope?.city ?? null : null} fromRunner={fromRunner} />
             ) : view[0] === 'e' ? (
               <div className="tool-state is-error"><strong>Check your times.</strong> {view.slice(1)}</div>
             ) : (
@@ -614,13 +619,15 @@ function HeadStat({ label, value, sub, tone, evidence, className }: {
   );
 }
 
-function Results({ times, reading, units, comparison, type, typeError, retryType, where, place, genderWord, course, gender, fallbacks, openingBands, openingCities, isExample, bandCourse, typeCohort, reportCity }: {
+function Results({ times, reading, units, comparison, type, typeError, retryType, where, place, genderWord, course, gender, fallbacks, openingBands, openingCities, isExample, bandCourse, typeCohort, reportCity, fromRunner }: {
   times: number[]; reading: SplitReading; units: UnitSystem; comparison: Comparison; type: TypeResult; typeError: string | null; retryType: () => void;
   where: string; place: string; genderWord: string; course: string; gender: Gender; fallbacks: ReactNode; openingBands: OpeningBand[]; openingCities: string[]; isExample: boolean;
   /** The chosen course when the pace band publishes it, else null. */
   bandCourse: string | null; typeCohort: TypeCohort | null;
   /** The compared course's name for the race report link (null for all courses). */
   reportCity: string | null;
+  /** The page was opened from a runner's record (via=runner). */
+  fromRunner: boolean;
 }) {
   const { lead, more } = summarize(reading, units);
   const avg = times[8] / MARATHON_KM;
@@ -630,8 +637,9 @@ function Results({ times, reading, units, comparison, type, typeError, retryType
   const goalMinute = Math.floor(times[8] / 60);
   const bandGoal = goalMinute >= 90 && goalMinute <= 480 ? `goal=${formatHMGoal(times[8])}` : '';
   const bandQuery = [bandGoal, bandCourse ? `course=${bandCourse}` : '', gender !== 'all' ? `g=${gender}` : ''].filter(Boolean).join('&');
-  // The race report reads the same times, course and comparison group; the made-up example gets none.
-  const report = isExample ? null : reportLink(times, reportCity, gender, false);
+  // The race report reads the same times, course and comparison group (none from a runner's record); the made-up example
+  // gets no report.
+  const report = isExample ? null : reportLink(times, reportCity, gender, fromRunner);
   return (
     <>
       <div className="tool-headline split-check-headline">

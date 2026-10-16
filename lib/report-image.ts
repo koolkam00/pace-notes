@@ -171,9 +171,11 @@ export async function renderReportImage(model: ReportModel, units: UnitSystem): 
   ctx.fillStyle = INK;
   ctx.font = `600 22px ${MONO}`;
   ctx.fillText('SPLITHAPPENS.RUN', M, H - 68);
+  // No source badge here: the image holds calculations from the race's own times, Pace Notes data and the published
+  // method's definition, which the page keeps apart, so one label would merge them.
   ctx.textAlign = 'right';
   ctx.fillStyle = INK_3;
-  ctx.fillText('PACE NOTES DATA · NOT A PREDICTION', W - M, H - 68);
+  ctx.fillText('NOT A PREDICTION', W - M, H - 68);
 
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('This browser cannot save the image.'))), 'image/png');

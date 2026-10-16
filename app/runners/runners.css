@@ -5,7 +5,6 @@
 .runner-start { display: grid; align-content: start; gap: .2rem; height: 100%; padding: .85rem 1rem; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-left: 4px solid var(--green); border-radius: 12px; text-decoration: none; }
 a.runner-start:hover { border-color: var(--ink-2); border-left-color: var(--green); text-decoration: none; }
 a.runner-start:hover b, a.runner-start:focus-visible b { text-decoration: underline; text-decoration-color: var(--green); text-decoration-thickness: 2px; text-underline-offset: 3px; }
-a.runner-start:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 .runner-start b { font-size: .9375rem; }
 .runner-start span { font-size: .8125rem; line-height: 1.45; color: var(--ink-3); }
 .runner-start-time { border-left-color: var(--blue); }

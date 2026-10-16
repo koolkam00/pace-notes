@@ -155,8 +155,10 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
   const [loading, setLoading] = useState(true);
   const [failure, setFailure] = useState('');
   const [retry, setRetry] = useState(0);
-  // The race whose report is open; another focus race closes it.
+  // The race whose report is open; another focus race closes it. Only a press moves focus into the report: coming back
+  // to that focus race shows it again where it was.
   const [reportFor, setReportFor] = useState<number | null>(null);
+  const [reportPressed, setReportPressed] = useState(false);
   useEffect(() => {
     const controller = new AbortController(); setLoading(true); setFailure(''); setContexts({});
     loadRaceInsights(races, manifest, controller.signal).then(data => { if (!controller.signal.aborted) { setContexts(data); setLoading(false); } }).catch(error => { if (!controller.signal.aborted) { setFailure(error instanceof Error ? error.message : 'Race context could not load. Try again.'); setLoading(false); } });
@@ -180,7 +182,7 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
   const edition = manifest.editions[focus.race.edition];
   const reportTimes = report ? wholeSeconds(focus.metrics) : null;
   return <section className="runner-context ph-no-capture" aria-labelledby={`${id}-title`}>
-    <header className="rc-heading"><p className="eyebrow">A closer look</p><h2 id={`${id}-title`}>Your race, in context.</h2><label htmlFor={`${id}-focus`}>Focus race<select id={`${id}-focus`} value={focus.race.id} onChange={event => setFocusId(Number(event.target.value))}>{valid.map(({ race, metrics }) => <option key={race.id} value={race.id}>{titleFor(race, manifest)} · {runnerDuration(metrics.finish)} · record {race.id}</option>)}</select></label></header>
+    <header className="rc-heading"><p className="eyebrow">A closer look</p><h2 id={`${id}-title`}>Your race, in context.</h2><label htmlFor={`${id}-focus`}>Focus race<select id={`${id}-focus`} value={focus.race.id} onChange={event => { setReportPressed(false); setFocusId(Number(event.target.value)); }}>{valid.map(({ race, metrics }) => <option key={race.id} value={race.id}>{titleFor(race, manifest)} · {runnerDuration(metrics.finish)} · record {race.id}</option>)}</select></label></header>
     <div className="rc-tabs" role="group" aria-label="Race detail view">{([{ id: 'pacing', title: 'Your pacing' }, { id: 'peers', title: 'Similar runners' }, { id: 'conditions', title: 'Conditions' }] as const).map(item => <button type="button" key={item.id} aria-pressed={tab === item.id} aria-controls={`${id}-panel`} onClick={() => setTab(item.id)}>{item.title}</button>)}</div>
     <div className="rc-panel" id={`${id}-panel`}>
       {tab === 'pacing' && <PacingReadings {...focus} manifest={manifest} units={units} />}
@@ -190,11 +192,12 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
     {report && reportTimes && <section className="rc-report" aria-labelledby={`${id}-report-title`}>
       <p className="eyebrow">Race report</p>
       <h3 id={`${id}-report-title`}>{titleFor(focus.race, manifest)} on one page.</h3>
-      <p className="rc-copy">The section paces, the sustained-slowdown reading, the pacing type and finishes at the same time, with this edition’s finish comparison, weather and climb, to print or save as a PDF. A saved image shows the race, its nine times and the comparison; a copied link carries only the nine times and the course. Neither holds a name or a record.</p>
+      <p className="rc-copy">The section paces, the sustained-slowdown reading, the pacing type and finishes at the same time, with this edition’s finish comparison, weather and climb, to print or save as a PDF. A saved image shows the race, its finish and section paces and the comparison; a copied link carries only the nine times and the course. Neither holds a name or a record.</p>
+      {/* Marked for section_viewed: the section tracker watches sections that join the page after it first looked. */}
       {reportFor === focus.race.id
-        ? <Suspense fallback={<p className="rc-copy" role="status">Loading the race report…</p>}><RaceReport times={reportTimes} course={courseSlug(edition.city)} gender="all" data={report} level={3}
-          record={{ edition: { city: edition.city, year: edition.year }, context: context ?? null, error: failure || null, lateChange: focus.metrics.lateChange }} /></Suspense>
-        : <button type="button" className="button-secondary" onClick={() => setReportFor(focus.race.id)}>Make a race report</button>}
+        ? <div data-track-section="report"><Suspense fallback={<p className="rc-copy" role="status">Loading the race report…</p>}><RaceReport times={reportTimes} course={courseSlug(edition.city)} gender="all" data={report} level={3}
+          record={{ edition: { city: edition.city, year: edition.year }, context: context ?? null, error: failure || null, lateChange: focus.metrics.lateChange }} focusOnOpen={reportPressed} /></Suspense></div>
+        : <button type="button" className="button-secondary" onClick={() => { setReportPressed(true); setReportFor(focus.race.id); }}>Make a race report</button>}
     </section>}
     {reference && <section className="rc-multi" aria-labelledby={`${id}-comparison-title`}><p className="eyebrow">Across your selected races</p><h2 id={`${id}-comparison-title`}>Where did your time change?</h2><label htmlFor={`${id}-reference`}>Compare the focus race with<select id={`${id}-reference`} value={reference.race.id} onChange={event => setReferenceId(Number(event.target.value))}>{others.map(({ race, metrics }) => <option key={race.id} value={race.id}>{titleFor(race, manifest)} · {runnerDuration(metrics.finish)} · record {race.id}</option>)}</select></label><SectionComparison focus={focus} reference={reference} manifest={manifest} units={units} />
       <h3 className="rc-chart-heading">Read the races side by side.</h3><p className="rc-note">Weather and terrain remain context. Percentiles compare different race fields and do not turn the results into adjusted finish times.</p>{unavailable}

@@ -13,6 +13,10 @@
 .race-report { position: relative; min-width: 0; padding: clamp(1.2rem, 4.5vw, 2.4rem); background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow); overflow: hidden; }
 .race-report::before { content: ''; position: absolute; inset: 0 2rem auto; height: 6px; border-radius: 0 0 6px 6px; background: var(--orange); }
 .race-report-head { display: grid; gap: .1rem; }
+/* The print button and a way down to the other outputs, under the title, so a phone shows them before the card: one quiet row. */
+.race-report-jump { display: flex; flex-wrap: wrap; gap: 0 1.2rem; margin-top: .5rem; }
+.race-report-jump button { display: inline-flex; align-items: center; gap: .35rem; min-height: 44px; padding: 0; border: 0; background: none; color: var(--blue-ink); font-size: .9375rem; font-weight: 650; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
+.race-report-jump button:hover { text-decoration-thickness: 2px; }
 .race-report-brand { font-family: var(--serif); font-variation-settings: 'opsz' 72, 'SOFT' 40; font-size: 1.05rem; font-weight: 600; letter-spacing: -.01em; }
 .race-report .race-report-title { margin: .1rem 0 0; font-family: var(--serif); font-variation-settings: 'opsz' 144, 'SOFT' 50, 'WONK' 1; font-weight: 680; font-size: clamp(2.5rem, 8vw, 3.8rem); line-height: .98; letter-spacing: -.026em; }
 .race-report-race { margin-top: .55rem; font-family: var(--mono); font-size: .8125rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--orange-ink); }
@@ -21,14 +25,17 @@
 .race-report-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; margin-top: 1.4rem; }
 .race-report-stat { display: grid; align-content: start; gap: .15rem; min-width: 0; padding: .8rem .9rem; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; }
 .race-report-stat span { font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
-.race-report-stat strong { font-family: var(--bib); font-size: clamp(1.6rem, 5.2vw, 2.5rem); font-weight: 650; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.race-report-stat strong { font-family: var(--bib); font-size: clamp(1.4rem, 4.4vw, 2.5rem); font-weight: 650; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .race-report-stat small { font-size: .8125rem; line-height: 1.35; color: var(--ink-3); }
+/* A pace's unit, smaller, so "9:17/mi" never breaks in a narrow tile. */
+.race-report-stat .race-report-unit { font-size: .55em; line-height: inherit; letter-spacing: 0; color: inherit; }
 .race-report-stat.is-bad strong { color: var(--orange-ink); }
 .race-report-stat.is-good strong { color: var(--green-ink); }
 @media (max-width: 560px) {
   .race-report-stats { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .race-report-stat:first-child { grid-column: 1 / -1; }
 }
+@media (max-width: 340px) { .race-report-stat strong { font-size: 1.2rem; } }
 
 .race-report-block { position: relative; min-width: 0; margin-top: 1.1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
 .race-report .race-report-block h2, .race-report .race-report-block h4 { margin: 0 0 .3rem; font-family: var(--sans); font-size: 1rem; font-weight: 700; line-height: 1.35; letter-spacing: -.01em; }
@@ -64,6 +71,12 @@
   .race-report-bars li { grid-template-columns: 5.4rem minmax(0, 1fr) 7.2rem; gap: .4rem; }
   .race-report-bar-name, .race-report-bar-value { font-size: .6875rem; }
 }
+/* Narrower still, each bar gets its own row under its name and pace, so it never shrinks away (320 px, or a zoomed phone). */
+@media (max-width: 420px) {
+  .race-report-bars { gap: .45rem; }
+  .race-report-bars li { grid-template-columns: minmax(0, 1fr) auto; row-gap: .15rem; }
+  .race-report-bar-track { grid-column: 1 / -1; grid-row: 2; }
+}
 
 .race-report-table { margin-top: .6rem; overflow-x: auto; overscroll-behavior-x: contain; }
 .race-report-table table { width: 100%; border-collapse: collapse; font-size: .8125rem; font-variant-numeric: tabular-nums; }
@@ -90,6 +103,7 @@
 .race-report-actions { display: grid; gap: .45rem; }
 .race-report-actions .share-bar { display: flex; flex-wrap: wrap; gap: .5rem; }
 .race-report-actions .share-bar button { flex: 1 1 auto; }
+.race-report-actions .share-bar button[aria-disabled='true'] { opacity: .55; cursor: wait; }
 .race-report-hint, .race-report-note { font-size: .8125rem; line-height: 1.5; color: var(--ink-3); }
 .race-report-note:empty { display: none; }
 .race-report-note.is-error { color: #B3123E; }
@@ -102,7 +116,7 @@
 .report-empty > p:not(.eyebrow) { max-width: 40rem; margin-top: 1.1rem; font-size: 1.08rem; line-height: 1.6; color: var(--ink-3); }
 .report-starts ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: .7rem; margin: 1.6rem 0 0; padding: 0; list-style: none; }
 .report-starts li + li { margin-top: 0; }
-.report-start { display: grid; align-content: start; gap: .2rem; height: 100%; min-height: 44px; padding: .95rem 1.1rem; border: 1px solid var(--line); border-left: 4px solid var(--orange); border-radius: 14px; background: var(--card); color: var(--ink); text-decoration: none; }
+.report-start { display: grid; align-content: start; gap: .2rem; height: 100%; min-height: 44px; padding: .95rem 1.1rem; border: 1px solid var(--line); border-left: 4px solid var(--green); border-radius: 14px; background: var(--card); color: var(--ink); text-decoration: none; }
 .report-start.is-search { border-left-color: var(--blue); }
 .report-start:hover { border-color: var(--ink-2); text-decoration: none; }
 .report-start:hover b, .report-start:focus-visible b { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }

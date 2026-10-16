@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { trackAnalytics, trackFailure } from '@/lib/analytics';
 import { chunkLoadFailed } from '@/lib/chunk-reload';
-import { REPORT_IMAGE_NAME, reportImageAlt, reportLines, type ReportModel } from '@/lib/report';
+import { REPORT_IMAGE_NAME, reportImageAlt, reportLines, type ReportGender, type ReportModel } from '@/lib/report';
 import type { UnitSystem } from '@/lib/units';
 
 type Note = { kind: 'ok' | 'error'; text: string } | null;
@@ -15,7 +15,7 @@ const cancelled = (error: unknown) => (error as { name?: unknown } | null)?.name
  * search, the records and the other views stay off the page. A browser that never sends afterprint keeps the marks,
  * which only change printing.
  */
-function printCard(cardId: string) {
+export function printCard(cardId: string) {
   const marked: [Element, string][] = [];
   const mark = (element: Element, name: string) => { if (!element.hasAttribute(name)) { element.setAttribute(name, ''); marked.push([element, name]); } };
   for (let node = document.getElementById(cardId); node && node.parentElement && node !== document.body; node = node.parentElement) {
@@ -28,21 +28,50 @@ function printCard(cardId: string) {
 }
 
 /**
+ * Under the card's title, so a phone shows them without scrolling past the whole card: the same print button, and a
+ * button down to the other outputs, which moves focus to Save image.
+ */
+export function ReportJump({ cardId, actionsId }: { cardId: string; actionsId: string }) {
+  const down = () => {
+    const row = document.getElementById(actionsId);
+    row?.scrollIntoView({ block: 'center' });
+    row?.querySelector<HTMLButtonElement>('[data-report-save]')?.focus({ preventScroll: true });
+  };
+  return (
+    <div className="race-report-jump no-print">
+      <button type="button" data-not-edit onClick={() => printCard(cardId)}>Print or save as PDF</button>
+      <button type="button" data-not-edit onClick={down}>Save or share <span aria-hidden="true">↓</span></button>
+    </div>
+  );
+}
+
+/** "the nine times, the course and the comparison group you chose (women)": what a typed report's link carries. */
+function carried(link: string | null, gender: ReportGender): string {
+  const parts = ['the nine times', ...(link?.includes('&course=') ? ['the course'] : []), ...(gender === 'all' ? [] : [`the comparison group you chose (${gender})`])];
+  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
+}
+
+/**
  * The report's outputs, in the share bar's row (`.tool-share .share-bar`, so none counts as a tool edit): print or save as
  * PDF through the browser, a 1080 × 1350 image drawn only when asked for (lib/report-image.ts, loaded with import() on
  * the first press), the share sheet, and the report's link. Analytics hears only that an image was saved or a share went
  * through (`report_exported`), a copied link and a print (`tool_used`), and a failure's kind (`site_error` `export`):
  * never a time, a course or the link.
  */
-export default function ReportActions({ model, units, link, cardId }: { model: ReportModel; units: UnitSystem; link: string | null; cardId: string }) {
+export default function ReportActions({ id, model, units, link, cardId, gender }: { id: string; model: ReportModel; units: UnitSystem; link: string | null; cardId: string; gender: ReportGender }) {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [note, setNote] = useState<Note>(null);
   const [preview, setPreview] = useState<{ url: string; alt: string } | null>(null);
   const made = useRef<{ key: string; blob: Blob } | null>(null);
-  // The image follows the units and the numbers on screen: a change draws it again.
+  // The image follows the units and the numbers on screen: a change draws it again, and drops the preview of the last one.
   const key = `${units}|${JSON.stringify(reportLines(model, units))}`;
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview.url); }, [preview]);
+  useEffect(() => { setPreview(null); setNote(null); }, [key]);
+  // The image and its alternative text wait for the comparison and the pacing type, so neither is ever left out. The
+  // buttons stay focusable meanwhile (aria-disabled, not disabled), so keyboard focus never drops to the page.
+  const pending = model.comparison.state === 'loading' ? 'the comparison' : model.type.state === 'loading' ? 'the pacing types' : null;
+  const waiting = busy || pending !== null;
 
   const failed = (error: unknown, text: string) => {
     if (chunkLoadFailed(error)) trackFailure('chunk_load'); else trackFailure('export');
@@ -68,11 +97,13 @@ export default function ReportActions({ model, units, link, cardId }: { model: R
   };
 
   const onSave = async () => {
+    if (waiting) return;
     setBusy(true); setNote(null);
     try { await saveImage(); } catch (error) { failed(error, 'The image could not be made in this browser. Use Print or save as PDF instead.'); } finally { setBusy(false); }
   };
   // The image when the browser can share files (iOS Safari 15 and later), else the link, else the image is saved.
   const onShare = async () => {
+    if (waiting) return;
     setBusy(true); setNote(null);
     try {
       const probe = typeof File === 'function' ? new File([new Blob()], REPORT_IMAGE_NAME, { type: 'image/png' }) : null;
@@ -109,16 +140,16 @@ export default function ReportActions({ model, units, link, cardId }: { model: R
   };
 
   return (
-    <div className="race-report-actions no-print">
+    <div className="race-report-actions no-print" id={id}>
       <div className="tool-share share-bar">
         <button type="button" className="button-primary" data-not-edit onClick={() => printCard(cardId)}>Print or save as PDF</button>
-        <button type="button" className="button-secondary" disabled={busy} onClick={onSave}>{busy ? 'Making the image…' : 'Save image'}</button>
-        <button type="button" className="button-secondary" disabled={busy} onClick={onShare}>Share</button>
+        <button type="button" className="button-secondary" data-report-save aria-disabled={waiting || undefined} onClick={onSave}>{busy ? 'Making the image…' : pending ? `Loading ${pending}…` : 'Save image'}</button>
+        <button type="button" className="button-secondary" aria-disabled={waiting || undefined} onClick={onShare}>Share</button>
         {link ? <button type="button" className="button-secondary" onClick={onCopy}>{copied ? 'Link copied' : 'Copy link'}</button> : null}
       </div>
       <p className="race-report-hint">Print uses the browser’s own PDF export, one page. {model.record
-        ? `The image shows ${model.record.edition} and its nine times, and the link carries the nine times and the course; this edition’s comparisons, weather and climb are in the printout only.`
-        : 'The image and the link carry this race’s nine times and its course only.'}</p>
+        ? `The image shows ${model.record.edition} with its finish and section paces, and the link carries the nine times and the course; this edition’s comparisons, weather and climb are in the printout only.`
+        : `The image shows the finish, the section paces, the slowdown reading, the pacing type and the comparison; the link carries only ${carried(link, gender)}.`}</p>
       <p className={`race-report-note${note?.kind === 'error' ? ' is-error' : ''}`} aria-live="polite">{copied ? 'Link copied to the clipboard.' : note?.text ?? ''}</p>
       {preview ? <img className="race-report-preview" src={preview.url} alt={preview.alt} width={1080} height={1350} /> : null}
     </div>
