@@ -78,7 +78,14 @@ assert.deepEqual(time.parseTrackerText('25K 2:05:31\n30 km 02:31:07 4:59/km\nHal
   assert.equal(keypad.keypadInput(field('3.30', 4), { inputType: 'insertText', data: '0' }), '3.30', 'only the key just typed changes');
   assert.equal(keypad.keypadInput(field('8.', 2), { inputType: 'insertText', data: '.' }, 'pace'), '8.');
   assert.equal(keypad.keypadInput(field('3.30')), '3:30', 'without an event the whole text is read');
-  checks += 11;
+  // A pasted "1.12" with ".55" typed after it reads 1:12:55, never 1.12 hours and 55 minutes; a pasted "1.12.55" already has
+  // its two separators, so a dot typed after it stays a dot.
+  assert.equal(keypad.keypadInput(field('1.12.', 5), { inputType: 'insertText', data: '.' }), '1.12:');
+  assert.equal(time.parseDuration('1.12:55'), 4375, 'mixed separators are clock groups'); assert.equal(time.parseDuration('1,12:55'), 4375);
+  assert.equal(keypad.keypadInput(field('1.12.55.', 8), { inputType: 'insertText', data: '.' }), '1.12.55.');
+  assert.equal(time.parseDuration('1.12:55.3'), 4375.3, 'tenths after the last colon stay tenths');
+  for (const bad of ['1.12:', '1.:30', '1.2.3:4', '1.75:30']) { assert.equal(time.parseDuration(bad), null, `reject ${bad}`); }
+  checks += 10;
 
   // Every reader behind a time field.
   for (const [text, mode, expected] of [['1.12.55', 'race', 4375], ['3,30', 'race', 12600], ['3,30,15', 'race', 12615], ['8,05', 'pace', 485], ['8.5', 'pace', 510], ['8.50', 'pace', 530]]) {

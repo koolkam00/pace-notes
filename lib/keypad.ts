@@ -41,7 +41,9 @@ export function keypadInput(field: HTMLInputElement, event?: Event, mode: Durati
   const start = Math.max(0, end - input.data.length);
   if (value.slice(start, end) !== input.data) return value;
   const typed = value.slice(start, end);
-  let colons = (value.slice(0, start) + value.slice(end)).match(/:/g)?.length ?? 0;
+  // Separators already in the field count, colons or not: a pasted "1.12" has one, so a third group's dot typed after it is
+  // the second and last.
+  let colons = (value.slice(0, start) + value.slice(end)).match(/[:.,]/g)?.length ?? 0;
   let out = '';
   for (const ch of typed) {
     if ((ch === '.' || ch === ',') && colons < 2) { out += ':'; colons += 1; } else out += ch;

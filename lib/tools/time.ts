@@ -42,7 +42,9 @@ export function parseDuration(input: string, mode: DurationMode = 'race'): numbe
     return minutes > 0 ? Math.round(minutes * 60 * 1000) / 1000 : null;
   }
   let parts = text.split(':');
-  if (parts.length === 1) {
+  // Dots or commas before the last colon separate groups too: a pasted "1.12" with ":55" typed after it is 1:12:55.
+  if (parts.length > 1) parts = [...parts.slice(0, -1).flatMap((p) => p.split(/[.,]/)), parts[parts.length - 1]];
+  else {
     const dotted = text.split(/[.,]/);
     if ((dotted.length === 3) || (dotted.length === 2 && mode === 'pace')) parts = dotted;
     else return null;
