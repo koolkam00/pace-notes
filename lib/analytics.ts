@@ -1,5 +1,5 @@
 import type { CaptureResult, PostHog } from 'posthog-js';
-import { ANALYTICS_CHANGED, ANALYTICS_HOSTS, ANALYTICS_PREFERENCE, CAMPAIGN, analyticsPath, noteRunnerHandoff, type AnalyticsEvents } from './analytics-policy';
+import { ANALYTICS_CHANGED, ANALYTICS_HOSTS, ANALYTICS_PREFERENCE, CAMPAIGN, analyticsPath, continuesRunnerHandoff, noteRunnerHandoff, recordingBlocked, type AnalyticsEvents } from './analytics-policy';
 import { activeVariants } from './experiment-runtime';
 
 let loading: Promise<PostHog | null> | undefined;
@@ -51,6 +51,22 @@ function syncRecording(posthog: PostHog): void {
     const record = recorderReady && recordingAllowed();
     if (record && posthog.config.disable_session_recording) posthog.startSessionRecording();
     else if (!record && !posthog.config.disable_session_recording) posthog.stopSessionRecording();
+  } catch { /* Recording must never interrupt the page. */ }
+}
+
+/**
+ * Stops the recorder at once when the visitor follows a link to a page that must not be recorded, before that page is
+ * built: React sets up the next page's fields and inserts its markup before the address changes and trackPage runs, and
+ * the recorder caught some of it (an rrweb input event, timestamped after the address changed, on /runners). It only
+ * ever stops recording; trackPage starts it again on the next page that may be recorded.
+ */
+export function pauseRecordingBefore(href: string): void {
+  try {
+    if (!instance || instance.config.disable_session_recording) return;
+    const url = new URL(href, window.location.href);
+    if (url.origin !== window.location.origin) return;
+    const value = url.pathname + url.search;
+    if (recordingBlocked(value, basePath()) || continuesRunnerHandoff(value)) instance.stopSessionRecording();
   } catch { /* Recording must never interrupt the page. */ }
 }
 

@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
-import { currentPageView, trackAnalytics, trackFailure, trackPage, trackRestoredPage } from '@/lib/analytics';
+import { currentPageView, pauseRecordingBefore, trackAnalytics, trackFailure, trackPage, trackRestoredPage } from '@/lib/analytics';
 import { ANALYTICS_CHANGED, downloadDestination } from '@/lib/analytics-policy';
 import { chunkLoadFailed, reloadedAfterChunkError } from '@/lib/chunk-reload';
 
@@ -40,6 +40,13 @@ export default function SiteAnalytics() {
       const destination = target && downloadDestination((target as HTMLAnchorElement).href);
       if (destination) trackAnalytics('data_download_clicked', { destination });
     };
+    // Following a link (or going back) to a page that is never recorded stops the recorder before that page is built.
+    const leaving = (event: MouseEvent) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[href]') : null;
+      if (link && (!link.target || link.target === '_self')) pauseRecordingBefore(link.href);
+    };
+    const returned = () => pauseRecordingBefore(window.location.href);
     const printed = () => { if (document.querySelector('.tool-workspace, .tool-share')) trackAnalytics('tool_used', { action: 'print' }); };
     // Failures by kind only. An error's message is read only to tell a file that failed to load from other errors.
     const failed = (event: Event) => {
@@ -66,6 +73,8 @@ export default function SiteAnalytics() {
     window.addEventListener('pageshow', restored);
     document.addEventListener('click', clicked);
     document.addEventListener('auxclick', clicked);
+    document.addEventListener('click', leaving, true);
+    window.addEventListener('popstate', returned);
     return () => {
       window.removeEventListener(ANALYTICS_CHANGED, changed);
       window.removeEventListener('storage', changed);
@@ -75,6 +84,8 @@ export default function SiteAnalytics() {
       window.removeEventListener('pageshow', restored);
       document.removeEventListener('click', clicked);
       document.removeEventListener('auxclick', clicked);
+      document.removeEventListener('click', leaving, true);
+      window.removeEventListener('popstate', returned);
     };
   }, []);
   return null;

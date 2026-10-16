@@ -15,7 +15,9 @@ const THRESHOLDS = [0, 0.01, 0.02, 0.03, ...Array.from({ length: 20 }, (_, i) =>
  * TRACKED_SECTIONS) is really seen, meaning at least half of it, or half the screen's height of it if it is taller, is
  * on screen at once. Only the section's id is sent. Mounted once in the root layout; it starts again, looking for
  * sections afresh, with each page view (currentPageView: a client-side navigation, or a page restored from the
- * back/forward cache, whose sections count again). The server and the first render see page view 0.
+ * back/forward cache, whose sections count again). A marked section that joins the page later in the page view (the
+ * race report on /runners, shown when asked for) is watched from when it appears. The server and the first render see
+ * page view 0.
  */
 export default function SectionTracker() {
   const pageView = useSyncExternalStore(onPageView, currentPageView, () => 0);
@@ -32,10 +34,22 @@ export default function SectionTracker() {
         trackAnalytics('section_viewed', { section: section as Section });
       }
     }, { threshold: THRESHOLDS });
-    document.querySelectorAll<HTMLElement>('[data-track-section]').forEach((element) => {
-      if (known.has(element.dataset.trackSection ?? '')) observer.observe(element);
+    const watch = (element: HTMLElement) => {
+      const section = element.dataset.trackSection ?? '';
+      if (known.has(section) && !seen.has(section)) observer.observe(element);
+    };
+    document.querySelectorAll<HTMLElement>('[data-track-section]').forEach(watch);
+    const added = typeof MutationObserver === 'undefined' ? null : new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of Array.from(record.addedNodes)) {
+          if (!(node instanceof HTMLElement)) continue;
+          if (node.matches('[data-track-section]')) watch(node);
+          node.querySelectorAll<HTMLElement>('[data-track-section]').forEach(watch);
+        }
+      }
     });
-    return () => observer.disconnect();
+    added?.observe(document.body, { childList: true, subtree: true });
+    return () => { observer.disconnect(); added?.disconnect(); };
   }, [pageView]);
   return null;
 }

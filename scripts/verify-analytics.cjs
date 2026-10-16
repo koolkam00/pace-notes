@@ -546,6 +546,18 @@ const raceReport = read('components/report/RaceReport.tsx');
 assert.ok(hasClasses(raceReport, 'race-report', 'ph-no-capture'), 'RaceReport: the report card carries ph-no-capture');
 assert.match(read('lib/report-shared.ts'), /if \(fromRecord\) return runnerHandoffHref\(href\);/, 'A report link built from a runner record carries the handoff marker and nothing else');
 assert.match(read('components/report/ReportView.tsx'), /<div className="report-tracked" data-track-section="report" hidden=\{!times\}>/, '/report marks its report from the first render, hidden until one shows');
+// The runner view's report appears after a press: it is marked, and the tracker watches sections that join the page later.
+assert.match(runnerContext, /<div data-track-section="report"><Suspense /, 'The runner view marks its race report');
+assert.match(read('components/SectionTracker.tsx'), /new MutationObserver\([\s\S]*?\.observe\(document\.body, \{ childList: true, subtree: true \}\)/, 'SectionTracker watches marked sections added after its first look');
+// A link to a never-recorded page stops the recorder before that page is built, and that function only ever stops it.
+const siteAnalytics = read('components/SiteAnalytics.tsx');
+assert.match(siteAnalytics, /document\.addEventListener\('click', leaving, true\)/, 'SiteAnalytics hears link clicks in the capture phase, before the router');
+assert.match(siteAnalytics, /pauseRecordingBefore\(link\.href\)/, 'A followed link to a blocked page stops the recorder first');
+const pauseSource = read('lib/analytics.ts').match(/export function pauseRecordingBefore[\s\S]*?\n\}/)?.[0] ?? '';
+assert.ok(pauseSource && !/startSessionRecording/.test(pauseSource) && /recordingBlocked\(value, basePath\(\)\) \|\| continuesRunnerHandoff\(value\)/.test(pauseSource), 'pauseRecordingBefore only stops recording, for a blocked or continued-handoff page');
+// A split check opened from a runner's record keeps the marker in its race report link (reportLink drops g with it).
+assert.match(read('components/tools/SplitCheck.tsx'), /reportLink\(times, reportCity, gender, fromRunner\)/, 'The split check passes the runner handoff on to its race report link');
+assert.match(read('components/tools/SplitCheck.tsx'), /setFromRunner\(runnerHandoff\(window\.location\.href\)\)/, 'The split check reads the handoff marker from its own address');
 for (const file of [...sourceFiles('components'), ...sourceFiles('app'), ...sourceFiles('lib')]) {
   if (file === path.join('components', 'report', 'ReportActions.tsx')) continue;
   assert.doesNotMatch(read(file), /['"](?:@\/lib\/|\.\.?\/)*(?:lib\/)?report-image['"]/, `${file} must not import lib/report-image.ts: ReportActions loads it with import() on a press`);
