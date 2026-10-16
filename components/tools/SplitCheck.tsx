@@ -6,7 +6,9 @@ import { Choice, EvidencePanel, ExampleNote, ShareBar } from '@/components/tools
 import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
 import { loadInsight, type Archetype, type Archetypes } from '@/lib/insights';
-import { loadShard, type PaceBandGroup, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
+import { TONE, openingBandOf, openingPct, pctAbs, pctSigned, qualifies, reportLink, toneOf, windowCells, windowCheck, type OpeningBand, type TypeCohort } from '@/lib/report-shared';
+import { loadShard, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
+import type { PaceBandCell } from '@/lib/tools/pace-band-data';
 import { MARATHON_KM, MATS_KM, perUnit } from '@/lib/tools/pace';
 import { SECTION_KM, SECTION_NAMES, SLOWDOWN_CITATION, SLOWDOWN_DEFINITION, classify, readSplits, validateSplits, type SplitReading } from '@/lib/tools/splits';
 import { formatDuration, parseDuration } from '@/lib/tools/time';
@@ -26,20 +28,11 @@ const SLOW = '#FF5B2E';
 /** A made-up race that shows every part of the tool: a quick opening and a sustained slowdown from 30 km. */
 const EXAMPLE = '0:25:50,0:52:24,1:19:06,1:45:54,2:13:18,2:42:41,3:16:39,3:49:12,4:03:31';
 const DEFAULTS = { s: EXAMPLE, course: 'all', g: 'all' };
-const EPS = 1e-12;
 /** Text-weight versions of the pacing-type colours, for lines and labels on the cream card. */
 const TYPE_INK = ['#0B7A52', '#2346E6', '#8A5A00', '#5B34D6', '#B3123E', '#B4380D'];
 
 type Gender = 'all' | 'men' | 'women';
 const GENDER_OPTIONS: { value: Gender; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'men', label: 'Men' }, { value: 'women', label: 'Women' }];
-
-/** One of the six opening groups of the starting-pace analysis (first 5 km vs the same race's 5–20 km pace, in %). */
-export interface OpeningBand { id: string; label: string; lower: number | null; upper: number | null; lower_inclusive: boolean; upper_inclusive: boolean }
-
-/** The cohort the pacing types were fitted on (the pacing-types story's), so their shares carry their own denominator. */
-export interface TypeCohort { n: number; editions: number | null; keeps: string[] }
-
-interface Cell { n: number; ed: number; e50: number[]; s50: number[]; sd?: number }
 
 /* ------------------------------------------------------------------ */
 /* Parsing                                                             */
@@ -202,43 +195,6 @@ const displayAll = (times: (number | null)[]) => times.map(displayTime);
 
 const fmtPace = (sPerKm: number, units: UnitSystem) => `${formatDuration(perUnit(sPerKm, units))}/${units}`;
 const unitWord = (units: UnitSystem) => (units === 'mi' ? 'mile' : 'km');
-const qualifies = (frac: number) => frac + EPS >= 0.25;
-/**
- * |frac| as a percentage with `digits` decimals, never rounded across the 25% threshold: a section 24.99% slower shows as
- * 24.99, not 25.0 (more decimals first, then truncation), and a qualifying one never shows below 25.
- */
-function pctNum(frac: number, digits: number): string {
-  const p = Math.abs(frac) * 100;
-  if (frac > 0 && !qualifies(frac)) {
-    for (let d = digits; d <= 2; d += 1) {
-      const text = p.toFixed(d);
-      if (Number(text) < 25) return text;
-    }
-    return '24.99';
-  }
-  if (frac > 0 && p < 25) return (25).toFixed(digits);
-  return p.toFixed(digits);
-}
-/** "27%"; more decimals when rounding would hide which side of 25% a value is on, or round a real change to 0%. */
-function pctAbs(frac: number): string {
-  const p = Math.abs(frac) * 100;
-  if (Math.round(p) === 0 && p >= 0.05) return `${p.toFixed(1)}%`;
-  return `${pctNum(frac, 0)}%`;
-}
-/** "+27.3%" / "−4.1%", threshold-safe like pctNum. */
-function pctSigned(frac: number, digits = 1): string {
-  if (!Number.isFinite(frac)) return '—';
-  const text = pctNum(frac, digits);
-  return `${Number(text) === 0 ? '' : frac > 0 ? '+' : '−'}${text}%`;
-}
-/** The opening as a percentage: whole numbers, with decimals near the 2, 5 and 10% edges of the opening groups. */
-function openingPct(frac: number): string {
-  const p = Math.abs(frac) * 100;
-  const r = Math.round(p);
-  if (![2, 5, 10].includes(r) || p === r) return pctAbs(frac);
-  const one = p.toFixed(1);
-  return `${Number(one) === r ? p.toFixed(2) : one}%`;
-}
 const editions = (k: number) => (k === 1 ? 'one edition' : `${count(k)} editions`);
 const share = (v: number) => `${(v * 100).toFixed(1)}%`;
 /** Section name in the selected units ("30–35 km" or "18.6–21.7 mi"). */
@@ -275,23 +231,6 @@ function focusHeading(panelId: string) {
   if (!h.hasAttribute('tabindex')) h.setAttribute('tabindex', '-1');
   h.focus();
 }
-
-type Tone = 'quick' | 'even' | 'slow' | 'qualify';
-/** Bar category: a qualifying section is a 5 km section after 20 km at least 25% slower, or the final 2.195 km extending one. */
-function toneOf(r: SplitReading, i: number): Tone {
-  const v = r.vsBaseline[i];
-  if (i >= 4 && i <= 7 && qualifies(v)) return 'qualify';
-  if (i === 8 && qualifies(v) && qualifies(r.vsBaseline[7])) return 'qualify';
-  if (v <= -0.02) return 'quick';
-  if (v < 0.02) return 'even';
-  return 'slow';
-}
-const TONE: Record<Tone, { fill: string; stroke: string; label: string }> = {
-  quick: { fill: '#9DB6FB', stroke: '#2346E6', label: 'Quicker than 5–20 km pace' },
-  even: { fill: '#DCD3C2', stroke: '#66625A', label: 'Within 2%' },
-  slow: { fill: '#FFC7AA', stroke: '#E0571F', label: 'Slower' },
-  qualify: { fill: '#FF5B2E', stroke: '#B4380D', label: '25% or more slower after 20 km' },
-};
 
 /** Plain-language summary: the slowdown verdict first, then the slowest section and the opening. */
 function summarize(r: SplitReading, units: UnitSystem): { lead: string; more: string[] } {
@@ -355,13 +294,6 @@ function useShard(index: PaceBandIndex | null, path: string) {
   return { result: state && state.path === path && state.attempt === attempt ? state : null, retry };
 }
 
-function cellOf(group: PaceBandGroup | undefined, minute: number): Cell | null {
-  if (!group) return null;
-  const i = group.g.indexOf(minute);
-  if (i < 0) return null;
-  return { n: group.n[i], ed: group.ed[i], e50: group.e50[i], s50: group.s50[i], sd: group.sd?.[i] };
-}
-
 /* ------------------------------------------------------------------ */
 /* Main component                                                      */
 /* ------------------------------------------------------------------ */
@@ -370,7 +302,7 @@ type Comparison =
   | { state: 'off'; message: string; retry?: () => void }
   | { state: 'loading' }
   | { state: 'unavailable'; title: string; message: string }
-  | { state: 'ok'; minute: number; lo: number; hi: number; all: Cell; held: Cell | null; slow: Cell | null };
+  | { state: 'ok'; minute: number; lo: number; hi: number; all: PaceBandCell; held: PaceBandCell | null; slow: PaceBandCell | null };
 
 /** `value`, except while `hold` is true: then the value from the last render without the hold. */
 function useHeld<T>(value: T, hold: boolean): T {
@@ -529,22 +461,19 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
     }
     if (!index.data) return { state: 'loading' };
     if (!scope) return q.course === 'all' ? { state: 'off', message: 'The comparison data has no All courses group, so nothing is shown.' } : { state: 'loading' };
-    const [g0, g1] = index.data.goals;
-    const minute = Math.floor(shownTimes[8] / 60) + 3;
-    if (minute < g0 || minute > g1) {
-      return { state: 'unavailable', title: 'Outside the compared range.', message: `Comparisons are available for finishes from ${formatDuration((g0 - 3) * 60, true)} to ${formatDuration((g1 - 2) * 60 - 1, true)}, so that the 5-minute window has at least two minutes on each side of your time. Your section paces, slowdown reading and pacing type still apply.` };
+    // The window and its groups are shared with the race report (lib/report.ts), so both show the same finishes.
+    const check = windowCheck(index.data, scope, gender, shardPath, shownTimes[8]);
+    if (check.state === 'range') {
+      return { state: 'unavailable', title: 'Outside the compared range.', message: `Comparisons are available for finishes from ${formatDuration(check.from, true)} to ${formatDuration(check.to, true)}, so that the 5-minute window has at least two minutes on each side of your time. Your section paces, slowdown reading and pacing type still apply.` };
     }
-    if (!scope.genders[gender] || !index.data.shards?.[shardPath]) {
+    if (check.state === 'unpublished') {
       return { state: 'unavailable', title: 'Not published for this selection.', message: `No finish window ${where} has 100 finishes recorded as ${genderWord || 'any gender'}, so nothing is shown.` };
     }
     if (!shard) return { state: 'loading' };
     if (shard.error || !shard.data) return { state: 'off', message: shard.error ?? 'This data could not be loaded. Check the connection and try again.', retry: retryShard };
-    const windowS = shard.data.window_s || index.data.window_s || 300;
-    const lo = minute * 60 - windowS;
-    const hi = minute * 60 - 1;
-    const all = cellOf(shard.data.groups.all, minute);
+    const { lo, hi, all, held, slow } = windowCells(shard.data, check.minute, index.data.window_s);
     if (!all) return { state: 'unavailable', title: 'Too few finishes at your time.', message: `Fewer than 100 complete finishes ran ${formatDuration(lo, true)} to ${formatDuration(hi, true)} ${where}${genderWord ? ` (recorded as ${genderWord})` : ''}, so this window is not published.` };
-    return { state: 'ok', minute, lo, hi, all, held: cellOf(shard.data.groups.held, minute), slow: cellOf(shard.data.groups.slowdown, minute) };
+    return { state: 'ok', minute: check.minute, lo, hi, all, held, slow };
   }, [shownTimes, indexError, retryIndex, indexSha, index.data, scope, q.course, gender, shardPath, shard, retryShard, where, genderWord]);
 
   const type = useMemo(() => {
@@ -646,7 +575,8 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
               <Results times={shownTimes} reading={reading} units={units} comparison={comparison} type={type} typeError={archetypes.error} retryType={archetypes.retry}
                 where={where} place={place} genderWord={genderWord} course={q.course} gender={gender} fallbacks={fallbacks}
                 openingBands={openingBands} openingCities={openingCities} isExample={isExample}
-                bandCourse={knownCourses?.includes(q.course) && q.course !== 'all' ? q.course : null} typeCohort={typeCohort} />
+                bandCourse={knownCourses?.includes(q.course) && q.course !== 'all' ? q.course : null} typeCohort={typeCohort}
+                reportCity={q.course !== 'all' ? scope?.city ?? null : null} />
             ) : view[0] === 'e' ? (
               <div className="tool-state is-error"><strong>Check your times.</strong> {view.slice(1)}</div>
             ) : (
@@ -684,11 +614,13 @@ function HeadStat({ label, value, sub, tone, evidence, className }: {
   );
 }
 
-function Results({ times, reading, units, comparison, type, typeError, retryType, where, place, genderWord, course, gender, fallbacks, openingBands, openingCities, isExample, bandCourse, typeCohort }: {
+function Results({ times, reading, units, comparison, type, typeError, retryType, where, place, genderWord, course, gender, fallbacks, openingBands, openingCities, isExample, bandCourse, typeCohort, reportCity }: {
   times: number[]; reading: SplitReading; units: UnitSystem; comparison: Comparison; type: TypeResult; typeError: string | null; retryType: () => void;
   where: string; place: string; genderWord: string; course: string; gender: Gender; fallbacks: ReactNode; openingBands: OpeningBand[]; openingCities: string[]; isExample: boolean;
   /** The chosen course when the pace band publishes it, else null. */
   bandCourse: string | null; typeCohort: TypeCohort | null;
+  /** The compared course's name for the race report link (null for all courses). */
+  reportCity: string | null;
 }) {
   const { lead, more } = summarize(reading, units);
   const avg = times[8] / MARATHON_KM;
@@ -698,6 +630,8 @@ function Results({ times, reading, units, comparison, type, typeError, retryType
   const goalMinute = Math.floor(times[8] / 60);
   const bandGoal = goalMinute >= 90 && goalMinute <= 480 ? `goal=${formatHMGoal(times[8])}` : '';
   const bandQuery = [bandGoal, bandCourse ? `course=${bandCourse}` : '', gender !== 'all' ? `g=${gender}` : ''].filter(Boolean).join('&');
+  // The race report reads the same times, course and comparison group; the made-up example gets none.
+  const report = isExample ? null : reportLink(times, reportCity, gender, false);
   return (
     <>
       <div className="tool-headline split-check-headline">
@@ -737,7 +671,7 @@ function Results({ times, reading, units, comparison, type, typeError, retryType
       <div className="tool-callout no-print">
         <strong>Next race?</strong> Turn a goal into a wristband beside the mat times of finishes that hit it with the <Link href={`/tools/pace-band${bandQuery ? `?${bandQuery}` : ''}`}>pace band</Link>, see which qualifying standards {isExample ? 'your finish' : finish} meets with the <Link href={isExample ? '/tools/qualifying' : `/tools/qualifying?t=${finish}`}>qualifying checker</Link>, see how openings like yours played out in <Link href="/analyses/starting-pace">starting pace</Link>, and meet all six shapes in <Link href="/stories/pacing-types">six ways to run the same race</Link>.
       </div>
-      <ShareBar />
+      <ShareBar extra={report ? <Link className="button-primary" href={report}>Make a race report</Link> : null} />
     </>
   );
 }
@@ -967,11 +901,6 @@ function SlowdownPanel({ reading, units }: { reading: SplitReading; units: UnitS
 /* Opening (calculated, mapped to the six published opening groups)    */
 /* ------------------------------------------------------------------ */
 
-function bandOf(pct: number, bands: OpeningBand[]): OpeningBand | null {
-  const tol = 1e-8;
-  return bands.find((b) => (b.lower === null || (b.lower_inclusive ? pct >= b.lower - tol : pct > b.lower + tol))
-    && (b.upper === null || (b.upper_inclusive ? pct <= b.upper + tol : pct < b.upper - tol))) ?? null;
-}
 function shortBand(b: OpeningBand): string {
   if (b.lower === null && b.upper !== null) return `< −${Math.abs(b.upper)}%`;
   if (b.upper === null && b.lower !== null) return `> +${b.lower}%`;
@@ -984,7 +913,7 @@ function OpeningPanel({ reading, units, bands, cities, place, course, gender }: 
   reading: SplitReading; units: UnitSystem; bands: OpeningBand[]; cities: string[]; place: string; course: string; gender: Gender;
 }) {
   const pct = reading.opening * 100;
-  const band = bandOf(pct, bands);
+  const band = openingBandOf(pct, bands);
   const five = units === 'mi' ? '3.1 mi' : '5 km';
   const params = new URLSearchParams();
   if (band) params.set('opening', band.id);
@@ -1053,14 +982,14 @@ function ComparisonPanel({ comparison, times, units, where, course, genderWord, 
   );
 }
 
-type Column = { key: string; name: string; colour: string; cell: Cell | null };
+type Column = { key: string; name: string; colour: string; cell: PaceBandCell | null };
 
 function ComparisonBody({ ok, times, units, where, course, fallbacks }: {
   ok: Extract<Comparison, { state: 'ok' }>; times: number[]; units: UnitSystem; where: string; course: string; fallbacks: ReactNode;
 }) {
   const { all, held, slow } = ok;
   const sd = all.sd ?? (slow ? slow.n / all.n : null);
-  const at20 = (c: Cell | null) => (c ? times[3] - c.e50[3] : null);
+  const at20 = (c: PaceBandCell | null) => (c ? times[3] - c.e50[3] : null);
   const h20 = at20(held);
   const s20 = at20(slow);
   const closer = h20 !== null && s20 !== null ? (Math.abs(s20) < Math.abs(h20) ? 'slow' : 'held') : null;
@@ -1141,7 +1070,7 @@ function Rel({ seconds, what }: { seconds: number; what: string }) {
 }
 
 /** Your elapsed time minus each group's median at every mat: above zero means ahead of that median. Hand-built SVG. */
-function GapChart({ times, held, slow, units }: { times: number[]; held: Cell | null; slow: Cell | null; units: UnitSystem }) {
+function GapChart({ times, held, slow, units }: { times: number[]; held: PaceBandCell | null; slow: PaceBandCell | null; units: UnitSystem }) {
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 640);
   const narrow = width < 480;

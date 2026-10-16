@@ -1,14 +1,10 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import SplitCheck, { type OpeningBand, type TypeCohort } from '@/components/tools/SplitCheck';
+import SplitCheck from '@/components/tools/SplitCheck';
 import { ToolHeader, ToolMethod, ToolNext } from '@/components/tools/ToolShell';
 import { pageMetadata } from '@/lib/seo';
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import { getFastStartStart } from '@/lib/fast-start-server';
-import type { Archetypes } from '@/lib/insights';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
+import { ARCHETYPES, openingGroups, otherCourses, typeCohort } from '@/lib/split-check-server';
 import type { PaceBandIndex } from '@/lib/tools/data';
-import { courseSlug } from '@/lib/tools/links';
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import './split-check.css';
 
@@ -19,70 +15,6 @@ export const metadata = pageMetadata({
 });
 
 const INDEX = 'tools/pace-band.json';
-const ARCHETYPES = 'archetypes.json';
-
-/** The six opening groups of the starting-pace analysis (definitions only), and its course names for deep links. */
-function openingGroups(): { bands: OpeningBand[]; cities: string[] } {
-  try {
-    const start = getFastStartStart('all');
-    const bands = (start.bands as unknown as OpeningBand[]).filter((b) => typeof b.id === 'string' && typeof b.label === 'string'
-      && (b.lower === null || typeof b.lower === 'number') && (b.upper === null || typeof b.upper === 'number'));
-    return bands.length === start.bands.length
-      ? { bands: bands.map(({ id, label, lower, upper, lower_inclusive, upper_inclusive }) => ({ id, label, lower, upper, lower_inclusive: Boolean(lower_inclusive), upper_inclusive: Boolean(upper_inclusive) })), cities: start.cities }
-      : { bands: [], cities: [] };
-  } catch {
-    return { bands: [], cities: [] };
-  }
-}
-
-function optional<T>(name: string): T | null {
-  try {
-    return getInsightsManifest().files[name] ? readInsight<T>(name) : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Courses that other Pace Notes data knows (runner records, courses, weather, route geometry) but the split check does not
- * compare with, by slug. A runner-page link to a Prague race then says so plainly instead of reporting an unknown course.
- */
-function otherCourses(index: PaceBandIndex | null): Record<string, string> {
-  if (!index) return {};
-  const published = new Set(index.scopes.map((s) => s.slug));
-  const cities = new Set<string>();
-  try {
-    const runners = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'public/data/runners/manifest.json')).toString()) as { editions?: { city: string }[] };
-    for (const e of runners.editions ?? []) cities.add(e.city);
-  } catch { /* runner records are optional here */ }
-  for (const c of optional<{ courses: { city: string }[] }>('courses.json')?.courses ?? []) cities.add(c.city);
-  for (const e of optional<{ editions: { city: string }[] }>('tools/weather-match.json')?.editions ?? []) cities.add(e.city);
-  for (const c of optional<{ courses: { city: string }[] }>('course-geometry.json')?.courses ?? []) cities.add(c.city);
-  const out: Record<string, string> = {};
-  for (const city of [...cities].sort()) {
-    const slug = courseSlug(city);
-    if (slug && !published.has(slug) && !out[slug]) out[slug] = city;
-  }
-  return out;
-}
-
-/**
- * The pacing types are fitted on the story cohort, which keeps the two editions the tool cohort drops for a shifted mat grid.
- * Its finishes are in archetypes.json; its editions are the tool's plus those two, checked here by the finish count.
- */
-function typeCohort(index: PaceBandIndex | null): TypeCohort | null {
-  const types = optional<Archetypes>(ARCHETYPES);
-  if (!types) return null;
-  const grid = index?.screens?.grid ?? [];
-  const sameOffsets = index ? JSON.stringify((index.screens?.start_offset ?? []).map((o) => `${o.city} ${o.year}`).sort())
-    === JSON.stringify(types.start_offset_editions.map((o) => `${o.city} ${o.year}`).sort()) : false;
-  const matches = index !== null && sameOffsets && types.cohort_n === index.cohort_n + grid.reduce((sum, g) => sum + (g.finishes ?? Number.NaN), 0);
-  return {
-    n: types.cohort_n,
-    editions: matches && index ? index.editions + grid.length : null,
-    keeps: matches ? grid.map((g) => `${g.city} ${g.year}`) : [],
-  };
-}
 
 /** "Madrid 2013–2018, New York 2006–2007": years grouped by city, consecutive runs collapsed. */
 function editionList(rows: { city: string; year: number }[]): string {

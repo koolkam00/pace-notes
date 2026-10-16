@@ -21,7 +21,7 @@ const searchPages = ['/tools/marathon-pace-chart', '/tools/half-marathon-pace-ch
 export const STORY_SLUGS: readonly string[] = ['pacing-types', 'round-numbers', 'race-replay', 'places', 'final-kick', 'who-holds-pace', 'courses'];
 export const COURSE_SLUGS: readonly string[] = ['amsterdam', 'auckland', 'austin', 'barcelona', 'berlin', 'boston', 'chicago', 'copenhagen', 'dubai', 'eindhoven', 'frankfurt', 'gold-coast',
   'hamburg', 'helsinki', 'london', 'madrid', 'melbourne', 'new-york', 'oslo', 'paris', 'prague', 'rotterdam', 'singapore', 'stockholm', 'sydney', 'valencia', 'vienna', 'warsaw', 'washington'];
-const pages = new Set(['/', '/analyses', '/analyses/downhill-start', '/runners', '/about', '/methodology', '/privacy', '/request-analysis', '/slowdown', '/htw', '/your-race', '/research/personalized',
+const pages = new Set(['/', '/analyses', '/analyses/downhill-start', '/runners', '/report', '/about', '/methodology', '/privacy', '/request-analysis', '/slowdown', '/htw', '/your-race', '/research/personalized',
   ...TEN_ANALYSES.map(item => '/analyses/' + item.slug), ...WEATHER_QUESTIONS.map(item => '/analyses/' + item.slug),
   '/tools', ...TOOLS.map(tool => '/tools/' + tool.slug), ...searchPages,
   '/stories', ...STORY_SLUGS.map(slug => '/stories/' + slug), '/courses', ...COURSE_SLUGS.map(slug => '/courses/' + slug)]);
@@ -31,9 +31,9 @@ const experiments: readonly ExperimentDefinition[] = EXPERIMENTS;
 
 // The page sections whose first view is counted (section_viewed). Pages mark them with data-track-section="<id>";
 // components/SectionTracker.tsx watches them, and any other id is dropped here. The race planner (/tools/plan) marks its
-// course result, its mat comparison and its pace band.
+// course result, its mat comparison and its pace band; /report marks its race report.
 export const TRACKED_SECTIONS = ['hero', 'chapter-1', 'chapter-2', 'chapter-3', 'chapter-4', 'chapter-5', 'chapter-6', 'chapter-7', 'chapter-8',
-  'stories', 'tools', 'analyses', 'cta', 'faq', 'related', 'result', 'comparison', 'pace-band'] as const;
+  'stories', 'tools', 'analyses', 'cta', 'faq', 'related', 'result', 'comparison', 'pace-band', 'report'] as const;
 
 export type AnalyticsEvents = {
   runner_search_submitted: Record<string, never>;
@@ -46,8 +46,10 @@ export type AnalyticsEvents = {
   tool_used: { action: 'edit' | 'print' | 'copy_link' };
   page_feedback: { answer: 'yes' | 'no' };
   page_feedback_reason: { reason: 'hard_to_follow' | 'not_what_i_needed' | 'numbers_look_wrong' | 'something_broke' };
-  site_error: { category: 'js_error' | 'unhandled_rejection' | 'chunk_load' | 'data_fetch' | 'render' };
+  site_error: { category: 'js_error' | 'unhandled_rejection' | 'chunk_load' | 'data_fetch' | 'render' | 'export' };
   section_viewed: { section: (typeof TRACKED_SECTIONS)[number] };
+  // A race report saved as an image, or shared once the share sheet says it went (a cancel sends nothing).
+  report_exported: { format: 'image' | 'share' };
 };
 // The fixed tags on the owner's own Instagram links. Only the first page view of a tab carries them (lib/analytics.ts).
 // Each value names a place many people see the same link. A link sent in a direct message would single out the one
@@ -63,8 +65,8 @@ const eventProperties: Record<keyof AnalyticsEvents | '$pageview' | '$pageleave'
   data_download_clicked: { destination: ['release', 'site_data'] }, units_changed: { units: ['mi', 'km'] },
   tool_used: { action: ['edit', 'print', 'copy_link'] }, page_feedback: { answer: ['yes', 'no'] },
   page_feedback_reason: { reason: ['hard_to_follow', 'not_what_i_needed', 'numbers_look_wrong', 'something_broke'] },
-  site_error: { category: ['js_error', 'unhandled_rejection', 'chunk_load', 'data_fetch', 'render'] },
-  section_viewed: { section: TRACKED_SECTIONS },
+  site_error: { category: ['js_error', 'unhandled_rejection', 'chunk_load', 'data_fetch', 'render', 'export'] },
+  section_viewed: { section: TRACKED_SECTIONS }, report_exported: { format: ['image', 'share'] },
 };
 
 // Numbers the SDK measures itself, as [min, max, scale]: kept only when inside [min, max] and rounded to 1/scale. Time on
@@ -111,9 +113,10 @@ export function downloadDestination(href: string): 'release' | 'site_data' | nul
 
 // Session replay. The runner-search pages show real runners' names and record IDs and the visitor's search text, so
 // they are never recorded: lib/analytics.ts stops the recorder there, their containers carry `ph-no-capture`, and
-// lib/replay-policy.ts drops anything recorded on them. The rest of the replay policy lives in that module, which loads
+// lib/replay-policy.ts drops anything recorded on them. The race report (/report) shows one race's nine times, typed or
+// from a runner's record, so it is never recorded either. The rest of the replay policy lives in that module, which loads
 // with the SDK, so none of it is in a page's initial JavaScript.
-export const REPLAY_BLOCKED_PAGES: readonly string[] = ['/runners', '/your-race'];
+export const REPLAY_BLOCKED_PAGES: readonly string[] = ['/runners', '/your-race', '/report'];
 // A link from a runner's profile into a tool or analysis (components/RunnerContext.tsx) puts that runner's recorded
 // times in its query, so it carries this marker and the page it opens is never recorded either.
 export const RUNNER_HANDOFF = 'via=runner';
