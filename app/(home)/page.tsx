@@ -101,12 +101,12 @@ export default function Page() {
         <p className="chapter-dek">Pace Notes doesn&apos;t coach or pick a pace for you. It shows what happened to real finishes, with every group&apos;s size beside its number, so you can make your own plan.</p>
       </div>
       <div className="bibs home-guide-bibs">
-        <div className="bib"><span className="bib-tag">Recorded finishes</span><span className="bib-number">{wrappingCount(manifest.analysis_n)}</span><span className="bib-text">finishes with all nine 5 km checkpoints, in the stories, tools and course pages.</span></div>
+        <div className="bib"><span className="bib-tag">Recorded finishes</span><span className="bib-number">{wrappingCount(manifest.analysis_n)}</span><span className="bib-text">finishes with all nine 5 km checkpoints, the base for the stories, tools and course pages.</span></div>
         <div className="bib"><span className="bib-tag">Courses and years</span><span className="bib-number">{manifest.cohort.cities}</span><span className="bib-text">big-city marathons{span ? `, from ${span.first} to ${span.last}` : ''}.</span></div>
         <div className="bib"><span className="bib-tag">One published method</span><span className="bib-number">{methodYear}</span><span className="bib-text">Sustained slowdown follows the <a href={SLOWDOWN_CITATION.url}>published slowdown method, {doi}</a>.</span></div>
       </div>
       <CohortNote />
-      <p className="home-guide-links"><Link href="/methodology">Methods &amp; sources</Link><span aria-hidden="true"> · </span><Link href="/about">About</Link><span aria-hidden="true"> · </span><a href="https://github.com/koolkam00/htw-live-study/releases">Download the data <span aria-hidden="true">↗</span></a></p>
+      <p className="home-guide-links"><Link href="/methodology">Methods &amp; sources</Link>{' '}<Link href="/about">About</Link>{' '}<a href="https://github.com/koolkam00/htw-live-study/releases">Download the data <span aria-hidden="true">↗</span></a></p>
     </section>
 
     <section id="steps" className="chapter home-section" aria-labelledby="steps-title" data-track-section="steps">

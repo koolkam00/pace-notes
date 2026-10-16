@@ -199,13 +199,17 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
   .home-door-link .home-door-title { font-size: .9375rem; line-height: 1.2; }
   .home-door-hint { display: none; }
 }
+/* At 200% zoom (195 px and so on) the course and goal stack, so a typed goal such as 3:45:00 and the longest course
+   name show in full. */
+@media (max-width: 299px) { .home-plan-fields { grid-template-columns: minmax(0, 1fr); } }
 /* The sections below the hero. */
 /* A DOI is one long word: let it break rather than widen its block on a narrow (or zoomed) screen. */
 .home-section a[href*="doi.org"], .research-section a[href*="doi.org"] { overflow-wrap: anywhere; }
 .home-section-line { margin-top: 1.2rem; max-width: 42rem; font-size: clamp(1rem, 1.5vw, 1.15rem); line-height: 1.55; color: var(--ink-2); }
 .home-guide-bibs { margin-top: 1.8rem; }
 .cohort-note { margin-top: 1.4rem; max-width: 46rem; padding-left: .9rem; border-left: 3px solid var(--line-2); font-size: .9375rem; line-height: 1.55; color: var(--ink-2); }
-.home-guide-links { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .25rem; margin-top: .8rem; color: var(--ink-3); font-size: .9375rem; }
+/* Link rows are spaced by the gap alone, with no separator dots, so none is left at the end of a wrapped line. */
+.home-guide-links { display: flex; flex-wrap: wrap; align-items: center; gap: 0 1.1rem; margin-top: .8rem; color: var(--ink-3); font-size: .9375rem; }
 .home-guide-links a { display: inline-flex; align-items: center; gap: .3rem; min-height: 44px; font-weight: 600; }
 .home-steps { list-style: none; margin: 1.8rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
 .home-steps li + li { margin: 0; }
@@ -462,12 +466,13 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .research-hero .story-title em { font-style: italic; color: var(--orange); }
 .research-cohort { margin-top: 2rem; }
 .research-section .story-grid { margin-top: 1.8rem; }
-.research-also { margin-top: 1rem; color: var(--ink-3); font-size: .9375rem; }
+.research-also { display: flex; flex-wrap: wrap; align-items: center; gap: 0 1.1rem; margin-top: 1rem; color: var(--ink-3); font-size: .9375rem; }
 .research-also a { display: inline-flex; align-items: center; gap: .3rem; min-height: 44px; font-weight: 600; }
 .research-links { list-style: none; max-width: 46rem; margin: 1.4rem 0 0; padding: 0; border-top: 1px solid var(--line); }
 .research-links li + li { margin: 0; }
-.research-links a { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 52px; padding: .7rem .1rem; border-bottom: 1px solid var(--line); color: var(--ink); font-weight: 600; }
-.research-links a:hover { color: var(--orange-ink); text-decoration: none; }
+/* Bordered rows with an arrow, not underlined at rest (li > a:not([class]) in globals.css underlines text links). */
+.research-links li > a { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 52px; padding: .7rem .1rem; border-bottom: 1px solid var(--line); color: var(--ink); font-weight: 600; text-decoration: none; }
+.research-links li > a:hover { color: var(--orange-ink); text-decoration: none; }
 .research-download { margin-top: 1.4rem; }
 .research-coverage { max-width: 46rem; margin-top: 1.8rem; }
 .research-coverage h2 { font-size: clamp(1.5rem, 3vw, 2rem); }

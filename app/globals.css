@@ -228,6 +228,9 @@ summary::marker { color: var(--orange); font-size: .8em; }
   .nav-toggle[aria-expanded=true] svg { transform: rotate(180deg); }
   .header-controls .main-nav { display: none; }
   .site-header[data-open] .header-controls .main-nav { position: absolute; top: 100%; left: 0; right: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; margin: 0; padding: .75rem 1rem 1rem; overflow: visible; background: var(--paper); border-bottom: 1px solid var(--line); box-shadow: var(--shadow-lift); }
+  /* The panel moves with the sticky header, so on a short screen (200% zoom) it scrolls inside itself: 100% is the
+     header's height, the panel's containing block. */
+  .site-header[data-open] .header-controls .main-nav { max-height: calc(100vh - 100%); max-height: calc(100dvh - 100%); overflow-y: auto; overscroll-behavior: contain; }
   .header-controls .main-nav[data-more-left], .header-controls .main-nav[data-more-right] { -webkit-mask-image: none; mask-image: none; }
   .header-controls .main-nav a { min-height: 44px; padding: .55rem .9rem; background: var(--paper-2); font-size: .9375rem; }
   .header-controls .main-nav a[aria-current] { background: var(--ink); color: var(--paper); }
@@ -244,7 +247,11 @@ summary::marker { color: var(--orange); font-size: .8em; }
 }
 /* At 200% zoom a phone is about 195 px wide, too narrow for the brand, its credit and both controls on one row: the
    controls take a second row instead of running off the screen. */
-@media (max-width: 299px) { .header-inner { flex-wrap: wrap; } }
+@media (max-width: 299px) {
+  .header-inner { flex-wrap: wrap; }
+  /* One pill per row, so "Analyze a past race" fits its pill. */
+  .site-header[data-open] .header-controls .main-nav { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width: 349px) {
   .nav-toggle { width: 40px; padding: 0; justify-content: center; }
   .nav-toggle-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }

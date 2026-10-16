@@ -7,8 +7,9 @@ export type HomeCourse = { slug: string; city: string };
  * The home hero's three ways to start, in one section (styles in app/story.css). The first, planning the next marathon,
  * is a plain GET form to /tools/plan with the planner's own parameters (course=<slug>|all, goal=H:MM), so it works
  * before the page's JavaScript runs; the planner reads and checks the goal. Its orange button is the page's primary
- * action. The other two are ordinary links in one quieter style, so the next page view says which way a visitor went.
- * The form is masked in recordings (`.home-plan`, lib/replay-policy.ts); the course and goal go only into the
+ * action. The other two are ordinary links in one quieter style, so the next page view names the home page as the one
+ * before it; the form's GET is a full page load, whose page view does not (docs/ANALYTICS.md says how each door is
+ * counted). The form is masked in recordings (`.home-plan`, lib/replay-policy.ts); the course and goal go only into the
  * planner's address, which analytics never keeps.
  */
 export default function HomeDoors({ courses, storyCount, analysisCount }: { courses: HomeCourse[]; storyCount: string; analysisCount: string }) {

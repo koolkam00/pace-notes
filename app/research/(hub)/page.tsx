@@ -42,7 +42,7 @@ export default function ResearchPage() {
       <div className="container">
         <p className="eyebrow">Research</p>
         <h1 className="story-title">Explore the <em>research</em>.</h1>
-        <p className="hero-dek">{storyWord} data stories, {analysisWord} analyses you can set to your own course and finish time, the sustained-slowdown study and the open data behind them. Every group&apos;s size is printed beside its number.</p>
+        <p className="hero-dek">{storyWord} data stories, {analysisWord} analyses you can set to your own course and finish time, the sustained-slowdown study and the open data behind them.</p>
       </div>
       <RunnerLane dark height={96} runners={[{ finishMinutes: 175, label: '2:55' }, { finishMinutes: 235, label: '3:55' }, { finishMinutes: 295, label: '4:55' }]} />
     </header>
@@ -65,7 +65,7 @@ export default function ResearchPage() {
         <p className="chapter-dek">Choose a course, a finish time and an age group, and each answer is recounted for the finishes that match, with the group&apos;s size beside it.</p>
       </div>
       <div className="chapter-body"><AnalysisIndex /></div>
-      <p className="research-also">Also: <Link href="/analyses/downhill-start">downhill starts and later slowing</Link> · <Link href="/analyses">the {analysisWord} on one page</Link></p>
+      <p className="research-also">Also: <Link href="/analyses/downhill-start">downhill starts and later slowing</Link>{' '}<Link href="/analyses">the {analysisWord} on one page</Link></p>
     </section>
     <WeatherIndex />
 
