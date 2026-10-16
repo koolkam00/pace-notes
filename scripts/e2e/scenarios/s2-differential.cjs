@@ -31,12 +31,13 @@ const CASES = {
     await step(log, 'gender', () => page.locator('[aria-labelledby="pace-band-gender"] button').nth(v.genderIdx).click());
   } },
   'pace-band-url': { path: v => `/tools/pace-band?goal=${v.hm}&g=${v.genderIdx === 1 ? 'women' : 'men'}&course=boston` },
-  // The planner's chosen course is the visitor's too: each run picks its own, and neither run's course may be sent.
-  'plan': { path: '/tools/plan', needles: { A: ['Berlin'], B: ['Chicago'] }, async drive(page, v, log) {
-    await step(log, 'course', () => page.selectOption('#plan-course', v === V.A ? 'berlin' : 'chicago'));
+  // The planner's chosen course is the visitor's too: each run picks its own, and neither run's course may be sent. Both
+  // courses are ones the page never names by itself (the method note names screened and duplicated editions' courses).
+  'plan': { path: '/tools/plan', needles: { A: ['Berlin'], B: ['Rotterdam'] }, async drive(page, v, log) {
+    await step(log, 'course', () => page.selectOption('#plan-course', v === V.A ? 'berlin' : 'rotterdam'));
     await step(log, 'goal', () => type(page, label(page, 'Goal finish time'), v.hm));
   } },
-  'plan-url': { path: v => `/tools/plan?course=${v === V.A ? 'berlin' : 'chicago'}&goal=${v.hm}`, needles: { A: ['Berlin'], B: ['Chicago'] } },
+  'plan-url': { path: v => `/tools/plan?course=${v === V.A ? 'berlin' : 'rotterdam'}&goal=${v.hm}`, needles: { A: ['Berlin'], B: ['Rotterdam'] } },
   'course-chooser': { path: '/tools/course-chooser', async drive(page, v, log) {
     await step(log, 'goal', async () => { const options = await page.locator('#course-chooser-goal option').evaluateAll(o => o.map(x => x.value)); await page.selectOption('#course-chooser-goal', options[v.goalIdx]); });
     await step(log, 'sort', () => page.selectOption('#course-chooser-sort', { index: 1 }));
@@ -171,11 +172,15 @@ async function differential(h, name) {
   // I4 for the run's own values, unless the other run (which never used them) shows the same string. A case can add values
   // of its own (the planner's course).
   for (const [mine, other, id] of [[a, b, 'A'], [b, a, 'B']]) {
-    const needles = [...NEEDLES[id], ...(CASES[name].needles?.[id] || []).map(value => new RegExp('(^|[^0-9a-z:.-])' + value + '($|[^0-9a-z:.-])', 'i'))];
+    const own = (CASES[name].needles?.[id] || []).map(value => new RegExp('(^|[^0-9a-z:.-])' + value + '($|[^0-9a-z:.-])', 'i'));
+    const needles = [...NEEDLES[id], ...own];
     const hits = h.inspect.search(mine.run, needles);
     const content = new Set(h.inspect.search(other.run, needles).map(hit => hit.needle));
     const leaks = hits.filter(hit => !content.has(hit.needle));
     h.check(`I4 ${id}: none of its values in PostHog traffic`, !leaks.length, leaks.slice(0, 6).map(hit => `${hit.needle} in ${hit.at}: …${hit.excerpt.slice(0, 160)}…`));
+    // A case's own value that the other run shows too would be cleared as page content above, so its check could never
+    // fail: the case must pick a value the page does not name by itself.
+    if (own.length) h.check(`I4 ${id}: the case's own values are not page content`, !own.some(needle => content.has(String(needle))), own.map(String).filter(needle => content.has(needle)));
   }
   // I9
   const allowed = known(name);
