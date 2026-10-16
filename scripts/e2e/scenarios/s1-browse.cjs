@@ -229,8 +229,20 @@ async function keypad(h) {
   await deskPage.goto(SITE + '/', { waitUntil: 'load' });
   await deskPage.waitForTimeout(600);
   const deskHint = await hintOf(deskPage, '.home-plan .keypad-hint');
-  await desk.close();
   h.check('desktop: the home goal has the keypad hint, not shown (a fine pointer)', deskHint && !deskHint.shown && !deskHint.coarse, deskHint);
+  // A unit typed after a dot: the dot became a colon before the letter came ("3:5h"), and the reading is still 3.5 hours.
+  await deskPage.goto(SITE + '/tools/plan?course=berlin', { waitUntil: 'load' });
+  await deskPage.waitForTimeout(1200);
+  const units = [];
+  for (const typedUnits of ['3.5h', '3.75 hours']) {
+    const shown = await typeOnly(deskPage, '.plan-goal input', typedUnits);
+    await deskPage.keyboard.press('Tab');
+    await deskPage.waitForTimeout(400);
+    units.push({ typed: typedUnits, shown, left: await deskPage.locator('.plan-goal input').first().inputValue(), goal: new URL(deskPage.url()).searchParams.get('goal') });
+  }
+  await desk.close();
+  h.check('desktop: 3.5h and 3.75 hours typed key by key in the planner read 3:30:00 and 3:45:00 (goal=3:30, goal=3:45)',
+    units[0].left === '3:30:00' && units[0].goal === '3:30' && units[1].left === '3:45:00' && units[1].goal === '3:45', units);
 
   const run = await h.run('keypad', PHONE);
   const page = await run.newPage();
@@ -262,6 +274,14 @@ async function keypad(h) {
   h.check('phone: a pace keeps 8.5 while it is typed and shows 8:30 once the field is left', pace === '8.5' && left === '8:30', { typed: pace, left });
   const paceHint = await page.evaluate(() => [...document.querySelectorAll('.tool-field')].filter(f => /Pace per/.test(f.querySelector('label')?.textContent ?? '')).map(f => !!f.querySelector('.keypad-hint')));
   h.check('phone: the pace field has no keypad hint (its dot is a decimal point)', JSON.stringify(paceHint) === '[false]', paceHint);
+
+  // At 200% zoom (195 px wide) the inline hint wraps as one piece, never leaving the colon alone on a line.
+  await page.setViewportSize({ width: 195, height: 800 });
+  await page.goto(SITE + '/tools/pace-band', { waitUntil: 'load' });
+  await page.waitForTimeout(1200);
+  const narrow = await page.evaluate(() => [...document.querySelectorAll('.tool-field-hint .keypad-hint')].filter(el => getComputedStyle(el).display !== 'none').map(el => new Set([...el.getClientRects()].map(r => Math.round(r.top))).size));
+  h.check('phone at 195 px: the pace band goal\'s inline "Tap . for :" sits on one line', narrow.length === 1 && narrow[0] === 1, narrow);
+  await page.setViewportSize(PHONE.viewport);
 
   // The split check's nine boxes share one hint; each box turns dots into colons, and its pasted list is left as it is.
   await page.goto(SITE + '/tools/split-check', { waitUntil: 'load' });

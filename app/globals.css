@@ -516,7 +516,7 @@ summary::marker { color: var(--orange); font-size: .8em; }
 /* "Tap . for :" (components/KeypadHint.tsx): touch screens only, decided by CSS at first paint so nothing moves. */
 .keypad-hint { display: none; }
 @media (pointer: coarse) {
-  .keypad-hint { display: inline; }
+  .keypad-hint { display: inline; white-space: nowrap; }
   .keypad-hint.is-block { display: block; margin: 0; color: var(--ink-3); font-size: .75rem; line-height: 1.45; }
 }
 .keypad-hint kbd { font-family: var(--mono); font-weight: 700; color: inherit; }

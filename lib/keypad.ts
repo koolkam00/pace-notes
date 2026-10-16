@@ -9,7 +9,9 @@ import type { DurationMode } from '@/lib/tools/time';
 /**
  * A single race time (h:mm or h:mm:ss) as the keypad types it: every dot or comma becomes a colon, so "3.30" reads 3:30
  * and "1.12.55" reads 1:12:55. At most two colons are made; a later dot stays a dot (tenths of a second, as trackers print
- * "1:12:55.3"). Text with letters ("3.5h", "9.14 am") is left alone. Pace fields ('pace') are never changed while typing,
+ * "1:12:55.3"). Text that already has letters ("3.5h" or "9.14 am" pasted whole) is left alone. Typed key by key, the dot
+ * becomes a colon before a unit letter arrives ("3.5h" shows "3:5h"); parseDuration reads a race time's colon before a
+ * unit as that dot, so it is still 3.5 hours. Pace fields ('pace') are never changed while typing,
  * because "8.5" there is 8.5 minutes: they show m:ss when the visitor leaves the field. Never for a field that takes a list
  * of times separated by commas.
  */

@@ -242,9 +242,11 @@ function writeCards(cards: RunnerCard[]) {
 /* Inputs                                                              */
 /* ------------------------------------------------------------------ */
 
-function ElapsedField({ label, value, onChange, placeholder, hint, large = false, inputRef, error, id: given }: {
+function ElapsedField({ label, value, onChange, placeholder, hint, large = false, inputRef, error, id: given, keypadHint = true }: {
   label: ReactNode; value: number | null; onChange: (seconds: number | null) => void; placeholder?: string; hint?: ReactNode;
   large?: boolean; inputRef?: RefObject<HTMLInputElement>; error?: string | null; id?: string;
+  /** False where the caller places the "Tap . for :" line itself (the runner card's grid, below its Update button). */
+  keypadHint?: boolean;
 }) {
   const auto = useId();
   const id = given ?? auto;
@@ -276,8 +278,8 @@ function ElapsedField({ label, value, onChange, placeholder, hint, large = false
           onChange(next);
         }}
         onBlur={() => { setTouched(true); if (parsed !== null) setText(elapsedText(parsed)); }} />
-      {message ? <p className="tool-field-hint is-error" id={`${id}-hint`}>{message}<KeypadHint /></p>
-        : hint ? <p className="tool-field-hint" id={`${id}-hint`}>{hint}<KeypadHint /></p> : <KeypadHint block />}
+      {message ? <p className="tool-field-hint is-error" id={`${id}-hint`}>{message}{keypadHint && <KeypadHint />}</p>
+        : hint ? <p className="tool-field-hint" id={`${id}-hint`}>{hint}{keypadHint && <KeypadHint />}</p> : keypadHint && <KeypadHint block />}
     </div>
   );
 }
@@ -580,9 +582,10 @@ function RunnerCardView({ card, index, units, onUpdate, onRemove, onOpen }: {
       <div className="projector-card-actions">
         {card.mat < 40 ? (
           <div className="projector-card-update">
-            <ElapsedField label={`Time at ${matName(nextKm, units)}`} value={next} onChange={setNext} placeholder="h:mm:ss" />
+            <ElapsedField label={`Time at ${matName(nextKm, units)}`} value={next} onChange={setNext} placeholder="h:mm:ss" keypadHint={false} />
             <button type="button" className="button-secondary" disabled={next === null || next <= card.t}
               onClick={() => { if (next !== null && next > card.t) { onUpdate({ ...card, prev: card.t, t: next, mat: nextKm }); setNext(null); } }}>Update</button>
+            <KeypadHint block />
           </div>
         ) : <p className="projector-card-note">Past the last mat. The finish window above is the final one.</p>}
         <button type="button" className="projector-link-button" onClick={onOpen}>Open in the projector</button>

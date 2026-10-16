@@ -18,7 +18,10 @@ export function parseDuration(input: string, mode: DurationMode = 'race'): numbe
   // A comma is a dot: keypads in some locales have a comma where others have the dot, so "8,5" is 8.5 minutes too.
   const text = input.trim().toLowerCase().replace(/\s+/g, ' ').replace(/,/g, '.');
   if (!text) return null;
-  const units = text.match(/^(?:(\d+(?:\.\d+)?)\s*h(?:rs?|ours?)?)?\s*(?:(\d+(?:\.\d+)?)\s*m(?:in(?:utes?|s)?)?)?\s*(?:(\d+(?:\.\d+)?)\s*s(?:ec(?:onds?|s)?)?)?$/);
+  // In a race time the dot key types a colon as it is typed (lib/keypad.ts), before any unit letter arrives, so a typed
+  // "3.5h" reaches here as "3:5h" and "3.75 hours" as "3:75 hours". With a unit, that colon is read as the dot it was.
+  const unitText = mode === 'race' && /[a-z]/.test(text) ? text.replace(/:/g, '.') : text;
+  const units = unitText.match(/^(?:(\d+(?:\.\d+)?)\s*h(?:rs?|ours?)?)?\s*(?:(\d+(?:\.\d+)?)\s*m(?:in(?:utes?|s)?)?)?\s*(?:(\d+(?:\.\d+)?)\s*s(?:ec(?:onds?|s)?)?)?$/);
   if (units && (units[1] || units[2] || units[3])) {
     const total = Number(units[1] ?? 0) * 3600 + Number(units[2] ?? 0) * 60 + Number(units[3] ?? 0);
     return Number.isFinite(total) && total > 0 ? Math.round(total * 1000) / 1000 : null;

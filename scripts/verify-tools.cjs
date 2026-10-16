@@ -52,6 +52,17 @@ assert.deepEqual(time.parseTrackerText('25K 2:05:31\n30 km 02:31:07 4:59/km\nHal
   for (const typed of ['8.5', '8.05', '8,30', '8:05']) { assert.equal(keypad.keypadColons(typed, 'pace'), typed, `a pace keeps what was typed: ${typed}`); ok(); }
   // What the field then reads is what the keypad meant.
   for (const typed of ['3.30', '3.30.15', '1.12.55', '3,30']) { assert.equal(time.parseDuration(keypad.keypadColons(typed)), time.parseDuration(typed), `same reading: ${typed}`); ok(); }
+  // Typed key by key, the dot becomes a colon before any unit letter arrives ("3.5h" shows "3:5h"), and the reading is
+  // still what was typed: 3.5 hours, 3.75 hours, 45.5 minutes (it was so before the keypad change). A pace's colon stays.
+  const keyByKey = (typed, mode = 'race') => [...typed].reduce((shown, key) => keypad.keypadColons(shown + key, mode), '');
+  for (const [typed, shown, expected] of [['3.5h', '3:5h', 12600], ['3.75 hours', '3:75 hours', 13500], ['45.5 min', '45:5 min', 2730],
+    ['3.5 h 10m', '3:5 h 10m', 13200], ['3.30h', '3:30h', 11880], ['3.30', '3:30', 12600], ['1.12.55', '1:12:55', 4375]]) {
+    assert.equal(keyByKey(typed), shown, `typed key by key: ${typed}`);
+    assert.equal(time.parseDuration(shown, 'race'), expected, `read as typed: ${typed}`);
+    assert.equal(time.parseDuration(shown, 'race'), time.parseDuration(typed, 'race'), `same reading key by key: ${typed}`); ok();
+  }
+  assert.equal(time.parseDuration('8:30 min', 'pace'), null, 'a pace colon with a unit is not read as a dot'); ok();
+  assert.equal(time.parseDuration('3:30:00 h', 'race'), null, 'two colons with a unit stay unreadable'); ok();
   // keypadInput changes the field in place with the caret kept; pasted or dropped text is left as it is.
   const field = (value) => ({ value, selectionStart: 2, selectionEnd: 2, setSelectionRange(a, b) { this.caret = [a, b]; } });
   const typedField = field('3.30');
@@ -87,6 +98,9 @@ assert.deepEqual(time.parseTrackerText('25K 2:05:31\n30 km 02:31:07 4:59/km\nHal
     [1350, 6900, 6900, 12600, 4375, null, null]); ok();
   const projector = require('../components/tools/Projector.tsx');
   assert.deepEqual(['24.53', '2.21', '2.21.30', '1,12,55', '24.75', 'x'].map(projector.parseElapsed), [1493, 8460, 8490, 4375, null, null]); ok();
+  // The readers that fall back to parseDuration keep a typed unit too ("3.5h" shows "3:5h").
+  assert.deepEqual([predictor.parseRaceTime('3:5h', 42.195), predictor.parseRaceTime('22:5 min', 5), projector.parseElapsed('2:5h'), split.parseMatTime('2:5h')],
+    [12600, 1350, 9000, 9000]); ok();
   const archetype = require('../components/story/ArchetypeStory.tsx');
   assert.deepEqual(['0.25.30', '1.12.55', '3,51,00', '0.25.75'].map(archetype.parseClock), [1530, 4375, 13860, null]); ok();
   const finish = require('../components/story/FinishTimeStory.tsx');
