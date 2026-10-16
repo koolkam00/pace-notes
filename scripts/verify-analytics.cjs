@@ -534,7 +534,7 @@ for (const file of sourceFiles('components/home')) {
   const source = read(file);
   if (/<(?:input|textarea|select)\b/.test(source)) assert.ok(file === path.join('components', 'home', 'HomeDoors.tsx') || file === path.join('components', 'home', 'PlanFormUnits.tsx'), `${file} has form fields outside the home page's .home-plan form`);
 }
-assert.match(read('components/home/HomeDoors.tsx'), /<form className="home-door home-plan" action="\/tools\/plan" method="get"/, 'The home form is the masked .home-plan region and submits to /tools/plan by GET');
+assert.match(read('components/home/HomeDoors.tsx'), /<form className="home-door home-plan" action=\{`\$\{process\.env\.NEXT_PUBLIC_BASE_PATH \|\| ''\}\/tools\/plan`\} method="get"/, 'The home form is the masked .home-plan region and submits to /tools/plan (under the base path) by GET');
 // Status lines, alerts and live regions are masked by attribute wherever they are, so none may set its role dynamically.
 for (const file of [...sourceFiles('components')]) assert.doesNotMatch(read(file), /role=\{[^}]*['"](?:status|alert)['"]|aria-live=\{/, `${file}: write role="status"/"alert" and aria-live as plain attributes so replay masks them`);
 // Runner names and search text: ph-no-capture on the very element, as a class token.
