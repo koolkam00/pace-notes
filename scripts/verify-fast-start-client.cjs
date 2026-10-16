@@ -69,7 +69,7 @@ async function main() {
     assert.match(html, /href="https:\/\/journals\.plos\.org\/plosone\/article\?id=10\.1371\/journal\.pone\.0251513"/);
     assert.match(html,units==='mi'?/18\.64–21\.75 mi/:/30–35 km/);
     assert.match(html,units==='mi'?/26\.22 mi/:/42\.195 km/);
-    assert.doesNotMatch(html,/private-export-|20260912/,'Internal upload identifiers stay out of visible result copy');
+    assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016/,'Internal upload identifiers stay out of visible result copy');
   }
   const sparse={...focus,n:100,editions:5,slowdown_n:7,onset:null};
   assert.equal(fastStartCharts(start.initial,sparse,start.bands).onset,null);
@@ -97,7 +97,7 @@ async function main() {
     assert.match(html,units==='mi'?/3\.11 mi/:/5 km/);
     assert.match(html,units==='mi'?/12\.43 mi/:/20 km/);
     assert.doesNotMatch(html,/earlier recorded best|earlier-best|All earlier times/,'All mode cannot present its reference as a prior result');
-    assert.doesNotMatch(html,/private-export-|20260912/);
+    assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016/);
   }
   const methodology=render(MethodologyPage,{});
   const legacyOpening=(methodology.match(/<details\b[^>]*>[\s\S]*?<\/details>/g)||[]).find(detail=>detail.includes('Which openings are associated with finishing under my target?'));

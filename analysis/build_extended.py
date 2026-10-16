@@ -21,7 +21,7 @@ HISTORY_METHOD = [
 OBSERVATIONAL = 'These are observational results. Fitness changes, intentions, training, selection into the dataset and unmeasured conditions can explain differences. Outcome percentiles describe variation among performances, not confidence intervals or advice about the best strategy.'
 OPENINGS = ['Faster opening', 'Similar opening', 'Slower opening']
 SERIES_SPREAD = [{'key':'p10','label':'10th percentile'}, {'key':'median','label':'Median'}, {'key':'p90','label':'90th percentile'}]
-CANONICAL_ID_RELEASES = {'private-export-20260911-1107', 'private-export-20260912-0934'}
+CANONICAL_ID_RELEASES = {'private-export-20260911-1107', 'private-export-20260912-0934', 'htw-db-2026-10-16-1652'}
 
 
 def canonical_id_contract(db, source):
@@ -607,7 +607,8 @@ def qualifying_analysis(db,pub):
 
 def run(source,output,live_as_of,personalized_output=None):
     db=duckdb.connect()
-    db.execute("SET memory_limit='4GB'")
+    # 6 GB (4 GB until the 1652 refresh): the larger release spilled past the free temporary disk at 4 GB.
+    db.execute("SET memory_limit='6GB'")
     db.execute('SET threads=2')
     db.execute('SET temp_directory=?',[str(source/'extended-temp')])
     counts=prepare(db,source,keep_record_id=True)

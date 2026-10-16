@@ -59,7 +59,7 @@ async function main() {
       const html=render(AllFinisherResults,{groups,kind,start,units,focus,comparison});
       assert.match(html,/Included courses and race years/);
       assert.match(html,units==='mi'?/12\.43 mi/:/20 km/);
-      assert.doesNotMatch(html,/private-export-|20260912/);
+      assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016/);
       if(kind==='race-day') {
         assert.match(html,/Slowdown rate in this edition/);
         assert.doesNotMatch(html,/Mean edition slowdown rate|across 3 editions/);

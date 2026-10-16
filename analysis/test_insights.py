@@ -8,7 +8,7 @@ import unittest
 import numpy as np
 
 import insights_data
-from insights_data import Finishes, granular_age_editions, relative_pace, screen_duplicates, start_offset_screen, sustained_slowdown
+from insights_data import DUPLICATE_EDITIONS, Finishes, granular_age_editions, relative_pace, screen_duplicates, start_offset_screen, sustained_slowdown
 from insights_stats import kmeans, poisson_poly_fit, quantile, r
 import insights_archetypes
 import insights_courses
@@ -21,6 +21,7 @@ import insights_tool_projector
 import insights_tool_weather
 import insights_tools_common
 from build_fast_start import digest
+from build_insights import duplicate_methodology
 
 KM = [5, 10, 15, 20, 25, 30, 35, 40, 42.195]
 
@@ -83,12 +84,25 @@ class DuplicateScreen(unittest.TestCase):
         rng = np.random.default_rng(3)
         paces = [list(280 + rng.random(9) * 100) for _ in range(150)]
         rows = [(e, 1, None, p, 10 * e + i) for e in (0, 1, 2) for i, p in enumerate(paces)]
-        kept, audit = screen_duplicates(make(rows, editions))
+        rules = tuple(dict(city='Chicago', year=y, duplicate_of=2024, reason='fixture') for y in (2018, 2019))
+        kept, audit = screen_duplicates(make(rows, editions), rules)
         self.assertEqual(kept.n, 150)
         self.assertEqual([a['eligible_removed'] for a in audit], [150, 150])
         different = [(e, 1, None, list(np.array(p) + (5 if e < 2 else 0)), 10 * e + i) for e in (0, 1, 2) for i, p in enumerate(paces)]
         with self.assertRaisesRegex(ValueError, 'Duplicate evidence'):
-            screen_duplicates(make(different, editions))
+            screen_duplicates(make(different, editions), rules)
+
+    def test_retired_screen_keeps_every_finish(self):
+        # The 1652 release reloaded Chicago 2018 and 2019; with no rule, nothing is removed and no sentence is written.
+        self.assertEqual(DUPLICATE_EDITIONS, ())
+        editions = [dict(city='Chicago', year=y) for y in (2018, 2019, 2024)]
+        rng = np.random.default_rng(4)
+        rows = [(e, 1, None, list(280 + rng.random(9) * 100), 10 * e + i) for e in (0, 1, 2) for i in range(120)]
+        kept, audit = screen_duplicates(make(rows, editions))
+        self.assertEqual((kept.n, audit), (360, []))
+        self.assertEqual(duplicate_methodology(audit), [])
+        line = duplicate_methodology([dict(city='Chicago', year=2018, duplicate_of=2024), dict(city='Chicago', year=2019, duplicate_of=2024)])
+        self.assertIn('leave out Chicago 2018 and Chicago 2019, whose records duplicate the Chicago 2024 field', line[0])
 
 
 class Statistics(unittest.TestCase):

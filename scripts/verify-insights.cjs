@@ -315,7 +315,7 @@ function scan(value, where, key) {
   scannedValues++;
   if (typeof value === 'number') assert.ok(Number.isFinite(value), `${where}: finite number`);
   if (typeof value === 'string') {
-    if (key !== 'release_tag') assert.ok(!/private-export|20260912/.test(value), `${where}: copy cites an internal export label`);
+    if (key !== 'release_tag') assert.ok(!/private-export|20260912|htw-db-|20261016/.test(value), `${where}: copy cites an internal export label`);
     const normalised = normaliseName(value);
     if (normalised) copyStrings.set(normalised, where);
   }
@@ -327,7 +327,8 @@ const editions = runners.editions, editionKey = (city, year) => `${city}\u0000${
 const editionIndex = new Map(editions.map((edition, i) => [editionKey(edition.city, edition.year), i]));
 assert.equal(editionIndex.size, editions.length, 'Editions are unique by city and year');
 const screen = manifest.duplicate_edition_screen;
-assert.deepEqual(screen.map(rule => [rule.city, rule.year, rule.duplicate_of]), [['Chicago', 2018, 2024], ['Chicago', 2019, 2024]], 'Documented duplicate-edition screen');
+// Retired with the htw-db-2026-10-16-1652 release, which reloaded Chicago 2018 and 2019 (the 0934 screen listed both as copies of 2024).
+assert.deepEqual(screen.map(rule => [rule.city, rule.year, rule.duplicate_of]), [], 'Documented duplicate-edition screen');
 const duplicate = new Uint8Array(editions.length);
 for (const rule of screen) {
   assert.ok(editionIndex.has(editionKey(rule.city, rule.year)) && editionIndex.has(editionKey(rule.city, rule.duplicate_of)), 'Screen matches exactly one edition and its source');
