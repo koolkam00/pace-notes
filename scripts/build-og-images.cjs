@@ -8,7 +8,7 @@
  *   public/og/tools/qualifying/<race>.png     one per race in STANDARDS (lib/tools/qualifying.ts): the race name and
  *                                             "qualifying times" (London: "Good For Age times", as its page says)
  *   public/og/courses/<slug>.png   one per course page (the race name, and the supplied route outline when there is one)
- *   public/og/pages/<page>.png     top-level pages outside the sections: /finish-times
+ *   public/og/pages/<page>.png     top-level pages outside the sections: /finish-times and /research
  *   public/og/sections/<name>.png  stories, tools, courses, analyses and packs (the research archive)
  * public/og/default.png is kept as it is. lib/og-paths.ts picks the image for each page.
  *
@@ -100,9 +100,10 @@ const PACE_CHART_CARDS = [
   { slug: 'half-marathon-pace-chart', eyebrow: 'Runner tools · Pace charts', title: 'Half marathon pace chart', accent: TOKENS.blue },
 ];
 
-/** Top-level pages outside the sections, with their own card in public/og/pages/: the page's H1 (components/FinishTimeSummary.tsx). */
+/** Top-level pages outside the sections, with their own card in public/og/pages/: the page's H1 (components/FinishTimeSummary.tsx, app/research/(hub)/page.tsx). */
 const PAGE_CARDS = [
   { slug: 'finish-times', eyebrow: 'Finish times · Median and distribution', title: 'Marathon finish times', accent: TOKENS.orange },
+  { slug: 'research', eyebrow: 'Research · Stories, analyses and open data', title: 'Explore the research', accent: TOKENS.violet },
 ];
 
 function cardSpecs() {

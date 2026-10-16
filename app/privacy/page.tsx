@@ -22,7 +22,7 @@ const COUNTED: Record<keyof AnalyticsEvents, string> = {
   page_feedback: 'your answer to “Was this useful?”',
   page_feedback_reason: 'the reason you pick after answering “No”, from four fixed choices',
   site_error: 'the kind of error if something breaks, such as a file that did not load, never its message',
-  section_viewed: 'which parts of a page, such as the home page’s chapters, come into view',
+  section_viewed: 'which parts of a page, such as the home page’s sections, come into view',
   report_exported: 'saving a race report as an image, or sharing it, never what it shows',
 };
 // Measured in the browser (by PostHog or the site) or added to every event, rather than counted as an action.

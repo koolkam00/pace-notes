@@ -10,7 +10,7 @@
  *   /stories, /tools, /courses, /analyses, /packs     the section card, public/og/sections/<section>.png,
  *   and every page below them                         also used by analysis and pack pages
  *   /<page> outside those sections                    its own card when it has one, public/og/pages/<page>.png
- *                                                     (/finish-times)
+ *                                                     (/finish-times, /research)
  *   anything else                                     public/og/default.png
  *
  * The cards are rendered by scripts/build-og-images.cjs (1200x630 PNG, words only); its card list says which pages

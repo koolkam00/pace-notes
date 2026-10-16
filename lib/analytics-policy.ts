@@ -21,7 +21,7 @@ const searchPages = ['/tools/marathon-pace-chart', '/tools/half-marathon-pace-ch
 export const STORY_SLUGS: readonly string[] = ['pacing-types', 'round-numbers', 'race-replay', 'places', 'final-kick', 'who-holds-pace', 'courses'];
 export const COURSE_SLUGS: readonly string[] = ['amsterdam', 'auckland', 'austin', 'barcelona', 'berlin', 'boston', 'chicago', 'copenhagen', 'dubai', 'eindhoven', 'frankfurt', 'gold-coast',
   'hamburg', 'helsinki', 'london', 'madrid', 'melbourne', 'new-york', 'oslo', 'paris', 'prague', 'rotterdam', 'singapore', 'stockholm', 'sydney', 'valencia', 'vienna', 'warsaw', 'washington'];
-const pages = new Set(['/', '/analyses', '/analyses/downhill-start', '/runners', '/report', '/about', '/methodology', '/privacy', '/request-analysis', '/slowdown', '/htw', '/your-race', '/research/personalized',
+const pages = new Set(['/', '/analyses', '/analyses/downhill-start', '/runners', '/report', '/about', '/methodology', '/privacy', '/request-analysis', '/slowdown', '/htw', '/your-race', '/research', '/research/personalized',
   ...TEN_ANALYSES.map(item => '/analyses/' + item.slug), ...WEATHER_QUESTIONS.map(item => '/analyses/' + item.slug),
   '/tools', ...TOOLS.map(tool => '/tools/' + tool.slug), ...searchPages,
   '/stories', ...STORY_SLUGS.map(slug => '/stories/' + slug), '/courses', ...COURSE_SLUGS.map(slug => '/courses/' + slug)]);
@@ -31,9 +31,10 @@ const experiments: readonly ExperimentDefinition[] = EXPERIMENTS;
 
 // The page sections whose first view is counted (section_viewed). Pages mark them with data-track-section="<id>";
 // components/SectionTracker.tsx watches them, and any other id is dropped here. The race planner (/tools/plan) marks its
-// course result, its mat comparison and its pace band; /report marks its race report.
+// course result, its mat comparison and its pace band; /report marks its race report. The home page marks its hero, its three ways to start (paths),
+// what's at stake, the guide, the three steps, the story teaser and the closing call; it no longer has chapter-* sections.
 export const TRACKED_SECTIONS = ['hero', 'chapter-1', 'chapter-2', 'chapter-3', 'chapter-4', 'chapter-5', 'chapter-6', 'chapter-7', 'chapter-8',
-  'stories', 'tools', 'analyses', 'cta', 'faq', 'related', 'result', 'comparison', 'pace-band', 'report'] as const;
+  'stories', 'tools', 'analyses', 'cta', 'faq', 'related', 'result', 'comparison', 'pace-band', 'report', 'paths', 'stakes', 'guide', 'steps'] as const;
 
 export type AnalyticsEvents = {
   runner_search_submitted: Record<string, never>;
