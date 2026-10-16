@@ -1,6 +1,6 @@
 {
   "note": "Initial JavaScript per page type: gzip (level 9) bytes of every script the exported HTML names, measured on a build with the dummy analytics key (NEXT_PUBLIC_POSTHOG_KEY=phc_test_dummy), as CI builds it. verify-replay-e2e (S8, I10) fails when a page exceeds its figure by more than 1.5 KB. To change a figure, rebuild, run `node scripts/verify-replay-e2e.cjs --only=S8 --write-budget` and commit it with the reason.",
-  "measured": "2026-10-16, branch feat/race-planner (StoryBrand PR B, the race planner) rebased onto main at cbd59f8: every figure remeasured with --write-budget on a dummy-key build. /tools/plan is new at 167,772 B (RacePlan, PaceBandStrip, lib/tools/plan.ts and the tools’ shared inputs). Against main’s figures: /tools/course-chooser +1,157 B (the Plan link on every row, and lib/tools/plan.ts, whose plain-words reasons it now shares with the planner); /tools/pace-band +280 B (the wristband strips and lib/tools/pace-band-data.ts, now modules shared with the planner); /tools/pace-calculator +183 B and /tools/predictor +182 B (the Plan this goal card in components/tools/Handoffs.tsx). Every other page moved by -51 B to +207 B (the largest: /analyses/pacing-pattern +207 B, / +169 B, /runners +145 B), within the 1.5 KB tolerance.",
+  "measured": "2026-10-16, branch feat/course-pages (StoryBrand PR E) on main at 0c0c93b: /courses/boston remeasured at 178,431 B for the course page sections and feedback row; every other figure as measured for PR B. Earlier: 2026-10-16, branch feat/race-planner (StoryBrand PR B, the race planner) rebased onto main at cbd59f8: every figure remeasured with --write-budget on a dummy-key build. /tools/plan is new at 167,772 B (RacePlan, PaceBandStrip, lib/tools/plan.ts and the tools’ shared inputs). Against main’s figures: /tools/course-chooser +1,157 B (the Plan link on every row, and lib/tools/plan.ts, whose plain-words reasons it now shares with the planner); /tools/pace-band +280 B (the wristband strips and lib/tools/pace-band-data.ts, now modules shared with the planner); /tools/pace-calculator +183 B and /tools/predictor +182 B (the Plan this goal card in components/tools/Handoffs.tsx). Every other page moved by -51 B to +207 B (the largest: /analyses/pacing-pattern +207 B, / +169 B, /runners +145 B), within the 1.5 KB tolerance.",
   "pages": {
     "/": 183827,
     "/stories": 152433,
@@ -15,7 +15,7 @@
     "/tools/marathon-pace/3-30": 159642,
     "/tools/qualifying/boston": 154015,
     "/courses": 152020,
-    "/courses/boston": 177654,
+    "/courses/boston": 178431,
     "/finish-times": 153389,
     "/runners": 272198,
     "/research/personalized": 168299,
