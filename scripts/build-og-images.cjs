@@ -85,7 +85,7 @@ const SECTION_CARDS = [
   { name: 'stories', eyebrow: 'Stories from the data', title: 'What recorded marathon finishes *show.*', accent: TOKENS.orange },
   { name: 'tools', eyebrow: 'Runner tools', title: 'Tools that know how marathons *really* go.', accent: TOKENS.blue },
   { name: 'courses', eyebrow: 'Courses', title: 'Marathon courses: *elevation and pacing.*', accent: TOKENS.teal },
-  { name: 'analyses', eyebrow: 'Analyses · Plan your race', title: 'Marathon pacing questions, *answered with recorded splits.*', accent: TOKENS.green },
+  { name: 'analyses', eyebrow: 'Analyses · the essential ten', title: 'Marathon pacing questions, *answered with recorded splits.*', accent: TOKENS.green },
   { name: 'packs', eyebrow: 'Research archive', title: 'The marathon pacing *research archive.*', accent: TOKENS.violet },
 ];
 

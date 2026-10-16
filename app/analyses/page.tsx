@@ -14,7 +14,7 @@ export default function AnalysesPage() {
   return <section className="analyses-directory">
     <header className="night night-grain bleed story-hero directory-hero">
       <div className="container">
-        <p className="eyebrow">Plan your race · the essential ten</p>
+        <p className="eyebrow">Analyses · the essential ten</p>
         <h1 className="story-title">Find your next question.</h1>
         <p className="hero-dek">Ten marathon pacing questions in priority order. Pick a course, a finish time and an age group and every answer recalculates from millions of eligible finishes. Weather questions that passed a separate evidence check follow below.</p>
       </div>
