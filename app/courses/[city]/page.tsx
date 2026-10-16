@@ -27,7 +27,7 @@ export function generateMetadata({ params }: { params: { city: string } }) {
   if (!page) return { title: 'Course not found | Pace Notes', robots: { index: false, follow: true } };
   return pageMetadata({
     title: courseTitle(page.race, !!page.geometry),
-    description: courseDescription(page.race, page.summary, !!page.geometry, page.weather.length > 0),
+    description: courseDescription(page.race, { finishes: page.summary.finishes, ...page.counted }, !!page.geometry, page.weather.length > 0),
     path: `/courses/${page.slug}`,
   });
 }

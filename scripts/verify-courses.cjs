@@ -149,6 +149,12 @@ const U = require(path.join(root, 'components/course/CourseUnits.tsx'));
   const long = P.courseDescription('A Very Long Race Name Marathon of the Twin Cities', { finishes: 123456, editions: 12, years: [2005, 2025] }, true, true);
   assert.ok(long.length <= P.MAX_DESCRIPTION, 'descriptions drop clauses to fit');
   assert.equal(P.courseDescription('Y Marathon', { finishes: 416, editions: 1, years: [2015] }, false, false), 'Y Marathon finish times by year and how 416 recorded finishes paced each 5 km in its 2015 edition.');
+  // The editions that make up a total: the rows plus an edition under 100 finishes (Amsterdam-like), or the build stops.
+  const rows = [{ year: 2022, n: 900 }, { year: 2024, n: 1000 }];
+  assert.deepEqual(P.countedEditions('X', 1914, rows, [{ year: 2023, n: 14 }]), { editions: 3, years: [2022, 2023, 2024] });
+  assert.deepEqual(P.countedEditions('X', 1900, rows, []), { editions: 2, years: [2022, 2024] });
+  assert.throws(() => P.countedEditions('X', 1914, rows, []), /add up to 1900 finishes, not the course total of 1914/, 'a total the editions do not account for stops the build');
+  assert.throws(() => P.countedEditions('X', 1914, rows, [{ year: 2024, n: 14 }]), /counted twice/);
 }
 
 // ---------- 2. Independent recount from the published files ----------
@@ -263,6 +269,8 @@ for (const city of CITIES) {
   const small = own.filter((shard) => shard.eligible_n > 0 && !cells.some((c) => c.year === shard.edition.year));
   const smallFinishes = s.finishes - cells.reduce((sum, c) => sum + c.n, 0);
   check(small.reduce((sum, shard) => sum + shard.eligible_n, 0) === smallFinishes && small.every((shard) => shard.eligible_n < 100), where, 'the editions under 100 finishes account for the rest of the total');
+  // The editions that make up the total, which every sentence printing it must name: the rows plus those small editions.
+  const countedYears = [...cells.map((c) => c.year), ...small.map((shard) => shard.edition.year)].sort((a, b) => a - b);
   // Medians and sustained slowdown: means of the editions, with the range and its years.
   check(close(cells.reduce((sum, c) => sum + c.median_s, 0) / cells.length, s.median_s, 0.51), where, `mean of edition medians ${s.median_s}`);
   check(close(cells.reduce((sum, c) => sum + c.slowdown, 0) / cells.length, s.slowdown, 0.00011), where, `mean sustained slowdown ${s.slowdown}`);
@@ -309,6 +317,7 @@ for (const city of CITIES) {
   if (ctx && ctx.editions >= courseGoal.min_editions) for (const [g, row] of goalRows) check(row || courseGoal.unavailable.some((u) => u.city === city && u.goal === g), where, `goal ${g}: neither a row nor a reason`);
   facts.set(city, {
     s, cells, weather, terrain, ctx, route, hotCool, goalRows, smallFinishes, smallYears: small.map((shard) => shard.edition.year).sort((a, b) => a - b),
+    counted: { editions: countedYears.length, years: countedYears },
     types: archetypes.courses.find((c) => c.city === city) ?? null,
     slope: courses.weather.per_course_slopes.find((x) => x.city === city) ?? null,
     copies: copies.filter((c) => c.city === city),
@@ -317,6 +326,10 @@ for (const city of CITIES) {
   });
 }
 check(CITIES.every((city) => slugOf(city) === P.coursePages().get(slugOf(city))?.slug), 'data', 'the page model has every course');
+for (const city of CITIES) {
+  const named = JSON.stringify(P.coursePages().get(slugOf(city))?.counted), recount = JSON.stringify(facts.get(city)?.counted);
+  check(named === recount, `data ${city}`, `the page model names ${named} as the editions that make up the course total; the recount ${recount}`);
+}
 
 // The two linked analyses, from their own files: the course comparison has a result for a course when its all-finisher
 // row (all ages, genders and early paces) holds a course group; hills and pacing when the course's analysis file holds the
@@ -330,7 +343,7 @@ for (const city of CITIES) check(P.coursePages().get(slugOf(city))?.scopes.compa
 
 // ---------- 3. Built pages ----------
 const KINDS = {
-  finishes: 'count', editions: 'count', median: 'clock', 'median.lo': 'clock', 'median.hi': 'clock', 'median.lo.year': 'year', 'median.hi.year': 'year',
+  finishes: 'count', editions: 'count', 'counted.editions': 'count', 'counted.years': 'years', median: 'clock', 'median.lo': 'clock', 'median.hi': 'clock', 'median.lo.year': 'year', 'median.hi.year': 'year',
   slowdown: 'pct', 'slowdown.lo': 'pct', 'slowdown.hi': 'pct', 'slowdown.lo.year': 'year', 'slowdown.hi.year': 'year', block10: 'pct', after20: 'min', years: 'years',
   'shape.editions': 'count', 'shape.courses': 'count', 'identified.correct': 'count', 'identified.editions': 'count', slowest: 'section',
   n: 'count', 'median@': 'clock', sd: 'pct', temp: 'degF', date: 'date', small: 'count', 'rows.finishes': 'count',
@@ -356,6 +369,8 @@ function resolve(dataKey, f) {
     case 'finishes': return f.s.finishes;
     case 'editions': return f.s.editions;
     case 'years': return f.s.years.join(',');
+    case 'counted.editions': return f.counted.editions;
+    case 'counted.years': return f.counted.years.join(',');
     case 'median': return at === undefined ? f.s.median_s : cell?.median_s;
     case 'median.lo': return lo?.median_s;
     case 'median.hi': return hi?.median_s;
@@ -512,7 +527,7 @@ if (html) {
     for (const w of f.weather) for (const k of ['w.temp', 'w.dew', 'w.rh', 'w.wind']) check(seen.has(`${k}@${w.year}`), where, `the ${w.year} weather row lacks ${k}`);
     for (const [g, row] of f.goalRows) if (row && f.ctx && f.ctx.editions >= courseGoal.min_editions) check(seen.has(`g.n@${g}`) && seen.has(`g.sd@${g}`) && seen.has(`g.p50@${g}`), where, `goal ${g}: the row is not printed`);
     if (f.terrain && f.route) for (let i = 0; i < 9; i += 1) check(seen.has(`t.gain@${i}`), where, `section ${i} of the route is not printed`);
-    for (const k of ['finishes', 'editions', 'slowdown', 'block10', 'after20']) check(seen.has(k), where, `${k} is not printed`);
+    for (const k of ['finishes', 'counted.editions', 'slowdown', 'block10', 'after20', ...(f.cells.length > 1 ? ['editions'] : [])]) check(seen.has(k), where, `${k} is not printed`);
 
     // Table cells hold figures, a dash or plain words; never another number.
     for (const table of main.matchAll(/<table class="[^"]*course-table[^"]*">([\s\S]*?)<\/table>/g)) {
@@ -536,8 +551,25 @@ if (html) {
     // Each section names its own finishes: the sustained-slowdown shares are means over the editions with a row.
     check(f.cells.length === 1 ? slowdown.includes(`data-k="n@${f.cells[0].year}"`) : slowdown.includes('data-k="rows.finishes"'), where, '#slowdown does not print its finishes');
 
-    // Words: banned anywhere in the visible page or its head; rank words in the course content.
     const head = /<head\b[\s\S]*?<\/head>/.exec(full)?.[0] ?? '';
+    // The course total is named with the editions that make it up (Amsterdam: 13 with 2023's 14 finishes, not the 12 with a
+    // row): a paragraph, list item or stat list that prints it prints no other edition count or year list. The description too.
+    const countedYears = f.counted.years.join(',');
+    for (const m of main.matchAll(/<(p|li|dl)\b[^>]*>([\s\S]*?)<\/\1>/g)) {
+      if (!m[2].includes('data-k="finishes"')) continue;
+      for (const d of m[2].matchAll(/<data\b([^>]*)>/g)) {
+        const k = attr(d[1], 'data-k'), v = attr(d[1], 'value');
+        if (k === 'editions' || k === 'counted.editions') check(Number(v) === f.counted.editions, where, `the course total of ${F.count(f.s.finishes)} finishes is printed with ${v} editions; ${f.counted.editions} make it up: ${textOf(m[2]).slice(0, 120)}`);
+        if (k === 'years' || k === 'counted.years') check(v === countedYears, where, `the course total is printed with the years ${v}; ${countedYears} make it up`);
+      }
+    }
+    const description = decode(/<meta name="description" content="([^"]*)"/.exec(head)?.[1] ?? '');
+    const across = /across ([\d,]+) editions(?: \((\d{4})–(\d{4})\))?/.exec(description), inIts = /in its (\d{4}) edition/.exec(description);
+    check(description.includes(`${F.count(f.s.finishes)} `), where, `the description does not print the course total: ${description}`);
+    if (across) check(Number(across[1].replace(/,/g, '')) === f.counted.editions && (!across[2] || (Number(across[2]) === f.counted.years[0] && Number(across[3]) === f.counted.years[f.counted.years.length - 1])), where, `the description names ${across[0]}; ${f.counted.editions} editions (${f.counted.years[0]}–${f.counted.years[f.counted.years.length - 1]}) make up the total`);
+    if (inIts) check(f.counted.editions === 1 && Number(inIts[1]) === f.counted.years[0], where, `the description names ${inIts[0]}; ${f.counted.editions} editions make up the total`);
+
+    // Words: banned anywhere in the visible page or its head; rank words in the course content.
     const metaText = [...head.matchAll(/<title>([\s\S]*?)<\/title>|content="([^"]*)"/g)].map((m) => decode(m[1] ?? m[2] ?? '')).join(' ');
     for (const [pattern, label] of BANNED) check(!pattern.test(textOf(body)) && !pattern.test(metaText), where, `${label} on the page`);
     const rank = RANK.exec(visible);

@@ -35,10 +35,10 @@ export default function CourseFinishTimes({ page }: { page: CoursePageData }) {
           ))}
         </tbody>
       </CourseTable>
-      <p className="course-note">Editions with at least 100 finishes, each with all nine 5 km checkpoint times; years not listed are not in the data{small?.years.length ? <>, except {yearList(small.years)} (below)</> : null}. The median is each edition’s own. Race dates and start temperatures come from the edition’s supplied weather record (the modelled hour at the scheduled start).{datesUnverified ? ' The data producer supplied the race dates and scheduled starts; they have not been independently verified.' : ''}</p>
+      <p className="course-note">Editions with at least 100 finishes, each with all nine 5 km checkpoint times; years not listed are not in the data{small ? <>, except {yearList(small.years)} (below)</> : null}. The median is each edition’s own. Race dates and start temperatures come from the edition’s supplied weather record (the modelled hour at the scheduled start).{datesUnverified ? ' The data producer supplied the race dates and scheduled starts; they have not been independently verified.' : ''}</p>
       {copies.length ? <p className="course-callout course-copy-note">{copies.map(courseCopySentence).join(' ')}</p> : null}
       {small ? (
-        <p className="course-note">The course total also counts <Fact k="small" v={small.finishes}>{count(small.finishes)}</Fact> finishes from {small.years.length ? <>the {yearList(small.years)} edition{small.years.length === 1 ? '' : 's'}, which {small.years.length === 1 ? 'has' : 'have'}</> : 'editions with'} fewer than 100 finishes and no row here.</p>
+        <p className="course-note">The course total also counts <Fact k="small" v={small.finishes}>{count(small.finishes)}</Fact> finishes from the {yearList(small.years)} edition{small.years.length === 1 ? '' : 's'}, which {small.years.length === 1 ? 'has' : 'have'} fewer than 100 finishes and no row here.</p>
       ) : null}
       <p className="course-note"><Link href="/finish-times">Marathon finish times across every course</Link>: the median, the spread and the shares under round times.</p>
     </CourseSection>

@@ -17,9 +17,13 @@ function contents(page: CoursePageData): [string, string][] {
   ];
 }
 
-/** "{race} at a glance": three to five sentences, each filled from one published field, then the contents. */
+/**
+ * "{race} at a glance": three to six sentences, each filled from one published field, then the contents. The course total
+ * is named with the editions that make it up (`counted`); the medians and shares that follow are over the editions with a
+ * row, so an edition under 100 finishes is named as left out of them.
+ */
 export default function CourseGlance({ page }: { page: CoursePageData }) {
-  const { summary: s, editions, copies, geometry, context, race } = page;
+  const { summary: s, counted, editions, copies, small, geometry, context, race } = page;
   const single = editions.length === 1 ? editions[0] : null;
   const range = medianRange(editions);
   const slowest = s.slowest_section ? SECTION_NAMES.indexOf(s.slowest_section) : -1;
@@ -28,9 +32,10 @@ export default function CourseGlance({ page }: { page: CoursePageData }) {
     <CourseSection id="at-a-glance" track="chapter-1" kicker="At a glance" title={<>{race} <em>at a glance</em></>}>
       <div className="course-glance">
         <p>
-          The data holds <Fact k="finishes" v={s.finishes}>{count(s.finishes)}</Fact> finishes with all nine 5 km checkpoint times from {single
-            ? <>the <Fact k="years" v={s.years.join(',')}>{yearList(s.years)}</Fact> edition of the {race}.</>
-            : <><Fact k="editions" v={s.editions}>{count(s.editions)}</Fact> editions of the {race}: <Fact k="years" v={s.years.join(',')}>{yearList(s.years)}</Fact>.</>}
+          The data holds <Fact k="finishes" v={s.finishes}>{count(s.finishes)}</Fact> finishes with all nine 5 km checkpoint times from {counted.editions === 1
+            ? <>the <Fact k="counted.years" v={counted.years.join(',')}>{yearList(counted.years)}</Fact> edition of the {race}.</>
+            : <><Fact k="counted.editions" v={counted.editions}>{count(counted.editions)}</Fact> editions of the {race}: <Fact k="counted.years" v={counted.years.join(',')}>{yearList(counted.years)}</Fact>.</>}
+          {small ? <> The {yearList(small.years)} edition{small.years.length === 1 ? ' has' : 's have'} only <Fact k="small" v={small.finishes}>{count(small.finishes)}</Fact> of these finishes{small.years.length === 1 ? ', fewer' : ' between them, each fewer'} than the 100 an edition needs for a row, so the edition medians and sustained-slowdown shares leave {small.years.length === 1 ? 'it' : 'them'} out.</> : null}
           {copies.length ? <> The {yearList(copies.map((c) => c.year))} editions are not counted: their records largely repeat the {copies[0].duplicate_of} field.</> : null}
         </p>
         {single ? (

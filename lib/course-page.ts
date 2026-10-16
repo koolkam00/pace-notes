@@ -111,14 +111,14 @@ export function courseTitle(race: string, hasRoute: boolean): string {
 
 /**
  * Search description from the same figures the page prints: richest wording first, clauses dropped while the text would
- * run past 155 characters.
+ * run past 155 characters. The editions and years are the ones that make up the finishes (`counted`), as on the page.
  */
-export function courseDescription(race: string, summary: Pick<CourseSummary, 'finishes' | 'editions' | 'years'>, hasRoute: boolean, hasWeather: boolean): string {
-  const years = summary.years.length ? [Math.min(...summary.years), Math.max(...summary.years)] : null;
-  const span = summary.editions === 1 && years ? ` in its ${years[0]} edition` : ` across ${count(summary.editions)} editions${years && years[0] !== years[1] ? ` (${years[0]}–${years[1]})` : ''}`;
+export function courseDescription(race: string, total: { finishes: number; editions: number; years: number[] }, hasRoute: boolean, hasWeather: boolean): string {
+  const years = total.years.length ? [Math.min(...total.years), Math.max(...total.years)] : null;
+  const span = total.editions === 1 && years ? ` in its ${years[0]} edition` : ` across ${count(total.editions)} editions${years && years[0] !== years[1] ? ` (${years[0]}–${years[1]})` : ''}`;
   const lead = hasRoute ? `${race} elevation profile, finish times by year and how` : `${race} finish times by year and how`;
   const variants = [span, ''].flatMap((spanText) => [hasWeather, false].flatMap((weather) => [true, false].map((recorded) =>
-    `${lead} ${count(summary.finishes)}${recorded ? ' recorded' : ''} finishes paced each 5 km${spanText}${weather ? ', with race-morning weather' : ''}.`)));
+    `${lead} ${count(total.finishes)}${recorded ? ' recorded' : ''} finishes paced each 5 km${spanText}${weather ? ', with race-morning weather' : ''}.`)));
   return variants.find((text) => text.length <= MAX_DESCRIPTION) ?? variants[variants.length - 1];
 }
 
@@ -133,6 +133,19 @@ export function courseCopySentence(entry: CopyEdition): string {
   const end = sentence.lastIndexOf(', so ');
   if (end < 0) throw new Error('copyEditionSentence() no longer ends in ", so …": update courseCopySentence().');
   return `${sentence.slice(0, end)}, so this page counts them only in the pooled pace profile.`;
+}
+
+/**
+ * The editions whose finishes make up a course total: every edition with a row, plus the editions under 100 finishes that
+ * the total also counts (Amsterdam 2023's 14). Their finishes must add up to the total exactly, or this throws and the
+ * build stops: a page never says the total came from editions that do not account for it.
+ */
+export function countedEditions(city: string, total: number, rows: { year: number; n: number }[], small: { year: number; n: number }[]): { editions: number; years: number[] } {
+  const sum = [...rows, ...small].reduce((t, e) => t + e.n, 0);
+  if (sum !== total) throw new Error(`${city}: its editions add up to ${sum} finishes, not the course total of ${total}.`);
+  const years = [...rows, ...small].map((e) => e.year).sort((a, b) => a - b);
+  if (new Set(years).size !== years.length) throw new Error(`${city}: an edition is counted twice.`);
+  return { editions: years.length, years };
 }
 
 /** The plain words for a source-policy category. */
@@ -240,6 +253,11 @@ export type CoursePageData = {
   context: CourseContext | null;
   editions: EditionRow[];
   copies: CopyEdition[];
+  /**
+   * The editions whose finishes make up `summary.finishes` (`countedEditions`), which a sentence printing the total names.
+   * `summary.editions` and `summary.years` are the editions with a row, over which the medians and shares are averaged.
+   */
+  counted: { editions: number; years: number[] };
   /** Finishes counted in the course total from editions with fewer than 100 finishes, which have no row (null when none). */
   small: { years: number[]; finishes: number } | null;
   terrain: TerrainSection[] | null;
@@ -342,11 +360,11 @@ export function coursePages(): Map<string, CoursePageData> {
     const cells = courses.years.cells.filter((c) => c.city === city).sort((a, b) => a.year - b.year);
     const editions = cells.map((c) => ({ year: c.year, n: c.n, median_s: c.median_s, slowdown: c.slowdown, temp: c.temp, date: all.get(editionKey(city, c.year))?.date ?? null }));
     const listed = new Set(cells.map((c) => c.year));
-    const smallYears = [...all].filter(([key, ctx]) => key.startsWith(`${city}|`) && ctx.eligible > 0 && !listed.has(Number(key.split('|')[1]))).map(([key]) => Number(key.split('|')[1])).sort((a, b) => a - b);
-    const smallFinishes = summary.finishes - cells.reduce((sum, c) => sum + c.n, 0);
-    const smallSum = smallYears.reduce((sum, year) => sum + (all.get(editionKey(city, year))?.eligible ?? 0), 0);
-    // Only name the small editions when the shards account for exactly the finishes the course total adds to its rows.
-    const small = smallFinishes > 0 ? { years: smallSum === smallFinishes ? smallYears : [], finishes: smallFinishes } : null;
+    // The editions under 100 finishes (no row) that the course total also counts: the city's other shards with finishes.
+    const smallEditions = [...all].filter(([key, ctx]) => key.startsWith(`${city}|`) && ctx.eligible > 0 && !listed.has(Number(key.split('|')[1])))
+      .map(([key, ctx]) => ({ year: Number(key.split('|')[1]), n: ctx.eligible })).sort((a, b) => a.year - b.year);
+    const counted = countedEditions(city, summary.finishes, cells, smallEditions);
+    const small = smallEditions.length ? { years: smallEditions.map((e) => e.year), finishes: smallEditions.reduce((sum, e) => sum + e.n, 0) } : null;
     const terrains = cells.map((c) => all.get(editionKey(city, c.year))?.terrain).filter((t): t is TerrainSection[] => !!t);
     // Every edition of a city has the same supplied current route; show its sections only when the shards agree.
     const terrain = terrains.length && terrains.every((t) => JSON.stringify(t) === JSON.stringify(terrains[0])) ? terrains[0] : null;
@@ -367,7 +385,7 @@ export function coursePages(): Map<string, CoursePageData> {
     const matched = courses.matched.find((b) => b.lo_s === MATCHED_BAND_LO_S) ?? null;
     built.set(slug, {
       city, slug, race: raceName(city, route, summary), display: city === 'New York' ? 'New York City' : city,
-      summary, geometry: route, context, editions,
+      summary, counted, geometry: route, context, editions,
       copies: copies.filter((c) => c.city === city),
       small, terrain, weather,
       weatherMissing: courses.weather.excluded.filter((e) => e.city === city).map(({ year, reason }) => ({ year, reason })),

@@ -9,11 +9,12 @@ import { Fact } from './Fact';
 export const article = (name: string) => (/^[AEIOU]/i.test(name) ? 'an' : 'a');
 
 /**
- * The night hero: the race name as the data has it, what the data holds for it, and the way into the planner, with
- * the pace band and split check for the courses the pace band publishes.
+ * The night hero: the race name as the data has it, what the data holds for it (the finishes and the editions that make
+ * them up, small ones included), and the way into the planner, with the pace band and split check for the courses the
+ * pace band publishes.
  */
 export default function CourseHero({ page }: { page: CoursePageData }) {
-  const { summary, geometry, race, slug } = page;
+  const { summary, counted, geometry, race, slug } = page;
   return (
     <section className="night night-grain bleed story-hero course-hero" data-track-section="hero">
       <div className="container course-hero-grid">
@@ -23,8 +24,8 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
           <dl className="course-stats">
             <div>
               <dt>Editions in the data</dt>
-              <dd><Fact k="editions" v={summary.editions}>{count(summary.editions)}</Fact></dd>
-              <dd className="course-stat-sub"><Fact k="years" v={summary.years.join(',')}>{yearList(summary.years)}</Fact></dd>
+              <dd><Fact k="counted.editions" v={counted.editions}>{count(counted.editions)}</Fact></dd>
+              <dd className="course-stat-sub"><Fact k="counted.years" v={counted.years.join(',')}>{yearList(counted.years)}</Fact></dd>
             </div>
             <div><dt>Finishes with all nine 5 km splits</dt><dd><Fact k="finishes" v={summary.finishes}>{count(summary.finishes)}</Fact></dd></div>
             {geometry ? (
