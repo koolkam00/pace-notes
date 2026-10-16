@@ -8,6 +8,9 @@ export interface InsightsManifest {
   input_as_of: string;
   as_of: string;
   runner_manifest_sha256: string;
+  runner_manifest_as_of: string;
+  /** The runner-context manifest the story data was built from (course geometry records the same hash). */
+  context_manifest_sha256: string;
   eligible_records: number;
   analysis_n: number;
   duplicate_edition_screen: { city: string; year: number; duplicate_of: number; reason: string; eligible_removed: number; identical_nine_time_twins: number }[];

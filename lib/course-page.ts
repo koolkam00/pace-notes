@@ -16,9 +16,11 @@ import { ALL_FINISHER_DEFAULT, allFinisherGroups, allFinisherRow, type AllFinish
 import { getAllFinisherContextStart } from './all-finisher-context-server';
 import { getCourseNames, getIndividualCourseAnswer } from './course-data';
 import { copyEditionSentence, copyEditions, isCopyEdition, type CopyEdition } from './duplicate-editions';
-import type { Archetypes, CourseGeometry, Courses, CourseSummary, WeatherEdition } from './insights';
+import type { Archetypes, CourseGeometry, Courses, CourseSummary, InsightsManifest, WeatherEdition } from './insights';
 import { getInsightsManifest, readInsight } from './insights-server';
 import { getPersonalSummary } from './personalized-data';
+import { validateContextManifest, type ContextManifest } from './runner-context';
+import type { RunnerManifest } from './runner-search';
 import type { CourseContext, CourseGoal, CourseGoalRow, PaceBandIndex, ProjectorIndex, WeatherMatch } from './tools/data';
 import { courseSlug } from './tools/links';
 import { courseGoalReason, screenedReason, tooFewEditions } from './tools/plan';
@@ -154,22 +156,42 @@ const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex
 const editionKey = (city: string, year: number) => `${city}|${year}`;
 let contexts: Map<string, EditionContext> | undefined;
 
+const UNBOUND = 'Course pages need runner context built from the same runner records as the story data.';
+
+/**
+ * The runner-context manifest, checked with the race reports' own validator (`validateContextManifest`: the adopted
+ * release, the runner manifest's hash and timestamps, one shard per edition) and bound to the exact context the story data
+ * was built from: its SHA-256 must be the one the insights manifest and the course geometry record. Context rebuilt from
+ * the same runner records passes every other check, so without that hash the pages would print its race dates, starts,
+ * weather sources and sections beside story figures built from the context before it. Throws otherwise.
+ */
+export function boundContextManifest(contextBytes: Buffer, runnerBytes: Buffer, story: Pick<InsightsManifest, 'release_tag' | 'input_as_of' | 'runner_manifest_sha256' | 'runner_manifest_as_of' | 'context_manifest_sha256'>, geometryContextSha: string | undefined): ContextManifest {
+  const runnerSha = sha256(runnerBytes);
+  let manifest: ContextManifest;
+  try {
+    manifest = validateContextManifest(JSON.parse(contextBytes.toString()), JSON.parse(runnerBytes.toString()) as RunnerManifest, runnerSha);
+  } catch {
+    throw new Error(UNBOUND);
+  }
+  if (story.release_tag !== manifest.release_tag || story.runner_manifest_sha256 !== runnerSha || story.input_as_of !== manifest.input_as_of || story.runner_manifest_as_of !== manifest.runner_manifest_as_of) throw new Error(UNBOUND);
+  const contextSha = sha256(contextBytes);
+  if (story.context_manifest_sha256 !== contextSha || geometryContextSha !== contextSha) {
+    throw new Error('Course pages need the runner context the story data was built from: the runner-context manifest is not the one the insights manifest records. Rebuild the story data after the runner context.');
+  }
+  return manifest;
+}
+
 /**
  * Each edition's eligible count, race date, scheduled start and supplied-route sections, from the runner-context shards,
- * each checked against its manifest (bytes and SHA-256) and bound to the same runner records as the story data. Copy
- * editions are never read. About a second, once per build process.
+ * each checked against its manifest (bytes and SHA-256), which must be the exact one the story data was built from
+ * (`boundContextManifest`). Copy editions are never read. About a second, once per build process.
  */
 export function editionContexts(): Map<string, EditionContext> {
   if (contexts) return contexts;
   const runnerBytes = fs.readFileSync(path.join(DATA(), 'runners/manifest.json'));
   const runners = JSON.parse(runnerBytes.toString()) as { editions: { city: string; year: number }[] };
-  const manifest = JSON.parse(fs.readFileSync(path.join(DATA(), 'runner-context/manifest.json'), 'utf8')) as {
-    release_tag: string; runner_manifest_sha256: string; editions: Record<string, { file: string; bytes: number; sha256: string }>;
-  };
-  const runnerSha = sha256(runnerBytes);
-  if (manifest.release_tag !== release.tag || manifest.runner_manifest_sha256 !== runnerSha || getInsightsManifest().runner_manifest_sha256 !== runnerSha) {
-    throw new Error('Course pages need runner context built from the same runner records as the story data.');
-  }
+  const geometry = readInsight<{ context_manifest_sha256?: string }>('course-geometry.json');
+  const manifest = boundContextManifest(fs.readFileSync(path.join(DATA(), 'runner-context/manifest.json')), runnerBytes, getInsightsManifest(), geometry.context_manifest_sha256);
   const copies = copyEditions();
   const found = new Map<string, EditionContext>();
   runners.editions.forEach((edition, index) => {

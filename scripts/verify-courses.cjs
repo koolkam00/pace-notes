@@ -27,6 +27,7 @@ const zlib = require('node:zlib');
 const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
 const Module = require('node:module');
+const os = require('node:os');
 const ts = require('typescript');
 
 const root = path.resolve(__dirname, '..');
@@ -158,7 +159,8 @@ const insight = (name) => {
   return JSON.parse(bytes.toString());
 };
 const courses = insight('courses.json');
-const geometry = insight('course-geometry.json').courses;
+const geometryFile = insight('course-geometry.json');
+const geometry = geometryFile.courses;
 const archetypes = insight('archetypes.json');
 const courseGoal = insight('tools/course-goal.json');
 const paceBand = insight('tools/pace-band.json');
@@ -172,6 +174,47 @@ const release = read('analysis/release.json');
 assert.equal(sha256(runnerBytes), manifest.runner_manifest_sha256, 'The story data was built from these runner records');
 assert.equal(context.runner_manifest_sha256, manifest.runner_manifest_sha256, 'The runner context was built from the same runner records');
 assert.equal(context.release_tag, release.tag, 'The runner context is for the adopted release');
+
+// The page code reads only the runner context the story data was built from. A scratch copy of public/data (symlinks)
+// whose context manifest differs only in its timestamp keeps the release and the runner records, so only the exact-hash
+// binding to the insights manifest can refuse it; the build must stop there rather than mix the two contexts' figures.
+{
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'verify-courses-'));
+  try {
+    const data = path.join(scratch, 'public/data');
+    fs.mkdirSync(path.join(data, 'runner-context'), { recursive: true });
+    for (const name of fs.readdirSync(path.join(root, 'public/data'))) if (name !== 'runner-context') fs.symlinkSync(path.join(root, 'public/data', name), path.join(data, name));
+    fs.symlinkSync(path.join(root, 'public/data/runner-context/editions'), path.join(data, 'runner-context/editions'));
+    const rebuilt = read('public/data/runner-context/manifest.json');
+    rebuilt.as_of = new Date(Date.parse(rebuilt.as_of) + 86400000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+    fs.writeFileSync(path.join(data, 'runner-context/manifest.json'), JSON.stringify(rebuilt));
+    process.chdir(scratch);
+    let refused = null;
+    try { P.editionContexts(); } catch (error) { refused = error; }
+    check(refused && /runner context the story data was built from/.test(refused.message), 'data', `runner context rebuilt from the same runner records (as_of ${rebuilt.as_of}) is read beside story data built from the previous one${refused ? `: ${refused.message}` : ''}`);
+    // The binding itself, on the published bytes. "Rebound" stands for story data and geometry that record the very bytes
+    // given, so only the validator and the timestamps can refuse them; the published manifest, re-serialized, passes so.
+    const story = manifest, geometrySha = geometryFile.context_manifest_sha256;
+    const contextBytes = fs.readFileSync(path.join(root, 'public/data/runner-context/manifest.json')), runnerBytes = fs.readFileSync(path.join(root, 'public/data/runners/manifest.json'));
+    const published = JSON.parse(contextBytes);
+    const bind = (bytes, { rebound = false, geometry = geometrySha, storyMeta = story } = {}) => {
+      const buffer = Buffer.from(bytes), sha = sha256(buffer);
+      try { P.boundContextManifest(buffer, runnerBytes, rebound ? { ...storyMeta, context_manifest_sha256: sha } : storyMeta, rebound ? sha : geometry); return null; } catch (error) { return error; }
+    };
+    check(!bind(contextBytes) && !bind(JSON.stringify(published), { rebound: true }), 'data', 'the published runner context is refused');
+    for (const [label, bytes, options] of [
+      ['a context manifest with another as_of', JSON.stringify(rebuilt), {}],
+      ['course geometry built from another context', contextBytes, { geometry: 'f'.repeat(64) }],
+      ['a context manifest for another runner-manifest timestamp', JSON.stringify({ ...published, runner_manifest_as_of: '2026-01-01T00:00:00Z' }), { rebound: true }],
+      ['a context manifest for another release', JSON.stringify({ ...published, release_tag: 'private-export-20260911-1107' }), { rebound: true }],
+      ['a context manifest missing an edition', JSON.stringify({ ...published, editions: Object.fromEntries(Object.entries(published.editions).slice(1)) }), { rebound: true }],
+      ['story data with another input timestamp', contextBytes, { rebound: true, storyMeta: { ...story, input_as_of: '2026-01-01T00:00:00Z' } }],
+    ]) check(bind(bytes, options), 'data', `the context binding accepts ${label}`);
+  } finally {
+    process.chdir(root);
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+}
 const copies = manifest.duplicate_edition_screen;
 const isCopy = (city, year) => copies.some((c) => c.city === city && c.year === year);
 const slugOf = (city) => city.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
