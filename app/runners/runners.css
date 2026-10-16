@@ -1,0 +1,22 @@
+/* /runners: the ways in without a name, under the search until one is made, and the race report panel in the runner view. */
+.runner-starts { margin: 1.4rem 0 .5rem; }
+.runner-starts ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: .6rem; margin: .6rem 0 0; padding: 0; list-style: none; }
+.runner-starts li + li { margin-top: 0; }
+.runner-start { display: grid; align-content: start; gap: .2rem; height: 100%; padding: .85rem 1rem; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-left: 4px solid var(--green); border-radius: 12px; text-decoration: none; }
+a.runner-start:hover { border-color: var(--ink-2); border-left-color: var(--green); text-decoration: none; }
+a.runner-start:hover b, a.runner-start:focus-visible b { text-decoration: underline; text-decoration-color: var(--green); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+a.runner-start:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.runner-start b { font-size: .9375rem; }
+.runner-start span { font-size: .8125rem; line-height: 1.45; color: var(--ink-3); }
+.runner-start-time { border-left-color: var(--blue); }
+.runner-start-time label { display: grid; gap: .2rem; color: var(--ink); }
+.runner-start-fields { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .45rem; }
+.runner-start-fields input { flex: 1 1 6.5rem; min-width: 0; min-height: 44px; font-family: var(--mono); font-size: 1rem; font-variant-numeric: tabular-nums; }
+.runner-start-fields button { flex: 1 1 auto; min-height: 44px; padding: .5rem 1rem; font-size: .875rem; white-space: nowrap; }
+.runner-start-time .runner-start-error { margin: .4rem 0 0; color: #B3123E; }
+
+.rc-report { margin-top: .5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+.rc-report h3 { margin-top: .5rem; font-size: clamp(1.25rem, 2.6vw, 1.6rem); font-family: var(--serif); font-variation-settings: 'opsz' 96, 'SOFT' 30; font-weight: 600; letter-spacing: -.012em; }
+.rc-report > .rc-copy { max-width: 46rem; margin-top: .5rem; }
+.rc-report > .button-secondary { margin-top: 1rem; }
+.rc-report .race-report-root { margin-top: 1.2rem; }
