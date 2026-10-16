@@ -91,6 +91,13 @@ async function reading(h) {
   // A story read to the end, then a client-side navigation to a longer page, stays read to the end (the next page's
   // height does not count), under the story's own path.
   const home = views.find(p => p.$pathname === '/' && p.$prev_pageview_pathname === storyA);
+  // The client-side return to /: one hero, under the / page view. The story's page view, still open as the router puts
+  // the home page in place, must not count it too.
+  const heroes = named(run, 'section_viewed').filter(p => p.section === 'hero' && (!views[0] || p.$pageview_id !== views[0].$pageview_id));
+  h.check('after a client-side navigation to /, exactly one hero, carrying the / page view\'s $pageview_id', home && heroes.length === 1 && heroes[0].$pageview_id === home.$pageview_id, { home: home && home.$pageview_id, heroes: heroes.map(p => `${p.$pathname} ${p.$pageview_id}`) });
+  const viewPath = new Map(views.map(p => [p.$pageview_id, p.$pathname]));
+  const misfiled = named(run, 'section_viewed').filter(p => viewPath.get(p.$pageview_id) !== p.$pathname);
+  h.check('every section view carries the page view of its own page', !misfiled.length, misfiled.map(p => `${p.section} ${p.$pathname} ${p.$pageview_id}`));
   h.check('after a story read to the end, the next page view reports it read to the end', home && home.$prev_pageview_max_scroll_percentage >= 0.9 && home.$prev_pageview_max_content_percentage >= 0.9, home ? shown([home]) : shown(views));
   h.check('one answer and one reason per page view', JSON.stringify(named(run, 'page_feedback').map(p => p.answer)) === '["no"]' && JSON.stringify(named(run, 'page_feedback_reason').map(p => p.reason)) === '["numbers_look_wrong"]', shown([...named(run, 'page_feedback'), ...named(run, 'page_feedback_reason')]));
   const leave = named(run, '$pageleave');
