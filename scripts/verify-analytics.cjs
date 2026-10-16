@@ -652,7 +652,8 @@ let nodeId = 100000;
 const element = (tagName, attributes, childNodes = []) => ({ type: 2, tagName, attributes, childNodes, id: nodeId++ });
 const text = textContent => ({ type: 3, textContent, id: nodeId++ });
 const fullSnapshot = (...children) => ({ type: 2, data: { node: { type: 0, childNodes: [element('html', {}, [element('body', {}, children)])] }, initialOffset: { top: 0, left: 0 } }, timestamp: 2 });
-const snapshot = (data, extra = {}) => ({ event: '$snapshot', uuid: 'snapshot-event', timestamp: new Date(), properties: {
+// A fixed time: the clock's own digits (20:24:10 serialised) could match a watched string such as 0:24: below.
+const snapshot = (data, extra = {}) => ({ event: '$snapshot', uuid: 'snapshot-event', timestamp: new Date('2026-01-01T12:00:00Z'), properties: {
   token: 'test-project', distinct_id: TAB_ID, $session_id: SESSION_ID, $window_id: WINDOW_ID, $snapshot_bytes: 999, $snapshot_host: 'preview.vercel.app',
   $lib: 'web', $lib_version: '1.433.10', $config_defaults: '2026-05-30', $cookieless_mode: true, $sdk_debug_replay_unstringifiable_events_dropped: 1,
   name: 'Private Name', $current_url: 'https://splithappens.run/?q=Private', $snapshot_data: data, ...extra,
