@@ -89,7 +89,7 @@ const SECTION_CARDS = [
   { name: 'packs', eyebrow: 'Research archive', title: 'The marathon pacing *research archive.*', accent: TOKENS.violet },
 ];
 
-/** Same rule as raceName() in app/courses/[city]/page.tsx: the supplied route's race, else the course summary's, else the city plus " Marathon". */
+/** Same rule as raceName() in lib/course-page.ts: the supplied route's race, else the course summary's, else the city plus " Marathon". */
 function raceName(city, geometry, summary) {
   return (geometry && geometry.race) || (summary && summary.race) || `${city} Marathon`;
 }
