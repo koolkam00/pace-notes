@@ -1,22 +1,25 @@
 // Checks the course pages (/courses/<slug>, lib/course-page.ts and components/course/) and the /courses index.
 //   Data checks (the last step of `npm run verify:data`):
 //     1. the page helpers on small hand-made fixtures (formats, temperatures that round to zero, the 5 °C gate, year
-//        lists, neighbours, months, titles, the copy-edition line);
-//     2. an independent recount from the published files, written without the page code: every edition's finishes
-//        against its checksum-verified runner-context shard, the course totals, medians and sustained-slowdown range
-//        against the editions, the weather in courses.json against the shards and the weather-match file, the route's
-//        5 km sections against the course chooser's totals, the course-profile pack against the story cohort, and which
-//        courses the two linked analyses have a result for.
+//        lists, neighbours, months, titles, the copy-edition line, the editions that make up a total);
+//     2. the page code refuses runner context the story data was not built from (a scratch copy of public/data whose
+//        context manifest differs only in its timestamp), and an independent recount from the published files, written
+//        without the page code: every edition's finishes against its checksum-verified runner-context shard, the course
+//        totals and the editions that make them up, medians and sustained-slowdown range against the editions, the
+//        weather in courses.json against the shards and the weather-match file, the route's 5 km sections against the
+//        course chooser's totals, the course-profile pack against the story cohort, and which courses the two linked
+//        analyses have a result for.
 //   Built-page checks (`--html`, appended to `npm run verify:seo`, after the build), on all 29 pages:
 //     3. every printed figure (<data data-k>) against its file, both its value and the text shown (the default miles
 //        view), every edition and goal row present, no other number in a table cell; one H1, no empty heading, the
 //        sections the data supports and no others; the DOI where "sustained slowdown" is defined; banned and rank words;
 //        copy editions never printed with numbers, with this page's own line; both elevation labels; the 5 °C gate, in
 //        the text and in the chart's accessible name; the weather source and the unverified race dates; each section's
-//        own finishes; table regions with names; links only to exported pages, with course presets only where the
-//        target tool publishes the course and analyses only where they have a result; the planner on every page and the
-//        qualifying page on the six qualifying courses; no structured data beyond the breadcrumbs; and on /courses the
-//        ItemList and each card's count, the course page's.
+//        own finishes; the course total named only with the editions that make it up, in the text and the description;
+//        "two ways" over the elevation only with both climb totals; table regions with names; links only to exported
+//        pages, with course presets only where the target tool publishes the course and analyses only where they have a
+//        result; the planner on every page and the qualifying page on the six qualifying courses; no structured data
+//        beyond the breadcrumbs; and on /courses the ItemList and each card's count, the course page's.
 // Usage: node scripts/verify-courses.cjs [--html] [--out <folder>]
 //
 // Key grammar for <data data-k="key">: a field name, then `@<year>`, `@<goal minutes>` or `@<index>` where the field is
@@ -585,11 +588,16 @@ if (html) {
       if (f.allFinisherPct) check(!visible.includes(f.allFinisherPct), where, `the all-finisher figure ${f.allFinisherPct}, which counts the copies, is printed`);
     }
 
-    // Elevation: both totals labelled by method, and context, not an adjustment.
+    // Elevation: each total labelled by method, "two ways" only over two, and context, not an adjustment.
     if (f.route) {
       const elevation = textOf(sectionOf(body, 'elevation') ?? '');
       check(/smoothed route profile/i.test(elevation) && (f.ctx?.gain_m == null || /sum of the 5 km sections/i.test(elevation)), where, 'an elevation total without its method label');
       check(elevation.includes('Current supplied route; context only, not an adjustment'), where, 'the elevation context line is missing');
+      // Two climb totals are promised only where both are printed: Prague's route has no course-chooser sum (every edition screened out).
+      const totals = ['geo.gain', 'cg.gain'].filter((k) => (sectionOf(body, 'elevation') ?? '').includes(`data-k="${k}"`));
+      check(totals.length === (f.ctx?.gain_m == null ? 1 : 2), where, `#elevation prints ${totals.length} climb totals`);
+      const promise = /\btwo ways\b|\b(?:both|two) (?:climb )?(?:totals|measures|measurements)\b/i.exec(elevation);
+      check(!promise || totals.length === 2, where, `#elevation promises "${promise && promise[0]}" over ${totals.length} climb total${totals.length === 1 ? '' : 's'}`);
       check(/smoothed route profile/i.test(textOf(/<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '')), where, 'the hero climb is not labelled');
     }
 

@@ -10,17 +10,19 @@ const FULL_KM = 42.195;
 const DOWNHILL_OPENING_M = 25;
 
 /**
- * "Elevation profile": the supplied current route, with its two climb totals each labelled by how it was measured (the
- * smoothed whole-route profile, and the sum of the nine 5 km sections the tools use), and the sections themselves.
- * Only for courses with a supplied route.
+ * "Elevation profile": the supplied current route and its climb, each total labelled by how it was measured: the smoothed
+ * whole-route profile, and the sum of the nine 5 km sections the tools use where the course chooser publishes it (not
+ * Prague, all of whose editions it screens out); then the sections themselves. The dek says "two ways" only when both
+ * totals are printed. Only for courses with a supplied route.
  */
 export default function CourseElevation({ page }: { page: CoursePageData }) {
   const { geometry: g, context, terrain, city, scopes } = page;
   if (!g) return null;
   const sums = context && context.gain_m !== null && context.loss_m !== null && context.net_m !== null ? { gain: context.gain_m, loss: context.loss_m, net: context.net_m } : null;
+  const measured = sums ? 'with its climb measured two ways' : terrain ? 'with its climb along the smoothed route profile and in each 5 km section' : 'with its climb along the smoothed route profile';
   return (
     <CourseSection id="elevation" track="chapter-3" kicker="Elevation" title="Elevation profile"
-      dek={<>The supplied route from start to finish, with its climb measured two ways. Current supplied route; context only, not an adjustment.</>}>
+      dek={<>The supplied route from start to finish, {measured}. Current supplied route; context only, not an adjustment.</>}>
       <div className="viz-card course-elevation-card">
         <div className="viz-head"><div><p className="viz-title">{city} supplied route profile</p><p className="viz-sub">Elevation along the supplied route, start to finish</p></div></div>
         <ElevationProfile course={g} height={190} />
