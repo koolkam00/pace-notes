@@ -68,6 +68,8 @@ const CHECKS = {
   'units-links': 'No internal link in the static HTML carries units=mi (the default unit)',
   'old-host': `${OLD_HOST} is in no <head>`,
   'finish-counts': `Every "N.N million" or "N.NM" in a title or description equals finishesM() ("${FINISHES_M}")`,
+  orphans: 'Every story and analysis page is linked from /research, and every other sitemap page from at least one other page',
+  'home-form': "The home page's course list (#home-plan-course) has the planner's options (#plan-course), values and names in the same order",
 };
 const WARNINGS = {
   'title-length': 'Titles over 60 characters',
@@ -592,6 +594,55 @@ let sitemapLocs = [];
   for (const [pathname] of expected) if (!seen.has(pathname)) fail('sitemap', pathname, 'is in sitemapEntries() but not in sitemap.xml');
   for (const page of indexable) {
     if (routes.canonicalPathFor(page.path) === page.path && !seen.has(page.path)) fail('sitemap', page.path, 'indexable, self-canonical page missing from the sitemap (add it to EXTRA_SITEMAP_PAGES in lib/seo-routes.ts)');
+  }
+})();
+
+// ---------- Orphaned pages ----------
+
+(function checkOrphans() {
+  const target = (href) => {
+    if (!href || href.startsWith('#') || /^(mailto|tel|javascript|data):/i.test(href) || href.startsWith('//')) return null;
+    let url;
+    try { url = new URL(href, SITE_URL + '/'); } catch { return null; }
+    if (url.host !== SITE_HOST) return null;
+    try { return decodeURIComponent(url.pathname.replace(/\/$/, '')) || '/'; } catch { return null; }
+  };
+  const inbound = new Map();
+  for (const page of pages) {
+    if (page.notFound) continue;
+    for (const href of page.hrefs) {
+      const to = target(href);
+      if (!to || to === page.path) continue;
+      if (!inbound.has(to)) inbound.set(to, new Set());
+      inbound.get(to).add(page.path);
+    }
+  }
+  let listed = [];
+  try { listed = routes.sitemapEntries().map((e) => e.path); } catch { /* reported by the sitemap check */ }
+  const hub = byPath.get('/research');
+  if (!hub) fail('orphans', '/research', 'no research hub in the export');
+  for (const path of listed) {
+    const from = inbound.get(path) || new Set();
+    if (/^\/(stories|analyses)\/[^/]+$/.test(path)) { if (hub && !from.has('/research')) fail('orphans', path, 'is not linked from /research'); }
+    else if (path !== '/' && !from.size) fail('orphans', path, 'no other page in the export links to it');
+  }
+})();
+
+// ---------- The home page's plan form ----------
+
+// The home page builds its course list from the course pages, the planner from its own data: a course on one list and
+// not the other would send the visitor to "a course that is not in the data", or hide one the planner offers.
+(function checkHomeForm() {
+  const options = (pagePath, id) => {
+    const select = (byPath.get(pagePath)?.html ?? '').match(new RegExp(`<select\\b[^>]*\\bid="${id}"[^>]*>([\\s\\S]*?)</select>`, 'i'));
+    return select ? [...select[1].matchAll(/<option\b([^>]*)>([\s\S]*?)<\/option>/gi)].map((m) => `${attributes(`<option${m[1]}>`).value ?? ''}=${textOf(m[2])}`) : null;
+  };
+  const home = options('/', 'home-plan-course');
+  const planner = options('/tools/plan', 'plan-course');
+  if (!home || !planner) fail('home-form', home ? '/tools/plan' : '/', `no ${home ? '#plan-course' : '#home-plan-course'} select in the export`);
+  else if (home.length < 2 || JSON.stringify(home) !== JSON.stringify(planner)) {
+    const only = (a, b) => a.filter((option) => !b.includes(option));
+    fail('home-form', '/', `the course list differs from the planner's (home only: ${only(home, planner).join(', ') || 'none'}; planner only: ${only(planner, home).join(', ') || 'none'}; ${home.length} and ${planner.length} options)`);
   }
 })();
 

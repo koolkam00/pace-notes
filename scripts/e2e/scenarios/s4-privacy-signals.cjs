@@ -13,8 +13,8 @@ async function visit(page, base) {
   await page.goto(base + '/tools/pace-calculator', { waitUntil: 'load' });
   await type(page, page.getByLabel('Time', { exact: true }), '3:17:43');
   await page.waitForTimeout(1000);
-  await page.locator('nav.main-nav a[href="/stories"]').click();
-  await page.waitForURL(url => new URL(url).pathname === '/stories');
+  await page.locator('nav.main-nav a[href="/research"]').click();
+  await page.waitForURL(url => new URL(url).pathname === '/research');
   await wiggle(page, 6);
   await page.waitForTimeout(6000); // past the recorder's start delay and an event batch
 }

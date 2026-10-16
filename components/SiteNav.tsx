@@ -3,7 +3,12 @@ import { useEffect, useRef } from 'react';
 import { UnitLink as Link } from './UnitsProvider';
 import { usePathname } from 'next/navigation';
 
-/** The main links, in the order visitors use them. On phones they open from the header's Menu button (SiteHeader); `onFollow` runs when one is followed. */
+/**
+ * The five main links at every width, in the order of a runner's jobs: plan the next race (the orange pill, the site's
+ * primary action), analyze a past one, then courses, tools and research. On phones they open from the header's Menu
+ * button (SiteHeader) as pills, with a quieter line under them for About, Request an analysis and the open data;
+ * wider screens show only the five, and those three are in the footer. `onFollow` runs when a link is followed.
+ */
 export default function SiteNav({ id, onFollow }: { id?: string; onFollow?: () => void }) {
   const path = usePathname() || '';
   const within = (route: string) => path === route || path.startsWith(route + '/');
@@ -31,13 +36,15 @@ export default function SiteNav({ id, onFollow }: { id?: string; onFollow?: () =
     return () => { nav.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
   }, [path]);
   return <nav ref={ref} id={id} aria-label="Main navigation" className="main-nav" onClick={(event) => { if ((event.target as Element).closest('a')) onFollow?.(); }}>
-    <Link href="/analyses" aria-current={within('/analyses') ? 'page' : undefined}>Plan your race</Link>
-    <Link href="/stories" aria-current={within('/stories') ? 'page' : undefined}>Stories</Link>
-    <Link href="/tools" aria-current={within('/tools') ? 'page' : undefined}>Tools</Link>
-    <Link href="/runners" aria-current={within('/runners') ? 'page' : undefined}>Find a runner</Link>
+    <Link href="/tools/plan" className="nav-primary" aria-current={within('/tools/plan') ? 'page' : undefined}>Plan your race</Link>
+    <Link href="/runners" aria-current={within('/runners') ? 'page' : undefined}>Analyze a past race</Link>
     <Link href="/courses" aria-current={within('/courses') ? 'page' : undefined}>Courses</Link>
-    <Link href="/about" aria-current={path === '/about' ? 'page' : undefined}>About</Link>
-    <Link href="/request-analysis" className="nav-request" aria-current={path === '/request-analysis' ? 'page' : undefined}>Request an analysis</Link>
-    <a href="https://github.com/koolkam00/htw-live-study/releases" className="nav-data">Open data <span aria-hidden="true">↗</span></a>
+    <Link href="/tools" aria-current={within('/tools') && !within('/tools/plan') ? 'page' : undefined}>Tools</Link>
+    <Link href="/research" aria-current={['/research', '/stories', '/analyses', '/packs', '/slowdown'].some(within) ? 'page' : undefined}>Research</Link>
+    <span className="nav-more">
+      <Link href="/about" aria-current={path === '/about' ? 'page' : undefined}>About</Link>
+      <Link href="/request-analysis" aria-current={path === '/request-analysis' ? 'page' : undefined}>Request an analysis</Link>
+      <a href="https://github.com/koolkam00/htw-live-study/releases">Open data <span aria-hidden="true">↗</span></a>
+    </span>
   </nav>;
 }

@@ -47,7 +47,8 @@ export const ROBOTS_DISALLOW: readonly string[] = ['/data/runners/index/', '/dat
  * so an entry here only matters when their wording changed after the data did.
  */
 export const CONTENT_DATES: Readonly<Record<string, string>> = {
-  '/': '2026-10-15',
+  '/': '2026-10-16',
+  '/research': '2026-10-16',
   '/about': '2026-10-07',
   '/methodology': '2026-10-08',
   '/stories': '2026-10-08',
@@ -225,7 +226,7 @@ export function allSourceDates(): string[] {
 
 // ---------- Sitemap ----------
 
-/** The indexable, self-canonical pages, each with an honest lastmod or none. Order: home, stories, tools, analyses, courses, packs, other pages, extras. */
+/** The indexable, self-canonical pages, each with an honest lastmod or none. Order: home, the research hub, stories, tools, analyses, courses, packs, other pages, extras. */
 export function sitemapEntries(): SitemapEntry[] {
   const dates = new Map<DataSource, string>();
   const at = (source: DataSource) => { if (!dates.has(source)) dates.set(source, dataDate(source)); return dates.get(source)!; };
@@ -237,6 +238,7 @@ export function sitemapEntries(): SitemapEntry[] {
   const manifest = getInsightsManifest();
 
   add('/', 'content', 'insights', 'study', 'personalized');
+  add('/research', 'content', 'insights', 'study', 'weather');
 
   add('/stories', 'content', 'insights');
   for (const story of STORIES.filter(s => manifest.files[s.file])) add(`/stories/${story.slug}`, 'content', 'insights');

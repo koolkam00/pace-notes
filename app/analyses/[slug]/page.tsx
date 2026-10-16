@@ -56,7 +56,7 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
 }
 export default function AnalysisPage({ params }: { params: { slug: string } }) {
   const seo = seoFor(params.slug);
-  return <>{seo ? <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Plan your race', '/analyses'], [seo.crumb ?? seo.title]])} /> : null}{analysisBody(params)}<PageFeedback className="page-feedback-analysis" />{params.slug === 'finish-time-context' ? <FinishTimesLink /> : null}<RelatedTool analysis={params.slug} /></>;
+  return <>{seo ? <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Analyses', '/analyses'], [seo.crumb ?? seo.title]])} /> : null}{analysisBody(params)}<PageFeedback className="page-feedback-analysis" />{params.slug === 'finish-time-context' ? <FinishTimesLink /> : null}<RelatedTool analysis={params.slug} /></>;
 }
 
 /** The whole-field view of finish times, linked from the target-in-context analysis. */

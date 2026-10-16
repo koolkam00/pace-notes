@@ -79,12 +79,10 @@
 /* ---------- Base ---------- */
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-padding-top: 5.5rem; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-/* In-page anchors land about 14 px below the sticky header, whose height (measured October 8, 2026) is 74 px when the
-   nav fits on one row, 126 px where the nav wraps at 1181–1222 px and 981–1056 px and 128 px at 721–980 px. Each band
-   ends with some slack before the width at which the header grows, since that width follows the font and nav text. The
-   phone header (720 px and below, measured October 15, 2026) is one 57 px row at every width. */
-@media (min-width: 1181px) and (max-width: 1259px) { html { scroll-padding-top: 8.75rem; } }
-@media (max-width: 1099px) { html { scroll-padding-top: 8.875rem; } }
+/* In-page anchors land about 14 px below the sticky header, whose height (measured October 16, 2026, with the five main
+   links) is 74 px on one row from 981 px up and 128 px at 721–980 px, where the links take a second row. The phone
+   header (720 px and below) is one 57 px row from 300 px up; narrower, as at 200% zoom, its controls take a second row. */
+@media (max-width: 980px) { html { scroll-padding-top: 8.875rem; } }
 @media (max-width: 720px) { html { scroll-padding-top: 4.5rem; } }
 body {
   margin: 0;
@@ -183,13 +181,14 @@ summary::marker { color: var(--orange); font-size: .8em; }
 .main-nav a { display: inline-flex; align-items: center; min-height: 40px; padding: .4rem .8rem; border-radius: 999px; color: var(--ink-2); font-size: .875rem; font-weight: 550; letter-spacing: -.005em; white-space: nowrap; transition: background-color .15s var(--ease), color .15s var(--ease); }
 .main-nav a:hover { background: var(--paper-2); color: var(--ink); text-decoration: none; }
 .main-nav a[aria-current] { background: var(--ink); color: var(--paper); }
-.main-nav a.nav-request { margin-left: .35rem; background: var(--orange); color: var(--ink); font-weight: 650; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .14); }
-.main-nav a.nav-request:hover, .main-nav a.nav-request[aria-current] { background: #ff7a55; color: var(--ink); }
-.main-nav a.nav-data { gap: .35rem; color: var(--ink-3); }
+.main-nav a.nav-primary { margin-right: .35rem; background: var(--orange); color: var(--ink); font-weight: 650; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .14); }
+.main-nav a.nav-primary:hover, .main-nav a.nav-primary[aria-current] { background: #ff7a55; color: var(--ink); }
+/* About, Request an analysis and the open data: only in the phone Menu, on a quieter line under the five (footer elsewhere). */
+.main-nav .nav-more { display: none; }
 .unit-switch { display: flex; flex-shrink: 0; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper-2); }
 .unit-switch button { min-height: 36px; padding: .35rem .7rem; border: 0; border-radius: 999px; background: transparent; color: var(--ink-3); font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
 .unit-switch button[aria-pressed=true] { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(21, 23, 28, .12); }
-@media (max-width: 1180px) { .header-controls { gap: .6rem; } .main-nav a { padding-inline: .6rem; } .header-controls .nav-data { display: none; } }
+@media (max-width: 1180px) { .header-controls { gap: .6rem; } .main-nav a { padding-inline: .6rem; } }
 @media (max-width: 980px) {
   .header-controls { display: contents; }
   .header-controls .main-nav { order: 3; flex-basis: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -.25rem; padding: .1rem .25rem .25rem; }
@@ -229,15 +228,29 @@ summary::marker { color: var(--orange); font-size: .8em; }
   .nav-toggle[aria-expanded=true] svg { transform: rotate(180deg); }
   .header-controls .main-nav { display: none; }
   .site-header[data-open] .header-controls .main-nav { position: absolute; top: 100%; left: 0; right: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; margin: 0; padding: .75rem 1rem 1rem; overflow: visible; background: var(--paper); border-bottom: 1px solid var(--line); box-shadow: var(--shadow-lift); }
+  /* The panel moves with the sticky header, so on a short screen (200% zoom) it scrolls inside itself: 100% is the
+     header's height, the panel's containing block. */
+  .site-header[data-open] .header-controls .main-nav { max-height: calc(100vh - 100%); max-height: calc(100dvh - 100%); overflow-y: auto; overscroll-behavior: contain; }
   .header-controls .main-nav[data-more-left], .header-controls .main-nav[data-more-right] { -webkit-mask-image: none; mask-image: none; }
   .header-controls .main-nav a { min-height: 44px; padding: .55rem .9rem; background: var(--paper-2); font-size: .9375rem; }
   .header-controls .main-nav a[aria-current] { background: var(--ink); color: var(--paper); }
-  .header-controls .main-nav a.nav-request { grid-column: 1 / -1; justify-content: center; margin-left: 0; background: var(--orange); color: var(--ink); }
+  .header-controls .main-nav a.nav-primary { grid-column: 1 / -1; justify-content: center; margin-right: 0; background: var(--orange); color: var(--ink); }
+  .header-controls .main-nav .nav-more { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0 .25rem; margin-top: .35rem; padding-top: .45rem; border-top: 1px solid var(--line); }
+  .header-controls .main-nav .nav-more a { gap: .3rem; padding-inline: .7rem; background: transparent; color: var(--ink-2); font-size: .875rem; font-weight: 500; }
+  .header-controls .main-nav .nav-more a:hover { background: var(--paper-2); }
+  .header-controls .main-nav .nav-more a[aria-current] { background: transparent; color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
   .header-controls .main-nav a:focus-visible { outline-offset: 2px; }
   .header-controls .unit-switch { margin-left: 0; }
   .unit-switch .unit-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
   .unit-switch .unit-short { display: inline; }
   .unit-switch button { min-height: 32px; padding: .3rem .6rem; }
+}
+/* At 200% zoom a phone is about 195 px wide, too narrow for the brand, its credit and both controls on one row: the
+   controls take a second row instead of running off the screen. */
+@media (max-width: 299px) {
+  .header-inner { flex-wrap: wrap; }
+  /* One pill per row, so "Analyze a past race" fits its pill. */
+  .site-header[data-open] .header-controls .main-nav { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 349px) {
   .nav-toggle { width: 40px; padding: 0; justify-content: center; }
@@ -385,14 +398,10 @@ summary::marker { color: var(--orange); font-size: .8em; }
 .evidence-strip span, .evidence-strip p { font-size: .8125rem; color: var(--ink-3); }
 .evidence-strip p { border-left: 1px solid var(--line); padding-left: 2rem; margin: 0; }
 .evidence-strip a { display: inline-flex; align-items: center; gap: .6rem; min-height: 32px; }
-.home-analyses { padding-top: 5rem; scroll-margin-top: 6rem; }
 .section-intro { max-width: 46rem; margin-bottom: 2.4rem; }
 .section-intro h2 { font-size: clamp(2.1rem, 4.4vw, 3.4rem); line-height: 1.04; margin-top: .8rem; }
 .section-intro h2 + p { margin-top: 1.1rem; max-width: 38rem; font-size: 1.0625rem; color: var(--ink-2); }
 .section-intro > p:last-child { color: var(--ink-3); max-width: 38rem; margin-top: 1.1rem; font-size: 1.0625rem; }
-.home-purpose { display: grid; grid-template-columns: 1fr 2fr; gap: 3rem; padding: 5rem 0; }
-.home-purpose h2 { font-size: 2.5rem; line-height: 1.1; margin-bottom: 1.5rem; }
-.home-purpose p:not(.eyebrow) { max-width: 37rem; color: var(--ink-3); }
 
 /* Analysis index (the essential ten) */
 .analysis-index { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
@@ -836,12 +845,10 @@ summary::marker { color: var(--orange); font-size: .8em; }
   .analysis-sidebar { display: none; }
   .analysis-layout { display: block; max-width: 800px; margin-inline: auto; padding-top: 2.5rem; }
   .home-hero { grid-template-columns: 1fr; }
-  .home-purpose { grid-template-columns: 1fr; gap: 1rem; }
 }
 @media (max-width: 600px) {
   .evidence-strip { grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1.35rem 0; }
   .evidence-strip p { grid-column: 1 / -1; padding: 0; border: 0; }
-  .home-analyses { padding-top: 3rem; }
   .analysis-index-link { grid-template-columns: 2.4rem minmax(0, 1fr) 1.2rem; padding: 1.1rem 1rem; gap: .3rem .7rem; }
   .analysis-rank { font-size: 1.6rem; }
   .analysis-index-title { font-size: 1.12rem; }

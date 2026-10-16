@@ -1,5 +1,17 @@
 import { DEFAULT_UNITS, type UnitSystem } from './units';
 
+// The pages whose header has the working miles/km switch: these pages, and these sections with every page under them.
+// Everywhere else the switch is an inert, hidden placeholder that keeps the header's layout. A page that renders text
+// that changes with the units must be listed: in the server render (the static export's build) useUnits, UnitText and
+// MarathonDistance (components/UnitsProvider.tsx) throw on any other page, so a page left out stops the build.
+const UNIT_PAGES = ['/', '/about', '/slowdown', '/htw', '/research', '/your-race'];
+const UNIT_SECTIONS = ['/analyses', '/runners', '/report', '/packs', '/courses', '/stories', '/tools', '/finish-times'];
+
+/** Whether the header's units switch works on this page (a path without the base path, as usePathname gives it). */
+export function unitSwitchShown(path: string): boolean {
+  return UNIT_PAGES.includes(path) || UNIT_SECTIONS.some((section) => path === section || path.startsWith(section + '/'));
+}
+
 export function unitsFromSearch(search: string): UnitSystem | null {
   const value = new URLSearchParams(search).get('units');
   return value === 'mi' || value === 'km' ? value : null;

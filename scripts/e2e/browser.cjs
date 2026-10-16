@@ -158,6 +158,7 @@ const INIT = ({ dnt, gpc, storage, safari15, plant }) => {
 /**
  * One visitor: a browser context with the routing and listeners above. Options:
  *   viewport {width,height}, mobile, reducedMotion   the device
+ *   javaScript: false                                 the page's scripts do not run (a visitor without JavaScript)
  *   dnt, gpc                                          the browser's privacy signals
  *   storage: 'throw' | 'quota'                        sessionStorage unreadable, or every write failing
  *   safari15                                          emulate Safari before 16.4
@@ -198,7 +199,7 @@ class Run {
     const o = this.options;
     this.context = await this.browser.newContext({
       userAgent: USER_AGENT, viewport: o.viewport || { width: 1280, height: 900 }, isMobile: !!o.mobile, hasTouch: !!o.mobile,
-      locale: 'en-US', timezoneId: 'America/New_York', reducedMotion: o.reducedMotion || 'no-preference', serviceWorkers: 'block',
+      locale: 'en-US', timezoneId: 'America/New_York', reducedMotion: o.reducedMotion || 'no-preference', serviceWorkers: 'block', javaScriptEnabled: o.javaScript !== false,
     });
     await this.context.exposeBinding('__e2eReport', (source, entry) => {
       if (entry && entry.kind === 'posthog-body') {

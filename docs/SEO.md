@@ -8,7 +8,7 @@ The route policy lives in [`lib/seo-routes.ts`](../lib/seo-routes.ts). The sitem
 
 | Pages | Robots | Canonical | In the sitemap |
 | --- | --- | --- | --- |
-| Home, stories, tools, analyses, courses, about, methodology, privacy, slowdown, `/research/personalized` | index, follow | the page itself | yes |
+| Home, the research hub `/research` (October 16, 2026), stories, tools, analyses, courses, about, methodology, privacy, slowdown, `/research/personalized` | index, follow | the page itself | yes |
 | The search pages: the two pace charts, the five goal pages, the six qualifying race pages and `/finish-times` ([below](#search-pages-october-2026)) | index, follow | the page itself | yes |
 | The 33 primary research questions under `/packs` | index, follow | the page itself | yes |
 | 45 pack aliases (`ext_*`, most `s*`, `rn3`, `p1`, `p2`) | index, follow | the primary pack (`packCanonical(id)`) | no |
@@ -59,7 +59,7 @@ pageMetadata({ title, description, path, noindex: isNoindex(path), canonicalPath
 
 - **[`app/robots.ts`](../app/robots.ts)** writes `out/robots.txt`. It allows everything except `/data/runners/index/` and `/data/runners/profiles/`, the two folders that hold recorded names. Pages render their charts from the rest of `/data`, so `/data`, `/_next`, `/og` and `/icons` stay crawlable. It also points to the sitemap.
 - **[`app/sitemap.ts`](../app/sitemap.ts)** writes `out/sitemap.xml` from `sitemapEntries()`. It uses absolute URLs and no `priority` or `changefreq`, because Google ignores both.
-  - The list comes from the same registries as the pages: `STORIES` (filtered by the data manifest), `TOOLS`, `TEN_ANALYSES` plus the ready weather analyses plus downhill-start, `getCourseNames()`, the primary packs, the fixed pages and `EXTRA_SITEMAP_PAGES` (the search pages). That is 115 URLs on October 8, 2026 (101 before the search pages).
+  - The list comes from the same registries as the pages: `STORIES` (filtered by the data manifest), `TOOLS`, `TEN_ANALYSES` plus the ready weather analyses plus downhill-start, `getCourseNames()`, the primary packs, the fixed pages and `EXTRA_SITEMAP_PAGES` (the search pages). That is 115 URLs on October 8, 2026 (101 before the search pages), and 117 on October 16, 2026 with the race planner (`/tools/plan`, through `TOOLS`) and the research hub (`/research`, a fixed page whose `CONTENT_DATES` entry is its `lastmod`; the home page's is 2026-10-16 too, for its new text).
   - `sitemapEntries()` throws if a path repeats, has a query or fragment, is noindex, or is not its own canonical.
   - **New content pages** register in their own module under [`lib/seo-pages/`](../lib/seo-pages/), which `EXTRA_SITEMAP_PAGES` in `lib/seo-routes.ts` collects (see [Search pages](#search-pages-october-2026)). A new entry in `TOOLS` is picked up automatically.
 - **`lastmod` is honest.** It is the newest `as_of` date of the data the page shows (insights manifest, study, weather, personalized guide, fast-start, all-finisher, `pack_meta`, or `VERIFIED_AT` for qualifying and the qualifying race pages). Pages that are mostly written text use the hand-kept `CONTENT_DATES` map. When neither applies, `lastmod` is left out (`/privacy`, for example). The build never uses today's date or git dates. **When you change the visible text of a page in `CONTENT_DATES`, update its date.**
@@ -136,6 +136,7 @@ Every page's `og:image` and X card is a 1200×630 PNG picked by `ogImageFor(path
 | any other page below `/tools/<slug>` | the parent tool's card | |
 | `/courses/<slug>` | `og/courses/<slug>.png` | "Courses · Course profile", the race name, and the supplied route outline when there is one |
 | `/finish-times` | `og/pages/finish-times.png` | "Finish times · Median and distribution", "Marathon finish times" (`PAGE_CARDS` in the script; any top-level page outside the sections can have a card in `og/pages/`) |
+| `/research` | `og/pages/research.png` | "Research · Stories, analyses and open data", "Explore the research" (October 16, 2026) |
 | `/stories`, `/tools`, `/courses` | `og/sections/<section>.png` | the section's own line |
 | `/analyses` and every analysis page | `og/sections/analyses.png` | |
 | `/packs` and every pack page | `og/sections/packs.png` (the research archive) | |
@@ -192,6 +193,8 @@ CI runs it after `npm run build` in [`site-validation.yml`](../.github/workflows
 | `units-links` | an internal `href` in the static HTML carries `units=mi`, the default unit |
 | `old-host` | `htw-live-study.vercel.app` is in any `<head>` (or in JSON-LD) |
 | `finish-counts` | an "N.N million" or "N.NM" in a title or description is not `finishesM()` |
+| `orphans` | a story or analysis page in the sitemap is not linked from `/research`, or any other sitemap page but the home page is linked from no other page in the export (October 16, 2026) |
+| `home-form` | the home page's course select (`#home-plan-course`) does not have the planner's options (`#plan-course` on `/tools/plan`), the same values and names in the same order: the home list comes from the course pages, the planner's from its own data (October 16, 2026) |
 
 Warnings only: titles over 60 characters, descriptions over 155 (the site's limits), `og-image-fallback` (a page that uses a less specific card than the one `scripts/build-og-images.cjs` makes for it: a stale build or a missing card), and policy notes (noindex pages that also say nofollow, JSON-LD on pages the plan keeps without it, `changefreq` or `priority` in the sitemap).
 
