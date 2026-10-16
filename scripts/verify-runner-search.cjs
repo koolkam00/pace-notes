@@ -137,6 +137,7 @@ async function main() {
   assert.match(copyHtml, /3 selected records have limited analysis/);
   for (const copy of copies) assert.equal(occurrences(copyHtml, copyEditionSentence(copy).replace(/'/g, '&#x27;')), 1, `${copy.city} ${copy.year}: its sentence once`);
   assert.equal(occurrences(copyHtml, 'Recorded times only'), 2, 'Each eligible copy record says so');
+  assert.doesNotMatch(copyHtml, /This edition’s records/, 'The analysis view gives each edition its sentence, not a line per record');
   assert.match(copyHtml, /Missing source checkpoint/, 'A held record in a copy edition keeps its own reason');
   assert.equal(occurrences(copyHtml, '<option '), 1, 'One focus option, the 2024 race');
   assert.doesNotMatch(copyHtml, /Lakeside 2018 ·|Lakeside 2019 ·|Across your selected races|rc-multi/, 'No copy in the focus options or the side-by-side comparison');
@@ -146,12 +147,20 @@ async function main() {
   assert.match(onlyCopies, /Your race records are here/);
   assert.doesNotMatch(onlyCopies, /Fastest selected eligible finish|runner-context|[0-9]:[0-5][0-9]\/(?:mi|km)/, 'No figure is calculated from a copy');
   for (const copy of copies) assert.equal(occurrences(onlyCopies, copyEditionSentence(copy).replace(/'/g, '&#x27;')), 1);
+  assert.match(onlyCopies, /These records are in editions that largely repeat another year’s field, so they are shown as recorded times only/);
+  assert.doesNotMatch(onlyCopies, /need more complete or verified data/, 'Copies have complete timings: the header gives their own reason');
+  const mixedLimited = renderCopies([copy2018, heldCopy], copies);
+  assert.match(mixedLimited, /Some of these records need more complete or verified data, and some are in editions that largely repeat another year’s field/);
+  assert.equal(renderCopies([held, missing], copies), render([held, missing], 'mi'), 'No copy selected: the records view is as it was');
   // An empty screen, or one naming other editions, leaves the page as it was.
   assert.equal(renderCopies([copy2018, copy2019, real2024], []), renderToStaticMarkup(React.createElement(SelectedAnalysis, { races: [copy2018, copy2019, real2024], manifest: lakeside, units: 'mi' })));
   assert.equal(renderCopies([base, changed, later], copies), render([base, changed, later], 'mi'));
   assert.match(renderCopies([copy2018, copy2019, real2024], []), /3 races\. Your recorded progression\./);
   const details = (row, screen) => renderToStaticMarkup(React.createElement(RunnerRecordDetails, { race: row, manifest: lakeside, copyEditions: screen }));
   assert.match(details(copy2019, copies), /Recorded times only/); assert.doesNotMatch(details(copy2019, copies), /Pacing analysis available/);
+  assert.match(details(copy2019, copies), /<small>This edition’s records largely repeat the Lakeside 2024 field\. Pacing and peer comparisons are unavailable for this record\.<\/small>/, 'A copy row in the profile says why');
+  assert.doesNotMatch(renderToStaticMarkup(React.createElement(RunnerRecordDetails, { race: copy2019, manifest: lakeside, copyEditions: copies, explainCopy: false })), /This edition’s records/);
+  assert.doesNotMatch(details(real2024, copies), /This edition’s records|Recorded times only/, 'The field a copy repeats is not a copy');
   assert.match(details(copy2019, []), /Pacing analysis available/);
   assert.match(details(heldCopy, copies), /Recorded result · limited analysis/);
   // The published screen: read from the verified story manifest, never typed in, and every sentence from its counts only.

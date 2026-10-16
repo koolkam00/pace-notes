@@ -77,8 +77,12 @@ async function copyEditionJourney(h) {
   const labels = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, item.querySelector('.runner-eligible, .runner-ineligible')?.textContent])));
   const expected = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 'Recorded times only']), [`${city} ${source}`, 'Pacing analysis available']]);
   h.check('each copy record says "Recorded times only"; the field it repeats has pacing analysis', JSON.stringify(labels, Object.keys(expected).sort()) === JSON.stringify(expected, Object.keys(expected).sort()), labels);
+  const reasons = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, [...item.querySelectorAll('label small')].filter(small => small.textContent.startsWith('This edition’s records')).length])));
+  const because = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 1]), [`${city} ${source}`, 0]]);
+  h.check('each copy record in the profile says why, once; the field it repeats does not', JSON.stringify(reasons, Object.keys(because).sort()) === JSON.stringify(because, Object.keys(because).sort()), reasons);
   const boxes = page.locator('.runner-races input[type="checkbox"]');
   for (let i = 0; i < await boxes.count(); i++) await boxes.nth(i).check();
+  h.check('the selection panel adds no line for a copy record', await page.locator('.runner-selection li small').count() === 0);
   await page.click('.runner-selection-actions .button-primary');
   await page.waitForSelector('.runner-context', { timeout: 30000 });
   await page.waitForTimeout(1500);
