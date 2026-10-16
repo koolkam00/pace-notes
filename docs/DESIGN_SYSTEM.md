@@ -72,7 +72,7 @@ The fonts are self-hosted through `@fontsource-variable/*`, imported in `app/lay
   - **Phone fit**: at 720 px and below the hero's top padding is 1.25rem and its title 2.25rem, so at 390 × 664 and 402 × 714 (57 px header included) the title, the form with its button and both other doors end above the screen's bottom (S1 checks it; measured October 16, 2026: button bottom 464 px, doors 551 px). The dek takes three lines at 390 px: two would need about 12 px text.
   - Counts in copy are read from the data files. A long bib count wraps after its commas (`<wbr>`), and a DOI may break anywhere, so nothing runs off the screen at 200% zoom.
 - **Research hub** (`app/research/(hub)/page.tsx`, styles in `app/story.css`): a night story hero, `CohortNote`, then sections in the chapter pattern: every story card (`components/StoryCards.tsx`, shared with the home page), the ten analyses (`AnalysisIndex`) and the weather questions (`WeatherIndex`), the sustained-slowdown study with a link to each of its figures, methods, open data (`DataCoverage`) and the archive, each as a plain bordered link list (`.research-links`, not underlined at rest). Rows of inline links (the guide's, the hub's "Also:") are spaced by the flex gap with no separator dots, so none is left at the end of a wrapped line.
-- **Cohort note** (`components/CohortNote.tsx`, `.cohort-note`): a paragraph with a 3 px rule on its left naming the two finish totals and which pages start from each.
+- **Cohort note** (`components/CohortNote.tsx`, `.cohort-note`): a paragraph with a 3 px rule on its left naming the two finish totals and which pages start from each (only the tools with a Pace Notes data badge among the tools), then what the other tools use instead.
 
 ## Rules
 
