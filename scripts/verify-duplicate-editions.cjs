@@ -193,6 +193,20 @@ function selfTest() {
       const wider = bayview(200, 20100, 100);
       assert.deepEqual([wider.flagged, wider.problems], [[], []], 'Records with a missing time count toward the edition size, not the shared tuples');
     }],
+    ['a small edition repeated inside a large one: 1% of the smaller, not the larger', () => {
+      // 150 shared tuples are 75% of the 200-record edition and under 1% of the 20,000-record one.
+      const result = fixture({ 'Bayview 2020': field(200, 300), 'Bayview 2021': [...field(150, 300), ...field(19850, 330)] }, []).verify();
+      assert.deepEqual(flagged(result), ['Bayview 2020-2021']);
+    }],
+    ['a listed copy covers only the pair with its own source', () => {
+      // A new twin of the 2024 field also twins both listed copies; none of the three new pairs is covered.
+      const result = fixture({ ...lakeside, 'Lakeside 2025': [...base.slice(0, 150), ...field(150, 280)] }, listed).verify();
+      assert.deepEqual(result.problems, ['2018', '2019', '2024'].map(year => `Lakeside ${year} and 2025 share 150 nine-time tuples (50.0% of the smaller edition) but are not covered by the duplicate-edition screen`));
+    }],
+    ['a copy later than its source is covered', () => {
+      const result = fixture({ 'Riverside 2020': field(500, 310), 'Riverside 2021': [...field(150, 310), ...field(350, 320)] }, [copy('Riverside', 2021, 2020)]).verify();
+      assert.deepEqual([flagged(result), result.problems], [['Riverside 2020-2021'], []]);
+    }],
     ['no copies and an empty screen: nothing to report', () => {
       const result = fixture({ 'Bayview 2020': field(300, 300), 'Bayview 2021': field(300, 330) }, []).verify();
       assert.deepEqual([result.flagged, result.problems], [[], []]);
