@@ -29,6 +29,7 @@
 .race-report-stat small { font-size: .8125rem; line-height: 1.35; color: var(--ink-3); }
 /* A pace's unit, smaller, so "9:17/mi" never breaks in a narrow tile. */
 .race-report-stat .race-report-unit { font-size: .55em; line-height: inherit; letter-spacing: 0; color: inherit; }
+.race-report-stat .race-report-badge { justify-self: start; margin: .3rem 0 0; font-size: .5625rem; letter-spacing: .04em; }
 .race-report-stat.is-bad strong { color: var(--orange-ink); }
 .race-report-stat.is-good strong { color: var(--green-ink); }
 @media (max-width: 560px) {
@@ -146,6 +147,7 @@
   .race-report-block p, .race-report-record dd { margin-top: 1pt; font-size: 8pt; line-height: 1.35; }
   .race-report-block .race-report-meta, .race-report-meta { font-size: 7pt; }
   .race-report-badge { float: right; min-height: 0; margin: 0 0 0 6pt; padding: 0 4pt; font-size: 6pt; color: #000 !important; }
+  .race-report-stat .race-report-badge { margin: 1pt 0 0; font-size: 6pt; }
   .race-report-pair { gap: 0 12pt; }
   .race-report-bars { gap: 1pt; margin-top: 3pt; }
   .race-report-bars li { grid-template-columns: 5.6rem minmax(0, 1fr) 7.6rem; }

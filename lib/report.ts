@@ -247,10 +247,18 @@ export function reportLines(model: ReportModel, units: UnitSystem) {
   };
 }
 
-/** The image's alternative text: its numbers in one paragraph. */
+/** A course's city by its slug, from the report data's own keys only: `constructor` or `__proto__` in a link is no course. */
+export function reportCourseCity(courses: Record<string, string>, slug: string): string | null {
+  return Object.prototype.hasOwnProperty.call(courses, slug) ? courses[slug] : null;
+}
+
+/** The label the image draws over its Pace Notes data lines (the pacing type and the comparison), and the alt text says. */
+export const REPORT_DATA_LABEL = 'Pace Notes data';
+
+/** The image's alternative text: its numbers in one paragraph, the data lines under the same label as in the image. */
 export function reportImageAlt(model: ReportModel, units: UnitSystem): string {
   const l = reportLines(model, units);
   return [`Pace Notes race report${l.race ? `, ${l.race}` : ''}. Finish ${l.finish}, ${l.pace}. ${l.baseline}.`,
     `Sections: ${l.sections.map((s) => `${s.label} ${s.pace} (${s.change})`).join(', ')}.`,
-    `${l.slowdown}.`, l.type ? `${l.type}.` : '', l.comparison ?? ''].filter(Boolean).join(' ');
+    `${l.slowdown}.`, l.type || l.comparison ? `${REPORT_DATA_LABEL}.` : '', l.type ? `${l.type}.` : '', l.comparison ?? ''].filter(Boolean).join(' ');
 }

@@ -192,7 +192,7 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
     {report && reportTimes && <section className="rc-report" aria-labelledby={`${id}-report-title`}>
       <p className="eyebrow">Race report</p>
       <h3 id={`${id}-report-title`}>{titleFor(focus.race, manifest)} on one page.</h3>
-      <p className="rc-copy">The section paces, the sustained-slowdown reading, the pacing type and finishes at the same time, with this edition’s finish comparison, weather and climb, to print or save as a PDF. A saved image shows the race, its finish and section paces and the comparison; a copied link carries only the nine times and the course. Neither holds a name or a record.</p>
+      <p className="rc-copy">The section paces, the sustained-slowdown reading, the pacing type and finishes at the same time, with this edition’s finish comparison, weather and climb, to print or save as a PDF. A saved image shows the race, its finish and section paces and the comparison; a copied link carries only the nine times and the course. Neither holds a name or a record ID; the image shows the edition and this race’s times.</p>
       {/* Marked for section_viewed: the section tracker watches sections that join the page after it first looked. */}
       {reportFor === focus.race.id
         ? <div data-track-section="report"><Suspense fallback={<p className="rc-copy" role="status">Loading the race report…</p>}><RaceReport times={reportTimes} course={courseSlug(edition.city)} gender="all" data={report} level={3}

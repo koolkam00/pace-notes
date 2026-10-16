@@ -163,6 +163,8 @@ for (const scope of index.scopes) {
           const lines = report.reportLines(model, units);
           const alt = report.reportImageAlt(model, units);
           assert.ok(alt.includes(lines.finish) && lines.sections.every((s) => alt.includes(`${s.label} ${s.pace}`)) && alt.includes(lines.slowdown), 'the alternative text holds the image\'s numbers');
+          assert.ok(alt.includes(`${report.REPORT_DATA_LABEL}. ${lines.type}.`) && alt.indexOf(report.REPORT_DATA_LABEL) > alt.indexOf(lines.slowdown) && alt.split(report.REPORT_DATA_LABEL).length === 2, 'the alternative text labels the data lines, once, after the calculations and the reading');
+          assert.match(html, /<span>Sustained slowdown<\/span><strong>(?:Yes|No)<\/strong><small>[^<]*by the published definition<\/small><span class="race-report-badge is-research">Published research<\/span>/, 'the slowdown tile carries the Published research badge, as the split check\'s does');
           assert.ok(lines.comparison.includes(c.n.toLocaleString('en-US')) && lines.comparison.includes(c.label), 'the image\'s comparison line names its finishes and group');
           assert.doesNotMatch(JSON.stringify(lines), /percentile|\brank\b|\brecord\b|\byou\b/i, 'the image holds no rank, percentile or record');
           ok(9);
@@ -183,9 +185,16 @@ ok();
   assert.equal(loading.comparison.state, 'loading'); assert.equal(loading.type.state, 'loading'); assert.equal(loading.record, null);
   const failed = report.buildReport({ ...base, types: { data: null, error: 'This data could not be verified.', cohort }, comparison: { index: null, indexError: 'This data could not be loaded.', course: 'all', gender: 'all', shard: null } });
   assert.equal(failed.comparison.state, 'off'); assert.equal(failed.type.state, 'off');
+  assert.doesNotMatch(report.reportImageAlt(failed, 'mi'), new RegExp(report.REPORT_DATA_LABEL), 'without data lines, the alternative text has no data label');
   // A course the comparison does not publish (a runner page can link any race) falls back to all courses.
   assert.deepEqual(report.reportScope(index, 'not-a-course').scope.slug, 'all'); assert.equal(report.reportScope(index, 'not-a-course').dropped, true);
   assert.equal(report.reportScope(index, 'all').dropped, false);
+  // A slug that names an inherited key is no course (it threw while rendering: `course=constructor`), nor is an unknown one.
+  for (const slug of ['constructor', '__proto__', 'toString', 'hasOwnProperty', 'not-a-course']) assert.equal(report.reportCourseCity({ boston: 'Boston' }, slug), null, `course=${slug} is no course`);
+  assert.equal(report.reportCourseCity({ boston: 'Boston' }, 'boston'), 'Boston');
+  for (const source of ['components/report/RaceReport.tsx', 'components/report/ReportView.tsx']) assert.doesNotMatch(fs.readFileSync(path.join(__dirname, '..', source), 'utf8'), /data\.courses\[/, `${source} looks a course up by its own keys only (reportCourseCity)`);
+  // An unknown course in the link is never echoed into the card.
+  assert.match(fs.readFileSync(path.join(__dirname, '../components/report/RaceReport.tsx'), 'utf8'), /city \?\? 'The course in this link'/, 'the dropped-course note never repeats the link\'s slug');
   const sample = { comparisons: { all: { key: 'all', label: 'All eligible finishers', n: 5000, other_n: 4999, rank: 1200, ties: 2, percentile: 76.0, median_finish: 15000, pace: { n: 420, from_sec: 14850, to_sec: 15750, q25: [], median: [], q75: [], late_change: { q25: 4, median: 9.5, q75: 16 } } }, gender: null, age: null, age_gender: null },
     weather: { temp_c: 11.5, humidity_pct: 70, wind_mps: 3, scheduled_start: '09:15' }, weather_reason: null, terrain: { gain_m: 120.4 }, terrain_reason: null };
   const recorded = report.buildReport({ ...base, types: { data: archetypes, error: null, cohort }, comparison: { index, indexError: null, course: 'all', gender: 'all', shard: null },

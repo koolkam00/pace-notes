@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from
 import { useUnits } from '@/components/UnitsProvider';
 import { loadInsight, type Archetypes } from '@/lib/insights';
 import {
-  ahead, buildReport, kmText, openingPct, paceText, pctSigned, relation, reportLink, reportLines, reportScope, reportShardPath, shareText,
+  ahead, buildReport, kmText, openingPct, paceText, pctSigned, relation, reportCourseCity, reportLink, reportLines, reportScope, reportShardPath, shareText,
   type ReportComparison, type ReportData, type ReportGender, type ReportModel, type ReportRecord,
 } from '@/lib/report';
 import type { RaceInsights } from '@/lib/runner-context';
@@ -86,14 +86,15 @@ export default function RaceReport({ times, course, gender, data, level, fromRec
   const archetypes = useVerified<Archetypes>(ARCHETYPES, data.archetypesSha);
   const path = index.data ? reportShardPath(index.data, course, gender, times[8]) : null;
   const { shard, retry: retryShard } = useShard(index.data, path);
-  const city = record?.edition.city ?? (course === 'all' ? null : data.courses[course] ?? index.data?.scopes.find((s) => s.slug === course)?.city ?? null);
+  const city = record?.edition.city ?? (course === 'all' ? null : reportCourseCity(data.courses, course) ?? index.data?.scopes.find((s) => s.slug === course)?.city ?? null);
   const model = useMemo(() => buildReport({
     times, race: { city }, openingBands: data.openingBands,
     types: { data: archetypes.data, error: archetypes.error, cohort: data.typeCohort },
     comparison: { index: index.data, indexError: index.error, course, gender, shard },
     record,
   }), [times, city, data.openingBands, data.typeCohort, archetypes.data, archetypes.error, index.data, index.error, course, gender, shard, record]);
-  const dropped = index.data && reportScope(index.data, course).dropped ? city ?? course : null;
+  // A course the link names but the comparison does not know is never echoed into the card.
+  const dropped = index.data && reportScope(index.data, course).dropped ? city ?? 'The course in this link' : null;
   const link = reportLink(times, city, gender, fromRecord || Boolean(record));
   const retry = () => { if (index.error) index.retry(); else retryShard(); };
   const cardId = `${id}-card`;
@@ -138,7 +139,8 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
         <div className="race-report-stat"><span>Finish</span><strong>{lines.finish}</strong><small>{lines.pace}</small></div>
         <div className="race-report-stat"><span>5–20 km pace</span><strong><PaceValue text={baseline} /></strong><small>25% slower is {paceText(model.baseline * 1.25, units)}</small></div>
         <div className={`race-report-stat is-${slowdown.yes ? 'bad' : 'good'}`}><span>Sustained slowdown</span><strong>{slowdown.yes ? 'Yes' : 'No'}</strong>
-          <small>{slowdown.yes && slowdown.onsetKm !== null ? `from ${kmText(slowdown.onsetKm, units)}` : 'by the published definition'}</small></div>
+          <small>{slowdown.yes && slowdown.onsetKm !== null ? `from ${kmText(slowdown.onsetKm, units)}, by the published definition` : 'by the published definition'}</small>
+          <span className="race-report-badge is-research">Published research</span></div>
       </div>
 
       <section className="race-report-block race-report-sections" aria-labelledby={`${id}-sections`}>
@@ -176,7 +178,7 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
       {model.record ? <RecordBlock id={`${id}-record`} Head={Head} record={model.record} units={units} /> : null}
 
       <footer className="race-report-foot">
-        <p><strong>splithappens.run</strong> · Calculated from nine {model.record ? 'official mat times of a recorded result' : 'mat times as entered'}. Shares are observed in complete finishes; nothing here is a prediction, and weather and elevation are context, never adjustments.</p>
+        <p><strong>splithappens.run</strong> · Calculated from nine {model.record ? 'official mat times of a recorded result' : 'mat times as entered'}. {type.state === 'ok' || comparison.state === 'ok' ? 'Shares are observed in complete finishes; nothing' : 'Nothing'} here is a prediction{model.record ? ', and weather and elevation are context, never adjustments' : ''}.</p>
       </footer>
     </article>
   );
@@ -210,7 +212,7 @@ function ComparisonBlock({ id, Head, comparison: c, model, gender, dropped, retr
       <span className="race-report-badge is-data">Pace Notes data</span>
       <Head id={id}>Compared with finishes at this time</Head>
       {c.state === 'loading' ? <p className="race-report-meta">Loading the finishes at this time…</p> : null}
-      {c.state === 'off' ? <div className="tool-state is-error"><p>{c.message} The sections, slowdown reading and pacing type above are unaffected.</p><button type="button" className="button-secondary no-print" onClick={retry}>Try again</button></div> : null}
+      {c.state === 'off' ? <div className="tool-state is-error"><p>{c.message} The sections{model.type.state === 'off' ? ' and slowdown reading' : ', slowdown reading and pacing type'} above are unaffected.</p><button type="button" className="button-secondary no-print" onClick={retry}>Try again</button></div> : null}
       {c.state === 'unavailable' ? <p><strong>{c.title}</strong> {c.message}</p> : null}
       {c.state === 'ok' ? (
         <>

@@ -6,9 +6,11 @@
  *
  * It draws reportLines() (lib/report.ts), the same words and numbers as the alternative text: the brand, the race,
  * finish and average pace, the nine sections, the sustained-slowdown reading, the pacing type, one comparison line with
- * its finishes, the citation and the address. Never a name, rank or percentile, and nothing only a runner record has.
+ * its finishes, the citation and the address. The pacing type and the comparison sit under a "Pace Notes data" tag in
+ * the badge's colours; the calculations from the race's own times carry none, and the reading is followed by its
+ * published definition and citation. Never a name, rank or percentile, and nothing only a runner record has.
  */
-import { TONE, reportLines, type ReportModel } from './report';
+import { REPORT_DATA_LABEL, TONE, reportLines, type ReportModel } from './report';
 import type { UnitSystem } from './units';
 
 const W = 1080;
@@ -107,7 +109,7 @@ export async function renderReportImage(model: ReportModel, units: UnitSystem): 
 
   // Nine sections, as bars from the 5–20 km pace: right is slower, left quicker; the dashed line is 25% slower.
   const top = 560;
-  const row = 42;
+  const row = 40;
   const nameW = 190;
   const valueW = 220;
   const x0 = M + nameW;
@@ -154,11 +156,27 @@ export async function renderReportImage(model: ReportModel, units: UnitSystem): 
   ctx.setLineDash([]);
 
   // The reading, the type and the comparison.
-  let y = top + 9 * row + 54;
+  let y = top + 9 * row + 50;
   ctx.fillStyle = model.slowdown.yes ? ORANGE_INK : GREEN_INK;
   ctx.font = `650 32px ${SANS}`;
   ctx.fillText(l.slowdown, M, y);
-  y += 46;
+  y += 42;
+  if (l.type || l.comparison) {
+    // The data lines' tag, as the page's badge draws it: a dot and the label in mono capitals, in an outlined pill.
+    ctx.font = `600 18px ${MONO}`;
+    const tag = REPORT_DATA_LABEL.toUpperCase();
+    const width = ctx.measureText(tag).width + 50;
+    ctx.strokeStyle = ORANGE_INK;
+    ctx.lineWidth = 2;
+    rounded(ctx, M, y - 22, width, 30, 15);
+    ctx.stroke();
+    ctx.fillStyle = ORANGE_INK;
+    ctx.beginPath();
+    ctx.arc(M + 18, y - 7, 4, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.fillText(tag, M + 32, y);
+    y += 40;
+  }
   ctx.fillStyle = INK;
   ctx.font = `400 27px ${SANS}`;
   if (l.type) y = block(ctx, l.type, M, y, W - 2 * M, 34, 2) + 8;
@@ -171,8 +189,6 @@ export async function renderReportImage(model: ReportModel, units: UnitSystem): 
   ctx.fillStyle = INK;
   ctx.font = `600 22px ${MONO}`;
   ctx.fillText('SPLITHAPPENS.RUN', M, H - 68);
-  // No source badge here: the image holds calculations from the race's own times, Pace Notes data and the published
-  // method's definition, which the page keeps apart, so one label would merge them.
   ctx.textAlign = 'right';
   ctx.fillStyle = INK_3;
   ctx.fillText('NOT A PREDICTION', W - M, H - 68);

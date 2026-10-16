@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { runnerHandoffHref } from '@/lib/analytics-policy';
-import { readReportGender, readReportTimes, type ReportData, type ReportGender } from '@/lib/report';
+import { readReportGender, readReportTimes, reportCourseCity, type ReportData, type ReportGender } from '@/lib/report';
 import { splitCheckHref } from '@/lib/tools/links';
 import RaceReport from './RaceReport';
 
@@ -39,7 +39,7 @@ export default function ReportView({ data }: { data: ReportData }) {
     });
   }, []);
   const times = query?.times ?? null;
-  const city = query && query.course !== 'all' ? data.courses[query.course] : undefined;
+  const city = query && query.course !== 'all' ? reportCourseCity(data.courses, query.course) ?? undefined : undefined;
   const split = times && query ? splitCheckHref(times, city) : null;
   const splitLink = split && query ? (query.fromRecord ? runnerHandoffHref(split) : query.gender === 'all' ? split : `${split}&g=${query.gender}`) : null;
   return (
