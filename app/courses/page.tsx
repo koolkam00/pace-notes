@@ -2,11 +2,12 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import { formatNumber } from '@/lib/csv';
 import { getCourseNames, getIndividualCourseAnswer, slugifyCity } from '@/lib/course-data';
 import { readInsight } from '@/lib/insights-server';
-import type { Archetypes, CourseGeometry } from '@/lib/insights';
+import type { Archetypes, CourseGeometry, Courses } from '@/lib/insights';
 import { RouteMap } from '@/components/story/CourseArt';
 import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
 import { Elevation } from '@/components/story/Units';
-import { pageMetadata } from '@/lib/seo';
+import { raceName } from '@/lib/course-page';
+import { JsonLd, absoluteUrl, breadcrumbs, pageMetadata } from '@/lib/seo';
 
 const displayName = (city: string) => city === 'New York' ? 'New York City' : city;
 
@@ -30,8 +31,15 @@ export default function CoursesPage() {
   const geometry = new Map(readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses.map((c) => [c.city, c]));
   const archetypes = readInsight<Archetypes>('archetypes.json');
   const types = new Map(archetypes.courses.map((c) => [c.city, c]));
+  const summaries = new Map(readInsight<Courses>('courses.json').courses.map((c) => [c.city, c]));
+  // The 29 course pages in the order the page lists them (alphabetical), named as each page's H1 names its race.
+  const list = {
+    '@context': 'https://schema.org', '@type': 'ItemList', name: 'Marathon courses', itemListOrder: 'https://schema.org/ItemListOrderAscending', numberOfItems: names.length,
+    itemListElement: names.map((city, i) => ({ '@type': 'ListItem', position: i + 1, name: raceName(city, geometry.get(city), summaries.get(city)), url: absoluteUrl(`/courses/${slugifyCity(city)}`) })),
+  };
   return (
     <div className="courses-page">
+      <JsonLd data={[breadcrumbs([['Pace Notes', '/'], ['Courses']]), list]} />
       <section className="night night-grain bleed story-hero">
         <div className="container">
           <p className="eyebrow">Courses</p>
@@ -44,6 +52,8 @@ export default function CoursesPage() {
         <ol className="course-grid">
           {names.map((city) => {
             const individual = getIndividualCourseAnswer(city);
+            // The count the course page's hero prints (the story data, without copy editions), not the pooled profile's.
+            const finishes = summaries.get(city)?.finishes ?? individual?.dataset?.n ?? 0;
             const g = geometry.get(city);
             const t = types.get(city);
             return (
@@ -52,7 +62,7 @@ export default function CoursesPage() {
                   <span className="course-card-map">{g ? <RouteMap course={g} size={180} animate={false} /> : <span className="course-card-nomap">No supplied route</span>}</span>
                   <span className="course-card-body">
                     <span className="course-card-name">{displayName(city)}</span>
-                    <span className="course-card-meta">{formatNumber(individual?.dataset?.n || 0, 'finishes')} with complete splits</span>
+                    <span className="course-card-meta">{formatNumber(finishes, 'finishes')} with complete splits</span>
                     {g ? <span className="course-card-meta">Supplied route climbs <Elevation metres={g.gain_m} /></span> : null}
                     {t ? (
                       <span className="course-card-types" aria-label={`Pacing types: ${archetypes.archetypes.map((a, i) => `${a.name} ${Math.round(t.shares[i] * 100)}%`).join(', ')}`}>

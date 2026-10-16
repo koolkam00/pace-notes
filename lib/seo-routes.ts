@@ -82,6 +82,9 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
 
 export type SitemapEntry = { path: string; lastmod?: string };
 
+/** The course pages (/courses/<slug>) were rewritten on this date; their lastmod is the later of it and their data's. */
+export const COURSE_PAGES_WRITTEN = '2026-10-16';
+
 /**
  * New content pages register in their own module under lib/seo-pages/ (pace, qualifying, finish-times), collected here.
  * `lastmod` is a YYYY-MM-DD date or a function returning one at build time, e.g.
@@ -213,11 +216,11 @@ const ANALYSIS_SOURCES: Record<AnalysisId, DataSource[]> = {
   ambition: ['personalized'], gains: ['personalized'], age: ['personalized'],
 };
 
-/** Every date a sitemap lastmod may take: the data as_of dates, the pack dates, CONTENT_DATES and the registered extra pages' dates. */
+/** Every date a sitemap lastmod may take: the data as_of dates, the pack dates, CONTENT_DATES, COURSE_PAGES_WRITTEN and the registered extra pages' dates. */
 export function allSourceDates(): string[] {
   const sources: DataSource[] = ['insights', 'study', 'weather', 'personalized', 'fastStart', 'allFinisher', 'qualifying'];
   const extras = EXTRA_SITEMAP_PAGES.map(page => typeof page.lastmod === 'function' ? page.lastmod() : page.lastmod);
-  return [...new Set([...sources.map(dataDate), ...packRouteIds().map(packDate), ...Object.values(CONTENT_DATES), ...extras].filter((date): date is string => !!date))].sort();
+  return [...new Set([...sources.map(dataDate), ...packRouteIds().map(packDate), ...Object.values(CONTENT_DATES), COURSE_PAGES_WRITTEN, ...extras].filter((date): date is string => !!date))].sort();
 }
 
 // ---------- Sitemap ----------
@@ -254,7 +257,7 @@ export function sitemapEntries(): SitemapEntry[] {
   add('/courses', 'content', 'insights');
   const coursePack = extensionForQuestion('s3_course_breaks');
   for (const city of getCourseNames()) {
-    const lastmod = latest(at('insights'), coursePack ? day(coursePack.asOf) : undefined);
+    const lastmod = latest(at('insights'), coursePack ? day(coursePack.asOf) : undefined, COURSE_PAGES_WRITTEN);
     entries.push({ path: `/courses/${slugifyCity(city)}`, ...(lastmod ? { lastmod } : {}) });
   }
 
