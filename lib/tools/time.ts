@@ -2,6 +2,9 @@
 
 export type DurationMode = 'race' | 'pace';
 
+/** The dot key types a colon in clock-style time fields (lib/keypad.ts, kept apart so pages without this reader stay small). */
+export { keypadColons } from '@/lib/keypad';
+
 const NUM = /^\d+(?:\.\d+)?$/;
 
 /**
@@ -12,7 +15,8 @@ const NUM = /^\d+(?:\.\d+)?$/;
  * Returns seconds or null.
  */
 export function parseDuration(input: string, mode: DurationMode = 'race'): number | null {
-  const text = input.trim().toLowerCase().replace(/\s+/g, ' ');
+  // A comma is a dot: keypads in some locales have a comma where others have the dot, so "8,5" is 8.5 minutes too.
+  const text = input.trim().toLowerCase().replace(/\s+/g, ' ').replace(/,/g, '.');
   if (!text) return null;
   const units = text.match(/^(?:(\d+(?:\.\d+)?)\s*h(?:rs?|ours?)?)?\s*(?:(\d+(?:\.\d+)?)\s*m(?:in(?:utes?|s)?)?)?\s*(?:(\d+(?:\.\d+)?)\s*s(?:ec(?:onds?|s)?)?)?$/);
   if (units && (units[1] || units[2] || units[3])) {
@@ -86,9 +90,9 @@ export function formatClock(secondsAfterMidnight: number): string {
   return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
 }
 
-/** Parse a clock time of day ("8:05", "8:05 am", "20:05") to seconds after midnight. */
+/** Parse a clock time of day ("8:05", "8:05 am", "20:05", or with keypad dots: "8.05 am") to seconds after midnight. */
 export function parseClock(input: string): number | null {
-  const m = input.trim().toLowerCase().match(/^(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(am|pm|a|p)?$/);
+  const m = input.trim().toLowerCase().match(/^(\d{1,2})(?:[:.,](\d{2}))?(?:[:.,](\d{2}))?\s*(am|pm|a|p)?$/);
   if (!m) return null;
   let h = Number(m[1]);
   const min = Number(m[2] ?? 0);

@@ -39,6 +39,60 @@ checks += 11;
 assert.deepEqual(time.parseTrackerText('25K 2:05:31\n30 km 02:31:07 4:59/km\nHalf 1:52:10\n5K 25:30'), [
   { km: 25, elapsed: 7531 }, { km: 30, elapsed: 9067 }, { km: 5, elapsed: 1530 }]); ok();
 
+// ---- the keypad: an iPhone's numeric keypad has a dot (a comma in some locales) and no colon. In a single race-time field
+// the dot key types a colon (lib/keypad.ts); a pace keeps its dot until the field is left; lists of times are never
+// changed; and every reader behind a time field takes dots and commas between the groups.
+{
+  const keypad = require('../lib/keypad.ts');
+  assert.equal(time.keypadColons, keypad.keypadColons, 'lib/tools/time.ts re-exports the one helper'); ok();
+  for (const [typed, shown] of [['3.30', '3:30'], ['3,30', '3:30'], ['3.30.15', '3:30:15'], ['1.12.55', '1:12:55'], ['3.', '3:'], ['0,24,10', '0:24:10'],
+    ['3:30', '3:30'], ['3:30.15', '3:30:15'], ['1:12:55.3', '1:12:55.3'], ['1.12.55.3', '1:12:55.3'], ['210', '210'], ['3.5h', '3.5h'], ['9.14 am', '9.14 am'], ['', '']]) {
+    assert.equal(keypad.keypadColons(typed), shown, `race keypad: ${typed}`); ok();
+  }
+  for (const typed of ['8.5', '8.05', '8,30', '8:05']) { assert.equal(keypad.keypadColons(typed, 'pace'), typed, `a pace keeps what was typed: ${typed}`); ok(); }
+  // What the field then reads is what the keypad meant.
+  for (const typed of ['3.30', '3.30.15', '1.12.55', '3,30']) { assert.equal(time.parseDuration(keypad.keypadColons(typed)), time.parseDuration(typed), `same reading: ${typed}`); ok(); }
+  // keypadInput changes the field in place with the caret kept; pasted or dropped text is left as it is.
+  const field = (value) => ({ value, selectionStart: 2, selectionEnd: 2, setSelectionRange(a, b) { this.caret = [a, b]; } });
+  const typedField = field('3.30');
+  assert.equal(keypad.keypadInput(typedField, { inputType: 'insertText' }), '3:30'); assert.equal(typedField.value, '3:30'); assert.deepEqual(typedField.caret, [2, 2]);
+  for (const inputType of ['insertFromPaste', 'insertFromDrop']) { const pasted = field('25:50.12'); assert.equal(keypad.keypadInput(pasted, { inputType }), '25:50.12'); assert.equal(pasted.value, '25:50.12'); }
+  assert.equal(keypad.keypadInput(field('8.5'), { inputType: 'insertText' }, 'pace'), '8.5');
+  checks += 6;
+
+  // Every reader behind a time field.
+  for (const [text, mode, expected] of [['1.12.55', 'race', 4375], ['3,30', 'race', 12600], ['3,30,15', 'race', 12615], ['8,05', 'pace', 485], ['8.5', 'pace', 510], ['8.50', 'pace', 530]]) {
+    assert.equal(time.parseDuration(text, mode), expected, `parse ${text} (${mode})`); ok();
+  }
+  for (const bad of ['3.75', '3..30', '1.2.3.4', '3.30.75', 'a.b', '.', '3.30.15.2']) { assert.equal(time.parseDuration(bad), null, `reject ${bad}`); ok(); }
+  // A pace field shows m:ss when it is left: 8.05 is 8:05 and 8.5 is 8:30.
+  assert.deepEqual(['8.05', '8.5', '8,5', '10.15'].map((t) => time.formatDuration(time.parseDuration(t, 'pace'))), ['8:05', '8:30', '8:30', '10:15']); ok();
+  assert.deepEqual(['8.05', '8.05 pm', '9,14', '20.05', '8.5', '25.00', '8.75'].map(time.parseClock), [29100, 72300, 33240, 72300, null, null, null]); ok();
+  const plan = require('../lib/tools/plan.ts');
+  assert.deepEqual(['3.30', '3,30', '3.30.00', '3.32.30', '1.12.55'].map((t) => plan.readPlanGoal(t).seconds), [12600, 12600, 12600, 12750, null]); ok();
+  assert.equal(plan.readPlanGoal('3.30').read, 12600); ok(); // goal=3.30 from the home form without JavaScript opens the planner at 3:30
+  const guide = require('../lib/personalized.ts');
+  assert.deepEqual([guide.parseMinutes('3.30'), guide.parseMinutes('3,10'), guide.parseMinutes('3.75'), guide.parseMinutes('3.5')], [210, 190, null, null]); ok();
+  assert.deepEqual([guide.parseElapsed('2.50.00'), guide.parseElapsed('1.12.55'), guide.parseElapsed('2.50'), guide.parseElapsed('2.5'), guide.parseElapsed('2.50.75')], [10200, 4375, 10200, null, null]); ok();
+  assert.deepEqual([guide.parseSection('28.00'), guide.parseSection('21,30'), guide.parseSection('28.75')], [1680, 1290, null]); ok();
+  const split = require('../components/tools/SplitCheck.tsx');
+  assert.deepEqual(['25.50', '0.24.10', '3.58', '1.12.55', '2:05:31.4', '25.75', 'x.y'].map((t) => split.parseMatTime(t)), [1550, 1450, 14280, 4375, 7531, null, null]); ok();
+  // The split check's s= list (commas between the times): dots inside each time read as colons, the commas stay separators.
+  const colonList = '0:24:10,0:48:30,1:12:55,1:37:29,2:01:37,2:26:11,2:51:02,3:16:47,3:27:19';
+  assert.deepEqual(split.parseAll(colonList.replace(/:/g, '.').split(',')), split.parseAll(colonList.split(','))); ok();
+  const report = require('../lib/report.ts');
+  assert.deepEqual(report.readReportTimes(colonList.replace(/:/g, '.')), report.readReportTimes(colonList)); assert.ok(report.readReportTimes(colonList)); checks += 2;
+  const predictor = require('../components/tools/Predictor.tsx');
+  assert.deepEqual([['22.30', 5], ['1.55.00', 21.0975], ['1.55', 21.0975], ['3.30', 42.195], ['1.12.55', 21.0975], ['abc', 5], ['22.75', 5]].map(([t, km]) => predictor.parseRaceTime(t, km)),
+    [1350, 6900, 6900, 12600, 4375, null, null]); ok();
+  const projector = require('../components/tools/Projector.tsx');
+  assert.deepEqual(['24.53', '2.21', '2.21.30', '1,12,55', '24.75', 'x'].map(projector.parseElapsed), [1493, 8460, 8490, 4375, null, null]); ok();
+  const archetype = require('../components/story/ArchetypeStory.tsx');
+  assert.deepEqual(['0.25.30', '1.12.55', '3,51,00', '0.25.75'].map(archetype.parseClock), [1530, 4375, 13860, null]); ok();
+  const finish = require('../components/story/FinishTimeStory.tsx');
+  assert.deepEqual(['3.58.42', '3.30', '1.12.55', '13.00', '3.75'].map(finish.parseTime), [14322, 12600, null, null, null]); ok();
+}
+
 // ---- pace calculations
 near(pace.paceFrom(12600, pace.MARATHON_KM), 298.613, 0.001, 'marathon pace'); ok();
 assert.equal(Math.round(pace.perUnit(pace.paceFrom(12600, pace.MARATHON_KM), 'mi')), 481); ok(); // 8:01/mi for 3:30
@@ -589,4 +643,4 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
   checks += 8 + otherTools.length;
 }
 
-console.log(`Tool libraries passed ${checks} checks: time parsing, pace calculations and splits, pace charts by goal time and goal-page links, result handoffs to the planner, the pace band and the pacing-pattern analysis, the race planner (its goal, the course-goal row it shows, recounted from the runner records, and the rendered plan), goal-page sentences, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading, the pacing-type classifier, and the cohort note, which says only the tools with Pace Notes data start from the screened finishes.`);
+console.log(`Tool libraries passed ${checks} checks: time parsing and keypad input (the dot key types a colon in race-time fields; every time reader takes dots and commas), pace calculations and splits, pace charts by goal time and goal-page links, result handoffs to the planner, the pace band and the pacing-pattern analysis, the race planner (its goal, the course-goal row it shows, recounted from the runner records, and the rendered plan), goal-page sentences, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading, the pacing-type classifier, and the cohort note, which says only the tools with Pace Notes data start from the screened finishes.`);

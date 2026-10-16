@@ -9,16 +9,17 @@ export const clock = (seconds: number, showSeconds = false) => {
   const s = Math.round(seconds);
   return `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}${showSeconds ? `:${String(s % 60).padStart(2, '0')}` : ''}`;
 };
+// The guide's time readers. A dot or comma between groups is read as a colon ("3.30", "2.50.00"), as a keypad types it.
 export const parseMinutes = (text: string) => {
-  const match = /^(\d{1,2}):([0-5]\d)$/.exec(text.trim());
+  const match = /^(\d{1,2})[:.,]([0-5]\d)$/.exec(text.trim());
   return match ? Number(match[1]) * 60 + Number(match[2]) : null;
 };
 export const parseElapsed = (text: string) => {
-  const match = /^(\d{1,2}):([0-5]\d)(?::([0-5]\d))?$/.exec(text.trim());
+  const match = /^(\d{1,2})[:.,]([0-5]\d)(?:[:.,]([0-5]\d))?$/.exec(text.trim());
   return match ? Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3] || 0) : null;
 };
 export const parseSection = (text: string) => {
-  const match = /^(\d{1,3}):([0-5]\d)$/.exec(text.trim());
+  const match = /^(\d{1,3})[:.,]([0-5]\d)$/.exec(text.trim());
   return match ? Number(match[1]) * 60 + Number(match[2]) : null;
 };
 export const priorBand = (previous: number | null) => previous === null ? 'all' : String(Math.floor(previous / 15) * 15);

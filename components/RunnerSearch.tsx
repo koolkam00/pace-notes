@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { UnitLink as Link, useUnits } from './UnitsProvider';
 import { distanceLabel, paceLabel, type UnitSystem } from '@/lib/units';
 import RunnerContext from './RunnerContext';
+import KeypadHint from './KeypadHint';
+import { keypadInput } from '@/lib/keypad';
 import { sourceLabel, sourceReleaseHref } from '@/lib/data-source';
 import { copyEditionOf, copyEditionSentence, isCopyEdition, type CopyEdition } from '@/lib/duplicate-editions-shared';
 import type { ReportData } from '@/lib/report';
@@ -120,7 +122,8 @@ export function FinishTimeStart() {
     window.location.assign(unitHref(href, units));
   }}>
     <label htmlFor="runner-finish-time"><b>Only know your finish time?</b><span>Type it to see how finishes near it were paced.</span></label>
-    <div className="runner-start-fields"><input id="runner-finish-time" inputMode="decimal" autoComplete="off" spellCheck={false} placeholder="4:05:30" value={text} aria-invalid={error ? true : undefined} aria-describedby={error ? 'runner-finish-time-error' : undefined} onChange={event => { setText(event.target.value); setError(''); }} /><button className="button-secondary" type="submit">See how finishes near it were paced</button></div>
+    <KeypadHint block />
+    <div className="runner-start-fields"><input id="runner-finish-time" inputMode="decimal" autoComplete="off" spellCheck={false} placeholder="4:05:30" value={text} aria-invalid={error ? true : undefined} aria-describedby={error ? 'runner-finish-time-error' : undefined} onChange={event => { setText(keypadInput(event.target, event.nativeEvent)); setError(''); }} /><button className="button-secondary" type="submit">See how finishes near it were paced</button></div>
     {error && <p className="control-help runner-start-error" id="runner-finish-time-error" role="alert">{error}</p>}
   </form>;
 }

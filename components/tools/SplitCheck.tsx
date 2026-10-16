@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNod
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { Choice, EvidencePanel, ExampleNote, ShareBar } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
+import KeypadHint from '@/components/KeypadHint';
 import { useWidth } from '@/components/viz/useSize';
 import { runnerHandoff } from '@/lib/analytics-policy';
 import { loadInsight, type Archetype, type Archetypes } from '@/lib/insights';
@@ -13,6 +14,7 @@ import type { PaceBandCell } from '@/lib/tools/pace-band-data';
 import { MARATHON_KM, MATS_KM, perUnit } from '@/lib/tools/pace';
 import { SECTION_KM, SECTION_NAMES, SLOWDOWN_CITATION, SLOWDOWN_DEFINITION, classify, readSplits, validateSplits, type SplitReading } from '@/lib/tools/splits';
 import { formatDuration, parseDuration } from '@/lib/tools/time';
+import { keypadInput } from '@/lib/keypad';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 import { SECTION_BOUNDS, count, sectionLabel, signedPct } from '@/lib/viz/format';
 import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
@@ -536,13 +538,13 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
                   </label>
                   <input id={`${formId}-t${i}`} inputMode="decimal" autoComplete="off" spellCheck={false} value={texts[i]}
                     placeholder={i < 2 ? 'mm:ss' : 'h:mm:ss'} aria-invalid={bad || undefined} aria-describedby={hintId}
-                    onChange={(e) => editField(i, e.target.value)} onBlur={() => blurField(i)} />
+                    onChange={(e) => editField(i, keypadInput(e.target, e.nativeEvent))} onBlur={() => blurField(i)} />
                 </div>
               );
             })}
           </fieldset>
           <p className={`tool-field-hint${hintIssue ? ' is-error' : ''}`} id={hintId}>
-            {gridMessage ?? 'Elapsed chip time at each mat: h:mm:ss, or mm:ss before the first hour.'}
+            {gridMessage ?? 'Elapsed chip time at each mat: h:mm:ss, or mm:ss before the first hour.'}<KeypadHint />
           </p>
           <div className="split-check-buttons">
             <button type="button" className="button-secondary" onClick={() => { setTimes(Array(9).fill(null)); setPasteText(''); setPasteNote(null); }}>Clear</button>

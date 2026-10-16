@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type R
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { Choice, DataState, DurationField, EvidencePanel, ExampleNote, ShareBar, Stat } from '@/components/tools/ui';
 import { MarathonHandoffs } from '@/components/tools/Handoffs';
+import KeypadHint from '@/components/KeypadHint';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
 import { loadInsight } from '@/lib/insights';
@@ -12,6 +13,7 @@ import { HALF_KM, MARATHON_KM, perKm, perUnit, unitKm } from '@/lib/tools/pace';
 import { REALISTIC_B, RIEGEL_B, TANDA_RANGE_S, marathonRange, personalExponent, riegel, tandaPace, timeForVdot, vdot, type MarathonRange } from '@/lib/tools/predictor';
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
+import { keypadInput } from '@/lib/keypad';
 import { count } from '@/lib/viz/format';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 
@@ -202,7 +204,7 @@ function RaceTimeField({ id, label, text, km, onText, error, hint, large = false
       <label htmlFor={id}>{label}</label>
       <input id={id} ref={inputRef} inputMode="decimal" autoComplete="off" spellCheck={false} placeholder={large ? '1:55:00' : 'h:mm:ss'} value={text}
         aria-invalid={invalid || !!message || undefined} aria-describedby={message || hint ? `${id}-hint` : undefined}
-        onChange={(e) => { if (!editing) { setEditing(true); onEditing?.(true); } onText(e.target.value); }}
+        onChange={(e) => { if (!editing) { setEditing(true); onEditing?.(true); } onText(keypadInput(e.target, e.nativeEvent)); }}
         onBlur={() => {
           setTouched(true);
           setEditing(false);
@@ -210,8 +212,8 @@ function RaceTimeField({ id, label, text, km, onText, error, hint, large = false
           // Tidy the text only when it reads as a usable race time; an implausible reading is left as typed, next to its error.
           if (parsed !== null && km !== null && checkRace(km, parsed, 'km').ok && fmtTime(parsed) !== text) onText(fmtTime(parsed));
         }} />
-      {message ? <p className="tool-field-hint is-error" id={`${id}-hint`}>{message}</p>
-        : hint ? <p className="tool-field-hint" id={`${id}-hint`}>{hint}</p> : null}
+      {message ? <p className="tool-field-hint is-error" id={`${id}-hint`}>{message}<KeypadHint /></p>
+        : hint ? <p className="tool-field-hint" id={`${id}-hint`}>{hint}<KeypadHint /></p> : <KeypadHint block />}
     </div>
   );
 }

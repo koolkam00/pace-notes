@@ -1,5 +1,9 @@
 # Project handoff
 
+## Time fields: the keypad's dot types a colon (October 16, 2026)
+
+**Repository state:** branch `fix/keypad-colon` from `main` at c0f9207; not merged. **Deployed state:** not deployed. The owner reported (iPhone, the home page's goal field) that the keypad has no colon; in every single race-time field the dot or comma key now types a colon, pace fields show m:ss when left, every time reader takes dots, and touch screens show "Tap . for :" ([tools](TOOLS.md), "Time fields and the keypad"). `analysis/**`, `public/data/**` and the pins are unchanged.
+
 ## StoryBrand series: what is live and what is open (October 16, 2026)
 
 **Deployed state:** all live on splithappens.run at `b7a675c`: the duplicate-edition guard (#62), the race planner (#63), the course pages (#64), the race report (#66) and the home page, navigation and research hub (#65); the workflow repository-name and release gate fix (#61) is on `main`. Production smoke test on `b7a675c`: 145 of 145 checks on 119 pages, 24 of 24 in old Safari.

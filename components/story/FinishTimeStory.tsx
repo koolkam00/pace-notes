@@ -6,12 +6,15 @@ import type { FinishTimes } from '@/lib/insights';
 import { checkpointLabel, count, hm } from '@/lib/viz/format';
 import { useUnits } from '@/components/UnitsProvider';
 import { useStoryData } from './StoryData';
+import KeypadHint from '@/components/KeypadHint';
+import { keypadInput } from '@/lib/keypad';
 
 const MAJOR = new Set([150, 180, 210, 240, 270, 300, 330, 360]);
 const LO = 140;
 const HI = 390;
 
-function parseTime(text: string): number | null {
+/** A finish time, h:mm or h:mm:ss from 1:30 to 12:00; dots or commas between the groups are read as colons. */
+export function parseTime(text: string): number | null {
   const m = text.trim().replace(/[.,]/g, ':').match(/^(\d{1,2}):([0-5]\d)(?::([0-5]\d))?$/);
   if (!m) return null;
   const seconds = Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3] ?? 0);
@@ -108,11 +111,12 @@ export function FinishHistogram({ data: given }: { data?: FinishTimes }) {
       </div>
       <div className="finish-lookup">
         <label htmlFor="my-finish">Your finish time</label>
-        <input id="my-finish" inputMode="decimal" autoComplete="off" placeholder="e.g. 3:58:42" value={mine} onChange={(e) => setMine(e.target.value)} />
+        <input id="my-finish" inputMode="decimal" autoComplete="off" placeholder="e.g. 3:58:42" value={mine} onChange={(e) => setMine(keypadInput(e.target, e.nativeEvent))} />
         <p aria-live="polite">
           {mineRow ? <>{count(mineRow.all)} eligible finishes landed in the same minute ({hm(mineRow.minute)}:00–:59){expected.has(mineRow.minute) ? <>, {(mineRow.all / expected.get(mineRow.minute)!).toFixed(2)}× the smooth curve</> : null}.</>
             : mine && mineSeconds === null ? 'Enter h:mm or h:mm:ss between 1:30 and 12:00.'
               : mineSeconds !== null ? 'That minute is outside the charted range.' : 'Type a time to find its minute on the chart.'}
+          <KeypadHint />
         </p>
       </div>
     </div>

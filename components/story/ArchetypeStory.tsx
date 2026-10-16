@@ -11,6 +11,8 @@ import { checkpointLabel, count, hms, paceColour } from '@/lib/viz/format';
 import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
 import { paceLabel } from '@/lib/units';
 import { useStoryData } from './StoryData';
+import KeypadHint from '@/components/KeypadHint';
+import { keypadInput } from '@/lib/keypad';
 
 const SECTION_KM = [5, 5, 5, 5, 5, 5, 5, 5, 2.195];
 const BOUNDS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 42.195];
@@ -236,7 +238,8 @@ export function ArchetypeRiver({ data: given }: { data?: Archetypes }) {
 
 const SECTIONS_INPUT = ['5', '10', '15', '20', '25', '30', '35', '40', 'Finish'];
 
-function parseClock(text: string): number | null {
+/** A checkpoint time, h:mm:ss or mm:ss; dots or commas between the groups are read as colons. */
+export function parseClock(text: string): number | null {
   const t = text.trim();
   const m = t.replace(/[.,]/g, ':').match(/^(?:(\d{1,2}):)?([0-5]?\d):([0-5]\d)$/);
   if (!m) return null;
@@ -268,12 +271,12 @@ export function WhichArchetype({ data: given }: { data?: Archetypes }) {
   }, [valid, times, data]);
   return (
     <div className="viz-card which-card">
-      <div className="viz-head"><div><p className="viz-title">Which runner were you?</p><p className="viz-sub">Enter your elapsed time at each checkpoint (h:mm:ss). Nothing leaves your browser.</p></div></div>
+      <div className="viz-head"><div><p className="viz-title">Which runner were you?</p><p className="viz-sub">Enter your elapsed time at each checkpoint (h:mm:ss). Nothing leaves your browser.<KeypadHint /></p></div></div>
       <div className="which-grid">
         {SECTIONS_INPUT.map((label, i) => (
           <label key={label}>
             <span>{label === 'Finish' ? 'Finish' : checkpointLabel(Number(label), units)}</span>
-            <input value={values[i]} inputMode="decimal" aria-describedby={times[i] === null ? 'which-error' : undefined} onChange={(e) => setValues(values.map((v, k) => (k === i ? e.target.value : v)))} aria-invalid={times[i] === null} />
+            <input value={values[i]} inputMode="decimal" aria-describedby={times[i] === null ? 'which-error' : undefined} onChange={(e) => { const typed = keypadInput(e.target, e.nativeEvent); setValues(values.map((v, k) => (k === i ? typed : v))); }} aria-invalid={times[i] === null} />
           </label>
         ))}
       </div>

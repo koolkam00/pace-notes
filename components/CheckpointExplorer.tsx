@@ -4,6 +4,7 @@ import type { Profile } from '@/lib/personalized-catalog';
 import type { CheckpointData, PersonalSummary } from '@/lib/personalized-types';
 import { checkpointResult, clock, count, fmt, parseElapsed, parseSection, percentUnder } from '@/lib/personalized';
 import { loadAnalysisAggregate } from '@/lib/analysis-aggregates';
+import { keypadInput } from '@/lib/keypad';
 import AnalysisChart from './AnalysisChart';
 import { distanceLabel, paceLabel, unitText } from '@/lib/units';
 import { useUnits } from './UnitsProvider';
@@ -47,7 +48,7 @@ export default function CheckpointExplorer({ summary, profile }: { summary: Pers
     }}>
       <h2>Where are you in the race?</h2>
       <p className="control-help">An even-pace example is filled in. Replace it with a time from your race.</p>
-      <div className="profile-fields checkpoint-fields"><label>Distance reached<select value={checkpoint} onChange={event => { clearComparison(); setCheckpoint(Number(event.target.value)); setEdited(false); }}>{[20, 30, 35].map(km => <option key={km} value={km}>{distanceLabel(km, units)}</option>)}</select></label><label>Elapsed time<input value={elapsedText} onChange={event => { clearComparison(); setElapsedText(event.target.value); setEdited(true); }} placeholder="2:50:00" spellCheck={false} inputMode="text" aria-describedby="elapsed-help" /></label><label>Last {distanceLabel(5, units)} · optional<input value={sectionText} onChange={event => { clearComparison(); setSectionText(event.target.value); }} placeholder="e.g. 28:00" spellCheck={false} aria-describedby="elapsed-help" /></label></div>
+      <div className="profile-fields checkpoint-fields"><label>Distance reached<select value={checkpoint} onChange={event => { clearComparison(); setCheckpoint(Number(event.target.value)); setEdited(false); }}>{[20, 30, 35].map(km => <option key={km} value={km}>{distanceLabel(km, units)}</option>)}</select></label><label>Elapsed time<input value={elapsedText} onChange={event => { clearComparison(); setElapsedText(keypadInput(event.target, event.nativeEvent)); setEdited(true); }} placeholder="2:50:00" spellCheck={false} inputMode="text" aria-describedby="elapsed-help" /></label><label>Last {distanceLabel(5, units)} · optional<input value={sectionText} onChange={event => { clearComparison(); setSectionText(keypadInput(event.target, event.nativeEvent)); }} placeholder="e.g. 28:00" spellCheck={false} aria-describedby="elapsed-help" /></label></div>
       {units === 'mi' && <p className="control-help">Distances follow the recorded timing points, rounded to two decimals. Last 3.11 mi is the original 5 km section.</p>}
       <p className="control-help" id="elapsed-help">{text('Elapsed time: hours:minutes:seconds. Last 5 km: minutes:seconds.')}</p>
       <button className="button-primary" type="submit" disabled={loading}>{loading ? 'Finding comparable finishes…' : 'Compare this checkpoint'} <span aria-hidden="true">↗</span></button>

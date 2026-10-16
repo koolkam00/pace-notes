@@ -1,12 +1,14 @@
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import PlanFormUnits from './PlanFormUnits';
+import KeypadHint from '@/components/KeypadHint';
 
 export type HomeCourse = { slug: string; city: string };
 
 /**
  * The home hero's three ways to start, in one section (styles in app/story.css). The first, planning the next marathon,
  * is a plain GET form to /tools/plan with the planner's own parameters (course=<slug>|all, goal=H:MM), so it works
- * before the page's JavaScript runs; the planner reads and checks the goal. Its orange button is the page's primary
+ * before the page's JavaScript runs; the planner reads and checks the goal (a keypad's "3.30" too). Once the script has
+ * run, the goal's dot key types a colon (PlanFormUnits). Its orange button is the page's primary
  * action. The other two are ordinary links in one quieter style, so the next page view names the home page as the one
  * before it; the form's GET is a full page load, whose page view does not (docs/ANALYTICS.md says how each door is
  * counted). The form is masked in recordings (`.home-plan`, lib/replay-policy.ts); the course and goal go only into the
@@ -29,6 +31,7 @@ export default function HomeDoors({ courses, storyCount, analysisCount }: { cour
           <div className="home-plan-field">
             <label htmlFor="home-plan-goal">Goal time</label>
             <input id="home-plan-goal" name="goal" inputMode="decimal" autoComplete="off" spellCheck={false} placeholder="4:00" />
+            <KeypadHint block />
           </div>
         </div>
         <PlanFormUnits />

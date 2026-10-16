@@ -4,12 +4,14 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNod
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { Choice, DataState, DurationField, EvidencePanel, ExampleNote, ShareBar, Stat } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
+import KeypadHint from '@/components/KeypadHint';
 import { useWidth } from '@/components/viz/useSize';
 import { loadInsight } from '@/lib/insights';
 import { loadShard, shareUnder, type ProjectorCells, type ProjectorIndex, type ProjectorShard, type ProjectorValidation } from '@/lib/tools/data';
 import { MARATHON_KM, MATS_KM, perKm, perUnit } from '@/lib/tools/pace';
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { formatClock, formatDuration, formatHM, parseClock, parseDuration, parseTrackerText, type MatReading } from '@/lib/tools/time';
+import { keypadInput } from '@/lib/keypad';
 import { checkpointLabel, compact, count } from '@/lib/viz/format';
 import { KM_PER_MILE, distanceLabel, type UnitSystem } from '@/lib/units';
 
@@ -267,14 +269,15 @@ function ElapsedField({ label, value, onChange, placeholder, hint, large = false
       <input id={id} ref={ref} inputMode="decimal" autoComplete="off" spellCheck={false} placeholder={placeholder} value={text}
         aria-invalid={invalid || !!error || undefined} aria-describedby={hint || message ? `${id}-hint` : undefined}
         onChange={(e) => {
-          setText(e.target.value);
-          const next = e.target.value.trim() ? parseElapsed(e.target.value) : null;
+          const typed = keypadInput(e.target, e.nativeEvent);
+          setText(typed);
+          const next = typed.trim() ? parseElapsed(typed) : null;
           last.current = next;
           onChange(next);
         }}
         onBlur={() => { setTouched(true); if (parsed !== null) setText(elapsedText(parsed)); }} />
-      {message ? <p className="tool-field-hint is-error" id={`${id}-hint`}>{message}</p>
-        : hint ? <p className="tool-field-hint" id={`${id}-hint`}>{hint}</p> : null}
+      {message ? <p className="tool-field-hint is-error" id={`${id}-hint`}>{message}<KeypadHint /></p>
+        : hint ? <p className="tool-field-hint" id={`${id}-hint`}>{hint}<KeypadHint /></p> : <KeypadHint block />}
     </div>
   );
 }

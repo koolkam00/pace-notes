@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CityData, PersonalSummary } from '@/lib/personalized-types';
 import { AGE_OPTIONS, GOAL_MIN, GOAL_MAX, type Profile } from '@/lib/personalized-catalog';
 import { buildGuide, clock, count, parseMinutes, type GuideAnswer } from '@/lib/personalized';
+import { keypadInput } from '@/lib/keypad';
 import { TEN_ANALYSES, analysisHref, type AnalysisDefinition } from '@/lib/ten-analyses';
 import { EXAMPLE_PROFILE, profileSearch, readAnalysisProfile, sameProfile } from '@/lib/analysis-profile';
 import { loadAnalysisAggregate } from '@/lib/analysis-aggregates';
@@ -89,7 +90,7 @@ export default function AnalysisExplorer({ definition, summary, initialAnswer, w
         <div className="controls-heading"><h2>Make the comparison yours</h2><span>{changed ? 'Your selection' : 'Start with an example'}</span></div>
         <div className="profile-fields primary-profile-fields">
           {definition.controls.course && <label>Course<select value={draft.city} onChange={event => setDraft({ ...draft, city: event.target.value })}>{summary.cities.map(row => <option key={row.city} value={row.city}>{row.city === 'All courses' && definition.id === 'terrain' ? 'Choose a course' : row.city === 'New York' ? 'New York City' : row.city}</option>)}</select></label>}
-          {definition.controls.time && <label>{['profile', 'terrain', 'gains', 'age'].includes(definition.id) ? 'Finish time to explore' : 'Target time'}<input value={timeText} onChange={event => setTimeText(event.target.value)} placeholder="4:00" spellCheck={false} aria-describedby="time-help" /></label>}
+          {definition.controls.time && <label>{['profile', 'terrain', 'gains', 'age'].includes(definition.id) ? 'Finish time to explore' : 'Target time'}<input value={timeText} onChange={event => setTimeText(keypadInput(event.target, event.nativeEvent))} placeholder="4:00" spellCheck={false} aria-describedby="time-help" /></label>}
           {!definition.controls.course && <p className="control-help">This comparison spans every course with enough data. Refine the runners below.</p>}
           <button type="submit" className="button-primary">Update comparison <span aria-hidden="true">↗</span></button>
         </div>
@@ -97,7 +98,7 @@ export default function AnalysisExplorer({ definition, summary, initialAnswer, w
         <details className="profile-refinements" open={refining} onToggle={event => setRefining(event.currentTarget.open)}><summary>Refine by {definition.controls.age ? 'age, ' : ''}gender{definition.controls.previous ? ' or earlier performance' : ''}</summary><div className="profile-fields">
           {definition.controls.age && <label>Age group<select value={draft.age} onChange={event => setDraft({ ...draft, age: event.target.value })}>{AGE_OPTIONS.map(age => <option key={age} value={age}>{age === 'all' ? 'All ages' : age}</option>)}</select></label>}
           <label>Recorded gender<select value={draft.gender} onChange={event => setDraft({ ...draft, gender: event.target.value })}><option value="all">All recorded categories</option><option value="Women">Women</option><option value="Men">Men</option></select></label>
-          {definition.controls.previous && <label>Earlier marathon · optional<input value={previousText} onChange={event => setPreviousText(event.target.value)} placeholder="e.g. 4:15" spellCheck={false} /></label>}
+          {definition.controls.previous && <label>Earlier marathon · optional<input value={previousText} onChange={event => setPreviousText(keypadInput(event.target, event.nativeEvent))} placeholder="e.g. 4:15" spellCheck={false} /></label>}
         </div>{definition.controls.previous && <p className="control-help">An earlier time selects a 15-minute band of recorded bests from earlier years.{definition.id === 'age' ? ' When entered, that band replaces the achieved finish-time band.' : ''}</p>}</details>
         {formError && <p className="feedback-error" role="alert">{formError}</p>}
       </form>
