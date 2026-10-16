@@ -4,12 +4,14 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNod
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { Choice, DataState, DurationField, EvidencePanel, ExampleNote, ShareBar, Stat } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
+import KeypadHint from '@/components/KeypadHint';
 import { useWidth } from '@/components/viz/useSize';
 import { loadInsight } from '@/lib/insights';
 import { loadShard, shareUnder, type ProjectorCells, type ProjectorIndex, type ProjectorShard, type ProjectorValidation } from '@/lib/tools/data';
 import { MARATHON_KM, MATS_KM, perKm, perUnit } from '@/lib/tools/pace';
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { formatClock, formatDuration, formatHM, parseClock, parseDuration, parseTrackerText, type MatReading } from '@/lib/tools/time';
+import { keypadInput } from '@/lib/keypad';
 import { checkpointLabel, compact, count } from '@/lib/viz/format';
 import { KM_PER_MILE, distanceLabel, type UnitSystem } from '@/lib/units';
 
@@ -57,16 +59,22 @@ const VARIANT_GROUP: Record<string, string> = {
   slower: 'finishes on this pace whose last 5 km was slower than their average so far',
 };
 
-/** Elapsed chip time as trackers show it. "24:53" is minutes:seconds; "2:21" is hours:minutes; three groups are h:mm:ss. */
+/** Elapsed chip time as trackers show it. "24:53" (or "24:53.4") is minutes:seconds; "2:21" is hours:minutes; three groups are h:mm:ss. */
 export function parseElapsed(input: string): number | null {
-  const text = input.trim();
+  // One time, never a list, so a comma is a keypad's dot ("24:53,4" is 24:53.4).
+  const text = input.trim().replace(/,/g, '.');
   if (!text || text === 'none') return null;
-  const two = text.match(/^(\d{1,2})[:.,](\d{2})$/);
-  if (two) {
+  // Tenths only after a real colon: a dotted "10.30.15" is a walker's h:mm:ss, read below.
+  const two = text.match(/^(\d{1,2})[:.](\d{2})$/) ?? text.match(/^(\d{1,2}):(\d{2})\.(\d{1,3})$/);
+  if (two && (!two[3] || Number(two[1]) >= 10)) {
     const [a, b] = [Number(two[1]), Number(two[2])];
     if (b >= 60) return null;
-    return a >= 10 ? a * 60 + b : a * 3600 + b * 60;
+    return a >= 10 ? a * 60 + b + (two[3] ? Number(`0.${two[3]}`) : 0) : a * 3600 + b * 60;
   }
+  // The keypad's 25.50.12 shows 25:50:12 (lib/keypad.ts). From 13 up, three groups are minutes, seconds and hundredths:
+  // no mat is reached in under 13 minutes or after 13 hours.
+  const hundredths = text.match(/^(\d{2,3})[:.]([0-5]\d)[:.](\d{1,3})$/);
+  if (hundredths && Number(hundredths[1]) >= 13) return Number(hundredths[1]) * 60 + Number(hundredths[2]) + Number(`0.${hundredths[3]}`);
   const seconds = parseDuration(text, 'race');
   return seconds !== null && seconds > 0 ? seconds : null;
 }
@@ -240,9 +248,11 @@ function writeCards(cards: RunnerCard[]) {
 /* Inputs                                                              */
 /* ------------------------------------------------------------------ */
 
-function ElapsedField({ label, value, onChange, placeholder, hint, large = false, inputRef, error, id: given }: {
+function ElapsedField({ label, value, onChange, placeholder, hint, large = false, inputRef, error, id: given, keypadHint = true }: {
   label: ReactNode; value: number | null; onChange: (seconds: number | null) => void; placeholder?: string; hint?: ReactNode;
   large?: boolean; inputRef?: RefObject<HTMLInputElement>; error?: string | null; id?: string;
+  /** False where the caller places the "Tap . for :" line itself (the runner card's grid, below its Update button). */
+  keypadHint?: boolean;
 }) {
   const auto = useId();
   const id = given ?? auto;
@@ -267,14 +277,15 @@ function ElapsedField({ label, value, onChange, placeholder, hint, large = false
       <input id={id} ref={ref} inputMode="decimal" autoComplete="off" spellCheck={false} placeholder={placeholder} value={text}
         aria-invalid={invalid || !!error || undefined} aria-describedby={hint || message ? `${id}-hint` : undefined}
         onChange={(e) => {
-          setText(e.target.value);
-          const next = e.target.value.trim() ? parseElapsed(e.target.value) : null;
+          const typed = keypadInput(e.target, e.nativeEvent);
+          setText(typed);
+          const next = typed.trim() ? parseElapsed(typed) : null;
           last.current = next;
           onChange(next);
         }}
         onBlur={() => { setTouched(true); if (parsed !== null) setText(elapsedText(parsed)); }} />
-      {message ? <p className="tool-field-hint is-error" id={`${id}-hint`}>{message}</p>
-        : hint ? <p className="tool-field-hint" id={`${id}-hint`}>{hint}</p> : null}
+      {message ? <p className="tool-field-hint is-error" id={`${id}-hint`}>{message}{keypadHint && <KeypadHint />}</p>
+        : hint ? <p className="tool-field-hint" id={`${id}-hint`}>{hint}{keypadHint && <KeypadHint />}</p> : keypadHint && <KeypadHint block />}
     </div>
   );
 }
@@ -577,9 +588,10 @@ function RunnerCardView({ card, index, units, onUpdate, onRemove, onOpen }: {
       <div className="projector-card-actions">
         {card.mat < 40 ? (
           <div className="projector-card-update">
-            <ElapsedField label={`Time at ${matName(nextKm, units)}`} value={next} onChange={setNext} placeholder="h:mm:ss" />
+            <ElapsedField label={`Time at ${matName(nextKm, units)}`} value={next} onChange={setNext} placeholder="h:mm:ss" keypadHint={false} />
             <button type="button" className="button-secondary" disabled={next === null || next <= card.t}
               onClick={() => { if (next !== null && next > card.t) { onUpdate({ ...card, prev: card.t, t: next, mat: nextKm }); setNext(null); } }}>Update</button>
+            <KeypadHint block />
           </div>
         ) : <p className="projector-card-note">Past the last mat. The finish window above is the final one.</p>}
         <button type="button" className="projector-link-button" onClick={onOpen}>Open in the projector</button>

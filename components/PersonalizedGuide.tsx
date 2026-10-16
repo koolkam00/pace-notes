@@ -8,6 +8,7 @@ import { AGE_OPTIONS, GOAL_PRESETS, type Profile, type Focus } from '@/lib/perso
 import type { CityData, PersonalSummary, CheckpointData } from '@/lib/personalized-types';
 import { buildGuide, checkpointResult, clock, count, defaultProfile, fmt, GUIDE_PACK, parseElapsed, parseMinutes, parseSection, percentUnder, type GuideAnswer } from '@/lib/personalized';
 import { dataFetch } from '@/lib/data-fetch';
+import { keypadInput } from '@/lib/keypad';
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const cache = new Map<string, unknown>();
@@ -62,8 +63,8 @@ function CheckpointComparison({ summary, profile }: { summary: PersonalSummary; 
     }}>
       <div className="guide-fields">
         <label>Checkpoint<select value={checkpoint} onChange={event => { const km = Number(event.target.value); setCheckpoint(km); setElapsedText(clock(profile.goal * 60 * km / 42.195, true)); }}>{[20, 30, 35].map(km => <option value={km} key={km}>{km} km</option>)}</select></label>
-        <label>Elapsed time (h:mm:ss)<input value={elapsedText} onChange={event => setElapsedText(event.target.value)} aria-describedby="checkpoint-example" spellCheck={false} /></label>
-        <label>Latest 5 km time (optional)<input value={sectionText} onChange={event => setSectionText(event.target.value)} placeholder="e.g. 21:30" spellCheck={false} /></label>
+        <label>Elapsed time (h:mm:ss)<input value={elapsedText} onChange={event => setElapsedText(keypadInput(event.target, event.nativeEvent))} aria-describedby="checkpoint-example" spellCheck={false} /></label>
+        <label>Latest 5 km time (optional)<input value={sectionText} onChange={event => setSectionText(keypadInput(event.target, event.nativeEvent))} placeholder="e.g. 21:30" spellCheck={false} /></label>
       </div>
       <p id="checkpoint-example" className="study-meta">An even-pace time is prefilled as an example. Replace it with your actual elapsed time.</p>
       <button type="submit" className="guide-submit">Compare this checkpoint</button>
@@ -164,12 +165,12 @@ export default function PersonalizedGuide({ summary }: { summary: PersonalSummar
         <label>Marathon<select value={draft.city} onChange={event => setDraft({ ...draft, city: event.target.value })}>{summary.cities.map(c => <option key={c.city} value={c.city}>{c.city === 'New York' ? 'New York City' : c.city}</option>)}</select></label>
         <label>I want to…<select value={draft.focus} onChange={event => setDraft({ ...draft, focus: event.target.value as Focus })}>{Object.entries(focusLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></label>
         <label>{draft.focus === 'review' ? 'Time to compare' : 'Target time'}<select value={customGoal ? 'custom' : String(parseMinutes(goalText))} onChange={event => { setCustomGoal(event.target.value === 'custom'); if (event.target.value !== 'custom') setGoalText(clock(Number(event.target.value) * 60)); }}><option value="custom">Custom time</option>{GOAL_PRESETS.map(goal => <option value={goal} key={goal}>Sub-{clock(goal * 60)}</option>)}</select></label>
-        {customGoal && <label>Custom time (h:mm)<input value={goalText} onChange={event => setGoalText(event.target.value)} placeholder="e.g. 2:57" aria-describedby="guide-target-note" spellCheck={false} /></label>}
+        {customGoal && <label>Custom time (h:mm)<input value={goalText} onChange={event => setGoalText(keypadInput(event.target, event.nativeEvent))} placeholder="e.g. 2:57" aria-describedby="guide-target-note" spellCheck={false} /></label>}
         <label>Age group<select value={draft.age} onChange={event => setDraft({ ...draft, age: event.target.value })}>{AGE_OPTIONS.map(age => <option key={age} value={age}>{age === 'all' ? 'All ages' : age}</option>)}</select></label>
       </div>
       <details className="guide-optional" open={optionalOpen} onToggle={event => setOptionalOpen(event.currentTarget.open)}><summary>Optional: gender and previous marathon</summary><div className="guide-fields">
         <label>Gender<select value={draft.gender} onChange={event => setDraft({ ...draft, gender: event.target.value })}><option value="all">All recorded categories</option><option value="Men">Men</option><option value="Women">Women</option></select></label>
-        <label>Previous marathon (h:mm)<input value={previousText} onChange={event => setPreviousText(event.target.value)} placeholder="e.g. 3:10" aria-describedby="guide-previous-note" spellCheck={false} /></label>
+        <label>Previous marathon (h:mm)<input value={previousText} onChange={event => setPreviousText(keypadInput(event.target, event.nativeEvent))} placeholder="e.g. 3:10" aria-describedby="guide-previous-note" spellCheck={false} /></label>
       </div><p className="study-meta" id="guide-previous-note">An earlier time selects a 15-minute band of recorded bests from earlier years. Leave it blank for broader field comparisons.</p></details>
       <p className="study-meta" id="guide-target-note">Targets are comparison thresholds. Historical runners’ declared goals are unknown.</p>
       {formError && <p role="alert" className="guide-error">{formError}</p>}

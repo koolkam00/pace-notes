@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type R
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { Choice, DataState, DurationField, EvidencePanel, ExampleNote, ShareBar, Stat } from '@/components/tools/ui';
 import { MarathonHandoffs } from '@/components/tools/Handoffs';
+import KeypadHint from '@/components/KeypadHint';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
 import { loadInsight } from '@/lib/insights';
@@ -12,6 +13,7 @@ import { HALF_KM, MARATHON_KM, perKm, perUnit, unitKm } from '@/lib/tools/pace';
 import { REALISTIC_B, RIEGEL_B, TANDA_RANGE_S, marathonRange, personalExponent, riegel, tandaPace, timeForVdot, vdot, type MarathonRange } from '@/lib/tools/predictor';
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
+import { keypadInput } from '@/lib/keypad';
 import { count } from '@/lib/viz/format';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 
@@ -99,18 +101,25 @@ function paceWords(secondsPerKm: number, units: UnitSystem): string {
 
 /**
  * Read a race time the way runners type it for this distance: "22:30" is minutes for a 5K, "1:55" is hours for a half.
- * Only two-group times are ambiguous; the reading that gives a plausible pace wins. When neither does, the reading nearer
+ * Two-group times are ambiguous, and so is the keypad's "25:50:12"; the reading that gives a plausible pace wins. When neither does, the reading nearer
  * the plausible paces wins, so "12:00" for a 5K is read as 12 minutes (too fast) rather than 12 hours. Zero is unreadable.
  */
 export function parseRaceTime(text: string, km: number | null): number | null {
   const long = parseDuration(text, 'race');
   const short = parseDuration(text, 'pace');
+  const plausible = (s: number) => km !== null && s / km >= PACE_MIN && s / km <= PACE_MAX;
   let read: number | null;
   if (long === null || short === null || long === short || km === null) read = long ?? short;
   else {
-    const plausible = (s: number) => s / km >= PACE_MIN && s / km <= PACE_MAX;
     const off = (s: number) => (s / km < PACE_MIN ? Math.log(PACE_MIN / (s / km)) : Math.log(s / km / PACE_MAX));
     read = plausible(long) ? long : plausible(short) ? short : off(short) <= off(long) ? short : long;
+  }
+  // The keypad's 25.50.12 shows 25:50:12, and a mile's 5:45 with tenths typed after it shows 5:45:3 (lib/keypad.ts): three
+  // groups can be minutes, seconds and hundredths, which a short race's time is when its hours reading is not a plausible pace.
+  const hundredths = /^(\d{1,3})[:.,]([0-5]\d)[:.,](\d{1,3})$/.exec(text.trim());
+  if (hundredths && !(read !== null && plausible(read))) {
+    const minutes = Number(hundredths[1]) * 60 + Number(hundredths[2]) + Number(`0.${hundredths[3]}`);
+    if (plausible(minutes)) read = minutes;
   }
   return read !== null && read > 0 ? read : null;
 }
@@ -202,7 +211,7 @@ function RaceTimeField({ id, label, text, km, onText, error, hint, large = false
       <label htmlFor={id}>{label}</label>
       <input id={id} ref={inputRef} inputMode="decimal" autoComplete="off" spellCheck={false} placeholder={large ? '1:55:00' : 'h:mm:ss'} value={text}
         aria-invalid={invalid || !!message || undefined} aria-describedby={message || hint ? `${id}-hint` : undefined}
-        onChange={(e) => { if (!editing) { setEditing(true); onEditing?.(true); } onText(e.target.value); }}
+        onChange={(e) => { if (!editing) { setEditing(true); onEditing?.(true); } onText(keypadInput(e.target, e.nativeEvent)); }}
         onBlur={() => {
           setTouched(true);
           setEditing(false);
@@ -210,8 +219,8 @@ function RaceTimeField({ id, label, text, km, onText, error, hint, large = false
           // Tidy the text only when it reads as a usable race time; an implausible reading is left as typed, next to its error.
           if (parsed !== null && km !== null && checkRace(km, parsed, 'km').ok && fmtTime(parsed) !== text) onText(fmtTime(parsed));
         }} />
-      {message ? <p className="tool-field-hint is-error" id={`${id}-hint`}>{message}</p>
-        : hint ? <p className="tool-field-hint" id={`${id}-hint`}>{hint}</p> : null}
+      {message ? <p className="tool-field-hint is-error" id={`${id}-hint`}>{message}<KeypadHint /></p>
+        : hint ? <p className="tool-field-hint" id={`${id}-hint`}>{hint}<KeypadHint /></p> : <KeypadHint block />}
     </div>
   );
 }

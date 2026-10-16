@@ -5,6 +5,7 @@ import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import PaceBandStrip, { type RouteProfile } from '@/components/tools/PaceBandStrip';
 import { Choice, EvidencePanel, ExampleNote, ShareBar, Stat, Stepper } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
+import KeypadHint from '@/components/KeypadHint';
 import { useWidth } from '@/components/viz/useSize';
 import { loadInsight } from '@/lib/insights';
 import { loadShard, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
@@ -12,6 +13,7 @@ import { MARATHON_KM, perUnit, splitTable, watchTarget, type SplitInterval } fro
 import { CHECKPOINTS, PACE_BAND_INDEX, cellOf, fmtGoal, fmtPace, paceBandShardPath, type PaceBandCell as Cell } from '@/lib/tools/pace-band-data';
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
+import { keypadInput } from '@/lib/keypad';
 import { DEFAULT_UNITS, KM_PER_MILE, type UnitSystem } from '@/lib/units';
 import { unitHref } from '@/lib/unit-preference';
 import { SECTION_BOUNDS, count, sectionLabel } from '@/lib/viz/format';
@@ -484,7 +486,7 @@ function GoalField({ seconds, raw, onChange, onStep, onEdit, onProblem }: {
         <input id={id} inputMode="decimal" autoComplete="off" spellCheck={false} placeholder="4:00" value={text} enterKeyHint="done"
           aria-invalid={show || undefined} aria-describedby={`${id}-hint`}
           onChange={(e) => {
-            const value = e.target.value;
+            const value = keypadInput(e.target, e.nativeEvent);
             setText(value);
             onEdit();
             setPaused(false);
@@ -498,7 +500,7 @@ function GoalField({ seconds, raw, onChange, onStep, onEdit, onProblem }: {
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitNow(text, false); } }}
           onBlur={() => { setTouched(true); commitNow(text, true); }} />
       </Stepper>
-      <p className={`tool-field-hint${show ? ' is-error' : ''}`} id={`${id}-hint`}>{show ? problem : 'h:mm, or h:mm:ss. Observed groups use whole minutes from 2:30 to 6:30.'}</p>
+      <p className={`tool-field-hint${show ? ' is-error' : ''}`} id={`${id}-hint`}>{show ? problem : 'h:mm, or h:mm:ss. Observed groups use whole minutes from 2:30 to 6:30.'}<KeypadHint /></p>
     </div>
   );
 }

@@ -2,6 +2,9 @@
 
 export type DurationMode = 'race' | 'pace';
 
+/** The dot key types a colon in clock-style time fields (lib/keypad.ts, kept apart so pages without this reader stay small). */
+export { keypadColons } from '@/lib/keypad';
+
 const NUM = /^\d+(?:\.\d+)?$/;
 
 /**
@@ -12,9 +15,22 @@ const NUM = /^\d+(?:\.\d+)?$/;
  * Returns seconds or null.
  */
 export function parseDuration(input: string, mode: DurationMode = 'race'): number | null {
-  const text = input.trim().toLowerCase().replace(/\s+/g, ' ');
+  // A comma is a dot: keypads in some locales have a comma where others have the dot, so "8,5" is 8.5 minutes too.
+  const text = input.trim().toLowerCase().replace(/\s+/g, ' ').replace(/,/g, '.');
   if (!text) return null;
-  const units = text.match(/^(?:(\d+(?:\.\d+)?)\s*h(?:rs?|ours?)?)?\s*(?:(\d+(?:\.\d+)?)\s*m(?:in(?:utes?|s)?)?)?\s*(?:(\d+(?:\.\d+)?)\s*s(?:ec(?:onds?|s)?)?)?$/);
+  // A clock time with a unit after it reads as the clock, the unit naming its first group: "3:30h" is 3 h 30 min and
+  // "25:50 min" is 25 min 50 s.
+  const clock = text.match(/^(\d+):([0-5]\d)(?::([0-5]\d))?\s*(h(?:rs?|ours?)?|m(?:in(?:utes?|s)?)?)$/);
+  if (clock) {
+    const [a, b, c] = [Number(clock[1]), Number(clock[2]), clock[3] === undefined ? null : Number(clock[3])];
+    if (clock[4].startsWith('h')) return a * 3600 + b * 60 + (c ?? 0);
+    return c === null ? a * 60 + b : null;
+  }
+  // In a race time the dot key types a colon as it is typed (lib/keypad.ts), before any unit letter arrives, so a typed
+  // "3.5h" reaches here as "3:5h" and "3.75 hours" as "3:75 hours". With a unit, a colon that no clock time could have
+  // (before a single digit, or before 60 or more) is read as the dot it was.
+  const unitText = mode === 'race' && /[a-z]/.test(text) ? text.replace(/:(?=\d(?!\d)|[6-9]\d(?!\d))/g, '.') : text;
+  const units = unitText.match(/^(?:(\d+(?:\.\d+)?)\s*h(?:rs?|ours?)?)?\s*(?:(\d+(?:\.\d+)?)\s*m(?:in(?:utes?|s)?)?)?\s*(?:(\d+(?:\.\d+)?)\s*s(?:ec(?:onds?|s)?)?)?$/);
   if (units && (units[1] || units[2] || units[3])) {
     const total = Number(units[1] ?? 0) * 3600 + Number(units[2] ?? 0) * 60 + Number(units[3] ?? 0);
     return Number.isFinite(total) && total > 0 ? Math.round(total * 1000) / 1000 : null;
@@ -30,12 +46,17 @@ export function parseDuration(input: string, mode: DurationMode = 'race'): numbe
     if (b >= 60) return null;
     return mode === 'race' ? a * 3600 + b * 60 : a * 60 + b;
   }
-  if (NUM.test(text)) {
-    const minutes = Number(text);
+  // The keypad types a race time's dot as a colon before the next key arrives (lib/keypad.ts), so "45.5" reaches here as
+  // "45:5" and "3.5" as "3:5". A lone colon before a single last digit is read as that dot: decimal minutes, as typed.
+  const decimal = mode === 'race' ? /^(\d+):(\d)$/.exec(text) : null;
+  if (NUM.test(text) || decimal) {
+    const minutes = Number(decimal ? `${decimal[1]}.${decimal[2]}` : text);
     return minutes > 0 ? Math.round(minutes * 60 * 1000) / 1000 : null;
   }
   let parts = text.split(':');
-  if (parts.length === 1) {
+  // Dots or commas before the last colon separate groups too: a pasted "1.12" with ":55" typed after it is 1:12:55.
+  if (parts.length > 1) parts = [...parts.slice(0, -1).flatMap((p) => p.split(/[.,]/)), parts[parts.length - 1]];
+  else {
     const dotted = text.split(/[.,]/);
     if ((dotted.length === 3) || (dotted.length === 2 && mode === 'pace')) parts = dotted;
     else return null;
@@ -86,9 +107,9 @@ export function formatClock(secondsAfterMidnight: number): string {
   return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
 }
 
-/** Parse a clock time of day ("8:05", "8:05 am", "20:05") to seconds after midnight. */
+/** Parse a clock time of day ("8:05", "8:05 am", "20:05", or with keypad dots: "8.05 am") to seconds after midnight. */
 export function parseClock(input: string): number | null {
-  const m = input.trim().toLowerCase().match(/^(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(am|pm|a|p)?$/);
+  const m = input.trim().toLowerCase().match(/^(\d{1,2})(?:[:.,](\d{2}))?(?:[:.,](\d{2}))?\s*(am|pm|a|p)?$/);
   if (!m) return null;
   let h = Number(m[1]);
   const min = Number(m[2] ?? 0);

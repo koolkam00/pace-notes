@@ -4,7 +4,8 @@
 // clean path and the previous page's reading figures, and each page is recorded except the runner search, which never
 // is. Then the home page's first screen on the two common iPhone sizes (the plan button and the other two ways to start
 // show without scrolling, and that button is the only orange control there), the hero at 200% zoom, and its
-// course-and-goal form, which goes to the planner by GET with and without the page's JavaScript. Last, the units
+// course-and-goal form, which goes to the planner by GET with and without the page's JavaScript, and the keypad's dot
+// typing a colon in time fields (the home goal, a tool's time, a pace and the split check). Last, the units
 // switch: it works on /research opened directly, and every page served with the inert placeholder reads the same in
 // miles and kilometres. Then a course page's contents link, a link away and Back.
 const fs = require('node:fs');
@@ -189,6 +190,7 @@ async function homeForm(h) {
     const shown = await page.evaluate(() => ({
       plan: document.querySelector('#plan-headline-title')?.textContent.trim() ?? null,
       asks: /Type a goal between/.test(document.querySelector('.tool-workspace')?.textContent ?? ''),
+      goal: new URLSearchParams(location.search).get('goal'),
     }));
     await run.close();
     return shown;
@@ -197,6 +199,99 @@ async function homeForm(h) {
   h.check('with the goal left out the planner opens at its 4:00 example on the chosen course', example.plan === '4:00 in Berlin' && !example.asks, example);
   const cleared = await planner('course=berlin&goal=');
   h.check('with goal= the planner shows no plan and asks for a goal (its rule: a cleared goal stays cleared)', cleared.plan === null && cleared.asks, cleared);
+  // A keypad's 3.30 typed before (or without) the page's JavaScript is sent as it is; the planner reads it as 3:30 and
+  // rewrites its address to goal=3:30.
+  const dotted = await submit({ javaScript: false }, { goal: '3.30' });
+  h.check('without JavaScript a typed 3.30 is sent as goal=3.30', sent(dotted) === sent([['course', 'berlin'], ['goal', '3.30']]), dotted);
+  const read = await planner('course=berlin&goal=3.30');
+  h.check('the planner opens goal=3.30 at 3:30 and rewrites its address to goal=3:30', read.plan === '3:30 in Berlin' && read.goal === '3:30', read);
+}
+
+// An iPhone's numeric keypad (inputMode="decimal") has a dot, or a comma in some locales, and no colon. In a race-time
+// field the dot key types a colon as it is typed, and touch screens show "Tap . for :" (never desktops, never screen
+// readers); a pace keeps its dot ("8.5" is 8.5 minutes) and shows m:ss once the field is left. S2 types dotted times too,
+// so they go through its check that typed values never reach PostHog.
+async function keypad(h) {
+  const hintOf = (page, selector) => page.evaluate((selector) => {
+    const el = document.querySelector(selector);
+    return el && { shown: getComputedStyle(el).display !== 'none', ariaHidden: el.getAttribute('aria-hidden'), text: el.textContent.replace(/\s+/g, ' ').trim(), coarse: matchMedia('(pointer: coarse)').matches };
+  }, selector);
+  const typeOnly = async (page, selector, value) => {
+    const field = typeof selector === 'string' ? page.locator(selector).first() : selector.first();
+    await field.scrollIntoViewIfNeeded({ timeout: 8000 });
+    await field.click({ timeout: 8000 });
+    await field.fill('');
+    await field.pressSequentially(value, { delay: 15 });
+    return field.inputValue();
+  };
+  const desk = await h.run('keypad hint on a desktop', DESKTOP);
+  const deskPage = await desk.newPage();
+  await deskPage.goto(SITE + '/', { waitUntil: 'load' });
+  await deskPage.waitForTimeout(600);
+  const deskHint = await hintOf(deskPage, '.home-plan .keypad-hint');
+  h.check('desktop: the home goal has the keypad hint, not shown (a fine pointer)', deskHint && !deskHint.shown && !deskHint.coarse, deskHint);
+  // A keyboard has a colon key, so on a desktop a typed dot stays a dot (the phone's keypad makes it a colon before a
+  // letter arrives, "3:5h", which parseDuration still reads as 3.5 hours): either way the reading is 3.5 hours.
+  await deskPage.goto(SITE + '/tools/plan?course=berlin', { waitUntil: 'load' });
+  await deskPage.waitForTimeout(1200);
+  const units = [];
+  for (const typedUnits of ['3.5h', '3.75 hours']) {
+    const shown = await typeOnly(deskPage, '.plan-goal input', typedUnits);
+    await deskPage.keyboard.press('Tab');
+    await deskPage.waitForTimeout(400);
+    units.push({ typed: typedUnits, shown, left: await deskPage.locator('.plan-goal input').first().inputValue(), goal: new URL(deskPage.url()).searchParams.get('goal') });
+  }
+  await desk.close();
+  h.check('desktop: 3.5h and 3.75 hours typed key by key in the planner read 3:30:00 and 3:45:00 (goal=3:30, goal=3:45)',
+    units[0].left === '3:30:00' && units[0].goal === '3:30' && units[1].left === '3:45:00' && units[1].goal === '3:45', units);
+
+  const run = await h.run('keypad', PHONE);
+  const page = await run.newPage();
+  await page.goto(SITE + '/', { waitUntil: 'load' });
+  await page.waitForTimeout(800);
+  const hint = await hintOf(page, '.home-plan .keypad-hint');
+  h.check('phone: the home goal shows "Tap . for :", hidden from screen readers', hint && hint.shown && hint.ariaHidden === 'true' && hint.text === 'Tap . for :', hint);
+  await page.selectOption('#home-plan-course', 'berlin');
+  const typed = await typeOnly(page, '#home-plan-goal', '3.30');
+  h.check('phone: typing 3.30 into the home goal shows 3:30', typed === '3:30', typed);
+  const [request] = await Promise.all([
+    page.waitForRequest(r => r.isNavigationRequest() && new URL(r.url()).pathname === '/tools/plan', { timeout: 15000 }),
+    page.locator('.home-plan-button').click(),
+  ]);
+  await page.waitForURL(at => new URL(at).pathname === '/tools/plan', { timeout: 15000 });
+  await page.waitForTimeout(1500);
+  const plan = await page.evaluate(() => ({ plan: document.querySelector('#plan-headline-title')?.textContent.trim() ?? null, field: document.querySelector('.plan-goal input')?.value ?? null }));
+  const sentGoal = new URL(request.url()).searchParams.get('goal');
+  h.check('phone: the form sends goal=3:30 and the planner shows 3:30', sentGoal === '3:30' && plan.plan === '3:30 in Berlin', { sentGoal, ...plan });
+
+  await page.goto(SITE + '/tools/pace-calculator', { waitUntil: 'load' });
+  await page.waitForTimeout(1200);
+  const time = await typeOnly(page, page.getByLabel('Time', { exact: true }), '3.30.15');
+  h.check('phone: typing 3.30.15 into the pace calculator\'s time shows 3:30:15 as it is typed', time === '3:30:15', time);
+  const pace = await typeOnly(page, page.getByLabel(/^Pace per mile/), '8.5');
+  await page.keyboard.press('Tab');
+  await page.waitForTimeout(300);
+  const left = await page.getByLabel(/^Pace per mile/).first().inputValue();
+  h.check('phone: a pace keeps 8.5 while it is typed and shows 8:30 once the field is left', pace === '8.5' && left === '8:30', { typed: pace, left });
+  const paceHint = await page.evaluate(() => [...document.querySelectorAll('.tool-field')].filter(f => /Pace per/.test(f.querySelector('label')?.textContent ?? '')).map(f => !!f.querySelector('.keypad-hint')));
+  h.check('phone: the pace field has no keypad hint (its dot is a decimal point)', JSON.stringify(paceHint) === '[false]', paceHint);
+
+  // At 200% zoom (195 px wide) the inline hint wraps as one piece, never leaving the colon alone on a line.
+  await page.setViewportSize({ width: 195, height: 800 });
+  await page.goto(SITE + '/tools/pace-band', { waitUntil: 'load' });
+  await page.waitForTimeout(1200);
+  const narrow = await page.evaluate(() => [...document.querySelectorAll('.tool-field-hint .keypad-hint')].filter(el => getComputedStyle(el).display !== 'none').map(el => new Set([...el.getClientRects()].map(r => Math.round(r.top))).size));
+  h.check('phone at 195 px: the pace band goal\'s inline "Tap . for :" sits on one line', narrow.length === 1 && narrow[0] === 1, narrow);
+  await page.setViewportSize(PHONE.viewport);
+
+  // The split check's nine boxes share one hint; each box turns dots into colons, and its pasted list is left as it is.
+  await page.goto(SITE + '/tools/split-check', { waitUntil: 'load' });
+  await page.waitForTimeout(1200);
+  const gridHint = await hintOf(page, '.split-check-inputs fieldset ~ .tool-field-hint .keypad-hint');
+  const mat = await typeOnly(page, 'input[id$="-t2"]', '1.12.55');
+  h.check('phone: the split check shows one keypad hint for its nine boxes, and 1.12.55 typed in a box shows 1:12:55',
+    gridHint && gridHint.shown && mat === '1:12:55' && await page.locator('.split-check-inputs .keypad-hint').count() === 1, { gridHint, mat });
+  await run.close();
 }
 
 // Every page whose text changes with the units has the header's working switch (lib/unit-preference.ts; the build stops
@@ -271,6 +366,7 @@ module.exports = {
     { name: 'home first screen', weight: 6, run: firstScreen },
     { name: 'home at 200% zoom', weight: 5, run: zoomed },
     ...(quick ? [] : [{ name: 'home form', weight: 16, run: homeForm }]),
+    { name: 'keypad colon', weight: 8, run: keypad },
     { name: 'units switch', weight: 12, run: unitSwitch },
     { name: 'course page Back', weight: 8, run: h => courseBack(h, PHONE) },
   ],

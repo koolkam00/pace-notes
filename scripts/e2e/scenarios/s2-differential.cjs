@@ -44,7 +44,8 @@ const CASES = {
   } },
   'course-chooser-url': { path: v => `/tools/course-chooser?goal=${v.hm}` },
   'split-check': { path: '/tools/split-check', async drive(page, v, log) {
-    for (let i = 0; i < 9; i++) await step(log, 't' + i, () => type(page, `input[id$="-t${i}"]`, v.splits[i]));
+    // Typed with a keypad's dots (0.23.11): each box turns them into colons as they are typed (S1 checks the box).
+    for (let i = 0; i < 9; i++) await step(log, 't' + i, () => type(page, `input[id$="-t${i}"]`, v.splits[i].replace(/:/g, '.')));
     await step(log, 'gender', () => page.locator('.ph-no-capture[role=group] button').nth(v.genderIdx).click());
   } },
   'split-check-paste': { path: '/tools/split-check', async drive(page, v, log) {
@@ -57,7 +58,8 @@ const CASES = {
     await step(log, 'more', () => open(page, 'details.predictor-more'));
     await step(log, 't2', () => type(page, 'input[id$="-t2"]', v.tenK));
     await step(log, 'wk', () => type(page, 'input[id$="-wk"]', v.weekly));
-    await step(log, 'tp', () => type(page, label(page, /Average training pace/, false), v.tp));
+    // A pace typed with a keypad's dot (8.47), shown as 8:47 once the field is left.
+    await step(log, 'tp', () => type(page, label(page, /Average training pace/, false), v.tp.replace(':', '.')));
   } },
   'predictor-url': { path: v => `/tools/predictor?t=${v.half}&d=half&t2=${v.tenK}&d2=10k&wk=${v.weekly}&tp=${v.tp}` },
   // The result's next steps open the pace band and the pacing-pattern analysis with a time worked out from the typed one
@@ -121,9 +123,10 @@ const CASES = {
   // The home page's course-and-goal form, then the planner it opens. Both courses are ones neither page names by itself
   // (the hero replay's races and the planner's method note are page content in both runs, so a needle among them could
   // never fail). The form must be masked in the recording (homeFormMasked).
-  'home': { path: '/', needles: { A: ['Helsinki'], B: ['Copenhagen'] }, after: homeFormMasked, async drive(page, v, log) {
+  // The goal is typed with a keypad's dot (3.17), which the field turns into 3:17: neither form may be sent.
+  'home': { path: '/', needles: { A: ['Helsinki', '3\\.17'], B: ['Copenhagen', '3\\.52'] }, after: homeFormMasked, async drive(page, v, log) {
     await step(log, 'course', () => page.selectOption('#home-plan-course', v === V.A ? 'helsinki' : 'copenhagen'));
-    await step(log, 'goal', () => type(page, '#home-plan-goal', v.hm));
+    await step(log, 'goal', () => type(page, '#home-plan-goal', v.hm.replace(':', '.')));
     await step(log, 'plan your race', async () => { await page.locator('.home-plan-button').click(); await page.waitForURL(url => new URL(url).pathname === '/tools/plan'); });
     await page.waitForTimeout(1500); await wiggle(page, 5);
   } },

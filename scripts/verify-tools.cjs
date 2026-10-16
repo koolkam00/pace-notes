@@ -39,6 +39,135 @@ checks += 11;
 assert.deepEqual(time.parseTrackerText('25K 2:05:31\n30 km 02:31:07 4:59/km\nHalf 1:52:10\n5K 25:30'), [
   { km: 25, elapsed: 7531 }, { km: 30, elapsed: 9067 }, { km: 5, elapsed: 1530 }]); ok();
 
+// ---- the keypad: an iPhone's numeric keypad has a dot (a comma in some locales) and no colon. In a single race-time field
+// the dot key types a colon (lib/keypad.ts); a pace keeps its dot until the field is left; lists of times are never
+// changed; and every reader behind a time field takes dots and commas between the groups.
+{
+  const keypad = require('../lib/keypad.ts');
+  assert.equal(time.keypadColons, keypad.keypadColons, 'lib/tools/time.ts re-exports the one helper'); ok();
+  for (const [typed, shown] of [['3.30', '3:30'], ['3,30', '3:30'], ['3.30.15', '3:30:15'], ['1.12.55', '1:12:55'], ['3.', '3:'], ['0,24,10', '0:24:10'],
+    ['3:30', '3:30'], ['3:30.15', '3:30:15'], ['1:12:55.3', '1:12:55.3'], ['1.12.55.3', '1:12:55.3'], ['210', '210'], ['3.5h', '3.5h'], ['9.14 am', '9.14 am'], ['', '']]) {
+    assert.equal(keypad.keypadColons(typed), shown, `race keypad: ${typed}`); ok();
+  }
+  for (const typed of ['8.5', '8.05', '8,30', '8:05']) { assert.equal(keypad.keypadColons(typed, 'pace'), typed, `a pace keeps what was typed: ${typed}`); ok(); }
+  // What the field then reads is what the keypad meant.
+  for (const typed of ['3.30', '3.30.15', '1.12.55', '3,30']) { assert.equal(time.parseDuration(keypad.keypadColons(typed)), time.parseDuration(typed), `same reading: ${typed}`); ok(); }
+  // Typed key by key, the dot becomes a colon before any unit letter arrives ("3.5h" shows "3:5h"), and the reading is
+  // still what was typed: 3.5 hours, 3.75 hours, 45.5 minutes (it was so before the keypad change). A pace's colon stays.
+  const keyByKey = (typed, mode = 'race') => [...typed].reduce((shown, key) => keypad.keypadColons(shown + key, mode), '');
+  for (const [typed, shown, expected] of [['3.5h', '3:5h', 12600], ['3.75 hours', '3:75 hours', 13500], ['45.5 min', '45:5 min', 2730],
+    ['3.5 h 10m', '3:5 h 10m', 13200], ['3.30', '3:30', 12600], ['1.12.55', '1:12:55', 4375]]) {
+    assert.equal(keyByKey(typed), shown, `typed key by key: ${typed}`);
+    assert.equal(time.parseDuration(shown, 'race'), expected, `read as typed: ${typed}`);
+    assert.equal(time.parseDuration(shown, 'race'), time.parseDuration(typed, 'race'), `same reading key by key: ${typed}`); ok();
+  }
+  assert.equal(time.parseDuration('8:30 min', 'pace'), 510, 'a pace clock with a unit is the clock, never 8.3 minutes'); ok();
+  assert.equal(time.parseDuration('3:30:00 h', 'race'), 12600, 'h:mm:ss with a unit is the clock'); ok();
+  // keypadInput changes only the dot or comma just typed, in place with the caret kept. Pasted or dropped text is left as it
+  // is, and so are its dots when it is edited later: a pasted "25:50.12" with its last digit deleted, or a digit added, keeps
+  // its tenths.
+  const field = (value, caret = 2) => ({ value, selectionStart: caret, selectionEnd: caret, setSelectionRange(a, b) { this.caret = [a, b]; } });
+  const typedField = field('3.');
+  assert.equal(keypad.keypadInput(typedField, { inputType: 'insertText', data: '.' }), '3:'); assert.equal(typedField.value, '3:'); assert.deepEqual(typedField.caret, [2, 2]);
+  assert.equal(keypad.keypadInput(field('3:30.', 5), { inputType: 'insertText', data: '.' }), '3:30:');
+  assert.equal(keypad.keypadInput(field('1:12:55.', 8), { inputType: 'insertText', data: '.' }), '1:12:55.', 'a third group stays a dot');
+  for (const inputType of ['insertFromPaste', 'insertFromDrop']) { const pasted = field('25:50.12', 8); assert.equal(keypad.keypadInput(pasted, { inputType, data: null }), '25:50.12'); assert.equal(pasted.value, '25:50.12'); }
+  const edited = field('25:50.1', 7);
+  assert.equal(keypad.keypadInput(edited, { inputType: 'deleteContentBackward', data: null }), '25:50.1', 'a deletion changes nothing'); assert.equal(edited.value, '25:50.1');
+  assert.equal(keypad.keypadInput(field('25:50.123', 9), { inputType: 'insertText', data: '3' }), '25:50.123', 'a digit leaves earlier dots alone');
+  assert.equal(keypad.keypadInput(field('3.30', 4), { inputType: 'insertText', data: '0' }), '3.30', 'only the key just typed changes');
+  assert.equal(keypad.keypadInput(field('8.', 2), { inputType: 'insertText', data: '.' }, 'pace'), '8.');
+  assert.equal(keypad.keypadInput(field('3.30')), '3:30', 'without an event the whole text is read');
+  // A pasted "1.12" with ".55" typed after it reads 1:12:55, never 1.12 hours and 55 minutes; a pasted "1.12.55" already has
+  // its two separators, so a dot typed after it stays a dot.
+  assert.equal(keypad.keypadInput(field('1.12.', 5), { inputType: 'insertText', data: '.' }), '1.12:');
+  assert.equal(time.parseDuration('1.12:55'), 4375, 'mixed separators are clock groups'); assert.equal(time.parseDuration('1,12:55'), 4375);
+  assert.equal(keypad.keypadInput(field('1.12.55.', 8), { inputType: 'insertText', data: '.' }), '1.12.55.');
+  assert.equal(time.parseDuration('1.12:55.3'), 4375.3, 'tenths after the last colon stay tenths');
+  for (const bad of ['1.12:', '1.:30', '1.2.3:4', '1.75:30']) { assert.equal(time.parseDuration(bad), null, `reject ${bad}`); }
+  const splitTool = require('../components/tools/SplitCheck.tsx');
+  const projectorTool = require('../components/tools/Projector.tsx');
+  const predictorTool = require('../components/tools/Predictor.tsx');
+  const planTool = require('../lib/tools/plan.ts');
+  // Typed key by key the keypad makes two colons, then dots ("1,12,55,3" shows 1:12:55.3); the readers of short times
+  // read "25:50:12" as 25 minutes 50.12 seconds where hours cannot be meant, and every other race time as h:mm:ss, so a
+  // walker's 10.30.15 is 10:30:15.
+  const keyed = (typed) => [...typed].reduce((f, key) => { f.value += key; f.selectionStart = f.selectionEnd = f.value.length; keypad.keypadInput(f, { inputType: 'insertText', data: key }); return f; }, field('', 0)).value;
+  for (const [typed, shown] of [['25.50.12', '25:50:12'], ['25,50,12', '25:50:12'], ['10.30.15', '10:30:15'], ['1.12.55', '1:12:55'], ['0.25.50', '0:25:50'], ['1.12.55.3', '1:12:55.3'], ['1,12,55,3', '1:12:55.3'], ['45.5', '45:5']]) {
+    assert.equal(keyed(typed), shown, `typed key by key: ${typed}`); assert.equal(keypad.keypadColons(typed), shown, `keypadColons: ${typed}`);
+  }
+  assert.deepEqual([splitTool.parseMatTime('25:50:12', null, true), splitTool.parseMatTime('51:20:4', 1550, true), splitTool.parseMatTime('10:30:15', 34200, true), splitTool.parseMatTime('12:00:00', null, true)], [1550, 3080, 37815, 43200]);
+  assert.deepEqual([projectorTool.parseElapsed('25:50:12'), projectorTool.parseElapsed('10:30:15'), projectorTool.parseElapsed('25:50.12'), projectorTool.parseElapsed('12:05:00')], [1550.12, 37815, 1550.12, 43500]);
+  assert.deepEqual([predictorTool.parseRaceTime('25:50:12', 5), predictorTool.parseRaceTime('10:30:15', 42.195), predictorTool.parseRaceTime('10:30:15', 3), predictorTool.parseRaceTime('3:30:15', 42.195)], [1550.12, 37815, 630.15, 12615]);
+  // A lone colon before a single last digit is the keypad's decimal: 45.5 and 22.5 minutes, as before the keypad change, and
+  // a marathon goal typed 3.5 is 3.5 minutes (out of range), never 3:05. A pace's colon is a colon.
+  assert.deepEqual([time.parseDuration('45:5'), time.parseDuration('22:5'), time.parseDuration('3:5'), time.parseDuration('8:5', 'pace')], [2730, 1350, 210, 485]);
+  assert.deepEqual([splitTool.parseMatTime('22:5'), predictorTool.parseRaceTime('45:5', 10), predictorTool.parseRaceTime('22:5', 5), planTool.readPlanGoal('3:5').seconds], [1350, 2730, 1350, null]);
+  // A keyboard's whole-word insert (a clipboard suggestion) is kept as it came, like a paste.
+  for (const data of ['2:05:31.4', '25:50.12', '1,12,55']) { const f = field(data, data.length); assert.equal(keypad.keypadInput(f, { inputType: 'insertText', data }), data); }
+  // A keyboard has a colon key, so off touch screens (a fine pointer) a typed dot stays a dot: a mile's 5:45.3 reads 5:45.3.
+  global.matchMedia = (query) => ({ matches: query !== '(pointer: coarse)' });
+  try {
+    assert.equal(keypad.keypadInput(field('5:45.', 5), { inputType: 'insertText', data: '.' }), '5:45.');
+    assert.equal(keypad.keypadInput(field('3.30')), '3.30');
+    assert.equal(predictorTool.parseRaceTime('5:45.3', 1.609344), 345.3);
+  } finally { delete global.matchMedia; }
+  // A real clock time with a unit reads as the clock, the unit naming its first group ("3:30h" is 3 h 30 min, never 3.3 h);
+  // only a colon no clock could have (before one digit, or 60 or more) is the keypad's dot.
+  assert.deepEqual(['3:30h', '3:45 h', '1:45:30 h', '25:50 min', '3:5h', '3:75 hours', '45:5 min', '3:30:00 h'].map((t) => time.parseDuration(t)),
+    [12600, 13500, 6330, 1550, 12600, 13500, 2730, 12600]);
+  // A mile's 5:45 with tenths typed after it shows 5:45:3, which the predictor reads as 5:45.3 (hours are no plausible pace).
+  const tenths = field('5:45', 4);
+  for (const key of '.3') { tenths.value += key; tenths.selectionStart = tenths.selectionEnd = tenths.value.length; keypad.keypadInput(tenths, { inputType: 'insertText', data: key }); }
+  assert.equal(tenths.value, '5:45:3'); assert.equal(predictorTool.parseRaceTime(tenths.value, 1.609344), 345.3);
+  assert.deepEqual([predictorTool.parseRaceTime('4:05:2', 1.5), predictorTool.parseRaceTime('5.45.3', 1.609344), predictorTool.parseRaceTime('1:05:30', 5)], [245.2, 345.3, 3930]);
+  // Commas are dots in one typed time: 24:53,4 is 24:53.4. A dotted 10.30.15 is a walker's 10:30:15; 25.50.12 is 25:50.12.
+  assert.deepEqual([projectorTool.parseElapsed('24:53,4'), projectorTool.parseElapsed('10.30.15'), projectorTool.parseElapsed('25.50.12'), projectorTool.parseElapsed('11.05.00')], [1493.4, 37815, 1550.12, 39900]);
+  assert.deepEqual([splitTool.parseMatTime('25:50,12', null, true), splitTool.parseMatTime('25.50.12', null, true), splitTool.parseMatTime('10.30.15', 34200, true)], [1550, 1550, 37815]);
+  assert.deepEqual(splitTool.parseAll(['25.50.12', '51:20:45', '', '', '', '', '', '', '']).slice(0, 2), [1550, 3080]);
+  // Pasted tracker text keeps its clocks: a time-of-day column from 1 pm (13:26:31) is never read as a 13-minute split.
+  const pasted = splitTool.readPasted('5K 13:26:31 25:50\n10K 13:52:12 51:31\n15K 14:18:40 1:17:59');
+  assert.deepEqual(pasted.times.slice(0, 3), [1550, 3091, 4679]);
+  checks += 37;
+
+  // Every reader behind a time field.
+  for (const [text, mode, expected] of [['1.12.55', 'race', 4375], ['3,30', 'race', 12600], ['3,30,15', 'race', 12615], ['8,05', 'pace', 485], ['8.5', 'pace', 510], ['8.50', 'pace', 530]]) {
+    assert.equal(time.parseDuration(text, mode), expected, `parse ${text} (${mode})`); ok();
+  }
+  for (const bad of ['3.75', '3..30', '1.2.3.4', '3.30.75', 'a.b', '.', '3.30.15.2']) { assert.equal(time.parseDuration(bad), null, `reject ${bad}`); ok(); }
+  // A pace field shows m:ss when it is left: 8.05 is 8:05 and 8.5 is 8:30.
+  assert.deepEqual(['8.05', '8.5', '8,5', '10.15'].map((t) => time.formatDuration(time.parseDuration(t, 'pace'))), ['8:05', '8:30', '8:30', '10:15']); ok();
+  assert.deepEqual(['8.05', '8.05 pm', '9,14', '20.05', '8.5', '25.00', '8.75'].map(time.parseClock), [29100, 72300, 33240, 72300, null, null, null]); ok();
+  const plan = require('../lib/tools/plan.ts');
+  assert.deepEqual(['3.30', '3,30', '3.30.00', '3.32.30', '1.12.55'].map((t) => plan.readPlanGoal(t).seconds), [12600, 12600, 12600, 12750, null]); ok();
+  assert.equal(plan.readPlanGoal('3.30').read, 12600); ok(); // goal=3.30 from the home form without JavaScript opens the planner at 3:30
+  const guide = require('../lib/personalized.ts');
+  assert.deepEqual([guide.parseMinutes('3.30'), guide.parseMinutes('3,10'), guide.parseMinutes('3.75'), guide.parseMinutes('3.5')], [210, 190, null, null]); ok();
+  assert.deepEqual([guide.parseElapsed('2.50.00'), guide.parseElapsed('1.12.55'), guide.parseElapsed('2.50'), guide.parseElapsed('2.5'), guide.parseElapsed('2.50.75')], [10200, 4375, 10200, null, null]); ok();
+  assert.deepEqual([guide.parseSection('28.00'), guide.parseSection('21,30'), guide.parseSection('28.75')], [1680, 1290, null]); ok();
+  const split = require('../components/tools/SplitCheck.tsx');
+  assert.deepEqual(['25.50', '0.24.10', '3.58', '1.12.55', '2:05:31.4', '25.75', 'x.y'].map((t) => split.parseMatTime(t)), [1550, 1450, 14280, 4375, 7531, null, null]); ok();
+  // The split check's s= list (commas between the times): dots inside each time read as colons, the commas stay separators.
+  const colonList = '0:24:10,0:48:30,1:12:55,1:37:29,2:01:37,2:26:11,2:51:02,3:16:47,3:27:19';
+  assert.deepEqual(split.parseAll(colonList.replace(/:/g, '.').split(',')), split.parseAll(colonList.split(','))); ok();
+  const report = require('../lib/report.ts');
+  assert.deepEqual(report.readReportTimes(colonList.replace(/:/g, '.')), report.readReportTimes(colonList)); assert.ok(report.readReportTimes(colonList)); checks += 2;
+  const predictor = require('../components/tools/Predictor.tsx');
+  assert.deepEqual([['22.30', 5], ['1.55.00', 21.0975], ['1.55', 21.0975], ['3.30', 42.195], ['1.12.55', 21.0975], ['abc', 5], ['22.75', 5]].map(([t, km]) => predictor.parseRaceTime(t, km)),
+    [1350, 6900, 6900, 12600, 4375, null, null]); ok();
+  const projector = require('../components/tools/Projector.tsx');
+  assert.deepEqual(['24.53', '2.21', '2.21.30', '1,12,55', '24.75', 'x'].map(projector.parseElapsed), [1493, 8460, 8490, 4375, null, null]); ok();
+  // The keypad's 25:50.12 at an early mat or in a short race is 25 minutes 50.12 seconds in every reader that takes it.
+  assert.deepEqual([projector.parseElapsed('25:50.12'), split.parseMatTime('25:50.12'), predictor.parseRaceTime('25:50.12', 5)], [1550.12, 1550, 1550.12]); ok();
+  // The readers that fall back to parseDuration keep a typed unit too ("3.5h" shows "3:5h").
+  assert.deepEqual([predictor.parseRaceTime('3:5h', 42.195), predictor.parseRaceTime('22:5 min', 5), projector.parseElapsed('2:5h'), split.parseMatTime('2:5h')],
+    [12600, 1350, 9000, 9000]); ok();
+  const archetype = require('../components/story/ArchetypeStory.tsx');
+  assert.deepEqual(['0.25.30', '1.12.55', '3,51,00', '0.25.75'].map(archetype.parseClock), [1530, 4375, 13860, null]); ok();
+  const finish = require('../components/story/FinishTimeStory.tsx');
+  assert.deepEqual(['3.58.42', '3.30', '1.12.55', '13.00', '3.75'].map(finish.parseTime), [14322, 12600, null, null, null]); ok();
+}
+
 // ---- pace calculations
 near(pace.paceFrom(12600, pace.MARATHON_KM), 298.613, 0.001, 'marathon pace'); ok();
 assert.equal(Math.round(pace.perUnit(pace.paceFrom(12600, pace.MARATHON_KM), 'mi')), 481); ok(); // 8:01/mi for 3:30
@@ -589,4 +718,4 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
   checks += 8 + otherTools.length;
 }
 
-console.log(`Tool libraries passed ${checks} checks: time parsing, pace calculations and splits, pace charts by goal time and goal-page links, result handoffs to the planner, the pace band and the pacing-pattern analysis, the race planner (its goal, the course-goal row it shows, recounted from the runner records, and the rendered plan), goal-page sentences, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading, the pacing-type classifier, and the cohort note, which says only the tools with Pace Notes data start from the screened finishes.`);
+console.log(`Tool libraries passed ${checks} checks: time parsing and keypad input (the dot key types a colon in race-time fields; every time reader takes dots and commas), pace calculations and splits, pace charts by goal time and goal-page links, result handoffs to the planner, the pace band and the pacing-pattern analysis, the race planner (its goal, the course-goal row it shows, recounted from the runner records, and the rendered plan), goal-page sentences, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading, the pacing-type classifier, and the cohort note, which says only the tools with Pace Notes data start from the screened finishes.`);

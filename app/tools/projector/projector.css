@@ -147,7 +147,7 @@
 .projector-card-update { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: .5rem; }
 .projector-card-update .tool-field { min-width: 0; }
 .projector-card-update input { font-size: 1rem; }
-.projector-card-update .tool-field-hint { grid-column: 1 / -1; }
+.projector-card-update .tool-field-hint, .projector-card-update > .keypad-hint { grid-column: 1 / -1; }
 .projector-card-update button { min-height: 46px; }
 
 @media (max-width: 560px) {

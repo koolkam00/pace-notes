@@ -5,10 +5,14 @@ import { formatDuration, parseDuration, type DurationMode } from '@/lib/tools/ti
 import { useUnits } from '@/components/UnitsProvider';
 import { withUnits } from '@/lib/unit-preference';
 import { trackAnalytics } from '@/lib/analytics';
+import { keypadInput } from '@/lib/keypad';
+import KeypadHint from '@/components/KeypadHint';
 
 /**
  * A duration input that keeps the visitor's text while they type and reports seconds (or null) upward.
- * Accepts h:mm:ss, mm:ss, "3h30", minutes, and keypad dots ("8.05").
+ * Accepts h:mm:ss, mm:ss, "3h30", minutes, and keypad dots ("8.05"). In a race time the dot key types a colon as it is
+ * typed (lib/keypad.ts), with the "Tap . for :" hint on touch screens; a pace keeps its dot ("8.5" is 8.5 minutes) and
+ * shows m:ss once the visitor leaves the field.
  */
 export function DurationField({ label, value, onChange, mode = 'race', placeholder, hint, error, id, autoFocus, large = false }: {
   label: ReactNode; value: number | null; onChange: (seconds: number | null) => void; mode?: DurationMode;
@@ -31,21 +35,23 @@ export function DurationField({ label, value, onChange, mode = 'race', placehold
   const parsed = text.trim() ? parseDuration(text, mode) : null;
   const unreadable = touched && text.trim() !== '' && parsed === null;
   const invalid = unreadable || Boolean(error);
+  const keypad = mode === 'race' ? <KeypadHint /> : null;
   return (
     <div className={`tool-field${large ? ' is-large' : ''}`}>
       <label htmlFor={inputId}>{label}</label>
       <input id={inputId} inputMode="decimal" autoComplete="off" spellCheck={false} placeholder={placeholder} autoFocus={autoFocus}
         value={text} aria-invalid={invalid || undefined} aria-describedby={hint || invalid ? `${inputId}-hint` : undefined}
         onChange={(e) => {
-          setText(e.target.value);
-          const next = e.target.value.trim() ? parseDuration(e.target.value, mode) : null;
+          const typed = keypadInput(e.target, e.nativeEvent, mode);
+          setText(typed);
+          const next = typed.trim() ? parseDuration(typed, mode) : null;
           last.current = next;
           onChange(next);
         }}
         onBlur={() => { setTouched(true); if (parsed !== null) setText(formatDuration(parsed, mode === 'race')); }} />
-      {unreadable ? <p className="tool-field-hint is-error" id={`${inputId}-hint`}>Try {mode === 'race' ? '3:30:00, 3:30 or 210' : '8:05'}.</p>
-        : error ? <p className="tool-field-hint is-error" id={`${inputId}-hint`}>{error}</p>
-        : hint ? <p className="tool-field-hint" id={`${inputId}-hint`}>{hint}</p> : null}
+      {unreadable ? <p className="tool-field-hint is-error" id={`${inputId}-hint`}>Try {mode === 'race' ? '3:30:00, 3:30 or 210' : '8:05'}.{keypad}</p>
+        : error ? <p className="tool-field-hint is-error" id={`${inputId}-hint`}>{error}{keypad}</p>
+        : hint ? <p className="tool-field-hint" id={`${inputId}-hint`}>{hint}{keypad}</p> : mode === 'race' ? <KeypadHint block /> : null}
     </div>
   );
 }

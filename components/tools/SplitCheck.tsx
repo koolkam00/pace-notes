@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNod
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { Choice, EvidencePanel, ExampleNote, ShareBar } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
+import KeypadHint from '@/components/KeypadHint';
 import { useWidth } from '@/components/viz/useSize';
 import { runnerHandoff } from '@/lib/analytics-policy';
 import { loadInsight, type Archetype, type Archetypes } from '@/lib/insights';
@@ -13,6 +14,7 @@ import type { PaceBandCell } from '@/lib/tools/pace-band-data';
 import { MARATHON_KM, MATS_KM, perUnit } from '@/lib/tools/pace';
 import { SECTION_KM, SECTION_NAMES, SLOWDOWN_CITATION, SLOWDOWN_DEFINITION, classify, readSplits, validateSplits, type SplitReading } from '@/lib/tools/splits';
 import { formatDuration, parseDuration } from '@/lib/tools/time';
+import { keypadInput } from '@/lib/keypad';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 import { SECTION_BOUNDS, count, sectionLabel, signedPct } from '@/lib/viz/format';
 import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
@@ -45,15 +47,21 @@ const GENDER_OPTIONS: { value: Gender; label: string }[] = [{ value: 'all', labe
  * two-group entry that would go backwards as mm:ss is read as h:mm up to 12 hours ("10:30" after a 9:20:00 40 km mat).
  * Also "2h05m31s" and keypad dots.
  */
-export function parseMatTime(input: string, prev: number | null = null): number | null {
-  const text = input.trim().toLowerCase();
+export function parseMatTime(input: string, prev: number | null = null, typed = false): number | null {
+  const text = typed ? input.trim().toLowerCase().replace(/,/g, '.') : input.trim().toLowerCase();
   if (!text) return null;
   const twoGroups = (a: number, b: number, fraction: number) => {
     if (a < 10) return a * 3600 + b * 60;
     const mmss = Math.round(a * 60 + b + fraction);
     return prev !== null && mmss <= prev && a <= 12 && !fraction ? a * 3600 + b * 60 : mmss;
   };
-  const colon = text.match(/^(\d{1,3}(?::\d{1,2}){1,2})(?:\.(\d{1,3}))?$/);
+  // The keypad's 25.50.12 shows 25:50:12 (lib/keypad.ts). In a typed box, from 13 up, three groups are minutes, seconds and
+  // hundredths: no mat is reached in under 13 minutes, and the split check reads no time past 12 hours. Pasted tracker text
+  // keeps its clocks, since its time-of-day column can read 13:26:31.
+  const hundredths = typed ? text.match(/^(\d{2,3})[:.]([0-5]\d)[:.](\d{1,3})$/) : null;
+  if (hundredths && Number(hundredths[1]) >= 13) return Math.round(Number(hundredths[1]) * 60 + Number(hundredths[2]) + Number(`0.${hundredths[3]}`));
+  // Two digits after each colon: a lone digit ("22:5", the keypad's 22.5) is parseDuration's decimal minutes.
+  const colon = text.match(/^(\d{1,3}(?::\d{2}){1,2})(?:\.(\d{1,3}))?$/);
   if (colon) {
     const parts = colon[1].split(':').map(Number);
     if (parts.slice(1).some((p) => p >= 60)) return null;
@@ -76,7 +84,7 @@ export function parseAll(texts: string[]): (number | null)[] {
   const out: (number | null)[] = [];
   let prev: number | null = null;
   for (const text of texts) {
-    const t = parseMatTime(text, prev);
+    const t = parseMatTime(text, prev, true);
     out.push(t);
     if (t !== null) prev = t;
   }
@@ -140,7 +148,7 @@ export function readPasted(text: string): PasteResult {
   const times = chooseSequence(candidates);
   const found = times.filter((t) => t !== null).length;
   if (labelled && found) return { times, found, labelled: true, tokens: found };
-  const tokens = timeTokens(text).map(parseMatTime).filter((t): t is number => t !== null);
+  const tokens = timeTokens(text).map((token) => parseMatTime(token)).filter((t): t is number => t !== null);
   if (tokens.length === 9) return { times: tokens, found: 9, labelled: false, tokens: 9 };
   // An unlabelled list with halfway in it: ten times, the fifth between 20 and 25 km at a plausible pace from the 20 km mat.
   if (tokens.length === 10) {
@@ -536,13 +544,13 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
                   </label>
                   <input id={`${formId}-t${i}`} inputMode="decimal" autoComplete="off" spellCheck={false} value={texts[i]}
                     placeholder={i < 2 ? 'mm:ss' : 'h:mm:ss'} aria-invalid={bad || undefined} aria-describedby={hintId}
-                    onChange={(e) => editField(i, e.target.value)} onBlur={() => blurField(i)} />
+                    onChange={(e) => editField(i, keypadInput(e.target, e.nativeEvent))} onBlur={() => blurField(i)} />
                 </div>
               );
             })}
           </fieldset>
           <p className={`tool-field-hint${hintIssue ? ' is-error' : ''}`} id={hintId}>
-            {gridMessage ?? 'Elapsed chip time at each mat: h:mm:ss, or mm:ss before the first hour.'}
+            {gridMessage ?? 'Elapsed chip time at each mat: h:mm:ss, or mm:ss before the first hour.'}<KeypadHint />
           </p>
           <div className="split-check-buttons">
             <button type="button" className="button-secondary" onClick={() => { setTimes(Array(9).fill(null)); setPasteText(''); setPasteNote(null); }}>Clear</button>

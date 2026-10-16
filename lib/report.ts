@@ -46,12 +46,15 @@ export function reportShardPath(index: PaceBandIndex, course: string, gender: Re
 
 /* ---------- Reading a link ---------- */
 
-/** Nine cumulative times as the split check and reportHref write them (h:mm:ss, comma-separated), or null unless valid. */
+/**
+ * Nine cumulative times as the split check and reportHref write them (h:mm:ss, comma-separated; a keypad's dots between
+ * the groups are read as colons), or null unless valid.
+ */
 export function readReportTimes(s: string | null): number[] | null {
   const parts = (s ?? '').split(',');
   if (parts.length !== 9) return null;
   const times = parts.map((part) => {
-    const m = /^(\d{1,2}):([0-5]\d):([0-5]\d)$/.exec(part.trim());
+    const m = /^(\d{1,2})[:.]([0-5]\d)[:.]([0-5]\d)$/.exec(part.trim());
     return m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) : null;
   });
   return validateSplits(times) === null ? (times as number[]) : null;

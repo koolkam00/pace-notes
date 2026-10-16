@@ -179,6 +179,7 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .home-plan-field { display: grid; gap: .3rem; min-width: 0; }
 .home-plan-field label { font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--night-ink-2); }
 .home-plan-field input { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.home-plan-field .keypad-hint { color: var(--night-ink-2); }
 .home-plan-button { width: 100%; margin-top: .7rem; }
 .home-door-others { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
 .home-door-others li + li { margin: 0; }
