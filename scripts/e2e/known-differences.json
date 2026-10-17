@@ -23,8 +23,12 @@
   ],
   "analysis": [
     {
-      "pattern": "^attr:class\\|(empty-comparison|button-secondary|coverage-notice)$",
-      "reason": "With set A's filters the comparison has too few finishes, so the page shows its 'not enough results' panel and reset button where set B shows the chart and its coverage note. Which panel shows, not the filters or the numbers (the text in .analysis-layout is masked)."
+      "pattern": "^attr:class\\|(explore-note|explore-state|btn btn-secondary is-compact)$",
+      "reason": "With one set's filters the explorer widens its group or has too few finishes, so it shows its one-line note (or its 'not enough results' state and Try again button) where the other set shows neither. Which line shows, not the filters or the numbers (the text in .analysis-layout is masked)."
+    },
+    {
+      "pattern": "^attr:class\\|(null|is-on|is-flash|scrub-hint( is-left)?|scrub is-(needle|pick)( is-dragging)?( is-touched)?( is-away)?)$",
+      "reason": "The result chart's scrubber state (WP3): whether the pointer, wiggled over the page, crossed the chart and moved its needle off the opening position, lit a detent or flipped the drag hint. Where the pointer was, never a typed value; the readout text stays masked."
     }
   ]
 }

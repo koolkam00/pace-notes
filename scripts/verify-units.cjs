@@ -334,14 +334,14 @@ const { getAnalysisStart } = require('../lib/analysis-server.ts');
 const profileSpec = getAnalysisStart().answers.find(answer => answer.id === 'profile').charts[0];
 const sourceProfile = JSON.stringify(profileSpec);
 const profileHtml = render(profileSpec);
-assert.match(profileHtml, /0–3\.11 mi/);
-assert.match(profileHtml, /24\.85–26\.22 mi/);
+// Sections are named by their mats in both modes (WP3, the redesign spec, section 3.10): "0–5K" … "40K–finish".
+assert.match(profileHtml, /0–5K/);
+assert.match(profileHtml, /40K–finish/);
 assert.match(profileHtml, /per mile/);
 for (const row of profileSpec.rows) {
   assert.ok(profileHtml.includes(paceLabel(row.value * 60, 'mi')), 'Every real profile median must use the converted source pace');
-  assert.ok(profileHtml.includes(distanceLabel(Number(row.label), 'mi')), 'Every original section endpoint must remain identifiable');
 }
-assert.match(render(profileSpec, 'km'), /40–42\.195 km/);
+assert.match(render(profileSpec, 'km'), /40K–finish/);
 assert.equal(JSON.stringify(profileSpec), sourceProfile, 'Rendering both modes must preserve all source values');
 // The real pacing-pattern chart's axis in both units: every value covered, every label on its own grid.
 const profilePaces = profileSpec.rows.flatMap(row => profileSpec.series.map(series => row[series.key] * 60));
@@ -351,10 +351,12 @@ for (const [units, ending] of [['mi', /:(?:00|15|30|45)$/], ['km', /:(?:00|15|30
   assert.ok(axis.domain[0] <= Math.min(...shown) && axis.domain[1] >= Math.max(...shown), `${units}: the pacing-pattern axis covers every pace`);
   for (const text of tickLabels(axis, units)) assert.match(text, ending, `${units}: pacing-pattern tick ${text} is on the round grid`);
 }
-// Both Recharts pace axes take these ticks rather than Recharts' decimal-minute ones.
+// The pace axes take these ticks rather than decimal-minute ones: QuestionViz's line form (LineProfile since WP3) and
+// RunnerContext's Recharts axis.
 const chartSource = name => fs.readFileSync(path.join(__dirname, '../components', name), 'utf8');
 assert.match(chartSource('QuestionViz.tsx'), /paceTicks\(Math\.min\(\.\.\.allValues\) \* 60, Math\.max\(\.\.\.allValues\) \* 60, selectedUnits\)/);
-assert.match(chartSource('QuestionLineChart.tsx'), /<YAxis [^>]*ticks=\{paceTicks\}[^>]*domain=\{paceTicks \? \[paceTicks\[0\], paceTicks\[paceTicks\.length - 1\]\]/);
+assert.match(chartSource('QuestionViz.tsx'), /yDomain[^\n]*paceAxis \? \[paceAxis\.domain\[0\] \/ 60, paceAxis\.domain\[1\] \/ 60\]/);
+assert.match(chartSource('QuestionViz.tsx'), /paceAxis \? paceAxis\.ticks\.map\(t => t \/ 60\)/);
 assert.match(chartSource('RunnerContext.tsx'), /<YAxis [^>]*domain=\{paceAxis \? paceAxis\.domain : \['auto', 'auto'\]\} ticks=\{paceAxis\?\.ticks\}/);
 
 // The header's units switch works on every page that shows text changing with the units (lib/unit-preference.ts), and

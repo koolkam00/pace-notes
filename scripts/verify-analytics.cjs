@@ -516,7 +516,8 @@ const toolComponents = TOOLS.map(tool => {
 });
 assert.equal(new Set(toolComponents).size, TOOLS.length, 'Every registered tool has its own component');
 const required = { 'tool-workspace': toolComponents, 'tool-results': toolComponents,
-  'analysis-layout': ['components/AnalysisExplorer.tsx', 'components/AllFinisherAnalysis.tsx', 'components/FastStartAnalysis.tsx', 'components/WeatherAnalysis.tsx'],
+  // The analysis page wrapper (WP3: components/analysis/Shell.tsx holds the answer, the goal line and the explorer) and each explorer root.
+  'analysis-layout': ['components/analysis/Shell.tsx', 'components/AnalysisExplorer.tsx', 'components/AllFinisherAnalysis.tsx', 'components/FastStartAnalysis.tsx', 'components/CheckpointExplorer.tsx', 'components/WeatherAnalysis.tsx'],
   'personalized-guide': ['components/PersonalizedGuide.tsx'], 'which-card': ['components/story/ArchetypeStory.tsx', 'components/ui/GuessFirst.client.tsx'], 'finish-lookup': ['components/story/FinishTimeStory.tsx'],
   'home-plan': ['components/home/HomeDoors.tsx'] };
 for (const [token, files] of Object.entries(required)) {
@@ -609,7 +610,8 @@ for (const [file, argument] of failureCalls) {
   if (file === 'lib/analytics.ts' && argument.startsWith('category:')) continue; // The definition.
   assert.match(argument, /^'(?:js_error|unhandled_rejection|chunk_load|data_fetch|render|export)'$/, `${file}: trackFailure(${argument}) must name one literal category, never a message`);
 }
-for (const [file, count] of [['components/SiteAnalytics.tsx', 6], ['app/error.tsx', 2], ['app/global-error.tsx', 2], ['components/QuestionViz.tsx', 2], ['lib/data-fetch.ts', 2]]) assert.equal(failureCalls.filter(([f]) => f === file).length, count, `${file} reports its failures`);
+// QuestionViz draws its line form on the server since WP3 (LineProfile, no lazy Recharts chunk), so it has no failure to report.
+for (const [file, count] of [['components/SiteAnalytics.tsx', 6], ['app/error.tsx', 2], ['app/global-error.tsx', 2], ['components/QuestionViz.tsx', 0], ['lib/data-fetch.ts', 2]]) assert.equal(failureCalls.filter(([f]) => f === file).length, count, `${file} reports its failures`);
 // A failed file reloads the page, usually before any of the site's code runs (the <head> script in lib/chunk-reload.ts):
 // the page it reloads into reports chunk_load, once, and a page that is about to reload reports nothing.
 assert.match(read('components/SiteAnalytics.tsx'), /if \(reloadedAfterChunkError\(\)\) trackFailure\('chunk_load'\);/, 'The page a failed file reloaded reports it');

@@ -87,8 +87,9 @@ async function main() {
     assert.match(html,/most often began in the /,'The onset section states where slowdowns most often began');
     assert.match(html,/Pace was slowest in the /,'The pace section states its slowest section');
     noMethodCopy(html,`history results (${units})`);
-    assert.match(html,units==='mi'?/18\.64–21\.75 mi/:/30–35 km/);
-    assert.match(html,units==='mi'?/26\.22 mi/:/42\.195 km/);
+    // Sections and the course axis are named by their mats in both units (the redesign spec, section 3.10).
+    assert.match(html,/30–35K/);
+    assert.match(html,/>Finish</);
     assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016/,'Internal upload identifiers stay out of visible result copy');
   }
   const sparse={...focus,n:100,editions:5,slowdown_n:7,onset:null};
@@ -114,8 +115,7 @@ async function main() {
     assert.match(html,/Median recorded finish/); assert.match(html,/than the same distance at its early-race pace/);
     assert.match(html,SLOWDOWN_LINK);
     noMethodCopy(html,`all-finisher results (${units})`);
-    assert.match(html,units==='mi'?/3\.11 mi/:/5 km/);
-    assert.match(html,units==='mi'?/12\.43 mi/:/20 km/);
+    assert.match(html,/After 20K, the median finish took /);
     assert.doesNotMatch(html,/earlier recorded best|earlier-best|All earlier times/,'All mode cannot present its reference as a prior result');
     assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016/);
   }

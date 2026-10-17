@@ -66,21 +66,22 @@ async function main() {
         assert.ok(Math.abs(charts.onset.rows.reduce((sum,row)=>sum+row.value,0)-100)<1e-4);
       }
       const html=render(AllFinisherResults,{groups,kind,start,units,focus,comparison});
-      assert.match(html,/<h2>(?:Sustained slowdown rates ranged from|The sustained slowdown rate was|Late-race pace|Late-race experiences varied most in)/,kind+': the headline states the spread across groups');
+      assert.match(html,/<h2[^>]*>(?:Sustained slowdown rates (?:ranged from|were)|The sustained slowdown rate was|Late-race pace|Late-race experiences varied most in)/,kind+': the headline states the spread across groups');
       if(charts.onset) assert.match(html,/<a href="\/methodology#sustained-slowdown">sustained slowdowns<\/a> most often began in the /,kind+': the onset section states where slowdowns most often began and links the term');
       noMethodCopy(html,`${kind} results (${units})`);
-      assert.match(html,units==='mi'?/12\.43 mi/:/20 km/);
+      // The second half is named by its mat in both units (the redesign spec, section 3.10).
+      assert.match(html,/after 20K/i);
       assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016/);
       if(kind==='race-day') {
         assert.match(html,/Slowdown rate in this edition/);
         assert.doesNotMatch(html,/Mean edition slowdown rate|across 3 editions/);
         assert.match(html,/Start-hour temperature(?:: | is unavailable)/);
         // The headline speaks of the editions on the chart only: the one followed and its comparison line.
-        const headlineText=html.match(/<h2>([^<]*)<\/h2>/)[1];
+        const headlineText=html.match(/<h2[^>]*>([^<]*)<\/h2>/)[1];
         const shown=new Set([focus.id,...(comparison?[comparison.id]:[])]);
         for(const group of groups) if(!shown.has(group.id)) assert.ok(!headlineText.includes(allFinisherGroupLabel(group,kind,units).replace(/&/g,'&amp;')),`race-day headline names only shown editions, not ${group.id}`);
         const alone=render(AllFinisherResults,{groups,kind,start,units,focus});
-        assert.match(alone,/<h2>The sustained slowdown rate was /,'race-day: one edition, one rate');
+        assert.match(alone,/<h2[^>]*>The sustained slowdown rate was /,'race-day: one edition, one rate');
       }
     }
     const page=render(AllFinisherAnalysis,{kind,start,history:React.createElement('p',null,'HISTORY RESULT')});
@@ -92,16 +93,21 @@ async function main() {
     noMethodCopy(page,`${kind} page`);
   }
   const temperature=start.initial.weather.find(group=>group.lower_c===5);
-  assert.equal(allFinisherGroupLabel(temperature,'weather','mi'),'41°F to below 50°F');
-  assert.equal(allFinisherGroupLabel(temperature,'weather','km'),'5°C to below 10°C');
+  assert.equal(allFinisherGroupLabel(temperature,'weather','mi'),'41–50°F');
+  assert.equal(allFinisherGroupLabel(temperature,'weather','km'),'5–10°C');
   assert.equal(earlyPaceLabel(start.early_pace_bands[1],'mi'),'Faster than 7:15/mi');
   assert.equal(earlyPaceLabel(start.early_pace_bands[1],'km'),'Faster than 4:30/km');
   const sparse={...start.initial.courses[0],detected_n:7,onset_n:null,onset_pct:null};
   assert.equal(allFinisherCharts([sparse],sparse,undefined,'courses','mi').onset,null);
   assert.match(render(AllFinisherResults,{groups:[sparse],kind:'courses',start,units:'mi',focus:sparse}),/Too few detected slowdowns/);
-  for(const slug of ['course-comparison','race-day-weather','downhill-start']) {
+  for(const slug of ['course-comparison','race-day-weather']) {
     const html=render(AnalysisPage,{params:{slug}});
     assert.match(html,/All eligible finishes/);assert.match(html,/No previous race needed/);assert.doesNotMatch(html,eligibleText,'Coverage counts belong on /methodology');
+  }
+  // Downhill starts compare every eligible finish only (its earlier-result view was cut under the redesign's section 00).
+  {
+    const html=render(AnalysisPage,{params:{slug:'downhill-start'}});
+    assert.match(html,/>Opening pace</);assert.doesNotMatch(html,/With an earlier result/);assert.doesNotMatch(html,eligibleText,'Coverage counts belong on /methodology');
   }
   for(const id of [...Object.keys(BROADER_ARCHIVE),'rn3_heat_curves','ext_weather_pacing_patterns']) {
     const html=render(PackPage,{params:{packId:id}});

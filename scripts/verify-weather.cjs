@@ -168,8 +168,11 @@ const route = require('../app/analyses/[slug]/page.tsx');
 const slugs = route.generateStaticParams().map(item => item.slug);
 for (const definition of WEATHER_QUESTIONS) {
   const published = ready.some(item => item.id === definition.id);
-  assert.equal(slugs.includes(definition.slug), published, 'Only supported weather questions receive static routes');
+  // A supported question's old route is a moved stub (the redesign spec, section 2.9): the question is now a tab of
+  // race-day weather, which Vercel's 308 or the stub's own forward opens by hash.
+  assert.equal(slugs.includes(definition.slug), published, 'Only supported weather questions keep a (moved) static route');
   if (!published) assert.throws(() => route.default({ params: { slug: definition.slug } }), /NEXT_NOT_FOUND/);
+  else assert.equal(route.default({ params: { slug: definition.slug } }).props.to, `/analyses/race-day-weather#${definition.id}`, `${definition.slug}: forwards to its tab`);
 }
 for (const ids of [[], ['humidity'], ['wind'], ['humidity', 'warming', 'wind']]) {
   const alternate = { ...evidence, candidates: evidence.candidates.map(candidate => ({ ...candidate, status: ids.includes(candidate.id) ? 'ready' : 'withheld' })) };
@@ -205,20 +208,26 @@ const { renderToStaticMarkup } = require('react-dom/server');
 const provider = require('../components/UnitsProvider.tsx');
 const originalUseUnits = provider.useUnits;
 const WeatherAnalysis = require('../components/WeatherAnalysis.tsx').default;
+const { getNugget, sentenceOf } = require('../lib/nuggets/index.ts');
+const NUGGET = { warming: 'weather.warming', wind: 'weather.wind' };
 try {
   for (const units of ['mi', 'km']) {
     // Render the real page in each display mode without browser persistence noise.
     provider.useUnits = () => ({ units, setUnits() {} });
     for (const candidate of ready) {
       const definition = WEATHER_QUESTIONS.find(item => item.id === candidate.id);
-      const html = renderToStaticMarkup(React.createElement(WeatherAnalysis, { definition, candidate, evidence, questions }));
+      const nugget = NUGGET[candidate.id] ? getNugget(NUGGET[candidate.id]) : null;
+      const sentence = nugget ? (nugget.guard ? nugget.headline : nugget.fallback) : weatherFinding(candidate);
+      const html = renderToStaticMarkup(React.createElement(WeatherAnalysis, { definition, candidate, evidence, questions, sentence }));
       // The page shows the finding; its sources, coverage, method and caveats live on /methodology.
       const visible = html.replace(/<[^>]*>/g, ' ');
       assert.ok(!html.includes(sourceReleaseHref(weatherRelease)) && !html.includes(sourceLabel(evidence.input.as_of, weatherRelease)), 'The analysis page carries no source line');
       assert.ok(!html.includes('/data/weather/evidence.json') && !html.includes('open-meteo.com') && !html.includes('/about#data-coverage'), 'Downloads, data sources and coverage links belong on /methodology');
       assert.doesNotMatch(visible, /\d+ race editions · \d+ courses|complete finishes\. Each edition has equal weight|How we calculated this|How to read this|Keep in mind|before adjustment|full-study comparison|accounts for testing three weather questions|Higher means more slowing|Zero means no difference|Compared within courses|Source:/, 'Method, coverage and reading notes are not on the analysis page');
       assert.ok(!visible.includes(definition.purpose), 'The method-explaining purpose line is not shown');
-      assert.ok(html.includes(weatherFinding(candidate)), 'The page states its finding');
+      // The tab states its finding: the nugget's sentence (lib/nuggets/analyses.ts), in the reader's units.
+      const said = nugget ? sentenceOf(nugget, units).replace(/\*/g, '') : weatherFinding(candidate);
+      assert.ok(html.replace(/<\/?em>/g, '').includes(said), `The tab states its finding: ${said}`);
       assert.match(html, /98\.3% uncertainty interval/);
       assert.doesNotMatch(html, /95% uncertainty interval|95% confidence interval|95% interval/);
       assert.ok(html.includes(weatherLabel(candidate.exposure.q25, candidate.id, units)));
@@ -234,6 +243,11 @@ try {
       assert.doesNotMatch(visible, /\byour chance|\bcaused\b|\bcauses\b/i, 'The finding makes no causal claim');
     }
   }
+  // Race-day weather holds the questions as tabs: start temperature, then each supported weather question.
+  provider.useUnits = () => ({ units: 'mi', setUnits() {} });
+  const page = renderToStaticMarkup(React.createElement(provider.default, null, React.createElement(route.default, { params: { slug: 'race-day-weather' } })));
+  for (const id of ['temperature', ...ready.map(candidate => candidate.id)]) assert.match(page, new RegExp(`<div id="${id}" class="weather-panel"`), `race-day-weather: the ${id} tab`);
+  assert.match(page, /98\.3% uncertainty interval/, 'race-day-weather: the weather questions render inside it');
 } finally {
   provider.useUnits = originalUseUnits;
 }
