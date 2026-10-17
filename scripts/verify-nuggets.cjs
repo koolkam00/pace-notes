@@ -104,20 +104,27 @@ for (const id of N.CHAPTER_LEAD) ok(N.NUGGET_IDS.includes(id), `chapter lead ${i
 // The contents keys are the approved wording (spec section 2.2), reproduced from the data where they hold a number.
 const keys = Object.fromEntries(N.CHAPTER_LEAD.map((id) => [id, N.getNugget(id).key]));
 eq(keys['field.median'], 'median finish', 'chapter 01 key');
-eq(keys['slowdown.late'], 'of sustained slowdowns began at 30K or later', 'chapter 05 key');
-eq(keys['finish.peak'], 'the busiest finishing minute', 'chapter 06 key');
-eq(keys['demo.slowdown'], 'sustained slowdown, women · men, at the same finish times', 'chapter 07 key');
+eq(keys['slowdown.onset'], 'of sustained slowdowns began at 30K or later', 'chapter 05 key');
+eq(keys['finish.busiest'], 'the busiest finishing minute', 'chapter 06 key');
+eq(keys['holds.gender'], 'sustained slowdown, women · men, at the same finish times', 'chapter 07 key');
 eq(keys['courses.spread'], 'sustained slowdown, across courses', 'chapter 08 key');
 eq(keys['weather.pairs'], 'same-course pairs: the warmer year had more sustained slowdowns', 'chapter 09 key');
 eq(keys['runner.yours'], 'nine mats, one race', 'chapter 10 key');
 ok(/^of next races had one too, after a sustained slowdown \(\d+% typical\)$/.test(keys['kick.recurrence']), 'chapter 11 key');
 ok(/^at the finish, after a first 5K over \d+% fast$/.test(keys['kick.bank']), 'chapter 02 key');
 
-// lib/chapters.ts (WP0-B) names nugget ids: every one must be registered.
-const chaptersFile = path.join(ROOT, 'lib/chapters.ts');
-if (fs.existsSync(chaptersFile)) {
-  const named = [...fs.readFileSync(chaptersFile, 'utf8').matchAll(/\b(?:nugget|lead)\s*:\s*'([a-z0-9-]+\.[a-z0-9-]+)'/gi)].map((m) => m[1]);
-  for (const id of new Set(named)) ok(N.NUGGET_IDS.includes(id), `lib/chapters.ts names nugget ${id}, which is registered`);
+// lib/chapters.ts (WP0-B) names a nugget for every page and chapter: every one must be registered, and agree with
+// PAGE_NUGGET and CHAPTER_LEAD here.
+if (fs.existsSync(path.join(ROOT, 'lib/chapters.ts'))) {
+  const { CHAPTERS } = require('../lib/chapters.ts');
+  for (const chapter of CHAPTERS) {
+    ok(N.NUGGET_IDS.includes(chapter.lead), `chapter ${chapter.n} lead ${chapter.lead} is registered`);
+    eq(chapter.lead, N.CHAPTER_LEAD[chapter.n - 1], `chapter ${chapter.n}: lib/chapters.ts and CHAPTER_LEAD name the same lead`);
+    for (const page of chapter.pages) {
+      ok(N.NUGGET_IDS.includes(page.nugget), `${page.href} names nugget ${page.nugget}, which is registered`);
+      eq(page.nugget, N.PAGE_NUGGET[page.href], `${page.href}: lib/chapters.ts and PAGE_NUGGET name the same nugget`);
+    }
+  }
 }
 
 // ---------- Independent recounts of the reference nuggets ----------

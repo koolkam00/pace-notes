@@ -69,7 +69,7 @@ function shapeNegsplit(): Nugget {
   const share = row ? Number(row.value) / 100 : NaN;
   const ok = Number.isFinite(share) && share > 0 && share < 0.5;
   return placeholder({
-    id: 'shape.negsplit', page: '/stories/pacing-types', denominator: 'eligible',
+    id: 'shape.second20k', page: '/stories/pacing-types', denominator: 'eligible',
     values: { share, n: row ? Number(row.count) : NaN, total: row ? Number(row.n_value) : NaN }, guard: ok,
     headline: `Only *${inWords(share)}* finishes ran their second 20K faster than their first.`,
     fallback: Number.isFinite(share) ? `*${inWords(share)}* finishes ran their second 20K faster than their first.` : 'Second 20K against the first.',
@@ -78,15 +78,16 @@ function shapeNegsplit(): Nugget {
   });
 }
 
-/** /stories/pacing-types: the most common pacing type. */
-function typesMix(): Nugget {
+/** /stories/pacing-types: the share of finishes in the evenest pacing type (the lowest median pace variation). */
+function typesMetronome(): Nugget {
   const data = readInsight<Archetypes>('archetypes.json');
-  const top = data.archetypes.reduce((a, b) => (b.share > a.share ? b : a));
+  const even = data.archetypes.reduce((a, b) => (b.median_cv < a.median_cv ? b : a));
   return placeholder({
-    id: 'types.mix', page: '/stories/pacing-types', denominator: 'shape',
-    values: { types: data.archetypes.length, top: top.name, share: top.share }, guard: true,
-    headline: story('pacing-types')?.title ?? 'Ways to run the same race', fallback: story('pacing-types')?.title ?? 'Ways to run the same race',
-    figure: shareFigure(top.share), key: `ran as the most common type, ${top.name}`,
+    id: 'types.metronome', page: '/stories/pacing-types', denominator: 'shape',
+    values: { types: data.archetypes.length, name: even.name, share: even.share, median_cv: even.median_cv }, guard: true,
+    headline: `*${pct(even.share)}* of finishes held their pace from start to finish: the ${even.name}.`,
+    fallback: story('pacing-types')?.title ?? 'Ways to run the same race',
+    figure: shareFigure(even.share), key: `ran as the ${even.name}, the evenest type`,
   });
 }
 
@@ -99,7 +100,7 @@ function slowdownLate(): Nugget {
   const share = total ? late / total : NaN;
   const ok = share >= 0.5;
   return placeholder({
-    id: 'slowdown.late', page: '/slowdown', denominator: 'eligible', term: '/methodology#sustained-slowdown',
+    id: 'slowdown.onset', page: '/slowdown', denominator: 'eligible', term: '/methodology#sustained-slowdown',
     values: { share, late, total, rate: study ? study.rate / 100 : NaN }, guard: ok,
     headline: `${capitalize(approxWords(share))} sustained slowdowns began at *30K or later*.`,
     fallback: `*${pct(share)}* of sustained slowdowns began at 30K or later.`,
@@ -113,7 +114,7 @@ function finishPeak(): Nugget {
   const ft = readInsight<FinishTimes>('finish-times.json');
   const peak = ft.histogram.reduce((a, b) => (b.all > a.all ? b : a));
   return placeholder({
-    id: 'finish.peak', page: '/stories/round-numbers', denominator: 'story',
+    id: 'finish.busiest', page: '/stories/round-numbers', denominator: 'story',
     values: { minute: peak.minute, n: peak.all }, guard: true,
     headline: `The busiest finishing minute was *${hm(peak.minute)}*: ${count(peak.all)} finishes.`,
     fallback: `The busiest finishing minute was *${hm(peak.minute)}*.`,
@@ -139,7 +140,7 @@ function demoSlowdown(): Nugget {
   const d = readInsight<Demographics>('demographics.json');
   const w = d.overall.women_slowdown, m = d.overall.men_slowdown;
   return placeholder({
-    id: 'demo.slowdown', page: '/stories/who-holds-pace', denominator: 'demographics', term: '/methodology#sustained-slowdown',
+    id: 'holds.gender', page: '/stories/who-holds-pace', denominator: 'demographics', term: '/methodology#sustained-slowdown',
     values: { women: w, men: m }, guard: m > w,
     headline: `At the same finish times, *${pct(w)}* of recorded women’s finishes had a sustained slowdown, against ${pct(m)} of men’s.`,
     fallback: `At the same finish times: recorded women ${pct(w)}, recorded men ${pct(m)}.`,
@@ -171,14 +172,13 @@ const titled = (id: Nugget['id'], slug: string, denominator: Nugget['denominator
 export const STORY_NUGGETS: Record<string, Builder> = {
   'field.median': fieldMedian,
   'replay.first': replayFirst,
-  'shape.negsplit': shapeNegsplit,
-  'types.mix': typesMix,
-  'slowdown.late': slowdownLate,
-  'finish.peak': finishPeak,
+  'shape.second20k': shapeNegsplit,
+  'types.metronome': typesMetronome,
+  'slowdown.onset': slowdownLate,
+  'finish.busiest': finishPeak,
   'round.top': roundTop,
-  'demo.slowdown': demoSlowdown,
+  'holds.gender': demoSlowdown,
   'weather.pairs': weatherPairs,
-  'places.passed': titled('places.passed', 'places', 'positions'),
-  'kick.final': titled('kick.final', 'final-kick', 'kick'),
-  'courses.fingerprint': titled('courses.fingerprint', 'courses', 'shape'),
+  'places.gap': titled('places.gap', 'places', 'positions'),
+  'kick.twins': titled('kick.twins', 'final-kick', 'kick'),
 };

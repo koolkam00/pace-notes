@@ -11,8 +11,8 @@ const tool = (id: NuggetId, page: string, line: string, figure: { value: string;
 
 export const TOOL_NUGGETS: Record<string, Builder> = {
   'runner.yours': tool('runner.yours', '/runners', 'Find a past race and see it mat by mat.', { value: 'Yours', sr: 'Yours' }, 'nine mats, one race'),
-  'tool.split-check': tool('tool.split-check', '/tools/split-check', 'Check your splits against finishes like yours.'),
-  'tool.projector': tool('tool.projector', '/tools/projector', 'From a checkpoint time, the finishes that followed.'),
-  'tool.weather-match': tool('tool.weather-match', '/tools/weather-match', 'Race-morning weather, matched to past editions.'),
-  'tool.plan': tool('tool.plan', '/tools/plan', 'Plan your race: a course, a goal and a pace band.'),
+  'splitcheck.mats': tool('splitcheck.mats', '/tools/split-check', 'Check your splits against finishes like yours.'),
+  'projector.range': tool('projector.range', '/tools/projector', 'From a checkpoint time, the finishes that followed.'),
+  'weathermatch.mornings': tool('weathermatch.mornings', '/tools/weather-match', 'Race-morning weather, matched to past editions.'),
+  'plan.goal': tool('plan.goal', '/tools/plan', 'Plan your race: a course, a goal and a pace band.'),
 };

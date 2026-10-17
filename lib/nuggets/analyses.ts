@@ -52,7 +52,7 @@ function checkpointEven30(): Nugget {
   const under = row ? percentUnder(row, goal) : null;
   const share = under === null ? NaN : under / 100;
   return placeholder({
-    id: 'checkpoint.even30', page: '/analyses/checkpoint', denominator: 'eligible',
+    id: 'checkpoint.under', page: '/analyses/checkpoint', denominator: 'eligible',
     values: { goal_min: goal, band_min: band, n: row?.n ?? NaN, share }, guard: share < 0.5,
     headline: `Of finishes on even ${hm(goal)} pace at 30K, only *${pct(share)}* got under ${hm(goal)}.`,
     fallback: `Of finishes on even ${hm(goal)} pace at 30K, *${pct(share)}* got under ${hm(goal)}.`,
@@ -67,7 +67,7 @@ function coursesSpread(): Nugget {
   const lo = values.length ? Math.min(...values) : NaN, hi = values.length ? Math.max(...values) : NaN;
   const range = `${pct(lo).replace('%', '')}–${pct(hi)}`;
   return placeholder({
-    id: 'courses.spread', page: '/analyses/course-comparison', denominator: 'course', term: '/methodology#sustained-slowdown',
+    id: 'courses.spread', page: '/stories/courses', denominator: 'course', term: '/methodology#sustained-slowdown',
     values: { lo, hi, courses: courses.length }, guard: hi / lo > 1.5,
     headline: `Across courses, sustained slowdown ran from *${range}* of finishes.`,
     fallback: `Sustained slowdown across courses: ${range} of finishes.`,
@@ -98,15 +98,15 @@ const finding = (id: NuggetId, slug: string, answerId: string): Builder => () =>
 
 export const ANALYSIS_NUGGETS: Record<string, Builder> = {
   'kick.bank': kickBank,
-  'checkpoint.even30': checkpointEven30,
+  'checkpoint.under': checkpointEven30,
   'courses.spread': coursesSpread,
   'kick.recurrence': kickRecurrence,
-  'downhill.start': finding('downhill.start', 'downhill-start', 'downhill'),
-  'pattern.slowest': finding('pattern.slowest', 'pacing-pattern', 'profile'),
-  'sections.gap': finding('sections.gap', 'where-time-is-gained', 'sections'),
-  'ambition.under': finding('ambition.under', 'finish-time-context', 'ambition'),
-  'age.range': finding('age.range', 'age-and-pacing', 'age'),
-  'terrain.grade': finding('terrain.grade', 'hills-and-pacing', 'terrain'),
-  'weather.bands': finding('weather.bands', 'race-day-weather', 'weather'),
-  'gains.minutes': finding('gains.minutes', 'finding-improvement', 'gains'),
+  'downhill.opening': finding('downhill.opening', 'downhill-start', 'downhill'),
+  'pattern.profile': finding('pattern.profile', 'pacing-pattern', 'profile'),
+  'sections.split': finding('sections.split', 'where-time-is-gained', 'sections'),
+  'target.context': finding('target.context', 'finish-time-context', 'ambition'),
+  'age.retention': finding('age.retention', 'age-and-pacing', 'age'),
+  'terrain.climb': finding('terrain.climb', 'hills-and-pacing', 'terrain'),
+  'weather.start': finding('weather.start', 'race-day-weather', 'weather'),
+  'courses.compare': finding('courses.compare', 'course-comparison', 'courses'),
 };
