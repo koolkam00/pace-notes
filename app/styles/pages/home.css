@@ -99,10 +99,16 @@
    chapter's number and the pages it holds show from 600 px. */
 @media (max-width: 599.98px) {
   .home-chapters .chapter-link { grid-template-columns: calc(var(--line-x, 28px) * 2) minmax(0, 1fr); align-items: start; row-gap: 2px; min-height: 0; padding: 6px 0 12px; }
-  .home-chapters .chapter-text { padding-top: 11px; }
+  .home-chapters .chapter-text { padding: 11px 0 0; }
   .home-chapters .chapter-no, .home-chapters .chapter-sub { display: none; }
   .home-chapters .chapter-reading { grid-column: 2; display: flex; flex-wrap: wrap; align-items: baseline; justify-items: start; gap: 2px 10px; max-width: none; text-align: left; }
   .home-chapters .chapter-key { flex: 1 1 12rem; max-width: 26ch; }
+}
+
+/* From 600 px the reading sits right of its chapter: the figure keeps its width, the key wraps under it. */
+@media (min-width: 600px) {
+  .home-chapters .chapter-reading { max-width: none; }
+  .home-chapters .chapter-key { max-width: 24ch; }
 }
 
 /* ---------- The closing call ---------- */
@@ -161,5 +167,7 @@
   .home-guide { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); column-gap: var(--s-8); align-items: start; }
   .home-guide-head { position: sticky; top: calc(var(--header-h) + var(--s-6)); margin-bottom: 0; }
   .home-cta { padding: var(--s-9) 0; }
+  /* The call and its button across the band: the line on the left, the button level with its last line. */
+  .home-cta-inner { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
   .home-chapters .chapter-reading .big-number.is-s { font-size: 2.5rem; }
 }
