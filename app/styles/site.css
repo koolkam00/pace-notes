@@ -20,6 +20,11 @@
 @import './components/sheet.css';
 @import './components/table.css';
 @import './components/values.css';
+/* Charts, the scrubber and the replay (components/viz, WP0-C). */
+@import './components/chart-frame.css';
+@import './components/dot-grid.css';
+@import './components/ruler.css';
+@import './components/scrubber.css';
 @import './legacy/shared.css';
 @import './legacy/home.css';
 @import './legacy/stories.css';
