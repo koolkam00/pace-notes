@@ -4,7 +4,6 @@ import { pageDescription, pageTitle, raceName, racePath, standardByKey } from '@
 import { getCourseNames, slugifyCity } from '@/lib/course-data';
 import { pageMetadata } from '@/lib/seo';
 import { QUALIFYING_COURSE, STANDARDS } from '@/lib/tools/qualifying';
-import './race.css';
 
 /**
  * One page per race in lib/tools/qualifying.ts, at its own key: /tools/qualifying/boston, /nyc, /london, …
