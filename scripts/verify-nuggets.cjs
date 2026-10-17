@@ -189,6 +189,11 @@ for (const [id, recount] of Object.entries(RECOUNT)) {
   recount(n);
 }
 
+// Area recounts: each package's own module in scripts/nuggets/, recounting its nuggets for every context they are built
+// for (the course pages: every city).
+const areas = [require('./nuggets/courses.cjs')({ ROOT, N, core, ok, eq, problems })];
+const areaChecks = areas.reduce((sum, a) => sum + a.checks, 0);
+
 // ---------- Fixtures: every reference fallback renders, and a flipped guard is caught ----------
 if (!args.has('--no-fixture')) {
   const stories = require('../lib/nuggets/stories.ts');
@@ -226,4 +231,4 @@ if (args.has('--no-placeholders') && remaining.length) {
   console.error(`verify-nuggets: ${remaining.length} placeholder nuggets remain: ${remaining.join(', ')}`);
   process.exit(1);
 }
-console.log(`verify-nuggets: ${all.length + 1} nuggets (${N.NUGGET_IDS.length} ids), ${checks} checks; the three reference nuggets (site.totals, field.median, replay.first) recount independently. Placeholders still to replace (${remaining.length}): ${remaining.join(', ')}`);
+console.log(`verify-nuggets: ${all.length + 1} nuggets (${N.NUGGET_IDS.length} ids), ${checks + areaChecks} checks; the three reference nuggets (site.totals, field.median, replay.first) and the course nuggets (${areas[0].cities} courses) recount independently. Placeholders still to replace (${remaining.length}): ${remaining.join(', ')}`);
