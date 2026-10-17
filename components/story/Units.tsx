@@ -54,14 +54,12 @@ export function PerDegreeRange({ lo, hi, digits = 2 }: { lo: number; hi: number;
   return <>{(lo * k).toFixed(digits)} to {(hi * k).toFixed(digits)}</>;
 }
 
-/** A checkpoint distance in the reader's units, e.g. 30 → "18.6 mi". */
+/** A checkpoint's mat name, the same in both unit modes: 30 → "30K", 42.195 → "Finish". */
 export function Checkpoint({ km }: { km: number }) {
-  const { units } = useUnits();
-  return <>{checkpointLabel(km, units)}</>;
+  return <>{checkpointLabel(km)}</>;
 }
 
-/** A recorded section (0 = 0–5 km … 8 = 40–42.2 km) in the reader's units. */
+/** A recorded section by index (0 = 0–5K … 8 = 40K–finish), named by its mats in both unit modes. */
 export function Section({ i }: { i: number }) {
-  const { units } = useUnits();
-  return <>{sectionLabel(i, units)}</>;
+  return <>{sectionLabel(i)}</>;
 }

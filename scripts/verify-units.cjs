@@ -13,7 +13,7 @@ Module._resolveFilename = function (request, ...args) {
 };
 const {
   DEFAULT_UNITS, KM_PER_MILE, METRES_PER_FOOT, distanceValue, distanceLabel,
-  paceValue, paceLabel, elevationValue, elevationLabel, unitText,
+  paceValue, paceLabel, elevationValue, elevationLabel, unitText, matLabel, sectionLabel: matSection, distance, MARATHON_KM,
 } = require(path.join(__dirname, '../lib/units.ts'));
 const { paceTicks } = require(path.join(__dirname, '../lib/pace-ticks.ts'));
 
@@ -45,6 +45,29 @@ assert.equal(elevationValue(100, 'km'), 100);
 assert.equal(elevationLabel(100, 'mi'), '328.1 ft');
 assert.equal(elevationLabel(-10, 'mi'), '-32.8 ft');
 assert.equal(elevationLabel(100, 'km'), '100 m');
+
+// Mats are named the same in both unit modes (owner decision 4, spec section 3.10): 5K … 40K and Finish, sections
+// "0–5K" … "35–40K" and "40K–finish". Other distances in prose take one decimal in miles, never two.
+assert.equal(MARATHON_KM, 42.195);
+assert.deepEqual([0, 5, 10, 20, 21.0975, 30, 35, 40, 42.195, 42.2].map(matLabel), ['Start', '5K', '10K', '20K', '21.1K', '30K', '35K', '40K', 'Finish', 'Finish']);
+assert.equal(matLabel(NaN), '—');
+assert.deepEqual([[0, 5], [5, 10], [20, 25], [35, 40], [40, 42.195], [0, 42.195], [5, 20]].map(([a, b]) => matSection(a, b)),
+  ['0–5K', '5–10K', '20–25K', '35–40K', '40K–finish', 'Start–finish', '5–20K']);
+assert.equal(distance(42.195, 'mi'), '26.2 mi');
+assert.equal(distance(42.195, 'km'), '42.2 km');
+assert.equal(distance(2.195, 'mi'), '1.4 mi', 'The last 2.195 km reads 1.4 mi in prose');
+assert.equal(distance(5, 'mi'), '3.1 mi');
+assert.equal(distance(5, 'km'), '5 km');
+assert.equal(distance(NaN, 'mi'), '—');
+for (const km of [0.5, 1, 2.195, 5, 12.195, 21.0975, 42.195]) assert.doesNotMatch(distance(km, 'mi'), /\.\d\d/, 'Prose miles never take two decimals');
+{
+  const viz = require('../lib/viz/format.ts');
+  for (const units of ['mi', 'km']) {
+    assert.deepEqual([5, 10, 20, 30, 40, 42.195].map((km) => viz.checkpointLabel(km, units)), ['5K', '10K', '20K', '30K', '40K', 'Finish'], `${units}: checkpoints are mats`);
+    assert.deepEqual(viz.SECTION_BOUNDS.map((_, i) => viz.sectionLabel(i, units)), ['0–5K', '5–10K', '10–15K', '15–20K', '20–25K', '25–30K', '30–35K', '35–40K', '40K–finish'], `${units}: sections are named by their mats`);
+  }
+  assert.equal(viz.sectionLabel(9), '—');
+}
 
 // Pace axes: a round minutes:seconds grid in the units shown, never a kilometre grid converted to miles (which read
 // 8:15, 8:48, 9:21/mi on the pacing-pattern chart). Ticks are seconds per displayed unit; the domain is first to last.
@@ -361,9 +384,11 @@ assert.match(chartSource('RunnerContext.tsx'), /<YAxis [^>]*domain=\{paceAxis \?
   assert.throws(() => page(e(function Chart() { return `${units.useUnits().units} axis`; })), inert, 'So does any figure that reads the units');
   assert.equal(page(e(units.UnitText, null, 'Methods and sources.')), 'Methods and sources.', 'Prose with no kilometre figure is the same in both units and may go anywhere');
   assert.match(page(e(units.UnitSwitch), e(units.UnitLink, { href: '/tools' }, 'Tools')), /^<div class="unit-switch unit-switch-placeholder" aria-hidden="true">.*<a href="\/tools">Tools<\/a>$/, 'Links and the placeholder render on every page');
+  const storyUnits = require('../components/story/Units.tsx');
+  assert.equal(page(e(storyUnits.Checkpoint, { km: 30 }), ' ', e(storyUnits.Section, { i: 8 })), '30K 40K–finish', 'Mat names read the same everywhere, so they may go on any page');
   pathname = '/research';
   assert.equal(page(e(units.UnitText, null, 'From the first 5 km to the finish.')), 'From the first 3.11 mi to the finish.');
   assert.match(page(e(units.UnitSwitch)), /^<div class="unit-switch" role="group" aria-label="Distance and pace units">/, '/research has the working switch');
 }
 
-console.log('Verified display-only mile, pace and elevation conversions, source precision, checkpoint labels, prose ranges, URL preservation, rendered measurements, unchanged samples, real profile sections and round pace-axis ticks in both units, the same conversions where a lookbehind RegExp cannot be built (Safari before 16.4), and the working units switch on every page whose text changes with the units (the build stops otherwise).');
+console.log('Verified mat names (5K … 40K, Finish; 0–5K … 40K–finish) in both units, one-decimal prose miles, display-only mile, pace and elevation conversions, source precision, checkpoint labels, prose ranges, URL preservation, rendered measurements, unchanged samples, real profile sections and round pace-axis ticks in both units, the same conversions where a lookbehind RegExp cannot be built (Safari before 16.4), and the working units switch on every page whose text changes with the units (the build stops otherwise).');
