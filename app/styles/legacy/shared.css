@@ -34,7 +34,9 @@ p > a:not([class]), li > a:not([class]) { text-decoration: underline; text-decor
 p > a:not([class]):hover, li > a:not([class]):hover { text-decoration-color: currentColor; }
 a:hover { text-decoration: underline; }
 a, button, input, select, summary { -webkit-tap-highlight-color: transparent; }
-:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 4px; }
+/* :where() (WP0-A): a component's own radius and focus ring outrank this, so a focused pill or round button keeps its
+   shape. Elements with neither still get the rounded ring, now in --focus from base.css. */
+:where(:focus-visible) { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 4px; }
 h1, h2, h3, h4, p, figure { margin: 0; }
 h1, h2, h3, h4 { color: var(--ink); line-height: 1.12; text-wrap: balance; overflow-wrap: normal; }
 h1 { font-family: var(--serif); font-variation-settings: 'opsz' 144, 'SOFT' 40; font-weight: 640; font-size: clamp(2.4rem, 6vw, 4.4rem); letter-spacing: -.022em; }
