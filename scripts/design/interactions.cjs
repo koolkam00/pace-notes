@@ -1,0 +1,232 @@
+'use strict';
+// Interaction captures for shoot.cjs --ix (the redesign spec, section 8.0). Each interaction looks for its control on
+// the page; a page without it records "n/a" rather than failing. Every capture is a viewport screenshot taken with the
+// control in view, named <slug>-ix-<name>.png beside the profile's other captures. Interactions that assert behaviour
+// (the sheet's dialog contract) record ok: false with the reason when an assertion fails.
+const path = require('node:path');
+
+const pause = (page, ms) => page.waitForTimeout(ms);
+
+/** The first visible element matching a selector, or null. */
+async function visible(page, selector) {
+  const all = page.locator(selector);
+  const n = await all.count();
+  for (let i = 0; i < n; i++) {
+    const el = all.nth(i);
+    if (await el.isVisible().catch(() => false)) return el;
+  }
+  return null;
+}
+
+async function inView(el) {
+  await el.evaluate((node) => node.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }));
+  await el.page().waitForTimeout(250);
+}
+
+/** A horizontal drag across an element from one fraction of its width to another (touch-like on phones). */
+async function drag(page, el, from, to, steps = 12) {
+  const box = await el.boundingBox();
+  if (!box) return false;
+  const y = box.y + box.height / 2;
+  const x0 = box.x + box.width * from, x1 = box.x + box.width * to;
+  await page.mouse.move(x0, y);
+  await page.mouse.down();
+  for (let i = 1; i <= steps; i++) await page.mouse.move(x0 + ((x1 - x0) * i) / steps, y + i * 0.2);
+  return { x0, x1, y };
+}
+
+/** Which element has focus, as a short description. */
+const focused = (page) => page.evaluate(() => {
+  const a = document.activeElement;
+  if (!a || a === document.body) return 'body';
+  return `${a.tagName.toLowerCase()}${a.id ? '#' + a.id : ''}${a.className && typeof a.className === 'string' ? '.' + a.className.trim().split(/\s+/).join('.') : ''}`;
+});
+
+const INTERACTIONS = [
+  {
+    name: 'menu-open',
+    selector: '.site-header .nav-toggle',
+    async run(page, el, snap) {
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await el.click();
+      await pause(page, 650);
+      await snap('menu-open');
+      await page.keyboard.press('Escape');
+      await pause(page, 300);
+      if (await el.getAttribute('aria-expanded') === 'true') await el.click();
+    },
+  },
+  {
+    // The Sheet primitive's contract (spec §3.5 and §2.4): opens, traps focus, closes on Escape and on the scrim,
+    // returns focus to its opener, and cannot be focused while closed.
+    name: 'sheet-dialog',
+    selector: '[data-sheet-open]',
+    async run(page, el, snap) {
+      const problems = [];
+      const id = await el.getAttribute('data-sheet-open');
+      const sheet = page.locator(`#${id}`);
+      await inView(el);
+      if (await sheet.evaluate((s) => !s.hasAttribute('inert') && !s.hidden)) problems.push('closed sheet is neither inert nor hidden');
+      await el.focus();
+      await page.keyboard.press('Enter');
+      await pause(page, 700);
+      await snap('sheet-open');
+      if (await sheet.getAttribute('aria-modal') !== 'true') problems.push('open sheet lacks aria-modal="true"');
+      const inside = () => sheet.evaluate((s) => s.contains(document.activeElement));
+      if (!(await inside())) problems.push('focus did not move into the sheet');
+      for (let i = 0; i < 30; i++) { await page.keyboard.press('Tab'); if (!(await inside())) { problems.push(`Tab ${i + 1} left the sheet`); break; } }
+      for (let i = 0; i < 6; i++) { await page.keyboard.press('Shift+Tab'); if (!(await inside())) { problems.push(`Shift+Tab ${i + 1} left the sheet`); break; } }
+      await page.keyboard.press('Escape');
+      await pause(page, 700);
+      if (!(await sheet.evaluate((s) => s.hasAttribute('inert') || s.hidden))) problems.push('Escape did not close the sheet');
+      const back = await el.evaluate((node) => node === document.activeElement);
+      if (!back) problems.push(`focus did not return to the opener (it is on ${await focused(page)})`);
+      await el.click();
+      await pause(page, 700);
+      const scrim = page.locator(`#${id}-scrim`);
+      if (await scrim.count()) {
+        const vp = page.viewportSize();
+        await page.mouse.click(Math.round(vp.width / 2), 12);
+        await pause(page, 700);
+        if (!(await sheet.evaluate((s) => s.hasAttribute('inert') || s.hidden))) problems.push('a scrim tap did not close the sheet');
+      } else problems.push('no scrim element');
+      const tabbable = await sheet.evaluate((s) => {
+        const q = s.querySelectorAll('a[href], button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])');
+        return Array.from(q).filter((n) => !n.closest('[inert]') && !n.closest('[hidden]')).length;
+      });
+      if (tabbable) problems.push(`${tabbable} controls in the closed sheet can still take focus`);
+      return problems;
+    },
+  },
+  {
+    name: 'scrub',
+    selector: 'figure.viz [role="slider"]',
+    async run(page, el, snap, ctx) {
+      await inView(el);
+      const d = await drag(page, el, 0.5, 0.3);
+      if (!d) return ['slider has no box'];
+      await pause(page, 200);
+      await snap('scrub-dragging');
+      await page.mouse.up();
+      await pause(page, 250);
+      await snap('scrub-30');
+      await el.focus();
+      await page.keyboard.press('PageUp');
+      await pause(page, 300);
+      await snap('scrub-detent');
+      return [];
+    },
+  },
+  {
+    name: 'guess',
+    selector: '.guess input[type="range"]',
+    async run(page, el, snap) {
+      await inView(el);
+      const d = await drag(page, el, 0.2, 0.62, 10);
+      if (!d) return ['guess slider has no box'];
+      await pause(page, 150);
+      await snap('guess-dragging');
+      await page.mouse.up();
+      const lock = page.locator('.guess').getByRole('button', { name: /lock it in/i }).first();
+      if (await lock.count()) { await lock.click(); await pause(page, 1100); await snap('guess-revealed'); }
+      else return ['no "Lock it in" button'];
+      return [];
+    },
+  },
+  {
+    name: 'segment',
+    selector: '.seg button[aria-pressed="false"], .segmented button[aria-pressed="false"]',
+    async run(page, el, snap) {
+      // A handle, not the locator: once pressed, the button no longer matches the selector.
+      const button = await el.elementHandle();
+      await inView(el);
+      await button.click();
+      await pause(page, 650);
+      await snap('segment-changed');
+      return (await button.getAttribute('aria-pressed')) === 'true' ? [] : ['the pressed segment did not report aria-pressed="true"'];
+    },
+  },
+  {
+    name: 'chips',
+    selector: '.chips button[aria-pressed="false"]',
+    async run(page, el, snap) {
+      const chip = await el.elementHandle();
+      await inView(el);
+      await chip.click();
+      await pause(page, 400);
+      await snap('chip-selected');
+      return (await chip.getAttribute('aria-pressed')) === 'true' ? [] : ['the chosen chip did not report aria-pressed="true"'];
+    },
+  },
+  {
+    name: 'deck-swipe',
+    selector: '.deck',
+    async run(page, el, snap) {
+      await inView(el);
+      await el.evaluate((node) => node.scrollBy({ left: node.clientWidth * 0.82, behavior: 'instant' }));
+      await pause(page, 500);
+      await snap('deck-swiped');
+      return [];
+    },
+  },
+  {
+    name: 'replay',
+    selector: '.replay',
+    async run(page, el, snap) {
+      await inView(el);
+      await pause(page, 2500);
+      await snap('replay-flag');
+      const play = el.locator('button').filter({ hasText: /play|▶/i }).first();
+      if (await play.count()) { await play.click().catch(() => {}); await pause(page, 1500); await snap('replay-playing'); }
+      return [];
+    },
+  },
+  {
+    name: 'values-open',
+    selector: 'details.values > summary',
+    async run(page, el, snap) {
+      await inView(el);
+      // A disclosure the page opens by default is captured as it is.
+      if (!(await el.evaluate((s) => s.parentElement.open))) await el.click();
+      await pause(page, 450);
+      await inView(el);
+      await snap('values-open');
+      return (await el.evaluate((s) => s.parentElement.open)) ? [] : ['Values did not open'];
+    },
+  },
+  {
+    name: 'share-sheet',
+    selector: '[data-share-open]',
+    async run(page, el, snap) {
+      await inView(el);
+      await el.click();
+      await pause(page, 1600);
+      await snap('share-sheet');
+      await page.keyboard.press('Escape');
+      return [];
+    },
+  },
+];
+
+/** Runs every interaction that applies to the page; returns one record per interaction. */
+async function runInteractions(page, { dir, slug, shot }) {
+  const results = [];
+  for (const ix of INTERACTIONS) {
+    const el = await visible(page, ix.selector);
+    if (!el) { results.push({ name: ix.name, ok: true, skipped: 'n/a' }); continue; }
+    const files = [];
+    const snap = async (name) => {
+      const file = path.join(dir, `${slug}-ix-${name}.png`);
+      const { mask, maskColor, ...rest } = shot;
+      await page.screenshot({ ...rest, path: file });
+      files.push(path.basename(file));
+    };
+    let problems = [];
+    try { problems = (await ix.run(page, el, snap)) || []; } catch (e) { problems = ['threw: ' + String(e && e.message || e).slice(0, 200)]; }
+    try { await page.mouse.up(); } catch { /* not pressed */ }
+    results.push({ name: ix.name, ok: problems.length === 0, problems, files });
+  }
+  return results;
+}
+
+module.exports = { INTERACTIONS, runInteractions };
