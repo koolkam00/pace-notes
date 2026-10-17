@@ -29,7 +29,7 @@ const { respond } = require('./e2e/server.cjs');
 const ROOT = path.join(__dirname, '..');
 const OUT = path.join(ROOT, 'out');
 const SITE = 'https://splithappens.run';
-// /design-system holds the redesign's type (Fraunces at 420 to 450, its italic accent) until the area pages carry it; WP9
+// /design-system holds the redesign's type (Fraunces at 440, its italic accent) until the area pages carry it; WP9
 // swaps it for those pages when it deletes the gallery.
 const PAGES = ['/', '/stories', '/stories/pacing-types', '/stories/final-kick', '/tools', '/tools/predictor', '/tools/pace-band', '/analyses', '/analyses/pacing-pattern', '/courses', '/runners', '/about', '/design-system'];
 const FONTS = path.join(ROOT, 'public/fonts');
@@ -81,9 +81,9 @@ const LOCAL = {
 /**
  * The fallback faces. `weight` and `style` are the face's descriptors, so each face stands in for the runs of text its web
  * font sets at those weights and styles, and is measured on them against `measure`. Fraunces (opsz and wght only, no
- * SOFT or WONK) is set at 420–450 in the redesign's type, matched against the regular serif from 20 px up, and at
+ * SOFT or WONK) is set at 440 in the redesign's type, matched against the regular serif from 20 px up, and at
  * 600–700 in the legacy pages: titles at 680 get their own match, headings at 600–640 another, both at their display
- * optical sizes (`minOpsz`). Bricolage Grotesque only sets figures, at 700–780. The Android faces are single regular faces (Android
+ * optical sizes (`minOpsz`). Bricolage Grotesque only sets figures: 660 in the redesign, 700–780 in the legacy pages. The Android faces are single regular faces (Android
  * draws them bold the way it draws any bold system text), so they are measured on every run against the regular
  * Liberation font and scaled by the capsize widths in `scale`.
  *

@@ -1,15 +1,15 @@
 /* Scrolly (components/ui/Scrolly.client.tsx): one per story, for its signature finding. A sticky graphic and 3 to 6
    steps as plain text on paper. The steps set data-step; layers marked data-from (and optionally data-to) show while the
    step is in their range: only transform and opacity change, over --d-step. Never scroll-jacked, never continuous.
-   Phone: the graphic sticks under the reading bar at 58svh and the steps scroll below it. From 900 px: a 26 rem step
-   column on the left, the graphic sticky on the right. Reduced motion or the Motion switch: no pinning, the final state,
+   Phone: the graphic sticks under the reading bar at its own height (keep it under 58svh) and the steps scroll below
+   it, so no empty band sits between the picture and the words. From 900 px: a 26 rem step column on the left, the
+   graphic sticky on the right, centred on the screen beside the step text. Reduced motion or the Motion switch: no pinning, the final state,
    the steps as a short list. Spec section 3.5. */
 
 .scrolly { position: relative; }
 .scrolly-graphic {
   position: sticky; z-index: 1; top: var(--reading-h);
-  height: 58vh; height: 58svh; min-height: 280px;
-  display: flex; align-items: flex-start; padding-top: var(--s-4);
+  display: flex; align-items: flex-start; padding: var(--s-4) 0 var(--s-3);
   background: var(--paper);
 }
 .scrolly-graphic > figure { width: 100%; margin: 0; }
@@ -30,7 +30,7 @@
 @media (min-width: 900px) {
   .scrolly { display: grid; grid-template-columns: 26rem minmax(0, 1fr); gap: 48px; align-items: start; }
   .scrolly-steps { grid-column: 1; grid-row: 1; }
-  .scrolly-graphic { grid-column: 2; grid-row: 1; top: calc(var(--header-h) + 24px); height: calc(100vh - var(--header-h) - 48px); }
+  .scrolly-graphic { grid-column: 2; grid-row: 1; top: calc(var(--header-h) + 24px); height: calc(100vh - var(--header-h) - 48px); align-items: center; padding: 0; }
   .scrolly-step { min-height: 70vh; display: flex; flex-direction: column; justify-content: center; }
 }
 

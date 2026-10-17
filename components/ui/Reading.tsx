@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react';
 import BigNumber, { type BigNumberSize } from './BigNumber';
+import { withEm } from './withEm';
+
+export { withEm };
 
 /**
  * The Reading: every page opens on it (spec section 3.5). Crumbs, the H1, the question dek, a hairline, then the
@@ -17,13 +20,6 @@ import BigNumber, { type BigNumberSize } from './BigNumber';
  */
 
 export type Figure = { value: string; unit?: string; sr: string; size?: BigNumberSize; key?: string };
-
-/** Renders one *…* span of a nugget sentence as <em>; text without a marker comes back unchanged. */
-export function withEm(text: string): ReactNode {
-  const m = /^([\s\S]*?)\*([^*]+)\*([\s\S]*)$/.exec(text);
-  if (!m) return text;
-  return <>{m[1]}<em>{m[2]}</em>{m[3]}</>;
-}
 
 type Props = {
   crumbs?: ReactNode;

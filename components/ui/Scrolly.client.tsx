@@ -1,12 +1,12 @@
 'use client';
 import { useEffect, useRef, type ReactNode } from 'react';
-import { withEm } from './Reading';
+import { withEm } from './withEm';
 
 /**
  * A step-by-step reveal, one per story, for its signature finding (spec section 3.5). `graphic` is a server-rendered
  * figure.viz with every layer in it; layers carry data-from="n" (and optionally data-to="m") and show while the current
- * step is in that range. The current step is the last whose top has crossed a line 20% above the bottom of the screen
- * (28% from 900 px); the scrolly carries it as data-step, so page CSS can also key a zoom or a label off it. State
+ * step is in that range. The current step is the last whose text has crossed a line 20% above the bottom of the screen
+ * (28% from 900 px, where each step's text sits mid-way down its tall box); the scrolly carries it as data-step, so page CSS can also key a zoom or a label off it. State
  * changes only when a step crosses that line: scroll position never drives animation and scrolling is never taken over.
  *
  * The server markup carries data-step="final", so without the script, and under reduced motion or the site's Motion
@@ -22,6 +22,8 @@ export default function Scrolly({ graphic, steps, className }: { graphic: ReactN
     const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || document.documentElement.hasAttribute('data-motion-off');
     if (still || typeof IntersectionObserver !== 'function') { el.classList.add('is-static'); return; }
     const stepEls = Array.from(el.querySelectorAll<HTMLElement>('.scrolly-step'));
+    // Each step's text, not its box: the graphic changes as the words that explain it come into view.
+    const texts = stepEls.map((s) => s.querySelector<HTMLElement>('p') ?? s);
     const layers = Array.from(el.querySelectorAll<HTMLElement>('[data-from]'));
     const wide = window.matchMedia?.('(min-width: 900px)').matches;
     const inset = wide ? 0.28 : 0.2;
@@ -39,12 +41,12 @@ export default function Scrolly({ graphic, steps, className }: { graphic: ReactN
     const pick = () => {
       const line = window.innerHeight * (1 - inset);
       let n = 0;
-      stepEls.forEach((s, i) => { if (s.getBoundingClientRect().top < line) n = i; });
+      texts.forEach((t, i) => { if (t.getBoundingClientRect().top < line) n = i; });
       apply(n);
     };
     pick();
     const io = new IntersectionObserver(pick, { rootMargin: `0px 0px -${inset * 100}% 0px`, threshold: [0, 1] });
-    stepEls.forEach((s) => io.observe(s));
+    texts.forEach((t) => io.observe(t));
     return () => io.disconnect();
   }, []);
   return (

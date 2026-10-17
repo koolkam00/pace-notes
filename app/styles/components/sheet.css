@@ -20,7 +20,7 @@
 .sheet-panel:focus { outline: none; }
 .sheet-grip { flex: none; width: 40px; height: 4px; margin: 10px auto 0; border-radius: 4px; background: var(--rule-strong); }
 .sheet-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); padding: 8px var(--gutter) 8px; }
-.sheet-title { margin: 0; font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-size: 1.375rem; font-weight: 450; line-height: 1.2; letter-spacing: -.01em; color: var(--ink); }
+.sheet-title { margin: 0; font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-size: 1.375rem; font-weight: 440; line-height: 1.2; letter-spacing: -.01em; color: var(--ink); }
 .sheet-close {
   flex: none; display: grid; place-items: center; width: 44px; height: 44px; min-height: 44px; padding: 0; margin-right: -6px;
   border: 0; border-radius: 50%; background: var(--paper-sunk); color: var(--ink); box-shadow: none; cursor: pointer;

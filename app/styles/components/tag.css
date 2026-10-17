@@ -1,8 +1,0 @@
-/* Kind tags (components/ui/Tag.tsx): Story, Analysis, Tool. Mono 12 caps in --ink-3 on --paper-sunk, 22 px tall. */
-
-.tag {
-  display: inline-flex; align-items: center; height: 22px; padding: 0 8px;
-  border-radius: var(--r-xs); background: var(--paper-sunk); color: var(--ink-3);
-  font-family: var(--mono); font-size: .75rem; font-weight: 500; line-height: 1; letter-spacing: .08em; text-transform: uppercase;
-  white-space: nowrap;
-}

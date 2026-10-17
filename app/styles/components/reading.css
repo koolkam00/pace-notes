@@ -2,16 +2,16 @@
    Spec section 3.5: crumbs, H1, the question dek, a hairline, the figure, its unit line, the sentence, a small instrument
    (at most 120 px) and an optional foot. From 900 px the figure sits beside the sentence (5/12 and 7/12). */
 
-/* ---------- Big number: the reading figure, Bricolage, proportional, never wrapping ---------- */
+/* ---------- Big number: the reading figure, Bricolage 660 at every size, proportional, never wrapping ---------- */
 .big-number {
   display: inline-flex; align-items: baseline; gap: .04em;
-  font-family: var(--figure); font-weight: 680; font-variant-numeric: proportional-nums; font-feature-settings: normal;
+  font-family: var(--figure); font-weight: 660; font-variant-numeric: proportional-nums; font-feature-settings: normal;
   line-height: .86; letter-spacing: -.035em; white-space: nowrap; color: var(--ink);
 }
 .big-number.is-xl { font-size: var(--t-figure-xl); }
 .big-number.is-l { font-size: var(--t-figure-l); line-height: .9; letter-spacing: -.03em; }
-.big-number.is-m { font-size: var(--t-figure-m); font-weight: 660; line-height: .95; letter-spacing: -.025em; }
-.big-number.is-s { font-size: var(--t-figure-s); font-weight: 640; line-height: 1; letter-spacing: -.02em; }
+.big-number.is-m { font-size: var(--t-figure-m); line-height: .95; letter-spacing: -.025em; }
+.big-number.is-s { font-size: var(--t-figure-s); line-height: 1; letter-spacing: -.02em; }
 .big-number-unit { font-family: var(--sans); font-size: .36em; font-weight: 500; letter-spacing: 0; color: var(--ink-3); }
 .big-number.is-signal { color: var(--signal); }
 .big-number.is-quiet { color: var(--ink-3); }

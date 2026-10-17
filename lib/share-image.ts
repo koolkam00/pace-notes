@@ -1,6 +1,6 @@
 /**
  * The 4:5 share card (spec section 3.5): 1080 × 1350, drawn on a canvas that is never added to the page or uploaded.
- * A night surface; the marker and chapter kicker on the left and PACE NOTES on the right; the figure in Bricolage at
+ * A night surface; the marker and chapter kicker (Inter caps) on the left and PACE NOTES on the right; the figure in Bricolage at
  * 280 px; the claim in Fraunces 64 px with its italic accent in the night signal colour; a simplified micro-chart; the
  * address. Colours are read from the design tokens (app/styles/tokens.css) when it starts, with the same values as
  * fallbacks. Fonts are the site's own, loaded with document.fonts.load() first, so nothing is requested from another
@@ -33,7 +33,6 @@ const HOST = 'splithappens.run';
 
 const SERIF = '"Fraunces Variable", Georgia, serif';
 const SANS = '"Inter Variable", Arial, sans-serif';
-const MONO = '"JetBrains Mono Variable", "Courier New", monospace';
 const BIB = '"Bricolage Grotesque Variable", Arial, sans-serif';
 
 function tokens() {
@@ -57,7 +56,7 @@ function runs(claim: string): Run[] {
 
 /** Lays out mixed upright and italic words in lines of at most `width`. */
 function layout(ctx: CanvasRenderingContext2D, parts: Run[], width: number, size: number) {
-  const font = (em: boolean) => `${em ? 'italic ' : ''}420 ${size}px ${SERIF}`;
+  const font = (em: boolean) => `${em ? 'italic ' : ''}440 ${size}px ${SERIF}`;
   const words: { text: string; em: boolean; w: number }[] = [];
   for (const p of parts) {
     for (const word of p.text.split(/(\s+)/)) {
@@ -123,7 +122,7 @@ function micro(ctx: CanvasRenderingContext2D, m: ShareMicro, x: number, y: numbe
 
 /** Draws the card and returns it as a PNG. */
 export async function renderShareCard(card: ShareCard): Promise<Blob> {
-  const fonts = [`680 280px ${BIB}`, `420 64px ${SERIF}`, `italic 420 64px ${SERIF}`, `500 26px ${MONO}`, `600 26px ${MONO}`, `500 30px ${SANS}`];
+  const fonts = [`660 280px ${BIB}`, `440 64px ${SERIF}`, `italic 440 64px ${SERIF}`, `600 26px ${SANS}`, `500 30px ${SANS}`];
   if (typeof document !== 'undefined' && document.fonts) {
     await Promise.all(fonts.map((f) => document.fonts.load(f, `${card.figure}${card.unit ?? ''} Pace Notes`).catch(() => [])));
     await document.fonts.ready;
@@ -142,7 +141,7 @@ export async function renderShareCard(card: ShareCard): Promise<Blob> {
   let kx = M;
   const ky = M + 22;
   if (card.marker) {
-    ctx.font = `600 26px ${MONO}`;
+    ctx.font = `600 26px ${SANS}`;
     const mw = ctx.measureText(card.marker).width + 32;
     ctx.fillStyle = c.ink;
     rounded(ctx, kx, ky - 22, mw, 44, 8); ctx.fill();
@@ -150,24 +149,24 @@ export async function renderShareCard(card: ShareCard): Promise<Blob> {
     ctx.fillText(card.marker, kx + 16, ky + 1);
     kx += mw + 22;
   }
-  ctx.font = `500 26px ${MONO}`;
+  ctx.font = `600 26px ${SANS}`;
   ctx.fillStyle = c.ink2;
   ctx.fillText(card.kicker.toUpperCase(), kx, ky + 1);
   ctx.textAlign = 'right';
   ctx.fillStyle = c.ink;
-  ctx.font = `600 26px ${MONO}`;
+  ctx.font = `600 26px ${SANS}`;
   ctx.fillText('PACE NOTES', W - M, ky + 1);
   ctx.textAlign = 'left';
 
   // The figure, with its unit at 0.36 em.
   ctx.textBaseline = 'alphabetic';
   let size = 280;
-  ctx.font = `680 ${size}px ${BIB}`;
+  ctx.font = `660 ${size}px ${BIB}`;
   const unitSize = () => Math.round(size * 0.36);
-  const total = () => { ctx.font = `680 ${size}px ${BIB}`; const fw = ctx.measureText(card.figure).width; ctx.font = `500 ${unitSize()}px ${SANS}`; return fw + (card.unit ? ctx.measureText(card.unit).width + 12 : 0); };
+  const total = () => { ctx.font = `660 ${size}px ${BIB}`; const fw = ctx.measureText(card.figure).width; ctx.font = `500 ${unitSize()}px ${SANS}`; return fw + (card.unit ? ctx.measureText(card.unit).width + 12 : 0); };
   while (total() > W - 2 * M && size > 120) size -= 10;
   const fy = 470;
-  ctx.font = `680 ${size}px ${BIB}`;
+  ctx.font = `660 ${size}px ${BIB}`;
   ctx.fillStyle = c.ink;
   ctx.fillText(card.figure, M - 6, fy);
   if (card.unit) {

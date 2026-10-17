@@ -1,21 +1,18 @@
-/* The race receipt (components/ui/Receipt.tsx): the analysis answer. A night card with a zig-zag bottom edge (a CSS
-   mask, 8 px teeth), dashed tear lines, at most four lines and the result. Direction is carried by sign and words, never
-   by colour: only the result is signal. The goal line sits under it on paper. Spec section 3.5. */
+/* The race receipt (components/ui/Receipt.tsx): the analysis answer. A plain night card, its lines divided by
+   hairlines: at most four lines and the result. No torn edge or dashed tear lines (spec section 00, simple is
+   beautiful: nothing decorative). Direction is carried by sign and words, never by colour: only the result is signal.
+   The goal line sits under it on paper. Spec section 3.5. */
 
 .receipt-wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-3); max-width: 34rem; }
 .receipt {
-  --tooth: 8px;
   position: relative;
-  padding: 20px 20px calc(20px + var(--tooth));
-  border-radius: var(--r-md) var(--r-md) 0 0;
+  padding: 20px;
+  border-radius: var(--r-md);
   background: var(--paper); color: var(--ink);
-  -webkit-mask: conic-gradient(from -45deg at bottom, transparent, var(--ink) 1deg 89deg, transparent 90deg) 50% / calc(2 * var(--tooth)) 100%;
-  mask: conic-gradient(from -45deg at bottom, transparent, var(--ink) 1deg 89deg, transparent 90deg) 50% / calc(2 * var(--tooth)) 100%;
 }
-.receipt-kickers { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px var(--s-4); }
-.receipt-kickers .t-kicker { color: var(--ink-3); }
-.receipt-kickers .t-kicker + .t-kicker { text-align: right; color: var(--ink-2); }
-.receipt-tear { height: 0; margin: 14px 0; border: 0; border-top: 1px dashed var(--rule-strong); }
+.receipt-kicker { margin: 0; color: var(--ink-3); }
+.receipt-rule { height: 1px; margin: 16px 0; border: 0; background: var(--rule); }
+.receipt-kicker + .receipt-lines { margin-top: 14px; }
 .receipt-lines { display: grid; gap: 12px; margin: 0; }
 .receipt-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 2px var(--s-4); }
 .receipt-line dt { font-family: var(--sans); font-size: .9375rem; font-weight: 500; line-height: 1.3; color: var(--ink); }
@@ -35,8 +32,7 @@
 .receipt-ruler-mark { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; }
 .receipt-ruler-mark.is-typical { border: 2px solid var(--mark-quiet); background: var(--paper); }
 .receipt-ruler-mark.is-observed { background: var(--signal); box-shadow: 0 0 0 2px var(--paper); }
-.receipt-foot { margin-top: 18px; text-align: center; }
-.receipt-foot.t-kicker { color: var(--ink-3); }
+.receipt-foot { margin: 16px 0 0; font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); }
 
 /* The goal line, on paper under the card. */
 .receipt-goal { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s-3); margin: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
@@ -54,5 +50,5 @@
   .receipt-line dd { font-size: 1.375rem; }
 }
 @media (forced-colors: active) {
-  .receipt { border: 1px solid CanvasText; -webkit-mask: none; mask: none; }
+  .receipt { border: 1px solid CanvasText; }
 }

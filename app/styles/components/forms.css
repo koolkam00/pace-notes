@@ -2,7 +2,8 @@
    Inputs are 52 px or more on --paper-raised with a 1 px --rule-strong border; focus adds the 2 px --focus ring; an error
    turns the value --signal-ink with a 2 px signal underline and a literal role="alert" message below. */
 
-.field { display: grid; gap: 6px; min-width: 0; }
+/* align-content: start keeps the input its own height when a grid row stretches the field beside a taller one. */
+.field { display: grid; align-content: start; gap: 6px; min-width: 0; }
 .field-label { font-family: var(--sans); font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
 .field-hint { font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
 .field-error { font-size: var(--t-small); line-height: 1.45; font-weight: 600; color: var(--signal-ink); }
@@ -32,15 +33,10 @@
 .check input[type='checkbox'] { width: 20px; height: 20px; min-height: 20px; margin: 0; accent-color: var(--ink); }
 
 /* "Tap . for :" (components/KeypadHint.tsx): touch screens only, decided by CSS at first paint so nothing moves. The two
-   keys are drawn as small key caps. */
+   keys are bold glyphs, not key caps: caps cost width, and the hint must stay on its field's help line. */
 .keypad-hint { display: none; }
 @media (pointer: coarse) {
   .keypad-hint { display: inline; white-space: nowrap; }
   .keypad-hint.is-block { display: block; margin: 0; color: var(--ink-3); font-size: .75rem; line-height: 1.45; }
 }
-.keypad-hint kbd {
-  display: inline-block; min-width: 1.5em; padding: 0 .3em; margin: 0 .1em;
-  border: 1px solid var(--rule-strong); border-radius: 4px; background: var(--paper-raised);
-  font-family: var(--mono); font-size: .92em; font-weight: 700; line-height: 1.35; text-align: center; color: inherit;
-}
-.night .keypad-hint kbd { background: var(--night-2); border-color: var(--night-3); }
+.keypad-hint kbd { font-family: var(--sans); font-size: 1.08em; font-weight: 700; line-height: 1; color: inherit; }
