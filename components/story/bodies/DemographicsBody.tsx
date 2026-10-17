@@ -1,44 +1,132 @@
 import type { Demographics } from '@/lib/insights';
-import { mss } from '@/lib/viz/format';
-import { AgeLadder, GenderDumbbell, GhostRace, WomenShare } from '../DemographicsStory';
-import { StorySection } from '../StoryShell';
-import { StoryData } from '../StoryData';
-import { UnitLink as Link } from '@/components/UnitsProvider';
+import { readInsight } from '@/lib/insights-server';
+import { STORIES } from '@/lib/stories';
+import { getNugget } from '@/lib/nuggets';
+import { hm, matLabel, ms, pct } from '@/lib/nuggets/format';
+import { MARATHON_KM } from '@/lib/units';
+import Ruler from '@/components/viz/Ruler';
+import GhostRace from '@/components/viz/GhostRace.client';
+import LineProfile from '@/components/viz/LineProfile';
+import Values from '@/components/ui/Values';
+import PairBars from '../charts/PairBars';
+import { Beat, Say, StoryHero, StoryPage } from '../StoryPage';
 
-export default function DemographicsBody({ data }: { data: Demographics }) {
+const PATH = '/stories/who-holds-pace';
+const SECTION_KM: [number, number][] = [[0, 5], [5, 10], [10, 15], [15, 20], [20, 25], [25, 30], [30, 35], [35, 40], [40, MARATHON_KM]];
+const MATS = [0, 5, 10, 15, 20, 25, 30, 35, 40, MARATHON_KM];
+const MINUS = '−';
+const slower = (v: number) => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(v).toFixed(1)}%`;
+
+/**
+ * Who holds their pace (the redesign spec, section 7.9, under section 00): the reading (sustained slowdown, recorded
+ * women against recorded men at the same finish times) as a pair, then three beats: the gap pooled and matched under
+ * one lens, the two racing side by side in the band with the most matched finishes, and the gap at every finish time.
+ * The age ladder is cut (age is /analyses/age-and-pacing's finding) and so is the women's share by city (who runs, not
+ * how they pace).
+ */
+export default function DemographicsBody() {
+  const data = readInsight<Demographics>('demographics.json');
+  const story = STORIES.find((s) => s.slug === 'who-holds-pace')!;
+  const gender = getNugget('holds.gender'), unmask = getNugget('holds.unmask'), ghost = getNugget('holds.ghost'), bands = getNugget('holds.bands');
+  const w = Number(gender.values.women), m = Number(gender.values.men);
   const o = data.overall;
-  const peak = data.bands.reduce((best, b) => (b.men_slowdown / Math.max(b.women_slowdown, 1e-9) > best.men_slowdown / Math.max(best.women_slowdown, 1e-9) ? b : best), data.bands[0]);
-  const a = data.age_contrast;
-  const womenTop = Math.max(...data.ladder.filter((l) => l.gender === 'Women').map((l) => l.slowdown_vs_field));
-  const menBottom = Math.min(...data.ladder.filter((l) => l.gender === 'Men').map((l) => l.slowdown_vs_field));
-  const share = data.women_share_by_band;
-  const majority = share.find((s) => s.women_share >= 0.5);
+  const top = Math.ceil(Math.max(m, w) * 10) / 10 + 0.1;
+
+  // The ghost race, in the band the holds.ghost nugget names: recorded men from their section profile, recorded women
+  // behind them by the published gap at each mat. Positions between mats run at the section's pace.
+  const band = data.bands.find((b) => b.label === ghost.values.band) ?? data.bands[0];
+  const finish = (band.lo_min + 5) * 60;
+  const raw = SECTION_KM.map(([a, b], i) => (b - a) * (1 + band.men_profile[i] / 100));
+  const scale = finish / raw.reduce((s2, v) => s2 + v, 0);
+  const men: number[] = [];
+  raw.reduce((t, v) => { men.push(t + v * scale); return t + v * scale; }, 0);
+  const women = men.map((t, k) => t + band.ghost_s[k]);
+  const posAt = (cum: number[], t: number) => {
+    const c = [0, ...cum];
+    if (t >= c[c.length - 1]) return MARATHON_KM;
+    let j = 1;
+    while (c[j] < t) j++;
+    return MATS[j - 1] + ((t - c[j - 1]) / (c[j] - c[j - 1])) * (MATS[j] - MATS[j - 1]);
+  };
+  const timeAt = (cum: number[], km: number) => {
+    const c = [0, ...cum];
+    let j = 1;
+    while (j < MATS.length - 1 && MATS[j] < km) j++;
+    return c[j - 1] + ((km - MATS[j - 1]) / (MATS[j] - MATS[j - 1])) * (c[j] - c[j - 1]);
+  };
+  const end = Math.max(men[8], women[8]);
+  const peak = band.ghost_s.indexOf(Math.max(...band.ghost_s));
+  const clocks = [...new Set([...Array.from({ length: Math.floor(end / 60) + 1 }, (_, i) => i * 60), men[peak]])].sort((a, b) => a - b);
+  const ghostKm = clocks.map((t) => posAt(men, t)), runnerKm = clocks.map((t) => posAt(women, t));
+  const gaps = clocks.map((t, i) => {
+    if (t === 0) return 'Both at the start';
+    const lead = Math.max(ghostKm[i], runnerKm[i]);
+    if (ghostKm[i] >= MARATHON_KM && runnerKm[i] >= MARATHON_KM) return 'Both finished';
+    const behind = ghostKm[i] >= runnerKm[i] ? timeAt(women, lead) - t : timeAt(men, lead) - t;
+    return `${ghostKm[i] >= runnerKm[i] ? 'Women' : 'Men'} ${ms(Math.max(0, behind))} behind`;
+  });
+  const initial = Math.max(0, clocks.indexOf(men[peak]));
+
+  // The gap at every finish time: each band's sustained-slowdown share for recorded women and men.
+  const rows = data.bands.filter((b) => b.women_n >= 100 && b.men_n >= 100);
+  const width = rows.length > 1 ? rows[1].lo_min - rows[0].lo_min : 10;
+  const bx = rows.map((b) => b.lo_min + width / 2);
+  const bTop = Math.ceil(Math.max(...rows.map((b) => b.men_slowdown)) * 10) / 10;
+  const last = rows.length - 1;
+  // The lines are named where they stand furthest apart, clear of the axis labels at either end.
+  const mid = rows.reduce((best, b, i) => (i > 0 && i < last && b.men_slowdown - b.women_slowdown > rows[best].men_slowdown - rows[best].women_slowdown ? i : best), Math.floor(last / 2));
+
   return (
-    <StoryData value={{ demographics: data }}>
-      <StorySection id="unmask" kicker="01 · Line them up" title={<>Pooled, the gap looks small. <em>Matched</em>, it is {((o.men_block - o.women_block) / (o.pooled_men_block - o.pooled_women_block)).toFixed(0)} times as big.</>}
-        dek={<>Across all recorded women&apos;s and men&apos;s finishes between 2:30 and 6:00, the average 20–40 km block is {o.pooled_women_block.toFixed(1)}% slower than 0–20 km for recorded women and {o.pooled_men_block.toFixed(1)}% for men. But women finish later on average, and later finishers slow more. Compared within the same race and finish minute, the averages are {o.women_block.toFixed(1)}% and {o.men_block.toFixed(1)}%.</>}>
-        <div className="bibs">
-          <div className="bib"><span className="bib-tag">Sustained slowdown, matched</span><span className="bib-number">{(o.women_slowdown * 100).toFixed(0)}% <small>vs</small> {(o.men_slowdown * 100).toFixed(0)}%</span><span className="bib-text">of women&apos;s and men&apos;s finishes. Interval for the gap: {(o.slowdown_gap_ci95[0] * 100).toFixed(1)} to {(o.slowdown_gap_ci95[1] * 100).toFixed(1)} points.</span></div>
-          <div className="bib"><span className="bib-tag">Biggest ratio</span><span className="bib-number">{(peak.men_slowdown / peak.women_slowdown).toFixed(1)}×</span><span className="bib-text">At {peak.label}, {(peak.men_slowdown * 100).toFixed(1)}% of men&apos;s finishes had a sustained slowdown against {(peak.women_slowdown * 100).toFixed(1)}% of women&apos;s.</span></div>
-          <div className="bib"><span className="bib-tag">Final kick</span><span className="bib-number">{(o.women_kick * 100).toFixed(0)}% <small>vs</small> {(o.men_kick * 100).toFixed(0)}%</span><span className="bib-text">ran the last 2.2 km faster than their own 0–40 km average pace.</span></div>
-        </div>
-      </StorySection>
-      <StorySection id="ghost" kicker="02 · The ghost race" title={<>Same finish time, <em>different race</em>.</>}
-        dek={<>Averaged across every matched finish band, men reach 20 km {mss(data.ghost_s[3])} earlier on the clock than women with the same finish times, and are up to {mss(Math.max(...data.ghost_s))} ahead at {[5, 10, 15, 20, 25, 30, 35, 40][data.ghost_s.indexOf(Math.max(...data.ghost_s))] ?? 25} km. They give all of it back by the line.</>}>
-        <GhostRace />
-      </StorySection>
-      <StorySection id="bands" kicker="03 · Every finish time" title={<>The gap holds <em>from 2:40 to 6:00</em>.</>}
-        dek={<>From 2:40 to 6:00, fewer women’s than men’s finishes have a <Link href="/methodology#sustained-slowdown">sustained slowdown</Link> in every 10-minute band. In the fastest band, 2:30–2:40, the two are essentially level.</>}>
-        <GenderDumbbell />
-      </StorySection>
-      <StorySection id="age" kicker="04 · Age" title={<>Every women&apos;s age group paces <em>more evenly</em> than every men&apos;s.</>}
-        dek={<>Against the same race&apos;s same-minute field, the least even women&apos;s group sits {Math.abs(womenTop * 100).toFixed(1)} points below the field, further below than even the most even men&apos;s group ({Math.abs(menBottom * 100).toFixed(1)} points below). Within each gender, older runners slow less: matched 18–29s had a sustained slowdown {(a.young_slowdown * 100).toFixed(0)}% of the time, 60–69s {(a.older_slowdown * 100).toFixed(0)}%.</>}>
-        <AgeLadder />
-      </StorySection>
-      <StorySection id="field" kicker="05 · The field" title={<>Women are a <em>growing share</em> of finishes.</>}
-        dek={<>Women&apos;s share of finishes has grown in most cities. They are the majority only among finishes slower than {majority ? majority.label.split('–')[0] : '5:30'}.</>}>
-        <WomenShare />
-      </StorySection>
-    </StoryData>
+    <StoryPage path={PATH}>
+      <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek} fallback={!gender.guard}
+        figures={[{ value: pct(w).replace('%', ''), unit: '%', sr: `${pct(w)} of recorded women's finishes`, key: 'Recorded women' }, { value: pct(m).replace('%', ''), unit: '%', sr: `${pct(m)} of recorded men's finishes`, key: 'Recorded men' }]}
+        sentence={<Say nugget={gender} term />}
+        instrument={(
+          <Ruler min={0} max={top} ticks={[0, top / 2, top].map((v) => ({ value: v, label: pct(v) }))}
+            label={`Sustained slowdown at the same finish times: recorded women ${pct(w)}, recorded men ${pct(m)}`}
+            marks={[{ value: m, kind: 'compare', label: `Recorded men ${pct(m)}` }, { value: w, kind: 'reading', label: `Recorded women ${pct(w)}` }]} />
+        )} />
+
+      <Beat id="unmask" track="chapter-1" label="Pooled or matched" title={unmask}
+        dek="The second 20K against the first. Pooled, every finish counts at once; matched, women and men are compared within the same race and finish minute.">
+        <PairBars initial="matched" lensLabel="Compare" max={Math.ceil(Math.max(o.men_block, o.pooled_men_block) / 5) * 5}
+          views={[
+            { id: 'pooled', label: 'Pooled', bars: [{ label: 'Recorded women', value: o.pooled_women_block, display: slower(o.pooled_women_block) }, { label: 'Recorded men', value: o.pooled_men_block, display: slower(o.pooled_men_block) }], gap: `${(o.pooled_men_block - o.pooled_women_block).toFixed(1)} points apart` },
+            { id: 'matched', label: 'Same finish time', bars: [{ label: 'Recorded women', value: o.women_block, display: slower(o.women_block) }, { label: 'Recorded men', value: o.men_block, display: slower(o.men_block) }], gap: `${(o.men_block - o.women_block).toFixed(1)} points apart` },
+          ]}
+          label={`Second 20K against the first. Pooled: women ${slower(o.pooled_women_block)}, men ${slower(o.pooled_men_block)}. Same race and finish minute: women ${slower(o.women_block)}, men ${slower(o.men_block)}.`}
+          values={(
+            <Values id="wh-unmask" caption="Second 20K against the first"
+              columns={[{ key: 'v', label: 'Compared' }, { key: 'w', label: 'Recorded women' }, { key: 'm', label: 'Recorded men' }]}
+              rows={[['Pooled', slower(o.pooled_women_block), slower(o.pooled_men_block)], ['Same race and finish minute', slower(o.women_block), slower(o.men_block)]]} reading={1} />
+          )} />
+      </Beat>
+
+      <Beat id="ghost" track="chapter-2" label="Side by side" title={ghost}>
+        <GhostRace clocks={clocks} ghost={ghostKm} runner={runnerKm} gaps={gaps} names={{ ghost: 'Recorded men', runner: 'Recorded women' }} clockLabels={clocks.map((t) => hm(t / 60))}
+          ticks={Array.from({ length: Math.floor(end / 3600) + 1 }, (_, h) => ({ x: (h * 3600) / clocks[clocks.length - 1], label: `${h}:00` }))}
+          initial={initial} detents={[initial]} label={`Recorded women and men finishing in ${band.label}`} />
+        <Values id="wh-ghost" caption={`Finishing in ${band.label}: recorded women behind recorded men at each mat`}
+          columns={[{ key: 'm', label: 'Mat' }, { key: 'g', label: 'Women behind' }]}
+          rows={band.ghost_s.map((g, k) => [matLabel(MATS[k + 1]), ms(g)])} reading={peak} />
+      </Beat>
+
+      <Beat id="bands" track="chapter-3" label="Every finish time" title={bands} aliases={['age', 'field']}>
+        <LineProfile x={bx} xDomain={[rows[0].lo_min, rows[last].lo_min + width]} yDomain={[0, bTop]}
+          layers={[{ id: 'bands', label: 'Sustained slowdown', series: [{ id: 'women', values: rows.map((b) => b.women_slowdown), tone: 'quiet' }, { id: 'men', values: rows.map((b) => b.men_slowdown) }],
+            labels: [
+              { x: bx[mid], y: rows[mid].men_slowdown, text: 'Recorded men', tone: 'ink', priority: 3, prefer: 'above' },
+              { x: bx[mid], y: rows[mid].women_slowdown, text: 'Recorded women', tone: 'quiet', priority: 2, prefer: 'below' },
+            ] }]}
+          xTicks={[180, 240, 300, 360].filter((v) => v > rows[0].lo_min && v < rows[last].lo_min + width).map((v) => ({ value: v, label: hm(v) }))}
+          yTicks={[{ value: bTop, label: pct(bTop) }, { value: bTop / 2, label: pct(bTop / 2) }]}
+          label={`Sustained slowdown by finish time, recorded women and men, from ${hm(rows[0].lo_min)} to ${hm(rows[last].lo_min + width)}.`}
+          values={(
+            <Values id="wh-bands" caption="Sustained slowdown by finish time"
+              columns={[{ key: 'b', label: 'Finish time' }, { key: 'w', label: 'Recorded women' }, { key: 'm', label: 'Recorded men' }]}
+              rows={rows.map((b) => [b.label, pct(b.women_slowdown), pct(b.men_slowdown)])} />
+          )} />
+      </Beat>
+    </StoryPage>
   );
 }

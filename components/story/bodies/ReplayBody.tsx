@@ -1,87 +1,102 @@
-import type { CourseGeometry, InsightsManifest, ReplayIndex } from '@/lib/insights';
-import { count, hms } from '@/lib/viz/format';
-import { replayChoices } from '@/lib/insights-server';
-import HeroReplay from '../HeroReplay';
-import { FieldSpread } from '../MoreCharts';
-import { ClockPack, EmptyingCourse, EvenGhost, FirstFinish, StretchStrip } from '../ClockStory';
-import { StorySection } from '../StoryShell';
-import { Checkpoint, Distance } from '../Units';
-import { StoryData } from '../StoryData';
+import type { CourseGeometry, ReplayIndex } from '@/lib/insights';
+import { getInsightsManifest, readInsight, replayChoices } from '@/lib/insights-server';
+import { STORIES } from '@/lib/stories';
+import { getNugget } from '@/lib/nuggets';
+import { count, hm, matLabel, pct } from '@/lib/nuggets/format';
+import { MARATHON_KM } from '@/lib/units';
+import HeroReplay from '@/components/story/HeroReplay';
+import LineProfile from '@/components/viz/LineProfile';
+import Values from '@/components/ui/Values';
+import { Beat, Say, StoryHero, StoryPage } from '../StoryPage';
 
-export default function ReplayBody({ data, geometry, manifest }: { data: ReplayIndex; geometry: CourseGeometry[]; manifest: InsightsManifest }) {
+const PATH = '/stories/race-replay';
+const MINUS = '−';
+const signedMin = (v: number) => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(Math.round(v))} min`;
+
+/**
+ * Watch a marathon unfold (the redesign spec, section 7.3, under section 00): the moment of the first finish as the
+ * reading, then the replay itself (the story's signature: no step-by-step reveal), finishes that passed 10K together
+ * spreading out, and how much of the late slowing on course is who's left. The snapshots, the edition strip and the
+ * even-pace ghost are cut (the ghost is chapter 03's finding); every edition is picked by the data.
+ */
+export default function ReplayBody() {
+  const data = readInsight<ReplayIndex>('replay.json');
+  const geometry = readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses;
+  const story = STORIES.find((s) => s.slug === 'race-replay')!;
+  const first = getNugget('replay.first'), back = getNugget('replay.back'), spread = getNugget('replay.spread'), packs = getNugget('replay.packs'), left = getNugget('replay.left');
   const routes = new Map(geometry.map((c) => [c.city, { points: c.route, km: c.route_km }]));
-  const choices = replayChoices(data.editions, manifest, routes);
-  const ny = data.editions.find((e) => e.city === 'New York') ?? data.editions[0];
-  const at3 = ny.snapshots.find((s) => s.clock_s === 10800)!;
-  const london = data.editions.find((e) => e.city === 'London');
-  const name = (e: { city: string; year: number }) => `${e.city === 'New York' ? 'New York City' : e.city} ${e.year}`;
-  const fields = data.editions.map((e) => e.finishes);
+  const choices = replayChoices(data.editions, getInsightsManifest(), routes);
+  const race = `${first.values.city} ${first.values.year}`;
+
+  // Finishes that passed a mat together: the middle 80% of them, mat by mat, around their median.
+  const packEdition = data.editions.find((e) => e.slug === packs.values.slug);
+  const q = packEdition?.pack?.quantiles ?? [];
+  const mats = [packEdition?.pack?.checkpoint_km ?? 10, ...q.map((r) => r.km).filter((km) => km > (packEdition?.pack?.checkpoint_km ?? 10))];
+  const rows = mats.map((km) => q.find((r) => r.km === km)!).filter(Boolean);
+  const lo = rows.map((r) => (r.p10_s - r.p50_s) / 60), hi = rows.map((r) => (r.p90_s - r.p50_s) / 60);
+  const reach = Math.ceil(Math.max(...hi.map(Math.abs), ...lo.map(Math.abs)) / 10) * 10;
+  const lastIndex = rows.length - 1;
+
+  // Who's left: the pace on course and the same runners' whole-race pace, each against the field at the start.
+  const leftEdition = data.editions.find((e) => e.city === left.values.city && e.year === left.values.year);
+  const comp = (leftEdition?.composition ?? []).filter((r) => r.on_course >= 100);
+  const start = comp[0]?.current_kmh ?? NaN;
+  const now = comp.map((r) => (start / r.current_kmh - 1) * 100);
+  const whole = comp.map((r) => (start / r.whole_race_kmh - 1) * 100);
+  const hours = comp.map((r) => r.clock_s / 3600);
+  const top = Math.ceil(Math.max(...now) / 10) * 10;
+  const at = comp.findIndex((r) => r.clock_s === left.values.clock_s);
+
   return (
-    <StoryData value={{ replay: data }}>
-      <StorySection id="replay" kicker="01 · Press play" title={<>{count(Math.min(...fields))} to {count(Math.max(...fields))} finishes, <em>one race clock</em>.</>}
-        dek={<>Pick a race and watch the field stretch out. Switch to “On the route” to run it on the course map.</>}>
-        <div className="night replay-stage"><HeroReplay choices={choices} initial={ny.slug} /></div>
-      </StorySection>
-      <StorySection id="snapshots" kicker="02 · Snapshots" title={<>At 3:00 on the clock, the middle 80% of the field covers <em><Distance km={at3.front10_km - at3.back10_km} /></em>.</>}
-        dek={<>In {ny.city === 'New York' ? 'New York City' : ny.city} {ny.year}, when the race clock read 3:00, the runner 10% from the front had reached <Distance km={at3.front10_km} /> and the runner 10% from the back only <Distance km={at3.back10_km} />. {Math.round(at3.finished_share * 100)}% had already finished.</>}>
-        <div className="snapshot-grid">
-          {data.editions.map((e) => (
-            <div key={e.slug} className="viz-card snapshot-card">
-              <p className="viz-title">{e.city === 'New York' ? 'New York City' : e.city} {e.year}</p>
-              <p className="viz-sub">Median finish {hms(e.median_finish_s)}</p>
-              <div className="snapshot-rows">
-                {e.snapshots.filter((s) => s.clock_s <= 21600).map((s) => (
-                  <div key={s.clock_s} className="snapshot-row">
-                    <span>{s.clock_s / 3600}:00</span>
-                    <span className="snapshot-track">
-                      <i style={{ left: `${(s.back10_km / 42.195) * 100}%`, width: `${Math.max(0.5, ((s.front10_km - s.back10_km) / 42.195) * 100)}%` }} />
-                      <b style={{ left: `${(s.median_km / 42.195) * 100}%` }} />
-                    </span>
-                    <span>{s.finished_share < 1 && s.finished_share >= 0.995 ? '>99' : Math.round(s.finished_share * 100)}% in</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-        <p className="viz-note">Bar: the middle 80% of the field, start on the left. Dot: the median runner.</p>
-      </StorySection>
-      {london?.moments ? (
-        <StorySection id="first" kicker="03 · The first finish" title={<>When the first London finish came in on the race clock, <em>nearly half the field</em> had not reached <Checkpoint km={20} />.</>}
-          dek={<>The fastest finish in {name(london)} came at {hms(london.moments.first_finish_s)} on the race clock. At that moment {count(london.moments.not_past_20_at_first)} of {count(london.finishes)}
-            finishes ({Math.round((london.moments.not_past_20_at_first / london.finishes) * 100)}%) had not yet reached the <Checkpoint km={20} /> mat, and the back of the field was <Distance km={42.195 - london.moments.back_km_at_first} /> behind the front.</>}>
-          <FirstFinish initial={london.slug} />
-        </StorySection>
+    <StoryPage path={PATH}>
+      <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
+        figure={first.figure ? { ...first.figure } : undefined} fallback={!first.guard}
+        unitLine={first.figure ? `${race}, at the first finish` : undefined}
+        sentence={<Say nugget={back} />} />
+
+      <Beat id="replay" track="chapter-1" label="The replay" title={spread} aliases={['snapshots', 'first']}>
+        <div className="night story-replay"><HeroReplay choices={choices} /></div>
+      </Beat>
+
+      {rows.length > 1 ? (
+        <Beat id="packs" track="chapter-2" label="Together at 10K" title={packs}
+          dek={`${packEdition!.city} ${packEdition!.year}: ${count(Number(packs.values.n))} finishes passed ${matLabel(Number(packs.values.checkpoint_km))} together. The band is the middle 80% of them.`}>
+          <LineProfile x={mats} xDomain={[mats[0], MARATHON_KM]} yDomain={[-reach, reach]}
+            layers={[{ id: 'pack', label: 'The pack', series: [{ id: 'median', values: rows.map(() => 0) }], band: { lo, hi },
+              labels: [
+                { x: mats[lastIndex], y: hi[lastIndex], text: `${signedMin(hi[lastIndex])}`, tone: 'ink', priority: 3, prefer: 'left' },
+                { x: mats[lastIndex], y: lo[lastIndex], text: `${signedMin(lo[lastIndex])}`, tone: 'ink', priority: 2, prefer: 'left' },
+              ] }]}
+            refs={[{ value: 0, label: 'Their median' }]}
+            xTicks={mats.filter((_, i) => i === 0 || i === lastIndex || mats[i] % 10 === 0).map((km) => ({ value: km, label: matLabel(km) }))}
+            yTicks={[{ value: reach, label: `${reach} min behind` }, { value: -reach, label: `${reach} min ahead` }]}
+            label={`Finishes that passed ${matLabel(mats[0])} together in ${packEdition!.city} ${packEdition!.year}: the middle 80% spread from ${matLabel(mats[0])} to ${Math.round(Number(packs.values.window_min))} minutes apart at the finish.`}
+            keys={[{ label: 'The middle 80% of the pack', mark: 'band' }]}
+            values={(
+              <Values id="rr-pack" caption={`The pack in ${packEdition!.city} ${packEdition!.year}, mat by mat`}
+                columns={[{ key: 'm', label: 'Mat' }, { key: 'a', label: 'Front of the middle 80%' }, { key: 'b', label: 'Back of it' }]}
+                rows={rows.map((r, i) => [matLabel(r.km), signedMin(lo[i]), signedMin(hi[i])])} />
+            )} />
+        </Beat>
       ) : null}
-      {london?.ghosts ? (() => {
-        const g = london.ghosts.find((x) => x.target_s === 16200);
-        return g ? (
-          <StorySection id="ghost" kicker="04 · Even pace" title={<>Run it even and you <em>start behind</em>.</>}
-            dek={<>A ghost running a perfectly even {hms(g.target_s).slice(0, -3)} in {name(london)} is behind {Math.round(g.ahead[0] * 100)}% of the field at <Checkpoint km={5} /> on the clock and behind {Math.round(g.ahead[8] * 100)}% at the finish:
-              it moves past a net {count(g.net_passes)} finishes without ever speeding up. Real runners who finished near {hms(g.target_s).slice(0, -3)} typically reached <Checkpoint km={20} /> in {g.typical_20km_s ? hms(g.typical_20km_s) : '—'}, against the ghost&apos;s {hms(g.even_20km_s)}.</>}>
-            <EvenGhost initial={london.slug} />
-          </StorySection>
-        ) : null;
-      })() : null}
-      {ny?.composition ? (() => {
-        const five = ny.composition.find((r) => r.clock_s === 18000);
-        return five?.composition_share != null ? (
-          <StorySection id="emptying" kicker="05 · Late in the day" title={<>Most of the late slowdown on course <em>reflects who is left</em>.</>}
-            dek={<>At 5:00 of elapsed time in {name(ny)}, {count(five.on_course)} finishes were still out on the course, moving far slower than the field did early on. About {Math.round(five.composition_share * 100)}% of that drop reflects who is left, since the runners still out late were slower over their whole race; the rest is those runners going slower than their own race average.</>}>
-            <EmptyingCourse initial={ny.slug} />
-          </StorySection>
-        ) : null;
-      })() : null}
-      {london?.pack ? (
-        <StorySection id="packs" kicker="06 · Clock packs" title={<>Pass <Checkpoint km={10} /> together, finish <em>{Math.round(london.pack.finish_window_min)} minutes apart</em>.</>}
-          dek={<>In {name(london)}, {count(london.pack.n)} finishes passed <Checkpoint km={10} /> within the same 30 seconds of race time. The middle 80% of them finished {london.pack.finish_window_min.toFixed(0)} minutes apart.</>}>
-          <ClockPack initial={london.slug} />
-        </StorySection>
+
+      {comp.length > 2 ? (
+        <Beat id="emptying" track="chapter-3" label="Who’s left" title={left}
+          dek="Their whole-race pace (dashed) slows almost as much: the quicker runners had already finished.">
+          <LineProfile x={hours} xDomain={[0, Math.ceil(hours[hours.length - 1])]} yDomain={[0, top]}
+            layers={[{ id: 'left', label: 'On course', series: [{ id: 'now', values: now }, { id: 'whole', values: whole, dashed: true }],
+              points: at >= 0 ? [{ x: hours[at], y: now[at], kind: 'reading' }] : [] }]}
+            xTicks={Array.from({ length: Math.ceil(hours[hours.length - 1]) + 1 }, (_, h) => ({ value: h, label: h ? `${h}:00` : 'Start' }))}
+            yTicks={[{ value: top, label: `${top}% slower` }, { value: top / 2, label: `${top / 2}%` }]}
+            label={`${race}: the pace of the field still on course, and the whole-race pace of the same runners, each against the field's pace at the start. At ${hm(Number(left.values.clock_s) / 60)}, ${pct(Number(left.values.share))} of the slowing was who was left.`}
+            keys={[{ label: 'Pace on course', mark: 'line' }, { label: 'The same runners’ whole-race pace', mark: 'dash' }]}
+            values={(
+              <Values id="rr-left" caption={`${race}: slower than the field at the start, hour by hour`}
+                columns={[{ key: 't', label: 'Race clock' }, { key: 'n', label: 'Pace on course' }, { key: 'w', label: 'Their whole race' }, { key: 'o', label: 'Still on course' }]}
+                rows={comp.map((r, i) => [hm(r.clock_s / 60), `${Math.round(now[i])}%`, `${Math.round(whole[i])}%`, count(r.on_course)])} reading={at >= 0 ? at : undefined} />
+            )} />
+        </Beat>
       ) : null}
-      <StorySection id="spread" kicker="07 · Every course" title={<>The field keeps <em>stretching</em>.</>} dek={data.stretch ? <>In every one of the {data.stretch.editions.length} race editions compared, the field is relatively wider from <Checkpoint km={20} /> to <Checkpoint km={40} /> than over the first <Checkpoint km={20} />.</> : 'The gap between faster and slower runners widens in every section.'}>
-        {data.stretch ? <StretchStrip /> : null}
-        <FieldSpread />
-      </StorySection>
-    </StoryData>
+    </StoryPage>
   );
 }

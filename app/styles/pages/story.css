@@ -1,0 +1,152 @@
+/* The stories and /finish-times (WP2; the redesign spec, sections 4.1 and 7, under section 00). Imported by
+   app/stories/[slug]/layout.tsx and app/finish-times/layout.tsx. A story is the reading, at most six beats and the
+   chapter end, divided by whitespace and hairlines, never boxes; the replay band is the only night surface. */
+
+/* ---------- The page ---------- */
+.story-flow { min-width: 0; padding-bottom: var(--s-7); }
+.story-hero-beat .reading { padding-top: var(--s-4); }
+.story-hero-beat .reading-rule { margin: var(--s-5) 0; }
+.story-hero-beat .reading-instrument { max-height: none; }
+.story-hero-beat .reading-instrument > .viz-frame { margin: 0; }
+
+/* The crumbs wrap between their parts, never inside "Story 1 of 4". */
+.story-flow .reading-crumbs { flex-wrap: wrap; row-gap: 0; }
+.story-flow .reading-crumbs > .crumb-place { white-space: nowrap; }
+
+/* A beat: the finding as its H2, at most a short dek, then the figure. */
+.story-beat { scroll-margin-top: calc(var(--header-h) + 8px); }
+.story-beat .beat-head { gap: var(--s-3); margin-bottom: var(--s-5); }
+.story-beat-title { margin: 0; max-width: 22ch; }
+.story-beat-dek { margin: 0; max-width: 34rem; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+.story-beat > .viz-frame, .story-beat > .values { max-width: var(--measure-figure); }
+.story-beat > .values { margin-top: var(--s-4); }
+.beat-alias { display: block; position: relative; top: calc(-1 * var(--header-h)); height: 0; }
+
+/* A course named in a table row links to its page with a full-height target. */
+.story-page .values th a { display: inline-flex; align-items: center; min-width: 44px; min-height: 44px; }
+
+/* The sustained-slowdown term, linked once per page to its definition. */
+.story-page .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-decoration-color: currentColor; text-underline-offset: .18em; }
+.story-page .term-link:hover { text-decoration-style: solid; }
+
+/* A beat that moved: its old anchor shows one line only when a link lands on it. */
+.story-moved { display: none; margin: 0; }
+.story-moved:target { display: block; max-width: var(--measure); margin-top: var(--beat-gap); padding: var(--s-4) 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); scroll-margin-top: calc(var(--header-h) + 16px); font-size: var(--t-small); }
+.story-moved a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; color: var(--ink); }
+
+/* ---------- The six types, beside the pacing-types reading ---------- */
+.type-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; margin: 0; padding: 0; list-style: none; }
+.type-legend li { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; font-size: var(--t-small); line-height: 1.25; color: var(--ink-2); }
+.type-legend li span { min-width: 0; }
+.type-legend li b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+/* ---------- The replay band ---------- */
+.story-replay { margin-inline: calc(-1 * var(--gutter)); padding: var(--s-5) var(--gutter); background: var(--night); color: var(--night-ink); }
+
+/* ---------- Chart forms of the stories (components/story/charts) ---------- */
+.viz-frame .era-mean { fill: var(--ink); }
+.viz-frame .era-mean.is-signal { fill: var(--signal); }
+.viz-frame .era-mean-text { fill: var(--ink); }
+.viz-frame .era-mean-text.is-signal { fill: var(--signal-ink); }
+
+.viz-frame .river-stream { fill: var(--paper-sunk); stroke: var(--mark-quiet); stroke-width: 1; }
+.viz-frame .river-on { --type: currentColor; fill: var(--type); stroke: var(--paper); stroke-width: 1; transition: opacity var(--d-toggle) var(--ease-out); }
+.viz-frame .river-on.is-off { opacity: 0; }
+.viz-frame .river-end { font-size: 15px; }
+
+.viz-frame .col.m-quiet { stroke: none; }
+.viz-frame .col-value { font-weight: 600; }
+
+/* Two bars under a lens: label, track, value; the gap between the bar ends washed signal. */
+.pair-bars-views { display: grid; height: 100%; }
+.pair-bars-view { grid-area: 1 / 1; display: grid; grid-template-columns: 8.5rem minmax(0, 1fr) 4rem; align-content: center; gap: 10px 12px; }
+.pair-bar { display: contents; }
+.pair-bar-label { align-self: center; font-size: var(--t-small); font-weight: 600; color: var(--ink-2); }
+.pair-bar-track { position: relative; align-self: center; height: 28px; border-radius: 2px; background: var(--paper-sunk); }
+.pair-bar-fill { position: absolute; inset: 0 auto 0 0; border-radius: 2px 4px 4px 2px; background: var(--ink); transition: width var(--d-toggle) var(--spring-soft); }
+.pair-bar-value { align-self: center; font-size: 1.0625rem; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; color: var(--ink); }
+.pair-bar-gaprow { grid-column: 2; position: relative; height: 26px; }
+.pair-bar-gap { position: absolute; top: 0; height: 6px; border-radius: 3px; background: var(--signal); }
+.pair-bar-gap-label { position: absolute; top: 10px; transform: translateX(-100%); font-size: var(--t-label); font-weight: 600; line-height: 1.2; white-space: nowrap; color: var(--signal-ink); }
+
+/* The reading's 64 px lens on round numbers. */
+.viz-frame.mini-lens { max-width: 22rem; }
+.viz-frame.mini-lens .viz-plot { height: 64px; }
+
+/* ---------- Your minute (.finish-lookup, masked in session replays) ---------- */
+.finish-lookup { --lookup-h: 140px; display: grid; gap: var(--s-4); max-width: var(--measure-figure); }
+.finish-lookup-field { max-width: 14rem; }
+.finish-lookup .finish-lookup-readout { margin: 0; }
+.finish-lookup-plot { position: relative; }
+.finish-lookup-plot .viz-frame.lookup-plot .viz-plot { height: var(--lookup-h); }
+.finish-lookup-you { position: absolute; width: 0; height: 0; pointer-events: none; }
+.finish-lookup-needle { position: absolute; left: -.75px; top: 0; width: 1.5px; height: calc(var(--lookup-h) * (1 - var(--t, 0))); background: var(--signal); }
+.finish-lookup-ring { position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 0 2px var(--paper), inset 0 0 0 2px var(--signal); background: var(--paper); }
+.finish-lookup-tag { position: absolute; left: 0; top: -30px; transform: translateX(-50%); font-size: var(--t-label); font-weight: 600; color: var(--signal-ink); }
+.finish-lookup-result { margin: 0; font-size: var(--t-small); color: var(--ink-2); }
+
+/* ---------- Which runner were you (.which-card, masked) ---------- */
+.which-card { display: grid; gap: var(--s-4); max-width: var(--measure-figure); }
+.which-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3); }
+.which-field .input { min-height: 48px; padding: 0 10px; font-size: 1rem; text-align: center; }
+.which-help { margin: 0; }
+.which-result { display: grid; gap: var(--s-4); padding-top: var(--s-4); border-top: 1px solid var(--rule); }
+.which-name { display: flex; align-items: center; gap: var(--s-3); margin: 0; }
+.which-name .type-glyph { width: 48px; height: 22px; }
+.which-name strong { font-weight: inherit; font-style: italic; }
+/* The nine sections as pace blocks: three rows on a phone (like the fields above), one row from 600 px. The blocks'
+   colours are the fixed pace ramp, so their text is the night pair, dark or light in either theme. */
+.which-blocks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; margin: 0; padding: 0; list-style: none; }
+.which-blocks li { display: grid; align-content: space-between; gap: 6px; min-height: 56px; padding: 8px 4px; border-radius: 2px; text-align: center; color: var(--night); }
+.which-blocks li.is-dark { color: var(--night-ink); }
+.which-blocks .which-block-mat { font-size: 12px; font-weight: 600; line-height: 1; }
+.which-blocks b { font-size: 12px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.which-error { margin: 0; }
+
+/* ---------- Name that course ---------- */
+.ntc { display: grid; gap: var(--s-4); max-width: 34rem; }
+.ntc-figure { margin: 0; }
+.ntc-plot { display: block; width: 100%; height: auto; overflow: visible; }
+.ntc-zero { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 4 4; }
+.ntc-line { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.ntc-own { fill: none; stroke: var(--signal); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; opacity: .55; }
+.ntc-axis { display: flex; justify-content: space-between; font-size: 12px; font-weight: 500; color: var(--ink-3); }
+.ntc-caption { margin-top: var(--s-2); font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
+.ntc-q { margin: 0; font-family: var(--serif); font-size: var(--t-sentence); line-height: 1.25; color: var(--ink); }
+.ntc-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.ntc-option.is-answer { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.ntc-option.is-miss { border-color: var(--ink-3); color: var(--ink-3); text-decoration: line-through; }
+.ntc-option:disabled { opacity: .45; cursor: default; }
+.ntc-verdict { min-height: 1.5em; margin: 0; font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); }
+.ntc-score { display: block; margin-top: 4px; font-size: var(--t-label); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink-3); }
+.ntc-next { justify-self: start; }
+
+/* ---------- Round numbers: the towers' steps ----------
+   Step 0: the silhouette alone. 1: the smooth curve. 2: the minutes before each round mark. 3: against the curve. */
+.towers-scrolly[data-step='0'] .viz-frame .l-ink2, .towers-scrolly[data-step='0'] .viz-frame .histo-tower { opacity: 0; }
+.towers-scrolly[data-step='1'] .viz-frame .histo-tower { opacity: 0; }
+.towers-scrolly .viz-frame .l-ink2, .towers-scrolly .viz-frame .histo-tower { transition: opacity var(--d-step) var(--ease-out); }
+
+/* ---------- Phones at 200% zoom ---------- */
+@media (max-width: 359.98px) {
+  .type-legend { grid-template-columns: minmax(0, 1fr); }
+  .pair-bars-view { grid-template-columns: minmax(0, 1fr) 3.5rem; }
+  .pair-bar-label { grid-column: 1 / -1; }
+  .pair-bar-gaprow { grid-column: 1; }
+}
+@media (max-width: 299.98px) {
+  .which-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 600px) {
+  .type-legend { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .which-blocks { grid-template-columns: repeat(9, minmax(0, 1fr)); }
+  .story-replay { margin-inline: 0; padding: var(--s-5); border-radius: var(--r-md); }
+}
+
+@media (min-width: 900px) {
+  .story-hero-beat .reading { padding-top: var(--s-6); }
+  .type-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .which-grid { grid-template-columns: repeat(9, minmax(0, 1fr)); }
+  .story-replay { padding: var(--s-6); }
+}

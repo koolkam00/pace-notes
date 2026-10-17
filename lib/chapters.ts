@@ -143,7 +143,7 @@ export const CHAPTERS: readonly Chapter[] = [
     lead: 'courses.spread', key: 'sustained slowdown, across courses' },
   { n: 9, id: 'chapter-09', part: 2, marker: '09', title: 'The weather', subtitle: 'Race morning, heat and wind',
     pages: [
-      story('race-morning', 'Race morning', 'weather.pairs', 'WP2'),
+      story('race-morning', 'Race morning', 'weather.pairs'),
       analysis('race-day-weather', 'Race-day weather', 'weather.start', ALL_FINISHER),
       tool('weather-match', 'Weather match', 'Weather match', 'weathermatch.mornings'),
     ],
