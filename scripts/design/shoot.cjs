@@ -15,7 +15,8 @@
 // the top. CSS animations are stopped at their end state unless --animations=allow. --mask=<selectors> (a comma list,
 // e.g. canvas,.replay-hud,.runner-track) paints those elements one flat colour, so a before/after comparison
 // (sheet.py diff) ignores the replay's moving dots and clock and the looping runners. --ix runs the
-// interaction scripts in scripts/design/interactions.cjs after the captures, on the phone and desktop profiles.
+// interaction scripts in scripts/design/interactions.cjs after the captures, on the phone and desktop profiles (and
+// at 200% zoom those that say so).
 //
 // Writes <out>/<profile>/<slug>-first.png and -full.png (default <out>: pace-notes-shots in the system temp folder), and
 // merges a JSON report into <out>/report.json.
@@ -188,7 +189,7 @@ async function capture(browser, route, name, opts, ix) {
     }
   }
   let interactions = [];
-  if (ix && (name === 'phone' || name === 'desktop')) {
+  if (ix && (name === 'phone' || name === 'desktop' || name === 'zoom')) {
     const { runInteractions } = require('./interactions.cjs');
     interactions = await runInteractions(page, { dir, slug, profile: name, route, shot });
   }

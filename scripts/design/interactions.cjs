@@ -44,16 +44,39 @@ const focused = (page) => page.evaluate(() => {
 
 const INTERACTIONS = [
   {
+    // The menu sheet open; at 200% zoom (195 px) too, where every link must scroll into view with its text in its row.
     name: 'menu-open',
     selector: '.site-header .nav-toggle',
-    async run(page, el, snap) {
+    profiles: ['phone', 'desktop', 'zoom'],
+    async run(page, el, snap, ctx) {
+      const problems = [];
       await page.evaluate(() => window.scrollTo(0, 0));
       await el.click();
-      await pause(page, 650);
+      await pause(page, 750);
       await snap('menu-open');
+      if (ctx.profile === 'zoom') {
+        const links = await page.evaluate(async () => {
+          const out = [];
+          for (const a of document.querySelectorAll('#site-menu a, #site-sheet .chapter-link')) {
+            a.scrollIntoView({ block: 'nearest' });
+            await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+            const box = a.getBoundingClientRect();
+            const range = document.createRange();
+            range.selectNodeContents(a);
+            const text = range.getBoundingClientRect();
+            out.push({ text: a.textContent.trim().slice(0, 30), top: Math.round(box.top), bottom: Math.round(box.bottom), over: Math.round(Math.max(0, text.right - box.right, box.left - text.left)) });
+          }
+          return { h: innerHeight, out };
+        });
+        for (const l of links.out) if (l.top < 0 || l.bottom > links.h || l.over > 1) problems.push(`"${l.text}" cannot be scrolled fully into view or overflows its row (${JSON.stringify(l)})`);
+        await page.evaluate(() => { const a = document.querySelector('#site-sheet .chapter-link'); if (a) a.scrollIntoView({ block: 'start' }); });
+        await pause(page, 300);
+        await snap('menu-chapters');
+      }
       await page.keyboard.press('Escape');
-      await pause(page, 300);
-      if (await el.getAttribute('aria-expanded') === 'true') await el.click();
+      await pause(page, 650);
+      if (await el.getAttribute('aria-expanded') === 'true') problems.push('Escape did not close the menu');
+      return problems;
     },
   },
   {
@@ -217,12 +240,87 @@ const INTERACTIONS = [
       return [];
     },
   },
+  {
+    // The reading bar: on a reading page, mid-way down, while the header is away. Its ticks sit at the beats' starts,
+    // and its minutes left agree within one with a count written here: the words of the text below the screen ÷ 238,
+    // plus 12 s for each figure below it.
+    name: 'reading-bar',
+    selector: 'main [data-reading], main[data-reading]',
+    profiles: ['phone'],
+    async run(page, el, snap) {
+      const problems = [];
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await pause(page, 300);
+      const target = await page.evaluate(() => Math.round((document.documentElement.scrollHeight - innerHeight) * 0.42));
+      for (let y = 0; y < target; y += 300) { await page.evaluate((to) => window.scrollTo(0, to), Math.min(y + 300, target)); await pause(page, 60); }
+      await pause(page, 700);
+      await snap('reading-bar');
+      const seen = await page.evaluate(() => {
+        const bar = document.querySelector('.reading-bar');
+        const header = document.querySelector('.site-header');
+        if (!bar) return { missing: true };
+        const root = document.querySelector('main [data-reading], main[data-reading]');
+        const beats = [...root.querySelectorAll('[data-beat]')];
+        const box = root.getBoundingClientRect(), top = box.top + scrollY, span = Math.max(1, box.height - innerHeight);
+        const expected = beats.map((b) => Math.min(100, Math.max(0, ((b.getBoundingClientRect().top + scrollY - top) / span) * 100)));
+        const ticks = [...bar.querySelectorAll('.reading-bar-line i')].map((i) => parseFloat(i.style.left));
+        // Independent count: every visible text node inside the beats whose line is below the screen.
+        let words = 0;
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          if (!n.parentElement.closest('[data-beat]')) continue;
+          const range = document.createRange(); range.selectNodeContents(n);
+          const r = range.getBoundingClientRect();
+          if (!r.height) continue;
+          if (r.top >= innerHeight) words += (n.textContent.match(/\S+/g) || []).length;
+        }
+        const figs = [...root.querySelectorAll('[data-beat] figure')].filter((f) => f.getBoundingClientRect().top > innerHeight).length;
+        const manual = Math.max(1, Math.ceil(((words / 238) * 60 + 12 * figs) / 60));
+        return {
+          hidden: header.hasAttribute('data-hidden'), opacity: getComputedStyle(bar).opacity, barTop: Math.round(bar.getBoundingClientRect().top),
+          text: bar.querySelector('.reading-bar-left').textContent, short: bar.querySelector('.reading-bar-short').textContent,
+          ticks, expected, manual,
+        };
+      });
+      if (seen.missing) return ['no reading bar on a page with data-reading'];
+      if (!seen.hidden || seen.opacity !== '1' || seen.barTop !== 0) problems.push(`the bar is not in the header's place while it is away (${JSON.stringify({ hidden: seen.hidden, opacity: seen.opacity, top: seen.barTop })})`);
+      const m = /^(\d+) min left$/.exec(seen.text);
+      if (!m) problems.push(`minutes left reads "${seen.text}"`);
+      else if (Math.abs(Number(m[1]) - seen.manual) > 1) problems.push(`minutes left ${m[1]} against a count of ${seen.manual}`);
+      if (seen.ticks.length !== seen.expected.length || seen.ticks.some((t, i) => Math.abs(t - seen.expected[i]) > 0.5)) problems.push(`ticks ${JSON.stringify(seen.ticks)} are not at the beat starts ${JSON.stringify(seen.expected.map((e) => +e.toFixed(2)))}`);
+      return problems;
+    },
+  },
+  {
+    // The next card: hovered (the go button moves on) and focused from the keyboard (the ring on the card).
+    name: 'next-card',
+    selector: '.next-card[href]',
+    async run(page, el, snap) {
+      const problems = [];
+      await inView(el);
+      await el.hover();
+      await pause(page, 400);
+      await snap('next-card-hover');
+      const moved = await el.evaluate((a) => getComputedStyle(a.querySelector('.next-card-go')).transform);
+      if (!moved || moved === 'none') problems.push('hover did not move the go button');
+      await page.mouse.move(2, 2);
+      await page.keyboard.press('Shift');
+      await el.focus();
+      await pause(page, 400);
+      await snap('next-card-focus');
+      const ring = await el.evaluate((a) => ({ visible: a.matches(':focus-visible'), outline: getComputedStyle(a).outlineStyle }));
+      if (!ring.visible || ring.outline === 'none') problems.push(`no focus ring on the card (${JSON.stringify(ring)})`);
+      await el.evaluate((a) => a.blur());
+      return problems;
+    },
+  },
 ];
 
 /** Runs every interaction that applies to the page; returns one record per interaction. */
-async function runInteractions(page, { dir, slug, shot }) {
+async function runInteractions(page, { dir, slug, shot, profile = 'phone' }) {
   const results = [];
   for (const ix of INTERACTIONS) {
+    if (!(ix.profiles || ['phone', 'desktop']).includes(profile)) continue;
     const el = await visible(page, ix.selector);
     if (!el) { results.push({ name: ix.name, ok: true, skipped: 'n/a' }); continue; }
     const files = [];
@@ -233,7 +331,7 @@ async function runInteractions(page, { dir, slug, shot }) {
       files.push(path.basename(file));
     };
     let problems = [];
-    try { problems = (await ix.run(page, el, snap)) || []; } catch (e) { problems = ['threw: ' + String(e && e.message || e).slice(0, 200)]; }
+    try { problems = (await ix.run(page, el, snap, { profile })) || []; } catch (e) { problems = ['threw: ' + String(e && e.message || e).slice(0, 200)]; }
     try { await page.mouse.up(); } catch { /* not pressed */ }
     results.push({ name: ix.name, ok: problems.length === 0, problems, files });
   }
