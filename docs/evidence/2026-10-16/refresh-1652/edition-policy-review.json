@@ -1,7 +1,7 @@
 {
   "release_tag": "htw-db-2026-10-16-1652",
   "reviewed": "2026-10-16",
-  "policy_sha256": "e2dd5c1f990b219b3cad49a74768a399c3cb3af76917675ab9e3d433089745d4",
+  "policy_sha256": "0aa3fa50e769921af9b8bfcb261dd6357f383545cd0c06a1091e567f83cf50ea",
   "policy_file": "analysis/source_quality.py (RULES_1652)",
   "status": "Repository state on branch feat/release-1652; not deployed.",
   "inputs": {
@@ -253,7 +253,7 @@
       "basis": "audit (top-500 list)",
       "raw_records": 1000,
       "timing_eligible_excluded": 999,
-      "reason": "Exactly 500 women and 500 men, the fastest of each (slowest 3:35:49): a top-finisher list, not the full field of more than 30,000 finishers."
+      "reason": "Exactly 500 women and 500 men, the first 500 of each to finish (the last at 3:35:49): a top-finisher list, not the full field of more than 30,000 finishers."
     },
     {
       "city": "Tokyo",
@@ -262,7 +262,7 @@
       "basis": "audit (top-500 list)",
       "raw_records": 1000,
       "timing_eligible_excluded": 999,
-      "reason": "Exactly 500 women and 500 men, the fastest of each (slowest 3:29:26): a top-finisher list, not the full field of more than 30,000 finishers."
+      "reason": "Exactly 500 women and 500 men, the first 500 of each to finish (the last at 3:29:26): a top-finisher list, not the full field of more than 30,000 finishers."
     },
     {
       "city": "Tokyo",
@@ -271,7 +271,7 @@
       "basis": "audit (top-500 list)",
       "raw_records": 1000,
       "timing_eligible_excluded": 987,
-      "reason": "Exactly 500 women and 500 men, the fastest of each (slowest 3:27:07): a top-finisher list, not the full field of more than 30,000 finishers."
+      "reason": "Exactly 500 women and 500 men, the first 500 of each to finish (the last at 3:27:07): a top-finisher list, not the full field of more than 30,000 finishers."
     },
     {
       "city": "Paris",
@@ -334,7 +334,7 @@
       "basis": "screens (b) and (c)",
       "raw_records": 13445,
       "timing_eligible_excluded": 5535,
-      "reason": "The checkpoint times include the start delay but the finish does not: half of the complete grids have an impossible last section, and the finishers that pass the timing checks are mostly the faster, earlier starters (80% of the fastest quarter, 18% of the slowest)."
+      "reason": "The checkpoint times include the start delay but the finish does not: half of the complete grids have an impossible last section, and the finishers that pass the timing checks are mostly the faster, earlier starters (80% of the quarter with the shortest finish times, 18% of the quarter with the longest)."
     },
     {
       "city": "Eindhoven",
@@ -352,7 +352,7 @@
       "basis": "screen (b)",
       "raw_records": 9905,
       "timing_eligible_excluded": 5692,
-      "reason": "The 35 km mat stopped recording partway through the field: 35 km is missing for 2,729 of 8,665 finishers, almost all of them slower ones, so complete timings survive for 95% of the fastest quarter but 1% of the slowest."
+      "reason": "The 35 km mat stopped recording partway through the field: 35 km is missing for 2,729 of 8,665 finishers, almost all of them slower ones, so complete timings survive for 95% of the quarter with the shortest finish times but 1% of the quarter with the longest."
     },
     {
       "city": "Auckland",
@@ -361,7 +361,7 @@
       "basis": "screen (b)",
       "raw_records": 1917,
       "timing_eligible_excluded": 915,
-      "reason": "The 40 km mat stopped recording partway through the field: 40 km is missing for 685 of 1,654 finishers, so complete timings survive for 97% of the fastest quarter and none of the slowest."
+      "reason": "The 40 km mat stopped recording partway through the field: 40 km is missing for 685 of 1,654 finishers, so complete timings survive for 97% of the quarter with the shortest finish times and none of the quarter with the longest."
     },
     {
       "city": "Dubai",
@@ -370,7 +370,21 @@
       "basis": "screen (b)",
       "raw_records": 1809,
       "timing_eligible_excluded": 1534,
-      "reason": "The 40 km mat stopped recording late in the race: 40 km is missing for 267 of 1,809 finishers, almost all of them slower ones, so complete timings survive for nearly all of the fastest three quarters but 41% of the slowest."
+      "reason": "The 40 km mat stopped recording late in the race: 40 km is missing for 267 of 1,809 finishers, almost all of them slower ones, so complete timings survive for nearly all of the three quarters with the shortest finish times but 41% of the quarter with the longest."
     }
-  ]
+  ],
+  "reason_wording_revision": {
+    "date": "2026-10-17",
+    "previous_policy_sha256": "e2dd5c1f990b219b3cad49a74768a399c3cb3af76917675ab9e3d433089745d4",
+    "editions": [
+      "Tokyo 2016",
+      "Tokyo 2017",
+      "Tokyo 2018",
+      "Barcelona 2019",
+      "Gold Coast 2024",
+      "Auckland 2018",
+      "Dubai 2025"
+    ],
+    "why": "The reasons are printed on /runners and on the course pages, whose copy check rejects rank words; \"fastest\" was replaced with neutral wording (the first 500 to finish; the quarter with the shortest finish times). Categories, editions and counts are unchanged; every output was recalculated afterwards."
+  }
 }

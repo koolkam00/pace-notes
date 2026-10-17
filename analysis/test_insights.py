@@ -341,5 +341,46 @@ class Reader(unittest.TestCase):
                 insights_data.verified_manifest = original
 
 
+
+class CourseGeometryTest(unittest.TestCase):
+    """build_course_geometry.py draws a supplied route only where the runner context attached it to an edition."""
+
+    def test_refused_profile_is_omitted_with_the_context_reason(self):
+        import hashlib
+        import duckdb
+        import build_course_geometry
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'editions').mkdir()
+            reason = 'The supplied course profile race name does not match this recorded race.'
+            shards = [dict(edition=dict(city='Alpha', year=2020), terrain=dict(course_key='alpha-current'), terrain_reason=None),
+                      dict(edition=dict(city='Beta', year=2020), terrain=None, terrain_reason=reason)]
+            editions = {}
+            for i, shard in enumerate(shards):
+                data = gzip.compress(json.dumps(shard).encode())
+                (root / f'editions/{i:03d}.json.gz').write_bytes(data)
+                editions[str(i)] = dict(file=f'editions/{i:03d}.json.gz', bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
+            points = json.dumps([dict(lat=52 + k / 1000, lon=4 + k / 1000, d_km=k * 42.195 / 24, elev_m=float(k % 3)) for k in range(25)])
+            profiles = root / 'course_profiles.parquet'
+            db = duckdb.connect()
+            db.execute("CREATE TABLE p (city VARCHAR, race VARCHAR, course_key VARCHAR, distance_km DOUBLE, elev_gain_m DOUBLE, elev_loss_m DOUBLE, "
+                       "elev_min_m DOUBLE, elev_max_m DOUBLE, points_json VARCHAR, source VARCHAR)")
+            db.execute("INSERT INTO p VALUES ('Alpha','Alpha Marathon','alpha-current',42.195,10,10,0,2,?,'gpx'), "
+                       "('Beta','Gamma Marathon','beta-current',42.195,10,10,0,2,?,'gpx')", [points, points])
+            db.execute(f"COPY p TO '{profiles}' (FORMAT PARQUET)")
+            manifest = root / 'manifest.json'
+            manifest.write_text(json.dumps(dict(release_tag='example', input_as_of='2026-10-16T20:55:30Z', editions=editions,
+                                                input_files={'course_profiles.parquet': hashlib.sha256(profiles.read_bytes()).hexdigest()})))
+            output = root / 'course-geometry.json'
+            build_course_geometry.run(profiles, output, manifest)
+            result = json.loads(output.read_text())
+            self.assertEqual([c['city'] for c in result['courses']], ['Alpha'])
+            self.assertEqual(result['omitted'], [dict(city='Beta', race='Gamma Marathon', reasons=[reason])])
+            # A changed shard is refused before anything is drawn.
+            (root / 'editions/000.json.gz').write_bytes(b'x')
+            with self.assertRaisesRegex(ValueError, 'Runner-context shard mismatch'):
+                build_course_geometry.run(profiles, output, manifest)
+
+
 if __name__ == '__main__':
     unittest.main()

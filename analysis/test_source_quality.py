@@ -1,6 +1,7 @@
 """Small fixtures distinguish timing failures, edition holds and demographics."""
 import copy
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -74,6 +75,9 @@ class SourceQualityTests(unittest.TestCase):
             self.assertEqual(list(rule[key]), carried[key])
         # Visitor-visible reasons never carry internal release labels.
         self.assertFalse(any('private-export' in reason or 'htw-db' in reason for _, reason in rule.values()))
+        # Nor the rank words the course pages' copy check rejects (scripts/verify-courses.cjs RANK); the reasons are printed there.
+        rank = re.compile(r'\b(?:rank|ranks|ranked|ranking|rankings|fastest|toughest|hardest|easiest|harder|easier|tougher|similar|best|worst|top \d+)\b', re.I)
+        self.assertEqual([key for key, (_, reason) in rule.items() if rank.search(reason)], [])
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder); db = fixture(source, RELEASE_1652, RULES_1652)
             counts = prepare(db, source, keep_record_id=True)
