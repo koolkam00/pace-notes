@@ -1,12 +1,12 @@
-import type { FinishTimes, InsightsManifest } from '@/lib/insights';
+import type { FinishTimes } from '@/lib/insights';
 import { count } from '@/lib/viz/format';
 import { FinishHistogram, Rescue, SecondsLens } from '../FinishTimeStory';
-import { StoryMethods, StorySection } from '../StoryShell';
+import { StorySection } from '../StoryShell';
 import { StoryData } from '../StoryData';
 import { Checkpoint, Distance, Section } from '../Units';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 
-export default function RoundNumbersBody({ data, manifest }: { data: FinishTimes; manifest: InsightsManifest }) {
+export default function RoundNumbersBody({ data }: { data: FinishTimes }) {
   const marks = data.marks;
   const three = marks.find((m) => m.minutes === 180)!;
   const half = marks.find((m) => m.minutes === 210)!;
@@ -41,7 +41,6 @@ export default function RoundNumbersBody({ data, manifest }: { data: FinishTimes
               </tbody>
             </table>
           </div>
-          <p className="viz-note">Quarter-hour marks such as 2:45 and 3:45 sit inside neighbouring marks&apos; windows, so their smooth curves are less reliable. Intervals resample whole race editions.</p>
         </div>
       </StorySection>
       <StorySection id="seconds" kicker="03 · Seconds" title={<>The cushion is widest before <em>5:00</em>.</>}
@@ -52,13 +51,6 @@ export default function RoundNumbersBody({ data, manifest }: { data: FinishTimes
         dek={<>Of {count(b4.over.n)} finishes projected 0–2 minutes over 4:00 at <Checkpoint km={40} />, {Math.round(b4.over.share_under * 100)}% got under it, against {Math.round(b4.over.expected_share_under * 100)}% for comparable finishes away from a round mark. Over the final <Distance km={2.195} /> they finished a median {b4.over.median_final_gain_s.toFixed(0)} seconds ahead of their own <Section i={7} /> pace{b4.over.expected_median_final_gain_s != null ? `, against ${b4.over.expected_median_final_gain_s.toFixed(0)} seconds for the comparison finishes` : ""}.</>}>
         <Rescue />
       </StorySection>
-      <StoryMethods manifest={manifest} files={['finish-times.json']} method={data.method}
-        caveats={[
-          'Goals, pacers, pace bands and watches are not recorded. Bunching is consistent with round-number targets but cannot prove why anyone sped up.',
-          'The smooth curve and the late-race comparison are references fitted from the data, not counterfactual outcomes for any runner.',
-          'Elapsed times are as published by the timing sources; wave and start offsets are not recorded.',
-          `Across hours and half-hours from 2:30 to 6:00, about ${count(Math.round(data.total_excess_hour_half_hour / 1000) * 1000)} finishes sit in the five minutes before a mark beyond the curve. That total is sensitive to the fitting window.`,
-        ]} />
     </StoryData>
   );
 }

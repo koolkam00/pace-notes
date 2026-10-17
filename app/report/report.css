@@ -49,6 +49,7 @@
 .race-report-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .race-report-badge.is-data { color: var(--orange-ink); }
 .race-report-badge.is-research { color: #5B34D6; }
+a.race-report-badge:hover { text-decoration: none; border-style: dashed; }
 .race-report-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.4rem; }
 @media (max-width: 640px) { .race-report-pair { grid-template-columns: minmax(0, 1fr); } }
 

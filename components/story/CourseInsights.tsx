@@ -14,7 +14,7 @@ export function CourseFingerprint({ course, typical }: { course: Shaped; typical
   const { units } = useUnits();
   return (
     <div className="viz-card">
-      <div className="viz-head"><div><p className="viz-title">Pace by section, against the typical marathon</p><p className="viz-sub">Median finisher, % slower (+) or faster (−) than their own average pace, each edition weighted equally</p></div></div>
+      <div className="viz-head"><div><p className="viz-title">Pace by section, against the typical marathon</p><p className="viz-sub">Median finisher, % slower (+) or faster (−) than their own average pace</p></div></div>
       <CourseCurve course={course} typical={typical} height={250} />
       <BandStrips course={course} />
       <p className="viz-note">{courseNote(course, units)}</p>
@@ -76,7 +76,7 @@ export function CourseWeather({ city, editions, pairing = true }: { city: string
   const picked = sel == null ? null : editions.find((e) => e.year === sel) ?? null;
   return (
     <div className="viz-card">
-      <div className="viz-head"><div><p className="viz-title">{city} race mornings</p><p className="viz-sub">Each edition: modelled temperature at the scheduled start and sustained slowdown share</p></div></div>
+      <div className="viz-head"><div><p className="viz-title">{city} race mornings</p><p className="viz-sub">Each edition: start temperature and sustained slowdown share</p></div></div>
       <div ref={ref} className="viz">
         <svg width={width} height={H} role="img" aria-label={`${editions.length} ${city} editions plotted by start temperature and sustained slowdown.${pairing ? ` Warmest: ${hot.year} at ${fmt(hot.temp)}, ${(hot.slowdown * 100).toFixed(0)}%. Coolest: ${cool.year} at ${fmt(cool.temp)}, ${(cool.slowdown * 100).toFixed(0)}%.` : ''}`}>
           {Array.from({ length: Math.round(sHi * 10) + 1 }, (_, i) => i / 10).map((s) => <g key={s} className="grid"><line x1={m.l} x2={width - m.r} y1={y(s)} y2={y(s)} /><text x={m.l - 8} y={y(s) + 4} textAnchor="end">{Math.round(s * 100)}%</text></g>)}
@@ -101,7 +101,7 @@ export function CourseWeather({ city, editions, pairing = true }: { city: string
         </label>
         <p className="pairs-readout" aria-live="polite">{picked ? <><strong>{city} {picked.year}</strong> · {fmt(picked.temp)} at the start · {(picked.slowdown * 100).toFixed(1)}% sustained slowdown</> : narrow ? 'Tap a dot, or choose a year.' : 'Hover a dot, or choose a year.'}</p>
       </div>
-      <p className="viz-note">Weather is the supplied modelled hour at the scheduled start, never personal exposure. Other things changed between years too.{narrow ? ' Only the warmest and coolest years are labelled on small screens.' : ''}</p>
+      {narrow ? <p className="viz-note">Only the warmest and coolest years are labelled on small screens.</p> : null}
     </div>
   );
 }

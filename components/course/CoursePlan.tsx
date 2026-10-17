@@ -17,7 +17,7 @@ export default function CoursePlan({ page }: { page: CoursePageData }) {
   const raceParam = encodeURIComponent(city);
   return (
     <CourseSection id="plan" track="cta" kicker="Plan" title={<>Plan your <em>{race}</em></>}
-      dek={<>Start from this course. Your plan is a calculation from your own goal; the Pace Notes data beside it describes past finishes and never picks a pace for you.</>}>
+      dek={<>Every tool that starts from this course, from goal splits to a race-day projection.</>}>
       <div className="course-plan">
         <ToolHandoffs label="Before race day" links={[
           { href: planHref(city) ?? '/tools/plan', accent: accent('plan', 'var(--blue)'), title: 'Race planner', text: <>Your goal on this course: even-pace splits{page.goals.length ? ', how finishes at that pace held up here,' : ''} and a pace band to print.</> },
@@ -34,13 +34,13 @@ export default function CoursePlan({ page }: { page: CoursePageData }) {
         {scopes.compare || scopes.hills ? (
           <ToolHandoffs label="Analyses" links={[
             ...(scopes.compare ? [{ href: `/analyses/course-comparison?race=${raceParam}`, accent: 'var(--blue)', title: 'Compare this course', text: <>{display} beside the other courses for finishes at the same early pace.</> }] : []),
-            ...(scopes.hills ? [{ href: `/analyses/hills-and-pacing?race=${raceParam}`, accent: 'var(--green)', title: 'Hills and pacing', text: <>The supplied elevation profile beside the section paces of finishes near a time.</> }] : []),
+            ...(scopes.hills ? [{ href: `/analyses/hills-and-pacing?race=${raceParam}`, accent: 'var(--green)', title: 'Hills and pacing', text: <>The elevation profile beside the section paces of finishes near a time.</> }] : []),
           ]} />
         ) : null}
         {standard ? (
           <ToolHandoffs label="Official standards" links={[
             { href: `/tools/qualifying/${standard.key}`, accent: accent('qualifying', 'var(--ink)'), title: pageHeading(standard),
-              text: <><span className="evidence-badge evidence-official">{EVIDENCE_LABEL.official}</span> Each age group’s standard and the qualifying window, from the race’s own pages, checked {checkedDate()}. Kept apart from the data on this page.</> },
+              text: <><span className="evidence-badge evidence-official">{EVIDENCE_LABEL.official}</span> Each age group’s standard and the qualifying window, checked {checkedDate()}.</> },
           ]} />
         ) : null}
       </div>

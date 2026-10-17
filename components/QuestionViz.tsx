@@ -105,7 +105,7 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
     return formatNumber(n);
   };
   const units: Record<string, string> = {
-    '%': 'Percent (%)', '% pace': 'Pace difference (%) · higher is slower', '% change': 'Finish-time change (%) · below zero is faster', 'finish': 'Finish time (hours:minutes)', 'min/km': selectedUnits === 'mi' ? 'Pace (minutes:seconds per mile)' : 'Pace (minutes:seconds per km)',
+    '%': 'Percent (%)', '% pace': 'Pace difference (%)', '% change': 'Finish-time change (%)', 'finish': 'Finish time (hours:minutes)', 'min/km': selectedUnits === 'mi' ? 'Pace (minutes:seconds per mile)' : 'Pace (minutes:seconds per km)',
     'min': 'Minutes', 'runners': 'Number of finishes', 'correlation': 'Correlation, from −1 to 1', 'sec/km': selectedUnits === 'mi' ? 'Change in seconds per mile' : 'Change in seconds per kilometre',
     'm': selectedUnits === 'mi' ? 'Elevation (feet)' : 'Elevation (metres)',
     'km': selectedUnits === 'mi' ? 'Distance (miles)' : 'Distance (kilometres)',
@@ -131,7 +131,7 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
       </div>}
       {!allValues.length ? <p className="answer-state" role="status">No published values for this selection.</p>
         : percentileKeys ? <div className="range-chart">
-          <p className="study-meta">The line spans the 10th to 90th percentile. The dot marks the median.</p>
+          <p className="study-meta">Dot: median · Line: 10th to 90th percentile</p>
           <div className="range-axis" aria-hidden="true" style={{ position: 'relative', display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ visibility: rangeHasZero && rangeZeroPosition < 15 ? 'hidden' : undefined }}>{value(rangeStart)}</span>
             {rangeHasZero && <span className="range-zero-label" style={{ position: 'absolute', left: `${rangeZeroPosition}%`, transform: 'translateX(-50%)' }}>{value(0)}</span>}
@@ -165,10 +165,6 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
             })}
           </div>)}
         </div>}
-      {(spec.note || spec.sectionEnds) && <figcaption>
-        {spec.sectionEnds && <p>{text('Points average the preceding section. The final section is 40–42.195 km; lines do not locate pace changes within a section.')}</p>}
-        {spec.note && <p>{text(spec.note)}</p>}
-      </figcaption>}
       <details className="table-disclosure">
         <summary>View exact values{hasCounts ? ' and sample sizes' : ''}</summary>
         <div className="table-scroll" role="region" aria-label={`Values for ${text(spec.title)}`} tabIndex={0}>

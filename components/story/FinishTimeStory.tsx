@@ -54,7 +54,7 @@ export function FinishHistogram({ data: given }: { data?: FinishTimes }) {
     <div className="viz-card">
       <div className="viz-head">
         <div>
-          <p className="viz-title">Eligible finishes in each minute of finish time</p>
+          <p className="viz-title">Finishes in each minute of finish time</p>
           <p className="viz-sub">{series === 'all' ? 'Bars: recorded finishes · dashed line: smooth reference curve' : `Recorded ${series === 'men' ? 'men' : 'women'}'s finishes`}</p>
         </div>
         <div className="segmented" role="group" aria-label="Recorded gender">
@@ -113,7 +113,7 @@ export function FinishHistogram({ data: given }: { data?: FinishTimes }) {
         <label htmlFor="my-finish">Your finish time</label>
         <input id="my-finish" inputMode="decimal" autoComplete="off" placeholder="e.g. 3:58:42" value={mine} onChange={(e) => setMine(keypadInput(e.target, e.nativeEvent))} />
         <p aria-live="polite">
-          {mineRow ? <>{count(mineRow.all)} eligible finishes landed in the same minute ({hm(mineRow.minute)}:00–:59){expected.has(mineRow.minute) ? <>, {(mineRow.all / expected.get(mineRow.minute)!).toFixed(2)}× the smooth curve</> : null}.</>
+          {mineRow ? <>{count(mineRow.all)} finishes landed in the same minute ({hm(mineRow.minute)}:00–:59){expected.has(mineRow.minute) ? <>, {(mineRow.all / expected.get(mineRow.minute)!).toFixed(2)}× the smooth curve</> : null}.</>
             : mine && mineSeconds === null ? 'Enter h:mm or h:mm:ss between 1:30 and 12:00.'
               : mineSeconds !== null ? 'That minute is outside the charted range.' : 'Type a time to find its minute on the chart.'}
           <KeypadHint />
@@ -224,7 +224,6 @@ export function Rescue({ data: given }: { data?: FinishTimes }) {
         <span><i style={{ background: '#FF5B2E' }} />Recorded share under {b.mark}</span>
         <span><i className="dashed" />Comparison from finishes away from round marks</span>
       </div>
-      <p className="viz-note">The projection carries each finish from its {at40} time at its own {units === 'mi' ? '21.7–24.9 mi' : '35–40 km'} pace. The comparison uses finishes projected the same distance from a non-round minute with similar late slowing. It is a reference, not a forecast or a measure of intent.</p>
     </div>
   );
 }

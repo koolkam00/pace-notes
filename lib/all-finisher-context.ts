@@ -63,12 +63,12 @@ export function allFinisherGroupLabel(group: AllFinisherGroup, kind: AllFinisher
     const temp = (n: number) => `${Number((units === 'mi' ? n * 1.8 + 32 : n).toFixed(1))}°${units === 'mi' ? 'F' : 'C'}`;
     return group.lower_c == null ? 'Below ' + temp(group.upper_c!) : group.upper_c == null ? temp(group.lower_c) + ' or warmer' : temp(group.lower_c) + ' to below ' + temp(group.upper_c);
   }
-  if (kind === 'downhill') return group.terrain === 'downhill' ? 'Larger opening descent' : 'Other supplied openings';
+  if (kind === 'downhill') return group.terrain === 'downhill' ? 'Larger opening descent' : 'Other openings';
   return group.label === 'New York' ? 'New York City' : group.label;
 }
 export function allFinisherCharts(groups: AllFinisherGroup[], focus: AllFinisherGroup, comparison: AllFinisherGroup | undefined, kind: AllFinisherKind, units: UnitSystem) {
   const label = (group: AllFinisherGroup) => allFinisherGroupLabel(group, kind, units);
-  const axis = kind === 'race-day' ? 'Race edition' : allFinisherFamily(kind) === 'weather' ? 'Start-hour temperature' : kind === 'downhill' ? 'Supplied opening terrain' : 'Course';
+  const axis = kind === 'race-day' ? 'Race edition' : allFinisherFamily(kind) === 'weather' ? 'Start-hour temperature' : kind === 'downhill' ? 'Opening terrain' : 'Course';
   const groupChart = (title: string, key: 'slowdown_pct' | 'late_pct' | 'late_spread_pct' | 'after20_delta_s', unit: string, series: string, note: string): ChartSpec => ({ title, unit, xLabel: axis, series: [{ key: 'value', label: series }], rows: groups.map(group => ({ label: label(group), value: group[key] / (key === 'after20_delta_s' ? 60 : 1), n_value: group.n })), note });
   const selected = [focus, ...(comparison && comparison.id !== focus.id ? [comparison] : [])];
   return {

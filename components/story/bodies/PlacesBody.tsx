@@ -1,11 +1,11 @@
-import type { InsightsManifest, Positions } from '@/lib/insights';
-import { count } from '@/lib/viz/format';
+import type { Positions } from '@/lib/insights';
 import { BreakEven, GainHistogram, GapGauge, Ledger, WomenMen } from '../PlacesStory';
-import { StoryMethods, StorySection } from '../StoryShell';
+import { StorySection } from '../StoryShell';
 import { Checkpoint } from '../Units';
 import { StoryData } from '../StoryData';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 
-export default function PlacesBody({ data, manifest }: { data: Positions; manifest: InsightsManifest }) {
+export default function PlacesBody({ data }: { data: Positions }) {
   const at30 = data.coin_flip['30'].find((r) => r.gap_lo_s === 60)!;
   const at40 = data.coin_flip['40'].find((r) => r.gap_lo_s === 60)!;
   const fast = data.groups.find((g) => g.label === 'Faster second 20 km')!;
@@ -24,7 +24,7 @@ export default function PlacesBody({ data, manifest }: { data: Positions; manife
           <GainHistogram />
           <div className="chapter-aside">
             <Ledger />
-            <div className="bib"><span className="bib-tag">Who moves up late</span><span className="bib-number">{(fast.gained * 100).toFixed(1)}%</span><span className="bib-text">of finishes with a faster second 20 km gained places after <Checkpoint km={30} />, against {(slow.gained * 100).toFixed(0)}% of finishes with a sustained slowdown.</span></div>
+            <div className="bib"><span className="bib-tag">Who moves up late</span><span className="bib-number">{(fast.gained * 100).toFixed(1)}%</span><span className="bib-text">of finishes with a faster second 20 km gained places after <Checkpoint km={30} />, against {(slow.gained * 100).toFixed(0)}% of finishes with a <Link href="/methodology#sustained-slowdown">sustained slowdown</Link>.</span></div>
           </div>
         </div>
       </StorySection>
@@ -35,7 +35,7 @@ export default function PlacesBody({ data, manifest }: { data: Positions; manife
       <StorySection id="shuffle" kicker="04 · Reshuffles" title={<>The order shuffles <em>twice</em>.</>}
         dek={<>Pairs of finishes swap clock order most often in the {top.section} km section, and again in the {late.section} km section.</>}>
         <div className="viz-card">
-          <div className="viz-head"><div><p className="viz-title">Share of pairs that swap clock order in each section</p><p className="viz-sub">Random same-race pairs; per kilometre so the short final section compares fairly</p></div></div>
+          <div className="viz-head"><div><p className="viz-title">Share of pairs that swap clock order in each section</p><p className="viz-sub">Per kilometre</p></div></div>
           <div className="shuffle-bars">
             {data.shuffle.map((s) => {
               const max = Math.max(...data.shuffle.map((x) => x.per_km));
@@ -47,20 +47,13 @@ export default function PlacesBody({ data, manifest }: { data: Positions; manife
               );
             })}
           </div>
-          <p className="viz-note">Section labels are kilometres. A swap means the pair&apos;s clock order at the end of the section differs from the start.</p>
+          <p className="viz-note">Section labels are kilometres.</p>
         </div>
       </StorySection>
       <StorySection id="women" kicker="05 · Recorded gender" title={<>Women gained on men <em>in {data.women_ahead_editions} of {data.gender_editions.length}</em> compared editions.</>}
-        dek={<>{data.women_ahead_editions === data.gender_editions.length ? 'In all' : 'In'} {data.women_ahead_editions} of {data.gender_editions.length} race editions with at least 100 recorded women and men, women&apos;s average change in clock position after <Checkpoint km={30} /> was better than men&apos;s. Women are {(data.women_share * 100).toFixed(0)}% of these finishes but {(data.women_share_of_surgers * 100).toFixed(0)}% of late surgers and {(data.women_share_of_sinkers * 100).toFixed(0)}% of late sinkers.</>}>
+        dek={<>{data.women_ahead_editions === data.gender_editions.length ? 'In all' : 'In'} {data.women_ahead_editions} of {data.gender_editions.length} race editions compared, women&apos;s average change in clock position after <Checkpoint km={30} /> was better than men&apos;s. Women are {(data.women_share * 100).toFixed(0)}% of these finishes but {(data.women_share_of_surgers * 100).toFixed(0)}% of late surgers and {(data.women_share_of_sinkers * 100).toFixed(0)}% of late sinkers.</>}>
         <WomenMen />
       </StorySection>
-      <StoryMethods manifest={manifest} files={['positions.json']} method={data.method}
-        caveats={[
-          'Clock ranks compare elapsed times within an edition. Because of wave starts, a clock pass is not necessarily a physical overtake on the road.',
-          'Only eligible finishes are ranked: runners who did not finish or whose records were incomplete are absent.',
-          'Slowing measures and places gained both use the late kilometres, so part of their link is built into the measures themselves; it describes, it does not predict.',
-          `${count(data.cohort_n)} finishes in ${data.editions_n} editions are ranked. Pair rates are estimated from sampled pairs with a fixed seed.`,
-        ]} />
     </StoryData>
   );
 }

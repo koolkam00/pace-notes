@@ -1,7 +1,7 @@
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { CourseWeather } from '@/components/story/CourseInsights';
 import { PerDegree } from '@/components/story/Units';
-import { count, pct, yearList, type CoursePageData } from '@/lib/course-page';
+import { count, pct, type CoursePageData } from '@/lib/course-page';
 import { CourseSection, CourseTable, Fact } from './Fact';
 import { Degrees, Wind } from './CourseUnits';
 
@@ -14,11 +14,11 @@ const r = (value: number) => `${value < 0 ? '−' : ''}${Math.abs(value).toFixed
  * for the courses the story data fits one for.
  */
 export default function CourseWeatherByYear({ page }: { page: CoursePageData }) {
-  const { weather, weatherMissing, hotCool, slope, city, display, scopes, datesUnverified, weatherSource } = page;
+  const { weather, hotCool, slope, city, display, scopes } = page;
   if (!weather.length) return null;
   return (
     <CourseSection id="weather" track="chapter-7" kicker="Weather" title="Race-morning weather by year"
-      dek={<>The supplied modelled weather for the hour of each edition’s scheduled start: one point in the city, not what any runner felt. Context only, not an adjustment.</>}>
+      dek={<>The weather at the start of every {display} edition.</>}>
       <CourseTable id="weather-caption" caption={<>{display} race-morning weather by edition</>}>
         <thead><tr><th scope="col">Year</th><th scope="col">Scheduled start</th><th scope="col">Temperature</th><th scope="col">Dew point</th><th scope="col">Humidity</th><th scope="col">Wind</th></tr></thead>
         <tbody>
@@ -34,13 +34,11 @@ export default function CourseWeatherByYear({ page }: { page: CoursePageData }) 
           ))}
         </tbody>
       </CourseTable>
-      <p className="course-note">Modelled hourly weather at the scheduled start, one row per edition with a weather record.{weatherMissing.length ? ` No weather row for ${yearList(weatherMissing.map((w) => w.year))}.` : ''}{datesUnverified ? ' The data producer supplied the race dates and scheduled starts; they have not been independently verified.' : ''}
-        {weatherSource ? <> Source: <a href={weatherSource.url} rel="noopener noreferrer">{weatherSource.name === 'open-meteo' ? 'Open-Meteo historical weather archive' : weatherSource.name}</a>.</> : null}</p>
       {hotCool ? (
-        <p className="course-hotcool"><Fact k="hc.cool.year" v={hotCool.cool.year}>{hotCool.cool.year}</Fact> started coolest, at <Fact k="hc.cool.temp" v={hotCool.cool.temp}><Degrees c={hotCool.cool.temp} /></Fact>, and <Fact k="hc.cool.sd" v={hotCool.cool.slowdown}>{pct(hotCool.cool.slowdown)}</Fact> of its finishes had a sustained slowdown; <Fact k="hc.hot.year" v={hotCool.hot.year}>{hotCool.hot.year}</Fact> started warmest, at <Fact k="hc.hot.temp" v={hotCool.hot.temp}><Degrees c={hotCool.hot.temp} /></Fact>, with <Fact k="hc.hot.sd" v={hotCool.hot.slowdown}>{pct(hotCool.hot.slowdown)}</Fact>. Other things changed between those years too.</p>
+        <p className="course-hotcool"><Fact k="hc.cool.year" v={hotCool.cool.year}>{hotCool.cool.year}</Fact> started coolest, at <Fact k="hc.cool.temp" v={hotCool.cool.temp}><Degrees c={hotCool.cool.temp} /></Fact>, and <Fact k="hc.cool.sd" v={hotCool.cool.slowdown}>{pct(hotCool.cool.slowdown)}</Fact> of its finishes had a sustained slowdown; <Fact k="hc.hot.year" v={hotCool.hot.year}>{hotCool.hot.year}</Fact> started warmest, at <Fact k="hc.hot.temp" v={hotCool.hot.temp}><Degrees c={hotCool.hot.temp} /></Fact>, with <Fact k="hc.hot.sd" v={hotCool.hot.slowdown}>{pct(hotCool.hot.slowdown)}</Fact>.</p>
       ) : null}
       {slope ? (
-        <p className="course-slope">Across <Fact k="slope.editions" v={slope.editions}>{count(slope.editions)}</Fact> {display} editions, the share of finishes with a sustained slowdown changed by <Fact k="slope" v={slope.slope}><PerDegree perC={slope.slope} unit="percentage points" /></Fact> of start temperature (r = <Fact k="slope.r" v={slope.pearson_r}>{r(slope.pearson_r)}</Fact>). An association across a few editions, not a measured effect of heat.</p>
+        <p className="course-slope">Across <Fact k="slope.editions" v={slope.editions}>{count(slope.editions)}</Fact> {display} editions, the share of finishes with a sustained slowdown changed by <Fact k="slope" v={slope.slope}><PerDegree perC={slope.slope} unit="percentage points" /></Fact> of start temperature (r = <Fact k="slope.r" v={slope.pearson_r}>{r(slope.pearson_r)}</Fact>).</p>
       ) : null}
       {/* The chart's accessible name pairs the warmest and coolest editions only when the sentence above may. */}
       {weather.length >= 2 ? <CourseWeather city={city} editions={weather} pairing={!!hotCool} /> : null}

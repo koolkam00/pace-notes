@@ -2,7 +2,7 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import RunnerLane from '@/components/art/RunnerLane';
 import ToolIcon from '@/components/tools/ToolIcon';
 import { EvidenceBadge } from '@/components/tools/ToolShell';
-import { getInsightsManifest, readInsight } from '@/lib/insights-server';
+import { getInsightsManifest } from '@/lib/insights-server';
 import { TOOLS, toolHref, type ToolGroup } from '@/lib/tools/registry';
 import { pageMetadata } from '@/lib/seo';
 import { GOAL_PAGE_MINUTES, HALF_CHART, MARATHON_CHART, goalLabel, goalPagePath } from '@/lib/tools/pace-chart';
@@ -23,7 +23,6 @@ const GROUPS: { group: ToolGroup; title: string }[] = [
 export default function ToolsPage() {
   const manifest = getInsightsManifest();
   const available = TOOLS.filter((t) => !t.file || manifest.files[t.file]);
-  const cohort = manifest.files['tools/projector.json'] ? readInsight<{ cohort_n: number }>('tools/projector.json').cohort_n : null;
   return (
     <div className="tools-page">
       <section className="night night-grain bleed tools-hero">
@@ -31,8 +30,7 @@ export default function ToolsPage() {
           <p className="eyebrow">Runner tools</p>
           <h1 className="story-title">Tools that know how marathons <em>really</em> go.</h1>
           <p className="hero-dek">
-            Most calculators assume an even pace to the finish. Few marathons are run that way. These tools pair exact calculations and published
-            research with what {cohort ? `${(cohort / 1e6).toFixed(2)} million` : 'millions of'} recorded finishes actually did, and say plainly which is which.
+            Most calculators assume an even pace to the finish. Few marathons are run that way. These tools set your plan beside what finishes at your pace actually did.
           </p>
         </div>
         <RunnerLane dark height={100} runners={[{ finishMinutes: 180, label: '3:00' }, { finishMinutes: 210, label: '3:30' }, { finishMinutes: 240, label: '4:00' }, { finishMinutes: 300, label: '5:00' }]} />
@@ -71,9 +69,6 @@ export default function ToolsPage() {
           </ul>
         </section>
         <div className="tools-principles">
-          <div><b>Calculations are exact</b><p>Even-pace splits, mile rows and pace charts come straight from your inputs. They are not observations.</p></div>
-          <div><b>Data is what finishes did</b><p>Every share is an observed share of complete finishes in the data, not a forecast for any one runner. Runners who stopped are not in it.</p></div>
-          <div><b>Research is cited</b><p>Prediction and heat formulas come from published studies, kept apart from Pace Notes results.</p></div>
           <div><b>Your inputs stay with you</b><p>Everything runs in your browser. Birth dates are never put in links or analytics.</p></div>
         </div>
       </div>

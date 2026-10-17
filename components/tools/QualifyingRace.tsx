@@ -6,16 +6,17 @@
  */
 import { MarathonDistance, UnitLink as Link } from '@/components/UnitsProvider';
 import { Pace } from '@/components/story/Units';
+import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import { EvidencePanel } from '@/components/tools/ui';
 import { ToolNext } from '@/components/tools/ToolShell';
 import { QualifyingRaceLinks } from '@/components/tools/QualifyingRaceLinks';
 import {
   ageLabel, bornLabel, capital, checkedDate, checkerHref, divisionWords, divisions, editionDetail, fmtDate, fmtMargin, fmtStandard,
-  lastRunDate, organiser, pageHeading, possessive, program, raceName, raceYear, shortName,
+  lastRunDate, pageHeading, program, raceName, raceYear, shortName,
 } from '@/components/tools/QualifyingRaceText';
 import { JsonLd, breadcrumbs } from '@/lib/seo';
 import { MARATHON_KM } from '@/lib/tools/pace';
-import { ASSUMED_COMPARISON, BOSTON_CUTOFFS, VERIFIED_AT, hasPublishedCutoffs, type Standard } from '@/lib/tools/qualifying';
+import { ASSUMED_COMPARISON, BOSTON_CUTOFFS, VERIFIED_AT, type Standard } from '@/lib/tools/qualifying';
 import { toolBySlug } from '@/lib/tools/registry';
 
 const grouped = (n: number) => n.toLocaleString('en-US');
@@ -42,7 +43,7 @@ function timeRule(s: Standard): { value: string; detail: string } {
   if (s.comparison === 'strictly-under') return { value: 'Strictly under the standard', detail: 'A time equal to the standard does not qualify.' };
   if (s.comparisonStated) return { value: 'At or under the standard', detail: 'A time equal to the standard qualifies.' };
   return { value: `At or under the standard ${ASSUMED_COMPARISON}`,
-    detail: `${capital(organiser(s))} does not say whether a time exactly equal to the standard qualifies; this page and the checker count it as meeting the standard.` };
+    detail: 'A time equal to the standard counts here.' };
 }
 
 /**
@@ -63,7 +64,6 @@ export default function QualifyingRace({ s, others, course }: { s: Standard; oth
   const birthYear = s.ageRule === 'birth-year' && s.ageYear !== undefined;
   const last = lastRunDate(s);
   const accent = toolBySlug('qualifying')?.accent;
-  const sources = s.sources;
   // Panels in the main column; the facts card spans them on wide screens.
   const panels = s.key === 'boston' && BOSTON_CUTOFFS.length ? 5 : 4;
   const what = capital(program(s) ? `${program(s)} standards` : 'qualifying standards');
@@ -79,8 +79,9 @@ export default function QualifyingRace({ s, others, course }: { s: Standard; oth
           {what} for the {year} {name}{detail ? ` (${detail})` : ''} by {birthYear ? 'birth-year group' : 'age group'} for {divisionWords(s)}, with the qualifying window, the age rule and how entry works.
         </p>
         <p className="qrace-provenance">
-          <span className="evidence-badge evidence-official">Official standards</span>
-          <span>Transcribed from {possessive(organiser(s))} official page{sources.length > 1 ? 's' : ''} · checked <time dateTime={VERIFIED_AT}>{checkedDate()}</time></span>
+          <EvidenceTag kind="official" />
+          <span>Checked <time dateTime={VERIFIED_AT}>{checkedDate()}</time></span>
+          {s.sources[0] ? <a className="no-print" href={s.sources[0].url} rel="noopener noreferrer">Official qualifying page<span aria-hidden="true">{'\u00a0'}↗</span></a> : null}
         </p>
         <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Runner tools', '/tools'], ['Qualifying checker', '/tools/qualifying'], [`${name} ${year}`]])} />
       </header>
@@ -91,7 +92,7 @@ export default function QualifyingRace({ s, others, course }: { s: Standard; oth
           <div className="tool-table-wrap">
             <table className="tool-table qrace-table" data-race={s.key}>
               <caption>
-                {name} {year} {program(s) ? `${program(s)} ` : ''}standards as published by {organiser(s)}, in hours, minutes and seconds.
+                {name} {year} {program(s) ? `${program(s)} ` : ''}standards, in hours, minutes and seconds.
               </caption>
               <thead>
                 <tr>
@@ -115,10 +116,6 @@ export default function QualifyingRace({ s, others, course }: { s: Standard; oth
             </table>
           </div>
           <p className="tool-note">{s.nonbinaryNote}</p>
-          <p className="qrace-sources">
-            {sources.map((src) => <a key={src.url} href={src.url} rel="noopener noreferrer">{src.label}<span aria-hidden="true">{'\u00a0'}↗</span></a>)}
-            <span className="qrace-checked">Checked <time dateTime={VERIFIED_AT}>{checkedDate()}</time></span>
-          </p>
         </EvidencePanel>
 
         <aside className="qrace-glance" aria-labelledby="qrace-glance-title">
@@ -141,7 +138,7 @@ export default function QualifyingRace({ s, others, course }: { s: Standard; oth
           </div>
         </aside>
 
-        <EvidencePanel kind="official" id="rules" title="Window, age and application rules" meta={`As ${organiser(s)} states them for the ${year} race.`}>
+        <EvidencePanel kind="official" id="rules" title="Window, age and application rules" meta={`For the ${year} race.`}>
           <dl className="qrace-rules">
             <div>
               <dt>Qualifying window</dt>
@@ -171,10 +168,10 @@ export default function QualifyingRace({ s, others, course }: { s: Standard; oth
         {s.key === 'boston' ? <BostonCutoffs s={s} /> : null}
 
         <EvidencePanel id="even-pace" title="Even pace for each standard"
-          meta={<>Calculated at even pace, not recorded splits: each standard divided by <MarathonDistance />. It is a reference, not a pacing plan.</>}>
+          meta={<>Over <MarathonDistance />. A reference, not a pacing plan.</>}>
           <div className="tool-table-wrap">
             <table className="tool-table qrace-table qrace-pace-table" data-race={s.key}>
-              <caption>Pace for a finish exactly on each {name} {year} standard, calculated at even pace.{s.comparison === 'strictly-under' ? ' A qualifying time has to be strictly under it.' : ''}</caption>
+              <caption>Even pace for a finish exactly on each {name} {year} standard.{s.comparison === 'strictly-under' ? ' A qualifying time has to be strictly under it.' : ''}</caption>
               <thead>
                 <tr>
                   <th scope="col">{birthYear ? 'Born' : age.column}</th>
@@ -206,15 +203,6 @@ export default function QualifyingRace({ s, others, course }: { s: Standard; oth
         </p>
       </nav>
 
-      <details className="tool-method">
-        <summary>How this page works</summary>
-        <div className="tool-method-body">
-          <p><strong>Official rules only.</strong> Every standard, age rule, window and application date on this page was transcribed from {possessive(organiser(s))} own page{sources.length > 1 ? 's' : ''} and checked on {checkedDate()}. Standards change from year to year, so check the official page before you apply. Pace Notes reviews them before each registration season.</p>
-          {hasPublishedCutoffs(s) ? <p><strong>Past cut-offs are not a forecast.</strong> Where a race publishes how far under the standard its accepted qualifiers had to be, this page lists those figures as published. Nothing here estimates a future cut-off or whether anyone will be accepted.</p> : null}
-          <p><strong>The even-pace table</strong> divides each standard by the marathon distance. It is calculated, not recorded, and real races are rarely run at an even pace.</p>
-          <ul className="tool-sources">{sources.map((src) => <li key={src.url}><a href={src.url} rel="noopener noreferrer">{src.label}</a></li>)}</ul>
-        </div>
-      </details>
       <ToolNext current="qualifying" />
     </div>
   );
@@ -287,7 +275,7 @@ function BostonCutoffs({ s }: { s: Standard }) {
       <p className="tool-note">Published cut-offs have ranged from {fmtMargin(lowest.cutoff)} ({list(lowestYears)}) to {fmtMargin(highest.cutoff)} ({highest.year}{highest.note ? `, ${highest.note.toLowerCase()}` : ''}). The B.A.A. does not predict cut-offs, and Pace Notes does not either.</p>
       {random && draw && share !== null ? (
         <p className="tool-callout qrace-draw">
-          <strong>{random.year} random selection.</strong> For {random.year} the B.A.A. also drew about {grouped(random.drawn)} qualifiers at random from those who missed the {fmtMargin(draw.cutoff)} cut-off. By our derivation from B.A.A. counts ({grouped(random.drawn)} ÷ ({grouped(draw.notAccepted)} not accepted + {grouped(random.drawn)} drawn)), that was about {pct(share)} of that group. The B.A.A. has not said whether the draw will continue.
+          <strong>{random.year} random selection.</strong> For {random.year} the B.A.A. also drew about {grouped(random.drawn)} qualifiers at random from those who missed the {fmtMargin(draw.cutoff)} cut-off: about {pct(share)} of that group. The B.A.A. has not said whether the draw will continue.
         </p>
       ) : null}
     </EvidencePanel>

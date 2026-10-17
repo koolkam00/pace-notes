@@ -210,25 +210,26 @@ try {
     for (const candidate of ready) {
       const definition = WEATHER_QUESTIONS.find(item => item.id === candidate.id);
       const html = renderToStaticMarkup(React.createElement(WeatherAnalysis, { definition, candidate, evidence, questions }));
-      assert.ok(html.includes(sourceReleaseHref(weatherRelease)));
-      assert.ok(html.includes(sourceLabel(evidence.input.as_of, weatherRelease)), 'The visible source describes the data');
-      assert.ok(html.includes(`${candidate.support.editions} race editions`) && html.includes(`${candidate.support.courses} courses`) && html.includes(`${candidate.support.finishes.toLocaleString('en-US')} complete finishes`));
-      assert.ok(html.includes('Each edition has equal weight'));
+      // The page shows the finding; its sources, coverage, method and caveats live on /methodology.
+      const visible = html.replace(/<[^>]*>/g, ' ');
+      assert.ok(!html.includes(sourceReleaseHref(weatherRelease)) && !html.includes(sourceLabel(evidence.input.as_of, weatherRelease)), 'The analysis page carries no source line');
+      assert.ok(!html.includes('/data/weather/evidence.json') && !html.includes('open-meteo.com') && !html.includes('/about#data-coverage'), 'Downloads, data sources and coverage links belong on /methodology');
+      assert.doesNotMatch(visible, /\d+ race editions · \d+ courses|complete finishes\. Each edition has equal weight|How we calculated this|How to read this|Keep in mind|before adjustment|full-study comparison|accounts for testing three weather questions|Higher means more slowing|Zero means no difference|Compared within courses|Source:/, 'Method, coverage and reading notes are not on the analysis page');
+      assert.ok(!visible.includes(definition.purpose), 'The method-explaining purpose line is not shown');
+      assert.ok(html.includes(weatherFinding(candidate)), 'The page states its finding');
       assert.match(html, /98\.3% uncertainty interval/);
       assert.doesNotMatch(html, /95% uncertainty interval|95% confidence interval|95% interval/);
       assert.ok(html.includes(weatherLabel(candidate.exposure.q25, candidate.id, units)));
       assert.ok(html.includes(weatherLabel(candidate.exposure.q75, candidate.id, units)));
-      assert.ok(html.includes('before adjustment') && html.includes('remains the full-study comparison'), 'Browsing editions must not be presented as a model refit');
+      assert.ok(html.includes('Observed race days'), 'The edition browser is labeled as observed race days, apart from the adjusted estimate');
       assert.ok(html.includes('percentage points'));
-      assert.ok(html.includes(units === 'mi' ? '12.43–24.85 mi' : '20–40 km'));
-      assert.ok(html.includes(units === 'mi' ? '0–12.43 mi' : '0–20 km'));
       assert.doesNotMatch(html, /half-marathon splits are measured|observed halfway/);
       for (const edition of evidence.editions) {
         assert.ok(html.includes(edition.city + ' ' + edition.year));
         assert.ok(html.includes(weatherLabel(edition[candidate.exposure.key], candidate.id, units)), 'Exact-values table converts the actual recorded weather measurement');
       }
-      if (candidate.id === 'wind') assert.ok(html.includes('not evidence that strong winds are harmless'));
-      if (candidate.id === 'warming') assert.ok(html.includes('does not prove that warming caused'));
+      assert.ok(!html.includes('not evidence that strong winds are harmless') && !html.includes('does not prove that warming caused'), 'Caveat paragraphs moved to /methodology');
+      assert.doesNotMatch(visible, /\byour chance|\bcaused\b|\bcauses\b/i, 'The finding makes no causal claim');
     }
   }
 } finally {
@@ -236,14 +237,16 @@ try {
 }
 const AboutPage = require('../app/about/page.tsx').default;
 const about = renderToStaticMarkup(React.createElement(AboutPage));
-assert.ok(about.includes('Marathons and years'));
-assert.ok(about.includes('Weather data') && about.includes('Elevation data'));
 assert.doesNotMatch(about.replace(/<[^>]*>/g, ''), /private-export|September 11/);
-assert.ok(about.includes(`${ready.length} of the ${evidence.candidates.length} questions met the publication rule`));
-assert.ok(about.includes(`${cohort.weather_analysis_finishes.toLocaleString('en-US')} eligible finishes`));
+// About keeps who and why; the data inventory, weather screen and downloads moved to /methodology.
+assert.ok(!about.includes('id="data-coverage"') && !about.includes('Marathons and years') && !about.includes('Weather data') && !about.includes('Elevation data'), 'The data inventory is not on /about');
+assert.ok(!about.includes('met the publication rule') && !about.includes(`${cohort.weather_analysis_finishes.toLocaleString('en-US')} eligible finishes`), 'Weather coverage counts are not on /about');
+assert.ok(about.includes('Why it exists') && about.includes('Request an analysis'), '/about keeps why the study exists and how to contact Andrew');
 const WeatherIndex = require('../components/WeatherIndex.tsx').default;
 const index = renderToStaticMarkup(React.createElement(WeatherIndex));
-if (ready.length) assert.ok(index.includes(sourceLabel(evidence.input.as_of, weatherRelease)));
-else assert.equal(index, '', 'Do not show a weather directory with no supported questions');
+if (ready.length) {
+  assert.ok(!index.includes(sourceLabel(evidence.input.as_of, weatherRelease)) && !index.includes('Source:'), 'The weather directory carries no source line');
+  for (const candidate of ready) assert.ok(index.includes(weatherFinding(candidate)), 'Each weather entry states its finding');
+} else assert.equal(index, '', 'Do not show a weather directory with no supported questions');
 assert.equal(JSON.stringify(evidence), canonical, 'Rendering and unit conversions must not mutate published evidence');
 console.log('Verified weather provenance, reconciled edition cohorts, all three publication gates, supported routes, source units, corrected uncertainty and actual rendered results in miles and metric.');

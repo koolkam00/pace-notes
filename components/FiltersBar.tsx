@@ -32,7 +32,7 @@ export default function FiltersBar() {
           </select>
         </div>
         <div>
-          <label htmlFor="ability">Ability (30-min PB buckets)</label>
+          <label htmlFor="ability">Personal best</label>
           <select id="ability" name="ability" value={filters.ability} onChange={(e) => setAbility(e.target.value as AbilityBucket)}>
             {abilityOptions.map((opt) => (
               <option key={opt} value={opt}>{opt === 'all' ? 'All abilities' : opt}</option>

@@ -1,10 +1,9 @@
 // The home page lives in the (home) route group, not at app/page.tsx: Next.js 14 hands pages under app/ the client
 // chunks of a page in a parent folder for any client component they share, so with this file at app/page.tsx /privacy,
 // /htw and /runners loaded the home page's charts (about 37 KB gzipped). The route group keeps the URL `/`.
-import { Fragment } from 'react';
 import { UnitLink as Link, MarathonDistance } from '@/components/UnitsProvider';
 import CreatorCredit from '@/components/CreatorCredit';
-import CohortNote, { screenedPages } from '@/components/CohortNote';
+import { assertCohortTotals } from '@/components/CohortNote';
 import StoryCards from '@/components/StoryCards';
 import HomeDoors from '@/components/home/HomeDoors';
 import HeroReplay from '@/components/story/HeroReplay';
@@ -17,12 +16,7 @@ import { STORIES, capital, countWord, courseSpan } from '@/lib/stories';
 import { JsonLd, SITE_URL, finishesM, pageMetadata } from '@/lib/seo';
 import { TEN_ANALYSES } from '@/lib/ten-analyses';
 import { courseSlug } from '@/lib/tools/links';
-import { SLOWDOWN_CITATION } from '@/lib/tools/splits';
 import type { CourseGeometry, ReplayIndex } from '@/lib/insights';
-import { count } from '@/lib/viz/format';
-
-/** A count that may wrap after its commas, so a large bib number stays on screen at 200% zoom. */
-const wrappingCount = (n: number) => count(n).split(',').map((part, i) => <Fragment key={i}>{i ? <>,<wbr /></> : null}{part}</Fragment>);
 
 /** The three stories the home page shows, in this order; the rest are on /research and /stories. */
 const TEASER = ['pacing-types', 'round-numbers', 'courses'];
@@ -44,6 +38,7 @@ export default function Page() {
   if (!study || !summary || study.n !== summary.n || !Number.isFinite(study.rate)) {
     throw new Error('Homepage record totals must match the current analytical cohort.');
   }
+  assertCohortTotals();
   const manifest = getInsightsManifest();
   const replay = readInsight<ReplayIndex>('replay.json');
   const geometry = readInsight<{ courses: CourseGeometry[] }>('course-geometry.json');
@@ -56,9 +51,6 @@ export default function Page() {
   const storyWord = capital(countWord(stories.length) ?? String(stories.length));
   const analysisWord = countWord(TEN_ANALYSES.length) ?? String(TEN_ANALYSES.length);
   const courses = getCourseNames().map((city) => ({ city, slug: courseSlug(city) }));
-  // The citation's year and DOI, as the tools print it ("Published slowdown method (2021), doi:10.1371/…").
-  const methodYear = SLOWDOWN_CITATION.label.match(/\((\d{4})\)/)?.[1];
-  const doi = SLOWDOWN_CITATION.label.match(/doi:\S+/)?.[0];
   const website = {
     '@context': 'https://schema.org', '@type': 'WebSite', name: 'Pace Notes', alternateName: 'splithappens.run', url: `${SITE_URL}/`,
     inLanguage: 'en', description: homeDescription(), creator: { '@type': 'Person', name: 'Andrew Kam' },
@@ -88,25 +80,19 @@ export default function Page() {
       </div>
       <div className="nugget">
         <span className="nugget-number">{study.rate.toFixed(1)}%</span>
-        <p className="nugget-text">of the {count(study.n)} finishes in the {analysisWord} analyses had a <strong>sustained slowdown</strong>: at least 5 km after 20 km run 25% or more slower than their own 5–20 km pace (<a href={SLOWDOWN_CITATION.url}>published method, {methodYear}, {doi}</a>).</p>
+        {/* The study's base is the ten analyses' finishes (it includes the copy editions that the 3.4 million leaves out), so the sentence names it. */}
+        <p className="nugget-text">of finishes in the {analysisWord} analyses had a <Link href="/methodology#sustained-slowdown"><strong>sustained slowdown</strong></Link>.</p>
       </div>
-      <p className="home-section-line">By definition it comes after 20 km, where an even-pace chart shows the same split as at the start.</p>
-      <Link className="chapter-more" href="/slowdown">How it&apos;s measured <span aria-hidden="true">→</span></Link>
+      <Link className="chapter-more" href="/slowdown">See where it happens <span aria-hidden="true">→</span></Link>
     </section>
 
     <section id="guide" className="chapter home-section" aria-labelledby="guide-title" data-track-section="guide">
       <div className="chapter-head">
         <p className="chapter-num">Your guide</p>
-        <h2 id="guide-title" className="chapter-title">Built from recorded splits, <em>not rules of thumb</em>.</h2>
-        <p className="chapter-dek">Pace Notes doesn&apos;t coach or pick a pace for you. It shows what happened to real finishes, with every group&apos;s size beside its number, so you can make your own plan.</p>
+        <h2 id="guide-title" className="chapter-title">A guide, <em>not a coach</em>.</h2>
+        <p className="chapter-dek">Pace Notes doesn&apos;t coach or pick a pace for you. It shows what happened to real finishes, so you can make your own plan.</p>
       </div>
-      <div className="bibs home-guide-bibs">
-        <div className="bib"><span className="bib-tag">Recorded finishes</span><span className="bib-number">{wrappingCount(manifest.analysis_n)}</span><span className="bib-text">finishes with all nine 5 km checkpoints, the base for {screenedPages()}.</span></div>
-        <div className="bib"><span className="bib-tag">Courses and years</span><span className="bib-number">{manifest.cohort.cities}</span><span className="bib-text">big-city marathons{span ? `, from ${span.first} to ${span.last}` : ''}.</span></div>
-        <div className="bib"><span className="bib-tag">One published method</span><span className="bib-number">{methodYear}</span><span className="bib-text">Sustained slowdown follows the <a href={SLOWDOWN_CITATION.url}>published slowdown method, {doi}</a>.</span></div>
-      </div>
-      <CohortNote />
-      <p className="home-guide-links"><Link href="/methodology">Methods &amp; sources</Link>{' '}<Link href="/about">About</Link>{' '}<a href="https://github.com/koolkam00/htw-live-study/releases">Download the data <span aria-hidden="true">↗</span></a></p>
+      <p className="home-guide-links"><Link href="/methodology">Methods &amp; sources</Link>{' '}<Link href="/about">About</Link></p>
     </section>
 
     <section id="steps" className="chapter home-section" aria-labelledby="steps-title" data-track-section="steps">

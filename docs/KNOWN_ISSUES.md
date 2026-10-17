@@ -40,7 +40,7 @@ Measured on October 15, 2026 from the published `private-export-20260912-0934` f
 | --- | --- | --- |
 | Stories, the five data-backed tools, `/finish-times`, the story sections of course pages, the home hero | 3,414,116 finishes, copies screened out | None |
 | `/slowdown` (supporting study) | 30.4%: 1,070,946 of 3,517,336 | Without the copies' 29,670 detected slowdowns: 1,041,276 of 3,414,116 (30.50%) |
-| `/courses` Chicago card and course profile | 274,448 finishes with complete splits | 103,220 (37.6%) are copies; the course page's story sections use 171,228 |
+| `/courses` Chicago card (until October 16, 2026; the card now shows the story data's sustained-slowdown share) and course profile | 274,448 finishes with complete splits | 103,220 (37.6%) are copies; the course page's story sections use 171,228 |
 | `/analyses/course-comparison`, `/analyses/race-day-weather` (all-finisher context, editions weighted equally) | Chicago sustained slowdown 32.44%, late slowing 12.88% | 34.28% and 13.66% without the copies. The three copies' rates are 28.735%, 28.754% and 28.705%, against start temperatures of 14.6, 4.1 and 14.7 °C |
 | `/analyses/warming-and-pacing`, `/analyses/wind-and-pacing` (192 editions) | The edition table lists Chicago 2018 and 2019 at 8.48%, against 8.47% for the Chicago 2024 field they repeat | The published leave-Chicago-out refit moves warming from 2.068 to 1.954 points (still above the 1-point threshold) and wind from 0.316 to 0.298; removing only the copies needs the rebuild |
 | The ten analyses (`ext_personalized_guide`, 3,517,336) | Chicago's this-race-against-earlier-best distributions | All 62 cohorts have a median of exactly 0.0%; no other course has any. Same-course "return" pairs include the 2018 → 2019 copies |

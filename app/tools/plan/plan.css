@@ -47,8 +47,6 @@
 .plan-context { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .7rem 1.2rem; margin: 1rem 0 0; padding-top: .9rem; border-top: 1px solid var(--paper-2); }
 .plan-context dt { font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
 .plan-context dd { margin: .2rem 0 0; font-size: .875rem; line-height: 1.5; color: var(--ink-2); }
-.plan-context-note { grid-column: 1 / -1; }
-.plan-context-note dd { margin: 0; font-size: .8125rem; color: var(--ink-3); }
 
 /* The mat table: your plan's column, then the observed groups, each group labelled above its columns. */
 .plan-mat-table thead th { vertical-align: bottom; white-space: normal; line-height: 1.3; }

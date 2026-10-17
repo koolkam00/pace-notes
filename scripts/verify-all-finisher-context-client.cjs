@@ -22,6 +22,12 @@ const start = getAllFinisherContextStart();
 const bytes = fs.readFileSync(path.join(__dirname, '../public/data/all-finisher-context/evidence.json'));
 const evidence = JSON.parse(bytes);
 const render = (component, props) => renderToStaticMarkup(React.createElement(component, props));
+// Method, definitions, coverage and source text belong on /methodology only (owner request, 2026-10-16).
+const METHOD_COPY = [/What this can tell you/, /Definitions, coverage and limits/, /Download the analysis data/, /Open the source data/, /Study methods/,
+  /journals\.plos\.org/, /\d[\d,]* eligible finishes/, /Included courses and race years/, /equal weight/, /historical route validity/i, /[Ss]upplied net/,
+  /Modeled start-hour/, /not a ranking of course difficulty/, /at least \d[\d,]* (?:eligible |detected )?finishes/, /This earlier-result view always requires/,
+  /Exact filters, no earlier result required/, /This view starts with/, /calculated reference/, /pools those finishes/, /We do not substitute a broader group/];
+const noMethodCopy = (html, where) => { for (const pattern of METHOD_COPY) assert.doesNotMatch(html, pattern, `${where}: method or source copy belongs on /methodology (${pattern})`); };
 const { ALL_FINISHER_DEFAULT, readAllFinisherSelection, allFinisherSearch, allFinisherRow, allFinisherGroups, allFinisherGroupLabel, allFinisherCharts, earlyPaceLabel, loadAllFinisherContext } = helpers;
 async function main() {
   assert.equal(start.analysis_n, 3517336);
@@ -57,15 +63,16 @@ async function main() {
         assert.ok(Math.abs(charts.onset.rows.reduce((sum,row)=>sum+row.value,0)-100)<1e-4);
       }
       const html=render(AllFinisherResults,{groups,kind,start,units,focus,comparison});
-      assert.match(html,/Included courses and race years/);
+      assert.match(html,/<h2>(?:Sustained slowdown rates ranged from|The sustained slowdown rate was|Late-race pace|Late-race experiences varied most in)/,kind+': the headline states the spread across groups');
+      if(charts.onset) assert.match(html,/<a href="\/methodology#sustained-slowdown">sustained slowdowns<\/a> most often began in the /,kind+': the onset section states where slowdowns most often began and links the term');
+      noMethodCopy(html,`${kind} results (${units})`);
       assert.match(html,units==='mi'?/12\.43 mi/:/20 km/);
       assert.doesNotMatch(html,/private-export-|20260912/);
       if(kind==='race-day') {
         assert.match(html,/Slowdown rate in this edition/);
         assert.doesNotMatch(html,/Mean edition slowdown rate|across 3 editions/);
-        assert.match(html,/Modeled start-hour temperature|Start-hour temperature is unavailable/);
+        assert.match(html,/Start-hour temperature(?:: | is unavailable)/);
       }
-      if(kind==='downhill') assert.match(html,/historical route validity is unverified/i);
     }
     const page=render(AllFinisherAnalysis,{kind,start,history:React.createElement('p',null,'HISTORY RESULT')});
     assert.match(page,/aria-pressed="true">All eligible finishes/);
@@ -73,6 +80,7 @@ async function main() {
     assert.match(page,/Early-race pace/);
     assert.doesNotMatch(page,/>Target time</);
     assert.doesNotMatch(page,/HISTORY RESULT/,'History output must not leak into all-mode results');
+    noMethodCopy(page,`${kind} page`);
   }
   const temperature=start.initial.weather.find(group=>group.lower_c===5);
   assert.equal(allFinisherGroupLabel(temperature,'weather','mi'),'41°F to below 50°F');
@@ -84,7 +92,7 @@ async function main() {
   assert.match(render(AllFinisherResults,{groups:[sparse],kind:'courses',start,units:'mi',focus:sparse}),/Too few detected slowdowns/);
   for(const slug of ['course-comparison','race-day-weather','downhill-start']) {
     const html=render(AnalysisPage,{params:{slug}});
-    assert.match(html,/All eligible finishes/);assert.match(html,/No previous race needed/);assert.match(html,/3,517,336/);
+    assert.match(html,/All eligible finishes/);assert.match(html,/No previous race needed/);assert.doesNotMatch(html,/3,517,336/,'Coverage counts belong on /methodology');
   }
   for(const id of [...Object.keys(BROADER_ARCHIVE),'rn3_heat_curves','ext_weather_pacing_patterns']) {
     const html=render(PackPage,{params:{packId:id}});
@@ -92,7 +100,7 @@ async function main() {
     if(id==='r02_recover_slow_start') assert.match(html,/<option value="slow5" selected="">/);
     if(id==='r34_pacing_risk_reward') assert.match(html,/<option value="steady" selected="">/);
   }
-  assert.match(render(AnalysisPage,{params:{slug:'finding-improvement'}}),/This comparison requires earlier results/);
+  assert.doesNotMatch(render(AnalysisPage,{params:{slug:'finding-improvement'}}),/This comparison requires earlier results|strictly earlier/,'Cohort notes belong on /methodology');
   assert.match(render(MethodologyPage,{}),/id="all-finisher-context"/);
   const originalFetch=global.fetch;let served=bytes,status=200;const calls=[];
   global.fetch=async(url,options)=>{calls.push({url,signal:options.signal});return new Response(served,{status});};

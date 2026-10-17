@@ -23,6 +23,9 @@ const { getAnalysisStart } = require('../lib/analysis-server.ts');
 const { loadAnalysisAggregate } = require('../lib/analysis-aggregates.ts');
 const QuestionViz = require('../components/QuestionViz.tsx').default;
 const AnalysisChart = require('../components/AnalysisChart.tsx').default;
+const AnalysisExplorer = require('../components/AnalysisExplorer.tsx').default;
+const CheckpointExplorer = require('../components/CheckpointExplorer.tsx').default;
+const { unitText } = require('../lib/units.ts');
 const { summary, answers } = getAnalysisStart();
 
 assert.equal(TEN_ANALYSES.length, 10);
@@ -78,7 +81,6 @@ assert.match(render(QuestionViz, { spec: rangeSpec, headingLevel: 2 }), /<h2[^>]
 const profileAnswer = answers.find(answer => answer.id === 'profile');
 const profileHtml = render(QuestionViz, { spec: profileAnswer.charts[0], unitSystem: 'km' });
 assert.match(profileHtml, /40–42\.195 km/);
-assert.match(profileHtml, /lines do not locate pace changes within a section/);
 assert.match(profileHtml, /Course section/);
 const choices = Array.from({ length: 4 }, (_, index) => ({ ...rangeSpec, title: 'Comparison ' + (index + 1) }));
 const buttonsHtml = render(AnalysisChart, { analysisId: 'example', charts: choices.slice(0, 2) });
@@ -86,6 +88,32 @@ assert.equal([...buttonsHtml.matchAll(/aria-pressed="true"/g)].length, 1);
 assert.equal([...buttonsHtml.matchAll(/aria-pressed="false"/g)].length, 1);
 assert.match(render(AnalysisChart, { analysisId: 'example', charts: choices }), /<select[^>]+aria-controls=/);
 assert.match(render(AnalysisChart, { analysisId: 'empty', charts: [] }), /role="status"/);
+
+// Analyses show insights only: method, definitions, coverage and sources live on /methodology (owner request, 2026-10-16).
+for (const definition of TEN_ANALYSES) {
+  for (const field of ['purpose', 'readChart', 'caution']) assert.ok(!(field in definition), `${definition.id}: no ${field} copy on the analysis page`);
+  assert.ok(definition.dek && definition.dek.length <= 140, `${definition.id}: a short dek`);
+}
+assert.doesNotMatch(render(AnalysisChart, { analysisId: 'note', charts: [{ ...rangeSpec, note: 'METHOD NOTE' }] }), /METHOD NOTE/, 'Chart notes explain method; analyses show the chart only');
+const METHOD_COPY = [/How we calculated this/, /How to read this/, /Keep in mind/, /Input data:/, /Read the full methods/, /marathons, years and data fields/,
+  /requires earlier results/, /strictly earlier/, /15-minute band/, /strictly below this time/, /selects a 15-minute band/, /unit of evidence/,
+  /at least 100/, /Runner comparison groups contain/, /source-quality rules/, /\d[\d,]* (?:complete |eligible |achieved )?finishes (?:across|in the displayed)/,
+  /race editions\./, /historical intentions are unknown/, /not a confidence interval/, /Fewer than 100/, /middle 80% of complete finishes/, /Distances follow the recorded timing points/];
+for (const definition of TEN_ANALYSES.filter(item => item.id !== 'opening')) {
+  const html = render(AnalysisExplorer, { definition, summary, initialAnswer: answers.find(answer => answer.id === definition.id), weatherQuestions: [] });
+  assert.ok(html.includes(unitText(definition.dek, 'mi').replace(/'/g, '&#x27;')), `${definition.id}: the dek opens the page`);
+  for (const pattern of METHOD_COPY) assert.doesNotMatch(html, pattern, `${definition.id}: method or source copy belongs on /methodology (${pattern})`);
+  // Headlines state what the chart shows, read from the same rows.
+  const headline = (html.match(/<p class="eyebrow">What the data shows<\/p><h2>(.*?)<\/h2>/) || [])[1] || '';
+  if (definition.id === 'sections') assert.match(headline, /^The two groups split most in the [\d.]+–[\d.]+ mi section, where finishes just over 4:00 took [\d.]+ min more than those just under\.$/);
+  if (definition.id === 'age') assert.match(headline, /^Across \d+ age groups, the second 12\.43 mi ranged from [\d.]+% (?:slower|faster) \([\d–+]+\) to [\d.]+% (?:slower|faster) \([\d–+]+\) than the first\.$/);
+  if (definition.id === 'courses') {
+    assert.match(headline, /^Across \d+ courses, median finishes ranged from .+ than the same runners’ earlier bests\.$/);
+    for (const city of summary.courses.map(row => row.city)) assert.ok(!headline.includes(city), 'The course headline names no course: one course at the top of a range is not a difficulty ranking');
+  }
+}
+const checkpointHtml = render(CheckpointExplorer, { summary, profile: EXAMPLE_PROFILE });
+for (const pattern of METHOD_COPY) assert.doesNotMatch(checkpointHtml, pattern, `checkpoint: method copy belongs on /methodology (${pattern})`);
 
 async function verifyTransport() {
   const previousFetch = global.fetch;
@@ -136,5 +164,5 @@ async function verifyTransport() {
 }
 
 verifyTransport().then(() => {
-  console.log('Verified the ten analysis routes, shareable profile round trips, exact accessible chart values, range units, comparison controls, aggregate vintage isolation, cancellation and retry behavior.');
+  console.log('Verified the ten analysis routes, insight-only copy (no method, coverage or source text), shareable profile round trips, exact accessible chart values, range units, comparison controls, aggregate vintage isolation, cancellation and retry behavior.');
 }).catch(error => { console.error(error); process.exitCode = 1; });

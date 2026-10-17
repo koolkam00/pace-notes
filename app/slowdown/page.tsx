@@ -1,14 +1,14 @@
 import StudyFigure from '@/components/StudyFigure';
-import { getStudyFigures } from '@/lib/study-figures';
+import { getSlowdownFigures } from '@/lib/study-figures';
 import ResearchQuestion from '@/components/ResearchQuestion';
-import { UnitText } from '@/components/UnitsProvider';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 import { getStudyAnswer, getStudyEvidence, getWallTimingAnswer } from '@/lib/research-data';
-import { SLOWDOWN_CITATION } from '@/lib/tools/splits';
+import { forPage } from '@/lib/research-display';
 import { pageMetadata } from '@/lib/seo';
 
 export function generateMetadata() {
   const study = getStudyEvidence();
-  const share = study && Number.isFinite(study.rate) ? ` (${study.rate.toFixed(1)}% of eligible finishes)` : '';
+  const share = study && Number.isFinite(study.rate) ? ` (${study.rate.toFixed(1)}% of finishes)` : '';
   const describe = (detail: string) => `How often recorded marathon finishes had a sustained slowdown${detail}, where episodes began, and patterns by age and earlier results.`;
   return pageMetadata({
     title: 'Sustained Slowdown in the Marathon | Pace Notes',
@@ -18,20 +18,20 @@ export function generateMetadata() {
 }
 
 export default function Page() {
-  const figures = getStudyFigures();
+  // Findings only: the definition-sensitivity check is on /methodology#definition-sensitivity.
+  const figures = getSlowdownFigures();
   const study = getStudyAnswer();
-  // The definition is the first sentence of the study's own method text, shown in the reader's units.
-  const method = study.method[0];
-  const firstStop = method ? /\.\s/.exec(method) : null;
-  const definition = method && firstStop ? method.slice(0, firstStop.index + 1) : method;
+  const evidence = getStudyEvidence();
+  // The term links to its definition on the methodology page; the dek states the headline finding.
+  const term = <Link href="/methodology#sustained-slowdown">sustained slowdown</Link>;
   return <>
     <header className="directory-heading">
       <p className="eyebrow">Late-race slowing</p>
       <h1>Understanding sustained slowdown.</h1>
-      <p>Explore one form of late-race slowing, recalculated from the same data release as the rest of the study. {definition ? <>A <strong>sustained slowdown</strong> means running <UnitText>{definition.charAt(0).toLowerCase() + definition.slice(1)}</UnitText> </> : null}The definition follows the <a href={SLOWDOWN_CITATION.url}>{SLOWDOWN_CITATION.label.charAt(0).toLowerCase() + SLOWDOWN_CITATION.label.slice(1)}</a>.</p>
+      <p>{evidence && Number.isFinite(evidence.rate) ? <>Of {evidence.n.toLocaleString('en-US')} finishes, {evidence.detected.toLocaleString('en-US')} ({evidence.rate.toFixed(1)}%) had a {term}.</> : <>How often finishes had a {term}, where it began and who it affected.</>}</p>
     </header>
-    <ResearchQuestion question={study} />
-    <ResearchQuestion question={getWallTimingAnswer()} />
-    {figures.length ? figures.map(figure => <StudyFigure key={figure.id} figure={figure} />) : <p>Supporting figures are not available for the current release.</p>}
+    <ResearchQuestion question={forPage(study)} />
+    <ResearchQuestion question={forPage(getWallTimingAnswer())} />
+    {figures.length ? figures.map(figure => <StudyFigure key={figure.id} figure={figure} />) : <p>Supporting figures are not available.</p>}
   </>;
 }

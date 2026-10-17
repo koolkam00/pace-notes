@@ -40,8 +40,8 @@ function screenedList(data: ToolDefinition[]): string[] {
 }
 
 /**
- * "the stories, the course pages and the seven tools that use Pace Notes data", for the home guide's bib, so it and the
- * note cannot disagree. Tools without that badge are not in it.
+ * "the stories, the course pages and the seven tools that use Pace Notes data", the list the note opens with, for any
+ * page that names what starts from the screened finishes (verify-tools checks it). Tools without that badge are not in it.
  */
 export const screenedPages = () => and(screenedList(toolsByEvidence().data));
 
@@ -53,7 +53,22 @@ function otherToolsSentence(other: ToolDefinition[]): string | null {
 }
 
 /**
- * The two finish totals the site starts from, each with the pages that start from it (home and /research). The stories,
+ * The build-time checks behind the two finish totals, with what the note needs. The home page and /research call this
+ * although they no longer show the note (methods and sources are only on /methodology since October 16, 2026), so the
+ * build still stops when the totals do not add up or a data tool's file starts from another total.
+ */
+export function assertCohortTotals() {
+  const manifest = getInsightsManifest();
+  const copies = copyEditions();
+  const all = manifest.eligible_records;
+  const screened = manifest.analysis_n;
+  if (getStudyEvidence()?.n !== all || getPersonalSummary()?.n !== all) throw new Error('The ten analyses and the sustained-slowdown study must use the story manifest’s eligible records.');
+  if (all - copies.reduce((sum, c) => sum + c.eligible_removed, 0) !== screened) throw new Error('The screened total must be the eligible records less the copy editions.');
+  return { copies, all, screened, ...toolsByEvidence() };
+}
+
+/**
+ * The two finish totals the site starts from, each with the pages that start from it (for /methodology). The stories,
  * the course pages and the tools with a Pace Notes data badge leave out the copy editions (lib/duplicate-editions.ts) and
  * start from the story manifest's `analysis_n` (the tools then apply their own screens, and each prints the total it
  * uses); the ten analyses and the sustained-slowdown study keep them, in `eligible_records`. The tools without that badge
@@ -63,13 +78,7 @@ function otherToolsSentence(other: ToolDefinition[]): string | null {
  * note says so.
  */
 export default function CohortNote() {
-  const manifest = getInsightsManifest();
-  const copies = copyEditions();
-  const all = manifest.eligible_records;
-  const screened = manifest.analysis_n;
-  if (getStudyEvidence()?.n !== all || getPersonalSummary()?.n !== all) throw new Error('The ten analyses and the sustained-slowdown study must use the story manifest’s eligible records.');
-  if (all - copies.reduce((sum, c) => sum + c.eligible_removed, 0) !== screened) throw new Error('The screened total must be the eligible records less the copy editions.');
-  const { data, other } = toolsByEvidence();
+  const { copies, all, screened, data, other } = assertCohortTotals();
   const ten = countWord(TEN_ANALYSES.length) ?? String(TEN_ANALYSES.length);
   const others = otherToolsSentence(other);
   if (!copies.length || all === screened) {

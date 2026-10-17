@@ -1,6 +1,5 @@
 'use client';
 import type { GuideAnswer } from '@/lib/personalized';
-import { count } from '@/lib/personalized';
 import { distanceLabel, paceLabel, paceValue } from '@/lib/units';
 import { UnitLink as Link, useUnits } from './UnitsProvider';
 
@@ -26,6 +25,6 @@ export default function PacingPreview({ answer }: { answer: GuideAnswer }) {
       {values.map((value, i) => <circle key={i} cx={x(i)} cy={y(value)} r={i === values.length - 1 ? 5 : 3} fill="var(--paper)" stroke="var(--course)" strokeWidth="2" />)}
       <text x="42" y="237" fontSize="11" fill="currentColor" opacity=".6">First {distanceLabel(5, units)}</text><text x={x(4)} y="237" textAnchor="middle" fontSize="11" fill="currentColor" opacity=".6">{distanceLabel(25, units)}</text><text x="442" y="237" textAnchor="end" fontSize="11" fill="currentColor" opacity=".6">Finish</text>
     </svg>
-    <div className="preview-foot"><span>{answer.sample ? count(answer.sample.n) : 'Recorded'} finishes<br /><small>3:52:30–4:07:30 · minutes per {units === 'mi' ? 'mile' : 'km'}</small></span><Link href="/analyses/pacing-pattern" aria-label="Explore the pacing pattern analysis"><span aria-hidden="true">↗</span></Link></div>
+    <div className="preview-foot"><span>Finishes from 3:52:30 to 4:07:30<br /><small>Minutes per {units === 'mi' ? 'mile' : 'km'}</small></span><Link href="/analyses/pacing-pattern" aria-label="Explore the pacing pattern analysis"><span aria-hidden="true">↗</span></Link></div>
   </div>;
 }

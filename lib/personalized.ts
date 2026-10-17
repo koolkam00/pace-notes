@@ -34,6 +34,8 @@ export const percentUnder = (row: Distribution, target: number): number | null =
 };
 export const fmt = (value: number | null) => value === null ? 'Not available' : new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(value);
 export const count = (value: number) => new Intl.NumberFormat('en-US').format(value);
+/** A % pace or finish change in words: "2.1% faster", "3.4% slower", "about the same". */
+const change = (value: number) => Math.abs(value) < 0.05 ? 'about the same' : `${fmt(Math.abs(value))}% ${value < 0 ? 'faster' : 'slower'}`;
 const pace = (seconds: number) => `${Math.floor(Math.round(seconds) / 60)}:${String(Math.round(seconds) % 60).padStart(2, '0')}/km`;
 
 export function candidates(profile: Profile): string[] {
@@ -94,13 +96,13 @@ export function buildGuide(data: CityData, summary: PersonalSummary, profile: Pr
       answer.charts = [profileChart(row, 'Pace through the full course')];
       if (question.id === 'terrain') {
         const segments = data.terrain.filter(t => MARATHON_SECTION_ENDS.includes(t.end));
-        if (!segments.length) { answer.answer = 'No supplied terrain profile is available for this course selection.'; answer.detail = 'The pacing profile is still available. Select an individual course with a supplied profile to align terrain and pace.'; return answer; }
+        if (!segments.length) { answer.answer = 'No elevation profile is shown for this course selection.'; answer.detail = 'The pacing profile is still shown. Choose a single course to see its elevation profile.'; return answer; }
         const uphill = segments.reduce((best, segment) => segment.net > best.net ? segment : best, segments[0]);
-        answer.answer = `The supplied profile shows ${fmt(uphill.net)} m of net elevation change in ${sectionLabel(uphill.end)}, its largest section rise. Compare this with the observed pace profile below.`;
+        answer.answer = `The largest section rise is in ${sectionLabel(uphill.end)}: ${fmt(uphill.net)} m of net elevation change.`;
         answer.detail = 'This is the available city route profile alongside pooled historical finishes. It does not establish the terrain used in each edition or explain an individual slowdown.';
-        answer.charts.unshift(bars('Net elevation change in the supplied route', 'm', segments.map(t => ({ label: sectionLabel(t.end), value: t.net })), undefined, 'Net change conceals climbs followed by descents. Historical route validity is unknown.'));
+        answer.charts.unshift(bars('Net elevation change by section', 'm', segments.map(t => ({ label: sectionLabel(t.end), value: t.net })), undefined, 'Net change conceals climbs followed by descents. Historical route validity is unknown.'));
         const withClimb = segments.filter(t => t.gain !== null && t.loss !== null);
-        if (withClimb.length) answer.charts.splice(1, 0, bars('Supplied climbing and descending estimates', 'm', withClimb.map(t => ({ label: sectionLabel(t.end), gain: t.gain, loss: Math.abs(t.loss!) })), [{ key: 'gain', label: 'Climbing' }, { key: 'loss', label: 'Descending' }], 'These supplied estimates do not fully reconcile with the separately supplied net changes. They are route proxies, not verified historical elevations.'));
+        if (withClimb.length) answer.charts.splice(1, 0, bars('Climbing and descending by section', 'm', withClimb.map(t => ({ label: sectionLabel(t.end), gain: t.gain, loss: Math.abs(t.loss!) })), [{ key: 'gain', label: 'Climbing' }, { key: 'loss', label: 'Descending' }], 'These supplied estimates do not fully reconcile with the separately supplied net changes. They are route proxies, not verified historical elevations.'));
       }
     } else if (question.id === 'opening' || question.id === 'downhill') {
       const cohort = chooseCohort(data, profile, c => Object.values(c.openings).filter(row => question.id === 'downhill' || percentUnder(row, target) !== null).length >= 2);
@@ -116,7 +118,8 @@ export function buildGuide(data: CityData, summary: PersonalSummary, profile: Pr
       } else {
         const early = data.terrain.filter(t => t.end === 5 || t.end === 10);
         const descent = early.length === 2 && early.reduce((sum, t) => sum + t.net, 0) < 0;
-        answer.answer = descent ? `The supplied first 10 km has a net descent of ${fmt(-early.reduce((sum, t) => sum + t.net, 0))} m. Late pace differs across the observed opening groups.` : 'A net-downhill first 10 km is not documented for this selection. These are general opening and late-pacing comparisons.';
+        const late = `Median late pace change: ${groups.map(group => `${group.replace(' opening', ' openings').toLowerCase()} ${fmt(cohort.openings[group].late)}%`).join(', ')}.`;
+        answer.answer = descent ? `The first 10 km has a net descent of ${fmt(-early.reduce((sum, t) => sum + t.net, 0))} m. ${late}` : `No downhill start is shown for this selection. ${late}`;
         answer.detail = groups.map(group => `${group}: ${fmt(cohort.openings[group].late)}% median late pace change`).join('; ') + '. Positive means slower over the final 12.195 km than the 5–20 km baseline. This does not establish a downhill effect.';
         answer.charts = [bars('Late pace change by opening group', '% pace', rows)];
       }
@@ -142,7 +145,8 @@ export function buildGuide(data: CityData, summary: PersonalSummary, profile: Pr
       }
       if (rows.length < 2) return answer;
       const base = rows[0].cohort; use({ ...base, age: 'all' }); answer.sample = undefined; answer.widened = widening({ ...profile, age: 'all' }, base);
-      answer.answer = `These ${rows.length} age groups can be compared within ${base.prior === 'all' ? `the ${finishBand(target)} achieved-time band` : 'the same displayed earlier-time band'}.`;
+      const low = rows.reduce((a, b) => b.value.retention < a.value.retention ? b : a), high = rows.reduce((a, b) => b.value.retention > a.value.retention ? b : a);
+      answer.answer = `Across ${rows.length} age groups, the second 20 km ranged from ${change(low.value.retention)} (${low.cohort.age}) to ${change(high.value.retention)} (${high.cohort.age}) than the first.`;
       answer.detail = 'Positive values mean the second 20 km was slower than the first. The final 2.195 km is separate. Each age group shows its own sample; this does not track individuals as they age.';
       answer.charts = [bars('Pace retention across exact-age groups', '% pace', rows.map(({ cohort, value }) => ({ label: `${cohort.age}${cohort.age === profile.age ? ' (selected)' : ''}`, value: value.retention, n_value: value.n })))];
     } else if (question.id === 'checkpoint') {
@@ -157,7 +161,7 @@ export function buildGuide(data: CityData, summary: PersonalSummary, profile: Pr
       }
       if (rows.length < 2) return answer;
       rows.sort((a, b) => a.values[1] - b.values[1]);
-      answer.comparison = comparisonLabel('Courses with enough coverage', rows[0]); answer.widened = widening(profile, rows[0]);
+      answer.comparison = comparisonLabel('Each course', rows[0]); answer.widened = widening(profile, rows[0]);
       answer.answer = `${rows[0].city} has the lowest median finish-time change relative to earlier recorded bests among these ${rows.length} comparable course groups: ${fmt(rows[0].values[1])}%.`;
       answer.detail = 'Below zero means faster than the earlier benchmark. The 10th–90th percentile range describes outcome variation. Course, field selection, fitness changes and conditions remain mixed together.';
       answer.charts = [bars('Outcome and spread by course', '% change', rows.map(r => ({ label: r.city, low: r.values[0], value: r.values[1], high: r.values[2], n_low: r.n, n_value: r.n, n_high: r.n })), [{ key: 'low', label: '10th percentile' }, { key: 'value', label: 'Median' }, { key: 'high', label: '90th percentile' }])];
@@ -167,7 +171,9 @@ export function buildGuide(data: CityData, summary: PersonalSummary, profile: Pr
       use(cohort); answer.sample = undefined;
       const bands = ['Below 10°C', '10–14.9°C', '15–19.9°C', '20°C or warmer'];
       const weather = [...cohort.weather].sort((a, b) => bands.indexOf(a.band) - bands.indexOf(b.band));
-      answer.answer = weather.length > 1 ? `There are ${weather.length} temperature bands with enough edition coverage for this comparison.` : 'Only one temperature band has enough coverage; it cannot establish a difference between cooler and warmer days.';
+      const low = weather.reduce((a, b) => b.value < a.value ? b : a), high = weather.reduce((a, b) => b.value > a.value ? b : a);
+      answer.answer = weather.length > 1 ? `Across ${weather.length} start-temperature bands, median finishes ranged from ${change(low.value)} (${low.band}) to ${change(high.value)} (${high.band}) than the same runners’ earlier bests.`
+        : `The median finish was ${change(weather[0].value)} ${Math.abs(weather[0].value) < 0.05 ? 'as' : 'than'} the same runners’ earlier best.`;
       answer.detail = weather.map(w => `${w.band}: ${fmt(w.value)}% average of edition medians (${w.editions} editions)`).join('; ') + '. Values compare finishes with earlier recorded bests, not the visitor’s chosen target. Every edition has equal weight.';
       answer.charts = [bars('Performance relative to earlier best, by start-hour temperature', '% change', weather.map(w => ({ label: w.band, value: w.value, n_value: w.n })), undefined, 'At least three editions and 100 finishes per band. This does not isolate a temperature penalty.')];
     } else if (question.id === 'ambition') {

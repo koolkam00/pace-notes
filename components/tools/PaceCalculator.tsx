@@ -186,7 +186,7 @@ export default function PaceCalculator() {
                 </div>
                 {goalMinutes !== null ? <MarathonHandoffs label="With this marathon time" seconds={shownSeconds!} /> : null}
 
-                <EvidencePanel title="Splits at an even pace" meta="Elapsed time at each split if every step is run at the same pace. Rows marked as timing mats match the 5 km checkpoints official trackers show.">
+                <EvidencePanel title="Splits at an even pace" meta="Timing-mat rows match the 5 km checkpoints on race trackers.">
                   <div className="tool-split-controls no-print">
                     <Choice label="Split every" small value={interval} onChange={(v) => setQ({ split: v })} options={intervalOptions} />
                     <label className="tool-inline">
@@ -210,12 +210,12 @@ export default function PaceCalculator() {
                           </tr>
                         ))}
                       </tbody>
-                      <caption>Even-pace times from your inputs. {diff ? `The first half runs at ${formatDuration((seconds! - diff) / 2)} and the second at ${formatDuration((seconds! + diff) / 2)}, each even within its half. ` : ''}Halfway and mile rows are calculated, not recorded splits.</caption>
+                      <caption>{diff ? `First half ${formatDuration((seconds! - diff) / 2)}, second half ${formatDuration((seconds! + diff) / 2)}.` : 'Even-pace splits.'}</caption>
                     </table>
                   </div>
                 </EvidencePanel>
 
-                <EvidencePanel title="The same pace at other distances" meta="Pace × distance. This is not a predicted race time: marathons in particular rarely hold a shorter race’s pace.">
+                <EvidencePanel title="The same pace at other distances" meta="Not a predicted race time: marathons rarely hold a shorter race’s pace.">
                   <div className="tool-table-wrap">
                     <table className="tool-table">
                       <thead><tr><th scope="col">Distance</th><th scope="col">At {fmtPace(paceKm!, units)}</th></tr></thead>
@@ -225,7 +225,7 @@ export default function PaceCalculator() {
                   <p className="tool-note">For a realistic marathon estimate from a shorter race, use the <Link href="/tools/predictor">finish-time predictor</Link>.</p>
                 </EvidencePanel>
 
-                <EvidencePanel title="What your watch will say" meta="Certified courses are measured on the shortest possible line. Most watches read a little long, so the pace they show is a little quicker than your course pace.">
+                <EvidencePanel title="What your watch will say">
                   <div className="tool-table-wrap">
                     <table className="tool-table wrap-first pace-calculator-watch">
                       <thead><tr><th scope="col">If your watch reads</th><th scope="col">It shows an average of</th></tr></thead>
@@ -237,7 +237,7 @@ export default function PaceCalculator() {
                           </tr>
                         ))}
                       </tbody>
-                      <caption>Scenarios, not a typical overrun: how far long a watch reads depends on tangents, buildings and tunnels.</caption>
+                      <caption>Scenarios, not a typical overrun.</caption>
                     </table>
                   </div>
                 </EvidencePanel>

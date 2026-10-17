@@ -2,16 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
+import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { Choice, DataState, EvidencePanel, ExampleNote, ShareBar, Stat } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { loadInsight } from '@/lib/insights';
 import type { CourseContext, CourseGoal, CourseGoalRow } from '@/lib/tools/data';
 import { planHref } from '@/lib/tools/links';
 import { MARATHON_KM, perUnit } from '@/lib/tools/pace';
-import { courseGoalReason, tooFewEditions } from '@/lib/tools/plan';
-import { SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { formatDuration, formatHM, formatMargin, parseDuration } from '@/lib/tools/time';
-import { KM_PER_MILE, METRES_PER_FOOT, distanceLabel, elevationLabel, type UnitSystem } from '@/lib/units';
+import { METRES_PER_FOOT, elevationLabel, type UnitSystem } from '@/lib/units';
 import { count } from '@/lib/viz/format';
 
 /* ------------------------------------------------------------------ */
@@ -23,8 +22,6 @@ const DATA_PATH = 'tools/course-goal.json';
 const GOALS_FALLBACK: [number, number] = [150, 390];
 const STEP_FALLBACK = 5;
 const DEFAULT_GOAL = 210;
-/** From this goal (minutes) the panel notes that course closing times shape what is recorded. */
-const SLOW_GOAL = 345;
 const PRESETS = [180, 195, 210, 225, 240, 270, 300];
 const DEFAULTS = { goal: '3:30', sort: 'name', dir: '', month: '', open: '' };
 
@@ -40,13 +37,13 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const MINUS = '−';
 
-export interface ScreenedCourse { city: string; slug: string; reason: string }
+/** A course page with no course in the data (every edition was screened out). */
+export interface ScreenedCourse { city: string; slug: string }
 interface Item { row: CourseGoalRow; course: CourseContext }
 interface Scale { lo: number; hi: number; ticks: number[] }
 
 const hm = (minutes: number) => formatHM(minutes * 60);
 const pctText = (share: number) => (share > 0 && share < 0.005 ? '<1%' : `${Math.round(share * 100)}%`);
-const plural = (n: number, one: string, many = `${one}s`) => `${count(n)} ${n === 1 ? one : many}`;
 const paceText = (sPerKm: number, units: UnitSystem) => `${formatDuration(perUnit(sPerKm, units))}/${units}`;
 
 /** Whole feet or metres through the site's elevation label (source values stay metric). */
@@ -223,15 +220,12 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
   const range: [number, number] = data?.goals ?? GOALS_FALLBACK;
   const step = data?.goal_step_min ?? STEP_FALLBACK;
   const minEditions = data?.min_editions ?? 3;
-  const minEditionFinishes = data?.min_edition_finishes ?? 20;
-  const tolerance = data?.tolerance ?? 0.02;
   // A link with goal= (cleared) opens on a prompt with no results, not on the example goal.
   const noGoal = q.goal.trim() === '';
   const { minutes: goal, note } = noGoal ? { minutes: DEFAULT_GOAL, note: null } : readGoal(q.goal, range, step);
   const goalS = goal * 60;
   const goalText = hm(goal);
   const evenKm = goalS / MARATHON_KM;
-  const bandText = `${formatDuration(perUnit(evenKm * (1 - tolerance), units))}–${formatDuration(perUnit(evenKm * (1 + tolerance), units))}/${units}`;
 
   const sort: SortKey = (SORT_KEYS as string[]).includes(q.sort) ? (q.sort as SortKey) : 'name';
   const dir: Dir = q.dir === 'asc' || q.dir === 'desc' ? q.dir : DEFAULT_DIR[sort];
@@ -272,16 +266,15 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
   const openingCount = (o: Opening) => published.filter((p) => inMonth(p.course, month) && inOpening(p.course, o)).length;
 
   const unavailable = useMemo(() => {
-    if (!data) return { pace: [], structural: [] as { city: string; reason: string }[] };
-    const pace: { city: string; reason: string }[] = [];
-    const structural: { city: string; reason: string }[] = [];
+    if (!data) return { pace: [] as string[], structural: [] as string[] };
+    const pace: string[] = [];
+    const structural: string[] = [];
     for (const u of data.unavailable.filter((x) => x.goal === goal).sort((a, b) => a.city.localeCompare(b.city))) {
       const c = courseByCity.get(u.city);
-      if (c && c.editions < minEditions) structural.push({ city: u.city, reason: tooFewEditions(c.editions, minEditions) });
-      else pace.push({ city: u.city, reason: courseGoalReason(u.reason, minEditions) });
+      (c && c.editions < minEditions ? structural : pace).push(u.city);
     }
-    for (const s of screened) structural.push({ city: s.city, reason: s.reason });
-    structural.sort((a, b) => a.city.localeCompare(b.city));
+    for (const s of screened) structural.push(s.city);
+    structural.sort((a, b) => a.localeCompare(b));
     return { pace, structural };
   }, [data, goal, courseByCity, minEditions, screened]);
 
@@ -298,8 +291,7 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
   const band = (course: CourseContext) => {
     const own = bandGoals !== null && (bandGoals[course.slug] ?? []).includes(goal);
     if (own) return { href: `/tools/pace-band?goal=${goalText}&course=${course.slug}`, own, why: '' };
-    const why = bandGoals === null ? 'the pace band’s course groups could not be checked in this build'
-      : `fewer than 100 ${course.city} finishes came in within five minutes under ${goalText}`;
+    const why = bandGoals === null ? 'course groups could not be checked' : `${course.city} has no course group at ${goalText}`;
     return { href: `/tools/pace-band?goal=${goalText}`, own, why };
   };
 
@@ -320,11 +312,10 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
 
   const filtered = month !== null || opening !== '';
   const at20 = units === 'mi' ? '12.4\u00a0mi' : '20\u00a0km';
-  const lastStretch = units === 'mi' ? `${((MARATHON_KM - 20) / KM_PER_MILE).toFixed(1)} mi` : '22.2 km';
   const statusText = `${filtered ? `Showing ${visible.length} of ${published.length}` : `Showing all ${published.length}`} published courses at ${goalText}, ${sort === 'name' ? (dir === 'asc' ? 'in alphabetical order' : 'in reverse alphabetical order') : `by ${sortName(sort, goalText, at20)}, ${orderLabel(sort, dir).toLowerCase()}`}.`;
   // The one live region: a short summary that changes with the goal, sort and filters (load and error states are DataState's).
   const srStatus = !data ? '' : noGoal ? `Choose a goal from ${hm(range[0])} to ${hm(range[1])} to compare courses.`
-    : `${published.length} of ${totalCourses} courses have a row at ${goalText}. ${statusText}${sort !== 'name' ? ' This is not a ranking of course difficulty; courses differ in field, qualifying rules, weather, era and route.' : ''}`;
+    : `${published.length} of ${totalCourses} courses have a row at ${goalText}. ${statusText}${sort !== 'name' ? ' Not a ranking of course difficulty.' : ''}`;
   const setSort = (key: SortKey) => setQ({ sort: key, dir: '' });
   const headerSort = (key: SortKey) => {
     const next: Dir = dir === 'asc' ? 'desc' : 'asc';
@@ -333,22 +324,13 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
   };
   const ariaSort = (key: SortKey) => (key === sort ? (dir === 'asc' ? 'ascending' : 'descending') : 'none') as 'ascending' | 'descending' | 'none';
 
-  const defs = (
-    <dl className="course-chooser-defs">
-      <div><dt>Under {goalText}</dt><dd>Share of these finishes that came in under {goalText}, editions pooled.</dd></div>
-      <div><dt>Sustained slowdown</dt><dd>Share of these finishes with a sustained slowdown, editions counted equally. {SLOWDOWN_DEFINITION}{units === 'mi' ? ` In miles, 5 km is ${distanceLabel(5, 'mi', 1)} and 20 km is ${distanceLabel(20, 'mi', 1)}.` : ''}</dd></div>
-      <div><dt>After {at20}</dt><dd>Median extra time over the last {lastStretch} beyond the 5–20 km pace. Editions counted equally.</dd></div>
-      <div><dt>Finish spread</dt><dd>10th to 90th percentile finish and the median dot, all rows on one scale. The line marks {goalText}.</dd></div>
-    </dl>
-  );
-
   /** A sortable column head (a plain render helper, so focus stays on the button across re-renders). */
   const sortHead = (k: SortKey, label: string, sub: string) => (
     <th scope="col" aria-sort={ariaSort(k)} className={k === sort ? 'is-sorted' : undefined}>
       <button type="button" className="course-chooser-sort-btn" onClick={() => headerSort(k)}>
         {label}<span className="course-chooser-arrow" aria-hidden="true">{k === sort ? (dir === 'asc' ? '▲' : '▼') : '↕'}</span>
       </button>
-      <span className="course-chooser-sub">{sub}</span>
+      {sub ? <span className="course-chooser-sub">{sub}</span> : null}
     </th>
   );
 
@@ -386,19 +368,17 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
               {isExample ? <ExampleNote>A {hm(DEFAULT_GOAL)} goal. Choose yours; the headline and every course row update when you do.</ExampleNote> : null}
               <div className="tool-headline course-chooser-headline">
                 <div className="course-chooser-head">
-                  <span className="evidence-badge evidence-data">Pace Notes data</span>
-                  <p className="course-chooser-kicker">Goal {goalText} · even pace {paceText(evenKm, units)} <span>(calculated)</span></p>
-                  <h2 className="course-chooser-title">{published.length} of {totalCourses} courses have enough finishes at {goalText} pace</h2>
+                  <EvidenceTag kind="data" />
+                  <p className="course-chooser-kicker">Goal {goalText} · even pace {paceText(evenKm, units)}</p>
+                  <h2 className="course-chooser-title">How finishes at {goalText} pace held up on {published.length} courses</h2>
                 </div>
                 <div className="course-chooser-stats">
                   <Stat label={`Finished under ${goalText}`} value={range2(stats.under[0], stats.under[1], pctText)} sub="range across courses" />
-                  <Stat label="Sustained slowdown" value={range2(stats.sd[0], stats.sd[1], pctText)} sub="range across courses" />
+                  <Stat label={<SlowdownTerm>Sustained slowdown</SlowdownTerm>} value={range2(stats.sd[0], stats.sd[1], pctText)} sub="range across courses" />
                   <Stat label="Median finish" value={range2(stats.med[0], stats.med[1], (s) => formatHM(s))} sub="range of course medians" />
                 </div>
                 <p className="course-chooser-foot">
-                  Each course row counts finishes that ran the 5–20 km stretch at {bandText}, within {Math.round(tolerance * 100)}% of even pace for {goalText}: {count(stats.n)} finishes in all.{' '}
-                  {stats.belowHalf === published.length ? `On every published course, fewer than half of them finished under ${goalText}.` : `On ${stats.belowHalf} of ${published.length} courses, fewer than half of them finished under ${goalText}.`}{' '}
-                  These are observed shares of complete finishes, not anyone’s chance.
+                  {stats.belowHalf === published.length ? `On every published course, fewer than half of the ${count(stats.n)} finishes at this pace came in under ${goalText}.` : `On ${stats.belowHalf} of ${published.length} courses, fewer than half of the finishes at this pace came in under ${goalText}.`}
                 </p>
               </div>
               </>
@@ -413,7 +393,7 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
           {/* Every row, heading and axis below follows the visitor's goal, so session replays leave these panels out. */}
           <div className="course-chooser-list ph-no-capture" data-tool-controls>
             <EvidencePanel kind="data" id="course-chooser-courses" title={`Every course at ${goalText}`}
-              meta={`One row per course with at least ${minEditions} editions of ${minEditionFinishes} or more finishes at this pace and 100 finishes in all. The order is alphabetical unless you choose another.`}>
+              meta="Alphabetical unless you choose another order.">
               <div className="course-chooser-toolbar no-print">
                 <div className="tool-field course-chooser-sort">
                   <label htmlFor="course-chooser-sort">Sort by</label>
@@ -454,32 +434,20 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
 
               {sort !== 'name' ? (
                 <div className="course-chooser-caveat" role="note">
-                  <strong>Sorted by {sortName(sort, goalText, at20)}. This is not a ranking of course difficulty.</strong> Courses differ in field composition, qualifying rules (e.g. Boston), weather, era and route; edition balancing does not remove this. The figures describe past finishes, not what you will run.
+                  <strong>Sorted by {sortName(sort, goalText, at20)}. Not a ranking of course difficulty.</strong>
                 </div>
               ) : null}
-
-              {goal >= SLOW_GOAL ? (
-                <p className="course-chooser-limit"><strong>Slow goals meet closing times.</strong> Finishes after a course closes are not recorded, so on a course whose time limit is near {goalText}, a row describes only the finishes inside the limit. Runners who stopped are not in the data either.</p>
-              ) : null}
-
-              <div className="course-chooser-defs-wide">{defs}</div>
-              <details className="course-chooser-defs-narrow">
-                <summary>What the figures mean</summary>
-                {defs}
-              </details>
 
               {visible.length ? (
                 <>
                   <div className="tool-table-wrap course-chooser-table-wrap">
                     <table className="tool-table course-chooser-table">
-                      <caption>
-                        Pace Notes data: complete finishes with all nine 5 km checkpoints. Start temperatures are one modelled observation per edition at the scheduled start; the route profile is the supplied current route, whose historical validity is unknown. Both are context only: no figure is adjusted for weather or elevation.
-                      </caption>
+                      <caption className="sr-only">Every course with a row at {goalText}</caption>
                       <thead>
                         <tr>
                           {sortHead('name', 'Course', 'race month')}
-                          {sortHead('n', 'Finishes', 'editions')}
-                          {sortHead('under', `Under ${goalText}`, 'pooled share')}
+                          {sortHead('n', 'Finishes', '')}
+                          {sortHead('under', `Under ${goalText}`, 'share')}
                           {sortHead('sd', 'Sustained slowdown', 'share')}
                           {sortHead('after20', `After ${at20}`, 'median extra')}
                           <th scope="col" className="course-chooser-th-fin">Median finish<span className="course-chooser-sub">10th–90th</span></th>
@@ -499,15 +467,15 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
                                 <span className="course-chooser-city">{courseLink(course.city)}</span>
                                 <span className="course-chooser-sub">{monthText(course.months)}</span>
                               </th>
-                              <td>{count(row.n)}<span className="course-chooser-sub">{plural(row.ed, 'edition')}</span></td>
+                              <td>{count(row.n)}</td>
                               <td className={sort === 'under' ? 'is-sorted' : undefined}><b>{pctText(row.under)}</b></td>
                               <td className={sort === 'sd' ? 'is-sorted' : undefined}><b>{pctText(row.sd)}</b></td>
                               <td className={sort === 'after20' ? 'is-sorted' : undefined}><b>{formatMargin(row.after20)}</b></td>
                               <td>{formatDuration(row.fin[1], true)}<span className="course-chooser-sub">{formatDuration(row.fin[0], true)}–{formatDuration(row.fin[2], true)}</span></td>
                               <td className="course-chooser-td-bar"><FinishBar fin={row.fin} goalS={goalS} scale={scale} city={course.city} goalLabel={goalText} /></td>
-                              <td>{temps ?? '—'}<span className="course-chooser-sub">{temps ? `${course.weather_editions} of ${count(course.editions)} course editions` : 'no weather row'}</span></td>
+                              <td>{temps ?? '—'}</td>
                               <td>{course.gain_m !== null && course.loss_m !== null ? `${elevNumber(course.gain_m, units)} / ${elev(course.loss_m, units)}` : '—'}
-                                <span className="course-chooser-sub">{course.net_m !== null ? `net ${elev(course.net_m, units, true)}` : 'no supplied profile'}</span>
+                                {course.net_m !== null ? <span className="course-chooser-sub">net {elev(course.net_m, units, true)}</span> : null}
                                 {course.downhill_opening ? <span className="course-chooser-tag">Downhill opening</span> : null}</td>
                               <td>
                                 <div className="course-chooser-row-links">
@@ -531,7 +499,7 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
                         <li key={course.slug} className="course-chooser-card">
                           <div className="course-chooser-card-head">
                             <h3>{courseLink(course.city)}</h3>
-                            <p>{monthText(course.months)} · {count(row.n)} finishes · {plural(row.ed, 'edition')}</p>
+                            <p>{monthText(course.months)} · {count(row.n)} finishes</p>
                             {course.downhill_opening ? <span className="course-chooser-tag">Downhill opening</span> : null}
                           </div>
                           <dl className="course-chooser-key">
@@ -545,11 +513,10 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
                             <dl className="course-chooser-context">
                               <div><dt>Finish times</dt><dd>Median {formatDuration(row.fin[1], true)}<br />10th–90th percentile {formatDuration(row.fin[0], true)}–{formatDuration(row.fin[2], true)}</dd></div>
                               <div><dt>Race month</dt><dd>{monthText(course.months, true)}</dd></div>
-                              <div><dt>Start temperature</dt><dd>{temps ? `${temps} across all course editions (${course.weather_editions} of ${count(course.editions)} with weather), not only this row’s` : 'No weather row'}</dd></div>
-                              <div><dt>Route profile</dt><dd>{course.gain_m !== null && course.loss_m !== null ? `Climb ${elev(course.gain_m, units)}, descent ${elev(course.loss_m, units)}` : 'No supplied profile'}{course.net_m !== null ? `, net ${elev(course.net_m, units, true)}` : ''}</dd></div>
+                              <div><dt>Start temperature</dt><dd>{temps ? `${temps} across the course’s race mornings` : 'Not available'}</dd></div>
+                              <div><dt>Route profile</dt><dd>{course.gain_m !== null && course.loss_m !== null ? `Climb ${elev(course.gain_m, units)}, descent ${elev(course.loss_m, units)}` : 'Not available'}{course.net_m !== null ? `, net ${elev(course.net_m, units, true)}` : ''}</dd></div>
                               <div><dt>First 5 km</dt><dd>{course.downhill_opening ? `Downhill opening: drops more than ${units === 'mi' ? '82 ft' : '25 m'}` : `Not a downhill opening (drops less than ${units === 'mi' ? '82 ft' : '25 m'})`}</dd></div>
                             </dl>
-                            {course.terrain_note ? <p className="course-chooser-card-note">{course.terrain_note} Weather and elevation are context only.</p> : null}
                           </details>
                           <div className="course-chooser-card-links">
                             {pageSet.has(course.slug) ? <Link href={`/courses/${course.slug}`}>Course page<span className="sr-only"> for {course.city}</span></Link> : null}
@@ -572,19 +539,18 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
           </div>
 
           <div className="ph-no-capture">
-            <EvidencePanel kind="data" title={`Not published at ${goalText}`}
-              meta={`No substitute course is shown. A row needs ${minEditions} editions with at least ${minEditionFinishes} finishes at this pace and 100 finishes in all; groups smaller than that are never published.`}>
+            <EvidencePanel kind="data" title={`Not published at ${goalText}`}>
               <div className="course-chooser-unavail">
                 <div>
-                  <h3>Not enough finishes at this pace</h3>
+                  <h3>Too few finishes at this pace</h3>
                   {unavailable.pace.length ? (
-                    <ul>{unavailable.pace.map((u) => <li key={u.city}><b>{courseLink(u.city)}</b> <span>{u.reason}</span></li>)}</ul>
-                  ) : <p className="course-chooser-none">Every course with {minEditions} or more editions has a row at {goalText}.</p>}
+                    <ul>{unavailable.pace.map((city) => <li key={city}><b>{courseLink(city)}</b></li>)}</ul>
+                  ) : <p className="course-chooser-none">Every other course has a row at {goalText}.</p>}
                 </div>
                 {unavailable.structural.length ? (
                   <div>
-                    <h3>Too few editions for any goal</h3>
-                    <ul>{unavailable.structural.map((u) => <li key={u.city}><b>{courseLink(u.city)}</b> <span>{u.reason}</span></li>)}</ul>
+                    <h3>Not published at any goal</h3>
+                    <ul>{unavailable.structural.map((city) => <li key={city}><b>{courseLink(city)}</b></li>)}</ul>
                   </div>
                 ) : null}
               </div>
@@ -592,7 +558,7 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
           </div>
 
           <div className="tool-callout no-print ph-no-capture">
-            <strong>Picked a course?</strong> Each row’s pace band link opens a printable <Link href={`/tools/pace-band?goal=${goalText}`}>pace band for {goalText}</Link> with what finishes that came in within five minutes under {goalText} on that course ran at each 5 km mat. Where a course had fewer than 100 such finishes, the link is marked “all courses” and opens the band for every course together. To compare race mornings at your pace, try the <Link href={`/tools/weather-match?goal=${goalText}:00`}>weather match</Link>.
+            <strong>Picked a course?</strong> Each row’s pace band link opens a printable <Link href={`/tools/pace-band?goal=${goalText}`}>pace band for {goalText}</Link> with what finishes just under {goalText} on that course ran at each 5 km mat; a link marked “all courses” opens the band for every course together. To compare race mornings at your pace, try the <Link href={`/tools/weather-match?goal=${goalText}:00`}>weather match</Link>.
           </div>
           <ShareBar />
         </>

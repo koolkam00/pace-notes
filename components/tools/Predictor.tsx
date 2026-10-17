@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { Choice, DataState, DurationField, EvidencePanel, ExampleNote, ShareBar, Stat } from '@/components/tools/ui';
 import { MarathonHandoffs } from '@/components/tools/Handoffs';
@@ -11,7 +12,6 @@ import { loadInsight } from '@/lib/insights';
 import { loadShard, shareUnder, type ProjectorIndex, type ProjectorShard } from '@/lib/tools/data';
 import { HALF_KM, MARATHON_KM, perKm, perUnit, unitKm } from '@/lib/tools/pace';
 import { REALISTIC_B, RIEGEL_B, TANDA_RANGE_S, marathonRange, personalExponent, riegel, tandaPace, timeForVdot, vdot, type MarathonRange } from '@/lib/tools/predictor';
-import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
 import { keypadInput } from '@/lib/keypad';
 import { count } from '@/lib/viz/format';
@@ -595,7 +595,7 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
   if (!est.isMarathon) {
     return (
       <EvidencePanel kind="data" title="Nothing to add for this distance" id="predictor-data">
-        <p className="predictor-copy">Pace Notes holds marathons only, so it has no finishes to show for {withArticle(est.target.name)} target. Switch the prediction to a marathon to see what happened to finishes that passed 20 km on the estimated pace.</p>
+        <p className="predictor-copy">Switch the prediction to a marathon to see what happened to finishes that passed 20 km on the estimated pace.</p>
       </EvidencePanel>
     );
   }
@@ -624,9 +624,8 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
     </div>
   );
   const bandRange = `${fmtShort(band)}–${fmtShort(band + bandS)}`;
-  const at20 = (s: number) => formatDuration((s * 20) / MARATHON_KM, true);
   const meta = (
-    <>All courses. Complete finishes whose 20 km time put them on {bandRange} even pace (20 km in {at20(band)} to {at20(band + bandS)}), the pace of the {chosen.label.toLowerCase()}. This describes those finishes, not you.</>
+    <>Finishes that passed 20 km on the pace of the {chosen.label.toLowerCase()}. This describes those finishes, not you.</>
   );
   const scope = index?.scopes.find((s) => s.slug === 'all');
   const bands = scope?.mats['20']?.bands ?? null;
@@ -643,16 +642,12 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
             <>
               <div className="predictor-observed">
                 <Stat label="Their median finish" value={formatDuration(q[i50], true)} sub={<>10th–90th percentile <b>{fmtTime(q[i10])}</b> to <b>{fmtTime(q[i90])}</b></>} />
-                <Stat label={`Finished under ${fmtTime(T)}`} value={shareText} sub="observed share of these complete finishes" />
-                <Stat label="Sustained slowdown" value={pctText(sd)} sub="of these finishes, after 20 km" />
+                <Stat label={`Finished under ${fmtTime(T)}`} value={shareText} sub="observed share of these finishes" />
+                <Stat label={<SlowdownTerm>Sustained slowdown</SlowdownTerm>} value={pctText(sd)} sub="of these finishes, after 20 km" />
               </div>
               <FinishStrip q={q} Q={Q} est={T} estLabel={chosen.label} />
               <p className="predictor-copy">
-                Through 20 km these finishes averaged {fmtPace(band / MARATHON_KM, units)} to {fmtPace((band + bandS) / MARATHON_KM, units)}. Over the rest of the race their median pace was <b>{fmtPace(cells.rp[i], units)}</b>.
-                {' '}Each bar holds 5% of the finishes; the darker bars are the middle half, and the bracket under the axis spans the 10th to 90th percentile.
-              </p>
-              <p className="tool-note">
-                <strong>{count(cells.n[i])} finishes from {count(cells.ed[i])} race editions.</strong> They are every complete finish that passed 20 km on this pace, whatever the runner’s training, goal or weather: a reality check on fading, not a prediction. Shares are interpolated between stored percentiles. Runners who stopped are not in the data. {SLOWDOWN_DEFINITION} Source: <a href={SLOWDOWN_CITATION.url} rel="noopener noreferrer">{SLOWDOWN_CITATION.label}</a>.
+                Through 20 km these {count(cells.n[i])} finishes averaged {fmtPace(band / MARATHON_KM, units)} to {fmtPace((band + bandS) / MARATHON_KM, units)}. Over the rest of the race their median pace was <b>{fmtPace(cells.rp[i], units)}</b>.
               </p>
               <p className="predictor-copy no-print">
                 On race day, the <Link href={`/tools/projector?mat=20&target=${formatDuration(T, true)}&t=none&v=all`}>race-day projector</Link> takes your tracker time at 20 km or any other 5 km mat and shows where finishes on that pace went. This link opens it with {fmtTime(T)} as the target, waiting for your time.
@@ -661,8 +656,8 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
           );
         })() : (
           <p className="tool-state">
-            Fewer than 100 finishes passed 20 km on {bandRange} even pace, so nothing is shown for this pace.
-            {bands ? ` Groups at 20 km are published for even paces from about ${fmtShort(bands[0])} to ${fmtShort(bands[1] + bandS)}.` : ''}
+            Too few finishes passed 20 km on {bandRange} even pace to show.
+            {bands ? ` Groups at 20 km cover even paces from about ${fmtShort(bands[0])} to ${fmtShort(bands[1] + bandS)}.` : ''}
           </p>
         )}
       </DataState>
@@ -752,17 +747,17 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
   if (est) {
     const pace = (s: number) => fmtPace(s / est.target.km, units);
     rows.push({
-      key: 'riegel', label: `Riegel ${RIEGEL_B.toFixed(2)}`, detail: est.isMarathon ? 'best case if fully marathon-trained' : 'classic power law',
+      key: 'riegel', label: `Riegel ${RIEGEL_B.toFixed(2)}`, detail: est.isMarathon ? 'best case' : '',
       value: fmtTime(est.riegel), kind: 'point', at: est.riegel, tone: 'ink',
-      tip: [`${fmtTime(est.riegel)} · ${pace(est.riegel)}`, est.isMarathon ? 'A median 10:09 too fast for recreational runners (Vickers & Vertosick 2016).' : 'Well calibrated up to the half (Vickers & Vertosick 2016).'],
+      tip: [`${fmtTime(est.riegel)} · ${pace(est.riegel)}`, est.isMarathon ? 'A median 10:09 too fast for recreational runners.' : 'Holds up well for races up to the half.'],
     });
     rows.push(est.daniels !== null ? {
-      key: 'daniels', label: 'Daniels–Gilbert', detail: 'the equations behind VDOT',
+      key: 'daniels', label: 'Daniels–Gilbert', detail: '',
       value: fmtTime(est.daniels), kind: 'point', at: est.daniels, tone: 'ink',
       tip: [`${fmtTime(est.daniels)} · ${pace(est.daniels)}`, `Implies an exponent of ${est.danielsB!.toFixed(3)} here.`],
     } : {
       key: 'daniels', label: 'Daniels–Gilbert', detail: 'not applied at walking speed', value: 'not applied', kind: 'none', tone: 'ink',
-      tip: [`Your race averaged ${fmtPace(est.fromS / est.fromKm, units)}, slower than ${fmtPace(DANIELS_PACE_MAX, units)}. These equations describe running, so no number is shown.`],
+      tip: [`Your race averaged ${fmtPace(est.fromS / est.fromKm, units)}, slower than ${fmtPace(DANIELS_PACE_MAX, units)}, so no number is shown.`],
     });
     if (est.range) {
       const r = est.range;
@@ -770,7 +765,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
       rows.push({
         key: 'range', label: 'Half-to-full exponents', detail: `typical range ${REALISTIC_B.low}–${REALISTIC_B.high}, median ${REALISTIC_B.median}`,
         value: `${a}–${b}`, kind: 'range', lo: r.low, mid: r.median, hi: r.high, tone: 'violet',
-        tip: [`${fmtTime(r.low)} to ${fmtTime(r.high)}`, `Median exponent ${REALISTIC_B.median}: ${fmtTime(r.median)} · ${pace(r.median)}`, 'From 4,402 runners’ training logs (RunningAHEAD).', 'Pace Notes’ composition of published estimates.'],
+        tip: [`${fmtTime(r.low)} to ${fmtTime(r.high)}`, `Median exponent ${REALISTIC_B.median}: ${fmtTime(r.median)} · ${pace(r.median)}`],
       });
       looks.push(
         { key: 'median', label: 'Median estimate', chip: 'Median', seconds: r.median },
@@ -790,10 +785,10 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
     if (est.tanda && 'inRange' in est.tanda) {
       const t = est.tanda;
       rows.push({
-        key: 'tanda', label: 'Tanda (2011)', detail: t.inRange ? 'training volume and pace, ±4 min' : 'built on 2:47–3:36 finishes',
+        key: 'tanda', label: 'Tanda', detail: t.inRange ? '±4 min' : '2:47–3:36 finishes only',
         value: t.seconds !== null ? fmtTime(t.seconds) : 'outside its range', kind: t.seconds !== null ? 'point' : 'none', at: t.seconds ?? undefined,
         whisker: t.seconds !== null ? TANDA_SE_S : undefined, tone: 'outline',
-        tip: t.seconds !== null ? [`${fmtTime(t.seconds)} · ${pace(t.seconds)}`, 'Standard error about 4 minutes, from 22 runners.'] : ['Outside the range this formula was built on (2:47–3:36), so no number is shown.'],
+        tip: t.seconds !== null ? [`${fmtTime(t.seconds)} · ${pace(t.seconds)}`, 'Typically within about 4 minutes.'] : ['Outside the 2:47–3:36 this formula covers, so no number is shown.'],
       });
     }
   }
@@ -853,7 +848,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
               {race2?.ok && est?.personal && 'b' in est.personal ? <span className="predictor-summary-value">exponent {est.personal.b.toFixed(2)}</span> : null}
             </summary>
             <div className="predictor-more-body">
-              <p className="tool-field-hint">A second race at another distance fits your own exponent, applied from the longer race.</p>
+              <p className="tool-field-hint">A second race at another distance fits your own exponent.</p>
               <DistanceChips labelId={`${uid}-d2`} label="Distance" value={dist2.key} onPick={(key) => setQ({ d2: key, km2: key === 'custom' ? q.km2 || '15' : '' })} />
               {dist2.key === 'custom' ? (
                 <DistanceField id={`${uid}-km2`} label="Race distance" km={dist2.typedKm} units={units} suffix={units} hint={snapHint(dist2)}
@@ -911,19 +906,14 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
               {isExample ? <ExampleNote>Example: a {DEFAULTS.t} half marathon run in the last 3 months. Type your own recent race; everything updates as you type.</ExampleNote> : null}
               <Headline est={est} dist={dist1} units={units} />
               {stale.length ? (
-                <p className="tool-callout predictor-stale"><strong>{stale.join(' and ')} {stale.length > 1 ? 'were' : 'was'} more than 6 months ago.</strong> Every method here assumes the race reflects your fitness now; a recent race predicts better.</p>
+                <p className="tool-callout predictor-stale"><strong>{stale.join(' and ')} {stale.length > 1 ? 'were' : 'was'} more than 6 months ago.</strong> A recent race predicts better.</p>
               ) : null}
               {/* The median estimate, handed on as the whole minute at or below it, as every tool reads it (4:11:41 is 4:11). */}
               {est.range ? <MarathonHandoffs label="With this estimate" seconds={Math.round(est.range.median)} /> : null}
 
               <EvidencePanel kind="research" title="Every published method, side by side" id="predictor-methods"
-                meta={est.isMarathon ? <>Each row is one published model applied to your {fmtTime(est.fromS)} {raceName(dist1, units)}. The shaded column is the typical recreational range, Pace Notes’ composition of published estimates; the dashed line is its median. Tap or hover a row for details.</> : <>Each row is one published model applied to your {fmtTime(est.fromS)} {raceName(dist1, units)}. Tap or hover a row for details.</>}>
+                meta={<>Each row is one published model applied to your {fmtTime(est.fromS)} {raceName(dist1, units)}. Tap or hover a row for details.</>}>
                 <MethodChart rows={rows} fuzzy={!!est.range && est.range.extrapolation === 'shorter'} label={chartLabel} />
-                {est.range && est.range.extrapolation === 'shorter' ? (
-                  <p className="predictor-copy predictor-fuzzy-note">
-                    <i aria-hidden="true" /> Faded ends: from {withArticle(raceName(dist1, units))}, the half-marathon step is itself an estimate ({fmtTime(est.range.halfEquivalent)} by Riegel 1.06), so real outcomes spread wider than the bar. No published figure says how much wider.
-                  </p>
-                ) : null}
                 {bandTimes.length ? (
                   <div className="predictor-bandlinks no-print">
                     <span>Make a pace band at the minute at or below each estimate</span>
@@ -988,19 +978,14 @@ function Headline({ est, dist, units }: { est: Estimates; dist: Distance; units:
     return (
       <div className="tool-headline predictor-headline">
         <div className="predictor-head">
-          <span className="evidence-badge evidence-research">Published research</span>
+          <EvidenceTag kind="research" />
           <p className="predictor-kicker">Marathon, {from}</p>
           <p className="predictor-range"><span className="sr-only">Typical recreational range: </span>{a}<span className="predictor-to"> to </span>{b}</p>
-          <p className="predictor-range-sub">
-            <strong>Typical recreational range: Pace Notes’ composition of published estimates.</strong>{' '}
-            {shorter
-              ? <>Riegel 1.06 turns your {raceName(dist, units)} into a {fmtTime(r.halfEquivalent)} half-marathon equivalent, and the half-to-full exponents ({REALISTIC_B.low} to {REALISTIC_B.high}) from runners’ own training logs are applied to that. From {withArticle(raceName(dist, units))} this is less certain, because the half-marathon step is itself an estimate.</>
-              : <>The half-to-full exponents ({REALISTIC_B.low} to {REALISTIC_B.high}) from runners’ own training logs, applied to your {raceName(dist, units)}.</>}
-          </p>
+          <p className="predictor-range-sub"><strong>Typical recreational range</strong>{shorter ? ', less certain from a shorter race' : ''}.</p>
         </div>
         <Stat label="Median estimate" value={formatDuration(r.median, true)} sub={`exponent ${REALISTIC_B.median} · ${pace(r.median)}`} />
-        <Stat label="Best case" value={formatDuration(est.riegel, true)} sub={`if fully marathon-trained · Riegel ${RIEGEL_B.toFixed(2)} · ${pace(est.riegel)}`} />
-        <Stat label="Classic formula gap" value={gap >= 0 ? formatDuration(gap) : `−${formatDuration(-gap)}`} sub="Riegel’s answer vs the median estimate. Measured on recreational runners: a median 10:09 too fast." />
+        <Stat label="Best case" value={formatDuration(est.riegel, true)} sub={`Riegel ${RIEGEL_B.toFixed(2)} · ${pace(est.riegel)}`} />
+        <Stat label="Riegel vs median" value={gap >= 0 ? formatDuration(gap) : `−${formatDuration(-gap)}`} sub="For recreational runners, Riegel ran a median 10:09 too fast." />
       </div>
     );
   }
@@ -1009,10 +994,10 @@ function Headline({ est, dist, units }: { est: Estimates; dist: Distance; units:
     return (
       <div className="tool-headline predictor-headline">
         <div className="predictor-head">
-          <span className="evidence-badge evidence-research">Published research</span>
+          <EvidenceTag kind="research" />
           <p className="predictor-kicker">{name}, {from}</p>
           <p className="predictor-range">{fmtTime(est.riegel)}</p>
-          <p className="predictor-range-sub">Riegel 1.06 only. It was well calibrated for races up to the half marathon in 2,303 recreational runners (Vickers & Vertosick 2016), assuming you train for this distance. The Daniels–Gilbert equations describe running, and your race averaged {fmtPace(est.fromS / est.fromKm, units)}, slower than {fmtPace(DANIELS_PACE_MAX, units)}, so they are not applied.</p>
+          <p className="predictor-range-sub">Riegel 1.06 only. It holds up well for races up to the half marathon. The Daniels–Gilbert equations are not applied at walking speed.</p>
         </div>
         <Stat label={`Riegel ${RIEGEL_B.toFixed(2)}`} value={fmtTime(est.riegel)} sub={pace(est.riegel)} />
         <Stat label="Daniels–Gilbert" value="—" sub="not applied at walking speed" />
@@ -1025,13 +1010,13 @@ function Headline({ est, dist, units }: { est: Estimates; dist: Distance; units:
   return (
     <div className="tool-headline predictor-headline">
       <div className="predictor-head">
-        <span className="evidence-badge evidence-research">Published research</span>
+        <EvidenceTag kind="research" />
         <p className="predictor-kicker">{name}, {from}</p>
         <p className="predictor-range">{a === b ? a : <>{a}<span className="predictor-to"> to </span>{b}</>}</p>
-        <p className="predictor-range-sub">Riegel 1.06 was well calibrated for races up to the half marathon in 2,303 recreational runners (Vickers & Vertosick 2016); the Daniels–Gilbert equations give similar answers at these distances. Both assume you train for this distance.</p>
+        <p className="predictor-range-sub">Both formulas hold up well for races up to the half marathon, and give similar answers here.</p>
       </div>
       <Stat label={`Riegel ${RIEGEL_B.toFixed(2)}`} value={fmtTime(est.riegel)} sub={pace(est.riegel)} />
-      <Stat label="Daniels–Gilbert" value={fmtTime(est.daniels)} sub={`the basis of VDOT · ${pace(est.daniels)}`} />
+      <Stat label="Daniels–Gilbert" value={fmtTime(est.daniels)} sub={pace(est.daniels)} />
     </div>
   );
 }
@@ -1039,49 +1024,47 @@ function Headline({ est, dist, units }: { est: Estimates; dist: Distance; units:
 function MethodTable({ est, units, dist, onAddSecond, onAddTanda }: { est: Estimates; units: UnitSystem; dist: Distance; onAddSecond: () => void; onAddTanda: () => void }) {
   const pace = (s: number) => fmtPace(s / est.target.km, units);
   const targetLabel = est.target.key === 'half' ? 'Half' : est.target.label;
-  const longRiegel = est.riegel > 230 * 60;
-  type Row = { key: string; name: ReactNode; source: ReactNode; time: ReactNode; pace: ReactNode; note: ReactNode; cls?: string };
+  type Row = { key: string; name: ReactNode; source: ReactNode | null; time: ReactNode; pace: ReactNode; note: ReactNode; cls?: string };
   const rows: Row[] = [
     {
-      key: 'riegel', name: <>Riegel, b = {RIEGEL_B.toFixed(2)}</>, source: est.isMarathon ? 'Best case if fully marathon-trained · Riegel 1981' : 'Riegel 1981',
+      key: 'riegel', name: <>Riegel, b = {RIEGEL_B.toFixed(2)}</>, source: est.isMarathon ? 'Best case' : null,
       time: fmtTime(est.riegel), pace: pace(est.riegel),
       note: est.isMarathon
-        ? <>Well calibrated up to the half, but for the marathon a median <b>10:09 too fast</b> and at least 10 min too fast for half of 2,303 recreational runners (Vickers & Vertosick 2016).{longRiegel ? ' Riegel fitted efforts of about 3.5 to 230 minutes; this answer is longer.' : ''}</>
-        : <>Well calibrated for races up to the half marathon in 2,303 recreational runners (Vickers & Vertosick 2016).</>,
+        ? <>For recreational runners, a median <b>10:09 too fast</b>, and at least 10 min too fast for half of them.</>
+        : <>Holds up well for races up to the half marathon.</>,
     },
     est.daniels !== null ? {
-      key: 'daniels', name: 'Daniels–Gilbert equations', source: 'The basis of VDOT · Daniels & Gilbert 1979',
+      key: 'daniels', name: 'Daniels–Gilbert equations', source: null,
       time: fmtTime(est.daniels), pace: pace(est.daniels),
       note: est.isMarathon
-        ? <>Equal-score race from oxygen cost and sustainable fraction. Implies an exponent of {est.danielsB!.toFixed(3)} here, so it is about as optimistic as Riegel for the marathon.</>
-        : <>Equal-score race from oxygen cost and sustainable fraction; implies an exponent of {est.danielsB!.toFixed(3)} here.</>,
+        ? <>Implies an exponent of {est.danielsB!.toFixed(3)} here: about as optimistic as Riegel for the marathon.</>
+        : <>Implies an exponent of {est.danielsB!.toFixed(3)} here.</>,
     } : {
-      key: 'daniels', cls: 'is-prompt', name: 'Daniels–Gilbert equations', source: 'The basis of VDOT · Daniels & Gilbert 1979', time: '—', pace: '',
-      note: <span className="predictor-warn">Not applied: your race averaged {fmtPace(est.fromS / est.fromKm, units)}, slower than {fmtPace(DANIELS_PACE_MAX, units)}. That is about walking speed, and these equations describe running, so no number is shown.</span>,
+      key: 'daniels', cls: 'is-prompt', name: 'Daniels–Gilbert equations', source: null, time: '—', pace: '',
+      note: <span className="predictor-warn">Not applied: your race averaged {fmtPace(est.fromS / est.fromKm, units)}, slower than {fmtPace(DANIELS_PACE_MAX, units)}, about walking speed.</span>,
     },
   ];
   if (est.range) {
     const r = est.range;
-    const fromHalf = r.extrapolation === 'shorter' ? `, applied to a ${fmtTime(r.halfEquivalent)} half equivalent (Riegel 1.06)` : '';
     rows.push(
-      { key: 'low', name: <>Exponent {REALISTIC_B.low}</>, source: 'Most common half-to-full · RunningAHEAD logs', time: fmtTime(r.low), pace: pace(r.low),
-        note: <>The most common exponent in 4,402 runners’ logs with a half and a full within a year{fromHalf}.</> },
-      { key: 'median', cls: 'is-key', name: <>Exponent {REALISTIC_B.median}</>, source: 'Median half-to-full · RunningAHEAD logs', time: fmtTime(r.median), pace: pace(r.median),
-        note: <>The median: half of those runners had a larger exponent, slowing more from the half to the full.</> },
-      { key: 'high', name: <>Exponent {REALISTIC_B.high}</>, source: 'Mean half-to-full · RunningAHEAD logs', time: fmtTime(r.high), pace: pace(r.high),
-        note: <>The mean. Individual exponents varied widely (SD 0.084), so many runners fell well outside 1.09 to 1.15.</> },
+      { key: 'low', name: <>Exponent {REALISTIC_B.low}</>, source: 'Most common half-to-full', time: fmtTime(r.low), pace: pace(r.low),
+        note: <>The most common slowdown from a half to a full.</> },
+      { key: 'median', cls: 'is-key', name: <>Exponent {REALISTIC_B.median}</>, source: 'Median half-to-full', time: fmtTime(r.median), pace: pace(r.median),
+        note: <>Half of runners slowed more than this from the half to the full.</> },
+      { key: 'high', name: <>Exponent {REALISTIC_B.high}</>, source: 'Mean half-to-full', time: fmtTime(r.high), pace: pace(r.high),
+        note: <>The mean. Many runners fell well outside {REALISTIC_B.low} to {REALISTIC_B.high}.</> },
     );
   }
   const p = est.personal;
   if (p && 'b' in p) {
     rows.push({
-      key: 'personal', name: <>Your two races, b = {p.b.toFixed(3)}</>, source: 'Personal exponent from two races',
+      key: 'personal', name: <>Your two races, b = {p.b.toFixed(3)}</>, source: null,
       time: p.seconds !== null ? fmtTime(p.seconds) : '—', pace: p.seconds !== null ? pace(p.seconds) : '—',
-      note: <>Applied from your {nameForKm(p.fromKm, units)}. Two points are sensitive to an off day in either race. A two-race model was the most accurate of those Vickers & Vertosick tested (about 14 min typical error), though theirs was a regression.{p.warnings.map((w) => <span key={w} className="predictor-warn"> {w}</span>)}</>,
+      note: <>Applied from your {nameForKm(p.fromKm, units)}. An off day in either race moves it. For recreational runners, two-race estimates were the most accurate, typically within about 14 min.{p.warnings.map((w) => <span key={w} className="predictor-warn"> {w}</span>)}</>,
     });
   } else {
     rows.push({
-      key: 'personal', cls: 'is-prompt', name: 'Your two races', source: 'Personal exponent', time: '—', pace: '',
+      key: 'personal', cls: 'is-prompt', name: 'Your two races', source: null, time: '—', pace: '',
       note: <>{p && 'error' in p ? <span className="predictor-warn">{p.error} </span> : null}<button type="button" className="predictor-link-button" onClick={onAddSecond}>Add a second race</button> to fit your own exponent.</>,
     });
   }
@@ -1089,15 +1072,15 @@ function MethodTable({ est, units, dist, onAddSecond, onAddTanda }: { est: Estim
     const t = est.tanda;
     if (t && 'inRange' in t) {
       rows.push({
-        key: 'tanda', name: 'Tanda (2011)', source: `${fmtKm(t.k, units)}/week at ${fmtPace(t.p, units)}`,
+        key: 'tanda', name: 'Tanda', source: `${fmtKm(t.k, units)}/week at ${fmtPace(t.p, units)}`,
         time: t.seconds !== null ? fmtTime(t.seconds) : '—', pace: t.seconds !== null ? pace(t.seconds) : '—',
         note: t.inRange
-          ? <>From training volume and pace. Built on 22 runners and 46 marathons of 2:47 to 3:36; standard error about 4 min.</>
-          : <span className="predictor-warn">Outside the range this formula was built on (2:47 to 3:36), so no number is shown.</span>,
+          ? <>Typically within about 4 min.</>
+          : <span className="predictor-warn">Outside the 2:47 to 3:36 this formula covers, so no number is shown.</span>,
       });
     } else {
       rows.push({
-        key: 'tanda', cls: 'is-prompt', name: 'Tanda (2011)', source: 'Training volume and pace', time: '—', pace: '',
+        key: 'tanda', cls: 'is-prompt', name: 'Tanda', source: null, time: '—', pace: '',
         note: t && 'error' in t
           ? <><span className="predictor-warn">{t.error} </span><button type="button" className="predictor-link-button" onClick={onAddTanda}>Check training volume</button>.</>
           : <><button type="button" className="predictor-link-button" onClick={onAddTanda}>Add training volume</button> for a training-based estimate (finishes of 2:47 to 3:36 only).</>,
@@ -1107,23 +1090,17 @@ function MethodTable({ est, units, dist, onAddSecond, onAddTanda }: { est: Estim
   return (
     <div className="tool-table-wrap predictor-table-wrap">
       <table className="tool-table predictor-table">
-        <thead><tr><th scope="col">Method</th><th scope="col">{targetLabel}</th><th scope="col">Known error or limit</th></tr></thead>
+        <thead><tr><th scope="col">Estimate</th><th scope="col">{targetLabel}</th><th scope="col">How it tends to run</th></tr></thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.key} className={r.cls}>
-              <th scope="row" className="predictor-m-name"><span>{r.name}</span><small>{r.source}</small></th>
+              <th scope="row" className="predictor-m-name"><span>{r.name}</span>{r.source ? <small>{r.source}</small> : null}</th>
               <td className="predictor-m-time">{r.time}{r.pace ? <small>{r.pace}</small> : null}</td>
               <td className="predictor-m-note">{r.note}</td>
             </tr>
           ))}
         </tbody>
-        <caption>
-          Published research, applied to your {raceName(dist, units)}.
-          {est.range ? (est.range.extrapolation === 'shorter'
-            ? ' The three exponent rows are Pace Notes’ composition of published estimates: Riegel 1.06 to a half-marathon equivalent, then the RunningAHEAD half-to-full exponents.'
-            : ' The three exponent rows are Pace Notes’ composition of published estimates: the RunningAHEAD half-to-full exponents, applied to your race.') : ''}
-          {' '}Each model assumes training for the target distance, a flat course and cool weather; none adjusts for course or weather.
-        </caption>
+        <caption>Published research, applied to your {raceName(dist, units)}.</caption>
       </table>
     </div>
   );
@@ -1133,27 +1110,24 @@ function Explainer({ est }: { est: Estimates }) {
   if (!est.isMarathon && est.daniels === null) {
     return (
       <EvidencePanel kind="research" title="Why Riegel holds up to the half">
-        <p className="predictor-copy">Up to the half marathon, endurance carries over between distances well enough that the classic formula holds: in 2,303 recreational runners, Riegel was well calibrated for races up to the half (Vickers & Vertosick 2016). The marathon is where it breaks down. Switch the prediction to a marathon to see how far.</p>
+        <p className="predictor-copy">Up to the half marathon, endurance carries over between distances well enough that the classic formula holds for recreational runners. The marathon is where it breaks down. Switch the prediction to a marathon to see how far.</p>
       </EvidencePanel>
     );
   }
   if (!est.isMarathon) {
     return (
       <EvidencePanel kind="research" title="Why these two agree">
-        <p className="predictor-copy">Up to the half marathon, endurance carries over between distances well enough that the classic formulas hold: in 2,303 recreational runners, Riegel was well calibrated for races up to the half (Vickers & Vertosick 2016). The marathon is where they break down. Switch the prediction to a marathon to see how far.</p>
+        <p className="predictor-copy">Up to the half marathon, endurance carries over between distances well enough that the classic formulas hold for recreational runners. The marathon is where they break down. Switch the prediction to a marathon to see how far.</p>
       </EvidencePanel>
     );
   }
   return (
     <EvidencePanel kind="research" title="Why marathon predictions run fast">
       <ol className="predictor-reasons">
-        <li><b>The classic formulas assume your endurance carries over.</b> Riegel’s 1.06, fitted to records, and the Daniels–Gilbert equations both describe runners trained for the distance.</li>
-        <li><b>On recreational runners they miss by about ten minutes.</b> Of 2,303 surveyed runners, Riegel was well calibrated up to the half, but its marathon times were a median 10:09 too fast, and about three in four runners were slower than predicted (Vickers & Vertosick 2016).</li>
-        <li><b>Runners’ own logs show a bigger exponent.</b> In 4,402 training logs with a half and a full within a year, the half-to-full exponent was 1.09 most often, 1.13 at the median and 1.15 on average: the range above.</li>
-        <li><b>Training volume matters, but is not modelled here.</b> Adding weekly mileage cut the same study’s typical error from about 19.5 to about 15 minutes; its coefficients are not reproduced here.</li>
-        <li><b>Neither is the course or the day.</b> A review of 114 marathon equations found no single best one, and most ignore gradient, sex and weather (Keogh et al. 2019).</li>
+        <li><b>On recreational runners they miss by about ten minutes.</b> Riegel holds up to the half, but its marathon times ran a median 10:09 too fast, and about three in four runners were slower than predicted.</li>
+        <li><b>Runners slow more from the half to the full.</b> The exponent was 1.09 most often, 1.13 at the median and 1.15 on average: the range above.</li>
+        <li><b>Training volume matters.</b> Adding weekly mileage cut the typical miss from about 19.5 to about 15 minutes.</li>
       </ol>
-      <p className="tool-note">Pace Notes holds marathons only, so its data cannot test a half-to-full prediction. The panel below answers a different question.</p>
     </EvidencePanel>
   );
 }
