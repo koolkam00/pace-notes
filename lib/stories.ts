@@ -73,7 +73,7 @@ function pacingTypes(): string | null {
   return types ? countWord(types.archetypes.length) : null;
 }
 
-/** Finishes grouped into pacing types, in millions with one decimal ("3.3"), or null without the file. */
+/** Finishes grouped into pacing types, in millions with one decimal ("3.7"), or null without the file. */
 function pacingCohortMillions(): string | null {
   const types = insight<Archetypes>('archetypes.json');
   return types ? (types.cohort_n / 1e6).toFixed(1) : null;

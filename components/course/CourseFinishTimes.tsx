@@ -35,7 +35,7 @@ export default function CourseFinishTimes({ page }: { page: CoursePageData }) {
           ))}
         </tbody>
       </CourseTable>
-      <p className="course-note">Editions with at least 100 finishes, each with all nine 5 km checkpoint times; years not listed are not in the data{small ? <>, except {yearList(small.years)} (below)</> : null}. The median is each edition’s own. Race dates and start temperatures come from the edition’s supplied weather record (the modelled hour at the scheduled start).{datesUnverified ? ' The data producer supplied the race dates and scheduled starts; they have not been independently verified.' : ''}</p>
+      <p className="course-note">Editions with at least 100 finishes, each with all nine 5 km checkpoint times; years not listed have no eligible finishes{small ? <>, except {yearList(small.years)} (below)</> : null}. A race year can be in the source records without any, when its 5 km splits are missing or the source review excludes it. The median is each edition’s own. Race dates and start temperatures come from the edition’s supplied weather record (the modelled hour at the scheduled start).{datesUnverified ? ' The data producer supplied the race dates and scheduled starts; they have not been independently verified.' : ''}</p>
       {copies.length ? <p className="course-callout course-copy-note">{copies.map(courseCopySentence).join(' ')}</p> : null}
       {small ? (
         <p className="course-note">The course total also counts <Fact k="small" v={small.finishes}>{count(small.finishes)}</Fact> finishes from the {yearList(small.years)} edition{small.years.length === 1 ? '' : 's'}, which {small.years.length === 1 ? 'has' : 'have'} fewer than 100 finishes and no row here.</p>

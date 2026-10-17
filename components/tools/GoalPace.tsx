@@ -17,9 +17,9 @@ export interface GoalObserved {
   hi: number;
   n: number;
   editions: number;
-  /** Race editions in the whole pace-band cohort (the index's count), for "177 of the 179". */
+  /** Race editions in the whole pace-band cohort (the index's count), for "191 of the 193". */
   totalEditions: number | null;
-  /** Those editions against every edition in the data, built on the server: "all 179 race editions whose mat times line up for this comparison, out of 194 in the data". */
+  /** Those editions against every edition in the data, built on the server: "all 193 race editions whose mat times line up for this comparison, out of 211 in the data". */
   editionsPhrase: string;
   /** The editions and finishes the pace band leaves out, from its screens; null when they do not account for the difference. */
   screened: string | null;

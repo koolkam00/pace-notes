@@ -686,7 +686,7 @@ if (html) {
 
     // Editions in the data with no row (fewer than 100 finishes) are named wherever a count includes them.
     if (f.smallYears.length) {
-      check(textOf(sectionOf(body, 'finish-times') ?? '').includes(`years not listed are not in the data, except ${F.years(f.smallYears.join(','))} (below)`), where, 'the table note does not name the small editions');
+      check(textOf(sectionOf(body, 'finish-times') ?? '').includes(`years not listed have no eligible finishes, except ${F.years(f.smallYears.join(','))} (below)`), where, 'the table note does not name the small editions');
       const listedRows = f.cells.length - courses.shape_cohort.start_offset_editions.filter((e) => e.city === city).length - (courseGoal.screens.grid ?? []).filter((e) => e.city === city).length;
       if (f.ctx && f.ctx.editions - listedRows === f.smallYears.length) check(textOf(sectionOf(body, 'data') ?? '').includes(`including the ${F.years(f.smallYears.join(','))} edition`), where, 'the goal rows\' editions include a small edition the page does not name');
     }

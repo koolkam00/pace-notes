@@ -30,8 +30,8 @@ const index = (group: PaceBandGroup | undefined, minute: number) => (group ? gro
 const grouped = (n: number) => n.toLocaleString('en-US');
 
 /**
- * Which race editions a goal's window draws on, set against every edition in the data: "all 179 race editions whose mat
- * times line up for this comparison, out of 194 in the data". The pace band screens out editions whose first split or
+ * Which race editions a goal's window draws on, set against every edition in the data: "all 193 race editions whose mat
+ * times line up for this comparison, out of 211 in the data". The pace band screens out editions whose first split or
  * mat grid does not line up (the index's `screens`), so its cohort is smaller than the data's.
  */
 function editionsPhrase(editions: number, total: number | null, inData: number | null): string {

@@ -84,6 +84,13 @@ export default function WeatherMatchPage() {
   const grid = data?.screens?.grid ?? [];
   const duplicates = data?.duplicate_edition_screen ?? [];
   const noWeather = data?.excluded ?? [];
+  // Only the screens that remove something are named (since the 1652 release the weather and duplicate lists are empty).
+  const leftOut = [
+    noWeather.length ? `editions without a valid weather row (${editionList(noWeather)})` : '',
+    offsets.length ? `editions whose first split is inflated by start delays (${editionList(offsets)})` : '',
+    grid.length ? `editions whose mat grid looks shifted (${editionList(grid)})` : '',
+    duplicates.length ? `duplicated fields (${editionList(duplicates)})` : '',
+  ].filter(Boolean);
   const maxC = data ? Math.max(...data.rows.map((r) => r.c)) : 0;
 
   return (
@@ -111,7 +118,7 @@ export default function WeatherMatchPage() {
           <p><strong>Warm data is sparse.</strong> Of {data.editions.length} editions with weather in this tool, {warm.length} started at 20 °C (68 °F) or warmer: {warm.map((e) => `${e.city} ${e.year} (${e.temp_c.toFixed(1)} °C, ${f(e.temp_c)} °F)`).join(', ')}. Windows centred above about 21 °C rest largely on these few editions, and no window is centred above {maxC} °C ({f(maxC)} °F).</p>
         ) : null}
         <p><strong>Who is not here.</strong> Only complete finishes with all nine 5 km checkpoints are counted, so runners who stopped are not in the data. Counts are finishes, not people.{' '}
-          {data ? <>Left out: editions without a valid weather row ({editionList(noWeather)}); editions whose first split is inflated by start delays ({editionList(offsets)}); editions whose mat grid looks shifted ({editionList(grid)}); and duplicated fields ({editionList(duplicates)}).</> : null}
+          {data && leftOut.length ? <>Left out: {leftOut.length > 1 ? `${leftOut.slice(0, -1).join('; ')}; and ${leftOut[leftOut.length - 1]}` : leftOut[0]}.</> : null}
         </p>
         <p><strong>Published research panel.</strong> Relative humidity uses the Magnus form (Alduchov &amp; Eskridge 1996); wet-bulb uses Stull (2011), valid for 5–99% humidity and −20 to 50 °C; shade WBGT ≈ 0.7 × wet-bulb + 0.3 × air temperature, with the race-risk categories of the 1996 ACSM position stand on distance running shown as flags (green below 18, low risk; yellow 18–23, moderate; red 23–28, high; black above 28 °C WBGT, very high, where it recommends postponing or cancelling). The current ACSM consensus (Roberts et al. 2023) uses region-specific thresholds instead. Ely et al. (2007) is shown as the extra over its coolest WBGT band; Mantzios et al. (2022) as 0.2% (elite marathon finalists) to 0.4% (all endurance events) per °C WBGT above 15 °C; Hadley’s table and the RunnersConnect bands as published. Hadley and RunnersConnect are rules of thumb, not studies. Each method stays a separate range, and minutes are the published percentage multiplied by your goal. None of these figures is fitted to Pace Notes data, combined with it, or passed to any other tool.</p>
       </ToolMethod>

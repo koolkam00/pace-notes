@@ -8,6 +8,9 @@ import { EraArrows, YearsStrip } from '../YearsStory';
 import { StoryData } from '../StoryData';
 
 const pts = (v: number, digits = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(digits)}`;
+/** The weather caveat names the editions it leaves out only when there are some (none since the 1652 release). */
+const noWeatherNote = (n: number) => (n === 0 ? '' : n === 1 ? ' 1 edition without a valid weather row is left out of the weather charts.'
+  : ` ${count(n)} editions without a valid weather row are left out of the weather charts.`);
 
 export default function CoursesBody({ data, geometry, manifest }: { data: Courses; geometry: CourseGeometry[]; manifest: InsightsManifest }) {
   const t = data.typical_curve;
@@ -96,7 +99,7 @@ export default function CoursesBody({ data, geometry, manifest }: { data: Course
         caveats={[
           'Course means the supplied city label, not a verified historical route. Route maps and elevation are the current supplied course files, and the elevation model misses bridge decks.',
           'Relative pace mixes terrain, field ability, weather and race behaviour. The typical curve is the median across courses.',
-          `Weather is the supplied modelled hour at the scheduled start, at one point in each city. It is never personal or wave exposure. ${w.excluded.length} editions without a valid weather row are left out of the weather charts.`,
+          `Weather is the supplied modelled hour at the scheduled start, at one point in each city. It is never personal or wave exposure.${noWeatherNote(w.excluded.filter((x) => x.reason !== 'Fewer than 100 finishes').length)}`,
           'These are simple descriptive slopes. The prespecified weather screen in the existing analyses remains the adjusted analysis.',
           `${data.shape_cohort.start_offset_editions.length} editions whose first 5 km looks inflated (${[...new Set(data.shape_cohort.start_offset_editions.map((x) => x.city))].join(', ')}) are left out of every shape statistic.`,
           `Course identification was chosen among four variants, all reported in the data file (${Object.entries(id.variants).map(([k, v]) => `${k.toLowerCase()} ${Math.round(v * 100)}%`).join('; ')}).`,
