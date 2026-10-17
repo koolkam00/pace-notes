@@ -1,9 +1,9 @@
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import RunnerLane from '@/components/art/RunnerLane';
-import ToolIcon from '@/components/tools/ToolIcon';
+import Arrow from '@/components/ui/Arrow';
+import PageFeedback from '@/components/PageFeedback';
 import { EvidenceBadge } from '@/components/tools/ToolShell';
 import { getInsightsManifest } from '@/lib/insights-server';
-import { TOOLS, toolHref, type ToolGroup } from '@/lib/tools/registry';
+import { TOOLS, toolHref, type ToolDefinition, type ToolGroup } from '@/lib/tools/registry';
 import { pageMetadata } from '@/lib/seo';
 import { GOAL_PAGE_MINUTES, HALF_CHART, MARATHON_CHART, goalLabel, goalPagePath } from '@/lib/tools/pace-chart';
 
@@ -14,63 +14,64 @@ export const metadata = pageMetadata({
 });
 
 const GROUPS: { group: ToolGroup; title: string }[] = [
-  { group: 'Plan', title: 'Plan the race' },
-  { group: 'Race day', title: 'On race day' },
-  { group: 'Afterwards', title: 'After the race' },
-  { group: 'Qualify', title: 'Qualify' },
+  { group: 'race', title: 'For your race' },
+  { group: 'reference', title: 'Reference' },
 ];
 
+/** One tool, one line: its name and what it is for, its evidence, and the way in. */
+function Row({ href, title, line, badges = [] }: { href: string; title: string; line: string; badges?: ToolDefinition['evidence'] }) {
+  return (
+    <li>
+      <Link href={href} className="tools-row">
+        <span className="tools-row-text"><b>{title}</b><span>{line}</span></span>
+        {badges.length ? <span className="tools-row-badges">{badges.map((e) => <EvidenceBadge key={e} kind={e} compact />)}</span> : null}
+        <Arrow />
+      </Link>
+    </li>
+  );
+}
+
+/**
+ * /tools (the redesign spec, section 00 cut 3): one list of tools, one line each, in two groups. A data tool shows only
+ * when its file is in the verified manifest. The pace charts and the goal pages are reference lookups too.
+ */
 export default function ToolsPage() {
   const manifest = getInsightsManifest();
   const available = TOOLS.filter((t) => !t.file || manifest.files[t.file]);
+  const marathon = `${goalLabel(MARATHON_CHART.goals[0])} to ${goalLabel(MARATHON_CHART.goals[MARATHON_CHART.goals.length - 1])}`;
+  const half = `${goalLabel(HALF_CHART.goals[0])} to ${goalLabel(HALF_CHART.goals[HALF_CHART.goals.length - 1])}`;
   return (
-    <div className="tools-page">
-      <section className="night night-grain bleed tools-hero">
-        <div className="container">
-          <p className="eyebrow">Runner tools</p>
-          <h1 className="story-title">Tools that know how marathons <em>really</em> go.</h1>
-          <p className="hero-dek">
-            Most calculators assume an even pace to the finish. Few marathons are run that way. These tools set your plan beside what finishes at your pace actually did.
-          </p>
-        </div>
-        <RunnerLane dark height={100} runners={[{ finishMinutes: 180, label: '3:00' }, { finishMinutes: 210, label: '3:30' }, { finishMinutes: 240, label: '4:00' }, { finishMinutes: 300, label: '5:00' }]} />
-      </section>
-      <div className="container tools-index">
-        {GROUPS.map(({ group, title }) => {
-          const tools = available.filter((t) => t.group === group);
-          if (!tools.length) return null;
-          return (
-            <section key={group} className="tools-group" aria-labelledby={`tools-${group.replace(/\s+/g, '-').toLowerCase()}`}>
-              <h2 id={`tools-${group.replace(/\s+/g, '-').toLowerCase()}`}>{title}</h2>
-              <ul className="tools-grid">
-                {tools.map((t) => (
-                  <li key={t.slug}>
-                    <Link href={toolHref(t)} className="tool-card" style={{ ['--tool' as string]: t.accent }}>
-                      <ToolIcon slug={t.slug} className="tool-card-icon" />
-                      <h3>{t.title}</h3>
-                      <p>{t.dek}</p>
-                      <span className="tool-badges">{t.evidence.map((e) => <EvidenceBadge key={e} kind={e} compact />)}</span>
-                    </Link>
+    <div className="tool-page tools-index">
+      <header className="tool-header">
+        <h1 className="tool-title t-title">Runner tools</h1>
+        <p className="tool-dek">For one race: plan it, pace it, follow it and read it afterwards, beside what finishes like it ran.</p>
+      </header>
+      {GROUPS.map(({ group, title }) => {
+        const tools = available.filter((t) => t.group === group);
+        return (
+          <section key={group} className="tools-group" aria-labelledby={`tools-${group}`}>
+            <h2 id={`tools-${group}`} className="tools-group-title">{title}</h2>
+            <ul className="tools-list">
+              {tools.map((t) => <Row key={t.slug} href={toolHref(t)} title={t.title} line={t.short} badges={t.evidence} />)}
+              {group === 'reference' ? (
+                <>
+                  <Row href="/tools/marathon-pace-chart" title="Marathon pace chart" line={`Every goal from ${marathon}`} />
+                  <Row href="/tools/half-marathon-pace-chart" title="Half marathon pace chart" line={`Every goal from ${half}`} />
+                  <li className="tools-goals">
+                    <span className="tools-row-text"><b>Pace for one goal</b><span>Even splits beside what finishes at that goal ran</span></span>
+                    <span className="tools-goal-links">
+                      {GOAL_PAGE_MINUTES.map((m) => <Link key={m} href={goalPagePath(m)} aria-label={`${goalLabel(m)} marathon pace`}>{goalLabel(m)}</Link>)}
+                    </span>
                   </li>
-                ))}
-              </ul>
-            </section>
-          );
-        })}
-        <section className="tools-group" aria-labelledby="tools-pace-charts">
-          <h2 id="tools-pace-charts">Pace charts</h2>
-          <ul className="tools-chart-links">
-            <li><Link href="/tools/marathon-pace-chart"><b>Marathon pace chart</b><span>Every goal from {goalLabel(MARATHON_CHART.goals[0])} to {goalLabel(MARATHON_CHART.goals[MARATHON_CHART.goals.length - 1])}</span></Link></li>
-            <li><Link href="/tools/half-marathon-pace-chart"><b>Half marathon pace chart</b><span>Every goal from {goalLabel(HALF_CHART.goals[0])} to {goalLabel(HALF_CHART.goals[HALF_CHART.goals.length - 1])}</span></Link></li>
-            <li className="tools-chart-goals">
-              <b>Marathon pace by goal</b>
-              <span>{GOAL_PAGE_MINUTES.map((m, i) => <span key={m}>{i ? ' · ' : ''}<Link href={goalPagePath(m)} aria-label={`${goalLabel(m)} marathon pace`}>{goalLabel(m)}</Link></span>)}</span>
-            </li>
-          </ul>
-        </section>
-        <div className="tools-principles">
-          <div><b>Your inputs stay with you</b><p>Everything runs in your browser. Birth dates are never put in links or analytics.</p></div>
-        </div>
+                </>
+              ) : null}
+            </ul>
+          </section>
+        );
+      })}
+      <div className="chapter-end tool-end">
+        <p className="tools-privacy">Everything runs in your browser. Birth dates never go into links or analytics.</p>
+        <PageFeedback />
       </div>
     </div>
   );

@@ -1,46 +1,76 @@
 import type { ReactNode } from 'react';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
-import { TOOLS, toolBySlug, toolHref, type ToolEvidence } from '@/lib/tools/registry';
-import { JsonLd, breadcrumbs } from '@/lib/seo';
+import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
+import Arrow from '@/components/ui/Arrow';
+import ChapterEnd from '@/components/ChapterEnd';
 import PageFeedback from '@/components/PageFeedback';
+import { placeOf } from '@/lib/chapters';
+import { readingOf } from '@/lib/nuggets';
+import { toolBySlug, type ToolEvidence } from '@/lib/tools/registry';
+import { JsonLd, breadcrumbs } from '@/lib/seo';
 
-/** A tool's evidence badge, linked to /methodology#evidence. `compact` (inside a tool card, itself a link) is a plain label. */
+/** A tool's evidence badge, linked to /methodology#evidence. `compact` (inside a row that is itself a link) is a plain label. */
 export function EvidenceBadge({ kind, compact = false }: { kind: ToolEvidence; compact?: boolean }) {
   return <EvidenceTag kind={kind} link={!compact} />;
 }
 
-/** Page header for one tool: breadcrumb (visible, and as JSON-LD), heading, dek and the kinds of evidence it uses. */
-export function ToolHeader({ slug, title, children }: { slug: string; title?: ReactNode; children?: ReactNode }) {
-  const tool = toolBySlug(slug)!;
+/**
+ * The opener of every /tools page (the redesign spec, section 4.4): the crumbs (the chapter for a tool in the race,
+ * "Tools · Reference" for a lookup), the H1, one line of purpose and the kinds of evidence it uses. The breadcrumb is
+ * also JSON-LD. No hue, no rule, no icon.
+ */
+export function ToolPageHeader({ path, title, dek, badges = [], trail, children }: {
+  path: string; title: ReactNode; dek?: ReactNode; badges?: ToolEvidence[];
+  /** The breadcrumb below "Tools": [label, href?] pairs, the page's own name last. */
+  trail: [string, string?][]; children?: ReactNode;
+}) {
+  const inRace = placeOf(path) !== null;
+  const parent = trail.slice(0, -1);
   return (
-    <header className="tool-header" style={{ ['--tool' as string]: tool.accent }}>
-      <p className="eyebrow"><Link href="/tools">Runner tools</Link> · {tool.group}</p>
-      <h1 className="tool-title">{title ?? tool.heading ?? tool.title}</h1>
-      <p className="tool-dek">{tool.dek}</p>
-      <div className="tool-badges">{tool.evidence.map((e) => <EvidenceBadge key={e} kind={e} />)}</div>
+    <header className="tool-header">
+      <div className="reading-crumbs t-kicker tool-crumbs">
+        {inRace ? <ChapterCrumbs path={path} /> : (
+          <>
+            <Link href="/tools" className="crumb-chapter">Tools</Link>
+            {parent.map(([label, href]) => (href ? <Link key={label} href={href} className="crumb-chapter">· {label}</Link> : <span key={label}>· {label}</span>))}
+          </>
+        )}
+      </div>
+      <h1 className="tool-title t-title">{title}</h1>
+      {dek ? <p className="tool-dek">{dek}</p> : null}
+      {badges.length ? <div className="tool-badges">{badges.map((e) => <EvidenceBadge key={e} kind={e} />)}</div> : null}
       {children}
-      <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Runner tools', '/tools'], [tool.title]])} />
+      <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Runner tools', '/tools'], ...parent.filter(([, href]) => href), trail[trail.length - 1]])} />
     </header>
   );
 }
 
-/** Links to the other tools. */
-export function ToolNext({ current }: { current: string }) {
-  const others = TOOLS.filter((t) => t.slug !== current);
+/** The opener of a registered tool: its heading, purpose and badges from lib/tools/registry.ts. */
+export function ToolHeader({ slug, title, children }: { slug: string; title?: ReactNode; children?: ReactNode }) {
+  const tool = toolBySlug(slug)!;
   return (
-    <>
+    <ToolPageHeader path={`/tools/${slug}`} title={title ?? tool.heading ?? tool.title} dek={tool.dek} badges={tool.evidence}
+      trail={[...(tool.group === 'reference' ? [['Reference'] as [string]] : []), [tool.title]]}>
+      {children}
+    </ToolPageHeader>
+  );
+}
+
+/**
+ * How a tools page ends (the redesign spec, section 2.6): a tool in the race ends on the chapter's closing stack (the next
+ * card, or the planner's finish card); a reference tool on one row back to every tool and to how we know, then "Was
+ * this useful?". One way forward, one way back.
+ */
+export function ToolEnd({ path, how }: { path: string; how: `/methodology#${string}` }) {
+  if (placeOf(path)) return <ChapterEnd path={path} readingOf={readingOf} />;
+  return (
+    <div className="chapter-end tool-end">
+      <p className="chapter-end-links">
+        <Link href="/tools" className="chapter-prev"><Arrow dir="left" /><span>All tools</span></Link>
+        <Link href={how} className="chapter-how">How we know<Arrow dir="up-right" /></Link>
+      </p>
       <PageFeedback />
-      <nav className="tool-next" aria-label="More runner tools">
-        <p className="eyebrow">More tools</p>
-        <ul>
-          {others.map((t) => (
-            <li key={t.slug} style={{ ['--tool' as string]: t.accent }}>
-              <Link href={toolHref(t)}><b>{t.title}</b><span>{t.short}</span></Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-    </>
+    </div>
   );
 }

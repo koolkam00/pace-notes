@@ -1,26 +1,26 @@
 // Kept out of components/tools/ui.tsx, which every tool page loads: only the predictor and the pace calculator show these.
 import type { ReactNode } from 'react';
 import { UnitLink as Link } from '@/components/UnitsProvider';
+import Arrow from '@/components/ui/Arrow';
 import { formatDuration, formatHM } from '@/lib/tools/time';
 import { paceBandGoalHref, pacingPatternHref, planHref } from '@/lib/tools/links';
-import { toolBySlug } from '@/lib/tools/registry';
 
 /**
- * Next steps from a result: cards that open another tool or analysis with the result filled in. The value travels in
- * the link's query only (analytics keeps a page's path alone), and the page it opens shows it in its own masked
- * workspace, as if typed. Following a link is not a tool edit: components/SiteAnalytics.tsx counts typing, choices
- * and buttons.
+ * Next steps from a result: one row per page it opens, with the result filled in (the redesign spec, section 3.5:
+ * "Turn this into a pace band →", rows, not cards). The value travels in the link's query only (analytics keeps a page's
+ * path alone), and the page it opens shows it in its own masked workspace, as if typed. Following a link is not a tool
+ * edit: components/SiteAnalytics.tsx counts typing, choices and buttons. `accent` is ignored (no per-tool hues); it is
+ * accepted only while components/course/CoursePlan.tsx (WP5) still passes it.
  */
-export function ToolHandoffs({ label, links }: { label: string; links: { href: string; title: string; text: ReactNode; accent: string }[] }) {
+export function ToolHandoffs({ label, links }: { label: string; links: { href: string; title: string; text: ReactNode; accent?: string }[] }) {
   if (!links.length) return null;
   return (
     <nav className="tool-handoffs no-print" aria-label={label}>
       <p className="tool-handoffs-label">{label}</p>
       <ul>
         {links.map((l) => (
-          <li key={l.href} style={{ ['--tool' as string]: l.accent }}>
-            {/* A no-break space keeps the arrow on the title's last line. */}
-            <Link href={l.href}><b>{l.title}{'\u00a0'}<span aria-hidden="true">→</span></b><span>{l.text}</span></Link>
+          <li key={l.href}>
+            <Link href={l.href}><span className="tool-handoff-text"><b>{l.title}</b><span>{l.text}</span></span><Arrow /></Link>
           </li>
         ))}
       </ul>
@@ -44,11 +44,11 @@ export function MarathonHandoffs({ label, seconds }: { label: string; seconds: n
   const observed = minutes >= 150 && minutes <= 390;
   return (
     <ToolHandoffs label={label} links={[
-      ...(plan ? [{ href: plan, accent: toolBySlug('plan')?.accent ?? 'var(--blue)', title: 'Plan this goal',
-        text: `Pick your course: even pace for ${time}${below}, how finishes at that pace held up there, and a pace band to print.` }] : []),
-      ...(band ? [{ href: band, accent: 'var(--orange)', title: 'Turn this into a pace band',
+      ...(plan ? [{ href: plan, title: 'Plan this goal',
+        text: `Pick your course: even pace for ${time}${below}, and how that pace held up there.` }] : []),
+      ...(band ? [{ href: band, title: 'Turn this into a pace band',
         text: observed ? `Even splits for ${time}${below}, beside the mat times of finishes that just beat it.` : `Even splits for ${time}${below}, ready to print.` }] : []),
-      ...(pacing ? [{ href: pacing, accent: 'var(--blue)', title: 'See how finishers near this time paced', text: `Pace through each section for finishes near ${time}.` }] : []),
+      ...(pacing ? [{ href: pacing, title: 'See how finishers near this time paced', text: `Pace through each section for finishes near ${time}.` }] : []),
     ]} />
   );
 }
