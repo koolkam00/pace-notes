@@ -104,11 +104,10 @@ export default function RaceMorningBody() {
             points: [...(early >= 0 ? [{ x: MID[early], y: sig[early].per_10c, kind: 'best' as const }] : []), ...(late >= 0 ? [{ x: MID[late], y: sig[late].per_10c, kind: 'reading' as const }] : [])],
             labels: [
               ...(early >= 0 ? [{ x: MID[early], y: sig[early].per_10c, text: `${sectionName(sig[early].section)} ${signed(sig[early].per_10c)}`, tone: 'ink' as const, priority: 2, prefer: 'below' as const }] : []),
-              ...(late >= 0 ? [{ x: MID[late], y: sig[late].per_10c, text: `${sectionName(sig[late].section)} ${signed(sig[late].per_10c)}`, tone: 'signal' as const, priority: 3, prefer: 'left' as const }] : []),
+              ...(late >= 0 ? [{ x: MID[late], y: sig[late].per_10c, text: `${sectionName(sig[late].section)} ${signed(sig[late].per_10c)}`, tone: 'signal' as const, priority: 3, prefer: 'above' as const }] : []),
             ] }]}
           refs={[{ value: 0, label: 'Same shape' }]}
           xTicks={[{ value: 0, label: 'Start' }, { value: 20, label: '20K' }, { value: 30, label: '30K' }, { value: 42.195, label: 'Finish' }]}
-          yTicks={[{ value: span - 1, label: `${span - 1} points slower` }, { value: -(span - 1), label: `${span - 1} quicker` }]}
           label="Each section's pace against the runner's own average on a warmer morning: quicker early, slower late."
           values={(
             <Values id="rm-heat" caption="Pace against the runner’s own average, per 10 °C (18 °F) warmer, by section"

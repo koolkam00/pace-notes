@@ -36,6 +36,7 @@ Shares that a page prints as a percentage are stored with ten digits (`insights_
 | The finish-line magnet (`/stories/final-kick`) | `insights_kick.py` | `kick.json` | Final-section kick against 35–40 km, the four second-half pace states and their flows, where the field breaks by 5–20 km pace, warning lights, same-race same-pace opening residuals (bank and pay), the cost of a sustained slowdown at the same 5–20 km pace, women and men, and recurrence across screened candidate profiles. |
 | Who holds their pace (`/stories/who-holds-pace`) | `insights_demographics.py` | `demographics.json` | Women and men matched within edition × finish minute, the ghost race, 10-minute bands, the exact-age ladder and women's share. |
 | Every course has a fingerprint (`/stories/courses`) | `insights_courses.py` | `courses.json` | Course pace curves against the typical curve, the fade multiplier and signature, leave-one-out course identification, weather (within-course slopes, same-course pairs, heat signature), a matched 5–20 km pace comparison, and years and pandemic eras. |
+| Race-morning weather (`/stories/race-morning`) | `insights_courses.py` | `courses.json` (its `weather` block) | The weather half of the course story since the October 17, 2026 redesign (WP2): same-course pairs, the curvature of the finish against the start temperature, and the heat signature. The course story keeps the curves, the identification and how steady each course ran; the eras moved to `/finish-times#front`. No new data. |
 | (course art) | `build_course_geometry.py` | `course-geometry.json` | Simplified supplied routes and elevation every 0.5 km, used for illustrations only. Since 1652 a route is drawn only where the runner context attached its profile to a recorded edition (same race name, inside any supplied validity interval); the others are listed under `omitted` with the context's reason (1652: Washington, whose profile is now named "Marine Corps Marathon"). |
 | (runner tools) | `insights_tool_projector.py`, `insights_tool_paceband.py`, `insights_tool_weather.py`, `insights_tool_coursegoal.py` | `tools/*.json` plus shards | Data for the `/tools` pages on the final-kick cohort; see [runner tools](TOOLS.md). |
 
@@ -46,6 +47,8 @@ Shares that a page prints as a percentage are stored with ten digits (`insights_
 - every `insights_*.py` script hash plus `build_insights.py` and `build_fast_start.py`;
 - the source-script hashes;
 - each file's bytes and SHA-256.
+
+Every sentence a story or `/finish-times` shows is a nugget in `lib/nuggets/stories.ts` with a guard and a plain fallback; `scripts/nuggets/stories.cjs` recounts each one from these files inside `verify-nuggets` (October 17, 2026).
 
 The site reads the files at build time through `lib/insights-server.ts`, which re-checks the release, the runner manifest hash and every file hash. Browser fetches (replay rows) go through `lib/insights.ts`, which re-checks the SHA-256 in the browser.
 

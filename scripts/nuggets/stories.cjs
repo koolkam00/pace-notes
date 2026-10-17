@@ -117,7 +117,7 @@ module.exports = function stories({ json, eq, ok, core }) {
     let best = null;
     for (const d of [2, 3, 4, 5, 10, 20, 25, 50, 100]) { const err = Math.abs(1 / d - share) / share; if (err < 0.1 && (!best || err < best.err)) best = { d, err }; }
     // The figure is drawn as its value and unit ("1" and "in 25", "4" and "%"); together they read as the fraction.
-    eq(`${n.figure.value}${n.figure.unit ? `${n.figure.unit === '%' ? '' : ' '}${n.figure.unit}` : ''}`, best ? `1 in ${best.d}` : pct(share), 'shape.second20k: the figure');
+    eq(`${n.figure.value}${n.figure.unit ?? ''}`.replace(/\u00a0/g, ' '), best ? `1 in ${best.d}` : pct(share), 'shape.second20k: the figure');
   };
 
   R['types.metronome'] = (n) => {
@@ -291,7 +291,7 @@ module.exports = function stories({ json, eq, ok, core }) {
     eq(more, p.hotter_slowed_more, 'weather.pairs: the count is the pairs whose warmer year had the higher share');
     eq(p.list.length, p.total, 'weather.pairs: every pair is listed');
     eq(n.guard, more > p.total / 2, 'weather.pairs: a majority');
-    eq(`${n.figure.value} ${n.figure.unit}`, `${more.toLocaleString('en-US')} of ${p.total.toLocaleString('en-US')}`, 'weather.pairs: the figure');
+    eq(`${n.figure.value}${n.figure.unit}`.replace(/\u00a0/g, ' '), `${more.toLocaleString('en-US')} of ${p.total.toLocaleString('en-US')}`, 'weather.pairs: the figure');
     has(n, `${Math.round(p.min_gap_c * 1.8)}°F apart`, 'weather.pairs: the gap in °F (°C × 9/5)', 'mi');
     has(n, `${p.min_gap_c}°C apart`, 'weather.pairs: the gap in °C', 'km');
   };

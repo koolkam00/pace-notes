@@ -4,7 +4,6 @@ import { STORIES } from '@/lib/stories';
 import { getNugget } from '@/lib/nuggets';
 import { hm, matLabel, ms, pct } from '@/lib/nuggets/format';
 import { MARATHON_KM } from '@/lib/units';
-import Ruler from '@/components/viz/Ruler';
 import GhostRace from '@/components/viz/GhostRace.client';
 import LineProfile from '@/components/viz/LineProfile';
 import Values from '@/components/ui/Values';
@@ -19,7 +18,7 @@ const slower = (v: number) => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(v).
 
 /**
  * Who holds their pace (the redesign spec, section 7.9, under section 00): the reading (sustained slowdown, recorded
- * women against recorded men at the same finish times) as a pair, then three beats: the gap pooled and matched under
+ * women against recorded men at the same finish times) as a pair of figures, then three beats: the gap pooled and matched under
  * one lens, the two racing side by side in the band with the most matched finishes, and the gap at every finish time.
  * The age ladder is cut (age is /analyses/age-and-pacing's finding) and so is the women's share by city (who runs, not
  * how they pace).
@@ -30,7 +29,6 @@ export default function DemographicsBody() {
   const gender = getNugget('holds.gender'), unmask = getNugget('holds.unmask'), ghost = getNugget('holds.ghost'), bands = getNugget('holds.bands');
   const w = Number(gender.values.women), m = Number(gender.values.men);
   const o = data.overall;
-  const top = Math.ceil(Math.max(m, w) * 10) / 10 + 0.1;
 
   // The ghost race, in the band the holds.ghost nugget names: recorded men from their section profile, recorded women
   // behind them by the published gap at each mat. Positions between mats run at the section's pace.
@@ -80,15 +78,10 @@ export default function DemographicsBody() {
     <StoryPage path={PATH}>
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek} fallback={!gender.guard}
         figures={[{ value: pct(w).replace('%', ''), unit: '%', sr: `${pct(w)} of recorded women's finishes`, key: 'Recorded women' }, { value: pct(m).replace('%', ''), unit: '%', sr: `${pct(m)} of recorded men's finishes`, key: 'Recorded men' }]}
-        sentence={<Say nugget={gender} term />}
-        instrument={(
-          <Ruler min={0} max={top} ticks={[0, top / 2, top].map((v) => ({ value: v, label: pct(v) }))}
-            label={`Sustained slowdown at the same finish times: recorded women ${pct(w)}, recorded men ${pct(m)}`}
-            marks={[{ value: m, kind: 'compare', label: `Recorded men ${pct(m)}` }, { value: w, kind: 'reading', label: `Recorded women ${pct(w)}` }]} />
-        )} />
+        sentence={<Say nugget={gender} term />} />
 
       <Beat id="unmask" track="chapter-1" label="Pooled or matched" title={unmask}
-        dek="The second 20K against the first. Pooled, every finish counts at once; matched, women and men are compared within the same race and finish minute.">
+        dek="How much slower the second 20K ran than the first: every finish pooled, or women and men matched.">
         <PairBars initial="matched" lensLabel="Compare" max={Math.ceil(Math.max(o.men_block, o.pooled_men_block) / 5) * 5}
           views={[
             { id: 'pooled', label: 'Pooled', bars: [{ label: 'Recorded women', value: o.pooled_women_block, display: slower(o.pooled_women_block) }, { label: 'Recorded men', value: o.pooled_men_block, display: slower(o.pooled_men_block) }], gap: `${(o.pooled_men_block - o.pooled_women_block).toFixed(1)} points apart` },

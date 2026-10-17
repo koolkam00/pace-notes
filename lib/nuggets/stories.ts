@@ -220,10 +220,15 @@ function replayLeft(): Nugget {
 
 // ---------- Chapter 03 · The shape of a race (/stories/pacing-types) ----------
 
-/** A figure from inWords: "1 in 25" → 1 with the unit "in 25"; "4%" → 4 with "%". */
+/** A word unit follows its figure after a no-break space (the figure draws its unit with no gap of its own). */
+const NBSP = '\u00a0';
+
+/** A figure from inWords: "1 in 25" → 1 with the unit " in 25"; "4%" → 4 with "%". */
 function oneIn(words: string): { value: string; unit?: string } {
-  const m = /^(1) (in \d+)$/.exec(words) ?? /^([\d.]+)(%)$/.exec(words);
-  return m ? { value: m[1], unit: m[2] } : { value: words };
+  const one = /^1 (in \d+)$/.exec(words);
+  if (one) return { value: '1', unit: `${NBSP}${one[1]}` };
+  const share = /^([\d.]+)%$/.exec(words);
+  return share ? { value: share[1], unit: '%' } : { value: words };
 }
 
 /** Chapter 03 lead and the pacing-types reading: the share of finishes whose second 20K was faster than their first. */
@@ -388,7 +393,7 @@ export function kickTwinsFrom(cost: Kick['cost']['stratified']): Nugget {
     values: { median_gap_s: cost.median_gap_s, strata: cost.strata, finishes: cost.slowdown_finishes }, guard: cost.median_gap_s > 600,
     headline: `Same pace to 20K, *${minutes} minutes* apart at the finish.`,
     fallback: 'Same pace to 20K, apart at the finish.',
-    figure: Number.isFinite(minutes) ? { value: String(minutes), unit: 'min', sr: `${minutes} minutes` } : null,
+    figure: Number.isFinite(minutes) ? { value: String(minutes), unit: `${NBSP}min`, sr: `${minutes} minutes` } : null,
     key: 'later at the finish, after a sustained slowdown',
   };
 }
@@ -635,7 +640,7 @@ export function weatherPairsFrom(pairs: Pick<Courses['weather']['pairs'], 'hotte
     values: { warmer_more: n, total, min_gap_c: gap }, guard: n > total / 2,
     headline: both((u) => `In *${count(n)} of ${count(total)}* pairs of editions of the same course at least ${tempGap(gap, u)} apart at the start, the warmer one had more sustained slowdowns.`),
     fallback: both((u) => `${count(n)} of ${count(total)} same-course pairs at least ${tempGap(gap, u)} apart at the start: the warmer year had more sustained slowdowns.`),
-    figure: Number.isFinite(n) ? { value: count(n), unit: `of ${count(total)}`, sr: `${count(n)} of ${count(total)}` } : null,
+    figure: Number.isFinite(n) ? { value: count(n), unit: `${NBSP}of ${count(total)}`, sr: `${count(n)} of ${count(total)}` } : null,
     key: 'same-course pairs: the warmer year had more sustained slowdowns',
   };
 }

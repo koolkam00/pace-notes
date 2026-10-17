@@ -48,7 +48,7 @@ export default function KickBody() {
 
       <Beat id="twins" track="chapter-1" label="Same pace, apart" title={bands}>
         <Dumbbell rows={cost.map((b) => ({ id: b.label, label: `${b.label} pace`, a: 0, b: b.slowdown_finish_s - b.other_finish_s, display: `+${minutes(b.slowdown_finish_s - b.other_finish_s)}` }))}
-          domain={[0, gTop]} ticks={[0, 600, 1200, 1800].filter((t) => t <= gTop).map((t) => ({ value: t, label: t ? `+${t / 60} min` : '0' }))}
+          domain={[0, gTop]} ticks={[0, 600, 1200, 1800].filter((t) => t <= gTop).map((t) => ({ value: t, label: t === 0 ? '0' : t === gTop ? `+${t / 60} min` : `+${t / 60}` }))}
           keyLabels={{ a: 'No sustained slowdown', b: 'Sustained slowdown' }}
           label={`Minutes later at the finish after a sustained slowdown, for each pace through 20K: ${Math.round(Number(bands.values.low_s) / 60)} to ${Math.round(Number(bands.values.high_s) / 60)} minutes.`}
           values={(
