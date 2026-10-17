@@ -50,14 +50,14 @@
 .ds-term:hover { color: var(--ink); text-decoration: none; }
 .ds-inline-btn { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: .2em; }
 .ds-mini { display: block; width: 100%; max-width: 22rem; height: 48px; }
-.ds-mini .is-quiet { fill: var(--fill-quiet); }
+.ds-mini .is-quiet { fill: var(--mark-quiet); }
 .ds-mini .is-signal { fill: var(--signal); }
 
 /* The scrolly's towers: bars in a stretched SVG, every label in HTML so text never scales. */
 .ds-towers { margin: 0; width: 100%; }
 .ds-towers-plot { position: relative; height: 200px; border-bottom: 1px solid var(--rule-strong); }
 .ds-towers-plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.ds-towers .is-quiet { fill: var(--fill-quiet); }
+.ds-towers .is-quiet { fill: var(--mark-quiet); }
 .ds-towers .is-ink { fill: var(--ink); }
 .ds-towers .is-signal { fill: var(--signal); }
 .ds-towers-curve { fill: none; stroke: var(--ink-2); stroke-width: 1.5; }

@@ -101,7 +101,7 @@ export function CourseCurve({ course, typical, height = 280 }: { course: ShapedC
 export function BandStrips({ course }: { course: ShapedCourse }) {
   return (
     <div className="fp-bands" role="table" aria-label={`${course.city} deviation from the typical curve, by finish band`}>
-      <div role="row" className="fp-band-row fp-band-head"><span role="columnheader">Finish band</span><span role="columnheader">Each section against typical: blue faster, orange slower</span></div>
+      <div role="row" className="fp-band-row fp-band-head"><span role="columnheader">Finish band</span><span role="columnheader">Each section against typical: blue faster, red slower</span></div>
       <div role="row" className="fp-band-row"><span role="cell">All finishes</span><span role="cell"><Strip values={course.deviation} /></span></div>
       {course.bands?.map((b) => <div key={b.band} role="row" className="fp-band-row"><span role="cell">{b.band}</span><span role="cell"><Strip values={b.deviation} /></span></div>)}
     </div>

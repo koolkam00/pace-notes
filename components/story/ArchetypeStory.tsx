@@ -7,7 +7,7 @@ import { useWidth } from '@/components/viz/useSize';
 import { useUnits } from '@/components/UnitsProvider';
 import { SKIN_TONES } from '@/lib/art/gait';
 import type { Archetypes } from '@/lib/insights';
-import { checkpointLabel, count, hms, paceColour } from '@/lib/viz/format';
+import { checkpointLabel, count, hms, paceColour, paceText } from '@/lib/viz/format';
 import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
 import { paceLabel } from '@/lib/units';
 import { useStoryData } from './StoryData';
@@ -282,7 +282,7 @@ export function WhichArchetype({ data: given }: { data?: Archetypes }) {
         <div className="which-result" style={{ ['--arch' as string]: ARCHETYPE_COLOURS[result.best] }}>
           <div className="which-name"><span className="archetype-dot" /> You ran like a <strong>{data.archetypes[result.best].name}</strong></div>
           <div className="which-strip">
-            {result.rel.map((v, i) => <span key={i} style={{ background: paceColour(v, 14), color: v <= -10.5 || v >= 12.5 ? '#FFFDF8' : 'var(--ink)' }}><b>{result.sentence[i]}</b><small>{v > 0 ? '+' : v < 0 ? '−' : ''}{Math.abs(v) >= 10 ? Math.abs(v).toFixed(0) : Math.abs(v).toFixed(1)}</small></span>)}
+            {result.rel.map((v, i) => <span key={i} style={{ background: paceColour(v, 14), color: paceText(paceColour(v, 14)) === 'paper' ? 'var(--night-ink)' : 'var(--night)' }}><b>{result.sentence[i]}</b><small>{v > 0 ? '+' : v < 0 ? '−' : ''}{Math.abs(v) >= 10 ? Math.abs(v).toFixed(0) : Math.abs(v).toFixed(1)}</small></span>)}
           </div>
           <p className="which-strip-note">% against your own average pace, section by section</p>
           <p>

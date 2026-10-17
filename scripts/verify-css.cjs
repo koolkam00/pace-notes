@@ -12,7 +12,13 @@
 //      (verify-compat does not scan CSS); container query units may also sit inside @container;
 //   5. no @layer (Safari before 15.4 drops layered rules) and no !important outside print and reduced-motion rules;
 //   6. every var(--name) without a fallback names a token from tokens.css, a property the same file declares, or one a
-//      component sets inline (LOCAL below): a misspelt token silently computes to nothing.
+//      component sets inline (LOCAL below): a misspelt token silently computes to nothing;
+//   7. a fill or background of var(--fill-quiet) comes with a var(--mark-quiet) edge in the same rule (stroke,
+//      box-shadow, border or outline): the quiet fill is 1.6:1 on paper and 1.5:1 in dark, so the edge carries the 3:1
+//      (spec section 3.1). An area silhouette is exempt: its top edge is the line drawn over it;
+//   8. the pace ramp (PACE_RAMP in lib/viz/format.ts) stays off the signal hue: every warm stop at OKLab ΔE ≥ 15 from
+//      --signal, --night-signal and the dark theme's --signal, and every colour on the warm half at ≥ 14, so a slow
+//      block never reads as the reading (principle 3).
 //
 //   node scripts/verify-css.cjs            checks app/styles
 //   node scripts/verify-css.cjs --self-test checks the checker against planted mistakes
@@ -123,7 +129,50 @@ function check(file, css) {
       if (/!important/.test(value) && !printOrReduced) add(r.line, `!important on ${prop} outside print and reduced-motion rules`);
     }
     if (/:has\(/.test(r.selector) && !supportsTesting(r.context, /selector\(\s*:has\(/)) add(r.line, ':has() outside an @supports selector(:has(…)) block');
+    // 7. a quiet fill without its edge
+    if (/(?:^|;|\s)(?:fill|background(?:-color)?)\s*:\s*var\(--fill-quiet\)/.test(r.body) && !/\.a-silhouette\b/.test(r.selector)
+      && !/(?:stroke|box-shadow|border(?:-[a-z]+)*|outline)\s*:[^;]*var\(--mark-quiet\)/.test(r.body)) {
+      add(r.line, `${r.selector.replace(/\s+/g, ' ')} fills with --fill-quiet but has no --mark-quiet edge (stroke, box-shadow, border or outline)`);
+    }
     void ctx;
+  }
+  return problems;
+}
+
+/** OKLab ΔE ×100 between two hex colours. */
+function deltaE(a, b) {
+  const lab = (hex) => {
+    const [r, g, b2] = [1, 3, 5].map((i) => { const c = parseInt(hex.slice(i, i + 2), 16) / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+    const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b2);
+    const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b2);
+    const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b2);
+    return [0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s, 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s];
+  };
+  const [x, y] = [lab(a), lab(b)];
+  return 100 * Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]);
+}
+
+/** 8. The pace ramp against every signal colour the tokens define. */
+function checkRamp(formatTs, tokensCss) {
+  const problems = [];
+  const ramp = (formatTs.match(/export const PACE_RAMP = \[([^\]]+)\]/) || [])[1];
+  if (!ramp) return ['lib/viz/format.ts: PACE_RAMP not found'];
+  const stops = [...ramp.matchAll(/#[0-9A-Fa-f]{6}/g)].map((m) => m[0]);
+  const signals = [...uncomment(tokensCss).matchAll(/--(?:night-)?signal\s*:\s*(#[0-9A-Fa-f]{6})/g)].map((m) => m[1]);
+  if (stops.length < 3 || !signals.length) return ['lib/viz/format.ts: PACE_RAMP or the --signal tokens could not be read'];
+  const mid = Math.floor(stops.length / 2);
+  const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const hex = (c) => '#' + c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+  for (const stop of stops.slice(mid + 1)) {
+    const worst = Math.min(...signals.map((sig) => deltaE(stop, sig)));
+    if (worst < 15) problems.push(`lib/viz/format.ts: PACE_RAMP warm stop ${stop} is ΔE ${worst.toFixed(1)} from a signal colour (needs ≥ 15)`);
+  }
+  for (let k = mid; k < stops.length - 1; k++) {
+    for (let f = 0; f <= 1; f += 0.05) {
+      const c = hex(rgb(stops[k]).map((v, j) => v + f * (rgb(stops[k + 1])[j] - v)));
+      const worst = Math.min(...signals.map((sig) => deltaE(c, sig)));
+      if (worst < 14) { problems.push(`lib/viz/format.ts: PACE_RAMP between ${stops[k]} and ${stops[k + 1]} passes ${c}, ΔE ${worst.toFixed(1)} from a signal colour (needs ≥ 14)`); break; }
+    }
   }
   return problems;
 }
@@ -163,6 +212,10 @@ function selfTest() {
       ['.a { padding: var(--s-4); }', null],
       ['.a { padding: var(--nope, 4px); }', null],
       ['.a { --tooth: 8px; } .b { height: var(--tooth); }', null],
+      ['.bin { fill: var(--fill-quiet); }', /no --mark-quiet edge/],
+      ['.bin { fill: var(--fill-quiet); stroke: var(--mark-quiet); stroke-width: 1.5px; }', null],
+      ['.key { background: var(--fill-quiet); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }', null],
+      ['.viz .a-silhouette { fill: var(--fill-quiet); }', null],
     ],
     'components/chart-frame.css': [['.readout small { font-size: .7rem; }', /under 12 px/]],
     'tokens.css': [[':root { --ink: #15171C; }', null]],
@@ -175,6 +228,9 @@ function selfTest() {
       if (!ok) { failed++; console.error(`self-test: ${rel} ${css}\n  expected ${expect || 'no problem'}, got ${JSON.stringify(got)}`); }
     }
   }
+  const tokensCss = ':root { --signal: #E5461A; --night-signal: #FF6A3D; }';
+  if (!checkRamp("export const PACE_RAMP = ['#1D3FD8', '#4F79F7', '#9DB6FB', '#EFE8DA', '#FFB48A', '#FF6A3D', '#C8202F'] as const;", tokensCss).length) { failed++; console.error('self-test: an orange warm stop passed the ramp check'); }
+  if (checkRamp("export const PACE_RAMP = ['#1D3FD8', '#4F79F7', '#9DB6FB', '#EFE8DA', '#EDA6C1', '#C65F9E', '#8F1449'] as const;", tokensCss).length) { failed++; console.error('self-test: the rose ramp failed the ramp check'); }
   console.log(failed ? `verify-css self-test: ${failed} failed` : 'verify-css self-test: ok');
   return failed ? 1 : 0;
 }
@@ -182,13 +238,14 @@ function selfTest() {
 function main() {
   if (process.argv.includes('--self-test')) process.exit(selfTest());
   const list = files(STYLES);
-  const problems = list.flatMap((f) => check(f, fs.readFileSync(f, 'utf8')));
+  const problems = list.flatMap((f) => check(f, fs.readFileSync(f, 'utf8')))
+    .concat(checkRamp(fs.readFileSync(path.join(ROOT, 'lib', 'viz', 'format.ts'), 'utf8'), fs.readFileSync(path.join(STYLES, 'tokens.css'), 'utf8')));
   if (problems.length) {
     console.error(`verify-css: ${problems.length} problem${problems.length === 1 ? '' : 's'}`);
     for (const p of problems) console.error('  ' + p);
     process.exit(1);
   }
-  console.log(`verify-css: ${list.length} files in app/styles (legacy exempt) follow the token, breakpoint, chart-text and compatibility rules`);
+  console.log(`verify-css: ${list.length} files in app/styles (legacy exempt) follow the token, breakpoint, chart-text, quiet-edge and compatibility rules; the pace ramp stays off the signal hue`);
 }
 
 main();

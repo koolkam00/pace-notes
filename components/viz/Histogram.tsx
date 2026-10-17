@@ -14,7 +14,8 @@ import { linear, pc, stepEdge, stepPath, u, yScale } from './scale';
  * signal; the smooth curve as a 1.25 px --ink-2 line. With `curve`, a lens switches to "Against the curve": the same
  * bins redrawn as their ratio to the curve, diverging from a solid 1× line (the honest comparison).
  *
- * Pass `scrub` to make it scrubbable: the needle sits behind the columns, so it stops at the top of the tower it reads.
+ * Pass `scrub` to make it scrubbable: the needle runs from the top of the bin it reads to the baseline, in front, so it
+ * marks that bin; away from the reading, the reading's tower turns ink and the needle is the one orange mark.
  */
 export type Bin = { x: number; n: number };
 
@@ -44,9 +45,10 @@ export default function Histogram({ bins, curve, marks = [], reading, ticks, lab
   const max = Math.max(...bins.map((b) => b.n), ...(curve ?? []).map((c) => c.v));
   const y = yScale(0, max, { top: 0.16 });
   const at = new Map(bins.map((b) => [b.x, b.n]));
+  // A tower covers its bin exactly (the silhouette's step and its 1.5 px edge), so no grey sliver shows beside it.
   const column = (m: number, cls: string, scale = y, from = 1) => {
     const top = scale(at.get(m) ?? 0);
-    return <rect key={`${cls}${m}`} className={cls} x={pc(x(m))} width={pc(w * 0.92)} y={pc(Math.min(top, from))} height={pc(Math.abs(from - top))} />;
+    return <rect key={`${cls}${m}`} className={`${cls} histo-tower`} x={pc(x(m))} width={pc(w)} y={pc(Math.min(top, from))} height={pc(Math.abs(from - top))} />;
   };
   const count = (
     <g data-layer={lens ? 'count' : undefined}>
@@ -56,7 +58,7 @@ export default function Histogram({ bins, curve, marks = [], reading, ticks, lab
         {curve ? <path className="l-ink2" d={curve.map((c, i) => `${i ? 'L' : 'M'}${u(x(c.x + 0.5))} ${u(y(c.v))}`).join('')} /> : null}
       </svg>
       {marks.filter((m) => m !== reading).map((m) => column(m, 'm-ink'))}
-      {reading !== undefined ? column(reading, 'm-signal') : null}
+      {reading !== undefined ? column(reading, 'm-signal is-reading') : null}
     </g>
   );
 
@@ -70,7 +72,7 @@ export default function Histogram({ bins, curve, marks = [], reading, ticks, lab
     const ratioOf = new Map(ratios.map((r) => [r.x, r.r]));
     const col = (m: number, cls: string) => {
       const top = ry(ratioOf.get(m) ?? 1), one = ry(1);
-      return <rect key={`r${cls}${m}`} className={cls} x={pc(x(m))} width={pc(w * 0.92)} y={pc(Math.min(top, one))} height={pc(Math.abs(one - top))} />;
+      return <rect key={`r${cls}${m}`} className={`${cls} histo-tower`} x={pc(x(m))} width={pc(w)} y={pc(Math.min(top, one))} height={pc(Math.abs(one - top))} />;
     };
     ratioLayer = (
       <g data-layer="ratio" className="is-off">
@@ -79,7 +81,7 @@ export default function Histogram({ bins, curve, marks = [], reading, ticks, lab
           <path className="a-silhouette" d={stepPath(ratios.map((r) => ({ x: x(r.x), y: ry(r.r) })), w, ry(1))} />
         </svg>
         {marks.filter((m) => m !== reading).map((m) => col(m, 'm-ink'))}
-        {reading !== undefined ? col(reading, 'm-signal') : null}
+        {reading !== undefined ? col(reading, 'm-signal is-reading') : null}
         <RefLine y={ry(1)} label="1× the curve" side="right" />
       </g>
     );
@@ -96,10 +98,15 @@ export default function Histogram({ bins, curve, marks = [], reading, ticks, lab
     </Plot>
   );
   const axis = <Axis ticks={ticks.map((t) => ({ x: x(t.x), label: t.label }))} />;
+  // The needle starts at the top of the bin under each scrub point.
+  const needleTops = scrub?.points.x.map((px) => {
+    const b = bins[Math.max(0, Math.min(bins.length - 1, Math.floor(px * (x1 - x0))))];
+    return y(b.n);
+  });
   return (
     <ChartFrame label={label} height={height} heightMd={heightMd} k={lens ? 'count' : undefined}
       lens={lens ? <Lens label={lens.label} options={[{ value: 'count', label: lens.count }, { value: 'ratio', label: lens.ratio }]} defaultValue="count" /> : undefined}
-      scrub={scrub ? <Scrubber points={scrub.points} initial={scrub.initial} detents={scrub.detents} label={scrub.label} axis={axis}>{plot}</Scrubber> : undefined}
+      scrub={scrub ? <Scrubber points={{ ...scrub.points, y: scrub.points.y ?? needleTops }} initial={scrub.initial} detents={scrub.detents} label={scrub.label} axis={axis}>{plot}</Scrubber> : undefined}
       plot={scrub ? undefined : plot} axis={scrub ? undefined : axis}
       keys={[{ label: keyLabels.bin, mark: 'square', tone: 'quiet' }, ...(marks.length && keyLabels.mark ? [{ label: keyLabels.mark, mark: 'square' as const }] : []), ...(curve && keyLabels.curve ? [{ label: keyLabels.curve, mark: 'line' as const }] : [])]}
       values={values}

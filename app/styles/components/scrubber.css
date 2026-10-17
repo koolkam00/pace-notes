@@ -8,6 +8,12 @@
 
 /* The needle: 1.5 px of signal from the top of the plot to the baseline, or to the top of the mark it reads. */
 .viz-frame .scrub-needle { position: absolute; top: 0; bottom: 0; width: 1.5px; margin-left: -.75px; background: var(--signal); pointer-events: none; }
+/* A histogram's needle runs in front, from the top of the column it reads to the baseline. Under a lens whose columns
+   are drawn differently ("Against the curve") it goes back behind the marks at full height. */
+.viz-frame .scrub-needle.is-front { z-index: 1; top: var(--needle-top, 0%); width: 2px; margin-left: -1px; }
+.viz-frame[data-k="ratio"] .scrub-needle.is-front { z-index: auto; top: 0; width: 1.5px; margin-left: -.75px; }
+/* Away from the headline's point, the reading mark is ink: the needle is the one orange mark. */
+.viz-frame .scrub.is-away .m-signal.is-reading { fill: var(--ink); }
 
 /* Detents: small dots on the baseline at the values that matter; the one the needle reaches flashes. */
 .viz-frame .scrub-detents { position: absolute; left: 0; right: 0; top: 100%; height: 0; pointer-events: none; }
@@ -27,8 +33,11 @@
 .viz-frame .scrub-hint.is-left { transform: translateX(-100%); margin-left: -20px; }
 .viz-frame .is-touched .scrub-hint { opacity: 0; }
 
-/* Pick mode: the chosen mark is ringed. */
-.viz-frame .scrub-ring { position: absolute; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--signal); pointer-events: none; }
+/* Pick mode: the chosen mark takes a 2 px ink outline (the barcode's convention). The orange ring stays reserved for the
+   reader's own guess, goal or time (principle 3). */
+.viz-frame .scrub-ring { position: absolute; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--ink); pointer-events: none; }
+.viz-frame.waffle .scrub-ring { width: calc(100% / var(--cols, 25) * 6 / 7); height: auto; aspect-ratio: 1; margin: 0; border-radius: 1.5px; transform: translate(-50%, -50%); background: var(--signal); box-shadow: 0 0 0 1px var(--paper); }
+@supports not (aspect-ratio: 1) { .viz-frame.waffle .scrub-ring { height: 10px; } }
 .viz-frame .is-pick .scrub-plot { cursor: pointer; }
 
 @media (prefers-reduced-motion: reduce) {

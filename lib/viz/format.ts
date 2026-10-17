@@ -64,8 +64,13 @@ export function sectionLabel(index: number, _units?: UnitSystem): string {
   return bounds ? matSection(bounds[0], bounds[1]) : '—';
 }
 
-/** Seven-step diverging scale for pace relative to a runner's own reference (negative = faster). */
-export const PACE_RAMP = ['#1D3FD8', '#4F79F7', '#9DB6FB', '#EFE8DA', '#FFB48A', '#FF6A3D', '#C8202F'] as const;
+/**
+ * Seven-step diverging scale for pace relative to a runner's own reference (negative = faster), for heatmaps only.
+ * Faster runs to blue, slower through rose to a deep crimson, so a slow block never reads as the signal orange
+ * (principle 3): every warm stop sits at OKLab ΔE ≥ 15 from --signal and --night-signal, and every colour on the warm
+ * half at ≥ 14 (verify-css checks both). Each stop carries ink or paper text at 4.5:1 or better (`paceText`).
+ */
+export const PACE_RAMP = ['#1D3FD8', '#4F79F7', '#9DB6FB', '#EFE8DA', '#EDA6C1', '#C65F9E', '#8F1449'] as const;
 
 /** Continuous diverging colour for a relative pace change in percent. */
 export function paceColour(relativePct: number, span = 12): string {
@@ -75,4 +80,11 @@ export function paceColour(relativePct: number, span = 12): string {
   const f = u - i;
   const c = stops[i].map((v, k) => Math.round(v + f * (stops[i + 1][k] - v)));
   return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+
+/** The text colour that reads best on a `paceColour` block: ink on the light middle, paper on the dark ends. */
+export function paceText(rgb: string): 'ink' | 'paper' {
+  const [r, g, b] = (rgb.match(/\d+/g) ?? ['0', '0', '0']).map((v) => { const c = Number(v) / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+  const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return (l + 0.05) / 0.0619 >= 0.92 / (l + 0.05) ? 'ink' : 'paper';
 }

@@ -6,8 +6,11 @@ import Readout from './Readout';
 /**
  * The scrubber (the redesign spec, section 3.5): touch the data.
  *
- * `mode="needle"` (default): a 1.5 px signal needle down the plot, drawn behind the marks so it stops at the top of the
- * tower it reads, a gap for the tick labels, then a stem to a 20 px crown in the row under the axis. A horizontal drag (a 6 px move with
+ * `mode="needle"` (default): a 1.5 px signal needle down the plot, drawn behind the marks, a gap for the tick labels,
+ * then a stem to a 20 px crown in the row under the axis. With `points.y` (a histogram) the needle instead runs in front
+ * from the top of the column it reads down to the baseline, so it marks that column and never floats above the plot;
+ * while it is away from the headline's point (`initial`) the root carries is-away, and the reading mark turns ink so
+ * only one orange mark shows. A horizontal drag (a 6 px move with
  * |dx| > 1.2·|dy|) scrubs and a vertical one scrolls (touch-action: pan-y); a tap sets the needle; on desktop, hover moves
  * it and leaving returns it to the last tap. The needle sits on the nearest point and never eases; within 8 px of a detent
  * it snaps there, the detent's dot flashes and Android ticks (navigator.vibrate(3)).
@@ -22,7 +25,7 @@ import Readout from './Readout';
 export type ScrubPoints = {
   /** x of each point as a fraction of the plot (0 left, 1 right), in reading order. */
   x: number[];
-  /** y of each point as a fraction from the top: where the ring sits (pick mode). */
+  /** y of each point as a fraction from the top: where the ring sits (pick mode), or where the needle starts (needle mode). */
   y?: number[];
   keys: string[];
   values: string[];
@@ -173,13 +176,13 @@ export default function Scrubber({ points, initial, detents = [], label, mode = 
   const pos = `${(x * 100).toFixed(3)}%`;
   const hintLeft = x > 0.66;
   return (
-    <div ref={root} className={`scrub is-${mode}${dragging ? ' is-dragging' : ''}${touched ? ' is-touched' : ''}`}>
+    <div ref={root} className={`scrub is-${mode}${dragging ? ' is-dragging' : ''}${touched ? ' is-touched' : ''}${index !== clamp(initial) ? ' is-away' : ''}`}>
       <Readout hidden keyText={points.keys[index]} value={points.values[index]} tone={tone} side={points.side?.map((s) => ({ label: s.label, value: s.values[index] }))} />
       <p className="sr-only" aria-live="polite">{settled}</p>
       <div className="scrub-area" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={(e) => end(e, false)} onPointerCancel={(e) => end(e, true)} onPointerLeave={onPointerLeave}>
         <div ref={plot} className="viz-plot scrub-plot" role="slider" tabIndex={0} aria-label={label}
           aria-valuemin={0} aria-valuemax={n - 1} aria-valuenow={index} aria-valuetext={text(index)} onKeyDown={onKeyDown}>
-          {mode === 'needle' ? <span className="scrub-needle" style={{ left: pos }} aria-hidden="true" /> : null}
+          {mode === 'needle' ? <span className={`scrub-needle${y !== undefined ? ' is-front' : ''}`} style={{ left: pos, ...(y !== undefined ? { ['--needle-top' as string]: `${(y * 100).toFixed(3)}%` } : {}) }} aria-hidden="true" /> : null}
           {children}
           {mode === 'needle' ? (
             <>

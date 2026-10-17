@@ -5,9 +5,11 @@ import Scrubber from './Scrubber.client';
 import { pc } from './scale';
 
 /**
- * A waffle (the redesign spec, section 3.6): one square per case, 25 to a row, lit in signal where the sentence's
- * condition held and quiet elsewhere. Tap a tile to read it out ("Berlin 2013 vs 2025: 44°F vs 68°F, 16% vs 28%").
- * The squares keep their shape at any width: the plot's height follows its width (aspect-ratio).
+ * A waffle (the redesign spec, section 3.6, calmed under section 00): one small square per case, 25 to a row, in ink
+ * where the sentence's condition held and quiet (with its edge) elsewhere. The tile in the readout is the one signal
+ * mark: tap a tile to read it out ("Berlin 2013 vs 2025: 44°F vs 68°F, 16% vs 28%"). Cells are at most 12 px with
+ * 2 px gaps and the grid is centred, so a wide screen never turns the waffle into a slab; the squares keep their shape
+ * at any width (the plot's height follows its width).
  */
 export type WaffleTile = { id: string; lit: boolean; key: string; value: string; side?: string };
 
@@ -18,13 +20,13 @@ export default function Waffle({ tiles, columns = 25, label, keyLabels, values, 
 }) {
   const ordered = [...tiles.filter((t) => t.lit), ...tiles.filter((t) => !t.lit)];
   const rows = Math.ceil(ordered.length / columns);
-  const gap = 0.16;
+  const gap = 1 / 7; // 2 px of a 14 px pitch
   const cell = (i: number) => ({ col: i % columns, row: Math.floor(i / columns) });
   const plot = (
     <Plot>
       {ordered.map((t, i) => {
         const { col, row } = cell(i);
-        return <rect key={t.id} className={t.lit ? 'm-signal' : 'm-quiet'} x={pc((col + gap / 2) / columns)} y={pc((row + gap / 2) / rows)} width={pc((1 - gap) / columns)} height={pc((1 - gap) / rows)} rx={1.5} />;
+        return <rect key={t.id} className={t.lit ? 'm-ink' : 'm-quiet'} x={pc((col + gap / 2) / columns)} y={pc((row + gap / 2) / rows)} width={pc((1 - gap) / columns)} height={pc((1 - gap) / rows)} rx={1.5} />;
       })}
     </Plot>
   );
@@ -36,9 +38,9 @@ export default function Waffle({ tiles, columns = 25, label, keyLabels, values, 
     side: sideLabel ? [{ label: sideLabel, values: ordered.map((t) => t.side ?? '—') }] : undefined,
   };
   return (
-    <ChartFrame className="waffle" label={label} style={{ '--ratio': String(columns / rows) } as CSSProperties}
+    <ChartFrame className="waffle" label={label} style={{ '--ratio': String(columns / rows), '--cols': String(columns) } as CSSProperties}
       scrub={<Scrubber mode="pick" points={points} initial={initial ?? 0} label={label}>{plot}</Scrubber>}
-      keys={[{ label: keyLabels.lit, mark: 'square', tone: 'signal' }, { label: keyLabels.other, mark: 'square', tone: 'quiet' }]}
+      keys={[{ label: keyLabels.lit, mark: 'square' }, { label: keyLabels.other, mark: 'square', tone: 'quiet' }]}
       values={values}
     />
   );

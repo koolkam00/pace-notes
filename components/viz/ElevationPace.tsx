@@ -4,15 +4,8 @@ import Axis from './Axis';
 import Plot, { Baseline } from './Plot';
 import Scrubber from './Scrubber.client';
 import { areaPath, linear, linePath, pc } from './scale';
-import { paceColour } from '@/lib/viz/format';
+import { paceColour, paceText } from '@/lib/viz/format';
 import { fitClass, textWidth } from './labels';
-
-/** Ink or paper text on a ramp colour, whichever reads better (relative luminance). */
-function onRamp(rgb: string): 'ink' | 'paper' {
-  const [r, g, b] = (rgb.match(/\d+/g) ?? ['0', '0', '0']).map((v) => { const c = Number(v) / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
-  const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return (l + 0.05) / 0.0619 >= 0.92 / (l + 0.05) ? 'ink' : 'paper';
-}
 
 /**
  * Elevation and pace (the redesign spec, section 3.6): the course profile as a 2 px ink line over a quiet area with an
@@ -53,7 +46,7 @@ export default function ElevationPace({ km, metres, relief, sections, focus, lab
         // The plot width at which this block holds its value with 2 px to spare (2 px gaps between blocks).
         const need = ((textWidth(s.display, 12) + 4) * totalKm) / (s.endKm - s.startKm) + 2 * (sections.length - 1);
         return (
-          <span key={s.label} className={`pace-block is-on-${onRamp(bg)}${i === focus ? ' is-focus' : ''}`} style={{ flexGrow: s.endKm - s.startKm, background: bg }}>
+          <span key={s.label} className={`pace-block is-on-${paceText(bg)}${i === focus ? ' is-focus' : ''}`} style={{ flexGrow: s.endKm - s.startKm, background: bg }}>
             <span className={fitClass(need) || undefined}>{s.display}</span>
           </span>
         );
