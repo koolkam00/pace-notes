@@ -23,11 +23,18 @@
 .home-hero-dek { display: none; margin: var(--s-3) 0 0; max-width: 30rem; font-size: var(--t-body); line-height: 1.5; color: var(--night-ink-2); text-wrap: pretty; }
 
 /* The replay band (components/viz/ReplayFrame.tsx in its band variant): the race and clock, the field at a fifth of
-   the screen, then the moment's sentence with play and pause beside it, so the band takes one row less. */
+   the screen with the two lines its sentence names (20K and the finish) labelled at its foot, where the field's
+   tail never reaches, then the moment's
+   sentence with play and pause beside it, so the band takes one row less. */
 .home-start .hero-replay.is-band .replay-frame { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-3); }
 .home-start .hero-replay.is-band .replay-frame > * { grid-column: 1 / -1; }
-.home-start .hero-replay.is-band .replay-moment { grid-column: 1; min-height: 2.6em; margin-top: var(--s-2); font-size: .9375rem; }
-.home-start .hero-replay.is-band .replay-scrub { grid-column: 2; align-self: center; margin-top: var(--s-2); }
+.home-start .hero-replay.is-band .replay-hud { grid-row: 1; }
+.home-start .hero-replay.is-band .replay-box { grid-row: 2; }
+.home-start .hero-replay.is-band .replay-mats { display: block; grid-row: 2; align-self: end; z-index: 1; height: 16px; margin: 0 0 4px; pointer-events: none; }
+.home-start .hero-replay.is-band .replay-mats span { text-shadow: 0 0 3px var(--night), 0 0 6px var(--night); }
+.home-start .hero-replay.is-band .replay-mats span:not(:nth-child(3)):not(.is-finish) { display: none; }
+.home-start .hero-replay.is-band .replay-moment { grid-column: 1; grid-row: 3; min-height: 2.6em; margin-top: var(--s-2); font-size: .9375rem; }
+.home-start .hero-replay.is-band .replay-scrub { grid-column: 2; grid-row: 3; align-self: center; margin-top: var(--s-2); }
 
 /* ---------- The three ways to start (components/home/HomeDoors.tsx) ---------- */
 .home-doors { display: grid; gap: var(--s-2); margin-top: var(--s-4); }
@@ -137,6 +144,9 @@
   .home-start .hero-replay.is-band .replay-frame { display: block; }
   .home-start .hero-replay.is-band .replay-clock { font-size: 1.75rem; }
   .home-start .hero-replay.is-band .replay-mats, .home-start .hero-replay.is-band .replay-axis-y { display: block; }
+  .home-start .hero-replay.is-band .replay-mats { height: 22px; margin: 6px 0 0; }
+  .home-start .hero-replay.is-band .replay-mats span { text-shadow: none; }
+  .home-start .hero-replay.is-band .replay-mats span:not(:nth-child(3)):not(.is-finish) { display: block; }
   .home-start .hero-replay.is-band .replay-track { display: block; }
   .home-start .hero-replay.is-band .replay-moment { margin-top: var(--s-3); font-size: 1.0625rem; }
   .home-start .hero-replay.is-band .replay-scrub { margin-top: var(--s-2); }
