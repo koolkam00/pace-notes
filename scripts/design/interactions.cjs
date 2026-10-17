@@ -159,14 +159,25 @@ const INTERACTIONS = [
     },
   },
   {
-    name: 'deck-swipe',
-    selector: '.deck',
+    // The story's one step-by-step reveal: its graphic pinned with the second and the last step current. A full-page
+    // capture cannot show a sticky graphic, so these viewport captures are how a scrolly is reviewed.
+    name: 'scrolly',
+    selector: '.scrolly',
     async run(page, el, snap) {
-      await inView(el);
-      await el.evaluate((node) => node.scrollBy({ left: node.clientWidth * 0.82, behavior: 'instant' }));
-      await pause(page, 500);
-      await snap('deck-swiped');
-      return [];
+      const steps = el.locator('.scrolly-step');
+      const n = await steps.count();
+      if (n < 2) return ['a scrolly needs at least two steps'];
+      const problems = [];
+      for (const [i, name] of [[1, 'scrolly-step-2'], [n - 1, 'scrolly-step-last']]) {
+        // The step's text two thirds down the screen: below a phone's pinned graphic, past the line that makes it
+        // current (80%, or 72% from 900 px), the next step's text still below the screen.
+        await steps.nth(i).evaluate((node) => { const t = node.querySelector('p') || node; window.scrollTo(0, t.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.66); });
+        await pause(page, 900);
+        await snap(name);
+        const state = await el.evaluate((node) => ({ step: node.dataset.step, still: node.classList.contains('is-static') }));
+        if (!state.still && state.step !== String(i)) problems.push(`step ${i + 1} did not become current (data-step=${state.step})`);
+      }
+      return problems;
     },
   },
   {

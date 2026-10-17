@@ -110,7 +110,9 @@ async function scrollThrough(page, step, maxSteps) {
 async function open(page, route, opts) {
   const errors = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + String(e && e.message || e).slice(0, 240)));
-  page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text().slice(0, 240)); });
+  // A request this tool refused (another host, such as analytics under a dummy key) logs ERR_BLOCKED_BY_CLIENT; it is
+  // listed in `foreign` instead, so it is not the page's error.
+  page.on('console', (m) => { if (m.type() === 'error' && !/ERR_BLOCKED_BY_CLIENT/.test(m.text())) errors.push('console: ' + m.text().slice(0, 240)); });
   let status = null;
   try {
     const res = await page.goto(SITE + route, { waitUntil: 'load', timeout: 60000 });
