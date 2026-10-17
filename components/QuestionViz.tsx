@@ -1,19 +1,33 @@
 'use client';
 
 import { useId, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { finite, formatNumber } from '@/lib/csv';
 import type { ChartSpec } from '@/lib/research-data';
 import { filterOptions, resolveSelection } from '@/lib/chart-selection';
 import { sectionLabel } from '@/lib/section-labels';
 import { distanceValue, elevationValue, paceLabel, paceValue, unitText, type UnitSystem } from '@/lib/units';
 import { paceTicks } from '@/lib/pace-ticks';
-import LineProfile, { type ProfileSeries } from './viz/LineProfile';
-import { niceTicks } from './viz/scale';
+import { chunkLoadFailed, reloadAfterChunkError } from '@/lib/chunk-reload';
+import { trackFailure } from '@/lib/analytics';
 import { useUnits } from './UnitsProvider';
+import type { QuestionLineChartProps } from './QuestionLineChart';
 
 // Series colours from the tokens: ink, then the second ordinal step, then the quiet mark.
 const COLORS = ['var(--ink)', 'var(--ordinal-2)', 'var(--mark-quiet)'];
-const oneDecimal = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
+
+// The line form (LineProfile, since the redesign) loads after the page is interactive, so pages that show a QuestionViz
+// line keep their initial JavaScript; the placeholder holds the chart's height, so nothing shifts when it arrives. If the
+// chunk fails, the page reloads once as for any failed chunk; after that only the box says so and the exact values stay.
+const ChartUnavailable = () => <div style={{ display: 'grid', placeItems: 'center', height: '100%', textAlign: 'center' }}><p className="chart-note">This chart didn&apos;t load. Reload the page to try again, or see the exact values below.</p></div>;
+const QuestionLineChart = dynamic<QuestionLineChartProps>(() => import('./QuestionLineChart').catch((error: Error) => {
+  // A reload is reported by the page it loads (components/SiteAnalytics.tsx); a chart that stays missing, here.
+  if (!reloadAfterChunkError(error)) { if (chunkLoadFailed(error)) trackFailure('chunk_load'); else trackFailure('js_error'); }
+  return { default: ChartUnavailable };
+}), {
+  ssr: false,
+  loading: () => <div className="chart-placeholder" style={{ width: '100%', height: '100%' }} aria-hidden="true" />,
+});
 
 export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { spec: ChartSpec; headingLevel?: 2 | 3; unitSystem?: UnitSystem }) {
   const id = useId();
@@ -97,30 +111,6 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
     'km': selectedUnits === 'mi' ? 'Distance (miles)' : 'Distance (kilometres)',
   };
 
-  // The line form, server-drawn through LineProfile: every row with all its series recorded, the first series in ink,
-  // the second dashed, a band (when published) washed under them. The exact values stay in the table below.
-  const line = () => {
-    const drawn = chartRows.map((row, i) => ({ row, i })).filter(({ row }) => spec.series.every(series => finite(row[series.key]) !== null) && (!spec.xNumeric || finite(row.label) !== null));
-    if (!drawn.length) return null;
-    const xs = drawn.map(({ row, i }) => spec.xNumeric ? Number(row.label) : i);
-    const series: ProfileSeries[] = spec.series.map((s, i) => ({
-      id: s.key, values: drawn.map(({ row }) => Number(row[s.key])),
-      tone: spec.band ? (i ? 'quiet' : 'ink') : i === 2 ? 'quiet' : 'ink', dashed: !spec.band && i === 1,
-    }));
-    const intervals = spec.band ? drawn.map(({ row }) => row.interval as [number | null, number | null]) : [];
-    const band = spec.band && intervals.every(([a, b]) => a !== null && b !== null) ? { lo: intervals.map(([a]) => Number(a)), hi: intervals.map(([, b]) => Number(b)) } : undefined;
-    const ys = [...series.flatMap(s => s.values), ...(band ? [...band.lo, ...band.hi] : [])];
-    const [lo, hi] = [Math.min(...ys), Math.max(...ys)];
-    const yDomain: [number, number] | undefined = paceAxis ? [paceAxis.domain[0] / 60, paceAxis.domain[1] / 60] : signed ? undefined : spec.unit === '%' ? [0, Math.max(...niceTicks(0, hi, 4), hi)] : undefined;
-    const yTicks = (paceAxis ? paceAxis.ticks.map(t => t / 60) : niceTicks(yDomain ? yDomain[0] : lo, yDomain ? yDomain[1] : hi, 4)).map(v => ({ value: v, label: axisValue(v) }));
-    const tickAt = (v: number) => spec.xNumeric ? (distanceAxis ? oneDecimal.format(v) : formatNumber(v, spec.xUnit)) : text(String(drawn[v]?.row.label ?? ''));
-    const xValues = spec.xNumeric ? (sectionTicks ?? niceTicks(Math.min(...xs), Math.max(...xs), 4)) : xs.length <= 6 ? xs : [xs[0], xs[Math.floor(xs.length / 2)], xs[xs.length - 1]];
-    return <LineProfile x={xs} yDomain={yDomain} xTicks={xValues.map(v => ({ value: v, label: tickAt(v) }))} yTicks={yTicks}
-      layers={[{ id: 'all', label: text(spec.title), series, band }]} refs={signed ? [{ value: 0 }] : []}
-      axisTitle={{ end: text(spec.xLabel) }} label={`${text(spec.title)}: a line chart; the exact values are in the table below`}
-      keys={spec.series.length > 1 ? spec.series.map((s, i) => ({ label: text(s.label), mark: series[i].dashed ? 'dash' as const : 'line' as const, tone: series[i].tone === 'quiet' ? 'quiet' as const : undefined })) : undefined} />;
-  };
-
   return (
     <figure className="study-figure" aria-labelledby={`${id}-title`}>
       <Heading id={`${id}-title`} className="chart-title">{text(spec.title)}</Heading>
@@ -161,7 +151,9 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
             </div>;
           })}
         </div>
-        : spec.kind === 'line' ? <div className="study-line">{line()}</div> : <div className="bars">
+        : spec.kind === 'line' ? <div className="study-line">
+          <QuestionLineChart spec={spec} chartRows={chartRows} sectionTicks={sectionTicks} paceTicks={paceAxis ? paceAxis.ticks.map(seconds => seconds / 60) : undefined} distanceAxis={distanceAxis} signed={signed} text={text} axisValue={axisValue} />
+        </div> : <div className="bars">
           {rows.map((row, i) => <div className="bar-item" key={`${row.label}-${i}`}>
             <div className="bar-label"><span>{label(row.label)}</span>{spec.series.length === 1 && <strong>{value(row[spec.series[0].key])}</strong>}</div>
             {spec.series.map((series, index) => {
