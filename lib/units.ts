@@ -22,6 +22,37 @@ export function paceLabel(secondsPerKm: number, units: UnitSystem, includeUnit =
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}${includeUnit ? `/${units}` : ''}`;
 }
 
+// ---------- Mats, sections and prose distances (owner decision 4, spec section 3.10) ----------
+// The timing mats are named the same in both unit modes: 5K … 40K and Finish. A section between two mats reads
+// "35–40K", the first one "0–5K" and the last one "40K–finish". Other distances in prose follow the switch with one
+// decimal in miles ("the last 1.4 mi"), never two. Source distances stay metric.
+
+/** The marathon distance in km: the finish mat. */
+export const MARATHON_KM = 42.195;
+const isFinish = (km: number) => km >= 42.19;
+const kmNumber = (km: number) => new Intl.NumberFormat('en-US', { useGrouping: false, maximumFractionDigits: 1 }).format(km);
+
+/** A mat's name in both unit modes: 0 → "Start", 5 → "5K", 42.195 → "Finish". */
+export function matLabel(km: number): string {
+  if (!Number.isFinite(km)) return '—';
+  if (km <= 0) return 'Start';
+  if (isFinish(km)) return 'Finish';
+  return `${kmNumber(km)}K`;
+}
+
+/** The section between two mats in both unit modes: (0, 5) → "0–5K", (35, 40) → "35–40K", (40, 42.195) → "40K–finish". */
+export function sectionLabel(startKm: number, endKm: number): string {
+  if (!Number.isFinite(startKm) || !Number.isFinite(endKm)) return '—';
+  if (isFinish(endKm)) return startKm <= 0 ? 'Start–finish' : `${kmNumber(startKm)}K–finish`;
+  return `${kmNumber(Math.max(0, startKm))}–${kmNumber(endKm)}K`;
+}
+
+/** A distance for prose, in the reader's units with one decimal at most: 2.25 km → "1.4 mi" or "2.3 km". */
+export function distance(km: number, units: UnitSystem): string {
+  if (!Number.isFinite(km)) return '—';
+  return `${number(distanceValue(km, units), 1)} ${units}`;
+}
+
 export const elevationValue = (metres: number, units: UnitSystem) => units === 'mi' ? metres / METRES_PER_FOOT : metres;
 export function elevationLabel(metres: number, units: UnitSystem): string {
   return `${number(elevationValue(metres, units), 1)} ${units === 'mi' ? 'ft' : 'm'}`;

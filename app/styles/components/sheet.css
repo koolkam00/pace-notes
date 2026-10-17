@@ -1,0 +1,93 @@
+/* Sheet (components/ui/Sheet.client.tsx) and Make it yours (components/ui/MakeItYours.client.tsx). Spec sections 2.4
+   and 3.5. A bottom sheet under 600 px and a right drawer from 600 px: dialog semantics, a scrim, the --spring-soft slide
+   over --d-sheet, a drawn grip, safe-area padding. Closed, it is inert and hidden from the accessibility tree. */
+
+.sheet { position: fixed; inset: 0; z-index: var(--z-sheet); pointer-events: none; visibility: hidden; transition: visibility 0s linear var(--d-sheet); }
+.sheet.is-open { pointer-events: auto; visibility: visible; transition-delay: 0s; }
+.sheet-scrim { position: absolute; inset: 0; z-index: 0; background: var(--scrim); opacity: 0; transition: opacity var(--d-sheet) var(--ease-out); }
+.sheet.is-open .sheet-scrim { opacity: 1; }
+.sheet-panel {
+  position: absolute; z-index: 1; left: 0; right: 0; bottom: 0;
+  display: flex; flex-direction: column;
+  max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  background: var(--paper-raised); color: var(--ink); box-shadow: var(--shadow-sheet);
+  transform: translateY(104%);
+  transition: transform var(--d-sheet) var(--spring-soft);
+  overscroll-behavior: contain;
+}
+.sheet.is-open .sheet-panel { transform: none; }
+.sheet-panel:focus { outline: none; }
+.sheet-grip { flex: none; width: 40px; height: 4px; margin: 10px auto 0; border-radius: 4px; background: var(--rule-strong); }
+.sheet-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); padding: 8px var(--gutter) 8px; }
+.sheet-title { margin: 0; font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-size: 1.375rem; font-weight: 440; line-height: 1.2; letter-spacing: -.01em; color: var(--ink); }
+.sheet-close {
+  flex: none; display: grid; place-items: center; width: 44px; height: 44px; min-height: 44px; padding: 0; margin-right: -6px;
+  border: 0; border-radius: 50%; background: var(--paper-sunk); color: var(--ink); box-shadow: none; cursor: pointer;
+  transition: transform var(--d-release) var(--spring);
+}
+.sheet-close:hover { border-color: transparent; background: var(--rule); }
+.sheet-close:active { transform: scale(.92); transition-duration: var(--d-press); }
+.sheet-close:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.sheet-close svg { width: 16px; height: 16px; }
+.sheet-body { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 4px var(--gutter) calc(24px + env(safe-area-inset-bottom)); }
+
+/* The page behind an open sheet does not scroll. */
+:root.has-sheet-open, :root.has-sheet-open body { overflow: hidden; }
+
+@media (min-width: 600px) {
+  .sheet-panel { top: 0; left: auto; width: min(440px, calc(100vw - 48px)); max-height: none; border-radius: var(--r-lg) 0 0 var(--r-lg); transform: translateX(104%); }
+  .sheet-grip { display: none; }
+  .sheet-head { padding-top: 20px; padding-inline: 28px; }
+  .sheet-body { padding-inline: 28px; }
+}
+
+/* ---------- Make it yours: the chip (under 900 px) and its sheet ----------
+   The explorer's own form is the sheet's body (one DOM instance, no portal): fixed and sliding under 900 px, static and
+   inline from 900 px. The chip floats only while its beat is on screen and no hero, next card or footer is. */
+.miy-beat { position: relative; }
+.miy-chip {
+  position: fixed; z-index: var(--z-chip); left: 50%; bottom: calc(12px + env(safe-area-inset-bottom));
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  max-width: min(320px, calc(100vw - 32px)); min-height: var(--chip-h); padding: 0 18px 0 20px; margin: 0;
+  border: 0; border-radius: var(--r-pill); background: var(--ink); color: var(--paper); box-shadow: var(--shadow-raise);
+  font-family: var(--sans); font-size: .9375rem; font-weight: 600; line-height: 1.1; white-space: nowrap; cursor: pointer;
+  transform: translate(-50%, calc(100% + 24px)); opacity: 0; pointer-events: none;
+  transition: transform var(--d-sheet) var(--spring-soft), opacity var(--d-quick) var(--ease-out);
+}
+.miy-chip-text { overflow: hidden; text-overflow: ellipsis; }
+.miy-chip svg { flex: none; width: 14px; height: 14px; }
+.miy.is-chip-shown .miy-chip { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+.miy-chip:hover { border-color: transparent; }
+.miy-chip:active { transform: translate(-50%, 0) scale(.98); transition-duration: var(--d-press); }
+.miy-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+/* Updating: a 2 px progress underline. */
+.miy-chip::after { content: ''; position: absolute; left: 22px; right: 22px; bottom: 7px; height: 2px; border-radius: 2px; background: var(--signal); transform: scaleX(0); transform-origin: left; }
+.miy.is-busy .miy-chip::after { animation: miy-busy calc(1100ms + 99999ms * (1 - var(--motion))) var(--ease-out) infinite; }
+@keyframes miy-busy { 0% { transform: scaleX(0); } 70% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
+.miy.is-busy .miy-results { opacity: .6; transition: opacity var(--d-quick) var(--ease-out); }
+
+@media (max-width: 899.98px) {
+  .miy-beat { padding-bottom: calc(var(--chip-h) + 24px); }
+  .miy-sheet { position: fixed; inset: 0; z-index: var(--z-sheet); pointer-events: none; visibility: hidden; transition: visibility 0s linear var(--d-sheet); }
+  .miy.is-open .miy-sheet { pointer-events: auto; visibility: visible; transition-delay: 0s; }
+  .miy.is-open .sheet-scrim { opacity: 1; }
+  .miy.is-open .miy-panel { transform: none; }
+}
+/* Under 360 px (200% zoom) the chip sits inline at the top of the beat and never floats. */
+@media (max-width: 359.98px) {
+  .miy-beat { padding-bottom: 0; }
+  .miy-chip { position: static; display: flex; width: 100%; max-width: none; margin-bottom: var(--s-4); transform: none; opacity: 1; pointer-events: auto; }
+  .miy.is-chip-shown .miy-chip, .miy-chip:active { transform: none; }
+}
+/* From 900 px the form is inline, a panel at the top of the beat: no chip, no sheet. */
+@media (min-width: 900px) {
+  .miy-chip { display: none; }
+  .miy-sheet { position: static; visibility: visible; pointer-events: auto; }
+  .miy-sheet > .sheet-scrim { display: none; }
+  .miy-panel { position: static; width: auto; transform: none; max-height: none; border-radius: var(--r-md); border: 1px solid var(--rule); box-shadow: none; background: var(--paper-raised); }
+  .miy-panel .sheet-grip, .miy-panel .sheet-close { display: none; }
+  .miy-panel .sheet-head { padding: 16px 20px 0; }
+  .miy-panel .sheet-title { font-family: var(--sans); font-size: var(--t-label); font-weight: 600; line-height: 1.3; letter-spacing: 0; color: var(--ink-3); }
+  .miy-panel .sheet-body { overflow: visible; padding: 8px 20px 20px; }
+}

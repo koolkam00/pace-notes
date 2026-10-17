@@ -5,6 +5,7 @@ import { STORIES, storyHref, type StoryDefinition } from '@/lib/stories';
 import { JsonLd, absoluteUrl, breadcrumbs, pageMetadata } from '@/lib/seo';
 import { sitemapEntries } from '@/lib/seo-routes';
 import { DEFAULT_OG_IMAGE, ogImageFor } from '@/lib/og-paths';
+import { readingAttrs } from '@/lib/chapters';
 import { StoryHeader, StoryNav } from '@/components/story/StoryShell';
 import PacingTypesBody from '@/components/story/bodies/PacingTypesBody';
 import RoundNumbersBody from '@/components/story/bodies/RoundNumbersBody';
@@ -50,7 +51,6 @@ export default function StoryPage({ params }: { params: { slug: string } }) {
   const story = available().find((s) => s.slug === params.slug);
   if (!story) notFound();
   const manifest = getInsightsManifest();
-  const files = new Set(available().map((s) => s.file));
   const seo = storySeo(story);
   const image = ogImageFor(seo.path) ?? DEFAULT_OG_IMAGE;
   const article = {
@@ -76,10 +76,10 @@ export default function StoryPage({ params }: { params: { slug: string } }) {
   else if (story.slug === 'places') body = <PlacesBody data={readInsight<Positions>('positions.json')} />;
   else body = <ReplayBody data={readInsight<ReplayIndex>('replay.json')} geometry={readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses} manifest={manifest} />;
   return (
-    <article className="story-page" style={{ ['--story' as string]: story.accent }}>
+    <article className="story-page" style={{ ['--story' as string]: story.accent }} {...readingAttrs(seo.path)}>
       <StoryHeader story={story} />
       {body}
-      <StoryNav current={story.slug} available={files} />
+      <StoryNav current={story.slug} />
       <JsonLd data={[article, breadcrumbs([['Pace Notes', '/'], ['Stories', '/stories'], [story.title]])]} />
     </article>
   );

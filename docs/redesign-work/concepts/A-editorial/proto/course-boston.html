@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Boston Marathon · Pace Notes</title>
+<meta name="description" content="How the Boston Marathon field paced: the downhill start, the late climbs, sustained slowdowns by year and how goal times held up.">
+<meta name="theme-color" content="#0E1116">
+<link rel="preload" href="fonts/fraunces-display-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/viz.css">
+<link rel="stylesheet" href="css/pages.css">
+</head>
+<body data-page="course">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="index.html" aria-label="Pace Notes home">
+      <svg class="brand-mark" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="15" fill="#FF5B2E"/><path d="M9 10.5h10M7.5 15h15M10 19.5h8" stroke="#15171C" stroke-width="2.6" stroke-linecap="round"/></svg>
+      <span><span class="brand-name">Pace Notes</span><span class="brand-by">by Andrew Kam</span></span>
+    </a>
+    <nav class="nav-desktop" aria-label="Main"><a class="nav-primary" href="#">Plan your race</a><a href="#">Analyze a past race</a><a href="course-boston.html" aria-current="page">Courses</a><a href="#">Tools</a><a href="index.html#read">Research</a></nav>
+    <div class="unit-switch" role="group" aria-label="Distance and pace units"><button type="button" data-u="mi" aria-pressed="true">MI</button><button type="button" data-u="km" aria-pressed="false">KM</button></div>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M2 4.5h14M2 9h14M2 13.5h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="label">Menu</span></button>
+  </div>
+</header>
+<div class="readbar" aria-hidden="true"><span class="rb-ch"></span><span class="rb-title"></span><span class="rb-left"></span><div class="progress"><i></i><b></b></div></div>
+<div class="menu-sheet" id="menu" role="dialog" aria-modal="true" aria-label="Menu" inert>
+  <div class="menu-head wrap"><span class="brand-name">Pace Notes</span><button class="menu-close" type="button" aria-label="Close menu"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+  <div class="wrap">
+    <nav id="site-menu" aria-label="Main"><a class="nav-primary" href="#">Plan your race</a><a href="#">Analyze a past race</a><a href="course-boston.html">Courses</a><a href="#">Tools</a><a href="index.html#read">Research</a></nav>
+    <div class="menu-route"><h2 class="display-s">Read the race, <em>start to finish</em></h2><div class="menu-route-list"></div></div>
+    <div class="nav-more"><a href="#">About</a><a href="#">Request an analysis</a><a href="#">Methods &amp; sources</a><a href="#">Open data ↗</a><button type="button" data-motion-toggle>Pause animations</button></div>
+  </div>
+</div>
+
+<main id="main">
+  <section class="c-hero night glow" data-track-section="hero">
+    <div class="wrap c-hero-grid">
+      <div>
+        <div class="crumbs"><a class="kicker plain" href="#" style="text-decoration:none">Courses</a><span class="kicker plain" style="color:var(--night-ink-2)">· Chapter 08 · Where you run</span></div>
+        <h1 class="display-xl" id="c-title">Boston Marathon</h1>
+        <p class="dek" id="c-dek" style="margin-top:14px;color:var(--night-ink-2)"></p>
+      </div>
+      <svg class="route-map" id="route-map" role="img" aria-label="Course route"></svg>
+      <div>
+        <dl class="c-stats" id="c-stats"></dl>
+        <div class="c-ctas" style="margin-top:22px"><a class="btn btn-primary" href="#" id="c-plan">Plan your race</a></div>
+      </div>
+    </div>
+  </section>
+
+  <nav class="c-toc course-toc" aria-label="On this page"><div class="wrap"><div class="chips" id="toc">
+    <a class="chip" href="#at-a-glance">At a glance</a><a class="chip" href="#replay">Replay</a><a class="chip" href="#pacing">Pacing</a><a class="chip" href="#elevation">Elevation</a><a class="chip" href="#years">By year</a><a class="chip" href="#weather">Weather</a><a class="chip" href="#goals">Goal times</a><a class="chip" href="#other-courses">Same shape</a>
+  </div></div></nav>
+
+  <section class="c-section" id="at-a-glance" data-track-section="chapter-1">
+    <div class="wrap">
+      <p class="kicker">At a glance</p>
+      <h2 class="display-m" style="margin-top:12px" id="glance-title">What makes Boston <em>Boston</em></h2>
+      <div class="c-nuggets" id="glance"></div>
+    </div>
+  </section>
+
+  <section class="c-section night" id="replay" style="padding-bottom:var(--s6)">
+    <div class="wrap">
+      <p class="kicker">Replay</p>
+      <h2 class="display-m" style="margin-top:12px" id="replay-title">Watch the field <em>on the route</em></h2>
+      <div class="replay course-replay" style="margin-top:18px;border-radius:22px;border:1px solid var(--night-3);overflow:hidden">
+        <canvas role="img" aria-label="Animated replay of sampled finishes on the route, coloured by pace against each runner's own early pace."></canvas>
+        <div class="replay-hud">
+          <div class="hud-left"><button class="replay-btn" type="button" aria-label="Pause the replay"></button><div class="replay-clock" aria-hidden="true"><span data-hud="clock">0:00:00</span><small data-hud="race"></small></div></div>
+          <dl class="replay-stats" aria-hidden="true"><div><dt>Finished</dt><dd data-hud="done">0%</dd></div><div><dt>25%+ slower</dt><dd data-hud="slow">0%</dd></div></dl>
+        </div>
+        <div class="replay-flag" aria-live="off"></div>
+      </div>
+      <div class="replay-ramp" style="margin-top:12px" aria-hidden="true">Faster<span><i style="background:#3D66FF"></i><i style="background:#6A8BFF"></i><i style="background:#AFC0FF"></i><i style="background:#EFE8DA"></i><i style="background:#FFB48A"></i><i style="background:#FF6A3D"></i><i style="background:#E8456B"></i></span>Slower than own early pace</div>
+    </div>
+  </section>
+
+  <section class="c-section" id="pacing" data-track-section="chapter-4">
+    <div class="col-wide">
+      <p class="kicker">Pacing</p>
+      <h2 class="display-m" style="margin-top:12px" id="pacing-title">The field's shape</h2>
+      <div class="chart-card">
+        <div class="readout" id="pacing-readout" aria-live="polite"></div>
+        <div class="chart viz" id="pacing-chart"></div>
+        <div class="legend" style="margin-top:4px"><span><i class="ink"></i><span id="pacing-l1">Boston</span></span><span><i class="context"></i>Typical course</span></div>
+      </div>
+      <div class="chart-card" style="margin-top:12px">
+        <div class="cc-head"><span class="cc-title">Pacing types, share of finishes</span></div>
+        <div id="types"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="c-section" id="elevation" data-track-section="chapter-3">
+    <div class="col-wide">
+      <p class="kicker">Elevation</p>
+      <h2 class="display-m" style="margin-top:12px" id="elev-title">Where the road climbs</h2>
+      <div class="chart-card">
+        <div class="readout" id="elev-readout" aria-live="polite"></div>
+        <div class="chart viz" id="elev-chart" style="touch-action:pan-y"></div>
+        <p class="chart-note">Drawn to one height scale on every course page. Tap a section.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="c-section" id="years" data-track-section="chapter-2">
+    <div class="col-wide">
+      <p class="kicker">By year</p>
+      <h2 class="display-m" style="margin-top:12px" id="years-title">Year by year</h2>
+      <div class="chart-card" id="slowdown" data-track-section="chapter-5">
+        <div class="readout" id="years-readout" aria-live="polite"></div>
+        <div class="chart viz" id="years-chart"></div>
+        <details class="numbers"><summary>The numbers</summary><div class="table-wrap"><table id="years-table"></table></div></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="c-section" id="weather" data-track-section="chapter-7">
+    <div class="col-wide">
+      <p class="kicker">Race-morning weather</p>
+      <h2 class="display-m" style="margin-top:12px" id="weather-title">The warm year and the cool year</h2>
+      <div class="a-grid two" id="weather-cards" style="margin-top:20px"></div>
+    </div>
+  </section>
+
+  <section class="c-section" id="goals" data-track-section="chapter-6">
+    <div class="col-wide">
+      <p class="kicker">Goal times</p>
+      <h2 class="display-m" style="margin-top:12px" id="goals-title">On goal pace at 20K. Then what?</h2>
+      <div class="chart-card">
+        <div class="chips" id="goal-chips" role="group" aria-label="Goal time"></div>
+        <div class="goal-dots" style="margin-top:16px"><div class="dots" id="goal-dots" aria-hidden="true"></div><div class="readout" id="goal-readout" aria-live="polite" style="display:block"></div></div>
+        <div class="legend" style="margin-top:14px"><span><i class="ink"></i>Made the goal</span><span><i class="you"></i>Sustained slowdown</span></div>
+        <a class="text-link" id="goal-link" href="#">Plan a 4:00 Boston Marathon →</a>
+        <details class="numbers"><summary>The numbers</summary><div class="table-wrap" role="region" tabindex="0" aria-labelledby="goals-caption"><table id="goals-table"><caption id="goals-caption" class="sr-only">Goal times on this course</caption></table></div></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="c-section" id="plan" data-track-section="cta">
+    <div class="col-wide">
+      <div class="plan-card night glow">
+        <p class="kicker">Your race</p>
+        <h2 class="display-m" id="plan-title">Plan your <em>Boston Marathon</em></h2>
+        <p style="color:var(--night-ink-2)">Pick a goal. See how finishes at that pace held up here, then print a pace band for the course.</p>
+        <div class="c-ctas"><a class="btn btn-primary" href="#">Plan your race</a><a class="btn btn-ghost" href="#" style="color:var(--night-ink)">Pace band</a><a class="btn btn-ghost" href="#" style="color:var(--night-ink)">Check your splits</a></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="c-section" id="other-courses" data-track-section="related">
+    <div class="wrap">
+      <p class="kicker">Same shape</p>
+      <h2 class="display-m" style="margin-top:12px" id="shape-title">Courses that pace like Boston</h2>
+      <div class="same-shape" id="same-shape"></div>
+      <div class="story-end col-wide" style="padding-inline:0;padding-bottom:0">
+        <div class="feedback"><p>Was this useful?</p><div><button type="button">Yes</button><button type="button">No</button></div></div>
+        <a class="how-we-know" href="#">How we know · Course pages</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-grid">
+    <div class="footer-brand"><span class="brand-name">Pace Notes</span><p>Every split tells part of the story. Pacing patterns from millions of recorded marathon finishes. By Andrew Kam.</p></div>
+    <nav class="footer-links" aria-label="Footer"><a href="#">Plan your race</a><a href="#">Analyze a past race</a><a href="course-boston.html">Courses</a><a href="#">Tools</a><a href="index.html#read">Research</a><a href="#">Methods &amp; sources</a><a href="#">About</a><a href="/privacy">Privacy</a><button type="button" data-motion-toggle>Pause animations</button></nav>
+  </div>
+</footer>
+<script type="module" src="js/course.js"></script>
+</body>
+</html>

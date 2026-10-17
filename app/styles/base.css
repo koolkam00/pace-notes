@@ -1,0 +1,82 @@
+/* Base: reset, element defaults, focus, selection, the motion switch, type classes and utilities (the redesign spec,
+   sections 3.2, 3.7 and 6.1). Element rules sit in :where() so any class wins over them. Until WP9 deletes
+   app/styles/legacy/, the legacy element rules load after this file and win where both set a property; this file sets
+   no element property the legacy rules leave alone, so legacy pages look exactly as before. */
+
+/* ---------- Motion: one switch for the OS setting and the site's Motion toggle (data-motion-off on <html>) ---------- */
+@media (prefers-reduced-motion: reduce) {
+  :root { --motion: 0; }
+}
+:root[data-motion-off] { --motion: 0; }
+
+/* ---------- Reset and elements ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+:where(html) { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-padding-top: calc(var(--header-h) + 16px); }
+:where(body) {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--t-body);
+  line-height: 1.6;
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+:where(h1, h2, h3, h4, p, figure) { margin: 0; }
+:where(h1, h2, h3, h4) { color: var(--ink); line-height: 1.1; text-wrap: balance; overflow-wrap: normal; }
+:where(h1) { font-family: var(--serif); font-weight: 440; font-size: var(--t-display); letter-spacing: -.024em; }
+:where(h2) { font-family: var(--serif); font-weight: 440; font-size: var(--t-h2); letter-spacing: -.018em; }
+:where(h3) { font-family: var(--sans); font-size: 1.125rem; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; }
+:where(h4) { font-size: 1rem; font-weight: 600; }
+:where(a) { color: var(--ink); text-decoration: none; text-underline-offset: .2em; text-decoration-thickness: 1px; }
+:where(strong) { font-weight: 600; }
+:where(code) { font-family: var(--code); font-size: .84em; background: var(--paper-sunk); padding: .08em .35em; border-radius: 4px; overflow-wrap: anywhere; }
+:where(img, svg, video, canvas) { max-width: 100%; }
+:where(button, input, select, textarea) { font: inherit; color: var(--ink); }
+:where(button, select, summary) { cursor: pointer; }
+:where(a, button, input, select, summary) { -webkit-tap-highlight-color: transparent; }
+::selection { background: var(--signal-wash); color: var(--ink); }
+
+/* The focus ring: 2 px of --focus with a 2 px offset (--focus is gold on night). Components that draw their own ring
+   repeat it with their class, which also outranks the legacy ring until WP9. */
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---------- Type classes (section 3.2) ----------
+   Three faces, as few weights as the page needs: Fraunces 440 speaks (every heading and the reading's sentence, its
+   optical size following the font size), Inter explains (400 text, 600 labels and values, kickers and ticks included),
+   Bricolage counts (the figure). em inside a Fraunces class is the italic accent on the number or comparison. */
+.t-display, .t-title, .t-h2, .t-sentence {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 440;
+  font-optical-sizing: auto;
+  font-variation-settings: normal;
+  color: var(--ink);
+}
+.t-display { font-size: var(--t-display); line-height: 1; letter-spacing: -.024em; text-wrap: balance; }
+.t-title { font-size: var(--t-title); line-height: 1.04; letter-spacing: -.02em; text-wrap: balance; }
+.t-h2 { font-size: var(--t-h2); line-height: 1.1; letter-spacing: -.018em; text-wrap: balance; }
+.t-sentence { font-size: var(--t-sentence); line-height: 1.25; letter-spacing: -.01em; text-wrap: pretty; }
+.t-display em, .t-title em, .t-h2 em, .t-sentence em { font-style: italic; font-weight: inherit; color: var(--signal-ink); }
+.t-body { font-family: var(--sans); font-size: var(--t-body); font-weight: 400; line-height: 1.6; color: var(--ink-2); }
+.t-small { font-family: var(--sans); font-size: var(--t-small); font-weight: 400; line-height: 1.45; color: var(--ink-2); }
+.t-label { font-family: var(--sans); font-size: var(--t-label); font-weight: 600; line-height: 1.3; letter-spacing: 0; color: var(--ink-3); }
+.t-direct { font-family: var(--sans); font-size: var(--t-direct); font-weight: 600; line-height: 1.2; color: var(--ink); }
+.t-kicker {
+  font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; line-height: 1.4; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink-3); font-variant-numeric: tabular-nums;
+}
+.t-tick { font-family: var(--sans); font-size: var(--t-tick); font-weight: 500; line-height: 1; letter-spacing: .01em; font-variant-numeric: tabular-nums; color: var(--ink-3); }
+.t-readout { font-family: var(--sans); font-size: var(--t-readout); font-weight: 600; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* ---------- Utilities ---------- */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.hairline { height: 1px; margin: 0; border: 0; background: var(--rule); }
+
+/* ---------- Forced colours: marks keep their identity by shape and label ---------- */
+@media (forced-colors: active) {
+  .t-display em, .t-title em, .t-h2 em, .t-sentence em { color: CanvasText; }
+}

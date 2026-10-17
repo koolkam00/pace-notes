@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Boston Marathon · Pace Notes</title>
+<meta name="description" content="How the Boston Marathon field paced, held on and finished, read from every recorded 5K split.">
+<meta name="theme-color" content="#F4F1EA" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1013" media="(prefers-color-scheme: dark)">
+<link rel="preload" href="fonts/inter-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/fraunces-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/instrument.css">
+<link rel="stylesheet" href="css/pages.css">
+</head>
+<body class="page-course">
+<a class="sr-only" href="#main">Skip to content</a>
+<header class="bar site-header" data-bar></header>
+
+<div class="with-rail">
+  <aside class="rail" aria-label="On this page"><p class="label">Boston</p><ol data-rail></ol></aside>
+  <main id="main">
+    <article>
+      <header class="lap-hero course-hero" data-track-section="hero">
+        <div class="wrap">
+          <nav class="crumbs label" aria-label="Breadcrumb"><a href="index.html#guide">Lap 09</a><span class="dot"></span><a href="index.html#guide">Where you run</a><span class="dot"></span><span>Course</span></nav>
+          <div class="course-hero-grid">
+            <div>
+              <h1 data-race>Boston Marathon</h1>
+              <p class="label" style="margin-top:14px" data-meta>&nbsp;</p>
+              <div class="hero-reading reading">
+                <div><span class="figure-num" data-hero-figure>—</span><p class="reading-unit">of finishes had a <a class="term" href="#methodology-sustained-slowdown">sustained slowdown</a></p></div>
+                <p class="sentence" data-hero-sentence>&nbsp;</p>
+                <div class="fig viz">
+                  <div class="readout" style="min-height:52px">
+                    <div class="readout-main"><span class="readout-k" data-ys-k>Edition</span><span class="readout-v" data-ys-v aria-live="polite">—</span></div>
+                    <div class="readout-side"><span class="readout-k">Start</span><span class="readout-v" data-ys-t>—</span></div>
+                  </div>
+                  <div class="plot year-strip" data-years style="--r: 0.3657; --max: 150px"></div>
+                </div>
+              </div>
+            </div>
+            <div class="route-face viz" data-route><p class="label">The route</p><div class="route-meta"><span class="readout-k" data-route-meta>&nbsp;</span></div></div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:22px">
+            <a class="btn btn-ink" href="#plan">Plan your Boston <svg class="arrow" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 8h10.5M9 3.5 13.5 8 9 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+            <a class="btn btn-line" href="#replay">Watch 2026</a>
+          </div>
+          <nav class="course-toc" aria-label="On this page">
+            <a href="#at-a-glance">At a glance</a><a href="#finish-times">Finish times</a><a href="#elevation">Elevation</a><a href="#pacing">Pacing</a><a href="#slowdown">Holding pace</a><a href="#goals">Goal times</a><a href="#weather">Weather</a><a href="#replay">Replay</a>
+          </nav>
+        </div>
+      </header>
+
+      <section class="beat" id="at-a-glance" data-track-section="chapter-1">
+        <div class="wrap">
+          <div class="beat-head"><p class="label">01<span class="dot"></span>At a glance</p><h2 data-sig-title>&nbsp;</h2></div>
+          <div class="glance course-glance" data-glance></div>
+        </div>
+      </section>
+
+      <section class="beat" id="finish-times" data-track-section="chapter-2">
+        <div class="wrap">
+          <div class="beat-head"><p class="label">02<span class="dot"></span>Finish times by year</p><h2 data-ft-title>&nbsp;</h2></div>
+          <figure class="fig fig-wrap viz">
+            <div class="readout">
+              <div class="readout-main"><span class="readout-k" data-ft-k>Median finish</span><span class="readout-v" data-ft-v aria-live="polite">—</span></div>
+              <div class="readout-side"><span class="readout-k">Finishes</span><span class="readout-v" data-ft-n>—</span></div>
+            </div>
+            <div class="plot" data-ft style="--r: 0.5429; --max: 260px"></div>
+            <details class="depth"><summary>Values <span class="plus" aria-hidden="true"></span></summary><div class="depth-body" data-ft-table></div></details>
+          </figure>
+        </div>
+      </section>
+
+      <section class="beat" id="elevation" data-track-section="chapter-3">
+        <div class="wrap">
+          <div class="beat-head"><p class="label">03<span class="dot"></span>Elevation and pace</p><h2 data-el-title>&nbsp;</h2><p class="dek" data-el-dek>&nbsp;</p></div>
+          <figure class="fig fig-wrap viz">
+            <div class="readout">
+              <div class="readout-main"><span class="readout-k" data-el-k>Along the course</span><span class="readout-v" data-el-v aria-live="polite">—</span></div>
+              <div class="readout-side"><span class="readout-k" data-el-sk>Section pace</span><span class="readout-v" data-el-p>—</span></div>
+            </div>
+            <div class="plot" data-elev style="--r: 0.8571; --max: 460px"></div>
+            <div class="key" style="margin-top:12px"><span><i class="quiet"></i>Elevation, shared scale for every course</span><span><i style="border-radius:2px;background:var(--mark-quiet)"></i>Boston pace vs own average</span><span><i class="hollow" style="border-radius:2px;box-shadow:none;border:1.5px dashed var(--ink)"></i>Typical course</span></div>
+          </figure>
+        </div>
+      </section>
+
+      <section class="beat" id="pacing" data-track-section="chapter-4">
+        <div class="wrap">
+          <div class="beat-head"><p class="label">04<span class="dot"></span>How finishers paced</p><h2 data-types-title>&nbsp;</h2></div>
+          <div class="types viz" data-types></div>
+        </div>
+      </section>
+
+      <section class="beat" id="slowdown" data-track-section="chapter-5">
+        <div class="wrap">
+          <div class="beat-head"><p class="label">05<span class="dot"></span>Holding pace</p><h2 data-strip-title>&nbsp;</h2></div>
+          <figure class="fig fig-wrap viz">
+            <div class="plot" data-strip style="--r: 0.3429; --max: 150px"></div>
+            <div class="key" style="margin-top:10px"><span><i class="quiet" style="border-radius:50%"></i>Another course</span><span><i class="hollow"></i>Fewer than 3 races</span><span><i></i>Boston</span></div>
+          </figure>
+        </div>
+      </section>
+
+      <section class="beat" id="goals" data-track-section="chapter-6">
+        <div class="wrap">
+          <div class="beat-head"><p class="label">06<span class="dot"></span>Goal times</p><h2 data-goal-title>&nbsp;</h2></div>
+          <div class="seg-wrap"><div class="seg" data-goals role="group" aria-label="Goal"></div></div>
+          <div class="goal-grid viz" style="margin-top:22px">
+            <div class="dial" data-goal-dial><div class="dial-center"><span class="figure-num" data-goal-figure>—</span><p class="reading-unit" data-goal-unit>&nbsp;</p></div></div>
+            <div class="goal-cells" data-goal-cells></div>
+          </div>
+          <details class="depth"><summary>Every goal <span class="plus" aria-hidden="true"></span></summary><div class="depth-body tool-table-wrap" data-goal-table></div></details>
+        </div>
+      </section>
+
+      <section class="beat" id="weather" data-track-section="chapter-7">
+        <div class="wrap">
+          <div class="beat-head"><p class="label">07<span class="dot"></span>Race-morning weather</p><h2 data-wx-title>&nbsp;</h2></div>
+          <figure class="fig fig-wrap viz"><div class="plot" data-wx style="--r: 0.7143; --max: 380px"></div></figure>
+        </div>
+      </section>
+
+      <section class="beat" id="plan" data-track-section="cta">
+        <div class="wrap">
+          <div class="cta-card">
+            <p class="label">Plan</p>
+            <h2>Plan <em>your</em> Boston.</h2>
+            <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn btn-ink" href="#plan">Plan your race</a><a class="btn btn-line" href="#plan">Pace band</a><a class="btn btn-line" href="#plan">Check your splits</a></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="beat" id="replay">
+        <div class="wrap">
+          <div class="beat-head"><p class="label">08<span class="dot"></span>Replay</p><h2>Watch <em>Boston 2026</em> unfold.</h2></div>
+          <div class="seg-wrap" style="margin-bottom:16px"><div class="seg" data-view role="group" aria-label="Replay view"><button type="button" data-v="straight" aria-pressed="true">The field</button><button type="button" data-v="route" aria-pressed="false">On the route</button><!-- synced from ?view in course.js --></div></div>
+          <div class="replay course-replay full-bleed" data-replay></div>
+        </div>
+      </section>
+
+      <section class="next-lap" id="other-courses" data-track-section="related">
+        <div class="wrap">
+          <div class="beat-head" style="margin-bottom:16px"><p class="label">Shaped like Boston</p><h2 style="font-size:clamp(1.5rem,5.4vw,2.1rem)">Courses with the closest pacing fingerprint.</h2></div>
+          <div class="similar viz" data-similar></div>
+          <div class="prev-row" style="margin-top:20px">
+            <a href="index.html#guide"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13.5 8H3M7 3.5 2.5 8 7 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>All courses</a>
+            <a class="how-link" href="#methodology-course-pages">How we know <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3 9 9 3M4 3h5v5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          </div>
+          <div data-feedback></div>
+        </div>
+      </section>
+    </article>
+  </main>
+</div>
+<footer data-foot></footer>
+<script type="module" src="js/course.js"></script>
+</body>
+</html>

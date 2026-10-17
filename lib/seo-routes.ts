@@ -28,7 +28,8 @@ import { FINISH_TIME_PAGES } from './seo-pages/finish-times';
 export const SITE_URL = 'https://splithappens.run';
 
 /** Pages that carry `noindex, follow`, have no canonical and stay out of the sitemap. */
-export const NOINDEX: readonly string[] = ['/runners', '/your-race', '/request-analysis', '/htw', '/packs/smyth_htw', '/report'];
+// /design-system is the redesign's primitives gallery (owner decision 14): never indexed, never in the sitemap, deleted in WP9.
+export const NOINDEX: readonly string[] = ['/runners', '/your-race', '/request-analysis', '/htw', '/packs/smyth_htw', '/report', '/design-system'];
 
 /**
  * Research-archive pages too thin to index: four say the current release cannot answer the question,

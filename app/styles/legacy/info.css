@@ -1,0 +1,53 @@
+/* Legacy rules for /methodology, /about, /privacy, /request-analysis and the error pages (WP7).
+   Split mechanically from app/globals.css and app/story.css by the code that owns each selector (WP0-A, October 2026): no rule
+   was changed. An area package deletes its selectors from its own legacy file when it rebuilds its pages. */
+
+/* Methods & sources (/methodology): four parts, each topic a visible section so /methodology#<id> lands on its text. */
+.methods-contents { margin: 2rem 0 1rem; padding: .75rem 0; border-block: 1px solid var(--line); }
+.methods-contents-label { margin: 0; color: var(--ink-3); font-family: var(--mono); font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; }
+.methods-part { margin-top: 3.5rem; padding-top: 1.25rem; border-top: 2px solid var(--ink); }
+.methods-eyebrow { margin: 0; color: var(--orange-ink); font-family: var(--mono); font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; }
+.methods-topic { margin-top: 2.4rem; }
+.methods-badges { display: grid; gap: .75rem; margin: 1rem 0; }
+.methods-badges dt { color: var(--ink); font-weight: 600; }
+.methods-sensitivity td { white-space: nowrap; }
+.methods-sensitivity th, .methods-sensitivity td { padding-inline: .5rem; }
+.methods-badges dd { margin: .15rem 0 0; color: var(--ink-2); }
+.methods-page code { font-size: .875em; overflow-wrap: anywhere; }
+
+
+/* About & request pages */
+.about-page { max-width: 1000px; margin-inline: auto; padding-bottom: 2rem; }
+.about-body { margin-left: 22%; }
+.about-body section { padding: 2.2rem 0; border-top: 1px solid var(--line); }
+.about-body h2 { margin-bottom: 1rem; font-size: clamp(1.5rem, 3vw, 2rem); }
+.about-body p { color: var(--ink-2); }
+.about-actions { display: flex; align-items: center; gap: 1.4rem; margin-top: 1.5rem; flex-wrap: wrap; }
+.request-page { max-width: 780px; margin-inline: auto; padding-bottom: 2rem; }
+.analysis-request form { border-top: 0; padding: 2rem; background: var(--card); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); }
+.analysis-request label { display: block; font-size: 1rem; font-weight: 650; color: var(--ink); }
+.analysis-request label span { color: var(--ink-3); font-weight: 400; font-size: .875rem; }
+.analysis-request .request-hint { color: var(--ink-3); font-size: .875rem; line-height: 1.6; margin: .4rem 0 .8rem; }
+.analysis-request textarea { box-sizing: border-box; width: 100%; resize: vertical; min-height: 110px; padding: .85rem 1rem; margin: 0 0 1.5rem; font: inherit; line-height: 1.6; border: 1px solid var(--line-2); border-radius: var(--radius-sm); background: var(--paper); color: var(--ink); }
+.analysis-request .request-delivery { max-width: 34rem; margin-top: .8rem; }
+.request-status { padding: 1rem; background: var(--paper-2); border-radius: var(--radius-sm); color: var(--ink); font-size: .875rem; }
+.request-alternatives { padding: 1.2rem 0 1.8rem; }
+.request-alternatives > p { color: var(--ink-3); font-size: .875rem; margin-bottom: .35rem; }
+.request-alternatives > div { display: flex; align-items: center; flex-wrap: wrap; gap: .3rem 1.5rem; }
+.request-alternatives a, .request-alternatives button { font-size: .875rem; overflow-wrap: anywhere; }
+.request-alternatives a { min-height: 44px; display: inline-flex; align-items: center; }
+.request-expectations { border-top: 1px solid var(--line); padding-top: 2rem; margin-top: 2rem; }
+.request-expectations h2 { font-size: 1.6rem; line-height: 1.2; }
+.request-expectations p { color: var(--ink-3); max-width: 40rem; }
+@media (max-width: 760px) { .about-body { margin-left: 0; } .analysis-request form { padding: 1.25rem; } }
+.coverage-list { margin: .5rem 0 0; }
+
+
+/* ---------- 404 ---------- */
+.not-found, .page-error { max-width: 40rem; margin: 0 auto; padding: 5rem 0 2rem; text-align: center; display: grid; justify-items: center; gap: .8rem; }
+.not-found svg { transform: scaleX(-1); }
+.not-found h1, .page-error h1 { font-size: clamp(2.4rem, 6vw, 4rem); }
+/* The error heading takes focus only so a screen reader announces it; it is not a control, so it shows no ring. */
+.page-error h1:focus { outline: none; }
+#data-coverage h3 { margin: 1.6rem 0 .4rem; font-size: 1.05rem; }
+#data-coverage .coverage-list { margin: 1rem 0; border-block: 1px solid var(--line); }

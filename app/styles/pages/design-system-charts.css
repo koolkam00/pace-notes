@@ -1,0 +1,21 @@
+/* /design-system, the charts section (WP0-C; deleted in WP9 with the page). Layout only: each chart draws itself with
+   app/styles/components/chart-frame.css and its neighbours. */
+
+.ds-charts > .ds-lede { margin-bottom: var(--s-6); }
+.ds-form-block { padding-top: var(--s-6); margin-top: var(--s-6); border-top: 1px solid var(--rule); scroll-margin-top: 80px; }
+.ds-form-block:first-of-type { margin-top: 0; }
+.ds-form-title { margin: 0 0 var(--s-3); font-family: var(--sans); font-size: var(--t-label); font-weight: 600; letter-spacing: 0; color: var(--ink-3); }
+.ds-form-note { max-width: var(--measure); margin-bottom: var(--s-5); }
+.ds-pair { display: flex; flex-wrap: wrap; gap: var(--s-6) var(--s-7); }
+.ds-glyphs { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; max-width: 22rem; }
+/* The glyph, the name, the share; on a narrow (zoomed-in) screen the share drops under the name rather than over it. */
+.ds-glyphs li { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s-3); min-height: 36px; margin: 0; font-size: var(--t-small); color: var(--ink-2); }
+.ds-glyphs li > :first-child { flex: 0 0 40px; }
+.ds-glyphs li > span { flex: 1 1 0; min-width: 5.5em; }
+.ds-glyphs b { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.ds-replay { padding: var(--s-4); }
+@media (min-width: 600px) {
+  .ds-replay { padding: var(--s-5); }
+}
+/* A figure the sentence names ("35–40K", "14 of 23") keeps to one line. */
+.ds-form-note em { white-space: nowrap; }

@@ -1,0 +1,65 @@
+/* The closing stack (components/ChapterEnd.tsx) and the next card (components/NextCard.tsx; the redesign spec, section
+   2.6). In one phone screen: "Also in this chapter", the night next card (one link: kicker, title, the reading, the go
+   button), "← previous" and "How we know", then "Was this useful?". Whitespace and hairlines between, never boxes. */
+
+.chapter-end { display: grid; gap: var(--s-5); max-width: var(--measure-figure); margin-top: var(--beat-gap); }
+.chapter-end .chapter-next { display: block; margin: 0; }
+
+.chapter-also .t-kicker { margin: 0 0 var(--s-1); }
+.chapter-also ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+.chapter-also li { margin: 0; }
+.chapter-also-link { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: 44px; border-bottom: 1px solid var(--rule); color: var(--ink); font-family: var(--sans); font-size: 1rem; font-weight: 500; text-decoration: none; }
+.chapter-also-link:hover { color: var(--ink); text-decoration: none; }
+.chapter-also-link .arrow-icon { color: var(--ink-3); transition: transform var(--d-quick) var(--ease-out); }
+.chapter-also-link:hover .arrow-icon { transform: translateX(3px); }
+
+/* The card. Selectors carry .chapter-end .chapter-next so the legacy pagination cards cannot reach it. */
+.chapter-end .chapter-next .next-card {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-3); padding: var(--s-5);
+  border: 0; border-radius: var(--r-md); background: var(--night); color: var(--ink); box-shadow: none; text-align: left; text-decoration: none;
+  transition: transform var(--d-release) var(--spring);
+}
+.chapter-end .chapter-next .next-card:hover { color: var(--ink); text-decoration: none; transform: none; box-shadow: none; }
+.chapter-end .chapter-next a.next-card:active { transform: scale(.985); transition-duration: var(--d-press); }
+.chapter-end .chapter-next .next-card:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.next-card-kicker { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s-2); }
+.next-card-title, .next-card-reading { margin-right: 64px; }
+.next-card-title {
+  display: block; margin-top: 0; margin-bottom: 0; font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440;
+  font-size: var(--t-h2); line-height: 1.1; letter-spacing: -.018em; color: var(--ink); text-wrap: balance;
+}
+.next-card-title em { font-style: italic; color: var(--signal-ink); }
+.next-card-reading { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-3); margin-top: var(--s-1); }
+.next-card-key { max-width: 26ch; font-family: var(--sans); font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-2); }
+.next-card-go {
+  position: absolute; right: var(--s-5); bottom: var(--s-5); display: grid; place-items: center; width: 48px; height: 48px;
+  border-radius: 50%; background: var(--accent); color: var(--on-accent); transition: transform var(--d-quick) var(--ease-out);
+}
+.next-card:hover .next-card-go, .next-card:focus-visible .next-card-go { transform: translateX(4px); }
+
+/* The finish (/tools/plan): no link of its own, two ways on. */
+.next-card.is-finish .next-card-title { margin-right: 0; }
+.finish-card-links { display: flex; flex-wrap: wrap; gap: 0 var(--s-5); margin: var(--s-1) 0 0; }
+.finish-card-link { display: inline-flex; align-items: center; gap: var(--s-2); min-height: 44px; color: var(--ink); font-family: var(--sans); font-size: 1rem; font-weight: 600; text-decoration: none; }
+.finish-card-link:hover { color: var(--ink); text-decoration: underline; text-underline-offset: .2em; }
+
+/* ← previous and How we know. */
+.chapter-end-links { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--s-4); margin: calc(var(--s-2) * -1) 0 0; }
+.chapter-prev, .chapter-how { display: inline-flex; align-items: center; gap: var(--s-2); min-height: 44px; color: var(--ink-2); font-family: var(--sans); font-size: .9375rem; font-weight: 500; text-decoration: none; }
+.chapter-prev:hover, .chapter-how:hover { color: var(--ink); text-decoration: none; }
+.chapter-prev .arrow-icon, .chapter-how .arrow-icon { flex: none; color: var(--ink-3); }
+.chapter-prev:hover .arrow-icon { transform: translateX(-3px); }
+.chapter-prev .arrow-icon { transition: transform var(--d-quick) var(--ease-out); }
+.chapter-end .page-feedback { margin-top: var(--s-2); }
+
+/* Under 360 px (200% zoom) the reading needs the card's full width, so the go button joins the flow, last, at the right. */
+@media (max-width: 359.98px) {
+  .next-card-title, .next-card-reading { margin-right: 0; }
+  .next-card-go { position: static; justify-self: end; }
+}
+
+@media (min-width: 900px) {
+  .chapter-end .chapter-next .next-card { padding: var(--s-6); }
+  .next-card-title, .next-card-reading { margin-right: 80px; }
+  .next-card-go { right: var(--s-6); bottom: var(--s-6); width: 56px; height: 56px; }
+}

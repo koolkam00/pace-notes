@@ -15,7 +15,7 @@ const { experimentPlant } = require('../inspect.cjs');
 
 const DESKTOP = { viewport: { width: 1280, height: 900 } };
 const PHONE = { viewport: { width: 390, height: 844 }, mobile: true };
-// The five main links, in order, then the Menu's quieter line (components/SiteNav.tsx).
+// The five main links, in order, then the Menu's quieter line (components/SiteNav.tsx, in components/MenuSheet.tsx).
 const MAIN = [['Plan your race', '/tools/plan'], ['Analyze a past race', '/runners'], ['Courses', '/courses'], ['Tools', '/tools'], ['Research', '/research']];
 const MORE = [['About', '/about'], ['Request an analysis', '/request-analysis'], ['Open data ↗', 'https://github.com/koolkam00/pace-notes/releases']];
 const BLOCKED = ['/runners'];
@@ -40,7 +40,8 @@ async function browse(h, device) {
   h.check(`the navigation shows the five links in order${device.mobile ? ', then About, Request an analysis and Open data on the Menu\'s quieter line' : ' and nothing else'}`,
     JSON.stringify(shown.map(l => [l.text, l.href])) === JSON.stringify(expected) && shown.filter(l => l.more).length === (device.mobile ? MORE.length : 0), shown);
   h.check('Plan your race is the primary (orange) link', links[0] && links[0].primary && links.filter(l => l.primary).length === 1, links);
-  if (device.mobile) await page.locator('.site-header .nav-toggle').click(); // close it again
+  // The Menu is a modal sheet over the header (components/MenuSheet.tsx): close it again with Escape.
+  if (device.mobile) { await page.keyboard.press('Escape'); await page.waitForTimeout(700); }
   for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, 700); await page.waitForTimeout(120); }
   await click('a.story-card', /^\/stories\/[a-z-]+$/);
   for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, 800); await page.waitForTimeout(120); }

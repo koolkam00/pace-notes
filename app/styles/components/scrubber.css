@@ -1,0 +1,40 @@
+/* The scrubber (components/viz/Scrubber.client.tsx; the redesign spec, section 3.5). A horizontal drag scrubs and a
+   vertical one scrolls (touch-action: pan-y on the plot, the axis and the crown row). The needle never eases; only
+   the crown's press and the detent flash animate, and both stop under reduced motion. */
+
+.viz-frame .scrub-area { position: relative; touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+.viz-frame .scrub-plot { cursor: crosshair; outline: none; }
+.viz-frame .scrub-plot:focus-visible { outline: 2px solid var(--focus); outline-offset: 6px; border-radius: var(--r-xs); }
+
+/* The needle: 1.5 px of signal from the top of the plot to the baseline, or to the top of the mark it reads. */
+.viz-frame .scrub-needle { position: absolute; top: 0; bottom: 0; width: 1.5px; margin-left: -.75px; background: var(--signal); pointer-events: none; }
+
+/* Detents: small dots on the baseline at the values that matter; the one the needle reaches flashes. */
+.viz-frame .scrub-detents { position: absolute; left: 0; right: 0; top: 100%; height: 0; pointer-events: none; }
+.viz-frame .scrub-detents i { position: absolute; top: -2.5px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--ink-3); }
+.viz-frame .scrub-detents i.is-on { background: var(--signal); }
+.viz-frame .scrub-detents i.is-flash { animation: scrub-flash calc(220ms * var(--motion)) var(--ease-out); }
+@keyframes scrub-flash { from { transform: scale(2.2); background: var(--signal); } to { transform: scale(1); } }
+
+/* The crown row, under the tick labels: a stem from the row's top to a 20 px crown. The needle never crosses a tick. */
+.viz-frame .scrub-crown-row { position: relative; height: 40px; }
+.viz-frame .scrub-crown { position: absolute; top: 10px; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 0 2px var(--paper); transition: transform var(--d-release) var(--spring), box-shadow var(--d-quick) var(--ease-out); }
+.viz-frame .scrub-crown::before { content: ''; position: absolute; left: 50%; bottom: 100%; width: 1.5px; height: 8px; margin-left: -.75px; background: var(--signal); }
+/* The whole row takes the drag; the crown's own reach grows only up and down, so at the plot's edge it never widens the page. */
+.viz-frame .scrub-crown::after { content: ''; position: absolute; inset: -12px 0; }
+.viz-frame .is-dragging .scrub-crown { transform: scale(1.15); box-shadow: 0 0 0 2px var(--paper), var(--shadow-raise); transition-duration: var(--d-press); }
+.viz-frame .scrub-hint { position: absolute; top: 12px; margin-left: 20px; font-size: var(--t-label); font-weight: 600; line-height: 16px; color: var(--ink-3); white-space: nowrap; transition: opacity var(--d-quick) var(--ease-out); pointer-events: none; }
+.viz-frame .scrub-hint.is-left { transform: translateX(-100%); margin-left: -20px; }
+.viz-frame .is-touched .scrub-hint { opacity: 0; }
+
+/* Pick mode: the chosen mark is ringed. */
+.viz-frame .scrub-ring { position: absolute; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--signal); pointer-events: none; }
+.viz-frame .is-pick .scrub-plot { cursor: pointer; }
+
+@media (prefers-reduced-motion: reduce) {
+  .viz-frame .scrub-detents i.is-flash { animation: none; }
+}
+:root[data-motion-off] .viz-frame .scrub-detents i.is-flash { animation: none; }
+
+/* The plot paints over the needle, so on a histogram the needle stops at the top of the tower it reads. */
+.viz-frame .scrub-plot > .viz-svg { position: relative; }

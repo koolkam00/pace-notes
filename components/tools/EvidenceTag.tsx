@@ -6,7 +6,8 @@ export type EvidenceKind = 'data' | 'research' | 'official';
 const NAMES: Record<EvidenceKind, string> = { data: 'Pace Notes data', research: 'Published research', official: 'Official standards' };
 
 /**
- * The evidence badge (Pace Notes data, published research or official standards). It links to the methodology page,
+ * The evidence badge (Pace Notes data, published research or official standards): a glyph and a word with no hue, the
+ * glyph drawn by app/styles/components/badge.css (● data, ◆ research, ■ official) so the markup stays a bare label. It links to the methodology page,
  * which says what each kind is; `link={false}` keeps it a plain label inside another link, such as a card.
  */
 export function EvidenceTag({ kind, link = true, className: extra, children }: { kind: EvidenceKind; link?: boolean; className?: string; children?: ReactNode }) {

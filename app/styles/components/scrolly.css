@@ -1,0 +1,43 @@
+/* Scrolly (components/ui/Scrolly.client.tsx): one per story, for its signature finding. A sticky graphic and 3 to 6
+   steps as plain text on paper. The steps set data-step; layers marked data-from (and optionally data-to) show while the
+   step is in their range: only transform and opacity change, over --d-step. Never scroll-jacked, never continuous.
+   Phone: the graphic sticks under the reading bar at its own height (keep it under 58svh) and the steps scroll below
+   it, so no empty band sits between the picture and the words. From 900 px: a 26 rem step column on the left, the
+   graphic sticky on the right, centred on the screen beside the step text. Reduced motion or the Motion switch: no pinning, the final state,
+   the steps as a short list. Spec section 3.5. */
+
+.scrolly { position: relative; }
+.scrolly-graphic {
+  position: sticky; z-index: 1; top: var(--reading-h);
+  display: flex; align-items: flex-start; padding: var(--s-4) 0 var(--s-3);
+  background: var(--paper);
+}
+.scrolly-graphic > figure { width: 100%; margin: 0; }
+.scrolly-steps { position: relative; z-index: 0; margin: 0; padding: 0; list-style: none; }
+.scrolly-step { min-height: 46vh; min-height: 46svh; margin: 0; padding: var(--s-6) 0; }
+.scrolly-step:last-child { min-height: 0; padding-bottom: var(--s-7); }
+.scrolly-step > .t-kicker { display: block; margin-bottom: var(--s-2); }
+.scrolly-step p { margin: 0; max-width: 30rem; font-size: var(--t-body); line-height: 1.6; color: var(--ink-2); }
+.scrolly-step p em { font-style: normal; font-weight: 600; color: var(--ink); }
+.scrolly-step:not(.is-current) p { color: var(--ink-3); }
+.scrolly-step { transition: opacity var(--d-step) var(--ease-out); }
+
+/* Layers. In the server markup the scrolly carries data-step="final", so without the script the end state shows. */
+.scrolly [data-from] { transition: opacity var(--d-step) var(--ease-out), transform var(--d-step) var(--ease-out); }
+.scrolly:not([data-step='final']) [data-from]:not([data-active]) { opacity: 0; }
+.scrolly [data-zoom] { transform-box: fill-box; transition: transform var(--d-step) var(--ease-out); }
+
+@media (min-width: 900px) {
+  .scrolly { display: grid; grid-template-columns: 26rem minmax(0, 1fr); gap: 48px; align-items: start; }
+  .scrolly-steps { grid-column: 1; grid-row: 1; }
+  .scrolly-graphic { grid-column: 2; grid-row: 1; top: calc(var(--header-h) + 24px); height: calc(100vh - var(--header-h) - 48px); align-items: center; padding: 0; }
+  .scrolly-step { min-height: 70vh; display: flex; flex-direction: column; justify-content: center; }
+}
+
+/* Reduced motion or the Motion switch: unpinned, final state, steps as a list. */
+.scrolly.is-static { display: block; }
+.scrolly.is-static .scrolly-graphic { position: relative; top: auto; height: auto; min-height: 0; }
+.scrolly.is-static .scrolly-steps { display: grid; gap: var(--s-4); margin-top: var(--s-5); padding-left: 1.2em; list-style: decimal; }
+.scrolly.is-static .scrolly-step { min-height: 0; padding: 0; display: list-item; }
+.scrolly.is-static .scrolly-step p { color: var(--ink-2); }
+.scrolly.is-static .scrolly-step > .t-kicker { display: none; }

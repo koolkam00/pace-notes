@@ -1,0 +1,50 @@
+/* Buttons (components/ui/Button.tsx) and the inline arrow (components/ui/Arrow.tsx). Spec section 3.5.
+   Primary: the accent fill, at most one per screen region (on the home first screen the only orange control).
+   Secondary: an ink outline. Tertiary: text and an arrow. Every state is drawn: hover, pressed, focus, disabled, loading. */
+
+.arrow-icon { display: inline-block; flex: none; width: 1em; height: 1em; vertical-align: -.125em; }
+
+.btn {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 52px; padding: 0 24px;
+  border: 1.5px solid transparent; border-radius: var(--r-pill);
+  background: transparent; color: var(--ink);
+  font-family: var(--sans); font-size: 1.0625rem; font-weight: 600; line-height: 1; letter-spacing: -.005em;
+  text-decoration: none; white-space: nowrap; cursor: pointer;
+  transition: transform var(--d-release) var(--spring), background-color var(--d-quick) var(--ease-out), border-color var(--d-quick) var(--ease-out), color var(--d-quick) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:hover, .btn:focus-visible { text-decoration: none; }
+.btn:focus-visible, .btn.is-focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+.btn:active:not(:disabled):not([aria-disabled='true']), .btn.is-pressed { transform: scale(.98); transition-duration: var(--d-press); }
+.btn .arrow-icon { width: 16px; height: 16px; transition: transform var(--d-release) var(--spring); }
+.btn:hover .arrow-icon { transform: translateX(3px); }
+.btn.is-compact { min-height: 48px; padding: 0 20px; font-size: 1rem; }
+.btn.is-block { display: flex; width: 100%; }
+
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn-primary:hover, .btn-primary.is-hover { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--on-accent); }
+.btn-primary:active:not(:disabled):not([aria-disabled='true']), .btn-primary.is-pressed { background: var(--accent-press); border-color: var(--accent-press); }
+
+.btn-secondary { border-color: var(--ink); color: var(--ink); }
+.btn-secondary:hover, .btn-secondary.is-hover { border-color: var(--ink); background: var(--paper-sunk); }
+.btn-secondary:active:not(:disabled):not([aria-disabled='true']), .btn-secondary.is-pressed { background: var(--rule); }
+
+.btn-tertiary { min-height: 44px; padding: 0 2px; border: 0; border-radius: var(--r-xs); color: var(--ink); font-weight: 600; }
+.btn-tertiary:hover, .btn-tertiary.is-hover { border-color: transparent; text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: .25em; }
+
+.btn:disabled, .btn[aria-disabled='true'] { opacity: .4; cursor: not-allowed; }
+.btn.is-loading, .btn.is-loading[aria-disabled='true'] { opacity: 1; cursor: progress; }
+.btn-spinner {
+  width: 16px; height: 16px; flex: none; border-radius: 50%;
+  border: 2px solid currentColor; border-right-color: transparent;
+  animation: btn-spin calc(700ms + 99999ms * (1 - var(--motion))) linear infinite;
+}
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+
+/* At 200% zoom a long label wraps inside the button rather than push past the page edge. */
+.btn { max-width: 100%; }
+@media (max-width: 299.98px) {
+  .btn { white-space: normal; text-align: center; line-height: 1.2; padding-block: 8px; padding-inline: 16px; }
+}

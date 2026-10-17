@@ -128,7 +128,7 @@ a.race-report-badge:hover { text-decoration: none; border-style: dashed; }
 /* ---------- Print: the card alone, one page, ink on paper ---------- */
 @media print {
   @page { margin: 11mm 12mm; }
-  [data-print-hide], .footer, .skip-link, .site-header, .report-empty, .report-onward, .report-feedback, .race-report-actions, .no-print { display: none !important; }
+  [data-print-hide], .site-footer, .skip-link, .site-header, .report-empty, .report-onward, .report-feedback, .race-report-actions, .no-print { display: none !important; }
   [data-print-path] { max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; background: #fff !important; }
   html, body { background: #fff !important; }
   .report-page { padding: 0; }
