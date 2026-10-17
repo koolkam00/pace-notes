@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pace Notes</title>
+<meta name="description" content="How marathons are actually run, read from every recorded 5K split.">
+<meta name="theme-color" content="#F4F1EA" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1013" media="(prefers-color-scheme: dark)">
+<link rel="preload" href="fonts/inter-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/fraunces-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/instrument.css">
+<link rel="stylesheet" href="css/pages.css">
+</head>
+<body class="page-home">
+<a class="sr-only" href="#main">Skip to content</a>
+<header class="bar site-header" data-bar></header>
+
+<main id="main">
+  <!-- hero (contains paths, as HomeDoors does today) -->
+  <section class="hero" data-track-section="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <p class="label hero-label" data-scale-label>Pace Notes<span class="dot"></span>City marathons</p>
+        <h1 id="hero-title">The same <span data-marathon>26.2 miles</span>, run <em data-finishes-m>3.4 million</em> ways.</h1>
+        <p class="lede home-hero-dek">Pick a course and a goal. See how finishes at that pace held up there.</p>
+
+        <div class="paths" data-track-section="paths">
+          <form class="home-door home-plan" action="#plan" method="get">
+            <div class="plan-panel">
+              <label class="home-plan-field plan-cell">
+                <span class="label">Course</span>
+                <select id="home-plan-course" name="course" data-courses><option value="">All courses</option></select>
+                <svg class="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </label>
+              <label class="home-plan-field plan-cell plan-goal">
+                <span class="label">Goal</span>
+                <input id="home-plan-goal" name="goal" inputmode="decimal" autocomplete="off" placeholder="4:00" aria-describedby="goal-hint">
+                <span class="keypad-hint" id="goal-hint" aria-hidden="true">Tap . for :</span>
+              </label>
+            </div>
+            <button class="btn btn-primary btn-block home-plan-button" type="submit">Plan your race</button>
+          </form>
+          <nav class="home-doors-more" aria-label="Other ways in">
+            <a class="home-door-link press" href="#runners"><span>Analyze a past race</span><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 8h10.5M9 3.5 13.5 8 9 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+            <a class="home-door-link press" href="#guide"><span>Read it lap by lap</span><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 8h10.5M9 3.5 13.5 8 9 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          </nav>
+        </div>
+      </div>
+      <div class="hero-replay replay" data-replay aria-label="Replay of a marathon field"></div>
+    </div>
+  </section>
+
+  <!-- stakes: the one reading -->
+  <section class="section stakes" data-track-section="stakes">
+    <div class="wrap stakes-grid">
+      <div class="dial viz" data-dial>
+        <div class="dial-center"><span class="figure-num" data-sd-figure>—</span><p class="reading-unit">of finishes</p></div>
+      </div>
+      <div class="reading stakes-copy">
+        <p class="label">Lap 05<span class="dot"></span>After 30K</p>
+        <p class="sentence" data-sd-sentence>&nbsp;</p>
+        <div class="onset viz" data-onset aria-hidden="true"></div>
+        <p class="small onset-key" data-onset-key>&nbsp;</p>
+        <a class="arrow-link" href="index.html#guide">Read lap 05 <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 8h10.5M9 3.5 13.5 8 9 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- guide: the contents, as a stopwatch lap list -->
+  <section class="section guide" id="guide" data-track-section="guide">
+    <div class="wrap guide-grid">
+      <div class="section-head guide-head">
+        <p class="label">The notes</p>
+        <h2>Eleven laps, <em>start to finish</em>.</h2>
+        <p class="dek">Read it like a race. Each lap is one stretch of the marathon, and the one thing the data says about it.</p>
+      </div>
+      <ol class="laps" data-laps></ol>
+    </div>
+  </section>
+
+  <!-- steps -->
+  <section class="section steps" data-track-section="steps">
+    <div class="wrap">
+      <div class="section-head"><p class="label">Plan</p><h2>Plan in <em>three</em> steps.</h2></div>
+      <ol class="steps-list">
+        <li><span class="step-n">1</span><div><h3>Pick a course and a goal</h3><p class="small" data-step1>Any course in the notes, any goal from 2:30 to 6:30.</p></div></li>
+        <li><span class="step-n">2</span><div><h3>See how finishes like yours held</h3><p class="small">Splits for your goal, and how often that pace held there.</p></div></li>
+        <li><span class="step-n">3</span><div><h3>Print a pace band</h3><p class="small">Your mats and times on a strip for your wrist.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- stories: long reads -->
+  <section class="section stories" data-track-section="stories">
+    <div class="wrap">
+      <div class="section-head"><p class="label">Long reads</p><h2>Start with <em>these</em>.</h2></div>
+      <div class="deck story-deck" data-story-deck>
+        <a class="card story-card" href="story-round-numbers.html">
+          <div class="card-viz viz" data-viz="towers"></div>
+          <p class="label">Lap 06<span class="dot"></span>Story</p>
+          <h3>The 3:59 effect</h3>
+          <p class="small" data-story-towers>&nbsp;</p>
+        </a>
+        <a class="card story-card" href="analysis-starting-pace.html">
+          <div class="card-viz viz" data-viz="bank"></div>
+          <p class="label">Lap 02<span class="dot"></span>Analysis</p>
+          <h3>Fast starts, paid back later</h3>
+          <p class="small" data-story-bank>&nbsp;</p>
+        </a>
+        <a class="card story-card" href="course-boston.html">
+          <div class="card-viz viz" data-viz="boston"></div>
+          <p class="label">Lap 09<span class="dot"></span>Course</p>
+          <h3>Boston, read from its splits</h3>
+          <p class="small" data-story-boston>&nbsp;</p>
+        </a>
+      </div>
+      <div class="deck-dots" data-story-dots aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <!-- cta -->
+  <section class="section cta" data-track-section="cta">
+    <div class="wrap">
+      <div class="cta-card">
+        <div class="cta-lane" aria-hidden="true"><span class="cta-runner" data-runner></span></div>
+        <h2>Your next marathon <em>starts with a plan</em>.</h2>
+        <a class="btn btn-ink" href="#plan">Plan your race <svg class="arrow" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 8h10.5M9 3.5 13.5 8 9 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      </div>
+    </div>
+  </section>
+</main>
+<footer data-foot></footer>
+<script type="module" src="js/home.js"></script>
+</body>
+</html>
