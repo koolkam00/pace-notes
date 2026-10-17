@@ -145,22 +145,22 @@ export default function DesignSystemPage() {
     { kicker: '01', text: `Every minute of *${n(ft.analysis_n)}* finishes, from ${clock(150)} to ${clock(330)}.` },
     { kicker: '02', text: 'The line is the smooth curve: the field with no round numbers in it.' },
     { kicker: '03', text: allAbove ? 'The minute before every hour and half-hour stands above it.' : `The minute before ${windowMarks.filter((m) => m.ratio > 1).length} of ${windowMarks.length} hour and half-hour marks stands above it.` },
-    { kicker: '04', text: `Tallest against the curve: ${top.mark}, at *${ratio}×*.` },
+    { kicker: '04', text: `Tallest against the curve: the minute before ${top.mark} (${before}), at *${ratio}×*.` },
   ];
   const marksOptions = roundMarks.map((m) => ({ value: m.mark, label: m.mark }));
   const micro = { kind: 'bars' as const, values: near.map((h) => h.all), highlight: near.findIndex((h) => h.minute === top.minutes - 1) };
   const card = { kicker: 'The finish line', marker: 'FINISH', figure: ratio, unit: '×', path: '/stories/round-numbers', claim: `The minute before ${top.mark}: *${ratio}×* the smooth curve.`, micro };
   const sentence = `Between ${before}:00 and ${before}:59, ${n(top.minute_before)} finishes landed: *${ratio} times* what a smooth curve expects.`;
-  const slower = (s: number) => `${mmss(s)} ${s > 0 ? 'slower' : 'faster'}`;
+  const slower = (s: number) => `${mmss(s)} ${s > 0 ? 'behind' : 'ahead'}`;
   const receipt = focus && even ? {
     kicker: `First 5K ${bandLabel(focus.band).toLowerCase()}`,
     lines: [
-      { label: 'First 5K', key: 'against the 5–20K pace', value: signed(focus.opening_delta_mean_s), sr: `${signed(focus.opening_delta_mean_s)} minutes` },
-      { label: 'After 20K', key: 'against the 5–20K pace', value: signed(focus.remainder_delta_mean_s), sr: `${signed(focus.remainder_delta_mean_s)} minutes` },
+      { label: 'First 5K', value: signed(focus.opening_delta_mean_s), sr: `${signed(focus.opening_delta_mean_s)} minutes` },
+      { label: 'After 20K', value: signed(focus.remainder_delta_mean_s), sr: `${signed(focus.remainder_delta_mean_s)} minutes` },
     ],
-    result: { label: 'Whole race, against the 5–20K pace', value: slower(focus.finish_delta_mean_s), sr: slower(focus.finish_delta_mean_s) },
-    extra: { label: 'Sustained slowdown', value: `${pct(slow)}%`, key: `with an even first 5K: ${pct(evenSlow)}%`, typical: evenSlow, observed: slow },
-    footer: 'Same race · same 5–20K pace',
+    result: { label: 'Whole race', value: slower(focus.finish_delta_mean_s), sr: slower(focus.finish_delta_mean_s) },
+    extra: { label: 'Sustained slowdown', value: `${pct(slow)}%`, key: `With an even first 5K: ${pct(evenSlow)}%` },
+    footer: 'Against the 5–20K pace · same race',
   } : null;
 
   return (
@@ -321,8 +321,8 @@ export default function DesignSystemPage() {
 
       <Section id="values" n="09 · Values" title="Every chart has its table">
         <Values id="ds-values" caption="Finishes in the minute before each mark, against the smooth curve"
-          columns={[{ key: 'mark', label: 'Mark' }, { key: 'n', label: 'Minute before' }, { key: 'e', label: 'Smooth curve' }, { key: 'r', label: 'Against the curve' }, { key: 'men', label: 'Recorded men' }, { key: 'women', label: 'Recorded women' }]}
-          rows={ft.marks.map((m) => [m.mark, n(m.minute_before), n(m.expected_minute_before), `${m.ratio.toFixed(2)}×`, `${m.men_ratio.toFixed(2)}×`, m.women_ratio === null ? '—' : `${m.women_ratio.toFixed(2)}×`])}
+          columns={[{ key: 'mark', label: 'Mark' }, { key: 'r', label: 'Against the curve' }, { key: 'n', label: 'Minute before' }, { key: 'e', label: 'Smooth curve' }, { key: 'men', label: 'Recorded men' }, { key: 'women', label: 'Recorded women' }]}
+          rows={ft.marks.map((m) => [m.mark, `${m.ratio.toFixed(2)}×`, n(m.minute_before), n(m.expected_minute_before), `${m.men_ratio.toFixed(2)}×`, m.women_ratio === null ? '—' : `${m.women_ratio.toFixed(2)}×`])}
           reading={ft.marks.indexOf(top)} open />
       </Section>
 
@@ -351,7 +351,7 @@ export default function DesignSystemPage() {
               <Button type="submit" variant="secondary" compact>Update comparison</Button>
             </form>
           </MakeItYours>
-          <p className="t-body miy-results">The explorer&rsquo;s results. Under 900 px the chip floats while this beat is on screen; from 900 px the form sits inline above.</p>
+          <p className="t-body miy-results">The explorer&rsquo;s results. Under 900 px the row above opens the form in a sheet; from 900 px the form sits inline beside them.</p>
         </div>
       </Section>
 

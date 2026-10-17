@@ -156,7 +156,10 @@ function inspect({ isHome }) {
   return { findings, candidates };
 }
 
-/** Check 2's second pass: a candidate passes when a 44×44 box around its centre hits it (padding or a pseudo-element). */
+/**
+ * Check 2's second pass: a candidate passes when a 44×44 box around its centre hits it (padding or a pseudo-element);
+ * where its centre cannot be hit-tested at all, when its own box or its absolutely placed pseudo-element is 44 px each way.
+ */
 async function probeTargets(page, candidates) {
   const small = [];
   for (const c of candidates) {
@@ -168,8 +171,12 @@ async function probeTargets(page, candidates) {
       const r = el.getBoundingClientRect();
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
       const hits = (x, y) => { const at = document.elementFromPoint(x, y); return !!at && (at === el || el.contains(at)); };
-      const ok = hits(cx - 21, cy) && hits(cx + 21, cy) && hits(cx, cy - 21) && hits(cx, cy + 21);
-      return { ok };
+      if (hits(cx, cy)) return { ok: hits(cx - 21, cy) && hits(cx + 21, cy) && hits(cx, cy - 21) && hits(cx, cy + 21) };
+      // The centre cannot be hit-tested (off screen inside a scroll region, or under a sticky bar): take the larger of the
+      // element's box and its absolutely placed ::before/::after box, the way badge.css gives a badge its 44 px reach.
+      const pseudo = ['::before', '::after'].map((p) => getComputedStyle(el, p)).filter((c) => c.content !== 'none' && c.content !== 'normal' && c.position === 'absolute');
+      const w = Math.max(r.width, ...pseudo.map((c) => parseFloat(c.width) || 0)), h = Math.max(r.height, ...pseudo.map((c) => parseFloat(c.height) || 0));
+      return { ok: w >= 44 && h >= 44 };
     }, c);
     if (!result.ok) small.push(`${c.what} ${c.w}×${c.h}`);
   }

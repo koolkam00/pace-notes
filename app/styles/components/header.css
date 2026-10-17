@@ -30,7 +30,6 @@
 .brand-mark i:nth-child(1) { left: 5px; right: 5px; top: 7.5px; }
 .brand-mark i:nth-child(2) { left: 8px; right: 5px; top: 12.4px; }
 .brand-mark i:nth-child(3) { left: 5px; right: 9px; top: 17.3px; }
-.header-credit { display: none; font-family: var(--sans); font-size: var(--t-label); font-weight: 400; color: var(--ink-3); white-space: nowrap; }
 
 /* ---------- Controls: units, Menu, Chapters ---------- */
 .header-controls { display: flex; align-items: center; gap: var(--s-1); margin-left: auto; }
@@ -78,9 +77,8 @@
 @media (max-width: 299.98px) {
   .header-inner { flex-wrap: wrap; gap: 0; padding-bottom: var(--s-1); }
   .header-controls { flex: 1 1 100%; justify-content: space-between; margin-left: 0; }
-}
-@media (min-width: 600px) {
-  .header-credit { display: inline; }
+  /* With no unit switch the Menu button is alone on its row: it keeps to the right, where it sits on row one. */
+  .header-controls > .unit-switch-placeholder + .nav-toggle { margin-left: auto; }
 }
 @media (min-width: 1180px) {
   .unit-switch-placeholder { display: flex; }

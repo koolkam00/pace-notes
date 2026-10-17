@@ -56,7 +56,7 @@ export default function BinLens({ marks, initial, label, values, height = 180, h
           <Baseline />
         </Plot>
       )}
-      axis={<Axis ticks={[-180, -120, -60, 0, 60, 120].filter((s) => s >= lo && s <= hi).map((s) => ({ x: x(s), label: seconds(s), priority: s === 0 ? 3 : undefined }))} />}
+      axis={<Axis ticks={[lo, 0, hi].filter((s, i, all) => s >= lo && s <= hi && all.indexOf(s) === i).map((s) => ({ x: x(s), label: seconds(s), priority: s === 0 ? 3 : undefined }))} />}
       values={values}
     />
   );

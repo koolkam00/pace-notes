@@ -10,7 +10,8 @@
   border-radius: var(--r-pill); background: var(--paper-sunk); box-shadow: inset 0 0 0 1px var(--rule);
 }
 .seg::-webkit-scrollbar { display: none; }
-.seg.is-block { display: grid; width: 100%; }
+/* A block control fills a phone column but stays content-sized on a wide one, never a long pill of small labels. */
+.seg.is-block { display: grid; width: 100%; max-width: min(100%, 28rem); }
 .seg-btn {
   position: relative; z-index: 1;
   display: inline-flex; align-items: center; justify-content: center;

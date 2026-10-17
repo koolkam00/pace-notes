@@ -2,6 +2,6 @@
    reading as a signal dot, typical or expected as a hollow ring, a comparison as an ink dot, you as an orange ring.
    Labels sit above the marks, placed clear of each other. Drawn in the chart frame's plot fractions. */
 
-.viz-frame.ruler { --plot-h: 48px; --plot-h-md: 48px; }
+.viz-frame.ruler { --plot-h: 80px; --plot-h-md: 80px; }
 .viz-frame.ruler .viz-plot { height: var(--plot-h); }
 .viz-frame.ruler .ruler-track { fill: var(--rule-strong); }

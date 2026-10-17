@@ -6,7 +6,7 @@ import { getAnalysisStart } from '@/lib/analysis-server';
 import { getStudyEvidence } from '@/lib/research-data';
 import { getFinishTimeSummary } from '@/lib/finish-times-summary';
 import { EXAMPLE_PROFILE } from '@/lib/analysis-profile';
-import { count, delta, hm, inWords, ms, pct, sectionLabel, temp } from '@/lib/nuggets/format';
+import { count, degreeStep, delta, hm, inWords, ms, pct, perDegree, sectionLabel, temp } from '@/lib/nuggets/format';
 import { getNugget, sentenceOf } from '@/lib/nuggets';
 import { withEm } from '@/components/ui/withEm';
 import Values from '@/components/ui/Values';
@@ -14,7 +14,7 @@ import HeroReplay from '@/components/story/HeroReplay';
 import BinLens from '@/components/viz/BinLens';
 import Cdf from '@/components/viz/Cdf';
 import DotGrid from '@/components/viz/DotGrid';
-import DotStrip from '@/components/viz/DotStrip';
+import DotStrip, { stripExtremes } from '@/components/viz/DotStrip';
 import Dumbbell from '@/components/viz/Dumbbell';
 import EffectBand from '@/components/viz/EffectBand';
 import ElevationPace from '@/components/viz/ElevationPace';
@@ -81,8 +81,8 @@ function MinuteHistogram() {
           },
           initial: bins.findIndex((b) => b.x === top.minutes - 1), detents,
         }}
-        values={<Values id="ds-v-hist" caption="Finishes in the minute before each round mark" columns={[{ key: 'm', label: 'Mark' }, { key: 'n', label: 'Minute before' }, { key: 'r', label: 'Against the curve' }]}
-          rows={marks.map((m) => [m.mark, count(m.minute_before), `${m.ratio.toFixed(2)}×`])} reading={marks.indexOf(top)} />}
+        values={<Values id="ds-v-hist" caption="Finishes in the minute before each round mark" columns={[{ key: 'm', label: 'Mark' }, { key: 'r', label: 'Against the curve' }, { key: 'n', label: 'Minute before' }]}
+          rows={marks.map((m) => [m.mark, `${m.ratio.toFixed(2)}×`, count(m.minute_before)])} reading={marks.indexOf(top)} />}
       />
     </Form>
   );
@@ -117,13 +117,12 @@ function TypeProfiles() {
   });
   const top = types.archetypes.reduce((a, b) => (b.share > a.share ? b : a));
   return (
-    <Form id="ds-profile" title="Line profile with a band" note={<>Each pacing type, section by section, against its own average pace. The commonest: <em>{top.name}</em>, {pct(top.share)} of finishes.</>}>
+    <Form id="ds-profile" title="Line profile with a band" note={<>Each pacing type, section by section, against its own average pace. The commonest, {top.name}: <em>{pct(top.share)}</em> of finishes.</>}>
       <LineProfile x={xs} xDomain={[0, 42.195]} yDomain={[lo, hi]} layers={layers} initial={top.slug} lensLabel="Pacing type" chips
-        refs={[{ value: 0, dashed: true }]} washes={[{ from: 20, to: 42.195, label: 'After 20K' }]}
+        refs={[{ value: 0, dashed: true, label: 'Own average' }]} washes={[{ from: 20, to: 42.195, label: 'After 20K' }]}
         xTicks={[{ value: 0, label: 'Start' }, { value: 10, label: '10K' }, { value: 20, label: '20K' }, { value: 30, label: '30K' }, { value: 42.195, label: 'Finish' }]}
-        yTicks={[{ value: hi, label: signedPct(hi) }, { value: lo, label: signedPct(lo) }]}
         label="Section pace against each type's own average, the median with the middle half of finishes"
-        keys={[{ label: 'Middle half of its finishes', mark: 'band' }, { label: 'Own average pace', mark: 'dash' }]}
+        keys={[{ label: 'Middle half of its finishes', mark: 'band' }]}
         values={<Values id="ds-v-profile" caption="Median section pace against own average, by type" columns={[{ key: 't', label: 'Type' }, ...SECTION_KM.map(([a, b], i) => ({ key: `s${i}`, label: sectionLabel(a, b) }))]}
           rows={types.archetypes.map((a) => [a.name, ...a.profile.map((v) => signedPct(v, 1))])} />} />
     </Form>
@@ -173,16 +172,15 @@ function OpeningCurve() {
 // ---------- Dot strip: median finish, course by course ----------
 function CourseStrip() {
   const list = courses.courses.filter((c) => c.finishes >= 100);
-  const all = getFinishTimeSummary().groups.all.median ?? 0;
-  const subject = list.reduce((a, b) => (Math.abs(b.median_s / 60 - all) < Math.abs(a.median_s / 60 - all) ? b : a));
+  const items = list.map((c) => ({ id: c.city, label: c.city, value: c.median_s, display: hm(c.median_s / 60), detail: count(c.finishes), hollow: c.editions < 3 }));
+  const [min, max] = stripExtremes(items)!;
   const lo = Math.min(...list.map((c) => c.median_s)), hi = Math.max(...list.map((c) => c.median_s));
-  const min = list.find((c) => c.median_s === lo)!, max = list.find((c) => c.median_s === hi)!;
   const t0 = Math.floor(lo / 1800) * 1800, t1 = Math.ceil(hi / 1800) * 1800;
   return (
-    <Form id="ds-strip" title="Dot strip, ranked" note={<>Median finish, race by race: <em>{hm(lo / 60)}</em> in {min.city} to <em>{hm(hi / 60)}</em> in {max.city}.</>}>
-      <DotStrip items={list.map((c) => ({ id: c.city, label: c.city, value: c.median_s, display: hm(c.median_s / 60), detail: count(c.finishes), hollow: c.editions < 3, subject: c.city === subject.city }))}
+    <Form id="ds-strip" title="Dot strip, ranked" note={<>Median finish, race by race: <em>{min.display}</em> in {min.label} to {max.display} in {max.label}.</>}>
+      <DotStrip items={items.map((c) => ({ ...c, subject: c.id === min.id }))}
         domain={[t0, t1]} ticks={Array.from({ length: Math.round((t1 - t0) / 1800) + 1 }, (_, i) => t0 + i * 1800).map((v) => ({ value: v, label: hm(v / 60) }))}
-        label={`Median finish of ${list.length} courses, from ${hm(lo / 60)} to ${hm(hi / 60)}`} readoutKey="Finishes" keyLabels={{ filled: 'Three or more editions', hollow: 'Fewer editions' }}
+        label={`Median finish of ${list.length} courses, from ${min.display} in ${min.label} to ${max.display} in ${max.label} among courses with three or more editions`} readoutKey="Finishes" keyLabels={{ filled: 'Three or more editions', hollow: 'Fewer editions' }}
         values={<Values id="ds-v-strip" caption="Median finish by course" columns={[{ key: 'c', label: 'Course', text: true }, { key: 'm', label: 'Median finish' }, { key: 'e', label: 'Editions' }, { key: 'n', label: 'Finishes' }]}
           rows={[...list].sort((a, b) => a.median_s - b.median_s).map((c) => [c.city, hm(c.median_s / 60), String(c.editions), count(c.finishes)])} />} />
     </Form>
@@ -231,7 +229,7 @@ function PairsWaffle() {
   return (
     <Form id="ds-waffle" title="Waffle" note={withEm(sentenceOf(getNugget('weather.pairs')))}>
       <Waffle tiles={tiles} sideLabel="At the start" label={`${pairs.hotter_slowed_more} of ${pairs.total} same-course pairs: the warmer year had more sustained slowdowns`}
-        keyLabels={{ lit: 'Warmer year, more sustained slowdowns', other: 'Not so' }}
+        keyLabels={{ lit: 'Warmer year, more sustained slowdowns', other: 'Cooler year, as many or more' }}
         values={<Values id="ds-v-waffle" caption="Same-course pairs at least 9°F apart" columns={[{ key: 'p', label: 'Pair', text: true }, { key: 'v', label: 'Start temperature · sustained slowdown' }]} rows={tiles.map((t) => [t.key, `${t.side} · ${t.value}`])} />} />
     </Form>
   );
@@ -276,13 +274,15 @@ function CourseWeather() {
 function WarmthEffect() {
   const curv = courses.weather.curvature.slowdown_points_per_c;
   const fit = courses.weather.fits.slowdown_within;
+  const deg = '°F';
+  const per = (v: number, digits = 2) => perDegree(v, 'mi').toFixed(digits);
   return (
-    <Form id="ds-effect" title="Binned effect band" note={<>Within a course, each degree warmer at the start went with <em>{fit.slope.toFixed(1)} points</em> more sustained slowdown.</>}>
+    <Form id="ds-effect" title="Binned effect band" note={<>Within a course, each {degreeStep('mi')} warmer at the start went with <em>{per(fit.slope, 1)} points</em> more sustained slowdown.</>}>
       <EffectBand bins={curv.map((c) => ({ id: String(c.temp), label: temp(c.temp, 'mi'), value: c.slope, lo: c.ci95[0], hi: c.ci95[1] }))}
-        estimate={{ value: fit.slope, lo: fit.ci95[0], hi: fit.ci95[1], label: 'Across all temperatures, with its interval' }} span={3} nullBand={0.5} unit="pts"
-        label="Points of sustained slowdown per degree warmer, by start temperature, against a no-difference band"
-        values={<Values id="ds-v-effect" caption="Points per °C warmer, by start temperature" columns={[{ key: 't', label: 'At the start' }, { key: 's', label: 'Points per °C' }, { key: 'c', label: 'Interval' }]}
-          rows={curv.map((c) => [temp(c.temp, 'mi'), c.slope.toFixed(2), `${c.ci95[0].toFixed(2)} to ${c.ci95[1].toFixed(2)}`])} />} />
+        estimate={{ value: fit.slope, lo: fit.ci95[0], hi: fit.ci95[1], label: 'Across all temperatures, with its interval' }} units="mi" nullBand={0.5} unit="pts"
+        label={`Points of sustained slowdown per ${deg} warmer, by start temperature, against a no-difference band`}
+        values={<Values id="ds-v-effect" caption={`Points per ${deg} warmer, by start temperature`} columns={[{ key: 't', label: 'At the start' }, { key: 's', label: `Points per ${deg}` }, { key: 'c', label: 'Interval' }]}
+          rows={curv.map((c) => [temp(c.temp, 'mi'), per(c.slope), `${per(c.ci95[0])} to ${per(c.ci95[1])}`])} />} />
     </Form>
   );
 }
@@ -353,7 +353,7 @@ function WomenSlope() {
   const rose = cities.filter((c) => c.to > c.from).length;
   return (
     <Form id="ds-slope" title="Slope chart" note={<>Recorded women&rsquo;s share of finishes rose in <em>{rose} of {cities.length}</em> cities, from each city&rsquo;s first year to its latest.</>}>
-      <Slope items={cities} fromLabel="First year" toLabel="Latest year" format={(v) => pct(v)} label={`Recorded women's share rose in ${rose} of ${cities.length} cities`}
+      <Slope items={cities} fromLabel="First year" toLabel="Latest year" noun="city" format={(v) => pct(v)} label={`Recorded women's share rose in ${rose} of ${cities.length} cities`}
         values={<Values id="ds-v-slope" caption="Recorded women's share of finishes" columns={[{ key: 'c', label: 'City', text: true }, { key: 'f', label: 'First year' }, { key: 't', label: 'Latest year' }]} rows={cities.map((c) => [c.label, pct(c.from), pct(c.to)])} />} />
     </Form>
   );
@@ -414,6 +414,7 @@ function Small() {
   const p = (g: typeof s.groups.all, q: number) => g.percentiles.find((x) => x.p === q)?.minute ?? NaN;
   const lo = p(s.groups.all, 0.1), hi = p(s.groups.all, 0.9);
   const domain = [...types.archetypes.flatMap((a) => a.profile)];
+  const rarest = types.archetypes.reduce((a, b) => (b.share < a.share ? b : a));
   return (
     <>
       <Form id="ds-dots" title="Dot grid" note={<>Of 100 finishes with a first 5K {fastest.label.toLowerCase()}, <em>{Math.round(fastest.slowdown * 100)}</em> had a sustained slowdown; with an even one, {Math.round(even.slowdown * 100)}.</>}>
@@ -424,11 +425,11 @@ function Small() {
         </div>
       </Form>
       <Form id="ds-ruler" title="Ruler" note={withEm(sentenceOf(getNugget('field.median')))}>
-        <Ruler min={lo} max={hi} label={`Median finishes between the 10th and 90th percentile: all ${hm(s.groups.all.median!)}, women ${hm(s.groups.women.median!)}, men ${hm(s.groups.men.median!)}`}
-          ticks={[lo, Math.round((lo + hi) / 2), hi].map((m) => ({ value: m, label: hm(m) }))}
-          marks={[{ value: s.groups.men.median!, kind: 'compare', label: `Men ${hm(s.groups.men.median!)}` }, { value: s.groups.women.median!, kind: 'compare', label: `Women ${hm(s.groups.women.median!)}` }, { value: s.groups.all.median!, kind: 'reading', label: `All ${hm(s.groups.all.median!)}` }]} />
+        <Ruler min={lo} max={hi} label={`Median finishes between the 10th and 90th percentile: all ${hm(s.groups.all.median!)}, recorded women ${hm(s.groups.women.median!)}, recorded men ${hm(s.groups.men.median!)}`}
+          ticks={Array.from({ length: Math.floor(hi / 30) - Math.ceil(lo / 30) + 1 }, (_, i) => (Math.ceil(lo / 30) + i) * 30).map((m) => ({ value: m, label: hm(m) }))}
+          marks={[{ value: s.groups.men.median!, kind: 'compare', label: `Recorded men ${hm(s.groups.men.median!)}` }, { value: s.groups.women.median!, kind: 'compare', label: `Recorded women ${hm(s.groups.women.median!)}` }, { value: s.groups.all.median!, kind: 'reading', label: `All ${hm(s.groups.all.median!)}` }]} />
       </Form>
-      <Form id="ds-glyphs" title="Type glyphs" note={<>Six pacing types, each next to its name, on one shared scale. The rarest: <em>{inWords(Math.min(...types.archetypes.map((a) => a.share)))}</em> finishes.</>}>
+      <Form id="ds-glyphs" title="Type glyphs" note={<>Six pacing types, each next to its name, on one shared scale. The rarest, {rarest.name}: <em>{inWords(rarest.share, 'finishes')}</em>.</>}>
         <ul className="ds-glyphs">
           {types.archetypes.map((a, i) => <li key={a.slug}><TypeGlyph profile={a.profile} index={i} domain={[Math.min(...domain), Math.max(...domain)]} /><span>{a.name}</span><b>{pct(a.share)}</b></li>)}
         </ul>
@@ -447,7 +448,7 @@ function Replay() {
   const choices = replayChoices(replay.editions, manifest, routes);
   return (
     <>
-      <Form id="ds-replay" title="Race replay, rank lanes" note={withEm(sentenceOf(getNugget('replay.first')))}>
+      <Form id="ds-replay" title="Race replay, rank lanes" note="Every finish of one race, on one clock. Tap the field to pause; drag the clock to scrub.">
         <div className="night ds-night ds-replay"><HeroReplay choices={choices} /></div>
       </Form>
       <Form id="ds-replay-band" title="Race replay, the home band" note="The same replay at a fifth of the screen, with no picker.">
