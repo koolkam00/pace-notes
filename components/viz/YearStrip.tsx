@@ -39,7 +39,12 @@ export default function YearStrip({ editions, selected, sideLabels = [], valueDo
   }
   const items: LabelItem[] = [...new Set([maxI, minI])].filter((i) => i !== sel || sel < 0).map((i) => ({ id: `e${i}`, text: (extremeLabel ?? ((p) => `${p.year}`))(sorted[i]), x: x(sorted[i].year), y: y(sorted[i].value), priority: 2, size: 13, gap: 9 }));
   if (sel >= 0) items.push({ id: 'sel', text: (extremeLabel ?? ((p) => `${p.year}`))(sorted[sel]), x: x(sorted[sel].year), y: y(sorted[sel].value), priority: 3, tone: 'signal', gap: 9 });
-  const placed = placeLabels(items, { height, avoid: sorted.map((e) => ({ x: x(e.year), y: y(e.value), r: 5 })), boxes: sorted.map((e) => ({ x0: x(e.year), x1: x(e.year), y0: y(e.value), y1: 1, pad: 2 })) });
+  // Labels keep clear of the dots, the stems and the scrubber's needle, which runs the full height at the selected year;
+  // of the average's dashed line too, unless that would leave a label with nowhere to go.
+  const avoid = sorted.map((e) => ({ x: x(e.year), y: y(e.value), r: 5 }));
+  const boxes = [...sorted.map((e) => ({ x0: x(e.year), x1: x(e.year), y0: y(e.value), y1: 1, pad: 2 })), ...(sel >= 0 ? [{ x0: x(sorted[sel].year), x1: x(sorted[sel].year), y0: 0, y1: 1, pad: 4 }] : [])];
+  const clearOfAverage = average !== undefined ? placeLabels(items, { height, avoid, boxes: [...boxes, { x0: 0, x1: 1, y0: y(average), y1: y(average), pad: 2 }] }) : null;
+  const placed = clearOfAverage && clearOfAverage.every((l) => l.minWidth !== null) ? clearOfAverage : placeLabels(items, { height, avoid, boxes });
   const plot = (
     <Plot>
       {gaps.map((g) => <rect key={g.from} className="a-wash year-gap" x={pc(x(g.from - 0.5))} width={pc(x(g.to + 0.5) - x(g.from - 0.5))} y="0" height="100%" />)}
