@@ -186,6 +186,9 @@ RECOUNT['replay.first'] = (n) => {
 // The analysis and /slowdown nuggets (WP3): their recounts and fixtures live in scripts/nuggets/analyses.cjs.
 const analyses = require('./nuggets/analyses.cjs')({ json, eq, ok, core });
 Object.assign(RECOUNT, analyses.RECOUNT);
+// The tool nuggets (WP4): their recounts and fixtures live in scripts/nuggets/tools.cjs.
+const toolNuggets = require('./nuggets/tools.cjs')({ json, eq, ok, core });
+Object.assign(RECOUNT, toolNuggets.RECOUNT);
 for (const [id, recount] of Object.entries(RECOUNT)) {
   const n = N.getNugget(id);
   ok(!n.placeholder, `${id} is a real nugget, not a placeholder`);
@@ -204,6 +207,7 @@ if (!args.has('--no-fixture')) {
     [stories.fieldMedianFrom({ all: null, women: null, men: null, total: 0 }), 'Finish times, every recorded minute.'],
     [home.siteTotalsFrom({ results: 10, finishesEligible: 20, cities: 1, raceYears: 1, firstYear: 2020, lastYear: 2020, raw: { cities: 1, raceYears: 1, firstYear: 2020, lastYear: 2020 } }), 'Marathon finishes, mat by mat.'],
     ...analyses.fixtures(require('../lib/nuggets/analyses.ts')),
+    ...toolNuggets.fixtures(require('../lib/nuggets/tools.ts')),
   ];
   for (const [n, text] of fallbacks) {
     eq(n.guard, false, `fixture ${n.id}: the guard fails`);

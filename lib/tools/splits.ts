@@ -9,6 +9,11 @@ export const SECTION_KM = [5, 5, 5, 5, 5, 5, 5, 5, 2.195];
 /** The one wording of the sustained-slowdown definition and its neutral citation, for every tool. */
 export const SLOWDOWN_DEFINITION = 'A sustained slowdown is at least 5 km after 20 km run at least 25% slower than the runner’s own 5–20 km pace. Slow 5 km sections must be contiguous and total at least 5 km, so the final 2.195 km cannot qualify on its own.';
 export const SLOWDOWN_CITATION = { label: 'Published slowdown method (2021), doi:10.1371/journal.pone.0251513', url: 'https://doi.org/10.1371/journal.pone.0251513' };
+/**
+ * The split check's example race (made up), as its URL writes it: a quick opening and a sustained slowdown from 30 km.
+ * The tool opens on it, and the split check's nugget reads the finishes around its finish time.
+ */
+export const SPLIT_EXAMPLE = '0:25:50,0:52:24,1:19:06,1:45:54,2:13:18,2:42:41,3:16:39,3:49:12,4:03:31';
 export const SECTION_NAMES = ['0–5', '5–10', '10–15', '15–20', '20–25', '25–30', '30–35', '35–40', '40–42.2'];
 
 export interface Classifier { section_km: number[]; clip_lo: number[]; clip_hi: number[]; weights: number[]; centroids: number[][]; names: string[] }
