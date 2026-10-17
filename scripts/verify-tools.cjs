@@ -306,7 +306,8 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   const sourceOf = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
   // The course chooser lists the courses with no row at a goal by name only: their reasons belong to /methodology.
   assert.doesNotMatch(sourceOf('components/tools/CourseChooser.tsx'), /courseGoalReason|tooFewEditions|SLOWDOWN_DEFINITION/, 'The course chooser prints no eligibility reasons or definitions'); ok();
-  assert.match(sourceOf('components/tools/CourseChooser.tsx'), /href=\{planHref\(course\.city, goal\) \?\? '\/tools\/plan'\}>Plan<[\s\S]*href=\{planHref\(course\.city, goal\) \?\? '\/tools\/plan'\}>Plan \{goalText\}/, 'Each course chooser row (table and card) links to the planner for its course and goal'); ok();
+  // One row per course since the October 2026 redesign: the whole row is the link, and it names the goal it plans.
+  assert.match(sourceOf('components/tools/CourseChooser.tsx'), /<Link className="cc-row" href=\{planHref\(course\.city, goal\) \?\? '\/tools\/plan'\}>[\s\S]*?Plan \{goalText\}[\s\S]*?<\/Link>/, 'Each course chooser row links to the planner for its course and goal'); ok();
   assert.match(sourceOf('app/tools/qualifying/[race]/page.tsx'), /import \{ QUALIFYING_COURSE, STANDARDS \} from '@\/lib\/tools\/qualifying';/, 'The race pages read the shared course map'); ok();
   assert.deepEqual(qualifying.STANDARDS.map((s) => qualifying.QUALIFYING_COURSE[s.key]), ['Boston', 'New York', 'London', 'Chicago', 'Berlin', 'Sydney'], 'Every race with standards names its course');
   assert.deepEqual(['Boston', 'New York', 'Prague'].map(qualifying.qualifyingKeyForCity), ['boston', 'nyc', null]); checks += 2;
@@ -406,7 +407,8 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   // The tracker looks for sections once per page view, so all three are mounted from the start; the comparison is hidden until its data shows.
   assert.deepEqual([...html.matchAll(/<div data-track-section="([^"]+)"( hidden="")?>/g)].map((m) => m[1] + (m[2] ? ' (hidden)' : '')), ['result', 'comparison (hidden)', 'pace-band']); ok();
   assert.match(html, /class="tool-share share-bar no-print"><button[^>]*>Copy link<\/button><button[^>]*>Print wristband strips<\/button><button[^>]*>Print this plan<\/button>/, 'Copy link and both print buttons share one row'); ok();
-  assert.match(html, /\/tools\/pace-band\?goal=4:00"[\s\S]*\/tools\/weather-match\?goal=4:00:00[\s\S]*\/tools\/projector\?target=4:00:00&amp;t=none[\s\S]*\/analyses\/pacing-pattern\?goal=240[\s\S]*\/analyses\/hills-and-pacing\?goal=240[\s\S]*\/tools\/split-check"/, 'Links carry the goal in each target\'s own form'); ok();
+  // The next steps since the October 2026 redesign: the full band, the forecast and race day (the analyses are the chapters before it).
+  assert.match(html, /\/tools\/pace-band\?goal=4:00"[\s\S]*\/tools\/weather-match\?goal=4:00:00[\s\S]*\/tools\/projector\?target=4:00:00&amp;t=none/, 'Links carry the goal in each target\'s own form'); ok();
   assert.doesNotMatch(html, /your chance|the wall|arithmetic|adjusted/i); ok();
   const planSource = sourceOf('components/tools/RacePlan.tsx');
   assert.match(planSource, /useQueryState\(DEFAULTS\)/); assert.match(planSource, /const DEFAULTS = \{ course: 'all', goal: '4:00' \};/, 'The planner keeps exactly course and goal in its address'); checks += 2;

@@ -589,10 +589,12 @@ assert.ok(blockedSelectors.includes('.projector-cards'), 'The saved runner cards
 const compat = require('./verify-browser-compat.cjs');
 const compatProblems = compat.sourceProblems().problems;
 assert.equal(compatProblems.length, 0, compat.describe(compatProblems));
-// The course chooser's list of every course follows the visitor's goal, outside its workspace.
+// The course chooser's list of every course follows the visitor's goal: inside its results, outside its workspace.
 const courseChooser = read('components/tools/CourseChooser.tsx');
-assert.ok(hasClasses(courseChooser, 'course-chooser-list', 'ph-no-capture') && hasClasses(courseChooser, 'tool-callout', 'ph-no-capture'), 'CourseChooser: the course list and pace-band callout carry ph-no-capture');
-assert.match(courseChooser, /<div className="ph-no-capture">\s*<EvidencePanel kind="data" title=\{`Not published at \$\{goalText\}`\}/, 'CourseChooser: the not-published panel sits in a ph-no-capture element');
+assert.ok(hasClasses(courseChooser, 'course-chooser-list', 'ph-no-capture'), 'CourseChooser: the course list carries ph-no-capture');
+// Since the October 2026 redesign the list (and its "Not published at" note) sits inside the left-out results.
+const chooserList = courseChooser.indexOf('<div className="course-chooser-list ph-no-capture"');
+assert.ok(chooserList > courseChooser.indexOf('<div className="tool-results">') && courseChooser.indexOf('Not published at') > chooserList, 'CourseChooser: the not-published note sits in the course list, inside the results');
 assert.ok(blockedSelectors.includes('#recharts_measurement_span'), "Recharts' text-measuring span is left out");
 // The gender and division choices are left out of replays.
 for (const [file, label] of [['components/tools/QualifyingChecker.tsx', 'Division'], ['components/tools/SplitCheck.tsx', 'Recorded gender'], ['components/tools/PaceBand.tsx', 'Recorded gender']]) {
