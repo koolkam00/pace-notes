@@ -78,7 +78,6 @@ export function Magnet({ data: given }: { data?: Kick }) {
           })()}
         </svg>
       </div>
-      <p className="viz-note">The final section is only {units === 'mi' ? '1.36 mi' : '2.195 km'}, so where the finish mat sits matters: {units === 'mi' ? '55 yards' : '50 m'} shifts its pace by about 2%. Faster here means faster than the runner&apos;s own previous section, not faster than their early pace.</p>
     </div>
   );
 }
@@ -148,7 +147,7 @@ export function StateFlow({ data: given }: { data?: Kick }) {
         </svg>
       </div>
       <p className="sr-only" aria-live="polite">{focus != null ? `${st.labels[focus]}: ${cols.map((c) => `${sec(c.section)} ${pct(c.counts[focus] / total)}`).join(', ')}` : ''}</p>
-      <p className="viz-note">Bars show the share of finishes in each state; ribbons show where they went next. Click a state to follow it. Recovery means a later section back within 10% of the runner&apos;s 5–20 km pace.</p>
+      <p className="viz-note">Bars: share of finishes in each state. Ribbons: where they went next. Click a state to follow it.</p>
     </div>
   );
 }
@@ -161,7 +160,6 @@ export function BreakRiver({ data: given }: { data?: Kick }) {
   const rows = pick < 0 ? data.breaks.all.sections : bands[pick].sections;
   const brk = pick < 0 ? rows.slice(4).find((r) => r.over10 > 0.5)?.section ?? null : bands[pick].break_section;
   const sec = useSection();
-  const { units } = useUnits();
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 860);
   const H = 320;
@@ -202,10 +200,7 @@ export function BreakRiver({ data: given }: { data?: Kick }) {
           {crack >= 0 ? <g aria-hidden="true"><path d={`M${cx(crack) - cw * 0.5} ${m.t - 8} l6 10 l-5 6 l8 12 l-4 8`} fill="none" stroke="#C8202F" strokeWidth={2} /><text className="annotation-sub" x={cx(crack) - cw * 0.5 + (crack > 5 ? -6 : 12)} y={m.t - 2} textAnchor={crack > 5 ? 'end' : 'start'} fill="#C8202F">the field breaks here</text></g> : null}
         </svg>
       </div>
-      <p className="viz-note">
-        The small numbers are the share more than 10% slower than their own 5–20 km pace ({units === 'mi' ? 'section labels in miles' : 'sections in kilometres'}). The 5–10, 10–15 and 15–20 km sections sit inside the baseline itself,
-        so their narrow spread is partly by construction. Pace bands are set by 5–20 km pace, before the second half is run.
-      </p>
+      <p className="viz-note">Small numbers: the share more than 10% slower than their own 5–20 km pace.</p>
     </div>
   );
 }
@@ -251,7 +246,7 @@ export function WarningLight({ data: given }: { data?: Kick }) {
           <p className="warning-text"><strong>{pct(later)}</strong> of {count(row.n)} finishes in this situation went on to have a sustained slowdown before {checkpointLabel(40, units)}.</p>
         </div>
       </div>
-      <p className="viz-note">A conditional frequency, not a prediction for any one runner. It is partly mechanical: a section already 20% slower needs little more to reach 25%.</p>
+      <p className="viz-note">Not a prediction for any one runner.</p>
     </div>
   );
 }
@@ -311,7 +306,7 @@ export function BankAndPay({ data: given }: { data?: Kick }) {
         {h.after20_s >= 0 ? ' spent ' : ' saved '}<strong>{mss(Math.abs(h.after20_s))}</strong> after {at20}, and finished <strong>{mss(Math.abs(h.finish_s))} {h.finish_s >= 0 ? 'behind' : 'ahead of'}</strong> same-race, same-pace peers.
         Sustained slowdown: {pct(h.slowdown)} ({h.excess >= 0 ? '+' : '−'}{Math.abs(h.excess * 100).toFixed(1)} points against peers).
       </p>
-      <p className="viz-note">Peers share the race and a 5 s/km band of 5–20 km pace; each finish is left out of its own comparison. The 5–20 km pace is measured after the opening, so it can already reflect it. This describes what went together, not pacing advice.</p>
+      <p className="viz-note">This describes what went together, not pacing advice.</p>
     </div>
   );
 }
@@ -366,7 +361,7 @@ export function TwinRunners({ data: given }: { data?: Kick }) {
         <div><strong>{hms(b.slowdown_finish_s)}</strong><span>median finish with one ({count(b.slowdown_n)} finishes)</span></div>
         <div><strong>+{mss(b.slowdown_finish_s - b.other_finish_s)}</strong><span>between them, after reaching {checkpointLabel(20, units)} in {hms(b.other_20km_s)} and {hms(b.slowdown_20km_s)}</span></div>
       </div>
-      <p className="viz-note">Group medians, not a personal penalty: part of the gap is built into the definition, since a section 25% slower adds minutes by itself. Each runner is drawn with a straight line to its median finish.</p>
+      <p className="viz-note">Group medians, not a personal penalty.</p>
     </div>
   );
 }
@@ -405,7 +400,7 @@ export function GenderKick({ data: given }: { data?: Kick }) {
           })}
         </svg>
       </div>
-      <p className="viz-note">Pace bands use 5–20 km pace expressed as a marathon time. Recorded gender only; groups differ in age, course and field. Women had also slowed less by 35–40 km, so they had less to bounce back from.</p>
+      <p className="viz-note">Women had also slowed less by {sectionLabel(7, units)}, so they had less to bounce back from.</p>
     </div>
   );
 }

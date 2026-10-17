@@ -80,7 +80,7 @@ export function GapGauge({ data: given }: { data?: Positions }) {
         </svg>
       </div>
       <div className="legend-row">{CHECKPOINTS.map((c) => <span key={c}><i style={{ background: colours[c], height: c === cp ? 4 : 2 }} />Gap measured at {units === 'mi' ? `${(Number(c) / 1.609344).toFixed(1)} mi` : `${c} km`}</span>)}</div>
-      <p className="viz-note">Clock ranks compare elapsed times, not positions on the road. A rate describes past pairs of finishes in the same race, not anyone&apos;s personal chances.</p>
+      <p className="viz-note">These are past pairs of finishes, not anyone&apos;s personal chances.</p>
     </div>
   );
 }
@@ -102,7 +102,7 @@ export function GainHistogram({ data: given }: { data?: Positions }) {
   const narrow = width < 560;
   return (
     <div className="viz-card">
-      <div className="viz-head"><div><p className="viz-title">Places gained or lost after {at30}</p><p className="viz-sub">Percentile points of the field, {count(data.cohort_n)} eligible finishes</p></div></div>
+      <div className="viz-head"><div><p className="viz-title">Places gained or lost after {at30}</p><p className="viz-sub">Percentile points of the field</p></div></div>
       <div ref={ref} className="viz">
         <svg width={width} height={H} role="img" aria-label={`Histogram of percentile points gained after ${at30}. Most finishes gain a few points; a long tail loses many.`}>
           {rows.map((r) => <rect key={r.lo} x={x(r.lo) + 0.5} y={y(r.share)} width={Math.max(1, bw)} height={m.t + ih - y(r.share)} fill={r.lo <= -10 ? '#E2416B' : r.lo >= 10 ? '#17A673' : r.lo < 0 ? '#F6A7B9' : '#9BD8C0'} />)}
@@ -175,7 +175,7 @@ export function BreakEven({ data: given }: { data?: Positions }) {
         <input type="range" min={0} max={rows.length - 1} step={1} value={hover ?? zero} onChange={(e) => setHover(Number(e.target.value))}
           aria-valuetext={`${slowText((hov ?? rows[zero]).x)}: median ${(hov ?? rows[zero]).median.toFixed(1)} points, ${Math.round((hov ?? rows[zero]).gained * 100)}% gained places, ${count((hov ?? rows[zero]).n)} finishes`} />
       </label>
-      <p className="viz-note">Shaded: the middle 80% of finishes at each level of slowing. Most of the field slowed too, so the median finish held its place until it slowed by about {cross.toFixed(1)}%. Both measures overlap the same late kilometres, so this describes the link rather than predicting it.</p>
+      <p className="viz-note">Shaded: the middle 80% of finishes at each level of slowing. Most of the field slowed too, so the median finish held its place until it slowed by about {cross.toFixed(1)}%.</p>
     </div>
   );
 }
@@ -186,11 +186,10 @@ export function Ledger({ data: given }: { data?: Positions }) {
   const l = data.ledger;
   return (
     <div className="ledger">
-      <div className="ledger-head"><span>Receipt · median runner after {at30}</span><span>{count(l.n)} finishes ranked 49th–51st percentile at {at30}</span></div>
+      <div className="ledger-head"><span>Receipt · median runner after {at30}</span></div>
       <div className="ledger-row"><span>Other finishers passed on the clock</span><b>{count(l.median_passes)}</b></div>
       <div className="ledger-row"><span>Passed them on the clock</span><b>−{count(l.median_passed_by)}</b></div>
       <div className="ledger-row total"><span>Median per 1,000 others, race by race</span><b>{l.passes_per_1000.toFixed(0)} vs {l.passed_by_per_1000.toFixed(0)}</b></div>
-      <p>Median field: {count(l.median_field)} eligible finishes. Counts compare elapsed times at the {at30} and finish mats; swaps between mats are invisible. Each median is taken separately, so the rows do not divide into each other.</p>
     </div>
   );
 }
@@ -242,7 +241,7 @@ export function WomenMen({ data: given }: { data?: Positions }) {
           {rows.map((r, k) => <option key={`${r.city}${r.year}`} value={k}>{r.city === 'New York' ? 'New York City' : r.city} {r.year}: women {r.women > 0 ? '+' : ''}{r.women.toFixed(2)}, men {r.men > 0 ? '+' : ''}{r.men.toFixed(2)} points</option>)}
         </select>
       </label>
-      <p className="viz-note">Mean percentile points gained on the mixed-gender clock from {at30} to the finish. On a shared clock, one group&apos;s gains are others&apos; losses. Recorded gender as published; the comparison says nothing about why.</p>
+      <p className="viz-note">Mean percentile points gained from {at30} to the finish.</p>
     </div>
   );
 }

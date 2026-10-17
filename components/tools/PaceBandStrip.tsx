@@ -37,8 +37,8 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
   const strips: (typeof splitCells)[] = [];
   for (let i = 0; i < splitCells.length; i += perStrip) strips.push(splitCells.slice(i, i + perStrip));
   const caption = held && observed
-    ? `H = held-pace median of ${count(held.n)} finishes ${formatDuration(observed.lo, true)}–${formatDuration(observed.hi, true)}, ${observed.place}${observed.genderWord ? `, ${observed.genderWord}` : ''}, no sustained slowdown (Pace Notes data; observed, not a plan). Big numbers: exact even-pace times.`
-    : 'Exact even-pace times. No observed held-pace group is published for this selection.';
+    ? `H = held-pace median of ${count(held.n)} finishes ${formatDuration(observed.lo, true)}–${formatDuration(observed.hi, true)}, ${observed.place}${observed.genderWord ? `, ${observed.genderWord}` : ''} (Pace Notes data). Big numbers: even pace.`
+    : 'Even-pace times.';
   return (
     <>
       <div className={`pace-band-sheet-wrap${waiting ? ' pace-band-held-dim' : ''}`} ref={wrapRef}>
@@ -100,7 +100,7 @@ function ElevationStrip({ profile, units }: { profile: RouteProfile; units: Unit
   return (
     <div className="pace-band-strip is-back">
       <svg viewBox={`0 0 ${W} ${H + 12}`} preserveAspectRatio="none" role="img"
-        aria-label={`Supplied route elevation for ${profile.city}, from ${elevationLabel(profile.min, units)} to ${elevationLabel(profile.max, units)}, drawn on a fixed ${scale} vertical scale.`}>
+        aria-label={`Route elevation for ${profile.city}, from ${elevationLabel(profile.min, units)} to ${elevationLabel(profile.max, units)}, drawn on a fixed ${scale} vertical scale.`}>
         <path d={fill} fill="#D9D2C3" stroke="none" />
         <polyline points={coords.join(' ')} fill="none" stroke="#15171C" strokeWidth={1} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         {[5, 10, 15, 20, 25, 30, 35, 40].filter((km) => km < profile.km).map((km) => (
@@ -110,7 +110,7 @@ function ElevationStrip({ profile, units }: { profile: RouteProfile; units: Unit
           </g>
         ))}
       </svg>
-      <p className="pace-band-strip-caption">Back · {profile.race} route elevation, {elevationLabel(profile.min, units)} to {elevationLabel(profile.max, units)} · same vertical scale on every course: strip height = {scale} · supplied current route; historical validity unknown; bridge decks may be missing · context only, not used in any time</p>
+      <p className="pace-band-strip-caption">Back · {profile.race} route elevation, {elevationLabel(profile.min, units)} to {elevationLabel(profile.max, units)} · strip height = {scale} on every course</p>
     </div>
   );
 }

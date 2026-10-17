@@ -47,10 +47,6 @@ export default function HeroReplay({ choices, initial }: { choices: ReplayChoice
         key={choice.slug + variant} edition={loaded ?? waiting} variant={variant} height={variant === 'route' ? 520 : 420}
         status={loaded ? undefined : { message: error || `Loading ${choice.sample.toLocaleString('en-US')} finishes from ${choice.city} ${choice.year}…`, loading: !error }}
       />
-      <p className="hero-replay-note">
-        A sample of {choice.sample.toLocaleString('en-US')} of the {choice.finishes.toLocaleString('en-US')} eligible finishes, spaced evenly by finish time.
-        Everyone starts together on the race clock because wave and start offsets are not recorded.
-      </p>
     </div>
   );
 }

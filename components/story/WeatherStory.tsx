@@ -7,7 +7,7 @@ import { useUnits } from '@/components/UnitsProvider';
 import { useWidth } from '@/components/viz/useSize';
 import type { Courses } from '@/lib/insights';
 import { paceLabel } from '@/lib/units';
-import { count, mss } from '@/lib/viz/format';
+import { mss } from '@/lib/viz/format';
 import { SectionAxis } from './CoursesStory';
 import { useOptionalStoryData, useStoryData } from './StoryData';
 
@@ -106,10 +106,6 @@ export function Untangle({ weather: given }: { weather?: Pick<Courses['weather']
           <span>Highlight a course</span>
           <select value={focus} onChange={(ev) => setFocus(ev.target.value)}>{cities.map((c) => <option key={c} value={c}>{c}</option>)}</select>
         </label>
-        <p className="viz-note">
-          {within ? 'Each course’s dots are moved so its own averages sit at the centre. Only the differences between its editions remain.' : 'Courses differ in field, terrain and climate, so pooled dots mix many things at once.'}
-          {' '}Weather is the supplied modelled hour at the scheduled start in one city location. It is not a wave start or personal exposure.
-        </p>
       </div>
     </div>
   );
@@ -160,7 +156,7 @@ export function PairsWaffle({ data: given }: { data?: Courses }) {
       <p className="pairs-readout">
         {h ? <><strong>{h.city}</strong> {h.hot_year} at {tempText(h.hot_temp, units)}: {(h.hot_slowdown * 100).toFixed(1)}% · {h.cool_year} at {tempText(h.cool_temp, units)}: {(h.cool_slowdown * 100).toFixed(1)}%</> : 'Hover a square, or tab to the grid and use the arrow keys, to see each pair.'}
       </p>
-      <p className="viz-note">Pairs share editions, so they are not independent tests. Squares are grouped by course, alphabetically.</p>
+      <p className="viz-note">Squares are grouped by course, alphabetically.</p>
     </div>
   );
 }
@@ -199,7 +195,7 @@ export function HeatCurve({ data: given }: { data?: Courses }) {
   return (
     <div className="viz-card heat-curve">
       <div className="viz-head">
-        <div><p className="viz-title">The heat signature</p><p className="viz-sub">The typical pace curve, bent by how editions of the same course differ with start temperature</p></div>
+        <div><p className="viz-title">The heat signature</p><p className="viz-sub">How the typical pace curve bends with start temperature</p></div>
       </div>
       <div className="heat-layout">
         <div className="heat-control">
@@ -229,11 +225,7 @@ export function HeatCurve({ data: given }: { data?: Courses }) {
           </svg>
         </div>
       </div>
-      <p className="viz-note">
-        Median finisher&apos;s pace by section against their own average; dashed, the typical curve at the average start. The bend is an average within-course association, drawn as a straight
-        line from the typical curve at the average start ({tempText(base, units, 1)}); it is not a forecast for any race. The finish and slowdown
-        readouts use a separate curved fit, compared with a {units === 'mi' ? '50°F' : '10°C'} start on the same course.
-      </p>
+      <p className="viz-note">Dashed: the typical curve at the average start ({tempText(base, units, 1)}). Not a forecast for any race.</p>
     </div>
   );
 }
@@ -253,7 +245,7 @@ export function HotCool({ data: given }: { data?: Courses }) {
   return (
     <div className="viz-card">
       <div className="viz-head">
-        <div><p className="viz-title">Same course, hottest and coolest morning</p><p className="viz-sub">Share of finishes with a sustained slowdown, courses with three or more editions</p></div>
+        <div><p className="viz-title">Same course, hottest and coolest morning</p><p className="viz-sub">Share of finishes with a sustained slowdown</p></div>
         <div className="pairs-legend"><span><i style={{ background: COOL }} />coolest start</span><span><i style={{ background: HOT }} />hottest start</span></div>
       </div>
       <div ref={ref} className="viz">
@@ -274,7 +266,6 @@ export function HotCool({ data: given }: { data?: Courses }) {
           })}
         </svg>
       </div>
-      <p className="viz-note">Hottest and coolest refer to the modelled temperature at the scheduled start. Other things also changed between those years.</p>
     </div>
   );
 }
@@ -288,7 +279,6 @@ export function MatchedPace({ data: given }: { data?: Courses }) {
   const MIN = 1000;
   const MIN_EDITIONS = 3;
   const rows = band.courses.filter((c) => c.finishes >= MIN && c.editions >= MIN_EDITIONS);
-  const dropped = band.courses.length - rows.length;
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 860);
   const narrow = width < 560;
@@ -303,7 +293,7 @@ export function MatchedPace({ data: given }: { data?: Courses }) {
   return (
     <div className="viz-card">
       <div className="viz-head">
-        <div><p className="viz-title">Same 5–20 km pace, different finish</p><p className="viz-sub">Finishes whose 5–20 km pace was {label(band)}. Each edition weighted equally</p></div>
+        <div><p className="viz-title">Same 5–20 km pace, different finish</p><p className="viz-sub">Finishes whose 5–20 km pace was {label(band)}</p></div>
         <div className="segmented" role="group" aria-label="5 to 20 km pace">
           {data.matched.map((b, i) => <button key={b.lo_s} type="button" aria-pressed={i === pick} onClick={() => setPick(i)}>{paceLabel(b.lo_s, units, false)}</button>)}
         </div>
@@ -319,7 +309,7 @@ export function MatchedPace({ data: given }: { data?: Courses }) {
               <g key={r.city}>
                 <text x={m.l - 10} y={yy + 4} textAnchor="end" fontWeight={edge ? 700 : 400}>{r.city}</text>
                 <line x1={x(0)} x2={x(r.slowdown)} y1={yy} y2={yy} stroke={edge ? (r === lowest ? '#17A673' : HOT) : '#C9BFAB'} strokeWidth={edge ? 3 : 2} />
-                <circle cx={x(r.slowdown)} cy={yy} r={edge ? 6 : 4.5} fill={edge ? (r === lowest ? '#17A673' : HOT) : 'var(--ink)'}><title>{`${r.city}: ${(r.slowdown * 100).toFixed(1)}% of ${count(r.finishes)} finishes in ${r.editions} editions`}</title></circle>
+                <circle cx={x(r.slowdown)} cy={yy} r={edge ? 6 : 4.5} fill={edge ? (r === lowest ? '#17A673' : HOT) : 'var(--ink)'}><title>{`${r.city}: ${(r.slowdown * 100).toFixed(1)}% had a sustained slowdown`}</title></circle>
                 <text x={x(r.slowdown) + 10} y={yy + 4} className="annotation-sub">{(r.slowdown * 100).toFixed(0)}%</text>
                 <text x={width - m.r + 12} y={yy + 4} className="annotation-sub">{narrow ? '' : `+${mss(r.after20_s)}`}</text>
               </g>
@@ -327,10 +317,7 @@ export function MatchedPace({ data: given }: { data?: Courses }) {
           })}
         </svg>
       </div>
-      <p className="viz-note">
-        Dots: share of finishes with a sustained slowdown. Right column: median time beyond holding the 5–20 km pace to the finish.
-        Matching on early pace balances speed, not ability, goals or weather. Courses with fewer than {MIN_EDITIONS} editions or {count(MIN)} finishes in this band are not drawn ({dropped} here).
-      </p>
+      <p className="viz-note">Dots: share of finishes with a sustained slowdown. Right column: median time given back after 20 km.</p>
     </div>
   );
 }

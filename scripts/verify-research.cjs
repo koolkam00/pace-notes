@@ -18,7 +18,8 @@ require.extensions['.ts'] = (module, filename) => module._compile(
 
 const { parseCsv, finite, formatNumber } = require('../lib/csv.ts');
 const { getQuestions, getStudyAnswer, getExtraAnswer, getWallTimingAnswer, getCoursePacingChart, getStudyEvidence, table } = require('../lib/research-data.ts');
-const { getStudyFigures } = require('../lib/study-figures.ts');
+const { getStudyFigures, getSlowdownFigures } = require('../lib/study-figures.ts');
+const { splitAnswer, NO_ANSWER, NOT_AVAILABLE, noAnswer, forPage } = require('../lib/research-display.ts');
 const { EXTRA_TITLES, QUESTIONS, THEMES } = require('../lib/question-catalog.ts');
 const { PACKS } = require('../lib/packs.ts');
 const { getExtensions } = require('../lib/extension-data.ts');
@@ -214,6 +215,83 @@ for (const chart of charts) {
 for (const question of [...questions, ...extras]) for (const source of question.sources) {
   const href = source.href.replace(process.env.NEXT_PUBLIC_BASE_PATH || /^$/, '');
   if (href.startsWith('/')) assert.ok(fs.existsSync(`public${href}`), `${source.href}: missing source file`);
+}
+
+// Result pages show the answer and its charts; definitions, methods, sources and coverage live on /methodology.
+{
+  const Module = require('node:module');
+  require.extensions['.tsx'] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText, filename);
+  const resolveFilename = Module._resolveFilename;
+  Module._resolveFilename = function (request, ...args) {
+    return resolveFilename.call(this, request.startsWith('@/') ? path.join(process.cwd(), request.slice(2)) : request, ...args);
+  };
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const UnitsProvider = require('../components/UnitsProvider.tsx').default;
+  const ResearchQuestion = require('../components/ResearchQuestion.tsx').default;
+  const StudyFigure = require('../components/StudyFigure.tsx').default;
+  const render = (component, props) => renderToStaticMarkup(React.createElement(UnitsProvider, null, React.createElement(component, props)));
+  const methodCopy = /How we measured it|Full methodology|Methodology &amp; sources|Study methodology|Next analysis|Data needed:|Marathons, years and recorded data|Chart samples may be smaller|Points average the preceding section|lines do not locate pace changes|has not yet been documented/;
+  for (const question of [getStudyAnswer(), getWallTimingAnswer(), ...questions, ...Object.keys(EXTRA_TITLES).map(getExtraAnswer)]) {
+    const html = render(ResearchQuestion, { question: forPage(question), standalone: true });
+    assert.doesNotMatch(html, methodCopy, `${question.id}: method copy belongs on /methodology`);
+    assert.ok(!html.includes('/about#data-coverage') && !html.includes('pack_meta.json') && !html.includes('/data/study/evidence.json') && !html.includes('doi.org') && !html.includes('journals.plos.org'), `${question.id}: no source or download links on a result page`);
+    if (question.dataset) assert.ok(!html.includes(`${new Intl.NumberFormat('en-US').format(question.dataset.n)} ${question.dataset.unit || 'eligible finishes'}`), `${question.id}: no standalone cohort size`);
+    assert.equal((html.match(/<figure class="study-figure"/g) || []).length, question.charts.length, `${question.id}: every chart still renders`);
+  }
+  for (const figure of figures) {
+    const html = render(StudyFigure, { figure });
+    assert.doesNotMatch(html, methodCopy, `${figure.id}: method copy belongs on /methodology`);
+    assert.ok(!html.includes('/data/study/evidence.json'), `${figure.id}: no download link on the figure`);
+  }
+  // Insights only (second pass, October 16, 2026): a result page shows the findings of its stored answer. Definitions,
+  // sample notes and limits go to /methodology#question-methods (MethodsAnalyses AnswerNotes); the stored data is unchanged.
+  const caveat = /\bsupplied (?:course|route|profile|terrain)|route proxy|exploratory alignment|under this definition|of eligible finishes|eligible editions|sample requirements|cannot establish|cannot tell us|does not (?:isolate|prove|establish)|not otherwise matched|not proof|not a (?:course ranking|measured temperature penalty|personal equivalent-time forecast|recommendation)|meet the sustained slowdown definition|describes average positive slowing|are not separated|select different runners|can affect this comparison/;
+  for (const question of [getStudyAnswer(), getWallTimingAnswer(), ...questions, ...extras]) {
+    const { shown, moved } = splitAnswer(question);
+    assert.ok(shown.trim(), `${question.id}: a result page always shows an answer`);
+    assert.doesNotMatch(shown, caveat, `${question.id}: the page answer still carries method or limit copy: ${shown}`);
+    if (!question.available) assert.ok(shown === noAnswer(question.id) && moved.length, `${question.id}: an unanswered question shows the empty state and keeps its reason for /methodology`);
+    const html = render(ResearchQuestion, { question: forPage(question), standalone: true });
+    const shownMiles = require('../lib/units.ts').unitText(shown, 'mi').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+    assert.ok(html.includes(shownMiles), `${question.id}: the page renders the findings answer`);
+  }
+  // Questions that ask whether something is available get a plain "Not available yet."; the others say they have no answer yet.
+  assert.deepEqual(extras.filter(q => !q.available).map(q => [q.id, splitAnswer(q).shown]).sort(), [['p3_race_week_weather', NOT_AVAILABLE], ['p4_even_effort_gap', NOT_AVAILABLE]]);
+  assert.deepEqual(questions.filter(q => !q.available).map(q => [q.id, splitAnswer(q).shown]).sort(), [['r16_groups_hold_or_fall', NO_ANSWER], ['r33_start_congestion', NO_ANSWER]]);
+  // Wording that defines a term or says how a mean was balanced stays with the question's method on /methodology.
+  const shownOf = id => splitAnswer([...questions, ...extras].find(q => q.id === id)).shown;
+  assert.match(shownOf('r09_bad_patch_recoverable'), /after a first bad patch at 20–25 km/); assert.doesNotMatch(shownOf('r09_bad_patch_recoverable'), /qualifying patch/);
+  assert.doesNotMatch(shownOf('r12_fastest_by_ability'), /equally weighting/); assert.match(shownOf('r12_fastest_by_ability'), /\d minutes slower\.$/);
+  assert.doesNotMatch(shownOf('s3_course_breaks'), /relative to their own average/);
+  for (const id of ['r09_bad_patch_recoverable', 'r12_fastest_by_ability', 's3_course_breaks']) assert.ok([...questions, ...extras].find(q => q.id === id).method.some(line => /patch is the first section|average those two means equally|relative to each runner’s full-marathon average/.test(line)), `${id}: the dropped wording is in its method on /methodology`);
+  // The page data holds only what ResearchQuestion renders: no stored method, detail, source or sample fields, no chart notes.
+  for (const question of [getStudyAnswer(), getWallTimingAnswer(), ...questions, ...extras]) {
+    const page = forPage(question);
+    assert.deepEqual(Object.keys(page).sort(), ['aliases', 'answer', 'available', 'charts', 'forPage', 'id', 'number', 'related', 'title'], `${question.id}: page data fields`);
+    assert.ok(page.charts.every(spec => !('note' in spec)) && page.charts.length === question.charts.length, `${question.id}: every chart, without its note`);
+    page.charts.forEach((spec, i) => assert.deepEqual(spec.rows, question.charts[i].rows, `${question.id}: chart rows unchanged`));
+  }
+  // Chart titles say what the chart shows, not the detection rule.
+  assert.deepEqual([forPage(getWallTimingAnswer()).charts[0].title, forPage(getWallTimingAnswer()).charts[0].series[0].label], ['Where sustained slowdowns began', 'Where sustained slowdowns began']);
+  for (const question of [getStudyAnswer(), getWallTimingAnswer(), ...questions, ...extras]) for (const spec of forPage(question).charts) assert.doesNotMatch(JSON.stringify([spec.title, spec.xLabel, spec.series, spec.filters ?? []]), /supplied|qualifying section/i, `${question.id}: chart wording`);
+  // The page answer is prepared on the server: the client component never imports the display rules.
+  assert.doesNotMatch(fs.readFileSync('components/ResearchQuestion.tsx', 'utf8'), /import \{[^}]*\} from '@\/lib\/research-display'/, 'ResearchQuestion takes a forPage() answer and imports only its type');
+  // Answers read from chart rows match those rows.
+  const courses = getStudyAnswer().charts[0].rows;
+  const low = courses.reduce((a, b) => (b.value < a.value ? b : a)), high = courses.reduce((a, b) => (b.value > a.value ? b : a));
+  assert.equal(splitAnswer(getStudyAnswer()).shown, `By course, the share ranged from ${low.value.toFixed(1)}% in ${low.label} to ${high.value.toFixed(1)}% in ${high.label}.`);
+  const onset = getWallTimingAnswer().charts[0].rows, top = onset.reduce((a, b) => (b.value > a.value ? b : a));
+  assert.ok(splitAnswer(getWallTimingAnswer()).shown.startsWith(`The most common start was the ${top.label}–${Number(top.label) + 5} km section, with ${top.value.toFixed(1)}% of sustained slowdowns.`));
+  // /slowdown and the hub show the finding figures; the definition-sensitivity check is on /methodology.
+  const shownFigures = getSlowdownFigures();
+  assert.deepEqual(shownFigures.map(f => f.id), ['age', 'history']);
+  for (const figure of shownFigures) {
+    assert.match(figure.answer, /\d+(?:\.\d)?%/, `${figure.id}: the figure states its finding`);
+    assert.doesNotMatch(figure.answer, caveat, `${figure.id}: no method copy in the figure answer`);
+  }
 }
 
 console.log(`Verified ${questions.length} questions, ${charts.length} chart views, all original analysis routes, source files, CSV edge cases, and the ${total.toLocaleString('en-US')}-finish denominator.`);

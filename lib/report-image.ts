@@ -6,9 +6,9 @@
  *
  * It draws reportLines() (lib/report.ts), the same words and numbers as the alternative text: the brand, the race,
  * finish and average pace, the nine sections, the sustained-slowdown reading, the pacing type, one comparison line with
- * its finishes, the citation and the address. The pacing type and the comparison sit under a "Pace Notes data" tag in
- * the badge's colours; the calculations from the race's own times carry none, and the reading is followed by its
- * published definition and citation. Never a name, rank or percentile, and nothing only a runner record has.
+ * its finishes and the address. The pacing type and the comparison sit under a "Pace Notes data" tag in the badge's
+ * colours; the readings from the race's own times carry none. The definition and its citation are on /methodology, not
+ * in the image. Never a name, rank or percentile, and nothing only a runner record has.
  */
 import { REPORT_DATA_LABEL, TONE, reportLines, type ReportModel } from './report';
 import type { UnitSystem } from './units';
@@ -182,10 +182,7 @@ export async function renderReportImage(model: ReportModel, units: UnitSystem): 
   if (l.type) y = block(ctx, l.type, M, y, W - 2 * M, 34, 2) + 8;
   if (l.comparison) block(ctx, l.comparison, M, y, W - 2 * M, 34, 3);
 
-  // Source and address.
-  ctx.fillStyle = INK_3;
-  ctx.font = `400 19px ${SANS}`;
-  block(ctx, l.citation, M, H - 132, W - 2 * M, 26, 2);
+  // The address.
   ctx.fillStyle = INK;
   ctx.font = `600 22px ${MONO}`;
   ctx.fillText('SPLITHAPPENS.RUN', M, H - 68);

@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation';
 import PageFeedback from '@/components/PageFeedback';
 import HeroReplay from '@/components/story/HeroReplay';
-import CourseAbout from '@/components/course/CourseAbout';
 import CourseElevation from '@/components/course/CourseElevation';
 import CourseFinishTimes from '@/components/course/CourseFinishTimes';
 import CourseGlance from '@/components/course/CourseGlance';
@@ -41,6 +40,8 @@ export default function CityPage({ params }: { params: { city: string } }) {
   const page = coursePage(params.city);
   const profile = page && getIndividualCourseAnswer(page.city);
   if (!page || !profile) notFound();
+  // The pooled pace profile says what it shows; its cohort size and caveats belong on /methodology.
+  const pooled = { ...profile, answer: `Where ${page.display} finishers sped up and slowed down, against their own marathon average.`, detail: undefined, dataset: undefined };
   const courses = readInsight<Courses>('courses.json');
   const replay = readInsight<ReplayIndex>('replay.json').editions.filter((e) => e.city === page.city);
   const choices = replayChoices(replay, getInsightsManifest(), new Map(page.geometry ? [[page.city, { points: page.geometry.route, km: page.geometry.route_km }]] : []));
@@ -51,7 +52,7 @@ export default function CityPage({ params }: { params: { city: string } }) {
       <CourseGlance page={page} />
       <CourseFinishTimes page={page} />
       <CourseElevation page={page} />
-      <CoursePacing page={page} typical={courses.typical_curve} shapeCourses={courses.shape_cohort.courses} profile={profile} />
+      <CoursePacing page={page} typical={courses.typical_curve} profile={pooled} />
       <CourseSlowdown page={page} />
       <CourseGoals page={page} />
       <CourseWeatherByYear page={page} />
@@ -62,7 +63,6 @@ export default function CityPage({ params }: { params: { city: string } }) {
           <div className="chapter-body night replay-stage"><HeroReplay choices={choices} initial={choices[0].slug} /></div>
         </section>
       ) : null}
-      <CourseAbout page={page} />
       <PageFeedback className="course-feedback" />
       <CourseOthers page={page} total={coursePages().size} />
     </div>

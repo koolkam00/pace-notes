@@ -304,7 +304,8 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.equal(plan.courseGoalReason('4 editions with at least 20 finishes at this pace; 96 finishes', 3), '4 editions had 20 or more finishes at this pace, but fewer than 100 finishes in all.');
   checks += 4;
   const sourceOf = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
-  assert.match(sourceOf('components/tools/CourseChooser.tsx'), /import \{ courseGoalReason, tooFewEditions \} from '@\/lib\/tools\/plan';/, 'The course chooser prints the same reasons'); ok();
+  // The course chooser lists the courses with no row at a goal by name only: their reasons belong to /methodology.
+  assert.doesNotMatch(sourceOf('components/tools/CourseChooser.tsx'), /courseGoalReason|tooFewEditions|SLOWDOWN_DEFINITION/, 'The course chooser prints no eligibility reasons or definitions'); ok();
   assert.match(sourceOf('components/tools/CourseChooser.tsx'), /href=\{planHref\(course\.city, goal\) \?\? '\/tools\/plan'\}>Plan<[\s\S]*href=\{planHref\(course\.city, goal\) \?\? '\/tools\/plan'\}>Plan \{goalText\}/, 'Each course chooser row (table and card) links to the planner for its course and goal'); ok();
   assert.match(sourceOf('app/tools/qualifying/[race]/page.tsx'), /import \{ QUALIFYING_COURSE, STANDARDS \} from '@\/lib\/tools\/qualifying';/, 'The race pages read the shared course map'); ok();
   assert.deepEqual(qualifying.STANDARDS.map((s) => qualifying.QUALIFYING_COURSE[s.key]), ['Boston', 'New York', 'London', 'Chicago', 'Berlin', 'Sydney'], 'Every race with standards names its course');
@@ -452,7 +453,8 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.deepEqual([5, 4, 3, 2, 1].map((v) => F.rankAmong(v, [1, 2, 3, 4, 5], 'highest', 'lowest')), ['the highest', 'the second highest', 'the third highest', 'the second lowest', 'the lowest']); ok();
   assert.equal(F.rankAmong(4, [1, 4, 4, 2, 3], 'most', 'fewest'), 'the joint most'); assert.equal(F.rankAmong(1, [1, 2], 'most', 'fewest'), null); checks += 2;
   const peers = [{ goal: 180, n: 59925, sd: 0.0431 }, { goal: 210, n: 112412, sd: 0.1261 }, { goal: 240, n: 171033, sd: 0.1891 }, { goal: 270, n: 117684, sd: 0.3817 }, { goal: 300, n: 82315, sd: 0.45 }];
-  assert.equal(say(F.windowRankText(300, peers)), 'This goal’s window holds the second fewest finishes of the five goal pages.'); ok();
+  // Since October 16, 2026 a goal page no longer ranks its window's size (coverage, not an insight).
+  assert.equal(F.windowRankText, undefined); assert.doesNotMatch(fs.readFileSync('components/tools/GoalPace.tsx', 'utf8'), /window holds|Each beat \{label\} by/); ok();
   assert.equal(say(F.slowdownRankText(240, peers)), 'Of the five goal pages, that share is the third highest; it runs from 4.3% at 3:00 to 45.0% at 5:00.'); ok();
   assert.equal(F.slowdownRankText(240, peers.map((p) => (p.goal === 180 ? { ...p, sd: null } : p))), null); ok();
   // Copy rules: observed wording only, no causal verbs and none of the owner's banned phrases.
@@ -635,8 +637,8 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   assert.ok(!boston.extra.some((e) => e !== qualifying.BOSTON_INDEX_TERM && /subject to change|two years/.test(e)) && !/statements differ/.test(checkerSource), 'Boston index statements appear once');
   checks += 3;
 }
-// Goal pages: the observed window's race editions are set against every edition in the data. The pace band's screens must
-// account for the difference exactly, or the page's "The other N editions … are left out" sentence is dropped.
+// The pace band's screens account exactly for the editions and finishes it leaves out of the data (the methodology page
+// lists them; the goal pages and tools no longer print them).
 {
   const dir = path.join(__dirname, '..', 'public/data/insights');
   if (fs.existsSync(path.join(dir, 'tools/pace-band.json'))) {
@@ -690,10 +692,59 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   for (const t of registry.TOOLS) assert.ok(fs.existsSync(path.join(__dirname, '..', 'app/tools', t.slug, 'page.tsx')), `${t.slug}: page exists`);
   checks += 1 + registry.TOOLS.length;
 }
-// The cohort note (home page and /research) and the home guide's bib say which pages start from the screened finishes.
-// Only the tools with a Pace Notes data badge do; the note says what each other tool uses, from its badges, and never
-// that every page or every tool starts from the finishes. A data tool without a data file, or whose file starts from
-// another total, stops the render (and so the build).
+// Method, source and coverage copy lives on /methodology only (owner, 2026-10-16). The tools show their results, the
+// evidence badges (each a link to /methodology#evidence, or a plain label inside a card that is itself a link) and the
+// term "sustained slowdown" linked to its definition; no "How this works" box, definition, citation or screening note.
+{
+  const root = path.join(__dirname, '..');
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => d.isDirectory() ? walk(path.join(dir, d.name)) : [path.join(dir, d.name)]);
+  const files = ['components/tools', 'app/tools'].flatMap((dir) => walk(path.join(root, dir))).filter((f) => /\.tsx?$/.test(f));
+  const rel = (f) => path.relative(root, f);
+  const BANNED = [
+    [/\bToolMethod\b|tool-method|How this (?:page )?works/, 'a "How this works" box'],
+    [/SLOWDOWN_DEFINITION|SLOWDOWN_CITATION|doi:10\.|journal\.pone/, 'the slowdown definition or its citation'],
+    [/Source: <a|className="(?:tool-sources|qrace-sources|weather-match-cite)"/, 'a source line'],
+    [/Left out (?:as duplicated|because start delays|because the mat grid)|ProjectorExclusions/, 'an edition-screening note'],
+    [/Fewer than 100 (?:finishes|complete)|at least 100 finishes|100 finishes in all|editions counted equally|counted equally|editions pooled/i, 'an eligibility or weighting note'],
+    [/runners who stopped are not in the data|Counts are finishes, not people|Only complete finishes/i, 'a data-limits caveat'],
+    [/supplied (?:current )?route|modelled (?:hour|observation|reading)|not anyone’s (?:personal )?exposure|historical validity/i, 'a data-source note'],
+    [/Vickers|Keogh|RunningAHEAD|Brimicombe|Roberts et al|Armstrong et al|Stull 2011|Magnus formula|Daniels & Gilbert 1979|Riegel 1981/, 'a method citation'],
+    [/Groups rebuilt from|AccuracyPanel|AccuracyLine|validation\b/, 'the projector validation'],
+    // Second pass (October 16, 2026): author-year labels, definition details and coverage notes left in the results.
+    [/\b(?:Ely|Mantzios|Knechtle) et al\b|Tanda \(2011\)|(?:basis of|equations behind) VDOT|training logs|in a study of/, 'a method citation'],
+    [/short of the 25% threshold|cannot count (?:alone|as a sustained)|nearest of six|finishes in the pacing-types story/, 'a definition detail'],
+    [/gender groups cover|read (?:a certified course )?a little long|have enough finishes at|Too few editions for any goal|window holds|as published by|states them for|does not say whether a time exactly equal|About one in five arrived|whose last 5 km|The window is ±/, 'a method or coverage note'],
+  ];
+  // Visible copy only: block comments, JSX comments and whole-line or trailing // comments are left out.
+  const code = (source) => source.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').map((line) => line.replace(/(^|\s)\/\/\s.*$/, '$1')).join('\n');
+  for (const file of files) {
+    const text = code(fs.readFileSync(file, 'utf8'));
+    for (const [pattern, what] of BANNED) assert.doesNotMatch(text, pattern, `${rel(file)} shows ${what}; it belongs on /methodology`);
+    // Badges go through EvidenceTag (a link to /methodology#evidence), never a hand-written span.
+    if (!file.endsWith(path.join('components', 'tools', 'EvidenceTag.tsx'))) assert.doesNotMatch(text, /<span className=\{?[`"]evidence-badge/, `${rel(file)} writes an evidence badge by hand`);
+  }
+  checks += files.length;
+  const tag = fs.readFileSync(path.join(root, 'components/tools/EvidenceTag.tsx'), 'utf8');
+  assert.match(tag, /href="\/methodology#evidence"/, 'Evidence badges link to /methodology#evidence');
+  assert.match(tag, /href="\/methodology#sustained-slowdown"/, 'The term links to its definition on /methodology');
+  assert.match(fs.readFileSync(path.join(root, 'components/tools/ui.tsx'), 'utf8'), /\{kind \? <EvidenceTag kind=\{kind\} \/> : null\}/, 'EvidencePanel badges are linked');
+  checks += 3;
+  // Rendered: a panel badge is a link to the evidence anchor, a compact (card) badge a plain label with no explanation.
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const { EvidencePanel } = require('../components/tools/ui.tsx');
+  const { EvidenceBadge } = require('../components/tools/ToolShell.tsx');
+  assert.match(renderToStaticMarkup(React.createElement(EvidencePanel, { kind: 'data', title: 'T' }, 'x')), /<a [^>]*href="\/methodology#evidence"[^>]*class="evidence-badge evidence-data"|<a [^>]*class="evidence-badge evidence-data"[^>]*href="\/methodology#evidence"/);
+  const compact = renderToStaticMarkup(React.createElement(EvidenceBadge, { kind: 'research', compact: true }));
+  assert.equal(compact, '<span class="evidence-badge evidence-research">Published research</span>', 'A card badge is a bare label');
+  checks += 2;
+}
+
+// The cohort note says which pages start from the screened finishes. Since October 16, 2026 it is shown only on
+// /methodology (#totals); the home page and /research still run its total checks (assertCohortTotals) without showing
+// it. Only the tools with a Pace Notes data badge start from the finishes; the note says what each other tool uses,
+// from its badges, and never that every page or every tool starts from the finishes. A data tool without a data file,
+// or whose file starts from another total, stops the render (and so the build).
 if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json'))) {
   const React = require('react');
   const { renderToStaticMarkup } = require('react-dom/server');
@@ -715,7 +766,13 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     assert.ok(note.includes(`${t.title.toLowerCase()} uses ${from}`), `The cohort note says the ${t.slug} tool uses ${from}: ${note}`);
   }
   assert.equal(cohortNote.screenedPages(), `the stories, the course pages and ${dataPhrase}`);
-  assert.match(fs.readFileSync(path.join(__dirname, '..', 'app/(home)/page.tsx'), 'utf8'), /the base for \{screenedPages\(\)\}\./, 'The home guide\'s bib takes its list from the cohort note');
+  const homeSource = fs.readFileSync(path.join(__dirname, '..', 'app/(home)/page.tsx'), 'utf8');
+  const hubSource = fs.readFileSync(path.join(__dirname, '..', 'app/research/(hub)/page.tsx'), 'utf8');
+  for (const [where, source] of [['home page', homeSource], ['/research', hubSource]]) {
+    assert.match(source, /assertCohortTotals\(\)/, `The ${where} still runs the cohort note's total checks`);
+    assert.doesNotMatch(source, /<CohortNote|screenedPages\(\)/, `The ${where} shows no cohort note; it is on /methodology`);
+  }
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'components/methods/MethodsData.tsx'), 'utf8'), /<CohortNote \/>/, 'The cohort note is on /methodology');
   for (const [fake, error] of [[{ slug: 'fake', evidence: ['data'] }, /fake tool has a Pace Notes data badge but no data file/], [{ slug: 'fake', evidence: ['data'], file: 'replay/berlin-2024.json' }, /must start from the story manifest's analysis_n/]]) {
     registry.TOOLS.push(fake);
     try { assert.throws(render, error); } finally { registry.TOOLS.pop(); }

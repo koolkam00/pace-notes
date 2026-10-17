@@ -7,6 +7,7 @@
 .qrace-header { padding-bottom: 1.4rem; }
 .qrace-header .tool-title { font-size: clamp(2.2rem, 5.6vw, 4rem); text-wrap: balance; max-width: 15em; }
 .qrace-provenance { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .8rem; margin-top: 1.1rem; font-size: .8125rem; line-height: 1.45; color: var(--ink-3); }
+.qrace-provenance a { color: var(--blue-ink); font-weight: 600; }
 
 /* ---------- Layout: the facts card beside the panels on wide screens, after the standards table on phones ---------- */
 .qrace-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.2rem; align-items: start; }

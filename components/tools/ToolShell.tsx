@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import { EVIDENCE_LABEL, EVIDENCE_TEXT, TOOLS, toolBySlug, toolHref, type ToolEvidence } from '@/lib/tools/registry';
+import { EvidenceTag } from '@/components/tools/EvidenceTag';
+import { TOOLS, toolBySlug, toolHref, type ToolEvidence } from '@/lib/tools/registry';
 import { JsonLd, breadcrumbs } from '@/lib/seo';
 import PageFeedback from '@/components/PageFeedback';
 
+/** A tool's evidence badge, linked to /methodology#evidence. `compact` (inside a tool card, itself a link) is a plain label. */
 export function EvidenceBadge({ kind, compact = false }: { kind: ToolEvidence; compact?: boolean }) {
-  return <span className={`evidence-badge evidence-${kind}`} title={compact ? EVIDENCE_TEXT[kind] : undefined}>{EVIDENCE_LABEL[kind]}</span>;
+  return <EvidenceTag kind={kind} link={!compact} />;
 }
 
 /** Page header for one tool: breadcrumb (visible, and as JSON-LD), heading, dek and the kinds of evidence it uses. */
@@ -20,21 +22,6 @@ export function ToolHeader({ slug, title, children }: { slug: string; title?: Re
       {children}
       <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Runner tools', '/tools'], [tool.title]])} />
     </header>
-  );
-}
-
-/** "How this works" box at the foot of a tool. */
-export function ToolMethod({ children, sources = [] }: { children: ReactNode; sources?: { label: string; url: string }[] }) {
-  return (
-    <details className="tool-method">
-      <summary>How this works</summary>
-      <div className="tool-method-body">
-        {children}
-        {sources.length ? (
-          <ul className="tool-sources">{sources.map((s) => <li key={s.url}><a href={s.url} rel="noopener noreferrer">{s.label}</a></li>)}</ul>
-        ) : null}
-      </div>
-    </details>
   );
 }
 

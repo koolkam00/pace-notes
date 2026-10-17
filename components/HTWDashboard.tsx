@@ -19,10 +19,6 @@ function DashboardInner() {
   const { filters } = useFilters();
   const { data, status, loading, error } = useLiveData(60000);
   const isReady = status === 'ready';
-  const corpus = (data?.corpus ?? { races: null, runners: null, records: null }) as any;
-  const displayRaces = (corpus?.races ?? corpus?.n_races) ?? '—';
-  const displayRunners = (corpus?.runners ?? corpus?.n_runners) ?? '—';
-  const displayRecords = (corpus?.records ?? corpus?.n_records) ?? '—';
 
   return (
     <div className="stack" style={{ display: 'grid', gap: '1rem' }}>
@@ -35,21 +31,7 @@ function DashboardInner() {
               </div>
               <div className="site-subtitle">Sustained slowdown across recorded marathon finishes</div>
             </div>
-            <div className="badge">{isReady ? 'Recorded marathon results' : 'Results not yet available'}</div>
-          </div>
-          <div style={{ marginTop: '0.75rem' }} className="stats" role="status">
-            <div className="stat">
-              <div className="label">Races</div>
-              <div className="value">{displayRaces}</div>
-            </div>
-            <div className="stat">
-              <div className="label">Runners</div>
-              <div className="value">{displayRunners}</div>
-            </div>
-            <div className="stat">
-              <div className="label">Records</div>
-              <div className="value">{displayRecords}</div>
-            </div>
+            <div className="badge">{isReady ? 'Live' : 'Results not yet available'}</div>
           </div>
           {status !== 'ready' && (
             <div className="site-subtitle" style={{ marginTop: '0.5rem' }}>
@@ -63,7 +45,7 @@ function DashboardInner() {
       <div className="grid">
         <FigureCard
           title="Figure 1: Sustained slowdown frequency across thresholds"
-          subtitle="Sensitivity analysis across slowdown and window thresholds"
+          subtitle="How often finishes slow at each threshold"
           badge={isReady && data?.figures?.fig1 ? 'Live' : 'Waiting'}
         >
           <Fig1 status={isReady ? 'ready' : 'empty'} dataset={data?.figures?.fig1} filters={filters} />
@@ -87,7 +69,7 @@ function DashboardInner() {
 
         <FigureCard
           title="Figure 4: Figure 3 split by age and ability"
-          subtitle="PB proximity analysis stratified by age and ability"
+          subtitle="By age and recorded ability"
           badge={isReady && data?.figures?.fig4 ? 'Live' : 'Waiting'}
         >
           <Fig4 status={isReady ? 'ready' : 'empty'} dataset={data?.figures?.fig4} filters={filters} />
@@ -103,7 +85,7 @@ function DashboardInner() {
 
         <FigureCard
           title="Figure 6: Finish times and estimated slowdown costs by age and recorded ability"
-          subtitle="Descriptive estimates of time associated with slowing"
+          subtitle="Time associated with slowing"
           badge={isReady && data?.figures?.fig6 ? 'Live' : 'Waiting'}
         >
           <Fig6 status={isReady ? 'ready' : 'empty'} dataset={data?.figures?.fig6} filters={filters} />
@@ -113,7 +95,7 @@ function DashboardInner() {
       <div className="grid">
         <TableCard
           title="Table 1: Original × city/race"
-          subtitle="Original sample breakdown by city/race"
+          subtitle="By city and race"
           badge={isReady && data?.tables?.t1 ? 'Live' : 'Waiting'}
         >
           <T1 status={isReady ? 'ready' : 'empty'} dataset={data?.tables?.t1} filters={filters} />
@@ -121,7 +103,7 @@ function DashboardInner() {
 
         <TableCard
           title="Table 2: Repeaters × city/race"
-          subtitle="Repeaters sample breakdown by city/race"
+          subtitle="By city and race"
           badge={isReady && data?.tables?.t2 ? 'Live' : 'Waiting'}
         >
           <T2 status={isReady ? 'ready' : 'empty'} dataset={data?.tables?.t2} filters={filters} />
@@ -129,7 +111,7 @@ function DashboardInner() {
 
         <TableCard
           title="Table 3: Original × age×sex"
-          subtitle="Original sample breakdown by age and sex"
+          subtitle="By age and sex"
           badge={isReady && data?.tables?.t3 ? 'Live' : 'Waiting'}
         >
           <T3 status={isReady ? 'ready' : 'empty'} dataset={data?.tables?.t3} filters={filters} />
@@ -137,7 +119,7 @@ function DashboardInner() {
 
         <TableCard
           title="Table 4: Repeaters × age×sex"
-          subtitle="Repeaters sample breakdown by age and sex"
+          subtitle="By age and sex"
           badge={isReady && data?.tables?.t4 ? 'Live' : 'Waiting'}
         >
           <T4 status={isReady ? 'ready' : 'empty'} dataset={data?.tables?.t4} filters={filters} />

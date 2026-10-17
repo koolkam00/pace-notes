@@ -1,5 +1,4 @@
-import type { ReactNode } from 'react';
-import { MarathonDistance, UnitLink as Link } from '@/components/UnitsProvider';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 import { EvidencePanel } from '@/components/tools/ui';
 import { Pace } from '@/components/story/Units';
 import { slugifyCity } from '@/lib/course-data';
@@ -18,43 +17,37 @@ const GROUP_TEXT: Record<FinishGroup, string> = { all: 'all finishes', women: 'r
 
 /**
  * The /finish-times page body: median bibs, the minute-by-minute distribution, the shares and percentile tables,
- * what the data covers, and onward links. Server-rendered from getFinishTimeSummary(); only the even-pace figures
- * and the links follow the visitor's units on the client.
+ * the races, and onward links. What the numbers cover and how they are counted is on /methodology.
+ * Server-rendered from getFinishTimeSummary(); only the even-pace figures and the links follow the visitor's units on the client.
  */
 export default function FinishTimeSummary({ summary }: { summary: Summary }) {
   const { groups, coverage } = summary;
   const all = groups.all;
-  const outsideShare = all.outside / all.total;
   return (
     <div className="container ft-page">
       <header className="tool-header ft-header">
         <p className="eyebrow"><Link href="/">Pace Notes</Link> · Finish times</p>
         <h1 className="tool-title">Marathon finish times</h1>
         <p className="tool-dek">
-          The median recorded finish in {coverage.races} large city marathons is <strong>{percentileLabel(all.median, summary.lastMinute)}</strong>.
-          When this page says average, it means that median: the middle finish when all {count(all.total)} are ranked by time. It does not show a mean.
-          Here is how {count(coverage.finishes)} finishes from {coverage.firstYear} to {coverage.lastYear} spread out, for recorded women and recorded men,
-          and the share that came in under each round time.
+          The median finish in {coverage.races} large city marathons is <strong>{percentileLabel(all.median, summary.lastMinute)}</strong>.
+          Here is how the finishes spread out, for recorded women and recorded men, and the share that came in under each round time.
         </p>
       </header>
 
       <section className="bibs ft-bibs" aria-label="Median finish times">
         {FINISH_GROUPS.map((key) => <MedianBib key={key} group={groups[key]} lastMinute={summary.lastMinute} />)}
       </section>
-      <p className="ft-bib-note">Times are whole minutes of recorded finish time: {clockMinute(all.median ?? summary.firstMinute)} covers {clockMinute(all.median ?? summary.firstMinute)}:00 to {clockMinute(all.median ?? summary.firstMinute)}:59. Even paces are calculated from the time over <MarathonDistance />, not recorded.</p>
 
       <div className="ft-stack">
-        <EvidencePanel kind="data" title="How finish times spread" meta={<>Finishes in each minute of finish time from {clockMinute(summary.firstMinute)} to {clockMinute(summary.lastMinute)}, all {coverage.races} races pooled.</>}>
+        <EvidencePanel kind="data" title="How finish times spread">
           <Distribution summary={summary} />
         </EvidencePanel>
 
         <div className="ft-tables">
-          <EvidencePanel kind="data" title="Share of finishes under each time" meta="Observed shares of each group's finishes, not predictions.">
+          <EvidencePanel kind="data" title="Share of finishes under each time" meta="Observed shares, not predictions.">
             <div className="tool-table-wrap">
               <table className="tool-table ft-table">
-                <caption>
-                  Under 3:00 means 2:59:59 or faster. All finishes also include {count(coverage.otherOrNotRecorded)} with another or no recorded gender.
-                </caption>
+                <caption className="sr-only">Share of finishes under each time</caption>
                 <thead><tr><th scope="col">Finish time</th>{FINISH_GROUPS.map((key) => <th key={key} scope="col">{GROUP_LABEL[key]}</th>)}</tr></thead>
                 <tbody>
                   {all.under.map(({ minute }) => (
@@ -68,10 +61,10 @@ export default function FinishTimeSummary({ summary }: { summary: Summary }) {
             </div>
           </EvidencePanel>
 
-          <EvidencePanel kind="data" title="Percentiles" meta="Finishes ranked by finish time within each group. By the 10th percentile, one finish in ten had come in; by the 90th, nine in ten.">
+          <EvidencePanel kind="data" title="Percentiles">
             <div className="tool-table-wrap">
               <table className="tool-table ft-table">
-                <caption>Each time is the whole minute in which that finish crossed the line, counted within its group.</caption>
+                <caption className="sr-only">Finish-time percentiles</caption>
                 <thead><tr><th scope="col">Percentile</th>{FINISH_GROUPS.map((key) => <th key={key} scope="col">{GROUP_LABEL[key]}</th>)}</tr></thead>
                 <tbody>
                   {all.percentiles.map(({ p }) => (
@@ -87,37 +80,12 @@ export default function FinishTimeSummary({ summary }: { summary: Summary }) {
         </div>
       </div>
 
-      <section className="ft-notes" aria-labelledby="ft-cover-title">
-        <h2 id="ft-cover-title">What these numbers cover</h2>
-        <div className="ft-notes-grid">
-          <Note title="Large city marathons, not every marathon">
-            These are {count(coverage.finishes)} recorded finishes from {count(coverage.editions)} editions of {coverage.races} large city marathons, {coverage.firstYear} to {coverage.lastYear}.
-            They are not a sample of all marathons everywhere. Smaller, local and trail marathons are not in this data, and their finish times can look quite different.
-          </Note>
-          <Note title="Counts are finishes, not runners">
-            Someone who ran three of these races counts three times. Only complete finishes are counted, so a race that was not finished is in no count.
-          </Note>
-          <Note title="Recorded gender">
-            Women and men are as each race recorded them. {count(coverage.otherOrNotRecorded)} finishes have another or no recorded gender; they count in all finishes only.
-          </Note>
-          <Note title="The median, not the mean">
-            The minute counts published for these stories run from {clockMinute(summary.firstMinute)} to {clockMinute(summary.lastMinute)}, so finishes outside them have no published time and cannot enter a mean.
-            The median needs only how many there are. {count(all.outside)} finishes ({(outsideShare * 100).toFixed(1)}%) fall outside those minutes, faster than {clockMinute(summary.firstMinute)}:00 or slower than {clockMinute(summary.lastMinute)}:59; the published counts do not say how many are on each side.
-            They stay in every total, and for ranks and shares they are counted as slower than {clockMinute(summary.lastMinute)}. Checked against the full finish records, that changes no figure on this page.
-          </Note>
-          <Note title="No age groups here">
-            Exact ages are recorded in only some of these races, so this page does not split finish times by age. <Link href="/stories/who-holds-pace">Who holds their pace</Link> compares age groups where ages are recorded.
-          </Note>
-          <Note title="How finishes are chosen">
-            Each finish has a time at every official checkpoint and passed the quality screens the <Link href="/methodology">methods page</Link> describes.
-            {coverage.duplicates.map((d) => ` ${d.city} ${d.years.join(' and ')} ${d.years.length > 1 ? 'are' : 'is'} left out: ${d.years.length > 1 ? 'their' : 'its'} records repeat the ${d.city} ${d.duplicateOf} field.`).join('')} Data as of {date(summary.asOf)}.
-          </Note>
-        </div>
-        <h3 className="ft-races-title">The {coverage.races} races</h3>
+      <section className="ft-notes" aria-labelledby="ft-races-title">
+        <h2 id="ft-races-title" className="ft-races-title">The {coverage.races} races</h2>
         <ul className="ft-races">
           {coverage.courses.map((course) => <li key={course.city}><Link href={`/courses/${slugifyCity(course.city)}`}>{course.race}</Link></li>)}
         </ul>
-        <p className="ft-races-note">Listed alphabetically by city. Each course page shows how that race was paced.</p>
+        <p className="ft-races-note">Each course page shows how that race was paced.</p>
       </section>
 
       <p className="print-only ft-print-note">Pace Notes by Andrew Kam · splithappens.run/finish-times · Data as of {date(summary.asOf)}.</p>
@@ -135,17 +103,12 @@ export default function FinishTimeSummary({ summary }: { summary: Summary }) {
   );
 }
 
-function Note({ title, children }: { title: string; children: ReactNode }) {
-  return <div className="ft-note"><h3>{title}</h3><p>{children}</p></div>;
-}
-
 function MedianBib({ group, lastMinute }: { group: GroupSummary; lastMinute: number }) {
   const minute = group.median;
   return (
     <div className={`bib ft-bib is-${group.group}`}>
       <span className="bib-tag">Median · {GROUP_TEXT[group.group]}</span>
       <strong className="bib-number">{percentileLabel(minute, lastMinute)}</strong>
-      <p className="bib-text">The middle of {count(group.total)} finishes{group.group === 'all' ? '' : ` by ${GROUP_TEXT[group.group]}`}.</p>
       {minute !== null ? <span className="bib-foot">Even pace for {clockMinute(minute)}:00: <Pace secondsPerKm={(minute * 60) / MARATHON_KM} /></span> : null}
     </div>
   );

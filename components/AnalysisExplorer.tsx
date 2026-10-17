@@ -1,12 +1,11 @@
 'use client';
 import { UnitLink as Link, useUnits } from './UnitsProvider';
-import { unitText } from '@/lib/units';
+import { unitText, type UnitSystem } from '@/lib/units';
 import { findingText } from '@/lib/analysis-display';
-import { sourceLabel, sourceReleaseHref } from '@/lib/data-source';
 import { useEffect, useMemo, useState } from 'react';
 import type { CityData, PersonalSummary } from '@/lib/personalized-types';
 import { AGE_OPTIONS, GOAL_MIN, GOAL_MAX, type Profile } from '@/lib/personalized-catalog';
-import { buildGuide, clock, count, parseMinutes, type GuideAnswer } from '@/lib/personalized';
+import { buildGuide, clock, parseMinutes, type GuideAnswer } from '@/lib/personalized';
 import { keypadInput } from '@/lib/keypad';
 import { TEN_ANALYSES, analysisHref, type AnalysisDefinition } from '@/lib/ten-analyses';
 import { EXAMPLE_PROFILE, profileSearch, readAnalysisProfile, sameProfile } from '@/lib/analysis-profile';
@@ -19,6 +18,45 @@ import { weatherHref } from '@/lib/weather-catalog';
 import type { WeatherDefinition } from '@/lib/weather-types';
 
 const EMPTY_CITY: CityData = { city: 'All courses', cohorts: {}, terrain: [] };
+const one = (value: number) => Math.abs(value).toLocaleString('en-US', { maximumFractionDigits: 1 });
+/** A % pace or finish change in words: "2.1% faster", "3.4% slower", "about the same". */
+const change = (value: number) => Math.abs(value) < 0.05 ? 'about the same' : `${one(value)}% ${value < 0 ? 'faster' : 'slower'}`;
+type Row = { label: string; value: number };
+const extremes = (rows: Row[]) => rows.reduce((range, row) => ({ low: row.value < range.low.value ? row : range.low, high: row.value > range.high.value ? row : range.high }), { low: rows[0], high: rows[0] });
+
+/**
+ * The headline for comparisons whose stored answer only says what can be compared: state what the chart shows instead.
+ * Read from the chart rows on screen, so it always matches them. Returns '' to keep the stored answer.
+ */
+function insightHeadline(id: string, answer: GuideAnswer, goal: number, units: UnitSystem): string {
+  const chart = answer.charts[0];
+  if (!chart?.rows.length) return '';
+  const rows = (key: string) => chart.rows.map(row => ({ label: String(row.label).replace(' (selected)', ''), value: Number(row[key]) })).filter(row => Number.isFinite(row.value));
+  if (id === 'courses' || id === 'weather') {
+    const values = rows('value');
+    if (!values.length) return '';
+    const what = id === 'courses' ? 'courses' : 'start temperatures';
+    if (values.length === 1) return `The median finish was ${change(values[0].value)} ${Math.abs(values[0].value) < 0.05 ? 'as' : 'than'} the same runners’ earlier best.`;
+    const { low, high } = extremes(values);
+    // Courses are not named: one course at the top of the range is not a ranking of course difficulty.
+    return id === 'courses' ? `Across ${values.length} ${what}, median finishes ranged from ${change(low.value)} to ${change(high.value)} than the same runners’ earlier bests.`
+      : `Across ${values.length} ${what}, median finishes ranged from ${change(low.value)} (${low.label}) to ${change(high.value)} (${high.label}) than the same runners’ earlier bests.`;
+  }
+  if (id === 'age') {
+    const values = rows('value');
+    if (values.length < 2) return '';
+    const { low, high } = extremes(values);
+    return unitText(`Across ${values.length} age groups, the second 20 km ranged from ${change(low.value)} (${low.label}) to ${change(high.value)} (${high.label}) than the first.`, units);
+  }
+  if (id === 'sections') {
+    const gaps = chart.rows.map(row => ({ label: String(row.label), value: Number(row.above) - Number(row.below) })).filter(row => Number.isFinite(row.value));
+    if (!gaps.length) return '';
+    const { high } = extremes(gaps);
+    if (high.value < 0.05) return '';
+    return unitText(`The two groups split most in the ${high.label} section, where finishes just over ${clock(goal * 60)} took ${one(high.value)} min more than those just under.`, units);
+  }
+  return '';
+}
 
 export default function AnalysisExplorer({ definition, summary, initialAnswer, weatherQuestions = [], historyMode = false }: { definition: AnalysisDefinition; summary: PersonalSummary; initialAnswer: GuideAnswer; weatherQuestions?: WeatherDefinition[]; historyMode?: boolean }) {
   const { units } = useUnits();
@@ -71,14 +109,11 @@ export default function AnalysisExplorer({ definition, summary, initialAnswer, w
     setSelection(nextProfile); setChanged(true); setFormError('');
     window.history.pushState(null, '', unitHref(window.location.pathname + profileSearch(nextProfile) + (historyMode ? '&comparison=history' : ''), units));
   };
-  const visibleAnswer = definition.id === 'courses' && answer?.charts[0]?.rows.length
-    ? 'Compare ' + answer.charts[0].rows.length + (answer.charts[0].rows.length === 1 ? ' course' : ' courses') + ' with enough results to show a meaningful range.'
-    : answer ? findingText(answer, units) : '';
+  const visibleAnswer = answer ? insightHeadline(definition.id, answer, profile.goal, units) || findingText(answer, units) : '';
   return <div className="analysis-layout">
     <aside className="analysis-sidebar"><Link href="/analyses" className="sidebar-heading">The essential ten</Link><nav aria-label="The ten ranked analyses"><ol>{TEN_ANALYSES.map(item => <li key={item.id}><Link href={analysisHref(item) + search} aria-current={item.id === definition.id ? 'page' : undefined}><span>{String(item.rank).padStart(2, '0')}</span>{text(item.shortTitle)}</Link></li>)}</ol></nav><p>One question at a time.<br />Your comparisons travel with you.</p></aside>
     <article className="analysis-main">
-      <header className="analysis-heading"><Link href="/analyses" className="eyebrow">Analysis {String(definition.rank).padStart(2, '0')} of 10 <span aria-hidden="true"> / </span> {definition.category}</Link><h1>{text(definition.title)}</h1><p>{text(definition.purpose)}</p></header>
-      {['courses', 'weather', 'gains'].includes(definition.id) && <p className="coverage-notice"><strong>This comparison requires earlier results.</strong> {definition.id === 'gains' ? 'Personal improvement compares a finish with the fastest eligible finish in any strictly earlier year. One race cannot establish improvement.' : 'Finish change compares a result with the fastest eligible finish in the two strictly earlier calendar years.'} Leaving the earlier-time filter blank includes every eligible history group; it does not include finishes with no earlier benchmark.{definition.id === 'gains' && <> With one race, explore <Link href="/analyses/pacing-pattern">pacing patterns</Link> or <Link href="/runners">same-edition peers</Link>.</>}</p>}
+      <header className="analysis-heading"><Link href="/analyses" className="eyebrow">Analysis {String(definition.rank).padStart(2, '0')} of 10 <span aria-hidden="true"> / </span> {definition.category}</Link><h1>{text(definition.title)}</h1><p>{text(definition.dek)}</p></header>
       <form className="comparison-controls" onSubmit={event => {
         event.preventDefault();
         const goal = definition.controls.time ? parseMinutes(timeText) : draft.goal;
@@ -91,26 +126,24 @@ export default function AnalysisExplorer({ definition, summary, initialAnswer, w
         <div className="profile-fields primary-profile-fields">
           {definition.controls.course && <label>Course<select value={draft.city} onChange={event => setDraft({ ...draft, city: event.target.value })}>{summary.cities.map(row => <option key={row.city} value={row.city}>{row.city === 'All courses' && definition.id === 'terrain' ? 'Choose a course' : row.city === 'New York' ? 'New York City' : row.city}</option>)}</select></label>}
           {definition.controls.time && <label>{['profile', 'terrain', 'gains', 'age'].includes(definition.id) ? 'Finish time to explore' : 'Target time'}<input value={timeText} onChange={event => setTimeText(keypadInput(event.target, event.nativeEvent))} placeholder="4:00" spellCheck={false} aria-describedby="time-help" /></label>}
-          {!definition.controls.course && <p className="control-help">This comparison spans every course with enough data. Refine the runners below.</p>}
+          {!definition.controls.course && <p className="control-help">Every course is included. Refine the runners below.</p>}
           <button type="submit" className="button-primary">Update comparison <span aria-hidden="true">↗</span></button>
         </div>
-        {definition.controls.time && <p className="control-help" id="time-help">Hours:minutes. {['profile', 'terrain', 'gains', 'age'].includes(definition.id) ? 'We compare a 15-minute band around this finish time.' : 'We count finishes strictly below this time.'}</p>}
+        {definition.controls.time && <p className="control-help" id="time-help">Hours:minutes.</p>}
         <details className="profile-refinements" open={refining} onToggle={event => setRefining(event.currentTarget.open)}><summary>Refine by {definition.controls.age ? 'age, ' : ''}gender{definition.controls.previous ? ' or earlier performance' : ''}</summary><div className="profile-fields">
           {definition.controls.age && <label>Age group<select value={draft.age} onChange={event => setDraft({ ...draft, age: event.target.value })}>{AGE_OPTIONS.map(age => <option key={age} value={age}>{age === 'all' ? 'All ages' : age}</option>)}</select></label>}
           <label>Recorded gender<select value={draft.gender} onChange={event => setDraft({ ...draft, gender: event.target.value })}><option value="all">All recorded categories</option><option value="Women">Women</option><option value="Men">Men</option></select></label>
           {definition.controls.previous && <label>Earlier marathon · optional<input value={previousText} onChange={event => setPreviousText(keypadInput(event.target, event.nativeEvent))} placeholder="e.g. 4:15" spellCheck={false} /></label>}
-        </div>{definition.controls.previous && <p className="control-help">An earlier time selects a 15-minute band of recorded bests from earlier years.{definition.id === 'age' ? ' When entered, that band replaces the achieved finish-time band.' : ''}</p>}</details>
+        </div></details>
         {formError && <p className="feedback-error" role="alert">{formError}</p>}
       </form>
       <div className="sr-only" role="status">{loading ? 'Loading your comparison.' : changed && answer ? 'Comparison updated. ' + (answer.comparison || '') : ''}</div>
       {loading ? <div className="analysis-loading" aria-hidden="true"><span /><span /><span /><div /></div> : error ? <div className="feedback-error" role="alert"><p>{error}</p><button onClick={() => setRetry(value => value + 1)} type="button">Try loading again</button></div> : <>
-        {definition.id === 'checkpoint' ? <CheckpointExplorer summary={summary} profile={profile} /> : needsCourse ? <section className="empty-comparison"><p className="eyebrow">Every course has its own shape</p><h2>Choose your marathon above.</h2><p>Elevation belongs to a particular course. Select a city to compare its supplied rises and falls with observed pacing.</p></section> : answer && <>
-          <section className={'analysis-finding' + (!hasResults ? ' empty-comparison' : '')}><p className="eyebrow">{hasResults ? 'What the data shows' : 'This comparison needs more data'}</p><h2>{text(visibleAnswer)}</h2>{answer.detail && <p>{text(answer.detail)}</p>}{answer.comparison && <p className="comparison-context">{text(answer.comparison)}.{answer.sample ? ' ' + count(answer.sample.n) + ' finishes across ' + answer.sample.editions + (answer.sample.editions === 1 ? ' race edition.' : ' race editions.') : ' Each group shows its own sample size.'}</p>}{answer.widened && <p className="coverage-notice">{text(answer.widened)}</p>}{!hasResults && <button className="button-secondary" type="button" onClick={() => applyProfile(EXAMPLE_PROFILE)}>Explore the all-course example</button>}</section>
+        {definition.id === 'checkpoint' ? <CheckpointExplorer summary={summary} profile={profile} /> : needsCourse ? <section className="empty-comparison"><p className="eyebrow">Every course has its own shape</p><h2>Choose your marathon above.</h2><p>Elevation belongs to a particular course. Select a city to see its rises and falls beside its pacing.</p></section> : answer && <>
+          <section className={'analysis-finding' + (!hasResults ? ' empty-comparison' : '')}><p className="eyebrow">{hasResults ? 'What the data shows' : 'This comparison needs more data'}</p><h2>{text(visibleAnswer)}</h2>{answer.widened && <p className="coverage-notice">{text(answer.widened)}</p>}{!hasResults && <p>Try All courses, fewer refinements or another finish time.</p>}{!hasResults && <button className="button-secondary" type="button" onClick={() => applyProfile(EXAMPLE_PROFILE)}>Explore the all-course example</button>}</section>
           {hasResults && <AnalysisChart charts={answer.charts} analysisId={definition.id + profileSearch(profile)} />}
         </>}
-        {definition.id === 'weather' && weatherQuestions.length > 0 && <section className="weather-related"><p className="eyebrow">Look beyond the starting temperature</p><h2>Explore more weather questions.</h2><p>These comparisons use race editions as the unit of evidence. Each shows the included races and recorded conditions.</p><div>{weatherQuestions.map(item => <Link key={item.id} href={weatherHref(item)} className="text-link">{item.shortTitle} <span aria-hidden="true">↗</span></Link>)}</div></section>}
-        <section className="analysis-reading"><div><h2>How to read this</h2><p>{text(definition.readChart)}</p></div><div><h2>Keep in mind</h2><p>{text(definition.caution)}</p></div></section>
-        <details className="analysis-method"><summary>How we calculated this</summary><div><p>{text(answer?.method || initialAnswer.method)}</p><p>Runner comparison groups contain at least 100 eligible observations. Broader comparisons are labeled; a finish can belong to a runner with several races. Elevation describes the supplied course profile.</p><p>We check the raw timings and apply reviewed source-quality rules before forming these groups. Editions with known invalid split grids, incomplete ingestion, unresolved source checks or a selected field are excluded. Missing age or recorded gender alone does not remove an otherwise eligible finish from the overall comparison.</p><p>Input data: <a href={sourceReleaseHref(summary.export_id)}>{sourceLabel(summary.input_as_of, summary.export_id)}</a>. <Link href="/methodology#personalized">Read the full methods in source units</Link> or browse the <Link href="/about#data-coverage">marathons, years and data fields</Link>.</p></div></details>
+        {definition.id === 'weather' && weatherQuestions.length > 0 && <section className="weather-related"><p className="eyebrow">Look beyond the starting temperature</p><h2>Explore more weather questions.</h2><div>{weatherQuestions.map(item => <Link key={item.id} href={weatherHref(item)} className="text-link">{item.shortTitle} <span aria-hidden="true">↗</span></Link>)}</div></section>}
       </>}
       <nav className="analysis-pagination" aria-label="Continue exploring">{previous ? <Link href={analysisHref(previous) + search}><span>← Previous question</span><strong>{text(previous.shortTitle)}</strong></Link> : <Link href="/analyses"><span>← Choose a question</span><strong>All ten analyses</strong></Link>}{next ? <Link href={analysisHref(next) + search}><span>Next question →</span><strong>{text(next.shortTitle)}</strong></Link> : <Link href="/analyses"><span>Back to the ten ↗</span><strong>Keep exploring</strong></Link>}</nav>
     </article>

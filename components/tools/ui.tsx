@@ -1,5 +1,6 @@
 'use client';
 
+import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { formatDuration, parseDuration, type DurationMode } from '@/lib/tools/time';
 import { useUnits } from '@/components/UnitsProvider';
@@ -97,11 +98,10 @@ export function Stat({ label, value, sub, tone }: { label: ReactNode; value: Rea
  * Panels of plain calculations from the visitor's own inputs (splits, pace charts) leave out `kind` and carry no badge.
  */
 export function EvidencePanel({ kind, title, meta, children, id }: { kind?: 'data' | 'research' | 'official'; title: ReactNode; meta?: ReactNode; children: ReactNode; id?: string }) {
-  const label = kind ? { data: 'Pace Notes data', research: 'Published research', official: 'Official standards' }[kind] : null;
   return (
     <section className={`tool-panel panel-${kind ?? 'plain'}`} id={id}>
       <header className="tool-panel-head">
-        {label ? <span className={`evidence-badge evidence-${kind}`}>{label}</span> : null}
+        {kind ? <EvidenceTag kind={kind} /> : null}
         <h2 className="tool-panel-title">{title}</h2>
         {meta ? <p className="tool-panel-meta">{meta}</p> : null}
       </header>

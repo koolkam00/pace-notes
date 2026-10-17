@@ -19,7 +19,7 @@ export function RouteMap({ course, size = 220, animate = true, stroke = '#15171C
   const [fx, fy] = course.route[course.route.length - 1];
   const s = size - pad * 2;
   return (
-    <svg className="route-map" viewBox={`0 0 ${size} ${size}`} width="100%" {...(label === '' ? { 'aria-hidden': true, focusable: 'false' } : { role: 'img', 'aria-label': label ?? `Supplied ${course.city} marathon route, ${course.distance_km.toFixed(1)} km` })}>
+    <svg className="route-map" viewBox={`0 0 ${size} ${size}`} width="100%" {...(label === '' ? { 'aria-hidden': true, focusable: 'false' } : { role: 'img', 'aria-label': label ?? `${course.city} marathon route, ${course.distance_km.toFixed(1)} km` })}>
       {glow ? <path d={d} fill="none" stroke={stroke} strokeOpacity={0.18} strokeWidth={size / 22} strokeLinecap="round" strokeLinejoin="round" /> : null}
       <path className={animate ? 'route-line is-drawn' : 'route-line'} d={d} pathLength={1} fill="none" stroke={stroke} strokeWidth={Math.max(1.6, size / 90)} strokeLinecap="round" strokeLinejoin="round" />
       <circle cx={pad + sx * s} cy={pad + sy * s} r={size / 45} fill="#17A673" stroke="#FFFDF8" strokeWidth={size / 160} />
@@ -59,7 +59,7 @@ export function ElevationProfile({ course, height = 140, compact = false }: { co
   const ticks = units === 'mi' ? [0, 5, 10, 15, 20, 25].map((mi) => mi * KM_PER_MILE) : [0, 10, 20, 30, 40];
   return (
     <div ref={ref} className="viz elevation">
-      <svg width={width} height={height} role="img" aria-label={`Supplied elevation profile for ${course.city}: ${Math.round(toUnit(lo))} to ${Math.round(toUnit(hi))} ${unit}.`}>
+      <svg width={width} height={height} role="img" aria-label={`Elevation profile for ${course.city}: ${Math.round(toUnit(lo))} to ${Math.round(toUnit(hi))} ${unit}.`}>
         <defs>
           <linearGradient id={`elev-${course.city.replace(/\W/g, '')}`} x1="0" x2="0" y1="0" y2="1">
             <stop offset="0" stopColor="#F4B23E" stopOpacity={0.75} />

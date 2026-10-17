@@ -21,9 +21,16 @@ const evidence = JSON.parse(bytes);
 const allBytes = fs.readFileSync(path.join(__dirname, '../public/data/fast-start/all-finishers.json'));
 const allEvidence = JSON.parse(allBytes);
 const render = (component, props) => renderToStaticMarkup(React.createElement(component, props));
-// The adopted runner lookup sets the expected cohorts (3,517,336 finishes and 555,437 earlier-best benchmarks under 0934).
+// The adopted runner lookup sets the expected cohorts (3,871,767 finishes and 592,241 earlier-best benchmarks under 1652; 3,517,336 and 555,437 under 0934).
 const runners = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/data/runners/manifest.json'), 'utf8'));
 const eligible = runners.eligible_records, benchmarked = runners.linkage.recent_benchmark_finishes;
+// Method, definitions, coverage and source text belong on /methodology only (owner request, 2026-10-16).
+const METHOD_COPY = [/What this can tell you/, /Definitions, coverage and limits/, /Download the analysis data/, /Open the source data/, /Study methods/,
+  /journals\.plos\.org/, /\d[\d,]* eligible finishes/, /withdrawals/i, /do not prove that the start caused/, /not minutes caused or lost/,
+  /not a prediction or avoidable time loss/, /cannot tell whether the entire first half/, /share the same reference pace/, /they do not diagnose overreach/,
+  /Each race supplies its own comparison/, /First-time runners and people without recorded history/, /at least \d+ (?:eligible |detected )?finishes/, /Missing groups are not treated as zero/];
+const noMethodCopy = (html, where) => { for (const pattern of METHOD_COPY) assert.doesNotMatch(html, pattern, `${where}: method or source copy belongs on /methodology (${pattern})`); };
+const SLOWDOWN_LINK = /<a href="\/methodology#sustained-slowdown">sustained slowdowns<\/a>/;
 
 async function main() {
   for (const prior of PRIOR_OPTIONS) for (const band of start.bands) {
@@ -75,9 +82,11 @@ async function main() {
     assert.match(html,new RegExp(esc(focusRate)+' developed a sustained slowdown'));
     assert.match(html,new RegExp(esc(timeChange(focus.finish_delta_median_s))));
     assert.match(html,new RegExp(esc(steadyRate))); assert.match(html,new RegExp(focus.n.toLocaleString('en-US'))); assert.match(html,new RegExp(focus.slowdown_n.toLocaleString('en-US')));
-    assert.match(html,/earlier recorded best/); assert.match(html,/do not prove that the start caused/);
-    assert.match(html,/not minutes caused or lost/);
-    assert.match(html, /href="https:\/\/journals\.plos\.org\/plosone\/article\?id=10\.1371\/journal\.pone\.0251513"/);
+    assert.match(html,/earlier recorded best/);
+    assert.match(html,SLOWDOWN_LINK,'The sustained slowdown term links to its definition on /methodology');
+    assert.match(html,/most often began in the /,'The onset section states where slowdowns most often began');
+    assert.match(html,/Pace was slowest in the /,'The pace section states its slowest section');
+    noMethodCopy(html,`history results (${units})`);
     assert.match(html,units==='mi'?/18\.64–21\.75 mi/:/30–35 km/);
     assert.match(html,units==='mi'?/26\.22 mi/:/42\.195 km/);
     assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016/,'Internal upload identifiers stay out of visible result copy');
@@ -90,7 +99,7 @@ async function main() {
   assert.doesNotMatch(render(FastStartResults,{row:start.initial,focus:zero,start,units:'km'}),/same time than/);
   const page=render(FastStartAnalysis,{starts});
   assert.match(page,/Opening pace/); assert.match(page,/No previous race needed/); assert.doesNotMatch(page,/>Earlier recorded best</); assert.doesNotMatch(page,/>Target time</);
-  assert.match(page,/withdrawals/i); assert.match(page,new RegExp(eligible.toLocaleString('en-US')));
+  assert.doesNotMatch(page,new RegExp(eligible.toLocaleString('en-US')),'Coverage counts belong on /methodology'); noMethodCopy(page,'fast-start page');
   assert.match(page,/aria-pressed="true">All eligible finishes/);
   assert.match(page,/With an earlier result/);
   const allRow=starts.all.initial, allFocus=allRow.groups.find(g=>g.band==='fast10');
@@ -102,9 +111,9 @@ async function main() {
   assert.ok(Math.abs(allCharts.accounting.rows[0].value+allCharts.accounting.rows[1].value-allCharts.accounting.rows[2].value)<1e-6);
   for(const units of ['mi','km']) {
     const html=render(FastStartResults,{row:allRow,focus:allFocus,start:starts.all,units});
-    assert.match(html,/Median recorded finish/); assert.match(html,/not a prediction or avoidable time loss/);
-    assert.match(html,/cannot tell whether the entire first half was too ambitious/);
-    assert.match(html,/share the same reference pace/);
+    assert.match(html,/Median recorded finish/); assert.match(html,/than the same distance at its early-race pace/);
+    assert.match(html,SLOWDOWN_LINK);
+    noMethodCopy(html,`all-finisher results (${units})`);
     assert.match(html,units==='mi'?/3\.11 mi/:/5 km/);
     assert.match(html,units==='mi'?/12\.43 mi/:/20 km/);
     assert.doesNotMatch(html,/earlier recorded best|earlier-best|All earlier times/,'All mode cannot present its reference as a prior result');

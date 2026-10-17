@@ -119,7 +119,7 @@ export const STANDARDS: Standard[] = [
       [50, 54, hm(3, 20), hm(3, 50)], [55, 59, hm(3, 30), hm(4, 0)], [60, 64, hm(3, 50), hm(4, 20)], [65, 69, hm(4, 5), hm(4, 35)],
       [70, 74, hm(4, 20), hm(4, 50)], [75, 79, hm(4, 35), hm(5, 5)], [80, 120, hm(4, 50), hm(5, 20)]]),
     nonbinaryNote: 'Non-binary standards equal the women’s. A non-binary time must come from a race that offered the category, unless it offered none.',
-    extra: ['Race date April 17, 2028 (B.A.A. registration update, September 21, 2026). The qualifying window ends with registration week in September 2027, which is not yet dated.',
+    extra: ['Race date April 17, 2028. The qualifying window ends with registration week in September 2027, which is not yet dated.',
       'Net (chip) time on a certified course. No virtual, indoor, treadmill or time-trial marathons.',
       'From 2027 registration, courses with a net drop of 1,500–2,999 ft (457.2–914.1 m) add 5:00, 3,000–5,999 ft (914.2–1,828.5 m) add 10:00, and 6,000 ft (1,828.6 m) or more are not accepted.',
       BOSTON_INDEX_TERM],

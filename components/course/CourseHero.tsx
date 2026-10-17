@@ -1,7 +1,7 @@
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { RouteMap } from '@/components/story/CourseArt';
-import { Distance, Elevation } from '@/components/story/Units';
-import { count, yearList, type CoursePageData } from '@/lib/course-page';
+import { Elevation } from '@/components/story/Units';
+import { clock, pct, type CoursePageData } from '@/lib/course-page';
 import { planHref } from '@/lib/tools/links';
 import { Fact } from './Fact';
 
@@ -9,12 +9,13 @@ import { Fact } from './Fact';
 export const article = (name: string) => (/^[AEIOU]/i.test(name) ? 'an' : 'a');
 
 /**
- * The night hero: the race name as the data has it, what the data holds for it (the finishes and the editions that make
- * them up, small ones included), and the way into the planner, with the pace band and split check for the courses the
- * pace band publishes.
+ * The night hero: the race name as the data has it, its headline figures (how often finishes had a sustained slowdown,
+ * the median finish and the route's climb), and the way into the planner, with the pace band and split check for the
+ * courses the pace band publishes.
  */
 export default function CourseHero({ page }: { page: CoursePageData }) {
-  const { summary, counted, geometry, race, slug } = page;
+  const { summary, editions, geometry, race, slug } = page;
+  const single = editions.length === 1 ? editions[0] : null;
   return (
     <section className="night night-grain bleed story-hero course-hero" data-track-section="hero">
       <div className="container course-hero-grid">
@@ -23,19 +24,17 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
           <h1 className="story-title">{race}</h1>
           <dl className="course-stats">
             <div>
-              <dt>Editions in the data</dt>
-              <dd><Fact k="counted.editions" v={counted.editions}>{count(counted.editions)}</Fact></dd>
-              <dd className="course-stat-sub"><Fact k="counted.years" v={counted.years.join(',')}>{yearList(counted.years)}</Fact></dd>
+              <dt>Sustained slowdown</dt>
+              <dd><Fact k="slowdown" v={summary.slowdown}>{pct(summary.slowdown)}</Fact></dd>
+              <dd className="course-stat-sub">{single ? `of finishes in ${single.year}` : 'of finishes in an average edition'}</dd>
             </div>
-            <div><dt>Finishes with all nine 5 km splits</dt><dd><Fact k="finishes" v={summary.finishes}>{count(summary.finishes)}</Fact></dd></div>
-            {geometry ? (
-              <>
-                <div><dt>Supplied route</dt><dd><Fact k="geo.distance" v={geometry.distance_km}><Distance km={geometry.distance_km} /></Fact></dd></div>
-                <div><dt>Climb, smoothed route profile</dt><dd><Fact k="geo.gain" v={geometry.gain_m}><Elevation metres={geometry.gain_m} /></Fact></dd></div>
-              </>
-            ) : null}
+            <div>
+              <dt>Median finish</dt>
+              <dd><Fact k="median" v={summary.median_s}>{clock(summary.median_s)}</Fact></dd>
+              <dd className="course-stat-sub">{single ? `in ${single.year}` : 'in an average edition'}</dd>
+            </div>
+            {geometry ? <div><dt>Climb</dt><dd><Fact k="geo.gain" v={geometry.gain_m}><Elevation metres={geometry.gain_m} /></Fact></dd></div> : null}
           </dl>
-          {geometry ? null : <p className="hero-dek course-hero-note">No supplied route file is available for this course, so this page has no elevation profile.</p>}
           <div className="hero-actions">
             <Link className="button-accent" href={planHref(page.city) ?? '/tools/plan'}>Plan your {race}</Link>
             {page.scopes.band ? <Link className="button-secondary" href={`/tools/pace-band?course=${slug}`}>Make {article(race)} {race} pace band</Link> : null}

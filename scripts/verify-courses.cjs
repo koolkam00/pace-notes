@@ -12,14 +12,16 @@
 //   Built-page checks (`--html`, appended to `npm run verify:seo`, after the build), on all 29 pages:
 //     3. every printed figure (<data data-k>) against its file, both its value and the text shown (the default miles
 //        view), every edition and goal row present, no other number in a table cell; one H1, no empty heading, the
-//        sections the data supports and no others; the DOI where "sustained slowdown" is defined; banned and rank words;
-//        copy editions never printed with numbers, with this page's own line; both elevation labels; the 5 °C gate, in
-//        the text and in the chart's accessible name; the weather source and the unverified race dates; each section's
-//        own finishes; the course total named only with the editions that make it up, in the text and the description;
-//        "two ways" over the elevation only with both climb totals; table regions with names; links only to exported
-//        pages, with course presets only where the target tool publishes the course and analyses only where they have a
-//        result; the planner on every page and the qualifying page on the six qualifying courses; no structured data
-//        beyond the breadcrumbs; and on /courses the ItemList and each card's count, the course page's.
+//        sections the data supports and no others (no "About this data"); "sustained slowdown" linked to its definition
+//        on /methodology, never defined or cited on the page; no method, source or coverage copy in the page's own text
+//        (October 16, 2026: that copy lives on /methodology only); banned and rank words; copy editions never listed or
+//        printed with numbers, and no all-finisher figure that counts them; both climb totals labelled where both are
+//        printed; the 5 °C gate, in the text and in the chart's accessible name; the course total named only with the
+//        editions that make it up, in the text and the description; "two ways" over the elevation only with both climb
+//        totals; table regions with names; links only to exported pages, with course presets only where the target tool
+//        publishes the course and analyses only where they have a result; the planner on every page and the qualifying
+//        page on the six qualifying courses; no structured data beyond the breadcrumbs; and on /courses the ItemList and
+//        each card's sustained-slowdown share, the course page's.
 // Usage: node scripts/verify-courses.cjs [--html] [--out <folder>]
 //
 // Key grammar for <data data-k="key">: a field name, then `@<year>`, `@<goal minutes>` or `@<index>` where the field is
@@ -478,12 +480,27 @@ const BANNED = [[/\bthe wall\b/i, '"the wall"'], [/arithmetic/i, '"arithmetic"']
 const RANK = /\b(?:rank|ranks|ranked|ranking|rankings|fastest|toughest|hardest|easiest|harder|easier|tougher|similar|best|worst|top \d+)\b/i;
 const DOI = 'doi:10.1371/journal.pone.0251513';
 const DOI_URL = 'https://doi.org/10.1371/journal.pone.0251513';
-const SECTIONS = ['at-a-glance', 'finish-times', 'elevation', 'pacing', 'slowdown', 'goals', 'weather', 'plan', 'replay', 'data', 'other-courses'];
+const SECTIONS = ['at-a-glance', 'finish-times', 'elevation', 'pacing', 'slowdown', 'goals', 'weather', 'plan', 'replay', 'other-courses'];
+/** Where the term links: its definition on /methodology. */
+const SLOWDOWN_HREF = '/methodology#sustained-slowdown';
+/** What a goal with no published row says, whatever the file's reason (the reason is method, on /methodology). */
+const GOAL_GAP = 'Too few finishes at this pace.';
+/**
+ * Method, source and coverage copy, which since October 16, 2026 lives on /methodology only. Checked in the course page's
+ * own text (the hero, the deks, notes, callouts, bibs, totals and the at-a-glance sentences), not inside the shared chart
+ * and research components it embeds.
+ */
+const METHOD = [
+  [/sustained slowdown is at least|25% slower|5–20 km pace/i, 'the sustained-slowdown definition'], [/doi:|published (?:slowdown )?method|published definition/i, 'a method citation'],
+  [/\bsupplied\b|smoothed|open-meteo|modell?ed|\bsource\b|data producer|independently verified|context only|not an adjustment/i, 'a source or measurement note'],
+  [/weighted equally|\bpooled?\b|start delays|largely repeat|copy edition|not counted|at least 100 finishes|fewer than 100|checkpoint times|in the data\b|story data|\bscreen/i, 'a cohort or coverage note'],
+  [/About this data|how (?:it|they) (?:is|are) measured|what the types mean/i, 'a method section or link'],
+];
+const OWN_COPY = /<(p|dl)\b[^>]*class="(?:hero-dek|chapter-dek|course-note|course-callout|course-block-dek|bib-text|course-hotcool|course-slope|course-plan-link|course-stats|course-totals)"[^>]*>([\s\S]*?)<\/\1>/g;
 const TRACK = { 'at-a-glance': 'chapter-1', 'finish-times': 'chapter-2', elevation: 'chapter-3', pacing: 'chapter-4', slowdown: 'chapter-5', goals: 'chapter-6', weather: 'chapter-7', plan: 'cta', 'other-courses': 'related' };
 
 if (html) {
   assert.ok(fs.existsSync(path.join(OUT, 'courses.html')), `No export in ${OUT}: run npm run build first`);
-  const planText = require(path.join(root, 'lib/tools/plan.ts'));
   const { QUALIFYING_COURSE } = require(path.join(root, 'lib/tools/qualifying.ts'));
   const bandSlugs = new Set(paceBand.scopes.map((s) => s.slug));
   const projectorSlugs = new Set(projector.scopes.map((s) => s.slug));
@@ -544,29 +561,31 @@ if (html) {
     for (const w of f.weather) for (const k of ['w.temp', 'w.dew', 'w.rh', 'w.wind']) check(seen.has(`${k}@${w.year}`), where, `the ${w.year} weather row lacks ${k}`);
     for (const [g, row] of f.goalRows) if (row && f.ctx && f.ctx.editions >= courseGoal.min_editions) check(seen.has(`g.n@${g}`) && seen.has(`g.sd@${g}`) && seen.has(`g.p50@${g}`), where, `goal ${g}: the row is not printed`);
     if (f.terrain && f.route) for (let i = 0; i < 9; i += 1) check(seen.has(`t.gain@${i}`), where, `section ${i} of the route is not printed`);
-    for (const k of ['finishes', 'counted.editions', 'slowdown', 'block10', 'after20', ...(f.cells.length > 1 ? ['editions'] : [])]) check(seen.has(k), where, `${k} is not printed`);
+    for (const k of ['slowdown', 'block10', 'after20', 'median', ...(f.route ? ['geo.gain'] : [])]) check(seen.has(k), where, `${k} is not printed`);
 
     // Table cells hold figures, a dash or plain words; never another number.
     for (const table of main.matchAll(/<table class="[^"]*course-table[^"]*">([\s\S]*?)<\/table>/g)) {
       for (const td of table[1].matchAll(/<td\b([^>]*)>([\s\S]*?)<\/td>/g)) {
         const rest = innerText(td[2].replace(/<data\b[\s\S]*?<\/data>/g, ''));
-        if (/course-reason/.test(td[1])) continue;
         check(!/\d/.test(rest), where, `a table cell prints "${rest}" outside a checked figure`);
       }
     }
-    // Goal reasons are the course chooser's own words for the file's reasons.
+    // A goal with no published row says so in plain words, and only where the file has no row for it.
     for (const m of main.matchAll(/<td\b[^>]*class="course-reason"[^>]*data-goal="(\d+)"[^>]*>([\s\S]*?)<\/td>/g)) {
-      const gap = courseGoal.unavailable.find((u) => u.city === city && u.goal === Number(m[1]));
-      check(gap && innerText(m[2]) === planText.courseGoalReason(gap.reason, courseGoal.min_editions), where, `goal ${m[1]}: reason "${innerText(m[2])}"`);
+      check(!f.goalRows.get(Number(m[1])) && innerText(m[2]) === GOAL_GAP, where, `goal ${m[1]}: "${innerText(m[2])}" over a goal the file ${f.goalRows.get(Number(m[1])) ? 'has a row for' : 'has no row for'}`);
     }
 
-    // The definition and its citation where the term is defined.
+    // The term is linked to its definition on /methodology, never defined or cited here.
     const slowdown = sectionOf(body, 'slowdown') ?? '';
     check(/sustained slowdown/i.test(visible), where, 'never says sustained slowdown');
-    check(textOf(slowdown).includes('A sustained slowdown is at least 5 km after 20 km run at least 25% slower') && textOf(slowdown).includes(DOI) && slowdown.includes(`href="${DOI_URL}"`), where, 'the definition and its DOI are not in #slowdown');
+    check(new RegExp(`<a\\b[^>]*href="${SLOWDOWN_HREF}"[^>]*>sustained slowdown</a>`).test(slowdown), where, `#slowdown does not link "sustained slowdown" to ${SLOWDOWN_HREF}`);
+    check(!visible.includes(DOI) && !main.includes(DOI_URL) && !/at least 5 km after 20 km/.test(visible), where, 'the definition or its DOI is on the page');
 
-    // Each section names its own finishes: the sustained-slowdown shares are means over the editions with a row.
-    check(f.cells.length === 1 ? slowdown.includes(`data-k="n@${f.cells[0].year}"`) : slowdown.includes('data-k="rows.finishes"'), where, '#slowdown does not print its finishes');
+    // The page's own text carries findings only: no method, source or coverage copy, and no "About this data".
+    for (const copy of [...[...main.matchAll(OWN_COPY)].map((m) => m[2]), /<div class="course-glance">([\s\S]*?)<\/div>/.exec(main)?.[1] ?? ''].map(textOf)) {
+      for (const [pattern, label] of METHOD) { const hit = pattern.exec(copy); check(!hit, where, `${label} ("${hit && hit[0]}"): ${copy.slice(0, 140)}`); }
+    }
+    check(!/About this data/i.test(visible) && sectionStart(body, 'data') < 0, where, 'an "About this data" section');
 
     const head = /<head\b[\s\S]*?<\/head>/.exec(full)?.[0] ?? '';
     // The course total is named with the editions that make it up (Amsterdam: 13 with 2023's 14 finishes, not the 12 with a
@@ -592,27 +611,26 @@ if (html) {
     const rank = RANK.exec(visible);
     check(!rank, where, `rank word "${rank && rank[0]}": …${rank ? visible.slice(Math.max(0, rank.index - 60), rank.index + 40) : ''}…`);
 
-    // Copy editions: listed without numbers, explained once each, and no figure that still counts them.
+    // Copy editions: never a row or a figure, never explained here (that is /methodology's), and no figure that still
+    // counts them.
     for (const copy of f.copies) {
-      const row = new RegExp(`<tr class="is-copy" data-copy-year="${copy.year}">([\\s\\S]*?)</tr>`).exec(main);
-      check(row && !/\d/.test(innerText(row[1]).replace(String(copy.year), '')), where, `copy edition ${copy.year}: its row is missing or has a number`);
-      const sentence = `${city} ${copy.year}'s records largely repeat the ${city} ${copy.duplicate_of} field (${copy.identical_nine_time_twins.toLocaleString('en-US')} of its ${copy.eligible_removed.toLocaleString('en-US')} finishes share all nine checkpoint times with a ${copy.duplicate_of} finish), so this page counts them only in the pooled pace profile.`;
-      check(textOf(sectionOf(body, 'finish-times') ?? '').split(sentence).length === 2, where, `copy edition ${copy.year}: its sentence is not under the table exactly once`);
-      check(!visible.includes('shown as recorded times only'), where, 'the runner search\'s ending of the copy-edition sentence, which is not true of this page');
+      const table = /<table\b[\s\S]*?<\/table>/.exec(sectionOf(body, 'finish-times') ?? '')?.[0] ?? '';
+      check(!table.includes(`<th scope="row">${copy.year}</th>`), where, `copy edition ${copy.year} has a row in the finish-times table`);
+      check(!/largely repeat|shown as recorded times only/.test(visible), where, `copy edition ${copy.year}: the copy-edition sentence is on the page`);
       if (f.allFinisherPct) check(!visible.includes(f.allFinisherPct), where, `the all-finisher figure ${f.allFinisherPct}, which counts the copies, is printed`);
     }
 
-    // Elevation: each total labelled by method, "two ways" only over two, and context, not an adjustment.
+    // Elevation: the two climb totals each under its own label where both are printed, and "two ways" only over two.
     if (f.route) {
       const elevation = textOf(sectionOf(body, 'elevation') ?? '');
-      check(/smoothed route profile/i.test(elevation) && (f.ctx?.gain_m == null || /sum of the 5 km sections/i.test(elevation)), where, 'an elevation total without its method label');
-      check(elevation.includes('Current supplied route; context only, not an adjustment'), where, 'the elevation context line is missing');
-      // Two climb totals are promised only where both are printed: Prague's route has no course-chooser sum (every edition screened out).
+      const totalsList = textOf(/<dl class="course-totals">[\s\S]*?<\/dl>/.exec(sectionOf(body, 'elevation') ?? '')?.[0] ?? '');
+      check(/^Whole route Climbs/.test(totalsList) && (f.ctx?.gain_m == null) === !/Sum of the 5 km sections Climbs/.test(totalsList), where, `the climb totals' labels: "${totalsList}"`);
+      // Two climb totals only where both are printed: Prague's route has no course-chooser sum (every edition screened out).
       const totals = ['geo.gain', 'cg.gain'].filter((k) => (sectionOf(body, 'elevation') ?? '').includes(`data-k="${k}"`));
       check(totals.length === (f.ctx?.gain_m == null ? 1 : 2), where, `#elevation prints ${totals.length} climb totals`);
       const promise = /\btwo ways\b|\b(?:both|two) (?:climb )?(?:totals|measures|measurements)\b/i.exec(elevation);
       check(!promise || totals.length === 2, where, `#elevation promises "${promise && promise[0]}" over ${totals.length} climb total${totals.length === 1 ? '' : 's'}`);
-      check(/smoothed route profile/i.test(textOf(/<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '')), where, 'the hero climb is not labelled');
+      check((/<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '').includes('data-k="geo.gain"'), where, 'the hero does not print the climb');
     }
 
     // Weather: the 5 °C gate, the slope sentence for the courses with one, and context.
@@ -623,27 +641,16 @@ if (html) {
       const names = [...(sectionOf(body, 'weather') ?? '').matchAll(/\s(?:aria-label|title)="([^"]*)"/g)].map((m) => decode(m[1])).filter((n) => /warmest|coolest/i.test(n));
       check(!names.length, where, `the warmest/coolest pairing in an accessible name without the 5 °C gap: ${names[0]}`);
     }
-    // Race dates and scheduled starts come from the weather records, which say they were not independently verified.
-    const printed = [...f.cells.map((c) => c.year), ...f.weather.map((w) => w.year)].map((y) => shards.get(key(city, y))?.weather).filter((w) => w && (w.date || w.scheduled_start));
-    const unverified = 'The data producer supplied the race dates and scheduled starts; they have not been independently verified.';
-    if (printed.some((w) => w.start_time_independently_verified === false)) {
-      if (f.cells.some((c) => shards.get(key(city, c.year))?.weather?.date)) check(textOf(sectionOf(body, 'finish-times') ?? '').includes(unverified), where, 'the race dates without "not independently verified"');
-      if (f.weather.length) check(textOf(sectionOf(body, 'weather') ?? '').includes(unverified), where, 'the scheduled starts without "not independently verified"');
-    }
+    // The weather records' source and their "not independently verified" flag are /methodology's: no source link here.
     const sources = [...new Set(f.weather.map((w) => shards.get(key(city, w.year))?.weather?.documentation_url).filter(Boolean))];
-    if (f.weather.length) check(sources.length === 1 && (sectionOf(body, 'weather') ?? '').includes(`href="${sources[0]}"`), where, `the weather source link (${sources})`);
-    if (f.weather.length) check(/context only, not an adjustment/i.test(textOf(sectionOf(body, 'weather') ?? '')), where, 'weather without "context only, not an adjustment"');
-
-    // Start delays: noted where the shape views leave editions out.
-    const offset = courses.shape_cohort.start_offset_editions.filter((e) => e.city === city);
-    check(/start delays/.test(textOf(sectionOf(body, 'pacing') ?? '')) === offset.length > 0, where, 'the start-offset note');
+    for (const url of sources) check(!main.includes(`href="${url}"`), where, `the weather source link ${url} is on the page`);
 
     // Links: exported pages only; course presets only where the target publishes the course.
     const hrefs = [...main.matchAll(/<a\b[^>]*href="([^"]+)"/g)].map((m) => decode(m[1]));
     const ids = new Set([...body.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
     for (const href of hrefs) {
       if (href.startsWith('#')) { check(ids.has(href.slice(1)), where, `${href} has no target`); continue; }
-      if (/^https?:/.test(href)) { check(href === DOI_URL || href.startsWith('https://splithappens.run/') || /^https:\/\/github\.com\/koolkam00\//.test(href) || sources.includes(href), where, `outside link ${href}`); continue; }
+      if (/^https?:/.test(href)) { check(href.startsWith('https://splithappens.run/') || /^https:\/\/github\.com\/koolkam00\//.test(href), where, `outside link ${href}`); continue; }
       if (href.startsWith('/data/')) { check(fs.existsSync(path.join(root, 'public', href.split('?')[0])), where, `${href} is not a published file`); continue; }
       const url = new URL(href, 'https://splithappens.run');
       check(exported(url.pathname), where, `${href} is not an exported page`);
@@ -684,12 +691,8 @@ if (html) {
     const hasGoalRows = /class="tool-table course-table course-goals-table"/.test(main);
     check(/For five goal times/.test(textOf(sectionOf(body, 'goals') ?? '')) === hasGoalRows, where, 'the goals dek against the table');
 
-    // Editions in the data with no row (fewer than 100 finishes) are named wherever a count includes them.
-    if (f.smallYears.length) {
-      check(textOf(sectionOf(body, 'finish-times') ?? '').includes(`years not listed have no eligible finishes, except ${F.years(f.smallYears.join(','))} (below)`), where, 'the table note does not name the small editions');
-      const listedRows = f.cells.length - courses.shape_cohort.start_offset_editions.filter((e) => e.city === city).length - (courseGoal.screens.grid ?? []).filter((e) => e.city === city).length;
-      if (f.ctx && f.ctx.editions - listedRows === f.smallYears.length) check(textOf(sectionOf(body, 'data') ?? '').includes(`including the ${F.years(f.smallYears.join(','))} edition`), where, 'the goal rows\' editions include a small edition the page does not name');
-    }
+    // Editions in the data with no row (fewer than 100 finishes) never get a row of their own.
+    for (const year of f.smallYears) check(!(/<table\b[\s\S]*?<\/table>/.exec(sectionOf(body, 'finish-times') ?? '')?.[0] ?? '').includes(`<th scope="row">${year}</th>`), where, `${year}, under 100 finishes, has a row`);
 
     // Structured data: the breadcrumbs only.
     const types = [...full.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => [].concat(JSON.parse(m[1])).map((x) => x['@type']));
@@ -708,13 +711,17 @@ if (html) {
       const city = CITIES[i];
       check(item['@type'] === 'ListItem' && item.position === i + 1 && item.url === `https://splithappens.run/courses/${slugOf(city)}` && item.name === facts.get(city)?.race, where, `item ${i + 1}: ${JSON.stringify(item)}`);
     });
-    // Each card's count is the one its course page's hero prints (the story data, without copy editions).
+    // Each card's sustained-slowdown share is the one its course page's hero prints (the story data, without copy
+    // editions), and no card carries the old coverage line.
     const cards = new Map([...markup(full).matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)].filter((m) => attr(m[1], 'class') === 'course-card')
       .map((m) => [(attr(m[1], 'href') ?? '').replace(/^\/courses\//, ''), textOf(m[2])]));
     for (const city of CITIES) {
       const text = cards.get(slugOf(city));
-      check(text && text.includes(`${F.count(facts.get(city).s.finishes)} finishes with complete splits`), where, `the ${city} card: "${text}" against the page's ${F.count(facts.get(city).s.finishes)} finishes`);
+      check(text && text.includes(`Sustained slowdown ${F.pct(facts.get(city).s.slowdown)}`), where, `the ${city} card: "${text}" against the page's ${F.pct(facts.get(city).s.slowdown)}`);
+      check(text && !/with complete splits|supplied/i.test(text), where, `the ${city} card carries coverage copy: "${text}"`);
     }
+    const dek = textOf(/<p class="hero-dek">([\s\S]*?)<\/p>/.exec(markup(full))?.[1] ?? '');
+    check(!/supplied|route file/i.test(dek), where, `the /courses dek names a data source: "${dek}"`);
   }
   words.sort((a, b) => a[1] - b[1]);
   console.log(`Course pages: ${CITIES.length} pages, ${factCount} printed figures checked; ${words[0][1]}–${words[words.length - 1][1]} words of main text (${words[0][0]} to ${words[words.length - 1][0]}).`);

@@ -138,7 +138,7 @@ export default function PackClientPage({
         </div>
 
         {isComingSoon && <div className="placeholder">Coming soon (parked)</div>}
-        {enrichmentNeeds && <div className="placeholder">Needs weather/elevation overlays</div>}
+        {enrichmentNeeds && <div className="placeholder">Coming soon</div>}
         {waiting && (
           <div className="placeholder">{loading ? 'Loading…' : 'Waiting for live pack data'}</div>
         )}
@@ -148,12 +148,6 @@ export default function PackClientPage({
           <div className="stack" style={{ marginTop: '0.75rem' }}>
             <div className="figure-title">Answer</div>
             <div style={{ whiteSpace: 'pre-wrap' }}>{String((meta as any).answer_prose)}</div>
-            {(meta as any)?.methodology_prose && (
-              <>
-                <div className="figure-title" style={{ marginTop: '0.75rem' }}>How computed</div>
-                <div style={{ whiteSpace: 'pre-wrap' }}>{String((meta as any).methodology_prose)}</div>
-              </>
-            )}
           </div>
         )}
 

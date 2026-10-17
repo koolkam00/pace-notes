@@ -3,7 +3,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { EvidencePanel } from '@/components/tools/ui';
-import { HALF_KM } from '@/lib/tools/pace';
 import { calculatorHref, chartRows, chartSpec, goalLabel, goalPagePath, hasGoalPage, paceBandHref, type ChartPoint, type ChartRace } from '@/lib/tools/pace-chart';
 import { formatDuration } from '@/lib/tools/time';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
@@ -22,7 +21,7 @@ const repeatBefore = (i: number, rows: number) => rows > REPEAT_MIN_ROWS && i > 
  * table's caption is visually hidden (it names the table for screen readers); the explanation goes below the scroller
  * as a normal paragraph, so it wraps to the screen instead of to the table's full width.
  */
-function ChartScroller({ labelledBy, note, children }: { labelledBy: string; note: ReactNode; children: ReactNode }) {
+function ChartScroller({ labelledBy, note, children }: { labelledBy: string; note?: ReactNode; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [overflow, setOverflow] = useState(false);
   useEffect(() => {
@@ -44,7 +43,7 @@ function ChartScroller({ labelledBy, note, children }: { labelledBy: string; not
       <div ref={ref} className="tool-table-wrap goal-chart-wrap" role="region" aria-labelledby={labelledBy} tabIndex={0}>
         {children}
       </div>
-      <p className="tool-note goal-chart-caption">{note}</p>
+      {note ? <p className="tool-note goal-chart-caption">{note}</p> : null}
     </>
   );
 }
@@ -69,26 +68,25 @@ export default function PaceChartTable({ race }: { race: ChartRace }) {
   const last = goalLabel(spec.goals[spec.goals.length - 1]);
   const paceUnits: UnitSystem[] = units === 'mi' ? ['mi', 'km'] : ['km', 'mi'];
   const pace = (r: (typeof rows)[number], u: UnitSystem) => formatDuration(u === 'mi' ? r.perMile : r.perKm);
-  const distance = race === 'marathon' ? '42.195 km (26.2 mi)' : `${HALF_KM} km (13.1 mi)`;
   const tableId = `goal-chart-${race}`;
 
   return (
     <>
       <EvidencePanel id={`${tableId}-panel`} title={`${name} pace chart, ${first} to ${last}`}
-        meta={<>Calculated at even pace, not recorded times: each goal spread evenly over {distance}. Elapsed time at each {race === 'marathon' ? '5 km timing mat and at halfway' : '5 km point'}; whole hours and half hours shaded.</>}>
+        meta={<>Elapsed time at each {race === 'marathon' ? '5 km timing mat and at halfway' : '5 km point'}; whole hours and half hours shaded.</>}>
         <div className="tool-share no-print">
           <button type="button" className="button-secondary" data-not-edit onClick={() => window.print()}>Print chart</button>
         </div>
-        <ChartScroller labelledBy={`${tableId}-caption`} note="These are not recorded splits: every time is calculated at even pace from the goal and rounded to whole seconds.">
+        <ChartScroller labelledBy={`${tableId}-caption`}>
           <table className="tool-table goal-chart-table" id={tableId}>
             <caption id={`${tableId}-caption`} className="sr-only">
-              {name} pace chart, calculated at even pace for each goal from {first} to {last}.
+              {name} pace chart at even pace for each goal from {first} to {last}.
             </caption>
             <thead>
               <tr>
                 <th scope="col" rowSpan={2} className="goal-chart-goal">Goal</th>
                 <th scope="colgroup" colSpan={2} className="goal-chart-group">Even pace</th>
-                <th scope="colgroup" colSpan={spec.points.length} className="goal-chart-group">Elapsed time at even pace (calculated)</th>
+                <th scope="colgroup" colSpan={spec.points.length} className="goal-chart-group">Elapsed time at even pace</th>
                 <th scope="col" rowSpan={2} className="goal-chart-plan no-print">Plan</th>
               </tr>
               <tr>
@@ -137,12 +135,11 @@ export default function PaceChartTable({ race }: { race: ChartRace }) {
 
       {units === 'mi' ? (
         <EvidencePanel id={`${tableId}-miles-panel`} title="Mile markers at even pace"
-          meta={`Calculated at even pace, not recorded times: the elapsed time at ${race === 'marathon' ? 'every fifth mile and at halfway' : '5 and 10 miles'} for each goal.`}>
-          <ChartScroller labelledBy={`${tableId}-miles-caption`}
-            note={race === 'marathon' ? 'Not recorded splits: the official timing mats are every 5 km.' : 'Not recorded splits: every time is calculated at even pace from the goal.'}>
+          meta={`The elapsed time at ${race === 'marathon' ? 'every fifth mile and at halfway' : '5 and 10 miles'} for each goal.`}>
+          <ChartScroller labelledBy={`${tableId}-miles-caption`}>
             <table className="tool-table goal-chart-table goal-chart-miles">
               <caption id={`${tableId}-miles-caption`} className="sr-only">
-                {name} mile markers, calculated at even pace for each goal from {first} to {last}.
+                {name} mile markers at even pace for each goal from {first} to {last}.
               </caption>
               <thead>
                 <tr>

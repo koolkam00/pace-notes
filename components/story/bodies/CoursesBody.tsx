@@ -1,18 +1,16 @@
-import type { CourseGeometry, Courses, InsightsManifest } from '@/lib/insights';
+import type { CourseGeometry, Courses } from '@/lib/insights';
 import { count } from '@/lib/viz/format';
 import { Fingerprints, NameThatCourse } from '../CoursesStory';
-import { StoryMethods, StorySection } from '../StoryShell';
+import { StorySection } from '../StoryShell';
 import { Distance, Pace, PerDegree, PerDegreeRange, Section, Temperature, TemperatureStep } from '../Units';
 import { HeatCurve, HotCool, MatchedPace, PairsWaffle, Untangle } from '../WeatherStory';
 import { EraArrows, YearsStrip } from '../YearsStory';
 import { StoryData } from '../StoryData';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 
 const pts = (v: number, digits = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(digits)}`;
-/** The weather caveat names the editions it leaves out only when there are some (none since the 1652 release). */
-const noWeatherNote = (n: number) => (n === 0 ? '' : n === 1 ? ' 1 edition without a valid weather row is left out of the weather charts.'
-  : ` ${count(n)} editions without a valid weather row are left out of the weather charts.`);
 
-export default function CoursesBody({ data, geometry, manifest }: { data: Courses; geometry: CourseGeometry[]; manifest: InsightsManifest }) {
+export default function CoursesBody({ data, geometry }: { data: Courses; geometry: CourseGeometry[] }) {
   const t = data.typical_curve;
   const byCity = (c: string) => data.courses.find((x) => x.city === c);
   const ny = byCity('New York');
@@ -49,14 +47,13 @@ export default function CoursesBody({ data, geometry, manifest }: { data: Course
       </StorySection>
 
       <StorySection id="name" kicker="02 · A course you can recognise" title={<>The shape alone <em>names the course</em>.</>}
-        dek={<>Remove each race&apos;s overall fade, keep only where it ran faster or slower, and match it to the nearest course average built without it. That names the right
-          course for {id.correct} of {id.editions_tested} editions ({Math.round((id.correct / id.editions_tested) * 100)}%), against {(id.chance * 100).toFixed(1)}% by chance: {perfect.join(', ')}.
+        dek={<>A race&apos;s pace shape alone names the right course for {id.correct} of {id.editions_tested} editions ({Math.round((id.correct / id.editions_tested) * 100)}%), against {(id.chance * 100).toFixed(1)}% by chance: {perfect.join(', ')}.
           Some courses blur together{copenhagen ? <>: Copenhagen is named {copenhagen.correct} time{copenhagen.correct === 1 ? '' : 's'} in {copenhagen.editions}</> : null}.</>}>
         <NameThatCourse />
       </StorySection>
 
       <StorySection id="weather" kicker="03 · Same course, different day" title={<>Temperature hides <em>until you compare a course with itself</em>.</>}
-        dek={<>Across the {w.cohort.editions} race editions with a weather record, the start temperature explains about a tenth of the spread in sustained slowdown (R² {f.slowdown_across.r2.toFixed(2)}).
+        dek={<>Across {w.cohort.editions} race editions, the start temperature explains about a tenth of the spread in <Link href="/methodology#sustained-slowdown">sustained slowdown</Link> (R² {f.slowdown_across.r2.toFixed(2)}).
           Within each course it explains about a third (R² {f.slowdown_within.r2.toFixed(2)}): the share of finishes with a sustained slowdown rises about <PerDegree perC={f.slowdown_within.slope} unit="points" />{' '}
           (95% interval <PerDegreeRange lo={f.slowdown_within.ci95[0]} hi={f.slowdown_within.ci95[1]} />).</>}>
         <Untangle />
@@ -73,18 +70,18 @@ export default function CoursesBody({ data, geometry, manifest }: { data: Course
       </StorySection>
 
       <StorySection id="matched" kicker="05 · Same early pace" title={<>The same start <em>ends differently</em> on different courses.</>}
-        dek={<>Take finishes that ran 5–20 km at <Pace secondsPerKm={band.lo_s} /> to <Pace secondsPerKm={band.hi_s} />. In {low.city}, {(low.slowdown * 100).toFixed(0)}% then had a sustained slowdown.
-          In {high.city}, {(high.slowdown * 100).toFixed(0)}% did. Courses differ in terrain, climate, field and timing, and all of it is folded in here.</>}>
+        dek={<>Among finishes that ran 5–20 km at <Pace secondsPerKm={band.lo_s} /> to <Pace secondsPerKm={band.hi_s} />, {(low.slowdown * 100).toFixed(0)}% in {low.city} then had a sustained slowdown.
+          In {high.city}, {(high.slowdown * 100).toFixed(0)}% did.</>}>
         <MatchedPace />
       </StorySection>
 
       <StorySection id="years" kicker="06 · The years" title={<>Since the pandemic, <em>the front of the field</em> is faster.</>}
-        dek={<>In the {e.high_coverage_courses.length} high-coverage courses with editions in both {e.pre[0]}–{String(e.pre[1]).slice(2)} and {e.post[0]}–{String(e.post[1]).slice(2)}, the 10th-percentile finish is
+        dek={<>Across {e.high_coverage_courses.length} courses, from {e.pre[0]}–{String(e.pre[1]).slice(2)} to {e.post[0]}–{String(e.post[1]).slice(2)}, the 10th-percentile finish is
           {' '}{Math.abs(s.p10.change).toFixed(1)} minutes faster, and faster in all {s.p10.lower}. The 90th percentile has not clearly moved ({pts(s.p90.change)} min, interval {pts(s.p90.ci95[0])} to {pts(s.p90.ci95[1])}).</>}>
         <div className="bibs">
           <div className="bib"><span className="bib-tag">10th percentile</span><span className="bib-number">{pts(s.p10.change)} <small>min</small></span><span className="bib-text">faster in {s.p10.lower} of {e.high_coverage_courses.length} courses. Interval {pts(s.p10.ci95[0])} to {pts(s.p10.ci95[1])} min.</span></div>
           <div className="bib"><span className="bib-tag">Under 3:00</span><span className="bib-number">{pts(s.sub3.change * 100)} <small>pts</small></span><span className="bib-text">share of finishes under three hours, higher in {s.sub3.higher} of {e.high_coverage_courses.length} courses.</span></div>
-          <div className="bib"><span className="bib-tag">2020</span><span className="bib-number">{y2020?.editions ?? 0} <small>editions</small></span><span className="bib-text">{count(y2020?.finishes ?? 0)} eligible finishes, against {count(data.years.by_year.find((r) => r.year === 2019)?.finishes ?? 0)} in 2019.</span></div>
+          <div className="bib"><span className="bib-tag">2020</span><span className="bib-number">{y2020?.editions ?? 0} <small>editions</small></span><span className="bib-text">{count(y2020?.finishes ?? 0)} finishes, against {count(data.years.by_year.find((r) => r.year === 2019)?.finishes ?? 0)} in 2019.</span></div>
         </div>
         <YearsStrip />
         <EraArrows />
@@ -95,17 +92,6 @@ export default function CoursesBody({ data, geometry, manifest }: { data: Course
         </p>
       </StorySection>
 
-      <StoryMethods manifest={manifest} files={['courses.json', 'course-geometry.json']} method={data.method}
-        caveats={[
-          'Course means the supplied city label, not a verified historical route. Route maps and elevation are the current supplied course files, and the elevation model misses bridge decks.',
-          'Relative pace mixes terrain, field ability, weather and race behaviour. The typical curve is the median across courses.',
-          `Weather is the supplied modelled hour at the scheduled start, at one point in each city. It is never personal or wave exposure.${noWeatherNote(w.excluded.filter((x) => x.reason !== 'Fewer than 100 finishes').length)}`,
-          'These are simple descriptive slopes. The prespecified weather screen in the existing analyses remains the adjusted analysis.',
-          `${data.shape_cohort.start_offset_editions.length} editions whose first 5 km looks inflated (${[...new Set(data.shape_cohort.start_offset_editions.map((x) => x.city))].join(', ')}) are left out of every shape statistic.`,
-          `Course identification was chosen among four variants, all reported in the data file (${Object.entries(id.variants).map(([k, v]) => `${k.toLowerCase()} ${Math.round(v * 100)}%`).join('; ')}).`,
-          'Field size counts eligible finishes in this dataset, not official finishers. Recorded-gender gaps and changing eligibility shares affect some courses and years.',
-          'Counts are race finishes, not unique people. Associations describe, they do not explain why.',
-        ]} />
     </StoryData>
   );
 }

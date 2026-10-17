@@ -2,8 +2,7 @@
 // chunks of a page in a parent folder for the client components they share, so at app/research/page.tsx the archived
 // guide at /research/personalized would load this page's chunks too (see the home page's note, docs/WEBSITE_ARCHITECTURE.md).
 import AnalysisIndex from '@/components/AnalysisIndex';
-import CohortNote from '@/components/CohortNote';
-import DataCoverage from '@/components/DataCoverage';
+import { assertCohortTotals } from '@/components/CohortNote';
 import StoryCards from '@/components/StoryCards';
 import { UnitLink as Link, UnitText } from '@/components/UnitsProvider';
 import WeatherIndex from '@/components/WeatherIndex';
@@ -13,40 +12,40 @@ import { getPersonalSummary } from '@/lib/personalized-data';
 import { getStudyEvidence } from '@/lib/research-data';
 import { JsonLd, breadcrumbs, pageMetadata } from '@/lib/seo';
 import { STORIES, capital, countWord } from '@/lib/stories';
-import { getStudyFigures } from '@/lib/study-figures';
+import { getSlowdownFigures } from '@/lib/study-figures';
 import { TEN_ANALYSES } from '@/lib/ten-analyses';
-import { SLOWDOWN_CITATION } from '@/lib/tools/splits';
 
 export const metadata = pageMetadata({
-  title: 'Marathon Pacing Research and Open Data | Pace Notes',
-  description: 'Data stories, ten marathon pacing analyses you can set to your course and time, the sustained-slowdown study and the open data behind them.',
+  title: 'Marathon Pacing Research: Stories and Analyses | Pace Notes',
+  description: 'Data stories, ten marathon pacing analyses you can set to your course and time, and the sustained-slowdown study, all in one place.',
   path: '/research',
 });
 
 /**
  * Everything Pace Notes has found, in one place: every data story, the ten analyses and the weather questions that
- * passed their check, the sustained-slowdown study and its figures, the methods, the open data and the archive. Every
- * story and analysis page is linked from here (verify-seo checks it), so none is left without a way in.
+ * passed their check, the sustained-slowdown study and its figures, and the archive. Methods, sources and the data
+ * downloads are only on /methodology (linked from the footer). Every story and analysis page is linked from here
+ * (verify-seo checks it), so none is left without a way in.
  */
 export default function ResearchPage() {
   const manifest = getInsightsManifest();
   const stories = STORIES.filter((s) => manifest.files[s.file]);
-  const figures = getStudyFigures();
+  const figures = getSlowdownFigures();
   const study = getStudyEvidence();
   const storyWord = capital(countWord(stories.length) ?? String(stories.length));
   const analysisWord = countWord(TEN_ANALYSES.length) ?? String(TEN_ANALYSES.length);
   const guide = getPersonalSummary()?.analyses;
+  assertCohortTotals();
   return <div className="research-hub">
     <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Research']])} />
     <header className="night night-grain bleed story-hero research-hero">
       <div className="container">
         <p className="eyebrow">Research</p>
         <h1 className="story-title">Explore the <em>research</em>.</h1>
-        <p className="hero-dek">{storyWord} data stories, {analysisWord} analyses you can set to your own course and finish time, the sustained-slowdown study and the open data behind them.</p>
+        <p className="hero-dek">{storyWord} data stories, {analysisWord} analyses you can set to your own course and finish time, and the sustained-slowdown study.</p>
       </div>
       <RunnerLane dark height={96} runners={[{ finishMinutes: 175, label: '2:55' }, { finishMinutes: 235, label: '3:55' }, { finishMinutes: 295, label: '4:55' }]} />
     </header>
-    <div className="research-cohort"><CohortNote /></div>
 
     <section id="stories" className="chapter research-section" aria-labelledby="research-stories-title">
       <div className="chapter-head">
@@ -62,7 +61,7 @@ export default function ResearchPage() {
       <div className="chapter-head">
         <p className="chapter-num">Analyses</p>
         <h2 id="research-analyses-title" className="chapter-title">{capital(analysisWord)} questions, <em>set to your race</em>.</h2>
-        <p className="chapter-dek">Choose a course, a finish time and an age group, and each answer is recounted for the finishes that match, with the group&apos;s size beside it.</p>
+        <p className="chapter-dek">Choose a course, a finish time and an age group to see what happened to finishes like yours.</p>
       </div>
       <div className="chapter-body"><AnalysisIndex /></div>
       <p className="research-also">Also: <Link href="/analyses/downhill-start">downhill starts and later slowing</Link>{' '}<Link href="/analyses">the {analysisWord} on one page</Link></p>
@@ -73,34 +72,12 @@ export default function ResearchPage() {
       <div className="chapter-head">
         <p className="chapter-num">The supporting study</p>
         <h2 id="research-slowdown-title" className="chapter-title">Sustained <em>slowdown</em>.</h2>
-        <p className="chapter-dek">At least 5 km after 20 km run 25% or more slower than a finish&apos;s own 5–20 km pace, following the <a href={SLOWDOWN_CITATION.url}>{SLOWDOWN_CITATION.label.charAt(0).toLowerCase() + SLOWDOWN_CITATION.label.slice(1)}</a>.{study ? ` ${study.rate.toFixed(1)}% of the ${study.n.toLocaleString('en-US')} finishes in the ${analysisWord} analyses had one.` : ''}</p>
+        {study ? <p className="chapter-dek">{study.rate.toFixed(1)}% of the {study.n.toLocaleString('en-US')} finishes in the {analysisWord} analyses had a <Link href="/methodology#sustained-slowdown">sustained slowdown</Link>.</p> : null}
       </div>
       <ul className="research-links">
-        <li><Link href="/slowdown">How often, where it began, and the sensitivity of the definition <span aria-hidden="true">→</span></Link></li>
+        <li><Link href="/slowdown">How often it happens and where it begins <span aria-hidden="true">→</span></Link></li>
         {figures.map((figure) => <li key={figure.id}><Link href={`/slowdown#${figure.id}`}><UnitText>{figure.title}</UnitText> <span aria-hidden="true">→</span></Link></li>)}
       </ul>
-    </section>
-
-    <section id="methods" className="chapter research-section" aria-labelledby="research-methods-title">
-      <div className="chapter-head">
-        <p className="chapter-num">Methods</p>
-        <h2 id="research-methods-title" className="chapter-title">How the numbers <em>are made</em>.</h2>
-        <p className="chapter-dek">Definitions, cohorts and limits, and why the study exists. Weather and elevation are context, never adjustments, and counts are finishes, not runners.</p>
-      </div>
-      <ul className="research-links">
-        <li><Link href="/methodology">Methods &amp; sources <span aria-hidden="true">→</span></Link></li>
-        <li><Link href="/about">About the study <span aria-hidden="true">→</span></Link></li>
-      </ul>
-    </section>
-
-    <section id="open-data" className="chapter research-section" aria-labelledby="research-data-title">
-      <div className="chapter-head">
-        <p className="chapter-num">Open data</p>
-        <h2 id="research-data-title" className="chapter-title">The data, <em>to download</em>.</h2>
-        <p className="chapter-dek">The exports, the code and the data files behind the pages are public, so anyone can recount them.</p>
-      </div>
-      <p className="research-download"><a className="button-primary" href="https://github.com/koolkam00/pace-notes/releases">Download the data <span aria-hidden="true">↗</span></a></p>
-      <div className="research-coverage"><DataCoverage /></div>
     </section>
 
     <section id="archive" className="chapter research-section" aria-labelledby="research-archive-title">

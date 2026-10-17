@@ -49,7 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <main id="main" className="container main-content">{children}</main>
         <footer className="container footer">
-          <div className="footer-brand"><Link href="/">Pace Notes</Link><p>Every split tells part of the story. Pacing patterns from millions of recorded marathon finishes, free to explore and download.</p><CreatorCredit /><MotionToggle /></div>
+          <div className="footer-brand"><Link href="/">Pace Notes</Link><p>Every split tells part of the story. Free to explore and download.</p><CreatorCredit /><MotionToggle /></div>
           <nav aria-label="More research">
             <Link href="/tools/plan">Plan your race</Link>
             <Link href="/runners">Analyze a past race</Link>

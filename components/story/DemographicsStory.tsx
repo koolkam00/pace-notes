@@ -95,7 +95,6 @@ export function GhostRace({ data: given }: { data?: Demographics }) {
         <div><strong>{mss(band.ghost_s[3])}</strong><span>ahead at {units === 'mi' ? '12.4 mi' : '20 km'}</span></div>
         <div><strong>{mss(Math.max(...band.ghost_s))}</strong><span>largest gap, at {units === 'mi' ? `${(KM[peak + 1] / 1.609344).toFixed(1)} mi` : `${KM[peak + 1]} km`}</span></div>
       </div>
-      <p className="viz-note">Each runner follows the matched average for one group, so this is not a real pair. &quot;Ahead&quot; means on the clock, not on the road.</p>
     </div>
   );
 }
@@ -121,7 +120,7 @@ export function GenderDumbbell({ data: given }: { data?: Demographics }) {
   return (
     <div className="viz-card">
       <div className="viz-head">
-        <div><p className="viz-title">The gap at every finish time</p><p className="viz-sub">Matched within the same race and finish minute</p></div>
+        <div><p className="viz-title">The gap at every finish time</p></div>
         <div className="segmented" role="group" aria-label="Measure">
           {(Object.keys(METRICS) as Metric[]).map((k) => <button key={k} type="button" aria-pressed={metric === k} onClick={() => setMetric(k)}>{k === 'slowdown' ? 'Slowdown' : k === 'block' ? 'Late slowing' : 'Final kick'}</button>)}
         </div>
@@ -165,7 +164,7 @@ export function AgeLadder({ data: given }: { data?: Demographics }) {
   const [hover, setHover] = useState<string | null>(null);
   return (
     <div className="viz-card">
-      <div className="viz-head"><div><p className="viz-title">The age ladder</p><p className="viz-sub">Sustained-slowdown share vs the same race&apos;s same-minute field (both genders), percentage points</p></div></div>
+      <div className="viz-head"><div><p className="viz-title">The age ladder</p><p className="viz-sub">Sustained-slowdown share against the field, percentage points</p></div></div>
       <div ref={ref} className="viz" style={{ position: 'relative' }}>
         <svg width={width} height={H} role="img" aria-label="Every women's five-year age group sits below the field; every men's group sits higher than every women's group, with the gap narrowing with age.">
           <line x1={x(0)} x2={x(0)} y1={m.t - 16} y2={H - m.b} stroke="#15171C" />
@@ -195,8 +194,7 @@ export function AgeLadder({ data: given }: { data?: Demographics }) {
           {rows.map((r) => <option key={r.gender + r.age} value={r.gender + r.age}>{r.gender} {r.age}: {r.slowdown_vs_field > 0 ? '+' : ''}{(r.slowdown_vs_field * 100).toFixed(1)} points vs the field, {count(r.n)} finishes</option>)}
         </select>
       </label>
-      <div className="legend-row"><span><i className="swatch" style={{ background: WOMEN }} />Women</span><span><i className="swatch" style={{ background: MEN }} />Men</span><span>Exact ages from {data.granular_age_cities.join(', ')}</span></div>
-      <p className="viz-note">Different people at different ages, not the same runners getting older. Ages come only from sources that record exact ages; some sources record age-group floors and are left out.</p>
+      <div className="legend-row"><span><i className="swatch" style={{ background: WOMEN }} />Women</span><span><i className="swatch" style={{ background: MEN }} />Men</span></div>
     </div>
   );
 }
@@ -216,7 +214,7 @@ export function WomenShare({ data: given }: { data?: Demographics }) {
           <div key={c.city} className="viz-card share-card">
             <p className="viz-title">{c.city === 'New York' ? 'New York City' : c.city}</p>
             <p className="share-delta"><strong>{Math.round(ys[0].women_share * 100)}% → {Math.round(ys[ys.length - 1].women_share * 100)}%</strong><span>{y0}–{y1}</span></p>
-            <svg viewBox="0 0 200 76" role="img" aria-label={`Women's share of eligible finishes in ${c.city} from ${y0} to ${y1}`}>
+            <svg viewBox="0 0 200 76" role="img" aria-label={`Women's share of finishes in ${c.city} from ${y0} to ${y1}`}>
               <line x1={0} x2={200} y1={py(0.5)} y2={py(0.5)} stroke="#DCD3C2" strokeDasharray="3 3" />
               <path d={ys.map((y, i) => `${i ? 'L' : 'M'}${px(y.year).toFixed(1)} ${py(y.women_share).toFixed(1)}`).join(' ')} fill="none" stroke={WOMEN} strokeWidth={2.5} />
               {ys.map((y) => <circle key={y.year} cx={px(y.year)} cy={py(y.women_share)} r={2.4} fill={WOMEN} />)}

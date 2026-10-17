@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { Choice, DurationField, EvidencePanel, ExampleNote, ShareBar } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
@@ -450,7 +451,7 @@ export default function QualifyingChecker() {
                 </div>
                 <p className={`tool-field-hint${dropValid ? '' : ' is-error'}`} id={`${ids}-drop-hint`}>
                   {!dropValid ? 'Type a number, e.g. 1650. Until then the results leave the drop out. ' : drop ? <>{dropNote(drop)} </> : null}
-                  For Boston’s <a href={BOSTON_STANDARD.sources[0].url} rel="noopener noreferrer">downhill index</a>: 1,500 ft (457.2 m) adds 5:00, 3,000 ft (914.2 m) adds 10:00, 6,000 ft (1,828.6 m) is not accepted. A drop in metres uses the B.A.A.’s own metric bounds.{SYDNEY_MAX_DROP_M ? ` Sydney accepts at most ${grouped(SYDNEY_MAX_DROP_M)} m.` : ''} The B.A.A. does not list affected races.
+                  For Boston’s downhill index: 1,500 ft (457.2 m) adds 5:00, 3,000 ft (914.2 m) adds 10:00, 6,000 ft (1,828.6 m) is not accepted. A drop in metres uses the B.A.A.’s own metric bounds.{SYDNEY_MAX_DROP_M ? ` Sydney accepts at most ${grouped(SYDNEY_MAX_DROP_M)} m.` : ''} The B.A.A. does not list affected races.
                 </p>
               </div>
               <div className="tool-field">
@@ -481,7 +482,7 @@ export default function QualifyingChecker() {
               {exampleNote ? <ExampleNote>{exampleNote}</ExampleNote> : null}
               <div className="tool-headline qualifying-headline">
                 <div className="qualifying-head">
-                  <span className="evidence-badge evidence-official">Official standards</span>
+                  <EvidenceTag kind="official" />
                   <p className="qualifying-kicker">
                     {DIVISIONS.find((d) => d.division === division)!.label} · {fmtTime(shown!)} · {planned ? 'planned for' : 'run'} {fmtDate(raceDate)}
                   </p>
@@ -632,7 +633,6 @@ function RaceCard({ it, birth, raceDate, seconds, division, drop, dropIgnored, n
     fine.push('London publishes no acceptance cut-off.');
   }
   if (s.key === 'sydney') fine.unshift('Gun or net (chip) time is accepted. This checker uses the chip time you entered; a gun time is usually a little slower.');
-  const sources = s.key === 'london' ? [...s.sources, LONDON_CHAMPIONSHIP.source] : s.sources;
   const timeHint = s.key === 'sydney' ? 'Chip (net) time; Sydney also accepts gun time' : 'Chip (net) time';
   return (
     <EvidencePanel kind="official" id={`qualifying-${s.key}`} title={s.race} meta={<>Edition {s.edition}</>}>
@@ -652,7 +652,7 @@ function RaceCard({ it, birth, raceDate, seconds, division, drop, dropIgnored, n
               {bostonUnsure ? <li>A time run in September {raceDate.slice(0, 4)} counts for {yearOf(s)} only if it is run before {raceDate.slice(0, 4)} registration week ends (expected mid-September; not yet announced).</li> : null}
               {dropIgnored && usesDrop ? <li>Course drop not applied: check the number typed under “Course and entry details”.</li> : null}
               {r.margin === 0 && !s.comparisonStated && v.tone !== 'muted' ? (
-                <li>Exactly on the standard. {ORGANISER[s.key] ?? 'The race'} does not say whether an equal time qualifies; the checker counts it as meeting the standard{s.key === 'boston' ? ', and acceptance goes to those furthest under' : ''}.</li>
+                <li>Exactly on the standard. {ORGANISER[s.key] ?? 'The race'} does not say whether an equal time qualifies.{s.key === 'boston' ? ' Acceptance goes to those furthest under.' : ''}</li>
               ) : null}
               {s.key === 'london' && champ !== null && seconds < champ && !outside ? (
                 <li>Also under the Championship standard ({formatDuration(champ)}), a separate route for UK athletics club members{uk ? '' : ', open to non-residents'}. Applications close {fmtDate(LONDON_CHAMPIONSHIP.closes)}.</li>
@@ -711,7 +711,7 @@ function RaceCard({ it, birth, raceDate, seconds, division, drop, dropIgnored, n
         </details>
 
         <p className="qualifying-sources">
-          {sources.map((src) => <a key={src.url} href={src.url} rel="noopener noreferrer">{src.label}<span aria-hidden="true">{'\u00a0'}↗</span></a>)}
+          {s.sources[0] ? <a className="no-print" href={s.sources[0].url} rel="noopener noreferrer">Official qualifying page<span aria-hidden="true">{'\u00a0'}↗</span></a> : null}
           <Link className="no-print" href={`/tools/qualifying/${s.key}`}>Every {SHORT[s.key] ?? s.race} age group</Link>
           <span className="qualifying-checked">Checked <time dateTime={VERIFIED_AT}>{VERIFIED_AT}</time></span>
         </p>
@@ -756,10 +756,10 @@ function BostonHistory({ margin, outside }: { margin: number | null; outside: bo
           </tbody>
         </table>
       </div>
-      <p className="tool-note qualifying-table-note">Cut-off: how far under their standard applicants had to be, as announced by the B.A.A. “Turned away” counts qualifiers who applied and were not accepted. “Cleared” means your margin was at least the cut-off. No cut-off is listed for {BOSTON_CUTOFFS[0].year + 1}.</p>
+      <p className="tool-note qualifying-table-note">Cut-off: how far under their standard applicants had to be. No cut-off is listed for {BOSTON_CUTOFFS[0].year + 1}.</p>
       {random && draw && share !== null ? (
         <p className="tool-callout qualifying-draw">
-          <strong>{random.year} random selection.</strong> For {random.year} the B.A.A. also drew about {grouped(random.drawn)} qualifiers at random from those who missed the {formatDuration(draw.cutoff)} cut-off. By our derivation from B.A.A. counts ({grouped(random.drawn)} ÷ ({grouped(draw.notAccepted)} turned away + {grouped(random.drawn)} drawn)), that was about {Math.round(share * 100)}% of that group. The B.A.A. has not said whether the draw will continue.
+          <strong>{random.year} random selection.</strong> For {random.year} the B.A.A. also drew about {grouped(random.drawn)} qualifiers at random from those who missed the {formatDuration(draw.cutoff)} cut-off: about {Math.round(share * 100)}% of that group. The B.A.A. has not said whether the draw will continue.
         </p>
       ) : null}
       <p className="tool-note">The B.A.A. does not predict cut-offs, and Pace Notes does not either. They have ranged from {formatDuration(lowest.cutoff)} ({zeroYears.join(' and ')}) to {formatDuration(highest.cutoff)} ({highest.year}{highest.note ? `, ${highest.note.toLowerCase()}` : ''}).</p>
@@ -861,7 +861,7 @@ function TargetsPanel({ items, seconds, buffer, setBuffer, drop, units, gender }
   // The buttons stay focusable at 0 and 30 (aria-disabled), so a keyboard user's focus never falls back to the page.
   const set = (n: number) => setBuffer(Math.max(0, Math.min(30, n)));
   return (
-    <EvidencePanel title="Times to aim for" meta="Each standard minus the buffer you choose, and the even pace for it. Calculated from the official standards: it does not forecast a cut-off.">
+    <EvidencePanel title="Times to aim for" meta="Each standard minus the buffer you choose, and the even pace for it. Not a forecast of any cut-off.">
       <div className="qualifying-buffer no-print">
         <span className="tool-label" id="qualifying-buffer-label">Buffer under each standard</span>
         <div className="tool-stepper" role="group" aria-labelledby="qualifying-buffer-label">
@@ -893,7 +893,7 @@ function TargetsPanel({ items, seconds, buffer, setBuffer, drop, units, gender }
         </table>
       </div>
       <p className="tool-note qualifying-table-note">
-        Your margin is how far your {fmtTime(seconds)} is under (+) or over (−) each target. Paces are calculated for an even pace over {units === 'mi' ? '26.22 mi' : '42.195 km'}. {rows.some((it) => it.s.comparison === 'strictly-under') ? 'London needs a time strictly under its standard, so its target is a second inside. ' : ''}
+        Your margin is how far your {fmtTime(seconds)} is under (+) or over (−) each target. {rows.some((it) => it.s.comparison === 'strictly-under') ? 'London needs a time strictly under its standard, so its target is a second inside. ' : ''}
         {bostonIndex ? `Boston’s target includes the ${bostonIndex / 60}:00 downhill index for your course. ` : ''}{leftOut.length ? `${leftOut.join(' and ')} ${leftOut.length > 1 ? 'are' : 'is'} left out: ${leftOut.length > 1 ? 'they do' : 'it does'} not accept a course with this drop. ` : ''}{allLinked ? 'Each target links to a pace band for its whole minute.' : 'Targets from 1:30 to 8:00 link to a pace band for their whole minute.'}
       </p>
       {focus && focusT !== null && within(focusT, BAND_RANGE) ? (

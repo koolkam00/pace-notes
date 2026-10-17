@@ -16,7 +16,7 @@ export default function AnalysesPage() {
       <div className="container">
         <p className="eyebrow">Analyses · the essential ten</p>
         <h1 className="story-title">Find your next question.</h1>
-        <p className="hero-dek">Ten marathon pacing questions in priority order. Pick a course, a finish time and an age group and every answer recalculates from millions of eligible finishes. Weather questions that passed a separate evidence check follow below.</p>
+        <p className="hero-dek">Ten marathon pacing questions in priority order. Pick a course, a finish time and an age group to make every answer yours. More weather questions follow below.</p>
       </div>
       <RunnerLane dark height={96} runners={[{ finishMinutes: 180, label: '3:00' }, { finishMinutes: 240, label: '4:00' }, { finishMinutes: 300, label: '5:00' }]} />
     </header>

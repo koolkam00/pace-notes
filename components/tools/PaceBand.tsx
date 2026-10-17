@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import PaceBandStrip, { type RouteProfile } from '@/components/tools/PaceBandStrip';
 import { Choice, EvidencePanel, ExampleNote, ShareBar, Stat, Stepper } from '@/components/tools/ui';
@@ -11,7 +12,6 @@ import { loadInsight } from '@/lib/insights';
 import { loadShard, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
 import { MARATHON_KM, perUnit, splitTable, watchTarget, type SplitInterval } from '@/lib/tools/pace';
 import { CHECKPOINTS, PACE_BAND_INDEX, cellOf, fmtGoal, fmtPace, paceBandShardPath, type PaceBandCell as Cell } from '@/lib/tools/pace-band-data';
-import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
 import { keypadInput } from '@/lib/keypad';
 import { DEFAULT_UNITS, KM_PER_MILE, type UnitSystem } from '@/lib/units';
@@ -45,7 +45,6 @@ const ROW_OPTIONS: { value: SplitInterval; label: string }[] = [{ value: 'mi', l
 const WATCH_OPTIONS = [{ value: '0', label: 'Exact' }, { value: '0.5', label: '+0.5%' }, { value: '1', label: '+1%' }, { value: '1.5', label: '+1.5%' }];
 
 const clampGoal = (s: number) => Math.min(GOAL_MAX_S, Math.max(GOAL_MIN_S, s));
-const editions = (k: number) => (k === 1 ? 'one edition' : `${count(k)} editions`);
 const pct = (v: number, digits = 1) => `${(v * 100).toFixed(digits)}%`;
 const miles = (km: number) => `${(km / KM_PER_MILE).toFixed(1)} mi`;
 
@@ -80,8 +79,8 @@ function useMedia(query: string) {
   return match;
 }
 
-export default function PaceBand({ indexSha, profiles, screened, projectorScopes, unpublished }: {
-  indexSha: string | null; profiles: RouteProfile[]; screened: string | null; projectorScopes: string[] | null; unpublished: Record<string, UnpublishedCourse>;
+export default function PaceBand({ indexSha, profiles, projectorScopes, unpublished }: {
+  indexSha: string | null; profiles: RouteProfile[]; projectorScopes: string[] | null; unpublished: Record<string, UnpublishedCourse>;
 }) {
   const { units } = useUnits();
   const [q, setQuery, ready, fromUrl] = useQueryState(DEFAULTS);
@@ -145,7 +144,7 @@ export default function PaceBand({ indexSha, profiles, screened, projectorScopes
   const tryAgain = () => { setIndexError(false); setShard(null); setRetry((r) => r + 1); };
 
   const scope = index?.scopes.find((s) => s.slug === course) ?? null;
-  // A course other data knows (Melbourne, say) but the pace band does not publish: named, with the reason.
+  // A course other data knows (Prague, say) but the pace band does not publish: named, with the reason.
   const known = course !== 'all' && !scope && Object.prototype.hasOwnProperty.call(unpublished, course) ? unpublished[course] : null;
   // Never echo an unknown slug from the URL into the copy.
   const city = scope?.city ?? known?.city ?? null;
@@ -165,7 +164,7 @@ export default function PaceBand({ indexSha, profiles, screened, projectorScopes
     }
     const meta = scope.genders[gender];
     if (!meta || !index.shards?.[shardPath]) {
-      return { state: 'unavailable', title: 'Not published for this selection.', message: `No goal ${where} has 100 finishes recorded as ${genderWord || 'any gender'} in its window, so nothing is published for this selection.`, range: null };
+      return { state: 'unavailable', title: 'Not published for this selection.', message: 'The even-pace band still works.', range: null };
     }
     const range = `Published goals ${where}${genderWord ? ` for ${genderWord}` : ''}: ${formatHM(meta.goals[0] * 60)} to ${formatHM(meta.goals[1] * 60)}${meta.count < meta.goals[1] - meta.goals[0] + 1 ? ', with gaps' : ''}.`;
     if (minute === null) return { state: 'unavailable', title: 'No goal yet.', message: 'Type a goal to see what finishes at that time ran.', range: null };
@@ -176,7 +175,7 @@ export default function PaceBand({ indexSha, profiles, screened, projectorScopes
     const windowS = shard.data.window_s || 300;
     const lo = minute * 60 - windowS;
     const hi = minute * 60 - 1;
-    if (!all) return { state: 'unavailable', title: 'Not published for this goal.', message: `Fewer than 100 finishes ran ${formatDuration(lo, true)} to ${formatDuration(hi, true)} ${where}${genderWord ? ` (recorded as ${genderWord})` : ''}, so this goal is not published.`, range };
+    if (!all) return { state: 'unavailable', title: 'Not published for this goal.', message: `Too few finishes ran ${formatDuration(lo, true)} to ${formatDuration(hi, true)} ${where}${genderWord ? ` (recorded as ${genderWord})` : ''} to show.`, range };
     return { state: 'ok', minute, all, held: cellOf(shard.data.groups.held, minute), slow: cellOf(shard.data.groups.slowdown, minute), lo, hi, where, place, genderWord };
   }, [indexSha, indexError, index, scope, known, gender, shardPath, where, place, genderWord, minute, shard]);
 
@@ -205,7 +204,7 @@ export default function PaceBand({ indexSha, profiles, screened, projectorScopes
   const summary = goal === null || pKm === null ? 'No band yet. Type a goal from 1:30 to 8:00.' : observed.state === 'loading' ? null : [
     notice,
     held ? `${fieldProblem} The results below still show ${fmtGoal(goal)}.` : '',
-    `${fmtGoal(goal)} goal: even pace ${fmtPace(pKm, units)}, calculated from your goal.`,
+    `${fmtGoal(goal)} goal: even pace ${fmtPace(pKm, units)}.`,
     fresh && freshGap !== null ? `Pace Notes data: at the 20 km mat, finishes with a sustained slowdown were a median ${formatDuration(Math.abs(freshGap))} ${freshGap >= 0 ? 'earlier' : 'later'} than those that held pace.` : '',
     fresh && fresh.all.sd !== undefined ? `${pct(fresh.all.sd)} of ${count(fresh.all.n)} finishes in the window had a sustained slowdown.` : '',
     observed.state === 'unavailable' ? `Observed finishes: ${observed.title}` : '',
@@ -259,7 +258,7 @@ export default function PaceBand({ indexSha, profiles, screened, projectorScopes
     label: projectorCourse !== 'all' ? ` for ${place}` : '',
     note: course !== 'all' && projectorCourse === 'all' && projectorScopes !== null
       ? ` (all courses${gender !== 'all' ? `, recorded as ${genderWord}` : ''}: ${city ? `${city} is` : 'this course is'} not in it)`
-      : projectorCourse !== 'all' && gender !== 'all' ? ' (all recorded genders: its gender groups cover All courses only)'
+      : projectorCourse !== 'all' && gender !== 'all' ? ' (all recorded genders)'
         : gender !== 'all' ? ` (finishes recorded as ${genderWord})` : '',
   };
 
@@ -282,14 +281,14 @@ export default function PaceBand({ indexSha, profiles, screened, projectorScopes
         {overrun ? (
           <p className="tool-note">If your watch reads the course {pct(overrun, 1)} long, it shows about <strong>{fmtPace(watchTarget(pKm, overrun), units)}</strong> while you are exactly on {fmtPace(pKm, units)}, and reads {((MARATHON_KM * (1 + overrun)) / (units === 'mi' ? KM_PER_MILE : 1)).toFixed(2)} {units} at the finish. The band’s times are for the course markers, not watch laps.</p>
         ) : (
-          <p className="tool-note no-print">Most watches read a certified course a little long, so their pace runs quick. Pick an overrun above to see the watch pace that matches this band.</p>
+          <p className="tool-note no-print">Pick an overrun above to see the watch pace that matches this band.</p>
         )}
       </EvidencePanel>
     );
     const observedPanel = (
       <EvidencePanel key="observed" kind="data" id="pace-band-observed"
         title={ok ? <>Finishes that ran {formatDuration(ok.lo, true)} to {formatDuration(ok.hi, true)} {ok.where}</> : <>What finishes at {fmtGoal(goal)} ran {where}</>}
-        meta={ok ? <>Achieved finishes, not stated goals{ok.genderWord ? `, recorded as ${ok.genderWord}` : ''}: every one beat {formatHM(ok.minute * 60)} by 0:01 to 5:00. Observed, not a recommended plan.{goal % 60 ? ` Your goal has seconds, so the window uses the whole minute below it, ${formatHM(ok.minute * 60)}.` : ''}</> : undefined}>
+        meta={ok ? <>{ok.genderWord ? `Recorded as ${ok.genderWord}. ` : ''}Observed, not a recommended plan.{goal % 60 ? ` Your goal has seconds, so this uses ${formatHM(ok.minute * 60)}.` : ''}</> : undefined}>
         {stale ? <p className="tool-state pace-band-busy">Loading {place}{genderWord ? `, ${genderWord}` : ''}… The dimmed figures are the previous selection.</p> : null}
         {observed.state === 'loading' && !stale ? <p className="tool-state">Loading the observed finishes…</p> : null}
         {shown.state === 'off' ? (
@@ -306,13 +305,13 @@ export default function PaceBand({ indexSha, profiles, screened, projectorScopes
             {fallbacks}
           </div>
         ) : null}
-        {ok ? <div className={stale ? 'pace-band-dim' : undefined}><ObservedTable cells={ok} goal={goal} units={units} onFallback={fallbacks} /></div> : null}
+        {ok ? <div className={stale ? 'pace-band-dim' : undefined}><ObservedTable cells={ok} units={units} onFallback={fallbacks} /></div> : null}
       </EvidencePanel>
     );
     const chartPanel = ok && (ok.held || ok.slow) ? (
       <EvidencePanel key="chart" kind="data" id="pace-band-chart"
         title={ok.held && ok.slow ? 'Section pace: held pace vs sustained slowdown' : ok.held ? 'Section pace: held pace' : 'Section pace: sustained slowdown'}
-        meta={`Median pace in each section with the middle half of finishes (25th–75th percentile) shaded, against even pace for ${fmtGoal(goal)}. The shading is observed variation between finishes, not uncertainty.${!ok.slow ? ' The sustained slowdown group has fewer than 100 finishes in this window, so it is not drawn.' : !ok.held ? ' The held-pace group has fewer than 100 finishes in this window, so it is not drawn.' : ''}`}>
+        meta={!ok.slow ? 'Too few finishes with a sustained slowdown in this window to draw that group.' : !ok.held ? 'Too few held-pace finishes in this window to draw that group.' : undefined}>
         <div className={stale ? 'pace-band-dim' : undefined}><SectionChart held={ok.held} slow={ok.slow} pKm={pKm} units={units} /></div>
       </EvidencePanel>
     ) : null;
@@ -339,11 +338,11 @@ export default function PaceBand({ indexSha, profiles, screened, projectorScopes
           <div className="tool-field">
             <label htmlFor="pace-band-course">Course</label>
             <select id="pace-band-course" value={course} onChange={(e) => setQ({ course: e.target.value })}>
-              <option value="all">All courses{index ? ` · ${editions(index.scopes.find((s) => s.slug === 'all')?.editions ?? 0)}` : ''}</option>
+              <option value="all">All courses</option>
               {index ? (
                 <>
                   {!scope && course !== 'all' ? <option value={course} disabled>{known ? `${known.city} · not published` : 'Unknown course'}</option> : null}
-                  {index.scopes.filter((s) => s.slug !== 'all').map((s) => <option key={s.slug} value={s.slug}>{s.city ?? s.slug} · {editions(s.editions)}</option>)}
+                  {index.scopes.filter((s) => s.slug !== 'all').map((s) => <option key={s.slug} value={s.slug}>{s.city ?? s.slug}</option>)}
                 </>
               ) : course !== 'all' ? <option value={course}>{profile?.city ?? known?.city ?? 'Loading courses…'}</option> : null}
             </select>
@@ -352,7 +351,7 @@ export default function PaceBand({ indexSha, profiles, screened, projectorScopes
             <span className="tool-label" id="pace-band-gender">Recorded gender <span className="pace-band-optional">optional</span></span>
             <div role="group" aria-labelledby="pace-band-gender" className="ph-no-capture"><Choice label="Recorded gender" value={gender} onChange={(v) => setQ({ g: v })} options={GENDER_OPTIONS} small /></div>
           </div>
-          <p className="tool-field-hint">The band is calculated for any goal. The observed columns use the course and recorded gender you choose; nothing about you leaves this page.</p>
+          <p className="tool-field-hint">The observed columns follow the course and recorded gender you choose.</p>
         </form>
 
         <div className="tool-results">
@@ -378,16 +377,16 @@ export default function PaceBand({ indexSha, profiles, screened, projectorScopes
                   <Stat label="At 20 km" value={formatDuration(pKm * 20)} sub={`Even pace${units === 'mi' ? ` · ${miles(20)}` : ''}`} />
                 )}
                 {ok && ok.all.sd !== undefined ? (
-                  <Stat label="Sustained slowdown" value={pct(ok.all.sd)} sub={`Pace Notes data · observed share of ${count(ok.all.n)} complete finishes in the window`} />
+                  <Stat label={<SlowdownTerm>Sustained slowdown</SlowdownTerm>} value={pct(ok.all.sd)} sub={`Pace Notes data · observed share of ${count(ok.all.n)} finishes in the window`} />
                 ) : (
                   <Stat label="Finish" value={formatDuration(goal, true)} sub="Even-pace goal" />
                 )}
                 {gap20 !== null && ok && ok.held && ok.slow ? (
                   <p className="pace-band-headline-note">
-                    <span className="pace-band-src is-data">Pace Notes data</span>{' '}
+                    <Link href="/methodology#evidence" className="pace-band-src is-data">Pace Notes data</Link>{' '}
                     Same finish window ({formatDuration(ok.lo, true)}–{formatDuration(ok.hi, true)}, {ok.where}), different races: finishes that later had a sustained slowdown passed
                     the 20 km mat in a median <b>{formatDuration(ok.slow.e50[3])}</b>, {formatDuration(Math.abs(gap20))} {gap20 >= 0 ? 'earlier' : 'later'} than those that held pace (<b>{formatDuration(ok.held.e50[3])}</b>).{' '}
-                    Even pace for {fmtGoal(goal)}, calculated from your goal, reaches 20 km in <b>{formatDuration(pKm * 20)}</b>.
+                    Even pace for {fmtGoal(goal)} reaches 20 km in <b>{formatDuration(pKm * 20)}</b>.
                   </p>
                 ) : null}
               </div>
@@ -398,9 +397,7 @@ export default function PaceBand({ indexSha, profiles, screened, projectorScopes
                 observed={fresh} profile={profile} showBack={showBack} onBack={(v) => setQ({ back: v ? '1' : '0' })} onPrint={printAs} waiting={held} />
 
               <div className="print-only pace-band-print-notes">
-                <p>Pace Notes pace band. The band is an even-pace calculation from your goal. Observed columns are achieved finishes from Pace Notes data (complete finishes only; counts are finishes, not people), grouped by whether they had a sustained slowdown. {SLOWDOWN_DEFINITION} Source: {SLOWDOWN_CITATION.label}. Descriptive, not a plan, and not a cause.</p>
-                <p>Course groups pool editions with different weather, fields and years{fresh ? ` (${editions(fresh.all.ed)} in this window)` : ''}. Percentiles are observed variation between finishes, not uncertainty. Runners who stopped are not in the data. No weather or elevation figure enters any calculation{showBack ? '; the elevation strip is the supplied current route, context only' : ''}.</p>
-                {screened ? <p>Screened editions. {screened}</p> : null}
+                <p>Pace Notes pace band · splithappens.run/tools/pace-band</p>
               </div>
 
               {/* Links and the copied link carry the goal on screen, so they wait while the field holds something else. */}
@@ -535,11 +532,10 @@ function Wristband({ rows, goal, pKm, units, overrun }: { rows: ReturnType<typeo
 }
 
 /** Mat-by-mat table of the observed groups. */
-function ObservedTable({ cells, goal, units, onFallback }: { cells: ObservedOk; goal: number; units: UnitSystem; onFallback: ReactNode }) {
+function ObservedTable({ cells, units, onFallback }: { cells: ObservedOk; units: UnitSystem; onFallback: ReactNode }) {
   const [view, setView] = useState<'split' | 'all'>('split');
   const { all, held, slow } = cells;
   const missing = [!held ? 'held pace' : null, !slow ? 'sustained slowdown' : null].filter(Boolean);
-  const single = all.ed === 1 ? ' One edition: every finish here comes from a single race.' : '';
   return (
     <>
       <div className="pace-band-view no-print">
@@ -567,7 +563,6 @@ function ObservedTable({ cells, goal, units, onFallback }: { cells: ObservedOk; 
             </tbody>
             <tfoot>
               <tr><th scope="row">Finishes</th><td>{held ? count(held.n) : '—'}</td><td>{slow ? count(slow.n) : '—'}</td></tr>
-              <tr><th scope="row">Editions</th><td>{held ? count(held.ed) : '—'}</td><td>{slow ? count(slow.ed) : '—'}</td></tr>
             </tfoot>
             <caption className="sr-only">Median elapsed time of the held-pace and sustained-slowdown groups at the official mats (Pace Notes data)</caption>
           </table>
@@ -586,20 +581,12 @@ function ObservedTable({ cells, goal, units, onFallback }: { cells: ObservedOk; 
             </tbody>
             <tfoot>
               <tr><th scope="row">Finishes</th><td /><td>{count(all.n)}</td><td /></tr>
-              <tr><th scope="row">Editions</th><td /><td>{count(all.ed)}</td><td /></tr>
             </tfoot>
             <caption className="sr-only">25th percentile, median and 75th percentile elapsed time of all finishes in the window at the official mats</caption>
           </table>
         )}
       </div>
-      {view === 'split' ? (
-        <p className="pace-band-caption">
-          Median elapsed time of each group at the official mats (20 km is the 20 km mat, not halfway). Every finish here beat {formatHM(cells.minute * 60)}{goal % 60 ? ` and therefore ${fmtGoal(goal)}` : ''}. The exact even-pace times for {fmtGoal(goal)} are on the band.
-          {missing.length ? ` Fewer than 100 finishes in the ${missing.join(' and ')} group, so it is not shown.` : ''}{single}
-        </p>
-      ) : (
-        <p className="pace-band-caption">All finishes in the window, held and slowed together. A quarter passed each mat sooner than the 25th percentile and a quarter later than the 75th: observed spread, not uncertainty.{single}</p>
-      )}
+      {view === 'split' && missing.length ? <p className="pace-band-caption">Too few finishes in the {missing.join(' and ')} group to show it.</p> : null}
       {missing.length && view === 'split' ? <div className="no-print">{onFallback}</div> : null}
     </>
   );
@@ -719,11 +706,11 @@ function SectionChart({ held, slow, pKm, units }: { held: Cell | null; slow: Cel
     <>
       <div className="legend-row pace-band-legend">
         {series.map((s) => <span key={s.key}><i style={{ background: s.colour }} />{s.name}</span>)}
-        <span><i className="dashed" />Even pace {fmtPace(pKm, units)} · calculated reference</span>
+        <span><i className="dashed" />Even pace {fmtPace(pKm, units)}</span>
       </div>
       <div ref={ref} className="viz pace-band-chart" onPointerMove={(e) => pick(e.clientX)} onPointerDown={(e) => pick(e.clientX)} onPointerLeave={(e) => { if (e.pointerType === 'mouse') setHover(null); }}>
         <svg width={width} height={H} viewBox={`0 0 ${width} ${H}`} role="img"
-          aria-label={`Median pace in each of nine sections. ${series.map(describe).join(' ')} The dashed reference line is even pace, ${fmtPace(pKm, units)}, calculated from your goal.`}>
+          aria-label={`Median pace in each of nine sections. ${series.map(describe).join(' ')} The dashed line is even pace, ${fmtPace(pKm, units)}.`}>
           <rect x={x(20)} y={m.t} width={x(MARATHON_KM) - x(20)} height={ih} fill="var(--paper-2)" opacity={0.6} />
           <text x={x(20) + 6} y={m.t - 8} className="annotation-sub">after 20 km</text>
           {ticks.map((v) => (
@@ -753,7 +740,7 @@ function SectionChart({ held, slow, pKm, units }: { held: Cell | null; slow: Cel
             {series.map((s) => (
               <span key={s.key}><i style={{ background: s.colour }} />{s.name}: {formatDuration(toU(s.c.s50[hover]))}{s.c.s25 && s.c.s75 ? ` (${formatDuration(toU(s.c.s25[hover]))}–${formatDuration(toU(s.c.s75[hover]))})` : ''}</span>
             ))}
-            <span>Even pace (calculated): {formatDuration(toU(pKm))}</span>
+            <span>Even pace: {formatDuration(toU(pKm))}</span>
           </div>
         ) : null}
       </div>
@@ -772,7 +759,7 @@ function SectionChart({ held, slow, pKm, units }: { held: Cell | null; slow: Cel
                 </tr>
               ))}
             </tbody>
-            <caption>Median pace per {units === 'mi' ? 'mile' : 'km'} in each section, with the 25th–75th percentile range below (Pace Notes data). Even pace for reference, calculated from your goal: {fmtPace(pKm, units)}.</caption>
+            <caption>Median pace per {units === 'mi' ? 'mile' : 'km'} in each section, with the 25th–75th percentile range below. Even pace: {fmtPace(pKm, units)}.</caption>
           </table>
         </div>
       </details>
@@ -787,7 +774,7 @@ function OnsetPanel({ all, slow, units, where, dim }: { all: Cell; slow: Cell; u
   const max = Math.max(...onset, 1);
   return (
     <EvidencePanel kind="data" title="Where the sustained slowdowns began" id="pace-band-onset"
-      meta={`${count(slow.n)} of ${count(all.n)} complete finishes in this window ${where} had a sustained slowdown (${pct(all.sd ?? slow.n / all.n)}). The section where it started:`}>
+      meta={<>{count(slow.n)} of {count(all.n)} finishes in this window {where} had a <SlowdownTerm /> ({pct(all.sd ?? slow.n / all.n)}). The section where it started:</>}>
       <ol className={`pace-band-onset${dim ? ' pace-band-dim' : ''}`}>
         {onset.map((c, i) => (
           <li key={i}>
@@ -797,9 +784,6 @@ function OnsetPanel({ all, slow, units, where, dim }: { all: Cell; slow: Cell; u
           </li>
         ))}
       </ol>
-      <p className="tool-note">
-        {SLOWDOWN_DEFINITION} Source: <a href={SLOWDOWN_CITATION.url} rel="noopener noreferrer">{SLOWDOWN_CITATION.label}</a>. These are observed shares of complete finishes, not anyone’s chance: runners who stopped are not in the data.
-      </p>
     </EvidencePanel>
   );
 }
@@ -815,7 +799,7 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
   return (
     <section className="tool-panel pace-band-print-panel" aria-labelledby="pace-band-print-title">
       <header className="tool-panel-head">
-        {held ? <span className="evidence-badge evidence-data">Pace Notes data</span> : null}
+        {held ? <EvidenceTag kind="data" /> : null}
         <h2 className="tool-panel-title" id="pace-band-print-title">Print your wristband</h2>
         <p className="tool-panel-meta">Strips about 2.5 cm wide, with dashed cut guides. Big numbers are even-pace elapsed times; the small “H” line is the held-pace median at each mat. Print at 100% scale.</p>
       </header>

@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useUnits } from '@/components/UnitsProvider';
 import { useWidth } from '@/components/viz/useSize';
 import type { CourseGeometry, CourseSummary, Courses } from '@/lib/insights';
-import { count, paceColour, sectionLabel } from '@/lib/viz/format';
+import { paceColour, sectionLabel } from '@/lib/viz/format';
 import { RouteMap } from './CourseArt';
 import { useStoryData } from './StoryData';
 
@@ -16,10 +16,10 @@ function signed(v: number, digits = 1) {
   return `${r > 0 ? '+' : r < 0 ? '−' : ''}${Math.abs(r).toFixed(digits)}`;
 }
 
-/** Course context that is not measured in the data. Shown only as labelled notes. */
+/** Course facts that are not measured in the data, added to the course note. */
 const CONTEXT: Record<string, (u: 'mi' | 'km') => string> = {
-  'New York': (u) => `Course context, not measured here: ${sectionLabel(4, u)} takes in the Pulaski Bridge and the climb onto the Queensboro Bridge. The supplied elevation file reads the bridge decks as water level.`,
-  Boston: (u) => `Course context, not measured here: the Newton hills, ending with Heartbreak Hill, fall between about ${u === 'mi' ? '16 and 21 mi' : '26 and 34 km'}. The ${sectionLabel(7, u)} section runs downhill towards the city.`,
+  'New York': (u) => `${sectionLabel(4, u)} takes in the Pulaski Bridge and the climb onto the Queensboro Bridge.`,
+  Boston: (u) => `The Newton hills, ending with Heartbreak Hill, fall between about ${u === 'mi' ? '16 and 21 mi' : '26 and 34 km'}. The ${sectionLabel(7, u)} section runs downhill towards the city.`,
 };
 const SECTION_NAMES = ['0–5', '5–10', '10–15', '15–20', '20–25', '25–30', '30–35', '35–40', '40–42.2'];
 
@@ -129,10 +129,8 @@ export function Fingerprints({ data: given, geometry: givenGeometry }: { data?: 
         <div className="fp-side">
           <p className="viz-title">{course.city === 'New York' ? 'New York City' : course.city}</p>
           <p className="viz-sub">{course.race}</p>
-          {geo ? <div className="fp-route"><RouteMap course={geo} size={220} stroke="#15171C" label={`Supplied ${course.city} route`} /></div> : <div className="fp-route fp-route-missing">No supplied route file</div>}
+          {geo ? <div className="fp-route"><RouteMap course={geo} size={220} stroke="#15171C" label={`${course.city} route`} /></div> : <div className="fp-route fp-route-missing">No route map</div>}
           <dl className="fp-stats">
-            <div><dt>Editions</dt><dd>{course.editions}{course.shape_editions !== course.editions ? <small>{course.shape_editions} used for pace shape</small> : null}</dd></div>
-            <div><dt>Finishes</dt><dd>{count(course.finishes)}</dd></div>
             <div><dt>Late fade vs typical</dt><dd>{course.fade?.toFixed(2)}×</dd></div>
             <div><dt>Named by shape</dt><dd>{course.identified ? `${course.identified.correct}/${course.identified.editions}` : '—'}</dd></div>
           </dl>
@@ -143,7 +141,7 @@ export function Fingerprints({ data: given, geometry: givenGeometry }: { data?: 
           </div>
           <CourseCurve course={course} typical={data.typical_curve} />
           <BandStrips course={course} />
-          <p className="viz-note">{courseNote(course, units)} Late fade: how strongly this course bends the typical pace curve (1.00× = typical).</p>
+          <p className="viz-note">{courseNote(course, units)}</p>
         </div>
       </div>
       <div className="fp-grid" role="group" aria-label="Choose a course">
@@ -213,7 +211,7 @@ export function NameThatCourse({ data: given, geometry: givenGeometry }: { data?
   return (
     <div className="viz-card name-course">
       <div className="viz-head">
-        <div><p className="viz-title">Name that course</p><p className="viz-sub">One race&apos;s pace shape with its overall fade removed. Which course was it?</p></div>
+        <div><p className="viz-title">Name that course</p><p className="viz-sub">One race&apos;s pace shape. Which course was it?</p></div>
         <p className="name-score" aria-live="polite">You {score.right}/{score.played} · Model {id.correct}/{id.editions_tested}</p>
       </div>
       <div className="name-layout">
@@ -228,7 +226,7 @@ export function NameThatCourse({ data: given, geometry: givenGeometry }: { data?
             )) : null}
             <SectionAxis left={m.l} cw={cw} y={H - 8} units={units} />
           </svg>
-          <p className="viz-note">{guess ? `Dashed outline: ${e.city}'s average signature across its other editions.` : `A ${count(e.n)}-finish edition. Bars show each section against what its overall fade predicts.`}</p>
+          {guess ? <p className="viz-note">Dashed outline: {e.city}&apos;s average shape across its other editions.</p> : null}
         </div>
         <div className="name-options" role="group" aria-label="Your guess">
           {options.map((c) => {
@@ -247,7 +245,7 @@ export function NameThatCourse({ data: given, geometry: givenGeometry }: { data?
       <div className="name-foot" aria-live="polite">
         {guess ? (
           <p><strong>{guess === e.city ? 'Right.' : 'Not this time.'}</strong> It was {e.city} {e.year}. The model {e.predicted === e.city ? 'also named it' : `guessed ${e.predicted}`}{e.rank > 1 ? ` (the right course ranked ${e.rank} of ${id.courses})` : ''}.</p>
-        ) : <p>The model matches each edition to the nearest course average, built without that edition.</p>}
+        ) : <p>Pick the course you think it is.</p>}
         <button type="button" className="button-secondary" onClick={next}>{guess ? 'Next mystery race' : 'Skip'}</button>
       </div>
     </div>

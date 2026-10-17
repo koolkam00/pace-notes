@@ -24,11 +24,13 @@ Rejected, and why:
 
 ## Evidence kinds
 
-Panels of Pace Notes data, published research or official standards carry one badge (`EvidencePanel` in `components/tools/ui.tsx`). Plain calculations from the visitor's own inputs carry no badge: exact even-pace times, unit conversion, splits and targets. Copy calls them calculations. The site never uses the word "arithmetic", and `verify-tools` checks this.
+Panels of Pace Notes data, published research or official standards carry one badge (`EvidencePanel` in `components/tools/ui.tsx`, drawn by `components/tools/EvidenceTag.tsx`). Since October 16, 2026 a badge is a short label that links to `/methodology#evidence` (a plain label inside a card that is itself a link), with no explanation beside it; what each kind means, and each tool's method, limits and sources (the old "How this works" boxes), are on `/methodology` (`#evidence`, `#tools-data`, `#tools-<slug>`). Plain calculations from the visitor's own inputs carry no badge: exact even-pace times, unit conversion, splits and targets. Copy calls them calculations. The site never uses the word "arithmetic", and `verify-tools` checks this.
+
+Second pass (October 16, 2026; repository state, not deployed): author-year labels left the results (the predictor's rows read Riegel 1.06, Daniels–Gilbert, the half-to-full exponents, your two races and Tanda; the weather match names each study by who it measured, such as "Top finishers, seven marathons" for Ely et al. 2007). The split check's result text no longer states the 25% threshold or the final-stretch rule (the chart's 25% line and the step list keep their labels), and its pacing-type stat gives the type's share of finishes. Goal pages no longer rank their window's size, the course chooser's headline reads "How finishes at 3:30 pace held up on 22 courses" and its unpublished lists read "Too few finishes at this pace" and "Not published at any goal", the projector's group line drops its count, and the pace band and pace calculator drop the watch explanation. Each qualifying race page and checker card links its race's official qualifying page as plain functional copy ("Official qualifying page ↗"); the citations stay on `/methodology#tools-qualifying`. `verify-tools` bans the removed wording.
 
 | Badge | Meaning |
 | --- | --- |
-| Pace Notes data | Observed from the 3,710,359 screened finishes below (1652; 3,260,661 under 0934). Always shows finishes and editions. Descriptive, never a personal probability. |
+| Pace Notes data | Observed from the 3,710,359 screened finishes below (1652; 3,260,661 under 0934). Finish counts stay where they are part of an insight sentence or a table's Finishes column; edition counts that only describe coverage left the tools on October 16, 2026. Descriptive, never a personal probability. |
 | Published research | Cited formulas and studies, shown as ranges. Not fitted to Pace Notes data. |
 | Official standards | Transcribed from official race pages, with the date they were checked. |
 
@@ -63,7 +65,7 @@ Shared code:
 - `components/tools/ToolShell.tsx` (server) and `components/tools/ui.tsx` (client): the shared tool layout and inputs.
 - `components/tools/useQueryState.ts`: shareable URL state. A value equal to its default stays out of the URL. A cleared field is written as `key=`, so it stays cleared after a reload. The hook also reports which keys the visitor's link supplied, so a linked 4:00 is not mistaken for the example 4:00.
 - `components/tools/ui.tsx` `ExampleNote`: the one marker for results computed from example inputs.
-- `lib/tools/plan.ts`: the race planner's goal reading (`readPlanGoal`), the nearest published course-goal goal (`publishedGoal`), the row or the reason it shows (`courseGoalResult`), and the plain-words reasons the course chooser prints too (`courseGoalReason`, `tooFewEditions`, `screenedReason`).
+- `lib/tools/plan.ts`: the race planner's goal reading (`readPlanGoal`), the nearest published course-goal goal (`publishedGoal`), the row or the reason it shows (`courseGoalResult`), and the plain-words reasons (`courseGoalReason`, `tooFewEditions`, `screenedReason`), which `verify-tools` still tests; since October 16, 2026 neither the planner nor the course chooser prints them (a gap says "Too few finishes at this pace", and the reasons are on `/methodology#tools-plan`).
 - `lib/tools/pace-band-data.ts`: the pace band's index and shard paths, `cellOf` (one goal's group) and the goal and pace wording, shared by the pace band and the planner.
 - `components/tools/PaceBandStrip.tsx`: the cut-out wristband strips (the mat strip with the held-pace "H" line, the mile or km strips, the optional elevation strip), taken out of `PaceBand.tsx` unchanged so the planner prints the same band. Its styles stay in `app/tools/pace-band/pace-band.css`, which the planner's page imports.
 - `lib/tools/links.ts` and `components/tools/RelatedTool.tsx`: deep links from other pages. Analysis pages end with a related-tool card that carries the reader's course (only when the tool publishes it) and goal.
@@ -82,7 +84,7 @@ Every link from one tool to another follows the same rules:
 
 ## Race planner
 
-`/tools/plan` (October 15, 2026; `app/tools/plan/page.tsx`, `components/tools/RacePlan.tsx`, `app/tools/plan/plan.css`) is the registry's first tool. Its address holds exactly `course=<slug>|all` (default `all`) and `goal=H:MM` (default `4:00`; every form the tools parse is accepted and written back as H:MM, or H:MM:SS with seconds). The page passes the client only course names, slugs and which tools and pages publish each course, read at build time from `tools/course-goal.json`, `tools/pace-band.json`, `tools/projector.json`, `tools/weather-match.json`, the course pages and the analyses' city list, plus the two index SHA-256 values. Results, in order, each `section` marked for `section_viewed` where noted:
+`/tools/plan` (October 15, 2026; `app/tools/plan/page.tsx`, `components/tools/RacePlan.tsx`, `app/tools/plan/plan.css`) is the registry's first tool. Its address holds exactly `course=<slug>|all` (default `all`) and `goal=H:MM` (default `4:00`; every form the tools parse is accepted and written back as H:MM, or H:MM:SS with seconds). The page passes the client only course names, slugs and which tools and pages publish each course, read at build time from `tools/course-goal.json`, `tools/pace-band.json`, `tools/projector.json`, `tools/weather-match.json`, the course pages and the analyses' city list, plus the two index SHA-256 values. Results, in order, each `section` marked for `section_viewed` where noted (October 16, 2026: the definitions, citations, edition counts, "calculated from your goal" labels, source text and screen reasons described below left the page for `/methodology#tools-plan`; the sections, their order and their figures are unchanged):
 
 1. **Your plan** (no badge): even pace per mile and per km and the elapsed time at each 5 km mat and the finish, calculated from the goal. A goal outside 1:30–8:00, or text that is not a time, shows "Pick a goal between 1:30 and 8:00." instead of results.
 2. **On {course}, at {goal} pace** (`result`, Pace Notes data): the course chooser's row for that course at the nearest published goal (`publishedGoal`; "Results are published every 5 minutes; showing 3:30 for your 3:32."), with its finishes, editions, share under the goal, sustained-slowdown share (with the definition and citation), median time beyond the 5–20 km pace after 20 km and finish 10th/50th/90th percentiles, then the course's race months, start-temperature range, climb ("the sum of the 5 km sections of the supplied current route") and downhill-opening note, labelled context only. A course or goal without a row prints the reason the course chooser prints (the file's `unavailable[]` reason, too few editions, or every edition screened out, as for Prague), and the plan and pace band stay. All courses uses the pace band's all-courses group instead (finishes in the five minutes up to the goal), labelled as such.
@@ -132,7 +134,7 @@ Shards are listed with their SHA-256 in their index file's `shards` map. The pag
 
 ### Projector accuracy (held out)
 
-`validate()` builds cells from 2005–2021 races only and scores every 2022–2026 finish on All courses (about 1.31 million per mat):
+`validate()` builds cells from 2005–2021 races only and scores every 2022–2026 finish on All courses (about 1.31 million per mat). Since October 16, 2026 the projector page no longer shows this; `/methodology#tools-projector` reads it from `tools/projector.json`:
 
 | Mat | 10th–90th range held the finish | Median miss, Pace Notes cell | Median miss, even pace |
 | --- | --- | --- | --- |
@@ -206,7 +208,7 @@ Points checked against official pages on 2026-10-07:
 ## Adding a tool
 
 1. Add an entry to `lib/tools/registry.ts` with its evidence kinds and, for data tools, its index file.
-2. Create `app/tools/<slug>/page.tsx` (server: metadata, `ToolHeader`, the client component, `ToolMethod` with sources and limits, `ToolNext`) and `components/tools/<Component>.tsx`.
+2. Create `app/tools/<slug>/page.tsx` (server: metadata, `ToolHeader`, the client component, `ToolNext`) and `components/tools/<Component>.tsx`. Put the tool's method, limits and sources on `/methodology` (`components/methods/MethodsTools.tsx`, a `Detail` with id `tools-<slug>`), never on the tool page; badges go through `EvidenceTag`.
 3. Label every panel with `EvidencePanel`. Follow the repository contracts in `AGENTS.md`: say "sustained slowdown" with the citation; observed shares, never "your chance"; no data-based weather or elevation adjustment; no invented splits; groups of at least 100 finishes.
 4. For a new data family, add an `insights_tool_<name>.py` module, register it in `optional_families()` with a `tool-` prefix, add a recount to `scripts/verify-insights.cjs` and the module to `toolModules`, and add tests.
 5. Put every form field inside `.tool-workspace` and every result inside `.tool-results`, so session replays mask the inputs and leave the results out. Wrap any goal-dependent text outside those (headings, aria-labels, gender or division choices) in `ph-no-capture`.

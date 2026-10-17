@@ -166,13 +166,6 @@ export function rankAmong(value: number, values: number[], high: string, low: st
   return below === 0 ? `the ${joint}${low}` : `the ${joint}${ORDINAL[below + 1]} ${low}`;
 }
 
-/** "This goal's window holds the second fewest finishes of the five goal pages." */
-export function windowRankText(goalMinutes: number, peers: GoalPeer[]): string | null {
-  const me = peers.find((p) => p.goal === goalMinutes);
-  const rank = me ? rankAmong(me.n, peers.map((p) => p.n), 'most', 'fewest') : null;
-  return rank ? `This goal’s window holds ${rank} finishes of the ${numberWord(peers.length)} goal pages.` : null;
-}
-
 /** This goal's sustained-slowdown share among the goal pages, with the lowest and highest shares and their goals. */
 export function slowdownRankText(goalMinutes: number, peers: GoalPeer[]): string | null {
   const shares = peers.filter((p): p is GoalPeer & { sd: number } => p.sd !== null);
