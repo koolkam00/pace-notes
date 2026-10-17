@@ -3,7 +3,7 @@
    one chart, divided by hairlines, never boxed. Every long table sits in one "All numbers" disclosure. Mobile first; from
    900 px the hero and each beat take two columns (the finding beside its chart). */
 
-.course-page { --course-gap: 32px; padding-bottom: var(--s-6); }
+.course-page { --course-gap: 28px; padding-bottom: var(--s-6); }
 .course-page .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: .2em; }
 .course-page .term-link:hover { text-decoration-style: solid; }
 
@@ -28,6 +28,7 @@
 .course-hero-figure .big-number { margin-left: -.04em; }
 .course-hero-key { margin: 0; max-width: 15rem; font-size: .9375rem; line-height: 1.4; color: var(--ink-2); }
 .course-hero-route { grid-area: route; display: grid; justify-items: center; gap: var(--s-2); width: var(--route-w); margin: var(--s-5) 0 0; color: var(--ink); }
+.course-hero-route .route-face { max-height: 132px; }
 .course-hero-route figcaption { font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); text-align: center; white-space: nowrap; }
 .course-hero-sentence { grid-area: sentence; margin: var(--s-5) 0 0; max-width: 30rem; color: var(--ink); }
 .course-hero-strip { grid-area: strip; margin-top: var(--s-5); min-width: 0; }
@@ -97,7 +98,8 @@
 .glance-dot { fill: var(--paper); stroke: var(--mark-quiet); stroke-width: 1.2; }
 .glance-dot.is-on { fill: var(--ink); stroke: var(--ink); }
 
-/* Elevation: the route's totals under the chart, one line. */
+/* Elevation: without section paces, no pace blocks. The route's totals under the chart, one line. */
+.course-elevation-plain .pace-blocks { display: none; }
 .course-totals { display: flex; flex-wrap: wrap; gap: 4px var(--s-3); margin: var(--s-4) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
 .course-totals div { display: flex; flex-wrap: wrap; gap: 0 var(--s-2); }
 .course-totals dt { font-weight: 600; color: var(--ink); }
@@ -169,6 +171,13 @@
 .course-numbers-body { display: grid; gap: var(--s-6); }
 .course-table-wrap { position: relative; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
 .course-table-wrap:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* A wide table shows an edge at the right while it has more to scroll to: a shade fixed to the region's edge, and a
+   cover of paper that rides at the table's own end and hides the shade once the reader gets there. No script. */
+.course-numbers .course-table-wrap {
+  background:
+    linear-gradient(to left, var(--paper) 40%, transparent) 100% 0 / 32px 100% no-repeat local,
+    linear-gradient(to left, var(--rule-strong), transparent) 100% 0 / 12px 100% no-repeat scroll;
+}
 .course-table { border-collapse: collapse; font-family: var(--sans); font-size: .875rem; line-height: 1.3; font-variant-numeric: tabular-nums; color: var(--ink); }
 .course-numbers .course-table { min-width: 100%; }
 .course-table caption { caption-side: top; padding: 0 0 var(--s-2); text-align: left; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
@@ -193,6 +202,7 @@
     grid-template-rows: auto 1fr auto auto; align-items: start; padding: var(--s-7) 0 var(--s-8);
   }
   .course-hero-route { --route-w: 100%; justify-self: center; width: min(100%, 340px); margin-top: 0; }
+  .course-hero-route .route-face { max-height: 300px; }
   .course-hero-figure { margin-top: var(--s-7); align-self: end; }
   .course-hero-strip { margin-top: var(--s-5); align-self: start; }
   .course-beat { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); column-gap: var(--s-8); align-items: start; }

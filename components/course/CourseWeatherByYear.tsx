@@ -19,7 +19,8 @@ function tempTicks(lo: number, hi: number, units: UnitSystem): { value: number; 
 /**
  * "#weather": every race morning as a dot, start temperature against the share of finishes with a sustained slowdown.
  * The sentence states the warmest and coolest mornings as two facts, only when they are at least 5 °C apart (then the
- * pair is joined on the chart); otherwise it gives the span of the mornings. Never "warmer, therefore".
+ * pair is joined on the chart); otherwise it gives the span of the mornings. Never "warmer, therefore". One gridline,
+ * at the top, labelled above the dots, so its label never meets a year's.
  */
 export default function CourseWeatherByYear({ page }: { page: CoursePageData }) {
   const { city, display, weather, hotCool } = page;
@@ -32,7 +33,7 @@ export default function CourseWeatherByYear({ page }: { page: CoursePageData }) 
   const chart = (units: UnitSystem) => (
     <Scatter points={weather.map((e) => ({ id: String(e.year), x: e.temp, y: e.slowdown, label: String(e.year), key: `${display} ${e.year}`, value: `${temp(e.temp, units)} · ${pct(e.slowdown)}`, inPair: inPair(e.year) }))}
       xDomain={[lo - pad, hi + pad]} yDomain={[0, top]} xTicks={tempTicks(lo - pad, hi + pad, units)}
-      yTicks={[{ value: top, label: pct(top) }, { value: top / 2, label: pct(top / 2) }]} pairLabel="The warmest and coolest mornings"
+      yTicks={[{ value: top, label: pct(top) }]} pairLabel="The warmest and coolest mornings"
       axisTitle={{ end: 'At the start' }}
       label={`Start temperature against sustained slowdown, ${weather.length} ${display} race mornings`} height={150} heightMd={240} />
   );

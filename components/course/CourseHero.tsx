@@ -34,7 +34,7 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
       sideLabels={['Median finish', 'At the start']}
       valueDomain={[0, Math.max(0.1, Math.ceil(Math.max(...editions.map((e) => e.slowdown)) * 10) / 10)]}
       average={s.slowdown} averageLabel="Average edition" extremeLabel={(p) => `${p.year} · ${p.display}`}
-      label={`Sustained slowdown in ${display}, edition by edition, ${span}`} height={108} heightMd={168} />
+      label={`Sustained slowdown in ${display}, edition by edition, ${span}`} height={100} heightMd={168} />
   );
   return (
     <section className="night course-hero" data-track-section="hero">

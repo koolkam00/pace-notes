@@ -32,6 +32,10 @@
 .course-index-track { grid-area: track; position: relative; display: block; width: 72px; height: 10px; }
 .course-index-track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--rule-strong); }
 .course-index-track i { position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--ink); }
+.course-index-track i.is-few, .courses-key i.is-few { background: var(--paper); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.courses-key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: var(--s-4) 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
+.courses-key span { display: inline-flex; align-items: center; gap: 8px; }
+.courses-key i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ink); }
 
 @media (min-width: 600px) {
   .course-index { columns: 2; column-gap: var(--s-7); border-top: 0; }

@@ -35,7 +35,13 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
   const items: LabelItem[] = [];
   if (start >= 0 && start !== sel) items.push({ id: 'from', text: `${sorted[start].year} · ${sorted[start].display}`, x: x(sorted[start].year), y: y(sorted[start].seconds), priority: 2, size: 13, gap: 10 });
   items.push({ id: 'sel', text: sorted[sel].display, x: x(sorted[sel].year), y: y(sorted[sel].seconds), priority: 3, tone: 'signal', gap: 10 });
-  const placed = placeLabels(items, { height, avoid: sorted.map((p) => ({ x: x(p.year), y: y(p.seconds), r: 5 })) });
+  // Labels keep clear of the dots, of the line's segments (their boxes) and of the needle at the selected edition.
+  const segments = runs.flatMap((r) => r.slice(1).map((p, i) => {
+    const a = r[i];
+    return { x0: Math.min(x(a.year), x(p.year)), x1: Math.max(x(a.year), x(p.year)), y0: Math.min(y(a.seconds), y(p.seconds)), y1: Math.max(y(a.seconds), y(p.seconds)), pad: 2 };
+  }));
+  const needle = { x0: x(sorted[sel].year), x1: x(sorted[sel].year), y0: 0, y1: 1, pad: 4 };
+  const placed = placeLabels(items, { height, avoid: sorted.map((p) => ({ x: x(p.year), y: y(p.seconds), r: 5 })), boxes: [...segments, needle] });
   const plot = (
     <Plot paths={runs.filter((r) => r.length > 1).map((r) => <path key={r[0].year} className="l-ink2" d={linePath(r.map((p) => [x(p.year), y(p.seconds)]))} />)}>
       {sorted.map((p, i) => <circle key={p.year} className={i === sel ? 'm-signal' : 'm-ink'} cx={pc(x(p.year))} cy={pc(y(p.seconds))} r={i === sel ? 5.5 : 4} />)}

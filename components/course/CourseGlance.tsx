@@ -72,6 +72,8 @@ function figureOf(n: Nugget) {
 
 export default function CourseGlance({ page }: { page: CoursePageData }) {
   const { city, display, summary: s, geometry } = page;
+  // A two-word city stays on one line, so a long name breaks between the two, never inside one.
+  const kept = display.replace(/ /g, '\u00a0');
   const start = getNugget('course.start', { city }) as CourseNugget;
   const late = getNugget('course.late', { city });
   const shape = getNugget('course.shape', { city });
@@ -97,7 +99,7 @@ export default function CourseGlance({ page }: { page: CoursePageData }) {
   }
   if (rows.length < 3) rows.push({ id: 'median', figure: <BigNumber value={hm(s.median_s / 60)} sr={`median finish ${hm(s.median_s / 60)}`} size="m" />, key: 'the median finish in an average edition' });
   return (
-    <CourseSection id="at-a-glance" track="chapter-1" beat="At a glance" title={<>What makes {display} <em>{display}</em></>}>
+    <CourseSection id="at-a-glance" track="chapter-1" beat="At a glance" title={<>What makes {kept} <em>{kept}</em></>}>
       <div className="course-glance">
         <ul className="glance-rows">
           {rows.slice(0, 3).map((r) => (

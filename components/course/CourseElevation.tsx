@@ -22,17 +22,19 @@ export default function CourseElevation({ page }: { page: CoursePageData }) {
   const focus = n.guard ? Number(n.values.section) : undefined;
   const curve = s.curve?.length === 9 ? s.curve : null;
   const km = g.elevation_m.map((_, i) => Math.min(g.distance_km, i * g.elevation_step_km));
+  // Without a pacing shape (no section paces) the blocks go and the readout leads with each section's climb.
   const chart = (units: UnitSystem) => (
-    <ElevationPace km={km} metres={g.elevation_m} relief={relief} focus={focus} readoutKeys={['Climb', 'Pace against its average']}
+    <ElevationPace km={km} metres={g.elevation_m} relief={relief} focus={focus} readoutKeys={curve ? ['Climb', 'Pace against its average'] : ['Descent', 'Climb']}
       sections={SECTION_BOUNDS.map(([a, b], i) => ({
-        label: sectionLabel(a, b), startKm: a, endKm: b, pct: curve ? curve[i] : 0, display: curve ? signedPct(curve[i], 0) : '—',
-        climb: terrain ? climbText(terrain[i].gain_m, units) : '—',
+        label: sectionLabel(a, b), startKm: a, endKm: b, pct: curve ? curve[i] : 0,
+        display: curve ? signedPct(curve[i], 0) : terrain ? climbText(terrain[i].gain_m, units) : '—',
+        climb: terrain ? climbText(curve ? terrain[i].gain_m : terrain[i].loss_m, units) : '—',
       }))}
       label={`${display}: elevation on the height scale every course shares, with each 5K section's pace against the course's own average`} height={120} heightMd={190} />
   );
   return (
     <CourseSection id="elevation" track="chapter-3" beat="Elevation" title={<Said nugget={n} />}>
-      <ByUnits mi={chart('mi')} km={chart('km')} />
+      <div className={curve ? undefined : 'course-elevation-plain'}><ByUnits mi={chart('mi')} km={chart('km')} /></div>
       <dl className="course-totals">
         <div>
           <dt>Whole route</dt>

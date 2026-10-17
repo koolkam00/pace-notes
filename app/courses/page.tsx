@@ -12,6 +12,7 @@ import { coursePages, raceName } from '@/lib/course-page';
 import type { Courses } from '@/lib/insights';
 import { readInsight } from '@/lib/insights-server';
 import { getNugget, readingOf, sentenceOf } from '@/lib/nuggets';
+import { MIN_EDITIONS } from '@/lib/nuggets/courses';
 import { count } from '@/lib/nuggets/format';
 import { JsonLd, absoluteUrl, breadcrumbs, pageMetadata } from '@/lib/seo';
 import '@/app/styles/pages/courses.css';
@@ -42,7 +43,8 @@ function ShapeFace({ curve }: { curve: number[] }) {
  * /courses (the redesign spec, section 7.10, cut under section 00): the reading (how far sustained slowdown runs from
  * one course to the next, from the same courses.json share each course page leads with), then every course as one row
  * the chips sort: its route as its face (or its pace shape), its name, the figure the order is by, and its share of
- * sustained slowdowns on one shared scale, so the list is the chart. The ItemList stays alphabetical.
+ * sustained slowdowns on one shared scale, so the list is the chart (hollow for a course with fewer than three editions,
+ * as on every dot strip; the range above leaves those out). The ItemList stays alphabetical.
  */
 export default function CoursesPage() {
   const pages = [...coursePages().values()];
@@ -79,7 +81,7 @@ export default function CoursesPage() {
             <span className="m-temp">{t.length ? <>{t.length > 1 ? <><Temperature c={Math.min(...t)} />–</> : null}<Temperature c={Math.max(...t)} /> at the start</> : 'No race mornings'}</span>
           </span>
           <span className="course-index-share"><Fact k="slowdown.r" v={share}>{Math.round(share * 100)}%</Fact></span>
-          <span className="course-index-track" aria-hidden="true"><i style={{ left: `${Math.min(100, (share / top) * 100).toFixed(1)}%` }} /></span>
+          <span className="course-index-track" aria-hidden="true"><i className={p.summary.editions < MIN_EDITIONS ? 'is-few' : undefined} style={{ left: `${Math.min(100, (share / top) * 100).toFixed(1)}%` }} /></span>
         </Link>
       ),
     };
@@ -98,6 +100,7 @@ export default function CoursesPage() {
       <section className="courses-list" aria-label="Every course">
         <CourseSort initial="slowdown" orders={orders} rows={rows}
           options={[{ value: 'slowdown', label: 'Sustained slowdown' }, { value: 'climb', label: 'Climb' }, { value: 'finishes', label: 'Finishes' }, { value: 'temp', label: 'Start temperature' }, { value: 'az', label: 'A–Z' }]} />
+        {pages.some((p) => p.summary.editions < MIN_EDITIONS) ? <p className="courses-key" aria-hidden="true"><span><i />Three or more editions</span><span><i className="is-few" />Fewer editions</span></p> : null}
       </section>
       <ChapterEnd path="/courses" readingOf={readingOf} />
     </div>
