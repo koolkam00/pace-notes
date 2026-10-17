@@ -10,9 +10,6 @@
 /* Tables */
 .study-figure { margin: 1.75rem 0 0; min-width: 0; }
 .study-figure .study-figure { margin-top: 1rem; }
-.study-line { margin-top: .6rem; min-height: 296px; }
-@media (min-width: 900px) { .study-line { min-height: 356px; } }
-.study-line .viz-frame { margin: 0; }
 .chart-title { font-family: var(--sans); font-weight: 700; font-size: 1rem; line-height: 1.4; letter-spacing: -.01em; }
 .chart-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .75rem; margin: 1rem 0; }
 .chart-controls label { display: grid; gap: .35rem; flex: 1 1 12rem; font-size: .8125rem; }

@@ -13,12 +13,14 @@ import { trackFailure } from '@/lib/analytics';
 import { useUnits } from './UnitsProvider';
 import type { QuestionLineChartProps } from './QuestionLineChart';
 
-// Series colours from the tokens: ink, then the second ordinal step, then the quiet mark.
-const COLORS = ['var(--ink)', 'var(--ordinal-2)', 'var(--mark-quiet)'];
+// Series colours from the redesign's ink ramp (the tokens' light values: --ink, --ink-3, --mark-quiet): orange is kept for
+// the reading and blue is retired. Recharts takes them as attributes, where CSS variables do not resolve.
+const COLORS = ['#15171C', '#66625A', '#857F73'];
 
-// The line form (LineProfile, since the redesign) loads after the page is interactive, so pages that show a QuestionViz
-// line keep their initial JavaScript; the placeholder holds the chart's height, so nothing shifts when it arrives. If the
-// chunk fails, the page reloads once as for any failed chunk; after that only the box says so and the exact values stay.
+// Recharts only ever draws in the browser (the server HTML held an empty box), so its chunk loads after hydration
+// instead of with the page. The placeholder fills the fixed-height .chart box, so nothing shifts when the chart arrives.
+// If the chunk fails, the page reloads once as for any failed chunk; after that only the box says so and the text and
+// exact values stay, instead of the error page replacing the whole page.
 const ChartUnavailable = () => <div style={{ display: 'grid', placeItems: 'center', height: '100%', textAlign: 'center' }}><p className="chart-note">This chart didn&apos;t load. Reload the page to try again, or see the exact values below.</p></div>;
 const QuestionLineChart = dynamic<QuestionLineChartProps>(() => import('./QuestionLineChart').catch((error: Error) => {
   // A reload is reported by the page it loads (components/SiteAnalytics.tsx); a chart that stays missing, here.
@@ -62,10 +64,10 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
   const signed = allValues.some(value => value < 0);
   const max = spec.unit === '%' ? Math.max(100, ...allValues) : spec.unit === 'correlation' ? 1 : Math.max(1, ...allValues.map(Math.abs));
   const hasCounts = rows.some(row => spec.series.some(series => finite(row[`n_${series.key}`]) !== null));
-  const chartRows: Record<string, unknown>[] = rows.map(row => ({
+  const chartRows = rows.map(row => ({
     ...row,
     label: distanceAxis && finite(row.label) !== null ? distanceValue(Number(row.label), selectedUnits) : row.label,
-    ...(spec.band ? { interval: [transformValue(row[spec.band.lower]), transformValue(row[spec.band.upper])] } : {}),
+    ...(spec.band ? { interval: [row[spec.band.lower], row[spec.band.upper]] } : {}),
   }));
   const xs = chartRows.map(row => finite(row.label)).filter((v): v is number => v !== null);
   const sectionTicks = spec.sectionEnds && distanceAxis && xs.length
@@ -126,7 +128,7 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
           </label>;
         })}
       </div>}
-      {spec.series.length > 1 && !percentileKeys && spec.kind !== 'line' && <div className="chart-legend" aria-label="Chart legend">
+      {spec.series.length > 1 && !percentileKeys && <div className="chart-legend" aria-label="Chart legend">
         {spec.series.map((series, i) => <span key={series.key} className={`chart-key ${spec.kind === 'line' && i === 1 ? 'dashed' : ''}`} style={{ '--series-color': spec.band && i > 0 ? COLORS[0] : COLORS[i % COLORS.length] } as React.CSSProperties}>{text(series.label)}</span>)}
       </div>}
       {!allValues.length ? <p className="answer-state" role="status">No published values for this selection.</p>
@@ -143,16 +145,16 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
             return <div className="range-row" key={`${row.label}-${i}`}>
               <div className="range-label">{label(row.label)}</div>
               <div className="range-track" aria-hidden="true" style={{ position: 'relative', height: 28 }}>{complete && <>
-                {rangeStart <= 0 && rangeEnd >= 0 && <span className="range-zero" style={{ position: 'absolute', left: `${rangePosition(0)}%`, top: 3, bottom: 3, borderLeft: '1px solid var(--rule-strong)' }} />}
+                {rangeStart <= 0 && rangeEnd >= 0 && <span className="range-zero" style={{ position: 'absolute', left: `${rangePosition(0)}%`, top: 3, bottom: 3, borderLeft: '1px solid #9A907D' }} />}
                 <span className="range-span" style={{ position: 'absolute', left: `${rangePosition(low)}%`, width: `${rangePosition(high) - rangePosition(low)}%`, top: 13, height: 2, borderRadius: 1, background: COLORS[2] }} />
-                <span className="range-marker" style={{ position: 'absolute', left: `${rangePosition(median)}%`, top: 7, width: 14, height: 14, transform: 'translateX(-50%)', borderRadius: '50%', background: COLORS[0], border: '2px solid var(--paper)' }} />
+                <span className="range-marker" style={{ position: 'absolute', left: `${rangePosition(median)}%`, top: 7, width: 14, height: 14, transform: 'translateX(-50%)', borderRadius: '50%', background: COLORS[0], border: '2px solid white' }} />
               </>}</div>
               <div className="range-values"><strong aria-label={`Median: ${value(median)}`}>{median === null ? '—' : value(median)}</strong></div>
             </div>;
           })}
         </div>
-        : spec.kind === 'line' ? <div className="study-line">
-          <QuestionLineChart spec={spec} chartRows={chartRows} sectionTicks={sectionTicks} paceTicks={paceAxis ? paceAxis.ticks.map(seconds => seconds / 60) : undefined} distanceAxis={distanceAxis} signed={signed} text={text} axisValue={axisValue} />
+        : spec.kind === 'line' ? <div className="chart">
+          <QuestionLineChart spec={spec} chartRows={chartRows} sectionTicks={sectionTicks} paceTicks={paceAxis ? paceAxis.ticks.map(seconds => seconds / 60) : undefined} distanceAxis={distanceAxis} signed={signed} colors={COLORS} text={text} value={value} label={label} axisValue={axisValue} />
         </div> : <div className="bars">
           {rows.map((row, i) => <div className="bar-item" key={`${row.label}-${i}`}>
             <div className="bar-label"><span>{label(row.label)}</span>{spec.series.length === 1 && <strong>{value(row[spec.series[0].key])}</strong>}</div>

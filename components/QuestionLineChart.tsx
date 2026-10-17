@@ -1,12 +1,10 @@
 'use client';
 
-// QuestionViz's line form, drawn with LineProfile (the redesign spec, section 3.6) instead of Recharts. It loads only in
-// the browser, after the page is interactive (the next/dynamic import in QuestionViz), so the pages that show one keep
-// their initial JavaScript. The title, filters and exact-values table stay in QuestionViz; every format comes from it,
-// so units and labels match.
-import LineProfile, { type ProfileSeries } from './viz/LineProfile';
-import { niceTicks } from './viz/scale';
-import { finite, formatNumber } from '@/lib/csv';
+// The Recharts line chart for QuestionViz, split out so Recharts (~100 KB compressed) loads only in the browser, after the
+// page is interactive (see the next/dynamic import in QuestionViz). The title, filters, legend and exact-values table
+// stay in QuestionViz and are server-rendered. All formatting comes from QuestionViz so units and labels match.
+import { ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts';
+import { formatNumber } from '@/lib/csv';
 import type { ChartSpec } from '@/lib/research-data';
 
 export type QuestionLineChartProps = {
@@ -17,34 +15,25 @@ export type QuestionLineChartProps = {
   paceTicks?: number[];
   distanceAxis: boolean;
   signed: boolean;
+  colors: string[];
   text: (value: string) => string;
+  value: (number: unknown) => string;
+  label: (v: unknown, chartCoordinate?: boolean) => string;
   axisValue: (v: unknown) => string;
 };
 
-const oneDecimal = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
-
-/** Every row with all its series recorded: the first series in ink, the second dashed, a published band washed under them. */
-export default function QuestionLineChart({ spec, chartRows, sectionTicks, paceTicks, distanceAxis, signed, text, axisValue }: QuestionLineChartProps) {
-  const drawn = chartRows.map((row, i) => ({ row, i })).filter(({ row }) => spec.series.every(series => finite(row[series.key]) !== null) && (!spec.xNumeric || finite(row.label) !== null));
-  if (!drawn.length) return null;
-  const xs = drawn.map(({ row, i }) => (spec.xNumeric ? Number(row.label) : i));
-  const series: ProfileSeries[] = spec.series.map((s, i) => ({
-    id: s.key, values: drawn.map(({ row }) => Number(row[s.key])),
-    tone: spec.band ? (i ? 'quiet' : 'ink') : i === 2 ? 'quiet' : 'ink', dashed: !spec.band && i === 1,
-  }));
-  const intervals = spec.band ? drawn.map(({ row }) => row.interval as [number | null, number | null]) : [];
-  const band = spec.band && intervals.every(([a, b]) => a !== null && b !== null) ? { lo: intervals.map(([a]) => Number(a)), hi: intervals.map(([, b]) => Number(b)) } : undefined;
-  const ys = [...series.flatMap(s => s.values), ...(band ? [...band.lo, ...band.hi] : [])];
-  const [lo, hi] = [Math.min(...ys), Math.max(...ys)];
-  // A pace axis runs over its round ticks (lib/pace-ticks.ts); a share starts at zero.
-  const yDomain: [number, number] | undefined = paceTicks ? [paceTicks[0], paceTicks[paceTicks.length - 1]] : signed ? undefined : spec.unit === '%' ? [0, Math.max(...niceTicks(0, hi, 4), hi)] : undefined;
-  const yTicks = (paceTicks ?? niceTicks(yDomain ? yDomain[0] : lo, yDomain ? yDomain[1] : hi, 4)).map(v => ({ value: v, label: axisValue(v) }));
-  const tickAt = (v: number) => (spec.xNumeric ? (distanceAxis ? oneDecimal.format(v) : formatNumber(v, spec.xUnit)) : text(String(drawn[v]?.row.label ?? '')));
-  const xValues = spec.xNumeric ? (sectionTicks ?? niceTicks(Math.min(...xs), Math.max(...xs), 4)) : xs.length <= 6 ? xs : [xs[0], xs[Math.floor(xs.length / 2)], xs[xs.length - 1]];
+export default function QuestionLineChart({ spec, chartRows, sectionTicks, paceTicks, distanceAxis, signed, colors: COLORS, text, value, label, axisValue }: QuestionLineChartProps) {
   return (
-    <LineProfile x={xs} yDomain={yDomain} xTicks={xValues.map(v => ({ value: v, label: tickAt(v) }))} yTicks={yTicks}
-      layers={[{ id: 'all', label: text(spec.title), series, band }]} refs={signed ? [{ value: 0 }] : []}
-      axisTitle={{ end: text(spec.xLabel) }} label={`${text(spec.title)}: a line chart; the exact values are in the table below`}
-      keys={spec.series.length > 1 ? spec.series.map((s, i) => ({ label: text(s.label), mark: series[i].dashed ? 'dash' as const : 'line' as const, tone: series[i].tone === 'quiet' ? 'quiet' as const : undefined })) : undefined} />
+    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+      <ComposedChart data={chartRows} margin={{ top: 20, right: 16, bottom: 24, left: 0 }} accessibilityLayer>
+        <CartesianGrid vertical={false} stroke="#DCD3C2" />
+        <XAxis dataKey="label" type={spec.xNumeric ? 'number' : 'category'} domain={spec.xNumeric ? ['dataMin', 'dataMax'] : undefined} ticks={sectionTicks} tickCount={5} tickLine={false} axisLine={false} minTickGap={28} tick={{ fontSize: 14, fill: '#66625A' }} tickFormatter={v => distanceAxis && typeof v === 'number' ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(v) : typeof v === 'number' ? formatNumber(v, spec.xUnit) : text(String(v))} label={{ value: text(spec.xLabel), position: 'insideBottom', offset: -18, fontSize: 14, fill: '#66625A' }} />
+        <YAxis width={58} tickLine={false} axisLine={false} tick={{ fontSize: 14, fill: '#66625A' }} tickFormatter={axisValue} ticks={paceTicks} interval={paceTicks ? 0 : undefined} domain={paceTicks ? [paceTicks[0], paceTicks[paceTicks.length - 1]] : signed || spec.unit === 'min/km' ? ['auto', 'auto'] : [0, 'auto']} />
+        {signed && <ReferenceLine y={0} stroke="#66625A" />}
+        {spec.band && <Area type="linear" dataKey="interval" stroke="none" fill={COLORS[0]} fillOpacity={0.12} tooltipType="none" isAnimationActive={false} />}
+        <Tooltip formatter={v => value(v)} labelFormatter={v => spec.sectionEnds ? `Average over ${label(v, true)}` : `${text(spec.xLabel)}: ${label(v, true)}`} contentStyle={{ fontSize: 13, border: '1px solid #DCD3C2', borderRadius: 10, maxWidth: 250, background: '#FFFDF8' }} />
+        {spec.series.map((series, i) => <Line key={series.key} dataKey={series.key} name={text(series.label)} stroke={spec.band && i > 0 ? COLORS[0] : COLORS[i % COLORS.length]} strokeOpacity={spec.band && i > 0 ? 0.35 : 1} strokeWidth={spec.band && i > 0 ? 1 : 2.5} strokeDasharray={i === 1 ? '6 4' : undefined} type="linear" dot={spec.band && i > 0 ? false : { r: 3 }} activeDot={{ r: 5 }} connectNulls={false} isAnimationActive={false} />)}
+      </ComposedChart>
+    </ResponsiveContainer>
   );
 }

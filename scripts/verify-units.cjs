@@ -351,13 +351,10 @@ for (const [units, ending] of [['mi', /:(?:00|15|30|45)$/], ['km', /:(?:00|15|30
   assert.ok(axis.domain[0] <= Math.min(...shown) && axis.domain[1] >= Math.max(...shown), `${units}: the pacing-pattern axis covers every pace`);
   for (const text of tickLabels(axis, units)) assert.match(text, ending, `${units}: pacing-pattern tick ${text} is on the round grid`);
 }
-// The pace axes take these ticks rather than decimal-minute ones: QuestionViz's line form (QuestionLineChart, drawn with
-// LineProfile since WP3) and RunnerContext's Recharts axis.
+// Both Recharts pace axes take these ticks rather than Recharts' decimal-minute ones.
 const chartSource = name => fs.readFileSync(path.join(__dirname, '../components', name), 'utf8');
 assert.match(chartSource('QuestionViz.tsx'), /paceTicks\(Math\.min\(\.\.\.allValues\) \* 60, Math\.max\(\.\.\.allValues\) \* 60, selectedUnits\)/);
-assert.match(chartSource('QuestionViz.tsx'), /paceTicks=\{paceAxis \? paceAxis\.ticks\.map\(seconds => seconds \/ 60\) : undefined\}/);
-assert.match(chartSource('QuestionLineChart.tsx'), /yDomain[^\n]*paceTicks \? \[paceTicks\[0\], paceTicks\[paceTicks\.length - 1\]\]/);
-assert.match(chartSource('QuestionLineChart.tsx'), /const yTicks = \(paceTicks \?\? /);
+assert.match(chartSource('QuestionLineChart.tsx'), /<YAxis [^>]*ticks=\{paceTicks\}[^>]*domain=\{paceTicks \? \[paceTicks\[0\], paceTicks\[paceTicks\.length - 1\]\]/);
 assert.match(chartSource('RunnerContext.tsx'), /<YAxis [^>]*domain=\{paceAxis \? paceAxis\.domain : \['auto', 'auto'\]\} ticks=\{paceAxis\?\.ticks\}/);
 
 // The header's units switch works on every page that shows text changing with the units (lib/unit-preference.ts), and
