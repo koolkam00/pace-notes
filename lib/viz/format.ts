@@ -1,4 +1,4 @@
-import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
+import { matLabel, sectionLabel as matSection, type UnitSystem } from '@/lib/units';
 
 /** h:mm:ss for an elapsed duration in seconds. */
 export function hms(seconds: number): string {
@@ -46,21 +46,22 @@ export function compact(value: number): string {
   return value.toLocaleString('en-US');
 }
 
-/** Checkpoint label in the selected units; source checkpoints stay metric. */
-export function checkpointLabel(km: number, units: UnitSystem): string {
-  if (km >= 42.19) return 'Finish';
-  if (units === 'km') return `${km} km`;
-  return `${(km / KM_PER_MILE).toFixed(1)} mi`;
+/**
+ * A checkpoint's name: the mat, the same in both unit modes (owner decision 4): 30 → "30K", 42.195 → "Finish". The
+ * units argument stays so every caller keeps its signature; it no longer changes the label.
+ */
+export function checkpointLabel(km: number, _units?: UnitSystem): string {
+  return matLabel(km);
 }
 
 export const SECTION_BOUNDS: readonly [number, number][] = [
   [0, 5], [5, 10], [10, 15], [15, 20], [20, 25], [25, 30], [30, 35], [35, 40], [40, 42.195],
 ];
 
-export function sectionLabel(index: number, units: UnitSystem): string {
-  const [a, b] = SECTION_BOUNDS[index];
-  if (units === 'km') return `${a}–${b === 42.195 ? '42.2' : b} km`;
-  return `${(a / KM_PER_MILE).toFixed(1)}–${(b / KM_PER_MILE).toFixed(1)} mi`;
+/** A recorded section by index (0 = 0–5K … 8 = 40K–finish), named by its mats in both unit modes. */
+export function sectionLabel(index: number, _units?: UnitSystem): string {
+  const bounds = SECTION_BOUNDS[index];
+  return bounds ? matSection(bounds[0], bounds[1]) : '—';
 }
 
 /** Seven-step diverging scale for pace relative to a runner's own reference (negative = faster). */

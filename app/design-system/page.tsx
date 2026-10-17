@@ -22,6 +22,7 @@ import Segmented from '@/components/ui/Segmented.client';
 import ShareButton from '@/components/ui/ShareButton.client';
 import { SheetButton } from '@/components/ui/Sheet.client';
 import Values from '@/components/ui/Values';
+import Charts from './Charts';
 
 // A gallery of every primitive and token, drawn with the release's own data (WP0-A, owner decision 14). Not linked from
 // any page, never in the sitemap, noindex; WP9 deletes it. Every number on it is read from public/data through code.
@@ -168,7 +169,7 @@ export default function DesignSystemPage() {
         <h1 className="t-display">Design system</h1>
         <p className="t-body ds-lede">Every primitive in every state, drawn with the release&rsquo;s own data. Not linked and not indexed.</p>
         <nav className="ds-toc" aria-label="Gallery sections">
-          {[['colour', 'Colour'], ['type', 'Type'], ['reading', 'Reading'], ['receipt', 'Receipt'], ['buttons', 'Buttons'], ['forms', 'Forms'], ['controls', 'Controls'], ['marks', 'Marks'], ['values', 'Values'], ['guess', 'Guess'], ['scrolly', 'Scrolly'], ['sheets', 'Sheets'], ['dark', 'Dark']].map(([id, label]) => <a key={id} href={`#${id}`}>{label}</a>)}
+          {[['colour', 'Colour'], ['type', 'Type'], ['reading', 'Reading'], ['receipt', 'Receipt'], ['buttons', 'Buttons'], ['forms', 'Forms'], ['controls', 'Controls'], ['marks', 'Marks'], ['values', 'Values'], ['guess', 'Guess'], ['scrolly', 'Scrolly'], ['sheets', 'Sheets'], ['dark', 'Dark'], ['charts', 'Charts']].map(([id, label]) => <a key={id} href={`#${id}`}>{label}</a>)}
         </nav>
       </header>
 
@@ -368,6 +369,8 @@ export default function DesignSystemPage() {
             truth={slow * 100} answer={`*${pct(slow)} in 100* did.`} truthLabel="Had a sustained slowdown" initial={30} /> : null}
         </div>
       </section>
+
+      <Charts />
     </article>
   );
 }

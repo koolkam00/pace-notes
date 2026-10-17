@@ -1,0 +1,243 @@
+/* The chart frame and the marks every form shares (components/viz; the redesign spec, sections 3.5 and 3.6).
+   A chart is figure.viz.viz-frame: .viz keeps it out of session replay, .viz-frame scopes these rules away from the legacy
+   charts that also carry .viz until their packages rebuild them. Marks are drawn in plot fractions (SVG percentages
+   and a stretched 1000-unit path space), so text keeps its pixel size at every width; labels that stop fitting at
+   200% zoom hide by width class through the container queries at the end. Ticks and chart text are 12 px or more. */
+
+.viz-frame {
+  --plot-h: 200px;
+  --plot-h-md: 260px;
+  --type: currentColor;
+  --type-night: currentColor;
+  container-type: inline-size;
+  position: relative;
+  margin: 0;
+  max-width: var(--measure-figure);
+  color: var(--ink);
+}
+
+/* ---------- Lens, readout ---------- */
+.viz-frame .viz-lens { margin-bottom: var(--s-4); }
+/* A lens wider than a zoomed-in screen scrolls sideways rather than widening the page. */
+.viz-frame .viz-lens-control { display: block; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+.viz-frame .viz-lens-control::-webkit-scrollbar { display: none; }
+.viz-frame .readout {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: flex-start; gap: var(--s-3) var(--s-6);
+  min-height: 64px; padding-bottom: var(--s-3); margin-bottom: var(--figure-gap); border-bottom: 1px solid var(--rule);
+}
+.viz-frame .readout-main { display: grid; gap: 4px; min-width: 0; }
+.viz-frame .readout-key { font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
+.viz-frame .readout-value { font-size: var(--t-readout); font-weight: 600; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+.viz-frame .readout-value.is-signal { color: var(--signal-ink); }
+.viz-frame .readout-side { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-5); min-width: 0; margin: 0; }
+.viz-frame .readout-side div { display: grid; gap: 4px; }
+.viz-frame .readout-side dt { font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); white-space: nowrap; }
+.viz-frame .readout-side dd { margin: 0; font-size: 1.0625rem; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+/* On a zoomed-in screen a long side label wraps rather than widening the page. */
+@container (max-width: 239.98px) { .viz-frame .readout-side dt { white-space: normal; } }
+
+/* ---------- The plot ---------- */
+.viz-frame .viz-plot { position: relative; height: var(--plot-h); }
+.viz-frame .viz-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.viz-frame .viz-paths { overflow: visible; }
+.viz-frame .viz-paths * { vector-effect: non-scaling-stroke; }
+
+/* Lines and areas */
+.viz-frame .l-ink { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.viz-frame .l-ink2 { fill: none; stroke: var(--ink-2); stroke-width: 1.25; stroke-linejoin: round; }
+.viz-frame .l-quiet { fill: none; stroke: var(--mark-quiet); stroke-width: 1.5; stroke-linejoin: round; }
+.viz-frame .l-signal { fill: none; stroke: var(--signal); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.viz-frame .l-dash { fill: none; stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 4 4; }
+.viz-frame .l-type { fill: none; stroke: var(--type); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.viz-frame .a-silhouette { fill: var(--fill-quiet); }
+.viz-frame .a-edge { fill: none; stroke: var(--mark-quiet); stroke-width: 1.5; stroke-linejoin: round; }
+.viz-frame .a-band { fill: var(--ink); opacity: .1; }
+.viz-frame .a-wash { fill: var(--ink); opacity: .028; }
+.viz-frame .a-signal { fill: var(--signal-wash); }
+
+/* Marks drawn as shapes */
+.viz-frame .m-quiet { fill: var(--fill-quiet); }
+.viz-frame .m-context { fill: var(--mark-quiet); }
+.viz-frame .m-ink { fill: var(--ink); }
+.viz-frame .m-signal { fill: var(--signal); }
+.viz-frame .m-hollow { fill: var(--paper); stroke: var(--mark-quiet); stroke-width: 1.5; }
+.viz-frame .m-hollow-ink { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }
+.viz-frame .m-ring { fill: none; stroke: var(--signal); stroke-width: 2; }
+.viz-frame .m-type { fill: var(--type); }
+.viz-frame circle.m-quiet, .viz-frame circle.m-context, .viz-frame circle.m-ink, .viz-frame circle.m-signal { stroke: var(--paper); stroke-width: 2; }
+.viz-frame rect.m-quiet { stroke: var(--mark-quiet); stroke-width: 1; }
+
+/* Hairlines */
+.viz-frame .grid-line { fill: var(--rule); }
+.viz-frame .base-line { fill: var(--rule-strong); }
+.viz-frame .ref-line { stroke: var(--ink); stroke-width: 1; }
+.viz-frame .ref-line.is-dashed { stroke: var(--ink-3); stroke-dasharray: 4 4; }
+.viz-frame .leader { fill: var(--ink-3); }
+.viz-frame .tick-mark { fill: var(--rule-strong); }
+
+/* Text: ticks 12 px, direct labels 14 px (secondary 13), each with a halo of the surface */
+.viz-frame .tick { font-family: var(--sans); font-size: 12px; font-weight: 500; letter-spacing: .01em; font-variant-numeric: tabular-nums; fill: var(--ink-3); }
+.viz-frame .grid-label { paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
+.viz-frame .viz-label {
+  font-family: var(--sans); font-size: 14px; font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; fill: var(--ink);
+  paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round;
+}
+.viz-frame .viz-label.is-sm { font-size: 13px; }
+.viz-frame .viz-label.is-signal { fill: var(--signal-ink); }
+.viz-frame .viz-label.is-quiet { fill: var(--ink-3); font-weight: 500; }
+
+/* ---------- Axis ---------- */
+.viz-frame .viz-axis { position: relative; }
+.viz-frame .viz-axis-svg { display: block; width: 100%; height: 24px; overflow: visible; }
+.viz-frame .viz-axis-title { display: flex; justify-content: space-between; gap: var(--s-4); margin-top: 2px; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+
+/* ---------- Key, caption, states ---------- */
+.viz-frame .viz-key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: var(--s-4) 0 0; padding: 0; list-style: none; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
+.viz-frame .viz-key li { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
+.viz-frame .viz-key-mark { flex: none; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--ink); }
+.viz-frame .viz-key-mark.is-signal { background: var(--signal); }
+.viz-frame .viz-key-mark.is-quiet { background: var(--fill-quiet); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
+.viz-frame .viz-key-mark.is-ring { background: none; box-shadow: inset 0 0 0 2px var(--signal); }
+.viz-frame .viz-key-mark.is-hollow { background: var(--paper); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
+.viz-frame .viz-key-mark.is-square { border-radius: 2px; }
+.viz-frame .viz-key-mark.is-line, .viz-frame .viz-key-mark.is-dash { width: 18px; height: 2px; border-radius: 1px; }
+.viz-frame .viz-key-mark.is-dash { height: 0; background: none; border-top: 1px dashed var(--ink-3); }
+.viz-frame .viz-key-mark.is-band { width: 18px; height: 10px; border-radius: 2px; background: var(--fill-quiet); }
+.viz-frame .viz-key-mark.is-band.is-signal { background: var(--signal-wash); box-shadow: inset 0 0 0 1px var(--signal); }
+.viz-frame .viz-key-mark.is-band.is-quiet { background: var(--paper-sunk); box-shadow: none; }
+.viz-frame .viz-caption { margin-top: var(--s-3); font-size: var(--t-small); color: var(--ink-2); }
+.viz-frame .viz-status { display: grid; place-items: center; min-height: var(--plot-h); padding: var(--s-5); border-block: 1px solid var(--rule); font-size: var(--t-small); color: var(--ink-2); text-align: center; }
+.viz-frame .viz-status a { margin-left: 6px; font-weight: 600; text-decoration: underline; }
+
+/* ---------- Layers a lens switches: the chosen one shows, the rest fade ---------- */
+.viz-frame [data-layer] { transition: opacity var(--d-toggle) var(--ease-out); }
+.viz-frame [data-layer].is-off { opacity: 0; pointer-events: none; }
+.viz-frame .readout[data-layer], .viz-frame .viz-key[data-layer] { transition: none; }
+.viz-frame .readout[data-layer].is-off, .viz-frame .viz-key[data-layer].is-off { display: none; }
+
+/* ---------- Night and dark: the pacing types take their night set ---------- */
+.night .viz-frame .l-type, [data-theme="dark"] .viz-frame .l-type { stroke: var(--type-night); }
+.night .viz-frame .m-type, [data-theme="dark"] .viz-frame .m-type { fill: var(--type-night); }
+
+@media (min-width: 900px) {
+  .viz-frame .viz-plot { height: var(--plot-h-md); }
+}
+
+/* ---------- Labels hide below the width they fit (200% zoom); they stay in Values ---------- */
+.viz-frame .w-never { display: none; }
+@container (max-width: 719.98px) { .viz-frame .w720 { display: none; } }
+@container (max-width: 599.98px) { .viz-frame .w600 { display: none; } }
+@container (max-width: 479.98px) { .viz-frame .w480 { display: none; } }
+@container (max-width: 419.98px) { .viz-frame .w420 { display: none; } }
+@container (max-width: 359.98px) { .viz-frame .w360 { display: none; } }
+@container (max-width: 319.98px) { .viz-frame .w320 { display: none; } }
+@container (max-width: 287.98px) { .viz-frame .w288 { display: none; } }
+@container (max-width: 239.98px) { .viz-frame .w240 { display: none; } }
+@container (max-width: 199.98px) { .viz-frame .w200 { display: none; } }
+@container (max-width: 159.98px) { .viz-frame .w160 { display: none; } }
+
+@media (forced-colors: active) {
+  .viz-frame .m-signal, .viz-frame .l-signal { outline: 2px solid CanvasText; }
+  .viz-frame .viz-label { fill: CanvasText; stroke: Canvas; }
+}
+
+/* ---------- The pacing-type glyph, next to a type's name anywhere on a page ---------- */
+.type-glyph { --type: currentColor; --type-night: currentColor; flex: none; display: inline-block; vertical-align: middle; overflow: visible; }
+.type-glyph path { fill: none; stroke: var(--type); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.night .type-glyph path, [data-theme="dark"] .type-glyph path { stroke: var(--type-night); }
+
+/* ---------- Ten-second bins: the columns spring to the chosen mark (data-k), only transform animates ---------- */
+.viz-frame.bin-lens .bin { --h: 0; --h0: 0; --h1: 0; --h2: 0; --h3: 0; --h4: 0; --h5: 0; transform-box: fill-box; transform-origin: 50% 100%; transform: scaleY(var(--h)); transition: transform var(--d-toggle) var(--spring); }
+.viz-frame.bin-lens .bin.is-before { fill: var(--ink); }
+.viz-frame.bin-lens .bin.is-after { fill: var(--fill-quiet); }
+.viz-frame.bin-lens[data-k="0"] .bin { --h: var(--h0); }
+.viz-frame.bin-lens[data-k="1"] .bin { --h: var(--h1); }
+.viz-frame.bin-lens[data-k="2"] .bin { --h: var(--h2); }
+.viz-frame.bin-lens[data-k="3"] .bin { --h: var(--h3); }
+.viz-frame.bin-lens[data-k="4"] .bin { --h: var(--h4); }
+.viz-frame.bin-lens[data-k="5"] .bin { --h: var(--h5); }
+.viz-frame.bin-lens[data-k="0"] .bin.peak-0, .viz-frame.bin-lens[data-k="1"] .bin.peak-1, .viz-frame.bin-lens[data-k="2"] .bin.peak-2,
+.viz-frame.bin-lens[data-k="3"] .bin.peak-3, .viz-frame.bin-lens[data-k="4"] .bin.peak-4, .viz-frame.bin-lens[data-k="5"] .bin.peak-5 { fill: var(--signal); }
+.viz-frame.bin-lens .bin-mark { fill: var(--ink); }
+
+/* ---------- Dumbbell rows: label | track | value, 44 px each ---------- */
+.viz-frame.dumbbell .dumbbell-rows, .viz-frame.dumbbell .dumbbell-axis { display: grid; grid-template-columns: minmax(0, 38%) minmax(0, 1fr) 4.5rem; column-gap: var(--s-3); }
+.viz-frame.dumbbell .dumbbell-rows { margin: 0; padding: 0; list-style: none; }
+.viz-frame.dumbbell .dumbbell-rows li { display: contents; }
+.viz-frame.dumbbell .dumbbell-label { align-self: center; min-width: 0; font-size: var(--t-small); font-weight: 500; line-height: 1.25; color: var(--ink-2); }
+.viz-frame.dumbbell .is-highlight .dumbbell-label { font-weight: 600; color: var(--ink); }
+.viz-frame.dumbbell .dumbbell-track { display: block; width: 100%; height: 44px; overflow: visible; }
+.viz-frame.dumbbell .dumbbell-gap { fill: var(--rule-strong); }
+.viz-frame.dumbbell .dumbbell-gap.is-signal { fill: var(--signal); }
+.viz-frame.dumbbell .dumbbell-value { align-self: center; font-size: var(--t-small); font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; color: var(--ink); }
+.viz-frame.dumbbell .dumbbell-axis { margin-top: 2px; }
+/* A narrow figure gives each label its own line, so the track keeps its width. */
+@container (max-width: 299.98px) {
+  .viz-frame.dumbbell .dumbbell-rows, .viz-frame.dumbbell .dumbbell-axis { grid-template-columns: minmax(0, 1fr) 4rem; }
+  .viz-frame.dumbbell .dumbbell-label { grid-column: 1 / -1; padding-top: var(--s-2); }
+  .viz-frame.dumbbell .dumbbell-axis > span:first-child { display: none; }
+}
+
+/* ---------- Share bar: an HTML bar, exact proportions, 2 px gaps ---------- */
+.viz-frame.share-bar .share-bar-track { display: flex; gap: 2px; height: 28px; }
+.viz-frame.share-bar .share-bar-seg { display: flex; align-items: center; justify-content: center; min-width: 2px; flex-basis: 0; border-radius: 3px; overflow: hidden; transition: flex-grow var(--d-toggle) var(--spring); }
+.viz-frame.share-bar .share-bar-in { padding: 0 6px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.viz-frame.share-bar .is-signal { background: var(--signal); color: var(--paper); }
+.viz-frame.share-bar .is-quiet { background: var(--fill-quiet); color: var(--ink); }
+.viz-frame.share-bar .is-ord-1 { background: var(--ordinal-1); color: var(--ink); }
+.viz-frame.share-bar .is-ord-2 { background: var(--ordinal-2); color: var(--paper); }
+.viz-frame.share-bar .is-ord-3 { background: var(--ordinal-3); color: var(--paper); }
+.viz-frame.share-bar .is-ord-4 { background: var(--ordinal-4); color: var(--paper); }
+.viz-frame.share-bar .share-bar-key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: var(--s-3) 0 0; padding: 0; list-style: none; font-size: var(--t-small); color: var(--ink-2); }
+.viz-frame.share-bar .share-bar-key li { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
+.viz-frame.share-bar .share-bar-key b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.viz-frame.share-bar .share-bar-swatch { flex: none; width: 10px; height: 10px; border-radius: 2px; }
+
+/* ---------- Waffle: square tiles at any width ---------- */
+.viz-frame.waffle { --ratio: 2.78; }
+.viz-frame.waffle .viz-plot { height: auto; aspect-ratio: var(--ratio); }
+@supports not (aspect-ratio: 1) {
+  .viz-frame.waffle .viz-plot { height: 0; padding-top: 36%; }
+  .viz-frame.waffle .viz-svg { position: absolute; inset: 0; }
+}
+
+/* ---------- Effect band: a null result is grey ---------- */
+.viz-frame .effect-on .effect-dot { fill: var(--ink); stroke: var(--paper); stroke-width: 2; }
+.viz-frame .effect-on .effect-whisker { fill: var(--ink); }
+.viz-frame .effect-on .effect-band { fill: var(--signal-wash); }
+.viz-frame .effect-on .effect-estimate { stroke: var(--signal); stroke-width: 2; }
+.viz-frame .effect-null .effect-dot { fill: var(--mark-quiet); stroke: var(--paper); stroke-width: 2; }
+.viz-frame .effect-null .effect-whisker { fill: var(--mark-quiet); }
+.viz-frame .effect-null .effect-band { fill: var(--ink); opacity: .08; }
+.viz-frame .effect-null-band { fill: var(--ink); opacity: .06; }
+.viz-frame .effect-null .effect-estimate { stroke: var(--mark-quiet); stroke-width: 2; }
+
+/* ---------- Elevation and pace blocks ---------- */
+.viz-frame .pace-blocks { display: flex; gap: 2px; margin-top: 6px; }
+.viz-frame .pace-block { display: flex; align-items: center; justify-content: center; flex-basis: 0; min-width: 0; height: 28px; border-radius: 3px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; overflow: hidden; }
+.viz-frame .pace-block.is-on-paper { color: var(--night-ink); }
+.viz-frame .pace-block.is-on-ink { color: var(--night); }
+.viz-frame .pace-block.is-focus { box-shadow: inset 0 0 0 2px var(--ink); }
+
+/* ---------- Slope lines ---------- */
+.viz-frame .slope-line { stroke-width: 1.5; }
+.viz-frame .slope-up .slope-line { stroke: var(--ink); opacity: .55; }
+.viz-frame .slope-down .slope-line { stroke: var(--mark-quiet); opacity: .55; }
+.viz-frame .slope-line.is-named { opacity: 1; }
+
+/* ---------- Ghost race: two runners on one line, the clock under the thumb ---------- */
+.viz-frame.ghost-race { --plot-h: 44px; --plot-h-md: 44px; }
+.viz-frame .ghost-track { position: relative; height: 64px; margin: 0 8px; }
+.viz-frame .ghost-line { position: absolute; left: 0; right: 0; top: 34px; height: 2px; border-radius: 1px; background: var(--rule-strong); }
+.viz-frame .ghost-tick { position: absolute; top: 36px; width: 1px; height: 5px; margin-left: -0.5px; background: var(--rule-strong); }
+.viz-frame .ghost-tick.is-mat { height: 9px; background: var(--ink-3); }
+.viz-frame .ghost-mat { position: absolute; top: 47px; transform: translateX(-50%); font-size: 12px; font-weight: 500; line-height: 1; white-space: nowrap; color: var(--ink-3); }
+.viz-frame .ghost-mat.is-start { transform: none; }
+.viz-frame .ghost-mat.is-end { transform: translateX(-100%); }
+.viz-frame .ghost-span { position: absolute; top: 34px; height: 2px; background: var(--signal); }
+.viz-frame .ghost-dot { position: absolute; top: 35px; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; }
+.viz-frame .ghost-dot.is-runner { background: var(--ink); box-shadow: 0 0 0 2px var(--paper); }
+.viz-frame .ghost-dot.is-ghost { background: var(--paper); box-shadow: inset 0 0 0 2px var(--mark-quiet); }
+.viz-frame .ghost-gap { position: absolute; top: 4px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--signal-ink); }
+.viz-frame .ghost-clock { margin-top: var(--s-4); }
+.viz-frame.ghost-race .viz-key { margin: var(--s-2) 0 var(--s-4); }
