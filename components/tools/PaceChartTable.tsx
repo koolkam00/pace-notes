@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { EvidencePanel } from '@/components/tools/ui';
+import { Choice } from '@/components/tools/ui';
 import { calculatorHref, chartRows, chartSpec, goalLabel, goalPagePath, hasGoalPage, paceBandHref, type ChartPoint, type ChartRace } from '@/lib/tools/pace-chart';
 import { formatDuration } from '@/lib/tools/time';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
@@ -37,10 +37,8 @@ function ChartScroller({ labelledBy, note, children }: { labelledBy: string; not
   }, []);
   return (
     <>
-      <p className="goal-chart-hint no-print" hidden={!overflow}>
-        <span aria-hidden="true">↔</span> The table is wider than the screen: scroll it sideways for every column. The goal column stays in place.
-      </p>
-      <div ref={ref} className="tool-table-wrap goal-chart-wrap" role="region" aria-labelledby={labelledBy} tabIndex={0}>
+      <p className="goal-chart-hint no-print" hidden={!overflow}>Scroll sideways for every column; the goal stays in place.</p>
+      <div ref={ref} className={`tool-table-wrap goal-chart-wrap${overflow ? ' is-overflow' : ''}`} role="region" aria-labelledby={labelledBy} tabIndex={0}>
         {children}
       </div>
       {note ? <p className="tool-note goal-chart-caption">{note}</p> : null}
@@ -56,55 +54,61 @@ function PointHead({ point, units }: { point: ChartPoint; units: UnitSystem }) {
 
 /**
  * The printable pace chart by goal time: one row per goal with the even pace per mile and per km and the even-pace
- * elapsed time at each timing point. Rendered into the static HTML (miles, the default) and redrawn in km after the
- * units preference is read. Every number is calculated from the goal at an even pace; nothing here is recorded.
+ * elapsed time at each timing point (or, in miles, at the mile markers: one table at a time). Rendered into the static
+ * HTML (miles, the default) and redrawn in km after the units preference is read. Every number is calculated from the
+ * goal at an even pace; nothing here is recorded, so the chart carries no evidence badge.
  */
 export default function PaceChartTable({ race }: { race: ChartRace }) {
   const { units } = useUnits();
   const spec = chartSpec(race);
   const rows = useMemo(() => chartRows(spec), [spec]);
+  const [view, setView] = useState<'mats' | 'miles'>('mats');
   const name = RACE_NAME[race];
   const first = goalLabel(spec.goals[0]);
   const last = goalLabel(spec.goals[spec.goals.length - 1]);
   const paceUnits: UnitSystem[] = units === 'mi' ? ['mi', 'km'] : ['km', 'mi'];
   const pace = (r: (typeof rows)[number], u: UnitSystem) => formatDuration(u === 'mi' ? r.perMile : r.perKm);
   const tableId = `goal-chart-${race}`;
+  const miles = units === 'mi' && view === 'miles';
+  const heads = miles
+    ? spec.miles.map((p) => ({ key: p.km, head: p.halfway ? <>Half<span className="goal-chart-sub">{oneDecimal(p.mi ?? 0)} mi</span></> : <>{p.mi} mi</>, half: !!p.halfway }))
+    : spec.points.map((p) => ({ key: p.km, head: <PointHead point={p} units={units} />, half: !!p.halfway }));
+  const times = (r: (typeof rows)[number]) => (miles ? r.miles : r.times);
+  const paces = miles ? (['mi'] as UnitSystem[]) : paceUnits;
 
   return (
-    <>
-      <EvidencePanel id={`${tableId}-panel`} title={`${name} pace chart, ${first} to ${last}`}
-        meta={<>Elapsed time at each {race === 'marathon' ? '5 km timing mat and at halfway' : '5 km point'}; whole hours and half hours shaded.</>}>
-        <div className="tool-share no-print">
-          <button type="button" className="button-secondary" data-not-edit onClick={() => window.print()}>Print chart</button>
-        </div>
-        <ChartScroller labelledBy={`${tableId}-caption`}>
-          <table className="tool-table goal-chart-table" id={tableId}>
-            <caption id={`${tableId}-caption`} className="sr-only">
-              {name} pace chart at even pace for each goal from {first} to {last}.
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col" rowSpan={2} className="goal-chart-goal">Goal</th>
-                <th scope="colgroup" colSpan={2} className="goal-chart-group">Even pace</th>
-                <th scope="colgroup" colSpan={spec.points.length} className="goal-chart-group">Elapsed time at even pace</th>
-                <th scope="col" rowSpan={2} className="goal-chart-plan no-print">Plan</th>
-              </tr>
-              <tr>
-                {paceUnits.map((u) => <th key={u} scope="col">/{u}</th>)}
-                {spec.points.map((p) => <th key={p.km} scope="col"><PointHead point={p} units={units} /></th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => {
-                const label = goalLabel(r.goal);
-                const page = race === 'marathon' && hasGoalPage(r.goal);
-                return (
-                  <Fragment key={r.goal}>
+    <section className="goal-chart" aria-labelledby={`${tableId}-caption`}>
+      <div className="goal-chart-controls no-print">
+        {units === 'mi' ? (
+          <Choice label="Columns" small value={view} onChange={setView}
+            options={[{ value: 'mats', label: 'Every 5K' }, { value: 'miles', label: 'Every mile' }]} />
+        ) : null}
+        <button type="button" className="btn btn-secondary is-compact" data-not-edit onClick={() => window.print()}>Print chart</button>
+      </div>
+      <ChartScroller labelledBy={`${tableId}-caption`}>
+        <table className="tool-table goal-chart-table" id={tableId}>
+          <caption id={`${tableId}-caption`} className="sr-only">
+            {name} pace chart at even pace for each goal from {first} to {last}{miles ? ', at the mile markers' : ''}.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col" className="goal-chart-goal">Goal</th>
+              {paces.map((u) => <th key={u} scope="col">/{u}</th>)}
+              {heads.map((h) => <th key={h.key} scope="col">{h.head}</th>)}
+              <th scope="col" className="goal-chart-plan no-print"><span className="sr-only">Next</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => {
+              const label = goalLabel(r.goal);
+              const page = race === 'marathon' && hasGoalPage(r.goal);
+              return (
+                <Fragment key={r.goal}>
                   {repeatBefore(i, rows.length) ? (
                     <tr className="goal-chart-rehead" aria-hidden="true">
                       <td className="goal-chart-goal">Goal</td>
-                      {paceUnits.map((u) => <td key={u}>/{u}</td>)}
-                      {spec.points.map((p) => <td key={p.km}><PointHead point={p} units={units} /></td>)}
+                      {paces.map((u) => <td key={u}>/{u}</td>)}
+                      {heads.map((h) => <td key={h.key}>{h.head}</td>)}
                       <td className="goal-chart-plan no-print" />
                     </tr>
                   ) : null}
@@ -112,66 +116,20 @@ export default function PaceChartTable({ race }: { race: ChartRace }) {
                     <th scope="row" className="goal-chart-goal">
                       {page ? <Link href={goalPagePath(r.goal)} aria-label={`${label} marathon pace page`}>{label}</Link> : label}
                     </th>
-                    {paceUnits.map((u) => <td key={u}>{pace(r, u)}</td>)}
-                    {r.times.map((t, i) => <td key={spec.points[i].km} className={spec.points[i].halfway ? 'goal-chart-half' : undefined}>{elapsed(t)}</td>)}
+                    {paces.map((u) => <td key={u}>{pace(r, u)}</td>)}
+                    {times(r).map((t, j) => <td key={heads[j].key} className={heads[j].half ? 'goal-chart-half' : undefined}>{elapsed(t)}</td>)}
                     <td className="goal-chart-plan no-print">
                       {race === 'marathon'
-                        ? <Link href={paceBandHref(r.goal)} aria-label={`Pace band for ${label}`}>Pace band</Link>
+                        ? <Link href={paceBandHref(r.goal)} aria-label={`Pace band for ${label}`}>Band</Link>
                         : <Link href={calculatorHref('half', r.goal)} aria-label={`Splits for a ${label} half marathon`}>Splits</Link>}
                     </td>
                   </tr>
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </ChartScroller>
-        <p className="tool-note no-print">
-          {race === 'marathon'
-            ? <>Each <b>Pace band</b> link opens the printable band for that goal, beside what recorded finishes at that goal ran at each mat. Underlined goals link to their own page.</>
-            : <>Each <b>Splits</b> link opens the pace calculator for that goal, with splits every 400 m, quarter mile, kilometre or mile.</>}
-        </p>
-      </EvidencePanel>
-
-      {units === 'mi' ? (
-        <EvidencePanel id={`${tableId}-miles-panel`} title="Mile markers at even pace"
-          meta={`The elapsed time at ${race === 'marathon' ? 'every fifth mile and at halfway' : '5 and 10 miles'} for each goal.`}>
-          <ChartScroller labelledBy={`${tableId}-miles-caption`}>
-            <table className="tool-table goal-chart-table goal-chart-miles">
-              <caption id={`${tableId}-miles-caption`} className="sr-only">
-                {name} mile markers at even pace for each goal from {first} to {last}.
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col" className="goal-chart-goal">Goal</th>
-                  <th scope="col">/mi</th>
-                  {spec.miles.map((p) => (
-                    <th key={p.km} scope="col">{p.halfway ? <>Half<span className="goal-chart-sub">{oneDecimal(p.mi ?? 0)} mi</span></> : `${p.mi} mi`}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => (
-                  <Fragment key={r.goal}>
-                    {repeatBefore(i, rows.length) ? (
-                      <tr className="goal-chart-rehead" aria-hidden="true">
-                        <td className="goal-chart-goal">Goal</td>
-                        <td>/mi</td>
-                        {spec.miles.map((p) => <td key={p.km}>{p.halfway ? <>Half<span className="goal-chart-sub">{oneDecimal(p.mi ?? 0)} mi</span></> : `${p.mi} mi`}</td>)}
-                      </tr>
-                    ) : null}
-                    <tr className={r.goal % 30 === 0 ? 'is-key' : undefined}>
-                      <th scope="row" className="goal-chart-goal">{goalLabel(r.goal)}</th>
-                      <td>{formatDuration(r.perMile)}</td>
-                      {r.miles.map((t, j) => <td key={spec.miles[j].km} className={spec.miles[j].halfway ? 'goal-chart-half' : undefined}>{elapsed(t)}</td>)}
-                    </tr>
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
-          </ChartScroller>
-        </EvidencePanel>
-      ) : null}
-    </>
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </ChartScroller>
+    </section>
   );
 }

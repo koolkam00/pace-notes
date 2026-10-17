@@ -1,10 +1,9 @@
 import { notFound } from 'next/navigation';
-import { UnitLink as Link } from '@/components/UnitsProvider';
 import { GoalPaceBody, GoalPaceDek, type GoalBunching, type GoalObserved } from '@/components/tools/GoalPace';
-import { ToolNext } from '@/components/tools/ToolShell';
+import { ToolEnd, ToolPageHeader } from '@/components/tools/ToolShell';
 import type { FinishTimes } from '@/lib/insights';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
-import { JsonLd, breadcrumbs, pageMetadata } from '@/lib/seo';
+import { pageMetadata } from '@/lib/seo';
 import type { PaceBandGroup, PaceBandIndex, PaceBandShard } from '@/lib/tools/data';
 import type { GoalPeer } from '@/lib/tools/goal-facts';
 import { MARATHON_KM, perUnit } from '@/lib/tools/pace';
@@ -21,7 +20,6 @@ const INDEX = 'tools/pace-band.json';
 /** All courses, all recorded genders: the pace band's widest group. */
 const SHARD = 'tools/pace-band/all/all.json';
 const FINISH_TIMES = 'finish-times.json';
-const ACCENT = '#FF5B2E';
 const MAX_DESCRIPTION = 155;
 
 const index = (group: PaceBandGroup | undefined, minute: number) => (group ? group.g.indexOf(minute) : -1);
@@ -106,20 +104,16 @@ export default function GoalPacePage({ params }: { params: { goal: string } }) {
   const peers = goalPeers();
 
   return (
-    <div className="container tool-page goal-pace-page" style={{ ['--tool' as string]: ACCENT }}>
-      <header className="tool-header">
-        <p className="eyebrow"><Link href="/tools">Runner tools</Link> · <Link href="/tools/marathon-pace-chart">Marathon pace chart</Link></p>
-        <h1 className="tool-title">{label} marathon pace</h1>
-        <GoalPaceDek goal={minute} observed={observed} />
-        <p className="print-only goal-chart-print-note">Pace Notes {label} marathon pace. Even-pace splits beside Pace Notes data. splithappens.run{goalPagePath(minute)}</p>
-        <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Runner tools', '/tools'], ['Marathon pace chart', '/tools/marathon-pace-chart'], [`${label} marathon pace`]])} />
-      </header>
-
+    <div className="tool-page goal-pace-page">
+      <ToolPageHeader path={goalPagePath(minute)} title={`${label} marathon pace`} badges={observed ? ['data'] : []}
+        trail={[['Reference'], ['Marathon pace chart', '/tools/marathon-pace-chart'], [`${label} marathon pace`]]}
+        dek={<GoalPaceDek goal={minute} observed={observed} />}>
+        <p className="print-only goal-chart-print-note">Pace Notes {label} marathon pace. splithappens.run{goalPagePath(minute)}</p>
+      </ToolPageHeader>
       <div className="goal-pace-stack">
         <GoalPaceBody goal={minute} observed={observed} bunching={bunching} peers={peers} />
       </div>
-
-      <ToolNext current="" />
+      <ToolEnd path={goalPagePath(minute)} how="/methodology#tools-goal-pages" />
     </div>
   );
 }
