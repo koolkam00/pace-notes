@@ -57,8 +57,10 @@ function allStrings(run) {
 const escape = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const asPattern = needle => needle instanceof RegExp ? needle : new RegExp(escape(needle), 'i');
 // Matches that are not visitor data: the public release links in the site's header, footer and methods pages (under the
-// repository's current name or its former one), and the project's URL blocklist, which the recorder echoes in its options marker.
-const KNOWN_HARMLESS = /github\.com\/koolkam00\/(?:pace-notes|htw-live-study)\/releases(\/(tag|download)\/[\w.-]+)?|\[\?&\]via=runner\(&\|#\|\$\)/g;
+// repository's current name or its former one), the project's URL blocklist, which the recorder echoes in its options marker,
+// and the SDK's own ISO 8601 clock readings (an event's timestamp): a run at 03:46:03 UTC would otherwise "find" a runner's
+// 3:46:03 finish in "2026-10-17T03:46:03.570Z".
+const KNOWN_HARMLESS = /github\.com\/koolkam00\/(?:pace-notes|htw-live-study)\/releases(\/(tag|download)\/[\w.-]+)?|\[\?&\]via=runner\(&\|#\|\$\)|\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})\b/g;
 
 /**
  * Where each needle appears in the run's PostHog traffic: [{ needle, at, excerpt }]. A needle is a string (matched
