@@ -11,11 +11,11 @@
  * what it needs from the markup (data-reading, data-pages), never this module, so the registry costs no JavaScript.
  */
 import type { Marker } from '@/components/ui/MarkerBadge';
+import type { NuggetFigure, NuggetId } from './nuggets/types';
 import { STORIES } from './stories';
 import { TEN_ANALYSES } from './ten-analyses';
 
-/** A nugget id (lib/nuggets/types.ts): "area.name". */
-export type NuggetId = `${string}.${string}`;
+export type { NuggetId };
 export type PageKind = 'story' | 'analysis' | 'explainer' | 'tool' | 'course-index' | 'runner' | 'report' | 'course';
 export type MethodsAnchor = `/methodology#${string}`;
 
@@ -59,7 +59,7 @@ export type Chapter = {
 };
 
 /** A reading as the shell draws it: a nugget's figure and key (lib/nuggets NuggetFigure plus Nugget.key). */
-export type ChapterReading = { value: string; unit?: string; sr: string; key?: string };
+export type ChapterReading = NuggetFigure & { key?: string };
 /** How a page hands the shell its readings: lib/nuggets resolves an id at build; null leaves the reading out. */
 export type ReadingOf = (id: NuggetId) => ChapterReading | null;
 

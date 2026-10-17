@@ -3,6 +3,7 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import RunnerLane from '@/components/art/RunnerLane';
 import type { StoryDefinition } from '@/lib/stories';
 import ChapterEnd from '@/components/ChapterEnd';
+import { readingOf } from '@/lib/nuggets';
 
 export function StoryHeader({ story, children }: { story: StoryDefinition; children?: ReactNode }) {
   return (
@@ -33,5 +34,5 @@ export function StorySection({ id, kicker, title, children, dek }: { id: string;
 
 /** The story's closing stack: the next card along the race, the way back and "How we know" (components/ChapterEnd.tsx). */
 export function StoryNav({ current }: { current: string }) {
-  return <ChapterEnd path={`/stories/${current}`} />;
+  return <ChapterEnd path={`/stories/${current}`} readingOf={readingOf} />;
 }

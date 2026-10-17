@@ -9,7 +9,9 @@
 @import './components/badge.css';
 @import './components/button.css';
 @import './components/chapter-list.css';
+@import './components/chart-frame.css';
 @import './components/chips.css';
+@import './components/dot-grid.css';
 @import './components/feedback.css';
 @import './components/footer.css';
 @import './components/forms.css';
@@ -21,18 +23,15 @@
 @import './components/reading-bar.css';
 @import './components/reading.css';
 @import './components/receipt.css';
+@import './components/replay.css';
+@import './components/ruler.css';
 @import './components/scrolly.css';
+@import './components/scrubber.css';
 @import './components/segmented.css';
 @import './components/share.css';
 @import './components/sheet.css';
 @import './components/table.css';
 @import './components/values.css';
-/* Charts, the scrubber and the replay (components/viz, WP0-C). */
-@import './components/chart-frame.css';
-@import './components/dot-grid.css';
-@import './components/replay.css';
-@import './components/ruler.css';
-@import './components/scrubber.css';
 @import './legacy/shared.css';
 @import './legacy/home.css';
 @import './legacy/stories.css';

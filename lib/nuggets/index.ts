@@ -9,7 +9,7 @@ import { HOME_NUGGETS } from './home';
 import { STORY_NUGGETS } from './stories';
 import { TOOL_NUGGETS } from './tools';
 import type { Builder } from './build';
-import type { Nugget, NuggetContext, NuggetId } from './types';
+import type { Nugget, NuggetContext, NuggetFigure, NuggetId } from './types';
 
 export * from './types';
 export { finishesM, plain, sentenceOf, siteTotals, textFor } from './core';
@@ -41,6 +41,16 @@ export function getNugget(id: NuggetId, ctx?: NuggetContext): Nugget {
   if (nugget.id !== id) throw new Error(`Nugget builder for ${id} returned ${nugget.id}.`);
   memo.set(key, nugget);
   return nugget;
+}
+
+/**
+ * A page's reading as the shell draws it (lib/chapters.ts `ReadingOf`): the nugget's figure and key, or null when it has
+ * no figure. Pages pass it to ChapterEnd and ChapterList, so next cards and contents rows show the same number the
+ * page leads with.
+ */
+export function readingOf(id: NuggetId): (NuggetFigure & { key?: string }) | null {
+  const { figure, key } = getNugget(id);
+  return figure ? { ...figure, key } : null;
 }
 
 /** Every context-free nugget whose page (without its anchor) is `path`, in registry order. */
