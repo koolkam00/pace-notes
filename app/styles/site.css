@@ -8,10 +8,17 @@
 @import './layout.css';
 @import './components/badge.css';
 @import './components/button.css';
+@import './components/chapter-list.css';
 @import './components/chips.css';
+@import './components/feedback.css';
+@import './components/footer.css';
 @import './components/forms.css';
 @import './components/guess.css';
+@import './components/header.css';
 @import './components/marker.css';
+@import './components/menu.css';
+@import './components/next-card.css';
+@import './components/reading-bar.css';
 @import './components/reading.css';
 @import './components/receipt.css';
 @import './components/scrolly.css';

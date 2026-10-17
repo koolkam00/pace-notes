@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { CloseIcon, inertWhen, useDialog } from './Sheet.client';
+import { CloseIcon, inertWhen, useDialog } from './dialog';
 
 /**
  * Make it yours: a chip and a sheet (spec section 3.5). Under 900 px a 48 px ink pill floats 12 px above the bottom

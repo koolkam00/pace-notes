@@ -1,0 +1,90 @@
+/* The site header (components/SiteHeader.tsx; the redesign spec, section 2.4). 56 px on phones, 64 px from 900 px: the
+   brand, the units switch and the Menu button; from 1180 px the five links inline and the Chapters button (menu.css).
+   Paper at 92% with a 12 px blur (solid paper where either is missing). Under 1180 px it slides up out of view while the
+   reader scrolls down and returns on the way back up, by transform only, so nothing below it moves.
+
+   Its surface is drawn by ::before, never the header itself: a backdrop-filter or a transform on the header would
+   become the containing block of the menu sheet inside it, which is fixed to the screen. Shown, it has no transform. */
+
+.site-header { position: sticky; top: 0; z-index: var(--z-header); color: var(--ink); transition: transform calc(1ms + 279ms * var(--motion)) var(--ease-out); }
+.site-header::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--paper); border-bottom: 1px solid var(--rule); }
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) and (background: color-mix(in srgb, var(--paper) 50%, transparent)) {
+  .site-header::before { background: color-mix(in srgb, var(--paper) 92%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+}
+.site-header[data-hidden] { transform: translateY(-100%); }
+/* Open, the header and the sheet inside it rise above everything on the page. */
+.site-header[data-open] { z-index: var(--z-sheet); }
+
+.header-inner { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); min-height: var(--header-h); }
+
+/* ---------- Brand ---------- */
+.header-brand { display: flex; align-items: center; gap: 0 var(--s-3); min-width: 0; }
+.site-title {
+  display: inline-flex; align-items: center; gap: 10px; min-height: 44px; color: var(--ink); white-space: nowrap;
+  font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440;
+  font-size: 1.25rem; line-height: 1; letter-spacing: -.015em;
+}
+.site-title:hover { color: var(--ink); text-decoration: none; }
+.brand-mark { position: relative; display: block; flex: none; width: 26px; height: 26px; overflow: hidden; border-radius: 50%; background: var(--accent); }
+.brand-mark i { position: absolute; display: block; height: 2.6px; border-radius: 2px; background: var(--on-accent); }
+.brand-mark i:nth-child(1) { left: 5px; right: 5px; top: 7.5px; }
+.brand-mark i:nth-child(2) { left: 8px; right: 5px; top: 12.4px; }
+.brand-mark i:nth-child(3) { left: 5px; right: 9px; top: 17.3px; }
+.header-credit { display: none; font-family: var(--sans); font-size: var(--t-label); font-weight: 400; color: var(--ink-3); white-space: nowrap; }
+
+/* ---------- Controls: units, Menu, Chapters ---------- */
+.header-controls { display: flex; align-items: center; gap: var(--s-1); margin-left: auto; }
+
+/* The units switch (components/UnitsProvider.tsx, markup unchanged): a segmented pair, MI and KM on screen and Miles and
+   Kilometres as the buttons' names. Each button is a 44 px target; the track and the thumb are drawn inside it. */
+.unit-switch { position: relative; display: flex; flex: none; align-items: center; height: 44px; }
+.unit-switch::before { content: ''; position: absolute; inset: 6px 0; border-radius: var(--r-pill); background: var(--paper-sunk); }
+.unit-switch button {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; height: 44px; padding: 0 10px;
+  border: 0; border-radius: var(--r-pill); background: transparent; box-shadow: none; color: var(--ink-3);
+  font-family: var(--sans); font-size: .75rem; font-weight: 600; letter-spacing: .06em; line-height: 1; text-transform: uppercase;
+  transition: color var(--d-quick) var(--ease-out);
+}
+.unit-switch button::before { content: ''; position: absolute; inset: 9px 3px; z-index: -1; border-radius: var(--r-pill); background: var(--control-thumb); box-shadow: var(--shadow-raise); opacity: 0; transform: scale(.9); transition: opacity var(--d-quick) var(--ease-out), transform var(--d-toggle) var(--spring); }
+.unit-switch button { z-index: 0; }
+.unit-switch button[aria-pressed='true'] { color: var(--ink); }
+.unit-switch button[aria-pressed='true']::before { opacity: 1; transform: none; }
+.unit-switch button:hover { border-color: transparent; color: var(--ink); }
+.unit-switch button:focus-visible { outline: 2px solid var(--focus); outline-offset: -4px; }
+.unit-switch .unit-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+/* The inert copy on pages whose text never changes with the units: gone under 1180 px, where the Menu button keeps the
+   right edge; from 1180 px an invisible switch of the same width, so the five links stay put from page to page. */
+.unit-switch-placeholder { display: none; visibility: hidden; }
+.unit-switch-placeholder button { width: 44px; padding: 0; font-size: 0; pointer-events: none; }
+
+.nav-toggle, .chapters-toggle {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2); min-width: 44px; min-height: 44px; padding: 0 12px;
+  border: 0; border-radius: var(--r-pill); background: transparent; box-shadow: none; color: var(--ink);
+  font-family: var(--sans); font-size: .9375rem; font-weight: 600; line-height: 1;
+  transition: background-color var(--d-quick) var(--ease-out), transform var(--d-release) var(--spring);
+}
+.nav-toggle:hover, .chapters-toggle:hover { border-color: transparent; background: var(--paper-sunk); }
+.nav-toggle:active, .chapters-toggle:active { transform: scale(.96); transition-duration: var(--d-press); }
+.nav-toggle:focus-visible, .chapters-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.nav-toggle svg, .chapters-toggle svg { flex: none; }
+.chapters-toggle { display: none; }
+
+/* Narrow (a 320 px phone, or zoom): the Menu button is its glyph alone; "Menu" stays its name. */
+@media (max-width: 359.98px) {
+  .nav-toggle { width: 44px; padding: 0; }
+  .nav-toggle-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+}
+/* 200% zoom on a phone (195 px): the controls take a second row under the brand. */
+@media (max-width: 299.98px) {
+  .header-inner { flex-wrap: wrap; gap: 0; padding-bottom: var(--s-1); }
+  .header-controls { flex: 1 1 100%; justify-content: space-between; margin-left: 0; }
+}
+@media (min-width: 600px) {
+  .header-credit { display: inline; }
+}
+@media (min-width: 1180px) {
+  .unit-switch-placeholder { display: flex; }
+  .nav-toggle { display: none; }
+  .chapters-toggle { display: inline-flex; }
+  .header-controls { gap: var(--s-2); }
+}

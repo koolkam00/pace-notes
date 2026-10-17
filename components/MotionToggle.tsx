@@ -1,10 +1,12 @@
 'use client';
 import { setSiteMotionOff, useSiteMotionOff } from './art/useTicker';
 
-/** Site-wide control that pauses every animated figure and illustration. */
+/** The site-wide Motion switch (the footer): off pauses every animated figure and the replay, and stays off in this browser. */
 export default function MotionToggle() {
   const off = useSiteMotionOff();
-  return <button type="button" className="motion-toggle" onClick={() => setSiteMotionOff(!off)}>
-    <span aria-hidden="true">{off ? '▶' : '❚❚'}</span>{off ? 'Play animations' : 'Pause all animations'}
-  </button>;
+  return (
+    <button type="button" role="switch" aria-checked={!off} className="motion-toggle" onClick={() => setSiteMotionOff(!off)}>
+      <span className="motion-toggle-track" aria-hidden="true" />Motion
+    </button>
+  );
 }

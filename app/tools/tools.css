@@ -178,7 +178,7 @@ a.tool-card:hover { text-decoration: none; transform: translateY(-3px); box-shad
 /* ---------- Print: tools print their result panels only ---------- */
 .print-only { display: none; }
 @media print {
-  .site-header, .footer, .skip-link, .tool-inputs, .tool-next, .tool-share, .no-print, .tool-header .tool-badges { display: none !important; }
+  .site-header, .site-footer, .skip-link, .tool-inputs, .tool-next, .tool-share, .no-print, .tool-header .tool-badges { display: none !important; }
   .print-only { display: block; }
   .tool-workspace { grid-template-columns: 1fr; }
   /* Fixed-width charts shrink to the printable width instead of overflowing the page. */

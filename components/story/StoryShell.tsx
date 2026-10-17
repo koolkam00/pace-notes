@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import RunnerLane from '@/components/art/RunnerLane';
-import { STORIES, storyHref, type StoryDefinition } from '@/lib/stories';
-import PageFeedback from '@/components/PageFeedback';
+import type { StoryDefinition } from '@/lib/stories';
+import ChapterEnd from '@/components/ChapterEnd';
 
 export function StoryHeader({ story, children }: { story: StoryDefinition; children?: ReactNode }) {
   return (
@@ -20,7 +20,7 @@ export function StoryHeader({ story, children }: { story: StoryDefinition; child
 
 export function StorySection({ id, kicker, title, children, dek }: { id: string; kicker: string; title: ReactNode; dek?: ReactNode; children: ReactNode }) {
   return (
-    <section id={id} className="chapter story-section" aria-labelledby={`${id}-title`}>
+    <section id={id} className="chapter story-section" aria-labelledby={`${id}-title`} data-beat={kicker.replace(/^\d+\s*·\s*/, '')}>
       <div className="chapter-head">
         <p className="chapter-num">{kicker}</p>
         <h2 id={`${id}-title`} className="chapter-title story-section-title">{title}</h2>
@@ -31,18 +31,7 @@ export function StorySection({ id, kicker, title, children, dek }: { id: string;
   );
 }
 
-export function StoryNav({ current, available }: { current: string; available: Set<string> }) {
-  const list = STORIES.filter((s) => available.has(s.file));
-  const i = list.findIndex((s) => s.slug === current);
-  const prev = i > 0 ? list[i - 1] : null;
-  const next = i >= 0 && i < list.length - 1 ? list[i + 1] : null;
-  return (
-    <>
-      <PageFeedback />
-      <nav className="analysis-pagination story-pagination" aria-label="More stories">
-        {prev ? <Link href={storyHref(prev)}><span>Previous story</span><strong>{prev.title}</strong></Link> : null}
-        {next ? <Link href={storyHref(next)}><span>Next story</span><strong>{next.title}</strong></Link> : <Link href="/analyses"><span>Make it personal</span><strong>Ten questions for your next race</strong></Link>}
-      </nav>
-    </>
-  );
+/** The story's closing stack: the next card along the race, the way back and "How we know" (components/ChapterEnd.tsx). */
+export function StoryNav({ current }: { current: string }) {
+  return <ChapterEnd path={`/stories/${current}`} />;
 }
