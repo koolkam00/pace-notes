@@ -159,11 +159,14 @@ function courseLate(ctx?: NuggetContext): Nugget {
   };
 }
 
-/** At a glance (3): how often the course was picked out from its editions' pacing shapes alone. */
+/**
+ * At a glance (3): how often the course was picked out from its editions' pacing shapes alone. It is something that
+ * "makes" the course only when its shape picked it out in at least half its editions.
+ */
 function courseShape(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
   const id = page?.summary.identified;
-  const guard = !!id && id.editions >= 2;
+  const guard = !!id && id.editions >= 2 && id.correct * 2 >= id.editions;
   return {
     id: 'course.shape', page: `/courses/${page?.slug ?? ''}#at-a-glance`, denominator: 'shape',
     values: { correct: id?.correct ?? NaN, editions: id?.editions ?? NaN },
@@ -225,7 +228,7 @@ function courseTypes(ctx?: NuggetContext): Nugget {
     values: { type: i >= 0 ? all[i].slug : '', here, every },
     guard,
     headline: `${here > every ? 'More' : 'Fewer'} *${name}* here: ${pct(here)}, against ${pct(every)} across every course.`,
-    fallback: 'Six pacing types, here and across every course.',
+    fallback: page?.types ? 'Six pacing types, here and across every course.' : `No pacing types for ${page?.display ?? 'this course'}.`,
     figure: null,
   };
 }

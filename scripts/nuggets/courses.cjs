@@ -105,7 +105,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
     // At a glance (3): how often the shape alone picked the course out.
     {
       const n = at('course.shape');
-      step(() => eq(n.guard, !!c.identified && c.identified.editions >= 2, `course.shape (${city}): guard`));
+      step(() => eq(n.guard, !!c.identified && c.identified.editions >= 2 && c.identified.correct * 2 >= c.identified.editions, `course.shape (${city}): guard (picked out in at least half its editions)`));
       if (n.guard) step(() => ok(said(n).includes(`${c.identified.correct} of ${c.identified.editions} editions`), `course.shape (${city}): the sentence`));
     }
 
