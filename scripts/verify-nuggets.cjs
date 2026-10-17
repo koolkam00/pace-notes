@@ -201,6 +201,9 @@ RECOUNT['home.second20k'] = (n) => {
   eq(n.guard, share > 0 && share < 0.5, 'home.second20k: "Only" while the share is under one half');
   eq(core.sentenceOf(n), n.guard ? `Only about *${words}* did.` : `About *${words}* did.`, 'home.second20k: the sentence');
 };
+// The story nuggets (WP2): their recounts and fixtures live in scripts/nuggets/stories.cjs.
+const storyRecounts = require('./nuggets/stories.cjs')({ json, eq, ok, core });
+Object.assign(RECOUNT, storyRecounts.RECOUNT);
 for (const [id, recount] of Object.entries(RECOUNT)) {
   const n = N.getNugget(id);
   ok(!n.placeholder, `${id} is a real nugget, not a placeholder`);
@@ -221,6 +224,7 @@ if (!args.has('--no-fixture')) {
     [home.second20kFrom({ count: 60, total: 100 }), 'About *60%* did.'],
     [home.second20kFrom({ count: 50, total: 100 }), 'About *1 in 2* did.'],
     [home.second20kFrom(null), 'The second 20K against the first, finish by finish.'],
+    ...storyRecounts.fixtures(stories),
   ];
   for (const [n, text] of fallbacks) {
     eq(n.guard, false, `fixture ${n.id}: the guard fails`);
