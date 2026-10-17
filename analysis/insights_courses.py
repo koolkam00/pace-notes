@@ -29,7 +29,7 @@ import numpy as np
 from build_all_finisher_context import verified_context
 from build_fast_start import digest, require, verified_manifest
 from insights_data import SECTION_KM, relative_pace, start_offset_screen, sustained_slowdown
-from insights_stats import MIN_CELL, SEED, r
+from insights_stats import MIN_CELL, SEED, SHARE_DIGITS, count_phrase, r
 
 ROOT = Path(__file__).resolve().parents[1]
 SECTIONS = ['0–5', '5–10', '10–15', '15–20', '20–25', '25–30', '30–35', '35–40', '40–42.2']
@@ -284,7 +284,7 @@ def build(f):
             continue
         p['weather'] = w
         weather_rows.append(dict(city=p['city'], year=p['year'], n=p['n'], temp=w['temp_c'], dew=w['dewpoint_c'], humidity=w['humidity_pct'],
-                                 wind=w['wind_mps'], warming=w['warming_c'], slowdown=100 * p['slowdown'], finish=p['median'] / 60,
+                                 wind=w['wind_mps'], warming=w['warming_c'], slowdown=100 * p['slowdown'], share=p['slowdown'], finish=p['median'] / 60,
                                  block=p['block'], fade=p.get('fade'), shape=p['shape'],
                                  **{f'r{i}': float(p['curve'][i]) for i in range(9)}))
     for p in [q for q in rows if q['n'] < MIN_CELL]:
@@ -335,7 +335,7 @@ def build(f):
                     hit = hot['slowdown'] > cool['slowdown']
                     agree += hit
                     pairs.append(dict(city=c, hot_year=hot['year'], cool_year=cool['year'], hot_temp=r(hot['temp'], 1), cool_temp=r(cool['temp'], 1),
-                                      hot_slowdown=r(hot['slowdown'] / 100, 4), cool_slowdown=r(cool['slowdown'] / 100, 4), hotter_slowed_more=bool(hit)))
+                                      hot_slowdown=r(hot['share'], SHARE_DIGITS), cool_slowdown=r(cool['share'], SHARE_DIGITS), hotter_slowed_more=bool(hit)))
     hot_cool = []
     per_course_slopes = []
     for c, g in sorted(by_city.items()):
@@ -343,8 +343,8 @@ def build(f):
             hot = max(g, key=lambda w: w['temp'])
             cool = min(g, key=lambda w: w['temp'])
             hot_cool.append(dict(city=c, editions=len(g),
-                                 hot=dict(year=hot['year'], temp=r(hot['temp'], 1), slowdown=r(hot['slowdown'] / 100, 4), median_s=r(hot['finish'] * 60, 0)),
-                                 cool=dict(year=cool['year'], temp=r(cool['temp'], 1), slowdown=r(cool['slowdown'] / 100, 4), median_s=r(cool['finish'] * 60, 0))))
+                                 hot=dict(year=hot['year'], temp=r(hot['temp'], 1), slowdown=r(hot['share'], SHARE_DIGITS), median_s=r(hot['finish'] * 60, 0)),
+                                 cool=dict(year=cool['year'], temp=r(cool['temp'], 1), slowdown=r(cool['share'], SHARE_DIGITS), median_s=r(cool['finish'] * 60, 0))))
         t = np.array([w['temp'] for w in g])
         if len(g) >= 5 and t.max() - t.min() >= 5:
             s = np.array([w['slowdown'] for w in g])
@@ -354,7 +354,7 @@ def build(f):
         cohort=dict(editions=len(weather_rows), courses=len(by_city), finishes=int(sum(w['n'] for w in weather_rows))),
         excluded=sorted(excluded, key=lambda x: (x['city'], x['year'])), mean_start_temp=r(mean_temp, 2),
         editions=[dict(city=w['city'], year=w['year'], n=w['n'], temp=r(w['temp'], 1), dew=r(w['dew'], 1), wind=r(w['wind'], 2),
-                       humidity=r(w['humidity'], 0), slowdown=r(w['slowdown'] / 100, 4), median_s=r(w['finish'] * 60, 0),
+                       humidity=r(w['humidity'], 0), slowdown=r(w['share'], SHARE_DIGITS), median_s=r(w['finish'] * 60, 0),
                        fade=None if w['fade'] is None else r(w['fade'], 3)) for w in weather_rows],
         fits=fits, curvature=curvature, heat_signature=heat,
         pairs=dict(min_gap_c=PAIR_GAP_C, total=len(pairs), hotter_slowed_more=int(agree), list=pairs),
@@ -372,7 +372,7 @@ def build(f):
             courses.setdefault(p['city'], []).append((len(m), float(detected[m].mean()), float(np.median(after20[m])), float(f.baseline[m].mean())))
         out = []
         for c, cells in sorted(courses.items()):
-            out.append(dict(city=c, editions=len(cells), finishes=int(sum(x[0] for x in cells)), slowdown=r(np.mean([x[1] for x in cells]), 4),
+            out.append(dict(city=c, editions=len(cells), finishes=int(sum(x[0] for x in cells)), slowdown=r(np.mean([x[1] for x in cells]), SHARE_DIGITS),
                             after20_s=r(np.mean([x[2] for x in cells]), 0), mean_baseline_s=r(np.mean([x[3] for x in cells]), 1)))
         matched.append(dict(lo_s=lo, hi_s=hi, label=f'{pace_label(lo)}–{pace_label(hi)}/km', courses=sorted(out, key=lambda x: x['slowdown'])))
 
@@ -386,9 +386,9 @@ def build(f):
         hi_e = max(g, key=lambda p: p['slowdown'])
         entry = dict(
             city=c, race=g[-1]['race'], finishes=int((f.city == cid).sum()), editions=len(g), years=[p['year'] for p in g],
-            median_s=r(np.mean([p['median'] for p in g]), 0), slowdown=r(np.mean([p['slowdown'] for p in g]), 4),
-            slowdown_range=[r(lo_e['slowdown'], 4), r(hi_e['slowdown'], 4)], slowdown_range_years=[lo_e['year'], hi_e['year']],
-            block10=r(np.mean([p['block10'] for p in g]), 4), after20_s=r(np.mean([p['after20'] for p in g]), 0),
+            median_s=r(np.mean([p['median'] for p in g]), 0), slowdown=r(np.mean([p['slowdown'] for p in g]), SHARE_DIGITS),
+            slowdown_range=[r(lo_e['slowdown'], SHARE_DIGITS), r(hi_e['slowdown'], SHARE_DIGITS)], slowdown_range_years=[lo_e['year'], hi_e['year']],
+            block10=r(np.mean([p['block10'] for p in g]), SHARE_DIGITS), after20_s=r(np.mean([p['after20'] for p in g]), 0),
             shape_editions=len(gs))
         if gs:
             dev = city_curve[c] - typical
@@ -418,8 +418,8 @@ def build(f):
         m = f.year == y
         years.append(dict(year=y, editions=len(g), courses=len({p['city'] for p in g}), finishes=int(sum(p['n'] for p in g)),
                           pooled_median_s=r(np.median(f.finish[m]), 0), median_s=r(np.mean([p['median'] for p in g]), 0),
-                          slowdown=r(np.mean([p['slowdown'] for p in g]), 4)))
-    cells = [dict(city=p['city'], year=p['year'], n=p['n'], median_s=r(p['median'], 0), slowdown=r(p['slowdown'], 4),
+                          slowdown=r(np.mean([p['slowdown'] for p in g]), SHARE_DIGITS)))
+    cells = [dict(city=p['city'], year=p['year'], n=p['n'], median_s=r(p['median'], 0), slowdown=r(p['slowdown'], SHARE_DIGITS),
                   temp=r(p['weather']['temp_c'], 1) if 'weather' in p else None) for p in rows]
     raw = f.raw_by_edition
     for p in rows:
@@ -486,6 +486,6 @@ def build(f):
                 'editions\' median curves; the typical curve is the median across courses. The fade multiplier fits each edition curve as a '
                 'multiple of the typical curve (distance-weighted), and the signature is what remains. Weather is the supplied modelled '
                 'hour at the scheduled start; within-course slopes compare editions of the same course with each edition weighted equally, '
-                'and intervals resample whole courses. Editions need at least 100 finishes. Thirteen editions whose first 5 km looks '
-                'inflated are left out of the shape statistics.'),
+                'and intervals resample whole courses. Editions need at least 100 finishes. Left out of the shape statistics: '
+                f'{count_phrase(len(offset_audit), "edition")} whose first 5 km looks inflated.'),
     )

@@ -1,4 +1,5 @@
 """Tests for the Pace Notes story analyses (insights_*.py). NumPy and the standard library only."""
+from decimal import ROUND_HALF_UP, Decimal
 import gzip
 import json
 from pathlib import Path
@@ -8,8 +9,9 @@ import unittest
 import numpy as np
 
 import insights_data
-from insights_data import DUPLICATE_EDITIONS, Finishes, granular_age_editions, relative_pace, screen_duplicates, start_offset_screen, sustained_slowdown
-from insights_stats import kmeans, poisson_poly_fit, quantile, r
+from insights_data import (DUPLICATE_EDITIONS, Finishes, faster_pace, granular_age_editions, relative_pace, screen_duplicates,
+                           start_offset_screen, sustained_slowdown)
+from insights_stats import SHARE_DIGITS, count_phrase, kmeans, poisson_poly_fit, quantile, r
 import insights_archetypes
 import insights_courses
 import insights_kick
@@ -114,6 +116,23 @@ class Statistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             r(float('nan'))
 
+    def test_printed_shares_are_rounded_once(self):
+        # Chicago 2018 under htw-db-2026-10-16-1652: 13,377 sustained slowdowns among 44,224 finishes (30.2483%).
+        # JavaScript's (share * 100).toFixed(1): the exact double, a half rounds up (Python's format would round half to even).
+        printed = lambda share: str(Decimal(share * 100).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP))
+        self.assertEqual(printed(r(13377 / 44224, 4)), '30.3')           # four digits round twice
+        self.assertEqual(printed(r(13377 / 44224, SHARE_DIGITS)), '30.2')
+        # Any count share with n below a million keeps its one-decimal percentage at SHARE_DIGITS.
+        rng = np.random.default_rng(1)
+        for n in rng.integers(100, 1_000_000, 2000):
+            k = int(rng.integers(0, n + 1))
+            exact = k * 1000 / n          # tenths of a percent
+            if abs(exact - np.floor(exact) - .5) > 1e-6:
+                self.assertEqual(printed(r(k / n, SHARE_DIGITS)), printed(k / n), (k, n))
+
+    def test_count_phrase_comes_from_the_count(self):
+        self.assertEqual([count_phrase(n, 'edition') for n in (0, 1, 15, 1234)], ['no editions', '1 edition', '15 editions', '1,234 editions'])
+
     def test_poisson_reference_recovers_a_smooth_curve(self):
         x = np.arange(100)
         y = np.round(1000 * np.exp(-((x - 50) / 30) ** 2))
@@ -204,6 +223,15 @@ class Kick(unittest.TestCase):
         loo = insights_kick.strata_loo(keys, values)
         self.assertAlmostEqual(loo[0, 0], (np.arange(100).sum() - 0) / 99)
         self.assertTrue(np.isnan(loo[120, 0]))
+
+    def test_an_exact_pace_tie_is_not_faster(self):
+        # 35–40 km in 1,000 s and the final 2.195 km in 439 s are the same 200 s/km; floating point says 199.99999999999997.
+        times = np.cumsum([[1500] * 4 + [1600, 1650, 1700, 1000, 439], [1500] * 4 + [1600, 1650, 1700, 1000, 438]], axis=1).astype(float)
+        f = Finishes(times, np.zeros(2, int), np.ones(2, np.uint8), np.zeros(2, np.uint8), np.full(2, np.nan), np.arange(2, dtype=np.uint64),
+                     [dict(city='A', year=2020)])
+        self.assertLess(f.paces[0, 8], f.paces[0, 7])           # the plain comparison counts the tie as faster
+        self.assertEqual(faster_pace(f.paces[:, 8], f.paces[:, 7]).tolist(), [False, True])
+        self.assertEqual(faster_pace(np.array([300.0, 299.0]), np.array([300.0, 300.0])).tolist(), [False, True])
 
     def test_grid_screen_flags_an_inflated_final_section(self):
         normal = [(0, 1, None, [300] * 4 + [320, 330, 340, 350, 340], i) for i in range(120)]

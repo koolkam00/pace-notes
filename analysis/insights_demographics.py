@@ -7,8 +7,8 @@ it does not hold fitness, experience, goals or conditions fixed.
 """
 import numpy as np
 
-from insights_data import granular_age_editions, relative_pace, start_offset_screen, sustained_slowdown
-from insights_stats import MIN_CELL, SEED, r
+from insights_data import faster_pace, granular_age_editions, relative_pace, start_offset_screen, sustained_slowdown
+from insights_stats import MIN_CELL, SEED, SHARE_DIGITS, r
 
 BANDS = list(range(150, 360, 10))  # 2:30 … 5:50 starts of 10-minute finish bands
 AGE_BANDS = [(18, 25), (25, 30), (30, 35), (35, 40), (40, 45), (45, 50), (50, 55), (55, 60), (60, 65), (65, 70), (70, 75), (75, 80), (80, 85), (85, 90)]
@@ -47,7 +47,7 @@ def boot_gap(y, wt, group, edition, a, b, reps, rng):
     for _ in range(reps):
         p = rng.integers(0, len(eds), len(eds))
         out.append(sa[p].sum() / wa[p].sum() - sb[p].sum() / wb[p].sum())
-    return [r(np.percentile(out, 2.5), 4), r(np.percentile(out, 97.5), 4)]
+    return [r(np.percentile(out, 2.5), SHARE_DIGITS), r(np.percentile(out, 97.5), SHARE_DIGITS)]
 
 
 def build(f):
@@ -57,7 +57,7 @@ def build(f):
     detected, _ = sustained_slowdown(s)
     block = 100 * ((s.times[:, 7] - s.times[:, 3]) / s.times[:, 3] - 1)
     R = relative_pace(s)
-    kick = s.paces[:, 8] < s.times[:, 7] / 40          # final 2.195 km faster than own 0–40 km average pace
+    kick = faster_pace(s.paces[:, 8], s.times[:, 7] / 40)   # final 2.195 km faster than own 0–40 km average pace (a tie is not)
     minute = np.floor(s.finish / 60).astype(np.int64)
     cell = s.edition.astype(np.int64) * 1000 + minute
     in_range = (s.finish >= 9000) & (s.finish < 21600) & ((s.gender == 1) | (s.gender == 2))
@@ -70,10 +70,10 @@ def build(f):
         pooled_women_block=r(block[m][W].mean(), 3), pooled_men_block=r(block[m][M].mean(), 3),
         women_block=r(wmean(block[m][W], wt[W]), 3), men_block=r(wmean(block[m][M], wt[M]), 3),
         block_gap_ci95=boot_gap(block[m], wt, g, ed, 2, 1, 500, rng),
-        women_slowdown=r(wmean(detected[m][W], wt[W]), 4), men_slowdown=r(wmean(detected[m][M], wt[M]), 4),
+        women_slowdown=r(wmean(detected[m][W], wt[W]), SHARE_DIGITS), men_slowdown=r(wmean(detected[m][M], wt[M]), SHARE_DIGITS),
         slowdown_gap_ci95=boot_gap(detected[m].astype(float), wt, g, ed, 2, 1, 500, rng),
-        women_kick=r(wmean(kick[m][W], wt[W]), 4), men_kick=r(wmean(kick[m][M], wt[M]), 4),
-        women_negative=r(wmean(block[m][W] < 0, wt[W]), 4), men_negative=r(wmean(block[m][M] < 0, wt[M]), 4),
+        women_kick=r(wmean(kick[m][W], wt[W]), SHARE_DIGITS), men_kick=r(wmean(kick[m][M], wt[M]), SHARE_DIGITS),
+        women_negative=r(wmean(block[m][W] < 0, wt[W]), SHARE_DIGITS), men_negative=r(wmean(block[m][M] < 0, wt[M]), SHARE_DIGITS),
     )
     # Ghost race: mean (women − men) elapsed at each checkpoint, matched; positive = women behind on the clock.
     ghost = [r(wmean(s.times[m][W, k], wt[W]) - wmean(s.times[m][M, k], wt[M]), 1) for k in range(9)]
@@ -86,9 +86,9 @@ def build(f):
             continue
         bands.append(dict(
             lo_min=lo, label=label(lo, 10), matched_weight=r(weight, 0), women_n=int(bw.sum()), men_n=int(bmn.sum()),
-            women_slowdown=r(wmean(detected[m][bw], wt[bw]), 4), men_slowdown=r(wmean(detected[m][bmn], wt[bmn]), 4),
+            women_slowdown=r(wmean(detected[m][bw], wt[bw]), SHARE_DIGITS), men_slowdown=r(wmean(detected[m][bmn], wt[bmn]), SHARE_DIGITS),
             women_block=r(wmean(block[m][bw], wt[bw]), 3), men_block=r(wmean(block[m][bmn], wt[bmn]), 3),
-            women_kick=r(wmean(kick[m][bw], wt[bw]), 4), men_kick=r(wmean(kick[m][bmn], wt[bmn]), 4),
+            women_kick=r(wmean(kick[m][bw], wt[bw]), SHARE_DIGITS), men_kick=r(wmean(kick[m][bmn], wt[bmn]), SHARE_DIGITS),
             ghost_s=[r(wmean(s.times[m][bw, k], wt[bw]) - wmean(s.times[m][bmn, k], wt[bmn]), 1) for k in range(9)],
             women_profile=[r(wmean(R[m][bw, k], wt[bw]), 2) for k in range(9)],
             men_profile=[r(wmean(R[m][bmn, k], wt[bmn]), 2) for k in range(9)]))
@@ -113,7 +113,7 @@ def build(f):
             if mm.sum() < MIN_CELL:
                 continue
             ladder.append(dict(gender=gname, age=f'{lo}–{hi - 1}', n=int(mm.sum()), median_finish_s=r(np.median(fin[mm]), 0),
-                               slowdown=r(det_g[mm].mean(), 4), slowdown_vs_field=r(d_det[mm].mean(), 4), block_vs_field=r(d_blk[mm].mean(), 3)))
+                               slowdown=r(det_g[mm].mean(), SHARE_DIGITS), slowdown_vs_field=r(d_det[mm].mean(), SHARE_DIGITS), block_vs_field=r(d_blk[mm].mean(), 3)))
     # Young vs older, matched within edition × gender × minute.
     young = ga & (s.exact_age >= 18) & (s.exact_age < 30)
     older = ga & (s.exact_age >= 60) & (s.exact_age < 70)
@@ -124,7 +124,7 @@ def build(f):
     Y, O = grp == 1, grp == 2
     age_contrast = dict(
         young='18–29', older='60–69', young_n=int(young.sum()), older_n=int(older.sum()), matched_weight=r(w2, 0),
-        young_slowdown=r(wmean(detected[yo][Y], wt2[Y]), 4), older_slowdown=r(wmean(detected[yo][O], wt2[O]), 4),
+        young_slowdown=r(wmean(detected[yo][Y], wt2[Y]), SHARE_DIGITS), older_slowdown=r(wmean(detected[yo][O], wt2[O]), SHARE_DIGITS),
         young_block=r(wmean(block[yo][Y], wt2[Y]), 3), older_block=r(wmean(block[yo][O], wt2[O]), 3),
         young_ahead_at_20km_s=r(wmean(s.times[yo][O, 3], wt2[O]) - wmean(s.times[yo][Y, 3], wt2[Y]), 1),
         slowdown_gap_ci95=boot_gap(detected[yo].astype(float), wt2, grp, s.edition[yo], 1, 2, 300, rng))
@@ -137,14 +137,14 @@ def build(f):
     for lo in range(150, 420, 10):
         b = mw & (s.finish >= lo * 60) & (s.finish < (lo + 10) * 60)
         if b.sum() >= MIN_CELL:
-            share_band.append(dict(lo_min=lo, label=label(lo, 10), n=int(b.sum()), women_share=r((s.gender[b] == 2).mean(), 4)))
+            share_band.append(dict(lo_min=lo, label=label(lo, 10), n=int(b.sum()), women_share=r((s.gender[b] == 2).mean(), SHARE_DIGITS)))
     city_years = []
     for c, city in enumerate(s.cities):
         rows = []
         for e in np.unique(s.edition[(s.city == c) & mw]):
             b = mw & (s.edition == e)
             if b.sum() >= MIN_CELL:
-                rows.append(dict(year=int(s.editions[e]['year']), n=int(b.sum()), women_share=r((s.gender[b] == 2).mean(), 4)))
+                rows.append(dict(year=int(s.editions[e]['year']), n=int(b.sum()), women_share=r((s.gender[b] == 2).mean(), SHARE_DIGITS)))
         if len(rows) >= 3:
             city_years.append(dict(city=city, years=sorted(rows, key=lambda x: x['year'])))
     return dict(

@@ -10,7 +10,7 @@ Nothing here is a heat adjustment or a forecast.
 import numpy as np
 
 from insights_courses import edition_context
-from insights_stats import MIN_CELL, r
+from insights_stats import MIN_CELL, SHARE_DIGITS, r
 from insights_tools_common import MARATHON_KM, tool_cohort
 
 CENTRES = range(-2, 29)
@@ -70,9 +70,9 @@ def build(cohort):
                     continue
                 rows.append(dict(
                     c=c, hw=hw, pace=PACE_LO + k * PACE_STEP, n=int(len(pooled)), ed=eds,
-                    sd=r(float(np.mean([detected[p].mean() for p in parts])), 4),
+                    sd=r(float(np.mean([detected[p].mean() for p in parts])), SHARE_DIGITS),
                     after20=int(round(float(np.mean([np.median(after20[p]) for p in parts])))),
-                    late=r(float(np.mean([np.median(late[p]) for p in parts])), 4),
+                    late=r(float(np.mean([np.median(late[p]) for p in parts])), SHARE_DIGITS),
                     fin=[int(round(v)) for v in np.quantile(s.finish[pooled], (.1, .5, .9))],
                     profile=[r(float(v), 4) for v in np.mean([np.median(R[p], axis=0) for p in parts], axis=0)]))
     return dict(

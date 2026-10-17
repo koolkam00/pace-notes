@@ -150,6 +150,19 @@ SECTION_KM = np.asarray(LENGTHS, dtype=float)
 START_GAP_POINTS = 10.0  # edition median r(0–5 km) minus r(5–10 km); all-edition median ≈ 0.7, next-largest ≈ 6.5
 
 
+PACE_TIE = 1e-12
+
+
+def faster_pace(pace, reference):
+    """True where `pace` is strictly faster (fewer seconds per km) than `reference`; an exact tie is not faster.
+
+    The final section's length, 42.195 − 40 km, is 2.1950000000000003 in floating point, so a final 2.195 km run at
+    exactly the 35–40 km pace (439 s against 1,000 s) comes out 1e-16 faster. Whole-second splits that really differ
+    are at least about 2e-7 apart in this ratio, far above the tolerance. scripts/verify-insights.cjs uses the same rule.
+    """
+    return pace / reference - 1.0 < -PACE_TIE
+
+
 def relative_pace(f):
     """Percent each section's pace differs from the finish's own whole-race average pace (integrates to zero)."""
     return 100.0 * (f.paces / (f.finish[:, None] / 42.195) - 1.0)

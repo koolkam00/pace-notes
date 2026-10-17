@@ -15,7 +15,7 @@ Accuracy is checked out of sample: cells built only from 2005–2021 races score
 """
 import numpy as np
 
-from insights_stats import MIN_CELL, r
+from insights_stats import MIN_CELL, SHARE_DIGITS, r
 from insights_tools_common import MARATHON_KM, MATS_KM, group_index, q, slugify, tool_cohort
 
 BAND_S = 120
@@ -58,7 +58,7 @@ def cell(s, idx, k, detected, onset):
     return dict(
         n=int(len(idx)), ed=int(len(np.unique(s.edition[idx]))), q=q(fin, QUANTS),
         later=[q(s.times[idx, j], (.1, .5, .9)) for j in range(k + 1, 8)],
-        rp=r(float(np.median(remaining)), 1), sd=[r(float(already.mean()), 4), r(float((d & ~already).mean()), 4)])
+        rp=r(float(np.median(remaining)), 1), sd=[r(float(already.mean()), SHARE_DIGITS), r(float((d & ~already).mean()), SHARE_DIGITS)])
 
 
 def columns(rows):
@@ -107,9 +107,9 @@ def validate(s):
             e = np.concatenate(abs_err)
             nv = np.concatenate(abs_naive)
             out.append(dict(mat=km, variant=v, test_finishes=int(scored), test_years='2022–2026', train_years='2005–2021',
-                            coverage_p10_p90=r(covered / scored, 4), median_abs_error_s=int(round(float(np.median(e)))),
+                            coverage_p10_p90=r(covered / scored, SHARE_DIGITS), median_abs_error_s=int(round(float(np.median(e)))),
                             even_pace_median_abs_error_s=int(round(float(np.median(nv)))),
-                            within_5_min=r(float((e <= 300).mean()), 4), even_pace_within_5_min=r(float((nv <= 300).mean()), 4)))
+                            within_5_min=r(float((e <= 300).mean()), SHARE_DIGITS), even_pace_within_5_min=r(float((nv <= 300).mean()), SHARE_DIGITS)))
     return out
 
 

@@ -7,7 +7,7 @@ any runner would have done. Goals, pacers and wave offsets are not observed.
 """
 import numpy as np
 
-from insights_stats import MIN_CELL, SEED, bspline_basis, poisson_design_fit, poisson_poly_fit, r
+from insights_stats import MIN_CELL, SEED, SHARE_DIGITS, bspline_basis, poisson_design_fit, poisson_poly_fit, r
 
 BARRIERS = [150, 165, 180, 195, 210, 225, 240, 270, 300, 330, 360]
 MAJOR = [180, 210, 240, 270, 300]
@@ -95,7 +95,7 @@ def seconds_lens(f, B):
     return dict(mark=label(B), minutes=B,
                 bins=[dict(offset_s=int(a - Bs), n=int(b), expected=r(c, 1)) for a, b, c in zip(s[window], y[window], exp[window])],
                 peak_offset_s=int(s[peak] - Bs), peak_ratio=r(ratio[peak], 3),
-                share_of_pile_in_last_minute=r((y[last60] - exp[last60]).sum() / total, 4) if total > 0 else None)
+                share_of_pile_in_last_minute=r((y[last60] - exp[last60]).sum() / total, SHARE_DIGITS) if total > 0 else None)
 
 
 def bubble(f, B, rng):
@@ -144,7 +144,7 @@ def bubble(f, B, rng):
             n = int((fade[s] == k).sum())
             if n and len(by_fade[k]):
                 draws.append(rng.choice(by_fade[k], size=n * 10))
-        rows[side] = dict(n=int(s.sum()), share_under=r(under.mean(), 4), expected_share_under=r(expected.mean(), 4),
+        rows[side] = dict(n=int(s.sum()), share_under=r(under.mean(), SHARE_DIGITS), expected_share_under=r(expected.mean(), SHARE_DIGITS),
                           extra_under=r(under.sum() - expected.sum(), 1),
                           extra_under_ci95=[r(np.percentile(boots, 2.5), 1), r(np.percentile(boots, 97.5), 1)],
                           median_final_gain_s=r(np.median(gain[s]), 1),
@@ -155,8 +155,8 @@ def bubble(f, B, rng):
         if s.sum() < MIN_CELL:
             continue
         d = proj[s] - Bs
-        premium.append(dict(margin_s=lo, n=int(s.sum()), share_under=r((t8[s] < Bs).mean(), 4),
-                            expected_share_under=r(p_gain_gt(d, fade[s]).mean(), 4), median_final_gain_s=r(np.median(gain[s]), 1)))
+        premium.append(dict(margin_s=lo, n=int(s.sum()), share_under=r((t8[s] < Bs).mean(), SHARE_DIGITS),
+                            expected_share_under=r(p_gain_gt(d, fade[s]).mean(), SHARE_DIGITS), median_final_gain_s=r(np.median(gain[s]), 1)))
     return dict(mark=label(B), minutes=B, n_comparison=int(neutral.sum()), **rows, premium=premium)
 
 

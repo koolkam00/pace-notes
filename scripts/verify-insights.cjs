@@ -27,12 +27,23 @@ const integer = (x, minimum = 0) => Number.isSafeInteger(x) && x >= minimum;
 const near = (actual, expected, label, tolerance = 1.1e-6) => assert.ok(finite(actual) && finite(expected)
   && Math.abs(actual - expected) <= tolerance, `${label}: ${actual} != ${expected}`);
 const sum = values => values.reduce((a, b) => a + b, 0);
+// A share a page prints with one decimal must print as the exact recount does: the page rounds the stored value once
+// (lib/course-page.ts pct), so the stored digits must not round it a first time (insights_stats.SHARE_DIGITS).
+const pct1 = share => (share * 100).toFixed(1);
+const printedOnce = (stored, exact, label) => assert.equal(pct1(stored), pct1(exact),
+  `${label}: the stored share prints as ${pct1(stored)}% but the exact share is ${pct1(exact)}%`);
+// Method prose counts: insights_stats.count_phrase.
+const countPhrase = (n, noun) => (n === 0 ? `no ${noun}s` : n === 1 ? `1 ${noun}` : `${n.toLocaleString('en-US')} ${noun}s`);
 const MIN_CELL = 100, REPLAY_SAMPLE = 1500;
 const points = [5, 10, 15, 20, 25, 30, 35, 40, 42.195];
 // The builder's np.diff([0, *points]) makes the last section 2.1950000000000003 km.
 // Using the same doubles reproduces relative paces, letters and centroids bit for bit.
 const lengths = points.map((km, i) => km - (i ? points[i - 1] : 0));
 const weights = lengths.map(km => Math.sqrt(km / 5));
+// insights_data.faster_pace: strictly faster, with an exact tie not faster. In those doubles a final 2.195 km at
+// exactly the 35–40 km pace (439 s against 1,000 s) divides out 1e-16 faster.
+const PACE_TIE = 1e-12;
+const fasterPace = (pace, reference) => pace / reference - 1 < -PACE_TIE;
 const ageLabels = ['Unknown', '18–24', ...Array.from({ length: 13 }, (_, i) => `${25 + 5 * i}–${29 + 5 * i}`)];
 // Same normalisation as analysis/build_fast_start.py gender_code: 0 other/not recorded, 1 men, 2 women.
 function genderCode(sex) {
@@ -158,6 +169,9 @@ const even = Float64Array.from(points, km => km * 300);
 assert.ok(relativePace(even, 0, new Float64Array(9)).every(v => Math.abs(v) < 1e-9), 'Even pacing has zero relative pace');
 assert.equal(decode(sentence([-3.0000001, -3, 3, 3.0000001, 0, 0, 0, 0, 0])), 'FEESEEEEE', 'Letters are strict beyond ±3%');
 assert.equal(sentence(new Float64Array(9)), EVEN_SENTENCE);
+assert.ok(439 / lengths[8] < 1000 / 5 && !fasterPace(439 / lengths[8], 1000 / 5) && fasterPace(438 / lengths[8], 1000 / 5), 'An exact pace tie is not faster');
+assert.deepEqual([pct1(0.3025), pct1(0.3024828147)], ['30.3', '30.2'], 'Four stored digits round Chicago 2018 twice; ten do not');
+assert.deepEqual([0, 1, 15, 1234].map(n => countPhrase(n, 'edition')), ['no editions', '1 edition', '15 editions', '1,234 editions']);
 assert.equal(sustained(even, 0), false);
 assert.equal(sustained(Float64Array.from(even, (t, i) => t + (i >= 7 ? 375 : 0)), 0), true, 'Exactly 25% over 35–40 km qualifies');
 assert.equal(sustained(Float64Array.from(even, (t, i) => t + (i === 8 ? 2000 : 0)), 0), false, 'The final 2.195 km alone cannot qualify');
@@ -502,6 +516,8 @@ function checkArchetypes(doc) {
   assert.deepEqual(doc.start_offset_editions.map(row => [row.city, row.year, row.finishes]), flagged.map(row => [row.city, row.year, row.finishes]),
     'Independent start-offset editions');
   doc.start_offset_editions.forEach((row, j) => near(row.median_gap_points, flagged[j].gap, `${row.city} ${row.year}: start gap`, .0051));
+  assert.ok(doc.method.includes(`Left out of these shape statistics: ${countPhrase(flagged.length, 'edition')} whose first 5 km appears to include start delay.`),
+    'Archetypes method names the start-offset count from the data');
   const counts = new Float64Array(k6), slow = new Float64Array(k6), profile = Array.from({ length: k6 }, () => new Float64Array(9));
   const sentences = new Int32Array(3 ** 9), riverStarts = Array.from({ length: 16 }, (_, j) => 150 + 15 * j);
   const river = riverStarts.map(() => new Float64Array(k6));
@@ -590,7 +606,7 @@ function checkDemographics(doc) {
     cells[base]++;
     cells[base + 1] += sustained(times, o) ? 1 : 0;
     cells[base + 2] += block;
-    cells[base + 3] += (finish - times[o + 7]) / lengths[8] < times[o + 7] / 40 ? 1 : 0;
+    cells[base + 3] += fasterPace((finish - times[o + 7]) / lengths[8], times[o + 7] / 40) ? 1 : 0;
     cells[base + 4] += block < 0 ? 1 : 0;
   });
   const bandStarts = Array.from({ length: 21 }, (_, j) => 150 + 10 * j);
@@ -841,6 +857,8 @@ function checkCourses(doc) {
     'Courses shape cohort: edition cohort without start-offset editions');
   assert.deepEqual(doc.shape_cohort.start_offset_editions.map(row => [row.city, row.year, row.finishes]), flagged.map(row => [row.city, row.year, row.finishes]),
     'Courses start-offset editions');
+  assert.ok(doc.method.includes(`Left out of the shape statistics: ${countPhrase(flagged.length, 'edition')} whose first 5 km looks inflated.`),
+    'Courses method names the start-offset count from the data');
   const cityCurve = new Map(shapeCities.map(c => {
     const g = shape.filter(p => p.city === c);
     return [c, Array.from({ length: 9 }, (_, k) => mean(g.map(p => p.curve[k])))];
@@ -858,6 +876,9 @@ function checkCourses(doc) {
       [g[g.length - 1].race, cityFinishes.get(c), g.length, g.map(p => p.year), gs.length], `${c}: race, finishes (all editions), editions, years and shape editions`);
     near(course.median_s, mean(g.map(p => p.median)), `${c}: mean edition median finish`, .5 + 1e-6);
     near(course.slowdown, mean(g.map(p => p.slowdown)), `${c}: mean edition sustained slowdown share`, 5.1e-5);
+    printedOnce(course.slowdown, mean(g.map(p => p.slowdown)), `${c}: mean edition sustained slowdown share`);
+    printedOnce(course.slowdown_range[0], Math.min(...g.map(p => p.slowdown)), `${c}: lowest edition sustained slowdown share`);
+    printedOnce(course.slowdown_range[1], Math.max(...g.map(p => p.slowdown)), `${c}: highest edition sustained slowdown share`);
     assert.equal('curve' in course && 'deviation' in course, gs.length > 0, `${c}: a curve is published exactly when the course has shape editions`);
     if (!gs.length) continue;
     const curve = cityCurve.get(c);
@@ -889,6 +910,7 @@ function checkCourses(doc) {
     const p = weatherRows[j];
     near(x.temp, p.weather.temp_c, `${p.city} ${p.year}: weather temperature`, .05 + 1e-9);
     near(x.slowdown, p.slowdown, `${p.city} ${p.year}: weather-edition slowdown share`, 5.1e-5);
+    printedOnce(x.slowdown, p.slowdown, `${p.city} ${p.year}: weather-edition slowdown share`);
     // The builder rounds (median / 60) * 60 here, so an exact .5 median may round either way (Dubai 2016: 15594.5 s).
     near(x.median_s, p.median, `${p.city} ${p.year}: weather-edition median finish`, .5 + 1e-6);
   });
@@ -915,7 +937,21 @@ function checkCourses(doc) {
     const label = `${x.city} ${x.hot_year}/${x.cool_year} pair`, { hot, cool } = pairs[j];
     near(x.hot_temp, hot.weather.temp_c, `${label}: hot temperature`, .05 + 1e-9); near(x.cool_temp, cool.weather.temp_c, `${label}: cool temperature`, .05 + 1e-9);
     near(x.hot_slowdown, hot.slowdown, `${label}: hot slowdown`, 5.1e-5); near(x.cool_slowdown, cool.slowdown, `${label}: cool slowdown`, 5.1e-5);
+    printedOnce(x.hot_slowdown, hot.slowdown, `${label}: hot slowdown`); printedOnce(x.cool_slowdown, cool.slowdown, `${label}: cool slowdown`);
   });
+  // Warmest and coolest edition of each course with at least three weather editions (the course pages print both).
+  const hotCoolCities = weatherCities.filter(c => weatherRows.filter(p => p.city === c).length >= 3);
+  assert.deepEqual(W.hot_cool.map(x => x.city).sort(byText), hotCoolCities, 'Warmest and coolest pairs: courses with at least three weather editions');
+  for (const x of W.hot_cool) {
+    const g = weatherRows.filter(p => p.city === x.city);
+    const hot = g.reduce((a, b) => (b.weather.temp_c > a.weather.temp_c ? b : a)), cool = g.reduce((a, b) => (b.weather.temp_c < a.weather.temp_c ? b : a));
+    assert.deepEqual([x.editions, x.hot.year, x.cool.year], [g.length, hot.year, cool.year], `${x.city}: warmest and coolest editions`);
+    for (const [side, p] of [['hot', hot], ['cool', cool]]) {
+      near(x[side].temp, p.weather.temp_c, `${x.city} ${side}: temperature`, .05 + 1e-9);
+      near(x[side].slowdown, p.slowdown, `${x.city} ${side}: slowdown share`, 5.1e-5);
+      printedOnce(x[side].slowdown, p.slowdown, `${x.city} ${p.year} (${side}): slowdown share`);
+    }
+  }
 
   // Slowdown (percent) on start temperature: pooled across editions, and course-demeaned.
   const across = pooledFit(temps, slowPoints), A = W.fits.slowdown_across;
@@ -940,6 +976,7 @@ function checkCourses(doc) {
       const cells = expected.get(course.city), label = `${band.label} ${course.city}`;
       assert.deepEqual([course.editions, course.finishes], [cells.length, sum(cells.map(x => x.n))], `${label}: matched editions and finishes`);
       near(course.slowdown, mean(cells.map(x => x.slow / x.n)), `${label}: mean edition-cell slowdown share`, 5.1e-5);
+      printedOnce(course.slowdown, mean(cells.map(x => x.slow / x.n)), `${label}: mean edition-cell slowdown share`);
       near(course.mean_baseline_s, mean(cells.map(x => x.baseline / x.n)), `${label}: mean 5–20 km pace`, .05 + 1e-6);
       const previous = band.courses[j - 1];
       assert.ok(!j || previous.slowdown < course.slowdown || previous.slowdown === course.slowdown && previous.city < course.city, `${label}: ordered by slowdown`);
@@ -971,6 +1008,7 @@ function checkCourses(doc) {
     const p = rows[j], label = `${p.city} ${p.year}`;
     assert.equal(cell.median_s, rint(p.median), `${label}: edition median finish`);
     near(cell.slowdown, p.slowdown, `${label}: edition sustained slowdown share`, 5.1e-5);
+    printedOnce(cell.slowdown, p.slowdown, `${label}: edition sustained slowdown share`);
     if (p.weather) near(cell.temp, p.weather.temp_c, `${label}: start temperature`, .05 + 1e-9);
     else assert.equal(cell.temp, null, `${label}: no paired weather row, so no temperature`);
   });
@@ -987,6 +1025,7 @@ function checkCourses(doc) {
     assert.equal(row.pooled_median_s, rint(sortedMedian(pooled)), `${row.year}: pooled median over every story finish of the year`);
     near(row.median_s, mean(g.map(p => p.median)), `${row.year}: mean of edition medians`, .5 + 1e-6);
     near(row.slowdown, mean(g.map(p => p.slowdown)), `${row.year}: mean edition slowdown share`, 5.1e-5);
+    printedOnce(row.slowdown, mean(g.map(p => p.slowdown)), `${row.year}: mean edition slowdown share`);
   }
   return {
     editions: rows.length, courses: cities.length, shape_editions: shape.length, typical_sections: typical.length, weather_editions: weatherRows.length,
@@ -1013,6 +1052,8 @@ function checkKick(doc) {
   const gridSet = new Set(grid.map(g => g.edition)), kickEditions = shapeEditions.filter(e => !gridSet.has(e));
   const n = sum(kickEditions.map(e => storyCount[e]));
   assert.equal(doc.cohort_n, n, 'Kick cohort: shape cohort without grid-screened editions');
+  assert.ok(doc.method.includes(`Left out: ${countPhrase(flagged.length, 'start-offset edition')} and ${countPhrase(grid.length, 'edition')} whose timing grid looks shifted.`),
+    'Kick method names the start-offset and grid-screen counts from the data');
   assert.equal(doc.editions, kickEditions.filter(e => storyCount[e] > 0).length, 'Kick editions');
   let faster = 0, slow = 0, slowFaster = 0;
   const mAll = new Float64Array(5), mSlow = new Float64Array(5), over10 = new Float64Array(9), over25 = new Float64Array(9);
@@ -1024,10 +1065,10 @@ function checkKick(doc) {
   eachRow(kickEditions, i => {
     const o = i * 9, R9 = Array.from({ length: 9 }, (_, k) => rel(o, k));
     const hit = [4, 5, 6, 7].map(k => R9[k] + 1e-12 >= .25), d = hit.some(Boolean);
-    const isFaster = pace(o, 8) / pace(o, 7) - 1 < 0;
+    const isFaster = fasterPace(pace(o, 8), pace(o, 7));
     if (isFaster) faster++;
     if (d) { slow++; if (isFaster) slowFaster++; }
-    for (let k = 4; k < 9; k++) { const f = pace(o, k) < pace(o, k - 1) ? 1 : 0; mAll[k - 4] += f; if (d) mSlow[k - 4] += f; }
+    for (let k = 4; k < 9; k++) { const f = fasterPace(pace(o, k), pace(o, k - 1)) ? 1 : 0; mAll[k - 4] += f; if (d) mSlow[k - 4] += f; }
     for (let k = 0; k < 9; k++) { if (R9[k] > .10) over10[k]++; if (R9[k] + 1e-12 >= .25) over25[k]++; }
     [4, 5, 6].forEach((sec, w) => {
       if (hit.slice(0, sec - 3).some(Boolean)) return;
@@ -1046,6 +1087,7 @@ function checkKick(doc) {
   const K = doc.kick;
   assert.deepEqual([K.n, K.faster, K.slowdown_n, K.slowdown_faster], [n, faster, slow, slowFaster], 'Kick counts');
   near(K.share, faster / n, 'Kick share', 1e-4); near(K.slowdown_share, slowFaster / slow, 'Kick share among sustained slowdowns', 1e-4);
+  printedOnce(K.share, faster / n, 'Kick share'); printedOnce(K.slowdown_share, slowFaster / slow, 'Kick share among sustained slowdowns');
   doc.magnet.forEach((row, j) => { near(row.all, mAll[j] / n, `${row.section}: faster than previous`, 1e-4); near(row.slowdown, mSlow[j] / slow, `${row.section}: faster than previous among slowdowns`, 1e-4); });
   doc.breaks.all.sections.forEach((row, k) => { near(row.over10, over10[k] / n, `${row.section}: more than 10% slower`, 1e-4); near(row.over25, over25[k] / n, `${row.section}: 25% or more slower`, 1e-4); });
   assert.equal(doc.breaks.all.n, n, 'Break chart cohort');
@@ -1053,7 +1095,10 @@ function checkKick(doc) {
     const labels = ['Faster', '0–5% slower', '5–10% slower', '10–15% slower', '15–20% slower', '20–25% slower'];
     const expected = warn[w].map((cell, b) => ({ label: labels[b], n: cell[0], later: cell[1] / cell[0] })).filter(row => row.n >= MIN_CELL);
     assert.deepEqual(block.rows.map(row => [row.label, row.n]), expected.map(row => [row.label, row.n]), `Warning after ${block.after}: rows`);
-    block.rows.forEach((row, j) => near(row.later, expected[j].later, `Warning after ${block.after} ${row.label}`, 1e-4));
+    block.rows.forEach((row, j) => {
+      near(row.later, expected[j].later, `Warning after ${block.after} ${row.label}`, 1e-4);
+      printedOnce(row.later, expected[j].later, `Warning after ${block.after} ${row.label}`);
+    });
   });
   doc.recovery.stay.forEach((row, j) => { assert.equal(row.n, stay[j][0], `Stay ${row.source}: finishes at sustained-slowdown pace`); near(row.stay, stay[j][1] / stay[j][0], `Stay ${row.source}`, 1e-4); });
   doc.gender_kick.forEach(row => {
@@ -1061,6 +1106,7 @@ function checkKick(doc) {
     const w = gk.get(`${band}:2`), m = gk.get(`${band}:1`);
     assert.deepEqual([row.women_n, row.men_n], [w[0], m[0]], `${row.label}: women and men counts`);
     near(row.women, w[1] / w[0], `${row.label}: women kick share`, 1e-4); near(row.men, m[1] / m[0], `${row.label}: men kick share`, 1e-4);
+    printedOnce(row.women, w[1] / w[0], `${row.label}: women kick share`); printedOnce(row.men, m[1] / m[0], `${row.label}: men kick share`);
   });
   // Cost bands use the story cohort: same 5–20 km pace (15-minute marathon equivalent), with and without a sustained slowdown.
   const cost = new Map();
@@ -1208,6 +1254,7 @@ function checkPaceBand(doc) {
       assert.ok(Math.abs(all.e50[j][k] - npQuantile(v, 0.5)) <= 0.51, `Pace band ${G}: median elapsed at point ${k}`);
     }
     near(all.sd[j], rows.filter(i => toolSlowdown(i * 9)).length / rows.length, `Pace band ${G}: sustained-slowdown share`, 1e-4);
+    printedOnce(all.sd[j], rows.filter(i => toolSlowdown(i * 9)).length / rows.length, `Pace band ${G}: sustained-slowdown share`);
   }
   return { groups, sampled_goals: sample.size };
 }
@@ -1267,7 +1314,10 @@ function checkCourseGoal(doc) {
     }
   }
   assert.deepEqual(doc.rows.map(r => [r.goal, r.city, r.n, r.ed]), expectedRows.map(r => [r.goal, r.city, r.n, r.ed]), 'Course goal rows');
-  doc.rows.forEach((r, j) => { near(r.under, expectedRows[j].under, `${r.city} ${r.goal}: under goal`, 1e-4); near(r.sd, expectedRows[j].sd, `${r.city} ${r.goal}: slowdown share`, 1e-4); });
+  doc.rows.forEach((r, j) => {
+    near(r.under, expectedRows[j].under, `${r.city} ${r.goal}: under goal`, 1e-4); near(r.sd, expectedRows[j].sd, `${r.city} ${r.goal}: slowdown share`, 1e-4);
+    printedOnce(r.under, expectedRows[j].under, `${r.city} ${r.goal}: under goal`); printedOnce(r.sd, expectedRows[j].sd, `${r.city} ${r.goal}: slowdown share`);
+  });
   assert.deepEqual(doc.unavailable.map(u => [u.goal, u.city]), expectedGaps, 'Course goal unavailable rows');
   assert.deepEqual(doc.courses.map(c => c.city), cities, 'Course goal course list');
   return { rows: doc.rows.length, unavailable: doc.unavailable.length };
