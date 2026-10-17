@@ -1,0 +1,32 @@
+/* Site-wide CSS, in cascade order (the redesign spec, section 6.1): fonts, tokens, base, layout, the components
+   (alphabetical), then the legacy rules split by owner from the old globals.css and story.css, which WP9 deletes.
+   app/layout.tsx imports this one file rather than each sheet: every separately imported sheet costs the layout's
+   JavaScript an empty module on every page. Section sheets are imported by their own route layouts and pages. */
+@import './fonts.css';
+@import './tokens.css';
+@import './base.css';
+@import './layout.css';
+@import './components/badge.css';
+@import './components/button.css';
+@import './components/chips.css';
+@import './components/forms.css';
+@import './components/guess.css';
+@import './components/marker.css';
+@import './components/reading.css';
+@import './components/receipt.css';
+@import './components/scrolly.css';
+@import './components/segmented.css';
+@import './components/share.css';
+@import './components/sheet.css';
+@import './components/table.css';
+@import './components/values.css';
+@import './legacy/shared.css';
+@import './legacy/home.css';
+@import './legacy/stories.css';
+@import './legacy/analyses.css';
+@import './legacy/courses.css';
+@import './legacy/research.css';
+@import './legacy/info.css';
+@import './legacy/packs.css';
+@import './legacy/runners.css';
+@import './legacy/tools.css';

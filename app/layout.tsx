@@ -1,34 +1,6 @@
-// Site-wide CSS, in cascade order (the redesign spec, section 6.1): fonts, tokens, base, layout, the components
-// (alphabetical), then the legacy rules split by owner from the old globals.css and story.css, which WP9 deletes.
+// Site-wide CSS, in cascade order, from one sheet (app/styles/site.css lists it; the redesign spec, section 6.1).
 // Section sheets are imported by their own route layouts and pages.
-import './styles/fonts.css';
-import './styles/tokens.css';
-import './styles/base.css';
-import './styles/layout.css';
-import './styles/components/badge.css';
-import './styles/components/button.css';
-import './styles/components/chips.css';
-import './styles/components/forms.css';
-import './styles/components/guess.css';
-import './styles/components/marker.css';
-import './styles/components/reading.css';
-import './styles/components/receipt.css';
-import './styles/components/scrolly.css';
-import './styles/components/segmented.css';
-import './styles/components/share.css';
-import './styles/components/sheet.css';
-import './styles/components/table.css';
-import './styles/components/values.css';
-import './styles/legacy/shared.css';
-import './styles/legacy/home.css';
-import './styles/legacy/stories.css';
-import './styles/legacy/analyses.css';
-import './styles/legacy/courses.css';
-import './styles/legacy/research.css';
-import './styles/legacy/info.css';
-import './styles/legacy/packs.css';
-import './styles/legacy/runners.css';
-import './styles/legacy/tools.css';
+import './styles/site.css';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import UnitsProvider from '@/components/UnitsProvider';
 import SiteHeader from '@/components/SiteHeader';
