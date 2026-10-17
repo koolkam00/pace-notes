@@ -54,7 +54,7 @@ Score = reach × expected effect × evidence ÷ effort, adjusted for risk. Don't
    - **Metric:** home_depth, answered_visit_rate.
    - Reach: very high. Effort: M. Risk: medium. Best run as an experiment after `home-hero-v1` concludes.
 4. **Explain why totals differ**
-   - **Evidence (refreshed October 17, 2026, release `htw-db-2026-10-16-1652`):** the home page shows 3,871,767 finishes and "3.9 million", plus "3.7 million" for the pacing-type group; the tools page says "3.71 million". The 0934-era figures (3,414,116, 3,517,336, 4.46 million, 3.26 million) are gone. Since October 16 the explanation of each total lives only on /methodology (insights-only rule).
+   - **Evidence (refreshed October 17, 2026, release `htw-db-2026-10-16-1652`, from the built pages):** pages print different group totals without saying why: the home hero says "3.9 million"; `/research` and `/slowdown` print 3,871,767 finishes; `/stories/pacing-types` prints 3,733,382 (the pacing-type group); `/stories/final-kick` prints 3,710,359 (the final-kick group). The 0934-era figures (3,414,116, 3,517,336, 4.46 million, 3.26 million) are gone, and the tools page no longer prints a total. Since October 16 the explanation of each total lives only on `/methodology` (insights-only rule).
    - **Change:** link the first figure on each page that prints a group total to the matching /methodology anchor, so the difference is one tap away. No popover or method text on the page itself (insights-only rule), and no new calculations.
    - **Metric:** feedback `numbers_look_wrong` share, trust (qualitative).
    - Reach: medium. Effort: S. Risk: low.
