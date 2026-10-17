@@ -15,7 +15,7 @@
 //   5. Every howWeKnow anchor is an id in the built /methodology page (when out/methodology.html exists; `--html`
 //      requires it). The built pages' own "How we know" links are also checked by verify-seo (methods-anchors).
 //   6. The shell's components rendered on the server: the closing stack (its related section, the one next card last in
-//      its pagination nav as S2 and S3 follow it, the also rows, the way back, How we know, PageFeedback; the finish
+//      its pagination nav as S2 and S3 follow it, no also rows, the way back, How we know, PageFeedback; the finish
 //      card on /tools/plan; a next chapter's lead and key), the rail's current page, the chapter list's variants and
 //      the crumbs.
 //
@@ -199,7 +199,7 @@ const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 const render = (file, props) => renderToStaticMarkup(React.createElement(require(path.join(root, file)).default, props));
 const hrefs = (html) => [...html.matchAll(/<a\b[^>]*\shref="([^"]*)"/g)].map((m) => m[1]);
-test('ChapterEnd on a story: related section, one next card, also rows, the way back, How we know, feedback', () => {
+test('ChapterEnd on a story: related section, one next card, no also rows, the way back, How we know, feedback', () => {
   const html = render('components/ChapterEnd.tsx', { path: '/stories/round-numbers' });
   assert.match(html, /^<div class="chapter-end" data-track-section="related">/);
   const nav = /<nav class="chapter-next story-pagination"[^>]*>([\s\S]*?)<\/nav>/.exec(html);
@@ -207,7 +207,8 @@ test('ChapterEnd on a story: related section, one next card, also rows, the way 
   assert.deepEqual(hrefs(nav[1]), ['/analyses/finish-time-context']);
   assert.match(nav[1], /class="next-card night"/);
   assert.match(nav[1], /Next in this chapter/);
-  assert.ok(hrefs(html).includes('/tools/marathon-pace/4-00'), 'also in this chapter');
+  assert.ok(!hrefs(html).includes('/tools/marathon-pace/4-00'), 'no also-in-this-chapter row: one way forward (spec section 00, cut 4)');
+  assert.doesNotMatch(html, /chapter-also/);
   assert.ok(hrefs(html).includes('/analyses/where-time-is-gained'), '← previous');
   assert.ok(hrefs(html).includes('/methodology#story-round-numbers'), 'How we know');
   assert.match(html, /<aside class="page-feedback/);

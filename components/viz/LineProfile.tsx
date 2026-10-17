@@ -5,7 +5,7 @@ import Plot, { Baseline, Gridlines, RefLine } from './Plot';
 import Lens from './Lens.client';
 import Scrubber, { type ScrubPoints } from './Scrubber.client';
 import Annotation from './Annotation';
-import { fitClass, placeLabels, textWidth, type LabelItem } from './labels';
+import { fitClass, placeLabels, REF_WIDTH, textWidth, type LabelItem } from './labels';
 import { areaPath, extent, linear, linePath, pc, yScale } from './scale';
 import { typeStyle } from '@/lib/viz/palette';
 
@@ -89,6 +89,43 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
     );
   };
 
+  // A reference line's label goes where nothing else is (looks-off item 1): clear of every line, of the washed "behind"
+  // area, of the gridline labels and of the needle's opening position. The ends are tried first, over then under the
+  // line, then positions along it; the check runs at the narrowest phone plot (REF_WIDTH × height).
+  const firstLayer = layers.find((l) => l.id === current) ?? layers[0];
+  const needleX = scrub ? (scrub.points.x[scrub.initial] ?? null) : null;
+  const refSpot = (r: { value: number; label?: string }): { side?: 'left' | 'right'; at?: number; below?: boolean } => {
+    if (!r.label || !firstLayer) return { side: 'left' };
+    const w = textWidth(r.label, 13) + 4, ry = y(r.value) * height;
+    const lines = firstLayer.series.map((sr) => sr.values.map((v, i) => [x(xs[i]) * REF_WIDTH, y(v) * height] as [number, number]));
+    const washed = firstLayer.series.filter((sr) => sr.fillAbove !== undefined).map((sr) => sr.values.map((v, i) => [x(xs[i]) * REF_WIDTH, v > sr.fillAbove! ? 1 : 0] as [number, number]));
+    const grid = yTicks.map((t) => { const gy = y(t.value) * height; const gw = textWidth(t.label, 12, 500) + 4; return { x0: REF_WIDTH - gw, x1: REF_WIDTH, y0: gy - 18, y1: gy }; });
+    const clear = (x0: number, below: boolean) => {
+      const x1 = x0 + w, y0 = below ? ry + 3 : ry - 19, y1 = below ? ry + 19 : ry - 3;
+      if (x0 < 0 || x1 > REF_WIDTH) return false;
+      if (needleX !== null && needleX * REF_WIDTH > x0 - 6 && needleX * REF_WIDTH < x1 + 6) return false;
+      if (grid.some((g) => g.x0 < x1 && g.x1 > x0 && g.y0 < y1 && g.y1 > y0)) return false;
+      for (const pts of lines) {
+        for (let i = 1; i < pts.length; i++) {
+          const [ax, ay] = pts[i - 1], [bx, by] = pts[i];
+          if (bx < x0 - 3 || ax > x1 + 3) continue;
+          // The segment's y over the part of it inside the box's x range.
+          const t0 = bx === ax ? 0 : Math.max(0, Math.min(1, (x0 - 3 - ax) / (bx - ax))), t1 = bx === ax ? 1 : Math.max(0, Math.min(1, (x1 + 3 - ax) / (bx - ax)));
+          const ya = ay + (by - ay) * t0, yb = ay + (by - ay) * t1;
+          if (Math.max(ya, yb) > y0 - 3 && Math.min(ya, yb) < y1 + 3) return false;
+        }
+      }
+      if (!below && washed.some((pts) => pts.some(([px, on]) => on && px > x0 - 3 && px < x1 + 3))) return false;
+      return true;
+    };
+    const ends: [number, boolean, { side?: 'left' | 'right'; at?: number; below?: boolean }][] = [
+      [REF_WIDTH - w, false, { side: 'right' }], [0, false, { side: 'left' }], [REF_WIDTH - w, true, { side: 'right', below: true }], [0, true, { side: 'left', below: true }],
+    ];
+    for (const [x0, below, spot] of ends) if (clear(x0, below)) return spot;
+    for (const below of [false, true]) for (let x0 = 8; x0 + w <= REF_WIDTH; x0 += 8) if (clear(x0, below)) return { at: x0 / REF_WIDTH, below };
+    return { side: 'left' };
+  };
+
   const plot = (
     <Plot>
       {washes.map((w, i) => (
@@ -99,7 +136,7 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
         </g>
       ))}
       <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label }))} side="right" />
-      {refs.map((r) => <RefLine key={r.value} y={y(r.value)} label={r.label} dashed={r.dashed} side="left" />)}
+      {refs.map((r) => <RefLine key={r.value} y={y(r.value)} label={r.label} dashed={r.dashed} {...refSpot(r)} />)}
       {layers.map(drawLayer)}
       <Baseline />
     </Plot>

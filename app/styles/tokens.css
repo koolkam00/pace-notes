@@ -162,7 +162,6 @@
   --stagger: calc(8ms * var(--motion));
 
   /* ---------- Layers ---------- */
-  --z-chip: 40;
   --z-header: 50;
   --z-reading: 51;
   --z-scrim: 59;

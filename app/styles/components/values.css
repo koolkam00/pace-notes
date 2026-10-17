@@ -1,5 +1,5 @@
 /* Values (components/ui/Values.tsx): every chart's table twin, in a disclosure. The summary row is 48 px with a
-   plus/minus glyph; inside, a focusable scroll region whose right edge fades while the table has more to show. The
+   plus/minus glyph; inside, a focusable scroll region whose right edge fades (24 px) while the table has more to show. The
    height animates where interpolate-size is supported, otherwise the table appears at once. Spec section 3.5. */
 
 .values { margin-top: var(--s-5); border-top: 1px solid var(--rule); }
@@ -23,15 +23,10 @@
 .values-cue .arrow-icon { width: 14px; height: 14px; }
 .values[data-overflow='true'] .values-cue { display: inline-flex; }
 
-/* The scroll region: covers drawn with the content (local) hide the edge shadows (scroll) when nothing is past them. */
-.table-wrap {
-  position: relative; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain;
-  background:
-    linear-gradient(to right, var(--paper), var(--paper)) left / 24px 100% no-repeat local,
-    linear-gradient(to left, var(--paper), var(--paper)) right / 24px 100% no-repeat local,
-    linear-gradient(to right, var(--rule), transparent) left / 10px 100% no-repeat scroll,
-    linear-gradient(to left, var(--rule), transparent) right / 10px 100% no-repeat scroll;
-}
+/* The scroll region. While the table has more to the right, a 24 px fade of the page covers the right edge. */
+.values-scroll { position: relative; }
+.values[data-overflow='true'] .values-scroll::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; z-index: 2; width: 24px; background: linear-gradient(to right, transparent, var(--paper)); pointer-events: none; }
+.table-wrap { position: relative; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
 .table-wrap:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .table-wrap .table th:first-child, .table-wrap .table td:first-child { position: sticky; left: 0; z-index: 1; background: var(--paper); }
 

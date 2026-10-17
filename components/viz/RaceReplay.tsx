@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { usePrefersReducedMotion } from '@/components/art/useTicker';
 import ReplayFrame from './ReplayFrame';
-import { byFinish, fieldX, fieldY, FIELD_BOX, hudShare, MARATHON, positionAt, raceClock, sharesAt, type ReplayEdition } from './replay-geometry';
+import { byFinish, fieldX, fieldY, FIELD_BOX, hudShare, MARATHON, positionAt, raceClock, routeAspect, sharesAt, type ReplayEdition } from './replay-geometry';
 
 export type { ReplayEdition } from './replay-geometry';
 
@@ -208,7 +208,7 @@ export default function RaceReplay({ edition, flag, view = 'field', band = false
   const atFlag = Math.abs(time - flag) < 30;
   return (
     <div ref={box} className="replay-measure">
-      <ReplayFrame race={race} clock={raceClock(time)} finished={hudShare(shares.finished)} slow={hudShare(shares.slowdownPace)} view={mode} band={band}
+      <ReplayFrame race={race} clock={raceClock(time)} finished={hudShare(shares.finished)} slow={hudShare(shares.slowdownPace)} view={mode} band={band} aspect={routeAspect(edition.route?.points)}
         poster={poster}
         canvas={<canvas ref={canvas} className={`replay-canvas${shown ? ' is-shown' : ''}`} onClick={toggle} role="img"
           aria-label={`${race}: ${edition.sample.toLocaleString('en-US')} sampled finishes on one race clock, ${raceClock(time)}. ${hudShare(shares.finished)} finished.`} />}

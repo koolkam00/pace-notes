@@ -29,6 +29,10 @@
 /* The canvas box: fixed height, the poster under the canvas, the canvas fading in over it. */
 .hero-replay .replay-box { position: relative; height: var(--replay-h); overflow: hidden; background: var(--night); }
 .hero-replay .replay-box.is-route { --replay-h: clamp(300px, 90vw, 520px); }
+/* The route view takes the course's own shape (--route-aspect, width to height), between 160 and 520 px tall. */
+@supports (aspect-ratio: 1) {
+  .hero-replay .replay-box.is-route { width: 100%; height: auto; aspect-ratio: var(--route-aspect, 1); min-height: 160px; max-height: 520px; }
+}
 .hero-replay .replay-poster, .hero-replay .replay-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
 .hero-replay .replay-poster { transition: opacity var(--d-reveal) var(--ease-out); }
 .hero-replay .replay-frame.is-live .replay-poster { opacity: 0; }
@@ -42,9 +46,9 @@
 .hero-replay .replay-axis-y.is-bottom { bottom: 8px; }
 .hero-replay .replay-status { position: absolute; left: 0; right: 0; bottom: 12px; margin: 0; font-size: var(--t-small); text-align: center; color: var(--night-ink-2); }
 
-/* Play: 44 px at the top right of the canvas. */
+/* Play and pause: 44 px at the start of the control row, beside the race clock (never on the canvas). */
 .hero-replay .replay-play {
-  position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 44px; height: 44px; min-height: 44px; padding: 0;
+  flex: none; display: grid; place-items: center; width: 44px; height: 44px; min-height: 44px; padding: 0;
   border: 1px solid var(--night-3); border-radius: 50%; background: var(--night-2); color: var(--night-ink); cursor: pointer;
   transition: transform var(--d-release) var(--spring), background-color var(--d-quick) var(--ease-out);
 }
@@ -59,17 +63,19 @@
 .hero-replay .replay-mats span:first-child { transform: none; }
 .hero-replay .replay-mats span.is-finish { right: 0; transform: none; }
 
-/* The moment: the flag frame's sentence, two lines reserved; dimmed while the race runs on. */
+/* The moment: the flag frame's sentence, two lines reserved; while the race runs on it steps down to --night-ink-3
+   (5.4:1, a solid colour, never a partial fade), so the space keeps its words and nothing moves. */
 .hero-replay .replay-moment {
   min-height: 2.6em; margin: var(--s-3) 0 0; max-width: 34rem;
   font-family: var(--serif); font-size: 1.0625rem; font-weight: 440; line-height: 1.3; letter-spacing: -.005em; color: var(--night-ink);
-  text-wrap: pretty; transition: opacity var(--d-toggle) var(--ease-out);
+  text-wrap: pretty; transition: color var(--d-toggle) var(--ease-out);
 }
 .hero-replay .replay-moment em { font-style: italic; white-space: nowrap; color: var(--night-signal-ink); }
-.hero-replay .replay-moment.is-off { opacity: .4; }
+.hero-replay .replay-moment.is-off, .hero-replay .replay-moment.is-off em { color: var(--night-ink-3); }
 
-/* The race clock: a 44 px range over a 2 px track, hour ticks under it. */
-.hero-replay .replay-scrub { position: relative; margin-top: var(--s-2); }
+/* The control row: play, then the race clock (a 44 px range over a 2 px track, hour ticks under it). */
+.hero-replay .replay-scrub { display: flex; align-items: flex-start; gap: var(--s-3); margin-top: var(--s-2); }
+.hero-replay .replay-track { position: relative; flex: 1 1 auto; min-width: 0; }
 .hero-replay .replay-range {
   --fill: 0%;
   display: block; width: 100%; height: 44px; margin: 0; padding: 0; background: transparent; cursor: pointer;
@@ -88,7 +94,7 @@
 /* The home band: the race and the moment only, at a fifth of the screen. */
 .hero-replay.is-band .replay-hud { margin-bottom: var(--s-2); }
 .hero-replay.is-band .replay-clock { font-size: 1.375rem; }
-.hero-replay.is-band .replay-mats, .hero-replay.is-band .replay-scrub, .hero-replay.is-band .replay-axis-y { display: none; }
+.hero-replay.is-band .replay-mats, .hero-replay.is-band .replay-track, .hero-replay.is-band .replay-axis-y { display: none; }
 .hero-replay.is-band .replay-moment { margin-top: var(--s-2); font-size: 1rem; }
 
 @media (min-width: 600px) {

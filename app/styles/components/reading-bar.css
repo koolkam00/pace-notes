@@ -1,15 +1,12 @@
 /* The reading bar (components/ReadingBar.client.tsx; the redesign spec, sections 2.4 and 3.5): 36 px, under the header's
    row, shown only while the header is away, so it slides up into the header's place. The marker and the page's short
    title, the minutes left, and along the bottom a 2 px line: ink to the reading position, a signal dot at it, a 1 px
-   tick at every beat. --p (0 to 1) is set by the bar as the page scrolls. */
+   tick at every beat. --p (0 to 1) is set by the bar as the page scrolls. Solid paper: nothing reads through it. */
 
 .reading-bar {
   position: absolute; left: 0; right: 0; top: 100%; height: var(--reading-h);
   color: var(--ink); background: var(--paper); opacity: 0; pointer-events: none;
   transition: opacity var(--d-quick) var(--ease-out);
-}
-@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) and (background: color-mix(in srgb, var(--paper) 50%, transparent)) {
-  .reading-bar { background: color-mix(in srgb, var(--paper) 92%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
 }
 .site-header[data-hidden] .reading-bar { opacity: 1; }
 .reading-bar-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); height: 100%; }

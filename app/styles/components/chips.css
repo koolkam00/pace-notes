@@ -5,7 +5,7 @@
 .chips { position: relative; max-width: 100%; }
 .chips-row {
   display: flex; gap: 8px; margin: -3px; padding: 3px; list-style: none;
-  overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; overscroll-behavior-x: contain;
+  overflow-x: auto; scroll-snap-type: x proximity; scroll-padding-inline: 3px; scrollbar-width: none; overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
 }
 .chips-row::-webkit-scrollbar { display: none; }

@@ -26,8 +26,9 @@ export default function Chips<T extends string = string>({ options, value, defau
     const el = row.current, host = root.current;
     if (!el || !host || wrap) return;
     const update = () => {
-      const start = el.scrollLeft > 2;
-      const end = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+      // The row's 3 px focus-ring padding can leave a snapped row at scrollLeft 3: still the start.
+      const start = el.scrollLeft > 4;
+      const end = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
       host.dataset.more = start && end ? 'both' : start ? 'start' : end ? 'end' : 'none';
     };
     update();

@@ -4,15 +4,25 @@ import Axis from './Axis';
 import Plot, { Baseline } from './Plot';
 import Scrubber from './Scrubber.client';
 import Annotation from './Annotation';
-import { placeLabels, REF_WIDTH, type LabelItem } from './labels';
+import { placeLabels, REF_WIDTH, textWidth, type LabelItem } from './labels';
 import { extent, linear, pc } from './scale';
 
 /**
  * A dot strip (the redesign spec, section 3.6): one 10 px dot per item along a value axis, ranked by value, never A to
- * Z. Dots that would touch stack upward. The subject is signal with its label; the extremes are labelled; items with too
- * few editions are hollow; the rest quiet. Tap a dot (the nearest wins) to read it out; the strip opens on the subject.
+ * Z. Dots that would touch stack upward. The subject is signal and named by the readout; the extremes are labelled;
+ * items with too few editions are hollow; the rest quiet. Tap a dot (the nearest wins) to read it out; the strip opens on the subject.
+ *
+ * Extremes come only from filled items (spec section 3.10: a cross-course extreme needs three or more editions), so an
+ * under-sampled hollow dot is never named as the fastest or slowest. Headlines take them from `stripExtremes`.
  */
 export type StripItem = { id: string; label: string; value: number; display: string; detail?: string; hollow?: boolean; subject?: boolean };
+
+/** The lowest and highest filled (well-sampled) items: the only ones a headline or a label may call extremes. */
+export function stripExtremes<T extends Pick<StripItem, 'value' | 'hollow'>>(items: T[]): [T, T] | null {
+  const solid = items.filter((s) => !s.hollow);
+  if (!solid.length) return null;
+  return [solid.reduce((a, b) => (b.value < a.value ? b : a)), solid.reduce((a, b) => (b.value > a.value ? b : a))];
+}
 
 const R = 5;
 const STEP = 11;
@@ -41,12 +51,23 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
   const base = 1 - 10 / height;
   const yOf = (level: number) => base - (level * STEP) / height;
   const subject = sorted.findIndex((s) => s.subject);
-  const labelled = new Set<number>([...(subject >= 0 ? [subject] : []), ...(labelExtremes ? [0, sorted.length - 1] : [])]);
-  const lab: LabelItem[] = [...labelled].map((i) => ({ id: String(i), text: sorted[i].label, x: x(sorted[i].value), y: yOf(levels[i]), priority: i === subject ? 3 : 1, tone: i === subject ? 'signal' : 'ink', size: i === subject ? 14 : 13, gap: 10 }));
+  const ends = labelExtremes ? stripExtremes(sorted) : null;
+  // The readout above the plot names the subject (the strip opens on it), so its dot carries no label of its own: the
+  // labels name the extremes it is not.
+  const labelled = new Set<number>((ends ? ends.map((e) => sorted.indexOf(e)) : []).filter((i) => i !== subject));
+  // A label rises above the tallest stack under its own width (at the narrowest phone), on a leader down to its dot
+  // when it had to climb, so a stacked neighbour never hides it.
+  const lift = (i: number) => {
+    const reach = textWidth(sorted[i].label, 13) + 6;
+    return Math.max(levels[i], ...placed.filter((p) => Math.abs(p.px - placed[i].px) < reach).map((p) => p.level));
+  };
+  const lab: LabelItem[] = [...labelled].map((i) => ({ id: String(i), text: sorted[i].label, x: x(sorted[i].value), y: yOf(lift(i)), priority: i === subject ? 3 : 1, tone: i === subject ? 'signal' : 'ink', size: i === subject ? 14 : 13, gap: 10, prefer: 'above' as const }));
   const labels = placeLabels(lab, { height, avoid: sorted.map((s, i) => ({ x: x(s.value), y: yOf(levels[i]), r: R })) });
+  const leaders = [...labelled].filter((i) => lift(i) > levels[i]).map((i) => ({ i, y0: yOf(lift(i)) - (R + 2) / height, y1: yOf(levels[i]) - (R + 2) / height }));
   const plot = (
     <Plot>
       <Baseline y={base} />
+      {leaders.map((l) => <rect key={`ld${l.i}`} className="leader" x={pc(x(sorted[l.i].value))} width={1} transform="translate(-0.5 0)" y={pc(l.y0)} height={pc(Math.max(0, l.y1 - l.y0))} />)}
       {sorted.map((s, i) => (
         <circle key={s.id} className={s.subject ? 'm-signal' : s.hollow ? 'm-hollow' : 'm-context'} cx={pc(x(s.value))} cy={pc(yOf(levels[i]))} r={R} />
       ))}

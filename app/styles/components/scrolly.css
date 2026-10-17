@@ -1,8 +1,8 @@
 /* Scrolly (components/ui/Scrolly.client.tsx): one per story, for its signature finding. A sticky graphic and 3 to 6
    steps as plain text on paper. The steps set data-step; layers marked data-from (and optionally data-to) show while the
    step is in their range: only transform and opacity change, over --d-step. Never scroll-jacked, never continuous.
-   Phone: the graphic sticks under the reading bar at its own height (keep it under 58svh) and the steps scroll below
-   it, so no empty band sits between the picture and the words. From 900 px: a 26 rem step column on the left, the
+   Phone: the graphic sticks under the reading bar at its own height (keep it under 58svh) and the steps, 30svh apart,
+   scroll below it; a step turns current one step under the graphic, so its words always sit just under the picture. From 900 px: a 26 rem step column on the left, the
    graphic sticky on the right, centred on the screen beside the step text. Reduced motion or the Motion switch: no pinning, the final state,
    the steps as a short list. Spec section 3.5. */
 
@@ -14,7 +14,7 @@
 }
 .scrolly-graphic > figure { width: 100%; margin: 0; }
 .scrolly-steps { position: relative; z-index: 0; margin: 0; padding: 0; list-style: none; }
-.scrolly-step { min-height: 46vh; min-height: 46svh; margin: 0; padding: var(--s-6) 0; }
+.scrolly-step { min-height: 30vh; min-height: 30svh; margin: 0; padding: var(--s-5) 0; }
 .scrolly-step:last-child { min-height: 0; padding-bottom: var(--s-7); }
 .scrolly-step > .t-kicker { display: block; margin-bottom: var(--s-2); }
 .scrolly-step p { margin: 0; max-width: 30rem; font-size: var(--t-body); line-height: 1.6; color: var(--ink-2); }

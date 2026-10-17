@@ -77,6 +77,19 @@ export function sharesAt(rows: number[][], t: number): { finished: number; slowd
 }
 
 /** h:mm:ss on the race clock. */
+/**
+ * The route view's width-to-height ratio: the route's own box with the canvas's margins (it fills 90% of the width or
+ * 88% of the height), so an east–west course gets a short frame and a north–south one a tall frame. CSS clamps the
+ * height (160 to 520 px).
+ */
+export function routeAspect(points: [number, number][] | undefined | null): number {
+  if (!points || points.length < 2) return 1;
+  const xs = points.map((p) => p[0]), ys = points.map((p) => p[1]);
+  const bw = Math.max(...xs) - Math.min(...xs), bh = Math.max(...ys) - Math.min(...ys);
+  if (!(bw > 0) || !(bh > 0)) return 1;
+  return Math.round(((bw / 0.9) / (bh / 0.88)) * 1000) / 1000;
+}
+
 export function raceClock(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
   return `${Math.floor(s / 3600)}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;

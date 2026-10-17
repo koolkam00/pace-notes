@@ -5,7 +5,9 @@ import ScrollCue from './ScrollCue.client';
 /**
  * Values: every chart's table twin, in a disclosure (spec section 3.5). The summary reads "Values" and the row count;
  * inside, a focusable scroll region labelled by the visible caption holds the table (first column sticky, tabular
- * figures, 44 px rows). When the table is wider than the column, the right edge fades and a "Scroll" cue shows.
+ * figures, 44 px rows). When the table is wider than the column, the right edge fades (24 px) and a "Scroll" cue shows.
+ * Order the columns key first, then the finding the page's sentence names, then supporting counts, so a narrow screen
+ * cuts off the counts, never the finding.
  *
  * Pass `columns` and `rows` for a plain table, or `children` for a table of your own (CourseTable keeps its classes).
  * `reading` marks one row (its index) as the row the page's sentence is about.
@@ -35,7 +37,7 @@ export default function Values({ id, caption, columns, rows, reading, count, ope
       </summary>
       <div className="values-body">
         <p className="values-caption" id={captionId}>{caption}</p>
-        <div className="table-wrap" role="region" tabIndex={0} aria-labelledby={captionId}>
+        <div className="values-scroll"><div className="table-wrap" role="region" tabIndex={0} aria-labelledby={captionId}>
           {children ?? (columns && rows ? (
             <table className="table">
               <thead><tr>{columns.map((c) => <th key={c.key} scope="col" className={c.text ? 'is-text' : undefined}>{c.label}</th>)}</tr></thead>
@@ -50,7 +52,7 @@ export default function Values({ id, caption, columns, rows, reading, count, ope
               </tbody>
             </table>
           ) : null)}
-        </div>
+        </div></div>
         <span className="values-cue" aria-hidden="true">Scroll<Arrow /></span>
         <ScrollCue target={id} />
       </div>

@@ -1,6 +1,7 @@
 /* Guess first (components/ui/GuessFirst.client.tsx): at most one per page. The page's one raised surface: a question,
-   a slider with a live "Your guess" readout, Lock it in and Skip, then the reveal on the SAME marks: the truth as a
-   signal fill, the guess as an orange ring labelled You, a comparison hollow in --mark-quiet. Spec section 3.5. */
+   a live "Your guess" readout, Lock it in and Skip, then the reveal on the SAME marks: the truth as a signal fill, the
+   guess as an orange ring labelled You, a comparison hollow in --mark-quiet. On the ruler the ring is the thumb: the
+   native range lies over the ruler with its track and thumb invisible. Spec section 3.5. */
 
 .guess {
   display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); max-width: 36rem;
@@ -33,6 +34,12 @@
 .guess input[type='range'].guess-range:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
 .guess input[type='range'].guess-range:disabled { cursor: default; opacity: 1; }
 .guess input[type='range'].guess-range:disabled::-webkit-slider-thumb { box-shadow: none; }
+/* On the ruler: the range covers the ruler line, 44 px tall, reaching half a thumb past each end so its thumb centre
+   lands exactly on the ruler's scale; the You ring under it is what the reader sees and drags. */
+.guess input[type='range'].guess-range.is-on-ruler { position: absolute; z-index: 1; top: 26px; left: -15px; width: calc(100% + 30px); opacity: 0; }
+.guess input[type='range'].guess-range.is-on-ruler:disabled { pointer-events: none; }
+.guess-range.is-on-ruler:focus-visible + span .guess-mark.is-you { box-shadow: 0 0 0 2px var(--paper-raised), 0 0 0 4px var(--focus); }
+.guess:not(.is-revealed) .guess-ruler { cursor: grab; }
 .guess-scale { display: flex; justify-content: space-between; margin-top: -4px; }
 .guess-scale .t-tick { color: var(--ink-3); }
 

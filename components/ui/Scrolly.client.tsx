@@ -5,8 +5,9 @@ import { withEm } from './withEm';
 /**
  * A step-by-step reveal, one per story, for its signature finding (spec section 3.5). `graphic` is a server-rendered
  * figure.viz with every layer in it; layers carry data-from="n" (and optionally data-to="m") and show while the current
- * step is in that range. The current step is the last whose text has crossed a line 20% above the bottom of the screen
- * (28% from 900 px, where each step's text sits mid-way down its tall box); the scrolly carries it as data-step, so page CSS can also key a zoom or a label off it. State
+ * step is in that range. The current step is the last whose text has crossed a line: on a phone one step (30svh) under
+ * the pinned graphic, at most 20% above the bottom of the screen; from 900 px 28% above it, where each step's text sits
+ * mid-way down its tall box; the scrolly carries it as data-step, so page CSS can also key a zoom or a label off it. State
  * changes only when a step crosses that line: scroll position never drives animation and scrolling is never taken over.
  *
  * The server markup carries data-step="final", so without the script, and under reduced motion or the site's Motion
@@ -27,6 +28,14 @@ export default function Scrolly({ graphic, steps, className }: { graphic: ReactN
     const layers = Array.from(el.querySelectorAll<HTMLElement>('[data-from]'));
     const wide = window.matchMedia?.('(min-width: 900px)').matches;
     const inset = wide ? 0.28 : 0.2;
+    // On a phone the line sits one step's height (30svh, scrolly.css) under the pinned graphic, so the current step's
+    // words ride from there up to the graphic's foot: they are always in view and never more than a step below it.
+    const graphicEl = el.querySelector<HTMLElement>('.scrolly-graphic');
+    const lineAt = () => {
+      if (wide || !graphicEl) return window.innerHeight * (1 - inset);
+      const foot = (parseFloat(getComputedStyle(el).getPropertyValue('--reading-h')) || 36) + graphicEl.offsetHeight;
+      return Math.min(window.innerHeight * (1 - inset), foot + window.innerHeight * 0.3);
+    };
     let current = -1;
     const apply = (n: number) => {
       if (n === current) return;
@@ -39,15 +48,23 @@ export default function Scrolly({ graphic, steps, className }: { graphic: ReactN
       }
     };
     const pick = () => {
-      const line = window.innerHeight * (1 - inset);
+      const line = lineAt();
       let n = 0;
       texts.forEach((t, i) => { if (t.getBoundingClientRect().top < line) n = i; });
       apply(n);
     };
     pick();
-    const io = new IntersectionObserver(pick, { rootMargin: `0px 0px -${inset * 100}% 0px`, threshold: [0, 1] });
-    texts.forEach((t) => io.observe(t));
-    return () => io.disconnect();
+    // The observer's band ends at the line, so every crossing calls pick (rebuilt if the screen's height changes).
+    let io: IntersectionObserver | null = null;
+    const watch = () => {
+      io?.disconnect();
+      const below = Math.max(0, window.innerHeight - lineAt());
+      io = new IntersectionObserver(pick, { rootMargin: `0px 0px -${Math.round(below)}px 0px`, threshold: [0, 1] });
+      texts.forEach((t) => io!.observe(t));
+    };
+    watch();
+    window.addEventListener('resize', watch, { passive: true });
+    return () => { io?.disconnect(); window.removeEventListener('resize', watch); };
   }, []);
   return (
     <div ref={root} className={`scrolly${className ? ` ${className}` : ''}`} data-step="final">

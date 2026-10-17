@@ -10,6 +10,8 @@
   border-radius: var(--r-md);
   background: var(--paper); color: var(--ink);
 }
+/* On the dark page the night card takes a hairline ring, so it never dissolves into the page (spec 3.9). */
+[data-theme="dark"] .receipt { box-shadow: inset 0 0 0 1px var(--night-3); }
 .receipt-kicker { margin: 0; color: var(--ink-3); }
 .receipt-rule { height: 1px; margin: 16px 0; border: 0; background: var(--rule); }
 .receipt-kicker + .receipt-lines { margin-top: 14px; }
@@ -26,12 +28,6 @@
 .receipt-extra-label { font-size: .9375rem; font-weight: 500; line-height: 1.3; color: var(--ink); }
 .receipt-extra-value { font-family: var(--sans); font-size: 1.75rem; font-weight: 600; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
 .receipt-extra-key { grid-column: 1 / -1; font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); }
-/* The inline ruler: typical as a hollow ring, observed as a signal dot, on one hairline from 0 to 100%. */
-.receipt-ruler { grid-column: 1 / -1; position: relative; height: 20px; margin: 2px 6px 0; }
-.receipt-ruler::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--rule-strong); }
-.receipt-ruler-mark { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; }
-.receipt-ruler-mark.is-typical { border: 2px solid var(--mark-quiet); background: var(--paper); }
-.receipt-ruler-mark.is-observed { background: var(--signal); box-shadow: 0 0 0 2px var(--paper); }
 .receipt-foot { margin: 16px 0 0; font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); }
 
 /* The goal line, on paper under the card. */

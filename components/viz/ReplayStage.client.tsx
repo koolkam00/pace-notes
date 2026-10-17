@@ -6,7 +6,7 @@ import Segmented from '@/components/ui/Segmented.client';
 import { loadInsight, type ReplayRows } from '@/lib/insights';
 import ReplayFrame from './ReplayFrame';
 import ReplayPoster from './ReplayPoster';
-import { hudShare, raceClock, type ReplayEdition, type ReplayPosterData } from './replay-geometry';
+import { hudShare, raceClock, routeAspect, type ReplayEdition, type ReplayPosterData } from './replay-geometry';
 
 /**
  * The replay's stage: the race picker and the view toggle when asked for, and the frame. Until the sample rows and the
@@ -79,7 +79,7 @@ export default function ReplayStage({ choices, initial, band = false, picker = f
         <Component key={`${choice.slug}-${shownView}`} edition={{ city: choice.city, year: choice.year, finishes: choice.finishes, sample: choice.sample, rows: data, route: choice.route }}
           flag={choice.flag_s} view={shownView} band={band} race={choice.race} moment={choice.moment} poster={shownView === 'field' ? poster : null} />
       ) : (
-        <ReplayFrame race={choice.race} clock={raceClock(choice.flag_s)} finished={hudShare(choice.poster.finished)} slow={hudShare(choice.poster.slowdownPace)} view={shownView} band={band}
+        <ReplayFrame race={choice.race} clock={raceClock(choice.flag_s)} finished={hudShare(choice.poster.finished)} slow={hudShare(choice.poster.slowdownPace)} view={shownView} band={band} aspect={routeAspect(choice.route?.points)}
           poster={shownView === 'field' ? poster : null} moment={choice.moment} time={choice.flag_s} max={choice.poster.last_s + 300} busy={!error} status={error || undefined} />
       )}
     </div>

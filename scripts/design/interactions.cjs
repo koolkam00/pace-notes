@@ -122,6 +122,33 @@ const INTERACTIONS = [
     },
   },
   {
+    // Make it yours (spec section 3.5): under 900 px one inline row at the top of the explorer beat that covers nothing
+    // and opens the form in a sheet; from 900 px the form inline. Captures the row, the open sheet and the inline form.
+    name: 'make-it-yours',
+    selector: '.miy-chip, .miy-panel',
+    profiles: ['phone', 'desktop', 'dark', 'zoom'],
+    async run(page, el, snap) {
+      const problems = [];
+      await inView(el);
+      if (!(await el.evaluate((n) => n.classList.contains('miy-chip')))) { await snap('miy-inline'); return problems; }
+      const pos = await el.evaluate((n) => getComputedStyle(n).position);
+      if (pos === 'fixed' || pos === 'sticky') problems.push(`the chip is ${pos}; it must sit inline in its beat`);
+      const box = await el.boundingBox();
+      if (box && box.height < 44) problems.push(`the chip is ${Math.round(box.height)} px tall`);
+      await snap('miy-chip');
+      await el.click();
+      await pause(page, 700);
+      await snap('miy-sheet');
+      const id = await el.getAttribute('aria-controls');
+      const sheet = page.locator(`#${id}`);
+      if (await sheet.getAttribute('aria-modal') !== 'true') problems.push('the open sheet lacks aria-modal="true"');
+      await page.keyboard.press('Escape');
+      await pause(page, 700);
+      if (await el.getAttribute('aria-expanded') === 'true') problems.push('Escape did not close the sheet');
+      return problems;
+    },
+  },
+  {
     name: 'scrub',
     selector: 'figure.viz [role="slider"]',
     async run(page, el, snap, ctx) {
@@ -192,9 +219,16 @@ const INTERACTIONS = [
       if (n < 2) return ['a scrolly needs at least two steps'];
       const problems = [];
       for (const [i, name] of [[1, 'scrolly-step-2'], [n - 1, 'scrolly-step-last']]) {
-        // The step's text two thirds down the screen: below a phone's pinned graphic, past the line that makes it
-        // current (80%, or 72% from 900 px), the next step's text still below the screen.
-        await steps.nth(i).evaluate((node) => { const t = node.querySelector('p') || node; window.scrollTo(0, t.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.66); });
+        // The step's text just past the line that makes it current: on a phone 12% of the screen under the pinned
+        // graphic (the line is one 30svh step under it), from 900 px two thirds down (the line is at 72%).
+        await steps.nth(i).evaluate((node) => {
+          const t = node.querySelector('p') || node;
+          const root = node.closest('.scrolly'), g = root && root.querySelector('.scrolly-graphic');
+          const wide = window.matchMedia('(min-width: 900px)').matches;
+          const foot = (parseFloat(getComputedStyle(root).getPropertyValue('--reading-h')) || 36) + (g ? g.offsetHeight : 0);
+          const at = wide || !g ? window.innerHeight * 0.66 : foot + window.innerHeight * 0.12;
+          window.scrollTo(0, t.getBoundingClientRect().top + window.scrollY - at);
+        });
         await pause(page, 900);
         await snap(name);
         const state = await el.evaluate((node) => ({ step: node.dataset.step, still: node.classList.contains('is-static') }));
