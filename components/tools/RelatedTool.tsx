@@ -9,15 +9,15 @@ import { toolBySlug, toolHref } from '@/lib/tools/registry';
 const RELATED: Record<string, { tool: string; text: string; goal?: 'goal' | 'target' }> = {
   'pacing-pattern': { tool: 'pace-band', goal: 'goal', text: 'Turn a goal into a printable pace band, beside what finishes at that goal actually ran at every 5 km mat.' },
   'starting-pace': { tool: 'split-check', text: 'Type your own nine mat times to see your opening against your 5–20 km pace and whether you had a sustained slowdown.' },
-  checkpoint: { tool: 'projector', goal: 'target', text: 'A related view from any 5 km mat and on each course, with arrival windows for the next mats. It groups finishes by their even-pace projection, so its figures differ from this analysis.' },
+  checkpoint: { tool: 'projector', goal: 'target', text: 'A related view from any 5 km mat and on each course, with arrival windows for the next mats.' },
   'where-time-is-gained': { tool: 'pace-band', goal: 'goal', text: 'See the elapsed time at every mat for finishes that achieved your goal, split by whether they had a sustained slowdown.' },
-  'course-comparison': { tool: 'course-chooser', text: 'Pick a goal pace and see how finishes that ran it from 5 to 20 km held up on each course.' },
+  'course-comparison': { tool: 'course-chooser', text: 'Pick a goal pace and see how finishes at that pace held up on each course.' },
   'race-day-weather': { tool: 'weather-match', text: 'Type a forecast start temperature and your pace to see past race mornings like it.' },
   'warming-and-pacing': { tool: 'weather-match', text: 'Type a forecast start temperature and your pace to see past race mornings like it.' },
   'wind-and-pacing': { tool: 'weather-match', text: 'Type a forecast start temperature and your pace to see past race mornings like it.' },
   'hills-and-pacing': { tool: 'pace-band', goal: 'goal', text: 'Choose a course to see the mat-by-mat times of finishes that achieved your goal there.' },
   'downhill-start': { tool: 'pace-band', text: 'Choose a course to see the mat-by-mat times of finishes that achieved your goal there.' },
-  'finish-time-context': { tool: 'predictor', text: 'Estimate a marathon range from a recent race, with the published formulas and how they tend to run fast.' },
+  'finish-time-context': { tool: 'predictor', text: 'Estimate a marathon range from a recent race.' },
 };
 
 const scopeCache = new Map<string, string[] | null>();

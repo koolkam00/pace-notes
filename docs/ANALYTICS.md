@@ -110,7 +110,7 @@ Repository state on branch `feat/storybrand-home` (StoryBrand PR A), not merged;
 | `hero` | The night hero: eyebrow, title, dek, the three ways to start, the credit, the race replay and the runner lane |
 | `paths` | Inside the hero: the three ways to start (`components/home/HomeDoors.tsx`): the plan form to `/tools/plan`, "Analyze a past race" (`/runners`) and "Explore the research" (`/research`) |
 | `stakes` | What's at stake: the sustained-slowdown share of the ten analyses' finishes |
-| `guide` | Your guide: three bib stats, the two finish totals (`components/CohortNote.tsx`) and the methods links |
+| `guide` | Your guide: heading, dek and the methods links (the two finish totals, `components/CohortNote.tsx`, and the coverage bib stats moved to `/methodology` on October 16, 2026) |
 | `steps` | How it works: the three steps, the Plan your race button and the after-the-race note |
 | `stories` | Three story cards and "All research" |
 | `cta` | The closing call: Plan your race, Analyze a past race, Request an analysis |

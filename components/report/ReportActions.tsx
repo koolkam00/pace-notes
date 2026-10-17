@@ -58,9 +58,6 @@ function carried(link: string | null, gender: ReportGender): string {
  * through (`report_exported`), a copied link and a print (`tool_used`), and a failure's kind (`site_error` `export`):
  * never a time, a course or the link.
  */
-/** "a, b and c". */
-const listed = (parts: string[]) => parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts.join('');
-
 export default function ReportActions({ id, model, units, link, cardId, gender }: { id: string; model: ReportModel; units: UnitSystem; link: string | null; cardId: string; gender: ReportGender }) {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -75,8 +72,6 @@ export default function ReportActions({ id, model, units, link, cardId, gender }
   // buttons stay focusable meanwhile (aria-disabled, not disabled), so keyboard focus never drops to the page.
   const pending = model.comparison.state === 'loading' ? 'the comparison' : model.type.state === 'loading' ? 'the pacing types' : null;
   const waiting = busy || pending !== null;
-  // What the image holds besides the times' own blocks: reportLines leaves out a pacing type or comparison that is not there.
-  const extra = [model.type.state === 'ok' ? 'pacing type' : null, model.comparison.state === 'ok' ? 'comparison' : null].filter((part): part is string => part !== null);
 
   const failed = (error: unknown, text: string) => {
     if (chunkLoadFailed(error)) trackFailure('chunk_load'); else trackFailure('export');
@@ -153,8 +148,8 @@ export default function ReportActions({ id, model, units, link, cardId, gender }
         {link ? <button type="button" className="button-secondary" onClick={onCopy}>{copied ? 'Link copied' : 'Copy link'}</button> : null}
       </div>
       <p className="race-report-hint">Print uses the browser’s own PDF export, one page. {model.record
-        ? `The image shows ${model.record.edition} with ${listed(['its finish', 'section paces', 'slowdown reading', ...extra])}, and the link carries the nine times and the course; this edition’s comparisons, weather and climb are on this page and in the printout, never in the image or link.`
-        : `The image shows ${listed(['the finish', 'the section paces', 'the slowdown reading', ...extra.map((part) => `the ${part}`)])}; the link carries only ${carried(link, gender)}.`}</p>
+        ? 'The link carries only the nine times and the course; this edition’s comparisons, weather and climb stay out of the image and the link.'
+        : `The link carries only ${carried(link, gender)}.`}</p>
       <p className={`race-report-note${note?.kind === 'error' ? ' is-error' : ''}`} aria-live="polite">{copied ? 'Link copied to the clipboard.' : note?.text ?? ''}</p>
       {preview ? <img className="race-report-preview" src={preview.url} alt={preview.alt} width={1080} height={1350} /> : null}
     </div>

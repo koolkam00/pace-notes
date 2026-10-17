@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { Choice, DurationField, EvidencePanel, ExampleNote, ShareBar } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
@@ -11,7 +12,6 @@ import type { WeatherEdition, WeatherMatch as WeatherMatchData, WeatherRow } fro
 import { MARATHON_KM, perKm, perUnit } from '@/lib/tools/pace';
 import { formatClock, formatDuration, formatHM, parseClock, parseDuration } from '@/lib/tools/time';
 import { acsmFlag, cToF, dewPointBand, ely, fToC, hadley, mantzios, relativeHumidity, wetBulb, type Flag, type PercentRange } from '@/lib/tools/weather';
-import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { SECTION_BOUNDS, checkpointLabel, count, mss, sectionLabel } from '@/lib/viz/format';
 import type { UnitSystem } from '@/lib/units';
 
@@ -342,9 +342,8 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
   else if (!data) status = sha ? 'Loading the data.' : '';
   else if (match?.kind === 'ok') {
     const same = centre === REF.c && hw === REF.hw;
-    const m = match.row.ed.length;
-    status = `${m === match.inWindow ? `${cap(plural(m, 'edition'))} started at ${winText}, ${m === 1 ? 'with' : 'each with'}` : `${m} of ${match.inWindow} editions that started at ${winText} had`} 20 or more finishes at ${bandLabel}, ${count(match.row.n)} finishes in all. Sustained slowdown ${pctShare(match.row.sd)}, averaged over the editions with each counted equally.`
-      + (match.ref && !same ? ` ${refTone}, ${refText}: ${pctShare(match.ref.sd)}, averaged the same way.` : '');
+    status = `Mornings like ${yourTemp}: ${count(match.row.n)} finishes at ${bandLabel}. Sustained slowdown ${pctShare(match.row.sd)}.`
+      + (match.ref && !same ? ` ${refTone}, ${refText}: ${pctShare(match.ref.sd)}.` : '');
   } else if (match?.kind === 'no-row') status = `Not enough past mornings like ${yourTemp} at ${bandLabel}.`;
   else if (match?.kind === 'pace-range') status = match.fast ? 'Faster than any published pace band.' : 'Slower than any published pace band.';
   else if (match?.kind === 'missing') status = match.what === 'temperature' ? (tempBad ? 'Check the start temperature.' : 'Type a start temperature.') : 'Type a goal time or a 5–20 km pace.';
@@ -370,7 +369,7 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
   const bandCourse = linkInRange && bandKnows && (bandRuns === null || bandRuns.some(([a, b]) => linkMinute! >= a && linkMinute! <= b));
   const bandHref = `/tools/pace-band?goal=${linkHM}${bandCourse ? `&course=${course!.slug}` : ''}`;
   const bandWhy = !course || bandCourse || !linkInRange || paceBand === null ? ''
-    : bandKnows ? ` (all courses: ${course.city} had fewer than 100 such finishes)`
+    : bandKnows ? ` (all courses: too few ${course.city} finishes at this goal)`
       : ` (all courses: ${course.city} has no band of its own)`;
 
   return (
@@ -425,9 +424,9 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
               {dewAbove ? 'A dew point cannot be above the air temperature.'
                 : dewBad ? `Type a number in ${unitSign(tUnit)}, such as ${DEFAULTS.dew[tUnit]}.`
                   : hum === 'rh' && q.rh !== '' && !rhOk ? 'Try a humidity between 1 and 100%.'
-                    : hum === 'rh' && dewOk ? `Dew point ${tAbs(dewC!, tUnit)} at your start temperature (Magnus formula). Used only in the published-research panel.`
-                      : exampleDew ? 'An example, like the temperature. Used only in the published-research panel; it never filters the Pace Notes data.'
-                        : 'Used only in the published-research panel. It never filters the Pace Notes data.'}
+                    : hum === 'rh' && dewOk ? `Dew point ${tAbs(dewC!, tUnit)} at your start temperature. Used only in the published-research panel.`
+                      : exampleDew ? 'An example, like the temperature. Used only in the published-research panel.'
+                        : 'Used only in the published-research panel.'}
             </p>
           </div>
 
@@ -440,7 +439,7 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
           {by === 'goal' ? (
             <DurationField label="Marathon goal time" large value={goalS} placeholder="4:00:00"
               onChange={(s) => setQ({ goal: s === null ? '' : formatDuration(s, true) })}
-              hint={paceKm !== null ? <>Assumption: an even {yourPace} ({paceText(paceKm, units === 'mi' ? 'km' : 'mi', bandSpan)}), used as your 5–20 km pace.{exampleGoal ? ' 4:00:00 is an example goal.' : ''}</> : 'Type a goal such as 4:00:00 or 3:45.'} />
+              hint={paceKm !== null ? <>Even pace {yourPace} ({paceText(paceKm, units === 'mi' ? 'km' : 'mi', bandSpan)}).{exampleGoal ? ' 4:00:00 is an example goal.' : ''}</> : 'Type a goal such as 4:00:00 or 3:45.'} />
           ) : (
             <DurationField label={`Planned 5–20 km pace per ${units === 'mi' ? 'mile' : 'kilometre'}`} mode="pace" large placeholder={units === 'mi' ? '9:09' : '5:41'}
               value={paceIn !== null ? paceSeconds(perKm(paceIn, pu), units, bandSpan) : null}
@@ -452,10 +451,10 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
             <label htmlFor="weather-match-course">Your race <span className="weather-match-optional">optional</span></label>
             <select id="weather-match-course" value={data ? q.course : ''} onChange={(e) => setQ({ course: e.target.value })} disabled={!data}>
               <option value="">{data ? 'None' : error ? 'Not available' : 'Loading courses…'}</option>
-              {courses.map((c) => <option key={c.slug} value={c.slug}>{c.city} · {plural(c.editions.length, 'edition')}</option>)}
+              {courses.map((c) => <option key={c.slug} value={c.slug}>{c.city}</option>)}
             </select>
             <p className="tool-field-hint">
-              {data && q.course && !course ? 'That course is not in this tool’s data. ' : null}Shows that course’s past race-morning temperatures. It does not change the match.
+              {data && q.course && !course ? 'That course is not in this tool. ' : null}Shows that course’s past race-morning temperatures. It does not change the match.
             </p>
           </div>
         </form>
@@ -481,36 +480,31 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
                 warmCount={warmCount} coldCount={coldCount} total={data.editions.length} paceLo={paceLo} paceHi={paceHi} step={step} badTemp={tempBad} />
 
               {match.kind === 'ok' ? (
-                <EvidencePanel kind="data" title="How finishes at your pace held up"
-                  meta={<>The two columns in full, then each 5 km section’s median pace against the same finishes’ own {stretch(units)} pace. Rates and medians count every edition equally.</>}>
+                <EvidencePanel kind="data" title="How finishes at your pace held up">
                   <ComparisonTable match={match} units={units} winText={winText} refText={refText} refTone={refTone} bandLabel={bandLabel} centre={centre!} hw={hw} />
                   <h3 className="weather-match-subhead">Section by section</h3>
                   <ProfileChart mine={match.row.profile} reference={match.ref && !(centre === REF.c && hw === REF.hw) ? match.ref.profile : null} units={units}
                     mineLabel={`Mornings like yours, ${winText}`} refLabel={`${refTone}, ${refText}`} />
-                  <p className="tool-note">
-                    {SLOWDOWN_DEFINITION} Source: <a href={SLOWDOWN_CITATION.url} rel="noopener noreferrer">{SLOWDOWN_CITATION.label}</a>. Each share here is worked out per edition and averaged with every edition counted equally. Shares are observed shares of complete finishes, not anyone’s chance; runners who stopped are not in the data.
-                  </p>
                 </EvidencePanel>
               ) : null}
 
               {centre !== null && (match.kind === 'ok' || match.kind === 'no-row') ? (
                 <EvidencePanel kind="data" title={match.kind === 'ok' ? `The ${plural(match.row.ed.length, 'edition')} behind this window` : 'Editions that started in this window'}
                   meta={<>
-                    {match.kind === 'ok' && match.row.ed.length < match.inWindow ? `${cap(plural(match.inWindow - match.row.ed.length, 'more edition'))} started in the window with fewer than 20 finishes at your pace band; ${match.inWindow - match.row.ed.length === 1 ? 'it is' : 'they are'} grey in the shaded window below. ` : ''}
-                    Weather is the modelled hour at each edition’s scheduled start, at one point in the city: context, not what any runner felt. Wave starts, sun and shade are unknown.{match.kind === 'ok' ? ' No per-edition results are shown, because one edition’s finishes at your pace can number fewer than 100.' : ''}
+                    {match.kind === 'ok' && match.row.ed.length < match.inWindow ? `${cap(plural(match.inWindow - match.row.ed.length, 'more edition'))} started in the window with too few finishes at your pace; ${match.inWindow - match.row.ed.length === 1 ? 'it is' : 'they are'} grey in the shaded window below.` : ''}
                   </>}>
                   <TempStrip editions={data.editions} tUnit={tUnit} marker={tempC} centre={centre} hw={hw} showRef
                     emphasis={new Set(match.kind === 'ok' ? match.row.ed : match.inWindow.map((e) => e.id))} emphasisTone={match.kind === 'ok' ? 'warm' : 'ink'}
-                    legend={match.kind === 'ok' ? 'Matched edition (20+ finishes at your pace)' : 'Started in this window'}
-                    label={`Start temperatures of all ${data.editions.length} editions in this tool's data, from ${tData(Math.min(...data.editions.map((e) => e.temp_c)), tUnit)} to ${tData(Math.max(...data.editions.map((e) => e.temp_c)), tUnit)}. ${match.kind === 'ok'
+                    legend={match.kind === 'ok' ? 'Matched edition' : 'Started in this window'}
+                    label={`Start temperatures of all ${data.editions.length} editions, from ${tData(Math.min(...data.editions.map((e) => e.temp_c)), tUnit)} to ${tData(Math.max(...data.editions.map((e) => e.temp_c)), tUnit)}. ${match.kind === 'ok'
                       ? match.row.ed.length === match.inWindow
-                        ? `${match.inWindow === 1 ? 'The one edition' : `All ${count(match.inWindow)} editions`} that started in your window, ${winText}, had 20 or more finishes at your pace and ${match.inWindow === 1 ? 'is' : 'are'} highlighted.`
-                        : `${count(match.row.ed.length)} of the ${count(match.inWindow)} editions that started in your window, ${winText}, had 20 or more finishes at your pace and are highlighted.`
+                        ? `${match.inWindow === 1 ? 'The one edition' : `All ${count(match.inWindow)} editions`} that started in your window, ${winText}, matched and ${match.inWindow === 1 ? 'is' : 'are'} highlighted.`
+                        : `${count(match.row.ed.length)} of the ${count(match.inWindow)} editions that started in your window, ${winText}, matched and are highlighted.`
                       : match.inWindow.length === 0 ? `No edition started in your window, ${winText}.`
                         : `${cap(plural(match.inWindow.length, 'edition'))} started in your window, ${winText}, and ${match.inWindow.length === 1 ? 'is' : 'are'} highlighted.`}`} />
                   <EditionChips units={units} tUnit={tUnit}
                     editions={(match.kind === 'ok' ? match.row.ed.map((id) => byId.get(id)).filter((e): e is WeatherEdition => !!e) : match.inWindow).sort((a, b) => a.temp_c - b.temp_c || a.city.localeCompare(b.city))}
-                    empty="No edition in this tool’s data started in this window." />
+                    empty="No edition started in this window." />
                 </EvidencePanel>
               ) : null}
 
@@ -563,32 +557,28 @@ function ResultHead({ match, units, tUnit, hw, centre, winText, winAlt, refText,
   const inBand = <span className="weather-match-nowrap">{bandLabel}</span>;
 
   if (match.kind === 'ok') {
-    const { row, ref, shared, inWindow } = match;
+    const { row, ref, inWindow } = match;
     const m = row.ed.length;
     const same = ref !== null && centre === REF.c && hw === REF.hw;
     kicker = `Mornings like ${yourTemp}`;
     title = m === inWindow
       ? `${inWindow === 1 ? 'One past marathon edition' : `${count(inWindow)} past marathon editions`} started at ${winText}`
-      : `${count(m)} of ${count(inWindow)} past marathon editions that started at ${winText} had 20+ finishes at your pace`;
+      : `${count(m)} of ${count(inWindow)} past marathon editions that started at ${winText} had enough finishes at your pace`;
     group = (
       <p>
-        {m === inWindow
-          ? <>Each had 20 or more finishes that ran {stretch(units)} at {inBand}, your pace band: {count(row.n)} finishes in all.</>
-          : <>Those {count(m)} hold {count(row.n)} finishes that ran {stretch(units)} at {inBand}, your pace band; the other {count(inWindow - m)} had fewer than 20 such finishes.</>}
-        {' '}The window is ±{tSpan(hw, tUnit)} around your forecast ({winAlt}).
+        Finishes that ran {stretch(units)} at {inBand}, your pace band.
       </p>
     );
     body = (
       <>
         <div className={`weather-match-cols${same || !ref ? ' is-single' : ''}`}>
-          <HeadColumn tone="warm" title={same ? 'Mornings like yours (the reference window)' : 'Mornings like yours'} sub={winText} row={row} started={inWindow} units={units} />
-          {ref && !same ? <HeadColumn tone="cool" title={refTone} sub={refText} row={ref} started={match.refInWindow} units={units} /> : null}
+          <HeadColumn tone="warm" title={same ? 'Mornings like yours (the reference window)' : 'Mornings like yours'} sub={winText} row={row} units={units} />
+          {ref && !same ? <HeadColumn tone="cool" title={refTone} sub={refText} row={ref} units={units} /> : null}
         </div>
         <p className="weather-match-foot">
-          {ref && !same ? <>Two descriptive columns, not a heat penalty: the editions differ in course, field and year as well as weather.{shared ? ` ${cap(plural(shared, 'edition is', 'editions are'))} in both windows.` : ''} </>
-            : !ref ? 'The reference window has no published row at this pace band. '
-              : 'Your forecast falls in the reference window itself, so there is one column. '}
-          Finishes are grouped by the 5–20 km pace they actually ran that day, not by goal or ability{ref && !same ? ': on a warmer morning runners may already have started slower, so the same band can hold different runners in each column' : ''}.
+          {ref && !same ? 'Two descriptive columns, not a heat penalty.'
+            : !ref ? 'The reference window has no published row at this pace band.'
+              : 'Your forecast falls in the reference window itself, so there is one column.'}
         </p>
       </>
     );
@@ -599,7 +589,7 @@ function ResultHead({ match, units, tUnit, hw, centre, winText, winAlt, refText,
   } else if (match.kind === 'pace-range') {
     kicker = yourPace ? `Your 5–20 km pace ${yourPace}` : 'Your 5–20 km pace';
     title = match.fast ? 'Faster than any published pace band' : 'Slower than any published pace band';
-    group = <p>Pace Notes groups 5–20 km paces from {formatDuration(bandEnds(paceLo, step, units)[0])}/{units} to {formatDuration(bandEnds(paceHi - step, step, units)[1])}/{units}. Outside that range there are too few finishes in any window to publish.</p>;
+    group = <p>Published 5–20 km paces run from {formatDuration(bandEnds(paceLo, step, units)[0])}/{units} to {formatDuration(bandEnds(paceHi - step, step, units)[1])}/{units}.</p>;
   } else {
     const n = match.inWindow.length;
     kicker = `Window ±${tSpan(hw, tUnit)} · ${bandLabel}`;
@@ -608,8 +598,8 @@ function ResultHead({ match, units, tUnit, hw, centre, winText, winAlt, refText,
       <>
         <p>
           {n < 3
-            ? <>{n === 0 ? 'No edition' : `Only ${plural(n, 'edition')}`} in this tool’s data started at {winText}. A comparison needs at least 3 editions, each with 20 or more finishes at your 5–20 km pace ({inBand}), and at least 100 such finishes in all.</>
-            : <>{count(n)} editions started at {winText}, but fewer than 3 of them had 20 or more finishes at a 5–20 km pace of {inBand}, or they had fewer than 100 such finishes between them.</>}
+            ? <>{n === 0 ? 'No edition' : `Only ${plural(n, 'edition')}`} started at {winText}.</>
+            : <>{count(n)} editions started at {winText}, but too few of their finishes ran a 5–20 km pace of {inBand}.</>}
         </p>
         <p>
           {match.paces ? <>At these temperatures there are published rows for 5–20 km paces from {formatDuration(bandEnds(match.paces[0], step, units)[0])}/{units} to {formatDuration(bandEnds(match.paces[1], step, units)[1])}/{units}. </> : null}
@@ -625,7 +615,7 @@ function ResultHead({ match, units, tUnit, hw, centre, winText, winAlt, refText,
   return (
     <section className={`tool-headline night weather-match-headline${match.kind === 'ok' ? '' : ' is-unavailable'}`} aria-labelledby={titleId}>
       <div className="weather-match-head">
-        <span className="evidence-badge evidence-data">Pace Notes data</span>
+        <EvidenceTag kind="data" />
         <p className="weather-match-kicker">{kicker}</p>
         <h2 className="weather-match-title" id={titleId}>{title}</h2>
         <div className="weather-match-group">{group}</div>
@@ -641,18 +631,17 @@ function ResultHead({ match, units, tUnit, hw, centre, winText, winAlt, refText,
   );
 }
 
-function HeadColumn({ tone, title, sub, row, started, units }: { tone: Tone; title: string; sub: string; row: WeatherRow; started: number; units: UnitSystem }) {
-  const m = row.ed.length;
+function HeadColumn({ tone, title, sub, row, units }: { tone: Tone; title: string; sub: string; row: WeatherRow; units: UnitSystem }) {
   return (
     <div className={`weather-match-col is-${tone}`}>
       <p className="weather-match-col-title"><i aria-hidden="true" />{title}</p>
       <p className="weather-match-col-sub">
-        <span className="weather-match-nowrap">{sub}</span> · <span className="weather-match-nowrap">{m === started ? plural(m, 'edition') : `${count(m)} of ${count(started)} editions`}</span> · <span className="weather-match-nowrap">{count(row.n)} finishes</span> in all
+        <span className="weather-match-nowrap">{sub}</span> · <span className="weather-match-nowrap">{count(row.n)} finishes</span>
       </p>
       <dl>
-        <div><dt>Sustained slowdown</dt><dd>{pctShare(row.sd)}</dd><dd className="weather-match-dd-sub">average of the editions, each counted equally</dd></div>
-        <div><dt>After {checkpointLabel(20, units)}</dt><dd>{mss(row.after20, true)}</dd><dd className="weather-match-dd-sub">beyond the 5–20 km pace; editions counted equally</dd></div>
-        <div><dt>Median finish</dt><dd>{formatHM(row.fin[1])}</dd><dd className="weather-match-dd-sub">all finishes pooled; 10th–90th <span className="weather-match-nowrap">{formatHM(row.fin[0])}–{formatHM(row.fin[2])}</span></dd></div>
+        <div><dt><SlowdownTerm>Sustained slowdown</SlowdownTerm></dt><dd>{pctShare(row.sd)}</dd></div>
+        <div><dt>After {checkpointLabel(20, units)}</dt><dd>{mss(row.after20, true)}</dd><dd className="weather-match-dd-sub">median extra time</dd></div>
+        <div><dt>Median finish</dt><dd>{formatHM(row.fin[1])}</dd><dd className="weather-match-dd-sub">10th–90th <span className="weather-match-nowrap">{formatHM(row.fin[0])}–{formatHM(row.fin[2])}</span></dd></div>
       </dl>
     </div>
   );
@@ -670,13 +659,11 @@ function ComparisonTable({ match, units, winText, refText, refTone, bandLabel, c
   type Col = { r: WeatherRow; started: number };
   const cols: Col[] = showRef ? [{ r: row, started: match.inWindow }, { r: ref!, started: match.refInWindow }] : [{ r: row, started: match.inWindow }];
   const lines: { label: ReactNode; cell: (c: Col) => ReactNode; key?: boolean }[] = [
-    { label: 'Editions that started in the window', cell: (c) => count(c.started) },
-    { label: <>Editions with 20+ finishes at <span className="weather-match-nowrap">{bandLabel}</span></>, cell: (c) => count(c.r.ed.length) },
-    { label: <>Finishes at <span className="weather-match-nowrap">{bandLabel}</span> in those editions (pooled)</>, cell: (c) => count(c.r.n) },
-    { label: 'Sustained slowdown (editions counted equally)', cell: (c) => pctShare(c.r.sd), key: true },
-    { label: <>Median time after {checkpointLabel(20, units)} beyond the 5–20 km pace</>, cell: (c) => mss(c.r.after20, true) },
+    { label: <>Finishes at <span className="weather-match-nowrap">{bandLabel}</span></>, cell: (c) => count(c.r.n) },
+    { label: <SlowdownTerm>Sustained slowdown</SlowdownTerm>, cell: (c) => pctShare(c.r.sd), key: true },
+    { label: <>Median extra time after {checkpointLabel(20, units)}</>, cell: (c) => mss(c.r.after20, true) },
     { label: <>Median pace change, {checkpointLabel(30, units)} to finish</>, cell: (c) => signedPct(c.r.late) },
-    { label: 'Median finish (10th–90th percentile, finishes pooled)', cell: (c) => <>{formatHM(c.r.fin[1])}<small>{formatHM(c.r.fin[0])}–{formatHM(c.r.fin[2])}</small></> },
+    { label: 'Median finish (10th–90th percentile)', cell: (c) => <>{formatHM(c.r.fin[1])}<small>{formatHM(c.r.fin[0])}–{formatHM(c.r.fin[2])}</small></> },
   ];
   return (
     <div className="tool-table-wrap weather-match-compare">
@@ -696,9 +683,7 @@ function ComparisonTable({ match, units, winText, refText, refTone, bandLabel, c
             </tr>
           ))}
         </tbody>
-        <caption>
-          Rates and medians count every edition equally (each edition is one weather observation); the finish count and finish percentiles pool all {showRef ? 'finishes in each column' : 'the finishes'} and only describe the field. Finishes are grouped by the 5–20 km pace they ran in the race, not by goal or ability. The {checkpointLabel(30, units)}-to-finish change compares that stretch’s pace with the 5–20 km pace. Columns are never subtracted.
-        </caption>
+        <caption className="sr-only">How finishes at your pace held up on mornings like yours{showRef ? ', beside the reference mornings' : ''}</caption>
       </table>
     </div>
   );
@@ -790,7 +775,7 @@ function ProfileChart({ mine, reference, units, mineLabel, refLabel }: { mine: n
                 </tr>
               ))}
             </tbody>
-            <caption>Median pace in each section against the same finishes’ 5–20 km pace (shaded rows), averaged with every edition counted equally. These are observed 5 km mat sections, not mile splits.</caption>
+            <caption>Median pace in each section against the same finishes’ 5–20 km pace (shaded rows).</caption>
           </table>
         </div>
       </details>
@@ -878,7 +863,7 @@ function TempStrip({ editions, tUnit, marker, centre, hw, showRef, emphasis, emp
       </div>
       <ul className="weather-match-legend is-strip" aria-hidden="true">
         {emphasis.size ? <li><i className={ring ? 'is-dot-ring' : `is-dot-${emphasisTone}`} />{legend}</li> : null}
-        <li><i className="is-dot" />Other editions in this data</li>
+        <li><i className="is-dot" />Other editions</li>
         {centre !== null ? <li><i className="is-zone-warm" />Your window</li> : null}
         {showRef ? <li><i className="is-zone-cool" />Reference, {tWindow(REF.c - REF.hw, REF.c + REF.hw, tUnit)}</li> : null}
       </ul>
@@ -952,11 +937,10 @@ function CoursePanel({ course, tUnit, units, tempC, centre, hw, all }: {
   }
   return (
     <EvidencePanel kind="data" title={`${course.city}: past race mornings`}
-      meta={<>{course.city}: {lo === hi ? tData(lo, tUnit) : <>{tData(lo, tUnit, false)} to {tData(hi, tUnit)}</>} across {plural(course.editions.length, 'edition')} in this tool’s data. {centre !== null ? `${inWindow === 0 ? 'No edition' : cap(plural(inWindow, 'edition'))} started in your window. ` : ''}{relation}</>}>
+      meta={<>{course.city}: {lo === hi ? tData(lo, tUnit) : <>{tData(lo, tUnit, false)} to {tData(hi, tUnit)}</>} across {plural(course.editions.length, 'edition')}. {centre !== null ? `${inWindow === 0 ? 'No edition' : cap(plural(inWindow, 'edition'))} started in your window. ` : ''}{relation}</>}>
       <TempStrip editions={all} tUnit={tUnit} marker={tempC} centre={centre} hw={hw} emphasis={new Set(course.editions.map((e) => e.id))} emphasisTone="ink" ring
-        legend={`${course.city} edition`} label={`${course.editions.length === 1 ? `Start temperature of the one ${course.city} edition, ${tData(lo, tUnit)}` : `Start temperatures of ${count(course.editions.length)} ${course.city} editions, from ${tData(lo, tUnit)} to ${tData(hi, tUnit)}`}, among all editions in this tool's data.`} />
+        legend={`${course.city} edition`} label={`${course.editions.length === 1 ? `Start temperature of the one ${course.city} edition, ${tData(lo, tUnit)}` : `Start temperatures of ${count(course.editions.length)} ${course.city} editions, from ${tData(lo, tUnit)} to ${tData(hi, tUnit)}`}, among all editions.`} />
       <EditionChips editions={course.editions} tUnit={tUnit} units={units} empty="" showYearFirst limit={24} />
-      <p className="tool-note">Editions left out of this tool’s data (start-delay screens, shifted mats or missing weather) are listed under How this works.</p>
     </EvidencePanel>
   );
 }
@@ -971,8 +955,6 @@ const FLAG_TEXT: Record<Flag, { name: string; range: string; risk: string }> = {
   red: { name: 'Red', range: '23–28 °C', risk: 'high risk' },
   black: { name: 'Black', range: 'above 28 °C', risk: 'very high risk' },
 };
-/** The race-risk categories above are from the ACSM position stand on distance running (Armstrong et al. 1996). */
-const ACSM_1996 = { label: 'ACSM position stand on heat and cold illnesses during distance running (Armstrong et al. 1996)', url: 'https://pubmed.ncbi.nlm.nih.gov/8970149/' };
 /** Mantzios et al. 2022 per °C WBGT above 15 °C (elite marathon finalists, all endurance events), read from the shared function. */
 const MANTZIOS_PER_C = mantzios(16);
 const MANTZIOS_BEST: [number, number] = [7.5, 15];
@@ -991,15 +973,14 @@ const NEED_TEXT: Record<Exclude<Need, null>, { short: string; note: string }> = 
 };
 
 interface Method {
-  key: string; name: string; kind: string; range: PercentRange | null; rangeText?: string; body: ReactNode; cite: { label: string; url: string }; extra?: ReactNode;
+  key: string; name: string; kind: string; range: PercentRange | null; rangeText?: string; body: ReactNode; extra?: ReactNode;
 }
 
 function Knechtle() {
   return (
     <li className="weather-match-method is-statement">
-      <p className="weather-match-method-head"><b>Knechtle et al. 2019</b><span>Study · statement only</span></p>
-      <p className="weather-match-method-body">Boston 1972–2018: across all finishers, times were about 1 min 47 s slower for each 1 °C rise in average air temperature (1.8 °F). One race’s association, shown as reported and not applied to your goal.</p>
-      <p className="weather-match-cite"><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC6407773" rel="noopener noreferrer">PLoS One 14:e0212797</a></p>
+      <p className="weather-match-method-head"><b>Boston finishers, 1972–2018</b><span>Published study</span></p>
+      <p className="weather-match-method-body">Boston 1972–2018: across all finishers, times were about 1 min 47 s slower for each 1 °C rise in average air temperature (1.8 °F).</p>
     </li>
   );
 }
@@ -1026,14 +1007,13 @@ function ResearchPanel({ tempC, dewC, need, tUnit, goal, by, paceLabel }: {
     const range = cur ? { low: Math.max(0, Math.min(cur.men - base.men, cur.women - base.women)), high: Math.max(0, cur.men - base.men, cur.women - base.women) } : null;
     const bandIdx = wbgt !== null ? ELY_BANDS.findIndex((b) => wbgt >= b.lo && wbgt < b.hi) : -1;
     methods.push({
-      key: 'ely', name: 'Ely et al. 2007', kind: 'Study · top finishers', range,
+      key: 'ely', name: 'Top finishers, seven marathons', kind: 'Published study', range,
       rangeText: !ready ? undefined : wbgt! < 5 ? 'Below the table' : !cur ? 'Beyond the table' : undefined,
       body: !ready ? null : cur && bandIdx === 0 ? (
-        <>At 5–10 °C WBGT, the table’s coolest band, top-three finishers in seven marathons ran {num(base.men)}% (men) and {num(base.women)}% (women) off course records. The range is the extra over that band, so it is zero here.</>
+        <>At 5–10 °C WBGT, top-three finishers in seven marathons ran {num(base.men)}% (men) and {num(base.women)}% (women) off course records. No extra slowing here.</>
       ) : cur ? (
-        <>Top-three finishers in seven marathons ran {num(cur.men)}% (men) and {num(cur.women)}% (women) off course records at {ELY_BANDS[bandIdx].lo}–{ELY_BANDS[bandIdx].hi} °C WBGT, against {num(base.men)}% and {num(base.women)}% at 5–10 °C. The range is the extra over that coolest band. Places 25 to 300 slowed more as WBGT rose.</>
+        <>Top-three finishers in seven marathons ran {num(cur.men)}% (men) and {num(cur.women)}% (women) off course records at {ELY_BANDS[bandIdx].lo}–{ELY_BANDS[bandIdx].hi} °C WBGT, against {num(base.men)}% and {num(base.women)}% at 5–10 °C. Places 25 to 300 slowed more as WBGT rose.</>
       ) : wbgt! < 5 ? <>The table starts at 5 °C WBGT; your shade estimate is cooler.</> : <>The table stops at 25 °C WBGT; your shade estimate is warmer. Places 25 to 300 slowed more than the leaders as WBGT rose.</>,
-      cite: { label: 'Med Sci Sports Exerc 39:487', url: 'https://experts.umn.edu/en/publications/impact-of-weather-on-marathon-running-performance/' },
       extra: ready ? (
         <table className="weather-match-ely">
           <thead><tr><th scope="col">WBGT</th><th scope="col">Men</th><th scope="col">Women</th></tr></thead>
@@ -1046,13 +1026,12 @@ function ResearchPanel({ tempC, dewC, need, tUnit, goal, by, paceLabel }: {
   {
     const excess = wbgt !== null ? Math.max(0, wbgt - MANTZIOS_BEST[1]) : 0;
     methods.push({
-      key: 'mantzios', name: 'Mantzios et al. 2022', kind: 'Study · elite finalists',
+      key: 'mantzios', name: 'Elite marathon finalists', kind: 'Published study',
       range: wbgt !== null ? mantzios(wbgt) : null,
       body: !ready ? null : excess > 0
         ? <>Your shade WBGT is {num(excess)} °C above 15 °C. Elite marathon finalists ran about {num(MANTZIOS_PER_C.low)}% slower per °C above it; across all the study’s endurance events, about {num(MANTZIOS_PER_C.high)}% per °C.</>
-        : wbgt! >= MANTZIOS_BEST[0] ? <>Inside the 7.5–15 °C WBGT range where the study found peak performances most likely: no warm-side slope applies.</>
-          : <>Cooler than the study’s 7.5–15 °C WBGT best range. It also reports slower times in the cold, which this panel does not show.</>,
-      cite: { label: 'Med Sci Sports Exerc 54:153', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC8677617/' },
+        : wbgt! >= MANTZIOS_BEST[0] ? <>Inside the 7.5–15 °C WBGT range where peak performances were most likely.</>
+          : <>Cooler than the 7.5–15 °C WBGT range where peak performances were most likely. Times were slower in the cold too.</>,
     });
   }
   // Hadley: the table is written in whole °F, so each reading is rounded before adding.
@@ -1062,20 +1041,18 @@ function ResearchPanel({ tempC, dewC, need, tUnit, goal, by, paceLabel }: {
     const sum = a !== null && b !== null ? a + b : null;
     const range = sum !== null ? hadley(sum, 0) : null;
     methods.push({
-      key: 'hadley', name: 'Hadley’s temperature + dew point table', kind: 'Rule of thumb', range,
+      key: 'hadley', name: 'Temperature + dew point table', kind: 'Rule of thumb', range,
       rangeText: sum !== null && !range ? 'No pace' : undefined,
-      body: sum === null ? null : <>Temperature plus dew point is {a} + {b} = {sum} (°F{tUnit === 'c' ? ', each rounded to a whole degree' : ''}, as the table is written). {range ? (sum <= 100 ? 'At 100 or below the table suggests no change.' : `Its ${hadleyBand(sum)} band suggests running ${pctNum(range.low)}–${pctNum(range.high)}% slower.`) : 'Above 180 the table advises against hard running at all.'}</>,
-      cite: { label: 'Mark Hadley, via Triple Threat Life', url: 'https://triplethreatlife.substack.com/p/how-to-adjust-run-pace-in-the-heat' },
+      body: sum === null ? null : <>Temperature plus dew point is {a} + {b} = {sum} °F. {range ? (sum <= 100 ? 'At 100 or below the table suggests no change.' : `Its ${hadleyBand(sum)} band suggests running ${pctNum(range.low)}–${pctNum(range.high)}% slower.`) : 'Above 180 the table advises against hard running at all.'}</>,
     });
   }
   // RunnersConnect: the band is chosen from the unrounded dew point.
   {
     const range = tdF !== null ? dewPointBand(tdF) : null;
     methods.push({
-      key: 'rc', name: 'RunnersConnect dew-point bands', kind: 'Rule of thumb', range,
+      key: 'rc', name: 'Dew-point bands', kind: 'Rule of thumb', range,
       rangeText: tdF !== null && !range ? 'Run by effort' : undefined,
       body: tdF === null ? null : <>Dew point {num(tdF, 1)} °F{tUnit === 'c' ? ` (${num(dewC!, 1)} °C)` : ''}. {range ? (tdF < 55 ? 'Below 55 °F the bands suggest no change.' : `The ${dewBand(tdF)} band suggests about ${range.low === range.high ? pctNum(range.low) : `${pctNum(range.low)}–${pctNum(range.high)}`}% slower.`) : 'At 80 °F and above the bands advise running by effort, not pace.'}</>,
-      cite: { label: 'RunnersConnect', url: 'https://runnersconnect.net/dew-point-effect-running/' },
     });
   }
   const ranges = methods.map((m) => m.range).filter((r): r is PercentRange => r !== null);
@@ -1085,22 +1062,22 @@ function ResearchPanel({ tempC, dewC, need, tUnit, goal, by, paceLabel }: {
 
   return (
     <EvidencePanel kind="research" id="weather-match-research" title="What published research and rules of thumb suggest"
-      meta={<>Not calculated from Pace Notes data. Each method is shown on its own, as a range, with its source; none is combined with another or with the Pace Notes columns, and none is used by any other tool.{goalText ? <> Minutes are our own calculation: the published percentage × {by === 'goal' ? `your ${goalText} goal` : `${goalText}, your ${paceLabel} held for the whole race`}.</> : null}</>}>
+      meta={goalText && by === 'pace' ? <>Minutes are on {goalText}, your {paceLabel} held for the whole race.</> : undefined}>
       <div className="weather-match-conditions">
         <div>
           <span>Relative humidity</span>
           <b>{rh !== null ? `${num(rh, 0)}%` : '—'}</b>
-          <small>{rh !== null ? 'Magnus formula' : needShort}</small>
+          <small>{rh !== null ? '' : needShort}</small>
         </div>
         <div>
           <span>Wet-bulb</span>
           <b>{tw !== null ? tAbs(tw, tUnit) : '—'}</b>
-          <small>{tw !== null ? (stullOut ? 'Stull 2011 · outside its tested range' : 'Stull 2011') : needShort}</small>
+          <small>{tw !== null ? (stullOut ? 'outside the tested range' : '') : needShort}</small>
         </div>
         <div>
           <span>Shade WBGT ≈</span>
           <b>{wbgt !== null ? tAbs(wbgt, tUnit) : '—'}</b>
-          <small>{wbgt !== null ? (tUnit === 'f' ? `${num(wbgt, 1)} °C · 0.7 wet-bulb + 0.3 air` : '0.7 wet-bulb + 0.3 air') : needShort}</small>
+          <small>{wbgt !== null ? (tUnit === 'f' ? `${num(wbgt, 1)} °C` : '') : needShort}</small>
         </div>
         <div className={flag ? `weather-match-flag is-${flag}` : 'weather-match-flag'}>
           <span>ACSM race flag</span>
@@ -1130,7 +1107,6 @@ function ResearchPanel({ tempC, dewC, need, tUnit, goal, by, paceLabel }: {
             ) : null}
             {mth.body ? <p className="weather-match-method-body">{mth.body}</p> : null}
             {mth.extra}
-            <p className="weather-match-cite"><a href={mth.cite.url} rel="noopener noreferrer">{mth.cite.label}</a></p>
           </li>
         )) : null}
         <Knechtle />
@@ -1142,12 +1118,8 @@ function ResearchPanel({ tempC, dewC, need, tUnit, goal, by, paceLabel }: {
             : spreadLo === 0 || spreadHi / spreadLo >= 3
               ? <><strong>These methods disagree several-fold for the same weather.</strong> {spreadText}</>
               : <><strong>These methods give different figures for the same weather.</strong> {spreadText}</>}
-          {' '}Ely and Mantzios describe elite and top finishers; Hadley and RunnersConnect are rules of thumb with no published validation.
         </p>
       ) : null}
-      <p className="tool-note">
-        The WBGT is a shade estimate from temperature and dew point: direct sun can add several degrees, and a psychrometric wet-bulb only approximates the natural wet-bulb a WBGT meter reads. The simplified “ACSM-87” WBGT is not used: it is not an accurate approximation of WBGT (Brimicombe et al. 2023). Flag tiers are the race-risk categories of the <a href={ACSM_1996.url} rel="noopener noreferrer">{ACSM_1996.label}</a>; they describe heat-illness risk for the field, not a pace. The current ACSM expert consensus (Roberts et al. 2023) sets region-specific WBGT thresholds for training and competition instead.
-      </p>
     </EvidencePanel>
   );
 }

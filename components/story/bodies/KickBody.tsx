@@ -1,10 +1,11 @@
-import type { InsightsManifest, Kick } from '@/lib/insights';
+import type { Kick } from '@/lib/insights';
 import { count, mss } from '@/lib/viz/format';
 import { BankAndPay, BreakRiver, GenderKick, Magnet, StateFlow, TwinRunners, WarningLight } from '../KickStory';
-import { StoryMethods, StorySection } from '../StoryShell';
+import { StorySection } from '../StoryShell';
 import { Checkpoint, Distance, Section } from '../Units';
 import { StoryData } from '../StoryData';
 import { shareInWords } from '@/lib/stories';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 
 const pct = (v: number, d = 0) => `${(v * 100).toFixed(d)}%`;
 
@@ -29,7 +30,7 @@ function breakPattern(bands: Kick['breaks']['bands']) {
   };
 }
 
-export default function KickBody({ data, manifest }: { data: Kick; manifest: InsightsManifest }) {
+export default function KickBody({ data }: { data: Kick }) {
   const k = data.kick;
   const earlier = data.magnet.slice(0, -1).map((r) => r.all);
   const rec = data.recovery;
@@ -52,7 +53,7 @@ export default function KickBody({ data, manifest }: { data: Kick; manifest: Ins
     <StoryData value={{ kick: data }}>
       <StorySection id="magnet" kicker="01 · The finish-line magnet" title={<>{shareInWords(k.share)} finishes <em>speed up</em> for the last <Distance km={2.195} />.</>}
         dek={<>{pct(k.share, 1)} of {count(k.n)} finishes ran the final <Distance km={2.195} /> faster than their <Section i={7} />. In each earlier 5 km section after <Checkpoint km={20} />, only {pct(Math.min(...earlier))} to {pct(Math.max(...earlier))} beat the section before.
-          Even among finishes with a sustained slowdown, {pct(k.slowdown_share)} found a final kick.</>}>
+          Even among finishes with a <Link href="/methodology#sustained-slowdown">sustained slowdown</Link>, {pct(k.slowdown_share)} found a final kick.</>}>
         <Magnet />
       </StorySection>
 
@@ -60,11 +61,11 @@ export default function KickBody({ data, manifest }: { data: Kick; manifest: Ins
         dek={<>Once a 5 km section was 25% or more slower than the runner&apos;s 5–20 km pace, the next 5 km was still 25% or more slower {pct(stay[0].stay)} of the time from <Section i={5} /> and {pct(stay[1].stay)} from <Section i={6} />.
           Of the {count(rec.room_n)} finishes whose sustained slowdown ended in time to leave a full 5 km section, {pct(rec.share_full_section_room, 1)} ran one back within 10% of their early pace. Only {pct(k.slowdown_final_below_baseline, 1)} of all finishes with a sustained slowdown ran the final section faster than their early pace, against {pct(k.other_final_below_baseline)} of the rest.</>}>
         <StateFlow />
-        <p className="story-aside">Recorded women with a sustained slowdown got back within 10% of their early pace at some later point {pct(rec.women_any)} of the time; men {pct(rec.men_any)}. This is not matched on pace, age or course.</p>
+        <p className="story-aside">Recorded women with a sustained slowdown got back within 10% of their early pace at some later point {pct(rec.women_any)} of the time; men {pct(rec.men_any)}.</p>
       </StorySection>
 
       <StorySection id="break" kicker="03 · The break" title={<>At <Section i={6} />, most of the field is <em>more than 10% off</em> its early pace.</>}
-        dek={<>Through <Checkpoint km={15} /> almost everyone runs close to their own 5–20 km pace. By <Section i={6} />, {pct(at30.over10, 1)} of finishes are more than 10% slower than it, and the middle half of the field is spread {((at30.p75 - at30.p25) / (brk[0].p75 - brk[0].p25)).toFixed(1)} times wider than over <Section i={0} />, the only early section outside the 5–20 km baseline.{pattern.earlierUpTo ? <> Up to a {pattern.earlierUpTo} marathon pace, the slower the early pace, the earlier the break</> : null}{pattern.neverUnder ? <>{pattern.earlierUpTo ? '; p' : ' P'}aces under {pattern.neverUnder} never reach it</> : null}{pattern.earlierUpTo || pattern.neverUnder ? '.' : null}</>}>
+        dek={<>Through <Checkpoint km={15} /> almost everyone runs close to their own 5–20 km pace. By <Section i={6} />, {pct(at30.over10, 1)} of finishes are more than 10% slower than it, and the middle half of the field is spread {((at30.p75 - at30.p25) / (brk[0].p75 - brk[0].p25)).toFixed(1)} times wider than over <Section i={0} />.{pattern.earlierUpTo ? <> Up to a {pattern.earlierUpTo} marathon pace, the slower the early pace, the earlier the break</> : null}{pattern.neverUnder ? <>{pattern.earlierUpTo ? '; p' : ' P'}aces under {pattern.neverUnder} never reach it</> : null}{pattern.earlierUpTo || pattern.neverUnder ? '.' : null}</>}>
         <BreakRiver />
       </StorySection>
 
@@ -81,7 +82,7 @@ export default function KickBody({ data, manifest }: { data: Kick; manifest: Ins
 
       <StorySection id="twins" kicker="06 · Twin runners" title={<>Same pace to <Checkpoint km={20} />, <em>{Math.round((twin.slowdown_finish_s - twin.other_finish_s) / 60)} minutes apart</em> at the finish.</>}
         dek={<>Finishes with a {twin.label} marathon pace over 5–20 km reached <Checkpoint km={20} /> in the same median time, with or without a sustained slowdown. Their median finishes were {mss(twin.slowdown_finish_s - twin.other_finish_s)} apart.
-          Compared within the same race, recorded gender and 5 s/km band, the typical gap is {Math.round(st.median_gap_s / 60)} minutes ({count(st.strata)} groups).</>}>
+          Within the same race, recorded gender and early pace, the typical gap is {Math.round(st.median_gap_s / 60)} minutes.</>}>
         <TwinRunners />
       </StorySection>
 
@@ -92,24 +93,15 @@ export default function KickBody({ data, manifest }: { data: Kick; manifest: Ins
 
       {rc.after_slowdown && rc.after_none ? (
         <StorySection id="follows" kicker="08 · The next linked race" title={<>A sustained slowdown <em>tends to come back</em>.</>}
-          dek="Pairs of consecutive races linked to one screened candidate profile (not a verified person), one to three years apart, compared with what was typical in the later race at the same 5–20 km pace.">
+          dek={<>After a sustained slowdown, the next linked race had one {pct(rc.after_slowdown.observed)} of the time. After a race without one, {pct(rc.after_none.observed)} did.</>}>
           <div className="bibs">
-            <div className="bib"><span className="bib-tag">After a sustained slowdown</span><span className="bib-number">{pct(rc.after_slowdown.observed)}</span><span className="bib-text">of next races had one too, against {pct(rc.after_slowdown.expected)} typical for that race and pace ({count(rc.after_slowdown.pairs)} pairs).</span></div>
-            <div className="bib"><span className="bib-tag">After a race without one</span><span className="bib-number">{pct(rc.after_none.observed)}</span><span className="bib-text">against {pct(rc.after_none.expected)} typical ({count(rc.after_none.pairs)} pairs).</span></div>
-            {rc.after_slowdown_other_course ? <div className="bib"><span className="bib-tag">On a different course</span><span className="bib-number">{pct(rc.after_slowdown_other_course.observed)}</span><span className="bib-text">after a sustained slowdown, against {pct(rc.after_slowdown_other_course.expected)} typical ({count(rc.after_slowdown_other_course.pairs)} pairs).</span></div> : null}
+            <div className="bib"><span className="bib-tag">After a sustained slowdown</span><span className="bib-number">{pct(rc.after_slowdown.observed)}</span><span className="bib-text">of next races had one too, against {pct(rc.after_slowdown.expected)} typical for that race and pace.</span></div>
+            <div className="bib"><span className="bib-tag">After a race without one</span><span className="bib-number">{pct(rc.after_none.observed)}</span><span className="bib-text">against {pct(rc.after_none.expected)} typical.</span></div>
+            {rc.after_slowdown_other_course ? <div className="bib"><span className="bib-tag">On a different course</span><span className="bib-number">{pct(rc.after_slowdown_other_course.observed)}</span><span className="bib-text">after a sustained slowdown, against {pct(rc.after_slowdown_other_course.expected)} typical.</span></div> : null}
           </div>
         </StorySection>
       ) : null}
 
-      <StoryMethods manifest={manifest} files={['kick.json']} method={data.method}
-        caveats={[
-          'The final section is 2.195 km, so finish-mat placement and course shape matter more there than in a 5 km section.',
-          'Recorded 5 km sections cannot show walking breaks, stops or recoveries inside a section; runners who did not finish are absent.',
-          `${data.grid_screen.length + data.start_offset_editions.length} editions are left out of the section statistics: ${data.grid_screen.map((g) => `${g.city} ${g.year} (${g.reason.toLowerCase()})`).join('; ')}, plus the start-offset editions. These are inferences from the timing data.`,
-          'Same-race comparisons hold the race and the 5–20 km pace fixed, not fitness, goals, experience or conditions. The 5–20 km pace can already reflect a fast opening.',
-          'Repeat pairs link screened candidate profiles, not verified people, and only runners who raced again appear.',
-          'Counts are race finishes, not unique people. Associations describe, they do not explain why.',
-        ]} />
     </StoryData>
   );
 }

@@ -39,12 +39,12 @@ export function FirstFinish({ editions: given, initial }: { editions?: ReplayEdi
   return (
     <div className="viz-card dark first-finish">
       <div className="viz-head">
-        <div><p className="viz-title">The moment the first finisher crosses the line</p><p className="viz-sub">Every eligible finish in the race, by the last checkpoint passed on the same clock</p></div>
+        <div><p className="viz-title">The moment the first finisher crosses the line</p><p className="viz-sub">Every finish in the race, by the last checkpoint passed</p></div>
         <EditionPicker editions={list} value={e.slug} onChange={setSlug} label="Race for the first finish" />
       </div>
       <div className="first-finish-top">
         <p className="first-finish-clock"><span>Race clock</span><strong>{hms(m.first_finish_s)}</strong></p>
-        <p className="first-finish-big"><strong>{Math.round(share * 100)}%</strong><span>of {count(e.finishes)} eligible finishes had not yet reached {checkpointLabel(20, units)}.</span></p>
+        <p className="first-finish-big"><strong>{Math.round(share * 100)}%</strong><span>of {count(e.finishes)} finishes had not yet reached {checkpointLabel(20, units)}.</span></p>
       </div>
       <div className="first-finish-bar" role="img" aria-label={segs.map((s) => `${s.label}: ${count(s.n)}`).join('; ')}>
         {segs.map((s) => <span key={s.label} style={{ flexGrow: Math.max(s.n, 0), background: s.c }} title={`${s.label}: ${count(s.n)}`} />)}
@@ -52,7 +52,7 @@ export function FirstFinish({ editions: given, initial }: { editions?: ReplayEdi
       <div className="first-finish-legend">
         {segs.map((s) => <span key={s.label}><i style={{ background: s.c }} />{s.label} <b>{count(s.n)}</b></span>)}
       </div>
-      <p className="viz-note">At that moment the back of the eligible field was about {dist(m.back_km_at_first, units)} into the course, {dist(42.195 - m.back_km_at_first, units)} behind the front. Half the field was home by {hms(m.half_home_s)}, {m.half_home_ratio.toFixed(2)} times the first finish time. Everyone shares one race clock here: wave starts are not recorded.</p>
+      <p className="viz-note">At that moment the back of the field was about {dist(m.back_km_at_first, units)} into the course, {dist(42.195 - m.back_km_at_first, units)} behind the front. Half the field was home by {hms(m.half_home_s)}, {m.half_home_ratio.toFixed(2)} times the first finish time.</p>
     </div>
   );
 }
@@ -83,7 +83,7 @@ export function EvenGhost({ editions: given, initial }: { editions?: ReplayEditi
   return (
     <div className="viz-card ghost-even">
       <div className="viz-head">
-        <div><p className="viz-title">Run it perfectly even</p><p className="viz-sub">A ghost holding {paceText} from start to finish, against every eligible finish in {name(e)}</p></div>
+        <div><p className="viz-title">Run it perfectly even</p><p className="viz-sub">A ghost holding {paceText} from start to finish, against every finish in {name(e)}</p></div>
         <EditionPicker editions={list} value={e.slug} onChange={setSlug} label="Race for the even-pace ghost" />
       </div>
       <label className="heat-slider ghost-target">
@@ -104,9 +104,8 @@ export function EvenGhost({ editions: given, initial }: { editions?: ReplayEditi
       <div className="ghost-ticker">
         <div><strong>{count(g.net_passes)}</strong><span>finishes the ghost moves past on the clock between {checkpointLabel(5, units)} and the finish, without speeding up</span></div>
         <div><strong>{hms(g.even_20km_s)}</strong><span>the ghost&apos;s time at {checkpointLabel(20, units)}</span></div>
-        <div><strong>{g.typical_20km_s ? hms(g.typical_20km_s) : '—'}</strong><span>{g.typical_20km_s ? `typical ${checkpointLabel(20, units)} time for ${count(g.near_n ?? 0)} real finishes within 2.5 minutes of ${hms(g.target_s).slice(0, -3)}` : 'too few real finishes near this time'}</span></div>
+        <div><strong>{g.typical_20km_s ? hms(g.typical_20km_s) : '—'}</strong><span>{g.typical_20km_s ? `typical ${checkpointLabel(20, units)} time for real finishes near ${hms(g.target_s).slice(0, -3)}` : 'too few real finishes near this time'}</span></div>
       </div>
-      <p className="viz-note">&quot;Ahead&quot; and &quot;moves past&quot; are clock ranks among eligible finishes, not passes on the road. The typical time is the median share of finish time reached at {checkpointLabel(20, units)}, not anyone&apos;s plan.</p>
     </div>
   );
 }
@@ -137,7 +136,7 @@ export function EmptyingCourse({ editions: given, initial }: { editions?: Replay
   return (
     <div className="viz-card">
       <div className="viz-head">
-        <div><p className="viz-title">Who is still out there</p><p className="viz-sub">Runners still on course at each moment: speed in their current section, and their own whole-race average speed</p></div>
+        <div><p className="viz-title">Who is still out there</p><p className="viz-sub">Runners still on course at each moment</p></div>
         <EditionPicker editions={list} value={e.slug} onChange={setSlug} label="Race for runners still on course" />
       </div>
       <div ref={ref} className="viz">
@@ -153,7 +152,7 @@ export function EmptyingCourse({ editions: given, initial }: { editions?: Replay
       </div>
       <div className="pairs-legend"><span><i style={{ background: '#FF5B2E' }} />current section speed</span><span><i style={{ background: '#7A4DFF' }} />same runners&apos; whole-race average</span></div>
       {five?.composition_share != null ? (
-        <p className="viz-note">Since 0:10 the average speed on course fell from {toU(rows[0].current_kmh).toFixed(1)} to {toU(five.current_kmh).toFixed(1)} {units === 'mi' ? 'mph' : 'km/h'} at 5:00. The whole field averaged {toU(rows[0].whole_race_kmh).toFixed(1)} {units === 'mi' ? 'mph' : 'km/h'} over its race; the runners still out at 5:00 averaged only {toU(five.whole_race_kmh).toFixed(1)}. That change in who is left accounts for about {Math.round(five.composition_share * 100)}% of the drop. This is descriptive accounting, not a cause.</p>
+        <p className="viz-note">Since 0:10 the average speed on course fell from {toU(rows[0].current_kmh).toFixed(1)} to {toU(five.current_kmh).toFixed(1)} {units === 'mi' ? 'mph' : 'km/h'} at 5:00. The whole field averaged {toU(rows[0].whole_race_kmh).toFixed(1)} {units === 'mi' ? 'mph' : 'km/h'} over its race; the runners still out at 5:00 averaged only {toU(five.whole_race_kmh).toFixed(1)}. That change in who is left accounts for about {Math.round(five.composition_share * 100)}% of the drop.</p>
       ) : null}
     </div>
   );
@@ -184,7 +183,7 @@ export function ClockPack({ editions: given, initial }: { editions?: ReplayEditi
   return (
     <div className="viz-card">
       <div className="viz-head">
-        <div><p className="viz-title">A clock pack comes apart</p><p className="viz-sub">{count(p.n)} finishes that passed {checkpointLabel(p.checkpoint_km, units)} within the same 30 seconds ({hms(p.window_start_s)}–{hms(p.window_start_s + 29)}): minutes ahead of or behind the pack&apos;s median</p></div>
+        <div><p className="viz-title">A clock pack comes apart</p><p className="viz-sub">Minutes ahead of or behind the pack&apos;s median</p></div>
         <EditionPicker editions={list} value={e.slug} onChange={setSlug} label="Race for the field spread" />
       </div>
       <div ref={ref} className="viz">
@@ -199,7 +198,7 @@ export function ClockPack({ editions: given, initial }: { editions?: ReplayEditi
           {(width < 560 ? [10, 20, 30, 40] : [5, 10, 20, 30, 40]).map((km) => <text key={km} x={x(km)} y={H - 12} textAnchor="middle">{checkpointLabel(km, units)}</text>)}
         </svg>
       </div>
-      <p className="viz-note">Shaded: the middle 80% of the pack&apos;s elapsed times at each checkpoint, relative to the pack&apos;s median there. A clock pack shares elapsed times, not necessarily the same stretch of road.</p>
+      <p className="viz-note">Shaded: the middle 80% of the pack.</p>
     </div>
   );
 }
@@ -231,7 +230,7 @@ export function StretchStrip({ stretch: given }: { stretch?: NonNullable<ReplayI
   const cy = (lane: number) => 100 - (lane % 2 === 0 ? 1 : -1) * Math.ceil(lane / 2) * 8;
   return (
     <div className="viz-card">
-      <div className="viz-head"><div><p className="viz-title">{stretch.wider_after_20} of {stretch.editions.length} races stretch after {checkpointLabel(20, units)}</p><p className="viz-sub">How far the slowest tenth trails the fastest tenth from {checkpointLabel(20, units)} to {checkpointLabel(40, units)}, compared with the first {checkpointLabel(20, units)} (1.00× = no change)</p></div></div>
+      <div className="viz-head"><div><p className="viz-title">{stretch.wider_after_20} of {stretch.editions.length} races stretch after {checkpointLabel(20, units)}</p><p className="viz-sub">Spread of the field from {checkpointLabel(20, units)} to {checkpointLabel(40, units)}, against the first {checkpointLabel(20, units)}</p></div></div>
       <div ref={ref} className="viz">
         <svg width={width} height={H} role="img" aria-label={`All ${stretch.editions.length} editions sit to the right of 1, from ${stretch.min.stretch.toFixed(2)} to ${stretch.max.stretch.toFixed(2)}.`}>
           <line x1={x(1)} x2={x(1)} y1={14} y2={H - 30} stroke="var(--ink)" strokeWidth={1.5} />
@@ -241,7 +240,7 @@ export function StretchStrip({ stretch: given }: { stretch?: NonNullable<ReplayI
           {[1, 1.05, 1.1, 1.15, 1.2].map((v) => <text key={v} x={x(v)} y={H - 6} textAnchor="middle">{v.toFixed(2)}×</text>)}
         </svg>
       </div>
-      <p className="viz-note">Each dot is one race edition with at least 1,000 eligible finishes. Narrowest stretch: {stretch.min.city} {stretch.min.year} ({stretch.min.stretch.toFixed(2)}×); widest: {stretch.max.city} {stretch.max.year} ({stretch.max.stretch.toFixed(2)}×). These are percentiles at each block, not the same runners. The 13 editions whose first {checkpointLabel(5, units)} looks inflated by start delays are left out.</p>
+      <p className="viz-note">Each dot is one race edition. Narrowest stretch: {stretch.min.city} {stretch.min.year} ({stretch.min.stretch.toFixed(2)}×); widest: {stretch.max.city} {stretch.max.year} ({stretch.max.stretch.toFixed(2)}×).</p>
     </div>
   );
 }

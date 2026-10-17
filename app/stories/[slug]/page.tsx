@@ -68,12 +68,12 @@ export default function StoryPage({ params }: { params: { slug: string } }) {
     publisher: { '@type': 'Person', name: 'Andrew Kam' },
   };
   let body;
-  if (story.slug === 'pacing-types') body = <PacingTypesBody data={clientArchetypes(readInsight<Archetypes>('archetypes.json'))} manifest={manifest} />;
-  else if (story.slug === 'round-numbers') body = <RoundNumbersBody data={readInsight<FinishTimes>('finish-times.json')} manifest={manifest} />;
-  else if (story.slug === 'who-holds-pace') body = <DemographicsBody data={readInsight<Demographics>('demographics.json')} manifest={manifest} />;
-  else if (story.slug === 'final-kick') body = <KickBody data={readInsight<Kick>('kick.json')} manifest={manifest} />;
-  else if (story.slug === 'courses') body = <CoursesBody data={readInsight<Courses>('courses.json')} geometry={readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses} manifest={manifest} />;
-  else if (story.slug === 'places') body = <PlacesBody data={readInsight<Positions>('positions.json')} manifest={manifest} />;
+  if (story.slug === 'pacing-types') body = <PacingTypesBody data={clientArchetypes(readInsight<Archetypes>('archetypes.json'))} />;
+  else if (story.slug === 'round-numbers') body = <RoundNumbersBody data={readInsight<FinishTimes>('finish-times.json')} />;
+  else if (story.slug === 'who-holds-pace') body = <DemographicsBody data={readInsight<Demographics>('demographics.json')} />;
+  else if (story.slug === 'final-kick') body = <KickBody data={readInsight<Kick>('kick.json')} />;
+  else if (story.slug === 'courses') body = <CoursesBody data={readInsight<Courses>('courses.json')} geometry={readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses} />;
+  else if (story.slug === 'places') body = <PlacesBody data={readInsight<Positions>('positions.json')} />;
   else body = <ReplayBody data={readInsight<ReplayIndex>('replay.json')} geometry={readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses} manifest={manifest} />;
   return (
     <article className="story-page" style={{ ['--story' as string]: story.accent }}>

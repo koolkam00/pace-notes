@@ -16,7 +16,7 @@ export default function RunnersPage() {
   // Read at build time from the verified story manifest, so the page carries the copy editions and their counts, and the
   // race report's hashes, opening groups and pacing-type cohort.
   return <article className="runner-page">
-    <header className="directory-heading"><p className="eyebrow">Every recorded runner</p><h1>Analyze a past race</h1><p>Find it in the results, paste your splits, or start from your finish time. Pacing and comparisons show where the data supports them.</p></header>
+    <header className="directory-heading"><p className="eyebrow">Every recorded runner</p><h1>Analyze a past race</h1><p>Find it in the results, paste your splits, or start from your finish time.</p></header>
     <RunnerSearch copyEditions={copyEditions()} report={reportData()} starts={<nav className="runner-starts" aria-label="Start without a name">
       <p className="eyebrow">Or start without a name</p>
       <ul>

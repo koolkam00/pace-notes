@@ -131,19 +131,19 @@ function comparisonOf(input: ReportInput['comparison'], finish: number): ReportC
   const path = paceBandShardPath(scope.slug, gender);
   const check = windowCheck(index, scope, gender, path, finish);
   if (check.state === 'range') {
-    return { state: 'unavailable', title: 'Outside the compared range.', message: `Comparisons are published for finishes from ${clock(check.from)} to ${clock(check.to)}, so that the 5-minute window has at least two minutes on each side of the finish.` };
+    return { state: 'unavailable', title: 'Outside the compared range.', message: `Comparisons are published for finishes from ${clock(check.from)} to ${clock(check.to)}.` };
   }
-  if (check.state === 'unpublished') return { state: 'unavailable', title: 'Not published for this group.', message: `No finish window ${where} has 100 finishes${recorded || ' of any recorded gender'}, so nothing is shown.` };
+  if (check.state === 'unpublished') return { state: 'unavailable', title: 'Not published for this group.', message: `No finish window ${where} has enough finishes${recorded || ' of any recorded gender'} to compare.` };
   if (!shard || shard.path !== path || (!shard.data && !shard.error)) return { state: 'loading' };
   if (shard.error || !shard.data) return { state: 'off', message: shard.error ?? 'This data could not be loaded. Check the connection and try again.' };
   const { lo, hi, all, held, slow } = windowCells(shard.data, check.minute, index.window_s);
-  if (!all) return { state: 'unavailable', title: 'Too few finishes at this time.', message: `Fewer than 100 complete finishes ran ${clock(lo)} to ${clock(hi)} ${where}${recorded}, so this window is not published.` };
+  if (!all) return { state: 'unavailable', title: 'Too few finishes at this time.', message: `Too few complete finishes ran ${clock(lo)} to ${clock(hi)} ${where}${recorded} to compare.` };
   const group = (key: ReportGroup['key'], name: string, cell: PaceBandCell): ReportGroup => ({ key, name, n: cell.n, ed: cell.ed, at20: cell.e50[3], finish: cell.e50[8] });
   // Held pace against sustained slowdown, each with 100 finishes; when neither has them, the whole window instead.
   const groups = held || slow ? [held ? group('held', 'Held pace', held) : null, slow ? group('slowdown', 'Sustained slowdown', slow) : null].filter((g): g is ReportGroup => g !== null)
     : [group('all', 'All finishes in the window', all)];
-  const missing = !held && !slow ? 'Neither the held-pace nor the sustained-slowdown group has 100 finishes, so the whole window is shown.'
-    : !held ? 'The held-pace group has fewer than 100 finishes, so it is not shown.' : !slow ? 'The sustained-slowdown group has fewer than 100 finishes, so it is not shown.' : null;
+  const missing = !held && !slow ? 'Neither the held-pace nor the sustained-slowdown group has enough finishes, so the whole window is shown.'
+    : !held ? 'The held-pace group has too few finishes to show.' : !slow ? 'The sustained-slowdown group has too few finishes to show.' : null;
   return {
     state: 'ok', label: `complete finishes from ${clock(lo)} to ${clock(hi)} ${where}${recorded}`, n: all.n, ed: all.ed, lo, hi,
     slowdownShare: all.sd ?? (slow ? slow.n / all.n : null), groups, missing,

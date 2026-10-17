@@ -65,7 +65,7 @@ export function ArchetypeRace({ data, focus, onFocus }: { data: Archetypes; focu
       <div className="viz-head">
         <div>
           <p className="viz-title">Six runners, one finish time</p>
-          <p className="viz-sub">Each runner follows one archetype&apos;s average profile. They all finish together.</p>
+          <p className="viz-sub">They all finish together.</p>
         </div>
         {!reduced ? <button type="button" className="viz-pause" onClick={() => setPaused((p) => !p)}>{paused ? 'Play animation' : 'Pause animation'}<span className="sr-only"> of the six-runner race</span></button> : null}
         <span className="race-clock">{u >= 1 ? 'Finish' : `${Math.round(u * 100)}% of race time`}</span>
@@ -103,7 +103,6 @@ export function ArchetypeRace({ data, focus, onFocus }: { data: Archetypes; focu
           })}
         </svg>
       </div>
-      <p className="viz-note">Same finish time, different journeys: the profiles are averages for each archetype, scaled to one finish. Because the finish time is fixed here, any time a profile gains early is given back later.</p>
     </div>
   );
 }
@@ -128,12 +127,11 @@ export function ArchetypeCards({ data, focus, onFocus }: { data: Archetypes; foc
             <dl>
               <div><dt>Median finish</dt><dd>{hms(a.median_finish_s)}</dd></div>
               <div><dt>Sustained slowdown</dt><dd>{a.slowdown_share > 0 && a.slowdown_share < 0.005 ? '<1' : a.slowdown_share > 0.995 && a.slowdown_share < 1 ? '>99' : (a.slowdown_share * 100).toFixed(0)}%</dd></div>
-              <div><dt>Extra time after 20 km*</dt><dd>+{a.median_after20_min.toFixed(1)} min</dd></div>
+              <div><dt>Extra time after 20 km</dt><dd>+{a.median_after20_min.toFixed(1)} min</dd></div>
             </dl>
           </article>
         );
       })}
-      <p className="archetype-foot">* Median time from 20 km to the finish beyond 22.2 km at the same finish&apos;s 5–20 km pace. {count(data.cohort_n)} eligible finishes; shares sum to 100%.</p>
     </div>
   );
 }
@@ -163,7 +161,7 @@ export function PacingBarcode({ data: given }: { data?: Archetypes }) {
       <div className="viz-head">
         <div>
           <p className="viz-title">The pacing barcode</p>
-          <p className="viz-sub">{count(data.cohort_n)} finishes, fastest at the top. Each row is 0.5% of the field.</p>
+          <p className="viz-sub">Fastest finishes at the top</p>
         </div>
         <div className="ramp-legend"><span>faster than own average</span><i style={{ background: 'linear-gradient(90deg,#1D3FD8,#4F79F7,#9DB6FB,#EFE8DA,#FFB48A,#FF6A3D,#C8202F)' }} /><span>slower</span></div>
       </div>
@@ -197,7 +195,7 @@ export function PacingBarcode({ data: given }: { data?: Archetypes }) {
         <input type="range" min={0} max={rows.length - 1} step={1} value={hover ?? 0} onChange={(e) => setHover(Number(e.target.value))}
           aria-valuetext={`Finishes ${hms(rows[hover ?? 0].lo_s)} to ${hms(rows[hover ?? 0].hi_s)}; slowest section ${Math.max(...rows[hover ?? 0].median).toFixed(1)}% slower than own average`} />
       </label>
-      <p className="viz-note">Blue sections are quicker than that finish&apos;s own average pace, red sections slower. The fastest finishes stay pale almost all the way; the red arrives earlier and deeper as finish times lengthen.</p>
+      <p className="viz-note">The fastest finishes stay pale almost all the way; the red arrives earlier and deeper as finish times lengthen.</p>
     </div>
   );
 }
@@ -288,8 +286,8 @@ export function WhichArchetype({ data: given }: { data?: Archetypes }) {
           </div>
           <p className="which-strip-note">% against your own average pace, section by section</p>
           <p>
-            Your pacing sentence is <code>{result.sentence}</code> (F = more than 3% faster than your own average, E = within 3%, S = more than 3% slower).{' '}
-            {result.match ? <>It is shared by {count(result.match.n)} eligible finishes, about 1 in {count(Math.round(data.cohort_n / result.match.n))}.</> : <>It is not among the {count(data.sentences.published.length)} most common sentences published here, each shared by at least {count(data.sentences.published[data.sentences.published.length - 1].n)} finishes.</>}
+            Your pacing sentence is <code>{result.sentence}</code> (F faster, E even, S slower than your own average).{' '}
+            {result.match ? <>It is shared by {count(result.match.n)} finishes, about 1 in {count(Math.round(data.cohort_n / result.match.n))}.</> : <>It is not among the {count(data.sentences.published.length)} most common sentences published here, each shared by at least {count(data.sentences.published[data.sentences.published.length - 1].n)} finishes.</>}
             {' '}{(data.archetypes[result.best].share * 100).toFixed(1)}% of all finishes are {data.archetypes[result.best].name}s.
           </p>
         </div>
@@ -305,7 +303,7 @@ export function RepeatHabits({ data: given }: { data?: Archetypes }) {
   const max = Math.max(...rows.map((r) => r.repeat_share ?? 0));
   return (
     <div className="viz-card">
-      <div className="viz-head"><div><p className="viz-title">The same shape often shows up in the next linked race</p><p className="viz-sub">{count(data.transitions.pairs)} pairs of consecutive races by the same screened identity candidate</p></div></div>
+      <div className="viz-head"><div><p className="viz-title">The same shape often shows up in the next linked race</p></div></div>
       <div className="repeat-rows">
         {rows.map((r, i) => (
           <div key={r.name} className="repeat-row">
@@ -318,7 +316,7 @@ export function RepeatHabits({ data: given }: { data?: Archetypes }) {
           </div>
         ))}
       </div>
-      <p className="viz-note">Coloured bar: share of next races in the same archetype. Grey bar: that archetype&apos;s share of all next races. Identity links are screened candidates, not verified people, and later races are only observed for runners who returned.</p>
+      <p className="viz-note">Coloured bar: next races of the same type. Grey bar: that type&apos;s share of all next races.</p>
     </div>
   );
 }

@@ -8,9 +8,11 @@
  *   comparison is the pace band cell for G = ⌊F ÷ 60⌋ + 3 (finishes, editions, sustained-slowdown share, group medians),
  *   its pacing type the nearest weighted centroid in archetypes.json, and its opening group the starting-pace bounds,
  *   each recomputed here from the checksum-verified files rather than through lib/report.ts.
- * - Every data block carries its cohort label and its finishes; groups under 100 finishes never show.
+ * - Every data block carries its group label and its finishes; groups under 100 finishes never show.
  * - The card, the image's lines and its alternative text: no name, record ID, rank or percentile outside the record
- *   block (which never reaches the image or a link), no "you", the citation, the units named.
+ *   block (which never reaches the image or a link), no "you", the units named. Since October 16, 2026 the card holds
+ *   findings only: no definition, citation or method line (they are on /methodology), "sustained slowdown" linked to
+ *   its definition there and every evidence badge linked to the evidence labels.
  */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -34,7 +36,11 @@ const links = require('../lib/tools/links.ts');
 const splits = require('../lib/tools/splits.ts');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
-const { ReportCard } = require('../components/report/RaceReport.tsx');
+const { ReportCard, EVIDENCE_HREF, SLOWDOWN_HREF } = require('../components/report/RaceReport.tsx');
+/** Method copy the card no longer carries (October 16, 2026: it is on /methodology). */
+const METHOD_COPY = /doi:|Published slowdown method|by the published definition|Calculated from|Source:|Higher means|ties count halfway|the starting-pace analysis|nearest of six|an observed share|Editions are pooled|chosen by how their races ended|modell?ed weather|personal exposure|supplied|historical validity|not an adjustment|25% slower|dashed line/i;
+const badgeLink = (kind, label) => new RegExp(`<a\\b(?=[^>]*class="race-report-badge is-${kind}")(?=[^>]*href="${EVIDENCE_HREF}")[^>]*>${label}</a>`);
+assert.equal(EVIDENCE_HREF, '/methodology#evidence'); assert.equal(SLOWDOWN_HREF, '/methodology#sustained-slowdown');
 let checks = 0;
 const ok = (n = 1) => { checks += n; };
 const started = Date.now();
@@ -148,15 +154,19 @@ for (const scope of index.scopes) {
       for (const g of c.groups) assert.ok(g.n >= 100, 'no group under 100 finishes');
       assert.match(c.label, scope.slug === 'all' ? / on all courses/ : new RegExp(` in ${scope.city}`)); if (gender !== 'all') assert.match(c.label, new RegExp(`recorded as ${gender}$`));
       compared += 1;
-      // The card shows each data block with its label and finishes; no "you", no record, the citation.
+      // The card shows each data block with its label and finishes; no "you", no record, no method copy.
       if (shown < 40) {
         for (const units of ['mi', 'km']) {
           const html = renderToStaticMarkup(React.createElement(ReportCard, { id: 'r', model, units, level: 1, gender, dropped: null, retryComparison: () => {}, retryType: () => {} }));
           const text = html.replace(/<[^>]+>/g, ' ').replace(/&#x27;|&#39;/g, '\'').replace(/&amp;/g, '&').replace(/\s+/g, ' ');
           assert.ok(text.includes(`${c.n.toLocaleString('en-US')} ${c.label}`), 'the comparison names its finishes and its group');
           for (const g of c.groups) assert.ok(text.includes(`${g.name} ${g.n.toLocaleString('en-US')}`), `${g.name}: its finishes`);
-          assert.ok(text.includes(`${model.type.n.toLocaleString('en-US')} (${report.shareText(model.type.share)}, an observed share) of the ${archetypes.cohort_n.toLocaleString('en-US')} complete finishes in the pacing-types cohort`), 'the pacing type names its cohort and its finishes');
-          assert.ok(text.includes('doi:10.1371/journal.pone.0251513') && text.includes(splits.SLOWDOWN_DEFINITION), 'the definition and its citation');
+          assert.ok(text.includes(`${model.type.n.toLocaleString('en-US')} of ${archetypes.cohort_n.toLocaleString('en-US')} finishes (${report.shareText(model.type.share)}) were ${model.type.name.toLowerCase()}s`), 'the pacing type names its finishes and its share');
+          assert.ok(!text.includes('doi:10.1371/journal.pone.0251513') && !text.includes(splits.SLOWDOWN_DEFINITION), 'no definition or citation on the card');
+          assert.doesNotMatch(text, METHOD_COPY, 'no method line on the card');
+          assert.match(html, new RegExp(`<a\\b[^>]*href="${SLOWDOWN_HREF}"[^>]*>sustained slowdown</a>`), 'the term links to its definition');
+          assert.equal((html.match(/class="race-report-badge /g) || []).length, (html.match(/<a\b[^>]*class="race-report-badge /g) || []).length, 'every badge is a link');
+          assert.match(html, badgeLink('data', 'Pace Notes data'));
           assert.doesNotMatch(text, /\byou\b|\byour\b|the wall|arithmetic|percentile|\brank\b|\brecord\b/i, 'the report says "this race", and holds no rank, percentile or record');
           assert.match(text, units === 'mi' ? /\/mi\b/ : /\/km\b/); assert.doesNotMatch(text, units === 'mi' ? /\d\/km\b/ : /\d\/mi\b/, 'paces in the units shown');
           assert.equal((html.match(/<h1\b/g) || []).length, 1, 'one title');
@@ -164,7 +174,7 @@ for (const scope of index.scopes) {
           const alt = report.reportImageAlt(model, units);
           assert.ok(alt.includes(lines.finish) && lines.sections.every((s) => alt.includes(`${s.label} ${s.pace}`)) && alt.includes(lines.slowdown), 'the alternative text holds the image\'s numbers');
           assert.ok(alt.includes(`${report.REPORT_DATA_LABEL}. ${lines.type}.`) && alt.indexOf(report.REPORT_DATA_LABEL) > alt.indexOf(lines.slowdown) && alt.split(report.REPORT_DATA_LABEL).length === 2, 'the alternative text labels the data lines, once, after the calculations and the reading');
-          assert.match(html, /<span>Sustained slowdown<\/span><strong>(?:Yes|No)<\/strong><small>[^<]*by the published definition<\/small><span class="race-report-badge is-research">Published research<\/span>/, 'the slowdown tile carries the Published research badge, as the split check\'s does');
+          assert.match(html, new RegExp(`<span>Sustained slowdown</span><strong>(?:Yes|No)</strong>(?:<small>from [^<]*</small>)?${badgeLink('research', 'Published research').source}`), 'the slowdown tile carries the Published research badge, linked to the evidence labels');
           assert.ok(lines.comparison.includes(c.n.toLocaleString('en-US')) && lines.comparison.includes(c.label), 'the image\'s comparison line names its finishes and group');
           assert.doesNotMatch(JSON.stringify(lines), /percentile|\brank\b|\brecord\b|\byou\b/i, 'the image holds no rank, percentile or record');
           ok(9);
@@ -204,7 +214,8 @@ ok();
   assert.equal(recorded.record.placement.label, 'eligible finishes in Lakeside 2021'); assert.match(recorded.record.late.label, /^finishes from 4:07:30 to under 4:22:30 in Lakeside 2021$/);
   const html = renderToStaticMarkup(React.createElement(ReportCard, { id: 'r', model: recorded, units: 'mi', level: 3, gender: 'all', dropped: null, retryComparison: () => {}, retryType: () => {} }));
   assert.match(html, /<h3 class="race-report-title"/); assert.doesNotMatch(html, /<h1\b/);
-  assert.match(html, /4,999 other eligible finishes in Lakeside 2021/); assert.match(html, /not an official placing/); assert.match(html, /context, not personal exposure/); assert.match(html, /sum of the 5 km sections/);
+  assert.match(html, /4,999 other eligible finishes in Lakeside 2021/); assert.match(html, /not an official placing/);
+  assert.doesNotMatch(html.replace(/<[^>]+>/g, ' '), METHOD_COPY, 'no method line in the record block either');
   assert.match(html, /52\.7°F/); assert.match(html, /395 ft/);
   assert.doesNotMatch(JSON.stringify(report.reportLines(recorded, 'mi')), /4,999|1,200|\b76(?:\.0)?%|percentile|\brank\b|9\.5%|12\.3%|°|\bft\b/, 'the image never carries the record\'s placement');
   const small = report.buildReport({ ...base, comparison: { index, indexError: null, course: 'all', gender: 'all', shard: null },
@@ -214,4 +225,4 @@ ok();
 }
 assert.equal(report.REPORT_IMAGE_NAME, 'pace-notes-race-report.png'); ok();
 
-console.log(`Race report checks passed (${checks}, ${((Date.now() - started) / 1000).toFixed(1)} s): link forms (typed with its comparison group, from a record with s, course and via only), the same window, groups, pacing type and opening group as the split check on ${compared} published windows across every course and recorded gender (${unpublished} unpublished ones say so), every data block with its finishes and cohort, no group under 100 finishes, no "you", rank, percentile or record in the card or the image, the citation, and the units shown.`);
+console.log(`Race report checks passed (${checks}, ${((Date.now() - started) / 1000).toFixed(1)} s): link forms (typed with its comparison group, from a record with s, course and via only), the same window, groups, pacing type and opening group as the split check on ${compared} published windows across every course and recorded gender (${unpublished} unpublished ones say so), every data block with its finishes and cohort, no group under 100 finishes, no "you", rank, percentile or record in the card or the image, no definition, citation or method line (the term and the badges link to /methodology), and the units shown.`);

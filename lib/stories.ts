@@ -4,7 +4,7 @@
  * is a getter that reads the number from the verified story data at build time, so none is typed in.
  */
 import { getInsightsManifest, readInsight } from './insights-server';
-import type { Archetypes, CourseGeometry, Courses, InsightsManifest, Kick, ReplayIndex } from './insights';
+import type { Archetypes, Courses, InsightsManifest, Kick, ReplayIndex } from './insights';
 import { checkpointLabel } from './viz/format';
 
 /** One parsed copy of each story file per verified manifest, so the getters below do not re-read files on every access. */
@@ -73,12 +73,6 @@ function pacingTypes(): string | null {
   return types ? countWord(types.archetypes.length) : null;
 }
 
-/** Finishes grouped into pacing types, in millions with one decimal ("3.3"), or null without the file. */
-function pacingCohortMillions(): string | null {
-  const types = insight<Archetypes>('archetypes.json');
-  return types ? (types.cohort_n / 1e6).toFixed(1) : null;
-}
-
 /**
  * Replayed races in replay.json and the finishes each replay draws: a sample of each field ("1,500", or "up to 1,500"
  * when the samples differ), never the whole field. Null when the file is not in this build.
@@ -106,15 +100,6 @@ function shapedCourses(): number | null {
   return data ? data.courses.filter((c) => c.curve?.length).length : null;
 }
 
-/** Courses in courses.json that have a supplied route file in course-geometry.json (some courses have none). */
-function mappedCourses(): number | null {
-  const data = insight<Courses>('courses.json');
-  const geometry = insight<{ courses: CourseGeometry[] }>('course-geometry.json');
-  if (!data || !geometry) return null;
-  const routes = new Set(geometry.courses.map((c) => c.city));
-  return data.courses.filter((c) => routes.has(c.city)).length;
-}
-
 export const STORIES: StoryDefinition[] = [
   { slug: 'pacing-types', file: 'archetypes.json', number: '01', kicker: 'The shape of a marathon',
     get title() {
@@ -123,8 +108,7 @@ export const STORIES: StoryDefinition[] = [
     },
     get dek() {
       const types = pacingTypes();
-      const millions = pacingCohortMillions();
-      return `Every finish has a shape. Grouping ${millions ? `${millions} million` : 'millions'} of them reveals ${types ? `${types} ` : ''}recurring pacing types, and how often the same shape shows up in a runner’s next linked race.`;
+      return `Every finish has a shape, and ${types ? `${types} ` : ''}pacing types recur across the field. See how often the same shape shows up in a runner’s next linked race.`;
     },
     accent: '#17A673',
     published: '2026-10-07',
@@ -147,8 +131,8 @@ export const STORIES: StoryDefinition[] = [
     get dek() {
       const fields = replayFields();
       return fields
-        ? `Replay ${fields.races} big-city races from their recorded splits and watch ${fields.sample} sampled finishes from each field stretch across the course.`
-        : 'Replay big-city races from their recorded splits and watch a sample of each field stretch across the course.';
+        ? `Replay ${fields.races} big-city races and watch each field stretch across the course.`
+        : 'Replay big-city races and watch each field stretch across the course.';
     },
     accent: '#F4B23E',
     published: '2026-10-07',
@@ -190,12 +174,8 @@ export const STORIES: StoryDefinition[] = [
   { slug: 'courses', file: 'courses.json', number: '07', kicker: 'Courses, weather and years', title: 'Every course has a fingerprint',
     get dek() {
       const span = courseSpan();
-      const shaped = shapedCourses();
-      const mapped = mappedCourses();
-      if (!span || !shaped) return 'Pacing shapes, route maps and elevation where the data allow, with the weather on race morning for each marathon.';
-      const of = (n: number) => (n === span.courses ? `all ${n}` : `${n} of ${span.courses}`);
-      const maps = mapped ? `, route maps and elevation for ${mapped === span.courses ? 'all' : mapped}` : '';
-      return `Pacing shapes for ${of(shaped)} marathons${maps}, with the weather on race morning and finish times from ${span.first} to ${span.last}.`;
+      const lead = 'Each marathon has its own pacing shape. See the shapes, the routes and the weather on race morning';
+      return span ? `${lead}, with finish times from ${span.first} to ${span.last}.` : `${lead}.`;
     },
     accent: '#0FA3A3',
     published: '2026-10-07',

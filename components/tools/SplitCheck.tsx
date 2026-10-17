@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { EvidenceTag, SlowdownTerm, type EvidenceKind } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { Choice, EvidencePanel, ExampleNote, ShareBar } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
@@ -8,11 +9,11 @@ import KeypadHint from '@/components/KeypadHint';
 import { useWidth } from '@/components/viz/useSize';
 import { runnerHandoff } from '@/lib/analytics-policy';
 import { loadInsight, type Archetype, type Archetypes } from '@/lib/insights';
-import { TONE, openingBandOf, openingPct, pctAbs, pctSigned, qualifies, reportLink, toneOf, windowCells, windowCheck, type OpeningBand, type TypeCohort } from '@/lib/report-shared';
+import { TONE, openingBandOf, openingPct, pctAbs, pctSigned, qualifies, reportLink, toneOf, windowCells, windowCheck, type OpeningBand } from '@/lib/report-shared';
 import { loadShard, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
 import type { PaceBandCell } from '@/lib/tools/pace-band-data';
 import { MARATHON_KM, MATS_KM, perUnit } from '@/lib/tools/pace';
-import { SECTION_KM, SECTION_NAMES, SLOWDOWN_CITATION, SLOWDOWN_DEFINITION, classify, readSplits, validateSplits, type SplitReading } from '@/lib/tools/splits';
+import { SECTION_KM, SECTION_NAMES, classify, readSplits, validateSplits, type SplitReading } from '@/lib/tools/splits';
 import { formatDuration, parseDuration } from '@/lib/tools/time';
 import { keypadInput } from '@/lib/keypad';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
@@ -204,7 +205,6 @@ const displayAll = (times: (number | null)[]) => times.map(displayTime);
 
 const fmtPace = (sPerKm: number, units: UnitSystem) => `${formatDuration(perUnit(sPerKm, units))}/${units}`;
 const unitWord = (units: UnitSystem) => (units === 'mi' ? 'mile' : 'km');
-const editions = (k: number) => (k === 1 ? 'one edition' : `${count(k)} editions`);
 const share = (v: number) => `${(v * 100).toFixed(1)}%`;
 /** Section name in the selected units ("30–35 km" or "18.6–21.7 mi"). */
 const secName = (i: number, units: UnitSystem) => (units === 'mi' ? sectionLabel(i, 'mi') : `${SECTION_NAMES[i]} km`);
@@ -214,7 +214,6 @@ const BASE_MI = '3.1–12.4 mi';
 /** "after 20 km" / "after 12.4 mi (20 km)". */
 const after20 = (units: UnitSystem) => (units === 'mi' ? 'after 12.4 mi (20 km)' : 'after 20 km');
 /** "the final 2.195 km" / "the final 1.36 mi (2.195 km)". */
-const finalLeg = (units: UnitSystem) => (units === 'mi' ? `the final ${(SECTION_KM[8] / KM_PER_MILE).toFixed(2)} mi (2.195 km)` : 'the final 2.195 km');
 /** A distance in km, with miles first in miles mode: "5 km" / "3.1 mi (5 km)". */
 const kmGloss = (km: number, units: UnitSystem) => {
   const text = km.toLocaleString('en-US', { maximumFractionDigits: 3 });
@@ -258,10 +257,10 @@ function summarize(r: SplitReading, units: UnitSystem): { lead: string; more: st
     if (worst !== i0) more.push(`Your slowest section was ${secName(worst, units)}, ${pctAbs(vs[worst])} slower.`);
   } else {
     const v = vs[worst];
-    if (v >= 0.02) lead = `No sustained slowdown. Your slowest ${five} ${after}, ${secName(worst, units)}, was ${pctAbs(v)} slower than your ${base} pace, ${v < 0.15 ? 'well ' : ''}short of the 25% threshold.`;
+    if (v >= 0.02) lead = `No sustained slowdown. Your slowest ${five} ${after}, ${secName(worst, units)}, was ${pctAbs(v)} slower than your ${base} pace.`;
     else if (v > -0.02) lead = `No sustained slowdown: every ${five} section ${after} stayed within 2% of your ${base} pace or quicker.`;
     else lead = `No sustained slowdown: you ran every ${five} section ${after} quicker than your ${base} pace.`;
-    if (qualifies(vs[8])) more.push(`Your final ${units === 'mi' ? `${(SECTION_KM[8] / KM_PER_MILE).toFixed(2)} mi (2.195 km)` : '2.195 km'} was ${pctAbs(vs[8])} slower, but that last stretch cannot count as a sustained slowdown on its own.`);
+    if (qualifies(vs[8])) more.push(`Your final ${units === 'mi' ? `${(SECTION_KM[8] / KM_PER_MILE).toFixed(2)} mi (2.195 km)` : '2.195 km'} was ${pctAbs(vs[8])} slower.`);
   }
   const o = r.opening;
   more.push(Math.abs(o) < 0.0005 ? `You ran the first ${five} at your ${base} pace.` : `You ran the first ${five} ${openingPct(o)} ${o < 0 ? 'quicker' : 'slower'} than that pace.`);
@@ -332,13 +331,12 @@ function issueText(i: number, kind: FieldIssue, parsed: (number | null)[]): stri
   return `The ${SECTION_NAMES[i]} km section works out at ${formatDuration(pace)} per km; every section must be between 2:00 and 20:00 per km. Check the ${i ? `${matLabel(i - 1)} and ${matLabel(i)} times` : `${matLabel(i)} time`}.`;
 }
 
-export default function SplitCheck({ indexSha, archetypesSha, openingBands, openingCities, bandCourses, otherCourses, typeCohort }: {
+export default function SplitCheck({ indexSha, archetypesSha, openingBands, openingCities, bandCourses, otherCourses }: {
   indexSha: string | null; archetypesSha: string | null; openingBands: OpeningBand[]; openingCities: string[];
   /** Course slugs the pace band (and so this comparison) publishes, read at build time. */
   bandCourses: string[];
   /** Cities other Pace Notes data knows but this comparison does not, by slug (a runner-page link may name one). */
   otherCourses: Record<string, string>;
-  typeCohort: TypeCohort | null;
 }) {
   const { units } = useUnits();
   const [q, setQ, ready, fromUrl] = useQueryState(DEFAULTS);
@@ -477,15 +475,15 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
     // The window and its groups are shared with the race report (lib/report.ts), so both show the same finishes.
     const check = windowCheck(index.data, scope, gender, shardPath, shownTimes[8]);
     if (check.state === 'range') {
-      return { state: 'unavailable', title: 'Outside the compared range.', message: `Comparisons are available for finishes from ${formatDuration(check.from, true)} to ${formatDuration(check.to, true)}, so that the 5-minute window has at least two minutes on each side of your time. Your section paces, slowdown reading and pacing type still apply.` };
+      return { state: 'unavailable', title: 'Outside the compared range.', message: `Comparisons are available for finishes from ${formatDuration(check.from, true)} to ${formatDuration(check.to, true)}. Your section paces, slowdown reading and pacing type still apply.` };
     }
     if (check.state === 'unpublished') {
-      return { state: 'unavailable', title: 'Not published for this selection.', message: `No finish window ${where} has 100 finishes recorded as ${genderWord || 'any gender'}, so nothing is shown.` };
+      return { state: 'unavailable', title: 'Not published for this selection.', message: 'Your section paces, slowdown reading and pacing type still apply.' };
     }
     if (!shard) return { state: 'loading' };
     if (shard.error || !shard.data) return { state: 'off', message: shard.error ?? 'This data could not be loaded. Check the connection and try again.', retry: retryShard };
     const { lo, hi, all, held, slow } = windowCells(shard.data, check.minute, index.data.window_s);
-    if (!all) return { state: 'unavailable', title: 'Too few finishes at your time.', message: `Fewer than 100 complete finishes ran ${formatDuration(lo, true)} to ${formatDuration(hi, true)} ${where}${genderWord ? ` (recorded as ${genderWord})` : ''}, so this window is not published.` };
+    if (!all) return { state: 'unavailable', title: 'Too few finishes at your time.', message: `Too few finishes ran ${formatDuration(lo, true)} to ${formatDuration(hi, true)} ${where}${genderWord ? ` (recorded as ${genderWord})` : ''} to compare.` };
     return { state: 'ok', minute: check.minute, lo, hi, all, held, slow };
   }, [shownTimes, indexError, retryIndex, indexSha, index.data, scope, q.course, gender, shardPath, shard, retryShard, where, genderWord]);
 
@@ -564,8 +562,8 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
             <label htmlFor={`${formId}-course`}>Compare with finishes on</label>
             <select id={`${formId}-course`} value={q.course} onChange={(e) => { setDroppedCourse(null); setQ({ course: e.target.value }); }}
               aria-describedby={`${formId}-course-hint`}>
-              <option value="all">All courses{index.data ? ` · ${editions(index.data.scopes.find((s) => s.slug === 'all')?.editions ?? 0)}` : ''}</option>
-              {index.data ? index.data.scopes.filter((s) => s.slug !== 'all').map((s) => <option key={s.slug} value={s.slug}>{s.city ?? s.slug} · {editions(s.editions)}</option>)
+              <option value="all">All courses</option>
+              {index.data ? index.data.scopes.filter((s) => s.slug !== 'all').map((s) => <option key={s.slug} value={s.slug}>{s.city ?? s.slug}</option>)
                 : q.course !== 'all' ? <option value={q.course}>{q.course}</option> : null}
             </select>
             <p className={`tool-field-hint${droppedCourse && !droppedCity ? ' is-error' : ''}`} id={`${formId}-course-hint`}>
@@ -578,7 +576,7 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
             <span className="tool-label" id={`${formId}-gender`}>Recorded gender <span className="split-check-optional">optional</span></span>
             <div role="group" aria-labelledby={`${formId}-gender`} className="ph-no-capture"><Choice label="Recorded gender" value={gender} onChange={(v) => setQ({ g: v })} options={GENDER_OPTIONS} small /></div>
           </div>
-          <p className="tool-field-hint split-check-privacy">Everything is calculated in this browser. Your times sit in the page address only so a copied link reproduces this page; data files are requested by course and gender alone, and analytics never record your times.</p>
+          <p className="tool-field-hint split-check-privacy">Your times stay in this browser and the page address. Analytics never record them.</p>
         </form>
 
         <div className={`tool-results split-check-results${stale ? ' is-stale' : ''}`}>
@@ -588,7 +586,7 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
               <Results times={shownTimes} reading={reading} units={units} comparison={comparison} type={type} typeError={archetypes.error} retryType={archetypes.retry}
                 where={where} place={place} genderWord={genderWord} course={q.course} gender={gender} fallbacks={fallbacks}
                 openingBands={openingBands} openingCities={openingCities} isExample={isExample}
-                bandCourse={knownCourses?.includes(q.course) && q.course !== 'all' ? q.course : null} typeCohort={typeCohort}
+                bandCourse={knownCourses?.includes(q.course) && q.course !== 'all' ? q.course : null}
                 reportCity={q.course !== 'all' ? scope?.city ?? null : null} fromRunner={fromRunner} />
             ) : view[0] === 'e' ? (
               <div className="tool-state is-error"><strong>Check your times.</strong> {view.slice(1)}</div>
@@ -608,30 +606,28 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
 
 type TypeResult = { name: string; arch: Archetype; colour: string; all: Archetype[] } | null;
 
-const EVIDENCE_LABEL = { data: 'Pace Notes data', research: 'Published research' } as const;
-
 /**
  * A headline number. Pace Notes data and the published definition carry their evidence badge; a number calculated from
  * your own times carries none, so the three are never mixed up.
  */
 function HeadStat({ label, value, sub, tone, evidence, className }: {
-  label: string; value: ReactNode; sub: ReactNode; tone?: 'good' | 'bad'; evidence?: keyof typeof EVIDENCE_LABEL; className?: string;
+  label: ReactNode; value: ReactNode; sub: ReactNode; tone?: 'good' | 'bad'; evidence?: Exclude<EvidenceKind, 'official'>; className?: string;
 }) {
   return (
     <div className={`tool-stat${tone ? ` is-${tone}` : ''}${className ? ` ${className}` : ''}`}>
       <span className="tool-stat-label">{label}</span>
       <strong className="tool-stat-value">{value}</strong>
       <span className="tool-stat-sub">{sub}</span>
-      {evidence ? <span className={`evidence-badge evidence-${evidence} split-check-tag`}>{EVIDENCE_LABEL[evidence]}</span> : null}
+      {evidence ? <EvidenceTag kind={evidence} className="split-check-tag" /> : null}
     </div>
   );
 }
 
-function Results({ times, reading, units, comparison, type, typeError, retryType, where, place, genderWord, course, gender, fallbacks, openingBands, openingCities, isExample, bandCourse, typeCohort, reportCity, fromRunner }: {
+function Results({ times, reading, units, comparison, type, typeError, retryType, where, place, genderWord, course, gender, fallbacks, openingBands, openingCities, isExample, bandCourse, reportCity, fromRunner }: {
   times: number[]; reading: SplitReading; units: UnitSystem; comparison: Comparison; type: TypeResult; typeError: string | null; retryType: () => void;
   where: string; place: string; genderWord: string; course: string; gender: Gender; fallbacks: ReactNode; openingBands: OpeningBand[]; openingCities: string[]; isExample: boolean;
   /** The chosen course when the pace band publishes it, else null. */
-  bandCourse: string | null; typeCohort: TypeCohort | null;
+  bandCourse: string | null;
   /** The compared course's name for the race report link (null for all courses). */
   reportCity: string | null;
   /** The page was opened from a runner's record (via=runner). */
@@ -657,16 +653,16 @@ function Results({ times, reading, units, comparison, type, typeError, retryType
         </div>
         <HeadStat label="Finish" value={finish} sub={`average ${fmtPace(avg, units)}`} className={times[8] >= 36000 ? 'split-check-long' : undefined} />
         <HeadStat label={`${BASE} pace`} value={formatDuration(perUnit(reading.baseline, units))}
-          sub={`per ${unitWord(units)}${units === 'mi' ? ` (${BASE_MI})` : ''} · 25% slower is ${fmtPace(reading.baseline * 1.25, units)}`} />
-        <HeadStat label="Sustained slowdown" value={reading.slowdown ? 'Yes' : 'No'} tone={reading.slowdown ? 'bad' : 'good'} evidence="research"
-          sub={reading.slowdown && reading.onsetKm !== null ? `from ${kmGloss(reading.onsetKm, units)}, by the published definition` : 'by the published definition'} />
+          sub={`per ${unitWord(units)}${units === 'mi' ? ` (${BASE_MI})` : ''}`} />
+        <HeadStat label={<SlowdownTerm>Sustained slowdown</SlowdownTerm>} value={reading.slowdown ? 'Yes' : 'No'} tone={reading.slowdown ? 'bad' : 'good'} evidence="research"
+          sub={reading.slowdown && reading.onsetKm !== null ? `from ${kmGloss(reading.onsetKm, units)}` : `none ${after20(units)}`} />
         <HeadStat label="Pacing type" className="split-check-type-stat" evidence="data"
           value={type ? <><i style={{ background: type.colour }} aria-hidden="true" />{type.name}</> : typeError ? '—' : '…'}
-          sub={type ? 'nearest of six Pace Notes pacing types' : typeError ? 'classifier unavailable' : 'loading the classifier'} />
+          sub={type ? `${share(type.arch.share)} of finishes` : typeError ? 'unavailable' : 'loading'} />
       </div>
 
       <EvidencePanel title="Your race, section by section" id="split-check-sections"
-        meta={`Pace in each section against your own ${BASE} pace${units === 'mi' ? ` (${BASE_MI})` : ''}, ${fmtPace(reading.baseline, units)}: the reference block in the published definition. Bars show how much slower or quicker each section was.`}>
+        meta={`Pace in each section against your own ${BASE} pace${units === 'mi' ? ` (${BASE_MI})` : ''}, ${fmtPace(reading.baseline, units)}.`}>
         <SectionChart reading={reading} times={times} units={units} />
         <SectionTable reading={reading} times={times} units={units} />
       </EvidencePanel>
@@ -676,9 +672,9 @@ function Results({ times, reading, units, comparison, type, typeError, retryType
         <OpeningPanel reading={reading} units={units} bands={openingBands} cities={openingCities} place={place} course={course} gender={gender} />
       </div>
 
-      <ComparisonPanel comparison={comparison} times={times} units={units} where={where} course={course} genderWord={genderWord} fallbacks={fallbacks} />
+      <ComparisonPanel comparison={comparison} times={times} units={units} where={where} genderWord={genderWord} fallbacks={fallbacks} />
 
-      <TypePanel reading={reading} type={type} error={typeError} retry={retryType} units={units} cohort={typeCohort} />
+      <TypePanel reading={reading} type={type} error={typeError} retry={retryType} units={units} />
 
       <div className="print-only split-check-print">
         <p>Pace Notes split check{isExample ? ' (example race)' : ''}. Mat times entered: {CHECKPOINTS.map((km, i) => `${i === 8 ? 'Finish' : `${km} km`} ${formatDuration(times[i], true)}`).join(' · ')}.</p>
@@ -835,7 +831,7 @@ function SectionChart({ reading, times, units }: { reading: SplitReading; times:
           </div>
         ) : null}
       </div>
-      <p className="split-check-axis-note">{units === 'mi' ? 'Miles from the start' : 'Kilometres from the start'}. Each bar runs from your {BASE} pace to the section’s pace; the last is {finalLeg(units)}. The hatched zone is 25% or more slower than your {BASE} pace, {after20(units)}.</p>
+      <p className="split-check-axis-note">{units === 'mi' ? 'Miles from the start' : 'Kilometres from the start'}. Hatched: 25% or more slower than your {BASE} pace, {after20(units)}.</p>
     </>
   );
 }
@@ -868,7 +864,7 @@ function SectionTable({ reading, times, units }: { reading: SplitReading; times:
           <tr><th scope="row">{BASE} pace</th><td>{formatDuration(times[3] - times[0])}</td><td>{formatDuration(perUnit(reading.baseline, units))}</td><td>—</td></tr>
           <tr><th scope="row">Whole race</th><td>{formatDuration(times[8], true)}</td><td>{formatDuration(perUnit(times[8] / MARATHON_KM, units))}</td><td>{pctSigned(times[8] / MARATHON_KM / reading.baseline - 1)}</td></tr>
         </tfoot>
-        <caption>Calculated from your times: section time ÷ section length. Positive is slower than your {BASE} pace. Mats only: no halfway or mile splits are derived.</caption>
+        <caption>Positive is slower than your {BASE} pace.</caption>
       </table>
     </div>
   );
@@ -885,10 +881,10 @@ function SlowdownPanel({ reading, units }: { reading: SplitReading; units: UnitS
     for (let i = (reading.onsetKm - 20) / 5 + 4; i < 9 && qualifies(reading.vsBaseline[i]); i += 1) run += SECTION_KM[i];
   }
   const title = reading.slowdown && reading.onsetKm !== null
-    ? <>Sustained slowdown: yes, from {kmGloss(reading.onsetKm, units)}</>
-    : <>Sustained slowdown: no</>;
+    ? <><SlowdownTerm>Sustained slowdown</SlowdownTerm>: yes, from {kmGloss(reading.onsetKm, units)}</>
+    : <><SlowdownTerm>Sustained slowdown</SlowdownTerm>: no</>;
   return (
-    <EvidencePanel kind="research" title={title} id="split-check-slowdown" meta={SLOWDOWN_DEFINITION}>
+    <EvidencePanel kind="research" title={title} id="split-check-slowdown">
       <ol className="split-check-steps">
         {sections.map((i) => {
           const v = reading.vsBaseline[i];
@@ -898,17 +894,14 @@ function SlowdownPanel({ reading, units }: { reading: SplitReading; units: UnitS
             <li key={i} className={yes || ext ? 'is-yes' : undefined}>
               <span className="split-check-step-name">{secName(i, units)}</span>
               <span className="split-check-step-value">{pctSigned(v)}</span>
-              <span className="split-check-step-verdict">{yes ? '≥25%: qualifies' : i === 8 ? (ext ? 'extends the run' : qualifies(v) ? '≥25%, cannot count alone' : 'cannot count alone') : 'under 25%'}</span>
+              <span className="split-check-step-verdict">{yes ? '25% or more' : i === 8 ? (ext ? 'extends the run' : 'final stretch') : 'under 25%'}</span>
             </li>
           );
         })}
       </ol>
-      <p className="tool-note">
-        {reading.slowdown
-          ? <>Slow sections in a row: {kmGloss(run, units)} from the {reading.onsetKm !== null ? kmGloss(reading.onsetKm, units) : ''} mat. </>
-          : null}
-        Applying this published definition to your times describes the shape of your race; it does not say why it happened. Source: <a href={SLOWDOWN_CITATION.url} rel="noopener noreferrer">{SLOWDOWN_CITATION.label}</a>.
-      </p>
+      {reading.slowdown ? (
+        <p className="tool-note">Slow sections in a row: {kmGloss(run, units)} from the {reading.onsetKm !== null ? kmGloss(reading.onsetKm, units) : ''} mat.</p>
+      ) : null}
     </EvidencePanel>
   );
 }
@@ -939,7 +932,7 @@ function OpeningPanel({ reading, units, bands, cities, place, course, gender }: 
   return (
     <EvidencePanel id="split-check-opening"
       title={<>Opening: {Math.abs(reading.opening) < 0.0005 ? 'level with' : `${openingPct(reading.opening)} ${reading.opening < 0 ? 'quicker' : 'slower'} than`} your {BASE} pace</>}
-      meta={`First ${five} ${fmtPace(reading.paces[0], units)} against ${fmtPace(reading.baseline, units)}. The first section is not part of the reference block, so the two are compared directly.`}>
+      meta={`First ${five} ${fmtPace(reading.paces[0], units)} against ${fmtPace(reading.baseline, units)}.`}>
       {bands.length ? (
         <>
           <ol className="split-check-bands" aria-label="The six opening groups, quickest first">
@@ -967,14 +960,14 @@ function OpeningPanel({ reading, units, bands, cities, place, course, gender }: 
 /* Comparison with finishes in your window (Pace Notes data)           */
 /* ------------------------------------------------------------------ */
 
-function ComparisonPanel({ comparison, times, units, where, course, genderWord, fallbacks }: {
-  comparison: Comparison; times: number[]; units: UnitSystem; where: string; course: string; genderWord: string; fallbacks: ReactNode;
+function ComparisonPanel({ comparison, times, units, where, genderWord, fallbacks }: {
+  comparison: Comparison; times: number[]; units: UnitSystem; where: string; genderWord: string; fallbacks: ReactNode;
 }) {
   const ok = comparison.state === 'ok' ? comparison : null;
   const title = ok ? <>Finishes like yours: {formatDuration(ok.lo, true)} to {formatDuration(ok.hi, true)} {where}</> : <>Finishes at your time {where}</>;
   return (
     <EvidencePanel kind="data" id="split-check-compare" title={title}
-      meta={ok ? <>Complete finishes{genderWord ? ` recorded as ${genderWord}` : ''} in the 5-minute window that holds your {formatDuration(times[8], true)}, grouped by whether they had a sustained slowdown. Observed, not a grade or a plan.</> : undefined}>
+      meta={ok ? <>{genderWord ? `Recorded as ${genderWord}. ` : ''}Observed, not a grade or a plan.</> : undefined}>
       {comparison.state === 'loading' ? <p className="tool-state">Loading the finishes at your time…</p> : null}
       {comparison.state === 'off' ? (
         <div className="tool-state is-error split-check-off">
@@ -993,15 +986,15 @@ function ComparisonPanel({ comparison, times, units, where, course, genderWord, 
           {fallbacks ? <div className="split-check-actions no-print">{fallbacks}</div> : null}
         </div>
       ) : null}
-      {ok ? <ComparisonBody ok={ok} times={times} units={units} where={where} course={course} fallbacks={fallbacks} /> : null}
+      {ok ? <ComparisonBody ok={ok} times={times} units={units} fallbacks={fallbacks} /> : null}
     </EvidencePanel>
   );
 }
 
 type Column = { key: string; name: string; colour: string; cell: PaceBandCell | null };
 
-function ComparisonBody({ ok, times, units, where, course, fallbacks }: {
-  ok: Extract<Comparison, { state: 'ok' }>; times: number[]; units: UnitSystem; where: string; course: string; fallbacks: ReactNode;
+function ComparisonBody({ ok, times, units, fallbacks }: {
+  ok: Extract<Comparison, { state: 'ok' }>; times: number[]; units: UnitSystem; fallbacks: ReactNode;
 }) {
   const { all, held, slow } = ok;
   const sd = all.sd ?? (slow ? slow.n / all.n : null);
@@ -1014,15 +1007,15 @@ function ComparisonBody({ ok, times, units, where, course, fallbacks }: {
   const columns: Column[] = neither ? [{ key: 'all', name: 'All finishes', colour: 'var(--ink-3)', cell: all }]
     : [{ key: 'held', name: 'Held pace', colour: HELD, cell: held }, { key: 'slow', name: 'Sustained slowdown', colour: SLOW, cell: slow }];
   const missingNote = neither
-    ? ` Fewer than 100 finishes in each of the held-pace and sustained-slowdown groups, so neither is shown; the column gives the median of all ${count(all.n)} finishes in the window instead.`
-    : !held ? ' Fewer than 100 finishes in the held-pace group, so it is not shown.'
-      : !slow ? ' Fewer than 100 finishes in the sustained-slowdown group, so it is not shown.' : '';
+    ? ` Too few finishes in either group, so the column shows all ${count(all.n)} finishes in the window.`
+    : !held ? ' Too few held-pace finishes to show that group.'
+      : !slow ? ' Too few finishes with a sustained slowdown to show that group.' : '';
   const a20 = neither ? times[3] - all.e50[3] : null;
   return (
     <>
       <div className="split-check-facts">
-        <div><b>{count(all.n)}</b><span>complete finishes · {editions(all.ed)}</span></div>
-        {sd !== null && sd !== undefined ? <div><b>{share(sd)}</b><span>had a sustained slowdown (observed share)</span></div> : null}
+        <div><b>{count(all.n)}</b><span>finishes</span></div>
+        {sd !== null && sd !== undefined ? <div><b>{share(sd)}</b><span>had a <SlowdownTerm /></span></div> : null}
       </div>
       {h20 !== null || s20 !== null ? (
         <p className="split-check-takeaway">
@@ -1061,21 +1054,14 @@ function ComparisonBody({ ok, times, units, where, course, fallbacks }: {
           </tbody>
           <tfoot>
             <tr><th scope="row">Finishes</th><td className="split-check-you-cell" />{columns.map((c) => <td key={c.key}>{c.cell ? count(c.cell.n) : '—'}</td>)}</tr>
-            <tr><th scope="row">Editions</th><td className="split-check-you-cell" />{columns.map((c) => <td key={c.key}>{c.cell ? count(c.cell.ed) : '—'}</td>)}</tr>
           </tfoot>
           <caption>
-            Median elapsed time {neither ? 'of all finishes in the window' : 'of each group'} at the official mats, and how far ahead or behind it you were (ahead = you passed that mat earlier).{neither ? '' : ' The groups are selected by how their races ended, so the differences describe those races; they do not show what caused them.'}
+            Median elapsed time {neither ? 'of all finishes in the window' : 'of each group'} at each mat, and how far ahead or behind it you were (ahead = you passed that mat earlier).
             {missingNote}
           </caption>
         </table>
       </div>
       {(neither || !held || !slow) && fallbacks ? <div className="split-check-actions no-print">{fallbacks}</div> : null}
-      <p className="tool-note">
-        {course === 'all'
-          ? <>All courses pools {editions(all.ed)} from the races in Pace Notes. If your race is not one of them, this group comes from other races and courses. </>
-          : <>Editions {where} are pooled, so the group mixes years, fields and weather. </>}
-        Only complete finishes are recorded: runners who stopped are not in the data. Counts are finishes, not people.
-      </p>
     </>
   );
 }
@@ -1150,7 +1136,7 @@ function GapChart({ times, held, slow, units }: { times: number[]; held: PaceBan
           ))}
         </ul>
       ) : null}
-      <p className="split-check-axis-note">{units === 'mi' ? 'Miles' : 'Kilometres'} from the start. At zero you matched that group’s median elapsed time; every finish compared here finished in your window.</p>
+      <p className="split-check-axis-note">{units === 'mi' ? 'Miles' : 'Kilometres'} from the start. At zero you matched that group’s median elapsed time.</p>
     </div>
   );
 }
@@ -1159,13 +1145,13 @@ function GapChart({ times, held, slow, units }: { times: number[]; held: PaceBan
 /* Pacing type (Pace Notes data: clusters of complete finishes)        */
 /* ------------------------------------------------------------------ */
 
-function TypePanel({ reading, type, error, retry, units, cohort }: { reading: SplitReading; type: TypeResult; error: string | null; retry: () => void; units: UnitSystem; cohort: TypeCohort | null }) {
+function TypePanel({ reading, type, error, retry, units }: { reading: SplitReading; type: TypeResult; error: string | null; retry: () => void; units: UnitSystem }) {
   if (!type) {
     return (
       <EvidencePanel kind="data" title="Pacing type" id="split-check-type">
         {error ? (
           <div className="tool-state is-error split-check-off">
-            <p>{error === 'missing' ? 'The pacing-type classifier is not part of this build.' : `${error}`} Everything else on this page still applies.</p>
+            <p>{error === 'missing' ? 'The pacing types are not part of this build.' : `${error}`} Everything else on this page still applies.</p>
             {error !== 'missing' ? <div className="split-check-actions no-print"><button type="button" className="button-secondary" onClick={() => { focusHeading('split-check-type'); retry(); }}>Try again</button></div> : null}
           </div>
         ) : <p className="tool-state">Loading the pacing types…</p>}
@@ -1175,12 +1161,10 @@ function TypePanel({ reading, type, error, retry, units, cohort }: { reading: Sp
   const { arch, colour, all } = type;
   return (
     <EvidencePanel kind="data" id="split-check-type" title={<>Pacing type: {type.name}</>}
-      meta={`The nearest of six shapes found in complete Pace Notes finishes, comparing each section with your own average pace. ${share(arch.share)} of ${cohort
-        ? `the ${count(cohort.n)} complete finishes in the pacing-types cohort${cohort.editions ? ` (${editions(cohort.editions)})` : ''} are ${type.name.toLowerCase()}s.${cohort.keeps.length ? ` That cohort keeps ${cohort.keeps.join(' and ')}, which the comparison above leaves out for a shifted mat grid.` : ''}`
-        : `complete finishes are ${type.name.toLowerCase()}s.`}`}>
+      meta={`${share(arch.share)} of finishes were ${type.name.toLowerCase()}s.`}>
       <p className="split-check-blurb" style={{ borderColor: colour }}>{arch.blurb}</p>
       <ProfileChart reading={reading} arch={arch} colour={colour} units={units} />
-      <ul className="split-check-types" aria-label="The six pacing types and their observed shares of complete finishes">
+      <ul className="split-check-types" aria-label="The six pacing types and their observed shares of finishes">
         {all.map((a, i) => (
           <li key={a.name} className={a.name === type.name ? 'is-you' : undefined} aria-current={a.name === type.name ? 'true' : undefined}>
             <i style={{ background: ARCHETYPE_COLOURS[i % ARCHETYPE_COLOURS.length] }} aria-hidden="true" />
@@ -1188,7 +1172,7 @@ function TypePanel({ reading, type, error, retry, units, cohort }: { reading: Sp
           </li>
         ))}
       </ul>
-      <p className="tool-note">A descriptive label for the shape of your race, not a grade or a cause. <Link href="/stories/pacing-types">Meet all six types</Link>.</p>
+      <p className="tool-note">A label for the shape of your race, not a grade. <Link href="/stories/pacing-types">Meet all six types</Link>.</p>
     </EvidencePanel>
   );
 }
@@ -1239,7 +1223,7 @@ function ProfileChart({ reading, arch, colour, units }: { reading: SplitReading;
         {you.map((v, i) => <circle key={i} cx={x(mids[i])} cy={y(v)} r={3} fill="var(--ink)" stroke="var(--card)" strokeWidth={1.5} />)}
         {ends.map((e) => <text key={e.key} x={m.l + iw + 8} y={e.ly + 4} className="split-check-end" style={{ fill: e.colour }}>{e.text}</text>)}
       </svg>
-      <p className="split-check-axis-note">Solid: your sections. Dashed: the median {arch.name}, with the middle half of that type’s finishes shaded.</p>
+      <p className="split-check-axis-note">Solid: your sections. Dashed: the median {arch.name}.</p>
     </div>
   );
 }

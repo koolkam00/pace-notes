@@ -2,11 +2,11 @@
 
 import type { ReactNode } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
+import { SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { EvidencePanel, Stat } from '@/components/tools/ui';
-import { evenPaceGapText, groupGapText, onsetText, sectionPaceText, slowdownRankText, windowRankText, type GoalPeer } from '@/lib/tools/goal-facts';
+import { evenPaceGapText, groupGapText, onsetText, sectionPaceText, slowdownRankText, type GoalPeer } from '@/lib/tools/goal-facts';
 import { HALF_KM, MARATHON_KM, MATS_KM, perUnit, splitTable } from '@/lib/tools/pace';
 import { GOAL_PAGE_MINUTES, courseChooserHref, evenAt, goalLabel, goalPagePath, paceBandHref } from '@/lib/tools/pace-chart';
-import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { formatDuration } from '@/lib/tools/time';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 
@@ -17,12 +17,8 @@ export interface GoalObserved {
   hi: number;
   n: number;
   editions: number;
-  /** Race editions in the whole pace-band cohort (the index's count), for "177 of the 179". */
+  /** Race editions in the whole pace-band cohort (the index's count). */
   totalEditions: number | null;
-  /** Those editions against every edition in the data, built on the server: "all 179 race editions whose mat times line up for this comparison, out of 194 in the data". */
-  editionsPhrase: string;
-  /** The editions and finishes the pace band leaves out, from its screens; null when they do not account for the difference. */
-  screened: string | null;
   /** Median and 25th/75th percentile elapsed seconds at the 5–40 km mats and the finish (nine values). */
   e50: number[];
   e25: number[] | null;
@@ -59,16 +55,15 @@ function PointName({ km, units, halfway = false }: { km: number; units: UnitSyst
   return <>{name}{sub ? <span className="goal-chart-sub">{sub}</span> : null}</>;
 }
 
-/** The dek under the H1: the even pace in the visitor's units, and the size of the observed window. */
-export function GoalPaceDek({ goal, observed, peers }: { goal: number; observed: GoalObserved | null; peers: GoalPeer[] }) {
+/** The dek under the H1: the even pace in the visitor's units, and what the page sets it beside. */
+export function GoalPaceDek({ goal, observed }: { goal: number; observed: GoalObserved | null }) {
   const { units } = useUnits();
   const seconds = goal * 60;
   const pKm = seconds / MARATHON_KM;
-  const rank = windowRankText(goal, peers);
   return (
     <p className="tool-dek">
       A {goalLabel(goal)} marathon at even pace is {formatDuration(perUnit(pKm, units))} per {unitWord(units)} ({formatDuration(perUnit(pKm, other(units)))} per {unitWord(other(units))}), with halfway at {clock(seconds / 2)}.
-      {observed ? <> Below, those calculated splits sit beside what {count(observed.n)} recorded finishes from {clock(observed.lo)} to {clock(observed.hi)} actually ran at each 5 km mat.{rank ? ` ${rank}` : ''}</> : null}
+      {observed ? <> Below, those even-pace splits sit beside what {count(observed.n)} finishes from {clock(observed.lo)} to {clock(observed.hi)} actually ran at each 5 km mat.</> : null}
     </p>
   );
 }
@@ -97,20 +92,20 @@ export function GoalPaceBody({ goal, observed, bunching, peers }: { goal: number
   return (
     <>
       <div className="tool-headline goal-pace-headline">
-        <Stat label={`Even pace per ${unitWord(units)}`} value={formatDuration(perUnit(pKm, units))} sub={`${paceText(pKm, other(units))} · calculated from the goal`} />
-        <Stat label="Halfway at even pace" value={clock(seconds / 2)} sub="Calculated, not a recorded split" />
+        <Stat label={`Even pace per ${unitWord(units)}`} value={formatDuration(perUnit(pKm, units))} sub={paceText(pKm, other(units))} />
+        <Stat label="Halfway at even pace" value={clock(seconds / 2)} />
         {observed?.sd != null ? (
-          <Stat label={<>Sustained slowdown <span className="goal-pace-src">Pace Notes data</span></>} value={pct(observed.sd)}
+          <Stat label={<><SlowdownTerm>Sustained slowdown</SlowdownTerm> <Link href="/methodology#evidence" className="goal-pace-src">Pace Notes data</Link></>} value={pct(observed.sd)}
             sub={`of ${count(observed.n)} finishes from ${span}, all courses`} />
         ) : null}
       </div>
 
       <div className="goal-pace-pair">
         <EvidencePanel id="goal-pace-even" title={`Even-pace splits for ${label}`}
-          meta={`Calculated from the goal, not recorded: ${paceText(pKm, units)} (${paceText(pKm, other(units))}) for every step, so each 5 km takes ${formatDuration(pKm * 5)}.`}>
+          meta={`${paceText(pKm, units)} (${paceText(pKm, other(units))}) for every step; each 5 km takes ${formatDuration(pKm * 5)}.`}>
           <Panel>
             <table className="tool-table goal-pace-table">
-              <caption>Elapsed time at an even pace for a {label} marathon, calculated. Halfway is 21.0975 km; the data records no halfway time.</caption>
+              <caption>Elapsed time at an even pace for a {label} marathon.</caption>
               <thead><tr><th scope="col">Point</th><th scope="col">Even pace</th></tr></thead>
               <tbody>
                 {even.map((p) => (
@@ -126,14 +121,14 @@ export function GoalPaceBody({ goal, observed, bunching, peers }: { goal: number
 
         {observed ? (
           <EvidencePanel kind="data" id="goal-pace-observed" title={`What ${count(observed.n)} finishes from ${span} ran`}
-            meta={<>All courses: finishes from {observed.editionsPhrase}. Achieved finishes, not stated goals: each beat {label} by 0:01 to {formatDuration(seconds - observed.lo)} and has all nine 5 km mat times. Median and middle half (25th to 75th percentile) of the elapsed time at each mat. Observed, not a recommended plan.</>}>
+            meta={<>Observed, not a recommended plan.</>}>
             <Panel>
               <table className="tool-table goal-pace-table goal-pace-observed">
-                <caption>Recorded elapsed times at each 5 km mat and the finish for finishes from {span}. The source records no halfway or mile splits.</caption>
+                <caption>Elapsed times at each 5 km mat and the finish for finishes from {span}.</caption>
                 <thead><tr><th scope="col">Mat</th><th scope="col">Median</th><th scope="col">Middle half</th></tr></thead>
                 <tbody>
                   {even.map((p) => {
-                    if (p.halfway) return <tr key={p.km} className="is-key goal-pace-none"><th scope="row"><PointName km={p.km} units={units} halfway /></th><td colSpan={2}>No halfway time in the data</td></tr>;
+                    if (p.halfway) return <tr key={p.km} className="is-key goal-pace-none"><th scope="row"><PointName km={p.km} units={units} halfway /></th><td colSpan={2}>No halfway mat</td></tr>;
                     const i = CHECKPOINTS.indexOf(p.km);
                     return (
                       <tr key={p.km} className={p.km === MARATHON_KM ? 'is-finish' : undefined}>
@@ -156,7 +151,7 @@ export function GoalPaceBody({ goal, observed, bunching, peers }: { goal: number
 
       {observed && (gapText || sectionText) ? (
         <EvidencePanel kind="data" id="goal-pace-gap" title="The median against even pace"
-          meta={`The same ${count(observed.n)} finishes from ${span}: the median recorded time at each mat set against the calculated even-pace time for ${label}, and the median pace of each section. Observed, not a plan.`}>
+          meta={`The same ${count(observed.n)} finishes from ${span}. Observed, not a plan.`}>
           <div className="goal-pace-facts goal-pace-measure">
             {gapText ? <p>{gapText}</p> : null}
             {sectionText ? <p>{sectionText}</p> : null}
@@ -166,16 +161,16 @@ export function GoalPaceBody({ goal, observed, bunching, peers }: { goal: number
 
       {observed?.held && observed.slow && observed.sd != null ? (
         <EvidencePanel kind="data" id="goal-pace-slowdown" title="Held pace or sustained slowdown"
-          meta={`The same ${count(observed.n)} finishes from ${span}, split by how their race ended. Median elapsed time at each mat.`}>
+          meta={`The same ${count(observed.n)} finishes from ${span}: median elapsed time at each mat.`}>
           <div className="goal-pace-split">
             <div className="goal-pace-lead">
-              <p><b>{pct(observed.sd)}</b> of these finishes had a sustained slowdown ({count(observed.slow.n)} finishes); the other {count(observed.held.n)} held pace.{slowdownRank ? ` ${slowdownRank}` : ''}</p>
+              <p><b>{pct(observed.sd)}</b> of these finishes had a <SlowdownTerm /> ({count(observed.slow.n)} finishes); the other {count(observed.held.n)} held pace.{slowdownRank ? ` ${slowdownRank}` : ''}</p>
               {groupText ? <p>{groupText}</p> : null}
               {onsetLine ? <p>{onsetLine}</p> : null}
             </div>
             <Panel className="goal-pace-split-table">
               <table className="tool-table goal-pace-table">
-                <caption>Median recorded elapsed time at each mat for finishes from {span} that held pace and that had a sustained slowdown. Observed, not a plan.</caption>
+                <caption>Median elapsed time at each mat for finishes from {span} that held pace and that had a sustained slowdown.</caption>
                 <thead><tr><th scope="col">Mat</th><th scope="col">Held pace</th><th scope="col">Sustained slowdown</th></tr></thead>
                 <tbody>
                   {CHECKPOINTS.map((km, i) => (
@@ -188,17 +183,12 @@ export function GoalPaceBody({ goal, observed, bunching, peers }: { goal: number
                 </tbody>
               </table>
             </Panel>
-            <p className="tool-note goal-pace-split-note">
-              {SLOWDOWN_DEFINITION} It follows the <a href={SLOWDOWN_CITATION.url} rel="noopener noreferrer">published slowdown method (doi:10.1371/journal.pone.0251513)</a>.
-              The groups are selected by how the race ended, so comparing them describes what those races looked like, not what a different first half would have done.
-            </p>
           </div>
         </EvidencePanel>
       ) : null}
 
       {bunching ? (
-        <EvidencePanel kind="data" id="goal-pace-bunching" title={`Finish times bunch just under ${label}`}
-          meta={`From the finish-time data behind the 3:59 effect story. The smooth curve is fitted to the minutes around ${label}; its ratio's 95% interval, resampling whole race editions, is ${bunching.ci[0].toFixed(2)} to ${bunching.ci[1].toFixed(2)}.`}>
+        <EvidencePanel kind="data" id="goal-pace-bunching" title={`Finish times bunch just under ${label}`}>
           <p className="goal-pace-measure">
             {count(bunching.before)} finishes landed between {minuteBefore}, {bunching.ratio.toFixed(2)} times the {count(bunching.expected)} a smooth curve expects there, and {count(bunching.after)} landed in the next minute.
             {' '}<Link href="/stories/round-numbers">Read the 3:59 effect story</Link>.
@@ -208,12 +198,12 @@ export function GoalPaceBody({ goal, observed, bunching, peers }: { goal: number
 
       <div className="no-print">
         <EvidencePanel id="goal-pace-every" title={`Every ${unitWord(units)} at even pace`}
-          meta={`Calculated from the goal, not recorded. Timing mats and halfway are marked.`}>
+          meta="Timing mats and halfway are marked.">
           <details className="goal-pace-details">
             <summary>Show all {fine.length} rows: every {unitWord(units)}, the 5 km mats, halfway and the finish</summary>
             <Panel>
               <table className="tool-table">
-                <caption>Elapsed time at an even pace for a {label} marathon, every {unitWord(units)}. Halfway and mile rows are calculated, not recorded splits.</caption>
+                <caption>Elapsed time at an even pace for a {label} marathon, every {unitWord(units)}.</caption>
                 <thead><tr><th scope="col">Split</th><th scope="col">Elapsed</th></tr></thead>
                 <tbody>
                   {fine.map((r) => (

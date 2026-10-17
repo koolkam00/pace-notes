@@ -819,7 +819,7 @@ Focus: prepare, review.
 
 Compare median percentage pace change from 0–20 to 20–40 km across exact-age bands. When previous performance is supplied, compare the same 15-minute prior-time band. Otherwise compare the same displayed achieved-time band. Gender and course are held to the displayed selection. This is a comparison of different people, not an individual aging trajectory.
 
-### terrain: What pace changes appear alongside the supplied terrain?
+### terrain: What pace changes appear alongside the terrain?
 
 Focus: prepare, review.
 
@@ -873,7 +873,7 @@ Select finishes in the displayed achieved-time band that beat the runner’s fas
 
 | Route or entry | Current data and interpretation |
 | --- | --- |
-| `/slowdown`, `/htw`, `/packs/smyth_htw` | Recalculated slowdown prevalence, first qualifying section, threshold/duration sensitivity, recorded-age comparisons and recorded-performance history |
+| `/slowdown`, `/htw`, `/packs/smyth_htw` | Recalculated slowdown prevalence, first qualifying section, recorded-age comparisons and recorded-performance history (threshold/duration sensitivity: `/methodology#definition-sensitivity`, since October 16, 2026) |
 | `rn1_wall_severity` | Recalculated distance-weighted positive slowing over 20–42.195 km, separate from sustained-episode detection |
 | `rn4_reference_dependence` | Recalculated one-minute finish windows before and after 3:00, 3:30 and 4:00; no declared-goal inference |
 | `rn3_heat_curves` | Current `ext_weather_pacing_patterns` |

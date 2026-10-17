@@ -1,7 +1,7 @@
 'use client';
 
 // The Recharts line chart for QuestionViz, split out so Recharts (~100 KB compressed) loads only in the browser, after the
-// page is interactive (see the next/dynamic import in QuestionViz). The title, filters, caption and exact-values table
+// page is interactive (see the next/dynamic import in QuestionViz). The title, filters, legend and exact-values table
 // stay in QuestionViz and are server-rendered. All formatting comes from QuestionViz so units and labels match.
 import { ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts';
 import { formatNumber } from '@/lib/csv';

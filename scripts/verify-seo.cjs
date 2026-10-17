@@ -70,6 +70,7 @@ const CHECKS = {
   'finish-counts': `Every "N.N million" or "N.NM" in a title or description equals finishesM() ("${FINISHES_M}")`,
   orphans: 'Every story and analysis page is linked from /research, and every other sitemap page from at least one other page',
   'home-form': "The home page's course list (#home-plan-course) has the planner's options (#plan-course), values and names in the same order",
+  'methods-anchors': 'Every /methodology#<id> link (in the exported HTML, and as a literal in app/, components/ or lib/) and every #<id> link on /methodology names an element id on /methodology',
 };
 const WARNINGS = {
   'title-length': 'Titles over 60 characters',
@@ -626,6 +627,42 @@ let sitemapLocs = [];
     if (/^\/(stories|analyses)\/[^/]+$/.test(path)) { if (hub && !from.has('/research')) fail('orphans', path, 'is not linked from /research'); }
     else if (path !== '/' && !from.size) fail('orphans', path, 'no other page in the export links to it');
   }
+})();
+
+// ---------- Links into the methods page ----------
+
+// Since October 16, 2026 every method, definition, source and limit lives on /methodology, and the other pages link the
+// term or badge to its section there (/methodology#sustained-slowdown, /methodology#evidence, ...). A link to an id the
+// page does not have lands at its top, so each one must resolve: the links in the exported HTML, the literals in the
+// source (links that only appear after a page loads its data or the visitor acts), and the page's own contents links.
+(function checkMethodsAnchors() {
+  const methods = byPath.get('/methodology');
+  if (!methods) { fail('methods-anchors', '/methodology', 'no /methodology page in the export'); return; }
+  const ids = new Set([...methods.html.matchAll(/<[a-z][\w:-]*\b[^>]*\bid\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)].map((m) => decode(m[1] ?? m[2])));
+  const fragment = (href, from) => {
+    let url;
+    try { url = new URL(href, SITE_URL + from); } catch { return null; }
+    if (url.host !== SITE_HOST || (decodeURIComponent(url.pathname.replace(/\/$/, '')) || '/') !== '/methodology' || !url.hash) return null;
+    try { return decodeURIComponent(url.hash.slice(1)); } catch { return url.hash.slice(1); }
+  };
+  let links = 0;
+  for (const page of pages) {
+    if (page.notFound) continue;
+    for (const href of page.hrefs) {
+      const id = fragment(href, page.path === '/' ? '/' : page.path);
+      if (id === null) continue;
+      links++;
+      if (!ids.has(id)) fail('methods-anchors', page.path, `links /methodology#${id}, but /methodology has no element with id="${id}"`);
+    }
+  }
+  const sourceFiles = (dir) => fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? sourceFiles(path.join(dir, entry.name)) : /\.(tsx?|css)$/.test(entry.name) ? [path.join(dir, entry.name)] : []) : [];
+  for (const file of ['app', 'components', 'lib'].flatMap((dir) => sourceFiles(path.join(ROOT, dir)))) {
+    for (const match of fs.readFileSync(file, 'utf8').matchAll(/\/methodology#([A-Za-z][\w-]*)/g)) {
+      links++;
+      if (!ids.has(match[1])) fail('methods-anchors', path.relative(ROOT, file), `has /methodology#${match[1]}, but /methodology has no element with id="${match[1]}"`);
+    }
+  }
+  if (!links) fail('methods-anchors', '/methodology', 'no page links a /methodology section: the guard found nothing to check');
 })();
 
 // ---------- The home page's plan form ----------

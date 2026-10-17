@@ -3,8 +3,8 @@
 //   2. an independent recount from the raw JSON (finish-times.json, courses.json and the insights manifest),
 //      written without the helper's code, compared figure by figure with what the helper returns;
 //   3. the full finish records: the story cohort is rebuilt in whole seconds from the checksum-verified runner
-//      shards, and every figure the page prints must match the exact value. This is what backs the page's
-//      statement that counting the finishes outside the published 2:00–7:00 minutes as slower changes no figure.
+//      shards, and every figure the page prints must match the exact value. This is what backs the statement on
+//      /methodology that counting the finishes outside the published 2:00–7:00 minutes as slower changes no figure.
 // Usage: node scripts/verify-finish-times.cjs [--skip-records]   (step 3 reads about 400 MB and takes ~30 s)
 const fs = require('node:fs');
 const path = require('node:path');
@@ -143,6 +143,15 @@ for (const file of ['app/finish-times/page.tsx', 'components/FinishTimeSummary.t
   const text = fs.readFileSync(path.join(root, file), 'utf8').toLowerCase();
   for (const banned of ['the wall', 'arithmetic', 'your chance', 'fastest', 'mean finish time is', 'average finish time is']) {
     assert.ok(!text.includes(banned), `${file}: contains "${banned}"`);
+  }
+}
+
+// The page shows the numbers only; what they cover and how they are counted is on /methodology (owner request, 2026-10-16).
+{
+  const text = fs.readFileSync(path.join(root, 'components/FinishTimeSummary.tsx'), 'utf8');
+  for (const removed of ['When this page says average', 'What these numbers cover', 'Even paces are calculated', 'Counts are finishes, not runners', 'How finishes are chosen',
+    'By the 10th percentile', 'Under 3:00 means', 'whole minutes of recorded finish time', 'all {coverage.races} races pooled']) {
+    assert.ok(!text.includes(removed), `components/FinishTimeSummary.tsx: "${removed}" is method or coverage copy and belongs on /methodology`);
   }
 }
 

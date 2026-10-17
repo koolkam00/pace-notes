@@ -48,7 +48,7 @@ export default function HomeDoors({ courses, storyCount, analysisCount }: { cour
         <li>
           <Link href="/research" className="home-door home-door-link" style={{ ['--door' as string]: 'var(--blue)' }}>
             <span className="home-door-title">Explore the research</span>
-            <span className="home-door-hint">{storyCount} stories, {analysisCount} analyses, open data.</span>
+            <span className="home-door-hint">{storyCount} stories and {analysisCount} analyses.</span>
             <span className="home-door-go" aria-hidden="true">→</span>
           </Link>
         </li>

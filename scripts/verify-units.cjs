@@ -238,11 +238,11 @@ assert.equal(findingText(paceFinding, 'mi'), 'Among recorded finishes, 24.85–2
 assert.equal(findingText(paceFinding, 'km'), paceFinding.answer);
 assert.equal(JSON.stringify(paceFinding), paceFindingSource);
 const elevationFinding = {
-  answer: 'The supplied profile shows 10 m of net elevation change in 0–5 km, its largest section rise.',
+  answer: 'The largest section rise is in 0–5 km: 10 m of net elevation change.',
   charts: [{ unit: 'm', rows: [{ value: -20 }, { value: 10.04 }] }],
 };
 const elevationFindingSource = JSON.stringify(elevationFinding);
-assert.equal(findingText(elevationFinding, 'mi'), 'The supplied profile shows 32.9 ft of net elevation change in 0–3.11 mi, its largest section rise.');
+assert.equal(findingText(elevationFinding, 'mi'), 'The largest section rise is in 0–3.11 mi: 32.9 ft of net elevation change.');
 assert.equal(findingText(elevationFinding, 'km'), elevationFinding.answer);
 assert.equal(JSON.stringify(elevationFinding), elevationFindingSource);
 
@@ -298,7 +298,8 @@ const definitionSource = JSON.stringify(definitionFigure);
 const definitionHtml = renderToStaticMarkup(React.createElement(UnitsProvider, null, React.createElement(StudyFigure, { figure: definitionFigure })));
 assert.match(definitionHtml, /3\.11 mi/);
 assert.doesNotMatch(definitionHtml, /at least 5 km/);
-assert.match(definitionHtml, /data\/study\/evidence.json/);
+// Since October 16, 2026 the figure shows its chart only; its download link is on /methodology (#downloads, #sustained-slowdown).
+assert.doesNotMatch(definitionHtml, /data\/study\/evidence.json/, 'The figure links no download; /methodology does');
 assert.equal(JSON.stringify(definitionFigure), definitionSource);
 const { getWallTimingAnswer } = require('../lib/research-data.ts');
 const onsetChart = getWallTimingAnswer().charts[0];

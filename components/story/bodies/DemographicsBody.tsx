@@ -1,10 +1,11 @@
-import type { Demographics, InsightsManifest } from '@/lib/insights';
-import { count, mss } from '@/lib/viz/format';
+import type { Demographics } from '@/lib/insights';
+import { mss } from '@/lib/viz/format';
 import { AgeLadder, GenderDumbbell, GhostRace, WomenShare } from '../DemographicsStory';
-import { StoryMethods, StorySection } from '../StoryShell';
+import { StorySection } from '../StoryShell';
 import { StoryData } from '../StoryData';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 
-export default function DemographicsBody({ data, manifest }: { data: Demographics; manifest: InsightsManifest }) {
+export default function DemographicsBody({ data }: { data: Demographics }) {
   const o = data.overall;
   const peak = data.bands.reduce((best, b) => (b.men_slowdown / Math.max(b.women_slowdown, 1e-9) > best.men_slowdown / Math.max(best.women_slowdown, 1e-9) ? b : best), data.bands[0]);
   const a = data.age_contrast;
@@ -27,7 +28,7 @@ export default function DemographicsBody({ data, manifest }: { data: Demographic
         <GhostRace />
       </StorySection>
       <StorySection id="bands" kicker="03 · Every finish time" title={<>The gap holds <em>from 2:40 to 6:00</em>.</>}
-        dek="From 2:40 to 6:00, fewer women’s than men’s finishes have a sustained slowdown in every 10-minute band. In the fastest band, 2:30–2:40, the two are essentially level.">
+        dek={<>From 2:40 to 6:00, fewer women’s than men’s finishes have a <Link href="/methodology#sustained-slowdown">sustained slowdown</Link> in every 10-minute band. In the fastest band, 2:30–2:40, the two are essentially level.</>}>
         <GenderDumbbell />
       </StorySection>
       <StorySection id="age" kicker="04 · Age" title={<>Every women&apos;s age group paces <em>more evenly</em> than every men&apos;s.</>}
@@ -35,17 +36,9 @@ export default function DemographicsBody({ data, manifest }: { data: Demographic
         <AgeLadder />
       </StorySection>
       <StorySection id="field" kicker="05 · The field" title={<>Women are a <em>growing share</em> of finishes.</>}
-        dek={<>Women&apos;s share of eligible finishes has grown in most cities. They are the majority only among finishes slower than {majority ? majority.label.split('–')[0] : '5:30'}.</>}>
+        dek={<>Women&apos;s share of finishes has grown in most cities. They are the majority only among finishes slower than {majority ? majority.label.split('–')[0] : '5:30'}.</>}>
         <WomenShare />
       </StorySection>
-      <StoryMethods manifest={manifest} files={['demographics.json']} method={data.method}
-        caveats={[
-          'Matching on finish time conditions on the result: a man in a given band is more often someone who started faster and slowed into it. Same finish does not mean same fitness.',
-          'Gender is as recorded by the source; "Other / not recorded" finishes are left out of two-group comparisons.',
-          `Exact ages are available for ${count(data.granular_age_n)} finishes from ${data.granular_age_cities.join(', ')}. Age comparisons are cross-sectional: different people, not the same runners aging.`,
-          `${data.composition_flagged.length} editions with incomplete gender or result coverage are left out of the composition charts.`,
-          'Counts are race finishes, not unique people. Associations describe, they do not explain why.',
-        ]} />
     </StoryData>
   );
 }

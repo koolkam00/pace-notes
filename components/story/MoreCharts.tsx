@@ -16,7 +16,7 @@ export function CourseTypes({ data: given }: { data?: Archetypes }) {
   return (
     <div className="viz-card">
       <div className="viz-head">
-        <div><p className="viz-title">Pacing types by course</p><p className="viz-sub">Each race edition weighted equally · sorted by {data.archetypes[sortBy].name}</p></div>
+        <div><p className="viz-title">Pacing types by course</p><p className="viz-sub">Sorted by {data.archetypes[sortBy].name}</p></div>
         <div className="segmented" role="group" aria-label="Sort courses by pacing type">
           {data.archetypes.map((a, i) => <button key={a.slug} type="button" aria-pressed={sortBy === i} onClick={() => setSortBy(i)}>{a.name}</button>)}
         </div>
@@ -24,7 +24,7 @@ export function CourseTypes({ data: given }: { data?: Archetypes }) {
       <div className="course-type-rows">
         {rows.map((c) => (
           <div key={c.city} className="course-type-row">
-            <span className="course-type-name">{c.city === 'New York' ? 'New York City' : c.city}<small>{c.editions} edition{c.editions === 1 ? '' : 's'}</small></span>
+            <span className="course-type-name">{c.city === 'New York' ? 'New York City' : c.city}</span>
             <span className="course-type-bar" role="img" aria-label={`${c.city}: ${data.archetypes.map((a, i) => `${a.name} ${(c.shares[i] * 100).toFixed(0)}%`).join(', ')}`}>
               {c.shares.map((v, i) => <i key={i} style={{ width: `${v * 100}%`, background: ARCHETYPE_COLOURS[i], opacity: i === sortBy ? 1 : 0.45 }} />)}
             </span>
@@ -32,7 +32,6 @@ export function CourseTypes({ data: given }: { data?: Archetypes }) {
           </div>
         ))}
       </div>
-      <p className="viz-note">Courses mix different fields, years and weather, so these are descriptions of each course&apos;s finishes, not a ranking of courses.</p>
     </div>
   );
 }
@@ -55,7 +54,7 @@ export function FieldSpread({ data: given }: { data?: ReplayIndex }) {
   const last = rows[rows.length - 1];
   return (
     <div className="viz-card">
-      <div className="viz-head"><div><p className="viz-title">How far apart the field gets</p><p className="viz-sub">Elapsed time at each checkpoint, every eligible finish from every race pooled: middle 50% and middle 80%</p></div></div>
+      <div className="viz-head"><div><p className="viz-title">How far apart the field gets</p><p className="viz-sub">Elapsed time at each checkpoint: middle 50% and middle 80% of finishes</p></div></div>
       <div ref={ref} className="viz">
         <svg width={width} height={H} role="img" aria-label="Fan chart of elapsed time against distance. The gap between faster and slower finishers widens steadily to the finish.">
           {[3600, 7200, 10800, 14400, 18000, 21600].filter((s) => s <= maxT).map((s) => (
@@ -73,7 +72,7 @@ export function FieldSpread({ data: given }: { data?: ReplayIndex }) {
           <text className="annotation" x={x(42.195) - 4} y={y(last.p10_s) + 18} textAnchor="end">fastest 10% by {hms(last.p10_s)}</text>
         </svg>
       </div>
-      <p className="viz-note">Pooled across races, the middle 80% of finishes spans {hms(last.p90_s - last.p10_s)} at the finish, and the gap widens at every checkpoint.</p>
+      <p className="viz-note">The middle 80% of finishes spans {hms(last.p90_s - last.p10_s)} at the finish, and the gap widens at every checkpoint.</p>
     </div>
   );
 }

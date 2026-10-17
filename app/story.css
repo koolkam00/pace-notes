@@ -207,7 +207,6 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 /* A DOI is one long word: let it break rather than widen its block on a narrow (or zoomed) screen. */
 .home-section a[href*="doi.org"], .research-section a[href*="doi.org"] { overflow-wrap: anywhere; }
 .home-section-line { margin-top: 1.2rem; max-width: 42rem; font-size: clamp(1rem, 1.5vw, 1.15rem); line-height: 1.55; color: var(--ink-2); }
-.home-guide-bibs { margin-top: 1.8rem; }
 .cohort-note { margin-top: 1.4rem; max-width: 46rem; padding-left: .9rem; border-left: 3px solid var(--line-2); font-size: .9375rem; line-height: 1.55; color: var(--ink-2); }
 /* Link rows are spaced by the gap alone, with no separator dots, so none is left at the end of a wrapped line. */
 .home-guide-links { display: flex; flex-wrap: wrap; align-items: center; gap: 0 1.1rem; margin-top: .8rem; color: var(--ink-3); font-size: .9375rem; }

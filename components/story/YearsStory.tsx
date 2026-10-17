@@ -49,7 +49,7 @@ export function YearsStrip({ data: given }: { data?: Courses }) {
   return (
     <div className="viz-card years-strip">
       <div className="viz-head">
-        <div><p className="viz-title">Two decades of race mornings</p><p className="viz-sub">Each circle is one edition, sized by eligible finishes in this dataset</p></div>
+        <div><p className="viz-title">Two decades of race mornings</p><p className="viz-sub">Each circle is one edition, sized by its finishes</p></div>
         <div className="segmented" role="group" aria-label="Colour">
           <button type="button" aria-pressed={fill === 'temp'} onClick={() => setFill('temp')}>Start temperature</button>
           <button type="button" aria-pressed={fill === 'slowdown'} onClick={() => setFill('slowdown')}>Sustained slowdown</button>
@@ -59,7 +59,7 @@ export function YearsStrip({ data: given }: { data?: Courses }) {
         <svg width={width} height={H} role="img" aria-label={`Editions by course and year from ${allYears[0]} to ${allYears[allYears.length - 1]}. 2020 has ${y.by_year.find((r) => r.year === 2020)?.editions ?? 0} editions.`} onMouseLeave={() => setHover(null)}>
           {y.by_year.map((r) => {
             const h = (r.finishes / maxF) * barH;
-            return <g key={r.year}><rect x={X(r.year) - cw * 0.36} width={cw * 0.72} y={top - 18 - h} height={h} rx={2} fill={r.year === 2020 ? '#E2416B' : '#15171C'} opacity={r.year === 2020 ? 1 : 0.78}><title>{`${r.year}: ${count(r.finishes)} eligible finishes in ${r.editions} editions`}</title></rect></g>;
+            return <g key={r.year}><rect x={X(r.year) - cw * 0.36} width={cw * 0.72} y={top - 18 - h} height={h} rx={2} fill={r.year === 2020 ? '#E2416B' : '#15171C'} opacity={r.year === 2020 ? 1 : 0.78}><title>{`${r.year}: ${count(r.finishes)} finishes in ${r.editions} edition${r.editions === 1 ? '' : 's'}`}</title></rect></g>;
           })}
           <text x={label - 8} y={top - 18 - barH + 10} textAnchor="end" className="annotation-sub">{compact(maxF)}</text>
           <text x={label - 8} y={top - 22} textAnchor="end" className="annotation-sub">finishes</text>
@@ -96,7 +96,7 @@ export function YearsStrip({ data: given }: { data?: Courses }) {
           </select>
         </label>
         <p className="pairs-readout" aria-live="polite">
-          {cell ? <><strong>{cell.city} {cell.year}</strong> · {count(cell.n)} finishes · median {hms(cell.median_s)} · {(cell.slowdown * 100).toFixed(0)}% slowdown{cell.temp == null ? ' · no valid weather' : ` · ${tempStr(cell.temp)}`}</> : 'Hover a circle, or choose an edition.'}
+          {cell ? <><strong>{cell.city} {cell.year}</strong> · {count(cell.n)} finishes · median {hms(cell.median_s)} · {(cell.slowdown * 100).toFixed(0)}% slowdown{cell.temp == null ? ' · no weather' : ` · ${tempStr(cell.temp)}`}</> : 'Hover a circle, or choose an edition.'}
         </p>
         <div className="years-legend">
           {fill === 'temp'
@@ -104,7 +104,6 @@ export function YearsStrip({ data: given }: { data?: Courses }) {
             : [0.1, 0.2, 0.3, 0.4, 0.5].map((s) => <span key={s}><i style={{ background: slowColour(s) }} />{Math.round(s * 100)}%</span>)}
         </div>
       </div>
-      <p className="viz-note">Field size means eligible finishes with all nine splits in this dataset, not official finisher counts. Missing years include coverage gaps as well as cancellations. Chicago 2018 and 2019 are left out because their records duplicate Chicago 2024; editions with fewer than 100 finishes are not drawn.</p>
     </div>
   );
 }
@@ -145,7 +144,7 @@ export function EraArrows({ data: given }: { data?: Courses }) {
         <div className="pairs-legend"><span><i style={{ background: '#17A673' }} />faster</span><span><i style={{ background: '#E2416B' }} />slower</span></div>
       </div>
       <div ref={ref} className="viz">
-        <svg width={width} height={H} role="img" aria-label={`In all ${rows.length} high-coverage courses the 10th-percentile finish got faster; the 90th percentile moved both ways.`}>
+        <svg width={width} height={H} role="img" aria-label={`In all ${rows.length} courses the 10th-percentile finish got faster; the 90th percentile moved both ways.`}>
           {ticks.map((t) => <g key={t} className="grid"><line x1={x(t)} x2={x(t)} y1={m.t - 14} y2={H - m.b} /><text x={x(t)} y={H - 12} textAnchor="middle">{hms(t).slice(0, -3)}</text></g>)}
           <text x={x(rows[0].p10[0])} y={m.t - 12} textAnchor="middle" className="annotation-sub">p10</text>
           <text x={x(rows[0].median[0])} y={m.t - 12} textAnchor="middle" className="annotation-sub">median</text>
@@ -163,10 +162,6 @@ export function EraArrows({ data: given }: { data?: Courses }) {
           })}
         </svg>
       </div>
-      <p className="viz-note">
-        Each edition weighted equally within its period. Courses qualify when at least {Math.round(e.coverage_rule * 100)}% of raw records are eligible in both periods.
-        Course mix, entry rules and eligibility shares changed too, so this describes the fields, not why they changed.
-      </p>
     </div>
   );
 }

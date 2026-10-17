@@ -2,6 +2,7 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import { notFound } from 'next/navigation';
 import { PACK_IDS, getPackInfo } from '@/lib/packs';
 import { getExtraAnswer } from '@/lib/research-data';
+import { forPage, insightAnswer } from '@/lib/research-display';
 import ResearchQuestion from '@/components/ResearchQuestion';
 import { QUESTIONS } from '@/lib/question-catalog';
 import { getExtensions } from '@/lib/extension-data';
@@ -50,16 +51,16 @@ const SEO_TITLES: Record<string, string> = {
  */
 const SEO_DESCRIPTIONS: Record<string, string> = {
   r30_negative_split_success: `How often marathon finishes improved on an earlier benchmark, by split pattern: a faster second 20 km (${mi(20)}), even 20 km blocks or slowing.`,
-  r03_accel_vs_decel_20k: `At the same 20 km (${mi(20)}) time, how did marathon finishes that were speeding up, steady or slowing go on to finish? Matched comparisons from 5 km splits.`,
+  r03_accel_vs_decel_20k: `At the same 20 km (${mi(20)}) time, how did marathon finishes that were speeding up, steady or slowing go on to finish?`,
   r07_wall_clock_vs_distance: 'Do marathon slowdowns line up with distance covered or with time on the clock? Compare where the first slow section ended with the elapsed time there.',
-  // The answer's first sentence alone reads as a course-speed verdict without the caveat that follows it; no figures here.
-  r12_fastest_by_ability: 'Time differences between linked marathon finishes on two courses, with both race orders weighted equally. Fitness, weather and selection still differ.',
+  // The answer's first sentence alone reads as a course-speed verdict; no figures here.
+  r12_fastest_by_ability: 'Time differences between linked marathon finishes on two different courses.',
   r09_bad_patch_recoverable: `How often marathon finishes regained their rhythm in the next 5 km (${mi(5)}) after a first bad patch, and how that varied with where the patch came.`,
-  r14_knowing_course: 'A matched Boston comparison of late-race slowing for finishes with and without an earlier recorded Boston finish. An association, not proof of a benefit.',
+  r14_knowing_course: 'A matched Boston comparison of late-race slowing for finishes with and without an earlier recorded Boston finish.',
   r17_milestone_kick: `How much marathon finishes sped up in the final section when a round finish time was within reach at 40 km (${mi(40)}), just ahead of it or just behind.`,
-  r18_bq_rule_changes: 'How marathon finishes near a qualifying standard compared before and after a rule change, where city samples were large enough. A narrow comparison.',
+  r18_bq_rule_changes: 'How marathon finishes near a qualifying standard compared before and after a rule change.',
   r19_near_miss_return: 'Whether finishing just over a round marathon target, rather than just under it, goes with appearing again in recorded results in the following years.',
-  r21_learn_from_blowup: 'How late-race slowing differs with the number of earlier recorded marathon finishes. Age, course choice and who keeps racing are not separated.',
+  r21_learn_from_blowup: 'How late-race slowing differs with the number of earlier recorded marathon finishes.',
   r25_huge_kick_next: 'After a marathon with a strong finishing section, how often was the next recorded race a clear improvement? Compared with similar or slower finishes.',
   s10_goal_slips: `How often marathon finishes near a round target at 20 km (${mi(20)}) still broke it after first slipping behind its even-pace budget, by checkpoint.`,
 };
@@ -73,13 +74,16 @@ const fitTitle = (text: string) => (text + BRAND).length <= MAX_TITLE ? text + B
 /** Cut at a word boundary so the text plus an ellipsis fits in `max` characters. */
 const shorten = (text: string, max: number) => text.length <= max ? text : text.slice(0, max - 1).replace(/[\s,;:]+\S*$/, '') + '…';
 
-/** Whole sentences of the page's own description (or answer), in miles, up to 155 characters. */
+/** Whole sentences of the page's own description (or the answer it shows: findings only), in miles, up to 155 characters. */
 function ownDescription(id: string): string {
   if (SEO_DESCRIPTIONS[id]) {
     if (SEO_DESCRIPTIONS[id].length > MAX_DESCRIPTION) throw new Error(`The written description of /packs/${id} is over 155 characters.`);
     return SEO_DESCRIPTIONS[id];
   }
-  const source = miles(broaderArchive(id)?.description || getExtraAnswer(id).answer).trim();
+  const answer = getExtraAnswer(id);
+  // A question without an answer is described by its question, not by the page's empty state.
+  if (!broaderArchive(id) && !answer.available) return `${pageTitle(id)} A question in the Pace Notes marathon pacing research archive, not answered yet.`;
+  const source = miles(broaderArchive(id)?.description || insightAnswer(answer)).trim();
   let text = '';
   // A sentence ends at . ! or ? followed by space and a capital, digit, quote or bracket.
   for (const sentence of source.replace(/([.!?])\s+(?=[A-Z0-9“"(])/g, '$1\u0000').split('\u0000')) {
@@ -88,7 +92,7 @@ function ownDescription(id: string): string {
     text = next;
   }
   // No whole sentence fits: describe the page by its question instead of cutting a sentence short.
-  return text || `${pageTitle(id)} An answer from recorded marathon 5 km splits in the Pace Notes research archive.`;
+  return text || `${pageTitle(id)} An answer from the Pace Notes marathon pacing research archive.`;
 }
 
 /** Short archive code for an alternate address: S9, RN3, P1 from the pack registry, or "Extension". */
@@ -155,11 +159,11 @@ export default function Page({ params }: { params: { packId: string } }) {
 function packBody(packId: string) {
   const broader = broaderArchive(packId);
   if (broader) {
-    const history = <ResearchQuestion question={getExtraAnswer(packId)} standalone headingLevel={broader.kind === 'opening' ? 2 : undefined} />;
-    if (broader.kind === 'opening') return <><FastStartAnalysis starts={getFastStartStarts()} defaultOpening={broader.opening} title={broader.title} description={broader.description} archive /><details className="methodology"><summary>Original comparison with earlier recorded results</summary><p>This original archive analysis needs an earlier result. Its definitions and smaller cohort differ from the single-race view above.</p>{history}</details></>;
+    const history = <ResearchQuestion question={forPage(getExtraAnswer(packId))} standalone headingLevel={broader.kind === 'opening' ? 2 : undefined} />;
+    if (broader.kind === 'opening') return <><FastStartAnalysis starts={getFastStartStarts()} defaultOpening={broader.opening} title={broader.title} description={broader.description} archive /><details className="methodology"><summary>Original comparison with earlier recorded results</summary>{history}</details></>;
     return <AllFinisherAnalysis kind={broader.kind} start={getAllFinisherContextStart(broader.kind)} title={broader.title} description={broader.description} archive history={history} />;
   }
-  return <><ResearchQuestion question={getExtraAnswer(packId)} standalone /><p><Link href="/">All research questions</Link></p></>;
+  return <><ResearchQuestion question={forPage(getExtraAnswer(packId))} standalone /><p><Link href="/">All research questions</Link></p></>;
 }
 // The dedicated compatibility page owns this path in the static export.
 export function generateStaticParams() { return routes.filter(packId => packId !== 'smyth_htw').map(packId => ({ packId })); }

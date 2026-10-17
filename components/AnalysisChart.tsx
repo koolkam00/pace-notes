@@ -6,6 +6,9 @@ import QuestionViz from './QuestionViz';
 import { unitText } from '@/lib/units';
 import { useUnits } from './UnitsProvider';
 
+/** Analyses show the chart and its values only; how a chart is calculated or read belongs on /methodology. */
+export const chartOnly = (spec: ChartSpec): ChartSpec => ({ ...spec, note: undefined });
+
 export default function AnalysisChart({ charts, analysisId }: { charts: ChartSpec[]; analysisId: string }) {
   const id = useId();
   const { units } = useUnits();
@@ -26,7 +29,7 @@ export default function AnalysisChart({ charts, analysisId }: { charts: ChartSpe
       </label>}
     </div>}
     <div id={`${id}-comparison`}>
-      {selected ? <QuestionViz key={`${analysisId}-${index}-${selected.title}`} spec={selected} /> : <p className="answer-state" role="status">A published comparison is not available yet.</p>}
+      {selected ? <QuestionViz key={`${analysisId}-${index}-${selected.title}`} spec={chartOnly(selected)} /> : <p className="answer-state" role="status">A published comparison is not available yet.</p>}
     </div>
   </section>;
 }

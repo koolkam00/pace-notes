@@ -42,19 +42,7 @@
 .course-chooser-clear { min-height: 36px; padding: .3rem .85rem; font-size: .8125rem; }
 .course-chooser-caveat { margin: 0 0 1rem; padding: .8rem 1rem; border-left: 4px solid var(--gold); border-radius: 0 12px 12px 0; background: #FFF6E3; font-size: .875rem; line-height: 1.55; color: var(--ink-2); }
 .course-chooser-caveat strong { color: var(--ink); }
-.course-chooser-limit { margin: 0 0 1rem; padding: .7rem .9rem; border-radius: 12px; background: var(--paper); font-size: .8125rem; line-height: 1.55; color: var(--ink-2); }
-.course-chooser-limit strong { color: var(--ink); }
 
-.course-chooser-defs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: .7rem 1.4rem; margin: 0 0 1.1rem; padding: .9rem 1rem; border-radius: 14px; background: var(--paper); }
-.course-chooser-defs > div { display: grid; align-content: start; gap: .2rem; min-width: 0; }
-.course-chooser-defs-narrow { display: none; margin: 0 0 1rem; border-radius: 14px; background: var(--paper); }
-.course-chooser-defs-narrow > summary { display: flex; align-items: center; gap: .45rem; min-height: 44px; padding: 0 1rem; font-size: .8125rem; font-weight: 600; color: var(--ink-2); list-style: none; cursor: pointer; }
-.course-chooser-defs-narrow > summary::-webkit-details-marker { display: none; }
-.course-chooser-defs-narrow > summary::before { content: ''; width: 0; height: 0; border-left: 6px solid var(--cc-ink); border-top: 4.5px solid transparent; border-bottom: 4.5px solid transparent; transition: transform .15s var(--ease); }
-.course-chooser-defs-narrow[open] > summary::before { transform: rotate(90deg); }
-.course-chooser-defs-narrow .course-chooser-defs { margin: 0; padding-top: .1rem; background: none; }
-.course-chooser-defs dt { font-family: var(--mono); font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
-.course-chooser-defs dd { margin: 0; font-size: .8125rem; line-height: 1.5; color: var(--ink-3); }
 
 /* ---------- Desktop table ---------- */
 .course-chooser-table { font-size: .875rem; }
@@ -124,7 +112,6 @@ th.is-sorted .course-chooser-arrow { color: var(--cc-ink); }
 .course-chooser-context > div { display: grid; grid-template-columns: 6.6rem minmax(0, 1fr); gap: .6rem; }
 .course-chooser-context dt { font-size: .75rem; font-weight: 600; line-height: 1.45; color: var(--ink-3); }
 .course-chooser-context dd { margin: 0; font-size: .8125rem; line-height: 1.45; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.course-chooser-card-note { margin-top: .6rem; font-size: .75rem; line-height: 1.45; color: var(--ink-3); }
 .course-chooser-card-links { display: flex; flex-wrap: wrap; gap: .45rem; }
 .course-chooser-card-links a { display: inline-flex; align-items: center; min-height: 40px; padding: .3rem .75rem; border: 1px solid var(--line-2); border-radius: 999px; font-size: .8125rem; font-weight: 600;
   color: var(--ink); background: var(--card); }
@@ -133,13 +120,11 @@ th.is-sorted .course-chooser-arrow { color: var(--cc-ink); }
 .course-chooser-card-links a:last-child::after { content: '→'; margin-left: .3rem; }
 
 @media (max-width: 1239px) {
-  .course-chooser-table-wrap, .course-chooser-defs-wide { display: none; }
+  .course-chooser-table-wrap { display: none; }
   .course-chooser-cards { display: grid; }
-  .course-chooser-defs-narrow { display: block; }
 }
 @media (max-width: 600px) {
   .course-chooser-list > .tool-panel { padding: 1.1rem .85rem 1rem; }
-  .course-chooser-defs { padding: .8rem .85rem; }
   .course-chooser-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem .6rem; }
   .course-chooser-toolbar > :not(.course-chooser-filter) { grid-column: 1 / -1; }
   /* 16px or more, so iOS Safari does not zoom the page when a select gets focus. */
@@ -162,8 +147,8 @@ th.is-sorted .course-chooser-arrow { color: var(--cc-ink); }
 
 /* ---------- Print: the table, never the cards ---------- */
 @media print {
-  .course-chooser-cards, .course-chooser-defs-narrow { display: none !important; }
-  .course-chooser-table-wrap, .course-chooser-defs-wide { display: block !important; overflow: visible; }
+  .course-chooser-cards { display: none !important; }
+  .course-chooser-table-wrap { display: block !important; overflow: visible; }
   /* tools.css prints the headline black on white; this tool's own headline text is light-on-dark on screen. */
   .course-chooser-title, .course-chooser-kicker, .course-chooser-kicker span, .course-chooser-foot, .course-chooser-head .evidence-badge { color: #000 !important; }
   .course-chooser-foot { border-top-color: #000; }
@@ -174,5 +159,4 @@ th.is-sorted .course-chooser-arrow { color: var(--cc-ink); }
   .course-chooser-table th:last-child, .course-chooser-table td:last-child { display: none; }
   .course-chooser-table { font-size: 8.5pt; }
   .course-chooser-table td, .course-chooser-table tbody th, .course-chooser-table thead th { padding: .2rem .3rem; }
-  .course-chooser-defs { break-inside: avoid; }
 }

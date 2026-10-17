@@ -59,7 +59,8 @@ function copyEditionProfile(out) {
 }
 
 // S3 copy editions: that profile on /runners, every record selected. The copies say "Recorded times only" and reach no
-// summary, focus option, comparison or split-check link; one eligible race is analysed, and each copy's sentence shows once.
+// summary, focus option, comparison or split-check link; one eligible race is analysed. Since October 16, 2026 the
+// copy-edition sentence (why the records repeat another field) is on /methodology only, never on /runners.
 async function copyEditionJourney(h) {
   const found = copyEditionProfile(h.out);
   if (!found) { h.note('this release has no copy editions with a matching candidate profile: nothing to check'); return; }
@@ -82,9 +83,9 @@ async function copyEditionJourney(h) {
   const labels = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, item.querySelector('.runner-eligible, .runner-ineligible')?.textContent])));
   const expected = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 'Recorded times only']), [`${city} ${source}`, 'Pacing analysis available']]);
   h.check('each copy record says "Recorded times only"; the field it repeats has pacing analysis', JSON.stringify(labels, Object.keys(expected).sort()) === JSON.stringify(expected, Object.keys(expected).sort()), labels);
-  const reasons = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, [...item.querySelectorAll('label small')].filter(small => small.textContent.startsWith('This edition’s records')).length])));
-  const because = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 1]), [`${city} ${source}`, 0]]);
-  h.check('each copy record in the profile says why, once; the field it repeats does not', JSON.stringify(reasons, Object.keys(because).sort()) === JSON.stringify(because, Object.keys(because).sort()), reasons);
+  const reasons = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, [...item.querySelectorAll('label small')].map(small => small.textContent).filter(text => text.startsWith('This edition’s records') || text.includes('largely repeat')).length])));
+  const because = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 0]), [`${city} ${source}`, 0]]);
+  h.check('no record in the profile explains the copy editions (that is /methodology\'s)', JSON.stringify(reasons, Object.keys(because).sort()) === JSON.stringify(because, Object.keys(because).sort()), reasons);
   const boxes = page.locator('.runner-races input[type="checkbox"]');
   for (let i = 0; i < await boxes.count(); i++) await boxes.nth(i).check();
   h.check('the selection panel adds no line for a copy record', await page.locator('.runner-selection li small').count() === 0);
@@ -105,11 +106,11 @@ async function copyEditionJourney(h) {
   h.check('one eligible race: the heading, the count with its year and one table row', view.heading === 'One race. A closer look.' && view.rows === 1 && view.count === `1 · Eligible selected finish · ${source}`, { heading: view.heading, rows: view.rows, count: view.count });
   for (const copy of copies) {
     const sentence = `${city} ${copy.year}'s records largely repeat the ${city} ${source} field (${copy.identical_nine_time_twins.toLocaleString('en-US')} of its ${copy.eligible_removed.toLocaleString('en-US')} finishes`;
-    h.check(`${city} ${copy.year}: its sentence shows once`, view.text.split(sentence).length - 1 === 1, view.text.split(sentence).length - 1);
+    h.check(`${city} ${copy.year}: its copy sentence is not on /runners`, view.text.split(sentence).length - 1 === 0 && !view.text.includes('largely repeat'), view.text.split(sentence).length - 1);
     h.check(`${city} ${copy.year}: not in the race context view`, !view.contextText.includes(`${city} ${copy.year}`));
   }
   h.check('one focus option, no side-by-side comparison and one split-check link', JSON.stringify(view.focus) === JSON.stringify([`${city} ${source}`]) && !view.multi && view.split === 1, { focus: view.focus, multi: view.multi, split: view.split });
-  // One race report button, for the field the copies repeat; with the copies alone selected, none, and only the sentences.
+  // One race report button, for the field the copies repeat; with the copies alone selected, none.
   const reports = await page.evaluate(() => ({ buttons: [...document.querySelectorAll('.rc-report button')].filter(b => b.textContent.includes('Make a race report')).length, title: document.querySelector('.rc-report h3')?.textContent || '' }));
   h.check('one race report button, for the eligible race only', reports.buttons === 1 && reports.title.startsWith(`${city} ${source}`) && !copies.some(copy => reports.title.includes(String(copy.year))), reports);
   await page.locator('#runner-profile .runner-race', { has: page.locator('strong', { hasText: `${city} ${source}` }) }).locator('input[type="checkbox"]').uncheck();
@@ -118,7 +119,7 @@ async function copyEditionJourney(h) {
   await page.waitForTimeout(1000);
   const copiesOnly = await page.evaluate(() => ({ context: !!document.querySelector('.runner-context'), report: [...document.querySelectorAll('button')].some(b => b.textContent.includes('Make a race report')), text: document.body.innerText }));
   h.check('the copy editions alone: no race report button and no context view', !copiesOnly.context && !copiesOnly.report, { context: copiesOnly.context, report: copiesOnly.report });
-  for (const copy of copies) h.check(`${city} ${copy.year}: still its sentence, once, with the copies alone`, copiesOnly.text.split(`${city} ${copy.year}'s records largely repeat`).length - 1 === 1);
+  for (const copy of copies) h.check(`${city} ${copy.year}: still no copy sentence, with the copies alone`, copiesOnly.text.split(`${city} ${copy.year}'s records largely repeat`).length - 1 === 0);
   await wiggle(page, 4);
   await run.flush(page);
   await run.close();
