@@ -92,7 +92,8 @@ const F = {
   rh: (h) => `${Math.round(h)}%`,
   date: (iso) => `${MONTH_SHORT[Number(iso.slice(5, 7)) - 1]} ${Number(iso.slice(8, 10))}`,
   text: (s) => String(s),
-  section: (label) => { const [a, b] = SECTION_BOUNDS[SECTION_NAMES.indexOf(label)]; return `${(a / KM_PER_MILE).toFixed(1)}–${(b / KM_PER_MILE).toFixed(1)} mi`; },
+  // Sections are named by their mats in both unit modes (lib/units.ts sectionLabel): "35–40K", "40K–finish".
+  section: (label) => { const [a, b] = SECTION_BOUNDS[SECTION_NAMES.indexOf(label)]; return b > 42.19 ? `${a}K–finish` : `${a}–${b}K`; },
   slopeF: (perC) => { const v = perC / 1.8; return `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(2)} percentage points per °F`; },
   r2: (r) => minus(`${r < 0 ? '-' : ''}${Math.abs(r).toFixed(2)}`),
 };
