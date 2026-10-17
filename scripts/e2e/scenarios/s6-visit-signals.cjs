@@ -98,10 +98,13 @@ async function reading(h) {
   // A story read to the end, then a client-side navigation to a longer page, stays read to the end (the next page's
   // height does not count), under the story's own path.
   const home = views.find(p => p.$pathname === '/' && p.$prev_pageview_pathname === storyA);
-  // The client-side return to /: one hero, under the / page view. The story's page view, still open as the router puts
-  // the home page in place, must not count it too.
-  const heroes = named(run, 'section_viewed').filter(p => p.section === 'hero' && (!views[0] || p.$pageview_id !== views[0].$pageview_id));
+  // The client-side return to /: one hero on /, under the / page view. The story's page view, still open as the router
+  // puts the home page in place, must not count it too. (Stories mark a hero of their own since the October 17, 2026
+  // redesign; those are checked below, each once under its story's page view.)
+  const heroes = named(run, 'section_viewed').filter(p => p.section === 'hero' && p.$pathname === '/' && (!views[0] || p.$pageview_id !== views[0].$pageview_id));
   h.check('after a client-side navigation to /, exactly one hero, carrying the / page view\'s $pageview_id', home && heroes.length === 1 && heroes[0].$pageview_id === home.$pageview_id, { home: home && home.$pageview_id, heroes: heroes.map(p => `${p.$pathname} ${p.$pageview_id}`) });
+  const storyHeroes = [storyA, storyB].map(path => named(run, 'section_viewed').filter(p => p.section === 'hero' && p.$pathname === path));
+  h.check('each story read marks its hero once, under its own page view', storyHeroes.every((list, i) => list.length === 1 && list[0].$pageview_id === (views.find(p => p.$pathname === [storyA, storyB][i]) || {}).$pageview_id), storyHeroes.map(list => list.map(p => `${p.$pathname} ${p.$pageview_id}`)));
   const viewPath = new Map(views.map(p => [p.$pageview_id, p.$pathname]));
   const misfiled = named(run, 'section_viewed').filter(p => viewPath.get(p.$pageview_id) !== p.$pathname);
   h.check('every section view carries the page view of its own page', !misfiled.length, misfiled.map(p => `${p.section} ${p.$pathname} ${p.$pageview_id}`));
