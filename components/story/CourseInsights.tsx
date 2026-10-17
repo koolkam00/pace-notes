@@ -6,7 +6,7 @@ import { useWidth } from '@/components/viz/useSize';
 import type { CourseSummary, WeatherEdition } from '@/lib/insights';
 import { paceLabel } from '@/lib/units';
 import { BandStrips, CourseCurve, courseNote } from './CoursesStory';
-import { tempColour } from './WeatherStory';
+import { tempColour } from './tempColour';
 
 type Shaped = CourseSummary & Required<Pick<CourseSummary, 'curve' | 'deviation' | 'signature'>>;
 
