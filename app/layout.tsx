@@ -1,8 +1,3 @@
-import '@fontsource-variable/fraunces/full.css';
-import '@fontsource-variable/fraunces/full-italic.css';
-import '@fontsource-variable/inter/index.css';
-import '@fontsource-variable/jetbrains-mono/index.css';
-import '@fontsource-variable/bricolage-grotesque/index.css';
 // Site-wide CSS, in cascade order (the redesign spec, section 6.1): fonts, tokens, base, layout, the components
 // (alphabetical), then the legacy rules split by owner from the old globals.css and story.css, which WP9 deletes.
 // Section sheets are imported by their own route layouts and pages.
@@ -62,13 +57,19 @@ export const metadata: Metadata = {
   referrer: 'strict-origin',
 };
 
+// The page theme's paper. WP9 adds { media: '(prefers-color-scheme: dark)', color: '#111419' } when it switches the dark
+// theme on (spec section 3.9); until then a dark browser bar would sit over a light page.
 export const viewport = { themeColor: '#F5F0E6' };
+
+// The two faces every page sets first (Fraunces headings, Inter text), self-hosted under the base path (spec 6.3).
+const FONT_BASE = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const PRELOAD_FONTS = ['fraunces-latin-opsz-normal.woff2', 'inter-latin-wght-normal.woff2'];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     // The experiments script (ExperimentHead) names this tab's variants on <html> before React hydrates it.
     <html lang="en" suppressHydrationWarning>
-      <head><script type="module" async dangerouslySetInnerHTML={{ __html: RELOAD_ON_FAILED_FILE }} /><ExperimentHead /></head>
+      <head>{PRELOAD_FONTS.map((file) => <link key={file} rel="preload" as="font" type="font/woff2" crossOrigin="anonymous" href={`${FONT_BASE}/fonts/${file}`} />)}<script type="module" async dangerouslySetInnerHTML={{ __html: RELOAD_ON_FAILED_FILE }} /><ExperimentHead /></head>
       <body><UnitsProvider>
         <a className="skip-link" href="#main">Skip to content</a>
         <SiteHeader

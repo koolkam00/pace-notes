@@ -6,7 +6,7 @@
  * (size-adjust) so the site's copy has the same width as in the web font, and gives it the web font's ascent, descent
  * and line gap, so text keeps its line breaks when the web font swaps in and the page does not move.
  *
- * - Vertical metrics: read from the WOFF2 files fontsource ships (head, hhea and OS/2; all four set USE_TYPO_METRICS,
+ * - Vertical metrics: read from the self-hosted WOFF2 files in public/fonts (head, hhea and OS/2; all four set USE_TYPO_METRICS,
  *   so browsers on every system use the hhea/typo values).
  * - Widths: the built pages are opened in Chromium and every run of text set in a web font is measured twice, as the
  *   page sets it (size, weight, style, variation settings, case) and in the fallback, so the match includes each font's
@@ -29,8 +29,10 @@ const { respond } = require('./e2e/server.cjs');
 const ROOT = path.join(__dirname, '..');
 const OUT = path.join(ROOT, 'out');
 const SITE = 'https://splithappens.run';
-const PAGES = ['/', '/stories', '/stories/pacing-types', '/stories/final-kick', '/tools', '/tools/predictor', '/tools/pace-band', '/analyses', '/analyses/pacing-pattern', '/courses', '/runners', '/about'];
-const FONTSOURCE = path.join(ROOT, 'node_modules/@fontsource-variable');
+// /design-system holds the redesign's type (Fraunces at 420 to 450, its italic accent) until the area pages carry it; WP9
+// swaps it for those pages when it deletes the gallery.
+const PAGES = ['/', '/stories', '/stories/pacing-types', '/stories/final-kick', '/tools', '/tools/predictor', '/tools/pace-band', '/analyses', '/analyses/pacing-pattern', '/courses', '/runners', '/about', '/design-system'];
+const FONTS = path.join(ROOT, 'public/fonts');
 
 const WOFF2_TAGS = ['cmap', 'head', 'hhea', 'hmtx', 'maxp', 'name', 'OS/2', 'post', 'cvt ', 'fpgm', 'glyf', 'loca', 'prep', 'CFF ', 'VORG', 'EBDT', 'EBLC', 'gasp', 'hdmx', 'kern', 'LTSH', 'PCLT', 'VDMX', 'vhea', 'vmtx', 'BASE', 'GDEF', 'GPOS', 'GSUB', 'EBSC', 'JSTF', 'MATH', 'CBDT', 'CBLC', 'COLR', 'CPAL', 'SVG ', 'sbix', 'acnt', 'avar', 'bdat', 'bloc', 'bsln', 'cvar', 'fdsc', 'feat', 'fmtx', 'fvar', 'gvar', 'hsty', 'just', 'lcar', 'mort', 'morx', 'opbd', 'prop', 'trak', 'Zapf', 'Silf', 'Glat', 'Gloc', 'Feat', 'Sill'];
 
@@ -64,6 +66,8 @@ function verticalMetrics(file) {
 }
 
 const LOCAL = {
+  serif: ['Times New Roman', 'TimesNewRomanPSMT', 'Liberation Serif', 'LiberationSerif', 'LiberationSerif-Regular', 'Tinos', 'Tinos-Regular'],
+  serifItalic: ['Times New Roman Italic', 'TimesNewRomanPS-ItalicMT', 'Liberation Serif Italic', 'LiberationSerif-Italic', 'Tinos Italic', 'Tinos-Italic'],
   serifBold: ['Times New Roman Bold', 'TimesNewRomanPS-BoldMT', 'Liberation Serif Bold', 'LiberationSerif-Bold', 'Tinos Bold', 'Tinos-Bold'],
   serifBoldItalic: ['Times New Roman Bold Italic', 'TimesNewRomanPS-BoldItalicMT', 'Liberation Serif Bold Italic', 'LiberationSerif-BoldItalic', 'Tinos Bold Italic', 'Tinos-BoldItalic'],
   notoSerif: ['Noto Serif', 'NotoSerif', 'NotoSerif-Regular'],
@@ -76,9 +80,10 @@ const LOCAL = {
 
 /**
  * The fallback faces. `weight` and `style` are the face's descriptors, so each face stands in for the runs of text its web
- * font sets at those weights and styles, and is measured on them against `measure`. Fraunces is set at 600–700
- * throughout: page titles at 680 get their own match, headings at 600–640 another, both at their display optical sizes
- * (`minOpsz`). Bricolage Grotesque only sets figures, at 700–780. The Android faces are single regular faces (Android
+ * font sets at those weights and styles, and is measured on them against `measure`. Fraunces (opsz and wght only, no
+ * SOFT or WONK) is set at 420–450 in the redesign's type, matched against the regular serif from 20 px up, and at
+ * 600–700 in the legacy pages: titles at 680 get their own match, headings at 600–640 another, both at their display
+ * optical sizes (`minOpsz`). Bricolage Grotesque only sets figures, at 700–780. The Android faces are single regular faces (Android
  * draws them bold the way it draws any bold system text), so they are measured on every run against the regular
  * Liberation font and scaled by the capsize widths in `scale`.
  *
@@ -90,16 +95,18 @@ const LOCAL = {
  * title, at every width from 1280 px: CLS 0.075); 96.5% of the average, 3 times (October 15, 2026).
  */
 const FACES = [
-  { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '100 659', minOpsz: 96, local: LOCAL.serifBold, measure: 'Liberation Serif Bold', file: 'fraunces/files/fraunces-latin-full-normal.woff2' },
-  { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '660 900', minOpsz: 96, local: LOCAL.serifBold, measure: 'Liberation Serif Bold', file: 'fraunces/files/fraunces-latin-full-normal.woff2' },
-  { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '100 900', style: 'italic', minOpsz: 96, narrow: 0.965, local: LOCAL.serifBoldItalic, measure: 'Liberation Serif Bold Italic', file: 'fraunces/files/fraunces-latin-full-italic.woff2' },
-  { family: 'Fraunces Fallback Android', web: 'Fraunces Variable', minOpsz: 96, local: LOCAL.notoSerif, measure: 'Liberation Serif', scale: ['timesNewRoman', 'notoSerif'], file: 'fraunces/files/fraunces-latin-full-normal.woff2' },
-  { family: 'Inter Fallback', web: 'Inter Variable', weight: '100 599', local: LOCAL.sans, measure: 'Liberation Sans', file: 'inter/files/inter-latin-wght-normal.woff2' },
-  { family: 'Inter Fallback', web: 'Inter Variable', weight: '600 900', local: LOCAL.sansBold, measure: 'Liberation Sans Bold', file: 'inter/files/inter-latin-wght-normal.woff2' },
-  { family: 'Inter Fallback Android', web: 'Inter Variable', local: LOCAL.roboto, measure: 'Liberation Sans', scale: ['arial', 'roboto'], file: 'inter/files/inter-latin-wght-normal.woff2' },
-  { family: 'JetBrains Mono Fallback', web: 'JetBrains Mono Variable', weight: '100 599', local: LOCAL.mono, measure: 'Liberation Mono', file: 'jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2' },
-  { family: 'JetBrains Mono Fallback', web: 'JetBrains Mono Variable', weight: '600 900', local: LOCAL.monoBold, measure: 'Liberation Mono Bold', file: 'jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2' },
-  { family: 'Bricolage Grotesque Fallback', web: 'Bricolage Grotesque Variable', weight: '100 900', local: LOCAL.sansBold, measure: 'Liberation Sans Bold', file: 'bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2' },
+  { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '100 529', minOpsz: 20, local: LOCAL.serif, measure: 'Liberation Serif', file: 'fraunces-latin-opsz-normal.woff2' },
+  { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '530 659', minOpsz: 96, local: LOCAL.serifBold, measure: 'Liberation Serif Bold', file: 'fraunces-latin-opsz-normal.woff2' },
+  { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '660 900', minOpsz: 96, local: LOCAL.serifBold, measure: 'Liberation Serif Bold', file: 'fraunces-latin-opsz-normal.woff2' },
+  { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '100 529', style: 'italic', minOpsz: 20, narrow: 0.965, local: LOCAL.serifItalic, measure: 'Liberation Serif Italic', file: 'fraunces-latin-opsz-italic.woff2' },
+  { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '530 900', style: 'italic', minOpsz: 96, narrow: 0.965, local: LOCAL.serifBoldItalic, measure: 'Liberation Serif Bold Italic', file: 'fraunces-latin-opsz-italic.woff2' },
+  { family: 'Fraunces Fallback Android', web: 'Fraunces Variable', minOpsz: 96, local: LOCAL.notoSerif, measure: 'Liberation Serif', scale: ['timesNewRoman', 'notoSerif'], file: 'fraunces-latin-opsz-normal.woff2' },
+  { family: 'Inter Fallback', web: 'Inter Variable', weight: '100 599', local: LOCAL.sans, measure: 'Liberation Sans', file: 'inter-latin-wght-normal.woff2' },
+  { family: 'Inter Fallback', web: 'Inter Variable', weight: '600 900', local: LOCAL.sansBold, measure: 'Liberation Sans Bold', file: 'inter-latin-wght-normal.woff2' },
+  { family: 'Inter Fallback Android', web: 'Inter Variable', local: LOCAL.roboto, measure: 'Liberation Sans', scale: ['arial', 'roboto'], file: 'inter-latin-wght-normal.woff2' },
+  { family: 'JetBrains Mono Fallback', web: 'JetBrains Mono Variable', weight: '100 599', local: LOCAL.mono, measure: 'Liberation Mono', file: 'jetbrains-mono-latin-wght-normal.woff2' },
+  { family: 'JetBrains Mono Fallback', web: 'JetBrains Mono Variable', weight: '600 900', local: LOCAL.monoBold, measure: 'Liberation Mono Bold', file: 'jetbrains-mono-latin-wght-normal.woff2' },
+  { family: 'Bricolage Grotesque Fallback', web: 'Bricolage Grotesque Variable', weight: '100 900', local: LOCAL.sansBold, measure: 'Liberation Sans Bold', file: 'bricolage-grotesque-latin-wght-normal.woff2' },
 ];
 
 /** Runs in the page: total width of the text runs each face stands in for, in the web font and in the face's fallback. */
@@ -182,7 +189,7 @@ async function rules() {
   return FACES.map((face, i) => {
     if (!totals[i][1]) throw new Error(`No text on the measured pages is set the way ${face.family} ${face.weight || ''} ${face.style || ''} expects`);
     const scale = (totals[i][0] / totals[i][1]) * (face.scale ? width(face.scale[0]) / width(face.scale[1]) : 1) * (face.narrow || 1);
-    const { ascent, descent, lineGap } = verticalMetrics(path.join(FONTSOURCE, face.file));
+    const { ascent, descent, lineGap } = verticalMetrics(path.join(FONTS, face.file));
     // Browsers apply the metric overrides to the size-adjusted font, so each is divided by the scale.
     return `@font-face { font-family: '${face.family}'; src: ${face.local.map((name) => `local('${name}')`).join(', ')};`
       + `${face.weight ? ` font-weight: ${face.weight};` : ''}${face.style ? ` font-style: ${face.style};` : ''}`
