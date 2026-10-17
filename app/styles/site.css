@@ -23,6 +23,7 @@
 /* Charts, the scrubber and the replay (components/viz, WP0-C). */
 @import './components/chart-frame.css';
 @import './components/dot-grid.css';
+@import './components/replay.css';
 @import './components/ruler.css';
 @import './components/scrubber.css';
 @import './legacy/shared.css';

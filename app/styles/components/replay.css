@@ -1,0 +1,97 @@
+/* The race replay (components/viz/RaceReplay.tsx, ReplayFrame.tsx, ReplayStage.client.tsx; the redesign spec, sections
+   3.6 and 7.1): always night. The frame keeps its size before and after the canvas loads: the HUD, a canvas box of
+   fixed height with the server poster under the canvas, the moment's two lines and the scrub row. .replay keeps it out
+   of session replay and .hero-replay out of the 200% zoom "wide" check. */
+
+.hero-replay.replay {
+  --replay-h: clamp(240px, 64vw, 420px);
+  position: relative; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none;
+  color: var(--night-ink);
+}
+.hero-replay.is-band { --replay-h: 22vh; }
+@supports (height: 1svh) { .hero-replay.is-band { --replay-h: clamp(120px, 22svh, 200px); } }
+.hero-replay .replay-pickers { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); margin-bottom: var(--s-4); }
+.hero-replay .replay-pickers > * { max-width: 100%; }
+
+/* The HUD: the race and its clock; the shares finished and at slowdown pace. */
+.hero-replay .replay-hud { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s-4); margin-bottom: var(--s-3); }
+.hero-replay .replay-race { margin: 0 0 2px; font-size: var(--t-kicker); font-weight: 600; line-height: 1.3; letter-spacing: .08em; text-transform: uppercase; color: var(--night-ink-3); }
+.hero-replay .replay-clock { margin: 0; font-size: 1.75rem; font-weight: 600; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--night-ink); }
+.hero-replay .replay-stats { display: flex; gap: var(--s-5); margin: 0; text-align: right; }
+.hero-replay .replay-stats div { display: grid; gap: 2px; min-width: 0; }
+.hero-replay .replay-stats dt { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; font-size: var(--t-kicker); font-weight: 600; line-height: 1.3; color: var(--night-ink-3); white-space: nowrap; }
+.hero-replay .replay-stats dd { margin: 0; font-size: 1.0625rem; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; color: var(--night-ink); }
+.hero-replay .replay-swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--night-signal); }
+
+/* The canvas box: fixed height, the poster under the canvas, the canvas fading in over it. */
+.hero-replay .replay-box { position: relative; height: var(--replay-h); overflow: hidden; background: var(--night); }
+.hero-replay .replay-box.is-route { --replay-h: clamp(300px, 90vw, 520px); }
+.hero-replay .replay-poster, .hero-replay .replay-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.hero-replay .replay-poster { transition: opacity var(--d-reveal) var(--ease-out); }
+.hero-replay .replay-frame.is-live .replay-poster { opacity: 0; }
+.hero-replay .replay-poster-field { fill: none; stroke: var(--night-ink); stroke-width: 2.5px; stroke-linejoin: round; stroke-linecap: round; opacity: .72; vector-effect: non-scaling-stroke; }
+.hero-replay .replay-poster-finish { stroke: var(--night-rule-strong); stroke-width: 1px; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.hero-replay .replay-poster-mat { stroke: var(--night-3); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.hero-replay .replay-canvas { opacity: 0; cursor: pointer; transition: opacity var(--d-reveal) var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.hero-replay .replay-canvas.is-shown { opacity: 1; }
+.hero-replay .replay-axis-y { position: absolute; left: 2%; font-size: 12px; font-weight: 500; line-height: 1; color: var(--night-ink-3); text-shadow: 0 0 3px var(--night), 0 0 6px var(--night); pointer-events: none; }
+.hero-replay .replay-axis-y.is-top { top: 8px; }
+.hero-replay .replay-axis-y.is-bottom { bottom: 8px; }
+.hero-replay .replay-status { position: absolute; left: 0; right: 0; bottom: 12px; margin: 0; font-size: var(--t-small); text-align: center; color: var(--night-ink-2); }
+
+/* Play: 44 px at the top right of the canvas. */
+.hero-replay .replay-play {
+  position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 44px; height: 44px; min-height: 44px; padding: 0;
+  border: 1px solid var(--night-3); border-radius: 50%; background: var(--night-2); color: var(--night-ink); cursor: pointer;
+  transition: transform var(--d-release) var(--spring), background-color var(--d-quick) var(--ease-out);
+}
+.hero-replay .replay-play:hover:not(:disabled) { background: var(--night-3); }
+.hero-replay .replay-play:active:not(:disabled) { transform: scale(.94); transition-duration: var(--d-press); }
+.hero-replay .replay-play:disabled { opacity: .5; cursor: default; }
+.hero-replay .replay-play:focus-visible { outline: 2px solid var(--focus-night); outline-offset: 2px; }
+
+/* The mats under the field: Start, 10K, 20K, 30K, Finish. */
+.hero-replay .replay-mats { position: relative; height: 22px; margin-top: 6px; }
+.hero-replay .replay-mats span { position: absolute; top: 0; transform: translateX(-50%); font-size: 12px; font-weight: 500; line-height: 16px; white-space: nowrap; color: var(--night-ink-3); }
+.hero-replay .replay-mats span:first-child { transform: none; }
+.hero-replay .replay-mats span.is-finish { right: 0; transform: none; }
+
+/* The moment: the flag frame's sentence, two lines reserved; dimmed while the race runs on. */
+.hero-replay .replay-moment {
+  min-height: 2.6em; margin: var(--s-3) 0 0; max-width: 34rem;
+  font-family: var(--serif); font-size: 1.0625rem; font-weight: 440; line-height: 1.3; letter-spacing: -.005em; color: var(--night-ink);
+  text-wrap: pretty; transition: opacity var(--d-toggle) var(--ease-out);
+}
+.hero-replay .replay-moment em { font-style: italic; color: var(--night-signal-ink); }
+.hero-replay .replay-moment.is-off { opacity: .4; }
+
+/* The race clock: a 44 px range over a 2 px track, hour ticks under it. */
+.hero-replay .replay-scrub { position: relative; margin-top: var(--s-2); }
+.hero-replay .replay-range {
+  --fill: 0%;
+  display: block; width: 100%; height: 44px; margin: 0; padding: 0; background: transparent; cursor: pointer;
+  -webkit-appearance: none; appearance: none; touch-action: pan-y;
+}
+.hero-replay .replay-range:disabled { cursor: default; opacity: .6; }
+.hero-replay .replay-range::-webkit-slider-runnable-track { height: 2px; border-radius: 1px; background: linear-gradient(to right, var(--night-ink-2) var(--fill), var(--night-3) var(--fill)); }
+.hero-replay .replay-range::-moz-range-track { height: 2px; border-radius: 1px; background: var(--night-3); }
+.hero-replay .replay-range::-moz-range-progress { height: 2px; border-radius: 1px; background: var(--night-ink-2); }
+.hero-replay .replay-range::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; margin-top: -9px; border: 0; border-radius: 50%; background: var(--night-ink); box-shadow: 0 0 0 2px var(--night); }
+.hero-replay .replay-range::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: var(--night-ink); box-shadow: 0 0 0 2px var(--night); }
+.hero-replay .replay-range:focus-visible { outline: 2px solid var(--focus-night); outline-offset: 2px; border-radius: var(--r-xs); }
+.hero-replay .replay-hours { position: relative; height: 16px; margin: -8px 10px 0; }
+.hero-replay .replay-hours span { position: absolute; top: 0; transform: translateX(-50%); font-size: 12px; font-weight: 500; line-height: 16px; font-variant-numeric: tabular-nums; color: var(--night-ink-3); }
+
+/* The home band: the race and the moment only, at a fifth of the screen. */
+.hero-replay.is-band .replay-hud { margin-bottom: var(--s-2); }
+.hero-replay.is-band .replay-clock { font-size: 1.375rem; }
+.hero-replay.is-band .replay-mats, .hero-replay.is-band .replay-scrub, .hero-replay.is-band .replay-axis-y { display: none; }
+.hero-replay.is-band .replay-moment { margin-top: var(--s-2); font-size: 1rem; }
+
+@media (min-width: 600px) {
+  .hero-replay .replay-box { border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--night-3); }
+}
+@media (max-width: 359.98px) {
+  .hero-replay .replay-stats { gap: var(--s-3); }
+  .hero-replay .replay-hud { flex-wrap: wrap; }
+}

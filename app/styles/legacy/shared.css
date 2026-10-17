@@ -377,33 +377,7 @@ summary::marker { color: var(--orange); font-size: .8em; }
 .hero-runners { position: relative; height: 120px; margin-top: 1rem; }
 
 
-/* ---------- Race replay ---------- */
-.replay { position: relative; margin-top: 1.4rem; border: 1px solid var(--night-3); border-radius: 20px; background: linear-gradient(180deg, #0B0E12, #10141B); padding: 1rem 1rem .9rem; box-shadow: 0 30px 80px -40px rgba(0, 0, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .03); }
-.replay canvas { display: block; width: 100%; border-radius: 12px; }
-.replay-hud { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: .8rem 1.5rem; padding: .3rem .4rem .8rem; }
-.replay-clock { font-family: var(--mono); font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 500; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--night-ink); }
-.replay-title { font-family: var(--mono); font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); margin-bottom: .45rem; }
-.replay-stats { display: grid; grid-template-columns: repeat(4, minmax(0, auto)); gap: .2rem 1.6rem; margin: 0; align-items: end; }
-.replay-stats div { min-width: 0; }
-.replay-stats dt { max-width: 12rem; font-size: .6875rem; line-height: 1.3; color: var(--night-ink-2); }
-.replay-stats dd { margin: .15rem 0 0; font-family: var(--bib); font-size: 1.45rem; font-weight: 700; letter-spacing: -.01em; color: var(--night-ink); font-variant-numeric: tabular-nums; }
-.replay-controls { display: flex; align-items: center; gap: .8rem; padding: .7rem .3rem .2rem; }
-.replay-play { width: 46px; height: 46px; min-height: 46px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 0; background: var(--orange); color: var(--ink); flex-shrink: 0; }
-.replay-play:hover { background: #ff7a55; }
-.replay-scrub { flex: 1; min-width: 0; accent-color: var(--gold); }
-.replay-speed select:focus-visible { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold); }
-.replay-speed select { min-height: 38px; width: auto; padding: .3rem 2rem .3rem .7rem; border-radius: 999px; border-color: var(--night-3); background-color: var(--night-2); color: var(--night-ink); font-family: var(--mono); font-size: .75rem;
-  background-image: linear-gradient(45deg, transparent 50%, var(--night-ink-2) 50%), linear-gradient(135deg, var(--night-ink-2) 50%, transparent 50%); }
-.replay-legend { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .9rem; padding: .5rem .4rem 0; font-family: var(--mono); font-size: .6875rem; color: var(--night-ink-2); }
-.replay-ramp { display: inline-flex; height: 8px; width: 140px; border-radius: 999px; overflow: hidden; }
-.replay-ramp i { flex: 1; }
-.replay-ramp-labels { display: inline-flex; gap: 1.1rem; }
-.replay-ramp-labels b { font-weight: 500; }
-@media (max-width: 720px) {
-  .replay { padding: .7rem .6rem .6rem; border-radius: 16px; }
-  .replay-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; gap: .5rem 1rem; }
-  .replay-stats dd { font-size: 1.2rem; }
-}
+/* The race replay is drawn by components/viz (WP0-C): app/styles/components/replay.css. */
 
 
 /* ---------- Bib stat cards ---------- */
@@ -498,14 +472,6 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 .home-section-line { margin-top: 1.2rem; max-width: 42rem; font-size: clamp(1rem, 1.5vw, 1.15rem); line-height: 1.55; color: var(--ink-2); }
 .cohort-note { margin-top: 1.4rem; max-width: 46rem; padding-left: .9rem; border-left: 3px solid var(--line-2); font-size: .9375rem; line-height: 1.55; color: var(--ink-2); }
 .home-after .chapter-more { margin-top: .6rem; }
-.hero-replay { min-width: 0; }
-.hero-replay-bar { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; }
-.hero-replay-bar .segmented { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
-.hero-replay-bar .segmented::-webkit-scrollbar { display: none; }
-.hero-replay-bar .segmented button { white-space: nowrap; }
-.hero-replay .replay { margin-top: .8rem; }
-.hero-replay-note { margin-top: .7rem; font-size: .8125rem; line-height: 1.5; color: var(--night-ink-2); max-width: 46rem; }
-.replay-loading { display: grid; place-items: center; padding: 1rem; border-radius: 12px; color: var(--night-ink-2); font-family: var(--mono); font-size: .8125rem; text-align: center; }
 .runner-lane { width: 100%; overflow: hidden; }
 .runner-lane svg { display: block; }
 .lane-tag { font-family: var(--mono); font-size: 10px; font-weight: 600; fill: var(--ink-2); }
@@ -606,7 +572,5 @@ a.bib:hover { text-decoration: none; transform: translateY(-3px) rotate(-.4deg);
 
 .story-section .share-grid > .viz-card, .story-section .snapshot-grid > .viz-card { margin-top: 0; }
 .story-grid > li:last-child:nth-child(3n + 1) { grid-column: 1 / -1; }
-.hero-replay-bar .segmented button:focus-visible, .fp-grid .fp-chip:focus-visible { outline-offset: -3px; }
 .viz-head > .viz-pause { margin-left: auto; }
 .dark .viz-pause, .night .viz-pause { background: var(--night-2); border-color: var(--night-3); color: var(--night-ink-2); }
-@media (max-width: 720px) { .replay-controls { flex-wrap: wrap; } .replay-scrub { order: 3; flex: 1 1 100%; } .replay-speed { margin-left: auto; } }
