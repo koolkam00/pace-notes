@@ -5,7 +5,8 @@ import { getExtensions } from '@/lib/extension-data';
 import { getPersonalMethod, getPersonalSummary } from '@/lib/personalized-data';
 import { TEN_ANALYSES, analysisHref } from '@/lib/ten-analyses';
 import { PERSONAL_QUESTIONS } from '@/lib/personalized-catalog';
-import { getInsightsManifest } from '@/lib/insights-server';
+import { getInsightsManifest, readInsight } from '@/lib/insights-server';
+import type { Archetypes } from '@/lib/insights';
 import { STORIES, courseSpan } from '@/lib/stories';
 import { JsonLd, absoluteUrl, pageMetadata } from '@/lib/seo';
 import { dataDate } from '@/lib/seo-routes';
@@ -26,6 +27,17 @@ const STORY_FILE_TOPICS: Record<string, string> = {
   'demographics.json': 'pacing by recorded gender and age group',
   'courses.json': 'course pacing profiles with race-morning weather as context',
 };
+
+/** The stories' extra screens, read from their verified data: copy editions (none since the 1652 release) and start-offset editions. */
+function storyScreens() {
+  const copies = getInsightsManifest().duplicate_edition_screen;
+  const offsets = readInsight<Archetypes>('archetypes.json').start_offset_editions.length;
+  const copyText = copies.length
+    ? ` but also leave out ${copies.map((d) => `${d.city} ${d.year}`).join(' and ')}, whose records duplicate another year of the same race`
+    : '';
+  const offsetText = offsets ? ` Their pacing-shape charts further leave out ${offsets === 1 ? 'one edition' : `${new Intl.NumberFormat('en-US').format(offsets)} editions`} whose first 5 km appears to include start delay.` : '';
+  return `The data stories use the same eligible finishes${copyText}.${offsetText}`;
+}
 
 /**
  * schema.org Dataset for the aggregate story summaries (Dataset Search only). Every number is read from the
@@ -88,9 +100,9 @@ export default function MethodologyPage() {
       <li><strong>Development:</strong> how the same runner’s approach and results change across marathons.</li>
     </ul>
     <h2>What is available now?</h2>
-    {extension && <p>The export used by the current analyses contains {new Intl.NumberFormat('en-US').format(extension.corpus.n_records)} race records across {extension.corpus.n_cities} cities and {extension.corpus.n_race_years} race editions. These charts summarize individual splits. The complete records are available in <a href="https://github.com/koolkam00/htw-live-study/releases">public data downloads</a> without login.</p>}
+    {extension && <p>The export used by the current analyses contains {new Intl.NumberFormat('en-US').format(extension.corpus.n_records)} race records across {extension.corpus.n_cities} cities and {extension.corpus.n_race_years} race editions. These charts summarize individual splits. The complete records are available in <a href="https://github.com/koolkam00/pace-notes/releases">public data downloads</a> without login.</p>}
     {supportingStudy && <p>Every published analysis draws from the same collection of marathon results, including sustained slowdown and the supporting charts. The common timing and edition-quality checks retain {new Intl.NumberFormat('en-US').format(supportingStudy.n)} eligible finishes. History, exact-age and weather comparisons use smaller subsets because they need additional fields.</p>}
-    <p>The data stories use the same eligible finishes but also leave out Chicago 2018 and 2019, whose records duplicate the Chicago 2024 field (same source participant ids, names and checkpoint times). Their pacing-shape charts further leave out thirteen editions whose first 5 km appears to include start delay. Each story lists its own screens in its methods box.</p>
+    <p>{storyScreens()} Each story lists its own screens in its methods box.</p>
     <p>{calculated.length} of the {QUESTIONS.length} questions have results recalculated from the public export. Some are partial answers: a course comparison cannot isolate the course’s causal effect, and a route proxy cannot establish the hills used in an old edition. Group running and congestion require start and checkpoint clock times that are absent from this export.</p>
     <p>A finish is one performance, so a runner can contribute several. Individual tables can have smaller samples because they need different fields. <Link href="/about#data-coverage">See the marathons, recorded years, weather fields and elevation coverage</Link>.</p>
     <h2 id="personalized">The ten essential analyses</h2>

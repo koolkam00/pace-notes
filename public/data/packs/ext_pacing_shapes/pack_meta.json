@@ -4,33 +4,33 @@
   "question_id": "r10_unravel_typology",
   "title": "How do people actually pace a marathon?",
   "status": "ready",
-  "as_of": "2026-09-12T14:12:22Z",
-  "n": 3517336,
-  "input_export_id": "private-20260912-0934",
-  "input_as_of": "2026-09-12T13:37:16Z",
-  "live_json_as_of": "2026-09-12T04:11:06Z",
-  "input_asset_sha256": "cb4e0ab7432010de29755ec5d75ca3b370e64e481eda5b20c44b359f39552204",
-  "input_manifest_sha256": "a6f534d40bac291e0a1bc2eeb70633660acd00a710a090320876736de9c30f4d",
+  "as_of": "2026-10-16T22:32:36Z",
+  "n": 3871767,
+  "input_export_id": "htw-db-2026-10-16-1652",
+  "input_as_of": "2026-10-16T20:55:30Z",
+  "live_json_as_of": "2026-09-12T14:21:17Z",
+  "input_asset_sha256": "c0e2e63fc826a60994cb30b28e2c2fcd57e99ffca5706d876d83c08be773215a",
+  "input_manifest_sha256": "c21298e62ea0780c9c1237aa0fc11ef7025e3ac84c186990968bf5d9e8fe40c6",
   "analysis_script_sha256": "7c6959b427fa1b06bb9600bb3377ecb226257d14aa0ec61a71a63f42bc87a3dd",
   "analysis_version": 1,
   "engine": "DuckDB 1.4.4",
   "corpus": {
-    "n_records": 4462379,
+    "n_records": 4915355,
     "n_cities": 34,
-    "n_race_years": 256
+    "n_race_years": 287
   },
   "cohort": {
-    "deduplicated": 4462379,
-    "complete": 3830211,
-    "increasing": 3604993,
-    "timing_eligible": 3595426,
-    "eligible": 3517336,
-    "source_quality_excluded": 78090,
-    "raw": 4462379,
+    "deduplicated": 4915355,
+    "complete": 4064296,
+    "increasing": 4039224,
+    "timing_eligible": 4027044,
+    "eligible": 3871767,
+    "source_quality_excluded": 155277,
+    "raw": 4915355,
     "duplicates_removed": 0,
-    "missing_or_unparsed": 632168,
-    "non_increasing": 225218,
-    "outside_quality_bounds": 9567
+    "missing_or_unparsed": 851059,
+    "non_increasing": 25072,
+    "outside_quality_bounds": 12180
   },
   "methodology_prose": [
     "For each runner, divide section pace by their full-marathon average pace and subtract one. Plot the median of these individual percentages at each checkpoint; zero is that runner\u2019s own marathon pace. A median curve is not itself one runner\u2019s race and need not integrate to zero.",
@@ -38,13 +38,13 @@
     "Use complete, strictly increasing elapsed checkpoints at 5, 10, 15, 20, 25, 30, 35, 40 and 42.195 km. Clock strings must parse as H:MM:SS or M:SS. No missing splits are interpolated.",
     "Remove exact duplicate race records, ignoring database IDs, ingestion timestamps and source URLs. Retain finishes from 90 minutes to 12 hours with every section between 2 and 20 minutes per km. These quality filters can exclude genuine unusual performances; the analysis describes this eligible cohort, not every entrant.",
     "Each observation is a race finish. The same person can appear in multiple races. No runner identities are linked across races. Public cells require at least 100 observations; matched comparisons additionally require at least 20 per group in each stratum.",
-    "Apply the reviewed source-quality edition exclusions for this exact export after the timing checks. Known invalid split grids, incomplete ingestion, unreconciled HOLD editions and a selected top-finisher field do not contribute to the analyses or prior benchmarks. Report source exclusions separately; an already invalid timing row is not counted twice. Missing age or recorded gender alone does not exclude an otherwise eligible finish from the overall cohort. Other sparse editions are not declared incomplete merely from their size."
+    "Apply the reviewed source-quality edition exclusions for this exact export after the timing checks. Known invalid split grids (including grids that mix timing bases, a checkpoint that stopped recording partway through the field and a virtual edition), incomplete ingestion, unreconciled HOLD editions and selected fields (a top-finisher list, or finishers cut off when a race was stopped) do not contribute to the analyses or prior benchmarks. Report source exclusions separately; an already invalid timing row is not counted twice. Missing age or recorded gender alone does not exclude an otherwise eligible finish from the overall cohort. Other sparse editions are not declared incomplete merely from their size."
   ],
   "observational": true,
   "minimum_public_cell": 100,
   "source_quality": {
     "version": 1,
-    "release_tag": "private-export-20260912-0934",
+    "release_tag": "htw-db-2026-10-16-1652",
     "reviewed_edition_policy": true,
     "editions": [
       {
@@ -84,15 +84,6 @@
         "timing_eligible_excluded": 0
       },
       {
-        "city": "Frankfurt",
-        "year": 2019,
-        "category": "invalid_split_grid",
-        "reason": "Producer explicitly force-dropped this 5 km grid; numerically plausible rows are not reinstated.",
-        "raw_records": 12513,
-        "deduplicated_records": 12513,
-        "timing_eligible_excluded": 10624
-      },
-      {
         "city": "New York",
         "year": 2008,
         "category": "unreconciled_hold",
@@ -100,24 +91,6 @@
         "raw_records": 38047,
         "deduplicated_records": 38047,
         "timing_eligible_excluded": 37387
-      },
-      {
-        "city": "Chicago",
-        "year": 2016,
-        "category": "incomplete_ingestion",
-        "reason": "Producer handoff identifies this 6,512-record edition as incomplete and on HOLD.",
-        "raw_records": 6512,
-        "deduplicated_records": 6512,
-        "timing_eligible_excluded": 6506
-      },
-      {
-        "city": "Tokyo",
-        "year": 2026,
-        "category": "selected_field",
-        "reason": "Source notes identify top-500 PDFs, not a representative full marathon field.",
-        "raw_records": 353,
-        "deduplicated_records": 353,
-        "timing_eligible_excluded": 353
       },
       {
         "city": "Amsterdam",
@@ -145,10 +118,208 @@
         "raw_records": 19236,
         "deduplicated_records": 19236,
         "timing_eligible_excluded": 0
+      },
+      {
+        "city": "Frankfurt",
+        "year": 2019,
+        "category": "unreconciled_hold",
+        "reason": "The earlier, wrongly dated records were replaced by the real 2019 race, which the producer lists as complete, but the producer\u2019s feature engine still drops this edition from its valid set. Held until the producer reconciles the two.",
+        "raw_records": 10554,
+        "deduplicated_records": 10554,
+        "timing_eligible_excluded": 10484
+      },
+      {
+        "city": "Tokyo",
+        "year": 2026,
+        "category": "selected_field",
+        "reason": "Source notes identify top-500 result PDFs, not a representative full marathon field; the 770 records are all men.",
+        "raw_records": 770,
+        "deduplicated_records": 770,
+        "timing_eligible_excluded": 770
+      },
+      {
+        "city": "Chicago",
+        "year": 2015,
+        "category": "incomplete_ingestion",
+        "reason": "Producer notes say this edition was still being loaded when the snapshot was taken: 27,186 records, loaded in finish order and stopping at 5:31:05 for women and 4:45:16 for men, about three quarters of the field.",
+        "raw_records": 27186,
+        "deduplicated_records": 27186,
+        "timing_eligible_excluded": 27150
+      },
+      {
+        "city": "Oslo",
+        "year": 2026,
+        "category": "incomplete_ingestion",
+        "reason": "Producer marks this edition INCOMPLETE: 3,461 of 3,462 listed runners were retrieved. One missing record is unlikely to bias the results; the edition is held until the producer completes it.",
+        "raw_records": 3461,
+        "deduplicated_records": 3461,
+        "timing_eligible_excluded": 3423
+      },
+      {
+        "city": "Amsterdam",
+        "year": 2020,
+        "category": "invalid_split_grid",
+        "reason": "Producer notes mark this a virtual edition (the race on the course was cancelled in 2020), so these times are not checkpoint timings from the race course.",
+        "raw_records": 794,
+        "deduplicated_records": 794,
+        "timing_eligible_excluded": 665
+      },
+      {
+        "city": "Amsterdam",
+        "year": 2023,
+        "category": "incomplete_ingestion",
+        "reason": "The finish time was loaded for only 17 of 16,030 records, although 40 km is present for 16,008; the 14 complete grids are what is left, not a sample of the field.",
+        "raw_records": 16030,
+        "deduplicated_records": 16030,
+        "timing_eligible_excluded": 14
+      },
+      {
+        "city": "Melbourne",
+        "year": 2015,
+        "category": "incomplete_ingestion",
+        "reason": "Only about 500 of the roughly 6,000 finishers were loaded, from individual result pages, and 24 runners appear two or three times under name variants; the records are neither the full field nor a sample of it.",
+        "raw_records": 502,
+        "deduplicated_records": 502,
+        "timing_eligible_excluded": 416
+      },
+      {
+        "city": "Boston",
+        "year": 2013,
+        "category": "selected_field",
+        "reason": "The race was stopped after the bombings near the finish, so the recorded finishers are only those who finished before the course closed (none slower than 4:45). A finisher set cut off by finish time is not comparable with other editions.",
+        "raw_records": 17580,
+        "deduplicated_records": 17580,
+        "timing_eligible_excluded": 17510
+      },
+      {
+        "city": "Tokyo",
+        "year": 2016,
+        "category": "selected_field",
+        "reason": "Exactly 500 women and 500 men, the fastest of each (slowest 3:35:49): a top-finisher list, not the full field of more than 30,000 finishers.",
+        "raw_records": 1000,
+        "deduplicated_records": 1000,
+        "timing_eligible_excluded": 999
+      },
+      {
+        "city": "Tokyo",
+        "year": 2017,
+        "category": "selected_field",
+        "reason": "Exactly 500 women and 500 men, the fastest of each (slowest 3:29:26): a top-finisher list, not the full field of more than 30,000 finishers.",
+        "raw_records": 1000,
+        "deduplicated_records": 1000,
+        "timing_eligible_excluded": 999
+      },
+      {
+        "city": "Tokyo",
+        "year": 2018,
+        "category": "selected_field",
+        "reason": "Exactly 500 women and 500 men, the fastest of each (slowest 3:27:07): a top-finisher list, not the full field of more than 30,000 finishers.",
+        "raw_records": 1000,
+        "deduplicated_records": 1000,
+        "timing_eligible_excluded": 987
+      },
+      {
+        "city": "Paris",
+        "year": 2014,
+        "category": "invalid_split_grid",
+        "reason": "This release rewrote the edition\u2019s 10\u201340 km checkpoints in place; 25 km is now blank for about 99% of records, and the 40 complete grids left of 38,672 finishes include leftover impossible timings, so they are not a sample of the field.",
+        "raw_records": 38672,
+        "deduplicated_records": 38672,
+        "timing_eligible_excluded": 40
+      },
+      {
+        "city": "Paris",
+        "year": 2015,
+        "category": "invalid_split_grid",
+        "reason": "This release rewrote the edition\u2019s 10\u201340 km checkpoints in place; 25 km is now blank for about 98% of records, and the 70 complete grids left of 40,261 finishes include leftover impossible timings, so they are not a sample of the field.",
+        "raw_records": 40261,
+        "deduplicated_records": 40261,
+        "timing_eligible_excluded": 70
+      },
+      {
+        "city": "Paris",
+        "year": 2016,
+        "category": "invalid_split_grid",
+        "reason": "This release rewrote the edition\u2019s 10\u201340 km checkpoints in place; 25 km is now blank for about 97% of records, and the 526 complete grids left of 41,795 finishes include leftover impossible timings, so they are not a sample of the field.",
+        "raw_records": 41795,
+        "deduplicated_records": 41795,
+        "timing_eligible_excluded": 526
+      },
+      {
+        "city": "Paris",
+        "year": 2017,
+        "category": "invalid_split_grid",
+        "reason": "This release rewrote the edition\u2019s 10\u201340 km checkpoints in place; 25 km is now blank for about 99% of records, and the 11 complete grids left of 41,734 finishes include leftover impossible timings, so they are not a sample of the field.",
+        "raw_records": 41734,
+        "deduplicated_records": 41734,
+        "timing_eligible_excluded": 11
+      },
+      {
+        "city": "Paris",
+        "year": 2018,
+        "category": "invalid_split_grid",
+        "reason": "This release rewrote the edition\u2019s 10\u201340 km checkpoints in place; 25 km is now blank for about 98% of records, and the 11 complete grids left of 42,522 finishes include leftover impossible timings, so they are not a sample of the field.",
+        "raw_records": 42522,
+        "deduplicated_records": 42522,
+        "timing_eligible_excluded": 11
+      },
+      {
+        "city": "New York",
+        "year": 2007,
+        "category": "invalid_split_grid",
+        "reason": "The 25\u201340 km checkpoints are missing for about a third of finishers, and 40% of the complete grids have an impossible last section (checkpoint times include the start delay, the finish does not). The 40% of finishers that pass the timing checks are not a sample of the field.",
+        "raw_records": 38462,
+        "deduplicated_records": 38462,
+        "timing_eligible_excluded": 15398
+      },
+      {
+        "city": "Barcelona",
+        "year": 2019,
+        "category": "invalid_split_grid",
+        "reason": "The checkpoint times include the start delay but the finish does not: half of the complete grids have an impossible last section, and the finishers that pass the timing checks are mostly the faster, earlier starters (80% of the fastest quarter, 18% of the slowest).",
+        "raw_records": 13445,
+        "deduplicated_records": 13445,
+        "timing_eligible_excluded": 5535
+      },
+      {
+        "city": "Eindhoven",
+        "year": 2026,
+        "category": "invalid_split_grid",
+        "reason": "Our audit, not the producer, flags this edition: its checkpoints mix two timing bases (the 5 km reading came from separate runner pages). 1,880 of 4,466 complete grids put the finish at or before 40 km, and the rows that pass the timing checks still run 5\u201310 km up to about 30% slower than 10\u201315 km.",
+        "raw_records": 4471,
+        "deduplicated_records": 4471,
+        "timing_eligible_excluded": 1521
+      },
+      {
+        "city": "Gold Coast",
+        "year": 2024,
+        "category": "invalid_split_grid",
+        "reason": "The 35 km mat stopped recording partway through the field: 35 km is missing for 2,729 of 8,665 finishers, almost all of them slower ones, so complete timings survive for 95% of the fastest quarter but 1% of the slowest.",
+        "raw_records": 9905,
+        "deduplicated_records": 9905,
+        "timing_eligible_excluded": 5692
+      },
+      {
+        "city": "Auckland",
+        "year": 2018,
+        "category": "invalid_split_grid",
+        "reason": "The 40 km mat stopped recording partway through the field: 40 km is missing for 685 of 1,654 finishers, so complete timings survive for 97% of the fastest quarter and none of the slowest.",
+        "raw_records": 1917,
+        "deduplicated_records": 1917,
+        "timing_eligible_excluded": 915
+      },
+      {
+        "city": "Dubai",
+        "year": 2025,
+        "category": "invalid_split_grid",
+        "reason": "The 40 km mat stopped recording late in the race: 40 km is missing for 267 of 1,809 finishers, almost all of them slower ones, so complete timings survive for nearly all of the fastest three quarters but 41% of the slowest.",
+        "raw_records": 1809,
+        "deduplicated_records": 1809,
+        "timing_eligible_excluded": 1534
       }
     ],
-    "policy_sha256": "c08e83c993025dc41c0344be7b5442d74b3fb0588c38949481d5bc0a08f45fa0",
-    "script_sha256": "433e8b9566b5afd809f4de1180fab222e63ad40678a33f6c93f08712cf820c77"
+    "policy_sha256": "e2dd5c1f990b219b3cad49a74768a399c3cb3af76917675ab9e3d433089745d4",
+    "script_sha256": "deb54be0c84a17eaa89d6a4de38e0b4b48d373cb0cc049c338a8db503baf3449"
   },
-  "source_quality_script_sha256": "433e8b9566b5afd809f4de1180fab222e63ad40678a33f6c93f08712cf820c77"
+  "source_quality_script_sha256": "deb54be0c84a17eaa89d6a4de38e0b4b48d373cb0cc049c338a8db503baf3449"
 }

@@ -1,6 +1,6 @@
 # Data architecture
 
-Current full-refresh source: **`private-export-20260912-0934`**, created `2026-09-12T13:37:16Z`. The [refresh record](REFRESH_20260912_0934.md) distinguishes verified inputs, calculations, imported files and production. Older inspections below are historical evidence.
+Current full-refresh source: **`htw-db-2026-10-16-1652`** (repository `koolkam00/pace-notes`), created `2026-10-16T20:55:30Z`, adopted on branch `feat/release-1652` on October 16, 2026 and not yet deployed. The [refresh record](REFRESH_20261016_1652.md) distinguishes verified inputs, calculations, imported files and production. The [0934 record](REFRESH_20260912_0934.md) and older inspections below are historical evidence.
 
 ## Storage and transfer
 
@@ -16,20 +16,18 @@ Current full-refresh source: **`private-export-20260912-0934`**, created `2026-0
 | Runner lookup | `public/data/runners/manifest.json` and compressed shards | Public recorded names and race records, with candidate linkage and quality reasons |
 | Runner context | `public/data/runner-context/manifest.json` and edition shards | Same-edition peer distributions and validated environmental context, bound to the exact runner manifest |
 | All-finisher context | `public/data/all-finisher-context/evidence.json` | Edition-balanced within-race comparisons, bound to exact runner and context manifests; no previous race required |
-| Data stories | `public/data/insights/manifest.json` and family files | Story aggregates and replay samples, bound to the exact runner and context manifests and script hashes; Chicago 2018/2019 duplicates screened out ([data stories](STORIES.md)). Its `duplicate_edition_screen` is also the site's list of copy editions ([guard](#duplicate-edition-guard)) |
+| Data stories | `public/data/insights/manifest.json` and family files | Story aggregates and replay samples, bound to the exact runner and context manifests and script hashes; a duplicate-edition screen that removed Chicago 2018/2019 under 0934 and is empty since 1652 ([data stories](STORIES.md)). Its `duplicate_edition_screen` is also the site's list of copy editions ([guard](#duplicate-edition-guard)) |
 | Website data | [public/data](../public/data) | Static JSON/CSV consumed during build or fetched by charts; no live SQLite queries |
 
 Backups (`htw-db-*`), exports (`private-export-*`) and pack bundle IDs (`private-*`) are different identifiers. Their legacy names do not determine access. The current policy makes source code, full records, overlays and snapshots publicly downloadable as ordinary unencrypted files; gzip is compression. Prefer Release assets for large files. [ACCESS.md](../analysis/ACCESS.md) gives exact downloads and checksums. Operational credentials are not research data.
 
-## Verified 0934 input
+## Verified 1652 input
 
-The current CORE/FULL archives have exactly eight/nine members and byte-identical shared files. The raw and feature tables each contain **4,462,379 rows**, spanning **34 cities and 256 city/year editions**. There are 251 weather rows and 32 supplied course profiles. Relative to `private-export-20260911-1107`, the raw snapshot adds 254,923 records with zero deletions and zero modifications to existing records.
+The htw-db CORE/FULL archives have exactly 12/14 members (the eight base files plus `EDITIONS.json`, `CHANGE-REPORT.md`, `SHA256SUMS.txt` and `ID-CONTRACT.md`; FULL adds `features.parquet` and `FEATURE-FIELD-NOTES.md`), byte-identical shared files, and every `SHA256SUMS.txt` line matches. The raw and feature tables each contain **4,915,355 rows**, spanning **34 cities and 287 city/year editions**; 4,831,672 have a 5 km split. There are 288 weather rows and 33 supplied course profiles (Vienna's is new; Melbourne has none). `EDITIONS.json` and `races_summary.json` match the parquet edition by edition. Relative to `private-export-20260912-0934` the raw snapshot adds 569,263 records, deletes 116,287 (all of Chicago 2018, Chicago 2019 and Frankfurt 2019, reloaded with new IDs) and changes 242,649 in place (Paris 2014–2018 checkpoints, Valencia 2022–2024 recorded gender from F- category labels, Warsaw 2015–2018 race labels): unlike 0934 against 1107, it is not append-only.
 
-Raw `id` and feature `record_id` are unique, non-null and have identical sets. Joined edition labels, names and ages agree exactly; 552 raw `X` values normalize to null feature sex. Comparable finish and cumulative timings agree within 1 ms after converting feature minutes to raw seconds. The audit establishes record alignment, not the validity of cross-race identities. [audit_release.py](../analysis/audit_release.py) reproduces these checks and can compare the prior snapshot.
+Raw `id` and feature `record_id` are unique, non-null and have identical sets. Joined edition labels, names and ages agree exactly; 701 raw `X` values normalize to null feature sex. Comparable finish and cumulative timings agree within 1 ms after converting feature minutes to raw seconds. The audit establishes record alignment, not the validity of cross-race identities. [audit_release.py](../analysis/audit_release.py) reproduces these checks and the delta against a previous snapshot. The producer's `ID-CONTRACT.md` and `FEATURE-FIELD-NOTES.md` still name the 1107 freeze, so the contract was verified at run time, not taken from the text.
 
-The SQLite backup passed checksum and read-only integrity checks; its 4,462,379 raw rows and latest ingestion timestamp `2026-09-12T10:00:03Z` agree with the export. Snapshot integrity does not prove that each race field was fully ingested.
-
-The manifest omits its own inventory entry and is independently hashed; its prior self-size defect is resolved. Release/README access prose and the separate ID/history field notes remain stale. Record these immutable-source defects in the refresh audit; do not rewrite the downloaded evidence.
+The SQLite snapshot (679 MB compressed) was not downloaded in full or opened for this refresh; under 0934 it passed checksum and read-only integrity checks. Snapshot integrity would not prove that each race field was fully ingested in any case: Chicago 2015 was mid-load at this freeze.
 
 ## Measurement and eligibility
 
@@ -37,29 +35,29 @@ Raw checkpoints are elapsed H:MM:SS or M:SS strings parsed into seconds. The nin
 
 The shared parser requires all nine increasing checkpoints, a finish from 90 minutes through 12 hours and each section from 2 through 20 min/km. It does not interpolate missing splits or actual halfway readings. Equivalent records are deduplicated without using database IDs, ingestion timestamps or URLs as distinguishing fields.
 
-The [reviewed source policy](../analysis/source_quality.py) then excludes eleven explicitly audited editions for invalid grids, incomplete ingestion, unresolved HOLD status or a selected top-finisher field. It applies only to the named release and removes timing-valid records after other checks to avoid double counting. These editions cannot become earlier benchmarks. Do not infer that every small edition is incomplete.
+The [reviewed source policy](../analysis/source_quality.py) then excludes 30 explicitly audited editions in 1652 (eleven in 0934) for invalid or mixed-basis grids, mats that stopped recording, a virtual edition, incomplete ingestion, unresolved HOLD status or selected fields ([review](evidence/2026-10-16/refresh-1652/edition-policy-review.json)). It applies only to the named release and removes timing-valid records after other checks to avoid double counting. These editions cannot become earlier benchmarks. Do not infer that every small edition is incomplete.
 
-| 0934 population or exclusion | Records |
-| --- | ---: |
-| Raw results | 4,462,379 |
-| Missing or unparsed checkpoints | 632,168 |
-| Non-increasing checkpoints | 225,218 |
-| Outside timing/pace bounds | 9,567 |
-| Exact duplicates removed | 0 |
-| Timing-eligible before reviewed exclusions | 3,595,426 |
-| Timing-valid records in reviewed excluded editions | 78,090 |
-| Final eligible finishes | 3,517,336 |
-| Feature `valid_splits` | 3,558,154 |
-| Eligible linked finishes | 3,194,070 |
-| Recent earlier-year benchmarks | 555,437 |
-| Consecutive cross-year pairs | 583,670 |
-| Linked finishes with supplied date | 3,185,321 |
+| Population or exclusion | 1652 | 0934 (historical) |
+| --- | ---: | ---: |
+| Raw results | 4,915,355 | 4,462,379 |
+| Missing or unparsed checkpoints | 851,059 | 632,168 |
+| Non-increasing checkpoints | 25,072 | 225,218 |
+| Outside timing/pace bounds | 12,180 | 9,567 |
+| Exact duplicates removed | 0 | 0 |
+| Timing-eligible before reviewed exclusions | 4,027,044 | 3,595,426 |
+| Timing-valid records in reviewed excluded editions | 155,277 | 78,090 |
+| Final eligible finishes | 3,871,767 | 3,517,336 |
+| Feature `valid_splits` | 4,007,503 | 3,558,154 |
+| Eligible linked finishes | 3,540,833 | 3,194,070 |
+| Recent earlier-year benchmarks | 592,241 | 555,437 |
+| Consecutive cross-year pairs | 616,749 | 583,670 |
+| Linked finishes with supplied date | 3,540,833 | 3,185,321 |
 
-The feature and analysis populations differ by design. Missing recorded gender does not invalidate usable timing: 36,161 final eligible finishes with other/unrecorded gender remain in All. Men and Women contain 2,339,125 and 1,142,050 respectively. The eligible exact-age count is read from the personalized summary; raw age is null in 2,893,395 records. Never treat an age-group label as an exact age.
+The feature and analysis populations differ by design. Missing recorded gender does not invalidate usable timing: 21,160 final eligible finishes with other/unrecorded gender remain in All (36,161 under 0934, before Valencia 2022–2024's recorded F- labels filled most of that gap). Men and Women contain 2,559,176 and 1,291,431 respectively. The eligible exact-age count is read from the personalized summary; raw age is null in 3,263,720 records. Never treat an age-group label as an exact age.
 
 ## Identity and chronology
 
-The audited 0934 canonical record join checks unique matching IDs and labels at runtime, then agrees on finish and all nine section durations rounded to milliseconds. Legacy September 7 reproduction retains a one-to-one edition/name/full-timing match because its numeric ID namespaces are incompatible. Never join by row position or apply a newer release contract retroactively.
+The audited canonical record join (1107, 0934 and 1652) checks unique matching IDs and labels at runtime, then agrees on finish and all nine section durations rounded to milliseconds. Legacy September 7 reproduction retains a one-to-one edition/name/full-timing match because its numeric ID namespaces are incompatible. Never join by row position or apply a newer release contract retroactively.
 
 Candidate cross-race identities must be non-ambiguous, have consistent recorded gender, inferred birth-year span at most two years and no duplicate edition. These checks reduce false links without independently proving identity. Recent best uses only the two strictly earlier calendar years; best-improvement uses all strictly earlier years. Supplied PB, ability and next-race fields cannot be treated as pre-race measurements.
 
@@ -87,7 +85,7 @@ Name search can find a record whose incomplete timings prevent analysis. Origina
 
 ### Duplicate-edition guard
 
-`scripts/verify-duplicate-editions.cjs`, the last step of `npm run verify:data` (added October 15, 2026), checks every runner shard's size and SHA-256 against `public/data/runners/manifest.json` and the story manifest's binding to those exact bytes. It then compares every pair of editions of one city: the number of distinct nine-checkpoint tuples (exact recorded times, from every record with nine numeric times, eligible or not) found in both. A pair is flagged at max(100, 1% of the smaller edition's records). The run fails on a flagged pair that `duplicate_edition_screen` in `public/data/insights/manifest.json` does not cover (one edition listed with `duplicate_of` the other, or both listed with the same `duplicate_of`), on a listed entry whose pair is no longer flagged, and on a listed edition or source missing from the runner manifest. Synthetic self-tests run first (`--self-test` runs only them), including an injected unlisted twin pair, an injected stale entry, a small edition repeated inside a large one (1% of the smaller), a new twin of a listed copy (a listed copy covers only the pair with its source) and a copy later than its source. On the adopted release it flags exactly the three Chicago pairs (2018–2019: 51,333 shared tuples; 2018–2024: 51,346; 2019–2024: 51,188), all covered, the same counts as the October 15 discovery scan; the nearest other pair shares 1 tuple. It takes about 23 s. The screen itself is written by the story builder (`analysis/insights_data.py`); the verifier only reads it.
+`scripts/verify-duplicate-editions.cjs`, the last step of `npm run verify:data` (added October 15, 2026), checks every runner shard's size and SHA-256 against `public/data/runners/manifest.json` and the story manifest's binding to those exact bytes. It then compares every pair of editions of one city: the number of distinct nine-checkpoint tuples (exact recorded times, from every record with nine numeric times, eligible or not) found in both. A pair is flagged at max(100, 1% of the smaller edition's records). The run fails on a flagged pair that `duplicate_edition_screen` in `public/data/insights/manifest.json` does not cover (one edition listed with `duplicate_of` the other, or both listed with the same `duplicate_of`), on a listed entry whose pair is no longer flagged, and on a listed edition or source missing from the runner manifest. Synthetic self-tests run first (`--self-test` runs only them), including an injected unlisted twin pair, an injected stale entry, a small edition repeated inside a large one (1% of the smaller), a new twin of a listed copy (a listed copy covers only the pair with its source) and a copy later than its source. Under 0934 it flagged exactly the three Chicago pairs (2018–2019: 51,333 shared tuples; 2018–2024: 51,346; 2019–2024: 51,188), all covered, the same counts as the October 15 discovery scan. On 1652 it flags no pair (the Chicago copies were reloaded as the real races) and the screen is empty. It takes about 23 s. The screen itself is written by the story builder (`analysis/insights_data.py`); the verifier only reads it.
 
 ## Historical inspections
 

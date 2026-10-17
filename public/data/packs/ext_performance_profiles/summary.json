@@ -1,5 +1,5 @@
 {
-  "answer_prose": "32.8% of linked finishes were more than 2% faster than the runner\u2019s best recorded finish in the previous two calendar years.",
+  "answer_prose": "36.3% of linked finishes were more than 2% faster than the runner\u2019s best recorded finish in the previous two calendar years.",
   "detail_prose": "Compare where those improvements appeared across the race. This benchmark uses earlier results only.",
   "charts": [
     {
@@ -25,7 +25,7 @@
     }
   ],
   "statistics": {
-    "improved": 182246,
-    "denominator": 555437
+    "improved": 214932,
+    "denominator": 592241
   }
 }

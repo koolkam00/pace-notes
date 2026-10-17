@@ -57,7 +57,9 @@ export interface ReplayIndex {
   editions: ReplayEditionMeta[];
   field_spread: { km: number; p10_s: number; p25_s: number; p50_s: number; p75_s: number; p90_s: number }[];
   stretch?: { editions: { city: string; year: number; n: number; stretch: number }[]; wider_after_20: number; mean: number;
-    min: { city: string; year: number; n: number; stretch: number }; max: { city: string; year: number; n: number; stretch: number } };
+    min: { city: string; year: number; n: number; stretch: number }; max: { city: string; year: number; n: number; stretch: number };
+    /** Editions the start-offset screen leaves out of this chart (their first 5 km looks inflated by start delays). */
+    start_offset_excluded: number };
   method: string;
 }
 export interface ReplayRows { slug: string; city: string; year: number; finishes: number; sample: number; rows: number[][] }
@@ -167,6 +169,8 @@ export interface EraCourse {
 }
 export interface EraChange { change: number; ci95: [number, number]; lower: number; higher: number }
 export interface Courses {
+  /** Copied from the story manifest into every family file; empty when no edition repeats another. */
+  duplicate_edition_screen?: InsightsManifest['duplicate_edition_screen'];
   sections: string[]; typical_curve: number[];
   shape_cohort: { editions: number; courses: number; finishes: number; start_offset_editions: { city: string; year: number; finishes: number; median_gap_points: number }[] };
   edition_cohort: { editions: number; courses: number; finishes: number };

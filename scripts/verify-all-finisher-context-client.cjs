@@ -22,10 +22,13 @@ const start = getAllFinisherContextStart();
 const bytes = fs.readFileSync(path.join(__dirname, '../public/data/all-finisher-context/evidence.json'));
 const evidence = JSON.parse(bytes);
 const render = (component, props) => renderToStaticMarkup(React.createElement(component, props));
+// The adopted runner lookup sets the expected cohort (3,517,336 finishes and 256 editions under 0934).
+const runners = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/data/runners/manifest.json'), 'utf8'));
+const eligibleText = new RegExp(runners.eligible_records.toLocaleString('en-US'));
 const { ALL_FINISHER_DEFAULT, readAllFinisherSelection, allFinisherSearch, allFinisherRow, allFinisherGroups, allFinisherGroupLabel, allFinisherCharts, earlyPaceLabel, loadAllFinisherContext } = helpers;
 async function main() {
-  assert.equal(start.analysis_n, 3517336);
-  assert.equal(start.edition_labels.length, 256);
+  assert.equal(start.analysis_n, runners.eligible_records);
+  assert.equal(start.edition_labels.length, runners.editions.length);
   assert.deepEqual(readAllFinisherSelection('', start), ALL_FINISHER_DEFAULT);
   assert.deepEqual(readAllFinisherSelection('?race=bad&age=bad&gender=bad&early=bad&opening=bad',start), ALL_FINISHER_DEFAULT);
   assert.equal(readAllFinisherSelection('?previous=240',start).mode,'history');
@@ -84,7 +87,7 @@ async function main() {
   assert.match(render(AllFinisherResults,{groups:[sparse],kind:'courses',start,units:'mi',focus:sparse}),/Too few detected slowdowns/);
   for(const slug of ['course-comparison','race-day-weather','downhill-start']) {
     const html=render(AnalysisPage,{params:{slug}});
-    assert.match(html,/All eligible finishes/);assert.match(html,/No previous race needed/);assert.match(html,/3,517,336/);
+    assert.match(html,/All eligible finishes/);assert.match(html,/No previous race needed/);assert.match(html,eligibleText);
   }
   for(const id of [...Object.keys(BROADER_ARCHIVE),'rn3_heat_curves','ext_weather_pacing_patterns']) {
     const html=render(PackPage,{params:{packId:id}});
@@ -104,7 +107,7 @@ async function main() {
     for(const altered of [{release_tag:'wrong'},{mode:'history'},{runner_manifest_sha256:'wrong'},{context_manifest_sha256:'wrong'},{analysis_n:0}]) {
       served=Buffer.from(JSON.stringify({...evidence,...altered}));await assert.rejects(()=>loadAllFinisherContext(descriptor(served),signal),/verified/);
     }
-    served=bytes;const loaded=await loadAllFinisherContext(start,signal);assert.equal(loaded.analysis_n,3517336);
+    served=bytes;const loaded=await loadAllFinisherContext(start,signal);assert.equal(loaded.analysis_n,runners.eligible_records);
     assert.ok(calls.at(-1).url.endsWith('?v='+start.sha256));assert.equal(calls.at(-1).signal,signal);
     const before=calls.length;await loadAllFinisherContext(start,signal);assert.equal(calls.length,before);
     const aborted=new AbortController();aborted.abort();await assert.rejects(()=>loadAllFinisherContext(start,aborted.signal),/Aborted/);

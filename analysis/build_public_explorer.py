@@ -111,7 +111,8 @@ def run(source, output):
     manifest=json.loads((source/'MANIFEST.json').read_text());origin=json.loads((source/'provenance.json').read_text())
     from source_quality import REVIEWED_POLICIES
     assert origin['release_tag'] in REVIEWED_POLICIES, 'Review the new source and edition policy before adoption'
-    db=duckdb.connect();db.execute("SET memory_limit='3GB'");db.execute('SET threads=2')
+    # 6 GB (3 GB until the 1652 refresh): the runner lookup ran out of memory at 3 GB on 4.9 million records.
+    db=duckdb.connect();db.execute("SET memory_limit='6GB'");db.execute('SET threads=2')
     scratch=output.parent/'public-explorer-temp';scratch.mkdir(parents=True,exist_ok=True)
     db.execute('SET temp_directory=?',[str(scratch)])
     counts=prepare(db,source,keep_record_id=True);assert counts['raw']==manifest['n_records']

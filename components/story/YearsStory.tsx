@@ -104,7 +104,7 @@ export function YearsStrip({ data: given }: { data?: Courses }) {
             : [0.1, 0.2, 0.3, 0.4, 0.5].map((s) => <span key={s}><i style={{ background: slowColour(s) }} />{Math.round(s * 100)}%</span>)}
         </div>
       </div>
-      <p className="viz-note">Field size means eligible finishes with all nine splits in this dataset, not official finisher counts. Missing years include coverage gaps as well as cancellations. Chicago 2018 and 2019 are left out because their records duplicate Chicago 2024; editions with fewer than 100 finishes are not drawn.</p>
+      <p className="viz-note">Field size means eligible finishes with all nine splits in this dataset, not official finisher counts. Missing years include coverage gaps as well as cancellations.{data.duplicate_edition_screen?.length ? ` ${data.duplicate_edition_screen.map((d) => `${d.city} ${d.year}`).join(' and ')} ${data.duplicate_edition_screen.length > 1 ? 'are' : 'is'} left out because ${data.duplicate_edition_screen.length > 1 ? 'their' : 'its'} records duplicate another year of the same race;` : ''} Editions with fewer than 100 finishes are not drawn.</p>
     </div>
   );
 }

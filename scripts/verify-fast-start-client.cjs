@@ -21,6 +21,9 @@ const evidence = JSON.parse(bytes);
 const allBytes = fs.readFileSync(path.join(__dirname, '../public/data/fast-start/all-finishers.json'));
 const allEvidence = JSON.parse(allBytes);
 const render = (component, props) => renderToStaticMarkup(React.createElement(component, props));
+// The adopted runner lookup sets the expected cohorts (3,517,336 finishes and 555,437 earlier-best benchmarks under 0934).
+const runners = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/data/runners/manifest.json'), 'utf8'));
+const eligible = runners.eligible_records, benchmarked = runners.linkage.recent_benchmark_finishes;
 
 async function main() {
   for (const prior of PRIOR_OPTIONS) for (const band of start.bands) {
@@ -79,11 +82,11 @@ async function main() {
   assert.doesNotMatch(render(FastStartResults,{row:start.initial,focus:zero,start,units:'km'}),/same time than/);
   const page=render(FastStartAnalysis,{starts});
   assert.match(page,/Opening pace/); assert.match(page,/No previous race needed/); assert.doesNotMatch(page,/>Earlier recorded best</); assert.doesNotMatch(page,/>Target time</);
-  assert.match(page,/withdrawals/i); assert.match(page,/3,517,336/);
+  assert.match(page,/withdrawals/i); assert.match(page,new RegExp(eligible.toLocaleString('en-US')));
   assert.match(page,/aria-pressed="true">All eligible finishes/);
   assert.match(page,/With an earlier result/);
   const allRow=starts.all.initial, allFocus=allRow.groups.find(g=>g.band==='fast10');
-  assert.equal(allRow.groups.reduce((sum,g)=>sum+g.n,0),3517336);
+  assert.equal(allRow.groups.reduce((sum,g)=>sum+g.n,0),eligible);
   const allCharts=fastStartCharts(allRow,allFocus,starts.all.bands,'all');
   assert.equal(allCharts.finishes.rows[0].median,allFocus.after20_delta_median_s/60,'All mode foregrounds the subsequent outcome, not a finish difference partly defined by the opening');
   assert.equal(allCharts.accounting.rows[0].label,'Opening 5 km');
@@ -122,13 +125,13 @@ async function main() {
     await assert.rejects(()=>loadFastStartEvidence(descriptor(served),signal),/verified/);
     served=bytes; const cancelled=new AbortController(); cancelled.abort();
     await assert.rejects(()=>loadFastStartEvidence(start,cancelled.signal),/Aborted/);
-    const loaded=await loadFastStartEvidence(start,signal); assert.equal(loaded.history_n,555437);
+    const loaded=await loadFastStartEvidence(start,signal); assert.equal(loaded.history_n,benchmarked);
     assert.ok(calls.at(-1).url.endsWith('?v='+start.sha256)); assert.equal(calls.at(-1).signal,signal);
     const before=calls.length; await loadFastStartEvidence(start,signal); assert.equal(calls.length,before,'Use only a verified content-bound cache');
     served=allBytes;
-    const allLoaded=await loadFastStartEvidence(starts.all,signal);assert.equal(allLoaded.analysis_n,3517336);
+    const allLoaded=await loadFastStartEvidence(starts.all,signal);assert.equal(allLoaded.analysis_n,eligible);
     assert.ok(calls.at(-1).url.includes('/all-finishers.json?v='),'Each comparison loads its own artifact');
-    served=bytes;const historyLoaded=await loadFastStartEvidence(start,signal);assert.equal(historyLoaded.history_n,555437);
+    served=bytes;const historyLoaded=await loadFastStartEvidence(start,signal);assert.equal(historyLoaded.history_n,benchmarked);
     assert.ok(calls.at(-1).url.includes('/evidence.json?v='),'Mode changes never reuse the other comparison payload');
     served=Buffer.from(JSON.stringify({...allEvidence,mode:undefined}));
     await assert.rejects(()=>loadFastStartEvidence({...starts.all,bytes:served.length,sha256:crypto.createHash('sha256').update(served).digest('hex')},signal),/mode/,'Reject incorrect mode semantics even with matching transport bytes');

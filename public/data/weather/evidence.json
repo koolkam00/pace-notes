@@ -1,28 +1,28 @@
 {
   "schema_version": 1,
   "id": "weather_screen",
-  "as_of": "2026-09-12T14:12:27Z",
+  "as_of": "2026-10-16T22:34:11Z",
   "input": {
-    "repository": "koolkam00/htw-live-study",
-    "release_tag": "private-export-20260912-0934",
-    "release_published_at": "2026-09-12T13:56:21Z",
-    "asset": "htw-private-export-FULL-20260912-0934.tar.gz",
-    "asset_sha256": "cb4e0ab7432010de29755ec5d75ca3b370e64e481eda5b20c44b359f39552204",
+    "repository": "koolkam00/pace-notes",
+    "release_tag": "htw-db-2026-10-16-1652",
+    "release_published_at": "2026-10-16T21:02:29Z",
+    "asset": "htw-db-FULL-20261016-1652.tar.gz",
+    "asset_sha256": "c0e2e63fc826a60994cb30b28e2c2fcd57e99ffca5706d876d83c08be773215a",
     "bundle": "FULL",
-    "manifest_sha256": "a6f534d40bac291e0a1bc2eeb70633660acd00a710a090320876736de9c30f4d",
-    "as_of": "2026-09-12T13:37:16Z",
-    "race_conditions_sha256": "82b4c71e3e25dd376754edcab71a3c8a40d38fbda338b88840e2d68ea2142faf"
+    "manifest_sha256": "c21298e62ea0780c9c1237aa0fc11ef7025e3ac84c186990968bf5d9e8fe40c6",
+    "as_of": "2026-10-16T20:55:30Z",
+    "race_conditions_sha256": "b20eb844d758d365415fcb9bce073606557493489febd1b9f9621209185f459e"
   },
   "calculation": {
     "script_sha256": "2056378339cad53ef0c9c3137297b4993156ff2631807d2319b9dc39efe0698a",
     "pacing_script_sha256": "7c6959b427fa1b06bb9600bb3377ecb226257d14aa0ec61a71a63f42bc87a3dd",
     "duckdb_version": "1.4.4",
     "numpy_version": "2.5.3",
-    "source_quality_script_sha256": "433e8b9566b5afd809f4de1180fab222e63ad40678a33f6c93f08712cf820c77"
+    "source_quality_script_sha256": "deb54be0c84a17eaa89d6a4de38e0b4b48d373cb0cc049c338a8db503baf3449"
   },
   "source_quality": {
     "version": 1,
-    "release_tag": "private-export-20260912-0934",
+    "release_tag": "htw-db-2026-10-16-1652",
     "reviewed_edition_policy": true,
     "editions": [
       {
@@ -62,15 +62,6 @@
         "timing_eligible_excluded": 0
       },
       {
-        "city": "Frankfurt",
-        "year": 2019,
-        "category": "invalid_split_grid",
-        "reason": "Producer explicitly force-dropped this 5 km grid; numerically plausible rows are not reinstated.",
-        "raw_records": 12513,
-        "deduplicated_records": 12513,
-        "timing_eligible_excluded": 10624
-      },
-      {
         "city": "New York",
         "year": 2008,
         "category": "unreconciled_hold",
@@ -78,24 +69,6 @@
         "raw_records": 38047,
         "deduplicated_records": 38047,
         "timing_eligible_excluded": 37387
-      },
-      {
-        "city": "Chicago",
-        "year": 2016,
-        "category": "incomplete_ingestion",
-        "reason": "Producer handoff identifies this 6,512-record edition as incomplete and on HOLD.",
-        "raw_records": 6512,
-        "deduplicated_records": 6512,
-        "timing_eligible_excluded": 6506
-      },
-      {
-        "city": "Tokyo",
-        "year": 2026,
-        "category": "selected_field",
-        "reason": "Source notes identify top-500 PDFs, not a representative full marathon field.",
-        "raw_records": 353,
-        "deduplicated_records": 353,
-        "timing_eligible_excluded": 353
       },
       {
         "city": "Amsterdam",
@@ -123,38 +96,229 @@
         "raw_records": 19236,
         "deduplicated_records": 19236,
         "timing_eligible_excluded": 0
+      },
+      {
+        "city": "Frankfurt",
+        "year": 2019,
+        "category": "unreconciled_hold",
+        "reason": "The earlier, wrongly dated records were replaced by the real 2019 race, which the producer lists as complete, but the producer\u2019s feature engine still drops this edition from its valid set. Held until the producer reconciles the two.",
+        "raw_records": 10554,
+        "deduplicated_records": 10554,
+        "timing_eligible_excluded": 10484
+      },
+      {
+        "city": "Tokyo",
+        "year": 2026,
+        "category": "selected_field",
+        "reason": "Source notes identify top-500 result PDFs, not a representative full marathon field; the 770 records are all men.",
+        "raw_records": 770,
+        "deduplicated_records": 770,
+        "timing_eligible_excluded": 770
+      },
+      {
+        "city": "Chicago",
+        "year": 2015,
+        "category": "incomplete_ingestion",
+        "reason": "Producer notes say this edition was still being loaded when the snapshot was taken: 27,186 records, loaded in finish order and stopping at 5:31:05 for women and 4:45:16 for men, about three quarters of the field.",
+        "raw_records": 27186,
+        "deduplicated_records": 27186,
+        "timing_eligible_excluded": 27150
+      },
+      {
+        "city": "Oslo",
+        "year": 2026,
+        "category": "incomplete_ingestion",
+        "reason": "Producer marks this edition INCOMPLETE: 3,461 of 3,462 listed runners were retrieved. One missing record is unlikely to bias the results; the edition is held until the producer completes it.",
+        "raw_records": 3461,
+        "deduplicated_records": 3461,
+        "timing_eligible_excluded": 3423
+      },
+      {
+        "city": "Amsterdam",
+        "year": 2020,
+        "category": "invalid_split_grid",
+        "reason": "Producer notes mark this a virtual edition (the race on the course was cancelled in 2020), so these times are not checkpoint timings from the race course.",
+        "raw_records": 794,
+        "deduplicated_records": 794,
+        "timing_eligible_excluded": 665
+      },
+      {
+        "city": "Amsterdam",
+        "year": 2023,
+        "category": "incomplete_ingestion",
+        "reason": "The finish time was loaded for only 17 of 16,030 records, although 40 km is present for 16,008; the 14 complete grids are what is left, not a sample of the field.",
+        "raw_records": 16030,
+        "deduplicated_records": 16030,
+        "timing_eligible_excluded": 14
+      },
+      {
+        "city": "Melbourne",
+        "year": 2015,
+        "category": "incomplete_ingestion",
+        "reason": "Only about 500 of the roughly 6,000 finishers were loaded, from individual result pages, and 24 runners appear two or three times under name variants; the records are neither the full field nor a sample of it.",
+        "raw_records": 502,
+        "deduplicated_records": 502,
+        "timing_eligible_excluded": 416
+      },
+      {
+        "city": "Boston",
+        "year": 2013,
+        "category": "selected_field",
+        "reason": "The race was stopped after the bombings near the finish, so the recorded finishers are only those who finished before the course closed (none slower than 4:45). A finisher set cut off by finish time is not comparable with other editions.",
+        "raw_records": 17580,
+        "deduplicated_records": 17580,
+        "timing_eligible_excluded": 17510
+      },
+      {
+        "city": "Tokyo",
+        "year": 2016,
+        "category": "selected_field",
+        "reason": "Exactly 500 women and 500 men, the fastest of each (slowest 3:35:49): a top-finisher list, not the full field of more than 30,000 finishers.",
+        "raw_records": 1000,
+        "deduplicated_records": 1000,
+        "timing_eligible_excluded": 999
+      },
+      {
+        "city": "Tokyo",
+        "year": 2017,
+        "category": "selected_field",
+        "reason": "Exactly 500 women and 500 men, the fastest of each (slowest 3:29:26): a top-finisher list, not the full field of more than 30,000 finishers.",
+        "raw_records": 1000,
+        "deduplicated_records": 1000,
+        "timing_eligible_excluded": 999
+      },
+      {
+        "city": "Tokyo",
+        "year": 2018,
+        "category": "selected_field",
+        "reason": "Exactly 500 women and 500 men, the fastest of each (slowest 3:27:07): a top-finisher list, not the full field of more than 30,000 finishers.",
+        "raw_records": 1000,
+        "deduplicated_records": 1000,
+        "timing_eligible_excluded": 987
+      },
+      {
+        "city": "Paris",
+        "year": 2014,
+        "category": "invalid_split_grid",
+        "reason": "This release rewrote the edition\u2019s 10\u201340 km checkpoints in place; 25 km is now blank for about 99% of records, and the 40 complete grids left of 38,672 finishes include leftover impossible timings, so they are not a sample of the field.",
+        "raw_records": 38672,
+        "deduplicated_records": 38672,
+        "timing_eligible_excluded": 40
+      },
+      {
+        "city": "Paris",
+        "year": 2015,
+        "category": "invalid_split_grid",
+        "reason": "This release rewrote the edition\u2019s 10\u201340 km checkpoints in place; 25 km is now blank for about 98% of records, and the 70 complete grids left of 40,261 finishes include leftover impossible timings, so they are not a sample of the field.",
+        "raw_records": 40261,
+        "deduplicated_records": 40261,
+        "timing_eligible_excluded": 70
+      },
+      {
+        "city": "Paris",
+        "year": 2016,
+        "category": "invalid_split_grid",
+        "reason": "This release rewrote the edition\u2019s 10\u201340 km checkpoints in place; 25 km is now blank for about 97% of records, and the 526 complete grids left of 41,795 finishes include leftover impossible timings, so they are not a sample of the field.",
+        "raw_records": 41795,
+        "deduplicated_records": 41795,
+        "timing_eligible_excluded": 526
+      },
+      {
+        "city": "Paris",
+        "year": 2017,
+        "category": "invalid_split_grid",
+        "reason": "This release rewrote the edition\u2019s 10\u201340 km checkpoints in place; 25 km is now blank for about 99% of records, and the 11 complete grids left of 41,734 finishes include leftover impossible timings, so they are not a sample of the field.",
+        "raw_records": 41734,
+        "deduplicated_records": 41734,
+        "timing_eligible_excluded": 11
+      },
+      {
+        "city": "Paris",
+        "year": 2018,
+        "category": "invalid_split_grid",
+        "reason": "This release rewrote the edition\u2019s 10\u201340 km checkpoints in place; 25 km is now blank for about 98% of records, and the 11 complete grids left of 42,522 finishes include leftover impossible timings, so they are not a sample of the field.",
+        "raw_records": 42522,
+        "deduplicated_records": 42522,
+        "timing_eligible_excluded": 11
+      },
+      {
+        "city": "New York",
+        "year": 2007,
+        "category": "invalid_split_grid",
+        "reason": "The 25\u201340 km checkpoints are missing for about a third of finishers, and 40% of the complete grids have an impossible last section (checkpoint times include the start delay, the finish does not). The 40% of finishers that pass the timing checks are not a sample of the field.",
+        "raw_records": 38462,
+        "deduplicated_records": 38462,
+        "timing_eligible_excluded": 15398
+      },
+      {
+        "city": "Barcelona",
+        "year": 2019,
+        "category": "invalid_split_grid",
+        "reason": "The checkpoint times include the start delay but the finish does not: half of the complete grids have an impossible last section, and the finishers that pass the timing checks are mostly the faster, earlier starters (80% of the fastest quarter, 18% of the slowest).",
+        "raw_records": 13445,
+        "deduplicated_records": 13445,
+        "timing_eligible_excluded": 5535
+      },
+      {
+        "city": "Eindhoven",
+        "year": 2026,
+        "category": "invalid_split_grid",
+        "reason": "Our audit, not the producer, flags this edition: its checkpoints mix two timing bases (the 5 km reading came from separate runner pages). 1,880 of 4,466 complete grids put the finish at or before 40 km, and the rows that pass the timing checks still run 5\u201310 km up to about 30% slower than 10\u201315 km.",
+        "raw_records": 4471,
+        "deduplicated_records": 4471,
+        "timing_eligible_excluded": 1521
+      },
+      {
+        "city": "Gold Coast",
+        "year": 2024,
+        "category": "invalid_split_grid",
+        "reason": "The 35 km mat stopped recording partway through the field: 35 km is missing for 2,729 of 8,665 finishers, almost all of them slower ones, so complete timings survive for 95% of the fastest quarter but 1% of the slowest.",
+        "raw_records": 9905,
+        "deduplicated_records": 9905,
+        "timing_eligible_excluded": 5692
+      },
+      {
+        "city": "Auckland",
+        "year": 2018,
+        "category": "invalid_split_grid",
+        "reason": "The 40 km mat stopped recording partway through the field: 40 km is missing for 685 of 1,654 finishers, so complete timings survive for 97% of the fastest quarter and none of the slowest.",
+        "raw_records": 1917,
+        "deduplicated_records": 1917,
+        "timing_eligible_excluded": 915
+      },
+      {
+        "city": "Dubai",
+        "year": 2025,
+        "category": "invalid_split_grid",
+        "reason": "The 40 km mat stopped recording late in the race: 40 km is missing for 267 of 1,809 finishers, almost all of them slower ones, so complete timings survive for nearly all of the fastest three quarters but 41% of the slowest.",
+        "raw_records": 1809,
+        "deduplicated_records": 1809,
+        "timing_eligible_excluded": 1534
       }
     ],
-    "policy_sha256": "c08e83c993025dc41c0344be7b5442d74b3fb0588c38949481d5bc0a08f45fa0",
-    "script_sha256": "433e8b9566b5afd809f4de1180fab222e63ad40678a33f6c93f08712cf820c77"
+    "policy_sha256": "e2dd5c1f990b219b3cad49a74768a399c3cb3af76917675ab9e3d433089745d4",
+    "script_sha256": "deb54be0c84a17eaa89d6a4de38e0b4b48d373cb0cc049c338a8db503baf3449"
   },
   "cohort": {
-    "deduplicated": 4462379,
-    "complete": 3830211,
-    "increasing": 3604993,
-    "timing_eligible": 3595426,
-    "eligible": 3517336,
-    "source_quality_excluded": 78090,
-    "raw": 4462379,
+    "deduplicated": 4915355,
+    "complete": 4064296,
+    "increasing": 4039224,
+    "timing_eligible": 4027044,
+    "eligible": 3871767,
+    "source_quality_excluded": 155277,
+    "raw": 4915355,
     "duplicates_removed": 0,
-    "missing_or_unparsed": 632168,
-    "non_increasing": 225218,
-    "outside_quality_bounds": 9567,
-    "weather_rows": 251,
-    "weather_unique_valid_rows": 250,
-    "eligible_editions_before_weather": 196,
-    "weather_analysis_editions": 192,
-    "weather_analysis_courses": 27,
-    "weather_analysis_finishes": 3507382
+    "missing_or_unparsed": 851059,
+    "non_increasing": 25072,
+    "outside_quality_bounds": 12180,
+    "weather_rows": 288,
+    "weather_unique_valid_rows": 288,
+    "eligible_editions_before_weather": 211,
+    "weather_analysis_editions": 211,
+    "weather_analysis_courses": 28,
+    "weather_analysis_finishes": 3871767
   },
-  "exclusions": {
-    "invalid_weather_rows": 1,
-    "weather_error: observed hour differs from scheduled start by more than 30 minutes": 1,
-    "no_valid_unique_weather_editions": 3,
-    "no_valid_unique_weather_finishes": 9940,
-    "fewer_than_100_finishes_editions": 1,
-    "fewer_than_100_finishes_finishes": 14
-  },
+  "exclusions": {},
   "prespecified_gate": {
     "locked_before_outcomes": true,
     "minimum_finishes_per_edition": 100,
@@ -188,7 +352,7 @@
     "Relative humidity changes with temperature. Dew point is the modeled moisture exposure; the raw humidity percentage is retained for context. Wind speed gives no runner-specific headwind or tailwind without a valid historical route, direction and personal exposure timeline. Scheduled-start weather is not personal wave-start weather.",
     "Use complete, strictly increasing elapsed checkpoints at 5, 10, 15, 20, 25, 30, 35, 40 and 42.195 km. Clock strings must parse as H:MM:SS or M:SS. No missing splits are interpolated.",
     "Remove exact duplicate race records, ignoring database IDs, ingestion timestamps and source URLs. Retain finishes from 90 minutes to 12 hours with every section between 2 and 20 minutes per km. These quality filters can exclude genuine unusual performances; the analysis describes this eligible cohort, not every entrant.",
-    "Apply the reviewed source-quality edition exclusions for this exact export after the timing checks. Known invalid split grids, incomplete ingestion, unreconciled HOLD editions and a selected top-finisher field do not contribute to the analyses or prior benchmarks. Report source exclusions separately; an already invalid timing row is not counted twice. Missing age or recorded gender alone does not exclude an otherwise eligible finish from the overall cohort. Other sparse editions are not declared incomplete merely from their size."
+    "Apply the reviewed source-quality edition exclusions for this exact export after the timing checks. Known invalid split grids (including grids that mix timing bases, a checkpoint that stopped recording partway through the field and a virtual edition), incomplete ingestion, unreconciled HOLD editions and selected fields (a top-finisher list, or finishers cut off when a race was stopped) do not contribute to the analyses or prior benchmarks. Report source exclusions separately; an already invalid timing row is not counted twice. Missing age or recorded gender alone does not exclude an otherwise eligible finish from the overall cohort. Other sparse editions are not declared incomplete merely from their size."
   ],
   "candidates": [
     {
@@ -204,139 +368,143 @@
         "key": "dewpoint_c",
         "label": "Start dew point",
         "unit": "\u00b0C",
-        "q25": 4.5,
+        "q25": 3.95,
         "q75": 10.8,
-        "iqr": 6.300000000000001,
+        "iqr": 6.8500000000000005,
         "min": -4.1,
         "max": 22.0
       },
       "effect": {
-        "estimate": 0.6457085860933786,
-        "low": -0.3651218677291416,
-        "high": 1.614145796656724,
+        "estimate": 0.5930671621407241,
+        "low": -0.287107326250859,
+        "high": 1.5085898436464986,
         "confidence": 0.9833333333333333,
         "unit": "percentage points"
       },
       "support": {
-        "editions": 192,
-        "courses": 27,
-        "finishes": 3507382,
-        "vif": 2.6503851016410565,
+        "editions": 211,
+        "courses": 28,
+        "finishes": 3871767,
+        "vif": 2.9879519257421654,
         "courses_with_half_iqr_range": 25,
         "valid_bootstrap_draws": 6000,
         "failed_bootstrap_draws": 0,
-        "leave_course_out_min": 0.38310580083785684,
-        "leave_course_out_max": 0.8601710503199619,
+        "leave_course_out_min": 0.36793425501235477,
+        "leave_course_out_max": 0.7935698028701157,
         "failed_leave_course_out_fits": 0
       },
       "leave_course_out": [
         {
           "omitted_course": "Amsterdam",
-          "estimate": 0.659096695155338
+          "estimate": 0.6048860810763189
         },
         {
           "omitted_course": "Auckland",
-          "estimate": 0.6768979284801042
+          "estimate": 0.5963782690029732
         },
         {
           "omitted_course": "Austin",
-          "estimate": 0.6345415789485717
+          "estimate": 0.5796368176849923
         },
         {
           "omitted_course": "Barcelona",
-          "estimate": 0.656664232532028
+          "estimate": 0.5875146575344851
         },
         {
           "omitted_course": "Berlin",
-          "estimate": 0.6321677816096192
+          "estimate": 0.5994858929380132
         },
         {
           "omitted_course": "Boston",
-          "estimate": 0.6265836075865161
+          "estimate": 0.6634492371104015
         },
         {
           "omitted_course": "Chicago",
-          "estimate": 0.630247211189098
+          "estimate": 0.5825772864029657
         },
         {
           "omitted_course": "Copenhagen",
-          "estimate": 0.5246614107833392
+          "estimate": 0.4557844231624445
         },
         {
           "omitted_course": "Dubai",
-          "estimate": 0.5084917464710215
+          "estimate": 0.557009623201823
         },
         {
           "omitted_course": "Eindhoven",
-          "estimate": 0.752031581930105
+          "estimate": 0.7146441024463729
+        },
+        {
+          "omitted_course": "Frankfurt",
+          "estimate": 0.6064322038166262
         },
         {
           "omitted_course": "Gold Coast",
-          "estimate": 0.5475063298364461
+          "estimate": 0.5045540788465801
         },
         {
           "omitted_course": "Hamburg",
-          "estimate": 0.6372552860311024
+          "estimate": 0.5879478733928507
         },
         {
           "omitted_course": "Helsinki",
-          "estimate": 0.6170811550164115
+          "estimate": 0.5687318886621502
         },
         {
           "omitted_course": "London",
-          "estimate": 0.6591395550879138
+          "estimate": 0.6075263412005513
         },
         {
           "omitted_course": "Madrid",
-          "estimate": 0.6045505222953635
-        },
-        {
-          "omitted_course": "Melbourne",
-          "estimate": 0.6457085860933786
+          "estimate": 0.5300530947557857
         },
         {
           "omitted_course": "New York",
-          "estimate": 0.8601710503199619
+          "estimate": 0.7935698028701157
         },
         {
           "omitted_course": "Oslo",
-          "estimate": 0.7430319570068844
+          "estimate": 0.6740121949006913
         },
         {
           "omitted_course": "Paris",
-          "estimate": 0.6457014002222898
+          "estimate": 0.5934915101973791
         },
         {
           "omitted_course": "Prague",
-          "estimate": 0.6162281740743624
+          "estimate": 0.5548163278149083
         },
         {
           "omitted_course": "Rotterdam",
-          "estimate": 0.7113749801091787
+          "estimate": 0.6577571190019659
         },
         {
           "omitted_course": "Singapore",
-          "estimate": 0.6457085860933786
+          "estimate": 0.5930671621407241
         },
         {
           "omitted_course": "Stockholm",
-          "estimate": 0.38310580083785684
+          "estimate": 0.36793425501235477
         },
         {
           "omitted_course": "Sydney",
-          "estimate": 0.6884494365061227
+          "estimate": 0.6389703782636472
         },
         {
           "omitted_course": "Valencia",
-          "estimate": 0.6067490017630802
+          "estimate": 0.5503202802123655
+        },
+        {
+          "omitted_course": "Vienna",
+          "estimate": 0.5810596350976754
         },
         {
           "omitted_course": "Warsaw",
-          "estimate": 0.749817235541053
+          "estimate": 0.5759413975913594
         },
         {
           "omitted_course": "Washington",
-          "estimate": 0.7342090997329299
+          "estimate": 0.6653175108955908
         }
       ]
     },
@@ -351,139 +519,143 @@
         "key": "warming_c",
         "label": "First-four-hours temperature change",
         "unit": "\u00b0C",
-        "q25": 2.6000000000000005,
-        "q75": 6.399999999999999,
-        "iqr": 3.799999999999998,
+        "q25": 2.5999999999999996,
+        "q75": 6.35,
+        "iqr": 3.75,
         "min": -0.9000000000000021,
         "max": 13.6
       },
       "effect": {
-        "estimate": 2.0684859965664524,
-        "low": 1.5314115301369298,
-        "high": 2.663187482870909,
+        "estimate": 2.0679835206948205,
+        "low": 1.550666432312363,
+        "high": 2.545598784968486,
         "confidence": 0.9833333333333333,
         "unit": "percentage points"
       },
       "support": {
-        "editions": 192,
-        "courses": 27,
-        "finishes": 3507382,
-        "vif": 1.2283001007278047,
-        "courses_with_half_iqr_range": 22,
+        "editions": 211,
+        "courses": 28,
+        "finishes": 3871767,
+        "vif": 1.2469669046989726,
+        "courses_with_half_iqr_range": 24,
         "valid_bootstrap_draws": 6000,
         "failed_bootstrap_draws": 0,
-        "leave_course_out_min": 1.953976732686286,
-        "leave_course_out_max": 2.13735095114441,
+        "leave_course_out_min": 1.9630803779851598,
+        "leave_course_out_max": 2.1420668797767473,
         "failed_leave_course_out_fits": 0
       },
       "leave_course_out": [
         {
           "omitted_course": "Amsterdam",
-          "estimate": 2.0536386093073156
+          "estimate": 2.0582401346160233
         },
         {
           "omitted_course": "Auckland",
-          "estimate": 2.0335505361964517
+          "estimate": 2.069829943324155
         },
         {
           "omitted_course": "Austin",
-          "estimate": 2.071906020495358
+          "estimate": 2.0692276427887824
         },
         {
           "omitted_course": "Barcelona",
-          "estimate": 2.1158203195341225
+          "estimate": 2.0679458234312245
         },
         {
           "omitted_course": "Berlin",
-          "estimate": 2.13735095114441
+          "estimate": 2.1420668797767473
         },
         {
           "omitted_course": "Boston",
-          "estimate": 2.00779120906715
+          "estimate": 1.9630803779851598
         },
         {
           "omitted_course": "Chicago",
-          "estimate": 1.953976732686286
+          "estimate": 2.000080293926143
         },
         {
           "omitted_course": "Copenhagen",
-          "estimate": 2.002264771785732
+          "estimate": 1.9952701176254144
         },
         {
           "omitted_course": "Dubai",
-          "estimate": 2.094094763937233
+          "estimate": 2.0968407549474497
         },
         {
           "omitted_course": "Eindhoven",
-          "estimate": 2.039264543596946
+          "estimate": 2.042767292339733
+        },
+        {
+          "omitted_course": "Frankfurt",
+          "estimate": 2.0509114990720523
         },
         {
           "omitted_course": "Gold Coast",
-          "estimate": 2.117984365018906
+          "estimate": 2.04998125694888
         },
         {
           "omitted_course": "Hamburg",
-          "estimate": 2.097658049880062
+          "estimate": 2.0912677022621966
         },
         {
           "omitted_course": "Helsinki",
-          "estimate": 2.1038326281821838
+          "estimate": 2.1009588435742073
         },
         {
           "omitted_course": "London",
-          "estimate": 2.0839936735800815
+          "estimate": 2.079065065747374
         },
         {
           "omitted_course": "Madrid",
-          "estimate": 2.0611892032020824
-        },
-        {
-          "omitted_course": "Melbourne",
-          "estimate": 2.0684859965664524
+          "estimate": 2.079030611485127
         },
         {
           "omitted_course": "New York",
-          "estimate": 2.130020872514152
+          "estimate": 2.0954931474062493
         },
         {
           "omitted_course": "Oslo",
-          "estimate": 2.0282979045199583
+          "estimate": 2.0417853173829834
         },
         {
           "omitted_course": "Paris",
-          "estimate": 2.068498157065611
+          "estimate": 2.0673661221140964
         },
         {
           "omitted_course": "Prague",
-          "estimate": 2.0657323532351177
+          "estimate": 2.064412811578593
         },
         {
           "omitted_course": "Rotterdam",
-          "estimate": 2.006534667784777
+          "estimate": 2.020351617284786
         },
         {
           "omitted_course": "Singapore",
-          "estimate": 2.0684859965664524
+          "estimate": 2.0679835206948205
         },
         {
           "omitted_course": "Stockholm",
-          "estimate": 2.06915069655265
+          "estimate": 2.040870328873156
         },
         {
           "omitted_course": "Sydney",
-          "estimate": 2.128102384931888
+          "estimate": 2.118667893905032
         },
         {
           "omitted_course": "Valencia",
-          "estimate": 2.092157695380946
+          "estimate": 2.08577328085708
+        },
+        {
+          "omitted_course": "Vienna",
+          "estimate": 2.1076025968068963
         },
         {
           "omitted_course": "Warsaw",
-          "estimate": 2.045167835483943
+          "estimate": 2.136489900678026
         },
         {
           "omitted_course": "Washington",
-          "estimate": 2.1133150453303196
+          "estimate": 2.1017632103233037
         }
       ]
     },
@@ -498,139 +670,143 @@
         "key": "wind_mps",
         "label": "Start wind speed",
         "unit": "m/s",
-        "q25": 2.1975000000000002,
-        "q75": 4.3075,
-        "iqr": 2.11,
+        "q25": 2.175,
+        "q75": 4.485,
+        "iqr": 2.3100000000000005,
         "min": 0.41,
         "max": 9.93
       },
       "effect": {
-        "estimate": 0.3158148236035167,
-        "low": -0.36447616515041176,
-        "high": 0.8248884526832191,
+        "estimate": 0.3735654461160909,
+        "low": -0.1913630539194686,
+        "high": 0.8134890547548693,
         "confidence": 0.9833333333333333,
         "unit": "percentage points"
       },
       "support": {
-        "editions": 192,
-        "courses": 27,
-        "finishes": 3507382,
-        "vif": 1.2576156285478468,
-        "courses_with_half_iqr_range": 25,
+        "editions": 211,
+        "courses": 28,
+        "finishes": 3871767,
+        "vif": 1.3193498875461867,
+        "courses_with_half_iqr_range": 27,
         "valid_bootstrap_draws": 6000,
         "failed_bootstrap_draws": 0,
-        "leave_course_out_min": 0.21588062863300003,
-        "leave_course_out_max": 0.4772328747918101,
+        "leave_course_out_min": 0.27209349855313414,
+        "leave_course_out_max": 0.42873191654726645,
         "failed_leave_course_out_fits": 0
       },
       "leave_course_out": [
         {
           "omitted_course": "Amsterdam",
-          "estimate": 0.34681949963536135
+          "estimate": 0.4091905405931235
         },
         {
           "omitted_course": "Auckland",
-          "estimate": 0.28519756698650506
+          "estimate": 0.37610532560620646
         },
         {
           "omitted_course": "Austin",
-          "estimate": 0.30698433609344067
+          "estimate": 0.36417009617561963
         },
         {
           "omitted_course": "Barcelona",
-          "estimate": 0.32539069998567777
+          "estimate": 0.37458648373577574
         },
         {
           "omitted_course": "Berlin",
-          "estimate": 0.3204653386768014
+          "estimate": 0.36843917792503783
         },
         {
           "omitted_course": "Boston",
-          "estimate": 0.2389839849442292
+          "estimate": 0.31703921429726956
         },
         {
           "omitted_course": "Chicago",
-          "estimate": 0.2982435671958169
+          "estimate": 0.36474602357838365
         },
         {
           "omitted_course": "Copenhagen",
-          "estimate": 0.21588062863300003
+          "estimate": 0.27209349855313414
         },
         {
           "omitted_course": "Dubai",
-          "estimate": 0.32459009126540733
+          "estimate": 0.3992283969938805
         },
         {
           "omitted_course": "Eindhoven",
-          "estimate": 0.25412829827183814
+          "estimate": 0.3198056561464836
+        },
+        {
+          "omitted_course": "Frankfurt",
+          "estimate": 0.3957225253393
         },
         {
           "omitted_course": "Gold Coast",
-          "estimate": 0.4772328747918101
+          "estimate": 0.4196582762825775
         },
         {
           "omitted_course": "Hamburg",
-          "estimate": 0.31074574977019576
+          "estimate": 0.36629817921286817
         },
         {
           "omitted_course": "Helsinki",
-          "estimate": 0.35011343055567934
+          "estimate": 0.4122375233740812
         },
         {
           "omitted_course": "London",
-          "estimate": 0.3159453067538863
+          "estimate": 0.3763992401561219
         },
         {
           "omitted_course": "Madrid",
-          "estimate": 0.3683303504955991
-        },
-        {
-          "omitted_course": "Melbourne",
-          "estimate": 0.3158148236035167
+          "estimate": 0.42873191654726645
         },
         {
           "omitted_course": "New York",
-          "estimate": 0.23096983121203235
+          "estimate": 0.30290658930082587
         },
         {
           "omitted_course": "Oslo",
-          "estimate": 0.31249241149609086
+          "estimate": 0.37209018106969266
         },
         {
           "omitted_course": "Paris",
-          "estimate": 0.3157951691179014
+          "estimate": 0.3754979977684875
         },
         {
           "omitted_course": "Prague",
-          "estimate": 0.31463693391951697
+          "estimate": 0.3687711665227052
         },
         {
           "omitted_course": "Rotterdam",
-          "estimate": 0.36018491223363946
+          "estimate": 0.4144827433609733
         },
         {
           "omitted_course": "Singapore",
-          "estimate": 0.3158148236035167
+          "estimate": 0.3735654461160909
         },
         {
           "omitted_course": "Stockholm",
-          "estimate": 0.28680286671902633
+          "estimate": 0.32938753538578625
         },
         {
           "omitted_course": "Sydney",
-          "estimate": 0.3326641255895735
+          "estimate": 0.39192995789540663
         },
         {
           "omitted_course": "Valencia",
-          "estimate": 0.33893691194624953
+          "estimate": 0.3989305073167971
+        },
+        {
+          "omitted_course": "Vienna",
+          "estimate": 0.41056442201257776
         },
         {
           "omitted_course": "Warsaw",
-          "estimate": 0.30371611455138825
+          "estimate": 0.3363743564126564
         },
         {
           "omitted_course": "Washington",
-          "estimate": 0.3296015235009866
+          "estimate": 0.3814501535971259
         }
       ]
     }
@@ -898,26 +1074,6 @@
     },
     {
       "city": "Auckland",
-      "year": 2018,
-      "race": "Auckland Marathon",
-      "n": 915,
-      "pace_change_pct": 7.046533713200387,
-      "finish_minutes": 231.11666666666667,
-      "women_pct": 18.688524590163937,
-      "median_recorded_age": null,
-      "weather_race": "Auckland Marathon",
-      "date": "2018-10-28",
-      "scheduled_start": "09:00",
-      "start_hour": "2018-10-28T09:00",
-      "four_hour": "2018-10-28T13:00",
-      "temp_c": 17.4,
-      "dewpoint_c": 13.3,
-      "humidity_pct": 77.0,
-      "wind_mps": 3.76,
-      "warming_c": 0.6000000000000014
-    },
-    {
-      "city": "Auckland",
       "year": 2019,
       "race": "Auckland Marathon",
       "n": 1560,
@@ -995,26 +1151,6 @@
       "humidity_pct": 90.0,
       "wind_mps": 3.58,
       "warming_c": 1.0
-    },
-    {
-      "city": "Barcelona",
-      "year": 2019,
-      "race": "Barcelona Marathon",
-      "n": 5535,
-      "pace_change_pct": 4.8216776250249005,
-      "finish_minutes": 216.9,
-      "women_pct": 11.616982836495032,
-      "median_recorded_age": null,
-      "weather_race": "Barcelona Marathon",
-      "date": "2019-03-10",
-      "scheduled_start": "08:30",
-      "start_hour": "2019-03-10T09:00",
-      "four_hour": "2019-03-10T13:00",
-      "temp_c": 10.0,
-      "dewpoint_c": 6.3,
-      "humidity_pct": 78.0,
-      "wind_mps": 2.55,
-      "warming_c": 9.899999999999999
     },
     {
       "city": "Barcelona",
@@ -1457,6 +1593,66 @@
       "warming_c": 5.0
     },
     {
+      "city": "Berlin",
+      "year": 2026,
+      "race": "Berlin Marathon",
+      "n": 49953,
+      "pace_change_pct": 8.367943393324095,
+      "finish_minutes": 251.3,
+      "women_pct": 35.80365543610994,
+      "median_recorded_age": 40.0,
+      "weather_race": "Berlin Marathon",
+      "date": "2026-09-27",
+      "scheduled_start": "09:15",
+      "start_hour": "2026-09-27T09:00",
+      "four_hour": "2026-09-27T13:00",
+      "temp_c": 13.3,
+      "dewpoint_c": 9.0,
+      "humidity_pct": 75.0,
+      "wind_mps": 3.11,
+      "warming_c": 7.5
+    },
+    {
+      "city": "Boston",
+      "year": 2014,
+      "race": "Boston Marathon",
+      "n": 31735,
+      "pace_change_pct": 12.923765272758558,
+      "finish_minutes": 232.16666666666666,
+      "women_pct": 44.8968016385694,
+      "median_recorded_age": null,
+      "weather_race": "Boston Marathon",
+      "date": "2014-04-21",
+      "scheduled_start": "09:00",
+      "start_hour": "2014-04-21T09:00",
+      "four_hour": "2014-04-21T13:00",
+      "temp_c": 7.9,
+      "dewpoint_c": 1.1,
+      "humidity_pct": 62.0,
+      "wind_mps": 2.33,
+      "warming_c": 8.499999999999998
+    },
+    {
+      "city": "Boston",
+      "year": 2015,
+      "race": "Boston Marathon",
+      "n": 26432,
+      "pace_change_pct": 6.6392469229076045,
+      "finish_minutes": 219.48333333333332,
+      "women_pct": 45.199001210653755,
+      "median_recorded_age": null,
+      "weather_race": "Boston Marathon",
+      "date": "2015-04-20",
+      "scheduled_start": "09:00",
+      "start_hour": "2015-04-20T09:00",
+      "four_hour": "2015-04-20T13:00",
+      "temp_c": 6.6,
+      "dewpoint_c": 3.5,
+      "humidity_pct": 81.0,
+      "wind_mps": 5.83,
+      "warming_c": 0.6000000000000005
+    },
+    {
       "city": "Boston",
       "year": 2018,
       "race": "Boston Marathon",
@@ -1495,6 +1691,26 @@
       "humidity_pct": 95.0,
       "wind_mps": 2.33,
       "warming_c": 6.399999999999999
+    },
+    {
+      "city": "Boston",
+      "year": 2021,
+      "race": "Boston Marathon",
+      "n": 15288,
+      "pace_change_pct": 10.843385283885276,
+      "finish_minutes": 225.275,
+      "women_pct": 48.36473050758765,
+      "median_recorded_age": null,
+      "weather_race": "Boston Marathon",
+      "date": "2021-10-11",
+      "scheduled_start": "09:00",
+      "start_hour": "2021-10-11T09:00",
+      "four_hour": "2021-10-11T13:00",
+      "temp_c": 16.1,
+      "dewpoint_c": 14.8,
+      "humidity_pct": 92.0,
+      "wind_mps": 3.56,
+      "warming_c": 2.8999999999999986
     },
     {
       "city": "Boston",
@@ -1598,23 +1814,23 @@
     },
     {
       "city": "Chicago",
-      "year": 2015,
+      "year": 2016,
       "race": "Chicago Marathon",
-      "n": 22055,
-      "pace_change_pct": 8.490566037735858,
-      "finish_minutes": 241.18333333333334,
-      "women_pct": 49.993198821129,
+      "n": 40416,
+      "pace_change_pct": 10.796759092375709,
+      "finish_minutes": 268.23333333333335,
+      "women_pct": 45.65023752969121,
       "median_recorded_age": null,
       "weather_race": "Chicago Marathon",
-      "date": "2015-10-11",
+      "date": "2016-10-09",
       "scheduled_start": "07:30",
-      "start_hour": "2015-10-11T07:00",
-      "four_hour": "2015-10-11T11:00",
-      "temp_c": 12.6,
-      "dewpoint_c": 7.4,
-      "humidity_pct": 71.0,
-      "wind_mps": 5.73,
-      "warming_c": 4.1
+      "start_hour": "2016-10-09T07:00",
+      "four_hour": "2016-10-09T11:00",
+      "temp_c": 11.6,
+      "dewpoint_c": 8.4,
+      "humidity_pct": 81.0,
+      "wind_mps": 2.69,
+      "warming_c": 2.0
     },
     {
       "city": "Chicago",
@@ -1640,10 +1856,10 @@
       "city": "Chicago",
       "year": 2018,
       "race": "Chicago Marathon",
-      "n": 51690,
-      "pace_change_pct": 8.48466483642304,
-      "finish_minutes": 250.4,
-      "women_pct": 45.82511124008512,
+      "n": 44224,
+      "pace_change_pct": 10.140569136849308,
+      "finish_minutes": 267.225,
+      "women_pct": 46.348136758321274,
       "median_recorded_age": null,
       "weather_race": "Chicago Marathon",
       "date": "2018-10-07",
@@ -1660,10 +1876,10 @@
       "city": "Chicago",
       "year": 2019,
       "race": "Chicago Marathon",
-      "n": 51530,
-      "pace_change_pct": 8.481321146527199,
-      "finish_minutes": 250.4,
-      "women_pct": 45.835435668542594,
+      "n": 45722,
+      "pace_change_pct": 9.146005815646951,
+      "finish_minutes": 262.0833333333333,
+      "women_pct": 46.41310528848257,
       "median_recorded_age": null,
       "weather_race": "Chicago Marathon",
       "date": "2019-10-13",
@@ -1678,12 +1894,52 @@
     },
     {
       "city": "Chicago",
+      "year": 2022,
+      "race": "Chicago Marathon",
+      "n": 39051,
+      "pace_change_pct": 9.033294653217894,
+      "finish_minutes": 261.76666666666665,
+      "women_pct": 46.854113851117766,
+      "median_recorded_age": null,
+      "weather_race": "Chicago Marathon",
+      "date": "2022-10-09",
+      "scheduled_start": "07:30",
+      "start_hour": "2022-10-09T07:00",
+      "four_hour": "2022-10-09T11:00",
+      "temp_c": 7.3,
+      "dewpoint_c": 0.4,
+      "humidity_pct": 62.0,
+      "wind_mps": 5.39,
+      "warming_c": 7.3
+    },
+    {
+      "city": "Chicago",
+      "year": 2023,
+      "race": "Chicago Marathon",
+      "n": 48228,
+      "pace_change_pct": 6.92050968530501,
+      "finish_minutes": 251.66666666666666,
+      "women_pct": 46.5455751845401,
+      "median_recorded_age": null,
+      "weather_race": "Chicago Marathon",
+      "date": "2023-10-08",
+      "scheduled_start": "07:30",
+      "start_hour": "2023-10-08T07:00",
+      "four_hour": "2023-10-08T11:00",
+      "temp_c": 7.8,
+      "dewpoint_c": 3.9,
+      "humidity_pct": 76.0,
+      "wind_mps": 4.71,
+      "warming_c": 2.8999999999999995
+    },
+    {
+      "city": "Chicago",
       "year": 2024,
       "race": "Chicago Marathon",
-      "n": 51545,
-      "pace_change_pct": 8.47163257429564,
-      "finish_minutes": 250.2,
-      "women_pct": 40.083422252400815,
+      "n": 51863,
+      "pace_change_pct": 8.488228004956632,
+      "finish_minutes": 250.4,
+      "women_pct": 40.06131538862002,
       "median_recorded_age": null,
       "weather_race": "Chicago Marathon",
       "date": "2024-10-13",
@@ -1715,6 +1971,26 @@
       "humidity_pct": 90.0,
       "wind_mps": 2.15,
       "warming_c": 3.9000000000000004
+    },
+    {
+      "city": "Chicago",
+      "year": 2026,
+      "race": "Chicago Marathon",
+      "n": 54275,
+      "pace_change_pct": 11.146858440575325,
+      "finish_minutes": 262.65,
+      "women_pct": 45.78903730999539,
+      "median_recorded_age": null,
+      "weather_race": "Chicago Marathon",
+      "date": "2026-10-11",
+      "scheduled_start": "07:30",
+      "start_hour": "2026-10-11T07:00",
+      "four_hour": "2026-10-11T11:00",
+      "temp_c": 13.6,
+      "dewpoint_c": 12.5,
+      "humidity_pct": 93.0,
+      "wind_mps": 0.54,
+      "warming_c": 4.799999999999999
     },
     {
       "city": "Copenhagen",
@@ -2037,26 +2313,6 @@
       "warming_c": 4.099999999999998
     },
     {
-      "city": "Dubai",
-      "year": 2025,
-      "race": "Dubai Marathon",
-      "n": 1534,
-      "pace_change_pct": 8.456503717043194,
-      "finish_minutes": 240.59166666666667,
-      "women_pct": 19.752281616688396,
-      "median_recorded_age": 40.0,
-      "weather_race": "Dubai Marathon",
-      "date": "2025-01-12",
-      "scheduled_start": "06:00",
-      "start_hour": "2025-01-12T06:00",
-      "four_hour": "2025-01-12T10:00",
-      "temp_c": 14.7,
-      "dewpoint_c": 5.4,
-      "humidity_pct": 54.0,
-      "wind_mps": 1.71,
-      "warming_c": 4.100000000000001
-    },
-    {
       "city": "Eindhoven",
       "year": 2011,
       "race": "Eindhoven Marathon",
@@ -2297,6 +2553,126 @@
       "warming_c": 1.4000000000000004
     },
     {
+      "city": "Eindhoven",
+      "year": 2025,
+      "race": "Eindhoven Marathon",
+      "n": 4305,
+      "pace_change_pct": 6.027972027972028,
+      "finish_minutes": 232.68333333333334,
+      "women_pct": 18.69918699186992,
+      "median_recorded_age": null,
+      "weather_race": "Eindhoven Marathon",
+      "date": "2025-10-12",
+      "scheduled_start": "10:00",
+      "start_hour": "2025-10-12T10:00",
+      "four_hour": "2025-10-12T14:00",
+      "temp_c": 13.6,
+      "dewpoint_c": 11.4,
+      "humidity_pct": 87.0,
+      "wind_mps": 1.11,
+      "warming_c": 2.0
+    },
+    {
+      "city": "Frankfurt",
+      "year": 2018,
+      "race": "Frankfurt Marathon",
+      "n": 10569,
+      "pace_change_pct": 4.828326180257503,
+      "finish_minutes": 229.98333333333332,
+      "women_pct": 21.752294446021384,
+      "median_recorded_age": 40.0,
+      "weather_race": "Frankfurt Marathon",
+      "date": "2018-10-28",
+      "scheduled_start": "10:00",
+      "start_hour": "2018-10-28T10:00",
+      "four_hour": "2018-10-28T14:00",
+      "temp_c": 5.3,
+      "dewpoint_c": -0.2,
+      "humidity_pct": 68.0,
+      "wind_mps": 7.02,
+      "warming_c": 2.1000000000000005
+    },
+    {
+      "city": "Frankfurt",
+      "year": 2022,
+      "race": "Frankfurt Marathon",
+      "n": 6729,
+      "pace_change_pct": 12.605687932359722,
+      "finish_minutes": 237.51666666666668,
+      "women_pct": 20.627136275821073,
+      "median_recorded_age": 40.0,
+      "weather_race": "Frankfurt Marathon",
+      "date": "2022-10-30",
+      "scheduled_start": "10:00",
+      "start_hour": "2022-10-30T10:00",
+      "four_hour": "2022-10-30T14:00",
+      "temp_c": 13.7,
+      "dewpoint_c": 12.1,
+      "humidity_pct": 90.0,
+      "wind_mps": 2.06,
+      "warming_c": 5.5
+    },
+    {
+      "city": "Frankfurt",
+      "year": 2023,
+      "race": "Frankfurt Marathon",
+      "n": 8286,
+      "pace_change_pct": 5.988465833654821,
+      "finish_minutes": 230.40833333333333,
+      "women_pct": 20.999275887038376,
+      "median_recorded_age": 40.0,
+      "weather_race": "Frankfurt Marathon",
+      "date": "2023-10-29",
+      "scheduled_start": "10:00",
+      "start_hour": "2023-10-29T10:00",
+      "four_hour": "2023-10-29T14:00",
+      "temp_c": 12.4,
+      "dewpoint_c": 10.1,
+      "humidity_pct": 86.0,
+      "wind_mps": 5.8,
+      "warming_c": 0.0
+    },
+    {
+      "city": "Frankfurt",
+      "year": 2024,
+      "race": "Frankfurt Marathon",
+      "n": 8789,
+      "pace_change_pct": 6.232514765309305,
+      "finish_minutes": 229.88333333333333,
+      "women_pct": 21.78859938559563,
+      "median_recorded_age": 40.0,
+      "weather_race": "Frankfurt Marathon",
+      "date": "2024-10-27",
+      "scheduled_start": "10:00",
+      "start_hour": "2024-10-27T10:00",
+      "four_hour": "2024-10-27T14:00",
+      "temp_c": 9.8,
+      "dewpoint_c": 9.4,
+      "humidity_pct": 97.0,
+      "wind_mps": 3.13,
+      "warming_c": 5.299999999999999
+    },
+    {
+      "city": "Frankfurt",
+      "year": 2025,
+      "race": "Frankfurt Marathon",
+      "n": 10604,
+      "pace_change_pct": 4.789782970835055,
+      "finish_minutes": 228.2,
+      "women_pct": 21.87853640135798,
+      "median_recorded_age": 40.0,
+      "weather_race": "Frankfurt Marathon",
+      "date": "2025-10-26",
+      "scheduled_start": "10:00",
+      "start_hour": "2025-10-26T10:00",
+      "four_hour": "2025-10-26T14:00",
+      "temp_c": 6.5,
+      "dewpoint_c": 2.6,
+      "humidity_pct": 76.0,
+      "wind_mps": 5.49,
+      "warming_c": 2.5
+    },
+    {
       "city": "Gold Coast",
       "year": 2016,
       "race": "Gold Coast Marathon",
@@ -2415,26 +2791,6 @@
       "humidity_pct": 66.0,
       "wind_mps": 4.62,
       "warming_c": 4.600000000000001
-    },
-    {
-      "city": "Gold Coast",
-      "year": 2024,
-      "race": "Gold Coast Marathon",
-      "n": 5692,
-      "pace_change_pct": 5.4824693826824085,
-      "finish_minutes": 223.30833333333334,
-      "women_pct": 25.0,
-      "median_recorded_age": null,
-      "weather_race": "Gold Coast Marathon",
-      "date": "2024-07-07",
-      "scheduled_start": "06:20",
-      "start_hour": "2024-07-07T06:00",
-      "four_hour": "2024-07-07T10:00",
-      "temp_c": 13.9,
-      "dewpoint_c": 10.1,
-      "humidity_pct": 78.0,
-      "wind_mps": 5.14,
-      "warming_c": 4.200000000000001
     },
     {
       "city": "Hamburg",
@@ -3117,26 +3473,6 @@
       "warming_c": 7.699999999999999
     },
     {
-      "city": "Melbourne",
-      "year": 2015,
-      "race": "Melbourne Marathon",
-      "n": 416,
-      "pace_change_pct": 8.599401123866034,
-      "finish_minutes": 246.18333333333334,
-      "women_pct": 27.403846153846157,
-      "median_recorded_age": null,
-      "weather_race": "Melbourne Marathon",
-      "date": "2015-10-18",
-      "scheduled_start": "07:00",
-      "start_hour": "2015-10-18T07:00",
-      "four_hour": "2015-10-18T11:00",
-      "temp_c": 12.6,
-      "dewpoint_c": 9.6,
-      "humidity_pct": 82.0,
-      "wind_mps": 3.4,
-      "warming_c": 4.000000000000002
-    },
-    {
       "city": "New York",
       "year": 2006,
       "race": "New York City Marathon",
@@ -3155,26 +3491,6 @@
       "humidity_pct": 85.0,
       "wind_mps": 0.85,
       "warming_c": 5.1000000000000005
-    },
-    {
-      "city": "New York",
-      "year": 2007,
-      "race": "New York City Marathon",
-      "n": 15398,
-      "pace_change_pct": 9.04036623922566,
-      "finish_minutes": 258.825,
-      "women_pct": 40.187037277568514,
-      "median_recorded_age": 40.0,
-      "weather_race": "New York City Marathon",
-      "date": "2007-11-04",
-      "scheduled_start": "09:00",
-      "start_hour": "2007-11-04T09:00",
-      "four_hour": "2007-11-04T13:00",
-      "temp_c": 7.4,
-      "dewpoint_c": 4.3,
-      "humidity_pct": 81.0,
-      "wind_mps": 3.13,
-      "warming_c": 5.699999999999999
     },
     {
       "city": "New York",
@@ -4037,6 +4353,26 @@
       "warming_c": 0.7999999999999972
     },
     {
+      "city": "Stockholm",
+      "year": 2025,
+      "race": "Stockholm Marathon",
+      "n": 16977,
+      "pace_change_pct": 7.911135193714447,
+      "finish_minutes": 252.71666666666667,
+      "women_pct": 27.64917240973081,
+      "median_recorded_age": null,
+      "weather_race": "Stockholm Marathon",
+      "date": "2025-05-31",
+      "scheduled_start": "12:00",
+      "start_hour": "2025-05-31T12:00",
+      "four_hour": "2025-05-31T16:00",
+      "temp_c": 15.5,
+      "dewpoint_c": 3.1,
+      "humidity_pct": 43.0,
+      "wind_mps": 3.76,
+      "warming_c": 2.6000000000000014
+    },
+    {
       "city": "Sydney",
       "year": 2017,
       "race": "Sydney Marathon",
@@ -4123,7 +4459,7 @@
       "n": 21306,
       "pace_change_pct": 4.1125339253689885,
       "finish_minutes": 217.15,
-      "women_pct": 0.0,
+      "women_pct": 19.304421289777526,
       "median_recorded_age": null,
       "weather_race": "Valencia Marathon",
       "date": "2022-12-04",
@@ -4143,7 +4479,7 @@
       "n": 24578,
       "pace_change_pct": 3.4698558174353633,
       "finish_minutes": 213.41666666666666,
-      "women_pct": 0.0,
+      "women_pct": 20.28643502319147,
       "median_recorded_age": null,
       "weather_race": "Valencia Marathon",
       "date": "2023-12-03",
@@ -4163,7 +4499,7 @@
       "n": 27515,
       "pace_change_pct": 5.869632375656475,
       "finish_minutes": 216.3,
-      "women_pct": 0.0,
+      "women_pct": 21.962565873160095,
       "median_recorded_age": null,
       "weather_race": "Valencia Marathon",
       "date": "2024-12-01",
@@ -4177,84 +4513,304 @@
       "warming_c": 5.299999999999999
     },
     {
+      "city": "Vienna",
+      "year": 2022,
+      "race": "Vienna City Marathon",
+      "n": 2546,
+      "pace_change_pct": 6.138696671921329,
+      "finish_minutes": 235.88333333333333,
+      "women_pct": 21.720345640219954,
+      "median_recorded_age": 45.0,
+      "weather_race": "Vienna City Marathon",
+      "date": "2022-04-24",
+      "scheduled_start": "09:00",
+      "start_hour": "2022-04-24T09:00",
+      "four_hour": "2022-04-24T13:00",
+      "temp_c": 14.6,
+      "dewpoint_c": 8.5,
+      "humidity_pct": 67.0,
+      "wind_mps": 5.04,
+      "warming_c": 5.700000000000001
+    },
+    {
+      "city": "Vienna",
+      "year": 2023,
+      "race": "Vienna City Marathon",
+      "n": 5643,
+      "pace_change_pct": 7.816408204102054,
+      "finish_minutes": 241.6,
+      "women_pct": 22.98422824738614,
+      "median_recorded_age": 45.0,
+      "weather_race": "Vienna City Marathon",
+      "date": "2023-04-23",
+      "scheduled_start": "09:00",
+      "start_hour": "2023-04-23T09:00",
+      "four_hour": "2023-04-23T13:00",
+      "temp_c": 13.6,
+      "dewpoint_c": 9.0,
+      "humidity_pct": 73.0,
+      "wind_mps": 1.1,
+      "warming_c": 5.200000000000001
+    },
+    {
+      "city": "Vienna",
+      "year": 2024,
+      "race": "Vienna City Marathon",
+      "n": 6004,
+      "pace_change_pct": 3.42481780862669,
+      "finish_minutes": 233.54166666666666,
+      "women_pct": 21.252498334443704,
+      "median_recorded_age": 40.0,
+      "weather_race": "Vienna City Marathon",
+      "date": "2024-04-21",
+      "scheduled_start": "09:00",
+      "start_hour": "2024-04-21T09:00",
+      "four_hour": "2024-04-21T13:00",
+      "temp_c": 4.8,
+      "dewpoint_c": 0.2,
+      "humidity_pct": 72.0,
+      "wind_mps": 4.43,
+      "warming_c": 3.8
+    },
+    {
       "city": "Warsaw",
       "year": 2015,
-      "race": "Warsaw Marathon",
+      "race": "Orlen Warsaw Marathon",
       "n": 6883,
       "pace_change_pct": 6.2301335028607685,
       "finish_minutes": 237.2,
       "women_pct": 13.569664390527386,
       "median_recorded_age": null,
-      "weather_race": "Warsaw Marathon",
-      "date": "2015-09-27",
-      "scheduled_start": "09:00",
-      "start_hour": "2015-09-27T09:00",
-      "four_hour": "2015-09-27T13:00",
-      "temp_c": 11.7,
-      "dewpoint_c": 9.2,
-      "humidity_pct": 85.0,
-      "wind_mps": 4.96,
-      "warming_c": 3.5
+      "weather_race": "Orlen Warsaw Marathon",
+      "date": "2015-04-26",
+      "scheduled_start": "09:30",
+      "start_hour": "2015-04-26T10:00",
+      "four_hour": "2015-04-26T14:00",
+      "temp_c": 14.7,
+      "dewpoint_c": 9.7,
+      "humidity_pct": 72.0,
+      "wind_mps": 3.01,
+      "warming_c": 0.9000000000000004
     },
     {
       "city": "Warsaw",
       "year": 2016,
-      "race": "Warsaw Marathon",
+      "race": "Orlen Warsaw Marathon",
       "n": 6512,
       "pace_change_pct": 5.076926157803929,
       "finish_minutes": 232.65,
       "women_pct": 14.695945945945946,
       "median_recorded_age": null,
-      "weather_race": "Warsaw Marathon",
-      "date": "2016-09-25",
-      "scheduled_start": "09:00",
-      "start_hour": "2016-09-25T09:00",
-      "four_hour": "2016-09-25T13:00",
-      "temp_c": 11.2,
-      "dewpoint_c": 9.7,
-      "humidity_pct": 91.0,
-      "wind_mps": 1.64,
-      "warming_c": 4.800000000000001
+      "weather_race": "Orlen Warsaw Marathon",
+      "date": "2016-04-24",
+      "scheduled_start": "08:45",
+      "start_hour": "2016-04-24T09:00",
+      "four_hour": "2016-04-24T13:00",
+      "temp_c": 5.3,
+      "dewpoint_c": 3.1,
+      "humidity_pct": 86.0,
+      "wind_mps": 5.66,
+      "warming_c": 4.3
     },
     {
       "city": "Warsaw",
       "year": 2017,
-      "race": "Warsaw Marathon",
+      "race": "Orlen Warsaw Marathon",
       "n": 5467,
       "pace_change_pct": 7.801213522103434,
       "finish_minutes": 236.36666666666667,
       "women_pct": 14.432046826413023,
       "median_recorded_age": null,
-      "weather_race": "Warsaw Marathon",
-      "date": "2017-09-24",
+      "weather_race": "Orlen Warsaw Marathon",
+      "date": "2017-04-23",
       "scheduled_start": "09:00",
-      "start_hour": "2017-09-24T09:00",
-      "four_hour": "2017-09-24T13:00",
-      "temp_c": 14.9,
-      "dewpoint_c": 11.8,
-      "humidity_pct": 82.0,
-      "wind_mps": 4.05,
-      "warming_c": 2.4999999999999982
+      "start_hour": "2017-04-23T09:00",
+      "four_hour": "2017-04-23T13:00",
+      "temp_c": 5.9,
+      "dewpoint_c": 0.7,
+      "humidity_pct": 69.0,
+      "wind_mps": 5.19,
+      "warming_c": 3.799999999999999
     },
     {
       "city": "Warsaw",
       "year": 2018,
-      "race": "Warsaw Marathon",
+      "race": "Orlen Warsaw Marathon",
       "n": 4290,
       "pace_change_pct": 8.927188640325689,
       "finish_minutes": 238.225,
       "women_pct": 15.36130536130536,
       "median_recorded_age": null,
-      "weather_race": "Warsaw Marathon",
-      "date": "2018-09-30",
+      "weather_race": "Orlen Warsaw Marathon",
+      "date": "2018-04-22",
       "scheduled_start": "09:00",
-      "start_hour": "2018-09-30T09:00",
-      "four_hour": "2018-09-30T13:00",
-      "temp_c": 8.7,
-      "dewpoint_c": 2.1,
-      "humidity_pct": 63.0,
-      "wind_mps": 3.42,
-      "warming_c": 4.9
+      "start_hour": "2018-04-22T09:00",
+      "four_hour": "2018-04-22T13:00",
+      "temp_c": 12.5,
+      "dewpoint_c": 4.0,
+      "humidity_pct": 56.0,
+      "wind_mps": 3.7,
+      "warming_c": 5.199999999999999
+    },
+    {
+      "city": "Warsaw",
+      "year": 2019,
+      "race": "PZU Warsaw Marathon",
+      "n": 4461,
+      "pace_change_pct": 7.028252528775725,
+      "finish_minutes": 248.06666666666666,
+      "women_pct": 16.543375924680564,
+      "median_recorded_age": null,
+      "weather_race": "PZU Warsaw Marathon",
+      "date": "2019-09-29",
+      "scheduled_start": "09:00",
+      "start_hour": "2019-09-29T09:00",
+      "four_hour": "2019-09-29T13:00",
+      "temp_c": 14.5,
+      "dewpoint_c": 10.7,
+      "humidity_pct": 78.0,
+      "wind_mps": 4.8,
+      "warming_c": 3.3000000000000007
+    },
+    {
+      "city": "Warsaw",
+      "year": 2020,
+      "race": "PZU Warsaw Marathon",
+      "n": 850,
+      "pace_change_pct": 9.34485227187113,
+      "finish_minutes": 241.44166666666666,
+      "women_pct": 14.823529411764705,
+      "median_recorded_age": null,
+      "weather_race": "PZU Warsaw Marathon",
+      "date": "2020-09-27",
+      "scheduled_start": "09:00",
+      "start_hour": "2020-09-27T09:00",
+      "four_hour": "2020-09-27T13:00",
+      "temp_c": 11.5,
+      "dewpoint_c": 10.5,
+      "humidity_pct": 94.0,
+      "wind_mps": 6.06,
+      "warming_c": 0.1999999999999993
+    },
+    {
+      "city": "Warsaw",
+      "year": 2021,
+      "race": "PZU Warsaw Marathon",
+      "n": 2640,
+      "pace_change_pct": 8.803869851848368,
+      "finish_minutes": 239.58333333333334,
+      "women_pct": 17.916666666666668,
+      "median_recorded_age": null,
+      "weather_race": "PZU Warsaw Marathon",
+      "date": "2021-09-26",
+      "scheduled_start": "09:00",
+      "start_hour": "2021-09-26T09:00",
+      "four_hour": "2021-09-26T13:00",
+      "temp_c": 14.5,
+      "dewpoint_c": 12.2,
+      "humidity_pct": 86.0,
+      "wind_mps": 1.32,
+      "warming_c": 2.8999999999999986
+    },
+    {
+      "city": "Warsaw",
+      "year": 2022,
+      "race": "PZU Warsaw Marathon",
+      "n": 3699,
+      "pace_change_pct": 6.463719766472065,
+      "finish_minutes": 248.38333333333333,
+      "women_pct": 16.923492835901595,
+      "median_recorded_age": null,
+      "weather_race": "PZU Warsaw Marathon",
+      "date": "2022-09-25",
+      "scheduled_start": "09:00",
+      "start_hour": "2022-09-25T09:00",
+      "four_hour": "2022-09-25T13:00",
+      "temp_c": 10.6,
+      "dewpoint_c": 7.0,
+      "humidity_pct": 79.0,
+      "wind_mps": 1.44,
+      "warming_c": 6.200000000000001
+    },
+    {
+      "city": "Warsaw",
+      "year": 2023,
+      "race": "PZU Warsaw Marathon",
+      "n": 5454,
+      "pace_change_pct": 4.630139497965036,
+      "finish_minutes": 248.55833333333334,
+      "women_pct": 17.51008434176751,
+      "median_recorded_age": null,
+      "weather_race": "PZU Warsaw Marathon",
+      "date": "2023-09-24",
+      "scheduled_start": "09:00",
+      "start_hour": "2023-09-24T09:00",
+      "four_hour": "2023-09-24T13:00",
+      "temp_c": 13.4,
+      "dewpoint_c": 10.9,
+      "humidity_pct": 85.0,
+      "wind_mps": 2.83,
+      "warming_c": 4.299999999999999
+    },
+    {
+      "city": "Warsaw",
+      "year": 2024,
+      "race": "PZU Warsaw Marathon",
+      "n": 6961,
+      "pace_change_pct": 2.761077710977511,
+      "finish_minutes": 244.33333333333334,
+      "women_pct": 18.675477661255567,
+      "median_recorded_age": null,
+      "weather_race": "PZU Warsaw Marathon",
+      "date": "2024-09-29",
+      "scheduled_start": "09:00",
+      "start_hour": "2024-09-29T09:00",
+      "four_hour": "2024-09-29T13:00",
+      "temp_c": 9.5,
+      "dewpoint_c": 6.1,
+      "humidity_pct": 79.0,
+      "wind_mps": 3.45,
+      "warming_c": 4.5
+    },
+    {
+      "city": "Warsaw",
+      "year": 2025,
+      "race": "PZU Warsaw Marathon",
+      "n": 8311,
+      "pace_change_pct": 2.547770700636942,
+      "finish_minutes": 236.56666666666666,
+      "women_pct": 16.953435206353028,
+      "median_recorded_age": null,
+      "weather_race": "PZU Warsaw Marathon",
+      "date": "2025-09-28",
+      "scheduled_start": "09:00",
+      "start_hour": "2025-09-28T09:00",
+      "four_hour": "2025-09-28T13:00",
+      "temp_c": 8.2,
+      "dewpoint_c": 5.6,
+      "humidity_pct": 84.0,
+      "wind_mps": 1.72,
+      "warming_c": 6.600000000000001
+    },
+    {
+      "city": "Warsaw",
+      "year": 2026,
+      "race": "PZU Warsaw Marathon",
+      "n": 10680,
+      "pace_change_pct": 10.929685134454559,
+      "finish_minutes": 253.14166666666668,
+      "women_pct": 20.870786516853933,
+      "median_recorded_age": null,
+      "weather_race": "PZU Warsaw Marathon",
+      "date": "2026-09-27",
+      "scheduled_start": "09:00",
+      "start_hour": "2026-09-27T09:00",
+      "four_hour": "2026-09-27T13:00",
+      "temp_c": 12.2,
+      "dewpoint_c": 10.3,
+      "humidity_pct": 88.0,
+      "wind_mps": 0.6,
+      "warming_c": 6.400000000000002
     },
     {
       "city": "Washington",

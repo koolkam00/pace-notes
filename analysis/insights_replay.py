@@ -149,7 +149,7 @@ def clock_pack(f, edition, k=1):
 
 def stretch(f):
     """Per edition: how much wider the field is (P90/P10) over the 20–40 km block than over 0–20 km."""
-    keep, _ = start_offset_screen(f)
+    keep, offset_audit = start_offset_screen(f)
     rows = []
     for e in np.unique(f.edition[keep]):
         m = keep & (f.edition == e)
@@ -161,7 +161,8 @@ def stretch(f):
         rows.append(dict(city=f.editions[e]['city'], year=f.editions[e]['year'], n=int(m.sum()), stretch=r(value, 4)))
     values = [x['stretch'] for x in rows]
     return dict(editions=rows, wider_after_20=int(sum(v > 1 for v in values)), mean=r(np.mean(values), 4),
-                min=min(rows, key=lambda x: x['stretch']), max=max(rows, key=lambda x: x['stretch']))
+                min=min(rows, key=lambda x: x['stretch']), max=max(rows, key=lambda x: x['stretch']),
+                start_offset_excluded=len(offset_audit))
 
 
 def build(f):

@@ -47,7 +47,9 @@ function checkSourceQuality(report, cohort, release, scriptHash) {
   const sorted = value => Array.isArray(value) ? value.map(sorted) : value !== null && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, sorted(value[key])])) : value;
   const policy = { version: report.version, release_tag: report.release_tag, reviewed_edition_policy: report.reviewed_edition_policy,
     editions: report.editions.map(({ city, year, category, reason }) => ({ city, year, category, reason })) };
-  const serialized = JSON.stringify(sorted(policy)).replace(/[^\x00-\x7F]/g, char => '\\u' + char.charCodeAt(0).toString(16).padStart(4, '0'));
+  // source_quality.py hashes json.dumps(..., ensure_ascii=False): UTF-8 text, not \u escapes (as verify-research and
+  // verify-public-explorer do). The 1652 reasons are the first with non-ASCII characters (’ and –).
+  const serialized = JSON.stringify(sorted(policy));
   assert.equal(crypto.createHash('sha256').update(serialized).digest('hex'), report.policy_sha256, 'Edition audit rules must match their frozen policy checksum');
   for (const row of report.editions) {
     const sizes = [row.raw_records, row.deduplicated_records, row.timing_eligible_excluded];

@@ -99,7 +99,7 @@ export default function ResearchPage() {
         <h2 id="research-data-title" className="chapter-title">The data, <em>to download</em>.</h2>
         <p className="chapter-dek">The exports, the code and the data files behind the pages are public, so anyone can recount them.</p>
       </div>
-      <p className="research-download"><a className="button-primary" href="https://github.com/koolkam00/htw-live-study/releases">Download the data <span aria-hidden="true">↗</span></a></p>
+      <p className="research-download"><a className="button-primary" href="https://github.com/koolkam00/pace-notes/releases">Download the data <span aria-hidden="true">↗</span></a></p>
       <div className="research-coverage"><DataCoverage /></div>
     </section>
 

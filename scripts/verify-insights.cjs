@@ -735,6 +735,7 @@ function checkStretch(S) {
   const values = S.editions.map(row => row.stretch);
   assert.deepEqual(S.min, S.editions.find(row => row.stretch === Math.min(...values)), 'Stretch: narrowest edition');
   assert.deepEqual(S.max, S.editions.find(row => row.stretch === Math.max(...values)), 'Stretch: widest edition');
+  assert.equal(S.start_offset_excluded, flagged.length, 'Stretch: start-offset editions left out (printed under the chart)');
   return { editions: expected.length, wider_after_20: wider };
 }
 function checkReplay(doc) {

@@ -106,7 +106,7 @@ export default function Page() {
         <div className="bib"><span className="bib-tag">One published method</span><span className="bib-number">{methodYear}</span><span className="bib-text">Sustained slowdown follows the <a href={SLOWDOWN_CITATION.url}>published slowdown method, {doi}</a>.</span></div>
       </div>
       <CohortNote />
-      <p className="home-guide-links"><Link href="/methodology">Methods &amp; sources</Link>{' '}<Link href="/about">About</Link>{' '}<a href="https://github.com/koolkam00/htw-live-study/releases">Download the data <span aria-hidden="true">↗</span></a></p>
+      <p className="home-guide-links"><Link href="/methodology">Methods &amp; sources</Link>{' '}<Link href="/about">About</Link>{' '}<a href="https://github.com/koolkam00/pace-notes/releases">Download the data <span aria-hidden="true">↗</span></a></p>
     </section>
 
     <section id="steps" className="chapter home-section" aria-labelledby="steps-title" data-track-section="steps">

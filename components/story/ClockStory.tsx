@@ -233,7 +233,7 @@ export function StretchStrip({ stretch: given }: { stretch?: NonNullable<ReplayI
     <div className="viz-card">
       <div className="viz-head"><div><p className="viz-title">{stretch.wider_after_20} of {stretch.editions.length} races stretch after {checkpointLabel(20, units)}</p><p className="viz-sub">How far the slowest tenth trails the fastest tenth from {checkpointLabel(20, units)} to {checkpointLabel(40, units)}, compared with the first {checkpointLabel(20, units)} (1.00× = no change)</p></div></div>
       <div ref={ref} className="viz">
-        <svg width={width} height={H} role="img" aria-label={`All ${stretch.editions.length} editions sit to the right of 1, from ${stretch.min.stretch.toFixed(2)} to ${stretch.max.stretch.toFixed(2)}.`}>
+        <svg width={width} height={H} role="img" aria-label={`${stretch.wider_after_20 === stretch.editions.length ? 'All' : `${stretch.wider_after_20} of`} ${stretch.editions.length} editions sit to the right of 1, from ${stretch.min.stretch.toFixed(2)} to ${stretch.max.stretch.toFixed(2)}.`}>
           <line x1={x(1)} x2={x(1)} y1={14} y2={H - 30} stroke="var(--ink)" strokeWidth={1.5} />
           {width >= 560 ? <text x={x(1) - 6} y={22} textAnchor="end" className="annotation-sub">narrower after {checkpointLabel(20, units)}</text> : null}
           <text x={x(1) + 6} y={22} className="annotation-sub">wider after {checkpointLabel(20, units)} →</text>
@@ -241,7 +241,7 @@ export function StretchStrip({ stretch: given }: { stretch?: NonNullable<ReplayI
           {[1, 1.05, 1.1, 1.15, 1.2].map((v) => <text key={v} x={x(v)} y={H - 6} textAnchor="middle">{v.toFixed(2)}×</text>)}
         </svg>
       </div>
-      <p className="viz-note">Each dot is one race edition with at least 1,000 eligible finishes. Narrowest stretch: {stretch.min.city} {stretch.min.year} ({stretch.min.stretch.toFixed(2)}×); widest: {stretch.max.city} {stretch.max.year} ({stretch.max.stretch.toFixed(2)}×). These are percentiles at each block, not the same runners. The 13 editions whose first {checkpointLabel(5, units)} looks inflated by start delays are left out.</p>
+      <p className="viz-note">Each dot is one race edition with at least 1,000 eligible finishes. Narrowest stretch: {stretch.min.city} {stretch.min.year} ({stretch.min.stretch.toFixed(2)}×); widest: {stretch.max.city} {stretch.max.year} ({stretch.max.stretch.toFixed(2)}×). These are percentiles at each block, not the same runners.{stretch.start_offset_excluded ? <> The {stretch.start_offset_excluded === 1 ? 'one edition' : `${stretch.start_offset_excluded} editions`} whose first {checkpointLabel(5, units)} looks inflated by start delays {stretch.start_offset_excluded === 1 ? 'is' : 'are'} left out.</> : null}</p>
     </div>
   );
 }

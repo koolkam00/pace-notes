@@ -44,7 +44,7 @@ export function StoryMethods({ manifest, files, method, caveats }: { manifest: I
         <p>
           The stories use {count(manifest.analysis_n)} eligible finishes: every record in the adopted release with all nine checkpoints increasing, a finish
           between 1:30 and 12:00 and every section between 2 and 20 minutes per kilometre, after the reviewed source-quality exclusions.
-          {' '}{manifest.duplicate_edition_screen.map((d) => `${d.city} ${d.year}`).join(' and ')} are also left out here because their records duplicate the {manifest.duplicate_edition_screen[0]?.city} {manifest.duplicate_edition_screen[0]?.duplicate_of} field.
+          {manifest.duplicate_edition_screen.length ? <>{' '}{manifest.duplicate_edition_screen.map((d) => `${d.city} ${d.year}`).join(' and ')} {manifest.duplicate_edition_screen.length > 1 ? 'are' : 'is'} also left out here because {manifest.duplicate_edition_screen.length > 1 ? 'their' : 'its'} records duplicate the {manifest.duplicate_edition_screen[0].city} {manifest.duplicate_edition_screen[0].duplicate_of} field.</> : null}
           {' '}Counts are race finishes, not unique runners.
         </p>
         <p>
@@ -59,7 +59,7 @@ export function StoryMethods({ manifest, files, method, caveats }: { manifest: I
         <ul className="story-downloads">
           {files.map((f) => <li key={f}><a href={`${base}/data/insights/${f}`}>{f}</a> <span>{count(manifest.files[f]?.bytes ?? 0)} bytes</span></li>)}
           <li><a href={`${base}/data/insights/manifest.json`}>manifest.json</a> <span>release, cohort and checksums</span></li>
-          <li><a href="https://github.com/koolkam00/htw-live-study/releases">Full race records ↗</a></li>
+          <li><a href="https://github.com/koolkam00/pace-notes/releases">Full race records ↗</a></li>
         </ul>
         <p className="story-method-link"><Link href="/methodology">Read the full methodology</Link></p>
       </div>
