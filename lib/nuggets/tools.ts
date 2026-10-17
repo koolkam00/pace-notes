@@ -10,7 +10,6 @@ const tool = (id: NuggetId, page: string, line: string, figure: { value: string;
   placeholder({ id, page, denominator: 'tool', values: {}, guard: true, headline: line, fallback: line, figure, key });
 
 export const TOOL_NUGGETS: Record<string, Builder> = {
-  'runner.yours': tool('runner.yours', '/runners', 'Find a past race and see it mat by mat.', { value: 'Yours', sr: 'Yours' }, 'nine mats, one race'),
   'splitcheck.mats': tool('splitcheck.mats', '/tools/split-check', 'Check your splits against finishes like yours.'),
   'projector.range': tool('projector.range', '/tools/projector', 'From a checkpoint time, the finishes that followed.'),
   'weathermatch.mornings': tool('weathermatch.mornings', '/tools/weather-match', 'Race-morning weather, matched to past editions.'),

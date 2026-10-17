@@ -6,6 +6,7 @@
 import { ANALYSIS_NUGGETS } from './analyses';
 import { COURSE_CONTEXT_NUGGETS, COURSE_NUGGETS } from './courses';
 import { HOME_NUGGETS } from './home';
+import { RUNNER_NUGGETS } from './runners';
 import { STORY_NUGGETS } from './stories';
 import { TOOL_NUGGETS } from './tools';
 import type { Builder } from './build';
@@ -15,7 +16,7 @@ export * from './types';
 export { finishesM, plain, sentenceOf, siteTotals, textFor } from './core';
 
 const REGISTRY: Record<string, Builder> = {};
-for (const group of [HOME_NUGGETS, STORY_NUGGETS, ANALYSIS_NUGGETS, COURSE_NUGGETS, TOOL_NUGGETS]) {
+for (const group of [HOME_NUGGETS, STORY_NUGGETS, ANALYSIS_NUGGETS, COURSE_NUGGETS, TOOL_NUGGETS, RUNNER_NUGGETS]) {
   for (const [id, build] of Object.entries(group)) {
     if (REGISTRY[id]) throw new Error(`Nugget ${id} is registered twice.`);
     REGISTRY[id] = build;
