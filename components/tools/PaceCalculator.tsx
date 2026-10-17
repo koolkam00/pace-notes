@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useMemo, useState } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { Choice, DurationField, EvidencePanel, ExampleNote, ShareBar, Stat } from '@/components/tools/ui';
+import { Choice, DurationField, ShareBar } from '@/components/tools/ui';
+import Values from '@/components/ui/Values';
 import { MarathonHandoffs } from '@/components/tools/Handoffs';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { DISTANCES, MARATHON_KM, SPLIT_KM, kmh, mph, paceChart, paceFrom, perKm, perUnit, splitTable, unitKm, type SplitInterval } from '@/lib/tools/pace';
@@ -13,12 +14,15 @@ type Field = 'distance' | 'time' | 'pace';
 
 const fmtDistance = (km: number, units: UnitSystem) => {
   const v = units === 'mi' ? km / KM_PER_MILE : km;
-  return `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(v)} ${units}`;
+  // One decimal, as distances read everywhere on the site; two below one unit, so 400 m rows stay distinct (0.25 mi).
+  return `${new Intl.NumberFormat('en-US', { maximumFractionDigits: v < 1 ? 2 : 1 }).format(v)} ${units}`;
 };
 const fmtPace = (secondsPerKm: number, units: UnitSystem) => `${formatDuration(perUnit(secondsPerKm, units))}/${units}`;
 const INTERVALS: { value: SplitInterval; label: string }[] = [
-  { value: '400m', label: '400 m' }, { value: 'quarter', label: '¼ mi' }, { value: 'km', label: '1 km' }, { value: 'mi', label: '1 mi' }, { value: '5k', label: '5 km mats' },
+  { value: '400m', label: '400 m' }, { value: 'quarter', label: '¼ mi' }, { value: 'km', label: 'Every km' }, { value: 'mi', label: 'Every mile' }, { value: '5k', label: '5K mats' },
 ];
+/** The splits offered as buttons; 400 m and ¼ mi rows stay readable from a link that asks for them. */
+const SHOWN_INTERVALS: SplitInterval[] = ['5k', 'mi', 'km'];
 const DIFFS = [-300, -180, -120, -60, 0, 60, 120, 180, 300];
 const DEFAULTS = { view: 'calc', d: 'marathon', km: '', t: '3:30:00', p: '', solve: 'pace', split: '', diff: '0' };
 /** The query keys that hold the visitor's inputs: a link that sets any of them is not the example. */
@@ -49,8 +53,6 @@ function readDistance(text: string, unitLengthKm: number): DistanceCheck {
 const rangeMessage = (units: UnitSystem) => (units === 'mi' ? 'Type a distance from 0.1 km (0.06 mi) to 621 mi.' : 'Type a distance from 0.1 to 1,000 km.');
 const solvedMessage = (km: number, units: UnitSystem) => `That time and pace give ${fmtDistance(km, units)}; the calculator covers ${units === 'mi' ? '0.1 km (0.06 mi) to 621 mi' : '0.1 to 1,000 km'}.`;
 const formatMessage = (units: UnitSystem) => `Type the distance as a plain number, such as ${units === 'mi' ? '13.1' : '21.1'}.`;
-/** Whole minutes as H:MM. */
-const hm = (minutes: number) => `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
 
 /** A value that follows `value` once it has stopped changing for `ms` (keeps the status line from announcing every keystroke). */
 function useSettled<T>(value: T, ms: number): T {
@@ -98,9 +100,11 @@ export default function PaceCalculator() {
   const solvedOutOfRange = solve === 'distance' && km !== null && km > 0 && (km < MIN_KM || km > MAX_KM);
   const ready = !solvedOutOfRange && km !== null && seconds !== null && paceKm !== null && km > 0 && seconds > 0 && paceKm > 0;
 
-  const requested = (INTERVALS.some((o) => o.value === q.split) ? q.split : units === 'mi' ? 'mi' : 'km') as SplitInterval;
+  // Timing-mat splits by default, the checkpoints race trackers show.
+  const requested = (INTERVALS.some((o) => o.value === q.split) ? q.split : '5k') as SplitInterval;
   const fits = (v: SplitInterval) => !ready || km! / SPLIT_KM[v] <= MAX_ROWS;
   const intervalOptions = INTERVALS.filter((o) => fits(o.value));
+  const shownIntervals = intervalOptions.filter((o) => SHOWN_INTERVALS.includes(o.value) || o.value === q.split).sort((a, b) => SPLIT_KM[b.value] - SPLIT_KM[a.value]);
   // A distance too long for the chosen interval uses the next longer one that fits (5 km rows always fit up to 1,000 km).
   const interval = fits(requested) ? requested : (intervalOptions.find((o) => SPLIT_KM[o.value] >= SPLIT_KM[requested])?.value ?? '5k');
   const diff = DIFFS.includes(Number(q.diff)) ? Number(q.diff) : 0;
@@ -118,10 +122,6 @@ export default function PaceCalculator() {
   // Cross-tool goals are whole minutes: the minute at or below the time shown (whole seconds), as H:MM.
   const shownSeconds = ready ? Math.round(seconds!) : null;
   const goalMinutes = shownSeconds !== null && isMarathon ? Math.floor(shownSeconds / 60) : null;
-  const goalHM = goalMinutes !== null ? hm(goalMinutes) : null;
-  // The pace band's even-pace band covers 1:30–8:00; its observed mat times and the course chooser cover 2:30–6:30.
-  const banded = goalMinutes !== null && goalMinutes >= 90 && goalMinutes <= 480;
-  const observed = goalMinutes !== null && goalMinutes >= 150 && goalMinutes <= 390;
 
   const isExample = queryReady && !touched && !INPUT_KEYS.some((k) => fromUrl.has(k));
   const speedText = ready ? (units === 'mi' ? `${mph(paceKm!).toFixed(1)} mph` : `${kmh(paceKm!).toFixed(1)} km/h`) : '';
@@ -178,79 +178,71 @@ export default function PaceCalculator() {
           <div className="tool-results">
             {ready ? (
               <>
-                {isExample ? <ExampleNote>These results are for a 3:30:00 marathon. Type your own distance, time or pace; everything updates as you type.</ExampleNote> : null}
-                <div className="tool-headline">
-                  <Stat label="Time" value={formatDuration(seconds!, true)} sub={`for ${fmtDistance(km!, units)}`} />
-                  <Stat label={`Pace /${units}`} value={formatDuration(perUnit(paceKm!, units))} sub={`${fmtPace(paceKm!, units === 'mi' ? 'km' : 'mi')}`} />
-                  <Stat label="Treadmill speed" value={units === 'mi' ? mph(paceKm!).toFixed(1) : kmh(paceKm!).toFixed(1)} sub={units === 'mi' ? `mph · ${kmh(paceKm!).toFixed(1)} km/h` : `km/h · ${mph(paceKm!).toFixed(1)} mph`} />
-                </div>
+                <section className="tool-reading night pace-calculator-headline" aria-labelledby="pace-calculator-title">
+                  <div className="tool-reading-head">
+                    <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}{solve === 'distance' ? `${formatDuration(seconds!, true)} at ${fmtPace(paceKm!, units)}` : `${preset ? preset.label : fmtDistance(km!, units)}${solve === 'pace' ? ` in ${formatDuration(seconds!, true)}` : ` at ${fmtPace(paceKm!, units)}`}`}</p>
+                    <h2 className="tool-reading-figure" id="pace-calculator-title">
+                      {solve === 'pace' ? <>{formatDuration(perUnit(paceKm!, units))}<small>per {units === 'mi' ? 'mile' : 'kilometre'}</small></>
+                        : solve === 'time' ? <>{formatDuration(seconds!, true)}<small>for {fmtDistance(km!, units)}</small></>
+                          : <>{fmtDistance(km!, units)}<small>in {formatDuration(seconds!, true)}</small></>}
+                    </h2>
+                  </div>
+                  <dl className="tool-cells">
+                    {solve === 'pace'
+                      ? <div><dt>Per {units === 'mi' ? 'km' : 'mile'}</dt><dd>{fmtPace(paceKm!, units === 'mi' ? 'km' : 'mi')}</dd></div>
+                      : <div><dt>Pace</dt><dd>{fmtPace(paceKm!, units)}<small>{fmtPace(paceKm!, units === 'mi' ? 'km' : 'mi')}</small></dd></div>}
+                    <div><dt>Treadmill speed</dt><dd>{speedText}<small>{units === 'mi' ? `${kmh(paceKm!).toFixed(1)} km/h` : `${mph(paceKm!).toFixed(1)} mph`}</small></dd></div>
+                  </dl>
+                </section>
                 {goalMinutes !== null ? <MarathonHandoffs label="With this marathon time" seconds={shownSeconds!} /> : null}
 
-                <EvidencePanel title="Splits at an even pace" meta="Timing-mat rows match the 5 km checkpoints on race trackers.">
-                  <div className="tool-split-controls no-print">
-                    <Choice label="Split every" small value={interval} onChange={(v) => setQ({ split: v })} options={intervalOptions} />
-                    <label className="tool-inline">
+                <section className="tool-panel pace-calculator-splits" aria-labelledby="pace-calculator-splits-title">
+                  <header className="tool-panel-head">
+                    <h2 className="tool-panel-title" id="pace-calculator-splits-title">{diff ? `Splits, second half ${diff < 0 ? 'faster' : 'slower'} by ${Math.abs(diff) / 60} min` : 'Splits at an even pace'}</h2>
+                  </header>
+                  <div className="pace-calculator-controls no-print">
+                    <Choice label="Split every" small value={interval} onChange={(v) => setQ({ split: v })} options={shownIntervals} />
+                    <label className="pace-calculator-diff">
                       <span>Second half</span>
                       <select value={String(diff)} onChange={(e) => setQ({ diff: e.target.value })} aria-label="Second half faster or slower, in total">
-                        {DIFFS.map((v) => <option key={v} value={v}>{v === 0 ? 'even' : `${v < 0 ? 'faster' : 'slower'} by ${Math.abs(v) / 60} min`}</option>)}
+                        {DIFFS.map((v) => <option key={v} value={v}>{v === 0 ? 'Even' : `${v < 0 ? 'Faster' : 'Slower'} by ${Math.abs(v) / 60} min`}</option>)}
                       </select>
                     </label>
                   </div>
                   {intervalOptions.length < INTERVALS.length ? <p className="tool-note no-print">Shorter splits are not offered for {fmtDistance(km!, units)}: they would need more than {MAX_ROWS} rows.</p> : null}
-                  <div className="tool-table-wrap" role="region" aria-label="Splits at an even pace" tabIndex={0}>
-                    <table className="tool-table">
-                      <thead><tr><th scope="col">Split</th><th scope="col">Elapsed</th><th scope="col">Split time</th><th scope="col">Pace</th></tr></thead>
-                      <tbody>
-                        {rows.map((r) => (
-                          <tr key={r.km} className={r.finish ? 'is-finish' : r.mat ? 'is-mat' : r.halfway ? 'is-key' : undefined}>
-                            <td>{r.finish ? 'Finish' : r.halfway ? `Halfway · ${fmtDistance(r.km, units)}` : r.mat ? `${r.km} km mat · ${fmtDistance(r.km, 'mi')}` : fmtDistance(r.km, units)}</td>
-                            <td>{formatDuration(r.elapsed, seconds! >= 3600)}</td>
-                            <td>{formatDuration(r.split)}</td>
-                            <td>{fmtPace(r.split / (r.km - (rows[rows.indexOf(r) - 1]?.km ?? 0)), units)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <caption>{diff ? `First half ${formatDuration((seconds! - diff) / 2)}, second half ${formatDuration((seconds! + diff) / 2)}.` : 'Even-pace splits.'}</caption>
-                    </table>
-                  </div>
-                </EvidencePanel>
-
-                <EvidencePanel title="The same pace at other distances" meta="Not a predicted race time: marathons rarely hold a shorter race’s pace.">
-                  <div className="tool-table-wrap">
-                    <table className="tool-table">
-                      <thead><tr><th scope="col">Distance</th><th scope="col">At {fmtPace(paceKm!, units)}</th></tr></thead>
-                      <tbody>{DISTANCES.map((d) => <tr key={d.key}><td>{d.label}</td><td>{formatDuration(paceKm! * d.km, true)}</td></tr>)}</tbody>
-                    </table>
-                  </div>
-                  <p className="tool-note">For a realistic marathon estimate from a shorter race, use the <Link href="/tools/predictor">finish-time predictor</Link>.</p>
-                </EvidencePanel>
-
-                <EvidencePanel title="What your watch will say">
-                  <div className="tool-table-wrap">
-                    <table className="tool-table wrap-first pace-calculator-watch">
-                      <thead><tr><th scope="col">If your watch reads</th><th scope="col">It shows an average of</th></tr></thead>
+                  <ol className="tool-laps pace-calculator-laps" aria-label={`Elapsed time at each split${diff ? '' : ' at an even pace'}`}>
+                    {rows.map((r, i) => (
+                      <li key={r.km} className={r.finish ? 'is-finish' : undefined}>
+                        <span>{r.finish ? 'Finish' : r.halfway ? 'Halfway' : r.mat ? `${r.km}K` : fmtDistance(r.km, units)}{r.mat && units === 'mi' ? <small>{(r.km / KM_PER_MILE).toFixed(1)} mi</small> : null}</span>
+                        <b>{formatDuration(r.elapsed, r.elapsed >= 3599.5)}</b>
+                        <small className="pace-calculator-split">{formatDuration(r.split)} · {fmtPace(r.split / (r.km - (rows[i - 1]?.km ?? 0)), units)}</small>
+                      </li>
+                    ))}
+                  </ol>
+                  <Values id="pace-calculator-watch" caption={`If your watch reads the course long, the average pace it shows for ${formatDuration(seconds!, true)}`} count={5}>
+                    <table className="table">
+                      <thead><tr><th scope="col">Watch reads</th><th scope="col">Average it shows</th></tr></thead>
                       <tbody>
                         {[0, 0.005, 0.01, 0.015, 0.02].map((o) => (
-                          <tr key={o} className={o === 0 ? 'is-key' : undefined}>
-                            <td>{fmtDistance(km! * (1 + o), units)}{o ? ` (+${(o * 100).toFixed(1)}%)` : ' (exact)'}</td>
+                          <tr key={o} className={o === 0 ? 'is-reading' : undefined}>
+                            <th scope="row">{fmtDistance(km! * (1 + o), units)}{o ? ` (+${(o * 100).toFixed(1)}%)` : ' (exact)'}</th>
                             <td>{fmtPace(seconds! / (km! * (1 + o)), units)}</td>
                           </tr>
                         ))}
                       </tbody>
-                      <caption>Scenarios, not a typical overrun.</caption>
                     </table>
-                  </div>
-                </EvidencePanel>
+                  </Values>
+                </section>
 
-                {goalHM ? (
-                  <div className="tool-callout no-print">
-                    <strong>Racing a marathon in {formatDuration(shownSeconds!, true)}?</strong>{' '}
-                    {observed ? <>The <Link href={`/tools/pace-band?goal=${goalHM}`}>pace band</Link> for {goalHM}{shownSeconds! % 60 ? ', the whole minute at or below your time,' : ''} shows what finishes that hit {goalHM} actually ran at each 5 km mat, and the <Link href={`/tools/course-chooser?goal=${goalHM}`}>course chooser</Link> compares courses at that pace.</>
-                      : banded ? <>The <Link href={`/tools/pace-band?goal=${goalHM}`}>pace band</Link> gives the even-pace band for {goalHM}. Its observed mat times and the <Link href="/tools/course-chooser">course chooser</Link> cover goals from 2:30 to 6:30 only.</>
-                      : <>The <Link href="/tools/pace-band">pace band</Link> covers goals from 1:30 to 8:00, and the <Link href="/tools/course-chooser">course chooser</Link> goals from 2:30 to 6:30.</>}
-                    {' '}Look up the standards for your age group in the <Link href="/tools/qualifying">qualifying checker</Link>.
-                  </div>
-                ) : null}
+                <section className="tool-panel pace-calculator-others" aria-labelledby="pace-calculator-others-title">
+                  <header className="tool-panel-head">
+                    <h2 className="tool-panel-title" id="pace-calculator-others-title">{fmtPace(paceKm!, units)} at other distances</h2>
+                  </header>
+                  <dl className="tool-cells pace-calculator-distances">
+                    {DISTANCES.map((d) => <div key={d.key}><dt>{d.label}</dt><dd>{formatDuration(paceKm! * d.km, paceKm! * d.km >= 3599.5)}</dd></div>)}
+                  </dl>
+                  <p className="tool-note">Not a predicted race time: for a marathon estimate from a shorter race, use the <Link href="/tools/predictor">finish-time predictor</Link>.</p>
+                </section>
                 <ShareBar />
               </>
             ) : <p className="tool-empty">{solvedOutOfRange ? solvedMessage(km!, units) : 'Enter two of distance, time and pace to see splits.'}</p>}
@@ -268,22 +260,21 @@ function PaceChart({ units, from, setFrom }: { units: UnitSystem; from: number; 
   return (
     <section className="tool-panel panel-plain pace-chart" data-tool-controls aria-labelledby="pace-chart-title">
       <header className="tool-panel-head">
-        <h2 className="tool-panel-title" id="pace-chart-title">Pace chart: {formatDuration(from)} to {formatDuration(to)} per {units === 'mi' ? 'mile' : 'kilometre'}</h2>
-        <p className="tool-panel-meta">Finish times at an even pace, every {step} seconds per {units}. Print it, or move the range.</p>
-        <p className="tool-panel-meta no-print">Know your goal time instead? The <Link href="/tools/marathon-pace-chart">marathon pace chart</Link> and <Link href="/tools/half-marathon-pace-chart">half marathon pace chart</Link> list every goal with its splits.</p>
+        <h2 className="tool-panel-title" id="pace-chart-title">Finish times from {formatDuration(from)} to {formatDuration(to)} per {units === 'mi' ? 'mile' : 'kilometre'}</h2>
+        <p className="tool-panel-meta no-print">Know your goal instead? The <Link href="/tools/marathon-pace-chart">marathon</Link> and <Link href="/tools/half-marathon-pace-chart">half marathon</Link> pace charts list every goal.</p>
       </header>
       <div className="tool-share no-print">
-        <button type="button" className="button-secondary" onClick={() => setFrom(Math.max(units === 'mi' ? 240 : 150, from - (units === 'mi' ? 300 : 180)))}>Faster paces</button>
-        <button type="button" className="button-secondary" onClick={() => setFrom(Math.min(units === 'mi' ? 1200 : 750, from + (units === 'mi' ? 300 : 180)))}>Slower paces</button>
-        <button type="button" className="button-secondary" data-not-edit onClick={() => window.print()}>Print chart</button>
+        <button type="button" className="btn btn-secondary is-compact" onClick={() => setFrom(Math.max(units === 'mi' ? 240 : 150, from - (units === 'mi' ? 300 : 180)))}>Faster paces</button>
+        <button type="button" className="btn btn-secondary is-compact" onClick={() => setFrom(Math.min(units === 'mi' ? 1200 : 750, from + (units === 'mi' ? 300 : 180)))}>Slower paces</button>
+        <button type="button" className="btn btn-secondary is-compact" data-not-edit onClick={() => window.print()}>Print chart</button>
       </div>
-      <div className="tool-table-wrap" role="region" aria-label="Pace chart" tabIndex={0}>
+      <div className="tool-table-wrap pace-chart-wrap" role="region" aria-label="Pace chart" tabIndex={0}>
         <table className="tool-table pace-chart-table">
           <thead><tr><th scope="col">Pace /{units}</th><th scope="col">/{units === 'mi' ? 'km' : 'mi'}</th>{DISTANCES.map((d) => <th key={d.key} scope="col">{d.label}</th>)}</tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.perUnit} className={r.perUnit % 60 === 0 ? 'is-key' : undefined}>
-                <td>{formatDuration(r.perUnit)}</td>
+                <th scope="row">{formatDuration(r.perUnit)}</th>
                 <td>{formatDuration(units === 'mi' ? r.perKm : r.perKm * KM_PER_MILE)}</td>
                 {DISTANCES.map((d) => <td key={d.key}>{formatDuration(r.times[d.key], r.times[d.key] >= 3600)}</td>)}
               </tr>

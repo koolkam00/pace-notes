@@ -23,10 +23,6 @@ import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 
 const INDEX_PATH = 'tools/projector.json';
 const SHARD_PATH = 'tools/projector/all/20.json';
-const VIOLET = '#7A4DFF';
-const VIOLET_INK = '#5B34D6';
-const DATA = '#FF5B2E';
-const DATA_SOFT = '#FFB59C';
 /** Plausible race paces (s/km): 2:30 to 25:00 per km. Also used to read "22:30" as minutes for a 5K and "1:55" as hours for a half. */
 const PACE_MIN = 150;
 const PACE_MAX = 1500;
@@ -381,8 +377,30 @@ function MethodChart({ rows, fuzzy, label }: { rows: ChartRow[]; fuzzy: boolean;
   const lo = centre - span / 2 - span * 0.12;
   const hi = centre + span / 2 + span * 0.12;
   const m = { l: 10, r: 10, t: 4, b: 30 };
-  const rowH = narrow ? 62 : 48;
-  const plotBottom = m.t + rows.length * rowH;
+  // Each row: its name (and value at the right) on one line, the detail under it on a phone, then the mark. On a very
+  // narrow screen (a phone at 200% text) a long name or detail wraps and the value moves under the name.
+  const inner = width - m.l - m.r;
+  const wrap = (text: string, charW: number) => {
+    const max = Math.max(8, Math.floor(inner / charW));
+    const out: string[] = [];
+    for (const word of text.split(' ')) {
+      const last = out[out.length - 1];
+      if (last !== undefined && (last + ' ' + word).length <= max) out[out.length - 1] = `${last} ${word}`; else out.push(word);
+    }
+    return out;
+  };
+  const layout = rows.map((r) => {
+    if (!narrow) return { label: [r.label], valueOwn: false, detail: [] as string[], h: 48, mark: 35 };
+    const label = wrap(r.label, 8.2);
+    const valueOwn = label.length > 1 || (label[0].length + r.value.length + 2) * 8.2 > inner;
+    const detail = r.detail ? wrap(r.detail, 6.6) : [];
+    const lines = label.length * 17 + (valueOwn ? 17 : 0) + detail.length * 15;
+    const h = Math.max(62, lines + 30);
+    return { label, valueOwn, detail, h, mark: h - 16 };
+  });
+  const tops: number[] = [];
+  layout.reduce((y, l) => { tops.push(y); return y + l.h; }, m.t);
+  const plotBottom = m.t + layout.reduce((sum, l) => sum + l.h, 0);
   const H = plotBottom + m.b;
   const x = (s: number) => m.l + ((s - lo) / (hi - lo)) * (width - m.l - m.r);
   const step = niceStep(hi - lo, narrow ? 4 : 7, [15, 30, 60, 120, 300, 600, 900, 1800, 3600]);
@@ -390,8 +408,9 @@ function MethodChart({ rows, fuzzy, label }: { rows: ChartRow[]; fuzzy: boolean;
   const ticks = fittingTicks(lo, hi, step, x, width, tickText);
   const band = rows.find((r) => r.kind === 'range');
   const rowAt = (clientY: number, svg: SVGSVGElement) => {
-    const y = clientY - svg.getBoundingClientRect().top - m.t;
-    return rows[Math.floor(y / rowH)]?.key ?? null;
+    const y = clientY - svg.getBoundingClientRect().top;
+    const i = tops.findIndex((top, k) => y >= top && y < top + layout[k].h);
+    return i >= 0 ? rows[i].key : null;
   };
   const activeIndex = rows.findIndex((r) => r.key === active);
   const activeRow = activeIndex >= 0 ? rows[activeIndex] : null;
@@ -402,25 +421,11 @@ function MethodChart({ rows, fuzzy, label }: { rows: ChartRow[]; fuzzy: boolean;
         onPointerMove={(e) => { if (e.pointerType === 'mouse') setActive(rowAt(e.clientY, e.currentTarget)); }}
         onPointerLeave={(e) => { if (e.pointerType === 'mouse') setActive(null); }}
         onClick={(e) => { const k = rowAt(e.clientY, e.currentTarget); setActive((a) => (a === k ? null : k)); }}>
-        <defs>
-          <linearGradient id="predictor-span" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0" stopColor={VIOLET} stopOpacity={0.75} />
-            <stop offset="1" stopColor={VIOLET} />
-          </linearGradient>
-          <linearGradient id="predictor-fade-l" x1="1" x2="0" y1="0" y2="0">
-            <stop offset="0" stopColor={VIOLET} stopOpacity={0.5} />
-            <stop offset="1" stopColor={VIOLET} stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="predictor-fade-r" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0" stopColor={VIOLET} stopOpacity={0.5} />
-            <stop offset="1" stopColor={VIOLET} stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        {activeRow ? <rect x={0} y={m.t + activeIndex * rowH + 1} width={width} height={rowH - 2} rx={10} className="predictor-row-active" /> : null}
+        {activeRow ? <rect x={0} y={tops[activeIndex] + 1} width={width} height={layout[activeIndex].h - 2} rx={10} className="predictor-row-active" /> : null}
         {band && band.lo !== undefined && band.hi !== undefined ? (
           <g aria-hidden="true">
-            <rect x={x(band.lo)} y={m.t} width={Math.max(1, x(band.hi) - x(band.lo))} height={plotBottom - m.t} fill={VIOLET} fillOpacity={0.08} />
-            <line x1={x(band.mid!)} x2={x(band.mid!)} y1={m.t} y2={plotBottom} stroke={VIOLET_INK} strokeOpacity={0.55} strokeDasharray="3 4" />
+            <rect x={x(band.lo)} y={m.t} width={Math.max(1, x(band.hi) - x(band.lo))} height={plotBottom - m.t} className="predictor-band" />
+            <line x1={x(band.mid!)} x2={x(band.mid!)} y1={m.t} y2={plotBottom} className="predictor-band-mid" />
           </g>
         ) : null}
         {ticks.map((t) => (
@@ -430,25 +435,32 @@ function MethodChart({ rows, fuzzy, label }: { rows: ChartRow[]; fuzzy: boolean;
           </g>
         ))}
         {rows.map((r, i) => {
-          const top = m.t + i * rowH;
+          const top = tops[i];
+          const lay = layout[i];
           const labelY = top + 16;
-          const markY = top + (narrow ? 46 : 35);
+          const valueY = labelY + lay.label.length * 17;
+          const detailY = valueY + (lay.valueOwn ? 17 : 0) - 2;
+          const markY = top + lay.mark;
           return (
             <g key={r.key} className={`predictor-row is-${r.tone}${r.kind === 'none' ? ' is-none' : ''}`}>
-              <text x={m.l} y={labelY} className="predictor-row-label">
-                {r.label}{!narrow && r.detail ? <tspan className="predictor-row-detail">{`  ${r.detail}`}</tspan> : null}
-              </text>
-              {narrow && r.detail ? <text x={m.l} y={labelY + 15} className="predictor-row-detail">{r.detail}</text> : null}
-              <text x={width - m.r} y={labelY} textAnchor="end" className="predictor-row-value">{r.value}</text>
+              {narrow ? lay.label.map((line, k) => <text key={k} x={m.l} y={labelY + k * 17} className="predictor-row-label">{line}</text>) : (
+                <text x={m.l} y={labelY} className="predictor-row-label">
+                  {r.label}{r.detail ? <tspan className="predictor-row-detail">{`  ${r.detail}`}</tspan> : null}
+                </text>
+              )}
+              {lay.detail.map((line, k) => <text key={k} x={m.l} y={detailY + k * 15} className="predictor-row-detail">{line}</text>)}
+              {lay.valueOwn
+                ? <text x={m.l} y={valueY} className="predictor-row-value">{r.value}</text>
+                : <text x={width - m.r} y={labelY} textAnchor="end" className="predictor-row-value">{r.value}</text>}
               <line x1={m.l} x2={width - m.r} y1={markY} y2={markY} className="predictor-track" />
               {r.kind === 'range' && r.lo !== undefined && r.hi !== undefined && r.mid !== undefined ? (
                 <g>
                   {fuzzy ? <>
-                    <rect x={x(r.lo) - 22} y={markY - 6} width={22} height={12} fill="url(#predictor-fade-l)" />
-                    <rect x={x(r.hi)} y={markY - 6} width={22} height={12} fill="url(#predictor-fade-r)" />
+                    <rect x={x(r.lo) - 22} y={markY - 6} width={22} height={12} rx={6} className="predictor-span is-fuzzy" />
+                    <rect x={x(r.hi)} y={markY - 6} width={22} height={12} rx={6} className="predictor-span is-fuzzy" />
                   </> : null}
-                  <rect x={x(r.lo)} y={markY - 6} width={Math.max(4, x(r.hi) - x(r.lo))} height={12} rx={6} fill="url(#predictor-span)" />
-                  <line x1={x(r.mid)} x2={x(r.mid)} y1={markY - 11} y2={markY + 11} stroke="var(--ink)" strokeWidth={3} strokeLinecap="round" />
+                  <rect x={x(r.lo)} y={markY - 6} width={Math.max(4, x(r.hi) - x(r.lo))} height={12} rx={6} className="predictor-span" />
+                  <line x1={x(r.mid)} x2={x(r.mid)} y1={markY - 11} y2={markY + 11} className="predictor-span-mid" />
                 </g>
               ) : null}
               {r.kind === 'point' && r.at !== undefined ? (
@@ -461,8 +473,8 @@ function MethodChart({ rows, fuzzy, label }: { rows: ChartRow[]; fuzzy: boolean;
                     </g>
                   ) : null}
                   {r.tone === 'outline'
-                    ? <circle cx={x(r.at)} cy={markY} r={6} fill="var(--card)" stroke="var(--ink)" strokeWidth={2.5} />
-                    : <circle cx={x(r.at)} cy={markY} r={6.5} fill="var(--ink)" stroke="var(--card)" strokeWidth={2} />}
+                    ? <circle cx={x(r.at)} cy={markY} r={6} className="predictor-dot is-hollow" />
+                    : <circle cx={x(r.at)} cy={markY} r={6.5} className="predictor-dot" />}
                 </g>
               ) : null}
             </g>
@@ -470,7 +482,7 @@ function MethodChart({ rows, fuzzy, label }: { rows: ChartRow[]; fuzzy: boolean;
         })}
       </svg>
       {activeRow ? (
-        <div className="viz-tooltip predictor-tip" aria-hidden="true" style={{ left: Math.min(width - 96, Math.max(96, x(anchor))), top: m.t + activeIndex * rowH + (narrow ? 36 : 25) }}>
+        <div className="viz-tooltip predictor-tip" aria-hidden="true" style={{ left: Math.min(width - 96, Math.max(96, x(anchor))), top: tops[activeIndex] + layout[activeIndex].mark - 10 }}>
           <b>{activeRow.label}</b>
           {activeRow.tip.map((line) => <span key={line}>{line}</span>)}
         </div>
@@ -512,13 +524,11 @@ function stackLabels(markers: Marker[], width: number, margin: number) {
   const rows: number[] = [];
   return [...markers].sort((a, b) => a.x - b.x).map((mk) => {
     const w = mk.label.length * charW;
-    let anchor: 'start' | 'middle' | 'end' = 'middle';
-    let x0 = mk.x - w / 2;
-    if (x0 < margin) { anchor = 'start'; x0 = mk.x - 2; }
-    if (x0 + w > width - margin) { anchor = 'end'; x0 = mk.x - w + 2; }
+    // Centred on its line where it fits, otherwise slid inside the chart's edges.
+    const x0 = Math.max(margin, Math.min(mk.x - w / 2, width - margin - w));
     let row = rows.findIndex((end) => end + 12 < x0);
     if (row < 0) { row = rows.length; rows.push(x0 + w); } else rows[row] = x0 + w;
-    return { ...mk, anchor, row, w };
+    return { ...mk, x0, row, w };
   });
 }
 
@@ -534,8 +544,9 @@ function FinishStrip({ q, Q, est, estLabel }: { q: number[]; Q: number[]; est: n
   const m = { l: 8, r: 8 };
   const x = (s: number) => m.l + ((s - lo) / (hi - lo)) * (width - m.l - m.r);
   const fmt = narrow ? fmtShort : fmtTime;
+  const tiny = width < 300;
   const markers = stackLabels([
-    { key: 'est', x: x(est), label: `${estLabel} ${fmt(est)}`, tone: 'est' as const },
+    { key: 'est', x: x(est), label: `${tiny ? 'Estimate' : estLabel} ${fmt(est)}`, tone: 'est' as const },
     { key: 'median', x: x(q[i50]), label: `Their median ${fmt(q[i50])}`, tone: 'median' as const },
   ], width, m.l);
   const labelRows = Math.max(1, ...markers.map((mk) => mk.row + 1));
@@ -560,27 +571,23 @@ function FinishStrip({ q, Q, est, estLabel }: { q: number[]; Q: number[]; est: n
         {dens.map((dv, i) => {
           const h = (dv / maxD) * (plotH - 6);
           const middle = i >= i25 && i < i75;
-          return <rect key={i} x={x(q[i])} width={Math.max(0.5, x(q[i + 1]) - x(q[i]))} y={base - h} height={h} fill={middle ? DATA : DATA_SOFT} stroke="var(--card)" strokeWidth={0.75} />;
+          return <rect key={i} x={x(q[i])} width={Math.max(0.5, x(q[i + 1]) - x(q[i]))} y={base - h} height={h} className={`predictor-strip-bar${middle ? ' is-middle' : ''}`} />;
         })}
-        <line x1={m.l} x2={width - m.r} y1={base} y2={base} stroke="var(--ink-3)" />
+        <line x1={m.l} x2={width - m.r} y1={base} y2={base} className="predictor-strip-base" />
         <g className="predictor-strip-whisker">
           <line x1={x(q[i10])} x2={x(q[i90])} y1={base + 6} y2={base + 6} />
           <line x1={x(q[i10])} x2={x(q[i10])} y1={base + 2} y2={base + 10} />
           <line x1={x(q[i90])} x2={x(q[i90])} y1={base + 2} y2={base + 10} />
         </g>
         {markers.map((mk) => (
-          <line key={mk.key} x1={mk.x} x2={mk.x} y1={14 + mk.row * 17 + 4} y2={base} stroke={mk.tone === 'est' ? VIOLET_INK : 'var(--ink)'}
-            strokeWidth={mk.tone === 'median' ? 2 : 1.75} strokeDasharray={mk.tone === 'est' ? '4 3' : undefined} />
+          <line key={mk.key} x1={mk.x} x2={mk.x} y1={14 + mk.row * 17 + 4} y2={base} className={`predictor-marker-line is-${mk.tone}`} />
         ))}
-        {markers.map((mk) => {
-          const left = mk.anchor === 'start' ? mk.x - 3 : mk.anchor === 'end' ? mk.x - mk.w - 3 : mk.x - mk.w / 2 - 3;
-          return (
-            <g key={mk.key}>
-              <rect x={left} y={14 + mk.row * 17 - 12} width={mk.w + 6} height={16} fill="var(--card)" />
-              <text x={mk.x} y={14 + mk.row * 17} textAnchor={mk.anchor} className="predictor-marker" style={{ fill: mk.tone === 'est' ? VIOLET_INK : 'var(--ink)' }}>{mk.label}</text>
-            </g>
-          );
-        })}
+        {markers.map((mk) => (
+          <g key={mk.key}>
+            <rect x={mk.x0 - 3} y={14 + mk.row * 17 - 12} width={mk.w + 6} height={16} className="predictor-marker-halo" />
+            <text x={mk.x0} y={14 + mk.row * 17} className={`predictor-marker is-${mk.tone}`}>{mk.label}</text>
+          </g>
+        ))}
       </svg>
     </div>
   );
@@ -591,21 +598,7 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
 }) {
   const { index, shard, error, retry } = useProjector(indexSha, est.isMarathon);
   const lookRef = useRef<HTMLDivElement>(null);
-  const title = 'What happened to finishes on this pace at 20 km';
-  if (!est.isMarathon) {
-    return (
-      <EvidencePanel kind="data" title="Nothing to add for this distance" id="predictor-data">
-        <p className="predictor-copy">Switch the prediction to a marathon to see what happened to finishes that passed 20 km on the estimated pace.</p>
-      </EvidencePanel>
-    );
-  }
-  if (!indexSha) {
-    return (
-      <EvidencePanel kind="data" title={title} id="predictor-data">
-        <p className="tool-state">The Pace Notes data is not part of this build, so this panel is unavailable. The published estimates above still work.</p>
-      </EvidencePanel>
-    );
-  }
+  if (!est.isMarathon || !indexSha) return null;
   const chosen = looks.find((l) => l.key === look) ?? looks[0];
   // Every time on the page is shown to the second, so the panel (and its projector link) works from that same second.
   const T = Math.round(chosen.seconds);
@@ -614,24 +607,21 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
   const cells = shard?.cells.all;
   const i = cells ? cells.b.indexOf(band) : -1;
   const Q = index?.quantiles ?? [];
-  const i10 = qIndex(Q, 0.1); const i50 = qIndex(Q, 0.5); const i90 = qIndex(Q, 0.9);
+  const i50 = qIndex(Q, 0.5);
   const lookChoice = (
-    <div className="predictor-look no-print" ref={lookRef}>
-      <span className="tool-label" id="predictor-look-label">Even pace at 20 km for</span>
-      <div className="segmented tool-choice is-small" role="group" aria-labelledby="predictor-look-label">
-        {looks.map((l) => <button key={l.key} type="button" aria-pressed={l.key === chosen.key} onClick={() => setLook(l.key)}>{l.chip} <b>{fmtShort(l.seconds)}</b></button>)}
+    <div className="tool-field predictor-look no-print" ref={lookRef}>
+      <span className="tool-label" id="predictor-look-label">On even pace at 20K for</span>
+      <div className="seg tool-choice is-small" role="group" aria-labelledby="predictor-look-label">
+        {looks.map((l) => <button key={l.key} type="button" className="seg-btn" aria-pressed={l.key === chosen.key} onClick={() => setLook(l.key)}>{l.chip}</button>)}
       </div>
     </div>
   );
   const bandRange = `${fmtShort(band)}–${fmtShort(band + bandS)}`;
-  const meta = (
-    <>Finishes that passed 20 km on the pace of the {chosen.label.toLowerCase()}. This describes those finishes, not you.</>
-  );
   const scope = index?.scopes.find((s) => s.slug === 'all');
   const bands = scope?.mats['20']?.bands ?? null;
   return (
-    <EvidencePanel kind="data" title={title} meta={meta} id="predictor-data">
-      {lookChoice}
+    <section className="tool-panel predictor-data" id="predictor-data" aria-labelledby="predictor-data-title">
+      <EvidenceTag kind="data" />
       <DataState error={error} loading={!error && (!index || !shard)}>
         {cells && i >= 0 ? (() => {
           const q = cells.q[i];
@@ -640,35 +630,35 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
           const shareText = share.bound === 'below' ? '5% or fewer' : share.bound === 'above' ? 'more than 95%' : pctText(share.share);
           return (
             <>
-              <div className="predictor-observed">
-                <Stat label="Their median finish" value={formatDuration(q[i50], true)} sub={<>10th–90th percentile <b>{fmtTime(q[i10])}</b> to <b>{fmtTime(q[i90])}</b></>} />
-                <Stat label={`Finished under ${fmtTime(T)}`} value={shareText} sub="observed share of these finishes" />
-                <Stat label={<SlowdownTerm>Sustained slowdown</SlowdownTerm>} value={pctText(sd)} sub="of these finishes, after 20 km" />
-              </div>
+              <p className="tool-nugget-text" id="predictor-data-title">
+                Finishes on {fmtShort(T)} pace at 20K finished in a median <em>{formatDuration(q[i50], true)}</em>.
+              </p>
               <FinishStrip q={q} Q={Q} est={T} estLabel={chosen.label} />
-              <p className="predictor-copy">
-                Through 20 km these {count(cells.n[i])} finishes averaged {fmtPace(band / MARATHON_KM, units)} to {fmtPace((band + bandS) / MARATHON_KM, units)}. Over the rest of the race their median pace was <b>{fmtPace(cells.rp[i], units)}</b>.
-              </p>
-              <p className="predictor-copy no-print">
-                On race day, the <Link href={`/tools/projector?mat=20&target=${formatDuration(T, true)}&t=none&v=all`}>race-day projector</Link> takes your tracker time at 20 km or any other 5 km mat and shows where finishes on that pace went. This link opens it with {fmtTime(T)} as the target, waiting for your time.
-              </p>
+              <dl className="tool-cells">
+                <div><dt>Finished under {fmtShort(T)}</dt><dd>{shareText}</dd></div>
+                <div><dt><SlowdownTerm>Sustained slowdown</SlowdownTerm></dt><dd>{pctText(sd)}</dd></div>
+              </dl>
+              {lookChoice}
             </>
           );
         })() : (
-          <p className="tool-state">
-            Too few finishes passed 20 km on {bandRange} even pace to show.
-            {bands ? ` Groups at 20 km cover even paces from about ${fmtShort(bands[0])} to ${fmtShort(bands[1] + bandS)}.` : ''}
-          </p>
+          <>
+            <p className="tool-state" id="predictor-data-title">
+              Too few finishes passed 20 km on {bandRange} even pace to show.
+              {bands ? ` Groups at 20 km cover even paces from about ${fmtShort(bands[0])} to ${fmtShort(bands[1] + bandS)}.` : ''}
+            </p>
+            {lookChoice}
+          </>
         )}
       </DataState>
       {error ? (
-        <button type="button" className="button-secondary predictor-retry" onClick={() => {
+        <button type="button" className="btn btn-secondary is-compact predictor-retry" onClick={() => {
           // The button goes away while the data reloads, so focus moves to the estimate buttons above it first.
           lookRef.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus();
           retry();
         }}>Try again</button>
       ) : null}
-    </EvidencePanel>
+    </section>
   );
 }
 
@@ -903,45 +893,29 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
             <p className="tool-empty">{emptyText}</p>
           ) : (
             <>
-              {isExample ? <ExampleNote>Example: a {DEFAULTS.t} half marathon run in the last 3 months. Type your own recent race; everything updates as you type.</ExampleNote> : null}
-              <Headline est={est} dist={dist1} units={units} />
+              <Headline est={est} dist={dist1} units={units} example={isExample} />
               {stale.length ? (
-                <p className="tool-callout predictor-stale"><strong>{stale.join(' and ')} {stale.length > 1 ? 'were' : 'was'} more than 6 months ago.</strong> A recent race predicts better.</p>
+                <p className="tool-note predictor-stale"><strong>{stale.join(' and ')} {stale.length > 1 ? 'were' : 'was'} more than 6 months ago.</strong> A recent race predicts better.</p>
               ) : null}
               {/* The median estimate, handed on as the whole minute at or below it, as every tool reads it (4:11:41 is 4:11). */}
               {est.range ? <MarathonHandoffs label="With this estimate" seconds={Math.round(est.range.median)} /> : null}
 
-              <EvidencePanel kind="research" title="Every published method, side by side" id="predictor-methods"
-                meta={<>Each row is one published model applied to your {fmtTime(est.fromS)} {raceName(dist1, units)}. Tap or hover a row for details.</>}>
+              <section className="tool-panel predictor-methods" id="predictor-methods" aria-labelledby="predictor-methods-title">
+                <header className="tool-panel-head">
+                  <EvidenceTag kind="research" />
+                  <h2 className="tool-panel-title" id="predictor-methods-title">Every published method, side by side</h2>
+                </header>
                 <MethodChart rows={rows} fuzzy={!!est.range && est.range.extrapolation === 'shorter'} label={chartLabel} />
-                {bandTimes.length ? (
-                  <div className="predictor-bandlinks no-print">
-                    <span>Make a pace band at the minute at or below each estimate</span>
-                    <ul>
-                      {bandTimes.map((s) => <li key={s}><Link href={`/tools/pace-band?goal=${formatHM(s)}`}>{formatHM(s)}</Link></li>)}
-                    </ul>
+                <details className="tool-more">
+                  <summary>Why marathon predictions run fast</summary>
+                  <div className="tool-more-body">
+                    <Explainer est={est} />
+                    <MethodTable est={est} units={units} dist={dist1} onAddSecond={openSecond} onAddTanda={openTanda} />
                   </div>
-                ) : null}
-                <MethodTable est={est} units={units} dist={dist1} onAddSecond={openSecond} onAddTanda={openTanda} />
-              </EvidencePanel>
+                </details>
+              </section>
 
-              <Explainer est={est} />
-
-              <div className="predictor-divider" role="presentation"><span>A different question</span></div>
               <ObservedPanel indexSha={indexSha} est={est} looks={looks} look={look} setLook={setLook} units={units} />
-
-              <div className="tool-callout predictor-next no-print">
-                <strong>Next steps.</strong>{' '}
-                {est.range ? (
-                  <>
-                    {medianGoal !== null ? <>Print a <Link href={`/tools/pace-band?goal=${formatHM(medianGoal)}`}>pace band for {formatHM(medianGoal)}</Link>, the whole minute at or below the median estimate ({formatDuration(est.range.median, true)}).{' '}</> : null}
-                    {chooserGoal !== null
-                      ? <>Compare courses near this pace in the <Link href={`/tools/course-chooser?goal=${formatHM(chooserGoal)}`}>course chooser</Link>,</>
-                      : <>Compare courses in the <Link href="/tools/course-chooser">course chooser</Link>, which covers goals from 2:30 to 6:30 (so it opens without this one),</>}
-                    {' '}or look up the standards for your age group in the <Link href="/tools/qualifying">qualifying checker</Link>.
-                  </>
-                ) : <>Look up the marathon standards for your age group, from Boston, New York, London and others, in the <Link href="/tools/qualifying">qualifying checker</Link>.</>}
-              </div>
               <ShareBar />
             </>
           )}
@@ -967,57 +941,51 @@ function summaryText(est: Estimates): string {
 /* Result sections                                                     */
 /* ------------------------------------------------------------------ */
 
-function Headline({ est, dist, units }: { est: Estimates; dist: Distance; units: UnitSystem }) {
+function Headline({ est, dist, units, example }: { est: Estimates; dist: Distance; units: UnitSystem; example: boolean }) {
   const from = `from ${withArticle(`${fmtTime(est.fromS)} ${raceName(dist, units)}`)}`;
   const pace = (s: number) => fmtPace(s / est.target.km, units);
+  const name = est.target.key === 'marathon' ? 'Marathon' : est.target.label === 'Half' ? 'Half marathon' : est.target.label;
+  const head = (figure: ReactNode, line: string) => (
+    <div className="tool-reading-head">
+      <p className="tool-reading-kicker">{example ? 'Example · ' : ''}{name}, {from}</p>
+      <h2 className="tool-reading-figure predictor-range">{figure}<small>{line}</small></h2>
+    </div>
+  );
   if (est.range) {
     const r = est.range;
     const [a, b] = rangeText(r.low, r.high);
-    const gap = r.median - est.riegel;
-    const shorter = r.extrapolation === 'shorter';
     return (
-      <div className="tool-headline predictor-headline">
-        <div className="predictor-head">
-          <EvidenceTag kind="research" />
-          <p className="predictor-kicker">Marathon, {from}</p>
-          <p className="predictor-range"><span className="sr-only">Typical recreational range: </span>{a}<span className="predictor-to"> to </span>{b}</p>
-          <p className="predictor-range-sub"><strong>Typical recreational range</strong>{shorter ? ', less certain from a shorter race' : ''}.</p>
-        </div>
-        <Stat label="Median estimate" value={formatDuration(r.median, true)} sub={`exponent ${REALISTIC_B.median} · ${pace(r.median)}`} />
-        <Stat label="Best case" value={formatDuration(est.riegel, true)} sub={`Riegel ${RIEGEL_B.toFixed(2)} · ${pace(est.riegel)}`} />
-        <Stat label="Riegel vs median" value={gap >= 0 ? formatDuration(gap) : `−${formatDuration(-gap)}`} sub="For recreational runners, Riegel ran a median 10:09 too fast." />
-      </div>
+      <section className="tool-reading night predictor-headline" aria-label="Your estimate">
+        {head(<><span className="sr-only">Typical recreational range: </span>{a}<span className="predictor-to">–</span>{b}</>,
+          `The typical recreational range${r.extrapolation === 'shorter' ? ', less certain from a shorter race' : ''}.`)}
+        <dl className="tool-cells">
+          <div><dt>Median estimate</dt><dd>{formatDuration(r.median, true)}<small>{pace(r.median)}</small></dd></div>
+          <div><dt>Best case</dt><dd>{formatDuration(est.riegel, true)}<small>{pace(est.riegel)}</small></dd></div>
+        </dl>
+        <EvidenceTag kind="research" />
+      </section>
     );
   }
-  const name = est.target.label === 'Half' ? 'Half marathon' : est.target.label;
   if (est.daniels === null) {
     return (
-      <div className="tool-headline predictor-headline">
-        <div className="predictor-head">
-          <EvidenceTag kind="research" />
-          <p className="predictor-kicker">{name}, {from}</p>
-          <p className="predictor-range">{fmtTime(est.riegel)}</p>
-          <p className="predictor-range-sub">Riegel 1.06 only. It holds up well for races up to the half marathon. The Daniels–Gilbert equations are not applied at walking speed.</p>
-        </div>
-        <Stat label={`Riegel ${RIEGEL_B.toFixed(2)}`} value={fmtTime(est.riegel)} sub={pace(est.riegel)} />
-        <Stat label="Daniels–Gilbert" value="—" sub="not applied at walking speed" />
-      </div>
+      <section className="tool-reading night predictor-headline" aria-label="Your estimate">
+        {head(fmtTime(est.riegel), `Riegel ${RIEGEL_B.toFixed(2)} only; the Daniels–Gilbert equations are not applied at walking speed.`)}
+        <EvidenceTag kind="research" />
+      </section>
     );
   }
   const lo = Math.min(est.riegel, est.daniels);
   const hi = Math.max(est.riegel, est.daniels);
   const [a, b] = rangeText(lo, hi);
   return (
-    <div className="tool-headline predictor-headline">
-      <div className="predictor-head">
-        <EvidenceTag kind="research" />
-        <p className="predictor-kicker">{name}, {from}</p>
-        <p className="predictor-range">{a === b ? a : <>{a}<span className="predictor-to"> to </span>{b}</>}</p>
-        <p className="predictor-range-sub">Both formulas hold up well for races up to the half marathon, and give similar answers here.</p>
-      </div>
-      <Stat label={`Riegel ${RIEGEL_B.toFixed(2)}`} value={fmtTime(est.riegel)} sub={pace(est.riegel)} />
-      <Stat label="Daniels–Gilbert" value={fmtTime(est.daniels)} sub={pace(est.daniels)} />
-    </div>
+    <section className="tool-reading night predictor-headline" aria-label="Your estimate">
+      {head(a === b ? a : <>{a}<span className="predictor-to">–</span>{b}</>, 'Both classic formulas hold up well for races up to the half marathon.')}
+      <dl className="tool-cells">
+        <div><dt>Riegel {RIEGEL_B.toFixed(2)}</dt><dd>{fmtTime(est.riegel)}<small>{pace(est.riegel)}</small></dd></div>
+        <div><dt>Daniels–Gilbert</dt><dd>{fmtTime(est.daniels)}<small>{pace(est.daniels)}</small></dd></div>
+      </dl>
+      <EvidenceTag kind="research" />
+    </section>
   );
 }
 
@@ -1107,27 +1075,14 @@ function MethodTable({ est, units, dist, onAddSecond, onAddTanda }: { est: Estim
 }
 
 function Explainer({ est }: { est: Estimates }) {
-  if (!est.isMarathon && est.daniels === null) {
-    return (
-      <EvidencePanel kind="research" title="Why Riegel holds up to the half">
-        <p className="predictor-copy">Up to the half marathon, endurance carries over between distances well enough that the classic formula holds for recreational runners. The marathon is where it breaks down. Switch the prediction to a marathon to see how far.</p>
-      </EvidencePanel>
-    );
-  }
   if (!est.isMarathon) {
-    return (
-      <EvidencePanel kind="research" title="Why these two agree">
-        <p className="predictor-copy">Up to the half marathon, endurance carries over between distances well enough that the classic formulas hold for recreational runners. The marathon is where they break down. Switch the prediction to a marathon to see how far.</p>
-      </EvidencePanel>
-    );
+    return <p className="tool-callout">Up to the half marathon, endurance carries over between distances well enough that the classic formulas hold for recreational runners. The marathon is where they break down.</p>;
   }
   return (
-    <EvidencePanel kind="research" title="Why marathon predictions run fast">
-      <ol className="predictor-reasons">
-        <li><b>On recreational runners they miss by about ten minutes.</b> Riegel holds up to the half, but its marathon times ran a median 10:09 too fast, and about three in four runners were slower than predicted.</li>
-        <li><b>Runners slow more from the half to the full.</b> The exponent was 1.09 most often, 1.13 at the median and 1.15 on average: the range above.</li>
-        <li><b>Training volume matters.</b> Adding weekly mileage cut the typical miss from about 19.5 to about 15 minutes.</li>
-      </ol>
-    </EvidencePanel>
+    <ol className="predictor-reasons">
+      <li><b>On recreational runners they miss by about ten minutes.</b> Riegel holds up to the half, but its marathon times ran a median 10:09 too fast, and about three in four runners were slower than predicted.</li>
+      <li><b>Runners slow more from the half to the full.</b> The exponent was {REALISTIC_B.low} most often, {REALISTIC_B.median} at the median and {REALISTIC_B.high} on average: the range above.</li>
+      <li><b>Training volume matters.</b> Adding weekly mileage cut the typical miss from about 19.5 to about 15 minutes.</li>
+    </ol>
   );
 }

@@ -1,7 +1,6 @@
 import PaceCalculator from '@/components/tools/PaceCalculator';
-import { ToolHeader, ToolNext } from '@/components/tools/ToolShell';
+import { ToolEnd, ToolHeader } from '@/components/tools/ToolShell';
 import { pageMetadata } from '@/lib/seo';
-import './pace-calculator.css';
 
 export const metadata = pageMetadata({
   title: 'Running Pace Calculator: Pace, Time and Splits | Pace Notes',
@@ -11,10 +10,10 @@ export const metadata = pageMetadata({
 
 export default function PaceCalculatorPage() {
   return (
-    <div className="container tool-page">
+    <div className="tool-page">
       <ToolHeader slug="pace-calculator" />
       <PaceCalculator />
-      <ToolNext current="pace-calculator" />
+      <ToolEnd path="/tools/pace-calculator" how="/methodology#tools-pace-calculator" />
     </div>
   );
 }
