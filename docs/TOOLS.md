@@ -28,7 +28,7 @@ Panels of Pace Notes data, published research or official standards carry one ba
 
 | Badge | Meaning |
 | --- | --- |
-| Pace Notes data | Observed from the 3,260,661 screened finishes below. Always shows finishes and editions. Descriptive, never a personal probability. |
+| Pace Notes data | Observed from the 3,710,359 screened finishes below (1652; 3,260,661 under 0934). Always shows finishes and editions. Descriptive, never a personal probability. |
 | Published research | Cited formulas and studies, shown as ranges. Not fitted to Pace Notes data. |
 | Official standards | Transcribed from official race pages, with the date they were checked. |
 
@@ -119,7 +119,7 @@ The builders are `analysis/insights_tool_*.py`, run by `analysis/build_insights.
 - without the 13 start-offset editions;
 - without the 2 editions whose mat grid looks shifted.
 
-This is the final-kick cohort: **3,260,661 finishes in 179 editions**. Every published group has at least 100 finishes. Counts are finishes, not runners.
+This is the final-kick cohort: **3,710,359 finishes in 193 editions** from `htw-db-2026-10-16-1652` (October 16, 2026; branch `feat/release-1652`, not deployed; 3,260,661 in 179 editions under 0934). Other counts on this page are the 0934 build's unless marked; the published tool files are authoritative. Every published group has at least 100 finishes. Counts are finishes, not runners.
 
 | Family | Builder | Files | Content |
 | --- | --- | --- | --- |

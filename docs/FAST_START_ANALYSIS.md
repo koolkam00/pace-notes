@@ -6,7 +6,7 @@ Rank 2, `/analyses/starting-pace`, now has two comparison modes. The earlier-bes
 
 The default **All eligible finishes** mode uses [all-finishers.json](../public/data/fast-start/all-finishers.json), produced by [build_fast_start_all.py](../analysis/build_fast_start_all.py). The optional **Earlier-best comparison** continues to use [evidence.json](../public/data/fast-start/evidence.json), produced by [build_fast_start.py](../analysis/build_fast_start.py). The new builder imports shared validation and aggregation helpers from the unchanged earlier builder. Its addition preserves the earlier evidence file byte for byte. The personalized engine's three-group opening/target-threshold view remains in the research guide; that payload and the 33 research packs have not been regenerated or relabeled.
 
-The source remains the adopted `private-export-20260912-0934` release. This addition changes neither release pin, runner lookup, source-quality policy nor existing calculation scripts. It derives new aggregates from the actual checkpoint times in the [published runner profiles](../public/data/runners/manifest.json), not from averages of existing charts. The page's visible source copy follows the website convention of describing marathon/year and field coverage without internal export identifiers.
+**Current source (October 16, 2026; branch `feat/release-1652`, not deployed): `htw-db-2026-10-16-1652`.** Both outputs were rebuilt from its runner manifest (SHA-256 `1bf94ccdb5b90cfef2fbc53537f9d43b7d97ddc67cbaba3153dae1983a64dce0`, 7,881 shards): **4,915,355 raw records**, **3,871,767 eligible finishes**, **3,922,189 profiles** and **592,241 finishes with the required earlier benchmark** (3,279,526 without one). The [1652 results](#1652-results-october-16-2026) follow; the figures elsewhere on this page are the 0934 calculation and are historical. When this mode was added, the source was the adopted `private-export-20260912-0934` release. This addition changes neither release pin, runner lookup, source-quality policy nor existing calculation scripts. It derives new aggregates from the actual checkpoint times in the [published runner profiles](../public/data/runners/manifest.json), not from averages of existing charts. The page's visible source copy follows the website convention of describing marathon/year and field coverage without internal export identifiers.
 
 Both builders verify every one of the **7,766 compressed shards** against the runner manifest's size and SHA-256, check all five source calculation hashes, and confirm raw/profile ID uniqueness and raw, eligible and profile counts. Each output binds the exact runner-manifest SHA-256, source release, source archive/manifest hashes, source-quality policy and the calculation hashes it uses. The runner manifest currently hashes to `41632a5249afed6421e0e30e428eecdca3130cac18927a109d79456b3ee1ebe6`.
 
@@ -109,7 +109,22 @@ In the fastest-opening group, 67,025 finishes meet the slowdown definition. Its 
 
 These history-mode data show more late slowing among faster-opening groups, while their finish changes can still be faster than the earlier benchmark. Both observations must remain visible. Improved fitness, the earlier race's quality, differing courses and conditions, and selection into linked histories can explain part of this pattern. These numbers do not describe the broader default mode, which has a different opening distance and reference. It is unsupported to turn either comparison into a causal finish-time penalty or a recommendation to start aggressively. Only recorded complete eligible finishes are represented: neither mode estimates withdrawals or the chance of not finishing, nor isolates training, fueling or physiological causes.
 
-## All-eligible-finishes results for All courses / All filters
+## 1652 results (October 16, 2026)
+
+Repository state on branch `feat/release-1652`, not deployed. All-eligible-finishes mode: **325 exact filter combinations / 1,646 opening-group cells**, 935,184 bytes, SHA-256 `a87cf009a7b8c28a338b9e45ea853f1501fb5aa8cd7caffcdc36a636ef73a3a5`. Earlier-best mode: 592,241 benchmarked finishes, **582 filter combinations / 2,873 groups**, 1,209,928 bytes, SHA-256 `2ad3f34df6cf3a35c287a4a012ea948ad77d19f3a742fdce175c049cf982e0fe`. With every filter at All:
+
+| First 5 km versus same-race 5–20 km | Finishes | Sustained slowdown | Median extra time after 20 km versus reference pace | Actual median finish |
+| --- | ---: | ---: | ---: | ---: |
+| More than 10% faster | 195,980 | 49.6% | 28:11 | 5:46:19 |
+| 5–10% faster | 420,124 | 45.6% | 22:37 | 4:59:55 |
+| 2–5% faster | 692,392 | 35.2% | 14:58 | 4:23:32 |
+| Within 2% | 1,656,393 | 24.3% | 8:28 | 3:55:29 |
+| 2–5% slower | 543,768 | 23.5% | 7:51 | 3:56:55 |
+| More than 5% slower | 363,110 | 30.0% | 9:38 | 4:08:13 |
+
+In the fastest-opening group 97,297 finishes meet the slowdown definition; its first qualifying sections beginning at 20, 25, 30 and 35 km number 28,729, 28,459, 26,463 and 13,646, so the most common is still **20–25 km**. In history mode, openings more than 10% faster than the earlier benchmark have **43.6%** sustained slowdown (152,758 finishes) against **20.2%** within 2% (100,490), and the faster-opening group's median finish still improves on its earlier benchmark, by **18:58**. Both outputs bind the exact 1652 runner manifest; the independent verifiers' runs are in the [refresh record](REFRESH_20261016_1652.md). The same interpretation limits apply.
+
+## All-eligible-finishes results for All courses / All filters (0934, historical)
 
 The new calculation includes all **3,517,336 eligible finishes** and publishes **314 exact filter combinations / 1,534 opening-group cells**. Its file is **866,909 bytes**, with SHA-256 `d5f9e85c1118b5914690c7ea45151cb3050087ab4a3619c794da5564cad98745`. These are measured calculation results; CI and production verification remain separate.
 

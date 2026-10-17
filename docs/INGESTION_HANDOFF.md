@@ -1,6 +1,6 @@
 # Data ingestion handoff
 
-**Historical request — superseded by the verified September 11 exports and the September 12 0934 refresh. Do not copy the request below as a current defect list.** The archives restore the required feature columns and satisfy the CORE/FULL contract. Use [the current refresh](REFRESH_20260912_0934.md), [known issues](KNOWN_ISSUES.md) and [current producer follow-ups](PROJECT_HANDOFF.md#remaining-producer-work) for outstanding work. Calculation and website adoption are verified separately from export publication.
+**Historical request — superseded by the verified September 11 exports, the September 12 0934 refresh and the October 16, 2026 `htw-db-2026-10-16-1652` release ([its refresh record](REFRESH_20261016_1652.md), with the producer follow-ups it found). Do not copy the request below as a current defect list.** The archives restore the required feature columns and satisfy the CORE/FULL contract. Use [the current refresh](REFRESH_20261016_1652.md), [known issues](KNOWN_ISSUES.md) and [current producer follow-ups](PROJECT_HANDOFF.md#remaining-producer-work) for outstanding work. Calculation and website adoption are verified separately from export publication.
 
 The request below records the September 10 inspection, written on September 11, 2026. Its missing-column, blocked-refresh and September 7 deployment statements describe that historical inspection only. The public-access requirement remains current: complete study data and source code must be publicly accessible, and exports do not require overwriting the live database.
 

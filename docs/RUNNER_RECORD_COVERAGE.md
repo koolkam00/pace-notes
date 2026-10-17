@@ -1,6 +1,16 @@
 # Runner lookup and incomplete results
 
-Updated September 17, 2026. Starting main commit: `9204b25f74bd77727a0cbfdcca65e9fe25c5acdd`. Input remains `private-export-20260912-0934`.
+Updated September 17, 2026. Starting main commit: `9204b25f74bd77727a0cbfdcca65e9fe25c5acdd`. Input then was `private-export-20260912-0934`.
+
+**1652 (October 16, 2026; branch `feat/release-1652`, not deployed).** A scan of every rebuilt `htw-db-2026-10-16-1652` profile shard (7,881 shards) found, with the same name normalization:
+
+| Records | Searchable name | No usable name | Total |
+| --- | ---: | ---: | ---: |
+| Eligible for pacing analysis | 3,871,694 | 73 | 3,871,767 |
+| Ineligible for pacing analysis | 1,043,519 | 69 | 1,043,588 |
+| All records | 4,915,213 | 142 | 4,915,355 |
+
+The tables and prose below are the September 17 (0934) evidence and are historical.
 
 ## Verified coverage
 

@@ -61,7 +61,7 @@ The [Weather evidence screen workflow](../.github/workflows/weather-analysis.yml
 
 ## Current calculation evidence
 
-October 16, 2026 (1652): the weather screen was calculated locally from the verified FULL folder with the reviewed policy (`source_quality.py` `deb54be0…`, `build_weather.py` `20563783…`); all three candidates were rerun under the unchanged gate, and the evidence file was copied to `public/data/weather/evidence.json` with both pins on the same tag. No CI run of the weather workflow is recorded yet. See [the refresh record](REFRESH_20261016_1652.md).
+October 16, 2026 (1652): the weather screen was calculated locally from the verified FULL folder with the reviewed policy (`source_quality.py` `0fc0cb12…`, `build_weather.py` `20563783…`; recalculated on October 17 after the policy reasons were reworded, with the same results); all three candidates were rerun under the unchanged gate, and the evidence file was copied to `public/data/weather/evidence.json` with both pins on the same tag. No CI run of the weather workflow is recorded yet. See [the refresh record](REFRESH_20261016_1652.md).
 
 September 12, 2026 (0934, historical): all 53 Python tests passed. The explicit-tag [weather workflow](https://github.com/koolkam00/htw-live-study/actions/runs/34698526747) succeeded on reviewed code commit `1325f105c550c5d943140c9395d5075db9c7c448`. Its artifact SHA-256 is `774b18aef78d75d6df0b30280bf721de8735578855f6cdc740ac2e526e12c392`. Warming and wind pass the unchanged gate; humidity remains withheld. Source, import and deployment evidence are recorded in [the refresh record](REFRESH_20260912_0934.md).
 

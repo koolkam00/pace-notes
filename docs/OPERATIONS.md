@@ -136,11 +136,13 @@ node scripts/verify-insights.cjs
 
 The **Story analyses** workflow repeats the build into a temporary directory and requires byte-identical family files. See [data stories](STORIES.md).
 
+When the release changes, build into a fresh empty folder (`--output <dir>`), run the geometry and `--only manifest` steps against it, verify it with `node scripts/verify-insights.cjs --input <dir>`, and only then replace `public/data/insights` with it: the verifier's inventory check fails on leftover replay or tool shards from the previous release (1652: Boston's and Chicago's replay editions moved to 2014 and 2026, and Melbourne left the course data). `--only` keeps only files listed in the output folder's existing manifest, so it cannot finish a partly built fresh folder; rebuild it whole (about 15 minutes for 1652). Producer follow-ups found by the 1652 refresh are listed in its [record](REFRESH_20261016_1652.md#open-for-the-owner-and-the-producer).
+
 ## Producer operations and missing information
 
 The live producer database, scheduled ingestion, retries and recovery scripts are external to this checkout. A consistent SQLite snapshot is made through SQLite's backup mechanism or an equivalent supported snapshot; do not blindly copy a changing database or replace ingestion with a downloaded backup. Publish checksummed full-record snapshots with anonymous opening instructions. Public snapshot access does not require exposing the live service or its credentials.
 
-Producer follow-up priorities are complete/reconcile held editions, parse Paris 2014–2018 elapsed formats with source fixtures, document exact-age and missing-field coverage, resolve ambiguous edition dates/start hours and provide historical route validity. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) and [INGESTION_HANDOFF.md](INGESTION_HANDOFF.md). Never infer missing values to make a cohort larger.
+Producer follow-up priorities are complete/reconcile held editions (1652: Chicago 2015, Oslo 2026, New York 2008 and Frankfurt 2019's engine force-drop), explain the in-place Paris 2014–2018 rewrite that left 25 km blank for about 99% of rows, restore the Washington course profile's race name, document exact-age and missing-field coverage, resolve ambiguous edition dates/start hours and provide historical route validity. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) and [INGESTION_HANDOFF.md](INGESTION_HANDOFF.md). Never infer missing values to make a cohort larger.
 
 ## Report statuses separately
 

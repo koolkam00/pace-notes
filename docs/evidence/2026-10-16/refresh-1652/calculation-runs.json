@@ -1,0 +1,147 @@
+{
+  "release_tag": "htw-db-2026-10-16-1652",
+  "repository": "koolkam00/pace-notes",
+  "status": "Local calculation and import on branch feat/release-1652 (October 16-17, 2026). Not pushed; no GitHub Actions run used this branch; not deployed.",
+  "machine": {
+    "cpus": 4,
+    "memory_gb": 15,
+    "python": "3.13",
+    "duckdb": "1.4.4",
+    "numpy": "2.5.3"
+  },
+  "inputs": {
+    "full": {
+      "asset": "htw-db-FULL-20261016-1652.tar.gz",
+      "asset_sha256": "c0e2e63fc826a60994cb30b28e2c2fcd57e99ffca5706d876d83c08be773215a",
+      "members": 14
+    },
+    "core": {
+      "asset": "htw-db-CORE-20261016-1652.tar.gz",
+      "asset_sha256": "c747b2a46bcd69279cf6394a4eecbb16faaf2cd6d71f16af2d7dcfcac7e9ab90",
+      "members": 12
+    },
+    "manifest_sha256": "c21298e62ea0780c9c1237aa0fc11ef7025e3ac84c186990968bf5d9e8fe40c6",
+    "previous": "private-export-20260912-0934 CORE (raw-record delta only)"
+  },
+  "history": [
+    "October 16, 2026: a first full calculation and import (policy SHA-256 e2dd5c1f990b219b3cad49a74768a399c3cb3af76917675ab9e3d433089745d4) was interrupted during the story build.",
+    "October 17, 2026: the built course pages rejected the rank word 'fastest' in seven policy reasons. The reasons were reworded (decisions and counts unchanged), build_course_geometry.py was changed to draw only routes the runner context attached, and every output below was recalculated from scratch in the forced order; the weather screen's results were identical to the first run apart from hashes and timestamps."
+  ],
+  "code": {
+    "source_quality_policy_sha256": "0aa3fa50e769921af9b8bfcb261dd6357f383545cd0c06a1091e567f83cf50ea",
+    "source_quality_script_sha256": "0fc0cb1282d45766db5c9ccf52ab6ad2adae46d1ae783c7165987a706a3b58d2",
+    "note": "Every builder hash recorded in the imported outputs equals the committed file (checked after the run)."
+  },
+  "runs": [
+    {
+      "step": "python -m unittest discover -s analysis -p 'test_*.py'",
+      "result": "118 tests passed (October 17, 2026)"
+    },
+    {
+      "step": "audit_release.py --input FULL --core CORE --previous 0934",
+      "result": "passed (October 16; inputs unchanged): IDs unique and set-equal, 0 label or timing mismatches, CORE/FULL shared members identical, SHA256SUMS.txt matched; delta 569,263 added, 116,287 deleted, 242,649 changed",
+      "output": "release-contract.json"
+    },
+    {
+      "step": "build_pacing.py",
+      "seconds": 65,
+      "result": "8 foundation packs; eligible 3,871,767"
+    },
+    {
+      "step": "build_weather.py",
+      "seconds": 34,
+      "result": "warming and wind ready, humidity withheld; 211 editions, 28 courses, 3,871,767 finishes",
+      "output_sha256": "e61d0fc14aba98eaee659e33cc84b2f2723a804fc455b3f11c3ca7a349dcda6b"
+    },
+    {
+      "step": "build_extended.py (with the personalized engine)",
+      "seconds": 323,
+      "result": "25 extended packs and 12 personalized paths"
+    },
+    {
+      "step": "write_findings.py",
+      "result": "narrative hashes written"
+    },
+    {
+      "step": "import_packs.py --check-only, then import",
+      "result": "Imported 33 aggregate packs. Review and commit the ext_ changes in a PR.",
+      "archive_sha256": "76db266040f595779c30129393b41f6b0da14bf7a185cd8624ed57fc7b160e8b",
+      "archive_bytes": 249319
+    },
+    {
+      "step": "import_personalized.py --check-only, then import",
+      "result": "{\"validated_analyses\": 12, \"export\": \"htw-db-2026-10-16-1652\", \"cohorts\": 2165, \"checkpoint_cells\": 89005, \"imported\": true}",
+      "archive_sha256": "f09aee6d2e89e4ed49bf39d23856f1a1ac2a6d3ffb1c3af694058ee1be147179",
+      "archive_bytes": 19430903
+    },
+    {
+      "step": "node scripts/verify-weather.cjs (after copying the weather evidence)",
+      "result": "Verified weather provenance, reconciled edition cohorts, all three publication gates, supported routes, source units, corrected uncertainty and actual rendered results in miles and metric."
+    },
+    {
+      "step": "build_public_explorer.py",
+      "seconds": 267,
+      "result": "{\"raw_records\": 4915355, \"named_records\": 4915213, \"profiles\": 3922189, \"shards\": 7881, \"compressed_bytes\": 457054296}"
+    },
+    {
+      "step": "import_public_explorer.py",
+      "seconds": 164,
+      "result": "Verified 7,881 gzip shard hashes/sizes and 10,176,144 complete search aliases for htw-db-2026-10-16-1652. Imported supporting study and runner lookup for htw-db-2026-10-16-1652",
+      "runner_manifest_sha256": "1bf94ccdb5b90cfef2fbc53537f9d43b7d97ddc67cbaba3153dae1983a64dce0",
+      "runner_manifest_as_of": "2026-10-17T03:53:53Z"
+    },
+    {
+      "step": "build_runner_context.py",
+      "seconds": 162,
+      "result": "{\"eligible\": 3871767, \"groups\": 1894, \"pace_cells\": 14642, \"cdf_cells\": 5643177, \"weather_editions\": 286, \"terrain_editions\": 270, \"compressed_bytes\": 18386238}"
+    },
+    {
+      "step": "import_runner_context.py --check-only, then import",
+      "result": "Verified runner context: 3,871,767 eligible finishes recounted across every exact CDF; 1894 peer groups, 14642 pace groups, 16 independently recomputed quartile samples; 286 weather and 270 terrain edition contexts. Imported runner context for htw-db-2026-10-16-1652",
+      "context_manifest_sha256": "f8a9b5e7f179a5306d5abf121c449c976d5dc6337a5b0e81f289c195a1a563e2",
+      "context_manifest_as_of": "2026-10-17T04:02:40Z"
+    },
+    {
+      "step": "build_fast_start.py + verify-fast-start.cjs --input",
+      "seconds": 44,
+      "result": "Verified fast-start evidence: 592,241 earlier-benchmarked finishes; 2,873 cells independently checked for counts and slowdown onset; 36 full numeric groups across 6 filter combinations, including the entire cohort.",
+      "output_sha256": "2ad3f34df6cf3a35c287a4a012ea948ad77d19f3a742fdce175c049cf982e0fe"
+    },
+    {
+      "step": "build_fast_start_all.py + verify-fast-start-all.cjs --input",
+      "seconds": 99,
+      "result": "Verified within-race fast starts: 3,871,767 eligible finishes without a history requirement; 7,881 source shard checksums; 1,646 cells independently checked for counts and slowdown onset; 24 full numeric groups across 4 exact filters, including the entire cohort.",
+      "output_sha256": "a87cf009a7b8c28a338b9e45ea853f1501fb5aa8cd7caffcdc36a636ef73a3a5"
+    },
+    {
+      "step": "build_all_finisher_context.py + verify-all-finisher-context.cjs --input",
+      "seconds": 191,
+      "result": "Verified all-finisher context: 7881 runner shards and 287 exact context shards; 23493 independently recounted groups and all edition-weighted rates/onsets; 245 full numeric groups across 280 edition cells, including all unfiltered courses and temperature bands.",
+      "output_sha256": "864c7c28ee332cfaa665acde3157f0826191d2733e8e407a6808437e13cf613c"
+    },
+    {
+      "step": "build_insights.py --output <fresh folder>",
+      "seconds": 964,
+      "result": "{\"analysis_n\": 3871767, \"seconds\": 963.9, \"files\": 325}"
+    },
+    {
+      "step": "build_course_geometry.py --profiles CORE/course_profiles.parquet",
+      "result": "{\"output\": \"/home/user/data/out-1652b/insights/course-geometry.json\", \"bytes\": 88798, \"courses\": 32, \"omitted\": [\"Washington\"], \"sha256\": \"6bde51e6e368d0d2f861084c88d2c5bda668eafc541f95de46fa5a153e64a5a6\"}",
+      "output_sha256": "6bde51e6e368d0d2f861084c88d2c5bda668eafc541f95de46fa5a153e64a5a6"
+    },
+    {
+      "step": "build_insights.py --only manifest",
+      "result": "{\"analysis_n\": 3871767, \"seconds\": 61.8, \"files\": 326}",
+      "manifest_sha256": "80deb02c97d0912d83c153b732980ee0a1328b96456dfdd50166cf7cc6705fe4"
+    },
+    {
+      "step": "node scripts/verify-insights.cjs --input <fresh folder>",
+      "seconds": 176,
+      "result": "passed: {\"verified\":\"insights\",\"release_tag\":\"htw-db-2026-10-16-1652\",\"input\":\"/home/user/data/out-1652b/insights\",\"files\":326,\"scanned_values\":3528102,\"source_shards\":7881,\"raw_records\":4915355,\"eligible_records\":3871767,\"story_n\":3871767,\"shape_n\":3733382,\"start_offset_editions\":15,\"recounted\":{\"archetypes\":{\"cohort_n\":3733382,\"archetypes\":6,\"sentences_ranked\":600,\"start_offset_editions\":15},\"courses\":{"
+    },
+    {
+      "step": "replace public/data/insights with the verified folder",
+      "result": "byte-identical copy (diff -rq)"
+    }
+  ]
+}
