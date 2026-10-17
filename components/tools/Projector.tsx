@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
-import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { Choice, DataState, DurationField, EvidencePanel, ExampleNote, ShareBar, Stat } from '@/components/tools/ui';
+import { useUnits } from '@/components/UnitsProvider';
+import { Choice, DurationField, ShareBar } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
 import KeypadHint from '@/components/KeypadHint';
 import { useWidth } from '@/components/viz/useSize';
@@ -12,7 +12,7 @@ import { loadShard, shareUnder, type ProjectorCells, type ProjectorIndex, type P
 import { MARATHON_KM, MATS_KM, perKm, perUnit } from '@/lib/tools/pace';
 import { formatClock, formatDuration, formatHM, parseClock, parseDuration, parseTrackerText, type MatReading } from '@/lib/tools/time';
 import { keypadInput } from '@/lib/keypad';
-import { checkpointLabel, compact, count } from '@/lib/viz/format';
+import { count } from '@/lib/viz/format';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 
 /* ------------------------------------------------------------------ */
@@ -23,9 +23,6 @@ const INDEX_PATH = 'tools/projector.json';
 const CARDS_KEY = 'pace-notes-projector-runners';
 const START_KEY = 'pace-notes-projector-start';
 const MAX_CARDS = 4;
-const ACCENT = '#E2416B';
-const ACCENT_INK = '#B3123E';
-const ACCENT_SOFT = '#F4A9BB';
 
 type Pref = 'trend' | 'all' | 'men' | 'women';
 type TrendKind = 'faster' | 'similar' | 'slower';
@@ -50,13 +47,14 @@ interface Trend { r: number; kind: TrendKind; lastPace: number; avgPace: number 
 interface RunnerCard { id: string; label: string; course: string; mat: number; t: number; prev: number | null; start: number | null }
 
 const PREFS: Pref[] = ['trend', 'all', 'men', 'women'];
-const VARIANT_GROUP: Record<string, string> = {
-  all: 'Finishes on this pace',
-  men: 'Finishes recorded as men on this pace',
-  women: 'Finishes recorded as women on this pace',
-  faster: 'Finishes on this pace with a quicker last 5 km',
-  similar: 'Finishes on this pace with a similar last 5 km',
-  slower: 'Finishes on this pace with a slower last 5 km',
+/** What the group matched on beyond the pace so far, as the end of "finishes on 3:58–4:00 even pace…". */
+const VARIANT_SUFFIX: Record<string, string> = {
+  all: '',
+  men: ', recorded as men',
+  women: ', recorded as women',
+  faster: ' with a quicker last 5 km',
+  similar: ' with a similar last 5 km',
+  slower: ' with a slower last 5 km',
 };
 
 /** Elapsed chip time as trackers show it. "24:53" (or "24:53.4") is minutes:seconds; "2:21" is hours:minutes; three groups are h:mm:ss. */
@@ -138,11 +136,12 @@ const windowText = (lo: number, hi: number) => {
   return end < 3600 ? `${Math.floor(lo / 60)}–${end / 60} min` : `${hmFloor(lo)}–${hmFloor(end)}`;
 };
 
-/** "15.5 mi (25K)" in miles, "25 km" in kilometres. Mats are distances, never mile splits. */
-function matName(km: number, units: UnitSystem): string {
-  if (km >= 42.19) return 'Finish';
-  return units === 'mi' ? `${checkpointLabel(km, 'mi')} (${km}K)` : `${km} km`;
+/** A mat by its name, the same in both unit modes ("25K"; the site's mats are distances, never mile splits). */
+function matName(km: number, _units?: UnitSystem): string {
+  return km >= 42.19 ? 'Finish' : `${km}K`;
 }
+/** The mat's distance in miles, under its name in miles mode: "15.5 mi". */
+const matMiles = (km: number) => `${(km / KM_PER_MILE).toFixed(1)} mi`;
 
 /** "11:42–11:51 am", or "11:52 am–12:04 pm" across noon. */
 function clockRange(a: number, b: number): string {
@@ -219,7 +218,7 @@ function LoadError({ error, onRetry, compact: small = false }: { error: string; 
   return (
     <div className={`tool-state is-error projector-load-error${small ? ' is-compact' : ''}`} role="alert">
       <p>{error}</p>
-      {onRetry ? <button type="button" className="button-secondary" onClick={onRetry}>Try again</button> : null}
+      {onRetry ? <button type="button" className="btn btn-secondary is-compact" onClick={onRetry}>Try again</button> : null}
     </div>
   );
 }
@@ -296,9 +295,9 @@ function MatChips({ mat, units, onChange }: { mat: number; units: UnitSystem; on
       <div className="projector-mats" role="group" aria-labelledby="projector-mat-label">
         {MATS_KM.map((km) => (
           <button key={km} type="button" aria-pressed={km === mat} onClick={() => onChange(km)}
-            aria-label={units === 'mi' ? `${km} km mat, ${(km / KM_PER_MILE).toFixed(1)} miles` : `${km} km mat`}>
-            <b>{units === 'mi' ? checkpointLabel(km, 'mi') : `${km}K`}</b>
-            <small>{units === 'mi' ? `${km}K` : 'mat'}</small>
+            aria-label={units === 'mi' ? `${km}K mat, ${matMiles(km)}` : `${km}K mat`}>
+            <b>{km}K</b>
+            {units === 'mi' ? <small>{matMiles(km)}</small> : null}
           </button>
         ))}
       </div>
@@ -336,27 +335,32 @@ function PasteBox({ onRead, units }: { onRead: (readings: MatReading[]) => void;
 }
 
 /* ------------------------------------------------------------------ */
-/* Charts                                                              */
+/* Where these finishes ended                                          */
 /* ------------------------------------------------------------------ */
 
-interface Marker { key: string; x: number; label: string; tone: 'ink' | 'even' | 'target' }
+interface Marker { key: string; x: number; label: string; tone: 'median' | 'even' | 'target' }
+
+/** Width of one character of a 12 px chart label. */
+const CHAR_W = 7.2;
 
 /** Lay marker labels out in rows so they never overlap. */
 function stackLabels(markers: Marker[], width: number, margin: number) {
-  const charW = 6.7;
   const rows: number[] = [];
   return [...markers].sort((a, b) => a.x - b.x).map((m) => {
-    const w = m.label.length * charW;
-    let anchor: 'start' | 'middle' | 'end' = 'middle';
-    let x0 = m.x - w / 2;
-    if (x0 < margin) { anchor = 'start'; x0 = m.x - 2; }
-    if (x0 + w > width - margin) { anchor = 'end'; x0 = m.x - w + 2; }
+    const w = m.label.length * CHAR_W;
+    // Centred on its line where it fits, otherwise slid inside the chart's edges.
+    const x0 = Math.max(margin, Math.min(m.x - w / 2, width - margin - w));
     let row = rows.findIndex((end) => end + 10 < x0);
     if (row < 0) { row = rows.length; rows.push(x0 + w); } else rows[row] = x0 + w;
-    return { ...m, anchor, row };
+    return { ...m, x0, w, row };
   });
 }
 
+/**
+ * The finish times of the group as a density drawn from its published percentiles: the middle half darker, the median
+ * in the accent, the even-pace finish of the times entered dashed, and the target, when one is set, in ink.
+ * Drawn in pixels at the measured width, so labels stay 12 px.
+ */
 function FinishChart({ q, Q, P, target, targetTag }: { q: number[]; Q: number[]; P: number; target: number | null; targetTag: string | null }) {
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 640);
@@ -368,163 +372,55 @@ function FinishChart({ q, Q, P, target, targetTag }: { q: number[]; Q: number[];
   const [lo, hi] = [lo0 - pad, hi0 + pad];
   const m = { l: 8, r: 8 };
   const x = (s: number) => m.l + ((s - lo) / (hi - lo)) * (width - m.l - m.r);
-  const fmt = narrow ? hm : (s: number) => formatDuration(s, true);
+  // The same h:mm:ss as the sentence above the chart, at every width.
+  const fmt = (s: number) => formatDuration(s, true);
   const markers = stackLabels([
-    { key: 'median', x: x(q[i50]), label: `Median ${fmt(q[i50])}`, tone: 'ink' as const },
-    { key: 'even', x: x(P), label: `${narrow ? 'Even' : 'Even pace'} ${fmt(P)}`, tone: 'even' as const },
+    { key: 'median', x: x(q[i50]), label: `Median ${fmt(q[i50])}`, tone: 'median' as const },
+    { key: 'even', x: x(P), label: `Even pace ${fmt(P)}`, tone: 'even' as const },
     ...(target !== null ? [{ key: 'target', x: x(target), label: `${narrow ? '' : 'Target '}${targetText(target)}${targetTag ? ` · ${targetTag}` : ''}`, tone: 'target' as const }] : []),
   ], width, m.l);
   const rows = Math.max(1, ...markers.map((mk) => mk.row + 1));
-  const top = 6 + rows * 16;
-  const plotH = narrow ? 84 : 104;
+  const top = 8 + rows * 18;
+  const plotH = narrow ? 88 : 108;
   const base = top + plotH;
   const H = base + 34;
   const densities = q.slice(0, -1).map((v, i) => 0.05 / Math.max(1, q[i + 1] - v));
   const maxD = Math.max(...densities);
-  const step = niceStep(hi - lo, narrow ? 4 : 8, [60, 120, 300, 600, 900, 1800, 3600, 7200]);
+  const step = niceStep(hi - lo, narrow ? 4 : 7, [60, 120, 300, 600, 900, 1800, 3600, 7200]);
   const ticks: number[] = [];
   for (let t = Math.ceil(lo / step) * step; t <= hi; t += step) ticks.push(t);
-  const label = `Finish times of these finishes: 10th percentile ${formatDuration(q[i10], true)}, median ${formatDuration(q[i50], true)}, 90th percentile ${formatDuration(q[i90], true)}. The even-pace projection is ${formatDuration(P, true)}${target !== null && targetTag ? `; target ${targetText(target)}: ${targetTag}` : ''}.`;
+  const label = `Finish times of these finishes: 10th percentile ${formatDuration(q[i10], true)}, median ${formatDuration(q[i50], true)}, 90th percentile ${formatDuration(q[i90], true)}. The even-pace finish of the times entered is ${formatDuration(P, true)}${target !== null && targetTag ? `; target ${targetText(target)}: ${targetTag}` : ''}.`;
   return (
-    <div ref={ref} className="viz projector-chart">
+    <div ref={ref} className="projector-chart">
       <svg width={width} height={H} role="img" aria-label={label}>
         {ticks.map((t) => (
-          <g key={t} className="grid">
+          <g key={t} className="projector-grid">
             <line x1={x(t)} x2={x(t)} y1={top - 2} y2={base} />
-            <text x={x(t)} y={base + 24} textAnchor="middle">{hm(t)}</text>
+            <text x={x(t)} y={base + 26} textAnchor="middle">{hm(t)}</text>
           </g>
         ))}
         {densities.map((d, i) => {
           const h = (d / maxD) * (plotH - 6);
           const middle = i >= qIndex(Q, 0.25) && i < qIndex(Q, 0.75);
-          return <rect key={i} x={x(q[i])} width={Math.max(0.5, x(q[i + 1]) - x(q[i]))} y={base - h} height={h} fill={middle ? ACCENT : ACCENT_SOFT} stroke="var(--card)" strokeWidth={0.75} />;
+          return <rect key={i} className={`projector-bar${middle ? ' is-middle' : ''}`} x={x(q[i])} width={Math.max(0.5, x(q[i + 1]) - x(q[i]))} y={base - h} height={h} />;
         })}
-        <line x1={m.l} x2={width - m.r} y1={base} y2={base} stroke="var(--ink-3)" />
+        <line className="projector-base" x1={m.l} x2={width - m.r} y1={base} y2={base} />
         <g className="projector-whisker">
-          <line x1={x(q[i10])} x2={x(q[i90])} y1={base + 5} y2={base + 5} />
-          <line x1={x(q[i10])} x2={x(q[i10])} y1={base + 2} y2={base + 8} />
-          <line x1={x(q[i90])} x2={x(q[i90])} y1={base + 2} y2={base + 8} />
+          <line x1={x(q[i10])} x2={x(q[i90])} y1={base + 6} y2={base + 6} />
+          <line x1={x(q[i10])} x2={x(q[i10])} y1={base + 2} y2={base + 10} />
+          <line x1={x(q[i90])} x2={x(q[i90])} y1={base + 2} y2={base + 10} />
         </g>
         {markers.map((mk) => (
-          <line key={mk.key} x1={mk.x} x2={mk.x} y1={12 + mk.row * 16 + 4} y2={base} stroke={mk.tone === 'target' ? ACCENT_INK : 'var(--ink)'}
-            strokeWidth={mk.tone === 'ink' ? 2 : 1.5} strokeDasharray={mk.tone === 'even' ? '4 3' : undefined} />
+          <line key={mk.key} className={`projector-marker-line is-${mk.tone}`} x1={mk.x} x2={mk.x} y1={14 + mk.row * 18 + 4} y2={base} />
         ))}
-        {markers.map((mk) => {
-          const w = mk.label.length * 6.7 + 6;
-          const left = mk.anchor === 'start' ? mk.x - 3 : mk.anchor === 'end' ? mk.x - w + 3 : mk.x - w / 2;
-          return (
-            <g key={mk.key}>
-              <rect x={left} y={12 + mk.row * 16 - 11} width={w} height={15} fill="var(--card)" />
-              <text x={mk.x} y={12 + mk.row * 16} textAnchor={mk.anchor} className="projector-marker"
-                style={{ fill: mk.tone === 'target' ? ACCENT_INK : 'var(--ink)' }}>{mk.label}</text>
-            </g>
-          );
-        })}
+        {markers.map((mk) => (
+          <g key={mk.key}>
+            <rect className="projector-marker-halo" x={mk.x0 - 3} y={14 + mk.row * 18 - 12} width={mk.w + 6} height={16} />
+            <text x={mk.x0} y={14 + mk.row * 18} className={`projector-marker is-${mk.tone}`}>{mk.label}</text>
+          </g>
+        ))}
       </svg>
     </div>
-  );
-}
-
-/**
- * What a constant-pace tracker would have shown for these finishes at each later mat: the percentiles of
- * elapsed × 42.195 ÷ distance (a fixed scaling, so percentiles carry over exactly), ending at their actual finish times.
- * The visitor's own points and the constant-pace line are drawn as a separate series, calculated from their inputs.
- */
-function ProjectionChart({ E, mat, prev, cell, Q, P, bandS, units }: { E: number; mat: number; prev: number | null; cell: CellView; Q: number[]; P: number; bandS: number; units: UnitSystem }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const width = useWidth(ref, 640);
-  const narrow = width < 480;
-  const i10 = qIndex(Q, 0.1); const i50 = qIndex(Q, 0.5); const i90 = qIndex(Q, 0.9);
-  const points = [
-    { km: mat, p10: cell.b, p50: cell.b + bandS / 2, p90: cell.b + bandS },
-    ...cell.later.map((v, j) => { const km = mat + 5 * (j + 1); const f = MARATHON_KM / km; return { km, p10: v[0] * f, p50: v[1] * f, p90: v[2] * f }; }),
-    { km: MARATHON_KM, p10: cell.q[i10], p50: cell.q[i50], p90: cell.q[i90] },
-  ];
-  const own = [...(prev !== null && mat > 5 ? [{ km: mat - 5, v: (prev * MARATHON_KM) / (mat - 5) }] : []), { km: mat, v: P }];
-  const minV = Math.min(...points.map((p) => p.p10), ...own.map((p) => p.v));
-  const maxV = Math.max(...points.map((p) => p.p90), ...own.map((p) => p.v));
-  const pad = Math.max(120, (maxV - minV) * 0.08);
-  const [lo, hi] = [minV - pad, maxV + pad];
-  const step = niceStep(hi - lo, narrow ? 4 : 6, [60, 120, 300, 600, 900, 1800, 3600]);
-  const H = narrow ? 250 : 290;
-  const m = { l: 46, r: 12, t: 26, b: 40 };
-  const x0 = Math.max(0, own[0].km - 2.5);
-  const x = (km: number) => m.l + ((km - x0) / (MARATHON_KM - x0)) * (width - m.l - m.r);
-  const y = (v: number) => m.t + (1 - (v - lo) / (hi - lo)) * (H - m.t - m.b);
-  const ticks: number[] = [];
-  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) ticks.push(v);
-  const band = `M${points.map((p) => `${x(p.km)},${y(p.p10)}`).join('L')}L${[...points].reverse().map((p) => `${x(p.km)},${y(p.p90)}`).join('L')}Z`;
-  // The band starts at this mat's exact pace band; the median is only known from the next mat on.
-  const median = points.length > 2 ? `M${points.slice(1).map((p) => `${x(p.km)},${y(p.p50)}`).join('L')}` : '';
-  const fin = points[points.length - 1];
-  // Mat ticks from 40 km backwards, so the last mat is always labelled; "Finish" drops to a second line when it is close.
-  let lastLabel = Infinity;
-  const xLabels = [...MATS_KM].reverse().filter((km) => km >= x0).filter((km) => {
-    if (lastLabel - x(km) < 30) return false;
-    lastLabel = x(km);
-    return true;
-  });
-  const finishLow = x(MARATHON_KM) - x(40) < 58;
-  const fmt = narrow ? hm : (s: number) => formatDuration(s, true);
-  const finLabels = [
-    { key: 'p90', v: fin.p90, text: `90th ${fmt(fin.p90)}`, dy: -7 },
-    { key: 'p50', v: fin.p50, text: `Median ${fmt(fin.p50)}`, dy: -9 },
-    { key: 'p10', v: fin.p10, text: `10th ${fmt(fin.p10)}`, dy: 15 },
-  ];
-  const showRange = y(fin.p10) - y(fin.p50) > 26 && y(fin.p50) - y(fin.p90) > 16;
-  // Keep the "Now" label clear of the top edge and of the median label at the finish.
-  const nowText = `Now ${formatDuration(P, true)}`.length * 7;
-  const nowRight = x(mat) > width * 0.72 ? x(mat) : x(mat) + nowText / 2;
-  const medianLeft = x(MARATHON_KM) - 8 - (`Median ${fmt(fin.p50)}`.length * 7);
-  const nowBelow = y(P) - m.t < 30 || (nowRight > medianLeft && Math.abs((y(P) - 11) - (y(fin.p50) - 9)) < 16);
-  // End the constant-pace line before the finish labels when it would run through one of them.
-  const shownLabels = finLabels.filter((l) => l.key === 'p50' || showRange);
-  const crossed = shownLabels.filter((l) => { const base = y(l.v) + l.dy; return y(P) > base - 16 && y(P) < base + 6; });
-  const evenEnd = crossed.length
-    ? Math.max(x(mat), Math.min(...crossed.map((l) => x(MARATHON_KM) - 8 - l.text.length * 7)) - 6)
-    : x(MARATHON_KM);
-  const label = `For these finishes, the even-pace finish a constant-pace tracker would have shown went from ${hm(cell.b)}–${hm(cell.b + bandS)} at ${matName(mat, units)} to a median of ${formatDuration(cell.q[i50], true)} at the finish, with the 10th to 90th percentile from ${formatDuration(fin.p10, true)} to ${formatDuration(fin.p90, true)}. Held at a constant pace, the times entered give ${formatDuration(P, true)}.`;
-  return (
-    <figure className="projector-figure">
-      <figcaption className="projector-chart-title">What a constant-pace tracker would have shown for these finishes</figcaption>
-      <ul className="projector-key" aria-hidden="true">
-        <li><i className="is-band" />10th–90th percentile</li>
-        <li><i className="is-median" />Median</li>
-        <li><i className="is-own" />Times entered</li>
-        <li><i className="is-even" />Constant pace from now</li>
-      </ul>
-      <div ref={ref} className="viz projector-chart">
-        <svg width={width} height={H} role="img" aria-label={label}>
-          {ticks.map((v) => (
-            <g key={v} className="grid">
-              <line x1={m.l} x2={width - m.r} y1={y(v)} y2={y(v)} />
-              <text x={m.l - 8} y={y(v) + 4} textAnchor="end">{hm(v)}</text>
-            </g>
-          ))}
-          {xLabels.map((km) => (
-            <g key={km}>
-              <line x1={x(km)} x2={x(km)} y1={H - m.b} y2={H - m.b + 4} stroke="var(--line-2)" />
-              <text x={x(km)} y={H - m.b + 17} textAnchor="middle">{units === 'mi' ? (km / KM_PER_MILE).toFixed(1) : km}</text>
-            </g>
-          ))}
-          <line x1={x(MARATHON_KM)} x2={x(MARATHON_KM)} y1={H - m.b} y2={H - m.b + 4} stroke="var(--line-2)" />
-          <text x={x(MARATHON_KM) + 2} y={H - m.b + (finishLow ? 31 : 17)} textAnchor="end">Finish</text>
-          <text x={m.l - 40} y={12} className="axis-label">Finish time at the pace so far</text>
-          <text x={m.l} y={H - 6} className="axis-label">{units === 'mi' ? 'miles' : 'km'}</text>
-          <path d={band} fill={ACCENT} fillOpacity={0.17} />
-          <line x1={x(mat)} x2={evenEnd} y1={y(P)} y2={y(P)} stroke="var(--ink)" strokeWidth={1.5} strokeDasharray="5 4" />
-          {median ? <path d={median} fill="none" stroke={ACCENT_INK} strokeWidth={2.5} strokeLinejoin="round" /> : null}
-          {points.slice(1).map((p) => <circle key={p.km} cx={x(p.km)} cy={y(p.p50)} r={3.2} fill={ACCENT_INK} />)}
-          {own.length > 1 ? <line x1={x(own[0].km)} x2={x(own[1].km)} y1={y(own[0].v)} y2={y(own[1].v)} stroke="var(--ink)" strokeWidth={2} /> : null}
-          {own.map((p, i) => <circle key={p.km} cx={x(p.km)} cy={y(p.v)} r={i === own.length - 1 ? 5.5 : 4} fill={i === own.length - 1 ? 'var(--ink)' : 'var(--card)'} stroke={i === own.length - 1 ? 'var(--card)' : 'var(--ink)'} strokeWidth={2} />)}
-          <text x={x(mat) + (x(mat) < m.l + 60 ? -6 : 0)} y={y(P) + (nowBelow ? 22 : -11)} textAnchor={x(mat) > width * 0.72 ? 'end' : x(mat) < m.l + 60 ? 'start' : 'middle'} className="annotation projector-halo">Now {formatDuration(P, true)}</text>
-          {shownLabels.map((l) => (
-            <text key={l.key} x={x(MARATHON_KM) - 8} y={y(l.v) + l.dy} textAnchor="end"
-              className={`projector-halo ${l.key === 'p50' ? 'annotation projector-median-label' : 'annotation-sub'}`}>{l.text}</text>
-          ))}
-        </svg>
-      </div>
-    </figure>
   );
 }
 
@@ -574,7 +470,7 @@ function RunnerCardView({ card, index, units, onUpdate, onRemove, onOpen }: {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.km} className={r.km > 42 ? 'is-finish' : undefined}>
-                  <th scope="row">{r.km > 42 ? 'Finish' : units === 'mi' ? <>{checkpointLabel(r.km, 'mi')} <small>{r.km}K</small></> : `${r.km} km`}</th>
+                  <th scope="row">{r.km > 42 ? 'Finish' : `${r.km}K`}{r.km < 42 && units === 'mi' ? <small>{matMiles(r.km)}</small> : null}</th>
                   <td>{breakable(cardWindow(r.lo, r.hi))}</td>
                   <td>{breakable(card.start !== null ? formatClock(card.start + r.mid) : formatDuration(r.mid, true))}</td>
                 </tr>
@@ -588,7 +484,7 @@ function RunnerCardView({ card, index, units, onUpdate, onRemove, onOpen }: {
         {card.mat < 40 ? (
           <div className="projector-card-update">
             <ElapsedField label={`Time at ${matName(nextKm, units)}`} value={next} onChange={setNext} placeholder="h:mm:ss" keypadHint={false} />
-            <button type="button" className="button-secondary" disabled={next === null || next <= card.t}
+            <button type="button" className="btn btn-secondary is-compact" disabled={next === null || next <= card.t}
               onClick={() => { if (next !== null && next > card.t) { onUpdate({ ...card, prev: card.t, t: next, mat: nextKm }); setNext(null); } }}>Update</button>
             <KeypadHint block />
           </div>
@@ -691,15 +587,16 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
   const prev = prevError ? null : prevRaw;
   const trend = index && E !== null && prev !== null ? trendOf(E, prev, mat, index.trend_threshold) : null;
   let variant = 'all';
-  let variantNote: string | null = null;
+  // What the comparison matched on, said under its menu.
+  let compareHint: string;
   if (pref === 'men' || pref === 'women') {
     variant = pref;
-    if (prev !== null) variantNote = 'Trend is off while a gender is chosen.';
+    compareHint = prev !== null ? 'Trend is off while a recorded gender is chosen.' : 'Matched on the pace so far and recorded gender.';
   } else if (pref === 'trend') {
     if (trend) variant = trend.kind;
-    else if (mat === 5) variantNote = `Trend starts at the ${matName(10, units)} mat.`;
-    else if (prev === null) variantNote = `Add the ${matName(mat - 5, units)} time to match the trend too.`;
-  }
+    compareHint = trend ? `Matched on a ${trend.kind === 'faster' ? 'quicker' : trend.kind} last 5 km too.`
+      : mat === 5 ? `The trend starts at the ${matName(10, units)} mat.` : `Add the ${matName(mat - 5, units)} time to match the trend too.`;
+  } else compareHint = 'Matched on the pace so far only.';
   const P = E !== null ? (E * MARATHON_KM) / mat : null;
   const bandS = index?.band_s ?? 120;
   const band = P !== null ? Math.floor(P / bandS) * bandS : null;
@@ -752,8 +649,8 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
   const toResult = () => document.getElementById('projector-result')?.scrollIntoView({ block: 'start' });
 
   const prefOptions: { value: Pref; label: string }[] = [
-    { value: 'trend', label: 'Pace + trend' }, { value: 'all', label: 'Pace only' },
-    ...(scope === 'all' ? [{ value: 'women' as Pref, label: 'Women' }, { value: 'men' as Pref, label: 'Men' }] : []),
+    { value: 'trend', label: 'The same pace and last-5 km trend' }, { value: 'all', label: 'The same pace' },
+    ...(scope === 'all' || pref === 'women' || pref === 'men' ? [{ value: 'women' as Pref, label: 'The same pace, recorded as women' }, { value: 'men' as Pref, label: 'The same pace, recorded as men' }] : []),
   ];
 
   /* ---------- Results ---------- */
@@ -802,20 +699,16 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
       </>
     );
     results = (
-      <div className="projector-unavailable">
-        <p className="eyebrow">No published group</p>
-        <h2>{heading}</h2>
-        <p>{outside && range && !genderOnCourse ? `Published groups here run from ${hm(range[0])} to ${hm(range[1] + bandS)} even pace. ` : ''}
+      <section className="tool-panel projector-unavailable" aria-labelledby="projector-unavailable-title">
+        <p className="tool-reading-kicker">No published group</p>
+        <h2 className="tool-panel-title" id="projector-unavailable-title">{heading}</h2>
+        <p className="tool-note">{outside && range && !genderOnCourse ? `Published groups here run from ${hm(range[0])} to ${hm(range[1] + bandS)} even pace. ` : ''}
           {options.length ? 'You can widen the comparison:' : 'Check the time and the mat.'}</p>
-        {options.length ? <div className="tool-share">{options.map((o) => <button key={o.label} type="button" className="button-secondary" onClick={() => applyFallback(o.patch, o.note)}>{o.label}</button>)}</div> : null}
-      </div>
+        {options.length ? <div className="tool-share">{options.map((o) => <button key={o.label} type="button" className="btn btn-secondary is-compact" onClick={() => applyFallback(o.patch, o.note)}>{o.label}</button>)}</div> : null}
+      </section>
     );
   } else {
-    const i10 = qIndex(Q, 0.1); const i25 = qIndex(Q, 0.25); const i50 = qIndex(Q, 0.5); const i75 = qIndex(Q, 0.75); const i90 = qIndex(Q, 0.9);
-    const remainingKm = MARATHON_KM - mat;
-    const remainingText = units === 'mi' ? `${(remainingKm / KM_PER_MILE).toFixed(1)} mi` : `${remainingKm.toFixed(1)} km`;
-    const needed = target !== null && target > E ? (target - E) / remainingKm : null;
-    const shareText = share ? (share.bound === 'below' ? '5% or fewer' : share.bound === 'above' ? 'more than 95%' : `about ${pctText(share.share)}`) : null;
+    const i10 = qIndex(Q, 0.1); const i50 = qIndex(Q, 0.5); const i90 = qIndex(Q, 0.9);
     const laterRows = [
       ...cell.later.map((v, j) => ({ km: mat + 5 * (j + 1), lo: v[0], mid: v[1], hi: v[2] })),
       { km: MARATHON_KM, lo: cell.q[i10], mid: cell.q[i50], hi: cell.q[i90] },
@@ -823,102 +716,83 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
     const activeNotice = notice && notice.key === keyOf(q) ? notice.text : null;
     const bandText = `${hm(cell.b)}–${hm(cell.b + bandS)}`;
     const rangeText = windowText(cell.q[i10], cell.q[i90]);
+    const median = cell.q[i50];
     const nextRow = laterRows[0];
-    status = `${isExample ? `Example: ${formatDuration(E, true)} at ${matName(mat, units)}. ` : ''}${scopeName} at ${matName(mat, units)}: on ${bandText} even pace, ${count(cell.n)} finishes. Median finish ${formatDuration(cell.q[i50], true)}; 10th to 90th percentile ${rangeText.replace('–', ' to ')}.`
+    // The median finish of the group against the even-pace finish of the times entered, in whole minutes.
+    const gapMin = Math.round((median - P) / 60);
+    const minutes = (n: number) => `${n} minute${n === 1 ? '' : 's'}`;
+    status = `${isExample ? `Example: ${formatDuration(E, true)} at ${matName(mat, units)}. ` : ''}${scopeName} at ${matName(mat, units)}: on ${bandText} even pace, ${count(cell.n)} finishes. Median finish ${formatDuration(median, true)}; 10th to 90th percentile ${rangeText.replace('–', ' to ')}.`
       + (nextRow.km < 42 ? ` ${matName(nextRow.km, units)}: ${span(nextRow.lo, nextRow.hi).replace('–', ' to ')}.` : '');
     quick = (
       <>
         {isExample ? <p className="projector-quick-text">Example time. Type your runner’s tracker time above.</p> : null}
-        <p className="projector-quick-text"><b>On {bandText} even pace.</b> Median finish {formatDuration(cell.q[i50], true)}, 10th–90th {rangeText}.</p>
+        <p className="projector-quick-text">Finish <b>{rangeText}</b>, median {formatDuration(median, true)}.</p>
         {nextRow.km < 42 ? <p className="projector-quick-text">{matName(nextRow.km, units)}: <b>{span(nextRow.lo, nextRow.hi)}</b></p> : null}
         <button type="button" className="projector-link-button" data-not-edit onClick={toResult}>Full result ↓</button>
       </>
     );
     results = (
       <>
-        {isExample ? (
-          <ExampleNote>Example: {formatDuration(E, true)} at {matName(mat, units)} on {scopeName}. Type your runner’s tracker time; everything updates as you type.</ExampleNote>
-        ) : null}
-        <div className="tool-headline projector-headline">
-          <div className="projector-head">
-            <EvidenceTag kind="data" />
-            <p className="projector-kicker">{scopeName} · at {matName(mat, units)}</p>
-            <p className="projector-band">On {bandText} even pace</p>
-            <p className="projector-group">{VARIANT_GROUP[variant]}.{variantNote ? ` ${variantNote}` : ''}</p>
-            <p className="print-only projector-entered">
-              Entered: {formatDuration(E, true)} at {matName(mat, units)}{prev !== null ? `, ${formatDuration(prev, true)} at ${matName(mat - 5, units)}` : ''}{start !== null ? `, start ${formatClock(start)}` : ''}{target !== null ? `, target ${targetText(target)}` : ''}.
-            </p>
-            {activeNotice ? <p className="projector-notice">{activeNotice}</p> : null}
+        <section className="tool-reading night projector-headline" aria-labelledby="projector-title">
+          <div className="tool-reading-head">
+            <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}{scopeName} · at {matName(mat, units)}</p>
+            <h2 className="tool-reading-figure" id="projector-title">
+              <span className="sr-only">Finish window: </span>{breakable(showClock ? clockRange(start! + cell.q[i10], ceilMinute(start! + cell.q[i90])) : rangeText)}
+              <small>Where 80% of {count(cell.n)} finishes on {bandText} even pace{VARIANT_SUFFIX[variant]} ended.</small>
+            </h2>
           </div>
-          <Stat label="Median finish" value={formatDuration(cell.q[i50], true)}
-            sub={start !== null ? `about ${formatClock(start + cell.q[i50])} on the clock` : `middle half ${windowText(cell.q[i25], cell.q[i75])}`} />
-          <Stat label="10th–90th" value={rangeText}
-            sub={start !== null ? clockRange(start + cell.q[i10], ceilMinute(start + cell.q[i90])) : '80% of these finishes'} />
-          {target !== null && passed ? (
-            <Stat label={`Target ${targetText(target)}`} value="Passed" sub="the time at this mat is already past it" />
-          ) : target !== null && share ? (
-            <Stat label={`Under ${targetText(target)}`} value={shareValue ?? <><span className="projector-about">about </span>{pctText(share.share)}</>}
-              sub="observed share of these finishes" />
-          ) : (
-            <Stat label={<SlowdownTerm>Sustained slowdown</SlowdownTerm>} value={pctText(cell.sd[0] + cell.sd[1])} sub="observed share of these finishes" />
-          )}
-        </div>
-
-        <EvidencePanel kind="data" title="Where these finishes ended" meta={`Finish times of the ${count(cell.n)} finishes in this group.`}>
-          <FinishChart q={cell.q} Q={Q} P={P} target={passed ? null : target} targetTag={targetTag} />
-          <dl className="projector-quantiles">
-            {[['10th', i10], ['25th', i25], ['Median', i50], ['75th', i75], ['90th', i90]].map(([name, i]) => (
-              <div key={name as string} className={name === 'Median' ? 'is-median' : undefined}>
-                <dt>{name}</dt>
-                <dd>{formatDuration(cell.q[i as number], true)}</dd>
-                {start !== null ? <dd className="projector-clock">{formatClock(start + cell.q[i as number])}</dd> : null}
-              </div>
-            ))}
+          <dl className="tool-ledger">
+            <div><dt>Median finish</dt><dd>{at(median)}</dd></div>
+            {nextRow.km < 42 ? <div><dt>At {matName(nextRow.km, units)}</dt><dd>{span(nextRow.lo, nextRow.hi)}</dd></div> : null}
+            {target !== null && passed ? (
+              <div><dt>Target {targetText(target)}</dt><dd>Passed</dd></div>
+            ) : target !== null && share ? (
+              <div><dt>Under {targetText(target)}</dt><dd>{shareValue ?? `about ${pctText(share.share)}`}</dd></div>
+            ) : (
+              <div><dt><SlowdownTerm>Sustained slowdown</SlowdownTerm></dt><dd>{pctText(cell.sd[0] + cell.sd[1])}</dd></div>
+            )}
           </dl>
-          {target !== null && passed ? (
-            <p className="tool-note"><strong>The time entered is already past {targetText(target)}</strong>, so no share under it is shown.</p>
-          ) : target !== null && shareText ? (
-            <p className="tool-note"><strong>{shareText[0].toUpperCase() + shareText.slice(1)} of these finishes were under {targetText(target)}.</strong></p>
-          ) : null}
-        </EvidencePanel>
+          {activeNotice ? <p className="tool-reading-sub">{activeNotice}</p> : null}
+          <EvidenceTag kind="data" />
+          <p className="print-only projector-entered">
+            Entered: {formatDuration(E, true)} at {matName(mat, units)}{prev !== null ? `, ${formatDuration(prev, true)} at ${matName(mat - 5, units)}` : ''}{start !== null ? `, start ${formatClock(start)}` : ''}{target !== null ? `, target ${targetText(target)}` : ''}.
+          </p>
+        </section>
 
-        <EvidencePanel kind="data" title={showClock ? 'When to look up at the next mats' : 'The rest of the race, mat by mat'}
-          meta="When the same finishes reached each later mat. Pick the mat nearest your spot.">
-          <ProjectionChart E={E} mat={mat} prev={prev} cell={cell} Q={Q} P={P} bandS={bandS} units={units} />
-          <div className="projector-clock-controls no-print">
+        <section className="tool-panel projector-ended" aria-labelledby="projector-ended-title">
+          <p className="tool-nugget-text" id="projector-ended-title">
+            Held to the finish, this pace makes {formatDuration(P, true)}.{' '}
+            {gapMin === 0 ? <>The median finish was <em>about the same</em>.</>
+              : <>The median finish was <em>{minutes(Math.abs(gapMin))} {gapMin > 0 ? 'later' : 'earlier'}</em>.</>}
+          </p>
+          <FinishChart q={cell.q} Q={Q} P={P} target={passed ? null : target} targetTag={targetTag} />
+        </section>
+
+        <section className="tool-panel projector-next" aria-labelledby="projector-next-title">
+          <header className="tool-panel-head">
+            <h2 className="tool-panel-title" id="projector-next-title">{showClock ? 'When to look up at each mat' : 'The rest of the race, mat by mat'}</h2>
+            <p className="tool-panel-meta">{showClock ? 'Clock times' : 'Elapsed times'}: where the middle 80% of these finishes passed, and their median.</p>
+          </header>
+          <ol className="tool-laps projector-laps">
+            {laterRows.map((r) => (
+              <li key={r.km} className={r.km > 42 ? 'is-finish' : undefined}>
+                <span>{r.km > 42 ? 'Finish' : `${r.km}K`}{r.km < 42 && units === 'mi' ? <small>{matMiles(r.km)}</small> : null}</span>
+                <b>{breakable(span(r.lo, r.hi))}</b>
+                <small className="projector-lap-median">median {at(r.mid)}</small>
+              </li>
+            ))}
+          </ol>
+          <div className="projector-clock no-print">
             <div className="tool-field projector-start">
               <label htmlFor="projector-start">Start-line crossing time <span className="projector-optional">optional</span></label>
               <input id="projector-start" inputMode="text" autoComplete="off" placeholder="9:14 am" value={startText}
                 aria-invalid={startText.trim() !== '' && start === null ? true : undefined} aria-describedby="projector-start-hint"
                 onChange={(e) => saveStart(e.target.value)} />
               <p className="tool-field-hint" id="projector-start-hint">
-                {startText.trim() !== '' && start === null ? 'Try 9:14 am or 09:14.' : 'When the runner crossed the start, for clock times. Stays on this device for 12 hours.'}
+                {startText.trim() !== '' && start === null ? 'Try 9:14 am or 09:14.' : 'For clock times. Kept on this device for 12 hours.'}
               </p>
             </div>
             {start !== null ? <Choice label="Show times as" small value={clockView} onChange={setClockView} options={[{ value: 'clock', label: 'Clock' }, { value: 'elapsed', label: 'Elapsed' }]} /> : null}
-          </div>
-          <div className="tool-table-wrap">
-            <table className="tool-table projector-table">
-              <thead>
-                <tr>
-                  <th scope="col">Mat</th>
-                  <th scope="col">{showClock ? 'Clock window' : 'Window'}<span className="projector-th-sub"> 10th–90th</span></th>
-                  <th scope="col">Median</th>
-                </tr>
-              </thead>
-              <tbody>
-                {laterRows.map((r) => (
-                  <tr key={r.km} className={r.km > 42 ? 'is-finish' : undefined}>
-                    <th scope="row">{matName(r.km, units)}</th>
-                    <td>{span(r.lo, r.hi)}</td>
-                    <td><span className="projector-cell-label">median </span>{at(r.mid)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <caption>
-                {showClock ? 'Elapsed times of these finishes plus the start time you entered.' : 'Elapsed times of these finishes.'} Past finishes, not live tracking.
-              </caption>
-            </table>
           </div>
           <div className="projector-save no-print">
             <p className="projector-save-title">Following someone on race day?</p>
@@ -926,44 +800,12 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
               <div className="projector-save-row">
                 <label htmlFor="projector-card-label" className="sr-only">Card label</label>
                 <input id="projector-card-label" maxLength={40} autoComplete="off" placeholder="Label, e.g. Sam" value={cardLabel} onChange={(e) => setCardLabel(e.target.value)} />
-                <button type="button" className="button-secondary" onClick={saveCard}>Save runner card</button>
+                <button type="button" className="btn btn-secondary" onClick={saveCard}>Save runner card</button>
               </div>
             )}
-            <p className="tool-field-hint">Cards keep this course, mat, time and start clock in this browser only, so you can update each runner as they pass a mat. Labels never go into links.</p>
+            <p className="tool-field-hint">Cards stay in this browser, so you can update each runner at every mat. Labels never go into links.</p>
           </div>
-        </EvidencePanel>
-
-        <EvidencePanel kind="data" title={`After ${matName(mat, units)}: pace and sustained slowdowns`}
-          meta={`What these ${count(cell.n)} finishes did over the remaining ${remainingText}.`}>
-          <div className="projector-after">
-            <Stat label="Median pace from here" value={paceText(cell.rp, units)}
-              sub={`over the last ${remainingText}. Their average pace to ${matName(mat, units)} was ${formatDuration(perUnit(cell.b / MARATHON_KM, units))}–${formatDuration(perUnit((cell.b + bandS) / MARATHON_KM, units))}/${units}.`} />
-            <Stat label={<SlowdownTerm>Sustained slowdown</SlowdownTerm>} value={pctText(cell.sd[0] + cell.sd[1])} sub={mat >= 25 ? `${pctText(cell.sd[0])} already recorded by this mat, ${pctText(cell.sd[1])} after it` : 'all of them after this mat'} />
-          </div>
-          <SlowdownBar sd={cell.sd} mat={mat} units={units} />
-          <p className="tool-note"><Link href="/slowdown">More on sustained slowdowns</Link>.</p>
-        </EvidencePanel>
-
-        <EvidencePanel title="If the pace so far were held" meta="What a tracker that assumes an unchanging pace would show.">
-          <div className="tool-table-wrap">
-            <table className="tool-table projector-even">
-              <tbody>
-                <tr><th scope="row">Average pace to {matName(mat, units)}</th><td>{paceText(E / mat, units)}</td></tr>
-                {trend ? (
-                  <tr><th scope="row">Last 5 km ({sectionText(mat, units)}), against the average so far</th><td>{paceText(trend.lastPace, units)} · {trend.r >= 0 ? '+' : '−'}{Math.abs(trend.r * 100).toFixed(1)}%</td></tr>
-                ) : null}
-                {cell.later.map((_, j) => {
-                  const km = mat + 5 * (j + 1);
-                  return <tr key={km} className="is-mat"><th scope="row">At {matName(km, units)}</th><td>{at((E * km) / mat)}</td></tr>;
-                })}
-                <tr className="is-finish"><th scope="row">Even-pace finish</th><td>{at(P)}</td></tr>
-                {target !== null ? (
-                  <tr><th scope="row">Needed for {targetText(target)} over the last {units === 'mi' ? `${(remainingKm / KM_PER_MILE).toFixed(2)} mi` : `${remainingKm.toFixed(3)} km`}</th><td>{needed !== null ? paceText(needed, units) : 'already past'}</td></tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-        </EvidencePanel>
+        </section>
 
         <ShareBar />
       </>
@@ -974,7 +816,10 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
   return (
     <div className="projector" ref={workspaceRef}>
       {cards.length && index ? (
-        <EvidencePanel kind="data" title="Runners you’re following" meta="Saved in this browser only.">
+        <section className="tool-panel projector-following" aria-labelledby="projector-following-title">
+          <header className="tool-panel-head">
+            <h2 className="tool-panel-title" id="projector-following-title">Runners you’re following</h2>
+          </header>
           <ul className="projector-cards ph-no-capture">
             {cards.map((card) => (
               <RunnerCardView key={card.id} card={card} index={index} units={units}
@@ -983,7 +828,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
                 onOpen={() => openCard(card)} />
             ))}
           </ul>
-        </EvidencePanel>
+        </section>
       ) : null}
       <div className="tool-workspace">
         <form className="tool-inputs projector-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Projector inputs">
@@ -1007,7 +852,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
             {entry === 'time' ? (
               <ElapsedField id="projector-time" label={`Time at ${matName(mat, units)}`} large value={E} inputRef={timeRef}
                 onChange={(s) => setQ({ t: s === null ? 'none' : elapsedText(s) })} placeholder={mat <= 10 ? '0:49:30' : '2:21:30'}
-                hint="Chip time as the tracker shows it, e.g. 2:21:30." />
+                hint="Chip time as the tracker shows it." />
             ) : (
               <DurationField label={`Average pace so far, per ${units === 'mi' ? 'mile' : 'kilometre'}`} mode="pace" large value={paceTyped}
                 onChange={(s) => { setPaceTyped(s); setQ({ t: s === null ? 'none' : elapsedText(perKm(s, units) * mat) }); }}
@@ -1021,14 +866,16 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
           {mat > 5 ? (
             <ElapsedField id="projector-prev" label={<>Time at {matName(mat - 5, units)} <span className="projector-optional">optional</span></>} value={prevRaw}
               onChange={(s) => setQ({ prev: s === null ? '' : elapsedText(s) })} placeholder="h:mm:ss" error={prevError}
-              hint={trend ? `Last 5 km at ${paceText(trend.lastPace, units)}: ${trend.r >= 0 ? '+' : '−'}${Math.abs(trend.r * 100).toFixed(1)}% against the average so far (${trend.kind} trend).${Math.abs(trend.r) > 0.3 ? ' That is an unusually large change: check both times.' : ''}` : 'Adds the trend: was the last 5 km quicker or slower than the average so far?'} />
+              hint={trend ? `Last 5 km at ${paceText(trend.lastPace, units)}: ${trend.r >= 0 ? '+' : '−'}${Math.abs(trend.r * 100).toFixed(1)}% against the average so far.${Math.abs(trend.r) > 0.3 ? ' That is an unusually large change: check both times.' : ''}` : 'Adds the trend of the last 5 km.'} />
           ) : null}
           <DurationField label={<>Target finish <span className="projector-optional">optional</span></>} value={targetRaw}
             onChange={(s) => setQ({ target: s === null ? '' : targetText(Math.round(s)) })} placeholder="4:00" hint="Hours and minutes, e.g. 3:59." error={targetError} />
           <div className="tool-field projector-pref">
-            <span className="tool-label" id="projector-pref-label">Compare with finishes on</span>
-            <Choice label="Compare with finishes on" small value={pref} onChange={(v) => setQ({ v })} options={prefOptions} />
-            {pref === 'trend' ? <p className="tool-field-hint">Uses your last-5 km trend when you give the earlier time.</p> : null}
+            <label htmlFor="projector-compare">Compare with finishes on</label>
+            <select id="projector-compare" value={pref} onChange={(e) => setQ({ v: e.target.value })} aria-describedby="projector-compare-hint">
+              {prefOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <p className="tool-field-hint" id="projector-compare-hint">{compareHint}</p>
           </div>
           <PasteBox onRead={onPaste} units={units} />
         </form>
@@ -1042,27 +889,3 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
   );
 }
 
-function sectionText(mat: number, units: UnitSystem) {
-  if (units === 'km') return `${mat - 5}–${mat} km`;
-  return `${((mat - 5) / KM_PER_MILE).toFixed(1)}–${(mat / KM_PER_MILE).toFixed(1)} mi`;
-}
-
-function SlowdownBar({ sd, mat, units }: { sd: [number, number]; mat: number; units: UnitSystem }) {
-  const none = Math.max(0, 1 - sd[0] - sd[1]);
-  const at = matName(mat, units);
-  const items = [
-    ...(mat >= 25 ? [{ key: 'already', share: sd[0], text: `already recorded by ${at}` }] : []),
-    { key: 'later', share: sd[1], text: `began after ${at}` },
-    { key: 'none', share: none, text: 'no sustained slowdown' },
-  ];
-  return (
-    <div className="projector-sd">
-      <div className="projector-sd-bar" role="img" aria-label={items.map((i) => `${pctText(i.share)} ${i.text}`).join('; ')}>
-        {items.map((i) => <span key={i.key} className={`is-${i.key}`} style={{ width: `${i.share * 100}%` }} />)}
-      </div>
-      <ul className="projector-legend">
-        {items.map((i) => <li key={i.key}><i className={`is-${i.key}`} aria-hidden="true" /><b>{pctText(i.share)}</b> {i.text}</li>)}
-      </ul>
-    </div>
-  );
-}

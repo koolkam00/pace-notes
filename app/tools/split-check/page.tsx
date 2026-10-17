@@ -1,10 +1,9 @@
 import SplitCheck from '@/components/tools/SplitCheck';
-import { ToolHeader, ToolNext } from '@/components/tools/ToolShell';
+import { ToolEnd, ToolHeader } from '@/components/tools/ToolShell';
 import { pageMetadata } from '@/lib/seo';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { ARCHETYPES, openingGroups, otherCourses } from '@/lib/split-check-server';
 import type { PaceBandIndex } from '@/lib/tools/data';
-import './split-check.css';
 
 export const metadata = pageMetadata({
   title: 'Marathon Split Analysis: Check Your 5K Splits | Pace Notes',
@@ -23,11 +22,11 @@ export default function SplitCheckPage() {
   const bandCourses = (index?.scopes ?? []).map((s) => s.slug).filter((s) => s !== 'all');
 
   return (
-    <div className="container tool-page">
+    <div className="tool-page">
       <ToolHeader slug="split-check" />
       <SplitCheck indexSha={indexSha} archetypesSha={archetypesSha} openingBands={bands} openingCities={cities}
         bandCourses={bandCourses} otherCourses={otherCourses(index)} />
-      <ToolNext current="split-check" />
+      <ToolEnd path="/tools/split-check" how="/methodology#tools-split-check" />
     </div>
   );
 }

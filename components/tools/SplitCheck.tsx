@@ -1,24 +1,28 @@
 'use client';
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
-import { EvidenceTag, SlowdownTerm, type EvidenceKind } from '@/components/tools/EvidenceTag';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { Choice, EvidencePanel, ExampleNote, ShareBar } from '@/components/tools/ui';
+import { ToolHandoffs } from '@/components/tools/Handoffs';
+import MatLines, { aheadText, type MatLine } from '@/components/tools/MatLines';
+import { Choice, ExampleNote, ShareBar } from '@/components/tools/ui';
+import Values from '@/components/ui/Values';
 import { useQueryState } from '@/components/tools/useQueryState';
 import KeypadHint from '@/components/KeypadHint';
 import { useWidth } from '@/components/viz/useSize';
+import { fitTicks } from '@/components/tools/ticks';
 import { runnerHandoff } from '@/lib/analytics-policy';
 import { loadInsight, type Archetype, type Archetypes } from '@/lib/insights';
-import { TONE, openingBandOf, openingPct, pctAbs, pctSigned, qualifies, reportLink, toneOf, windowCells, windowCheck, type OpeningBand } from '@/lib/report-shared';
+import { openingBandOf, openingPct, pctSigned, qualifies, reportLink, toneOf, windowCells, windowCheck, type OpeningBand } from '@/lib/report-shared';
 import { loadShard, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
 import type { PaceBandCell } from '@/lib/tools/pace-band-data';
 import { MARATHON_KM, MATS_KM, perUnit } from '@/lib/tools/pace';
-import { SECTION_KM, SECTION_NAMES, classify, readSplits, validateSplits, type SplitReading } from '@/lib/tools/splits';
+import { SECTION_KM, SECTION_NAMES, SPLIT_EXAMPLE, classify, readSplits, validateSplits, type SplitReading } from '@/lib/tools/splits';
 import { formatDuration, parseDuration } from '@/lib/tools/time';
 import { keypadInput } from '@/lib/keypad';
-import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
-import { SECTION_BOUNDS, count, sectionLabel, signedPct } from '@/lib/viz/format';
-import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
+import { KM_PER_MILE, matLabel, sectionLabel, type UnitSystem } from '@/lib/units';
+import { SECTION_BOUNDS, count, signedPct } from '@/lib/viz/format';
+import { typeStyle } from '@/lib/viz/palette';
 
 /* ------------------------------------------------------------------ */
 /* Constants                                                           */
@@ -27,13 +31,9 @@ import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
 const INDEX_PATH = 'tools/pace-band.json';
 const ARCHETYPES_PATH = 'archetypes.json';
 const CHECKPOINTS = [...MATS_KM, MARATHON_KM];
-const HELD = '#2F5BFF';
-const SLOW = '#FF5B2E';
 /** A made-up race that shows every part of the tool: a quick opening and a sustained slowdown from 30 km. */
-const EXAMPLE = '0:25:50,0:52:24,1:19:06,1:45:54,2:13:18,2:42:41,3:16:39,3:49:12,4:03:31';
+const EXAMPLE = SPLIT_EXAMPLE;
 const DEFAULTS = { s: EXAMPLE, course: 'all', g: 'all' };
-/** Text-weight versions of the pacing-type colours, for lines and labels on the cream card. */
-const TYPE_INK = ['#0B7A52', '#2346E6', '#8A5A00', '#5B34D6', '#B3123E', '#B4380D'];
 
 type Gender = 'all' | 'men' | 'women';
 const GENDER_OPTIONS: { value: Gender; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'men', label: 'Men' }, { value: 'women', label: 'Women' }];
@@ -204,27 +204,11 @@ const displayAll = (times: (number | null)[]) => times.map(displayTime);
 /* ------------------------------------------------------------------ */
 
 const fmtPace = (sPerKm: number, units: UnitSystem) => `${formatDuration(perUnit(sPerKm, units))}/${units}`;
-const unitWord = (units: UnitSystem) => (units === 'mi' ? 'mile' : 'km');
 const share = (v: number) => `${(v * 100).toFixed(1)}%`;
-/** Section name in the selected units ("30–35 km" or "18.6–21.7 mi"). */
-const secName = (i: number, units: UnitSystem) => (units === 'mi' ? sectionLabel(i, 'mi') : `${SECTION_NAMES[i]} km`);
-/** The reference block keeps its published name in both units; miles add a gloss where there is room. */
-const BASE = '5–20 km';
-const BASE_MI = '3.1–12.4 mi';
-/** "after 20 km" / "after 12.4 mi (20 km)". */
-const after20 = (units: UnitSystem) => (units === 'mi' ? 'after 12.4 mi (20 km)' : 'after 20 km');
-/** "the final 2.195 km" / "the final 1.36 mi (2.195 km)". */
-/** A distance in km, with miles first in miles mode: "5 km" / "3.1 mi (5 km)". */
-const kmGloss = (km: number, units: UnitSystem) => {
-  const text = km.toLocaleString('en-US', { maximumFractionDigits: 3 });
-  return units === 'mi' ? `${(km / KM_PER_MILE).toFixed(1)} mi (${text} km)` : `${text} km`;
-};
-const matName = (km: number, units: UnitSystem) => (km >= 42.19 ? 'Finish' : units === 'mi' ? `${(km / KM_PER_MILE).toFixed(1)} mi` : `${km} km`);
-function ahead(seconds: number): string {
-  const s = Math.round(seconds);
-  if (s === 0) return 'level';
-  return `${formatDuration(Math.abs(s))} ${s < 0 ? 'ahead' : 'behind'}`;
-}
+/** A section's name, the same in both unit modes: "30–35K", "40K–finish". */
+const secName = (i: number) => sectionLabel(SECTION_BOUNDS[i][0], SECTION_BOUNDS[i][1]);
+/** The reference block, the runner's own 5–20K pace. */
+const BASE = sectionLabel(5, 20);
 /** "6:11 ahead of", "1:38 behind", "level with": the words before a group name. */
 function relation(seconds: number): { time: string | null; words: string } {
   const s = Math.round(seconds);
@@ -238,33 +222,6 @@ function focusHeading(panelId: string) {
   if (!h) return;
   if (!h.hasAttribute('tabindex')) h.setAttribute('tabindex', '-1');
   h.focus();
-}
-
-/** Plain-language summary: the slowdown verdict first, then the slowest section and the opening. */
-function summarize(r: SplitReading, units: UnitSystem): { lead: string; more: string[] } {
-  const base = BASE;
-  const five = units === 'mi' ? '3.1 mi' : '5 km';
-  const after = units === 'mi' ? 'after 12.4 mi' : 'after 20 km';
-  const vs = r.vsBaseline;
-  const more: string[] = [];
-  let worst = 4;
-  for (let i = 5; i < 8; i += 1) if (vs[i] > vs[worst]) worst = i;
-  let lead: string;
-  if (r.slowdown && r.onsetKm !== null) {
-    const i0 = (r.onsetKm - 20) / 5 + 4;
-    const at = units === 'mi' ? `${(r.onsetKm / KM_PER_MILE).toFixed(1)} mi (the ${r.onsetKm} km mat)` : `${r.onsetKm} km`;
-    lead = `Your ${secName(i0, units)} section was ${pctAbs(vs[i0])} slower than your ${base} pace: a sustained slowdown starting at ${at}.`;
-    if (worst !== i0) more.push(`Your slowest section was ${secName(worst, units)}, ${pctAbs(vs[worst])} slower.`);
-  } else {
-    const v = vs[worst];
-    if (v >= 0.02) lead = `No sustained slowdown. Your slowest ${five} ${after}, ${secName(worst, units)}, was ${pctAbs(v)} slower than your ${base} pace.`;
-    else if (v > -0.02) lead = `No sustained slowdown: every ${five} section ${after} stayed within 2% of your ${base} pace or quicker.`;
-    else lead = `No sustained slowdown: you ran every ${five} section ${after} quicker than your ${base} pace.`;
-    if (qualifies(vs[8])) more.push(`Your final ${units === 'mi' ? `${(SECTION_KM[8] / KM_PER_MILE).toFixed(2)} mi (2.195 km)` : '2.195 km'} was ${pctAbs(vs[8])} slower.`);
-  }
-  const o = r.opening;
-  more.push(Math.abs(o) < 0.0005 ? `You ran the first ${five} at your ${base} pace.` : `You ran the first ${five} ${openingPct(o)} ${o < 0 ? 'quicker' : 'slower'} than that pace.`);
-  return { lead, more };
 }
 
 /* ------------------------------------------------------------------ */
@@ -320,15 +277,15 @@ function useHeld<T>(value: T, hold: boolean): T {
 }
 
 type FieldIssue = 'unreadable' | 'order' | 'pace' | 'finish';
-const matLabel = (i: number) => (i === 8 ? 'finish' : `${CHECKPOINTS[i]} km`);
+const matWord = (i: number) => (i === 8 ? 'finish' : `${CHECKPOINTS[i]} km`);
 
 /** What is wrong with one field, naming the mats involved. */
 function issueText(i: number, kind: FieldIssue, parsed: (number | null)[]): string {
-  if (kind === 'unreadable') return `Couldn’t read the ${matLabel(i)} time. Use h:mm:ss (1:45:54), or mm:ss before the first hour (25:50).`;
-  if (kind === 'order') return `The ${matLabel(i)} time must be later than the ${matLabel(i - 1)} time.`;
+  if (kind === 'unreadable') return `Couldn’t read the ${matWord(i)} time. Use h:mm:ss (1:45:54), or mm:ss before the first hour (25:50).`;
+  if (kind === 'order') return `The ${matWord(i)} time must be later than the ${matWord(i - 1)} time.`;
   if (kind === 'finish') return 'The finish must be between 1:30:00 and 12:00:00.';
   const pace = ((parsed[i] ?? 0) - (i ? parsed[i - 1] ?? 0 : 0)) / SECTION_KM[i];
-  return `The ${SECTION_NAMES[i]} km section works out at ${formatDuration(pace)} per km; every section must be between 2:00 and 20:00 per km. Check the ${i ? `${matLabel(i - 1)} and ${matLabel(i)} times` : `${matLabel(i)} time`}.`;
+  return `The ${SECTION_NAMES[i]} km section works out at ${formatDuration(pace)} per km; every section must be between 2:00 and 20:00 per km. Check the ${i ? `${matWord(i - 1)} and ${matWord(i)} times` : `${matWord(i)} time`}.`;
 }
 
 export default function SplitCheck({ indexSha, archetypesSha, openingBands, openingCities, bandCourses, otherCourses }: {
@@ -494,7 +451,7 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
     const name = c.names[k];
     const at = archetypes.data.archetypes.findIndex((a) => a.name === name);
     const arch = archetypes.data.archetypes[at >= 0 ? at : k];
-    return { name, arch, colour: ARCHETYPE_COLOURS[(at >= 0 ? at : k) % ARCHETYPE_COLOURS.length], all: archetypes.data.archetypes };
+    return { name, arch, index: at >= 0 ? at : k, all: archetypes.data.archetypes };
   }, [reading, archetypes.data]);
 
   // These buttons, Try again and Load the example remove themselves when pressed, so focus moves on first instead of
@@ -502,13 +459,14 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
   const focusCompare = () => focusHeading('split-check-compare');
   const fallbacks = q.course !== 'all' || gender !== 'all' ? (
     <>
-      {q.course !== 'all' ? <button type="button" className="button-secondary" onClick={() => { focusCompare(); setDroppedCourse(null); setQ({ course: 'all' }); }}>Switch to All courses</button> : null}
-      {gender !== 'all' ? <button type="button" className="button-secondary" onClick={() => { focusCompare(); setQ({ g: 'all' }); }}>Switch to all genders</button> : null}
+      {q.course !== 'all' ? <button type="button" className="btn btn-secondary is-compact" onClick={() => { focusCompare(); setDroppedCourse(null); setQ({ course: 'all' }); }}>Switch to All courses</button> : null}
+      {gender !== 'all' ? <button type="button" className="btn btn-secondary is-compact" onClick={() => { focusCompare(); setQ({ g: 'all' }); }}>Switch to all genders</button> : null}
     </>
   ) : null;
 
   // One short status line for screen readers, updated only when no field is being typed in.
-  const settled = view === 'l' ? '' : reading && shownTimes && !stale ? `${summarize(reading, units).lead} Finish ${formatDuration(shownTimes[8], true)}.`
+  const verdict = reading ? verdictOf(reading) : null;
+  const settled = view === 'l' ? '' : verdict && shownTimes && !stale ? `${verdict.kicker}. ${pctSigned(verdict.value, 0)}: ${verdict.line} Finish ${formatDuration(shownTimes[8], true)}.`
     : view[0] === 'e' ? `Check your times. ${view.slice(1)}` : '';
   const status = useHeld(settled, editing);
 
@@ -520,7 +478,7 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
       <div className="tool-workspace">
         <form className="tool-inputs split-check-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Split check inputs">
           <h2>Your nine mat times</h2>
-          {isExample ? <ExampleNote>A made-up race with a sustained slowdown from 30 km. Type over it or paste your own; everything updates as you type.</ExampleNote> : null}
+          {isExample ? <ExampleNote>A made-up race with a sustained slowdown from 30K. Type over it or paste your own.</ExampleNote> : null}
 
           <details className="split-check-paste" open={pasteOpen} onToggle={(e) => setPasteOpen((e.currentTarget as HTMLDetailsElement).open)}>
             <summary>Paste from a tracker or results page</summary>
@@ -537,7 +495,7 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
               return (
                 <div key={km} className={`split-check-cell${i === 8 ? ' is-finish' : ''}`}>
                   <label htmlFor={`${formId}-t${i}`}>
-                    <span>{i === 8 ? 'Finish' : `${km} km`}</span>
+                    <span>{matLabel(km)}</span>
                     <small>{i === 8 ? (units === 'mi' ? '26.2 mi' : '42.2 km') : units === 'mi' ? `${(km / KM_PER_MILE).toFixed(1)} mi` : ' '}</small>
                   </label>
                   <input id={`${formId}-t${i}`} inputMode="decimal" autoComplete="off" spellCheck={false} value={texts[i]}
@@ -551,8 +509,8 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
             {gridMessage ?? 'Elapsed chip time at each mat: h:mm:ss, or mm:ss before the first hour.'}<KeypadHint />
           </p>
           <div className="split-check-buttons">
-            <button type="button" className="button-secondary" onClick={() => { setTimes(Array(9).fill(null)); setPasteText(''); setPasteNote(null); }}>Clear</button>
-            {loaded && !isExample ? <button type="button" className="button-secondary" onClick={() => {
+            <button type="button" className="btn btn-secondary is-compact" onClick={() => { setTimes(Array(9).fill(null)); setPasteText(''); setPasteNote(null); }}>Clear</button>
+            {loaded && !isExample ? <button type="button" className="btn btn-secondary is-compact" onClick={() => {
               document.getElementById(`${formId}-t0`)?.focus();
               setTimes(fromQuery(EXAMPLE)); setPasteText(''); setPasteNote(null);
             }}>Load the example</button> : null}
@@ -604,24 +562,7 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
 /* Results                                                             */
 /* ------------------------------------------------------------------ */
 
-type TypeResult = { name: string; arch: Archetype; colour: string; all: Archetype[] } | null;
-
-/**
- * A headline number. Pace Notes data and the published definition carry their evidence badge; a number calculated from
- * your own times carries none, so the three are never mixed up.
- */
-function HeadStat({ label, value, sub, tone, evidence, className }: {
-  label: ReactNode; value: ReactNode; sub: ReactNode; tone?: 'good' | 'bad'; evidence?: Exclude<EvidenceKind, 'official'>; className?: string;
-}) {
-  return (
-    <div className={`tool-stat${tone ? ` is-${tone}` : ''}${className ? ` ${className}` : ''}`}>
-      <span className="tool-stat-label">{label}</span>
-      <strong className="tool-stat-value">{value}</strong>
-      <span className="tool-stat-sub">{sub}</span>
-      {evidence ? <EvidenceTag kind={evidence} className="split-check-tag" /> : null}
-    </div>
-  );
-}
+type TypeResult = { name: string; arch: Archetype; index: number; all: Archetype[] } | null;
 
 function Results({ times, reading, units, comparison, type, typeError, retryType, where, place, genderWord, course, gender, fallbacks, openingBands, openingCities, isExample, bandCourse, reportCity, fromRunner }: {
   times: number[]; reading: SplitReading; units: UnitSystem; comparison: Comparison; type: TypeResult; typeError: string | null; retryType: () => void;
@@ -633,7 +574,7 @@ function Results({ times, reading, units, comparison, type, typeError, retryType
   /** The page was opened from a runner's record (via=runner). */
   fromRunner: boolean;
 }) {
-  const { lead, more } = summarize(reading, units);
+  const verdict = verdictOf(reading);
   const avg = times[8] / MARATHON_KM;
   const finish = formatDuration(times[8], true);
   // The pace band takes goals from 1:30 to 8:00 as the whole minute at or below the finish, the course when it publishes
@@ -646,44 +587,42 @@ function Results({ times, reading, units, comparison, type, typeError, retryType
   const report = isExample ? null : reportLink(times, reportCity, gender, fromRunner);
   return (
     <>
-      <div className="tool-headline split-check-headline">
-        <div className="split-check-summary">
-          <p className="split-check-lead">{lead}</p>
-          {more.length ? <p className="split-check-more">{more.join(' ')}</p> : null}
+      <section className="tool-reading night split-check-headline" aria-labelledby="split-check-title">
+        <div className="tool-reading-head">
+          <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}{verdict.kicker}</p>
+          <h2 className="tool-reading-figure" id="split-check-title">
+            <span className={verdict.qualifies ? 'is-signal' : undefined}>{pctSigned(verdict.value, 0)}</span>
+            <small>{verdict.line}</small>
+          </h2>
         </div>
-        <HeadStat label="Finish" value={finish} sub={`average ${fmtPace(avg, units)}`} className={times[8] >= 36000 ? 'split-check-long' : undefined} />
-        <HeadStat label={`${BASE} pace`} value={formatDuration(perUnit(reading.baseline, units))}
-          sub={`per ${unitWord(units)}${units === 'mi' ? ` (${BASE_MI})` : ''}`} />
-        <HeadStat label={<SlowdownTerm>Sustained slowdown</SlowdownTerm>} value={reading.slowdown ? 'Yes' : 'No'} tone={reading.slowdown ? 'bad' : 'good'} evidence="research"
-          sub={reading.slowdown && reading.onsetKm !== null ? `from ${kmGloss(reading.onsetKm, units)}` : `none ${after20(units)}`} />
-        <HeadStat label="Pacing type" className="split-check-type-stat" evidence="data"
-          value={type ? <><i style={{ background: type.colour }} aria-hidden="true" />{type.name}</> : typeError ? '—' : '…'}
-          sub={type ? `${share(type.arch.share)} of finishes` : typeError ? 'unavailable' : 'loading'} />
-      </div>
+        <SectionBars reading={reading} units={units} />
+        <dl className="tool-cells">
+          <div><dt>Finish</dt><dd>{finish}<small>{fmtPace(avg, units)}</small></dd></div>
+          <div><dt>{BASE} pace</dt><dd>{fmtPace(reading.baseline, units)}</dd></div>
+        </dl>
+        <EvidenceTag kind="research" />
+      </section>
 
-      <EvidencePanel title="Your race, section by section" id="split-check-sections"
-        meta={`Pace in each section against your own ${BASE} pace${units === 'mi' ? ` (${BASE_MI})` : ''}, ${fmtPace(reading.baseline, units)}.`}>
-        <SectionChart reading={reading} times={times} units={units} />
+      <Values id="split-check-sections" caption={`Every section: its time, its pace and its difference from your ${BASE} pace (positive is slower)`} count={9}>
         <SectionTable reading={reading} times={times} units={units} />
-      </EvidencePanel>
+      </Values>
 
-      <div className="split-check-pair">
-        <SlowdownPanel reading={reading} units={units} />
-        <OpeningPanel reading={reading} units={units} bands={openingBands} cities={openingCities} place={place} course={course} gender={gender} />
-      </div>
+      <OpeningBeat reading={reading} units={units} bands={openingBands} cities={openingCities} place={place} course={course} gender={gender} />
 
       <ComparisonPanel comparison={comparison} times={times} units={units} where={where} genderWord={genderWord} fallbacks={fallbacks} />
 
       <TypePanel reading={reading} type={type} error={typeError} retry={retryType} units={units} />
 
       <div className="print-only split-check-print">
-        <p>Pace Notes split check{isExample ? ' (example race)' : ''}. Mat times entered: {CHECKPOINTS.map((km, i) => `${i === 8 ? 'Finish' : `${km} km`} ${formatDuration(times[i], true)}`).join(' · ')}.</p>
+        <p>Pace Notes split check{isExample ? ' (example race)' : ''}. Mat times entered: {CHECKPOINTS.map((km, i) => `${matLabel(km)} ${formatDuration(times[i], true)}`).join(' · ')}.</p>
       </div>
 
-      <div className="tool-callout no-print">
-        <strong>Next race?</strong> Turn a goal into a wristband beside the mat times of finishes that hit it with the <Link href={`/tools/pace-band${bandQuery ? `?${bandQuery}` : ''}`}>pace band</Link>, see which qualifying standards {isExample ? 'your finish' : finish} meets with the <Link href={isExample ? '/tools/qualifying' : `/tools/qualifying?t=${finish}`}>qualifying checker</Link>, see how openings like yours played out in <Link href="/analyses/starting-pace">starting pace</Link>, and meet all six shapes in <Link href="/stories/pacing-types">six ways to run the same race</Link>.
-      </div>
-      <ShareBar extra={report ? <Link className="button-primary" href={report}>Make a race report</Link> : null} />
+      <ToolHandoffs label="Next race" links={[
+        { href: `/tools/pace-band${bandQuery ? `?${bandQuery}` : ''}`, title: 'Pace band', text: <>A wristband for {bandGoal ? formatHMGoal(times[8]) : 'your goal'}, beside the mat times of finishes that hit it.</> },
+        { href: isExample ? '/tools/qualifying' : `/tools/qualifying?t=${finish}`, title: 'Qualifying checker', text: <>Which standards {isExample ? 'a finish' : finish} meets.</> },
+        { href: '/stories/pacing-types', title: 'Six ways to run the same race', text: <>Every pacing type, side by side.</> },
+      ]} />
+      <ShareBar extra={report ? <Link className="btn btn-primary is-compact" href={report}>Make a race report</Link> : null} />
     </>
   );
 }
@@ -694,28 +633,50 @@ function formatHMGoal(seconds: number): string {
   return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
 }
 
+/**
+ * The reading on the night card: the section that decides the verdict, against the runner's own 5–20K pace. With a
+ * sustained slowdown, the section it began in; without one, the slowest 5K after 20K.
+ */
+function verdictOf(r: SplitReading): { kicker: string; value: number; qualifies: boolean; line: string } {
+  const vs = r.vsBaseline;
+  if (r.slowdown && r.onsetKm !== null) {
+    const i0 = (r.onsetKm - 20) / 5 + 4;
+    return { kicker: `Sustained slowdown from ${matLabel(r.onsetKm)}`, value: vs[i0], qualifies: true,
+      line: `Your ${secName(i0)} against your ${BASE} pace.` };
+  }
+  let worst = 4;
+  for (let i = 5; i < 8; i += 1) if (vs[i] > vs[worst]) worst = i;
+  const v = vs[worst];
+  return { kicker: 'No sustained slowdown', value: v, qualifies: false,
+    line: v > -0.02 ? `Your slowest 5K after 20K, ${secName(worst)}, against your ${BASE} pace.` : `Every 5K after 20K was quicker than your ${BASE} pace; ${secName(worst)} came closest.` };
+}
+
 /* ------------------------------------------------------------------ */
-/* Section chart (calculated from your times)                          */
+/* Section bars (calculated from your times)                           */
 /* ------------------------------------------------------------------ */
 
-function SectionChart({ reading, times, units }: { reading: SplitReading; times: number[]; units: UnitSystem }) {
+/**
+ * Each section's pace as a bar from the runner's own 5–20K pace (the solid line): quicker up, slower down. The 25%-slower
+ * line runs from 20K to the finish; sections at or past it after 20K are in the accent, the others quiet. Drawn in
+ * pixels at the measured width, on the night card.
+ */
+function SectionBars({ reading, units }: { reading: SplitReading; units: UnitSystem }) {
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 640);
-  const [hover, setHover] = useState<number | null>(null);
   const narrow = width < 480;
-  const H = narrow ? 280 : 320;
-  const m = { l: 50, r: 8, t: 30, b: 30 };
+  const H = narrow ? 190 : 230;
+  const m = { l: 44, r: 4, t: 18, b: 24 };
   const toU = (s: number) => perUnit(s, units);
   const B = toU(reading.baseline);
   const T = B * 1.25;
   const paces = reading.paces.map(toU);
   const minV = Math.min(...paces, B);
   const maxV = Math.max(...paces, T);
-  const span0 = maxV - minV;
-  const tick = [5, 10, 15, 20, 30, 60, 120, 300].find((s) => span0 / s <= 5) ?? 300;
-  const lo = Math.floor((minV - span0 * 0.06) / tick) * tick;
-  const hi = Math.ceil((maxV + span0 * 0.1) / tick) * tick;
-  const iw = width - m.l - m.r;
+  const span0 = Math.max(maxV - minV, 10);
+  const tick = [5, 10, 15, 20, 30, 60, 120, 300].find((s) => span0 / s <= 4) ?? 300;
+  const lo = Math.floor((minV - span0 * 0.12) / tick) * tick;
+  const hi = Math.ceil((maxV + span0 * 0.14) / tick) * tick;
+  const iw = Math.max(40, width - m.l - m.r);
   const ih = H - m.t - m.b;
   const x = (km: number) => m.l + (km / MARATHON_KM) * iw;
   const y = (v: number) => m.t + ((v - lo) / (hi - lo || 1)) * ih; // quicker paces at the top
@@ -723,191 +684,93 @@ function SectionChart({ reading, times, units }: { reading: SplitReading; times:
   for (let v = lo; v <= hi + 1e-9; v += tick) ticks.push(v);
   const yB = y(B);
   const yT = y(T);
-  const gap = narrow ? 1.5 : 3;
-
-  // Percentage labels at the end of each bar, nudged apart when neighbours collide.
+  const gap = narrow ? 2 : 3;
+  // Percentage labels at the end of each bar, moved apart when neighbours would touch.
   type Box = { x0: number; x1: number; y0: number; y1: number };
   const boxes: Box[] = [];
   const labels = reading.vsBaseline.map((v, i) => {
     const [a, b] = SECTION_BOUNDS[i];
-    const cx = (x(a) + x(b)) / 2;
+    const cx0 = (x(a) + x(b)) / 2;
     const yp = y(paces[i]);
-    const text = pctSigned(v, narrow || Math.abs(v) >= 0.1 ? 0 : 1);
-    const w = text.length * 6.3;
-    const down = v >= 0;
-    let ly = down ? Math.max(yp, yB) + 13 : Math.min(yp, yB) - 5;
-    if (down && ly > m.t + ih - 2) ly = Math.max(yp, yB) - 4;
+    const text = pctSigned(v, 0);
+    if (text === '0%') return { i, cx: cx0, ly: 0, text, tone: toneOf(reading, i) };
+    const w = text.length * 7.4 + 6;
+    // Kept inside the chart: slid in from the right edge, and under the base line when there is no room above it.
+    const cx = Math.max(w / 2 + 1, Math.min(cx0, width - w / 2 - 1));
+    // Slower sections label below their bar, quicker ones above; a label with no room there goes to the other side.
+    let below = v >= 0;
+    let ly = below ? Math.max(yp, yB) + 15 : Math.min(yp, yB) - 6;
+    if (below && ly > m.t + ih + 4) { below = false; ly = Math.max(yp, yB) - 5; }
+    if (!below && ly < 13) { below = true; ly = Math.max(yp, yB) + 15; }
     for (let k = 0; k < 6; k += 1) {
-      const box = { x0: cx - w / 2, x1: cx + w / 2, y0: ly - 10, y1: ly + 2 };
+      const box = { x0: cx - w / 2, x1: cx + w / 2, y0: ly - 11, y1: ly + 2 };
       if (!boxes.some((p) => box.x0 < p.x1 && box.x1 > p.x0 && box.y0 < p.y1 && box.y1 > p.y0)) { boxes.push(box); break; }
-      ly += down ? 12 : -12;
+      ly += below ? 13 : -13;
     }
+    ly = Math.max(12, Math.min(ly, H - m.b - 2));
     return { i, cx, ly, text, tone: toneOf(reading, i) };
   });
-
-  const xTicks = units === 'mi' ? (narrow ? [0, 5, 10, 15, 20, 25] : [0, 5, 10, 15, 20, 25]).map((mi) => ({ km: mi * KM_PER_MILE, label: String(mi) }))
-    : (narrow ? [0, 10, 20, 30, 40] : [0, 5, 10, 15, 20, 25, 30, 35, 40]).map((km) => ({ km, label: String(km) }));
-  const pick = (clientX: number) => {
-    const box = ref.current?.getBoundingClientRect();
-    if (!box) return;
-    const km = ((clientX - box.left - m.l) / iw) * MARATHON_KM;
-    const i = SECTION_BOUNDS.findIndex(([a, b]) => km >= a && km < b);
-    setHover(i < 0 ? (km < 0 ? 0 : 8) : i);
-  };
-  const qualifying = reading.vsBaseline.map((v, i) => (i >= 4 && i <= 7 && qualifies(v) ? secName(i, units) : null)).filter(Boolean);
-  const aria = `Section pace chart. Your ${BASE} pace is ${fmtPace(reading.baseline, units)}; 25% slower is ${fmtPace(reading.baseline * 1.25, units)}. `
-    + reading.paces.map((p, i) => `${secName(i, units)}: ${fmtPace(p, units)}, ${pctSigned(reading.vsBaseline[i])}`).join('; ')
-    + `. ${qualifying.length ? `At least 25% slower ${after20(units)}: ${qualifying.join(', ')}.` : `No 5 km section ${after20(units)} was 25% or more slower.`}`;
-  const tipX = hover === null ? 0 : Math.min(width - 96, Math.max(96, (x(SECTION_BOUNDS[hover][0]) + x(SECTION_BOUNDS[hover][1])) / 2));
-  const after = units === 'km' ? 'after 20 km' : narrow ? 'after 12.4 mi' : 'after 12.4 mi (20 km)';
-
+  const xTicks = fitTicks([0, 10, 20, 30, 40].map((km) => ({ x: x(km), label: km ? `${km}K` : 'Start' })), width);
+  const qualifying = reading.vsBaseline.map((v, i) => (i >= 4 && i <= 7 && qualifies(v) ? secName(i) : null)).filter(Boolean);
+  const aria = `Each section's pace against your ${BASE} pace of ${fmtPace(reading.baseline, units)}; 25% slower is ${fmtPace(reading.baseline * 1.25, units)}. `
+    + reading.paces.map((p, i) => `${secName(i)}: ${fmtPace(p, units)}, ${pctSigned(reading.vsBaseline[i])}`).join('; ')
+    + `. ${qualifying.length ? `At least 25% slower after 20K: ${qualifying.join(', ')}.` : 'No 5K section after 20K was 25% or more slower.'}`;
   return (
-    <>
-      <div className="legend-row split-check-legend" aria-hidden="true">
-        <span><i className="swatch" style={{ background: TONE.quick.fill, boxShadow: `inset 0 0 0 1px ${TONE.quick.stroke}` }} />Quicker</span>
-        <span><i className="swatch" style={{ background: TONE.slow.fill, boxShadow: `inset 0 0 0 1px ${TONE.slow.stroke}` }} />Slower</span>
-        <span><i className="swatch" style={{ background: TONE.qualify.fill, boxShadow: `inset 0 0 0 1px ${TONE.qualify.stroke}` }} />≥25% slower {units === 'mi' ? 'after 12.4 mi' : 'after 20 km'}</span>
-        <span><i className="split-check-key-pill is-base">{formatDuration(perUnit(reading.baseline, units))}</i>{BASE} pace</span>
-        <span><i className="split-check-key-pill is-threshold">{formatDuration(perUnit(reading.baseline * 1.25, units))}</i>25% slower</span>
-        <span><i className="split-check-key-zone" />Slowdown zone</span>
-      </div>
-      <div ref={ref} className="viz split-check-chart" onPointerMove={(e) => pick(e.clientX)} onPointerDown={(e) => pick(e.clientX)} onPointerLeave={() => setHover(null)}>
-        <svg width={width} height={H} role="img" aria-label={aria}>
-          <defs>
-            <pattern id="split-check-hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-              <rect width="7" height="7" fill="rgba(255, 91, 46, 0.06)" />
-              <line x1="0" y1="0" x2="0" y2="7" stroke="rgba(255, 91, 46, 0.22)" strokeWidth="2" />
-            </pattern>
-          </defs>
-          <rect x={x(20)} y={yT} width={x(MARATHON_KM) - x(20)} height={Math.max(0, m.t + ih - yT)} fill="url(#split-check-hatch)" />
-          <line x1={x(20)} x2={x(20)} y1={m.t - 4} y2={m.t + ih} stroke="var(--line-2)" strokeDasharray="2 3" />
-          <text x={x(20) + 5} y={m.t - 10} className="annotation-sub">{after} →</text>
-          {ticks.map((v) => (
-            <g key={v} className="grid">
-              <line x1={m.l} x2={width - m.r} y1={y(v)} y2={y(v)} />
-              {Math.abs(y(v) - yB) > 14 && Math.abs(y(v) - yT) > 14 ? <text x={m.l - 7} y={y(v) + 4} textAnchor="end">{formatDuration(v)}</text> : null}
-            </g>
-          ))}
-          <text x={2} y={m.t - 10} className="axis-label">/{units} · quicker ↑</text>
-          {xTicks.map((t) => <text key={t.label} x={x(t.km)} y={H - 10} textAnchor="middle">{t.label}</text>)}
-
-          {reading.paces.map((_, i) => {
-            const [a, b] = SECTION_BOUNDS[i];
-            const yp = y(paces[i]);
-            const tone = TONE[toneOf(reading, i)];
-            const top = Math.min(yp, yB);
-            const h = Math.max(Math.abs(yp - yB), 1.5);
-            return (
-              <g key={i} opacity={hover === null || hover === i ? 1 : 0.55}>
-                <rect x={x(a) + gap} y={top} width={Math.max(2, x(b) - x(a) - 2 * gap)} height={h} fill={tone.fill} rx={1.5} />
-                <line x1={x(a) + gap} x2={x(b) - gap} y1={yp} y2={yp} stroke={tone.stroke} strokeWidth={2.4} strokeLinecap="round" />
-              </g>
-            );
-          })}
-
-          <line x1={m.l} x2={width - m.r} y1={yB} y2={yB} stroke="var(--ink)" strokeWidth={1.2} strokeDasharray="5 4" />
-          <line x1={x(5)} x2={x(20)} y1={yB} y2={yB} stroke="var(--ink)" strokeWidth={2.6} />
-          <line x1={x(20)} x2={width - m.r} y1={yT} y2={yT} stroke="#B4380D" strokeWidth={1.4} strokeDasharray="3 3" />
-          <g className="split-check-pill is-base">
-            <rect x={2} y={yB - 9} width={m.l - 6} height={18} rx={9} />
-            <text x={2 + (m.l - 6) / 2} y={yB + 4} textAnchor="middle">{formatDuration(B)}</text>
+    <div ref={ref} className="split-check-bars">
+      <svg width={width} height={H} role="img" aria-label={aria}>
+        {ticks.map((v) => (
+          <g key={v} className="split-check-gridline">
+            <line x1={m.l} x2={m.l + iw} y1={y(v)} y2={y(v)} />
+            <text x={m.l - 8} y={y(v) + 4} textAnchor="end">{formatDuration(v)}</text>
           </g>
-          <g className="split-check-pill is-threshold">
-            <rect x={2} y={yT - 9} width={m.l - 6} height={18} rx={9} />
-            <text x={2 + (m.l - 6) / 2} y={yT + 4} textAnchor="middle">{formatDuration(T)}</text>
-          </g>
-
-          {labels.map((l) => (
-            <text key={l.i} x={l.cx} y={l.ly} textAnchor="middle" className={`split-check-bar-label split-check-halo is-${l.tone}`}>{l.text}</text>
-          ))}
-          {hover !== null ? <rect x={x(SECTION_BOUNDS[hover][0]) + 0.5} y={m.t} width={x(SECTION_BOUNDS[hover][1]) - x(SECTION_BOUNDS[hover][0]) - 1} height={ih} fill="none" stroke="var(--ink-3)" strokeDasharray="2 3" /> : null}
-        </svg>
-        {hover !== null ? (
-          <div className="viz-tooltip split-check-tip" style={{ left: tipX, top: m.t + 8 }} aria-hidden="true">
-            <b>{secName(hover, units)}{units === 'mi' ? ` · ${SECTION_NAMES[hover]} km` : ''}</b>
-            <span>Section time {formatDuration(times[hover] - (hover ? times[hover - 1] : 0))}</span>
-            <span>Pace {fmtPace(reading.paces[hover], units)}</span>
-            <span>{pctSigned(reading.vsBaseline[hover])} vs your {BASE} pace</span>
-          </div>
-        ) : null}
-      </div>
-      <p className="split-check-axis-note">{units === 'mi' ? 'Miles from the start' : 'Kilometres from the start'}. Hatched: 25% or more slower than your {BASE} pace, {after20(units)}.</p>
-    </>
+        ))}
+        {xTicks.map((t) => <text key={t.label} className="split-check-tick" x={t.x} y={H - 4} textAnchor={t.anchor}>{t.label}</text>)}
+        {reading.paces.map((_, i) => {
+          const [a, b] = SECTION_BOUNDS[i];
+          const yp = y(paces[i]);
+          const top = Math.min(yp, yB);
+          const h = Math.max(Math.abs(yp - yB), 2);
+          return <rect key={i} className={`split-check-bar is-${toneOf(reading, i)}`} x={x(a) + gap} y={top} width={Math.max(1, x(b) - x(a) - 2 * gap)} height={h} rx={2} />;
+        })}
+        <line className="split-check-base" x1={m.l} x2={m.l + iw} y1={yB} y2={yB} />
+        <line className="split-check-threshold" x1={x(20)} x2={m.l + iw} y1={yT} y2={yT} />
+        {/* An even section (0%) is the base line itself: no label, so the ones that moved stand out. */}
+        {labels.filter((l) => l.text !== '0%').map((l) => (
+          <text key={l.i} x={l.cx} y={l.ly} textAnchor="middle" className={`split-check-bar-label is-${l.tone}`}>{l.text}</text>
+        ))}
+      </svg>
+      <ul className="split-check-key" aria-hidden="true">
+        <li className="is-base"><i />{BASE} pace, {fmtPace(reading.baseline, units)}</li>
+        <li className="is-threshold"><i />25% slower after 20K</li>
+      </ul>
+    </div>
   );
 }
 
 function SectionTable({ reading, times, units }: { reading: SplitReading; times: number[]; units: UnitSystem }) {
   return (
-    <div className="tool-table-wrap split-check-table-wrap">
-      <table className="tool-table split-check-table">
-        <thead>
-          <tr><th scope="col">Section</th><th scope="col">Time</th><th scope="col">Pace /{units}</th><th scope="col">vs {BASE} pace</th></tr>
-        </thead>
-        <tbody>
-          {reading.paces.map((p, i) => {
-            const tone = toneOf(reading, i);
-            const v = reading.vsBaseline[i];
-            const note = i === 0 ? 'opening' : i >= 1 && i <= 3 ? 'reference' : i === 8 ? 'final 2.195 km' : null;
-            return (
-              <tr key={i} className={`${i >= 1 && i <= 3 ? 'is-base' : ''}${tone === 'qualify' ? ' is-qualify' : ''}`.trim() || undefined}>
-                <th scope="row"><span className="split-check-sec">{secName(i, units)}</span><span className="split-check-sub">{units === 'mi' ? `${SECTION_NAMES[i]} km` : ''}{note ? <span className="split-check-note">{units === 'mi' ? ' · ' : ''}{note}</span> : null}</span></th>
-                <td>{formatDuration(times[i] - (i ? times[i - 1] : 0))}</td>
-                <td>{formatDuration(perUnit(p, units))}</td>
-                <td className={v >= 0.02 ? 'is-plus' : v <= -0.02 ? 'is-minus' : undefined}>
-                  {pctSigned(v)}{tone === 'qualify' ? <span className="split-check-flag">≥25%</span> : null}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-        <tfoot>
-          <tr><th scope="row">{BASE} pace</th><td>{formatDuration(times[3] - times[0])}</td><td>{formatDuration(perUnit(reading.baseline, units))}</td><td>—</td></tr>
-          <tr><th scope="row">Whole race</th><td>{formatDuration(times[8], true)}</td><td>{formatDuration(perUnit(times[8] / MARATHON_KM, units))}</td><td>{pctSigned(times[8] / MARATHON_KM / reading.baseline - 1)}</td></tr>
-        </tfoot>
-        <caption>Positive is slower than your {BASE} pace.</caption>
-      </table>
-    </div>
+    <table className="table split-check-table">
+      <thead>
+        <tr><th scope="col">Section</th><th scope="col">Time</th><th scope="col">Pace /{units}</th><th scope="col">vs {BASE} pace</th></tr>
+      </thead>
+      <tbody>
+        {reading.paces.map((p, i) => (
+          <tr key={i} className={toneOf(reading, i) === 'qualify' ? 'is-reading' : undefined}>
+            <th scope="row">{secName(i)}</th>
+            <td>{formatDuration(times[i] - (i ? times[i - 1] : 0))}</td>
+            <td>{formatDuration(perUnit(p, units))}</td>
+            <td>{pctSigned(reading.vsBaseline[i])}</td>
+          </tr>
+        ))}
+        <tr><th scope="row">{BASE}</th><td>{formatDuration(times[3] - times[0])}</td><td>{formatDuration(perUnit(reading.baseline, units))}</td><td>—</td></tr>
+        <tr><th scope="row">Whole race</th><td>{formatDuration(times[8], true)}</td><td>{formatDuration(perUnit(times[8] / MARATHON_KM, units))}</td><td>{pctSigned(times[8] / MARATHON_KM / reading.baseline - 1)}</td></tr>
+      </tbody>
+    </table>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Sustained slowdown (published research definition)                  */
-/* ------------------------------------------------------------------ */
-
-function SlowdownPanel({ reading, units }: { reading: SplitReading; units: UnitSystem }) {
-  const sections = [4, 5, 6, 7, 8];
-  let run = 0;
-  if (reading.onsetKm !== null) {
-    for (let i = (reading.onsetKm - 20) / 5 + 4; i < 9 && qualifies(reading.vsBaseline[i]); i += 1) run += SECTION_KM[i];
-  }
-  const title = reading.slowdown && reading.onsetKm !== null
-    ? <><SlowdownTerm>Sustained slowdown</SlowdownTerm>: yes, from {kmGloss(reading.onsetKm, units)}</>
-    : <><SlowdownTerm>Sustained slowdown</SlowdownTerm>: no</>;
-  return (
-    <EvidencePanel kind="research" title={title} id="split-check-slowdown">
-      <ol className="split-check-steps">
-        {sections.map((i) => {
-          const v = reading.vsBaseline[i];
-          const yes = i < 8 ? qualifies(v) : false;
-          const ext = i === 8 && qualifies(v) && qualifies(reading.vsBaseline[7]);
-          return (
-            <li key={i} className={yes || ext ? 'is-yes' : undefined}>
-              <span className="split-check-step-name">{secName(i, units)}</span>
-              <span className="split-check-step-value">{pctSigned(v)}</span>
-              <span className="split-check-step-verdict">{yes ? '25% or more' : i === 8 ? (ext ? 'extends the run' : 'final stretch') : 'under 25%'}</span>
-            </li>
-          );
-        })}
-      </ol>
-      {reading.slowdown ? (
-        <p className="tool-note">Slow sections in a row: {kmGloss(run, units)} from the {reading.onsetKm !== null ? kmGloss(reading.onsetKm, units) : ''} mat.</p>
-      ) : null}
-    </EvidencePanel>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Opening (calculated, mapped to the six published opening groups)    */
+/* Opening (calculated, placed among the six published opening groups) */
 /* ------------------------------------------------------------------ */
 
 function shortBand(b: OpeningBand): string {
@@ -918,41 +781,34 @@ function shortBand(b: OpeningBand): string {
   return `${f(b.lower!)} to ${f(b.upper!)}%`;
 }
 
-function OpeningPanel({ reading, units, bands, cities, place, course, gender }: {
+function OpeningBeat({ reading, units, bands, cities, place, course, gender }: {
   reading: SplitReading; units: UnitSystem; bands: OpeningBand[]; cities: string[]; place: string; course: string; gender: Gender;
 }) {
-  const pct = reading.opening * 100;
-  const band = openingBandOf(pct, bands);
-  const five = units === 'mi' ? '3.1 mi' : '5 km';
+  const band = openingBandOf(reading.opening * 100, bands);
   const params = new URLSearchParams();
   if (band) params.set('opening', band.id);
   if (course !== 'all' && cities.includes(place)) params.set('race', place);
   if (gender !== 'all') params.set('gender', gender === 'men' ? 'Men' : 'Women');
   const href = `/analyses/starting-pace${params.toString() ? `?${params.toString()}` : ''}`;
+  const level = Math.abs(reading.opening) < 0.0005;
   return (
-    <EvidencePanel id="split-check-opening"
-      title={<>Opening: {Math.abs(reading.opening) < 0.0005 ? 'level with' : `${openingPct(reading.opening)} ${reading.opening < 0 ? 'quicker' : 'slower'} than`} your {BASE} pace</>}
-      meta={`First ${five} ${fmtPace(reading.paces[0], units)} against ${fmtPace(reading.baseline, units)}.`}>
+    <section className="tool-panel split-check-opening" id="split-check-opening" aria-labelledby="split-check-opening-title">
+      <p className="tool-nugget-text" id="split-check-opening-title">
+        {level ? <>You ran your first 5K <em>at</em> your {BASE} pace.</>
+          : <>You ran your first 5K <em>{openingPct(reading.opening)} {reading.opening < 0 ? 'quicker' : 'slower'}</em> than your {BASE} pace.</>}
+      </p>
       {bands.length ? (
-        <>
-          <ol className="split-check-bands" aria-label="The six opening groups, quickest first">
-            {bands.map((b) => (
-              <li key={b.id} className={band?.id === b.id ? 'is-you' : undefined} aria-current={band?.id === b.id ? 'true' : undefined}>
-                <span>{shortBand(b)}</span>
-                {band?.id === b.id ? <b>you</b> : null}
-              </li>
-            ))}
-          </ol>
-          <div className="split-check-bands-axis" aria-hidden="true"><span>← quicker start</span><span>slower start →</span></div>
-          <p className="tool-note">
-            {band ? <>Your opening is in the <strong>{band.label.toLowerCase()}</strong> group of the starting-pace analysis. </> : null}
-            <Link href={href}>See how finishes that opened like this played out</Link>, including where their slowdowns began.
-          </p>
-        </>
-      ) : (
-        <p className="tool-note"><Link href="/analyses/starting-pace">See how finishes with different openings played out</Link> in the starting-pace analysis.</p>
-      )}
-    </EvidencePanel>
+        <ol className="split-check-bands" aria-label="The six opening groups, quickest first">
+          {bands.map((b) => (
+            <li key={b.id} className={band?.id === b.id ? 'is-you' : undefined} aria-current={band?.id === b.id ? 'true' : undefined}>
+              <span>{shortBand(b)}</span>
+              {band?.id === b.id ? <b>You</b> : null}
+            </li>
+          ))}
+        </ol>
+      ) : null}
+      <p className="tool-note split-check-more"><Link href={href}>How finishes that opened like this played out</Link></p>
+    </section>
   );
 }
 
@@ -964,17 +820,16 @@ function ComparisonPanel({ comparison, times, units, where, genderWord, fallback
   comparison: Comparison; times: number[]; units: UnitSystem; where: string; genderWord: string; fallbacks: ReactNode;
 }) {
   const ok = comparison.state === 'ok' ? comparison : null;
-  const title = ok ? <>Finishes like yours: {formatDuration(ok.lo, true)} to {formatDuration(ok.hi, true)} {where}</> : <>Finishes at your time {where}</>;
   return (
-    <EvidencePanel kind="data" id="split-check-compare" title={title}
-      meta={ok ? <>{genderWord ? `Recorded as ${genderWord}. ` : ''}Observed, not a grade or a plan.</> : undefined}>
-      {comparison.state === 'loading' ? <p className="tool-state">Loading the finishes at your time…</p> : null}
+    <section className="tool-panel split-check-compare" id="split-check-compare" aria-labelledby="split-check-compare-title">
+      <EvidenceTag kind="data" />
+      {comparison.state === 'loading' ? <p className="tool-state tool-panel-title" id="split-check-compare-title">Loading the finishes at your time…</p> : null}
       {comparison.state === 'off' ? (
         <div className="tool-state is-error split-check-off">
-          <p>{comparison.message}</p>
+          <p className="tool-panel-title" id="split-check-compare-title">{comparison.message}</p>
           {comparison.retry ? (
-            <div className="split-check-actions no-print">
-              <button type="button" className="button-secondary" onClick={() => { focusHeading('split-check-compare'); comparison.retry?.(); }}>Try again</button>
+            <div className="tool-share no-print">
+              <button type="button" className="btn btn-secondary is-compact" onClick={() => { focusHeading('split-check-compare'); comparison.retry?.(); }}>Try again</button>
               {fallbacks}
             </div>
           ) : null}
@@ -982,19 +837,18 @@ function ComparisonPanel({ comparison, times, units, where, genderWord, fallback
       ) : null}
       {comparison.state === 'unavailable' ? (
         <div className="split-check-unavailable">
-          <p><strong>{comparison.title}</strong> {comparison.message}</p>
-          {fallbacks ? <div className="split-check-actions no-print">{fallbacks}</div> : null}
+          <p className="tool-panel-title" id="split-check-compare-title">{comparison.title}</p>
+          <p className="tool-note">{comparison.message}</p>
+          {fallbacks ? <div className="tool-share no-print">{fallbacks}</div> : null}
         </div>
       ) : null}
-      {ok ? <ComparisonBody ok={ok} times={times} units={units} fallbacks={fallbacks} /> : null}
-    </EvidencePanel>
+      {ok ? <ComparisonBody ok={ok} times={times} units={units} where={where} genderWord={genderWord} fallbacks={fallbacks} /> : null}
+    </section>
   );
 }
 
-type Column = { key: string; name: string; colour: string; cell: PaceBandCell | null };
-
-function ComparisonBody({ ok, times, units, fallbacks }: {
-  ok: Extract<Comparison, { state: 'ok' }>; times: number[]; units: UnitSystem; fallbacks: ReactNode;
+function ComparisonBody({ ok, times, units, where, genderWord, fallbacks }: {
+  ok: Extract<Comparison, { state: 'ok' }>; times: number[]; units: UnitSystem; where: string; genderWord: string; fallbacks: ReactNode;
 }) {
   const { all, held, slow } = ok;
   const sd = all.sd ?? (slow ? slow.n / all.n : null);
@@ -1003,142 +857,67 @@ function ComparisonBody({ ok, times, units, fallbacks }: {
   const s20 = at20(slow);
   const closer = h20 !== null && s20 !== null ? (Math.abs(s20) < Math.abs(h20) ? 'slow' : 'held') : null;
   const neither = !held && !slow;
-  // Each group with 100 finishes gets a column; when neither does, the column is the whole window instead.
-  const columns: Column[] = neither ? [{ key: 'all', name: 'All finishes', colour: 'var(--ink-3)', cell: all }]
-    : [{ key: 'held', name: 'Held pace', colour: HELD, cell: held }, { key: 'slow', name: 'Sustained slowdown', colour: SLOW, cell: slow }];
-  const missingNote = neither
-    ? ` Too few finishes in either group, so the column shows all ${count(all.n)} finishes in the window.`
-    : !held ? ' Too few held-pace finishes to show that group.'
-      : !slow ? ' Too few finishes with a sustained slowdown to show that group.' : '';
-  const a20 = neither ? times[3] - all.e50[3] : null;
+  const range = `${formatDuration(ok.lo, true)} to ${formatDuration(ok.hi, true)}`;
+  const lines: MatLine[] = [
+    ...(held ? [{ key: 'held', label: 'Held pace', tone: 'ink' as const, gaps: CHECKPOINTS.map((_, i) => held.e50[i] - times[i]) }] : []),
+    ...(slow ? [{ key: 'slow', label: 'Sustained slowdown', tone: 'signal' as const, gaps: CHECKPOINTS.map((_, i) => slow.e50[i] - times[i]) }] : []),
+  ];
+  const columns = neither ? [{ key: 'all', name: 'All finishes', cell: all }]
+    : [{ key: 'held', name: 'Held pace', cell: held }, { key: 'slow', name: 'Sustained slowdown', cell: slow }];
   return (
     <>
-      <div className="split-check-facts">
-        <div><b>{count(all.n)}</b><span>finishes</span></div>
-        {sd !== null && sd !== undefined ? <div><b>{share(sd)}</b><span>had a <SlowdownTerm /></span></div> : null}
-      </div>
-      {h20 !== null || s20 !== null ? (
-        <p className="split-check-takeaway">
-          At the 20 km mat you were {h20 !== null ? <Rel seconds={h20} what="the held-pace median" /> : null}{h20 !== null && s20 !== null ? ' and ' : null}{s20 !== null ? <Rel seconds={s20} what="the sustained-slowdown median" /> : null}.
-          {closer ? <span className="split-check-closer"> Through 20 km your times were closer to the median of finishes that {closer === 'slow' ? 'later had a sustained slowdown' : 'held pace'}.</span> : null}
+      <div className="tool-panel-head">
+        {closer ? (
+          <p className="tool-nugget-text" id="split-check-compare-title">
+            Through 20K, your times were closest to finishes that <em>{closer === 'slow' ? 'later slowed' : 'held pace'}</em>.
+          </p>
+        ) : (
+          <p className="tool-nugget-text" id="split-check-compare-title">
+            At 20K you were <em><Rel seconds={(h20 ?? s20 ?? (times[3] - all.e50[3]))} /></em> the median {h20 !== null ? 'held-pace finish' : s20 !== null ? 'finish that later slowed' : 'finish'} from {range}.
+          </p>
+        )}
+        {/* One sentence under the nugget, so the beat stays at two. */}
+        <p className="tool-panel-meta">
+          {closer && h20 !== null && s20 !== null
+            ? <>Among finishes from {range} {where}{genderWord ? `, recorded as ${genderWord}` : ''}, you were <Rel seconds={s20} /> the median that later slowed at 20K and <Rel seconds={h20} /> the held-pace median.</>
+            : <>{count(all.n)} finishes from {range} {where}{genderWord ? `, recorded as ${genderWord}` : ''}{sd !== null && sd !== undefined ? <>: {share(sd)} had a <SlowdownTerm />.</> : '.'}</>}
         </p>
-      ) : a20 !== null ? (
-        <p className="split-check-takeaway">At the 20 km mat you were <Rel seconds={a20} what="the median of all finishes in the window" />.</p>
+      </div>
+      {lines.length ? (
+        <MatLines lines={lines} zero="Your elapsed time at each mat" zeroTick="You" units={units}
+          label={`Each group's median elapsed time against yours at every mat, finishes from ${range} ${where}. ${lines.map((l) => `${l.label}: ${aheadText(l.gaps[3])} of you at 20K, ${aheadText(l.gaps[8])} at the finish.`).join(' ')}`} />
       ) : null}
-      {!neither ? <GapChart times={times} held={held} slow={slow} units={units} /> : null}
-      <div className="tool-table-wrap">
-        <table className="tool-table split-check-compare">
+      <Values id="split-check-compare-values" caption={`Median elapsed time at each mat, finishes from ${range} ${where}, and how far ahead (−) or behind (+) of it you were`} count={9}>
+        <table className="table">
           <thead>
-            <tr>
-              <th scope="col">Mat</th>
-              <th scope="col" className="split-check-you-cell">You</th>
-              {columns.map((c) => (
-                <th key={c.key} scope="col"><i className="split-check-dot" style={{ background: c.colour }} aria-hidden="true" />{c.name}<span className="split-check-th-sub">median · you vs it</span></th>
-              ))}
-            </tr>
+            <tr><th scope="col">Mat</th><th scope="col">You</th>{columns.map((c) => <th key={c.key} scope="col">{c.name}</th>)}</tr>
           </thead>
           <tbody>
             {CHECKPOINTS.map((km, i) => (
-              <tr key={km} className={i === 8 ? 'is-finish' : i === 3 ? 'is-key' : undefined}>
-                <th scope="row">
-                  <span className="split-check-sec">{km >= 42.19 ? 'Finish' : `${km} km`}</span>
-                  <span className="split-check-sub">{units === 'mi' ? (km >= 42.19 ? '26.2 mi' : matName(km, 'mi')) : ''}</span>
-                  <span className="split-check-you-inline">you {formatDuration(times[i])}</span>
-                </th>
-                <td className="split-check-you-cell">{formatDuration(times[i])}</td>
-                {columns.map((c) => (
-                  <td key={c.key}>{c.cell ? <>{formatDuration(c.cell.e50[i])}<span className={`split-check-delta${times[i] - c.cell.e50[i] < 0 ? ' is-ahead' : ''}`}>{ahead(times[i] - c.cell.e50[i])}</span></> : '—'}</td>
-                ))}
+              <tr key={km} className={i === 3 ? 'is-reading' : undefined}>
+                <th scope="row">{matLabel(km)}</th>
+                <td>{formatDuration(times[i], true)}</td>
+                {columns.map((c) => <td key={c.key}>{c.cell ? <>{formatDuration(c.cell.e50[i], true)} <small>{signedTime(times[i] - c.cell.e50[i])}</small></> : '—'}</td>)}
               </tr>
             ))}
+            <tr><th scope="row">Finishes</th><td />{columns.map((c) => <td key={c.key}>{c.cell ? count(c.cell.n) : '—'}</td>)}</tr>
           </tbody>
-          <tfoot>
-            <tr><th scope="row">Finishes</th><td className="split-check-you-cell" />{columns.map((c) => <td key={c.key}>{c.cell ? count(c.cell.n) : '—'}</td>)}</tr>
-          </tfoot>
-          <caption>
-            Median elapsed time {neither ? 'of all finishes in the window' : 'of each group'} at each mat, and how far ahead or behind it you were (ahead = you passed that mat earlier).
-            {missingNote}
-          </caption>
         </table>
-      </div>
-      {(neither || !held || !slow) && fallbacks ? <div className="split-check-actions no-print">{fallbacks}</div> : null}
+      </Values>
+      {(neither || !held || !slow) && fallbacks ? <div className="tool-share no-print">{fallbacks}</div> : null}
     </>
   );
 }
 
-function Rel({ seconds, what }: { seconds: number; what: string }) {
-  const r = relation(seconds);
-  return <>{r.time ? <b>{r.time}</b> : null}{r.time ? ' ' : ''}{r.words} {what}</>;
+/** "+1:12" or "−6:36": you against a median (negative = you passed the mat earlier). */
+function signedTime(seconds: number): string {
+  const s = Math.round(seconds);
+  return s === 0 ? '0:00' : `${s > 0 ? '+' : '−'}${formatDuration(Math.abs(s))}`;
 }
 
-/** Your elapsed time minus each group's median at every mat: above zero means ahead of that median. Hand-built SVG. */
-function GapChart({ times, held, slow, units }: { times: number[]; held: PaceBandCell | null; slow: PaceBandCell | null; units: UnitSystem }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const width = useWidth(ref, 640);
-  const narrow = width < 480;
-  const H = narrow ? 220 : 250;
-  // On a phone the end labels move into a key under the chart, so they are never cut off.
-  const m = { l: 50, r: narrow ? 12 : 104, t: 24, b: 28 };
-  const series = [
-    held ? { key: 'held', name: 'vs held pace', colour: HELD, ink: '#2346E6', d: [0, ...times.map((t, i) => t - held.e50[i])] } : null,
-    slow ? { key: 'slow', name: 'vs slowdown', colour: SLOW, ink: '#B4380D', d: [0, ...times.map((t, i) => t - slow.e50[i])] } : null,
-  ].filter((s): s is { key: string; name: string; colour: string; ink: string; d: number[] } => s !== null);
-  const kms = [0, ...CHECKPOINTS];
-  const values = series.flatMap((s) => s.d);
-  const minV = Math.min(0, ...values);
-  const maxV = Math.max(0, ...values);
-  const span = Math.max(maxV - minV, 60);
-  const tick = [15, 30, 60, 120, 180, 300, 600, 900, 1800].find((s) => span / s <= 4) ?? 1800;
-  const lo = Math.floor((minV - span * 0.08) / tick) * tick;
-  const hi = Math.ceil((maxV + span * 0.08) / tick) * tick;
-  const iw = width - m.l - m.r;
-  const ih = H - m.t - m.b;
-  const x = (km: number) => m.l + (km / MARATHON_KM) * iw;
-  const y = (v: number) => m.t + ((v - lo) / (hi - lo || 1)) * ih; // ahead (negative) at the top
-  const ticks: number[] = [];
-  for (let v = lo; v <= hi + 1e-9; v += tick) ticks.push(v);
-  const path = (d: number[]) => d.map((v, i) => `${i ? 'L' : 'M'}${x(kms[i]).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
-  // End labels, kept at least 26 px apart.
-  const ends = series.map((s) => ({ s, ly: y(s.d[9]) })).sort((a, b) => a.ly - b.ly);
-  for (let k = 1; k < ends.length; k += 1) if (ends[k].ly - ends[k - 1].ly < 26) ends[k].ly = ends[k - 1].ly + 26;
-  const tickText = (v: number) => (v === 0 ? '0' : formatDuration(Math.abs(v)));
-  const xTicks = units === 'mi' ? [0, 5, 10, 15, 20, 25].map((mi) => ({ km: mi * KM_PER_MILE, label: String(mi) })) : (narrow ? [0, 10, 20, 30, 40] : [0, 5, 10, 15, 20, 25, 30, 35, 40]).map((km) => ({ km, label: String(km) }));
-  const aria = `Your elapsed time against each group's median at every mat. ${series.map((s) => `${s.name === 'vs held pace' ? 'Held-pace median' : 'Sustained-slowdown median'}: ${CHECKPOINTS.map((km, i) => `${km >= 42.19 ? 'finish' : `${km} km`} ${ahead(s.d[i + 1])}`).join(', ')}.`).join(' ')}`;
-  return (
-    <div ref={ref} className="viz split-check-gap">
-      <svg width={width} height={H} role="img" aria-label={aria}>
-        {ticks.map((v) => (
-          <g key={v} className="grid">
-            <line x1={m.l} x2={m.l + iw} y1={y(v)} y2={y(v)} />
-            <text x={m.l - 7} y={y(v) + 4} textAnchor="end">{tickText(v)}</text>
-          </g>
-        ))}
-        <line x1={m.l} x2={m.l + iw} y1={y(0)} y2={y(0)} stroke="var(--ink-2)" strokeWidth={1.2} />
-        <text x={2} y={m.t - 9} className="axis-label">↑ you ahead of the median · behind ↓</text>
-        {xTicks.map((t) => <text key={t.label} x={x(t.km)} y={H - 8} textAnchor="middle">{t.label}</text>)}
-        {series.map((s) => (
-          <g key={s.key}>
-            <path d={path(s.d)} fill="none" stroke={s.colour} strokeWidth={2.4} strokeLinejoin="round" />
-            {s.d.slice(1).map((v, i) => <circle key={i} cx={x(CHECKPOINTS[i])} cy={y(v)} r={3.2} fill={s.colour} stroke="var(--card)" strokeWidth={1.5} />)}
-          </g>
-        ))}
-        {narrow ? null : ends.map(({ s, ly }) => (
-          <g key={s.key}>
-            <text x={m.l + iw + 8} y={ly - 1} className="split-check-end" style={{ fill: s.ink }}>{s.name}</text>
-            <text x={m.l + iw + 8} y={ly + 11} className="split-check-end-sub">{ahead(s.d[9])}</text>
-          </g>
-        ))}
-      </svg>
-      {narrow ? (
-        <ul className="split-check-gap-key" aria-hidden="true">
-          {series.map((s) => (
-            <li key={s.key}><i style={{ background: s.colour }} /><b style={{ color: s.ink }}>{s.name}</b><span>{ahead(s.d[9])} at the finish</span></li>
-          ))}
-        </ul>
-      ) : null}
-      <p className="split-check-axis-note">{units === 'mi' ? 'Miles' : 'Kilometres'} from the start. At zero you matched that group’s median elapsed time.</p>
-    </div>
-  );
+function Rel({ seconds }: { seconds: number }) {
+  const r = relation(seconds);
+  return <>{r.time ? `${r.time} ` : ''}{r.words}</>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1148,51 +927,47 @@ function GapChart({ times, held, slow, units }: { times: number[]; held: PaceBan
 function TypePanel({ reading, type, error, retry, units }: { reading: SplitReading; type: TypeResult; error: string | null; retry: () => void; units: UnitSystem }) {
   if (!type) {
     return (
-      <EvidencePanel kind="data" title="Pacing type" id="split-check-type">
+      <section className="tool-panel split-check-type" id="split-check-type" aria-labelledby="split-check-type-title">
+        <EvidenceTag kind="data" />
         {error ? (
           <div className="tool-state is-error split-check-off">
-            <p>{error === 'missing' ? 'The pacing types are not part of this build.' : `${error}`} Everything else on this page still applies.</p>
-            {error !== 'missing' ? <div className="split-check-actions no-print"><button type="button" className="button-secondary" onClick={() => { focusHeading('split-check-type'); retry(); }}>Try again</button></div> : null}
+            <p className="tool-panel-title" id="split-check-type-title">{error === 'missing' ? 'The pacing types are not part of this build.' : `${error}`} Everything else on this page still applies.</p>
+            {error !== 'missing' ? <div className="tool-share no-print"><button type="button" className="btn btn-secondary is-compact" onClick={() => { focusHeading('split-check-type'); retry(); }}>Try again</button></div> : null}
           </div>
-        ) : <p className="tool-state">Loading the pacing types…</p>}
-      </EvidencePanel>
+        ) : <p className="tool-state tool-panel-title" id="split-check-type-title">Loading the pacing types…</p>}
+      </section>
     );
   }
-  const { arch, colour, all } = type;
+  const { arch } = type;
   return (
-    <EvidencePanel kind="data" id="split-check-type" title={<>Pacing type: {type.name}</>}
-      meta={`${share(arch.share)} of finishes were ${type.name.toLowerCase()}s.`}>
-      <p className="split-check-blurb" style={{ borderColor: colour }}>{arch.blurb}</p>
-      <ProfileChart reading={reading} arch={arch} colour={colour} units={units} />
-      <ul className="split-check-types" aria-label="The six pacing types and their observed shares of finishes">
-        {all.map((a, i) => (
-          <li key={a.name} className={a.name === type.name ? 'is-you' : undefined} aria-current={a.name === type.name ? 'true' : undefined}>
-            <i style={{ background: ARCHETYPE_COLOURS[i % ARCHETYPE_COLOURS.length] }} aria-hidden="true" />
-            <span>{a.name}</span><small>{share(a.share)}</small>
-          </li>
-        ))}
-      </ul>
-      <p className="tool-note">A label for the shape of your race, not a grade. <Link href="/stories/pacing-types">Meet all six types</Link>.</p>
-    </EvidencePanel>
+    <section className="tool-panel split-check-type" id="split-check-type" aria-labelledby="split-check-type-title" style={typeStyle(type.index) as CSSProperties}>
+      <EvidenceTag kind="data" />
+      <div className="tool-panel-head">
+        <p className="tool-nugget-text" id="split-check-type-title">The shape of your race: <em>{type.name}</em>, like {share(arch.share)} of finishes.</p>
+        <p className="tool-panel-meta">{arch.blurb}</p>
+      </div>
+      <ProfileChart reading={reading} arch={arch} units={units} />
+    </section>
   );
 }
 
-function ProfileChart({ reading, arch, colour, units }: { reading: SplitReading; arch: Archetype; colour: string; units: UnitSystem }) {
+/** Your section paces against your own average, beside the median of your pacing type and its middle half. */
+function ProfileChart({ reading, arch, units }: { reading: SplitReading; arch: Archetype; units: UnitSystem }) {
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 640);
   const narrow = width < 480;
-  const H = narrow ? 200 : 220;
-  const m = { l: 40, r: narrow ? 64 : 84, t: 22, b: 26 };
+  const H = narrow ? 170 : 210;
+  const m = { l: 48, r: narrow ? 60 : 76, t: 12, b: 24 };
   const mids = SECTION_BOUNDS.map(([a, b]) => (a + b) / 2);
   const you = reading.relative;
   const values = [...you, ...arch.profile_p25, ...arch.profile_p75, 0];
   const minV = Math.min(...values);
   const maxV = Math.max(...values);
-  const span = maxV - minV;
-  const tick = [2, 5, 10, 20, 25, 50].find((s) => span / s <= 5) ?? 50;
+  const span = Math.max(maxV - minV, 4);
+  const tick = [2, 5, 10, 20, 25, 50].find((s) => span / s <= 4) ?? 50;
   const lo = Math.floor(minV / tick) * tick;
   const hi = Math.ceil(maxV / tick) * tick;
-  const iw = width - m.l - m.r;
+  const iw = Math.max(40, width - m.l - m.r);
   const ih = H - m.t - m.b;
   const x = (km: number) => m.l + (km / MARATHON_KM) * iw;
   const y = (v: number) => m.t + ((v - lo) / (hi - lo || 1)) * ih;
@@ -1200,30 +975,27 @@ function ProfileChart({ reading, arch, colour, units }: { reading: SplitReading;
   for (let v = lo; v <= hi + 1e-9; v += tick) ticks.push(v);
   const line = (vals: number[]) => vals.map((v, i) => `${i ? 'L' : 'M'}${x(mids[i]).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
   const band = `${line(arch.profile_p25)} ${[...arch.profile_p75].reverse().map((v, j) => `L${x(mids[8 - j]).toFixed(1)} ${y(v).toFixed(1)}`).join(' ')} Z`;
-  const ink = TYPE_INK[ARCHETYPE_COLOURS.indexOf(colour as (typeof ARCHETYPE_COLOURS)[number])] ?? 'var(--ink-2)';
-  const ends = [{ key: 'you', text: 'You', colour: 'var(--ink)', ly: y(you[8]) }, { key: 'type', text: 'Typical', colour: ink, ly: y(arch.profile[8]) }].sort((a, b) => a.ly - b.ly);
-  if (ends[1].ly - ends[0].ly < 14) ends[1].ly = ends[0].ly + 14;
-  const xTicks = units === 'mi' ? [0, 5, 10, 15, 20, 25].map((mi) => ({ km: mi * KM_PER_MILE, label: String(mi) })) : (narrow ? [0, 10, 20, 30, 40] : [0, 5, 10, 15, 20, 25, 30, 35, 40]).map((km) => ({ km, label: String(km) }));
+  const ends = [{ key: 'you', text: 'You', ly: y(you[8]) }, { key: 'type', text: 'Typical', ly: y(arch.profile[8]) }].sort((a, b) => a.ly - b.ly);
+  if (ends[1].ly - ends[0].ly < 16) ends[1].ly = ends[0].ly + 16;
+  const xTicks = fitTicks([0, 10, 20, 30, 40].map((km) => ({ x: x(km), label: km ? `${km}K` : 'Start' })), width);
   return (
-    <div ref={ref} className="viz split-check-profile">
+    <div ref={ref} className="split-check-profile">
       <svg width={width} height={H} role="img"
-        aria-label={`Each section's pace against your own average pace, beside the typical ${arch.name}. You: ${you.map((v, i) => `${secName(i, units)} ${signedPct(v, 1)}`).join(', ')}. Typical ${arch.name}: ${arch.profile.map((v, i) => `${secName(i, units)} ${signedPct(v, 1)}`).join(', ')}.`}>
+        aria-label={`Each section's pace against your own average pace, beside the typical ${arch.name}. You: ${you.map((v, i) => `${secName(i)} ${signedPct(v, 1)}`).join(', ')}. Typical ${arch.name}: ${arch.profile.map((v, i) => `${secName(i)} ${signedPct(v, 1)}`).join(', ')}.`}>
         {ticks.map((v) => (
-          <g key={v} className="grid">
+          <g key={v} className="split-check-gridline">
             <line x1={m.l} x2={m.l + iw} y1={y(v)} y2={y(v)} />
-            <text x={m.l - 7} y={y(v) + 4} textAnchor="end">{v > 0 ? `+${v}` : v < 0 ? `−${Math.abs(v)}` : '0'}%</text>
+            <text x={m.l - 8} y={y(v) + 4} textAnchor="end">{v > 0 ? `+${v}` : v < 0 ? `−${Math.abs(v)}` : '0'}%</text>
           </g>
         ))}
-        <line x1={m.l} x2={m.l + iw} y1={y(0)} y2={y(0)} stroke="var(--ink-3)" strokeWidth={1} />
-        <text x={2} y={m.t - 9} className="axis-label">vs your average pace · quicker ↑</text>
-        {xTicks.map((t) => <text key={t.label} x={x(t.km)} y={H - 7} textAnchor="middle">{t.label}</text>)}
-        <path d={band} fill={colour} opacity={0.16} />
-        <path d={line(arch.profile)} fill="none" stroke={ink} strokeWidth={2} strokeDasharray="5 4" />
-        <path d={line(you)} fill="none" stroke="var(--ink)" strokeWidth={2.4} strokeLinejoin="round" />
-        {you.map((v, i) => <circle key={i} cx={x(mids[i])} cy={y(v)} r={3} fill="var(--ink)" stroke="var(--card)" strokeWidth={1.5} />)}
-        {ends.map((e) => <text key={e.key} x={m.l + iw + 8} y={e.ly + 4} className="split-check-end" style={{ fill: e.colour }}>{e.text}</text>)}
+        {xTicks.map((t) => <text key={t.label} className="split-check-tick" x={t.x} y={H - 4} textAnchor={t.anchor}>{t.label}</text>)}
+        <path className="split-check-type-band" d={band} />
+        <path className="split-check-type-line" d={line(arch.profile)} />
+        <path className="split-check-you-line" d={line(you)} />
+        {you.map((v, i) => <circle key={i} className="split-check-you-dot" cx={x(mids[i])} cy={y(v)} r={3} />)}
+        {ends.map((e) => <text key={e.key} x={m.l + iw + 8} y={e.ly + 4} className={`split-check-end is-${e.key}`}>{e.text}</text>)}
       </svg>
-      <p className="split-check-axis-note">Solid: your sections. Dashed: the median {arch.name}.</p>
+      <p className="split-check-axis-note">Up is quicker than your average pace.</p>
     </div>
   );
 }

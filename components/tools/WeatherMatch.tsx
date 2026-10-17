@@ -3,17 +3,20 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { Choice, DurationField, EvidencePanel, ExampleNote, ShareBar } from '@/components/tools/ui';
+import { ToolHandoffs } from '@/components/tools/Handoffs';
+import { Choice, DurationField, ShareBar } from '@/components/tools/ui';
+import Values from '@/components/ui/Values';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
+import { fitTicks } from '@/components/tools/ticks';
 import { loadInsight } from '@/lib/insights';
 import { courseSlug } from '@/lib/tools/links';
 import type { WeatherEdition, WeatherMatch as WeatherMatchData, WeatherRow } from '@/lib/tools/data';
 import { MARATHON_KM, perKm, perUnit } from '@/lib/tools/pace';
 import { formatClock, formatDuration, formatHM, parseClock, parseDuration } from '@/lib/tools/time';
-import { acsmFlag, cToF, dewPointBand, ely, fToC, hadley, mantzios, relativeHumidity, wetBulb, type Flag, type PercentRange } from '@/lib/tools/weather';
-import { SECTION_BOUNDS, checkpointLabel, count, mss, sectionLabel } from '@/lib/viz/format';
-import type { UnitSystem } from '@/lib/units';
+import { WEATHER_EXAMPLE, WEATHER_REFERENCE, acsmFlag, cToF, dewPointBand, ely, fToC, hadley, mantzios, relativeHumidity, wetBulb, type Flag, type PercentRange } from '@/lib/tools/weather';
+import { SECTION_BOUNDS, checkpointLabel, count, mss } from '@/lib/viz/format';
+import { sectionLabel as sectionName, type UnitSystem } from '@/lib/units';
 
 /* ------------------------------------------------------------------ */
 /* Constants and pure helpers                                          */
@@ -21,9 +24,9 @@ import type { UnitSystem } from '@/lib/units';
 
 const DATA_PATH = 'tools/weather-match.json';
 /** The fixed reference window: editions that started at 8–12 °C, same pace band. Shown beside, never subtracted. */
-const REF = { c: 10, hw: 2 };
+const REF = WEATHER_REFERENCE;
 /** An example forecast so the page shows a full result before anything is typed. */
-const DEFAULTS = { temp: { f: 64, c: 18 }, dew: { f: 55, c: 13 } } as const;
+const DEFAULTS = WEATHER_EXAMPLE;
 /** Fallbacks if the data file is unavailable; the loaded file's own values win. */
 const PACE_FALLBACK = { lo: 180, hi: 675, step: 15 };
 /** Temperatures the slider covers, in °C (the published windows run from about −2 to 28 °C). */
@@ -60,9 +63,9 @@ const fromUnit = (v: number, u: TUnit) => (u === 'f' ? fToC(v) : v);
 const unitSign = (u: TUnit) => (u === 'f' ? '°F' : '°C');
 const other = (u: TUnit): TUnit => (u === 'f' ? 'c' : 'f');
 /** An absolute temperature: 64 °F, 17.8 °C. */
-const tAbs = (c: number, u: TUnit, digits = u === 'f' ? 0 : 1) => `${num(toUnit(c, u), digits)} ${unitSign(u)}`;
+const tAbs = (c: number, u: TUnit, digits = u === 'f' ? 0 : 1) => `${num(toUnit(c, u), digits)}\u00a0${unitSign(u)}`;
 /** A recorded race temperature: whole °F, or °C always with one decimal (5.0 °C beside 5.4 °C). */
-const tData = (c: number, u: TUnit, sign = true) => `${num(toUnit(c, u), u === 'f' ? 0 : 1, u === 'c')}${sign ? ` ${unitSign(u)}` : '°'}`;
+const tData = (c: number, u: TUnit, sign = true) => `${num(toUnit(c, u), u === 'f' ? 0 : 1, u === 'c')}${sign ? `\u00a0${unitSign(u)}` : '°'}`;
 /**
  * A temperature converted for the other unit's field, with the fewest decimals (1, then 2) that keep the
  * matched centre (the whole °C it rounds to) unchanged, so switching units never moves the window.
@@ -76,9 +79,9 @@ function convertTemp(c: number, u: TUnit): string {
   return String(Math.round(toUnit(c, u) * 1000) / 1000);
 }
 /** A window of start temperatures: "60.8–68 °F", "16–20 °C". */
-const tWindow = (lo: number, hi: number, u: TUnit) => `${num(toUnit(lo, u), 1)}${toUnit(lo, u) < 0 ? ' to ' : '–'}${num(toUnit(hi, u), 1)} ${unitSign(u)}`;
+const tWindow = (lo: number, hi: number, u: TUnit) => `${num(toUnit(lo, u), 1)}${toUnit(lo, u) < 0 ? ' to ' : '–'}${num(toUnit(hi, u), 1)}\u00a0${unitSign(u)}`;
 /** A temperature difference (×1.8, no +32): "±3.6 °F". */
-const tSpan = (dc: number, u: TUnit) => `${num(u === 'f' ? dc * 1.8 : dc, 1)} ${unitSign(u)}`;
+const tSpan = (dc: number, u: TUnit) => `${num(u === 'f' ? dc * 1.8 : dc, 1)}\u00a0${unitSign(u)}`;
 const tDelta = (dc: number, u: TUnit) => { const v = u === 'f' ? dc * 1.8 : dc; return `${v > 0 ? '+' : ''}${num(v, 1)} ${unitSign(u)}`; };
 const wind = (mps: number, units: UnitSystem) => (units === 'mi' ? `${num(mps * 2.236936, 1)} mph` : `${num(mps * 3.6, 0)} km/h`);
 const pctShare = (share: number) => (share > 0 && share < 0.005 ? '<1%' : `${Math.round(share * 100)}%`);
@@ -383,14 +386,14 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
               <label htmlFor="weather-match-temp">Start temperature</label>
               <Choice label="Temperature unit" small value={tUnit} onChange={switchUnit} options={[{ value: 'f', label: '°F' }, { value: 'c', label: '°C' }]} />
             </div>
-            <div className="weather-match-temp">
-              <button type="button" className="weather-match-nudge" aria-label="One degree cooler" onClick={() => nudgeTemp(-1)}>−</button>
+            <div className="tool-stepper weather-match-temp">
+              <button type="button" aria-label="One degree cooler" onClick={() => nudgeTemp(-1)}>−</button>
               <div className="weather-match-num is-large">
                 <input id="weather-match-temp" inputMode="decimal" autoComplete="off" spellCheck={false} value={tempField}
                   aria-invalid={tempBad || undefined} aria-describedby={tempHintId} onChange={(e) => setTemp(e.target.value)} />
                 <span aria-hidden="true">{unitSign(tUnit)}</span>
               </div>
-              <button type="button" className="weather-match-nudge" aria-label="One degree warmer" onClick={() => nudgeTemp(1)}>+</button>
+              <button type="button" aria-label="One degree warmer" onClick={() => nudgeTemp(1)}>+</button>
             </div>
             <input type="range" className="weather-match-slider" min={sliderRange[0]} max={sliderRange[1]} step={tUnit === 'f' ? 1 : 0.5} value={sliderValue}
               aria-label={`Start temperature, ${unitSign(tUnit)}`} aria-valuetext={`${num(sliderValue, 1)} ${unitSign(tUnit)}`}
@@ -400,7 +403,7 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
                 : tempIn === null ? `Type a number in ${unitSign(tUnit)}, such as ${DEFAULTS.temp[tUnit]}.`
                   : !tempOk ? `Try a temperature between ${tAbs(-30, tUnit, 0)} and ${tAbs(50, tUnit, 0)}.`
                     : exampleTemp ? `An example (${tAbs(tempC!, other(tUnit))}). Type the forecast for your start time.`
-                      : `From your own forecast, at the start time (${tAbs(tempC!, other(tUnit))}).`}
+                      : `At the start time (${tAbs(tempC!, other(tUnit))}).`}
             </p>
           </div>
 
@@ -424,27 +427,26 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
               {dewAbove ? 'A dew point cannot be above the air temperature.'
                 : dewBad ? `Type a number in ${unitSign(tUnit)}, such as ${DEFAULTS.dew[tUnit]}.`
                   : hum === 'rh' && q.rh !== '' && !rhOk ? 'Try a humidity between 1 and 100%.'
-                    : hum === 'rh' && dewOk ? `Dew point ${tAbs(dewC!, tUnit)} at your start temperature. Used only in the published-research panel.`
-                      : exampleDew ? 'An example, like the temperature. Used only in the published-research panel.'
-                        : 'Used only in the published-research panel.'}
+                    : hum === 'rh' && dewOk ? `Dew point ${tAbs(dewC!, tUnit)}. Used for the published-research estimates only.`
+                      : 'Used for the published-research estimates only.'}
             </p>
           </div>
 
           <div className="tool-field">
             <span className="tool-label" id="weather-match-by">Your pace</span>
             <div role="group" aria-labelledby="weather-match-by">
-              <Choice label="Enter a goal time or a 5–20 km pace" small value={by} onChange={switchBy} options={[{ value: 'goal', label: 'Goal time' }, { value: 'pace', label: '5–20 km pace' }]} />
+              <Choice label="Enter a goal time or a 5–20 km pace" small value={by} onChange={switchBy} options={[{ value: 'goal', label: 'Goal time' }, { value: 'pace', label: '5–20K pace' }]} />
             </div>
           </div>
           {by === 'goal' ? (
             <DurationField label="Marathon goal time" large value={goalS} placeholder="4:00:00"
               onChange={(s) => setQ({ goal: s === null ? '' : formatDuration(s, true) })}
-              hint={paceKm !== null ? <>Even pace {yourPace} ({paceText(paceKm, units === 'mi' ? 'km' : 'mi', bandSpan)}).{exampleGoal ? ' 4:00:00 is an example goal.' : ''}</> : 'Type a goal such as 4:00:00 or 3:45.'} />
+              hint={paceKm !== null ? <>Even pace {yourPace} ({paceText(paceKm, units === 'mi' ? 'km' : 'mi', bandSpan)}).</> : 'Type a goal such as 4:00:00 or 3:45.'} />
           ) : (
-            <DurationField label={`Planned 5–20 km pace per ${units === 'mi' ? 'mile' : 'kilometre'}`} mode="pace" large placeholder={units === 'mi' ? '9:09' : '5:41'}
+            <DurationField label={`Planned 5–20K pace per ${units === 'mi' ? 'mile' : 'kilometre'}`} mode="pace" large placeholder={units === 'mi' ? '9:09' : '5:41'}
               value={paceIn !== null ? paceSeconds(perKm(paceIn, pu), units, bandSpan) : null}
               onChange={(s) => setQ({ by: 'pace', pace: s === null ? '' : formatDuration(s), pu: units })}
-              hint={paceKm !== null ? <>The pace you plan to hold from the 5 km mat to the 20 km mat{units === 'mi' ? ' (3.1 to 12.4 mi)' : ''}. Held for the whole race, it works out to {formatDuration(Math.round(paceKm * MARATHON_KM), true)}.</> : `Type a pace such as ${units === 'mi' ? '9:09' : '5:41'}.`} />
+              hint={paceKm !== null ? <>Held for the whole race: {formatDuration(Math.round(paceKm * MARATHON_KM), true)}.</> : `Type a pace such as ${units === 'mi' ? '9:09' : '5:41'}.`} />
           )}
 
           <div className="tool-field">
@@ -454,7 +456,7 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
               {courses.map((c) => <option key={c.slug} value={c.slug}>{c.city}</option>)}
             </select>
             <p className="tool-field-hint">
-              {data && q.course && !course ? 'That course is not in this tool. ' : null}Shows that course’s past race-morning temperatures. It does not change the match.
+              {data && q.course && !course ? 'That course is not in this tool. ' : null}Shows its past race mornings. It does not change the match.
             </p>
           </div>
         </form>
@@ -463,39 +465,34 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
           <p className="sr-only" role="status">{settledStatus}</p>
           {error ? (
             <div className="tool-state is-error weather-match-error" role="alert">
-              <p>{error} The published-research panel below still works.</p>
-              {retry ? <button type="button" className="button-secondary" onClick={retry}>Try again</button> : null}
+              <p>{error} The published-research estimates below still work.</p>
+              {retry ? <button type="button" className="btn btn-secondary is-compact" onClick={retry}>Try again</button> : null}
             </div>
           ) : !data ? (
             <p className="tool-state">Loading the data…</p>
           ) : match ? (
             <>
-              {isExample ? (
-                <ExampleNote>
-                  Example forecast and goal: {DEFAULTS.temp[tUnit]} {unitSign(tUnit)} at the start, dew point {DEFAULTS.dew[tUnit]} {unitSign(tUnit)}, and a {DEFAULT_GOAL} goal.{course ? ` ${course.city}’s past race mornings are further down.` : ''} Type yours; everything updates as you type.
-                </ExampleNote>
-              ) : null}
-              <ResultHead match={match} units={units} tUnit={tUnit} hw={hw} centre={centre} winText={winText} winAlt={winAlt} refText={refText} refTone={refTone}
-                bandLabel={bandLabel} yourTemp={yourTemp} yourPace={yourPace} widenLabel={widenLabel} onWiden={toggleWiden}
+              <ResultCard match={match} units={units} tUnit={tUnit} hw={hw} centre={centre} winText={winText} refText={refText} refTone={refTone}
+                bandLabel={bandLabel} yourTemp={yourTemp} yourPace={yourPace} widenLabel={widenLabel} onWiden={toggleWiden} isExample={isExample}
                 warmCount={warmCount} coldCount={coldCount} total={data.editions.length} paceLo={paceLo} paceHi={paceHi} step={step} badTemp={tempBad} />
 
               {match.kind === 'ok' ? (
-                <EvidencePanel kind="data" title="How finishes at your pace held up">
-                  <ComparisonTable match={match} units={units} winText={winText} refText={refText} refTone={refTone} bandLabel={bandLabel} centre={centre!} hw={hw} />
-                  <h3 className="weather-match-subhead">Section by section</h3>
-                  <ProfileChart mine={match.row.profile} reference={match.ref && !(centre === REF.c && hw === REF.hw) ? match.ref.profile : null} units={units}
-                    mineLabel={`Mornings like yours, ${winText}`} refLabel={`${refTone}, ${refText}`} />
-                </EvidencePanel>
+                <SectionsPanel match={match} units={units} centre={centre!} hw={hw} winText={winText} refText={refText} refTone={refTone} />
               ) : null}
 
               {centre !== null && (match.kind === 'ok' || match.kind === 'no-row') ? (
-                <EvidencePanel kind="data" title={match.kind === 'ok' ? `The ${plural(match.row.ed.length, 'edition')} behind this window` : 'Editions that started in this window'}
-                  meta={<>
-                    {match.kind === 'ok' && match.row.ed.length < match.inWindow ? `${cap(plural(match.inWindow - match.row.ed.length, 'more edition'))} started in the window with too few finishes at your pace; ${match.inWindow - match.row.ed.length === 1 ? 'it is' : 'they are'} grey in the shaded window below.` : ''}
-                  </>}>
+                <section className="tool-panel weather-match-editions" aria-labelledby="weather-match-editions-title">
+                  <header className="tool-panel-head">
+                    <h2 className="tool-panel-title" id="weather-match-editions-title">
+                      {match.kind === 'ok' ? `The ${plural(match.row.ed.length, 'race')} behind it` : 'Races that started in this window'}
+                    </h2>
+                    {match.kind === 'ok' && match.row.ed.length < match.inWindow ? (
+                      <p className="tool-panel-meta">{cap(plural(match.inWindow - match.row.ed.length, 'more race'))} started in the window with too few finishes at your pace.</p>
+                    ) : null}
+                  </header>
                   <TempStrip editions={data.editions} tUnit={tUnit} marker={tempC} centre={centre} hw={hw} showRef
-                    emphasis={new Set(match.kind === 'ok' ? match.row.ed : match.inWindow.map((e) => e.id))} emphasisTone={match.kind === 'ok' ? 'warm' : 'ink'}
-                    legend={match.kind === 'ok' ? 'Matched edition' : 'Started in this window'}
+                    emphasis={new Set(match.kind === 'ok' ? match.row.ed : match.inWindow.map((e) => e.id))}
+                    legend={match.kind === 'ok' ? 'Matched' : 'Started in this window'}
                     label={`Start temperatures of all ${data.editions.length} editions, from ${tData(Math.min(...data.editions.map((e) => e.temp_c)), tUnit)} to ${tData(Math.max(...data.editions.map((e) => e.temp_c)), tUnit)}. ${match.kind === 'ok'
                       ? match.row.ed.length === match.inWindow
                         ? `${match.inWindow === 1 ? 'The one edition' : `All ${count(match.inWindow)} editions`} that started in your window, ${winText}, matched and ${match.inWindow === 1 ? 'is' : 'are'} highlighted.`
@@ -505,7 +502,7 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
                   <EditionChips units={units} tUnit={tUnit}
                     editions={(match.kind === 'ok' ? match.row.ed.map((id) => byId.get(id)).filter((e): e is WeatherEdition => !!e) : match.inWindow).sort((a, b) => a.temp_c - b.temp_c || a.city.localeCompare(b.city))}
                     empty="No edition started in this window." />
-                </EvidencePanel>
+                </section>
               ) : null}
 
               {course ? <CoursePanel course={course} tUnit={tUnit} units={units} tempC={tempOk ? tempC : null} centre={centre} hw={hw} all={data.editions} /> : null}
@@ -515,19 +512,13 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
           <ResearchPanel tempC={tempOk ? tempC : null} dewC={dewOk ? dewC : null} need={need} tUnit={tUnit} goal={goalForResearch} by={by} paceLabel={yourPace} />
 
           {linkS !== null ? (
-            <div className="tool-callout no-print">
-              <strong>{by === 'goal' ? `Racing for ${goalLabel}?` : `${yourPace} held for the whole race is ${goalLabel}.`}</strong>{' '}
-              {linkInRange ? (
-                <>
-                  The <Link href={bandHref}>pace band{bandCourse ? ` for ${course!.city}` : ''}</Link> shows what finishes that came in within five minutes under {linkHM} ran at each 5 km mat{linkS % 60 ? `, using the whole minute at or below ${goalLabel}` : ''}{bandWhy}, and the{' '}
-                  <Link href={`/tools/course-chooser?goal=${linkHM}`}>course chooser</Link> lists each course’s race-morning temperatures beside how finishes at your pace held up.
-                </>
-              ) : (
-                <>
-                  The <Link href={bandHref}>pace band</Link> prints even splits for {linkHM}. Its observed mat times, and the <Link href="/tools/course-chooser">course chooser</Link>, cover goals from 2:30 to 6:30, so the chooser opens without yours.
-                </>
-              )}
-            </div>
+            <ToolHandoffs label="Next steps" links={linkInRange ? [
+              { href: bandHref, title: `Pace band${bandCourse ? ` for ${course!.city}` : ''}`, text: <>The mat times of finishes just under {linkHM}{bandWhy}.</> },
+              { href: `/tools/course-chooser?goal=${linkHM}`, title: `Every course at ${linkHM}`, text: <>Each course’s race mornings beside how finishes at your pace held up.</> },
+            ] : [
+              { href: bandHref, title: 'Pace band', text: <>Even splits for {linkHM}.</> },
+              { href: '/tools/course-chooser', title: 'Course chooser', text: <>Goals from 2:30 to 6:30, course by course.</> },
+            ]} />
           ) : null}
           <ShareBar />
         </div>
@@ -537,248 +528,195 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
 }
 
 /* ------------------------------------------------------------------ */
-/* Headline (result and unavailable states share one element tree, so  */
-/* the widen button keeps focus when the state changes)                */
+/* The night card (result and unavailable states share one element     */
+/* tree, so the widen button keeps focus when the state changes)       */
 /* ------------------------------------------------------------------ */
 
-function ResultHead({ match, units, tUnit, hw, centre, winText, winAlt, refText, refTone, bandLabel, yourTemp, yourPace, widenLabel, onWiden,
+function ResultCard({ match, units, tUnit, hw, centre, winText, refText, refTone, bandLabel, yourTemp, yourPace, widenLabel, onWiden, isExample,
   warmCount, coldCount, total, paceLo, paceHi, step, badTemp }: {
-  match: Match; units: UnitSystem; tUnit: TUnit; hw: number; centre: number | null; winText: string; winAlt: string; refText: string; refTone: string;
-  bandLabel: string; yourTemp: string; yourPace: string; widenLabel: string; onWiden: () => void;
+  match: Match; units: UnitSystem; tUnit: TUnit; hw: number; centre: number | null; winText: string; refText: string; refTone: string;
+  bandLabel: string; yourTemp: string; yourPace: string; widenLabel: string; onWiden: () => void; isExample: boolean;
   warmCount: number; coldCount: number; total: number; paceLo: number; paceHi: number; step: number; badTemp: boolean;
 }) {
   const titleId = useId();
   let kicker: string;
-  let title: string;
-  let group: ReactNode;
-  let widenNote: string | null = null;
+  let figure: ReactNode;
   let body: ReactNode = null;
+  let widenNote: string | null = null;
   const showWiden = match.kind === 'ok' || match.kind === 'no-row';
   const inBand = <span className="weather-match-nowrap">{bandLabel}</span>;
 
   if (match.kind === 'ok') {
-    const { row, ref, inWindow } = match;
-    const m = row.ed.length;
+    const { row, ref } = match;
     const same = ref !== null && centre === REF.c && hw === REF.hw;
-    kicker = `Mornings like ${yourTemp}`;
-    title = m === inWindow
-      ? `${inWindow === 1 ? 'One past marathon edition' : `${count(inWindow)} past marathon editions`} started at ${winText}`
-      : `${count(m)} of ${count(inWindow)} past marathon editions that started at ${winText} had enough finishes at your pace`;
-    group = (
-      <p>
-        Finishes that ran {stretch(units)} at {inBand}, your pace band.
-      </p>
+    const cols = ref && !same ? [{ key: 'yours', name: 'Yours', sub: winText, r: row }, { key: 'ref', name: refTone, sub: refText, r: ref }] : [{ key: 'yours', name: 'Yours', sub: winText, r: row }];
+    kicker = `${isExample ? 'Example · ' : ''}Mornings like ${yourTemp}`;
+    figure = (
+      <>
+        <span className="is-signal">{pctShare(row.sd)}</span>
+        <small>of {count(row.n)} finishes at {inBand} had a <SlowdownTerm /> on mornings of {winText}.</small>
+      </>
     );
     body = (
-      <>
-        <div className={`weather-match-cols${same || !ref ? ' is-single' : ''}`}>
-          <HeadColumn tone="warm" title={same ? 'Mornings like yours (the reference window)' : 'Mornings like yours'} sub={winText} row={row} units={units} />
-          {ref && !same ? <HeadColumn tone="cool" title={refTone} sub={refText} row={ref} units={units} /> : null}
-        </div>
-        <p className="weather-match-foot">
-          {ref && !same ? 'Two descriptive columns, not a heat penalty.'
-            : !ref ? 'The reference window has no published row at this pace band.'
-              : 'Your forecast falls in the reference window itself, so there is one column.'}
-        </p>
-      </>
+      <table className="weather-match-cols">
+        <caption className="sr-only">Finishes at {bandLabel} on mornings like yours{cols.length > 1 ? `, beside ${refTone.toLowerCase()}` : ''}</caption>
+        <thead>
+          <tr><th scope="col"><span className="sr-only">Measure</span></th>{cols.map((c) => <th key={c.key} scope="col" className={`is-${c.key}`}>{c.name}<small>{c.sub}</small></th>)}</tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row"><SlowdownTerm>Sustained slowdown</SlowdownTerm></th>{cols.map((c) => <td key={c.key} className={`is-${c.key}`}>{pctShare(c.r.sd)}</td>)}</tr>
+          <tr><th scope="row">Extra time after {checkpointLabel(20, units)}</th>{cols.map((c) => <td key={c.key} className={`is-${c.key}`}>{mss(c.r.after20, true)}</td>)}</tr>
+          <tr><th scope="row">Median finish</th>{cols.map((c) => <td key={c.key} className={`is-${c.key}`}>{formatHM(c.r.fin[1])}</td>)}</tr>
+          <tr><th scope="row">Races</th>{cols.map((c) => <td key={c.key} className={`is-${c.key}`}>{count(c.r.ed.length)}</td>)}</tr>
+        </tbody>
+      </table>
     );
   } else if (match.kind === 'missing') {
     kicker = 'Nothing to match yet';
-    title = match.what === 'temperature' ? (badTemp ? 'Check the start temperature' : 'Type a start temperature') : 'Type a goal time or a 5–20 km pace';
-    group = <p>{badTemp && match.what === 'temperature' ? `Type a number in ${unitSign(tUnit)}, such as ${DEFAULTS.temp[tUnit]}.` : 'The match appears as soon as both are filled in.'}</p>;
+    figure = <span className="weather-match-ask">{match.what === 'temperature' ? (badTemp ? 'Check the start temperature' : 'Type a start temperature') : 'Type a goal time or a 5–20K pace'}</span>;
+    body = <p className="tool-reading-sub">{badTemp && match.what === 'temperature' ? `Type a number in ${unitSign(tUnit)}, such as ${DEFAULTS.temp[tUnit]}.` : 'The match appears as soon as both are filled in.'}</p>;
   } else if (match.kind === 'pace-range') {
-    kicker = yourPace ? `Your 5–20 km pace ${yourPace}` : 'Your 5–20 km pace';
-    title = match.fast ? 'Faster than any published pace band' : 'Slower than any published pace band';
-    group = <p>Published 5–20 km paces run from {formatDuration(bandEnds(paceLo, step, units)[0])}/{units} to {formatDuration(bandEnds(paceHi - step, step, units)[1])}/{units}.</p>;
+    kicker = yourPace ? `Your 5–20K pace ${yourPace}` : 'Your 5–20K pace';
+    figure = <span className="weather-match-ask">{match.fast ? 'Faster than any published pace band' : 'Slower than any published pace band'}</span>;
+    body = <p className="tool-reading-sub">Published 5–20K paces run from {formatDuration(bandEnds(paceLo, step, units)[0])}/{units} to {formatDuration(bandEnds(paceHi - step, step, units)[1])}/{units}.</p>;
   } else {
     const n = match.inWindow.length;
-    kicker = `Window ±${tSpan(hw, tUnit)} · ${bandLabel}`;
-    title = `Not enough past mornings like ${yourTemp} at your pace`;
-    group = (
-      <>
-        <p>
-          {n < 3
-            ? <>{n === 0 ? 'No edition' : `Only ${plural(n, 'edition')}`} started at {winText}.</>
-            : <>{count(n)} editions started at {winText}, but too few of their finishes ran a 5–20 km pace of {inBand}.</>}
-        </p>
-        <p>
-          {match.paces ? <>At these temperatures there are published rows for 5–20 km paces from {formatDuration(bandEnds(match.paces[0], step, units)[0])}/{units} to {formatDuration(bandEnds(match.paces[1], step, units)[1])}/{units}. </> : null}
-          {match.nearest !== null ? <>At your pace, the nearest published window is centred on {tAbs(match.nearest, tUnit, tUnit === 'f' ? 1 : 0)}. </> : null}
-          {centre !== null && centre >= 15 ? <>Warm race mornings are rare: {count(warmCount)} of {count(total)} editions here started at {tAbs(20, tUnit, 0)} or warmer.</> : null}
-          {centre !== null && centre <= 5 ? <>Cold race mornings are rare too: {count(coldCount)} of {count(total)} editions here started at {tAbs(3, tUnit, 0)} or colder.</> : null}
-        </p>
-      </>
+    kicker = `Mornings like ${yourTemp} · ${bandLabel}`;
+    figure = <span className="weather-match-ask">Not enough past mornings like this at your pace</span>;
+    body = (
+      <p className="tool-reading-sub">
+        {n < 3
+          ? <>{n === 0 ? 'No race' : `Only ${plural(n, 'race')}`} started at {winText}. </>
+          : <>{count(n)} races started at {winText}, but too few of their finishes ran a 5–20K pace of {inBand}. </>}
+        {match.nearest !== null ? <>At your pace, the nearest published window is centred on {tAbs(match.nearest, tUnit, tUnit === 'f' ? 1 : 0)}. </> : null}
+        {centre !== null && centre >= 15 ? <>Warm race mornings are rare: {count(warmCount)} of {count(total)} races here started at {tAbs(20, tUnit, 0)} or warmer.</> : null}
+        {centre !== null && centre <= 5 ? <>Cold race mornings are rare too: {count(coldCount)} of {count(total)} races here started at {tAbs(3, tUnit, 0)} or colder.</> : null}
+      </p>
     );
-    if (hw === 2) widenNote = match.widenHelps ? `A ±${tSpan(3, tUnit)} window has a published row at your pace.` : `A ±${tSpan(3, tUnit)} window has no published row at your pace either.`;
+    if (hw === 2) widenNote = match.widenHelps ? `A ±${tSpan(3, tUnit)} window has a published row at your pace.` : `A ±${tSpan(3, tUnit)} window has none either.`;
   }
 
   return (
-    <section className={`tool-headline night weather-match-headline${match.kind === 'ok' ? '' : ' is-unavailable'}`} aria-labelledby={titleId}>
-      <div className="weather-match-head">
-        <EvidenceTag kind="data" />
-        <p className="weather-match-kicker">{kicker}</p>
-        <h2 className="weather-match-title" id={titleId}>{title}</h2>
-        <div className="weather-match-group">{group}</div>
-        {showWiden ? (
-          <div className="weather-match-actions">
-            <button type="button" className="weather-match-widen" aria-pressed={hw === 3} onClick={onWiden}>{widenLabel}</button>
-            {widenNote ? <span>{widenNote}</span> : null}
-          </div>
-        ) : null}
+    <section className={`tool-reading night weather-match-headline${match.kind === 'ok' ? '' : ' is-unavailable'}`} aria-labelledby={titleId}>
+      <div className="tool-reading-head">
+        <p className="tool-reading-kicker">{kicker}</p>
+        <h2 className="tool-reading-figure" id={titleId}>{figure}</h2>
       </div>
       {body}
+      {showWiden ? (
+        <div className="weather-match-actions">
+          <button type="button" className="btn btn-secondary is-compact weather-match-widen" aria-pressed={hw === 3} onClick={onWiden}>{widenLabel}</button>
+          {widenNote ? <span>{widenNote}</span> : null}
+        </div>
+      ) : null}
+      {match.kind === 'ok' || match.kind === 'no-row' ? <EvidenceTag kind="data" /> : null}
     </section>
   );
 }
 
-function HeadColumn({ tone, title, sub, row, units }: { tone: Tone; title: string; sub: string; row: WeatherRow; units: UnitSystem }) {
-  return (
-    <div className={`weather-match-col is-${tone}`}>
-      <p className="weather-match-col-title"><i aria-hidden="true" />{title}</p>
-      <p className="weather-match-col-sub">
-        <span className="weather-match-nowrap">{sub}</span> · <span className="weather-match-nowrap">{count(row.n)} finishes</span>
-      </p>
-      <dl>
-        <div><dt><SlowdownTerm>Sustained slowdown</SlowdownTerm></dt><dd>{pctShare(row.sd)}</dd></div>
-        <div><dt>After {checkpointLabel(20, units)}</dt><dd>{mss(row.after20, true)}</dd><dd className="weather-match-dd-sub">median extra time</dd></div>
-        <div><dt>Median finish</dt><dd>{formatHM(row.fin[1])}</dd><dd className="weather-match-dd-sub">10th–90th <span className="weather-match-nowrap">{formatHM(row.fin[0])}–{formatHM(row.fin[2])}</span></dd></div>
-      </dl>
-    </div>
-  );
-}
-
 /* ------------------------------------------------------------------ */
-/* Comparison table                                                    */
+/* Section by section                                                  */
 /* ------------------------------------------------------------------ */
 
-function ComparisonTable({ match, units, winText, refText, refTone, bandLabel, centre, hw }: {
-  match: Extract<Match, { kind: 'ok' }>; units: UnitSystem; winText: string; refText: string; refTone: string; bandLabel: string; centre: number; hw: number;
+function SectionsPanel({ match, units, centre, hw, winText, refText, refTone }: {
+  match: Extract<Match, { kind: 'ok' }>; units: UnitSystem; centre: number; hw: number; winText: string; refText: string; refTone: string;
 }) {
   const { row, ref } = match;
   const showRef = ref !== null && !(centre === REF.c && hw === REF.hw);
-  type Col = { r: WeatherRow; started: number };
-  const cols: Col[] = showRef ? [{ r: row, started: match.inWindow }, { r: ref!, started: match.refInWindow }] : [{ r: row, started: match.inWindow }];
-  const lines: { label: ReactNode; cell: (c: Col) => ReactNode; key?: boolean }[] = [
-    { label: <>Finishes at <span className="weather-match-nowrap">{bandLabel}</span></>, cell: (c) => count(c.r.n) },
-    { label: <SlowdownTerm>Sustained slowdown</SlowdownTerm>, cell: (c) => pctShare(c.r.sd), key: true },
-    { label: <>Median extra time after {checkpointLabel(20, units)}</>, cell: (c) => mss(c.r.after20, true) },
-    { label: <>Median pace change, {checkpointLabel(30, units)} to finish</>, cell: (c) => signedPct(c.r.late) },
-    { label: 'Median finish (10th–90th percentile)', cell: (c) => <>{formatHM(c.r.fin[1])}<small>{formatHM(c.r.fin[0])}–{formatHM(c.r.fin[2])}</small></> },
-  ];
+  const more = showRef ? row.after20 - ref!.after20 : 0;
   return (
-    <div className="tool-table-wrap weather-match-compare">
-      <table className="tool-table wrap-first">
-        <thead>
-          <tr>
-            <th scope="col"><span className="sr-only">Measure</span></th>
-            <th scope="col"><span className="weather-match-key is-warm" aria-hidden="true" />Mornings like yours<small>{winText}</small></th>
-            {showRef ? <th scope="col"><span className="weather-match-key is-cool" aria-hidden="true" />{refTone}<small>{refText}</small></th> : null}
-          </tr>
-        </thead>
-        <tbody>
-          {lines.map((l, i) => (
-            <tr key={i} className={l.key ? 'is-key' : undefined}>
-              <th scope="row">{l.label}</th>
-              {cols.map((c, j) => <td key={j}>{l.cell(c)}</td>)}
-            </tr>
-          ))}
-        </tbody>
-        <caption className="sr-only">How finishes at your pace held up on mornings like yours{showRef ? ', beside the reference mornings' : ''}</caption>
-      </table>
-    </div>
+    <section className="tool-panel weather-match-sections" aria-labelledby="weather-match-sections-title">
+      <p className="tool-nugget-text" id="weather-match-sections-title">
+        {showRef && Math.abs(more) >= 30
+          ? <>After {checkpointLabel(20, units)}, the median finish on mornings like yours lost <em>{mss(row.after20, true)}</em> to its own 5–20K pace, against {mss(ref!.after20, true)} on {refTone.toLowerCase()}.</>
+          : <>After {checkpointLabel(20, units)}, the median finish on mornings like yours lost <em>{mss(row.after20, true)}</em> to its own 5–20K pace.</>}
+      </p>
+      <ProfileChart mine={row.profile} reference={showRef ? ref!.profile : null} units={units} mineLabel={`Yours, ${winText}`} refLabel={`${refTone}, ${refText}`} />
+      <Values id="weather-match-sections-values" caption={`Median pace in each section against the same finishes’ 5–20K pace (positive is slower): mornings of ${winText}${showRef ? ` and ${refText}` : ''}`} count={9}>
+        <table className="table">
+          <thead><tr><th scope="col">Section</th><th scope="col">Yours</th>{showRef ? <th scope="col">{refTone}</th> : null}</tr></thead>
+          <tbody>
+            {row.profile.map((v, i) => (
+              <tr key={i}><th scope="row">{secName(i)}</th><td>{signedPct(v)}</td>{showRef ? <td>{signedPct(ref!.profile[i])}</td> : null}</tr>
+            ))}
+            <tr><th scope="row">Finishes</th><td>{count(row.n)}</td>{showRef ? <td>{count(ref!.n)}</td> : null}</tr>
+            <tr><th scope="row">Finish, 10th–90th</th><td>{formatHM(row.fin[0])}–{formatHM(row.fin[2])}</td>{showRef ? <td>{formatHM(ref!.fin[0])}–{formatHM(ref!.fin[2])}</td> : null}</tr>
+            <tr><th scope="row">Pace change, {checkpointLabel(30, units)} to finish</th><td>{signedPct(row.late)}</td>{showRef ? <td>{signedPct(ref!.late)}</td> : null}</tr>
+          </tbody>
+        </table>
+      </Values>
+    </section>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Section profile chart                                               */
-/* ------------------------------------------------------------------ */
+/** A section's name, the same in both unit modes: "30–35K". */
+const secName = (i: number) => sectionName(SECTION_BOUNDS[i][0], SECTION_BOUNDS[i][1]);
 
+/**
+ * Median section pace against the finishes' own 5–20K pace: mornings like yours in the accent, the reference dashed in
+ * ink. Slower is down, as on every pace profile. Drawn in pixels at the measured width.
+ */
 function ProfileChart({ mine, reference, units, mineLabel, refLabel }: { mine: number[]; reference: number[] | null; units: UnitSystem; mineLabel: string; refLabel: string }) {
   const box = useRef<HTMLDivElement>(null);
   const width = useWidth(box, 640);
   const narrow = width < 520;
-  const H = narrow ? 236 : 272;
-  const m = { l: 44, r: narrow ? 14 : 104, t: 30, b: 40 };
+  const H = narrow ? 210 : 250;
+  const m = { l: 44, r: narrow ? 10 : 96, t: 14, b: 24 };
   const values = [...mine, ...(reference ?? [])].map((v) => v * 100);
   const lo = Math.min(-2, Math.floor(Math.min(...values) - 0.5));
   const hi = Math.max(4, Math.ceil(Math.max(...values) + 1));
   const span = hi - lo;
-  const tickStep = span <= 8 ? 1 : span <= 16 ? 2 : span <= 32 ? 4 : 10;
+  const tickStep = span <= 8 ? 2 : span <= 16 ? 4 : span <= 32 ? 8 : 10;
   const ticks: number[] = [];
   for (let v = Math.ceil(lo / tickStep) * tickStep; v <= hi + 1e-9; v += tickStep) ticks.push(v);
   const x = (km: number) => m.l + (km / MARATHON_KM) * (width - m.l - m.r);
-  const y = (pct: number) => m.t + ((hi - pct) / span) * (H - m.t - m.b);
+  const y = (pct: number) => m.t + ((pct - lo) / span) * (H - m.t - m.b); // slower (positive) lower down
   const mids = SECTION_BOUNDS.map(([a, b]) => (a + b) / 2);
   const path = (vals: number[]) => `M${vals.map((v, i) => `${x(mids[i]).toFixed(1)},${y(v * 100).toFixed(1)}`).join('L')}`;
-  const xTicks = units === 'km' ? [0, 10, 20, 30, 40].map((km) => ({ km, label: String(km) })) : [0, 5, 10, 15, 20, 25].map((mi) => ({ km: mi * 1.609344, label: String(mi) }));
+  const xTicks = fitTicks([0, 10, 20, 30, 40].map((km) => ({ x: x(km), label: km ? `${km}K` : 'Start' })), width);
   // Direct labels at the end of each line, kept apart.
-  const endMine = y(mine[8] * 100);
+  let endMine = y(mine[8] * 100);
   let endRef = reference ? y(reference[8] * 100) : 0;
-  let endMineY = endMine;
-  if (reference && Math.abs(endRef - endMineY) < 15) {
-    const midY = (endRef + endMineY) / 2;
-    if (mine[8] >= reference[8]) { endMineY = midY - 8; endRef = midY + 8; } else { endMineY = midY + 8; endRef = midY - 8; }
+  if (reference && Math.abs(endRef - endMine) < 16) {
+    const midY = (endRef + endMine) / 2;
+    if (mine[8] >= reference[8]) { endMine = midY + 8; endRef = midY - 8; } else { endMine = midY - 8; endRef = midY + 8; }
   }
-  const describe = (vals: number[]) => vals.map((v, i) => `${sectionLabel(i, units)} ${signedPct(v)}`).join(', ');
-  const aria = `Median section pace relative to the 5–20 km pace. ${mineLabel}: ${describe(mine)}.${reference ? ` ${refLabel}: ${describe(reference)}.` : ''}`;
+  const describe = (vals: number[]) => vals.map((v, i) => `${secName(i)} ${signedPct(v)}`).join(', ');
+  const aria = `Median section pace against the 5–20K pace. ${mineLabel}: ${describe(mine)}.${reference ? ` ${refLabel}: ${describe(reference)}.` : ''}`;
   return (
     <figure className="weather-match-figure">
-      <ul className="weather-match-legend" aria-hidden="true">
-        <li><i className="is-warm-line" />{mineLabel}</li>
-        {reference ? <li><i className="is-cool-line" />{refLabel}</li> : null}
-      </ul>
-      <div ref={box} className="viz weather-match-chart">
+      <div ref={box} className="weather-match-chart">
         <svg width={width} height={H} role="img" aria-label={aria}>
-          <rect x={x(5)} y={m.t - 6} width={Math.max(0, x(20) - x(5))} height={H - m.t - m.b + 6} className="weather-match-baseline-zone" />
-          <text x={(x(5) + x(20)) / 2} y={m.t - 12} textAnchor="middle" className="axis-label">{narrow ? 'baseline' : '5–20 km baseline'}</text>
           {ticks.map((v) => (
-            <g key={v} className="grid">
+            <g key={v} className="weather-match-grid">
               <line x1={m.l} x2={width - m.r} y1={y(v)} y2={y(v)} />
               <text x={m.l - 8} y={y(v) + 4} textAnchor="end">{v === 0 ? '0' : `${v > 0 ? '+' : MINUS}${Math.abs(v)}%`}</text>
             </g>
           ))}
-          <line x1={m.l} x2={width - m.r} y1={y(0)} y2={y(0)} stroke="var(--ink-3)" strokeWidth={1} />
-          {xTicks.filter((t) => narrow || x(MARATHON_KM) - x(t.km) > 36).map((t) => (
-            <g key={t.label}>
-              <line x1={x(t.km)} x2={x(t.km)} y1={H - m.b} y2={H - m.b + 4} stroke="var(--line-2)" />
-              <text x={x(t.km)} y={H - m.b + 17} textAnchor="middle">{t.label}</text>
-            </g>
-          ))}
-          <text x={x(MARATHON_KM)} y={H - m.b + 17} textAnchor="end">{narrow ? '' : 'Finish'}</text>
-          <text x={m.l} y={H - 4} className="axis-label">{units === 'mi' ? 'miles' : 'km'}</text>
-          <text x={4} y={12} className="axis-label">slower ↑</text>
+          <line className="weather-match-zero" x1={m.l} x2={width - m.r} y1={y(0)} y2={y(0)} />
+          {xTicks.map((t) => <text key={t.label} className="weather-match-tick" x={t.x} y={H - 4} textAnchor={t.anchor}>{t.label}</text>)}
           {reference ? (
-            <g>
-              <path d={path(reference)} fill="none" stroke="var(--blue)" strokeWidth={2} strokeDasharray="6 4" strokeLinejoin="round" />
-              {reference.map((v, i) => <rect key={i} x={x(mids[i]) - 3.5} y={y(v * 100) - 3.5} width={7} height={7} fill="var(--card)" stroke="var(--blue)" strokeWidth={1.8} />)}
+            <g className="weather-match-line is-ref">
+              <path d={path(reference)} />
+              {reference.map((v, i) => <circle key={i} cx={x(mids[i])} cy={y(v * 100)} r={3} />)}
             </g>
           ) : null}
-          <path d={path(mine)} fill="none" stroke="var(--orange)" strokeWidth={2.6} strokeLinejoin="round" />
-          {mine.map((v, i) => <circle key={i} cx={x(mids[i])} cy={y(v * 100)} r={4} fill="var(--orange)" stroke="var(--card)" strokeWidth={1.5} />)}
+          <g className="weather-match-line is-yours">
+            <path d={path(mine)} />
+            {mine.map((v, i) => <circle key={i} cx={x(mids[i])} cy={y(v * 100)} r={3.5} />)}
+          </g>
           {!narrow ? (
             <g>
-              <text x={x(mids[8]) + 10} y={endMineY + 4} className="annotation weather-match-end is-warm">Yours {signedPct(mine[8])}</text>
-              {reference ? <text x={x(mids[8]) + 10} y={endRef + 4} className="annotation weather-match-end is-cool">Ref. {signedPct(reference[8])}</text> : null}
+              <text x={x(mids[8]) + 10} y={endMine + 4} className="weather-match-end is-yours">Yours {signedPct(mine[8])}</text>
+              {reference ? <text x={x(mids[8]) + 10} y={endRef + 4} className="weather-match-end is-ref">Ref. {signedPct(reference[8])}</text> : null}
             </g>
           ) : null}
         </svg>
       </div>
-      <details className="weather-match-details">
-        <summary>Section paces as a table</summary>
-        <div className="tool-table-wrap">
-          <table className="tool-table">
-            <thead><tr><th scope="col">Section</th><th scope="col">Yours</th>{reference ? <th scope="col">Reference</th> : null}</tr></thead>
-            <tbody>
-              {mine.map((v, i) => (
-                <tr key={i} className={i >= 1 && i <= 3 ? 'is-key' : undefined}>
-                  <th scope="row">{sectionLabel(i, units)}</th><td>{signedPct(v)}</td>{reference ? <td>{signedPct(reference[i])}</td> : null}
-                </tr>
-              ))}
-            </tbody>
-            <caption>Median pace in each section against the same finishes’ 5–20 km pace (shaded rows).</caption>
-          </table>
-        </div>
-      </details>
+      <ul className="weather-match-legend" aria-hidden="true">
+        <li className="is-yours"><i />{mineLabel}</li>
+        {reference ? <li className="is-ref"><i />{refLabel}</li> : null}
+      </ul>
     </figure>
   );
 }
@@ -787,9 +725,13 @@ function ProfileChart({ mine, reference, units, mineLabel, refLabel }: { mine: n
 /* Start-temperature strip and race chips                              */
 /* ------------------------------------------------------------------ */
 
-function TempStrip({ editions, tUnit, marker, centre, hw, showRef, emphasis, emphasisTone, legend, label, ring }: {
+/**
+ * Every edition as a dot at its start temperature, stacked where they meet: the matched ones (or a course's) emphasised,
+ * your window and the reference window shaded, your forecast a line. Drawn in pixels at the measured width.
+ */
+function TempStrip({ editions, tUnit, marker, centre, hw, showRef, emphasis, legend, label, ring }: {
   editions: WeatherEdition[]; tUnit: TUnit; marker: number | null; centre: number | null; hw: number; showRef?: boolean;
-  emphasis: Set<number>; emphasisTone: 'warm' | 'ink'; legend: string; label: string; ring?: boolean;
+  emphasis: Set<number>; legend: string; label: string; ring?: boolean;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const width = useWidth(box, 640);
@@ -834,44 +776,41 @@ function TempStrip({ editions, tUnit, marker, centre, hw, showRef, emphasis, emp
   const ordered = [...placed].sort((a, b) => Number(emphasis.has(a.e.id)) - Number(emphasis.has(b.e.id)));
   return (
     <figure className="weather-match-figure">
-      <div ref={box} className="viz weather-match-strip">
+      <div ref={box} className="weather-match-strip">
         <svg width={width} height={H} role="img" aria-label={label}>
-          {showRef ? <rect x={x(REF.c - REF.hw)} y={top} width={Math.max(0, x(REF.c + REF.hw) - x(REF.c - REF.hw))} height={base - top - 6} className="weather-match-zone is-cool" /> : null}
-          {centre !== null ? <rect x={x(centre - hw)} y={top} width={Math.max(0, x(centre + hw) - x(centre - hw))} height={base - top - 6} className="weather-match-zone is-warm" /> : null}
-          <line x1={m.l} x2={width - m.r} y1={base} y2={base} stroke="var(--line-2)" />
+          {showRef ? <rect x={x(REF.c - REF.hw)} y={top} width={Math.max(0, x(REF.c + REF.hw) - x(REF.c - REF.hw))} height={base - top - 6} className="weather-match-zone is-ref" /> : null}
+          {centre !== null ? <rect x={x(centre - hw)} y={top} width={Math.max(0, x(centre + hw) - x(centre - hw))} height={base - top - 6} className="weather-match-zone is-yours" /> : null}
+          <line className="weather-match-axis" x1={m.l} x2={width - m.r} y1={base} y2={base} />
           {shownTicks.map((c) => (
             <g key={c}>
-              <line x1={x(c)} x2={x(c)} y1={base} y2={base + 4} stroke="var(--line-2)" />
-              <text x={x(c)} y={base + 17} textAnchor="middle">{num(toUnit(c, tUnit), 0)}°</text>
+              <line className="weather-match-axis" x1={x(c)} x2={x(c)} y1={base} y2={base + 4} />
+              <text x={x(c)} y={base + 18} textAnchor="middle">{num(toUnit(c, tUnit), 0)}°</text>
             </g>
           ))}
-          <text x={width - m.r} y={base + 17} textAnchor="end" className="axis-label">{unitSign(tUnit)}</text>
+          <text x={width - m.r} y={base + 18} textAnchor="end">{unitSign(tUnit)}</text>
           {ordered.map((p) => {
             const on = emphasis.has(p.e.id);
-            return (
-              <circle key={p.e.id} cx={p.x} cy={mid + p.level * gap} r={on ? r + 0.4 : r}
-                className={on ? (ring ? 'weather-match-dot is-ring' : `weather-match-dot is-${emphasisTone}`) : 'weather-match-dot'} />
-            );
+            return <circle key={p.e.id} cx={p.x} cy={mid + p.level * gap} r={on ? r + 0.4 : r} className={on ? (ring ? 'weather-match-dot is-ring' : 'weather-match-dot is-on') : 'weather-match-dot'} />;
           })}
           {marker !== null ? (
             <g>
-              <line x1={x(marker)} x2={x(marker)} y1={top - 6} y2={base} stroke="var(--ink)" strokeWidth={1.6} />
-              <text x={x(marker)} y={top - 11} textAnchor={markerAnchor} className="annotation">{markerLabel}</text>
+              <line className="weather-match-marker" x1={x(marker)} x2={x(marker)} y1={top - 6} y2={base} />
+              <text x={x(marker)} y={top - 11} textAnchor={markerAnchor} className="weather-match-marker-label">{markerLabel}</text>
             </g>
           ) : null}
         </svg>
       </div>
       <ul className="weather-match-legend is-strip" aria-hidden="true">
-        {emphasis.size ? <li><i className={ring ? 'is-dot-ring' : `is-dot-${emphasisTone}`} />{legend}</li> : null}
-        <li><i className="is-dot" />Other editions</li>
-        {centre !== null ? <li><i className="is-zone-warm" />Your window</li> : null}
-        {showRef ? <li><i className="is-zone-cool" />Reference, {tWindow(REF.c - REF.hw, REF.c + REF.hw, tUnit)}</li> : null}
+        {emphasis.size ? <li className={ring ? 'is-ring' : 'is-on'}><i />{legend}</li> : null}
+        <li className="is-dot"><i />Other races</li>
+        {centre !== null ? <li className="is-zone-yours"><i />Your window</li> : null}
+        {showRef ? <li className="is-zone-ref"><i />Reference, {tWindow(REF.c - REF.hw, REF.c + REF.hw, tUnit)}</li> : null}
       </ul>
     </figure>
   );
 }
 
-function EditionChips({ editions, tUnit, units, empty, limit = 18, showYearFirst = false }: {
+function EditionChips({ editions, tUnit, units, empty, limit = 11, showYearFirst = false }: {
   editions: WeatherEdition[]; tUnit: TUnit; units: UnitSystem; empty: string; limit?: number; showYearFirst?: boolean;
 }) {
   const [open, setOpen] = useState<number | null>(null);
@@ -900,7 +839,7 @@ function EditionChips({ editions, tUnit, units, empty, limit = 18, showYearFirst
           </li>
         ))}
         {editions.length > limit ? (
-          <li><button type="button" className="weather-match-more" ref={moreRef} onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show all ${editions.length}`}</button></li>
+          <li><button type="button" className="weather-match-more" ref={moreRef} onClick={() => setAll(!all)}>{all ? 'Show fewer' : `All ${editions.length}`}</button></li>
         ) : null}
       </ul>
       <div id={detailId} aria-live="polite">
@@ -913,7 +852,7 @@ function EditionChips({ editions, tUnit, units, empty, limit = 18, showYearFirst
               <div><dt>Wind</dt><dd>{current.wind_mps !== null ? wind(current.wind_mps, units) : '—'}</dd></div>
               <div><dt>Warming, first 4 hours</dt><dd>{current.warming_c !== null ? tDelta(current.warming_c, tUnit) : '—'}</dd></div>
             </dl>
-            <button type="button" className="weather-match-close" onClick={close}>Close</button>
+            <button type="button" className="btn btn-secondary is-compact weather-match-close" onClick={close}>Close</button>
           </div>
         ) : <p className="weather-match-chip-hint">Tap an edition for its race-morning weather.</p>}
       </div>
@@ -936,12 +875,15 @@ function CoursePanel({ course, tUnit, units, tempC, centre, hw, all }: {
     else relation = `${cap(plural(warmer, 'edition'))} of ${course.editions.length} started warmer than your forecast.`;
   }
   return (
-    <EvidencePanel kind="data" title={`${course.city}: past race mornings`}
-      meta={<>{course.city}: {lo === hi ? tData(lo, tUnit) : <>{tData(lo, tUnit, false)} to {tData(hi, tUnit)}</>} across {plural(course.editions.length, 'edition')}. {centre !== null ? `${inWindow === 0 ? 'No edition' : cap(plural(inWindow, 'edition'))} started in your window. ` : ''}{relation}</>}>
-      <TempStrip editions={all} tUnit={tUnit} marker={tempC} centre={centre} hw={hw} emphasis={new Set(course.editions.map((e) => e.id))} emphasisTone="ink" ring
-        legend={`${course.city} edition`} label={`${course.editions.length === 1 ? `Start temperature of the one ${course.city} edition, ${tData(lo, tUnit)}` : `Start temperatures of ${count(course.editions.length)} ${course.city} editions, from ${tData(lo, tUnit)} to ${tData(hi, tUnit)}`}, among all editions.`} />
+    <section className="tool-panel weather-match-course" aria-labelledby="weather-match-course-title">
+      <header className="tool-panel-head">
+        <h2 className="tool-panel-title" id="weather-match-course-title">{course.city}: {lo === hi ? tData(lo, tUnit) : <>{tData(lo, tUnit, false)} to {tData(hi, tUnit)}</>} at the start</h2>
+        <p className="tool-panel-meta">{cap(plural(course.editions.length, 'race'))}. {centre !== null ? `${inWindow === 0 ? 'None' : cap(plural(inWindow, 'race'))} started in your window. ` : ''}{relation}</p>
+      </header>
+      <TempStrip editions={all} tUnit={tUnit} marker={tempC} centre={centre} hw={hw} emphasis={new Set(course.editions.map((e) => e.id))} ring
+        legend={course.city} label={`${course.editions.length === 1 ? `Start temperature of the one ${course.city} edition, ${tData(lo, tUnit)}` : `Start temperatures of ${count(course.editions.length)} ${course.city} editions, from ${tData(lo, tUnit)} to ${tData(hi, tUnit)}`}, among all editions.`} />
       <EditionChips editions={course.editions} tUnit={tUnit} units={units} empty="" showYearFirst limit={24} />
-    </EvidencePanel>
+    </section>
   );
 }
 
@@ -1060,66 +1002,60 @@ function ResearchPanel({ tempC, dewC, need, tUnit, goal, by, paceLabel }: {
   const spreadHi = ranges.length ? Math.max(...ranges.map((r) => r.high)) : 0;
   const spreadText = `For this forecast they run from ${pctNum(spreadLo)}% to ${pctNum(spreadHi)}%.`;
 
+  const severe = flag === 'red' || flag === 'black';
   return (
-    <EvidencePanel kind="research" id="weather-match-research" title="What published research and rules of thumb suggest"
-      meta={goalText && by === 'pace' ? <>Minutes are on {goalText}, your {paceLabel} held for the whole race.</> : undefined}>
-      <div className="weather-match-conditions">
-        <div>
-          <span>Relative humidity</span>
-          <b>{rh !== null ? `${num(rh, 0)}%` : '—'}</b>
-          <small>{rh !== null ? '' : needShort}</small>
-        </div>
-        <div>
-          <span>Wet-bulb</span>
-          <b>{tw !== null ? tAbs(tw, tUnit) : '—'}</b>
-          <small>{tw !== null ? (stullOut ? 'outside the tested range' : '') : needShort}</small>
-        </div>
-        <div>
-          <span>Shade WBGT ≈</span>
-          <b>{wbgt !== null ? tAbs(wbgt, tUnit) : '—'}</b>
-          <small>{wbgt !== null ? (tUnit === 'f' ? `${num(wbgt, 1)} °C` : '') : needShort}</small>
-        </div>
-        <div className={flag ? `weather-match-flag is-${flag}` : 'weather-match-flag'}>
-          <span>ACSM race flag</span>
-          <b>{flag ? <><i aria-hidden="true" />{FLAG_TEXT[flag].name}</> : '—'}</b>
-          <small>{flag ? `WBGT ${FLAG_TEXT[flag].range}: ${FLAG_TEXT[flag].risk}` : needShort}</small>
-        </div>
-      </div>
-      {flag === 'red' || flag === 'black' ? (
+    <section className="tool-panel weather-match-research" id="weather-match-research" aria-labelledby="weather-match-research-title">
+      <header className="tool-panel-head">
+        <EvidenceTag kind="research" />
+        <h2 className="tool-panel-title" id="weather-match-research-title">
+          {ready && flag ? <>Shade WBGT about {tAbs(wbgt!, tUnit)}: an ACSM <em>{FLAG_TEXT[flag].name.toLowerCase()}</em> flag.</> : 'What published research and rules of thumb suggest'}
+        </h2>
+        {goalText && by === 'pace' ? <p className="tool-panel-meta">Minutes are on {goalText}, your {paceLabel} held for the whole race.</p> : null}
+      </header>
+      {severe ? (
         <p className="weather-match-warning" role="note">
-          <strong>{FLAG_TEXT[flag].name} flag conditions.</strong> {flag === 'black'
+          <strong>{FLAG_TEXT[flag!].name} flag conditions.</strong> {flag === 'black'
             ? 'The ACSM position stand rates WBGT above 28 °C as very high risk of heat exhaustion or heatstroke, and recommends that a race be postponed, rescheduled or cancelled.'
             : 'The ACSM position stand rates WBGT of 23–28 °C as high risk: any runner may get heat exhaustion or heatstroke, and anyone particularly sensitive to heat or humidity probably should not run.'} Follow your race organiser’s guidance on the day.
         </p>
       ) : null}
-      {need ? <p className="tool-state">{NEED_TEXT[need].note}</p> : null}
-      <ul className="weather-match-methods">
-        {ready ? methods.map((mth) => (
-          <li key={mth.key} className="weather-match-method">
-            <p className="weather-match-method-head"><b>{mth.name}</b><span>{mth.kind}</span></p>
-            <p className="weather-match-method-range">
-              {mth.rangeText ?? (mth.range ? (Math.abs(mth.range.low - mth.range.high) < 1e-9 ? `${pctNum(mth.range.low)}%` : `${pctNum(mth.range.low)}–${pctNum(mth.range.high)}%`) : '—')}
+      {need ? <p className="tool-note">{NEED_TEXT[need].note}</p> : null}
+      <details className="tool-more weather-match-more-research">
+        <summary>{ready ? `Four published estimates: ${spreadHi === 0 ? 'no slowing' : `${pctNum(spreadLo)}% to ${pctNum(spreadHi)}% slower`}` : 'Four published estimates'}</summary>
+        <div className="tool-more-body">
+          <dl className="tool-cells weather-match-conditions">
+            <div><dt>Relative humidity</dt><dd>{rh !== null ? `${num(rh, 0)}%` : '—'}{rh === null ? <small>{needShort}</small> : null}</dd></div>
+            <div><dt>Wet-bulb</dt><dd>{tw !== null ? tAbs(tw, tUnit) : '—'}{tw === null ? <small>{needShort}</small> : stullOut ? <small>outside the tested range</small> : null}</dd></div>
+            <div><dt>Shade WBGT ≈</dt><dd>{wbgt !== null ? tAbs(wbgt, tUnit) : '—'}{wbgt === null ? <small>{needShort}</small> : null}</dd></div>
+            <div className={flag ? `weather-match-flag is-${flag}` : 'weather-match-flag'}><dt>ACSM race flag</dt><dd>{flag ? <><i aria-hidden="true" />{FLAG_TEXT[flag].name}</> : '—'}<small>{flag ? `WBGT ${FLAG_TEXT[flag].range}: ${FLAG_TEXT[flag].risk}` : needShort}</small></dd></div>
+          </dl>
+          <ul className="weather-match-methods">
+            {ready ? methods.map((mth) => (
+              <li key={mth.key} className="weather-match-method">
+                <p className="weather-match-method-head"><b>{mth.name}</b><span>{mth.kind}</span></p>
+                <p className="weather-match-method-range">
+                  {mth.rangeText ?? (mth.range ? (Math.abs(mth.range.low - mth.range.high) < 1e-9 ? `${pctNum(mth.range.low)}%` : `${pctNum(mth.range.low)}–${pctNum(mth.range.high)}%`) : '—')}
+                  {mth.range && goal !== null ? (
+                    <small>{mth.range.high === 0 ? 'No time added' : <>≈ {mss(goal * mth.range.low / 100)}{Math.abs(mth.range.low - mth.range.high) < 1e-9 ? '' : `–${mss(goal * mth.range.high / 100)}`} min on {goalText}</>}</small>
+                  ) : null}
+                </p>
+                {mth.body ? <p className="weather-match-method-body">{mth.body}</p> : null}
+                {mth.extra}
+              </li>
+            )) : null}
+            <Knechtle />
+          </ul>
+          {ready ? (
+            <p className="tool-note">
+              {spreadHi === 0
+                ? <><strong>In warmer, more humid weather these methods disagree several-fold.</strong> For this forecast none of them suggests slowing.</>
+                : spreadLo === 0 || spreadHi / spreadLo >= 3
+                  ? <><strong>These methods disagree several-fold for the same weather.</strong> {spreadText}</>
+                  : <><strong>These methods give different figures for the same weather.</strong> {spreadText}</>}
             </p>
-            {mth.range && goal !== null ? (
-              <p className="weather-match-method-min">
-                {mth.range.high === 0 ? 'No time added' : <>≈ {mss(goal * mth.range.low / 100)}{Math.abs(mth.range.low - mth.range.high) < 1e-9 ? '' : `–${mss(goal * mth.range.high / 100)}`} min on {goalText}</>}
-              </p>
-            ) : null}
-            {mth.body ? <p className="weather-match-method-body">{mth.body}</p> : null}
-            {mth.extra}
-          </li>
-        )) : null}
-        <Knechtle />
-      </ul>
-      {ready ? (
-        <p className="weather-match-disagree">
-          {spreadHi === 0
-            ? <><strong>In warmer, more humid weather these methods disagree several-fold.</strong> For this forecast none of them suggests slowing.</>
-            : spreadLo === 0 || spreadHi / spreadLo >= 3
-              ? <><strong>These methods disagree several-fold for the same weather.</strong> {spreadText}</>
-              : <><strong>These methods give different figures for the same weather.</strong> {spreadText}</>}
-        </p>
-      ) : null}
-    </EvidencePanel>
+          ) : null}
+        </div>
+      </details>
+    </section>
   );
 }

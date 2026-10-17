@@ -1,9 +1,8 @@
 import WeatherMatch from '@/components/tools/WeatherMatch';
-import { ToolHeader, ToolNext } from '@/components/tools/ToolShell';
+import { ToolEnd, ToolHeader } from '@/components/tools/ToolShell';
 import { pageMetadata } from '@/lib/seo';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import type { PaceBandIndex, PaceBandShard, WeatherMatch as WeatherMatchData } from '@/lib/tools/data';
-import './weather-match.css';
 
 export const metadata = pageMetadata({
   title: 'Marathon Weather: Races at Your Forecast Temperature',
@@ -59,10 +58,10 @@ export default function WeatherMatchPage() {
   const paceBand = paceBandCourses();
 
   return (
-    <div className="container tool-page">
+    <div className="tool-page">
       <ToolHeader slug="weather-match" />
       <WeatherMatch sha={sha} paceBand={paceBand} />
-      <ToolNext current="weather-match" />
+      <ToolEnd path="/tools/weather-match" how="/methodology#tools-weather-match" />
     </div>
   );
 }
