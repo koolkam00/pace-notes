@@ -62,11 +62,19 @@ async function main() {
   assert.equal(fastStartCharts({...start.initial,groups:[focus]},focus,start.bands).pace.series.length,1,'No invented steady comparison for a sparse cohort');
   assert.equal(timeChange(-997),'16.6 min faster'); assert.equal(timeChange(325),'5.4 min slower'); assert.equal(timeChange(0),'About the same time');
 
+  // The figures the history view prints, from the verified evidence (verify-fast-start recounts them from the runner
+  // records). Under 0934 they were 47%, 16.6 min faster, 17.9%, 142,757 and 67,025; in 1652 43.6%, 19 min faster, 20.2%,
+  // 152,758 and 66,657. Formatted here independently of the component: one decimal at most, en-US thousands.
+  const pct=n=>(Math.round(n*10)/10).toLocaleString('en-US',{maximumFractionDigits:1})+'%';
+  const esc=text=>text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const focusRate=pct(100*focus.slowdown_n/focus.n), steadyRate=pct(100*steady.slowdown_n/steady.n);
+  const finishChange=`${Math.round(Math.abs(focus.finish_delta_median_s)/6)/10} min ${focus.finish_delta_median_s<0?'faster':'slower'}`;
+  assert.equal(timeChange(focus.finish_delta_median_s),finishChange.replace(/^(\d+)\.0 /,'$1 '),'The finish change reads as the evidence median');
   for (const units of ['mi','km']) {
     const html=render(FastStartResults,{row:start.initial,focus,start,units});
-    assert.match(html,/47% developed a sustained slowdown/);
-    assert.match(html,/16\.6 min faster/);
-    assert.match(html,/17\.9%/); assert.match(html,/142,757/); assert.match(html,/67,025/);
+    assert.match(html,new RegExp(esc(focusRate)+' developed a sustained slowdown'));
+    assert.match(html,new RegExp(esc(timeChange(focus.finish_delta_median_s))));
+    assert.match(html,new RegExp(esc(steadyRate))); assert.match(html,new RegExp(focus.n.toLocaleString('en-US'))); assert.match(html,new RegExp(focus.slowdown_n.toLocaleString('en-US')));
     assert.match(html,/earlier recorded best/); assert.match(html,/do not prove that the start caused/);
     assert.match(html,/not minutes caused or lost/);
     assert.match(html, /href="https:\/\/journals\.plos\.org\/plosone\/article\?id=10\.1371\/journal\.pone\.0251513"/);

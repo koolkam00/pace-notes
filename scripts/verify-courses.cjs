@@ -248,7 +248,10 @@ const profileN = new Map(profileRows.map((r) => [r[0], Number(r[3])]));
 const allFinisher = new Map(read('public/data/all-finisher-context/evidence.json').rows[0].courses.map((c) => [c.id, c]));
 const policy = read('public/data/packs/ext_course_pacing_profiles/pack_meta.json').source_quality;
 assert.equal(policy.release_tag, release.tag, 'The course-profile source policy is for the adopted release');
-assert.equal(CITIES.length, 29, '29 course pages');
+// One page per course with eligible finishes: 29 under 0934, 28 since the 1652 release excluded Melbourne's only edition
+// (2015, a partial load). The count comes from the verified story data, never a typed number.
+assert.deepEqual(CITIES, courses.courses.map((c) => c.city).sort(), 'One course page per course in the story data');
+assert.equal(CITIES.length, manifest.cohort.cities, 'Course pages match the story cohort\'s cities');
 
 /** Everything the built-page checks need for one city, recounted from the files. */
 const facts = new Map();
@@ -336,13 +339,24 @@ for (const city of CITIES) {
 
 // The two linked analyses, from their own files: the course comparison has a result for a course when its all-finisher
 // row (all ages, genders and early paces) holds a course group; hills and pacing when the course's analysis file holds the
-// supplied route's nine sections, which must be exactly the courses with a supplied route.
+// supplied route's nine sections. Every drawn route must have them. The analysis joins sections by city (a route proxy),
+// while a page draws a route only where the runner context matched the profile to the race, so a course the analysis
+// covers without a drawn route must be one the course geometry omits with the context's reason (since 1652: Washington,
+// whose profile is now named for another race); the page then offers no hills link.
 const allFinisherRows = read('public/data/all-finisher-context/evidence.json').rows;
 const COMPARE = new Set(CITIES.filter((city) => (allFinisherRows.find((r) => r.city === city && r.age === 'all' && r.gender === 'all' && r.early_pace === 'all')?.courses ?? []).length > 0));
 const guide = read('public/data/packs/ext_personalized_guide/summary.json');
 const HILLS = new Set(guide.cities.filter((c) => CITIES.includes(c.city) && (read(`public/data/packs/ext_personalized_guide/tables/${c.file}`).terrain ?? []).filter((t) => [5, 10, 15, 20, 25, 30, 35, 40, 42.195].includes(t.end)).length === 9).map((c) => c.city));
-for (const city of CITIES) check(HILLS.has(city) === !!facts.get(city)?.route, `data ${city}`, `hills and pacing ${HILLS.has(city) ? 'has' : 'lacks'} terrain against the supplied route`);
-for (const city of CITIES) check(P.coursePages().get(slugOf(city))?.scopes.compare === COMPARE.has(city) && P.coursePages().get(slugOf(city))?.scopes.hills === HILLS.has(city), `data ${city}`, 'the page model\'s analysis scopes');
+const omittedRoutes = new Map((geometryFile.omitted ?? []).map((o) => [o.city, o]));
+for (const city of CITIES) {
+  const route = !!facts.get(city)?.route;
+  if (route) check(HILLS.has(city), `data ${city}`, 'hills and pacing lacks terrain against the supplied route');
+  else if (HILLS.has(city)) check(omittedRoutes.get(city)?.reasons?.length > 0, `data ${city}`, 'hills and pacing has terrain but the course geometry neither draws nor explains the route');
+  check(!(route && omittedRoutes.has(city)), `data ${city}`, 'a route is both drawn and omitted');
+}
+// The pages link to hills and pacing exactly where the analysis has the route's sections and the page draws that route.
+const HILLS_LINK = new Set([...HILLS].filter((city) => !!facts.get(city)?.route));
+for (const city of CITIES) check(P.coursePages().get(slugOf(city))?.scopes.compare === COMPARE.has(city) && P.coursePages().get(slugOf(city))?.scopes.hills === HILLS_LINK.has(city), `data ${city}`, 'the page model\'s analysis scopes');
 
 // ---------- 3. Built pages ----------
 const KINDS = {
@@ -644,7 +658,7 @@ if (html) {
       const raceParam = url.searchParams.get('race');
       if (raceParam !== null) check(url.pathname.startsWith('/analyses/') && analysisCities.has(raceParam) && raceParam === city, where, `${href}: race ${raceParam}`);
       if (url.pathname === '/analyses/course-comparison' && raceParam !== null) check(COMPARE.has(city), where, `${href}: the course comparison has no result for ${city}`);
-      if (url.pathname === '/analyses/hills-and-pacing' && raceParam !== null) check(HILLS.has(city), where, `${href}: hills and pacing has no route for ${city}`);
+      if (url.pathname === '/analyses/hills-and-pacing' && raceParam !== null) check(HILLS_LINK.has(city), where, `${href}: hills and pacing has no route for ${city}`);
       const qualifying = /^\/tools\/qualifying\/([a-z]+)$/.exec(url.pathname);
       if (qualifying) check(QUALIFYING_COURSE[qualifying[1]] === city, where, `${href} is another race's qualifying page`);
     }
@@ -655,7 +669,7 @@ if (html) {
     if (bandSlugs.has(slug)) check(hrefs.includes(`/tools/pace-band?course=${slug}`) && hrefs.includes(`/tools/split-check?course=${slug}`), where, 'no pace band or split check preset for a course they publish');
     const raceQuery = `?race=${encodeURIComponent(city)}`;
     check(hrefs.includes(`/analyses/course-comparison${raceQuery}`) === COMPARE.has(city), where, `the course comparison link against its result (${COMPARE.has(city)})`);
-    check(hrefs.includes(`/analyses/hills-and-pacing${raceQuery}`) === HILLS.has(city), where, `the hills-and-pacing link against the route (${HILLS.has(city)})`);
+    check(hrefs.includes(`/analyses/hills-and-pacing${raceQuery}`) === HILLS_LINK.has(city), where, `the hills-and-pacing link against the route (${HILLS_LINK.has(city)})`);
 
     // Tables scroll sideways in a named region that takes keyboard focus, labelled by the table's caption.
     for (const m of main.matchAll(/<div\b([^>]*class="tool-table-wrap course-table-wrap"[^>]*)>\s*<table\b[^>]*>\s*<caption\b([^>]*)>/g)) {

@@ -1,6 +1,7 @@
 /**
  * Copy editions: editions whose records largely repeat another edition of the same race (Chicago 2018 and 2019
- * repeat the Chicago 2024 field in the adopted release; docs/KNOWN_ISSUES.md). The list comes from the verified
+ * repeated the Chicago 2024 field in the September 2026 release; the October 2026 release removed them, so the list is
+ * empty today; docs/KNOWN_ISSUES.md). The list comes from the verified
  * story manifest's duplicate-edition screen through `copyEditions()` in lib/duplicate-editions.ts, which re-exports
  * these helpers for server code. They are pure, so client components (the runner search) import them from here,
  * without the manifest reader's file access. An empty list changes nothing.

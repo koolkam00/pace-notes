@@ -32,7 +32,7 @@ export default function CoursesPage() {
   const archetypes = readInsight<Archetypes>('archetypes.json');
   const types = new Map(archetypes.courses.map((c) => [c.city, c]));
   const summaries = new Map(readInsight<Courses>('courses.json').courses.map((c) => [c.city, c]));
-  // The 29 course pages in the order the page lists them (alphabetical), named as each page's H1 names its race.
+  // The course pages (28 since the 1652 release, 29 before) in the order the page lists them (alphabetical), named as each page's H1 names its race.
   const list = {
     '@context': 'https://schema.org', '@type': 'ItemList', name: 'Marathon courses', itemListOrder: 'https://schema.org/ItemListOrderAscending', numberOfItems: names.length,
     itemListElement: names.map((city, i) => ({ '@type': 'ListItem', position: i + 1, name: raceName(city, geometry.get(city), summaries.get(city)), url: absoluteUrl(`/courses/${slugifyCity(city)}`) })),

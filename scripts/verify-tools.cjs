@@ -326,8 +326,14 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
     const prague = plan.courseGoalResult(goals, 'Prague', 14400, plan.screenedReason('Prague', goals.screens));
     assert.ok(!notListed.includes('Prague') && prague.state === 'unavailable', 'Prague has no course-goal course');
     assert.equal(prague.reason, 'No edition passed the data screens (start delays inflate the first split in 2016–2019).'); checks += 2;
-    const melbourne = goals.courses.find((c) => c.city === 'Melbourne');
-    assert.equal(plan.courseGoalResult(goals, 'Melbourne', 14400, null).reason, plan.tooFewEditions(melbourne.editions, goals.min_editions)); ok();
+    // A course with editions but too few for any goal row (Melbourne under 0934; Barcelona, Paris and Singapore in 1652),
+    // taken from the data: there must be one, and every such course prints the course chooser's wording.
+    const few = goals.courses.filter((c) => c.editions < goals.min_editions);
+    assert.ok(few.length > 0, 'The course data has a course with too few editions');
+    for (const course of few) {
+      assert.equal(plan.courseGoalResult(goals, course.city, 14400, null).reason, plan.tooFewEditions(course.editions, goals.min_editions), `${course.city}: too few editions`);
+    }
+    ok();
     const gap = goals.unavailable.find((u) => goals.courses.find((c) => c.city === u.city).editions >= goals.min_editions);
     assert.equal(plan.courseGoalResult(goals, gap.city, gap.goal * 60, null).reason, plan.courseGoalReason(gap.reason, goals.min_editions), 'A gap prints the file\'s reason'); ok();
     assert.equal(plan.courseGoalResult(goals, 'Berlin', 7 * 3600, null).reason, 'Course results are published for goals from 2:30 to 6:30.'); ok();
