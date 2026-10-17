@@ -11,7 +11,7 @@ descriptive only. This is not a difficulty ranking and no course is called faste
 import numpy as np
 
 from insights_courses import edition_context
-from insights_stats import MIN_CELL, r
+from insights_stats import MIN_CELL, SHARE_DIGITS, r
 from insights_tools_common import MARATHON_KM, slugify, tool_cohort
 
 GOALS = range(150, 391, 5)
@@ -68,8 +68,8 @@ def build(cohort):
             pooled = np.concatenate(parts)
             rows.append(dict(
                 goal=G, city=city, n=n, ed=len(parts),
-                under=r(float((s.finish[pooled] < G * 60).mean()), 4),
-                sd=r(float(np.mean([detected[p].mean() for p in parts])), 4),
+                under=r(float((s.finish[pooled] < G * 60).mean()), SHARE_DIGITS),
+                sd=r(float(np.mean([detected[p].mean() for p in parts])), SHARE_DIGITS),
                 after20=int(round(float(np.mean([np.median(after20[p]) for p in parts])))),
                 fin=[int(round(v)) for v in np.quantile(s.finish[pooled], (.1, .5, .9))]))
     return dict(

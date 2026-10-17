@@ -92,6 +92,16 @@ def load_cohort(cache=None):
     return pin, f, manifest, manifest_sha
 
 
+def duplicate_methodology(screen):
+    """The screen's methodology line, only while it removes an edition (empty since the 1652 release)."""
+    if not screen:
+        return []
+    names = ' and '.join(f"{rule['city']} {rule['year']}" for rule in screen)
+    sources = sorted({f"{rule['city']} {rule['duplicate_of']}" for rule in screen})
+    return [f"The stories additionally leave out {names}, whose records duplicate the {' and '.join(sources)} field. This screen "
+            'applies only to these stories; the reviewed source policy and the existing analyses are unchanged.']
+
+
 def run(output, only=None, cache=None):
     started = time.time()
     pin, full, manifest, manifest_sha = load_cohort(cache)
@@ -145,8 +155,7 @@ def run(output, only=None, cache=None):
         methodology=[
             'Every story uses eligible finishes from the adopted release: all nine checkpoints present and increasing, a finish between '
             '1:30 and 12:00, every section between 2 and 20 minutes per kilometre, and the reviewed source-quality exclusions.',
-            'The stories additionally leave out Chicago 2018 and 2019, whose records duplicate the Chicago 2024 field. This screen applies '
-            'only to these stories; the reviewed source policy and the existing analyses are unchanged.',
+            *duplicate_methodology(screen),
             'Counts are race finishes, not unique runners. Associations are descriptive, never causal. Published groups have at least 100 finishes.',
         ],
     )

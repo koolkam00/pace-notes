@@ -19,6 +19,11 @@ EXPECTED = {
     "MANIFEST.json", "README.md",
 }
 
+# htw-db-* releases also carry the producer's per-edition counts, change report, checksums and contracts.
+HTW_DB_DOCS = {"EDITIONS.json", "CHANGE-REPORT.md", "SHA256SUMS.txt", "ID-CONTRACT.md"}
+# FULL also carries the producer's notes on which feature fields are known before a race.
+HTW_DB_FULL_DOCS = {"FEATURE-FIELD-NOTES.md"}
+
 
 def sha256(path):
     with path.open("rb") as stream:
@@ -85,12 +90,12 @@ def main(argv=None):
     args = parser.parse_args(argv)
     config = json.loads(Path(__file__).with_name("release.json").read_text())
     repo, tag = config["repository"], args.tag or config["tag"]
-    if not tag.startswith("private-export-") or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_." for c in tag):
-        raise ValueError("Expected a private-export release tag.")
+    if not tag.startswith(("private-export-", "htw-db-")) or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_." for c in tag):
+        raise ValueError("Expected a private-export- or htw-db- release tag.")
     root = args.output.resolve()
     root.mkdir(parents=True, exist_ok=True)
     release = read_release(repo, tag)
-    expected = EXPECTED | ({"features.parquet"} if args.bundle == "FULL" else set())
+    expected = EXPECTED | ({"features.parquet"} if args.bundle == "FULL" else set()) | (HTW_DB_DOCS | (HTW_DB_FULL_DOCS if args.bundle == "FULL" else set()) if tag.startswith("htw-db-") else set())
     assets = [a for a in release["assets"] if f"-{args.bundle}-" in a["name"] and a["name"].endswith(".tar.gz")]
     if len(assets) != 1:
         raise ValueError(f"Expected exactly one {args.bundle} archive in the release.")

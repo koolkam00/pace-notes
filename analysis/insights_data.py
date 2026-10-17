@@ -4,8 +4,8 @@ Reads the checked-in public runner shards (the same audited source as the
 fast-start and all-finisher builders), verifies every shard, and returns
 column arrays. No raw names leave this module and nothing is imputed.
 
-An additional analysis-specific screen removes editions whose records
-duplicate another edition (see DUPLICATE_EDITIONS). It does not change the
+An additional analysis-specific screen can remove editions whose records
+duplicate another edition (see DUPLICATE_EDITIONS). It never changes the
 reviewed source-quality policy used by the existing analyses.
 """
 from array import array
@@ -20,15 +20,12 @@ import numpy as np
 from build_fast_start import (LENGTHS, PACE_BOUND_EPSILON, POINTS, age_code, digest,
                               gender_code, require, verified_manifest)
 
-# Found while building these stories: the 2018 and 2019 Chicago labels contain
-# the 2024 field (shared source participant ids; identical names, finishes and
-# all nine checkpoints). Counting them would add ~103,000 copied finishes.
-DUPLICATE_EDITIONS = (
-    dict(city='Chicago', year=2018, duplicate_of=2024,
-         reason='Source participant ids, names and all nine checkpoint times match the Chicago 2024 field.'),
-    dict(city='Chicago', year=2019, duplicate_of=2024,
-         reason='Source participant ids, names and all nine checkpoint times match the Chicago 2024 field.'),
-)
+# Empty since htw-db-2026-10-16-1652. Under private-export-20260912-0934 the 2018 and 2019 Chicago
+# labels largely repeated the 2024 field and were listed here (see Git history and docs/KNOWN_ISSUES.md).
+# The producer reloaded both editions with new records; across all 287 editions no same-city pair now
+# shares more than one nine-time tuple (scripts/verify-duplicate-editions.cjs repeats that scan).
+# A rule is dict(city=..., year=..., duplicate_of=..., reason=...) and must pass the evidence check below.
+DUPLICATE_EDITIONS = ()
 GENDER_LABELS = ('Other / not recorded', 'Men', 'Women')
 AGE_LABELS = ('Unknown', '18–24', '25–29', '30–34', '35–39', '40–44', '45–49', '50–54',
               '55–59', '60–64', '65–69', '70–74', '75–79', '80–84', '85–89')
@@ -131,11 +128,11 @@ def read_finishes(runner_root, pin, script_root):
     return finishes, manifest, manifest_sha
 
 
-def screen_duplicates(finishes):
+def screen_duplicates(finishes, rules=DUPLICATE_EDITIONS):
     """Remove the documented duplicate editions; return the kept cohort and an audit."""
     drop = np.zeros(finishes.n, dtype=bool)
     audit = []
-    for rule in DUPLICATE_EDITIONS:
+    for rule in rules:
         idx = [i for i, e in enumerate(finishes.editions) if e['city'] == rule['city'] and e['year'] == rule['year']]
         target = [i for i, e in enumerate(finishes.editions) if e['city'] == rule['city'] and e['year'] == rule['duplicate_of']]
         require(len(idx) == 1 and len(target) == 1, f"Duplicate-edition rule does not match exactly one edition: {rule}")
@@ -151,6 +148,19 @@ def screen_duplicates(finishes):
 
 SECTION_KM = np.asarray(LENGTHS, dtype=float)
 START_GAP_POINTS = 10.0  # edition median r(0–5 km) minus r(5–10 km); all-edition median ≈ 0.7, next-largest ≈ 6.5
+
+
+PACE_TIE = 1e-12
+
+
+def faster_pace(pace, reference):
+    """True where `pace` is strictly faster (fewer seconds per km) than `reference`; an exact tie is not faster.
+
+    The final section's length, 42.195 − 40 km, is 2.1950000000000003 in floating point, so a final 2.195 km run at
+    exactly the 35–40 km pace (439 s against 1,000 s) comes out 1e-16 faster. Whole-second splits that really differ
+    are at least about 2e-7 apart in this ratio, far above the tolerance. scripts/verify-insights.cjs uses the same rule.
+    """
+    return pace / reference - 1.0 < -PACE_TIE
 
 
 def relative_pace(f):

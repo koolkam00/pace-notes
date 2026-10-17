@@ -140,7 +140,7 @@ export function onsetText(onset: number[], onsetKm: number[]): string | null {
   return `The sustained slowdown most often began in the ${names} section: ${count(onset[top[0]])} of the ${count(total)} finishes with one (${share}).`;
 }
 
-/** "all 179 race editions" or "177 of the 179 race editions". */
+/** "all 193 race editions" or "191 of the 193 race editions". */
 export function editionsText(editions: number, total: number | null): string {
   if (total === null || !(total >= editions)) return `${count(editions)} race editions`;
   return editions === total ? `all ${count(total)} race editions` : `${count(editions)} of the ${count(total)} race editions`;

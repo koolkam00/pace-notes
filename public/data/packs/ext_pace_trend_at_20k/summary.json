@@ -1,5 +1,5 @@
 {
-  "answer_prose": "Yes, their recent pace trend carries additional information. In matched groups, accelerating runners finished 3.6 minutes faster than steady runners on average.",
+  "answer_prose": "Yes, their recent pace trend carries additional information. In matched groups, accelerating runners finished 3.5 minutes faster than steady runners on average.",
   "detail_prose": "The comparison holds the race edition and the one-minute 20 km time band constant.",
   "charts": [
     {
@@ -17,11 +17,11 @@
     }
   ],
   "statistics": {
-    "n_accel": 212782,
-    "n_steady": 1008301,
-    "n_slow": 699352,
-    "accel_diff": -3.6216300779077875,
-    "slow_diff": 11.53541612554459,
-    "strata": 3958
+    "n_accel": 221726,
+    "n_steady": 1075096,
+    "n_slow": 773698,
+    "accel_diff": -3.5144008718463353,
+    "slow_diff": 11.509011700445155,
+    "strata": 4236
   }
 }

@@ -21,7 +21,7 @@ export const STORY_FILE_TOPICS: Record<string, string> = {
   'courses.json': 'course pacing profiles with race-morning weather as context',
 };
 
-const RELEASES = 'https://github.com/koolkam00/htw-live-study/releases';
+const RELEASES = 'https://github.com/koolkam00/pace-notes/releases';
 
 /** Part 1: what the data is, where it comes from, what can be downloaded and which records are analyzed. */
 export default function MethodsData() {

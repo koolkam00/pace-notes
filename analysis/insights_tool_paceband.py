@@ -11,7 +11,7 @@ Groups are selected by outcome; differences between them are descriptive, not a 
 """
 import numpy as np
 
-from insights_stats import MIN_CELL, r
+from insights_stats import MIN_CELL, SHARE_DIGITS, r
 from insights_tools_common import slugify, tool_cohort
 
 GOALS = range(150, 391)
@@ -67,7 +67,7 @@ def build(cohort):
                     if len(sel) >= MIN_CELL:
                         row = dict(g=G, **stats(s, sel, group))
                         if group == 'all':
-                            row['sd'] = r(float(d.mean()), 4)
+                            row['sd'] = r(float(d.mean()), SHARE_DIGITS)
                             row['onset'] = [int((onset[idx] == km).sum()) for km in ONSETS]
                         rows[group].append(row)
             if not goals:

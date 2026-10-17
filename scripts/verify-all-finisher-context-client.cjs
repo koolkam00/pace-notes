@@ -22,6 +22,9 @@ const start = getAllFinisherContextStart();
 const bytes = fs.readFileSync(path.join(__dirname, '../public/data/all-finisher-context/evidence.json'));
 const evidence = JSON.parse(bytes);
 const render = (component, props) => renderToStaticMarkup(React.createElement(component, props));
+// The adopted runner lookup sets the expected cohort (3,871,767 finishes and 287 editions under 1652; 3,517,336 and 256 under 0934).
+const runners = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/data/runners/manifest.json'), 'utf8'));
+const eligibleText = new RegExp(runners.eligible_records.toLocaleString('en-US'));
 // Method, definitions, coverage and source text belong on /methodology only (owner request, 2026-10-16).
 const METHOD_COPY = [/What this can tell you/, /Definitions, coverage and limits/, /Download the analysis data/, /Open the source data/, /Study methods/,
   /journals\.plos\.org/, /\d[\d,]* eligible finishes/, /Included courses and race years/, /equal weight/, /historical route validity/i, /[Ss]upplied net/,
@@ -30,8 +33,8 @@ const METHOD_COPY = [/What this can tell you/, /Definitions, coverage and limits
 const noMethodCopy = (html, where) => { for (const pattern of METHOD_COPY) assert.doesNotMatch(html, pattern, `${where}: method or source copy belongs on /methodology (${pattern})`); };
 const { ALL_FINISHER_DEFAULT, readAllFinisherSelection, allFinisherSearch, allFinisherRow, allFinisherGroups, allFinisherGroupLabel, allFinisherCharts, earlyPaceLabel, loadAllFinisherContext } = helpers;
 async function main() {
-  assert.equal(start.analysis_n, 3517336);
-  assert.equal(start.edition_labels.length, 256);
+  assert.equal(start.analysis_n, runners.eligible_records);
+  assert.equal(start.edition_labels.length, runners.editions.length);
   assert.deepEqual(readAllFinisherSelection('', start), ALL_FINISHER_DEFAULT);
   assert.deepEqual(readAllFinisherSelection('?race=bad&age=bad&gender=bad&early=bad&opening=bad',start), ALL_FINISHER_DEFAULT);
   assert.equal(readAllFinisherSelection('?previous=240',start).mode,'history');
@@ -67,7 +70,7 @@ async function main() {
       if(charts.onset) assert.match(html,/<a href="\/methodology#sustained-slowdown">sustained slowdowns<\/a> most often began in the /,kind+': the onset section states where slowdowns most often began and links the term');
       noMethodCopy(html,`${kind} results (${units})`);
       assert.match(html,units==='mi'?/12\.43 mi/:/20 km/);
-      assert.doesNotMatch(html,/private-export-|20260912/);
+      assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016/);
       if(kind==='race-day') {
         assert.match(html,/Slowdown rate in this edition/);
         assert.doesNotMatch(html,/Mean edition slowdown rate|across 3 editions/);
@@ -98,7 +101,7 @@ async function main() {
   assert.match(render(AllFinisherResults,{groups:[sparse],kind:'courses',start,units:'mi',focus:sparse}),/Too few detected slowdowns/);
   for(const slug of ['course-comparison','race-day-weather','downhill-start']) {
     const html=render(AnalysisPage,{params:{slug}});
-    assert.match(html,/All eligible finishes/);assert.match(html,/No previous race needed/);assert.doesNotMatch(html,/3,517,336/,'Coverage counts belong on /methodology');
+    assert.match(html,/All eligible finishes/);assert.match(html,/No previous race needed/);assert.doesNotMatch(html,eligibleText,'Coverage counts belong on /methodology');
   }
   for(const id of [...Object.keys(BROADER_ARCHIVE),'rn3_heat_curves','ext_weather_pacing_patterns']) {
     const html=render(PackPage,{params:{packId:id}});
@@ -118,7 +121,7 @@ async function main() {
     for(const altered of [{release_tag:'wrong'},{mode:'history'},{runner_manifest_sha256:'wrong'},{context_manifest_sha256:'wrong'},{analysis_n:0}]) {
       served=Buffer.from(JSON.stringify({...evidence,...altered}));await assert.rejects(()=>loadAllFinisherContext(descriptor(served),signal),/verified/);
     }
-    served=bytes;const loaded=await loadAllFinisherContext(start,signal);assert.equal(loaded.analysis_n,3517336);
+    served=bytes;const loaded=await loadAllFinisherContext(start,signal);assert.equal(loaded.analysis_n,runners.eligible_records);
     assert.ok(calls.at(-1).url.endsWith('?v='+start.sha256));assert.equal(calls.at(-1).signal,signal);
     const before=calls.length;await loadAllFinisherContext(start,signal);assert.equal(calls.length,before);
     const aborted=new AbortController();aborted.abort();await assert.rejects(()=>loadAllFinisherContext(start,aborted.signal),/Aborted/);

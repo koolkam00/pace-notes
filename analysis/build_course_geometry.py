@@ -6,6 +6,13 @@ unit-box route polyline and an elevation profile per supplied course. These
 are current supplied routes: historical route validity is unknown and they are
 never used to adjust any timing.
 
+A profile is drawn only where the adopted runner context attached it to at least
+one recorded edition of its city (one profile, the same race name, inside any
+supplied validity interval). A profile the context refused for every edition is
+listed under `omitted` with the context's reason (since 1652: Washington, whose
+profile is named "Marine Corps Marathon" while its records say "Washington
+Marathon"), so no page draws one race's route for another.
+
 Usage:
   python analysis/build_course_geometry.py --profiles PATH/course_profiles.parquet \
       --output public/data/insights/course-geometry.json
@@ -81,6 +88,23 @@ def course(row):
                 elevation_step_km=.5, elevation_m=elevation, source=row['source'], historical_validity_known=False)
 
 
+def attached_profiles(context_manifest, manifest):
+    """{city: {course_key}} the runner context attached, and {city: refusal reasons}, from its verified edition shards."""
+    import gzip
+    root = Path(context_manifest).parent
+    attached, refused = {}, {}
+    for meta in manifest['editions'].values():
+        data = (root / meta['file']).read_bytes()
+        require(len(data) == meta['bytes'] and hashlib.sha256(data).hexdigest() == meta['sha256'], f"Runner-context shard mismatch: {meta['file']}")
+        shard = json.loads(gzip.decompress(data))
+        city = shard['edition']['city']
+        if shard.get('terrain'):
+            attached.setdefault(city, set()).add(shard['terrain']['course_key'])
+        elif shard.get('terrain_reason'):
+            refused.setdefault(city, set()).add(shard['terrain_reason'])
+    return attached, refused
+
+
 def run(profiles, output, context_manifest):
     manifest = json.loads(Path(context_manifest).read_text())
     expected = manifest['input_files']['course_profiles.parquet']
@@ -90,22 +114,30 @@ def run(profiles, output, context_manifest):
     result = db.execute('SELECT * FROM read_parquet(?) ORDER BY city', [str(profiles)])
     columns = [c[0] for c in result.description]
     rows = [dict(zip(columns, row)) for row in result.fetchall()]
-    courses = [course(row) for row in rows]
-    require(len({c['city'] for c in courses}) == len(courses), 'Expected one supplied profile per city')
+    require(len({row['city'] for row in rows}) == len(rows), 'Expected one supplied profile per city')
+    attached, refused = attached_profiles(context_manifest, manifest)
+    courses, omitted = [], []
+    for row in rows:
+        if row['course_key'] in attached.get(row['city'], set()):
+            courses.append(course(row))
+        else:
+            reasons = sorted(refused.get(row['city'], set())) or ['No recorded edition of this city.']
+            omitted.append(dict(city=row['city'], race=row['race'], reasons=reasons))
     payload = dict(schema_version=1, release_tag=manifest['release_tag'], input_as_of=manifest['input_as_of'],
                    as_of=datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
                    course_profiles_sha256=actual, context_manifest_sha256=sha256(context_manifest),
-                   script_sha256=sha256(__file__), courses=courses,
+                   script_sha256=sha256(__file__), courses=courses, omitted=omitted,
                    methodology=('Routes are the supplied current course files, projected with an equirectangular approximation around each '
                                 "course's centre and simplified for drawing. Elevation is the supplied smoothed profile resampled every 0.5 km. "
-                                'Historical route validity is unknown; these are illustrations and context, never timing adjustments.'))
+                                'Historical route validity is unknown; these are illustrations and context, never timing adjustments. '
+                                'A profile is drawn only where the runner context attached it to a recorded edition of the same race.'))
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     data = (json.dumps(payload, ensure_ascii=False, separators=(',', ':')) + '\n').encode()
     tmp = output.with_suffix('.tmp')
     tmp.write_bytes(data)
     tmp.replace(output)
-    print(json.dumps(dict(output=str(output), bytes=len(data), courses=len(courses), sha256=hashlib.sha256(data).hexdigest())))
+    print(json.dumps(dict(output=str(output), bytes=len(data), courses=len(courses), omitted=[o['city'] for o in omitted], sha256=hashlib.sha256(data).hexdigest())))
 
 
 def main():

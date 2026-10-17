@@ -10,7 +10,7 @@ import { count } from '@/lib/viz/format';
 const and = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
 const lower = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
 
-/** "Chicago 2018 and 2019, whose records largely repeat the 2024 field": each city's copy editions with the field they repeat. */
+/** "Chicago 2018 and 2019, whose records largely repeat the 2024 field" (the 0934 list; empty since 1652): each city's copy editions with the field they repeat. */
 function copiesPhrase(copies: CopyEdition[]): string {
   const groups = new Map<string, CopyEdition[]>();
   for (const copy of copies) groups.set(`${copy.city}|${copy.duplicate_of}`, [...(groups.get(`${copy.city}|${copy.duplicate_of}`) ?? []), copy]);

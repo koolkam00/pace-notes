@@ -10,7 +10,7 @@ import math
 import numpy as np
 
 from insights_data import SECTION_KM, start_offset_screen
-from insights_stats import MIN_CELL, quantile, r
+from insights_stats import MIN_CELL, SHARE_DIGITS, quantile, r
 
 SAMPLE = 1500
 REPLAY_CITIES = ('Berlin', 'New York', 'London', 'Chicago', 'Boston', 'Paris', 'Valencia', 'Amsterdam')
@@ -45,7 +45,7 @@ def sample_edition(f, edition):
         dist = np.array([position(row, clock) for row in t])
         running = dist < 42.195
         # Positions of the runner 10% from the front, the median runner and the runner 10% from the back.
-        snapshots.append(dict(clock_s=clock, finished_share=r(1 - running.mean(), 4),
+        snapshots.append(dict(clock_s=clock, finished_share=r(1 - running.mean(), SHARE_DIGITS),
                               front10_km=r(quantile(dist, .9), 3), median_km=r(quantile(dist, .5), 3), back10_km=r(quantile(dist, .1), 3)))
     e = f.editions[edition]
     slug = f"{e['city'].lower().replace(' ', '-')}-{e['year']}"
@@ -125,7 +125,7 @@ def ghosts(f, edition):
     for g in range(150, 361, 15):
         target = g * 60.0
         ahead_n = [int((t[:, k] < target * KM[k + 1] / 42.195).sum()) for k in range(9)]
-        ahead = [r(a / len(idx), 4) for a in ahead_n]
+        ahead = [r(a / len(idx), SHARE_DIGITS) for a in ahead_n]
         near = np.abs(t[:, 8] - target) <= 150
         typical = r(np.median(t[near, 3] / t[near, 8]) * target, 1) if near.sum() >= MIN_CELL else None
         out.append(dict(target_s=int(target), ahead=ahead, net_passes=ahead_n[0] - ahead_n[8],
@@ -149,7 +149,7 @@ def clock_pack(f, edition, k=1):
 
 def stretch(f):
     """Per edition: how much wider the field is (P90/P10) over the 20–40 km block than over 0–20 km."""
-    keep, _ = start_offset_screen(f)
+    keep, offset_audit = start_offset_screen(f)
     rows = []
     for e in np.unique(f.edition[keep]):
         m = keep & (f.edition == e)
@@ -161,7 +161,8 @@ def stretch(f):
         rows.append(dict(city=f.editions[e]['city'], year=f.editions[e]['year'], n=int(m.sum()), stretch=r(value, 4)))
     values = [x['stretch'] for x in rows]
     return dict(editions=rows, wider_after_20=int(sum(v > 1 for v in values)), mean=r(np.mean(values), 4),
-                min=min(rows, key=lambda x: x['stretch']), max=max(rows, key=lambda x: x['stretch']))
+                min=min(rows, key=lambda x: x['stretch']), max=max(rows, key=lambda x: x['stretch']),
+                start_offset_excluded=len(offset_audit))
 
 
 def build(f):

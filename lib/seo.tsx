@@ -20,7 +20,7 @@ export function finishesCount(): number {
   return getInsightsManifest().analysis_n;
 }
 
-/** The analysis cohort in millions with one decimal, e.g. "3.4". Use it for every "N.N million" in metadata. */
+/** The analysis cohort in millions with one decimal, e.g. "3.9". Use it for every "N.N million" in metadata. */
 export function finishesM(): string {
   return (finishesCount() / 1e6).toFixed(1);
 }

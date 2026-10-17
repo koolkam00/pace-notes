@@ -63,7 +63,7 @@ for (const extension of extensions) {
   assert.equal(question.answer, extension.answer.answer, 'Question must use its verified extension result');
   const metadata = JSON.parse(fs.readFileSync(`public/data/packs/${extension.id}/pack_meta.json`, 'utf8'));
   for (const key of ['input_asset_sha256', 'input_manifest_sha256', 'analysis_script_sha256']) assert.match(metadata[key], /^[a-f0-9]{64}$/);
-  if (['private-20260911-1107', 'private-20260912-0934'].includes(metadata.input_export_id)) {
+  if (['private-20260911-1107', 'private-20260912-0934', 'htw-db-2026-10-16-1652'].includes(metadata.input_export_id)) {
     assert.ok([1, 2].includes(metadata.analysis_version));
     assert.equal(metadata.analysis_script_sha256, scriptHash(metadata.analysis_version === 1 ? 'build_pacing.py' : 'build_extended.py'), `${extension.id}: calculation code mismatch`);
     if (metadata.analysis_version === 2) assert.equal(metadata.supporting_script_sha256, scriptHash('build_pacing.py'), `${extension.id}: eligibility parser mismatch`);
@@ -72,7 +72,7 @@ for (const extension of extensions) {
   assert.ok(Number.isFinite(Date.parse(metadata.live_json_as_of)));
   const c = metadata.cohort;
   assert.equal(c.raw, c.duplicates_removed + c.missing_or_unparsed + c.non_increasing + c.outside_quality_bounds + (c.source_quality_excluded || 0) + c.eligible);
-  if (['private-20260911-1107', 'private-20260912-0934'].includes(metadata.input_export_id)) assert.ok(metadata.source_quality?.reviewed_edition_policy, 'This source requires the reviewed edition policy');
+  if (['private-20260911-1107', 'private-20260912-0934', 'htw-db-2026-10-16-1652'].includes(metadata.input_export_id)) assert.ok(metadata.source_quality?.reviewed_edition_policy, 'This source requires the reviewed edition policy');
   if (metadata.source_quality) {
     const policy = metadata.source_quality;
     const hash = crypto.createHash('sha256').update(fs.readFileSync('analysis/source_quality.py')).digest('hex');
@@ -264,7 +264,7 @@ for (const question of [...questions, ...extras]) for (const source of question.
   // Wording that defines a term or says how a mean was balanced stays with the question's method on /methodology.
   const shownOf = id => splitAnswer([...questions, ...extras].find(q => q.id === id)).shown;
   assert.match(shownOf('r09_bad_patch_recoverable'), /after a first bad patch at 20–25 km/); assert.doesNotMatch(shownOf('r09_bad_patch_recoverable'), /qualifying patch/);
-  assert.doesNotMatch(shownOf('r12_fastest_by_ability'), /equally weighting/); assert.match(shownOf('r12_fastest_by_ability'), /\d minutes slower\.$/);
+  assert.doesNotMatch(shownOf('r12_fastest_by_ability'), /equally weighting/); assert.match(shownOf('r12_fastest_by_ability'), /\d minutes (?:slower|faster)\.$/, 'The pair answer ends with the difference (Chicago slower under 0934, faster under 1652)');
   assert.doesNotMatch(shownOf('s3_course_breaks'), /relative to their own average/);
   for (const id of ['r09_bad_patch_recoverable', 'r12_fastest_by_ability', 's3_course_breaks']) assert.ok([...questions, ...extras].find(q => q.id === id).method.some(line => /patch is the first section|average those two means equally|relative to each runner’s full-marathon average/.test(line)), `${id}: the dropped wording is in its method on /methodology`);
   // The page data holds only what ResearchQuestion renders: no stored method, detail, source or sample fields, no chart notes.

@@ -1,4 +1,5 @@
 """Tests for the Pace Notes story analyses (insights_*.py). NumPy and the standard library only."""
+from decimal import ROUND_HALF_UP, Decimal
 import gzip
 import json
 from pathlib import Path
@@ -8,8 +9,9 @@ import unittest
 import numpy as np
 
 import insights_data
-from insights_data import Finishes, granular_age_editions, relative_pace, screen_duplicates, start_offset_screen, sustained_slowdown
-from insights_stats import kmeans, poisson_poly_fit, quantile, r
+from insights_data import (DUPLICATE_EDITIONS, Finishes, faster_pace, granular_age_editions, relative_pace, screen_duplicates,
+                           start_offset_screen, sustained_slowdown)
+from insights_stats import SHARE_DIGITS, count_phrase, kmeans, poisson_poly_fit, quantile, r
 import insights_archetypes
 import insights_courses
 import insights_kick
@@ -21,6 +23,7 @@ import insights_tool_projector
 import insights_tool_weather
 import insights_tools_common
 from build_fast_start import digest
+from build_insights import duplicate_methodology
 
 KM = [5, 10, 15, 20, 25, 30, 35, 40, 42.195]
 
@@ -83,12 +86,25 @@ class DuplicateScreen(unittest.TestCase):
         rng = np.random.default_rng(3)
         paces = [list(280 + rng.random(9) * 100) for _ in range(150)]
         rows = [(e, 1, None, p, 10 * e + i) for e in (0, 1, 2) for i, p in enumerate(paces)]
-        kept, audit = screen_duplicates(make(rows, editions))
+        rules = tuple(dict(city='Chicago', year=y, duplicate_of=2024, reason='fixture') for y in (2018, 2019))
+        kept, audit = screen_duplicates(make(rows, editions), rules)
         self.assertEqual(kept.n, 150)
         self.assertEqual([a['eligible_removed'] for a in audit], [150, 150])
         different = [(e, 1, None, list(np.array(p) + (5 if e < 2 else 0)), 10 * e + i) for e in (0, 1, 2) for i, p in enumerate(paces)]
         with self.assertRaisesRegex(ValueError, 'Duplicate evidence'):
-            screen_duplicates(make(different, editions))
+            screen_duplicates(make(different, editions), rules)
+
+    def test_retired_screen_keeps_every_finish(self):
+        # The 1652 release reloaded Chicago 2018 and 2019; with no rule, nothing is removed and no sentence is written.
+        self.assertEqual(DUPLICATE_EDITIONS, ())
+        editions = [dict(city='Chicago', year=y) for y in (2018, 2019, 2024)]
+        rng = np.random.default_rng(4)
+        rows = [(e, 1, None, list(280 + rng.random(9) * 100), 10 * e + i) for e in (0, 1, 2) for i in range(120)]
+        kept, audit = screen_duplicates(make(rows, editions))
+        self.assertEqual((kept.n, audit), (360, []))
+        self.assertEqual(duplicate_methodology(audit), [])
+        line = duplicate_methodology([dict(city='Chicago', year=2018, duplicate_of=2024), dict(city='Chicago', year=2019, duplicate_of=2024)])
+        self.assertIn('leave out Chicago 2018 and Chicago 2019, whose records duplicate the Chicago 2024 field', line[0])
 
 
 class Statistics(unittest.TestCase):
@@ -99,6 +115,23 @@ class Statistics(unittest.TestCase):
     def test_publication_rounding_refuses_non_finite_values(self):
         with self.assertRaises(ValueError):
             r(float('nan'))
+
+    def test_printed_shares_are_rounded_once(self):
+        # Chicago 2018 under htw-db-2026-10-16-1652: 13,377 sustained slowdowns among 44,224 finishes (30.2483%).
+        # JavaScript's (share * 100).toFixed(1): the exact double, a half rounds up (Python's format would round half to even).
+        printed = lambda share: str(Decimal(share * 100).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP))
+        self.assertEqual(printed(r(13377 / 44224, 4)), '30.3')           # four digits round twice
+        self.assertEqual(printed(r(13377 / 44224, SHARE_DIGITS)), '30.2')
+        # Any count share with n below a million keeps its one-decimal percentage at SHARE_DIGITS.
+        rng = np.random.default_rng(1)
+        for n in rng.integers(100, 1_000_000, 2000):
+            k = int(rng.integers(0, n + 1))
+            exact = k * 1000 / n          # tenths of a percent
+            if abs(exact - np.floor(exact) - .5) > 1e-6:
+                self.assertEqual(printed(r(k / n, SHARE_DIGITS)), printed(k / n), (k, n))
+
+    def test_count_phrase_comes_from_the_count(self):
+        self.assertEqual([count_phrase(n, 'edition') for n in (0, 1, 15, 1234)], ['no editions', '1 edition', '15 editions', '1,234 editions'])
 
     def test_poisson_reference_recovers_a_smooth_curve(self):
         x = np.arange(100)
@@ -190,6 +223,15 @@ class Kick(unittest.TestCase):
         loo = insights_kick.strata_loo(keys, values)
         self.assertAlmostEqual(loo[0, 0], (np.arange(100).sum() - 0) / 99)
         self.assertTrue(np.isnan(loo[120, 0]))
+
+    def test_an_exact_pace_tie_is_not_faster(self):
+        # 35–40 km in 1,000 s and the final 2.195 km in 439 s are the same 200 s/km; floating point says 199.99999999999997.
+        times = np.cumsum([[1500] * 4 + [1600, 1650, 1700, 1000, 439], [1500] * 4 + [1600, 1650, 1700, 1000, 438]], axis=1).astype(float)
+        f = Finishes(times, np.zeros(2, int), np.ones(2, np.uint8), np.zeros(2, np.uint8), np.full(2, np.nan), np.arange(2, dtype=np.uint64),
+                     [dict(city='A', year=2020)])
+        self.assertLess(f.paces[0, 8], f.paces[0, 7])           # the plain comparison counts the tie as faster
+        self.assertEqual(faster_pace(f.paces[:, 8], f.paces[:, 7]).tolist(), [False, True])
+        self.assertEqual(faster_pace(np.array([300.0, 299.0]), np.array([300.0, 300.0])).tolist(), [False, True])
 
     def test_grid_screen_flags_an_inflated_final_section(self):
         normal = [(0, 1, None, [300] * 4 + [320, 330, 340, 350, 340], i) for i in range(120)]
@@ -325,6 +367,47 @@ class Reader(unittest.TestCase):
                     insights_data.read_finishes(root, {'tag': 'example'}, root)
             finally:
                 insights_data.verified_manifest = original
+
+
+
+class CourseGeometryTest(unittest.TestCase):
+    """build_course_geometry.py draws a supplied route only where the runner context attached it to an edition."""
+
+    def test_refused_profile_is_omitted_with_the_context_reason(self):
+        import hashlib
+        import duckdb
+        import build_course_geometry
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'editions').mkdir()
+            reason = 'The supplied course profile race name does not match this recorded race.'
+            shards = [dict(edition=dict(city='Alpha', year=2020), terrain=dict(course_key='alpha-current'), terrain_reason=None),
+                      dict(edition=dict(city='Beta', year=2020), terrain=None, terrain_reason=reason)]
+            editions = {}
+            for i, shard in enumerate(shards):
+                data = gzip.compress(json.dumps(shard).encode())
+                (root / f'editions/{i:03d}.json.gz').write_bytes(data)
+                editions[str(i)] = dict(file=f'editions/{i:03d}.json.gz', bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
+            points = json.dumps([dict(lat=52 + k / 1000, lon=4 + k / 1000, d_km=k * 42.195 / 24, elev_m=float(k % 3)) for k in range(25)])
+            profiles = root / 'course_profiles.parquet'
+            db = duckdb.connect()
+            db.execute("CREATE TABLE p (city VARCHAR, race VARCHAR, course_key VARCHAR, distance_km DOUBLE, elev_gain_m DOUBLE, elev_loss_m DOUBLE, "
+                       "elev_min_m DOUBLE, elev_max_m DOUBLE, points_json VARCHAR, source VARCHAR)")
+            db.execute("INSERT INTO p VALUES ('Alpha','Alpha Marathon','alpha-current',42.195,10,10,0,2,?,'gpx'), "
+                       "('Beta','Gamma Marathon','beta-current',42.195,10,10,0,2,?,'gpx')", [points, points])
+            db.execute(f"COPY p TO '{profiles}' (FORMAT PARQUET)")
+            manifest = root / 'manifest.json'
+            manifest.write_text(json.dumps(dict(release_tag='example', input_as_of='2026-10-16T20:55:30Z', editions=editions,
+                                                input_files={'course_profiles.parquet': hashlib.sha256(profiles.read_bytes()).hexdigest()})))
+            output = root / 'course-geometry.json'
+            build_course_geometry.run(profiles, output, manifest)
+            result = json.loads(output.read_text())
+            self.assertEqual([c['city'] for c in result['courses']], ['Alpha'])
+            self.assertEqual(result['omitted'], [dict(city='Beta', race='Gamma Marathon', reasons=[reason])])
+            # A changed shard is refused before anything is drawn.
+            (root / 'editions/000.json.gz').write_bytes(b'x')
+            with self.assertRaisesRegex(ValueError, 'Runner-context shard mismatch'):
+                build_course_geometry.run(profiles, output, manifest)
 
 
 if __name__ == '__main__':

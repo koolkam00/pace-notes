@@ -18,9 +18,10 @@ const searchPages = ['/tools/marathon-pace-chart', '/tools/half-marathon-pace-ch
 // Story and course pages keep their own path, named here because lib/stories.ts and lib/course-data.ts read files at
 // build time. verify-analytics checks both lists against STORIES and getCourseNames(), so a new story or course cannot
 // fall to its section unnoticed; a URL under either section that is not on the list (a typed name) still does.
+// Melbourne left the list with the 1652 release (its only edition is excluded, so /courses/melbourne is no longer built).
 export const STORY_SLUGS: readonly string[] = ['pacing-types', 'round-numbers', 'race-replay', 'places', 'final-kick', 'who-holds-pace', 'courses'];
 export const COURSE_SLUGS: readonly string[] = ['amsterdam', 'auckland', 'austin', 'barcelona', 'berlin', 'boston', 'chicago', 'copenhagen', 'dubai', 'eindhoven', 'frankfurt', 'gold-coast',
-  'hamburg', 'helsinki', 'london', 'madrid', 'melbourne', 'new-york', 'oslo', 'paris', 'prague', 'rotterdam', 'singapore', 'stockholm', 'sydney', 'valencia', 'vienna', 'warsaw', 'washington'];
+  'hamburg', 'helsinki', 'london', 'madrid', 'new-york', 'oslo', 'paris', 'prague', 'rotterdam', 'singapore', 'stockholm', 'sydney', 'valencia', 'vienna', 'warsaw', 'washington'];
 const pages = new Set(['/', '/analyses', '/analyses/downhill-start', '/runners', '/report', '/about', '/methodology', '/privacy', '/request-analysis', '/slowdown', '/htw', '/your-race', '/research', '/research/personalized',
   ...TEN_ANALYSES.map(item => '/analyses/' + item.slug), ...WEATHER_QUESTIONS.map(item => '/analyses/' + item.slug),
   '/tools', ...TOOLS.map(tool => '/tools/' + tool.slug), ...searchPages,

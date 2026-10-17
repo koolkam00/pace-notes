@@ -7,7 +7,7 @@ finishes adjacent on the clock may never have been near each other.
 import numpy as np
 
 from insights_data import start_offset_screen, sustained_slowdown
-from insights_stats import MIN_CELL, SEED, quantile, r
+from insights_stats import MIN_CELL, SEED, SHARE_DIGITS, quantile, r
 
 GAP_BINS = np.arange(0, 901, 30)
 CHECKS = {20: 3, 30: 5, 35: 6, 40: 7}
@@ -56,7 +56,7 @@ def build(f):
         m = (x >= lo) & (x < lo + 2)
         if m.sum() >= MIN_CELL:
             breakeven.append(dict(x=lo + 1, n=int(m.sum()), median=r(np.median(gain30[m]), 3),
-                                  p10=r(quantile(gain30[m], .1), 3), p90=r(quantile(gain30[m], .9), 3), gained=r((gain30[m] > 0).mean(), 4)))
+                                  p10=r(quantile(gain30[m], .1), 3), p90=r(quantile(gain30[m], .9), 3), gained=r((gain30[m] > 0).mean(), SHARE_DIGITS)))
     crossing = next((b0['x'] + (b1['x'] - b0['x']) * b0['median'] / (b0['median'] - b1['median'])
                      for b0, b1 in zip(breakeven, breakeven[1:]) if b0['median'] > 0 >= b1['median']), None)
     # Where you were at 30 km vs where you finished (percentile fans).
@@ -66,7 +66,7 @@ def build(f):
         m = (q30 >= lo) & (q30 < lo + 2)
         if m.sum() >= MIN_CELL:
             fan.append(dict(at30=lo + 1, n=int(m.sum()), p10=r(quantile(qf[m], .1), 2), p50=r(quantile(qf[m], .5), 2), p90=r(quantile(qf[m], .9), 2),
-                            surger=r(surger[m].mean(), 4), sinker=r(sinker[m].mean(), 4)))
+                            surger=r(surger[m].mean(), SHARE_DIGITS), sinker=r(sinker[m].mean(), SHARE_DIGITS)))
     # Median runner ledger: exact passes made / suffered after 30 km for finishes at the 49–51st percentile at 30 km.
     ledger = middle_ledger(s, q30)
     # Women vs men on the mixed clock, per edition.
@@ -82,15 +82,15 @@ def build(f):
     for label, m in (('Faster second 20 km', change20 < -2), ('Similar 20 km blocks', (change20 >= -2) & (change20 <= 2)),
                      ('Moderate slowing', (change20 > 2) & (change20 <= 10)), ('Pronounced slowing', change20 > 10),
                      ('No sustained slowdown', ~detected), ('Sustained slowdown', detected)):
-        groups.append(dict(label=label, n=int(m.sum()), median=r(np.median(gain30[m]), 3), gained=r((gain30[m] > 0).mean(), 4),
-                           surgers=r(surger[m].mean(), 5), sinkers=r(sinker[m].mean(), 5)))
+        groups.append(dict(label=label, n=int(m.sum()), median=r(np.median(gain30[m]), 3), gained=r((gain30[m] > 0).mean(), SHARE_DIGITS),
+                           surgers=r(surger[m].mean(), SHARE_DIGITS), sinkers=r(sinker[m].mean(), SHARE_DIGITS)))
     women_surgers = (surger & (s.gender == 2)).sum() / surger.sum()
     women_sinkers = (sinker & (s.gender == 2)).sum() / sinker.sum()
     return dict(
         cohort_n=int(s.n), start_offset_editions=len(flagged), editions_n=int((sizes > 0).sum()),
-        gained_share=r((gain30 > 0).mean(), 4), surger_share=r(surger.mean(), 5), sinker_share=r(sinker.mean(), 5),
+        gained_share=r((gain30 > 0).mean(), SHARE_DIGITS), surger_share=r(surger.mean(), SHARE_DIGITS), sinker_share=r(sinker.mean(), SHARE_DIGITS),
         surgers=int(surger.sum()), sinkers=int(sinker.sum()),
-        women_share=r((s.gender == 2).mean(), 4), women_share_of_surgers=r(women_surgers, 4), women_share_of_sinkers=r(women_sinkers, 4),
+        women_share=r((s.gender == 2).mean(), SHARE_DIGITS), women_share_of_surgers=r(women_surgers, SHARE_DIGITS), women_share_of_sinkers=r(women_sinkers, SHARE_DIGITS),
         histogram=[dict(lo=float(a), share=r(c / s.n, 6)) for a, c in zip(hist_edges[:-1], hist)],
         coin_flip=coin, shuffle=shuffle, breakeven=breakeven, breakeven_crossing=r(crossing, 2) if crossing is not None else None,
         fan=fan, ledger=ledger, gender_editions=editions, groups=groups,
@@ -128,7 +128,7 @@ def coin_flip(s, rng, partners=12):
             w = c / partners
             np.add.at(weight, b, w)
             np.add.at(overturned, b, w * (fin[j] < fin[i]))
-        out[str(km)] = [dict(gap_lo_s=int(a), share=r(o / w, 4)) for a, o, w in zip(GAP_BINS[:-1], overturned, weight) if w > 0]
+        out[str(km)] = [dict(gap_lo_s=int(a), share=r(o / w, SHARE_DIGITS)) for a, o, w in zip(GAP_BINS[:-1], overturned, weight) if w > 0]
     return out
 
 
