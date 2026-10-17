@@ -45,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SiteHeader
           brand={<div className="header-brand">
             <Link href="/" className="site-title"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span>Pace Notes</span></Link>
+            <span className="header-credit">by Andrew Kam</span>
           </div>}
           chapters={<ChapterList variant="compact" />}
         />
