@@ -27,7 +27,8 @@ export default function KickBody() {
 
   // Same pace through 20K: each pace band's finish, with and without a sustained slowdown.
   const cost = data.cost.bands.filter((b) => b.slowdown_n >= 100 && b.other_n >= 100);
-  // Each band's gap, drawn from its own no-slowdown finish at zero, on a scale to the next 10 minutes.
+  // Each band's gap, drawn from its own no-slowdown finish at zero, on a scale to the next 10 minutes. Every row
+  // carries its minutes, so the strip needs no axis of its own.
   const gTop = Math.max(1800, Math.ceil(Math.max(...cost.map((b) => b.slowdown_finish_s - b.other_finish_s)) / 600) * 600);
 
   // The warning sign: the middle section the data reports, by how much slower it ran than early pace.
@@ -48,7 +49,7 @@ export default function KickBody() {
 
       <Beat id="twins" track="chapter-1" label="Same pace, apart" title={bands}>
         <Dumbbell rows={cost.map((b) => ({ id: b.label, label: `${b.label} pace`, a: 0, b: b.slowdown_finish_s - b.other_finish_s, display: `+${minutes(b.slowdown_finish_s - b.other_finish_s)}` }))}
-          domain={[0, gTop]} ticks={[0, 600, 1200, 1800].filter((t) => t <= gTop).map((t) => ({ value: t, label: t === 0 ? '0' : t === gTop ? `+${t / 60} min` : `+${t / 60}` }))}
+          domain={[0, gTop]} ticks={[]}
           keyLabels={{ a: 'No sustained slowdown', b: 'Sustained slowdown' }}
           label={`Minutes later at the finish after a sustained slowdown, for each pace through 20K: ${Math.round(Number(bands.values.low_s) / 60)} to ${Math.round(Number(bands.values.high_s) / 60)} minutes.`}
           values={(
