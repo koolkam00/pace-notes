@@ -1,45 +1,114 @@
-import { Elevation, Section } from '@/components/story/Units';
-import { clock, medianRange, pct, type CoursePageData } from '@/lib/course-page';
-import { SECTION_NAMES } from '@/lib/tools/splits';
-import { CourseSection, Fact, SectionLink } from './Fact';
+import BigNumber from '@/components/ui/BigNumber';
+import { Elevation } from '@/components/story/Units';
+import { getNugget, type Nugget } from '@/lib/nuggets';
+import type { CourseNugget } from '@/lib/nuggets/courses';
+import { hm } from '@/lib/nuggets/format';
+import type { CoursePageData } from '@/lib/course-page';
+import ByUnits from './ByUnits.client';
+import { CourseSection, Fact } from './Fact';
 
-/** The sections this page has, for the contents list. */
-function contents(page: CoursePageData): [string, string][] {
-  return [
-    ['finish-times', 'Finish times by year'],
-    ...(page.geometry ? [['elevation', 'Elevation profile'] as [string, string]] : []),
-    ['pacing', 'Pacing by 5 km'],
-    ['slowdown', 'Holding pace'],
-    ['goals', 'Goal times'],
-    ...(page.weather.length ? [['weather', 'Race-morning weather'] as [string, string]] : []),
-    ['plan', 'Plan your race'],
-  ];
+/**
+ * "What makes {city} {city}" (the redesign spec, section 7.10): up to three nugget rows divided by hairlines, each a
+ * figure, the words that finish its sentence and a micro-chart of at most 48 px: the first 5K's drop or climb (the
+ * route's profile on the shared height scale, the first 5K in signal), the slowest 5K (the nine sections against the
+ * course's own average), and how often its pacing shape alone picked the course out (one dot per edition). A course
+ * without a route or a shape fills in with its climb and its median finish, so the section is never thin.
+ */
+type Row = { id: string; figure: React.ReactNode; key: string; viz?: React.ReactNode };
+
+const W = 96, H = 40;
+
+/** The profile with the first 5K in signal, on the shared height scale (so a flat start draws flat). */
+function StartViz({ page }: { page: CoursePageData }) {
+  const g = page.geometry!;
+  const n = g.elevation_m.length;
+  const floor = Math.min(...g.elevation_m);
+  const x = (i: number) => (i / Math.max(1, n - 1)) * W;
+  const y = (m: number) => H - 3 - ((H - 6) * (m - floor)) / page.relief;
+  const pts = g.elevation_m.map((m, i) => [x(i), y(m)] as const);
+  const line = (p: readonly (readonly [number, number])[]) => p.map(([px, py], i) => `${i ? 'L' : 'M'}${px.toFixed(1)} ${py.toFixed(1)}`).join('');
+  const cut = Math.max(1, Math.round(5 / g.elevation_step_km));
+  return (
+    <svg className="glance-viz" viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden="true" focusable="false">
+      <path className="glance-line" d={line(pts)} />
+      <path className="glance-signal" d={line(pts.slice(0, cut + 1))} />
+    </svg>
+  );
 }
 
-/** "{race} at a glance": two to four sentences of findings, each filled from one published field, then the contents. */
-export default function CourseGlance({ page }: { page: CoursePageData }) {
-  const { summary: s, editions, geometry, race } = page;
-  const single = editions.length === 1 ? editions[0] : null;
-  const range = medianRange(editions);
-  const slowest = s.slowest_section ? SECTION_NAMES.indexOf(s.slowest_section) : -1;
+/** Nine bars: each 5K section against the course's own average pace, the slowest in signal. */
+function LateViz({ curve, slowest }: { curve: number[]; slowest: number }) {
+  const span = Math.max(1, ...curve.map((v) => Math.abs(v)));
+  const bw = W / curve.length;
+  const mid = H / 2;
   return (
-    <CourseSection id="at-a-glance" track="chapter-1" kicker="At a glance" title={<>{race} <em>at a glance</em></>}>
+    <svg className="glance-viz" viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden="true" focusable="false">
+      <rect className="glance-axis" x="0" y={mid - 0.5} width={W} height="1" />
+      {curve.map((v, i) => {
+        const h = Math.max(1.5, (Math.abs(v) / span) * (mid - 2));
+        return <rect key={i} className={i === slowest ? 'glance-bar is-signal' : 'glance-bar'} x={i * bw + 1} width={bw - 2} y={v > 0 ? mid - h : mid} height={h} rx="1" />;
+      })}
+    </svg>
+  );
+}
+
+/** One dot per edition tested; those the course was picked out in are filled. */
+function ShapeViz({ correct, editions }: { correct: number; editions: number }) {
+  const per = Math.min(editions, 11);
+  const rows = Math.ceil(editions / per);
+  const step = Math.min(W / per, 9);
+  return (
+    <svg className="glance-viz" viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden="true" focusable="false">
+      {Array.from({ length: editions }, (_, i) => (
+        <circle key={i} className={i < correct ? 'glance-dot is-on' : 'glance-dot'} cx={W - (per - (i % per) - 0.5) * step} cy={H / 2 - ((rows - 1) * step) / 2 + Math.floor(i / per) * step} r={step / 2 - 1.2} />
+      ))}
+    </svg>
+  );
+}
+
+function figureOf(n: Nugget) {
+  return n.figure ? <BigNumber value={n.figure.value} unit={n.figure.unit} sr={n.figure.sr} size="m" /> : null;
+}
+
+export default function CourseGlance({ page }: { page: CoursePageData }) {
+  const { city, display, summary: s, geometry } = page;
+  const start = getNugget('course.start', { city }) as CourseNugget;
+  const late = getNugget('course.late', { city });
+  const shape = getNugget('course.shape', { city });
+  const rows: Row[] = [];
+  if (start.figure && geometry) {
+    const km = start.figureKm;
+    rows.push({
+      id: 'start',
+      figure: km ? <ByUnits mi={figureOf(start)} km={<BigNumber value={km.value} unit={km.unit} sr={km.sr} size="m" />} /> : figureOf(start),
+      key: start.key!,
+      viz: <StartViz page={page} />,
+    });
+  }
+  if (late.guard && late.figure) {
+    const curve = s.curve ?? [];
+    const slowest = s.slowest_section ? page.sections.indexOf(s.slowest_section) : -1;
+    rows.push({ id: 'late', figure: figureOf(late), key: late.key!, viz: curve.length === 9 && slowest >= 0 ? <LateViz curve={curve} slowest={slowest} /> : undefined });
+  }
+  if (shape.guard && s.identified) rows.push({ id: 'shape', figure: figureOf(shape), key: shape.key!, viz: <ShapeViz correct={s.identified.correct} editions={s.identified.editions} /> });
+  // Fill-ins for a course without a route or a shape: its whole climb, then its median finish.
+  if (rows.length < 3 && geometry && !rows.some((r) => r.id === 'start')) {
+    rows.push({ id: 'climb', figure: <span className="big-number is-m"><Fact k="geo.gain" v={geometry.gain_m}><Elevation metres={geometry.gain_m} /></Fact></span>, key: 'of climbing, start to finish' });
+  }
+  if (rows.length < 3) rows.push({ id: 'median', figure: <BigNumber value={hm(s.median_s / 60)} sr={`median finish ${hm(s.median_s / 60)}`} size="m" />, key: 'the median finish in an average edition' });
+  return (
+    <CourseSection id="at-a-glance" track="chapter-1" beat="At a glance" title={<>What makes {display} <em>{display}</em></>}>
       <div className="course-glance">
-        {single ? (
-          <p>The {single.year} edition’s median finish was <Fact k={`median@${single.year}`} v={single.median_s}>{clock(single.median_s)}</Fact>, and <Fact k="slowdown" v={s.slowdown}>{pct(s.slowdown)}</Fact> of its finishes had a <SectionLink to="slowdown">sustained slowdown</SectionLink>.</p>
-        ) : range ? (
-          <>
-            <p>Edition medians ran from <Fact k="median.lo" v={range.lo.median_s}>{clock(range.lo.median_s)}</Fact> (<Fact k="median.lo.year" v={range.lo.year}>{range.lo.year}</Fact>) to <Fact k="median.hi" v={range.hi.median_s}>{clock(range.hi.median_s)}</Fact> (<Fact k="median.hi.year" v={range.hi.year}>{range.hi.year}</Fact>), averaging <Fact k="median" v={s.median_s}>{clock(s.median_s)}</Fact>.</p>
-            <p>On average across editions, <Fact k="slowdown" v={s.slowdown}>{pct(s.slowdown)}</Fact> of finishes had a <SectionLink to="slowdown">sustained slowdown</SectionLink>, from <Fact k="slowdown.lo" v={s.slowdown_range[0]}>{pct(s.slowdown_range[0])}</Fact> (<Fact k="slowdown.lo.year" v={s.slowdown_range_years[0]}>{s.slowdown_range_years[0]}</Fact>) to <Fact k="slowdown.hi" v={s.slowdown_range[1]}>{pct(s.slowdown_range[1])}</Fact> (<Fact k="slowdown.hi.year" v={s.slowdown_range_years[1]}>{s.slowdown_range_years[1]}</Fact>).</p>
-          </>
-        ) : null}
-        {slowest >= 0 ? <p>For the median finisher, the slowest 5 km section was <Fact k="slowest" v={s.slowest_section ?? ''}><Section i={slowest} /></Fact>.</p> : null}
-        {geometry ? <p>The route climbs <Fact k="geo.gain" v={geometry.gain_m}><Elevation metres={geometry.gain_m} /></Fact> from start to finish.</p> : null}
+        <ul className="glance-rows">
+          {rows.slice(0, 3).map((r) => (
+            <li key={r.id} className="glance-row">
+              <span className="glance-figure">{r.figure}</span>
+              <span className="glance-key">{r.key}</span>
+              {r.viz ? <span className="glance-chart">{r.viz}</span> : null}
+            </li>
+          ))}
+        </ul>
       </div>
-      <nav className="course-toc" aria-label="On this page">
-        <p className="course-toc-label">On this page</p>
-        <ul>{contents(page).map(([id, label]) => <li key={id}><SectionLink to={id}>{label}</SectionLink></li>)}</ul>
-      </nav>
     </CourseSection>
   );
 }

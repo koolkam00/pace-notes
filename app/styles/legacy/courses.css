@@ -1,29 +1,3 @@
-/* Legacy rules for the course pages and /courses (WP5).
-   Split mechanically from app/globals.css and app/story.css by the code that owns each selector (WP0-A, October 2026): no rule
-   was changed. An area package deletes its selectors from its own legacy file when it rebuilds its pages. */
-
-.course-grid { list-style: none; margin: 3rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr)); gap: 1rem; }
-.course-grid li + li { margin: 0; }
-.course-card { display: grid; height: 100%; border-radius: 20px; background: var(--card); border: 1px solid var(--line); color: var(--ink); box-shadow: var(--shadow); overflow: hidden; transition: transform .25s var(--ease), box-shadow .25s var(--ease); }
-.course-card:hover { text-decoration: none; transform: translateY(-4px); box-shadow: var(--shadow-lift); }
-.course-card-map { display: block; padding: 1rem 1.4rem .4rem; background: radial-gradient(circle at 50% 40%, var(--paper), var(--paper-2)); }
-.course-card-nomap { display: grid; place-items: center; height: 160px; font-family: var(--mono); font-size: .75rem; color: var(--ink-3); }
-.course-card-body { display: grid; gap: .25rem; padding: .9rem 1.1rem 1.1rem; }
-.course-card-name { font-family: var(--serif); font-size: 1.35rem; font-weight: 650; letter-spacing: -.01em; }
-.course-card-meta { font-size: .8125rem; color: var(--ink-3); }
-.course-card-types { display: flex; height: 8px; margin-top: .5rem; border-radius: 999px; overflow: hidden; }
-.course-card-types i { display: block; height: 100%; }
-.course-hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 2rem; align-items: center; }
-.course-hero-map { max-width: 420px; justify-self: end; width: 100%; }
-.course-stats { display: grid; grid-template-columns: repeat(4, minmax(0, auto)); gap: 1rem 2rem; margin: 1.6rem 0 0; }
-.course-stats dt { font-family: var(--mono); font-size: .6875rem; letter-spacing: .08em; text-transform: uppercase; color: var(--night-ink-2); }
-.course-stats dd { margin: .25rem 0 0; font-family: var(--bib); font-size: 1.6rem; font-weight: 750; color: var(--night-ink); }
-.course-elevation { margin-top: 1rem; padding-bottom: 1.5rem; }
-@media (max-width: 860px) { .course-hero-grid { grid-template-columns: 1fr; } .course-hero-map { justify-self: center; max-width: 320px; } .course-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.course-types-big { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .8rem; }
-.course-type-tile { position: relative; padding: 1rem 1rem .9rem; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); border-top: 5px solid var(--arch); }
-.course-type-tile strong { display: block; font-family: var(--bib); font-size: 2.2rem; font-weight: 780; line-height: 1; }
-.course-type-tile span { display: block; margin-top: .3rem; font-weight: 650; font-size: .9375rem; }
-.course-type-tile small { display: block; margin-top: .3rem; font-size: .75rem; color: var(--ink-3); }
-@media (max-width: 960px) { .course-types-big { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 520px) { .course-types-big { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Legacy rules for the course pages and /courses (WP5): none remain. The course pages and /courses were rebuilt on the
+   redesign's primitives (October 2026); their rules live in app/styles/pages/course.css and courses.css. WP9 deletes
+   this file with the rest of legacy/. */

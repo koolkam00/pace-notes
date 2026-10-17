@@ -1,28 +1,58 @@
+import ChapterEnd from '@/components/ChapterEnd';
+import Arrow from '@/components/ui/Arrow';
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import { MONTHS, type CoursePageData } from '@/lib/course-page';
-import { courseSlug } from '@/lib/tools/links';
+import { readingOf } from '@/lib/nuggets';
+import { pct } from '@/lib/nuggets/format';
+import type { CoursePageData, FieldCourse } from '@/lib/course-page';
 import { CourseSection } from './Fact';
 
-const named = (city: string) => (city === 'New York' ? 'New York City' : city);
+const W = 88, H = 30;
 
-/** "Other courses": the alphabetical neighbours and the courses run in the same month. No similarity or difficulty labels. */
-export default function CourseOthers({ page, total }: { page: CoursePageData; total: number }) {
-  const { neighbours, sameMonth, display } = page;
+/** A course's pace by section against its own average, drawn over this course's (quiet), on one shared scale. */
+function Spark({ curve, base, span }: { curve: number[]; base: number[]; span: number }) {
+  const x = (i: number) => (i / 8) * W;
+  const y = (v: number) => H / 2 - (v / span) * (H / 2 - 2);
+  const d = (c: number[]) => c.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join('');
   return (
-    <CourseSection id="other-courses" track="related" kicker="More courses" title="Other courses">
-      {neighbours.length ? (
-        <div className="course-others">
-          <p className="course-others-label">Next to {display} in the alphabetical list</p>
-          <ul>{neighbours.map((city) => <li key={city}><Link href={`/courses/${courseSlug(city)}`}>{named(city)}</Link></li>)}</ul>
-        </div>
-      ) : null}
-      {sameMonth.map(({ month, cities }) => (
-        <div className="course-others" key={month}>
-          <p className="course-others-label">Also run in {MONTHS[month - 1]}</p>
-          <ul>{cities.map((city) => <li key={city}><Link href={`/courses/${courseSlug(city)}`}>{named(city)}</Link></li>)}</ul>
-        </div>
-      ))}
-      <p className="course-note"><Link href="/courses">All {total} courses</Link>, in alphabetical order.</p>
+    <svg className="course-spark" viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden="true" focusable="false">
+      {base.length === 9 ? <path className="course-spark-base" d={d(base)} /> : null}
+      {curve.length === 9 ? <path className="course-spark-line" d={d(curve)} /> : null}
+    </svg>
+  );
+}
+
+/**
+ * "Shaped like {city}" (the redesign spec, section 7.10): the three courses whose pacing fingerprints sit nearest this
+ * one's (five or more editions), each a row with its name, its share of sustained slowdowns and its pace shape drawn
+ * over this course's. A course with no shape of its own lists the courses nearest its sustained-slowdown share instead.
+ * Then the closing stack: the next chapter, back to every course, and "Was this useful?".
+ */
+export default function CourseOthers({ page }: { page: CoursePageData }) {
+  const { display, summary, shapedLike, field, slug } = page;
+  const curves = new Map(page.allCurves.map((c) => [c.city, c.curve]));
+  const rows: FieldCourse[] = shapedLike.length ? shapedLike
+    : [...field].filter((c) => c.city !== page.city && c.editions >= 3).sort((a, b) => Math.abs(a.slowdown - summary.slowdown) - Math.abs(b.slowdown - summary.slowdown)).slice(0, 3);
+  const base = summary.curve ?? [];
+  const span = Math.max(1, ...[base, ...rows.map((r) => curves.get(r.city) ?? [])].flat().map((v) => Math.abs(v)));
+  return (
+    <CourseSection id="other-courses" track="related" beat="More courses" title={shapedLike.length ? <>Shaped like <em>{display}</em>.</> : <>Courses near {display}’s share.</>}>
+      <ul className="viz-key course-rows-key" aria-hidden="true">
+        <li><i className="course-key-line" />Each course, 5K by 5K</li>
+        {base.length === 9 ? <li><i className="course-key-dash" />{display}</li> : null}
+      </ul>
+      <ul className="course-rows">
+        {rows.map((r) => (
+          <li key={r.slug}>
+            <Link href={`/courses/${r.slug}`} className="course-row">
+              <span className="course-row-name">{r.display}</span>
+              <span className="course-row-meta">{pct(r.slowdown)} sustained slowdown</span>
+              <Spark curve={curves.get(r.city) ?? []} base={base} span={span} />
+              <Arrow />
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <ChapterEnd path={`/courses/${slug}`} readingOf={readingOf} track={false} />
     </CourseSection>
   );
 }

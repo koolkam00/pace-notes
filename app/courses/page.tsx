@@ -1,79 +1,105 @@
+import ChapterEnd from '@/components/ChapterEnd';
+import { Elevation, Temperature } from '@/components/story/Units';
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import { getCourseNames, slugifyCity } from '@/lib/course-data';
+import CourseSort, { type SortKey } from '@/components/course/CourseSort.client';
+import { Fact } from '@/components/course/Fact';
+import RouteFace from '@/components/course/RouteFace';
+import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
+import { SlowdownTerm } from '@/components/tools/EvidenceTag';
+import { readingAttrs } from '@/lib/chapters';
+import Reading from '@/components/ui/Reading';
+import { coursePages, raceName } from '@/lib/course-page';
+import type { Courses } from '@/lib/insights';
 import { readInsight } from '@/lib/insights-server';
-import type { Archetypes, CourseGeometry, Courses } from '@/lib/insights';
-import { RouteMap } from '@/components/story/CourseArt';
-import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
-import { Elevation } from '@/components/story/Units';
-import { pct, raceName } from '@/lib/course-page';
+import { getNugget, readingOf, sentenceOf } from '@/lib/nuggets';
+import { count } from '@/lib/nuggets/format';
 import { JsonLd, absoluteUrl, breadcrumbs, pageMetadata } from '@/lib/seo';
-
-const displayName = (city: string) => city === 'New York' ? 'New York City' : city;
+import '@/app/styles/pages/courses.css';
 
 export function generateMetadata() {
-  const names = getCourseNames();
-  const routes = new Set(readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses.map((c) => c.city));
-  const drawn = names.filter((n) => routes.has(n)).length;
-  const span = names.length > 1 ? `, from ${displayName(names[0])} to ${displayName(names[names.length - 1])}` : '';
+  const pages = [...coursePages().values()];
+  const names = pages.map((p) => p.city).sort();
+  const drawn = pages.filter((p) => p.geometry).length;
+  const display = (city: string) => (city === 'New York' ? 'New York City' : city);
+  const span = names.length > 1 ? `, from ${display(names[0])} to ${display(names[names.length - 1])}` : '';
   const describe = (from: string) => `Pacing by 5 km section for ${names.length} marathon courses${from}, with route and elevation profiles for ${drawn}. Alphabetical, not ranked.`;
   // Every course has a pacing profile; only those with a supplied route file have elevation, so the title counts both.
   const title = drawn === names.length ? `Marathon Courses: Elevation and Pacing for ${names.length} Races` : `Marathon Courses: Pacing for ${names.length} Races, Elevation for ${drawn}`;
-  return pageMetadata({
-    title,
-    description: describe(span).length <= 155 ? describe(span) : describe(''),
-    path: '/courses',
-  });
+  return pageMetadata({ title, description: describe(span).length <= 155 ? describe(span) : describe(''), path: '/courses' });
 }
 
+const W = 44, H = 44;
+
+/** A course's pace shape, in the face's box, for a course with no supplied route (never an empty box). */
+function ShapeFace({ curve }: { curve: number[] }) {
+  if (curve.length !== 9) return <svg className="course-index-face-svg" viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false"><rect className="course-index-flat" x="6" y={H / 2} width={W - 12} height="1.5" /></svg>;
+  const span = Math.max(1, ...curve.map((v) => Math.abs(v)));
+  const d = curve.map((v, i) => `${i ? 'L' : 'M'}${(4 + (i / 8) * (W - 8)).toFixed(1)} ${(H / 2 - (v / span) * (H / 2 - 6)).toFixed(1)}`).join('');
+  return <svg className="course-index-face-svg" viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false"><path className="course-index-shape" d={d} /></svg>;
+}
+
+/**
+ * /courses (the redesign spec, section 7.10, cut under section 00): the reading (how far sustained slowdown runs from
+ * one course to the next, from the same courses.json share each course page leads with), then every course as one row
+ * the chips sort: its route as its face (or its pace shape), its name, the figure the order is by, and its share of
+ * sustained slowdowns on one shared scale, so the list is the chart. The ItemList stays alphabetical.
+ */
 export default function CoursesPage() {
-  const names = getCourseNames();
-  const geometry = new Map(readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses.map((c) => [c.city, c]));
-  const archetypes = readInsight<Archetypes>('archetypes.json');
-  const types = new Map(archetypes.courses.map((c) => [c.city, c]));
-  const summaries = new Map(readInsight<Courses>('courses.json').courses.map((c) => [c.city, c]));
-  // The course pages (28 since the 1652 release, 29 before) in the order the page lists them (alphabetical), named as each page's H1 names its race.
+  const pages = [...coursePages().values()];
+  const alpha = [...pages].sort((a, b) => a.city.localeCompare(b.city));
+  const courses = readInsight<Courses>('courses.json');
+  const temps = new Map<string, number[]>();
+  for (const w of courses.weather.editions) temps.set(w.city, [...(temps.get(w.city) ?? []), w.temp]);
+  const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
+  const range = getNugget('courses.range');
+  const index = getNugget('courses.index');
+  const top = Math.max(0.5, Math.ceil(Math.max(...pages.map((p) => p.summary.slowdown)) * 10) / 10);
+  const by = (f: (p: (typeof pages)[number]) => number | null, dir: 1 | -1) =>
+    [...pages].sort((a, b) => { const x = f(a), y = f(b); if (x === null) return 1; if (y === null) return -1; return dir * (x - y) || a.city.localeCompare(b.city); }).map((p) => p.slug);
+  const orders: Record<SortKey, string[]> = {
+    slowdown: by((p) => p.summary.slowdown, 1),
+    climb: by((p) => p.geometry?.gain_m ?? null, -1),
+    finishes: by((p) => p.summary.finishes, -1),
+    temp: by((p) => (temps.get(p.city)?.length ? mean(temps.get(p.city)!) : null), 1),
+    az: alpha.map((p) => p.slug),
+  };
+  const rows = pages.map((p) => {
+    const t = temps.get(p.city) ?? [];
+    const share = p.summary.slowdown;
+    return {
+      id: p.slug,
+      node: (
+        <Link href={`/courses/${p.slug}`} className="course-index-row">
+          <span className="course-index-face">{p.geometry ? <RouteFace course={p.geometry} /> : <ShapeFace curve={p.summary.curve ?? []} />}</span>
+          <span className="course-index-name">{p.display}</span>
+          <span className="course-index-meta">
+            <span className="m-default">{count(p.summary.editions)} {p.summary.editions === 1 ? 'edition' : 'editions'}{p.geometry ? <> · <Elevation metres={p.geometry.gain_m} /> climb</> : null}</span>
+            <span className="m-climb">{p.geometry ? <><Elevation metres={p.geometry.gain_m} /> of climbing</> : 'No route drawn'}</span>
+            <span className="m-finishes">{count(p.summary.finishes)} finishes</span>
+            <span className="m-temp">{t.length ? <>{t.length > 1 ? <><Temperature c={Math.min(...t)} />–</> : null}<Temperature c={Math.max(...t)} /> at the start</> : 'No race mornings'}</span>
+          </span>
+          <span className="course-index-share"><Fact k="slowdown.r" v={share}>{Math.round(share * 100)}%</Fact></span>
+          <span className="course-index-track" aria-hidden="true"><i style={{ left: `${Math.min(100, (share / top) * 100).toFixed(1)}%` }} /></span>
+        </Link>
+      ),
+    };
+  });
   const list = {
-    '@context': 'https://schema.org', '@type': 'ItemList', name: 'Marathon courses', itemListOrder: 'https://schema.org/ItemListOrderAscending', numberOfItems: names.length,
-    itemListElement: names.map((city, i) => ({ '@type': 'ListItem', position: i + 1, name: raceName(city, geometry.get(city), summaries.get(city)), url: absoluteUrl(`/courses/${slugifyCity(city)}`) })),
+    '@context': 'https://schema.org', '@type': 'ItemList', name: 'Marathon courses', itemListOrder: 'https://schema.org/ItemListOrderAscending', numberOfItems: alpha.length,
+    itemListElement: alpha.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: raceName(p.city, p.geometry, p.summary), url: absoluteUrl(`/courses/${p.slug}`) })),
   };
   return (
-    <div className="courses-page">
+    <div className="courses-page" {...readingAttrs('/courses')}>
       <JsonLd data={[breadcrumbs([['Pace Notes', '/'], ['Courses']]), list]} />
-      <section className="night night-grain bleed story-hero">
-        <div className="container">
-          <p className="eyebrow">Courses</p>
-          <h1 className="story-title">Marathon courses: elevation and pacing.</h1>
-          <p className="hero-dek">{names.length} marathons. Open a course for its elevation, how its finishers pace it and how often they hold steady.</p>
-          <div className="legend-row on-night">{archetypes.archetypes.map((a, i) => <span key={a.slug}><i className="swatch" style={{ background: ARCHETYPE_COLOURS[i] }} />{a.name}</span>)}</div>
-        </div>
+      <Reading crumbs={<ChapterCrumbs path="/courses" />} title="Courses" titleSize="title" dek={sentenceOf(index).replace(/\*/g, '')}
+        figure={range.figure ? { ...range.figure, size: 'xl' } : undefined}
+        unitLine={<>of finishes had a <SlowdownTerm />, course by course</>}
+        sentence={sentenceOf(range)} fallback={!range.guard} className="courses-reading" />
+      <section className="courses-list" aria-label="Every course">
+        <CourseSort initial="slowdown" orders={orders} rows={rows}
+          options={[{ value: 'slowdown', label: 'Sustained slowdown' }, { value: 'climb', label: 'Climb' }, { value: 'finishes', label: 'Finishes' }, { value: 'temp', label: 'Start temperature' }, { value: 'az', label: 'A–Z' }]} />
       </section>
-      {names.length ? (
-        <ol className="course-grid">
-          {names.map((city) => {
-            // The sustained-slowdown share the course page's hero prints (the story data, without copy editions).
-            const slowdown = summaries.get(city)?.slowdown;
-            const g = geometry.get(city);
-            const t = types.get(city);
-            return (
-              <li key={city}>
-                <Link href={`/courses/${slugifyCity(city)}`} className="course-card">
-                  <span className="course-card-map">{g ? <RouteMap course={g} size={180} animate={false} /> : <span className="course-card-nomap">No route map</span>}</span>
-                  <span className="course-card-body">
-                    <span className="course-card-name">{displayName(city)}</span>
-                    {slowdown !== undefined ? <span className="course-card-meta">Sustained slowdown {pct(slowdown)}</span> : null}
-                    {g ? <span className="course-card-meta">Climbs <Elevation metres={g.gain_m} /></span> : null}
-                    {t ? (
-                      <span className="course-card-types" aria-label={`Pacing types: ${archetypes.archetypes.map((a, i) => `${a.name} ${Math.round(t.shares[i] * 100)}%`).join(', ')}`}>
-                        {t.shares.map((v, i) => <i key={i} style={{ width: `${v * 100}%`, background: ARCHETYPE_COLOURS[i] }} />)}
-                      </span>
-                    ) : null}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ol>
-      ) : <p>Course results are not available in this snapshot.</p>}
+      <ChapterEnd path="/courses" readingOf={readingOf} />
     </div>
   );
 }

@@ -1,49 +1,49 @@
-import { UnitLink as Link } from '@/components/UnitsProvider';
-import ResearchQuestion from '@/components/ResearchQuestion';
-import { forPage } from '@/lib/research-display';
-import { CourseFingerprint } from '@/components/story/CourseInsights';
-import { count, type CoursePageData } from '@/lib/course-page';
-import type { ResearchAnswer } from '@/lib/research-data';
-import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
-import { CourseSection, Fact } from './Fact';
+import TypeGlyph from '@/components/viz/TypeGlyph';
+import { linear, pc } from '@/components/viz/scale';
+import { getNugget } from '@/lib/nuggets';
+import type { CoursePageData } from '@/lib/course-page';
+import { typeStyle } from '@/lib/viz/palette';
+import { CourseSection, Fact, Said } from './Fact';
 
-/** "How finishers paced each 5 km": the mix of pacing types, the course fingerprint and the pooled pace profile. */
-export default function CoursePacing({ page, typical, profile }: { page: CoursePageData; typical: number[]; profile: ResearchAnswer }) {
-  const { summary: s, types, archetypes, display } = page;
-  const shaped = s.curve && s.deviation && s.signature ? { ...s, curve: s.curve, deviation: s.deviation, signature: s.signature } : null;
-  // The most common pacing type, for the dek (the first of any tie).
-  const top = types ? types.shares.indexOf(Math.max(...types.shares)) : -1;
+/**
+ * "#pacing": the six pacing types, each a row with its glyph and colour: this course's share (filled, in the type's
+ * colour) against every course's (hollow), the gap in signal on the row the sentence names.
+ */
+export default function CoursePacing({ page }: { page: CoursePageData }) {
+  const { city, display, types, archetypes } = page;
+  const n = getNugget('course.types', { city });
+  if (!types) return <CourseSection id="pacing" track="chapter-4" beat="Pacing" title={<Said nugget={n} />} />;
+  const named = n.guard ? String(n.values.type) : '';
+  const top = Math.max(...types.shares, ...archetypes.map((a) => a.share));
+  const max = Math.ceil(top * 10 + 0.25) / 10;
+  const x = linear([0, max]);
+  const domain: [number, number] = [Math.min(...archetypes.flatMap((a) => a.profile)), Math.max(...archetypes.flatMap((a) => a.profile))];
   return (
-    <CourseSection id="pacing" track="chapter-4" kicker="Pacing" title="How finishers paced each 5 km"
-      dek={types && top >= 0 && archetypes[top]
-        ? <>{archetypes[top].name} was the most common pacing type on {display}, at <Fact k={`ty.share@${top}`} v={types.shares[top]}>{Math.round(types.shares[top] * 100)}%</Fact> of finishes.</>
-        : <>How {display} finishers spread their pace over the 5 km sections.</>}>
-      {types ? (
-        <div className="course-block">
-          <h3 className="course-h3">Pacing types</h3>
-          <p className="course-block-dek">The share of {display} finishes in each pacing type, beside every course. <Link href="/stories/pacing-types">The six pacing types</Link>.</p>
-          <div className="course-types-big">
-            {archetypes.map((a, i) => (
-              <div key={a.slug} className="course-type-tile" style={{ ['--arch' as string]: ARCHETYPE_COLOURS[i] }}>
-                <strong><Fact k={`ty.share@${i}`} v={types.shares[i]}>{Math.round(types.shares[i] * 100)}%</Fact></strong><span>{a.name}</span>
-                <small><Fact k={`ty.all@${i}`} v={a.share}>{Math.round(a.share * 100)}%</Fact> across all courses</small>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-      {shaped ? (
-        <div className="course-block">
-          <h3 className="course-h3">Course fingerprint</h3>
-          <p className="course-block-dek">How the median finisher’s pace bends on this course, against the typical marathon.
-            {shaped.identified ? <> Its shape alone names the course in <Fact k="identified.correct" v={shaped.identified.correct}>{count(shaped.identified.correct)}</Fact> of <Fact k="identified.editions" v={shaped.identified.editions}>{count(shaped.identified.editions)}</Fact> editions.</> : null}
-            {' '}<Link href="/stories/courses">Every course has a fingerprint</Link>.</p>
-          <CourseFingerprint course={shaped} typical={typical} />
-        </div>
-      ) : null}
-      <div className="course-block course-profile">
-        <ResearchQuestion question={forPage(profile)} standalone headingLevel={3} />
-      </div>
+    <CourseSection id="pacing" track="chapter-4" beat="Pacing" title={<Said nugget={n} />}>
+      <figure className="viz viz-frame dumbbell course-types">
+        <ul className="dumbbell-rows" role="img" aria-label={`The six pacing types in ${display}, each against every course: ${archetypes.map((a, i) => `${a.name} ${Math.round(types.shares[i] * 100)}% against ${Math.round(a.share * 100)}%`).join(', ')}`}>
+          {archetypes.map((a, i) => {
+            const on = a.slug === named;
+            const xa = x(a.share), xb = x(types.shares[i]);
+            return (
+              <li key={a.slug} className={on ? 'is-highlight' : undefined}>
+                <span className="dumbbell-label"><TypeGlyph profile={a.profile} index={i} domain={domain} /><span>{a.name}</span></span>
+                <svg className="dumbbell-track" width="100%" height="44" aria-hidden="true" focusable="false">
+                  <rect className="grid-line" x="0" y="22" width="100%" height="1" transform="translate(0 -0.5)" />
+                  <rect className={on ? 'dumbbell-gap is-signal' : 'dumbbell-gap'} x={pc(Math.min(xa, xb))} y="21" width={pc(Math.abs(xb - xa))} height="2" />
+                  <circle className="m-hollow" cx={pc(xa)} cy="22" r="5" />
+                  <circle className="m-type" style={typeStyle(i)} cx={pc(xb)} cy="22" r="6" />
+                </svg>
+                <span className="dumbbell-value"><Fact k={`ty.share@${i}`} v={types.shares[i]}>{Math.round(types.shares[i] * 100)}%</Fact></span>
+              </li>
+            );
+          })}
+        </ul>
+        <ul className="viz-key" aria-hidden="true">
+          <li><i className="viz-key-mark" />{display}</li>
+          <li><i className="viz-key-mark is-hollow" />Every course</li>
+        </ul>
+      </figure>
     </CourseSection>
   );
 }
