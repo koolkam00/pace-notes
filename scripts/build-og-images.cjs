@@ -14,7 +14,7 @@
  *
  * Cards carry words only: the brand, a section label, the title or race name and the credit. No data numbers
  * (they would go stale) and no runner names. A goal time ("4:00 marathon pace") is the page's name, not a data number. The design is the default card's: the site's fonts from
- * node_modules/@fontsource-variable and the colour tokens from app/globals.css.
+ * node_modules/@fontsource-variable and the colour tokens from app/styles/tokens.css.
  *
  * Usage:
  *   npm run og:images                         render missing or changed cards (unchanged cards are skipped)
@@ -63,20 +63,20 @@ function loadTypeScript() {
   process.chdir(ROOT);
 }
 
-// ---------- Design tokens (app/globals.css) ----------
+// ---------- Design tokens (app/styles/tokens.css) ----------
 
 const TOKENS = {
   night: '#0E1116', night3: '#252B36', nightInk: '#F5F0E6', nightInk2: '#B9B3A6', ink: '#15171C', card: '#FFFDF8',
   orange: '#FF5B2E', gold: '#F4B23E', blue: '#2F5BFF', green: '#17A673', rose: '#E2416B', violet: '#7A4DFF', teal: '#0FA3A3',
 };
 
-/** The tokens app/globals.css must still define with these values; the script stops if the site's palette moved. */
+/** The tokens app/styles/tokens.css must still define with these values; the script stops if the site's palette moved. */
 function checkTokens() {
-  const css = fs.readFileSync(path.join(ROOT, 'app', 'globals.css'), 'utf8');
+  const css = fs.readFileSync(path.join(ROOT, 'app', 'styles', 'tokens.css'), 'utf8');
   const expected = { '--night': TOKENS.night, '--night-3': TOKENS.night3, '--night-ink': TOKENS.nightInk, '--night-ink-2': TOKENS.nightInk2, '--ink': TOKENS.ink, '--card': TOKENS.card,
     '--orange': TOKENS.orange, '--gold': TOKENS.gold, '--blue': TOKENS.blue, '--green': TOKENS.green, '--rose': TOKENS.rose, '--violet': TOKENS.violet, '--teal': TOKENS.teal };
   const moved = Object.entries(expected).filter(([name, value]) => !new RegExp(`${name}:\\s*${value};`, 'i').test(css));
-  if (moved.length) throw new Error(`app/globals.css colour tokens changed (${moved.map(([n]) => n).join(', ')}); update TOKENS in scripts/build-og-images.cjs.`);
+  if (moved.length) throw new Error(`app/styles/tokens.css colour tokens changed (${moved.map(([n]) => n).join(', ')}); update TOKENS in scripts/build-og-images.cjs.`);
 }
 
 // ---------- Card list ----------

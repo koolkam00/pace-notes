@@ -1,0 +1,53 @@
+:root {
+  /* Paper and ink */
+  --paper: #F5F0E6;
+  --paper-2: #EDE6D8;
+  --paper-3: #E3D9C6;
+  --card: #FFFDF8;
+  --ink: #15171C;
+  --ink-2: #3C3F47;
+  --ink-3: #66625A;
+  --line: #DCD3C2;
+  --line-2: #C9BFAB;
+  /* Night (hero bands) */
+  --night: #0E1116;
+  --night-2: #171B22;
+  --night-3: #252B36;
+  --night-ink: #F5F0E6;
+  --night-ink-2: #B9B3A6;
+  /* Race-day signals */
+  --orange: #FF5B2E;
+  --orange-ink: #B4380D;
+  --blue: #2F5BFF;
+  --blue-ink: #2346E6;
+  --gold: #F4B23E;
+  --gold-ink: #8A5A00;
+  --green: #17A673;
+  --green-ink: #0B7A52;
+  --rose: #E2416B;
+  --violet: #7A4DFF;
+  --teal: #0FA3A3;
+  /* Legacy aliases used by existing components */
+  --slate: var(--ink-3);
+  --course: var(--blue-ink);
+  --wall: var(--orange-ink);
+  --rule: var(--line);
+  --wash: var(--paper-2);
+  --muted: var(--ink-3);
+  --text: var(--ink);
+  --accent: var(--blue-ink);
+  --panel: var(--paper-2);
+  /* Type */
+  /* Each web font's metric-matched fallback comes before the same family installed on the device: an installed static
+     Inter draws the 650 of bold copy at 700, so it rewraps a paragraph when the web font arrives and the fallback does not. */
+  --serif: 'Fraunces Variable', 'Fraunces Fallback', 'Fraunces Fallback Android', 'Fraunces', Georgia, 'Times New Roman', serif;
+  --sans: 'Inter Variable', 'Inter Fallback', 'Inter Fallback Android', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'JetBrains Mono Variable', 'JetBrains Mono Fallback', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --bib: 'Bricolage Grotesque Variable', 'Bricolage Grotesque Fallback', 'Bricolage Grotesque', var(--sans);
+  /* Shape */
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow: 0 1px 0 rgba(21, 23, 28, .04), 0 14px 34px -22px rgba(21, 23, 28, .35);
+  --shadow-lift: 0 1px 0 rgba(21, 23, 28, .05), 0 22px 44px -24px rgba(21, 23, 28, .45);
+  --ease: cubic-bezier(.2, .7, .2, 1);
+}

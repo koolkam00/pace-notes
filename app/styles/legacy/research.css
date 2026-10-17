@@ -1,0 +1,17 @@
+/* Legacy rules for the research hub (WP7).
+   Split mechanically from app/globals.css and app/story.css by the code that owns each selector (WP0-A, October 2026): no rule
+   was changed. An area package deletes its selectors from its own legacy file when it rebuilds its pages. */
+
+.research-also { display: flex; flex-wrap: wrap; align-items: center; gap: 0 1.1rem; margin-top: 1rem; color: var(--ink-3); font-size: .9375rem; }
+.research-also a { display: inline-flex; align-items: center; gap: .3rem; min-height: 44px; font-weight: 600; }
+.research-links { list-style: none; max-width: 46rem; margin: 1.4rem 0 0; padding: 0; border-top: 1px solid var(--line); }
+.research-links li + li { margin: 0; }
+/* Bordered rows with an arrow, not underlined at rest (li > a:not([class]) in globals.css underlines text links). */
+.research-links li > a { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 52px; padding: .7rem .1rem; border-bottom: 1px solid var(--line); color: var(--ink); font-weight: 600; text-decoration: none; }
+.research-links li > a:hover { color: var(--orange-ink); text-decoration: none; }
+.research-download { margin-top: 1.4rem; }
+.research-coverage { max-width: 46rem; margin-top: 1.8rem; }
+.research-coverage h2 { font-size: clamp(1.5rem, 3vw, 2rem); }
+.research-coverage h3 { margin-top: 1.4rem; }
+.research-coverage p { margin-top: .7rem; color: var(--ink-2); }
+@media (max-width: 720px) { .research-section { padding-top: 3.25rem; } }

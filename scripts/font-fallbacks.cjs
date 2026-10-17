@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Metric-matched local fallbacks for the four self-hosted font families (the font fallbacks at the top of app/globals.css).
+ * Metric-matched local fallbacks for the four self-hosted font families (the fallback faces in app/styles/fonts.css).
  *
  * While a web font loads, the page is drawn in the next family of its stack. Each fallback face scales a system font
  * (size-adjust) so the site's copy has the same width as in the web font, and gives it the web font's ascent, descent
@@ -17,7 +17,7 @@
  *
  * Usage, after `npm run build` (Liberation fonts installed, as on Debian and Ubuntu with fonts-liberation):
  *   node scripts/font-fallbacks.cjs           prints the @font-face rules
- *   node scripts/font-fallbacks.cjs --check   fails when app/globals.css holds other values (to within 0.3 points)
+ *   node scripts/font-fallbacks.cjs --check   fails when app/styles/fonts.css holds other values (to within 0.3 points)
  */
 'use strict';
 const fs = require('node:fs');
@@ -192,13 +192,13 @@ async function rules() {
 
 rules().then((lines) => {
   if (!process.argv.includes('--check')) { console.log(lines.join('\n')); return; }
-  const globals = fs.readFileSync(path.join(ROOT, 'app/globals.css'), 'utf8').split('\n');
+  const globals = fs.readFileSync(path.join(ROOT, 'app/styles/fonts.css'), 'utf8').split('\n');
   const numbers = (line) => (line.match(/[\d.]+%/g) || []).map(parseFloat);
   const problems = lines.filter((line) => {
     const head = line.slice(0, line.indexOf(' size-adjust'));
     const current = globals.find((l) => l.startsWith(head + ' size-adjust'));
     return !current || numbers(current).some((value, k) => Math.abs(value - numbers(line)[k]) > 0.3);
   });
-  if (problems.length) { console.error(`app/globals.css font fallbacks differ from what the fonts measure:\n${problems.join('\n')}`); process.exit(1); }
+  if (problems.length) { console.error(`app/styles/fonts.css font fallbacks differ from what the fonts measure:\n${problems.join('\n')}`); process.exit(1); }
   console.log(`Font fallbacks match the fonts (${lines.length} faces).`);
 }).catch((error) => { console.error(error.message); process.exit(1); });

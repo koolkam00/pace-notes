@@ -3,8 +3,20 @@ import '@fontsource-variable/fraunces/full-italic.css';
 import '@fontsource-variable/inter/index.css';
 import '@fontsource-variable/jetbrains-mono/index.css';
 import '@fontsource-variable/bricolage-grotesque/index.css';
-import './globals.css';
-import './story.css';
+// Site-wide CSS, in cascade order (docs: the redesign spec, section 6.1): fonts, tokens, then the legacy rules split by
+// owner from the old globals.css and story.css. Section sheets are imported by their own route layouts and pages.
+import './styles/fonts.css';
+import './styles/tokens.css';
+import './styles/legacy/shared.css';
+import './styles/legacy/home.css';
+import './styles/legacy/stories.css';
+import './styles/legacy/analyses.css';
+import './styles/legacy/courses.css';
+import './styles/legacy/research.css';
+import './styles/legacy/info.css';
+import './styles/legacy/packs.css';
+import './styles/legacy/runners.css';
+import './styles/legacy/tools.css';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import UnitsProvider from '@/components/UnitsProvider';
 import SiteHeader from '@/components/SiteHeader';
