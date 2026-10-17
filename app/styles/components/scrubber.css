@@ -20,7 +20,8 @@
 .viz-frame .scrub-crown-row { position: relative; height: 40px; }
 .viz-frame .scrub-crown { position: absolute; top: 10px; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 0 2px var(--paper); transition: transform var(--d-release) var(--spring), box-shadow var(--d-quick) var(--ease-out); }
 .viz-frame .scrub-crown::before { content: ''; position: absolute; left: 50%; bottom: 100%; width: 1.5px; height: 8px; margin-left: -.75px; background: var(--signal); }
-.viz-frame .scrub-crown::after { content: ''; position: absolute; inset: -12px; }
+/* The whole row takes the drag; the crown's own reach grows only up and down, so at the plot's edge it never widens the page. */
+.viz-frame .scrub-crown::after { content: ''; position: absolute; inset: -12px 0; }
 .viz-frame .is-dragging .scrub-crown { transform: scale(1.15); box-shadow: 0 0 0 2px var(--paper), var(--shadow-raise); transition-duration: var(--d-press); }
 .viz-frame .scrub-hint { position: absolute; top: 12px; margin-left: 20px; font-size: var(--t-label); font-weight: 600; line-height: 16px; color: var(--ink-3); white-space: nowrap; transition: opacity var(--d-quick) var(--ease-out); pointer-events: none; }
 .viz-frame .scrub-hint.is-left { transform: translateX(-100%); margin-left: -20px; }

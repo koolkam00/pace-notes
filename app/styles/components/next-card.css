@@ -15,7 +15,7 @@
 
 /* The card. Selectors carry .chapter-end .chapter-next so the legacy pagination cards cannot reach it. */
 .chapter-end .chapter-next .next-card {
-  position: relative; display: grid; gap: var(--s-3); padding: var(--s-5);
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-3); padding: var(--s-5);
   border: 0; border-radius: var(--r-md); background: var(--night); color: var(--ink); box-shadow: none; text-align: left; text-decoration: none;
   transition: transform var(--d-release) var(--spring);
 }
@@ -51,6 +51,12 @@
 .chapter-prev:hover .arrow-icon { transform: translateX(-3px); }
 .chapter-prev .arrow-icon { transition: transform var(--d-quick) var(--ease-out); }
 .chapter-end .page-feedback { margin-top: var(--s-2); }
+
+/* Under 360 px (200% zoom) the reading needs the card's full width, so the go button joins the flow, last, at the right. */
+@media (max-width: 359.98px) {
+  .next-card-title, .next-card-reading { margin-right: 0; }
+  .next-card-go { position: static; justify-self: end; }
+}
 
 @media (min-width: 900px) {
   .chapter-end .chapter-next .next-card { padding: var(--s-6); }

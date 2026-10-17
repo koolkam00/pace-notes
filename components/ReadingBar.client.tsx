@@ -15,7 +15,8 @@ type Page = { marker?: string; short?: string; ticks: number[] };
  * a 2 px line, ink up to the reading position, a signal dot at it and a tick at every beat ([data-beat]) start.
  *
  * Minutes left: the words of the beats still below the screen ÷ 238, plus 12 s for each figure below it, rounded up, at
- * least 1. Words are counted once, in the browser, after the page loads; nothing is sent anywhere. Decorative
+ * least 1. Words are counted once, in the browser, after the page loads; the ticks and the line are measured again
+ * whenever the page's height changes. Nothing is sent anywhere. Decorative
  * (aria-hidden): the page's headings say the same.
  */
 export default function ReadingBar() {
@@ -28,7 +29,7 @@ export default function ReadingBar() {
     const marked = Array.from(root.querySelectorAll<HTMLElement>('[data-beat]'));
     const beats = (marked.length ? marked : [root]).map((el) => ({ el, words: (el.innerText.match(/\S+/g) || []).length }));
     const figures = beats.flatMap(({ el }) => Array.from(el.querySelectorAll('figure')));
-    let frame = 0, top = 0, span = 1, live = true;
+    let frame = 0, settle = 0, top = 0, span = 1, live = true;
     const ticksOf = () => {
       const box = root.getBoundingClientRect();
       top = box.top + window.scrollY;
@@ -59,11 +60,16 @@ export default function ReadingBar() {
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', remeasure);
     document.fonts?.ready.then(remeasure);
+    // Charts and the replay that load their data after the page grow the page: measure again when its height settles.
+    const grown = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => { if (!settle) settle = requestAnimationFrame(() => { settle = 0; remeasure(); }); });
+    grown?.observe(root);
     return () => {
       live = false;
+      grown?.disconnect();
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', remeasure);
       if (frame) cancelAnimationFrame(frame);
+      if (settle) cancelAnimationFrame(settle);
     };
   }, [path]);
   if (!page) return null;
