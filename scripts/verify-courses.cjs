@@ -1,7 +1,7 @@
 // Checks the course pages (/courses/<slug>, lib/course-page.ts and components/course/) and the /courses index.
 //   Data checks (the last step of `npm run verify:data`):
-//     1. the page helpers on small hand-made fixtures (formats, temperatures that round to zero, the 5 °C gate, year
-//        lists, neighbours, months, titles, the copy-edition line, the editions that make up a total);
+//     1. the page helpers on small hand-made fixtures (formats, temperatures that round to zero, the 5 °C gate, titles,
+//        the editions that make up a total, the shared height scale, the nearest pacing fingerprints);
 //     2. the page code refuses runner context the story data was not built from (a scratch copy of public/data whose
 //        context manifest differs only in its timestamp), and an independent recount from the published files, written
 //        without the page code: every edition's finishes against its checksum-verified runner-context shard, the course
@@ -9,19 +9,21 @@
 //        weather in courses.json against the shards and the weather-match file, the route's 5 km sections against the
 //        course chooser's totals, the course-profile pack against the story cohort, and which courses the two linked
 //        analyses have a result for.
-//   Built-page checks (`--html`, appended to `npm run verify:seo`, after the build), on all 29 pages:
+//   Built-page checks (`--html`, appended to `npm run verify:seo`, after the build), on every course page:
 //     3. every printed figure (<data data-k>) against its file, both its value and the text shown (the default miles
-//        view), every edition and goal row present, no other number in a table cell; one H1, no empty heading, the
-//        sections the data supports and no others (no "About this data"); "sustained slowdown" linked to its definition
-//        on /methodology, never defined or cited on the page; no method, source or coverage copy in the page's own text
+//        view), every edition and goal row present (in "All numbers"), no other number in a table cell; one H1, no empty
+//        heading, the sections the data supports and no others (no "About this data"); each section's finding (its H2)
+//        and the hero's sentence and glance rows exactly the course nuggets' (lib/nuggets/courses.ts), so a sentence
+//        can only say what its recount allows; "sustained slowdown" linked to its definition on /methodology at its
+//        first use, never defined or cited on the page; no method, source or coverage copy in the page's own text
 //        (October 16, 2026: that copy lives on /methodology only); banned and rank words; copy editions never listed or
-//        printed with numbers, and no all-finisher figure that counts them; both climb totals labelled where both are
-//        printed; the 5 °C gate, in the text and in the chart's accessible name; the course total named only with the
-//        editions that make it up, in the text and the description; "two ways" over the elevation only with both climb
-//        totals; table regions with names; links only to exported pages, with course presets only where the target tool
-//        publishes the course and analyses only where they have a result; the planner on every page and the qualifying
-//        page on the six qualifying courses; no structured data beyond the breadcrumbs; and on /courses the ItemList and
-//        each card's sustained-slowdown share, the course page's.
+//        printed with numbers, and no all-finisher figure that counts them; one climb total under the elevation; the
+//        5 °C gate, in the text and in the chart's accessible name; the course total named only with the editions that
+//        make it up, in the text and the description; table regions with names; links only to exported pages, with
+//        course presets only where the target tool publishes the course and analyses only where they have a result; the
+//        planner on every page, its five goal rows linked to it, and the qualifying page on the six qualifying courses;
+//        no structured data beyond the breadcrumbs; and on /courses the ItemList and each row's sustained-slowdown
+//        share, the course page's.
 // Usage: node scripts/verify-courses.cjs [--html] [--out <folder>]
 //
 // Key grammar for <data data-k="key">: a field name, then `@<year>`, `@<goal minutes>` or `@<index>` where the field is
@@ -69,6 +71,8 @@ const F = {
   count: (n) => Math.round(n).toLocaleString('en-US'),
   pct: (v) => `${(v * 100).toFixed(1)}%`,
   pct0: (v) => `${Math.round(v * 100)}%`,
+  spct1: (v) => { const r = Number(v.toFixed(1)); return `${r > 0 ? '+' : r < 0 ? '−' : ''}${Math.abs(r).toFixed(1)}%`; },
+  hm: (s) => { const m = Math.round(s / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; },
   clock: (s) => { const t = Math.round(s); return `${Math.floor(t / 3600)}:${String(Math.floor((t % 3600) / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; },
   min: (s) => { const t = Math.round(s); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; },
   year: (y) => String(y),
@@ -111,11 +115,6 @@ const U = require(path.join(root, 'components/course/CourseUnits.tsx'));
   assert.equal(U.degreesText(-17.8, 'mi'), '0°F');
   assert.equal(U.degreesText(-20, 'mi'), '−4°F');
   for (const c of [-20, -17.8, -0.4, 0, 6.4, 13.7, 24.95]) assert.equal(F.degF(c), U.degreesText(c, 'mi'), 'The verifier and the page print °F alike');
-  // The copy-edition line: D2's evidence, word for word, with this page's ending.
-  const copy = { city: 'X', year: 2018, duplicate_of: 2024, eligible_removed: 1200, identical_nine_time_twins: 1100 };
-  assert.equal(P.courseCopySentence(copy), "X 2018's records largely repeat the X 2024 field (1,100 of its 1,200 finishes share all nine checkpoint times with a 2024 finish), so this page counts them only in the pooled pace profile.");
-  const d2 = require(path.join(root, 'lib/duplicate-editions-shared.ts')).copyEditionSentence(copy);
-  assert.equal(P.courseCopySentence(copy).split(', so ')[0], d2.split(', so ')[0], "the evidence is copyEditionSentence()'s");
   assert.equal(P.pct(0.2181), '21.8%');
   assert.equal(P.pct(0), '0.0%');
   assert.equal(P.clock(13111), '3:38:31');
@@ -125,11 +124,6 @@ const U = require(path.join(root, 'components/course/CourseUnits.tsx'));
   assert.equal(P.goalText(300), '5:00');
   assert.equal(P.shortDate('2018-04-16'), 'Apr 16');
   assert.equal(P.shortDate('2024-10-13'), 'Oct 13');
-  assert.equal(P.yearList([2026, 2018, 2019, 2022, 2023, 2024, 2025]), '2018, 2019 and 2022–2026');
-  assert.equal(P.yearList([2018, 2019]), '2018 and 2019');
-  assert.equal(P.yearList([2022]), '2022');
-  assert.equal(P.yearList([2015, 2017, 2024, 2025]), '2015, 2017, 2024 and 2025');
-  for (const list of [[2026, 2018, 2019, 2022, 2023, 2024, 2025], [2018, 2019], [2022], [2005, 2006, 2007, 2009, 2010, 2011, 2013]]) assert.equal(F.years(list.join(',')), P.yearList(list), 'The verifier and the page list years alike');
   // The 5 °C gate: shown at the gap, hidden under it (Sydney's editions are 1.5 °C apart), float noise ignored.
   const pair = (hot, cool) => ({ hot: { temp: hot }, cool: { temp: cool } });
   assert.equal(P.hotCoolShown(pair(9.6, 8.1), 5), null);
@@ -138,17 +132,17 @@ const U = require(path.join(root, 'components/course/CourseUnits.tsx'));
   assert.ok(P.hotCoolShown(pair(13.7, 8.7), 5), '13.7 − 8.7 is 5 °C despite float noise');
   assert.equal(P.hotCoolShown(undefined, 5), null);
   assert.equal(P.hotCoolShown(pair(30, 0), NaN), null);
-  const range = P.medianRange([{ year: 2018, median_s: 3 }, { year: 2019, median_s: 1 }, { year: 2020, median_s: 3 }, { year: 2021, median_s: 1 }]);
-  assert.deepEqual([range.lo.year, range.hi.year], [2019, 2018], 'ties take the first edition');
-  assert.equal(P.medianRange([]), null);
-  assert.deepEqual(P.alphabeticalNeighbours(['A', 'B', 'C'], 'A'), ['C', 'B'], 'wraps at the start');
-  assert.deepEqual(P.alphabeticalNeighbours(['A', 'B', 'C'], 'C'), ['B', 'A'], 'wraps at the end');
-  assert.deepEqual(P.alphabeticalNeighbours(['A', 'B'], 'A'), ['B']);
-  assert.deepEqual(P.alphabeticalNeighbours(['A'], 'A'), []);
-  const months = new Map([['A', [4, 10]], ['B', [10]], ['C', [4]], ['D', []], ['E', [10]]]);
-  assert.deepEqual(P.sameMonthCourses(months, 'A'), [{ month: 4, cities: ['C'] }, { month: 10, cities: ['B', 'E'] }]);
-  assert.deepEqual(P.sameMonthCourses(months, 'D'), []);
-  assert.deepEqual(P.sameMonthCourses(new Map([['A', [1]], ['B', [2]]]), 'A'), [], 'months with no other course are left out');
+  // The shared height scale: the largest relief, rounded up to 50 m (never under 50).
+  assert.equal(P.sharedRelief([{ min_m: 2, max_m: 142 }, { min_m: 600, max_m: 767 }]), 200);
+  assert.equal(P.sharedRelief([{ min_m: 0, max_m: 150 }]), 150);
+  assert.equal(P.sharedRelief([{ min_m: 0, max_m: 7 }]), 50);
+  // The nearest fingerprints: Euclidean over the nine sections, five or more editions, nearest first, ties by name.
+  const dev = (v) => Array(9).fill(v);
+  const shapes = [{ city: 'A', editions: 9, deviation: dev(0) }, { city: 'B', editions: 9, deviation: dev(1) }, { city: 'C', editions: 4, deviation: dev(0.1) },
+    { city: 'D', editions: 6, deviation: dev(-1) }, { city: 'E', editions: 7, deviation: dev(3) }, { city: 'F', editions: 8 }];
+  assert.deepEqual(P.nearestShapes(shapes, 'A').map((c) => c.city), ['B', 'D', 'E'], 'fewer than five editions and no shape are left out; ties by name');
+  assert.equal(P.nearestShapes(shapes, 'F').length, 0, 'a course with no shape has no neighbours');
+  assert.ok(Math.abs(P.nearestShapes(shapes, 'A')[0].distance - 3) < 1e-9, 'distance over nine sections');
   assert.equal(P.courseTitle('X Marathon', true), 'X Marathon: Elevation, Pacing and Finish Times | Pace Notes');
   assert.equal(P.courseTitle('Boston Marathon', true), 'Boston Marathon: Elevation, Pacing and Finish Times', 'the brand only when the title fits 60 characters');
   assert.equal(P.courseTitle('Vienna City Marathon', false), 'Vienna City Marathon: Pacing and Finish Times by Year');
@@ -359,7 +353,13 @@ for (const city of CITIES) {
 }
 // The pages link to hills and pacing exactly where the analysis has the route's sections and the page draws that route.
 const HILLS_LINK = new Set([...HILLS].filter((city) => !!facts.get(city)?.route));
-for (const city of CITIES) check(P.coursePages().get(slugOf(city))?.scopes.compare === COMPARE.has(city) && P.coursePages().get(slugOf(city))?.scopes.hills === HILLS_LINK.has(city), `data ${city}`, 'the page model\'s analysis scopes');
+// The page model's shared height scale and pace-band scope, recounted.
+const RELIEF = Math.max(50, Math.ceil(Math.max(...geometry.filter((g) => CITIES.includes(g.city)).map((g) => g.max_m - g.min_m)) / 50) * 50);
+for (const city of CITIES) {
+  const model = P.coursePages().get(slugOf(city));
+  check(model?.relief === RELIEF, `data ${city}`, `the page model's height scale ${model?.relief} against ${RELIEF}`);
+  check(model?.band === paceBand.scopes.some((x) => x.slug === slugOf(city)), `data ${city}`, 'the page model\'s pace-band scope');
+}
 
 // ---------- 3. Built pages ----------
 const KINDS = {
@@ -373,12 +373,15 @@ const KINDS = {
   'ty.finishes': 'count', 'ty.editions': 'count', 'ty.share': 'pct0', 'ty.all': 'pct0', 'profile.n': 'count',
   'w.start': 'text', 'w.temp': 'degF', 'w.dew': 'degF', 'w.rh': 'rh', 'w.wind': 'mph',
   'hc.cool.year': 'year', 'hc.hot.year': 'year', 'hc.cool.temp': 'degF', 'hc.hot.temp': 'degF', 'hc.cool.sd': 'pct', 'hc.hot.sd': 'pct',
-  slope: 'slopeF', 'slope.r': 'r2', 'slope.editions': 'count',
+  slope: 'slopeF', 'slope.r': 'r2', 'slope.editions': 'count', curve: 'spct1',
 };
+/** A key ending in `.r` prints its field rounded for a chart or a reading: a share in whole percent, a time in h:mm. */
+const ROUNDED = { pct: 'pct0', clock: 'hm' };
 
 /** The file value a key names for a city, or undefined. */
 function resolve(dataKey, f) {
-  const [name, at] = dataKey.split('@');
+  const [full, at] = dataKey.split('@');
+  const name = full.endsWith('.r') ? full.slice(0, -2) : full;
   const arg = at === undefined ? undefined : Number(at);
   const cell = f.cells.find((c) => c.year === arg);
   const w = f.weather.find((x) => x.year === arg);
@@ -454,10 +457,17 @@ function resolve(dataKey, f) {
     case 'slope': return f.slope?.slope;
     case 'slope.r': return f.slope?.pearson_r;
     case 'slope.editions': return f.slope?.editions;
+    case 'curve': return f.s.curve?.[arg];
     default: return undefined;
   }
 }
-const kindOf = (dataKey) => { const [name, at] = dataKey.split('@'); return KINDS[at !== undefined && KINDS[`${name}@`] ? `${name}@` : name]; };
+const kindOf = (dataKey) => {
+  const [full, at] = dataKey.split('@');
+  const rounded = full.endsWith('.r');
+  const name = rounded ? full.slice(0, -2) : full;
+  const kind = KINDS[at !== undefined && KINDS[`${name}@`] ? `${name}@` : name];
+  return rounded ? ROUNDED[kind] : kind;
+};
 
 // HTML helpers: the exported page without its scripts, styles and comments.
 const decode = (text) => text.replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
@@ -497,7 +507,7 @@ const METHOD = [
   [/weighted equally|\bpooled?\b|start delays|largely repeat|copy edition|not counted|at least 100 finishes|fewer than 100|checkpoint times|in the data\b|story data|\bscreen/i, 'a cohort or coverage note'],
   [/About this data|how (?:it|they) (?:is|are) measured|what the types mean/i, 'a method section or link'],
 ];
-const OWN_COPY = /<(p|dl)\b[^>]*class="(?:hero-dek|chapter-dek|course-note|course-callout|course-block-dek|bib-text|course-hotcool|course-slope|course-plan-link|course-stats|course-totals)"[^>]*>([\s\S]*?)<\/\1>/g;
+const OWN_COPY = /<(p|dl|span|h2)\b[^>]*class="(?:hero-dek|course-hero-key|course-hero-sentence t-sentence|course-callout|course-hotcool|course-totals|course-h2|course-row-meta)"[^>]*>([\s\S]*?)<\/\1>/g;
 const TRACK = { 'at-a-glance': 'chapter-1', 'finish-times': 'chapter-2', elevation: 'chapter-3', pacing: 'chapter-4', slowdown: 'chapter-5', goals: 'chapter-6', weather: 'chapter-7', plan: 'cta', 'other-courses': 'related' };
 
 if (html) {
@@ -509,6 +519,11 @@ if (html) {
   const planSlugs = new Set([...courseGoal.courses.map((c) => c.city), ...(courseGoal.screens.start_offset ?? []).map((e) => e.city), ...(courseGoal.screens.grid ?? []).map((e) => e.city),
     ...paceBand.scopes.flatMap((s) => (s.city ? [s.city] : []))].map(slugOf));
   const analysisCities = new Set(read('public/data/packs/ext_personalized_guide/summary.json').cities.map((c) => c.city));
+  const N = require(path.join(root, 'lib/nuggets/index.ts'));
+  const plainText = (text) => text.replace(/\*/g, '');
+  /** Text as compared: textOf() puts a space where a tag closes, so none before punctuation. */
+  const norm = (text) => text.replace(/\s+([.,:;!?’)])/g, '$1').replace(/\s+/g, ' ').trim();
+  const said = (id, city) => { const n = N.getNugget(id, { city }); return plainText(N.textFor(n.guard ? n.headline : n.fallback, 'mi')); };
   const words = [];
   let factCount = 0;
 
@@ -540,6 +555,25 @@ if (html) {
       if (fragment) check(/<h2\b/.test(fragment), where, `#${id} has no H2`);
     }
     check(/data-track-section="hero"/.test(body), where, 'the hero is not marked');
+    // Each finding is its nugget's sentence, word for word (the default miles view), so a page says only what its
+    // recount allows (scripts/nuggets/courses.cjs).
+    const h2 = (id) => { const m = new RegExp(`<h2 id="${id}-title"[^>]*>([\\s\\S]*?)<\\/h2>`).exec(body); return m ? textOf(m[1]) : null; };
+    for (const [id, nugget] of [['finish-times', 'course.times'], ['elevation', 'course.climb'], ['pacing', 'course.types'], ['slowdown', 'course.among'], ['goals', 'course.goal'], ['weather', 'course.weather']]) {
+      if (sectionStart(body, id) < 0) continue;
+      check(norm(h2(id) ?? '') === norm(said(nugget, city)), where, `#${id}'s finding "${h2(id)}" is not ${nugget}'s "${said(nugget, city)}"`);
+    }
+    const heroSentence = textOf(/<p class="course-hero-sentence[^"]*"[^>]*>([\s\S]*?)<\/p>/.exec(body)?.[1] ?? '');
+    check(norm(heroSentence) === norm(said('course.slowdown', city)), where, `the hero's sentence "${heroSentence}" is not course.slowdown's`);
+    const heroFigure = N.getNugget('course.slowdown', { city }).figure;
+    const shownFigure = innerText(/<span class="big-number[^"]*"><span aria-hidden="true">([\s\S]*?)<\/span><span class="sr-only">/.exec(/<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '')?.[1] ?? '');
+    check(heroFigure && shownFigure === `${heroFigure.value}${heroFigure.unit}` && shownFigure === F.pct0(f.s.slowdown), where, `the hero figure "${shownFigure}" is not the course's share in whole percent (${F.pct0(f.s.slowdown)})`);
+    const glanceKeys = [...main.matchAll(/<span class="glance-key">([\s\S]*?)<\/span>/g)].map((m) => norm(textOf(m[1])));
+    for (const id of ['course.start', 'course.late', 'course.shape']) {
+      const n = N.getNugget(id, { city });
+      const shown = id === 'course.start' ? !!n.figure && !!f.route : n.guard && !!n.figure;
+      check(glanceKeys.includes(n.key) === shown, where, `glance row ${id}: ${shown ? 'missing' : 'shown without its guard'} ("${n.key}")`);
+    }
+    check(glanceKeys.length >= 2 && glanceKeys.length <= 3, where, `${glanceKeys.length} glance rows`);
     const tracked = [...body.matchAll(/data-track-section="([^"]+)"/g)].map((m) => m[1]);
     check(new Set(tracked).size === tracked.length, where, `a section id repeats: ${tracked}`);
 
@@ -576,10 +610,11 @@ if (html) {
       check(!f.goalRows.get(Number(m[1])) && innerText(m[2]) === GOAL_GAP, where, `goal ${m[1]}: "${innerText(m[2])}" over a goal the file ${f.goalRows.get(Number(m[1])) ? 'has a row for' : 'has no row for'}`);
     }
 
-    // The term is linked to its definition on /methodology, never defined or cited here.
-    const slowdown = sectionOf(body, 'slowdown') ?? '';
+    // The term is linked to its definition on /methodology at its first use, never defined or cited here.
     check(/sustained slowdown/i.test(visible), where, 'never says sustained slowdown');
-    check(new RegExp(`<a\\b[^>]*href="${SLOWDOWN_HREF}"[^>]*>sustained slowdown</a>`).test(slowdown), where, `#slowdown does not link "sustained slowdown" to ${SLOWDOWN_HREF}`);
+    const firstUse = main.search(/sustained slowdown/i);
+    const linked = new RegExp(`<a\\b[^>]*href="${SLOWDOWN_HREF}"[^>]*>sustained slowdown</a>`).exec(main);
+    check(linked && main.slice(linked.index).search(/sustained slowdown/i) + linked.index === firstUse, where, `the first "sustained slowdown" is not linked to ${SLOWDOWN_HREF}`);
     check(!visible.includes(DOI) && !main.includes(DOI_URL) && !/at least 5 km after 20 km/.test(visible), where, 'the definition or its DOI is on the page');
 
     // The page's own text carries findings only: no method, source or coverage copy, and no "About this data".
@@ -614,8 +649,11 @@ if (html) {
 
     // Copy editions: never a row or a figure, never explained here (that is /methodology's), and no figure that still
     // counts them.
+    const numbers = /<details[^>]*id="all-numbers"[\s\S]*?<\/details>/.exec(main)?.[0] ?? '';
+    check(numbers.length > 0, where, 'no "All numbers"');
+    const editionTable = /<table\b[\s\S]*?<\/table>/.exec(numbers.slice(numbers.indexOf('numbers-editions-caption') - 400))?.[0] ?? '';
     for (const copy of f.copies) {
-      const table = /<table\b[\s\S]*?<\/table>/.exec(sectionOf(body, 'finish-times') ?? '')?.[0] ?? '';
+      const table = editionTable;
       check(!table.includes(`<th scope="row">${copy.year}</th>`), where, `copy edition ${copy.year} has a row in the finish-times table`);
       check(!/largely repeat|shown as recorded times only/.test(visible), where, `copy edition ${copy.year}: the copy-edition sentence is on the page`);
       if (f.allFinisherPct) check(!visible.includes(f.allFinisherPct), where, `the all-finisher figure ${f.allFinisherPct}, which counts the copies, is printed`);
@@ -624,20 +662,19 @@ if (html) {
     // Elevation: the two climb totals each under its own label where both are printed, and "two ways" only over two.
     if (f.route) {
       const elevation = textOf(sectionOf(body, 'elevation') ?? '');
-      const totalsList = textOf(/<dl class="course-totals">[\s\S]*?<\/dl>/.exec(sectionOf(body, 'elevation') ?? '')?.[0] ?? '');
-      check(/^Whole route Climbs/.test(totalsList) && (f.ctx?.gain_m == null) === !/Sum of the 5 km sections Climbs/.test(totalsList), where, `the climb totals' labels: "${totalsList}"`);
-      // Two climb totals only where both are printed: Prague's route has no course-chooser sum (every edition screened out).
-      const totals = ['geo.gain', 'cg.gain'].filter((k) => (sectionOf(body, 'elevation') ?? '').includes(`data-k="${k}"`));
-      check(totals.length === (f.ctx?.gain_m == null ? 1 : 2), where, `#elevation prints ${totals.length} climb totals`);
+      const totalsList = /<dl class="course-totals">[\s\S]*?<\/dl>/.exec(sectionOf(body, 'elevation') ?? '')?.[0] ?? '';
+      // One climb total under the chart (the route's), so two climb figures never sit side by side; the chart's readout
+      // gives one section's climb at a time.
+      check(/^Whole route Climbs/.test(textOf(totalsList)) && (totalsList.match(/data-k="(?:geo|cg)\.gain"/g) ?? []).length === 1 && totalsList.includes('data-k="geo.gain"'), where, `the climb total: "${textOf(totalsList)}"`);
       const promise = /\btwo ways\b|\b(?:both|two) (?:climb )?(?:totals|measures|measurements)\b/i.exec(elevation);
-      check(!promise || totals.length === 2, where, `#elevation promises "${promise && promise[0]}" over ${totals.length} climb total${totals.length === 1 ? '' : 's'}`);
+      check(!promise, where, `#elevation promises "${promise && promise[0]}"`);
       check((/<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '').includes('data-k="geo.gain"'), where, 'the hero does not print the climb');
     }
 
     // Weather: the 5 °C gate, the slope sentence for the courses with one, and context.
     const gap = f.hotCool ? Math.round((f.hotCool.hot.temp - f.hotCool.cool.temp) * 10) / 10 : null;
     check(body.includes('class="course-hotcool"') === (gap !== null && gap >= courses.weather.pairs.min_gap_c), where, `the coolest/warmest sentence against a ${gap} °C gap`);
-    check(body.includes('class="course-slope"') === !!f.slope, where, 'the within-course slope sentence');
+    check(!body.includes('class="course-slope"'), where, 'the within-course slope sentence (cut under section 00) is back');
     if (!body.includes('class="course-hotcool"')) {
       const names = [...(sectionOf(body, 'weather') ?? '').matchAll(/\s(?:aria-label|title)="([^"]*)"/g)].map((m) => decode(m[1])).filter((n) => /warmest|coolest/i.test(n));
       check(!names.length, where, `the warmest/coolest pairing in an accessible name without the 5 °C gap: ${names[0]}`);
@@ -671,13 +708,10 @@ if (html) {
       if (qualifying) check(QUALIFYING_COURSE[qualifying[1]] === city, where, `${href} is another race's qualifying page`);
     }
     check(hrefs.includes(`/tools/plan?course=${slug}`), where, 'no link to the planner for this course');
-    check(/>Plan your [^<]*<\/a>/.test(main.replace(/<!--[\s\S]*?-->/g, '')), where, 'no "Plan your …" button');
+    check(new RegExp(`<a\\b[^>]*href="/tools/plan\\?course=${slug}"[^>]*>(?:<[^>]+>)*Plan your ${city === 'New York' ? 'New York City' : city}<`).test(main), where, 'no "Plan your …" button to the planner');
     const key_ = Object.keys(QUALIFYING_COURSE).find((k) => QUALIFYING_COURSE[k] === city);
     check(hrefs.includes(`/tools/qualifying/${key_}`) === !!key_, where, key_ ? 'no link back to its qualifying page' : 'a qualifying link on a course without standards');
     if (bandSlugs.has(slug)) check(hrefs.includes(`/tools/pace-band?course=${slug}`) && hrefs.includes(`/tools/split-check?course=${slug}`), where, 'no pace band or split check preset for a course they publish');
-    const raceQuery = `?race=${encodeURIComponent(city)}`;
-    check(hrefs.includes(`/analyses/course-comparison${raceQuery}`) === COMPARE.has(city), where, `the course comparison link against its result (${COMPARE.has(city)})`);
-    check(hrefs.includes(`/analyses/hills-and-pacing${raceQuery}`) === HILLS_LINK.has(city), where, `the hills-and-pacing link against the route (${HILLS_LINK.has(city)})`);
 
     // Tables scroll sideways in a named region that takes keyboard focus, labelled by the table's caption.
     for (const m of main.matchAll(/<div\b([^>]*class="tool-table-wrap course-table-wrap"[^>]*)>\s*<table\b[^>]*>\s*<caption\b([^>]*)>/g)) {
@@ -686,14 +720,17 @@ if (html) {
     }
     check((main.match(/class="tool-table-wrap course-table-wrap"/g) ?? []).length === (main.match(/<table class="[^"]*course-table/g) ?? []).length, where, 'a course table outside its region');
     // Goal links name where they go; the dek promises five rows only over the table.
-    for (const m of main.matchAll(/<th scope="row"><a\b([^>]*)>([^<]*)<\/a><\/th>/g)) {
+    for (const m of main.matchAll(/<th scope="row"><a\b([^>]*)>([^<]*)<(?:svg|\/a)/g)) {
       if (/\/tools\/plan/.test(attr(m[1], 'href') ?? '')) check(attr(m[1], 'aria-label') === `Plan a ${m[2]} ${f.race}`, where, `goal link ${m[2]}: name "${attr(m[1], 'aria-label')}"`);
     }
-    const hasGoalRows = /class="tool-table course-table course-goals-table"/.test(main);
-    check(/For five goal times/.test(textOf(sectionOf(body, 'goals') ?? '')) === hasGoalRows, where, 'the goals dek against the table');
+    // The goal rows are #goals' chart: each of the five goals links to the planner for this course (S1 follows one).
+    const goalsSection = sectionOf(body, 'goals') ?? '';
+    const goalLinks = [...goalsSection.matchAll(/<tbody>[\s\S]*?<\/tbody>/g)].flatMap((t) => [...t[0].matchAll(/<th scope="row"><a\b[^>]*href="([^"]+)"/g)].map((m) => decode(m[1])));
+    const goalsShown = f.ctx && f.ctx.editions >= courseGoal.min_editions;
+    check(goalLinks.length === (goalsShown ? P.COURSE_GOALS.length : 0), where, `#goals links ${goalLinks.length} goals to the planner`);
 
     // Editions in the data with no row (fewer than 100 finishes) never get a row of their own.
-    for (const year of f.smallYears) check(!(/<table\b[\s\S]*?<\/table>/.exec(sectionOf(body, 'finish-times') ?? '')?.[0] ?? '').includes(`<th scope="row">${year}</th>`), where, `${year}, under 100 finishes, has a row`);
+    for (const year of f.smallYears) check(!editionTable.includes(`<th scope="row">${year}</th>`), where, `${year}, under 100 finishes, has a row`);
 
     // Structured data: the breadcrumbs only.
     const types = [...full.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => [].concat(JSON.parse(m[1])).map((x) => x['@type']));
@@ -712,17 +749,24 @@ if (html) {
       const city = CITIES[i];
       check(item['@type'] === 'ListItem' && item.position === i + 1 && item.url === `https://splithappens.run/courses/${slugOf(city)}` && item.name === facts.get(city)?.race, where, `item ${i + 1}: ${JSON.stringify(item)}`);
     });
-    // Each card's sustained-slowdown share is the one its course page's hero prints (the story data, without copy
-    // editions), and no card carries the old coverage line.
-    const cards = new Map([...markup(full).matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)].filter((m) => attr(m[1], 'class') === 'course-card')
-      .map((m) => [(attr(m[1], 'href') ?? '').replace(/^\/courses\//, ''), textOf(m[2])]));
+    // Each row's sustained-slowdown share is the one its course page leads with (the story data, without copy
+    // editions, in whole percent), and no row carries coverage copy.
+    const rows = new Map([...markup(full).matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)].filter((m) => attr(m[1], 'class') === 'course-index-row')
+      .map((m) => [(attr(m[1], 'href') ?? '').replace(/^\/courses\//, ''), m[2]]));
+    check(rows.size === CITIES.length, where, `${rows.size} course rows for ${CITIES.length} courses`);
     for (const city of CITIES) {
-      const text = cards.get(slugOf(city));
-      check(text && text.includes(`Sustained slowdown ${F.pct(facts.get(city).s.slowdown)}`), where, `the ${city} card: "${text}" against the page's ${F.pct(facts.get(city).s.slowdown)}`);
-      check(text && !/with complete splits|supplied/i.test(text), where, `the ${city} card carries coverage copy: "${text}"`);
+      const row = rows.get(slugOf(city)) ?? '';
+      const d = /<data\b([^>]*)>([\s\S]*?)<\/data>/.exec(row);
+      const s0 = facts.get(city).s.slowdown;
+      check(d && attr(d[1], 'data-k') === 'slowdown.r' && attr(d[1], 'value') === String(s0) && innerText(d[2]) === F.pct0(s0), where, `the ${city} row: ${d ? innerText(d[2]) : 'no share'} against the page's ${F.pct0(s0)}`);
+      check(!/with complete splits|supplied/i.test(textOf(row)), where, `the ${city} row carries coverage copy: "${textOf(row)}"`);
     }
-    const dek = textOf(/<p class="hero-dek">([\s\S]*?)<\/p>/.exec(markup(full))?.[1] ?? '');
-    check(!/supplied|route file/i.test(dek), where, `the /courses dek names a data source: "${dek}"`);
+    const dek = textOf(/<p class="reading-dek">([\s\S]*?)<\/p>/.exec(markup(full))?.[1] ?? '');
+    check(dek.length > 0 && !/supplied|route file/i.test(dek), where, `the /courses dek names a data source or is missing: "${dek}"`);
+    const main = /<main\b[\s\S]*<\/main>/.exec(markup(full))?.[0] ?? '';
+    const rank = RANK.exec(textOf(main));
+    check(!rank, where, `rank word "${rank && rank[0]}"`);
+    for (const [pattern, label] of BANNED) check(!pattern.test(textOf(main)), where, `${label} on the page`);
   }
   words.sort((a, b) => a[1] - b[1]);
   console.log(`Course pages: ${CITIES.length} pages, ${factCount} printed figures checked; ${words[0][1]}–${words[words.length - 1][1]} words of main text (${words[0][0]} to ${words[words.length - 1][0]}).`);
