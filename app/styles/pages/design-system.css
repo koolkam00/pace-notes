@@ -15,9 +15,9 @@
 .ds-frame + .ds-frame { margin-top: var(--s-5); }
 .ds-grid-2 > .ds-frame, .ds-grid-3 > .ds-frame { margin-top: 0; }
 .ds-grid-2, .ds-grid-3 { display: grid; gap: var(--s-5); margin-top: var(--s-5); }
-.ds-stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); justify-items: start; }
+.ds-stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); justify-items: start; max-width: var(--measure-figure); }
 .ds-stack > * { max-width: 100%; }
-.ds-stack > .deck, .ds-stack > .guess { justify-self: stretch; }
+.ds-stack > .guess, .ds-stack > .receipt-wrap { justify-self: stretch; }
 .ds-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: var(--s-4); }
 .ds-row.is-badges { row-gap: 28px; }
 .ds-night { margin-top: var(--s-5); padding: 20px; border-radius: var(--r-md); }
@@ -29,22 +29,21 @@
 .ds-swatch { display: grid; grid-template-columns: 40px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 10px; align-items: center; margin: 0; }
 .ds-swatches > li + li { margin: 0; }
 .ds-swatch-chip { grid-row: 1 / 3; width: 40px; height: 40px; border-radius: var(--r-sm); box-shadow: inset 0 0 0 1px var(--rule); }
-.ds-swatch-name { font-family: var(--mono); font-size: .75rem; font-weight: 500; line-height: 1.3; color: var(--ink); overflow-wrap: anywhere; }
+.ds-swatch-name { font-family: var(--code); font-size: .75rem; font-weight: 500; line-height: 1.3; color: var(--ink); overflow-wrap: anywhere; }
 .ds-swatch-job { font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); overflow-wrap: anywhere; }
 
 /* Type */
 .ds-type { display: grid; gap: var(--s-5); margin: 0; }
 .ds-type > div { display: grid; gap: 6px; padding-bottom: var(--s-4); border-bottom: 1px solid var(--rule); }
-.ds-type dt { font-family: var(--mono); font-size: .75rem; color: var(--ink-3); }
+.ds-type dt { font-family: var(--code); font-size: .75rem; color: var(--ink-3); }
+.ds-inline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 20px; }
 .ds-type dd { margin: 0; }
 .ds-figures { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; }
-.ds-figure-row { display: grid; gap: var(--s-5); justify-items: start; }
 
 /* Matrix of states */
 .ds-matrix { display: grid; gap: var(--s-4); }
 .ds-matrix-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .ds-matrix-row > .ds-cap { flex: 1 0 100%; margin: var(--s-2) 0 0; }
-.ds-states { margin-top: var(--s-6); }
 
 /* Inline helpers */
 .ds-term { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--ink-2); font-size: var(--t-small); font-weight: 600; }
@@ -72,14 +71,9 @@
 .ds-form { display: grid; gap: var(--s-4); }
 .miy-results { margin-top: var(--s-5); }
 
-/* Motion */
-.ds-reveal { display: grid; gap: var(--s-3); }
-.ds-reveal-row { display: flex; align-items: flex-end; gap: 3px; height: 64px; }
-.ds-reveal-row span { flex: 1 1 0; max-width: 12px; border-radius: 2px 2px 0 0; background: var(--fill-quiet); box-shadow: inset 0 0 0 1px var(--mark-quiet); }
-.ds-reveal-row span.is-signal { background: var(--signal); box-shadow: none; }
-
 /* The dark section: its own theme scope. */
-.ds-dark-wrap { margin: var(--beat-gap) calc(-1 * var(--gutter)) 0; padding: var(--s-7) var(--gutter); background: var(--paper); color: var(--ink); border-radius: var(--r-md); }
+.ds-dark-wrap { margin: var(--beat-gap) calc(-1 * var(--gutter)) 0; padding: var(--s-7) var(--gutter); background: var(--paper); color: var(--ink); }
+#values .values, .ds-matrix { max-width: var(--measure-figure); }
 .ds-dark-wrap .reading { padding-top: 0; }
 .ds-dark-wrap > .ds-stack { margin-top: var(--s-6); }
 
@@ -88,12 +82,11 @@
   .ds-swatches.is-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .ds-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ds-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .ds-figure-row { grid-template-columns: repeat(2, auto); }
 }
 @media (min-width: 900px) {
   .ds-swatches { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .ds-matrix-row > .ds-cap { flex: 0 0 11rem; margin: 0; }
-  .ds-dark-wrap { margin-inline: 0; padding-inline: var(--s-7); }
+  .ds-dark-wrap { margin-inline: 0; padding-inline: var(--s-7); border-radius: var(--r-md); }
 }
 @media (max-width: 359.98px) {
   .ds-swatches, .ds-swatches.is-row { grid-template-columns: minmax(0, 1fr); }

@@ -15,15 +15,12 @@ import Chips from '@/components/ui/Chips.client';
 import GuessFirst from '@/components/ui/GuessFirst.client';
 import MakeItYours from '@/components/ui/MakeItYours.client';
 import MarkerBadge, { MARKERS } from '@/components/ui/MarkerBadge';
-import NuggetCard from '@/components/ui/NuggetCard';
-import Reading from '@/components/ui/Reading';
+import Reading, { withEm } from '@/components/ui/Reading';
 import Receipt from '@/components/ui/Receipt';
-import Reveal from '@/components/ui/Reveal.client';
 import Scrolly from '@/components/ui/Scrolly.client';
 import Segmented from '@/components/ui/Segmented.client';
 import ShareButton from '@/components/ui/ShareButton.client';
 import { SheetButton } from '@/components/ui/Sheet.client';
-import Tag from '@/components/ui/Tag';
 import Values from '@/components/ui/Values';
 
 // A gallery of every primitive and token, drawn with the release's own data (WP0-A, owner decision 14). Not linked from
@@ -139,62 +136,74 @@ function Section({ id, n: num, title, children }: { id: string; n: string; title
   );
 }
 
-const Crumbs = () => <><MarkerBadge marker="FINISH" /><span>Chapter 06 · The finish line · Story 1 of 2</span></>;
+const Crumbs = () => <><MarkerBadge marker="FINISH" /><span>The finish line</span></>;
+
 
 export default function DesignSystemPage() {
   const towersSteps = [
-    { kicker: '01', text: `Every minute of *${n(ft.analysis_n)}* finishes, counted from 2:30 to 5:30.` },
+    { kicker: '01', text: `Every minute of *${n(ft.analysis_n)}* finishes, from ${clock(150)} to ${clock(330)}.` },
     { kicker: '02', text: 'The line is the smooth curve: the field with no round numbers in it.' },
-    { kicker: '03', text: allAbove ? 'The minute before every hour and half-hour stands above the curve.' : `The minute before ${windowMarks.filter((m) => m.ratio > 1).length} of ${windowMarks.length} hour and half-hour marks stands above the curve.` },
+    { kicker: '03', text: allAbove ? 'The minute before every hour and half-hour stands above it.' : `The minute before ${windowMarks.filter((m) => m.ratio > 1).length} of ${windowMarks.length} hour and half-hour marks stands above it.` },
     { kicker: '04', text: `Tallest against the curve: ${top.mark}, at *${ratio}×*.` },
   ];
   const marksOptions = roundMarks.map((m) => ({ value: m.mark, label: m.mark }));
-  const card = { kicker: 'Chapter 06 · The finish line', marker: 'FINISH', figure: ratio, unit: '×', path: '/stories/round-numbers',
-    claim: `The minute before ${top.mark}: *${ratio}×* the smooth curve.`, micro: { kind: 'bars' as const, values: near.map((h) => h.all), highlight: near.findIndex((h) => h.minute === top.minutes - 1) } };
+  const micro = { kind: 'bars' as const, values: near.map((h) => h.all), highlight: near.findIndex((h) => h.minute === top.minutes - 1) };
+  const card = { kicker: 'The finish line', marker: 'FINISH', figure: ratio, unit: '×', path: '/stories/round-numbers', claim: `The minute before ${top.mark}: *${ratio}×* the smooth curve.`, micro };
+  const sentence = `Between ${before}:00 and ${before}:59, ${n(top.minute_before)} finishes landed: *${ratio} times* what a smooth curve expects.`;
+  const slower = (s: number) => `${mmss(s)} ${s > 0 ? 'slower' : 'faster'}`;
+  const receipt = focus && even ? {
+    kicker: `First 5K ${bandLabel(focus.band).toLowerCase()}`,
+    lines: [
+      { label: 'First 5K', key: 'against the 5–20K pace', value: signed(focus.opening_delta_mean_s), sr: `${signed(focus.opening_delta_mean_s)} minutes` },
+      { label: 'After 20K', key: 'against the 5–20K pace', value: signed(focus.remainder_delta_mean_s), sr: `${signed(focus.remainder_delta_mean_s)} minutes` },
+    ],
+    result: { label: 'Whole race, against the 5–20K pace', value: slower(focus.finish_delta_mean_s), sr: slower(focus.finish_delta_mean_s) },
+    extra: { label: 'Sustained slowdown', value: `${pct(slow)}%`, key: `with an even first 5K: ${pct(evenSlow)}%`, typical: evenSlow, observed: slow },
+    footer: 'Same race · same 5–20K pace',
+  } : null;
 
   return (
     <article className="ds">
       <header className="ds-intro">
-        <p className="t-kicker">WP0-A · Not linked, not indexed</p>
         <h1 className="t-display">Design system</h1>
-        <p className="t-body ds-lede">Every primitive and token in every state, drawn with the release&rsquo;s own data. The dark theme is shown at the end of the page and under the screenshot tool&rsquo;s dark profile.</p>
+        <p className="t-body ds-lede">Every primitive in every state, drawn with the release&rsquo;s own data. Not linked and not indexed.</p>
         <nav className="ds-toc" aria-label="Gallery sections">
-          {[['tokens', 'Tokens'], ['type', 'Type'], ['reading', 'Reading'], ['figures', 'Figures'], ['receipt', 'Receipt'], ['cards', 'Cards'], ['buttons', 'Buttons'], ['forms', 'Forms'], ['controls', 'Controls'], ['marks', 'Marks'], ['values', 'Values'], ['guess', 'Guess'], ['scrolly', 'Scrolly'], ['sheets', 'Sheets'], ['dark', 'Dark']].map(([id, label]) => <a key={id} href={`#${id}`}>{label}</a>)}
+          {[['colour', 'Colour'], ['type', 'Type'], ['reading', 'Reading'], ['receipt', 'Receipt'], ['buttons', 'Buttons'], ['forms', 'Forms'], ['controls', 'Controls'], ['marks', 'Marks'], ['values', 'Values'], ['guess', 'Guess'], ['scrolly', 'Scrolly'], ['sheets', 'Sheets'], ['dark', 'Dark']].map(([id, label]) => <a key={id} href={`#${id}`}>{label}</a>)}
         </nav>
       </header>
 
-      <Section id="tokens" n="01 · Colour" title="One accent, and it means the reading">
-        <h3 className="ds-sub">Paper</h3>
+      <Section id="colour" n="01 · Colour" title="Ink, paper and one accent">
         <ul className="ds-swatches">
-          <Swatch name="--paper" job="Page" /><Swatch name="--paper-raised" job="The one raised surface" /><Swatch name="--paper-sunk" job="Tracks, tags" />
+          <Swatch name="--paper" job="Page" /><Swatch name="--paper-raised" job="The one raised surface" /><Swatch name="--paper-sunk" job="Tracks" />
           <Swatch name="--rule" job="Hairlines" /><Swatch name="--rule-strong" job="Axis, input edge" /><Swatch name="--ink" job="Headings, figures" />
           <Swatch name="--ink-2" job="Body" /><Swatch name="--ink-3" job="Muted, ticks" /><Swatch name="--mark-quiet" job="Context marks" />
           <Swatch name="--fill-quiet" job="Silhouettes, with an edge" /><Swatch name="--signal" job="The reading, you" /><Swatch name="--signal-ink" job="Accent words" />
           <Swatch name="--accent" job="Primary button, brand" /><Swatch name="--focus" job="Focus ring" />
         </ul>
         <h3 className="ds-sub">Ordinal</h3>
-        <ul className="ds-swatches is-row"><Swatch name="--ordinal-1" job="1" /><Swatch name="--ordinal-2" job="2" /><Swatch name="--ordinal-3" job="3" /><Swatch name="--ordinal-4" job="4" /></ul>
+        <ul className="ds-swatches is-row"><Swatch name="--ordinal-1" job="Lowest" /><Swatch name="--ordinal-2" job="" /><Swatch name="--ordinal-3" job="" /><Swatch name="--ordinal-4" job="Highest" /></ul>
         <div className="night ds-night">
           <h3 className="ds-sub">Night: the race and the answer</h3>
           <ul className="ds-swatches">
-            <Swatch name="--paper" job="Night surface" /><Swatch name="--paper-raised" job="Raised on night" /><Swatch name="--rule" job="Hairlines" />
-            <Swatch name="--ink" job="Text, marks" /><Swatch name="--ink-2" job="Secondary" /><Swatch name="--ink-3" job="Ticks, keys" />
-            <Swatch name="--mark-quiet" job="Context marks" /><Swatch name="--signal" job="The reading" /><Swatch name="--signal-ink" job="Accent words" /><Swatch name="--focus" job="Focus ring" />
+            <Swatch name="--paper" job="Surface" /><Swatch name="--paper-raised" job="Raised" /><Swatch name="--rule" job="Hairlines" />
+            <Swatch name="--ink" job="Text, marks" /><Swatch name="--ink-2" job="Secondary" /><Swatch name="--ink-3" job="Ticks" />
+            <Swatch name="--mark-quiet" job="Context marks" /><Swatch name="--signal" job="The reading" /><Swatch name="--focus" job="Focus ring" />
           </ul>
         </div>
       </Section>
 
       <Section id="type" n="02 · Type" title="Fraunces speaks, Inter explains, Bricolage counts">
         <dl className="ds-type">
-          <div><dt>--t-display</dt><dd className="t-display">The <em>3:59</em> effect</dd></div>
+          <div><dt>--t-display</dt><dd className="t-display">The <em>{before}</em> effect</dd></div>
           <div><dt>--t-title</dt><dd className="t-title">After a fast first 5K, <em>{pct(slow)}%</em> had a sustained slowdown</dd></div>
           <div><dt>--t-h2</dt><dd className="t-h2">Against the curve, the tallest tower is <em>{before}</em>.</dd></div>
-          <div><dt>--t-sentence</dt><dd className="t-sentence">Between {before}:00 and {before}:59, {n(top.minute_before)} finishes landed: <em>{ratio} times</em> what a smooth curve expects.</dd></div>
-          <div><dt>--t-figure-xl · l · m · s</dt><dd className="ds-figures"><BigNumber value={ratio} unit="×" sr={`${ratio} times`} size="xl" /><BigNumber value={`${pct(slow)}`} unit="%" sr={`${pct(slow)} percent`} size="l" /><BigNumber value={n(top.minute_before)} sr={n(top.minute_before)} size="m" /><BigNumber value={`${pct(evenSlow)}`} unit="%" sr={`${pct(evenSlow)} percent`} size="s" /></dd></div>
-          <div><dt>--t-readout</dt><dd className="t-readout">{before} <span className="t-label">{n(top.minute_before)} finishes</span></dd></div>
-          <div><dt>--t-body</dt><dd className="t-body">Body text is Inter at 17 px on phones and 18 px from 900 px, in --ink-2, with room to breathe.</dd></div>
-          <div><dt>--t-small · --t-label · --t-direct</dt><dd><span className="t-small">Secondary text</span> · <span className="t-label">Readout key</span> · <span className="t-direct">Direct label</span></dd></div>
-          <div><dt>--t-kicker · --t-tick</dt><dd><span className="t-kicker">01 · The towers</span> <span className="t-tick">3:00 3:30 4:00</span></dd></div>
+          <div><dt>--t-sentence</dt><dd className="t-sentence">{withEm(sentence)}</dd></div>
+          <div><dt>--t-figure xl · l · m · s</dt><dd className="ds-figures"><BigNumber value={ratio} unit="×" sr={`${ratio} times`} size="xl" /><BigNumber value={`${pct(slow)}`} unit="%" sr={`${pct(slow)} percent`} size="l" /><BigNumber value={n(top.minute_before)} sr={n(top.minute_before)} size="m" /><BigNumber value={`${pct(evenSlow)}`} unit="%" sr={`${pct(evenSlow)} percent`} size="s" /></dd></div>
+          <div><dt>Figure tones: ink · signal · quiet</dt><dd className="ds-figures"><BigNumber value={ratio} unit="×" sr={`${ratio} times`} size="m" /><BigNumber value={ratio} unit="×" sr={`${ratio} times`} size="m" tone="signal" /><BigNumber value={nullMark.ratio.toFixed(2)} unit="×" sr={`${nullMark.ratio.toFixed(2)} times`} size="m" tone="quiet" /></dd></div>
+          <div><dt>--t-readout</dt><dd><span className="t-readout">{before}</span> <span className="t-label">{n(top.minute_before)} finishes</span></dd></div>
+          <div><dt>--t-body</dt><dd className="t-body">Body text is Inter, 17 px on a phone and 18 px from 900 px, in --ink-2.</dd></div>
+          <div><dt>--t-small · --t-label · --t-direct</dt><dd className="ds-inline"><span className="t-small">Secondary text</span><span className="t-label">Readout key</span><span className="t-direct">Direct label</span></dd></div>
+          <div><dt>--t-kicker · --t-tick</dt><dd className="ds-inline"><span className="t-kicker">01 · The towers</span><span className="t-tick">{roundMarks.map((m) => m.mark).join('   ')}</span></dd></div>
         </dl>
       </Section>
 
@@ -202,79 +211,53 @@ export default function DesignSystemPage() {
         <div className="ds-frame">
           <Reading titleAs="h2" crumbs={<Crumbs />} title={story?.title ?? 'Round numbers'} dek="Do finish times bunch up just under round numbers?"
             figure={{ value: ratio, unit: '×', sr: `${ratio} times` }} unitLine={`the smooth curve, in the minute before ${top.mark}`}
-            sentence={`Between ${before}:00 and ${before}:59, ${n(top.minute_before)} finishes landed: *${ratio} times* what a smooth curve expects.`}
-            instrument={<MiniBars values={near.map((h) => h.all)} highlight={near.findIndex((h) => h.minute === top.minutes - 1)} label={`Finishes per minute around ${top.mark}; the minute before is highlighted`} />}
+            sentence={sentence}
+            instrument={<MiniBars values={micro.values} highlight={micro.highlight} label={`Finishes per minute around ${top.mark}; the minute before is highlighted`} />}
             foot={<><ShareButton slug="design-system-reading" card={card} goal="Goal 4:00" /><a className="ds-term" href="/methodology#story-round-numbers">How we know<Arrow dir="up-right" /></a></>}
           />
         </div>
         <div className="ds-grid-2">
           <div className="ds-frame">
-            <p className="ds-cap">pair</p>
+            <p className="ds-cap">Pair</p>
             <Reading titleAs="h2" titleSize="title" stacked title={bubbleGuard ? `Near ${bubble.mark}, more finishes find the line` : `Near ${bubble.mark}, about as many finish under the line`} variant="pair"
-              figures={[{ value: `${pct(bubble.over.share_under)}`, unit: '%', sr: `${pct(bubble.over.share_under)} percent`, key: `projected 0–2 min over ${bubble.mark} at 40K got under it` },
-                { value: `${pct(bubble.over.expected_share_under)}`, unit: '%', sr: `${pct(bubble.over.expected_share_under)} percent`, key: 'comparable finishes away from a round mark' }]} />
+              figures={[{ value: `${pct(bubble.over.share_under)}`, unit: '%', sr: `${pct(bubble.over.share_under)} percent`, key: `on course for 0–2 min over ${bubble.mark} at 40K, got under` },
+                { value: `${pct(bubble.over.expected_share_under)}`, unit: '%', sr: `${pct(bubble.over.expected_share_under)} percent`, key: 'away from a round mark' }]} />
           </div>
           <div className="ds-frame">
-            <p className="ds-cap">range</p>
+            <p className="ds-cap">Range</p>
             <Reading titleAs="h2" titleSize="title" stacked title="Every round mark, against the curve" variant="range" figure={{ value: `${lo.toFixed(2)}–${hi.toFixed(2)}`, unit: '×', sr: `${lo.toFixed(2)} to ${hi.toFixed(2)} times` }}
-              range={{ from: lo, to: hi, min: 0, max: Math.ceil(hi) }} sentence={`Across ${ft.marks.length} marks from ${ft.marks[0].mark} to ${ft.marks[ft.marks.length - 1].mark}, the minute before ran from *${lo.toFixed(2)}× to ${hi.toFixed(2)}×* the curve.`} />
+              range={{ from: lo, to: hi, min: 0, max: Math.ceil(hi) }} sentence={`Across ${ft.marks.length} marks, the minute before ran *${lo.toFixed(2)}× to ${hi.toFixed(2)}×* the curve.`} />
           </div>
           <div className="ds-frame">
-            <p className="ds-cap">null</p>
+            <p className="ds-cap">Null</p>
             <Reading titleAs="h2" titleSize="title" stacked title={`At ${nullMark.mark}, no clear bunching`} variant="null" figure={{ value: nullMark.ratio.toFixed(2), unit: '×', sr: `${nullMark.ratio.toFixed(2)} times` }}
               sentence={`In the minute before ${nullMark.mark}, finishes were close to what a smooth curve expects.`} />
           </div>
           <div className="ds-frame">
-            <p className="ds-cap">fallback (guard false)</p>
+            <p className="ds-cap">Fallback: the guard is false</p>
             <Reading titleAs="h2" titleSize="title" stacked title={`Finishes in the minute before ${top.mark}`} fallback figure={{ value: n(top.minute_before), sr: n(top.minute_before) }}
               sentence={`In the minute before ${top.mark}, ${n(top.minute_before)} finishes landed.`} />
           </div>
         </div>
       </Section>
 
-      <Section id="figures" n="04 · Figures" title="Big numbers never wrap">
-        <div className="ds-figure-row">
-          <BigNumber value={ratio} unit="×" sr={`${ratio} times`} tone="signal" />
-          <BigNumber value={signed(focus?.remainder_delta_mean_s ?? 0)} sr={`${signed(focus?.remainder_delta_mean_s ?? 0)} minutes`} />
-          <BigNumber value={n(top.minute_before)} sr={n(top.minute_before)} />
-          <BigNumber value={nullMark.ratio.toFixed(2)} unit="×" sr={`${nullMark.ratio.toFixed(2)} times`} tone="quiet" />
-        </div>
-      </Section>
-
-      <Section id="receipt" n="05 · Receipt" title="An analysis answers like a receipt">
-        {focus && even ? (
-          <Receipt tag={`First 5K ${bandLabel(focus.band).toLowerCase()}`}
-            lines={[{ label: 'First 5K', key: 'against the 5–20K pace', value: signed(focus.opening_delta_mean_s), sr: `${signed(focus.opening_delta_mean_s)} minutes` },
-              { label: 'After 20K', key: 'against the 5–20K pace', value: signed(focus.remainder_delta_mean_s), sr: `${signed(focus.remainder_delta_mean_s)} minutes` }]}
-            result={{ label: 'Whole race, against the 5–20K pace', value: `${mmss(focus.finish_delta_mean_s)} ${focus.finish_delta_mean_s > 0 ? 'more' : 'less'}`, sr: `${mmss(focus.finish_delta_mean_s)} minutes ${focus.finish_delta_mean_s > 0 ? 'more' : 'less'}` }}
-            extra={{ label: 'Sustained slowdown', value: `${pct(slow)}%`, key: `an even first 5K (${bandLabel('steady').toLowerCase()}): ${pct(evenSlow)}%`, typical: evenSlow, observed: slow }}
-            footer="Same race · same 5–20K pace"
-            goal={<>Add a goal finish time to read these as first-5K splits. <a className="ds-inline-btn" href="#make-it-yours-demo">Change</a></>} />
+      <Section id="receipt" n="04 · Receipt" title="An analysis answers on one card">
+        {receipt ? (
+          <div className="ds-grid-2">
+            <Receipt {...receipt} goal={<>Add a goal to read these as first-5K splits. <a className="ds-inline-btn" href="#make-it-yours-demo">Change</a></>} />
+            <div>
+              <p className="ds-cap">Fallback: the result&rsquo;s guard is false</p>
+              <Receipt lines={receipt.lines} result={{ ...receipt.result, fallback: `${slower(focus!.finish_delta_mean_s)} over the whole race` }} />
+            </div>
+          </div>
         ) : null}
       </Section>
 
-      <Section id="cards" n="06 · Cards" title="A deck of nuggets, each one link">
-        <ul className="deck">
-          <li><NuggetCard href="/stories/round-numbers" marker="FINISH" chapter="Chapter 06" figure={{ value: ratio, unit: '×', sr: `${ratio} times` }} claim={card.claim} micro={<MiniBars values={near.map((h) => h.all)} highlight={near.findIndex((h) => h.minute === top.minutes - 1)} />}
-            share={<ShareButton slug="design-system-card" card={card} iconOnly label="Share this finding" />} /></li>
-          {focus ? <li><NuggetCard href="/analyses/starting-pace" marker="5K" chapter="Chapter 02" figure={{ value: `${pct(slow)}`, unit: '%', sr: `${pct(slow)} percent` }} claim={`After a first 5K ${bandLabel(focus.band).toLowerCase()}, *${pct(slow)}%* had a sustained slowdown.`} foot="Read the analysis"
-            micro={<MiniBars values={fast.initial.groups.map((g) => g.slowdown_n / g.n)} highlight={fast.initial.groups.findIndex((g) => g.band === focus.band)} />} /></li> : null}
-          <li><NuggetCard href="/stories/round-numbers" marker="FINISH" chapter="Chapter 06" figure={{ value: `${pct(bubble.over.share_under)}`, unit: '%', sr: `${pct(bubble.over.share_under)} percent` }} claim={`*${pct(bubble.over.share_under)}%* of finishes projected 0–2 min over ${bubble.mark} at 40K got under it.`} /></li>
-          {even ? <li><NuggetCard href="/analyses/starting-pace" marker="5K" chapter="Chapter 02" night figure={{ value: `${pct(evenSlow)}`, unit: '%', sr: `${pct(evenSlow)} percent` }} claim={`With an even first 5K, *${pct(evenSlow)}%* had a sustained slowdown.`} foot="Read the analysis" /></li> : null}
-        </ul>
-        <div className="ds-states">
-          <p className="ds-cap">hover · focus · pressed</p>
-          <div className="ds-grid-3">
-            {['is-hover', 'is-focus', 'is-pressed'].map((s) => <NuggetCard key={s} className={s} href="/stories/round-numbers" marker="FINISH" chapter={s.slice(3)} figure={{ value: ratio, unit: '×', sr: `${ratio} times` }} claim={card.claim} />)}
-          </div>
-        </div>
-      </Section>
-
-      <Section id="buttons" n="07 · Buttons" title="One orange button per screen">
+      <Section id="buttons" n="05 · Buttons" title="One orange button per screen">
         <div className="ds-matrix">
           {(['primary', 'secondary', 'tertiary'] as const).map((v) => (
             <div className="ds-matrix-row" key={v}>
-              <span className="ds-cap">{v}</span>
+              <span className="ds-cap">{v[0].toUpperCase() + v.slice(1)}</span>
               <Button variant={v}>Plan your race</Button>
               <Button variant={v} className="is-hover">Hover</Button>
               <Button variant={v} className="is-focus">Focus</Button>
@@ -284,20 +267,20 @@ export default function DesignSystemPage() {
             </div>
           ))}
           <div className="ds-matrix-row">
-            <span className="ds-cap">compact · link · arrow</span>
+            <span className="ds-cap">Compact, as links</span>
             <Button compact>Compact</Button>
             <Button variant="secondary" href="/tools/plan" arrow="right">Plan your race</Button>
             <Button variant="tertiary" href="/methodology" arrow="up-right">How we know</Button>
           </div>
         </div>
         <div className="night ds-night ds-matrix">
-          <div className="ds-matrix-row"><span className="ds-cap">on night</span><Button>Plan your race</Button><Button variant="secondary">Secondary</Button><Button variant="tertiary">Tertiary</Button></div>
+          <div className="ds-matrix-row"><span className="ds-cap">On night</span><Button>Plan your race</Button><Button variant="secondary">Secondary</Button><Button variant="tertiary">Tertiary</Button></div>
         </div>
       </Section>
 
-      <Section id="forms" n="08 · Forms" title="Inputs are panels you can hit with a thumb">
+      <Section id="forms" n="06 · Forms" title="Fields sized for a thumb">
         <div className="ds-grid-2">
-          <div className="field"><label className="field-label" htmlFor="ds-goal">Goal finish time</label><input id="ds-goal" className="input" inputMode="decimal" defaultValue="4:00" /><span className="field-hint">h:mm<KeypadHint /></span></div>
+          <div className="field"><label className="field-label" htmlFor="ds-goal">Goal finish time</label><input id="ds-goal" className="input" inputMode="decimal" defaultValue="4:00" /><span className="field-hint">h:mm <KeypadHint /></span></div>
           <div className="field"><label className="field-label" htmlFor="ds-goal-h">Hover</label><input id="ds-goal-h" className="input is-hover" defaultValue="4:00" /></div>
           <div className="field"><label className="field-label" htmlFor="ds-goal-f">Focus</label><input id="ds-goal-f" className="input is-focus" defaultValue="4:00" /></div>
           <div className="field"><label className="field-label" htmlFor="ds-goal-e">Error</label><input id="ds-goal-e" className="input" defaultValue="4:75" aria-invalid="true" aria-describedby="ds-goal-e-msg" /><span className="field-error" id="ds-goal-e-msg" role="alert">Minutes run from 00 to 59.</span></div>
@@ -307,9 +290,9 @@ export default function DesignSystemPage() {
         <label className="check"><input type="checkbox" defaultChecked />Add my goal to the card</label>
       </Section>
 
-      <Section id="controls" n="09 · Controls" title="Tap to compare, never to hunt">
+      <Section id="controls" n="07 · Controls" title="Tap to compare">
         <div className="ds-stack">
-          <p className="ds-cap">Segmented</p>
+          <p className="ds-cap">Segmented: up to five options</p>
           <Segmented label="Mark, gallery" options={marksOptions} defaultValue={roundMarks.find((m) => m.mark === top.mark)?.mark ?? marksOptions[0]?.value} />
           <Segmented label="Lens, gallery" options={[{ value: 'count', label: 'Finishes per minute' }, { value: 'curve', label: 'Against the curve' }]} defaultValue="count" block />
           <Segmented label="Disabled option, gallery" options={[{ value: 'a', label: 'All courses' }, { value: 'b', label: 'One course' }, { value: 'c', label: 'No data', disabled: true }]} defaultValue="a" />
@@ -322,41 +305,40 @@ export default function DesignSystemPage() {
             <button type="button" className="chip" aria-pressed="true">Selected</button><button type="button" className="chip" aria-pressed="false" disabled>Disabled</button>
           </div></div>
           <div className="night ds-night ds-stack">
-            <p className="ds-cap">on night</p>
+            <p className="ds-cap">On night</p>
             <Segmented label="Mark on night, gallery" options={marksOptions} defaultValue={marksOptions[0]?.value} />
             <Chips label="Every mark on night, gallery" options={ft.marks.map((m) => ({ value: m.mark, label: m.mark }))} defaultValue={top.mark} />
           </div>
         </div>
       </Section>
 
-      <Section id="marks" n="10 · Marks" title="Markers, tags and badges">
+      <Section id="marks" n="08 · Marks" title="Where you are, and where a number comes from">
         <div className="ds-row">{MARKERS.map((m) => <MarkerBadge key={m} marker={m} />)}</div>
         <div className="night ds-night ds-row">{MARKERS.slice(0, 6).map((m) => <MarkerBadge key={m} marker={m} />)}</div>
-        <div className="ds-row"><Tag>Story</Tag><Tag>Analysis</Tag><Tag>Tool</Tag></div>
         <div className="ds-row is-badges"><EvidenceTag kind="data" /><EvidenceTag kind="research" /><EvidenceTag kind="official" /><EvidenceTag kind="data" link={false} /></div>
       </Section>
 
-      <Section id="values" n="11 · Values" title="Every chart has its table">
+      <Section id="values" n="09 · Values" title="Every chart has its table">
         <Values id="ds-values" caption="Finishes in the minute before each mark, against the smooth curve"
           columns={[{ key: 'mark', label: 'Mark' }, { key: 'n', label: 'Minute before' }, { key: 'e', label: 'Smooth curve' }, { key: 'r', label: 'Against the curve' }, { key: 'men', label: 'Recorded men' }, { key: 'women', label: 'Recorded women' }]}
           rows={ft.marks.map((m) => [m.mark, n(m.minute_before), n(m.expected_minute_before), `${m.ratio.toFixed(2)}×`, `${m.men_ratio.toFixed(2)}×`, m.women_ratio === null ? '—' : `${m.women_ratio.toFixed(2)}×`])}
           reading={ft.marks.indexOf(top)} open />
       </Section>
 
-      <Section id="guess" n="12 · Guess first" title="Guess, then see it on the same marks">
-        <GuessFirst question={`At 40K a finish is projected 0\u2060–\u20602 minutes over ${bubble.mark}. What share of finishes like that still got under ${bubble.mark}?`}
-          truth={bubble.over.share_under * 100} compare={{ value: bubble.over.expected_share_under * 100, label: `Comparable finishes away from a round mark: ${pct(bubble.over.expected_share_under)}%` }}
+      <Section id="guess" n="10 · Guess first" title="Guess, then see it on the same marks">
+        <GuessFirst question={`At 40K a finish is on course for 0\u2060–\u20602 minutes over ${bubble.mark}. What share still got under?`}
+          truth={bubble.over.share_under * 100} compare={{ value: bubble.over.expected_share_under * 100, label: `Away from a round mark: ${pct(bubble.over.expected_share_under)}%` }}
           answer={`*${pct(bubble.over.share_under)}%* of ${n(bubble.over.n)} such finishes got under it.`} truthLabel="got under" />
       </Section>
 
-      <Section id="scrolly" n="13 · Scrolly" title="One step-by-step reveal per story">
+      <Section id="scrolly" n="11 · Scrolly" title="One step-by-step reveal per story">
         <Scrolly graphic={<Towers />} steps={towersSteps} />
       </Section>
 
-      <Section id="sheets" n="14 · Sheets" title="Sheets for the menu, your inputs and sharing">
+      <Section id="sheets" n="12 · Sheets" title="The menu, your inputs and sharing">
         <div className="ds-row">
           <SheetButton id="ds-sheet" title="A sheet" label="Open a sheet" className="btn btn-secondary">
-            <p className="t-body">A bottom sheet on phones and a right drawer from 600 px. Escape, the scrim or Close shuts it, and focus goes back to the button that opened it.</p>
+            <p className="t-body">A bottom sheet on a phone and a right drawer from 600 px. Escape, the scrim or Close shuts it, and focus returns to the button that opened it.</p>
           </SheetButton>
           <ShareButton slug="design-system" card={card} goal="Goal 4:00" />
         </div>
@@ -368,33 +350,22 @@ export default function DesignSystemPage() {
               <Button type="submit" variant="secondary" compact>Update comparison</Button>
             </form>
           </MakeItYours>
-          <p className="t-body miy-results">The explorer&rsquo;s results sit here. Under 900 px the chip floats while this beat is on screen; from 900 px the form sits inline above.</p>
+          <p className="t-body miy-results">The explorer&rsquo;s results. Under 900 px the chip floats while this beat is on screen; from 900 px the form sits inline above.</p>
         </div>
-      </Section>
-
-      <Section id="motion" n="15 · Motion" title="Motion explains a change, then stops">
-        <Reveal className="ds-reveal">
-          <div className="ds-reveal-row">{near.map((h, i) => <span key={h.minute} data-stagger="" style={{ ['--i' as string]: i, height: `${Math.max(4, (h.all / Math.max(...near.map((x) => x.all))) * 64)}px` }} className={h.minute === top.minutes - 1 ? 'is-signal' : ''} />)}</div>
-          <p className="t-small">Figures rise 12 px and fade in once, columns in an 8 ms stagger; nothing moves under reduced motion.</p>
-        </Reveal>
       </Section>
 
       <section className="ds-dark-wrap" data-theme="dark" id="dark" aria-labelledby="dark-title">
         <div className="beat-head">
-          <span className="t-kicker">16 · Dark</span>
+          <span className="t-kicker">13 · Dark</span>
           <h2 className="t-h2" id="dark-title">A chosen dark palette, not an inversion</h2>
         </div>
-        <Reading titleAs="h2" titleSize="title" crumbs={<Crumbs />} title={story?.title ?? 'Round numbers'} figure={{ value: ratio, unit: '×', sr: `${ratio} times` }}
-          sentence={`Between ${before}:00 and ${before}:59, ${n(top.minute_before)} finishes landed: *${ratio} times* what a smooth curve expects.`} />
+        <Reading titleAs="h2" titleSize="title" crumbs={<Crumbs />} title={story?.title ?? 'Round numbers'} figure={{ value: ratio, unit: '×', sr: `${ratio} times` }} sentence={sentence} />
         <div className="ds-stack">
           <Segmented label="Mark in dark, gallery" options={marksOptions} defaultValue={marksOptions[1]?.value} />
-          <div className="ds-row"><Button>Plan your race</Button><Button variant="secondary">Secondary</Button><EvidenceTag kind="data" /><Tag>Story</Tag></div>
+          <div className="ds-row"><Button>Plan your race</Button><Button variant="secondary">Secondary</Button><EvidenceTag kind="data" /><MarkerBadge marker="HALF" /></div>
+          {receipt ? <Receipt {...receipt} /> : null}
           {focus ? <GuessFirst marks="dots" unit="of 100" question={`Of 100 finishes with a first 5K ${bandLabel(focus.band).toLowerCase()}, how many had a sustained slowdown?`}
             truth={slow * 100} answer={`*${pct(slow)} in 100* did.`} truthLabel="Had a sustained slowdown" initial={30} /> : null}
-          <ul className="deck">
-            <li><NuggetCard href="/stories/round-numbers" marker="FINISH" chapter="Chapter 06" figure={{ value: ratio, unit: '×', sr: `${ratio} times` }} claim={card.claim} /></li>
-            {even ? <li><NuggetCard href="/analyses/starting-pace" marker="5K" chapter="Chapter 02" night figure={{ value: `${pct(evenSlow)}`, unit: '%', sr: `${pct(evenSlow)} percent` }} claim={`With an even first 5K, *${pct(evenSlow)}%* had a sustained slowdown.`} foot="Read the analysis" /></li> : null}
-          </ul>
         </div>
       </section>
     </article>

@@ -94,6 +94,9 @@
   --mono: 'JetBrains Mono Variable', 'JetBrains Mono Fallback', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --bib: 'Bricolage Grotesque Variable', 'Bricolage Grotesque Fallback', 'Bricolage Grotesque', var(--sans);
   --figure: var(--bib);             /* the reading figure only: big numbers, bib chips, the share card figure */
+  /* Code (field names on /methodology) uses the device's monospace: no web font for a handful of words. --mono is
+     legacy only (app/styles/legacy/); the redesign sets kickers and ticks in Inter, and WP9 deletes it with legacy. */
+  --code: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
   /* The scale, phone to desktop. Line height and tracking sit with each type class in base.css. */
   --t-display: clamp(2.25rem, 8.6vw + .2rem, 5.25rem);
   --t-title: clamp(2rem, 6.8vw + .2rem, 4.25rem);
