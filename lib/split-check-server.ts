@@ -64,8 +64,8 @@ export function otherCourses(index: PaceBandIndex | null): Record<string, string
 }
 
 /**
- * The pacing types are fitted on the story cohort, which keeps the two editions the tool cohort drops for a shifted mat grid.
- * Its finishes are in archetypes.json; its editions are the tool's plus those two, checked here by the finish count.
+ * The pacing types are fitted on the story cohort, which keeps the editions the tool cohort drops for a shifted mat grid.
+ * Its finishes are in archetypes.json; its editions are the tool's plus those, checked here by the finish count.
  */
 export function typeCohort(index: PaceBandIndex | null): TypeCohort | null {
   const types = optional<Archetypes>(ARCHETYPES);

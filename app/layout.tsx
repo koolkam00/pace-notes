@@ -93,7 +93,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/methodology">Methods &amp; sources</Link>
             <Link href="/packs">Research archive</Link>
             <Link href="/privacy">Privacy &amp; analytics</Link>
-            <a href="https://github.com/koolkam00/htw-live-study/releases">Download the data ↗</a>
+            <a href="https://github.com/koolkam00/pace-notes/releases">Download the data ↗</a>
           </nav>
         </footer>
         <SiteAnalytics />

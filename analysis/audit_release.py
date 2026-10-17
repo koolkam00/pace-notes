@@ -9,7 +9,7 @@ from pathlib import Path
 
 import duckdb
 from build_pacing import FIELDS, records
-from download_release import EXPECTED
+from download_release import EXPECTED, HTW_DB_DOCS, HTW_DB_FULL_DOCS
 
 
 def digest(path):
@@ -81,11 +81,29 @@ def audit(source, core, previous, output):
       count(valid_from_year) AS valid_from,count(valid_to_year) AS valid_to FROM cp''')[0]
     report['weather'] = records(db, '''SELECT count(*) AS rows,count(DISTINCT (city,year)) AS unique_editions,
       count(*) FILTER(WHERE year(try_cast(race_date AS DATE))=year) AS dates_agree FROM w''')[0]
+    htw_db = provenance['release_tag'].startswith('htw-db-')
+    if htw_db:
+        # htw-db releases add producer documents outside MANIFEST.json; hash them and check SHA256SUMS.txt.
+        for name in sorted(HTW_DB_DOCS | HTW_DB_FULL_DOCS | EXPECTED):
+            report['member_sha256'].setdefault(name, digest(source/name))
+        report['checksum_list'] = checksum_list(source, report['member_sha256'])
+        assert not report['checksum_list']['mismatched'] and not report['checksum_list']['missing'], report['checksum_list']
+        report['producer_counts'] = producer_counts(db, source, manifest)
+        assert report['producer_counts']['editions_json_mismatches'] == report['producer_counts']['races_summary_mismatches'] == []
     if core:
-        shared = sorted(EXPECTED)
+        shared = sorted(EXPECTED | (HTW_DB_DOCS if htw_db else set()))
         assert all((core/name).is_file() and name in report['member_sha256'] for name in shared)
         report['core_full_shared_hashes_match'] = all(digest(core/name) == report['member_sha256'][name] for name in shared)
+        report['core_full_shared_members'] = shared
         assert report['core_full_shared_hashes_match']
+        core_provenance = json.loads((core/'provenance.json').read_text())
+        assert core_provenance['release_tag'] == provenance['release_tag'] and core_provenance['bundle'] == 'CORE'
+        report['core_provenance'] = core_provenance
+        if htw_db:
+            # CORE's SHA256SUMS.txt also lists the two FULL-only files; every member CORE does carry must match.
+            report['core_checksum_list'] = checksum_list(core, {name: digest(core/name) for name in shared})
+            assert not report['core_checksum_list']['mismatched'], report['core_checksum_list']
+            assert set(report['core_checksum_list']['missing']) <= HTW_DB_FULL_DOCS | {'features.parquet'}, report['core_checksum_list']
     if previous:
         location = str(previous/'race_records.parquet').replace("'", "''")
         db.execute(f"CREATE VIEW previous AS SELECT * FROM read_parquet('{location}')")
@@ -98,8 +116,49 @@ def audit(source, core, previous, output):
           count(*) FILTER(WHERE r.id IS NOT NULL AND p.id IS NOT NULL AND NOT ({differences})) AS unchanged
           FROM r FULL JOIN previous p ON r.id=p.id''')[0]
         report['previous_release'] = json.loads((previous/'provenance.json').read_text())['release_tag']
+        # Per edition, so a reloaded edition (new IDs) or an in-place rewrite is visible, not only the totals.
+        report['previous_delta_by_edition'] = records(db, f'''SELECT coalesce(r.city,p.city) AS city,coalesce(r.year,p.year) AS year,
+          count(*) FILTER(WHERE p.id IS NULL) AS added,
+          count(*) FILTER(WHERE r.id IS NULL) AS deleted,
+          count(*) FILTER(WHERE r.id IS NOT NULL AND p.id IS NOT NULL AND ({differences})) AS changed
+          FROM r FULL JOIN previous p ON r.id=p.id GROUP BY ALL
+          HAVING count(*) FILTER(WHERE p.id IS NULL OR r.id IS NULL OR ({differences})) > 0 ORDER BY city,year''')
+        report['previous_changed_columns'] = records(db, 'SELECT ' + ','.join(
+            f'count(*) FILTER(WHERE r."{c}" IS DISTINCT FROM p."{c}") AS "{c}"' for c in columns if c != 'id')
+            + ' FROM r JOIN previous p ON r.id=p.id')[0]
     output.write_text(json.dumps(report,indent=2,allow_nan=False,default=str)+'\n')
-    print(json.dumps({k:report[k] for k in ['release_tag','alignment','coverage','features','manifest_size_notes','previous_delta'] if k in report},indent=2))
+    print(json.dumps({k:report[k] for k in ['release_tag','alignment','coverage','features','manifest_size_notes','checksum_list','producer_counts','previous_delta'] if k in report},indent=2))
+
+
+def checksum_list(folder, hashes):
+    """Compare the producer's SHA256SUMS.txt with independently computed member hashes."""
+    listed = {}
+    for line in (folder/'SHA256SUMS.txt').read_text().splitlines():
+        if line.strip():
+            value, name = line.split(maxsplit=1)
+            listed[name.strip().lstrip('*')] = value.lower()
+    return {'listed': len(listed),
+            'matched': sorted(name for name, value in listed.items() if hashes.get(name) == value),
+            'mismatched': sorted(name for name, value in listed.items() if name in hashes and hashes[name] != value),
+            'missing': sorted(name for name in listed if name not in hashes),
+            'unlisted': sorted(name for name in hashes if name not in listed and name != 'SHA256SUMS.txt')}
+
+
+def producer_counts(db, source, manifest):
+    """Reconcile EDITIONS.json and races_summary.json, edition by edition, with the parquet."""
+    measured = {(city, year): (n, n5) for city, year, n, n5 in db.execute(
+        "SELECT city,year,count(*),count(*) FILTER(WHERE nullif(trim(split_5km),'') IS NOT NULL) FROM r GROUP BY ALL").fetchall()}
+    editions = json.loads((source/'EDITIONS.json').read_text())
+    summary = json.loads((source/'races_summary.json').read_text())
+    listed = {(e['city'], e['year']): (e['rows'], e['rows_with_5km']) for e in editions['editions']}
+    summarized = {(e['city'], e['year']): (e['n_records'], e['n_with_5km']) for e in summary}
+    mismatch = lambda claimed: sorted(f'{c} {y}' for c, y in set(claimed) | set(measured) if claimed.get((c, y)) != measured.get((c, y)))
+    return {'editions': len(measured), 'records': sum(n for n, _ in measured.values()),
+            'records_with_5km': sum(n5 for _, n5 in measured.values()),
+            'editions_json_tag': editions['tag'], 'editions_json_baseline': editions['baseline'],
+            'editions_json_total': editions['total'], 'manifest_race_years': manifest['n_race_years'],
+            'editions_json_mismatches': mismatch(listed), 'races_summary_mismatches': mismatch(summarized),
+            'editions_json_previous_rows': sum(e['prev_rows'] or 0 for e in editions['editions'])}
 
 
 if __name__ == '__main__':

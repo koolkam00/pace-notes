@@ -54,7 +54,10 @@ for (let i = 0; i < runners.editions.length; i++) {
   }
   if (data.terrain) {
     terrain++; const t=data.terrain;
-    assert.equal(t.historical_validity_known,false); assert.equal(t.valid_from_year,null); assert.equal(t.valid_to_year,null);
+    assert.equal(t.historical_validity_known,false);
+    // A supplied validity interval (Warsaw's starts in 2019) must contain the edition year; otherwise no route is attached.
+    assert.ok(t.valid_from_year===null || (Number.isInteger(t.valid_from_year) && t.valid_from_year<=data.edition.year),'Route validity starts after this edition');
+    assert.ok(t.valid_to_year===null || (Number.isInteger(t.valid_to_year) && t.valid_to_year>=data.edition.year),'Route validity ended before this edition');
     assert.ok(t.context_label && t.aggregation_method && t.notes.length); assert.equal(t.sections.length,9);
     const points=[0,5,10,15,20,25,30,35,40,42.195];
     for(let k=0;k<9;k++){ const s=t.sections[k]; near(s.start_km,points[k],'Section start');near(s.end_km,points[k+1],'Section end');assert.ok(nullable(s.gain_m,0,5000)&&s.gain_m!==null&&nullable(s.loss_m,0,5000)&&s.loss_m!==null&&nullable(s.net_m,-5000,5000)&&s.net_m!==null); }

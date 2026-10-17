@@ -42,7 +42,7 @@ jobs:
           python - <<'PY'
           import json, os, re
           tag = os.environ.get('REQUESTED_WEATHER_TAG') or json.load(open('analysis/weather-release.json'))['tag']
-          if not re.fullmatch(r'private-export-\d{8}-\d{4}', tag):
+          if not re.fullmatch(r'private-export-\d{8}-\d{4}|htw-db-\d{4}-\d{2}-\d{2}-\d{4}', tag):
               raise ValueError('Unexpected export tag')
           with open(os.environ['GITHUB_ENV'], 'a') as stream:
               stream.write('WEATHER_RELEASE_TAG=' + tag + '\n')

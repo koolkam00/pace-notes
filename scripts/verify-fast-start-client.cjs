@@ -21,6 +21,9 @@ const evidence = JSON.parse(bytes);
 const allBytes = fs.readFileSync(path.join(__dirname, '../public/data/fast-start/all-finishers.json'));
 const allEvidence = JSON.parse(allBytes);
 const render = (component, props) => renderToStaticMarkup(React.createElement(component, props));
+// The adopted runner lookup sets the expected cohorts (3,871,767 finishes and 592,241 earlier-best benchmarks under 1652; 3,517,336 and 555,437 under 0934).
+const runners = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/data/runners/manifest.json'), 'utf8'));
+const eligible = runners.eligible_records, benchmarked = runners.linkage.recent_benchmark_finishes;
 // Method, definitions, coverage and source text belong on /methodology only (owner request, 2026-10-16).
 const METHOD_COPY = [/What this can tell you/, /Definitions, coverage and limits/, /Download the analysis data/, /Open the source data/, /Study methods/,
   /journals\.plos\.org/, /\d[\d,]* eligible finishes/, /withdrawals/i, /do not prove that the start caused/, /not minutes caused or lost/,
@@ -66,11 +69,19 @@ async function main() {
   assert.equal(fastStartCharts({...start.initial,groups:[focus]},focus,start.bands).pace.series.length,1,'No invented steady comparison for a sparse cohort');
   assert.equal(timeChange(-997),'16.6 min faster'); assert.equal(timeChange(325),'5.4 min slower'); assert.equal(timeChange(0),'About the same time');
 
+  // The figures the history view prints, from the verified evidence (verify-fast-start recounts them from the runner
+  // records). Under 0934 they were 47%, 16.6 min faster, 17.9%, 142,757 and 67,025; in 1652 43.6%, 19 min faster, 20.2%,
+  // 152,758 and 66,657. Formatted here independently of the component: one decimal at most, en-US thousands.
+  const pct=n=>(Math.round(n*10)/10).toLocaleString('en-US',{maximumFractionDigits:1})+'%';
+  const esc=text=>text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const focusRate=pct(100*focus.slowdown_n/focus.n), steadyRate=pct(100*steady.slowdown_n/steady.n);
+  const finishChange=`${Math.round(Math.abs(focus.finish_delta_median_s)/6)/10} min ${focus.finish_delta_median_s<0?'faster':'slower'}`;
+  assert.equal(timeChange(focus.finish_delta_median_s),finishChange.replace(/^(\d+)\.0 /,'$1 '),'The finish change reads as the evidence median');
   for (const units of ['mi','km']) {
     const html=render(FastStartResults,{row:start.initial,focus,start,units});
-    assert.match(html,/47% developed a sustained slowdown/);
-    assert.match(html,/16\.6 min faster/);
-    assert.match(html,/17\.9%/); assert.match(html,/142,757/); assert.match(html,/67,025/);
+    assert.match(html,new RegExp(esc(focusRate)+' developed a sustained slowdown'));
+    assert.match(html,new RegExp(esc(timeChange(focus.finish_delta_median_s))));
+    assert.match(html,new RegExp(esc(steadyRate))); assert.match(html,new RegExp(focus.n.toLocaleString('en-US'))); assert.match(html,new RegExp(focus.slowdown_n.toLocaleString('en-US')));
     assert.match(html,/earlier recorded best/);
     assert.match(html,SLOWDOWN_LINK,'The sustained slowdown term links to its definition on /methodology');
     assert.match(html,/most often began in the /,'The onset section states where slowdowns most often began');
@@ -78,7 +89,7 @@ async function main() {
     noMethodCopy(html,`history results (${units})`);
     assert.match(html,units==='mi'?/18\.64–21\.75 mi/:/30–35 km/);
     assert.match(html,units==='mi'?/26\.22 mi/:/42\.195 km/);
-    assert.doesNotMatch(html,/private-export-|20260912/,'Internal upload identifiers stay out of visible result copy');
+    assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016/,'Internal upload identifiers stay out of visible result copy');
   }
   const sparse={...focus,n:100,editions:5,slowdown_n:7,onset:null};
   assert.equal(fastStartCharts(start.initial,sparse,start.bands).onset,null);
@@ -88,11 +99,11 @@ async function main() {
   assert.doesNotMatch(render(FastStartResults,{row:start.initial,focus:zero,start,units:'km'}),/same time than/);
   const page=render(FastStartAnalysis,{starts});
   assert.match(page,/Opening pace/); assert.match(page,/No previous race needed/); assert.doesNotMatch(page,/>Earlier recorded best</); assert.doesNotMatch(page,/>Target time</);
-  assert.doesNotMatch(page,/3,517,336/,'Coverage counts belong on /methodology'); noMethodCopy(page,'fast-start page');
+  assert.doesNotMatch(page,new RegExp(eligible.toLocaleString('en-US')),'Coverage counts belong on /methodology'); noMethodCopy(page,'fast-start page');
   assert.match(page,/aria-pressed="true">All eligible finishes/);
   assert.match(page,/With an earlier result/);
   const allRow=starts.all.initial, allFocus=allRow.groups.find(g=>g.band==='fast10');
-  assert.equal(allRow.groups.reduce((sum,g)=>sum+g.n,0),3517336);
+  assert.equal(allRow.groups.reduce((sum,g)=>sum+g.n,0),eligible);
   const allCharts=fastStartCharts(allRow,allFocus,starts.all.bands,'all');
   assert.equal(allCharts.finishes.rows[0].median,allFocus.after20_delta_median_s/60,'All mode foregrounds the subsequent outcome, not a finish difference partly defined by the opening');
   assert.equal(allCharts.accounting.rows[0].label,'Opening 5 km');
@@ -106,7 +117,7 @@ async function main() {
     assert.match(html,units==='mi'?/3\.11 mi/:/5 km/);
     assert.match(html,units==='mi'?/12\.43 mi/:/20 km/);
     assert.doesNotMatch(html,/earlier recorded best|earlier-best|All earlier times/,'All mode cannot present its reference as a prior result');
-    assert.doesNotMatch(html,/private-export-|20260912/);
+    assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016/);
   }
   const methodology=render(MethodologyPage,{});
   const legacyOpening=(methodology.match(/<details\b[^>]*>[\s\S]*?<\/details>/g)||[]).find(detail=>detail.includes('Which openings are associated with finishing under my target?'));
@@ -131,13 +142,13 @@ async function main() {
     await assert.rejects(()=>loadFastStartEvidence(descriptor(served),signal),/verified/);
     served=bytes; const cancelled=new AbortController(); cancelled.abort();
     await assert.rejects(()=>loadFastStartEvidence(start,cancelled.signal),/Aborted/);
-    const loaded=await loadFastStartEvidence(start,signal); assert.equal(loaded.history_n,555437);
+    const loaded=await loadFastStartEvidence(start,signal); assert.equal(loaded.history_n,benchmarked);
     assert.ok(calls.at(-1).url.endsWith('?v='+start.sha256)); assert.equal(calls.at(-1).signal,signal);
     const before=calls.length; await loadFastStartEvidence(start,signal); assert.equal(calls.length,before,'Use only a verified content-bound cache');
     served=allBytes;
-    const allLoaded=await loadFastStartEvidence(starts.all,signal);assert.equal(allLoaded.analysis_n,3517336);
+    const allLoaded=await loadFastStartEvidence(starts.all,signal);assert.equal(allLoaded.analysis_n,eligible);
     assert.ok(calls.at(-1).url.includes('/all-finishers.json?v='),'Each comparison loads its own artifact');
-    served=bytes;const historyLoaded=await loadFastStartEvidence(start,signal);assert.equal(historyLoaded.history_n,555437);
+    served=bytes;const historyLoaded=await loadFastStartEvidence(start,signal);assert.equal(historyLoaded.history_n,benchmarked);
     assert.ok(calls.at(-1).url.includes('/evidence.json?v='),'Mode changes never reuse the other comparison payload');
     served=Buffer.from(JSON.stringify({...allEvidence,mode:undefined}));
     await assert.rejects(()=>loadFastStartEvidence({...starts.all,bytes:served.length,sha256:crypto.createHash('sha256').update(served).digest('hex')},signal),/mode/,'Reject incorrect mode semantics even with matching transport bytes');

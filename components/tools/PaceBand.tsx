@@ -144,7 +144,7 @@ export default function PaceBand({ indexSha, profiles, projectorScopes, unpublis
   const tryAgain = () => { setIndexError(false); setShard(null); setRetry((r) => r + 1); };
 
   const scope = index?.scopes.find((s) => s.slug === course) ?? null;
-  // A course other data knows (Melbourne, say) but the pace band does not publish: named, with the reason.
+  // A course other data knows (Prague, say) but the pace band does not publish: named, with the reason.
   const known = course !== 'all' && !scope && Object.prototype.hasOwnProperty.call(unpublished, course) ? unpublished[course] : null;
   // Never echo an unknown slug from the URL into the copy.
   const city = scope?.city ?? known?.city ?? null;

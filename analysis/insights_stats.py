@@ -5,6 +5,19 @@ import numpy as np
 
 MIN_CELL = 100
 SEED = 20261006
+# Digits for every share (and share-like ratio) that a page prints as a percentage, with one decimal or whole.
+# Four digits made the page round twice: Chicago 2018's 13,377 of 44,224 (30.2483%) was stored as 0.3025 and printed
+# as 30.3%. Ten digits keep a single rounding from the exact share: a count share k/n with n under a million that is
+# not exactly on a half-way point is at least 1/(2000n) away from it, far more than the 5e-11 the stored value can
+# move. scripts/verify-insights.cjs checks printed values against its own exact recounts (courses, course goals,
+# final kick and pace band).
+SHARE_DIGITS = 10
+
+
+def count_phrase(n, noun):
+    """'15 editions', '1 edition' or 'no editions' for method prose, so a count printed there comes from the data."""
+    n = int(n)
+    return f'no {noun}s' if n == 0 else f'1 {noun}' if n == 1 else f'{n:,} {noun}s'
 
 
 def poisson_poly_fit(x, y, degree, mask):

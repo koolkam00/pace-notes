@@ -1,0 +1,610 @@
+{
+  "release_tag": "htw-db-2026-10-16-1652",
+  "input_provenance": {
+    "repository": "koolkam00/pace-notes",
+    "release_tag": "htw-db-2026-10-16-1652",
+    "release_published_at": "2026-10-16T21:02:29Z",
+    "asset": "htw-db-FULL-20261016-1652.tar.gz",
+    "asset_sha256": "c0e2e63fc826a60994cb30b28e2c2fcd57e99ffca5706d876d83c08be773215a",
+    "bundle": "FULL",
+    "manifest_sha256": "c21298e62ea0780c9c1237aa0fc11ef7025e3ac84c186990968bf5d9e8fe40c6"
+  },
+  "audit_script_sha256": "5d5f24deeff8ba7a8c2a4921730eb31fed7538d77aa30074fef05d9a56968cf3",
+  "member_sha256": {
+    "MANIFEST.json": "c21298e62ea0780c9c1237aa0fc11ef7025e3ac84c186990968bf5d9e8fe40c6",
+    "race_records.parquet": "4347e9ea53843ee4c7debe956dc0c878c126ab7b51434c53185f0ce94d742063",
+    "race_conditions.parquet": "b20eb844d758d365415fcb9bce073606557493489febd1b9f9621209185f459e",
+    "course_profiles.parquet": "afd01df49fa899547fd5a5ccd0d7740a19ae33c98d3b1f732dcbe623a60b867c",
+    "course_segments.parquet": "ecc37923c7dfb868c227241388aaf3ba0e6c7dd86dd49134e0ab514f853ffd1c",
+    "sources.parquet": "1a1050f0dd89f940bf1144a6f9182397a1a45e391405595ac4dde0233cc47a2e",
+    "races_summary.json": "423f896ab9f685dce3f2e3ba94d1252b442adfa7edbf1dbae7f893dd50424e39",
+    "features.parquet": "0ed43f6253d3b6933b45e702e747bea1c324e11832545461e5deac8162bddf86",
+    "CHANGE-REPORT.md": "3287a82baa7233d21fc4323cb5c12439ef48cdb3bdf78c31aea5681620920374",
+    "EDITIONS.json": "95f006a1605fd5f0abd76b7a45285dda6b27f58160b6552d316039cb9f228943",
+    "FEATURE-FIELD-NOTES.md": "e591bf63f95033e1f172981202c35cbf11b0a14759f5385913a8a5e753b43473",
+    "ID-CONTRACT.md": "6a90dea1e6ce15b1f10ac87c3cd44372fcb9e988353c4fd6d72fbd492041a094",
+    "README.md": "f5258003ee111d15f5d0385fc2ec0fc820d5345fb9313b72ea0ec40acd04fdd1",
+    "SHA256SUMS.txt": "36041651e66e367af5af3bd8e0104d2aa72d4dcabcb167b11658283a49b6be16"
+  },
+  "manifest_size_notes": [],
+  "r_ids": {
+    "rows": 4915355,
+    "non_null": 4915355,
+    "unique_ids": 4915355
+  },
+  "f_ids": {
+    "rows": 4915355,
+    "non_null": 4915355,
+    "unique_ids": 4915355
+  },
+  "alignment": {
+    "joined": 4915355,
+    "unmatched": 0,
+    "edition_mismatch": 0,
+    "name_mismatch": 0,
+    "age_mismatch": 0
+  },
+  "sex_normalization": [
+    {
+      "raw_sex": "X",
+      "feature_sex": "NULL",
+      "rows": 701
+    }
+  ],
+  "timings": [
+    {
+      "comparable": 4831672,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 1.8189894035458565e-12,
+      "raw": "split_5km",
+      "feature": "cum_05"
+    },
+    {
+      "comparable": 4802509,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 1.8189894035458565e-12,
+      "raw": "split_10km",
+      "feature": "cum_10"
+    },
+    {
+      "comparable": 4700681,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 3.637978807091713e-12,
+      "raw": "split_15km",
+      "feature": "cum_15"
+    },
+    {
+      "comparable": 4329061,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 7.275957614183426e-12,
+      "raw": "split_20km",
+      "feature": "cum_20"
+    },
+    {
+      "comparable": 4108300,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 7.275957614183426e-12,
+      "raw": "split_25km",
+      "feature": "cum_25"
+    },
+    {
+      "comparable": 4099418,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 7.275957614183426e-12,
+      "raw": "split_30km",
+      "feature": "cum_30"
+    },
+    {
+      "comparable": 4089245,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 1.4551915228366852e-11,
+      "raw": "split_35km",
+      "feature": "cum_35"
+    },
+    {
+      "comparable": 4080128,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 2.1827872842550278e-11,
+      "raw": "split_40km",
+      "feature": "cum_40"
+    },
+    {
+      "comparable": 4886449,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 7.275957614183426e-12,
+      "raw": "split_42_2km",
+      "feature": "finish_time"
+    }
+  ],
+  "coverage": {
+    "raw_records": 4915355,
+    "cities": 34,
+    "race_years": 287,
+    "max_ingested_at": "2026-10-16T20:51:53Z",
+    "null_age": 3263720
+  },
+  "features": {
+    "valid_splits": 4007503,
+    "sustained_slowdown_among_valid": 1209910,
+    "null_name": 11,
+    "supplied_dates": 0
+  },
+  "course_validity": {
+    "profiles": 33,
+    "valid_from": 1,
+    "valid_to": 0
+  },
+  "weather": {
+    "rows": 288,
+    "unique_editions": 288,
+    "dates_agree": 288
+  },
+  "checksum_list": {
+    "listed": 13,
+    "matched": [
+      "CHANGE-REPORT.md",
+      "EDITIONS.json",
+      "FEATURE-FIELD-NOTES.md",
+      "ID-CONTRACT.md",
+      "MANIFEST.json",
+      "README.md",
+      "course_profiles.parquet",
+      "course_segments.parquet",
+      "features.parquet",
+      "race_conditions.parquet",
+      "race_records.parquet",
+      "races_summary.json",
+      "sources.parquet"
+    ],
+    "mismatched": [],
+    "missing": [],
+    "unlisted": []
+  },
+  "producer_counts": {
+    "editions": 287,
+    "records": 4915355,
+    "records_with_5km": 4831672,
+    "editions_json_tag": "htw-db-2026-10-16-1652",
+    "editions_json_baseline": "private-export-20260912-0934",
+    "editions_json_total": 4915355,
+    "manifest_race_years": 287,
+    "editions_json_mismatches": [],
+    "races_summary_mismatches": [],
+    "editions_json_previous_rows": 4462379
+  },
+  "core_full_shared_hashes_match": true,
+  "core_full_shared_members": [
+    "CHANGE-REPORT.md",
+    "EDITIONS.json",
+    "ID-CONTRACT.md",
+    "MANIFEST.json",
+    "README.md",
+    "SHA256SUMS.txt",
+    "course_profiles.parquet",
+    "course_segments.parquet",
+    "race_conditions.parquet",
+    "race_records.parquet",
+    "races_summary.json",
+    "sources.parquet"
+  ],
+  "core_provenance": {
+    "repository": "koolkam00/pace-notes",
+    "release_tag": "htw-db-2026-10-16-1652",
+    "release_published_at": "2026-10-16T21:02:29Z",
+    "asset": "htw-db-CORE-20261016-1652.tar.gz",
+    "asset_sha256": "c747b2a46bcd69279cf6394a4eecbb16faaf2cd6d71f16af2d7dcfcac7e9ab90",
+    "bundle": "CORE",
+    "manifest_sha256": "c21298e62ea0780c9c1237aa0fc11ef7025e3ac84c186990968bf5d9e8fe40c6"
+  },
+  "core_checksum_list": {
+    "listed": 13,
+    "matched": [
+      "CHANGE-REPORT.md",
+      "EDITIONS.json",
+      "ID-CONTRACT.md",
+      "MANIFEST.json",
+      "README.md",
+      "course_profiles.parquet",
+      "course_segments.parquet",
+      "race_conditions.parquet",
+      "race_records.parquet",
+      "races_summary.json",
+      "sources.parquet"
+    ],
+    "mismatched": [],
+    "missing": [
+      "FEATURE-FIELD-NOTES.md",
+      "features.parquet"
+    ],
+    "unlisted": []
+  },
+  "previous_delta": {
+    "added": 569263,
+    "deleted": 116287,
+    "changed": 242649,
+    "unchanged": 4103443
+  },
+  "previous_release": "private-export-20260912-0934",
+  "previous_delta_by_edition": [
+    {
+      "city": "Berlin",
+      "year": 2026,
+      "added": 50083,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Boston",
+      "year": 2013,
+      "added": 17580,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Boston",
+      "year": 2014,
+      "added": 31804,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Boston",
+      "year": 2015,
+      "added": 26610,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Boston",
+      "year": 2021,
+      "added": 15384,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2015,
+      "added": 5101,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2016,
+      "added": 34042,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2018,
+      "added": 44550,
+      "deleted": 51967,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2019,
+      "added": 45864,
+      "deleted": 51807,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2022,
+      "added": 39304,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2023,
+      "added": 48430,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2024,
+      "added": 320,
+      "deleted": 0,
+      "changed": 2
+    },
+    {
+      "city": "Chicago",
+      "year": 2026,
+      "added": 54488,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Cologne",
+      "year": 2026,
+      "added": 9667,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2025,
+      "added": 4349,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2026,
+      "added": 4471,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Frankfurt",
+      "year": 2018,
+      "added": 10617,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Frankfurt",
+      "year": 2019,
+      "added": 10554,
+      "deleted": 12513,
+      "changed": 0
+    },
+    {
+      "city": "Frankfurt",
+      "year": 2023,
+      "added": 8331,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Frankfurt",
+      "year": 2024,
+      "added": 8869,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Frankfurt",
+      "year": 2025,
+      "added": 10702,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Oslo",
+      "year": 2026,
+      "added": 3461,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Paris",
+      "year": 2014,
+      "added": 0,
+      "deleted": 0,
+      "changed": 38481
+    },
+    {
+      "city": "Paris",
+      "year": 2015,
+      "added": 0,
+      "deleted": 0,
+      "changed": 39652
+    },
+    {
+      "city": "Paris",
+      "year": 2016,
+      "added": 0,
+      "deleted": 0,
+      "changed": 41358
+    },
+    {
+      "city": "Paris",
+      "year": 2017,
+      "added": 0,
+      "deleted": 0,
+      "changed": 41593
+    },
+    {
+      "city": "Paris",
+      "year": 2018,
+      "added": 0,
+      "deleted": 0,
+      "changed": 41942
+    },
+    {
+      "city": "Prague",
+      "year": 2025,
+      "added": 7635,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Stockholm",
+      "year": 2025,
+      "added": 17051,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Tokyo",
+      "year": 2016,
+      "added": 1000,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Tokyo",
+      "year": 2017,
+      "added": 1000,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Tokyo",
+      "year": 2018,
+      "added": 1000,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Tokyo",
+      "year": 2026,
+      "added": 417,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Valencia",
+      "year": 2022,
+      "added": 0,
+      "deleted": 0,
+      "changed": 4178
+    },
+    {
+      "city": "Valencia",
+      "year": 2023,
+      "added": 0,
+      "deleted": 0,
+      "changed": 5342
+    },
+    {
+      "city": "Valencia",
+      "year": 2024,
+      "added": 0,
+      "deleted": 0,
+      "changed": 6182
+    },
+    {
+      "city": "Vienna",
+      "year": 2023,
+      "added": 5659,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Vienna",
+      "year": 2024,
+      "added": 6115,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Warsaw",
+      "year": 2015,
+      "added": 0,
+      "deleted": 0,
+      "changed": 7361
+    },
+    {
+      "city": "Warsaw",
+      "year": 2016,
+      "added": 0,
+      "deleted": 0,
+      "changed": 6591
+    },
+    {
+      "city": "Warsaw",
+      "year": 2017,
+      "added": 0,
+      "deleted": 0,
+      "changed": 5522
+    },
+    {
+      "city": "Warsaw",
+      "year": 2018,
+      "added": 0,
+      "deleted": 0,
+      "changed": 4445
+    },
+    {
+      "city": "Warsaw",
+      "year": 2019,
+      "added": 4539,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Warsaw",
+      "year": 2020,
+      "added": 853,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Warsaw",
+      "year": 2021,
+      "added": 2736,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Warsaw",
+      "year": 2022,
+      "added": 3711,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Warsaw",
+      "year": 2023,
+      "added": 5556,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Warsaw",
+      "year": 2024,
+      "added": 7074,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Warsaw",
+      "year": 2025,
+      "added": 9531,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Warsaw",
+      "year": 2026,
+      "added": 10805,
+      "deleted": 0,
+      "changed": 0
+    }
+  ],
+  "previous_changed_columns": {
+    "race": 23919,
+    "year": 0,
+    "city": 0,
+    "runner": 0,
+    "sex": 15702,
+    "age": 0,
+    "age_group": 0,
+    "split_5km": 0,
+    "split_10km": 202094,
+    "split_15km": 202417,
+    "split_20km": 202494,
+    "split_25km": 202579,
+    "split_30km": 202579,
+    "split_35km": 202831,
+    "split_40km": 203026,
+    "split_42_2km": 0,
+    "source_url": 0,
+    "ingested_at": 2,
+    "age_or_group": 0
+  }
+}

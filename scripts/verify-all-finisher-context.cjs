@@ -142,7 +142,8 @@ for (let index = 0; index < runners.editions.length; index++) {
   if (edition.terrain) {
     const terrainData = edition.terrain;
     assert.equal(terrainData.historical_validity_known, false);
-    assert.equal(terrainData.valid_from_year, null); assert.equal(terrainData.valid_to_year, null);
+    assert.ok(terrainData.valid_from_year === null || terrainData.valid_from_year <= edition.edition.year, 'Route validity starts after this edition');
+    assert.ok(terrainData.valid_to_year === null || terrainData.valid_to_year >= edition.edition.year, 'Route validity ended before this edition');
     assert.equal(terrainData.sections[0].start_km, 0); assert.equal(terrainData.sections[0].end_km, 5);
     assert.ok(finite(terrainData.sections[0].net_m)); net = terrainData.sections[0].net_m;
   } else assert.equal(typeof edition.terrain_reason, 'string');

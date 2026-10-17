@@ -21,7 +21,7 @@ jobs:
   analyse:
     if: >-
       github.repository == 'koolkam00/pace-notes' &&
-      (github.event_name != 'release' || startsWith(github.event.release.tag_name, 'private-export-'))
+      (github.event_name != 'release' || startsWith(github.event.release.tag_name, 'private-export-') || startsWith(github.event.release.tag_name, 'htw-db-'))
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

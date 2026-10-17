@@ -195,6 +195,21 @@ class RunnerEnvironmentTests(unittest.TestCase):
         self.assertIn("No course", result["Absent", 2020, "Test Marathon"]["terrain_reason"])
         json.dumps(list(result.values()), allow_nan=False)
 
+    def test_supplied_route_validity_years_are_respected(self):
+        # Warsaw's profile is supplied as valid from 2019; its 2015-2018 editions were another race and route.
+        profile, sections = terrain_fixture()
+        profile["valid_from_year"] = 2019
+        editions = [dict(city="Test", year=2018, race="Test Marathon"), dict(city="Test", year=2019, race="Test Marathon")]
+        result = self.build_fixture([], [profile], sections, editions)
+        self.assertIsNone(result["Test", 2018, "Test Marathon"]["terrain"])
+        self.assertIn("applies from 2019 only", result["Test", 2018, "Test Marathon"]["terrain_reason"])
+        terrain = result["Test", 2019, "Test Marathon"]["terrain"]
+        self.assertEqual((terrain["valid_from_year"], terrain["valid_to_year"], terrain["historical_validity_known"]), (2019, None, False))
+        profile["valid_from_year"], profile["valid_to_year"] = None, 2018
+        result = self.build_fixture([], [profile], sections, editions)
+        self.assertIsNotNone(result["Test", 2018, "Test Marathon"]["terrain"])
+        self.assertIn("until 2018", result["Test", 2019, "Test Marathon"]["terrain_reason"])
+
     def test_ambiguous_weather_raw_editions_profiles_and_names_remain_absent(self):
         weather = weather_fixture()
         profile, sections = terrain_fixture()

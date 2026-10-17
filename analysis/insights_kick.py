@@ -17,8 +17,8 @@ uses the story cohort; the shape screens do not change it materially.
 """
 import numpy as np
 
-from insights_data import start_offset_screen, sustained_slowdown
-from insights_stats import MIN_CELL, r
+from insights_data import faster_pace, start_offset_screen, sustained_slowdown
+from insights_stats import MIN_CELL, SHARE_DIGITS, count_phrase, r
 
 EPS = 1e-12
 SECTIONS = ['0–5', '5–10', '10–15', '15–20', '20–25', '25–30', '30–35', '35–40', '40–42.2']
@@ -89,28 +89,32 @@ def build(full):
     R = R0[keep_grid]
     P = s.paces
     kick = kick0[keep_grid]
+    # Faster over the final 2.195 km than over 35–40 km; an exact pace tie is not faster (insights_data.faster_pace).
+    kick_faster = faster_pace(P[:, 8], P[:, 7])
     n = s.n
     detected, first_sec, end_sec = episodes(R)
 
     # 1. The finish-line magnet: share faster than the previous section, all finishes and sustained slowdowns.
     magnet = []
     for i in range(4, 9):
-        faster = P[:, i] < P[:, i - 1]
-        magnet.append(dict(section=SECTIONS[i], previous=SECTIONS[i - 1], all=r(faster.mean(), 4), slowdown=r(faster[detected].mean(), 4)))
+        faster = faster_pace(P[:, i], P[:, i - 1])
+        magnet.append(dict(section=SECTIONS[i], previous=SECTIONS[i - 1], all=r(faster.mean(), SHARE_DIGITS), slowdown=r(faster[detected].mean(), SHARE_DIGITS)))
     gain = (P[:, 7] - P[:, 8]) * 2.195
     kick_summary = dict(
-        n=int(n), faster=int((kick < 0).sum()), share=r((kick < 0).mean(), 4), median_kick=r(np.median(kick), 5), median_gain_s=r(np.median(gain), 1),
-        slowdown_n=int(detected.sum()), slowdown_faster=int((kick[detected] < 0).sum()), slowdown_share=r((kick[detected] < 0).mean(), 4),
-        slowdown_final_below_baseline=r((R[detected, 8] < 0).mean(), 4), other_final_below_baseline=r((R[~detected, 8] < 0).mean(), 4),
-        slowdown_final_median_vs_baseline=r(np.median(R[detected, 8]), 4))
+        n=int(n), faster=int(kick_faster.sum()), share=r(kick_faster.mean(), SHARE_DIGITS), median_kick=r(np.median(kick), SHARE_DIGITS),
+        median_gain_s=r(np.median(gain), 1),
+        slowdown_n=int(detected.sum()), slowdown_faster=int(kick_faster[detected].sum()), slowdown_share=r(kick_faster[detected].mean(), SHARE_DIGITS),
+        slowdown_final_below_baseline=r(faster_pace(P[detected, 8], s.baseline[detected]).mean(), SHARE_DIGITS),
+        other_final_below_baseline=r(faster_pace(P[~detected, 8], s.baseline[~detected]).mean(), SHARE_DIGITS),
+        slowdown_final_median_vs_baseline=r(np.median(R[detected, 8]), SHARE_DIGITS))
     # by how slow 35–40 km was
     by_slow = []
     for lo, hi, label in ((-1, 0, 'Faster than 5–20 km pace'), (0, .05, '0–5% slower'), (.05, .10, '5–10% slower'), (.10, .15, '10–15% slower'),
                           (.15, .25, '15–25% slower'), (.25, .40, '25–40% slower'), (.40, .60, '40–60% slower'), (.60, 10, '60% or more slower')):
         m = (R[:, 7] >= lo) & (R[:, 7] < hi)
         if m.sum() >= MIN_CELL:
-            by_slow.append(dict(label=label, n=int(m.sum()), share=r((kick[m] < 0).mean(), 4), median_gain_s=r(np.median(gain[m]), 1),
-                                final_vs_baseline=r(np.median(R[m, 8]), 4)))
+            by_slow.append(dict(label=label, n=int(m.sum()), share=r(kick_faster[m].mean(), SHARE_DIGITS), median_gain_s=r(np.median(gain[m]), 1),
+                                final_vs_baseline=r(np.median(R[m, 8]), SHARE_DIGITS)))
 
     # 2. States and flows after 20 km.
     S = np.digitize(R + EPS, [.05, .10, .25])
@@ -128,12 +132,12 @@ def build(full):
     room = detected & (end_sec <= 6)  # a full 5 km section remains after the first episode
     recovery = dict(
         slowdown_n=int(detected.sum()), full_section_within_10=int(second_wind[detected].sum()), any_within_10=int(any_back[detected].sum()),
-        room_n=int(room.sum()), share_full_section_room=r(second_wind[room].mean(), 4),
-        share_full_section=r(second_wind[detected].mean(), 4), share_any=r(any_back[detected].mean(), 4),
-        women_n=int((detected & (gen == 2)).sum()), women_any=r(any_back[detected & (gen == 2)].mean(), 4),
-        men_n=int((detected & (gen == 1)).sum()), men_any=r(any_back[detected & (gen == 1)].mean(), 4),
-        stay=[dict(source=SECTIONS[i], target=SECTIONS[i + 1], n=int((S[:, i] == 3).sum()), stay=r((S[S[:, i] == 3, i + 1] == 3).mean(), 4),
-                   back_within_10=r((S[S[:, i] == 3, i + 1] <= 1).mean(), 4)) for i in (5, 6)])
+        room_n=int(room.sum()), share_full_section_room=r(second_wind[room].mean(), SHARE_DIGITS),
+        share_full_section=r(second_wind[detected].mean(), SHARE_DIGITS), share_any=r(any_back[detected].mean(), SHARE_DIGITS),
+        women_n=int((detected & (gen == 2)).sum()), women_any=r(any_back[detected & (gen == 2)].mean(), SHARE_DIGITS),
+        men_n=int((detected & (gen == 1)).sum()), men_any=r(any_back[detected & (gen == 1)].mean(), SHARE_DIGITS),
+        stay=[dict(source=SECTIONS[i], target=SECTIONS[i + 1], n=int((S[:, i] == 3).sum()), stay=r((S[S[:, i] == 3, i + 1] == 3).mean(), SHARE_DIGITS),
+                   back_within_10=r((S[S[:, i] == 3, i + 1] <= 1).mean(), SHARE_DIGITS)) for i in (5, 6)])
 
     # 3. Where the field breaks: section distribution of pace vs own 5–20 km pace, overall and by 5–20 km pace band.
     def section_rows(mask):
@@ -141,8 +145,8 @@ def build(full):
         for i in range(9):
             v = R[mask, i]
             q = np.quantile(v, [.1, .25, .5, .75, .9])
-            out.append(dict(section=SECTIONS[i], p10=r(q[0], 4), p25=r(q[1], 4), p50=r(q[2], 4), p75=r(q[3], 4), p90=r(q[4], 4),
-                            over10=r((v > .10).mean(), 4), over25=r(((v + EPS) >= .25).mean(), 4)))
+            out.append(dict(section=SECTIONS[i], **{f'p{p}': r(v_q, SHARE_DIGITS) for p, v_q in zip((10, 25, 50, 75, 90), q)},
+                            over10=r((v > .10).mean(), SHARE_DIGITS), over25=r(((v + EPS) >= .25).mean(), SHARE_DIGITS)))
         return out
     edges = [150, 180, 210, 240, 270, 300, 330, 360]
     labels = ['Under 2:30', '2:30–3:00', '3:00–3:30', '3:30–4:00', '4:00–4:30', '4:30–5:00', '5:00–5:30', '5:30–6:00', '6:00 and over']
@@ -154,7 +158,7 @@ def build(full):
             continue
         rows = section_rows(m)
         majority = next((row['section'] for row in rows[4:] if row['over10'] > .5), None)
-        breaks['bands'].append(dict(label=label, n=int(m.sum()), slowdown=r(detected[m].mean(), 4), break_section=majority, sections=rows))
+        breaks['bands'].append(dict(label=label, n=int(m.sum()), slowdown=r(detected[m].mean(), SHARE_DIGITS), break_section=majority, sections=rows))
 
     # 4. Warning lights: later sustained slowdown among finishes without one so far, by how slow the latest section was.
     hit = (R[:, 4:8] + EPS) >= .25
@@ -167,7 +171,7 @@ def build(full):
         for lo, hi, label in bins:
             m = clean & (R[:, sec] >= lo) & (R[:, sec] < hi)
             if m.sum() >= MIN_CELL:
-                rows.append(dict(label=label, n=int(m.sum()), later=r(later_hit[m].mean(), 4)))
+                rows.append(dict(label=label, n=int(m.sum()), later=r(later_hit[m].mean(), SHARE_DIGITS)))
         warning.append(dict(after=SECTIONS[sec], rows=rows))
 
     # 5. Bank and pay: same race, same 5–20 km pace (5 s/km), leave-one-out residuals by opening pace.
@@ -182,7 +186,7 @@ def build(full):
         m = ok & (opening >= lo) & (opening < lo + 1)
         if m.sum() < MIN_CELL:
             continue
-        curve.append(dict(lo=lo, n=int(m.sum()), slowdown=r(detected[m].mean(), 4), excess=r(resid[m, 3].mean(), 4),
+        curve.append(dict(lo=lo, n=int(m.sum()), slowdown=r(detected[m].mean(), SHARE_DIGITS), excess=r(resid[m, 3].mean(), SHARE_DIGITS),
                           open_s=r(resid[m, 0].mean(), 1), after20_s=r(resid[m, 2].mean(), 1),
                           finish_s=r((resid[m, 0] + resid[m, 1] + resid[m, 2]).mean(), 1)))
     opening_bands = []
@@ -190,7 +194,7 @@ def build(full):
                           (2.000001, 5.000001, '2–5% slower'), (5.000001, 1e9, 'More than 5% slower')):
         m = ok & (opening >= lo) & (opening < hi)
         if m.sum() >= MIN_CELL:
-            opening_bands.append(dict(label=label, n=int(m.sum()), slowdown=r(detected[m].mean(), 4), expected=r(loo[m, 3].mean(), 4),
+            opening_bands.append(dict(label=label, n=int(m.sum()), slowdown=r(detected[m].mean(), SHARE_DIGITS), expected=r(loo[m, 3].mean(), SHARE_DIGITS),
                                       open_s=r(resid[m, 0].mean(), 1), after20_s=r(resid[m, 2].mean(), 1),
                                       finish_s=r((resid[m, 0] + resid[m, 1] + resid[m, 2]).mean(), 1)))
 
@@ -235,8 +239,8 @@ def build(full):
             m = (band == k) & (gen == code)
             if m.sum() >= MIN_CELL:
                 row[f'{name}_n'] = int(m.sum())
-                row[name] = r((kick[m] < 0).mean(), 4)
-                row[f'{name}_35_40'] = r(np.median(R[m, 7]), 4)
+                row[name] = r(kick_faster[m].mean(), SHARE_DIGITS)
+                row[f'{name}_35_40'] = r(np.median(R[m, 7]), SHARE_DIGITS)
         if 'women' in row and 'men' in row:
             gender_kick.append(row)
 
@@ -251,7 +255,8 @@ def build(full):
         method=('Each section is compared with the runner\'s own 5–20 km pace, the baseline of the sustained-slowdown definition: at least 25% '
                 'slower for at least 5 km after 20 km. The kick compares the final 2.195 km with 35–40 km. Same-race comparisons use strata '
                 'of one edition and one 5 s/km band of 5–20 km pace with at least 100 finishes, and leave each finish out of its own '
-                'stratum\'s mean. Thirteen start-offset editions and two editions whose timing grid looks shifted are left out.'),
+                f'stratum\'s mean. Left out: {count_phrase(len(offset_audit), "start-offset edition")} and '
+                f'{count_phrase(len(grid_audit), "edition")} whose timing grid looks shifted.'),
     )
 
 
@@ -271,7 +276,7 @@ def follow(s, detected, key, loo, ok):
     after = detected[a]
     same_course = s.city[a] == s.city[b]
     def cell(m):
-        return dict(pairs=int(m.sum()), observed=r(detected[b][m].mean(), 4), expected=r(expected[m].mean(), 4)) if m.sum() >= MIN_CELL else None
+        return dict(pairs=int(m.sum()), observed=r(detected[b][m].mean(), SHARE_DIGITS), expected=r(expected[m].mean(), SHARE_DIGITS)) if m.sum() >= MIN_CELL else None
     return dict(pairs=int(len(a)), after_slowdown=cell(after), after_none=cell(~after),
                 after_slowdown_same_course=cell(after & same_course), after_slowdown_other_course=cell(after & ~same_course),
                 note='Pairs are consecutive eligible races of one screened candidate profile, 1–3 years apart; profiles are not verified people.')

@@ -1,6 +1,6 @@
 {
-  "answer_prose": "In unseen 2024\u20132026 race editions, the trend model\u2019s median finish-time error was 6.5 minutes at 20 km and 4.0 minutes at 30 km.",
-  "detail_prose": "All model fitting uses editions before 2024; all checkpoints are evaluated on the same 869,761 complete finishes in the later years.",
+  "answer_prose": "In unseen 2024\u20132026 race editions, the trend model\u2019s median finish-time error was 6.6 minutes at 20 km and 4.0 minutes at 30 km.",
+  "detail_prose": "All model fitting uses editions before 2024; all checkpoints are evaluated on the same 1,039,712 complete finishes in the later years.",
   "charts": [
     {
       "title": "Median finish-time error in later race years",
@@ -57,7 +57,7 @@
     "training_before_year": 2024,
     "test_start_year": 2024,
     "test_end_year": 2026,
-    "training_n": 2647575,
-    "test_n": 869761
+    "training_n": 2832055,
+    "test_n": 1039712
   }
 }

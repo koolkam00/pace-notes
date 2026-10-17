@@ -232,7 +232,7 @@ export function StretchStrip({ stretch: given }: { stretch?: NonNullable<ReplayI
     <div className="viz-card">
       <div className="viz-head"><div><p className="viz-title">{stretch.wider_after_20} of {stretch.editions.length} races stretch after {checkpointLabel(20, units)}</p><p className="viz-sub">Spread of the field from {checkpointLabel(20, units)} to {checkpointLabel(40, units)}, against the first {checkpointLabel(20, units)}</p></div></div>
       <div ref={ref} className="viz">
-        <svg width={width} height={H} role="img" aria-label={`All ${stretch.editions.length} editions sit to the right of 1, from ${stretch.min.stretch.toFixed(2)} to ${stretch.max.stretch.toFixed(2)}.`}>
+        <svg width={width} height={H} role="img" aria-label={`${stretch.wider_after_20 === stretch.editions.length ? 'All' : `${stretch.wider_after_20} of`} ${stretch.editions.length} editions sit to the right of 1, from ${stretch.min.stretch.toFixed(2)} to ${stretch.max.stretch.toFixed(2)}.`}>
           <line x1={x(1)} x2={x(1)} y1={14} y2={H - 30} stroke="var(--ink)" strokeWidth={1.5} />
           {width >= 560 ? <text x={x(1) - 6} y={22} textAnchor="end" className="annotation-sub">narrower after {checkpointLabel(20, units)}</text> : null}
           <text x={x(1) + 6} y={22} className="annotation-sub">wider after {checkpointLabel(20, units)} →</text>

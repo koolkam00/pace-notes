@@ -44,7 +44,7 @@ export default function SiteNav({ id, onFollow }: { id?: string; onFollow?: () =
     <span className="nav-more">
       <Link href="/about" aria-current={path === '/about' ? 'page' : undefined}>About</Link>
       <Link href="/request-analysis" aria-current={path === '/request-analysis' ? 'page' : undefined}>Request an analysis</Link>
-      <a href="https://github.com/koolkam00/htw-live-study/releases">Open data <span aria-hidden="true">↗</span></a>
+      <a href="https://github.com/koolkam00/pace-notes/releases">Open data <span aria-hidden="true">↗</span></a>
     </span>
   </nav>;
 }

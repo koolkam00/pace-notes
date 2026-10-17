@@ -193,8 +193,8 @@ def runner_terrain(profile, segments):
             min_elevation_m=float(profile["elev_min_m"]), max_elevation_m=float(profile["elev_max_m"]),
             points=[dict(distance_km=float(p["d_km"]), elevation_m=float(p["elev_m"])) for p in points],
             source=profile["source"], source_url=profile["source_url"], notes=profile.get("notes") or "",
-            updated_at=profile.get("updated_at"), valid_from_year=profile.get("valid_from_year"),
-            valid_to_year=profile.get("valid_to_year"), historical_validity_known=False,
+            updated_at=profile.get("updated_at"), valid_from_year=validity_years(profile)[0],
+            valid_to_year=validity_years(profile)[1], historical_validity_known=False,
             context_label=TERRAIN_CONTEXT, aggregation_method=TERRAIN_METHOD)
         result["profile_distance_note"] = (
             f"The supplied profile track is {profile['distance_km']:.3f} km; the supplied sections "
@@ -204,6 +204,30 @@ def runner_terrain(profile, segments):
         return result, None
     except (KeyError, ValueError, TypeError, IndexError, OverflowError) as exc:
         return None, "Course profile failed validation: " + str(exc) + "."
+
+
+def validity_years(profile):
+    """The supplied validity years as integers (parquet stores them as doubles), or None."""
+    years = []
+    for key in ("valid_from_year", "valid_to_year"):
+        value = profile.get(key)
+        if value is not None and (not finite_number(value) or value != int(value)):
+            raise ValueError("invalid course validity year")
+        years.append(None if value is None else int(value))
+    return tuple(years)
+
+
+def within_validity(profile, year):
+    """True unless the profile supplies a validity interval that excludes this edition year."""
+    start, end = validity_years(profile)
+    return (start is None or year >= start) and (end is None or year <= end)
+
+
+def validity_reason(profile, year):
+    start, end = validity_years(profile)
+    span = f"{start}\u2013{end}" if start is not None and end is not None else (f"from {start}" if start is not None else f"until {end}")
+    return (f"The supplied course profile applies {span} only, so it is not attached to this {year} edition. "
+            "No route for this year was supplied.")
 
 
 def build_environment(db, source, editions):
@@ -245,6 +269,10 @@ def build_environment(db, source, editions):
             context["terrain_reason"] = "Multiple course profiles were supplied; a historical route cannot be selected."
         elif not same_name(race, candidates[0]["race"]):
             context["terrain_reason"] = "The supplied course profile race name does not match this recorded race."
+        elif not within_validity(candidates[0], year):
+            # A supplied validity interval (Warsaw's profile starts in 2019, when its autumn race began) is
+            # respected; a year outside it gets no route rather than another race's course.
+            context["terrain_reason"] = validity_reason(candidates[0], year)
         else:
             profile = candidates[0]
             if city not in terrain_cache:

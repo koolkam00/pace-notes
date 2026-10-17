@@ -1,6 +1,6 @@
 {
   "answer_prose": "Courses have distinct recorded pacing profiles. Choose a city to see where runners tend to speed up or slow down relative to their own average.",
-  "detail_prose": "Individual split profiles are available for 29 cities with at least 100 eligible finishes each.",
+  "detail_prose": "Individual split profiles are available for 28 cities with at least 100 eligible finishes each.",
   "charts": [
     {
       "title": "Pace through the selected course",

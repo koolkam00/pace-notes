@@ -1,6 +1,7 @@
 """Small fixtures distinguish timing failures, edition holds and demographics."""
 import copy
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,7 +9,8 @@ from pathlib import Path
 import duckdb
 
 from build_pacing import FIELDS, Publisher, prepare
-from source_quality import RELEASE, RULES, LATEST_RELEASE, LATEST_RULES, policy_metadata, source_quality_report, validate_source_quality
+from source_quality import (RELEASE, RULES, LATEST_RELEASE, LATEST_RULES, RELEASE_1652, RULES_1652, REVIEWED_POLICIES,
+                            policy_metadata, source_quality_report, validate_source_quality)
 
 
 def fixture(source, tag, rules=RULES):
@@ -43,6 +45,50 @@ class SourceQualityTests(unittest.TestCase):
         historical = policy_metadata(RELEASE)
         self.assertEqual(len(historical['editions']), 10)
         self.assertIn('200 records', next(row['reason'] for row in historical['editions'] if row['city'] == 'New York'))
+
+    def test_htw_db_release_has_its_own_reviewed_policy(self):
+        self.assertEqual(set(REVIEWED_POLICIES), {RELEASE, LATEST_RELEASE, RELEASE_1652})
+        keys = [(city, year) for city, year, _, _ in RULES_1652]
+        self.assertEqual(len(keys), len(set(keys)))
+        self.assertEqual(len(RULES_1652), 30)
+        self.assertTrue({category for _, _, category, _ in RULES_1652} <= {
+            'invalid_split_grid', 'incomplete_ingestion', 'unreconciled_hold', 'selected_field'})
+        rule = {(city, year): (category, reason) for city, year, category, reason in RULES_1652}
+        # Released: the reloaded Chicago 2016 (its old reason described a 6,512-record partial load).
+        self.assertNotIn(('Chicago', 2016), rule)
+        self.assertFalse(any('6,512' in reason for _, reason in rule.values()))
+        # Producer flags and lists: the partial Chicago 2015, Oslo 2026, top-500 Tokyo lists, the stopped Boston 2013.
+        self.assertEqual(rule[('Chicago', 2015)][0], 'incomplete_ingestion')
+        self.assertEqual(rule[('Oslo', 2026)][0], 'incomplete_ingestion')
+        for year in (2016, 2017, 2018, 2026):
+            self.assertEqual(rule[('Tokyo', year)][0], 'selected_field')
+        self.assertEqual(rule[('Boston', 2013)][0], 'selected_field')
+        # Frankfurt 2019 now holds the real race but the producer engine still drops it: a hold, not a grid defect.
+        self.assertEqual(rule[('Frankfurt', 2019)][0], 'unreconciled_hold')
+        for key in [('Paris', y) for y in range(2014, 2019)] + [('New York', 2007), ('Barcelona', 2019), ('Eindhoven', 2026),
+                                                                ('Gold Coast', 2024), ('Auckland', 2018), ('Dubai', 2025), ('Amsterdam', 2020)]:
+            self.assertEqual(rule[key][0], 'invalid_split_grid', key)
+        # Carried forward byte for byte from the reviewed 0934 policy.
+        carried = {(c, y): r for c, y, *r in LATEST_RULES}
+        for key in [('Honolulu', 2016), ('Rotterdam', 2012), ('Eindhoven', 2009), ('Eindhoven', 2010), ('New York', 2008),
+                    ('Amsterdam', 2025), ('Valencia', 2017), ('Valencia', 2018)]:
+            self.assertEqual(list(rule[key]), carried[key])
+        # Visitor-visible reasons never carry internal release labels.
+        self.assertFalse(any('private-export' in reason or 'htw-db' in reason for _, reason in rule.values()))
+        # Nor the rank words the course pages' copy check rejects (scripts/verify-courses.cjs RANK); the reasons are printed there.
+        rank = re.compile(r'\b(?:rank|ranks|ranked|ranking|rankings|fastest|toughest|hardest|easiest|harder|easier|tougher|similar|best|worst|top \d+)\b', re.I)
+        self.assertEqual([key for key, (_, reason) in rule.items() if rank.search(reason)], [])
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder); db = fixture(source, RELEASE_1652, RULES_1652)
+            counts = prepare(db, source, keep_record_id=True)
+            self.assertEqual(counts['source_quality_excluded'], 30)
+            self.assertEqual(counts['eligible'], 1)
+            report = source_quality_report(db, source)
+            self.assertEqual(sum(row['timing_eligible_excluded'] for row in report['editions']), 30)
+            self.assertEqual(report['release_tag'], RELEASE_1652)
+        # The two earlier reviewed policies are unchanged.
+        self.assertEqual(len(policy_metadata(LATEST_RELEASE)['editions']), 11)
+        self.assertIn(('Chicago', 2016), [(row['city'], row['year']) for row in policy_metadata(LATEST_RELEASE)['editions']])
 
     def test_known_grid_holds_and_selected_fields_are_excluded_without_double_counting(self):
         with tempfile.TemporaryDirectory() as folder:

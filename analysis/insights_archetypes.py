@@ -8,7 +8,7 @@ the race's own splits; they are descriptions, not physiology or advice.
 import numpy as np
 
 from insights_data import SECTION_KM, relative_pace, start_offset_screen, sustained_slowdown
-from insights_stats import MIN_CELL, assign, quantile, r
+from insights_stats import MIN_CELL, SHARE_DIGITS, assign, count_phrase, quantile, r
 
 NAMES = ['Metronome', 'Gentle fader', 'Late fader', 'Early drifter', 'Cliff', 'Fast-start fader']
 SLUGS = ['metronome', 'gentle-fader', 'late-fader', 'early-drifter', 'cliff', 'fast-start-fader']
@@ -105,13 +105,14 @@ def build(f):
     for j in range(6):
         m = lab == j
         archetypes.append(dict(
-            name=NAMES[j], slug=SLUGS[j], blurb=BLURBS[j], n=int(m.sum()), share=r(m.mean(), 5),
+            name=NAMES[j], slug=SLUGS[j], blurb=BLURBS[j], n=int(m.sum()), share=r(m.mean(), SHARE_DIGITS),
             profile=[r(v, 3) for v in profiles[j]],
             profile_p25=[r(quantile(R[m, k], .25), 3) for k in range(9)], profile_p75=[r(quantile(R[m, k], .75), 3) for k in range(9)],
-            median_finish_s=r(quantile(s.finish[m], .5), 1), slowdown_share=r(detected[m].mean(), 5),
-            negative_20km_share=r(neg[m].mean(), 5), women_share=r((s.gender[m] == 2).sum() / max(1, ((s.gender[m] == 1) | (s.gender[m] == 2)).sum()), 5),
+            median_finish_s=r(quantile(s.finish[m], .5), 1), slowdown_share=r(detected[m].mean(), SHARE_DIGITS),
+            negative_20km_share=r(neg[m].mean(), SHARE_DIGITS),
+            women_share=r((s.gender[m] == 2).sum() / max(1, ((s.gender[m] == 1) | (s.gender[m] == 2)).sum()), SHARE_DIGITS),
             median_after20_min=r(quantile(after20_min[m], .5), 2), median_cv=r(quantile(cv[m], .5), 3),
-            share_of_slowdowns=r((detected & m).sum() / detected.sum(), 5)))
+            share_of_slowdowns=r((detected & m).sum() / detected.sum(), SHARE_DIGITS)))
     # Mix by 15-minute finish band (the "river").
     bands = []
     for lo in range(150, 390, 15):
@@ -119,8 +120,8 @@ def build(f):
         if m.sum() < MIN_CELL:
             continue
         counts = np.bincount(lab[m], minlength=6)
-        bands.append(dict(lo_min=lo, label=band_label(lo, 15), n=int(m.sum()), shares=[r(c / m.sum(), 5) for c in counts],
-                          negative_20km_share=r(neg[m].mean(), 5), median_cv=r(quantile(cv[m], .5), 3)))
+        bands.append(dict(lo_min=lo, label=band_label(lo, 15), n=int(m.sum()), shares=[r(c / m.sum(), SHARE_DIGITS) for c in counts],
+                          negative_20km_share=r(neg[m].mean(), SHARE_DIGITS), median_cv=r(quantile(cv[m], .5), 3)))
     # Gender, standardized to the pooled men+women 30-minute band mix.
     gender_rows = {}
     mw = (s.gender == 1) | (s.gender == 2)
@@ -136,8 +137,8 @@ def build(f):
                 continue
             shares += weights[b] * np.bincount(lab[m], minlength=6) / m.sum()
             total += weights[b]
-        gender_rows[key] = dict(n=int((s.gender == g).sum()), standardized_shares=[r(v / total, 5) for v in shares],
-                                raw_shares=[r(c / (s.gender == g).sum(), 5) for c in np.bincount(lab[s.gender == g], minlength=6)])
+        gender_rows[key] = dict(n=int((s.gender == g).sum()), standardized_shares=[r(v / total, SHARE_DIGITS) for v in shares],
+                                raw_shares=[r(c / (s.gender == g).sum(), SHARE_DIGITS) for c in np.bincount(lab[s.gender == g], minlength=6)])
     # Courses, each edition weighted equally.
     courses = []
     for c, city in enumerate(s.cities):
@@ -145,13 +146,13 @@ def build(f):
         if not eds:
             continue
         mix = np.mean([np.bincount(lab[s.edition == e], minlength=6) / (s.edition == e).sum() for e in eds], axis=0)
-        courses.append(dict(city=city, editions=len(eds), finishes=int(np.isin(s.edition, eds).sum()), shares=[r(v, 5) for v in mix]))
+        courses.append(dict(city=city, editions=len(eds), finishes=int(np.isin(s.edition, eds).sum()), shares=[r(v, SHARE_DIGITS) for v in mix]))
     # Pacing barcode: 200 finish-percentile bins × 9 sections (median relative pace), plus per-minute rows.
     order = np.argsort(s.finish, kind='stable')
     bins = np.array_split(order, 200)
     barcode = [dict(lo_s=r(s.finish[b].min(), 1), hi_s=r(s.finish[b].max(), 1), n=int(len(b)),
                     median=[r(np.median(R[b, k]), 2) for k in range(9)],
-                    archetype=[r(v, 4) for v in np.bincount(lab[b], minlength=6) / len(b)]) for b in bins]
+                    archetype=[r(v, SHARE_DIGITS) for v in np.bincount(lab[b], minlength=6) / len(b)]) for b in bins]
     minute_rows = []
     whole = np.floor(minutes).astype(int)
     for mnt in range(125, 420):
@@ -159,7 +160,7 @@ def build(f):
         if m.sum() < MIN_CELL:
             continue
         minute_rows.append(dict(minute=mnt, n=int(m.sum()), median=[r(np.median(R[m, k]), 2) for k in range(9)],
-                                metronome_share=r((lab[m] == 0).mean(), 4)))
+                                metronome_share=r((lab[m] == 0).mean(), SHARE_DIGITS)))
     # Pacing sentences with at least 100 finishes.
     codes = sentence(R)
     uniq, counts = np.unique(codes, return_counts=True)
@@ -180,8 +181,9 @@ def build(f):
         method=('Relative pace compares each recorded section with the same finish\'s whole-race average pace. Profiles are clipped at the 0.1st and 99.9th '
                 'percentiles, weighted by section length and grouped by k-means into six landmarks, then named by rules: least late slowing is the '
                 'Metronome, the next is the Gentle fader, and within the two stronger pairs the one that slows earlier is the Early drifter or Fast-start fader. '
-                'Thirteen editions whose first 5 km appears to include start delay are left out of these shape statistics. Repeat pairs use screened identity '
-                'candidates with one finish in each of two years at most three years apart; they are not verified people.'),
+                f'Left out of these shape statistics: {count_phrase(len(flagged), "edition")} whose first 5 km appears to include start delay. '
+                'Repeat pairs use screened identity candidates with one finish in each of two years at most three years apart; they are not '
+                'verified people.'),
     )
 
 
@@ -209,6 +211,6 @@ def repeat_pairs(s, lab):
     rows = []
     for x in range(6):
         out = int(from_to[x].sum())
-        rows.append(dict(name=NAMES[x], pairs=out, next_shares=[r(v / out, 5) if out else 0 for v in from_to[x]],
-                         repeat_share=r(from_to[x, x] / out, 5) if out else None, overall_share=r(base[x], 5)))
-    return dict(pairs=total, repeat_share=r(np.trace(from_to) / max(1, total), 5), rows=rows)
+        rows.append(dict(name=NAMES[x], pairs=out, next_shares=[r(v / out, SHARE_DIGITS) if out else 0 for v in from_to[x]],
+                         repeat_share=r(from_to[x, x] / out, SHARE_DIGITS) if out else None, overall_share=r(base[x], SHARE_DIGITS)))
+    return dict(pairs=total, repeat_share=r(np.trace(from_to) / max(1, total), SHARE_DIGITS), rows=rows)

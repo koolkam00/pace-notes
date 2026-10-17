@@ -28,40 +28,69 @@ def archive_bytes(members):
     return output.getvalue()
 
 
-def release_asset(payload):
-    name = "marathon-FULL-20260907.tar.gz"
+def release_asset(payload, name="marathon-FULL-20260907.tar.gz", tag=TAG):
     return {
         "id": 123,
         "name": name,
         "size": len(payload),
         "digest": "sha256:" + hashlib.sha256(payload).hexdigest(),
-        "browser_download_url": f"https://github.com/{REPO}/releases/download/{TAG}/{name}",
+        "browser_download_url": f"https://github.com/{REPO}/releases/download/{tag}/{name}",
     }
 
 
 class PublicReleaseDownloads(unittest.TestCase):
-    def run_export(self, checkout, payload):
+    def run_export(self, checkout, payload, tag=TAG, bundle="FULL"):
         analysis = checkout / "analysis"
-        analysis.mkdir()
-        (analysis / "release.json").write_text(json.dumps({"repository": REPO, "tag": TAG}))
-        asset = release_asset(payload)
+        analysis.mkdir(exist_ok=True)
+        (analysis / "release.json").write_text(json.dumps({"repository": REPO, "tag": tag}))
+        asset = release_asset(payload, f"marathon-{bundle}-20260907.tar.gz", tag)
         release = {"assets": [asset], "published_at": "2026-09-07T13:18:00Z"}
         requests = []
 
         def respond(request, timeout):
             requests.append(request)
-            if request.full_url == f"https://api.github.com/repos/{REPO}/releases/tags/{TAG}":
+            if request.full_url == f"https://api.github.com/repos/{REPO}/releases/tags/{tag}":
                 return io.BytesIO(json.dumps(release).encode())
             self.assertEqual(request.full_url, asset["browser_download_url"])
             return io.BytesIO(payload)
 
-        destination = checkout / "public/data/downloads"
+        destination = checkout / "public/data/downloads" / bundle
         with patch.dict(os.environ, {}, clear=True), \
                 patch.object(download_release, "__file__", str(analysis / "download_release.py")), \
                 patch.object(download_release, "urlopen", side_effect=respond), \
                 contextlib.redirect_stdout(io.StringIO()):
-            download_release.main(["--output", str(destination), "--bundle", "FULL"])
+            download_release.main(["--output", str(destination), "--bundle", bundle])
         return destination, requests
+
+    def test_htw_db_layouts_carry_their_producer_documents(self):
+        # htw-db releases: CORE has the 8 base members plus 4 documents (12); FULL adds features and the feature notes (14).
+        tag = "htw-db-2026-10-16-1652"
+        core = download_release.EXPECTED | download_release.HTW_DB_DOCS
+        full = core | {"features.parquet"} | download_release.HTW_DB_FULL_DOCS
+        self.assertEqual((len(core), len(full)), (12, 14))
+        for bundle, members in [("CORE", core), ("FULL", full)]:
+            with self.subTest(bundle=bundle), tempfile.TemporaryDirectory() as folder:
+                payload = archive_bytes([(f"export/{name}", b"synthetic fixture") for name in sorted(members)])
+                destination, _ = self.run_export(Path(folder), payload, tag, bundle)
+                self.assertTrue(all((destination / name).is_file() for name in members))
+                provenance = json.loads((destination / "provenance.json").read_text())
+                self.assertEqual((provenance["release_tag"], provenance["bundle"]), (tag, bundle))
+        cases = [
+            ("CORE without ID-CONTRACT.md", tag, "CORE", core - {"ID-CONTRACT.md"}, "Missing CORE files"),
+            ("feature notes inside CORE", tag, "CORE", core | {"FEATURE-FIELD-NOTES.md"}, "Unexpected or duplicate"),
+            ("FULL without the feature notes", tag, "FULL", full - {"FEATURE-FIELD-NOTES.md"}, "Missing FULL files"),
+            ("htw-db documents in a private-export release", TAG, "FULL", full, "Unexpected or duplicate"),
+        ]
+        for label, case_tag, bundle, members, message in cases:
+            with self.subTest(label), tempfile.TemporaryDirectory() as folder:
+                payload = archive_bytes([(f"export/{name}", b"synthetic fixture") for name in sorted(members)])
+                with self.assertRaisesRegex(ValueError, message):
+                    self.run_export(Path(folder), payload, case_tag, bundle)
+
+    def test_other_tag_prefixes_are_refused(self):
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaisesRegex(ValueError, "release tag"):
+                self.run_export(Path(folder), b"", "latest")
 
     def test_anonymous_full_download_inside_checkout(self):
         expected = download_release.EXPECTED | {"features.parquet"}

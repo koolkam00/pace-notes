@@ -80,7 +80,7 @@ export default function Page() {
       </div>
       <div className="nugget">
         <span className="nugget-number">{study.rate.toFixed(1)}%</span>
-        {/* The study's base is the ten analyses' finishes (it includes the copy editions that the 3.4 million leaves out), so the sentence names it. */}
+        {/* The study's base is the ten analyses' finishes, so the sentence names it (under 0934 it included the copy editions the 3.4 million left out; since 1652 both are 3,871,767). */}
         <p className="nugget-text">of finishes in the {analysisWord} analyses had a <Link href="/methodology#sustained-slowdown"><strong>sustained slowdown</strong></Link>.</p>
       </div>
       <Link className="chapter-more" href="/slowdown">See where it happens <span aria-hidden="true">→</span></Link>

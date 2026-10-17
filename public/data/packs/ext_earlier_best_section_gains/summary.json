@@ -1,5 +1,5 @@
 {
-  "answer_prose": "The average improvement over an earlier-year recorded best was 18.7 minutes. The final 12.195 km supplied 7.5 of those minutes: 37.0 seconds gained per km, versus 17.8 seconds per km in the opening 10 km.",
+  "answer_prose": "The average improvement over an earlier-year recorded best was 18.9 minutes. The final 12.195 km supplied 7.6 of those minutes: 37.5 seconds gained per km, versus 17.5 seconds per km in the opening 10 km.",
   "detail_prose": "This is a best within the recorded earlier-year history. Races absent from the export and other races in the same year prevent a lifetime-PB claim.",
   "charts": [
     {
@@ -28,7 +28,7 @@
     }
   ],
   "statistics": {
-    "mean_total_gain_min": 18.727152016294024,
-    "pair_count": 278878
+    "mean_total_gain_min": 18.8759823337729,
+    "pair_count": 328461
   }
 }

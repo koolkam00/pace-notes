@@ -1,0 +1,390 @@
+{
+  "release_tag": "htw-db-2026-10-16-1652",
+  "reviewed": "2026-10-16",
+  "policy_sha256": "0aa3fa50e769921af9b8bfcb261dd6357f383545cd0c06a1091e567f83cf50ea",
+  "policy_file": "analysis/source_quality.py (RULES_1652)",
+  "status": "Repository state on branch feat/release-1652; not deployed.",
+  "inputs": {
+    "full": "htw-db-FULL-20261016-1652.tar.gz (asset sha256 c0e2e63fc826a60994cb30b28e2c2fcd57e99ffca5706d876d83c08be773215a)",
+    "core": "htw-db-CORE-20261016-1652.tar.gz (asset sha256 c747b2a46bcd69279cf6394a4eecbb16faaf2cd6d71f16af2d7dcfcac7e9ab90)",
+    "previous": "private-export-20260912-0934 race_records.parquet sha256 f684c6e4cab0df046f29d1a1e5f64ade55d0adbeec3c50b3e3912235bf386caa"
+  },
+  "process": [
+    "An analyst proposal of 18 editions was checked by two adversarial reviews: one for wrongly included editions, one for wrongly excluded ones. Every number below was re-measured on the verified FULL parquet with duckdb 1.4.4.",
+    "Producer statements (README, MANIFEST notes, sources.parquet notes) are claims; ID-CONTRACT.md and FEATURE-FIELD-NOTES.md still name the 1107 freeze and were not relied on. The canonical ID contract, labels and all nine timings were verified at runtime (release-contract.json).",
+    "Screens (a)-(c) were applied to all 287 editions with fixed thresholds (edition-screen.csv); none uses edition size."
+  ],
+  "screens": {
+    "a_residue": "Under 5% of an edition's recorded finishes pass the timing checks. Result: Paris 2014-2018 only (0.03-1.26%; 25 km blank for 97.5-99.6% of finishers after the in-place rewrite).",
+    "b_outcome_selective": "At least 75% of the fastest finish-time quartile but under 50% of the slowest passes the timing checks. Result: Gold Coast 2024 (95.1/1.4), Barcelona 2019 (79.7/17.8), Dubai 2025 (99.6/41.4), Auckland 2018 (97.1/0.0), Eindhoven 2026 (83.3/9.2). Next: Washington 2017 at 91.4/55.6, kept with a note.",
+    "c_mixed_timing_basis": "At least 25% of complete nine-checkpoint grids finish at or before 40 km or run 40-42.195 km faster than 2:00/km (gun-time checkpoints with a chip finish). Result: Eindhoven 2026 (65.9%), Barcelona 2019 (50.0%), New York 2007 (40.0%), plus the Paris residue. Next: Warsaw 2025 at 12.4%, kept with a note; New York 2006 6.6%."
+  },
+  "cohort": {
+    "raw": 4915355,
+    "duplicates_removed": 0,
+    "missing_or_unparsed": 851059,
+    "non_increasing": 25072,
+    "outside_quality_bounds": 12180,
+    "timing_eligible": 4027044,
+    "source_quality_excluded": 155277,
+    "eligible": 3871767
+  },
+  "cohort_editions_and_cities": {
+    "editions": 211,
+    "cities": 28
+  },
+  "comparisons": {
+    "0934_policy_carried_unchanged": {
+      "source_quality_excluded": 112277,
+      "eligible": 3914767
+    },
+    "analyst_proposal_18_editions": {
+      "source_quality_excluded": 164866,
+      "eligible": 3862178
+    },
+    "this_policy_30_editions": {
+      "source_quality_excluded": 155277,
+      "eligible": 3871767
+    },
+    "previous_release_0934": {
+      "timing_eligible": 3595426,
+      "source_quality_excluded": 78090,
+      "eligible": 3517336
+    }
+  },
+  "decisions": {
+    "released": [
+      {
+        "city": "Chicago",
+        "year": 2016,
+        "timing_eligible": 40416,
+        "why": "The 0934 hold described a 6,512-record partial load. The edition is now 40,554 records (18,524 women, 22,030 men); both finish-order lists run to their slowest finishers (women 9:02:37, men 9:47:56) with no gaps (largest 3-5 h gap between consecutive finishers 25 s women, 5 s men, the same as accepted Chicago years); no duplicate name+sex+finish groups; 31 records above Running USA's 40,523 finishers. It was reloaded in the same October campaign as the accepted Chicago 2018 and 2019, whose sources rows are equally stale. The producer's freeze notes and the owner's release message name only Chicago 2015 as partial."
+      }
+    ],
+    "kept_held": [
+      {
+        "city": "New York",
+        "year": 2008,
+        "why": "Unchanged since the reviewed 0934 hold (38,047 records, same September 11 sources row); outside totals conflict (NYRR 38,096; Wikipedia and MarathonGuide 37,790), so the 0934 reason, which cites no percentage, is carried. One owner or producer confirmation would release it (37,387 finishes)."
+      },
+      {
+        "city": "Frankfurt",
+        "year": 2019,
+        "why": "Recategorised from invalid_split_grid to unreconciled_hold. The 0934 rows were the 2025 race filed under 2019 (10,373 of their nine-time tuples match Frankfurt 2025) and were deleted; the 10,554 replacements are the real race (winners Fikre Bekele Tefera 2:07:08 and Jemeli Aiyabei 2:19:10; producer note: listed=jsonl=GET=10,554, complete, stamped). Their grids are clean (section shape within about one point of Frankfurt 2018 and 2023-2025), but the producer's feature engine still sets valid_splits false on every row in this freeze. Two producer signals disagree, so the edition is held (10,484 finishes) until the producer confirms the engine constant is stale."
+      }
+    ],
+    "considered_and_kept_with_a_note": [
+      "Warsaw 2019 and 2022-2025: gun-time checkpoints with a chip finish (producer notes say 'gun'); Warsaw 2025 loses 12% to the timing checks (98.3/78.5 by quartile, screen (b) not met; 12.4% mixed basis, screen (c) not met). The 5-20 km baseline is unaffected; the opening (0-5 km) and last section are biased in every row. Ask the producer for chip splits.",
+      "Warsaw 2015-2018 are the spring Orlen race (relabelled in place on 23,919 rows); 2019-2026 the autumn PZU race, whose course profile is supplied as valid from 2019. Runner context now attaches the route only from 2019.",
+      "Washington 2017, Dubai 2016 and 2024, Oslo 2017: slow tails cut off by 5-10% (late mats closed early). Helsinki 2017: a 40 km mat gap mid-field. Madrid 2013, 2014, 2022, 2023: mat holes mid-field or an early 25 km mat. All below the screen thresholds.",
+      "Chicago 2024: 35 wheelchair results (1:30-2:01, 5 km in 10-13 min) pass the timing bounds. Row-level; the policy is edition-level, so they remain (open item). 3,200 Chicago 2024 rows have no recorded gender; they stay in All and sex is never inferred.",
+      "Stockholm 2025, Chicago 2022, 2023 and 2026, Boston 2014, 2015 and 2021, Berlin 2026, Frankfurt 2018 and 2023-2025, Vienna 2023 and 2024, Eindhoven 2025, Warsaw 2020, 2021 and 2026: every finish-time quartile at least about 95% eligible, no sex skew, loads ran to their slowest finishers.",
+      "Chicago 2018 and 2019: the 0934 copies of the 2024 field were deleted (all 51,967 and 51,807 IDs) and replaced by 44,550 and 45,864 new records (organiser totals 44,571 and 45,956). No same-city pair among 287 editions shares more than one nine-time tuple, so the stories' duplicate-edition screen is retired.",
+      "Valencia 2022-2024: 15,702 rows changed from no recorded gender to F, each with a recorded F- category label (F-SENIOR, F-W45 ...); names, ages and ingested_at unchanged. Not inferred from names.",
+      "Cologne 2026 and Prague 2025 (no 20 km split), Honolulu 2021-2025 (no 15-25 km splits): no rule needed, 0 timing-eligible; records stay searchable."
+    ],
+    "historical_findings": [
+      "The 0934 cohort included a partial Chicago 2015 (22,085 rows, 22,055 timing-eligible, women to 5:07:55 and men to 4:27:31) that its policy did not hold.",
+      "The 0934 cohort also included the editions screens (a)-(c) and the broken loads now exclude (Amsterdam 2020 and 2023, Melbourne 2015, Gold Coast 2024, Auckland 2018, Dubai 2025, Barcelona 2019, New York 2007); EDITIONS.json shows them unchanged since 0934. The 0934 numbers stay as published historical evidence."
+    ]
+  },
+  "open_questions_for_the_producer": [
+    "Frankfurt 2019: is the feature-engine force-drop stale now that the real race is loaded? If so, a later policy can release 10,484 finishes.",
+    "New York 2008: a completion stamp (listed = jsonl = GET) would release 37,387 finishes.",
+    "Timing basis of the 5 km and later checkpoints versus the finish in Eindhoven 2026, Warsaw 2019-2025, Barcelona 2019 and New York 2007 (gun or chip).",
+    "Tokyo 2026: the note promises 1,000 rows (500 per sex); the data hold 770 men.",
+    "Paris 2014-2018: why is 25 km blank for about 99% of rows after the in-place rewrite of 203,026 rows' 10-40 km strings (not in CHANGE-REPORT.md)?",
+    "Melbourne 2015: about 500 of some 6,000 finishers, with 24 runners loaded two or three times under name variants; no course profile.",
+    "Amsterdam 2023: finish loaded for 17 of 16,030 rows.",
+    "Chicago 2015: complete the load (about 37,182 finishers reported).",
+    "Gold Coast 2024 35 km, Auckland 2018 and Dubai 2025 40 km: are the missing late readings in the source, or in the ingestion?",
+    "ID-CONTRACT.md and FEATURE-FIELD-NOTES.md still name the 1107 freeze; the README still carries the old private wording; CHANGE-REPORT.md omits the 116,287 replaced IDs and the 242,649 records changed in place.",
+    "Amsterdam 2020 has no weather row (virtual edition); Melbourne has no course profile."
+  ],
+  "editions": [
+    {
+      "city": "Honolulu",
+      "year": 2016,
+      "category": "invalid_split_grid",
+      "basis": "carried",
+      "raw_records": 20118,
+      "timing_eligible_excluded": 0,
+      "reason": "Producer explicitly force-dropped this incomplete 5 km grid."
+    },
+    {
+      "city": "Rotterdam",
+      "year": 2012,
+      "category": "invalid_split_grid",
+      "basis": "carried",
+      "raw_records": 7542,
+      "timing_eligible_excluded": 0,
+      "reason": "Producer explicitly force-dropped this incomplete 5 km grid."
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2009,
+      "category": "invalid_split_grid",
+      "basis": "carried",
+      "raw_records": 1407,
+      "timing_eligible_excluded": 0,
+      "reason": "Producer explicitly force-dropped this incomplete 5 km grid."
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2010,
+      "category": "invalid_split_grid",
+      "basis": "carried",
+      "raw_records": 1462,
+      "timing_eligible_excluded": 0,
+      "reason": "Producer explicitly force-dropped this incomplete 5 km grid."
+    },
+    {
+      "city": "New York",
+      "year": 2008,
+      "category": "unreconciled_hold",
+      "basis": "carried",
+      "raw_records": 38047,
+      "timing_eligible_excluded": 37387,
+      "reason": "Previously partial ingestion has grown to 38,047 records, but source-total reconciliation and explicit completion evidence are absent; keep the prior hold pending review."
+    },
+    {
+      "city": "Amsterdam",
+      "year": 2025,
+      "category": "unreconciled_hold",
+      "basis": "carried",
+      "raw_records": 23325,
+      "timing_eligible_excluded": 23220,
+      "reason": "Source audit marks HOLD: 23,328 listed versus 23,325 retrieved. This conservative hold does not establish a large bias from the three missing records."
+    },
+    {
+      "city": "Valencia",
+      "year": 2017,
+      "category": "incomplete_ingestion",
+      "basis": "carried",
+      "raw_records": 12485,
+      "timing_eligible_excluded": 0,
+      "reason": "Source audit marks HOLD: 3,373 listed detail pages missing; the observed records also lack 20 km."
+    },
+    {
+      "city": "Valencia",
+      "year": 2018,
+      "category": "incomplete_ingestion",
+      "basis": "carried",
+      "raw_records": 19236,
+      "timing_eligible_excluded": 0,
+      "reason": "Producer handoff retains an incomplete/HOLD status; the edition also lacks the observed 20 km checkpoint."
+    },
+    {
+      "city": "Frankfurt",
+      "year": 2019,
+      "category": "unreconciled_hold",
+      "basis": "carried, recategorised",
+      "raw_records": 10554,
+      "timing_eligible_excluded": 10484,
+      "reason": "The earlier, wrongly dated records were replaced by the real 2019 race, which the producer lists as complete, but the producer’s feature engine still drops this edition from its valid set. Held until the producer reconciles the two."
+    },
+    {
+      "city": "Tokyo",
+      "year": 2026,
+      "category": "selected_field",
+      "basis": "carried, new reason",
+      "raw_records": 770,
+      "timing_eligible_excluded": 770,
+      "reason": "Source notes identify top-500 result PDFs, not a representative full marathon field; the 770 records are all men."
+    },
+    {
+      "city": "Chicago",
+      "year": 2015,
+      "category": "incomplete_ingestion",
+      "basis": "producer flag",
+      "raw_records": 27186,
+      "timing_eligible_excluded": 27150,
+      "reason": "Producer notes say this edition was still being loaded when the snapshot was taken: 27,186 records, loaded in finish order and stopping at 5:31:05 for women and 4:45:16 for men, about three quarters of the field."
+    },
+    {
+      "city": "Oslo",
+      "year": 2026,
+      "category": "incomplete_ingestion",
+      "basis": "producer flag",
+      "raw_records": 3461,
+      "timing_eligible_excluded": 3423,
+      "reason": "Producer marks this edition INCOMPLETE: 3,461 of 3,462 listed runners were retrieved. One missing record is unlikely to bias the results; the edition is held until the producer completes it."
+    },
+    {
+      "city": "Amsterdam",
+      "year": 2020,
+      "category": "invalid_split_grid",
+      "basis": "producer note",
+      "raw_records": 794,
+      "timing_eligible_excluded": 665,
+      "reason": "Producer notes mark this a virtual edition (the race on the course was cancelled in 2020), so these times are not checkpoint timings from the race course."
+    },
+    {
+      "city": "Amsterdam",
+      "year": 2023,
+      "category": "incomplete_ingestion",
+      "basis": "audit (broken load)",
+      "raw_records": 16030,
+      "timing_eligible_excluded": 14,
+      "reason": "The finish time was loaded for only 17 of 16,030 records, although 40 km is present for 16,008; the 14 complete grids are what is left, not a sample of the field."
+    },
+    {
+      "city": "Melbourne",
+      "year": 2015,
+      "category": "incomplete_ingestion",
+      "basis": "audit (broken load) and outside total",
+      "raw_records": 502,
+      "timing_eligible_excluded": 416,
+      "reason": "Only about 500 of the roughly 6,000 finishers were loaded, from individual result pages, and 24 runners appear two or three times under name variants; the records are neither the full field nor a sample of it."
+    },
+    {
+      "city": "Boston",
+      "year": 2013,
+      "category": "selected_field",
+      "basis": "audit and race history",
+      "raw_records": 17580,
+      "timing_eligible_excluded": 17510,
+      "reason": "The race was stopped after the bombings near the finish, so the recorded finishers are only those who finished before the course closed (none slower than 4:45). A finisher set cut off by finish time is not comparable with other editions."
+    },
+    {
+      "city": "Tokyo",
+      "year": 2016,
+      "category": "selected_field",
+      "basis": "audit (top-500 list)",
+      "raw_records": 1000,
+      "timing_eligible_excluded": 999,
+      "reason": "Exactly 500 women and 500 men, the first 500 of each to finish (the last at 3:35:49): a top-finisher list, not the full field of more than 30,000 finishers."
+    },
+    {
+      "city": "Tokyo",
+      "year": 2017,
+      "category": "selected_field",
+      "basis": "audit (top-500 list)",
+      "raw_records": 1000,
+      "timing_eligible_excluded": 999,
+      "reason": "Exactly 500 women and 500 men, the first 500 of each to finish (the last at 3:29:26): a top-finisher list, not the full field of more than 30,000 finishers."
+    },
+    {
+      "city": "Tokyo",
+      "year": 2018,
+      "category": "selected_field",
+      "basis": "audit (top-500 list)",
+      "raw_records": 1000,
+      "timing_eligible_excluded": 987,
+      "reason": "Exactly 500 women and 500 men, the first 500 of each to finish (the last at 3:27:07): a top-finisher list, not the full field of more than 30,000 finishers."
+    },
+    {
+      "city": "Paris",
+      "year": 2014,
+      "category": "invalid_split_grid",
+      "basis": "screen (a)",
+      "raw_records": 38672,
+      "timing_eligible_excluded": 40,
+      "reason": "This release rewrote the edition’s 10–40 km checkpoints in place; 25 km is now blank for about 99% of records, and the 40 complete grids left of 38,672 finishes include leftover impossible timings, so they are not a sample of the field."
+    },
+    {
+      "city": "Paris",
+      "year": 2015,
+      "category": "invalid_split_grid",
+      "basis": "screen (a)",
+      "raw_records": 40261,
+      "timing_eligible_excluded": 70,
+      "reason": "This release rewrote the edition’s 10–40 km checkpoints in place; 25 km is now blank for about 98% of records, and the 70 complete grids left of 40,261 finishes include leftover impossible timings, so they are not a sample of the field."
+    },
+    {
+      "city": "Paris",
+      "year": 2016,
+      "category": "invalid_split_grid",
+      "basis": "screen (a)",
+      "raw_records": 41795,
+      "timing_eligible_excluded": 526,
+      "reason": "This release rewrote the edition’s 10–40 km checkpoints in place; 25 km is now blank for about 97% of records, and the 526 complete grids left of 41,795 finishes include leftover impossible timings, so they are not a sample of the field."
+    },
+    {
+      "city": "Paris",
+      "year": 2017,
+      "category": "invalid_split_grid",
+      "basis": "screen (a)",
+      "raw_records": 41734,
+      "timing_eligible_excluded": 11,
+      "reason": "This release rewrote the edition’s 10–40 km checkpoints in place; 25 km is now blank for about 99% of records, and the 11 complete grids left of 41,734 finishes include leftover impossible timings, so they are not a sample of the field."
+    },
+    {
+      "city": "Paris",
+      "year": 2018,
+      "category": "invalid_split_grid",
+      "basis": "screen (a)",
+      "raw_records": 42522,
+      "timing_eligible_excluded": 11,
+      "reason": "This release rewrote the edition’s 10–40 km checkpoints in place; 25 km is now blank for about 98% of records, and the 11 complete grids left of 42,522 finishes include leftover impossible timings, so they are not a sample of the field."
+    },
+    {
+      "city": "New York",
+      "year": 2007,
+      "category": "invalid_split_grid",
+      "basis": "screen (c)",
+      "raw_records": 38462,
+      "timing_eligible_excluded": 15398,
+      "reason": "The 25–40 km checkpoints are missing for about a third of finishers, and 40% of the complete grids have an impossible last section (checkpoint times include the start delay, the finish does not). The 40% of finishers that pass the timing checks are not a sample of the field."
+    },
+    {
+      "city": "Barcelona",
+      "year": 2019,
+      "category": "invalid_split_grid",
+      "basis": "screens (b) and (c)",
+      "raw_records": 13445,
+      "timing_eligible_excluded": 5535,
+      "reason": "The checkpoint times include the start delay but the finish does not: half of the complete grids have an impossible last section, and the finishers that pass the timing checks are mostly the faster, earlier starters (80% of the quarter with the shortest finish times, 18% of the quarter with the longest)."
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2026,
+      "category": "invalid_split_grid",
+      "basis": "screens (b) and (c)",
+      "raw_records": 4471,
+      "timing_eligible_excluded": 1521,
+      "reason": "Our audit, not the producer, flags this edition: its checkpoints mix two timing bases (the 5 km reading came from separate runner pages). 1,880 of 4,466 complete grids put the finish at or before 40 km, and the rows that pass the timing checks still run 5–10 km up to about 30% slower than 10–15 km."
+    },
+    {
+      "city": "Gold Coast",
+      "year": 2024,
+      "category": "invalid_split_grid",
+      "basis": "screen (b)",
+      "raw_records": 9905,
+      "timing_eligible_excluded": 5692,
+      "reason": "The 35 km mat stopped recording partway through the field: 35 km is missing for 2,729 of 8,665 finishers, almost all of them slower ones, so complete timings survive for 95% of the quarter with the shortest finish times but 1% of the quarter with the longest."
+    },
+    {
+      "city": "Auckland",
+      "year": 2018,
+      "category": "invalid_split_grid",
+      "basis": "screen (b)",
+      "raw_records": 1917,
+      "timing_eligible_excluded": 915,
+      "reason": "The 40 km mat stopped recording partway through the field: 40 km is missing for 685 of 1,654 finishers, so complete timings survive for 97% of the quarter with the shortest finish times and none of the quarter with the longest."
+    },
+    {
+      "city": "Dubai",
+      "year": 2025,
+      "category": "invalid_split_grid",
+      "basis": "screen (b)",
+      "raw_records": 1809,
+      "timing_eligible_excluded": 1534,
+      "reason": "The 40 km mat stopped recording late in the race: 40 km is missing for 267 of 1,809 finishers, almost all of them slower ones, so complete timings survive for nearly all of the three quarters with the shortest finish times but 41% of the quarter with the longest."
+    }
+  ],
+  "reason_wording_revision": {
+    "date": "2026-10-17",
+    "previous_policy_sha256": "e2dd5c1f990b219b3cad49a74768a399c3cb3af76917675ab9e3d433089745d4",
+    "editions": [
+      "Tokyo 2016",
+      "Tokyo 2017",
+      "Tokyo 2018",
+      "Barcelona 2019",
+      "Gold Coast 2024",
+      "Auckland 2018",
+      "Dubai 2025"
+    ],
+    "why": "The reasons are printed on /runners and on the course pages, whose copy check rejects rank words; \"fastest\" was replaced with neutral wording (the first 500 to finish; the quarter with the shortest finish times). Categories, editions and counts are unchanged; every output was recalculated afterwards."
+  }
+}

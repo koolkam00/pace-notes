@@ -25,8 +25,8 @@ function optional<T>(name: string): T | null {
 }
 
 /**
- * Courses that other Pace Notes data knows but the pace band does not publish (for example Melbourne, which the
- * weather match lists), so a link naming one says so instead of "not found".
+ * Courses that other Pace Notes data knows but the pace band does not publish (for example Prague, which the course
+ * stories list but whose editions all fall to the start-offset screen), so a link naming one says so instead of "not found".
  */
 function unpublishedCourses(index: PaceBandIndex): Record<string, UnpublishedCourse> {
   const published = new Set(index.scopes.map((s) => s.slug));

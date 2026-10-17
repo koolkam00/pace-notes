@@ -27,7 +27,7 @@ export const EVIDENCE_LABEL: Record<ToolEvidence, string> = {
 
 /** What each kind of evidence is, for the methodology page (/methodology#evidence); the tools show only the badge. */
 export const EVIDENCE_TEXT: Record<ToolEvidence, string> = {
-  data: 'Observed from 3.26 million screened marathon finishes with all nine 5 km checkpoints. Descriptive, never a personal probability.',
+  data: 'Observed from 3.71 million screened marathon finishes with all nine 5 km checkpoints. Descriptive, never a personal probability.',
   research: 'Published models and studies, cited. Not fitted to Pace Notes data.',
   official: 'Transcribed from official race pages, with the date they were checked.',
 };
