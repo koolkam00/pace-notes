@@ -1,0 +1,24 @@
+/* Share (components/ui/ShareButton.client.tsx and lib/share-image.ts): a 44 px button that opens a Sheet with the
+   4:5 card preview, Save image, Copy link and Share…, and, where the page has a goal, an unticked "Add my goal" box. */
+
+.share-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-width: 44px; min-height: 44px; padding: 0 12px; margin: 0;
+  border: 0; border-radius: var(--r-pill); background: transparent; color: var(--ink-2); box-shadow: none;
+  font-family: var(--sans); font-size: .9375rem; font-weight: 600; line-height: 1; cursor: pointer;
+  transition: background-color var(--d-quick) var(--ease-out), color var(--d-quick) var(--ease-out), transform var(--d-release) var(--spring);
+}
+.share-btn svg { width: 18px; height: 18px; flex: none; }
+.share-btn:hover { background: var(--paper-sunk); color: var(--ink); border-color: transparent; }
+.share-btn:active { transform: scale(.94); transition-duration: var(--d-press); }
+.share-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.share-btn.is-icon { width: 44px; padding: 0; }
+
+.share-preview {
+  display: block; width: 100%; max-width: 300px; height: auto; aspect-ratio: 4 / 5; margin: 0 auto var(--s-5);
+  border-radius: var(--r-md); background: var(--night); box-shadow: var(--shadow-raise); object-fit: cover;
+}
+.share-preview.is-loading { animation: none; }
+.share-actions { display: grid; gap: 10px; }
+.share-status { min-height: 1.45em; margin: var(--s-3) 0 0; font-size: var(--t-small); color: var(--ink-2); text-align: center; }
+.share-goal { margin-top: var(--s-2); }

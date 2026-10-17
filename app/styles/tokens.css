@@ -1,5 +1,19 @@
+/* Design tokens: every custom property of the site (the redesign spec, sections 3.1 to 3.3). Only this file may hold colour
+   literals; component and page CSS, and SVG, use these names (scripts/verify-css.cjs). Canvas code reads them with
+   getComputedStyle(document.documentElement).
+
+   Three scopes:
+   - :root, the light page theme (the default);
+   - .night, the race and the answer (the replay, heroes, the receipt, result and next cards), at any theme;
+   - [data-theme="dark"], the dark page theme. It is a chosen palette, not an inversion. Until WP9 switches it on for
+     prefers-color-scheme it only applies where the attribute is set (the screenshot tool's dark profile). */
+
 :root {
-  /* Paper and ink */
+  color-scheme: normal;
+
+  /* ---------- Legacy palette ----------
+     These keep their exact values: scripts/build-og-images.cjs (TOKENS) stops when one moves, and the legacy rules in
+     app/styles/legacy/ still use them. New CSS uses the semantic tokens below instead. */
   --paper: #F5F0E6;
   --paper-2: #EDE6D8;
   --paper-3: #E3D9C6;
@@ -9,13 +23,11 @@
   --ink-3: #66625A;
   --line: #DCD3C2;
   --line-2: #C9BFAB;
-  /* Night (hero bands) */
   --night: #0E1116;
   --night-2: #171B22;
   --night-3: #252B36;
   --night-ink: #F5F0E6;
   --night-ink-2: #B9B3A6;
-  /* Race-day signals */
   --orange: #FF5B2E;
   --orange-ink: #B4380D;
   --blue: #2F5BFF;
@@ -27,27 +39,220 @@
   --rose: #E2416B;
   --violet: #7A4DFF;
   --teal: #0FA3A3;
-  /* Legacy aliases used by existing components */
+
+  /* ---------- Surfaces and ink (light) ---------- */
+  /* --paper, --ink, --ink-2 and --ink-3 above are also the semantic page, heading, body and muted-text colours. */
+  --paper-raised: #FFFDF8;          /* the one raised surface: sheet, receipt on paper, guess panel, inputs */
+  --paper-sunk: #EDE6D8;            /* segmented track, tags, code */
+  --rule: #DCD3C2;                  /* hairlines and gridlines */
+  --rule-strong: #C9BFAB;           /* axis baseline, input borders */
+  --mark-quiet: #857F73;            /* context marks: 3.50:1 on paper */
+  --fill-quiet: #C9BFAB;            /* silhouettes and tracks, only with a 1.5 px --mark-quiet edge */
+  --signal: #E5461A;                /* the reading: the finding mark, the needle, the reader's ring. 3.54:1 */
+  --signal-ink: #B4380D;            /* italic accent words and text in the signal role. 5.26:1 */
+  --signal-wash: rgba(229, 70, 26, .10);
+  --accent: #FF5B2E;                /* the primary button fill and the brand mark only (S1 pins rgb(255, 91, 46)) */
+  --accent-hover: #F5572C;          /* 4% darker */
+  --accent-press: #E84C20;
+  --on-accent: #15171C;             /* ink text on the accent: 5.80:1 */
+  --focus: #2346E6;                 /* focus ring, 2 px with a 2 px offset */
+  --scrim: rgba(14, 17, 22, .38);
+  --control-thumb: var(--paper-raised); /* the segmented thumb */
+  --ordinal-1: #ADA390;             /* one-hue ordinal ramp for ordered buckets shown together */
+  --ordinal-2: #8A8273;
+  --ordinal-3: #676155;
+  --ordinal-4: #444038;
+
+  /* ---------- Night (the race and the answer) ---------- */
+  --night-ink-3: #8E897E;
+  --night-mark-quiet: #6B7180;
+  --night-fill-quiet: #2A303B;
+  --night-signal: #FF6A3D;          /* also the replay's dots at sustained-slowdown pace */
+  --night-signal-ink: #FF7A50;
+  --night-signal-wash: rgba(255, 106, 61, .14);
+  --night-rule-strong: #3A414D;
+  --night-ordinal-1: #4A505C;
+  --night-ordinal-2: #6B7180;
+  --night-ordinal-3: #9097A5;
+  --night-ordinal-4: #B9BECA;
+  --focus-night: #F4B23E;           /* = --gold */
+
+  /* ---------- Legacy aliases (WP9 deletes them) ---------- */
   --slate: var(--ink-3);
-  --course: var(--blue-ink);
-  --wall: var(--orange-ink);
-  --rule: var(--line);
-  --wash: var(--paper-2);
+  --course: var(--focus);
+  --wall: var(--signal-ink);
+  --wash: var(--paper-sunk);
   --muted: var(--ink-3);
   --text: var(--ink);
-  --accent: var(--blue-ink);
-  --panel: var(--paper-2);
-  /* Type */
+  --panel: var(--paper-sunk);
+
+  /* ---------- Type ---------- */
   /* Each web font's metric-matched fallback comes before the same family installed on the device: an installed static
      Inter draws the 650 of bold copy at 700, so it rewraps a paragraph when the web font arrives and the fallback does not. */
   --serif: 'Fraunces Variable', 'Fraunces Fallback', 'Fraunces Fallback Android', 'Fraunces', Georgia, 'Times New Roman', serif;
   --sans: 'Inter Variable', 'Inter Fallback', 'Inter Fallback Android', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --mono: 'JetBrains Mono Variable', 'JetBrains Mono Fallback', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --bib: 'Bricolage Grotesque Variable', 'Bricolage Grotesque Fallback', 'Bricolage Grotesque', var(--sans);
-  /* Shape */
+  --figure: var(--bib);             /* the reading figure only: big numbers, bib chips, the share card figure */
+  /* The scale, phone to desktop. Line height and tracking sit with each type class in base.css. */
+  --t-display: clamp(2.25rem, 8.6vw + .2rem, 5.25rem);
+  --t-title: clamp(2rem, 6.8vw + .2rem, 4.25rem);
+  --t-h2: clamp(1.625rem, 5.4vw + .2rem, 2.625rem);
+  --t-sentence: clamp(1.25rem, 4.4vw + .1rem, 1.625rem);
+  --t-figure-xl: clamp(4.5rem, 24vw, 9rem);
+  --t-figure-l: clamp(3rem, 14vw, 5.5rem);
+  --t-figure-m: clamp(2.25rem, 9vw, 3.5rem);
+  --t-figure-s: 1.75rem;
+  --t-readout: 1.75rem;
+  --t-body: 1.0625rem;
+  --t-small: .875rem;
+  --t-label: .8125rem;
+  --t-direct: .875rem;
+  --t-kicker: .75rem;
+  --t-tick: .75rem;                 /* 12 px, the minimum everywhere */
+
+  /* ---------- Space (4 px base) and rhythm ---------- */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+  --s-9: 96px;
+  --s-10: 128px;
+  --beat-gap: clamp(64px, 12vw, 120px);
+  --head-gap: 20px;
+  --figure-gap: 16px;
+
+  /* ---------- Radii and shadow ---------- */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 16px;
+  --r-lg: 24px;
+  --r-pill: 999px;
+  --shadow-raise: 0 1px 2px rgb(21 23 28 / .06), 0 6px 20px rgb(21 23 28 / .06);
+  --shadow-sheet: 0 -8px 40px rgb(21 23 28 / .18);
+  /* Legacy shape tokens, used by app/styles/legacy/ and the section sheets. */
   --radius: 14px;
   --radius-sm: 9px;
   --shadow: 0 1px 0 rgba(21, 23, 28, .04), 0 14px 34px -22px rgba(21, 23, 28, .35);
   --shadow-lift: 0 1px 0 rgba(21, 23, 28, .05), 0 22px 44px -24px rgba(21, 23, 28, .45);
   --ease: cubic-bezier(.2, .7, .2, 1);
+
+  /* ---------- Motion ----------
+     --motion is 1, or 0 under prefers-reduced-motion and the site's Motion switch (base.css). Every duration scales with
+     it and keeps 1 ms, so transitionend still fires. Only transform and opacity animate (spec 3.7). */
+  --motion: 1;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --spring: cubic-bezier(.34, 1.36, .64, 1);       /* fallback; a sampled damped spring under @supports below */
+  --spring-soft: cubic-bezier(.3, 1.15, .6, 1);
+  --d-press: calc(1ms + 89ms * var(--motion));
+  --d-release: calc(1ms + 419ms * var(--motion));
+  --d-quick: calc(1ms + 159ms * var(--motion));
+  --d-toggle: calc(1ms + 479ms * var(--motion));
+  --d-sheet: calc(1ms + 559ms * var(--motion));
+  --d-reveal: calc(1ms + 699ms * var(--motion));
+  --d-draw: calc(1ms + 899ms * var(--motion));
+  --d-step: calc(1ms + 599ms * var(--motion));
+  --stagger: calc(8ms * var(--motion));
+
+  /* ---------- Layers ---------- */
+  --z-chip: 40;
+  --z-header: 50;
+  --z-reading: 51;
+  --z-scrim: 59;
+  --z-sheet: 60;
+  --z-toast: 70;
+
+  /* ---------- Layout ---------- */
+  --gutter: clamp(16px, 4.1vw, 48px);
+  --container: 1200px;
+  --container-rail: 1320px;
+  --measure: 36rem;
+  --measure-figure: 52rem;
+  --measure-wide: 75rem;
+  --header-h: 56px;
+  --reading-h: 36px;
+  --chip-h: 48px;
+}
+
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    /* A damped spring sampled at 40 points: ζ ≈ 0.62 with one 8% overshoot, and ζ ≈ 0.8. */
+    --spring: linear(0, 0.027, 0.096, 0.193, 0.306, 0.425, 0.542, 0.652, 0.751, 0.837, 0.909, 0.967, 1.011, 1.043, 1.065, 1.078, 1.083, 1.083, 1.078, 1.071, 1.062, 1.052, 1.043, 1.033, 1.024, 1.017, 1.01, 1.005, 1.001, 0.997, 0.995, 0.994, 0.993, 0.993, 0.993, 0.994, 0.994, 0.995, 0.996, 0.997, 1);
+    --spring-soft: linear(0, 0.021, 0.076, 0.152, 0.24, 0.333, 0.425, 0.514, 0.595, 0.669, 0.735, 0.792, 0.84, 0.881, 0.914, 0.941, 0.962, 0.979, 0.991, 1.001, 1.007, 1.011, 1.014, 1.015, 1.015, 1.015, 1.014, 1.013, 1.011, 1.01, 1.008, 1.007, 1.006, 1.005, 1.004, 1.003, 1.002, 1.002, 1.001, 1.001, 1);
+  }
+}
+
+@media (min-width: 900px) {
+  :root {
+    --t-body: 1.125rem;
+    --t-readout: 2rem;
+    --header-h: 64px;
+  }
+}
+
+/* ---------- Night: the race and the answer, at any theme ----------
+   Inside .night the semantic names take their night values, so a component written with --ink, --signal or --rule
+   reads correctly on either surface. (The legacy night bands keep the paper values of --ink, --ink-2, --ink-3 and
+   --paper: see the guard at the top of app/styles/legacy/shared.css.) */
+.night {
+  color-scheme: dark;
+  --paper: var(--night);
+  --paper-raised: var(--night-2);
+  --paper-sunk: var(--night-2);
+  --rule: var(--night-3);
+  --rule-strong: var(--night-rule-strong);
+  --ink: var(--night-ink);
+  --ink-2: var(--night-ink-2);
+  --ink-3: var(--night-ink-3);
+  --mark-quiet: var(--night-mark-quiet);
+  --fill-quiet: var(--night-fill-quiet);
+  --signal: var(--night-signal);
+  --signal-ink: var(--night-signal-ink);
+  --signal-wash: var(--night-signal-wash);
+  --focus: var(--focus-night);
+  --ordinal-1: var(--night-ordinal-1);
+  --ordinal-2: var(--night-ordinal-2);
+  --ordinal-3: var(--night-ordinal-3);
+  --ordinal-4: var(--night-ordinal-4);
+  --shadow-raise: 0 1px 2px rgb(0 0 0 / .3), 0 6px 20px rgb(0 0 0 / .3);
+}
+
+/* ---------- Dark: the page theme under the OS setting (switched on in WP9) ----------
+   On <html> it themes the page; on any other element (the /design-system gallery) it themes that subtree. */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #111419;
+  --paper-raised: #181C23;
+  --paper-sunk: #1F242D;
+  --rule: #2A3039;
+  --rule-strong: #3A414D;
+  --ink: #F2EDE3;
+  --ink-2: #CFC9BD;
+  --ink-3: #A39D91;
+  --mark-quiet: #7A808C;
+  --fill-quiet: #2E3440;
+  --signal: #FF6A3D;
+  --signal-ink: #FF8A63;
+  --signal-wash: rgba(255, 106, 61, .14);
+  --focus: #8FA6FF;
+  --scrim: rgba(0, 0, 0, .55);
+  --control-thumb: #3A414D;
+  --ordinal-1: #4A505C;
+  --ordinal-2: #6B7180;
+  --ordinal-3: #9097A5;
+  --ordinal-4: #B9BECA;
+  /* The legacy surface names follow, so pages not yet rebuilt stay legible under the dark profile. */
+  --paper-2: #1F242D;
+  --paper-3: #2A3039;
+  --card: #181C23;
+  --line: #2A3039;
+  --line-2: #3A414D;
+  --night: #07090C;                 /* night bands stay their own surface on a dark page */
+  --night-2: #12161C;
+  --shadow-raise: 0 1px 2px rgb(0 0 0 / .35), 0 6px 20px rgb(0 0 0 / .35);
+  --shadow-sheet: 0 -8px 40px rgb(0 0 0 / .5);
 }

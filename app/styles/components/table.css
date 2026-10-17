@@ -1,0 +1,12 @@
+/* Tables (inside Values, and anywhere a table is the right form). Spec section 3.5: Inter 14 with tabular figures,
+   headers 13/600 in --ink-3, 44 px rows with 1 px --rule dividers, no zebra striping. Numbers align right. */
+
+.table { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: .875rem; line-height: 1.3; font-variant-numeric: tabular-nums; color: var(--ink); }
+.table caption { caption-side: top; padding: 0 0 var(--s-2); text-align: left; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+.table th, .table td { height: 44px; padding: 6px 0 6px 16px; border-bottom: 1px solid var(--rule); text-align: right; vertical-align: middle; white-space: nowrap; }
+.table th:first-child, .table td:first-child { padding-left: 0; padding-right: 8px; text-align: left; }
+.table thead th { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+.table tbody th { font-weight: 500; color: var(--ink); }
+.table td.is-text, .table th.is-text { text-align: left; white-space: normal; }
+.table tr.is-reading td, .table tr.is-reading th { font-weight: 600; }
+.table tr.is-reading th::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--signal); vertical-align: 1px; }

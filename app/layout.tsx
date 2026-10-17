@@ -3,10 +3,29 @@ import '@fontsource-variable/fraunces/full-italic.css';
 import '@fontsource-variable/inter/index.css';
 import '@fontsource-variable/jetbrains-mono/index.css';
 import '@fontsource-variable/bricolage-grotesque/index.css';
-// Site-wide CSS, in cascade order (docs: the redesign spec, section 6.1): fonts, tokens, then the legacy rules split by
-// owner from the old globals.css and story.css. Section sheets are imported by their own route layouts and pages.
+// Site-wide CSS, in cascade order (the redesign spec, section 6.1): fonts, tokens, base, layout, the components
+// (alphabetical), then the legacy rules split by owner from the old globals.css and story.css, which WP9 deletes.
+// Section sheets are imported by their own route layouts and pages.
 import './styles/fonts.css';
 import './styles/tokens.css';
+import './styles/base.css';
+import './styles/layout.css';
+import './styles/components/badge.css';
+import './styles/components/button.css';
+import './styles/components/chips.css';
+import './styles/components/forms.css';
+import './styles/components/guess.css';
+import './styles/components/marker.css';
+import './styles/components/nugget-card.css';
+import './styles/components/reading.css';
+import './styles/components/receipt.css';
+import './styles/components/scrolly.css';
+import './styles/components/segmented.css';
+import './styles/components/share.css';
+import './styles/components/sheet.css';
+import './styles/components/table.css';
+import './styles/components/tag.css';
+import './styles/components/values.css';
 import './styles/legacy/shared.css';
 import './styles/legacy/home.css';
 import './styles/legacy/stories.css';

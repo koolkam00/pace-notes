@@ -1,0 +1,19 @@
+/* Marker badges (components/ui/MarkerBadge.tsx): START 5K 10K HALF 30K FINISH and 07 to 11. An ink plate, 24 px tall,
+   mono 12 caps in paper text; on night the night scope turns it into a paper plate with ink text. FINISH has a 6 px
+   checkered left edge. */
+
+.marker-badge {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none;
+  min-width: 36px; height: 24px; padding: 0 7px;
+  border-radius: var(--r-xs); background: var(--ink); color: var(--paper);
+  font-family: var(--mono); font-size: .75rem; font-weight: 600; line-height: 1; letter-spacing: .06em; text-transform: uppercase;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.marker-badge.is-finish { padding-left: 13px; overflow: hidden; }
+.marker-badge.is-finish::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px;
+  background: repeating-conic-gradient(var(--paper) 0 25%, var(--ink) 0 50%) 0 0 / 6px 6px;
+}
+@media (forced-colors: active) {
+  .marker-badge { border: 1px solid CanvasText; }
+}

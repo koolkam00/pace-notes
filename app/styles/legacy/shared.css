@@ -2,6 +2,12 @@
    Split mechanically from app/globals.css and app/story.css by the code that owns each selector (WP0-A, October 2026): no rule
    was changed. An area package deletes its selectors from its own legacy file when it rebuilds its pages. */
 
+/* ---------- Legacy night bands (WP0-A guard; WP9 deletes it with this file) ----------
+   tokens.css gives .night its night values of --ink, --ink-2, --ink-3 and --paper, so new components read on night.
+   The legacy rules inside these bands were written with the paper values (dark text on gold or orange buttons, cards on
+   night), so the legacy bands keep them. A rebuilt band drops these classes and gets the night values. */
+.night.night-grain, .night.replay-stage, .night.cta-band-wrap, .night.tool-headline { color-scheme: normal; --ink: #15171C; --ink-2: #3C3F47; --ink-3: #66625A; --paper: #F5F0E6; }
+
 /* ---------- Base ---------- */
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-padding-top: 5.5rem; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -287,13 +293,7 @@ summary::marker { color: var(--orange); font-size: .8em; }
 .runner-search-form { margin-top: 0; padding: 1.6rem; background: var(--card); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); }
 .profile-fields .button-primary { white-space: nowrap; min-height: 46px; padding-inline: 1.1rem; gap: .6rem; }
 .control-help { color: var(--ink-3); font-size: .8125rem; margin-top: .7rem; line-height: 1.55; }
-/* "Tap . for :" (components/KeypadHint.tsx): touch screens only, decided by CSS at first paint so nothing moves. */
-.keypad-hint { display: none; }
-@media (pointer: coarse) {
-  .keypad-hint { display: inline; white-space: nowrap; }
-  .keypad-hint.is-block { display: block; margin: 0; color: var(--ink-3); font-size: .75rem; line-height: 1.45; }
-}
-.keypad-hint kbd { font-family: var(--mono); font-weight: 700; color: inherit; }
+/* The keypad hint ("Tap . for :") moved to app/styles/components/forms.css (WP0-A owns KeypadHint). */
 .analysis-finding { position: relative; margin-top: 2.2rem; padding: 2rem 2rem 1.8rem; border-radius: 20px; background: var(--night); color: var(--night-ink); overflow: hidden; }
 .analysis-finding::after { content: ''; position: absolute; right: -40px; top: -40px; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 91, 46, .35), transparent 70%); pointer-events: none; }
 .analysis-finding .eyebrow { color: var(--gold); }

@@ -1,0 +1,55 @@
+/* Segmented control (components/ui/Segmented.client.tsx): 2 to 5 equal options on a 44 px --paper-sunk track; the raised
+   thumb slides with the spring over --d-toggle. Buttons in role="group" with aria-pressed (the pattern verifiers read).
+   The thumb is placed by the script from the pressed button's box; before it runs, the pressed button draws its own. */
+
+.seg {
+  position: relative; isolation: isolate;
+  display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  max-width: 100%; min-height: 44px; padding: 3px;
+  overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain;
+  border-radius: var(--r-pill); background: var(--paper-sunk); box-shadow: inset 0 0 0 1px var(--rule);
+}
+.seg::-webkit-scrollbar { display: none; }
+.seg.is-block { display: grid; width: 100%; }
+.seg-btn {
+  position: relative; z-index: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: max-content; min-height: 38px; padding: 0 14px; margin: 0;
+  border: 0; border-radius: var(--r-pill); background: transparent; box-shadow: none;
+  font-family: var(--sans); font-size: var(--t-label); font-weight: 500; line-height: 1.1; color: var(--ink-2);
+  font-variant-numeric: tabular-nums; white-space: nowrap; cursor: pointer;
+  transition: color var(--d-quick) var(--ease-out), transform var(--d-release) var(--spring);
+  -webkit-tap-highlight-color: transparent;
+}
+/* 44 px hit area on a 38 px button. */
+.seg-btn::after { content: ''; position: absolute; inset: -3px 0; }
+.seg-btn:hover, .seg-btn.is-hover { color: var(--ink); border-color: transparent; }
+.seg-btn[aria-pressed='true'] { color: var(--ink); font-weight: 600; }
+.seg-btn:active:not(:disabled), .seg-btn.is-pressed { transform: scaleX(1.06); transition-duration: var(--d-press); }
+.seg-btn:focus-visible, .seg-btn.is-focus { outline: 2px solid var(--focus); outline-offset: 1px; }
+.seg-btn:disabled, .seg-btn[aria-disabled='true'] { color: var(--ink-3); opacity: .6; cursor: not-allowed; }
+.seg-thumb {
+  position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 0;
+  border-radius: var(--r-pill); background: var(--control-thumb); box-shadow: var(--shadow-raise), 0 0 0 1px var(--rule);
+  transform: translateX(var(--thumb-x, 0)); width: var(--thumb-w, 0);
+  transition: transform var(--d-toggle) var(--spring);
+  pointer-events: none;
+}
+/* Until the script has measured, the pressed button carries the raised surface itself. */
+.seg:not(.is-ready) .seg-btn[aria-pressed='true'] { background: var(--control-thumb); box-shadow: var(--shadow-raise), 0 0 0 1px var(--rule); }
+.seg:not(.is-ready) .seg-thumb { display: none; }
+
+/* On night: a --night-2 track with a --night-3 edge and a night-ink thumb with ink text. */
+.night .seg { background: var(--night-2); box-shadow: inset 0 0 0 1px var(--night-3); }
+.night .seg-thumb, .night .seg:not(.is-ready) .seg-btn[aria-pressed='true'] { background: var(--night-ink); box-shadow: none; }
+.night .seg-btn { color: var(--night-ink-2); }
+.night .seg-btn[aria-pressed='true'] { color: var(--night); }
+
+/* A row that might not fit scrolls sideways inside the gutter rather than clipping. */
+.seg-scroll { max-width: 100%; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+.seg-scroll::-webkit-scrollbar { display: none; }
+
+/* Under 360 px (200% zoom) a long control keeps 44 px buttons and scrolls sideways inside its track. */
+@media (max-width: 359.98px) {
+  .seg-btn { padding: 0 10px; }
+}
