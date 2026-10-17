@@ -43,7 +43,8 @@ async function browse(h, device) {
   // The Menu is a modal sheet over the header (components/MenuSheet.tsx): close it again with Escape.
   if (device.mobile) { await page.keyboard.press('Escape'); await page.waitForTimeout(700); }
   for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, 700); await page.waitForTimeout(120); }
-  await click('a.story-card', /^\/stories\/[a-z-]+$/);
+  // A story from the home page's chapter list (its story cards left it in the redesign, WP1, October 17, 2026).
+  await click('main .chapter-list a[href^="/stories/"]', /^\/stories\/[a-z-]+$/);
   for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, 800); await page.waitForTimeout(120); }
   for (const [, href] of MAIN) {
     const from = new URL(page.url()).pathname, left = Date.now();

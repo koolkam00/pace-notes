@@ -14,7 +14,10 @@ const { SITE, type, waitFor } = require('../browser.cjs');
 const { ROOT } = require('../inspect.cjs');
 
 const PHONE = { viewport: { width: 390, height: 844 }, mobile: true };
-const HOME_SECTIONS = ['hero', 'paths', 'stakes', 'guide', 'steps', 'stories', 'cta'];
+// The home page's sections since the redesign (WP1, October 17, 2026): the steps and the story teaser are gone.
+const HOME_SECTIONS = ['hero', 'paths', 'stakes', 'guide', 'cta'];
+// The home page's links to a story: its chapter list (the guide), since the story cards left it.
+const HOME_STORY = 'main .chapter-list a[href^="/stories/"]';
 const SENTINEL = 'E2E sentinel Private Name 3:16:41';
 // A recording shows the elements a test adds to the page (a broken image, a missing script) like any other.
 const IN_RECORDING = /\(\/s\/\)/;
@@ -47,7 +50,7 @@ async function reading(h) {
     await page.waitForTimeout(400);
   };
   // Story A, read to the end, then back to the (much longer) home page by the header logo: a client-side navigation.
-  await page.evaluate(() => document.querySelector('a.story-card[href^="/stories/"]').click());
+  await page.evaluate(selector => document.querySelector(selector).click(), HOME_STORY);
   await page.waitForURL(url => new URL(url).pathname.startsWith('/stories/'));
   const storyA = new URL(page.url()).pathname;
   await page.waitForTimeout(1500);
@@ -63,8 +66,8 @@ async function reading(h) {
   await page.waitForURL(url => new URL(url).pathname === '/');
   await page.waitForTimeout(1500);
   // Story B, read to the end, then the tab leaves the site with a full load: the story's own $pageleave.
-  const storyB = await page.evaluate(a => [...document.querySelectorAll('a.story-card[href^="/stories/"]')].map(el => new URL(el.href).pathname).find(href => href !== a), storyA);
-  await page.evaluate(href => document.querySelector(`a.story-card[href="${href}"]`).click(), storyB);
+  const storyB = await page.evaluate(([selector, a]) => [...document.querySelectorAll(selector)].map(el => new URL(el.href).pathname).find(href => href !== a), [HOME_STORY, storyA]);
+  await page.evaluate(([selector, href]) => [...document.querySelectorAll(selector)].find(el => new URL(el.href).pathname === href).click(), [HOME_STORY, storyB]);
   await page.waitForURL(url => new URL(url).pathname === storyB);
   await page.waitForTimeout(1500);
   await toBottom();
@@ -84,7 +87,7 @@ async function reading(h) {
   const sections = named(run, 'section_viewed').filter(p => p.$pathname === '/' && views[0] && p.$pageview_id === views[0].$pageview_id).map(p => p.section);
   h.check('each home section is counted once, in page order', JSON.stringify(sections) === JSON.stringify(order), { sent: sections, page: order });
   // The home page's sections since October 16, 2026, and none of them a chapter-* (autopilot/metrics.md counts those on /).
-  h.check('the home page marks hero, paths, stakes, guide, steps, stories and cta, in that order', JSON.stringify(order) === JSON.stringify(HOME_SECTIONS), order);
+  h.check('the home page marks hero, paths, stakes, guide and cta, in that order', JSON.stringify(order) === JSON.stringify(HOME_SECTIONS), order);
   h.check('no chapter-* section is sent from the home page', !named(run, 'section_viewed').some(p => p.$pathname === '/' && String(p.section).startsWith('chapter-')), shown(named(run, 'section_viewed').filter(p => p.$pathname === '/')));
   // Once the SDK has loaded, the site's events join its batch (sent every few seconds) instead of one request each.
   const perRequest = run.sent.map(r => (r.events || []).filter(e => e.event === 'section_viewed').length).filter(n => n);
