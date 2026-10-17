@@ -54,10 +54,10 @@ Score = reach × expected effect × evidence ÷ effort, adjusted for risk. Don't
    - **Metric:** home_depth, answered_visit_rate.
    - Reach: very high. Effort: M. Risk: medium. Best run as an experiment after `home-hero-v1` concludes.
 4. **Explain why totals differ**
-   - **Evidence:** the home page shows 3,414,116 finishes, "3.4 million", 3,517,336 and 4.46 million records, while the tools page says 3.26 million. "Why the totals differ" sits at screen 26.
-   - **Change:** one shared "About these numbers" popover, placed near the first figure on each page. It reads the existing manifests (no new calculations) and says finishes, not runners.
+   - **Evidence (refreshed October 17, 2026, release `htw-db-2026-10-16-1652`):** the home page shows 3,871,767 finishes and "3.9 million", plus "3.7 million" for the pacing-type group; the tools page says "3.71 million". The 0934-era figures (3,414,116, 3,517,336, 4.46 million, 3.26 million) are gone. Since October 16 the explanation of each total lives only on /methodology (insights-only rule).
+   - **Change:** link the first figure on each page that prints a group total to the matching /methodology anchor, so the difference is one tap away. No popover or method text on the page itself (insights-only rule), and no new calculations.
    - **Metric:** feedback `numbers_look_wrong` share, trust (qualitative).
-   - Reach: high. Effort: S. Risk: low.
+   - Reach: medium. Effort: S. Risk: low.
 5. **Lighten `/runners` (UI part only)**
    - **Evidence:**
      - it downloads a 326.7 KB `manifest.json` before search works, about 1 MB in total;
