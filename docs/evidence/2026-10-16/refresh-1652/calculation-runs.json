@@ -25,7 +25,8 @@
   },
   "history": [
     "October 16, 2026: a first full calculation and import (policy SHA-256 e2dd5c1f990b219b3cad49a74768a399c3cb3af76917675ab9e3d433089745d4) was interrupted during the story build.",
-    "October 17, 2026: the built course pages rejected the rank word 'fastest' in seven policy reasons. The reasons were reworded (decisions and counts unchanged), build_course_geometry.py was changed to draw only routes the runner context attached, and every output below was recalculated from scratch in the forced order; the weather screen's results were identical to the first run apart from hashes and timestamps."
+    "October 17, 2026: the built course pages rejected the rank word 'fastest' in seven policy reasons. The reasons were reworded (decisions and counts unchanged), build_course_geometry.py was changed to draw only routes the runner context attached, and every output below was recalculated from scratch in the forced order; the weather screen's results were identical to the first run apart from hashes and timestamps.",
+    "October 17, 2026: an independent recount (about 1,100 printed or stored values) found every count, cohort, median and quantile right, but 20 course-page percentages 0.1 point off (shares stored with four digits, then rounded again on the page) and 15 exact pace ties counted as a faster final section. The story and tool builders now store printed shares with ten digits (insights_stats.SHARE_DIGITS), treat an exact tie as not faster (insights_data.faster_pace) and name their screen counts from the data; only the story and tool data (public/data/insights) were rebuilt, from the same runner and context manifests. The branch then merged main at bd5ff5b (PR #68 keypad colon, PR #69 insights only)."
   ],
   "code": {
     "source_quality_policy_sha256": "0aa3fa50e769921af9b8bfcb261dd6357f383545cd0c06a1091e567f83cf50ea",
@@ -143,5 +144,42 @@
       "step": "replace public/data/insights with the verified folder",
       "result": "byte-identical copy (diff -rq)"
     }
-  ]
+  ],
+  "follow_up_2026_10_17": {
+    "scope": "public/data/insights only (stories, tool data, course geometry); every other output above is unchanged",
+    "runs": [
+      {
+        "step": "python -m unittest discover -s analysis -p 'test_*.py'",
+        "result": "121 tests passed (three new: printed shares rounded once, count phrases, an exact pace tie is not faster)"
+      },
+      {
+        "step": "build_insights.py --output <fresh folder>",
+        "seconds": 924,
+        "result": "{\"analysis_n\": 3871767, \"seconds\": 924.4, \"files\": 325}"
+      },
+      {
+        "step": "build_course_geometry.py --profiles CORE/course_profiles.parquet",
+        "result": "{\"bytes\": 88798, \"courses\": 32, \"omitted\": [\"Washington\"], \"sha256\": \"85028660bb6f3c332dba11ea3107613541f6eb64b4e86230719f987cc584c4a7\"}",
+        "note": "byte-identical routes; only as_of differs from the earlier file"
+      },
+      {
+        "step": "build_insights.py --only manifest",
+        "result": "{\"analysis_n\": 3871767, \"seconds\": 64.6, \"files\": 326}",
+        "manifest_sha256": "bed6ae05d8725f9d4c14048037dda68872b45bd04d527280f8e78a23202cf117"
+      },
+      {
+        "step": "node scripts/verify-insights.cjs --input <fresh folder>",
+        "seconds": 169,
+        "result": "passed, including the new printed-once checks: {\"files\": 326, \"scanned_values\": 3528102, \"source_shards\": 7881, \"raw_records\": 4915355, \"eligible_records\": 3871767, \"story_n\": 3871767, \"shape_n\": 3733382, \"start_offset_editions\": 15}; kick faster 2780083"
+      },
+      {
+        "step": "replace public/data/insights with the verified folder",
+        "result": "byte-identical copy (diff -rq)"
+      },
+      {
+        "step": "compare with the previous public/data/insights",
+        "result": "no structural, string or integer change except the three method strings, course-geometry as_of, the shard checksums, kick.faster 2,780,098 -> 2,780,083 and kick.slowdown_faster 904,728 -> 904,724; every float equals the old value within its old rounding except two by_35_40 shares moved by the tie rule"
+      }
+    ]
+  }
 }

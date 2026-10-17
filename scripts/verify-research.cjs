@@ -264,7 +264,7 @@ for (const question of [...questions, ...extras]) for (const source of question.
   // Wording that defines a term or says how a mean was balanced stays with the question's method on /methodology.
   const shownOf = id => splitAnswer([...questions, ...extras].find(q => q.id === id)).shown;
   assert.match(shownOf('r09_bad_patch_recoverable'), /after a first bad patch at 20–25 km/); assert.doesNotMatch(shownOf('r09_bad_patch_recoverable'), /qualifying patch/);
-  assert.doesNotMatch(shownOf('r12_fastest_by_ability'), /equally weighting/); assert.match(shownOf('r12_fastest_by_ability'), /\d minutes slower\.$/);
+  assert.doesNotMatch(shownOf('r12_fastest_by_ability'), /equally weighting/); assert.match(shownOf('r12_fastest_by_ability'), /\d minutes (?:slower|faster)\.$/, 'The pair answer ends with the difference (Chicago slower under 0934, faster under 1652)');
   assert.doesNotMatch(shownOf('s3_course_breaks'), /relative to their own average/);
   for (const id of ['r09_bad_patch_recoverable', 'r12_fastest_by_ability', 's3_course_breaks']) assert.ok([...questions, ...extras].find(q => q.id === id).method.some(line => /patch is the first section|average those two means equally|relative to each runner’s full-marathon average/.test(line)), `${id}: the dropped wording is in its method on /methodology`);
   // The page data holds only what ResearchQuestion renders: no stored method, detail, source or sample fields, no chart notes.
