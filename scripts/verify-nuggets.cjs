@@ -38,7 +38,8 @@ const eq = (a, b, message) => { assert.deepEqual(a, b, message); checks++; };
 // ---------- The format helpers ----------
 const F = require('../lib/nuggets/format.ts');
 eq(F.IN_WORDS_DENOMINATORS, [2, 3, 4, 5, 10, 20, 25, 50, 100], 'inWords uses the fixed denominator list');
-eq([0.0395, 0.5, 0.26, 0.105, 0.0198, 0.3, 0.012, 0.0101].map(F.inWords), ['1 in 25', '1 in 2', '1 in 4', '1 in 10', '1 in 50', '30%', '1%', '1 in 100'], 'inWords: the closest 1 in d within 10%, else the percentage');
+eq([0.0395, 0.5, 0.26, 0.105, 0.0198, 0.3, 0.012, 0.0101].map((v) => F.inWords(v)), ['1 in 25', '1 in 2', '1 in 4', '1 in 10', '1 in 50', '30%', '1%', '1 in 100'], 'inWords: the closest 1 in d within 10%, else the percentage');
+eq([0.0395, 0.3, 0.012].map((v) => F.inWords(v, 'finishes')), ['1 in 25 finishes', '30% of finishes', '1% of finishes'], 'inWords with a noun reads as a phrase in both branches');
 eq([0.30, 0.72, 0.68, 0.719, 0.5, 0.04, 0.96, 0.745].map(F.approxWords), ['about 3 in 10', 'just over 7 in 10', 'just under 7 in 10', 'just over 7 in 10', 'about 5 in 10', '4%', '96%', '75%'], 'approxWords: about, just over, just under');
 eq([0, 7, 12, 13, 1234].map(F.countWord), ['zero', 'seven', 'twelve', '13', '1,234'], 'countWord: words to twelve, figures beyond');
 eq([F.count(15856), F.count(10000), F.count(3871767)], ['15,856', '10,000', '3,871,767'], 'counts are written out, never "10K"');

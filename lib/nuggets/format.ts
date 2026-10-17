@@ -42,16 +42,22 @@ export const IN_WORDS_DENOMINATORS: readonly number[] = [2, 3, 4, 5, 10, 20, 25,
 
 /**
  * A share as a plain fraction: the closest "1 in d" from the fixed list, when its relative error is under 10%
- * (0.0395 → "1 in 25"); otherwise the percentage ("30%").
+ * (0.0395 → "1 in 25"); otherwise the percentage ("30%"). With a noun both branches read as a phrase: "1 in 25
+ * finishes" or "3% of finishes", so a caller never appends a noun to a bare percentage.
  */
-export function inWords(share: number): string {
-  if (!finite(share) || share <= 0 || share >= 1) return pct(share);
+export function inWords(share: number, noun?: string): string {
+  const best = nearestOneIn(share);
+  if (!noun) return best ? `1 in ${best}` : pct(share);
+  return best ? `1 in ${best} ${noun}` : `${pct(share)} of ${noun}`;
+}
+function nearestOneIn(share: number): number | null {
+  if (!finite(share) || share <= 0 || share >= 1) return null;
   let best: { d: number; err: number } | null = null;
   for (const d of IN_WORDS_DENOMINATORS) {
     const err = Math.abs(1 / d - share) / share;
     if (err < 0.1 && (!best || err < best.err)) best = { d, err };
   }
-  return best ? `1 in ${best.d}` : pct(share);
+  return best ? best.d : null;
 }
 
 /**
@@ -132,6 +138,14 @@ export function tempGap(celsius: number, units: UnitSystem, digits = 0): string 
 }
 
 /** A duration said in full for a screen reader: 15000 → "4 hours 10 minutes"; 162 → "2 minutes 42 seconds". */
+/** An effect per degree, from per °C (the data) to the reader's degree: per °F is per °C ÷ 1.8 in miles mode. */
+export function perDegree(perCelsius: number, units: UnitSystem): number {
+  return units === 'mi' ? perCelsius / 1.8 : perCelsius;
+}
+/** The degree a per-degree effect is shown in: "1 °F" in miles mode, "1 °C" in kilometres. */
+export function degreeStep(units: UnitSystem): string {
+  return units === 'mi' ? '1 °F' : '1 °C';
+}
 export function spokenTime(seconds: number): string {
   if (!finite(seconds)) return 'not available';
   const s = Math.round(Math.abs(seconds));

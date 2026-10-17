@@ -71,9 +71,9 @@ function shapeNegsplit(): Nugget {
   return placeholder({
     id: 'shape.second20k', page: '/stories/pacing-types', denominator: 'eligible',
     values: { share, n: row ? Number(row.count) : NaN, total: row ? Number(row.n_value) : NaN }, guard: ok,
-    headline: `Only *${inWords(share)}* finishes ran their second 20K faster than their first.`,
-    fallback: Number.isFinite(share) ? `*${inWords(share)}* finishes ran their second 20K faster than their first.` : 'Second 20K against the first.',
-    figure: Number.isFinite(share) ? { value: inWords(share), sr: `${inWords(share)} finishes` } : null,
+    headline: `Only *${inWords(share, 'finishes')}* ran their second 20K faster than their first.`,
+    fallback: Number.isFinite(share) ? `*${inWords(share, 'finishes')}* ran their second 20K faster than their first.` : 'Second 20K against the first.',
+    figure: Number.isFinite(share) ? { value: inWords(share), sr: inWords(share, 'finishes') } : null,
     key: 'ran their second 20K faster than their first',
   });
 }
