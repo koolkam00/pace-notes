@@ -59,7 +59,7 @@ export default function ReplayBody() {
       </Beat>
 
       {rows.length > 1 ? (
-        <Beat id="packs" track="chapter-2" label="Together at 10K" title={packs}
+        <Beat id="packs" track="chapter-2" label={`Together at ${matLabel(Number(packs.values.checkpoint_km) || mats[0])}`} title={packs}
           dek={`${packEdition!.city} ${packEdition!.year}: ${count(Number(packs.values.n))} finishes passed ${matLabel(Number(packs.values.checkpoint_km))} together. The band is the middle 80% of them.`}>
           <LineProfile x={mats} xDomain={[mats[0], MARATHON_KM]} yDomain={[-reach, reach]}
             layers={[{ id: 'pack', label: 'The pack', series: [{ id: 'median', values: rows.map(() => 0) }], band: { lo, hi },

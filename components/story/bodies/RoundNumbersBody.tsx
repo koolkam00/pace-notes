@@ -139,7 +139,7 @@ export default function RoundNumbersBody() {
           answer={sentenceOf(rescue)} initial={50} />
       </Beat>
 
-      <Beat id="my-finish" track="chapter-3" label="Your minute" title={<>Where did <em>your</em> finish land?</>}>
+      <Beat id="your-minute" track="chapter-3" label="Your minute" title={<>Where did <em>your</em> finish land?</>}>
         <MyFinish first={LO} bins={lookupBins.map((b) => b.all)} expected={lookupBins.map((b) => Math.round(expected.get(b.minute) ?? 0))}
           tops={lookupBins.map((b) => Number(lookupY(b.all).toFixed(4)))}>
           <LookupPlot ft={ft} />
