@@ -35,7 +35,7 @@ export default function Slope({ items, fromLabel, toLabel, format, labelCount = 
   const ordered = [...items].sort((a, b) => Number(named.has(a.id)) - Number(named.has(b.id)));
   const plot = (
     <Plot>
-      <text className="tick slope-head" x={pc(LEFT)} y="0" dy={12} textAnchor="middle">{fromLabel}</text>
+      <text className="tick slope-head" x="0" y="0" dy={12} textAnchor="start">{fromLabel}</text>
       <text className="tick slope-head" x={pc(RIGHT)} y="0" dy={12} textAnchor="middle">{toLabel}</text>
       {ordered.map((it) => {
         const on = named.has(it.id);
