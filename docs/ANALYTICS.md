@@ -37,7 +37,7 @@ The anonymous ID lives in one browser tab's `sessionStorage`, so a "unique visit
 | `runner_search_submitted` | A non-empty search starts, including opening/restoring a shared search link | None |
 | `runner_search_completed` | The latest non-aborted search returns or fails | `outcome`: matches, no_matches, error; `results`: 0, 1, 2-5, 6+ (matches found; not sent on error) |
 | `runner_profile_opened` | A result group's race records finish loading | None |
-| `race_comparison_opened` | Visitor presses View selected races | `selection`: one/multiple; `availability`: eligible/mixed/limited (from October 15, 2026, not yet deployed, a record in a copy edition such as Chicago 2018 or 2019 counts as limited, as the page shows it) |
+| `race_comparison_opened` | Visitor presses View selected races | `selection`: one/multiple; `availability`: eligible/mixed/limited (from October 15, 2026, a record in a copy edition counts as limited, as the page shows it; under 0934 those were Chicago 2018 and 2019, and since the 1652 release the copy list is empty) |
 | `analysis_filters_applied` | Main, fast-start or weather filters are explicitly applied | Analysis ID and all/single course scope |
 | `data_download_clicked` | Click on a project Release link (`koolkam00/pace-notes` or its former name `koolkam00/htw-live-study`, which the site's links still use) or site data file; does not prove download completed | `destination`: release/site_data |
 | `units_changed` | Visitor switches between miles and kilometres (pressing the units already shown sends nothing) | `units`: mi/km |

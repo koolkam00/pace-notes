@@ -33,7 +33,7 @@ The request below records the September 10 inspection, written on September 11, 
 ## September 10 facts behind the historical request
 
 - September 10 release: [private-export-20260910-1412](https://github.com/koolkam00/htw-live-study/releases/tag/private-export-20260910-1412). Both whole archives passed GitHub size/SHA-256 verification; all ten shared files are byte-identical.
-- CORE has ten regular members; FULL has thirteen. The current downloader accepts eight and nine respectively. FULL would first fail on `FEATURE-FIELD-NOTES.md`.
+- CORE has ten regular members; FULL has thirteen. The downloader then accepted eight and nine respectively (since October 16, 2026 it also accepts the 12 and 14 members of `htw-db-*` releases). FULL would first fail on `FEATURE-FIELD-NOTES.md`.
 - FULL has 138 columns and lacks `race`, `runner_name` and `split_mode_in`. Restoring archive compatibility alone cannot restore the current history/audit pipeline.
 - The existing release-triggered [run 34490423926](https://github.com/koolkam00/htw-live-study/actions/runs/34490423926) failed before downloading FULL. Its only attempt has no artifacts. FULL finished uploading after that failure; the exact historical API response is not available.
 - Feature race dates are all null. Weather has 207 dated rows; course-validity fields are empty in all 32 profiles. Exact raw ages cover 1,169,542 of 3,580,279 records. The producer's source audit reports 423,244 missing 20 km splits, 509,397 incomplete checkpoint records and 221,059 non-increasing flags; these flags are not disjoint.
