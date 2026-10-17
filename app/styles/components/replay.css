@@ -17,10 +17,12 @@
 .hero-replay .replay-hud { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s-4); margin-bottom: var(--s-3); }
 .hero-replay .replay-race { margin: 0 0 2px; font-size: var(--t-kicker); font-weight: 600; line-height: 1.3; letter-spacing: .08em; text-transform: uppercase; color: var(--night-ink-3); }
 .hero-replay .replay-clock { margin: 0; font-size: 1.75rem; font-weight: 600; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--night-ink); }
-.hero-replay .replay-stats { display: flex; gap: var(--s-5); margin: 0; text-align: right; }
-.hero-replay .replay-stats div { display: grid; gap: 2px; min-width: 0; }
-.hero-replay .replay-stats dt { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; font-size: var(--t-kicker); font-weight: 600; line-height: 1.3; color: var(--night-ink-3); white-space: nowrap; }
-.hero-replay .replay-stats dd { margin: 0; font-size: 1.0625rem; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; color: var(--night-ink); }
+.hero-replay .replay-race { white-space: nowrap; }
+/* The stats: one line each, the label then its value, right-aligned beside the clock. */
+.hero-replay .replay-stats { display: grid; gap: 2px; margin: 0; }
+.hero-replay .replay-stats div { display: flex; align-items: baseline; justify-content: flex-end; gap: var(--s-2); min-width: 0; }
+.hero-replay .replay-stats dt { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--night-ink-3); white-space: nowrap; }
+.hero-replay .replay-stats dd { margin: 0; min-width: 3ch; font-size: 1rem; font-weight: 600; line-height: 1.3; font-variant-numeric: tabular-nums; text-align: right; color: var(--night-ink); }
 .hero-replay .replay-swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--night-signal); }
 
 /* The canvas box: fixed height, the poster under the canvas, the canvas fading in over it. */
@@ -92,6 +94,10 @@
   .hero-replay .replay-box { border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--night-3); }
 }
 @media (max-width: 359.98px) {
-  .hero-replay .replay-stats { gap: var(--s-3); }
   .hero-replay .replay-hud { flex-wrap: wrap; }
+}
+/* 200% zoom: the stats stack, and only Start, 20K and Finish name the mats. */
+@media (max-width: 299.98px) {
+  .hero-replay .replay-stats div { justify-content: flex-start; }
+  .hero-replay .replay-mats span:nth-child(2), .hero-replay .replay-mats span:nth-child(4) { display: none; }
 }
