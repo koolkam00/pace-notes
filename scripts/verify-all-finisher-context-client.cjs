@@ -72,6 +72,12 @@ async function main() {
         assert.match(html,/Slowdown rate in this edition/);
         assert.doesNotMatch(html,/Mean edition slowdown rate|across 3 editions/);
         assert.match(html,/Start-hour temperature(?:: | is unavailable)/);
+        // The headline speaks of the editions on the chart only: the one followed and its comparison line.
+        const headlineText=html.match(/<h2>([^<]*)<\/h2>/)[1];
+        const shown=new Set([focus.id,...(comparison?[comparison.id]:[])]);
+        for(const group of groups) if(!shown.has(group.id)) assert.ok(!headlineText.includes(allFinisherGroupLabel(group,kind,units).replace(/&/g,'&amp;')),`race-day headline names only shown editions, not ${group.id}`);
+        const alone=render(AllFinisherResults,{groups,kind,start,units,focus});
+        assert.match(alone,/<h2>The sustained slowdown rate was /,'race-day: one edition, one rate');
       }
     }
     const page=render(AllFinisherAnalysis,{kind,start,history:React.createElement('p',null,'HISTORY RESULT')});

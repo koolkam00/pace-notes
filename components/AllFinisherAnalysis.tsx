@@ -45,13 +45,15 @@ function headline(groups: AllFinisherGroup[], kind: AllFinisherKind, label: (gro
 
 export function AllFinisherResults({ groups, kind, units, focus, comparison }: { groups: AllFinisherGroup[]; kind: AllFinisherKind; start: AllFinisherStart; units: UnitSystem; focus: AllFinisherGroup; comparison?: AllFinisherGroup }) {
   const raceDay = kind === 'race-day';
-  const charts = allFinisherCharts(raceDay ? [focus, ...(comparison && comparison.id !== focus.id ? [comparison] : [])] : groups, focus, comparison, kind, units);
+  // A race day shows the edition followed and its comparison only, so its headline speaks of those two.
+  const shown = raceDay ? [focus, ...(comparison && comparison.id !== focus.id ? [comparison] : [])] : groups;
+  const charts = allFinisherCharts(shown, focus, comparison, kind, units);
   const label = (group: AllFinisherGroup) => allFinisherGroupLabel(group, kind, units);
   const profileFirst = kind === 'course-profile' || kind === 'weather-profile' || raceDay;
   const primary = profileFirst ? charts.profile : kind === 'course-consistency' ? charts.consistency : charts.slowdown;
   const onsetAt = focus.onset_pct ? focus.onset_pct.reduce((best, value, i) => value > focus.onset_pct![best] ? i : best, 0) : -1;
   return <>
-    <section className="analysis-finding af-finding"><p className="eyebrow">What these race fields show</p><h2>{headline(groups, kind, label)}</h2></section>
+    <section className="analysis-finding af-finding"><p className="eyebrow">What these race fields show</p><h2>{headline(shown, kind, label)}</h2></section>
     <QuestionViz spec={chartOnly(primary)} unitSystem={units} />
     <section className="af-section"><p className="eyebrow">Follow the selected group</p><h2>{label(focus)}</h2><div className="af-numbers"><div><strong>{percent(focus.slowdown_pct)}</strong><span>{raceDay ? 'Slowdown rate in this edition' : 'Mean edition slowdown rate'}</span></div><div><strong>{paceChange(focus.late_pct)}</strong><span>Typical late-race pace, against early-race pace</span></div><div><strong>{clock(focus.actual_finish_median_s, true)}</strong><span>Median recorded finish</span></div></div>{raceDay && <p className="control-help">{focus.temp_c == null ? 'Start-hour temperature is unavailable.' : `Start-hour temperature: ${Number((units === 'mi' ? focus.temp_c * 1.8 + 32 : focus.temp_c).toFixed(1))}°${units === 'mi' ? 'F' : 'C'}.`} {focus.opening_net_m == null ? '' : `Net elevation change over the first ${distanceLabel(5, units)}: ${elevationLabel(focus.opening_net_m, units)}.`}</p>}{!profileFirst && <QuestionViz spec={chartOnly(charts.profile)} unitSystem={units} />}{profileFirst && <QuestionViz spec={chartOnly(charts.late)} unitSystem={units} />}</section>
     <section className="af-section"><p className="eyebrow">Find the turning point</p><h2>Where did sustained slowing begin?</h2>{charts.onset && focus.onset_pct ? <><p>{label(focus)}: <Link href="/methodology#sustained-slowdown">sustained slowdowns</Link> most often began in the {unitText(`${20 + onsetAt * 5}–${25 + onsetAt * 5} km`, units)} section ({percent(focus.onset_pct[onsetAt])} of them).</p><QuestionViz spec={chartOnly(charts.onset)} unitSystem={units} /></> : <div className="empty-comparison"><h3>Too few detected slowdowns to show the onset pattern.</h3><p>Try a broader course, early pace, age or gender selection.</p></div>}</section>
