@@ -1,0 +1,121 @@
+/* The analysis pages and /slowdown (WP3; the redesign spec, sections 4.2 and 7, under section 00). Imported by
+   app/analyses/[slug]/layout.tsx and app/slowdown/layout.tsx. A page is the finding (H1), its question, the answer on
+   one night card, at most two beats, the Make it yours explorer and the chapter end. Whitespace and hairlines divide
+   them, never boxes; the night card is the only filled surface. */
+
+/* ---------- The page ---------- */
+.analysis-flow { min-width: 0; padding-bottom: var(--s-7); }
+.analysis-hero .reading { padding-top: var(--s-4); }
+.analysis-hero .reading-rule { margin: var(--s-5) 0 var(--s-5); }
+.analysis-hero .reading-figure { justify-items: stretch; }
+
+/* A beat: the H2 is the finding, the figure under it. */
+.analysis-beat .beat-head { margin-bottom: var(--s-4); }
+.analysis-beat-title { margin: 0; max-width: 24ch; }
+.analysis-beat > .viz, .analysis-beat > .beat-grids { max-width: var(--measure-figure); }
+
+/* ---------- The answer card: a figure answer on night (dot grids, cells, a chart) ---------- */
+.answer-card { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); max-width: 34rem; padding: 20px; border-radius: var(--r-md); background: var(--paper); color: var(--ink); }
+[data-theme="dark"] .answer-card { box-shadow: inset 0 0 0 1px var(--night-3); }
+.answer-kicker { margin: 0; color: var(--ink-3); }
+.answer-foot { margin: 0; font-size: var(--t-label); line-height: 1.4; color: var(--ink-3); }
+.answer-card .viz-frame { margin: 0; }
+
+.answer-dots { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: end; gap: var(--s-5); }
+.answer-dots-label, .answer-grid-label { margin: 0; font-size: .9375rem; line-height: 1.35; color: var(--ink-2); }
+.answer-dots-label strong, .answer-grid-label strong { display: block; font-family: var(--figure); font-size: 2.25rem; font-weight: 660; line-height: 1; letter-spacing: -.03em; color: var(--signal); }
+.answer-grids { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-5); }
+/* Two grids side by side share the card: their dots take the column's width (at most the grid's own 192 px). */
+.answer-grids .dot-grid-dots, .beat-grids .dot-grid-dots { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 5px; width: 100%; max-width: 192px; }
+.answer-grids .dot-grid-dots li, .beat-grids .dot-grid-dots li { width: auto; height: 0; padding-bottom: 100%; }
+.answer-grid { display: grid; align-content: start; gap: var(--s-3); min-width: 0; }
+.answer-grid + .answer-grid .answer-grid-label strong { color: var(--ink); }
+
+.answer-cells { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); margin: 0; padding-top: var(--s-4); border-top: 1px solid var(--rule); }
+.answer-cells dt { font-size: var(--t-label); font-weight: 500; line-height: 1.3; color: var(--ink-3); }
+.answer-cells dd { margin: 4px 0 0; font-family: var(--sans); font-size: 1.75rem; font-weight: 600; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+/* Two dot grids side by side inside a beat (the next race). */
+.beat-grids { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-5); max-width: 34rem; }
+.beat-grids .viz-frame { margin: 0; }
+
+/* ---------- Make it yours: the explorer beat ---------- */
+.analysis-explore { scroll-margin-top: calc(var(--header-h) + 8px); }
+.explore-kicker { margin: 0 0 var(--s-3); color: var(--ink-3); }
+.explorer { display: block; min-width: 0; }
+.explorer-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-3); margin-bottom: var(--s-5); }
+.explorer-head > * { margin: 0; }
+
+.explore-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+.explore-mode { display: grid; gap: var(--s-2); }
+.explore-mode .field-hint { margin: 0; }
+.explore-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+.explore-submit { justify-self: start; }
+.profile-refinements { border-top: 1px solid var(--rule); }
+.profile-refinements > summary { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); min-height: 48px; list-style: none; font-size: var(--t-small); font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.profile-refinements > summary::-webkit-details-marker { display: none; }
+.profile-refinements > summary::marker { content: ''; }
+/* The same plus/minus as Values. */
+.profile-refinements > summary::after { content: '+'; flex: none; width: 22px; font-size: 1.25rem; font-weight: 400; line-height: 1; text-align: center; color: var(--ink); }
+.profile-refinements[open] > summary::after { content: '−'; }
+.profile-refinements > summary:hover { color: var(--ink); }
+.profile-refinements > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.profile-refinements[open] > summary { margin-bottom: var(--s-2); }
+
+/* The results under the form: the answer to the visitor's own selection. */
+.explore-results { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+.explore-results > * { margin: 0; }
+.explore-title { margin: 0; max-width: 30ch; font-family: var(--serif); font-optical-sizing: auto; font-size: clamp(1.375rem, 3.6vw + .5rem, 1.875rem); font-weight: 440; line-height: 1.16; letter-spacing: -.012em; color: var(--ink); text-wrap: balance; }
+.explore-sentence, .explore-note { max-width: var(--measure); font-size: var(--t-small); line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
+.explore-note { color: var(--ink-3); }
+.explore-results > .viz-frame, .explore-results > .viz { max-width: var(--measure-figure); }
+.explore-cells { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); margin: 0; max-width: 34rem; }
+.explore-cells > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.explore-cells dt { font-size: var(--t-label); font-weight: 500; line-height: 1.3; color: var(--ink-3); }
+.explore-cells dd { margin: 4px 0 0; font-family: var(--sans); font-size: 1.5rem; font-weight: 600; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.explore-state { display: grid; gap: var(--s-3); justify-items: start; padding: var(--s-5) 0; color: var(--ink-2); }
+.explore-state > * { margin: 0; }
+
+/* ---------- Race-day weather: the tabs and the effect card ---------- */
+.weather-tabs { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); max-width: 34rem; scroll-margin-top: calc(var(--header-h) + 8px); }
+.weather-panel[hidden] { display: none; }
+.weather-effect { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+.weather-sentence { margin: 0; }
+.effect-days { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); margin: 0; }
+.effect-days dt { font-size: var(--t-label); font-weight: 500; line-height: 1.3; color: var(--ink-3); }
+.effect-days dd { margin: 4px 0 0; font-family: var(--sans); font-size: 1.375rem; font-weight: 600; line-height: 1.1; letter-spacing: -.015em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.effect-result { display: grid; gap: var(--s-2); padding-top: var(--s-4); border-top: 1px solid var(--rule); }
+.effect-result-label { font-size: .9375rem; font-weight: 500; line-height: 1.3; color: var(--ink-2); }
+.viz-frame .effect-null-band { fill: var(--ink); opacity: .08; }
+
+/* ---------- A moved page (the old weather slugs) ---------- */
+.moved-page { display: grid; gap: var(--s-4); max-width: var(--measure); padding: var(--s-7) 0 var(--s-8); }
+.moved-page > * { margin: 0; }
+.moved-link { font-weight: 600; }
+
+/* ---------- Phones at 200% zoom ---------- */
+@media (max-width: 359.98px) {
+  /* The crumbs wrap rather than push the page sideways. */
+  .analysis-flow .reading-crumbs { flex-wrap: wrap; }
+  .answer-card { padding-inline: 16px; }
+  .answer-dots { grid-template-columns: minmax(0, 1fr); }
+  .answer-grids, .beat-grids, .answer-cells, .explore-cells, .effect-days { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 299.98px) {
+  .answer-card { padding-inline: 14px; }
+  .answer-cells dd, .explore-cells dd { font-size: 1.375rem; }
+}
+
+@media (min-width: 600px) {
+  .answer-card { padding-inline: 24px; }
+  .explore-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* From 900 px the form is inline at the top of the beat (the panel's own title names it, so the kicker goes). */
+@media (min-width: 900px) {
+  .explore-kicker { display: none; }
+  .miy-beat .miy { margin-bottom: var(--s-6); }
+  .explore-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .explore-form { gap: var(--s-5); }
+  .analysis-hero .reading { padding-top: var(--s-6); }
+}

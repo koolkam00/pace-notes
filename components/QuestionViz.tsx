@@ -1,33 +1,19 @@
 'use client';
 
 import { useId, useMemo, useState } from 'react';
-import dynamic from 'next/dynamic';
 import { finite, formatNumber } from '@/lib/csv';
 import type { ChartSpec } from '@/lib/research-data';
 import { filterOptions, resolveSelection } from '@/lib/chart-selection';
 import { sectionLabel } from '@/lib/section-labels';
 import { distanceValue, elevationValue, paceLabel, paceValue, unitText, type UnitSystem } from '@/lib/units';
 import { paceTicks } from '@/lib/pace-ticks';
-import { chunkLoadFailed, reloadAfterChunkError } from '@/lib/chunk-reload';
-import { trackFailure } from '@/lib/analytics';
+import LineProfile, { type ProfileSeries } from './viz/LineProfile';
+import { niceTicks } from './viz/scale';
 import { useUnits } from './UnitsProvider';
-import type { QuestionLineChartProps } from './QuestionLineChart';
 
-const COLORS = ['#2346E6', '#FF5B2E', '#66625A'];
-
-// Recharts only ever draws in the browser (the server HTML held an empty box), so its chunk loads after hydration
-// instead of with the page. The placeholder fills the fixed-height .chart box, so nothing shifts when the chart arrives.
-// If the chunk fails, the page reloads once as for any failed chunk; after that only the box says so and the text and
-// exact values stay, instead of the error page replacing the whole page.
-const ChartUnavailable = () => <div style={{ display: 'grid', placeItems: 'center', height: '100%', textAlign: 'center' }}><p className="chart-note">This chart didn&apos;t load. Reload the page to try again, or see the exact values below.</p></div>;
-const QuestionLineChart = dynamic<QuestionLineChartProps>(() => import('./QuestionLineChart').catch((error: Error) => {
-  // A reload is reported by the page it loads (components/SiteAnalytics.tsx); a chart that stays missing, here.
-  if (!reloadAfterChunkError(error)) { if (chunkLoadFailed(error)) trackFailure('chunk_load'); else trackFailure('js_error'); }
-  return { default: ChartUnavailable };
-}), {
-  ssr: false,
-  loading: () => <div className="chart-placeholder" style={{ width: '100%', height: '100%' }} aria-hidden="true" />,
-});
+// Series colours from the tokens: ink, then the second ordinal step, then the quiet mark.
+const COLORS = ['var(--ink)', 'var(--ordinal-2)', 'var(--mark-quiet)'];
+const oneDecimal = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
 
 export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { spec: ChartSpec; headingLevel?: 2 | 3; unitSystem?: UnitSystem }) {
   const id = useId();
@@ -62,10 +48,10 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
   const signed = allValues.some(value => value < 0);
   const max = spec.unit === '%' ? Math.max(100, ...allValues) : spec.unit === 'correlation' ? 1 : Math.max(1, ...allValues.map(Math.abs));
   const hasCounts = rows.some(row => spec.series.some(series => finite(row[`n_${series.key}`]) !== null));
-  const chartRows = rows.map(row => ({
+  const chartRows: Record<string, unknown>[] = rows.map(row => ({
     ...row,
     label: distanceAxis && finite(row.label) !== null ? distanceValue(Number(row.label), selectedUnits) : row.label,
-    ...(spec.band ? { interval: [row[spec.band.lower], row[spec.band.upper]] } : {}),
+    ...(spec.band ? { interval: [transformValue(row[spec.band.lower]), transformValue(row[spec.band.upper])] } : {}),
   }));
   const xs = chartRows.map(row => finite(row.label)).filter((v): v is number => v !== null);
   const sectionTicks = spec.sectionEnds && distanceAxis && xs.length
@@ -111,6 +97,30 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
     'km': selectedUnits === 'mi' ? 'Distance (miles)' : 'Distance (kilometres)',
   };
 
+  // The line form, server-drawn through LineProfile: every row with all its series recorded, the first series in ink,
+  // the second dashed, a band (when published) washed under them. The exact values stay in the table below.
+  const line = () => {
+    const drawn = chartRows.map((row, i) => ({ row, i })).filter(({ row }) => spec.series.every(series => finite(row[series.key]) !== null) && (!spec.xNumeric || finite(row.label) !== null));
+    if (!drawn.length) return null;
+    const xs = drawn.map(({ row, i }) => spec.xNumeric ? Number(row.label) : i);
+    const series: ProfileSeries[] = spec.series.map((s, i) => ({
+      id: s.key, values: drawn.map(({ row }) => Number(row[s.key])),
+      tone: spec.band ? (i ? 'quiet' : 'ink') : i === 2 ? 'quiet' : 'ink', dashed: !spec.band && i === 1,
+    }));
+    const intervals = spec.band ? drawn.map(({ row }) => row.interval as [number | null, number | null]) : [];
+    const band = spec.band && intervals.every(([a, b]) => a !== null && b !== null) ? { lo: intervals.map(([a]) => Number(a)), hi: intervals.map(([, b]) => Number(b)) } : undefined;
+    const ys = [...series.flatMap(s => s.values), ...(band ? [...band.lo, ...band.hi] : [])];
+    const [lo, hi] = [Math.min(...ys), Math.max(...ys)];
+    const yDomain: [number, number] | undefined = paceAxis ? [paceAxis.domain[0] / 60, paceAxis.domain[1] / 60] : signed ? undefined : spec.unit === '%' ? [0, Math.max(...niceTicks(0, hi, 4), hi)] : undefined;
+    const yTicks = (paceAxis ? paceAxis.ticks.map(t => t / 60) : niceTicks(yDomain ? yDomain[0] : lo, yDomain ? yDomain[1] : hi, 4)).map(v => ({ value: v, label: axisValue(v) }));
+    const tickAt = (v: number) => spec.xNumeric ? (distanceAxis ? oneDecimal.format(v) : formatNumber(v, spec.xUnit)) : text(String(drawn[v]?.row.label ?? ''));
+    const xValues = spec.xNumeric ? (sectionTicks ?? niceTicks(Math.min(...xs), Math.max(...xs), 4)) : xs.length <= 6 ? xs : [xs[0], xs[Math.floor(xs.length / 2)], xs[xs.length - 1]];
+    return <LineProfile x={xs} yDomain={yDomain} xTicks={xValues.map(v => ({ value: v, label: tickAt(v) }))} yTicks={yTicks}
+      layers={[{ id: 'all', label: text(spec.title), series, band }]} refs={signed ? [{ value: 0 }] : []}
+      axisTitle={{ end: text(spec.xLabel) }} label={`${text(spec.title)}: a line chart; the exact values are in the table below`}
+      keys={spec.series.length > 1 ? spec.series.map((s, i) => ({ label: text(s.label), mark: series[i].dashed ? 'dash' as const : 'line' as const, tone: series[i].tone === 'quiet' ? 'quiet' as const : undefined })) : undefined} />;
+  };
+
   return (
     <figure className="study-figure" aria-labelledby={`${id}-title`}>
       <Heading id={`${id}-title`} className="chart-title">{text(spec.title)}</Heading>
@@ -126,7 +136,7 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
           </label>;
         })}
       </div>}
-      {spec.series.length > 1 && !percentileKeys && <div className="chart-legend" aria-label="Chart legend">
+      {spec.series.length > 1 && !percentileKeys && spec.kind !== 'line' && <div className="chart-legend" aria-label="Chart legend">
         {spec.series.map((series, i) => <span key={series.key} className={`chart-key ${spec.kind === 'line' && i === 1 ? 'dashed' : ''}`} style={{ '--series-color': spec.band && i > 0 ? COLORS[0] : COLORS[i % COLORS.length] } as React.CSSProperties}>{text(series.label)}</span>)}
       </div>}
       {!allValues.length ? <p className="answer-state" role="status">No published values for this selection.</p>
@@ -143,17 +153,15 @@ export default function QuestionViz({ spec, headingLevel = 3, unitSystem }: { sp
             return <div className="range-row" key={`${row.label}-${i}`}>
               <div className="range-label">{label(row.label)}</div>
               <div className="range-track" aria-hidden="true" style={{ position: 'relative', height: 28 }}>{complete && <>
-                {rangeStart <= 0 && rangeEnd >= 0 && <span className="range-zero" style={{ position: 'absolute', left: `${rangePosition(0)}%`, top: 3, bottom: 3, borderLeft: '1px solid #9A907D' }} />}
+                {rangeStart <= 0 && rangeEnd >= 0 && <span className="range-zero" style={{ position: 'absolute', left: `${rangePosition(0)}%`, top: 3, bottom: 3, borderLeft: '1px solid var(--rule-strong)' }} />}
                 <span className="range-span" style={{ position: 'absolute', left: `${rangePosition(low)}%`, width: `${rangePosition(high) - rangePosition(low)}%`, top: 13, height: 2, borderRadius: 1, background: COLORS[2] }} />
-                <span className="range-marker" style={{ position: 'absolute', left: `${rangePosition(median)}%`, top: 7, width: 14, height: 14, transform: 'translateX(-50%)', borderRadius: '50%', background: COLORS[0], border: '2px solid white' }} />
+                <span className="range-marker" style={{ position: 'absolute', left: `${rangePosition(median)}%`, top: 7, width: 14, height: 14, transform: 'translateX(-50%)', borderRadius: '50%', background: COLORS[0], border: '2px solid var(--paper)' }} />
               </>}</div>
               <div className="range-values"><strong aria-label={`Median: ${value(median)}`}>{median === null ? '—' : value(median)}</strong></div>
             </div>;
           })}
         </div>
-        : spec.kind === 'line' ? <div className="chart">
-          <QuestionLineChart spec={spec} chartRows={chartRows} sectionTicks={sectionTicks} paceTicks={paceAxis ? paceAxis.ticks.map(seconds => seconds / 60) : undefined} distanceAxis={distanceAxis} signed={signed} colors={COLORS} text={text} value={value} label={label} axisValue={axisValue} />
-        </div> : <div className="bars">
+        : spec.kind === 'line' ? <div className="study-line">{line()}</div> : <div className="bars">
           {rows.map((row, i) => <div className="bar-item" key={`${row.label}-${i}`}>
             <div className="bar-label"><span>{label(row.label)}</span>{spec.series.length === 1 && <strong>{value(row[spec.series[0].key])}</strong>}</div>
             {spec.series.map((series, index) => {
