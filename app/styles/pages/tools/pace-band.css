@@ -1,0 +1,46 @@
+/* The pace band (/tools/pace-band; the redesign spec, section 7.13): the goal, the band on one night card, what finishes
+   near the goal ran (held pace against sustained slowdown, mat by mat), then the band to print. Every class here is
+   prefixed pace-band-. Imported by app/tools/pace-band/layout.tsx, with pace-band-strip.css. */
+
+/* ---------- The goal between its −/+ buttons ---------- */
+.pace-band-goal .tool-stepper { grid-template-columns: 44px minmax(0, 1fr) 44px; }
+.pace-band-goal input { text-align: center; }
+
+/* ---------- Held: the goal field holds text that is not a goal, so everything below shows the last good goal ---------- */
+.pace-band-held b { font-weight: 600; color: var(--ink); }
+.pace-band-dim { opacity: .45; transition: opacity var(--d-quick); }
+.pace-band-headline[aria-busy='true'] .tool-cells, .pace-band-headline[aria-busy='true'] .tool-laps { opacity: .55; transition: opacity var(--d-quick); }
+
+/* ---------- What finishes near the goal ran ---------- */
+.pace-band-observed > div { display: grid; gap: var(--s-4); }
+.pace-band-unavailable { display: grid; gap: var(--s-3); font-size: .9375rem; line-height: 1.55; color: var(--ink-2); }
+.pace-band-unavailable > p { margin: 0; }
+.pace-band-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.pace-band-actions:empty { display: none; }
+.pace-band-error { display: grid; gap: var(--s-3); justify-items: start; }
+.pace-band-table th small, .pace-band-wrist th small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
+.pace-band-wrist tr.is-mat th, .pace-band-wrist tr.is-mat td { font-weight: 600; color: var(--ink); }
+.pace-band-wrist tr.is-finish th, .pace-band-wrist tr.is-finish td { border-top: 1.5px solid var(--ink); font-weight: 600; color: var(--ink); }
+
+/* ---------- The band to print ---------- */
+.pace-band-controls { display: grid; gap: var(--s-4); }
+.pace-band-controls .tool-choice .seg-btn { padding-inline: 8px; }
+
+/* ---------- Print ---------- */
+@media print {
+  /* Wristband strips only */
+  .pace-band-root[data-print='strip'] .tool-results > :not(.pace-band-print-panel) { display: none !important; }
+  .pace-band-root[data-print='strip'] .pace-band-print-panel { padding: 0; border: 0; }
+  .pace-band-root[data-print='strip'] .pace-band-print-panel > header, .pace-band-root[data-print='strip'] .values { display: none; }
+  /* Full page: the band, the observed groups and the band's every marker, no strips. */
+  .pace-band-root[data-print='page'] .pace-band-strip, .pace-band-root[data-print='page'] .pace-band-sheet-wrap { display: none !important; }
+  .pace-band-root[data-print='page'] .pace-band-print-notes { display: block; font-size: 8.5pt; line-height: 1.45; }
+  .pace-band-root[data-print='page'] .table th, .pace-band-root[data-print='page'] .table td { height: auto; padding-top: .06cm; padding-bottom: .06cm; }
+  .pace-band-dim, .pace-band-held-dim { opacity: 1 !important; }
+}
+@supports selector(:has(a)) {
+  @media print {
+    .tool-page:has(.pace-band-root[data-print='strip']) .tool-header { display: none !important; }
+    body:has(.pace-band-root) .skip-link { display: none !important; }
+  }
+}

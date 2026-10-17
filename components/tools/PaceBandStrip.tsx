@@ -15,7 +15,7 @@ export interface RouteProfile { slug: string; city: string; race: string; km: nu
 export interface StripObserved { held: { n: number; e50: number[] } | null; lo: number; hi: number; place: string; genderWord: string }
 
 /**
- * The cut-out wristband strips, for the screen preview and for @media print (styles in app/tools/pace-band/pace-band.css):
+ * The cut-out wristband strips, for the screen preview and for @media print (styles in app/styles/pages/tools/pace-band-strip.css):
  * the mat strip with each mat's even-pace time and the held-pace median, the mile or km split strips, and the optional
  * route elevation strip for the back. The preview is scaled to fit the screen; it prints at full size.
  */
@@ -101,12 +101,12 @@ function ElevationStrip({ profile, units }: { profile: RouteProfile; units: Unit
     <div className="pace-band-strip is-back">
       <svg viewBox={`0 0 ${W} ${H + 12}`} preserveAspectRatio="none" role="img"
         aria-label={`Route elevation for ${profile.city}, from ${elevationLabel(profile.min, units)} to ${elevationLabel(profile.max, units)}, drawn on a fixed ${scale} vertical scale.`}>
-        <path d={fill} fill="#D9D2C3" stroke="none" />
-        <polyline points={coords.join(' ')} fill="none" stroke="#15171C" strokeWidth={1} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <path d={fill} fill="var(--line-2)" stroke="none" />
+        <polyline points={coords.join(' ')} fill="none" stroke="var(--night)" strokeWidth={1} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         {[5, 10, 15, 20, 25, 30, 35, 40].filter((km) => km < profile.km).map((km) => (
           <g key={km}>
-            <line x1={x(km)} x2={x(km)} y1={top} y2={H} stroke="#15171C" strokeWidth={0.6} strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
-            <text x={x(km)} y={H + 10} textAnchor="middle" fontSize="8.5" fontFamily="var(--mono)">{km}K</text>
+            <line x1={x(km)} x2={x(km)} y1={top} y2={H} stroke="var(--night)" strokeWidth={0.6} strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
+            <text x={x(km)} y={H + 10} textAnchor="middle" fontSize="8.5" fontFamily="var(--sans)">{km}K</text>
           </g>
         ))}
       </svg>

@@ -1,17 +1,12 @@
 import RacePlan, { type PlanCourse } from '@/components/tools/RacePlan';
-import { checkedDate, pageHeading, standardByKey } from '@/components/tools/QualifyingRaceText';
-import { ToolHeader, ToolNext } from '@/components/tools/ToolShell';
+import { ToolEnd, ToolHeader } from '@/components/tools/ToolShell';
 import { getCourseNames, slugifyCity } from '@/lib/course-data';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
-import { getPersonalSummary } from '@/lib/personalized-data';
 import { pageMetadata } from '@/lib/seo';
 import type { CourseGoal, PaceBandIndex, ProjectorIndex, WeatherMatch } from '@/lib/tools/data';
 import { courseSlug } from '@/lib/tools/links';
 import { PACE_BAND_INDEX } from '@/lib/tools/pace-band-data';
 import { COURSE_GOAL_FILE, screenedReason } from '@/lib/tools/plan';
-import { qualifyingKeyForCity } from '@/lib/tools/qualifying';
-import '../pace-band/pace-band.css';
-import './plan.css';
 
 export const metadata = pageMetadata({
   title: 'Marathon Race Planner: Goal Pace by Course | Pace Notes',
@@ -28,7 +23,7 @@ function optional<T>(name: string): T | null {
   }
 }
 
-/** A set built from a reader that may fail at build time (the course pages, the analyses' cities); empty when it does. */
+/** A set built from a reader that may fail at build time (the course pages); empty when it does. */
 function safeSet(read: () => string[]): Set<string> {
   try {
     return new Set(read());
@@ -52,15 +47,11 @@ function planCourses(goal: CourseGoal | null, band: PaceBandIndex | null): PlanC
   const projectorSlugs = new Set((projector?.scopes ?? []).map((s) => s.slug));
   const weatherSlugs = new Set((weather?.editions ?? []).map((e) => courseSlug(e.city)));
   const pages = safeSet(() => getCourseNames().map(slugifyCity));
-  const analysisCities = safeSet(() => (getPersonalSummary()?.cities ?? []).map((c) => c.city));
   return [...cities].sort((a, b) => a.localeCompare(b)).map((city) => {
     const slug = courseSlug(city);
-    const key = qualifyingKeyForCity(city);
-    const standard = key ? standardByKey(key) : undefined;
     return {
       slug, city, screened: goal && !listed.has(city) ? screenedReason(city, goal.screens) : null,
-      band: bandSlugs.has(slug), projector: projectorSlugs.has(slug), weather: weatherSlugs.has(slug), page: pages.has(slug), analyses: analysisCities.has(city),
-      qualifying: standard ? { key: standard.key, title: pageHeading(standard), checked: checkedDate() } : null,
+      band: bandSlugs.has(slug), projector: projectorSlugs.has(slug), weather: weatherSlugs.has(slug), page: pages.has(slug),
     };
   });
 }
@@ -74,10 +65,10 @@ export default function PlanPage() {
   const courses = planCourses(goal, band);
 
   return (
-    <div className="container tool-page">
+    <div className="tool-page">
       <ToolHeader slug="plan" />
       <RacePlan courseGoalSha={courseGoalSha} paceBandSha={paceBandSha} courses={courses} />
-      <ToolNext current="plan" />
+      <ToolEnd path="/tools/plan" how="/methodology#tools-plan" />
     </div>
   );
 }
