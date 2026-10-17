@@ -18,11 +18,12 @@
 .hero-replay .replay-race { margin: 0 0 2px; font-size: var(--t-kicker); font-weight: 600; line-height: 1.3; letter-spacing: .08em; text-transform: uppercase; color: var(--night-ink-3); }
 .hero-replay .replay-clock { margin: 0; font-size: 1.75rem; font-weight: 600; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--night-ink); }
 .hero-replay .replay-race { white-space: nowrap; }
-/* The stats: one line each, the label then its value, right-aligned beside the clock. */
+/* The stats: one line each, the label then its value, right-aligned beside the clock. Each value keeps the width of
+   "100%", so the HUD holds still while the shares change. */
 .hero-replay .replay-stats { display: grid; gap: 2px; margin: 0; }
 .hero-replay .replay-stats div { display: flex; align-items: baseline; justify-content: flex-end; gap: var(--s-2); min-width: 0; }
 .hero-replay .replay-stats dt { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--night-ink-3); white-space: nowrap; }
-.hero-replay .replay-stats dd { margin: 0; min-width: 3ch; font-size: 1rem; font-weight: 600; line-height: 1.3; font-variant-numeric: tabular-nums; text-align: right; color: var(--night-ink); }
+.hero-replay .replay-stats dd { margin: 0; min-width: 4.6ch; font-size: 1rem; font-weight: 600; line-height: 1.3; font-variant-numeric: tabular-nums; text-align: right; color: var(--night-ink); }
 .hero-replay .replay-swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--night-signal); }
 
 /* The canvas box: fixed height, the poster under the canvas, the canvas fading in over it. */
@@ -64,7 +65,7 @@
   font-family: var(--serif); font-size: 1.0625rem; font-weight: 440; line-height: 1.3; letter-spacing: -.005em; color: var(--night-ink);
   text-wrap: pretty; transition: opacity var(--d-toggle) var(--ease-out);
 }
-.hero-replay .replay-moment em { font-style: italic; color: var(--night-signal-ink); }
+.hero-replay .replay-moment em { font-style: italic; white-space: nowrap; color: var(--night-signal-ink); }
 .hero-replay .replay-moment.is-off { opacity: .4; }
 
 /* The race clock: a 44 px range over a 2 px track, hour ticks under it. */

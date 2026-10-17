@@ -384,17 +384,19 @@ function Ghost() {
     return c[j - 1] + ((km - mats[j - 1]) / (mats[j] - mats[j - 1])) * (c[j] - c[j - 1]);
   };
   const end = Math.max(men[8], women[8]);
-  const clocks = Array.from({ length: Math.floor(end / 60) + 1 }, (_, i) => i * 60);
+  const peak = band.ghost_s.indexOf(Math.max(...band.ghost_s));
+  // Every minute of the race, and the moment the men reach the mat the sentence names, so the default reads its number.
+  const clocks = [...new Set([...Array.from({ length: Math.floor(end / 60) + 1 }, (_, i) => i * 60), men[peak]])].sort((x, y) => x - y);
   const ghost = clocks.map((t) => at(men, t));
   const runner = clocks.map((t) => at(women, t));
   const gaps = clocks.map((t, i) => {
     const lead = Math.max(ghost[i], runner[i]);
+    if (t === 0) return 'Both at the start';
     if (lead >= 42.195 && runner[i] >= 42.195 && ghost[i] >= 42.195) return 'Both finished';
     const behind = ghost[i] >= runner[i] ? timeAt(women, lead) - t : timeAt(men, lead) - t;
     return ghost[i] >= runner[i] ? `Women ${ms(Math.max(0, behind))} behind` : `Men ${ms(Math.max(0, behind))} behind`;
   });
-  const peak = band.ghost_s.indexOf(Math.max(...band.ghost_s));
-  const initial = clocks.findIndex((t) => t >= men[peak]);
+  const initial = clocks.indexOf(men[peak]);
   return (
     <Form id="ds-ghost" title="Ghost race" note={<>Finishing in {band.label}, recorded men reached {sectionLabel(...SECTION_KM[peak]).split('–')[1]} <em>{ms(band.ghost_s[peak])}</em> ahead of recorded women, and the two finished together.</>}>
       <GhostRace clocks={clocks} ghost={ghost} runner={runner} gaps={gaps} names={{ ghost: 'Recorded men', runner: 'Recorded women' }} clockLabels={clocks.map((t) => hm(t / 60))}
