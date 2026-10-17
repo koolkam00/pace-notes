@@ -7,7 +7,7 @@ import { useWidth } from '@/components/viz/useSize';
 import { useUnits } from '@/components/UnitsProvider';
 import { SKIN_TONES } from '@/lib/art/gait';
 import type { Archetypes } from '@/lib/insights';
-import { checkpointLabel, count, hms, paceColour, paceText } from '@/lib/viz/format';
+import { checkpointLabel, count, hms, PACE_RAMP, paceColour, paceText } from '@/lib/viz/format';
 import { ARCHETYPE_COLOURS } from '@/lib/viz/palette';
 import { paceLabel } from '@/lib/units';
 import { useStoryData } from './StoryData';
@@ -163,7 +163,7 @@ export function PacingBarcode({ data: given }: { data?: Archetypes }) {
           <p className="viz-title">The pacing barcode</p>
           <p className="viz-sub">Fastest finishes at the top</p>
         </div>
-        <div className="ramp-legend"><span>faster than own average</span><i style={{ background: 'linear-gradient(90deg,#1D3FD8,#4F79F7,#9DB6FB,#EFE8DA,#FFB48A,#FF6A3D,#C8202F)' }} /><span>slower</span></div>
+        <div className="ramp-legend"><span>faster than own average</span><i style={{ background: `linear-gradient(90deg,${PACE_RAMP.join(',')})` }} /><span>slower</span></div>
       </div>
       <div ref={ref} className="viz" style={{ position: 'relative' }} onMouseLeave={() => setHover(null)}>
         <svg width={width} height={H} role="img" aria-label="Heatmap of median relative pace in each of nine sections for 200 groups of finishers ordered by finish time. Late sections turn red for slower finishers.">
