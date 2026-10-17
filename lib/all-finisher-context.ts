@@ -61,9 +61,10 @@ export function allFinisherGroupLabel(group: AllFinisherGroup, kind: AllFinisher
   if (kind === 'race-day') return group.label.replace(/^New York /, 'New York City ');
   if (allFinisherFamily(kind) === 'weather') {
     const temp = (n: number) => `${Number((units === 'mi' ? n * 1.8 + 32 : n).toFixed(1))}°${units === 'mi' ? 'F' : 'C'}`;
-    return group.lower_c == null ? 'Below ' + temp(group.upper_c!) : group.upper_c == null ? temp(group.lower_c) + ' or warmer' : temp(group.lower_c) + ' to below ' + temp(group.upper_c);
+    // The band in the page's grammar ("41–50°F"): from its lower edge to below its upper one.
+    return group.lower_c == null ? 'Below ' + temp(group.upper_c!) : group.upper_c == null ? temp(group.lower_c) + ' or warmer' : temp(group.lower_c).replace(/°[CF]$/, '') + '–' + temp(group.upper_c);
   }
-  if (kind === 'downhill') return group.terrain === 'downhill' ? 'Larger opening descent' : 'Other openings';
+  if (kind === 'downhill') return group.terrain === 'downhill' ? 'Downhill-start courses' : 'Every other course';
   return group.label === 'New York' ? 'New York City' : group.label;
 }
 export function allFinisherCharts(groups: AllFinisherGroup[], focus: AllFinisherGroup, comparison: AllFinisherGroup | undefined, kind: AllFinisherKind, units: UnitSystem) {

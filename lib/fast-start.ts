@@ -12,12 +12,14 @@ export type FastStartGroup = {
   after20_delta_p10_s?: number; after20_delta_median_s?: number; after20_delta_p90_s?: number; actual_finish_median_s?: number;
 };
 export type FastStartMode = 'all' | 'history';
+/** An opening band: the first 5K against the pace that followed, in percent (negative is faster), with open ends as null. */
+export type FastStartBand = { id: string; label: string; lower?: number | null; upper?: number | null };
 export type FastStartSelection = { mode: FastStartMode; city: string; age: string; gender: string; prior: string; band: string };
 export type FastStartRow = Omit<FastStartSelection, 'band' | 'mode'> & { groups: FastStartGroup[] };
 export type FastStartEvidence = {
   schema_version: 1; release_tag: string; input_as_of: string; as_of: string;
   runner_manifest_sha256: string; history_n: number; min_cell: number;
-  cohort: { raw: number; eligible: number }; bands: { id: string; label: string }[];
+  cohort: { raw: number; eligible: number }; bands: FastStartBand[];
   rows: FastStartRow[];
   mode?: 'all-finishers'; analysis_n?: number;
 };
@@ -28,6 +30,18 @@ export type FastStartStart = {
   mode: FastStartMode; analysis_n: number;
 };
 export type FastStartStarts = Record<FastStartMode, FastStartStart>;
+/**
+ * The first 5K that sits on an opening band's edge for an even goal: the goal's even pace held from 5K to 20K, and a first
+ * 5K `percent` faster (negative) or slower than it. In seconds. The goal line under the starting-pace receipt reads it
+ * ("At 4:00, more than 10% fast is a first 5K under 25:36"), so the band is never re-derived on the page.
+ */
+export function firstFiveAt(goalMinutes: number, percent = 0): number {
+  return ((goalMinutes * 60 * 5) / 42.195) * (1 + percent / 100);
+}
+/** The faster edge of a band that is faster than the pace that followed (fast10: −10), or null for a band that is not. */
+export function fastEdge(band: Pick<FastStartBand, 'lower' | 'upper'>): number | null {
+  return band.lower == null && typeof band.upper === 'number' && band.upper < 0 ? band.upper : null;
+}
 export const FAST_START_DEFAULT: FastStartSelection = { mode: 'all', city: 'All courses', age: 'all', gender: 'all', prior: 'all', band: 'fast10' };
 export const PRIOR_OPTIONS = [
   { id: 'all', label: 'All earlier times' }, { id: 'under3', label: 'Under 3:00' },

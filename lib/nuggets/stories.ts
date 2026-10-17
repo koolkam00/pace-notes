@@ -99,7 +99,8 @@ function slowdownLate(): Nugget {
   const late = rows.filter((r) => Number(r.label) >= 30).reduce((s, r) => s + Number(r.episodes ?? 0), 0);
   const share = total ? late / total : NaN;
   const ok = share >= 0.5;
-  return placeholder({
+  // A real nugget (WP3 owns /slowdown): scripts/nuggets/analyses.cjs recounts it.
+  return ({
     id: 'slowdown.onset', page: '/slowdown', denominator: 'eligible', term: '/methodology#sustained-slowdown',
     values: { share, late, total, rate: study ? study.rate / 100 : NaN }, guard: ok,
     headline: `${capitalize(approxWords(share))} sustained slowdowns began at *30K or later*.`,

@@ -1,112 +1,439 @@
 /**
- * Nuggets for the analyses (owned by WP3 from here; the redesign spec, section 5).
+ * Nuggets for the analyses and /slowdown's beats (WP3; the redesign spec, section 5). Every headline number and every
+ * directional word on these pages comes from here, read from the verified files at build, with a guard for what the
+ * sentence asserts and a neutral fallback. Each builder has a pure `…From(data)` twin so scripts/verify-nuggets.cjs
+ * (through scripts/nuggets/analyses.cjs) can recount it independently and render every fallback on fixtures.
  *
- * WP0-C's bootstrap: the chapter leads the spec names (kick.bank, checkpoint.even30, courses.spread and
- * kick.recurrence) compute their values from the data paths in section 2.2, and every other analysis wraps its
- * existing data-built finding sentence (findingText) in both units. None has a recount yet: each is a placeholder that
- * WP3 replaces with a real nugget and its recount in scripts/verify-nuggets.cjs.
+ * No literal selectors: bands, sections, courses and editions are chosen by argmin or argmax of the nugget's own
+ * values, by the band definitions in the data (upper edges, temperature bounds), or by order, never by a name or index.
  */
-import fs from 'node:fs';
-import path from 'node:path';
 import { getAllFinisherContextStart } from '@/lib/all-finisher-context-server';
-import { findingText } from '@/lib/analysis-display';
+import type { AllFinisherGroup } from '@/lib/all-finisher-context';
 import { EXAMPLE_PROFILE } from '@/lib/analysis-profile';
-import { getAnalysisStart } from '@/lib/analysis-server';
+import { getCheckpointCurve, getCheckpointDefault, getCityData, getTerrainDefault, terrainSections, type CushionPoint, type TerrainSection } from '@/lib/analysis-server';
 import { readInsight } from '@/lib/insights-server';
 import type { Kick } from '@/lib/insights';
 import { percentUnder } from '@/lib/personalized';
-import type { CheckpointData } from '@/lib/personalized-types';
-import { getPersonalSummary } from '@/lib/personalized-data';
-import { delta, hm, ms, pct } from './format';
-import { placeholder, shareFigure, type Builder } from './build';
-import type { Nugget, NuggetId } from './types';
+import type { CityData, Distribution, PersonalCohort } from '@/lib/personalized-types';
+import { getStudyEvidence } from '@/lib/research-data';
+import { MARATHON_SECTION_ENDS } from '@/lib/section-labels';
+import { getWeatherEvidence } from '@/lib/weather-data';
+import type { WeatherCandidate } from '@/lib/weather-types';
+import { MARATHON_KM, type UnitSystem } from '@/lib/units';
+import { clock, count, countWord, delta, hm, ms, pct, sectionLabel, spokenPct, spokenTime, temp } from './format';
+import { capitalize, shareFigure, type Builder } from './build';
+import type { Nugget } from './types';
 
-/** Chapter 02 lead, /analyses/starting-pace: the fastest opening band, what it banked and where it finished. */
-function kickBank(): Nugget {
-  const bands = readInsight<Kick>('kick.json').bank.bands ?? [];
-  const fastest = bands.length ? bands.reduce((a, b) => (b.open_s < a.open_s ? b : a)) : null;
+const GOAL = EXAMPLE_PROFILE.goal;
+const both = (f: (u: UnitSystem) => string) => ({ mi: f('mi'), km: f('km') });
+const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+/** Section i of the nine (0–5K … 40K–finish). */
+const section = (i: number) => sectionLabel(i ? MARATHON_SECTION_ENDS[i - 1] : 0, MARATHON_SECTION_ENDS[i]);
+/** A course's display name. */
+export const courseName = (city: string) => (city === 'New York' ? 'New York City' : city);
+/** Seconds per km as seconds per mile or per km, rounded: "25 s/mi". */
+const perUnit = (sPerKm: number, u: UnitSystem) => `${Math.round(u === 'mi' ? sPerKm * 1.609344 : sPerKm)} s/${u}`;
+/** One decimal, en-US. */
+const one = (v: number) => (Math.round(v * 10) / 10).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+// ---------- Chapter 02 · starting pace ----------
+
+type BankBand = Kick['bank']['bands'][number];
+/** The fastest opening band (argmin of its banked time), what it banked, where it finished, and its sustained slowdowns. */
+export function kickBankFrom(bands: BankBand[]): Nugget {
+  const fastest = bands.filter((b) => b.n >= 100).reduce<BankBand | null>((a, b) => (!a || b.open_s < a.open_s ? b : a), null);
   const ok = !!fastest && fastest.open_s < 0 && fastest.finish_s > 0;
-  // The band's own label, said the way the contents key reads it: "More than 10% faster" → "over 10% fast".
-  const label = (fastest?.label ?? '').replace(/^More than (\d+)% faster$/i, 'over $1% fast').replace(/^[A-Z]/, (c) => c.toLowerCase());
-  return placeholder({
-    id: 'kick.bank', page: '/analyses/starting-pace', denominator: 'kick',
-    values: fastest ? { band: fastest.label, n: fastest.n, open_s: fastest.open_s, after20_s: fastest.after20_s, finish_s: fastest.finish_s } : {},
+  const said = (fastest?.label ?? '').replace(/^More than (\d+)% faster$/i, 'over $1% fast').replace(/^[A-Z]/, (c) => c.toLowerCase());
+  return {
+    id: 'kick.bank', page: '/analyses/starting-pace', denominator: 'kick', term: '/methodology#sustained-slowdown',
+    values: fastest ? { band: fastest.label, n: fastest.n, open_s: fastest.open_s, after20_s: fastest.after20_s, finish_s: fastest.finish_s, slowdown: fastest.slowdown, expected: fastest.expected } : {},
     guard: ok,
-    headline: `A first 5K ${label} banked ${ms(-(fastest?.open_s ?? 0))}, and *finished ${ms(fastest?.finish_s ?? 0)} behind*.`,
-    fallback: fastest ? `A first 5K ${label}: *${delta(fastest.finish_s)}* at the finish, against the same pace.` : 'Fast starts, and what followed.',
-    figure: fastest ? { value: delta(fastest.finish_s), sr: `${ms(Math.abs(fastest.finish_s))} ${fastest.finish_s > 0 ? 'behind' : 'ahead'}` } : null,
-    key: `at the finish, after a first 5K ${label}`,
-  });
+    headline: `A first 5K ${said} banked ${ms(-(fastest?.open_s ?? 0))}, and *finished ${ms(fastest?.finish_s ?? 0)} behind*.`,
+    fallback: 'How a fast first 5K finished, against the same pace.',
+    figure: fastest ? { value: delta(fastest.finish_s), sr: `${spokenTime(Math.abs(fastest.finish_s))} ${fastest.finish_s > 0 ? 'behind' : 'ahead'}` } : null,
+    key: `at the finish, after a first 5K ${said}`,
+  };
 }
 
-/** Chapter 04 lead, /analyses/checkpoint: of finishes on even goal pace at 30K, the share that got under the goal. */
-function checkpointEven30(): Nugget {
-  const summary = getPersonalSummary();
-  const city = summary?.cities.find((c) => c.city === EXAMPLE_PROFILE.city);
-  const file = city ? path.join(process.cwd(), 'public/data/packs/ext_personalized_guide/tables', city.checkpoint_file) : '';
-  const data = file && fs.existsSync(file) ? (JSON.parse(fs.readFileSync(file, 'utf8')) as CheckpointData) : null;
-  const goal = EXAMPLE_PROFILE.goal;
-  const elapsed = (goal * 30) / 42.195;
-  const band = Math.floor(elapsed / 2) * 2;
-  const row = data?.rows.find((r) => r.checkpoint === 30 && r.elapsed === band && r.trend === 'all' && r.age === 'all' && r.gender === 'all');
-  const under = row ? percentUnder(row, goal) : null;
-  const share = under === null ? NaN : under / 100;
-  return placeholder({
+type CurvePoint = Kick['bank']['curve'][number];
+/** A one-point opening bin in words: lo = 2 → "2–3% slower", lo = −3 → "2–3% faster", lo = −1 → "within 1% of even". */
+export function openingWords(lo: number): string {
+  if (lo >= 0) return `${lo}–${lo + 1}% slower`;
+  if (lo + 1 <= 0) return `${Math.abs(lo + 1)}–${Math.abs(lo)}% faster`;
+  return 'within 1% of even';
+}
+/** The opening bin with the best average finish against the same pace (argmin of finish_s). */
+export function kickSweetSpotFrom(curve: CurvePoint[]): Nugget {
+  const best = curve.filter((c) => c.n >= 100).reduce<CurvePoint | null>((a, b) => (!a || b.finish_s < a.finish_s ? b : a), null);
+  const words = best ? openingWords(best.lo) : '';
+  return {
+    id: 'kick.sweetspot', page: '/analyses/starting-pace#sweet-spot', denominator: 'kick',
+    values: best ? { lo: best.lo, n: best.n, finish_s: best.finish_s, after20_s: best.after20_s, slowdown: best.slowdown } : {},
+    guard: !!best && best.lo > 0 && best.finish_s < 0,
+    headline: `The best average finish went with a first 5K *${words}* than the pace that followed.`,
+    fallback: best ? `The best average finish went with a first 5K ${words} than the pace that followed.` : 'The finish against the same pace, by first 5K.',
+    figure: best ? { value: delta(best.finish_s), sr: `${spokenTime(Math.abs(best.finish_s))} ${best.finish_s < 0 ? 'ahead' : 'behind'}` } : null,
+  };
+}
+
+// ---------- Chapter 02 · downhill starts ----------
+
+type OpeningBand = { id: string; label: string; lower?: number | null; upper?: number | null };
+/** The opening bands more than 5% faster than the pace that followed: those whose faster edge is at most −5. */
+const fastBands = (bands: OpeningBand[]) => bands.filter((b) => typeof b.upper === 'number' && b.upper <= -5).map((b) => b.id);
+
+/** The share of finishes that opened more than 5% fast, downhill-start courses against the rest. */
+export function downhillOpeningFrom(groups: AllFinisherGroup[], bands: OpeningBand[]): Nugget {
+  const fast = new Set(fastBands(bands));
+  const share = (terrain: 'downhill' | 'other') => {
+    const rows = groups.filter((g) => g.terrain === terrain);
+    const total = rows.reduce((s, g) => s + g.n, 0);
+    return { share: total ? rows.filter((g) => fast.has(g.opening ?? '')).reduce((s, g) => s + g.n, 0) / total : NaN, total, courses: rows.reduce((m, g) => Math.max(m, g.city_n), 0) };
+  };
+  const a = share('downhill'), b = share('other');
+  const ok = finite(a.share) && finite(b.share) && a.total >= 100 && b.total >= 100 && Math.abs(a.share - b.share) < 0.02;
+  return {
+    id: 'downhill.opening', page: '/analyses/downhill-start', denominator: 'eligible',
+    values: { downhill: a.share, other: b.share, downhill_n: a.total, other_n: b.total, courses: a.courses, bands: fast.size },
+    guard: ok,
+    headline: 'A downhill start didn’t mean a *faster opening*.',
+    fallback: `${pct(a.share)} of downhill-start finishes opened more than 5% fast; elsewhere ${pct(b.share)}.`,
+    // One number when both sides round to it (the finding is that they match), else the pair.
+    figure: !finite(a.share) ? null : pct(a.share) === pct(b.share)
+      ? { value: pct(a.share).replace('%', ''), unit: '%', sr: `${spokenPct(a.share)} on downhill-start courses and elsewhere` }
+      : { value: `${pct(a.share).replace('%', '')} · ${pct(b.share).replace('%', '')}`, unit: '%', sr: `${spokenPct(a.share)} on downhill-start courses, ${spokenPct(b.share)} elsewhere` },
+    key: pct(a.share) === pct(b.share) ? 'opened more than 5% fast, with a downhill start or without' : 'opened more than 5% fast: downhill-start courses · the rest',
+  };
+}
+
+/** In how many opening bands the downhill-start courses had fewer sustained slowdowns than the rest. */
+export function downhillBandsFrom(groups: AllFinisherGroup[], bands: OpeningBand[]): Nugget {
+  const pairs = bands.map((band) => ({ band, down: groups.find((g) => g.terrain === 'downhill' && g.opening === band.id), other: groups.find((g) => g.terrain === 'other' && g.opening === band.id) }))
+    .filter((p) => p.down && p.other && p.down.n >= 100 && p.other.n >= 100);
+  const fewer = pairs.filter((p) => p.down!.slowdown_pct < p.other!.slowdown_pct).length;
+  const total = pairs.length;
+  const every = total > 0 && fewer === total;
+  return {
+    id: 'downhill.bands', page: '/analyses/downhill-start#by-band', denominator: 'eligible', term: '/methodology#sustained-slowdown',
+    values: { fewer, total },
+    guard: total > 0 && fewer > total / 2,
+    headline: every ? 'In *every opening band*, the downhill-start courses had fewer sustained slowdowns.' : `In *${countWord(fewer)} of ${countWord(total)}* opening bands, the downhill-start courses had fewer sustained slowdowns.`,
+    fallback: 'Sustained slowdown by opening band, downhill-start courses against the rest.',
+    figure: null,
+  };
+}
+
+// ---------- Chapter 03 · pacing pattern ----------
+
+/** Finishes near the goal against even goal pace: the fastest and slowest 5K, and the first section slower than even. */
+export function patternFrom(paces: number[], goal = GOAL): Nugget {
+  const even = (goal * 60) / MARATHON_KM;
+  const ok0 = paces.length === MARATHON_SECTION_ENDS.length && paces.every(finite);
+  const fast = ok0 ? paces.reduce((b, p, i) => (p < paces[b] ? i : b), 0) : -1;
+  const slow = ok0 ? paces.reduce((b, p, i) => (p > paces[b] ? i : b), 0) : -1;
+  const turn = ok0 ? paces.findIndex((p, i) => i > fast && p > even) : -1;
+  const ok = ok0 && paces[fast] < even && even < paces[slow] && fast < slow && turn > 0;
+  return {
+    id: 'pattern.profile', page: '/analyses/pacing-pattern', denominator: 'eligible',
+    values: ok0 ? { goal_min: goal, even_s: even, fast_i: fast, slow_i: slow, turn_i: turn, fast_s: paces[fast], slow_s: paces[slow] } : {},
+    guard: ok,
+    headline: both((u) => `Finishes near ${hm(goal)} didn’t run ${hm(goal)} pace: *${perUnit(even - paces[fast], u)} fast* early, ${perUnit(paces[slow] - even, u)} slow late.`),
+    fallback: `How finishes near ${hm(goal)} paced each 5K, against even ${hm(goal)} pace.`,
+    figure: ok0 ? { value: section(slow), sr: `${section(slow)}, the slowest 5K` } : null,
+    key: `the slowest 5K, for finishes near ${hm(goal)}`,
+  };
+}
+
+// ---------- Chapter 04 · checkpoint ----------
+
+/** Of finishes on even goal pace at the mat (the band holding it), the share that got under the goal. */
+export function checkpointUnderFrom(row: { n: number; elapsed: number; finish: number[] } | null, share: number, goal = GOAL, mat = 30): Nugget {
+  const ok = !!row && row.n >= 100 && finite(share);
+  return {
     id: 'checkpoint.under', page: '/analyses/checkpoint', denominator: 'eligible',
-    values: { goal_min: goal, band_min: band, n: row?.n ?? NaN, share }, guard: share < 0.5,
-    headline: `Of finishes on even ${hm(goal)} pace at 30K, only *${pct(share)}* got under ${hm(goal)}.`,
-    fallback: `Of finishes on even ${hm(goal)} pace at 30K, *${pct(share)}* got under ${hm(goal)}.`,
-    figure: shareFigure(share), key: `on even ${hm(goal)} pace at 30K got under ${hm(goal)}`,
-  });
+    values: { goal_min: goal, mat_km: mat, band_min: row?.elapsed ?? NaN, n: row?.n ?? NaN, share, median_s: row?.finish[1] ?? NaN },
+    guard: ok && share < 0.5,
+    headline: `On even ${hm(goal)} pace at ${mat}K, only *${pct(share)}* got under ${hm(goal)}.`,
+    fallback: `On even ${hm(goal)} pace at ${mat}K, ${pct(share)} of finishes got under ${hm(goal)}.`,
+    figure: shareFigure(share), key: `on even ${hm(goal)} pace at ${mat}K got under ${hm(goal)}`,
+  };
 }
 
-/** Chapter 08 lead: the range of sustained-slowdown shares across courses (n ≥ 100, three or more editions). */
-function coursesSpread(): Nugget {
-  const courses = getAllFinisherContextStart().initial.courses.filter((c) => c.n >= 100 && c.edition_n >= 3 && Number.isFinite(c.slowdown_pct));
-  const values = courses.map((c) => c.slowdown_pct / 100);
-  const lo = values.length ? Math.min(...values) : NaN, hi = values.length ? Math.max(...values) : NaN;
-  const range = `${pct(lo).replace('%', '')}–${pct(hi)}`;
-  return placeholder({
+/** The 30K split from which half the finishes got under the goal (interpolated between bands), against even pace. */
+export function cushionAt(curve: CushionPoint[]): number {
+  for (let i = 0; i + 1 < curve.length; i++) {
+    const a = curve[i], b = curve[i + 1];
+    if (a.share >= 0.5 && b.share < 0.5 && b.elapsed - a.elapsed === 2) return a.elapsed + 1 + ((a.share - 0.5) / (a.share - b.share)) * 2;
+  }
+  return NaN;
+}
+export function checkpointCushionFrom(curve: CushionPoint[], goal = GOAL, mat = 30): Nugget {
+  const even = (goal * mat) / MARATHON_KM;
+  const at = cushionAt(curve);
+  const ahead = even - at;
+  const minutes = Math.round(ahead);
+  return {
+    id: 'checkpoint.cushion', page: '/analyses/checkpoint#cushion', denominator: 'eligible',
+    values: { goal_min: goal, mat_km: mat, even_min: even, half_at_min: at, ahead_min: ahead },
+    guard: finite(at) && minutes >= 1,
+    headline: `Half made ${hm(goal)} from about *${countWord(minutes)} ${minutes === 1 ? 'minute' : 'minutes'}* ahead of even pace at ${mat}K.`,
+    fallback: `At ${mat}K, the share that got under ${hm(goal)}, by split.`,
+    figure: finite(at) ? { value: clock(at * 60).replace(/:\d\d$/, ''), sr: `${spokenTime(at * 60)} at ${mat}K` } : null,
+  };
+}
+
+// ---------- Chapter 05 · where time is gained ----------
+
+/** Finishes just over the goal against just under it, section by section: the gap at the finish and its share after 20K. */
+export function sectionsSplitFrom(near: { below: { durations: number[]; n: number }; above: { durations: number[]; n: number } } | null, goal = GOAL): Nugget {
+  const d = near ? near.above.durations.map((a, i) => a - near.below.durations[i]) : [];
+  const total = d.reduce((s, v) => s + v, 0);
+  const after = d.filter((_, i) => MARATHON_SECTION_ENDS[i] > 20).reduce((s, v) => s + v, 0);
+  const share = total > 0 ? after / total : NaN;
+  const widest = d.length ? d.reduce((b, v, i) => (v > d[b] ? i : b), 0) : -1;
+  const distance = (MARATHON_KM - 20) / MARATHON_KM;
+  const ok = !!near && near.below.n >= 100 && near.above.n >= 100 && d.length === MARATHON_SECTION_ENDS.length && total > 0;
+  return {
+    id: 'sections.split', page: '/analyses/where-time-is-gained', denominator: 'eligible',
+    values: { goal_min: goal, gap_s: total, after20_s: after, share, widest_i: widest, widest_s: d[widest] ?? NaN, below_n: near?.below.n ?? NaN, above_n: near?.above.n ?? NaN },
+    guard: ok && share > distance,
+    headline: `Just under and just over ${hm(goal)} ended ${ms(total)} apart. *${pct(share)}* of the gap opened after 20K.`,
+    fallback: `Just under and just over ${hm(goal)}: ${ms(total)} apart at the finish, section by section.`,
+    figure: ok ? { value: ms(total), sr: `${spokenTime(total)} apart` } : null,
+    key: `apart at the finish, just under and just over ${hm(goal)}`,
+  };
+}
+
+// ---------- Chapter 06 · finish-time context ----------
+
+/** The shares of finishes under the goal and the next two lower half-hours. */
+export function targetContextFrom(cohort: Pick<PersonalCohort, 'cdf' | 'cdf_min' | 'n'> | null, goal = GOAL): Nugget {
+  const marks = [goal, Math.ceil(goal / 30) * 30 - 30, Math.ceil(goal / 30) * 30 - 60];
+  const shares = marks.map((m) => (cohort ? (percentUnder(cohort as Distribution, m) ?? NaN) / 100 : NaN));
+  const ok = !!cohort && cohort.n >= 100 && shares.every(finite) && shares[0] > shares[1] && shares[1] > shares[2];
+  return {
+    id: 'target.context', page: '/analyses/finish-time-context', denominator: 'eligible',
+    values: { goal_min: goal, mark2_min: marks[1], mark3_min: marks[2], share: shares[0], share2: shares[1], share3: shares[2], n: cohort?.n ?? NaN },
+    guard: ok,
+    headline: `*${pct(shares[0])}* of finishes were under ${hm(goal)}. Under ${hm(marks[1])}: ${pct(shares[1])}. Under ${hm(marks[2])}: ${pct(shares[2])}.`,
+    fallback: `Finishes under ${hm(goal)}, ${hm(marks[1])} and ${hm(marks[2])}.`,
+    figure: shareFigure(shares[0]), key: `of finishes were under ${hm(goal)}`,
+  };
+}
+
+// ---------- Chapter 07 · age ----------
+
+export type AgeRow = { age: string; pooled: number; pooledN: number; same: number; sameN: number };
+/** Age groups (the cohorts by age with 100 or more finishes), pooled and near the goal finish. */
+export function ageRows(data: CityData, goal = GOAL): AgeRow[] {
+  const bucket = String(Math.round(goal / 15) * 15);
+  return Object.values(data.cohorts).filter((c) => c.age !== 'all' && c.gender === 'all' && c.prior === 'all')
+    .map((c) => ({ age: c.age, pooled: c.retention, pooledN: c.n, same: c.profiles[bucket]?.retention ?? NaN, sameN: c.profiles[bucket]?.n ?? 0 }))
+    .filter((r) => r.pooledN >= 100 && r.sameN >= 100 && finite(r.pooled) && finite(r.same))
+    .sort((a, b) => parseInt(a.age, 10) - parseInt(b.age, 10));
+}
+export function ageRetentionFrom(rows: AgeRow[], goal = GOAL): Nugget {
+  const lo = rows.reduce<AgeRow | null>((a, b) => (!a || b.pooled < a.pooled ? b : a), null);
+  const hi = rows.reduce<AgeRow | null>((a, b) => (!a || b.pooled > a.pooled ? b : a), null);
+  const pooled = lo && hi ? hi.pooled - lo.pooled : NaN;
+  const same = rows.length ? Math.max(...rows.map((r) => r.same)) - Math.min(...rows.map((r) => r.same)) : NaN;
+  const older = !!lo && !!hi && parseInt(hi.age, 10) > parseInt(lo.age, 10);
+  return {
+    id: 'age.retention', page: '/analyses/age-and-pacing', denominator: 'eligible',
+    values: { groups: rows.length, pooled_lo_age: lo?.age ?? '', pooled_hi_age: hi?.age ?? '', pooled_spread: pooled, same_spread: same, goal_min: goal },
+    guard: rows.length >= 2 && older && same <= 1.5 && same < pooled / 2,
+    headline: 'Pooled, older runners slowed more. *At the same finish time, age barely mattered.*',
+    fallback: 'How the second 20K changed with age, pooled and at the same finish time.',
+    figure: finite(same) ? { value: one(same), unit: 'pts', sr: `${one(same)} points between age groups near a ${hm(goal)} finish` } : null,
+    key: `between age groups near a ${hm(goal)} finish`,
+  };
+}
+
+// ---------- Chapter 08 · courses ----------
+
+/** The courses a cross-course extreme may name: 100 or more finishes over three or more editions. */
+export const comparableCourses = (groups: AllFinisherGroup[]) => groups.filter((c) => c.n >= 100 && c.edition_n >= 3 && finite(c.slowdown_pct));
+function courseRange(groups: AllFinisherGroup[]) {
+  const list = comparableCourses(groups);
+  const lo = list.reduce<AllFinisherGroup | null>((a, b) => (!a || b.slowdown_pct < a.slowdown_pct ? b : a), null);
+  const hi = list.reduce<AllFinisherGroup | null>((a, b) => (!a || b.slowdown_pct > a.slowdown_pct ? b : a), null);
+  return { list, lo, hi, l: lo ? lo.slowdown_pct / 100 : NaN, h: hi ? hi.slowdown_pct / 100 : NaN };
+}
+export function coursesSpreadFrom(groups: AllFinisherGroup[]): Nugget {
+  const { list, l, h } = courseRange(groups);
+  const range = `${pct(l).replace('%', '')}–${pct(h)}`;
+  return {
     id: 'courses.spread', page: '/stories/courses', denominator: 'course', term: '/methodology#sustained-slowdown',
-    values: { lo, hi, courses: courses.length }, guard: hi / lo > 1.5,
+    values: { lo: l, hi: h, courses: list.length }, guard: list.length >= 2 && h / l > 1.5,
     headline: `Across courses, sustained slowdown ran from *${range}* of finishes.`,
     fallback: `Sustained slowdown across courses: ${range} of finishes.`,
-    figure: values.length ? { value: `${pct(lo).replace('%', '')}–${pct(hi).replace('%', '')}`, unit: '%', sr: `${pct(lo)} to ${pct(hi)}` } : null,
+    figure: list.length ? { value: `${pct(l).replace('%', '')}–${pct(h).replace('%', '')}`, unit: '%', sr: `${pct(l)} to ${pct(h)}` } : null,
     key: 'sustained slowdown, across courses',
-  });
+  };
+}
+export function coursesCompareFrom(groups: AllFinisherGroup[]): Nugget {
+  const { list, lo, hi, l, h } = courseRange(groups);
+  return {
+    id: 'courses.compare', page: '/analyses/course-comparison', denominator: 'course', term: '/methodology#sustained-slowdown',
+    values: { lo: l, hi: h, courses: list.length, lo_course: lo?.label ?? '', hi_course: hi?.label ?? '' },
+    guard: list.length >= 2 && h / l > 1.5,
+    headline: `Sustained slowdown ranged from *${pct(l)}* to ${pct(h)} of finishes across courses.`,
+    fallback: `Sustained slowdown across ${count(list.length)} courses.`,
+    figure: list.length ? { value: `${pct(l).replace('%', '')}–${pct(h).replace('%', '')}`, unit: '%', sr: `${pct(l)} to ${pct(h)}` } : null,
+    key: 'sustained slowdown, course by course',
+  };
 }
 
-/** Chapter 11 lead: after a sustained slowdown, the share of next races that had one too, against what was typical. */
-function kickRecurrence(): Nugget {
-  const after = readInsight<Kick>('kick.json').recurrence.after_slowdown;
+/** The data-chosen course's biggest-climbing 5K and slowest 5K for finishes near the goal. */
+export function terrainClimbFrom(city: string, sections: TerrainSection[] | null, goal = GOAL): Nugget {
+  const ok0 = !!sections && sections.every((s) => finite(s.gain) && finite(s.pace));
+  const climb = ok0 ? sections!.reduce((b, s, i) => (s.gain > sections![b].gain ? i : b), 0) : -1;
+  const slow = ok0 ? sections!.reduce((b, s, i) => (s.pace > sections![b].pace ? i : b), 0) : -1;
+  const name = courseName(city);
+  return {
+    id: 'terrain.climb', page: '/analyses/hills-and-pacing', denominator: 'eligible',
+    values: ok0 ? { city, goal_min: goal, climb_i: climb, slow_i: slow, climb_m: sections![climb].gain, slow_pct: sections![slow].pct, total_m: sections!.reduce((s, x) => s + x.gain, 0) } : { city },
+    guard: ok0 && climb === slow,
+    headline: `${name}’s biggest climb is *its slowest 5K*.`,
+    fallback: `Where ${name} climbs, and where it slows.`,
+    figure: ok0 ? { value: section(climb), sr: `${section(climb)}, ${name}` } : null,
+    key: `${name}: the biggest climb, and the slowest 5K near ${hm(goal)}`,
+  };
+}
+
+// ---------- Chapter 09 · weather ----------
+
+/** A start-temperature band in the reader's units: "41–50°F", "below 41°F", "68°F or warmer". */
+export function tempBand(g: Pick<AllFinisherGroup, 'lower_c' | 'upper_c'>, u: UnitSystem): string {
+  if (g.lower_c == null) return `below ${temp(g.upper_c!, u)}`;
+  if (g.upper_c == null) return `${temp(g.lower_c, u)} or warmer`;
+  return `${temp(g.lower_c, u).replace(/°[CF]$/, '')}–${temp(g.upper_c, u)}`;
+}
+/** The start-temperature band with the fewest sustained slowdowns (five or more editions), against the coldest band. */
+export function weatherStartFrom(groups: AllFinisherGroup[]): Nugget {
+  const bands = groups.filter((g) => g.edition_n >= 5 && g.n >= 100 && finite(g.slowdown_pct));
+  const low = bands.reduce<AllFinisherGroup | null>((a, b) => (!a || b.slowdown_pct < a.slowdown_pct ? b : a), null);
+  const coldest = bands.reduce<AllFinisherGroup | null>((a, b) => (!a || (b.upper_c ?? Infinity) < (a.upper_c ?? Infinity) ? b : a), null);
+  const ok = !!low && !!coldest && low !== coldest;
+  return {
+    id: 'weather.start', page: '/analyses/race-day-weather', denominator: 'course', term: '/methodology#sustained-slowdown',
+    values: { band: low?.id ?? '', lower_c: low?.lower_c ?? NaN, upper_c: low?.upper_c ?? NaN, slowdown: low ? low.slowdown_pct / 100 : NaN, bands: bands.length },
+    guard: ok,
+    headline: both((u) => `The coolest start wasn’t the steadiest: *${low ? tempBand(low, u) : ''}* had the fewest sustained slowdowns.`),
+    fallback: 'Sustained slowdown by start temperature.',
+    figure: low ? shareFigure(low.slowdown_pct / 100) : null,
+    key: 'sustained slowdown, at the steadiest start temperature',
+  };
+}
+
+/** A wind speed (m/s in the data) in the reader's units: "10 mph", "16 km/h". */
+export const windWords = (mps: number, u: UnitSystem) => `${Math.round(mps * (u === 'mi' ? 2.2369362920544 : 3.6))} ${u === 'mi' ? 'mph' : 'km/h'}`;
+/** A temperature rise (°C in the data) in the reader's units: "11°F", "6°C". */
+export const riseWords = (c: number, u: UnitSystem) => `${(u === 'mi' ? c * 1.8 : c).toFixed(0)}°${u === 'mi' ? 'F' : 'C'}`;
+/** Warming over the first four hours: the larger rise went with more second-20K slowing (an interval above zero). */
+export function weatherWarmingFrom(c: WeatherCandidate | undefined): Nugget {
+  const ok = !!c && c.status === 'ready' && c.takeaway_type === 'association' && c.effect.low > 0;
+  return {
+    id: 'weather.warming', page: '/analyses/race-day-weather#warming', denominator: 'course',
+    values: c ? { q25: c.exposure.q25, q75: c.exposure.q75, estimate: c.effect.estimate, low: c.effect.low, high: c.effect.high } : {},
+    guard: ok,
+    headline: both((u) => `When it warmed ${riseWords(c?.exposure.q75 ?? NaN, u)} instead of ${riseWords(c?.exposure.q25 ?? NaN, u)} over four hours, the second 20K slowed about *${one(c?.effect.estimate ?? NaN)} points* more.`),
+    fallback: 'Warming through the race, and the second 20K.',
+    figure: c ? { value: `+${one(c.effect.estimate)}`, unit: 'pts', sr: `${one(c.effect.estimate)} points` } : null,
+  };
+}
+/** Wind at the start: a precise null, the whole interval inside ±1 point. */
+export function weatherWindFrom(c: WeatherCandidate | undefined): Nugget {
+  const ok = !!c && c.status === 'ready' && c.takeaway_type === 'precise_null' && Math.abs(c.effect.low) < 1 && Math.abs(c.effect.high) < 1;
+  return {
+    id: 'weather.wind', page: '/analyses/race-day-weather#wind', denominator: 'course',
+    values: c ? { q25: c.exposure.q25, q75: c.exposure.q75, estimate: c.effect.estimate, low: c.effect.low, high: c.effect.high } : {},
+    guard: ok,
+    headline: both((u) => `Wind of ${windWords(c?.exposure.q75 ?? NaN, u)} instead of ${windWords(c?.exposure.q25 ?? NaN, u)} at the start made *no material difference*: under 1 point.`),
+    fallback: 'Wind at the start, and the second 20K.',
+    figure: c ? { value: '≈ 0', sr: 'about zero' } : null,
+  };
+}
+
+// ---------- Chapter 11 · the next one ----------
+
+type Recurrence = Kick['recurrence'];
+export function kickRecurrenceFrom(r: Recurrence): Nugget {
+  const after = r.after_slowdown;
   const observed = after?.observed ?? NaN, expected = after?.expected ?? NaN;
-  return placeholder({
-    id: 'kick.recurrence', page: '/analyses/finding-improvement', denominator: 'kick', term: '/methodology#sustained-slowdown',
-    values: { observed, expected, pairs: after?.pairs ?? NaN }, guard: observed > expected,
+  return {
+    id: 'kick.recurrence', page: '/analyses/finding-improvement#next-race', denominator: 'kick', term: '/methodology#sustained-slowdown',
+    values: { observed, expected, pairs: after?.pairs ?? NaN, none_observed: r.after_none?.observed ?? NaN, none_pairs: r.after_none?.pairs ?? NaN },
+    guard: !!after && after.pairs >= 100 && observed > expected,
     headline: `After a sustained slowdown, *${pct(observed)}* of next races had one too (${pct(expected)} typical).`,
     fallback: `After a sustained slowdown, ${pct(observed)} of next races had one too; ${pct(expected)} was typical.`,
     figure: shareFigure(observed), key: `of next races had one too, after a sustained slowdown (${pct(expected)} typical)`,
-  });
+  };
 }
 
-/** The page's existing finding sentence (findingText) in both units, until WP3 writes its nugget. */
-const finding = (id: NuggetId, slug: string, answerId: string): Builder => () => {
-  const answer = getAnalysisStart().answers.find((a) => a.id === answerId);
-  const text = answer ? { mi: findingText(answer, 'mi'), km: findingText(answer, 'km') } : 'An analysis of recorded finishes.';
-  return placeholder({ id, page: `/analyses/${slug}`, denominator: 'eligible', values: {}, guard: true, headline: text, fallback: text, figure: null });
-};
+/** Improving finishes near the goal: the share of their gain found from 30K to the finish, against its share of the distance. */
+export function gainsFinalFrom(row: { values: number[]; total: number; n: number } | null, goal = GOAL): Nugget {
+  const share = row && row.total > 0 ? row.values[2] / row.total : NaN;
+  const distance = (MARATHON_KM - 30) / MARATHON_KM;
+  return {
+    id: 'gains.final', page: '/analyses/finding-improvement', denominator: 'eligible',
+    values: row ? { goal_min: goal, open_min: row.values[0], middle_min: row.values[1], final_min: row.values[2], total_min: row.total, share, n: row.n } : {},
+    guard: !!row && row.n >= 100 && row.values.length === 3 && share > distance,
+    headline: `Improving finishes near ${hm(goal)} found *${pct(share)}* of their time from 30K to the finish.`,
+    fallback: `Where improving finishes near ${hm(goal)} found their time.`,
+    figure: shareFigure(share), key: 'of the time improving finishes found came from 30K to the finish',
+  };
+}
+
+// ---------- /slowdown ----------
+
+/** Sustained slowdown by earlier recorded best: the fastest and slowest bands, when it rises band by band. */
+export function slowdownHistoryFrom(rows: { label: string; value: number; n: number }[]): Nugget {
+  const usable = rows.filter((r) => r.n >= 100 && finite(r.value));
+  const first = usable[0], last = usable[usable.length - 1];
+  const rising = usable.length >= 2 && usable.every((r, i) => !i || r.value > usable[i - 1].value);
+  const lower = (s: string) => s.replace(/^[A-Z]/, (c) => c.toLowerCase());
+  return {
+    id: 'slowdown.history', page: '/slowdown#history', denominator: 'eligible', term: '/methodology#sustained-slowdown',
+    values: first ? { first: first.label, first_share: first.value / 100, last: last.label, last_share: last.value / 100, bands: usable.length } : {},
+    guard: rising,
+    headline: first ? `An earlier best ${lower(first.label)}: *${pct(first.value / 100)}* had a sustained slowdown. ${capitalize(lower(last.label))}: ${pct(last.value / 100)}.` : '',
+    fallback: 'Sustained slowdown by earlier recorded best.',
+    figure: first ? shareFigure(first.value / 100) : null,
+  };
+}
+
+// ---------- The registered builders, reading the verified files ----------
+
+const allCourses = () => getCityData(EXAMPLE_PROFILE.city).cohorts['all|all|all'] ?? null;
+const af = () => getAllFinisherContextStart();
+const weather = (id: WeatherCandidate['id']) => getWeatherEvidence().candidates.find((c) => c.id === id);
 
 export const ANALYSIS_NUGGETS: Record<string, Builder> = {
-  'kick.bank': kickBank,
-  'checkpoint.under': checkpointEven30,
-  'courses.spread': coursesSpread,
-  'kick.recurrence': kickRecurrence,
-  'downhill.opening': finding('downhill.opening', 'downhill-start', 'downhill'),
-  'pattern.profile': finding('pattern.profile', 'pacing-pattern', 'profile'),
-  'sections.split': finding('sections.split', 'where-time-is-gained', 'sections'),
-  'target.context': finding('target.context', 'finish-time-context', 'ambition'),
-  'age.retention': finding('age.retention', 'age-and-pacing', 'age'),
-  'terrain.climb': finding('terrain.climb', 'hills-and-pacing', 'terrain'),
-  'weather.start': finding('weather.start', 'race-day-weather', 'weather'),
-  'courses.compare': finding('courses.compare', 'course-comparison', 'courses'),
+  'kick.bank': () => kickBankFrom(readInsight<Kick>('kick.json').bank.bands ?? []),
+  'kick.sweetspot': () => kickSweetSpotFrom(readInsight<Kick>('kick.json').bank.curve ?? []),
+  'downhill.opening': () => downhillOpeningFrom(af().initial.downhill, af().opening_bands),
+  'downhill.bands': () => downhillBandsFrom(af().initial.downhill, af().opening_bands),
+  'pattern.profile': () => patternFrom((allCourses()?.profiles[String(GOAL)]?.pace ?? []).map((p) => p[1])),
+  'checkpoint.under': () => {
+    const row = getCheckpointDefault();
+    return checkpointUnderFrom(row, row ? (percentUnder(row, GOAL) ?? NaN) / 100 : NaN);
+  },
+  'checkpoint.cushion': () => checkpointCushionFrom(getCheckpointCurve()),
+  'sections.split': () => sectionsSplitFrom(allCourses()?.near.find((n) => n.target === GOAL) ?? null),
+  'target.context': () => targetContextFrom(allCourses()),
+  'age.retention': () => ageRetentionFrom(ageRows(getCityData(EXAMPLE_PROFILE.city))),
+  'courses.spread': () => coursesSpreadFrom(af().initial.courses),
+  'courses.compare': () => coursesCompareFrom(af().initial.courses),
+  'terrain.climb': () => { const { city } = getTerrainDefault(); return terrainClimbFrom(city, terrainSections(getCityData(city))); },
+  'weather.start': () => weatherStartFrom(af().initial.weather),
+  'weather.warming': () => weatherWarmingFrom(weather('warming')),
+  'weather.wind': () => weatherWindFrom(weather('wind')),
+  'kick.recurrence': () => kickRecurrenceFrom(readInsight<Kick>('kick.json').recurrence),
+  'gains.final': () => gainsFinalFrom(allCourses()?.gains[String(GOAL)] ?? null),
+  'slowdown.history': () => {
+    const chart = getStudyEvidence()?.figures.find((f) => f.id === 'history')?.charts[0];
+    return slowdownHistoryFrom((chart?.rows ?? []).map((r) => ({ label: String(r.label), value: Number(r.value), n: Number(r.n_value) })));
+  },
 };
+

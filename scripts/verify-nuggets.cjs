@@ -183,6 +183,9 @@ RECOUNT['replay.first'] = (n) => {
   eq(n.figure.value, String(Math.round(best.share * 100)), 'replay.first: the figure');
   ok(core.sentenceOf(n).includes(`${best.e.city} ${best.e.year}`), 'replay.first: the sentence names the edition the data chose');
 };
+// The analysis and /slowdown nuggets (WP3): their recounts and fixtures live in scripts/nuggets/analyses.cjs.
+const analyses = require('./nuggets/analyses.cjs')({ json, eq, ok, core });
+Object.assign(RECOUNT, analyses.RECOUNT);
 for (const [id, recount] of Object.entries(RECOUNT)) {
   const n = N.getNugget(id);
   ok(!n.placeholder, `${id} is a real nugget, not a placeholder`);
@@ -200,6 +203,7 @@ if (!args.has('--no-fixture')) {
     [stories.fieldMedianFrom({ all: 250, women: null, men: 239, total: 10 }), 'Half of all finishes took longer than *4:10*.'],
     [stories.fieldMedianFrom({ all: null, women: null, men: null, total: 0 }), 'Finish times, every recorded minute.'],
     [home.siteTotalsFrom({ results: 10, finishesEligible: 20, cities: 1, raceYears: 1, firstYear: 2020, lastYear: 2020, raw: { cities: 1, raceYears: 1, firstYear: 2020, lastYear: 2020 } }), 'Marathon finishes, mat by mat.'],
+    ...analyses.fixtures(require('../lib/nuggets/analyses.ts')),
   ];
   for (const [n, text] of fallbacks) {
     eq(n.guard, false, `fixture ${n.id}: the guard fails`);
