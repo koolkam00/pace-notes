@@ -2,6 +2,8 @@
 
 The site's look is "race-day paper": warm paper pages, a few night sections for the moments that should feel like a race morning, and charts drawn by hand in SVG or Canvas. Tokens live in `app/globals.css` and story components in `app/story.css`.
 
+> **Redesign in progress (October 17, 2026, branch `feat/redesign`, not yet on main or the live site).** There, `app/globals.css` and `app/story.css` are split by owner into `app/styles/legacy/`, loaded after the new `app/styles/{fonts,tokens,base,layout}.css` and `app/styles/components/` (one sheet for all of them, `app/styles/site.css`). The redesign sets three faces: Fraunces 440 (headings and the reading's sentence), Inter (text, labels, and now kickers and ticks) and Bricolage Grotesque 660 (figures only); JetBrains Mono stays for the legacy rules alone. Evidence badges are a glyph and a word with no hue. The primitives are in `components/ui/` and shown at `/design-system` (noindex). This document is rewritten from the redesign spec when the redesign lands (WP9).
+
 ## Type
 
 | Role | Family | Use |
