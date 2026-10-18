@@ -46,9 +46,10 @@ export default function KickBody() {
 
   return (
     <StoryPage path={PATH}>
-      {/* The question under the H1 is the term's first use, so it carries the one link to its definition. */}
+      {/* The question under the H1 is the term's first use, so it carries the one link to its definition. The H1 says
+          it in words, the figure gives the minutes once, and the sentence says who is compared. */}
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={rich(story.dek, { term: true })}
-        figure={twins.figure ? { ...twins.figure } : undefined} fallback={!later.guard}
+        figure={twins.figure ? { ...twins.figure } : undefined} unitLine={twins.guard ? twins.key : undefined} fallback={!twins.guard}
         sentence={<Say nugget={later} />} />
 
       <Beat id="twins" track="chapter-1" label="Same pace, apart" title={bands}>
@@ -59,8 +60,8 @@ export default function KickBody() {
               { x: cx[highAt], y: gap[highAt], text: `+${Math.round(gap[highAt])} min`, tone: 'ink', priority: 3, prefer: 'above' },
             ] }]}
           xTicks={[180, 240, 300, 360].filter((v) => v > cost[0].lo_min && v < cost[cost.length - 1].lo_min + width).map((v) => ({ value: v, label: `${hm(v)} pace` }))}
-          // One gridline, under the line: the labels on the line give its ends.
-          yTicks={[{ value: 10, label: '10 min' }]}
+          // No gridline: the labels on the line give its ends, and the area stands on the zero line.
+          yTicks={[]}
           axisTitle={{ start: 'Pace through 20K, as a finish time' }}
           label={`Minutes later at the finish after a sustained slowdown, for each pace through 20K: ${Math.round(Number(bands.values.low_s) / 60)} to ${Math.round(Number(bands.values.high_s) / 60)} minutes.`}
           values={(

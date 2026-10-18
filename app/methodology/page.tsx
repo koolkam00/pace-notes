@@ -79,7 +79,7 @@ export default function MethodologyPage() {
   return <div className="methods-page with-rail" {...readingAttrs('/methodology', 'How we know')}>
     <aside className="rail methods-rail">
       <nav aria-label="On this page">
-        <p className="rail-title">How we know</p>
+        <p className="rail-title">On this page</p>
         <RailBeats />
       </nav>
     </aside>

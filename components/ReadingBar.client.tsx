@@ -32,11 +32,13 @@ export default function ReadingBar() {
     const beats = (marked.length ? marked : [root]).map((el) => ({ el, words: count(el) - Array.from(el.querySelectorAll<HTMLElement>('details.values[open]')).reduce((n, v) => n + count(v), 0) }));
     const figures = beats.flatMap(({ el }) => Array.from(el.querySelectorAll('figure')));
     let frame = 0, settle = 0, top = 0, span = 1, live = true;
+    // A beat that starts within the last screen of the page has no place on the line (it would sit on the bar's right
+    // edge): its tick is left out, so ticks stop short of the end.
     const ticksOf = () => {
       const box = root.getBoundingClientRect();
       top = box.top + window.scrollY;
       span = Math.max(1, box.height - window.innerHeight);
-      return marked.map((el) => Math.min(1, Math.max(0, (el.getBoundingClientRect().top + window.scrollY - top) / span)));
+      return marked.map((el) => Math.max(0, (el.getBoundingClientRect().top + window.scrollY - top) / span)).filter((t) => t < 0.99);
     };
     const update = () => {
       frame = 0;

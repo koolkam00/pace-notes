@@ -1,11 +1,11 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { REF_WIDTH, textWidth } from '@/components/viz/labels';
 
 /**
  * The whole field after 30K as one 100% bar (the redesign spec, section 7.6, #shuffle, under section 00): big drops,
- * smaller drops (or no change), smaller gains and big gains, left to right. A bracket over the gains names the share that
- * moved up; the two tails are ink and named under the bar's ends with their shares, so the drops against the gains read
- * at a glance. HTML, exact proportions, 2 px gaps; the histogram behind it is in Values.
+ * smaller drops (or no change), smaller gains and big gains, left to right. A bracket spans the gains; the two tails are
+ * ink and named under the bar's ends with their shares, so the drops against the gains read at a glance, and the middle
+ * segments carry no figures that a reader would add up against the headline's. HTML, exact proportions, 2 px gaps; the
+ * histogram behind it is in Values.
  */
 export type ShiftSegment = { id: string; label: string; share: number; display: string; tone: 'ink' | 'quiet' };
 
@@ -28,12 +28,7 @@ export default function PlaceShift({ segments, up, label, values }: {
         <span className="ps-bracket-label">{up.label}</span>
       </div>
       <div className="ps-track" role="img" aria-label={label}>
-        {segments.map((x, i) => {
-          // A middle segment carries its share inside where it fits with 8 px either side at the narrowest phone.
-          const room = (spans[i][1] - spans[i][0]) * REF_WIDTH - 16;
-          const inside = i > 0 && i < segments.length - 1 && room >= textWidth(x.display, 13);
-          return <span key={x.id} className={`ps-seg is-${x.tone}`} style={{ flexGrow: x.share / total } as CSSProperties}>{inside ? <span className="ps-in">{x.display}</span> : null}</span>;
-        })}
+        {segments.map((x) => <span key={x.id} className={`ps-seg is-${x.tone}`} style={{ flexGrow: x.share / total } as CSSProperties} />)}
       </div>
       <div className="ps-ends" aria-hidden="true">
         <span className="ps-end"><b>{first.display}</b>{first.label}</span>

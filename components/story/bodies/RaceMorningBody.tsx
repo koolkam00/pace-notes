@@ -32,12 +32,13 @@ export default function RaceMorningBody() {
   const w = data.weather;
   const p = w.pairs;
 
-  // The pairs, cooler year first in each tile's readout; the side label says the order (cooler · warmer).
+  // The pairs, cooler year first: the readout's key names which year is which, and its values (sustained slowdown) and
+  // the start temperatures beside them follow that order.
   const pairName = (x: (typeof p.list)[number]) => `${x.city} ${x.cool_year} · ${x.hot_year}`;
   const tiles = (u: UnitSystem) => p.list.map((x) => ({
     id: `${x.city}-${x.cool_year}-${x.hot_year}`, lit: x.hotter_slowed_more,
-    key: `${pairName(x)}: sustained slowdown`, value: `${pct(x.cool_slowdown)} · ${pct(x.hot_slowdown)}`,
-    side: `${temp(x.cool_temp, u)} · ${temp(x.hot_temp, u)}`,
+    key: `${x.city}: cooler ${x.cool_year} · warmer ${x.hot_year}`, value: `${pct(x.cool_slowdown)} · ${pct(x.hot_slowdown)}`,
+    side: `${temp(x.cool_temp, u)} · ${temp(x.hot_temp, u)}`, pair: pairName(x),
   }));
 
   // The finish against the start temperature: the median finish's change from the curve's zero point, degree by degree.
@@ -88,10 +89,10 @@ export default function RaceMorningBody() {
         figure={pairs.figure ? { ...pairs.figure } : undefined} fallback={!pairs.guard} sentence={<Say nugget={pairs} term />}
         instrument={(
           <ByUnits {...Object.fromEntries(UNITS.map((u) => [u, (
-            <Waffle key={u} tiles={tiles(u)} sideLabel="At the start, cooler · warmer" label={`${p.hotter_slowed_more} of ${p.total} same-course pairs: the warmer year had more sustained slowdowns; tap a square to read its pair`}
+            <Waffle key={u} tiles={tiles(u)} sideLabel="At the start" label={`${p.hotter_slowed_more} of ${p.total} same-course pairs: the warmer year had more sustained slowdowns; tap a square to read its pair`}
               keyLabels={{ lit: 'Warmer year, more sustained slowdowns', other: 'Cooler year, as many or more' }}
               values={<Values id={`rm-pairs-${u}`} caption="Same-course pairs: start temperature and sustained slowdown" columns={[{ key: 'p', label: 'Pair, cooler · warmer', text: true }, { key: 't', label: 'At the start' }, { key: 's', label: 'Sustained slowdown' }]}
-                rows={tiles(u).map((t) => [t.key.replace(': sustained slowdown', ''), t.side, t.value])} />} />
+                rows={tiles(u).map((t) => [t.pair, t.side, t.value])} />} />
           )])) as { mi: JSX.Element; km: JSX.Element }} />
         )}>
         {/* The pairs were a beat of their own; links to it land on the reading, which now draws them. */}

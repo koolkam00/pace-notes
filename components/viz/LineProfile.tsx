@@ -59,7 +59,8 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
   const all = layers.flatMap((l) => [...l.series.flatMap((s) => s.values), ...(l.band ? [...l.band.lo, ...l.band.hi] : [])]).concat(refs.map((r) => r.value));
   const [lo, hi] = yDomain ?? extent(all);
   const pad = (hi - lo) * 0.06 || 1;
-  const y = yScale(yDomain ? lo : lo - pad, yDomain ? hi : hi + pad, { top: 0.12, bottom: 0.04 });
+  // A domain that starts at zero stands on the axis: its zero is the baseline, so a filled area never floats above it.
+  const y = yScale(yDomain ? lo : lo - pad, yDomain ? hi : hi + pad, { top: 0.12, bottom: yDomain && lo === 0 ? 0 : 0.04 });
   const current = initial ?? layers[0]?.id;
   const lensOn = layers.length > 1;
 

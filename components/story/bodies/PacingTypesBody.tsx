@@ -60,15 +60,16 @@ export default function PacingTypesBody() {
           )} />
       </Beat>
 
-      <Beat id="gender" track="chapter-2" label="Women and men" title={gender}>
-        <Dumbbell rows={types.map((t, i) => ({ id: t.slug, label: t.name, a: w[i], b: m[i], display: `${pct(w[i])} · ${pct(m[i])}`, highlight: i === subject }))}
+      {/* The H2 is about recorded men (the filled dots), so the key above the rows and each row's values read men first. */}
+      <Beat id="gender" track="chapter-2" label="Women and men" title={gender} className="pt-gender">
+        <Dumbbell rows={types.map((t, i) => ({ id: t.slug, label: t.name, a: w[i], b: m[i], display: `${pct(m[i])} · ${pct(w[i])}`, highlight: i === subject }))}
           domain={[0, hiShare]} ticks={[0, hiShare / 2, hiShare].map((v) => ({ value: v, label: pct(v) }))}
           keyLabels={{ a: 'Recorded women', b: 'Recorded men' }}
           label={`Each type's share of recorded women's and men's finishes at the same finish times. ${gender.values.type}s: ${pct(Number(gender.values.women), 1)} of women's, ${pct(Number(gender.values.men), 1)} of men's.`}
           values={(
-            <Values id="pt-gender" caption="Share of finishes by type, at the same finish times"
-              columns={[{ key: 't', label: 'Type', text: true }, { key: 'w', label: 'Recorded women' }, { key: 'm', label: 'Recorded men' }]}
-              rows={types.map((t, i) => [t.name, pct(w[i], 1), pct(m[i], 1)])} reading={subject} />
+            <Values id="pt-gender" caption="Share of recorded men’s and women’s finishes by type, at the same finish times"
+              columns={[{ key: 't', label: 'Type', text: true }, { key: 'm', label: 'Men' }, { key: 'w', label: 'Women' }]}
+              rows={types.map((t, i) => [t.name, pct(m[i], 1), pct(w[i], 1)])} reading={subject} />
           )} />
       </Beat>
 

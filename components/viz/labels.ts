@@ -158,7 +158,9 @@ export function layoutTicks(ticks: Tick[], size = 12, ref = REF_WIDTH): LaidTick
     const tw = textWidth(t.label, size, 500);
     const ax = t.x * w;
     const x0 = anchor === 'middle' ? ax - tw / 2 : anchor === 'end' ? ax - tw : ax;
-    return { x0, x1: x0 + tw, y0: 0, y1: size };
+    // An end-anchored tick ends exactly at its x: summing x0 + tw back can land a hair past the edge in floating point,
+    // which hid a tick at the right end (a dumbbell's 40%) below 600 px.
+    return { x0, x1: anchor === 'end' ? ax : x0 + tw, y0: 0, y1: size };
   };
   const order = ticks.map((t, i) => ({ t, i, p: t.priority ?? (i === 0 || i === ticks.length - 1 ? 2 : 1) })).sort((a, b) => b.p - a.p || a.t.x - b.t.x);
   // Each tick, highest priority first, takes the narrowest width from which it is clear at every wider width, of the

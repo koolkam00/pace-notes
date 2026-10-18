@@ -68,7 +68,8 @@ export default function CoursesBody() {
         figure={named.figure ? { ...named.figure } : undefined} fallback={!named.guard} sentence={<Say nugget={named} />}
         instrument={Number.isFinite(Number(named.values.share)) ? (
           <Ruler min={0} max={1} ticks={[0, 0.25, 0.5, 0.75, 1].map((v) => ({ value: v, label: pct(v) }))}
-            marks={[{ value: Number(named.values.share), kind: 'reading', label: pct(Number(named.values.share)) }, { value: Number(named.values.chance), kind: 'typical', label: 'By chance' }]}
+            // The figure gives the share, so the ruler names its two marks: the shape against chance.
+            marks={[{ value: Number(named.values.share), kind: 'reading', label: 'By its shape' }, { value: Number(named.values.chance), kind: 'typical', label: 'By\u00a0chance' }]}
             label={`Editions named from their pacing shape: ${pct(Number(named.values.share))}, against ${pct(Number(named.values.chance))} by chance.`} />
         ) : undefined} />
 

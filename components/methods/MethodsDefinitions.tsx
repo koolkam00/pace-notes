@@ -15,6 +15,15 @@ type Archetypes = { cohort_n: number; classifier: { names: string[] }; archetype
 
 /** The threshold the published definition names ("at least 25% slower"), read from its own sentence. */
 const PUBLISHED = Number(/at least (\d+)% slower/.exec(SLOWDOWN_DEFINITION)?.[1] ?? NaN);
+/**
+ * The rule as the card states it, in reading order (when, how much, how slow, against what), from the definition's own
+ * numbers: "After 20K, at least 5 km run 25% or more slower than the runner's own 5–20K pace." The definition's second
+ * sentence (contiguous sections, the final 2.195 km) follows it unchanged.
+ */
+const RULE = (() => {
+  const m = /at least (\d+(?:\.\d+)?) km after (\d+) km run at least (\d+)% slower than the runner’s own (\d+)–(\d+) km pace\.\s*(.*)$/.exec(SLOWDOWN_DEFINITION);
+  return m ? `After ${m[2]}K, at least ${m[1]} km run ${m[3]}% or more slower than the runner’s own ${m[4]}–${m[5]}K pace. ${m[6]}` : SLOWDOWN_DEFINITION;
+})();
 
 /**
  * Part 2: the terms every page uses, each a definition card: the rule in a line or two, a small instrument where one
@@ -56,7 +65,7 @@ export default function MethodsDefinitions() {
   return <Part id="definitions" n={2} short="Definitions" title="Definitions" lead="The words every page uses, each with its rule.">
     <Definition id="sustained-slowdown" term="Sustained slowdown"
       rule={<>
-        <p>{SLOWDOWN_DEFINITION}</p>
+        <p>{RULE}</p>
         <p className="methods-cite">It follows a <a href={SLOWDOWN_CITATION.url}>{SLOWDOWN_CITATION.label.replace(/^Published/, 'published')}</a>.</p>
       </>}
       instrument={columns.length > 1 && Number.isFinite(atPublished) ? <>

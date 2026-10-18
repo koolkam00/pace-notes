@@ -296,7 +296,8 @@ const INTERACTIONS = [
         const root = document.querySelector('main [data-reading], main[data-reading]');
         const beats = [...root.querySelectorAll('[data-beat]')];
         const box = root.getBoundingClientRect(), top = box.top + scrollY, span = Math.max(1, box.height - innerHeight);
-        const expected = beats.map((b) => Math.min(100, Math.max(0, ((b.getBoundingClientRect().top + scrollY - top) / span) * 100)));
+        // A beat starting within the last screen has no tick (it would sit on the bar's right edge).
+        const expected = beats.map((b) => Math.max(0, ((b.getBoundingClientRect().top + scrollY - top) / span) * 100)).filter((t) => t < 99);
         const ticks = [...bar.querySelectorAll('.reading-bar-line i')].map((i) => parseFloat(i.style.left));
         // Independent count: every visible text node inside the beats whose line is below the screen.
         let words = 0;

@@ -16,7 +16,7 @@ export default function AnalysesPage() {
     <div className="contents-page">
       <header className="contents-hero">
         <h1 className="t-display">Analyses</h1>
-        <p className="contents-dek">Each one opens on its answer, then lets you make it yours, from fast starts to the race after a <Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link>.</p>
+        <p className="contents-dek">Each one answers a pacing question, then lets you set it to your course and time, from fast starts to the race after a <Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link>.</p>
       </header>
       <section className="contents-body" aria-label="Every analysis">
         <PageList kind="analysis" prefix="/analyses/" readingOf={readingOf} label="Analyses" />

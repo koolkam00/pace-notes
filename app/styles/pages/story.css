@@ -3,7 +3,7 @@
    chapter end, divided by whitespace and hairlines, never boxes; the replay band is the only night surface. */
 
 /* ---------- The page ---------- */
-.story-flow { min-width: 0; padding-bottom: var(--s-7); }
+.story-flow { min-width: 0; }
 .story-hero-beat .reading { padding-top: var(--s-4); }
 .story-hero-beat .reading-rule { margin: var(--s-5) 0; }
 .story-hero-beat .reading-instrument { max-height: none; }
@@ -72,8 +72,13 @@
 .dot-grid-key i { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--fill-quiet); box-shadow: inset 0 0 0 1px var(--mark-quiet); }
 .dot-grid-key i.is-lit { background: var(--signal); box-shadow: none; }
 
-/* The lens's one-line readout above the 99 finishes. */
-.viz-frame .pd-readout { margin-top: var(--s-3); }
+/* The field as 99 finishes: phone dots, and from 900 px larger dots in a figure held to the text measure. */
+.viz-frame.percentile-dots .pd-wide { display: none; }
+@media (min-width: 900px) {
+  .story-beat > .viz-frame.percentile-dots { max-width: var(--measure); }
+  .viz-frame.percentile-dots .pd-phone { display: none; }
+  .viz-frame.percentile-dots .pd-wide { display: inline; }
+}
 
 /* Two pairs of bars on one scale: each named, its gap drawn under it; the gap the sentence is about in signal. */
 .viz-frame.pair-bars .viz-plot { height: auto; }
@@ -92,21 +97,27 @@
 .pair-bars-view.is-highlight .pair-bar-gap { background: var(--signal); }
 .pair-bars-view.is-highlight .pair-bar-gap-label { color: var(--signal-ink); }
 
-/* ---------- Your minute (.finish-lookup, masked in session replays) ---------- */
-.finish-lookup { display: grid; gap: var(--s-4); max-width: var(--measure-figure); }
+/* Pacing types, women and men: the key sits above the rows, men (the filled dots, the H2's subject) first, in the
+   order each row's values read. */
+.pt-gender .viz-frame.dumbbell { display: flex; flex-direction: column; }
+.pt-gender .viz-frame.dumbbell .viz-key { order: -1; flex-direction: row-reverse; justify-content: flex-end; margin: 0 0 var(--s-3); }
+
+/* ---------- Your minute (.finish-lookup, masked in session replays): the towers, then the reader's time ----------
+   A time that reads moves the towers' needle to its minute: the needle's foot becomes an orange ring on that tower,
+   with You at the needle's head (left of it near the right edge). From 900 px the field sits under the chart's column. */
+.finish-lookup { display: grid; grid-template-columns: minmax(0, 1fr); }
 .finish-lookup-field { max-width: 14rem; }
-.finish-lookup .finish-lookup-readout { margin: 0; padding-top: var(--s-3); border-top: 1px solid var(--rule); }
-/* Until a time is typed the readout is the example minute's: quieter, so the reader's own minute is the one that stands out. */
-.finish-lookup .finish-lookup-readout:not(.is-yours) .readout-value { color: var(--ink-2); }
-.finish-lookup-result { margin: 0; font-size: var(--t-small); color: var(--ink-2); }
-/* The silhouette under the readout: every finish, minute by minute; the minute read is a dot, or the reader's ring. */
-.finish-lookup .finish-lookup-plot { position: relative; height: 88px; margin-top: calc(-1 * var(--s-2)); border-bottom: 1px solid var(--rule-strong); }
-.finish-lookup .finish-lookup-plot svg { display: block; overflow: visible; }
-.finish-lookup .finish-lookup-mark { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 2px var(--paper); }
-.finish-lookup .finish-lookup-mark.is-you { width: 16px; height: 16px; margin: -8px 0 0 -8px; background: none; box-shadow: inset 0 0 0 2px var(--signal), 0 0 0 2px var(--paper); }
-.finish-lookup .finish-lookup-tag { position: absolute; transform: translate(-50%, -100%); margin-top: -12px; font-size: 13px; font-weight: 600; line-height: 1; color: var(--signal-ink); }
-.finish-lookup .finish-lookup-axis { position: relative; height: 18px; margin-top: calc(-1 * var(--s-4) + 6px); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--ink-3); }
-.finish-lookup .finish-lookup-axis span { position: absolute; top: 0; transform: translateX(-50%); }
+/* A static scrolly (reduced motion) ends on its list, with no step padding under it. */
+.finish-lookup > .scrolly.is-static ~ .finish-lookup-field { margin-top: var(--s-6); }
+.finish-lookup-result { margin: var(--s-2) 0 0; font-size: var(--t-small); color: var(--ink-2); }
+.finish-lookup.is-yours .scrub-needle::after { content: ''; position: absolute; left: 50%; top: 100%; width: 14px; height: 14px; margin: -1px 0 0 -7px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--signal), 0 0 0 2px var(--paper); }
+.finish-lookup.is-yours .scrub-needle::before { content: 'You'; position: absolute; top: 0; left: 6px; font-family: var(--sans); font-size: 13px; font-weight: 600; line-height: 1; white-space: nowrap; color: var(--signal-ink); }
+.finish-lookup.is-yours.is-left .scrub-needle::before { left: auto; right: 6px; }
+@media (min-width: 900px) {
+  .finish-lookup { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: 48px; }
+  .finish-lookup > .scrolly { grid-column: 1 / -1; }
+  .finish-lookup-field, .finish-lookup-result { grid-column: 2; }
+}
 
 /* ---------- Which runner were you (.which-card, masked) ---------- */
 .which-card { display: grid; gap: var(--s-4); max-width: var(--measure-figure); }
@@ -158,6 +169,9 @@
 .towers-scrolly[data-step='0'] .viz-frame .l-ink2, .towers-scrolly[data-step='0'] .viz-frame .histo-tower { opacity: 0; }
 .towers-scrolly[data-step='1'] .viz-frame .histo-tower { opacity: 0; }
 .towers-scrolly .viz-frame .l-ink2, .towers-scrolly .viz-frame .histo-tower { transition: opacity var(--d-step) var(--ease-out); }
+/* The key names a layer only once its step draws it (Each minute; the minute before a round mark; the smooth curve). */
+.towers-scrolly[data-step='0'] .viz-key li:nth-child(n+2), .towers-scrolly[data-step='1'] .viz-key li:nth-child(2) { opacity: 0; }
+.towers-scrolly .viz-key li { transition: opacity var(--d-step) var(--ease-out); }
 
 /* ---------- Phones at 200% zoom ---------- */
 @media (max-width: 359.98px) {
@@ -168,6 +182,8 @@
 }
 @media (max-width: 299.98px) {
   .which-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* The pack's scale gives way at 200% zoom: the band's width at the finish is the label that matters. */
+  .rr-packs .viz-frame .grid-label { display: none; }
 }
 
 @media (min-width: 600px) {
@@ -202,7 +218,6 @@
 .place-shift .ps-seg { display: flex; align-items: center; justify-content: center; min-width: 3px; flex-basis: 0; border-radius: 3px; overflow: hidden; }
 .place-shift .ps-seg.is-ink { background: var(--ink); }
 .place-shift .ps-seg.is-quiet { background: var(--fill-quiet); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
-.place-shift .ps-in { padding: 0 6px; font-size: 13px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink); }
 .place-shift .ps-ends { display: flex; justify-content: space-between; gap: var(--s-4); margin-top: var(--s-3); font-size: var(--t-small); line-height: 1.35; color: var(--ink-2); }
 .place-shift .ps-end { max-width: 48%; }
 .place-shift .ps-end b { display: block; font-size: 1.0625rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }

@@ -93,13 +93,15 @@ export default function PlacesBody() {
             initial: beAt, detents: [beAt] }}
           label={`Median places gained per 100 of the field after 30K, by 30–40K pace against the 5–20K pace; the line crosses zero near ${Math.round(crossing)}% slower.`}
           values={(
-            <Values id="pl-breakeven" caption="Places gained per 100 after 30K, by 30–40K pace"
-              columns={[{ key: 'x', label: '30–40K pace' }, { key: 'm', label: 'Median places per 100' }, { key: 'g', label: 'Moved up, at this pace' }]}
+            <Values id="pl-breakeven" caption="Median places gained per 100 after 30K, and the share that moved up, by 30–40K pace"
+              columns={[{ key: 'x', label: '30–40K pace' }, { key: 'm', label: 'Places per 100' }, { key: 'g', label: 'Moved up' }]}
               rows={be.map((b) => [slower(b.x), signed(b.median), pct(b.gained)])} reading={beAt} />
           )} />
       </Beat>
 
-      <Beat id="shuffle" track="chapter-3" label="The long tail" title={shuffle} aliases={['gains', 'women']}>
+      {/* The H2 gives the share that moved up; the bar shows it as the bracket's span and names only the two tails, so no
+          shown parts have to add up to it. */}
+      <Beat id="shuffle" track="chapter-3" label="Up and down" title={shuffle} aliases={['gains', 'women']}>
         <PlaceShift
           segments={[
             { id: 'lost10', label: 'lost 10 or more', share: data.sinker_share, display: pct(data.sinker_share, 1), tone: 'ink' },
@@ -107,7 +109,7 @@ export default function PlacesBody() {
             { id: 'gained', label: 'gained fewer than 10', share: Math.max(0, data.gained_share - data.surger_share), display: pct(Math.max(0, data.gained_share - data.surger_share)), tone: 'quiet' },
             { id: 'gained10', label: 'gained 10 or more', share: data.surger_share, display: pct(data.surger_share, 1), tone: 'ink' },
           ]}
-          up={{ from: 2, label: `Moved up · ${pct(data.gained_share)}` }}
+          up={{ from: 2, label: 'Moved up' }}
           label={`Places gained or lost per 100 of the field from 30K to the finish: ${pct(data.gained_share)} moved up; ${pct(data.sinker_share, 1)} lost 10 or more, ${pct(data.surger_share, 1)} gained 10 or more.`}
           values={(
             <Values id="pl-tail" caption="Share of finishes by places gained per 100 after 30K"

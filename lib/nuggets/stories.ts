@@ -51,6 +51,23 @@ function fieldMedian(): Nugget {
   return fieldMedianFrom({ all: groups.all.median, women: groups.women.median, men: groups.men.median, total: groups.all.total });
 }
 
+/**
+ * The /finish-times reading's sentence: how much later recorded women's median finish came than recorded men's (whole
+ * minutes, the medians the ruler draws). "Later" needs women's median at least a minute after men's.
+ */
+export function fieldGapFrom(medians: { women: number | null; men: number | null }): Nugget {
+  const { women, men } = medians;
+  const gap = women !== null && men !== null ? women - men : NaN;
+  return {
+    id: 'field.gap', page: '/finish-times', denominator: 'story',
+    values: { women_median_min: women ?? NaN, men_median_min: men ?? NaN, gap_min: gap },
+    guard: gap >= 1,
+    headline: `Recorded women’s median finish came *${countWord(gap)} minutes* after recorded men’s.`,
+    fallback: women !== null && men !== null ? `Recorded women’s median finish was ${hm(women)}; recorded men’s, ${hm(men)}.` : 'Recorded women’s and men’s finish times, side by side.',
+    figure: null,
+  };
+}
+
 /** /finish-times H1: the median as a finding ("Half of all finishes took longer than 4:10."); the reading's ruler adds women and men. */
 export function fieldTitleFrom(median: number | null): Nugget {
   return {
@@ -189,11 +206,10 @@ export function replaySpreadFrom(stretch: Pick<NonNullable<ReplayIndex['stretch'
   };
 }
 
-/** #packs: finishes that passed the same mat together, and how far apart the middle 80% of them finished (the edition with the widest spread). */
-export function replayPacksFrom(editions: Pick<ReplayEditionMeta, 'slug' | 'city' | 'year' | 'pack'>[]): Nugget {
-  const packed = editions.filter((e) => e.pack && e.pack.n >= 100);
-  if (!packed.length) return { id: 'replay.packs', page: '/stories/race-replay#packs', denominator: 'positions', values: {}, guard: false, headline: '', fallback: 'Finishes that passed a mat together, mile by mile after it.', figure: null };
-  const e = packed.reduce((a, b) => (b.pack!.finish_window_min > a.pack!.finish_window_min ? b : a));
+/** #packs: finishes that passed the same mat together, and how far apart the middle 80% of them finished, in the page's own edition (replay.first's). */
+export function replayPacksFrom(edition: Pick<ReplayEditionMeta, 'slug' | 'city' | 'year' | 'pack'> | null): Nugget {
+  const e = edition?.pack && edition.pack.n >= 100 ? edition : null;
+  if (!e) return { id: 'replay.packs', page: '/stories/race-replay#packs', denominator: 'positions', values: {}, guard: false, headline: '', fallback: 'Finishes that passed a mat together, mile by mile after it.', figure: null };
   const minutes = Math.round(e.pack!.finish_window_min);
   return {
     id: 'replay.packs', page: '/stories/race-replay#packs', denominator: 'positions',
@@ -437,15 +453,27 @@ export function kickTwinsFrom(cost: Kick['cost']['stratified']): Nugget {
   };
 }
 
-/** The final-kick reading's sentence: who the comparison holds level, and the typical gap. */
+/**
+ * The final-kick H1, the finding in words ("far apart"), so the reading's figure gives the minutes once: the same guard
+ * as kick.twins (a typical gap of more than ten minutes).
+ */
+export function kickTitleFrom(cost: Pick<Kick['cost']['stratified'], 'median_gap_s'>): Nugget {
+  return {
+    id: 'kick.title', page: '/stories/final-kick', denominator: 'kick',
+    values: { median_gap_s: cost.median_gap_s }, guard: cost.median_gap_s > 600,
+    headline: 'Same pace to 20K, *far apart* at the finish.',
+    fallback: 'Same pace to 20K, apart at the finish.',
+    figure: null,
+  };
+}
+
+/** The final-kick reading's sentence: who the comparison holds level (the figure above gives the typical gap). */
 export function kickLaterFrom(cost: Kick['cost']['stratified']): Nugget {
-  const minutes = Math.round(cost.median_gap_s / 60);
   return {
     id: 'kick.later', page: '/stories/final-kick', denominator: 'kick', term: '/methodology#sustained-slowdown',
     values: { median_gap_s: cost.median_gap_s }, guard: cost.median_gap_s > 600,
-    // No accent: the H1 above already accents the same minutes.
-    headline: `Same race, same recorded gender, same 5–20K pace: finishes with a sustained slowdown came in a typical ${minutes}${NBSP}minutes later.`,
-    fallback: 'Same race, same recorded gender, same 5–20K pace: finish times with and without a sustained slowdown.',
+    headline: 'Compared within the same race, recorded gender and 5–20K pace.',
+    fallback: 'Finish times with and without a sustained slowdown, within the same race, recorded gender and 5–20K pace.',
     figure: null,
   };
 }
@@ -587,7 +615,7 @@ export function holdsTitleFrom(o: Pick<Demographics['overall'], 'women_slowdown'
     id: 'holds.title', page: '/stories/who-holds-pace', denominator: 'demographics',
     values: { women: w, men: m }, guard: w > 0 && m > 1.5 * w,
     headline: 'Recorded women *held their pace* more often.',
-    fallback: 'Who holds their pace',
+    fallback: 'Women and men',
     figure: null,
   };
 }
@@ -649,8 +677,8 @@ export function coursesNamedFrom(id: Pick<Courses['identification'], 'correct' |
   return {
     id: 'courses.named', page: '/stories/courses', denominator: 'course',
     values: { correct: id.correct, tested: id.editions_tested, share, chance: id.chance, courses: id.courses }, guard: share > 2 * id.chance,
-    // The course count says what the 1 in N covers, so it never reads against the H2's courses with a shape.
-    headline: `From its pacing shape alone, an edition’s course was named *${pct(share)}* of the time, among the ${count(id.courses)} courses with enough editions to compare. By chance: 1\u00a0in\u00a0${k}.`,
+    // Which courses could be compared is /methodology's; the sentence keeps the finding and its chance level.
+    headline: `From its pacing shape alone, an edition’s course was named *${pct(share)}* of the time. By chance: 1\u00a0in\u00a0${k}.`,
     fallback: `From its pacing shape alone, an edition’s course was named correctly ${pct(share)} of the time.`,
     figure: shareFigure(share), key: 'of editions named from their pacing shape alone',
   };
@@ -695,7 +723,8 @@ export function weatherPairsFrom(pairs: Pick<Courses['weather']['pairs'], 'hotte
   return {
     id: 'weather.pairs', page: '/stories/race-morning', denominator: 'course', term: '/methodology#sustained-slowdown',
     values: { warmer_more: n, total, min_gap_c: gap }, guard: n > total / 2,
-    headline: both((u) => `In *${count(n)} of ${count(total)}* pairs of editions of the same course at least ${tempGap(gap, u)} apart at the start, the warmer one had more sustained slowdowns.`),
+    // The figure above it gives the count, so the sentence says what is counted, without repeating it.
+    headline: both((u) => `In pairs of editions of the same course at least ${tempGap(gap, u)} apart at the start, the warmer one *usually* had more sustained slowdowns.`),
     fallback: both((u) => `${count(n)} of ${count(total)} same-course pairs at least ${tempGap(gap, u)} apart at the start: the warmer year had more sustained slowdowns.`),
     figure: Number.isFinite(n) ? { value: count(n), unit: `${NBSP}of ${count(total)}`, sr: `${count(n)} of ${count(total)}` } : null,
     key: 'same-course pairs: the warmer year had more sustained slowdowns',
@@ -759,6 +788,7 @@ const courses = () => readInsight<Courses>('courses.json');
 export const STORY_NUGGETS: Record<string, Builder> = {
   'field.median': fieldMedian,
   'field.title': () => fieldTitleFrom(getFinishTimeSummary().groups.all.median),
+  'field.gap': () => { const { groups } = getFinishTimeSummary(); return fieldGapFrom({ women: groups.women.median, men: groups.men.median }); },
   'field.middle': fieldMiddle,
   'field.front': () => fieldFrontFrom(courses().years.eras),
   'field.byrace': () => fieldByRaceFrom(courses().courses),
@@ -766,7 +796,8 @@ export const STORY_NUGGETS: Record<string, Builder> = {
   'replay.title': () => replayTitleFrom(replayFirst()),
   'replay.back': replayBack,
   'replay.spread': () => replaySpreadFrom(readInsight<ReplayIndex>('replay.json').stretch),
-  'replay.packs': () => replayPacksFrom(readInsight<ReplayIndex>('replay.json').editions),
+  // The page's own edition (the replay.first one, like the replay and #emptying), so the story never switches race.
+  'replay.packs': () => { const slug = String(replayFirst().values.slug ?? ''); return replayPacksFrom(readInsight<ReplayIndex>('replay.json').editions.find((e) => e.slug === slug) ?? null); },
   'replay.left': replayLeft,
   'shape.second20k': shapeSecond20k,
   'types.metronome': () => typesMetronomeFrom(archetypes().archetypes),
@@ -779,6 +810,7 @@ export const STORY_NUGGETS: Record<string, Builder> = {
   'places.shuffle': () => placesShuffleFrom(positions()),
   'slowdown.onset': slowdownLate,
   'kick.twins': () => kickTwinsFrom(kick().cost.stratified),
+  'kick.title': () => kickTitleFrom(kick().cost.stratified),
   'kick.later': () => kickLaterFrom(kick().cost.stratified),
   'kick.bands': () => kickBandsFrom(kick().cost.bands),
   'kick.warning': () => kickWarningFrom(kick().warning),

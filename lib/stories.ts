@@ -7,7 +7,7 @@ import { getInsightsManifest, readInsight } from './insights-server';
 import type { Archetypes, Courses, InsightsManifest, Kick, ReplayIndex } from './insights';
 import { checkpointLabel } from './viz/format';
 import { hm } from './nuggets/format';
-import { getNugget, plain, sentenceOf } from './nuggets';
+import { getNugget, sentenceOf } from './nuggets';
 
 /** One parsed copy of each story file per verified manifest, so the getters below do not re-read files on every access. */
 const files = new WeakMap<InsightsManifest, Map<string, unknown>>();
@@ -167,13 +167,11 @@ export const STORIES: StoryDefinition[] = [
       return `How much a marathon field reorders after the ${checkpointLabel(20, 'km')} mat (${checkpointLabel(20, 'mi')}), who moves up late and which section reshuffles finishing places the most.`;
     } },
   { slug: 'final-kick', file: 'kick.json', number: '05', kicker: 'After 30K',
-    /** Retitled from its lead finding (owner decision 11): the kick.twins nugget, or its neutral fallback. */
-    get title() {
-      return plain(sentenceOf(getNugget('kick.twins'))).replace(/\.$/, '');
-    },
-    /** The H1 is the finding as a sentence, ending on its full stop like the race replay's. */
+    /** The short name its list rows and next cards show (its reading gives the minutes). */
+    title: 'After the slowdown',
+    /** The H1 is the finding in words (the kick.title nugget), ending on its full stop like the race replay's. */
     get heading() {
-      return sentenceOf(getNugget('kick.twins'));
+      return sentenceOf(getNugget('kick.title'));
     },
     dek: 'What happens to a race after a sustained slowdown begins?',
     accent: '#E2416B',
@@ -183,7 +181,7 @@ export const STORIES: StoryDefinition[] = [
       const share = kickShare();
       return `${share ? `${share} recorded marathon finishes speed up over the final stretch. ` : ''}Where fields slow, and how late speed-ups and sustained slowdowns line up.`;
     } },
-  { slug: 'who-holds-pace', file: 'demographics.json', number: '06', kicker: 'Gender and age', title: 'Who holds their pace',
+  { slug: 'who-holds-pace', file: 'demographics.json', number: '06', kicker: 'Gender and age', title: 'Women and men',
     get heading() { return headingOf('holds.title', this.title); },
     dek: 'Do women and men run the second half differently?', accent: '#7A4DFF',
     published: '2026-10-07',

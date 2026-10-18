@@ -108,6 +108,9 @@
   .chapter-list.is-expanded .chapter-heading .chapter-reading { grid-column: 3; grid-row: 1; display: grid; justify-items: end; gap: 4px; padding-top: 4px; text-align: right; }
   .chapter-list.is-expanded .chapter-heading .chapter-reading .big-number.is-s { font-size: 2.25rem; }
   .chapter-list.is-expanded .chapter-heading .chapter-key { max-width: 26ch; }
+  /* A reading that is a key alone stays under the chapter's name, so no figure column is held open for it. */
+  .chapter-list.is-expanded .chapter-heading .chapter-reading.is-key-only { grid-column: 2; grid-row: auto; justify-items: start; padding-top: 0; text-align: left; }
+  .chapter-list.is-expanded .chapter-heading .chapter-reading.is-key-only .chapter-key { max-width: none; }
   .chapter-page-title { font-size: 1rem; }
   .page-list-title { font-size: 1.625rem; }
   .page-list .page-reading .big-number.is-s { font-size: 1.5rem; }

@@ -18,7 +18,7 @@ const slower = (v: number) => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(one
 const apart = (a: number, b: number) => `${Math.abs(one(b) - one(a)).toFixed(1)} points apart`;
 
 /**
- * Who holds their pace (the redesign spec, section 7.9, under section 00): the reading (sustained slowdown, recorded
+ * Women and men, the who-holds-pace story (the redesign spec, section 7.9, under section 00): the reading (sustained slowdown, recorded
  * women against recorded men at the same finish times) as a pair of figures, then three beats: the gap pooled and matched,
  * both drawn, how far behind recorded men recorded women ran at each mat in the band with the most matched finishes (a
  * scrub along the course; the ghost race's two-dot strip is cut), and the gap at every finish time.
@@ -69,9 +69,9 @@ export default function DemographicsBody() {
           ]}
           label={`Second 20K against the first. Pooled: women ${slower(o.pooled_women_block)}, men ${slower(o.pooled_men_block)}. Same race and finish minute: women ${slower(o.women_block)}, men ${slower(o.men_block)}.`}
           values={(
-            <Values id="wh-unmask" caption="Second 20K against the first"
-              columns={[{ key: 'v', label: 'Compared' }, { key: 'w', label: 'Recorded women' }, { key: 'm', label: 'Recorded men' }]}
-              rows={[['Pooled', slower(o.pooled_women_block), slower(o.pooled_men_block)], ['Same race and finish minute', slower(o.women_block), slower(o.men_block)]]} reading={1} />
+            <Values id="wh-unmask" caption="Second 20K against the first, recorded women and men"
+              columns={[{ key: 'v', label: 'Compared' }, { key: 'w', label: 'Women' }, { key: 'm', label: 'Men' }]}
+              rows={[['Pooled', slower(o.pooled_women_block), slower(o.pooled_men_block)], ['Same race and minute', slower(o.women_block), slower(o.men_block)]]} reading={1} />
           )} />
       </Beat>
 
@@ -104,8 +104,8 @@ export default function DemographicsBody() {
           yTicks={[0.25, 0.5, 0.75].filter((v) => v <= bTop).map((v) => ({ value: v, label: pct(v) }))} gridSide="left"
           label={`Sustained slowdown by finish time, recorded women and men, from ${hm(rows[0].lo_min)} to ${hm(rows[last].lo_min + width)}.`}
           values={(
-            <Values id="wh-bands" caption="Sustained slowdown by finish time"
-              columns={[{ key: 'b', label: 'Finish time' }, { key: 'w', label: 'Recorded women' }, { key: 'm', label: 'Recorded men' }]}
+            <Values id="wh-bands" caption="Sustained slowdown by finish time, recorded women and men"
+              columns={[{ key: 'b', label: 'Finish time' }, { key: 'w', label: 'Women' }, { key: 'm', label: 'Men' }]}
               rows={rows.map((b) => [b.label, pct(b.women_slowdown), pct(b.men_slowdown)])} />
           )} />
       </Beat>

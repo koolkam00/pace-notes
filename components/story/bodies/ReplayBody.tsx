@@ -30,12 +30,14 @@ export default function ReplayBody() {
   const choices = replayChoices(data.editions, getInsightsManifest(), routes);
   const race = `${first.values.city} ${first.values.year}`;
 
-  // Finishes that passed a mat together: the middle 80% of them, mat by mat, around their median.
+  // Finishes that passed a mat together: the middle 80% of them, mat by mat, around their median, ahead up and behind
+  // down, as the replay above draws its field (first to finish at the top).
   const packEdition = data.editions.find((e) => e.slug === packs.values.slug);
   const q = packEdition?.pack?.quantiles ?? [];
   const mats = [packEdition?.pack?.checkpoint_km ?? 10, ...q.map((r) => r.km).filter((km) => km > (packEdition?.pack?.checkpoint_km ?? 10))];
   const rows = mats.map((km) => q.find((r) => r.km === km)!).filter(Boolean);
-  const lo = rows.map((r) => (r.p10_s - r.p50_s) / 60), hi = rows.map((r) => (r.p90_s - r.p50_s) / 60);
+  // Minutes ahead of the pack's median (behind is negative): the band from its back (p90) to its front (p10).
+  const lo = rows.map((r) => (r.p50_s - r.p90_s) / 60), hi = rows.map((r) => (r.p50_s - r.p10_s) / 60);
   const reach = Math.ceil(Math.max(...hi.map(Math.abs), ...lo.map(Math.abs)) / 10) * 10;
   const lastIndex = rows.length - 1;
 
@@ -66,28 +68,29 @@ export default function ReplayBody() {
       </Beat>
 
       {rows.length > 1 ? (
-        <Beat id="packs" track="chapter-2" label={`Together at ${matLabel(Number(packs.values.checkpoint_km) || mats[0])}`} title={packs}
+        <Beat id="packs" track="chapter-2" className="rr-packs" label={`Together at ${matLabel(Number(packs.values.checkpoint_km) || mats[0])}`} title={packs}
           dek={`${packEdition!.city} ${packEdition!.year}: ${count(Number(packs.values.n))} finishes passed ${matLabel(Number(packs.values.checkpoint_km))} together.`}>
           <LineProfile x={mats} xDomain={[mats[0], MARATHON_KM]} yDomain={[-reach, reach]}
             layers={[{ id: 'pack', label: 'The pack', series: [{ id: 'median', values: rows.map(() => 0) }], band: { lo, hi },
               // The band's whole width at the finish, the number the H2 names, rather than two separately rounded ends.
-              labels: [{ x: mats[lastIndex], y: hi[lastIndex], text: `${Math.round(Number(packs.values.window_min))} min apart`, tone: 'ink', priority: 3, prefer: 'left' }] }]}
+              labels: [{ x: mats[lastIndex], y: lo[lastIndex], text: `${Math.round(Number(packs.values.window_min))} min apart`, tone: 'ink', priority: 3, prefer: 'left' }] }]}
             refs={[{ value: 0, label: 'Their median' }]}
             xTicks={mats.filter((_, i) => i === 0 || i === lastIndex || mats[i] % 10 === 0).map((km) => ({ value: km, label: matLabel(km) }))}
-            yTicks={[{ value: reach, label: `${reach} min behind` }, { value: -reach, label: `${reach} min ahead` }]}
+            // The scale reads on the left, at 10K, where the pack is still one line; the finish end carries the width.
+            yTicks={[{ value: reach, label: `${reach} min ahead` }, { value: -reach, label: `${reach} min behind` }]} gridSide="left"
             label={`Finishes that passed ${matLabel(mats[0])} together in ${packEdition!.city} ${packEdition!.year}: the middle 80% spread from ${matLabel(mats[0])} to ${Math.round(Number(packs.values.window_min))} minutes apart at the finish.`}
             keys={[{ label: 'The middle 80% of the pack', mark: 'band' }]}
             values={(
               <Values id="rr-pack" caption={`The pack in ${packEdition!.city} ${packEdition!.year}, mat by mat, against its median`}
                 columns={[{ key: 'm', label: 'Mat' }, { key: 's', label: 'Middle 80% apart' }, { key: 'a', label: 'Its front' }, { key: 'b', label: 'Its back' }]}
-                rows={rows.map((r, i) => [matLabel(r.km), `${Math.round(hi[i] - lo[i])} min`, signedMin(lo[i]), signedMin(hi[i])])} reading={lastIndex} />
+                rows={rows.map((r, i) => [matLabel(r.km), `${Math.round(hi[i] - lo[i])} min`, signedMin(-hi[i]), signedMin(-lo[i])])} reading={lastIndex} />
             )} />
         </Beat>
       ) : null}
 
       {comp.length > 2 ? (
         <Beat id="emptying" track="chapter-3" label="Who’s left" title={left}
-          dek={`${leftRace}: the share of the field’s slowing on course that reflects who was still out there. The quicker runners had finished.`}>
+          dek={`${leftRace}, hour by hour: how much of the slower pace on course was who was still out there, rather than runners slowing.`}>
           <LineProfile x={hours} xDomain={[h0, h1]} yDomain={[0, 100]}
             layers={[{ id: 'left', label: 'Who’s left', series: [{ id: 'share', values: share }],
               points: at >= 0 ? [{ x: hours[at], y: share[at], kind: 'reading' }] : [],

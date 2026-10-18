@@ -18,15 +18,15 @@ const LENS = { count: 'Finishes per minute', ratio: 'Against the curve' };
 /**
  * The round-number effect (the redesign spec, section 7.8, under section 00): the reading (the minute that stands
  * tallest against the curve; the H1 is named for it), then the towers as the story's one step-by-step reveal, opening on
- * the busiest minute and ending on the scrubbable lens chart, the page's one guess (the final stretch to a round mark)
- * and the reader's own minute on a small silhouette. The scoreboard of marks lives in the towers' Values; the
- * ten-second view and the reading's mini lens are cut (the towers follow straight after the reading).
+ * the busiest minute and ending on the scrubbable lens chart, with the reader's own finish time under it (#my-finish
+ * moves the chart's needle to that minute and rings it), then the page's one guess (the final stretch to a round mark).
+ * The scoreboard of marks lives in the towers' Values; the ten-second view, the reading's mini lens and the second,
+ * smaller silhouette of the lookup are cut.
  */
 export default function RoundNumbersBody() {
   const ft = readInsight<FinishTimes>('finish-times.json');
   const story = STORIES.find((s) => s.slug === 'round-numbers')!;
   const top = getNugget('round.top'), busiest = getNugget('finish.busiest'), marksNugget = getNugget('round.marks'), rescue = getNugget('round.rescue');
-  const median = Number(getNugget('field.median').values.median_min);
   const topMinute = Number(top.values.minutes) - 1;
 
   const bins = ft.histogram.filter((h) => h.minute >= LO && h.minute < HI).map((h) => ({ x: h.minute, n: h.all }));
@@ -48,37 +48,38 @@ export default function RoundNumbersBody() {
   ];
 
   const bubbleMark = String(rescue.values.mark);
-  const lookupBins = ft.histogram.filter((h) => h.minute >= LO && h.minute < HI);
 
   return (
     <StoryPage path={PATH}>
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
-        figure={top.figure ? { ...top.figure } : undefined} unitLine={top.key} fallback={!top.guard}
+        figure={top.figure ? { ...top.figure } : undefined} unitLine={top.guard ? 'the smooth curve' : top.key} fallback={!top.guard}
         sentence={<Say nugget={top} />} />
 
       <Beat id="towers" track="chapter-1" label="The towers" aliases={['scoreboard', 'seconds']}
         title={marksNugget.guard ? <>Finishes pile up just under <em>round numbers</em>.</> : <>Finish times, minute by minute.</>}>
-        <Scrolly className="towers-scrolly" steps={steps} graphic={(
-          <>
-            <Histogram bins={bins} curve={curve} marks={marks.map((m) => m.minutes - 1)} reading={topMinute}
-              ticks={[180, 240, 300, 360].map((m) => ({ x: m, label: hm(m) }))}
-              label={`Finishes in each minute from ${hm(LO)} to ${hm(HI)}. ${sentenceOf(top).replace(/\*/g, '')}`}
-              lens={{ label: 'Show', ...LENS }} ratioAt={ratioAt}
-              keyLabels={{ bin: 'Each minute', mark: 'The minute before a round mark', curve: 'The smooth curve' }}
-              scrub={{
-                label: `Finish minute, ${hm(LO)} to ${hm(HI)}`,
-                points: { x: xs, keys: bins.map((b) => `Finishes in ${hm(b.x)}:00–:59`), values: bins.map((b) => count(b.n)),
-                  side: [{ label: 'Against the curve', values: bins.map((b) => (Number.isFinite(ratio(b)) ? `${ratio(b).toFixed(2)}×` : '—')) }] },
-                // The chart opens on step one (the busiest minute), so its first readout adds to the reading above;
-                // the reading's minute is its home, the tower that stays orange.
-                initial: busiestAt, home: topAt, detents,
-              }} />
-            <ScrollyLens lens={{ 0: LENS.count, [steps.length - 1]: LENS.ratio }}
-              needle={{ 0: busiestAt, [steps.length - 1]: topAt }} />
-          </>
-        )} />
+        <MyFinish first={LO} bins={bins.map((b) => b.n)} expected={bins.map((b) => Math.round(expected.get(b.x) ?? 0))}>
+          <Scrolly className="towers-scrolly" steps={steps} graphic={(
+            <>
+              <Histogram bins={bins} curve={curve} marks={marks.map((m) => m.minutes - 1)} reading={topMinute}
+                ticks={[180, 240, 300, 360].map((m) => ({ x: m, label: hm(m) }))}
+                label={`Finishes in each minute from ${hm(LO)} to ${hm(HI)}. ${sentenceOf(top).replace(/\*/g, '')}`}
+                lens={{ label: 'Show', ...LENS }} ratioAt={ratioAt}
+                keyLabels={{ bin: 'Each minute', mark: 'The minute before a round mark', curve: 'The smooth curve' }}
+                scrub={{
+                  label: `Finish minute, ${hm(LO)} to ${hm(HI)}`,
+                  points: { x: xs, keys: bins.map((b) => `Finishes in ${hm(b.x)}:00–:59`), values: bins.map((b) => count(b.n)),
+                    side: [{ label: 'Against the curve', values: bins.map((b) => (Number.isFinite(ratio(b)) ? `${ratio(b).toFixed(2)}×` : '—')) }] },
+                  // The chart opens on step one (the busiest minute), so its first readout adds to the reading above;
+                  // the reading's minute is its home, the tower that stays orange.
+                  initial: busiestAt, home: topAt, detents,
+                }} />
+              <ScrollyLens lens={{ 0: LENS.count, [steps.length - 1]: LENS.ratio }}
+                needle={{ 0: busiestAt, [steps.length - 1]: topAt }} />
+            </>
+          )} />
+        </MyFinish>
         <Values id="rn-marks" caption="The minute before each round mark, against the smooth curve"
-          columns={[{ key: 'm', label: 'Mark' }, { key: 'r', label: 'Against the curve' }, { key: 'n', label: 'Finishes' }, { key: 'e', label: 'The curve expects' }]}
+          columns={[{ key: 'm', label: 'Mark' }, { key: 'r', label: '× curve' }, { key: 'n', label: 'Finishes' }, { key: 'e', label: 'Expected' }]}
           rows={ft.marks.map((m) => [m.mark, `${m.ratio.toFixed(2)}×`, count(m.minute_before), count(m.expected_minute_before)])}
           reading={ft.marks.findIndex((m) => m.mark === top.values.mark)} />
       </Beat>
@@ -90,12 +91,6 @@ export default function RoundNumbersBody() {
           truth={Number(rescue.values.under) * 100} truthLabel="got under"
           compare={{ value: Number(rescue.values.expected) * 100, label: 'Away from a round mark' }}
           answer={sentenceOf(rescue)} initial={50} />
-      </Beat>
-
-      <Beat id="your-minute" track="chapter-3" label="Your minute" title={<>Where did <em>your</em> finish land?</>}>
-        <MyFinish first={LO} bins={lookupBins.map((b) => b.all)} expected={lookupBins.map((b) => Math.round(expected.get(b.minute) ?? 0))}
-          example={Number.isFinite(median) ? median : Number(busiest.values.minute)} exampleLabel={Number.isFinite(median) ? 'The median finish' : 'The busiest minute'}
-          ticks={[180, 240, 300, 360]} />
       </Beat>
     </StoryPage>
   );

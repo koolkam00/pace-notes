@@ -167,8 +167,25 @@
   .home-chapters .chapter-reading .big-number.is-s { font-size: 2.5rem; }
 }
 
+/* A chapter whose reading is a key with no figure: from 600 px the key is the row's subtitle, so no figure column is
+   reserved for it. */
+@media (min-width: 600px) {
+  .home-chapters .chapter-reading.is-key-only { grid-column: 2; justify-items: start; margin-top: -2px; text-align: left; }
+  .home-chapters .chapter-reading.is-key-only .chapter-key { max-width: none; font-size: var(--t-small); font-weight: 400; line-height: 1.35; }
+}
+
 /* The guess's answer is chapter 03's reading: on the guide its figure waits until the guess is revealed or skipped,
-   and the row shows its key alone until then. */
+   and a quiet "?" holds its place until then (silent to screen readers, which read the key). */
 @supports selector(:has(*)) {
   .home:has(.home-stakes .guess:not(.is-revealed)) .home-guide .chapter-row[data-lead='shape.second20k'] .chapter-reading .big-number { display: none; }
+  .home:has(.home-stakes .guess:not(.is-revealed)) .home-guide .chapter-row[data-lead='shape.second20k'] .chapter-reading::before {
+    content: '?'; content: '?' / ''; font-family: var(--figure); font-weight: 660; font-size: var(--t-figure-s); line-height: 1; color: var(--ink-3);
+  }
+  @media (min-width: 600px) {
+    .home:has(.home-stakes .guess:not(.is-revealed)) .home-guide .chapter-row[data-lead='shape.second20k'] .chapter-reading::before { font-size: var(--t-figure-m); }
+    .home-chapters .chapter-link:has(.chapter-reading.is-key-only) .chapter-sub { display: none; }
+  }
+  @media (min-width: 900px) {
+    .home:has(.home-stakes .guess:not(.is-revealed)) .home-guide .chapter-row[data-lead='shape.second20k'] .chapter-reading::before { font-size: 2.5rem; }
+  }
 }
