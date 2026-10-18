@@ -42,13 +42,7 @@
 .chapter-reading { display: grid; justify-items: end; gap: 4px; max-width: 18ch; text-align: right; }
 .chapter-key { font-family: var(--sans); font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
 
-/* Expanded (the contents): each chapter's pages as sub-rows under its row. */
-.chapter-pages { margin: 0 0 var(--s-3) calc(var(--line-x) * 2 + var(--s-3)); border-top: 1px solid var(--rule); }
-.chapter-page-link { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: 48px; padding: 6px 0; border-bottom: 1px solid var(--rule); color: var(--ink-2); text-decoration: none; }
-.chapter-page-link:hover { color: var(--ink); text-decoration: none; }
-.chapter-page-title { font-family: var(--sans); font-size: .9375rem; font-weight: 500; line-height: 1.3; }
-.chapter-page-link .big-number.is-s { font-size: 1.25rem; }
-.chapter-page-link[aria-current] { color: var(--ink); }
+/* Expanded (the contents) is styled with the contents page: app/styles/pages/research.css. */
 
 @media (max-width: 359.98px) {
   .is-compact .chapter-sub { display: none; }
@@ -57,9 +51,9 @@
   .chapter-reading { grid-column: 2; justify-items: start; text-align: left; }
 }
 @media (min-width: 900px) {
-  .is-full .chapter-reading .big-number.is-s, .is-expanded .chapter-link .chapter-reading .big-number.is-s { font-size: var(--t-figure-m); }
-  .is-full .chapter-name, .is-expanded .chapter-name { font-size: 1.5rem; }
-  .is-full .chapter-link, .is-expanded .chapter-link { min-height: 88px; }
+  .is-full .chapter-reading .big-number.is-s { font-size: var(--t-figure-m); }
+  .is-full .chapter-name { font-size: 1.5rem; }
+  .is-full .chapter-link { min-height: 88px; }
 }
 
 /* ---------- The chapter rail (from 1180 px) ---------- */
