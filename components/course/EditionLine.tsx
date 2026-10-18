@@ -3,7 +3,7 @@ import Axis from '@/components/viz/Axis';
 import Plot, { Baseline } from '@/components/viz/Plot';
 import Scrubber from '@/components/viz/Scrubber.client';
 import Annotation from '@/components/viz/Annotation';
-import { placeLabels, REF_WIDTH, textWidth, type LabelItem } from '@/components/viz/labels';
+import { placeLabels, REF_WIDTH, textWidth, type LabelItem, type PlacedLabel } from '@/components/viz/labels';
 import { extent, linear, linePath, pc, yScale } from '@/components/viz/scale';
 import { yearTicks } from '@/components/viz/YearStrip';
 
@@ -49,14 +49,27 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
   }));
   // The edition the sentence starts from is labelled first (the sentence names it): clear of the dots, of the line and
   // of the needle at the selected edition.
-  const items: LabelItem[] = [];
-  if (start >= 0 && start !== sel) items.push({ id: 'from', text: `${sorted[start].year} · ${sorted[start].display}`, x: x(sorted[start].year), y: y(sorted[start].seconds), priority: 3, size: 13, gap: 10 });
   const needle = { x0: x(sorted[sel].year), x1: x(sorted[sel].year), y0: 0, y1: 1, pad: 4 };
+  // The label at its dot, or lifted above every dot and the line within its width on a leader down to its dot (among
+  // many editions, where the space beside the dot is taken).
+  const fromItem = (text: string, lift: boolean): LabelItem => {
+    const px = x(sorted[start].year), own = y(sorted[start].seconds);
+    const half = (textWidth(text, 13) + 8) / REF_WIDTH;
+    const top = lift ? Math.min(own, ...[...dots, ...along].filter((d) => Math.abs(d.x - px) < half).map((d) => d.y - 6 / height)) : own;
+    return { id: 'from', text, x: px, y: top, priority: 3, size: 13, gap: 10, ...(lift ? { prefer: 'above' as const } : {}) };
+  };
   // The line is avoided along its length, not by its segments' boxes, so a label may sit in the open corner beside a
-  // diagonal.
-  let placed = placeLabels(items, { height, avoid: [...dots, ...along], boxes: [needle] });
-  // Among many editions the full label may find no room: the year alone then marks the edition (the sentence gives its time).
-  if (placed.some((l) => l.minWidth === null)) placed = placeLabels(items.map((it) => ({ ...it, text: String(sorted[start].year) })), { height, avoid: [...dots, ...along], boxes: [needle] });
+  // diagonal. The full label first; the year alone if it finds no room (the sentence gives the time); then lifted.
+  let placed: PlacedLabel[] = [];
+  let lifted = false;
+  if (start >= 0 && start !== sel) {
+    const full = `${sorted[start].year} · ${sorted[start].display}`, year = String(sorted[start].year);
+    for (const [text, lift] of [[full, false], [year, false], [full, true], [year, true]] as const) {
+      placed = placeLabels([fromItem(text, lift)], { height, avoid: [...dots, ...along], boxes: [needle] });
+      lifted = lift;
+      if (placed.every((l) => l.minWidth !== null)) break;
+    }
+  }
   // Its box at the narrowest phone, in plot fractions, for the gridline labels to keep clear of.
   const taken = placed.filter((l) => l.minWidth !== null).map((l) => {
     const w = textWidth(l.text, l.size ?? 14), ax = l.x * REF_WIDTH + l.dx;
@@ -96,6 +109,10 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
         ))}
       </g>
       {sorted.map((p, i) => <circle key={p.year} className={i === sel ? 'm-signal is-reading' : 'm-ink'} cx={pc(x(p.year))} cy={pc(y(p.seconds))} r={i === sel ? 5.5 : 4} />)}
+      {lifted ? placed.filter((l) => l.minWidth !== null && l.dy < 0).map((l) => {
+        const from = l.y + (l.dy + 3) / height, to = y(sorted[start].seconds) - 6 / height;
+        return to - from > 4 / height ? <rect key="leader" className="leader" x={pc(l.x)} width={1} transform="translate(-0.5 0)" y={pc(from)} height={pc(to - from)} /> : null;
+      }) : null}
       <Annotation labels={placed} />
       <Baseline />
     </Plot>
