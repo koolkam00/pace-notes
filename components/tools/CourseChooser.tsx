@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import Arrow from '@/components/ui/Arrow';
-import { DataState, GoalBar, ShareBar } from '@/components/tools/ui';
+import { DataState, DurationField, GoalBar, ShareBar, Stepper } from '@/components/tools/ui';
+import { fmtGoal } from '@/lib/tools/pace-band-data';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { loadInsight } from '@/lib/insights';
 import type { CourseContext, CourseGoal, CourseGoalRow } from '@/lib/tools/data';
@@ -162,21 +163,17 @@ export default function CourseChooser({ sha, screened }: {
   const month = /^(1[0-2]|[1-9])$/.test(q.month) ? Number(q.month) : null;
   const opening: Opening = q.open === 'downhill' || q.open === 'other' ? q.open : '';
 
-  const goals = useMemo(() => {
-    const out: number[] = [];
-    for (let m = range[0]; m <= range[1]; m += step) out.push(m);
-    return out;
-  }, [range, step]);
   const setGoal = (m: number) => setQ({ goal: hm(Math.min(range[1], Math.max(range[0], m))) });
+  // The field shows the goal as typed or linked (it snaps for the results only), so typing is never overwritten.
+  const typed = noGoal ? null : (() => { const sec = parseDuration(q.goal, 'race'); return sec !== null && sec >= 3600 ? sec : goal * 60; })();
   // The steppers stay focusable at the ends of the range (aria-disabled, not disabled), so keyboard focus never drops to the page.
   const canFaster = !noGoal && goal > range[0];
   const canSlower = !noGoal && goal < range[1];
 
   // Controls that unmount when used (Clear filters, Try again) hand focus to a control that stays.
   const monthRef = useRef<HTMLSelectElement>(null);
-  const goalRef = useRef<HTMLSelectElement>(null);
   const clearFilters = () => { monthRef.current?.focus(); setQ({ month: '', open: '' }); };
-  const retryLoad = () => { goalRef.current?.focus(); retry?.(); };
+  const retryLoad = () => { document.getElementById('course-chooser-goal')?.focus(); retry?.(); };
 
   const courseByCity = useMemo(() => new Map((data?.courses ?? []).map((c) => [c.city, c])), [data]);
   const published: Item[] = useMemo(() => (data ? data.rows.filter((r) => r.goal === goal).flatMap((row) => {
@@ -209,7 +206,9 @@ export default function CourseChooser({ sha, screened }: {
     const n = published.reduce((sum, p) => sum + p.row.n, 0);
     return { n, under: published.reduce((sum, p) => sum + p.row.n * p.row.under, 0) / n };
   }, [published]);
-  const maxUnder = Math.max(0.01, ...published.map((p) => p.row.under));
+  // The bars read on one fixed scale, 0 to 50% (0 to 100% should any share pass half), never stretched to the largest
+  // share, so a 27% share never fills its track; a faint tick marks every course pooled.
+  const barTop = Math.max(...published.map((p) => p.row.under), 0) > 0.5 ? 1 : 0.5;
 
   const filtered = month !== null || opening !== '';
   const at20 = units === 'mi' ? '12.4 mi' : '20 km';
@@ -225,19 +224,14 @@ export default function CourseChooser({ sha, screened }: {
       <div className="tool-workspace">
         <form className="tool-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Course chooser goal">
           <h2>Your goal</h2>
-          <div className="tool-field">
-            <label htmlFor="course-chooser-goal">Marathon goal time</label>
-            <div className="tool-stepper course-chooser-goal">
-              <button type="button" aria-disabled={!canFaster || undefined} onClick={() => { if (canFaster) setGoal(goal - step); }}
-                aria-label={noGoal ? `${step} minutes faster: choose a goal first` : canFaster ? `${step} minutes faster: ${hm(goal - step)}` : `${step} minutes faster: ${hm(range[0])} is the fastest goal`}>−</button>
-              <select id="course-chooser-goal" ref={goalRef} value={noGoal ? '' : goal} onChange={(e) => { if (e.target.value) setGoal(Number(e.target.value)); }} aria-describedby="course-chooser-goal-hint">
-                {noGoal ? <option value="" disabled>Choose</option> : null}
-                {goals.map((m) => <option key={m} value={m}>{hm(m)}</option>)}
-              </select>
-              <button type="button" aria-disabled={!canSlower || undefined} onClick={() => { if (canSlower) setGoal(goal + step); }}
-                aria-label={noGoal ? `${step} minutes slower: choose a goal first` : canSlower ? `${step} minutes slower: ${hm(goal + step)}` : `${step} minutes slower: ${hm(range[1])} is the slowest goal`}>+</button>
-            </div>
-            <p className="tool-field-hint" id="course-chooser-goal-hint">{noGoal ? `${step}-minute steps from ${hm(range[0])} to ${hm(range[1])}.` : `Even pace ${paceText(evenKm, units)} · ${paceText(evenKm, units === 'mi' ? 'km' : 'mi')}.`}</p>
+          {/* The goal control every goal tool shares (a typed goal snaps to the published 5-minute grid, and the note
+              under it says so); the − / + buttons step a grid goal at a time. */}
+          <div className="tool-goal course-chooser-goal">
+            <Stepper label="Goal" step={step * 60} onStep={(d) => setGoal((noGoal ? DEFAULT_GOAL : goal) + d / 60)}>
+              <DurationField id="course-chooser-goal" label="Goal finish time" large value={typed} placeholder="4:00" format={fmtGoal}
+                onChange={(sec) => { if (sec !== null && sec >= 3600) setQ({ goal: fmtGoal(sec) }); }}
+                hint={`h:mm, from ${hm(range[0])} to ${hm(range[1])} in ${step}-minute steps.`} />
+            </Stepper>
           </div>
           {note ? <p className="tool-field-hint">{note}</p> : null}
         </form>
@@ -311,7 +305,7 @@ export default function CourseChooser({ sha, screened }: {
                     <li key={course.slug}>
                       <Link className="cc-row" href={planHref(course.city, goal) ?? '/tools/plan'}>
                         <span className="cc-name">{displayCity(course.city)}</span>
-                        <span className="cc-bar" aria-hidden="true"><i style={{ width: `${(row.under / maxUnder) * 100}%` }} /></span>
+                        <span className="cc-bar" aria-hidden="true"><i style={{ width: `${(row.under / barTop) * 100}%` }} />{pooled ? <b className="cc-bar-mark" style={{ left: `${(pooled.under / barTop) * 100}%` }} /> : null}</span>
                         <span className="cc-share"><b>{pctText(row.under)}</b><span className="sr-only"> made {goalText}</span></span>
                         <span className="cc-sub">{pctText(row.sd)} sustained slowdown · {monthText(course.months)}{course.downhill_opening ? ' · downhill start' : ''}<span className="sr-only"> · {count(row.n)} finishes</span></span>
                         {/* The whole row is the link: its name says where it goes, so no visible label repeats on every row. */}

@@ -39,7 +39,7 @@ const CASES = {
   } },
   'plan-url': { path: v => `/tools/plan?course=${v === V.A ? 'berlin' : 'rotterdam'}&goal=${v.hm}`, needles: { A: ['Berlin'], B: ['Rotterdam'] } },
   'course-chooser': { path: '/tools/course-chooser', async drive(page, v, log) {
-    await step(log, 'goal', async () => { const options = await page.locator('#course-chooser-goal option').evaluateAll(o => o.map(x => x.value)); await page.selectOption('#course-chooser-goal', options[v.goalIdx]); });
+    await step(log, 'goal', () => type(page, label(page, 'Goal finish time'), v.hm));
     await step(log, 'sort', () => page.selectOption('#course-chooser-sort', { index: 1 }));
   } },
   'course-chooser-url': { path: v => `/tools/course-chooser?goal=${v.hm}` },
@@ -77,7 +77,7 @@ const CASES = {
     // The dew point waits in the disclosure with the race (it feeds the published-research estimates only).
     await step(log, 'more', () => open(page, 'details.weather-match-more'));
     await step(log, 'dew', () => type(page, '#weather-match-hum', v.dew));
-    await step(log, 'goal', () => type(page, label(page, 'Marathon goal time'), v.marathon));
+    await step(log, 'goal', () => type(page, label(page, 'Goal finish time'), v.marathon));
   } },
   'weather-match-url': { path: v => `/tools/weather-match?temp=${v.temp}&dew=${v.dew}&goal=${v.marathon}` },
   'qualifying': { path: '/tools/qualifying', reload: true, async drive(page, v, log) {
@@ -95,6 +95,7 @@ const CASES = {
     await step(log, 'more', () => open(page, 'details.projector-more'));
     await step(log, 'prev', () => type(page, '#projector-prev', v.mat20));
     await step(log, 'target', () => type(page, label(page, /Target finish/, false), v.hm));
+    await step(log, 'extras', () => open(page, 'details.projector-extras'));
     await step(log, 'start', () => type(page, '#projector-start', v.start));
     await step(log, 'card label', () => type(page, '#projector-card-label', v.label));
     await page.waitForTimeout(800);

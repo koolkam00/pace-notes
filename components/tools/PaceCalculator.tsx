@@ -169,12 +169,13 @@ export default function PaceCalculator() {
                 </>
               ) : null}
             </div>
-            {/* The solved box stays empty: its value is the result card's figure just below, so the screen says it once. */}
-            <DurationField label={`Time${solve === 'time' ? ' (solved)' : ''}`} large value={solve === 'time' ? null : timeS}
-              onChange={(s) => edit('time', { t: s === null ? '' : formatDuration(s, true) })} placeholder={solve === 'time' ? 'In the result' : '4:00:00'} />
-            <DurationField label={`Pace per ${units === 'mi' ? 'mile' : 'kilometre'}${solve === 'pace' ? ' (solved)' : ''}`} mode="pace" large
-              value={solve === 'pace' ? null : paceUnitS} onChange={(s) => edit('pace', { p: s === null ? '' : formatDuration(s) })} placeholder={solve === 'pace' ? 'In the result' : units === 'mi' ? '8:00' : '5:00'} />
-            <p className="tool-field-hint">Type in any two boxes; the result gives the third.</p>
+            {/* The solved box shows its value, quieter, and typing in it makes it one of the two. */}
+            <DurationField label={`Time${solve === 'time' ? ' (solved)' : ''}`} large solved={solve === 'time'}
+              value={solve === 'time' ? (ready ? Math.round(seconds!) : null) : timeS}
+              onChange={(s) => edit('time', { t: s === null ? '' : formatDuration(s, true) })} placeholder={solve === 'time' ? undefined : '4:00:00'} />
+            <DurationField label={`Pace per ${units === 'mi' ? 'mile' : 'kilometre'}${solve === 'pace' ? ' (solved)' : ''}`} mode="pace" large solved={solve === 'pace'}
+              value={solve === 'pace' ? (ready ? Math.round(perUnit(paceKm!, units)) : null) : paceUnitS}
+              onChange={(s) => edit('pace', { p: s === null ? '' : formatDuration(s) })} placeholder={solve === 'pace' ? undefined : units === 'mi' ? '8:00' : '5:00'} />
           </form>
 
           <div className="tool-results">

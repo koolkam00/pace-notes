@@ -416,10 +416,9 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
     ['28:26', '56:53', '1:25:19', '1:53:45', '2:22:12', '2:50:38', '3:19:05', '3:47:31', '4:00:00'], 'Even-pace time at each mat for 4:00 (14,400 s ÷ 42.195 km × each mat)'); ok();
   // The tracker looks for sections once per page view, so all three are mounted from the start; the comparison is hidden until its data shows.
   assert.deepEqual([...html.matchAll(/<div data-track-section="([^"]+)"( hidden="")?>/g)].map((m) => m[1] + (m[2] ? ' (hidden)' : '')), ['result', 'comparison (hidden)', 'pace-band']); ok();
-  assert.match(html, /class="tool-share share-bar no-print"><button[^>]*>Copy link<\/button><button type="button" class="btn btn-primary is-compact"[^>]*>Print wristband strips<\/button><button type="button" class="tool-text-button"[^>]*>Print this plan<\/button>/, 'Copy link, the primary print and the plan\'s print as a text button share one row'); ok();
-  // One next step (section 00): the full band, with the goal in its own form; the chapter end carries the rest.
-  assert.match(html, /aria-label="Next step"[\s\S]*\/tools\/pace-band\?goal=4:00"/, 'The next step carries the goal'); ok();
-  assert.doesNotMatch(html, /\/tools\/weather-match\?goal=|\/tools\/projector\?target=/, 'No second next step'); ok();
+  assert.match(html, /class="tool-share share-bar no-print"><button[^>]*>Copy link<\/button><button type="button" class="btn btn-primary is-compact"[^>]*>Print wristband strips<\/button><span class="sr-only"/, 'Copy link and the one print action (the wristband strips) share one row'); ok();
+  // No next-step row: the journey's finish card follows, the page's one way forward (section 00, cut 4).
+  assert.doesNotMatch(html, /aria-label="Next step"|\/tools\/weather-match\?goal=|\/tools\/projector\?target=/, 'No next-step row before the finish card'); ok();
   assert.doesNotMatch(html, /your chance|the wall|arithmetic|adjusted/i); ok();
   const planSource = sourceOf('components/tools/RacePlan.tsx');
   assert.match(planSource, /useQueryState\(DEFAULTS\)/); assert.match(planSource, /const DEFAULTS = \{ course: 'all', goal: '4:00' \};/, 'The planner keeps exactly course and goal in its address'); checks += 2;

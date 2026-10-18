@@ -190,8 +190,9 @@ function verdict(r: QualifyResult, opts: { uk: boolean; nyrrGuaranteed: boolean;
     case 'misses':
       return { tone: 'bad', label: 'Misses the standard', short: 'Misses' };
     default: {
-      // It meets the time (the headline counts it); residency decides the route, so the row says both.
-      if (key === 'london' && !opts.uk) return { tone: 'good', label: 'Meets the time · UK residents only', short: 'Meets · UK only', route: 'Good For Age is for UK residents. If you live in the UK, tick it under “Course and entry details”.' };
+      // It meets the time, but Good For Age is for UK residents: the headline counts it only once "I live in the UK" is
+      // ticked, and the row says both.
+      if (key === 'london' && !opts.uk) return { tone: 'warn', label: 'Meets the time · UK residents only', short: 'Meets the time · UK residents only', route: 'Good For Age is for UK residents. If you live in the UK, tick it under “Course and entry details”.' };
       const route: Record<string, string> = {
         boston: 'You can apply. Acceptance depends on the cut-off.',
         nyc: opts.nyrrGuaranteed ? 'Guaranteed entry: a time from the 2026 TCS New York City Marathon.' : 'Enters the capped pool, fastest first.',
@@ -357,7 +358,8 @@ export default function QualifyingChecker() {
       .map(({ s, r, v, app, courseOut }) => ({ s, r, v, app, courseOut }));
   }, [ready, birth, division, shown, raceDate, drop, nyrr, nyrrGuaranteed, uk, today, now]);
 
-  const meets = items.filter((it) => it.r.status === 'meets').length;
+  // A UK-only standard counts once the visitor says they live in the UK (its row says so either way).
+  const meets = items.filter((it) => it.r.status === 'meets' && (uk || it.s.key !== 'london')).length;
   const boston = items.find((it) => it.s.key === 'boston');
   const planned = raceOk && raceDate > today;
   const extras = [drop ? `${fmtDrop(drop)} drop` : !dropValid ? 'check the drop' : null, nyrr ? 'NYC Marathon 2026' : null, uk ? 'UK resident' : null].filter(Boolean);
@@ -404,30 +406,31 @@ export default function QualifyingChecker() {
               onChange={(s) => { mark('t'); setQ({ t: s === null ? '' : formatDuration(s, true) }); }} hint="h:mm:ss, e.g. 3:29:00 or 3:29" />
           </div>
           <div className="tool-field">
-            <span className="tool-label" aria-hidden="true">Division</span>
+            {/* Men, Women, Non-binary say what they are: the group's name is for screen readers. */}
             {/* Left out of session replays: the division is the visitor's gender. */}
             <div className="ph-no-capture"><Choice label="Division" value={divEntry.value} onChange={(v) => { mark('div'); setQ({ div: v }); }} options={DIVISIONS.map(({ value, label }) => ({ value, label }))} /></div>
           </div>
-          <div className="tool-field">
-            <label htmlFor={`${ids}-race`}>Race date</label>
-            <div className="qualifying-date-row">
+          {/* The two dates side by side, their notes under both, so the answer starts sooner on a phone. */}
+          <div className="qualifying-dates">
+            <div className="tool-field">
+              <label htmlFor={`${ids}-race`}>Race date</label>
               <input id={`${ids}-race`} type="date" className="qualifying-date" value={raceOk ? raceDate : ''} min="2024-01-01" max="2028-12-31"
                 aria-invalid={!raceOk || undefined} aria-describedby={`${ids}-race-hint`} onChange={(e) => setRaceDate(e.target.value)} />
-              <button type="button" className="btn btn-secondary is-compact qualifying-today" onClick={() => setRaceDate(today)}>Today</button>
             </div>
-            <p className={`tool-field-hint${raceOk ? '' : ' is-error'}`} id={`${ids}-race-hint`}>
-              {raceOk ? (planned ? 'A future date checks a planned race against the current windows.' : 'The day you ran it.') : 'Enter the race date.'}
+            <div className="tool-field">
+              <label htmlFor={`${ids}-birth`}>Date of birth</label>
+              <input id={`${ids}-birth`} type="date" className="qualifying-date" value={birth} min="1900-01-01" max={today} autoComplete="bday"
+                aria-invalid={(!birthOk || Boolean(orderError)) || undefined} aria-describedby={`${ids}-birth-hint`}
+                onChange={(e) => { setBirth(e.target.value); setExample(false); }} />
+            </div>
+            {/* "The day you ran it" goes without saying on screen; a planned race or a missing date is said. */}
+            <p className={`tool-field-hint${raceOk ? '' : ' is-error'}${raceOk && !planned ? ' sr-only' : ''}`} id={`${ids}-race-hint`}>
+              {raceOk ? (planned ? 'A future race date checks a planned race against the current windows.' : 'The day you ran it.') : 'Enter the race date.'}
             </p>
-          </div>
-          <div className="tool-field">
-            <label htmlFor={`${ids}-birth`}>Date of birth</label>
-            <input id={`${ids}-birth`} type="date" className="qualifying-date" value={birth} min="1900-01-01" max={today} autoComplete="bday"
-              aria-invalid={(!birthOk || Boolean(orderError)) || undefined} aria-describedby={`${ids}-birth-hint`}
-              onChange={(e) => { setBirth(e.target.value); setExample(false); }} />
             <p className={`tool-field-hint${birthOk && !orderError ? '' : ' is-error'}`} id={`${ids}-birth-hint`}>
               {!birthOk ? 'Enter your date of birth: each race works out your age group differently.'
                 : orderError ?? ''}
-              {birthOk && !orderError ? 'It stays in this browser: never in the link or analytics.' : null}
+              {birthOk && !orderError ? 'Your birth date stays in this browser, never in links or analytics.' : null}
             </p>
             <label className="tool-check">
               <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
@@ -540,7 +543,7 @@ function BostonLine({ it, raceDate }: { it: Item; raceDate: string }) {
   const lead = r.margin === 0 ? <>Boston {yearOf(it.s)}: exactly on the standard</> : <>Boston {yearOf(it.s)}: <b>{marginAmount(r.margin)}</b> {marginWord(r.margin)} the standard</>;
   if (r.status === 'outside-window') return <>{lead}, but the race date is {outsideReason(it.s, raceDate) ?? 'outside its window'}.</>;
   if (r.margin < 0) return <>{lead}.</>;
-  return <>{lead}, enough for {sum.recent} of the last 4 cut-offs ({sum.span}).</>;
+  return <>{lead}, enough for {sum.recent} of the last 4 <span className="nowrap">cut-offs</span> ({sum.span}).</>;
 }
 
 /* ---------- One row per race: its margin as a bar, opening to its rules ---------- */
@@ -707,7 +710,7 @@ function BostonHistory({ margin, outside }: { margin: number | null; outside: bo
       <h3 id="qualifying-boston-history">
         {margin === null ? 'Every past cut-off'
           : margin < 0 ? <>A time {marginAmount(margin)} over the standard could not apply in any year.</>
-            : <>Your <b>{marginAmount(margin)}</b> margin would have cleared {sum!.all} of {sum!.total} cut-offs since {BOSTON_CUTOFFS[0].year}.</>}
+            : <>Your <b>{marginAmount(margin)}</b> margin would have cleared {sum!.all} of {sum!.total} <span className="nowrap">cut-offs</span> since {BOSTON_CUTOFFS[0].year}.</>}
       </h3>
       {outside && margin !== null && margin >= 0 ? <p className="tool-note">This compares the margin only: the race date is outside the window.</p> : null}
       <CutoffChart margin={margin} />

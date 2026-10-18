@@ -2,15 +2,6 @@
    the mats as a lap list, one Pace Notes data nugget on 100 dots, the pace band to print, then the next steps. Every
    class here is prefixed plan-. Imported by app/tools/plan/layout.tsx, with pace-band-strip.css. */
 
-/* ---------- The goal between its −/+ buttons: the label above, the hint below, the buttons level with the input ---------- */
-.plan-goal .tool-stepper { grid-template-columns: 44px minmax(0, 1fr) 44px; grid-template-areas: 'label label label' 'minus input plus' 'hint hint hint'; gap: 6px 8px; }
-.plan-goal .tool-stepper-value, .plan-goal .tool-field { display: contents; }
-.plan-goal .tool-stepper > button:first-child { grid-area: minus; align-self: center; }
-.plan-goal .tool-stepper > button:last-child { grid-area: plus; align-self: center; }
-.plan-goal label { grid-area: label; justify-self: start; }
-.plan-goal input { grid-area: input; min-width: 0; text-align: center; }
-.plan-goal .tool-field-hint, .plan-goal .keypad-hint.is-block { grid-area: hint; text-align: left; }
-
 /* The tracked-section wrappers are the results' grid items: they may shrink below their content (the strip preview). */
 .plan-root [data-track-section] { min-width: 0; }
 
@@ -28,11 +19,6 @@
 
 /* ---------- The pace band ---------- */
 .plan-band .tool-share { margin-top: var(--s-2); }
-/* Under 600 px the preview is not drawn (pace-band-strip.css), so its heading goes too: the actions stand alone. */
-@media screen and (max-width: 599.98px) {
-  .plan-band-head { display: none; }
-  .plan-band .tool-share { margin-top: 0; }
-}
 
 @media (min-width: 600px) {
   .plan-nugget { grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-6); }
@@ -72,3 +58,11 @@
     .tool-page:has(.plan-root) { padding-bottom: 0; }
   }
 }
+
+/* ---------- The journey's finish: a checkered finish line across the top of the finish card (spec section 2.6) ---------- */
+.chapter-end .chapter-next .next-card.is-finish { overflow: hidden; padding-top: calc(var(--s-5) + 18px); }
+.chapter-end .chapter-next .next-card.is-finish::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 12px;
+  background: repeating-conic-gradient(var(--ink) 0 25%, transparent 0 50%) 0 0 / 12px 12px;
+}
+@media print { .chapter-end .chapter-next .next-card.is-finish::before { display: none; } }

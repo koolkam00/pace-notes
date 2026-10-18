@@ -58,6 +58,8 @@
 .tool-page .tool-field input::placeholder, .tool-page .tool-inputs textarea::placeholder { color: var(--ink-3); opacity: 1; }
 /* The cell's value: the time a runner types, large and calm. */
 .tool-page .tool-field.is-large input { min-height: 60px; font-size: 1.5rem; font-weight: 600; letter-spacing: -.01em; }
+/* A value worked out from the other fields (the pace calculator's third box): quieter, on the page's paper. */
+.tool-page .tool-field.is-solved input:not([type='checkbox']):not([type='radio']):not(:focus) { border-color: var(--rule); background: transparent; color: var(--ink-3); font-weight: 500; }
 .tool-page .tool-field input[aria-invalid='true'] { color: var(--signal-ink); box-shadow: inset 0 -2px 0 var(--signal); }
 .tool-field-hint { margin: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
 .tool-field-hint.is-error { color: var(--signal-ink); font-weight: 600; }
@@ -84,6 +86,16 @@
 .tool-page .tool-stepper > button:hover { border-color: var(--ink); }
 .tool-page .tool-stepper > button:active { transform: scale(.94); }
 .tool-stepper-value { min-width: 0; text-align: center; }
+/* The goal control every goal tool shares (plan, pace band, course chooser, weather match): the label above, − field +
+   level on one row, the hint below. */
+.tool-goal .tool-stepper { grid-template-columns: 44px minmax(0, 1fr) 44px; grid-template-areas: 'label label label' 'minus input plus' 'hint hint hint'; gap: 6px 8px; }
+.tool-goal .tool-stepper-value, .tool-goal .tool-field { display: contents; }
+.tool-goal .tool-stepper > button:first-child { grid-area: minus; align-self: center; }
+.tool-goal .tool-stepper > button:last-child { grid-area: plus; align-self: center; }
+.tool-goal label { grid-area: label; justify-self: start; }
+.tool-goal input { grid-area: input; min-width: 0; text-align: center; }
+.tool-goal .tool-field-hint, .tool-goal .keypad-hint.is-block { grid-area: hint; text-align: left; }
+.tool-page .tool-goal .tool-stepper > button[aria-disabled='true'] { opacity: .4; cursor: not-allowed; }
 
 /* ---------- The result: one night card ---------- */
 .tool-reading { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); margin: 0; padding: 20px; border-radius: var(--r-md); background: var(--paper); color: var(--ink); min-width: 0; box-shadow: var(--night-edge); }
@@ -167,7 +179,7 @@
 
 /* ---------- Copy link, print ---------- */
 .tool-share { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); margin: 0; }
-/* A secondary action in the row set as an underlined text button ("Print this plan"), 44 px tall. */
+/* A secondary action in the row set as an underlined text button ("Print full page"), 44 px tall. */
 .tool-page .tool-text-button { min-height: 44px; padding: 0 2px; border: 0; border-radius: var(--r-xs); background: none; box-shadow: none; color: var(--ink); font: inherit; font-size: var(--t-small); font-weight: 600;
   text-decoration: underline; text-decoration-color: var(--rule-strong); text-underline-offset: 4px; cursor: pointer; }
 .tool-page .tool-text-button:hover { text-decoration-color: currentColor; }
@@ -210,6 +222,10 @@
     opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity var(--d-quick) var(--ease-out), transform var(--d-toggle) var(--spring-soft);
   }
   .tool-goalbar[data-shown] { opacity: 1; transform: none; pointer-events: auto; }
+  /* While a table is open, the bar steps away, so it never sits over the rows being read. */
+  @supports selector(:has(a)) {
+    .tool-results:has(details.values[open]) .tool-goalbar[data-shown] { opacity: 0; transform: translateY(12px); pointer-events: none; }
+  }
   .tool-page .tool-goalbar > button { width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 50%; background: var(--paper-raised); color: var(--ink); font-size: 1.25rem; line-height: 1; box-shadow: none; }
   .tool-page .tool-goalbar > button[aria-disabled='true'] { opacity: .4; }
   .tool-goalbar-value { display: flex; align-items: baseline; justify-content: center; gap: 10px; min-width: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -232,6 +248,11 @@
 }
 
 /* ---------- Widths ---------- */
+/* Phones: the opener and the gaps tighten so the night card starts on the first screen. */
+@media (max-width: 599.98px) {
+  .tool-header { padding-bottom: var(--s-4); }
+  .tool-workspace { gap: var(--s-5); }
+}
 @media (max-width: 359.98px) {
   .tool-inputs > .is-half { grid-column: 1 / -1; }
   .tool-reading { padding-inline: 16px; }
@@ -284,8 +305,12 @@
 .tools-row-text b { font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
 .tools-row-text > span { font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
 /* The evidence glyphs ride on the title line (the key under the dek names them), so every row is two lines. */
-.tools-row-badges { display: inline-flex; gap: 8px; margin-left: 10px; vertical-align: .12em; }
-.tools-row-badges .evidence-badge { gap: 0; color: var(--ink-3); }
+.tools-row-badges { display: inline-flex; gap: 12px; margin-left: 12px; vertical-align: .1em; }
+.tools-row-badges .evidence-badge { gap: 0; color: var(--ink-2); }
+/* 10 px glyphs, so ● and ◆ tell apart at a glance. */
+.tools-row-badges .evidence-badge::before { width: 10px; height: 10px; }
+.tools-row-badges .evidence-research::before { width: 8.5px; height: 8.5px; margin: 0 1px; }
+.tools-row-badges .evidence-official::before { width: 9px; height: 9px; }
 .tools-key { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: var(--s-4) 0 0; }
 .tools-goals { display: grid; gap: var(--s-2); padding: 14px 0 10px; }
 .tools-goal-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
@@ -322,6 +347,9 @@
 .mat-lines svg .mat-lines-end text { font-size: 14px; font-weight: 600; fill: var(--ink); }
 .mat-lines svg .mat-lines-end.is-signal text:first-child { fill: var(--signal-ink); }
 .mat-lines svg .mat-lines-end .mat-lines-end-sub { font-size: 12px; font-weight: 400; fill: var(--ink-3); }
+/* The gap the sentence names, bracketed at its mat. */
+.mat-lines-bracket path { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; }
+.mat-lines svg .mat-lines-bracket text { font-size: 14px; font-weight: 600; fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
 .mat-lines-key { display: grid; gap: 6px; margin: var(--s-3) 0 0; padding: 0; list-style: none; }
 .mat-lines-key li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; font-size: var(--t-small); line-height: 1.35; }
 .mat-lines-key i { flex: none; width: 16px; height: 2px; border-radius: 1px; background: var(--ink); }
@@ -332,3 +360,7 @@
 .mat-lines-key b { font-weight: 600; color: var(--ink); }
 .mat-lines-key .is-signal b { color: var(--signal-ink); }
 .mat-lines-key span { color: var(--ink-3); }
+
+/* The bracket under a finish-time histogram, named in a gap in its line. */
+.tool-page .range-bracket line { stroke: var(--ink-2); stroke-width: 1.5; }
+.tool-page svg .range-bracket text { font-family: var(--sans); font-size: 12px; font-weight: 500; fill: var(--ink-2); font-variant-numeric: tabular-nums; }

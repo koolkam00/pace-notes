@@ -60,13 +60,12 @@ export default function PaceBandPage() {
   }
 
   // Projector courses, so the race-day link names a course only when the projector publishes it.
-  const projectorScopes = optional<{ scopes: { slug: string }[] }>('tools/projector.json')?.scopes.map((s) => s.slug) ?? null;
   const unpublished = index ? unpublishedCourses(index) : {};
 
   return (
     <div className="tool-page">
       <ToolHeader slug="pace-band" />
-      <PaceBand indexSha={indexSha} profiles={profiles} projectorScopes={projectorScopes} unpublished={unpublished} />
+      <PaceBand indexSha={indexSha} profiles={profiles} unpublished={unpublished} />
       <ToolEnd path="/tools/pace-band" how="/methodology#tools-pace-band" />
     </div>
   );

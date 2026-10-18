@@ -40,6 +40,7 @@ async function leaving(h) {
 
   await page.goto(SITE + '/tools/projector', { waitUntil: 'load' });
   h.check('the recorder starts on the projector', await run.waitForRecording(page));
+  await page.locator('details.projector-extras > summary').click();
   await type(page, '#projector-card-label', 'Beacon Testperson');
   const saved = Date.now();
   await page.getByRole('button', { name: 'Save runner card' }).click();

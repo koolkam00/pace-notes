@@ -43,11 +43,11 @@
 .weather-match-legend.is-strip .is-on i { background: var(--ink); box-shadow: none; }
 .weather-match-legend.is-strip .is-ring i { background: var(--paper); box-shadow: inset 0 0 0 2px var(--ink); }
 .weather-match-legend.is-strip .is-zone-yours i { width: 14px; border-radius: 2px; background: var(--wash); box-shadow: none; }
-.weather-match-legend.is-strip .is-zone-ref i { width: 14px; border-radius: 2px; background: none; box-shadow: none; border: 1px dashed var(--ink-3); }
+.weather-match-legend.is-strip .is-zone-ref i { width: 14px; border-radius: 0; background: none; box-shadow: none; border: 0; border-block: 1.5px dashed var(--ink-3); }
 
 /* The races in ink on a wash: the reading's accent is the card's. */
 .weather-match-zone.is-yours { fill: var(--wash); }
-.weather-match-zone.is-ref { fill: none; stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; }
+.weather-match-zone.is-ref line { stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 3 3; }
 .weather-match-axis { stroke: var(--rule-strong); }
 .weather-match-dot { fill: var(--fill-quiet); stroke: var(--mark-quiet); stroke-width: 1; }
 .weather-match-dot.is-on { fill: var(--ink); stroke: var(--paper); }
@@ -89,3 +89,8 @@
 }
 
 .weather-match-editions .values tbody th small, .weather-match-course .values tbody th small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
+
+/* "Your pace" and its two choices on one line, the control as wide as its words. */
+.weather-match-by { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); }
+.weather-match-by > [role='group'] { flex: 0 1 auto; min-width: 0; }
+.weather-match-by .tool-choice.seg { width: auto; grid-auto-columns: auto; }

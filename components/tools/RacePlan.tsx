@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useUnits } from '@/components/UnitsProvider';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
-import { ToolHandoffs } from '@/components/tools/Handoffs';
 import PaceBandStrip from '@/components/tools/PaceBandStrip';
 import { DurationField, ExampleNote, GoalBar, ShareBar, Stepper } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
@@ -88,8 +87,9 @@ function MatTable({ goal, pKm, units, observed }: { goal: number; pKm: number; u
         <tr>
           <th scope="col">Mat</th>
           <th scope="col">Your plan</th>
-          {held ? <th scope="col">Held pace</th> : null}
-          {slow ? <th scope="col">Sustained slowdown</th> : null}
+          {/* Short heads, so four columns fit a phone; the caption names the two groups in full. */}
+          {held ? <th scope="col">Held</th> : null}
+          {slow ? <th scope="col">Slowed</th> : null}
         </tr>
       </thead>
       <tbody>
@@ -241,9 +241,9 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
               {courses.map((c) => <option key={c.slug} value={c.slug}>{c.city}</option>)}
             </select>
           </div>
-          <div className="plan-goal">
+          <div className="plan-goal tool-goal">
             <Stepper label="Goal" onStep={step}>
-              <DurationField label="Goal finish time" large value={read} onChange={setGoal} placeholder="4:00"
+              <DurationField label="Goal finish time" large value={read} onChange={setGoal} placeholder="4:00" format={fmtGoal}
                 hint="h:mm or h:mm:ss, from 1:30 to 8:00." error={fieldError} />
             </Stepper>
           </div>
@@ -310,17 +310,14 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
             {planned ? (
               <section className="tool-panel plan-band" id="plan-band" aria-labelledby="plan-band-title">
                 {/* No badge: the strips are the visitor's own even-pace times (the page's data badge sits on the nugget
-                    above, and the printed page names its source). Under 600 px the preview is not drawn, so the heading
-                    goes with it and the actions stand alone. */}
+                    above, and the printed page names its source). */}
                 <header className="tool-panel-head plan-band-head">
                   <h2 className="tool-panel-title" id="plan-band-title">Your pace band</h2>
                 </header>
                 <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={units === 'mi' ? 'mi' : 'km'} overrun={0} place={place} genderWord=""
                   observed={comparison ? { held: comparison.held, lo: comparison.lo, hi: comparison.hi, place, genderWord: '' } : null} profile={null} showBack={false} waiting={false} />
-                <ShareBar print={false} extra={<>
-                  <button type="button" className="btn btn-primary is-compact" data-not-edit onClick={() => printAs('strip')}>Print wristband strips</button>
-                  <button type="button" className="tool-text-button" data-not-edit onClick={() => printAs('plan')}>Print this plan</button>
-                </>} />
+                {/* One print action, the band this page exists for; the browser's own print command gives the whole plan. */}
+                <ShareBar print={false} extra={<button type="button" className="btn btn-primary is-compact" data-not-edit onClick={() => printAs('strip')}>Print wristband strips</button>} />
               </section>
             ) : null}
           </div>
@@ -330,11 +327,7 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
               <div className="print-only plan-print-mats"><MatTable goal={goal} pKm={pKm} units={units} observed={comparison} /></div>
               {/* Only a page that prints observed columns (the mat table's groups and the "H" line) is attributed to the data. */}
               <p className="print-only plan-print-source">{comparison ? 'Your plan beside Pace Notes data' : 'Your race plan'} · splithappens.run/tools/plan</p>
-              {/* One next step, the most likely one (section 00: one link forward per screen); the chapter end carries the rest. */}
-              <ToolHandoffs label="Next step" links={[
-                { href: `/tools/pace-band?goal=${fmtGoal(goal)}${course?.band ? `&course=${course.slug}` : ''}`, title: 'The full pace band',
-                  text: <>For a watch that reads long, recorded-gender groups and a route strip for the back.</> },
-              ]} />
+              {/* No next-step row: the journey's finish card follows, the page's one way forward (section 00, cut 4). */}
               {dataError && !goalData.error ? <DataProblem error={dataError} onRetry={retry} /> : null}
               <GoalBar label="Goal" onStep={step}>
                 <b>{fmtGoal(goal)}</b><span>{fmtPace(pKm, units)}</span>

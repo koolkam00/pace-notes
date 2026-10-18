@@ -17,8 +17,8 @@ export interface StripObserved { held: { n: number; e50: number[] } | null; lo: 
 /**
  * The cut-out wristband strips, for the screen preview and for @media print (styles in app/styles/pages/tools/pace-band-strip.css):
  * the mat strip with each mat's even-pace time and the held-pace median, the mile or km split strips, and the optional
- * route elevation strip for the back. The preview is scaled to fit the screen (and not drawn under 600 px, where it could
- * not be read); it prints at full size.
+ * route elevation strip for the back. The preview is scaled to fit the screen from 600 px; on a phone it keeps a legible
+ * size and scrolls sideways (pace-band-strip.css). It prints at full size.
  */
 export default function PaceBandStrip({ goal, pKm, units, rows, interval, overrun, place, genderWord, observed, profile, showBack, waiting }: {
   goal: number; pKm: number; units: UnitSystem; rows: SplitRow[]; interval: SplitInterval; overrun: number; place: string; genderWord: string;
@@ -30,7 +30,10 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
   const wrapRef = useRef<HTMLDivElement>(null);
   const wrapWidth = useWidth(wrapRef, 760);
   const SHEET_PX = (18.4 + 0.9) * (96 / 2.54);
-  const zoom = Math.min(1, Math.max(0.3, (wrapWidth - 30) / SHEET_PX));
+  // From 600 px the whole sheet is scaled to fit; on a phone it keeps a size whose numbers can be read (about 12 px) and
+  // scrolls sideways in its edge-faded frame, so the band is seen before it is printed.
+  const phone = wrapWidth < 600;
+  const zoom = phone ? 0.78 : Math.min(1, Math.max(0.3, (wrapWidth - 30) / SHEET_PX));
   // Split strips repeat every mile or km, plus halfway; the mat strip carries the 5 km mats and the finish.
   const isWhole = (v: number) => Math.abs(v - Math.round(v)) < 1e-6;
   const splitCells = interval === '5k' ? [] : rows.filter((r) => !r.finish && (r.halfway || isWhole(interval === 'mi' ? r.km / KM_PER_MILE : r.km)));
@@ -42,7 +45,7 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
     : 'Even-pace times.';
   return (
     <>
-      <div className={`pace-band-sheet-wrap${waiting ? ' pace-band-held-dim' : ''}`} ref={wrapRef}>
+      <div className={`pace-band-sheet-wrap${phone ? ' is-scroll' : ''}${waiting ? ' pace-band-held-dim' : ''}`} ref={wrapRef} {...(phone ? { tabIndex: 0, role: 'region', 'aria-label': 'Wristband preview, scrolls sideways' } : {})}>
         {/* --zoom lets the screen-only labels stay 11 px after the zoom (pace-band-strip.css). */}
         <div className="pace-band-sheet" style={{ zoom, ['--zoom' as string]: zoom } as CSSProperties}>
           <p className="pace-band-sheet-head">Pace Notes · pace band · {fmtGoal(goal)} goal · {place}{genderWord ? ` · ${genderWord}` : ''} · cut along the dashed lines</p>

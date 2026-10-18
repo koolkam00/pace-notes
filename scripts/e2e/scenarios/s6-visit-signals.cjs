@@ -327,8 +327,6 @@ async function planner(h) {
   await page.evaluate(() => { window.print = () => { window.dispatchEvent(new Event('beforeprint')); window.dispatchEvent(new Event('afterprint')); }; });
   await page.locator('button:has-text("Print wristband strips")').click();
   await page.waitForTimeout(500);
-  await page.locator('button:has-text("Print this plan")').click();
-  await page.waitForTimeout(500);
   await page.locator('#plan-band .share-bar button:has-text("Copy link")').click();
   await page.waitForTimeout(500);
   const copied = await page.evaluate(() => navigator.clipboard.readText()).catch(() => '');
@@ -339,7 +337,7 @@ async function planner(h) {
   // it may follow the planner's three, once.
   const own = sections.filter(s => s !== 'related');
   h.check('planner: the course result, the mat comparison and the pace band are each seen once, in page order', JSON.stringify(own) === '["result","comparison","pace-band"]' && sections.length - own.length <= 1 && (sections.length === own.length || sections[sections.length - 1] === 'related'), sections);
-  h.check('planner: both print buttons are prints and Copy link a copied link; none is an edit', JSON.stringify(used) === '["/tools/plan:print","/tools/plan:print","/tools/plan:copy_link"]', used);
+  h.check('planner: the print button is a print and Copy link a copied link; neither is an edit', JSON.stringify(used) === '["/tools/plan:print","/tools/plan:copy_link"]', used);
   let link = null;
   try { link = new URL(copied); } catch { /* checked below */ }
   h.check('planner: the copied link opens the same course, goal and units, and carries nothing else', link && link.pathname === '/tools/plan' && JSON.stringify([...link.searchParams].sort()) === JSON.stringify([['course', 'berlin'], ['goal', '3:30'], ['units', 'mi']]), copied);

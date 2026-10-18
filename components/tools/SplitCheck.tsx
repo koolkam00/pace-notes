@@ -499,18 +499,8 @@ export default function SplitCheck({ indexSha, archetypesSha, bandCourses, other
     <div className="split-check-root">
       <div className="tool-workspace">
         <form className="tool-inputs split-check-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Split check inputs">
-          {/* One kicker: the example says so in it, and the line under it says what the example is. */}
+          {/* One kicker: the example says so in it, and the line under the times says what the example is. */}
           <h2>{isExample ? 'Example · your nine mat times' : 'Your nine mat times'}</h2>
-          {isExample ? <p className="tool-field-hint split-check-example">A made-up race with a <SlowdownTerm /> from 30K. Type over it or paste your own.</p> : null}
-
-          <details className="split-check-paste" open={pasteOpen} onToggle={(e) => setPasteOpen((e.currentTarget as HTMLDetailsElement).open)}>
-            <summary>Paste from a tracker or results page</summary>
-            <label htmlFor={`${formId}-paste`} className="sr-only">Pasted split text</label>
-            <textarea id={`${formId}-paste`} rows={4} value={pasteText} onChange={(e) => onPaste(e.target.value)} spellCheck={false} autoComplete="off"
-              placeholder={'5K 0:25:50\n10K 0:52:24\n…\nFinish 4:03:31'} aria-describedby={`${formId}-paste-note`} />
-            <p className="tool-field-hint" id={`${formId}-paste-note`} aria-live="polite">{pasteNote ?? 'Copy the split table and paste it here. Labelled 5K…40K and Finish lines are read; halfway, mile splits, paces and clock times are skipped.'}</p>
-          </details>
-
           <fieldset className="split-check-grid" aria-describedby={hintId}>
             <legend className="sr-only">Elapsed time at each 5 km mat and the finish</legend>
             {CHECKPOINTS.map((km, i) => {
@@ -528,9 +518,17 @@ export default function SplitCheck({ indexSha, archetypesSha, bandCourses, other
               );
             })}
           </fieldset>
+          {/* The example's line takes the hint's place, under the times it describes; the paste box follows. */}
           <p className={`tool-field-hint${hintIssue ? ' is-error' : ''}`} id={hintId}>
-            {gridMessage ?? 'Chip time at each mat (h:mm:ss or mm:ss).'}<KeypadHint />
+            {gridMessage ?? (isExample ? <>A made-up race with a <SlowdownTerm /> from 30K. Type over it or paste your own.</> : 'Chip time at each mat (h:mm:ss or mm:ss).')}<KeypadHint />
           </p>
+          <details className="split-check-paste" open={pasteOpen} onToggle={(e) => setPasteOpen((e.currentTarget as HTMLDetailsElement).open)}>
+            <summary>Paste from a tracker or results page</summary>
+            <label htmlFor={`${formId}-paste`} className="sr-only">Pasted split text</label>
+            <textarea id={`${formId}-paste`} rows={4} value={pasteText} onChange={(e) => onPaste(e.target.value)} spellCheck={false} autoComplete="off"
+              placeholder={'5K 0:25:50\n10K 0:52:24\n…\nFinish 4:03:31'} aria-describedby={`${formId}-paste-note`} />
+            <p className="tool-field-hint" id={`${formId}-paste-note`} aria-live="polite">{pasteNote ?? 'Copy the split table and paste it here. Labelled 5K…40K and Finish lines are read; halfway, mile splits, paces and clock times are skipped.'}</p>
+          </details>
           <div className="split-check-buttons">
             <button type="button" className="btn btn-secondary is-compact" onClick={() => { setTimes(Array(9).fill(null)); setPasteText(''); setPasteNote(null); }}>Clear</button>
             {loaded && !isExample ? <button type="button" className="btn btn-secondary is-compact" onClick={() => {

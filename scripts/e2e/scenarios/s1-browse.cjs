@@ -247,8 +247,9 @@ async function keypad(h) {
     units.push({ typed: typedUnits, shown, left: await deskPage.locator('.plan-goal input').first().inputValue(), goal: new URL(deskPage.url()).searchParams.get('goal') });
   }
   await desk.close();
-  h.check('desktop: 3.5h and 3.75 hours typed key by key in the planner read 3:30:00 and 3:45:00 (goal=3:30, goal=3:45)',
-    units[0].left === '3:30:00' && units[0].goal === '3:30' && units[1].left === '3:45:00' && units[1].goal === '3:45', units);
+  // The planner's goal reads h:mm once left, the same as every goal tool's (3:30, never 3:30:00).
+  h.check('desktop: 3.5h and 3.75 hours typed key by key in the planner read 3:30 and 3:45 (goal=3:30, goal=3:45)',
+    units[0].left === '3:30' && units[0].goal === '3:30' && units[1].left === '3:45' && units[1].goal === '3:45', units);
 
   const run = await h.run('keypad', PHONE);
   const page = await run.newPage();

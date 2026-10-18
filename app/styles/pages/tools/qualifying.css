@@ -7,13 +7,16 @@
 .qualifying { min-width: 0; }
 
 /* ---------- Inputs ---------- */
-.tool-page .qualifying-date { display: block; width: 100%; min-height: 52px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: var(--r-sm); background: var(--paper-raised); color: var(--ink);
+.tool-page .qualifying-date { display: block; width: 100%; min-width: 0; min-height: 52px; padding: 0 12px; border: 1px solid var(--rule-strong); border-radius: var(--r-sm); background: var(--paper-raised); color: var(--ink);
   box-shadow: none; font-family: var(--sans); font-size: 1.0625rem; font-weight: 500; font-variant-numeric: tabular-nums; text-align: left; }
 .tool-page .qualifying-date:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
 .qualifying-date::-webkit-date-and-time-value { text-align: left; }
-.qualifying-date-row { display: flex; gap: var(--s-2); align-items: stretch; }
-.qualifying-date-row input { flex: 1 1 auto; min-width: 0; }
-.qualifying-date-row .btn { flex: 0 0 auto; min-height: 52px; }
+/* Race date and date of birth share a row (a date fits a phone's half column), their notes and "Remember" under both. */
+.qualifying-dates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2) var(--s-3); min-width: 0; }
+.qualifying-dates > .tool-field { min-width: 0; }
+.qualifying-dates > :is(p, .tool-check) { grid-column: 1 / -1; margin: 0; }
+.qualifying-dates > .tool-check { margin-top: var(--s-1); }
+@media (max-width: 299.98px) { .qualifying-dates { grid-template-columns: minmax(0, 1fr); } }
 .qualifying-more { border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
 .qualifying-more > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s-2); min-height: 48px; padding: 0 28px 0 0; position: relative; list-style: none; cursor: pointer;
   font-size: .9375rem; font-weight: 600; color: var(--ink); }

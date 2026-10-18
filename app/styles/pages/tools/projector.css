@@ -7,16 +7,23 @@
 .projector-optional { margin-left: 6px; font-size: var(--t-label); font-weight: 400; color: var(--ink-3); }
 
 /* ---------- Inputs ---------- */
-.projector-mats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.tool-page .projector-mats button { display: grid; place-items: center; gap: 2px; min-height: 52px; padding: 6px 4px; border: 1px solid var(--rule-strong); border-radius: var(--r-sm);
-  background: transparent; color: var(--ink); box-shadow: none; line-height: 1.1;
+/* One line of mats: they share the width, and scroll in their track where eight do not fit. In miles, the chosen mat
+   carries its distance. */
+.projector-mats { display: flex; gap: 4px; margin: -2px; padding: 2px; overflow-x: auto; scrollbar-width: none; }
+.projector-mats::-webkit-scrollbar { display: none; }
+/* On a phone the eight mats can overflow by a chip: the row fades at its end, so it reads as one that scrolls. */
+@media (max-width: 599.98px) {
+  .projector-mats { padding-right: 24px; -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 28px), transparent); mask-image: linear-gradient(to right, var(--ink) calc(100% - 28px), transparent); }
+}
+.tool-page .projector-mats button { display: grid; flex: 1 0 auto; place-content: center; justify-items: center; gap: 1px; min-width: 44px; min-height: 48px; padding: 4px 3px;
+  border: 1px solid var(--rule-strong); border-radius: var(--r-sm); background: transparent; color: var(--ink); box-shadow: none; line-height: 1.1;
   transition: background-color var(--d-quick) var(--ease-out), border-color var(--d-quick) var(--ease-out), color var(--d-quick) var(--ease-out); }
 .tool-page .projector-mats button:hover { border-color: var(--ink); }
 .tool-page .projector-mats button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.projector-mats b { font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-.projector-mats small { font-size: .75rem; font-weight: 500; color: var(--ink-3); }
+.projector-mats b { font-size: .9375rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.projector-mats small { font-size: .6875rem; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .tool-page .projector-mats button[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-.tool-page .projector-mats button[aria-pressed='true'] small { color: var(--paper); opacity: .75; }
+.tool-page .projector-mats button[aria-pressed='true'] small { color: var(--paper); opacity: .8; }
 .projector-entry { display: grid; gap: var(--s-3); }
 .projector-entry > .tool-choice.seg { justify-self: start; width: auto; }
 .tool-page .projector-link-button { justify-self: start; min-height: 44px; padding: 0; border: 0; border-radius: var(--r-xs); background: none; box-shadow: none; color: var(--ink);
@@ -41,6 +48,13 @@
 .projector-quick { display: none; }
 @media (max-width: 899.98px) {
   .projector-quick { display: grid; gap: 2px; padding-top: var(--s-3); border-top: 1px solid var(--rule); }
+  /* "Full result ↓" alone: beside the elapsed/pace switch, so the night card starts a row sooner. */
+  @supports selector(:has(a)) {
+    .projector-entry:has(> .projector-quick.is-jump) { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+    .projector-entry:has(> .projector-quick.is-jump) > * { grid-column: 1 / -1; }
+    .projector-entry:has(> .projector-quick.is-jump) > .tool-choice.seg { grid-column: 1; grid-row: 1; }
+    .projector-entry:has(> .projector-quick.is-jump) > .projector-quick { grid-column: 2; grid-row: 1; padding: 0; border: 0; }
+  }
 }
 .projector-quick-text { margin: 0; font-size: .9375rem; line-height: 1.45; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .projector-quick-text b { color: var(--ink); font-weight: 600; }
@@ -59,9 +73,7 @@
 .projector-chart svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
 .projector-chart .projector-grid line { stroke: var(--rule); }
 .projector-chart .projector-bar { fill: var(--fill-quiet); stroke: var(--mark-quiet); stroke-width: .75; }
-.projector-chart .projector-bar.is-middle { fill: var(--ordinal-2); stroke: var(--paper); }
 .projector-chart .projector-base { stroke: var(--rule-strong); }
-.projector-chart .projector-whisker line { stroke: var(--ink-2); stroke-width: 1.5; }
 .projector-chart .projector-marker-line { stroke: var(--ink); stroke-width: 1.5; }
 .projector-chart .projector-marker-line.is-median { stroke: var(--signal); stroke-width: 2; }
 .projector-chart .projector-marker-line.is-even { stroke-dasharray: 4 3; }
@@ -119,7 +131,4 @@
 
 @media (min-width: 600px) {
   .projector-laps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
-@media (max-width: 299.98px) {
-  .projector-mats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

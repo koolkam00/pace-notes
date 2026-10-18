@@ -15,33 +15,39 @@ import KeypadHint from '@/components/KeypadHint';
  * typed (lib/keypad.ts), with the "Tap . for :" hint on touch screens; a pace keeps its dot ("8.5" is 8.5 minutes) and
  * shows m:ss once the visitor leaves the field.
  */
-export function DurationField({ label, value, onChange, mode = 'race', placeholder, hint, error, id, autoFocus, large = false }: {
+export function DurationField({ label, value, onChange, mode = 'race', placeholder, hint, error, id, autoFocus, large = false, format, solved = false }: {
   label: ReactNode; value: number | null; onChange: (seconds: number | null) => void; mode?: DurationMode;
   placeholder?: string; hint?: ReactNode; id?: string; autoFocus?: boolean; large?: boolean;
+  /** The value is worked out from the other fields: shown quieter, and selected on focus so typing replaces it. */
+  solved?: boolean;
   /** A message from the caller (e.g. a value outside a method's range); shown as an error in place of the hint. */
   error?: ReactNode;
+  /** How a settled value is written back into the field (a goal reads "4:00", not "4:00:00"). */
+  format?: (seconds: number) => string;
 }) {
   const auto = useId();
   const inputId = id ?? auto;
-  const [text, setText] = useState(value === null ? '' : formatDuration(value, mode === 'race'));
+  const show = (s: number) => (format ? format(s) : formatDuration(s, mode === 'race'));
+  const [text, setText] = useState(value === null ? '' : show(value));
   const [touched, setTouched] = useState(false);
   const last = useRef(value);
   useEffect(() => {
     // Follow outside changes (steppers, presets) without fighting the visitor's typing.
     if (value !== last.current) {
       last.current = value;
-      if (value === null || parseDuration(text, mode) !== value) setText(value === null ? '' : formatDuration(value, mode === 'race'));
+      if (value === null || parseDuration(text, mode) !== value) setText(value === null ? '' : show(value));
     }
-  }, [value, mode, text]);
+  }, [value, mode, text]); // eslint-disable-line react-hooks/exhaustive-deps
   const parsed = text.trim() ? parseDuration(text, mode) : null;
   const unreadable = touched && text.trim() !== '' && parsed === null;
   const invalid = unreadable || Boolean(error);
   const keypad = mode === 'race' ? <KeypadHint /> : null;
   return (
-    <div className={`tool-field${large ? ' is-large' : ''}`}>
+    <div className={`tool-field${large ? ' is-large' : ''}${solved ? ' is-solved' : ''}`}>
       <label htmlFor={inputId}>{label}</label>
       <input id={inputId} inputMode="decimal" autoComplete="off" spellCheck={false} placeholder={placeholder} autoFocus={autoFocus}
         value={text} aria-invalid={invalid || undefined} aria-describedby={hint || invalid ? `${inputId}-hint` : undefined}
+        onFocus={solved ? (e) => e.currentTarget.select() : undefined}
         onChange={(e) => {
           const typed = keypadInput(e.target, e.nativeEvent, mode);
           setText(typed);
@@ -49,7 +55,7 @@ export function DurationField({ label, value, onChange, mode = 'race', placehold
           last.current = next;
           onChange(next);
         }}
-        onBlur={() => { setTouched(true); if (parsed !== null) setText(formatDuration(parsed, mode === 'race')); }} />
+        onBlur={() => { setTouched(true); if (parsed !== null) setText(show(parsed)); }} />
       {unreadable ? <p className="tool-field-hint is-error" id={`${inputId}-hint`}>Try {mode === 'race' ? '3:30:00, 3:30 or 210' : '8:05'}.{keypad}</p>
         : error ? <p className="tool-field-hint is-error" id={`${inputId}-hint`}>{error}{keypad}</p>
         : hint ? <p className="tool-field-hint" id={`${inputId}-hint`}>{hint}{keypad}</p> : mode === 'race' ? <KeypadHint block /> : null}

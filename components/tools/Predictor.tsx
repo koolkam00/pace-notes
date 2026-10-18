@@ -16,6 +16,7 @@ import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
 import { keypadInput } from '@/lib/keypad';
 import { count } from '@/lib/viz/format';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
+import { RangeBracket, bracketLayout } from './RangeBracket';
 
 /* ------------------------------------------------------------------ */
 /* Constants and pure helpers                                          */
@@ -257,10 +258,11 @@ function DistanceField({ id, label, km, units, onChange, suffix, hint, error }: 
   );
 }
 
-function DistanceChips({ labelId, label, value, onPick }: { labelId: string; label: string; value: string; onPick: (key: string) => void }) {
+function DistanceChips({ labelId, label, value, onPick, quiet = false }: { labelId: string; label: string; value: string; onPick: (key: string) => void; quiet?: boolean }) {
   return (
     <div className="tool-field">
-      <span className="tool-label" id={labelId}>{label}</span>
+      {/* Under "Your recent race" the chips say what they are, so the first race's label is for screen readers. */}
+      <span className={quiet ? 'sr-only' : 'tool-label'} id={labelId}>{label}</span>
       <div className="tool-presets predictor-chips" role="group" aria-labelledby={labelId}>
         {RACES.map((r) => <button key={r.key} type="button" aria-pressed={value === r.key} onClick={() => onPick(r.key)}>{r.label}</button>)}
         <button type="button" aria-pressed={value === 'custom'} onClick={() => onPick('custom')}>Other</button>
@@ -269,10 +271,10 @@ function DistanceChips({ labelId, label, value, onPick }: { labelId: string; lab
   );
 }
 
-function AgoSelect({ id, value, onChange }: { id: string; value: string; onChange: (v: string) => void }) {
+function AgoSelect({ id, label = 'When you ran it', value, onChange }: { id: string; label?: string; value: string; onChange: (v: string) => void }) {
   return (
     <div className="tool-field tool-select">
-      <label htmlFor={id}>When you ran it</label>
+      <label htmlFor={id}>{label}</label>
       <select id={id} value={AGO.some((a) => a.value === value) ? value : ''} onChange={(e) => onChange(e.target.value)}>
         {AGO.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
       </select>
@@ -520,13 +522,19 @@ function useProjector(sha: string | null, enabled: boolean) {
 
 interface Marker { key: string; x: number; label: string; tone: 'est' | 'median' }
 
+/**
+ * Each label is a flag beside its line: the leftmost marker's to the left, the others' to the right, flipped when the
+ * chart's edge is in the way, and dropped a row when two would touch.
+ */
 function stackLabels(markers: Marker[], width: number, margin: number) {
   const charW = 6.9;
   const rows: number[] = [];
-  return [...markers].sort((a, b) => a.x - b.x).map((mk) => {
+  return [...markers].sort((a, b) => a.x - b.x).map((mk, i) => {
     const w = mk.label.length * charW;
-    // Centred on its line where it fits, otherwise slid inside the chart's edges.
-    const x0 = Math.max(margin, Math.min(mk.x - w / 2, width - margin - w));
+    const left = mk.x - 6 - w;
+    const right = mk.x + 6;
+    const wantLeft = i === 0 && markers.length > 1;
+    const x0 = wantLeft ? (left >= margin ? left : right) : (right + w <= width - margin ? right : Math.max(margin, left));
     let row = rows.findIndex((end) => end + 12 < x0);
     if (row < 0) { row = rows.length; rows.push(x0 + w); } else rows[row] = x0 + w;
     return { ...mk, x0, row, w };
@@ -537,7 +545,7 @@ function FinishStrip({ q, Q, est }: { q: number[]; Q: number[]; est: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 640);
   const narrow = width < 480;
-  const i10 = qIndex(Q, 0.1); const i25 = qIndex(Q, 0.25); const i50 = qIndex(Q, 0.5); const i75 = qIndex(Q, 0.75); const i90 = qIndex(Q, 0.9);
+  const i10 = qIndex(Q, 0.1); const i50 = qIndex(Q, 0.5); const i90 = qIndex(Q, 0.9);
   const lo0 = Math.min(q[0], est);
   const hi0 = Math.max(q[q.length - 1], est);
   const pad = Math.max(hi0 - lo0, 900) * 0.06;
@@ -556,7 +564,10 @@ function FinishStrip({ q, Q, est }: { q: number[]; Q: number[]; est: number }) {
   const top = 8 + labelRows * 17;
   const plotH = narrow ? 80 : 96;
   const base = top + plotH;
-  const H = base + 34;
+  const range = `${fmtShort(q[i10])}–${fmtShort(q[i90])}`;
+  const bracket = bracketLayout(x(q[i10]), x(q[i90]), `80% of finishes: ${range}`, width, m.l, `80%: ${range}`);
+  const bracketY = base + 34;
+  const H = bracketY + bracket.height;
   const dens = q.slice(0, -1).map((v, i) => 0.05 / Math.max(1, q[i + 1] - v));
   const maxD = Math.max(...dens);
   const step = niceStep(hi - lo, narrow ? 4 : 7, [60, 120, 300, 600, 900, 1800, 3600]);
@@ -573,17 +584,12 @@ function FinishStrip({ q, Q, est }: { q: number[]; Q: number[]; est: number }) {
         ))}
         {dens.map((dv, i) => {
           const h = (dv / maxD) * (plotH - 6);
-          const middle = i >= i25 && i < i75;
-          return <rect key={i} x={x(q[i])} width={Math.max(0.5, x(q[i + 1]) - x(q[i]))} y={base - h} height={h} className={`predictor-strip-bar${middle ? ' is-middle' : ''}`} />;
+          return <rect key={i} x={x(q[i])} width={Math.max(0.5, x(q[i + 1]) - x(q[i]))} y={base - h} height={h} className="predictor-strip-bar" />;
         })}
         <line x1={m.l} x2={width - m.r} y1={base} y2={base} className="predictor-strip-base" />
-        <g className="predictor-strip-whisker">
-          <line x1={x(q[i10])} x2={x(q[i90])} y1={base + 6} y2={base + 6} />
-          <line x1={x(q[i10])} x2={x(q[i10])} y1={base + 2} y2={base + 10} />
-          <line x1={x(q[i90])} x2={x(q[i90])} y1={base + 2} y2={base + 10} />
-        </g>
+        <RangeBracket b={bracket} y={bracketY} />
         {markers.map((mk) => (
-          <line key={mk.key} x1={mk.x} x2={mk.x} y1={14 + mk.row * 17 + 4} y2={base} className={`predictor-marker-line is-${mk.tone}`} />
+          <line key={mk.key} x1={mk.x} x2={mk.x} y1={14 + mk.row * 17 - 11} y2={base} className={`predictor-marker-line is-${mk.tone}`} />
         ))}
         {markers.map((mk) => (
           <g key={mk.key}>
@@ -690,7 +696,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
 
   useEffect(() => {
     if (!ready) return;
-    if (q.t2) setOpen2(true);
+    if (q.t2 || q.ago) setOpen2(true);
     if (q.wk || q.tp) setOpenT(true);
     // Open the disclosures that a shared link fills, once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -822,15 +828,14 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
       <div className="tool-workspace">
         <form className="tool-inputs predictor-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Finish-time predictor inputs">
           <h2>Your recent race</h2>
-          <DistanceChips labelId={`${uid}-d1`} label="Distance" value={dist1.key} onPick={pickDistance} />
+          <DistanceChips labelId={`${uid}-d1`} label="Distance" quiet value={dist1.key} onPick={pickDistance} />
           {dist1.key === 'custom' ? (
             <DistanceField id={`${uid}-km1`} label="Race distance" km={dist1.typedKm} units={units} suffix={units} hint={snapHint(dist1)}
               onChange={(km) => setQ({ d: 'custom', km: km === null ? '' : String(km) })} />
           ) : null}
           <RaceTimeField id={`${uid}-t1`} label="Finish time" large text={q.t} km={dist1.km} error={race1Error} onEditing={setTyping}
             onText={(text) => { setConverted(null); setQ({ t: text }); }} hint={timeHint} />
-          <AgoSelect id={`${uid}-ago1`} value={q.ago} onChange={(v) => setQ({ ago: v })} />
-          <div className="tool-field">
+          <div className="tool-field predictor-target">
             <span className="tool-label" aria-hidden="true">Predict</span>
             <Choice label="Distance to predict" value={target.key} onChange={(v) => setQ({ to: v })} options={TARGETS.map((t) => ({ value: t.key, label: t.label }))} />
           </div>
@@ -852,6 +857,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
                 hint={race2?.ok && t2 !== null ? `Read as ${spoken(t2)} · ${fmtPace(race2.seconds / race2.km, units)}` : undefined}
                 onText={(text) => setQ({ t2: text, d2: q.d2 || dist2.key })} />
               <AgoSelect id={`${uid}-ago2`} value={q.ago2} onChange={(v) => setQ({ ago2: v })} />
+              <AgoSelect id={`${uid}-ago1`} label="When you ran your recent race" value={q.ago} onChange={(v) => setQ({ ago: v })} />
               {est?.personal && 'b' in est.personal ? est.personal.warnings.map((w) => <p key={w} className="tool-field-hint is-error">{w}</p>) : null}
               {q.t2 ? (
                 <button type="button" className="predictor-link-button" onClick={() => {
@@ -897,19 +903,18 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
             <p className="tool-empty">{emptyText}</p>
           ) : (
             <>
-              <Headline est={est} dist={dist1} units={units} example={isExample} />
+              {/* Every estimate's figure sits inside the research card (one source, one badge at its foot), so no unbadged
+                  published-research block stands between it and the Pace Notes data panel. */}
+              <Headline est={est} dist={dist1} units={units} example={isExample}>
+                <div className="predictor-methods" id="predictor-methods">
+                  <h3 className="predictor-methods-title">Every estimate, side by side</h3>
+                  <MethodChart rows={rows} fuzzy={!!est.range && est.range.extrapolation === 'shorter'} label={chartLabel} />
+                </div>
+              </Headline>
               {stale.length ? (
                 <p className="tool-note predictor-stale"><strong>{stale.join(' and ')} {stale.length > 1 ? 'were' : 'was'} more than 6 months ago.</strong> A recent race predicts better.</p>
               ) : null}
 
-              {/* Every estimate's figure is here, once: the card above gives the range alone. The source is the card's
-                  (published research), so no second badge. */}
-              <section className="tool-panel predictor-methods" id="predictor-methods" aria-labelledby="predictor-methods-title">
-                <header className="tool-panel-head">
-                  <h2 className="tool-panel-title" id="predictor-methods-title">Every estimate, side by side</h2>
-                </header>
-                <MethodChart rows={rows} fuzzy={!!est.range && est.range.extrapolation === 'shorter'} label={chartLabel} />
-              </section>
 
               <ObservedPanel indexSha={indexSha} est={est} looks={looks} look={look} setLook={setLook} units={units} />
               {/* The median estimate, handed on as the whole minute at or below it, as every tool reads it (4:11:41 is 4:11),
@@ -940,7 +945,7 @@ function summaryText(est: Estimates): string {
 /* Result sections                                                     */
 /* ------------------------------------------------------------------ */
 
-function Headline({ est, dist, units, example }: { est: Estimates; dist: Distance; units: UnitSystem; example: boolean }) {
+function Headline({ est, dist, units, example, children }: { est: Estimates; dist: Distance; units: UnitSystem; example: boolean; children?: ReactNode }) {
   // The kicker stays on one line at a phone's width: "From a 1:55 half" (the marathon is the tool's own target), whole
   // minutes without their ":00", the half by its short name.
   const fromTime = fmtTime(est.fromS).replace(/^(\d+:\d\d):00$/, '$1');
@@ -962,6 +967,7 @@ function Headline({ est, dist, units, example }: { est: Estimates; dist: Distanc
       <section className="tool-reading night predictor-headline" aria-label="Your estimate">
         {head(<><span className="sr-only">Typical recreational range: </span>{a}<span className="predictor-to">–</span>{b}</>,
           `The typical recreational range${r.extrapolation === 'shorter' ? ', less certain from a shorter race' : ''}: ${pace(r.low).replace(/\/\w+$/, '')}–${pace(r.high)}.`)}
+        {children}
         <EvidenceTag kind="research" />
       </section>
     );
@@ -970,6 +976,7 @@ function Headline({ est, dist, units, example }: { est: Estimates; dist: Distanc
     return (
       <section className="tool-reading night predictor-headline" aria-label="Your estimate">
         {head(fmtTime(est.riegel), 'One classic formula only: the fitness equations are not applied at walking speed.')}
+        {children}
         <EvidenceTag kind="research" />
       </section>
     );
@@ -980,6 +987,7 @@ function Headline({ est, dist, units, example }: { est: Estimates; dist: Distanc
   return (
     <section className="tool-reading night predictor-headline" aria-label="Your estimate">
       {head(a === b ? a : <>{a}<span className="predictor-to">–</span>{b}</>, 'Both classic formulas hold up well for races up to the half marathon.')}
+      {children}
       <EvidenceTag kind="research" />
     </section>
   );

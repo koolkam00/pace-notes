@@ -20,13 +20,15 @@
   background: var(--paper-raised); color: var(--ink); font-family: var(--sans); font-size: 1rem; line-height: 1.5; resize: vertical; }
 .tool-page .split-check-paste textarea:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-.split-check-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3) var(--s-2); margin: 0; padding: 0; border: 0; min-width: 0; }
-.split-check-cell { display: grid; gap: 4px; min-width: 0; }
+.split-check-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); margin: 0; padding: 0; border: 0; min-width: 0; }
+/* Each mat is one tile: its name in the corner, the time under it, so nine fit a phone's first screen. */
+.split-check-cell { position: relative; display: grid; min-width: 0; }
 /* The miles sit right after their mat name, so "5K 3.1 mi" never runs into the next column's name. */
-.split-check-cell label { display: flex; align-items: baseline; justify-content: flex-start; gap: 6px; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); white-space: nowrap; }
-.split-check-cell label small { font-size: .75rem; font-weight: 400; color: var(--ink-3); }
-.tool-page .split-check-cell input { width: 100%; min-height: 48px; padding: 0 6px; border: 1px solid var(--rule-strong); border-radius: var(--r-sm); background: var(--paper-raised); color: var(--ink);
-  box-shadow: none; text-align: center; font-family: var(--sans); font-size: 1rem; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.split-check-cell label { position: absolute; top: 7px; left: 10px; right: 6px; z-index: 1; display: flex; align-items: baseline; justify-content: flex-start; gap: 5px;
+  font-size: .75rem; font-weight: 600; line-height: 1.2; color: var(--ink-2); white-space: nowrap; overflow: hidden; pointer-events: none; }
+.split-check-cell label small { font-size: .6875rem; font-weight: 400; color: var(--ink-3); }
+.tool-page .split-check-cell input { width: 100%; min-height: 56px; padding: 20px 6px 5px 10px; border: 1px solid var(--rule-strong); border-radius: var(--r-sm); background: var(--paper-raised); color: var(--ink);
+  box-shadow: none; text-align: left; font-family: var(--sans); font-size: 1.0625rem; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .tool-page .split-check-cell input:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
 .tool-page .split-check-cell input::placeholder { color: var(--ink-3); font-weight: 400; opacity: 1; }
 .tool-page .split-check-cell input[aria-invalid='true'] { color: var(--signal-ink); box-shadow: inset 0 -2px 0 var(--signal); }
@@ -67,8 +69,10 @@
 
 /* A phone at 200% text: two mats a row, and a label may wrap under its time. */
 @media (max-width: 299.98px) {
-  .split-check-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .split-check-cell label { flex-wrap: wrap; white-space: normal; }
+  .split-check-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--s-3); }
+  .split-check-cell { gap: 4px; }
+  .split-check-cell label { position: static; flex-wrap: wrap; white-space: normal; overflow: visible; }
+  .tool-page .split-check-cell input { min-height: 48px; padding: 0 6px; text-align: center; }
 }
 
 /* The nine mats and the paste box make a column taller than most windows: it scrolls with the page instead of sticking,

@@ -20,8 +20,10 @@ export const aheadText = (seconds: number) => (Math.abs(seconds) < 0.5 ? 'level'
  * with round joins, the one the sentence is about in signal. Direct labels sit at the right end on wide screens and in
  * the key on phones, so none is cut off or crossed by a line. Ticks are 12 px. Drawn in pixels at the measured width.
  */
-export default function MatLines({ lines, zero, zeroTick = 'Even', units: _units, label }: {
+export default function MatLines({ lines, zero, zeroTick = 'Even', units: _units, label, bracket }: {
   lines: MatLine[];
+  /** The gap a sentence names between the first two lines at one mat ("8:26" at 20K): an ink bracket there, labelled. */
+  bracket?: { km: number; label: string };
   /** What the zero line is, said in full in the key under the chart: "even pace for 4:00", "your race". */
   zero: string;
   /** Its short name on the axis, where a tick would be: "Even", "You". */
@@ -72,6 +74,20 @@ export default function MatLines({ lines, zero, zeroTick = 'Even', units: _units
         <line className="mat-lines-zero" x1={m.l} x2={m.l + iw} y1={zeroY} y2={zeroY} />
         <text className="mat-lines-zero-label" x={m.l - 8} y={zeroY + 4} textAnchor="end">{zeroTick}</text>
         {xTicks.map((t) => <text key={t.label} className="mat-lines-tick" x={t.x} y={H - 6} textAnchor={t.anchor}>{t.label}</text>)}
+        {(() => {
+          const i = bracket ? CHECKPOINTS.indexOf(bracket.km) : -1;
+          if (!bracket || i < 0 || lines.length < 2) return null;
+          const ya = y(lines[0].gaps[i]), yb = y(lines[1].gaps[i]);
+          const top = Math.min(ya, yb) + 4, bottom = Math.max(ya, yb) - 4;
+          if (bottom - top < 12) return null;
+          const bx = x(bracket.km) + 8;
+          return (
+            <g className="mat-lines-bracket">
+              <path d={`M${bx - 4} ${top} H${bx} V${bottom} H${bx - 4}`} />
+              <text x={bx + 6} y={(top + bottom) / 2 + 5}>{bracket.label}</text>
+            </g>
+          );
+        })()}
         {lines.map((l) => (
           <g key={l.key} className={`mat-lines-line is-${l.tone}`}>
             <path d={path(l.gaps)} />

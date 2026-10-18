@@ -4,7 +4,6 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'rea
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { useUnits } from '@/components/UnitsProvider';
 import PaceBandStrip, { type RouteProfile } from '@/components/tools/PaceBandStrip';
-import { ToolHandoffs } from '@/components/tools/Handoffs';
 import MatLines, { aheadText } from '@/components/tools/MatLines';
 import { Choice, GoalBar, ShareBar, Stepper } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
@@ -37,7 +36,7 @@ const EMPTY_GOAL = 'Type a goal, such as 3:30.';
 const DEFAULTS = { goal: '4:00', course: 'all', g: 'all', split: '', watch: '0', print: 'strip', back: '0' };
 
 type Gender = 'all' | 'men' | 'women';
-const GENDER_OPTIONS: { value: Gender; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'men', label: 'Men' }, { value: 'women', label: 'Women' }];
+const GENDER_OPTIONS: { value: Gender; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'women', label: 'Women' }, { value: 'men', label: 'Men' }];
 const ROW_OPTIONS: { value: SplitInterval; label: string }[] = [{ value: 'mi', label: 'Miles' }, { value: 'km', label: 'Kilometres' }, { value: '5k', label: '5K mats' }];
 const WATCH_OPTIONS = [{ value: '0', label: 'Exact' }, { value: '0.5', label: '+0.5%' }, { value: '1', label: '+1%' }, { value: '1.5', label: '+1.5%' }];
 
@@ -58,8 +57,8 @@ type Observed =
   | { state: 'ok'; minute: number; all: Cell; held: Cell | null; slow: Cell | null; lo: number; hi: number; where: string; place: string; genderWord: string };
 type ObservedOk = Extract<Observed, { state: 'ok' }>;
 
-export default function PaceBand({ indexSha, profiles, projectorScopes, unpublished }: {
-  indexSha: string | null; profiles: RouteProfile[]; projectorScopes: string[] | null; unpublished: Record<string, UnpublishedCourse>;
+export default function PaceBand({ indexSha, profiles, unpublished }: {
+  indexSha: string | null; profiles: RouteProfile[]; unpublished: Record<string, UnpublishedCourse>;
 }) {
   const { units } = useUnits();
   const [q, setQuery, ready, fromUrl] = useQueryState(DEFAULTS);
@@ -230,18 +229,6 @@ export default function PaceBand({ indexSha, profiles, projectorScopes, unpublis
   );
   const badGoal = q.goal.trim().slice(0, 24);
 
-  // The cross-tool link: the projector gets the exact goal, the course only when it publishes it, and t=none so it waits for a tracker time
-  // instead of showing its example runner. Its recorded-gender groups exist for All courses only.
-  const projectorCourse = course !== 'all' && projectorScopes?.includes(course) ? course : 'all';
-  const projector = {
-    href: `/tools/projector?target=${goal === null ? '' : formatDuration(goal, true)}&t=none${projectorCourse !== 'all' ? `&course=${projectorCourse}` : ''}${projectorCourse === 'all' && gender !== 'all' ? `&v=${gender}` : ''}`,
-    label: projectorCourse !== 'all' ? ` for ${place}` : '',
-    note: course !== 'all' && projectorCourse === 'all' && projectorScopes !== null
-      ? ` (all courses${gender !== 'all' ? `, recorded as ${genderWord}` : ''}: ${city ? `${city} is` : 'this course is'} not in it)`
-      : projectorCourse !== 'all' && gender !== 'all' ? ' (all recorded genders)'
-        : gender !== 'all' ? ` (finishes recorded as ${genderWord})` : '',
-  };
-
   const gapAt = (cell: Cell | null, i: number) => (cell && pKm !== null ? cell.e50[i] - (i === 8 ? goal! : pKm * CHECKPOINTS[i]) : null);
   const slowAt20 = ok?.slow && ok.held ? ok.held.e50[3] - ok.slow.e50[3] : null;
   const finishGap = ok?.slow && ok.held ? ok.slow.e50[8] - ok.held.e50[8] : null;
@@ -340,6 +327,7 @@ export default function PaceBand({ indexSha, profiles, projectorScopes, unpublis
                     )}
                     {ok.held || ok.slow ? (
                       <MatLines units={units} zero={`Even pace for ${fmtGoal(goal)}`}
+                        bracket={slowAt20 !== null && ok.held && ok.slow ? { km: 20, label: formatDuration(Math.abs(slowAt20)) } : undefined}
                         lines={[
                           ...(ok.held ? [{ key: 'held', label: 'Held pace', tone: 'ink' as const, gaps: CHECKPOINTS.map((_, i) => gapAt(ok.held, i)!) }] : []),
                           ...(ok.slow ? [{ key: 'slow', label: 'Sustained slowdown', tone: 'signal' as const, gaps: CHECKPOINTS.map((_, i) => gapAt(ok.slow, i)!) }] : []),
@@ -372,13 +360,7 @@ export default function PaceBand({ indexSha, profiles, projectorScopes, unpublis
                 <p>Pace Notes pace band · splithappens.run/tools/pace-band</p>
               </div>
 
-              {/* Links and the copied link carry the goal on screen, so they wait while the field holds something else. */}
-              {held ? null : (
-                // One next step (section 00): race day, where the band is worn.
-                <ToolHandoffs label="Next step" links={[
-                  { href: projector.href, title: `Race-day projector${projector.label}`, text: <>On race day, a tracker time gives the finish range for {fmtGoal(goal)}{projector.note}.</> },
-                ]} />
-              )}
+              {/* No next-step row: the chapter's next card follows, the page's one way forward (section 00, cut 4). */}
 
               <GoalBar label="Goal" onStep={step}>
                 <b>{fmtGoal(goal)}</b><span>{fmtPace(pKm, units)}</span>
@@ -535,7 +517,7 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
   return (
     <section className="tool-panel pace-band-print-panel" id="pace-band-band" aria-labelledby="pace-band-print-title">
       {/* No badge: the strips are the visitor's own even-pace times (the card above carries the data badge, and the
-          printed page names its source). Under 600 px the preview is not drawn, so the heading goes with it. */}
+          printed page names its source). */}
       <header className="tool-panel-head pace-band-print-head">
         <h2 className="tool-panel-title" id="pace-band-print-title">Print your wristband</h2>
       </header>
@@ -547,6 +529,8 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
           {profile ? (
             <label className="tool-check"><input type="checkbox" checked={showBack} onChange={(e) => onBack(e.target.checked)} />A route elevation strip for the back ({profile.city})</label>
           ) : null}
+          {/* Every marker on the band, as a table: with the options, not a third disclosure beside the print buttons. */}
+          {values}
         </div>
       </details>
       <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={interval} overrun={overrun} place={place} genderWord={genderWord}
@@ -556,7 +540,6 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
         <button type="button" className="tool-text-button" data-not-edit disabled={waiting} aria-describedby={waiting ? 'pace-band-print-held' : undefined} onClick={() => onPrint('page')}>Print full page</button>
       </>} />
       {waiting ? <p className="tool-note" id="pace-band-print-held">Fix the goal above to print. The preview still shows {fmtGoal(goal)}.</p> : null}
-      {values}
     </section>
   );
 }

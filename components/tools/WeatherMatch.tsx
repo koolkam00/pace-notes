@@ -4,7 +4,8 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'rea
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { ToolHandoffs } from '@/components/tools/Handoffs';
-import { Choice, DurationField, ShareBar } from '@/components/tools/ui';
+import { Choice, DurationField, ShareBar, Stepper } from '@/components/tools/ui';
+import { fmtGoal } from '@/lib/tools/pace-band-data';
 import Values from '@/components/ui/Values';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
@@ -405,16 +406,21 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
             </p>
           </div>
 
-          <div className="tool-field">
+          <div className="tool-field weather-match-by">
             <span className="tool-label" id="weather-match-by">Your pace</span>
             <div role="group" aria-labelledby="weather-match-by">
               <Choice label="Enter a goal time or a 5–20 km pace" small value={by} onChange={switchBy} options={[{ value: 'goal', label: 'Goal time' }, { value: 'pace', label: '5–20K pace' }]} />
             </div>
           </div>
           {by === 'goal' ? (
-            <DurationField label="Marathon goal time" large value={goalS} placeholder="4:00:00"
-              onChange={(s) => setQ({ goal: s === null ? '' : formatDuration(s, true) })}
-              hint={paceKm !== null ? <>Even pace {yourPace} ({paceText(paceKm, units === 'mi' ? 'km' : 'mi', bandSpan)}).</> : 'Type a goal such as 4:00:00 or 3:45.'} />
+            // The goal control every goal tool shares: − / + a minute round the field, "Goal finish time", shown as h:mm.
+            <div className="tool-goal">
+              <Stepper label="Goal" onStep={(d) => { const m = (goalS ?? 4 * 3600) / 60; setQ({ goal: formatDuration(Math.max(90, Math.min(480, d > 0 ? Math.floor(m) + 1 : Math.ceil(m) - 1)) * 60, true) }); }}>
+                <DurationField label="Goal finish time" large value={goalS} placeholder="4:00" format={fmtGoal}
+                  onChange={(s) => setQ({ goal: s === null ? '' : formatDuration(s, true) })}
+                  hint={paceKm !== null ? <>Even pace {yourPace} ({paceText(paceKm, units === 'mi' ? 'km' : 'mi', bandSpan)}).</> : 'h:mm or h:mm:ss, such as 4:00 or 3:45.'} />
+              </Stepper>
+            </div>
           ) : (
             <DurationField label={`Planned 5–20K pace per ${units === 'mi' ? 'mile' : 'kilometre'}`} mode="pace" large placeholder={units === 'mi' ? '9:09' : '5:41'}
               value={paceIn !== null ? paceSeconds(perKm(paceIn, pu), units, bandSpan) : null}
@@ -495,7 +501,7 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
                       <p className="tool-panel-meta">{cap(plural(match.inWindow - match.row.ed.length, 'more race'))} started in the window with too few finishes at your pace.</p>
                     ) : null}
                   </header>
-                  <TempStrip editions={data.editions} tUnit={tUnit} marker={tempC} centre={centre} hw={hw} showRef
+                  <TempStrip editions={data.editions} tUnit={tUnit} marker={tempC} centre={centre} hw={hw} refName={refTone}
                     emphasis={new Set(match.kind === 'ok' ? match.row.ed : match.inWindow.map((e) => e.id))}
                     legend={match.kind === 'ok' ? 'Matched' : 'Started in this window'}
                     label={`Start temperatures of all ${data.editions.length} editions, from ${tData(Math.min(...data.editions.map((e) => e.temp_c)), tUnit)} to ${tData(Math.max(...data.editions.map((e) => e.temp_c)), tUnit)}. ${match.kind === 'ok'
@@ -665,12 +671,15 @@ const secName = (i: number) => sectionName(SECTION_BOUNDS[i][0], SECTION_BOUNDS[
  * Every edition as a dot at its start temperature, stacked where they meet: the matched ones (or a course's) emphasised,
  * your window and the reference window shaded, your forecast a line. Drawn in pixels at the measured width.
  */
-function TempStrip({ editions, tUnit, marker, centre, hw, showRef, emphasis, legend, label, ring }: {
-  editions: WeatherEdition[]; tUnit: TUnit; marker: number | null; centre: number | null; hw: number; showRef?: boolean;
+function TempStrip({ editions, tUnit, marker, centre, hw, refName, emphasis, legend, label, ring }: {
+  editions: WeatherEdition[]; tUnit: TUnit; marker: number | null; centre: number | null; hw: number;
+  /** The reference window's name in the result's table ("Cooler mornings"), so the legend calls it the same. */
+  refName?: string;
   emphasis: Set<number>; legend: string; label: string; ring?: boolean;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const width = useWidth(box, 640);
+  const showRef = Boolean(refName);
   const narrow = width < 480;
   const r = narrow ? 3.3 : 3.9;
   const gap = 2 * r + 1.2;
@@ -714,7 +723,13 @@ function TempStrip({ editions, tUnit, marker, centre, hw, showRef, emphasis, leg
     <figure className="weather-match-figure">
       <div ref={box} className="weather-match-strip">
         <svg width={width} height={H} role="img" aria-label={label}>
-          {showRef ? <rect x={x(REF.c - REF.hw)} y={top} width={Math.max(0, x(REF.c + REF.hw) - x(REF.c - REF.hw))} height={base - top - 6} className="weather-match-zone is-ref" /> : null}
+          {/* The reference window as dashed edges above and below the swarm, so no line crosses a dot. */}
+          {showRef ? (
+            <g className="weather-match-zone is-ref">
+              <line x1={x(REF.c - REF.hw)} x2={x(REF.c + REF.hw)} y1={top} y2={top} />
+              <line x1={x(REF.c - REF.hw)} x2={x(REF.c + REF.hw)} y1={base - 6} y2={base - 6} />
+            </g>
+          ) : null}
           {centre !== null ? <rect x={x(centre - hw)} y={top} width={Math.max(0, x(centre + hw) - x(centre - hw))} height={base - top - 6} className="weather-match-zone is-yours" /> : null}
           <line className="weather-match-axis" x1={m.l} x2={width - m.r} y1={base} y2={base} />
           {shownTicks.map((c) => (
@@ -740,7 +755,7 @@ function TempStrip({ editions, tUnit, marker, centre, hw, showRef, emphasis, leg
         {emphasis.size ? <li className={ring ? 'is-ring' : 'is-on'}><i />{legend}</li> : null}
         <li className="is-dot"><i />Other races</li>
         {centre !== null ? <li className="is-zone-yours"><i />Your window</li> : null}
-        {showRef ? <li className="is-zone-ref"><i />Reference, {tWindow(REF.c - REF.hw, REF.c + REF.hw, tUnit)}</li> : null}
+        {showRef ? <li className="is-zone-ref"><i />{refName}, {tWindow(REF.c - REF.hw, REF.c + REF.hw, tUnit)}</li> : null}
       </ul>
     </figure>
   );

@@ -4,9 +4,9 @@ import type { ReactNode } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { ToolHandoffs } from '@/components/tools/Handoffs';
-import MatLines from '@/components/tools/MatLines';
+import DotGrid from '@/components/viz/DotGrid';
 import Values from '@/components/ui/Values';
-import { PILEUP_RATIO, UNEVEN_SHARE, evenPaceGapText, groupGapText, type GoalPeer } from '@/lib/tools/goal-facts';
+import { UNEVEN_SHARE, evenPaceGapText, groupGapText, type GoalPeer } from '@/lib/tools/goal-facts';
 import { MARATHON_KM, MATS_KM, perUnit, splitTable } from '@/lib/tools/pace';
 import { evenAt, goalLabel, paceBandHref } from '@/lib/tools/pace-chart';
 import { formatDuration } from '@/lib/tools/time';
@@ -36,8 +36,14 @@ export interface GoalObserved {
   slow: { n: number; e50: number[] } | null;
 }
 
-/** Finishes in the minute before and after the goal mark (finish-times family), with the smooth-curve expectation. */
-export interface GoalBunching { before: number; after: number; expected: number; ratio: number; ci: [number, number] }
+/**
+ * Finishes in the minute before and after the goal mark (finish-times family), with the smooth-curve expectation, and the
+ * pile-up: the run of minutes just before the mark each at least PILEUP_RATIO times the curve (null when none is).
+ */
+export interface GoalBunching { before: number; after: number; expected: number; ratio: number; ci: [number, number];
+  run: { from: number; to: number; n: number; expected: number; ratio: number } | null }
+
+const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 
 const CHECKPOINTS = [...MATS_KM, MARATHON_KM];
 const count = (n: number) => Math.round(n).toLocaleString('en-US');
@@ -52,14 +58,9 @@ const other = (units: UnitSystem): UnitSystem => (units === 'mi' ? 'km' : 'mi');
 /** The dek under the H1 (ToolPageHeader wraps it): what the page sets the even-pace splits beside. Its numbers are on the night card below. */
 export function GoalPaceDek({ goal, observed }: { goal: number; observed: GoalObserved | null }) {
   const label = goalLabel(goal);
-  // No count here: the page's one count of finishes "just under" is the pile-up's last minute, a screen below.
+  // No count here: the page's counts of finishes just under the goal are in its beats below.
   return <>The even-pace splits for a {label} marathon{observed ? <>, beside what finishes just under {label} actually ran</> : null}.</>;
 }
-
-/** A gap against a reference, negative = ahead: "2:07 ahead of", "level with", "0:40 behind". */
-const against = (gap: number) => (Math.abs(gap) < 0.5 ? 'level with' : `${formatDuration(Math.abs(gap))} ${gap < 0 ? 'ahead of' : 'behind'}`);
-/** A finish against another, as the pace band says it: under a minute is "at about the same time", else "1:12 slower". */
-const finished = (gap: number) => (Math.abs(gap) < 60 ? 'at about the same time' : `${formatDuration(Math.abs(gap))} ${gap < 0 ? 'faster' : 'slower'}`);
 
 /** Everything below the header of a goal page. Static HTML in miles; redrawn in km once the units preference is read. */
 export function GoalPaceBody({ goal, observed, bunching, pileup }: { goal: number; observed: GoalObserved | null; bunching: GoalBunching | null; peers?: GoalPeer[];
@@ -76,13 +77,9 @@ export function GoalPaceBody({ goal, observed, bunching, pileup }: { goal: numbe
   // ones go to each chart's description; the page shows one short sentence per beat from the same medians.
   const gapText = observed ? evenPaceGapText(goal, observed.e50) : null;
   const groupText = observed?.held && observed.slow ? groupGapText(observed.held.e50, observed.slow.e50) : null;
-  const i20 = CHECKPOINTS.indexOf(20);
-  const last = CHECKPOINTS.length - 1;
-  // The subject named: the finishes that slowed, not every finish under the goal.
-  const groupShort = observed?.held && observed.slow && groupText
-    ? `Those that slowed passed 20K ${against(observed.slow.e50[i20] - observed.held.e50[i20])} those that held pace, and finished ${finished(observed.slow.e50[last] - observed.held.e50[last])}.` : null;
-  // A pile-up is a finding only when it stands well above the curve; a small bump reads as what it is.
-  const piled = !!bunching && bunching.ratio >= PILEUP_RATIO;
+  // A pile-up is a finding only when minutes before the mark stand well above the curve; a small bump reads as what it is.
+  const run = bunching?.run ?? null;
+  const runMinutes = run ? run.to - run.from + 1 : 0;
   const uneven = observed?.sd != null && observed.sd >= UNEVEN_SHARE;
 
   return (
@@ -122,8 +119,8 @@ export function GoalPaceBody({ goal, observed, bunching, pileup }: { goal: numbe
         <section className="tool-panel goal-pace-bunching" aria-labelledby="goal-pace-bunching-title">
           <EvidenceTag kind="data" />
           <h2 className="tool-nugget-text" id="goal-pace-bunching-title">
-            {piled
-              ? <>{count(bunching.before)} finishes landed in the last minute under {label}: <em>{bunching.ratio.toFixed(2)}×</em> what a smooth curve expects there.</>
+            {run
+              ? <>The {runMinutes === 1 ? 'minute' : `${WORDS[runMinutes] ?? runMinutes} minutes`} before {label} held <em>{run.ratio.toFixed(2)}×</em> the finishes a smooth curve expects.</>
               : <>Finishes near {label} stay close to the smooth curve: the minute before it holds {bunching.ratio.toFixed(2)}× the curve.</>}
           </h2>
           {pileup}
@@ -131,21 +128,16 @@ export function GoalPaceBody({ goal, observed, bunching, pileup }: { goal: numbe
         </section>
       ) : null}
 
-      {/* One chart for what finishes just under the goal ran: held pace against a sustained slowdown, both against even
-          pace. The median of every finish is the middle column of its Values, so no second, near-identical chart. */}
+      {/* What finishes just under the goal ran: the share with a sustained slowdown on 100 dots, every mat in the table. */}
       {observed?.held && observed.slow && observed.sd != null ? (
         <section className="tool-panel goal-pace-slowdown" aria-labelledby="goal-pace-slowdown-title">
           {bunching ? null : <EvidenceTag kind="data" />}
           <h2 className="tool-nugget-text" id="goal-pace-slowdown-title">{uneven
             ? <>Finishes just under {label} didn’t run even: <em>{pct(observed.sd)}</em> had a <SlowdownTerm />.</>
             : <>Most finishes just under {label} held their pace: only <em>{pct(observed.sd)}</em> had a <SlowdownTerm />.</>}</h2>
-          {groupShort ? <p className="tool-panel-meta">{groupShort}</p> : null}
-          <MatLines units={units} zero={`Even pace for ${label}`}
-            lines={[
-              { key: 'held', label: 'Held pace', tone: 'ink', gaps: CHECKPOINTS.map((_, i) => observed.held!.e50[i] - even[i]) },
-              { key: 'slow', label: 'Sustained slowdown', tone: 'signal', gaps: CHECKPOINTS.map((_, i) => observed.slow!.e50[i] - even[i]) },
-            ]}
-            label={`Median elapsed time against even pace for ${label} at every mat: ${count(observed.held.n)} finishes from ${span} that held pace and ${count(observed.slow.n)} with a sustained slowdown. ${groupText ?? ''} ${gapText ?? ''}`} />
+          {/* The share on 100 dots. The two groups mat by mat (held pace against a sustained slowdown) are the pace band's
+              chart, one tap on; here they are the table under the dots, so the two pages never draw the same chart. */}
+          <DotGrid lit={Math.round(observed.sd * 100)} label={`Of 100 finishes from ${span}, ${Math.round(observed.sd * 100)} had a sustained slowdown. ${groupText ?? ''} ${gapText ?? ''}`.trim()} />
           <Values id="goal-pace-groups" caption={`Elapsed time at each mat: even pace for ${label}, and the median of ${count(observed.n)} finishes from ${span}, of those that held pace and of those with a sustained slowdown`} count={CHECKPOINTS.length}>
             <table className="table">
               <thead><tr><th scope="col">Mat</th><th scope="col">Even pace</th><th scope="col">Median</th><th scope="col">Held pace</th><th scope="col">Sustained slowdown</th></tr></thead>

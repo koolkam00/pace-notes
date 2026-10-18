@@ -166,7 +166,7 @@ function NycPool({ s }: { s: Standard }) {
       {nyrr ? <p>The only NYRR marathon in the {raceYear(s)} window is the {nyrr.slice(0, 4)} TCS New York City Marathon on {fmtDate(nyrr)}. Times from other marathons go to the capped pool.</p> : null}
       {pools.length ? (
         <>
-          <h3 id="pool">Past cut-offs in the capped pool</h3>
+          <h3 id="pool">Past <span className="nowrap">cut-offs</span> in the capped pool</h3>
           <div className="tool-table-wrap">
             <table className="tool-table qrace-table qrace-pool-table">
               <caption>How far under their standard non-NYRR qualifiers had to be, as reported by NYRR. Past cut-offs are not a forecast.</caption>
@@ -201,7 +201,7 @@ function BostonCutoffs() {
     <section className="qrace-section qrace-cutoffs" id="cutoffs" aria-labelledby="qrace-cutoffs-title">
       <EvidenceTag kind="official" />
       <p className="tool-nugget-text" id="qrace-cutoffs-title">
-        For {latest.year}, qualifiers needed to be <em>{fmtMargin(latest.cutoff)}</em> under their standard. Since {first}, cut-offs have run from {fmtMargin(lowest.cutoff)} ({list(lowestYears)}) to {fmtMargin(highest.cutoff)} ({highest.year}{highest.note ? `, ${highest.note.toLowerCase()}` : ''}).
+        For {latest.year}, qualifiers needed to be <em>{fmtMargin(latest.cutoff)}</em> under their standard. Since {first}, <span className="nowrap">cut-offs</span> have run from {fmtMargin(lowest.cutoff)} ({list(lowestYears)}) to {fmtMargin(highest.cutoff)} ({highest.year}{highest.note ? `, ${highest.note.toLowerCase()}` : ''}).
       </p>
       <YearStrip label={`Boston cut-offs from ${first} to ${last}: how far under their standard accepted qualifiers had to be, from ${fmtMargin(lowest.cutoff)} to ${fmtMargin(highest.cutoff)}.`}
         editions={rows.map((c) => ({ year: c.year, value: c.cutoff, display: fmtMargin(c.cutoff), side: [grouped(c.notAccepted)] }))}

@@ -15,6 +15,7 @@ import { formatClock, formatDuration, formatHM, parseClock, parseDuration, parse
 import { keypadInput } from '@/lib/keypad';
 import { count } from '@/lib/viz/format';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
+import { RangeBracket, bracketLayout } from '@/components/tools/RangeBracket';
 
 /* ------------------------------------------------------------------ */
 /* Constants and pure helpers                                          */
@@ -301,7 +302,7 @@ function MatChips({ mat, units, onChange }: { mat: number; units: UnitSystem; on
           <button key={km} type="button" aria-pressed={km === mat} onClick={() => onChange(km)}
             aria-label={units === 'mi' ? `${km}K mat, ${matMiles(km)}` : `${km}K mat`}>
             <b>{km}K</b>
-            {units === 'mi' ? <small>{matMiles(km)}</small> : null}
+            {units === 'mi' && km === mat ? <small>{matMiles(km)}</small> : null}
           </button>
         ))}
       </div>
@@ -361,8 +362,8 @@ function stackLabels(markers: Marker[], width: number, margin: number) {
 }
 
 /**
- * The finish times of the group as a density drawn from its published percentiles: the middle half darker, the median
- * in the accent, the even-pace finish of the times entered dashed, and the target, when one is set, in ink.
+ * The finish times of the group as a density drawn from its published percentiles, the bracket under it naming the
+ * middle 80% (the card's range), the median in the accent, the even-pace finish of the times entered dashed, and the target, when one is set, in ink.
  * Drawn in pixels at the measured width, so labels stay 12 px.
  */
 function FinishChart({ q, Q, P, target, targetTag }: { q: number[]; Q: number[]; P: number; target: number | null; targetTag: string | null }) {
@@ -387,7 +388,9 @@ function FinishChart({ q, Q, P, target, targetTag }: { q: number[]; Q: number[];
   const top = 8 + rows * 18;
   const plotH = narrow ? 88 : 108;
   const base = top + plotH;
-  const H = base + 34;
+  const bracket = bracketLayout(x(q[i10]), x(q[i90]), `80% of finishes: ${windowText(q[i10], q[i90])}`, width, m.l, `80%: ${windowText(q[i10], q[i90])}`);
+  const bracketY = base + 34;
+  const H = bracketY + bracket.height;
   const densities = q.slice(0, -1).map((v, i) => 0.05 / Math.max(1, q[i + 1] - v));
   const maxD = Math.max(...densities);
   const step = niceStep(hi - lo, narrow ? 4 : 7, [60, 120, 300, 600, 900, 1800, 3600, 7200]);
@@ -400,20 +403,15 @@ function FinishChart({ q, Q, P, target, targetTag }: { q: number[]; Q: number[];
         {ticks.map((t) => (
           <g key={t} className="projector-grid">
             <line x1={x(t)} x2={x(t)} y1={top - 2} y2={base} />
-            <text x={x(t)} y={base + 26} textAnchor="middle">{hm(t)}</text>
+            <text x={x(t)} y={base + 18} textAnchor="middle">{hm(t)}</text>
           </g>
         ))}
         {densities.map((d, i) => {
           const h = (d / maxD) * (plotH - 6);
-          const middle = i >= qIndex(Q, 0.25) && i < qIndex(Q, 0.75);
-          return <rect key={i} className={`projector-bar${middle ? ' is-middle' : ''}`} x={x(q[i])} width={Math.max(0.5, x(q[i + 1]) - x(q[i]))} y={base - h} height={h} />;
+          return <rect key={i} className="projector-bar" x={x(q[i])} width={Math.max(0.5, x(q[i + 1]) - x(q[i]))} y={base - h} height={h} />;
         })}
         <line className="projector-base" x1={m.l} x2={width - m.r} y1={base} y2={base} />
-        <g className="projector-whisker">
-          <line x1={x(q[i10])} x2={x(q[i90])} y1={base + 6} y2={base + 6} />
-          <line x1={x(q[i10])} x2={x(q[i10])} y1={base + 2} y2={base + 10} />
-          <line x1={x(q[i90])} x2={x(q[i90])} y1={base + 2} y2={base + 10} />
-        </g>
+        <RangeBracket b={bracket} y={bracketY} />
         {markers.map((mk) => (
           <line key={mk.key} className={`projector-marker-line is-${mk.tone}`} x1={mk.x} x2={mk.x} y1={14 + mk.row * 18 + 4} y2={base} />
         ))}
@@ -527,18 +525,19 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
   const settledTargetProblem = useSettled(targetProblem, 700);
   const targetError = targetProblem !== null && targetProblem === settledTargetProblem ? targetProblem : null;
   const pref = (PREFS as string[]).includes(q.v) ? (q.v as Pref) : 'trend';
-  // The optional fields wait in one disclosure, open once any of them holds a value (typed, or from a link).
+  // The course and the optional fields wait in one disclosure, open once any of them holds a value (typed, or from a
+  // link) or a linked course could not be shown.
   const [moreOpen, setMoreOpen] = useState(false);
-  const hasMore = !!q.prev || (!!q.target && q.target !== 'none') || q.v !== DEFAULTS.v;
-  useEffect(() => { if (ready && hasMore) setMoreOpen(true); }, [ready, hasMore]);
   const scopeInfo = index ? index.scopes.find((s) => s.slug === q.course) ?? index.scopes.find((s) => s.slug === 'all') ?? index.scopes[0] : null;
   const scope = scopeInfo?.slug ?? (q.course || 'all');
   const scopeName = scopeInfo ? scopeInfo.city ?? 'All courses' : 'All courses';
   const shardState = useShard(index, scope, mat);
   const shard = shardState.shard;
 
-  // Rewrite a link's unknown mat, course or comparison, and unreadable times, to what the page actually shows.
   const [courseNotice, setCourseNotice] = useState(false);
+  const hasMore = !!q.prev || (!!q.target && q.target !== 'none') || q.v !== DEFAULTS.v || courseNotice;
+  useEffect(() => { if (ready && hasMore) setMoreOpen(true); }, [ready, hasMore]);
+  // Rewrite a link's unknown mat, course or comparison, and unreadable times, to what the page actually shows.
   useEffect(() => {
     if (!ready) return;
     const patch: Partial<QueryShape> = {};
@@ -585,6 +584,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
   const [startText, setStartText] = useState('');
   const [cards, setCards] = useState<RunnerCard[]>([]);
   const [cardLabel, setCardLabel] = useState('');
+  const [extrasOpen, setExtrasOpen] = useState(false);
   const [clockView, setClockView] = useState<'clock' | 'elapsed'>('clock');
   useEffect(() => {
     setStartText(readStart());
@@ -592,6 +592,8 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
   }, []);
   const saveStart = (text: string) => { setStartText(text); writeStart(text); };
   const start = startText.trim() ? parseClock(startText) : null;
+  const hasStart = start !== null;
+  useEffect(() => { if (hasStart) setExtrasOpen(true); }, [hasStart]);
   const updateCards = (next: RunnerCard[]) => { setCards(next); writeCards(next); };
 
   // Derived projection.
@@ -671,6 +673,8 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
   // One short summary for screen readers (announced once typing settles) and, on phones, under the time field.
   let status = '';
   let quick: ReactNode = null;
+  // The quick line is only the jump to the night card: it rides beside the entry switch instead of taking a row.
+  let jump = false;
   const loadError = indexError ?? (index && E !== null ? shardState.error : null);
   if (loadError) {
     results = <LoadError error={loadError} onRetry={indexError ? retryIndex : shardState.retry} />;
@@ -740,6 +744,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
       + (nextRow.km < 42 ? ` ${matName(nextRow.km, units)}: ${span(nextRow.lo, nextRow.hi).replace('–', ' to ')}.` : '');
     // The night card is the result; under the time field there is only the jump to it (it repeats none of it).
     quick = <button type="button" className="projector-link-button" data-not-edit onClick={toResult}>Full result ↓</button>;
+    jump = true;
     results = (
       <>
         <section className="tool-reading night projector-headline" aria-labelledby="projector-title">
@@ -794,30 +799,36 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
           {E !== null && mat < 40 ? (
             <button type="button" className="projector-link-button projector-advance no-print" onClick={advance}>Passed {matName(mat + 5, units)}? Next mat <Arrow /></button>
           ) : null}
-          <div className="projector-clock no-print">
-            <div className="tool-field projector-start">
-              <label htmlFor="projector-start">Start-line crossing time <span className="projector-optional">optional</span></label>
-              <input id="projector-start" inputMode="text" autoComplete="off" value={startText}
-                aria-invalid={startText.trim() !== '' && start === null ? true : undefined} aria-describedby="projector-start-hint"
-                onChange={(e) => saveStart(e.target.value)} />
-              <p className="tool-field-hint" id="projector-start-hint">
-                {/* The example lives in the hint, not a placeholder that reads as an entered time. */}
-                {startText.trim() !== '' && start === null ? 'Try 9:14 am or 09:14.' : 'For clock times, e.g. 9:14 am. Kept on this device for 12 hours.'}
-              </p>
-            </div>
-            {start !== null ? <Choice label="Show times as" small value={clockView} onChange={setClockView} options={[{ value: 'clock', label: 'Clock' }, { value: 'elapsed', label: 'Elapsed' }]} /> : null}
-          </div>
-          <div className="projector-save no-print">
-            <p className="projector-save-title">Following someone on race day?</p>
-            {cards.length >= MAX_CARDS ? <p className="tool-field-hint">Four runner cards are saved. Remove one to add another.</p> : (
-              <div className="projector-save-row">
-                <label htmlFor="projector-card-label" className="sr-only">Card label</label>
-                <input id="projector-card-label" maxLength={40} autoComplete="off" placeholder="Label, e.g. Sam" value={cardLabel} onChange={(e) => setCardLabel(e.target.value)} />
-                <button type="button" className="btn btn-secondary" onClick={saveCard}>Save runner card</button>
+          {/* Clock times and runner cards wait in one disclosure, open once a start time is kept. */}
+          <details className="tool-more projector-extras no-print" open={extrasOpen} onToggle={(e) => setExtrasOpen(e.currentTarget.open)}>
+            <summary>Clock times and runner cards</summary>
+            <div className="tool-more-body">
+              <div className="projector-clock no-print">
+                <div className="tool-field projector-start">
+                  <label htmlFor="projector-start">Start-line crossing time <span className="projector-optional">optional</span></label>
+                  <input id="projector-start" inputMode="text" autoComplete="off" value={startText}
+                    aria-invalid={startText.trim() !== '' && start === null ? true : undefined} aria-describedby="projector-start-hint"
+                    onChange={(e) => saveStart(e.target.value)} />
+                  <p className="tool-field-hint" id="projector-start-hint">
+                    {/* The example lives in the hint, not a placeholder that reads as an entered time. */}
+                    {startText.trim() !== '' && start === null ? 'Try 9:14 am or 09:14.' : 'For clock times, e.g. 9:14 am. Kept on this device for 12 hours.'}
+                  </p>
+                </div>
+                {start !== null ? <Choice label="Show times as" small value={clockView} onChange={setClockView} options={[{ value: 'clock', label: 'Clock' }, { value: 'elapsed', label: 'Elapsed' }]} /> : null}
               </div>
-            )}
-            <p className="tool-field-hint">Cards stay in this browser, so you can update each runner at every mat. Labels never go into links.</p>
-          </div>
+              <div className="projector-save no-print">
+                <p className="projector-save-title">Following someone on race day?</p>
+                {cards.length >= MAX_CARDS ? <p className="tool-field-hint">Four runner cards are saved. Remove one to add another.</p> : (
+                  <div className="projector-save-row">
+                    <label htmlFor="projector-card-label" className="sr-only">Card label</label>
+                    <input id="projector-card-label" maxLength={40} autoComplete="off" placeholder="Label, e.g. Sam" value={cardLabel} onChange={(e) => setCardLabel(e.target.value)} />
+                    <button type="button" className="btn btn-secondary" onClick={saveCard}>Save runner card</button>
+                  </div>
+                )}
+                <p className="tool-field-hint">Cards stay in this browser, so you can update each runner at every mat. Labels never go into links.</p>
+              </div>
+            </div>
+          </details>
         </section>
 
         <ShareBar />
@@ -846,16 +857,6 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
       <div className="tool-workspace">
         <form className="tool-inputs projector-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Projector inputs">
           <h2>From the tracker</h2>
-          <div className="tool-field">
-            <label htmlFor="projector-course">Course</label>
-            <select id="projector-course" value={scope} onChange={(e) => { setCourseNotice(false); setQ({ course: e.target.value }); }} disabled={!index}
-              aria-describedby={courseNotice ? 'projector-course-hint' : undefined}>
-              {index ? index.scopes.map((s) => (
-                <option key={s.slug} value={s.slug}>{s.city ?? 'All courses'}</option>
-              )) : <option value={scope}>All courses</option>}
-            </select>
-            {courseNotice ? <p className="tool-field-hint" id="projector-course-hint">The linked course is not in the projector data, so All courses is shown.</p> : null}
-          </div>
           <MatChips mat={mat} units={units} onChange={chooseMat} />
           <div className="projector-entry">
             <Choice label="Enter" small value={entry} onChange={(v) => {
@@ -871,11 +872,21 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
                 onChange={(s) => { setExampleTime(false); setPaceTyped(s); setQ({ t: s === null ? 'none' : elapsedText(perKm(s, units) * mat) }); }}
                 placeholder={units === 'mi' ? '9:06' : '5:39'} hint={E !== null ? `Read as ${formatDuration(E, true)} at ${matName(mat, units)}.` : 'As the tracker shows it.'} />
             )}
-            {quick ? <div className="projector-quick">{quick}</div> : null}
+            {quick ? <div className={`projector-quick${jump ? ' is-jump' : ''}`}>{quick}</div> : null}
           </div>
           <details className="tool-more projector-more" open={moreOpen} onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
-            <summary>An earlier mat, a target or the tracker’s splits</summary>
+            <summary>Course, earlier mat, target, splits</summary>
             <div className="tool-more-body">
+              <div className="tool-field">
+                <label htmlFor="projector-course">Course</label>
+                <select id="projector-course" value={scope} onChange={(e) => { setCourseNotice(false); setQ({ course: e.target.value }); }} disabled={!index}
+                  aria-describedby={courseNotice ? 'projector-course-hint' : undefined}>
+                  {index ? index.scopes.map((s) => (
+                    <option key={s.slug} value={s.slug}>{s.city ?? 'All courses'}</option>
+                  )) : <option value={scope}>All courses</option>}
+                </select>
+                {courseNotice ? <p className="tool-field-hint" id="projector-course-hint">The linked course is not in the projector data, so All courses is shown.</p> : null}
+              </div>
               {mat > 5 ? (
                 <ElapsedField id="projector-prev" label={<>Time at {matName(mat - 5, units)} <span className="projector-optional">optional</span></>} value={prevRaw}
                   onChange={(s) => setQ({ prev: s === null ? '' : elapsedText(s) })} placeholder="h:mm:ss" error={prevError}
