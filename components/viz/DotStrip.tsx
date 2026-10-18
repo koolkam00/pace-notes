@@ -35,7 +35,7 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
   items: StripItem[]; domain?: [number, number]; ticks: { value: number; label: string }[]; label: string;
   /** The key's words when some dots are hollow ("Three or more editions", "Fewer editions"). */
   keyLabels?: { filled: string; hollow: string };
-  /** The readout's words until a dot is picked ("Tap a dot for its course"); the key then names the subject. */
+  /** The readout's words until a dot is picked ("Choose a dot to see its course"); the key then names the subject. */
   prompt?: string;
   /** The readout's side label for each item's detail ("Finishes"). */
   readoutKey?: string; values?: ReactNode; labelExtremes?: boolean;

@@ -46,7 +46,7 @@ type Props = {
   axis?: ReactNode;
   tone?: 'ink' | 'signal';
   onIndex?: (index: number) => void;
-  /** Pick mode: the readout's words until a point is picked ("Tap a dot for its course"); nothing is ringed till then. */
+  /** Pick mode: the readout's words until a point is picked ("Choose a dot to see its course"); nothing is ringed till then. */
   prompt?: string;
 };
 

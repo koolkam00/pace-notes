@@ -9,13 +9,16 @@ import { REF_WIDTH, textWidth } from './labels';
  * themes (quiet, ordinal 1, 3 and 4; never ordinal 2). The key lists what the bar does not say: a segment's name, plus
  * its share when the share is not on the bar. A 0% segment is not drawn (it stays in Values). With `signalInside`, the
  * signal segment carries its own label inside, in night ink (4.7:1 on signal or better in both themes), where it fits
- * at the narrowest phone, so every segment is labelled the same way; else it keeps the callout.
+ * at the narrowest phone, so every segment is labelled the same way; else it keeps the callout. With `labels="under"`
+ * (two segments), the bar is a thin data bar with no text on it and each segment is named under its own end, the first
+ * at the left and the last at the right, so it never reads as a pair of buttons; the quiet segment takes the quiet mark
+ * colour instead of an outline.
  */
 export type ShareSegment = { id: string; label: string; share: number; display: string; tone?: 'signal' | 'quiet' | 1 | 2 | 3 | 4 };
 
 const HOLDS_TEXT = new Set<ShareSegment['tone']>(['quiet', undefined, 1, 3, 4]);
 
-export default function ShareBar({ segments, label, values, signalInside = false }: { segments: ShareSegment[]; label: string; values?: ReactNode; signalInside?: boolean }) {
+export default function ShareBar({ segments, label, values, signalInside = false, labels = 'inside' }: { segments: ShareSegment[]; label: string; values?: ReactNode; signalInside?: boolean; labels?: 'inside' | 'under' }) {
   const drawn = segments.filter((s) => s.share > 0);
   const total = drawn.reduce((sum, s) => sum + s.share, 0) || 1;
   const tone = (s: ShareSegment) => (s.tone === 'signal' ? 'is-signal' : s.tone === 'quiet' || s.tone === undefined ? 'is-quiet' : `is-ord-${s.tone}`);
@@ -35,6 +38,17 @@ export default function ShareBar({ segments, label, values, signalInside = false
   const centre = subject >= 0 ? ((spans[subject][0] + spans[subject][1]) / 2) * 100 : 0;
   const w = callout ? Math.ceil(textWidth(callout, 14)) + 2 : 0;
   const keyed = drawn.map((s, i) => ({ s, i })).filter(({ s, i }) => i !== subject && inside[i] !== `${s.label} ${s.display}`);
+  if (labels === 'under') {
+    return (
+      <figure className="viz viz-frame share-bar is-under">
+        <div className="share-bar-track" role="img" aria-label={label}>
+          {drawn.map((s) => <span key={s.id} className={`share-bar-seg ${tone(s)}`} style={{ flexGrow: s.share / total } as CSSProperties} />)}
+        </div>
+        <p className="share-bar-under" aria-hidden="true">{drawn.map((s) => <span key={s.id}>{s.label} <b>{s.display}</b></span>)}</p>
+        {values}
+      </figure>
+    );
+  }
   return (
     <figure className="viz viz-frame share-bar">
       {callout ? (

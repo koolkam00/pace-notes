@@ -10,7 +10,9 @@ import { extent, linear, pc, yScale } from './scale';
 /**
  * A year strip (the redesign spec, section 3.6): one lollipop per edition on a time-scaled axis, so a year with no
  * edition in the data leaves its gap open (no stem), never closed up and never washed (a band would read as a
- * highlight); scrubbed, the gap reads out "not in the data" (a dash, keyed "2020, not in the data"). Every stem is quiet: the scrubber's needle is the one signal mark, on the edition the readout names.
+ * highlight). The editions are the scrubber's only points: dragged, the needle steps from edition to edition across a
+ * gap, which stays in view but is never read out. Every stem is quiet: the scrubber's needle is the one signal mark, on
+ * the edition the readout names.
  * The years it labels (by default the highest and lowest) keep one label format, lifted on a leader where neighbours
  * crowd them; the label under the needle hides, since the readout says it. The average is a dashed reference in the key.
  */
@@ -18,11 +20,6 @@ export type YearPoint = { year: number; value: number; display: string; side?: s
 
 /** The wide plot a label with no room at the narrowest phone is placed on instead, shown from this width up. */
 const WIDE = 600;
-
-/** What the readout's key says over a year with no edition (its value is a dash, so the readout never grows). */
-export const NOT_IN_DATA = 'not in the data';
-/** The readout key for a year: the year, and for a year with no edition, that it is not in the data. */
-export const yearKey = (year: number, has: boolean) => (has ? String(year) : `${year}, ${NOT_IN_DATA}`);
 
 /** Whether a placed label's text box crosses a horizontal line at `lineY` (a plot fraction). */
 function crosses(l: PlacedLabel, lineY: number, height: number): boolean {
@@ -67,9 +64,8 @@ function layout({ editions, selected, valueDomain, average, height, extremeLabel
   const maxI = sorted.reduce((b, e, i) => (e.value > sorted[b].value ? i : b), 0);
   const minI = sorted.reduce((b, e, i) => (e.value < sorted[b].value ? i : b), 0);
   const sel = Math.max(0, sorted.findIndex((e) => e.year === selected));
-  // Every year from the first edition to the last is a scrub point; a year with no edition is keyed "not in the data".
-  const years = Array.from({ length: last - first + 1 }, (_, k) => first + k);
-  const scrubOf = (year: number) => years.indexOf(year);
+  // The editions are the scrub points (a gap year is never one): the needle snaps edition to edition.
+  const scrubOf = (year: number) => sorted.findIndex((e) => e.year === year);
   const textOf = extremeLabel ?? ((p: YearPoint) => `${p.year}`);
   const named = new Set(labelled ?? [sorted[maxI].year, sorted[minI].year]);
   // A labelled year may sit low among taller neighbours: its label then rises above the tallest dot within its width (at
@@ -105,7 +101,7 @@ function layout({ editions, selected, valueDomain, average, height, extremeLabel
   const dropped = items.filter((it) => narrow.some((l) => l.id === it.id && l.minWidth === null));
   const wide = dropped.length ? place(dropped, [...taken, ...narrow.filter((l) => l.minWidth !== null).map((l) => placedBox(l, height))], WIDE).map((l) => (l.minWidth === null ? l : { ...l, minWidth: WIDE })) : [];
   const placed = [...own, ...narrow.map((l) => wide.find((w) => w.id === l.id) ?? l)];
-  return { sorted, first, last, x, y, maxI, minI, sel, years, scrubOf, placed };
+  return { sorted, first, last, x, y, maxI, minI, sel, scrubOf, placed };
 }
 
 /**
@@ -126,7 +122,7 @@ export default function YearStrip({ editions, selected, sideLabels = [], valueDo
   /** The years to label; default the highest and lowest editions. */
   labelled?: number[];
 }) {
-  const { sorted, first, last, x, y, maxI, minI, sel, years, scrubOf, placed } = layout({ editions, selected, valueDomain, average, height, extremeLabel, labelled });
+  const { sorted, first, last, x, y, maxI, minI, sel, scrubOf, placed } = layout({ editions, selected, valueDomain, average, height, extremeLabel, labelled });
   const plot = (
     <Plot>
       {average !== undefined ? <RefLine y={y(average)} dashed /> : null}
@@ -151,12 +147,11 @@ export default function YearStrip({ editions, selected, sideLabels = [], valueDo
     </Plot>
   );
   const axis = <Axis centred ticks={yearTicks(first, last).map((yr) => ({ x: x(yr), label: String(yr) }))} />;
-  const byYear = new Map(sorted.map((e) => [e.year, e]));
   const points = {
-    x: years.map((yr) => x(yr)),
-    keys: years.map((yr) => yearKey(yr, byYear.has(yr))),
-    values: years.map((yr) => byYear.get(yr)?.display ?? '—'),
-    side: sideLabels.map((l, k) => ({ label: l, values: years.map((yr) => byYear.get(yr)?.side?.[k] ?? '—') })),
+    x: sorted.map((e) => x(e.year)),
+    keys: sorted.map((e) => String(e.year)),
+    values: sorted.map((e) => e.display),
+    side: sideLabels.map((l, k) => ({ label: l, values: sorted.map((e) => e.side?.[k] ?? '—') })),
   };
   return (
     <ChartFrame className="year-strip" label={label} height={height} heightMd={heightMd}
