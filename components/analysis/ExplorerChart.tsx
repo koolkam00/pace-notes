@@ -114,9 +114,10 @@ function Sections({ answer, goal, valuesId }: { answer: GuideAnswer; goal: numbe
 }
 
 /**
- * The share of the comparison's finishes under each time, the goal ringed. The visitor's own goal is "You" and the
- * readout opens on it; the page's example rings its goal by name and opens the readout on the median finish, the one
- * figure its headline (the shares under three round times) does not already give.
+ * The share of the comparison's finishes under each time, the goal ringed. The readout opens on the goal, the share the
+ * headline names, so the needle (the page's one orange mark) and the H1's accent agree; its side value is the median
+ * finish, the one figure the headline does not already give. The visitor's own goal is "You"; the page's example rings
+ * its goal by name.
  */
 function Target({ answer, goal, valuesId, example }: { answer: GuideAnswer; goal: number; valuesId: string; example: boolean }) {
   const rows = answer.charts[0]?.rows ?? [];
@@ -127,11 +128,11 @@ function Target({ answer, goal, valuesId, example }: { answer: GuideAnswer; goal
   const ticks = marks.filter((m) => m % 60 === 0);
   // The median: the first time with half the finishes under it.
   const half = pts.findIndex((p) => p.share >= 0.5);
-  const open = example && half >= 0 ? half : pts.indexOf(at);
+  const median = half >= 0 ? [{ label: 'Median finish', values: pts.map(() => hm(pts[half].x)) }] : undefined;
   return (
     <Cdf points={pts} you={goal} youLabel={example ? hm(goal) : 'You'} ticks={ticks.map((m) => ({ value: m, label: hm(m) }))}
-      scrub={{ label: 'Finish time', points: { x: pts.map((p) => (p.x - pts[0].x) / (pts[pts.length - 1].x - pts[0].x)), keys: pts.map((p) => `Finishes under ${hm(p.x)}`), values: pts.map((p) => `${Math.round(p.share * 100)}%`) },
-        initial: open, detents: [...marks.map((m) => pts.findIndex((p) => p.x === m)), ...(example ? [half] : [])].filter((i, k, all) => i >= 0 && all.indexOf(i) === k) }}
+      scrub={{ label: 'Finish time', points: { x: pts.map((p) => (p.x - pts[0].x) / (pts[pts.length - 1].x - pts[0].x)), keys: pts.map((p) => `Finishes under ${hm(p.x)}`), values: pts.map((p) => `${Math.round(p.share * 100)}%`), side: median },
+        initial: pts.indexOf(at), detents: [...marks.map((m) => pts.findIndex((p) => p.x === m)), half].filter((i, k, all) => i >= 0 && all.indexOf(i) === k) }}
       label={`The share of finishes under each time; ${Math.round(at.share * 100)}% under ${hm(goal)}`}
       values={<Values id={valuesId} caption="Finishes under each round time" columns={[{ key: 't', label: 'Under' }, { key: 's', label: 'Share of finishes' }]} rows={marks.map((m) => [hm(m), `${Math.round((pts.find((p) => p.x === m)?.share ?? NaN) * 100)}%`])} />} />
   );

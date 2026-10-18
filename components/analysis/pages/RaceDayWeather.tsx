@@ -1,6 +1,5 @@
 import Values from '@/components/ui/Values';
-import AllFinisherAnalysis from '@/components/AllFinisherAnalysis';
-import AnalysisExplorer from '@/components/AnalysisExplorer';
+import AllFinisherWithHistory from '@/components/AllFinisherWithHistory';
 import WeatherAnalysis from '@/components/WeatherAnalysis';
 import AnalysisShell, { AnswerCard, ExploreBeat } from '../Shell';
 import Columns from '../Columns';
@@ -60,8 +59,8 @@ export default function RaceDayWeather() {
   return (
     <AnalysisShell path={PATH} title={n} titleTerm dek={definition.title} answer={<WeatherTabs tabs={tabs} />}>
       <ExploreBeat track="chapter-1">
-        <AllFinisherAnalysis kind="weather" start={start} linkTerm={false} untouched="none"
-          history={<AnalysisExplorer definition={historyDefinition} summary={summary} initialAnswer={answers.find((a) => a.id === definition.id)!} historyMode />} />
+        <AllFinisherWithHistory kind="weather" start={start} linkTerm={false} untouched="none"
+          history={{ definition: historyDefinition, summary, initialAnswer: answers.find((a) => a.id === definition.id)! }} />
       </ExploreBeat>
     </AnalysisShell>
   );

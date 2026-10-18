@@ -9,8 +9,8 @@ const PATH = '/analyses/finish-time-context';
 
 /**
  * Chapter 06, page 2: the share of finishes under each time as one cumulative curve, the H1's goal ringed by name and the
- * readout opening on the median finish (the H1 gives the shares under three round times), then Make it yours, which
- * draws its own curve only once the visitor changes something.
+ * readout opening on it (the H1's accent), with the median finish beside, then Make it yours, which draws its own curve
+ * only once the visitor changes something.
  */
 export default function FinishContext() {
   const definition = analysisBySlug('finish-time-context')!;

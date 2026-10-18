@@ -1,7 +1,6 @@
 import DotStrip from '@/components/viz/DotStrip';
 import Values from '@/components/ui/Values';
-import AllFinisherAnalysis from '@/components/AllFinisherAnalysis';
-import AnalysisExplorer from '@/components/AnalysisExplorer';
+import AllFinisherWithHistory from '@/components/AllFinisherWithHistory';
 import AnalysisShell, { AnswerCard, ExploreBeat } from '../Shell';
 import { analysisBySlug } from '@/lib/ten-analyses';
 import { getAnalysisStart } from '@/lib/analysis-server';
@@ -47,8 +46,8 @@ export default function CourseComparison() {
   return (
     <AnalysisShell path={PATH} title={n} titleTerm dek={definition.title} answer={answer}>
       <ExploreBeat track="chapter-1">
-        <AllFinisherAnalysis kind="courses" start={start} linkTerm={false} untouched="none"
-          history={<AnalysisExplorer definition={historyDefinition} summary={summary} initialAnswer={answers.find((a) => a.id === definition.id)!} historyMode />} />
+        <AllFinisherWithHistory kind="courses" start={start} linkTerm={false} untouched="none"
+          history={{ definition: historyDefinition, summary, initialAnswer: answers.find((a) => a.id === definition.id)! }} />
       </ExploreBeat>
     </AnalysisShell>
   );

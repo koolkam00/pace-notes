@@ -1,6 +1,6 @@
 'use client';
 
-import { cloneElement, isValidElement, useEffect, useId, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { Fragment, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { UnitLink as Link, useUnits } from './UnitsProvider';
 import { elevationLabel, type UnitSystem } from '@/lib/units';
 import { clock } from '@/lib/personalized';
@@ -11,6 +11,7 @@ import { ms } from '@/lib/nuggets/format';
 import { ALL_FINISHER_DEFAULT, allFinisherGroupLabel, bandShort, bandWords, allFinisherGroups, allFinisherRow, allFinisherSearch, earlyPaceLabel, loadAllFinisherContext, readAllFinisherSelection,
   type AllFinisherEvidence, type AllFinisherGroup, type AllFinisherKind, type AllFinisherSelection, type AllFinisherStart } from '@/lib/all-finisher-context';
 import MakeItYours from './ui/MakeItYours.client';
+import type { GuideExplorerParts } from './AnalysisExplorer';
 import Segmented from './ui/Segmented.client';
 import Values from './ui/Values';
 import DotStrip from './viz/DotStrip';
@@ -27,6 +28,19 @@ const paceChange = (value: number) => Math.abs(value) < 0.05 ? 'about the same' 
 const timeDifference = (seconds: number) => Math.abs(seconds) < 3 ? 'about the same time' : `${ms(Math.abs(seconds))} ${seconds < 0 ? 'less' : 'more'}`;
 const SECTION_MIDS = MARATHON_SECTION_ENDS.map((end, i) => ((i ? MARATHON_SECTION_ENDS[i - 1] : 0) + end) / 2);
 const signedPct = (v: number) => { const r = Math.round(v); return `${r > 0 ? '+' : r < 0 ? '−' : ''}${Math.abs(r)}%`; };
+/** Where a group's sustained slowdowns most often began ("30–35K, 47%"), or a dash when too few were detected to say. */
+function onsetText(group: AllFinisherGroup): string {
+  const shares = group.onset_pct;
+  if (!shares) return '—';
+  const at = shares.reduce((best, value, i) => value > shares[best] ? i : best, 0);
+  return `${sectionLabel(25 + at * 5)}, ${percent(shares[at])}`;
+}
+/** The headline with its first "sustained slowdown" linked to the definition on /methodology. */
+function linkFirstTerm(text: string): ReactNode {
+  const m = /sustained slowdowns?/i.exec(text);
+  if (!m) return text;
+  return <>{text.slice(0, m.index)}<Link href="/methodology#sustained-slowdown" className="term-link">{m[0]}</Link>{text.slice(m.index + m[0].length)}</>;
+}
 const isProfileKind = (kind: AllFinisherKind) => kind === 'course-profile' || kind === 'weather-profile' || kind === 'race-day';
 /** Its measure: the spread of late-race pace for consistency, the late pace change for the profile views, else the slowdown rate. */
 const measureOf = (kind: AllFinisherKind) => kind === 'course-consistency' ? 'late_spread_pct' : isProfileKind(kind) && kind !== 'race-day' ? 'late_pct' : 'slowdown_pct';
@@ -76,7 +90,7 @@ export function AllFinisherResults({ groups, kind, start, units, focus, comparis
   head?: boolean;
   /** The visitor chose the group to follow: only then is its course dot the signal subject (the strip opens on it either way). */
   followed?: boolean;
-  /** Link "sustained slowdowns" to /methodology; off where the page has already linked the term. */
+  /** Link the headline's "sustained slowdown" to /methodology; off where the page has already linked the term. */
   linkTerm?: boolean;
 }) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -89,7 +103,6 @@ export function AllFinisherResults({ groups, kind, start, units, focus, comparis
   const named = (group: AllFinisherGroup) => kind === 'downhill' ? label(group).replace(/^[A-Z]/, c => c.toLowerCase()) : label(group);
   const band = kind === 'downhill' ? start.opening_bands.find(b => b.id === focus.opening) : undefined;
   const title = headline(shown, kind, named, band ? bandWords(band.label) : undefined);
-  const onsetAt = focus.onset_pct ? focus.onset_pct.reduce((best, value, i) => value > focus.onset_pct![best] ? i : best, 0) : -1;
   const measure = measureOf(kind);
   const display = (g: AllFinisherGroup) => measure === 'late_spread_pct' ? `${g.late_spread_pct.toLocaleString('en-US', { maximumFractionDigits: 1 })} pts` : measure === 'late_pct' ? signedPct(g.late_pct) : percent(g.slowdown_pct);
   let chart: ReactNode;
@@ -122,17 +135,18 @@ export function AllFinisherResults({ groups, kind, start, units, focus, comparis
   }
   return (
     <div className="explore-results">
-      {head ? <h2 className="explore-title">{title}</h2> : null}
+      {head ? <h2 className="explore-title">{linkTerm ? linkFirstTerm(title) : title}</h2> : null}
+      {/* One sentence under the headline (a beat holds at most two); where each group's sustained slowdowns most often
+          began is in Values. */}
       <p className="explore-sentence">
-        {label(focus)}: the typical finish took <strong>{timeDifference(focus.after20_delta_s)}</strong> after 20K than the same distance at early-race pace.{' '}
-        {focus.onset_pct ? <>{kind === 'downhill' ? 'Their' : 'Its'} {linkTerm ? <Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdowns</Link> : 'sustained slowdowns'} most often began in the {sectionLabel(25 + onsetAt * 5)} section ({percent(focus.onset_pct![onsetAt])} of them).</> : 'Too few detected slowdowns to show where they began.'}
+        {label(focus)}: the typical finish took <strong>{timeDifference(focus.after20_delta_s)}</strong> after 20K than the same distance at early-race pace.
       </p>
       {raceDay && <p className="explore-note">{focus.temp_c == null ? 'Start-hour temperature is unavailable.' : `Start-hour temperature: ${Math.round(units === 'mi' ? focus.temp_c * 1.8 + 32 : focus.temp_c)}°${units === 'mi' ? 'F' : 'C'}.`} {focus.opening_net_m == null ? '' : `Net elevation change over the first 5K: ${elevationLabel(focus.opening_net_m, units)}.`}</p>}
       {chart}
       <Values id={`${id}-values`} caption={title}
         columns={[{ key: 'g', label: raceDay ? 'Race edition' : kind === 'weather' || kind === 'weather-profile' ? 'At the start' : kind === 'downhill' ? 'Opening' : 'Course', text: true },
-          { key: 's', label: raceDay ? 'Slowdown rate in this edition' : 'Sustained slowdown' }, { key: 'l', label: 'Late-race pace' }, { key: 't', label: 'After 20K' }, { key: 'm', label: 'Median finish' }, { key: 'n', label: 'Finishes' }]}
-        rows={[...shown].sort((a, b) => a[measure] - b[measure]).map(g => [label(g), percent(g.slowdown_pct), paceChange(g.late_pct), timeDifference(g.after20_delta_s), clock(g.actual_finish_median_s, true), g.n.toLocaleString('en-US')])}
+          { key: 's', label: raceDay ? 'Slowdown rate in this edition' : 'Sustained slowdown' }, { key: 'o', label: 'Most often began' }, { key: 'l', label: 'Late-race pace' }, { key: 't', label: 'After 20K' }, { key: 'm', label: 'Median finish' }, { key: 'n', label: 'Finishes' }]}
+        rows={[...shown].sort((a, b) => a[measure] - b[measure]).map(g => [label(g), percent(g.slowdown_pct), onsetText(g), paceChange(g.late_pct), timeDifference(g.after20_delta_s), clock(g.actual_finish_median_s, true), g.n.toLocaleString('en-US')])}
         reading={[...shown].sort((a, b) => a[measure] - b[measure]).indexOf(focus)} />
     </div>
   );
@@ -144,8 +158,13 @@ export function AllFinisherResults({ groups, kind, start, units, focus, comparis
  * pace, age group, recorded gender, and the group to follow, in one form (a sheet under 900 px, inline from 900 px).
  * The all-course example is in the page; anything else loads the published evidence, checked against its hash.
  */
-export default function AllFinisherAnalysis({ kind, start, history, title, description, archive = false, linkTerm = true, opening = ALL_FINISHER_DEFAULT.opening, untouched: untouchedView = 'chart' }: {
-  kind: AllFinisherKind; start: AllFinisherStart; history?: ReactNode; title?: string; description?: string; archive?: boolean; related?: ReactNode; linkTerm?: boolean;
+export type AllFinisherProps = {
+  kind: AllFinisherKind; start: AllFinisherStart; title?: string; description?: string; archive?: boolean; related?: ReactNode; linkTerm?: boolean;
+  /**
+   * An archive page's own view of the earlier-result comparison, drawn under the form's switch. Course comparison and
+   * race-day weather draw the guide explorer in this one's form instead (AllFinisherWithHistory).
+   */
+  history?: ReactNode;
   /** Downhill starts: the opening band the explorer opens on (the page picks it from the data). */
   opening?: string;
   /**
@@ -153,21 +172,31 @@ export default function AllFinisherAnalysis({ kind, start, history, title, descr
    * row alone, when the page's answer above already draws the example's chart. Any change shows the results.
    */
   untouched?: 'chart' | 'none';
+};
+
+export default function AllFinisherAnalysis({ history, ...props }: AllFinisherProps) {
+  return <AllFinisherExplorer {...props} historyNode={history} />;
+}
+
+/**
+ * The explorer itself. `historyParts` is the guide explorer's state drawn in this form (AllFinisherWithHistory), so both
+ * comparisons share one Make it yours and one form and the switch never remounts; `historyNode` an archive's own view.
+ */
+export function AllFinisherExplorer({ kind, start, historyParts, historyNode, onHistory, title, description, archive = false, linkTerm = true, opening = ALL_FINISHER_DEFAULT.opening, untouched: untouchedView = 'chart' }: Omit<AllFinisherProps, 'history'> & {
+  historyParts?: GuideExplorerParts; historyNode?: ReactNode; onHistory?: (active: boolean) => void;
 }) {
   const { units } = useUnits();
   const formId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const base = useMemo<AllFinisherSelection>(() => ({ ...ALL_FINISHER_DEFAULT, opening }), [opening]);
   const [selection, setSelection] = useState<AllFinisherSelection>(base);
   const [draft, setDraft] = useState<AllFinisherSelection>(base);
-  // The comparison was switched from inside the sheet: the sheet of the mode switched to opens on arrival, and focus
-  // returns to the switch (each mode's form draws its own, so the pressed button is a new one).
-  const [switched, setSwitched] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<AllFinisherEvidence | null>(null);
   const [loading, setLoading] = useState(false), [error, setError] = useState(''), [retry, setRetry] = useState(0);
   const [focusId, setFocusId] = useState(''), [comparisonId, setComparisonId] = useState('');
   const [focusDraft, setFocusDraft] = useState(''), [comparisonDraft, setComparisonDraft] = useState('');
-  const all = selection.mode === 'all' || !history;
+  const hasHistory = !!historyParts || historyNode != null;
+  const all = selection.mode === 'all' || !hasHistory;
+  useEffect(() => { onHistory?.(!all); }, [all, onHistory]);
   const initial = allFinisherRow([start.initial], selection);
   useEffect(() => {
     const restore = () => { const p = new URLSearchParams(window.location.search); const next = readAllFinisherSelection(window.location.search, start, opening); setSelection(next); setDraft(next); setFocusId(p.get('focus') || ''); setComparisonId(p.get('compare') || ''); setFocusDraft(p.get('focus') || ''); setComparisonDraft(p.get('compare') || ''); };
@@ -192,17 +221,11 @@ export default function AllFinisherAnalysis({ kind, start, history, title, descr
     window.history.pushState(null, '', unitHref(window.location.pathname + '?' + params.toString(), units));
   };
   const mode = (value: 'all' | 'history') => {
-    setSwitched(true);
     const params = new URLSearchParams(window.location.search); params.set('comparison', value);
     if (value === 'all') { params.delete('previous'); params.delete('prior'); }
     window.history.pushState(null, '', unitHref(window.location.pathname + '?' + params.toString(), units)); window.dispatchEvent(new PopStateEvent('popstate'));
   };
   const pending = all && !initial && !data && !error;
-  useEffect(() => {
-    if (!switched) return;
-    const frame = window.requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>('.explore-mode button[aria-pressed="true"]')?.focus());
-    return () => window.cancelAnimationFrame(frame);
-  }, [all, switched]);
   const label = (group: AllFinisherGroup) => allFinisherGroupLabel(group, kind, units);
   const field = (key: string) => `${formId}-${key}`;
   const follows = kind !== 'downhill' && groups.length > 1;
@@ -217,17 +240,18 @@ export default function AllFinisherAnalysis({ kind, start, history, title, descr
   const untouched = !focusId && !comparisonId && (Object.keys(base) as (keyof AllFinisherSelection)[]).every(key => selection[key] === base[key]);
   const head = !(untouched && (kind === 'courses' || kind === 'weather'));
   const shown = !untouched || untouchedView === 'chart';
-  // The comparison switch is the form's first control, in the sheet under 900 px and inline from 900 px, in both modes:
-  // the earlier-result explorer takes it as its own first control.
-  const modes = history ? <div className="explore-mode"><Segmented label="Choose the comparison" block value={all ? 'all' : 'history'} onChange={value => mode(value as 'all' | 'history')}
+  // The comparison switch is the form's first control, in the sheet under 900 px and inline from 900 px. Both comparisons
+  // draw in this one Make it yours and this one form, the switch first, so a switch keeps its identity and its focus.
+  const modes = hasHistory ? <div className="explore-mode"><Segmented label="Choose the comparison" block value={all ? 'all' : 'history'} onChange={value => mode(value as 'all' | 'history')}
     options={[{ value: 'all', label: 'All eligible finishes' }, { value: 'history', label: 'With an earlier result' }]} /><p className="field-hint">{all ? 'No previous race needed' : 'Compared with recorded race history'}</p></div> : null;
-  const historyView = isValidElement(history) ? cloneElement(history as ReactElement<{ modeSwitch?: ReactNode; defaultOpen?: boolean }>, { modeSwitch: modes, defaultOpen: switched }) : history;
-  return <div className="analysis-layout explorer af-explorer" ref={root}>
+  // The earlier-result view: the guide explorer's fields and results, or an archive's own view under the switch alone.
+  const hx: GuideExplorerParts | null = all ? null : historyParts ?? { formId, summaryText: summary, busy: false, onSubmit: event => event.preventDefault(), fields: null, after: historyNode };
+  return <div className="analysis-layout explorer af-explorer">
     {archive ? <header className="explorer-head"><h1 className="t-title">{title}</h1>{description ? <p className="t-body">{description}</p> : null}</header> : null}
-    {!all ? historyView : <>
-      <MakeItYours id={`${formId}-miy`} summary={summary} busy={pending || loading} defaultOpen={switched}>
-        <form className="explore-form" onSubmit={event => { event.preventDefault(); apply(draft); }}>
-          {modes}
+    <MakeItYours id={`${formId}-miy`} summary={hx ? hx.summaryText : summary} busy={hx ? hx.busy : pending || loading}>
+      <form className="explore-form" onSubmit={hx ? hx.onSubmit : event => { event.preventDefault(); apply(draft); }}>
+        {modes}
+        {hx ? <Fragment key="history">{hx.fields}</Fragment> : <Fragment key="all">
           <div className="explore-fields">
             {kind !== 'courses' && kind !== 'course-consistency' && kind !== 'course-profile' && <div className="field"><label className="field-label" htmlFor={field('course')}>Course</label><select id={field('course')} className="select" value={draft.city} onChange={event => setDraft({ ...draft, city: event.target.value })}>{start.cities.map(city => <option key={city} value={city}>{cityName(city)}</option>)}</select></div>}
             <div className="field"><label className="field-label" htmlFor={field('early')}>Early-race pace</label><select id={field('early')} className="select" value={draft.early_pace} onChange={event => setDraft({ ...draft, early_pace: event.target.value })}>{start.early_pace_bands.map(band => <option key={band.id} value={band.id}>{earlyPaceLabel(band, units)}</option>)}</select></div>
@@ -238,8 +262,10 @@ export default function AllFinisherAnalysis({ kind, start, history, title, descr
             {isProfileKind(kind) && focus && <div className="field"><label className="field-label" htmlFor={field('compare')}>Compare pacing with</label><select id={field('compare')} className="select" value={comparisonDraft || comparison?.id || 'none'} onChange={event => setComparisonDraft(event.target.value)}><option value="none">No comparison line</option>{groups.filter(group => group.id !== (focusDraft || focus.id)).map(group => <option key={group.id} value={group.id}>{label(group)}</option>)}</select></div>}
           </div>
           <button type="submit" className="btn btn-secondary is-compact explore-submit">Update comparison</button>
-        </form>
-      </MakeItYours>
+        </Fragment>}
+      </form>
+    </MakeItYours>
+    {hx ? hx.after : <>
       <div className="sr-only" role="status">{pending || loading ? 'Loading your comparison.' : error ? '' : focus ? `Comparison updated. ${groups.length} groups are available.` : 'Not enough results for this exact selection.'}</div>
       <div className="miy-results">
         {(pending || loading) && !row ? <p className="explore-state">Loading the comparison…</p>

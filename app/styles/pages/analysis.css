@@ -4,7 +4,11 @@
    them, never boxes; the night card is the only filled surface. */
 
 /* ---------- The page ---------- */
-.analysis-flow { min-width: 0; padding-bottom: var(--s-7); }
+/* One column measure for everything on the page (hero, answer, beats, explorer, chapter end), so their edges line up. */
+.analysis-flow { min-width: 0; max-width: var(--measure-figure); padding-bottom: var(--s-7); }
+/* Inter's tabular figures widen the hyphen ("early - race", "non - binary"): words on charts and in table headers take
+   proportional figures; readouts and table cells keep tabular ones. */
+.analysis-page .viz-frame :is(.viz-label, .tick), .analysis-page .table thead th { font-variant-numeric: normal; }
 /* Every heading here is Fraunces at its own optical size: none inherits the legacy display cut (WP9 deletes that rule). */
 .analysis-page :is(h1, h2, h3, h4) { font-variation-settings: normal; }
 /* The term link (the page's first "sustained slowdown"): the text's own colour, a dotted underline, as on the tools. */
@@ -105,6 +109,12 @@
   .answer-card { padding-inline: 16px; }
   .answer-dots { grid-template-columns: minmax(0, 1fr); }
   .answer-grids, .beat-grids, .answer-cells, .explore-cells { grid-template-columns: minmax(0, 1fr); }
+  /* The comparison switch's two long labels cannot share a row this narrow: each takes its own, the pressed one raised
+     (no sliding thumb), so neither is cut off. */
+  .explore-mode .seg { display: flex; flex-direction: column; width: 100%; border-radius: var(--r-md); }
+  .explore-mode .seg-thumb { display: none; }
+  .explore-mode .seg-btn { width: 100%; min-width: 0; white-space: normal; text-align: center; }
+  .explore-mode .seg-btn[aria-pressed='true'] { background: var(--control-thumb); box-shadow: var(--shadow-raise), 0 0 0 1px var(--rule); }
 }
 @media (max-width: 299.98px) {
   .answer-card { padding-inline: 14px; }

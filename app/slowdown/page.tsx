@@ -60,7 +60,7 @@ export default function Page() {
       <article className="analysis-flow">
         <section className="analysis-hero" id="answer" data-track-section="hero" data-beat="Where it began">
           <Reading crumbs={<ChapterCrumbs path={PATH} />} title="Sustained slowdown: *when* it begins, and where." titleSize="title"
-            dek={<>{Number.isFinite(rate) ? `${capitalize(approxWords(rate))} finishes had a ` : 'How often finishes had a '}<Link href="/methodology#sustained-slowdown">sustained slowdown</Link>. When did it begin, and where?</>}
+            dek={<>{Number.isFinite(rate) ? `${capitalize(approxWords(rate))} finishes had a ` : 'How often finishes had a '}<Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link>. When did it begin, and where?</>}
             figure={onset.figure ? { ...onset.figure } : undefined} unitLine={onset.key}
             instrument={<ShareBar segments={segments} inside={false} label={`Where sustained slowdowns began: ${segments.map((s) => `${s.label} ${s.display || pct(s.share)}`).join(', ')}`} />} />
         </section>
