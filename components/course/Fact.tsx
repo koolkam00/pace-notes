@@ -1,5 +1,11 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import type { TRACKED_SECTIONS } from '@/lib/analytics-policy';
+import { withEm } from '@/components/ui/withEm';
+import type { Nugget } from '@/lib/nuggets';
+import UnitsText from './UnitsText.client';
+
+type TrackedSection = (typeof TRACKED_SECTIONS)[number];
 
 /**
  * One printed figure from the data files: `<data value="raw" data-k="key">shown</data>`. The key names the field it came
@@ -15,35 +21,45 @@ export function Fact({ k, v, children }: { k: string; v: number | string; childr
  * fragment link adds a history entry the router ignores on Back, so after following any other link, Back would show the
  * course page's address over the page left. The router scrolls to the section and focuses it (sections take focus).
  */
-export function SectionLink({ to, children }: { to: string; children: ReactNode }) {
-  return <Link href={`#${to}`} prefetch={false}>{children}</Link>;
+export function SectionLink({ to, className, children }: { to: string; className?: string; children: ReactNode }) {
+  return <Link href={`#${to}`} prefetch={false} className={className}>{children}</Link>;
 }
 
-/** A course section: kicker, H2, optional dek and body, marked for section_viewed with one of the generic ids. */
-export function CourseSection({ id, track, kicker, title, dek, className = '', children }: {
-  id: string; track?: string; kicker: string; title: ReactNode; dek?: ReactNode; className?: string; children?: ReactNode;
+/**
+ * A nugget's sentence as the page shows it: the headline when its guard holds, else the neutral fallback, with its one
+ * *…* accent as <em>. A sentence that names a distance or a temperature follows the units switch.
+ */
+export function Said({ nugget }: { nugget: Nugget }) {
+  const text = nugget.guard ? nugget.headline : nugget.fallback;
+  if (typeof text === 'string') return <>{withEm(text)}</>;
+  return <UnitsText mi={text.mi} km={text.km} />;
+}
+
+/**
+ * A course section (the redesign spec, section 4.3, cut under section 00): one finding as its H2, one chart, nothing
+ * boxed. Marked for section_viewed with its generic id, and a beat for the reading bar.
+ */
+export function CourseSection({ id, track, beat, title, className = '', children }: {
+  id: string; track?: TrackedSection; beat: string; title: ReactNode; className?: string; children?: ReactNode;
 }) {
   return (
-    <section id={id} tabIndex={-1} className={`chapter course-section ${className}`.trim()} aria-labelledby={`${id}-title`} {...(track ? { 'data-track-section': track } : {})}>
-      <div className="chapter-head">
-        <p className="chapter-num">{kicker}</p>
-        <h2 id={`${id}-title`} className="chapter-title">{title}</h2>
-        {dek ? <p className="chapter-dek">{dek}</p> : null}
-      </div>
-      {children ? <div className="chapter-body">{children}</div> : null}
+    <section id={id} tabIndex={-1} className={`course-beat ${className}`.trim()} aria-labelledby={`${id}-title`} data-beat={beat} {...(track ? { 'data-track-section': track } : {})}>
+      <h2 id={`${id}-title`} className="course-h2">{title}</h2>
+      {children ? <div className="course-beat-body">{children}</div> : null}
     </section>
   );
 }
 
 /**
  * A course table in its sideways-scrolling wrapper: a named region that takes keyboard focus, so it can be scrolled
- * without a mouse (the tools' pattern), labelled by the table's own caption.
+ * without a mouse, labelled by the table's own caption (a small heading, or for a table that is its section's chart,
+ * spoken only).
  */
-export function CourseTable({ id, caption, className = '', children }: { id: string; caption: ReactNode; className?: string; children: ReactNode }) {
+export function CourseTable({ id, caption, captionHidden = false, className = '', children }: { id: string; caption: ReactNode; captionHidden?: boolean; className?: string; children: ReactNode }) {
   return (
     <div className="tool-table-wrap course-table-wrap" role="region" aria-labelledby={id} tabIndex={0}>
       <table className={`tool-table course-table ${className}`.trim()}>
-        <caption id={id} className="sr-only">{caption}</caption>
+        <caption id={id} className={captionHidden ? 'sr-only' : undefined}>{caption}</caption>
         {children}
       </table>
     </div>

@@ -1,11 +1,10 @@
-import { pageMetadata } from '@/lib/seo';
+import MovedPage from '@/components/MovedPage';
+import { movedMetadata } from '@/lib/seo';
+import { movedTo } from '@/lib/seo-routes';
 
-export { default } from '@/app/htw/page';
+// The original study's archive address, kept for bookmarks: Vercel 308s it to /slowdown (before the /packs/:id* rule).
+export const metadata = movedMetadata('/packs/smyth_htw', 'Sustained Slowdown Study: New Address | Pace Notes', 'The original sustained slowdown study in the Pace Notes research archive now lives on the sustained slowdown page.');
 
-// The original study's archive address, kept for bookmarks: noindex, no canonical (the host redirects it to /slowdown).
-export const metadata = pageMetadata({
-  title: 'Sustained Slowdown Study: New Address | Pace Notes',
-  description: 'The original sustained slowdown study in the Pace Notes research archive now lives on the sustained slowdown page.',
-  path: '/packs/smyth_htw',
-  noindex: true,
-});
+export default function SmythMoved() {
+  return <MovedPage to={movedTo('/packs/smyth_htw')!} action="Read the study">The study now has a page of its own.</MovedPage>;
+}

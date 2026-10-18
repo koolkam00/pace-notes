@@ -495,7 +495,8 @@ for (const selector of ['.tool-results', '.tool-workspace svg', '.analysis-layou
 // and replay-policy.ts is only ever loaded by the SDK's dynamic import.
 const policySource = fs.readFileSync(path.join(__dirname, '../lib/analytics-policy.ts'), 'utf8');
 assert.doesNotMatch(policySource, /sanitizeReplayData|replayAttribute|replayPageUrl|REPLAY_MASKED_TEXT|\$snapshot_data|maskAttributeFn/, 'analytics-policy.ts holds no snapshot sanitizer or recording options');
-const sourceFiles = dir => fs.readdirSync(path.join(__dirname, '..', dir), { recursive: true }).filter(file => /\.(ts|tsx)$/.test(file)).map(file => path.join(dir, file));
+// A source folder may not exist (hooks/ and context/ were emptied by the October 2026 redesign): it then has no files to check.
+const sourceFiles = dir => fs.existsSync(path.join(__dirname, '..', dir)) ? fs.readdirSync(path.join(__dirname, '..', dir), { recursive: true }).filter(file => /\.(ts|tsx)$/.test(file)).map(file => path.join(dir, file)) : [];
 for (const file of [...sourceFiles('components'), ...sourceFiles('app'), ...sourceFiles('lib')]) {
   const source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
   assert.doesNotMatch(source, /^import\s(?!type\s)[^;]*['"](?:@\/lib\/|\.\/|\.\.\/)*(?:lib\/)?replay-policy['"]/m, `${file} must not import replay-policy statically`);
@@ -518,7 +519,8 @@ assert.equal(new Set(toolComponents).size, TOOLS.length, 'Every registered tool 
 const required = { 'tool-workspace': toolComponents, 'tool-results': toolComponents,
   // The analysis page wrapper (WP3: components/analysis/Shell.tsx holds the answer, the goal line and the explorer) and each explorer root.
   'analysis-layout': ['components/analysis/Shell.tsx', 'components/AnalysisExplorer.tsx', 'components/AllFinisherAnalysis.tsx', 'components/FastStartAnalysis.tsx', 'components/CheckpointExplorer.tsx', 'components/WeatherAnalysis.tsx'],
-  'personalized-guide': ['components/PersonalizedGuide.tsx'], 'which-card': ['components/story/ArchetypeStory.tsx', 'components/ui/GuessFirst.client.tsx'], 'finish-lookup': ['components/story/FinishTimeStory.tsx'],
+  // .personalized-guide stays in the policy (harmless) but has no file since the guide was removed (WP8, spec 6.6).
+  'which-card': ['components/story/ArchetypeStory.tsx', 'components/ui/GuessFirst.client.tsx'], 'finish-lookup': ['components/story/FinishTimeStory.tsx'],
   'home-plan': ['components/home/HomeDoors.tsx'] };
 for (const [token, files] of Object.entries(required)) {
   for (const file of files) assert.ok(hasClass(read(file), token), `${file} still renders .${token}`);
@@ -577,7 +579,8 @@ assert.match(runnerContext, /const RaceReport = lazy(?:<[^(]*>)?\(\(\) => import
 assert.doesNotMatch(runnerContext, /^import\s(?!type\s)[^;]*report\/RaceReport/m, 'RunnerContext imports the race report only dynamically');
 // Every link from a runner's profile to another page of the site carries the handoff marker (the others are sources).
 const contextLinks = [...runnerContext.matchAll(/<(UnitLink|Link|a)\s[^<>]*?href=\{([^}]*)/g)].filter(m => m[1] !== 'a' || !/source_url$/.test(m[2].trim())).map(m => m[2].trim());
-assert.ok(contextLinks.length >= 2, 'RunnerContext links found');
+// One onward link since October 18, 2026: the split check (the pacing-pattern link was cut).
+assert.ok(contextLinks.length >= 1, 'RunnerContext links found');
 for (const link of contextLinks) assert.match(link, /^runnerHandoffHref\(/, `RunnerContext link ${link.slice(0, 40)} is marked as a runner handoff`);
 for (const file of sourceFiles('components')) if (/splitCheckHref\(/.test(read(file))) assert.match(read(file), /runnerHandoffHref\(/, `${file} builds a split-check link from a runner's times without the handoff marker`);
 assert.match(read('lib/analytics.ts'), /export function trackPage[^}]*?noteRunnerHandoff\([^}]*?syncRecording/, 'trackPage notes a runner handoff before anything waits for the SDK or the recorder');

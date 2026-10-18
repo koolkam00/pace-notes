@@ -1,19 +1,11 @@
-import { UnitLink as Link } from '@/components/UnitsProvider';
-import PersonalizedGuide from '@/components/PersonalizedGuide';
-import { getPersonalSummary } from '@/lib/personalized-data';
-import { pageMetadata } from '@/lib/seo';
+import MovedPage from '@/components/MovedPage';
+import { movedMetadata } from '@/lib/seo';
+import { guideTargets, movedTo } from '@/lib/seo-routes';
 
-export function generateMetadata() {
-  const summary = getPersonalSummary();
-  const count = summary?.analyses ? `${summary.analyses} archived` : 'Archived';
-  return pageMetadata({
-    title: 'Personal Marathon Comparisons: Research Archive | Pace Notes',
-    description: `${count} marathon comparisons for a chosen course, age group and target time: race shape, openings, checkpoints, terrain, weather and repeat races.`,
-    path: '/research/personalized',
-  });
-}
+// The archived personalized guide (the redesign spec, section 7.16). Vercel 308s here to the contents; on a host that
+// cannot redirect, the stub forwards an old #guide-<question> link to the analysis that answers it.
+export const metadata = movedMetadata('/research/personalized', 'Personalized Guide: Moved | Pace Notes', 'The personalized guide’s questions are now the Pace Notes analyses, all listed in Contents.');
 
-export default function ResearchGuidePage() {
-  const summary = getPersonalSummary();
-  return <><p className="archive-intro">Research archive · For a focused introduction, <Link href="/analyses">explore the ten essential analyses</Link>.</p>{summary ? <PersonalizedGuide summary={summary} /> : <p>The comparison data is unavailable.</p>}</>;
+export default function PersonalizedMoved() {
+  return <MovedPage to={movedTo('/research/personalized')!} action="Go to Contents" guides={guideTargets()}>The personalized guide’s questions are now the analyses, all listed in Contents.</MovedPage>;
 }

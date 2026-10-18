@@ -1,37 +1,28 @@
-import { UnitLink as Link } from '@/components/UnitsProvider';
-import { minutes, pct, type CoursePageData } from '@/lib/course-page';
-import { CourseSection, Fact } from './Fact';
+import DotStrip from '@/components/viz/DotStrip';
+import { getNugget } from '@/lib/nuggets';
+import { MIN_EDITIONS } from '@/lib/nuggets/courses';
+import { pct } from '@/lib/nuggets/format';
+import type { CoursePageData } from '@/lib/course-page';
+import { CourseSection, Said } from './Fact';
 
 /**
- * "How often finishers held pace": the course's sustained-slowdown share, the 20–40 km block and the time lost after
- * 20 km, all from the story summary (courses.json). No figure from the all-finisher view or the extension packs, which
- * still count copy editions. The term links to its definition on /methodology.
+ * "#slowdown": every course on one strip by its share of finishes with a sustained slowdown (the same courses.json
+ * share each course page leads with), this one in signal and named in the key; courses with fewer than three editions
+ * hollow, the extremes among the rest labelled. The H2 says this course's share and where it sits among the courses
+ * with three or more editions (course.among), so the readout waits for a tap to name another course.
  */
 export default function CourseSlowdown({ page }: { page: CoursePageData }) {
-  const { summary: s, editions, display } = page;
-  const single = editions.length === 1 ? editions[0] : null;
-  const of = single ? <>of finishes in the {single.year} edition</> : <>of finishes in an average edition</>;
+  const { city, display, field } = page;
+  const n = getNugget('course.among', { city });
+  // Room past the highest share (to the next 5 points, at least 5 points on), so a name labelled at the right end of
+  // the strip stays inside it on the narrowest phone.
+  const top = Math.ceil((Math.max(...field.map((c) => c.slowdown)) + 0.05) * 20) / 20;
+  const ticks = Array.from({ length: Math.floor(top * 10) }, (_, i) => (i + 1) / 10).map((v) => ({ value: v, label: pct(v) }));
   return (
-    <CourseSection id="slowdown" track="chapter-5" kicker="Holding pace" title="How often finishers held pace"
-      dek={<>How often {display} finishers had a <Link href="/methodology#sustained-slowdown">sustained slowdown</Link>, and how much time the median finish lost after 20 km.</>}>
-      <div className="bibs course-bibs">
-        <div className="bib">
-          <span className="bib-tag">Sustained slowdown</span>
-          <strong className="bib-number"><Fact k="slowdown" v={s.slowdown}>{pct(s.slowdown)}</Fact></strong>
-          <p className="bib-text">{of} had one{single ? '' : <>, from <Fact k="slowdown.lo" v={s.slowdown_range[0]}>{pct(s.slowdown_range[0])}</Fact> (<Fact k="slowdown.lo.year" v={s.slowdown_range_years[0]}>{s.slowdown_range_years[0]}</Fact>) to <Fact k="slowdown.hi" v={s.slowdown_range[1]}>{pct(s.slowdown_range[1])}</Fact> (<Fact k="slowdown.hi.year" v={s.slowdown_range_years[1]}>{s.slowdown_range_years[1]}</Fact>)</>}.</p>
-        </div>
-        <div className="bib">
-          <span className="bib-tag">Slower second 20 km</span>
-          <strong className="bib-number"><Fact k="block10" v={s.block10}>{pct(s.block10)}</Fact></strong>
-          <p className="bib-text">{of} took more than 10% longer over 20 to 40 km than over their first 20 km.</p>
-        </div>
-        <div className="bib">
-          <span className="bib-tag">Time lost after 20 km</span>
-          <strong className="bib-number"><Fact k="after20" v={s.after20_s}>{minutes(s.after20_s)}</Fact></strong>
-          <p className="bib-text">for the median finish{single ? '' : ' in an average edition'}.</p>
-        </div>
-      </div>
-      <p className="course-note">Observed shares, not anyone’s odds. <Link href="/slowdown">Sustained slowdowns on every course</Link>.</p>
+    <CourseSection id="slowdown" track="chapter-5" beat="Slowdowns" title={<Said nugget={n} />}>
+      <DotStrip items={field.map((c) => ({ id: c.slug, label: c.display, value: c.slowdown, display: pct(c.slowdown), hollow: c.editions < MIN_EDITIONS, subject: c.city === city }))}
+        domain={[0.1, top]} ticks={ticks.filter((t) => t.value >= 0.1)} keyLabels={{ filled: 'Three or more editions', hollow: 'Fewer editions' }} prompt="Choose a dot to see its course"
+        label={`Sustained slowdown on every course, ${display} among them`} />
     </CourseSection>
   );
 }

@@ -4,8 +4,9 @@
  * the reading of every page in the chapter flow (section 2.2), the ids lib/chapters.ts uses.
  */
 import { ANALYSIS_NUGGETS } from './analyses';
-import { COURSE_NUGGETS } from './courses';
+import { COURSE_CONTEXT_NUGGETS, COURSE_NUGGETS } from './courses';
 import { HOME_NUGGETS } from './home';
+import { RUNNER_NUGGETS } from './runners';
 import { STORY_NUGGETS } from './stories';
 import { TOOL_NUGGETS } from './tools';
 import type { Builder } from './build';
@@ -15,7 +16,7 @@ export * from './types';
 export { finishesM, plain, sentenceOf, siteTotals, textFor } from './core';
 
 const REGISTRY: Record<string, Builder> = {};
-for (const group of [HOME_NUGGETS, STORY_NUGGETS, ANALYSIS_NUGGETS, COURSE_NUGGETS, TOOL_NUGGETS]) {
+for (const group of [HOME_NUGGETS, STORY_NUGGETS, ANALYSIS_NUGGETS, COURSE_NUGGETS, TOOL_NUGGETS, RUNNER_NUGGETS]) {
   for (const [id, build] of Object.entries(group)) {
     if (REGISTRY[id]) throw new Error(`Nugget ${id} is registered twice.`);
     REGISTRY[id] = build;
@@ -26,7 +27,7 @@ for (const group of [HOME_NUGGETS, STORY_NUGGETS, ANALYSIS_NUGGETS, COURSE_NUGGE
 export const NUGGET_IDS = Object.keys(REGISTRY) as NuggetId[];
 
 /** Nuggets that need a context to build (a course page's city), with the contexts the site builds them for. */
-export const CONTEXT_NUGGETS: readonly NuggetId[] = ['course.slowdown'];
+export const CONTEXT_NUGGETS: readonly NuggetId[] = [...COURSE_CONTEXT_NUGGETS];
 
 const memo = new Map<string, Nugget>();
 

@@ -1,28 +1,31 @@
 'use client';
 
-import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
+import BigNumber from '@/components/ui/BigNumber';
+import TypeGlyph from '@/components/viz/TypeGlyph';
+import { runnerHandoffHref } from '@/lib/analytics-policy';
 import { loadInsight, type Archetypes } from '@/lib/insights';
 import {
   ahead, buildReport, kmText, openingPct, paceText, pctSigned, relation, reportCourseCity, reportLink, reportLines, reportScope, reportShardPath, shareText,
-  type ReportComparison, type ReportData, type ReportGender, type ReportModel, type ReportRecord,
+  type ReportComparison, type ReportData, type ReportGender, type ReportGroup, type ReportModel, type ReportRecord,
 } from '@/lib/report';
 import type { RaceInsights } from '@/lib/runner-context';
 import { loadShard, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
 import { PACE_BAND_INDEX } from '@/lib/tools/pace-band-data';
 import { formatDuration } from '@/lib/tools/time';
-import { elevationLabel, type UnitSystem } from '@/lib/units';
-import ReportActions, { ReportJump } from './ReportActions';
+import { MARATHON_KM, distance, type UnitSystem } from '@/lib/units';
+import { approxWords } from '@/lib/nuggets/format';
+import { capitalize } from '@/lib/nuggets/build';
+import LapList from './LapList';
+import ReportActions from './ReportActions';
+
+// A runner record's edition lines (/runners only) load with the record, so /report carries none of their code.
+const RecordBlock = lazy(() => import('./RecordBlock').catch(() => ({ default: () => <p className="race-report-meta">This edition’s lines didn’t load. Reload the page to try again.</p> })));
 
 const ARCHETYPES = 'archetypes.json';
 const count = (value: number) => value.toLocaleString('en-US');
 const clock = (seconds: number) => formatDuration(seconds, true);
-const temperature = (c: number, units: UnitSystem) => `${(units === 'mi' ? c * 1.8 + 32 : c).toLocaleString('en-US', { maximumFractionDigits: 1 })}°${units === 'mi' ? 'F' : 'C'}`;
-const wind = (mps: number, units: UnitSystem) => `${(mps * (units === 'mi' ? 2.2369362920544 : 3.6)).toLocaleString('en-US', { maximumFractionDigits: 1 })} ${units === 'mi' ? 'mph' : 'km/h'}`;
-const localHour = (value: string) => {
-  const match = /^(?:\d{4}-\d{2}-\d{2}T)?(\d{1,2}):(\d{2})/.exec(value);
-  return match ? `${match[1].padStart(2, '0')}:${match[2]}` : null;
-};
 
 /** The loader's own neutral message ("could not be loaded" / "could not be verified"); a browser network error reads as the first. */
 const errorText = (e: unknown) => (e instanceof Error && e.message.startsWith('This data') ? e.message : 'This data could not be loaded. Check the connection and try again.');
@@ -70,14 +73,20 @@ export interface RaceReportProps {
   record?: { edition: { city: string; year: number }; context: RaceInsights | null; error: string | null; lateChange: number };
   /** Opened by a press (the runner view): focus moves to the card's title once it shows, so a screen reader hears it. */
   focusOnOpen?: boolean;
+  /** /report: these times in the split check, offered in the share sheet (the runner view has its own link). */
+  onward?: string | null;
 }
 
 /**
- * The race report: a paper card that reads one race from its nine mat times, block by block, each data block under its
- * evidence badge, then the print, image, share and copy-link actions. The same component serves /report (typed or
- * linked times) and the runner view, where it adds the record's own edition and never names the runner.
+ * The race report: one race read from its nine mat times. A night "lap screen" (the race, the finish, and on /runners
+ * where it sits among the edition's finishes, then the lap list), three tiles on paper (the sustained-slowdown reading,
+ * the pacing type, the first 5K), the comparison with finishes at the same time, and on /runners the edition's late
+ * pace, weather and climb (in print only: the runner view's tabs show them on screen); then the print, image, share
+ * and copy-link actions. The sustained-slowdown tile carries the Published research badge, and the foot one Pace Notes
+ * data badge for the rest. The same component serves /report (typed or linked times) and the runner view,
+ * where it adds the record's own edition and never names the runner.
  */
-export default function RaceReport({ times, course, gender, data, level, fromRecord = false, record, focusOnOpen = false }: RaceReportProps) {
+export default function RaceReport({ times, course, gender, data, level, fromRecord = false, record, focusOnOpen = false, onward = null }: RaceReportProps) {
   const { units } = useUnits();
   const id = useId();
   const index = useVerified<PaceBandIndex>(PACE_BAND_INDEX, data.indexSha);
@@ -93,16 +102,15 @@ export default function RaceReport({ times, course, gender, data, level, fromRec
   }), [times, city, data.openingBands, data.typeCohort, archetypes.data, archetypes.error, index.data, index.error, course, gender, shard, record]);
   // A course the link names but the comparison does not know is never echoed into the card.
   const dropped = index.data && reportScope(index.data, course).dropped ? city ?? 'The course in this link' : null;
-  const link = reportLink(times, city, gender, fromRecord || Boolean(record));
+  const handoff = fromRecord || Boolean(record);
+  const link = reportLink(times, city, gender, handoff);
   const retry = () => { if (index.error) index.retry(); else retryShard(); };
   const cardId = `${id}-card`;
-  const actionsId = `${id}-actions`;
   useEffect(() => { if (focusOnOpen) document.getElementById(`${cardId}-title`)?.focus(); }, [focusOnOpen, cardId]);
   return (
     <div className="race-report-root ph-no-capture">
-      <ReportCard id={cardId} model={model} units={units} level={level} gender={gender} dropped={dropped} retryComparison={retry} retryType={archetypes.retry}
-        jump={<ReportJump cardId={cardId} actionsId={actionsId} />} />
-      <ReportActions id={actionsId} model={model} units={units} link={link} cardId={cardId} gender={gender} />
+      <ReportCard id={cardId} model={model} units={units} level={level} gender={gender} dropped={dropped} retryComparison={retry} retryType={archetypes.retry} handoff={handoff} />
+      <ReportActions id={`${id}-actions`} model={model} units={units} link={link} cardId={cardId} gender={gender} onward={onward} />
     </div>
   );
 }
@@ -117,121 +125,108 @@ function Badge({ kind }: { kind: 'data' | 'research' }) {
   return <Link className={`race-report-badge is-${kind}`} href={EVIDENCE_HREF}>{kind === 'data' ? 'Pace Notes data' : 'Published research'}</Link>;
 }
 
-/** A pace with its unit set smaller ("9:17" and "/mi"), so a narrow tile never breaks inside it. */
-function PaceValue({ text }: { text: string }) {
-  const slash = text.indexOf('/');
-  return slash < 0 ? <>{text}</> : <>{text.slice(0, slash)}<small className="race-report-unit">{text.slice(slash)}</small></>;
-}
+export type HeadTag = 'h2' | 'h4';
 
 /** The card itself, from a built model (exported for scripts/verify-report.cjs, which renders it without the data hooks). */
-export function ReportCard({ id, model, units, level, gender, dropped, retryComparison, retryType, jump }: {
+export function ReportCard({ id, model, units, level, gender, dropped, retryComparison, retryType, handoff = false }: {
   id: string; model: ReportModel; units: UnitSystem; level: 1 | 3; gender: ReportGender; dropped: string | null; retryComparison: () => void; retryType: () => void;
-  /** The print and "Save or share" buttons under the title (not printed). */
-  jump?: ReactNode;
+  /** From a runner record: the one onward link keeps the handoff marker, so the page it opens is not recorded either. */
+  handoff?: boolean;
 }) {
   const Title = level === 1 ? 'h1' : 'h3';
-  const Head = level === 1 ? 'h2' : 'h4';
+  const Head: HeadTag = level === 1 ? 'h2' : 'h4';
   const lines = reportLines(model, units);
-  const { slowdown, opening, type, comparison } = model;
-  const baseline = paceText(model.baseline, units);
+  const { slowdown, opening, type, comparison, record } = model;
+  const lit = model.sections.map((s) => s.tone === 'qualify');
+  const sr = (s: (typeof lines.sections)[number]) => `${s.label}: ${s.split}, ${s.pace}, ${s.change} against the 5–20K pace`;
+  const placement = record?.state === 'ok' ? record.placement : null;
+  // Under half a percent either way the first 5K is level: whole percentages, with decimals only at the opening groups'
+  // edges (openingPct), never "0.1% quicker".
+  const even = Math.abs(opening.fraction) < 0.005;
   return (
     <article className="race-report ph-no-capture" id={id} aria-labelledby={`${id}-title`}>
-      <header className="race-report-head">
-        <p className="race-report-brand">Pace Notes</p>
-        <Title className="race-report-title" id={`${id}-title`} tabIndex={-1}>Race report</Title>
-        <p className="race-report-race">{model.race ?? 'Marathon'}<span> · {units === 'mi' ? '26.2 mi' : '42.2 km'}</span></p>
-      </header>
-      {jump}
+      <div className="race-report-screen night">
+        <p className="race-report-kicker"><span>Race report</span><span>{distance(MARATHON_KM, units)}</span></p>
+        <Title className="race-report-title" id={`${id}-title`} tabIndex={-1}><span className="race-report-race">{model.race ?? 'Marathon'}</span></Title>
+        <p className="race-report-finish">
+          <BigNumber value={lines.finish} sr={`Finish ${lines.finish}`} size="l" />
+          <span className="race-report-average">{lines.pace}</span>
+        </p>
+        {placement ? (
+          <p className="race-report-sentence">
+            {'unavailable' in placement ? placement.unavailable
+              : <>Ahead of <em>{count(Math.floor(placement.percentile))} in every 100</em> other {placement.label}.</>}
+          </p>
+        ) : null}
+        <LapList rows={lines.sections.map((s, i) => ({ mat: s.mat, split: s.split, pace: s.pace, vs: s.vs, lit: lit[i], sr: sr(s) }))}
+          baseline={paceText(model.baseline, units)} label={`Each mat's split and pace against this race's 5–20K pace${slowdown.yes && slowdown.onsetKm !== null ? `; a sustained slowdown from ${kmText(slowdown.onsetKm)}` : ''}`}
+          caption={slowdown.yes ? 'Highlighted: the sustained slowdown.' : undefined} />
+      </div>
 
       <div className="race-report-stats">
-        <div className="race-report-stat"><span>Finish</span><strong>{lines.finish}</strong><small>{lines.pace}</small></div>
-        <div className="race-report-stat"><span>5–20 km pace</span><strong><PaceValue text={baseline} /></strong></div>
-        <div className={`race-report-stat is-${slowdown.yes ? 'bad' : 'good'}`}><span>Sustained slowdown</span><strong>{slowdown.yes ? 'Yes' : 'No'}</strong>
-          {slowdown.yes && slowdown.onsetKm !== null ? <small>from {kmText(slowdown.onsetKm, units)}</small> : null}
+        <div className="race-report-stat"><span>Sustained slowdown</span><strong>{slowdown.yes ? 'Yes' : 'No'}</strong>
+          {slowdown.yes && slowdown.onsetKm !== null ? <small>from {kmText(slowdown.onsetKm)}</small> : null}
           <Badge kind="research" /></div>
+        <div className="race-report-stat is-type">
+          <span>Pacing type</span>
+          {type.state === 'ok' ? (
+            <>
+              <strong><TypeGlyph profile={type.profile} index={type.index} domain={type.domain} />{type.name}</strong>
+              <small>{capitalize(approxWords(type.share))} of {count(type.cohortN)} finishes were {type.name.toLowerCase()}s.</small>
+            </>
+          ) : type.state === 'off' ? (
+            <div className="tool-state is-error"><p>{type.message}</p><button type="button" className="btn btn-secondary is-compact no-print" onClick={retryType}>Try again</button></div>
+          ) : <small className="race-report-meta">Loading the pacing types…</small>}
+        </div>
+        <div className="race-report-stat">
+          <span>First 5K</span>
+          <strong>{even ? 'Level' : `${openingPct(opening.fraction)} ${opening.fraction < 0 ? 'quicker' : 'slower'}`}</strong>
+          <small>{even ? 'with' : 'than'} the 5–20K pace</small>
+          <Link className="race-report-more no-print" href={handoff ? runnerHandoffHref('/analyses/starting-pace') : '/analyses/starting-pace'}>How openings like this finished</Link>
+        </div>
       </div>
-
-      <section className="race-report-block race-report-sections" aria-labelledby={`${id}-sections`}>
-        <Head id={`${id}-sections`}>Section by section</Head>
-        <SectionBars model={model} units={units} />
-      </section>
-
-      <div className="race-report-pair">
-        <section className="race-report-block" aria-labelledby={`${id}-slowdown`}>
-          <Badge kind="research" />
-          <Head id={`${id}-slowdown`}>{slowdown.yes && slowdown.onsetKm !== null ? <>Sustained slowdown from {kmText(slowdown.onsetKm, units)}</> : <>No sustained slowdown</>}</Head>
-          <p>{slowdown.yes
-            ? <>Slow sections in a row: {kmText(Math.round(slowdown.slowKm * 1000) / 1000, units)}, a <Link href={SLOWDOWN_HREF}>sustained slowdown</Link>.</>
-            : <>No <Link href={SLOWDOWN_HREF}>sustained slowdown</Link> after 20 km.</>}</p>
-        </section>
-        <section className="race-report-block" aria-labelledby={`${id}-opening`}>
-          <Head id={`${id}-opening`}>Opening: {Math.abs(opening.fraction) < 0.0005 ? 'level with' : `${openingPct(opening.fraction)} ${opening.fraction < 0 ? 'quicker' : 'slower'} than`} the 5–20 km pace</Head>
-          <p>The first {units === 'mi' ? '3.1 mi' : '5 km'} at {paceText(model.sections[0].pace, units)}{opening.band ? <>, in the <strong>{opening.band.label.toLowerCase()}</strong> opening group</> : null}.</p>
-        </section>
-      </div>
-
-      <section className="race-report-block" aria-labelledby={`${id}-type`}>
-        <Badge kind="data" />
-        <Head id={`${id}-type`}>{type.state === 'ok' ? <>Pacing type: {type.name}</> : <>Pacing type</>}</Head>
-        {type.state === 'ok' ? (
-          <p>{count(type.n)} of {count(type.cohortN)} finishes ({shareText(type.share)}) were {type.name.toLowerCase()}s.</p>
-        ) : type.state === 'off' ? (
-          <div className="tool-state is-error"><p>{type.message} Everything else in this report still applies.</p><button type="button" className="button-secondary no-print" onClick={retryType}>Try again</button></div>
-        ) : <p className="race-report-meta">Loading the pacing types…</p>}
-      </section>
 
       <ComparisonBlock id={`${id}-compare`} Head={Head} comparison={comparison} model={model} gender={gender} dropped={dropped} retry={retryComparison} />
 
-      {model.record ? <RecordBlock id={`${id}-record`} Head={Head} record={model.record} units={units} /> : null}
+      {record ? <Suspense fallback={null}><RecordBlock id={`${id}-record`} Head={Head} record={record} units={units} /></Suspense> : null}
 
       <footer className="race-report-foot">
-        <p><strong>splithappens.run</strong> · Not a prediction.</p>
+        {/* One Pace Notes data badge for the report's data blocks (the type, the comparison, the edition's lines); the
+            sustained-slowdown tile carries its own Published research badge. */}
+        <Badge kind="data" />
+        <p><strong>splithappens.run</strong> · Not a prediction, and not an official placing.</p>
       </footer>
     </article>
   );
 }
 
-/** The nine sections as bars from this race's own 5–20 km pace: right is slower, left quicker. */
-function SectionBars({ model, units }: { model: ReportModel; units: UnitSystem }) {
-  const values = model.sections.map((s) => s.vsBaseline);
-  const lo = Math.min(-0.06, ...values);
-  const hi = Math.max(0.3, ...values);
-  const at = (v: number) => (100 * (v - lo)) / (hi - lo);
-  return (
-    <ol className="race-report-bars" style={{ ['--zero' as string]: `${at(0)}%`, ['--limit' as string]: `${at(0.25)}%` }}>
-      {reportLines(model, units).sections.map((s, i) => (
-        <li key={i} className={`is-${s.tone}${i >= 4 ? ' is-late' : ''}`}>
-          <span className="race-report-bar-name">{s.label}</span>
-          <span className="race-report-bar-track" aria-hidden="true"><i style={{ left: `${Math.min(at(0), at(s.vs))}%`, width: `${Math.max(0.6, Math.abs(at(s.vs) - at(0)))}%` }} /></span>
-          <span className="race-report-bar-value"><b>{s.pace}</b> {s.change}</span>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-type HeadTag = 'h2' | 'h4';
+/** "the typical finisher who held pace": a comparison group's median, as the heading names it. */
+const groupName = (g: ReportGroup) => (g.key === 'held' ? 'the typical finisher who held pace' : g.key === 'slowdown' ? 'the typical finisher with a sustained slowdown' : 'the typical finisher at this time');
 
 function ComparisonBlock({ id, Head, comparison: c, model, gender, dropped, retry }: { id: string; Head: HeadTag; comparison: ReportComparison; model: ReportModel; gender: ReportGender; dropped: string | null; retry: () => void }) {
   const note = dropped ? <p className="race-report-meta">{dropped} is not one of the comparison’s courses, so this race is compared with finishes on all courses.</p> : null;
+  const at20 = model.times[3];
+  const lead = c.state === 'ok' ? c.groups[0] : null;
   return (
     <section className="race-report-block" aria-labelledby={id}>
-      <Badge kind="data" />
-      <Head id={id}>Compared with finishes at this time</Head>
+      <Head id={id}>{lead ? `At 20K, ${relation(at20 - lead.at20)} ${groupName(lead)}.` : 'Compared with finishes at this time'}</Head>
       {c.state === 'loading' ? <p className="race-report-meta">Loading the finishes at this time…</p> : null}
-      {c.state === 'off' ? <div className="tool-state is-error"><p>{c.message} The sections{model.type.state === 'off' ? ' and slowdown reading' : ', slowdown reading and pacing type'} above are unaffected.</p><button type="button" className="button-secondary no-print" onClick={retry}>Try again</button></div> : null}
+      {c.state === 'off' ? <div className="tool-state is-error"><p>{c.message}</p><button type="button" className="btn btn-secondary is-compact no-print" onClick={retry}>Try again</button></div> : null}
       {c.state === 'unavailable' ? <p><strong>{c.title}</strong> {c.message}</p> : null}
       {c.state === 'ok' ? (
         <>
-          <p>{count(c.n)} {c.label}{c.slowdownShare !== null ? <>: <strong>{shareText(c.slowdownShare)}</strong> had a sustained slowdown</> : null}.
-            {' '}At the 20 km mat this race was {c.groups.map((g) => `${relation(model.times[3] - g.at20)} the ${g.key === 'held' ? 'held-pace' : g.key === 'slowdown' ? 'sustained-slowdown' : 'window’s'} median`).join(' and ')}.</p>
-          <div className="race-report-table"><table>
-            <thead><tr><th scope="col">Group</th><th scope="col">Finishes</th><th scope="col">Median at 20 km</th><th scope="col">This race at 20 km</th><th scope="col">Median finish</th></tr></thead>
-            <tbody>
-              {c.groups.map((g) => <tr key={g.key}><th scope="row">{g.name}</th><td data-label="Finishes">{count(g.n)}</td><td data-label="Median at 20 km">{clock(g.at20)}</td><td data-label="This race at 20 km">{ahead(model.times[3] - g.at20)}</td><td data-label="Median finish">{clock(g.finish)}</td></tr>)}
-            </tbody>
-          </table></div>
-          <p className="race-report-meta">This race: {clock(model.times[3])} at 20 km, {clock(model.finish)} at the finish.{c.missing ? ` ${c.missing}` : ''}</p>
+          <p>{count(c.n)} {c.label}{c.slowdownShare !== null ? <>: <strong>{shareText(c.slowdownShare)}</strong> had a <Link className="term-link" href={SLOWDOWN_HREF}>sustained slowdown</Link></> : null}.</p>
+          <div className="race-report-table">
+            <At20 race={at20} groups={c.groups} />
+            <details className="values"><summary><span>Values<span className="values-count">{count(c.groups.length)} {c.groups.length === 1 ? 'row' : 'rows'}</span></span><span className="values-glyph" aria-hidden="true" /></summary>
+              <div className="table-wrap" role="region" tabIndex={0} aria-label="Finishes at this time, by group"><table className="table">
+                <caption>Finishes from {clock(c.lo)} to {clock(c.hi)}{gender === 'all' ? '' : `, recorded ${gender}`}</caption>
+                <thead><tr><th scope="col">Group</th><th scope="col">Finishes</th><th scope="col">Median at 20K</th><th scope="col">Median finish</th></tr></thead>
+                <tbody>{c.groups.map((g) => <tr key={g.key}><th scope="row">{g.name}</th><td>{count(g.n)}</td><td>{clock(g.at20)}</td><td>{clock(g.finish)}</td></tr>)}</tbody>
+              </table></div>
+            </details>
+          </div>
+          {c.missing ? <p className="race-report-meta">{c.missing}</p> : null}
         </>
       ) : null}
       {note}
@@ -239,21 +234,35 @@ function ComparisonBlock({ id, Head, comparison: c, model, gender, dropped, retr
   );
 }
 
-function RecordBlock({ id, Head, record: r, units }: { id: string; Head: HeadTag; record: ReportRecord; units: UnitSystem }) {
+/** h:mm, for the ends of the 20K scale. */
+const hm = (seconds: number) => { const m = Math.round(seconds / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
+
+/**
+ * This race at 20K against each group's median there (a dumbbell list, drawn in HTML so the page carries no chart
+ * code): the hollow ring is the group's median, the ink dot this race, the same mark in every row; only the first row's
+ * gap, the one the heading names, is in signal. The scale runs a minute or more past the times on whole minutes, its ends labelled.
+ */
+function At20({ race, groups }: { race: number; groups: ReportGroup[] }) {
+  const all = [race, ...groups.map((g) => g.at20)];
+  const lo = (Math.floor(Math.min(...all) / 60) - 1) * 60, hi = (Math.ceil(Math.max(...all) / 60) + 1) * 60;
+  const at = (v: number) => `${((100 * (v - lo)) / (hi - lo)).toFixed(2)}%`;
   return (
-    <section className="race-report-block race-report-record" aria-labelledby={id}>
-      <Badge kind="data" />
-      <Head id={id}>In {r.edition}</Head>
-      {r.state === 'loading' ? <p className="race-report-meta">Loading this edition’s comparisons and conditions…</p> : null}
-      {r.state === 'off' ? <p className="tool-state is-error">{r.message}</p> : null}
-      {r.state === 'ok' ? (
-        <dl>
-          <div><dt>Finish comparison</dt><dd>{'unavailable' in r.placement ? r.placement.unavailable : <>Faster than {r.placement.percentile.toLocaleString('en-US', { maximumFractionDigits: 1 })}% of the {count(r.placement.otherN)} other {r.placement.label}. Observed rank {count(r.placement.rank)} of {count(r.placement.n)}, not an official placing{r.placement.ties ? `; ${count(r.placement.ties)} other ${r.placement.ties === 1 ? 'finish shares' : 'finishes share'} this time` : ''}. Median finish {clock(r.placement.medianFinish)}.</>}</dd></div>
-          <div><dt>Late pace</dt><dd>{'unavailable' in r.late ? r.late.unavailable : <>From 30 km to the finish this race ran {pctSigned(r.late.race / 100, 1)} against its 5–20 km pace; the median of the {count(r.late.n)} {r.late.label} was {pctSigned(r.late.median / 100, 1)}.</>}</dd></div>
-          <div><dt>Weather</dt><dd>{'unavailable' in r.weather ? r.weather.unavailable : <>{temperature(r.weather.tempC, units)}, {r.weather.humidityPct.toLocaleString('en-US', { maximumFractionDigits: 1 })}% humidity and {wind(r.weather.windMps, units)} wind near the scheduled start{localHour(r.weather.start) ? ` (${localHour(r.weather.start)} local time)` : ''}.</>}</dd></div>
-          <div><dt>Climb</dt><dd>{'unavailable' in r.climb ? r.climb.unavailable : <>{elevationLabel(r.climb.gainM, units)} over the course.</>}</dd></div>
-        </dl>
-      ) : null}
-    </section>
+    <figure className="viz at20">
+      <ul className="at20-rows" role="img" aria-label={`At 20K: this race ${clock(race)}; ${groups.map((g) => `${g.name.toLowerCase()} median ${clock(g.at20)}`).join('; ')}.`}>
+        {groups.map((g, i) => (
+          <li key={g.key} className={i === 0 ? 'is-lit' : undefined}>
+            <span className="at20-label">{g.name}</span>
+            <span className="at20-track" aria-hidden="true">
+              <i style={{ left: at(Math.min(race, g.at20)), width: at(lo + Math.abs(race - g.at20)) }} />
+              <b className="at20-median" style={{ left: at(g.at20) }} />
+              <b className="at20-race" style={{ left: at(race) }} />
+            </span>
+            <span className="at20-value">{ahead(race - g.at20)}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="at20-axis" aria-hidden="true"><span /><span className="at20-ends"><span>{hm(lo)}</span><span>{hm(hi)}</span></span><span /></div>
+      <ul className="viz-key at20-key" aria-hidden="true"><li><i className="at20-key-median" />Group median at 20K</li><li><i className="at20-key-race" />This race at 20K</li></ul>
+    </figure>
   );
 }

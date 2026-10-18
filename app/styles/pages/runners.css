@@ -1,0 +1,268 @@
+/* /runners (WP6, the redesign spec section 7.12): the chapter line, the H1 and its dek, then the name search as one
+   instrument cell, two ways in without a name as 64 px rows, the matches as 56 px rows, a profile's races to tick, a
+   selection bar that sticks to the bottom while races are chosen, and the selected races' analysis: the answer on
+   night, then the race in context in three views. From 900 px the search is a sticky left column (5/12) and what it
+   finds reads in the right one (7/12); the analysis of the chosen races reads below both, centred. The race report's
+   styles are in pages/report.css. */
+
+.runner-page { padding-top: var(--s-5); }
+/* Every heading here is set in the redesign's Fraunces: optical size following the size, weight 440 (the legacy h1/h2
+   rules in legacy/shared.css set a 96/144 display cut at 600, which crushes the letters at these sizes). */
+.runner-page h1, .runner-page h2, .runner-page h3, .runner-page h4 { font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; }
+.runner-head { max-width: 46rem; }
+.runner-head h1 { margin: 0; }
+.runner-dek { margin: var(--s-4) 0 0; max-width: var(--measure); font-size: var(--t-body); line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
+.runner-work { margin-top: var(--s-6); }
+.runner-split, .runner-side, .runner-main, .runner-reading { min-width: 0; }
+.runner-page .chapter-end { margin-top: var(--s-8); }
+@media (min-width: 900px) {
+  .runner-work { margin-top: var(--s-7); }
+  .runner-split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); align-items: start; column-gap: var(--s-7); }
+  .runner-side { position: sticky; top: calc(var(--header-h) + var(--s-5)); }
+  /* The selected races' analysis: below both columns, centred at the figure measure, so once a race is open no column
+     runs empty beside it (the search sticks only within the columns' own box, so it scrolls away above it). */
+  .runner-reading > .runner-analysis { max-width: var(--measure-figure); margin-inline: auto; }
+  .runner-main > .runner-starts:first-child, .runner-main > .runner-results:first-child { margin-top: 0; }
+  .runner-main > .runner-starts:first-child { padding-top: 22px; }
+  /* The closing stack lines up with the right column, where everything the search finds reads. */
+  .runner-page .chapter-end { margin-left: calc((100% - var(--s-7)) * 5 / 12 + var(--s-7)); }
+  /* With races open, it follows the analysis into the page's middle instead. */
+  @supports selector(:has(a)) { .runner-page:has(.runner-analysis) .chapter-end { max-width: var(--measure-figure); margin-inline: auto; } }
+}
+
+/* Small text shared by the page: help lines and notes under a heading. */
+.runner-note { margin: var(--s-2) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
+.runner-status { margin-top: var(--s-4); }
+.runner-h { margin: 0; font-family: var(--serif); font-weight: 440; font-size: var(--t-sentence); line-height: 1.25; letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
+.runner-h:focus { outline: none; }
+.runner-h:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: var(--r-xs); }
+.runner-error { display: grid; justify-items: start; gap: var(--s-2); margin-top: var(--s-4); padding: var(--s-3) 0; border-top: 2px solid var(--signal); font-size: var(--t-small); line-height: 1.45; color: var(--ink); }
+.runner-error p { margin: 0; }
+
+/* ---------- The search: one instrument cell ---------- */
+.runner-search-form { margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.runner-search-label { display: block; margin-bottom: 6px; font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
+.runner-search-fields { display: flex; gap: var(--s-2); }
+.runner-search-fields .input { flex: 1 1 auto; min-width: 0; min-height: 56px; font-size: 1.125rem; }
+.runner-search-fields .input::-webkit-search-cancel-button { cursor: pointer; }
+.runner-search-go { flex: none; min-height: 56px; }
+/* On a phone the button gives the field the room its placeholder needs. */
+@media (max-width: 599.98px) {
+  .runner-search-fields .input { font-size: 1.0625rem; }
+  .runner-search-go { padding-inline: 18px; }
+}
+@media (max-width: 359.98px) {
+  .runner-search-fields { flex-direction: column; }
+  .runner-search-go { width: 100%; }
+}
+
+/* ---------- Rows: the ways in without a name, and the ways on after no match ---------- */
+.runner-starts { margin-top: var(--s-6); }
+.runner-rows { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.runner-rows > li { margin: 0; border-bottom: 1px solid var(--rule); }
+.runner-start, .runner-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s-4); align-items: center; min-height: 64px; padding: 12px 0; color: var(--ink); text-decoration: none; }
+a.runner-start, a.runner-row { grid-template-areas: 'title arrow' 'text arrow'; }
+a.runner-start b, a.runner-row b { grid-area: title; font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
+a.runner-start > span, a.runner-row > span { grid-area: text; margin-top: 2px; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
+a.runner-start .arrow-icon, a.runner-row .arrow-icon { grid-area: arrow; width: 18px; height: 18px; transition: transform var(--d-quick) var(--ease-out); }
+a.runner-start:hover b, a.runner-row:hover b { text-decoration: underline; text-underline-offset: .2em; }
+a.runner-start:hover .arrow-icon, a.runner-row:hover .arrow-icon { transform: translateX(3px); }
+a.runner-start:focus-visible, a.runner-row:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+/* The finish-time row: its question, then the field and a go button. */
+.runner-start-time { display: block; padding-bottom: var(--s-3); }
+.runner-start-time label { display: grid; gap: 2px; color: var(--ink); }
+.runner-start-time label b { font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
+.runner-start-time label span { font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
+.runner-start-fields { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
+.runner-start-fields .input { flex: 1 1 auto; min-width: 0; max-width: 14rem; }
+.runner-start-go { flex: none; width: 52px; padding: 0; }
+.runner-start-go .arrow-icon { width: 18px; height: 18px; }
+.runner-start-time .keypad-hint.is-block { margin-top: 6px; }
+.runner-start-error { color: var(--signal-ink); font-weight: 600; }
+
+/* ---------- Matches ---------- */
+.runner-results { margin-top: var(--s-6); }
+.runner-matches { margin: var(--s-4) 0 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.runner-matches li { margin: 0; border-bottom: 1px solid var(--rule); }
+.runner-match {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); width: 100%; min-height: 56px;
+  padding: 10px 0; border: 0; border-radius: 0; background: none; color: var(--ink); text-align: left; cursor: pointer;
+}
+.runner-match strong { display: block; font-size: 1.0625rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.runner-match small { display: block; margin-top: 2px; font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
+.runner-match-action { display: inline-flex; flex: none; align-items: center; gap: 6px; font-size: var(--t-small); font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.runner-match-action .arrow-icon { width: 16px; height: 16px; color: var(--ink-3); transition: transform var(--d-quick) var(--ease-out); }
+.runner-match:hover .arrow-icon, .runner-match[aria-expanded='true'] .arrow-icon { color: var(--ink); }
+.runner-match:hover strong { text-decoration: underline; text-underline-offset: .2em; }
+.runner-match:hover .arrow-icon { transform: translateX(3px); }
+.runner-match[aria-expanded='true'] .runner-match-action { color: var(--ink); }
+.runner-match[aria-expanded='true'] strong::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--signal); vertical-align: 2px; }
+.runner-match:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.runner-pagination { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-top: var(--s-4); }
+.runner-pagination span { font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); text-align: center; font-variant-numeric: tabular-nums; }
+@media (max-width: 359.98px) { .runner-pagination { flex-wrap: wrap; justify-content: center; } }
+.runner-nomatch { display: grid; gap: var(--s-5); margin-top: var(--s-5); }
+.runner-covered > summary > span:first-child { font-weight: 600; }
+.runner-covered ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); gap: 0 var(--s-5); margin: 0 0 var(--s-4); padding: 0; list-style: none; }
+.runner-covered li { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-3); margin: 0; padding: 8px 0; border-bottom: 1px solid var(--rule); font-size: var(--t-small); }
+.runner-covered small { font-size: var(--t-label); color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* ---------- A profile's races ---------- */
+.runner-profile { margin-top: var(--s-7); scroll-margin-top: calc(var(--header-h) + var(--s-5)); }
+.runner-races { margin: var(--s-4) 0 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.runner-race { margin: 0; border-bottom: 1px solid var(--rule); }
+.runner-race-row { display: flex; align-items: flex-start; gap: var(--s-3); min-height: 56px; padding: 12px 0; color: var(--ink); }
+label.runner-race-row { cursor: pointer; }
+.runner-race-row input[type='checkbox'] { flex: none; width: 24px; height: 24px; min-height: 24px; margin: 2px 0 0; accent-color: var(--ink); cursor: pointer; }
+.runner-race-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s-3); flex: 1 1 auto; min-width: 0; }
+.runner-race-body > strong { grid-column: 1; font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
+.runner-race-body > .runner-recorded-finish { grid-column: 2; grid-row: 1; font-size: 1.0625rem; font-weight: 600; line-height: 1.3; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+/* Each row: the race and its finish, then one short tag; the name, age, gender and reason are in its disclosure. */
+.runner-race-body > .runner-eligible, .runner-race-body > .runner-ineligible { grid-column: 1 / -1; }
+.runner-eligible, .runner-ineligible { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-2); }
+.runner-eligible::before, .runner-ineligible::before { content: ''; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--ink); }
+.runner-ineligible::before { background: none; box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
+.runner-ineligible { color: var(--ink-3); }
+.runner-raw { margin: 0 0 var(--s-2) 36px; border-top: 0; }
+.runner-limited-records .runner-raw { margin-left: 0; }
+.runner-raw > summary { min-height: 44px; font-size: var(--t-small); }
+.runner-raw .runner-note { margin-bottom: var(--s-3); }
+.runner-limited { margin-top: var(--s-7); padding-top: var(--s-6); border-top: 1px solid var(--rule); }
+.runner-limited h3 { margin: 0; }
+
+/* ---------- The selection bar: sticks to the bottom while races are chosen ----------
+   The chosen races as chips (each removable; the row scrolls sideways with an edge fade), then the one primary button
+   and Clear. The heading is for screen readers: the button says how many. */
+.runner-selection { position: sticky; bottom: max(12px, env(safe-area-inset-bottom)); z-index: 5; display: grid; gap: var(--s-2); margin-top: var(--s-5); padding: 10px; border: 1px solid var(--rule); border-radius: var(--r-md); background: var(--paper-raised); box-shadow: var(--shadow-raise); }
+.runner-selection-actions { display: flex; align-items: center; gap: var(--s-2); }
+.runner-selection-actions .btn-primary { flex: 1 1 auto; min-width: 0; }
+/* The pinned legacy class (scripts/e2e S3 presses .button-primary) keeps the primary button's own look. */
+.runner-selection .btn-primary.button-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); transform: none; box-shadow: none; }
+.runner-selection .btn-primary.button-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.runner-selection .btn-primary.button-primary:active { background: var(--accent-press); border-color: var(--accent-press); }
+.runner-selection-actions .btn-primary .arrow-icon { width: 16px; height: 16px; }
+.runner-clear { flex: none; padding-inline: var(--s-3); font-size: var(--t-small); }
+.runner-chips { display: flex; gap: var(--s-2); margin: 0; padding: 0; list-style: none; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 40px), transparent); mask-image: linear-gradient(to right, var(--ink) calc(100% - 40px), transparent); }
+/* One chip fits the row whole: no fade over it. */
+@supports selector(:has(> li)) { .runner-chips:has(> li:only-child) { -webkit-mask-image: none; mask-image: none; } }
+.runner-chips::-webkit-scrollbar { display: none; }
+.runner-chips li { scroll-snap-align: start; display: inline-flex; flex: none; align-items: center; gap: 2px; margin: 0; padding-left: 12px; border: 1px solid var(--rule-strong); border-radius: var(--r-pill); font-size: var(--t-label); font-weight: 600; line-height: 1.2; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.runner-chips li:last-child { margin-right: 24px; }
+.runner-chips small { font-size: inherit; font-weight: 500; color: var(--ink-3); }
+.runner-chips button { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; min-height: 32px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--ink-3); cursor: pointer; }
+.runner-chips button::after { content: ''; position: absolute; inset: -6px; }
+.runner-chips button:hover { color: var(--ink); }
+.runner-chips button:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
+.runner-chip-x { position: relative; width: 10px; height: 10px; }
+.runner-chip-x::before, .runner-chip-x::after { content: ''; position: absolute; left: 50%; top: 50%; width: 11px; height: 1.5px; background: currentColor; transform: translate(-50%, -50%) rotate(45deg); }
+.runner-chip-x::after { transform: translate(-50%, -50%) rotate(-45deg); }
+@media (min-width: 600px) {
+  .runner-selection { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .runner-selection-actions .btn-primary { flex: none; }
+}
+
+/* ---------- The selected races ---------- */
+.runner-analysis { margin-top: var(--s-7); scroll-margin-top: calc(var(--header-h) + var(--s-4)); }
+.runner-analysis-head h2 { margin: 0; font-size: var(--t-h2); }
+.runner-analysis-head p { margin: var(--s-3) 0 0; max-width: var(--measure); font-size: var(--t-body); line-height: 1.55; color: var(--ink-2); }
+/* The answer, on night: the best finish as the figure, then its pace and the count of eligible finishes. */
+.runner-numbers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: var(--s-5); padding: 20px; border-radius: var(--r-md); background: var(--paper); color: var(--ink); }
+[data-theme="dark"] .runner-numbers { box-shadow: inset 0 0 0 1px var(--night-3); }
+/* The legacy shared card look of .runner-numbers > div (app/styles/legacy/shared.css) is undone here. */
+.runner-numbers > div { min-width: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.runner-numbers > div:first-child { grid-column: 1 / -1; padding-bottom: var(--s-4); border-bottom: 1px solid var(--rule); }
+.runner-numbers > div + div { padding-top: var(--s-4); }
+.runner-numbers > div:nth-child(3) { padding-left: var(--s-4); border-left: 1px solid var(--rule); }
+.runner-numbers strong, .runner-numbers span, .runner-numbers small { display: block; }
+.runner-numbers strong { font-family: var(--sans); font-size: 1.5rem; font-weight: 600; line-height: 1.1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.runner-numbers > div:first-child strong { font-family: var(--figure); font-size: var(--t-figure-l); font-weight: 660; line-height: .95; letter-spacing: -.03em; font-variant-numeric: normal; white-space: nowrap; }
+.runner-numbers span { margin-top: 6px; font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-2); }
+.runner-numbers small { margin-top: 2px; font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); }
+@media (max-width: 359.98px) {
+  .runner-numbers > div:first-child strong { font-size: 2.5rem; white-space: normal; }
+}
+.runner-takeaway { margin: var(--s-4) 0 0; max-width: 34rem; font-family: var(--serif); font-weight: 440; font-size: 1.25rem; line-height: 1.3; color: var(--ink); text-wrap: pretty; }
+.runner-analysis > .runner-table-wrap { margin-top: var(--s-5); }
+.runner-races-values { margin-top: var(--s-5); }
+.runner-table-wrap .table caption { padding-bottom: var(--s-2); }
+
+/* ---------- The race in context ---------- */
+.runner-context { margin-top: var(--s-7); padding-top: var(--s-6); border-top: 1px solid var(--rule); }
+/* A closed values row right above: the context's rule closes it, so no empty band sits between two hairlines. */
+.runner-races-values:not([open]) + .runner-context { margin-top: 0; }
+/* One race: the race view opens the analysis, its heading the race. */
+.runner-analysis > .runner-context:first-child { margin-top: 0; }
+/* The share bar's callout in ink: the lit segment is the reading, its words need no second orange. */
+.runner-context .share-bar .share-bar-callout-text { color: var(--ink); }
+.runner-context .share-bar .share-bar-leader { background: var(--ink); }
+.rc-heading { display: grid; gap: var(--s-4); }
+.rc-heading h2 { margin: 0; font-size: var(--t-h2); }
+.rc-focus, .rc-group-control { display: grid; gap: 6px; max-width: 30rem; font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
+.rc-focus[hidden] { display: none; }
+.rc-tabs { margin-top: var(--s-5); }
+.rc-panel { padding-top: var(--s-5); }
+.rc-panel > .rc-group-control { margin-bottom: var(--s-5); }
+.rc-h { margin: 0; font-family: var(--serif); font-weight: 440; font-size: var(--t-sentence); line-height: 1.25; letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
+.rc-copy { margin: var(--s-2) 0 0; max-width: var(--measure); font-size: var(--t-body); line-height: 1.55; color: var(--ink-2); }
+.rc-note { margin: var(--s-2) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
+.rc-next { margin: var(--s-4) 0 0; }
+.rc-details { margin-top: var(--s-4); }
+.rc-details > summary > span:first-child { font-weight: 600; }
+.rc-details .rc-note { margin-bottom: var(--s-4); }
+.rc-table-wrap td small { display: block; font-size: var(--t-label); color: var(--ink-3); white-space: normal; }
+.rc-empty { padding: var(--s-4) 0; }
+.rc-view .lap-list { margin-top: var(--s-5); }
+.rc-peer-pacing { margin-top: var(--s-6); }
+.rc-peer-pacing .viz-frame { margin-top: var(--s-4); }
+.runner-context .share-bar { margin-top: var(--s-4); }
+
+/* Weather and terrain cells, divided by hairlines. */
+.rc-cells { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: var(--s-4) 0 0; border-top: 1px solid var(--rule); }
+.rc-cells > div { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 4px; min-width: 0; padding: 12px var(--s-3) 12px 0; border-bottom: 1px solid var(--rule); }
+.rc-cells > div:nth-child(even) { padding-left: var(--s-4); border-left: 1px solid var(--rule); }
+.rc-cells dt { font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
+.rc-cells dd { margin: 0; font-size: 1.375rem; font-weight: 600; line-height: 1.1; letter-spacing: -.01em; font-variant-numeric: tabular-nums; color: var(--ink); }
+@media (min-width: 600px) { .rc-weather .rc-cells { grid-template-columns: repeat(4, minmax(0, 1fr)); } .rc-weather .rc-cells > div + div { padding-left: var(--s-4); border-left: 1px solid var(--rule); } }
+.rc-terrain { margin-top: var(--s-6); }
+.rc-terrain-figure { margin: var(--s-4) 0 0; }
+.rc-terrain-head, .rc-terrain-rows li { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr) 4.75rem; align-items: center; column-gap: var(--s-3); }
+.rc-terrain-head { padding-bottom: 6px; border-bottom: 1px solid var(--rule); font-size: .75rem; font-weight: 600; line-height: 1.3; color: var(--ink-3); }
+.rc-terrain-head span:last-child { text-align: right; }
+.rc-terrain-rows { margin: 0; padding: 0; list-style: none; }
+.rc-terrain-rows li { min-height: 40px; margin: 0; border-bottom: 1px solid var(--rule); font-size: var(--t-small); font-variant-numeric: tabular-nums; }
+.rc-terrain-rows li > span:first-child { font-weight: 600; color: var(--ink); white-space: nowrap; }
+.rc-terrain-rows li > strong { font-weight: 600; text-align: right; white-space: nowrap; }
+.rc-terrain-change { display: grid; grid-template-columns: minmax(0, 1fr) 4rem; align-items: center; gap: var(--s-2); min-width: 0; }
+.rc-terrain-change small { font-size: var(--t-label); color: var(--ink-3); text-align: right; white-space: nowrap; }
+
+/* The diverging bars of the section comparison and the terrain: a centre line, the bar to one side. */
+.rc-delta-track { position: relative; display: block; height: 20px; min-width: 0; }
+.rc-delta-track::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--ink-3); }
+.rc-delta-track b { position: absolute; top: 5px; height: 10px; border-radius: 3px; background: var(--mark-quiet); }
+.rc-delta-track b.is-up { background: var(--ink-2); }
+.rc-deltas { margin: var(--s-4) 0 0; }
+.rc-delta-rows { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.rc-delta-rows li { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr) 4.5rem; align-items: center; column-gap: var(--s-3); min-height: 40px; margin: 0; border-bottom: 1px solid var(--rule); font-size: var(--t-small); font-variant-numeric: tabular-nums; }
+.rc-delta-rows li > span:first-child { font-weight: 600; color: var(--ink); white-space: nowrap; }
+.rc-delta-rows li > strong { font-weight: 600; text-align: right; white-space: nowrap; }
+.rc-delta-rows li.is-lit .rc-delta-track b { background: var(--signal); }
+.rc-delta-key { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr) 4.5rem; column-gap: var(--s-3); margin-top: 6px; font-size: .75rem; line-height: 1.3; color: var(--ink-3); }
+.rc-delta-key-track { display: grid; grid-template-columns: 1fr 1fr; }
+.rc-delta-key-track > span:first-child { padding-right: 8px; text-align: right; }
+.rc-delta-key-track > span:last-child { padding-left: 8px; }
+@media (max-width: 359.98px) {
+  .rc-delta-rows li, .rc-delta-key, .rc-terrain-head, .rc-terrain-rows li { grid-template-columns: 4.75rem minmax(0, 1fr) 4.5rem; column-gap: var(--s-2); }
+}
+.rc-pair-summary { margin-top: var(--s-5); }
+.rc-pair-summary > strong { display: block; font-family: var(--figure); font-size: var(--t-figure-m); font-weight: 660; line-height: 1; letter-spacing: -.025em; color: var(--ink); }
+.rc-pair-summary p { margin: var(--s-2) 0 0; font-size: var(--t-small); color: var(--ink-3); }
+
+/* The race report in the runner view, and the comparison across selected races. */
+.rc-report { margin-top: var(--s-7); padding-top: var(--s-6); border-top: 1px solid var(--rule); }
+.rc-report > .btn { margin-top: var(--s-4); }
+.rc-report .race-report-root { margin-top: 0; }
+.rc-multi { margin-top: var(--s-7); padding-top: var(--s-6); border-top: 1px solid var(--rule); }
+.rc-kicker { margin: 0 0 var(--s-2); }
+.rc-multi > h2 { margin: 0; font-size: var(--t-h2); }
+.rc-multi > .rc-focus { margin-top: var(--s-4); }
+.rc-context-next { margin-top: var(--s-6); }

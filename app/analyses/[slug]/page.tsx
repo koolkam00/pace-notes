@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation';
 import { unitText, distanceLabel, distanceValue, DEFAULT_UNITS } from '@/lib/units';
 import { TEN_ANALYSES, analysisBySlug } from '@/lib/ten-analyses';
 import { getWeatherAnalyses } from '@/lib/weather-data';
-import { JsonLd, breadcrumbs, pageMetadata } from '@/lib/seo';
+import { JsonLd, breadcrumbs, movedMetadata, pageMetadata } from '@/lib/seo';
+import { movedTo } from '@/lib/seo-routes';
 import StartingPace from '@/components/analysis/pages/StartingPace';
 import DownhillStart from '@/components/analysis/pages/DownhillStart';
 import PacingPattern from '@/components/analysis/pages/PacingPattern';
@@ -14,7 +15,7 @@ import CourseComparison from '@/components/analysis/pages/CourseComparison';
 import HillsPacing from '@/components/analysis/pages/HillsPacing';
 import RaceDayWeather from '@/components/analysis/pages/RaceDayWeather';
 import FindingImprovement from '@/components/analysis/pages/FindingImprovement';
-import Moved from '@/components/analysis/Moved.client';
+import MovedPage from '@/components/MovedPage';
 
 /** Miles first (the default unit), from the metric mat distance, e.g. "12.4 mi". */
 const mi = (km: number) => distanceLabel(km, DEFAULT_UNITS, 1);
@@ -40,9 +41,6 @@ const SEO: Record<string, { title: string; description: string; crumb?: string }
   'downhill-start': { title: 'Downhill Marathon Starts and Later Pace | Pace Notes', description: 'Compare opening pace and later slowing on marathon courses that start with a larger descent against courses with other openings.', crumb: 'Downhill starts' },
 };
 
-/** The weather questions that became tabs of race-day weather, and the tab each forwards to. */
-const MOVED: Record<string, string> = { warming: '/analyses/race-day-weather#warming', wind: '/analyses/race-day-weather#wind', humidity: '/analyses/race-day-weather#temperature' };
-const movedTo = (slug: string) => { const w = getWeatherAnalyses().find(item => item.slug === slug); return w ? MOVED[w.id] : undefined; };
 
 function seoFor(slug: string) {
   const item = analysisBySlug(slug) || getWeatherAnalyses().find(item => item.slug === slug);
@@ -57,9 +55,10 @@ export function generateStaticParams() { return [...TEN_ANALYSES, ...getWeatherA
 export function generateMetadata({ params }: { params: { slug: string } }) {
   const seo = seoFor(params.slug);
   if (!seo) return { title: 'Analysis not found | Pace Notes', robots: { index: false, follow: true } };
-  const target = movedTo(params.slug);
-  if (target) return pageMetadata({ title: seo.title, description: seo.description, path: `/analyses/${params.slug}`, canonicalPath: target.split('#')[0], noindex: true });
-  return pageMetadata({ title: seo.title, description: seo.description, path: `/analyses/${params.slug}` });
+  const path = `/analyses/${params.slug}`;
+  // The weather questions that became tabs of race-day weather are noindex stubs that forward to their tab (spec 2.9).
+  if (movedTo(path)) return movedMetadata(path, seo.title, seo.description);
+  return pageMetadata({ title: seo.title, description: seo.description, path });
 }
 
 const BODIES: Record<string, () => JSX.Element> = {
@@ -70,8 +69,8 @@ const BODIES: Record<string, () => JSX.Element> = {
 
 export default function AnalysisPage({ params }: { params: { slug: string } }) {
   const seo = seoFor(params.slug);
-  const target = movedTo(params.slug);
-  if (target) return <Moved to={target} title={seo?.crumb ?? 'Race-day weather'} />;
+  const moved = movedTo(`/analyses/${params.slug}`);
+  if (moved) return <MovedPage to={moved} action="Go to race-day weather">{seo?.crumb ?? 'This question'} is now a tab of race-day weather.</MovedPage>;
   const Body = BODIES[params.slug];
   if (!seo || !Body) notFound();
   return <>

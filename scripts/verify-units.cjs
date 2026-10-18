@@ -355,15 +355,19 @@ for (const [units, ending] of [['mi', /:(?:00|15|30|45)$/], ['km', /:(?:00|15|30
 const chartSource = name => fs.readFileSync(path.join(__dirname, '../components', name), 'utf8');
 assert.match(chartSource('QuestionViz.tsx'), /paceTicks\(Math\.min\(\.\.\.allValues\) \* 60, Math\.max\(\.\.\.allValues\) \* 60, selectedUnits\)/);
 assert.match(chartSource('QuestionLineChart.tsx'), /<YAxis [^>]*ticks=\{paceTicks\}[^>]*domain=\{paceTicks \? \[paceTicks\[0\], paceTicks\[paceTicks\.length - 1\]\]/);
-assert.match(chartSource('RunnerContext.tsx'), /<YAxis [^>]*domain=\{paceAxis \? paceAxis\.domain : \['auto', 'auto'\]\} ticks=\{paceAxis\?\.ticks\}/);
+// The runner view's pace chart (LineProfile, no Recharts since the October 18, 2026 redesign) takes the same ticks: its
+// domain and every gridline come from paceTicks, labelled with paceLabel.
+assert.match(chartSource('RunnerContext.tsx'), /const axis = paceTicks\([^;]*, units, 6\);\n\s*const grid = axis \? \[\.\.\.new Set\(\[axis\.ticks\[0\][^;]*axis\.ticks\[axis\.ticks\.length - 1\]\]\)\] : \[\];/);
+assert.match(chartSource('RunnerContext.tsx'), /<LineProfile [^>]*yDomain=\{axis \? axis\.domain : undefined\}[\s\S]*?yTicks=\{grid\.map\(v => \(\{ value: v, label: clear\(v\) \? tick\(v\) : '' \}\)\)\}/);
 
 // The header's units switch works on every page that shows text changing with the units (lib/unit-preference.ts), and
 // the server render stops (so the build stops) when such text is on a page where the switch is inert.
 {
   const { unitSwitchShown } = require('../lib/unit-preference.ts');
-  for (const page of ['/', '/about', '/slowdown', '/htw', '/research', '/your-race', '/methodology', '/analyses', '/analyses/pacing-pattern', '/runners', '/packs', '/packs/smyth_htw',
+  for (const page of ['/', '/about', '/slowdown', '/research', '/methodology', '/analyses', '/analyses/pacing-pattern', '/runners',
     '/courses', '/courses/boston', '/stories', '/stories/final-kick', '/tools', '/tools/plan', '/tools/qualifying/boston', '/finish-times']) assert.ok(unitSwitchShown(page), `The units switch works on ${page}`);
-  for (const page of ['/research/personalized', '/privacy', '/request-analysis', '/_not-found', '/toolsx', '/research-notes', '/methodology-notes']) assert.equal(unitSwitchShown(page), false, `${page} keeps the inert placeholder`);
+  // The moved addresses' stubs (lib/seo-routes.ts movedTo) show no text that changes with the units.
+  for (const page of ['/research/personalized', '/htw', '/your-race', '/packs', '/packs/smyth_htw', '/packs/r01_banking_time', '/privacy', '/request-analysis', '/_not-found', '/toolsx', '/research-notes', '/methodology-notes']) assert.equal(unitSwitchShown(page), false, `${page} keeps the inert placeholder`);
   // A second copy of the provider whose next/navigation reports a chosen page, as the static export's render does.
   const providerFile = require.resolve('../components/UnitsProvider.tsx');
   let pathname = '/privacy';

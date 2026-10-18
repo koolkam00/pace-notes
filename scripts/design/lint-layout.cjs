@@ -5,7 +5,7 @@
 //   2. a visible a, button, input, select, summary or [role=slider] whose hit area is under 44×44 px, except inline
 //      links inside running text (a hit area grown by padding or a pseudo-element counts: the box is probed);
 //   3. SVG or chart text rendered under 12 px;
-//   4. text-on-text overlap above 2 px² inside a figure.viz;
+//   4. text-on-text overlap above 2 px² inside a figure.viz (and the course pages' glance rows);
 //   5. SVG text outside its SVG;
 //   6. console errors and page errors;
 //   7. on / only, more than one rgb(255, 91, 46) control on the first screen.
@@ -92,8 +92,9 @@ function inspect({ isHome }) {
     }
   }
 
-  // 4. Text-on-text overlap inside each figure.viz: line boxes of HTML text and the boxes of SVG text.
-  for (const fig of document.querySelectorAll('figure.viz')) {
+  // 4. Text-on-text overlap inside each figure.viz, and in the course pages' glance rows (a figure-m beside its words,
+  // outside any figure.viz): line boxes of HTML text and the boxes of SVG text.
+  for (const fig of document.querySelectorAll('figure.viz, .course-glance .glance-rows')) {
     if (hidden(fig)) continue;
     const boxes = [];
     const walker = document.createTreeWalker(fig, NodeFilter.SHOW_TEXT);

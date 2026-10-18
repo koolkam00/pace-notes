@@ -1,5 +1,5 @@
 /**
- * Nuggets for the tools (WP4; the redesign spec, sections 5 and 7.13) and the runner page (WP6's runner.yours). A tool's
+ * Nuggets for the tools (WP4; the redesign spec, sections 5 and 7.13). A tool's
  * reading is the Pace Notes data nugget it leads with for its example inputs (a 4:00 goal on every course), read from the
  * verified tool files with a guard for what the sentence asserts and a neutral fallback. Each builder has a pure
  * `…From(data)` twin, which the tool itself also uses for the visitor's own inputs, and which
@@ -16,7 +16,7 @@ import { SPLIT_EXAMPLE } from '@/lib/tools/splits';
 import { WEATHER_EXAMPLE, WEATHER_REFERENCE } from '@/lib/tools/weather';
 import { goalShare } from '@/lib/tools/plan';
 import { hm, matLabel, ms, pct, spokenPct, spokenTime, temp } from './format';
-import { placeholder, type Builder } from './build';
+import type { Builder } from './build';
 import type { Nugget, NuggetId } from './types';
 
 /** The example goal every tool opens on, in minutes (4:00). */
@@ -158,11 +158,7 @@ export function weatherMatchMorningsFrom(data: Pick<WeatherMatch, 'rows' | 'pace
   };
 }
 
-const tool = (id: NuggetId, page: string, line: string, figure: { value: string; sr: string } | null = null, key?: string): Builder => () =>
-  placeholder({ id, page, denominator: 'tool', values: {}, guard: true, headline: line, fallback: line, figure, key });
-
 export const TOOL_NUGGETS: Record<string, Builder> = {
-  'runner.yours': tool('runner.yours', '/runners', 'Find a past race and see it mat by mat.', { value: 'Yours', sr: 'Yours' }, 'nine mats, one race'),
   'splitcheck.mats': () => splitCheckMatsFrom(optional<PaceBandShard>('tools/pace-band/all/all.json')),
   'projector.range': () => projectorRangeFrom(optional<ProjectorShard>(`tools/projector/all/${PROJECTOR_MAT}.json`), optional<ProjectorIndex>('tools/projector.json')?.quantiles ?? []),
   'weathermatch.mornings': () => weatherMatchMorningsFrom(optional<WeatherMatch>('tools/weather-match.json')),

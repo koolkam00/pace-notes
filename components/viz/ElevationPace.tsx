@@ -5,30 +5,50 @@ import Plot, { Baseline, Gridlines } from './Plot';
 import Scrubber from './Scrubber.client';
 import { areaPath, linear, linePath, pc } from './scale';
 import { paceColour, paceText } from '@/lib/viz/format';
-import { fitClass, textWidth } from './labels';
 
 /**
  * Elevation and pace (the redesign spec, section 3.6): the course profile as a 2 px ink line over a quiet area with an
  * edge, on ONE height scale shared by every course page (0 to the largest relief in the release, rounded up to 50 m,
- * passed in as `relief`), so a flat course looks flat. Under it, one block per section on the diverging pace ramp with
- * its value on the block; the section the sentence is about is washed above. Scrub along the course: the readout gives
- * the section, its climb (one value) and its pace against the course's own average.
+ * passed in as `relief`), so a flat course looks flat. With `fit`, the plot is only as tall as this course's own relief
+ * on that scale (two fifths of the full height at least), so a flat course is a low, compact profile rather than a squiggle
+ * at the foot of an empty box, and the needle is only that tall. Under it, one block per section on the diverging pace
+ * ramp with its value on the block (each block fits its own label: the % goes where it is too narrow, the readout says
+ * it); the section the sentence is about is washed above. Scrub along the course: the readout leads with the number the
+ * sentence gives (`lead`: the section's pace against the course's own average, or on a course page its climb) and gives
+ * the other beside it. A chart on its own course's scale (`reliefLabel`) labels its top line instead.
  */
 export type PaceSection = { label: string; startKm: number; endKm: number; pct: number; display: string; climb: string };
 
-export default function ElevationPace({ km, metres, relief, reliefLabel, sections, focus, label, readoutKeys, values, height = 150, heightMd = 190 }: {
-  km: number[]; metres: number[]; relief: number; sections: PaceSection[]; focus?: number; label: string;
+/** The lowest a fitted plot goes, as a share of the full height: 48 px of a 120 px phone plot, so the plot (the slider)
+ * keeps a 44 px touch target. */
+const FIT_MIN = 0.4;
+
+export default function ElevationPace({ km, metres, relief, reliefLabel, sections, focus, initial, label, readoutKeys, lead = 'pace', values, height = 150, heightMd = 190, fit = false }: {
+  km: number[]; metres: number[]; relief: number; sections: PaceSection[]; focus?: number;
+  /** The section the readout opens on (the one the sentence names); default the washed one, else the first. */
+  initial?: number;
+  label: string;
   /** A chart drawn on its own course's scale instead of the shared one names its top: a hairline labelled with the relief. */
   reliefLabel?: string;
-  /** The readout's labels: [the climb in a section, its pace against the course's own average]. */
-  readoutKeys: [string, string]; values?: ReactNode; height?: number; heightMd?: number;
+  /** The readout's labels: [each section's `climb`, each section's `display`]. */
+  readoutKeys: [string, string];
+  /** What the readout leads with: the section's pace (`display`, the analyses) or its climb (the course pages, whose
+   * heading names the climb); the other is the side value. */
+  lead?: 'pace' | 'climb';
+  values?: ReactNode; height?: number; heightMd?: number;
+  /** Size the plot to this course's relief on the shared scale (the course pages). */
+  fit?: boolean;
 }) {
   const total = km[km.length - 1] || 42.195;
   const x = linear([0, total]);
   const floor = Math.min(...metres);
   const top = reliefLabel ? 0.2 : 0.08;
-  const y = (m: number) => 1 - (1 - top) * ((m - floor) / Math.max(1, relief));
+  // The share of the full height this course's relief takes on the shared scale (with the same top margin), so a metre
+  // is as many pixels here as on every other course page.
+  const share = fit ? Math.min(1, Math.max(FIT_MIN, top + (1 - top) * ((Math.max(...metres) - floor) / Math.max(1, relief)))) : 1;
+  const y = (m: number) => 1 - ((1 - top) * ((m - floor) / Math.max(1, relief))) / share;
   const line = km.map((k, i) => [x(k), y(metres[i])] as [number, number]);
+  const start = initial ?? focus ?? 0;
   const plot = (
     <Plot paths={(
       <>
@@ -42,16 +62,17 @@ export default function ElevationPace({ km, metres, relief, reliefLabel, section
       <Baseline />
     </Plot>
   );
-  const totalKm = sections.reduce((sum, s) => sum + (s.endKm - s.startKm), 0) || 1;
   const blocks = (
     <div className="pace-blocks" aria-hidden="true">
       {sections.map((s, i) => {
         const bg = paceColour(s.pct, 12);
-        // The plot width at which this block holds its value with 2 px to spare (2 px gaps between blocks).
-        const need = ((textWidth(s.display, 12) + 4) * totalKm) / (s.endKm - s.startKm) + 2 * (sections.length - 1);
+        // The number, and its % sign apart, so a block too narrow for the sign drops it (chart-frame.css, by the
+        // block's own width and the number's length).
+        const unit = s.display.endsWith('%');
+        const num = unit ? s.display.slice(0, -1) : s.display;
         return (
-          <span key={s.label} className={`pace-block is-on-${paceText(bg)}${i === focus ? ' is-focus' : ''}`} style={{ flexGrow: s.endKm - s.startKm, background: bg }}>
-            <span className={fitClass(need) || undefined}>{s.display}</span>
+          <span key={s.label} className={`pace-block is-on-${paceText(bg)}${i === focus ? ' is-focus' : ''}${s.display.length > 3 ? ' is-long' : ''}`} style={{ flexGrow: s.endKm - s.startKm, background: bg }}>
+            <span className={`pace-val n${Math.min(3, num.length)}`}>{num}{unit ? <span className="pace-pct">%</span> : null}</span>
           </span>
         );
       })}
@@ -65,13 +86,13 @@ export default function ElevationPace({ km, metres, relief, reliefLabel, section
   );
   const points = {
     x: sections.map((s) => x((s.startKm + s.endKm) / 2)),
-    keys: sections.map((s) => `${s.label}, ${readoutKeys[1].toLowerCase()}`),
-    values: sections.map((s) => s.display),
-    side: [{ label: readoutKeys[0], values: sections.map((s) => s.climb) }],
+    keys: sections.map((s) => `${s.label}, ${readoutKeys[lead === 'climb' ? 0 : 1].toLowerCase()}`),
+    values: sections.map((s) => (lead === 'climb' ? s.climb : s.display)),
+    side: [{ label: readoutKeys[lead === 'climb' ? 1 : 0], values: sections.map((s) => (lead === 'climb' ? s.display : s.climb)) }],
   };
   return (
-    <ChartFrame className="elevation-pace" label={label} height={height} heightMd={heightMd}
-      scrub={<Scrubber points={points} initial={focus ?? 0} detents={focus !== undefined ? [focus] : []} label={label} axis={axis}>{plot}</Scrubber>}
+    <ChartFrame className="elevation-pace" label={label} height={Math.round(height * share)} heightMd={Math.round(heightMd * share)}
+      scrub={<Scrubber points={points} initial={start} detents={[...new Set([start, ...(focus !== undefined ? [focus] : [])])]} label={label} axis={axis}>{plot}</Scrubber>}
       values={values}
     />
   );

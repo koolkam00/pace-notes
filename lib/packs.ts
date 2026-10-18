@@ -9,8 +9,9 @@ export interface PackInfo {
   parked?: boolean;
 }
 
-// Registry of packs (ids and titles). Status here is a default/fallback used only
-// when no pack_meta.json exists on disk; actual readiness comes from pack_meta.
+// Registry of the research packs (ids and titles) whose data files stay published under public/data/packs. Their pages
+// closed with the research archive (the redesign spec, section 00): verify-research checks every id here against the
+// question catalog, and each former /packs/<id> address keeps a moved stub (lib/seo-routes.ts movedPackIds).
 export const PACKS: PackInfo[] = [
   { id: 'smyth_htw', title: 'Sustained slowdown', status: 'ready', group: 'paper' },
   { id: 'rn1_wall_severity', title: 'RN1 — Slowdown severity spectrum', status: 'ready', group: 'RN' },
@@ -59,17 +60,5 @@ export const PACKS: PackInfo[] = [
   { id: 'r25_huge_kick_next', title: 'R25 — Huge kick (next)', status: 'ready', group: 'R' },
   { id: 'r26_pacing_over_20y', title: 'R26 — 20y pacing', status: 'enrichment', group: 'R', enrichment: true },
 ];
-
-export function getPackInfo(id: string): PackInfo | undefined {
-  return PACKS.find((p) => p.id === id);
-}
-
-export function isEnrichment(id: string): boolean {
-  return !!PACKS.find((p) => p.id === id && p.enrichment);
-}
-
-export function isParked(id: string): boolean {
-  return !!PACKS.find((p) => p.id === id && p.parked);
-}
 
 export const PACK_IDS: string[] = PACKS.map((p) => p.id);

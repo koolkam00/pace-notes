@@ -205,14 +205,14 @@ function BostonCutoffs() {
       </p>
       <YearStrip label={`Boston cut-offs from ${first} to ${last}: how far under their standard accepted qualifiers had to be, from ${fmtMargin(lowest.cutoff)} to ${fmtMargin(highest.cutoff)}.`}
         editions={rows.map((c) => ({ year: c.year, value: c.cutoff, display: fmtMargin(c.cutoff), side: [grouped(c.notAccepted)] }))}
-        sideLabels={['Not accepted']} selected={latest.year} extremeLabel={(p) => `${p.year} · ${p.display}`} gapLabel="No cut-off on record"
+        sideLabels={['Not accepted']} selected={latest.year} extremeLabel={(p) => `${p.year} · ${p.display}`}
         values={(
           <Values id="qrace-cutoff-values" caption="Cut-off: how far under their standard accepted qualifiers had to be, with the field and the qualifiers not accepted, as announced by the B.A.A." count={years.length}>
             <table className="table">
               <thead><tr><th scope="col">Race year</th><th scope="col">Cut-off</th><th scope="col">Field</th><th scope="col">Not accepted</th></tr></thead>
               <tbody>
-                {/* Every year from the first to the last; a year the race was held without a published cut-off says so, as
-                    the strip's key does. */}
+                {/* Every year from the first to the last; a year the race was held without a published cut-off says so
+                    (the strip leaves that year open). */}
                 {years.map((year) => {
                   const c = rows.find((r) => r.year === year);
                   return c ? (

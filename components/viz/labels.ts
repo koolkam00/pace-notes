@@ -44,6 +44,19 @@ export type LabelItem = {
   /** Gap between the point and the text, px. */
   gap?: number;
   tone?: 'ink' | 'signal' | 'quiet';
+  /** The label sits on a reference line, which breaks under it: a wide halo of the surface knocks the line out. */
+  knockout?: boolean;
+  /**
+   * The scrubber point this label names: while the needle sits on it the label hides (the readout says it), through
+   * `data-scrub-i` and the Scrubber's is-under class. `under` marks the one the chart opens on, for the first paint.
+   */
+  at?: number;
+  under?: boolean;
+  /**
+   * Only above the point, and over it (the text spans the point's x): for a label lifted on a leader, which must sit
+   * where its leader meets it, never beside an empty spot.
+   */
+  only?: 'above';
 };
 
 export type PlacedLabel = LabelItem & {
@@ -78,6 +91,13 @@ function candidates(l: LabelItem): { anchor: PlacedLabel['anchor']; dx: number; 
   const vertical = (dy: number) => (['middle', 'start', 'end'] as const).flatMap((anchor) => nudges.map((n) => ({ anchor, dx: n + (anchor === 'start' ? -4 : anchor === 'end' ? 4 : 0), dy })));
   const side = (dir: 1 | -1) => [0, -6, 6, -12, 12].map((n) => ({ anchor: dir > 0 ? ('start' as const) : ('end' as const), dx: dir * gap, dy: size * 0.35 + n }));
   const order = { above: [vertical(above), vertical(below), side(1), side(-1)], below: [vertical(below), vertical(above), side(1), side(-1)], right: [side(1), side(-1), vertical(above), vertical(below)], left: [side(-1), side(1), vertical(above), vertical(below)] };
+  if (l.only === 'above') {
+    const w = textWidth(l.text, size);
+    return vertical(above).filter((c) => {
+      const x0 = c.anchor === 'middle' ? c.dx - w / 2 : c.anchor === 'end' ? c.dx - w : c.dx;
+      return x0 <= -4 && x0 + w >= 4;
+    });
+  }
   return order[l.prefer ?? 'above'].flat();
 }
 
@@ -126,6 +146,12 @@ export function placeLabels(items: LabelItem[], bounds: { height: number; width?
   });
 }
 
+/** A placed label's text box at the reference width, in plot fractions (for a second placement pass to keep clear of). */
+export function placedBox(l: PlacedLabel, height: number, pad = 2): { x0: number; x1: number; y0: number; y1: number; pad: number } {
+  const b = boxAt(l, l.anchor, l.dx, l.dy, REF_WIDTH, height);
+  return { x0: (b.x0 - pad) / REF_WIDTH, x1: (b.x1 + pad) / REF_WIDTH, y0: (b.y0 - pad) / height, y1: (b.y1 + pad) / height, pad: 0 };
+}
+
 /** The class that hides a label or tick below its narrowest width ('' when it always shows). */
 export function widthClass(minWidth: number | null): string {
   return minWidth ? `w${minWidth}` : '';
@@ -149,8 +175,11 @@ export type LaidTick = Tick & { anchor: 'start' | 'middle' | 'end'; minWidth: nu
  * axis; the anchor turns to start or end near an edge. A tick that cannot fit even at the reference width is dropped
  * (minWidth null); one that stops fitting below it carries its width class.
  */
-export function layoutTicks(ticks: Tick[], size = 12, ref = REF_WIDTH): LaidTick[] {
+export function layoutTicks(ticks: Tick[], size = 12, ref = REF_WIDTH, centred = false): LaidTick[] {
+  // Centred ticks (years under stems, where a label slid off its tick reads as the next year's) never turn at an edge:
+  // one that does not fit centred hides below the width it fits.
   const anchorOf = (t: Tick): LaidTick['anchor'] => {
+    if (centred) return 'middle';
     const half = textWidth(t.label, size, 500) / 2;
     return t.x * ref < half ? 'start' : (1 - t.x) * ref < half ? 'end' : 'middle';
   };

@@ -1,27 +1,10 @@
-import { UnitLink as Link } from '@/components/UnitsProvider';
-import { QUESTIONS, EXTRA_TITLES, THEMES } from '@/lib/question-catalog';
-import { PERSONAL_QUESTIONS } from '@/lib/personalized-catalog';
-import { broaderArchive } from '@/lib/broader-analysis-catalog';
-import { pageMetadata } from '@/lib/seo';
+import MovedPage from '@/components/MovedPage';
+import { movedMetadata } from '@/lib/seo';
+import { movedTo } from '@/lib/seo-routes';
 
-export const metadata = pageMetadata({
-  title: 'Marathon Pacing Research Archive | Pace Notes',
-  description: `${QUESTIONS.length} marathon pacing research questions explored with recorded 5 km splits: fast starts, bad patches, courses, weather, age, race history and more.`,
-  path: '/packs',
-});
-export default function AnalysesPage() {
-  return <div className="prose">
-    <p className="eyebrow">Beyond the ten analyses</p>
-    <h1>The research archive.</h1>
-    <p className="answer-detail">The wider work behind the study: {QUESTIONS.length} questions about race strategy, conditions, goals, runner differences, and improvement.</p>
-    <p>New here? <Link href="/analyses">Start with the ten essential analyses</Link> for a guided, personalized view of the strongest results.</p>
-    <p><Link href="/analyses/downhill-start">Explore downhill starts and later slowing ↗</Link></p>
-    <details className="methodology"><summary>Full personalized research guide</summary><div className="methodology-content"><p>All twelve underlying comparisons, including returning runners and downhill starts.</p><ol className="contents-list">{PERSONAL_QUESTIONS.map((q, i) => <li key={q.id}><Link href={`/research/personalized#guide-${q.id}`}><span className="contents-number">{i + 1}</span><span>{q.title}</span></Link></li>)}</ol></div></details>
-    {THEMES.map(theme => <section key={theme.id} aria-labelledby={`index-${theme.id}`}>
-      <h2 id={`index-${theme.id}`}>{theme.title}</h2>
-      <ol className="contents-list">{QUESTIONS.filter(question => question.theme === theme.id).map(question => <li key={question.id}><Link href={`/packs/${question.id}`}><span className="contents-number">{question.number}</span><span>{broaderArchive(question.id)?.title || question.title}</span></Link></li>)}</ol>
-    </section>)}
-    <h2>Supporting analyses</h2>
-    <ul className="course-list">{Object.entries(EXTRA_TITLES).map(([id, title]) => <li key={id}><Link href={id === 'smyth_htw' ? '/slowdown' : `/packs/${id}`}>{title}</Link></li>)}</ul>
-  </div>;
+// The research archive closed on October 17, 2026 (the redesign spec, section 00): Vercel 308s here to the downloads.
+export const metadata = movedMetadata('/packs', 'Research Archive: Moved | Pace Notes', 'The Pace Notes research archive now lives in the methodology, where every data file is still free to download.');
+
+export default function PacksMoved() {
+  return <MovedPage to={movedTo('/packs')!} action="Go to downloads">The research archive now lives in the methodology, where every data file is still free to download.</MovedPage>;
 }

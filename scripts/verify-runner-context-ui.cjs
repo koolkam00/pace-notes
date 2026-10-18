@@ -12,7 +12,7 @@ Module._resolveFilename = function (request, ...args) {
 };
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
-const { PacingReadings, SectionComparison, RunnerPeerComparison, RunnerConditions, defaultGroup } = require('../components/RunnerContext.tsx');
+const { PacingReadings, SectionComparison, RunnerPeerComparison, RunnerConditions, defaultGroup, lateWords } = require('../components/RunnerContext.tsx');
 const { runnerMetrics, RUNNER_POINTS } = require('../lib/runner-search.ts');
 const render = (component, props) => renderToStaticMarkup(React.createElement(component, props));
 /** Method, source and caveat copy, which since October 16, 2026 is on /methodology only. */
@@ -41,15 +41,23 @@ const context = { weather, terrain, weather_reason: null, terrain_reason: null }
 const original = JSON.stringify(context);
 const mileConditions = render(RunnerConditions, { context, metrics, units: 'mi' });
 assert.match(mileConditions, /32°F/);
-assert.match(mileConditions, /\+3\.6°F/);
-assert.doesNotMatch(mileConditions, /35\.6°F<\/strong>/, 'A two-degree temperature rise is 3.6°F, without adding the freezing-point offset');
+// The morning is the heading, in whole degrees: a two-degree rise is 3.6°F (4°F), without the freezing-point offset.
+assert.match(mileConditions, /<h3 class="rc-h">32°F near the start, 4°F warmer by 13:00\.<\/h3>/, 'The weather heading is the morning\'s finding');
+assert.doesNotMatch(mileConditions, /36°F warmer/, 'A two-degree temperature rise is 3.6°F, without adding the freezing-point offset');
 assert.match(mileConditions, /0 mph/); assert.match(mileConditions, /0 in/); assert.match(mileConditions, /Not available/);
-assert.match(mileConditions, /328\.1 ft/); assert.match(mileConditions, /24\.85 mi–26\.22 mi/);
+assert.match(mileConditions, /328 ft/); assert.doesNotMatch(mileConditions, /\d\.\d ft\b/, 'Climbs in whole feet, as the course pages print them'); assert.match(mileConditions, /40K–finish/, 'Sections are named by their mats in both units'); assert.doesNotMatch(mileConditions, /\d\.\d\d\s*mi\b/, 'Miles never to two decimals');
 assert.doesNotMatch(mileConditions, /first 3\.11 mi|A recorded source note|example\.org/, 'The weather and route records\' own notes and sources are not shown');
 assert.doesNotMatch(mileConditions, METHOD_COPY, 'No method or source copy in the conditions');
 assert.match(mileConditions, /Scheduled start: 09:00 local time/); assert.match(mileConditions, /Start-hour observation: 09:00/);
+assert.ok(mileConditions.indexOf('Scheduled start:') > mileConditions.indexOf('Hourly readings'), 'The observation times are in the hourly readings, not under the cells');
+assert.match(mileConditions, /The route climbs 328 ft and descends 197 ft\./, 'An even race has no slowest 5K: the terrain heading gives the route\'s totals');
+const uneven = { ...race, times: RUNNER_POINTS.map((km, i) => km * 300 + (i >= 6 ? (i - 5) ** 2 * 60 : 0)) };
+assert.match(render(RunnerConditions, { context, metrics: runnerMetrics(uneven), units: 'mi' }), /Your slowest 5K, 35–\u206040K, is nearly level\./, 'The terrain heading names the race\'s slowest 5K; under 10 m net it is nearly level');
+assert.match(render(RunnerConditions, { context: { ...context, terrain: { ...terrain, sections: terrain.sections.map(section => ({ ...section, net_m: 30 })) } }, metrics: runnerMetrics(uneven), units: 'mi' }), /Your slowest 5K, 35–\u206040K, climbs 98 ft net\./, 'A slowest 5K that climbs says how far');
+const falling = render(RunnerConditions, { context: { ...context, terrain: { ...terrain, sections: terrain.sections.map(section => ({ ...section, net_m: -4 })) } }, metrics, units: 'mi' });
+assert.match(falling, /−13 ft/); assert.doesNotMatch(falling, /-13 ft/, 'A descent is printed with a true minus');
 const metricConditions = render(RunnerConditions, { context, metrics, units: 'km' });
-assert.match(metricConditions, /0°C/); assert.match(metricConditions, /\+2°C/); assert.match(metricConditions, /0 km\/h/); assert.match(metricConditions, /0 mm/); assert.match(metricConditions, /100 m/);
+assert.match(metricConditions, /0°C near the start, 2°C warmer by 13:00\./); assert.match(metricConditions, /0 km\/h/); assert.match(metricConditions, /0 mm/); assert.match(metricConditions, /100 m/);
 assert.equal(JSON.stringify(context), original, 'Display conversions must not mutate the source context');
 assert.equal(defaultGroup(race), 'age_gender');
 assert.equal(defaultGroup({ ...race, sex: null }), 'age', 'A usable age still supports age peers when gender is unrecorded');
@@ -69,14 +77,19 @@ const comparison = {
   key: 'age_gender', label: 'Women, ages 35–39', n: 201, other_n: 200, rank: 50, ties: 2, percentile: 75, median_finish: 13000,
   pace: { n: 101, from_sec: 12150, to_sec: 13050, q25: Array(9).fill(290), median: Array(9).fill(305), q75: Array(9).fill(320), late_change: { q25: 5, median: 12, q75: 20 } },
 };
-const milePeers = render(RunnerPeerComparison, { comparison, metrics, units: 'mi' });
-assert.match(milePeers, /2 other finishes share this time/); assert.match(milePeers, /faster than 75% of the 200 other finishes/); assert.match(milePeers, /Not an official race placing/);
-assert.match(milePeers, /12 percentage points lower than/); assert.match(milePeers, /Your pace/); assert.match(milePeers, /Middle 50%/);
+const milePeers = render(RunnerPeerComparison, { comparison, metrics, units: 'mi', edition: 'London 2020' });
+// One placement sentence, in the race report's words (whole numbers down); no rank line and no placing disclaimer.
+assert.match(milePeers, /Ahead of 75 in every 100 other finishes in this group\./); assert.doesNotMatch(milePeers, /of the 200 other/, 'No count in the placement: it would stand beside the pace group\'s different one'); assert.doesNotMatch(milePeers, /Finish \d+ of|share this time|official race placing|Slower finishes/);
+assert.match(milePeers, /<span>Behind it <b>75%<\/b><\/span><span>In front of it <b>25%<\/b><\/span>/, 'Both segments are named the same way, under the bar');
+assert.match(render(RunnerPeerComparison, { comparison: { ...comparison, key: 'all', percentile: 51.9 }, metrics, units: 'mi', edition: 'London 2020' }), /Ahead of 51 in every 100 other eligible finishes in London 2020\./, 'Every eligible finish: the report\'s placement sentence, word for word, whole numbers down');
+assert.match(milePeers, /You held your early pace late; the group’s median slowed 12%\./, 'The late pace in plain words, this race then the group'); assert.doesNotMatch(milePeers, /percentage points/); assert.match(milePeers, /Your pace/); assert.match(milePeers, /Middle 50%/);
 assert.doesNotMatch(milePeers, METHOD_COPY, 'No percentile definition or group caveat beside the peers');
 assert.match(milePeers, /8:03\/mi/); assert.match(milePeers, /8:11\/mi/);
-assert.match(render(RunnerPeerComparison, { comparison, metrics, units: 'km' }), /5:05\/km/);
-const sparse = render(RunnerPeerComparison, { comparison: { ...comparison, pace: null }, metrics, units: 'mi' });
-assert.match(sparse, /pace group is too small/); assert.doesNotMatch(sparse, /101 eligible finishes/); assert.doesNotMatch(sparse, /12 percentage points lower/);
+assert.match(render(RunnerPeerComparison, { comparison, metrics, units: 'km', edition: 'London 2020' }), /5:05\/km/);
+assert.equal(lateWords(13.8, 8.7), 'You slowed 13.8% late; the group’s median slowed 8.7%.');
+assert.equal(lateWords(-2.04, 0.01), 'You sped up 2% late; the group’s median held its early pace.');
+const sparse = render(RunnerPeerComparison, { comparison: { ...comparison, pace: null }, metrics, units: 'mi', edition: 'London 2020' });
+assert.match(sparse, /pace group is too small/); assert.doesNotMatch(sparse, /101 eligible finishes/); assert.doesNotMatch(sparse, /median slowed 12%/);
 
 const paired = render(SectionComparison, { focus: { race, metrics }, reference: { race: reference, metrics: runnerMetrics(reference) }, manifest, units: 'mi' });
 assert.match(paired, /0:14:03\.9 faster/); assert.match(paired, /0:01:40 less/); assert.doesNotMatch(paired, METHOD_COPY, 'No method copy beside the section comparison');
@@ -104,9 +117,9 @@ assert.equal(render(RunnerContext, { races: [repeated], manifest: copyManifest, 
 const reportData = { indexSha: null, archetypesSha: null, openingBands: [], typeCohort: null, courses: {} };
 const withReport = render(RunnerContext, { races: [source, repeated], manifest: copyManifest, units: 'mi', copyEditions: screen, report: reportData });
 assert.equal((withReport.match(/>Make a race report</g) || []).length, 1, 'One report button, for the eligible focus race');
-assert.match(withReport, /Lakeside 2021 on one page\./); assert.doesNotMatch(withReport.split('rc-report')[1], /2025/, 'The report panel never names the copy');
+assert.match(withReport, /Lakeside 2021 on one page, to print or share\./); assert.doesNotMatch(withReport.split('rc-report')[1], /2025/, 'The report panel never names the copy');
 assert.doesNotMatch(withReport, /record 32/);
 assert.equal(render(RunnerContext, { races: [repeated], manifest: copyManifest, units: 'mi', copyEditions: screen, report: reportData }), '', 'A copy edition alone has no report button');
 assert.doesNotMatch(render(RunnerContext, { races: [source], manifest: copyManifest, units: 'mi' }), /Make a race report/, 'No report panel without the report data');
 assert.doesNotMatch(withReport, METHOD_COPY, 'No method copy in the context view');
-console.log('Runner context UI passed: unchanged source values, weather/terrain units, missing versus zero, peer ties, rank and pace, exact checkpoints, same-year section differences, no method, source or caveat copy (on /methodology since October 16, 2026), and no focus option, comparison, split-check link or race report button for a copy edition.');
+console.log('Runner context UI passed: unchanged source values, weather/terrain units, missing versus zero, the placement in the race report’s words and the pace, exact checkpoints, same-year section differences, no method, source or caveat copy (on /methodology since October 16, 2026), and no focus option, comparison, split-check link or race report button for a copy edition.');

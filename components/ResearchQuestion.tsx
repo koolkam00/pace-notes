@@ -3,7 +3,6 @@ import { UnitLink as Link, useUnits } from './UnitsProvider';
 import { unitText } from '@/lib/units';
 import QuestionViz from './QuestionViz';
 import type { PageAnswer } from '@/lib/research-display';
-import { broaderArchive } from '@/lib/broader-analysis-catalog';
 
 const linkedRaceQuestions = new Set(['r05_exceptional_vs_prior', 'r30_negative_split_success', 'r31_multiple_good_strategies', 'r32_where_pbs_are_gained', 'r12_fastest_by_ability', 's4_time_translation', 'r14_knowing_course', 'r20_pacing_personalities', 'r21_learn_from_blowup', 'r25_huge_kick_next', 'r24_interval_after_pb']);
 
@@ -17,7 +16,6 @@ export default function ResearchQuestion({ question, standalone = false, heading
       <span className="question-number">{question.number ? `Question ${String(question.number).padStart(2, '0')}` : 'The study'}</span>
       <Title className="question-title" id={`title-${question.id}`}>{text(question.title)}</Title>
     </header>
-    {!standalone && broaderArchive(question.id) && <p className="coverage-notice"><Link href={'/packs/' + question.id}>Explore the broader view without an earlier race ↗</Link></p>}
     <p className={question.available ? 'answer' : 'answer-state'}>{text(question.answer)}</p>
     {question.charts.map((spec, i) => <QuestionViz key={`${question.id}-${i}`} spec={spec} />)}
     {linkedRaceQuestions.has(question.id) && <p className="coverage-notice">Also explore <Link href="/analyses/starting-pace">opening pace and late slowing</Link> or <Link href="/runners">your race, conditions and peers</Link>.</p>}

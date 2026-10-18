@@ -15,8 +15,6 @@ const helpers = require('../lib/all-finisher-context.ts');
 const { getAllFinisherContextStart } = require('../lib/all-finisher-context-server.ts');
 const { default: AllFinisherAnalysis, AllFinisherResults } = require('../components/AllFinisherAnalysis.tsx');
 const { default: AnalysisPage } = require('../app/analyses/[slug]/page.tsx');
-const { default: PackPage } = require('../app/packs/[packId]/page.tsx');
-const { BROADER_ARCHIVE } = require('../lib/broader-analysis-catalog.ts');
 const { sectionLabel } = require('../lib/section-labels.ts');
 const { default: MethodologyPage } = require('../app/methodology/page.tsx');
 const start = getAllFinisherContextStart();
@@ -115,8 +113,7 @@ async function main() {
   // Too few detected slowdowns to place their start: the onset cell is a dash, never an invented section.
   assert.match(render(AllFinisherResults,{groups:[sparse],kind:'courses',start,units:'mi',focus:sparse}),/>—</);
   // Course comparison, race-day weather and downhill starts compare every eligible finish only: their earlier-result
-  // views were cut under the redesign's section 00 (course and weather against an earlier best stay in the research
-  // guide, /research/personalized), so the form has no comparison switch.
+  // views were cut under the redesign's section 00, so the form has no comparison switch.
   for(const slug of ['course-comparison','race-day-weather','downhill-start']) {
     const html=render(AnalysisPage,{params:{slug}});
     assert.match(html,/>Early-race pace</);assert.doesNotMatch(html,/With an earlier result|Choose the comparison/);assert.doesNotMatch(html,eligibleText,'Coverage counts belong on /methodology');
@@ -124,12 +121,8 @@ async function main() {
     // Update comparison is inert until a setting changes, and says so.
     assert.match(html,/<button type="submit" class="btn btn-secondary is-compact" aria-disabled="true" aria-describedby="[^"]+-why">Update comparison<\/button><p class="field-hint explore-submit-hint" id="[^"]+-why">Change a setting to compare<\/p>/,`${slug}: Update comparison waits for a change`);
   }
-  for(const id of [...Object.keys(BROADER_ARCHIVE),'rn3_heat_curves','ext_weather_pacing_patterns']) {
-    const html=render(PackPage,{params:{packId:id}});
-    assert.match(html,/All eligible finishes/);assert.match(html,/No previous race needed/);
-    if(id==='r02_recover_slow_start') assert.match(html,/<option value="slow5" selected="">/);
-    if(id==='r34_pacing_risk_reward') assert.match(html,/<option value="steady" selected="">/);
-  }
+  // The research archive's broader views (/packs/<id>) closed with the archive (the redesign spec, section 00): each
+  // address is a moved stub now, so only the analyses above render these explorers.
   assert.doesNotMatch(render(AnalysisPage,{params:{slug:'finding-improvement'}}),/This comparison requires earlier results|strictly earlier/,'Cohort notes belong on /methodology');
   assert.match(render(MethodologyPage,{}),/id="all-finisher-context"/);
   const originalFetch=global.fetch;let served=bytes,status=200;const calls=[];
@@ -147,6 +140,6 @@ async function main() {
     const before=calls.length;await loadAllFinisherContext(start,signal);assert.equal(calls.length,before);
     const aborted=new AbortController();aborted.abort();await assert.rejects(()=>loadAllFinisherContext(start,aborted.signal),/Aborted/);
   } finally {global.fetch=originalFetch;}
-  console.log('All-finisher client checks passed: exact filters and URL modes, balanced rates versus pooled onset denominators, per-edition semantics, mi/km and temperature display, sparse states, primary/archive route coverage, source-bound loading and errors.');
+  console.log('All-finisher client checks passed: exact filters and URL modes, balanced rates versus pooled onset denominators, per-edition semantics, mi/km and temperature display, sparse states, primary route coverage, source-bound loading and errors.');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

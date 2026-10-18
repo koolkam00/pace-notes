@@ -100,11 +100,6 @@
 /* Table headers wrap, so a long name never pushes the numbers off a phone. */
 .analysis-page .values .table thead th { white-space: normal; vertical-align: bottom; }
 
-/* ---------- A moved page (the old weather slugs) ---------- */
-.moved-page { display: grid; gap: var(--s-4); max-width: var(--measure); padding: var(--s-7) 0 var(--s-8); }
-.moved-page > * { margin: 0; }
-.moved-link { font-weight: 600; }
-
 /* ---------- Phones at 200% zoom ---------- */
 @media (max-width: 359.98px) {
   /* The crumbs wrap rather than push the page sideways. */

@@ -32,6 +32,8 @@ const ROOT = path.join(__dirname, '..');
 process.chdir(ROOT);
 
 const report = require('../lib/report.ts');
+const { approxWords } = require('../lib/nuggets/format.ts');
+const { capitalize } = require('../lib/nuggets/build.ts');
 const links = require('../lib/tools/links.ts');
 const splits = require('../lib/tools/splits.ts');
 const React = require('react');
@@ -138,7 +140,7 @@ for (const scope of index.scopes) {
       assert.equal(model.opening.band?.id ?? null, expectedBand(times), 'the opening group');
       assert.equal(model.type.state, 'ok'); assert.equal(model.type.name, expectedType(times), 'the pacing type');
       const arch = archetypes.archetypes.find((a) => a.name === model.type.name);
-      assert.equal(model.type.n, arch.n); assert.equal(model.type.cohortN, archetypes.cohort_n); assert.match(model.type.label, /pacing-types cohort/);
+      assert.equal(model.type.n, arch.n); assert.equal(model.type.cohortN, archetypes.cohort_n); assert.equal(model.type.label, 'complete finishes'); // the cohort is named on /methodology#pacing-types, not on the report
       const c = model.comparison;
       if (!path_) { assert.equal(c.state, 'unavailable', `${scope.slug}/${gender} ${times[8]}: nothing published`); unpublished += 1; continue; }
       const all = expectedCell(shardOf(path_), 'all', minute);
@@ -161,12 +163,14 @@ for (const scope of index.scopes) {
           const text = html.replace(/<[^>]+>/g, ' ').replace(/&#x27;|&#39;/g, '\'').replace(/&amp;/g, '&').replace(/\s+/g, ' ');
           assert.ok(text.includes(`${c.n.toLocaleString('en-US')} ${c.label}`), 'the comparison names its finishes and its group');
           for (const g of c.groups) assert.ok(text.includes(`${g.name} ${g.n.toLocaleString('en-US')}`), `${g.name}: its finishes`);
-          assert.ok(text.includes(`${model.type.n.toLocaleString('en-US')} of ${archetypes.cohort_n.toLocaleString('en-US')} finishes (${report.shareText(model.type.share)}) were ${model.type.name.toLowerCase()}s`), 'the pacing type names its finishes and its share');
+          assert.ok(text.includes(`${capitalize(approxWords(model.type.share))} of ${archetypes.cohort_n.toLocaleString('en-US')} finishes were ${model.type.name.toLowerCase()}s`), 'the pacing type names its finishes and its share, in words');
           assert.ok(!text.includes('doi:10.1371/journal.pone.0251513') && !text.includes(splits.SLOWDOWN_DEFINITION), 'no definition or citation on the card');
           assert.doesNotMatch(text, METHOD_COPY, 'no method line on the card');
           assert.match(html, new RegExp(`<a\\b[^>]*href="${SLOWDOWN_HREF}"[^>]*>sustained slowdown</a>`), 'the term links to its definition');
           assert.equal((html.match(/class="race-report-badge /g) || []).length, (html.match(/<a\b[^>]*class="race-report-badge /g) || []).length, 'every badge is a link');
           assert.match(html, badgeLink('data', 'Pace Notes data'));
+          assert.equal((html.match(/class="race-report-badge is-data"/g) || []).length, 1, 'one Pace Notes data badge, in the foot');
+          assert.match(html, new RegExp(`<footer class="race-report-foot">${badgeLink('data', 'Pace Notes data').source}`), 'the data badge sits in the foot');
           assert.doesNotMatch(text, /\byou\b|\byour\b|the wall|arithmetic|percentile|\brank\b|\brecord\b/i, 'the report says "this race", and holds no rank, percentile or record');
           assert.match(text, units === 'mi' ? /\/mi\b/ : /\/km\b/); assert.doesNotMatch(text, units === 'mi' ? /\d\/km\b/ : /\d\/mi\b/, 'paces in the units shown');
           assert.equal((html.match(/<h1\b/g) || []).length, 1, 'one title');
@@ -214,13 +218,21 @@ ok();
   assert.equal(recorded.record.placement.label, 'eligible finishes in Lakeside 2021'); assert.match(recorded.record.late.label, /^finishes from 4:07:30 to under 4:22:30 in Lakeside 2021$/);
   const html = renderToStaticMarkup(React.createElement(ReportCard, { id: 'r', model: recorded, units: 'mi', level: 3, gender: 'all', dropped: null, retryComparison: () => {}, retryType: () => {} }));
   assert.match(html, /<h3 class="race-report-title"/); assert.doesNotMatch(html, /<h1\b/);
-  assert.match(html, /4,999 other eligible finishes in Lakeside 2021/); assert.match(html, /not an official placing/);
+  assert.match(html, /Ahead of <em>76 in every 100<\/em> other eligible finishes in Lakeside 2021\./); assert.doesNotMatch(html, /4,999/, 'the placement carries no count: it would stand beside the comparison\'s different one'); assert.match(html, /not an official placing/);
   assert.doesNotMatch(html.replace(/<[^>]+>/g, ' '), METHOD_COPY, 'no method line in the record block either');
-  assert.match(html, /52\.7°F/); assert.match(html, /395 ft/);
+  // The edition's lines load with the record (components/report/RecordBlock.tsx, lazily, so /report carries none of
+  // their code): rendered here on their own, with the same rules.
+  const RecordBlock = require('../components/report/RecordBlock.tsx').default;
+  const lines = renderToStaticMarkup(React.createElement(RecordBlock, { id: 'r-record', Head: 'h4', record: recorded.record, units: 'mi' }));
+  assert.match(lines, /class="race-report-block race-report-record"/); assert.match(lines, /<dl>/);
+  assert.match(lines, /52\.7°F/); assert.match(lines, /395 ft/); assert.doesNotMatch(lines, /race-report-badge/, 'the foot carries the one data badge');
+  assert.match(lines, /\+12\.3%<\/strong> against its 5–20K pace; similar finishes in this edition: \+9\.5%\./, 'the late change beside the edition\'s similar finishes, with no second window or count');
+  assert.doesNotMatch(lines.replace(/<[^>]+>/g, ' '), METHOD_COPY, 'no method line in the edition lines either');
+  assert.doesNotMatch(lines.replace(/<[^>]+>/g, ' '), /\byou\b|\byour\b|percentile|\brank\b|\brecord\b/i, 'the edition lines say "this race", and hold no rank, percentile or record');
   assert.doesNotMatch(JSON.stringify(report.reportLines(recorded, 'mi')), /4,999|1,200|\b76(?:\.0)?%|percentile|\brank\b|9\.5%|12\.3%|°|\bft\b/, 'the image never carries the record\'s placement');
   const small = report.buildReport({ ...base, comparison: { index, indexError: null, course: 'all', gender: 'all', shard: null },
     record: { edition: { city: 'Lakeside', year: 2021 }, context: { ...sample, comparisons: { all: null } , weather: null, weather_reason: 'No verified weather.', terrain: null, terrain_reason: null }, error: null, lateChange: 1 } });
-  assert.ok('unavailable' in small.record.placement && 'unavailable' in small.record.late && small.record.weather.unavailable === 'No verified weather.' && 'unavailable' in small.record.climb, 'small or missing groups say so');
+  assert.ok('unavailable' in small.record.placement && 'unavailable' in small.record.late && small.record.weather.unavailable === 'Not available for this edition.' && small.record.climb.unavailable === 'Not available for this edition.', 'small or missing groups say so, with no data-screen reason (method copy)');
   ok(20);
 }
 assert.equal(report.REPORT_IMAGE_NAME, 'pace-notes-race-report.png'); ok();
