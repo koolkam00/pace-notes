@@ -68,7 +68,7 @@ export type PlacedLabel = LabelItem & {
   minWidth: number | null;
 };
 
-type Box = { x0: number; y0: number; x1: number; y1: number };
+export type Box = { x0: number; y0: number; x1: number; y1: number };
 const overlaps = (a: Box, b: Box, pad = 2) => a.x0 < b.x1 + pad && b.x0 < a.x1 + pad && a.y0 < b.y1 + pad && b.y0 < a.y1 + pad;
 
 function boxAt(l: LabelItem, anchor: PlacedLabel['anchor'], dx: number, dy: number, width: number, height: number): Box {
@@ -150,6 +150,20 @@ export function placeLabels(items: LabelItem[], bounds: { height: number; width?
 export function placedBox(l: PlacedLabel, height: number, pad = 2): { x0: number; x1: number; y0: number; y1: number; pad: number } {
   const b = boxAt(l, l.anchor, l.dx, l.dy, REF_WIDTH, height);
   return { x0: (b.x0 - pad) / REF_WIDTH, x1: (b.x1 + pad) / REF_WIDTH, y0: (b.y0 - pad) / height, y1: (b.y1 + pad) / height, pad: 0 };
+}
+
+/**
+ * Raises each placed label's narrowest width past the widths where it would meet a fixed box (`at(width)`, in px at
+ * that plot width), for a mark drawn outside placeLabels whose text keeps its px offset while the labels move with the
+ * plot (LineProfile's bracket label at the plot's edge). Below that width the label hides; the Values table keeps it.
+ */
+export function keepClearOf(placed: PlacedLabel[], at: (width: number) => Box, height: number) {
+  for (const p of placed) {
+    if (p.minWidth === null) continue;
+    for (const w of WIDTH_STEPS) {
+      if (w >= p.minWidth && overlaps(boxAt(p, p.anchor, p.dx, p.dy, w, height), at(w))) p.minWidth = Math.max(p.minWidth, WIDTH_STEPS.find((s) => s > w) ?? REF_WIDTH);
+    }
+  }
 }
 
 /** The class that hides a label or tick below its narrowest width ('' when it always shows). */

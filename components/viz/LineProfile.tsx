@@ -5,7 +5,7 @@ import Plot, { Baseline, Gridlines, RefLine } from './Plot';
 import Lens from './Lens.client';
 import Scrubber, { type ScrubPoints } from './Scrubber.client';
 import Annotation from './Annotation';
-import { fitClass, placeLabels, REF_WIDTH, textWidth, type LabelItem } from './labels';
+import { fitClass, keepClearOf, placeLabels, REF_WIDTH, textWidth, type LabelItem } from './labels';
 import { areaPath, extent, linear, linePath, pc, yScale } from './scale';
 import { typeStyle } from '@/lib/viz/palette';
 
@@ -94,6 +94,13 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
     // …and of a level connector between two points.
     for (const k of layer.links ?? []) for (let t = 0; t <= 20; t++) avoid.push({ x: x(k.x0 + ((k.x1 - k.x0) * t) / 20), y: y(k.y), r: 2 });
     const placed = placeLabels(items, { height, avoid });
+    // Below the reference width the bracket's label keeps its place by the plot's edge while the others move with the
+    // plot, so a label that would meet it there hides at that width (200% zoom; the Values table keeps it).
+    if (layer.bracket) {
+      const b = layer.bracket, bw = textWidth(b.label, 14), base = ((y(b.y0) + y(b.y1)) / 2) * height + 5;
+      // The bracket's text box is taken at its full glyph height (ascenders and descenders), measured in Chromium.
+      keepClearOf(placed, (w) => { const x1 = Math.min(1, Math.max(0, x(b.x))) * w - 12; return { x0: x1 - bw, x1, y0: base - 14 * 0.95, y1: base + 14 * 0.3 }; }, height);
+    }
     return (
       <g key={layer.id} data-layer={lensOn ? layer.id : undefined} className={lensOn && layer.id !== current ? 'is-off' : undefined}>
         <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">

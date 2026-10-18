@@ -305,7 +305,8 @@ async function keypad(h) {
 // otherwise). /research, opened directly, converts its text when Kilometers is pressed: the contents' opener names the
 // marathon distance ("26.2 miles in eleven chapters"), and any pace a chapter's reading carries turns from /mi to /km.
 // /methodology has the working switch too (its pace bands convert). Every page the export serves with the placeholder
-// (404.html aside) reads the same in both units.
+// reads the same in both units: since /privacy and /request-analysis took the working switch (October 18, 2026) that is
+// the 404 page alone, besides the moved addresses' stubs.
 async function unitSwitch(h) {
   const run = await h.run('units switch', DESKTOP);
   const page = await run.newPage();
@@ -333,7 +334,7 @@ async function unitSwitch(h) {
   await page.waitForTimeout(800);
   const methods = await seen();
   h.check('/methodology, opened directly, has the working units switch', methods.working, methods);
-  const served = fs.readdirSync(h.out, { recursive: true }).filter(file => file.endsWith('.html') && file !== '404.html')
+  const served = fs.readdirSync(h.out, { recursive: true }).filter(file => file.endsWith('.html'))
     .map(file => ({ at: '/' + file.replace(/\.html$/, '').replace(/(^|\/)index$/, ''), html: fs.readFileSync(path.join(h.out, file), 'utf8') }))
     .filter(({ html }) => html.includes('unit-switch-placeholder'));
   // A stub (components/MovedPage.tsx) replaces itself with its target while the HTML is read (<script data-forward>).
