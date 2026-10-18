@@ -12,6 +12,9 @@ import { chapterNumber, type ChapterReading, type Next } from '@/lib/chapters';
  * chapter's lead and key, so every chapter is announced by its headline number. States: hover (the go button moves 4 px
  * on), focus-visible (the card's ring), pressed.
  */
+/** A title whose hyphenated words never break at the hyphen ("The finish-line magnet"). */
+const unbroken = (title: string) => title.split(/(\S+-\S+)/).map((part, i) => (i % 2 ? <span key={i} className="nowrap">{part}</span> : part));
+
 export default function NextCard({ next, reading }: { next: Next; reading?: ChapterReading | null }) {
   const { page, chapter, opensChapter } = next;
   const key = reading ? (reading.key ?? (opensChapter ? chapter.key : undefined)) : undefined;
@@ -22,7 +25,7 @@ export default function NextCard({ next, reading }: { next: Next; reading?: Chap
           ? <><MarkerBadge marker={chapter.marker} /><span>Next chapter · {chapter.title}<span className="sr-only"> (chapter {chapterNumber(chapter)})</span></span></>
           : 'Next in this chapter'}
       </span>
-      <span className="next-card-title">{page.title}</span>
+      <span className="next-card-title">{unbroken(page.title)}</span>
       {reading ? (
         <span className="next-card-reading">
           <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size="m" tone="night" />

@@ -1,10 +1,18 @@
+import type { ReactNode } from 'react';
+import { PILEUP_RATIO } from '@/lib/tools/goal-facts';
 import { notFound } from 'next/navigation';
-import { UnitLink as Link } from '@/components/UnitsProvider';
+import ChartFrame from '@/components/viz/ChartFrame';
+import Plot, { Baseline } from '@/components/viz/Plot';
+import Axis from '@/components/viz/Axis';
+import Annotation from '@/components/viz/Annotation';
+import { placeLabels } from '@/components/viz/labels';
+import { linear, pc, stepEdge, stepPath, u, yScale } from '@/components/viz/scale';
+import Values from '@/components/ui/Values';
 import { GoalPaceBody, GoalPaceDek, type GoalBunching, type GoalObserved } from '@/components/tools/GoalPace';
-import { ToolNext } from '@/components/tools/ToolShell';
+import { ToolEnd, ToolPageHeader } from '@/components/tools/ToolShell';
 import type { FinishTimes } from '@/lib/insights';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
-import { JsonLd, breadcrumbs, pageMetadata } from '@/lib/seo';
+import { pageMetadata } from '@/lib/seo';
 import type { PaceBandGroup, PaceBandIndex, PaceBandShard } from '@/lib/tools/data';
 import type { GoalPeer } from '@/lib/tools/goal-facts';
 import { MARATHON_KM, perUnit } from '@/lib/tools/pace';
@@ -21,7 +29,6 @@ const INDEX = 'tools/pace-band.json';
 /** All courses, all recorded genders: the pace band's widest group. */
 const SHARD = 'tools/pace-band/all/all.json';
 const FINISH_TIMES = 'finish-times.json';
-const ACCENT = '#FF5B2E';
 const MAX_DESCRIPTION = 155;
 
 const index = (group: PaceBandGroup | undefined, minute: number) => (group ? group.g.indexOf(minute) : -1);
@@ -69,6 +76,53 @@ function bunchingFor(minute: number): GoalBunching | null {
   }
 }
 
+/**
+ * The pile-up as a figure: finishes per minute for ten minutes either side of the goal, the smooth curve over them and the
+ * minute before the goal in signal. Server-drawn (no script on the page), from the same finish-time file as the sentence.
+ */
+function pileupFigure(minute: number, piled: boolean): ReactNode {
+  try {
+    const ft = readInsight<FinishTimes>(FINISH_TIMES);
+    const lo = minute - 10, hi = minute + 10;
+    const bins = ft.histogram.filter((h) => h.minute >= lo && h.minute < hi).map((h) => ({ x: h.minute, n: h.all }));
+    const curve = ft.expected_curve.filter((c) => c.minute >= lo && c.minute < hi).map((c) => ({ x: c.minute, v: c.expected }));
+    if (bins.length < 15 || curve.length < 15) return null;
+    const hm = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+    const before = minute - 1;
+    const at = (m: number) => bins.find((b) => b.x === m)?.n ?? 0;
+    // The minute histogram's grammar (components/viz/Histogram), static: a silhouette, the smooth curve, the minute
+    // before the goal in signal and named. No lens or needle, so the page ships no chart script.
+    const height = 130;
+    const x = linear([lo, hi]), w = 1 / (hi - lo);
+    const y = yScale(0, Math.max(...bins.map((b) => b.n), ...curve.map((c) => c.v)), { top: 0.16 });
+    const top = y(at(before));
+    // A pile-up below PILEUP_RATIO is no finding: its tower and name are ink, not the signal.
+    const placed = placeLabels([{ id: 'before', text: hm(before), x: x(before + 0.5), y: top, priority: 3, tone: piled ? 'signal' : 'ink', gap: 6 }], { height });
+    const plot = (
+      <Plot>
+        <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
+          <path className="a-silhouette" d={stepPath(bins.map((b) => ({ x: x(b.x), y: y(b.n) })), w)} />
+          <path className="a-edge" d={stepEdge(bins.map((b) => ({ x: x(b.x), y: y(b.n) })), w)} />
+          <path className="l-ink2" d={curve.map((c, i) => `${i ? 'L' : 'M'}${u(x(c.x + 0.5))} ${u(y(c.v))}`).join('')} />
+        </svg>
+        <rect className={`${piled ? 'm-signal' : 'm-ink'} is-reading histo-tower`} x={pc(x(before))} width={pc(w)} y={pc(top)} height={pc(1 - top)} />
+        <Annotation labels={placed} />
+        <Baseline />
+      </Plot>
+    );
+    return (
+      <ChartFrame label={`Finishes per minute from ${hm(lo)} to ${hm(hi)}, against a smooth curve: ${at(before).toLocaleString('en-US')} in the minute before ${hm(minute)}`}
+        height={height} heightMd={150} plot={plot}
+        axis={<Axis ticks={[lo, minute, hi].map((m) => ({ x: x(m), label: hm(m) }))} />}
+        keys={[{ label: 'Finishes per minute', mark: 'square', tone: 'quiet' }, { label: 'Smooth curve', mark: 'line' }]}
+        values={<Values id="goal-pace-pileup" caption={`Finishes per minute around ${hm(minute)}, and what a smooth curve expects`} columns={[{ key: 'm', label: 'Minute' }, { key: 'n', label: 'Finishes' }, { key: 'e', label: 'Smooth curve' }]}
+          rows={bins.map((b) => [hm(b.x), b.n.toLocaleString('en-US'), Math.round(curve.find((c) => c.x === b.x)?.v ?? NaN).toLocaleString('en-US')])} reading={bins.findIndex((b) => b.x === before)} />} />
+    );
+  } catch {
+    return null;
+  }
+}
+
 /** Every goal page's window size and sustained-slowdown share, so a page can say where its goal sits among them. */
 function goalPeers(): GoalPeer[] {
   const peers = GOAL_PAGE_MINUTES.map((goal) => {
@@ -106,20 +160,17 @@ export default function GoalPacePage({ params }: { params: { goal: string } }) {
   const peers = goalPeers();
 
   return (
-    <div className="container tool-page goal-pace-page" style={{ ['--tool' as string]: ACCENT }}>
-      <header className="tool-header">
-        <p className="eyebrow"><Link href="/tools">Runner tools</Link> · <Link href="/tools/marathon-pace-chart">Marathon pace chart</Link></p>
-        <h1 className="tool-title">{label} marathon pace</h1>
-        <GoalPaceDek goal={minute} observed={observed} />
-        <p className="print-only goal-chart-print-note">Pace Notes {label} marathon pace. Even-pace splits beside Pace Notes data. splithappens.run{goalPagePath(minute)}</p>
-        <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Runner tools', '/tools'], ['Marathon pace chart', '/tools/marathon-pace-chart'], [`${label} marathon pace`]])} />
-      </header>
-
+    <div className="tool-page goal-pace-page">
+      {/* No header badge: the splits card is a plain calculation, and the observed beats below carry the one badge. */}
+      <ToolPageHeader path={goalPagePath(minute)} title={`${label} marathon pace`} badges={[]}
+        trail={[['Reference'], ['Marathon pace chart', '/tools/marathon-pace-chart'], [`${label} marathon pace`]]}
+        dek={<GoalPaceDek goal={minute} observed={observed} />}>
+        <p className="print-only goal-chart-print-note">Pace Notes {label} marathon pace. splithappens.run{goalPagePath(minute)}</p>
+      </ToolPageHeader>
       <div className="goal-pace-stack">
-        <GoalPaceBody goal={minute} observed={observed} bunching={bunching} peers={peers} />
+        <GoalPaceBody goal={minute} observed={observed} bunching={bunching} peers={peers} pileup={bunching ? pileupFigure(minute, bunching.ratio >= PILEUP_RATIO) : null} />
       </div>
-
-      <ToolNext current="" />
+      <ToolEnd path={goalPagePath(minute)} how="/methodology#tools-goal-pages" />
     </div>
   );
 }

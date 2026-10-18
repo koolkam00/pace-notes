@@ -1,0 +1,125 @@
+/* The race-day projector (/tools/projector; the redesign spec, section 7.13): a tracker time at a 5K mat, the finish
+   window of past finishes on that pace on one night card, where they ended against the even-pace finish, then the rest
+   of the race mat by mat with the spectator's start clock and saved runner cards. Every class here is prefixed
+   projector-. Imported by app/tools/projector/layout.tsx. */
+
+.projector { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); min-width: 0; scroll-margin-top: calc(var(--header-h) + var(--s-4)); }
+.projector-optional { margin-left: 6px; font-size: var(--t-label); font-weight: 400; color: var(--ink-3); }
+
+/* ---------- Inputs ---------- */
+.projector-mats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.tool-page .projector-mats button { display: grid; place-items: center; gap: 2px; min-height: 52px; padding: 6px 4px; border: 1px solid var(--rule-strong); border-radius: var(--r-sm);
+  background: transparent; color: var(--ink); box-shadow: none; line-height: 1.1;
+  transition: background-color var(--d-quick) var(--ease-out), border-color var(--d-quick) var(--ease-out), color var(--d-quick) var(--ease-out); }
+.tool-page .projector-mats button:hover { border-color: var(--ink); }
+.tool-page .projector-mats button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.projector-mats b { font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.projector-mats small { font-size: .75rem; font-weight: 500; color: var(--ink-3); }
+.tool-page .projector-mats button[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.tool-page .projector-mats button[aria-pressed='true'] small { color: var(--paper); opacity: .75; }
+.projector-entry { display: grid; gap: var(--s-3); }
+.projector-entry > .tool-choice.seg { justify-self: start; width: auto; }
+.tool-page .projector-link-button { justify-self: start; min-height: 44px; padding: 0; border: 0; border-radius: var(--r-xs); background: none; box-shadow: none; color: var(--ink);
+  font-size: var(--t-small); font-weight: 600; text-align: left; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.tool-page .projector-link-button:hover { background: none; text-decoration-thickness: 2px; }
+.tool-page .projector-link-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* The next mat, under the mats still to come: a text row with the site's arrow. */
+.tool-page .projector-advance { display: inline-flex; align-items: center; gap: 6px; }
+.projector-paste { border-top: 1px solid var(--rule); }
+.projector-paste > summary { display: flex; align-items: center; justify-content: space-between; min-height: 48px; list-style: none; cursor: pointer; font-size: .9375rem; font-weight: 600; color: var(--ink); }
+.projector-paste > summary::-webkit-details-marker { display: none; }
+.projector-paste > summary::marker { content: ''; }
+.projector-paste > summary::after { content: '+'; width: 22px; font-size: 1.25rem; font-weight: 400; line-height: 1; text-align: center; }
+.projector-paste[open] > summary::after { content: '−'; }
+.projector-paste > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.tool-page .projector-paste textarea { display: block; width: 100%; min-height: 6.5rem; margin: 0 0 8px; padding: 12px 14px; border: 1px solid var(--rule-strong); border-radius: var(--r-sm);
+  background: var(--paper-raised); color: var(--ink); font-family: var(--sans); font-size: 1rem; line-height: 1.5; resize: vertical; }
+.tool-page .projector-paste textarea:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+.projector-paste .tool-field-hint { padding-bottom: var(--s-3); }
+
+/* Phones: the short result right under the time field, so a new mat time shows its effect without scrolling. */
+.projector-quick { display: none; }
+@media (max-width: 899.98px) {
+  .projector-quick { display: grid; gap: 2px; padding-top: var(--s-3); border-top: 1px solid var(--rule); }
+}
+.projector-quick-text { margin: 0; font-size: .9375rem; line-height: 1.45; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.projector-quick-text b { color: var(--ink); font-weight: 600; }
+.projector-quick-text.is-error { color: var(--signal-ink); }
+#projector-result { scroll-margin-top: calc(var(--header-h) + var(--s-4)); }
+.projector-load-error { display: grid; gap: var(--s-3); justify-items: start; }
+
+/* ---------- The night card ---------- */
+.projector-headline .tool-reading-figure { font-variant-numeric: tabular-nums lining-nums; }
+.projector-headline .tool-ledger dd { white-space: normal; }
+.projector-entered { font-size: var(--t-small); }
+
+/* ---------- Where these finishes ended ---------- */
+.projector-chart { margin: 0; touch-action: manipulation; }
+.projector-chart svg { display: block; overflow: visible; }
+.projector-chart svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+.projector-chart .projector-grid line { stroke: var(--rule); }
+.projector-chart .projector-bar { fill: var(--fill-quiet); stroke: var(--mark-quiet); stroke-width: .75; }
+.projector-chart .projector-bar.is-middle { fill: var(--ordinal-2); stroke: var(--paper); }
+.projector-chart .projector-base { stroke: var(--rule-strong); }
+.projector-chart .projector-whisker line { stroke: var(--ink-2); stroke-width: 1.5; }
+.projector-chart .projector-marker-line { stroke: var(--ink); stroke-width: 1.5; }
+.projector-chart .projector-marker-line.is-median { stroke: var(--signal); stroke-width: 2; }
+.projector-chart .projector-marker-line.is-even { stroke-dasharray: 4 3; }
+.projector-chart .projector-marker-halo { fill: var(--paper); }
+.projector-chart svg .projector-marker { font-weight: 600; fill: var(--ink); }
+.projector-chart svg .projector-marker.is-median { fill: var(--signal-ink); }
+
+/* ---------- The rest of the race ---------- */
+/* From one to eight mats remain, so each lap carries its own top rule instead of counting rows. */
+.projector-laps { grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 0; }
+.tool-laps.projector-laps li, .tool-laps.projector-laps li:nth-last-child(-n + 3) { border-top: 1px solid var(--rule); border-bottom: 0; }
+.projector-laps b { font-size: 1.125rem; }
+.projector-lap-median { font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.projector-clock { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-3) var(--s-4); }
+.projector-clock .projector-start { flex: 1 1 15rem; max-width: 22rem; }
+.projector-clock > .tool-choice.seg { width: auto; margin-bottom: 26px; }
+.projector-save { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-2); padding-top: var(--s-4); border-top: 1px solid var(--rule); }
+.projector-save-title { margin: 0; font-size: 1rem; font-weight: 600; color: var(--ink); }
+.projector-save-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.tool-page .projector-save-row input { flex: 1 1 10rem; width: auto; min-width: 0; min-height: 48px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: var(--r-sm);
+  background: var(--paper-raised); color: var(--ink); font-family: var(--sans); font-size: 1rem; box-shadow: none; }
+.tool-page .projector-save-row input:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+.projector-save-row .btn { flex: 0 0 auto; }
+
+/* ---------- Unavailable ---------- */
+.projector-unavailable .tool-reading-kicker { color: var(--signal-ink); }
+
+/* ---------- Runner cards ---------- */
+.projector-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); gap: var(--s-5) var(--s-6); margin: 0; padding: 0; list-style: none; }
+.projector-card { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: var(--s-2); min-width: 0; margin: 0; padding-top: var(--s-3); border-top: 2px solid var(--ink); }
+.projector-card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); min-width: 0; }
+.projector-card-head h3 { flex: 1 1 auto; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--sans); font-size: 1.125rem; font-weight: 600; color: var(--ink); }
+.tool-page .projector-card-remove { flex: 0 0 auto; width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 50%; background: transparent; box-shadow: none; color: var(--ink-2); font-size: 1.375rem; line-height: 1; }
+.tool-page .projector-card-remove:hover { background: var(--paper-sunk); color: var(--ink); }
+.tool-page .projector-card-remove:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.projector-card-sub { margin: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); overflow-wrap: anywhere; }
+/* A safety net on very narrow screens: the table scrolls inside the card, never the page. */
+.projector-card-scroll { min-width: 0; overflow-x: auto; }
+.projector-card-table { width: 100%; border-collapse: collapse; font-family: var(--sans); font-variant-numeric: tabular-nums; }
+.projector-card-table th, .projector-card-table td { padding: 8px 4px; border-bottom: 1px solid var(--rule); text-align: right; vertical-align: top; font-size: .875rem; }
+.projector-card-table thead th { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); white-space: nowrap; border-bottom-color: var(--rule-strong); }
+.projector-card-table th:first-child, .projector-card-table td:first-child { padding-left: 0; text-align: left; }
+.projector-card-table th:last-child, .projector-card-table td:last-child { padding-right: 0; }
+.projector-card-table tbody th { font-weight: 600; color: var(--ink); }
+.projector-card-table tbody th small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
+.projector-card-table td:nth-child(2) { font-weight: 600; color: var(--ink); }
+.projector-card-table td { color: var(--ink-2); }
+.projector-card-table tr.is-finish th, .projector-card-table tr.is-finish td { border-bottom: 0; color: var(--ink); }
+.projector-card-empty, .projector-card-note { margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink-3); }
+.projector-card-actions { display: grid; gap: var(--s-1); }
+.projector-card-update { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--s-2); }
+.projector-card-update .tool-field { min-width: 0; }
+.projector-card-update .btn { min-height: 52px; }
+.projector-card-update .tool-field-hint, .projector-card-update > .keypad-hint { grid-column: 1 / -1; }
+
+@media (min-width: 600px) {
+  .projector-laps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 299.98px) {
+  .projector-mats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

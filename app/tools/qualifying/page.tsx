@@ -1,9 +1,8 @@
 import QualifyingChecker from '@/components/tools/QualifyingChecker';
 import { QualifyingRaceLinks } from '@/components/tools/QualifyingRaceLinks';
-import { ToolHeader, ToolNext } from '@/components/tools/ToolShell';
+import { ToolEnd, ToolHeader } from '@/components/tools/ToolShell';
 import { pageMetadata } from '@/lib/seo';
 import { STANDARDS } from '@/lib/tools/qualifying';
-import './qualifying.css';
 
 export const metadata = pageMetadata({
   title: 'Marathon Qualifying Times Checker: Boston, NYC, Chicago',
@@ -13,15 +12,14 @@ export const metadata = pageMetadata({
 
 export default function QualifyingPage() {
   return (
-    <div className="container tool-page">
-      <ToolHeader slug="qualifying">
-        <nav className="qrace-index" aria-labelledby="qrace-index-title">
-          <p id="qrace-index-title">Every standard by age group, race by race</p>
-          <QualifyingRaceLinks races={STANDARDS} compact />
-        </nav>
-      </ToolHeader>
+    <div className="tool-page">
+      <ToolHeader slug="qualifying" />
       <QualifyingChecker />
-      <ToolNext current="qualifying" />
+      <nav className="qrace-more" aria-labelledby="qrace-index-title">
+        <h2 id="qrace-index-title" className="tool-handoffs-label">Every standard by age group</h2>
+        <QualifyingRaceLinks races={STANDARDS} />
+      </nav>
+      <ToolEnd path="/tools/qualifying" how="/methodology#tools-qualifying" />
     </div>
   );
 }

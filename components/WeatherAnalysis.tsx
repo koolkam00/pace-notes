@@ -1,64 +1,72 @@
 'use client';
-import { useEffect, useId, useState } from 'react';
-import { CartesianGrid, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from 'recharts';
-import { UnitLink, useUnits } from './UnitsProvider';
-import { TEN_ANALYSES, analysisHref } from '@/lib/ten-analyses';
-import { weatherHref } from '@/lib/weather-catalog';
-import { weatherFinding, weatherLabel, weatherNumber, weatherUnit, weatherValue } from '@/lib/weather-display';
-import { unitText } from '@/lib/units';
-import { trackAnalytics } from '@/lib/analytics';
-import { unitHref } from '@/lib/unit-preference';
-import type { WeatherCandidate, WeatherDefinition, WeatherEdition, WeatherEvidence } from '@/lib/weather-types';
+import { useId } from 'react';
+import { useUnits } from './UnitsProvider';
+import { withEm } from './ui/withEm';
+import Values from './ui/Values';
+import ChartFrame from './viz/ChartFrame';
+import Axis from './viz/Axis';
+import Plot from './viz/Plot';
+import { linear, pc } from './viz/scale';
+import { weatherLabel, weatherNumber } from '@/lib/weather-display';
+import type { NuggetText } from '@/lib/nuggets/types';
+import type { WeatherCandidate, WeatherDefinition, WeatherEvidence } from '@/lib/weather-types';
 
-export default function WeatherAnalysis({ definition, candidate, evidence, questions }: { definition: WeatherDefinition; candidate: WeatherCandidate; evidence: WeatherEvidence; questions: WeatherDefinition[] }) {
+const EXPOSURE: Record<WeatherCandidate['id'], string> = { warming: 'Temperature rise in the first four hours', wind: 'Wind speed near the scheduled start', humidity: 'Dew point near the scheduled start' };
+/** The two race days compared, and the result's label, in the exposure's own words. */
+const SIDES: Record<WeatherCandidate['id'], [string, string, string]> = {
+  warming: ['A smaller rise', 'A larger rise', 'Extra slowing with a larger rise'],
+  wind: ['Lighter wind', 'Stronger wind', 'Extra slowing in stronger wind'],
+  humidity: ['A drier start', 'A more humid start', 'Extra slowing, more humid start'],
+};
+/** The table's short column name for each exposure; the caption says it in full. */
+const SHORT: Record<WeatherCandidate['id'], string> = { warming: 'Rise', wind: 'Wind', humidity: 'Dew point' };
+const pp = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${weatherNumber(Math.abs(value), 1)}`;
+
+/**
+ * One weather question as a tab of race-day weather (the redesign spec, section 7.11): its sentence (from
+ * lib/nuggets), then the answer card: the two race days it compares (a typical small and large value), the estimate in
+ * percentage points of second-20K slowing, and its interval drawn against zero and the ±1 point band of no material
+ * difference. A null result is drawn grey inside that band: a null looks null. The observed race days are the Values
+ * table. Inside the page's masked .analysis-layout; no course picker (the comparison is across all of them).
+ */
+export default function WeatherAnalysis({ candidate, evidence, sentence }: { definition?: WeatherDefinition; candidate: WeatherCandidate; evidence: WeatherEvidence; questions?: WeatherDefinition[]; sentence?: NuggetText }) {
   const { units } = useUnits();
-  const [course, setCourse] = useState('All courses');
-  const controlId = useId();
-  const courses = [...new Set(evidence.editions.map(row => row.city))].sort();
-  useEffect(() => {
-    const restore = () => {
-      const requested = new URLSearchParams(window.location.search).get('course');
-      setCourse(requested && courses.includes(requested) ? requested : 'All courses');
-    };
-    restore(); window.addEventListener('popstate', restore);
-    return () => window.removeEventListener('popstate', restore);
-  }, [evidence]); // The published course list belongs to this evidence snapshot.
-  const rows = evidence.editions.filter(row => course === 'All courses' || row.city === course);
-  const chartRows = rows.map(row => ({ ...row, exposure: weatherValue(row[candidate.exposure.key], candidate.id, units) }));
-  const effect = candidate.effect;
+  const id = useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  const { effect, exposure } = candidate;
   const isNull = candidate.takeaway_type === 'precise_null';
-  const lower = Math.min(-1, effect.low, effect.estimate) - .3, upper = Math.max(1, effect.high, effect.estimate) + .3;
-  const position = (value: number) => (value - lower) / (upper - lower) * 100;
-  const pp = (value: number) => `${value > 0 ? '+' : ''}${weatherNumber(value, 2)}`;
-  const exposureHeading = { warming: 'Temperature rise in the first four hours', wind: 'Wind speed near the scheduled start', humidity: 'Dew point near the scheduled start' }[candidate.id];
-  return <div className="analysis-layout">
-    <aside className="analysis-sidebar"><UnitLink href="/analyses" className="sidebar-heading">Explore the analyses</UnitLink><nav aria-label="Weather questions"><ol>{questions.map(item => <li key={item.id}><UnitLink href={weatherHref(item)} aria-current={item.id === candidate.id ? 'page' : undefined}>{item.shortTitle}</UnitLink></li>)}</ol></nav><p>One race day.<br />A closer look at conditions.</p><nav aria-label="The essential ten"><ol>{TEN_ANALYSES.map(item => <li key={item.id}><UnitLink href={analysisHref(item)}><span>{String(item.rank).padStart(2, '0')}</span>{unitText(item.shortTitle, units)}</UnitLink></li>)}</ol></nav></aside>
-    <article className="analysis-main weather-analysis">
-      <header className="analysis-heading"><UnitLink href="/analyses#weather-questions" className="eyebrow">A closer look at weather</UnitLink><h1>{definition.title}</h1></header>
-      <section className="analysis-finding"><p className="eyebrow">What the data shows</p><h2>{weatherFinding(candidate)}</h2>
-        <p>{exposureHeading}: comparing {weatherLabel(candidate.exposure.q25, candidate.id, units)} with {weatherLabel(candidate.exposure.q75, candidate.id, units)}, {isNull ? 'the estimated difference in slowing was small.' : <>the larger value was associated with about {weatherNumber(Math.abs(effect.estimate))} percentage points {effect.estimate > 0 ? 'more' : 'less'} late-race slowing.</>}</p>
-      </section>
-      <section className="weather-estimate" aria-labelledby={`${controlId}-estimate`}><p className="eyebrow">The adjusted comparison</p><h2 id={`${controlId}-estimate`}>How much did slowing differ?</h2><div className="weather-effect-number"><strong>{pp(effect.estimate)}</strong><span>percentage points of late-race slowing</span></div>
-        <p className="weather-contrast">{exposureHeading}: <strong>{weatherLabel(candidate.exposure.q25, candidate.id, units)} → {weatherLabel(candidate.exposure.q75, candidate.id, units)}</strong></p>
-        <div className="weather-confidence" role="img" aria-label={`Estimated difference ${pp(effect.estimate)} percentage points; ${weatherNumber(effect.confidence * 100)}% uncertainty interval ${pp(effect.low)} to ${pp(effect.high)} percentage points.`}>
-          <div className="weather-confidence-track" aria-hidden="true">{isNull && <span className="weather-equivalence" style={{ left: position(-1) + '%', width: position(1) - position(-1) + '%' }} />}<span className="weather-confidence-zero" style={{ left: position(0) + '%' }} /><span className="weather-confidence-range" style={{ left: position(effect.low) + '%', width: position(effect.high) - position(effect.low) + '%' }} /><span className="weather-confidence-point" style={{ left: position(effect.estimate) + '%' }} /></div><div className="weather-confidence-axis" aria-hidden="true"><span>{weatherNumber(lower)}</span><span style={{ left: position(0) + '%' }}>0</span><span>{weatherNumber(upper)}</span></div>
-        </div><p className="weather-interval">Uncertainty range: <strong>{pp(effect.low)} to {pp(effect.high)} percentage points</strong>.</p>
-      </section>
-      <section className="weather-observations" aria-labelledby={`${controlId}-observations`}><p className="eyebrow">Observed race days</p><h2 id={`${controlId}-observations`}>See the race days.</h2>
-        <label className="weather-course-control" htmlFor={`${controlId}-course`}>Browse race editions<select id={`${controlId}-course`} value={course} onChange={event => {
-          const value = event.target.value; setCourse(value);
-          trackAnalytics('analysis_filters_applied', { analysis: candidate.id, course_scope: value === 'All courses' ? 'all' : 'single' });
-          const url = new URL(window.location.href); if (value === 'All courses') url.searchParams.delete('course'); else url.searchParams.set('course', value);
-          window.history.replaceState(window.history.state, '', unitHref(url.pathname + url.search + url.hash, units));
-        }}><option>All courses</option>{courses.map(city => <option key={city}>{city}</option>)}</select></label>
-        <p className="study-meta" aria-live="polite">Showing {rows.length} {rows.length === 1 ? 'edition' : 'editions'}{course === 'All courses' ? ' across all courses' : ' in ' + course}.</p>
-        <div className="chart weather-scatter"><ResponsiveContainer width="100%" height="100%" minWidth={0}><ScatterChart margin={{ top: 15, right: 16, bottom: 30, left: 0 }}><CartesianGrid stroke="#DCD3C2" /><XAxis dataKey="exposure" type="number" name={exposureHeading} tickLine={false} axisLine={false} tick={{ fontSize: 13 }} tickFormatter={value => weatherNumber(value, 0)} domain={['dataMin', 'dataMax']} label={{ value: ({ warming: 'Temperature rise', wind: 'Wind speed', humidity: 'Dew point' }[candidate.id]) + ' (' + weatherUnit(candidate.id, units) + ')', position: 'insideBottom', offset: -18, fontSize: 13 }} /><YAxis dataKey="pace_change_pct" type="number" name="Late-race slowing" width={48} tickLine={false} axisLine={false} tick={{ fontSize: 13 }} tickFormatter={value => weatherNumber(value, 0) + '%'} /><ZAxis range={[44, 44]} /><Tooltip cursor={{ strokeDasharray: '3 3' }} content={({ active, payload }) => {
-          const row = payload?.[0]?.payload as WeatherEdition | undefined;
-          return active && row ? <div className="weather-tooltip"><strong>{row.city} · {row.year}</strong><p>{exposureHeading}: {weatherLabel(row[candidate.exposure.key], candidate.id, units)}</p><p>{weatherNumber(row.pace_change_pct)}% median slowing</p><p>{row.n.toLocaleString('en-US')} finishes</p></div> : null;
-        }} /><Scatter data={chartRows} fill="#2346E6" fillOpacity={.65} isAnimationActive={false} /></ScatterChart></ResponsiveContainer></div><p className="control-help">Vertical axis: median late-race slowing (%).</p>
-        <details className="table-disclosure"><summary>View race editions and values</summary><div className="table-scroll" role="region" aria-label="Weather and pacing values by race edition" tabIndex={0}><table className="data-table"><thead><tr><th scope="col">Race edition</th><th scope="col">{exposureHeading}</th><th scope="col">Late-race slowing</th><th scope="col">Finishes</th></tr></thead><tbody>{rows.map(row => <tr key={row.city + row.year}><th scope="row">{row.city} {row.year}</th><td>{weatherLabel(row[candidate.exposure.key], candidate.id, units)}</td><td>{weatherNumber(row.pace_change_pct, 2)}%</td><td>{row.n.toLocaleString('en-US')}</td></tr>)}</tbody></table></div></details>
-      </section>
-      <nav className="analysis-pagination" aria-label="Continue exploring"><UnitLink href="/analyses/race-day-weather"><span>← Start with temperature</span><strong>Cooler and warmer races</strong></UnitLink>{questions.filter(item => item.id !== candidate.id).map(item => <UnitLink href={weatherHref(item)} key={item.id}><span>Another weather question →</span><strong>{item.shortTitle}</strong></UnitLink>)}</nav>
-    </article>
+  const band = evidence.prespecified_gate.practical_difference_pp;
+  const text = typeof sentence === 'string' ? sentence : sentence?.[units];
+  const lo = Math.min(-band - 0.5, Math.floor(effect.low - 0.5)), hi = Math.max(band + 0.5, Math.ceil(effect.high + 0.5));
+  const x = linear([lo, hi]);
+  // Whole points, at most five ticks, so they never crowd at 200% zoom.
+  // Multiples of the step, so 0 is always labelled (the band of no material difference sits on it).
+  const tickStep = Math.max(1, Math.ceil((Math.floor(hi) - Math.ceil(lo)) / 4));
+  const first = Math.ceil(lo / tickStep) * tickStep;
+  const ticks = Array.from({ length: Math.floor((hi - first) / tickStep) + 1 }, (_, i) => first + i * tickStep);
+  const tickLabel = (t: number) => (t === 0 ? '0' : `${t > 0 ? '+' : '−'}${Math.abs(t)}`);
+  const heading = EXPOSURE[candidate.id];
+  // The interval's ends in plain words; its level (a method choice) is on /methodology.
+  const range = `between ${pp(effect.low)} and ${pp(effect.high)} points`;
+  const plot = (
+    <Plot>
+      <rect className="effect-null-band" x={pc(x(-band))} width={pc(x(band) - x(-band))} y="24%" height="44%" rx={4} />
+      <rect className="grid-line" x={pc(x(0))} width={1} y="18%" height="56%" transform="translate(-0.5 0)" />
+      <rect className={isNull ? 'm-context effect-interval' : 'm-signal effect-interval'} x={pc(x(effect.low))} width={pc(x(effect.high) - x(effect.low))} y="46%" height={4} rx={2} transform="translate(0 -2)" />
+      <circle className={isNull ? 'm-context' : 'm-signal'} cx={pc(x(effect.estimate))} cy="46%" r={7} />
+    </Plot>
+  );
+  return <div className="analysis-layout weather-effect">
+    {text ? <p className="weather-sentence t-sentence">{withEm(text)}</p> : null}
+    {/* The sentence above names the two race days and the estimate; the card draws the estimate and its interval against
+        zero and the band of no material difference, and adds only the interval's ends. */}
+    <div className="answer-card night effect-card">
+      <p className="answer-kicker t-kicker">{SIDES[candidate.id][2]}</p>
+      <ChartFrame className="effect-strip" label={`${heading}: ${pp(effect.estimate)} percentage points, ${range}`} height={64} heightMd={64} plot={plot}
+        axis={<Axis ticks={ticks.map(t => ({ x: x(t), label: tickLabel(t) }))} />} keys={[{ label: 'No material difference', mark: 'band' }]} />
+      <p className="answer-foot">Between {pp(effect.low)} and {pp(effect.high)} percentage points.</p>
+    </div>
+    <Values id={`${id}-days`} caption={`Observed race days: ${heading.toLowerCase()} and second-20K slowing`} count={evidence.editions.length}
+      columns={[{ key: 'e', label: 'Race', text: true }, { key: 'x', label: SHORT[candidate.id] }, { key: 's', label: 'Second 20K' }, { key: 'n', label: 'Finishes' }]}
+      rows={evidence.editions.map(row => [`${row.city} ${row.year}`, weatherLabel(row[exposure.key], candidate.id, units), `${weatherNumber(row.pace_change_pct, 1)}%`, row.n.toLocaleString('en-US')])} />
   </div>;
 }

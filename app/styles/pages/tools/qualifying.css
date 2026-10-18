@@ -1,0 +1,122 @@
+/* The qualifying checker (/tools/qualifying; the redesign spec, section 7.13): a time, division, race date and birth
+   date, then how many of six standards it meets on one night card (■ official standards, with the date they were
+   checked), one row per race with its margin as a bar that opens to that race's rules and the time to aim for. A
+   verdict is always a word and a glyph as well as a weight, never a colour alone. Every class here is prefixed
+   qualifying-. Imported by app/tools/qualifying/layout.tsx. */
+
+.qualifying { min-width: 0; }
+
+/* ---------- Inputs ---------- */
+.tool-page .qualifying-date { display: block; width: 100%; min-height: 52px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: var(--r-sm); background: var(--paper-raised); color: var(--ink);
+  box-shadow: none; font-family: var(--sans); font-size: 1.0625rem; font-weight: 500; font-variant-numeric: tabular-nums; text-align: left; }
+.tool-page .qualifying-date:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+.qualifying-date::-webkit-date-and-time-value { text-align: left; }
+.qualifying-date-row { display: flex; gap: var(--s-2); align-items: stretch; }
+.qualifying-date-row input { flex: 1 1 auto; min-width: 0; }
+.qualifying-date-row .btn { flex: 0 0 auto; min-height: 52px; }
+.qualifying-more { border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.qualifying-more > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s-2); min-height: 48px; padding: 0 28px 0 0; position: relative; list-style: none; cursor: pointer;
+  font-size: .9375rem; font-weight: 600; color: var(--ink); }
+.qualifying-more > summary::-webkit-details-marker { display: none; }
+.qualifying-more > summary::marker { content: ''; }
+.qualifying-more > summary::after { content: '+'; position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 1.25rem; font-weight: 400; }
+.qualifying-more[open] > summary::after { content: '−'; }
+.qualifying-more > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.qualifying-summary-value { font-size: var(--t-label); font-weight: 500; color: var(--ink-2); }
+.qualifying-summary-hint { font-size: var(--t-label); font-weight: 400; color: var(--ink-3); }
+.qualifying-more-body { display: grid; gap: var(--s-4); padding: 0 0 var(--s-4); }
+.qualifying-drop { display: flex; gap: var(--s-2); align-items: center; }
+.tool-page .qualifying-drop input { flex: 1 1 auto; min-width: 0; min-height: 52px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: var(--r-sm); background: var(--paper-raised); color: var(--ink);
+  box-shadow: none; font-family: var(--sans); font-size: 1.0625rem; font-variant-numeric: tabular-nums; }
+.tool-page .qualifying-drop input:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+.qualifying-drop > .tool-choice.seg { flex: 0 0 auto; width: auto; }
+
+/* ---------- The night card ---------- */
+.qualifying-headline .tool-reading-figure small b { color: var(--ink); font-weight: 600; }
+.qualifying-checked { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s-3); margin: 0; font-size: var(--t-label); color: var(--ink-3); }
+
+/* ---------- One row per race ---------- */
+.qualifying-races { display: grid; gap: var(--s-2); margin: 0; }
+.qualifying-races-axis { display: block; margin: 0 0 -4px; padding-left: calc(38% + var(--s-3)); padding-right: calc(6.25rem + var(--s-3)); font-size: .75rem; line-height: 1.4; color: var(--ink-3); white-space: nowrap; }
+.qualifying-races-axis-track { position: relative; display: block; height: 1.4em; }
+.qualifying-races-axis-track > span { position: absolute; top: 0; padding-inline: 6px; }
+.qualifying-race-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.qualifying-race-list > li { margin: 0; border-bottom: 1px solid var(--rule); }
+.qualifying-race > summary { display: grid; grid-template-columns: minmax(0, 38%) minmax(0, 1fr) 6.25rem; align-items: center; gap: var(--s-3); min-height: 60px; padding: 8px 0; list-style: none; cursor: pointer; }
+.qualifying-race > summary::-webkit-details-marker { display: none; }
+.qualifying-race > summary::marker { content: ''; }
+.qualifying-race > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.qualifying-race > summary:hover .qualifying-race-name b { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: .2em; }
+.qualifying-race-name { display: grid; gap: 2px; min-width: 0; }
+.qualifying-race-name b { font-size: 1rem; font-weight: 600; line-height: 1.25; color: var(--ink); }
+.qualifying-app { font-size: .75rem; font-weight: 500; color: var(--ink-3); }
+.qualifying-app.is-open { color: var(--ink); font-weight: 600; }
+.qualifying-race-track { position: relative; height: 24px; }
+.qualifying-race-track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--rule-strong); }
+.qualifying-race-zero { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink); }
+.qualifying-race-bar { position: absolute; top: 6px; height: 12px; border-radius: 2px; background: var(--ink); }
+.qualifying-race-bar.is-neg { background: var(--mark-quiet); }
+.is-good .qualifying-race-bar { background: var(--ink); }
+/* One orange bar: the race the night card names, when it meets. */
+.qualifying-race.is-named.is-good .qualifying-race-bar { background: var(--signal); }
+.qualifying-race-value { display: grid; justify-items: end; gap: 1px; text-align: right; font-variant-numeric: tabular-nums; }
+.qualifying-race-value b { font-size: 1.0625rem; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.qualifying-race-word { font-size: .8125rem; font-weight: 500; color: var(--ink-2); }
+.qualifying-race-value small { font-size: .75rem; font-weight: 500; line-height: 1.3; color: var(--ink-3); }
+.is-good .qualifying-race-value small { color: var(--ink); font-weight: 600; }
+.qualifying-race-body { display: grid; gap: var(--s-4); padding: var(--s-2) 0 var(--s-5); }
+.qualifying-race-body > * { margin: 0; }
+.qualifying-verdict { display: grid; gap: var(--s-2); }
+.qualifying-status { margin: 0; font-family: var(--serif); font-optical-sizing: auto; font-size: 1.25rem; font-weight: 440; line-height: 1.3; color: var(--ink); }
+.qualifying-glyph { display: inline-block; width: 1.4em; font-family: var(--sans); font-weight: 600; }
+.qualifying-margin { font-family: var(--sans); font-size: 1rem; font-weight: 500; color: var(--ink-2); }
+.qualifying-verdict-notes { display: grid; gap: 6px; margin: 0; padding: 0 0 0 1.1rem; list-style: disc; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); max-width: var(--measure); }
+.qualifying-facts dd.qualifying-entry { color: var(--ink-2); }
+.qualifying-facts > div:last-child dt { align-self: start; }
+.qualifying-sources { display: flex; flex-wrap: wrap; gap: 4px var(--s-4); font-size: var(--t-small); }
+.qualifying-sources a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); font-weight: 600; }
+.qualifying-fine ul { display: grid; gap: 8px; margin: 0; padding: 0 0 0 1.1rem; list-style: disc; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); max-width: var(--measure); }
+
+/* ---------- Boston's past cut-offs ---------- */
+.qualifying-boston { display: grid; gap: var(--s-3); }
+.qualifying-boston h3 { margin: 0; font-family: var(--serif); font-optical-sizing: auto; font-size: 1.125rem; font-weight: 440; line-height: 1.35; color: var(--ink); }
+.qualifying-boston h3 b { font-family: var(--sans); font-weight: 600; }
+.qualifying-cutoff-chart svg { display: block; overflow: visible; }
+.qualifying-cutoff-chart svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+.qualifying-grid line { stroke: var(--rule); }
+.qualifying-base { stroke: var(--rule-strong); }
+.qualifying-lolly line { stroke: var(--mark-quiet); stroke-width: 2; }
+.qualifying-lolly circle { fill: var(--fill-quiet); stroke: var(--mark-quiet); stroke-width: 1.5; }
+.qualifying-lolly.is-cleared line { stroke: var(--ink); }
+.qualifying-lolly.is-cleared circle { fill: var(--ink); stroke: var(--ink); }
+.qualifying-margin-rule { stroke: var(--signal); stroke-width: 2; }
+.qualifying-cutoff-chart svg .qualifying-margin-label { font-weight: 600; fill: var(--signal-ink); paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; }
+
+/* ---------- Every race's own page (the checker and each race page) ---------- */
+.qrace-more { display: grid; gap: var(--s-3); margin: var(--s-7) 0 0; max-width: var(--measure-figure); }
+.qrace-more > * { margin: 0; }
+.qrace-links { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.qrace-links li { margin: 0; border-bottom: 1px solid var(--rule); }
+.tool-page .qrace-links a { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--s-4); min-height: 52px; padding: 10px 0; color: var(--ink); text-decoration: none; }
+.qrace-link-text { display: grid; gap: 2px; min-width: 0; }
+.tool-page .qrace-links a:hover b { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: .2em; }
+.qrace-links a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.qrace-links b { font-size: 1rem; font-weight: 600; }
+.qrace-link-text > span { font-size: var(--t-small); color: var(--ink-3); }
+/* A race page's one way on: the checker for every race, as a handoff row. */
+
+
+@media (min-width: 600px) {
+  .qrace-links { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s-6); }
+  /* Room for the longest verdict ("Meets · UK only", "Outside window") on one line. */
+  .qualifying-race > summary { grid-template-columns: minmax(0, 38%) minmax(0, 1fr) 7.5rem; }
+  .qualifying-races-axis { padding-right: calc(7.5rem + var(--s-3)); }
+}
+@media (max-width: 359.98px) {
+  .qualifying-race > summary { grid-template-columns: minmax(0, 1fr) auto; }
+  .qualifying-race-track { grid-column: 1 / -1; grid-row: 2; }
+  .qualifying-races-axis { display: none; }
+}
+@media print {
+  .qualifying-race > summary { break-after: avoid; }
+}

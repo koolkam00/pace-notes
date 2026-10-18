@@ -46,6 +46,8 @@ const CASES = {
   'split-check': { path: '/tools/split-check', async drive(page, v, log) {
     // Typed with a keypad's dots (0.23.11): each box turns them into colons as they are typed (S1 checks the box).
     for (let i = 0; i < 9; i++) await step(log, 't' + i, () => type(page, `input[id$="-t${i}"]`, v.splits[i].replace(/:/g, '.')));
+    // The comparison's course and gender wait in one disclosure under the times.
+    await step(log, 'compare options', () => open(page, 'details.split-check-compare-options'));
     await step(log, 'gender', () => page.locator('.ph-no-capture[role=group] button').nth(v.genderIdx).click());
   } },
   'split-check-paste': { path: '/tools/split-check', async drive(page, v, log) {
@@ -62,19 +64,18 @@ const CASES = {
     await step(log, 'tp', () => type(page, label(page, /Average training pace/, false), v.tp.replace(':', '.')));
   } },
   'predictor-url': { path: v => `/tools/predictor?t=${v.half}&d=half&t2=${v.tenK}&d2=10k&wk=${v.weekly}&tp=${v.tp}` },
-  // The result's next steps open the pace band and the pacing-pattern analysis with a time worked out from the typed one
-  // in their address: those pages must record it no more than a time typed there.
+  // The result's next step opens the pace band with a time worked out from the typed one in its address: that page must
+  // record it no more than a time typed there. (One row since the redesign's section 00; the pacing-pattern link went.)
   'predictor-handoff': { path: '/tools/predictor', async drive(page, v, log) {
     await step(log, 't1', () => type(page, 'input[id$="-t1"]', v.half));
     await page.waitForTimeout(1200);
     await step(log, 'pace band', async () => { await page.locator('.tool-handoffs a:has-text("Turn this into a pace band")').click(); await page.waitForURL(/\/tools\/pace-band\?goal=\d:\d\d$/); });
     await page.waitForTimeout(2000); await wiggle(page, 5);
-    await step(log, 'back', () => page.goBack()); await page.waitForTimeout(1500);
-    await step(log, 'pacing pattern', async () => { await page.locator('.tool-handoffs a:has-text("See how finishers near this time paced")').click(); await page.waitForURL(/\/analyses\/pacing-pattern\?goal=\d+$/); });
-    await page.waitForTimeout(2500); await wiggle(page, 5);
   } },
   'weather-match': { path: '/tools/weather-match', async drive(page, v, log) {
     await step(log, 'temp', () => type(page, '#weather-match-temp', v.temp));
+    // The dew point waits in the disclosure with the race (it feeds the published-research estimates only).
+    await step(log, 'more', () => open(page, 'details.weather-match-more'));
     await step(log, 'dew', () => type(page, '#weather-match-hum', v.dew));
     await step(log, 'goal', () => type(page, label(page, 'Marathon goal time'), v.marathon));
   } },
@@ -91,6 +92,7 @@ const CASES = {
   'qualifying-url': { path: v => `/tools/qualifying?t=${v.marathon}&div=${v.genderIdx === 1 ? 'M' : 'X'}&race=${v.race}` },
   'projector': { path: '/tools/projector', reload: true, async drive(page, v, log) {
     await step(log, 'time', () => type(page, '#projector-time', v.mat25));
+    await step(log, 'more', () => open(page, 'details.projector-more'));
     await step(log, 'prev', () => type(page, '#projector-prev', v.mat20));
     await step(log, 'target', () => type(page, label(page, /Target finish/, false), v.hm));
     await step(log, 'start', () => type(page, '#projector-start', v.start));

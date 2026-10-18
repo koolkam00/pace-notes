@@ -23,7 +23,10 @@ export default function ChapterEnd({ path, readingOf, variant = 'story', track =
 }) {
   const place = placeOf(path);
   if (!place) return feedback ? <PageFeedback /> : null;
-  const next = nextOf(path), prev = prevOf(path), how = howWeKnowOf(path);
+  const next = nextOf(path), how = howWeKnowOf(path);
+  // One way forward, one way back: a page whose way back is also its next card (the planner's off-chain tools) keeps the card only.
+  const back = prevOf(path);
+  const prev = back && next && back.href === next.page.href ? null : back;
   const reading = next && readingOf ? readingOf(next.opensChapter ? next.chapter.lead : next.page.nugget) : null;
   return (
     <div className="chapter-end" {...(track ? { 'data-track-section': 'related' } : {})}>

@@ -53,6 +53,14 @@ export function readingOf(id: NuggetId): (NuggetFigure & { key?: string }) | nul
   return figure ? { ...figure, key } : null;
 }
 
+/**
+ * readingOf for a next card: a placeholder nugget (one an area package has yet to replace) shows no figure, so a card
+ * never reads "Yours: nine mats, one race" or "28 course pages" as if it were a finding. Contents rows keep readingOf.
+ */
+export function settledReadingOf(id: NuggetId): (NuggetFigure & { key?: string }) | null {
+  return getNugget(id).placeholder ? null : readingOf(id);
+}
+
 /** Every context-free nugget whose page (without its anchor) is `path`, in registry order. */
 export function nuggetsFor(path: string): Nugget[] {
   const clean = path.split('#')[0].replace(/\/$/, '') || '/';

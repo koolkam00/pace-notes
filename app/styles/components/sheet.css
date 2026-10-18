@@ -48,12 +48,12 @@
 .miy-beat { position: relative; }
 .miy-chip {
   position: relative; display: flex; align-items: center; justify-content: space-between; gap: var(--s-4);
-  width: 100%; min-height: var(--chip-h); padding: 0 16px; margin: 0 0 var(--s-5);
+  width: 100%; min-height: var(--chip-h); padding: 10px 16px; margin: 0 0 var(--s-5);
   border: 1px solid var(--rule-strong); border-radius: var(--r-md); background: var(--paper-raised); color: var(--ink); box-shadow: none;
   font-family: var(--sans); font-size: .9375rem; font-weight: 600; line-height: 1.2; text-align: left; cursor: pointer;
   transition: transform var(--d-release) var(--spring);
 }
-.miy-chip-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.miy-chip-text { min-width: 0; text-wrap: pretty; }
 .miy-chip-change { flex: none; font-weight: 600; color: var(--ink-2); text-decoration: underline; text-underline-offset: .2em; text-decoration-color: var(--rule-strong); }
 .miy-chip:hover { border-color: var(--ink-3); }
 .miy-chip:hover .miy-chip-change { color: var(--ink); text-decoration-color: currentColor; }

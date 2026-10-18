@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import ChartFrame from './ChartFrame';
 import Axis from './Axis';
-import Plot, { Baseline } from './Plot';
+import Plot, { Baseline, Gridlines } from './Plot';
 import Scrubber from './Scrubber.client';
 import { areaPath, linear, linePath, pc } from './scale';
 import { paceColour, paceText } from '@/lib/viz/format';
@@ -16,15 +16,17 @@ import { fitClass, textWidth } from './labels';
  */
 export type PaceSection = { label: string; startKm: number; endKm: number; pct: number; display: string; climb: string };
 
-export default function ElevationPace({ km, metres, relief, sections, focus, label, readoutKeys, values, height = 150, heightMd = 190 }: {
+export default function ElevationPace({ km, metres, relief, reliefLabel, sections, focus, label, readoutKeys, values, height = 150, heightMd = 190 }: {
   km: number[]; metres: number[]; relief: number; sections: PaceSection[]; focus?: number; label: string;
+  /** A chart drawn on its own course's scale instead of the shared one names its top: a hairline labelled with the relief. */
+  reliefLabel?: string;
   /** The readout's labels: [the climb in a section, its pace against the course's own average]. */
   readoutKeys: [string, string]; values?: ReactNode; height?: number; heightMd?: number;
 }) {
   const total = km[km.length - 1] || 42.195;
   const x = linear([0, total]);
   const floor = Math.min(...metres);
-  const top = 0.08;
+  const top = reliefLabel ? 0.2 : 0.08;
   const y = (m: number) => 1 - (1 - top) * ((m - floor) / Math.max(1, relief));
   const line = km.map((k, i) => [x(k), y(metres[i])] as [number, number]);
   const plot = (
@@ -34,7 +36,9 @@ export default function ElevationPace({ km, metres, relief, sections, focus, lab
         <path className="l-ink" d={linePath(line)} />
       </>
     )}>
-      {focus !== undefined && sections[focus] ? <rect className="a-signal" x={pc(x(sections[focus].startKm))} width={pc(x(sections[focus].endKm) - x(sections[focus].startKm))} y="0" height="100%" /> : null}
+      {/* The wash stays inside the plot: under a labelled top line it starts there, not above it. */}
+      {focus !== undefined && sections[focus] ? <rect className="a-signal" x={pc(x(sections[focus].startKm))} width={pc(x(sections[focus].endKm) - x(sections[focus].startKm))} y={reliefLabel ? pc(top) : '0'} height={reliefLabel ? pc(1 - top) : '100%'} /> : null}
+      {reliefLabel ? <Gridlines lines={[{ y: top, label: reliefLabel }]} /> : null}
       <Baseline />
     </Plot>
   );

@@ -9,14 +9,16 @@ import { extent, linear, pc } from './scale';
  */
 export type DumbbellRow = { id: string; label: string; a: number; b: number; display: string; highlight?: boolean };
 
-export default function Dumbbell({ rows, domain, ticks, label, keyLabels, values }: {
+export default function Dumbbell({ rows, domain, ticks, label, keyLabels, values, bare = false }: {
   rows: DumbbellRow[]; domain?: [number, number]; ticks: { value: number; label: string }[]; label: string;
   /** What the hollow and the filled marks are ("Typical", "Observed"). */
   keyLabels: { a: string; b: string }; values?: ReactNode;
+  /** No value column: the label takes its own width and the track the rest, for small gaps (Values holds the numbers). */
+  bare?: boolean;
 }) {
   const x = linear(domain ?? extent(rows.flatMap((r) => [r.a, r.b])));
   return (
-    <figure className="viz viz-frame dumbbell">
+    <figure className={`viz viz-frame dumbbell${bare ? ' is-bare' : ''}`}>
       <ul className="dumbbell-rows" role="img" aria-label={label}>
         {rows.map((r) => {
           const xa = x(r.a), xb = x(r.b);
@@ -29,12 +31,12 @@ export default function Dumbbell({ rows, domain, ticks, label, keyLabels, values
                 <circle className="m-hollow" cx={pc(xa)} cy="22" r="5" />
                 <circle className={r.highlight ? 'm-signal' : 'm-ink'} cx={pc(xb)} cy="22" r="5.5" />
               </svg>
-              <span className="dumbbell-value">{r.display}</span>
+              {bare ? null : <span className="dumbbell-value">{r.display}</span>}
             </li>
           );
         })}
       </ul>
-      <div className="dumbbell-axis"><span /><Axis ticks={ticks.map((t) => ({ x: x(t.value), label: t.label }))} refWidth={150} /><span /></div>
+      <div className="dumbbell-axis"><span /><Axis ticks={ticks.map((t) => ({ x: x(t.value), label: t.label }))} refWidth={bare ? 240 : 150} />{bare ? null : <span />}</div>
       <ul className="viz-key" aria-hidden="true">
         <li><i className="viz-key-mark is-hollow" />{keyLabels.a}</li>
         <li><i className="viz-key-mark" />{keyLabels.b}</li>

@@ -12,8 +12,10 @@ import { linear, linePath, pc, yScale } from './scale';
  */
 export type CdfPoint = { x: number; share: number };
 
-export default function Cdf({ points, you, ticks, scrub, label, values, height = 200, heightMd = 260 }: {
-  points: CdfPoint[]; you?: number; ticks: { value: number; label: string }[];
+export default function Cdf({ points, you, youLabel = 'You', ticks, scrub, label, values, height = 200, heightMd = 260 }: {
+  points: CdfPoint[]; you?: number;
+  /** The ring's label: "You" when the time is the visitor's own, else the time itself (a page's example goal). */
+  youLabel?: string; ticks: { value: number; label: string }[];
   scrub: { points: ScrubPoints; initial: number; detents: number[]; label: string }; label: string; values?: ReactNode; height?: number; heightMd?: number;
 }) {
   const x = linear([points[0].x, points[points.length - 1].x]);
@@ -24,8 +26,13 @@ export default function Cdf({ points, you, ticks, scrub, label, values, height =
       <Gridlines lines={[0.25, 0.5, 0.75].map((v) => ({ y: y(v), label: `${v * 100}%` }))} />
       {you_ ? (
         <g>
-          <circle className="m-ring" cx={pc(x(you_.x))} cy={pc(y(you_.share))} r={7} />
-          <text className="viz-label is-signal" x={pc(x(you_.x))} y={pc(y(you_.share))} dx={12} dy={4}>You</text>
+          {/* The visitor's own time is an orange ring ("You"); a page's example time is an ink ring with its name, so the
+              needle stays the one orange mark. */}
+          <circle className={youLabel === 'You' ? 'm-ring' : 'm-hollow-ink'} cx={pc(x(you_.x))} cy={pc(y(you_.share))} r={youLabel === 'You' ? 7 : 6} />
+          {/* The example's name sits left of its ring, above the curve, clear of the needle that opens to its right. */}
+          {youLabel === 'You'
+            ? <text className="viz-label is-signal" x={pc(x(you_.x))} y={pc(y(you_.share))} dx={12} dy={4}>{youLabel}</text>
+            : <text className="viz-label" x={pc(x(you_.x))} y={pc(y(you_.share))} dx={-12} dy={4} textAnchor="end">{youLabel}</text>}
         </g>
       ) : null}
       <Baseline />

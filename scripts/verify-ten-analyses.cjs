@@ -80,7 +80,7 @@ assert.match(render(QuestionViz, { spec: rangeSpec, headingLevel: 2 }), /<h2[^>]
 
 const profileAnswer = answers.find(answer => answer.id === 'profile');
 const profileHtml = render(QuestionViz, { spec: profileAnswer.charts[0], unitSystem: 'km' });
-assert.match(profileHtml, /40–42\.195 km/);
+assert.match(profileHtml, /40K–finish/, 'Sections are named by their mats (the redesign spec, section 3.10)');
 assert.match(profileHtml, /Course section/);
 const choices = Array.from({ length: 4 }, (_, index) => ({ ...rangeSpec, title: 'Comparison ' + (index + 1) }));
 const buttonsHtml = render(AnalysisChart, { analysisId: 'example', charts: choices.slice(0, 2) });
@@ -99,14 +99,21 @@ const METHOD_COPY = [/How we calculated this/, /How to read this/, /Keep in mind
   /requires earlier results/, /strictly earlier/, /15-minute band/, /strictly below this time/, /selects a 15-minute band/, /unit of evidence/,
   /at least 100/, /Runner comparison groups contain/, /source-quality rules/, /\d[\d,]* (?:complete |eligible |achieved )?finishes (?:across|in the displayed)/,
   /race editions\./, /historical intentions are unknown/, /not a confidence interval/, /Fewer than 100/, /middle 80% of complete finishes/, /Distances follow the recorded timing points/];
+const { insightHeadline } = require('../components/AnalysisExplorer.tsx');
 for (const definition of TEN_ANALYSES.filter(item => item.id !== 'opening')) {
-  const html = render(AnalysisExplorer, { definition, summary, initialAnswer: answers.find(answer => answer.id === definition.id), weatherQuestions: [] });
-  assert.ok(html.includes(unitText(definition.dek, 'mi').replace(/'/g, '&#x27;')), `${definition.id}: the dek opens the page`);
+  const answer = answers.find(item => item.id === definition.id);
+  const html = render(AnalysisExplorer, { definition, summary, initialAnswer: answer, weatherQuestions: [] });
   for (const pattern of METHOD_COPY) assert.doesNotMatch(html, pattern, `${definition.id}: method or source copy belongs on /methodology (${pattern})`);
-  // Headlines state what the chart shows, read from the same rows.
-  const headline = (html.match(/<p class="eyebrow">What the data shows<\/p><h2>(.*?)<\/h2>/) || [])[1] || '';
-  if (definition.id === 'sections') assert.match(headline, /^The two groups split most in the [\d.]+–[\d.]+ mi section, where finishes just over 4:00 took [\d.]+ min more than those just under\.$/);
-  if (definition.id === 'age') assert.match(headline, /^Across \d+ age groups, the second 12\.43 mi ranged from [\d.]+% (?:slower|faster) \([\d–+]+\) to [\d.]+% (?:slower|faster) \([\d–+]+\) than the first\.$/);
+  // Untouched, the explorer never repeats the page's answer: no headline until the visitor changes the selection.
+  assert.doesNotMatch(html, /class="explore-title"/, `${definition.id}: the untouched explorer has no headline of its own`);
+  assert.match(html, /class="miy-chip"/, `${definition.id}: the selection row`);
+  assert.doesNotMatch((html.match(/class="miy-chip-text">([^<]*)</) || [])[1] || '', /All ages|All early paces/, `${definition.id}: the selection row leaves out defaults`);
+  // Headlines state what the chart shows, read from the same rows, in mat grammar (the redesign spec, section 6.4).
+  const headline = insightHeadline(definition.id, answer, 240, 'mi');
+  if (definition.id === 'sections') assert.match(headline, /^The two groups split most in the (?:\d+–\d+K|40K–finish) section, where finishes just over 4:00 took \d+:\d\d more than those just under\.$/);
+  if (definition.id === 'age') assert.match(headline, /^Across \d+ age groups, the second 20K ranged from [\d.]+% (?:slower|faster) \([\d–+]+\) to [\d.]+% (?:slower|faster) \([\d–+]+\) than the first\.$/);
+  if (definition.id === 'profile') assert.match(headline, /^Finishes near 4:00 ran \d+ s\/mi fast early and \d+ s\/mi slow late, against even pace\.$/);
+  if (definition.id === 'ambition') assert.match(headline, /^\d+% of these finishes were under 4:00\.$/, 'whole percent, as the chart reads it');
   if (definition.id === 'courses') {
     assert.match(headline, /^Across \d+ courses, median finishes ranged from .+ than the same runners’ earlier bests\.$/);
     for (const city of summary.courses.map(row => row.city)) assert.ok(!headline.includes(city), 'The course headline names no course: one course at the top of a range is not a difficulty ranking');
@@ -114,6 +121,45 @@ for (const definition of TEN_ANALYSES.filter(item => item.id !== 'opening')) {
 }
 const checkpointHtml = render(CheckpointExplorer, { summary, profile: EXAMPLE_PROFILE });
 for (const pattern of METHOD_COPY) assert.doesNotMatch(checkpointHtml, pattern, `checkpoint: method copy belongs on /methodology (${pattern})`);
+
+// Every analysis page (the redesign spec, section 4.2, under section 00): it opens on its finding (the H1) and its
+// question dek, then the answer, with the explorer's default result already drawn (never an empty state), inside the
+// masked .analysis-layout, ending on the .analysis-pagination chapter end. No Recharts, no method copy.
+const UnitsProvider = require('../components/UnitsProvider.tsx').default;
+const AnalysisPage = require('../app/analyses/[slug]/page.tsx').default;
+const page = (slug) => renderToStaticMarkup(React.createElement(UnitsProvider, null, React.createElement(AnalysisPage, { params: { slug } })));
+for (const slug of [...TEN_ANALYSES.map(item => item.slug), 'downhill-start']) {
+  const html = page(slug);
+  const definition = analysisBySlug(slug);
+  assert.equal((html.match(/<h1[\s>]/g) || []).length, 1, `${slug}: one H1`);
+  const h1 = html.indexOf('<h1'), answer = html.indexOf('id="answer"'), explore = html.indexOf('id="explore"'), end = html.indexOf('analysis-pagination');
+  assert.ok(h1 >= 0 && answer >= 0 && h1 > answer && explore > h1 && end > explore, `${slug}: the finding, then the explorer, then the chapter end`);
+  if (definition) assert.ok(html.includes(definition.title.replace(/'/g, '&#x27;')), `${slug}: the question dek`);
+  assert.match(html, /class="analysis-layout analysis-flow"/, `${slug}: the page sits in the masked .analysis-layout`);
+  // The answer is a picture: a chart, a dot grid or a receipt inside the hero (critic round 2, October 18, 2026: the
+  // chart that proves the finding sits in the night card, not below Make it yours). The explorer opens on its selection
+  // row alone on every page (critic round 3, October 18, 2026: starting pace's example result gave a second "after 20K"
+  // figure on another baseline than the receipt's), and it draws its chart once the visitor changes something.
+  const hero = html.slice(answer, explore);
+  assert.match(hero, /<figure class="viz|class="receipt/, `${slug}: the answer is a figure`);
+  assert.doesNotMatch(html, /class="explore-results"/, `${slug}: the untouched explorer is its selection row`);
+  assert.match(html, /class="miy-chip"/, `${slug}: the Make it yours selection row`);
+  assert.doesNotMatch(html, /Not enough results|Too few comparable|Loading the|recharts/i, `${slug}: no empty, loading or Recharts state`);
+  for (const pattern of METHOD_COPY) assert.doesNotMatch(html, pattern, `${slug}: method copy belongs on /methodology (${pattern})`);
+  assert.ok((html.match(/<section[^>]*class="beat/g) || []).length <= 3, `${slug}: at most two beats and the explorer after the answer`);
+}
+// The weather questions became tabs: race-day weather draws them, and their old routes forward with the tab's hash.
+{
+  const html = page('race-day-weather');
+  for (const tab of ['temperature', 'warming', 'wind']) assert.match(html, new RegExp(`<div class="weather-panel" data-tab="${tab}"`), `race-day-weather: the ${tab} tab`);
+  // The hash picks a tab; no element carries its id, so a redirected visitor lands on the finding, not below it.
+  for (const tab of ['temperature', 'warming', 'wind']) assert.doesNotMatch(html, new RegExp(`id="${tab}"`), `race-day-weather: no #${tab} anchor to jump to`);
+  for (const [slug, hash] of [['warming-and-pacing', 'warming'], ['wind-and-pacing', 'wind']]) {
+    const stub = page(slug);
+    assert.match(stub, /This page has moved/, `${slug}: a moved stub`);
+    assert.ok(stub.includes(`href="/analyses/race-day-weather#${hash}"`), `${slug}: links to the ${hash} tab`);
+  }
+}
 
 async function verifyTransport() {
   const previousFetch = global.fetch;

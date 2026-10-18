@@ -113,6 +113,8 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
   // area, of the gridline labels and of the needle's opening position. The ends are tried first, over then under the
   // line, then positions along it; the check runs at the narrowest phone plot (REF_WIDTH × height).
   const firstLayer = layers.find((l) => l.id === current) ?? layers[0];
+  // A domain passed high to low draws larger values lower (pace: slower down, ahead up).
+  const flipped = y(1) > y(0);
   const needleX = scrub ? (scrub.points.x[scrub.initial] ?? null) : null;
   const refSpot = (r: { value: number; label?: string }): { side?: 'left' | 'right'; at?: number; below?: boolean } => {
     if (!r.label || !firstLayer) return { side: 'left' };
@@ -135,7 +137,8 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
           if (Math.max(ya, yb) > y0 - 3 && Math.min(ya, yb) < y1 + 3) return false;
         }
       }
-      if (!below && washed.some((pts) => pts.some(([px, on]) => on && px > x0 - 3 && px < x1 + 3))) return false;
+      // The washed side is above the line, or below it on a flipped scale (slower drawn down).
+      if (below === flipped && washed.some((pts) => pts.some(([px, on]) => on && px > x0 - 3 && px < x1 + 3))) return false;
       return true;
     };
     const ends: [number, boolean, { side?: 'left' | 'right'; at?: number; below?: boolean }][] = [

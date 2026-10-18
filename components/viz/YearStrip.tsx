@@ -15,8 +15,10 @@ import { extent, linear, pc, yScale } from './scale';
  */
 export type YearPoint = { year: number; value: number; display: string; side?: string[] };
 
-export default function YearStrip({ editions, selected, sideLabels = [], valueDomain, average, averageLabel = 'Average', label, values, height = 160, heightMd = 200, extremeLabel }: {
+export default function YearStrip({ editions, selected, sideLabels = [], valueDomain, average, averageLabel = 'Average', label, values, height = 160, heightMd = 200, extremeLabel, gapLabel = 'No edition in the data' }: {
   editions: YearPoint[]; selected?: number; sideLabels?: string[]; valueDomain?: [number, number]; average?: number; averageLabel?: string;
+  /** The key for a year with no point, when the year itself happened (a race held, its figure missing). */
+  gapLabel?: string;
   label: string; values?: ReactNode; height?: number; heightMd?: number;
   /** The label on the highest and lowest editions ("2022 · 45%"). */
   extremeLabel?: (p: YearPoint) => string;
@@ -71,7 +73,7 @@ export default function YearStrip({ editions, selected, sideLabels = [], valueDo
   return (
     <ChartFrame className="year-strip" label={label} height={height} heightMd={heightMd}
       scrub={<Scrubber points={points} initial={sel >= 0 ? sel : maxI} detents={[...new Set([maxI, minI, ...(sel >= 0 ? [sel] : [])])]} label={label} axis={axis}>{plot}</Scrubber>}
-      keys={[...(average !== undefined ? [{ label: averageLabel, mark: 'dash' as const }] : []), ...(gaps.length ? [{ label: 'No edition in the data', mark: 'band' as const }] : [])]}
+      keys={[...(average !== undefined ? [{ label: averageLabel, mark: 'dash' as const }] : []), ...(gaps.length ? [{ label: gapLabel, mark: 'band' as const }] : [])]}
       values={values}
     />
   );

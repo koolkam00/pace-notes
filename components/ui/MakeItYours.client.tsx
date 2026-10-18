@@ -15,10 +15,12 @@ import { CloseIcon, inertWhen, useDialog } from './dialog';
  */
 const PHONE = '(max-width: 899.98px)';
 
-export default function MakeItYours({ id = 'make-it-yours', summary, title = 'Make it yours', busy = false, closeOnSubmit = true, children }: {
-  id?: string; summary: string; title?: string; busy?: boolean; closeOnSubmit?: boolean; children: ReactNode;
+export default function MakeItYours({ id = 'make-it-yours', summary, title = 'Make it yours', busy = false, closeOnSubmit = true, defaultOpen = false, children }: {
+  id?: string; summary: string; title?: string; busy?: boolean; closeOnSubmit?: boolean;
+  /** Open the sheet as it mounts: a control inside one sheet swapped the explorer for another (a comparison switch). */
+  defaultOpen?: boolean; children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [phone, setPhone] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setOpen(false), []);

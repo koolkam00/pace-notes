@@ -205,6 +205,12 @@ RECOUNT['home.second20k'] = (n) => {
 // The story nuggets (WP2): their recounts and fixtures live in scripts/nuggets/stories.cjs.
 const storyRecounts = require('./nuggets/stories.cjs')({ json, eq, ok, core });
 Object.assign(RECOUNT, storyRecounts.RECOUNT);
+// The analysis and /slowdown nuggets (WP3): their recounts and fixtures live in scripts/nuggets/analyses.cjs.
+const analyses = require('./nuggets/analyses.cjs')({ json, eq, ok, core });
+Object.assign(RECOUNT, analyses.RECOUNT);
+// The tool nuggets (WP4): their recounts and fixtures live in scripts/nuggets/tools.cjs.
+const toolNuggets = require('./nuggets/tools.cjs')({ json, eq, ok, core });
+Object.assign(RECOUNT, toolNuggets.RECOUNT);
 for (const [id, recount] of Object.entries(RECOUNT)) {
   const n = N.getNugget(id);
   ok(!n.placeholder, `${id} is a real nugget, not a placeholder`);
@@ -226,6 +232,8 @@ if (!args.has('--no-fixture')) {
     [home.second20kFrom({ count: 50, total: 100 }), 'About *1 in 2* did.'],
     [home.second20kFrom(null), 'The second 20K against the first, finish by finish.'],
     ...storyRecounts.fixtures(stories),
+    ...analyses.fixtures(require('../lib/nuggets/analyses.ts')),
+    ...toolNuggets.fixtures(require('../lib/nuggets/tools.ts')),
   ];
   for (const [n, text] of fallbacks) {
     eq(n.guard, false, `fixture ${n.id}: the guard fails`);

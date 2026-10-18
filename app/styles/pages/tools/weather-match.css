@@ -1,0 +1,91 @@
+/* The weather match (/tools/weather-match; the redesign spec, section 7.13): a forecast and a pace, then mornings like it
+   on one night card beside the 8–12 °C reference (● Pace Notes data), section by section, the races behind the window,
+   and the published research kept apart and folded (◆). Yours is the accent, the reference ink. Every class here is
+   prefixed weather-match-. Imported by app/tools/weather-match/layout.tsx. */
+
+.weather-match { min-width: 0; }
+.weather-match-optional { margin-left: 6px; font-size: var(--t-label); font-weight: 400; color: var(--ink-3); }
+.weather-match-nowrap { white-space: nowrap; }
+
+/* ---------- Inputs ---------- */
+.weather-match-label-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px var(--s-3); }
+.weather-match-label-row > label { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+.weather-match-label-row > .tool-choice.seg { width: auto; }
+.weather-match-num { position: relative; min-width: 0; }
+.tool-page .weather-match-num input { width: 100%; min-height: 52px; padding: 0 3rem 0 14px; border: 1px solid var(--rule-strong); border-radius: var(--r-sm); background: var(--paper-raised); color: var(--ink);
+  box-shadow: none; font-family: var(--sans); font-size: 1.0625rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.tool-page .weather-match-num.is-large input { min-height: 60px; padding: 0 2.6rem; text-align: center; font-size: 1.75rem; font-weight: 600; letter-spacing: -.01em; }
+.tool-page .weather-match-num input:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tool-page .weather-match-num input[aria-invalid='true'] { color: var(--signal-ink); box-shadow: inset 0 -2px 0 var(--signal); }
+.weather-match-num > span { position: absolute; top: 50%; right: 14px; transform: translateY(-50%); font-size: .9375rem; font-weight: 600; color: var(--ink-3); pointer-events: none; }
+
+/* ---------- The night card ---------- */
+.weather-match-headline .tool-reading-figure small .term-link { text-decoration-color: var(--ink-3); }
+.weather-match-ask { display: block; font-family: var(--serif); font-optical-sizing: auto; font-size: var(--t-sentence); font-weight: 440; line-height: 1.25; letter-spacing: -.01em; }
+.weather-match-cols { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.weather-match-cols th, .weather-match-cols td { padding: 10px 0 10px var(--s-3); border-top: 1px solid var(--rule); text-align: right; vertical-align: baseline; }
+.weather-match-cols th:first-child { padding-left: 0; text-align: left; font-size: var(--t-small); font-weight: 500; color: var(--ink-2); }
+.weather-match-cols thead th { border-top: 0; padding-top: 0; font-size: var(--t-label); font-weight: 600; color: var(--ink); vertical-align: bottom; }
+.weather-match-cols thead th small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
+.weather-match-cols td { font-size: 1.25rem; font-weight: 600; letter-spacing: -.01em; color: var(--ink); }
+.weather-match-cols td.is-ref { font-weight: 500; color: var(--ink-2); }
+.weather-match-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+.weather-match-actions span { font-size: var(--t-small); color: var(--ink-2); }
+.weather-match-error { display: grid; justify-items: start; gap: var(--s-3); }
+
+/* ---------- Charts ---------- */
+.weather-match-figure { margin: 0; }
+.weather-match-strip svg { display: block; overflow: visible; }
+.weather-match-strip svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+.weather-match-legend { display: flex; flex-wrap: wrap; gap: 4px var(--s-4); margin: var(--s-2) 0 0; padding: 0; list-style: none; font-size: var(--t-label); color: var(--ink-2); }
+.weather-match-legend li { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
+.weather-match-legend.is-strip i { flex: none; width: 10px; height: 10px; border: 0; border-radius: 50%; background: var(--fill-quiet); box-shadow: inset 0 0 0 1px var(--mark-quiet); }
+.weather-match-legend.is-strip .is-on i { background: var(--ink); box-shadow: none; }
+.weather-match-legend.is-strip .is-ring i { background: var(--paper); box-shadow: inset 0 0 0 2px var(--ink); }
+.weather-match-legend.is-strip .is-zone-yours i { width: 14px; border-radius: 2px; background: var(--wash); box-shadow: none; }
+.weather-match-legend.is-strip .is-zone-ref i { width: 14px; border-radius: 2px; background: none; box-shadow: none; border: 1px dashed var(--ink-3); }
+
+/* The races in ink on a wash: the reading's accent is the card's. */
+.weather-match-zone.is-yours { fill: var(--wash); }
+.weather-match-zone.is-ref { fill: none; stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; }
+.weather-match-axis { stroke: var(--rule-strong); }
+.weather-match-dot { fill: var(--fill-quiet); stroke: var(--mark-quiet); stroke-width: 1; }
+.weather-match-dot.is-on { fill: var(--ink); stroke: var(--paper); }
+.weather-match-dot.is-ring { fill: var(--paper); stroke: var(--ink); stroke-width: 2; }
+.weather-match-marker { stroke: var(--ink); stroke-width: 1.5; }
+.weather-match-strip svg .weather-match-marker-label { font-weight: 600; fill: var(--ink); }
+
+
+/* ---------- Published research (folded) ---------- */
+.weather-match-research .tool-panel-title em { font-style: italic; color: var(--ink); }
+.weather-match-warning { margin: 0; padding-left: var(--s-3); border-left: 3px solid var(--signal); font-size: var(--t-small); line-height: 1.55; color: var(--ink); max-width: var(--measure); }
+.weather-match-conditions dd { font-size: 1.25rem; }
+.weather-match-flag dd i { display: inline-block; width: 12px; height: 12px; margin-right: 8px; border-radius: 2px; background: var(--fill-quiet); box-shadow: inset 0 0 0 1px var(--mark-quiet); vertical-align: 1px; }
+.weather-match-flag.is-green dd i { background: var(--green); box-shadow: none; }
+.weather-match-flag.is-yellow dd i { background: var(--gold); box-shadow: none; }
+.weather-match-flag.is-red dd i { background: var(--signal); box-shadow: none; }
+.weather-match-flag.is-black dd i { background: var(--ink); box-shadow: none; }
+.weather-match-methods { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.weather-match-method { display: grid; gap: 6px; margin: 0; padding: var(--s-4) 0; border-bottom: 1px solid var(--rule); min-width: 0; }
+.weather-match-method-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px var(--s-3); margin: 0; }
+.weather-match-method-head b { font-size: .9375rem; font-weight: 600; line-height: 1.3; }
+.weather-match-method-head span { font-size: var(--t-label); color: var(--ink-3); }
+.weather-match-method-range { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--s-3); margin: 0; font-family: var(--figure); font-size: 1.75rem; font-weight: 660; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.weather-match-method-range small { font-family: var(--sans); font-size: var(--t-small); font-weight: 500; letter-spacing: 0; color: var(--ink-2); }
+.weather-match-method-body { margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink-3); max-width: var(--measure); }
+.weather-match-ely { width: 100%; max-width: 22rem; border-collapse: collapse; font-size: var(--t-label); font-variant-numeric: tabular-nums; }
+.weather-match-ely th { padding: 4px 6px; border-bottom: 1px solid var(--rule-strong); font-weight: 600; color: var(--ink-3); text-align: right; }
+.weather-match-ely td { padding: 4px 6px; border-bottom: 1px solid var(--rule); text-align: right; color: var(--ink-2); }
+.weather-match-ely th:first-child, .weather-match-ely td:first-child { padding-left: 0; text-align: left; }
+.weather-match-ely tr.is-current td { color: var(--ink); font-weight: 600; }
+
+@media (min-width: 600px) {
+  .weather-match-conditions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media print {
+  .weather-match-widen { display: none; }
+  .weather-match-temp > button { display: none; }
+}
+
+.weather-match-editions .values tbody th small, .weather-match-course .values tbody th small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }

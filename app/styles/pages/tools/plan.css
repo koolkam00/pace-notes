@@ -1,0 +1,74 @@
+/* The race planner (/tools/plan; the redesign spec, section 7.13): the course and goal, the plan on one night card with
+   the mats as a lap list, one Pace Notes data nugget on 100 dots, the pace band to print, then the next steps. Every
+   class here is prefixed plan-. Imported by app/tools/plan/layout.tsx, with pace-band-strip.css. */
+
+/* ---------- The goal between its −/+ buttons: the label above, the hint below, the buttons level with the input ---------- */
+.plan-goal .tool-stepper { grid-template-columns: 44px minmax(0, 1fr) 44px; grid-template-areas: 'label label label' 'minus input plus' 'hint hint hint'; gap: 6px 8px; }
+.plan-goal .tool-stepper-value, .plan-goal .tool-field { display: contents; }
+.plan-goal .tool-stepper > button:first-child { grid-area: minus; align-self: center; }
+.plan-goal .tool-stepper > button:last-child { grid-area: plus; align-self: center; }
+.plan-goal label { grid-area: label; justify-self: start; }
+.plan-goal input { grid-area: input; min-width: 0; text-align: center; }
+.plan-goal .tool-field-hint, .plan-goal .keypad-hint.is-block { grid-area: hint; text-align: left; }
+
+/* The tracked-section wrappers are the results' grid items: they may shrink below their content (the strip preview). */
+.plan-root [data-track-section] { min-width: 0; }
+
+/* ---------- The plan ---------- */
+.plan-headline-title span { font-family: var(--serif); font-size: .5em; font-weight: 440; letter-spacing: -.01em; color: var(--ink-2); }
+.plan-mats-k small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
+.plan-problem { font-size: 1rem; }
+.plan-unavailable { color: var(--ink-2); }
+.plan-error { display: grid; gap: var(--s-3); justify-items: start; }
+
+/* ---------- The nugget: the sentence beside its 100 dots ---------- */
+.plan-nugget { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); align-items: center; }
+.plan-mat-table tbody th small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
+.plan-mat-table tfoot td, .plan-mat-table tfoot th { height: 36px; }
+
+/* ---------- The pace band ---------- */
+.plan-band .tool-share { margin-top: var(--s-2); }
+/* Under 600 px the preview is not drawn (pace-band-strip.css), so its heading goes too: the actions stand alone. */
+@media screen and (max-width: 599.98px) {
+  .plan-band-head { display: none; }
+  .plan-band .tool-share { margin-top: 0; }
+}
+
+@media (min-width: 600px) {
+  .plan-nugget { grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-6); }
+}
+
+/* ---------- Print: one Letter or A4 page at the browser's default margins (the plan), or the wristband strips alone ---------- */
+@media print {
+  .plan-root .tool-results { display: flex; flex-direction: column; gap: .25cm; }
+  .plan-headline, .plan-root [data-track-section='result'], .plan-root [data-track-section='comparison'], .plan-error, .plan-unavailable, .plan-root .tool-handoffs, .plan-root .tool-example { display: none !important; }
+  /* Nothing below the source line, so a full page does not spill onto a blank second one. */
+  .plan-root .pace-band-strip { border-color: var(--accent); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .plan-root .tool-panel { padding: 0; border: 0; background: none; }
+  .plan-band > header { display: none; }
+
+  /* The plan: the header, the strips, the mat table and the source line, in that order. */
+  .plan-print-head { order: 1; display: grid; gap: .08cm; padding-bottom: .2cm; border-bottom: 1.5pt solid var(--night); font-size: 9pt; color: var(--night); }
+  .plan-print-head > * { margin: 0; }
+  /* The header names the course and goal, so the plan leaves out the strips' own heading line (the strips alone keep it). */
+  .plan-root[data-print='plan'] .pace-band-sheet-head { display: none; }
+  .plan-print-kicker { font-family: var(--sans); font-size: 7.5pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .plan-print-title { font-family: var(--serif); font-size: 18pt; font-weight: 440; line-height: 1.1; }
+  .plan-root [data-track-section='pace-band'] { order: 2; }
+  .plan-print-mats { order: 3; }
+  .plan-print-source { order: 4; padding-top: .15cm; border-top: .5pt solid var(--night); font-family: var(--sans); font-size: 7.5pt; color: var(--night); }
+  .plan-mat-table th, .plan-mat-table td, .plan-mat-table tbody th { height: auto; padding-top: .03cm !important; padding-bottom: .03cm !important; font-size: 8.5pt; line-height: 1.25; color: var(--night) !important; }
+  .plan-mat-table thead th { font-size: 6.5pt; }
+  .plan-mat-table tbody th small { display: inline; margin-left: .2cm; font-size: 7pt; }
+  .plan-mat-table tr { break-inside: avoid; }
+  .plan-mat-table tfoot { display: table-row-group; }
+
+  /* Wristband strips only */
+  .plan-root[data-print='strip'] .tool-results > :not([data-track-section='pace-band']) { display: none !important; }
+}
+@supports selector(:has(a)) {
+  @media print {
+    body:has(.plan-root) .skip-link, .tool-page:has(.plan-root) .tool-header { display: none !important; }
+    .tool-page:has(.plan-root) { padding-bottom: 0; }
+  }
+}

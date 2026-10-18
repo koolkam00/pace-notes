@@ -334,14 +334,14 @@ const { getAnalysisStart } = require('../lib/analysis-server.ts');
 const profileSpec = getAnalysisStart().answers.find(answer => answer.id === 'profile').charts[0];
 const sourceProfile = JSON.stringify(profileSpec);
 const profileHtml = render(profileSpec);
-assert.match(profileHtml, /0–3\.11 mi/);
-assert.match(profileHtml, /24\.85–26\.22 mi/);
+// Sections are named by their mats in both modes (WP3, the redesign spec, section 3.10): "0–5K" … "40K–finish".
+assert.match(profileHtml, /0–5K/);
+assert.match(profileHtml, /40K–finish/);
 assert.match(profileHtml, /per mile/);
 for (const row of profileSpec.rows) {
   assert.ok(profileHtml.includes(paceLabel(row.value * 60, 'mi')), 'Every real profile median must use the converted source pace');
-  assert.ok(profileHtml.includes(distanceLabel(Number(row.label), 'mi')), 'Every original section endpoint must remain identifiable');
 }
-assert.match(render(profileSpec, 'km'), /40–42\.195 km/);
+assert.match(render(profileSpec, 'km'), /40K–finish/);
 assert.equal(JSON.stringify(profileSpec), sourceProfile, 'Rendering both modes must preserve all source values');
 // The real pacing-pattern chart's axis in both units: every value covered, every label on its own grid.
 const profilePaces = profileSpec.rows.flatMap(row => profileSpec.series.map(series => row[series.key] * 60));

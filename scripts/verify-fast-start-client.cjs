@@ -30,7 +30,7 @@ const METHOD_COPY = [/What this can tell you/, /Definitions, coverage and limits
   /not a prediction or avoidable time loss/, /cannot tell whether the entire first half/, /share the same reference pace/, /they do not diagnose overreach/,
   /Each race supplies its own comparison/, /First-time runners and people without recorded history/, /at least \d+ (?:eligible |detected )?finishes/, /Missing groups are not treated as zero/];
 const noMethodCopy = (html, where) => { for (const pattern of METHOD_COPY) assert.doesNotMatch(html, pattern, `${where}: method or source copy belongs on /methodology (${pattern})`); };
-const SLOWDOWN_LINK = /<a href="\/methodology#sustained-slowdown">sustained slowdowns<\/a>/;
+const SLOWDOWN_LINK = /<a [^>]*href="\/methodology#sustained-slowdown"[^>]*>sustained slowdowns?<\/a>/;
 
 async function main() {
   for (const prior of PRIOR_OPTIONS) for (const band of start.bands) {
@@ -67,33 +67,39 @@ async function main() {
   assert.ok(Math.abs(charts.accounting.rows[0].value+charts.accounting.rows[1].value-charts.accounting.rows[2].value)<1e-6);
   assert.equal(fastStartCharts(start.initial,steady,start.bands).pace.series.length,1,'A selected steady group must not be duplicated');
   assert.equal(fastStartCharts({...start.initial,groups:[focus]},focus,start.bands).pace.series.length,1,'No invented steady comparison for a sparse cohort');
-  assert.equal(timeChange(-997),'16.6 min faster'); assert.equal(timeChange(325),'5.4 min slower'); assert.equal(timeChange(0),'About the same time');
+  assert.equal(timeChange(-997),'16:37 faster'); assert.equal(timeChange(325),'5:25 slower'); assert.equal(timeChange(3725),'1:02:05 slower'); assert.equal(timeChange(0),'About the same time');
 
   // The figures the history view prints, from the verified evidence (verify-fast-start recounts them from the runner
   // records). Under 0934 they were 47%, 16.6 min faster, 17.9%, 142,757 and 67,025; in 1652 43.6%, 19 min faster, 20.2%,
-  // 152,758 and 66,657. Formatted here independently of the component: one decimal at most, en-US thousands.
-  const pct=n=>(Math.round(n*10)/10).toLocaleString('en-US',{maximumFractionDigits:1})+'%';
+  // 152,758 and 66,657. Formatted here independently of the component: whole percent and m:ss durations, as every page
+  // writes them (October 18, 2026), en-US thousands.
+  const pct=n=>Math.round(n)+'%';
   const esc=text=>text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   const focusRate=pct(100*focus.slowdown_n/focus.n), steadyRate=pct(100*steady.slowdown_n/steady.n);
-  const finishChange=`${Math.round(Math.abs(focus.finish_delta_median_s)/6)/10} min ${focus.finish_delta_median_s<0?'faster':'slower'}`;
-  assert.equal(timeChange(focus.finish_delta_median_s),finishChange.replace(/^(\d+)\.0 /,'$1 '),'The finish change reads as the evidence median');
+  const whole=Math.round(Math.abs(focus.finish_delta_median_s));
+  const finishChange=`${Math.floor(whole/60)}:${String(whole%60).padStart(2,'0')} ${focus.finish_delta_median_s<0?'faster':'slower'}`;
+  assert.equal(timeChange(focus.finish_delta_median_s),finishChange,'The finish change reads as the evidence median');
   for (const units of ['mi','km']) {
     const html=render(FastStartResults,{row:start.initial,focus,start,units});
-    assert.match(html,new RegExp(esc(focusRate)+' developed a sustained slowdown'));
+    assert.match(html,new RegExp(esc(focusRate)+' developed a <a [^>]*>sustained slowdown</a>'));
     assert.match(html,new RegExp(esc(timeChange(focus.finish_delta_median_s))));
     assert.match(html,new RegExp(esc(steadyRate))); assert.match(html,new RegExp(focus.n.toLocaleString('en-US'))); assert.match(html,new RegExp(focus.slowdown_n.toLocaleString('en-US')));
     assert.match(html,/earlier recorded best/);
     assert.match(html,SLOWDOWN_LINK,'The sustained slowdown term links to its definition on /methodology');
-    assert.match(html,/most often began in the /,'The onset section states where slowdowns most often began');
-    assert.match(html,/Pace was slowest in the /,'The pace section states its slowest section');
+    // Where each opening's slowdowns most often began is in Values ("Most often began"), its slowest section on the chart.
+    assert.match(html,/>Most often began</,'Values states where each opening\'s slowdowns most often began');
+    const onsetAt=focus.onset.reduce((best,n,i)=>n>focus.onset[best]?i:best,0);
+    assert.match(html,new RegExp(`${25+onsetAt*5-5}–${25+onsetAt*5}K, ${esc(pct(100*focus.onset[onsetAt]/focus.slowdown_n))}`),'the focused opening\'s onset section and share');
     noMethodCopy(html,`history results (${units})`);
-    assert.match(html,units==='mi'?/18\.64–21\.75 mi/:/30–35 km/);
-    assert.match(html,units==='mi'?/26\.22 mi/:/42\.195 km/);
+    // Sections and the course axis are named by their mats in both units (the redesign spec, section 3.10).
+    assert.match(html,/30–35K/);
+    assert.match(html,/>Finish</);
     assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016/,'Internal upload identifiers stay out of visible result copy');
   }
   const sparse={...focus,n:100,editions:5,slowdown_n:7,onset:null};
   assert.equal(fastStartCharts(start.initial,sparse,start.bands).onset,null);
-  assert.match(render(FastStartResults,{row:{...start.initial,groups:[sparse]},focus:sparse,start,units:'mi'}),/Too few detected slowdowns/);
+  // Too few detected slowdowns to place their start: the opening's onset cell reads a dash, never an invented section.
+  assert.match(render(FastStartResults,{row:{...start.initial,groups:[sparse]},focus:sparse,start,units:'mi'}),/<tr class="is-reading"><th scope="row">[^<]+<\/th><td>\d+%<\/td><td>—<\/td>/);
   const zero={...focus,n:100,editions:5,slowdown_n:0,onset:null,finish_delta_median_s:0};
   assert.match(render(FastStartResults,{row:start.initial,focus:zero,start,units:'km'}),/about the same as/);
   assert.doesNotMatch(render(FastStartResults,{row:start.initial,focus:zero,start,units:'km'}),/same time than/);
@@ -111,11 +117,10 @@ async function main() {
   assert.ok(Math.abs(allCharts.accounting.rows[0].value+allCharts.accounting.rows[1].value-allCharts.accounting.rows[2].value)<1e-6);
   for(const units of ['mi','km']) {
     const html=render(FastStartResults,{row:allRow,focus:allFocus,start:starts.all,units});
-    assert.match(html,/Median recorded finish/); assert.match(html,/than the same distance at its early-race pace/);
+    assert.match(html,/>Median finish</); assert.match(html,/than its own early-race pace/);
     assert.match(html,SLOWDOWN_LINK);
     noMethodCopy(html,`all-finisher results (${units})`);
-    assert.match(html,units==='mi'?/3\.11 mi/:/5 km/);
-    assert.match(html,units==='mi'?/12\.43 mi/:/20 km/);
+    assert.match(html,/After 20K, the median finish ran /);
     assert.doesNotMatch(html,/earlier recorded best|earlier-best|All earlier times/,'All mode cannot present its reference as a prior result');
     assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016/);
   }

@@ -57,13 +57,17 @@ export function DurationField({ label, value, onChange, mode = 'race', placehold
   );
 }
 
-/** Pill buttons for choosing one option. */
+/**
+ * A segmented choice of 2 to 5 options: buttons in role="group" with aria-pressed (the pattern the verifiers read),
+ * drawn as the site's segmented control (app/styles/components/segmented.css) with the pressed option raised. No thumb
+ * script: the pressed button carries the raised surface itself, so nothing moves on load.
+ */
 export function Choice<T extends string | number>({ label, options, value, onChange, small = false }: {
   label: string; options: { value: T; label: ReactNode }[]; value: T; onChange: (v: T) => void; small?: boolean;
 }) {
   return (
-    <div className={`segmented tool-choice${small ? ' is-small' : ''}`} role="group" aria-label={label}>
-      {options.map((o) => <button key={String(o.value)} type="button" aria-pressed={o.value === value} onClick={() => onChange(o.value)}>{o.label}</button>)}
+    <div className={`seg tool-choice${small ? ' is-small' : ''}`} role="group" aria-label={label}>
+      {options.map((o) => <button key={String(o.value)} type="button" className="seg-btn" aria-pressed={o.value === value} onClick={() => onChange(o.value)}><span className="seg-label">{o.label}</span></button>)}
     </div>
   );
 }
@@ -78,6 +82,35 @@ export function Stepper({ label, onStep, step = 60, labels = ['faster', 'slower'
       <button type="button" aria-label={`${label}: ${amount} ${labels[0]}`} onClick={() => onStep(-step)}>−</button>
       <div className="tool-stepper-value">{children}</div>
       <button type="button" aria-label={`${label}: ${amount} ${labels[1]}`} onClick={() => onStep(step)}>+</button>
+    </div>
+  );
+}
+
+/**
+ * The goal bar (phones, goal-driven tools; the redesign spec, section 3.5): once the inputs have scrolled out of view, a
+ * slim night stepper sticks to the bottom of the results, "− 4:00 · 9:09/mi +", so the goal can be nudged while reading
+ * what it does. It is the results' last child, inside the left-out results region, and hidden from 900 px, where the
+ * inputs stay in view beside the results.
+ */
+export function GoalBar({ label, onStep, step = 60, labels, disabled, children }: {
+  label: string; onStep: (delta: number) => void; step?: number; labels?: [string, string]; disabled?: [boolean, boolean]; children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const inputs = ref.current?.closest('.tool-workspace')?.querySelector('.tool-inputs');
+    if (!inputs || typeof IntersectionObserver !== 'function') return undefined;
+    const io = new IntersectionObserver(([entry]) => setShown(!entry.isIntersecting && entry.boundingClientRect.top < 0));
+    io.observe(inputs);
+    return () => io.disconnect();
+  }, []);
+  const amount = step >= 60 ? `${step / 60} minute${step === 60 ? '' : 's'}` : `${step} seconds`;
+  const [faster, slower] = labels ?? ['faster', 'slower'];
+  return (
+    <div ref={ref} className="tool-goalbar night no-print" data-shown={shown ? '' : undefined} aria-hidden={shown ? undefined : true}>
+      <button type="button" tabIndex={shown ? undefined : -1} aria-disabled={disabled?.[0] || undefined} aria-label={`${label}: ${amount} ${faster}`} onClick={() => { if (!disabled?.[0]) onStep(-step); }}>−</button>
+      <span className="tool-goalbar-value">{children}</span>
+      <button type="button" tabIndex={shown ? undefined : -1} aria-disabled={disabled?.[1] || undefined} aria-label={`${label}: ${amount} ${slower}`} onClick={() => { if (!disabled?.[1]) onStep(step); }}>+</button>
     </div>
   );
 }
@@ -110,12 +143,12 @@ export function EvidencePanel({ kind, title, meta, children, id }: { kind?: 'dat
   );
 }
 
-/** Marks results computed from a tool's example inputs, the same way in every tool. Hide it once the visitor changes anything. */
+/** Marks results computed from a tool's example inputs, the same way in every tool: one quiet line. Hide it once the visitor changes anything. */
 export function ExampleNote({ children }: { children?: ReactNode }) {
   return (
     <p className="tool-example">
       <span className="tool-example-tag">Example</span>
-      <span>{children ?? 'These results use example inputs. Type yours; everything updates as you type.'}</span>
+      <span>{children ?? 'Type yours; everything updates as you type.'}</span>
     </p>
   );
 }
@@ -130,7 +163,7 @@ export function ShareBar({ print = true, extra }: { print?: boolean; extra?: Rea
   const { units } = useUnits();
   return (
     <div className="tool-share share-bar no-print">
-      <button type="button" className="button-secondary" onClick={async () => {
+      <button type="button" className="btn btn-secondary is-compact" onClick={async () => {
         const { origin, pathname, search, hash } = window.location;
         try {
           await navigator.clipboard.writeText(origin + withUnits(pathname + search + hash, units));
@@ -138,7 +171,7 @@ export function ShareBar({ print = true, extra }: { print?: boolean; extra?: Rea
           setCopied(true); setTimeout(() => setCopied(false), 1800);
         } catch { /* clipboard unavailable */ }
       }}>{copied ? 'Link copied' : 'Copy link'}</button>
-      {print ? <button type="button" className="button-secondary" data-not-edit onClick={() => window.print()}>Print</button> : null}
+      {print ? <button type="button" className="btn btn-secondary is-compact" data-not-edit onClick={() => window.print()}>Print</button> : null}
       {extra}
       <span className="sr-only" aria-live="polite">{copied ? 'Link copied to the clipboard' : ''}</span>
     </div>

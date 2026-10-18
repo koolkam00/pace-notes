@@ -276,12 +276,17 @@ async function journey(h, blocklist) {
   });
   await settle(2000);
   const onward = await page.evaluate(() => [...document.querySelectorAll('a[href^="/tools/"], a[href^="/analyses/"]')].map(a => a.getAttribute('href')).filter(href => href.includes('?') && !href.includes('split-check')));
-  for (const [key, pattern] of [['pace band', /^\/tools\/pace-band/], ['starting pace', /^\/analyses\/starting-pace/], ['qualifying', /^\/tools\/qualifying/]]) {
+  // Since critic round 4 (October 18, 2026) the split check has one next step, the pace band. Its link keeps the goal
+  // and course in the query, so it continues the handoff; it is reloaded, and is the query page Back returns to after
+  // the handoff ends.
+  const ONWARD = [['pace band', /^\/tools\/pace-band/]];
+  const last = ONWARD[ONWARD.length - 1];
+  for (const [key, pattern] of ONWARD) {
     const href = onward.find(link => pattern.test(link));
     if (!h.check(`the split check links on to the ${key} with a query`, href, onward)) continue;
     await step('onward ' + key, async () => { await page.locator(`a[href="${href}"]`).first().click(); await page.waitForURL(url => pattern.test(new URL(url).pathname)); });
     await settle(2500);
-    if (key === 'qualifying') { await step('reload qualifying', () => page.reload({ waitUntil: 'load' })); await settle(9000); }
+    if (key === last[0]) { await step('reload ' + key, () => page.reload({ waitUntil: 'load' })); await settle(9000); }
     else { await step('back to the split check', async () => { await page.goBack(); await page.waitForURL('**/tools/split-check**'); }); await settle(1500); }
   }
   // The site's navigation (no query) ends the handoff: recording resumes.
@@ -294,7 +299,7 @@ async function journey(h, blocklist) {
   await settle(2000);
   await step('Back', async () => { await page.goBack(); await page.waitForURL(url => new URL(url).pathname === '/tools'); });
   await settle(1500);
-  await step('Back to the qualifying page (a query, after the handoff ended)', async () => { await page.goBack(); await page.waitForURL('**/tools/qualifying**'); });
+  await step(`Back to the ${last[0]} page (a query, after the handoff ended)`, async () => { await page.goBack(); await page.waitForURL(url => last[1].test(new URL(url).pathname)); });
   await settle(2500);
   await step('Forward', async () => { await page.goForward(); await page.waitForURL(url => new URL(url).pathname === '/tools'); });
   await settle(1500);

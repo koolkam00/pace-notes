@@ -17,6 +17,7 @@ const { default: AllFinisherAnalysis, AllFinisherResults } = require('../compone
 const { default: AnalysisPage } = require('../app/analyses/[slug]/page.tsx');
 const { default: PackPage } = require('../app/packs/[packId]/page.tsx');
 const { BROADER_ARCHIVE } = require('../lib/broader-analysis-catalog.ts');
+const { sectionLabel } = require('../lib/section-labels.ts');
 const { default: MethodologyPage } = require('../app/methodology/page.tsx');
 const start = getAllFinisherContextStart();
 const bytes = fs.readFileSync(path.join(__dirname, '../public/data/all-finisher-context/evidence.json'));
@@ -65,22 +66,35 @@ async function main() {
         assert.ok(charts.onset.rows.every(row=>row.n_value===focus.detected_n));
         assert.ok(Math.abs(charts.onset.rows.reduce((sum,row)=>sum+row.value,0)-100)<1e-4);
       }
-      const html=render(AllFinisherResults,{groups,kind,start,units,focus,comparison});
-      assert.match(html,/<h2>(?:Sustained slowdown rates ranged from|The sustained slowdown rate was|Late-race pace|Late-race experiences varied most in)/,kind+': the headline states the spread across groups');
-      if(charts.onset) assert.match(html,/<a href="\/methodology#sustained-slowdown">sustained slowdowns<\/a> most often began in the /,kind+': the onset section states where slowdowns most often began and links the term');
+      const html=render(AllFinisherResults,{groups,kind,start,units,focus,comparison,linkTerm:false});
+      assert.match(html,/<h2[^>]*>(?:Sustained slowdown rates (?:ranged from|were)|The sustained slowdown rate was|Late-race pace|Late-race experiences varied most in|After a first 5K [^,<]+, sustained slowdown rates were)/,kind+': the headline states the spread across groups');
+      // Downhill starts name the opening band the rates are for, first, so one band's rate never reads as the overall rate.
+      if(kind==='downhill') assert.match(html,/<h2[^>]*>After a first 5K over 10% fast, sustained slowdown rates were \d+% \((?:downhill-start courses|every other course)\) and \d+% /,'downhill: the headline names its opening band');
+      // One sentence under the headline; where each group's slowdowns most often began is in Values (October 18, 2026).
+      assert.doesNotMatch(html,/most often began in the /,kind+': the onset is not a second sentence');
+      assert.match(html,/>Most often began</,kind+': Values states where each group\'s slowdowns most often began');
+      if(charts.onset) assert.ok(html.includes(`>${sectionLabel(25+focus.onset_pct.indexOf(Math.max(...focus.onset_pct))*5)}, ${Math.round(Math.max(...focus.onset_pct))}%<`),kind+': the onset cell names the section and its share');
+      // Where the page has not linked the term yet, the headline links its first "sustained slowdown".
+      const linked=render(AllFinisherResults,{groups,kind,start,units,focus,comparison});
+      // The headline's text, its unbroken ranges (<span class="nowrap">) read as plain text.
+      const h2Text=(markup)=>markup.match(/<h2[^>]*>([\s\S]*?)<\/h2>/)[1].replace(/<[^>]*>/g,'');
+      if(/sustained slowdown/i.test(h2Text(html))) assert.match(linked,/<h2[^>]*>[^<]*<a [^>]*href="\/methodology#sustained-slowdown"[^>]*>sustained slowdowns?<\/a>/i,kind+': the headline links the term');
+      // Whole percent and m:ss durations, never decimal minutes (October 18, 2026).
+      assert.doesNotMatch(html.replace(/<[^>]*>/g,' '),/\d+\.\d+ min\b|\d+\.\d%/,kind+': no decimal minutes or one-decimal percents');
       noMethodCopy(html,`${kind} results (${units})`);
-      assert.match(html,units==='mi'?/12\.43 mi/:/20 km/);
+      // The second half is named by its mat in both units (the redesign spec, section 3.10).
+      assert.match(html,/after 20K/i);
       assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016/);
       if(kind==='race-day') {
         assert.match(html,/Slowdown rate in this edition/);
         assert.doesNotMatch(html,/Mean edition slowdown rate|across 3 editions/);
         assert.match(html,/Start-hour temperature(?:: | is unavailable)/);
         // The headline speaks of the editions on the chart only: the one followed and its comparison line.
-        const headlineText=html.match(/<h2>([^<]*)<\/h2>/)[1];
+        const headlineText=h2Text(html);
         const shown=new Set([focus.id,...(comparison?[comparison.id]:[])]);
         for(const group of groups) if(!shown.has(group.id)) assert.ok(!headlineText.includes(allFinisherGroupLabel(group,kind,units).replace(/&/g,'&amp;')),`race-day headline names only shown editions, not ${group.id}`);
-        const alone=render(AllFinisherResults,{groups,kind,start,units,focus});
-        assert.match(alone,/<h2>The sustained slowdown rate was /,'race-day: one edition, one rate');
+        const alone=render(AllFinisherResults,{groups,kind,start,units,focus,linkTerm:false});
+        assert.match(alone,/<h2[^>]*>The sustained slowdown rate was /,'race-day: one edition, one rate');
       }
     }
     const page=render(AllFinisherAnalysis,{kind,start,history:React.createElement('p',null,'HISTORY RESULT')});
@@ -92,16 +106,23 @@ async function main() {
     noMethodCopy(page,`${kind} page`);
   }
   const temperature=start.initial.weather.find(group=>group.lower_c===5);
-  assert.equal(allFinisherGroupLabel(temperature,'weather','mi'),'41°F to below 50°F');
-  assert.equal(allFinisherGroupLabel(temperature,'weather','km'),'5°C to below 10°C');
+  assert.equal(allFinisherGroupLabel(temperature,'weather','mi'),'41–50°F');
+  assert.equal(allFinisherGroupLabel(temperature,'weather','km'),'5–10°C');
   assert.equal(earlyPaceLabel(start.early_pace_bands[1],'mi'),'Faster than 7:15/mi');
   assert.equal(earlyPaceLabel(start.early_pace_bands[1],'km'),'Faster than 4:30/km');
   const sparse={...start.initial.courses[0],detected_n:7,onset_n:null,onset_pct:null};
   assert.equal(allFinisherCharts([sparse],sparse,undefined,'courses','mi').onset,null);
-  assert.match(render(AllFinisherResults,{groups:[sparse],kind:'courses',start,units:'mi',focus:sparse}),/Too few detected slowdowns/);
+  // Too few detected slowdowns to place their start: the onset cell is a dash, never an invented section.
+  assert.match(render(AllFinisherResults,{groups:[sparse],kind:'courses',start,units:'mi',focus:sparse}),/>—</);
+  // Course comparison, race-day weather and downhill starts compare every eligible finish only: their earlier-result
+  // views were cut under the redesign's section 00 (course and weather against an earlier best stay in the research
+  // guide, /research/personalized), so the form has no comparison switch.
   for(const slug of ['course-comparison','race-day-weather','downhill-start']) {
     const html=render(AnalysisPage,{params:{slug}});
-    assert.match(html,/All eligible finishes/);assert.match(html,/No previous race needed/);assert.doesNotMatch(html,eligibleText,'Coverage counts belong on /methodology');
+    assert.match(html,/>Early-race pace</);assert.doesNotMatch(html,/With an earlier result|Choose the comparison/);assert.doesNotMatch(html,eligibleText,'Coverage counts belong on /methodology');
+    if(slug==='downhill-start') assert.match(html,/>Opening pace</);
+    // Update comparison is inert until a setting changes, and says so.
+    assert.match(html,/<button type="submit" class="btn btn-secondary is-compact" aria-disabled="true" aria-describedby="[^"]+-why">Update comparison<\/button><p class="field-hint explore-submit-hint" id="[^"]+-why">Change a setting to compare<\/p>/,`${slug}: Update comparison waits for a change`);
   }
   for(const id of [...Object.keys(BROADER_ARCHIVE),'rn3_heat_curves','ext_weather_pacing_patterns']) {
     const html=render(PackPage,{params:{packId:id}});

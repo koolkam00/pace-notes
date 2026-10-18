@@ -1,0 +1,38 @@
+/* The pace charts by goal time (/tools/marathon-pace-chart, /tools/half-marathon-pace-chart) and the goal pages
+   (/tools/marathon-pace/<goal>; the redesign spec, section 7.14). A chart is one table at a time, its goal column held
+   while the timing points scroll, the far edge fading while there is more to see. A goal page is the even pace on one
+   night card, then what finishes just under the goal ran, each beat with its Values table. Every class here is prefixed
+   goal-chart- or goal-pace-. Imported by the three routes' layouts. */
+
+/* ---------- The chart ---------- */
+.goal-chart { display: grid; gap: var(--s-3); min-width: 0; margin: 0 0 var(--s-6); }
+.goal-chart-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.goal-chart-controls > .tool-choice.seg { width: auto; }
+.goal-chart-hint { margin: 0; font-size: var(--t-label); color: var(--ink-3); }
+.goal-chart-wrap.is-overflow { -webkit-mask-image: linear-gradient(to right, var(--ink) 0, var(--ink) calc(100% - 20px), transparent); mask-image: linear-gradient(to right, var(--ink) 0, var(--ink) calc(100% - 20px), transparent); }
+.goal-chart-table th, .goal-chart-table td { height: 44px; padding-top: 0; padding-bottom: 0; }
+.goal-chart-table .goal-chart-goal { position: sticky; left: 0; z-index: 1; min-width: 4.25rem; background: var(--paper); text-align: left; }
+.goal-chart-table tbody th.goal-chart-goal { font-size: .9375rem; font-weight: 600; color: var(--ink); }
+.goal-chart-table tbody th.goal-chart-goal a { display: inline-flex; align-items: center; min-width: 44px; min-height: 44px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.goal-chart-table thead th { white-space: nowrap; }
+.goal-chart-sub { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
+.goal-chart-table td.goal-chart-half { color: var(--ink); }
+.goal-chart-table tr.is-key th, .goal-chart-table tr.is-key td { font-weight: 600; color: var(--ink); }
+.goal-chart-table tr.is-key th.goal-chart-goal { box-shadow: inset 3px 0 0 var(--ink); padding-left: 10px; }
+.goal-chart-rehead td { height: 32px; font-size: .75rem; font-weight: 600; color: var(--ink-3); background: var(--paper-sunk); }
+.goal-chart-rehead td.goal-chart-goal { background: var(--paper-sunk); }
+.goal-chart-plan a { display: inline-flex; align-items: center; justify-content: flex-end; min-width: 44px; min-height: 44px; color: var(--ink); font-weight: 600; font-size: var(--t-label); }
+.goal-chart-goals { margin-bottom: var(--s-6); }
+.goal-chart-other { margin: 0 0 var(--s-6); }
+
+/* ---------- A goal page ---------- */
+.goal-pace-stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); max-width: var(--measure-figure); }
+.goal-pace-stack > * { margin: 0; min-width: 0; }
+.goal-pace-headline .tool-reading-figure small { font-variant-numeric: tabular-nums; }
+.goal-pace-stack > .values { margin-top: calc(var(--s-3) - var(--s-6)); }
+.goal-pace-more a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }
+
+@media print {
+  .goal-chart-wrap.is-overflow { -webkit-mask-image: none; mask-image: none; }
+  .goal-chart-table .goal-chart-goal { position: static; }
+}

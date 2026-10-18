@@ -38,7 +38,11 @@
 .finish-card-link:hover { color: var(--ink); text-decoration: underline; text-underline-offset: .2em; }
 
 /* ← previous and How we know. */
-.chapter-end-links { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--s-4); margin: calc(var(--s-2) * -1) 0 0; }
+.chapter-end-links { display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between; gap: 0 var(--s-4); margin: calc(var(--s-2) * -1) 0 0; }
+/* One row on every page: a long way back ("Where improvement happens") wraps inside its own link, beside "How we know". */
+.chapter-end-links > .chapter-prev { flex: 0 1 auto; min-width: 0; }
+.chapter-end-links > .chapter-how { flex: none; }
+@media (max-width: 359.98px) { .chapter-end-links { flex-wrap: wrap; } }
 .chapter-prev, .chapter-how { display: inline-flex; align-items: center; gap: var(--s-2); min-height: 44px; color: var(--ink-2); font-family: var(--sans); font-size: .9375rem; font-weight: 500; text-decoration: none; }
 .chapter-prev:hover, .chapter-how:hover { color: var(--ink); text-decoration: none; }
 .chapter-prev .arrow-icon, .chapter-how .arrow-icon { flex: none; color: var(--ink-3); }

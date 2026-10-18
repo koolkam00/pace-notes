@@ -1,8 +1,7 @@
 import Projector from '@/components/tools/Projector';
-import { ToolHeader, ToolNext } from '@/components/tools/ToolShell';
+import { ToolEnd, ToolHeader } from '@/components/tools/ToolShell';
 import { pageMetadata } from '@/lib/seo';
 import { getInsightsManifest } from '@/lib/insights-server';
-import './projector.css';
 
 export const metadata = pageMetadata({
   title: 'Marathon Finish Time Projector from Tracker Splits',
@@ -23,10 +22,10 @@ function indexVersion(): string | null {
 export default function ProjectorPage() {
   const sha = indexVersion();
   return (
-    <div className="container tool-page">
+    <div className="tool-page">
       <ToolHeader slug="projector" />
       <Projector indexSha={sha} />
-      <ToolNext current="projector" />
+      <ToolEnd path="/tools/projector" how="/methodology#tools-projector" />
     </div>
   );
 }

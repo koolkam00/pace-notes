@@ -1,0 +1,49 @@
+/* The pace calculator (/tools/pace-calculator; the redesign spec, section 7.13): any two of distance, time and pace, the
+   third on one night card, then the splits as a lap list (5K mats first), the same pace at other distances and, on its
+   own tab, a printable pace chart. A plain calculation from the visitor's inputs, so no evidence badge. Every class here
+   is prefixed pace-calculator- or pace-chart-. Imported by app/tools/pace-calculator/layout.tsx. */
+
+.tool-tabs { margin: 0 0 var(--s-5); }
+.tool-tabs > .tool-choice.seg { width: 100%; max-width: 24rem; }
+
+/* ---------- Inputs ---------- */
+.tool-inline { display: flex; align-items: center; gap: var(--s-2); }
+.tool-page .tool-inline input { flex: 1 1 auto; width: 100%; max-width: 10rem; min-height: 52px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: var(--r-sm);
+  background: var(--paper-raised); color: var(--ink); box-shadow: none; font-family: var(--sans); font-size: 1.0625rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.tool-page .tool-inline input:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tool-page .tool-inline input[aria-invalid='true'] { color: var(--signal-ink); box-shadow: inset 0 -2px 0 var(--signal); }
+.tool-inline span { font-size: .9375rem; font-weight: 500; color: var(--ink-3); }
+
+/* ---------- Splits ---------- */
+.pace-calculator-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-4); }
+.pace-calculator-controls > .tool-choice.seg { width: auto; }
+.pace-calculator-diff { display: inline-flex; align-items: center; gap: var(--s-2); font-size: var(--t-label); font-weight: 600; color: var(--ink-3); white-space: nowrap; }
+.tool-page .pace-calculator-diff select { min-height: 44px; padding: 0 36px 0 12px; border: 1px solid var(--rule-strong); border-radius: var(--r-sm); background-color: var(--paper-raised); color: var(--ink);
+  box-shadow: none; font-family: var(--sans); font-size: .9375rem; font-weight: 500; }
+.tool-page .pace-calculator-diff select:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Any number of rows: each lap carries its own top rule instead of counting rows. */
+.tool-laps.pace-calculator-laps { grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 0; }
+.tool-laps.pace-calculator-laps li, .tool-laps.pace-calculator-laps li:nth-last-child(-n + 3) { border-top: 1px solid var(--rule); border-bottom: 0; }
+.pace-calculator-split { font-size: .75rem; line-height: 1.3; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* ---------- Other distances ---------- */
+.pace-calculator-distances { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pace-calculator-distances dd { font-size: 1.25rem; }
+
+/* ---------- The pace chart tab ---------- */
+.pace-chart .tool-share { margin-bottom: var(--s-2); }
+.pace-chart-wrap { -webkit-mask-image: linear-gradient(to right, var(--ink) 0, var(--ink) calc(100% - 24px), transparent); mask-image: linear-gradient(to right, var(--ink) 0, var(--ink) calc(100% - 24px), transparent); }
+.pace-chart-table th[scope='row'], .pace-chart-table thead th:first-child { position: sticky; left: 0; z-index: 1; background: var(--paper); }
+.pace-chart-table tbody th[scope='row'] { font-weight: 600; color: var(--ink); }
+.pace-chart-table tr.is-key td, .pace-chart-table tr.is-key th { color: var(--ink); font-weight: 600; }
+
+@media (min-width: 600px) {
+  .tool-laps.pace-calculator-laps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .pace-calculator-distances { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+@media (min-width: 1180px) {
+  .tool-laps.pace-calculator-laps { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+@media print {
+  .pace-chart-wrap { -webkit-mask-image: none; mask-image: none; }
+}

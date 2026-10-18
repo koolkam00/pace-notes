@@ -18,7 +18,8 @@ export default function AnalysisChart({ charts, analysisId }: { charts: ChartSpe
   const choose = (next: number) => setSelection({ analysisId, index: next });
 
   return <section className="analysis-chart" aria-labelledby={`${id}-heading`}>
-    <h2 className="analysis-chart-heading" id={`${id}-heading`}>Explore the comparison</h2>
+    {/* Named for assistive technology only: the explorer's headline above already says what the chart shows. */}
+    <h2 className="sr-only" id={`${id}-heading`}>Explore the comparison</h2>
     {charts.length > 1 && <div className="chart-switcher">
       {charts.length <= 3 ? <div className="chart-switcher-buttons" role="group" aria-label="Choose a comparison">
         {charts.map((chart, option) => <button key={`${option}-${chart.title}`} type="button" aria-pressed={index === option} aria-controls={`${id}-comparison`} onClick={() => choose(option)}>{unitText(chart.title, units)}</button>)}

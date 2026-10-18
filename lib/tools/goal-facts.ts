@@ -146,6 +146,17 @@ export function editionsText(editions: number, total: number | null): string {
   return editions === total ? `all ${count(total)} race editions` : `${count(editions)} of the ${count(total)} race editions`;
 }
 
+/**
+ * The pile-up a goal page calls a finding: the last minute under the goal holding at least this many times what the
+ * smooth curve expects. Below it (4:30 and 5:00) the page says the finishes stay close to the curve, its tower in ink.
+ */
+export const PILEUP_RATIO = 1.15;
+/**
+ * The sustained-slowdown share from which a goal page says finishes just under the goal "didn't run even"; below it
+ * (3:00) most of them held their pace, and the page says so.
+ */
+export const UNEVEN_SHARE = 0.25;
+
 /** One goal page's window, for comparing a page with the other goal pages. */
 export interface GoalPeer { goal: number; n: number; sd: number | null }
 

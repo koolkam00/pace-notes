@@ -15,7 +15,7 @@ type Page = { marker?: string; short?: string; ticks: number[] };
  * a 2 px line, ink up to the reading position, a signal dot at it and a tick at every beat ([data-beat]) start.
  *
  * Minutes left: the words of the beats still below the screen ÷ 238 (Values tables left out), plus 12 s for each figure
- * below it, rounded up, at least 1. Words are counted once, in the browser, after the page loads; the ticks and the line are measured again
+ * below it, rounded up, at least 1. Words, ticks and the line are measured in the browser after the page loads and again
  * whenever the page's height changes. Nothing is sent anywhere. Decorative
  * (aria-hidden): the page's headings say the same.
  */
@@ -27,9 +27,12 @@ export default function ReadingBar() {
     const root = document.querySelector<HTMLElement>('main[data-reading], main [data-reading]');
     if (!root) { setPage(null); return; }
     const marked = Array.from(root.querySelectorAll<HTMLElement>('[data-beat]'));
-    // A chart's Values twin is reference, not reading: its table never counts, even when a page opens it.
-    const count = (el: HTMLElement) => (el.innerText.match(/\S+/g) || []).length;
-    const beats = (marked.length ? marked : [root]).map((el) => ({ el, words: count(el) - Array.from(el.querySelectorAll<HTMLElement>('details.values[open]')).reduce((n, v) => n + count(v), 0) }));
+    // Words are counted again whenever the page's height changes (a Values table or a disclosure opened), so the
+    // minutes left and the line always describe the same page. A chart's Values twin is reference, not reading: its
+    // table never counts, even when a page opens it.
+    const wordsIn = (el: HTMLElement) => (el.innerText.match(/\S+/g) || []).length;
+    const count = () => (marked.length ? marked : [root]).map((el) => ({ el, words: wordsIn(el) - Array.from(el.querySelectorAll<HTMLElement>('details.values[open]')).reduce((n, v) => n + wordsIn(v), 0) }));
+    let beats = count();
     const figures = beats.flatMap(({ el }) => Array.from(el.querySelectorAll('figure')));
     let frame = 0, settle = 0, top = 0, span = 1, live = true;
     // A beat that starts within the last screen of the page has no place on the line (it would sit on the bar's right
@@ -58,7 +61,7 @@ export default function ReadingBar() {
       if (out.textContent !== text) out.textContent = text;
     };
     const onScroll = () => { if (!frame) frame = requestAnimationFrame(update); };
-    const remeasure = () => { if (!live) return; setPage((was) => (was ? { ...was, ticks: ticksOf() } : was)); onScroll(); };
+    const remeasure = () => { if (!live) return; beats = count(); setPage((was) => (was ? { ...was, ticks: ticksOf() } : was)); onScroll(); };
     setPage({ marker: root.dataset.marker, short: root.dataset.short, ticks: ticksOf() });
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -84,7 +87,7 @@ export default function ReadingBar() {
         <span ref={left} className="reading-bar-left" />
       </div>
       <span className="reading-bar-line">
-        {page.ticks.map((t, i) => <i key={i} style={{ left: `${(t * 100).toFixed(2)}%` }} />)}
+        {page.ticks.map((t, i) => <i key={i} style={{ left: `min(${(t * 100).toFixed(2)}%, 100% - 1px)` }} />)}
         <b className="reading-bar-fill" /><b className="reading-bar-dot" />
       </span>
     </div>

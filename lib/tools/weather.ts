@@ -3,6 +3,11 @@
  * None is fitted to or validated against Pace Notes data, and none is applied to Pace Notes results.
  */
 
+/** The weather match's fixed reference window: editions that started at 8–12 °C (centre and half-width, °C). */
+export const WEATHER_REFERENCE = { c: 10, hw: 2 } as const;
+/** The weather match's example forecast, so the page opens on a full result; its nugget reads the same morning. */
+export const WEATHER_EXAMPLE = { temp: { f: 64, c: 18 }, dew: { f: 55, c: 13 } } as const;
+
 export const fToC = (f: number) => ((f - 32) * 5) / 9;
 export const cToF = (c: number) => (c * 9) / 5 + 32;
 

@@ -174,8 +174,12 @@
 .viz-frame.dumbbell .dumbbell-gap.is-signal { fill: var(--signal); }
 .viz-frame.dumbbell .dumbbell-value { align-self: center; font-size: var(--t-small); font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; color: var(--ink); }
 .viz-frame.dumbbell .dumbbell-axis { margin-top: 2px; }
+/* Bare: no value column; a fixed label column (the same in the rows and the axis, so the ticks line up with the track)
+   and the track the rest (Values holds the numbers). */
+.viz-frame.dumbbell.is-bare .dumbbell-rows, .viz-frame.dumbbell.is-bare .dumbbell-axis { grid-template-columns: 7.5rem minmax(0, 1fr); }
 /* A narrow figure gives each label its own line, so the track keeps its width. */
 @container (max-width: 299.98px) {
+  .viz-frame.dumbbell.is-bare .dumbbell-rows, .viz-frame.dumbbell.is-bare .dumbbell-axis { grid-template-columns: minmax(0, 1fr); }
   .viz-frame.dumbbell .dumbbell-rows, .viz-frame.dumbbell .dumbbell-axis { grid-template-columns: minmax(0, 1fr) 4rem; }
   .viz-frame.dumbbell .dumbbell-label { grid-column: 1 / -1; padding-top: var(--s-2); }
   .viz-frame.dumbbell .dumbbell-axis > span:first-child { display: none; }
@@ -190,7 +194,8 @@
 .viz-frame.share-bar .share-bar-callout-text { position: absolute; top: 0; font-size: 14px; font-weight: 600; line-height: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--signal-ink); }
 .viz-frame.share-bar .share-bar-leader { position: absolute; top: 20px; bottom: 0; width: 1px; margin-left: -0.5px; background: var(--signal-ink); }
 .viz-frame.share-bar .is-quiet { background: var(--fill-quiet); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); color: var(--ink); }
-.viz-frame.share-bar .is-ord-1 { background: var(--ordinal-1); color: var(--ink); }
+/* Ordinal 1 is under 3:1 on both grounds: it keeps a 1 px quiet edge, as the quiet fill does. */
+.viz-frame.share-bar .is-ord-1 { background: var(--ordinal-1); box-shadow: inset 0 0 0 1px var(--mark-quiet); color: var(--ink); }
 .viz-frame.share-bar .is-ord-2 { background: var(--ordinal-2); }
 .viz-frame.share-bar .is-ord-3 { background: var(--ordinal-3); color: var(--paper); }
 .viz-frame.share-bar .is-ord-4 { background: var(--ordinal-4); color: var(--paper); }

@@ -1,0 +1,181 @@
+/* The analysis pages and /slowdown (WP3; the redesign spec, sections 4.2 and 7, under section 00). Imported by
+   app/analyses/[slug]/layout.tsx and app/slowdown/layout.tsx. A page is the finding (H1), its question, the answer on
+   one night card, at most two beats, the Make it yours explorer and the chapter end. Whitespace and hairlines divide
+   them, never boxes; the night card is the only filled surface. */
+
+/* ---------- The page ---------- */
+/* One column measure for everything on the page (hero, answer, beats, explorer, chapter end), so their edges line up. */
+.analysis-flow { min-width: 0; max-width: var(--measure-figure); padding-bottom: var(--s-7); }
+/* Inter's tabular figures widen the hyphen ("early - race", "non - binary"): words on charts and in table headers take
+   proportional figures; readouts and table cells keep tabular ones. */
+.analysis-page .viz-frame :is(.viz-label, .tick), .analysis-page .table thead th { font-variant-numeric: normal; }
+/* Every heading here is Fraunces at its own optical size: none inherits the legacy display cut (WP9 deletes that rule). */
+.analysis-page :is(h1, h2, h3, h4) { font-variation-settings: normal; }
+/* The term link (the page's first "sustained slowdown"): the text's own colour, a dotted underline, as on the tools. */
+.analysis-page .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-color: var(--ink-3); text-decoration-thickness: 1px; text-underline-offset: .18em; }
+.analysis-page .term-link:hover { text-decoration-style: solid; text-decoration-color: currentColor; }
+/* Page-copy links take the ink, never the legacy blue (it is off the palette, and 2.7:1 on the dark page). */
+.analysis-page p a:not([class]) { color: inherit; }
+.analysis-hero .reading { padding-top: var(--s-4); }
+.analysis-hero .reading-rule { margin: var(--s-5) 0 var(--s-5); }
+.analysis-hero .reading-figure { justify-items: stretch; }
+
+/* A beat: the H2 is the finding, the figure under it. */
+.analysis-beat .beat-head { margin-bottom: var(--s-4); }
+.analysis-beat-title { margin: 0; max-width: 24ch; }
+.analysis-beat > .viz, .analysis-beat > .beat-grids { max-width: var(--measure-figure); }
+
+/* ---------- The answer card: a figure answer on night (dot grids, cells, a chart) ---------- */
+.answer-card { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); max-width: 34rem; padding: 20px; border-radius: var(--r-md); background: var(--paper); color: var(--ink); }
+[data-theme="dark"] .answer-card { box-shadow: inset 0 0 0 1px var(--night-3); }
+.answer-kicker { margin: 0; color: var(--ink-3); }
+.answer-foot { margin: 0; font-size: var(--t-label); line-height: 1.4; color: var(--ink-3); }
+.answer-card .viz-frame { margin: 0; }
+
+.answer-dots { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: end; gap: var(--s-5); }
+.answer-dots-label, .answer-grid-label { margin: 0; font-size: .9375rem; line-height: 1.35; color: var(--ink-2); }
+.answer-dots-label strong, .answer-grid-label strong { display: block; font-family: var(--figure); font-size: 2.25rem; font-weight: 660; line-height: 1; letter-spacing: -.03em; color: var(--signal); }
+.answer-grids { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-5); }
+/* Two grids side by side share the card: their dots take the column's width (at most the grid's own 192 px). */
+.answer-grids .dot-grid-dots, .beat-grids .dot-grid-dots { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 5px; width: 100%; max-width: 192px; }
+.answer-grids .dot-grid-dots li, .beat-grids .dot-grid-dots li { width: auto; height: 0; padding-bottom: 100%; }
+.answer-grid { display: grid; align-content: start; gap: var(--s-3); min-width: 0; }
+.answer-grid + .answer-grid .answer-grid-label strong { color: var(--ink); }
+
+.answer-cells { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); margin: 0; padding-top: var(--s-4); border-top: 1px solid var(--rule); }
+.answer-cells dt { font-size: var(--t-label); font-weight: 500; line-height: 1.3; color: var(--ink-3); }
+.answer-cells dd { margin: 4px 0 0; font-family: var(--sans); font-size: 1.75rem; font-weight: 600; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+/* /slowdown's four earlier-best columns stay together on a wide screen rather than spreading 200 px apart. */
+.slowdown-page #history > .viz { max-width: 36rem; }
+
+/* Two dot grids side by side inside a beat (the next race). */
+.beat-grids { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-5); max-width: 34rem; }
+.beat-grids .viz-frame { margin: 0; }
+
+/* ---------- Make it yours: the explorer beat ---------- */
+.analysis-explore { scroll-margin-top: calc(var(--header-h) + 8px); }
+.explore-kicker { margin: 0 0 var(--s-3); color: var(--ink-3); }
+.explorer { display: block; min-width: 0; }
+.explorer-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-3); margin-bottom: var(--s-5); }
+.explorer-head > * { margin: 0; }
+
+.explore-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+.explore-mode { display: grid; gap: var(--s-2); }
+.explore-mode .field-hint { margin: 0; }
+.explore-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+.explore-submit { justify-self: start; }
+.profile-refinements { border-top: 1px solid var(--rule); }
+.profile-refinements > summary { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); min-height: 48px; list-style: none; font-size: var(--t-small); font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.profile-refinements > summary::-webkit-details-marker { display: none; }
+.profile-refinements > summary::marker { content: ''; }
+/* The same plus/minus as Values. */
+.profile-refinements > summary::after { content: '+'; flex: none; width: 22px; font-size: 1.25rem; font-weight: 400; line-height: 1; text-align: center; color: var(--ink); }
+.profile-refinements[open] > summary::after { content: '−'; }
+.profile-refinements > summary:hover { color: var(--ink); }
+.profile-refinements > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.profile-refinements[open] > summary { margin-bottom: var(--s-2); }
+
+/* The results under the form: the answer to the visitor's own selection. */
+.explore-results { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+.explore-results > * { margin: 0; }
+.explore-title { margin: 0; max-width: 30ch; font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-size: clamp(1.375rem, 3.6vw + .5rem, 1.875rem); font-weight: 440; line-height: 1.16; letter-spacing: -.012em; color: var(--ink); text-wrap: balance; }
+.explore-sentence, .explore-note { max-width: var(--measure); font-size: var(--t-small); line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
+.explore-note { color: var(--ink-3); }
+.explore-results > .viz-frame, .explore-results > .viz { max-width: var(--measure-figure); }
+.explore-cells { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); margin: 0; max-width: 34rem; }
+.explore-cells > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.explore-cells dt { font-size: var(--t-label); font-weight: 500; line-height: 1.3; color: var(--ink-3); }
+.explore-cells dd { margin: 4px 0 0; font-family: var(--sans); font-size: 1.5rem; font-weight: 600; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.explore-state { display: grid; gap: var(--s-3); justify-items: start; padding: var(--s-5) 0; color: var(--ink-2); }
+.explore-state > * { margin: 0; }
+
+/* ---------- Race-day weather: the tabs and the effect card ---------- */
+.weather-tabs { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); max-width: 34rem; scroll-margin-top: calc(var(--header-h) + 8px); }
+.weather-panel[hidden] { display: none; }
+.weather-effect { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+.weather-sentence { margin: 0; }
+.viz-frame .effect-null-band { fill: var(--ink); opacity: .08; }
+
+/* Table headers wrap, so a long name never pushes the numbers off a phone. */
+.analysis-page .values .table thead th { white-space: normal; vertical-align: bottom; }
+
+/* ---------- A moved page (the old weather slugs) ---------- */
+.moved-page { display: grid; gap: var(--s-4); max-width: var(--measure); padding: var(--s-7) 0 var(--s-8); }
+.moved-page > * { margin: 0; }
+.moved-link { font-weight: 600; }
+
+/* ---------- Phones at 200% zoom ---------- */
+@media (max-width: 359.98px) {
+  /* The crumbs wrap rather than push the page sideways. */
+  .analysis-flow .reading-crumbs { flex-wrap: wrap; }
+  .answer-card { padding-inline: 16px; }
+  .answer-dots { grid-template-columns: minmax(0, 1fr); }
+  .answer-grids, .beat-grids, .answer-cells, .explore-cells { grid-template-columns: minmax(0, 1fr); }
+  /* The comparison switch's two long labels cannot share a row this narrow: each takes its own, the pressed one raised
+     (no sliding thumb), so neither is cut off. */
+  .explore-mode .seg { display: flex; flex-direction: column; width: 100%; border-radius: var(--r-md); }
+  .explore-mode .seg-thumb { display: none; }
+  .explore-mode .seg-btn { width: 100%; min-width: 0; white-space: normal; text-align: center; }
+  .explore-mode .seg-btn[aria-pressed='true'] { background: var(--control-thumb); box-shadow: var(--shadow-raise), 0 0 0 1px var(--rule); }
+}
+@media (max-width: 299.98px) {
+  .answer-card { padding-inline: 14px; }
+  .answer-cells dd, .explore-cells dd { font-size: 1.375rem; }
+}
+
+@media (min-width: 600px) {
+  .answer-card { padding-inline: 24px; }
+  .explore-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* From 900 px the form is inline at the top of the beat (the panel's own title names it, so the kicker goes). The answer
+   spans the column: a receipt sets its lines beside its result, divided by a hairline, so the first screen has no void. */
+@media (min-width: 900px) {
+  .analysis-hero .receipt-wrap, .analysis-hero .answer-card, .analysis-hero .weather-tabs { max-width: none; }
+  .analysis-hero .receipt { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr auto; column-gap: 48px; padding: 28px 32px; }
+  .analysis-hero .receipt > * { grid-column: 1; }
+  .analysis-hero .receipt-kicker { grid-column: 1 / -1; margin-bottom: 18px; }
+  .analysis-hero .receipt-kicker + .receipt-lines { margin-top: 0; }
+  .analysis-hero .receipt-rule { display: none; }
+  .analysis-hero .receipt > .receipt-result { grid-column: 2; grid-row: 2 / span 2; align-content: center; padding-left: 48px; border-left: 1px solid var(--rule); }
+  /* Half the card is narrower than the phone's whole card: a long result ("5:06 behind", "+40 s/mi") steps down. */
+  .analysis-hero .receipt-result.is-long .big-number { font-size: min(3.5rem, 5vw); }
+  .analysis-hero .receipt-foot { align-self: end; }
+  .analysis-hero .answer-dots { grid-template-columns: auto minmax(0, 16rem); }
+  @supports selector(:has(a)) {
+    /* Two near-equal halves, as on downhill starts: the dots and their label on the left (a little wider, so the label
+       stays on one line), the two cells on the right, apart and on the label's baseline: neither half a void nor crammed. */
+    .analysis-hero .answer-card:has(.answer-cells) { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); column-gap: 48px; align-items: end; }
+    .analysis-hero .answer-card:has(.answer-cells) > .answer-kicker { grid-column: 1 / -1; }
+    .analysis-hero .answer-card:has(.answer-cells) .answer-dots { grid-template-columns: auto minmax(0, 1fr); }
+    .analysis-hero .answer-card:has(.answer-cells) .answer-cells { column-gap: 32px; padding: 0 0 0 48px; border-top: 0; border-left: 1px solid var(--rule); align-self: stretch; align-content: end; }
+  }
+  .analysis-hero .answer-grids { grid-template-columns: repeat(2, minmax(0, 18rem)); justify-content: start; column-gap: 64px; }
+  .explore-kicker { display: none; }
+  .miy-beat .miy { margin-bottom: var(--s-6); }
+  /* The inline form is a quiet row under a hairline, never a box: the fields side by side, the button at the end of
+     their row (lined up with the inputs, under the labels), the refinements and any message on their own rows below. */
+  .analysis-explore .miy-panel { border: 0; border-top: 1px solid var(--rule); border-radius: 0; background: none; }
+  .analysis-explore .miy-panel .sheet-head { padding: var(--s-4) 0 0; }
+  .analysis-explore .miy-panel .sheet-body { padding: var(--s-3) 0 0; }
+  .analysis-explore .explore-form { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--s-4) var(--s-5); }
+  .analysis-explore .explore-form > * { flex: 1 1 100%; order: 2; }
+  .analysis-explore .explore-form > .explore-mode { order: 0; }
+  .analysis-explore .explore-form > .explore-fields { display: contents; }
+  .analysis-explore .explore-form > .explore-fields > .field { flex: 1 1 12rem; max-width: 18rem; order: 1; }
+  .explore-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .analysis-explore .explore-form > .explore-submit { flex: none; order: 1; margin-top: 25px; }
+  .analysis-explore .explore-form > .profile-refinements { border-top: 0; }
+  .analysis-hero .reading { padding-top: var(--s-6); }
+}
+
+/* ---------- Update comparison, and the example set again ---------- */
+/* Inert until a setting changes (aria-disabled): its hint under it says why. */
+.explore-submit { display: grid; justify-items: start; gap: 6px; }
+.explore-submit-hint { margin: 0; }
+/* The example set again: one line back to the answer, which already draws it. */
+.explore-same { margin: 0; }
+.explore-same-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule-strong, var(--ink-3)); text-underline-offset: 4px; }
+.explore-same-link:hover { text-decoration-color: currentColor; }
+.analysis-hero { scroll-margin-top: var(--header-h); }
