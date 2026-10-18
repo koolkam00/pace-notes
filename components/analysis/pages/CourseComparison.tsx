@@ -33,7 +33,7 @@ export default function CourseComparison() {
   // on it; the low end is named on its dot.
   const high = comparableCourses(shown).reduce<(typeof shown)[number] | undefined>((a, b) => (!a || b.slowdown_pct > a.slowdown_pct ? b : a), undefined);
   const answer = sorted.length >= 2 ? (
-    <AnswerCard kicker="Sustained slowdown, course by course">
+    <AnswerCard kicker="Sustained slowdown by course">
       <DotStrip items={sorted.map((c) => ({ id: c.id, label: courseName(c.label), value: c.slowdown_pct, display: pct(c.slowdown_pct / 100), detail: count(c.n), hollow: !comparable.has(c.id), subject: c === high }))}
         domain={[lo, Math.max(...v) > hi - 5 ? hi + 5 : hi]} ticks={ticks.map((t) => ({ value: t, label: `${t}%` }))} readoutKey="Finishes"
         keyLabels={{ filled: 'Three or more editions', hollow: 'Fewer editions' }}

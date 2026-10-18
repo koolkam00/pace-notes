@@ -20,7 +20,7 @@ export default function WhereTime() {
   const goal = Number(n.values.goal_min);
   const initialAnswer = answers.find((a) => a.id === definition.id)!;
   const answer = initialAnswer.charts.length ? (
-    <AnswerCard kicker={`Just under ${hm(goal)} against just over`} foot={`Finishes ${hm(goal - 5)}–${hm(goal)} against ${hm(goal)}–${hm(goal + 5)}`}>
+    <AnswerCard kicker={`Just under ${hm(goal)} and just over`} foot={`Finishes ${hm(goal - 5)}–${hm(goal)} against ${hm(goal)}–${hm(goal + 5)}`}>
       <ExplorerChart id="sections" answer={initialAnswer} goal={goal} units="mi" valuesId="wt-answer" />
     </AnswerCard>
   ) : null;

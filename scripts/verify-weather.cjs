@@ -15,7 +15,7 @@ Module._resolveFilename = function (request, ...args) {
 const root = path.join(__dirname, '..');
 const { getWeatherEvidence, getWeatherAnalyses } = require('../lib/weather-data.ts');
 const { WEATHER_QUESTIONS } = require('../lib/weather-catalog.ts');
-const { weatherValue, weatherLabel, weatherFinding } = require('../lib/weather-display.ts');
+const { weatherValue, weatherLabel, weatherFinding, weatherNumber } = require('../lib/weather-display.ts');
 const { sourceReleaseTag, sourceReleaseHref, sourceLabel } = require('../lib/data-source.ts');
 const evidence = getWeatherEvidence();
 const canonical = JSON.stringify(evidence);
@@ -228,8 +228,10 @@ try {
       // The tab states its finding: the nugget's sentence (lib/nuggets/analyses.ts), in the reader's units.
       const said = nugget ? sentenceOf(nugget, units).replace(/\*/g, '') : weatherFinding(candidate);
       assert.ok(html.replace(/<\/?em>/g, '').includes(said), `The tab states its finding: ${said}`);
-      assert.match(html, /98\.3% uncertainty interval/);
-      assert.doesNotMatch(html, /95% uncertainty interval|95% confidence interval|95% interval/);
+      // The card gives the interval's ends in plain words; its level is a method choice, stated on /methodology only.
+      const signed = (value) => `${value > 0 ? "+" : value < 0 ? "−" : ""}${weatherNumber(Math.abs(value), 1)}`;
+      assert.ok(html.includes(`Between ${signed(candidate.effect.low)} and ${signed(candidate.effect.high)} percentage points`), 'The card states the interval\'s ends');
+      assert.doesNotMatch(html, /\d% uncertainty interval|confidence interval|\d% interval/, 'The interval level belongs on /methodology');
       // The two race days in whole units, converted from the data, said once: in the tab's sentence ("11°F", "10 mph"),
       // never again on the card under it.
       const whole = (value) => `${Math.round(weatherValue(value, candidate.id, units))}${candidate.id === 'wind' ? ' ' : ''}${candidate.id === 'wind' ? (units === 'mi' ? 'mph' : 'km/h') : units === 'mi' ? '°F' : '°C'}`;
@@ -252,7 +254,8 @@ try {
   provider.useUnits = () => ({ units: 'mi', setUnits() {} });
   const page = renderToStaticMarkup(React.createElement(provider.default, null, React.createElement(route.default, { params: { slug: 'race-day-weather' } })));
   for (const id of ['temperature', ...ready.map(candidate => candidate.id)]) assert.match(page, new RegExp(`<div id="${id}" class="weather-panel"`), `race-day-weather: the ${id} tab`);
-  assert.match(page, /98\.3% uncertainty interval/, 'race-day-weather: the weather questions render inside it');
+  assert.match(page, /percentage points\./, 'race-day-weather: the weather questions render inside it');
+  assert.doesNotMatch(page, /\d% uncertainty interval/, 'race-day-weather: the interval level belongs on /methodology');
 } finally {
   provider.useUnits = originalUseUnits;
 }

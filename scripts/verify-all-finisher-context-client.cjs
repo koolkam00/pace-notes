@@ -76,7 +76,9 @@ async function main() {
       if(charts.onset) assert.ok(html.includes(`>${sectionLabel(25+focus.onset_pct.indexOf(Math.max(...focus.onset_pct))*5)}, ${Math.round(Math.max(...focus.onset_pct))}%<`),kind+': the onset cell names the section and its share');
       // Where the page has not linked the term yet, the headline links its first "sustained slowdown".
       const linked=render(AllFinisherResults,{groups,kind,start,units,focus,comparison});
-      if(/sustained slowdown/i.test(html.match(/<h2[^>]*>([^<]*)<\/h2>/)[1])) assert.match(linked,/<h2[^>]*>[^<]*<a [^>]*href="\/methodology#sustained-slowdown"[^>]*>sustained slowdowns?<\/a>/i,kind+': the headline links the term');
+      // The headline's text, its unbroken ranges (<span class="nowrap">) read as plain text.
+      const h2Text=(markup)=>markup.match(/<h2[^>]*>([\s\S]*?)<\/h2>/)[1].replace(/<[^>]*>/g,'');
+      if(/sustained slowdown/i.test(h2Text(html))) assert.match(linked,/<h2[^>]*>[^<]*<a [^>]*href="\/methodology#sustained-slowdown"[^>]*>sustained slowdowns?<\/a>/i,kind+': the headline links the term');
       // Whole percent and m:ss durations, never decimal minutes (October 18, 2026).
       assert.doesNotMatch(html.replace(/<[^>]*>/g,' '),/\d+\.\d+ min\b|\d+\.\d%/,kind+': no decimal minutes or one-decimal percents');
       noMethodCopy(html,`${kind} results (${units})`);
@@ -88,7 +90,7 @@ async function main() {
         assert.doesNotMatch(html,/Mean edition slowdown rate|across 3 editions/);
         assert.match(html,/Start-hour temperature(?:: | is unavailable)/);
         // The headline speaks of the editions on the chart only: the one followed and its comparison line.
-        const headlineText=html.match(/<h2[^>]*>([^<]*)<\/h2>/)[1];
+        const headlineText=h2Text(html);
         const shown=new Set([focus.id,...(comparison?[comparison.id]:[])]);
         for(const group of groups) if(!shown.has(group.id)) assert.ok(!headlineText.includes(allFinisherGroupLabel(group,kind,units).replace(/&/g,'&amp;')),`race-day headline names only shown editions, not ${group.id}`);
         const alone=render(AllFinisherResults,{groups,kind,start,units,focus,linkTerm:false});

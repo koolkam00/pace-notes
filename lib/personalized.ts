@@ -193,7 +193,7 @@ export function buildGuide(data: CityData, summary: PersonalSummary, profile: Pr
     } else if (question.id === 'gains') {
       const cohort = chooseCohort(data, profile, c => !!c.gains[bucket]); if (!cohort) return answer;
       const row = cohort.gains[bucket]; use(cohort, row);
-      answer.answer = `Improving finishes in ${finishBand(target)} were ${minSec(row.total * 60)} faster on average than an earlier recorded best: from ${clock(row.previous, true)} to ${clock(row.current, true)}.`;
+      answer.answer = `Improving finishes in ${finishBand(target)} were ${minSec(row.total * 60)} faster than an earlier recorded best: ${clock(row.previous, true)} to ${clock(row.current, true)}.`;
       answer.detail = 'The three block gains add to the mean total improvement. Negative means the improving runners were, on average, slower in that block despite a faster overall finish.';
       answer.charts = [bars('Where the mean finish improvement came from', 'min', ['Opening 10 km', 'Middle 20 km', 'Final 12.195 km'].map((label, i) => ({ label, value: row.values[i], n_value: row.n })))];
     }

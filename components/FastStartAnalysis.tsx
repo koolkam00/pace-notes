@@ -62,7 +62,9 @@ export function FastStartResults({ row, focus, start, units: _units }: { row: Fa
         layers={[{
           id: 'pace', label: name(focus.band),
           series: [...(steady ? [{ id: 'steady', values: steady.pace_pct, tone: 'quiet' as const }] : []), { id: 'focus', values: focus.pace_pct }],
-          labels: [{ x: SECTION_MIDS[slowest], y: peak, text: `${section(slowest)} ${signedPct(peak)}`, priority: 3, prefer: 'below' }],
+          // Under its own line (slower is down), unless the steady openings run slower still there: then the key alone
+          // names the lines, so the label never reads as the other line's.
+          labels: steady && steady.pace_pct[slowest] > peak ? [] : [{ x: SECTION_MIDS[slowest], y: peak, text: `${section(slowest)} ${signedPct(peak)}`, priority: 3, prefer: 'below' }],
         }]}
         refs={[{ value: 0, label: reference }]}
         xTicks={[{ value: 0, label: 'Start' }, { value: 10, label: '10K' }, { value: 20, label: '20K' }, { value: 30, label: '30K' }, { value: 42.195, label: 'Finish' }]}
@@ -83,7 +85,11 @@ export function FastStartResults({ row, focus, start, units: _units }: { row: Fa
  * all-course example is in the page; anything else loads the published evidence, checked against its hash.
  * `archive` (the research-archive pages) puts the page's own title and description above it.
  */
-export default function FastStartAnalysis({ starts, defaultOpening = 'fast10', title = 'What happens after a very fast start?', description, archive = false }: { starts: FastStartStarts; defaultOpening?: string; title?: string; description?: string; archive?: boolean }) {
+export default function FastStartAnalysis({ starts, defaultOpening = 'fast10', title = 'What happens after a very fast start?', description, archive = false, untouched: untouchedView = 'chart' }: {
+  starts: FastStartStarts; defaultOpening?: string; title?: string; description?: string; archive?: boolean;
+  /** What shows before the visitor changes anything: 'chart' the example's results, 'none' the selection row alone (the page's receipt already gives the example). */
+  untouched?: 'chart' | 'none';
+}) {
   const { units } = useUnits();
   const formId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const [selection, setSelection] = useState<FastStartSelection>({ ...FAST_START_DEFAULT, band: defaultOpening });
@@ -119,6 +125,9 @@ export default function FastStartAnalysis({ starts, defaultOpening = 'fast10', t
   // The choice that varies first (the opening), then the course; defaults such as "All ages" are left out.
   const summary = [`First 5K ${band(selection.band)}`, cityName(selection.city), ...(selection.age === 'all' ? [] : [selection.age]), ...(selection.gender === 'all' ? [] : [selection.gender]), ...(all ? [] : ['With an earlier result'])].join(' · ');
   const field = (key: string) => `${formId}-${key}`;
+  // The untouched example: the page's receipt already states it, so with 'none' only the selection row shows until a change.
+  const base: FastStartSelection = { ...FAST_START_DEFAULT, band: defaultOpening };
+  const shown = untouchedView === 'chart' || (Object.keys(base) as (keyof FastStartSelection)[]).some(key => selection[key] !== base[key]);
   return <div className="analysis-layout explorer fs-explorer">
     {archive ? <header className="explorer-head"><h1 className="t-title">{title}</h1>{description ? <p className="t-body">{description}</p> : null}</header> : null}
     <MakeItYours id={`${formId}-miy`} summary={summary} busy={pending}>
@@ -142,6 +151,7 @@ export default function FastStartAnalysis({ starts, defaultOpening = 'fast10', t
     <div className="miy-results">
       {pending && !row ? <p className="explore-state">Loading the comparison…</p>
         : error ? <div className="explore-state" role="alert"><p>{error}</p><button type="button" className="btn btn-secondary is-compact" onClick={() => setRetry(n => n + 1)}>Try again</button></div>
+        : !shown ? null
         : row && focus ? <FastStartResults row={row} focus={focus} start={start} units={units} />
         : <div className="explore-state"><h2 className="explore-title">Not enough results for this starting group.</h2><p>Try another opening or a broader course, age or gender{!all && ', or every earlier time'}.</p><button className="btn btn-secondary is-compact" type="button" onClick={() => apply({ ...FAST_START_DEFAULT, mode: selection.mode, band: defaultOpening })}>Reset the comparison</button></div>}
     </div>

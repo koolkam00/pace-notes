@@ -5,7 +5,8 @@ import Segmented from '@/components/ui/Segmented.client';
 /**
  * Race-day weather's three answers (the redesign spec, section 7.11): start temperature, warming and wind, one tab each,
  * every panel drawn on the server. The address's hash picks the tab (#temperature, #warming, #wind), so the old weather
- * pages' redirects land on the right one; choosing a tab writes its hash in place, without a history entry.
+ * pages' redirects land on the right one; choosing a tab writes its hash in place, without a history entry, and tells
+ * the page's H1 (TabTitle) which finding to show.
  */
 export default function WeatherTabs({ tabs }: { tabs: { id: string; label: string; panel: ReactNode }[] }) {
   const [current, setCurrent] = useState(tabs[0]?.id ?? '');
@@ -21,6 +22,8 @@ export default function WeatherTabs({ tabs }: { tabs: { id: string; label: strin
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, [tabs]);
+  // The page's H1 follows the selected tab (TabTitle).
+  useEffect(() => { window.dispatchEvent(new CustomEvent('pn:answer-tab', { detail: current })); }, [current]);
   const choose = (id: string) => {
     setCurrent(id);
     try { window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}#${id}`); } catch { /* the address stays */ }

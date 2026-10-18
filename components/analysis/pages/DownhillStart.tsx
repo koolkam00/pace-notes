@@ -21,7 +21,7 @@ export default function DownhillStart() {
   const lit = (share: number) => Math.round(share * 100);
   const band = (label: string) => bandWords(label).replace(/^[a-z]/, (c) => c.toUpperCase());
   const answer = (
-    <AnswerCard kicker="Of 100 finishes, opened over 5% fast" className="answer-pair">
+    <AnswerCard kicker="Of 100, opened over 5% fast" className="answer-pair">
       <div className="answer-grids">
         <div className="answer-grid">
           <DotGrid lit={lit(v.downhill)} label={`${lit(v.downhill)} of 100 finishes on downhill-start courses opened over 5% fast`} />
@@ -50,7 +50,7 @@ export default function DownhillStart() {
           values={<Values id="dh-bands" caption="Sustained slowdown by opening band" columns={[{ key: 'b', label: 'Opening', text: true }, { key: 'd', label: 'Downhill-start courses' }, { key: 'o', label: 'Every other course' }]}
             rows={rows.map((r) => [band(r.band.label), pct(r.down!.slowdown_pct / 100), pct(r.other!.slowdown_pct / 100)])} />} />
       </Beat>
-      <ExploreBeat track="chapter-2"><AllFinisherAnalysis kind="downhill" start={start} linkTerm={false} opening={clearest?.band.id} /></ExploreBeat>
+      <ExploreBeat track="chapter-2"><AllFinisherAnalysis kind="downhill" start={start} linkTerm={false} opening={clearest?.band.id} untouched="none" /></ExploreBeat>
     </AnalysisShell>
   );
 }

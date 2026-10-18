@@ -13,8 +13,10 @@ import { linear, pc, yScale } from './scale';
  */
 export type WaterfallStep = { id: string; label: string; value: number; display: string };
 
-export default function Waterfall({ steps, total, yTicks = [], xTicks, label, values, height = 200, heightMd = 250 }: {
+export default function Waterfall({ steps, total, yTicks = [], xTicks, label, values, focus, height = 200, heightMd = 250 }: {
   steps: WaterfallStep[]; total: { label: string; display: string }; yTicks?: { value: number; label: string }[]; label: string; values?: ReactNode; height?: number; heightMd?: number;
+  /** The step the sentence is about, when it is not the largest (e.g. the most per mile); signal and labelled first. */
+  focus?: number;
   /**
    * Axis labels in bar units (0 is the first bar's left edge, `steps.length` the last one's right edge), e.g. the mats
    * between sections, evenly spaced. By default every bar is named under its centre and the total under its own.
@@ -27,14 +29,16 @@ export default function Waterfall({ steps, total, yTicks = [], xTicks, label, va
   const y = yScale(lo, hi, { top: 0.2, bottom: 0.02 });
   const n = steps.length + 1;
   const x = linear([0, n]);
-  const big = steps.reduce((b, s, i) => (s.value > steps[b].value ? i : b), 0);
+  const big = focus !== undefined && steps[focus] ? focus : steps.reduce((b, s, i) => (s.value > steps[b].value ? i : b), 0);
   const bars = steps.map((s, i) => {
     const from = i ? ends[i - 1] : 0, to = ends[i];
     return { s, i, top: y(Math.max(from, to)), bottom: y(Math.min(from, to)) };
   });
+  // Three steps or fewer: every block carries its value, so none reads as missing. More: the signal and the first.
+  const every = steps.length <= 3;
   const items: LabelItem[] = [
     { id: 'big', text: `${steps[big].label} ${steps[big].display}`, x: x(big + 0.5), y: bars[big].top, priority: 3, tone: 'signal', gap: 8 },
-    ...(big !== 0 ? [{ id: 'first', text: `${steps[0].label} ${steps[0].display}`, x: x(0.5), y: bars[0].top, priority: 2, size: 13, gap: 8 } as LabelItem] : []),
+    ...steps.flatMap((s, i) => (i !== big && (every || i === 0) ? [{ id: i === 0 ? 'first' : `s${i}`, text: `${s.label} ${s.display}`, x: x(i + 0.5), y: bars[i].top, priority: 2, size: 13, gap: 8 } as LabelItem] : [])),
     { id: 'total', text: total.display, x: x(n - 0.5), y: y(Math.max(0, ends[ends.length - 1])), priority: 2, size: 13, gap: 8 },
   ];
   const placed = placeLabels(items, { height, boxes: [...bars.map((b) => ({ x0: x(b.i + 0.18), x1: x(b.i + 0.82), y0: b.top, y1: b.bottom })), { x0: x(n - 1 + 0.18), x1: x(n - 1 + 0.82), y0: Math.min(y(0), y(ends[ends.length - 1])), y1: Math.max(y(0), y(ends[ends.length - 1])) }] });

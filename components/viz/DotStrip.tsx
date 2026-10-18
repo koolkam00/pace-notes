@@ -52,9 +52,10 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
   const yOf = (level: number) => base - (level * STEP) / height;
   const subject = sorted.findIndex((s) => s.subject);
   const ends = labelExtremes ? stripExtremes(sorted) : null;
-  // The readout above the plot names the subject (the strip opens on it), so its dot carries no label of its own: the
-  // labels name the extremes it is not.
-  const labelled = new Set<number>((ends ? ends.map((e) => sorted.indexOf(e)) : []).filter((i) => i !== subject));
+  // The readout above the plot names the dot the strip opens on (the subject, else the lowest), and the ring sits on it,
+  // so that dot carries no label of its own: the labels name the extremes it is not.
+  const opened = Math.max(0, subject);
+  const labelled = new Set<number>((ends ? ends.map((e) => sorted.indexOf(e)) : []).filter((i) => i !== opened));
   // A label rises above the tallest stack under its own width (at the narrowest phone), on a leader down to its dot
   // when it had to climb, so a stacked neighbour never hides it.
   const lift = (i: number) => {

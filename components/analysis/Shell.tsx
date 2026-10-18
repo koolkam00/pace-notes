@@ -5,6 +5,7 @@ import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
 import ChapterRail from '@/components/ChapterRail';
 import ChapterEnd from '@/components/ChapterEnd';
 import ByUnits from './ByUnits.client';
+import { keepTogether } from '@/components/ui/keepTogether';
 import { readingAttrs } from '@/lib/chapters';
 import { readingOf, sentenceOf, textFor, type Nugget, type NuggetText } from '@/lib/nuggets';
 import type { TRACKED_SECTIONS } from '@/lib/analytics-policy';
@@ -22,8 +23,6 @@ export function Say({ nugget, plain = false, term = false }: { nugget: Nugget; p
 }
 
 const TERM = /sustained slowdowns?/i;
-/** A range or a figure with its unit ("41–50°F", "4:00–4:05", "25 s/mi"): it never breaks across lines. */
-const TOGETHER = /\d[\d:.,]*(?:–\d[\d:.,]*)?(?:\s?(?:°[FC]|s\/mi|s\/km|mph|km\/h|ft|pts?))|\d[\d:.,]*–\d[\d:.,]*%?/g;
 
 /** One run of text: its ranges kept on one line and, when `link` is given, its first use of the term linked. */
 function run(text: string, link: { href?: string; done: boolean }): ReactNode {
@@ -33,13 +32,7 @@ function run(text: string, link: { href?: string; done: boolean }): ReactNode {
   const pieces = k ? [text.slice(0, k.index), k[0], text.slice(k.index + k[0].length)] : [text];
   pieces.forEach((piece, i) => {
     if (k && i === 1) { link.done = true; out.push(<Link key={key++} href={link.href!} className="term-link">{piece}</Link>); return; }
-    let last = 0;
-    for (const m of piece.matchAll(TOGETHER)) {
-      if (m.index! > last) out.push(piece.slice(last, m.index));
-      out.push(<span key={key++} className="nowrap">{m[0]}</span>);
-      last = m.index! + m[0].length;
-    }
-    if (last < piece.length) out.push(piece.slice(last));
+    out.push(<Fragment key={key++}>{keepTogether(piece)}</Fragment>);
   });
   return <>{out}</>;
 }
@@ -73,8 +66,10 @@ export { textFor };
  * session replays (the Make it yours sheet, the goal line and every result the visitor picks are inside it). From
  * 1180 px the chapter rail runs beside it.
  */
-export default function AnalysisShell({ path, title, titleTerm = false, dek, answer, children }: {
+export default function AnalysisShell({ path, title, titleTerm = false, heading, dek, answer, children }: {
   path: string; title: Nugget; dek: string; answer: ReactNode; children: ReactNode;
+  /** The H1's content when it is not the title nugget's sentence alone (race-day weather's tab-driven finding). */
+  heading?: ReactNode;
   /** Link the H1's "sustained slowdown" (when the H1 is the page's first use of the term). */
   titleTerm?: boolean;
 }) {
@@ -83,7 +78,7 @@ export default function AnalysisShell({ path, title, titleTerm = false, dek, ans
       <ChapterRail path={path} />
       <div className="analysis-layout analysis-flow">
         <section className="analysis-hero" id="answer" data-track-section="hero" data-beat="The answer">
-          <Reading crumbs={<ChapterCrumbs path={path} />} title={<Say nugget={title} term={titleTerm} />} titleSize="title" dek={dek} variant="receipt" receipt={answer} />
+          <Reading crumbs={<ChapterCrumbs path={path} />} title={heading ?? <Say nugget={title} term={titleTerm} />} titleSize="title" dek={dek} variant="receipt" receipt={answer} />
         </section>
         {children}
         <ChapterEnd path={path} variant="analysis" readingOf={readingOf} />

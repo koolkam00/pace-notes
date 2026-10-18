@@ -29,7 +29,7 @@ export default function FindingImprovement() {
   // The H1 gives the share found from 30K; the receipt adds what it does not say: the three parts, each per mile, and
   // the total they add up to.
   const receipt = (u: UnitSystem) => (
-    <Receipt kicker={`Improving finishes near ${hm(g.goal_min)}, against an earlier best`}
+    <Receipt kicker={`Near ${hm(g.goal_min)}, against earlier best`}
       lines={BLOCKS.map(([label, km], i) => ({ label, key: per(whole[i], km, u), value: ms(whole[i]), sr: spokenTime(whole[i]) }))}
       result={{ label: 'Faster in all', value: ms(whole.reduce((a, b) => a + b, 0)), sr: `${spokenTime(whole.reduce((a, b) => a + b, 0))} faster in all` }} />
   );

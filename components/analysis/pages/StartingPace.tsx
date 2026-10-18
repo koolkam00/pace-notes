@@ -41,7 +41,7 @@ export default function StartingPace() {
   return (
     <AnalysisShell path={PATH} title={bank} dek={definition.title} answer={answer}>
       <Beat id="sweet-spot" track="chapter-1" label="The sweet spot" title={sweet}><OpeningCurve /></Beat>
-      <ExploreBeat track="chapter-2"><FastStartAnalysis starts={starts} /></ExploreBeat>
+      <ExploreBeat track="chapter-2"><FastStartAnalysis starts={starts} untouched="none" /></ExploreBeat>
     </AnalysisShell>
   );
 }

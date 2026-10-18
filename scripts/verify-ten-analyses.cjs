@@ -137,13 +137,12 @@ for (const slug of [...TEN_ANALYSES.map(item => item.slug), 'downhill-start']) {
   if (definition) assert.ok(html.includes(definition.title.replace(/'/g, '&#x27;')), `${slug}: the question dek`);
   assert.match(html, /class="analysis-layout analysis-flow"/, `${slug}: the page sits in the masked .analysis-layout`);
   // The answer is a picture: a chart, a dot grid or a receipt inside the hero (critic round 2, October 18, 2026: the
-  // chart that proves the finding sits in the night card, not below Make it yours). The explorer opens on the example's
-  // chart only where the page has no other picture of that view (starting pace's and downhill starts' pace through the
-  // race); everywhere else, on its selection row alone, and it draws its chart once the visitor changes something.
+  // chart that proves the finding sits in the night card, not below Make it yours). The explorer opens on its selection
+  // row alone on every page (critic round 3, October 18, 2026: starting pace's example result gave a second "after 20K"
+  // figure on another baseline than the receipt's), and it draws its chart once the visitor changes something.
   const hero = html.slice(answer, explore);
   assert.match(hero, /<figure class="viz|class="receipt/, `${slug}: the answer is a figure`);
-  if (['starting-pace', 'downhill-start'].includes(slug)) assert.match(html, /class="explore-results"/, `${slug}: the explorer opens on a drawn result`);
-  else assert.doesNotMatch(html, /class="explore-results"/, `${slug}: the untouched explorer is its selection row`);
+  assert.doesNotMatch(html, /class="explore-results"/, `${slug}: the untouched explorer is its selection row`);
   assert.match(html, /class="miy-chip"/, `${slug}: the Make it yours selection row`);
   assert.doesNotMatch(html, /Not enough results|Too few comparable|Loading the|recharts/i, `${slug}: no empty, loading or Recharts state`);
   for (const pattern of METHOD_COPY) assert.doesNotMatch(html, pattern, `${slug}: method copy belongs on /methodology (${pattern})`);

@@ -36,7 +36,8 @@ export default function ElevationPace({ km, metres, relief, reliefLabel, section
         <path className="l-ink" d={linePath(line)} />
       </>
     )}>
-      {focus !== undefined && sections[focus] ? <rect className="a-signal" x={pc(x(sections[focus].startKm))} width={pc(x(sections[focus].endKm) - x(sections[focus].startKm))} y="0" height="100%" /> : null}
+      {/* The wash stays inside the plot: under a labelled top line it starts there, not above it. */}
+      {focus !== undefined && sections[focus] ? <rect className="a-signal" x={pc(x(sections[focus].startKm))} width={pc(x(sections[focus].endKm) - x(sections[focus].startKm))} y={reliefLabel ? pc(top) : '0'} height={reliefLabel ? pc(1 - top) : '100%'} /> : null}
       {reliefLabel ? <Gridlines lines={[{ y: top, label: reliefLabel }]} /> : null}
       <Baseline />
     </Plot>

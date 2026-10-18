@@ -25,7 +25,7 @@ const hm = (min: number) => `${Math.floor(min / 60)}:${String(Math.round(min % 6
 const signed = (s: number) => { const t = Math.round(Math.abs(s)); return `${s < 0 && t ? '−' : '+'}${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
 const signedPct = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 1 })}%`;
 
-export type TerrainExtras = { elevation: number[] | null; step: number; relief: number };
+export type TerrainExtras = { elevation: number[] | null; step: number };
 
 export default function ExplorerChart({ id, answer, goal, units, terrain, valuesId, selectedAge, example = false }: {
   id: string; answer: GuideAnswer; goal: number; units: UnitSystem; terrain?: TerrainExtras; valuesId: string; selectedAge?: string;
@@ -71,7 +71,7 @@ function PaceProfile({ answer, goal, units, valuesId }: { answer: GuideAnswer; g
   );
 }
 
-/** A course's climbs on the shared height scale, with each section's pace against the finishes' own average. */
+/** A course's climbs on its own height scale, with each section's pace against the finishes' own average. */
 function Terrain({ answer, units, terrain, valuesId }: { answer: GuideAnswer; units: UnitSystem; terrain?: TerrainExtras; valuesId: string }) {
   const pace = answer.charts.find((c) => c.unit === 'min/km');
   const climbs = answer.charts.find((c) => c.series.some((s) => s.key === 'gain'));
@@ -88,10 +88,13 @@ function Terrain({ answer, units, terrain, valuesId }: { answer: GuideAnswer; un
   let h = 0;
   const metres = terrain.elevation ?? [0, ...MARATHON_SECTION_ENDS.map((_, i) => (h += Number.isFinite(netOf(i)) ? netOf(i) : 0))];
   const climb = (i: number) => (Number.isFinite(gainOf(i)) ? `+${wholeElevation(gainOf(i), units)}` : '—');
+  // The course's own height scale (its relief rounded up to 25 m, at least 50 m), its top line labelled, as the page's
+  // answer draws it: on the scale every course shares a flat course was a hairline under an empty plot.
+  const own = Math.max(50, Math.ceil((Math.max(...metres) - Math.min(...metres)) / 25) * 25);
   return (
-    <ElevationPace km={km} metres={metres} relief={terrain.relief} focus={slowest} readoutKeys={['Climb', 'Pace against its average']}
+    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={wholeElevation(own, units)} focus={slowest} readoutKeys={['Climb', 'Pace against its average']}
       sections={MARATHON_SECTION_ENDS.map((end, i) => ({ label: sectionLabel(end), startKm: i ? MARATHON_SECTION_ENDS[i - 1] : 0, endKm: end, pct: pct[i], display: signedPct(Math.round(pct[i])), climb: climb(i) }))}
-      label={`Elevation on the scale every course shares, with each 5K's pace against the finishes' own average; slowest in ${sectionLabel(MARATHON_SECTION_ENDS[slowest])}`}
+      label={`Elevation, its top line ${wholeElevation(own, units)} above the lowest point, with each 5K's pace against the finishes' own average; slowest in ${sectionLabel(MARATHON_SECTION_ENDS[slowest])}`}
       values={<Values id={valuesId} caption="By section: the climb and the pace against its own average" columns={[{ key: 's', label: 'Section' }, { key: 'c', label: 'Climb' }, { key: 'p', label: 'Pace against its average' }]}
         rows={MARATHON_SECTION_ENDS.map((end, i) => [sectionLabel(end), climb(i), signedPct(pct[i])])} reading={slowest} />} />
   );
@@ -147,11 +150,16 @@ function Gains({ answer, goal, units, valuesId }: { answer: GuideAnswer; goal: n
   const plain = (s: number) => { const t = Math.round(Math.abs(s)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
   const steps = rows.map((r, i) => ({ id: String(i), label: labels[i], value: num(r.value) * 60, display: plain(num(r.value) * 60) }));
   const total = steps.reduce((s, x) => s + x.value, 0);
+  // The page's finding is per distance (the most time found per mile late in the race), so the block with the most per
+  // mile is the signal, not the one with the most minutes (the middle 20K is twice as long).
+  const KM = [10, 20, 12.195];
+  const perKm = steps.map((s, i) => s.value / KM[i]);
+  const focus = perKm.reduce((b, v, i) => (v > perKm[b] ? i : b), 0);
   return (
-    <Waterfall steps={steps} total={{ label: 'In all', display: plain(total) }}
+    <Waterfall steps={steps} total={{ label: 'In all', display: plain(total) }} focus={focus}
       label={`Where improving finishes near ${hm(goal)} found their time against an earlier best: ${steps.map((s) => `${s.label} ${s.display}`).join(', ')}, ${plain(total)} in all`}
       values={<Values id={valuesId} caption="Time found against the earlier best, by part of the race" columns={[{ key: 'b', label: 'Part of the race' }, { key: 'm', label: 'Time found' }, { key: 'k', label: units === 'mi' ? 'Per mile' : 'Per km' }]}
-        rows={steps.map((s, i) => [s.label, s.display, `${Math.round((s.value / [10, 20, 12.195][i]) * (units === 'mi' ? 1.609344 : 1))} s`])} />} />
+        rows={steps.map((s, i) => [s.label, s.display, `${Math.round(perKm[i] * (units === 'mi' ? 1.609344 : 1))} s`])} reading={focus} />} />
   );
 }
 

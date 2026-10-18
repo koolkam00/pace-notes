@@ -11,6 +11,7 @@ import { ms } from '@/lib/nuggets/format';
 import { ALL_FINISHER_DEFAULT, allFinisherGroupLabel, bandShort, bandWords, allFinisherGroups, allFinisherRow, allFinisherSearch, earlyPaceLabel, loadAllFinisherContext, readAllFinisherSelection,
   type AllFinisherEvidence, type AllFinisherGroup, type AllFinisherKind, type AllFinisherSelection, type AllFinisherStart } from '@/lib/all-finisher-context';
 import MakeItYours from './ui/MakeItYours.client';
+import { keepTogether } from './ui/keepTogether';
 import type { GuideExplorerParts } from './AnalysisExplorer';
 import Segmented from './ui/Segmented.client';
 import Values from './ui/Values';
@@ -35,11 +36,11 @@ function onsetText(group: AllFinisherGroup): string {
   const at = shares.reduce((best, value, i) => value > shares[best] ? i : best, 0);
   return `${sectionLabel(25 + at * 5)}, ${percent(shares[at])}`;
 }
-/** The headline with its first "sustained slowdown" linked to the definition on /methodology. */
+/** The headline with its first "sustained slowdown" linked to the definition on /methodology, its ranges unbroken. */
 function linkFirstTerm(text: string): ReactNode {
   const m = /sustained slowdowns?/i.exec(text);
-  if (!m) return text;
-  return <>{text.slice(0, m.index)}<Link href="/methodology#sustained-slowdown" className="term-link">{m[0]}</Link>{text.slice(m.index + m[0].length)}</>;
+  if (!m) return keepTogether(text);
+  return <>{keepTogether(text.slice(0, m.index))}<Link href="/methodology#sustained-slowdown" className="term-link">{m[0]}</Link>{keepTogether(text.slice(m.index + m[0].length))}</>;
 }
 const isProfileKind = (kind: AllFinisherKind) => kind === 'course-profile' || kind === 'weather-profile' || kind === 'race-day';
 /** Its measure: the spread of late-race pace for consistency, the late pace change for the profile views, else the slowdown rate. */
@@ -51,18 +52,20 @@ const measureOf = (kind: AllFinisherKind) => kind === 'course-consistency' ? 'la
  */
 function headline(groups: AllFinisherGroup[], kind: AllFinisherKind, label: (group: AllFinisherGroup) => string, opening?: string): string {
   const measure = measureOf(kind);
+  // A narrow selection leaves only a few courses: the range says how many it spans.
+  const few = (kind === 'courses' || kind === 'course-consistency') && groups.length < 10 ? `these ${groups.length} courses` : '';
   const sorted = [...groups].sort((a, b) => a[measure] - b[measure]);
   const low = sorted[0], high = sorted[sorted.length - 1];
   const value = (group: AllFinisherGroup) => measure === 'late_pct' ? paceChange(group.late_pct)
     : measure === 'late_spread_pct' ? `${group.late_spread_pct.toLocaleString('en-US', { maximumFractionDigits: 1 })} percentage points` : percent(group.slowdown_pct);
   if (measure === 'late_spread_pct') return groups.length === 1 ? `Late-race pace changes spread over ${value(low)} (${label(low)}).`
-    : `Late-race experiences varied most in ${label(high)} (${value(high)}) and least in ${label(low)} (${value(low)}).`;
+    : `Late-race experiences varied most in ${label(high)} (${value(high)}) and least in ${label(low)} (${value(low)})${few ? ` of ${few}` : ''}.`;
   if (measure === 'late_pct') return groups.length === 1 ? `Late-race pace was ${value(low)} ${Math.abs(low.late_pct) < 0.05 ? 'as' : 'than'} early-race pace (${label(low)}).`
     : `Late-race pace ranged from ${value(low)} (${label(low)}) to ${value(high)} (${label(high)}) than early-race pace.`;
   const rates = opening ? `After a first 5K ${opening}, sustained slowdown rates` : 'Sustained slowdown rates';
   return groups.length === 1 ? `The sustained slowdown rate was ${value(low)} (${label(low)}).`
     : groups.length === 2 ? `${rates} were ${value(low)} (${label(low)}) and ${value(high)} (${label(high)}).`
-    : `Sustained slowdown rates ranged from ${value(low)} (${label(low)}) to ${value(high)} (${label(high)}).`;
+    : `Sustained slowdown rates ranged from ${value(low)} (${label(low)}) to ${value(high)} (${label(high)})${few ? ` across ${few}` : ''}.`;
 }
 
 /**
@@ -124,10 +127,14 @@ export function AllFinisherResults({ groups, kind, start, units, focus, comparis
     const all = pair.flatMap(g => g.profile_pct).concat(0);
     const lo = Math.floor(Math.min(...all) / 5) * 5, hi = Math.ceil(Math.max(...all) / 5) * 5;
     const slowest = focus.profile_pct.reduce((b, v, i) => v > focus.profile_pct[b] ? i : b, 0);
+    // The slowest section is labelled under its own line, where slower is down. Where the comparison runs slower still
+    // there, under the line is the comparison's side (and above it the line itself crowds the label), so the chart keeps
+    // only its key and the values stay in Values: a label never reads as the other line's.
+    const clear = !(comparison && comparison.id !== focus.id && comparison.profile_pct[slowest] > focus.profile_pct[slowest]);
     // Slower is down, as on every pace chart on the site, with room under the slowest section for its label.
     chart = <LineProfile x={SECTION_MIDS} xDomain={[0, 42.195]} yDomain={[hi + (hi - Math.min(lo, -2.5)) * 0.2, Math.min(lo, -2.5)]}
       layers={[{ id: 'p', label: label(focus), series: [...(comparison && comparison.id !== focus.id ? [{ id: 'c', values: comparison.profile_pct, tone: 'quiet' as const }] : []), { id: 'f', values: focus.profile_pct }],
-        labels: [{ x: SECTION_MIDS[slowest], y: focus.profile_pct[slowest], text: `${sectionLabel(MARATHON_SECTION_ENDS[slowest])} ${signedPct(focus.profile_pct[slowest])}`, priority: 3, prefer: 'below' }] }]}
+        labels: clear ? [{ x: SECTION_MIDS[slowest], y: focus.profile_pct[slowest], text: `${sectionLabel(MARATHON_SECTION_ENDS[slowest])} ${signedPct(focus.profile_pct[slowest])}`, priority: 3, prefer: 'below' }] : [] }]}
       refs={[{ value: 0, label: 'early-race pace' }]}
       xTicks={[{ value: 0, label: 'Start' }, { value: 10, label: '10K' }, { value: 20, label: '20K' }, { value: 30, label: '30K' }, { value: 42.195, label: 'Finish' }]}
       keys={[{ label: label(focus), mark: 'line' }, ...(comparison && comparison.id !== focus.id ? [{ label: label(comparison), mark: 'line' as const, tone: 'quiet' as const }] : [])]}
@@ -135,7 +142,7 @@ export function AllFinisherResults({ groups, kind, start, units, focus, comparis
   }
   return (
     <div className="explore-results">
-      {head ? <h2 className="explore-title">{linkTerm ? linkFirstTerm(title) : title}</h2> : null}
+      {head ? <h2 className="explore-title">{linkTerm ? linkFirstTerm(title) : keepTogether(title)}</h2> : null}
       {/* One sentence under the headline (a beat holds at most two); where each group's sustained slowdowns most often
           began is in Values. */}
       <p className="explore-sentence">

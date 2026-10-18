@@ -13,6 +13,7 @@ import { loadAnalysisAggregate } from '@/lib/analysis-aggregates';
 import { MARATHON_SECTION_ENDS, sectionLabel } from '@/lib/section-labels';
 import AnalysisChart from './AnalysisChart';
 import KeypadHint from './KeypadHint';
+import { keepTogether } from './ui/keepTogether';
 import MakeItYours from './ui/MakeItYours.client';
 import ExplorerChart, { wholeElevation, type TerrainExtras } from './analysis/ExplorerChart';
 import { trackAnalytics } from '@/lib/analytics';
@@ -93,7 +94,7 @@ export function insightHeadline(id: string, answer: GuideAnswer, goal: number, u
 type ExplorerProps = {
   definition: AnalysisDefinition; summary: PersonalSummary; initialAnswer: GuideAnswer; start?: Profile;
   /** Hills: each course's supplied elevation profile and the shared height scale. */
-  terrain?: { elevations: Record<string, number[]>; step: number; relief: number }; historyMode?: boolean; weatherQuestions?: unknown[];
+  terrain?: { elevations: Record<string, number[]>; step: number }; historyMode?: boolean; weatherQuestions?: unknown[];
   /**
    * What the explorer shows before the visitor changes anything. The page's answer already states the example, so the
    * explorer never repeats its headline: 'chart' draws the example's chart alone (the page's only picture of it),
@@ -177,7 +178,7 @@ export function useGuideExplorer({ definition, summary, initialAnswer, start = E
   const summaryText = [cityName(profile.city), ...(definition.controls.time ? [clock(profile.goal * 60)] : []), ...(profile.age === 'all' ? [] : [profile.age]),
     ...(profile.gender === 'all' ? [] : [profile.gender]), ...(profile.previous === null ? [] : [`earlier ${clock(profile.previous * 60)}`]), ...(historyMode ? ['With an earlier result'] : [])].join(' · ');
   const cityOptions = summary.cities.filter(row => !courseOnly || row.city !== EXAMPLE_PROFILE.city);
-  const terrainExtras: TerrainExtras | undefined = terrain ? { elevation: terrain.elevations[profile.city] ?? null, step: terrain.step, relief: terrain.relief } : undefined;
+  const terrainExtras: TerrainExtras | undefined = terrain ? { elevation: terrain.elevations[profile.city] ?? null, step: terrain.step } : undefined;
   const refinements = (
           <div className="explore-fields">
             {definition.controls.age && <div className="field"><label className="field-label" htmlFor={field('age')}>Age group</label><select id={field('age')} className="select" value={draft.age} onChange={event => setDraft({ ...draft, age: event.target.value })}>{AGE_OPTIONS.map(age => <option key={age} value={age}>{age === 'all' ? 'All ages' : age}</option>)}</select></div>}
@@ -211,7 +212,7 @@ export function useGuideExplorer({ definition, summary, initialAnswer, start = E
       {loading && !answer ? <p className="explore-state">Loading the comparison…</p>
         : error ? <div className="explore-state" role="alert"><p>{error}</p><button className="btn btn-secondary is-compact" onClick={() => setRetry(value => value + 1)} type="button">Try loading again</button></div>
         : answer && shown ? <div className="explore-results">
-          {changed ? <h2 className="explore-title">{text(visibleAnswer)}</h2> : null}
+          {changed ? <h2 className="explore-title">{keepTogether(text(visibleAnswer))}</h2> : null}
           {answer.widened && <p className="explore-note">{text(answer.widened)}</p>}
           {!hasResults ? <div className="explore-state"><p>Try All courses, fewer refinements or another finish time.</p><button className="btn btn-secondary is-compact" type="button" onClick={() => applyProfile(start)}>Back to the example</button></div>
             : historyMode ? <AnalysisChart charts={answer.charts} analysisId={definition.id + profileSearch(profile)} />

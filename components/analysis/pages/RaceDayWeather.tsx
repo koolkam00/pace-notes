@@ -1,10 +1,11 @@
 import Values from '@/components/ui/Values';
 import AllFinisherWithHistory from '@/components/AllFinisherWithHistory';
 import WeatherAnalysis from '@/components/WeatherAnalysis';
-import AnalysisShell, { AnswerCard, ExploreBeat } from '../Shell';
+import AnalysisShell, { AnswerCard, ExploreBeat, Say } from '../Shell';
 import Columns from '../Columns';
 import ByUnits from '../ByUnits.client';
 import WeatherTabs from '../WeatherTabs.client';
+import TabTitle from '../TabTitle.client';
 import { analysisBySlug } from '@/lib/ten-analyses';
 import { getAnalysisStart } from '@/lib/analysis-server';
 import { getAllFinisherContextStart } from '@/lib/all-finisher-context-server';
@@ -36,7 +37,7 @@ export default function RaceDayWeather() {
   const low = steady.reduce<(typeof bands)[number] | undefined>((a, b) => (!a || b.slowdown_pct < a.slowdown_pct ? b : a), undefined);
   const top = Math.ceil(Math.max(...bands.map((g) => g.slowdown_pct)) / 10) * 10 + 5;
   const columns = (u: UnitSystem) => (
-    <AnswerCard kicker={`Sustained slowdown by start temperature, ${u === 'mi' ? '°F' : '°C'}`}>
+    <AnswerCard kicker={`By start temperature, ${u === 'mi' ? '°F' : '°C'}`}>
       <Columns items={bands.map((g) => ({ id: g.id, label: bandShort(g, u, false), value: g.slowdown_pct, display: pct(g.slowdown_pct / 100), tone: g.edition_n < 5 ? 'hollow' : g === low ? 'signal' : 'ink' }))}
         max={top} keys={bands.some((g) => g.edition_n < 5) ? [{ label: 'Fewer than five races', mark: 'hollow' }] : undefined}
         label={`Sustained slowdown by start temperature, from ${bands.map((g) => `${tempBand(g, u)} ${pct(g.slowdown_pct / 100)}`).join(', ')}${low ? `; the fewest at ${tempBand(low, u)}` : ''}`}
@@ -45,19 +46,19 @@ export default function RaceDayWeather() {
     </AnswerCard>
   );
   const ready = (id: 'warming' | 'wind') => evidence.candidates.find((c) => c.id === id && c.status === 'ready');
-  const panel = (id: 'warming' | 'wind') => {
-    const candidate = ready(id);
-    if (!candidate) return null;
-    const nugget = getNugget(id === 'warming' ? 'weather.warming' : 'weather.wind');
-    return <WeatherAnalysis candidate={candidate} evidence={evidence} sentence={nugget.guard ? nugget.headline : nugget.fallback} />;
-  };
+  // Each tab's finding is the page's H1 while that tab is selected (TabTitle), so the panel carries no second headline.
   const tabs = [
-    { id: 'temperature', label: 'Start temperature', panel: <ByUnits mi={columns('mi')} km={columns('km')} /> },
-    ...(['warming', 'wind'] as const).flatMap((id) => { const p = panel(id); return p ? [{ id, label: id === 'warming' ? 'Warming' : 'Wind', panel: p }] : []; }),
+    { id: 'temperature', label: 'Start temperature', title: <Say nugget={n} term />, panel: <ByUnits mi={columns('mi')} km={columns('km')} /> },
+    ...(['warming', 'wind'] as const).flatMap((id) => {
+      const candidate = ready(id);
+      if (!candidate) return [];
+      return [{ id, label: id === 'warming' ? 'Warming' : 'Wind', title: <Say nugget={getNugget(id === 'warming' ? 'weather.warming' : 'weather.wind')} />, panel: <WeatherAnalysis candidate={candidate} evidence={evidence} /> }];
+    }),
   ];
   const historyDefinition = { ...definition, dek: 'See how finish times compared with the same runners’ earlier bests in cooler and warmer races.' };
   return (
-    <AnalysisShell path={PATH} title={n} titleTerm dek={definition.title} answer={<WeatherTabs tabs={tabs} />}>
+    <AnalysisShell path={PATH} title={n} heading={<TabTitle titles={tabs.map(({ id, title }) => ({ id, title }))} />} dek={definition.title}
+      answer={<WeatherTabs tabs={tabs.map(({ id, label, panel }) => ({ id, label, panel }))} />}>
       <ExploreBeat track="chapter-1">
         <AllFinisherWithHistory kind="weather" start={start} linkTerm={false} untouched="none"
           history={{ definition: historyDefinition, summary, initialAnswer: answers.find((a) => a.id === definition.id)! }} />

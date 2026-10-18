@@ -14,9 +14,9 @@ import type { WeatherCandidate, WeatherDefinition, WeatherEvidence } from '@/lib
 const EXPOSURE: Record<WeatherCandidate['id'], string> = { warming: 'Temperature rise in the first four hours', wind: 'Wind speed near the scheduled start', humidity: 'Dew point near the scheduled start' };
 /** The two race days compared, and the result's label, in the exposure's own words. */
 const SIDES: Record<WeatherCandidate['id'], [string, string, string]> = {
-  warming: ['A smaller rise', 'A larger rise', 'Extra second-20K slowing with the larger rise'],
-  wind: ['Lighter wind', 'Stronger wind', 'Extra second-20K slowing in the stronger wind'],
-  humidity: ['A drier start', 'A more humid start', 'Extra second-20K slowing at the more humid start'],
+  warming: ['A smaller rise', 'A larger rise', 'Extra slowing with a larger rise'],
+  wind: ['Lighter wind', 'Stronger wind', 'Extra slowing in stronger wind'],
+  humidity: ['A drier start', 'A more humid start', 'Extra slowing, more humid start'],
 };
 /** The table's short column name for each exposure; the caption says it in full. */
 const SHORT: Record<WeatherCandidate['id'], string> = { warming: 'Rise', wind: 'Wind', humidity: 'Dew point' };
@@ -39,11 +39,14 @@ export default function WeatherAnalysis({ candidate, evidence, sentence }: { def
   const lo = Math.min(-band - 0.5, Math.floor(effect.low - 0.5)), hi = Math.max(band + 0.5, Math.ceil(effect.high + 0.5));
   const x = linear([lo, hi]);
   // Whole points, at most five ticks, so they never crowd at 200% zoom.
+  // Multiples of the step, so 0 is always labelled (the band of no material difference sits on it).
   const tickStep = Math.max(1, Math.ceil((Math.floor(hi) - Math.ceil(lo)) / 4));
-  const ticks = Array.from({ length: Math.floor((Math.floor(hi) - Math.ceil(lo)) / tickStep) + 1 }, (_, i) => Math.ceil(lo) + i * tickStep);
+  const first = Math.ceil(lo / tickStep) * tickStep;
+  const ticks = Array.from({ length: Math.floor((hi - first) / tickStep) + 1 }, (_, i) => first + i * tickStep);
   const tickLabel = (t: number) => (t === 0 ? '0' : `${t > 0 ? '+' : '−'}${Math.abs(t)}`);
   const heading = EXPOSURE[candidate.id];
-  const interval = `${weatherNumber(effect.confidence * 100)}% uncertainty interval`;
+  // The interval's ends in plain words; its level (a method choice) is on /methodology.
+  const range = `between ${pp(effect.low)} and ${pp(effect.high)} points`;
   const plot = (
     <Plot>
       <rect className="effect-null-band" x={pc(x(-band))} width={pc(x(band) - x(-band))} y="24%" height="44%" rx={4} />
@@ -57,10 +60,10 @@ export default function WeatherAnalysis({ candidate, evidence, sentence }: { def
     {/* The sentence above names the two race days and the estimate; the card draws the estimate and its interval against
         zero and the band of no material difference, and adds only the interval's ends. */}
     <div className="answer-card night effect-card">
-      <p className="answer-kicker t-kicker">{SIDES[candidate.id][2]}, in points</p>
-      <ChartFrame className="effect-strip" label={`${heading}: ${pp(effect.estimate)} percentage points; ${interval} ${pp(effect.low)} to ${pp(effect.high)}`} height={64} heightMd={64} plot={plot}
+      <p className="answer-kicker t-kicker">{SIDES[candidate.id][2]}</p>
+      <ChartFrame className="effect-strip" label={`${heading}: ${pp(effect.estimate)} percentage points, ${range}`} height={64} heightMd={64} plot={plot}
         axis={<Axis ticks={ticks.map(t => ({ x: x(t), label: tickLabel(t) }))} />} keys={[{ label: 'No material difference', mark: 'band' }]} />
-      <p className="answer-foot">{interval}: {pp(effect.low)} to {pp(effect.high)} percentage points.</p>
+      <p className="answer-foot">Between {pp(effect.low)} and {pp(effect.high)} percentage points.</p>
     </div>
     <Values id={`${id}-days`} caption={`Observed race days: ${heading.toLowerCase()} and second-20K slowing`} count={evidence.editions.length}
       columns={[{ key: 'e', label: 'Race', text: true }, { key: 'x', label: SHORT[candidate.id] }, { key: 's', label: 'Second 20K' }, { key: 'n', label: 'Finishes' }]}

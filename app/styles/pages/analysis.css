@@ -46,6 +46,9 @@
 .answer-cells dt { font-size: var(--t-label); font-weight: 500; line-height: 1.3; color: var(--ink-3); }
 .answer-cells dd { margin: 4px 0 0; font-family: var(--sans); font-size: 1.75rem; font-weight: 600; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
 
+/* /slowdown's four earlier-best columns stay together on a wide screen rather than spreading 200 px apart. */
+.slowdown-page #history > .viz { max-width: 36rem; }
+
 /* Two dot grids side by side inside a beat (the next race). */
 .beat-grids { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-5); max-width: 34rem; }
 .beat-grids .viz-frame { margin: 0; }
@@ -141,9 +144,12 @@
   .analysis-hero .receipt-foot { align-self: end; }
   .analysis-hero .answer-dots { grid-template-columns: auto minmax(0, 16rem); }
   @supports selector(:has(a)) {
-    .analysis-hero .answer-card:has(.answer-cells) { grid-template-columns: auto minmax(0, 1fr); column-gap: 48px; align-items: end; }
+    /* Two near-equal halves, as on downhill starts: the dots and their label on the left (a little wider, so the label
+       stays on one line), the two cells on the right, apart and on the label's baseline: neither half a void nor crammed. */
+    .analysis-hero .answer-card:has(.answer-cells) { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); column-gap: 48px; align-items: end; }
     .analysis-hero .answer-card:has(.answer-cells) > .answer-kicker { grid-column: 1 / -1; }
-    .analysis-hero .answer-card:has(.answer-cells) .answer-cells { padding: 0 0 0 48px; border-top: 0; border-left: 1px solid var(--rule); align-self: stretch; align-content: end; }
+    .analysis-hero .answer-card:has(.answer-cells) .answer-dots { grid-template-columns: auto minmax(0, 1fr); }
+    .analysis-hero .answer-card:has(.answer-cells) .answer-cells { column-gap: 32px; padding: 0 0 0 48px; border-top: 0; border-left: 1px solid var(--rule); align-self: stretch; align-content: end; }
   }
   .analysis-hero .answer-grids { grid-template-columns: repeat(2, minmax(0, 18rem)); justify-content: start; column-gap: 64px; }
   .explore-kicker { display: none; }

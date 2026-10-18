@@ -20,8 +20,8 @@ const elevation = (m: number, u: UnitSystem) => `${Math.round(elevationValue(m, 
 const signedPct = (p: number) => { const r = Math.round(p); return `${r > 0 ? '+' : r < 0 ? '−' : ''}${Math.abs(r)}%`; };
 
 /**
- * Chapter 08, page 3 (the redesign spec, section 7.10): the course the data picks, drawn on the height scale every course
- * shares, its biggest climb washed and the needle on it, each 5K's pace against the finishes' own average under it. Then
+ * Chapter 08, page 3 (the redesign spec, section 7.10): the course the data picks, drawn on its own height scale (its top
+ * line labelled), its biggest climb washed and the needle on it, each 5K's pace against the finishes' own average under it. Then
  * Make it yours: until the visitor picks another course or time it is the selection row alone, since the answer above
  * already draws this course.
  */
@@ -33,10 +33,8 @@ export default function HillsPacing() {
   const n = getNugget('terrain.climb');
   const sections = terrainSections(getCityData(city));
   const geometry = readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses;
-  // The explorer draws every course on one height scale: 0 to the largest relief in the release, rounded up to 50 m
-  // (spec section 3.6). The answer is about one course's climbs, so it uses that course's own relief (rounded up to
-  // 25 m, at least 50 m) and labels the top of it.
-  const relief = Math.ceil(Math.max(...geometry.map((g) => g.max_m - g.min_m)) / 50) * 50;
+  // The answer and the explorer draw each course on its own relief (rounded up to 25 m, at least 50 m) and label the top
+  // of it: on the one scale every course shares, most courses were a hairline under an empty plot.
   const step = geometry[0]?.elevation_step_km ?? 0.5;
   const elevations = Object.fromEntries(geometry.filter((g) => g.elevation_step_km === step && summary.cities.some((c) => c.city === g.city)).map((g) => [g.city, g.elevation_m.map((m) => Math.round(m * 10) / 10)]));
   const v = n.values as { climb_i: number; slow_i: number; climb_m: number; total_m: number; goal_min: number };
@@ -54,14 +52,14 @@ export default function HillsPacing() {
         rows={sections.map((s, i) => [sectionLabel(i ? MARATHON_SECTION_ENDS[i - 1] : 0, s.end), Number.isFinite(s.gain) ? `+${elevation(s.gain, u)}` : '—', signedPct(s.pct)])} reading={v.climb_i} />} />
   ) : null;
   const answer = sections ? (
-    <AnswerCard kicker={`${courseName(city)}, finishes near ${hm(v.goal_min)}`} foot={<ByUnits mi={`${elevation(v.total_m, 'mi')} of climb, start to finish`} km={`${elevation(v.total_m, 'km')} of climb, start to finish`} />}>
+    <AnswerCard kicker={`${courseName(city)}, near ${hm(v.goal_min)}`} foot={<ByUnits mi={`${elevation(v.total_m, 'mi')} of climb, start to finish`} km={`${elevation(v.total_m, 'km')} of climb, start to finish`} />}>
       <ByUnits mi={chart('mi')} km={chart('km')} />
     </AnswerCard>
   ) : null;
   return (
     <AnalysisShell path={PATH} title={n} dek={definition.title} answer={answer}>
       <ExploreBeat track="chapter-1">
-        <AnalysisExplorer definition={definition} summary={summary} initialAnswer={getAnalysisAnswers(start).find((a) => a.id === definition.id)!} start={start} terrain={{ elevations, step, relief }} untouched="none" />
+        <AnalysisExplorer definition={definition} summary={summary} initialAnswer={getAnalysisAnswers(start).find((a) => a.id === definition.id)!} start={start} terrain={{ elevations, step }} untouched="none" />
       </ExploreBeat>
     </AnalysisShell>
   );
