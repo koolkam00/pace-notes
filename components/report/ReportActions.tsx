@@ -7,7 +7,6 @@ import { REPORT_IMAGE_NAME, reportImageAlt, reportLines, type ReportGender, type
 import type { UnitSystem } from '@/lib/units';
 
 type Note = { kind: 'ok' | 'error'; text: string } | null;
-const cancelled = (error: unknown) => (error as { name?: unknown } | null)?.name === 'AbortError';
 
 /**
  * Print only the report card: every sibling on its way up to <body> is hidden for the printout (`data-print-hide`) and
@@ -25,30 +24,6 @@ export function printCard(cardId: string) {
   const done = () => { for (const [element, name] of marked) element.removeAttribute(name); window.removeEventListener('afterprint', done); };
   window.addEventListener('afterprint', done);
   window.print();
-}
-
-/**
- * Under the card's title, so a phone shows them without scrolling past the whole card: the same print button, and a
- * button down to the other outputs, which moves focus to Save image.
- */
-export function ReportJump({ cardId, actionsId }: { cardId: string; actionsId: string }) {
-  const down = () => {
-    const row = document.getElementById(actionsId);
-    row?.scrollIntoView({ block: 'center' });
-    row?.querySelector<HTMLButtonElement>('[data-report-save]')?.focus({ preventScroll: true });
-  };
-  return (
-    <div className="race-report-jump no-print">
-      <button type="button" data-not-edit onClick={() => printCard(cardId)}>Print or save as PDF</button>
-      <button type="button" data-not-edit onClick={down}>Save or share <span aria-hidden="true">↓</span></button>
-    </div>
-  );
-}
-
-/** "the nine times, the course and the comparison group you chose (women)": what a typed report's link carries. */
-function carried(link: string | null, gender: ReportGender): string {
-  const parts = ['the nine times', ...(link?.includes('&course=') ? ['the course'] : []), ...(gender === 'all' ? [] : [`the comparison group you chose (${gender})`])];
-  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
 }
 
 /**
@@ -93,41 +68,28 @@ export default function ReportActions({ id, model, units, link, cardId, gender }
     a.click();
     trackAnalytics('report_exported', { format: 'image' });
     setPreview({ url, alt: reportImageAlt(model, units) });
-    setNote({ kind: 'ok', text: `Saved as ${REPORT_IMAGE_NAME}. On a phone you can also press and hold the image below to keep it.` });
+    setNote({ kind: 'ok', text: 'Saved. On a phone, press and hold the image below to keep it.' });
   };
 
   const onSave = async () => {
     if (waiting) return;
     setBusy(true); setNote(null);
-    try { await saveImage(); } catch (error) { failed(error, 'The image could not be made in this browser. Use Print or save as PDF instead.'); } finally { setBusy(false); }
+    try { await saveImage(); } catch (error) { failed(error, 'The image could not be made here. Try Print instead.'); } finally { setBusy(false); }
   };
-  // The image when the browser can share files (iOS Safari 15 and later), else the link, else the image is saved.
+  // The image when the browser can share files (iOS Safari 15 and later), else the link, else the image is saved. The
+  // choice lives with the image code (lib/report-image.ts), which loads on the first press.
   const onShare = async () => {
     if (waiting) return;
     setBusy(true); setNote(null);
     try {
-      const probe = typeof File === 'function' ? new File([new Blob()], REPORT_IMAGE_NAME, { type: 'image/png' }) : null;
-      if (probe && typeof navigator.canShare === 'function' && navigator.canShare({ files: [probe] })) {
-        const fresh = made.current?.key !== key;
-        const file = new File([await image()], REPORT_IMAGE_NAME, { type: 'image/png' });
-        try {
-          await navigator.share({ files: [file], title: 'Race report' });
-        } catch (error) {
-          if (cancelled(error)) return;
-          // Drawing the image can outlast the press a browser lets a share sheet open from; it is ready for the next press.
-          if (fresh && (error as { name?: unknown }).name === 'NotAllowedError') { setNote({ kind: 'ok', text: 'The image is ready. Press Share again to send it.' }); return; }
-          throw error;
-        }
-      } else if (typeof navigator.share === 'function' && link) {
-        try { await navigator.share({ title: 'Race report', url: window.location.origin + link }); } catch (error) { if (cancelled(error)) return; throw error; }
-      } else {
-        await saveImage();
-        return;
-      }
-      trackAnalytics('report_exported', { format: 'share' });
-      setNote({ kind: 'ok', text: 'Shared.' });
+      const fresh = made.current?.key !== key;
+      const { shareReport } = await import('@/lib/report-image');
+      const result = await shareReport(image, link ? window.location.origin + link : null, fresh);
+      if (result === 'save') await saveImage();
+      else if (result === 'ready') setNote({ kind: 'ok', text: 'The image is ready. Press Share again to send it.' });
+      else if (result === 'shared') { trackAnalytics('report_exported', { format: 'share' }); setNote({ kind: 'ok', text: 'Shared.' }); }
     } catch (error) {
-      failed(error, 'Sharing did not work here. Use Save image or Copy link instead.');
+      failed(error, 'Sharing did not work here. Try Save image.');
     } finally { setBusy(false); }
   };
   const onCopy = async () => {
@@ -142,14 +104,12 @@ export default function ReportActions({ id, model, units, link, cardId, gender }
   return (
     <div className="race-report-actions no-print" id={id}>
       <div className="tool-share share-bar">
-        <button type="button" className="button-primary" data-not-edit onClick={() => printCard(cardId)}>Print or save as PDF</button>
-        <button type="button" className="button-secondary" data-report-save aria-disabled={waiting || undefined} onClick={onSave}>{busy ? 'Making the image…' : pending ? `Loading ${pending}…` : 'Save image'}</button>
-        <button type="button" className="button-secondary" aria-disabled={waiting || undefined} onClick={onShare}>Share</button>
-        {link ? <button type="button" className="button-secondary" onClick={onCopy}>{copied ? 'Link copied' : 'Copy link'}</button> : null}
+        <button type="button" className="btn btn-primary is-compact" data-not-edit onClick={() => printCard(cardId)}>Print or save as PDF</button>
+        <button type="button" className="btn btn-secondary is-compact" data-report-save aria-disabled={waiting || undefined} onClick={onSave}>{busy ? 'Making the image…' : pending ? `Loading ${pending}…` : 'Save image'}</button>
+        <button type="button" className="btn btn-secondary is-compact" aria-disabled={waiting || undefined} onClick={onShare}>Share</button>
+        {link ? <button type="button" className="btn btn-secondary is-compact" onClick={onCopy}>{copied ? 'Link copied' : 'Copy link'}</button> : null}
       </div>
-      <p className="race-report-hint">Print uses the browser’s own PDF export, one page. {model.record
-        ? 'The link carries only the nine times and the course; this edition’s comparisons, weather and climb stay out of the image and the link.'
-        : `The link carries only ${carried(link, gender)}.`}</p>
+      <p className="race-report-hint">Prints on one page. The link carries only the mat times{link?.includes('&course=') ? ' and the course' : ''}{gender === 'all' ? '' : `, and the ${gender} comparison`}{model.record ? '; nothing from this edition reaches it or the image' : ''}.</p>
       <p className={`race-report-note${note?.kind === 'error' ? ' is-error' : ''}`} aria-live="polite">{copied ? 'Link copied to the clipboard.' : note?.text ?? ''}</p>
       {preview ? <img className="race-report-preview" src={preview.url} alt={preview.alt} width={1080} height={1350} /> : null}
     </div>

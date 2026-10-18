@@ -138,7 +138,7 @@ for (const scope of index.scopes) {
       assert.equal(model.opening.band?.id ?? null, expectedBand(times), 'the opening group');
       assert.equal(model.type.state, 'ok'); assert.equal(model.type.name, expectedType(times), 'the pacing type');
       const arch = archetypes.archetypes.find((a) => a.name === model.type.name);
-      assert.equal(model.type.n, arch.n); assert.equal(model.type.cohortN, archetypes.cohort_n); assert.match(model.type.label, /pacing-types cohort/);
+      assert.equal(model.type.n, arch.n); assert.equal(model.type.cohortN, archetypes.cohort_n); assert.equal(model.type.label, 'complete finishes'); // the cohort is named on /methodology#pacing-types, not on the report
       const c = model.comparison;
       if (!path_) { assert.equal(c.state, 'unavailable', `${scope.slug}/${gender} ${times[8]}: nothing published`); unpublished += 1; continue; }
       const all = expectedCell(shardOf(path_), 'all', minute);
@@ -216,7 +216,14 @@ ok();
   assert.match(html, /<h3 class="race-report-title"/); assert.doesNotMatch(html, /<h1\b/);
   assert.match(html, /4,999 other eligible finishes in Lakeside 2021/); assert.match(html, /not an official placing/);
   assert.doesNotMatch(html.replace(/<[^>]+>/g, ' '), METHOD_COPY, 'no method line in the record block either');
-  assert.match(html, /52\.7°F/); assert.match(html, /395 ft/);
+  // The edition's lines load with the record (components/report/RecordBlock.tsx, lazily, so /report carries none of
+  // their code): rendered here on their own, with the same rules.
+  const RecordBlock = require('../components/report/RecordBlock.tsx').default;
+  const lines = renderToStaticMarkup(React.createElement(RecordBlock, { id: 'r-record', Head: 'h4', record: recorded.record, units: 'mi' }));
+  assert.match(lines, /class="race-report-block race-report-record"/); assert.match(lines, /<dl>/);
+  assert.match(lines, /52\.7°F/); assert.match(lines, /395 ft/); assert.match(lines, badgeLink('data', 'Pace Notes data'));
+  assert.doesNotMatch(lines.replace(/<[^>]+>/g, ' '), METHOD_COPY, 'no method line in the edition lines either');
+  assert.doesNotMatch(lines.replace(/<[^>]+>/g, ' '), /\byou\b|\byour\b|percentile|\brank\b|\brecord\b/i, 'the edition lines say "this race", and hold no rank, percentile or record');
   assert.doesNotMatch(JSON.stringify(report.reportLines(recorded, 'mi')), /4,999|1,200|\b76(?:\.0)?%|percentile|\brank\b|9\.5%|12\.3%|°|\bft\b/, 'the image never carries the record\'s placement');
   const small = report.buildReport({ ...base, comparison: { index, indexError: null, course: 'all', gender: 'all', shard: null },
     record: { edition: { city: 'Lakeside', year: 2021 }, context: { ...sample, comparisons: { all: null } , weather: null, weather_reason: 'No verified weather.', terrain: null, terrain_reason: null }, error: null, lateChange: 1 } });

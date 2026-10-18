@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import '../report/report.css';
+import '@/app/styles/pages/report.css';
 import './runners.css';
 
 // The race report opens inside the runner view, so its styles come with the page (not its JavaScript, which loads on
