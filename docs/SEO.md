@@ -11,7 +11,7 @@ The route policy lives in [`lib/seo-routes.ts`](../lib/seo-routes.ts). The sitem
 | Home, the research hub `/research` (October 16, 2026), stories, tools, analyses, courses, about, methodology, privacy, slowdown | index, follow | the page itself | yes |
 | The search pages: the two pace charts, the five goal pages, the six qualifying race pages and `/finish-times` ([below](#search-pages-october-2026)) | index, follow | the page itself | yes |
 | The moved addresses' stubs (`movedTo()`, [below](#moved-addresses-october-18-2026)): `/packs` and every `/packs/<id>`, `/research/personalized`, `/your-race`, `/htw`, `/packs/smyth_htw` and the two weather questions | noindex, follow | none (`og:url` names the target) | no |
-| `NOINDEX`: `/runners`, `/your-race`, `/request-analysis`, `/report`, `/design-system` | noindex, follow | none | no |
+| `NOINDEX`: `/runners`, `/your-race`, `/request-analysis`, `/report` (`/design-system` left the list when the gallery was deleted, October 18, 2026, `feat/redesign`) | noindex, follow | none | no |
 | 404 | noindex, follow (`app/not-found.tsx`; see the note below) | none | no |
 
 `app/not-found.tsx` sets `robots: { index: false, follow: true }`, which replaces the layout's `index, follow`. Next.js adds its own `noindex` tag to the not-found page as well, so `out/404.html` carries two robots tags, `noindex` and `noindex, follow`, and they agree. The page is also served with a 404 status, so it is never indexed.
@@ -193,7 +193,7 @@ CI runs it after `npm run build` in [`site-validation.yml`](../.github/workflows
 | `canonical` | an indexable page lacks exactly one canonical, or it is off `https://splithappens.run`, has `?`, `#` or a trailing slash, or differs from `canonicalPathFor(path)`; or a noindex page has one |
 | `stubs` | a moved address (`movedPages()`) has no stub in the export, or its stub lacks the H1 "This page has moved", a visible link to the target, the forward (one `<script data-forward>`, whose target, base path and, on the guide's two stubs, `#guide-*` map must match `lib/seo-routes.ts`) or `og:url` on the target, or carries JSON-LD; or the target is missing, noindex, or lacks the `#anchor` it names; or a built page is a moved address `movedPages()` does not list |
 | `redirects` | `vercel.json`, matched the way Vercel matches it (in order, first match wins; `:name*` also matches nothing), does not 308 a moved address to `movedTo()` (the forward-only `/your-race` must not redirect), redirects a sitemap or indexable page, sends a rule to a page that is not built and indexable, or answers anything but 308 |
-| `moved-links` | a page links a moved address instead of its target (pages another package is still rebuilding are reported as warnings, `PENDING_LINKS`, until it lands; an entry that no longer applies fails) |
+| `moved-links` | a page links a moved address instead of its target (the redesign's pending-link list was emptied and removed at integration, October 18, 2026; a weather tab named in a target's hash counts as an anchor through its `data-tab`) |
 | `social-tags` | an indexable page lacks `og:title`, `og:description`, `og:image`, `twitter:card` or `og:url`, or `og:url` is not the canonical |
 | `og-image` | an `og:image` or `twitter:image` is off the host, missing from the export, or not 1200×630 (read from the PNG, JPEG or WebP header) |
 | `duplicates` | two indexable pages share a title or a description |
@@ -210,7 +210,7 @@ CI runs it after `npm run build` in [`site-validation.yml`](../.github/workflows
 | `orphans` | a story or analysis page in the sitemap is not linked from `/research`, or any other sitemap page but the home page is linked from no other page in the export (October 16, 2026) |
 | `home-form` | the home page's course select (`#home-plan-course`) does not have the planner's options (`#plan-course` on `/tools/plan`), the same values and names in the same order: the home list comes from the course pages, the planner's from its own data (October 16, 2026) |
 
-Warnings only: titles over 60 characters, descriptions over 155 (the site's limits), `pending` (links and anchors another redesign package changes when it lands), `og-image-fallback` (a page that uses a less specific card than the one `scripts/build-og-images.cjs` makes for it: a stale build or a missing card), and policy notes (noindex pages that also say nofollow, JSON-LD on pages the plan keeps without it, `changefreq` or `priority` in the sitemap).
+Warnings only: titles over 60 characters, descriptions over 155 (the site's limits), `og-image-fallback` (a page that uses a less specific card than the one `scripts/build-og-images.cjs` makes for it: a stale build or a missing card), and policy notes (noindex pages that also say nofollow, JSON-LD on pages the plan keeps without it, `changefreq` or `priority` in the sitemap).
 
 ## Moved addresses (October 18, 2026)
 
