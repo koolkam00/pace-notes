@@ -46,7 +46,7 @@ export default function CityPage({ params }: { params: { city: string } }) {
   // A section shows only when it has something to show: no heading over an empty chart.
   const glance = glanceRows(page);
   const shown: [string, string, boolean][] = [
-    ['at-a-glance', 'At a glance', glance.ids.length > 0 || glance.typical], ['finish-times', 'Finish times', timesShown(page)],
+    ['at-a-glance', 'At a glance', glance.length > 0], ['finish-times', 'Finish times', timesShown(page)],
     ['elevation', 'Elevation', !!page.geometry], ['pacing', 'Pacing', !!page.types], ['slowdown', 'Slowdowns', true], ['goals', 'Goals', page.goals.length > 0],
     ['weather', 'Weather', !!page.hotCool && page.weather.length >= WEATHER_MIN_MORNINGS], ['plan', 'Plan', true], ['replay', 'Replay', choices.length > 0],
   ];

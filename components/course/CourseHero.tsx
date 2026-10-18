@@ -4,7 +4,7 @@ import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { Elevation } from '@/components/story/Units';
 import { SlowdownTerm } from '@/components/tools/EvidenceTag';
-import YearStrip, { stripLabels, type YearPoint } from '@/components/viz/YearStrip';
+import YearStrip, { type YearPoint } from '@/components/viz/YearStrip';
 import { getNugget } from '@/lib/nuggets';
 import { hm, pct, temp } from '@/lib/nuggets/format';
 import { heldEditions, MONTHS, routeClimb, type CoursePageData } from '@/lib/course-page';
@@ -42,9 +42,9 @@ function raceMonths(editions: { year: number; date: string | null }[]): string {
  * The night hero (the redesign spec, sections 4.3 and 7.10, cut under section 00): the race, when it is run, then the
  * reading: the share of its finishes with a sustained slowdown, the route as its face (with the climb), the sentence
  * that says how far the share ran edition by edition (course.slowdown, shown only when its guard holds), and, with three
- * or more editions, the year strip to scrub them. The strip opens on the latest edition the source policy keeps, or on
- * an end of the range where that leaves a named year without room for its label, so both years the sentence names are
- * on the strip (the one under the needle in the readout); the label under the needle hides, since the readout says it. Where this course sits among the others is #slowdown's finding, over the strip of every course.
+ * or more editions, the year strip to scrub them. The strip opens on the edition the sentence accents, so the needle,
+ * the readout and the orange word agree, and labels the other end; without the sentence, it opens on the latest edition
+ * the source policy keeps. Where this course sits among the others is #slowdown's finding, over the strip of every course.
  * One action: the planner for this course, an outline from 1180 px, where the header carries the orange "Plan your race".
  */
 export default function CourseHero({ page }: { page: CoursePageData }) {
@@ -57,29 +57,16 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
   const held = heldEditions();
   const kept = editions.filter((e) => !held.has(`${page.city}|${e.year}`));
   const latest = kept[kept.length - 1]?.year ?? editions[editions.length - 1]?.year;
-  // The strip labels the two editions the sentence names; without the sentence, the extremes among the editions the
-  // policy keeps.
-  const extremes = reading.guard ? [Number(reading.values.lo_year), Number(reading.values.hi_year)]
-    : kept.length > 1 ? [...new Set([kept.reduce((a, b) => (b.slowdown < a.slowdown ? b : a)).year, kept.reduce((a, b) => (b.slowdown > a.slowdown ? b : a)).year])] : [];
+  // Without the sentence, the strip labels the extremes among the editions the policy keeps.
+  const extremes = kept.length > 1 ? [...new Set([kept.reduce((a, b) => (b.slowdown < a.slowdown ? b : a)).year, kept.reduce((a, b) => (b.slowdown > a.slowdown ? b : a)).year])] : [];
   const points = (units: UnitSystem): YearPoint[] => editions.map((e) => ({ year: e.year, value: e.slowdown, display: pct(e.slowdown), side: [hm(e.median_s / 60), e.temp === null ? '—' : temp(e.temp, units)] }));
   const valueDomain: [number, number] = [0, Math.max(0.1, Math.ceil(Math.max(...editions.map((e) => e.slowdown)) * 10) / 10)];
   const extremeLabel = (p: YearPoint) => `${p.year} · ${p.display}`;
-  // The strip opens on the latest edition the policy keeps, or, where that leaves a year the sentence names without
-  // room for its label on the narrowest phone (288 px of plot), on an end of the range, whose year the readout then
-  // says. Where the two ends crowd each other even so (London's 2024 and 2025), it opens on one end and labels only the
-  // other: both years are on the strip, one in the readout.
-  const covered = (open: number, named: number[]) => {
-    const shown = stripLabels({ editions: points('mi'), selected: open, valueDomain, height: 100, extremeLabel, labelled: named });
-    return named.every((yr) => yr === open || shown.some((l) => l.year === yr && l.minWidth !== null && l.minWidth <= 288));
-  };
-  const ends = reading.guard ? [Number(reading.values.hi_year), Number(reading.values.lo_year)] : [];
-  let opening = latest, labelled = extremes;
-  if (editions.length >= 3) {
-    const found = [...new Set([latest, ...ends])].find((open) => covered(open, extremes));
-    const alone = found === undefined ? ends.find((open) => covered(open, ends.filter((yr) => yr !== open))) : undefined;
-    if (found !== undefined) opening = found;
-    else if (alone !== undefined) { opening = alone; labelled = ends.filter((yr) => yr !== alone); }
-  }
+  // With the sentence, the strip opens on the edition it accents (the high end), so the needle, the readout and the
+  // orange word name one year; the low end is the one label (shown wherever it has room). Without it, the latest
+  // edition the policy keeps, with the extremes labelled.
+  const opening = reading.guard ? Number(reading.values.hi_year) : latest;
+  const labelled = reading.guard ? [Number(reading.values.lo_year)] : extremes;
   const strip = (units: UnitSystem) => (
     <YearStrip
       editions={points(units)}

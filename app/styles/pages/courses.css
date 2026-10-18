@@ -67,3 +67,9 @@
 }
 /* The unit line names the range's scope; it wraps evenly, never onto one orphan word. */
 .courses-reading .reading-unit-line { text-wrap: balance; }
+
+/* From 900 px the closing stack lines up with the reading's sentence column (the Reading grid's sixth of twelve
+   columns, 32 px gaps) and runs to the right edge, so no void opens beside it. */
+@media (min-width: 900px) {
+  .courses-page .chapter-end { max-width: none; margin-left: calc((100% - 11 * 32px) * 5 / 12 + 5 * 32px); }
+}

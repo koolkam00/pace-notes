@@ -12,7 +12,7 @@ import { coursePage, coursePages, heldEditions, type CoursePageData } from '@/li
 import { readInsight } from '@/lib/insights-server';
 import type { Courses } from '@/lib/insights';
 import { courseSlug } from '@/lib/tools/links';
-import { count, hm, pct, sectionLabel, temp } from './format';
+import { count, countWord, hm, pct, sectionLabel, temp } from './format';
 import { shareFigure, type Builder } from './build';
 import type { Nugget, NuggetContext, NuggetFigure, UnitsAware } from './types';
 
@@ -300,11 +300,13 @@ function courseTypes(ctx?: NuggetContext): Nugget {
 }
 
 /**
- * #slowdown's finding, over the strip of every course: where the course's share sits among the other courses with three
- * or more editions (the rest are hollow on the strip), said only for a course with three or more editions itself, as a
- * count of them, or "any other course" when it is the count of all of them. The scope is said every time, since the
- * count leaves out the hollow dots.
+ * #slowdown's finding, over the strip of every course: this course's share and where it sits among the other courses
+ * with three or more editions (the rest are hollow on the strip), as a count of them, "any other course" (or "every
+ * course") when it is all of them, or "near the middle" where the counts above and below are within two of each other
+ * (12 above and 12 below never reads as "lower"). A course with fewer editions itself says how many, and compares itself with the courses with three
+ * or more, never the other way round. The scope is said every time, since the count leaves out the hollow dots.
  */
+export const MIDDLE_SPREAD = 2;
 function courseAmong(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
   const s = page?.summary;
@@ -312,17 +314,24 @@ function courseAmong(ctx?: NuggetContext): Nugget {
   const higher = s ? others.filter((o) => o.slowdown > s.slowdown).length : 0;
   const lower = s ? others.filter((o) => o.slowdown < s.slowdown).length : 0;
   const n = others.length;
+  const solid = !!s && s.editions >= MIN_EDITIONS;
+  const middle = solid && Math.abs(higher - lower) <= MIDDLE_SPREAD;
   const fewer = higher >= lower;
   const count = fewer ? higher : lower;
-  const guard = !!s && s.editions >= MIN_EDITIONS && n >= 5 && count > 0;
+  const guard = !!s && s.editions >= 1 && n >= 5 && (middle || count > 0);
+  const name = page?.display ?? 'This course';
+  const share = pct(s?.slowdown ?? NaN);
   // The accent never breaks across lines ("16 of the 24" stays together).
-  const than = count === n ? '*any\u00a0other\u00a0course* with three or more editions' : `*${count}\u00a0of\u00a0the\u00a0${n}* other courses with three or more editions`;
+  const nb = (t: string) => t.replace(/ /g, '\u00a0');
+  const all = solid ? 'any other course' : 'every course';
+  const than = `${fewer ? 'lower' : 'higher'} than on ${count === n ? `*${nb(all)}*` : `*${nb(`${count} of the ${n}`)}*${solid ? ' other' : ''} courses`} with three or more editions`;
+  const from = solid ? '' : `, from ${countWord(s?.editions ?? 0)} ${s?.editions === 1 ? 'edition' : 'editions'}`;
   return {
     id: 'course.among', page: `/courses/${page?.slug ?? ''}#slowdown`, denominator: 'course',
-    values: { share: s?.slowdown ?? NaN, higher, lower, courses: n },
+    values: { share: s?.slowdown ?? NaN, higher, lower, courses: n, editions: s?.editions ?? 0, middle: middle ? 1 : 0 },
     guard,
-    headline: `${page?.display ?? 'This course'}’s ${pct(s?.slowdown ?? NaN)}: ${fewer ? 'lower' : 'higher'} than on ${than}.`,
-    fallback: `${page?.display ?? 'This course'} beside every course.`,
+    headline: middle ? `${name}’s ${share}: *${nb('near the middle')}* of the ${n + 1} courses with three or more editions.` : `${name}’s ${share}${from}: ${than}.`,
+    fallback: `${name} beside every course.`,
     figure: null,
   };
 }

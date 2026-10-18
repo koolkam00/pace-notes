@@ -171,17 +171,25 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       } else step(() => eq(n.guard, false, `course.types (${city}): no mix, no claim`));
     }
 
-    // #slowdown's H2: every other course with three or more editions, with a higher and a lower share.
+    // #slowdown's H2: every other course with three or more editions, with a higher and a lower share; within two of
+    // each other either side, "near the middle"; a course with fewer editions says how many.
     {
       const n = at('course.among');
       // Only courses with three or more editions are counted either side (the hollow dots on the strip are not).
       const others = courses.courses.filter((o) => o.city !== city && o.editions >= 3);
       const higher = others.filter((o) => o.slowdown > c.slowdown).length, lower = others.filter((o) => o.slowdown < c.slowdown).length;
       step(() => eq([n.values.higher, n.values.lower, n.values.courses], [higher, lower, others.length], `course.among (${city}) recounts the courses with three or more editions either side`));
+      const solidSelf = c.editions >= 3;
+      const middle = solidSelf && Math.abs(higher - lower) <= 2;
       const count = higher >= lower ? higher : lower;
-      step(() => eq(n.guard, c.editions >= 3 && others.length >= 5 && count > 0, `course.among (${city}): guard`));
-      const than = count === others.length ? 'any other course with three or more editions' : `${count} of the ${others.length} other courses with three or more editions`;
-      if (n.guard) step(() => eq(said(n).replace(/\u00a0/g, ' '), `${named(city)}’s ${whole(c.slowdown)}: ${higher >= lower ? 'lower' : 'higher'} than on ${than}.`, `course.among (${city}): the sentence`));
+      step(() => eq(n.guard, others.length >= 5 && (middle || count > 0), `course.among (${city}): guard`));
+      const words = ['zero', 'one', 'two'];
+      const from = solidSelf ? '' : `, from ${words[c.editions]} edition${c.editions === 1 ? '' : 's'}`;
+      const all = count === others.length ? (solidSelf ? 'any other course' : 'every course') : null;
+      const than = all ? `${all} with three or more editions` : `${count} of the ${others.length}${solidSelf ? ' other' : ''} courses with three or more editions`;
+      const want = middle ? `${named(city)}’s ${whole(c.slowdown)}: near the middle of the ${others.length + 1} courses with three or more editions.`
+        : `${named(city)}’s ${whole(c.slowdown)}${from}: ${higher >= lower ? 'lower' : 'higher'} than on ${than}.`;
+      if (n.guard) step(() => eq(said(n).replace(/\u00a0/g, ' '), want, `course.among (${city}): the sentence`));
     }
 
     // #goals: the lead goal's row, where the course chooser publishes the course with enough editions.

@@ -1,7 +1,6 @@
 import BigNumber from '@/components/ui/BigNumber';
-import LineProfile from '@/components/viz/LineProfile';
 import { getNugget, type Nugget } from '@/lib/nuggets';
-import { SIGNATURE_MIN, type CourseNugget } from '@/lib/nuggets/courses';
+import type { CourseNugget } from '@/lib/nuggets/courses';
 import type { Courses } from '@/lib/insights';
 import { readInsight } from '@/lib/insights-server';
 import type { CoursePageData } from '@/lib/course-page';
@@ -15,9 +14,7 @@ import { CourseSection, Said } from './Fact';
  * own scale, over a level at the start's height), a slowest 5K unlike nearly every other course's (the nine sections
  * against the course's own average), 5K splits that told the course apart in nine of ten of its editions or more (a dot
  * per edition), and the 5K where its pacing parts most from the typical course's (both curves, that section in signal).
- * A course with none of these that paces within 3 points of the typical course everywhere says so, over the two curves,
- * unless #pacing says the same of its pacing types; a course with nothing to say has no glance at all (the page leaves
- * the section out).
+ * A course with none of these has no glance at all (the page leaves the section out and opens on its first difference).
  */
 type Row = { id: string; figure: React.ReactNode; key: string; viz?: React.ReactNode };
 
@@ -99,50 +96,32 @@ function figureOf(n: Nugget) {
 type GlanceId = 'course.start' | 'course.late' | 'course.shape' | 'course.signature';
 
 /**
- * The glance's rows for a course, in order, at most three: the ones whose guards hold. The signature row stays out where
- * it would be about the same stretch as another row (the first 5K beside the start row; a section next to the slowest
- * 5K beside the late row), since two big section names that close read as a contradiction. Exported for the page's
- * contents row, and recounted by scripts/verify-courses.cjs.
+ * The glance's rows for a course, in order, at most three: the ones whose guards hold. The start row stays out where
+ * #elevation's finding is the same 5K (its biggest climb is 0–5K), so one 5K never reads as two different climbs a
+ * screen apart; the signature row stays out where it would be about the same stretch as another row (the first 5K
+ * beside the start row; a section next to the slowest 5K beside the late row), since two big section names that close
+ * read as a contradiction. Exported for the page's contents row, and recounted by scripts/verify-courses.cjs.
  */
-export function glanceRows(page: CoursePageData): { ids: GlanceId[]; typical: boolean } {
+export function glanceRows(page: CoursePageData): GlanceId[] {
   const { city, sections, summary: s } = page;
+  const climb = getNugget('course.climb', { city });
   let ids = (['course.start', 'course.late', 'course.shape', 'course.signature'] as GlanceId[]).filter((id) => {
     const n = getNugget(id, { city });
-    return n.guard && !!n.figure && (id !== 'course.start' || !!page.geometry);
+    return n.guard && !!n.figure && (id !== 'course.start' || (!!page.geometry && !(climb.guard && Number(climb.values.section) === 0)));
   });
   const sig = s.signature_section ? sections.indexOf(s.signature_section) : -1;
   const slowest = s.slowest_section ? sections.indexOf(s.slowest_section) : -1;
   if (ids.includes('course.signature') && ((ids.includes('course.late') && Math.abs(sig - slowest) <= 1) || (ids.includes('course.start') && sig === 0))) {
     ids = ids.filter((id) => id !== 'course.signature');
   }
-  ids = ids.slice(0, 3);
-  // A course that paces like the typical one says so here only where #pacing has a type that differs: where its types
-  // are like every course's too, #pacing's sentence is the one null finding, said once.
-  const typical = !ids.length && Number(getNugget('course.signature', { city }).values.typical_like) === 1 && (!page.types || getNugget('course.types', { city }).guard);
-  return { ids, typical };
+  return ids.slice(0, 3);
 }
 
 export default function CourseGlance({ page }: { page: CoursePageData }) {
   const { city, display, summary: s } = page;
-  const { ids, typical } = glanceRows(page);
-  const signature = getNugget('course.signature', { city });
+  const ids = glanceRows(page);
   const typicalCurve = readInsight<Courses>('courses.json').typical_curve;
   const curve = s.curve?.length === 9 ? s.curve : null;
-  if (typical && curve) {
-    // Nothing sets the course apart: it says so, over its pace by section and the typical course's.
-    const mid = [2.5, 7.5, 12.5, 17.5, 22.5, 27.5, 32.5, 37.5, 41.1];
-    return (
-      <CourseSection id="at-a-glance" track="chapter-1" beat="At a glance" title={<Said nugget={signature} />}>
-        <div className="course-glance">
-          <LineProfile x={mid} xDomain={[0, 42.195]} xTicks={[{ value: 0, label: 'Start' }, { value: 10, label: '10K' }, { value: 20, label: '20K' }, { value: 30, label: '30K' }, { value: 40, label: '40K' }]}
-            layers={[{ id: 'shape', label: display, series: [{ id: 'typical', values: typicalCurve, dashed: true }, { id: 'course', values: curve }] }]}
-            refs={[{ value: 0, label: 'Its average pace' }]}
-            keys={[{ label: display, mark: 'line' }, { label: 'The typical course', mark: 'dash' }]}
-            label={`${display}'s pace in each 5K section against its own average, over the typical course's: no section ${SIGNATURE_MIN} points apart or more`} height={120} heightMd={170} />
-        </div>
-      </CourseSection>
-    );
-  }
   if (!ids.length) return null;
   const kept = display.replace(/ /g, '\u00a0');
   const rows: Row[] = ids.map((id) => {

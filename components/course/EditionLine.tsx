@@ -9,8 +9,8 @@ import { yearKey, yearPad, yearTicks } from '@/components/viz/YearStrip';
 
 /**
  * The median finish, edition by edition (the redesign spec, section 7.10 "#finish-times"): a dot per edition on a
- * time-scaled axis, joined only across consecutive years, so a year with no edition leaves the line broken, under the
- * same faint band as the hero's strip (scrubbed, it reads "2020, not in the data"). The y scale spans at least 20 minutes,
+ * time-scaled axis, joined only across consecutive years, so a year with no edition leaves the line broken (scrubbed,
+ * it reads "2020, not in the data"; no band, which would read as a highlight). The y scale spans at least 20 minutes,
  * centred on the editions, so a few seconds never draw as a climb or a drop, and up to two round-minute gridlines carry
  * it, labelled inside the plot on its left. The edition the readout opens on (the one the sentence accents) is signal
  * and unlabelled, since the readout names it; the other the sentence names is labelled in one format, on a leader where
@@ -43,10 +43,9 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
     const run = runs[runs.length - 1];
     if (run && p.year === run[run.length - 1].year + 1) run.push(p); else runs.push([p]);
   }
-  // Years with no edition between the first and the last: a faint band each, and a scrub point keyed "not in the data".
+  // Every year from the first edition to the last is a scrub point; a year with no edition is keyed "not in the data".
   const years = Array.from({ length: last - first + 1 }, (_, k) => first + k);
   const scrubOf = (year: number) => years.indexOf(year);
-  const gaps = runs.slice(1).map((r, i) => ({ from: runs[i][runs[i].length - 1].year + 1, to: r[0].year - 1 }));
   const dots = sorted.map((p) => ({ x: x(p.year), y: y(p.seconds), r: 5 }));
   // The joined runs as points sampled along each segment (plot fractions), for every label to keep clear of.
   const along = runs.flatMap((r) => r.slice(1).flatMap((p, i) => {
@@ -106,7 +105,6 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
   }
   const plot = (
     <Plot paths={runs.filter((r) => r.length > 1).map((r) => <path key={r[0].year} className="l-ink2" d={linePath(r.map((p) => [x(p.year), y(p.seconds)]))} />)}>
-      {gaps.map((g) => <rect key={g.from} className="a-wash year-gap" x={pc(x(g.from - 0.5))} width={pc(x(g.to + 0.5) - x(g.from - 0.5))} y="0" height="100%" />)}
       <g className="viz-grid">
         {grid.map((g) => (
           <g key={g.label}>

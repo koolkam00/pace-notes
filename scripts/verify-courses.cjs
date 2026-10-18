@@ -549,24 +549,24 @@ if (html) {
     for (const m of body.matchAll(/<(h[1-6])\b[^>]*>([\s\S]*?)<\/\1>/g)) check(textOf(m[2]).length > 0, where, `an empty <${m[1]}>`);
 
     // Sections: present exactly when the data gives them something to show (no heading over an empty chart), each with
-    // its generic tracking id. The glance shows the rows whose guards hold (at most three, in order), or, with none, the
-    // two curves of a course that paces like the typical one (unless #pacing already says its types are like every
-    // course's: one null finding, said once); else it is left out.
+    // its generic tracking id. The glance shows the rows whose guards hold (at most three, in order); with none it is
+    // left out, and the page opens on its first difference.
     const GLANCE = ['course.start', 'course.late', 'course.shape', 'course.signature'];
-    let glanceIds = GLANCE.filter((id) => { const n = N.getNugget(id, { city }); return n.guard && !!n.figure && (id !== 'course.start' || !!f.route); });
+    // The start row stays out where #elevation's biggest climb is the same first 5K (one 5K, one climb said).
+    const climbNugget = N.getNugget('course.climb', { city });
+    const climbFirst = climbNugget.guard && Number(climbNugget.values.section) === 0;
+    let glanceIds = GLANCE.filter((id) => { const n = N.getNugget(id, { city }); return n.guard && !!n.figure && (id !== 'course.start' || (!!f.route && !climbFirst)); });
     // The signature row stays out beside a row about the same stretch: the first 5K beside the start row, a section next
     // to the slowest 5K beside the late row.
     const sigAt = f.s.signature_section ? courses.sections.indexOf(f.s.signature_section) : -1, slowAt = f.s.slowest_section ? courses.sections.indexOf(f.s.slowest_section) : -1;
     if (glanceIds.includes('course.signature') && ((glanceIds.includes('course.late') && Math.abs(sigAt - slowAt) <= 1) || (glanceIds.includes('course.start') && sigAt === 0))) glanceIds = glanceIds.filter((id) => id !== 'course.signature');
     glanceIds = glanceIds.slice(0, 3);
-    // A course that paces like the typical one says so at a glance only where #pacing does not say the same of its types.
-    const typicalLike = !glanceIds.length && N.getNugget('course.signature', { city }).values.typical_like === 1 && (!f.types || N.getNugget('course.types', { city }).guard);
     const goalsShown = !!f.ctx && f.ctx.editions >= courseGoal.min_editions;
     // The race mornings show only as the warmest/coolest contrast (5 °C or more) over three or more of them.
     const pairGap = f.hotCool ? Math.round((f.hotCool.hot.temp - f.hotCool.cool.temp) * 10) / 10 : null;
     const weatherShown = pairGap !== null && pairGap >= courses.weather.pairs.min_gap_c && f.weather.length >= 3;
     const want = {
-      'at-a-glance': glanceIds.length > 0 || typicalLike, 'finish-times': f.cells.length >= 3 && N.getNugget('course.times', { city }).guard, elevation: !!f.route, pacing: !!f.types,
+      'at-a-glance': glanceIds.length > 0, 'finish-times': f.cells.length >= 3 && N.getNugget('course.times', { city }).guard, elevation: !!f.route, pacing: !!f.types,
       goals: goalsShown, weather: weatherShown, replay: replay.editions.some((e) => e.city === city),
     };
     for (const id of SECTIONS) {
@@ -600,7 +600,6 @@ if (html) {
       check(glanceKeys.includes(n.key) === shown, where, `glance row ${id}: ${shown ? 'missing' : 'shown without its guard'} ("${n.key}")`);
     }
     check(glanceKeys.length === glanceIds.length, where, `${glanceKeys.length} glance rows for ${glanceIds.length} guards`);
-    if (typicalLike) check(norm(h2('at-a-glance') ?? '') === norm(said('course.signature', city)), where, `the glance's finding "${h2('at-a-glance')}" is not course.signature's fallback`);
     const tracked = [...body.matchAll(/data-track-section="([^"]+)"/g)].map((m) => m[1]);
     check(new Set(tracked).size === tracked.length, where, `a section id repeats: ${tracked}`);
 
