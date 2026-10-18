@@ -16,7 +16,7 @@ export default function Checkpoint() {
   const definition = analysisBySlug('checkpoint')!;
   const summary = getPersonalSummary()!;
   const under = getNugget('checkpoint.under'), cushion = getNugget('checkpoint.cushion');
-  const v = under.values as { goal_min: number; mat_km: number; share: number; median_s: number };
+  const v = under.values as { goal_min: number; mat_km: number; share: number; median_s: number; band_min: number };
   const row = getCheckpointDefault();
   const even = Math.round((v.goal_min * 60 * v.mat_km) / 42.195);
   const lit = Math.round(v.share * 100);
@@ -26,8 +26,9 @@ export default function Checkpoint() {
         <DotGrid lit={lit} label={`${lit} of 100 finishes on even ${hm(v.goal_min)} pace at ${v.mat_km}K got under ${hm(v.goal_min)}`} />
         <p className="answer-dots-label"><strong>{lit}</strong> of 100 got under {hm(v.goal_min)}</p>
       </div>
+      {/* The group passed in a 2-minute band (the one holding even pace), not at even pace exactly. */}
       <dl className="answer-cells">
-        <div><dt>At {v.mat_km}K</dt><dd>{clock(even)}</dd></div>
+        <div><dt>At {v.mat_km}K</dt><dd>{hm(v.band_min)}–{hm(v.band_min + 2)}</dd><dd className="answer-cell-note">Even pace {clock(even)}</dd></div>
         <div><dt>Median finish</dt><dd>{clock(v.median_s)}</dd></div>
       </dl>
     </AnswerCard>

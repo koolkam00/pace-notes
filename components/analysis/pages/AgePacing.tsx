@@ -10,7 +10,8 @@ import { ageRows } from '@/lib/nuggets/analyses';
 import { hm } from '@/lib/nuggets/format';
 
 const PATH = '/analyses/age-and-pacing';
-const signedPct = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 1 })}%`;
+/** One decimal everywhere ("+11.0%"), so a column of values reads alike. */
+const signedPct = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)}%`;
 
 /** Chapter 07, page 2: the second 20K by age, pooled and at the same finish time, on one chart; then Make it yours. */
 export default function AgePacing() {
@@ -32,8 +33,8 @@ export default function AgePacing() {
       <LineProfile x={xs} xDomain={[-0.4, rows.length - 0.6]} yDomain={[lo, hi]}
         layers={[{ id: 'a', label: 'Age', series: [{ id: 'pooled', values: rows.map((r) => r.pooled), tone: 'quiet' }, { id: 'same', values: rows.map((r) => r.same), tone: 'signal' }],
           labels: [
-            // The pooled line's top (the H1's "older runners slowed more"); its low point has no room above it at a
-            // phone's width, so it is read in Values.
+            // The pooled line's top (the oldest group, the H1's "slowed more"); its low point has no room above it at
+            // a phone's width, so it is read in Values.
             { x: pooledHi, y: rows[pooledHi].pooled, text: `${rows[pooledHi].age} ${signedPct(rows[pooledHi].pooled)}`, priority: 2, prefer: 'above' },
             { x: mid, y: rows[mid].same, text: `Near ${hm(goal)}: ${signedPct(sameLo)} to ${signedPct(sameHi)}`, tone: 'signal', priority: 3, prefer: 'below' },
           ] }]}
@@ -41,7 +42,7 @@ export default function AgePacing() {
         xTicks={[...new Set([0, Math.round((rows.length - 1) / 2), rows.length - 1])].map((i) => ({ value: i, label: rows[i].age }))}
         // Gridlines every 5 points inside the range, so the gap between the lines can be read; none near the top, where
         // the oldest group's label sits at the right edge.
-        yTicks={Array.from({ length: Math.floor(hi / 5) - Math.ceil(lo / 5) + 1 }, (_, k) => (Math.ceil(lo / 5) + k) * 5).filter((t) => t > lo && t < Math.max(...vals) - 2).slice(-3).map((t) => ({ value: t, label: signedPct(t) }))}
+        yTicks={Array.from({ length: Math.floor(hi / 5) - Math.ceil(lo / 5) + 1 }, (_, k) => (Math.ceil(lo / 5) + k) * 5).filter((t) => t > lo && t < Math.max(...vals) - 2).slice(-3).map((t) => ({ value: t, label: `${t > 0 ? '+' : t < 0 ? '−' : ''}${Math.abs(t)}%` }))}
         keys={[{ label: 'All finishes', mark: 'line', tone: 'quiet' }, { label: `Finishes near ${hm(goal)}`, mark: 'line', tone: 'signal' }]}
         label={`The second 20K against the first, by age group: pooled from ${signedPct(rows[pooledLo].pooled)} at ${rows[pooledLo].age} to ${signedPct(rows[pooledHi].pooled)} at ${rows[pooledHi].age}; near ${hm(goal)}, every age within ${Number(n.values.same_spread).toFixed(1)} points`}
         values={<Values id="age-two" caption="The second 20K against the first, by age group" columns={[{ key: 'a', label: 'Age group' }, { key: 'p', label: 'All finishes' }, { key: 's', label: `Near ${hm(goal)}` }]}

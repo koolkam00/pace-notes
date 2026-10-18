@@ -5,8 +5,7 @@ import ShareBar from '@/components/viz/ShareBar';
 import ChapterRail from '@/components/ChapterRail';
 import ChapterEnd from '@/components/ChapterEnd';
 import Columns from '@/components/viz/Columns';
-import { Beat } from '@/components/analysis/Shell';
-import { UnitLink as Link } from '@/components/UnitsProvider';
+import { Beat, Say } from '@/components/analysis/Shell';
 import { getStudyEvidence } from '@/lib/research-data';
 import { readingAttrs } from '@/lib/chapters';
 import { getNugget, settledReadingOf } from '@/lib/nuggets';
@@ -34,7 +33,7 @@ const bestLabel = (label: string) => label.replace(/(\d+)\s*hours?/g, '$1:00').r
  * Chapter 05's opener (the redesign spec, section 7.7, under section 00): where sustained slowdowns began, then one
  * finding: how it rose with an earlier best's time. The spread across courses is course comparison's finding (chapter
  * 08), so it is not repeated here. The definition and its citation are on /methodology#sustained-slowdown, linked once
- * from the question.
+ * from the H1.
  */
 export default function Page() {
   const study = getStudyEvidence();
@@ -49,6 +48,9 @@ export default function Page() {
     { id: 'late', label: '30K or later', share: late / total, display: '', tone: 'signal' as const },
   ];
   const rate = Number(onset.values.rate);
+  // The H1 is the finding (its first "sustained slowdowns" linked to the definition); the figure under it gives the
+  // share, and the dek how common one was.
+  const title = { ...onset, headline: 'Most sustained slowdowns began at *30K or later*.', fallback: 'Sustained slowdown: when it began, and where.' };
   const bands = (study?.figures.find((f) => f.id === 'history')?.charts[0]?.rows ?? []).filter((r) => Number(r.n_value) >= 100);
   const first = bands[0];
   return (
@@ -56,8 +58,8 @@ export default function Page() {
       <ChapterRail path={PATH} />
       <article className="analysis-flow">
         <section className="analysis-hero" id="answer" data-track-section="hero" data-beat="Where it began">
-          <Reading crumbs={<ChapterCrumbs path={PATH} />} title="Sustained slowdown: *when* it begins, and where." titleSize="title"
-            dek={<>{Number.isFinite(rate) ? `${capitalize(approxWords(rate))} finishes had a ` : 'How often finishes had a '}<Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link>. When did it begin, and where?</>}
+          <Reading crumbs={<ChapterCrumbs path={PATH} />} title={<Say nugget={title} term />} titleSize="title"
+            dek={Number.isFinite(rate) ? `${capitalize(approxWords(rate))} finishes had one.` : 'Where sustained slowdowns began.'}
             figure={onset.figure ? { ...onset.figure } : undefined} unitLine={onset.key}
             instrument={<ShareBar segments={segments} inside={false} label={`Where sustained slowdowns began: ${segments.map((s) => `${s.label} ${s.display || pct(s.share)}`).join(', ')}`} />} />
         </section>

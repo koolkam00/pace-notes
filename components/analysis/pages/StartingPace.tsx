@@ -65,9 +65,10 @@ function OpeningCurve() {
   const span = xs[xs.length - 1] - xs[0];
   return (
     // Behind is down and ahead is up, as on every pace and gap chart on the site: the best finish is the curve's peak.
+    // The behind side is a quiet fill (slower is never orange).
     // Half a bin of room at each end, so the outermost ticks (on bin centres) stay inside the axis.
     <LineProfile x={xs} xDomain={[xs[0] - 0.5, xs[xs.length - 1] + 0.5]} yDomain={[Math.max(hi, yTicks[0].value), floor]}
-      layers={[{ id: 'u', label: 'Finish', series: [{ id: 'finish', values: curve.map((c) => c.finish_s), fillAbove: 0 }],
+      layers={[{ id: 'u', label: 'Finish', series: [{ id: 'finish', values: curve.map((c) => c.finish_s), fillAbove: 0, fillTone: 'quiet' }],
         // The best point is ringed; the readout above names its value, so no label sits under the needle.
         points: [{ x: best.lo + 0.5, y: best.finish_s, kind: 'best' }] }]}
       refs={[{ value: 0, label: 'same pace' }]}
@@ -81,6 +82,8 @@ function OpeningCurve() {
         points: { x: xs.map((x) => (x - xs[0]) / span), keys: curve.map((c) => `First 5K ${openingWords(c.lo)}, at the finish`), values: curve.map((c) => delta(c.finish_s)),
           side: [{ label: 'After 20K', values: curve.map((c) => delta(c.after20_s)) }, { label: 'Sustained slowdown', values: curve.map((c) => pct(c.slowdown)) }] },
         initial: bestI, detents: [evenI, bestI, fastI].filter((i) => i >= 0),
+        // Away from the best bin (ringed), a dot marks where the needle meets the curve, so the readout is tied to it.
+        follow: 'finish',
       }}
       label={`The finish against same-pace finishes, by first-5K pace; the best average finish went with a first 5K ${openingWords(best.lo)}`}
       // The curve's own twin, 1% bin by bin, as the readout reads it (the explorer below gives the six wider bands).

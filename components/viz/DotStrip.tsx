@@ -32,8 +32,12 @@ const STEP = 11;
 /** The pick ring's reach round the dot it opens on (20 px across, plus its 2 px line). */
 const RING = 12;
 
-export default function DotStrip({ items, domain, ticks, label, readoutKey, values, labelExtremes = true, keyLabels, prompt }: {
+export default function DotStrip({ items, domain, ticks, label, readoutKey, values, labelExtremes = true, keyLabels, prompt, labelSubject = false, hint }: {
   items: StripItem[]; domain?: [number, number]; ticks: { value: number; label: string }[]; label: string;
+  /** Name the subject on its dot too when it is an extreme (it then never hides under the pick ring). */
+  labelSubject?: boolean;
+  /** A quiet line under the strip saying it can be tapped ("Tap a dot to read its course"). */
+  hint?: string;
   /** The key's words when some dots are hollow ("Three or more editions", "Fewer editions"). */
   keyLabels?: { filled: string; hollow: string };
   /** The readout's words until a dot is picked ("Choose a dot to see its course"); the key then names the subject. */
@@ -69,7 +73,7 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
   // The readout above the plot names the dot the strip opens on (the subject, else the lowest), and the ring sits on it,
   // so that dot carries no label of its own: the labels name the extremes it is not.
   const opened = Math.max(0, subject);
-  const labelled = new Set<number>((ends ? ends.map((e) => sorted.indexOf(e)) : []).filter((i) => i !== opened));
+  const labelled = new Set<number>((ends ? ends.map((e) => sorted.indexOf(e)) : []).filter((i) => i !== opened || (labelSubject && i === subject)));
   // A label rises above the tallest stack under its own width (at the narrowest phone), on a leader down to its dot
   // when it had to climb, so a stacked neighbour never hides it.
   const pxOf = (i: number) => x(sorted[i].value) * REF_WIDTH;
@@ -78,7 +82,8 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
     return Math.max(levels[i], ...placed.filter((p) => Math.abs(p.px - pxOf(i)) < reach).map((p) => p.level));
   };
   // A label hides while the pick ring is on its dot (Scrubber's is-under): the readout names it then.
-  const lab: LabelItem[] = [...labelled].map((i) => ({ id: String(i), text: sorted[i].label, x: x(sorted[i].value), y: yOf(lift(i)), priority: i === subject ? 3 : 1, tone: i === subject ? 'signal' : 'ink', size: i === subject ? 14 : 13, gap: 10, prefer: 'above' as const, at: i }));
+  // The subject's own label (labelSubject) stands clear of the pick ring it opens with and never hides under it.
+  const lab: LabelItem[] = [...labelled].map((i) => ({ id: String(i), text: sorted[i].label, x: x(sorted[i].value), y: yOf(lift(i)), priority: i === subject ? 3 : 1, tone: i === subject ? 'signal' : 'ink', size: i === subject ? 14 : 13, gap: i === subject ? RING + 2 : 10, prefer: 'above' as const, ...(i === subject && labelSubject ? {} : { at: i }) }));
   const labels = placeLabels(lab, { height, avoid: sorted.map((s, i) => ({ x: x(s.value), y: yOf(levels[i]), r: R })) });
   const leaders = [...labelled].filter((i) => lift(i) > levels[i]).map((i) => ({ i, y0: yOf(lift(i)) - (R + 2) / height, y1: yOf(levels[i]) - (R + 2) / height }));
   const plot = (
@@ -106,6 +111,7 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
         ...(prompt && subject >= 0 ? [{ label: sorted[subject].label, mark: 'dot' as const, tone: 'signal' as const }] : []),
         ...(keyLabels && sorted.some((s) => s.hollow) ? [{ label: keyLabels.filled, mark: 'dot' as const, tone: 'quiet' as const }, { label: keyLabels.hollow, mark: 'hollow' as const }] : []),
       ]}
+      caption={hint}
       values={values}
     />
   );

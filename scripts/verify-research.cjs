@@ -306,7 +306,9 @@ for (const question of [...questions, ...extras]) for (const source of question.
   const study = require('../lib/research-data.ts').getStudyEvidence();
   const rows = study.timing.charts[0].rows;
   const total = rows.reduce((s, r) => s + r.episodes, 0), late = rows.filter(r => r.label >= 30).reduce((s, r) => s + r.episodes, 0);
-  assert.match(html, /<h1[^>]*>Sustained slowdown: <em>when<\/em> it begins, and where\.<\/h1>/);
+  // "Most … began at 30K or later" holds only while more than half of them did.
+  assert.ok(late / total > 0.5, '/slowdown: most sustained slowdowns began at 30K or later');
+  assert.match(html, /<h1[^>]*>Most <a class="term-link" href="\/methodology#sustained-slowdown">sustained slowdowns<\/a> began at <em>30K or later<\/em>\.<\/h1>/);
   assert.ok(html.includes(`>${Math.round(100 * late / total)}<`), '/slowdown: the reading is the share that began at 30K or later');
   for (const id of ['answer', 'history']) assert.match(html, new RegExp(`<section[^>]*id="${id}"`), `/slowdown: the ${id} beat`);
   // The spread across courses is course comparison's finding: /slowdown does not repeat it.

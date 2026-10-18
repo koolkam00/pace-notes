@@ -19,7 +19,9 @@ import { typeStyle } from '@/lib/viz/palette';
  * `layers` are the lens: goal chips or the like. Each is drawn on the server and the chosen one shows (the lens fades
  * between them). `scrub` adds the needle, with detents at the values the headline names.
  */
-export type ProfileSeries = { id: string; values: number[]; tone?: 'ink' | 'quiet' | 'signal' | 'type'; typeIndex?: number; dashed?: boolean; fillAbove?: number };
+export type ProfileSeries = { id: string; values: number[]; tone?: 'ink' | 'quiet' | 'signal' | 'type'; typeIndex?: number; dashed?: boolean; fillAbove?: number;
+  /** The `fillAbove` area's fill: the signal wash (default) or quiet, where the filled side is "behind" (slower is never orange). */
+  fillTone?: 'signal' | 'quiet' };
 export type ProfileLayer = {
   id: string;
   label: string;
@@ -91,7 +93,7 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
         <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
           {layer.band ? <path className="a-band" d={areaPath(pts(layer.band.hi), pts(layer.band.lo))} /> : null}
           {layer.series.filter((s) => s.fillAbove !== undefined).map((s) => (
-            <path key={`fill-${s.id}`} className="a-signal" d={areaPath(pts(s.values.map((v) => Math.max(v, s.fillAbove!))), pts(s.values.map(() => s.fillAbove!)))} />
+            <path key={`fill-${s.id}`} className={s.fillTone === 'quiet' ? 'a-silhouette' : 'a-signal'} d={areaPath(pts(s.values.map((v) => Math.max(v, s.fillAbove!))), pts(s.values.map(() => s.fillAbove!)))} />
           ))}
           {layer.series.map((s) => (
             <path key={s.id} className={s.dashed ? 'l-dash' : s.tone === 'quiet' ? 'l-quiet' : s.tone === 'signal' ? 'l-signal' : s.tone === 'type' ? 'l-type' : 'l-ink'}

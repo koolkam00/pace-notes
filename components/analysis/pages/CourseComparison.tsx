@@ -13,7 +13,8 @@ const PATH = '/analyses/course-comparison';
 
 /**
  * Chapter 08, page 2: the spread of sustained slowdown across courses drawn as one ranked dot strip, its two ends named
- * on their dots (the H1 gives their rates), then Make it yours. The explorer shows its own strip only once the visitor
+ * on their dots (the H1 gives their rates; the readout opens on the high end, the H1's accent), the courses counted in
+ * the kicker, then Make it yours, which follows the same high end. The explorer shows its own strip only once the visitor
  * changes something, so the page draws each picture once.
  */
 export default function CourseComparison() {
@@ -32,8 +33,8 @@ export default function CourseComparison() {
   // The high end is the H1's accent: its dot is the signal and the readout opens on it; the low end is named on its dot.
   const high = comparableCourses(shown).reduce<(typeof shown)[number] | undefined>((a, b) => (!a || b.slowdown_pct > a.slowdown_pct ? b : a), undefined);
   const answer = sorted.length >= 2 ? (
-    <AnswerCard kicker="Sustained slowdown by course">
-      <DotStrip items={sorted.map((c) => ({ id: c.id, label: courseName(c.label), value: c.slowdown_pct, display: pct(c.slowdown_pct / 100), detail: count(c.n), hollow: !comparable.has(c.id), subject: c === high }))}
+    <AnswerCard kicker={`Sustained slowdown on ${sorted.length} courses${sorted.every((c) => comparable.has(c.id)) ? ' with three or more editions' : ''}`}>
+      <DotStrip labelSubject hint="Tap a dot to read its course" items={sorted.map((c) => ({ id: c.id, label: courseName(c.label), value: c.slowdown_pct, display: pct(c.slowdown_pct / 100), detail: count(c.n), hollow: !comparable.has(c.id), subject: c === high }))}
         domain={[lo, Math.max(...v) > hi - 5 ? hi + 5 : hi]} ticks={ticks.map((t) => ({ value: t, label: `${t}%` }))} readoutKey="Finishes"
         keyLabels={{ filled: 'Three or more editions', hollow: 'Fewer editions' }}
         label={`Sustained slowdown by course, one dot per course, from ${pct(v[0] / 100)} to ${pct(v[v.length - 1] / 100)}; tap a dot to read it`}

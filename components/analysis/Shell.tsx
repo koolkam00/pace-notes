@@ -116,7 +116,7 @@ export function ExploreBeat({ track, children }: { track: Track; children: React
 }
 
 /** A night answer card for an answer that is a figure rather than a receipt (dot grids, a chart). */
-export function AnswerCard({ kicker, children, foot, className }: { kicker?: string; children: ReactNode; foot?: ReactNode; className?: string }) {
+export function AnswerCard({ kicker, children, foot, className }: { kicker?: ReactNode; children: ReactNode; foot?: ReactNode; className?: string }) {
   return (
     <div className={`answer-card night${className ? ` ${className}` : ''}`}>
       {kicker ? <p className="answer-kicker t-kicker">{kicker}</p> : null}

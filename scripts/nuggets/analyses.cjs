@@ -56,15 +56,18 @@ module.exports = function analyses({ json, eq, ok, core }) {
   };
 
   R['downhill.bands'] = (n) => {
-    let fewer = 0, total = 0;
+    let fewer = 0, total = 0, best = null;
     for (const band of af.opening_bands) {
       const d = afRow.downhill.find((g) => g.terrain === 'downhill' && g.opening === band.id);
       const o = afRow.downhill.find((g) => g.terrain === 'other' && g.opening === band.id);
       if (!d || !o || d.n < 100 || o.n < 100) continue;
-      total++; if (d.slowdown_pct < o.slowdown_pct) fewer++;
+      total++; if (Math.round(o.slowdown_pct) - Math.round(d.slowdown_pct) >= 2) fewer++;
+      if (!best || Math.abs(o.slowdown_pct - d.slowdown_pct) > Math.abs(best.o.slowdown_pct - best.d.slowdown_pct)) best = { band, d, o };
     }
-    eq([n.values.fewer, n.values.total], [fewer, total], 'downhill.bands recounts the bands');
-    eq(n.guard, fewer > total / 2, 'downhill.bands: guard (a majority)');
+    eq([n.values.fewer, n.values.total, n.values.band], [fewer, total, best.band.id], 'downhill.bands recounts the bands and the clearest one');
+    // A band "differs" from 2 whole points; a 1-point gap is a null.
+    eq(n.guard, Math.abs(Math.round(best.o.slowdown_pct) - Math.round(best.d.slowdown_pct)) >= 2, 'downhill.bands: guard (2 points apart)');
+    if (n.guard) ok(shown(n).includes(`*${Math.round(best.d.slowdown_pct)}%*`) && shown(n).includes(`against ${Math.round(best.o.slowdown_pct)}% elsewhere`), 'downhill.bands: the sentence names the clearest band\'s two shares');
   };
 
   R['pattern.profile'] = (n) => {
@@ -132,6 +135,10 @@ module.exports = function analyses({ json, eq, ok, core }) {
     eq([n.values.groups, n.values.pooled_lo_age, n.values.pooled_hi_age], [rows.length, lo.age, hi.age], 'age.retention recounts the pooled extremes');
     close(n.values.same_spread, same, 'age.retention recounts the same-finish spread');
     eq(n.guard, parseInt(hi.age, 10) > parseInt(lo.age, 10) && same <= 1.5 && same < (hi.pooled - lo.pooled) / 2, 'age.retention: guard');
+    // "The youngest and oldest" only on a U: the least slowing at a middle age, both ends a point or more above it.
+    rows.sort((a, b) => parseInt(a.age, 10) - parseInt(b.age, 10));
+    const u = rows.length >= 3 && lo !== rows[0] && lo !== rows[rows.length - 1] && rows[0].pooled - lo.pooled >= 1 && rows[rows.length - 1].pooled - lo.pooled >= 1;
+    if (n.guard) ok(shown(n).startsWith(`Across all finishes, ${u ? 'the youngest and oldest' : 'older runners'} slowed more.`), 'age.retention: the pooled shape in words');
   };
 
   const courseRange = () => {
@@ -170,6 +177,13 @@ module.exports = function analyses({ json, eq, ok, core }) {
     eq(n.values.city, best.city, 'terrain.climb recounts the data-chosen course');
     eq(n.values.climb_i, best.climb, 'terrain.climb: its biggest climb');
     eq(n.guard, best.matched, 'terrain.climb: guard (the climb is the slowest 5K)');
+    // Its figure is the climb's pace against the finishes' distance-weighted average, in whole percent.
+    if (n.figure) {
+      const d = cityFile(best.city), p = d.cohorts['all|all|all'].profiles[String(GOAL)].pace.map((x) => x[1]);
+      const ends = [5, 10, 15, 20, 25, 30, 35, 40, 42.195], len = ends.map((e, i) => e - (i ? ends[i - 1] : 0));
+      const mean = p.reduce((a, v, i) => a + v * len[i], 0) / 42.195;
+      eq(n.figure.value, String(Math.round((p[best.climb] / mean - 1) * 100)), 'terrain.climb: the figure is the climb\'s pace against the average');
+    }
   };
 
   R['weather.start'] = (n) => {
@@ -183,7 +197,7 @@ module.exports = function analyses({ json, eq, ok, core }) {
   R['weather.warming'] = (n) => {
     const c = wx.candidates.find((x) => x.id === 'warming');
     eq(n.guard, c.status === 'ready' && c.takeaway_type === 'association' && c.effect.low > 0, 'weather.warming: guard');
-    if (n.guard) ok(shown(n).includes(`*${Math.round(c.effect.estimate)}%*`) && shown(n, 'mi').includes(`${(c.exposure.q75 * 1.8).toFixed(0)}°F`), 'weather.warming: the sentence names the estimate and the rise');
+    if (n.guard) ok(shown(n).includes(`*${Math.round(c.effect.estimate)} ${Math.round(c.effect.estimate) === 1 ? 'point' : 'points'}*`) && shown(n, 'mi').includes(`${(c.exposure.q75 * 1.8).toFixed(0)}°F`), 'weather.warming: the sentence names the estimate and the rise');
   };
   R['weather.wind'] = (n) => {
     const c = wx.candidates.find((x) => x.id === 'wind');
@@ -228,7 +242,8 @@ module.exports = function analyses({ json, eq, ok, core }) {
       [A.kickBankFrom([band('More than 10% faster', -100, -20)]), 'How a fast first 5K finished, against the same pace.'],
       [A.kickSweetSpotFrom([{ lo: -3, n: 500, slowdown: 0.3, excess: 0, open_s: -10, after20_s: 0, finish_s: -20 }]), 'The best average finish went with a first 5K 2–3% faster than the pace that followed.'],
       [A.downhillOpeningFrom([g('downhill', 'f', 300, 40), g('downhill', 's', 700, 20), g('other', 'f', 100, 40), g('other', 's', 900, 20)], bands), '30% of downhill-start finishes opened more than 5% fast; elsewhere 10%.'],
-      [A.downhillBandsFrom([g('downhill', 'f', 300, 40), g('downhill', 's', 700, 30), g('other', 'f', 300, 30), g('other', 's', 900, 20)], bands), 'Sustained slowdown by opening band, downhill-start courses against the rest.'],
+      // Every band within a point: a null, said as one.
+      [A.downhillBandsFrom([g('downhill', 'f', 300, 40), g('downhill', 's', 700, 30), g('other', 'f', 300, 40.6), g('other', 's', 900, 30.4)], bands), 'Sustained slowdown by opening band, downhill-start courses against the rest.'],
       [A.patternFrom([300, 300, 300, 300, 300, 300, 300, 300, 300]), 'How finishes near 4:00 paced each 5K, against even 4:00 pace.'],
       [A.checkpointUnderFrom({ n: 500, elapsed: 170, finish: [0, 14000, 0] }, 0.6), 'On even 4:00 pace at 30K, 60% of finishes got under 4:00.'],
       [A.checkpointCushionFrom([{ elapsed: 170, n: 500, share: 0.4, median: 0 }]), 'At 30K, the share that got under 4:00, by split.'],

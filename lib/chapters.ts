@@ -159,7 +159,7 @@ export const CHAPTERS: readonly Chapter[] = [
     lead: 'runner.yours', key: 'nine mats, one race' },
   { n: 11, id: 'chapter-11', part: 3, marker: '11', title: 'The next one', subtitle: 'Improvement, your plan',
     pages: [
-      analysis('finding-improvement', 'Where improvement happens', 'kick.recurrence'),
+      analysis('finding-improvement', 'Where improvement happens', 'gains.final'),
       tool('plan', 'Plan your race', 'Plan your race', 'plan.goal'),
     ],
     also: [{ href: '/tools/pace-band', label: 'Pace band' }, { href: '/tools/course-chooser', label: 'Course chooser' }, { href: '/tools/predictor', label: 'Finish-time predictor' }],

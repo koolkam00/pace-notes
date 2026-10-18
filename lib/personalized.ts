@@ -5,8 +5,9 @@ import { MARATHON_SECTION_ENDS, sectionLabel } from './section-labels';
 
 export const GUIDE_PACK = 'ext_personalized_guide';
 export const defaultProfile: Profile = { city: 'New York', age: 'all', gender: 'all', goal: 180, previous: null, focus: 'prepare' };
+/** A clock time, "3:57:48" with seconds, else to the nearest minute ("3:58"; never the minute floored). */
 export const clock = (seconds: number, showSeconds = false) => {
-  const s = Math.round(seconds);
+  const s = showSeconds ? Math.round(seconds) : Math.round(seconds / 60) * 60;
   return `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}${showSeconds ? `:${String(s % 60).padStart(2, '0')}` : ''}`;
 };
 /** A duration as minutes and seconds ("19:56"). */

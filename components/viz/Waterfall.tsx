@@ -3,7 +3,7 @@ import ChartFrame from './ChartFrame';
 import Axis from './Axis';
 import Plot, { Gridlines, RefLine } from './Plot';
 import Annotation from './Annotation';
-import { placeLabels, type LabelItem } from './labels';
+import { placeLabels, widthClass, type LabelItem } from './labels';
 import { linear, pc, yScale } from './scale';
 
 /**
@@ -42,7 +42,9 @@ export default function Waterfall({ steps, total, yTicks = [], xTicks, label, va
   const every = steps.length <= 3;
   const items: LabelItem[] = [
     ...(washed ? [{ id: 'span', text: washed.text, x: x(washed.from), y: 0.02, priority: 4, prefer: 'right', tone: 'signal', gap: 8 } as LabelItem] : []),
-    { id: 'big', text: `${steps[big].label} ${steps[big].display}`, x: x(big + 0.5), y: bars[big].top, priority: 3, tone: washed ? 'ink' : 'signal', gap: 8 },
+    // Over a washed stretch every bar is ink, so the largest step's label stands a little higher on a leader down to its
+    // own bar: a label wider than the bars never reads as its neighbour's.
+    { id: 'big', text: `${steps[big].label} ${steps[big].display}`, x: x(big + 0.5), y: bars[big].top, priority: 3, tone: washed ? 'ink' : 'signal', gap: washed ? 16 : 8, ...(washed ? { prefer: 'above' as const, only: 'above' as const } : {}) },
     ...steps.flatMap((s, i) => (i !== big && (every || i === 0) ? [{ id: i === 0 ? 'first' : `s${i}`, text: `${s.label} ${s.display}`, x: x(i + 0.5), y: bars[i].top, priority: 2, size: 13, gap: 8 } as LabelItem] : [])),
     { id: 'total', text: total.display, x: x(n - 0.5), y: y(Math.max(0, ends[ends.length - 1])), priority: 2, size: 13, gap: 8 },
   ];
@@ -56,6 +58,10 @@ export default function Waterfall({ steps, total, yTicks = [], xTicks, label, va
       ))}
       <rect className="m-ink waterfall-total" x={pc(x(n - 1 + 0.18))} width={pc(x(0.64) - x(0))} y={pc(Math.min(y(0), y(ends[ends.length - 1])))} height={pc(Math.abs(y(0) - y(ends[ends.length - 1])))} rx={2} />
       <RefLine y={y(0)} />
+      {washed ? placed.filter((l) => l.id === 'big' && l.minWidth !== null && l.dy < 0).map((l) => {
+        const from = l.y + (l.dy + 3) / height, to = bars[big].top - 3 / height;
+        return to > from ? <rect key="leader" className={`leader ${widthClass(l.minWidth)}`.trim()} x={pc(x(big + 0.5))} width={1} transform="translate(-0.5 0)" y={pc(from)} height={pc(to - from)} /> : null;
+      }) : null}
       <Annotation labels={placed} />
     </Plot>
   );

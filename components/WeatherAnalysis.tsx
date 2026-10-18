@@ -21,13 +21,18 @@ const SIDES: Record<WeatherCandidate['id'], [string, string, string]> = {
 /** The table's short column name for each exposure; the caption says it in full. */
 const SHORT: Record<WeatherCandidate['id'], string> = { warming: 'Rise', wind: 'Wind', humidity: 'Dew point' };
 const pp = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${weatherNumber(Math.abs(value), 1)}`;
+/** The plot's height in px: a row for the band's label, then the mark with its label above and its interval under. */
+const H = 96;
+const at = (px: number) => `${((px / H) * 100).toFixed(2)}%`;
 
 /**
  * One weather question as a tab of race-day weather (the redesign spec, section 7.11): its sentence (from
- * lib/nuggets), then the answer card: the two race days it compares (a typical small and large value), the estimate in
- * percentage points of second-20K slowing, and its interval drawn against zero and the ±1 point band of no material
- * difference. A null result is drawn grey inside that band: a null looks null. The observed race days are the Values
- * table. Inside the page's masked .analysis-layout; no course picker (the comparison is across all of them).
+ * lib/nuggets), then the answer card: the estimate in percentage points of second-20K slowing, labelled on its own mark
+ * with its interval under it, drawn against zero and the ±1 point band of no material difference, which is named on the
+ * plot itself (a legend reading "No material difference" under an estimate outside it read as the card's verdict). A
+ * null result is drawn grey inside that band: a null looks null. The observed race days are the Values table, inside
+ * the card as on every answer card. Inside the page's masked .analysis-layout; no course picker (the comparison is
+ * across all of them).
  */
 export default function WeatherAnalysis({ candidate, evidence, sentence }: { definition?: WeatherDefinition; candidate: WeatherCandidate; evidence: WeatherEvidence; questions?: WeatherDefinition[]; sentence?: NuggetText }) {
   const { units } = useUnits();
@@ -36,7 +41,8 @@ export default function WeatherAnalysis({ candidate, evidence, sentence }: { def
   const isNull = candidate.takeaway_type === 'precise_null';
   const band = evidence.prespecified_gate.practical_difference_pp;
   const text = typeof sentence === 'string' ? sentence : sentence?.[units];
-  const lo = Math.min(-band - 0.5, Math.floor(effect.low - 0.5)), hi = Math.max(band + 0.5, Math.ceil(effect.high + 0.5));
+  // Room right of the interval for the estimate's label at 200% zoom.
+  const lo = Math.min(-band - 0.5, Math.floor(effect.low - 0.5)), hi = Math.max(band + 0.5, Math.ceil(effect.high + 1));
   const x = linear([lo, hi]);
   // Whole points, at most five ticks, so they never crowd at 200% zoom.
   // Multiples of the step, so 0 is always labelled (the band of no material difference sits on it).
@@ -46,27 +52,29 @@ export default function WeatherAnalysis({ candidate, evidence, sentence }: { def
   const tickLabel = (t: number) => (t === 0 ? '0' : `${t > 0 ? '+' : '−'}${Math.abs(t)}`);
   const heading = EXPOSURE[candidate.id];
   // The interval's ends in plain words; its level (a method choice) is on /methodology.
-  const range = `between ${pp(effect.low)} and ${pp(effect.high)} points`;
+  const range = `Between ${pp(effect.low)} and ${pp(effect.high)} percentage points`;
+  const y = 58;
   const plot = (
     <Plot>
-      <rect className="effect-null-band" x={pc(x(-band))} width={pc(x(band) - x(-band))} y="24%" height="44%" rx={4} />
-      <rect className="grid-line" x={pc(x(0))} width={1} y="18%" height="56%" transform="translate(-0.5 0)" />
-      <rect className={isNull ? 'm-context effect-interval' : 'm-signal effect-interval'} x={pc(x(effect.low))} width={pc(x(effect.high) - x(effect.low))} y="46%" height={4} rx={2} transform="translate(0 -2)" />
-      <circle className={isNull ? 'm-context' : 'm-signal'} cx={pc(x(effect.estimate))} cy="46%" r={7} />
+      <rect className="effect-null-band" x={pc(x(-band))} width={pc(x(band) - x(-band))} y={at(22)} height={at(H - 26)} rx={4} />
+      {/* The band named on the plot: in full where the card is wide enough, short at 200% zoom. */}
+      <text className="tick effect-band-label is-wide" x={pc(x(0))} y={at(14)} textAnchor="middle">No material difference</text>
+      <text className="tick effect-band-label is-narrow" x={pc(x(-band))} y={at(14)}>Within ±{band} pt</text>
+      <rect className={isNull ? 'm-context effect-interval' : 'm-signal effect-interval'} x={pc(x(effect.low))} width={pc(x(effect.high) - x(effect.low))} y={at(y)} height={4} rx={2} transform="translate(0 -2)" />
+      <circle className={isNull ? 'm-context' : 'm-signal'} cx={pc(x(effect.estimate))} cy={at(y)} r={7} />
+      <text className="viz-label effect-estimate" x={pc(x(effect.estimate))} y={at(y - 15)} textAnchor="middle">{pp(effect.estimate)} pts</text>
+      <text className="tick effect-range" x={pc(x(effect.estimate))} y={at(y + 25)} textAnchor="middle">{pp(effect.low)} to {pp(effect.high)}</text>
     </Plot>
   );
   return <div className="analysis-layout weather-effect">
     {text ? <p className="weather-sentence t-sentence">{withEm(text)}</p> : null}
-    {/* The sentence above names the two race days and the estimate; the card draws the estimate and its interval against
-        zero and the band of no material difference, and adds only the interval's ends. */}
     <div className="answer-card night effect-card">
       <p className="answer-kicker t-kicker">{SIDES[candidate.id][2]}</p>
-      <ChartFrame className="effect-strip" label={`${heading}: ${pp(effect.estimate)} percentage points, ${range}`} height={64} heightMd={64} plot={plot}
-        axis={<Axis ticks={ticks.map(t => ({ x: x(t), label: tickLabel(t) }))} />} keys={[{ label: 'No material difference', mark: 'band' }]} />
-      <p className="answer-foot">Between {pp(effect.low)} and {pp(effect.high)} percentage points.</p>
+      <ChartFrame className="effect-strip" label={`${heading}: ${pp(effect.estimate)} percentage points. ${range}.`} height={H} heightMd={H} plot={plot}
+        axis={<Axis ticks={ticks.map(t => ({ x: x(t), label: tickLabel(t) }))} title={{ end: 'Percentage points' }} />}
+        values={<Values id={`${id}-days`} caption={`Observed race days: ${heading.toLowerCase()} and second-20K slowing`} count={evidence.editions.length}
+          columns={[{ key: 'e', label: 'Race', text: true }, { key: 'x', label: SHORT[candidate.id] }, { key: 's', label: 'Second 20K' }, { key: 'n', label: 'Finishes' }]}
+          rows={evidence.editions.map(row => [`${row.city} ${row.year}`, weatherLabel(row[exposure.key], candidate.id, units), `${weatherNumber(row.pace_change_pct, 1)}%`, row.n.toLocaleString('en-US')])} />} />
     </div>
-    <Values id={`${id}-days`} caption={`Observed race days: ${heading.toLowerCase()} and second-20K slowing`} count={evidence.editions.length}
-      columns={[{ key: 'e', label: 'Race', text: true }, { key: 'x', label: SHORT[candidate.id] }, { key: 's', label: 'Second 20K' }, { key: 'n', label: 'Finishes' }]}
-      rows={evidence.editions.map(row => [`${row.city} ${row.year}`, weatherLabel(row[exposure.key], candidate.id, units), `${weatherNumber(row.pace_change_pct, 1)}%`, row.n.toLocaleString('en-US')])} />
   </div>;
 }

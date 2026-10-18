@@ -19,7 +19,8 @@ export default function FindingImprovement() {
   const gains = getNugget('gains.final'), next = getNugget('kick.recurrence');
   const g = gains.values as { goal_min: number; open_min: number; middle_min: number; final_min: number; total_min: number };
   const mins = [g.open_min, g.middle_min, g.final_min];
-  const per = (s: number, km: number, u: UnitSystem) => `${Math.round((s / km) * (u === 'mi' ? 1.609344 : 1))} s a ${u === 'mi' ? 'mile' : 'km'}`;
+  // Seconds per mile or km in the site's one style ("28 s/mi"), as the pacing pages write it.
+  const per = (s: number, km: number, u: UnitSystem) => `${Math.round((s / km) * (u === 'mi' ? 1.609344 : 1))} s/${u}`;
   // Each block in whole seconds, rounded so the three add up to the total (largest remainder).
   const exact = mins.map((m) => m * 60), whole = exact.map(Math.round);
   for (let left = Math.round(g.total_min * 60) - whole.reduce((a, b) => a + b, 0), guard = 0; left !== 0 && guard < 3; guard++) {

@@ -1,11 +1,14 @@
 import { PageList } from '@/components/ui/ChapterList';
 import { getNugget, readingOf, type NuggetId } from '@/lib/nuggets';
-import { TEN_ANALYSES } from '@/lib/ten-analyses';
+import { CHAPTERS, livePages } from '@/lib/chapters';
 import { pageMetadata } from '@/lib/seo';
 
+/** The analyses the page lists (every live analysis page in the chapters), so the title counts what the list shows. */
+const listed = CHAPTERS.flatMap((c) => livePages(c)).filter((p) => p.kind === 'analysis' && p.href.startsWith('/analyses/')).length;
+
 export const metadata = pageMetadata({
-  title: `Marathon Race Planning: ${TEN_ANALYSES.length} Pacing Questions | Pace Notes`,
-  description: `${TEN_ANALYSES.length} marathon pacing questions answered with recorded 5 km splits: fast starts, checkpoints, courses, weather, hills, finish times and age.`,
+  title: `Marathon Pacing: ${listed} Analyses | Pace Notes`,
+  description: `${listed} marathon pacing questions answered with recorded 5 km splits: fast starts, checkpoints, courses, weather, hills, finish times and age.`,
   path: '/analyses',
 });
 

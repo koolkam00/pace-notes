@@ -12,8 +12,9 @@ import { paceColour, paceText } from '@/lib/viz/format';
  * passed in as `relief`), so a flat course looks flat. With `fit`, the plot is only as tall as this course's own relief
  * on that scale (two fifths of the full height at least), so a flat course is a low, compact profile rather than a squiggle
  * at the foot of an empty box, and the needle is only that tall. Under it, one block per section on the diverging pace
- * ramp with its value on the block (each block fits its own label: the % goes where it is too narrow, the readout says
- * it); the section the sentence is about is washed above. Scrub along the course: the readout leads with the number the
+ * ramp with its value on the block (each block at least 24 px, so the 2.2 km last one fits its number; on a row too
+ * narrow for the last block's "%", no block shows one, and the readout says it); the section the sentence is about is
+ * washed above. Scrub along the course: the readout leads with the number the
  * sentence gives (`lead`: the section's pace against the course's own average, or on a course page its climb) and gives
  * the other beside it. A chart on its own course's scale (`reliefLabel`) labels its top line instead.
  */
@@ -46,7 +47,10 @@ export default function ElevationPace({ km, metres, relief, reliefLabel, section
   // The share of the full height this course's relief takes on the shared scale (with the same top margin), so a metre
   // is as many pixels here as on every other course page.
   const share = fit ? Math.min(1, Math.max(FIT_MIN, top + (1 - top) * ((Math.max(...metres) - floor) / Math.max(1, relief)))) : 1;
-  const y = (m: number) => 1 - ((1 - top) * ((m - floor) / Math.max(1, relief))) / share;
+  // On its own labelled scale the lowest point stands a little above the baseline, so the line never runs along it and
+  // reads as clipped; the labelled top line stays at the lowest point plus the relief.
+  const bottom = reliefLabel ? 0.05 : 0;
+  const y = (m: number) => 1 - bottom - ((1 - top - bottom) * ((m - floor) / Math.max(1, relief))) / share;
   const line = km.map((k, i) => [x(k), y(metres[i])] as [number, number]);
   const start = initial ?? focus ?? 0;
   const plot = (

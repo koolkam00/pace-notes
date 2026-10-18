@@ -68,16 +68,21 @@ function headline(groups: AllFinisherGroup[], kind: AllFinisherKind, label: (gro
     : `Sustained slowdown rates ranged from ${value(low)} (${label(low)}) to ${value(high)} (${label(high)})${few ? ` across ${few}` : ''}.`;
 }
 
+/** Recorded gender in the site's one order: All, Women, Men (then anything else the data adds). */
+const GENDERS = ['all', 'Women', 'Men'];
+const genderRank = (g: string) => (GENDERS.includes(g) ? GENDERS.indexOf(g) : GENDERS.length);
+const GENDER_ORDER = (genders: string[]) => [...genders].sort((a, b) => genderRank(a) - genderRank(b));
+
 /**
- * The group a view follows when the address names none: the downhill-start group; for courses and start temperatures
- * the one with the fewest sustained slowdowns (the end the page's headline names first); for consistency the most
- * varied; for the profile views the first.
+ * The group a view follows when the address names none: the downhill-start group; for courses the one with the most
+ * sustained slowdowns (the end the page's headline accents, where its strip opens); for start temperatures the one with
+ * the fewest (the band its headline names); for consistency the most varied; for the profile views the first.
  */
 export function defaultFocus(groups: AllFinisherGroup[], kind: AllFinisherKind): AllFinisherGroup | undefined {
   if (kind === 'downhill') return groups.find(g => g.terrain === 'downhill') ?? groups[0];
   if (isProfileKind(kind)) return groups[0];
   const measure = measureOf(kind);
-  const lowest = kind !== 'course-consistency';
+  const lowest = kind !== 'course-consistency' && kind !== 'courses';
   return groups.reduce<AllFinisherGroup | undefined>((a, b) => (!a || (lowest ? b[measure] < a[measure] : b[measure] > a[measure]) ? b : a), undefined);
 }
 
@@ -263,7 +268,7 @@ function AllFinisherExplorer({ kind, start, historyNode, title, description, arc
             <div className="field"><label className="field-label" htmlFor={field('early')}>Early-race pace</label><select id={field('early')} className="select" value={draft.early_pace} onChange={event => setDraft({ ...draft, early_pace: event.target.value })}>{start.early_pace_bands.map(band => <option key={band.id} value={band.id}>{earlyPaceLabel(band, units)}</option>)}</select></div>
             {kind === 'downhill' && <div className="field"><label className="field-label" htmlFor={field('opening')}>Opening pace</label><select id={field('opening')} className="select" value={draft.opening} onChange={event => setDraft({ ...draft, opening: event.target.value })}>{start.opening_bands.map(band => <option key={band.id} value={band.id}>{capital(bandWords(band.label))}</option>)}</select></div>}
             <div className="field"><label className="field-label" htmlFor={field('age')}>Age group</label><select id={field('age')} className="select" value={draft.age} onChange={event => setDraft({ ...draft, age: event.target.value })}>{start.ages.map(age => <option key={age} value={age}>{age === 'all' ? 'All ages' : age}</option>)}</select></div>
-            <div className="field"><label className="field-label" htmlFor={field('gender')}>Recorded gender</label><select id={field('gender')} className="select" value={draft.gender} onChange={event => setDraft({ ...draft, gender: event.target.value })}>{start.genders.map(gender => <option key={gender} value={gender}>{gender === 'all' ? 'All' : gender}</option>)}</select></div>
+            <div className="field"><label className="field-label" htmlFor={field('gender')}>Recorded gender</label><select id={field('gender')} className="select" value={draft.gender} onChange={event => setDraft({ ...draft, gender: event.target.value })}>{GENDER_ORDER(start.genders).map(gender => <option key={gender} value={gender}>{gender === 'all' ? 'All' : gender}</option>)}</select></div>
             {follows && focus && <div className="field"><label className="field-label" htmlFor={field('focus')}>{followLabel}</label><select id={field('focus')} className="select" value={focusDraft || focus.id} onChange={event => setFocusDraft(event.target.value)}>{groups.map(group => <option key={group.id} value={group.id}>{label(group)}</option>)}</select></div>}
             {isProfileKind(kind) && focus && <div className="field"><label className="field-label" htmlFor={field('compare')}>Compare pacing with</label><select id={field('compare')} className="select" value={comparisonDraft || comparison?.id || 'none'} onChange={event => setComparisonDraft(event.target.value)}><option value="none">No comparison line</option>{groups.filter(group => group.id !== (focusDraft || focus.id)).map(group => <option key={group.id} value={group.id}>{label(group)}</option>)}</select></div>}
           </div>

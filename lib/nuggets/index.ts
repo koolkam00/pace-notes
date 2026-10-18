@@ -99,7 +99,7 @@ export const PAGE_NUGGET: Readonly<Record<string, NuggetId>> = {
   '/tools/weather-match': 'weathermatch.mornings',
   '/runners': 'runner.yours',
   '/tools/split-check': 'splitcheck.mats',
-  '/analyses/finding-improvement': 'kick.recurrence',
+  '/analyses/finding-improvement': 'gains.final',
   '/tools/plan': 'plan.goal',
 };
 

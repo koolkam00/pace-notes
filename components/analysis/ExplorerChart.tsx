@@ -95,10 +95,10 @@ function Terrain({ answer, units, terrain, valuesId }: { answer: GuideAnswer; un
   // answer draws it: on the scale every course shares a flat course was a hairline under an empty plot.
   const own = Math.max(50, Math.ceil((Math.max(...metres) - Math.min(...metres)) / 25) * 25);
   return (
-    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={`scale ${wholeElevation(own, units)}`} focus={slowest} readoutKeys={['Climb', 'Pace against its average']}
+    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={wholeElevation(own, units)} focus={slowest} readoutKeys={['Climb', 'Pace against their whole-race average']}
       sections={MARATHON_SECTION_ENDS.map((end, i) => ({ label: sectionLabel(end), startKm: i ? MARATHON_SECTION_ENDS[i - 1] : 0, endKm: end, pct: pct[i], display: signedPct(Math.round(pct[i])), climb: climb(i) }))}
       label={`Elevation, its top line ${wholeElevation(own, units)} above the lowest point, with each 5K's pace against the finishes' own average; slowest in ${sectionLabel(MARATHON_SECTION_ENDS[slowest])}`}
-      values={<Values id={valuesId} caption="By section: the climb and the pace against its own average" columns={[{ key: 's', label: 'Section' }, { key: 'c', label: 'Climb' }, { key: 'p', label: 'Pace against its average' }]}
+      values={<Values id={valuesId} caption="By section: the climb and the finishes' pace against their whole-race average" columns={[{ key: 's', label: 'Section' }, { key: 'c', label: 'Climb' }, { key: 'p', label: 'Pace against their average' }]}
         rows={MARATHON_SECTION_ENDS.map((end, i) => [sectionLabel(end), climb(i), signedPct(pct[i])])} reading={slowest} />} />
   );
 }
@@ -128,9 +128,8 @@ function Sections({ answer, goal, valuesId, example }: { answer: GuideAnswer; go
 
 /**
  * The share of the comparison's finishes under each time, the goal ringed. The readout opens on the goal, the share the
- * headline names, so the needle (the page's one orange mark) and the H1's accent agree; its side value is the median
- * finish, the one figure the headline does not already give. A goal the visitor set is "You"; the page's own goal is
- * ringed by its time.
+ * headline names, so the needle (the page's one orange mark) and the H1's accent agree. A goal the visitor set is
+ * "You"; the page's own goal is ringed by its time.
  */
 function Target({ answer, goal, valuesId, yours }: { answer: GuideAnswer; goal: number; valuesId: string; yours: boolean }) {
   const rows = answer.charts[0]?.rows ?? [];
@@ -139,12 +138,12 @@ function Target({ answer, goal, valuesId, yours }: { answer: GuideAnswer; goal: 
   const at = pts.reduce((b, p) => (Math.abs(p.x - goal) < Math.abs(b.x - goal) ? p : b));
   const marks = Array.from({ length: 24 }, (_, i) => 120 + i * 30).filter((m) => m >= pts[0].x && m <= pts[pts.length - 1].x);
   const ticks = marks.filter((m) => m % 60 === 0);
-  // The median: the first time with half the finishes under it.
+  // The first whole minute with half the finishes under it: a detent. Its minute is never printed as "the median"
+  // (that rounds up; /finish-times gives the field's median from the data itself).
   const half = pts.findIndex((p) => p.share >= 0.5);
-  const median = half >= 0 ? [{ label: 'Median finish', values: pts.map(() => hm(pts[half].x)) }] : undefined;
   return (
     <Cdf points={pts} you={goal} youLabel={yours ? 'You' : hm(goal)} ticks={ticks.map((m) => ({ value: m, label: hm(m) }))}
-      scrub={{ label: 'Finish time', points: { x: pts.map((p) => (p.x - pts[0].x) / (pts[pts.length - 1].x - pts[0].x)), keys: pts.map((p) => `Finishes under ${hm(p.x)}`), values: pts.map((p) => `${Math.round(p.share * 100)}%`), side: median },
+      scrub={{ label: 'Finish time', points: { x: pts.map((p) => (p.x - pts[0].x) / (pts[pts.length - 1].x - pts[0].x)), keys: pts.map((p) => `Finishes under ${hm(p.x)}`), values: pts.map((p) => `${Math.round(p.share * 100)}%`) },
         initial: pts.indexOf(at), detents: [...marks.map((m) => pts.findIndex((p) => p.x === m)), half].filter((i, k, all) => i >= 0 && all.indexOf(i) === k) }}
       label={`The share of finishes under each time; ${Math.round(at.share * 100)}% under ${hm(goal)}`}
       values={<Values id={valuesId} caption="Finishes under each round time" columns={[{ key: 't', label: 'Under' }, { key: 's', label: 'Share of finishes' }]} rows={marks.map((m) => [hm(m), `${Math.round((pts.find((p) => p.x === m)?.share ?? NaN) * 100)}%`])} />} />
@@ -173,8 +172,9 @@ function Gains({ answer, goal, units, valuesId }: { answer: GuideAnswer; goal: n
   );
 }
 
-/** The second 20K against the first, age group by age group. */
+/** The second 20K against the first, age group by age group (one decimal everywhere, as on the page's own card). */
 function Ages({ answer, valuesId, selectedAge }: { answer: GuideAnswer; valuesId: string; selectedAge?: string }) {
+  const signedPct = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)}%`;
   const rows = (answer.charts[0]?.rows ?? []).map((r) => ({ age: String(r.label).replace(' (selected)', ''), value: num(r.value), n: num(r.n_value) }));
   if (rows.length < 2) return null;
   const max = Math.ceil(Math.max(...rows.map((r) => r.value)) / 2) * 2 + 2;

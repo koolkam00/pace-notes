@@ -9,6 +9,7 @@ import { EXTRA_TITLES, QUESTIONS } from '@/lib/question-catalog';
 import { getExtraAnswer, getQuestions } from '@/lib/research-data';
 import { splitAnswer } from '@/lib/research-display';
 import { TEN_ANALYSES, analysisHref } from '@/lib/ten-analyses';
+import { CHAPTERS, livePages } from '@/lib/chapters';
 import { countWord } from '@/lib/nuggets/format';
 import { WEATHER_QUESTIONS, weatherHref } from '@/lib/weather-catalog';
 import { getWeatherAnalyses, getWeatherEvidence } from '@/lib/weather-data';
@@ -52,6 +53,8 @@ export default function MethodsAnalyses() {
   // the personalized engine by default (fast starts, courses and weather, the three the paragraph names, have their own
   // views) and the guide's.
   const ranked = TEN_ANALYSES.length;
+  // The analysis pages the chapters list beyond the ranked ones (downhill starts), named once so the counts agree with /analyses.
+  const unranked = CHAPTERS.flatMap((c) => livePages(c)).filter((p) => p.kind === 'analysis' && !TEN_ANALYSES.some((a) => p.href === analysisHref(a))).map((p) => p.short);
   const OWN_VIEWS = ['opening', 'courses', 'weather'];
   const engine = PERSONAL_QUESTIONS.filter((q) => TEN_ANALYSES.some((a) => a.id === q.id) && !OWN_VIEWS.includes(q.id)).length;
   // Paragraphs that three or more research questions repeat word for word (the timing screens, the record joins, the
@@ -70,7 +73,7 @@ export default function MethodsAnalyses() {
   return <>
     <Topic id="personalized" title="The ranked analyses">
       {personalized && <p>The personalized analyses use {n(personalized.n)} eligible finishes, {n(personalized.age_n)} of them with an exact usable age. The usable earlier-benchmark cohort holds {n(personalized.history_n)} finishes. Combining course, age, recorded gender and earlier-time filters can make samples much smaller.</p>}
-      <p>The {countWord(ranked)} ranked analyses are ordered by how useful they are to runners and how strong the evidence is. {Capital(countWord(engine))} use the personalized engine. Fast starts, course comparisons and race-day weather have their own views that need no earlier result, described below. Each page shows only the controls that apply to its question. The {countWord(PERSONAL_QUESTIONS.length)} original personalized comparisons are described below, and their data stay free to download.</p>
+      <p>The {countWord(ranked)} ranked analyses are ordered by how useful they are to runners and how strong the evidence is.{unranked.length ? ` ${unranked.join(' and ')} ${unranked.length === 1 ? 'is an analysis page' : 'are analysis pages'} beside them, ${countWord(ranked + unranked.length)} in all.` : ''} {Capital(countWord(engine))} use the personalized engine. Fast starts, course comparisons and race-day weather have their own views that need no earlier result, described below. Each page shows only the controls that apply to its question. The {countWord(PERSONAL_QUESTIONS.length)} original personalized comparisons are described below, and their data stay free to download.</p>
       <h4>Earlier-result views and broadened filters</h4>
       <p>The earlier-result views (where improving runners find time, and the original course and weather comparisons) need a usable recorded history. Leaving the earlier-time filter blank includes every eligible history group, but never finishes without an earlier benchmark. One race cannot show improvement. Improvement compares a finish with the fastest eligible finish in any strictly earlier year; the course and weather finish changes use the fastest eligible finish in the two strictly earlier calendar years.</p>
       <h4>Shared personalized-engine methods</h4>

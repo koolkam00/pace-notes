@@ -106,18 +106,28 @@ export function downhillOpeningFrom(groups: AllFinisherGroup[], bands: OpeningBa
   };
 }
 
-/** In how many opening bands the downhill-start courses had fewer sustained slowdowns than the rest. */
+/** Two shares "differ" from 2 whole percentage points; within a point or so they are the same. */
+export const BAND_GAP = 2;
+
+/**
+ * Band by band, the opening band where downhill-start courses and the rest differ most in sustained slowdown, said
+ * only from 2 whole points apart (a 1-point gap is a null and reads as one). `fewer` counts the bands that differ by 2
+ * points or more with fewer slowdowns on the downhill-start courses, for the chart's spoken label.
+ */
 export function downhillBandsFrom(groups: AllFinisherGroup[], bands: OpeningBand[]): Nugget {
   const pairs = bands.map((band) => ({ band, down: groups.find((g) => g.terrain === 'downhill' && g.opening === band.id), other: groups.find((g) => g.terrain === 'other' && g.opening === band.id) }))
     .filter((p) => p.down && p.other && p.down.n >= 100 && p.other.n >= 100);
-  const fewer = pairs.filter((p) => p.down!.slowdown_pct < p.other!.slowdown_pct).length;
+  const gap = (p: (typeof pairs)[number]) => Math.round(p.other!.slowdown_pct) - Math.round(p.down!.slowdown_pct);
+  const fewer = pairs.filter((p) => gap(p) >= BAND_GAP).length;
   const total = pairs.length;
-  const every = total > 0 && fewer === total;
+  const clearest = pairs.reduce<(typeof pairs)[number] | undefined>((b, p) => (!b || Math.abs(p.other!.slowdown_pct - p.down!.slowdown_pct) > Math.abs(b.other!.slowdown_pct - b.down!.slowdown_pct) ? p : b), undefined);
+  const down = clearest ? clearest.down!.slowdown_pct / 100 : NaN, other = clearest ? clearest.other!.slowdown_pct / 100 : NaN;
+  const words = clearest ? (clearest.band.id === 'steady' ? 'within 2% of pace' : bandWords(clearest.band.label)) : '';
   return {
     id: 'downhill.bands', page: '/analyses/downhill-start#by-band', denominator: 'eligible', term: '/methodology#sustained-slowdown',
-    values: { fewer, total },
-    guard: total > 0 && fewer > total / 2,
-    headline: every ? 'In *every opening band*, the downhill-start courses had fewer sustained slowdowns.' : `In *${countWord(fewer)} of ${countWord(total)}* opening bands, the downhill-start courses had fewer sustained slowdowns.`,
+    values: { fewer, total, band: clearest?.band.id ?? '', downhill: down, other },
+    guard: !!clearest && Math.abs(gap(clearest)) >= BAND_GAP,
+    headline: `Opening ${words}, *${pct(down)}* had a sustained slowdown on downhill-start courses, against ${pct(other)} elsewhere.`,
     fallback: 'Sustained slowdown by opening band, downhill-start courses against the rest.',
     figure: null,
   };
@@ -239,11 +249,14 @@ export function ageRetentionFrom(rows: AgeRow[], goal = GOAL): Nugget {
   const pooled = lo && hi ? hi.pooled - lo.pooled : NaN;
   const same = rows.length ? Math.max(...rows.map((r) => r.same)) - Math.min(...rows.map((r) => r.same)) : NaN;
   const older = !!lo && !!hi && parseInt(hi.age, 10) > parseInt(lo.age, 10);
+  // A U: the least slowing at a middle age, both the youngest and the oldest group a point or more above it.
+  const first = rows[0], last = rows[rows.length - 1];
+  const both = !!lo && rows.length >= 3 && lo !== first && lo !== last && first.pooled - lo.pooled >= 1 && last.pooled - lo.pooled >= 1;
   return {
     id: 'age.retention', page: '/analyses/age-and-pacing', denominator: 'eligible',
-    values: { groups: rows.length, pooled_lo_age: lo?.age ?? '', pooled_hi_age: hi?.age ?? '', pooled_spread: pooled, same_spread: same, goal_min: goal },
+    values: { groups: rows.length, pooled_lo_age: lo?.age ?? '', pooled_hi_age: hi?.age ?? '', pooled_spread: pooled, same_spread: same, goal_min: goal, u_shape: both ? 1 : 0 },
     guard: rows.length >= 2 && older && same <= 1.5 && same < pooled / 2,
-    headline: 'Pooled, older runners slowed more. At the same finish time, age *barely mattered*.',
+    headline: `Across all finishes, ${both ? 'the youngest and oldest' : 'older runners'} slowed more. At the same finish time, age *barely mattered*.`,
     fallback: 'How the second 20K changed with age, pooled and at the same finish time.',
     figure: finite(same) ? { value: one(same), unit: 'pts', sr: `${one(same)} points between age groups near a ${hm(goal)} finish` } : null,
     key: `between age groups near a ${hm(goal)} finish`,
@@ -298,8 +311,10 @@ export function terrainClimbFrom(city: string, sections: TerrainSection[] | null
     guard: ok0 && climb === slow,
     headline: `${name}’s biggest climb is *its slowest 5K*.`,
     fallback: `Where ${name} climbs, and where it slows.`,
-    figure: ok0 ? { value: section(climb), sr: `${section(climb)}, ${name}` } : null,
-    key: `${name}: the biggest climb, and the slowest 5K near ${hm(goal)}`,
+    // How much slower the climb ran (its pace against the finishes' own average): the pacing pattern's figure is the
+    // slowest 5K's name, so this page's own number is the climb's cost, never the same "35–40K" twice in a list.
+    figure: ok0 && climb === slow && Math.round(sections![slow].pct) > 0 ? { value: String(Math.round(sections![slow].pct)), unit: '%', sr: `${Math.round(sections![slow].pct)} percent slower` } : null,
+    key: `slower than average on ${name}’s biggest climb`,
   };
 }
 
@@ -339,9 +354,9 @@ export function weatherWarmingFrom(c: WeatherCandidate | undefined): Nugget {
     id: 'weather.warming', page: '/analyses/race-day-weather#warming', denominator: 'course',
     values: c ? { q25: c.exposure.q25, q75: c.exposure.q75, estimate: c.effect.estimate, low: c.effect.low, high: c.effect.high } : {},
     guard: ok,
-    // The estimate is in percentage points of the second 20K's pace change, said as a whole percent (the card's axis
-    // reads +2, +4); the four hours and the interval are on /methodology.
-    headline: both((u) => `A day that warmed ${riseWords(c?.exposure.q75 ?? NaN, u)}, not ${riseWords(c?.exposure.q25 ?? NaN, u)}, slowed the second 20K about *${Math.round(c?.effect.estimate ?? NaN)}%* more.`),
+    // The estimate is in percentage points of the second 20K's pace change, said in whole points as the card labels it
+    // ("+2.1 pts"); the four hours and the interval are on /methodology.
+    headline: both((u) => `A day that warmed ${riseWords(c?.exposure.q75 ?? NaN, u)}, not ${riseWords(c?.exposure.q25 ?? NaN, u)}, slowed the second 20K about *${Math.round(c?.effect.estimate ?? NaN)} ${Math.round(c?.effect.estimate ?? NaN) === 1 ? 'point' : 'points'}* more.`),
     fallback: 'Warming through the race, and the second 20K.',
     figure: c ? { value: `+${one(c.effect.estimate)}`, unit: 'pts', sr: `${one(c.effect.estimate)} points` } : null,
   };
@@ -353,7 +368,7 @@ export function weatherWindFrom(c: WeatherCandidate | undefined): Nugget {
     id: 'weather.wind', page: '/analyses/race-day-weather#wind', denominator: 'course',
     values: c ? { q25: c.exposure.q25, q75: c.exposure.q75, estimate: c.effect.estimate, low: c.effect.low, high: c.effect.high } : {},
     guard: ok,
-    headline: both((u) => `Wind of ${windWords(c?.exposure.q75 ?? NaN, u)} instead of ${windWords(c?.exposure.q25 ?? NaN, u)} at the start made *no material difference*: under 1%.`),
+    headline: both((u) => `Wind of ${windWords(c?.exposure.q75 ?? NaN, u)} instead of ${windWords(c?.exposure.q25 ?? NaN, u)} at the start made *no material difference*: under 1 point.`),
     fallback: 'Wind at the start, and the second 20K.',
     figure: c ? { value: '≈ 0', sr: 'about zero' } : null,
   };

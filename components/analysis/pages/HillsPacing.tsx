@@ -46,17 +46,18 @@ export default function HillsPacing() {
   const own = Math.max(50, Math.ceil((Math.max(...metres) - Math.min(...metres)) / 25) * 25);
   // The route's whole climb, the figure its course page gives (the section climbs only cover the timed 5Ks).
   const climbed = geometry.find((g) => g.city === city)?.gain_m ?? v.total_m;
-  // The top line names the scale, so it never reads as a climb beside the readout's "Climb".
-  const scale = (u: UnitSystem) => `scale ${elevation(own, u)}`;
+  // The top line is labelled with its height above the lowest point (the baseline).
+  const scale = (u: UnitSystem) => elevation(own, u);
   const chart = (u: UnitSystem) => sections ? (
-    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={scale(u)} focus={v.climb_i} readoutKeys={['Climb', 'Pace against its average']}
+    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={scale(u)} focus={v.climb_i} readoutKeys={['Climb', 'Pace against their whole-race average']}
       sections={sections.map((s, i) => ({ label: sectionLabel(i ? MARATHON_SECTION_ENDS[i - 1] : 0, s.end), startKm: i ? MARATHON_SECTION_ENDS[i - 1] : 0, endKm: s.end, pct: s.pct, display: signedPct(s.pct), climb: Number.isFinite(s.gain) ? `+${elevation(s.gain, u)}` : '—' }))}
       label={`${courseName(city)}'s elevation, its top line ${elevation(own, u)} above its lowest point, with each 5K's pace against the finishes' own average; the biggest climb, ${sectionLabel(v.climb_i ? MARATHON_SECTION_ENDS[v.climb_i - 1] : 0, MARATHON_SECTION_ENDS[v.climb_i])}, is washed`}
-      values={<Values id={`hills-answer-${u}`} caption={`${courseName(city)} by section: the climb and the pace against its own average`} columns={[{ key: 's', label: 'Section' }, { key: 'c', label: 'Climb' }, { key: 'p', label: 'Pace against its average' }]}
+      values={<Values id={`hills-answer-${u}`} caption={`${courseName(city)} by section: the climb and the finishes' pace against their whole-race average`} columns={[{ key: 's', label: 'Section' }, { key: 'c', label: 'Climb' }, { key: 'p', label: 'Pace against their average' }]}
         rows={sections.map((s, i) => [sectionLabel(i ? MARATHON_SECTION_ENDS[i - 1] : 0, s.end), Number.isFinite(s.gain) ? `+${elevation(s.gain, u)}` : '—', signedPct(s.pct)])} reading={v.climb_i} />} />
   ) : null;
   const answer = sections ? (
-    <AnswerCard kicker={`${courseName(city)}, near ${hm(v.goal_min)}`} foot={<ByUnits mi={`${elevation(climbed, 'mi')} of climb, start to finish`} km={`${elevation(climbed, 'km')} of climb, start to finish`} />}>
+    // The route's whole climb is in the kicker, above the chart: a context line never sits under Values.
+    <AnswerCard kicker={<ByUnits mi={`${courseName(city)}, near ${hm(v.goal_min)} · ${elevation(climbed, 'mi')} of climb`} km={`${courseName(city)}, near ${hm(v.goal_min)} · ${elevation(climbed, 'km')} of climb`} />}>
       <ByUnits mi={chart('mi')} km={chart('km')} />
     </AnswerCard>
   ) : null;
