@@ -11,10 +11,11 @@ import { CourseSection, Fact, Said } from './Fact';
 const climbText = (m: number, units: UnitSystem) => (units === 'mi' ? `${Math.round(m / 0.3048).toLocaleString('en-US')} ft` : `${Math.round(m).toLocaleString('en-US')} m`);
 
 /**
- * "#elevation" (only with a supplied route): the route's profile on the one height scale every course page shares, with
- * each 5K section's pace against the course's own average under it, the biggest climb washed. Scrub along the course:
- * the readout gives one climb, that section's. Under it the route's two totals, up and down (the sums of the same
- * sections, so the whole never climbs less than a part).
+ * "#elevation" (only with a supplied route): the route's profile on the one height scale every course page shares, the
+ * plot only as tall as this course's relief on it (a flat course is a low profile, never an empty box), with each 5K
+ * section's pace against the course's own average under it, the biggest climb washed. Scrub along the course: the
+ * readout leads with that section's climb, the number the heading gives, and its pace beside it. Under it the route's
+ * two totals, up and down (the sums of the same sections, so the whole never climbs less than a part).
  */
 export default function CourseElevation({ page }: { page: CoursePageData }) {
   const { city, display, geometry: g, terrain, summary: s, relief } = page;
@@ -28,15 +29,15 @@ export default function CourseElevation({ page }: { page: CoursePageData }) {
   const opens = Number.isInteger(n.values.section) && Number(n.values.section) >= 0 ? Number(n.values.section) : undefined;
   const curve = s.curve?.length === 9 ? s.curve : null;
   const km = g.elevation_m.map((_, i) => Math.min(g.distance_km, i * g.elevation_step_km));
-  // Without a pacing shape (no section paces) the blocks go and the readout leads with each section's climb.
+  // The readout leads with the section's climb (the sentence's number); beside it, the section's pace against the
+  // course's own average, or without a pacing shape (no blocks), its descent.
   const chart = (units: UnitSystem) => (
-    <ElevationPace km={km} metres={g.elevation_m} relief={relief} focus={focus} initial={opens} readoutKeys={curve ? ['Climb', 'Pace against its average'] : ['Descent', 'Climb']}
+    <ElevationPace km={km} metres={g.elevation_m} relief={relief} fit focus={focus} initial={opens} readoutKeys={curve ? ['Climb', 'Pace against its average'] : ['Climb', 'Descent']}
       sections={SECTION_BOUNDS.map(([a, b], i) => ({
         label: sectionLabel(a, b), startKm: a, endKm: b, pct: curve ? curve[i] : 0,
-        display: curve ? signedPct(curve[i], 0) : terrain ? climbText(terrain[i].gain_m, units) : '—',
-        climb: terrain ? climbText(curve ? terrain[i].gain_m : terrain[i].loss_m, units) : '—',
+        display: curve ? signedPct(curve[i], 0) : terrain ? climbText(terrain[i].loss_m, units) : '—',
+        climb: terrain ? climbText(terrain[i].gain_m, units) : '—',
       }))}
-      reliefLabel={climbText(relief, units)}
       label={`${display}: elevation on the height scale every course shares, with each 5K section's pace against the course's own average`} height={120} heightMd={190} />
   );
   return (

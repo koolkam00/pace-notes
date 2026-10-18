@@ -57,6 +57,9 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
     step(() => eq([r.values.min, r.values.max, r.values.courses], [lo, hi, solid.length], 'courses.range recounts the extremes of courses with three or more editions'));
     step(() => eq(r.guard, solid.length >= 3 && hi / lo >= 2, 'courses.range: "more than twice" needs the highest share at least twice the lowest'));
     step(() => eq(r.figure.value, `${Math.round(lo * 100)}–${Math.round(hi * 100)}`, 'courses.range: the figure'));
+    // Each course's figure averages its editions' shares (verify-insights), so the words name the average edition, never
+    // a share of every finish pooled.
+    step(() => ok(/^of finishes in the average edition had a sustained slowdown\b/.test(r.key), 'courses.range: the key names the average edition'));
   }
 
   for (const c of courses.courses) {
@@ -78,6 +81,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const guard = cells.length >= 2 && whole(lo.slowdown) !== whole(hi.slowdown) && !held.has(`${city}|${lo.year}`) && !held.has(`${city}|${hi.year}`);
       step(() => eq(n.guard, guard, `course.slowdown (${city}): guard`));
       step(() => eq(n.figure.value, String(Math.round(c.slowdown * 100)), `course.slowdown (${city}): the figure`));
+      step(() => eq(n.key, 'of finishes in the average edition had a sustained slowdown', `course.slowdown (${city}): the key names the average edition (the figure averages the editions' shares)`));
       if (guard) step(() => eq(said(n), `Edition by edition, between ${whole(lo.slowdown)} (${lo.year}) and ${whole(hi.slowdown)} (${hi.year}).`, `course.slowdown (${city}): the sentence names the range, low end first, in no time order`));
     }
 
@@ -104,19 +108,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       }
     }
 
-    // At a glance (3): how often the 5K splits alone told the course apart, only at nine in ten of five or more editions,
-    // every edition with a row tested (so its "of" is the hero's edition count).
-    {
-      const n = at('course.shape');
-      const id = c.identified;
-      step(() => eq(n.guard, !!id && id.editions >= 5 && id.editions === c.editions && id.correct * 10 >= id.editions * 9, `course.shape (${city}): guard (nine in ten of five or more editions, all of them)`));
-      if (n.guard) {
-        step(() => ok(said(n).startsWith(`${id.correct} of ${id.editions} `) && said(n).endsWith(' editions were told apart from every other course by their 5K splits alone.'), `course.shape (${city}): the sentence`));
-        step(() => eq(n.key, 'editions told apart from every other course by their 5K splits alone', `course.shape (${city}): the row`));
-      }
-    }
-
-    // At a glance (4): where the pacing parts most from the typical course, from 3 points on three or more editions, in
+    // At a glance (3): where the pacing parts most from the typical course, from 3 points on three or more editions, in
     // words ("1% quicker than its average pace; 4% slower on the typical course").
     {
       const n = at('course.signature');

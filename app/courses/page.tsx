@@ -49,8 +49,9 @@ function ShapeFace({ curve }: { curve: number[] }) {
  * page leads with), then every course as one row the chips sort: its route as its face (or its pace shape), its name,
  * and the figure the order is by, at the right and again as a bar under the name on one scale for every row, so the
  * sorted list is the chart (start temperatures, a range, draw as a span on one temperature scale). Under any other
- * order the share of sustained slowdowns moves to the row's small line. The courses with fewer than three editions
- * follow under their own hairline, quieter, since the range above leaves them out. The ItemList stays alphabetical.
+ * order the share of sustained slowdowns moves to the row's small line. The courses with fewer than three editions are
+ * drawn quieter: under the share's order they follow under their own hairline, since the range above leaves them out;
+ * under any other they stand in their sorted place. The ItemList stays alphabetical.
  */
 export default function CoursesPage() {
   const pages = [...coursePages().values()];
@@ -121,7 +122,7 @@ export default function CoursesPage() {
       <JsonLd data={[pageCrumbs('/courses', 'Courses'), list]} />
       <Reading crumbs={<ChapterCrumbs path="/courses" />} title="Courses" titleSize="title" dek={sentenceOf(index).replace(/\*/g, '')}
         figure={range.figure ? { ...range.figure, size: 'xl' } : undefined}
-        unitLine={<>of finishes had a <SlowdownTerm />, on the courses with three or more editions</>}
+        unitLine={<>of finishes in the average edition had a <SlowdownTerm />, on the courses with three or more editions</>}
         sentence={sentenceOf(range)} fallback={!range.guard} className="courses-reading" />
       <section className="courses-list" aria-label="Every course">
         <CourseSort initial="slowdown" orders={orders} rows={rows} foot={few} footTitle="Fewer than three editions"

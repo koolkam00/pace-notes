@@ -40,8 +40,8 @@ export default function CoursePacing({ page }: { page: CoursePageData }) {
           })}
         </ul>
         <ul className="viz-key" aria-hidden="true">
-          {/* The filled mark in a type's colour, as every filled dot is (the named row's, else the first row's). */}
-          <li><i className="viz-key-mark course-types-key" style={typeStyle(Math.max(0, archetypes.findIndex((a) => a.slug === named)))} />{display}</li>
+          {/* The filled mark in ink: filled is this course, whatever colour each row's type gives its dot. */}
+          <li><i className="viz-key-mark" />{display}</li>
           <li><i className="viz-key-mark is-hollow" />Every course</li>
         </ul>
       </figure>

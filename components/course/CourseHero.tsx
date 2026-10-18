@@ -40,7 +40,9 @@ function raceMonths(editions: { year: number; date: string | null }[]): string {
 
 /**
  * The night hero (the redesign spec, sections 4.3 and 7.10, cut under section 00): the race, when it is run, then the
- * reading: the share of its finishes with a sustained slowdown, the route as its face (with the climb), the sentence
+ * reading: the share of its finishes with a sustained slowdown in the average edition (summary.slowdown averages the
+ * editions' shares), the route as its face (with the climb; a course without a route lifts the strip into its place on
+ * desktop, so no cell runs empty), the sentence
  * that says how far the share ran edition by edition (course.slowdown, shown only when its guard holds), and, with three
  * or more editions, the year strip to scrub them. The strip opens on the edition the sentence accents, so the needle,
  * the readout and the orange word agree, and labels the other end; without the sentence, it opens on the latest edition
@@ -76,7 +78,7 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
       label={`Sustained slowdown in ${display}, edition by edition, ${span}`} height={100} heightMd={168} />
   );
   return (
-    <section className="night course-hero" data-track-section="hero">
+    <section className={`night course-hero${geometry ? '' : ' is-routeless'}`} data-track-section="hero">
       <div className="course-hero-head">
         <div className="reading-crumbs t-kicker course-crumbs"><ChapterCrumbs path={`/courses/${page.slug}`} /><span className="crumb-place"><Link href="/courses" className="crumb-courses">Courses</Link></span></div>
         <h1 className="course-title t-title">{race}</h1>
@@ -84,7 +86,7 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
       </div>
       <div className="course-hero-figure">
         {reading.figure ? <BigNumber value={reading.figure.value} unit={reading.figure.unit} sr={reading.figure.sr} size="xl" tone="night" /> : null}
-        <p className="course-hero-key">of finishes had a <SlowdownTerm /></p>
+        <p className="course-hero-key">of finishes in the average edition had a <SlowdownTerm /></p>
       </div>
       {geometry ? (
         <figure className="course-hero-route">

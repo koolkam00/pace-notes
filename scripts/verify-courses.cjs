@@ -551,7 +551,7 @@ if (html) {
     // Sections: present exactly when the data gives them something to show (no heading over an empty chart), each with
     // its generic tracking id. The glance shows the rows whose guards hold (at most three, in order); with none it is
     // left out, and the page opens on its first difference.
-    const GLANCE = ['course.start', 'course.late', 'course.shape', 'course.signature'];
+    const GLANCE = ['course.start', 'course.late', 'course.signature'];
     // The start row stays out where #elevation's biggest climb is the same first 5K (one 5K, one climb said).
     const climbNugget = N.getNugget('course.climb', { city });
     const climbFirst = climbNugget.guard && Number(climbNugget.values.section) === 0;
@@ -593,6 +593,10 @@ if (html) {
     const heroFigure = N.getNugget('course.slowdown', { city }).figure;
     const shownFigure = innerText(/<span class="big-number[^"]*"><span aria-hidden="true">([\s\S]*?)<\/span><span class="sr-only">/.exec(/<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '')?.[1] ?? '');
     check(heroFigure && shownFigure === `${heroFigure.value}${heroFigure.unit}` && shownFigure === F.pct0(f.s.slowdown), where, `the hero figure "${shownFigure}" is not the course's share in whole percent (${F.pct0(f.s.slowdown)})`);
+    // The figure averages the editions' shares, so its words name the average edition (course.slowdown's key), never a
+    // share pooled over every finish.
+    const heroKey = norm(textOf(/<p class="course-hero-key"[^>]*>([\s\S]*?)<\/p>/.exec(body)?.[1] ?? ''));
+    check(heroKey === norm(N.getNugget('course.slowdown', { city }).key) && /average edition/.test(heroKey), where, `the hero figure's words "${heroKey}" do not name the average edition`);
     const glanceKeys = [...main.matchAll(/<span class="glance-key">([\s\S]*?)<\/span>/g)].map((m) => norm(textOf(m[1])));
     for (const id of GLANCE) {
       const n = N.getNugget(id, { city });

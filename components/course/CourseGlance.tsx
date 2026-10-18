@@ -12,8 +12,9 @@ import { CourseSection, Said } from './Fact';
  * by hairlines, each a figure, the words that finish its sentence and a micro-chart of at most 48 px. A row shows only
  * when its nugget's guard holds: a first 5K that ends 10 m or more above or below its start (that 5K's profile on its
  * own scale, over a level at the start's height), a slowest 5K unlike nearly every other course's (the nine sections
- * against the course's own average), 5K splits that told the course apart in nine of ten of its editions or more (a dot
- * per edition), and the 5K where its pacing parts most from the typical course's (both curves, that section in signal).
+ * against the course's own average), and the 5K where its pacing parts most from the typical course's (both curves,
+ * that section in signal). How well a model tells the course apart by its splits is not a runner's finding: it lives in
+ * the "Name that course" game on /stories/courses.
  * A course with none of these has no glance at all (the page leaves the section out and opens on its first difference).
  */
 type Row = { id: string; figure: React.ReactNode; key: string; viz?: React.ReactNode };
@@ -61,20 +62,6 @@ function LateViz({ curve, slowest }: { curve: number[]; slowest: number }) {
   );
 }
 
-/** One dot per edition tested; those the course was picked out in are filled. */
-function ShapeViz({ correct, editions }: { correct: number; editions: number }) {
-  const per = Math.min(editions, 11);
-  const rows = Math.ceil(editions / per);
-  const step = Math.min(W / per, 9);
-  return (
-    <svg className="glance-viz" viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden="true" focusable="false">
-      {Array.from({ length: editions }, (_, i) => (
-        <circle key={i} className={i < correct ? 'glance-dot is-on' : 'glance-dot'} cx={W - (per - (i % per) - 0.5) * step} cy={H / 2 - ((rows - 1) * step) / 2 + Math.floor(i / per) * step} r={step / 2 - 1.2} />
-      ))}
-    </svg>
-  );
-}
-
 /** The course's pace by section (ink) over the typical course's (dashed), on one scale; the section it parts most in signal. */
 function SignatureViz({ curve, typical, at }: { curve: number[]; typical: number[]; at: number }) {
   const span = Math.max(1, ...curve.map((v) => Math.abs(v)), ...typical.map((v) => Math.abs(v)));
@@ -93,10 +80,10 @@ function figureOf(n: Nugget) {
   return n.figure ? <BigNumber value={n.figure.value} unit={n.figure.unit} sr={n.figure.sr} size="m" /> : null;
 }
 
-type GlanceId = 'course.start' | 'course.late' | 'course.shape' | 'course.signature';
+type GlanceId = 'course.start' | 'course.late' | 'course.signature';
 
 /**
- * The glance's rows for a course, in order, at most three: the ones whose guards hold. The start row stays out where
+ * The glance's rows for a course, in order (at most three): the ones whose guards hold. The start row stays out where
  * #elevation's finding is the same 5K (its biggest climb is 0–5K), so one 5K never reads as two different climbs a
  * screen apart; the signature row stays out where it would be about the same stretch as another row (the first 5K
  * beside the start row; a section next to the slowest 5K beside the late row), since two big section names that close
@@ -105,7 +92,7 @@ type GlanceId = 'course.start' | 'course.late' | 'course.shape' | 'course.signat
 export function glanceRows(page: CoursePageData): GlanceId[] {
   const { city, sections, summary: s } = page;
   const climb = getNugget('course.climb', { city });
-  let ids = (['course.start', 'course.late', 'course.shape', 'course.signature'] as GlanceId[]).filter((id) => {
+  let ids = (['course.start', 'course.late', 'course.signature'] as GlanceId[]).filter((id) => {
     const n = getNugget(id, { city });
     return n.guard && !!n.figure && (id !== 'course.start' || (!!page.geometry && !(climb.guard && Number(climb.values.section) === 0)));
   });
@@ -134,7 +121,6 @@ export default function CourseGlance({ page }: { page: CoursePageData }) {
       const slowest = s.slowest_section ? page.sections.indexOf(s.slowest_section) : -1;
       return { id, figure: figureOf(n), key: n.key!, viz: curve && slowest >= 0 ? <LateViz curve={curve} slowest={slowest} /> : undefined };
     }
-    if (id === 'course.shape') return { id, figure: figureOf(n), key: n.key!, viz: s.identified ? <ShapeViz correct={s.identified.correct} editions={s.identified.editions} /> : undefined };
     const at = s.signature_section ? page.sections.indexOf(s.signature_section) : -1;
     return { id, figure: figureOf(n), key: n.key!, viz: curve && at >= 0 ? <SignatureViz curve={curve} typical={typicalCurve} at={at} /> : undefined };
   });

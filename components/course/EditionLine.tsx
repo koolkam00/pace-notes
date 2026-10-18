@@ -5,12 +5,12 @@ import Scrubber from '@/components/viz/Scrubber.client';
 import Annotation from '@/components/viz/Annotation';
 import { placeLabels, REF_WIDTH, textWidth, type LabelItem, type PlacedLabel } from '@/components/viz/labels';
 import { extent, linear, linePath, pc, yScale } from '@/components/viz/scale';
-import { yearKey, yearPad, yearTicks } from '@/components/viz/YearStrip';
+import { yearPad, yearTicks } from '@/components/viz/YearStrip';
 
 /**
  * The median finish, edition by edition (the redesign spec, section 7.10 "#finish-times"): a dot per edition on a
- * time-scaled axis, joined only across consecutive years, so a year with no edition leaves the line broken (scrubbed,
- * it reads "2020, not in the data"; no band, which would read as a highlight). The y scale spans at least 20 minutes,
+ * time-scaled axis, joined only across consecutive years, so a year with no edition leaves the line broken (no band,
+ * which would read as a highlight); the editions are the scrub points, so the needle steps across a gap. The y scale spans at least 20 minutes,
  * centred on the editions, so a few seconds never draw as a climb or a drop, and up to two round-minute gridlines carry
  * it, labelled inside the plot on its left. The edition the readout opens on (the one the sentence accents) is signal
  * and unlabelled, since the readout names it; the other the sentence names is labelled in one format, on a leader where
@@ -43,9 +43,8 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
     const run = runs[runs.length - 1];
     if (run && p.year === run[run.length - 1].year + 1) run.push(p); else runs.push([p]);
   }
-  // Every year from the first edition to the last is a scrub point; a year with no edition is keyed "not in the data".
-  const years = Array.from({ length: last - first + 1 }, (_, k) => first + k);
-  const scrubOf = (year: number) => years.indexOf(year);
+  // The editions are the scrub points (a gap year is never one): the needle snaps edition to edition.
+  const scrubOf = (year: number) => sorted.findIndex((p) => p.year === year);
   const dots = sorted.map((p) => ({ x: x(p.year), y: y(p.seconds), r: 5 }));
   // The joined runs as points sampled along each segment (plot fractions), for every label to keep clear of.
   const along = runs.flatMap((r) => r.slice(1).flatMap((p, i) => {
@@ -123,10 +122,9 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
     </Plot>
   );
   const axis = <Axis centred ticks={yearTicks(first, last).map((yr) => ({ x: x(yr), label: String(yr) }))} />;
-  const byYear = new Map(sorted.map((p) => [p.year, p]));
   const scrub = {
-    x: years.map((yr) => x(yr)), keys: years.map((yr) => yearKey(yr, byYear.has(yr))), values: years.map((yr) => byYear.get(yr)?.display ?? '—'),
-    side: [{ label: sideLabel, values: years.map((yr) => byYear.get(yr)?.side ?? '—') }],
+    x: sorted.map((p) => x(p.year)), keys: sorted.map((p) => String(p.year)), values: sorted.map((p) => p.display),
+    side: [{ label: sideLabel, values: sorted.map((p) => p.side) }],
   };
   const detents = [...new Set([sel, ...(start >= 0 ? [start] : [])])].map((i) => scrubOf(sorted[i].year));
   return (

@@ -29,13 +29,9 @@ export const NET_MIN_M = 10;
 export const CLIMB_MIN_M = 15;
 /**
  * The glance's rows say only what sets a course apart: a 5K section "parts" from the typical course from 3 points of
- * pace against the course's own average (2 points rounds to look like 3 as whole percentages, and sets nothing apart),
- * and the pacing shape "makes" a course when it told the course apart in at least nine in ten of five or more editions,
- * every edition the hero counts (so the row's denominator is the hero's).
+ * pace against the course's own average (2 points rounds to look like 3 as whole percentages, and sets nothing apart).
  */
 export const SIGNATURE_MIN = 3;
-export const SHAPE_MIN_EDITIONS = 5;
-export const SHAPE_SHARE = 0.9;
 /** A pacing type's share differs from every course's from 3 percentage points. */
 export const TYPE_GAP = 0.03;
 /** A median finish "moved" from 60 seconds. */
@@ -67,8 +63,8 @@ function coursesIndex(): Nugget {
 }
 
 /**
- * The index's reading: the spread of sustained slowdown across courses with three or more editions. "More than twice"
- * needs the highest share at least twice the lowest.
+ * The index's reading: the spread of sustained slowdown across courses with three or more editions, each course's share
+ * in its average edition (the course pages' figure). "More than twice" needs the highest share at least twice the lowest.
  */
 export function coursesRangeFrom(field: { city: string; slowdown: number; editions: number }[]): Nugget {
   const solid = field.filter((c) => c.editions >= MIN_EDITIONS && Number.isFinite(c.slowdown));
@@ -84,7 +80,7 @@ export function coursesRangeFrom(field: { city: string; slowdown: number; editio
     headline: 'The same distance, and *more than twice* the share at one end as at the other.',
     fallback: 'Sustained slowdown, course by course.',
     figure: lo && hi ? { value: `${whole(lo.slowdown)}–${whole(hi.slowdown)}`, unit: '%', sr: `${whole(lo.slowdown)} to ${whole(hi.slowdown)} percent` } : null,
-    key: 'of finishes had a sustained slowdown, course by course',
+    key: 'of finishes in the average edition had a sustained slowdown, course by course',
   };
 }
 
@@ -94,7 +90,11 @@ function coursesRange(): Nugget {
 
 // ---------- A course page ----------
 
-/** The hero: the share of finishes with a sustained slowdown, and how far it ran edition by edition. */
+/**
+ * The hero: the share of finishes with a sustained slowdown in the average edition (summary.slowdown averages the
+ * editions' shares, so the words name the average edition, never a share pooled over every finish), and how far it ran
+ * edition by edition.
+ */
 function courseSlowdown(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
   const s = page?.summary;
@@ -112,7 +112,7 @@ function courseSlowdown(ctx?: NuggetContext): Nugget {
     guard,
     headline: `Edition by edition, between ${pct(lo)} (${loYear}) and *${pct(hi)}* (${hiYear}).`,
     fallback: years.length > 1 ? `Every ${city} edition, ${years[0]} to ${years[years.length - 1]}.` : years.length ? `The ${years[0]} edition.` : `${city}, edition by edition.`,
-    figure: shareFigure(share), key: 'of finishes had a sustained slowdown',
+    figure: shareFigure(share), key: 'of finishes in the average edition had a sustained slowdown',
   };
 }
 
@@ -173,27 +173,6 @@ function courseLate(ctx?: NuggetContext): Nugget {
   };
 }
 
-/**
- * At a glance (3): how often the course's 5K splits alone told it apart from every other course, said only when they
- * did in at least nine in ten of five or more editions and every edition the hero counts was tested (so the row's
- * "of" is the hero's edition count, never a smaller one).
- */
-function courseShape(ctx?: NuggetContext): Nugget {
-  const page = pageFor(ctx);
-  const id = page?.summary.identified;
-  const display = page?.display ?? 'this course';
-  const guard = !!id && !!page && id.editions >= SHAPE_MIN_EDITIONS && id.editions === page.summary.editions && id.correct >= SHAPE_SHARE * id.editions;
-  return {
-    id: 'course.shape', page: `/courses/${page?.slug ?? ''}#at-a-glance`, denominator: 'shape',
-    values: { correct: id?.correct ?? NaN, editions: id?.editions ?? NaN },
-    guard,
-    headline: id ? `*${id.correct} of ${id.editions}* ${display} editions were told apart from every other course by their 5K splits alone.` : '',
-    fallback: 'A pacing shape of its own.',
-    figure: guard ? { value: `${id!.correct} of ${id!.editions}`, sr: `${id!.correct} of ${id!.editions}` } : null,
-    key: 'editions told apart from every other course by their 5K splits alone',
-  };
-}
-
 /** A section's pace against its course's own average, in words: "4% slower than its average pace", "1% quicker…", "at its average pace". */
 function paceWords(v: number, own: boolean): string {
   const n = Math.round(Math.abs(v));
@@ -202,7 +181,7 @@ function paceWords(v: number, own: boolean): string {
 }
 
 /**
- * At a glance (4): the 5K section where the course's pacing parts most from the typical course's (each against its own
+ * At a glance (3): the 5K section where the course's pacing parts most from the typical course's (each against its own
  * average pace), said from 3 points apart on a course with three or more editions, in words: "1% quicker than its
  * average pace; 4% slower on the typical course". Where no section parts that far, the course "paces much like the
  * typical course", which the glance says alone when nothing else sets the course apart.
@@ -379,7 +358,6 @@ export const COURSE_NUGGETS: Record<string, Builder> = {
   'course.slowdown': courseSlowdown,
   'course.start': courseStart,
   'course.late': courseLate,
-  'course.shape': courseShape,
   'course.signature': courseSignature,
   'course.times': courseTimes,
   'course.climb': courseClimb,
@@ -390,4 +368,4 @@ export const COURSE_NUGGETS: Record<string, Builder> = {
 };
 
 /** The nuggets a course page builds with its city (index.ts CONTEXT_NUGGETS). */
-export const COURSE_CONTEXT_NUGGETS = ['course.slowdown', 'course.start', 'course.late', 'course.shape', 'course.signature', 'course.times', 'course.climb', 'course.types', 'course.among', 'course.goal', 'course.weather'] as const;
+export const COURSE_CONTEXT_NUGGETS = ['course.slowdown', 'course.start', 'course.late', 'course.signature', 'course.times', 'course.climb', 'course.types', 'course.among', 'course.goal', 'course.weather'] as const;
