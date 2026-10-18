@@ -5,7 +5,7 @@
  */
 import type { Metadata } from 'next';
 import { getInsightsManifest } from './insights-server';
-import { absoluteUrl, assertCleanPath } from './seo-routes';
+import { absoluteUrl, assertCleanPath, movedTo } from './seo-routes';
 import { DEFAULT_OG_IMAGE, ogImageFor } from './og-paths';
 
 export { SITE_URL, absoluteUrl } from './seo-routes';
@@ -32,9 +32,9 @@ export type PageMetadataInput = {
   /** This page's own clean path, e.g. '/tools/pace-band'. Throws on ? or #. */
   path: string;
   type?: 'website' | 'article';
-  /** noindex, follow; no canonical link. Use for lib/seo-routes NOINDEX paths and THIN_PACKS. */
+  /** noindex, follow; no canonical link. Use for lib/seo-routes NOINDEX paths and the moved addresses' stubs. */
   noindex?: boolean;
-  /** Another page that is the original (pack aliases). Defaults to `path`. */
+  /** Another page that is the original; with noindex (a moved address's stub), only og:url names it. Defaults to `path`. */
   canonicalPath?: string;
   /** A 1200x630 image path; defaults to ogImageFor(canonical path). */
   image?: string;
@@ -68,6 +68,16 @@ export function pageMetadata({ title, description, path, type = 'website', noind
     twitter: { card: 'summary_large_image', title: socialTitle, description, images: [{ url: img, alt }] },
     robots: noindex ? { index: false, follow: true } : { index: true, follow: true, 'max-image-preview': 'large' },
   };
+}
+
+/**
+ * Metadata for a moved address's stub (components/MovedPage.tsx): noindex with no canonical link, and og:url naming the
+ * page it moved to. Throws for a path lib/seo-routes.ts does not list as moved, so a stub cannot outlive its entry.
+ */
+export function movedMetadata(path: string, title: string, description: string): Metadata {
+  const target = movedTo(path);
+  if (!target) throw new Error(`${path} is not a moved address in lib/seo-routes.ts`);
+  return pageMetadata({ title, description, path, noindex: true, canonicalPath: target.split('#')[0] });
 }
 
 /** A JSON-LD block. `<` is escaped so the data can never close the script element. */

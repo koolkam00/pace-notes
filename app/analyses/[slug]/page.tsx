@@ -12,7 +12,9 @@ import { getAllFinisherContextStart } from '@/lib/all-finisher-context-server';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import PageFeedback from '@/components/PageFeedback';
 import RelatedTool from '@/components/tools/RelatedTool';
-import { JsonLd, breadcrumbs, pageMetadata } from '@/lib/seo';
+import { JsonLd, breadcrumbs, movedMetadata, pageMetadata } from '@/lib/seo';
+import { movedTo } from '@/lib/seo-routes';
+import MovedPage from '@/components/MovedPage';
 
 /** Miles first (the default unit), from the metric mat distance, e.g. "12.4 mi". */
 const mi = (km: number) => distanceLabel(km, DEFAULT_UNITS, 1);
@@ -52,10 +54,15 @@ export function generateStaticParams() { return [...TEN_ANALYSES, ...getWeatherA
 export function generateMetadata({ params }: { params: { slug: string } }) {
   const seo = seoFor(params.slug);
   if (!seo) return { title: 'Analysis not found | Pace Notes', robots: { index: false, follow: true } };
-  return pageMetadata({ title: seo.title, description: seo.description, path: `/analyses/${params.slug}` });
+  const path = `/analyses/${params.slug}`;
+  // The weather questions that became tabs of race-day weather are noindex stubs (WP3 replaces this page; spec 2.9).
+  if (movedTo(path)) return movedMetadata(path, seo.title, seo.description);
+  return pageMetadata({ title: seo.title, description: seo.description, path });
 }
 export default function AnalysisPage({ params }: { params: { slug: string } }) {
   const seo = seoFor(params.slug);
+  const moved = movedTo(`/analyses/${params.slug}`);
+  if (moved) return <MovedPage to={moved} action="Go to race-day weather">This question is now a tab of race-day weather.</MovedPage>;
   return <>{seo ? <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Analyses', '/analyses'], [seo.crumb ?? seo.title]])} /> : null}{analysisBody(params)}<PageFeedback className="page-feedback-analysis" />{params.slug === 'finish-time-context' ? <FinishTimesLink /> : null}<RelatedTool analysis={params.slug} /></>;
 }
 

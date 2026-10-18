@@ -500,7 +500,6 @@ const OTHER_DATA_PAGES = [
   { path: '/stories/race-replay' },
   // The course replay fetches its rows only once it is within a screen of the viewport (components/viz/ReplayStage).
   { path: '/courses/boston', act: async page => { await page.locator('#replay').scrollIntoViewIfNeeded(); } },
-  { path: '/research/personalized' },
   { path: '/report?s=0:25:50,0:52:24,1:19:06,1:45:54,2:13:18,2:42:41,3:16:39,3:49:12,4:03:31&course=berlin', label: 'the race report' },
   { path: '/runners', act: async page => { await page.locator('#runner-name').fill('Smith'); await page.keyboard.press('Enter'); } },
   { path: '/analyses/pacing-pattern', label: 'an analysis after a filter change', act: async page => { await page.locator('.profile-refinements summary').click(); await page.getByLabel('Age group', { exact: false }).first().selectOption({ index: 3 }); await page.getByRole('button', { name: /Update comparison/ }).click(); } },

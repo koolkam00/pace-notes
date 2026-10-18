@@ -1,0 +1,6 @@
+/* Moved addresses (WP8): the noindex stub kept at each one for hosts that cannot redirect (components/MovedPage.tsx).
+   One heading, one sentence and one way on, set in the middle of the first screen so the short page sits deliberately
+   between the header and the footer. The heading keeps one line wherever it fits. */
+.moved-page { display: grid; gap: var(--s-5); justify-items: start; align-content: center; min-height: max(60vh, 22rem); padding-block: var(--s-7); }
+.moved-page > * { margin: 0; }
+.moved-page .t-body { max-width: 30rem; }

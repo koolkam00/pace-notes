@@ -113,12 +113,13 @@ const CASES = {
   } },
   'analysis-url': { path: v => `/analyses/finish-time-context?race=Boston&goal=${v.goalMin}&age=${v.ageIdx === 5 ? '40-44' : '55-59'}&gender=${v.genderIdx === 1 ? 'women' : 'men'}` },
   'analysis-start-url': { path: v => `/analyses/starting-pace?race=Boston&age=${v.ageIdx === 5 ? '40-44' : '55-59'}&gender=${v.genderIdx === 1 ? 'Women' : 'Men'}` },
-  'personalized': { path: '/research/personalized', async drive(page, v, log) {
+  // The checkpoint inputs (an elapsed time and the latest 5K) of the archived guide, removed with /research/personalized
+  // (WP8), live on the checkpoint analysis; its optional fields may sit in a closed <details>. The guide's previous
+  // marathon and age group are typed by the 'analysis' case above.
+  'checkpoint': { path: '/analyses/checkpoint', async drive(page, v, log) {
     await step(log, 'optional', () => open(page, 'details.guide-optional'));
-    await step(log, 'previous', () => type(page, label(page, /Previous marathon/, false), v.prev));
     await step(log, 'elapsed', () => type(page, label(page, /Elapsed time/, false), v.mat25));
-    await step(log, '5 km', () => type(page, label(page, /Latest 5 km/, false), v.fiveK));
-    await step(log, 'age', () => label(page, 'Age group', false).selectOption({ index: v.ageIdx }));
+    await step(log, '5 km', () => type(page, label(page, /^(Latest|Last) (5 km|3\.1 mi)/, false), v.fiveK));
   } },
   // The home page's course-and-goal form, then the planner it opens. Both courses are ones neither page names by itself
   // (the hero replay's races and the planner's method note are page content in both runs, so a needle among them could

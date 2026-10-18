@@ -61,6 +61,17 @@ async function expectRedirect(from, to) {
   return `308 to ${location}`;
 }
 
+/** The path redirects in vercel.json (the old-host rule left out), each as a sample request and the location it must answer. */
+function movedChecks() {
+  const config = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'vercel.json'), 'utf8'));
+  return (config.redirects || []).filter((rule) => !rule.has && rule.permanent !== false).map((rule) => {
+    const values = {};
+    const from = rule.source.replace(/:([A-Za-z_]\w*)[*+?]?/g, (whole, name) => (values[name] = 'r01_banking_time'));
+    const to = rule.destination.replace(/:([A-Za-z_]\w*)[*+?]?/g, (whole, name) => values[name] ?? whole);
+    return { from, to };
+  });
+}
+
 async function main() {
   console.log(`verify-seo-live: ${BASE}${IS_PRODUCTION ? '' : ' (not production: host checks skipped)'}\n`);
 
@@ -73,6 +84,12 @@ async function main() {
   }
   await check('/htw: 308 to /slowdown', () => expectRedirect(`${BASE}/htw`, `${BASE}/slowdown`));
   await check('/packs/smyth_htw: 308 to /slowdown', () => expectRedirect(`${BASE}/packs/smyth_htw`, `${BASE}/slowdown`));
+  // Every other path redirect in vercel.json, as committed (scripts/verify-seo.cjs checks the table against the stubs
+  // before a deploy): a :name parameter is tried with a sample segment, and the target keeps its #anchor.
+  for (const { from, to } of movedChecks()) {
+    if (from === '/htw' || from === '/packs/smyth_htw') continue;
+    await check(`${from}: 308 to ${to}`, () => expectRedirect(`${BASE}${from}`, `${BASE}${to}`));
+  }
 
   await check('/robots.txt: 200 text/plain with the Sitemap line', async () => {
     const response = await request(`${BASE}/robots.txt`);

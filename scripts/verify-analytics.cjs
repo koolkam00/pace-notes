@@ -518,7 +518,8 @@ const toolComponents = TOOLS.map(tool => {
 assert.equal(new Set(toolComponents).size, TOOLS.length, 'Every registered tool has its own component');
 const required = { 'tool-workspace': toolComponents, 'tool-results': toolComponents,
   'analysis-layout': ['components/AnalysisExplorer.tsx', 'components/AllFinisherAnalysis.tsx', 'components/FastStartAnalysis.tsx', 'components/WeatherAnalysis.tsx'],
-  'personalized-guide': ['components/PersonalizedGuide.tsx'], 'which-card': ['components/story/ArchetypeStory.tsx', 'components/ui/GuessFirst.client.tsx'], 'finish-lookup': ['components/story/FinishTimeStory.tsx'],
+  // .personalized-guide stays in the policy (harmless) but has no file since the guide was removed (WP8, spec 6.6).
+  'which-card': ['components/story/ArchetypeStory.tsx', 'components/ui/GuessFirst.client.tsx'], 'finish-lookup': ['components/story/FinishTimeStory.tsx'],
   'home-plan': ['components/home/HomeDoors.tsx'] };
 for (const [token, files] of Object.entries(required)) {
   for (const file of files) assert.ok(hasClass(read(file), token), `${file} still renders .${token}`);
