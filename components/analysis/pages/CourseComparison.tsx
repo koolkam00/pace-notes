@@ -31,9 +31,9 @@ export default function CourseComparison() {
   ) : null;
   const historyDefinition = { ...definition, dek: 'See how finish times compared with the same runners’ earlier bests, course by course.' };
   return (
-    <AnalysisShell path={PATH} title={n} dek={definition.title} answer={answer}>
+    <AnalysisShell path={PATH} title={n} titleTerm dek={definition.title} answer={answer}>
       <ExploreBeat track="chapter-1">
-        <AllFinisherAnalysis kind="courses" start={start}
+        <AllFinisherAnalysis kind="courses" start={start} linkTerm={false}
           history={<AnalysisExplorer definition={historyDefinition} summary={summary} initialAnswer={answers.find((a) => a.id === definition.id)!} historyMode />} />
       </ExploreBeat>
     </AnalysisShell>

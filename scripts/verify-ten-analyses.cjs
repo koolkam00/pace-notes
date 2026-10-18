@@ -99,13 +99,21 @@ const METHOD_COPY = [/How we calculated this/, /How to read this/, /Keep in mind
   /requires earlier results/, /strictly earlier/, /15-minute band/, /strictly below this time/, /selects a 15-minute band/, /unit of evidence/,
   /at least 100/, /Runner comparison groups contain/, /source-quality rules/, /\d[\d,]* (?:complete |eligible |achieved )?finishes (?:across|in the displayed)/,
   /race editions\./, /historical intentions are unknown/, /not a confidence interval/, /Fewer than 100/, /middle 80% of complete finishes/, /Distances follow the recorded timing points/];
+const { insightHeadline } = require('../components/AnalysisExplorer.tsx');
 for (const definition of TEN_ANALYSES.filter(item => item.id !== 'opening')) {
-  const html = render(AnalysisExplorer, { definition, summary, initialAnswer: answers.find(answer => answer.id === definition.id), weatherQuestions: [] });
+  const answer = answers.find(item => item.id === definition.id);
+  const html = render(AnalysisExplorer, { definition, summary, initialAnswer: answer, weatherQuestions: [] });
   for (const pattern of METHOD_COPY) assert.doesNotMatch(html, pattern, `${definition.id}: method or source copy belongs on /methodology (${pattern})`);
+  // Untouched, the explorer never repeats the page's answer: no headline until the visitor changes the selection.
+  assert.doesNotMatch(html, /class="explore-title"/, `${definition.id}: the untouched explorer has no headline of its own`);
+  assert.match(html, /class="miy-chip"/, `${definition.id}: the selection row`);
+  assert.doesNotMatch((html.match(/class="miy-chip-text">([^<]*)</) || [])[1] || '', /All ages|All early paces/, `${definition.id}: the selection row leaves out defaults`);
   // Headlines state what the chart shows, read from the same rows, in mat grammar (the redesign spec, section 6.4).
-  const headline = (html.match(/<h2 class="explore-title">(.*?)<\/h2>/) || [])[1] || '';
+  const headline = insightHeadline(definition.id, answer, 240, 'mi');
   if (definition.id === 'sections') assert.match(headline, /^The two groups split most in the (?:\d+–\d+K|40K–finish) section, where finishes just over 4:00 took \d+:\d\d more than those just under\.$/);
   if (definition.id === 'age') assert.match(headline, /^Across \d+ age groups, the second 20K ranged from [\d.]+% (?:slower|faster) \([\d–+]+\) to [\d.]+% (?:slower|faster) \([\d–+]+\) than the first\.$/);
+  if (definition.id === 'profile') assert.match(headline, /^Finishes near 4:00 ran \d+ s\/mi fast early and \d+ s\/mi slow late, against even pace\.$/);
+  if (definition.id === 'ambition') assert.match(headline, /^\d+% of these finishes were under 4:00\.$/, 'whole percent, as the chart reads it');
   if (definition.id === 'courses') {
     assert.match(headline, /^Across \d+ courses, median finishes ranged from .+ than the same runners’ earlier bests\.$/);
     for (const city of summary.courses.map(row => row.city)) assert.ok(!headline.includes(city), 'The course headline names no course: one course at the top of a range is not a difficulty ranking');
@@ -128,7 +136,11 @@ for (const slug of [...TEN_ANALYSES.map(item => item.slug), 'downhill-start']) {
   assert.ok(h1 >= 0 && answer >= 0 && h1 > answer && explore > h1 && end > explore, `${slug}: the finding, then the explorer, then the chapter end`);
   if (definition) assert.ok(html.includes(definition.title.replace(/'/g, '&#x27;')), `${slug}: the question dek`);
   assert.match(html, /class="analysis-layout analysis-flow"/, `${slug}: the page sits in the masked .analysis-layout`);
-  assert.match(html, /class="explore-results"/, `${slug}: the explorer opens on a drawn result`);
+  // The explorer opens on the example's chart where the page has no other picture of it; where the answer above already
+  // draws it (checkpoint, age, hills, the improvement waterfall), on its selection row alone.
+  if (['checkpoint', 'age-and-pacing', 'hills-and-pacing', 'finding-improvement'].includes(slug)) assert.doesNotMatch(html, /class="explore-results"/, `${slug}: the untouched explorer is its selection row`);
+  else assert.match(html, /class="explore-results"/, `${slug}: the explorer opens on a drawn result`);
+  assert.match(html, /class="miy-chip"/, `${slug}: the Make it yours selection row`);
   assert.doesNotMatch(html, /Not enough results|Too few comparable|Loading the|recharts/i, `${slug}: no empty, loading or Recharts state`);
   for (const pattern of METHOD_COPY) assert.doesNotMatch(html, pattern, `${slug}: method copy belongs on /methodology (${pattern})`);
   assert.ok((html.match(/<section[^>]*class="beat/g) || []).length <= 3, `${slug}: at most two beats and the explorer after the answer`);

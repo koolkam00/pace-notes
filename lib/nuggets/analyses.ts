@@ -8,7 +8,7 @@
  * values, by the band definitions in the data (upper edges, temperature bounds), or by order, never by a name or index.
  */
 import { getAllFinisherContextStart } from '@/lib/all-finisher-context-server';
-import type { AllFinisherGroup } from '@/lib/all-finisher-context';
+import { bandWords, type AllFinisherGroup } from '@/lib/all-finisher-context';
 import { EXAMPLE_PROFILE } from '@/lib/analysis-profile';
 import { getCheckpointCurve, getCheckpointDefault, getCityData, getTerrainDefault, terrainSections, type CushionPoint, type TerrainSection } from '@/lib/analysis-server';
 import { readInsight } from '@/lib/insights-server';
@@ -43,7 +43,7 @@ type BankBand = Kick['bank']['bands'][number];
 export function kickBankFrom(bands: BankBand[]): Nugget {
   const fastest = bands.filter((b) => b.n >= 100).reduce<BankBand | null>((a, b) => (!a || b.open_s < a.open_s ? b : a), null);
   const ok = !!fastest && fastest.open_s < 0 && fastest.finish_s > 0;
-  const said = (fastest?.label ?? '').replace(/^More than (\d+)% faster$/i, 'over $1% fast').replace(/^[A-Z]/, (c) => c.toLowerCase());
+  const said = bandWords(fastest?.label ?? '');
   return {
     id: 'kick.bank', page: '/analyses/starting-pace', denominator: 'kick', term: '/methodology#sustained-slowdown',
     values: fastest ? { band: fastest.label, n: fastest.n, open_s: fastest.open_s, after20_s: fastest.after20_s, finish_s: fastest.finish_s, slowdown: fastest.slowdown, expected: fastest.expected } : {},
@@ -137,7 +137,7 @@ export function patternFrom(paces: number[], goal = GOAL): Nugget {
     id: 'pattern.profile', page: '/analyses/pacing-pattern', denominator: 'eligible',
     values: ok0 ? { goal_min: goal, even_s: even, fast_i: fast, slow_i: slow, turn_i: turn, fast_s: paces[fast], slow_s: paces[slow] } : {},
     guard: ok,
-    headline: both((u) => `Finishes near ${hm(goal)} didn’t run ${hm(goal)} pace: *${perUnit(even - paces[fast], u)} fast* early, ${perUnit(paces[slow] - even, u)} slow late.`),
+    headline: both((u) => `Finishes near ${hm(goal)} didn’t run ${hm(goal)} pace: ${perUnit(even - paces[fast], u)} fast early, *${perUnit(paces[slow] - even, u)} slow* late.`),
     fallback: `How finishes near ${hm(goal)} paced each 5K, against even ${hm(goal)} pace.`,
     figure: ok0 ? { value: section(slow), sr: `${section(slow)}, the slowest 5K` } : null,
     key: `the slowest 5K, for finishes near ${hm(goal)}`,
@@ -242,7 +242,7 @@ export function ageRetentionFrom(rows: AgeRow[], goal = GOAL): Nugget {
     id: 'age.retention', page: '/analyses/age-and-pacing', denominator: 'eligible',
     values: { groups: rows.length, pooled_lo_age: lo?.age ?? '', pooled_hi_age: hi?.age ?? '', pooled_spread: pooled, same_spread: same, goal_min: goal },
     guard: rows.length >= 2 && older && same <= 1.5 && same < pooled / 2,
-    headline: 'Pooled, older runners slowed more. *At the same finish time, age barely mattered.*',
+    headline: 'Pooled, older runners slowed more. At the same finish time, age *barely mattered*.',
     fallback: 'How the second 20K changed with age, pooled and at the same finish time.',
     figure: finite(same) ? { value: one(same), unit: 'pts', sr: `${one(same)} points between age groups near a ${hm(goal)} finish` } : null,
     key: `between age groups near a ${hm(goal)} finish`,
@@ -277,7 +277,7 @@ export function coursesCompareFrom(groups: AllFinisherGroup[]): Nugget {
     id: 'courses.compare', page: '/analyses/course-comparison', denominator: 'course', term: '/methodology#sustained-slowdown',
     values: { lo: l, hi: h, courses: list.length, lo_course: lo?.label ?? '', hi_course: hi?.label ?? '' },
     guard: list.length >= 2 && h / l > 1.5,
-    headline: `Sustained slowdown ranged from *${pct(l)}* to ${pct(h)} of finishes across courses.`,
+    headline: `Sustained slowdown ranged from ${pct(l)} to ${pct(h)} of finishes across courses, *${(h / l).toFixed(1)} times* as common at the high end.`,
     fallback: `Sustained slowdown across ${count(list.length)} courses.`,
     figure: list.length ? { value: `${pct(l).replace('%', '')}–${pct(h).replace('%', '')}`, unit: '%', sr: `${pct(l)} to ${pct(h)}` } : null,
     key: 'sustained slowdown, course by course',
@@ -392,7 +392,8 @@ export function slowdownHistoryFrom(rows: { label: string; value: number; n: num
   const usable = rows.filter((r) => r.n >= 100 && finite(r.value));
   const first = usable[0], last = usable[usable.length - 1];
   const rising = usable.length >= 2 && usable.every((r, i) => !i || r.value > usable[i - 1].value);
-  const lower = (s: string) => s.replace(/^[A-Z]/, (c) => c.toLowerCase());
+  // "4 hours" never breaks between the number and its unit.
+  const lower = (s: string) => s.replace(/^[A-Z]/, (c) => c.toLowerCase()).replace(/(\d) (hours?|minutes?)\b/g, '$1\u00a0$2');
   return {
     id: 'slowdown.history', page: '/slowdown#history', denominator: 'eligible', term: '/methodology#sustained-slowdown',
     values: first ? { first: first.label, first_share: first.value / 100, last: last.label, last_share: last.value / 100, bands: usable.length } : {},

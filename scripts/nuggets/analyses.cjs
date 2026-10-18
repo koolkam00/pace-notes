@@ -151,6 +151,7 @@ module.exports = function analyses({ json, eq, ok, core }) {
     eq([n.values.lo_course, n.values.hi_course], [lo.label, hi.label], 'courses.compare recounts the extremes');
     ok(!shown(n).includes(lo.label) && !shown(n).includes(hi.label), 'courses.compare: the headline names no course');
     ok(shown(n).includes(pct(lo.slowdown_pct / 100)) && shown(n).includes(pct(hi.slowdown_pct / 100)), 'courses.compare: the headline names both ends');
+    if (n.guard) ok(shown(n).includes(`${(hi.slowdown_pct / lo.slowdown_pct).toFixed(1)} times`), 'courses.compare: the headline names the high end against the low (the receipt\'s result)');
   };
 
   R['terrain.climb'] = (n) => {

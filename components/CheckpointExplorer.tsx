@@ -23,8 +23,9 @@ type Result = { row: CheckpointRow; widened: string; trendWidened: boolean };
 /**
  * The checkpoint explorer (Make it yours, the redesign spec, section 7.6): the course, the goal, the mat, the time on the
  * clock there and, optionally, the latest 5 km and the refinements, in one form (a sheet under 900 px, inline from
- * 900 px). It opens pre-filled with even goal pace at 30K and that row's result, drawn at build, so it is never empty;
- * anything else loads its course's published checkpoint file.
+ * 900 px). It opens pre-filled with even goal pace at 30K, the example the page's answer reads, so until the visitor
+ * changes something it shows only its selection row (the page never repeats the answer); anything else loads its
+ * course's published checkpoint file.
  */
 export default function CheckpointExplorer({ summary, profile: start = EXAMPLE_PROFILE, initial }: {
   summary: PersonalSummary; profile?: Profile;
@@ -75,7 +76,8 @@ export default function CheckpointExplorer({ summary, profile: start = EXAMPLE_P
   const share = result ? percentUnder(result.row, profile.goal) : null;
   const remaining = (profile.goal * 60 - request.elapsed) / (42.195 - request.checkpoint);
   const field = (key: string) => `${formId}-${key}`;
-  const summaryText = [cityName(profile.city), `${request.checkpoint}K in ${clock(request.elapsed, true)}`, `goal ${clock(profile.goal * 60)}`, ...(profile.age === 'all' ? [] : [profile.age]), ...(profile.gender === 'all' ? [] : [profile.gender])].join(' · ');
+  // The choices that vary first: the mat and its time, then the goal and the course.
+  const summaryText = [`${request.checkpoint}K in ${clock(request.elapsed, true)}`, `goal ${clock(profile.goal * 60)}`, cityName(profile.city), ...(profile.age === 'all' ? [] : [profile.age]), ...(profile.gender === 'all' ? [] : [profile.gender])].join(' · ');
   const submit = () => {
     const goal = parseMinutes(goalText);
     const elapsed = parseElapsed(elapsedText), section = sectionText.trim() ? parseSection(sectionText) : null;
@@ -114,6 +116,9 @@ export default function CheckpointExplorer({ summary, profile: start = EXAMPLE_P
     <div className="miy-results">
       {loading && !result ? <p className="explore-state">Loading the checkpoint comparison…</p>
         : error ? <div className="explore-state" role="alert"><p>{error}</p><button type="button" className="btn btn-secondary is-compact" onClick={() => setRetry(n => n + 1)}>Try again</button></div>
+        // The page's answer and its cushion beat already read the example: until the visitor changes it, the explorer is
+        // its selection row alone.
+        : isInitial ? null
         : !result ? <div className="explore-state"><h2 className="explore-title">Too few comparable finishes.</h2><p>Try another elapsed time or All courses.</p></div>
         : <div className="explore-results" aria-live="polite">
           <h2 className="explore-title">At {request.checkpoint}K in {clock(request.elapsed, true)}, {share === null ? 'the share' : `${Math.round(share)}%`} of finishes got under {clock(profile.goal * 60)}.</h2>

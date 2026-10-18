@@ -51,6 +51,8 @@ export function allFinisherGroups(row: AllFinisherRow, kind: AllFinisherKind, op
   if (kind === 'race-day') return row.editions;
   return row[allFinisherFamily(kind)].filter(group => kind !== 'downhill' || group.opening === opening);
 }
+/** An opening band in the site's words: "More than 10% faster" → "over 10% fast", "2–5% slower" → "2–5% slow". */
+export const bandWords = (label: string) => label.replace(/^More than /i, 'over ').replace(/(\d%) (fast|slow)er$/i, '$1 $2').replace(/^[A-Z]/, (c) => c.toLowerCase());
 export function earlyPaceLabel(band: AllFinisherStart['early_pace_bands'][number], units: UnitSystem): string {
   if (band.id === 'all') return 'All early paces';
   if (band.lower_s_per_km === null) return 'Faster than ' + paceLabel(band.upper_s_per_km!, units);

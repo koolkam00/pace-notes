@@ -25,7 +25,9 @@ type Props = {
   className?: string;
 };
 
-/** The result takes the large figure up to ten glyphs ("5:00 behind") and steps down beyond, so it never leaves the card. */
+/** The result takes the large figure up to ten glyphs ("5:00 behind") and steps down beyond, so it never leaves the card.
+ *  From seven glyphs it is also marked long: where the result sits in a column beside the lines (an analysis answer from
+ *  900 px), a long one takes a smaller size there. */
 const glyphs = (value: string) => Array.from(value.replace(/\s+/g, '')).length;
 
 export default function Receipt({ kicker, lines, result, extra, footer, goal, className }: Props) {
@@ -43,7 +45,7 @@ export default function Receipt({ kicker, lines, result, extra, footer, goal, cl
           ))}
         </dl>
         <hr className="receipt-rule" />
-        <div className="receipt-result">
+        <div className={`receipt-result${glyphs(result.value) >= 7 ? ' is-long' : ''}`}>
           <span className="receipt-result-label">{result.label}</span>
           {result.fallback
             ? <span className="receipt-result-fallback t-sentence">{result.fallback}</span>

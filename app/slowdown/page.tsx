@@ -46,7 +46,8 @@ export default function Page() {
   const late = rows.filter((r) => Number(r.label) >= 30).reduce((s, r) => s + Number(r.episodes ?? 0), 0);
   const segments = [
     ...rows.filter((r) => Number(r.label) < 30).map((r, i) => ({ id: String(r.label), label: sectionLabel(Number(r.label), Number(r.label) + 5), share: Number(r.episodes) / total, display: pct(Number(r.episodes) / total), tone: (i ? 3 : 1) as 1 | 3 })),
-    { id: 'late', label: '30K or later', share: late / total, display: pct(late / total), tone: 'signal' as const },
+    // The big figure states this share, so the bar names the segment only.
+    { id: 'late', label: '30K or later', share: late / total, display: '', tone: 'signal' as const },
   ];
   const rate = Number(onset.values.rate);
   const courses = comparableCourses(getAllFinisherContextStart().initial.courses);
@@ -61,7 +62,7 @@ export default function Page() {
           <Reading crumbs={<ChapterCrumbs path={PATH} />} title="Sustained slowdown: *when* it begins, and where." titleSize="title"
             dek={<>{Number.isFinite(rate) ? `${capitalize(approxWords(rate))} finishes had a ` : 'How often finishes had a '}<Link href="/methodology#sustained-slowdown">sustained slowdown</Link>. When did it begin, and where?</>}
             figure={onset.figure ? { ...onset.figure } : undefined} unitLine={onset.key}
-            instrument={<ShareBar segments={segments} label={`Where sustained slowdowns began: ${segments.map((s) => `${s.label} ${s.display}`).join(', ')}`} />} />
+            instrument={<ShareBar segments={segments} inside={false} label={`Where sustained slowdowns began: ${segments.map((s) => `${s.label} ${s.display || pct(s.share)}`).join(', ')}`} />} />
         </section>
         <Beat id="courses" track="chapter-1" label="Course by course" title={spread}>
           <DotStrip items={courses.map((c) => ({ id: c.id, label: courseName(c.label), value: c.slowdown_pct, display: pct(c.slowdown_pct / 100), detail: count(c.n) }))}

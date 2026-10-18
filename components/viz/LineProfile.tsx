@@ -65,9 +65,14 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
     const clamp = (v: number) => Math.max(Math.min(d0, d1), Math.min(Math.max(d0, d1), v));
     const pts = (values: number[]) => values.map((v, i) => [x(xs[i]), y(clamp(v))] as [number, number]);
     const items: LabelItem[] = (layer.labels ?? []).map((l, i) => ({ id: `${layer.id}-${i}`, text: l.text, x: x(l.x), y: y(l.y), priority: l.priority ?? (l.tone === 'signal' ? 3 : 2), tone: l.tone, prefer: l.prefer }));
-    // Labels keep clear of the points and of every line's vertices.
-    const avoid = [...(layer.points ?? []).map((p) => ({ x: x(p.x), y: y(p.y), r: 7 })),
-      ...layer.series.flatMap((sr) => sr.values.map((v, i) => ({ x: x(xs[i]), y: y(clamp(v)), r: 3 })))];
+    // Labels keep clear of the points and of every line: its vertices and points along each segment.
+    const along = (values: number[]) => values.flatMap((v, i) => {
+      if (i === values.length - 1) return [{ x: x(xs[i]), y: y(clamp(v)), r: 3 }];
+      const [x0, y0, x1, y1] = [x(xs[i]), y(clamp(v)), x(xs[i + 1]), y(clamp(values[i + 1]))];
+      const n = Math.max(2, Math.ceil(Math.hypot((x1 - x0) * REF_WIDTH, (y1 - y0) * height) / 5));
+      return Array.from({ length: n }, (_, k) => ({ x: x0 + ((x1 - x0) * k) / n, y: y0 + ((y1 - y0) * k) / n, r: k ? 2 : 3 }));
+    });
+    const avoid = [...(layer.points ?? []).map((p) => ({ x: x(p.x), y: y(p.y), r: 7 })), ...layer.series.flatMap((sr) => along(sr.values))];
     const placed = placeLabels(items, { height, avoid });
     return (
       <g key={layer.id} data-layer={lensOn ? layer.id : undefined} className={lensOn && layer.id !== current ? 'is-off' : undefined}>
@@ -93,6 +98,8 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
   // area, of the gridline labels and of the needle's opening position. The ends are tried first, over then under the
   // line, then positions along it; the check runs at the narrowest phone plot (REF_WIDTH × height).
   const firstLayer = layers.find((l) => l.id === current) ?? layers[0];
+  // A domain passed high to low draws larger values lower (pace: slower down, ahead up).
+  const flipped = y(1) > y(0);
   const needleX = scrub ? (scrub.points.x[scrub.initial] ?? null) : null;
   const refSpot = (r: { value: number; label?: string }): { side?: 'left' | 'right'; at?: number; below?: boolean } => {
     if (!r.label || !firstLayer) return { side: 'left' };
@@ -115,7 +122,8 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
           if (Math.max(ya, yb) > y0 - 3 && Math.min(ya, yb) < y1 + 3) return false;
         }
       }
-      if (!below && washed.some((pts) => pts.some(([px, on]) => on && px > x0 - 3 && px < x1 + 3))) return false;
+      // The washed side is above the line, or below it on a flipped scale (slower drawn down).
+      if (below === flipped && washed.some((pts) => pts.some(([px, on]) => on && px > x0 - 3 && px < x1 + 3))) return false;
       return true;
     };
     const ends: [number, boolean, { side?: 'left' | 'right'; at?: number; below?: boolean }][] = [

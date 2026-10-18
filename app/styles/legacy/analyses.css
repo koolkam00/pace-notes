@@ -69,8 +69,7 @@
 
 /* ---------- The history comparison (components/AnalysisChart.tsx) and QuestionViz's range rows ----------
    Rebuilt by WP3 under the redesign: no card, no shadow; a hairline above, the token type. */
-.analysis-chart { margin-top: var(--s-5); padding-top: var(--s-5); border-top: 1px solid var(--rule); }
-.analysis-chart-heading { margin: 0 0 var(--s-4); font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.analysis-chart { margin-top: var(--s-2); }
 .analysis-chart .study-figure { margin-top: var(--s-3); }
 .chart-switcher { margin-bottom: var(--s-4); }
 .chart-switcher-buttons { display: flex; flex-wrap: wrap; gap: var(--s-2); }

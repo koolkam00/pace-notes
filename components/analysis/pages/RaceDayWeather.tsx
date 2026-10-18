@@ -48,9 +48,9 @@ export default function RaceDayWeather() {
   ];
   const historyDefinition = { ...definition, dek: 'See how finish times compared with the same runners’ earlier bests in cooler and warmer races.' };
   return (
-    <AnalysisShell path={PATH} title={n} dek={definition.title} answer={<WeatherTabs tabs={tabs} />}>
+    <AnalysisShell path={PATH} title={n} titleTerm dek={definition.title} answer={<WeatherTabs tabs={tabs} />}>
       <ExploreBeat track="chapter-1">
-        <AllFinisherAnalysis kind="weather" start={start}
+        <AllFinisherAnalysis kind="weather" start={start} linkTerm={false}
           history={<AnalysisExplorer definition={historyDefinition} summary={summary} initialAnswer={answers.find((a) => a.id === definition.id)!} historyMode />} />
       </ExploreBeat>
     </AnalysisShell>

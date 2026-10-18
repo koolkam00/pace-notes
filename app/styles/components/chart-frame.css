@@ -174,8 +174,12 @@
 .viz-frame.dumbbell .dumbbell-gap.is-signal { fill: var(--signal); }
 .viz-frame.dumbbell .dumbbell-value { align-self: center; font-size: var(--t-small); font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; color: var(--ink); }
 .viz-frame.dumbbell .dumbbell-axis { margin-top: 2px; }
+/* Bare: no value column; a fixed label column (the same in the rows and the axis, so the ticks line up with the track)
+   and the track the rest (Values holds the numbers). */
+.viz-frame.dumbbell.is-bare .dumbbell-rows, .viz-frame.dumbbell.is-bare .dumbbell-axis { grid-template-columns: 7.5rem minmax(0, 1fr); }
 /* A narrow figure gives each label its own line, so the track keeps its width. */
 @container (max-width: 299.98px) {
+  .viz-frame.dumbbell.is-bare .dumbbell-rows, .viz-frame.dumbbell.is-bare .dumbbell-axis { grid-template-columns: minmax(0, 1fr); }
   .viz-frame.dumbbell .dumbbell-rows, .viz-frame.dumbbell .dumbbell-axis { grid-template-columns: minmax(0, 1fr) 4rem; }
   .viz-frame.dumbbell .dumbbell-label { grid-column: 1 / -1; padding-top: var(--s-2); }
   .viz-frame.dumbbell .dumbbell-axis > span:first-child { display: none; }

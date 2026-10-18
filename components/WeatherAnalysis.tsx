@@ -8,7 +8,7 @@ import ChartFrame from './viz/ChartFrame';
 import Axis from './viz/Axis';
 import Plot from './viz/Plot';
 import { linear, pc } from './viz/scale';
-import { weatherLabel, weatherNumber } from '@/lib/weather-display';
+import { weatherLabel, weatherNumber, weatherUnit, weatherValue } from '@/lib/weather-display';
 import type { NuggetText } from '@/lib/nuggets/types';
 import type { WeatherCandidate, WeatherDefinition, WeatherEvidence } from '@/lib/weather-types';
 
@@ -19,6 +19,10 @@ const SIDES: Record<WeatherCandidate['id'], [string, string, string]> = {
   wind: ['Lighter wind', 'Stronger wind', 'Extra second-20K slowing in the stronger wind'],
   humidity: ['A drier start', 'A more humid start', 'Extra second-20K slowing at the more humid start'],
 };
+/** The table's short column name for each exposure; the caption says it in full. */
+const SHORT: Record<WeatherCandidate['id'], string> = { warming: 'Rise', wind: 'Wind', humidity: 'Dew point' };
+/** A race day's exposure in whole units ("11°F", "10 mph"), as the tab's sentence says it. */
+const whole = (value: number, id: WeatherCandidate['id'], units: 'mi' | 'km') => `${Math.round(weatherValue(value, id, units))}${id === 'wind' ? ' ' : ''}${weatherUnit(id, units)}`;
 const pp = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${weatherNumber(Math.abs(value), 1)}`;
 
 /**
@@ -56,8 +60,8 @@ export default function WeatherAnalysis({ candidate, evidence, sentence }: { def
     <div className="answer-card night effect-card">
       <p className="answer-kicker t-kicker">{heading}</p>
       <dl className="effect-days">
-        <div><dt>{SIDES[candidate.id][0]}</dt><dd>{weatherLabel(exposure.q25, candidate.id, units)}</dd></div>
-        <div><dt>{SIDES[candidate.id][1]}</dt><dd>{weatherLabel(exposure.q75, candidate.id, units)}</dd></div>
+        <div><dt>{SIDES[candidate.id][0]}</dt><dd>{whole(exposure.q25, candidate.id, units)}</dd></div>
+        <div><dt>{SIDES[candidate.id][1]}</dt><dd>{whole(exposure.q75, candidate.id, units)}</dd></div>
       </dl>
       <div className="effect-result">
         <span className="effect-result-label">{SIDES[candidate.id][2]}</span>
@@ -68,7 +72,7 @@ export default function WeatherAnalysis({ candidate, evidence, sentence }: { def
       <p className="answer-foot">{interval}: {pp(effect.low)} to {pp(effect.high)} percentage points.</p>
     </div>
     <Values id={`${id}-days`} caption={`Observed race days: ${heading.toLowerCase()} and second-20K slowing`} count={evidence.editions.length}
-      columns={[{ key: 'e', label: 'Race edition', text: true }, { key: 'x', label: heading }, { key: 's', label: 'Second 20K' }, { key: 'n', label: 'Finishes' }]}
+      columns={[{ key: 'e', label: 'Race', text: true }, { key: 'x', label: SHORT[candidate.id] }, { key: 's', label: 'Second 20K' }, { key: 'n', label: 'Finishes' }]}
       rows={evidence.editions.map(row => [`${row.city} ${row.year}`, weatherLabel(row[exposure.key], candidate.id, units), `${weatherNumber(row.pace_change_pct, 1)}%`, row.n.toLocaleString('en-US')])} />
   </div>;
 }

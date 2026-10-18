@@ -3,6 +3,7 @@ import { AGE_OPTIONS } from './personalized-catalog';
 import { MARATHON_SECTION_ENDS } from './section-labels';
 import type { ChartSpec } from './research-data';
 import { dataFetch } from './data-fetch';
+import { ms } from './nuggets/format';
 
 export type FastStartGroup = {
   band: string; n: number; editions: number;
@@ -68,13 +69,14 @@ export function fastStartSearch(selection: FastStartSelection): string {
 export function fastStartRow(rows: FastStartRow[], selection: FastStartSelection): FastStartRow | undefined {
   return rows.find(row => row.city === selection.city && row.age === selection.age && row.gender === selection.gender && row.prior === selection.prior);
 }
+/** A time difference in m:ss words ("16:37 faster"), as every page writes a duration; never decimal minutes. */
 export function timeChange(seconds: number): string {
   if (Math.abs(seconds) < 3) return 'About the same time';
-  return `${(Math.abs(seconds) / 60).toLocaleString('en-US', { maximumFractionDigits: 1 })} min ${seconds < 0 ? 'faster' : 'slower'}`;
+  return `${ms(Math.abs(seconds))} ${seconds < 0 ? 'faster' : 'slower'}`;
 }
 export function referenceTimeDifference(seconds: number): string {
   if (Math.abs(seconds) < 3) return 'About the same time';
-  return `${(Math.abs(seconds) / 60).toLocaleString('en-US', { maximumFractionDigits: 1 })} min ${seconds < 0 ? 'less' : 'more'}`;
+  return `${ms(Math.abs(seconds))} ${seconds < 0 ? 'less' : 'more'}`;
 }
 export function fastStartCharts(row: FastStartRow, focus: FastStartGroup, bands: FastStartStart['bands'], mode: FastStartMode = 'history'): { pace: ChartSpec; finishes: ChartSpec; accounting: ChartSpec; onset: ChartSpec | null } {
   const name = (id: string) => bands.find(b => b.id === id)?.label || id;

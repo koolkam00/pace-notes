@@ -13,13 +13,17 @@ export type ShareSegment = { id: string; label: string; share: number; display: 
 
 const HOLDS_TEXT = new Set<ShareSegment['tone']>(['quiet', undefined, 1, 3, 4]);
 
-export default function ShareBar({ segments, label, values }: { segments: ShareSegment[]; label: string; values?: ReactNode }) {
+export default function ShareBar({ segments, label, values, inside: labelsInside = true }: {
+  segments: ShareSegment[]; label: string; values?: ReactNode;
+  /** false: no label inside any segment; the key names every other segment with its share, all in one style. */
+  inside?: boolean;
+}) {
   const drawn = segments.filter((s) => s.share > 0);
   const total = drawn.reduce((sum, s) => sum + s.share, 0) || 1;
   const tone = (s: ShareSegment) => (s.tone === 'signal' ? 'is-signal' : s.tone === 'quiet' || s.tone === undefined ? 'is-quiet' : `is-ord-${s.tone}`);
   // Inside each segment: its name and share where both fit at the narrowest phone, else its share alone, else nothing.
   const inside = drawn.map((s) => {
-    if (s.tone === 'signal' || !HOLDS_TEXT.has(s.tone)) return '';
+    if (!labelsInside || s.tone === 'signal' || !HOLDS_TEXT.has(s.tone)) return '';
     const room = (s.share / total) * (REF_WIDTH - 2 * (drawn.length - 1)) - 16;
     const full = `${s.label} ${s.display}`;
     return room >= textWidth(full, 13) ? full : room >= textWidth(s.display, 13) ? s.display : '';
@@ -28,7 +32,8 @@ export default function ShareBar({ segments, label, values }: { segments: ShareS
   let start = 0;
   const spans = drawn.map((s) => { const a = start; start += s.share / total; return [a, start] as const; });
   const subject = drawn.findIndex((s) => s.tone === 'signal');
-  const callout = subject >= 0 ? `${drawn[subject].label} ${drawn[subject].display}` : '';
+  // An empty display leaves the callout as the segment's name alone (the page's figure already states its share).
+  const callout = subject >= 0 ? `${drawn[subject].label}${drawn[subject].display ? ` ${drawn[subject].display}` : ''}` : '';
   const centre = subject >= 0 ? ((spans[subject][0] + spans[subject][1]) / 2) * 100 : 0;
   const w = callout ? Math.ceil(textWidth(callout, 14)) + 2 : 0;
   const keyed = drawn.map((s, i) => ({ s, i })).filter(({ s, i }) => i !== subject && inside[i] !== `${s.label} ${s.display}`);

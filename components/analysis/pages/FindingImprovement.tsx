@@ -6,7 +6,7 @@ import ByUnits from '../ByUnits.client';
 import { analysisBySlug } from '@/lib/ten-analyses';
 import { getAnalysisStart } from '@/lib/analysis-server';
 import { getNugget } from '@/lib/nuggets';
-import { hm, ms, spokenTime } from '@/lib/nuggets/format';
+import { hm, ms, pct, spokenPct, spokenTime } from '@/lib/nuggets/format';
 import type { UnitSystem } from '@/lib/units';
 
 const PATH = '/analyses/finding-improvement';
@@ -19,25 +19,33 @@ export default function FindingImprovement() {
   const gains = getNugget('gains.final'), next = getNugget('kick.recurrence');
   const g = gains.values as { goal_min: number; open_min: number; middle_min: number; final_min: number; total_min: number };
   const mins = [g.open_min, g.middle_min, g.final_min];
-  const per = (m: number, km: number, u: UnitSystem) => `${Math.round(((m * 60) / km) * (u === 'mi' ? 1.609344 : 1))} s a ${u === 'mi' ? 'mile' : 'km'}`;
+  const per = (s: number, km: number, u: UnitSystem) => `${Math.round((s / km) * (u === 'mi' ? 1.609344 : 1))} s a ${u === 'mi' ? 'mile' : 'km'}`;
+  // Each block in whole seconds, rounded so the three add up to the total (largest remainder).
+  const exact = mins.map((m) => m * 60), whole = exact.map(Math.round);
+  for (let left = Math.round(g.total_min * 60) - whole.reduce((a, b) => a + b, 0), guard = 0; left !== 0 && guard < 3; guard++) {
+    const i = exact.map((e, k) => ({ k, gap: (e - whole[k]) * Math.sign(left) })).sort((a, b) => b.gap - a.gap)[0].k;
+    whole[i] += Math.sign(left); left -= Math.sign(left);
+  }
+  const share = Number(gains.values.share);
+  // The result is the H1's accent: the share of the time found from 30K to the finish.
   const receipt = (u: UnitSystem) => (
     <Receipt kicker={`Improving finishes near ${hm(g.goal_min)}, against an earlier best`}
-      lines={BLOCKS.slice(0, 2).map(([label, km], i) => ({ label, key: per(mins[i], km, u), value: ms(mins[i] * 60), sr: spokenTime(mins[i] * 60) }))}
-      result={{ label: `${BLOCKS[2][0]}, ${per(mins[2], BLOCKS[2][1], u)}`, value: ms(mins[2] * 60), sr: spokenTime(mins[2] * 60) }}
-      extra={{ label: 'Faster in all', value: ms(g.total_min * 60), sr: spokenTime(g.total_min * 60) }} />
+      lines={BLOCKS.map(([label, km], i) => ({ label, key: per(whole[i], km, u), value: ms(whole[i]), sr: spokenTime(whole[i]) }))}
+      result={{ label: `Found from 30K to the finish`, value: pct(share), sr: `${spokenPct(share)} of the time found`, fallback: gains.guard ? undefined : `${ms(whole[2])} from 30K to the finish` }}
+      footer={`${ms(whole.reduce((a, b) => a + b, 0))} faster in all`} />
   );
   const r = next.values as { observed: number; expected: number };
   const lit = (s: number) => Math.round(s * 100);
   return (
     <AnalysisShell path={PATH} title={gains} dek={definition.title} answer={Number.isFinite(g.total_min) ? <ByUnits mi={receipt('mi')} km={receipt('km')} /> : null}>
-      <Beat id="next-race" track="chapter-1" label="The next race" title={next}>
+      <Beat id="next-race" track="chapter-1" label="The next race" title={next} term>
         <div className="beat-grids">
           <DotGrid lit={lit(r.observed)} label={`${lit(r.observed)} of 100 next races had a sustained slowdown after one`} caption={<><strong>{lit(r.observed)} of 100</strong> after a sustained slowdown</>} />
           <DotGrid lit={lit(r.expected)} compare label={`${lit(r.expected)} of 100 was typical`} caption={<><strong>{lit(r.expected)} of 100</strong> typical</>} />
         </div>
       </Beat>
       <ExploreBeat track="chapter-2">
-        <AnalysisExplorer definition={definition} summary={summary} initialAnswer={answers.find((a) => a.id === definition.id)!} />
+        <AnalysisExplorer definition={definition} summary={summary} initialAnswer={answers.find((a) => a.id === definition.id)!} untouched="none" />
       </ExploreBeat>
     </AnalysisShell>
   );

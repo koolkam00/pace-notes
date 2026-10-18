@@ -66,8 +66,12 @@ async function main() {
         assert.ok(Math.abs(charts.onset.rows.reduce((sum,row)=>sum+row.value,0)-100)<1e-4);
       }
       const html=render(AllFinisherResults,{groups,kind,start,units,focus,comparison});
-      assert.match(html,/<h2[^>]*>(?:Sustained slowdown rates (?:ranged from|were)|The sustained slowdown rate was|Late-race pace|Late-race experiences varied most in)/,kind+': the headline states the spread across groups');
-      if(charts.onset) assert.match(html,/<a href="\/methodology#sustained-slowdown">sustained slowdowns<\/a> most often began in the /,kind+': the onset section states where slowdowns most often began and links the term');
+      assert.match(html,/<h2[^>]*>(?:Sustained slowdown rates (?:ranged from|were)|The sustained slowdown rate was|Late-race pace|Late-race experiences varied most in|After a first 5K [^,<]+, sustained slowdown rates were)/,kind+': the headline states the spread across groups');
+      // Downhill starts name the opening band the rates are for, first, so one band's rate never reads as the overall rate.
+      if(kind==='downhill') assert.match(html,/<h2[^>]*>After a first 5K over 10% fast, sustained slowdown rates were \d+% \((?:downhill-start courses|every other course)\) and \d+% /,'downhill: the headline names its opening band');
+      if(charts.onset) assert.match(html,/<a [^>]*href="\/methodology#sustained-slowdown"[^>]*>sustained slowdowns<\/a> most often began in the /,kind+': the onset section states where slowdowns most often began and links the term');
+      // Whole percent and m:ss durations, never decimal minutes (October 18, 2026).
+      assert.doesNotMatch(html.replace(/<[^>]*>/g,' '),/\d+\.\d+ min\b|\d+\.\d%/,kind+': no decimal minutes or one-decimal percents');
       noMethodCopy(html,`${kind} results (${units})`);
       // The second half is named by its mat in both units (the redesign spec, section 3.10).
       assert.match(html,/after 20K/i);

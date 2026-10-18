@@ -80,7 +80,7 @@ export default function ReadingBar() {
         <span ref={left} className="reading-bar-left" />
       </div>
       <span className="reading-bar-line">
-        {page.ticks.map((t, i) => <i key={i} style={{ left: `${(t * 100).toFixed(2)}%` }} />)}
+        {page.ticks.map((t, i) => <i key={i} style={{ left: `min(${(t * 100).toFixed(2)}%, 100% - 1px)` }} />)}
         <b className="reading-bar-fill" /><b className="reading-bar-dot" />
       </span>
     </div>

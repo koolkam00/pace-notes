@@ -6,6 +6,7 @@ import { type UnitSystem } from '@/lib/units';
 import { AGE_OPTIONS } from '@/lib/personalized-catalog';
 import { clock } from '@/lib/personalized';
 import { MARATHON_SECTION_ENDS, sectionLabel } from '@/lib/section-labels';
+import { bandWords } from '@/lib/all-finisher-context';
 import { FAST_START_DEFAULT, PRIOR_OPTIONS, fastStartRow, fastStartSearch, loadFastStartEvidence, readFastStartSelection, referenceTimeDifference, timeChange,
   type FastStartEvidence, type FastStartGroup, type FastStartRow, type FastStartSelection, type FastStartStart, type FastStartStarts, type FastStartMode } from '@/lib/fast-start';
 import MakeItYours from './ui/MakeItYours.client';
@@ -15,20 +16,28 @@ import LineProfile from './viz/LineProfile';
 import { trackAnalytics } from '@/lib/analytics';
 import { unitHref } from '@/lib/unit-preference';
 
-const percent = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 1 }) + '%';
+/** Shares in whole percent, as the page's answer and charts show them. */
+const percent = (n: number) => `${Math.round(n)}%`;
 const cityName = (city: string) => city === 'New York' ? 'New York City' : city;
+const capital = (s: string) => s.replace(/^[a-z]/, c => c.toUpperCase());
 const SECTION_MIDS = MARATHON_SECTION_ENDS.map((end, i) => ((i ? MARATHON_SECTION_ENDS[i - 1] : 0) + end) / 2);
-const signedPct = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 1 })}%`;
+const signedPct = (v: number) => { const r = Math.round(v); return `${r > 0 ? '+' : r < 0 ? '−' : ''}${Math.abs(r)}%`; };
 
 /**
- * The starting-pace explorer's results for one selection (the redesign spec, section 7.4): how often a sustained slowdown
- * followed this opening, what happened after 20K, where pace was slowest and where the slowdowns began, then one chart
- * (pace through the race against the steady opening) and every opening's values. Pinned copy (verify-fast-start-client):
- * "developed a sustained slowdown", "Pace was slowest in the", "most often began in the", the term link.
+ * The starting-pace explorer's results for one selection (the redesign spec, section 7.4, under section 00): how often a
+ * sustained slowdown followed this opening and, in one sentence, what happened after 20K; one chart (pace through the
+ * race against the steady opening, its slowest section labelled) and every opening's values, where each one's slowdowns
+ * most often began. Pinned copy (verify-fast-start-client): "developed a sustained slowdown" and its term link.
  */
 export function FastStartResults({ row, focus, start, units: _units }: { row: FastStartRow; focus: FastStartGroup; start: FastStartStart; units: UnitSystem }) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '');
-  const name = (band: string) => start.bands.find(b => b.id === band)?.label ?? band;
+  const name = (band: string) => capital(bandWords(start.bands.find(b => b.id === band)?.label ?? band));
+  // Where a group's sustained slowdowns most often began ("20–25K, 30%"), or a dash when too few were detected.
+  const onsetOf = (g: FastStartGroup) => {
+    if (!g.onset || !g.slowdown_n) return '—';
+    const i = g.onset.reduce((best, n, k) => n > g.onset![best] ? k : best, 0);
+    return `${sectionLabel(25 + i * 5)}, ${percent(100 * g.onset[i] / g.slowdown_n)}`;
+  };
   const all = start.mode === 'all';
   const rate = 100 * focus.slowdown_n / focus.n;
   const steady = focus.band === 'steady' ? undefined : row.groups.find(group => group.band === 'steady');
@@ -36,36 +45,33 @@ export function FastStartResults({ row, focus, start, units: _units }: { row: Fa
   const section = (index: number) => sectionLabel(MARATHON_SECTION_ENDS[index]);
   const slowest = focus.pace_pct.reduce((best, value, i) => value > focus.pace_pct[best] ? i : best, 0);
   const peak = focus.pace_pct[slowest];
-  const onsetAt = focus.onset ? focus.onset.reduce((best, n, i) => n > focus.onset![best] ? i : best, 0) : -1;
   const differs = (seconds: number) => referenceTimeDifference(seconds).toLowerCase();
   const values = [...focus.pace_pct, ...(steady ? steady.pace_pct : []), 0];
   const lo = Math.floor(Math.min(...values) / 5) * 5, hi = Math.ceil(Math.max(...values) / 5) * 5;
   const step = hi - lo > 30 ? 10 : 5;
   return (
     <div className="explore-results">
-      <h2 className="explore-title">{percent(rate)} developed a sustained slowdown.</h2>
+      <h2 className="explore-title">{percent(rate)} developed a <Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link>.</h2>
       <p className="explore-sentence">
         {all
-          ? <>After 20K, the median finish took <strong>{differs(focus.after20_delta_median_s!)}</strong> than the same distance at its early-race pace. </>
-          : <>The median finish was <strong>{Math.abs(focus.finish_delta_median_s) < 3 ? 'about the same as' : timeChange(focus.finish_delta_median_s).toLowerCase() + ' than'}</strong> the runner’s earlier recorded best. </>}
-        {peak > 0.05 ? `Pace was slowest in the ${section(slowest)} section, ${percent(peak)} slower than ${reference}.` : `Pace stayed ahead of ${reference} in every section; it came closest in the ${section(slowest)} section.`}
+          ? <>After 20K, the median finish took <strong>{differs(focus.after20_delta_median_s!)}</strong> than the same distance at its early-race pace.</>
+          : <>The median finish was <strong>{Math.abs(focus.finish_delta_median_s) < 3 ? 'about the same as' : timeChange(focus.finish_delta_median_s).toLowerCase() + ' than'}</strong> the runner’s earlier recorded best.</>}
       </p>
-      <LineProfile x={SECTION_MIDS} xDomain={[0, 42.195]} yDomain={[Math.min(lo, -step / 2), hi]}
+      {/* Slower is down, as on every pace chart on the site, with room under the slowest section for its label. */}
+      <LineProfile x={SECTION_MIDS} xDomain={[0, 42.195]} yDomain={[hi + (hi - Math.min(lo, -step / 2)) * 0.2, Math.min(lo, -step / 2)]}
         layers={[{
           id: 'pace', label: name(focus.band),
           series: [...(steady ? [{ id: 'steady', values: steady.pace_pct, tone: 'quiet' as const }] : []), { id: 'focus', values: focus.pace_pct }],
-          labels: [{ x: SECTION_MIDS[slowest], y: peak, text: `${section(slowest)} ${signedPct(peak)}`, priority: 3 }],
+          labels: [{ x: SECTION_MIDS[slowest], y: peak, text: `${section(slowest)} ${signedPct(peak)}`, priority: 3, prefer: 'below' }],
         }]}
         refs={[{ value: 0, label: reference }]}
         xTicks={[{ value: 0, label: 'Start' }, { value: 10, label: '10K' }, { value: 20, label: '20K' }, { value: 30, label: '30K' }, { value: 42.195, label: 'Finish' }]}
         keys={[{ label: name(focus.band), mark: 'line' }, ...(steady ? [{ label: name('steady'), mark: 'line' as const, tone: 'quiet' as const }] : [])]}
         label={`Section pace against ${reference}, ${name(focus.band).toLowerCase()} openings${steady ? ' against steady ones' : ''}: slowest in the ${section(slowest)} section, ${percent(peak)} slower`}
         height={200} heightMd={240} />
-      {focus.onset ? <p className="explore-note">In this group, <Link href="/methodology#sustained-slowdown">sustained slowdowns</Link> most often began in the {sectionLabel(25 + onsetAt * 5)} section ({percent(100 * focus.onset[onsetAt] / focus.slowdown_n)} of them).</p>
-        : <p className="explore-note">Too few detected slowdowns to show where they began.</p>}
       <Values id={`${id}-values`} caption={`Every opening: ${cityName(row.city)} · ${row.age === 'all' ? 'All ages' : `Age ${row.age}`} · ${row.gender === 'all' ? 'All recorded genders' : row.gender}${all ? '' : ` · ${PRIOR_OPTIONS.find(p => p.id === row.prior)!.label}`}`}
-        columns={[{ key: 'b', label: 'Opening', text: true }, { key: 's', label: 'Sustained slowdown' }, { key: all ? 'f' : 'c', label: all ? 'Median recorded finish' : 'Finish against the earlier best' }, { key: 'n', label: 'Finishes' }, { key: 'd', label: 'Sustained slowdowns' }]}
-        rows={row.groups.map(g => [name(g.band), percent(100 * g.slowdown_n / g.n), all ? clock(g.actual_finish_median_s!, true) : timeChange(g.finish_delta_median_s), g.n.toLocaleString('en-US'), g.slowdown_n.toLocaleString('en-US')])}
+        columns={[{ key: 'b', label: 'Opening', text: true }, { key: 's', label: 'Sustained slowdown' }, { key: 'o', label: 'Most often began' }, { key: all ? 'f' : 'c', label: all ? 'Median finish' : 'Against the earlier best' }, { key: 'n', label: 'Finishes' }, { key: 'd', label: 'Sustained slowdowns' }]}
+        rows={row.groups.map(g => [name(g.band), percent(100 * g.slowdown_n / g.n), onsetOf(g), all ? clock(g.actual_finish_median_s!, true) : timeChange(g.finish_delta_median_s), g.n.toLocaleString('en-US'), g.slowdown_n.toLocaleString('en-US')])}
         reading={row.groups.indexOf(focus)} />
     </div>
   );
@@ -109,8 +115,9 @@ export default function FastStartAnalysis({ starts, defaultOpening = 'fast10', t
     window.history.pushState(null, '', unitHref(window.location.pathname + fastStartSearch(next), units));
   };
   const pending = loading || (!initialRow && !data && !error);
-  const band = (id: string) => start.bands.find(b => b.id === id)?.label ?? id;
-  const summary = [cityName(selection.city), band(selection.band), selection.age === 'all' ? 'All ages' : selection.age, ...(selection.gender === 'all' ? [] : [selection.gender]), ...(all ? [] : ['With an earlier result'])].join(' · ');
+  const band = (id: string) => bandWords(start.bands.find(b => b.id === id)?.label ?? id);
+  // The choice that varies first (the opening), then the course; defaults such as "All ages" are left out.
+  const summary = [`First 5K ${band(selection.band)}`, cityName(selection.city), ...(selection.age === 'all' ? [] : [selection.age]), ...(selection.gender === 'all' ? [] : [selection.gender]), ...(all ? [] : ['With an earlier result'])].join(' · ');
   const field = (key: string) => `${formId}-${key}`;
   return <div className="analysis-layout explorer fs-explorer">
     {archive ? <header className="explorer-head"><h1 className="t-title">{title}</h1>{description ? <p className="t-body">{description}</p> : null}</header> : null}
@@ -123,7 +130,7 @@ export default function FastStartAnalysis({ starts, defaultOpening = 'fast10', t
         </div>
         <div className="explore-fields">
           <div className="field"><label className="field-label" htmlFor={field('course')}>Course</label><select id={field('course')} className="select" value={draft.city} onChange={e => setDraft({ ...draft, city: e.target.value })}>{start.cities.map(city => <option key={city} value={city}>{cityName(city)}</option>)}</select></div>
-          <div className="field"><label className="field-label" htmlFor={field('opening')}>Opening pace</label><select id={field('opening')} className="select" value={draft.band} onChange={e => setDraft({ ...draft, band: e.target.value })}>{start.bands.map(b => <option key={b.id} value={b.id}>{b.label}</option>)}</select></div>
+          <div className="field"><label className="field-label" htmlFor={field('opening')}>Opening pace</label><select id={field('opening')} className="select" value={draft.band} onChange={e => setDraft({ ...draft, band: e.target.value })}>{start.bands.map(b => <option key={b.id} value={b.id}>{capital(bandWords(b.label))}</option>)}</select></div>
           {!all && <div className="field"><label className="field-label" htmlFor={field('prior')}>Earlier recorded best</label><select id={field('prior')} className="select" value={draft.prior} onChange={e => setDraft({ ...draft, prior: e.target.value })}>{PRIOR_OPTIONS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}</select></div>}
           <div className="field"><label className="field-label" htmlFor={field('age')}>Age group</label><select id={field('age')} className="select" value={draft.age} onChange={e => setDraft({ ...draft, age: e.target.value })}>{AGE_OPTIONS.map(age => <option key={age} value={age}>{age === 'all' ? 'All ages' : age}</option>)}</select></div>
           <div className="field"><label className="field-label" htmlFor={field('gender')}>Recorded gender</label><select id={field('gender')} className="select" value={draft.gender} onChange={e => setDraft({ ...draft, gender: e.target.value })}><option value="all">All recorded categories</option><option value="Women">Women</option><option value="Men">Men</option></select></div>

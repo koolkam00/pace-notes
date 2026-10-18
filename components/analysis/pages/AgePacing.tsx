@@ -24,6 +24,9 @@ export default function AgePacing() {
   const lo = Math.floor(Math.min(...vals) / 2) * 2 - 2, hi = Math.ceil(Math.max(...vals) / 2) * 2 + 1;
   const pooledHi = rows.reduce((b, r, i) => (r.pooled > rows[b].pooled ? i : b), 0);
   const pooledLo = rows.reduce((b, r, i) => (r.pooled < rows[b].pooled ? i : b), 0);
+  // The finding's own numbers on its own line: the range near the goal, labelled at the middle age group.
+  const sameLo = Math.min(...rows.map((r) => r.same)), sameHi = Math.max(...rows.map((r) => r.same));
+  const mid = Math.floor((rows.length - 1) / 2);
   const answer = rows.length >= 2 ? (
     <AnswerCard kicker="The second 20K against the first, by age group">
       <LineProfile x={xs} xDomain={[-0.4, rows.length - 0.6]} yDomain={[lo, hi]}
@@ -31,7 +34,7 @@ export default function AgePacing() {
           labels: [
             { x: pooledHi, y: rows[pooledHi].pooled, text: `${rows[pooledHi].age} ${signedPct(rows[pooledHi].pooled)}`, priority: 2, prefer: 'above' },
             { x: pooledLo, y: rows[pooledLo].pooled, text: `${rows[pooledLo].age} ${signedPct(rows[pooledLo].pooled)}`, priority: 1, prefer: 'above' },
-            { x: rows.length - 1, y: rows[rows.length - 1].same, text: `near ${hm(goal)}`, tone: 'signal', priority: 3, prefer: 'below' },
+            { x: mid, y: rows[mid].same, text: `Near ${hm(goal)}: ${signedPct(sameLo)} to ${signedPct(sameHi)}`, tone: 'signal', priority: 3, prefer: 'below' },
           ] }]}
         xTicks={rows.map((r, i) => ({ value: i, label: r.age })).filter((_, i) => i % 2 === 0 || i === rows.length - 1)}
         yTicks={[{ value: Math.floor(hi), label: signedPct(Math.floor(hi)) }]}
@@ -45,7 +48,7 @@ export default function AgePacing() {
   return (
     <AnalysisShell path={PATH} title={n} dek={definition.title} answer={answer}>
       <ExploreBeat track="chapter-1">
-        <AnalysisExplorer definition={definition} summary={summary} initialAnswer={answers.find((a) => a.id === definition.id)!} />
+        <AnalysisExplorer definition={definition} summary={summary} initialAnswer={answers.find((a) => a.id === definition.id)!} untouched="none" />
       </ExploreBeat>
     </AnalysisShell>
   );

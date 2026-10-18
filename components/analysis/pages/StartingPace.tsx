@@ -11,6 +11,7 @@ import { readInsight } from '@/lib/insights-server';
 import type { Kick } from '@/lib/insights';
 import { getNugget } from '@/lib/nuggets';
 import { openingWords } from '@/lib/nuggets/analyses';
+import { bandWords } from '@/lib/all-finisher-context';
 import { delta, ms, pct, spokenTime } from '@/lib/nuggets/format';
 
 const PATH = '/analyses/starting-pace';
@@ -22,14 +23,17 @@ export default function StartingPace() {
   const starts = getFastStartStarts();
   const v = bank.values as { band?: string; open_s?: number; after20_s?: number; finish_s?: number };
   const edge = (() => { const b = starts.all.bands.find((x) => x.label === v.band); return b ? fastEdge(b) : null; })();
-  const said = (v.band ?? '').replace(/^More than (\d+)% faster$/i, 'more than $1% fast').replace(/^[A-Z]/, (c) => c.toLowerCase());
+  const said = bandWords(v.band ?? '');
+  // The two lines add up to the result: each is rounded from the same whole seconds (the 5–20K part, matched by design,
+  // is under a second), so the receipt never reads −2:44 + 7:49 = 5:06.
+  const total = Math.round(v.finish_s ?? NaN), open = Math.round(v.open_s ?? NaN), after = total - open;
   const answer = v.band ? (
-    <Receipt kicker={`First 5K ${v.band.toLowerCase()}`}
+    <Receipt kicker={`First 5K ${said}`}
       lines={[
-        { label: 'First 5K', key: 'ahead of the same pace', value: delta(v.open_s!), sr: `${spokenTime(Math.abs(v.open_s!))} ahead` },
-        { label: 'After 20K', key: 'behind it', value: delta(v.after20_s!), sr: `${spokenTime(Math.abs(v.after20_s!))} behind` },
+        { label: 'First 5K', key: 'ahead of the same pace', value: delta(open), sr: `${spokenTime(Math.abs(open))} ahead` },
+        { label: 'After 20K', key: 'behind it', value: delta(after), sr: `${spokenTime(Math.abs(after))} behind` },
       ]}
-      result={{ label: 'At the finish', value: `${ms(v.finish_s!)} behind`, sr: `${spokenTime(v.finish_s!)} behind`, fallback: bank.guard ? undefined : `Finished ${ms(Math.abs(v.finish_s!))} ${v.finish_s! > 0 ? 'behind' : 'ahead'}` }}
+      result={{ label: 'At the finish', value: `${ms(total)} behind`, sr: `${spokenTime(total)} behind`, fallback: bank.guard ? undefined : `Finished ${ms(Math.abs(total))} ${total > 0 ? 'behind' : 'ahead'}` }}
       footer="Same race · same 5–20K pace"
       goal={edge !== null ? <GoalLine band={said} edge={edge} /> : undefined} />
   ) : null;
@@ -56,10 +60,11 @@ function OpeningCurve() {
   const bestI = curve.indexOf(best);
   const span = xs[xs.length - 1] - xs[0];
   return (
-    <LineProfile x={xs} yDomain={[floor, Math.max(hi, yTicks[0].value)]}
+    // Behind is down and ahead is up, as on every pace and gap chart on the site: the best finish is the curve's peak.
+    <LineProfile x={xs} yDomain={[Math.max(hi, yTicks[0].value), floor]}
       layers={[{ id: 'u', label: 'Finish', series: [{ id: 'finish', values: curve.map((c) => c.finish_s), fillAbove: 0 }],
-        points: [{ x: best.lo + 0.5, y: best.finish_s, kind: 'best' }],
-        labels: [{ x: best.lo + 0.5, y: best.finish_s, text: `Best ${delta(best.finish_s)}`, priority: 3, prefer: 'below' }] }]}
+        // The best point is ringed; the readout above names its value, so no label sits under the needle.
+        points: [{ x: best.lo + 0.5, y: best.finish_s, kind: 'best' }] }]}
       refs={[{ value: 0, label: 'same pace' }]}
       xTicks={[-10, -5, 0, 5, 10].filter((t) => t >= curve[0].lo && t <= curve[curve.length - 1].lo + 1).map((t) => ({ value: t, label: t === 0 ? 'even' : `${Math.abs(t)}%` }))}
       axisTitle={{ start: 'Faster first 5K', end: 'Slower first 5K' }}

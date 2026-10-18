@@ -19,13 +19,15 @@ export default function PacingPattern() {
   const { summary, answers } = getAnalysisStart();
   const n = getNugget('pattern.profile');
   const v = n.values as { goal_min: number; even_s: number; fast_i: number; slow_i: number; turn_i: number; fast_s: number; slow_s: number };
+  // The result is the H1's accent: the slowest 5K against even pace; the fastest 5K and where the clock turned lead to it.
   const receipt = (u: UnitSystem) => (
     <Receipt kicker={`Finishes near ${hm(v.goal_min)}, against even pace`}
       lines={[
         { label: 'Fastest 5K', key: section(v.fast_i), value: gap(v.fast_s - v.even_s, u) },
-        { label: 'Slowest 5K', key: section(v.slow_i), value: gap(v.slow_s - v.even_s, u) },
+        { label: 'Slower than even from', value: section(v.turn_i) },
       ]}
-      result={{ label: 'Slower than even pace from', value: section(v.turn_i), sr: section(v.turn_i), fallback: n.guard ? undefined : `${section(v.slow_i)}, the slowest 5K` }}
+      result={{ label: `Slowest 5K, ${section(v.slow_i)}`, value: gap(v.slow_s - v.even_s, u), sr: `${Math.round(Math.abs(v.slow_s - v.even_s) * (u === 'mi' ? 1.609344 : 1))} seconds a ${u === 'mi' ? 'mile' : 'kilometre'} slower than even pace in ${section(v.slow_i)}`,
+        fallback: n.guard ? undefined : `${section(v.slow_i)}, the slowest 5K` }}
       footer={`Even ${hm(v.goal_min)} pace: ${pace(v.even_s, u)}`} />
   );
   return (

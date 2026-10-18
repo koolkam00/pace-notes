@@ -92,23 +92,6 @@ export function terrainSections(data: CityData, goal = EXAMPLE_PROFILE.goal): Te
  * 5 km section is also their slowest for finishes near 4:00, the one that climbs the most in all. When no course has
  * both in one section, the course that climbs the most, and `matched` is false.
  */
-/**
- * The course Make it yours opens on, a second example beside the page's own: of the courses with a real hill (one 5 km
- * section climbing at least 40 m) whose biggest climb is not their slowest 5K near 4:00, the most-run one. When none
- * qualifies, the page's own course.
- */
-export function getTerrainContrast(): string {
-  const own = getTerrainDefault().city;
-  const pool = summary().cities.filter(c => c.city !== EXAMPLE_PROFILE.city && c.city !== own).flatMap(c => {
-    const sections = terrainSections(getCityData(c.city));
-    if (!sections || sections.some(s => !Number.isFinite(s.gain))) return [];
-    const climb = sections.reduce((a, b) => (b.gain > a.gain ? b : a));
-    const slow = sections.reduce((a, b) => (b.pace > a.pace ? b : a));
-    return climb.gain >= 40 && climb.end !== slow.end ? [{ city: c.city, n: c.n }] : [];
-  });
-  return pool.length ? pool.reduce((a, b) => (b.n > a.n ? b : a)).city : own;
-}
-
 export function getTerrainDefault(): { city: string; matched: boolean } {
   const scored = summary().cities.filter(c => c.city !== EXAMPLE_PROFILE.city).flatMap(c => {
     const sections = terrainSections(getCityData(c.city));

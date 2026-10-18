@@ -58,6 +58,22 @@ export function insightHeadline(id: string, answer: GuideAnswer, goal: number, u
     const gap = Math.round(high.value * 60);
     return `The two groups split most in the ${high.label} section, where finishes just over ${clock(goal * 60)} took ${Math.floor(gap / 60)}:${String(gap % 60).padStart(2, '0')} more than those just under.`;
   }
+  if (id === 'profile') {
+    // The shape, as the page's H1 says it (fast early, slow late against even pace); the chart's readout gives the paces.
+    const p = rows('value'), even = goal / 42.195;
+    if (p.length < 2) return '';
+    const fast = Math.min(...p.map(r => r.value)), slow = Math.max(...p.map(r => r.value));
+    if (!(fast < even && slow > even)) return '';
+    const per = (minPerKm: number) => `${Math.round(Math.abs(minPerKm) * 60 * (units === 'mi' ? 1.609344 : 1))} s/${units}`;
+    return `Finishes near ${clock(goal * 60)} ran ${per(even - fast)} fast early and ${per(slow - even)} slow late, against even pace.`;
+  }
+  if (id === 'ambition') {
+    // Whole percent, as the chart's readout shows it.
+    const p = rows('value').map(r => ({ x: Number(r.label), share: r.value })).filter(r => Number.isFinite(r.x));
+    if (!p.length) return '';
+    const at = p.reduce((b, r) => (Math.abs(r.x - goal) < Math.abs(b.x - goal) ? r : b));
+    return `${Math.round(at.share)}% of these finishes were under ${clock(goal * 60)}.`;
+  }
   if (id === 'terrain') {
     const pace = answer.charts.find(c => c.unit === 'min/km');
     const climbs = answer.charts.find(c => c.series.some(s => s.key === 'gain'));
@@ -81,10 +97,16 @@ export function insightHeadline(id: string, answer: GuideAnswer, goal: number, u
  * 4:00 example unless the page says otherwise); any other selection loads its course's published aggregate.
  * `historyMode` is the earlier-result view of courses and start temperatures, which keeps the archive's range charts.
  */
-export default function AnalysisExplorer({ definition, summary, initialAnswer, start = EXAMPLE_PROFILE, terrain, historyMode = false }: {
+export default function AnalysisExplorer({ definition, summary, initialAnswer, start = EXAMPLE_PROFILE, terrain, historyMode = false, untouched = 'chart' }: {
   definition: AnalysisDefinition; summary: PersonalSummary; initialAnswer: GuideAnswer; start?: Profile;
   /** Hills: each course's supplied elevation profile and the shared height scale. */
   terrain?: { elevations: Record<string, number[]>; step: number; relief: number }; historyMode?: boolean; weatherQuestions?: unknown[];
+  /**
+   * What the explorer shows before the visitor changes anything. The page's answer already states the example, so the
+   * explorer never repeats its headline: 'chart' draws the example's chart alone (the page's only picture of it),
+   * 'none' only the selection row, when the answer above already draws that chart. Any change shows the headline too.
+   */
+  untouched?: 'chart' | 'none';
 }) {
   const { units } = useUnits();
   const formId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -143,10 +165,19 @@ export default function AnalysisExplorer({ definition, summary, initialAnswer, s
   const visibleAnswer = answer ? insightHeadline(definition.id, answer, profile.goal, units, profile.city) || findingText(answer, units) : '';
   const field = (key: string) => `${formId}-${key}`;
   const timeLabel = ['profile', 'terrain', 'gains', 'age'].includes(definition.id) ? 'Finish time to explore' : 'Target time';
-  const summaryText = [cityName(profile.city), ...(definition.controls.time ? [clock(profile.goal * 60)] : []), profile.age === 'all' ? 'All ages' : profile.age,
+  // Only the choices that matter: the course, the time, and a refinement once one is set (never "All ages").
+  const summaryText = [cityName(profile.city), ...(definition.controls.time ? [clock(profile.goal * 60)] : []), ...(profile.age === 'all' ? [] : [profile.age]),
     ...(profile.gender === 'all' ? [] : [profile.gender]), ...(profile.previous === null ? [] : [`earlier ${clock(profile.previous * 60)}`])].join(' · ');
   const cityOptions = summary.cities.filter(row => !courseOnly || row.city !== EXAMPLE_PROFILE.city);
   const terrainExtras: TerrainExtras | undefined = terrain ? { elevation: terrain.elevations[profile.city] ?? null, step: terrain.step, relief: terrain.relief } : undefined;
+  const refinements = (
+          <div className="explore-fields">
+            {definition.controls.age && <div className="field"><label className="field-label" htmlFor={field('age')}>Age group</label><select id={field('age')} className="select" value={draft.age} onChange={event => setDraft({ ...draft, age: event.target.value })}>{AGE_OPTIONS.map(age => <option key={age} value={age}>{age === 'all' ? 'All ages' : age}</option>)}</select></div>}
+            <div className="field"><label className="field-label" htmlFor={field('gender')}>Recorded gender</label><select id={field('gender')} className="select" value={draft.gender} onChange={event => setDraft({ ...draft, gender: event.target.value })}><option value="all">All recorded categories</option><option value="Women">Women</option><option value="Men">Men</option></select></div>
+            {definition.controls.previous && <div className="field"><label className="field-label" htmlFor={field('previous')}>Earlier marathon · optional</label><input id={field('previous')} className="input" value={previousText} onChange={event => setPreviousText(keypadInput(event.target, event.nativeEvent))} placeholder="e.g. 4:15" inputMode="decimal" spellCheck={false} autoComplete="off" /></div>}
+          </div>
+  );
+  const shown = changed || untouched === 'chart';
   return <div className="analysis-layout explorer guide-explorer">
     <MakeItYours id={`${formId}-miy`} summary={summaryText} busy={loading}>
       <form className="explore-form" onSubmit={event => {
@@ -157,17 +188,13 @@ export default function AnalysisExplorer({ definition, summary, initialAnswer, s
         if (previousText.trim() && definition.controls.previous && (earlier === null || earlier < 90 || earlier > 720)) { setFormError('Enter your earlier marathon time in hours:minutes, or leave it blank.'); return; }
         applyProfile({ ...draft, goal, previous: earlier });
       }}>
-        <div className="explore-fields">
+        {(definition.controls.course || definition.controls.time) && <div className="explore-fields">
           {definition.controls.course && <div className="field"><label className="field-label" htmlFor={field('course')}>Course</label><select id={field('course')} className="select" value={draft.city} onChange={event => setDraft({ ...draft, city: event.target.value })}>{cityOptions.map(row => <option key={row.city} value={row.city}>{cityName(row.city)}</option>)}</select></div>}
           {definition.controls.time && <div className="field"><label className="field-label" htmlFor={field('time')}>{timeLabel}</label><input id={field('time')} className="input" value={timeText} onChange={event => setTimeText(keypadInput(event.target, event.nativeEvent))} placeholder="4:00" inputMode="decimal" spellCheck={false} autoComplete="off" aria-describedby={field('time-help')} /><p className="field-hint" id={field('time-help')}>Hours:minutes.<KeypadHint /></p></div>}
-        </div>
-        <details className="profile-refinements" open={refining} onToggle={event => setRefining(event.currentTarget.open)}><summary>Refine by {definition.controls.age ? 'age, ' : ''}gender{definition.controls.previous ? ' or an earlier marathon' : ''}</summary>
-          <div className="explore-fields">
-            {definition.controls.age && <div className="field"><label className="field-label" htmlFor={field('age')}>Age group</label><select id={field('age')} className="select" value={draft.age} onChange={event => setDraft({ ...draft, age: event.target.value })}>{AGE_OPTIONS.map(age => <option key={age} value={age}>{age === 'all' ? 'All ages' : age}</option>)}</select></div>}
-            <div className="field"><label className="field-label" htmlFor={field('gender')}>Recorded gender</label><select id={field('gender')} className="select" value={draft.gender} onChange={event => setDraft({ ...draft, gender: event.target.value })}><option value="all">All recorded categories</option><option value="Women">Women</option><option value="Men">Men</option></select></div>
-            {definition.controls.previous && <div className="field"><label className="field-label" htmlFor={field('previous')}>Earlier marathon · optional</label><input id={field('previous')} className="input" value={previousText} onChange={event => setPreviousText(keypadInput(event.target, event.nativeEvent))} placeholder="e.g. 4:15" inputMode="decimal" spellCheck={false} autoComplete="off" /></div>}
-          </div>
-        </details>
+        </div>}
+        {definition.controls.course || definition.controls.time
+          ? <details className="profile-refinements" open={refining} onToggle={event => setRefining(event.currentTarget.open)}><summary>Refine by {definition.controls.age ? 'age, ' : ''}gender{definition.controls.previous ? ' or an earlier marathon' : ''}</summary>{refinements}</details>
+          : refinements}
         {formError && <p className="field-error" role="alert">{formError}</p>}
         <button type="submit" className="btn btn-secondary is-compact explore-submit">Update comparison</button>
       </form>
@@ -176,8 +203,8 @@ export default function AnalysisExplorer({ definition, summary, initialAnswer, s
     <div className="miy-results">
       {loading && !answer ? <p className="explore-state">Loading the comparison…</p>
         : error ? <div className="explore-state" role="alert"><p>{error}</p><button className="btn btn-secondary is-compact" onClick={() => setRetry(value => value + 1)} type="button">Try loading again</button></div>
-        : answer ? <div className="explore-results">
-          <h2 className="explore-title">{text(visibleAnswer)}</h2>
+        : answer && shown ? <div className="explore-results">
+          {changed ? <h2 className="explore-title">{text(visibleAnswer)}</h2> : null}
           {answer.widened && <p className="explore-note">{text(answer.widened)}</p>}
           {!hasResults ? <div className="explore-state"><p>Try All courses, fewer refinements or another finish time.</p><button className="btn btn-secondary is-compact" type="button" onClick={() => applyProfile(start)}>Back to the example</button></div>
             : historyMode ? <AnalysisChart charts={answer.charts} analysisId={definition.id + profileSearch(profile)} />

@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import Reading from '@/components/ui/Reading';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
-import { withEm } from '@/components/ui/withEm';
 import ChapterRail from '@/components/ChapterRail';
 import ChapterEnd from '@/components/ChapterEnd';
 import ByUnits from './ByUnits.client';
@@ -11,15 +11,53 @@ import type { TRACKED_SECTIONS } from '@/lib/analytics-policy';
 
 type Track = (typeof TRACKED_SECTIONS)[number];
 
-/** A nugget's sentence (guard ? headline : fallback), its one accent as <em>, in the reader's units when it has both. */
-export function Say({ nugget, plain = false }: { nugget: Nugget; plain?: boolean }) {
+/**
+ * A nugget's sentence (guard ? headline : fallback), its one accent as <em>, in the reader's units when it has both.
+ * `term` links the sentence's first "sustained slowdown" to the nugget's /methodology anchor: pass it where the page
+ * uses the term first, so each page links it once.
+ */
+export function Say({ nugget, plain = false, term = false }: { nugget: Nugget; plain?: boolean; term?: boolean }) {
   const text: NuggetText = nugget.guard ? nugget.headline : nugget.fallback;
-  return <SayText text={text} plain={plain || !nugget.guard} />;
+  return <SayText text={text} plain={plain || !nugget.guard} term={term ? nugget.term : undefined} />;
+}
+
+const TERM = /sustained slowdowns?/i;
+/** A range or a figure with its unit ("41–50°F", "4:00–4:05", "25 s/mi"): it never breaks across lines. */
+const TOGETHER = /\d[\d:.,]*(?:–\d[\d:.,]*)?(?:\s?(?:°[FC]|s\/mi|s\/km|mph|km\/h|ft|pts?))|\d[\d:.,]*–\d[\d:.,]*%?/g;
+
+/** One run of text: its ranges kept on one line and, when `link` is given, its first use of the term linked. */
+function run(text: string, link: { href?: string; done: boolean }): ReactNode {
+  const out: ReactNode[] = [];
+  let key = 0;
+  const k = link.href && !link.done ? TERM.exec(text) : null;
+  const pieces = k ? [text.slice(0, k.index), k[0], text.slice(k.index + k[0].length)] : [text];
+  pieces.forEach((piece, i) => {
+    if (k && i === 1) { link.done = true; out.push(<Link key={key++} href={link.href!} className="term-link">{piece}</Link>); return; }
+    let last = 0;
+    for (const m of piece.matchAll(TOGETHER)) {
+      if (m.index! > last) out.push(piece.slice(last, m.index));
+      out.push(<span key={key++} className="nowrap">{m[0]}</span>);
+      last = m.index! + m[0].length;
+    }
+    if (last < piece.length) out.push(piece.slice(last));
+  });
+  return <>{out}</>;
+}
+
+/** A sentence with its one *…* accent as <em>, its ranges unbroken and, given `term`, its first use of the term linked. */
+function sentence(s: string, plain: boolean, term?: string): ReactNode {
+  const m = /^([\s\S]*?)\*([^*]+)\*([\s\S]*)$/.exec(s);
+  const parts = m ? [{ t: m[1] }, { t: m[2], em: !plain }, { t: m[3] }] : [{ t: s.replace(/\*/g, '') }];
+  const link = { href: term, done: false };
+  return <>{parts.map((p, i) => {
+    const node = run(p.t, link);
+    return p.em ? <em key={i}>{node}</em> : <Fragment key={i}>{node}</Fragment>;
+  })}</>;
 }
 
 /** A sentence, or its miles and kilometres versions. `plain` drops the accent (a fallback asserts nothing). */
-export function SayText({ text, plain = false }: { text: NuggetText; plain?: boolean }) {
-  const show = (s: string) => (plain ? s.replace(/\*/g, '') : withEm(s));
+export function SayText({ text, plain = false, term }: { text: NuggetText; plain?: boolean; term?: string }) {
+  const show = (s: string) => sentence(s, plain, term);
   if (typeof text === 'string') return <>{show(text)}</>;
   if (text.mi === text.km) return <>{show(text.mi)}</>;
   return <ByUnits mi={show(text.mi)} km={show(text.km)} />;
@@ -35,15 +73,17 @@ export { textFor };
  * session replays (the Make it yours sheet, the goal line and every result the visitor picks are inside it). From
  * 1180 px the chapter rail runs beside it.
  */
-export default function AnalysisShell({ path, title, dek, answer, children }: {
+export default function AnalysisShell({ path, title, titleTerm = false, dek, answer, children }: {
   path: string; title: Nugget; dek: string; answer: ReactNode; children: ReactNode;
+  /** Link the H1's "sustained slowdown" (when the H1 is the page's first use of the term). */
+  titleTerm?: boolean;
 }) {
   return (
     <div className="analysis-page with-rail" {...readingAttrs(path)}>
       <ChapterRail path={path} />
       <div className="analysis-layout analysis-flow">
         <section className="analysis-hero" id="answer" data-track-section="hero" data-beat="The answer">
-          <Reading crumbs={<ChapterCrumbs path={path} />} title={<Say nugget={title} />} titleSize="title" dek={dek} variant="receipt" receipt={answer} />
+          <Reading crumbs={<ChapterCrumbs path={path} />} title={<Say nugget={title} term={titleTerm} />} titleSize="title" dek={dek} variant="receipt" receipt={answer} />
         </section>
         {children}
         <ChapterEnd path={path} variant="analysis" readingOf={readingOf} />
@@ -53,10 +93,12 @@ export default function AnalysisShell({ path, title, dek, answer, children }: {
 }
 
 /** One beat: its finding as the H2 (a nugget), one figure, nothing else. `label` names it in the rail. */
-export function Beat({ id, track, label, title, children, className }: {
+export function Beat({ id, track, label, title, term = false, children, className }: {
   id: string; track: Track; label: string; title: Nugget | ReactNode; children: ReactNode; className?: string;
+  /** Link the heading's "sustained slowdown" (the page's first use of the term). */
+  term?: boolean;
 }) {
-  const heading = title && typeof title === 'object' && 'guard' in (title as Nugget) ? <Say nugget={title as Nugget} /> : (title as ReactNode);
+  const heading = title && typeof title === 'object' && 'guard' in (title as Nugget) ? <Say nugget={title as Nugget} term={term} /> : (title as ReactNode);
   return (
     <section id={id} className={`beat analysis-beat${className ? ` ${className}` : ''}`} data-beat={label} {...{ 'data-track-section': track }}>
       <div className="beat-head"><h2 className="t-h2 analysis-beat-title">{heading}</h2></div>

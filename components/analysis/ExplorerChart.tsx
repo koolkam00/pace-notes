@@ -9,8 +9,7 @@ import { MARATHON_SECTION_ENDS, sectionLabel } from '@/lib/section-labels';
 import { elevationValue, paceLabel, type UnitSystem } from '@/lib/units';
 
 /** An elevation in whole feet or metres ("+171 ft"): a climb is never read to a tenth. */
-export const wholeElevation = (metres: number, units: UnitSystem) => `${Math.round(elevationValue(metres, units)).toLocaleString('en-US')} ${units === 'mi' ? 'ft' : 'm'}`;
-import { paceTicks } from '@/lib/pace-ticks';
+export const wholeElevation = (metres: number, units: UnitSystem) => `${Math.round(elevationValue(metres, units)).toLocaleString('en-US')}\u00a0${units === 'mi' ? 'ft' : 'm'}`;
 import type { GuideAnswer } from '@/lib/personalized';
 
 /**
@@ -47,15 +46,18 @@ function PaceProfile({ answer, goal, units, valuesId }: { answer: GuideAnswer; g
   const k = units === 'mi' ? 1.609344 : 1;
   const rows = chart.rows.map((r) => ({ end: num(r.label), lo: num(r.low) * 60 * k, mid: num(r.value) * 60 * k, hi: num(r.high) * 60 * k }));
   const even = ((goal * 60) / 42.195) * k;
-  const axis = paceTicks(Math.min(...rows.map((r) => r.lo), even), Math.max(...rows.map((r) => r.hi), even), units, 5);
+  // The domain fits the middle half and even pace with a little room; the readout carries the values, so no gridline
+  // label sits where the needle opens and no label repeats the readout.
+  const lo = Math.min(...rows.map((r) => r.lo), even), hi = Math.max(...rows.map((r) => r.hi), even);
+  const room = (hi - lo) * 0.12 || 5;
   const slowest = rows.reduce((b, r, i) => (r.mid > rows[b].mid ? i : b), 0);
   const pace = (s: number) => paceLabel(s / k, units);
   return (
-    <LineProfile x={SECTION_MIDS} xDomain={[0, 42.195]} yDomain={axis ? axis.domain : undefined}
-      layers={[{ id: 'p', label: 'Median', series: [{ id: 'm', values: rows.map((r) => r.mid) }], band: { lo: rows.map((r) => r.lo), hi: rows.map((r) => r.hi) },
-        labels: [{ x: SECTION_MIDS[slowest], y: rows[slowest].mid, text: `${sectionLabel(MARATHON_SECTION_ENDS[slowest])} ${pace(rows[slowest].mid)}`, priority: 3 }] }]}
+    // Slower is down, as on every pace chart on the site (the domain runs from slow at the foot to fast at the top).
+    <LineProfile x={SECTION_MIDS} xDomain={[0, 42.195]} yDomain={[hi + room, lo - room]}
+      layers={[{ id: 'p', label: 'Median', series: [{ id: 'm', values: rows.map((r) => r.mid) }], band: { lo: rows.map((r) => r.lo), hi: rows.map((r) => r.hi) } }]}
       refs={[{ value: even, dashed: true, label: `even ${hm(goal)}` }]}
-      xTicks={KM_TICKS} yTicks={axis ? [axis.ticks[0], axis.ticks[axis.ticks.length - 1]].map((t) => ({ value: t, label: paceLabel(t / k, units) })) : []}
+      xTicks={KM_TICKS}
       scrub={{ label: 'Section pace, start to finish', initial: slowest, detents: [slowest],
         points: { x: SECTION_MIDS.map((m) => m / 42.195), keys: MARATHON_SECTION_ENDS.map((e) => `${sectionLabel(e)}, median pace`), values: rows.map((r) => pace(r.mid)),
           side: [{ label: 'Middle half', values: rows.map((r) => `${paceLabel(r.lo / k, units, false)}–${pace(r.hi)}`) }] } }}
@@ -129,11 +131,13 @@ function Gains({ answer, goal, units, valuesId }: { answer: GuideAnswer; goal: n
   const rows = answer.charts[0]?.rows ?? [];
   if (rows.length !== 3) return null;
   const labels = ['0–10K', '10–30K', '30K–finish'];
-  const steps = rows.map((r, i) => ({ id: String(i), label: labels[i], value: num(r.value) * 60, display: signed(num(r.value) * 60) }));
+  // Time found reads unsigned ("8:44"): on this site + means behind, and these minutes are found, not lost.
+  const plain = (s: number) => { const t = Math.round(Math.abs(s)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+  const steps = rows.map((r, i) => ({ id: String(i), label: labels[i], value: num(r.value) * 60, display: plain(num(r.value) * 60) }));
   const total = steps.reduce((s, x) => s + x.value, 0);
   return (
-    <Waterfall steps={steps} total={{ label: 'In all', display: signed(total) }}
-      label={`Where improving finishes near ${hm(goal)} found their time against an earlier best: ${steps.map((s) => `${s.label} ${s.display}`).join(', ')}`}
+    <Waterfall steps={steps} total={{ label: 'In all', display: plain(total) }}
+      label={`Where improving finishes near ${hm(goal)} found their time against an earlier best: ${steps.map((s) => `${s.label} ${s.display}`).join(', ')}, ${plain(total)} in all`}
       values={<Values id={valuesId} caption="Time found against the earlier best, by part of the race" columns={[{ key: 'b', label: 'Part of the race' }, { key: 'm', label: 'Time found' }, { key: 'k', label: units === 'mi' ? 'Per mile' : 'Per km' }]}
         rows={steps.map((s, i) => [s.label, s.display, `${Math.round((s.value / [10, 20, 12.195][i]) * (units === 'mi' ? 1.609344 : 1))} s`])} />} />
   );
