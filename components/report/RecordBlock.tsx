@@ -31,7 +31,7 @@ export default function RecordBlock({ id, Head, record: r, units }: { id: string
       {r.state === 'off' ? <p className="tool-state is-error">{r.message}</p> : null}
       {r.state === 'ok' ? (
         <dl>
-          <div><dt>After 30K</dt><dd>{'unavailable' in r.late ? r.late.unavailable : <><strong>{pctSigned(r.late.race / 100, 1)}</strong> against its 5–20K pace; the median of the {count(r.late.n)} finishes from {clock(r.late.from)} to under {clock(r.late.to)} here: {pctSigned(r.late.median / 100, 1)}.</>}</dd></div>
+          <div><dt>After 30K</dt><dd>{'unavailable' in r.late ? r.late.unavailable : <><strong>{pctSigned(r.late.race / 100, 1)}</strong> against its 5–20K pace; the median of the {count(r.late.n)} {r.late.label}: {pctSigned(r.late.median / 100, 1)}.</>}</dd></div>
           <div><dt>Weather</dt><dd>{'unavailable' in r.weather ? r.weather.unavailable : <>{temperature(r.weather.tempC, units)}, {r.weather.humidityPct.toLocaleString('en-US', { maximumFractionDigits: 1 })}% humidity and {wind(r.weather.windMps, units)} wind near the start{localHour(r.weather.start) ? ` (${localHour(r.weather.start)})` : ''}.</>}</dd></div>
           <div><dt>Climb</dt><dd>{'unavailable' in r.climb ? r.climb.unavailable : <>{climbLabel(r.climb.gainM, units)} over the course.</>}</dd></div>
         </dl>

@@ -77,8 +77,11 @@ const wholeSeconds = (metrics: RunnerMetrics) => {
 };
 export const defaultGroup = (race: RunnerRace): ComparisonKey => runnerAgeBand(race.age) && runnerGender(race.sex) ? 'age_gender' : runnerGender(race.sex) ? 'gender' : runnerAgeBand(race.age) ? 'age' : 'all';
 
-/** The race's own pacing: the late change as the view's finding, then the lap list with the late sections lit. */
-export function PacingReadings({ race, metrics, manifest, units }: MeasuredRace & { manifest: RunnerManifest; units: UnitSystem }) {
+/**
+ * The race's own pacing: the late change as the view's finding, then the lap list with the sections from 30K lit (its
+ * caption says which). With the race report open below, its own lap list carries the mats, so this one steps aside.
+ */
+export function PacingReadings({ race, metrics, manifest, units, laps = true }: MeasuredRace & { manifest: RunnerManifest; units: UnitSystem; laps?: boolean }) {
   const id = useId();
   const splitHref = splitCheckHref(metrics.sections.map(section => section.cumulative), manifest.editions[race.edition]?.city);
   const rows = metrics.sections.map((section, i) => {
@@ -87,8 +90,9 @@ export function PacingReadings({ race, metrics, manifest, units }: MeasuredRace 
   });
   return <section className="rc-view" aria-labelledby={`${id}-title`}>
     <h3 id={`${id}-title`} className="rc-h">Late in this race, your pace was {difference(metrics.lateChange)} your early pace.</h3>
-    <p className="rc-copy">Early is 5K to 20K; late, 30K to the finish, highlighted below. The first 5K was {difference(metrics.openingChange)} the early pace.</p>
-    <LapList rows={rows} tone="ink" baseline={paceLabel(metrics.baseline, units)} label={`Pace through ${titleFor(race, manifest)}, each mat against the 5–20K pace`} />
+    {/* The first 5K only where it parted from the early pace by 1% or more: a smaller difference says nothing. */}
+    {Math.abs(metrics.openingChange) >= 1 ? <p className="rc-copy">The first 5K was {difference(metrics.openingChange)} the early pace.</p> : null}
+    {laps ? <LapList rows={rows} tone="ink" baseline={paceLabel(metrics.baseline, units)} label={`Pace through ${titleFor(race, manifest)}, each mat against the 5–20K pace`} caption="Highlighted: 30K to the finish." /> : null}
     <details className="values rc-details"><summary><span>Checkpoint readings</span><span className="values-glyph" aria-hidden="true" /></summary>
       <div className="rc-table-wrap table-wrap" role="region" aria-label="Recorded checkpoints" tabIndex={0}><table className="table"><caption className="sr-only">Elapsed times and section paces</caption><thead><tr><th scope="col">Checkpoint</th><th scope="col">Elapsed</th><th scope="col">Section time</th><th scope="col">Section pace</th></tr></thead><tbody>{metrics.sections.map(section => <tr key={section.end}><th scope="row">{matLabel(section.end)}</th><td>{runnerDuration(section.cumulative)}</td><td>{runnerDuration(section.elapsed)}</td><td>{paceLabel(section.pace, units)}</td></tr>)}</tbody></table></div>
     </details>
@@ -226,7 +230,7 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
     <header className="rc-heading"><h2 id={`${id}-title`}>Your race, in context.</h2>{valid.length < 2 ? <p className="rc-note rc-focus-one">{titleFor(focus.race, manifest)} · {runnerDuration(focus.metrics.finish)} · record {focus.race.id}</p> : null}<label className="rc-focus" htmlFor={`${id}-focus`} hidden={valid.length < 2}>Focus race<select id={`${id}-focus`} className="select" value={focus.race.id} onChange={event => { setReportPressed(false); setFocusId(Number(event.target.value)); }}>{valid.map(({ race, metrics }) => <option key={race.id} value={race.id}>{titleFor(race, manifest)} · {runnerDuration(metrics.finish)} · record {race.id}</option>)}</select></label></header>
     <Segmented className="rc-tabs" label="Race detail view" options={TABS} value={tab} onChange={setTab} block />
     <div className="rc-panel" id={`${id}-panel`}>
-      {tab === 'pacing' && <PacingReadings {...focus} manifest={manifest} units={units} />}
+      {tab === 'pacing' && <PacingReadings {...focus} manifest={manifest} units={units} laps={!(report && reportTimes && reportOpen)} />}
       {tab === 'peers' && <><label className="rc-group-control" htmlFor={`${id}-group`}>Compare with runners in this edition<select id={`${id}-group`} className="select" value={selectedGroup} onChange={event => setGroupState({ race: focus.race.id, key: event.target.value as ComparisonKey })}>{groupOptions.map(option => <option key={option.key} value={option.key} disabled={!option.available}>{option.label}</option>)}</select></label>{unavailable}{context && (comparison ? <RunnerPeerComparison comparison={comparison} metrics={focus.metrics} units={units} /> : <div className="rc-empty"><h3 className="rc-h">This group is too small for a reliable comparison.</h3><p className="rc-copy">Your recorded pacing remains available in “Your pacing.”</p>{selectedGroup !== 'all' && <button type="button" className="btn btn-secondary is-compact" onClick={() => setGroupState({ race: focus.race.id, key: 'all' })}>Compare with all eligible runners</button>}</div>)}</>}
       {tab === 'conditions' && <>{unavailable}{context && <RunnerConditions context={context} metrics={focus.metrics} units={units} />}</>}
     </div>

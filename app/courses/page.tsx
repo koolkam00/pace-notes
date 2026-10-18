@@ -13,6 +13,7 @@ import type { Courses } from '@/lib/insights';
 import { readInsight } from '@/lib/insights-server';
 import { getNugget, readingOf, sentenceOf } from '@/lib/nuggets';
 import { count } from '@/lib/nuggets/format';
+import { MIN_EDITIONS } from '@/lib/nuggets/courses';
 import { JsonLd, absoluteUrl, pageCrumbs, pageMetadata } from '@/lib/seo';
 import '@/app/styles/pages/courses.css';
 
@@ -30,20 +31,25 @@ export function generateMetadata() {
 
 const W = 44, H = 44;
 
-/** A course's pace shape, in the face's box, for a course with no supplied route (never an empty box). */
+/**
+ * A course's pace shape, in the face's box, for a course with no supplied route (never an empty box): a quiet line over
+ * a dashed level (its own average pace), so it reads as a different kind of mark from the routes drawn in ink.
+ */
 function ShapeFace({ curve }: { curve: number[] }) {
-  if (curve.length !== 9) return <svg className="course-index-face-svg" viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false"><rect className="course-index-flat" x="6" y={H / 2} width={W - 12} height="1.5" /></svg>;
+  const level = <line className="course-index-level" x1="4" x2={W - 4} y1={H / 2} y2={H / 2} />;
+  if (curve.length !== 9) return <svg className="course-index-face-svg" viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">{level}</svg>;
   const span = Math.max(1, ...curve.map((v) => Math.abs(v)));
   const d = curve.map((v, i) => `${i ? 'L' : 'M'}${(4 + (i / 8) * (W - 8)).toFixed(1)} ${(H / 2 - (v / span) * (H / 2 - 6)).toFixed(1)}`).join('');
-  return <svg className="course-index-face-svg" viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false"><path className="course-index-shape" d={d} /></svg>;
+  return <svg className="course-index-face-svg" viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">{level}<path className="course-index-shape" d={d} /></svg>;
 }
 
 /**
  * /courses (the redesign spec, section 7.10, cut under section 00): the reading (how far sustained slowdown runs from
- * one course to the next, from the same courses.json share each course page leads with), then every course as one row
- * the chips sort: its route as its face (or its pace shape), its name, the figure the order is by, and its share of
- * sustained slowdowns. The rows open sorted by that share, so the list reads as the spread; a course's editions are in
- * its row (the range above leaves out those with fewer than three). The ItemList stays alphabetical.
+ * one course to the next across the courses with three or more editions, from the same courses.json share each course
+ * page leads with), then every course as one row the chips sort: its route as its face (or its pace shape), its name,
+ * the figure the order is by, its share of sustained slowdowns and, along the row's foot, that share as a bar on one
+ * scale for every row, so the sorted list is the chart. The courses with fewer than three editions follow under their
+ * own hairline, quieter, since the range above leaves them out. The ItemList stays alphabetical.
  */
 export default function CoursesPage() {
   const pages = [...coursePages().values()];
@@ -54,6 +60,9 @@ export default function CoursesPage() {
   const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
   const range = getNugget('courses.range');
   const index = getNugget('courses.index');
+  // One scale for every row's bar: zero to the round ten above the highest share.
+  const scale = Math.ceil(Math.max(...pages.map((p) => p.summary.slowdown)) * 10) / 10;
+  const few = pages.filter((p) => p.summary.editions < MIN_EDITIONS).map((p) => p.slug);
   const by = (f: (p: (typeof pages)[number]) => number | null, dir: 1 | -1) =>
     [...pages].sort((a, b) => { const x = f(a), y = f(b); if (x === null) return 1; if (y === null) return -1; return dir * (x - y) || a.city.localeCompare(b.city); }).map((p) => p.slug);
   const orders: Record<SortKey, string[]> = {
@@ -80,6 +89,7 @@ export default function CoursesPage() {
             <span className="m-temp">{t.length ? <>{t.length > 1 ? <><Temperature c={Math.min(...t)} />–</> : null}<Temperature c={Math.max(...t)} /> at the start</> : 'No race mornings'}</span>
           </span>
           <span className="course-index-share"><Fact k="slowdown.r" v={share}>{Math.round(share * 100)}%</Fact></span>
+          <span className="course-index-bar" aria-hidden="true" style={{ width: `${((100 * share) / scale).toFixed(1)}%` }} />
         </Link>
       ),
     };
@@ -93,10 +103,10 @@ export default function CoursesPage() {
       <JsonLd data={[pageCrumbs('/courses', 'Courses'), list]} />
       <Reading crumbs={<ChapterCrumbs path="/courses" />} title="Courses" titleSize="title" dek={sentenceOf(index).replace(/\*/g, '')}
         figure={range.figure ? { ...range.figure, size: 'xl' } : undefined}
-        unitLine={<>of finishes had a <SlowdownTerm /></>}
+        unitLine={<>of finishes had a <SlowdownTerm />, on the courses with three or more editions</>}
         sentence={sentenceOf(range)} fallback={!range.guard} className="courses-reading" />
       <section className="courses-list" aria-label="Every course">
-        <CourseSort initial="slowdown" orders={orders} rows={rows}
+        <CourseSort initial="slowdown" orders={orders} rows={rows} foot={few} footTitle="Fewer than three editions"
           options={[{ value: 'slowdown', label: 'Sustained slowdown' }, { value: 'climb', label: 'Climb' }, { value: 'finishes', label: 'Finishes' }, { value: 'temp', label: 'Start temperature' }, { value: 'az', label: 'A–Z' }]} />
       </section>
       <ChapterEnd path="/courses" readingOf={readingOf} />

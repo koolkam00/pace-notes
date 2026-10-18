@@ -22,18 +22,21 @@ export default function CourseElevation({ page }: { page: CoursePageData }) {
   const n = getNugget('course.climb', { city });
   // The route's totals are its sections' sums, the same climbs the readout gives one 5K at a time.
   const climb = routeClimb(page);
+  // The section the sentence names (the biggest climb, or the most any 5K climbs): washed when it is a climb, and the
+  // section the readout opens on either way, so the readout gives the climb the sentence says.
   const focus = n.guard ? Number(n.values.section) : undefined;
+  const opens = Number.isInteger(n.values.section) && Number(n.values.section) >= 0 ? Number(n.values.section) : undefined;
   const curve = s.curve?.length === 9 ? s.curve : null;
   const km = g.elevation_m.map((_, i) => Math.min(g.distance_km, i * g.elevation_step_km));
   // Without a pacing shape (no section paces) the blocks go and the readout leads with each section's climb.
   const chart = (units: UnitSystem) => (
-    <ElevationPace km={km} metres={g.elevation_m} relief={relief} focus={focus} readoutKeys={curve ? ['Climb', 'Pace against its average'] : ['Descent', 'Climb']}
+    <ElevationPace km={km} metres={g.elevation_m} relief={relief} focus={focus} initial={opens} readoutKeys={curve ? ['Climb', 'Pace against its average'] : ['Descent', 'Climb']}
       sections={SECTION_BOUNDS.map(([a, b], i) => ({
         label: sectionLabel(a, b), startKm: a, endKm: b, pct: curve ? curve[i] : 0,
         display: curve ? signedPct(curve[i], 0) : terrain ? climbText(terrain[i].gain_m, units) : '—',
         climb: terrain ? climbText(curve ? terrain[i].gain_m : terrain[i].loss_m, units) : '—',
       }))}
-      reliefLabel={`+${climbText(relief, units)}`}
+      reliefLabel={climbText(relief, units)}
       label={`${display}: elevation on the height scale every course shares, with each 5K section's pace against the course's own average`} height={120} heightMd={190} />
   );
   return (

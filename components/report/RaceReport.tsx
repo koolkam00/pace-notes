@@ -176,7 +176,7 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
         <div className="race-report-stat">
           <span>First 5K</span>
           <strong>{Math.abs(opening.fraction) < 0.0005 ? 'Level' : `${openingPct(opening.fraction)} ${opening.fraction < 0 ? 'quicker' : 'slower'}`}</strong>
-          <small>{Math.abs(opening.fraction) < 0.0005 ? 'with' : 'than'} the 5–20K pace{opening.band ? ` (the “${opening.band.label.toLowerCase()}” group)` : ''}</small>
+          <small>{Math.abs(opening.fraction) < 0.0005 ? 'with' : 'than'} the 5–20K pace</small>
           <Link className="race-report-more no-print" href={handoff ? runnerHandoffHref('/analyses/starting-pace') : '/analyses/starting-pace'}>How openings like this finished</Link>
         </div>
       </div>
@@ -192,8 +192,8 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
   );
 }
 
-/** "the median finish that held pace": a comparison group, as the heading names it. */
-const groupName = (g: ReportGroup) => (g.key === 'held' ? 'the median finish that held pace' : g.key === 'slowdown' ? 'the median finish with a sustained slowdown' : 'the median finish at this time');
+/** "the typical finisher who held pace": a comparison group's median, as the heading names it. */
+const groupName = (g: ReportGroup) => (g.key === 'held' ? 'the typical finisher who held pace' : g.key === 'slowdown' ? 'the typical finisher with a sustained slowdown' : 'the typical finisher at this time');
 
 function ComparisonBlock({ id, Head, comparison: c, model, gender, dropped, retry }: { id: string; Head: HeadTag; comparison: ReportComparison; model: ReportModel; gender: ReportGender; dropped: string | null; retry: () => void }) {
   const note = dropped ? <p className="race-report-meta">{dropped} is not one of the comparison’s courses, so this race is compared with finishes on all courses.</p> : null;

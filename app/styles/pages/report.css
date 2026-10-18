@@ -8,7 +8,8 @@
 /* The report's headings in the redesign's Fraunces (optical size following the size, weight 440), not the legacy
    h1/h2 display cut; inside the runner view too. */
 .report-page h1, .report-page h2, .report-page h3, .report-page h4, .race-report h1, .race-report h2, .race-report h3, .race-report h4 { font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; }
-.report-page.container { width: min(calc(100% - 2 * var(--gutter)), 46rem); }
+/* Inside main.container, so the site's gutter and left edge: only a reading width of its own. */
+.report-page { max-width: 46rem; }
 .report-crumbs { margin-bottom: var(--s-3); }
 
 /* ---------- The card ---------- */
@@ -187,6 +188,14 @@ a.race-report-badge:focus-visible { outline: 2px solid var(--focus); outline-off
 @media (min-width: 600px) {
   .race-report-actions .share-bar .btn-primary { flex: 0 1 auto; }
 }
+/* On a touch screen Share is what a phone does: it takes the primary look and comes first; Print steps back. */
+@media (pointer: coarse) {
+  .race-report-actions .share-bar .race-report-share-open { order: -1; flex: 1 1 auto; background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .race-report-actions .share-bar .race-report-share-open:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .race-report-actions .share-bar .race-report-share-open:active { background: var(--accent-press); border-color: var(--accent-press); }
+  .race-report-actions .share-bar .race-report-print { flex: 0 1 auto; background: transparent; border-color: var(--ink); color: var(--ink); }
+  .race-report-actions .share-bar .race-report-print:hover { background: var(--paper-sunk); border-color: var(--ink); color: var(--ink); }
+}
 .report-onward { margin: var(--s-3) 0 0; }
 
 /* ---------- Without a race in the link ---------- */
@@ -209,8 +218,7 @@ a.race-report-badge:focus-visible { outline: 2px solid var(--focus); outline-off
   [data-print-hide], .site-footer, .skip-link, .site-header, .report-empty, .report-onward, .report-crumbs, .chapter-end, .race-report-actions, .no-print { display: none !important; }
   [data-print-path] { max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; background: none !important; }
   html, body { background: none !important; }
-  .report-page { padding: 0; }
-  .report-page.container { width: auto; }
+  .report-page { padding: 0; max-width: none; }
   .race-report { font-size: 8pt; }
   /* The night screen prints in ink: its tokens take the light ones (the legacy names keep the light values). */
   .race-report-screen { --paper: transparent; --ink: var(--night); --ink-2: var(--night); --ink-3: var(--slate); --rule: var(--line); --mark-quiet: var(--line-2); --signal: var(--orange-ink); --signal-ink: var(--orange-ink); padding: 0; border-radius: 0; background: none; color: var(--night); box-shadow: none !important; }

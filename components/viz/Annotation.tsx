@@ -18,7 +18,7 @@ export default function Annotation({ labels, leader = false }: { labels: PlacedL
         const above = l.dy < 0;
         const len = above ? Math.max(0, -l.dy - 3) : Math.max(0, l.dy - size * 0.78 - 3);
         return (
-          <g key={l.id} className={widthClass(l.minWidth) || undefined}>
+          <g key={l.id} className={[widthClass(l.minWidth), l.under ? 'is-under' : ''].filter(Boolean).join(' ') || undefined} data-scrub-i={l.at}>
             {leader && vertical && len > 2 ? (
               <rect className="leader" x={pc(l.x)} y={pc(l.y)} width={1} height={len} transform={`translate(-0.5 ${above ? -len - 1 : 1})`} />
             ) : null}

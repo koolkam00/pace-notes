@@ -5,15 +5,16 @@ import Scrubber from '@/components/viz/Scrubber.client';
 import Annotation from '@/components/viz/Annotation';
 import { placeLabels, REF_WIDTH, textWidth, type LabelItem, type PlacedLabel } from '@/components/viz/labels';
 import { extent, linear, linePath, pc, yScale } from '@/components/viz/scale';
-import { yearTicks } from '@/components/viz/YearStrip';
+import { yearKey, yearPad, yearTicks } from '@/components/viz/YearStrip';
 
 /**
  * The median finish, edition by edition (the redesign spec, section 7.10 "#finish-times"): a dot per edition on a
- * time-scaled axis, joined only across consecutive years, so a year with no edition leaves the line broken rather than
- * closed up. The y scale spans at least 20 minutes, centred on the editions, so a few seconds never draw as a climb or a
- * drop, and up to two round-minute gridlines carry it, labelled inside the plot on its left. The edition the readout
- * opens on (the one the sentence ends on) is signal and unlabelled, since the readout names it; the one the sentence
- * starts from is labelled. Scrub the years: the readout gives each edition's median and its finishes.
+ * time-scaled axis, joined only across consecutive years, so a year with no edition leaves the line broken, under the
+ * same faint band as the hero's strip (scrubbed, it reads "2020, not in the data"). The y scale spans at least 20 minutes,
+ * centred on the editions, so a few seconds never draw as a climb or a drop, and up to two round-minute gridlines carry
+ * it, labelled inside the plot on its left. The edition the readout opens on (the one the sentence accents) is signal
+ * and unlabelled, since the readout names it; the other the sentence names is labelled in one format, on a leader where
+ * the editions crowd it, and hides while the needle sits on it. Scrub the years: each edition's median and finishes.
  */
 export type EditionPoint = { year: number; seconds: number; display: string; side: string };
 
@@ -28,7 +29,8 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
 }) {
   const sorted = [...points].sort((a, b) => a.year - b.year);
   const first = sorted[0].year, last = sorted[sorted.length - 1].year;
-  const x = linear([first - 0.6, last + 0.6]);
+  const pad = yearPad(first, last);
+  const x = linear([first - pad, last + pad]);
   const [lo, hi] = extent(sorted.map((p) => p.seconds));
   const span = Math.max(MIN_SPAN_S, (hi - lo) * 1.35);
   const mid = (lo + hi) / 2;
@@ -41,6 +43,10 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
     const run = runs[runs.length - 1];
     if (run && p.year === run[run.length - 1].year + 1) run.push(p); else runs.push([p]);
   }
+  // Years with no edition between the first and the last: a faint band each, and a scrub point keyed "not in the data".
+  const years = Array.from({ length: last - first + 1 }, (_, k) => first + k);
+  const scrubOf = (year: number) => years.indexOf(year);
+  const gaps = runs.slice(1).map((r, i) => ({ from: runs[i][runs[i].length - 1].year + 1, to: r[0].year - 1 }));
   const dots = sorted.map((p) => ({ x: x(p.year), y: y(p.seconds), r: 5 }));
   // The joined runs as points sampled along each segment (plot fractions), for every label to keep clear of.
   const along = runs.flatMap((r) => r.slice(1).flatMap((p, i) => {
@@ -59,13 +65,13 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
     return { id: 'from', text, x: px, y: top, priority: 3, size: 13, gap: 10, ...(lift ? { prefer: 'above' as const } : {}) };
   };
   // The line is avoided along its length, not by its segments' boxes, so a label may sit in the open corner beside a
-  // diagonal. The full label first; the year alone if it finds no room (the sentence gives the time); then lifted.
+  // diagonal. The label beside its dot first, else lifted on a leader: one format, never cut to the year alone.
   let placed: PlacedLabel[] = [];
   let lifted = false;
   if (start >= 0 && start !== sel) {
-    const full = `${sorted[start].year} · ${sorted[start].display}`, year = String(sorted[start].year);
-    for (const [text, lift] of [[full, false], [year, false], [full, true], [year, true]] as const) {
-      placed = placeLabels([fromItem(text, lift)], { height, avoid: [...dots, ...along], boxes: [needle] });
+    const full = `${sorted[start].year} · ${sorted[start].display}`;
+    for (const lift of [false, true]) {
+      placed = placeLabels([fromItem(full, lift)], { height, avoid: [...dots, ...along], boxes: [needle] }).map((l) => ({ ...l, at: scrubOf(sorted[start].year) }));
       lifted = lift;
       if (placed.every((l) => l.minWidth !== null)) break;
     }
@@ -100,6 +106,7 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
   }
   const plot = (
     <Plot paths={runs.filter((r) => r.length > 1).map((r) => <path key={r[0].year} className="l-ink2" d={linePath(r.map((p) => [x(p.year), y(p.seconds)]))} />)}>
+      {gaps.map((g) => <rect key={g.from} className="a-wash year-gap" x={pc(x(g.from - 0.5))} width={pc(x(g.to + 0.5) - x(g.from - 0.5))} y="0" height="100%" />)}
       <g className="viz-grid">
         {grid.map((g) => (
           <g key={g.label}>
@@ -111,21 +118,22 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
       {sorted.map((p, i) => <circle key={p.year} className={i === sel ? 'm-signal is-reading' : 'm-ink'} cx={pc(x(p.year))} cy={pc(y(p.seconds))} r={i === sel ? 5.5 : 4} />)}
       {lifted ? placed.filter((l) => l.minWidth !== null && l.dy < 0).map((l) => {
         const from = l.y + (l.dy + 3) / height, to = y(sorted[start].seconds) - 6 / height;
-        return to - from > 4 / height ? <rect key="leader" className="leader" x={pc(l.x)} width={1} transform="translate(-0.5 0)" y={pc(from)} height={pc(to - from)} /> : null;
+        return to - from > 4 / height ? <rect key="leader" className="leader" data-scrub-i={l.at} x={pc(l.x)} width={1} transform="translate(-0.5 0)" y={pc(from)} height={pc(to - from)} /> : null;
       }) : null}
       <Annotation labels={placed} />
       <Baseline />
     </Plot>
   );
-  const axis = <Axis ticks={yearTicks(first, last).map((yr) => ({ x: x(yr), label: String(yr) }))} />;
+  const axis = <Axis centred ticks={yearTicks(first, last).map((yr) => ({ x: x(yr), label: String(yr) }))} />;
+  const byYear = new Map(sorted.map((p) => [p.year, p]));
   const scrub = {
-    x: sorted.map((p) => x(p.year)), keys: sorted.map((p) => String(p.year)), values: sorted.map((p) => p.display),
-    side: [{ label: sideLabel, values: sorted.map((p) => p.side) }],
+    x: years.map((yr) => x(yr)), keys: years.map((yr) => yearKey(yr, byYear.has(yr))), values: years.map((yr) => byYear.get(yr)?.display ?? '—'),
+    side: [{ label: sideLabel, values: years.map((yr) => byYear.get(yr)?.side ?? '—') }],
   };
-  const detents = [...new Set([sel, ...(start >= 0 ? [start] : [])])];
+  const detents = [...new Set([sel, ...(start >= 0 ? [start] : [])])].map((i) => scrubOf(sorted[i].year));
   return (
     <ChartFrame className="edition-line" label={label} height={height} heightMd={heightMd}
-      scrub={<Scrubber points={scrub} initial={sel} detents={detents} label={label} axis={axis}>{plot}</Scrubber>}
+      scrub={<Scrubber points={scrub} initial={scrubOf(sorted[sel].year)} detents={detents} label={label} axis={axis}>{plot}</Scrubber>}
     />
   );
 }

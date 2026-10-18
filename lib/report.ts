@@ -147,8 +147,10 @@ function comparisonOf(input: ReportInput['comparison'], finish: number): ReportC
     : [group('all', 'All finishes in the window', all)];
   const missing = !held && !slow ? 'Neither the held-pace nor the sustained-slowdown group has enough finishes, so the whole window is shown.'
     : !held ? 'The held-pace group has too few finishes to show.' : !slow ? 'The sustained-slowdown group has too few finishes to show.' : null;
+  // The window pools every edition of the course: the label says so, beside an edition's own counts in the runner view.
+  const pooled = scope.slug === 'all' ? where : `${where}, every edition`;
   return {
-    state: 'ok', label: `complete finishes from ${clock(lo)} to ${clock(hi)} ${where}${recorded}`, n: all.n, ed: all.ed, lo, hi,
+    state: 'ok', label: `complete finishes from ${clock(lo)} to ${clock(hi)} ${pooled}${recorded}`, n: all.n, ed: all.ed, lo, hi,
     slowdownShare: all.sd ?? (slow ? slow.n / all.n : null), groups, missing,
   };
 }

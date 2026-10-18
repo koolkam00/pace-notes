@@ -133,9 +133,11 @@ label.runner-race-row { cursor: pointer; }
 .runner-selection .btn-primary.button-primary:active { background: var(--accent-press); border-color: var(--accent-press); }
 .runner-selection-actions .btn-primary .arrow-icon { width: 16px; height: 16px; }
 .runner-clear { flex: none; padding-inline: var(--s-3); font-size: var(--t-small); }
-.runner-chips { display: flex; gap: var(--s-2); margin: 0; padding: 0; list-style: none; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
+.runner-chips { display: flex; gap: var(--s-2); margin: 0; padding: 0; list-style: none; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 40px), transparent); mask-image: linear-gradient(to right, var(--ink) calc(100% - 40px), transparent); }
+/* One chip fits the row whole: no fade over it. */
+@supports selector(:has(> li)) { .runner-chips:has(> li:only-child) { -webkit-mask-image: none; mask-image: none; } }
 .runner-chips::-webkit-scrollbar { display: none; }
-.runner-chips li { display: inline-flex; flex: none; align-items: center; gap: 2px; margin: 0; padding-left: 12px; border: 1px solid var(--rule-strong); border-radius: var(--r-pill); font-size: var(--t-label); font-weight: 600; line-height: 1.2; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.runner-chips li { scroll-snap-align: start; display: inline-flex; flex: none; align-items: center; gap: 2px; margin: 0; padding-left: 12px; border: 1px solid var(--rule-strong); border-radius: var(--r-pill); font-size: var(--t-label); font-weight: 600; line-height: 1.2; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .runner-chips li:last-child { margin-right: 24px; }
 .runner-chips small { font-size: inherit; font-weight: 500; color: var(--ink-3); }
 .runner-chips button { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; min-height: 32px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--ink-3); cursor: pointer; }

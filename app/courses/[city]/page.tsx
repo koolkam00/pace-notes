@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import CourseElevation from '@/components/course/CourseElevation';
-import CourseFinishTimes from '@/components/course/CourseFinishTimes';
+import CourseFinishTimes, { timesShown } from '@/components/course/CourseFinishTimes';
 import CourseGlance, { glanceRows } from '@/components/course/CourseGlance';
 import CourseGoals from '@/components/course/CourseGoals';
 import CourseHero from '@/components/course/CourseHero';
@@ -11,7 +11,7 @@ import CoursePlan from '@/components/course/CoursePlan';
 import CourseReplay from '@/components/course/CourseReplay';
 import CourseSlowdown from '@/components/course/CourseSlowdown';
 import CourseToc from '@/components/course/CourseToc';
-import CourseWeatherByYear from '@/components/course/CourseWeatherByYear';
+import CourseWeatherByYear, { WEATHER_MIN_MORNINGS } from '@/components/course/CourseWeatherByYear';
 import { readingAttrs } from '@/lib/chapters';
 import { courseDescription, coursePage, coursePages, courseTitle } from '@/lib/course-page';
 import type { ReplayIndex } from '@/lib/insights';
@@ -46,9 +46,9 @@ export default function CityPage({ params }: { params: { city: string } }) {
   // A section shows only when it has something to show: no heading over an empty chart.
   const glance = glanceRows(page);
   const shown: [string, string, boolean][] = [
-    ['at-a-glance', 'At a glance', glance.ids.length > 0 || glance.typical], ['finish-times', 'Finish times', page.editions.length > 1],
+    ['at-a-glance', 'At a glance', glance.ids.length > 0 || glance.typical], ['finish-times', 'Finish times', timesShown(page)],
     ['elevation', 'Elevation', !!page.geometry], ['pacing', 'Pacing', !!page.types], ['slowdown', 'Slowdowns', true], ['goals', 'Goals', page.goals.length > 0],
-    ['weather', 'Weather', page.weather.length > 1], ['plan', 'Plan', true], ['replay', 'Replay', choices.length > 0],
+    ['weather', 'Weather', !!page.hotCool && page.weather.length >= WEATHER_MIN_MORNINGS], ['plan', 'Plan', true], ['replay', 'Replay', choices.length > 0],
   ];
   const sections = shown.filter(([, , on]) => on).map(([id, name]) => [id, name] as [string, string]);
   return (

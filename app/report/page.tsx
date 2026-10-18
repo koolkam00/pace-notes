@@ -18,7 +18,7 @@ export default function ReportPage() {
   // The race is read from the address in the browser (s, course, g and via); the build supplies only the verified file
   // hashes, the opening groups, the pacing-type cohort and the course names. The closing stack leads on to chapter 11
   // and back to /runners; it is not a tracked section here (the page's one section is `report`, docs/ANALYTICS.md).
-  return <div className="container report-page">
+  return <div className="report-page">
     <ReportView data={reportData()} crumbs={<RunnerCrumbs path="/report" />} />
     <ChapterEnd path="/report" readingOf={readingOf} track={false} />
   </div>;

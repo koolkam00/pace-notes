@@ -31,7 +31,8 @@ export function printCard(cardId: string) {
 
 /**
  * The report's outputs, in the share bar's row (`.tool-share .share-bar`, so none counts as a tool edit): print or save as
- * PDF through the browser (the one primary), and Share, which opens a sheet (rendered in place, inside the report's
+ * PDF through the browser (the one primary; on a touch screen, where Share is what a phone does, Share takes the primary
+ * look and comes first, app/styles/pages/report.css), and Share, which opens a sheet (rendered in place, inside the report's
  * masked region) holding a 1080 × 1350 image drawn only when asked for (lib/report-image.ts, loaded with import() on the
  * first press), the device's share sheet, the report's link and what the link carries. Analytics hears only that an
  * image was saved or a share went through (`report_exported`), a copied link and a print (`tool_used`), and a failure's
@@ -113,7 +114,7 @@ export default function ReportActions({ id, model, units, link, cardId, gender }
   return (
     <div className="race-report-actions no-print" id={id}>
       <div className="tool-share share-bar">
-        <button type="button" className="btn btn-primary is-compact" data-not-edit onClick={() => printCard(cardId)}>Print or save as PDF</button>
+        <button type="button" className="btn btn-primary is-compact race-report-print" data-not-edit onClick={() => printCard(cardId)}>Print or save as PDF</button>
         <button type="button" className="btn btn-secondary is-compact race-report-share-open" data-sheet-open={sheetId} aria-haspopup="dialog" aria-expanded={open} aria-controls={sheetId}
           onClick={() => { setMounted(true); setOpen(true); }}>Share</button>
       </div>

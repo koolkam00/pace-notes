@@ -16,8 +16,11 @@ import { fitClass, REF_WIDTH, textWidth } from './labels';
  */
 export type PaceSection = { label: string; startKm: number; endKm: number; pct: number; display: string; climb: string };
 
-export default function ElevationPace({ km, metres, relief, sections, focus, label, readoutKeys, values, height = 150, heightMd = 190, reliefLabel }: {
-  km: number[]; metres: number[]; relief: number; sections: PaceSection[]; focus?: number; label: string;
+export default function ElevationPace({ km, metres, relief, sections, focus, initial, label, readoutKeys, values, height = 150, heightMd = 190, reliefLabel }: {
+  km: number[]; metres: number[]; relief: number; sections: PaceSection[]; focus?: number;
+  /** The section the readout opens on (the one the sentence names); default the washed one, else the first. */
+  initial?: number;
+  label: string;
   /** The readout's labels: [the climb in a section, its pace against the course's own average]. */
   readoutKeys: [string, string]; values?: ReactNode; height?: number; heightMd?: number;
   /** The shared scale's top, as words ("656 ft"): a hairline at it, labelled inside the plot, so the scale can be read. */
@@ -29,10 +32,17 @@ export default function ElevationPace({ km, metres, relief, sections, focus, lab
   const top = 0.08;
   const y = (m: number) => 1 - (1 - top) * ((m - floor) / Math.max(1, relief));
   const line = km.map((k, i) => [x(k), y(metres[i])] as [number, number]);
-  // The scale's top line, its label under it at whichever end the profile stays clear of (else no label, and no line).
+  // The scale's top line, its label under it at whichever end the profile, the washed section and the needle where the
+  // chart opens all stay clear of (else no label, and no line). The end away from the open section is tried first.
+  const start = initial ?? focus ?? 0;
   const labelW = reliefLabel ? (textWidth(reliefLabel, 12, 500) + 8) / REF_WIDTH : 0;
-  const clearUnder = (x0: number, x1: number) => line.every(([px, py]) => px < x0 || px > x1 || py > top + 22 / height);
-  const reliefSide = !reliefLabel ? null : clearUnder(0, labelW) ? 'left' : clearUnder(1 - labelW, 1) ? 'right' : null;
+  const taken = [
+    ...(sections[start] ? [[x((sections[start].startKm + sections[start].endKm) / 2) - 6 / REF_WIDTH, x((sections[start].startKm + sections[start].endKm) / 2) + 6 / REF_WIDTH]] : []),
+    ...(focus !== undefined && sections[focus] ? [[x(sections[focus].startKm), x(sections[focus].endKm)]] : []),
+  ];
+  const clearUnder = (x0: number, x1: number) => line.every(([px, py]) => px < x0 || px > x1 || py > top + 22 / height) && taken.every(([a, b]) => b < x0 || a > x1);
+  const ends: ('left' | 'right')[] = sections[start] && x(sections[start].startKm) < 0.5 ? ['right', 'left'] : ['left', 'right'];
+  const reliefSide = !reliefLabel ? null : ends.find((side) => (side === 'left' ? clearUnder(0, labelW) : clearUnder(1 - labelW, 1))) ?? null;
   const plot = (
     <Plot paths={(
       <>
@@ -58,7 +68,7 @@ export default function ElevationPace({ km, metres, relief, sections, focus, lab
         // The plot width at which this block holds its value with 2 px to spare (2 px gaps between blocks).
         const need = ((textWidth(s.display, 12) + 4) * totalKm) / (s.endKm - s.startKm) + 2 * (sections.length - 1);
         return (
-          <span key={s.label} className={`pace-block is-on-${paceText(bg)}${i === focus ? ' is-focus' : ''}`} style={{ flexGrow: s.endKm - s.startKm, background: bg }}>
+          <span key={s.label} className={`pace-block is-on-${paceText(bg)}${i === focus ? ' is-focus' : ''}${s.display.length > 3 ? ' is-long' : ''}`} style={{ flexGrow: s.endKm - s.startKm, background: bg }}>
             <span className={fitClass(need) || undefined}>{s.display}</span>
           </span>
         );
@@ -79,7 +89,7 @@ export default function ElevationPace({ km, metres, relief, sections, focus, lab
   };
   return (
     <ChartFrame className="elevation-pace" label={label} height={height} heightMd={heightMd}
-      scrub={<Scrubber points={points} initial={focus ?? 0} detents={focus !== undefined ? [focus] : []} label={label} axis={axis}>{plot}</Scrubber>}
+      scrub={<Scrubber points={points} initial={start} detents={[...new Set([start, ...(focus !== undefined ? [focus] : [])])]} label={label} axis={axis}>{plot}</Scrubber>}
       values={values}
     />
   );

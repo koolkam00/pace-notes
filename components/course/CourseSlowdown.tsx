@@ -8,11 +8,12 @@ import { CourseSection, Said } from './Fact';
 /**
  * "#slowdown": every course on one strip by its share of finishes with a sustained slowdown (the same courses.json
  * share each course page leads with), this one in signal; courses with fewer than three editions hollow, the extremes
- * among the rest labelled. Ranked by value, never named in the sentence.
+ * among the rest labelled. The H2 is the spread across those courses (course.field); where this course sits among them
+ * is the hero's sentence, so the page says it once.
  */
 export default function CourseSlowdown({ page }: { page: CoursePageData }) {
   const { city, display, field } = page;
-  const n = getNugget('course.among', { city });
+  const n = getNugget('course.field', { city });
   // Room past the highest share (to the next 5 points, at least 5 points on), so a name labelled at the right end of
   // the strip stays inside it on the narrowest phone.
   const top = Math.ceil((Math.max(...field.map((c) => c.slowdown)) + 0.05) * 20) / 20;

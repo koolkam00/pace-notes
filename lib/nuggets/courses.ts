@@ -28,13 +28,14 @@ export const MIN_EDITIONS = 3;
 export const NET_MIN_M = 10;
 export const CLIMB_MIN_M = 15;
 /**
- * The glance's rows say only what sets a course apart: a 5K section "parts" from the typical course from 2 points of
- * pace against the course's own average, and the pacing shape "makes" a course when it picked the course out in at least
- * three in four of five or more editions.
+ * The glance's rows say only what sets a course apart: a 5K section "parts" from the typical course from 3 points of
+ * pace against the course's own average (2 points rounds to look like 3 as whole percentages, and sets nothing apart),
+ * and the pacing shape "makes" a course when it told the course apart in at least nine in ten of five or more editions,
+ * every edition the hero counts (so the row's denominator is the hero's).
  */
-export const SIGNATURE_MIN = 2;
+export const SIGNATURE_MIN = 3;
 export const SHAPE_MIN_EDITIONS = 5;
-export const SHAPE_SHARE = 0.75;
+export const SHAPE_SHARE = 0.9;
 /** A pacing type's share differs from every course's from 3 percentage points. */
 export const TYPE_GAP = 0.03;
 /** A median finish "moved" from 60 seconds. */
@@ -173,35 +174,38 @@ function courseLate(ctx?: NuggetContext): Nugget {
 }
 
 /**
- * At a glance (3): how often the course was recognised from its editions' pacing shapes alone, said only when its shape
- * picked it out in at least three in four of five or more editions.
+ * At a glance (3): how often the course's 5K splits alone told it apart from every other course, said only when they
+ * did in at least nine in ten of five or more editions and every edition the hero counts was tested (so the row's
+ * "of" is the hero's edition count, never a smaller one).
  */
 function courseShape(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
   const id = page?.summary.identified;
   const display = page?.display ?? 'this course';
-  const guard = !!id && id.editions >= SHAPE_MIN_EDITIONS && id.correct >= SHAPE_SHARE * id.editions;
+  const guard = !!id && !!page && id.editions >= SHAPE_MIN_EDITIONS && id.editions === page.summary.editions && id.correct >= SHAPE_SHARE * id.editions;
   return {
     id: 'course.shape', page: `/courses/${page?.slug ?? ''}#at-a-glance`, denominator: 'shape',
     values: { correct: id?.correct ?? NaN, editions: id?.editions ?? NaN },
     guard,
-    headline: id ? `*${id.correct} of ${id.editions}* editions were recognisable as ${display} from their 5K-by-5K pacing alone.` : '',
+    headline: id ? `*${id.correct} of ${id.editions}* ${display} editions were told apart from every other course by their 5K splits alone.` : '',
     fallback: 'A pacing shape of its own.',
     figure: guard ? { value: `${id!.correct} of ${id!.editions}`, sr: `${id!.correct} of ${id!.editions}` } : null,
-    key: `editions recognisable as ${display} from 5K-by-5K pacing alone`,
+    key: 'editions told apart from every other course by their 5K splits alone',
   };
 }
 
-/** A section's pace against its course's own average, signed as the pace blocks print it: "+11%", "−8%", "0%". */
-function signedWhole(v: number): string {
+/** A section's pace against its course's own average, in words: "4% slower than its average pace", "1% quicker…", "at its average pace". */
+function paceWords(v: number, own: boolean): string {
   const n = Math.round(Math.abs(v));
-  return n === 0 ? '0%' : `${v > 0 ? '+' : '−'}${n}%`;
+  if (n === 0) return own ? 'at its average pace' : 'level on the typical course';
+  return `${n}% ${v > 0 ? 'slower' : 'quicker'}${own ? ' than its average pace' : ' on the typical course'}`;
 }
 
 /**
  * At a glance (4): the 5K section where the course's pacing parts most from the typical course's (each against its own
- * average pace), said from 2 points apart on a course with three or more editions. Where no section parts that far, the
- * course "paces much like the typical course", which the glance says alone when nothing else sets the course apart.
+ * average pace), said from 3 points apart on a course with three or more editions, in words: "1% quicker than its
+ * average pace; 4% slower on the typical course". Where no section parts that far, the course "paces much like the
+ * typical course", which the glance says alone when nothing else sets the course apart.
  */
 function courseSignature(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
@@ -212,37 +216,46 @@ function courseSignature(ctx?: NuggetContext): Nugget {
   const here = curve && i >= 0 ? curve[i] : NaN, typical = i >= 0 ? (data.typical_curve[i] ?? NaN) : NaN;
   const pts = s?.signature_points ?? NaN;
   const solid = !!s && !!curve && s.editions >= MIN_EDITIONS && Number.isFinite(pts) && Number.isFinite(here) && Number.isFinite(typical);
-  const guard = solid && Math.abs(pts) >= SIGNATURE_MIN;
+  const guard = solid && Math.abs(pts) >= SIGNATURE_MIN && paceWords(here, true) !== paceWords(typical, true);
   const display = page?.display ?? 'This course';
   const name = sectionOf(i);
-  const key = `${signedWhole(here)} against its average pace, ${signedWhole(typical)} on the typical course`;
+  const key = `${paceWords(here, true)}; ${paceWords(typical, false)}`;
   return {
     id: 'course.signature', page: `/courses/${page?.slug ?? ''}#at-a-glance`, denominator: 'shape',
-    values: { section: s?.signature_section ?? '', here, typical, points: pts, editions: s?.editions ?? 0, typical_like: solid && !guard ? 1 : 0 },
+    values: { section: s?.signature_section ?? '', here, typical, points: pts, editions: s?.editions ?? 0, typical_like: solid && Math.abs(pts) < SIGNATURE_MIN ? 1 : 0 },
     guard,
-    headline: `${display}’s ${name}: *${key}*.`,
+    headline: `${display}’s ${name}: *${paceWords(here, true)}*; ${paceWords(typical, false)}.`,
     fallback: solid ? `${display} paces *much like the typical course*, 5K by 5K.` : 'Its pacing, 5K by 5K.',
     figure: guard ? { value: name, sr: name } : null,
     key: solid ? key : undefined,
   };
 }
 
-/** #finish-times: the median finish, first edition to latest. */
+/**
+ * #finish-times: the range of the median finish across the editions (three or more), low end first, each end a year the
+ * source policy neither holds nor copies; a range under a minute says the median held. Two editions: first to latest.
+ */
 function courseTimes(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
   const eds = page?.editions ?? [];
-  const first = eds[0], last = eds[eds.length - 1];
-  const guard = eds.length >= 2 && Math.abs(last.median_s - first.median_s) >= MOVED_S;
   const at = (e: { median_s: number }) => hm(e.median_s / 60);
+  const held = heldEditions();
+  const named = eds.filter((e) => !!page && !held.has(`${page.city}|${e.year}`));
+  const lo = named.length ? named.reduce((a, b) => (b.median_s < a.median_s ? b : a)) : undefined;
+  const hi = named.length ? named.reduce((a, b) => (b.median_s > a.median_s ? b : a)) : undefined;
+  const first = eds[0], last = eds[eds.length - 1];
+  const guard = eds.length >= 3 && !!lo && !!hi && hi.median_s - lo.median_s >= MOVED_S && at(lo) !== at(hi);
   return {
     id: 'course.times', page: `/courses/${page?.slug ?? ''}#finish-times`, denominator: 'course',
-    values: { first_year: first?.year ?? NaN, first_s: first?.median_s ?? NaN, last_year: last?.year ?? NaN, last_s: last?.median_s ?? NaN, editions: eds.length },
+    values: { lo_year: lo?.year ?? NaN, lo_s: lo?.median_s ?? NaN, hi_year: hi?.year ?? NaN, hi_s: hi?.median_s ?? NaN, editions: eds.length },
     guard,
-    headline: first && last ? `The median finish moved from ${at(first)} in ${first.year} to *${at(last)}* in ${last.year}.` : '',
-    // Under a minute apart the median "barely moved"; on the same minute it "was" one time both years.
-    fallback: eds.length >= 2
-      ? (at(first) === at(last) ? `The median finish was *${at(first)}* in both ${first.year} and ${last.year}.` : `The median finish barely moved: ${at(first)} in ${first.year}, *${at(last)}* in ${last.year}.`)
-      : first ? `The median finish in ${first.year}: *${at(first)}*.` : 'Finish times by year.',
+    headline: lo && hi ? `The median finish ranged from ${at(lo)} in ${lo.year} to *${at(hi)}* in ${hi.year}.` : '',
+    // Within a minute the median "held"; two editions read first to latest.
+    fallback: eds.length >= 3 && lo && hi
+      ? (at(lo) === at(hi) ? `The median finish was *${at(lo)}* in every edition.` : `The median finish held within a minute: ${at(lo)} to *${at(hi)}*.`)
+      : eds.length === 2
+        ? (at(first) === at(last) ? `The median finish was *${at(first)}* in both ${first.year} and ${last.year}.` : `The median finish was ${at(first)} in ${first.year}, *${at(last)}* in ${last.year}.`)
+        : first ? `The median finish in ${first.year}: *${at(first)}*.` : 'Finish times by year.',
     figure: null,
   };
 }
@@ -281,14 +294,16 @@ function courseTypes(ctx?: NuggetContext): Nugget {
     values: { type: i >= 0 ? all[i].slug : '', here, every },
     guard,
     headline: `${here > every ? 'More' : 'Fewer'} *${name}* here: ${pct(here)}, against ${pct(every)} across every course.`,
-    fallback: page?.types ? 'Six pacing types, here and across every course.' : `No pacing types for ${page?.display ?? 'this course'}.`,
+    fallback: page?.types ? `Paced much like every course: no type more than ${Math.round(TYPE_GAP * 100)} points apart.` : `No pacing types for ${page?.display ?? 'this course'}.`,
     figure: null,
   };
 }
 
 /**
- * #slowdown: where the course's share sits among the other courses with three or more editions (the strip shows every
- * course, the rest hollow), said only for a course with three or more editions itself, as a count of them.
+ * The hero's sentence: where the course's share sits among the other courses with three or more editions (the strip
+ * under #slowdown shows every course, the rest hollow), said only for a course with three or more editions itself, as a
+ * count of them, or "any other course" when it is the count of all of them. The scope is said every time, since the
+ * count leaves out the hollow dots.
  */
 function courseAmong(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
@@ -299,13 +314,34 @@ function courseAmong(ctx?: NuggetContext): Nugget {
   const n = others.length;
   const fewer = higher >= lower;
   const count = fewer ? higher : lower;
-  const guard = !!s && s.editions >= MIN_EDITIONS && n >= 5;
+  const guard = !!s && s.editions >= MIN_EDITIONS && n >= 5 && count > 0;
+  // The accent never breaks across lines ("16 of the 24" stays together).
+  const than = count === n ? '*any\u00a0other\u00a0course* with three or more editions' : `*${count}\u00a0of\u00a0the\u00a0${n}* other courses with three or more editions`;
   return {
-    id: 'course.among', page: `/courses/${page?.slug ?? ''}#slowdown`, denominator: 'course',
+    id: 'course.among', page: `/courses/${page?.slug ?? ''}`, denominator: 'course',
     values: { share: s?.slowdown ?? NaN, higher, lower, courses: n },
     guard,
-    headline: `${fewer ? 'Fewer' : 'More'} sustained slowdowns than *${count} of ${n}* courses.`,
+    headline: `${fewer ? 'Lower' : 'Higher'} than on ${than}.`,
     fallback: `${page?.display ?? 'This course'} beside every course.`,
+    figure: null,
+  };
+}
+
+/**
+ * #slowdown: the spread the strip draws, across the courses with three or more editions (the hollow dots have fewer),
+ * low end first. The same courses.json shares each course page leads with.
+ */
+function courseField(ctx?: NuggetContext): Nugget {
+  const page = pageFor(ctx);
+  const range = coursesRangeFrom(page?.field ?? []);
+  const { min, max, courses } = range.values as { min: number; max: number; courses: number };
+  const guard = !!page && courses >= 3 && Number.isFinite(min) && Number.isFinite(max) && pct(min) !== pct(max);
+  return {
+    id: 'course.field', page: `/courses/${page?.slug ?? ''}#slowdown`, denominator: 'course',
+    values: { min, max, courses, min_city: range.values.min_city, max_city: range.values.max_city },
+    guard,
+    headline: `Across courses with three or more editions, *${pct(min)} to ${pct(max)}* had a sustained slowdown.`,
+    fallback: 'Sustained slowdown on every course.',
     figure: null,
   };
 }
@@ -356,9 +392,10 @@ export const COURSE_NUGGETS: Record<string, Builder> = {
   'course.climb': courseClimb,
   'course.types': courseTypes,
   'course.among': courseAmong,
+  'course.field': courseField,
   'course.goal': courseGoal,
   'course.weather': courseWeather,
 };
 
 /** The nuggets a course page builds with its city (index.ts CONTEXT_NUGGETS). */
-export const COURSE_CONTEXT_NUGGETS = ['course.slowdown', 'course.start', 'course.late', 'course.shape', 'course.signature', 'course.times', 'course.climb', 'course.types', 'course.among', 'course.goal', 'course.weather'] as const;
+export const COURSE_CONTEXT_NUGGETS = ['course.slowdown', 'course.start', 'course.late', 'course.shape', 'course.signature', 'course.times', 'course.climb', 'course.types', 'course.among', 'course.field', 'course.goal', 'course.weather'] as const;

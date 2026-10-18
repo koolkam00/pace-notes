@@ -102,38 +102,45 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       }
     }
 
-    // At a glance (3): how often the shape alone picked the course out, only at three in four of five or more editions.
+    // At a glance (3): how often the 5K splits alone told the course apart, only at nine in ten of five or more editions,
+    // every edition with a row tested (so its "of" is the hero's edition count).
     {
       const n = at('course.shape');
-      step(() => eq(n.guard, !!c.identified && c.identified.editions >= 5 && c.identified.correct * 4 >= c.identified.editions * 3, `course.shape (${city}): guard (three in four of five or more editions)`));
-      if (n.guard) step(() => ok(said(n).startsWith(`${c.identified.correct} of ${c.identified.editions} editions were recognisable as `), `course.shape (${city}): the sentence`));
+      const id = c.identified;
+      step(() => eq(n.guard, !!id && id.editions >= 5 && id.editions === c.editions && id.correct * 10 >= id.editions * 9, `course.shape (${city}): guard (nine in ten of five or more editions, all of them)`));
+      if (n.guard) {
+        step(() => ok(said(n).startsWith(`${id.correct} of ${id.editions} `) && said(n).endsWith(' editions were told apart from every other course by their 5K splits alone.'), `course.shape (${city}): the sentence`));
+        step(() => eq(n.key, 'editions told apart from every other course by their 5K splits alone', `course.shape (${city}): the row`));
+      }
     }
 
-    // At a glance (4): where the pacing parts most from the typical course, from 2 points on three or more editions.
+    // At a glance (4): where the pacing parts most from the typical course, from 3 points on three or more editions, in
+    // words ("1% quicker than its average pace; 4% slower on the typical course").
     {
       const n = at('course.signature');
       const i = c.signature_section ? courses.sections.indexOf(c.signature_section) : -1;
       const solid = c.editions >= 3 && Array.isArray(c.curve) && c.curve.length === 9 && i >= 0;
       const dev = solid ? c.curve[i] - courses.typical_curve[i] : NaN;
+      const words = (v, own) => { const r = Math.round(Math.abs(v)); return r === 0 ? (own ? 'at its average pace' : 'level on the typical course') : `${r}% ${v > 0 ? 'slower' : 'quicker'}${own ? ' than its average pace' : ' on the typical course'}`; };
       step(() => ok(!solid || Math.abs(dev - c.signature_points) < 0.011, `course.signature (${city}): the signature is the curve less the typical curve`));
       step(() => ok(!solid || c.deviation.every((d) => Math.abs(d) <= Math.abs(c.signature_points) + 1e-9), `course.signature (${city}): no section parts further than the signature`));
-      step(() => eq(n.guard, solid && Math.abs(c.signature_points) >= 2, `course.signature (${city}): guard (2 points on three or more editions)`));
-      if (n.guard) {
-        const r = (v) => Math.round(Math.abs(v));
-        const signedPct = (v) => (r(v) === 0 ? '0%' : `${v > 0 ? '+' : '−'}${r(v)}%`);
-        const here = c.curve[i], typ = courses.typical_curve[i];
-        step(() => eq(n.key, `${signedPct(here)} against its average pace, ${signedPct(typ)} on the typical course`, `course.signature (${city}): the row`));
-        step(() => ok(signedPct(here) !== signedPct(typ), `course.signature (${city}): the two figures differ as written`));
-      } else if (solid) step(() => ok(said(n).endsWith('paces much like the typical course, 5K by 5K.'), `course.signature (${city}): within 2 points everywhere, it paces like the typical course`));
+      const here = solid ? c.curve[i] : NaN, typ = solid ? courses.typical_curve[i] : NaN;
+      step(() => eq(n.guard, solid && Math.abs(c.signature_points) >= 3 && words(here, true) !== words(typ, true), `course.signature (${city}): guard (3 points on three or more editions)`));
+      if (n.guard) step(() => eq(n.key, `${words(here, true)}; ${words(typ, false)}`, `course.signature (${city}): the row`));
+      else if (solid && Math.abs(c.signature_points) < 3) step(() => ok(said(n).endsWith('paces much like the typical course, 5K by 5K.'), `course.signature (${city}): within 3 points everywhere, it paces like the typical course`));
     }
 
-    // #finish-times: first and latest edition medians.
+    // #finish-times: the range of the edition medians (three or more editions), low end first, never a held edition.
     {
       const n = at('course.times');
-      const first = cells[0], last = cells[cells.length - 1];
-      step(() => eq(n.guard, cells.length >= 2 && Math.abs(last.median_s - first.median_s) >= 60, `course.times (${city}): guard`));
-      if (n.guard) step(() => eq(said(n), `The median finish moved from ${hm(first.median_s)} in ${first.year} to ${hm(last.median_s)} in ${last.year}.`, `course.times (${city}): the sentence`));
-      else if (cells.length >= 2) step(() => eq(said(n), hm(first.median_s) === hm(last.median_s) ? `The median finish was ${hm(first.median_s)} in both ${first.year} and ${last.year}.` : `The median finish barely moved: ${hm(first.median_s)} in ${first.year}, ${hm(last.median_s)} in ${last.year}.`, `course.times (${city}): under a minute apart, it barely moved`));
+      const named = cells.filter((x) => !held.has(`${city}|${x.year}`));
+      const lo = named.reduce((a, b) => (b.median_s < a.median_s ? b : a), named[0]), hi = named.reduce((a, b) => (b.median_s > a.median_s ? b : a), named[0]);
+      const guard = cells.length >= 3 && !!lo && hi.median_s - lo.median_s >= 60 && hm(lo.median_s) !== hm(hi.median_s);
+      step(() => eq(n.guard, guard, `course.times (${city}): guard`));
+      if (guard) {
+        step(() => eq([n.values.lo_year, n.values.hi_year], [lo.year, hi.year], `course.times (${city}): the range ends`));
+        step(() => eq(said(n), `The median finish ranged from ${hm(lo.median_s)} in ${lo.year} to ${hm(hi.median_s)} in ${hi.year}.`, `course.times (${city}): the sentence`));
+      }
     }
 
     // #elevation: the section with the most climbing.
@@ -158,19 +165,26 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
         const here = mix.shares[best], every = archetypes.archetypes[best].share;
         step(() => eq([n.values.type, n.guard], [archetypes.archetypes[best].slug, Math.abs(here - every) >= 0.03], `course.types (${city}) recounts the type and its guard`));
         if (n.guard) step(() => eq(said(n), `${here > every ? 'More' : 'Fewer'} ${archetypes.archetypes[best].name.toLowerCase()}s here: ${whole(here)}, against ${whole(every)} across every course.`, `course.types (${city}): the sentence`));
+        else step(() => eq(said(n), 'Paced much like every course: no type more than 3 points apart.', `course.types (${city}): within 3 points everywhere, the null finding`));
       } else step(() => eq(n.guard, false, `course.types (${city}): no mix, no claim`));
     }
 
-    // #slowdown: every other course, with more and fewer sustained slowdowns.
+    // The hero's sentence: every other course with three or more editions, with a higher and a lower share; #slowdown's
+    // H2: the spread across those courses.
     {
       const n = at('course.among');
       // Only courses with three or more editions are counted either side (the hollow dots on the strip are not).
       const others = courses.courses.filter((o) => o.city !== city && o.editions >= 3);
       const higher = others.filter((o) => o.slowdown > c.slowdown).length, lower = others.filter((o) => o.slowdown < c.slowdown).length;
       step(() => eq([n.values.higher, n.values.lower, n.values.courses], [higher, lower, others.length], `course.among (${city}) recounts the courses with three or more editions either side`));
-      step(() => eq(n.guard, c.editions >= 3 && others.length >= 5, `course.among (${city}): guard`));
       const count = higher >= lower ? higher : lower;
-      if (n.guard) step(() => eq(said(n), `${higher >= lower ? 'Fewer' : 'More'} sustained slowdowns than ${count} of ${others.length} courses.`, `course.among (${city}): the sentence`));
+      step(() => eq(n.guard, c.editions >= 3 && others.length >= 5 && count > 0, `course.among (${city}): guard`));
+      const than = count === others.length ? 'any other course with three or more editions' : `${count} of the ${others.length} other courses with three or more editions`;
+      if (n.guard) step(() => eq(said(n).replace(/\u00a0/g, ' '), `${higher >= lower ? 'Lower' : 'Higher'} than on ${than}.`, `course.among (${city}): the sentence`));
+      const f = at('course.field');
+      const lo = Math.min(...solid.map((o) => o.slowdown)), hi = Math.max(...solid.map((o) => o.slowdown));
+      step(() => eq([f.values.min, f.values.max, f.values.courses, f.guard], [lo, hi, solid.length, solid.length >= 3 && whole(lo) !== whole(hi)], `course.field (${city}) recounts the spread`));
+      if (f.guard) step(() => eq(said(f), `Across courses with three or more editions, ${whole(lo)} to ${whole(hi)} had a sustained slowdown.`, `course.field (${city}): the sentence`));
     }
 
     // #goals: the lead goal's row, where the course chooser publishes the course with enough editions.

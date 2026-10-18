@@ -21,6 +21,12 @@
 .course-crumbs { flex-wrap: wrap; margin: 0; color: var(--ink-3); }
 .course-crumbs a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-decoration-color: var(--rule-strong); text-underline-offset: .25em; }
 .course-crumbs a:hover { color: var(--ink); }
+/* The place crumb wraps whole, and its separator sits in the gap before it, outside its box: where the crumb starts a
+   line, the separator falls past the crumbs' left edge and is clipped, so a line never opens on "·". The 3 px of padding
+   (taken back by the margin) keeps focus rings inside the clip. */
+.course-crumbs { overflow: hidden; padding-inline: 3px; margin-inline: -3px; }
+.course-crumbs .crumb-place { position: relative; white-space: nowrap; }
+.course-crumbs .crumb-place::before { content: "·"; position: absolute; right: calc(100% + 4px); top: 50%; transform: translateY(-50%); }
 .course-title { margin: var(--s-2) 0 0; color: var(--ink); max-width: 16ch; }
 .course-hero .hero-dek { margin: var(--s-3) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
 
@@ -115,6 +121,8 @@
 @container (min-width: 300px) { .viz-frame.dumbbell.course-types .dumbbell-rows { grid-template-columns: minmax(0, 47%) minmax(0, 1fr) 3rem; } }
 .course-types .dumbbell-label { display: inline-flex; align-items: center; gap: var(--s-2); }
 .course-types .dumbbell-label > span { min-width: 0; }
+/* The key's filled mark is neutral: every row's filled dot is in its own type's colour. */
+.viz-frame.course-types .viz-key-mark.course-types-key { background: var(--mark-quiet); box-shadow: none; }
 
 /* Goals: the table is the chart. A row per goal: the goal (a link to the planner, stretched over the whole row), a bar
    out of 100, the share. */

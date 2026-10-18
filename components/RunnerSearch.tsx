@@ -24,7 +24,8 @@ const raceLabel = (race: RunnerRace, manifest: RunnerManifest) => {
 };
 const percent = (value: number) => Math.abs(value).toFixed(1) + '%';
 const changeDescription = (value: number) => Math.abs(value) < 0.05 ? 'the same pace' : `${percent(value)} ${value > 0 ? 'slower' : 'faster'}`;
-const finishLabel = (race: RunnerRace) => race.raw_times?.[8] || runnerDuration(race.times[8]);
+/** A record's finish as recorded, in the page's one clock: a recorded "03:44:00" loses its leading zero, as "3:44:00". */
+const finishLabel = (race: RunnerRace) => (race.raw_times?.[8] || runnerDuration(race.times[8])).replace(/^0(\d:)/, '$1');
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'The records could not load. Please try again.';
 /** How many matches a search found, in the bands analytics allows: never the names or the exact count. */
 const resultBucket = (n: number) => n === 0 ? '0' : n === 1 ? '1' : n <= 5 ? '2-5' : '6+';

@@ -12,6 +12,8 @@
    are drawn differently ("Against the curve") it goes back behind the marks at full height. */
 .viz-frame .scrub-needle.is-front { z-index: 1; top: var(--needle-top, 0%); width: 2px; margin-left: -1px; }
 .viz-frame[data-k="ratio"] .scrub-needle.is-front { z-index: auto; top: 0; width: 1.5px; margin-left: -.75px; }
+/* A label naming the point under the needle hides while the needle is there (Scrubber's is-under): the readout says it. */
+.viz-frame .scrub .is-under { visibility: hidden; }
 /* Away from the headline's point, the reading mark is ink: the needle is the one orange mark. */
 .viz-frame .scrub.is-away .m-signal.is-reading { fill: var(--ink); }
 

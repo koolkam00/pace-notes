@@ -78,6 +78,10 @@ export default function Scrubber({ points, initial, detents = [], label, mode = 
     return () => clearTimeout(timer.current);
   }, [index, text, onIndex]);
   useEffect(() => () => { clearTimeout(timer.current); clearTimeout(flashTimer.current); }, []);
+  // A label naming the point under the needle hides while the needle is there: the readout says it.
+  useEffect(() => {
+    root.current?.querySelectorAll('[data-scrub-i]').forEach((el) => el.classList.toggle('is-under', el.getAttribute('data-scrub-i') === String(index)));
+  }, [index]);
 
   const move = useCallback((i: number, haptic: boolean) => {
     if (i === last.current) return;

@@ -13,9 +13,9 @@ import { CourseSection, Said } from './Fact';
  * by hairlines, each a figure, the words that finish its sentence and a micro-chart of at most 48 px. A row shows only
  * when its nugget's guard holds: a first 5K that ends 10 m or more above or below its start (the route's profile on the
  * shared height scale, the first 5K in signal), a slowest 5K unlike nearly every other course's (the nine sections
- * against the course's own average), a pacing shape that picked the course out in three of four editions or more (a dot
+ * against the course's own average), 5K splits that told the course apart in nine of ten of its editions or more (a dot
  * per edition), and the 5K where its pacing parts most from the typical course's (both curves, that section in signal).
- * A course with none of these that paces within 2 points of the typical course everywhere says so, over the two curves;
+ * A course with none of these that paces within 3 points of the typical course everywhere says so, over the two curves;
  * a course without enough editions to say either has no glance at all (the page leaves the section out).
  */
 type Row = { id: string; figure: React.ReactNode; key: string; viz?: React.ReactNode };
@@ -90,13 +90,24 @@ function figureOf(n: Nugget) {
 
 type GlanceId = 'course.start' | 'course.late' | 'course.shape' | 'course.signature';
 
-/** The glance's rows for a course, in order, at most three: the ones whose guards hold. Exported for the page's contents row. */
+/**
+ * The glance's rows for a course, in order, at most three: the ones whose guards hold. The signature row stays out where
+ * it would be about the same stretch as another row (the first 5K beside the start row; a section next to the slowest
+ * 5K beside the late row), since two big section names that close read as a contradiction. Exported for the page's
+ * contents row, and recounted by scripts/verify-courses.cjs.
+ */
 export function glanceRows(page: CoursePageData): { ids: GlanceId[]; typical: boolean } {
-  const { city } = page;
-  const ids = (['course.start', 'course.late', 'course.shape', 'course.signature'] as GlanceId[]).filter((id) => {
+  const { city, sections, summary: s } = page;
+  let ids = (['course.start', 'course.late', 'course.shape', 'course.signature'] as GlanceId[]).filter((id) => {
     const n = getNugget(id, { city });
     return n.guard && !!n.figure && (id !== 'course.start' || !!page.geometry);
-  }).slice(0, 3);
+  });
+  const sig = s.signature_section ? sections.indexOf(s.signature_section) : -1;
+  const slowest = s.slowest_section ? sections.indexOf(s.slowest_section) : -1;
+  if (ids.includes('course.signature') && ((ids.includes('course.late') && Math.abs(sig - slowest) <= 1) || (ids.includes('course.start') && sig === 0))) {
+    ids = ids.filter((id) => id !== 'course.signature');
+  }
+  ids = ids.slice(0, 3);
   const typical = !ids.length && Number(getNugget('course.signature', { city }).values.typical_like) === 1;
   return { ids, typical };
 }

@@ -552,12 +552,20 @@ if (html) {
     // its generic tracking id. The glance shows the rows whose guards hold (at most three, in order), or, with none, the
     // two curves of a course that paces like the typical one; else it is left out.
     const GLANCE = ['course.start', 'course.late', 'course.shape', 'course.signature'];
-    const glanceIds = GLANCE.filter((id) => { const n = N.getNugget(id, { city }); return n.guard && !!n.figure && (id !== 'course.start' || !!f.route); }).slice(0, 3);
+    let glanceIds = GLANCE.filter((id) => { const n = N.getNugget(id, { city }); return n.guard && !!n.figure && (id !== 'course.start' || !!f.route); });
+    // The signature row stays out beside a row about the same stretch: the first 5K beside the start row, a section next
+    // to the slowest 5K beside the late row.
+    const sigAt = f.s.signature_section ? courses.sections.indexOf(f.s.signature_section) : -1, slowAt = f.s.slowest_section ? courses.sections.indexOf(f.s.slowest_section) : -1;
+    if (glanceIds.includes('course.signature') && ((glanceIds.includes('course.late') && Math.abs(sigAt - slowAt) <= 1) || (glanceIds.includes('course.start') && sigAt === 0))) glanceIds = glanceIds.filter((id) => id !== 'course.signature');
+    glanceIds = glanceIds.slice(0, 3);
     const typicalLike = !glanceIds.length && N.getNugget('course.signature', { city }).values.typical_like === 1;
     const goalsShown = !!f.ctx && f.ctx.editions >= courseGoal.min_editions;
+    // The race mornings show only as the warmest/coolest contrast (5 °C or more) over three or more of them.
+    const pairGap = f.hotCool ? Math.round((f.hotCool.hot.temp - f.hotCool.cool.temp) * 10) / 10 : null;
+    const weatherShown = pairGap !== null && pairGap >= courses.weather.pairs.min_gap_c && f.weather.length >= 3;
     const want = {
-      'at-a-glance': glanceIds.length > 0 || typicalLike, 'finish-times': f.cells.length > 1, elevation: !!f.route, pacing: !!f.types,
-      goals: goalsShown, weather: f.weather.length > 1, replay: replay.editions.some((e) => e.city === city),
+      'at-a-glance': glanceIds.length > 0 || typicalLike, 'finish-times': f.cells.length >= 3 && N.getNugget('course.times', { city }).guard, elevation: !!f.route, pacing: !!f.types,
+      goals: goalsShown, weather: weatherShown, replay: replay.editions.some((e) => e.city === city),
     };
     for (const id of SECTIONS) {
       const present = sectionStart(body, id) >= 0;
@@ -570,14 +578,15 @@ if (html) {
     // Each finding is its nugget's sentence, word for word (the default miles view), so a page says only what its
     // recount allows (scripts/nuggets/courses.cjs).
     const h2 = (id) => { const m = new RegExp(`<h2 id="${id}-title"[^>]*>([\\s\\S]*?)<\\/h2>`).exec(body); return m ? textOf(m[1]) : null; };
-    for (const [id, nugget] of [['finish-times', 'course.times'], ['elevation', 'course.climb'], ['pacing', 'course.types'], ['slowdown', 'course.among'], ['goals', 'course.goal'], ['weather', 'course.weather']]) {
+    for (const [id, nugget] of [['finish-times', 'course.times'], ['elevation', 'course.climb'], ['pacing', 'course.types'], ['slowdown', 'course.field'], ['goals', 'course.goal'], ['weather', 'course.weather']]) {
       if (sectionStart(body, id) < 0) continue;
       check(norm(h2(id) ?? '') === norm(said(nugget, city)), where, `#${id}'s finding "${h2(id)}" is not ${nugget}'s "${said(nugget, city)}"`);
     }
-    // The hero's sentence is course.slowdown's range, shown only when its guard holds: its fallback would repeat the dek.
+    // The hero's sentence says where the share sits among the other courses (course.among), shown only when its guard
+    // holds; the edition range is the year strip's, labelled on it.
     const heroSentence = textOf(/<p class="course-hero-sentence[^"]*"[^>]*>([\s\S]*?)<\/p>/.exec(body)?.[1] ?? '');
-    if (N.getNugget('course.slowdown', { city }).guard) check(norm(heroSentence) === norm(said('course.slowdown', city)), where, `the hero's sentence "${heroSentence}" is not course.slowdown's`);
-    else check(!body.includes('class="course-hero-sentence'), where, `the hero shows course.slowdown's fallback "${heroSentence}", which repeats the dek`);
+    if (N.getNugget('course.among', { city }).guard) check(norm(heroSentence) === norm(said('course.among', city)), where, `the hero's sentence "${heroSentence}" is not course.among's`);
+    else check(!body.includes('class="course-hero-sentence'), where, `the hero shows course.among's fallback "${heroSentence}"`);
     const heroFigure = N.getNugget('course.slowdown', { city }).figure;
     const shownFigure = innerText(/<span class="big-number[^"]*"><span aria-hidden="true">([\s\S]*?)<\/span><span class="sr-only">/.exec(/<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '')?.[1] ?? '');
     check(heroFigure && shownFigure === `${heroFigure.value}${heroFigure.unit}` && shownFigure === F.pct0(f.s.slowdown), where, `the hero figure "${shownFigure}" is not the course's share in whole percent (${F.pct0(f.s.slowdown)})`);
@@ -612,6 +621,9 @@ if (html) {
     for (const [g, row] of f.goalRows) if (row && f.ctx && f.ctx.editions >= courseGoal.min_editions) check(seen.has(`g.n@${g}`) && seen.has(`g.sd@${g}`) && seen.has(`g.p50@${g}`), where, `goal ${g}: the row is not printed`);
     if (f.terrain && f.route) for (let i = 0; i < 9; i += 1) check(seen.has(`t.gain@${i}`), where, `section ${i} of the route is not printed`);
     for (const k of ['slowdown', 'block10', 'after20', 'median', ...(f.route ? [f.terrain ? 'route.gain' : 'geo.gain'] : [])]) check(seen.has(k), where, `${k} is not printed`);
+    // One climb, everywhere on the page: every printed whole-route climb total is the same figure from the same key.
+    const climbs = [...main.matchAll(/<data\b([^>]*)>/g)].map((m) => ({ k: attr(m[1], 'data-k'), v: attr(m[1], 'value') })).filter((d) => /^(?:geo|route|cg)\.gain$/.test(d.k ?? ''));
+    check(new Set(climbs.map((d) => `${d.k}=${d.v}`)).size <= 1, where, `the page prints more than one whole-route climb: ${[...new Set(climbs.map((d) => `${d.k}=${d.v}`))].join(', ')}`);
 
     // Table cells hold figures, a dash or plain words; never another number.
     for (const table of main.matchAll(/<table class="[^"]*course-table[^"]*">([\s\S]*?)<\/table>/g)) {
@@ -691,7 +703,7 @@ if (html) {
 
     // Weather: the 5 °C gate, the slope sentence for the courses with one, and context.
     const gap = f.hotCool ? Math.round((f.hotCool.hot.temp - f.hotCool.cool.temp) * 10) / 10 : null;
-    check(body.includes('class="course-hotcool"') === (gap !== null && gap >= courses.weather.pairs.min_gap_c), where, `the coolest/warmest sentence against a ${gap} °C gap`);
+    check(body.includes('class="course-hotcool"') === (gap !== null && gap >= courses.weather.pairs.min_gap_c && f.weather.length >= 3), where, `the coolest/warmest sentence against a ${gap} °C gap over ${f.weather.length} mornings`);
     check(!body.includes('class="course-slope"'), where, 'the within-course slope sentence (cut under section 00) is back');
     if (!body.includes('class="course-hotcool"')) {
       const names = [...(sectionOf(body, 'weather') ?? '').matchAll(/\s(?:aria-label|title)="([^"]*)"/g)].map((m) => decode(m[1])).filter((n) => /warmest|coolest/i.test(n));
@@ -778,6 +790,15 @@ if (html) {
       check(d && attr(d[1], 'data-k') === 'slowdown.r' && attr(d[1], 'value') === String(s0) && innerText(d[2]) === F.pct0(s0), where, `the ${city} row: ${d ? innerText(d[2]) : 'no share'} against the page's ${F.pct0(s0)}`);
       check(!/with complete splits|supplied/i.test(textOf(row)), where, `the ${city} row carries coverage copy: "${textOf(row)}"`);
     }
+    // The reading's range leaves out the courses with fewer than three editions: they follow under their own label, and
+    // the range's own ends are the extremes of the rest.
+    const footList = /<ol class="course-index is-foot"[\s\S]*?<\/ol>/.exec(markup(full))?.[0] ?? '';
+    const footSlugs = [...footList.matchAll(/href="\/courses\/([^"?#]+)/g)].map((m) => m[1]).sort();
+    const fewSlugs = CITIES.filter((c) => facts.get(c).s.editions < 3).map(slugOf).sort();
+    check(JSON.stringify(footSlugs) === JSON.stringify(fewSlugs), where, `the courses under "Fewer than three editions" are ${footSlugs}, not ${fewSlugs}`);
+    const solidShares = CITIES.filter((c) => facts.get(c).s.editions >= 3).map((c) => facts.get(c).s.slowdown);
+    const figure = textOf(/<div class="reading-figure[\s\S]*?<\/div>/.exec(markup(full))?.[0] ?? '');
+    check(figure.includes(`${F.pct0(Math.min(...solidShares)).replace('%', '')}–${F.pct0(Math.max(...solidShares)).replace('%', '')}`) && /three or more editions/.test(figure), where, `the reading "${figure}" is not the range of the courses with three or more editions`);
     const dek = textOf(/<p class="reading-dek">([\s\S]*?)<\/p>/.exec(markup(full))?.[1] ?? '');
     check(dek.length > 0 && !/supplied|route file/i.test(dek), where, `the /courses dek names a data source or is missing: "${dek}"`);
     const main = /<main\b[\s\S]*<\/main>/.exec(markup(full))?.[0] ?? '';

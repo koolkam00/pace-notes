@@ -1,5 +1,5 @@
 import { Elevation } from '@/components/story/Units';
-import { clock, count, goalText, minutes, pct, shortDate, type CoursePageData } from '@/lib/course-page';
+import { clock, count, goalText, minutes, pct, routeClimb, shortDate, type CoursePageData } from '@/lib/course-page';
 import { sectionLabel } from '@/lib/nuggets/format';
 import { SECTION_BOUNDS, signedPct } from '@/lib/viz/format';
 import { CourseTable, Fact } from './Fact';
@@ -12,7 +12,9 @@ import { GOAL_GAP } from './CourseGoals';
  * pacing types. Every figure is a checked <data> (scripts/verify-courses.cjs); a missing value is a dash.
  */
 export default function CourseNumbers({ page }: { page: CoursePageData }) {
-  const { display, summary: s, editions, weather, terrain, goals, types, archetypes, counted, geometry } = page;
+  const { display, summary: s, editions, weather, terrain, goals, types, archetypes, counted } = page;
+  // The one climb the page prints everywhere (the hero, #elevation, /courses): the route's 5K sections summed.
+  const climb = routeClimb(page);
   const byYear = new Map(weather.map((w) => [w.year, w]));
   const tables = 3 + (terrain ? 1 : 0) + (goals.length ? 1 : 0) - (types ? 0 : 1);
   return (
@@ -30,7 +32,7 @@ export default function CourseNumbers({ page }: { page: CoursePageData }) {
             <tr><th scope="row">Sustained slowdown, average edition</th><td><Fact k="slowdown" v={s.slowdown}>{pct(s.slowdown)}</Fact></td></tr>
             <tr><th scope="row">Second 20K more than 10% slower</th><td><Fact k="block10" v={s.block10}>{pct(s.block10)}</Fact></td></tr>
             <tr><th scope="row">Median time given back after 20K</th><td><Fact k="after20" v={s.after20_s}>{minutes(s.after20_s)}</Fact></td></tr>
-            {geometry ? <tr><th scope="row">Climb, whole route</th><td><Fact k="geo.gain" v={geometry.gain_m}><Elevation metres={geometry.gain_m} /></Fact></td></tr> : null}
+            {climb ? <tr><th scope="row">Climb, whole route</th><td><Fact k={`${climb.key}.gain`} v={climb.gain_m}><Elevation metres={climb.gain_m} /></Fact></td></tr> : null}
           </tbody>
         </CourseTable>
         <CourseTable id="numbers-editions-caption" caption={`${display}, edition by edition`}>

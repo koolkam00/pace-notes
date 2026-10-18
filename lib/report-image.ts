@@ -102,8 +102,10 @@ export async function renderReportImage(model: ReportModel, units: UnitSystem): 
   const x0 = M + 440;
   const x1 = W - M;
   const values = l.sections.map((s) => s.vs);
-  const lo = Math.min(-0.06, ...values);
-  const hi = Math.max(0.3, ...values);
+  // The lap list's own scale (components/report/LapList.tsx): 5% quicker to 15% slower at least, so the longest bar
+  // reaches the card's right padding.
+  const lo = Math.min(-0.05, ...values);
+  const hi = Math.max(0.15, ...values);
   const at = (v: number) => x0 + ((v - lo) / (hi - lo)) * (x1 - x0);
   l.sections.forEach((s, i) => {
     const y = top + i * row;

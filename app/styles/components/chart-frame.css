@@ -226,6 +226,8 @@
 .viz-frame .pace-block.is-on-paper { color: var(--night-ink); }
 .viz-frame .pace-block.is-on-ink { color: var(--night); }
 .viz-frame .pace-block.is-focus { box-shadow: inset 0 0 0 2px var(--ink); }
+/* A four-character value ("+10%") steps down to 12 px, so it never fills its block edge to edge on a phone. */
+.viz-frame .pace-block.is-long { font-size: 12px; }
 
 /* ---------- Slope lines ---------- */
 .viz-frame .slope-line { stroke-width: 1.5; }

@@ -25,7 +25,7 @@ export const metadata = pageMetadata({
 export default function RunnersPage() {
   // Read at build time from the verified story manifest, so the page carries the copy editions and their counts, and the
   // race report's hashes, opening groups and pacing-type cohort.
-  return <div className="container runner-page">
+  return <div className="runner-page">
     <header className="runner-head">
       <div className="reading-crumbs t-kicker"><RunnerCrumbs path="/runners" /></div>
       <h1 className="t-title">Analyze a past race</h1>

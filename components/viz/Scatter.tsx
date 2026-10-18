@@ -14,7 +14,7 @@ import { extent, linear, pc, yScale } from './scale';
  */
 export type ScatterPoint = { id: string; x: number; y: number; label: string; key: string; value: string; inPair?: boolean };
 
-export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, label, pairLabel = 'the pair', axisTitle, values, height = 220, heightMd = 280, labelAll = false, selected, pairLine = true }: {
+export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, label, pairLabel = 'the pair', axisTitle, values, height = 220, heightMd = 280, labelAll = false, selected, pairLine = true, side }: {
   points: ScatterPoint[]; xTicks: { value: number; label: string }[]; yTicks: { value: number; label: string }[];
   xDomain?: [number, number]; yDomain?: [number, number]; label: string; pairLabel?: string;
   axisTitle?: { start?: string; end?: string }; values?: ReactNode; height?: number; heightMd?: number;
@@ -24,12 +24,15 @@ export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, labe
   selected?: string;
   /** Join the pair with a dashed line. Off where a line across the cloud would read as a trend. */
   pairLine?: boolean;
+  /** Side values for the readout, one per point (the y measure named, so the readout says what the dots' height is). */
+  side?: { label: string; values: string[] }[];
 }) {
   const [x0, x1] = xDomain ?? extent(points.map((p) => p.x));
   const [y0, y1] = yDomain ?? extent(points.map((p) => p.y));
   const xp = (x1 - x0) * 0.06, yp = (y1 - y0) * 0.08;
   const x = linear([x0 - xp, x1 + xp]);
-  const y = yScale(y0 - yp, y1 + yp, { top: 0.1, bottom: 0.06 });
+  // A share scale from zero keeps zero on the baseline (no padding under it), so a "0%" gridline label sits on it.
+  const y = y0 === 0 ? yScale(0, y1 + yp, { top: 0.1, bottom: 0 }) : yScale(y0 - yp, y1 + yp, { top: 0.1, bottom: 0.06 });
   const pair = points.filter((p) => p.inPair);
   const chosen = selected !== undefined ? points.findIndex((p) => p.id === selected) : -1;
   const start = chosen >= 0 ? chosen : Math.max(0, points.findIndex((p) => p.inPair));
@@ -50,7 +53,7 @@ export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, labe
     </Plot>
   );
   const axis = <Axis ticks={xTicks.map((t) => ({ x: x(t.value), label: t.label }))} title={axisTitle} />;
-  const scrub = { x: points.map((p) => x(p.x)), y: points.map((p) => y(p.y)), keys: points.map((p) => p.key), values: points.map((p) => p.value) };
+  const scrub = { x: points.map((p) => x(p.x)), y: points.map((p) => y(p.y)), keys: points.map((p) => p.key), values: points.map((p) => p.value), side };
   return (
     <ChartFrame className="scatter" label={label} height={height} heightMd={heightMd}
       scrub={<Scrubber mode="pick" points={scrub} initial={start} label={label} axis={axis}>{plot}</Scrubber>}

@@ -40,7 +40,7 @@ export default function CoursePacing({ page }: { page: CoursePageData }) {
           })}
         </ul>
         <ul className="viz-key" aria-hidden="true">
-          <li><i className="viz-key-mark" />{display}</li>
+          <li><i className="viz-key-mark course-types-key" />{display}</li>
           <li><i className="viz-key-mark is-hollow" />Every course</li>
         </ul>
       </figure>
