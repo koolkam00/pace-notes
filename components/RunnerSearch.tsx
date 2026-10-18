@@ -58,21 +58,40 @@ function stripLegacyQuery(value: string) {
 }
 
 /**
- * One recorded race: the race and its recorded finish on the first line, the recorded name, then the race, age and
- * gender as recorded, then its status. `explainCopy` adds a copy record's status line; the analysis view turns it off,
- * since its header says so once.
+ * A held record's short tag, from the runner lookup's own record-level reasons (analysis/build_runner_lookup.py); an
+ * edition-level hold, or any other reason, is "Limited analysis". The full reason is in the record's disclosure.
  */
-export function RunnerRecordDetails({ race, manifest, copyEditions = NO_COPIES, explainCopy = true }: { race: RunnerRace; manifest: RunnerManifest; copyEditions?: readonly CopyEdition[]; explainCopy?: boolean }) {
-  const copyOf = race.eligible ? copyEditionOf(manifest.editions[race.edition], copyEditions) : undefined, copy = !!copyOf;
-  return <><strong>{raceLabel(race, manifest)}</strong><span className="runner-race-name">{race.name || 'Name not recorded'}</span><small>{manifest.editions[race.edition].race} · {race.age === null ? 'Age not recorded' : `Recorded age ${race.age}${race.age < 18 || race.age > 89 ? ' (outside the usable age range)' : ''}`} · {race.sex ? `Recorded gender ${race.sex}` : 'Gender not recorded'}</small><span className="runner-recorded-finish"><span className="sr-only">Recorded finish: </span>{finishLabel(race)}</span><span className={copy ? 'runner-ineligible runner-copy' : race.eligible ? 'runner-eligible' : 'runner-ineligible'}>{copy ? 'Recorded times only' : race.eligible ? 'Pacing analysis available' : 'Recorded result · limited analysis'}</span>{!race.eligible && <small>{race.reason || 'The timings or edition need further verification.'} Pacing and peer comparisons are unavailable for this record.</small>}{copyOf && explainCopy && <small>Pacing and peer comparisons are unavailable for this record.</small>}</>;
+function limitedTag(reason: string | null): string {
+  if (reason === 'One or more checkpoint times are missing or could not be parsed.') return 'Limited: missing checkpoints';
+  if (reason === 'Checkpoint times are not strictly increasing.') return 'Limited: times out of order';
+  return 'Limited analysis';
 }
 
-function RecordedCheckpoints({ race, manifest }: { race: RunnerRace; manifest: RunnerManifest }) {
-  return <details className="runner-raw values"><summary><span>Recorded checkpoints</span><span className="values-glyph" aria-hidden="true" /></summary><div className="runner-table-wrap table-wrap"><table className="table"><caption className="sr-only">Recorded checkpoints for record {race.id}</caption><thead><tr><th scope="col">Checkpoint</th><th scope="col">Recorded elapsed time</th></tr></thead><tbody>{manifest.points_km.map((end, i) => <tr key={end}><th scope="row">{matLabel(end)}</th><td>{race.raw_times?.[i] || runnerDuration(race.times[i])}</td></tr>)}</tbody></table></div><p className="runner-note">Record {race.id}.</p></details>;
+/**
+ * One recorded race as a row: the race and year, its recorded finish, and one short tag ("Pacing analysis", "Recorded
+ * times only" for a copy edition, or why its analysis is limited). The recorded name, age, gender and the full reason
+ * are in the record's "Recorded checkpoints" disclosure (RecordedCheckpoints).
+ */
+export function RunnerRecordDetails({ race, manifest, copyEditions = NO_COPIES }: { race: RunnerRace; manifest: RunnerManifest; copyEditions?: readonly CopyEdition[] }) {
+  const copy = race.eligible && !!copyEditionOf(manifest.editions[race.edition], copyEditions);
+  return <><strong>{raceLabel(race, manifest)}</strong><span className="runner-recorded-finish"><span className="sr-only">Recorded finish: </span>{finishLabel(race)}</span><span className={copy ? 'runner-ineligible runner-copy' : race.eligible ? 'runner-eligible' : 'runner-ineligible'}>{copy ? 'Recorded times only' : race.eligible ? 'Pacing analysis' : limitedTag(race.reason)}</span></>;
+}
+
+/**
+ * A record with limited analysis, opened: the name, race, age and gender as recorded, why its analysis is limited (a
+ * copy edition's line only where `explainCopy`; the analysis view says it once), its nine recorded checkpoints and
+ * its record number.
+ */
+export function RecordedCheckpoints({ race, manifest, copyEditions = NO_COPIES, explainCopy = true }: { race: RunnerRace; manifest: RunnerManifest; copyEditions?: readonly CopyEdition[]; explainCopy?: boolean }) {
+  const copy = race.eligible && !!copyEditionOf(manifest.editions[race.edition], copyEditions);
+  return <details className="runner-raw values"><summary><span>Recorded checkpoints</span><span className="values-glyph" aria-hidden="true" /></summary>
+    <p className="runner-note">{race.name || 'Name not recorded'} · {manifest.editions[race.edition].race} · {race.age === null ? 'Age not recorded' : `Recorded age ${race.age}${race.age < 18 || race.age > 89 ? ' (outside the usable age range)' : ''}`} · {race.sex ? `Recorded gender ${race.sex}` : 'Gender not recorded'}</p>
+    {!race.eligible ? <p className="runner-note">{race.reason || 'The timings or edition need further verification.'} Pacing and peer comparisons are unavailable for this record.</p> : copy && explainCopy ? <p className="runner-note">Pacing and peer comparisons are unavailable for this record.</p> : null}
+    <div className="runner-table-wrap table-wrap"><table className="table"><caption className="sr-only">Recorded checkpoints for record {race.id}</caption><thead><tr><th scope="col">Checkpoint</th><th scope="col">Recorded elapsed time</th></tr></thead><tbody>{manifest.points_km.map((end, i) => <tr key={end}><th scope="row">{matLabel(end)}</th><td>{race.raw_times?.[i] || runnerDuration(race.times[i])}</td></tr>)}</tbody></table></div><p className="runner-note">Record {race.id}.</p></details>;
 }
 
 function LimitedRecords({ races, manifest, copyEditions }: { races: RunnerRace[]; manifest: RunnerManifest; copyEditions: readonly CopyEdition[] }) {
-  return <ul className="runner-races runner-limited-records">{races.map(race => <li className="runner-race" key={race.id}><div className="runner-race-row"><span className="runner-race-body"><RunnerRecordDetails race={race} manifest={manifest} copyEditions={copyEditions} explainCopy={false} /></span></div><RecordedCheckpoints race={race} manifest={manifest} /></li>)}</ul>;
+  return <ul className="runner-races runner-limited-records">{races.map(race => <li className="runner-race" key={race.id}><div className="runner-race-row"><span className="runner-race-body"><RunnerRecordDetails race={race} manifest={manifest} copyEditions={copyEditions} /></span></div><RecordedCheckpoints race={race} manifest={manifest} copyEditions={copyEditions} explainCopy={false} /></li>)}</ul>;
 }
 
 /** The marathons the search covers and their recorded years, from the search data already on the page. */
@@ -146,16 +165,18 @@ export function SelectedAnalysis({ races, manifest, units, copyEditions = NO_COP
   const table = <div className="runner-table-wrap table-wrap" role="region" tabIndex={0} aria-label="All eligible races you selected"><table className="table"><caption>All eligible races you selected</caption><thead><tr><th scope="col">Race</th><th scope="col">Finish</th><th scope="col">Average pace</th><th scope="col">Late vs early pace</th></tr></thead><tbody>
     {valid.map(({ race, metrics }) => <tr key={race.id}><th scope="row">{raceLabel(race, manifest)}</th><td>{runnerDuration(metrics.finish)}</td><td>{paceLabel(metrics.pace, units)}</td><td>{changeDescription(metrics.lateChange)}</td></tr>)}
   </tbody></table></div>;
-  return <section className="runner-analysis" aria-labelledby="runner-analysis-title">
-    <header className="runner-analysis-head"><h2 id="runner-analysis-title">{valid.length === 1 ? 'One race. A closer look.' : `${count(valid.length)} races. Your recorded progression.`}</h2>
-      {races.length === valid.length ? null : <p>{`${count(limited.length)} selected ${limited.length === 1 ? 'record has' : 'records have'} limited analysis and can be viewed below.`}</p>}
-    </header>
-    {/* One race: its finish and pace; a count of one and a one-row table would say nothing more. */}
-    <div className={`runner-numbers night${valid.length === 1 ? ' is-one' : ''}`}><div><strong>{runnerDuration(best.metrics.finish)}</strong><span>{valid.length === 1 ? 'Finish' : 'Fastest selected eligible finish'}</span><small>{raceLabel(best.race, manifest)}</small></div><div><strong>{paceLabel(best.metrics.pace, units)}</strong><span>Average pace in that race</span></div>{valid.length > 1 ? <div><strong>{count(valid.length)}</strong><span>Eligible selected finishes</span><small>{earliestYear === latestYear ? earliestYear : `${earliestYear}–${latestYear}`}</small></div> : null}</div>
-    {yearChange !== null && <p className="runner-takeaway">Your fastest selected finish in {latestYear} was {Math.abs(yearChange) < 0.0005 ? 'the same time as' : `${runnerDuration(Math.abs(yearChange))} ${yearChange > 0 ? 'faster' : 'slower'} than`} your fastest selected finish in {earliestYear}.</p>}
-    {valid.length > 1 ? table : null}
+  // One race is its own heading (the race view's: the race and its finish), with no card: a count of one, a one-row
+  // table and a finish said twice would say nothing more. Two or more get the progression first.
+  const one = valid.length === 1;
+  return <section className="runner-analysis" {...(one ? { 'aria-label': 'The selected race' } : { 'aria-labelledby': 'runner-analysis-title' })}>
+    {one ? null : <>
+      <header className="runner-analysis-head"><h2 id="runner-analysis-title">{`${count(valid.length)} races. Your recorded progression.`}</h2></header>
+      <div className="runner-numbers night"><div><strong>{runnerDuration(best.metrics.finish)}</strong><span>Fastest selected eligible finish</span><small>{raceLabel(best.race, manifest)}</small></div><div><strong>{paceLabel(best.metrics.pace, units)}</strong><span>Average pace in that race</span></div><div><strong>{count(valid.length)}</strong><span>Eligible selected finishes</span><small>{earliestYear === latestYear ? earliestYear : `${earliestYear}–${latestYear}`}</small></div></div>
+      {yearChange !== null && <p className="runner-takeaway">Your fastest selected finish in {latestYear} was {Math.abs(yearChange) < 0.0005 ? 'the same time as' : `${runnerDuration(Math.abs(yearChange))} ${yearChange > 0 ? 'faster' : 'slower'} than`} your fastest selected finish in {earliestYear}.</p>}
+      {table}
+    </>}
     <RunnerContext races={races} manifest={manifest} units={units} copyEditions={copyEditions} report={report} />
-    {limited.length > 0 && <section className="runner-limited" aria-labelledby="runner-limited-title"><h3 id="runner-limited-title" className="runner-h">Your other selected race records</h3><LimitedRecords races={limited} manifest={manifest} copyEditions={copyEditions} /></section>}
+    {limited.length > 0 && <section className="runner-limited" aria-labelledby="runner-limited-title"><h3 id="runner-limited-title" className="runner-h">{`${count(limited.length)} selected ${limited.length === 1 ? 'record has' : 'records have'} limited analysis`}</h3><LimitedRecords races={limited} manifest={manifest} copyEditions={copyEditions} /></section>}
   </section>;
 }
 
@@ -182,6 +203,9 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
   const [profileError, setProfileError] = useState('');
   const [selected, setSelected] = useState<RunnerRace[]>([]);
   const [confirmed, setConfirmed] = useState<RunnerRace[] | null>(null);
+  // A search that finds no name sets the earlier analysis aside, so it never reads as that search's result; the
+  // selection bar's button brings it back.
+  const [reopened, setReopened] = useState(false);
   const searchController = useRef<AbortController | null>(null);
   const profileController = useRef<AbortController | null>(null);
   const profileHeading = useRef<HTMLHeadingElement>(null);
@@ -190,7 +214,7 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
   const runSearch = useCallback(async (value: string, source: RunnerManifest) => {
     searchController.current?.abort(); profileController.current?.abort();
     const controller = new AbortController(); searchController.current = controller;
-    setProfile(null); setProfileLoading(null); setProfileError(''); setMatches([]); setPage(0); setSearchError('');
+    setProfile(null); setProfileLoading(null); setProfileError(''); setMatches([]); setPage(0); setSearchError(''); setReopened(false);
     if (!normalizeRunnerName(value)) { setSearched(''); setSearchError('Enter a recorded name or the beginning of a name.'); setSearchLoading(false); return; }
     setSearched(value.trim()); setSearchLoading(true);
     trackAnalytics('runner_search_submitted', {});
@@ -253,6 +277,8 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
   const pages = Math.ceil(matches.length / RUNNER_PAGE_SIZE);
   const orderedRaces = useMemo(() => profile && manifest ? [...profile.races].sort((a, b) => manifest.editions[b.edition].year - manifest.editions[a.edition].year || a.id - b.id) : [], [profile, manifest]);
   const busy = searchLoading || waiting !== null;
+  const noMatch = !!manifest && !!searched && !searchLoading && !searchError && !matches.length;
+  const shelved = noMatch && !reopened;
 
   return <>
     <div className="runner-side">
@@ -285,12 +311,12 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
     {profileError && <div className="runner-error" role="alert"><p>{profileError} Select the match again to retry.</p></div>}
     <div id="runner-profile" className="ph-no-capture">{manifest && profile && <section className="runner-profile" aria-labelledby="runner-profile-title"><h2 id="runner-profile-title" className="runner-h" tabIndex={-1} ref={profileHeading}>{profile.names.filter(Boolean).join(' / ') || 'Recorded race group'}</h2><p className="runner-note">Tick only the races you recognize. You can add races from other matches too.</p>
       <ul className="runner-races">{orderedRaces.map(race => <li className="runner-race" key={race.id}><label className="runner-race-row"><input type="checkbox" checked={selected.some(row => row.id === race.id)} onChange={() => toggleRace(race)} /><span className="runner-race-body"><RunnerRecordDetails race={race} manifest={manifest} copyEditions={copyEditions} /></span></label>
-        {!analysed(race, manifest, copyEditions) && <RecordedCheckpoints race={race} manifest={manifest} />}
+        {!analysed(race, manifest, copyEditions) && <RecordedCheckpoints race={race} manifest={manifest} copyEditions={copyEditions} />}
       </li>)}</ul>
     </section>}</div>
     {searched && matches.length > 0 && !searchLoading && !searchError && !selected.length && !confirmed && starts}
-    {manifest && selected.length > 0 && <section className="runner-selection ph-no-capture" aria-labelledby="runner-selection-title"><h2 id="runner-selection-title" className="sr-only">{count(selected.length)} {selected.length === 1 ? 'race' : 'races'} selected</h2><ul className="runner-chips">{selected.map(race => <li key={race.id}><span>{raceLabel(race, manifest)} · {finishLabel(race)}{!race.eligible && <small> · limited</small>}</span><button type="button" onClick={() => toggleRace(race)} aria-label={`Remove ${race.name}, ${raceLabel(race, manifest)}, record ${race.id}`}><span aria-hidden="true" className="runner-chip-x" /></button></li>)}</ul><div className="runner-selection-actions"><button className="btn btn-primary is-compact button-primary" type="button" onClick={() => { trackAnalytics('race_comparison_opened', { selection: selected.length === 1 ? 'one' : 'multiple', availability: selected.every(race => analysed(race, manifest, copyEditions)) ? 'eligible' : selected.some(race => analysed(race, manifest, copyEditions)) ? 'mixed' : 'limited' }); setConfirmed([...selected]); requestAnimationFrame(() => analysisRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })); }}>{selected.length === 1 ? 'View the selected race' : `View ${count(selected.length)} selected races`}<Arrow /></button><button className="btn btn-tertiary runner-clear" type="button" onClick={() => { setSelected([]); setConfirmed(null); }}>Clear</button></div></section>}
-    <div ref={analysisRef} className="ph-no-capture">{confirmed && manifest && <SelectedAnalysis races={confirmed} manifest={manifest} units={units} copyEditions={copyEditions} report={report} />}</div>
+    {manifest && selected.length > 0 && <section className="runner-selection ph-no-capture" aria-labelledby="runner-selection-title"><h2 id="runner-selection-title" className="sr-only">{count(selected.length)} {selected.length === 1 ? 'race' : 'races'} selected</h2><ul className="runner-chips">{selected.map(race => <li key={race.id}><span>{raceLabel(race, manifest)} · {finishLabel(race)}{!race.eligible && <small> · limited</small>}</span><button type="button" onClick={() => toggleRace(race)} aria-label={`Remove ${race.name}, ${raceLabel(race, manifest)}, record ${race.id}`}><span aria-hidden="true" className="runner-chip-x" /></button></li>)}</ul><div className="runner-selection-actions"><button className="btn btn-primary is-compact button-primary" type="button" onClick={() => { trackAnalytics('race_comparison_opened', { selection: selected.length === 1 ? 'one' : 'multiple', availability: selected.every(race => analysed(race, manifest, copyEditions)) ? 'eligible' : selected.some(race => analysed(race, manifest, copyEditions)) ? 'mixed' : 'limited' }); setConfirmed([...selected]); setReopened(true); requestAnimationFrame(() => analysisRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })); }}>{selected.length === 1 ? 'View the selected race' : `View ${count(selected.length)} selected races`}<Arrow /></button><button className="btn btn-tertiary runner-clear" type="button" onClick={() => { setSelected([]); setConfirmed(null); }}>Clear</button></div></section>}
+    <div ref={analysisRef} className="ph-no-capture">{confirmed && manifest && !shelved && <SelectedAnalysis races={confirmed} manifest={manifest} units={units} copyEditions={copyEditions} report={report} />}</div>
     </div>
   </>;
 }

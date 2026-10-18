@@ -52,7 +52,10 @@ function crosses(values: number[], xs: number[], tick: number, [lo, hi]: [number
   return false;
 }
 /** A climb, a descent or a net change in whole feet or metres, as the course pages print them. */
-const elevationLabel = (metres: number, units: UnitSystem) => `${Math.round(units === 'mi' ? metres / 0.3048 : metres).toLocaleString('en-US')} ${units === 'mi' ? 'ft' : 'm'}`;
+const elevationLabel = (metres: number, units: UnitSystem) => {
+  const v = Math.round(units === 'mi' ? metres / 0.3048 : metres);
+  return `${v < 0 ? '−' : ''}${Math.abs(v).toLocaleString('en-US')} ${units === 'mi' ? 'ft' : 'm'}`;
+};
 const temperature = (value: number, units: UnitSystem, delta = false) => `${decimal(units === 'mi' ? value * 1.8 + (delta ? 0 : 32) : value)}°${units === 'mi' ? 'F' : 'C'}`;
 const wind = (value: number, units: UnitSystem) => `${decimal(value * (units === 'mi' ? 2.2369362920544 : 3.6))} ${units === 'mi' ? 'mph' : 'km/h'}`;
 const precipitation = (value: number | null, units: UnitSystem) => value === null ? 'Not available' : `${decimal(value * (units === 'mi' ? 1 / 25.4 : 1), units === 'mi' ? 3 : 2)} ${units === 'mi' ? 'in' : 'mm'}`;
@@ -123,11 +126,14 @@ export function RunnerPeerComparison({ comparison, metrics, units }: { compariso
   const pace = comparison.pace;
   const p = comparison.percentile;
   const lateDifference = pace ? metrics.lateChange - pace.late_change.median : null;
+  // In the race report's own words ("Ahead of 51 in every 100 …", whole numbers down), so the two never disagree; the
+  // lit segment is the finishes behind this race, the share the sentence names.
+  const ahead = Math.floor(p);
+  const among = comparison.key === 'all' ? 'other finishes in this edition' : 'other finishes in this group';
   const placement = <>
-    <ShareBar segments={[{ id: 'slower', label: 'Slower finishes', share: p / 100, display: `${decimal(p)}%`, tone: 'signal' }, { id: 'faster', label: 'Faster finishes', share: 1 - p / 100, display: `${decimal(100 - p)}%`, tone: 'quiet' }]}
-      label={`Faster than ${decimal(p)}% of the ${count(comparison.other_n)} other finishes in this group`} />
-    <p className="rc-copy">{comparison.label} in this race edition: faster than {decimal(p)}% of the {count(comparison.other_n)} other finishes. Not an official race placing. Median finish: {runnerDuration(comparison.median_finish)}.</p>
-    <p className="rc-note">Finish {count(comparison.rank)} of {count(comparison.n)} · {comparison.ties ? `${count(comparison.ties)} other ${comparison.ties === 1 ? 'finish shares' : 'finishes share'} this time` : 'No other finish shares this time'}</p>
+    <ShareBar segments={[{ id: 'behind', label: 'Behind this race', share: p / 100, display: `${ahead}%`, tone: 'signal' }, { id: 'ahead', label: 'In front of it', share: 1 - p / 100, display: `${100 - ahead}%`, tone: 'quiet' }]}
+      label={`Ahead of ${ahead} in every 100 of the ${count(comparison.other_n)} ${among}`} />
+    <p className="rc-copy">Ahead of {ahead} in every 100 of the {count(comparison.other_n)} {among}.</p>
   </>;
   if (!pace) return <>{placement}<div className="rc-empty"><h3 className="rc-h">The finish comparison is available. The pace group is too small.</h3><p className="rc-copy">Choose a broader age or gender comparison to see a pacing profile.</p></div></>;
   const xs = metrics.sections.map(section => section.end);
@@ -158,9 +164,8 @@ export function RunnerPeerComparison({ comparison, metrics, units }: { compariso
 
 function WeatherContext({ weather, units }: { weather: RunnerWeather; units: UnitSystem }) {
   return <section className="rc-weather"><h3 className="rc-h">The weather recorded for this race day.</h3>
-    <dl className="rc-cells"><div><dt>Near the scheduled start</dt><dd>{temperature(weather.temp_c, units)}</dd></div><div><dt>Relative humidity</dt><dd>{decimal(weather.humidity_pct)}%</dd></div><div><dt>Start-hour wind</dt><dd>{wind(weather.wind_mps, units)}</dd></div><div><dt>Over four hours</dt><dd>{weather.warming_c > 0 ? '+' : ''}{temperature(weather.warming_c, units, true)}</dd></div></dl>
-    <p className="rc-note">Scheduled start: {localHour(weather.scheduled_start)} local time. Start-hour observation: {localHour(weather.start_hour)}. Dew point: {temperature(weather.dewpoint_c, units)}.{weather.feels_like_c !== null && <> Apparent temperature: {temperature(weather.feels_like_c, units)}.</>}</p>
-    <details className="values rc-details"><summary><span>Hourly readings</span><span className="values-glyph" aria-hidden="true" /></summary><div className="rc-table-wrap table-wrap" role="region" aria-label="Hourly recorded weather" tabIndex={0}><table className="table"><caption>Local hourly readings</caption><thead><tr><th scope="col">Time</th><th scope="col">Temperature</th><th scope="col">Humidity</th><th scope="col">Wind</th><th scope="col">Preceding-hour precipitation</th></tr></thead><tbody>{weather.hours.map(hour => <tr key={hour.time}><th scope="row">{localHour(hour.time)}</th><td>{temperature(hour.temp_c, units)}</td><td>{hour.humidity_pct === null ? 'Not available' : decimal(hour.humidity_pct) + '%'}</td><td>{hour.wind_mps === null ? 'Not available' : wind(hour.wind_mps, units)}</td><td>{precipitation(hour.precip_mm, units)}</td></tr>)}</tbody></table></div><p className="rc-note">Cloud cover: {weather.cloud_pct === null ? 'not available' : decimal(weather.cloud_pct) + '%'}. Pressure: {weather.pressure_hpa === null ? 'not available' : decimal(weather.pressure_hpa) + ' hPa'}. Wind direction: {weather.wind_dir_deg === null ? 'not available' : decimal(weather.wind_dir_deg, 0) + '°'}.</p></details>
+    <dl className="rc-cells"><div><dt>Near the scheduled start</dt><dd>{temperature(weather.temp_c, units)}</dd></div><div><dt>Relative humidity</dt><dd>{decimal(weather.humidity_pct)}%</dd></div><div><dt>Start-hour wind</dt><dd>{wind(weather.wind_mps, units)}</dd></div><div><dt>{weather.warming_c > 0 ? 'Warmed' : weather.warming_c < 0 ? 'Cooled' : 'Change'} by {localHour(weather.four_hour)}</dt><dd>{weather.warming_c > 0 ? '+' : weather.warming_c < 0 ? '−' : ''}{temperature(Math.abs(weather.warming_c), units, true)}</dd></div></dl>
+    <details className="values rc-details"><summary><span>Hourly readings</span><span className="values-glyph" aria-hidden="true" /></summary><p className="rc-note">Scheduled start: {localHour(weather.scheduled_start)} local time. Start-hour observation: {localHour(weather.start_hour)}. Dew point: {temperature(weather.dewpoint_c, units)}.{weather.feels_like_c !== null && <> Apparent temperature: {temperature(weather.feels_like_c, units)}.</>}</p><div className="rc-table-wrap table-wrap" role="region" aria-label="Hourly recorded weather" tabIndex={0}><table className="table"><caption>Local hourly readings</caption><thead><tr><th scope="col">Time</th><th scope="col">Temperature</th><th scope="col">Humidity</th><th scope="col">Wind</th><th scope="col">Preceding-hour precipitation</th></tr></thead><tbody>{weather.hours.map(hour => <tr key={hour.time}><th scope="row">{localHour(hour.time)}</th><td>{temperature(hour.temp_c, units)}</td><td>{hour.humidity_pct === null ? 'Not available' : decimal(hour.humidity_pct) + '%'}</td><td>{hour.wind_mps === null ? 'Not available' : wind(hour.wind_mps, units)}</td><td>{precipitation(hour.precip_mm, units)}</td></tr>)}</tbody></table></div><p className="rc-note">Cloud cover: {weather.cloud_pct === null ? 'not available' : decimal(weather.cloud_pct) + '%'}. Pressure: {weather.pressure_hpa === null ? 'not available' : decimal(weather.pressure_hpa) + ' hPa'}. Wind direction: {weather.wind_dir_deg === null ? 'not available' : decimal(weather.wind_dir_deg, 0) + '°'}.</p></details>
   </section>;
 }
 
@@ -211,7 +216,9 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
   const focus = valid.find(row => row.race.id === focusId) || valid[valid.length - 1];
   if (!focus) return null;
   const context = contexts[focus.race.id];
-  const selectedGroup = groupState?.race === focus.race.id ? groupState.key : defaultGroup(focus.race);
+  // The peers open on every eligible finish in the edition, the group the race report places this race in, so the two
+  // say one placement; the select narrows it.
+  const selectedGroup = groupState?.race === focus.race.id ? groupState.key : 'all';
   const comparison = context?.comparisons[selectedGroup];
   const age = runnerAgeBand(focus.race.age), gender = runnerGender(focus.race.sex);
   const groupOptions: { key: ComparisonKey; label: string; available: boolean }[] = [
@@ -226,8 +233,12 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
   const edition = manifest.editions[focus.race.edition];
   const reportTimes = report ? wholeSeconds(focus.metrics) : null;
   const reportOpen = reportFor === focus.race.id;
+  // A race is named by its edition and finish; the record number is added only where two races would read the same.
+  const raceName = ({ race, metrics }: MeasuredRace) => `${titleFor(race, manifest)} · ${runnerDuration(metrics.finish)}`;
+  const optionText = (row: MeasuredRace, rows: MeasuredRace[]) => rows.filter(other => raceName(other) === raceName(row)).length > 1 ? `${raceName(row)} · record ${row.race.id}` : raceName(row);
   return <section className="runner-context ph-no-capture" aria-labelledby={`${id}-title`}>
-    <header className="rc-heading"><h2 id={`${id}-title`}>Your race, in context.</h2>{valid.length < 2 ? <p className="rc-note rc-focus-one">{titleFor(focus.race, manifest)} · {runnerDuration(focus.metrics.finish)} · record {focus.race.id}</p> : null}<label className="rc-focus" htmlFor={`${id}-focus`} hidden={valid.length < 2}>Focus race<select id={`${id}-focus`} className="select" value={focus.race.id} onChange={event => { setReportPressed(false); setFocusId(Number(event.target.value)); }}>{valid.map(({ race, metrics }) => <option key={race.id} value={race.id}>{titleFor(race, manifest)} · {runnerDuration(metrics.finish)} · record {race.id}</option>)}</select></label></header>
+    {/* One heading: the race in view (with two or more, the focus race the select picks). */}
+    <header className="rc-heading"><h2 id={`${id}-title`}>{`${titleFor(focus.race, manifest)}, ${runnerDuration(focus.metrics.finish)}`}</h2><label className="rc-focus" htmlFor={`${id}-focus`} hidden={valid.length < 2}>Focus race<select id={`${id}-focus`} className="select" value={focus.race.id} onChange={event => { setReportPressed(false); setFocusId(Number(event.target.value)); }}>{valid.map(row => <option key={row.race.id} value={row.race.id}>{optionText(row, valid)}</option>)}</select></label></header>
     <Segmented className="rc-tabs" label="Race detail view" options={TABS} value={tab} onChange={setTab} block />
     <div className="rc-panel" id={`${id}-panel`}>
       {tab === 'pacing' && <PacingReadings {...focus} manifest={manifest} units={units} laps={!(report && reportTimes && reportOpen)} />}
@@ -243,7 +254,7 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
           record={{ edition: { city: edition.city, year: edition.year }, context: context ?? null, error: failure || null, lateChange: focus.metrics.lateChange }} focusOnOpen={reportPressed} /></Suspense></div>
         : <button type="button" className="btn btn-secondary" onClick={() => { setReportPressed(true); setReportFor(focus.race.id); }}>Make a race report</button>}
     </section>}
-    {reference && <section className="rc-multi" aria-labelledby={`${id}-comparison-title`}><p className="t-kicker rc-kicker">Across your selected races</p><h2 id={`${id}-comparison-title`}>Where did your time change?</h2><label className="rc-focus" htmlFor={`${id}-reference`}>Compare the focus race with<select id={`${id}-reference`} className="select" value={reference.race.id} onChange={event => setReferenceId(Number(event.target.value))}>{others.map(({ race, metrics }) => <option key={race.id} value={race.id}>{titleFor(race, manifest)} · {runnerDuration(metrics.finish)} · record {race.id}</option>)}</select></label><SectionComparison focus={focus} reference={reference} manifest={manifest} units={units} />
+    {reference && <section className="rc-multi" aria-labelledby={`${id}-comparison-title`}><p className="t-kicker rc-kicker">Across your selected races</p><h2 id={`${id}-comparison-title`}>Where did your time change?</h2><label className="rc-focus" htmlFor={`${id}-reference`}>Compare the focus race with<select id={`${id}-reference`} className="select" value={reference.race.id} onChange={event => setReferenceId(Number(event.target.value))}>{others.map(row => <option key={row.race.id} value={row.race.id}>{optionText(row, others)}</option>)}</select></label><SectionComparison focus={focus} reference={reference} manifest={manifest} units={units} />
       {unavailable}
       {!loading && !failure && <details className="values rc-details"><summary><span>The races side by side</span><span className="values-glyph" aria-hidden="true" /></summary><div className="rc-table-wrap table-wrap" role="region" aria-label="Selected race context comparison" tabIndex={0}><table className="table"><caption>Your selected races side by side</caption><thead><tr><th scope="col">Race</th><th scope="col">Finish</th><th scope="col">Age/gender finish percentile</th><th scope="col">Start temperature</th><th scope="col">Humidity</th><th scope="col">Wind</th><th scope="col">Start-hour precipitation</th><th scope="col">Climbing</th></tr></thead><tbody>{valid.map(({ race, metrics }) => {
         const data = contexts[race.id], demographic = data?.comparisons[defaultGroup(race)];

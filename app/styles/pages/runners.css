@@ -19,6 +19,8 @@
   .runner-side { position: sticky; top: calc(var(--header-h) + var(--s-5)); }
   .runner-main > .runner-starts:first-child, .runner-main > .runner-results:first-child { margin-top: 0; }
   .runner-main > .runner-starts:first-child { padding-top: 22px; }
+  /* The closing stack lines up with the right column, where everything the search finds reads. */
+  .runner-page .chapter-end { margin-left: calc((100% - var(--s-7)) * 5 / 12 + var(--s-7)); }
 }
 
 /* Small text shared by the page: help lines and notes under a heading. */
@@ -107,10 +109,9 @@ label.runner-race-row { cursor: pointer; }
 .runner-race-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s-3); flex: 1 1 auto; min-width: 0; }
 .runner-race-body > strong { grid-column: 1; font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
 .runner-race-body > .runner-recorded-finish { grid-column: 2; grid-row: 1; font-size: 1.0625rem; font-weight: 600; line-height: 1.3; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
-.runner-race-body > .runner-race-name, .runner-race-body > small, .runner-race-body > .runner-eligible, .runner-race-body > .runner-ineligible { grid-column: 1 / -1; }
-.runner-race-name { margin-top: 2px; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); overflow-wrap: anywhere; }
-.runner-race-body > small { margin-top: 2px; font-size: var(--t-label); line-height: 1.4; color: var(--ink-3); }
-.runner-eligible, .runner-ineligible { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-2); }
+/* Each row: the race and its finish, then one short tag; the name, age, gender and reason are in its disclosure. */
+.runner-race-body > .runner-eligible, .runner-race-body > .runner-ineligible { grid-column: 1 / -1; }
+.runner-eligible, .runner-ineligible { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-2); }
 .runner-eligible::before, .runner-ineligible::before { content: ''; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--ink); }
 .runner-ineligible::before { background: none; box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
 .runner-ineligible { color: var(--ink-3); }
@@ -181,6 +182,11 @@ label.runner-race-row { cursor: pointer; }
 .runner-context { margin-top: var(--s-7); padding-top: var(--s-6); border-top: 1px solid var(--rule); }
 /* A closed values row right above: the context's rule closes it, so no empty band sits between two hairlines. */
 .runner-races-values:not([open]) + .runner-context { margin-top: 0; }
+/* One race: the race view opens the analysis, its heading the race. */
+.runner-analysis > .runner-context:first-child { margin-top: 0; }
+/* The share bar's callout in ink: the lit segment is the reading, its words need no second orange. */
+.runner-context .share-bar .share-bar-callout-text { color: var(--ink); }
+.runner-context .share-bar .share-bar-leader { background: var(--ink); }
 .rc-heading { display: grid; gap: var(--s-4); }
 .rc-heading h2 { margin: 0; font-size: var(--t-h2); }
 .rc-focus, .rc-group-control { display: grid; gap: 6px; max-width: 30rem; font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }

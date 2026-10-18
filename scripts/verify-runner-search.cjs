@@ -92,7 +92,8 @@ async function main() {
   assert.match(mileHtml, /Casey Partial/); assert.match(mileHtml, /Incomplete edition held for review/);
   assert.match(mileHtml, /02:20:39/, 'Keep the faster held result visible as its recorded finish');
   assert.match(mileHtml, /00:16:40\.000/, 'Keep original checkpoint formatting rather than recomputing it');
-  assert.match(mileHtml, /<strong>3:30:58\.5<\/strong><span>Finish<\/span>/, 'A faster held result cannot replace the eligible finish (one eligible race: its finish)');
+  assert.match(mileHtml, /<h2 id="[^"]*-title">[^<]*, 3:30:58\.5<\/h2>/, 'A faster held result cannot replace the eligible finish (one eligible race: its heading names it)');
+  assert.doesNotMatch(mileHtml, /runner-numbers|One race\. A closer look/, 'One race has no summary card and no second heading');
   assert.match(render([base, smallGain], 'mi'), /<span>Fastest selected eligible finish<\/span>/, 'Two eligible races: the fastest of them');
   assert.doesNotMatch(mileHtml, /\d\.\d\d\s*mi\b/, 'Miles never to two decimals (mats are named, prose distances take one decimal)'); assert.doesNotMatch(mileHtml, /5:00\/km/);
   const kmHtml = render([base], 'km'); assert.match(kmHtml, /5:00\/km/); assert.doesNotMatch(kmHtml, /\d\/mi\b/, 'Paces follow the units shown');
@@ -132,8 +133,8 @@ async function main() {
   const renderCopies = (races, screen) => renderToStaticMarkup(React.createElement(SelectedAnalysis, { races, manifest: lakeside, units: 'mi', copyEditions: screen }));
   const copyHtml = renderCopies([copy2018, copy2019, real2024, heldCopy], copies);
   const occurrences = (html, text) => html.split(text).length - 1;
-  assert.match(copyHtml, /One race\. A closer look\./, 'One eligible race once the copies are left out');
-  assert.match(copyHtml, /<span>Finish<\/span><small>Lakeside 2024<\/small>/, 'One race left once the copies are out: its finish, named by its race');
+  assert.match(copyHtml, /<h2 id="[^"]*-title">Lakeside 2024, [^<]+<\/h2>/, 'One eligible race once the copies are left out: the heading is the race and its finish');
+  assert.doesNotMatch(copyHtml, /runner-numbers/, 'One race left once the copies are out: no summary card');
   assert.doesNotMatch(copyHtml, /Eligible selected finish/, 'One race carries no count of one');
   assert.doesNotMatch(copyHtml, /Your fastest selected finish in/, 'No year-over-year change from a copy');
   assert.doesNotMatch(copyHtml, /All eligible races you selected/, 'One race has no one-row table of the races');
@@ -163,13 +164,22 @@ async function main() {
   assert.equal(renderCopies([base, changed, later], copies), render([base, changed, later], 'mi'));
   assert.match(renderCopies([copy2018, copy2019, real2024], []), /3 races\. Your recorded progression\./);
   const details = (row, screen) => renderToStaticMarkup(React.createElement(RunnerRecordDetails, { race: row, manifest: lakeside, copyEditions: screen }));
-  assert.match(details(copy2019, copies), /Recorded times only/); assert.doesNotMatch(details(copy2019, copies), /Pacing analysis available/);
-  assert.match(details(copy2019, copies), /<small>Pacing and peer comparisons are unavailable for this record\.<\/small>/, 'A copy row in the profile says what it lacks');
-  assert.doesNotMatch(details(copy2019, copies), /largely repeat|This edition’s records/, 'A copy row never explains the screen');
-  assert.doesNotMatch(renderToStaticMarkup(React.createElement(RunnerRecordDetails, { race: copy2019, manifest: lakeside, copyEditions: copies, explainCopy: false })), /Pacing and peer comparisons are unavailable/);
+  // A row is the race, its finish and one short tag; what the record lacks, and why, is in its disclosure.
+  const { RecordedCheckpoints } = require('../components/RunnerSearch.tsx');
+  const opened = (row, screen, explainCopy = true) => renderToStaticMarkup(React.createElement(RecordedCheckpoints, { race: row, manifest: lakeside, copyEditions: screen, explainCopy }));
+  assert.match(details(copy2019, copies), /Recorded times only/); assert.doesNotMatch(details(copy2019, copies), /Pacing analysis/);
+  assert.match(opened(copy2019, copies), /<p class="runner-note">Pacing and peer comparisons are unavailable for this record\.<\/p>/, 'A copy record in the profile says what it lacks, in its disclosure');
+  assert.doesNotMatch(details(copy2019, copies) + opened(copy2019, copies), /largely repeat|This edition’s records/, 'A copy record never explains the screen');
+  assert.doesNotMatch(opened(copy2019, copies, false), /Pacing and peer comparisons are unavailable/);
   assert.doesNotMatch(details(real2024, copies), /This edition’s records|Recorded times only/, 'The field a copy repeats is not a copy');
-  assert.match(details(copy2019, []), /Pacing analysis available/);
-  assert.match(details(heldCopy, copies), /Recorded result · limited analysis/);
+  assert.match(details(copy2019, []), /Pacing analysis/);
+  assert.doesNotMatch(details(copy2019, []), /Fixture Runner|Age not recorded|Recorded gender/, 'The row carries no name, age or gender: they are in the disclosure');
+  assert.match(opened(copy2019, []), /Fixture Runner · Lakeside Marathon · Age not recorded · Gender not recorded/);
+  assert.match(details(heldCopy, copies), /Limited: missing checkpoints|Limited analysis/);
+  assert.match(details(race(25, 4, 300, { eligible: false, reason: 'Checkpoint times are not strictly increasing.' }), copies), /Limited: times out of order/);
+  assert.match(details(race(26, 4, 300, { eligible: false, reason: 'One or more checkpoint times are missing or could not be parsed.' }), copies), /Limited: missing checkpoints/);
+  assert.match(details(race(27, 4, 300, { eligible: false, reason: 'Source audit marks HOLD.' }), copies), /Limited analysis/, 'An edition-level hold is "Limited analysis"');
+  assert.match(opened(heldCopy, copies), /Missing source checkpoint Pacing and peer comparisons are unavailable for this record\./, 'The full reason is in the disclosure');
   // The published screen: read from the verified story manifest, never typed in, and every sentence from its counts only.
   const story = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/data/insights/manifest.json'), 'utf8'));
   const screen = copyEditions();

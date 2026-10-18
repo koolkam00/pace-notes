@@ -1,6 +1,8 @@
 'use client';
 
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import { UnitLink as Link } from '@/components/UnitsProvider';
+import Arrow from '@/components/ui/Arrow';
 import { trackAnalytics, trackFailure } from '@/lib/analytics';
 import { chunkLoadFailed } from '@/lib/chunk-reload';
 import { REPORT_IMAGE_NAME, reportImageAlt, reportLines, type ReportGender, type ReportModel } from '@/lib/report';
@@ -34,11 +36,12 @@ export function printCard(cardId: string) {
  * PDF through the browser (the one primary; on a touch screen, where Share is what a phone does, Share takes the primary
  * look and comes first, app/styles/pages/report.css), and Share, which opens a sheet (rendered in place, inside the report's
  * masked region) holding a 1080 × 1350 image drawn only when asked for (lib/report-image.ts, loaded with import() on the
- * first press), the device's share sheet, the report's link and what the link carries. Analytics hears only that an
+ * first press), the device's share sheet, the report's link and what the link carries, and on /report these times in the
+ * split check (`onward`). Analytics hears only that an
  * image was saved or a share went through (`report_exported`), a copied link and a print (`tool_used`), and a failure's
  * kind (`site_error` `export`): never a time, a course or the link.
  */
-export default function ReportActions({ id, model, units, link, cardId, gender }: { id: string; model: ReportModel; units: UnitSystem; link: string | null; cardId: string; gender: ReportGender }) {
+export default function ReportActions({ id, model, units, link, cardId, gender, onward = null }: { id: string; model: ReportModel; units: UnitSystem; link: string | null; cardId: string; gender: ReportGender; onward?: string | null }) {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [note, setNote] = useState<Note>(null);
@@ -125,6 +128,7 @@ export default function ReportActions({ id, model, units, link, cardId, gender }
               <button type="button" className="btn btn-primary is-block" data-report-save aria-disabled={waiting || undefined} onClick={onSave}>{busy ? 'Making the image…' : pending ? `Loading ${pending}…` : 'Save image'}</button>
               <button type="button" className="btn btn-secondary is-block race-report-share-native" aria-disabled={waiting || undefined} onClick={onShare}>Share…</button>
               {link ? <button type="button" className="btn btn-secondary is-block" onClick={onCopy}>{copied ? 'Link copied' : 'Copy link'}</button> : null}
+              {onward ? <Link className="btn btn-tertiary is-block" href={onward}>Open these splits in the split check<Arrow /></Link> : null}
             </div>
             <p className="race-report-hint">{hint}</p>
             <p className={`race-report-note${note?.kind === 'error' ? ' is-error' : ''}`} aria-live="polite">{copied ? 'Link copied to the clipboard.' : note?.text ?? ''}</p>

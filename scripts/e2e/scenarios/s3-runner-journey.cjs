@@ -83,9 +83,9 @@ async function copyEditionJourney(h) {
   await page.locator('.runner-match').first().click();
   await page.waitForSelector('.runner-profile', { timeout: 30000 });
   const labels = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, item.querySelector('.runner-eligible, .runner-ineligible')?.textContent])));
-  const expected = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 'Recorded times only']), [`${city} ${source}`, 'Pacing analysis available']]);
+  const expected = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 'Recorded times only']), [`${city} ${source}`, 'Pacing analysis']]);
   h.check('each copy record says "Recorded times only"; the field it repeats has pacing analysis', JSON.stringify(labels, Object.keys(expected).sort()) === JSON.stringify(expected, Object.keys(expected).sort()), labels);
-  const reasons = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, [...item.querySelectorAll('label small')].map(small => small.textContent).filter(text => text.startsWith('This edition’s records') || text.includes('largely repeat')).length])));
+  const reasons = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, [...item.querySelectorAll('label small, .runner-raw p')].map(small => small.textContent).filter(text => text.startsWith('This edition’s records') || text.includes('largely repeat')).length])));
   const because = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 0]), [`${city} ${source}`, 0]]);
   h.check('no record in the profile explains the copy editions (that is /methodology\'s)', JSON.stringify(reasons, Object.keys(because).sort()) === JSON.stringify(because, Object.keys(because).sort()), reasons);
   const boxes = page.locator('.runner-races input[type="checkbox"]');
@@ -99,14 +99,13 @@ async function copyEditionJourney(h) {
     const eligible = [...(analysis?.querySelectorAll('table') || [])].find(table => table.caption?.textContent === 'All eligible races you selected');
     return {
       heading: analysis?.querySelector('h2')?.textContent, rows: eligible ? eligible.tBodies[0].rows.length : null,
-      count: analysis?.querySelector('.runner-numbers > div:nth-child(3)')?.innerText ?? null,
-      finish: analysis?.querySelector('.runner-numbers > div:first-child small')?.textContent ?? null,
+      card: !!analysis?.querySelector('.runner-numbers'),
       focus: [...(context?.querySelector('select')?.options || [])].map(option => option.textContent.split(' · ')[0]),
       multi: !!context?.querySelector('.rc-multi'), split: [...(context?.querySelectorAll('a') || [])].filter(a => a.textContent.includes('split check')).length,
       text: document.body.innerText, contextText: context?.innerText || '',
     };
   });
-  h.check('one eligible race: the heading, its finish named by its race, and no count of one or one-row table', view.heading === 'One race. A closer look.' && view.rows === null && view.count === null && view.finish === `${city} ${source}`, { heading: view.heading, rows: view.rows, count: view.count, finish: view.finish });
+  h.check('one eligible race: one heading, the race and its finish, and no summary card or one-row table', (view.heading ?? '').startsWith(`${city} ${source}, `) && view.rows === null && !view.card, { heading: view.heading, rows: view.rows, card: view.card });
   for (const copy of copies) {
     const sentence = `${city} ${copy.year}'s records largely repeat the ${city} ${source} field (${copy.identical_nine_time_twins.toLocaleString('en-US')} of its ${copy.eligible_removed.toLocaleString('en-US')} finishes`;
     h.check(`${city} ${copy.year}: its copy sentence is not on /runners`, view.text.split(sentence).length - 1 === 0 && !view.text.includes('largely repeat'), view.text.split(sentence).length - 1);
@@ -230,7 +229,11 @@ async function journey(h, blocklist) {
   const harvest = () => page.evaluate(() => {
     const text = ['#runner-profile', '.runner-selection', '.runner-context'].map(s => document.querySelector(s)?.innerText || '').join('\n');
     const names = [...document.querySelectorAll('.runner-match strong')].map(n => n.textContent.trim()).filter(Boolean).slice(0, 3);
-    const ids = [...new Set([...text.matchAll(/record (\d{3,})/gi)].map(m => m[1]))];
+    // Record IDs no longer show in the view's visible copy (October 18, 2026): they are in each record's closed
+    // disclosure, the selection's remove buttons and, where two races would read the same, a select option.
+    const held = ['#runner-profile', '.runner-selection', '.runner-context'].map(s => document.querySelector(s)?.textContent || '').join('\n')
+      + '\n' + [...document.querySelectorAll('.runner-selection [aria-label]')].map(e => e.getAttribute('aria-label')).join('\n');
+    const ids = [...new Set([...held.matchAll(/record (\d{3,})/gi)].map(m => m[1]))];
     const times = [...new Set([...text.matchAll(/\b\d:\d\d:\d\d\b/g)].map(m => m[0]))].slice(0, 30);
     const links = [...document.querySelectorAll('.runner-context a')].map(a => a.getAttribute('href')).filter(href => href && href.includes('?'));
     return { names, ids, times, links };

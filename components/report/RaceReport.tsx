@@ -71,6 +71,8 @@ export interface RaceReportProps {
   record?: { edition: { city: string; year: number }; context: RaceInsights | null; error: string | null; lateChange: number };
   /** Opened by a press (the runner view): focus moves to the card's title once it shows, so a screen reader hears it. */
   focusOnOpen?: boolean;
+  /** /report: these times in the split check, offered in the share sheet (the runner view has its own link). */
+  onward?: string | null;
 }
 
 /**
@@ -81,7 +83,7 @@ export interface RaceReportProps {
  * published research carries its badge. The same component serves /report (typed or linked times) and the runner view,
  * where it adds the record's own edition and never names the runner.
  */
-export default function RaceReport({ times, course, gender, data, level, fromRecord = false, record, focusOnOpen = false }: RaceReportProps) {
+export default function RaceReport({ times, course, gender, data, level, fromRecord = false, record, focusOnOpen = false, onward = null }: RaceReportProps) {
   const { units } = useUnits();
   const id = useId();
   const index = useVerified<PaceBandIndex>(PACE_BAND_INDEX, data.indexSha);
@@ -105,7 +107,7 @@ export default function RaceReport({ times, course, gender, data, level, fromRec
   return (
     <div className="race-report-root ph-no-capture">
       <ReportCard id={cardId} model={model} units={units} level={level} gender={gender} dropped={dropped} retryComparison={retry} retryType={archetypes.retry} handoff={handoff} />
-      <ReportActions id={`${id}-actions`} model={model} units={units} link={link} cardId={cardId} gender={gender} />
+      <ReportActions id={`${id}-actions`} model={model} units={units} link={link} cardId={cardId} gender={gender} onward={onward} />
     </div>
   );
 }
@@ -144,8 +146,6 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
           <BigNumber value={lines.finish} sr={`Finish ${lines.finish}`} size="l" />
           <span className="race-report-average">{lines.pace}</span>
         </p>
-        {/* The race's verdict in one line, under its finish: the reading the tiles below spell out. */}
-        <p className="race-report-verdict">{slowdown.yes ? 'A' : 'No'} <Link className="term-link" href={SLOWDOWN_HREF}>sustained slowdown</Link>{slowdown.yes && slowdown.onsetKm !== null ? ` from ${kmText(slowdown.onsetKm)}` : ''}{type.state === 'ok' ? <> · <span>{type.name}</span></> : null}</p>
         {placement ? (
           <p className="race-report-sentence">
             {'unavailable' in placement ? placement.unavailable
@@ -208,7 +208,7 @@ function ComparisonBlock({ id, Head, comparison: c, model, gender, dropped, retr
       {c.state === 'unavailable' ? <p><strong>{c.title}</strong> {c.message}</p> : null}
       {c.state === 'ok' ? (
         <>
-          <p>{count(c.n)} {c.label}{c.slowdownShare !== null ? <>: <strong>{shareText(c.slowdownShare)}</strong> had a sustained slowdown</> : null}.</p>
+          <p>{count(c.n)} {c.label}{c.slowdownShare !== null ? <>: <strong>{shareText(c.slowdownShare)}</strong> had a <Link className="term-link" href={SLOWDOWN_HREF}>sustained slowdown</Link></> : null}.</p>
           <div className="race-report-table">
             <At20 race={at20} groups={c.groups} />
             <details className="values"><summary><span>Values<span className="values-count">{count(c.groups.length)} {c.groups.length === 1 ? 'row' : 'rows'}</span></span><span className="values-glyph" aria-hidden="true" /></summary>

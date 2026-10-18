@@ -48,6 +48,10 @@ assert.match(mileConditions, /328 ft/); assert.doesNotMatch(mileConditions, /\d\
 assert.doesNotMatch(mileConditions, /first 3\.11 mi|A recorded source note|example\.org/, 'The weather and route records\' own notes and sources are not shown');
 assert.doesNotMatch(mileConditions, METHOD_COPY, 'No method or source copy in the conditions');
 assert.match(mileConditions, /Scheduled start: 09:00 local time/); assert.match(mileConditions, /Start-hour observation: 09:00/);
+assert.ok(mileConditions.indexOf('Scheduled start:') > mileConditions.indexOf('Hourly readings'), 'The observation times are in the hourly readings, not under the cells');
+assert.match(mileConditions, /<dt>Warmed by 13:00<\/dt><dd>\+3\.6°F<\/dd>/, 'The warming is named by the hour it reached');
+const falling = render(RunnerConditions, { context: { ...context, terrain: { ...terrain, sections: terrain.sections.map(section => ({ ...section, net_m: -4 })) } }, metrics, units: 'mi' });
+assert.match(falling, /−13 ft/); assert.doesNotMatch(falling, /-13 ft/, 'A descent is printed with a true minus');
 const metricConditions = render(RunnerConditions, { context, metrics, units: 'km' });
 assert.match(metricConditions, /0°C/); assert.match(metricConditions, /\+2°C/); assert.match(metricConditions, /0 km\/h/); assert.match(metricConditions, /0 mm/); assert.match(metricConditions, /100 m/);
 assert.equal(JSON.stringify(context), original, 'Display conversions must not mutate the source context');
@@ -70,7 +74,10 @@ const comparison = {
   pace: { n: 101, from_sec: 12150, to_sec: 13050, q25: Array(9).fill(290), median: Array(9).fill(305), q75: Array(9).fill(320), late_change: { q25: 5, median: 12, q75: 20 } },
 };
 const milePeers = render(RunnerPeerComparison, { comparison, metrics, units: 'mi' });
-assert.match(milePeers, /2 other finishes share this time/); assert.match(milePeers, /faster than 75% of the 200 other finishes/); assert.match(milePeers, /Not an official race placing/);
+// One placement sentence, in the race report's words (whole numbers down); no rank line and no placing disclaimer.
+assert.match(milePeers, /Ahead of 75 in every 100 of the 200 other finishes in this group\./); assert.doesNotMatch(milePeers, /Finish \d+ of|share this time|official race placing|Slower finishes/);
+assert.match(milePeers, /Behind this race 75%/, 'The lit segment is labelled in the reading\'s words');
+assert.match(render(RunnerPeerComparison, { comparison: { ...comparison, key: 'all', percentile: 51.9 }, metrics, units: 'mi' }), /Ahead of 51 in every 100 of the 200 other finishes in this edition\./, 'Every eligible finish: the report\'s placement, whole numbers down');
 assert.match(milePeers, /12 percentage points lower than/); assert.match(milePeers, /Your pace/); assert.match(milePeers, /Middle 50%/);
 assert.doesNotMatch(milePeers, METHOD_COPY, 'No percentile definition or group caveat beside the peers');
 assert.match(milePeers, /8:03\/mi/); assert.match(milePeers, /8:11\/mi/);
@@ -109,4 +116,4 @@ assert.doesNotMatch(withReport, /record 32/);
 assert.equal(render(RunnerContext, { races: [repeated], manifest: copyManifest, units: 'mi', copyEditions: screen, report: reportData }), '', 'A copy edition alone has no report button');
 assert.doesNotMatch(render(RunnerContext, { races: [source], manifest: copyManifest, units: 'mi' }), /Make a race report/, 'No report panel without the report data');
 assert.doesNotMatch(withReport, METHOD_COPY, 'No method copy in the context view');
-console.log('Runner context UI passed: unchanged source values, weather/terrain units, missing versus zero, peer ties, rank and pace, exact checkpoints, same-year section differences, no method, source or caveat copy (on /methodology since October 16, 2026), and no focus option, comparison, split-check link or race report button for a copy edition.');
+console.log('Runner context UI passed: unchanged source values, weather/terrain units, missing versus zero, the placement in the race report’s words and the pace, exact checkpoints, same-year section differences, no method, source or caveat copy (on /methodology since October 16, 2026), and no focus option, comparison, split-check link or race report button for a copy edition.');

@@ -47,8 +47,8 @@ export default function ReportView({ data, crumbs }: { data: ReportData; crumbs?
       {crumbs ? <div className="reading-crumbs t-kicker report-crumbs no-print">{crumbs}</div> : null}
       {/* Mounted from the first render (and hidden until a report shows), so the section tracker finds it. */}
       <div className="report-tracked" data-track-section="report" hidden={!times}>
-        {times && query ? <RaceReport times={times} course={query.course} gender={query.gender} data={data} level={1} fromRecord={query.fromRecord} /> : null}
-        {splitLink ? <p className="report-onward no-print"><Link className="btn btn-tertiary" href={splitLink}>Open these splits in the split check<Arrow /></Link></p> : null}
+        {/* The split check with these times is one of the report's actions, in its share sheet: the page's one onward way is the closing stack. */}
+        {times && query ? <RaceReport times={times} course={query.course} gender={query.gender} data={data} level={1} fromRecord={query.fromRecord} onward={splitLink} /> : null}
       </div>
       {!times ? (
         <header className="report-empty">
