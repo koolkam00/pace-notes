@@ -495,7 +495,8 @@ for (const selector of ['.tool-results', '.tool-workspace svg', '.analysis-layou
 // and replay-policy.ts is only ever loaded by the SDK's dynamic import.
 const policySource = fs.readFileSync(path.join(__dirname, '../lib/analytics-policy.ts'), 'utf8');
 assert.doesNotMatch(policySource, /sanitizeReplayData|replayAttribute|replayPageUrl|REPLAY_MASKED_TEXT|\$snapshot_data|maskAttributeFn/, 'analytics-policy.ts holds no snapshot sanitizer or recording options');
-const sourceFiles = dir => fs.readdirSync(path.join(__dirname, '..', dir), { recursive: true }).filter(file => /\.(ts|tsx)$/.test(file)).map(file => path.join(dir, file));
+// A source folder may not exist (hooks/ and context/ were emptied by the October 2026 redesign): it then has no files to check.
+const sourceFiles = dir => fs.existsSync(path.join(__dirname, '..', dir)) ? fs.readdirSync(path.join(__dirname, '..', dir), { recursive: true }).filter(file => /\.(ts|tsx)$/.test(file)).map(file => path.join(dir, file)) : [];
 for (const file of [...sourceFiles('components'), ...sourceFiles('app'), ...sourceFiles('lib')]) {
   const source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
   assert.doesNotMatch(source, /^import\s(?!type\s)[^;]*['"](?:@\/lib\/|\.\/|\.\.\/)*(?:lib\/)?replay-policy['"]/m, `${file} must not import replay-policy statically`);
