@@ -16,7 +16,8 @@ import Readout from './Readout';
  * it snaps there, the detent's dot flashes and Android ticks (navigator.vibrate(3)).
  *
  * `mode="pick"`: the nearest point to a tap (in both directions) is ringed and read out, for dot strips, scatters and
- * waffles. No needle and no crown.
+ * waffles. No needle and no crown. With `prompt`, nothing is ringed or read out until the reader picks a point (a tap,
+ * a key, or on desktop a hover): the readout holds the prompt in its reserved space, so nothing moves when it fills.
  *
  * Keyboard: role="slider"; arrows step one point, PageUp and PageDown go to the next and previous detent, Home and End
  * to the ends. The readout redraws every frame; its sr-only live line (a literal aria-live="polite") updates once the
@@ -45,17 +46,21 @@ type Props = {
   axis?: ReactNode;
   tone?: 'ink' | 'signal';
   onIndex?: (index: number) => void;
+  /** Pick mode: the readout's words until a point is picked ("Tap a dot for its course"); nothing is ringed till then. */
+  prompt?: string;
 };
 
 const SNAP_PX = 8;
 
-export default function Scrubber({ points, initial, detents = [], label, mode = 'needle', children, axis, tone = 'ink', onIndex }: Props) {
+export default function Scrubber({ points, initial, detents = [], label, mode = 'needle', children, axis, tone = 'ink', onIndex, prompt }: Props) {
   const n = points.x.length;
   const clamp = (i: number) => Math.max(0, Math.min(n - 1, i));
   const [index, setIndex] = useState(clamp(initial));
   const [committed, setCommitted] = useState(clamp(initial));
   const [dragging, setDragging] = useState(false);
   const [touched, setTouched] = useState(false);
+  // With a prompt, whether a point is read out yet: once picked, and on desktop while the pointer hovers a point.
+  const [hovering, setHovering] = useState(false);
   const [flash, setFlash] = useState<number | null>(null);
   const [settled, setSettled] = useState('');
   const plot = useRef<HTMLDivElement>(null);
@@ -125,7 +130,7 @@ export default function Scrubber({ points, initial, detents = [], label, mode = 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     const g = gesture.current;
     if (!g || g.id !== e.pointerId) {
-      if (e.pointerType === 'mouse' && !e.buttons) move(pointAt(e.clientX, e.clientY), false);
+      if (e.pointerType === 'mouse' && !e.buttons) { setHovering(true); move(pointAt(e.clientX, e.clientY), false); }
       return;
     }
     if (g.decided === null) {
@@ -156,7 +161,7 @@ export default function Scrubber({ points, initial, detents = [], label, mode = 
     setDragging(false);
   };
   const onPointerLeave = (e: PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === 'mouse' && !gesture.current) { last.current = committed; setIndex(committed); }
+    if (e.pointerType === 'mouse' && !gesture.current) { setHovering(false); last.current = committed; setIndex(committed); }
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -177,15 +182,17 @@ export default function Scrubber({ points, initial, detents = [], label, mode = 
 
   const x = points.x[index] ?? 0;
   const y = points.y?.[index];
+  const waiting = mode === 'pick' && !!prompt && !touched && !hovering;
   const pos = `${(x * 100).toFixed(3)}%`;
   const hintLeft = x > 0.66;
   return (
     <div ref={root} className={`scrub is-${mode}${dragging ? ' is-dragging' : ''}${touched ? ' is-touched' : ''}${index !== clamp(initial) ? ' is-away' : ''}`}>
-      <Readout hidden keyText={points.keys[index]} value={points.values[index]} tone={tone} side={points.side?.map((s) => ({ label: s.label, value: s.values[index] }))} />
+      {waiting ? <Readout hidden keyText={prompt} value="" />
+        : <Readout hidden keyText={points.keys[index]} value={points.values[index]} tone={tone} side={points.side?.map((s) => ({ label: s.label, value: s.values[index] }))} />}
       <p className="sr-only" aria-live="polite">{settled}</p>
       <div className="scrub-area" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={(e) => end(e, false)} onPointerCancel={(e) => end(e, true)} onPointerLeave={onPointerLeave}>
         <div ref={plot} className="viz-plot scrub-plot" role="slider" tabIndex={0} aria-label={label}
-          aria-valuemin={0} aria-valuemax={n - 1} aria-valuenow={index} aria-valuetext={text(index)} onKeyDown={onKeyDown}>
+          aria-valuemin={0} aria-valuemax={n - 1} aria-valuenow={index} aria-valuetext={waiting ? prompt : text(index)} onKeyDown={onKeyDown}>
           {mode === 'needle' ? <span className={`scrub-needle${y !== undefined ? ' is-front' : ''}`} style={{ left: pos, ...(y !== undefined ? { ['--needle-top' as string]: `${(y * 100).toFixed(3)}%` } : {}) }} aria-hidden="true" /> : null}
           {children}
           {mode === 'needle' ? (
@@ -195,7 +202,7 @@ export default function Scrubber({ points, initial, detents = [], label, mode = 
               </span>
             </>
           ) : (
-            <span className="scrub-ring" style={{ left: pos, top: `${((y ?? 0.5) * 100).toFixed(3)}%` }} aria-hidden="true" />
+            waiting ? null : <span className="scrub-ring" style={{ left: pos, top: `${((y ?? 0.5) * 100).toFixed(3)}%` }} aria-hidden="true" />
           )}
         </div>
         {axis}

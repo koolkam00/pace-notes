@@ -37,8 +37,9 @@ export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, labe
   const chosen = selected !== undefined ? points.findIndex((p) => p.id === selected) : -1;
   const start = chosen >= 0 ? chosen : Math.max(0, points.findIndex((p) => p.inPair));
   const joined = pairLine && pair.length === 2;
-  // The point the chart opens on carries the pick ring (12 px round it): its own label stands clear of the ring.
-  const items: LabelItem[] = points.filter((p) => labelAll || p.inPair).map((p) => ({ id: p.id, text: p.label, x: x(p.x), y: y(p.y), priority: p.inPair ? 3 : 1, size: 13, prefer: 'right', gap: p === points[start] ? 17 : 8, tone: p.inPair ? 'ink' : 'quiet' }));
+  // The point the chart opens on carries the pick ring (12 px round it): its own label stands clear of the ring, and
+  // hides while the ring is on it (the readout names it), so it never reads as the label of a neighbouring dot.
+  const items: LabelItem[] = points.map((p, i) => ({ p, i })).filter(({ p }) => labelAll || p.inPair).map(({ p, i }) => ({ id: p.id, text: p.label, x: x(p.x), y: y(p.y), priority: p.inPair ? 3 : 1, size: 13, prefer: 'right', gap: i === start ? 17 : 8, tone: p.inPair ? 'ink' : 'quiet', at: i, under: i === start }));
   // Labels keep clear of every dot, of the ring the chart opens on (12 px round its point) and of the pair's line.
   const avoid = points.map((p, i) => ({ x: x(p.x), y: y(p.y), r: i === start ? 13 : 4 }));
   const along = joined ? Array.from({ length: 9 }, (_, k) => ({ x: x(pair[0].x) + ((k + 1) / 10) * (x(pair[1].x) - x(pair[0].x)), y: y(pair[0].y) + ((k + 1) / 10) * (y(pair[1].y) - y(pair[0].y)), r: 2 })) : [];

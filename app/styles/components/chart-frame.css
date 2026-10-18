@@ -187,7 +187,7 @@
 .viz-frame.share-bar .share-bar-track { display: flex; gap: 2px; height: 28px; }
 .viz-frame.share-bar .share-bar-seg { display: flex; align-items: center; justify-content: center; min-width: 2px; flex-basis: 0; border-radius: 3px; overflow: hidden; transition: flex-grow var(--d-toggle) var(--spring); }
 .viz-frame.share-bar .share-bar-in { padding: 0 6px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.viz-frame.share-bar .is-signal { background: var(--signal); }
+.viz-frame.share-bar .is-signal { background: var(--signal); color: var(--night); }
 .viz-frame.share-bar .share-bar-callout { position: relative; height: 28px; }
 .viz-frame.share-bar .share-bar-callout-text { position: absolute; top: 0; font-size: 14px; font-weight: 600; line-height: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--signal-ink); }
 .viz-frame.share-bar .share-bar-leader { position: absolute; top: 20px; bottom: 0; width: 1px; margin-left: -0.5px; background: var(--signal-ink); }

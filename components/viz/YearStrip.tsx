@@ -9,8 +9,8 @@ import { extent, linear, pc, yScale } from './scale';
 
 /**
  * A year strip (the redesign spec, section 3.6): one lollipop per edition on a time-scaled axis, so a year with no
- * edition in the data leaves its gap open (a faint band), never closed up; scrubbed, the gap reads out "not in the data",
- * so it needs no key (a dash, keyed "2020, not in the data"). Every stem is quiet: the scrubber's needle is the one signal mark, on the edition the readout names.
+ * edition in the data leaves its gap open (no stem), never closed up and never washed (a band would read as a
+ * highlight); scrubbed, the gap reads out "not in the data" (a dash, keyed "2020, not in the data"). Every stem is quiet: the scrubber's needle is the one signal mark, on the edition the readout names.
  * The years it labels (by default the highest and lowest) keep one label format, lifted on a leader where neighbours
  * crowd them; the label under the needle hides, since the readout says it. The average is a dashed reference in the key.
  */
@@ -56,7 +56,7 @@ export function yearPad(first: number, last: number): number {
 
 type LayoutProps = { editions: YearPoint[]; selected?: number; valueDomain?: [number, number]; average?: number; height: number; extremeLabel?: (p: YearPoint) => string; labelled?: number[] };
 
-/** The strip's scales, gaps and placed labels (shared by the chart and stripLabels). */
+/** The strip's scales, scrub points and placed labels (shared by the chart and stripLabels). */
 function layout({ editions, selected, valueDomain, average, height, extremeLabel, labelled }: LayoutProps) {
   const sorted = [...editions].sort((a, b) => a.year - b.year);
   const first = sorted[0].year, last = sorted[sorted.length - 1].year;
@@ -67,14 +67,7 @@ function layout({ editions, selected, valueDomain, average, height, extremeLabel
   const maxI = sorted.reduce((b, e, i) => (e.value > sorted[b].value ? i : b), 0);
   const minI = sorted.reduce((b, e, i) => (e.value < sorted[b].value ? i : b), 0);
   const sel = Math.max(0, sorted.findIndex((e) => e.year === selected));
-  // Interior years with no edition, grouped into runs; each is also a scrub point keyed "not in the data".
-  const have = new Set(sorted.map((e) => e.year));
-  const gaps: { from: number; to: number }[] = [];
-  for (let yr = first + 1; yr < last; yr++) {
-    if (have.has(yr)) continue;
-    const g = gaps[gaps.length - 1];
-    if (g && g.to === yr - 1) g.to = yr; else gaps.push({ from: yr, to: yr });
-  }
+  // Every year from the first edition to the last is a scrub point; a year with no edition is keyed "not in the data".
   const years = Array.from({ length: last - first + 1 }, (_, k) => first + k);
   const scrubOf = (year: number) => years.indexOf(year);
   const textOf = extremeLabel ?? ((p: YearPoint) => `${p.year}`);
@@ -112,7 +105,7 @@ function layout({ editions, selected, valueDomain, average, height, extremeLabel
   const dropped = items.filter((it) => narrow.some((l) => l.id === it.id && l.minWidth === null));
   const wide = dropped.length ? place(dropped, [...taken, ...narrow.filter((l) => l.minWidth !== null).map((l) => placedBox(l, height))], WIDE).map((l) => (l.minWidth === null ? l : { ...l, minWidth: WIDE })) : [];
   const placed = [...own, ...narrow.map((l) => wide.find((w) => w.id === l.id) ?? l)];
-  return { sorted, first, last, x, y, maxI, minI, sel, gaps, years, scrubOf, placed };
+  return { sorted, first, last, x, y, maxI, minI, sel, years, scrubOf, placed };
 }
 
 /**
@@ -133,10 +126,9 @@ export default function YearStrip({ editions, selected, sideLabels = [], valueDo
   /** The years to label; default the highest and lowest editions. */
   labelled?: number[];
 }) {
-  const { sorted, first, last, x, y, maxI, minI, sel, gaps, years, scrubOf, placed } = layout({ editions, selected, valueDomain, average, height, extremeLabel, labelled });
+  const { sorted, first, last, x, y, maxI, minI, sel, years, scrubOf, placed } = layout({ editions, selected, valueDomain, average, height, extremeLabel, labelled });
   const plot = (
     <Plot>
-      {gaps.map((g) => <rect key={g.from} className="a-wash year-gap" x={pc(x(g.from - 0.5))} width={pc(x(g.to + 0.5) - x(g.from - 0.5))} y="0" height="100%" />)}
       {average !== undefined ? <RefLine y={y(average)} dashed /> : null}
       {sorted.map((e) => {
         const top = y(e.value);
