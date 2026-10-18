@@ -6,7 +6,7 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import { capital, program, racePath, raceYear, shortName } from '@/components/tools/QualifyingRaceText';
 import type { Standard } from '@/lib/tools/qualifying';
 
-/** One row per race: its name and year, and what its standards are called; `compact` gives a row of chips (race pages). */
+/** One row per race: its name and year, and what its standards are called when the race names them; `compact` gives a row of chips. */
 export function QualifyingRaceLinks({ races, label, compact = false }: { races: Standard[]; label?: string; compact?: boolean }) {
   if (compact) {
     return (
@@ -21,7 +21,8 @@ export function QualifyingRaceLinks({ races, label, compact = false }: { races: 
         <li key={s.key}>
           <Link href={racePath(s)}>
             <b>{shortName(s)} {raceYear(s)}</b>
-            <span>{capital(program(s) ?? 'qualifying')} standards</span>
+            {/* A race's own name for its standards ("Good For Age"); the generic "Qualifying standards" said nothing. */}
+            {program(s) ? <span>{capital(program(s)!)} standards</span> : null}
           </Link>
         </li>
       ))}

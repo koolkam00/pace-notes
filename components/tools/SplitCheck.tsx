@@ -4,8 +4,8 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSPrope
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { ToolHandoffs } from '@/components/tools/Handoffs';
-import MatLines, { aheadText, type MatLine } from '@/components/tools/MatLines';
-import { Choice, ExampleNote, ShareBar } from '@/components/tools/ui';
+import DotGrid from '@/components/viz/DotGrid';
+import { Choice, ShareBar } from '@/components/tools/ui';
 import Values from '@/components/ui/Values';
 import { useQueryState } from '@/components/tools/useQueryState';
 import KeypadHint from '@/components/KeypadHint';
@@ -209,13 +209,6 @@ const share = (v: number) => `${Math.round(v * 100)}%`;
 const secName = (i: number) => sectionLabel(SECTION_BOUNDS[i][0], SECTION_BOUNDS[i][1]);
 /** The reference block, the runner's own 5–20K pace. */
 const BASE = sectionLabel(5, 20);
-/** "6:11 ahead of", "1:38 behind", "level with": the words before a group name. */
-function relation(seconds: number): { time: string | null; words: string } {
-  const s = Math.round(seconds);
-  if (s === 0) return { time: null, words: 'level with' };
-  return { time: formatDuration(Math.abs(s)), words: s < 0 ? 'ahead of' : 'behind' };
-}
-
 /** Moves focus to a results panel's heading, for a control that is about to remove itself. */
 function focusHeading(panelId: string) {
   const h = document.querySelector<HTMLElement>(`#${panelId} .tool-panel-title`);
@@ -477,8 +470,9 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
     <div className="split-check-root">
       <div className="tool-workspace">
         <form className="tool-inputs split-check-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Split check inputs">
-          <h2>Your nine mat times</h2>
-          {isExample ? <ExampleNote>A made-up race with a sustained slowdown from 30K. Type over it or paste your own.</ExampleNote> : null}
+          {/* One kicker: the example says so in it, and the line under it says what the example is. */}
+          <h2>{isExample ? 'Example · your nine mat times' : 'Your nine mat times'}</h2>
+          {isExample ? <p className="tool-field-hint split-check-example">A made-up race with a sustained slowdown from 30K. Type over it or paste your own.</p> : null}
 
           <details className="split-check-paste" open={pasteOpen} onToggle={(e) => setPasteOpen((e.currentTarget as HTMLDetailsElement).open)}>
             <summary>Paste from a tracker or results page</summary>
@@ -609,7 +603,7 @@ function Results({ times, reading, units, comparison, type, typeError, retryType
 
       <OpeningBeat reading={reading} units={units} bands={openingBands} cities={openingCities} place={place} course={course} gender={gender} />
 
-      <ComparisonPanel comparison={comparison} times={times} units={units} where={where} genderWord={genderWord} fallbacks={fallbacks} />
+      <ComparisonPanel comparison={comparison} where={where} genderWord={genderWord} fallbacks={fallbacks} />
 
       <TypePanel reading={reading} type={type} error={typeError} retry={retryType} units={units} />
 
@@ -828,8 +822,8 @@ function OpeningBeat({ reading, units, bands, cities, place, course, gender }: {
 /* Comparison with finishes in your window (Pace Notes data)           */
 /* ------------------------------------------------------------------ */
 
-function ComparisonPanel({ comparison, times, units, where, genderWord, fallbacks }: {
-  comparison: Comparison; times: number[]; units: UnitSystem; where: string; genderWord: string; fallbacks: ReactNode;
+function ComparisonPanel({ comparison, where, genderWord, fallbacks }: {
+  comparison: Comparison; where: string; genderWord: string; fallbacks: ReactNode;
 }) {
   const ok = comparison.state === 'ok' ? comparison : null;
   return (
@@ -854,82 +848,37 @@ function ComparisonPanel({ comparison, times, units, where, genderWord, fallback
           {fallbacks ? <div className="tool-share no-print">{fallbacks}</div> : null}
         </div>
       ) : null}
-      {ok ? <ComparisonBody ok={ok} times={times} units={units} where={where} genderWord={genderWord} fallbacks={fallbacks} /> : null}
+      {ok ? <ComparisonBody ok={ok} where={where} genderWord={genderWord} fallbacks={fallbacks} /> : null}
     </section>
   );
 }
 
-function ComparisonBody({ ok, times, units, where, genderWord, fallbacks }: {
-  ok: Extract<Comparison, { state: 'ok' }>; times: number[]; units: UnitSystem; where: string; genderWord: string; fallbacks: ReactNode;
+/**
+ * The page's one Pace Notes data nugget (the redesign spec, section 7.13): of finishes at this time, how many had a
+ * sustained slowdown, as 100 dots. The verdict above says whether this race had one; this says how common it was.
+ */
+function ComparisonBody({ ok, where, genderWord, fallbacks }: {
+  ok: Extract<Comparison, { state: 'ok' }>; where: string; genderWord: string; fallbacks: ReactNode;
 }) {
   const { all, held, slow } = ok;
   const sd = all.sd ?? (slow ? slow.n / all.n : null);
-  const at20 = (c: PaceBandCell | null) => (c ? times[3] - c.e50[3] : null);
-  const h20 = at20(held);
-  const s20 = at20(slow);
-  const closer = h20 !== null && s20 !== null ? (Math.abs(s20) < Math.abs(h20) ? 'slow' : 'held') : null;
-  const neither = !held && !slow;
   const range = `${formatDuration(ok.lo, true)} to ${formatDuration(ok.hi, true)}`;
-  const lines: MatLine[] = [
-    ...(held ? [{ key: 'held', label: 'Held pace', tone: 'ink' as const, gaps: CHECKPOINTS.map((_, i) => held.e50[i] - times[i]) }] : []),
-    ...(slow ? [{ key: 'slow', label: 'Sustained slowdown', tone: 'signal' as const, gaps: CHECKPOINTS.map((_, i) => slow.e50[i] - times[i]) }] : []),
-  ];
-  const columns = neither ? [{ key: 'all', name: 'All finishes', cell: all }]
-    : [{ key: 'held', name: 'Held pace', cell: held }, { key: 'slow', name: 'Sustained slowdown', cell: slow }];
+  const lit = sd === null ? 0 : Math.round(sd * 100);
   return (
     <>
-      <div className="tool-panel-head">
-        {closer ? (
+      {sd !== null ? (
+        <>
           <p className="tool-nugget-text" id="split-check-compare-title">
-            Through 20K, your times were closest to finishes that <em>{closer === 'slow' ? 'later slowed' : 'held pace'}</em>.
+            Of {count(all.n)} finishes from {range} {where}{genderWord ? `, recorded as ${genderWord}` : ''}, <em>{share(sd)}</em> had a <SlowdownTerm />.
           </p>
-        ) : (
-          <p className="tool-nugget-text" id="split-check-compare-title">
-            At 20K you were <em><Rel seconds={(h20 ?? s20 ?? (times[3] - all.e50[3]))} /></em> the median {h20 !== null ? 'held-pace finish' : s20 !== null ? 'finish that later slowed' : 'finish'} from {range}.
-          </p>
-        )}
-        {/* One sentence under the nugget, so the beat stays at two. */}
-        <p className="tool-panel-meta">
-          {closer && h20 !== null && s20 !== null
-            ? <>Among finishes from {range} {where}{genderWord ? `, recorded as ${genderWord}` : ''}, you were <Rel seconds={s20} /> the median that later slowed at 20K and <Rel seconds={h20} /> the held-pace median.</>
-            : <>{count(all.n)} finishes from {range} {where}{genderWord ? `, recorded as ${genderWord}` : ''}{sd !== null && sd !== undefined ? <>: {share(sd)} had a <SlowdownTerm />.</> : '.'}</>}
-        </p>
-      </div>
-      {lines.length ? (
-        <MatLines lines={lines} zero="Your elapsed time at each mat" zeroTick="You" units={units}
-          label={`Each group's median elapsed time against yours at every mat, finishes from ${range} ${where}. ${lines.map((l) => `${l.label}: ${aheadText(l.gaps[3])} of you at 20K, ${aheadText(l.gaps[8])} at the finish.`).join(' ')}`} />
-      ) : null}
-      <Values id="split-check-compare-values" caption={`Median elapsed time at each mat, finishes from ${range} ${where}, and how far ahead (−) or behind (+) of it you were`} count={9}>
-        <table className="table">
-          <thead>
-            <tr><th scope="col">Mat</th><th scope="col">You</th>{columns.map((c) => <th key={c.key} scope="col">{c.name}</th>)}</tr>
-          </thead>
-          <tbody>
-            {CHECKPOINTS.map((km, i) => (
-              <tr key={km} className={i === 3 ? 'is-reading' : undefined}>
-                <th scope="row">{matLabel(km)}</th>
-                <td>{formatDuration(times[i], true)}</td>
-                {columns.map((c) => <td key={c.key}>{c.cell ? <>{formatDuration(c.cell.e50[i], true)} <small>{signedTime(times[i] - c.cell.e50[i])}</small></> : '—'}</td>)}
-              </tr>
-            ))}
-            <tr><th scope="row">Finishes</th><td />{columns.map((c) => <td key={c.key}>{c.cell ? count(c.cell.n) : '—'}</td>)}</tr>
-          </tbody>
-        </table>
-      </Values>
-      {(neither || !held || !slow) && fallbacks ? <div className="tool-share no-print">{fallbacks}</div> : null}
+          <DotGrid lit={lit} label={`${lit} of 100 finishes from ${range} ${where} had a sustained slowdown`} caption={<><strong>{lit} of 100</strong> finishes at your time</>} />
+        </>
+      ) : (
+        <p className="tool-nugget-text" id="split-check-compare-title">{count(all.n)} finishes from {range} {where}{genderWord ? `, recorded as ${genderWord}` : ''}.</p>
+      )}
+      {(!held || !slow) && fallbacks ? <div className="tool-share no-print">{fallbacks}</div> : null}
     </>
   );
-}
-
-/** "+1:12" or "−6:36": you against a median (negative = you passed the mat earlier). */
-function signedTime(seconds: number): string {
-  const s = Math.round(seconds);
-  return s === 0 ? '0:00' : `${s > 0 ? '+' : '−'}${formatDuration(Math.abs(s))}`;
-}
-
-function Rel({ seconds }: { seconds: number }) {
-  const r = relation(seconds);
-  return <>{r.time ? `${r.time} ` : ''}{r.words}</>;
 }
 
 /* ------------------------------------------------------------------ */

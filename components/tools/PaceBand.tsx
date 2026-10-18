@@ -303,11 +303,16 @@ export default function PaceBand({ indexSha, profiles, projectorScopes, unpublis
                     <div><dt>Watch pace, reading {pct(overrun, 1)} long</dt><dd>{formatDuration(perUnit(watchTarget(pKm, overrun), units))}</dd></div>
                   </dl>
                 ) : null}
-                <ol className="tool-laps" aria-label={`Even-pace elapsed time at each 5 km mat for ${fmtGoal(goal)}`}>
+                {/* Each mat's even-pace time and, under it, the median of the finishes near the goal that held pace: the
+                    band's small line, legible here (the print preview below is only a thumbnail). */}
+                <ol className="tool-laps" aria-label={`Even-pace elapsed time at each 5 km mat for ${fmtGoal(goal)}${fresh?.held ? ', with the held-pace median' : ''}`}>
                   {CHECKPOINTS.map((km, i) => (
-                    <li key={km} className={i === 8 ? 'is-finish' : undefined}><span><MatName km={km} units={units} /></span><b>{formatDuration(i === 8 ? goal : pKm * km)}</b></li>
+                    <li key={km} className={i === 8 ? 'is-finish' : undefined}><span><MatName km={km} units={units} /></span><b>{formatDuration(i === 8 ? goal : pKm * km)}</b>
+                      {fresh?.held ? <small className="pace-band-lap-held">held {formatDuration(fresh.held.e50[i])}</small> : null}</li>
                   ))}
                 </ol>
+                {fresh?.held ? <p className="tool-reading-sub pace-band-held-key">Held: the median of {count(fresh.held.n)} finishes from {formatDuration(fresh.lo, true)} to {formatDuration(fresh.hi, true)} that held pace.</p> : null}
+                {fresh?.held ? <EvidenceTag kind="data" /> : null}
               </section>
 
               <section className="tool-panel pace-band-observed" id="pace-band-observed" aria-labelledby="pace-band-observed-title">
@@ -363,6 +368,7 @@ export default function PaceBand({ indexSha, profiles, projectorScopes, unpublis
                     <div role="group" aria-labelledby="pace-band-watch"><Choice label="Watch reads the course long by" small value={String(overrun * 100)} onChange={(v) => setQ({ watch: v })} options={WATCH_OPTIONS} /></div>
                   </div>
                 </>}
+                optionsOpen={Boolean(q.split) || overrun !== 0}
                 values={<Values id="pace-band-rows-values" caption={`Every marker on the band: even-pace elapsed time for ${fmtGoal(goal)}`} count={rows.length}><Wristband rows={rows} goal={goal} pKm={pKm} units={units} overrun={overrun} /></Values>} />
 
               <div className="print-only pace-band-print-notes">
@@ -523,11 +529,13 @@ function ObservedTable({ cells, units }: { cells: ObservedOk; units: UnitSystem 
 }
 
 /** The band to print: its controls, a live preview of the cut-out strips (the strips themselves for @media print), the print buttons and the band as a table. */
-function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWord, observed, profile, showBack, onBack, onPrint, waiting, controls, values }: {
+function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWord, observed, profile, showBack, onBack, onPrint, waiting, controls, values, optionsOpen = false }: {
   goal: number; pKm: number; units: UnitSystem; rows: ReturnType<typeof splitTable>; interval: SplitInterval; overrun: number; place: string; genderWord: string;
   observed: ObservedOk | null; profile: RouteProfile | null; showBack: boolean; onBack: (v: boolean) => void; onPrint: (mode: 'strip' | 'page') => void;
   /** The goal field holds text that is not a goal: printing waits until it is fixed. */
   waiting: boolean; controls: ReactNode; values: ReactNode;
+  /** Open the print options on arrival: a link set one of them. */
+  optionsOpen?: boolean;
 }) {
   const held = observed?.held ?? null;
   return (
@@ -536,12 +544,16 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
         {held ? <EvidenceTag kind="data" /> : null}
         <h2 className="tool-panel-title" id="pace-band-print-title">Print your wristband</h2>
       </header>
-      <div className="pace-band-controls no-print">
-        {controls}
-        {profile ? (
-          <label className="tool-check"><input type="checkbox" checked={showBack} onChange={(e) => onBack(e.target.checked)} />A route elevation strip for the back ({profile.city})</label>
-        ) : null}
-      </div>
+      {/* One control for the beat: the print options fold into one disclosure (rows, a watch that reads long, the back). */}
+      <details className="tool-more pace-band-options no-print" open={optionsOpen || undefined}>
+        <summary>Print options</summary>
+        <div className="tool-more-body pace-band-controls">
+          {controls}
+          {profile ? (
+            <label className="tool-check"><input type="checkbox" checked={showBack} onChange={(e) => onBack(e.target.checked)} />A route elevation strip for the back ({profile.city})</label>
+          ) : null}
+        </div>
+      </details>
       <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={interval} overrun={overrun} place={place} genderWord={genderWord}
         observed={observed} profile={profile} showBack={showBack} waiting={waiting} />
       <ShareBar print={false} extra={<>

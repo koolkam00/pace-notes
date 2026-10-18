@@ -22,8 +22,13 @@
 .pace-band-wrist tr.is-mat th, .pace-band-wrist tr.is-mat td { font-weight: 600; color: var(--ink); }
 .pace-band-wrist tr.is-finish th, .pace-band-wrist tr.is-finish td { border-top: 1.5px solid var(--ink); font-weight: 600; color: var(--ink); }
 
+/* Each lap's second line: the held-pace median under the even time (Pace Notes data, badged on the card). */
+.pace-band-lap-held { font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.pace-band-held-key { font-size: var(--t-label); color: var(--ink-3); }
+
 /* ---------- The band to print ---------- */
 .pace-band-controls { display: grid; gap: var(--s-4); }
+.pace-band-options { border-bottom: 1px solid var(--rule); }
 .pace-band-controls .tool-choice .seg-btn { padding-inline: 8px; }
 
 /* ---------- Print ---------- */

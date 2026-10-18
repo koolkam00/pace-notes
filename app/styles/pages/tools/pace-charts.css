@@ -31,7 +31,6 @@
 .goal-pace-headline .tool-reading-figure small { font-variant-numeric: tabular-nums; }
 .goal-pace-stack > .values { margin-top: calc(var(--s-3) - var(--s-6)); }
 .goal-pace-more a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }
-.goal-pace-others .tools-goal-links span[aria-current='page'] { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: var(--r-pill); background: var(--ink); color: var(--paper); font-weight: 600; }
 
 @media print {
   .goal-chart-wrap.is-overflow { -webkit-mask-image: none; mask-image: none; }

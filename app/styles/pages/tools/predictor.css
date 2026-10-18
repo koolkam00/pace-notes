@@ -42,7 +42,6 @@
 .predictor-chart .predictor-row-active { fill: var(--ink); fill-opacity: .05; }
 /* The typical range is the night card's figure, so here it is ink on a wash: the page's accent stays with each beat's reading. */
 .predictor-chart .predictor-band { fill: var(--wash); }
-.predictor-chart .predictor-band-mid { stroke: var(--ink-3); stroke-dasharray: 3 4; }
 .predictor-chart .predictor-span { fill: var(--ink-2); }
 .predictor-chart .predictor-span.is-fuzzy { fill: var(--ink-2); fill-opacity: .3; }
 .predictor-chart .predictor-span-mid { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }

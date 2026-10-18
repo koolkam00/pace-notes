@@ -12,7 +12,6 @@ import Values from '@/components/ui/Values';
 import Arrow from '@/components/ui/Arrow';
 import ScrollCue from '@/components/ui/ScrollCue.client';
 import YearStrip from '@/components/viz/YearStrip';
-import { QualifyingRaceLinks } from '@/components/tools/QualifyingRaceLinks';
 import {
   ageLabel, bornLabel, capital, checkedDate, checkerHref, divisionWords, divisions, editionDetail, fmtDate, fmtMargin, fmtStandard,
   lastRunDate, pageHeading, program, racePath, raceName, raceYear, shortName,
@@ -22,8 +21,6 @@ import { ASSUMED_COMPARISON, BOSTON_CUTOFFS, VERIFIED_AT, type Standard } from '
 
 const grouped = (n: number) => n.toLocaleString('en-US');
 
-/** A course page for this race, when the course list has one (slug from lib/course-data). */
-export type CourseLink = { href: string; label: string } | null;
 
 function ageRule(s: Standard): { value: string; detail: string; column: string; sentence: string } {
   if (s.ageRule === 'race-day') {
@@ -54,7 +51,7 @@ function otherRules(s: Standard): string[] {
   return (s.extra ?? []).filter((rule) => !(s.ageRule === 'time-run' && /^Age is your age on the day you ran/i.test(rule)));
 }
 
-export default function QualifyingRace({ s, others, course }: { s: Standard; others: Standard[]; course: CourseLink }) {
+export default function QualifyingRace({ s, others }: { s: Standard; others: Standard[] }) {
   const year = raceYear(s);
   const name = raceName(s);
   const detail = editionDetail(s);
@@ -72,7 +69,7 @@ export default function QualifyingRace({ s, others, course }: { s: Standard; oth
   return (
     <div className="tool-page qrace">
       <ToolPageHeader path={racePath(s)} title={pageHeading(s)}
-        dek={<>{what} for the {year} {name}{detail ? ` (${detail})` : ''}, by {birthYear ? 'birth year' : 'age group'} for {divisionWords(s)}.</>}
+        dek={<>{what} for the {year} {name}, by {birthYear ? 'birth year' : 'age group'} for {divisionWords(s)}.</>}
         trail={[['Reference'], ['Qualifying checker', '/tools/qualifying'], [`${name} ${year}`]]}>
         <p className="qrace-provenance">
           <EvidenceTag kind="official" />
@@ -82,8 +79,9 @@ export default function QualifyingRace({ s, others, course }: { s: Standard; oth
       </ToolPageHeader>
 
       <div className="qrace-body">
+        {/* The race date is said once: under "Age used" when ages count on race day, else on its own row. */}
         <dl className="tool-ledger qrace-glance">
-          <div><dt>Race</dt><dd>{year}</dd>{detail ? <dd className="tool-ledger-note">{detail}</dd> : null}</div>
+          {!(s.ageRule === 'race-day' && s.ageDate) && detail ? <div><dt>Race day</dt><dd>{detail}</dd></div> : null}
           <div><dt>Age used</dt><dd>{age.value}</dd><dd className="tool-ledger-note">{age.detail}</dd></div>
           <div><dt>Window</dt><dd className="qrace-window">{fmtDate(s.windowStart)} – {windowEnd}</dd></div>
           <div><dt>Time rule</dt><dd>{time.value}</dd><dd className="tool-ledger-note">{time.detail}</dd></div>
@@ -92,7 +90,7 @@ export default function QualifyingRace({ s, others, course }: { s: Standard; oth
 
         <section className="qrace-section" id="standards" aria-labelledby="qrace-standards-title">
           <h2 className="tool-panel-title" id="qrace-standards-title">{name} {year} {program(s) ? `${program(s)} ` : ''}standards</h2>
-          <p className="tool-panel-meta">By {birthYear ? `birth year (the age reached in ${s.ageYear})` : age.value.toLowerCase()}{s.ageRule === 'race-day' && s.ageDate ? ` (${fmtDate(s.ageDate)})` : ''}, each time with its even pace over <MarathonDistance />.</p>
+          <p className="tool-panel-meta">By {birthYear ? `birth year (the age reached in ${s.ageYear})` : age.value.toLowerCase()}, each time with its even pace over <MarathonDistance />.</p>
           <div className="tool-table-wrap table-wrap qrace-table-wrap" role="region" tabIndex={0} aria-labelledby="qrace-standards-title">
             <table className="tool-table qrace-table" data-race={s.key}>
               <caption className="sr-only">{name} {year} {program(s) ? `${program(s)} ` : ''}standards in hours, minutes and seconds, each with the even pace for a finish exactly on it.</caption>
@@ -151,13 +149,9 @@ export default function QualifyingRace({ s, others, course }: { s: Standard; oth
         {s.key === 'boston' ? <BostonCutoffs /> : null}
       </div>
 
-      <nav className="qrace-more" aria-labelledby="qrace-more-title">
-        <h2 id="qrace-more-title" className="tool-handoffs-label">Standards for other races</h2>
-        <QualifyingRaceLinks races={others} compact />
-        <p className="qrace-more-links">
-          <Link href="/tools/qualifying">Check one time against all {others.length + 1} races</Link>
-          {course ? <Link href={course.href}>{course.label}</Link> : null}
-        </p>
+      {/* One way on (every race is one tap away there) and, in the closing row, one way back. */}
+      <nav className="tool-handoffs qrace-forward no-print" aria-label="Every race">
+        <ul><li><Link href="/tools/qualifying"><span className="tool-handoff-text"><b>Check one time against all {others.length + 1} races</b></span><Arrow /></Link></li></ul>
       </nav>
 
       <ToolEnd path="/tools/qualifying" how="/methodology#tools-qualifying" />

@@ -406,7 +406,8 @@ function MethodChart({ rows, fuzzy, label }: { rows: ChartRow[]; fuzzy: boolean;
   const step = niceStep(hi - lo, narrow ? 4 : 7, [15, 30, 60, 120, 300, 600, 900, 1800, 3600]);
   const tickText = (t: number) => (t >= 3600 ? formatHM(t) : formatDuration(t));
   const ticks = fittingTicks(lo, hi, step, x, width, tickText);
-  const band = rows.find((r) => r.kind === 'range');
+  const bandIndex = rows.findIndex((r) => r.kind === 'range');
+  const band = bandIndex >= 0 ? rows[bandIndex] : undefined;
   const rowAt = (clientY: number, svg: SVGSVGElement) => {
     const y = clientY - svg.getBoundingClientRect().top;
     const i = tops.findIndex((top, k) => y >= top && y < top + layout[k].h);
@@ -422,10 +423,10 @@ function MethodChart({ rows, fuzzy, label }: { rows: ChartRow[]; fuzzy: boolean;
         onPointerLeave={(e) => { if (e.pointerType === 'mouse') setActive(null); }}
         onClick={(e) => { const k = rowAt(e.clientY, e.currentTarget); setActive((a) => (a === k ? null : k)); }}>
         {activeRow ? <rect x={0} y={tops[activeIndex] + 1} width={width} height={layout[activeIndex].h - 2} rx={10} className="predictor-row-active" /> : null}
+        {/* The range's wash stays on its own row, so the values right-aligned on the other rows never sit inside it. */}
         {band && band.lo !== undefined && band.hi !== undefined ? (
           <g aria-hidden="true">
-            <rect x={x(band.lo)} y={m.t} width={Math.max(1, x(band.hi) - x(band.lo))} height={plotBottom - m.t} className="predictor-band" />
-            <line x1={x(band.mid!)} x2={x(band.mid!)} y1={m.t} y2={plotBottom} className="predictor-band-mid" />
+            <rect x={x(band.lo)} y={tops[bandIndex] + 1} width={Math.max(1, x(band.hi) - x(band.lo))} height={layout[bandIndex].h - 2} rx={8} className="predictor-band" />
           </g>
         ) : null}
         {ticks.map((t) => (
@@ -532,7 +533,7 @@ function stackLabels(markers: Marker[], width: number, margin: number) {
   });
 }
 
-function FinishStrip({ q, Q, est, estLabel }: { q: number[]; Q: number[]; est: number; estLabel: string }) {
+function FinishStrip({ q, Q, est }: { q: number[]; Q: number[]; est: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 640);
   const narrow = width < 480;
@@ -546,7 +547,9 @@ function FinishStrip({ q, Q, est, estLabel }: { q: number[]; Q: number[]; est: n
   const fmt = narrow ? fmtShort : fmtTime;
   const tiny = width < 300;
   const markers = stackLabels([
-    { key: 'est', x: x(est), label: `${tiny ? 'Estimate' : estLabel} ${fmt(est)}`, tone: 'est' as const },
+    // The marker is the whole minute the cohort is on pace for ("On 4:11 pace"), never the estimate's own label: the
+    // card above gives the estimate to the second.
+    { key: 'est', x: x(est), label: tiny ? fmtShort(est) : `On ${fmtShort(est)} pace`, tone: 'est' as const },
     { key: 'median', x: x(q[i50]), label: `Their median ${fmt(q[i50])}`, tone: 'median' as const },
   ], width, m.l);
   const labelRows = Math.max(1, ...markers.map((mk) => mk.row + 1));
@@ -558,7 +561,7 @@ function FinishStrip({ q, Q, est, estLabel }: { q: number[]; Q: number[]; est: n
   const maxD = Math.max(...dens);
   const step = niceStep(hi - lo, narrow ? 4 : 7, [60, 120, 300, 600, 900, 1800, 3600]);
   const ticks = fittingTicks(lo, hi, step, x, width, fmtShort);
-  const label = `Finish times of these finishes, in 5% slices: 10th percentile ${fmtTime(q[i10])}, median ${fmtTime(q[i50])}, 90th percentile ${fmtTime(q[i90])}. The ${estLabel.toLowerCase()} of ${fmtTime(est)} is marked.`;
+  const label = `Finish times of these finishes, in 5% slices: 10th percentile ${fmtTime(q[i10])}, median ${fmtTime(q[i50])}, 90th percentile ${fmtTime(q[i90])}. ${fmtShort(est)} pace is marked.`;
   return (
     <div ref={ref} className="viz predictor-strip">
       <svg width={width} height={H} role="img" aria-label={label}>
@@ -634,7 +637,7 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
               <p className="tool-nugget-text" id="predictor-data-title">
                 Finishes on {fmtShort(T)} pace at 20K finished in a median <em>{formatDuration(q[i50], true)}</em>.
               </p>
-              <FinishStrip q={q} Q={Q} est={T} estLabel={chosen.label} />
+              <FinishStrip q={q} Q={Q} est={T} />
               <dl className="tool-cells">
                 <div><dt>Finished under {fmtShort(T)}</dt><dd>{shareText}</dd></div>
                 <div><dt><SlowdownTerm>Sustained slowdown</SlowdownTerm></dt><dd>{pctText(sd)}</dd></div>
@@ -739,14 +742,14 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
     const pace = (s: number) => fmtPace(s / est.target.km, units);
     // Plain names for each estimate; which published formula is which lives on /methodology#tools-predictor.
     rows.push({
-      key: 'riegel', label: 'Classic formula', detail: est.isMarathon ? 'the best case' : '',
+      key: 'riegel', label: 'Classic formula', detail: '',
       value: fmtTime(est.riegel), kind: 'point', at: est.riegel, tone: 'ink',
       tip: [`${fmtTime(est.riegel)} · ${pace(est.riegel)}`, est.isMarathon ? 'A median 10:09 too fast for recreational runners.' : 'Holds up well for races up to the half.'],
     });
     rows.push(est.daniels !== null ? {
       key: 'daniels', label: 'Fitness equations', detail: '',
       value: fmtTime(est.daniels), kind: 'point', at: est.daniels, tone: 'ink',
-      tip: [`${fmtTime(est.daniels)} · ${pace(est.daniels)}`, est.isMarathon ? 'About as optimistic as the best case.' : 'Close to the classic formula up to the half.'],
+      tip: [`${fmtTime(est.daniels)} · ${pace(est.daniels)}`, est.isMarathon ? 'About as optimistic as the classic formula.' : 'Close to the classic formula up to the half.'],
     } : {
       key: 'daniels', label: 'Fitness equations', detail: 'not applied at walking speed', value: 'not applied', kind: 'none', tone: 'ink',
       tip: [`Your race averaged ${fmtPace(est.fromS / est.fromKm, units)}, slower than ${fmtPace(DANIELS_PACE_MAX, units)}, so no number is shown.`],
@@ -761,7 +764,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
       });
       looks.push(
         { key: 'median', label: 'Median estimate', chip: 'Median', seconds: r.median },
-        { key: 'riegel', label: 'Best case', chip: 'Best case', seconds: est.riegel },
+        { key: 'riegel', label: 'Classic formula', chip: 'Classic', seconds: est.riegel },
         { key: 'low', label: 'Range start', chip: 'Range start', seconds: r.low },
         { key: 'high', label: 'Range end', chip: 'Range end', seconds: r.high },
       );
@@ -927,7 +930,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
 function summaryText(est: Estimates): string {
   if (est.range) {
     const r = est.range;
-    return `Marathon: typical range ${fmtTime(r.low)} to ${fmtTime(r.high)}, median estimate ${fmtTime(r.median)}, best case ${fmtTime(est.riegel)}.`;
+    return `Marathon: typical range ${fmtTime(r.low)} to ${fmtTime(r.high)}, median estimate ${fmtTime(r.median)}, classic formula ${fmtTime(est.riegel)}.`;
   }
   const name = est.target.key === 'half' ? 'Half marathon' : est.target.label;
   if (est.daniels === null) return `${name}: ${fmtTime(est.riegel)}.`;
@@ -958,7 +961,7 @@ function Headline({ est, dist, units, example }: { est: Estimates; dist: Distanc
           `The typical recreational range${r.extrapolation === 'shorter' ? ', less certain from a shorter race' : ''}.`)}
         <dl className="tool-cells">
           <div><dt>Median estimate</dt><dd>{formatDuration(r.median, true)}<small>{pace(r.median)}</small></dd></div>
-          <div><dt>Best case</dt><dd>{formatDuration(est.riegel, true)}<small>{pace(est.riegel)}</small></dd></div>
+          <div><dt>Classic formula</dt><dd>{formatDuration(est.riegel, true)}<small>{pace(est.riegel)}</small></dd></div>
         </dl>
         <EvidenceTag kind="research" />
       </section>

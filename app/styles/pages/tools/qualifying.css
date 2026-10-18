@@ -99,8 +99,8 @@
 .qrace-links a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
 .qrace-links b { font-size: 1rem; font-weight: 600; }
 .qrace-links span { font-size: var(--t-small); color: var(--ink-3); }
-.qrace-more-links { display: flex; flex-wrap: wrap; gap: 4px var(--s-5); font-size: var(--t-small); }
-.tool-page .qrace-more-links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); font-weight: 600; }
+/* A race page's one way on: the checker for every race, as a handoff row. */
+.qrace-forward { margin: var(--s-7) 0 0; max-width: var(--measure-figure); }
 
 
 @media (min-width: 600px) {

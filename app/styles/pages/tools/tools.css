@@ -290,6 +290,8 @@
 .tools-goal-links li { margin: 0; }
 .tools-goal-links a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: var(--r-pill); color: var(--ink); font-size: .9375rem; font-weight: 500; font-variant-numeric: tabular-nums; text-decoration: none; }
 .tools-goal-links a:hover { border-color: var(--ink); text-decoration: none; }
+/* A chip is its own affordance: never underlined as well, whatever link rule the page's copy sets. */
+.tool-page .tools-goal-links a, .tool-page .tools-goal-links a:hover { text-decoration: none; }
 .tools-goal-links a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .tools-privacy { margin: 0; max-width: var(--measure); font-size: var(--t-small); line-height: 1.5; color: var(--ink-3); }
 @media (min-width: 900px) {

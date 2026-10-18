@@ -6,6 +6,7 @@ import { useUnits } from '@/components/UnitsProvider';
 import { Choice, DurationField, ShareBar } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
 import KeypadHint from '@/components/KeypadHint';
+import Arrow from '@/components/ui/Arrow';
 import { useWidth } from '@/components/viz/useSize';
 import { loadInsight } from '@/lib/insights';
 import { loadShard, shareUnder, type ProjectorCells, type ProjectorIndex, type ProjectorShard } from '@/lib/tools/data';
@@ -722,9 +723,11 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
     const rangeText = windowText(cell.q[i10], cell.q[i90]);
     const median = cell.q[i50];
     const nextRow = laterRows[0];
-    // The median finish of the group against the even-pace finish of the times entered, in whole minutes.
-    const gapMin = Math.round((median - P) / 60);
-    const minutes = (n: number) => `${n} minute${n === 1 ? '' : 's'}`;
+    // The median finish of the group against the even-pace finish of the times entered, to the second (9:32, never a
+    // rounded "10 minutes").
+    const gapS = Math.round(median - P);
+    // The mats still to come; the finish is the card's own headline, so the grid stops at 40K.
+    const matRows = laterRows.filter((r) => r.km < 42);
     status = `${isExample ? `Example: ${formatDuration(E, true)} at ${matName(mat, units)}. ` : ''}${scopeName} at ${matName(mat, units)}: on ${bandText} even pace, ${count(cell.n)} finishes. Median finish ${formatDuration(median, true)}; 10th to 90th percentile ${rangeText.replace('–', ' to ')}.`
       + (nextRow.km < 42 ? ` ${matName(nextRow.km, units)}: ${span(nextRow.lo, nextRow.hi).replace('–', ' to ')}.` : '');
     // The night card is the result; under the time field there is only the jump to it (it repeats none of it).
@@ -741,7 +744,6 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
           </div>
           <dl className="tool-ledger">
             <div><dt>Median finish</dt><dd>{at(median)}</dd></div>
-            {nextRow.km < 42 ? <div><dt>At {matName(nextRow.km, units)}</dt><dd>{span(nextRow.lo, nextRow.hi)}</dd></div> : null}
             {target !== null && passed ? (
               <div><dt>Target {targetText(target)}</dt><dd>Passed</dd></div>
             ) : target !== null && share ? (
@@ -760,26 +762,30 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
         <section className="tool-panel projector-ended" aria-labelledby="projector-ended-title">
           <p className="tool-nugget-text" id="projector-ended-title">
             Held to the finish, this pace makes {formatDuration(P, true)}.{' '}
-            {gapMin === 0 ? <>The median finish was <em>about the same</em>.</>
-              : <>The median finish was <em>{minutes(Math.abs(gapMin))} {gapMin > 0 ? 'later' : 'earlier'}</em>.</>}
+            {Math.abs(gapS) < 30 ? <>The median finish was <em>about the same</em>.</>
+              : <>The median finish was <em>{formatDuration(Math.abs(gapS))} {gapS > 0 ? 'later' : 'earlier'}</em>.</>}
           </p>
           <FinishChart q={cell.q} Q={Q} P={P} target={passed ? null : target} targetTag={targetTag} />
         </section>
 
-        <section className="tool-panel projector-next" aria-labelledby="projector-next-title">
-          <header className="tool-panel-head">
+        <section className="tool-panel projector-next" aria-labelledby={matRows.length ? 'projector-next-title' : undefined} aria-label={matRows.length ? undefined : 'Race day'}>
+          {matRows.length ? <header className="tool-panel-head">
             <h2 className="tool-panel-title" id="projector-next-title">{showClock ? 'When to look up at each mat' : 'The rest of the race, mat by mat'}</h2>
             <p className="tool-panel-meta">{showClock ? 'Clock times' : 'Elapsed times'}: where the middle 80% of these finishes passed, and their median.</p>
-          </header>
-          <ol className="tool-laps projector-laps">
-            {laterRows.map((r) => (
+          </header> : null}
+          {matRows.length ? <ol className="tool-laps projector-laps">
+            {matRows.map((r) => (
               <li key={r.km} className={r.km > 42 ? 'is-finish' : undefined}>
                 <span>{r.km > 42 ? 'Finish' : `${r.km}K`}{r.km < 42 && units === 'mi' ? <small>{matMiles(r.km)}</small> : null}</span>
                 <b>{breakable(span(r.lo, r.hi))}</b>
                 <small className="projector-lap-median">median {at(r.mid)}</small>
               </li>
             ))}
-          </ol>
+          </ol> : null}
+          {/* At the next mat, the tracker's new time goes in the same field: one tap moves the mat on. */}
+          {E !== null && mat < 40 ? (
+            <button type="button" className="projector-link-button projector-advance no-print" onClick={advance}>Passed {matName(mat + 5, units)}? Next mat <Arrow /></button>
+          ) : null}
           <div className="projector-clock no-print">
             <div className="tool-field projector-start">
               <label htmlFor="projector-start">Start-line crossing time <span className="projector-optional">optional</span></label>
@@ -857,9 +863,6 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
                 placeholder={units === 'mi' ? '9:06' : '5:39'} hint={E !== null ? `Read as ${formatDuration(E, true)} at ${matName(mat, units)}.` : 'As the tracker shows it.'} />
             )}
             {quick ? <div className="projector-quick">{quick}</div> : null}
-            {E !== null && mat < 40 ? (
-              <button type="button" className="projector-link-button no-print" onClick={advance}>Passed {matName(mat + 5, units)}? Next mat →</button>
-            ) : null}
           </div>
           <details className="tool-more projector-more" open={moreOpen} onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
             <summary>An earlier mat, a target or the tracker’s splits</summary>

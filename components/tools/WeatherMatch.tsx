@@ -85,6 +85,8 @@ const tSpan = (dc: number, u: TUnit) => `${num(u === 'f' ? dc * 1.8 : dc, 0)}${u
 const tDelta = (dc: number, u: TUnit) => { const v = u === 'f' ? dc * 1.8 : dc; return `${v > 0 ? '+' : ''}${num(v, 1)}${unitSign(u)}`; };
 const wind = (mps: number, units: UnitSystem) => (units === 'mi' ? `${num(mps * 2.236936, 1)} mph` : `${num(mps * 3.6, 0)} km/h`);
 const pctShare = (share: number) => (share > 0 && share < 0.005 ? '<1%' : `${Math.round(share * 100)}%`);
+/** A signed whole percent ("+16%"), as the sentence above the chart says it. */
+const signedWhole = (fraction: number) => { const v = Math.round(fraction * 100); return `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(v)}%`; };
 const signedPct = (fraction: number) => { const v = Math.round(fraction * 1000) / 10; return `${v > 0 ? '+' : v < 0 ? MINUS : ''}${num(Math.abs(v), 1)}%`; };
 const pctNum = (v: number) => num(v, v !== 0 && Math.abs(v) < 0.1 ? 2 : 1);
 const key = (c: number, hw: number, pace: number) => `${c}|${hw}|${pace}`;
@@ -622,15 +624,18 @@ function SectionsPanel({ match, units, centre, hw, winText, refText, refTone }: 
 }) {
   const { row, ref } = match;
   const showRef = ref !== null && !(centre === REF.c && hw === REF.hw);
-  const more = showRef ? row.after20 - ref!.after20 : 0;
+  // The sentence reads off the chart, in the chart's unit: the slowest section on mornings like yours, and the reference
+  // in that same section (both labelled on the chart).
+  const slow = row.profile.reduce((b, v, i) => (v > row.profile[b] ? i : b), 0);
+  const whole = (v: number) => `${Math.round(Math.abs(v) * 100)}%`;
+  const word = (v: number) => (v < 0 ? 'faster' : 'slower');
+  const both = showRef && Math.round(Math.abs(row.profile[slow] - ref!.profile[slow]) * 100) >= 1;
   return (
     <section className="tool-panel weather-match-sections" aria-labelledby="weather-match-sections-title">
       <p className="tool-nugget-text" id="weather-match-sections-title">
-        {showRef && Math.abs(more) >= 30
-          ? <>After {checkpointLabel(20, units)}, the median finish on mornings like yours lost <em>{mss(Math.abs(row.after20))}</em> to its own 5–20K pace, against {mss(Math.abs(ref!.after20))} on {refTone.toLowerCase()}.</>
-          : <>After {checkpointLabel(20, units)}, the median finish on mornings like yours lost <em>{mss(Math.abs(row.after20))}</em> to its own 5–20K pace.</>}
+        In {secName(slow)}, the median pace on mornings like yours was <em>{whole(row.profile[slow])} {word(row.profile[slow])}</em> than the same finishes’ 5–20K pace{both ? <>; on {refTone.toLowerCase()}, {whole(ref!.profile[slow])}</> : null}.
       </p>
-      <ProfileChart mine={row.profile} reference={showRef ? ref!.profile : null} units={units} mineLabel={`Yours, ${winText}`} refLabel={`${refTone}, ${refText}`} />
+      <ProfileChart mine={row.profile} reference={showRef ? ref!.profile : null} units={units} mineLabel={`Yours, ${winText}`} refLabel={`${refTone}, ${refText}`} at={slow} />
       <Values id="weather-match-sections-values" caption={`Median pace in each section against the same finishes’ 5–20K pace (positive is slower): mornings of ${winText}${showRef ? ` and ${refText}` : ''}`} count={9}>
         <table className="table">
           <thead><tr><th scope="col">Section</th><th scope="col">Yours</th>{showRef ? <th scope="col">{refTone}</th> : null}</tr></thead>
@@ -655,12 +660,12 @@ const secName = (i: number) => sectionName(SECTION_BOUNDS[i][0], SECTION_BOUNDS[
  * Median section pace against the finishes' own 5–20K pace: mornings like yours in the accent, the reference dashed in
  * ink. Slower is down, as on every pace profile. Drawn in pixels at the measured width.
  */
-function ProfileChart({ mine, reference, units, mineLabel, refLabel }: { mine: number[]; reference: number[] | null; units: UnitSystem; mineLabel: string; refLabel: string }) {
+function ProfileChart({ mine, reference, units, mineLabel, refLabel, at }: { mine: number[]; reference: number[] | null; units: UnitSystem; mineLabel: string; refLabel: string; at: number }) {
   const box = useRef<HTMLDivElement>(null);
   const width = useWidth(box, 640);
   const narrow = width < 520;
   const H = narrow ? 210 : 250;
-  const m = { l: 44, r: narrow ? 10 : 96, t: 14, b: 24 };
+  const m = { l: 44, r: narrow ? 10 : 40, t: 14, b: 24 };
   const values = [...mine, ...(reference ?? [])].map((v) => v * 100);
   const lo = Math.min(-2, Math.floor(Math.min(...values) - 0.5));
   const hi = Math.max(4, Math.ceil(Math.max(...values) + 1));
@@ -673,13 +678,28 @@ function ProfileChart({ mine, reference, units, mineLabel, refLabel }: { mine: n
   const mids = SECTION_BOUNDS.map(([a, b]) => (a + b) / 2);
   const path = (vals: number[]) => `M${vals.map((v, i) => `${x(mids[i]).toFixed(1)},${y(v * 100).toFixed(1)}`).join('L')}`;
   const xTicks = fitTicks([0, 10, 20, 30, 40].map((km) => ({ x: x(km), label: km ? `${km}K` : 'Start' })), width);
-  // Direct labels at the end of each line, kept apart.
-  let endMine = y(mine[8] * 100);
-  let endRef = reference ? y(reference[8] * 100) : 0;
-  if (reference && Math.abs(endRef - endMine) < 16) {
-    const midY = (endRef + endMine) / 2;
-    if (mine[8] >= reference[8]) { endMine = midY + 8; endRef = midY - 8; } else { endMine = midY - 8; endRef = midY + 8; }
-  }
+  // The sentence's two values, labelled on their points in the section it names, at every width: each label takes the
+  // first spot (left, right, above, below) clear of both lines, the other label and the plot's edges.
+  const segs = [mine, ...(reference ? [reference] : [])].flatMap((vals) => vals.slice(1).map((v, i) => [x(mids[i]), y(vals[i] * 100), x(mids[i + 1]), y(v * 100)] as const));
+  const hits = (b: { x0: number; y0: number; x1: number; y1: number }) => segs.some(([ax, ay, bx, by]) => {
+    for (let k = 0; k <= 12; k++) { const px = ax + ((bx - ax) * k) / 12, py = ay + ((by - ay) * k) / 12; if (px > b.x0 - 3 && px < b.x1 + 3 && py > b.y0 - 3 && py < b.y1 + 3) return true; }
+    return false;
+  });
+  const taken: { x0: number; y0: number; x1: number; y1: number }[] = [];
+  const place = (px: number, py: number, text: string) => {
+    const w = text.length * 8, h = 14;
+    // Beside, above and below the point, then the corners, each a little further out until one is clear.
+    const spots = [8, 14, 22, 30].flatMap((d) => [[px - d - w, py - h / 2], [px + d, py - h / 2], [px - w / 2, py - d - h], [px - w / 2, py + d],
+      [px - d - w, py - d - h], [px + d, py - d - h], [px - d - w, py + d], [px + d, py + d]]);
+    const box = (sx: number, sy: number) => ({ x0: sx, y0: sy, x1: sx + w, y1: sy + h });
+    const inside = (b: ReturnType<typeof box>) => b.x0 >= 2 && b.x1 <= width - 2 && b.y0 >= 0 && b.y1 <= H - m.b + 4;
+    const clash = (b: ReturnType<typeof box>) => taken.some((t) => t.x0 < b.x1 + 4 && t.x1 > b.x0 - 4 && t.y0 < b.y1 + 2 && t.y1 > b.y0 - 2);
+    const pick = spots.map(([sx, sy]) => box(sx, sy)).find((b) => inside(b) && !hits(b) && !clash(b)) ?? box(spots[0][0], spots[0][1]);
+    taken.push(pick);
+    return { x: pick.x0, y: pick.y0 + h - 3 };
+  };
+  const labelMine = place(x(mids[at]), y(mine[at] * 100), signedWhole(mine[at]));
+  const labelRef = reference ? place(x(mids[at]), y(reference[at] * 100), signedWhole(reference[at])) : null;
   const describe = (vals: number[]) => vals.map((v, i) => `${secName(i)} ${signedPct(v)}`).join(', ');
   const aria = `Median section pace against the 5–20K pace. ${mineLabel}: ${describe(mine)}.${reference ? ` ${refLabel}: ${describe(reference)}.` : ''}`;
   return (
@@ -704,12 +724,8 @@ function ProfileChart({ mine, reference, units, mineLabel, refLabel }: { mine: n
             <path d={path(mine)} />
             {mine.map((v, i) => <circle key={i} cx={x(mids[i])} cy={y(v * 100)} r={3.5} />)}
           </g>
-          {!narrow ? (
-            <g>
-              <text x={x(mids[8]) + 10} y={endMine + 4} className="weather-match-end is-yours">Yours {signedPct(mine[8])}</text>
-              {reference ? <text x={x(mids[8]) + 10} y={endRef + 4} className="weather-match-end is-ref">Ref. {signedPct(reference[8])}</text> : null}
-            </g>
-          ) : null}
+          <text x={labelMine.x} y={labelMine.y} className="weather-match-end is-yours">{signedWhole(mine[at])}</text>
+          {reference && labelRef ? <text x={labelRef.x} y={labelRef.y} className="weather-match-end is-ref">{signedWhole(reference[at])}</text> : null}
         </svg>
       </div>
       <ul className="weather-match-legend" aria-hidden="true">
@@ -990,7 +1006,7 @@ function ResearchPanel({ tempC, dewC, need, tUnit, goal, by, paceLabel }: {
       <header className="tool-panel-head">
         <EvidenceTag kind="research" />
         <h2 className="tool-panel-title" id="weather-match-research-title">
-          {ready && flag ? <>Heat stress about {tAbs(wbgt!, tUnit)}: <em className="nowrap">{FLAG_TEXT[flag].risk}</em> on the race-flag scale.</> : 'What published research and rules of thumb suggest'}
+          {ready && flag ? <>This forecast: <em className="nowrap">{FLAG_TEXT[flag].risk}</em> on the race-flag heat-stress scale.</> : 'What published research and rules of thumb suggest'}
         </h2>
         {goalText && by === 'pace' ? <p className="tool-panel-meta">Minutes are on {goalText}, your {paceLabel} held for the whole race.</p> : null}
       </header>

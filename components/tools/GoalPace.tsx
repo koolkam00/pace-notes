@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { ToolHandoffs } from '@/components/tools/Handoffs';
@@ -7,7 +8,7 @@ import MatLines from '@/components/tools/MatLines';
 import Values from '@/components/ui/Values';
 import { evenPaceGapText, groupGapText, type GoalPeer } from '@/lib/tools/goal-facts';
 import { MARATHON_KM, MATS_KM, perUnit, splitTable } from '@/lib/tools/pace';
-import { GOAL_PAGE_MINUTES, courseChooserHref, evenAt, goalLabel, goalPagePath, paceBandHref } from '@/lib/tools/pace-chart';
+import { evenAt, goalLabel, paceBandHref } from '@/lib/tools/pace-chart';
 import { formatDuration } from '@/lib/tools/time';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 
@@ -60,7 +61,9 @@ const against = (gap: number) => (Math.abs(gap) < 0.5 ? 'level with' : `${format
 const finished = (gap: number) => (Math.abs(gap) < 0.5 ? 'level with them' : `${formatDuration(Math.abs(gap))} ${gap < 0 ? 'faster' : 'slower'}`);
 
 /** Everything below the header of a goal page. Static HTML in miles; redrawn in km once the units preference is read. */
-export function GoalPaceBody({ goal, observed, bunching }: { goal: number; observed: GoalObserved | null; bunching: GoalBunching | null; peers?: GoalPeer[] }) {
+export function GoalPaceBody({ goal, observed, bunching, pileup }: { goal: number; observed: GoalObserved | null; bunching: GoalBunching | null; peers?: GoalPeer[];
+  /** The pile-up's figure, drawn on the server (a mini minute histogram). */
+  pileup?: ReactNode }) {
   const { units } = useUnits();
   const label = goalLabel(goal);
   const seconds = goal * 60;
@@ -113,10 +116,10 @@ export function GoalPaceBody({ goal, observed, bunching }: { goal: number; obser
       {bunching ? (
         <section className="tool-panel goal-pace-bunching" aria-labelledby="goal-pace-bunching-title">
           <EvidenceTag kind="data" />
-          <h2 className="tool-panel-kicker" id="goal-pace-bunching-title">The pile-up before {label}</h2>
-          <p className="tool-nugget-text">
+          <h2 className="tool-nugget-text" id="goal-pace-bunching-title">
             {count(bunching.before)} finishes landed in the last minute under {label}: <em>{bunching.ratio.toFixed(2)}×</em> what a smooth curve expects there.
-          </p>
+          </h2>
+          {pileup}
           <p className="tool-note goal-pace-more"><Link href="/stories/round-numbers">The 3:59 effect</Link></p>
         </section>
       ) : null}
@@ -159,20 +162,11 @@ export function GoalPaceBody({ goal, observed, bunching }: { goal: number; obser
         </section>
       ) : null}
 
+      {/* One next step (the pace band); the chapter end below carries the way back. Other goals are one tap away on the
+          pace chart and the tools list. */}
       <ToolHandoffs label={`Racing for ${label}?`} links={[
         { href: paceBandHref(goal), title: `Pace band for ${label}`, text: <>Print it, with the observed mat times for your course.</> },
-        { href: courseChooserHref(goal), title: `Every course at ${label}`, text: <>How finishes on this pace held up on each course.</> },
-        { href: '/tools/marathon-pace-chart', title: 'Marathon pace chart', text: <>Every goal from 2:30 to 6:30.</> },
       ]} />
-
-      <nav className="tools-goals goal-pace-others no-print" aria-labelledby="goal-pace-others">
-        <h2 id="goal-pace-others" className="tool-handoffs-label">Other goals</h2>
-        <ul className="tools-goal-links">
-          {GOAL_PAGE_MINUTES.map((m) => (
-            <li key={m}>{m === goal ? <span aria-current="page">{goalLabel(m)}</span> : <Link href={goalPagePath(m)}>{goalLabel(m)}</Link>}</li>
-          ))}
-        </ul>
-      </nav>
     </>
   );
 }

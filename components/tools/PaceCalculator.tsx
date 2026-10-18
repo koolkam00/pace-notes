@@ -109,6 +109,7 @@ export default function PaceCalculator() {
   const interval = fits(requested) ? requested : (intervalOptions.find((o) => SPLIT_KM[o.value] >= SPLIT_KM[requested])?.value ?? '5k');
   const diff = DIFFS.includes(Number(q.diff)) ? Number(q.diff) : 0;
   const rows = useMemo(() => (ready ? splitTable(seconds!, km!, interval, diff) : []), [ready, seconds, km, interval, diff]);
+  const others = DISTANCES.filter((d) => Math.abs(d.km - (km ?? 0)) > 0.01 && !rows.some((r) => Math.abs(r.km - d.km) < 0.01));
   const isMarathon = km !== null && Math.abs(km - MARATHON_KM) < 1e-6;
 
   const edit = (field: Field, patch: Partial<typeof q>) => {
@@ -200,25 +201,38 @@ export default function PaceCalculator() {
                   <header className="tool-panel-head">
                     <h2 className="tool-panel-title" id="pace-calculator-splits-title">{diff ? `Splits, second half ${diff < 0 ? 'faster' : 'slower'} by ${Math.abs(diff) / 60} min` : 'Splits at an even pace'}</h2>
                   </header>
+                  {/* One control on the beat: the split length. A faster or slower second half folds away below the splits. */}
                   <div className="pace-calculator-controls no-print">
                     <Choice label="Split every" small value={interval} onChange={(v) => setQ({ split: v })} options={shownIntervals} />
-                    <label className="pace-calculator-diff">
-                      <span>Second half</span>
-                      <select value={String(diff)} onChange={(e) => setQ({ diff: e.target.value })} aria-label="Second half faster or slower, in total">
-                        {DIFFS.map((v) => <option key={v} value={v}>{v === 0 ? 'Even' : `${v < 0 ? 'Faster' : 'Slower'} by ${Math.abs(v) / 60} min`}</option>)}
-                      </select>
-                    </label>
                   </div>
                   {intervalOptions.length < INTERVALS.length ? <p className="tool-note no-print">Shorter splits are not offered for {fmtDistance(km!, units)}: they would need more than {MAX_ROWS} rows.</p> : null}
                   <ol className="tool-laps pace-calculator-laps" aria-label={`Elapsed time at each split${diff ? '' : ' at an even pace'}`}>
-                    {rows.map((r, i) => (
-                      <li key={r.km} className={r.finish ? 'is-finish' : undefined}>
-                        <span>{r.finish ? 'Finish' : r.halfway ? 'Halfway' : r.mat ? `${r.km}K` : fmtDistance(r.km, units)}{r.mat && units === 'mi' ? <small>{(r.km / KM_PER_MILE).toFixed(1)} mi</small> : null}</span>
-                        <b>{formatDuration(r.elapsed, r.elapsed >= 3599.5)}</b>
-                        <small className="pace-calculator-split">{formatDuration(r.split)} · {fmtPace(r.split / (r.km - (rows[i - 1]?.km ?? 0)), units)}</small>
-                      </li>
-                    ))}
+                    {rows.map((r, i) => {
+                      // A cell's second line only says what differs from the split before it: a shorter last split (to
+                      // halfway or the finish) or a changed pace. At an even pace most cells have none.
+                      const len = r.km - (rows[i - 1]?.km ?? 0), lap = rows[0] ? rows[0].km : len;
+                      const split = Math.abs(len - lap) > 1e-6 ? formatDuration(r.split) : null;
+                      const pace = Math.abs(r.split / len - paceKm!) > 0.5 / (units === 'mi' ? KM_PER_MILE : 1) ? fmtPace(r.split / len, units) : null;
+                      return (
+                        <li key={r.km} className={r.finish ? 'is-finish' : undefined}>
+                          <span>{r.finish ? 'Finish' : r.halfway ? 'Halfway' : r.mat ? `${r.km}K` : fmtDistance(r.km, units)}{r.mat && units === 'mi' ? <small>{(r.km / KM_PER_MILE).toFixed(1)} mi</small> : null}</span>
+                          <b>{formatDuration(r.elapsed, r.elapsed >= 3599.5)}</b>
+                          {split || pace ? <small className="pace-calculator-split">{[split, pace].filter(Boolean).join(' · ')}</small> : null}
+                        </li>
+                      );
+                    })}
                   </ol>
+                  <details className="tool-more pace-calculator-more no-print" open={diff !== 0 || undefined}>
+                    <summary>A faster or slower second half</summary>
+                    <div className="tool-more-body">
+                      <label className="pace-calculator-diff">
+                        <span>Second half</span>
+                        <select value={String(diff)} onChange={(e) => setQ({ diff: e.target.value })} aria-label="Second half faster or slower, in total">
+                          {DIFFS.map((v) => <option key={v} value={v}>{v === 0 ? 'Even' : `${v < 0 ? 'Faster' : 'Slower'} by ${Math.abs(v) / 60} min`}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                  </details>
                   <Values id="pace-calculator-watch" caption={`If your watch reads the course long, the average pace it shows for ${formatDuration(seconds!, true)}`} count={5}>
                     <table className="table">
                       <thead><tr><th scope="col">Watch reads</th><th scope="col">Average it shows</th></tr></thead>
@@ -234,15 +248,19 @@ export default function PaceCalculator() {
                   </Values>
                 </section>
 
-                <section className="tool-panel pace-calculator-others" aria-labelledby="pace-calculator-others-title">
-                  <header className="tool-panel-head">
-                    <h2 className="tool-panel-title" id="pace-calculator-others-title">{fmtPace(paceKm!, units)} at other distances</h2>
-                  </header>
-                  <dl className="tool-cells pace-calculator-distances">
-                    {DISTANCES.map((d) => <div key={d.key}><dt>{d.label}</dt><dd>{formatDuration(paceKm! * d.km, paceKm! * d.km >= 3599.5)}</dd></div>)}
-                  </dl>
-                  <p className="tool-note">Not a predicted race time: for a marathon estimate from a shorter race, use the <Link href="/tools/predictor">finish-time predictor</Link>.</p>
-                </section>
+                {/* Only the distances the splits above do not already give, and never the distance typed: a block for
+                    two or more, else just the pointer to the predictor. */}
+                {others.length >= 2 ? (
+                  <section className="tool-panel pace-calculator-others" aria-labelledby="pace-calculator-others-title">
+                    <header className="tool-panel-head">
+                      <h2 className="tool-panel-title" id="pace-calculator-others-title">{fmtPace(paceKm!, units)} at other distances</h2>
+                    </header>
+                    <dl className="tool-cells pace-calculator-distances">
+                      {others.map((d) => <div key={d.key}><dt>{d.label}</dt><dd>{formatDuration(paceKm! * d.km, paceKm! * d.km >= 3599.5)}</dd></div>)}
+                    </dl>
+                    <p className="tool-note">Not a predicted race time: for a marathon estimate from a shorter race, use the <Link href="/tools/predictor">finish-time predictor</Link>.</p>
+                  </section>
+                ) : <p className="tool-note pace-calculator-predictor">For a marathon estimate from a shorter race, use the <Link href="/tools/predictor">finish-time predictor</Link>.</p>}
                 <ShareBar />
               </>
             ) : <p className="tool-empty">{solvedOutOfRange ? solvedMessage(km!, units) : 'Enter two of distance, time and pace to see splits.'}</p>}

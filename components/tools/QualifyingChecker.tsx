@@ -381,7 +381,9 @@ export default function QualifyingChecker() {
     example ? `date of birth (${fmtDate(EXAMPLE_BIRTH)})` : null,
   ].filter((x): x is string => x !== null);
   const exampleNote = !ready ? null
-    : allExample ? <>An example runner: {DIVISION_WORD[division]}, {fmtTime(shown!)} on {fmtDate(raceDate)}, born {fmtDate(EXAMPLE_BIRTH)}. Enter yours; each race works out your age group its own way.</>
+    // Every input the example's: the card's kicker says "Example", and the inputs above show it, so no paragraph repeats
+    // them. Only a partly typed example names what is still the example's (the date of birth sets every age group).
+    : allExample ? null
     : stillExample.length ? <>The {listWords(stillExample)} {stillExample.length > 1 ? 'are still examples' : 'is still the example'}. Enter yours{example ? ': each race works out your age group differently' : ''}.</>
     : null;
   // Links to the pace band name the division only when the visitor chose it (from the link or here).
@@ -481,7 +483,7 @@ export default function QualifyingChecker() {
               {exampleNote ? <ExampleNote>{exampleNote}</ExampleNote> : null}
               <section className="tool-reading night qualifying-headline" aria-labelledby={`${ids}-headline`}>
                 <div className="tool-reading-head">
-                  <p className="tool-reading-kicker">{DIVISIONS.find((d) => d.division === division)!.label} · {fmtTime(shown!)} · {planned ? 'planned for' : 'run'} {fmtDate(raceDate)}</p>
+                  <p className="tool-reading-kicker">{allExample ? 'Example · ' : ''}{DIVISIONS.find((d) => d.division === division)!.label} · {fmtTime(shown!)} · {planned ? 'planned for' : 'run'} {fmtDate(raceDate)}</p>
                   <h2 className="tool-reading-figure" id={`${ids}-headline`}>
                     {meets === items.length ? `Meets all ${items.length}` : `Meets ${meets} of ${items.length}`}
                     <small>{boston ? <BostonLine it={boston} raceDate={raceDate} /> : 'time standards'}</small>

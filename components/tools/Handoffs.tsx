@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import Arrow from '@/components/ui/Arrow';
-import { formatDuration, formatHM } from '@/lib/tools/time';
+import { formatHM } from '@/lib/tools/time';
 import { paceBandGoalHref, pacingPatternHref, planHref } from '@/lib/tools/links';
 
 /**
@@ -31,7 +31,7 @@ export function ToolHandoffs({ label, links }: { label: string; links: { href: s
 /**
  * Where a marathon time (whole seconds) goes next: the race planner for it, a pace band for it, and how finishes near it
  * were paced. Each opens at the whole minute at or below it, the way every tool hands a time on (4:11:41 is 4:11), and
- * the band says so.
+ * each row names that minute (once, with no note repeated row by row).
  */
 export function MarathonHandoffs({ label, seconds }: { label: string; seconds: number }) {
   const minutes = Math.floor(seconds / 60);
@@ -39,15 +39,14 @@ export function MarathonHandoffs({ label, seconds }: { label: string; seconds: n
   const band = paceBandGoalHref(minutes);
   const pacing = pacingPatternHref(minutes);
   const time = formatHM(minutes * 60);
-  const below = seconds % 60 ? ` (the minute at or below ${formatDuration(seconds, true)})` : '';
   // The pace band shows observed mat times for goals from 2:30 to 6:30, and an even-pace band alone outside them.
   const observed = minutes >= 150 && minutes <= 390;
   return (
     <ToolHandoffs label={label} links={[
       ...(plan ? [{ href: plan, title: 'Plan this goal',
-        text: `Pick your course: even pace for ${time}${below}, and how that pace held up there.` }] : []),
+        text: `Pick your course: even pace for ${time}, and how that pace held up there.` }] : []),
       ...(band ? [{ href: band, title: 'Turn this into a pace band',
-        text: observed ? `Even splits for ${time}${below}, beside the mat times of finishes that just beat it.` : `Even splits for ${time}${below}, ready to print.` }] : []),
+        text: observed ? `Even splits for ${time}, beside the mat times of finishes that just beat it.` : `Even splits for ${time}, ready to print.` }] : []),
       ...(pacing ? [{ href: pacing, title: 'See how finishers near this time paced', text: `Pace through each section for finishes near ${time}.` }] : []),
     ]} />
   );

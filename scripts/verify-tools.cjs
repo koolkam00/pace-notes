@@ -259,10 +259,11 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.match(handoffs(140), /Even splits for 2:20, ready to print/, 'Outside 2:30–6:30 the pace band has no observed mat times'); ok();
   assert.deepEqual(hrefs(handoffs(600)), ['/analyses/pacing-pattern?goal=600'], 'Past the pace band\'s and the planner\'s 8:00 only the analysis link stays'); ok();
   assert.equal(handoffs(60), '', 'Nothing to hand off outside both ranges'); ok();
-  // A time with seconds opens both at the minute at or below it, and the band's card says which minute that is.
+  // A time with seconds opens each page at the minute at or below it, and every row names that minute, with no note
+  // repeated row by row (critic round 2, October 18, 2026).
   assert.deepEqual(hrefs(handoffs(251, 41)), ['/tools/plan?goal=4:11', '/tools/pace-band?goal=4:11', '/analyses/pacing-pattern?goal=251']); ok();
-  assert.match(handoffs(251, 41), /Even splits for 4:11 \(the minute at or below 4:11:41\), beside/); ok();
-  assert.doesNotMatch(handoffs(251), /minute at or below/, 'A whole-minute time needs no note'); ok();
+  assert.match(handoffs(251, 41), /Pick your course: even pace for 4:11, and how[\s\S]*Even splits for 4:11, beside/); ok();
+  assert.doesNotMatch(handoffs(251, 41), /minute at or below|4:11:41/, 'The rows name the minute they open at, once each, with no parenthetical'); ok();
   assert.doesNotMatch(handoffs(237), /<button|your chance|arithmetic/i, 'Links only (never counted as a tool edit), in the site\'s words'); ok();
   // Each tool hands on the whole minute at or below its time, the way every tool reads 4:11:41 as 4:11.
   const source = (name) => fs.readFileSync(path.join(__dirname, '..', 'components/tools', name), 'utf8');
@@ -308,7 +309,10 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.doesNotMatch(sourceOf('components/tools/CourseChooser.tsx'), /courseGoalReason|tooFewEditions|SLOWDOWN_DEFINITION/, 'The course chooser prints no eligibility reasons or definitions'); ok();
   // One row per course since the October 2026 redesign: the whole row is the link, and it names the goal it plans.
   assert.match(sourceOf('components/tools/CourseChooser.tsx'), /<Link className="cc-row" href=\{planHref\(course\.city, goal\) \?\? '\/tools\/plan'\}>[\s\S]*?Plan \{goalText\}[\s\S]*?<\/Link>/, 'Each course chooser row links to the planner for its course and goal'); ok();
-  assert.match(sourceOf('app/tools/qualifying/[race]/page.tsx'), /import \{ QUALIFYING_COURSE, STANDARDS \} from '@\/lib\/tools\/qualifying';/, 'The race pages read the shared course map'); ok();
+  // A race page links on once, to the checker for every race, and back once (critic round 2, October 18, 2026): no chip
+  // cloud of the other races and no course-page link, which the course pages' own qualifying links cover.
+  assert.match(sourceOf('components/tools/QualifyingRace.tsx'), /<Link href="\/tools\/qualifying">[\s\S]*?Check one time against all \{others\.length \+ 1\} races/, 'The race page links on to the checker'); ok();
+  assert.doesNotMatch(sourceOf('components/tools/QualifyingRace.tsx'), /QualifyingRaceLinks|course\.href/, 'No second list of links at the end of a race page'); ok();
   assert.deepEqual(qualifying.STANDARDS.map((s) => qualifying.QUALIFYING_COURSE[s.key]), ['Boston', 'New York', 'London', 'Chicago', 'Berlin', 'Sydney'], 'Every race with standards names its course');
   assert.deepEqual(['Boston', 'New York', 'Prague'].map(qualifying.qualifyingKeyForCity), ['boston', 'nyc', null]); checks += 2;
 

@@ -52,6 +52,8 @@ const paceText = (sPerKm: number, units: UnitSystem) => `${formatDuration(perUni
 
 const inMonth = (c: CourseContext, m: number | null) => m === null || c.months.includes(m);
 const inOpening = (c: CourseContext, o: Opening) => o === '' || (o === 'downhill') === c.downhill_opening;
+/** A course's name as every page writes it (the data's "New York" is New York City, as on the analyses). */
+const displayCity = (city: string) => (city === 'New York' ? 'New York City' : city);
 const monthText = (months: number[]) => (months.length ? months.map((m) => MONTHS[m - 1]).join(', ') : '—');
 
 /**
@@ -126,11 +128,11 @@ function ShareStrip({ items, goalText }: { items: Item[]; goalText: string }) {
   const span = hi.row.under - lo.row.under || 1;
   const at = (it: Item) => `${((it.row.under - lo.row.under) / span) * 100}%`;
   return (
-    <figure className="viz cc-strip" aria-label={`Share that made ${goalText}, course by course: from ${pctText(lo.row.under)} in ${lo.course.city} to ${pctText(hi.row.under)} in ${hi.course.city}.`} role="img">
+    <figure className="viz cc-strip" aria-label={`Share that made ${goalText}, course by course: from ${pctText(lo.row.under)} in ${displayCity(lo.course.city)} to ${pctText(hi.row.under)} in ${displayCity(hi.course.city)}.`} role="img">
       <div className="cc-strip-track">
         {sorted.map((it) => <i key={it.course.slug} className={it === lo || it === hi ? 'is-end' : undefined} style={{ left: at(it) }} />)}
       </div>
-      <div className="cc-strip-ends" aria-hidden="true"><span>{lo.course.city}</span><span>{hi.course.city}</span></div>
+      <div className="cc-strip-ends" aria-hidden="true"><span>{displayCity(lo.course.city)}</span><span>{displayCity(hi.course.city)}</span></div>
     </figure>
   );
 }
@@ -307,11 +309,12 @@ export default function CourseChooser({ sha, screened }: {
                   {visible.map(({ row, course }) => (
                     <li key={course.slug}>
                       <Link className="cc-row" href={planHref(course.city, goal) ?? '/tools/plan'}>
-                        <span className="cc-name">{course.city}</span>
+                        <span className="cc-name">{displayCity(course.city)}</span>
                         <span className="cc-bar" aria-hidden="true"><i style={{ width: `${(row.under / maxUnder) * 100}%` }} /></span>
                         <span className="cc-share"><b>{pctText(row.under)}</b><span className="sr-only"> made {goalText}</span></span>
                         <span className="cc-sub">{pctText(row.sd)} sustained slowdown · {monthText(course.months)}{course.downhill_opening ? ' · downhill start' : ''}<span className="sr-only"> · {count(row.n)} finishes</span></span>
-                        <span className="cc-plan">Plan {goalText}<span className="sr-only"> in {course.city}</span><Arrow /></span>
+                        {/* The whole row is the link: its name says where it goes, so no visible label repeats on every row. */}
+                        <span className="cc-plan"><span className="sr-only">Plan {goalText} in {displayCity(course.city)}</span><Arrow /></span>
                       </Link>
                     </li>
                   ))}
@@ -322,7 +325,7 @@ export default function CourseChooser({ sha, screened }: {
                   <button type="button" className="btn btn-tertiary course-chooser-clear" onClick={clearFilters}>Clear filters</button>
                 </p>
               )}
-              {unpublished.length ? <p className="tool-note">Not published at {goalText}: {unpublished.join(', ')}.</p> : null}
+              {unpublished.length ? <p className="tool-note">Not published at {goalText}: {unpublished.map(displayCity).join(', ')}.</p> : null}
             </section>
           </div>
           <ShareBar />

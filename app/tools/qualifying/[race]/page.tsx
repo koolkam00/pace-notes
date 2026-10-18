@@ -1,9 +1,8 @@
 import { notFound } from 'next/navigation';
-import QualifyingRace, { type CourseLink } from '@/components/tools/QualifyingRace';
-import { pageDescription, pageTitle, raceName, racePath, standardByKey } from '@/components/tools/QualifyingRaceText';
-import { getCourseNames, slugifyCity } from '@/lib/course-data';
+import QualifyingRace from '@/components/tools/QualifyingRace';
+import { pageDescription, pageTitle, racePath, standardByKey } from '@/components/tools/QualifyingRaceText';
 import { pageMetadata } from '@/lib/seo';
-import { QUALIFYING_COURSE, STANDARDS } from '@/lib/tools/qualifying';
+import { STANDARDS } from '@/lib/tools/qualifying';
 
 /**
  * One page per race in lib/tools/qualifying.ts, at its own key: /tools/qualifying/boston, /nyc, /london, …
@@ -20,15 +19,8 @@ export function generateMetadata({ params }: { params: { race: string } }) {
   return pageMetadata({ title: pageTitle(s), description: pageDescription(s), path: racePath(s) });
 }
 
-/** The race's course page, where Pace Notes has one. */
-function courseLink(key: string, race: string): CourseLink {
-  const city = QUALIFYING_COURSE[key];
-  if (!city || !getCourseNames().includes(city)) return null;
-  return { href: `/courses/${slugifyCity(city)}`, label: `${race} course and pacing` };
-}
-
 export default function QualifyingRacePage({ params }: { params: { race: string } }) {
   const s = standardByKey(params.race);
   if (!s) notFound();
-  return <QualifyingRace s={s} others={STANDARDS.filter((o) => o.key !== s.key)} course={courseLink(s.key, raceName(s))} />;
+  return <QualifyingRace s={s} others={STANDARDS.filter((o) => o.key !== s.key)} />;
 }

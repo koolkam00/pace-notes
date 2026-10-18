@@ -23,6 +23,8 @@
   font-size: var(--t-small); font-weight: 600; text-align: left; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 .tool-page .projector-link-button:hover { background: none; text-decoration-thickness: 2px; }
 .tool-page .projector-link-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* The next mat, under the mats still to come: a text row with the site's arrow. */
+.tool-page .projector-advance { display: inline-flex; align-items: center; gap: 6px; }
 .projector-paste { border-top: 1px solid var(--rule); }
 .projector-paste > summary { display: flex; align-items: center; justify-content: space-between; min-height: 48px; list-style: none; cursor: pointer; font-size: .9375rem; font-weight: 600; color: var(--ink); }
 .projector-paste > summary::-webkit-details-marker { display: none; }
