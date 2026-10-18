@@ -8,7 +8,7 @@ import type { UnitSystem } from '@/lib/units';
 import Waffle from '@/components/viz/Waffle';
 import LineProfile from '@/components/viz/LineProfile';
 import Values from '@/components/ui/Values';
-import ByUnits from '../ByUnits.client';
+import ByUnits from '@/components/ui/ByUnits.client';
 import { Beat, Say, StoryHero, StoryPage, keep, rich } from '../StoryPage';
 
 const PATH = '/stories/race-morning';

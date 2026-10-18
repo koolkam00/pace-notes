@@ -82,7 +82,6 @@ const WARNINGS = {
   'description-length': 'Descriptions over 155 characters',
   'og-image-fallback': 'Pages that use a less specific share card than the one scripts/build-og-images.cjs makes for them (run npm run og:images)',
   policy: 'Policy notes',
-  pending: 'Links to moved addresses, and target anchors, that another redesign package removes or adds when it lands (PENDING below)',
 };
 const failures = new Map(Object.keys(CHECKS).map((key) => [key, []]));
 const warnings = new Map(Object.keys(WARNINGS).map((key) => [key, []]));
@@ -676,22 +675,6 @@ let sitemapLocs = [];
 
 // ---------- Moved addresses: stubs, redirects and links ----------
 
-/**
- * Work the redesign's other packages finish when they land (the spec, section 8): pages that still link a moved address,
- * and target anchors their owner adds. Reported as warnings while pending; an entry that no longer applies fails, so
- * the list empties as the packages merge and WP9 deletes it.
- */
-const PENDING_LINKS = {
-  '/methodology': 'WP7 (methodology: the research-question and personalized-guide links)',
-  '/research': 'WP7 (contents: the archive and guide rows)',
-  '/analyses': 'WP7 (the analyses list: the two weather questions)',
-  '/analyses/race-day-weather': 'WP3 (race-day weather: its weather-question links)',
-  '/analyses/downhill-start': 'WP3 (downhill starts: the earlier-result and archive links)',
-};
-const PENDING_ANCHORS = {
-  '/analyses/race-day-weather#warming': 'WP3 (the warming tab)',
-  '/analyses/race-day-weather#wind': 'WP3 (the wind tab)',
-};
 /** Addresses vercel.json redirects that have no page and no stub: the old goal-pace index and a course no longer built. */
 const REDIRECT_ONLY = { '/tools/marathon-pace': '/tools/marathon-pace-chart', '/courses/melbourne': '/courses' };
 
@@ -703,6 +686,8 @@ const linkPath = (href, from) => {
   try { return decodeURIComponent(url.pathname.replace(/\/$/, '')) || '/'; } catch { return null; }
 };
 const idsOf = (page) => new Set([...page.html.matchAll(/<[a-z][\w:-]*\b[^>]*\bid\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)].map((m) => decode(m[1] ?? m[2])));
+/** The tabs a page opens from its address's hash (components/analysis/WeatherTabs.client.tsx: a panel's data-tab). */
+const tabsOf = (page) => new Set([...page.html.matchAll(/\bdata-tab\s*=\s*"([^"]*)"/gi)].map((m) => decode(m[1])));
 /** The arguments of a stub's forward (components/LegacyAnalysisLink.tsx): [to, guides, base path], or null without one. */
 const forwardOf = (page) => {
   const scripts = [...page.html.matchAll(/<script\b[^>]*\bdata-forward\b[^>]*>([\s\S]*?)<\/script>/gi)];
@@ -742,10 +727,8 @@ const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
     if (!target) fail('stubs', from, `moves to ${toPath}, which is not in the export`);
     else if (expectNoindex(target) || hasNoindex(target)) fail('stubs', from, `moves to ${toPath}, which is noindex`);
     else if (toHash) {
-      const present = idsOf(target).has(toHash);
-      if (PENDING_ANCHORS[to] && present) fail('stubs', to, `is in the export now: delete its PENDING_ANCHORS entry (${PENDING_ANCHORS[to]}) in scripts/verify-seo.cjs`);
-      else if (PENDING_ANCHORS[to]) warn('pending', from, `moves to ${to}; ${toPath} has no id="${toHash}" until ${PENDING_ANCHORS[to]} lands`);
-      else if (!present) fail('stubs', from, `moves to ${to}, but ${toPath} has no element with id="${toHash}"`);
+      // The hash lands on an element with that id, or opens the tab of that name (a tabbed page reads its hash).
+      if (!idsOf(target).has(toHash) && !tabsOf(target).has(toHash)) fail('stubs', from, `moves to ${to}, but ${toPath} has no element with id="${toHash}" and no tab of that name`);
     }
   }
 })();
@@ -788,10 +771,8 @@ const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
   }
   for (const [from, hits] of linking) {
     const message = `links ${hits.length} moved address${hits.length === 1 ? '' : 'es'}, e.g. ${hits.slice(0, 3).join(' , ')} (link to ${moved(linkPath(hits[0], from))} instead)`;
-    if (PENDING_LINKS[from]) warn('pending', from, `${message}; ${PENDING_LINKS[from]}`);
-    else fail('moved-links', from, message);
+    fail('moved-links', from, message);
   }
-  for (const [from, owner] of Object.entries(PENDING_LINKS)) if (!linking.has(from)) fail('moved-links', from, `no longer links a moved address: delete its PENDING_LINKS entry (${owner}) in scripts/verify-seo.cjs`);
 })();
 
 // ---------- Links into the methods page ----------

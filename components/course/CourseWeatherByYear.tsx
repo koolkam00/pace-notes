@@ -3,7 +3,7 @@ import { getNugget } from '@/lib/nuggets';
 import { pct, temp } from '@/lib/nuggets/format';
 import type { CoursePageData } from '@/lib/course-page';
 import type { UnitSystem } from '@/lib/units';
-import ByUnits from './ByUnits.client';
+import ByUnits from '@/components/ui/ByUnits.client';
 import { CourseSection, Said } from './Fact';
 
 /**

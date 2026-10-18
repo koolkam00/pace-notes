@@ -1,6 +1,5 @@
 /**
- * The race report as a 1080 × 1350 PNG (a portrait card for sharing), drawn like the site's share card
- * (lib/share-image.ts): a night surface, the race in Fraunces, the finish in Bricolage, then the lap list (each mat's
+ * The race report as a 1080 × 1350 PNG (a portrait card for sharing): a night surface, the race in Fraunces, the finish in Bricolage, then the lap list (each mat's
  * split and pace, and a bar from the race's own 5–20K pace, the sustained-slowdown sections in the night signal), the
  * reading, and the Pace Notes data lines under their label. Drawn on a canvas that is never added to the page, after
  * document.fonts.ready, in the site's own self-hosted fonts, so nothing is requested from another host and no library

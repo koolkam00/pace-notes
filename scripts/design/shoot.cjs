@@ -38,7 +38,7 @@ const PROFILES = {
   phone664: { context: { ...phone, viewport: { width: 390, height: 664 } }, captures: ['first'], homeOnly: true },
   phone714: { context: { ...phone, viewport: { width: 402, height: 714 } }, captures: ['first'], homeOnly: true },
   desktop: { context: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, userAgent: DESKTOP_UA }, captures: ['first', 'full'] },
-  dark: { context: phone, captures: ['first', 'full'], dark: true },
+  dark: { context: phone, captures: ['first', 'full'], dark: true },   // the system setting dark (colorScheme)
   reduced: { context: { ...phone, reducedMotion: 'reduce' }, captures: ['full'] },
   km: { context: phone, captures: ['first'], query: { units: 'km' } },
   zoom: { context: { ...phone, viewport: { width: 195, height: 332 } }, captures: ['first'] },
@@ -153,14 +153,10 @@ async function measure(page) {
 async function capture(browser, route, name, opts, ix) {
   const profile = PROFILES[name];
   const foreign = [];
-  const context = await browser.newContext({ ...profile.context, reducedMotion: profile.context.reducedMotion || 'no-preference' });
+  // The dark profile is a phone whose system setting is dark: the page follows prefers-color-scheme (tokens.css), as a
+  // reader's phone does, with nothing set on the page.
+  const context = await browser.newContext({ ...profile.context, reducedMotion: profile.context.reducedMotion || 'no-preference', colorScheme: profile.dark ? 'dark' : 'light' });
   await serve(context, opts.dir, foreign);
-  if (profile.dark) {
-    await context.addInitScript(() => {
-      const set = () => { if (!document.documentElement) return false; document.documentElement.setAttribute('data-theme', 'dark'); return true; };
-      if (!set()) new MutationObserver((_, o) => { if (set()) o.disconnect(); }).observe(document, { childList: true });
-    });
-  }
   const page = await context.newPage();
   const target = withQuery(route, profile.query);
   const { status, errors } = await open(page, target, opts);

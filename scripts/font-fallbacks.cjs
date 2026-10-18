@@ -29,9 +29,9 @@ const { respond } = require('./e2e/server.cjs');
 const ROOT = path.join(__dirname, '..');
 const OUT = path.join(ROOT, 'out');
 const SITE = 'https://splithappens.run';
-// /design-system holds the redesign's type (Fraunces at 440, its italic accent) until the area pages carry it; WP9
-// swaps it for those pages when it deletes the gallery.
-const PAGES = ['/', '/stories', '/stories/pacing-types', '/stories/final-kick', '/tools', '/tools/predictor', '/tools/pace-band', '/analyses', '/analyses/pacing-pattern', '/courses', '/runners', '/about', '/design-system'];
+// The pages carry the redesign's type: Fraunces at 440 with its italic accent in every reading H1 (round numbers, starting
+// pace), Bricolage in the figures, Inter everywhere.
+const PAGES = ['/', '/stories', '/stories/pacing-types', '/stories/final-kick', '/stories/round-numbers', '/tools', '/tools/predictor', '/tools/pace-band', '/analyses', '/analyses/pacing-pattern', '/analyses/starting-pace', '/courses', '/runners', '/about'];
 const FONTS = path.join(ROOT, 'public/fonts');
 
 const WOFF2_TAGS = ['cmap', 'head', 'hhea', 'hmtx', 'maxp', 'name', 'OS/2', 'post', 'cvt ', 'fpgm', 'glyf', 'loca', 'prep', 'CFF ', 'VORG', 'EBDT', 'EBLC', 'gasp', 'hdmx', 'kern', 'LTSH', 'PCLT', 'VDMX', 'vhea', 'vmtx', 'BASE', 'GDEF', 'GPOS', 'GSUB', 'EBSC', 'JSTF', 'MATH', 'CBDT', 'CBLC', 'COLR', 'CPAL', 'SVG ', 'sbix', 'acnt', 'avar', 'bdat', 'bloc', 'bsln', 'cvar', 'fdsc', 'feat', 'fmtx', 'fvar', 'gvar', 'hsty', 'just', 'lcar', 'mort', 'morx', 'opbd', 'prop', 'trak', 'Zapf', 'Silf', 'Glat', 'Gloc', 'Feat', 'Sill'];

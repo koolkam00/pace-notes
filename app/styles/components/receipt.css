@@ -9,9 +9,8 @@
   padding: 20px;
   border-radius: var(--r-md);
   background: var(--paper); color: var(--ink);
+  box-shadow: var(--night-edge);
 }
-/* On the dark page the night card takes a hairline ring, so it never dissolves into the page (spec 3.9). */
-[data-theme="dark"] .receipt { box-shadow: inset 0 0 0 1px var(--night-3); }
 .receipt-kicker { margin: 0; color: var(--ink-3); }
 .receipt-rule { height: 1px; margin: 16px 0; border: 0; background: var(--rule); }
 .receipt-kicker + .receipt-lines { margin-top: 14px; }

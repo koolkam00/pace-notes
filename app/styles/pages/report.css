@@ -17,8 +17,7 @@
 .race-report { min-width: 0; color: var(--ink); }
 
 /* The lap screen: night, the race and the answer. */
-.race-report-screen { padding: 20px 20px 18px; border-radius: var(--r-md); background: var(--paper); color: var(--ink); }
-[data-theme="dark"] .race-report-screen { box-shadow: inset 0 0 0 1px var(--night-3); }
+.race-report-screen { padding: 20px 20px 18px; border-radius: var(--r-md); background: var(--paper); color: var(--ink); box-shadow: var(--night-edge); }
 .race-report-kicker { display: flex; justify-content: space-between; gap: var(--s-4); margin: 0; font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; line-height: 1.4; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
 /* Each part on one line; on a zoomed-in phone the distance drops under "Race report" rather than breaking. */
 .race-report-kicker { flex-wrap: wrap; column-gap: var(--s-4); row-gap: 0; }

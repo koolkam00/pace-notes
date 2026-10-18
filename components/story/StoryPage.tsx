@@ -4,7 +4,7 @@ import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
 import ChapterRail from '@/components/ChapterRail';
 import ChapterEnd from '@/components/ChapterEnd';
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import ByUnits from './ByUnits.client';
+import ByUnits from '@/components/ui/ByUnits.client';
 import type { TRACKED_SECTIONS } from '@/lib/analytics-policy';
 import { readingAttrs } from '@/lib/chapters';
 import { readingOf, type Nugget, type NuggetText } from '@/lib/nuggets';

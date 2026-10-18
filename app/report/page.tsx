@@ -1,6 +1,6 @@
 import ChapterEnd from '@/components/ChapterEnd';
 import ReportView from '@/components/report/ReportView';
-import RunnerCrumbs from '@/components/report/RunnerCrumbs';
+import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
 import { readingOf } from '@/lib/nuggets';
 import { pageMetadata } from '@/lib/seo';
 import { reportData } from '@/lib/split-check-server';
@@ -19,7 +19,7 @@ export default function ReportPage() {
   // hashes, the opening groups, the pacing-type cohort and the course names. The closing stack leads on to chapter 11
   // and back to /runners; it is not a tracked section here (the page's one section is `report`, docs/ANALYTICS.md).
   return <div className="report-page">
-    <ReportView data={reportData()} crumbs={<RunnerCrumbs path="/report" />} />
+    <ReportView data={reportData()} crumbs={<ChapterCrumbs path="/report" />} />
     <ChapterEnd path="/report" readingOf={readingOf} track={false} />
   </div>;
 }

@@ -252,9 +252,21 @@ test('ChapterList: compact without readings or ids, expanded with ids and every 
   assert.doesNotMatch(words, /big-number/);
 });
 test('ChapterCrumbs', () => {
-  const html = renderToStaticMarkup(React.createElement(require(path.join(root, 'components/ui/ChapterHeader.tsx')).ChapterCrumbs, { path: '/stories/round-numbers' }));
-  assert.match(html, /href="\/research#chapter-06">Chapter 06 · The finish line<\/a>/);
-  assert.match(html, /· Page 1 of 2/);
+  const { ChapterCrumbs } = require(path.join(root, 'components/ui/ChapterHeader.tsx'));
+  const crumbs = (props) => renderToStaticMarkup(React.createElement(ChapterCrumbs, props));
+  const text = (html) => html.replace(/<span class="sr-only">[^<]*<\/span>/g, '').replace(/<[^>]+>/g, '');
+  // A race chapter: its distance marker, then "Chapter 06 · The finish line" (the number kept whole), then the place,
+  // whose "·" CSS draws (no line may open on it).
+  const html = crumbs({ path: '/stories/round-numbers' });
+  assert.match(html, /href="\/research#chapter-06"/);
+  assert.match(html, /<span class="crumb-number">Chapter 06<\/span> · The finish line/);
+  assert.match(html, /<span class="crumb-place">Page 1 of 2<\/span>/);
+  assert.equal(text(html), 'FINISHChapter 06 · The finish linePage 1 of 2');
+  // A chapter after the finish shows its number once, on the badge; screen readers still hear "Chapter 08".
+  const course = crumbs({ path: '/courses/boston', place: 'Courses' });
+  assert.equal(text(course), '08Where you runCourses');
+  assert.match(course, /<span class="sr-only">Chapter 08 · <\/span>Where you run/);
+  assert.doesNotMatch(crumbs({ path: '/runners', place: false }), /crumb-place/);
 });
 
 for (const note of notes) console.log(`note: ${note}`);

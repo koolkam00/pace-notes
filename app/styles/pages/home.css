@@ -9,7 +9,7 @@
 .home-band { position: relative; width: 100vw; margin-left: calc(50% - 50vw); background: var(--night); color: var(--night-ink); }
 
 /* On the dark page a night band is its own surface by a shade; a hairline at each edge keeps it from dissolving. */
-[data-theme="dark"] .home-band { border-block: 1px solid var(--night-3); }
+.home-band { box-shadow: inset 0 1px 0 var(--night-edge-colour), inset 0 -1px 0 var(--night-edge-colour); }
 
 /* ---------- The hero ---------- */
 .home-start { padding: var(--s-3) 0 var(--s-6); }

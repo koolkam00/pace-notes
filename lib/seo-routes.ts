@@ -32,8 +32,7 @@ export const SITE_URL = 'https://splithappens.run';
  * Pages that carry `noindex, follow`, have no canonical and stay out of the sitemap. The moved addresses below are noindex
  * too (isNoindex). /your-race is listed here as well as there: verify-seo holds it, with /runners, as a personal page.
  */
-// /design-system is the redesign's primitives gallery (owner decision 14): never indexed, never in the sitemap, deleted in WP9.
-export const NOINDEX: readonly string[] = ['/runners', '/your-race', '/request-analysis', '/report', '/design-system'];
+export const NOINDEX: readonly string[] = ['/runners', '/your-race', '/request-analysis', '/report'];
 
 // ---------- Moved addresses ----------
 
@@ -105,32 +104,33 @@ export const ROBOTS_DISALLOW: readonly string[] = ['/data/runners/index/', '/dat
  * so an entry here only matters when their wording changed after the data did.
  */
 export const CONTENT_DATES: Readonly<Record<string, string>> = {
-  '/': '2026-10-16',
-  '/research': '2026-10-16',
-  '/about': '2026-10-16',
-  '/methodology': '2026-10-16',
-  '/stories': '2026-10-16',
-  '/tools': '2026-10-16',
-  '/tools/pace-calculator': '2026-10-16',
-  '/analyses': '2026-10-16',
-  '/courses': '2026-10-16',
-  '/slowdown': '2026-10-16',
-  '/privacy': '2026-10-16',
-  // Stories whose headings, deks or chart text were reworded on this date. On 2026-10-16 every story lost its methods
-  // box and its method and coverage notes (they moved to /methodology), so all seven carry that date.
-  '/stories/pacing-types': '2026-10-16',
-  '/stories/round-numbers': '2026-10-16',
-  '/stories/race-replay': '2026-10-16',
-  '/stories/places': '2026-10-16',
-  '/stories/final-kick': '2026-10-16',
-  '/stories/courses': '2026-10-16',
-  '/stories/who-holds-pace': '2026-10-16',
+  // The redesign (October 18, 2026) rewrote every hub, story and info page: each opens on its reading now, its beats
+  // were cut to the findings, and the chapter crumbs and closing stack are new.
+  '/': '2026-10-18',
+  '/research': '2026-10-18',
+  '/about': '2026-10-18',
+  '/methodology': '2026-10-18',
+  '/stories': '2026-10-18',
+  '/tools': '2026-10-18',
+  '/tools/pace-calculator': '2026-10-18',
+  '/analyses': '2026-10-18',
+  '/courses': '2026-10-18',
+  '/slowdown': '2026-10-18',
+  '/privacy': '2026-10-18',
+  '/stories/pacing-types': '2026-10-18',
+  '/stories/round-numbers': '2026-10-18',
+  '/stories/race-replay': '2026-10-18',
+  '/stories/places': '2026-10-18',
+  '/stories/final-kick': '2026-10-18',
+  '/stories/courses': '2026-10-18',
+  '/stories/who-holds-pace': '2026-10-18',
+  '/stories/race-morning': '2026-10-18',
 };
 
 export type SitemapEntry = { path: string; lastmod?: string };
 
 /** The course pages (/courses/<slug>) were rewritten on this date; their lastmod is the later of it and their data's. */
-export const COURSE_PAGES_WRITTEN = '2026-10-16';
+export const COURSE_PAGES_WRITTEN = '2026-10-18';
 
 /**
  * New content pages register in their own module under lib/seo-pages/ (pace, qualifying, finish-times), collected here.

@@ -51,7 +51,7 @@ export function kickBankFrom(bands: BankBand[]): Nugget {
     headline: `A first 5K ${said} banked ${ms(-(fastest?.open_s ?? 0))}, and *finished ${ms(fastest?.finish_s ?? 0)} behind*.`,
     fallback: 'How a fast first 5K finished, against the same pace.',
     figure: fastest ? { value: delta(fastest.finish_s), sr: `${spokenTime(Math.abs(fastest.finish_s))} ${fastest.finish_s > 0 ? 'behind' : 'ahead'}` } : null,
-    key: `at the finish, after a first 5K ${said}`,
+    key: `at the finish against the same 5–20K pace, after a first 5K ${said}`,
   };
 }
 

@@ -4,7 +4,7 @@ import type { CourseNugget } from '@/lib/nuggets/courses';
 import type { Courses } from '@/lib/insights';
 import { readInsight } from '@/lib/insights-server';
 import type { CoursePageData } from '@/lib/course-page';
-import ByUnits from './ByUnits.client';
+import ByUnits from '@/components/ui/ByUnits.client';
 import { CourseSection, Said } from './Fact';
 
 /**

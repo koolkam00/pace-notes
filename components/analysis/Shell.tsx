@@ -4,7 +4,7 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
 import ChapterRail from '@/components/ChapterRail';
 import ChapterEnd from '@/components/ChapterEnd';
-import ByUnits from './ByUnits.client';
+import ByUnits from '@/components/ui/ByUnits.client';
 import { keepTogether } from '@/components/ui/keepTogether';
 import { readingAttrs } from '@/lib/chapters';
 import { sentenceOf, settledReadingOf, textFor, type Nugget, type NuggetText } from '@/lib/nuggets';

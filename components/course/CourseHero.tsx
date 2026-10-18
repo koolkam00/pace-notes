@@ -10,7 +10,7 @@ import { hm, pct, temp } from '@/lib/nuggets/format';
 import { heldEditions, MONTHS, routeClimb, type CoursePageData } from '@/lib/course-page';
 import { planHref } from '@/lib/tools/links';
 import type { UnitSystem } from '@/lib/units';
-import ByUnits from './ByUnits.client';
+import ByUnits from '@/components/ui/ByUnits.client';
 import { Fact, Said } from './Fact';
 import RouteFace from './RouteFace';
 
@@ -80,7 +80,7 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
   return (
     <section className={`night course-hero${geometry ? '' : ' is-routeless'}`} data-track-section="hero">
       <div className="course-hero-head">
-        <div className="reading-crumbs t-kicker course-crumbs"><ChapterCrumbs path={`/courses/${page.slug}`} /><span className="crumb-place"><Link href="/courses" className="crumb-courses">Courses</Link></span></div>
+        <div className="reading-crumbs t-kicker course-crumbs"><ChapterCrumbs path={`/courses/${page.slug}`} place={<Link href="/courses" className="crumb-courses">Courses</Link>} /></div>
         <h1 className="course-title t-title">{race}</h1>
         <p className="hero-dek">{s.editions === 1 ? `One edition, ${span}` : `${s.editions} editions, ${span}`}{when ? ` · ${when}` : ''}</p>
       </div>

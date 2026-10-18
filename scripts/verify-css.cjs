@@ -18,7 +18,10 @@
 //      (spec section 3.1). An area silhouette is exempt: its top edge is the line drawn over it;
 //   8. the pace ramp (PACE_RAMP in lib/viz/format.ts) stays off the signal hue: every warm stop at OKLab ΔE ≥ 15 from
 //      --signal, --night-signal and the dark theme's --signal, and every colour on the warm half at ≥ 14, so a slow
-//      block never reads as the reading (principle 3).
+//      block never reads as the reading (principle 3);
+//   9. the dark theme follows the system setting (spec section 3.9): tokens.css's [data-theme="dark"] block and its
+//      @media (prefers-color-scheme: dark) :root:not([data-theme="light"]) twin hold the same declarations, and every
+//      component rule written for [data-theme="dark"] has the same rule under the media query, and none without one.
 //
 //   node scripts/verify-css.cjs            checks app/styles
 //   node scripts/verify-css.cjs --self-test checks the checker against planted mistakes
@@ -177,6 +180,31 @@ function checkRamp(formatTs, tokensCss) {
   return problems;
 }
 
+/** 9. The dark theme's two ways in (the attribute and the system setting) say the same thing everywhere. */
+const ATTR = '[data-theme="dark"]';
+const MEDIA_ROOT = ':root:not([data-theme="light"])';
+const isDarkMedia = (c) => /^@media\s*\(\s*prefers-color-scheme\s*:\s*dark\s*\)$/.test(c);
+const norm = (body) => body.split(';').map((d) => d.replace(/\s+/g, ' ').trim()).filter(Boolean).join('; ');
+function checkDark(sheets) {
+  const problems = [];
+  const attr = new Map(), media = new Map();
+  for (const [rel, css] of sheets) {
+    for (const rule of parse(uncomment(css))) {
+      const dark = rule.context.some(isDarkMedia);
+      const context = rule.context.filter((c) => !isDarkMedia(c)).join(' ');
+      for (const sel of rule.selector.split(',').map((x) => x.trim().replace(/\s+/g, ' '))) {
+        const key = (rest) => `${context} ${rest} { ${norm(rule.body)} }`;
+        if (!dark && (sel === ATTR || sel.startsWith(ATTR + ' '))) attr.set(key(sel.slice(ATTR.length).trim()), `${rel}:${rule.line}`);
+        else if (dark && (sel === MEDIA_ROOT || sel.startsWith(MEDIA_ROOT + ' '))) media.set(key(sel.slice(MEDIA_ROOT.length).trim()), `${rel}:${rule.line}`);
+      }
+    }
+  }
+  for (const [key, at] of attr) if (!media.has(key)) problems.push(`${at}: ${ATTR}${key.replace(/^\s*/, ' ').split(' {')[0]} has no twin under @media (prefers-color-scheme: dark) ${MEDIA_ROOT} with the same declarations`);
+  for (const [key, at] of media) if (!attr.has(key)) problems.push(`${at}: ${MEDIA_ROOT}${key.replace(/^\s*/, ' ').split(' {')[0]} has no ${ATTR} rule with the same declarations`);
+  if (!attr.size) problems.push(`tokens.css: no ${ATTR} block`);
+  return problems;
+}
+
 function files(dir) {
   if (!fs.existsSync(dir)) return [];
   const out = [];
@@ -228,6 +256,10 @@ function selfTest() {
       if (!ok) { failed++; console.error(`self-test: ${rel} ${css}\n  expected ${expect || 'no problem'}, got ${JSON.stringify(got)}`); }
     }
   }
+  const twin = '[data-theme="dark"] { --ink: #fff; } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ink: #fff; } }';
+  if (checkDark([['tokens.css', twin]]).length) { failed++; console.error('self-test: matching dark blocks failed the dark check'); }
+  if (!checkDark([['tokens.css', twin.replace('{ --ink: #fff; } }', '{ --ink: #eee; } }')]]).length) { failed++; console.error('self-test: a dark block that drifted passed the dark check'); }
+  if (!checkDark([['tokens.css', twin], ['x.css', '[data-theme="dark"] .card { box-shadow: none; }']]).length) { failed++; console.error('self-test: a dark rule with no system-setting twin passed the dark check'); }
   const tokensCss = ':root { --signal: #E5461A; --night-signal: #FF6A3D; }';
   if (!checkRamp("export const PACE_RAMP = ['#1D3FD8', '#4F79F7', '#9DB6FB', '#EFE8DA', '#FFB48A', '#FF6A3D', '#C8202F'] as const;", tokensCss).length) { failed++; console.error('self-test: an orange warm stop passed the ramp check'); }
   if (checkRamp("export const PACE_RAMP = ['#1D3FD8', '#4F79F7', '#9DB6FB', '#EFE8DA', '#EDA6C1', '#C65F9E', '#8F1449'] as const;", tokensCss).length) { failed++; console.error('self-test: the rose ramp failed the ramp check'); }
@@ -239,13 +271,14 @@ function main() {
   if (process.argv.includes('--self-test')) process.exit(selfTest());
   const list = files(STYLES);
   const problems = list.flatMap((f) => check(f, fs.readFileSync(f, 'utf8')))
+    .concat(checkDark(list.map((f) => [path.relative(STYLES, f), fs.readFileSync(f, 'utf8')])))
     .concat(checkRamp(fs.readFileSync(path.join(ROOT, 'lib', 'viz', 'format.ts'), 'utf8'), fs.readFileSync(path.join(STYLES, 'tokens.css'), 'utf8')));
   if (problems.length) {
     console.error(`verify-css: ${problems.length} problem${problems.length === 1 ? '' : 's'}`);
     for (const p of problems) console.error('  ' + p);
     process.exit(1);
   }
-  console.log(`verify-css: ${list.length} files in app/styles (legacy exempt) follow the token, breakpoint, chart-text, quiet-edge and compatibility rules; the pace ramp stays off the signal hue`);
+  console.log(`verify-css: ${list.length} files in app/styles (legacy exempt) follow the token, breakpoint, chart-text, quiet-edge and compatibility rules; the dark theme reads the same by attribute and by system setting; the pace ramp stays off the signal hue`);
 }
 
 main();

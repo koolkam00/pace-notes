@@ -2,7 +2,7 @@ import Receipt from '@/components/ui/Receipt';
 import DotGrid from '@/components/viz/DotGrid';
 import AnalysisExplorer from '@/components/AnalysisExplorer';
 import AnalysisShell, { Beat, ExploreBeat } from '../Shell';
-import ByUnits from '../ByUnits.client';
+import ByUnits from '@/components/ui/ByUnits.client';
 import { analysisBySlug } from '@/lib/ten-analyses';
 import { getAnalysisStart } from '@/lib/analysis-server';
 import { getNugget } from '@/lib/nuggets';

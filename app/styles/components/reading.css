@@ -23,13 +23,21 @@
 
 /* ---------- The Reading ---------- */
 .reading { display: grid; grid-template-columns: minmax(0, 1fr); padding-top: var(--s-5); }
-.reading-crumbs { display: flex; align-items: center; gap: 0 10px; min-height: 44px; margin: 0 0 var(--s-2); }
-.reading-crumbs > span:not(.marker-badge) { min-width: 0; text-wrap: balance; }
+/* The crumbs (ChapterCrumbs in components/ui/ChapterHeader.tsx), one treatment on every page in the race: the marker,
+   the chapter and, from 600 px, the place. They wrap between their parts, never inside "Chapter 06" or "Page 1 of 2",
+   and the chapter's own lines are balanced, so no line is one orphan word. The place's "·" is drawn in the 10 px gap
+   before it, outside its box: where the place starts a line the dot falls past the left edge and is clipped, so no line
+   opens on it (the 3 px of padding, taken back by the margin, keeps focus rings inside the clip). */
+.reading-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; min-height: 44px; margin: 0 -3px var(--s-2); padding-inline: 3px; overflow: hidden; }
+.reading-crumbs > * { min-width: 0; }
+.reading-crumbs > .marker-badge { flex: none; }
 .reading-crumbs a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; }
 .reading-crumbs a:hover { color: var(--ink); text-decoration: none; }
-/* The place ("· Analysis 2 of 2") follows the chapter at a word space, as the dot inside the chapter link does. */
-.reading-crumbs .crumb-place { margin-left: calc(.3em - 10px); }
-/* On a phone the crumbs are one line: the chapter alone (the menu and the reading bar give the place in it). */
+.reading-crumbs .crumb-text { text-wrap: balance; }
+.reading-crumbs .crumb-number { white-space: nowrap; }
+.reading-crumbs .crumb-place { position: relative; white-space: nowrap; }
+.reading-crumbs .crumb-place::before { content: "·"; position: absolute; right: calc(100% + 5px); top: 50%; transform: translate(50%, -50%); }
+/* On a phone the crumbs are the chapter alone (the menu and the reading bar give the place in it). */
 @media (max-width: 599.98px) { .reading-crumbs .crumb-place { display: none; } }
 .reading-title { margin: 0; max-width: 18ch; }
 .reading-title.t-title { max-width: 22ch; }

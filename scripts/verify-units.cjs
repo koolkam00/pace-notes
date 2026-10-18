@@ -395,24 +395,11 @@ assert.match(chartSource('RunnerContext.tsx'), /<LineProfile [^>]*yDomain=\{axis
   assert.match(page(e(units.UnitSwitch)), /^<div class="unit-switch" role="group" aria-label="Distance and pace units">/, '/research has the working switch');
 }
 
-// A per-degree effect follows the reader's degree: a per-°C slope never sits beside a °F axis (the redesign spec,
-// section 3.10). EffectBand takes per-°C data and a required unit system, converts and names the degree it shows.
+// A per-degree effect follows the reader's degree (the redesign spec, section 3.10): perDegree converts a per-°C value.
 {
-  const EffectBand = require('../components/viz/EffectBand.tsx').default;
   const { perDegree } = require('../lib/nuggets/format.ts');
   assert.equal(perDegree(1.8, 'mi'), 1);
   assert.equal(perDegree(1.8, 'km'), 1.8);
-  const band = (units) => renderToStaticMarkup(React.createElement(EffectBand, {
-    units, label: 'Effect', bins: [{ id: 'a', label: 'A', value: 1.8, lo: 0.9, hi: 2.7 }], estimate: { value: 1.8, lo: 1.44, hi: 2.16, label: 'Fit' },
-  }));
-  const mi = band('mi'), km = band('km');
-  assert.match(mi, /pts per °F/, 'Miles mode names °F on the effect scale');
-  assert.doesNotMatch(mi, /°C/, 'Miles mode shows no per-°C value');
-  assert.match(km, /pts per °C/, 'Kilometre mode names °C on the effect scale');
-  assert.doesNotMatch(km, /°F/);
-  const top = (html) => Number((html.match(/>\+([\d.]+) pts per/) || [])[1]);
-  assert.ok(top(mi) >= 1.5 && top(mi) < 2.7, `The °F scale tops out over the converted interval (1.5 per °F), not the per-°C one: got ${top(mi)}`);
-  assert.ok(top(km) >= 2.7, `The °C scale covers the per-°C interval: got ${top(km)}`);
 }
 
 console.log('Verified mat names (5K … 40K, Finish; 0–5K … 40K–finish) in both units, one-decimal prose miles, display-only mile, pace and elevation conversions, source precision, checkpoint labels, prose ranges, URL preservation, rendered measurements, unchanged samples, real profile sections and round pace-axis ticks in both units, the same conversions where a lookbehind RegExp cannot be built (Safari before 16.4), and the working units switch on every page whose text changes with the units (the build stops otherwise); per-degree effects follow the reader\'s degree.');

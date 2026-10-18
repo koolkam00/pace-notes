@@ -87,8 +87,7 @@
 .tool-stepper-value { min-width: 0; text-align: center; }
 
 /* ---------- The result: one night card ---------- */
-.tool-reading { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); margin: 0; padding: 20px; border-radius: var(--r-md); background: var(--paper); color: var(--ink); min-width: 0; }
-[data-theme="dark"] .tool-reading { box-shadow: inset 0 0 0 1px var(--night-3); }
+.tool-reading { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); margin: 0; padding: 20px; border-radius: var(--r-md); background: var(--paper); color: var(--ink); min-width: 0; box-shadow: var(--night-edge); }
 .tool-reading > * { margin: 0; min-width: 0; }
 .tool-reading-head { display: grid; gap: 6px; }
 .tool-reading-kicker { margin: 0; font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; line-height: 1.4; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }

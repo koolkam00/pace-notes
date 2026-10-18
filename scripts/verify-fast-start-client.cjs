@@ -127,7 +127,9 @@ async function main() {
   const methodology=render(MethodologyPage,{});
   const legacyOpening=(methodology.match(/<details\b[^>]*>[\s\S]*?<\/details>/g)||[]).find(detail=>detail.includes('Which openings are associated with finishing under my target?'));
   assert.ok(legacyOpening,'Keep the legacy opening explanation available');
-  assert.match(legacyOpening,/href="\/research\/personalized#guide-opening"/,'Legacy target comparison must open its own guide');
+  // The personalized guide closed with the redesign (its address forwards to /research), so the legacy target comparison
+  // is explained here and links nowhere: never to the guide's old address and never to the current fast-start analysis.
+  assert.doesNotMatch(legacyOpening,/href="\/research\/personalized/,'The legacy target comparison links no closed guide');
   assert.doesNotMatch(legacyOpening,/href="\/analyses\/starting-pace"/);
   assert.match(methodology,/href="\/analyses\/starting-pace"/,'Document and link the current fast-start analysis separately');
   for (const row of evidence.rows.filter(row=>row.city!=='All courses').slice(0,3)) {

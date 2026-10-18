@@ -5,8 +5,10 @@
    Three scopes:
    - :root, the light page theme (the default);
    - .night, the race and the answer (the replay, heroes, the receipt, result and next cards), at any theme;
-   - [data-theme="dark"], the dark page theme. It is a chosen palette, not an inversion. Until WP9 switches it on for
-     prefers-color-scheme it only applies where the attribute is set (the screenshot tool's dark profile). */
+   - the dark page theme, a chosen palette, not an inversion. It follows the reader's system setting
+     (prefers-color-scheme), with no toggle and nothing stored; [data-theme="dark"] applies it to an element and
+     [data-theme="light"] on <html> keeps a page light. The two dark blocks at the end hold the same values
+     (scripts/verify-css.cjs checks it). */
 
 :root {
   color-scheme: normal;
@@ -137,6 +139,9 @@
   --r-pill: 999px;
   --shadow-raise: 0 1px 2px rgb(21 23 28 / .06), 0 6px 20px rgb(21 23 28 / .06);
   --shadow-sheet: 0 -8px 40px rgb(21 23 28 / .18);
+  /* A night surface's edge: nothing on the light page; a hairline ring on the dark one (below). */
+  --night-edge: none;
+  --night-edge-colour: transparent;
   /* Legacy shape tokens, used by app/styles/legacy/ and the section sheets. */
   --radius: 14px;
   --radius-sm: 9px;
@@ -223,8 +228,9 @@
   --shadow-raise: 0 1px 2px rgb(0 0 0 / .3), 0 6px 20px rgb(0 0 0 / .3);
 }
 
-/* ---------- Dark: the page theme under the OS setting (switched on in WP9) ----------
-   On <html> it themes the page; on any other element (the /design-system gallery) it themes that subtree. */
+/* ---------- Dark: the page theme, following the reader's system setting ----------
+   On <html> (or by the system setting) it themes the page; on any other element it themes that subtree. The media block
+   repeats the attribute block value for value (scripts/verify-css.cjs), since a selector cannot carry both. */
 [data-theme="dark"] {
   color-scheme: dark;
   --paper: #111419;
@@ -257,4 +263,46 @@
   --night-2: #12161C;
   --shadow-raise: 0 1px 2px rgb(0 0 0 / .35), 0 6px 20px rgb(0 0 0 / .35);
   --shadow-sheet: 0 -8px 40px rgb(0 0 0 / .5);
+  /* A night surface on the dark page takes a hairline ring, so it never dissolves into the page (spec 3.9). */
+  --night-edge: inset 0 0 0 1px var(--night-3);
+  --night-edge-colour: var(--night-3);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #111419;
+    --paper-raised: #181C23;
+    --paper-sunk: #1F242D;
+    --rule: #2A3039;
+    --rule-strong: #3A414D;
+    --ink: #F2EDE3;
+    --ink-2: #CFC9BD;
+    --ink-3: #A39D91;
+    --mark-quiet: #7A808C;
+    --fill-quiet: #2E3440;
+    --signal: #FF6A3D;
+    --signal-ink: #FF8A63;
+    --signal-wash: rgba(255, 106, 61, .14);
+    --focus: #8FA6FF;
+    --scrim: rgba(0, 0, 0, .55);
+    --control-thumb: #3A414D;
+    --ordinal-1: #4A505C;
+    --ordinal-2: #6B7180;
+    --ordinal-3: #9097A5;
+    --ordinal-4: #B9BECA;
+    /* The legacy surface names follow, so pages not yet rebuilt stay legible under the dark profile. */
+    --paper-2: #1F242D;
+    --paper-3: #2A3039;
+    --card: #181C23;
+    --line: #2A3039;
+    --line-2: #3A414D;
+    --night: #07090C;                 /* night bands stay their own surface on a dark page */
+    --night-2: #12161C;
+    --shadow-raise: 0 1px 2px rgb(0 0 0 / .35), 0 6px 20px rgb(0 0 0 / .35);
+    --shadow-sheet: 0 -8px 40px rgb(0 0 0 / .5);
+    /* A night surface on the dark page takes a hairline ring, so it never dissolves into the page (spec 3.9). */
+    --night-edge: inset 0 0 0 1px var(--night-3);
+    --night-edge-colour: var(--night-3);
+  }
 }

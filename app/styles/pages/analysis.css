@@ -26,8 +26,7 @@
 .analysis-beat > .viz, .analysis-beat > .beat-grids { max-width: var(--measure-figure); }
 
 /* ---------- The answer card: a figure answer on night (dot grids, cells, a chart) ---------- */
-.answer-card { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); max-width: 34rem; padding: 20px; border-radius: var(--r-md); background: var(--paper); color: var(--ink); }
-[data-theme="dark"] .answer-card { box-shadow: inset 0 0 0 1px var(--night-3); }
+.answer-card { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); max-width: 34rem; padding: 20px; border-radius: var(--r-md); background: var(--paper); color: var(--ink); box-shadow: var(--night-edge); }
 .answer-kicker { margin: 0; color: var(--ink-3); }
 .answer-foot { margin: 0; font-size: var(--t-label); line-height: 1.4; color: var(--ink-3); }
 .answer-card .viz-frame { margin: 0; }
@@ -102,8 +101,6 @@
 
 /* ---------- Phones at 200% zoom ---------- */
 @media (max-width: 359.98px) {
-  /* The crumbs wrap rather than push the page sideways. */
-  .analysis-flow .reading-crumbs { flex-wrap: wrap; }
   .answer-card { padding-inline: 16px; }
   .answer-dots { grid-template-columns: minmax(0, 1fr); }
   .answer-grids, .beat-grids, .answer-cells, .explore-cells { grid-template-columns: minmax(0, 1fr); }

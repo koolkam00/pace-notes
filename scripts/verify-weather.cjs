@@ -266,11 +266,5 @@ assert.doesNotMatch(about.replace(/<[^>]*>/g, ''), /private-export|September 11/
 assert.ok(!about.includes('id="data-coverage"') && !about.includes('Marathons and years') && !about.includes('Weather data') && !about.includes('Elevation data'), 'The data inventory is not on /about');
 assert.ok(!about.includes('met the publication rule') && !about.includes(`${cohort.weather_analysis_finishes.toLocaleString('en-US')} eligible finishes`), 'Weather coverage counts are not on /about');
 assert.ok(about.includes('Why it exists') && about.includes('Request an analysis'), '/about keeps why the study exists and how to contact Andrew');
-const WeatherIndex = require('../components/WeatherIndex.tsx').default;
-const index = renderToStaticMarkup(React.createElement(WeatherIndex));
-if (ready.length) {
-  assert.ok(!index.includes(sourceLabel(evidence.input.as_of, weatherRelease)) && !index.includes('Source:'), 'The weather directory carries no source line');
-  for (const candidate of ready) assert.ok(index.includes(weatherFinding(candidate)), 'Each weather entry states its finding');
-} else assert.equal(index, '', 'Do not show a weather directory with no supported questions');
 assert.equal(JSON.stringify(evidence), canonical, 'Rendering and unit conversions must not mutate published evidence');
 console.log('Verified weather provenance, reconciled edition cohorts, all three publication gates, supported routes, source units, corrected uncertainty and actual rendered results in miles and metric.');

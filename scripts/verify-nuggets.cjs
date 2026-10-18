@@ -112,7 +112,7 @@ eq(keys['courses.spread'], 'sustained slowdown, across courses', 'chapter 08 key
 eq(keys['weather.pairs'], 'same-course pairs: the warmer year had more sustained slowdowns', 'chapter 09 key');
 eq(keys['runner.yours'], 'nine mats, one race', 'chapter 10 key');
 ok(/^of next races had one too, after a sustained slowdown \(\d+% typical\)$/.test(keys['kick.recurrence']), 'chapter 11 key');
-ok(/^at the finish, after a first 5K over \d+% fast$/.test(keys['kick.bank']), 'chapter 02 key');
+ok(/^at the finish against the same 5–20K pace, after a first 5K over \d+% fast$/.test(keys['kick.bank']), 'chapter 02 key');
 
 // lib/chapters.ts (WP0-B) names a nugget for every page and chapter: every one must be registered, and agree with
 // PAGE_NUGGET and CHAPTER_LEAD here.

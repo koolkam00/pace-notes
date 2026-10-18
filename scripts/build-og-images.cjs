@@ -206,7 +206,7 @@ function lanes(card, accent) {
 </svg>`;
 }
 
-/** The supplied route (points normalised to 0–1, as components/story/CourseArt.tsx draws it) in a square at the right. */
+/** The supplied route (points normalised to 0–1, as components/course/RouteFace.tsx draws it) in a square at the right. */
 function routeSvg(points) {
   const size = 380;
   const pad = size * 0.08;

@@ -27,9 +27,14 @@ export const metadata: Metadata = {
   referrer: 'strict-origin',
 };
 
-// The page theme's paper. WP9 adds { media: '(prefers-color-scheme: dark)', color: '#111419' } when it switches the dark
-// theme on (spec section 3.9); until then a dark browser bar would sit over a light page.
-export const viewport = { themeColor: '#F5F0E6' };
+// The page theme's paper, light and dark (app/styles/tokens.css --paper), so the browser bar matches the page the system
+// setting chose (spec section 3.9).
+export const viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#F5F0E6' },
+    { media: '(prefers-color-scheme: dark)', color: '#111419' },
+  ],
+};
 
 // The two faces every page sets first (Fraunces headings, Inter text), self-hosted under the base path (spec 6.3).
 const FONT_BASE = process.env.NEXT_PUBLIC_BASE_PATH || '';

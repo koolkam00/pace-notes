@@ -5,7 +5,7 @@ import { sectionLabel } from '@/lib/nuggets/format';
 import { routeClimb, type CoursePageData } from '@/lib/course-page';
 import type { UnitSystem } from '@/lib/units';
 import { SECTION_BOUNDS, signedPct } from '@/lib/viz/format';
-import ByUnits from './ByUnits.client';
+import ByUnits from '@/components/ui/ByUnits.client';
 import { CourseSection, Fact, Said } from './Fact';
 
 const climbText = (m: number, units: UnitSystem) => (units === 'mi' ? `${Math.round(m / 0.3048).toLocaleString('en-US')} ft` : `${Math.round(m).toLocaleString('en-US')} m`);

@@ -108,7 +108,7 @@ function budget(h, write, { app = APP, file = BUDGET } = {}) {
 }
 
 // A story and an analysis joined at the redesign foundation (the story's header hides behind its reading bar).
-const LAB_PAGES = ['/', '/tools/plan', '/courses/boston', '/stories/round-numbers', '/analyses/pacing-pattern'];
+const LAB_PAGES = ['/', '/tools/plan', '/courses/boston', '/stories/round-numbers', '/analyses/starting-pace'];
 const CLS_LIMIT = 0.1;
 // In every document before the page's own scripts: CLS as the largest session window of layout shifts not caused by
 // input (gaps under 1 s, windows under 5 s), and the latest largest-contentful-paint time.

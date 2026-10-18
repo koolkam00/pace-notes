@@ -35,6 +35,10 @@
 /* Dark mode: the thumb is the light ink, so it reads on the dark raised surface. */
 [data-theme="dark"] .guess input[type='range'].guess-range::-webkit-slider-thumb { border-color: var(--ink); background: var(--ink); }
 [data-theme="dark"] .guess input[type='range'].guess-range::-moz-range-thumb { border-color: var(--ink); background: var(--ink); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .guess input[type='range'].guess-range::-webkit-slider-thumb { border-color: var(--ink); background: var(--ink); }
+  :root:not([data-theme="light"]) .guess input[type='range'].guess-range::-moz-range-thumb { border-color: var(--ink); background: var(--ink); }
+}
 .guess input[type='range'].guess-range:active::-webkit-slider-thumb { transform: scale(1.12); transition-duration: var(--d-press); }
 .guess input[type='range'].guess-range:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
 .guess input[type='range'].guess-range:disabled { cursor: default; opacity: 1; }

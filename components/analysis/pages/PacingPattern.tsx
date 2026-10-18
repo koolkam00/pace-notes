@@ -1,6 +1,6 @@
 import AnalysisExplorer from '@/components/AnalysisExplorer';
 import AnalysisShell, { AnswerCard, ExploreBeat } from '../Shell';
-import ByUnits from '../ByUnits.client';
+import ByUnits from '@/components/ui/ByUnits.client';
 import ExplorerChart from '../ExplorerChart';
 import { analysisBySlug } from '@/lib/ten-analyses';
 import { getAnalysisStart } from '@/lib/analysis-server';

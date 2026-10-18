@@ -1,6 +1,6 @@
 import ChapterEnd from '@/components/ChapterEnd';
 import RunnerSearch, { FinishTimeStart } from '@/components/RunnerSearch';
-import RunnerCrumbs from '@/components/report/RunnerCrumbs';
+import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
 import Arrow from '@/components/ui/Arrow';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { copyEditions } from '@/lib/duplicate-editions';
@@ -27,7 +27,7 @@ export default function RunnersPage() {
   // race report's hashes, opening groups and pacing-type cohort.
   return <div className="runner-page">
     <header className="runner-head">
-      <div className="reading-crumbs t-kicker"><RunnerCrumbs path="/runners" /></div>
+      <div className="reading-crumbs t-kicker"><ChapterCrumbs path="/runners" /></div>
       <h1 className="t-title">Analyze a past race</h1>
       <p className="runner-dek">Find a recorded race by name, or start from your splits or a finish time.</p>
     </header>

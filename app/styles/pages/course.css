@@ -18,16 +18,7 @@
   box-shadow: 0 0 0 100vmax var(--night); clip-path: inset(0 -100vmax);
 }
 .course-hero-head { grid-area: head; }
-.course-crumbs { flex-wrap: wrap; margin: 0; color: var(--ink-3); }
-.course-crumbs a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-decoration-color: var(--rule-strong); text-underline-offset: .25em; }
-.course-crumbs a:hover { color: var(--ink); }
-/* The place crumb wraps whole, and its separator sits in the gap before it, outside its box: where the crumb starts a
-   line, the separator falls past the crumbs' left edge and is clipped, so a line never opens on "·". The 3 px of padding
-   (taken back by the margin) keeps focus rings inside the clip. */
-.course-crumbs { overflow: hidden; padding-inline: 3px; margin-inline: -3px; }
-.course-crumbs .crumb-place { position: relative; white-space: nowrap; }
-/* Centred in the 10 px gap, so it stands as far from "run" as from "Courses", like the crumbs' own " · ". */
-.course-crumbs .crumb-place::before { content: "·"; position: absolute; right: calc(100% + 5px); top: 50%; transform: translate(50%, -50%); }
+.course-crumbs { margin-bottom: 0; color: var(--ink-3); }
 .course-title { margin: var(--s-2) 0 0; color: var(--ink); max-width: 16ch; }
 .course-hero .hero-dek { margin: var(--s-3) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); text-wrap: pretty; }
 
@@ -282,8 +273,6 @@
   .glance-row { grid-template-columns: minmax(0, 1fr); grid-template-areas: "figure" "key" "chart"; }
   .course-row { grid-template-columns: minmax(0, 1fr) 16px; grid-template-areas: "name go" "meta go"; }
   .course-row .course-spark { display: none; }
-  /* The crumb keeps one line: the chapter's marker and "Courses" (the chapter's name would wrap it to three). */
-  .course-crumbs .crumb-chapter { display: none; }
   /* A long one-word race name ("Copenhagen") fits the 163 px column: a step down, and a break inside the word if it must. */
   .course-title { font-size: 1.625rem; overflow-wrap: anywhere; hyphens: auto; }
 }

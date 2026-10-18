@@ -8,9 +8,6 @@
 .courses-page { padding-bottom: var(--s-6); }
 .courses-page .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: .2em; }
 .courses-reading { padding-bottom: var(--s-2); }
-.courses-reading .reading-crumbs { flex-wrap: wrap; }
-/* The H1 already says "Courses": the crumbs stop at the chapter. */
-.courses-reading .crumb-place { display: none; }
 .courses-list { margin-top: var(--s-6); }
 .course-sort .chips { margin-bottom: var(--s-4); }
 

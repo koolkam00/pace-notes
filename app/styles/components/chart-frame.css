@@ -123,6 +123,12 @@
 /* ---------- Night and dark: the pacing types take their night set ---------- */
 .night .viz-frame .l-type, [data-theme="dark"] .viz-frame .l-type { stroke: var(--type-night); }
 .night .viz-frame .m-type, [data-theme="dark"] .viz-frame .m-type { fill: var(--type-night); }
+/* The dark theme by the system setting: the same rules (a selector cannot test the media query). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .viz-frame .l-type { stroke: var(--type-night); }
+  :root:not([data-theme="light"]) .viz-frame .m-type { fill: var(--type-night); }
+  :root:not([data-theme="light"]) .type-glyph path { stroke: var(--type-night); }
+}
 
 @media (min-width: 900px) {
   .viz-frame .viz-plot { height: var(--plot-h-md); }

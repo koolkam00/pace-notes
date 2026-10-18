@@ -2,7 +2,7 @@ import ElevationPace from '@/components/viz/ElevationPace';
 import Values from '@/components/ui/Values';
 import AnalysisExplorer from '@/components/AnalysisExplorer';
 import AnalysisShell, { AnswerCard, ExploreBeat } from '../Shell';
-import ByUnits from '../ByUnits.client';
+import ByUnits from '@/components/ui/ByUnits.client';
 import { analysisBySlug } from '@/lib/ten-analyses';
 import { getAnalysisAnswers, getCityData, getTerrainDefault, terrainSections } from '@/lib/analysis-server';
 import { EXAMPLE_PROFILE } from '@/lib/analysis-profile';

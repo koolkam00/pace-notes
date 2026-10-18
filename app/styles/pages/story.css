@@ -11,10 +11,6 @@
 .story-hero-beat .reading-instrument { max-height: none; }
 .story-hero-beat .reading-instrument > .viz-frame { margin: 0; }
 
-/* The crumbs wrap between their parts, never inside "Page 1 of 4". */
-.story-flow .reading-crumbs { flex-wrap: wrap; row-gap: 0; }
-.story-flow .reading-crumbs > .crumb-place { white-space: nowrap; }
-
 /* A beat: the finding as its H2, at most a short dek, then the figure. */
 .story-beat { scroll-margin-top: calc(var(--header-h) + 8px); }
 .story-beat .beat-head { gap: var(--s-3); margin-bottom: var(--s-5); }
@@ -75,6 +71,10 @@
 .viz-frame .river-end { font-family: var(--sans); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; fill: var(--ink); }
 [data-theme="dark"] .viz-frame .river-on { fill: var(--type-night, var(--type)); }
 [data-theme="dark"] .viz-frame .river-tab { stroke: var(--type-night, var(--type)); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .viz-frame .river-on { fill: var(--type-night, var(--type)); }
+  :root:not([data-theme="light"]) .viz-frame .river-tab { stroke: var(--type-night, var(--type)); }
+}
 
 /* The waffle sits on the column's left edge like every other figure on a story, not centred in it. */
 .story-beat .viz-frame.waffle .viz-plot { margin-inline: 0; }
@@ -181,6 +181,12 @@
 /* Dark mode: every block and key swatch keeps a hairline edge, so an even section (the ramp's midpoint) still reads as
    a block rather than dissolving into the page. */
 [data-theme="dark"] .which-blocks li, [data-theme="dark"] .which-key i { box-shadow: inset 0 0 0 1px var(--rule-strong); }
+@media (prefers-color-scheme: dark) {
+  @supports (background: color-mix(in oklab, red 50%, blue)) {
+    :root:not([data-theme="light"]) .which-blocks li, :root:not([data-theme="light"]) .which-key i { background: color-mix(in oklab, var(--bg, var(--paper-sunk)) var(--mix, 0%), var(--paper-sunk)); color: var(--ink); }
+  }
+  :root:not([data-theme="light"]) .which-blocks li, :root:not([data-theme="light"]) .which-key i { box-shadow: inset 0 0 0 1px var(--rule-strong); }
+}
 
 /* ---------- Name that course ---------- */
 /* The round spans the story's measure: the plot stretches to it at a fixed height, its strokes kept at screen width. */

@@ -4,9 +4,6 @@
    Split mechanically from app/globals.css and app/story.css by the code that owns each selector (WP0-A, October 2026): no rule
    was changed. An area package deletes its selectors from its own legacy file when it rebuilds its pages. */
 
-.arrow-link { font-size: 1.15rem; color: var(--ink); }
-
-
 /* Tables */
 .study-figure { margin: 1.75rem 0 0; min-width: 0; }
 .study-figure .study-figure { margin-top: 1rem; }
@@ -26,46 +23,13 @@
 .signed-track { background: linear-gradient(to right, var(--paper-2) calc(50% - 1px), var(--ink-3) calc(50% - 1px), var(--ink-3) calc(50% + 1px), var(--paper-2) calc(50% + 1px)); }
 .bar-series-label { font-size: .75rem; font-weight: 600; color: var(--ink-3); }
 
-
 /* Home (legacy fragments kept for compatibility) */
 .home-hero { display: grid; grid-template-columns: 1.12fr 1fr; gap: 4rem; align-items: center; padding: 5rem 0 4rem; }
 .hero-copy h1 { font-size: clamp(3.2rem, 7vw, 6rem); line-height: 1; margin: 1.3rem 0 1.6rem; }
-.section-intro { max-width: 46rem; margin-bottom: 2.4rem; }
-.section-intro h2 { font-size: clamp(2.1rem, 4.4vw, 3.4rem); line-height: 1.04; margin-top: .8rem; }
-.section-intro h2 + p { margin-top: 1.1rem; max-width: 38rem; font-size: 1.0625rem; color: var(--ink-2); }
-.section-intro > p:last-child { color: var(--ink-3); max-width: 38rem; margin-top: 1.1rem; font-size: 1.0625rem; }
-
 
 /* Analysis index (the essential ten) */
-.analysis-index { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-.analysis-index li + li { margin: 0; }
-.analysis-index-link {
-  position: relative; display: grid; grid-template-columns: 3.2rem minmax(0, 1fr) 2rem; grid-template-areas: 'rank copy arrow' 'rank category arrow';
-  gap: .35rem 1rem; align-items: start; height: 100%; padding: 1.4rem 1.4rem 1.3rem 1.2rem; border: 1px solid var(--line); border-radius: var(--radius);
-  background: var(--card); color: var(--ink); box-shadow: 0 1px 0 rgba(21, 23, 28, .03);
-  transition: transform .2s var(--ease), box-shadow .2s var(--ease), border-color .2s var(--ease);
-}
-.analysis-index-link:hover { text-decoration: none; transform: translateY(-2px); box-shadow: var(--shadow-lift); border-color: var(--line-2); }
-.analysis-index-link:hover .arrow-link { transform: translate(3px, -3px); color: var(--orange-ink); }
-.analysis-rank { grid-area: rank; font-family: var(--bib); font-size: 2rem; font-weight: 750; line-height: 1; letter-spacing: -.03em; color: var(--orange); }
-.analysis-index-copy { grid-area: copy; display: grid; gap: .35rem; }
-.analysis-index-title { font-family: var(--serif); font-variation-settings: 'opsz' 36, 'SOFT' 30; font-size: 1.28rem; font-weight: 620; letter-spacing: -.012em; line-height: 1.22; }
-.analysis-index-description { color: var(--ink-3); font-size: .875rem; line-height: 1.5; }
-.analysis-index-category { grid-area: category; align-self: end; margin-top: .45rem; font-family: var(--mono); font-size: .6875rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
-.analysis-index-link .arrow-link { grid-area: arrow; justify-self: end; transition: transform .2s var(--ease), color .2s var(--ease); }
-.analysis-index.analysis-index-compact { grid-template-columns: 1fr; }
-.analyses-directory { padding-bottom: 3rem; }
-@media (max-width: 760px) { .analysis-index { grid-template-columns: 1fr; } }
-
 
 /* Weather index (components/WeatherIndex.tsx) */
-.weather-index { margin: 5rem 0; }
-.weather-index .section-intro { margin-bottom: 2rem; }
-@media (max-width: 600px) { .weather-index { margin: 3rem 0; } }
-.analysis-request-callout { padding: 2.2rem; margin-top: 2.5rem; border: 1px solid var(--line); border-radius: 20px; background: var(--card); box-shadow: var(--shadow); }
-.analysis-request-callout h2 { font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.15; }
-.analysis-request-callout p { color: var(--ink-3); max-width: 40rem; margin-top: .6rem; }
-
 
 /* ---------- The history comparison (components/AnalysisChart.tsx) and QuestionViz's range rows ----------
    Rebuilt by WP3 under the redesign: no card, no shadow; a hairline above, the token type. */
@@ -88,6 +52,3 @@
   .range-axis { margin-left: 6rem; margin-right: 3.5rem; }
   .range-row { grid-template-columns: 5.5rem minmax(0, 1fr) 3rem; gap: .5rem; }
 }
-
-.directory-hero { margin-bottom: 0; }
-.directory-body { margin-top: 3rem; }

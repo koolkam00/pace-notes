@@ -3,7 +3,7 @@ import AllFinisherAnalysis from '@/components/AllFinisherAnalysis';
 import WeatherAnalysis from '@/components/WeatherAnalysis';
 import AnalysisShell, { AnswerCard, ExploreBeat, Say } from '../Shell';
 import Columns from '../Columns';
-import ByUnits from '../ByUnits.client';
+import ByUnits from '@/components/ui/ByUnits.client';
 import WeatherTabs from '../WeatherTabs.client';
 import TabTitle from '../TabTitle.client';
 import { analysisBySlug } from '@/lib/ten-analyses';
