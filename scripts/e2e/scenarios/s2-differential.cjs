@@ -119,7 +119,7 @@ const CASES = {
   'checkpoint': { path: '/analyses/checkpoint', async drive(page, v, log) {
     await step(log, 'optional', () => open(page, 'details.guide-optional'));
     await step(log, 'elapsed', () => type(page, label(page, /Elapsed time/, false), v.mat25));
-    await step(log, '5 km', () => type(page, label(page, /^(Latest|Last) (5 km|3\.1 mi)/, false), v.fiveK));
+    await step(log, '5 km', () => type(page, label(page, /^(Latest|Last) /, false), v.fiveK));
   } },
   // The home page's course-and-goal form, then the planner it opens. Both courses are ones neither page names by itself
   // (the hero replay's races and the planner's method note are page content in both runs, so a needle among them could
