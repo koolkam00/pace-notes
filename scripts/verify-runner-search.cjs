@@ -93,8 +93,8 @@ async function main() {
   assert.match(mileHtml, /02:20:39/, 'Keep the faster held result visible as its recorded finish');
   assert.match(mileHtml, /00:16:40\.000/, 'Keep original checkpoint formatting rather than recomputing it');
   assert.match(mileHtml, /<strong>3:30:58\.5<\/strong><span>Fastest selected eligible finish/, 'A faster held result cannot replace the eligible best');
-  assert.match(mileHtml, /26\.22 mi/); assert.doesNotMatch(mileHtml, /5:00\/km/);
-  const kmHtml = render([base], 'km'); assert.match(kmHtml, /5:00\/km/); assert.match(kmHtml, /42\.195 km/);
+  assert.doesNotMatch(mileHtml, /\d\.\d\d\s*mi\b/, 'Miles never to two decimals (mats are named, prose distances take one decimal)'); assert.doesNotMatch(mileHtml, /5:00\/km/);
+  const kmHtml = render([base], 'km'); assert.match(kmHtml, /5:00\/km/); assert.doesNotMatch(kmHtml, /\d\/mi\b/, 'Paces follow the units shown');
   const assertLimitedRecordsVisible = html => {
     assert.match(html, /Your race records are here/);
     assert.match(html, /Casey Partial/);

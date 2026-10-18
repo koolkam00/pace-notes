@@ -355,7 +355,10 @@ for (const [units, ending] of [['mi', /:(?:00|15|30|45)$/], ['km', /:(?:00|15|30
 const chartSource = name => fs.readFileSync(path.join(__dirname, '../components', name), 'utf8');
 assert.match(chartSource('QuestionViz.tsx'), /paceTicks\(Math\.min\(\.\.\.allValues\) \* 60, Math\.max\(\.\.\.allValues\) \* 60, selectedUnits\)/);
 assert.match(chartSource('QuestionLineChart.tsx'), /<YAxis [^>]*ticks=\{paceTicks\}[^>]*domain=\{paceTicks \? \[paceTicks\[0\], paceTicks\[paceTicks\.length - 1\]\]/);
-assert.match(chartSource('RunnerContext.tsx'), /<YAxis [^>]*domain=\{paceAxis \? paceAxis\.domain : \['auto', 'auto'\]\} ticks=\{paceAxis\?\.ticks\}/);
+// The runner view's pace chart (LineProfile, no Recharts since the October 18, 2026 redesign) takes the same ticks: its
+// domain and every gridline come from paceTicks, labelled with paceLabel.
+assert.match(chartSource('RunnerContext.tsx'), /const axis = paceTicks\([^;]*, units, 6\);\n\s*const grid = axis \? \[\.\.\.new Set\(\[axis\.ticks\[0\][^;]*axis\.ticks\[axis\.ticks\.length - 1\]\]\)\] : \[\];/);
+assert.match(chartSource('RunnerContext.tsx'), /<LineProfile [^>]*yDomain=\{axis \? axis\.domain : undefined\}[\s\S]*?yTicks=\{grid\.map\(v => \(\{ value: v, label: clear\(v\) \? tick\(v\) : '' \}\)\)\}/);
 
 // The header's units switch works on every page that shows text changing with the units (lib/unit-preference.ts), and
 // the server render stops (so the build stops) when such text is on a page where the switch is inert.
