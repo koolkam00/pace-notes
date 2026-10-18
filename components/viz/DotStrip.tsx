@@ -26,6 +26,8 @@ export function stripExtremes<T extends Pick<StripItem, 'value' | 'hollow'>>(ite
 
 const R = 5;
 const STEP = 11;
+/** The pick ring's reach round the dot it opens on (20 px across, plus its 2 px line). */
+const RING = 12;
 
 export default function DotStrip({ items, domain, ticks, label, readoutKey, values, labelExtremes = true, keyLabels }: {
   items: StripItem[]; domain?: [number, number]; ticks: { value: number; label: string }[]; label: string;
@@ -36,15 +38,22 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
 }) {
   const sorted = [...items].sort((a, b) => a.value - b.value);
   const x = linear(domain ?? extent(sorted.map((s) => s.value)));
-  // Stack at the reference width: each dot takes the lowest level with no neighbour within a dot's width.
-  const levels: number[] = [];
-  const placed: { px: number; level: number }[] = [];
-  for (const s of sorted) {
+  // Stack at the reference width: each dot takes the lowest level with no neighbour within a dot's width. The subject
+  // goes first, on the axis, and keeps the room of the ring it opens with (12 px round it), so no neighbour sits under
+  // the ring; the rest stack above it.
+  const levels: number[] = new Array(sorted.length).fill(0);
+  const placed: { px: number; level: number; subject: boolean }[] = [];
+  const order = sorted.map((s, i) => i).sort((a, b) => Number(!!sorted[b].subject) - Number(!!sorted[a].subject) || a - b);
+  for (const i of order) {
+    const s = sorted[i];
     const px = x(s.value) * REF_WIDTH;
     let level = 0;
-    while (placed.some((p) => p.level === level && Math.abs(p.px - px) < R * 2 + 1)) level++;
-    placed.push({ px, level });
-    levels.push(level);
+    // Clear of every dot on its own level, and of the subject's ring at any level (by the distance between centres).
+    const clash = (lv: number) => placed.some((p) => (p.level === lv && Math.abs(p.px - px) < R * 2 + 1)
+      || (p.subject && Math.hypot(p.px - px, (lv - p.level) * STEP) < RING + R + 1));
+    while (clash(level)) level++;
+    placed.push({ px, level, subject: !!s.subject });
+    levels[i] = level;
   }
   const top = Math.max(0, ...levels);
   const height = 44 + (top + 1) * STEP + 8;
@@ -57,9 +66,10 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
   const labelled = new Set<number>((ends ? ends.map((e) => sorted.indexOf(e)) : []).filter((i) => i !== subject));
   // A label rises above the tallest stack under its own width (at the narrowest phone), on a leader down to its dot
   // when it had to climb, so a stacked neighbour never hides it.
+  const pxOf = (i: number) => x(sorted[i].value) * REF_WIDTH;
   const lift = (i: number) => {
     const reach = textWidth(sorted[i].label, 13) + 6;
-    return Math.max(levels[i], ...placed.filter((p) => Math.abs(p.px - placed[i].px) < reach).map((p) => p.level));
+    return Math.max(levels[i], ...placed.filter((p) => Math.abs(p.px - pxOf(i)) < reach).map((p) => p.level));
   };
   const lab: LabelItem[] = [...labelled].map((i) => ({ id: String(i), text: sorted[i].label, x: x(sorted[i].value), y: yOf(lift(i)), priority: i === subject ? 3 : 1, tone: i === subject ? 'signal' : 'ink', size: i === subject ? 14 : 13, gap: 10, prefer: 'above' as const }));
   const labels = placeLabels(lab, { height, avoid: sorted.map((s, i) => ({ x: x(s.value), y: yOf(levels[i]), r: R })) });

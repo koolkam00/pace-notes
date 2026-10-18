@@ -17,7 +17,8 @@
 .reading-bar[data-done] .reading-bar-left { opacity: 0; }
 
 .reading-bar-line { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--rule); }
-.reading-bar-line i { position: absolute; bottom: 0; width: 1px; height: 6px; background: var(--ink-3); }
+/* Each tick sits just left of its point, so the last one (at 100%) never reaches past the page's edge. */
+.reading-bar-line i { position: absolute; bottom: 0; width: 1px; height: 6px; background: var(--ink-3); transform: translateX(-100%); }
 .reading-bar-fill { position: absolute; inset: 0; background: var(--ink); transform-origin: left center; transform: scaleX(var(--p, 0)); }
 .reading-bar-dot { position: absolute; top: 50%; left: calc(var(--p, 0) * (100% - 10px) + 5px); width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 0 2px var(--paper); }
 

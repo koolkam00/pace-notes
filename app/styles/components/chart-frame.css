@@ -88,6 +88,8 @@
 .viz-frame .viz-label.is-sm { font-size: 13px; }
 .viz-frame .viz-label.is-signal { fill: var(--signal-ink); }
 .viz-frame .viz-label.is-quiet { fill: var(--ink-3); font-weight: 500; }
+/* A label that had to sit on a reference line breaks the line under it. */
+.viz-frame .viz-label.is-knockout { stroke-width: 8px; }
 
 /* ---------- Axis ---------- */
 .viz-frame .viz-axis { position: relative; }

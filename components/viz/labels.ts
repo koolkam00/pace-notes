@@ -44,6 +44,8 @@ export type LabelItem = {
   /** Gap between the point and the text, px. */
   gap?: number;
   tone?: 'ink' | 'signal' | 'quiet';
+  /** The label sits on a reference line, which breaks under it: a wide halo of the surface knocks the line out. */
+  knockout?: boolean;
 };
 
 export type PlacedLabel = LabelItem & {

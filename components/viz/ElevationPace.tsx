@@ -5,7 +5,7 @@ import Plot, { Baseline } from './Plot';
 import Scrubber from './Scrubber.client';
 import { areaPath, linear, linePath, pc } from './scale';
 import { paceColour, paceText } from '@/lib/viz/format';
-import { fitClass, textWidth } from './labels';
+import { fitClass, REF_WIDTH, textWidth } from './labels';
 
 /**
  * Elevation and pace (the redesign spec, section 3.6): the course profile as a 2 px ink line over a quiet area with an
@@ -16,10 +16,12 @@ import { fitClass, textWidth } from './labels';
  */
 export type PaceSection = { label: string; startKm: number; endKm: number; pct: number; display: string; climb: string };
 
-export default function ElevationPace({ km, metres, relief, sections, focus, label, readoutKeys, values, height = 150, heightMd = 190 }: {
+export default function ElevationPace({ km, metres, relief, sections, focus, label, readoutKeys, values, height = 150, heightMd = 190, reliefLabel }: {
   km: number[]; metres: number[]; relief: number; sections: PaceSection[]; focus?: number; label: string;
   /** The readout's labels: [the climb in a section, its pace against the course's own average]. */
   readoutKeys: [string, string]; values?: ReactNode; height?: number; heightMd?: number;
+  /** The shared scale's top, as words ("656 ft"): a hairline at it, labelled inside the plot, so the scale can be read. */
+  reliefLabel?: string;
 }) {
   const total = km[km.length - 1] || 42.195;
   const x = linear([0, total]);
@@ -27,6 +29,10 @@ export default function ElevationPace({ km, metres, relief, sections, focus, lab
   const top = 0.08;
   const y = (m: number) => 1 - (1 - top) * ((m - floor) / Math.max(1, relief));
   const line = km.map((k, i) => [x(k), y(metres[i])] as [number, number]);
+  // The scale's top line, its label under it at whichever end the profile stays clear of (else no label, and no line).
+  const labelW = reliefLabel ? (textWidth(reliefLabel, 12, 500) + 8) / REF_WIDTH : 0;
+  const clearUnder = (x0: number, x1: number) => line.every(([px, py]) => px < x0 || px > x1 || py > top + 22 / height);
+  const reliefSide = !reliefLabel ? null : clearUnder(0, labelW) ? 'left' : clearUnder(1 - labelW, 1) ? 'right' : null;
   const plot = (
     <Plot paths={(
       <>
@@ -35,6 +41,12 @@ export default function ElevationPace({ km, metres, relief, sections, focus, lab
       </>
     )}>
       {focus !== undefined && sections[focus] ? <rect className="a-signal" x={pc(x(sections[focus].startKm))} width={pc(x(sections[focus].endKm) - x(sections[focus].startKm))} y="0" height="100%" /> : null}
+      {reliefSide ? (
+        <g className="viz-grid">
+          <rect className="grid-line" x="0" y={pc(top)} width="100%" height="1" />
+          <text className="tick grid-label" x={reliefSide === 'left' ? '0' : '100%'} y={pc(top)} dy={15} textAnchor={reliefSide === 'left' ? 'start' : 'end'}>{reliefLabel}</text>
+        </g>
+      ) : null}
       <Baseline />
     </Plot>
   );
