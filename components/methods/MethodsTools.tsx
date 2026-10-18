@@ -3,6 +3,7 @@ import { copyEditions } from '@/lib/duplicate-editions';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { BOSTON_CUTOFFS, STANDARDS, VERIFIED_AT } from '@/lib/tools/qualifying';
 import { toolHref } from '@/lib/tools/registry';
+import { STORIES } from '@/lib/stories';
 import { Detail, Topic, and, day, editionList, n } from './shared';
 
 type Edition = { city: string; year: number; finishes: number };
@@ -68,7 +69,7 @@ export default function MethodsTools() {
     <Detail id="tools-goal-pages" title="Marathon pace goal pages">
       <p>Each goal page (3:00, 3:30, 4:00, 4:30 and 5:00) sets the even-pace splits for the goal beside the pace band’s All-courses group for it: every screened finish from 5:00 to 0:01 under the goal, all recorded genders, each with all nine official 5 km checkpoint times. These are achieved finishes, not stated goals. The page’s sentences are built only from that goal’s pace-band values.</p>
       <p>A section’s median pace is the median of every finish’s own pace over that section, so it need not equal the gap between two mat medians. The middle half is observed variation between finishes, not uncertainty and not a plan.</p>
-      <p>The bunching panel uses the finish-time data behind the <a href="#story-round-numbers">3:59 effect story</a>. A smooth curve is fitted to the minutes around the goal, and the ratio’s 95% interval comes from resampling whole race editions. The panel appears only when that whole interval is above 1.</p>
+      <p>The bunching panel uses the finish-time data behind the <a href="#story-round-numbers">{STORIES.find((st) => st.slug === 'round-numbers')!.title.replace(/^The /, '')} story</a>. A smooth curve is fitted to the minutes around the goal, and the ratio’s 95% interval comes from resampling whole race editions. The panel appears only when that whole interval is above 1.</p>
     </Detail>
 
     <Detail id="tools-predictor" title="Finish-time predictor">

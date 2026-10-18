@@ -97,7 +97,7 @@ module.exports = function stories({ json, eq, ok, core }) {
     const q = best.pack.quantiles.find((x) => x.km > 42);
     close(best.pack.finish_window_min, (q.p90_s - q.p10_s) / 60, 'replay.packs: the window is the middle 80% at the finish', 0.05);
     eq(n.guard, Math.round(best.pack.finish_window_min) >= 10, 'replay.packs: guard');
-    if (n.guard) has(n, `Same ${mat(best.pack.checkpoint_km)} split, *${Math.round(best.pack.finish_window_min)} minutes*`, 'replay.packs names the window');
+    if (n.guard) has(n, `Same ${mat(best.pack.checkpoint_km)} split, *${Math.round(best.pack.finish_window_min)}\u00a0minutes*`, 'replay.packs names the window (held to its unit)');
   };
 
   R['replay.left'] = (n) => {
@@ -152,6 +152,13 @@ module.exports = function stories({ json, eq, ok, core }) {
     eq(n.figure.value, String(Math.round(a.share * 100)), 'places.gap: the figure');
     ok(/still crossed first/.test(n.key), 'places.gap: the approved key wording ("still crossed first")');
   };
+  R['places.title'] = (n) => {
+    const a = gapRow(pos.coin_flip['30']), b = gapRow(pos.coin_flip['40']);
+    const r = a.share / b.share, k = Math.round(r);
+    eq([n.values.at30, n.values.at40], [a.share, b.share], 'places.title: the reading\'s gap bands');
+    eq(n.guard, k >= 2 && Math.abs(r - k) <= 0.25, 'places.title: the times in words need the ratio near a whole number');
+    if (n.guard) has(n, `*${k === 2 ? 'twice' : `${word(k)} times`} as often*`, 'places.title names the ratio');
+  };
   R['places.coin'] = (n) => {
     // The 30K band from three minutes back to ten whose share is nearest the 40K share a minute back.
     const b = gapRow(pos.coin_flip['40']);
@@ -185,10 +192,11 @@ module.exports = function stories({ json, eq, ok, core }) {
     eq(n.values.median_gap_s, s.median_gap_s, 'kick.twins reads the matched gap');
     eq(n.guard, s.median_gap_s > 600, 'kick.twins: guard (more than ten minutes)');
     eq(n.figure.value, String(Math.round(s.median_gap_s / 60)), 'kick.twins: the figure in minutes');
+    if (n.guard) has(n, `*${Math.round(s.median_gap_s / 60)}\u00a0minutes*`, 'kick.twins: the minutes held to their unit');
   };
   R['kick.later'] = (n) => {
     eq(n.guard, kick.cost.stratified.median_gap_s > 600, 'kick.later: guard');
-    if (n.guard) has(n, `*${Math.round(kick.cost.stratified.median_gap_s / 60)} minutes* later`, 'kick.later names the gap');
+    if (n.guard) has(n, `${Math.round(kick.cost.stratified.median_gap_s / 60)}\u00a0minutes later`, 'kick.later names the gap (held to its unit, no second accent under the H1)');
   };
   R['kick.bands'] = (n) => {
     const gaps = kick.cost.bands.filter((b) => b.slowdown_n >= 100 && b.other_n >= 100).map((b) => b.slowdown_finish_s - b.other_finish_s);
@@ -266,6 +274,16 @@ module.exports = function stories({ json, eq, ok, core }) {
     eq(n.guard, more === rows.length && rows.length >= 2, 'holds.bands: "every" needs all bands');
   };
 
+  R['holds.title'] = (n) => {
+    const o = demo.overall;
+    eq([n.values.women, n.values.men], [o.women_slowdown, o.men_slowdown], 'holds.title reads the matched shares');
+    eq(n.guard, o.women_slowdown > 0 && o.men_slowdown > 1.5 * o.women_slowdown, 'holds.title: "more often" needs men half as many again');
+  };
+  R['field.title'] = (n) => {
+    eq(n.values.median_min, minuteAt(0.5), 'field.title recounts the median');
+    eq(n.guard, minuteAt(0.5) !== null, 'field.title: guard');
+    if (n.guard) has(n, `*${hm(minuteAt(0.5))}*`, 'field.title names the median');
+  };
   R['courses.named'] = (n) => {
     const id = courses.identification;
     let correct = 0;
@@ -307,8 +325,13 @@ module.exports = function stories({ json, eq, ok, core }) {
     const cool = sure.reduce((a, b) => (b.temp < a.temp ? b : a)), warm = pts.reduce((a, b) => (b.temp > a.temp ? b : a));
     eq([n.values.cool_c, n.values.warm_c], [cool.temp, warm.temp], 'weather.curve: the coolest point clear of zero and the warmest');
     eq(n.guard, warm.slope >= 1.5 * cool.slope, 'weather.curve: guard');
-    has(n, `*${(warm.slope / 1.8).toFixed(1)} min*`, 'weather.curve: per °F is per °C ÷ 1.8', 'mi');
-    has(n, `*${warm.slope.toFixed(1)} min*`, 'weather.curve: per °C', 'km');
+    has(n, `*${(warm.slope / 1.8).toFixed(1)}\u00a0min*`, 'weather.curve: per °F is per °C ÷ 1.8 (held to its unit)', 'mi');
+    has(n, `*${warm.slope.toFixed(1)}\u00a0min*`, 'weather.curve: per °C', 'km');
+  };
+  R['weather.title'] = (n) => {
+    const p = courses.weather.pairs;
+    eq([n.values.warmer_more, n.values.total], [p.hotter_slowed_more, p.total], 'weather.title reads the pairs');
+    eq(n.guard, p.hotter_slowed_more > p.total / 2, 'weather.title: "slowed more" needs most pairs');
   };
   R['weather.tilt'] = (n) => {
     const s = courses.weather.heat_signature;
@@ -327,7 +350,7 @@ module.exports = function stories({ json, eq, ok, core }) {
       [S.replayLeftFrom({ city: 'A', year: 2020, median_finish_s: 15000, composition: [{ clock_s: 15000, on_course: 10, current_kmh: 8, whole_race_kmh: 9, composition_share: 0.3 }] }), 'Late in the race, 30% of the slower pace on course reflects who’s left.'],
       [S.shapeSecond20kFrom({ count: 60, total: 100 }), '*60% of finishes* ran their second 20K faster than their first.'],
       [S.typesRiverFrom({ archetypes: [{ name: 'Even', median_cv: 1 }, { name: 'Odd', median_cv: 9 }], river: [{ label: '2:30–2:45', shares: [0.3, 0.7] }, { label: '6:00–6:15', shares: [0.2, 0.8] }] }), 'Evens: 30% of 2:30–2:45 finishes, 20% of 6:00–6:15.'],
-      [S.placesCoinFrom({ 30: [{ gap_lo_s: 60, share: 0.3 }, { gap_lo_s: 300, share: 0.1 }], 40: [{ gap_lo_s: 60, share: 0.2 }] }), 'How often a trailing finish crossed first, by how far back it was, from 30K and from 40K.'],
+      [S.placesCoinFrom({ 30: [{ gap_lo_s: 60, share: 0.3 }, { gap_lo_s: 300, share: 0.1 }], 40: [{ gap_lo_s: 60, share: 0.2 }] }), 'How often a trailing finish got to the line first, by how far back it was, from 30K and from 40K.'],
       [S.placesBreakevenFrom(null), 'Places gained after 30K, by the pace of 30–40K against a finish’s own 5–20K pace.'],
       [S.kickTwinsFrom({ strata: 1, slowdown_finishes: 1, mean_gap_s: 300, median_gap_s: 300 }), 'Same pace to 20K, apart at the finish.'],
       [S.kickStayFrom([{ source: '25–30', target: '30–35', n: 10, stay: 0.4, back_within_10: 0.1 }]), 'Of finishes at sustained-slowdown pace over 25–30K, 40% stayed that slow over 30–35K.'],
@@ -336,6 +359,10 @@ module.exports = function stories({ json, eq, ok, core }) {
       [S.holdsGenderFrom({ women_slowdown: 0.5, men_slowdown: 0.4 }), 'At the same finish times: recorded women 50%, recorded men 40%.'],
       [S.holdsBandsFrom([{ lo_min: 150, women_n: 200, men_n: 200, women_slowdown: 0.1, men_slowdown: 0.2 }, { lo_min: 160, women_n: 200, men_n: 200, women_slowdown: 0.3, men_slowdown: 0.2 }]), 'Men’s finishes had more sustained slowdowns in 1 of 2 finish-time bands.'],
       [S.coursesSlowestFrom([{ slowest_section: '35–40', curve: [1] }, { slowest_section: '30–35', curve: [1] }]), 'The slowest 5K, course by course.'],
+      [S.fieldTitleFrom(null), 'Marathon finish times'],
+      [S.placesTitleFrom({ 30: [{ gap_lo_s: 60, share: 0.3 }], 40: [{ gap_lo_s: 60, share: 0.2 }] }), 'Pass or be passed'],
+      [S.holdsTitleFrom({ women_slowdown: 0.3, men_slowdown: 0.4 }), 'Who holds their pace'],
+      [S.weatherTitleFrom({ hotter_slowed_more: 4, total: 10 }), 'Race-morning weather'],
       [S.weatherPairsFrom({ hotter_slowed_more: 4, total: 10, min_gap_c: 5 }), '4 of 10 same-course pairs at least 9°F apart at the start: the warmer year had more sustained slowdowns.'],
     ];
   }

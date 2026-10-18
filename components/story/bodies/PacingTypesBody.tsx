@@ -16,15 +16,16 @@ const PATH = '/stories/pacing-types';
 const EXAMPLE = ['0:25:30', '0:51:00', '1:16:40', '1:42:30', '2:08:50', '2:36:10', '3:05:00', '3:36:00', '3:51:00'];
 
 /**
- * Six ways to run the same race (the redesign spec, section 7.5, under section 00): the reading (how rarely the second
- * 20K was the faster half) with the six shapes as glyphs, then three beats: who runs which shape as the clock runs, the
+ * Six ways to run the same race (the redesign spec, section 7.5, under section 00): the reading (the evenest shape's
+ * share of finishes, the page's reading on the contents too) with the six shapes as glyphs and that one marked, then
+ * three beats: who runs which shape as the clock runs, the
  * type that men's finishes ran most often against women's, and the reader's own type. The animated six-runner race,
  * the barcode and the habits beat are cut (the habits are chapter 11's subject); their anchors land on these beats.
  */
 export default function PacingTypesBody() {
   const data = readInsight<Archetypes>('archetypes.json');
   const story = STORIES.find((s) => s.slug === 'pacing-types')!;
-  const lead = getNugget('shape.second20k'), river = getNugget('types.river'), gender = getNugget('types.gender');
+  const lead = getNugget('types.metronome'), river = getNugget('types.river'), gender = getNugget('types.gender');
   const types = data.archetypes;
   const all = types.flatMap((t) => t.profile);
   const domain: [number, number] = [Math.min(...all), Math.max(...all)];
@@ -42,7 +43,7 @@ export default function PacingTypesBody() {
         instrument={(
           <ul className="type-legend" aria-label={`The ${types.length} pacing types and their shares of finishes`}>
             {types.map((t, i) => (
-              <li key={t.slug}><TypeGlyph profile={t.profile} index={i} domain={domain} /><span>{t.name}</span><b>{pct(t.share)}</b></li>
+              <li key={t.slug} className={i === even ? 'is-reading' : undefined}><TypeGlyph profile={t.profile} index={i} domain={domain} /><span>{t.name}</span><b>{pct(t.share)}</b></li>
             ))}
           </ul>
         )} />

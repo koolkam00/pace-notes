@@ -1,11 +1,12 @@
 /* Chips (components/ui/Chips.client.tsx): for more than 5 options or a wrapping set. 44 px pills with a 1 px
    --rule-strong edge; the selected chip is ink with paper text. A row that overflows scrolls sideways with a 24 px edge
-   fade on the side that has more, and snaps; it is never clipped without a cue. */
+   fade on the side that has more, and snaps 24 px in, so a chip scrolled past still peeks under the fade on that side;
+   it is never clipped without a cue. */
 
 .chips { position: relative; max-width: 100%; }
 .chips-row {
   display: flex; gap: 8px; margin: -3px; padding: 3px; list-style: none;
-  overflow-x: auto; scroll-snap-type: x proximity; scroll-padding-inline: 3px; scrollbar-width: none; overscroll-behavior-x: contain;
+  overflow-x: auto; scroll-snap-type: x proximity; scroll-padding-inline: 24px; scrollbar-width: none; overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
 }
 .chips-row::-webkit-scrollbar { display: none; }

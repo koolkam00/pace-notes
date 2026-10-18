@@ -26,14 +26,18 @@ export type ProfileLayer = {
   band?: { lo: number[]; hi: number[] };
   labels?: { x: number; y: number; text: string; tone?: 'ink' | 'signal' | 'quiet'; priority?: number; prefer?: LabelItem['prefer'] }[];
   points?: { x: number; y: number; kind: 'best' | 'reading' }[];
+  /** A level two points share ("as often as"): a 1 px dashed --ink-3 connector at `y` from `x0` to `x1`. */
+  links?: { x0: number; x1: number; y: number }[];
 };
 
 type Props = {
   x: number[];
   xDomain?: [number, number];
   yDomain?: [number, number];
-  xTicks: { value: number; label: string }[];
+  xTicks: { value: number; label: string; priority?: number }[];
   yTicks?: { value: number; label: string }[];
+  /** Which side the gridline labels sit on: the clear one (default right). */
+  gridSide?: 'left' | 'right';
   layers: ProfileLayer[];
   initial?: string;
   lensLabel?: string;
@@ -50,7 +54,7 @@ type Props = {
   heightMd?: number;
 };
 
-export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = [], layers, initial, lensLabel, chips, refs = [], washes = [], scrub, axisTitle, label, keys, values, height = 220, heightMd = 280 }: Props) {
+export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = [], gridSide = 'right', layers, initial, lensLabel, chips, refs = [], washes = [], scrub, axisTitle, label, keys, values, height = 220, heightMd = 280 }: Props) {
   const x = linear(xDomain ?? extent(xs));
   const all = layers.flatMap((l) => [...l.series.flatMap((s) => s.values), ...(l.band ? [...l.band.lo, ...l.band.hi] : [])]).concat(refs.map((r) => r.value));
   const [lo, hi] = yDomain ?? extent(all);
@@ -65,9 +69,16 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
     const clamp = (v: number) => Math.max(Math.min(d0, d1), Math.min(Math.max(d0, d1), v));
     const pts = (values: number[]) => values.map((v, i) => [x(xs[i]), y(clamp(v))] as [number, number]);
     const items: LabelItem[] = (layer.labels ?? []).map((l, i) => ({ id: `${layer.id}-${i}`, text: l.text, x: x(l.x), y: y(l.y), priority: l.priority ?? (l.tone === 'signal' ? 3 : 2), tone: l.tone, prefer: l.prefer }));
-    // Labels keep clear of the points and of every line's vertices.
-    const avoid = [...(layer.points ?? []).map((p) => ({ x: x(p.x), y: y(p.y), r: 7 })),
-      ...layer.series.flatMap((sr) => sr.values.map((v, i) => ({ x: x(xs[i]), y: y(clamp(v)), r: 3 })))];
+    // Labels keep clear of the points and of every line: its vertices and points along each segment.
+    const along = (values: number[]) => values.flatMap((v, i) => {
+      if (i === values.length - 1) return [{ x: x(xs[i]), y: y(clamp(v)), r: 3 }];
+      const [x0, y0, x1, y1] = [x(xs[i]), y(clamp(v)), x(xs[i + 1]), y(clamp(values[i + 1]))];
+      const n = Math.max(2, Math.ceil(Math.hypot((x1 - x0) * REF_WIDTH, (y1 - y0) * height) / 5));
+      return Array.from({ length: n }, (_, k) => ({ x: x0 + ((x1 - x0) * k) / n, y: y0 + ((y1 - y0) * k) / n, r: k ? 2 : 3 }));
+    });
+    const avoid = [...(layer.points ?? []).map((p) => ({ x: x(p.x), y: y(p.y), r: 7 })), ...layer.series.flatMap((sr) => along(sr.values))];
+    // …and of a level connector between two points.
+    for (const k of layer.links ?? []) for (let t = 0; t <= 20; t++) avoid.push({ x: x(k.x0 + ((k.x1 - k.x0) * t) / 20), y: y(k.y), r: 2 });
     const placed = placeLabels(items, { height, avoid });
     return (
       <g key={layer.id} data-layer={lensOn ? layer.id : undefined} className={lensOn && layer.id !== current ? 'is-off' : undefined}>
@@ -81,8 +92,11 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
               style={s.tone === 'type' ? typeStyle(s.typeIndex ?? 0) : undefined} d={linePath(pts(s.values))} />
           ))}
         </svg>
+        {(layer.links ?? []).map((k, i) => (
+          <line key={`link-${i}`} className="ref-line is-dashed" x1={pc(x(k.x0))} x2={pc(x(k.x1))} y1={pc(y(k.y))} y2={pc(y(k.y))} />
+        ))}
         {(layer.points ?? []).map((p, i) => (
-          <circle key={i} className={p.kind === 'best' ? 'm-hollow-ink' : 'm-signal'} cx={pc(x(p.x))} cy={pc(y(p.y))} r={p.kind === 'best' ? 5 : 5.5} />
+          <circle key={i} className={p.kind === 'best' ? 'm-hollow-ink' : 'm-signal is-reading'} cx={pc(x(p.x))} cy={pc(y(p.y))} r={p.kind === 'best' ? 5 : 5.5} />
         ))}
         <Annotation labels={placed} />
       </g>
@@ -99,7 +113,7 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
     const w = textWidth(r.label, 13) + 4, ry = y(r.value) * height;
     const lines = firstLayer.series.map((sr) => sr.values.map((v, i) => [x(xs[i]) * REF_WIDTH, y(v) * height] as [number, number]));
     const washed = firstLayer.series.filter((sr) => sr.fillAbove !== undefined).map((sr) => sr.values.map((v, i) => [x(xs[i]) * REF_WIDTH, v > sr.fillAbove! ? 1 : 0] as [number, number]));
-    const grid = yTicks.map((t) => { const gy = y(t.value) * height; const gw = textWidth(t.label, 12, 500) + 4; return { x0: REF_WIDTH - gw, x1: REF_WIDTH, y0: gy - 18, y1: gy }; });
+    const grid = yTicks.map((t) => { const gy = y(t.value) * height; const gw = textWidth(t.label, 12, 500) + 4; return gridSide === 'left' ? { x0: 0, x1: gw, y0: gy - 18, y1: gy } : { x0: REF_WIDTH - gw, x1: REF_WIDTH, y0: gy - 18, y1: gy }; });
     const clear = (x0: number, below: boolean) => {
       const x1 = x0 + w, y0 = below ? ry + 3 : ry - 19, y1 = below ? ry + 19 : ry - 3;
       if (x0 < 0 || x1 > REF_WIDTH) return false;
@@ -135,13 +149,13 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
           {w.label ? <text className={`tick ${fitClass((textWidth(w.label, 12, 500) + 64) / Math.max(0.05, 1 - x(w.from)))}`} x={pc(x(w.from))} y="0" dy={12} dx={6}>{w.label}</text> : null}
         </g>
       ))}
-      <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label }))} side="right" />
+      <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label }))} side={gridSide} />
       {refs.map((r) => <RefLine key={r.value} y={y(r.value)} label={r.label} dashed={r.dashed} {...refSpot(r)} />)}
       {layers.map(drawLayer)}
       <Baseline />
     </Plot>
   );
-  const axis = <Axis ticks={xTicks.map((t) => ({ x: x(t.value), label: t.label }))} title={axisTitle} />;
+  const axis = <Axis ticks={xTicks.map((t) => ({ x: x(t.value), label: t.label, priority: t.priority }))} title={axisTitle} />;
   return (
     <ChartFrame label={label} height={height} heightMd={heightMd} k={lensOn ? current : undefined}
       lens={lensOn ? <Lens label={lensLabel ?? 'Show'} options={layers.map((l) => ({ value: l.id, label: l.label }))} defaultValue={current} chips={chips} /> : undefined}

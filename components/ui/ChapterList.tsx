@@ -26,10 +26,16 @@ type Variant = 'compact' | 'full' | 'expanded';
 
 const pagesOf = (chapter: Chapter) => [...chapter.pages.map((p) => p.href), ...(chapter.children ?? []), ...(chapter.also ?? []).map((a) => a.href)];
 
+/** A figure with no number in it ("Yours") is a word, not a reading: it shows as its key alone, in plain text. */
+const isNumber = (value: string) => /\d/.test(value);
+/** Spaces of any kind as one plain space, so a title held together with no-break spaces still matches its figure. */
+const flat = (text: string) => text.replace(/\s+/g, ' ');
+
 function Reading({ readingOf, id, fallbackKey, size }: { readingOf?: ReadingOf; id: Chapter['lead']; fallbackKey?: string; size: 's' | 'm' }) {
   const reading = readingOf?.(id);
   if (!reading) return null;
   const key = reading.key ?? fallbackKey;
+  if (!isNumber(reading.value)) return key ? <span className="chapter-reading is-key-only"><span className="chapter-key">{key}</span></span> : null;
   return (
     <span className="chapter-reading">
       <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size={size} />
@@ -43,10 +49,13 @@ function PageReading({ readingOf, page, skip }: { readingOf?: ReadingOf; page: C
   if (page.nugget === skip) return null;
   const reading = readingOf?.(page.nugget);
   if (!reading?.key) return null;
-  // A page whose title already states its figure ("… 20 minutes apart …") shows it once.
-  if (page.title.includes(`${reading.value}${reading.unit ? ` ${reading.unit.trim()}` : ''}`)) return null;
+  // A figure that is a word shows its key alone. A page whose title already states its figure ("… 20 minutes apart …")
+  // keeps it on its quiet line, where the key says what it is; the contents, whose rows ride on the title's line, leave
+  // that figure out (research.css), so it never shows twice there.
+  if (!isNumber(reading.value)) return <span className="page-reading is-key-only"><span className="page-reading-key">{reading.key}</span></span>;
+  const inTitle = flat(page.title).includes(flat(`${reading.value}${reading.unit ? ` ${reading.unit.trim()}` : ''}`));
   return (
-    <span className="page-reading">
+    <span className={`page-reading${inTitle ? ' is-in-title' : ''}`}>
       <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size="s" />
       <span className="page-reading-key">{reading.key}</span>
     </span>
@@ -97,7 +106,7 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
                 </ol>
               </li>
             ) : (
-              <li className="chapter-row" key={chapter.id}>
+              <li className="chapter-row" key={chapter.id} data-lead={chapter.lead}>
                 <ChapterLink href={chapterHref(chapter)} match={pagesOf(chapter)} className="chapter-link">
                   <span className="chapter-mark"><MarkerBadge marker={chapter.marker} /></span>
                   <span className="chapter-text">

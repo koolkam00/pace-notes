@@ -4,10 +4,10 @@ import DotStrip from '@/components/viz/DotStrip';
 import Values from '@/components/ui/Values';
 import PercentileDots from '@/components/story/charts/PercentileDots';
 import EraShift from '@/components/story/charts/EraShift';
-import { Beat, Say, StoryHero, StoryPage } from '@/components/story/StoryPage';
+import { Beat, StoryHero, StoryPage } from '@/components/story/StoryPage';
 import { FINISH_GROUPS, GROUP_LABEL, clockMinute, ordinal, percentileMinutes, type FinishTimeSummary as Summary, type GroupSummary } from '@/lib/finish-times-summary';
 import type { Courses } from '@/lib/insights';
-import { getNugget } from '@/lib/nuggets';
+import { getNugget, sentenceOf } from '@/lib/nuggets';
 import { count, hm } from '@/lib/nuggets/format';
 import { courseSlug } from '@/lib/tools/links';
 
@@ -24,7 +24,7 @@ const signedMin = (v: number) => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(
  */
 export default function FinishTimeSummary({ summary, courses }: { summary: Summary; courses: Courses }) {
   const { groups } = summary;
-  const median = getNugget('field.median'), middle = getNugget('field.middle'), front = getNugget('field.front'), byRace = getNugget('field.byrace');
+  const title = getNugget('field.title'), median = getNugget('field.median'), middle = getNugget('field.middle'), front = getNugget('field.front'), byRace = getNugget('field.byrace');
   const all = groups.all;
   const p10 = at(all, 0.1), p90 = at(all, 0.9);
 
@@ -42,8 +42,8 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
       id: g, label: g === 'all' ? 'All finishes' : GROUP_LABEL[g],
       minutes,
       band: [24, 74] as [number, number],
-      // The chart names the median; the lens's readout names the middle half of the group shown.
-      marks: [{ index: 49, text: `Median ${hm(minutes[49])}`, tone: 'signal' as const }],
+      // The chart marks the median (the reading above gives its time); the lens's readout names the middle half.
+      marks: [{ index: 49, text: 'Median', tone: 'signal' as const }],
       readout: { key: `${g === 'all' ? 'All finishes' : GROUP_LABEL[g]} · the middle half`, value: `${hm(minutes[24])} to ${hm(minutes[74])}` },
     };
   });
@@ -71,9 +71,9 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
 
   return (
     <StoryPage path={PATH}>
-      <StoryHero path={PATH} title="Marathon finish times" dek="How long does a marathon take?"
-        figure={median.figure ? { ...median.figure } : undefined} unitLine={median.key}
-        sentence={<Say nugget={median} />} fallback={!median.guard}
+      {/* The H1 is the finding; the ruler under the figure adds recorded women's and men's medians, so no sentence repeats it. */}
+      <StoryHero path={PATH} title={title.guard ? sentenceOf(title) : 'Marathon finish times'} dek="How long does a marathon take?"
+        figure={median.figure ? { ...median.figure } : undefined} unitLine={median.key} fallback={!median.guard}
         instrument={(
           <Ruler min={lo} max={hi} ticks={rulerTicks}
             label={`Median finish between the 10th and 90th percentile: ${medians.map(({ g, m }) => `${GROUP_LABEL[g].toLowerCase()} ${hm(m)}`).join(', ')}`}

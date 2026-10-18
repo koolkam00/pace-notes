@@ -51,6 +51,17 @@ function fieldMedian(): Nugget {
   return fieldMedianFrom({ all: groups.all.median, women: groups.women.median, men: groups.men.median, total: groups.all.total });
 }
 
+/** /finish-times H1: the median as a finding ("Half of all finishes took longer than 4:10."); the reading's ruler adds women and men. */
+export function fieldTitleFrom(median: number | null): Nugget {
+  return {
+    id: 'field.title', page: '/finish-times', denominator: 'story',
+    values: { median_min: median ?? NaN }, guard: median !== null,
+    headline: median !== null ? `Half of all finishes took longer than *${hm(median)}*.` : '',
+    fallback: 'Marathon finish times',
+    figure: null,
+  };
+}
+
 /** /finish-times #field: the middle half of all finishes, the 25th to the 75th percentile (nearest rank, whole minutes). */
 export function fieldMiddleFrom(q: { p25: number | null; median: number | null; p75: number | null }): Nugget {
   const { p25, median, p75 } = q;
@@ -188,7 +199,7 @@ export function replayPacksFrom(editions: Pick<ReplayEditionMeta, 'slug' | 'city
     id: 'replay.packs', page: '/stories/race-replay#packs', denominator: 'positions',
     values: { slug: e.slug, city: e.city, year: e.year, n: e.pack!.n, checkpoint_km: e.pack!.checkpoint_km, window_min: e.pack!.finish_window_min },
     guard: minutes >= 10,
-    headline: `Same ${matLabel(e.pack!.checkpoint_km)} split, *${minutes} minutes* apart at the finish.`,
+    headline: `Same ${matLabel(e.pack!.checkpoint_km)} split, *${minutes}\u00a0minutes* apart at the finish.`,
     fallback: `Through ${matLabel(e.pack!.checkpoint_km)} together; the middle 80% finished ${minutes} minutes apart.`,
     figure: null,
   };
@@ -320,9 +331,30 @@ export function placesGapFrom(coin: Positions['coin_flip']): Nugget {
   return {
     id: 'places.gap', page: '/stories/places', denominator: 'positions',
     values: { gap_lo_s: a.gap_lo_s, step_s: step, at30: a.share, at40: b.share }, guard: a.share > b.share,
-    headline: `Trailing by ${gap} at 30K, a finish still *crossed first* ${pct(a.share)} of the time. From 40K, ${pct(b.share)}.`,
+    headline: `Trailing by ${gap} at 30K, a finish still *got to the line first* ${pct(a.share)} of the time. From 40K, ${pct(b.share)}.`,
     fallback: `Trailing by ${gap}: ${pct(a.share)} crossed first from 30K, ${pct(b.share)} from 40K.`,
     figure: shareFigure(a.share), key: `of finishes ${gap} back at 30K still crossed first`,
+  };
+}
+
+/**
+ * /stories/places H1: the reading's gap, trailing by about a minute, closed how many times as often from 30K as from
+ * 40K. "Twice" (or "three times" …) needs the ratio within a quarter of that whole number.
+ */
+export function placesTitleFrom(coin: Positions['coin_flip']): Nugget {
+  const a = nearestGap(coin['30'], 60), b = nearestGap(coin['40'], 60);
+  const step = coin['30'] && coin['30'].length > 1 ? coin['30'][1].gap_lo_s - coin['30'][0].gap_lo_s : 30;
+  const r = a && b && b.share > 0 ? a.share / b.share : NaN;
+  const k = Math.round(r);
+  const times = k === 2 ? 'twice' : `${countWord(k) ?? k} times`;
+  const gap = a ? `${ms(a.gap_lo_s)}–${ms(a.gap_lo_s + step)}` : '';
+  return {
+    id: 'places.title', page: '/stories/places', denominator: 'positions',
+    values: { gap_lo_s: a?.gap_lo_s ?? NaN, at30: a?.share ?? NaN, at40: b?.share ?? NaN, ratio: r },
+    guard: Number.isFinite(r) && k >= 2 && Math.abs(r - k) <= 0.25,
+    headline: `From 30K, a ${gap} gap closed *${times} as often* as from 40K.`,
+    fallback: 'Pass or be passed',
+    figure: null,
   };
 }
 
@@ -339,8 +371,8 @@ export function placesCoinFrom(coin: Positions['coin_flip']): Nugget {
     id: 'places.coin', page: '/stories/places#gap', denominator: 'positions',
     values: { gap30_s: a?.gap_lo_s ?? NaN, at30: a?.share ?? NaN, gap40_s: b?.gap_lo_s ?? NaN, at40: b?.share ?? NaN },
     guard: !!a && !!b && Math.abs(a.share - b.share) <= 0.01,
-    headline: a && b ? `*${words(a.gap_lo_s)} back* at 30K crossed first as often as ${words(b.gap_lo_s).toLowerCase()} back at 40K.` : '',
-    fallback: 'How often a trailing finish crossed first, by how far back it was, from 30K and from 40K.',
+    headline: a && b ? `*${words(a.gap_lo_s)} back* at 30K got to the line first as often as ${words(b.gap_lo_s).toLowerCase()} back at 40K.` : '',
+    fallback: 'How often a trailing finish got to the line first, by how far back it was, from 30K and from 40K.',
     figure: null,
   };
 }
@@ -398,7 +430,7 @@ export function kickTwinsFrom(cost: Kick['cost']['stratified']): Nugget {
   return {
     id: 'kick.twins', page: '/stories/final-kick', denominator: 'kick', term: '/methodology#sustained-slowdown',
     values: { median_gap_s: cost.median_gap_s, strata: cost.strata, finishes: cost.slowdown_finishes }, guard: cost.median_gap_s > 600,
-    headline: `Same pace to 20K, *${minutes} minutes* apart at the finish.`,
+    headline: `Same pace to 20K, *${minutes}${NBSP}minutes* apart at the finish.`,
     fallback: 'Same pace to 20K, apart at the finish.',
     figure: Number.isFinite(minutes) ? { value: String(minutes), unit: `${NBSP}min`, sr: `${minutes} minutes` } : null,
     key: 'later at the finish, after a sustained slowdown',
@@ -411,7 +443,8 @@ export function kickLaterFrom(cost: Kick['cost']['stratified']): Nugget {
   return {
     id: 'kick.later', page: '/stories/final-kick', denominator: 'kick', term: '/methodology#sustained-slowdown',
     values: { median_gap_s: cost.median_gap_s }, guard: cost.median_gap_s > 600,
-    headline: `Same race, same recorded gender, same 5–20K pace: finishes with a sustained slowdown came in a typical *${minutes} minutes* later.`,
+    // No accent: the H1 above already accents the same minutes.
+    headline: `Same race, same recorded gender, same 5–20K pace: finishes with a sustained slowdown came in a typical ${minutes}${NBSP}minutes later.`,
     fallback: 'Same race, same recorded gender, same 5–20K pace: finish times with and without a sustained slowdown.',
     figure: null,
   };
@@ -547,6 +580,18 @@ export function holdsGenderFrom(o: Pick<Demographics['overall'], 'women_slowdown
   };
 }
 
+/** /stories/who-holds-pace H1: at the same finish times, recorded women held their pace more often (fewer sustained slowdowns). */
+export function holdsTitleFrom(o: Pick<Demographics['overall'], 'women_slowdown' | 'men_slowdown'>): Nugget {
+  const w = o.women_slowdown, m = o.men_slowdown;
+  return {
+    id: 'holds.title', page: '/stories/who-holds-pace', denominator: 'demographics',
+    values: { women: w, men: m }, guard: w > 0 && m > 1.5 * w,
+    headline: 'Recorded women *held their pace* more often.',
+    fallback: 'Who holds their pace',
+    figure: null,
+  };
+}
+
 /** #unmask: the second-20K gap between recorded women and men, pooled and matched on race and finish minute, as a ratio in words. */
 export function holdsUnmaskFrom(o: Pick<Demographics['overall'], 'pooled_women_block' | 'pooled_men_block' | 'women_block' | 'men_block'>): Nugget {
   const pooled = o.pooled_men_block - o.pooled_women_block, matched = o.men_block - o.women_block;
@@ -605,7 +650,7 @@ export function coursesNamedFrom(id: Pick<Courses['identification'], 'correct' |
     id: 'courses.named', page: '/stories/courses', denominator: 'course',
     values: { correct: id.correct, tested: id.editions_tested, share, chance: id.chance, courses: id.courses }, guard: share > 2 * id.chance,
     // The course count says what the 1 in N covers, so it never reads against the H2's courses with a shape.
-    headline: `From its pacing shape alone, an edition’s course was named *${pct(share)}* of the time among ${count(id.courses)} courses. By chance: 1\u00a0in\u00a0${k}.`,
+    headline: `From its pacing shape alone, an edition’s course was named *${pct(share)}* of the time, among the ${count(id.courses)} courses with enough editions to compare. By chance: 1\u00a0in\u00a0${k}.`,
     fallback: `From its pacing shape alone, an edition’s course was named correctly ${pct(share)} of the time.`,
     figure: shareFigure(share), key: 'of editions named from their pacing shape alone',
   };
@@ -657,6 +702,18 @@ export function weatherPairsFrom(pairs: Pick<Courses['weather']['pairs'], 'hotte
   };
 }
 
+/** /stories/race-morning H1: on the warmer of two mornings, the same course slowed more, in most same-course pairs. */
+export function weatherTitleFrom(pairs: Pick<Courses['weather']['pairs'], 'hotter_slowed_more' | 'total'> | undefined): Nugget {
+  const n = pairs?.hotter_slowed_more ?? NaN, total = pairs?.total ?? NaN;
+  return {
+    id: 'weather.title', page: '/stories/race-morning', denominator: 'course',
+    values: { warmer_more: n, total }, guard: n > total / 2,
+    headline: 'On a warmer morning, the same course *slowed more*.',
+    fallback: 'Race-morning weather',
+    figure: null,
+  };
+}
+
 /**
  * #curvature: the median finish's change per degree warmer, near the coolest start temperature whose interval is above
  * zero and near the warmest. "Counts for more" needs the warm slope at least one and a half times the cool one.
@@ -672,7 +729,7 @@ export function weatherCurveFrom(points: Courses['weather']['curvature']['finish
     id: 'weather.curve', page: '/stories/race-morning#curvature', denominator: 'course',
     values: { cool_c: cool?.temp ?? NaN, cool_slope: cool?.slope ?? NaN, warm_c: warm?.temp ?? NaN, warm_slope: warm?.slope ?? NaN }, guard: ok,
     // One claim (the warm end); the beat's dek gives the cool end it is compared with.
-    headline: both((u) => `Near ${temp(warm?.temp ?? NaN, u)}, each ${deg(u)} warmer went with *${per(warm?.slope ?? NaN, u)} min* more at the finish.`),
+    headline: both((u) => `Near ${temp(warm?.temp ?? NaN, u)}, each ${deg(u)} warmer went with *${per(warm?.slope ?? NaN, u)}\u00a0min* more at the finish.`),
     fallback: 'The median finish against the start temperature, degree by degree.',
     figure: null,
   };
@@ -701,6 +758,7 @@ const courses = () => readInsight<Courses>('courses.json');
 
 export const STORY_NUGGETS: Record<string, Builder> = {
   'field.median': fieldMedian,
+  'field.title': () => fieldTitleFrom(getFinishTimeSummary().groups.all.median),
   'field.middle': fieldMiddle,
   'field.front': () => fieldFrontFrom(courses().years.eras),
   'field.byrace': () => fieldByRaceFrom(courses().courses),
@@ -715,6 +773,7 @@ export const STORY_NUGGETS: Record<string, Builder> = {
   'types.river': () => typesRiverFrom(archetypes()),
   'types.gender': () => typesGenderFrom(archetypes()),
   'places.gap': () => placesGapFrom(positions().coin_flip),
+  'places.title': () => placesTitleFrom(positions().coin_flip),
   'places.coin': () => placesCoinFrom(positions().coin_flip),
   'places.breakeven': () => placesBreakevenFrom(positions().breakeven_crossing),
   'places.shuffle': () => placesShuffleFrom(positions()),
@@ -730,6 +789,7 @@ export const STORY_NUGGETS: Record<string, Builder> = {
   'round.marks': () => roundMarksFrom(finish().marks),
   'round.rescue': () => roundRescueFrom(finish().bubble),
   'holds.gender': () => holdsGenderFrom(demographics().overall),
+  'holds.title': () => holdsTitleFrom(demographics().overall),
   'holds.unmask': () => holdsUnmaskFrom(demographics().overall),
   'holds.ghost': () => holdsGhostFrom(demographics().bands),
   'holds.bands': () => holdsBandsFrom(demographics().bands),
@@ -737,6 +797,7 @@ export const STORY_NUGGETS: Record<string, Builder> = {
   'courses.slowest': () => coursesSlowestFrom(courses().courses),
   'courses.steady': () => coursesSteadyFrom(archetypes()),
   'weather.pairs': () => weatherPairsFrom(courses().weather?.pairs),
+  'weather.title': () => weatherTitleFrom(courses().weather?.pairs),
   'weather.curve': () => weatherCurveFrom(courses().weather.curvature.finish_min_per_c),
   'weather.tilt': () => weatherTiltFrom(courses().weather.heat_signature),
 };

@@ -14,13 +14,15 @@ import { Beat, Say, StoryHero, StoryPage, keep } from '../StoryPage';
 const PATH = '/stories/race-morning';
 const MID = [2.5, 7.5, 12.5, 17.5, 22.5, 27.5, 32.5, 37.5, 41.1];
 const MINUS = '−';
-const signed = (v: number, digits = 1) => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(v).toFixed(digits)}`;
+/** A signed value; one that rounds to zero is plain "0.0", never "−0.0". */
+const signed = (v: number, digits = 1) => (Math.abs(v) < 0.5 * 10 ** -digits ? (0).toFixed(digits) : `${v > 0 ? '+' : MINUS}${Math.abs(v).toFixed(digits)}`);
 const UNITS: UnitSystem[] = ['mi', 'km'];
 
 /**
  * Race-morning weather (the redesign spec, section 7.11, new, under section 00): the weather half of the old course
- * story. The reading compares each course with itself (warmer year against cooler year), then three beats: the pairs one
- * by one, how each degree counts for more when it is already warm, and how a warm morning changes the shape of the race.
+ * story. The reading compares each course with itself (warmer year against cooler year), its instrument the pairs one
+ * by one (tap a square), then two beats: how each degree counts for more when it is already warm, and how a warm
+ * morning changes the shape of the race.
  * Temperatures follow the units switch (°F gaps are °C gaps × 9/5); the across-and-within fits are cut.
  */
 export default function RaceMorningBody() {
@@ -75,7 +77,7 @@ export default function RaceMorningBody() {
       )} />
   );
 
-  // The shape on a warmer morning: each section's pace against the runner's own average, per 10 °C (18 °F) warmer.
+  // The shape on a warmer morning: each section's pace against the runner's own average, per 10 °C warmer (18 °F).
   const sig = w.heat_signature;
   const early = sig.findIndex((s) => s.section === tilt.values.early), late = sig.findIndex((s) => s.section === tilt.values.late);
   const span = Math.ceil(Math.max(...sig.map((s) => Math.abs(s.per_10c)))) + 1;
@@ -83,24 +85,25 @@ export default function RaceMorningBody() {
   return (
     <StoryPage path={PATH}>
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
-        figure={pairs.figure ? { ...pairs.figure } : undefined} fallback={!pairs.guard} sentence={<Say nugget={pairs} term />} />
-
-      <Beat id="pairs" track="chapter-1" label="The pairs" title={<>Compare a course <em>with itself</em>.</>}
-        dek={<ByUnits mi={`Each square is one course in two years at least ${tempGap(p.min_gap_c, 'mi')} apart at the start. Tap one.`} km={`Each square is one course in two years at least ${tempGap(p.min_gap_c, 'km')} apart at the start. Tap one.`} />}>
-        <ByUnits {...Object.fromEntries(UNITS.map((u) => [u, (
-          <Waffle key={u} tiles={tiles(u)} sideLabel="At the start, cooler · warmer" label={`${p.hotter_slowed_more} of ${p.total} same-course pairs: the warmer year had more sustained slowdowns`}
-            keyLabels={{ lit: 'Warmer year, more sustained slowdowns', other: 'Cooler year, as many or more' }}
-            values={<Values id={`rm-pairs-${u}`} caption="Same-course pairs: start temperature and sustained slowdown" columns={[{ key: 'p', label: 'Pair, cooler · warmer', text: true }, { key: 't', label: 'At the start' }, { key: 's', label: 'Sustained slowdown' }]}
-              rows={tiles(u).map((t) => [t.key.replace(': sustained slowdown', ''), t.side, t.value])} />} />
-        )])) as { mi: JSX.Element; km: JSX.Element }} />
-      </Beat>
+        figure={pairs.figure ? { ...pairs.figure } : undefined} fallback={!pairs.guard} sentence={<Say nugget={pairs} term />}
+        instrument={(
+          <ByUnits {...Object.fromEntries(UNITS.map((u) => [u, (
+            <Waffle key={u} tiles={tiles(u)} sideLabel="At the start, cooler · warmer" label={`${p.hotter_slowed_more} of ${p.total} same-course pairs: the warmer year had more sustained slowdowns; tap a square to read its pair`}
+              keyLabels={{ lit: 'Warmer year, more sustained slowdowns', other: 'Cooler year, as many or more' }}
+              values={<Values id={`rm-pairs-${u}`} caption="Same-course pairs: start temperature and sustained slowdown" columns={[{ key: 'p', label: 'Pair, cooler · warmer', text: true }, { key: 't', label: 'At the start' }, { key: 's', label: 'Sustained slowdown' }]}
+                rows={tiles(u).map((t) => [t.key.replace(': sustained slowdown', ''), t.side, t.value])} />} />
+          )])) as { mi: JSX.Element; km: JSX.Element }} />
+        )}>
+        {/* The pairs were a beat of their own; links to it land on the reading, which now draws them. */}
+        <span id="pairs" className="beat-alias" aria-hidden="true" />
+      </StoryHero>
 
       {/* The H2 names the warm end; the chart labels the cool end it is compared with. */}
-      <Beat id="curvature" track="chapter-2" label="Each degree" title={curveN} aliases={['weather']}>
+      <Beat id="curvature" track="chapter-1" label="Each degree" title={curveN} aliases={['weather']}>
         <ByUnits mi={curveChart('mi')} km={curveChart('km')} />
       </Beat>
 
-      <Beat id="heat" track="chapter-3" label="The shape" title={tilt} aliases={['untangle']}
+      <Beat id="heat" track="chapter-2" label="The shape" title={tilt} aliases={['untangle']}
         dek={early >= 0 && late >= 0 ? <ByUnits {...Object.fromEntries(UNITS.map((u) => [u, keep(`On a morning ${tempGap(10, u)} warmer, ${sectionName(sig[early].section)} ran ${Math.abs(sig[early].per_10c).toFixed(1)} points quicker against the runner’s own average, and ${sectionName(sig[late].section)} ${sig[late].per_10c.toFixed(1)} points slower.`)])) as { mi: string; km: string }} /> : undefined}>
         <LineProfile x={MID} xDomain={[0, 42.195]} yDomain={[-span, span]}
           layers={[{ id: 'heat', label: 'Warmer', series: [{ id: 'h', values: sig.map((s) => s.per_10c), fillAbove: 0 }],
@@ -110,10 +113,10 @@ export default function RaceMorningBody() {
               ...(late >= 0 ? [{ x: MID[late], y: sig[late].per_10c, text: `${sectionName(sig[late].section)} ${signed(sig[late].per_10c)}`, tone: 'signal' as const, priority: 3, prefer: 'above' as const }] : []),
             ] }]}
           refs={[{ value: 0, label: 'Same shape' }]}
-          xTicks={[{ value: 0, label: 'Start' }, { value: 20, label: '20K' }, { value: 30, label: '30K' }, { value: 42.195, label: 'Finish' }]}
+          xTicks={[{ value: 0, label: 'Start' }, { value: 10, label: '10K' }, { value: 20, label: '20K' }, { value: 30, label: '30K' }, { value: 42.195, label: 'Finish' }]}
           label="Each section's pace against the runner's own average on a warmer morning: quicker early, slower late."
           values={(
-            <Values id="rm-heat" caption="Pace against the runner’s own average, per 10 °C (18 °F) warmer, by section"
+            <Values id="rm-heat" caption={<ByUnits mi={`Pace against the runner’s own average, per ${tempGap(10, 'mi')} warmer, by section`} km={`Pace against the runner’s own average, per ${tempGap(10, 'km')} warmer, by section`} />}
               columns={[{ key: 's', label: 'Section' }, { key: 'v', label: 'Points' }, { key: 'c', label: 'Interval' }]}
               rows={sig.map((s) => [sectionName(s.section), signed(s.per_10c), `${signed(s.ci95[0])} to ${signed(s.ci95[1])}`])} />
           )} />

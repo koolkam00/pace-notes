@@ -8,7 +8,7 @@ import LineProfile from '@/components/viz/LineProfile';
 import DotGrid from '@/components/viz/DotGrid';
 import Values from '@/components/ui/Values';
 import Columns from '../charts/Columns';
-import { Beat, Moved, Say, StoryHero, StoryPage } from '../StoryPage';
+import { Beat, Moved, Say, StoryHero, StoryPage, rich } from '../StoryPage';
 
 const PATH = '/stories/final-kick';
 const minutes = (s: number) => `${Math.round(s / 60)} min`;
@@ -46,9 +46,10 @@ export default function KickBody() {
 
   return (
     <StoryPage path={PATH}>
-      <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
+      {/* The question under the H1 is the term's first use, so it carries the one link to its definition. */}
+      <StoryHero path={PATH} title={story.heading ?? story.title} dek={rich(story.dek, { term: true })}
         figure={twins.figure ? { ...twins.figure } : undefined} fallback={!later.guard}
-        sentence={<Say nugget={later} term />} />
+        sentence={<Say nugget={later} />} />
 
       <Beat id="twins" track="chapter-1" label="Same pace, apart" title={bands}>
         <LineProfile x={cx} xDomain={[cost[0].lo_min, cost[cost.length - 1].lo_min + width]} yDomain={[0, gTop]}
@@ -84,10 +85,12 @@ export default function KickBody() {
         dek={stay.guard ? `Finishes at sustained-slowdown pace over ${sectionName(s.source)}.` : undefined}>
         <DotGrid lit={s.stay * 100} label={`Of 100 finishes at sustained-slowdown pace over ${sectionName(s.source)}, ${Math.round(s.stay * 100)} stayed that slow over ${sectionName(s.target)}.`}
           caption={<span className="dot-grid-key"><span><i className="is-lit" />Stayed that slow</span><span><i />Did not</span></span>} />
+        <Values id="fk-states" caption={`Finishes at sustained-slowdown pace over ${sectionName(s.source)}, over ${sectionName(s.target)}`}
+          columns={[{ key: 'a', label: `Over ${sectionName(s.target)}` }, { key: 's', label: 'Share of those finishes' }]}
+          rows={[['Stayed that slow', pct(s.stay)], ['Did not', pct(1 - s.stay)]]} reading={0} />
       </Beat>
 
-      <Beat id="magnet" track="chapter-4" label="The last stretch" title={magnet} aliases={['women-men']}
-        dek={magnet.guard ? `Of finishes with a sustained slowdown, only ${pct(Number(magnet.values.back), 1)} got back to their early pace.` : undefined}>
+      <Beat id="magnet" track="chapter-4" label="The last stretch" title={magnet} aliases={['women-men']}>
         <Columns max={mTop} items={lastFour.map((m, i) => ({ id: m.section, label: sectionName(m.section), value: m.all, display: pct(m.all), tone: i === lastFour.length - 1 ? 'signal' : 'ink' }))}
           label={`The share of finishes that ran each section faster than the one before: ${lastFour.map((m) => `${sectionName(m.section)} ${pct(m.all)}`).join(', ')}.`}
           caption="Ran the section faster than the one before"

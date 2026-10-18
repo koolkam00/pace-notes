@@ -61,6 +61,8 @@
 .chapter-list.is-expanded .chapter-page-link .page-reading { grid-column: 2; grid-row: 1; }
 .chapter-list.is-expanded .chapter-page-link .page-reading-key { display: none; }
 .chapter-list.is-expanded .chapter-page-go { grid-column: 3; }
+/* A title that already states its figure ("… 20 minutes apart …") shows no second copy of it on the contents. */
+.chapter-list.is-expanded .page-reading.is-in-title .big-number { display: none; }
 
 @media (min-width: 600px) {
   .chapter-list.is-expanded .chapter-page-link .page-reading-key { display: block; grid-column: 1; grid-row: 2; }

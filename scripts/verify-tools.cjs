@@ -666,7 +666,10 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   const projector = path.join(__dirname, '..', 'public/data/insights/tools/projector.json');
   if (fs.existsSync(projector)) {
     const n = JSON.parse(fs.readFileSync(projector, 'utf8')).cohort_n;
-    assert.ok(registry.EVIDENCE_TEXT.data.includes(`${(n / 1e6).toFixed(2)} million`), 'Evidence text quotes the tool cohort');
+    // The registry types no figure: /methodology fills {finishes} with the cohort from this file.
+    assert.ok(registry.EVIDENCE_TEXT.data.includes('{finishes}') && !/\d million/.test(registry.EVIDENCE_TEXT.data), 'Evidence text leaves the tool cohort to the data');
+    const built = path.join(__dirname, '..', 'out/methodology.html');
+    if (fs.existsSync(built)) assert.ok(fs.readFileSync(built, 'utf8').includes(`${(n / 1e6).toFixed(2)} million screened marathon finishes`), 'The built /methodology quotes the tool cohort');
     checks++;
   }
   const slugs = registry.TOOLS.map((t) => t.slug);

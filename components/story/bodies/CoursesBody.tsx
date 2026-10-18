@@ -1,13 +1,14 @@
 import type { Archetypes, Courses } from '@/lib/insights';
 import { readInsight } from '@/lib/insights-server';
 import { STORIES } from '@/lib/stories';
-import { getNugget } from '@/lib/nuggets';
+import { getNugget, plain, sentenceOf } from '@/lib/nuggets';
 import { evenestType, sectionName } from '@/lib/nuggets/stories';
-import { count, pct } from '@/lib/nuggets/format';
-import LineProfile from '@/components/viz/LineProfile';
+import { count, matLabel, pct } from '@/lib/nuggets/format';
 import DotStrip from '@/components/viz/DotStrip';
+import Ruler from '@/components/viz/Ruler';
 import Values from '@/components/ui/Values';
 import NameThatCourse, { type Round } from '../NameThatCourse.client';
+import Fingerprints from '../charts/Fingerprints';
 import { Beat, Moved, Say, StoryHero, StoryPage } from '../StoryPage';
 
 const PATH = '/stories/courses';
@@ -47,30 +48,10 @@ export default function CoursesBody() {
   const story = STORIES.find((s) => s.slug === 'courses')!;
   const named = getNugget('courses.named'), slowest = getNugget('courses.slowest'), steady = getNugget('courses.steady');
 
-  // Fingerprints: the typical course, and each course's own curve against its average pace, one at a time.
+  // Fingerprints: every course with a pacing shape at once, each against its own average pace, and the typical course.
   const shaped = data.courses.filter((c) => c.curve?.length === 9).sort((a, b) => b.finishes - a.finishes);
-  const all = [...data.typical_curve, ...shaped.flatMap((c) => c.curve!)];
-  const lo = Math.floor(Math.min(...all)), hi = Math.ceil(Math.max(...all));
-  const slowAt = (curve: number[]) => curve.indexOf(Math.max(...curve));
-  const typicalSlow = slowAt(data.typical_curve);
-  // Under "Typical" the typical course is the subject, a solid ink line; under a course it is the dashed reference,
-  // named on the line itself, so no key is needed.
-  const last = MID.length - 1;
-  const layers = [
-    { id: 'typical', label: 'Typical', series: [{ id: 't', values: data.typical_curve, tone: 'ink' as const }],
-      points: [{ x: MID[typicalSlow], y: data.typical_curve[typicalSlow], kind: 'reading' as const }],
-      labels: [{ x: MID[typicalSlow], y: data.typical_curve[typicalSlow], text: `${sectionName(data.sections[typicalSlow])} ${signed(data.typical_curve[typicalSlow])}`, tone: 'signal' as const, priority: 3, prefer: 'left' as const }] },
-    ...shaped.map((c) => {
-      const k = slowAt(c.curve!);
-      return { id: c.city, label: c.city,
-        series: [{ id: 't', values: data.typical_curve, dashed: true }, { id: 'c', values: c.curve!, tone: 'ink' as const }],
-        labels: [
-          { x: MID[k], y: c.curve![k], text: `${sectionName(data.sections[k])} ${signed(c.curve![k])}`, tone: 'ink' as const, priority: 3, prefer: 'left' as const },
-          { x: MID[last], y: data.typical_curve[last], text: 'Typical', tone: 'quiet' as const, priority: 1, prefer: 'below' as const },
-        ] };
-    }),
-  ];
-
+  const common = data.sections.indexOf(String(slowest.values.section));
+  const typicalSlow = data.typical_curve.indexOf(Math.max(...data.typical_curve));
 
   // How steady: the evenest type's share of finishes on each course with 10,000 or more finishes.
   const even = evenestType(types.archetypes);
@@ -84,14 +65,19 @@ export default function CoursesBody() {
   return (
     <StoryPage path={PATH}>
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
-        figure={named.figure ? { ...named.figure } : undefined} fallback={!named.guard} sentence={<Say nugget={named} />} />
+        figure={named.figure ? { ...named.figure } : undefined} fallback={!named.guard} sentence={<Say nugget={named} />}
+        instrument={Number.isFinite(Number(named.values.share)) ? (
+          <Ruler min={0} max={1} ticks={[0, 0.25, 0.5, 0.75, 1].map((v) => ({ value: v, label: pct(v) }))}
+            marks={[{ value: Number(named.values.share), kind: 'reading', label: pct(Number(named.values.share)) }, { value: Number(named.values.chance), kind: 'typical', label: 'By chance' }]}
+            label={`Editions named from their pacing shape: ${pct(Number(named.values.share))}, against ${pct(Number(named.values.chance))} by chance.`} />
+        ) : undefined} />
 
       <Beat id="fingerprint" track="chapter-1" label="The fingerprint" title={slowest}>
-        <LineProfile x={MID} xDomain={[0, 42.195]} yDomain={[lo - 1, hi + 1]} layers={layers} initial="typical" lensLabel="Course" chips
-          refs={[{ value: 0, label: 'Own average pace' }]}
-          xTicks={[{ value: 0, label: 'Start' }, { value: 20, label: '20K' }, { value: 30, label: '30K' }, { value: 42.195, label: 'Finish' }]}
-          // No gridlines: the line's own labels give its extremes, and the reference line is the course's own average.
-          label={`Section pace against each course's own average, the typical course first: its slowest 5K is ${sectionName(data.sections[typicalSlow])}.`}
+        <Fingerprints x={MID} xDomain={[0, 42.195]} typical={data.typical_curve} common={common >= 0 ? common : typicalSlow}
+          commonLabel={slowest.guard ? `${sectionName(String(slowest.values.section))} · ${count(Number(slowest.values.k))} courses` : sectionName(data.sections[typicalSlow])}
+          courses={shaped.map((c) => ({ id: c.city, label: c.city, curve: c.curve! }))}
+          xTicks={[0, 10, 20, 30, 42.195].map((km) => ({ value: km, label: km ? (km > 42 ? 'Finish' : matLabel(km)) : 'Start' }))}
+          label={`Section pace against each course's own average, for ${shaped.length} courses, with each course's slowest 5K marked. ${plain(sentenceOf(slowest))}`}
           values={(
             <Values id="cs-fingerprint" caption="Section pace against the course's own average"
               columns={[{ key: 'c', label: 'Course', text: true }, ...data.sections.map((s, i) => ({ key: `s${i}`, label: sectionName(s) }))]}

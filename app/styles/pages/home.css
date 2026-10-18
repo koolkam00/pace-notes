@@ -166,3 +166,9 @@
   .home-cta-inner { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
   .home-chapters .chapter-reading .big-number.is-s { font-size: 2.5rem; }
 }
+
+/* The guess's answer is chapter 03's reading: on the guide its figure waits until the guess is revealed or skipped,
+   and the row shows its key alone until then. */
+@supports selector(:has(*)) {
+  .home:has(.home-stakes .guess:not(.is-revealed)) .home-guide .chapter-row[data-lead='shape.second20k'] .chapter-reading .big-number { display: none; }
+}

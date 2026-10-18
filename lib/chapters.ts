@@ -120,7 +120,7 @@ export const CHAPTERS: readonly Chapter[] = [
     lead: 'slowdown.onset', key: 'of sustained slowdowns began at 30K or later' },
   { n: 6, id: 'chapter-06', part: 1, marker: 'FINISH', title: 'The finish line', subtitle: 'Round numbers, your target',
     pages: [
-      story('round-numbers', 'Round numbers', 'finish.busiest'),
+      story('round-numbers', 'Round numbers', 'round.top'),
       analysis('finish-time-context', 'Your target in context', 'target.context'),
     ],
     also: [{ href: '/tools/marathon-pace/4-00', label: 'Pace for a 4:00 goal' }],
@@ -134,7 +134,7 @@ export const CHAPTERS: readonly Chapter[] = [
     lead: 'holds.gender', key: 'sustained slowdown, women · men, at the same finish times' },
   { n: 8, id: 'chapter-08', part: 2, marker: '08', title: 'Where you run', subtitle: 'Courses, hills, every city',
     pages: [
-      story('courses', 'Course fingerprints', 'courses.spread'),
+      story('courses', 'Course fingerprints', 'courses.named'),
       analysis('course-comparison', 'Compare the courses', 'courses.compare', ALL_FINISHER),
       analysis('hills-and-pacing', 'Hills and rhythm', 'terrain.climb'),
       page('/courses', 'course-index', 'Marathon courses', 'Every course', 'courses.index', '/methodology#course-pages'),

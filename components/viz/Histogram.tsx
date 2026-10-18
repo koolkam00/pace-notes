@@ -15,8 +15,9 @@ import { linear, pc, stepEdge, stepPath, u, yScale } from './scale';
  * signal; the smooth curve as a 1.25 px --ink-2 line. With `curve`, a lens switches to "Against the curve": the same
  * bins redrawn as their ratio to the curve, diverging from a solid 1× line (the honest comparison).
  *
- * Pass `scrub` to make it scrubbable: the needle runs from the top of the bin it reads to the baseline, in front, so it
- * marks that bin; away from the reading, the reading's tower turns ink and the needle is the one orange mark.
+ * Pass `scrub` to make it scrubbable: the needle comes down from the top of the plot and stops just above the bin it
+ * reads (under either lens), so the bin stays in view; away from the reading (`scrub.home`, default `scrub.initial`),
+ * the reading's tower turns ink and the needle is the one orange mark.
  */
 export type Bin = { x: number; n: number };
 
@@ -28,7 +29,7 @@ type Props = {
   ticks: { x: number; label: string }[];
   label: string;
   lens?: { count: string; ratio: string; label: string };
-  scrub?: { points: ScrubPoints; initial: number; detents: number[]; label: string };
+  scrub?: { points: ScrubPoints; initial: number; detents: number[]; label: string; home?: number };
   labels?: { x: number; text: string; tone?: 'ink' | 'signal' }[];
   values?: ReactNode;
   height?: number;
@@ -67,12 +68,14 @@ export default function Histogram({ bins, curve, marks = [], reading, ticks, lab
 
   // Against the curve: the ratio of each bin to the curve, from a 1× line.
   let ratioLayer: ReactNode = null;
+  let ratioTop: ((m: number) => number) | null = null;
   if (lens && curve) {
     const expected = new Map(curve.map((c) => [c.x, c.v]));
     const ratios = bins.map((b) => ({ x: b.x, r: ratioAt[b.x] ?? ((expected.get(b.x) ?? 0) > 0 ? b.n / expected.get(b.x)! : 1) }));
     const hi = Math.max(1.5, ...ratios.map((r) => r.r)), lo = Math.min(0.75, ...ratios.map((r) => r.r));
     const ry = yScale(lo, hi, { top: 0.16, bottom: 0.04 });
     const ratioOf = new Map(ratios.map((r) => [r.x, r.r]));
+    ratioTop = (m: number) => Math.min(ry(ratioOf.get(m) ?? 1), ry(1));
     const col = (m: number, cls: string) => {
       const top = ry(ratioOf.get(m) ?? 1), one = ry(1);
       return <rect key={`r${cls}${m}`} className={`${cls} histo-tower`} x={pc(x(m))} width={pc(w)} y={pc(Math.min(top, one))} height={pc(Math.abs(one - top))} />;
@@ -102,15 +105,14 @@ export default function Histogram({ bins, curve, marks = [], reading, ticks, lab
     </Plot>
   );
   const axis = <Axis ticks={ticks.map((t) => ({ x: x(t.x), label: t.label }))} />;
-  // The needle starts at the top of the bin under each scrub point.
-  const needleTops = scrub?.points.x.map((px) => {
-    const b = bins[Math.max(0, Math.min(bins.length - 1, Math.floor(px * (x1 - x0))))];
-    return y(b.n);
-  });
+  // The needle stops above the bin under each scrub point: its count tower, and its column against the curve.
+  const binAt = (px: number) => bins[Math.max(0, Math.min(bins.length - 1, Math.floor(px * (x1 - x0))))];
+  const needleTops = scrub?.points.x.map((px) => y(binAt(px).n));
+  const needleTopsAlt = ratioTop ? scrub?.points.x.map((px) => ratioTop!(binAt(px).x)) : undefined;
   return (
     <ChartFrame label={label} height={height} heightMd={heightMd} k={lens ? 'count' : undefined}
       lens={lens ? <Lens label={lens.label} options={[{ value: 'count', label: lens.count }, { value: 'ratio', label: lens.ratio }]} defaultValue="count" /> : undefined}
-      scrub={scrub ? <Scrubber points={{ ...scrub.points, y: scrub.points.y ?? needleTops }} initial={scrub.initial} detents={scrub.detents} label={scrub.label} axis={axis}>{plot}</Scrubber> : undefined}
+      scrub={scrub ? <Scrubber points={{ ...scrub.points, y: scrub.points.y ?? needleTops, yAlt: scrub.points.yAlt ?? needleTopsAlt }} initial={scrub.initial} home={scrub.home} detents={scrub.detents} label={scrub.label} axis={axis}>{plot}</Scrubber> : undefined}
       plot={scrub ? undefined : plot} axis={scrub ? undefined : axis} readout={scrub ? undefined : readout}
       keys={[{ label: keyLabels.bin, mark: 'square', tone: 'quiet' }, ...(marks.length && keyLabels.mark ? [{ label: keyLabels.mark, mark: 'square' as const }] : []), ...(curve && keyLabels.curve ? [{ label: keyLabels.curve, mark: 'line' as const }] : [])]}
       values={values}

@@ -19,8 +19,8 @@ const apart = (a: number, b: number) => `${Math.abs(one(b) - one(a)).toFixed(1)}
 
 /**
  * Who holds their pace (the redesign spec, section 7.9, under section 00): the reading (sustained slowdown, recorded
- * women against recorded men at the same finish times) as a pair of figures, then three beats: the gap pooled and matched under
- * one lens, how far behind recorded men recorded women ran at each mat in the band with the most matched finishes (a
+ * women against recorded men at the same finish times) as a pair of figures, then three beats: the gap pooled and matched,
+ * both drawn, how far behind recorded men recorded women ran at each mat in the band with the most matched finishes (a
  * scrub along the course; the ghost race's two-dot strip is cut), and the gap at every finish time.
  * The age ladder is cut (age is /analyses/age-and-pacing's finding) and so is the women's share by city (who runs, not
  * how they pace).
@@ -48,7 +48,8 @@ export default function DemographicsBody() {
   const rows = data.bands.filter((b) => b.women_n >= 100 && b.men_n >= 100);
   const width = rows.length > 1 ? rows[1].lo_min - rows[0].lo_min : 10;
   const bx = rows.map((b) => b.lo_min + width / 2);
-  const bTop = Math.ceil(Math.max(...rows.map((b) => b.men_slowdown)) * 10) / 10;
+  // Round gridlines: quarters of the share, up to the quarter above the highest band.
+  const bTop = Math.ceil(Math.max(...rows.map((b) => b.men_slowdown)) * 4) / 4;
   const last = rows.length - 1;
   // The lines are named where they stand furthest apart, clear of the axis labels at either end.
   const mid = rows.reduce((best, b, i) => (i > 0 && i < last && b.men_slowdown - b.women_slowdown > rows[best].men_slowdown - rows[best].women_slowdown ? i : best), Math.floor(last / 2));
@@ -60,11 +61,11 @@ export default function DemographicsBody() {
         sentence={<Say nugget={gender} term />} />
 
       <Beat id="unmask" track="chapter-1" label="Pooled or matched" title={unmask}
-        dek="How much slower the second 20K ran than the first: every finish pooled, or women and men matched.">
-        <PairBars initial="matched" lensLabel="Compare" max={Math.ceil(Math.max(o.men_block, o.pooled_men_block) / 5) * 5}
+        dek="How much slower the second 20K ran than the first.">
+        <PairBars highlight="matched" max={Math.ceil(Math.max(o.men_block, o.pooled_men_block) / 5) * 5}
           views={[
-            { id: 'pooled', label: 'Pooled', bars: [{ label: 'Recorded women', value: o.pooled_women_block, display: slower(o.pooled_women_block) }, { label: 'Recorded men', value: o.pooled_men_block, display: slower(o.pooled_men_block) }], gap: apart(o.pooled_women_block, o.pooled_men_block) },
-            { id: 'matched', label: 'Same finish time', bars: [{ label: 'Recorded women', value: o.women_block, display: slower(o.women_block) }, { label: 'Recorded men', value: o.men_block, display: slower(o.men_block) }], gap: apart(o.women_block, o.men_block) },
+            { id: 'pooled', label: 'Every finish, pooled', bars: [{ label: 'Recorded women', value: o.pooled_women_block, display: slower(o.pooled_women_block) }, { label: 'Recorded men', value: o.pooled_men_block, display: slower(o.pooled_men_block) }], gap: apart(o.pooled_women_block, o.pooled_men_block) },
+            { id: 'matched', label: 'Same race, same finish minute', bars: [{ label: 'Recorded women', value: o.women_block, display: slower(o.women_block) }, { label: 'Recorded men', value: o.men_block, display: slower(o.men_block) }], gap: apart(o.women_block, o.men_block) },
           ]}
           label={`Second 20K against the first. Pooled: women ${slower(o.pooled_women_block)}, men ${slower(o.pooled_men_block)}. Same race and finish minute: women ${slower(o.women_block)}, men ${slower(o.men_block)}.`}
           values={(
@@ -79,8 +80,8 @@ export default function DemographicsBody() {
           layers={[{ id: 'gap', label: 'Women behind', series: [{ id: 'gap', values: gapMin }], band: { lo: gapMin.map(() => 0), hi: gapMin },
             points: [{ x: MATS[peak], y: gapMin[peak], kind: 'reading' }] }]}
           xTicks={[0, 10, 20, 30, MARATHON_KM].map((km) => ({ value: km, label: matLabel(km) }))}
-          // One gridline, the whole minute under the peak: the line's steep fall to the finish never meets its label.
-          yTicks={Math.floor(gapMin[peak]) >= 1 ? [{ value: Math.floor(gapMin[peak]), label: `${Math.floor(gapMin[peak])} min behind` }] : []}
+          // One gridline, the whole minute under the peak, labelled on the left, where the line is still low.
+          yTicks={Math.floor(gapMin[peak]) >= 1 ? [{ value: Math.floor(gapMin[peak]), label: `${Math.floor(gapMin[peak])} min behind` }] : []} gridSide="left"
           scrub={{ label: `Finishing in ${band.label}: recorded women behind recorded men, mat by mat`,
             points: { x: MATS.map((km) => km / MARATHON_KM), keys: MATS.map((km, k) => keyAt(km, gapMin[k])), values: gapMin.map(gapAt) },
             initial: peak, detents: [peak] }}
@@ -99,8 +100,8 @@ export default function DemographicsBody() {
               { x: bx[mid], y: rows[mid].men_slowdown, text: 'Recorded men', tone: 'ink', priority: 3, prefer: 'above' },
               { x: bx[mid], y: rows[mid].women_slowdown, text: 'Recorded women', tone: 'quiet', priority: 2, prefer: 'below' },
             ] }]}
-          xTicks={[180, 240, 300, 360].filter((v) => v > rows[0].lo_min && v < rows[last].lo_min + width).map((v) => ({ value: v, label: hm(v) }))}
-          yTicks={[{ value: bTop, label: pct(bTop) }, { value: bTop / 2, label: pct(bTop / 2) }]}
+          xTicks={[180, 240, 300, 360, 420].filter((v) => v > rows[0].lo_min && v <= rows[last].lo_min + width).map((v) => ({ value: v, label: hm(v) }))}
+          yTicks={[0.25, 0.5, 0.75].filter((v) => v <= bTop).map((v) => ({ value: v, label: pct(v) }))} gridSide="left"
           label={`Sustained slowdown by finish time, recorded women and men, from ${hm(rows[0].lo_min)} to ${hm(rows[last].lo_min + width)}.`}
           values={(
             <Values id="wh-bands" caption="Sustained slowdown by finish time"

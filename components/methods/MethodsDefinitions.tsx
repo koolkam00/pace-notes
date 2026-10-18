@@ -27,6 +27,10 @@ export default function MethodsDefinitions() {
   const answer = getStudyAnswer();
   const timing = getWallTimingAnswer();
   const definitionText = answer.method[0];
+  // The tool cohort (finishes with all nine 5 km checkpoints), from the data the tools read: a different total from the
+  // eligible finishes the definitions count, so it is named by its checkpoints wherever it shows.
+  const toolCohort = getInsightsManifest().files['tools/projector.json'] ? readInsight<{ cohort_n: number }>('tools/projector.json').cohort_n : NaN;
+  const toolFinishes = Number.isFinite(toolCohort) ? `${(toolCohort / 1e6).toFixed(2)} million` : 'the';
   // Each figure repeats the definition as its first line; it is shown once, above.
   const figures = getStudyFigures().map((figure) => ({ ...figure, method: figure.method.filter((line) => line !== definitionText) }));
   const types = readInsight<Archetypes>('archetypes.json');
@@ -90,7 +94,7 @@ export default function MethodsDefinitions() {
     <Definition id="evidence" term="Evidence badges"
       rule={<p>Every tool panel is labelled with the kind of evidence it shows. Numbers with different labels are never combined, subtracted from each other or passed between tools.</p>}
       instrument={<dl className="methods-badges">
-        {kinds.map((kind) => <div key={kind}><dt><EvidenceTag kind={kind} link={false} /></dt><dd>{EVIDENCE_TEXT[kind]}</dd></div>)}
+        {kinds.map((kind) => <div key={kind}><dt><EvidenceTag kind={kind} link={false} /></dt><dd>{EVIDENCE_TEXT[kind].replace('{finishes}', toolFinishes)}</dd></div>)}
       </dl>}>
       {kinds.map((kind) => <p key={kind}><strong>{EVIDENCE_LABEL[kind]}.</strong> {kind === 'data' ? 'Every share is an observed share of complete finishes, not a forecast for any one runner.' : kind === 'research' ? 'Shown as ranges, each method on its own, and kept apart from Pace Notes results.' : 'Kept apart from the data.'} Used by the {and(shown.filter((tool) => tool.evidence.includes(kind)).map((tool) => tool.title.toLowerCase()))}.</p>)}
       <p>Plain calculations from your own inputs carry no badge: even-pace splits, mile rows, pace charts, unit conversion and targets. They come straight from what you type and are not observations.</p>

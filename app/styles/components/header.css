@@ -1,16 +1,13 @@
 /* The site header (components/SiteHeader.tsx; the redesign spec, section 2.4). 56 px on phones, 64 px from 900 px: the
    brand, the units switch and the Menu button; from 1180 px the five links inline and the Chapters button (menu.css).
-   Paper at 92% with a 12 px blur (solid paper where either is missing). Under 1180 px it slides up out of view while the
+   Solid paper: a frosted surface went muddy over the night bands and ghosted the words under it. Under 1180 px it slides up out of view while the
    reader scrolls down and returns on the way back up, by transform only, so nothing below it moves.
 
-   Its surface is drawn by ::before, never the header itself: a backdrop-filter or a transform on the header would
-   become the containing block of the menu sheet inside it, which is fixed to the screen. Shown, it has no transform. */
+   Its surface is drawn by ::before, never the header itself: a transform on the header would become the containing
+   block of the menu sheet inside it, which is fixed to the screen. Shown, it has no transform. */
 
 .site-header { position: sticky; top: 0; z-index: var(--z-header); color: var(--ink); transition: transform calc(1ms + 279ms * var(--motion)) var(--ease-out); }
 .site-header::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--paper); border-bottom: 1px solid var(--rule); }
-@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) and (background: color-mix(in srgb, var(--paper) 50%, transparent)) {
-  .site-header::before { background: color-mix(in srgb, var(--paper) 92%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
-}
 .site-header[data-hidden] { transform: translateY(-100%); }
 /* Open, the header and the sheet inside it rise above everything on the page. */
 .site-header[data-open] { z-index: var(--z-sheet); }

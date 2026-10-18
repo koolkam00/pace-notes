@@ -75,29 +75,38 @@
 /* The lens's one-line readout above the 99 finishes. */
 .viz-frame .pd-readout { margin-top: var(--s-3); }
 
-/* Two bars under a lens: label, track, value; the gap between the bar ends washed signal. */
-.pair-bars-views { display: grid; height: 100%; }
-.pair-bars-view { grid-area: 1 / 1; display: grid; grid-template-columns: 8.5rem minmax(0, 1fr) 4rem; align-content: center; gap: 10px 12px; }
+/* Two pairs of bars on one scale: each named, its gap drawn under it; the gap the sentence is about in signal. */
+.viz-frame.pair-bars .viz-plot { height: auto; }
+.pair-bars-views { display: grid; gap: var(--s-5); }
+.pair-bars-view { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr) 4rem; align-content: center; gap: 8px 12px; }
+.pair-bars-name { grid-column: 1 / -1; margin: 0; font-size: var(--t-small); font-weight: 600; line-height: 1.3; color: var(--ink); }
 .pair-bar { display: contents; }
-.pair-bar-label { align-self: center; font-size: var(--t-small); font-weight: 600; color: var(--ink-2); }
-.pair-bar-track { position: relative; align-self: center; height: 28px; border-radius: 2px; background: var(--paper-sunk); }
-.pair-bar-fill { position: absolute; inset: 0 auto 0 0; border-radius: 2px 4px 4px 2px; background: var(--ink); transition: width var(--d-toggle) var(--spring-soft); }
+.pair-bar-label { align-self: center; font-size: var(--t-small); color: var(--ink-2); }
+.pair-bar-track { position: relative; align-self: center; height: 24px; border-radius: 2px; background: var(--paper-sunk); }
+.pair-bar-fill { position: absolute; inset: 0 auto 0 0; border-radius: 2px 4px 4px 2px; background: var(--ink); }
+.pair-bars-view:not(.is-highlight) .pair-bar-fill { background: var(--mark-quiet); }
 .pair-bar-value { align-self: center; font-size: 1.0625rem; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; color: var(--ink); }
 .pair-bar-gaprow { grid-column: 2; position: relative; height: 26px; }
-.pair-bar-gap { position: absolute; top: 0; height: 6px; border-radius: 3px; background: var(--signal); }
-.pair-bar-gap-label { position: absolute; top: 10px; transform: translateX(-100%); font-size: var(--t-label); font-weight: 600; line-height: 1.2; white-space: nowrap; color: var(--signal-ink); }
-
-/* The reading's 64 px lens on round numbers. */
-.viz-frame.mini-lens { max-width: 22rem; }
-.viz-frame.mini-lens .viz-plot { height: 64px; }
+.pair-bar-gap { position: absolute; top: 0; height: 6px; border-radius: 3px; background: var(--mark-quiet); }
+.pair-bar-gap-label { position: absolute; top: 10px; transform: translateX(-100%); font-size: var(--t-label); font-weight: 600; line-height: 1.2; white-space: nowrap; color: var(--ink-2); }
+.pair-bars-view.is-highlight .pair-bar-gap { background: var(--signal); }
+.pair-bars-view.is-highlight .pair-bar-gap-label { color: var(--signal-ink); }
 
 /* ---------- Your minute (.finish-lookup, masked in session replays) ---------- */
 .finish-lookup { display: grid; gap: var(--s-4); max-width: var(--measure-figure); }
 .finish-lookup-field { max-width: 14rem; }
 .finish-lookup .finish-lookup-readout { margin: 0; padding-top: var(--s-3); border-top: 1px solid var(--rule); }
-/* Until a time is typed the readout is the busiest minute's: quieter, so the reader's own minute is the one that stands out. */
+/* Until a time is typed the readout is the example minute's: quieter, so the reader's own minute is the one that stands out. */
 .finish-lookup .finish-lookup-readout:not(.is-yours) .readout-value { color: var(--ink-2); }
 .finish-lookup-result { margin: 0; font-size: var(--t-small); color: var(--ink-2); }
+/* The silhouette under the readout: every finish, minute by minute; the minute read is a dot, or the reader's ring. */
+.finish-lookup .finish-lookup-plot { position: relative; height: 88px; margin-top: calc(-1 * var(--s-2)); border-bottom: 1px solid var(--rule-strong); }
+.finish-lookup .finish-lookup-plot svg { display: block; overflow: visible; }
+.finish-lookup .finish-lookup-mark { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 2px var(--paper); }
+.finish-lookup .finish-lookup-mark.is-you { width: 16px; height: 16px; margin: -8px 0 0 -8px; background: none; box-shadow: inset 0 0 0 2px var(--signal), 0 0 0 2px var(--paper); }
+.finish-lookup .finish-lookup-tag { position: absolute; transform: translate(-50%, -100%); margin-top: -12px; font-size: 13px; font-weight: 600; line-height: 1; color: var(--signal-ink); }
+.finish-lookup .finish-lookup-axis { position: relative; height: 18px; margin-top: calc(-1 * var(--s-4) + 6px); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--ink-3); }
+.finish-lookup .finish-lookup-axis span { position: absolute; top: 0; transform: translateX(-50%); }
 
 /* ---------- Which runner were you (.which-card, masked) ---------- */
 .which-card { display: grid; gap: var(--s-4); max-width: var(--measure-figure); }
@@ -117,11 +126,11 @@
 .which-blocks b { font-size: 12px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
 .which-error { margin: 0; }
 .which-key { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: calc(-1 * var(--s-2)) 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
-.which-key i { flex: none; width: 14px; height: 10px; border-radius: 2px; }
-.which-key i + i { margin-left: 10px; }
+.which-ramp { display: inline-flex; gap: 2px; margin: 0 4px; }
+.which-key i { flex: none; width: 12px; height: 10px; border-radius: 2px; background: var(--bg, var(--paper-sunk)); }
 /* Dark mode: a block blends from the dark surface by how far it is from even, so an even 5K is not a paper tile. */
 @supports (background: color-mix(in oklab, red 50%, blue)) {
-  [data-theme="dark"] .which-blocks li { background: color-mix(in oklab, var(--bg, var(--paper-sunk)) var(--mix, 0%), var(--paper-sunk)); color: var(--ink); }
+  [data-theme="dark"] .which-blocks li, [data-theme="dark"] .which-key i { background: color-mix(in oklab, var(--bg, var(--paper-sunk)) var(--mix, 0%), var(--paper-sunk)); color: var(--ink); }
 }
 
 /* ---------- Name that course ---------- */
@@ -130,16 +139,18 @@
 .ntc-plot { display: block; width: 100%; height: auto; overflow: visible; }
 .ntc-zero { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 4 4; }
 .ntc-line { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
-.ntc-own { fill: none; stroke: var(--signal); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; opacity: .55; }
+/* The course across its editions: quiet, under the edition's own line. */
+.ntc-own { fill: none; stroke: var(--mark-quiet); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
 .ntc-axis { display: flex; justify-content: space-between; font-size: 12px; font-weight: 500; color: var(--ink-3); }
 .ntc-caption { margin-top: var(--s-2); font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
 .ntc-q { margin: 0; font-family: var(--serif); font-size: var(--t-sentence); line-height: 1.25; color: var(--ink); }
 .ntc-options { display: flex; flex-wrap: wrap; gap: 8px; }
-.ntc-option.is-answer { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-.ntc-option.is-miss { border-color: var(--ink-3); color: var(--ink-3); text-decoration: line-through; }
+/* Answered: the right course ink-filled with a check; a wrong pick outlined and struck through; the rest faded. */
+.ntc-option.is-answer, .ntc-option.is-answer[aria-pressed='true'] { gap: 6px; background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.ntc-option.is-miss, .ntc-option.is-miss[aria-pressed='true'] { background: transparent; border-color: var(--rule-strong); color: var(--ink-3); text-decoration: line-through; }
 .ntc-option:disabled { opacity: .45; cursor: default; }
+.ntc-check { flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .ntc-verdict { min-height: 1.5em; margin: 0; font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); }
-.ntc-score { display: block; margin-top: 4px; font-size: var(--t-label); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink-3); }
 .ntc-next { justify-self: start; }
 
 /* ---------- Round numbers: the towers' steps ----------
@@ -178,3 +189,25 @@
   .story-beat .dot-grid-caption { margin: 0; }
   .story-beat .dot-grid-key { flex-direction: column; gap: var(--s-3); }
 }
+
+/* Course fingerprints (#fingerprint): every course a faint line, the typical course in ink, each slowest 5K a dot. */
+.fingerprints .l-faint { fill: none; stroke: var(--mark-quiet); stroke-width: 1; stroke-linejoin: round; opacity: .55; }
+.fingerprints .viz-key-mark.is-line.is-quiet { background: var(--mark-quiet); box-shadow: none; height: 1px; opacity: .7; }
+
+/* Places after 30K (#shuffle): the field as one 100% bar, the gains bracketed, the tails named under its ends. */
+.place-shift .ps-bracket { position: relative; height: 34px; }
+.place-shift .ps-bracket::before { content: ''; position: absolute; left: 0; right: 0; bottom: 6px; height: 8px; border: 1.5px solid var(--ink); border-bottom: 0; border-radius: 2px 2px 0 0; }
+.place-shift .ps-bracket-label { position: absolute; right: 0; bottom: 18px; font-size: 14px; font-weight: 600; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink); }
+.place-shift .ps-track { display: flex; gap: 2px; height: 28px; }
+.place-shift .ps-seg { display: flex; align-items: center; justify-content: center; min-width: 3px; flex-basis: 0; border-radius: 3px; overflow: hidden; }
+.place-shift .ps-seg.is-ink { background: var(--ink); }
+.place-shift .ps-seg.is-quiet { background: var(--fill-quiet); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
+.place-shift .ps-in { padding: 0 6px; font-size: 13px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink); }
+.place-shift .ps-ends { display: flex; justify-content: space-between; gap: var(--s-4); margin-top: var(--s-3); font-size: var(--t-small); line-height: 1.35; color: var(--ink-2); }
+.place-shift .ps-end { max-width: 48%; }
+.place-shift .ps-end b { display: block; font-size: 1.0625rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.place-shift .ps-end.is-right { text-align: right; }
+
+/* The reading's six types: the evenest, the one the figure counts, carries its share in signal ink. */
+.type-legend li.is-reading { color: var(--ink); font-weight: 600; }
+.type-legend li.is-reading b { color: var(--signal-ink); }

@@ -63,8 +63,13 @@ export default function Scrolly({ graphic, steps, className }: { graphic: ReactN
       texts.forEach((t) => io!.observe(t));
     };
     watch();
+    // A jump (a tap on the status bar, Home, a link to the top) can carry every step past the line without one crossing
+    // it while observed, so the step is also re-read once a scroll settles: still a step, never a scroll position.
+    let frame = 0;
+    const settle = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(pick); };
     window.addEventListener('resize', watch, { passive: true });
-    return () => { io?.disconnect(); window.removeEventListener('resize', watch); };
+    window.addEventListener('scroll', settle, { passive: true });
+    return () => { io?.disconnect(); cancelAnimationFrame(frame); window.removeEventListener('resize', watch); window.removeEventListener('scroll', settle); };
   }, []);
   return (
     <div ref={root} className={`scrolly${className ? ` ${className}` : ''}`} data-step="final">

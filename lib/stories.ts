@@ -6,6 +6,7 @@
 import { getInsightsManifest, readInsight } from './insights-server';
 import type { Archetypes, Courses, InsightsManifest, Kick, ReplayIndex } from './insights';
 import { checkpointLabel } from './viz/format';
+import { hm } from './nuggets/format';
 import { getNugget, plain, sentenceOf } from './nuggets';
 
 /** One parsed copy of each story file per verified manifest, so the getters below do not re-read files on every access. */
@@ -99,6 +100,12 @@ function shapedCourses(): number | null {
   return data ? data.courses.filter((c) => c.curve?.length).length : null;
 }
 
+/** A story's H1 as its finding: the nugget's sentence when its guard holds, else the plain title. */
+function headingOf(id: `${string}.${string}`, title: string): string {
+  const n = getNugget(id);
+  return n.guard ? sentenceOf(n) : title;
+}
+
 export const STORIES: StoryDefinition[] = [
   { slug: 'pacing-types', file: 'archetypes.json', number: '01', kicker: 'The shape of a marathon',
     get title() {
@@ -120,10 +127,17 @@ export const STORIES: StoryDefinition[] = [
       const types = pacingTypes();
       return `Grouping millions of recorded marathon finishes by the shape of their 5 km splits reveals ${types ? `${types} ` : ''}recurring pacing types, and how often a shape repeats.`;
     } },
-  { slug: 'round-numbers', file: 'finish-times.json', number: '02', kicker: 'Round numbers', title: 'The 3:59 effect',
+  { slug: 'round-numbers', file: 'finish-times.json', number: '02', kicker: 'Round numbers',
+    /** Named for the minute that stands tallest against the smooth curve (the round.top nugget), never a typed time. */
+    get title() {
+      const top = getNugget('round.top');
+      return top.guard ? `The ${hm(Number(top.values.minutes) - 1)} effect` : 'The round-number effect';
+    },
     dek: 'Do finish times bunch up just under round numbers?', accent: '#FF5B2E',
     published: '2026-10-07',
-    seoTitle: 'The 3:59 Effect: Marathon Finishes Bunch Under the Hour',
+    get seoTitle() {
+      return `${this.title.replace(/^the /i, 'The ').replace(/ effect$/, ' Effect')}: Marathon Finishes Bunch Under Round Times`;
+    },
     get seoDescription() {
       return `Marathon finish times pile up just under every hour and half-hour. See the bunching second by second in ${finishesMillions()} million recorded finishes.`;
     } },
@@ -144,6 +158,8 @@ export const STORIES: StoryDefinition[] = [
         : 'Replay big-city marathons from their recorded 5 km splits and watch a sample of each field spread out along the course.';
     } },
   { slug: 'places', file: 'positions.json', number: '04', kicker: 'Places on the clock', title: 'Pass or be passed',
+    /** The H1 is the finding (the places.title nugget), or the title when its guard fails. */
+    get heading() { return headingOf('places.title', this.title); },
     dek: 'How much can still change after 30K?', accent: '#2F5BFF',
     published: '2026-10-07',
     seoTitle: 'How Marathon Places Change Late in the Race | Pace Notes',
@@ -168,6 +184,7 @@ export const STORIES: StoryDefinition[] = [
       return `${share ? `${share} recorded marathon finishes speed up over the final stretch. ` : ''}Where fields slow, and how late speed-ups and sustained slowdowns line up.`;
     } },
   { slug: 'who-holds-pace', file: 'demographics.json', number: '06', kicker: 'Gender and age', title: 'Who holds their pace',
+    get heading() { return headingOf('holds.title', this.title); },
     dek: 'Do women and men run the second half differently?', accent: '#7A4DFF',
     published: '2026-10-07',
     seoTitle: 'Marathon Pacing by Age and Recorded Gender | Pace Notes',
@@ -185,6 +202,7 @@ export const STORIES: StoryDefinition[] = [
         : 'Section-by-section pacing shapes for marathon courses, with race-morning weather, finish times and route profiles where mapped.';
     } },
   { slug: 'race-morning', file: 'courses.json', number: '08', kicker: 'The weather', title: 'Race-morning weather',
+    get heading() { return headingOf('weather.title', this.title); },
     dek: 'Does a warm morning change a marathon?',
     accent: '#2F5BFF',
     published: '2026-10-17',

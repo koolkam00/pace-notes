@@ -11,13 +11,15 @@ import { Beat, Say, StoryHero, StoryPage } from '../StoryPage';
 
 const PATH = '/stories/race-replay';
 const MINUS = '−';
-const signedMin = (v: number) => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(Math.round(v))} min`;
+/** Minutes ahead (−) or behind (+) with one decimal; a value that rounds to zero is "0 min", never "−0.0". */
+const signedMin = (v: number) => (Math.abs(v) < 0.05 ? '0 min' : `${v > 0 ? '+' : MINUS}${Math.abs(v).toFixed(1)} min`);
 
 /**
  * Watch a marathon unfold (the redesign spec, section 7.3, under section 00): the moment of the first finish as the
  * reading, then the replay itself (the story's signature: no step-by-step reveal), finishes that passed 10K together
- * spreading out, and how much of the late slowing on course is who's left. The snapshots, the edition strip and the
- * even-pace ghost are cut (the ghost is chapter 03's finding); every edition is picked by the data.
+ * spreading out, and, hour by hour, the share of the field's slowing on course that was who was left. The snapshots,
+ * the edition strip and the even-pace ghost are cut (the ghost is chapter 03's finding); every edition is picked by the
+ * data.
  */
 export default function ReplayBody() {
   const data = readInsight<ReplayIndex>('replay.json');
@@ -37,14 +39,15 @@ export default function ReplayBody() {
   const reach = Math.ceil(Math.max(...hi.map(Math.abs), ...lo.map(Math.abs)) / 10) * 10;
   const lastIndex = rows.length - 1;
 
-  // Who's left: the pace on course and the same runners' whole-race pace, each against the field at the start.
+  // Who's left: hour by hour, the share of the drop in the field's pace on course that came from who was still out
+  // there (their own whole-race pace dropping too) rather than from runners slowing.
   const leftEdition = data.editions.find((e) => e.city === left.values.city && e.year === left.values.year);
-  const comp = (leftEdition?.composition ?? []).filter((r) => r.on_course >= 100);
-  const start = comp[0]?.current_kmh ?? NaN;
-  const now = comp.map((r) => (start / r.current_kmh - 1) * 100);
-  const whole = comp.map((r) => (start / r.whole_race_kmh - 1) * 100);
+  const leftRace = leftEdition ? `${leftEdition.city} ${leftEdition.year}` : race;
+  const comp = (leftEdition?.composition ?? []).filter((r) => r.on_course >= 100 && typeof r.composition_share === 'number');
+  const start = (leftEdition?.composition ?? [])[0]?.current_kmh ?? NaN;
+  const share = comp.map((r) => r.composition_share! * 100);
   const hours = comp.map((r) => r.clock_s / 3600);
-  const top = Math.ceil(Math.max(...now) / 10) * 10;
+  const h0 = Math.floor(hours[0] ?? 0), h1 = Math.ceil(hours[hours.length - 1] ?? 1);
   const at = comp.findIndex((r) => r.clock_s === left.values.clock_s);
 
   return (
@@ -75,28 +78,28 @@ export default function ReplayBody() {
             label={`Finishes that passed ${matLabel(mats[0])} together in ${packEdition!.city} ${packEdition!.year}: the middle 80% spread from ${matLabel(mats[0])} to ${Math.round(Number(packs.values.window_min))} minutes apart at the finish.`}
             keys={[{ label: 'The middle 80% of the pack', mark: 'band' }]}
             values={(
-              <Values id="rr-pack" caption={`The pack in ${packEdition!.city} ${packEdition!.year}, mat by mat`}
-                columns={[{ key: 'm', label: 'Mat' }, { key: 'a', label: 'Front of the middle 80%' }, { key: 'b', label: 'Back of it' }]}
-                rows={rows.map((r, i) => [matLabel(r.km), signedMin(lo[i]), signedMin(hi[i])])} />
+              <Values id="rr-pack" caption={`The pack in ${packEdition!.city} ${packEdition!.year}, mat by mat, against its median`}
+                columns={[{ key: 'm', label: 'Mat' }, { key: 's', label: 'Middle 80% apart' }, { key: 'a', label: 'Its front' }, { key: 'b', label: 'Its back' }]}
+                rows={rows.map((r, i) => [matLabel(r.km), `${Math.round(hi[i] - lo[i])} min`, signedMin(lo[i]), signedMin(hi[i])])} reading={lastIndex} />
             )} />
         </Beat>
       ) : null}
 
       {comp.length > 2 ? (
         <Beat id="emptying" track="chapter-3" label="Who’s left" title={left}
-          dek="Their whole-race pace (dashed) slows almost as much: the quicker runners had already finished.">
-          <LineProfile x={hours} xDomain={[0, Math.ceil(hours[hours.length - 1])]} yDomain={[0, top]}
-            layers={[{ id: 'left', label: 'On course', series: [{ id: 'now', values: now }, { id: 'whole', values: whole, dashed: true }],
-              points: at >= 0 ? [{ x: hours[at], y: now[at], kind: 'reading' }] : [],
-              labels: at >= 0 ? [{ x: hours[at], y: now[at], text: `${hm(Number(left.values.clock_s) / 60)} · ${pct(Number(left.values.share))} who’s left`, tone: 'signal', priority: 3, prefer: 'above' }] : [] }]}
-            xTicks={Array.from({ length: Math.ceil(hours[hours.length - 1]) + 1 }, (_, h) => ({ value: h, label: h ? `${h}:00` : 'Start' }))}
-            yTicks={[{ value: top, label: `${top}% slower` }, { value: top / 2, label: `${top / 2}%` }]}
-            label={`${race}: the pace of the field still on course, and the whole-race pace of the same runners, each against the field's pace at the start. At ${hm(Number(left.values.clock_s) / 60)}, ${pct(Number(left.values.share))} of the slowing was who was left.`}
-            keys={[{ label: 'Pace on course', mark: 'line' }, { label: 'The same runners’ whole-race pace', mark: 'dash' }]}
+          dek={`${leftRace}: the share of the field’s slowing on course that reflects who was still out there. The quicker runners had finished.`}>
+          <LineProfile x={hours} xDomain={[h0, h1]} yDomain={[0, 100]}
+            layers={[{ id: 'left', label: 'Who’s left', series: [{ id: 'share', values: share }],
+              points: at >= 0 ? [{ x: hours[at], y: share[at], kind: 'reading' }] : [],
+              labels: at >= 0 ? [{ x: hours[at], y: share[at], text: `${hm(Number(left.values.clock_s) / 60)} · ${pct(Number(left.values.share))}`, tone: 'signal', priority: 3, prefer: 'above' }] : [] }]}
+            // Half is the level "mostly" has to clear: a gridline, labelled on the right, where the line has cleared it.
+            xTicks={Array.from({ length: h1 - h0 + 1 }, (_, k) => ({ value: h0 + k, label: `${h0 + k}:00` }))}
+            yTicks={[{ value: 50, label: 'Half' }, { value: 100, label: '100%' }]}
+            label={`${leftRace}, hour by hour: the share of the field's slowing on course that reflects who was still out there, ${pct(Number(left.values.share))} at ${hm(Number(left.values.clock_s) / 60)}.`}
             values={(
-              <Values id="rr-left" caption={`${race}: slower than the field at the start, hour by hour`}
-                columns={[{ key: 't', label: 'Race clock' }, { key: 'n', label: 'Pace on course' }, { key: 'w', label: 'Their whole race' }, { key: 'o', label: 'Still on course' }]}
-                rows={comp.map((r, i) => [hm(r.clock_s / 60), `${Math.round(now[i])}%`, `${Math.round(whole[i])}%`, count(r.on_course)])} reading={at >= 0 ? at : undefined} />
+              <Values id="rr-left" caption={`${leftRace}: the field on course, hour by hour`}
+                columns={[{ key: 't', label: 'Race clock' }, { key: 'n', label: 'Pace on course, against the start' }, { key: 'w', label: 'Who’s left' }, { key: 'o', label: 'Still on course' }]}
+                rows={comp.map((r, i) => [hm(r.clock_s / 60), `${Math.round((start / r.current_kmh - 1) * 100)}% slower`, pct(share[i] / 100), count(r.on_course)])} reading={at >= 0 ? at : undefined} />
             )} />
         </Beat>
       ) : null}

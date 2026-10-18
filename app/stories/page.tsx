@@ -14,7 +14,7 @@ export function generateMetadata() {
   const published = STORIES.filter((s) => manifest.files[s.file]).length;
   // The topic list names every story, so it is used only when all of them are published.
   const description = published === STORIES.length && WORDS[published]
-    ? `${WORDS[published]} data stories from ${finishesM()} million recorded marathon finishes: pacing types, the 3:59 effect, race replays, places, the final kick, age and courses.`
+    ? `${WORDS[published]} data stories from ${finishesM()} million recorded marathon finishes: pacing types, ${STORIES.find((st) => st.slug === 'round-numbers')!.title.replace(/^The /, 'the ')}, race replays, places, the final kick, age and courses.`
     : `Data stories from ${finishesM()} million recorded marathon finishes, each starting with one finding and the evidence to explore.`;
   return pageMetadata({ title: `Marathon Data Stories from ${finishesM()}M Finishes | Pace Notes`, description, path: '/stories' });
 }

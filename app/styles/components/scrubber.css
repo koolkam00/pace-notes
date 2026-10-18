@@ -8,10 +8,10 @@
 
 /* The needle: 1.5 px of signal from the top of the plot to the baseline, or to the top of the mark it reads. */
 .viz-frame .scrub-needle { position: absolute; top: 0; bottom: 0; width: 1.5px; margin-left: -.75px; background: var(--signal); pointer-events: none; }
-/* A histogram's needle runs in front, from the top of the column it reads to the baseline. Under a lens whose columns
-   are drawn differently ("Against the curve") it goes back behind the marks at full height. */
-.viz-frame .scrub-needle.is-front { z-index: 1; top: var(--needle-top, 0%); width: 2px; margin-left: -1px; }
-.viz-frame[data-k="ratio"] .scrub-needle.is-front { z-index: auto; top: 0; width: 1.5px; margin-left: -.75px; }
+/* A histogram's needle runs from the top of the plot and stops 6 px above the column it reads, so the column stays in
+   view under it; under the "Against the curve" lens it stops above that lens's column instead. */
+.viz-frame .scrub-needle.is-front { bottom: auto; height: max(0px, calc(var(--needle-top, 100%) - 6px)); }
+.viz-frame[data-k="ratio"] .scrub-needle.is-front { height: max(0px, calc(var(--needle-top-alt, var(--needle-top, 100%)) - 6px)); }
 /* Away from the headline's point, the reading mark is ink: the needle is the one orange mark. */
 .viz-frame .scrub.is-away .m-signal.is-reading { fill: var(--ink); }
 

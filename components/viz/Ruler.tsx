@@ -1,7 +1,7 @@
 import ChartFrame from './ChartFrame';
 import Axis from './Axis';
 import Plot from './Plot';
-import { FIT_STEPS, placeLabels, textWidth, type LabelItem } from './labels';
+import { FIT_STEPS, REF_WIDTH, placeLabels, textWidth, type LabelItem } from './labels';
 import Annotation from './Annotation';
 import { linear, pc } from './scale';
 
@@ -33,8 +33,11 @@ export default function Ruler({ min, max, ticks, marks, label, className }: {
     const text = m.label!, cut = text.lastIndexOf(' ');
     const lines = cut > 0 ? [text.slice(0, cut), text.slice(cut + 1)] : [text];
     const f = x(m.value), w = Math.max(...lines.map((l) => textWidth(l, SIZE)));
-    const left = f < pivot || (f === pivot && f > 0.5);
-    const need = left ? (w - 4) / Math.max(0.01, f) : (w - 4) / Math.max(0.01, 1 - f);
+    // Away from the reading, unless that side has no room at the reference width and the other does (a mark near an end).
+    const room = (toLeft: boolean) => (w - 4) / Math.max(0.01, toLeft ? f : 1 - f);
+    const away = f < pivot || (f === pivot && f > 0.5);
+    const left = room(away) > REF_WIDTH && room(!away) <= REF_WIDTH ? !away : away;
+    const need = room(left);
     const fit = need <= FIT_STEPS[0] - 1 ? '' : (FIT_STEPS.find((st) => st >= need) ? `w${FIT_STEPS.find((st) => st >= need)}` : 'w-never');
     return { key: `b${i}`, lines, f, left, fit, quiet: m.kind === 'typical' };
   });

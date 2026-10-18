@@ -46,8 +46,11 @@ export default function Chips<T extends string = string>({ options, value, defau
     const left = chip.offsetLeft, right = left + chip.offsetWidth;
     const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || document.documentElement.hasAttribute('data-motion-off');
     const behavior: ScrollBehavior = still ? 'auto' : 'smooth';
-    if (left < el.scrollLeft + 24) el.scrollTo({ left: Math.max(0, left - 24), behavior });
-    else if (right > el.scrollLeft + el.clientWidth - 24) el.scrollTo({ left: right - el.clientWidth + 24, behavior });
+    // Out of view, the chip is brought to the middle of the row, so a neighbour peeks (faded) on either side: the cue
+    // that the row scrolls both ways.
+    if (left < el.scrollLeft + 24 || right > el.scrollLeft + el.clientWidth - 24) {
+      el.scrollTo({ left: Math.max(0, Math.min(el.scrollWidth - el.clientWidth, left - (el.clientWidth - chip.offsetWidth) / 2)), behavior });
+    }
   }, [current, wrap]);
 
   const pick = (next: T) => {

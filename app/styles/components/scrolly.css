@@ -28,7 +28,8 @@
 .scrolly [data-zoom] { transform-box: fill-box; transition: transform var(--d-step) var(--ease-out); }
 
 @media (min-width: 900px) {
-  .scrolly { display: grid; grid-template-columns: 26rem minmax(0, 1fr); gap: 48px; align-items: start; }
+  /* The graphic takes about 7/12 of the width, so a minute histogram's columns stay readable. */
+  .scrolly { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 48px; align-items: start; }
   .scrolly-steps { grid-column: 1; grid-row: 1; }
   .scrolly-graphic { grid-column: 2; grid-row: 1; top: calc(var(--header-h) + 24px); height: calc(100vh - var(--header-h) - 48px); align-items: center; padding: 0; }
   .scrolly-step { min-height: 70vh; display: flex; flex-direction: column; justify-content: center; }
