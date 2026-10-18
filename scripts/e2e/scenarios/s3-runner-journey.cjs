@@ -140,7 +140,8 @@ async function raceReport(h, run, page, step) {
   const out = { link: null, year: null };
   await step('race report', async () => {
     await page.locator('.rc-report button', { hasText: 'Make a race report' }).click();
-    await page.waitForSelector('.rc-report .race-report-record dl, .rc-report .race-report-record .tool-state', { timeout: 30000 });
+    // The edition's lines print with the report (on screen the tabs above say them): attached, not shown.
+    await page.waitForSelector('.rc-report .race-report-record dl, .rc-report .race-report-record .tool-state', { timeout: 30000, state: 'attached' });
     await page.waitForSelector('.rc-report .race-report-table, .rc-report .race-report-block p strong', { timeout: 30000 }).catch(() => {});
     h.check('the report, opened by a press, takes focus at its title', await page.evaluate(() => document.activeElement?.classList.contains('race-report-title') ?? false));
   });

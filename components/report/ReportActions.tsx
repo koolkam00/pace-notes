@@ -126,7 +126,7 @@ export default function ReportActions({ id, model, units, link, cardId, gender, 
           <Sheet id={sheetId} title="Share this report" open={open} onClose={close} className="race-report-sheet">
             <div className="share-actions">
               <button type="button" className="btn btn-primary is-block" data-report-save aria-disabled={waiting || undefined} onClick={onSave}>{busy ? 'Making the image…' : pending ? `Loading ${pending}…` : 'Save image'}</button>
-              <button type="button" className="btn btn-secondary is-block race-report-share-native" aria-disabled={waiting || undefined} onClick={onShare}>Share…</button>
+              <button type="button" className="btn btn-secondary is-block race-report-share-native" aria-disabled={waiting || undefined} onClick={onShare}>Send with another app</button>
               {link ? <button type="button" className="btn btn-secondary is-block" onClick={onCopy}>{copied ? 'Link copied' : 'Copy link'}</button> : null}
               {onward ? <Link className="btn btn-tertiary is-block" href={onward}>Open these splits in the split check<Arrow /></Link> : null}
             </div>

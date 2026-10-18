@@ -84,7 +84,8 @@ a.runner-start:focus-visible, a.runner-row:focus-visible { outline: 2px solid va
 .runner-match strong { display: block; font-size: 1.0625rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
 .runner-match small { display: block; margin-top: 2px; font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
 .runner-match-action { display: inline-flex; flex: none; align-items: center; gap: 6px; font-size: var(--t-small); font-weight: 600; color: var(--ink-2); white-space: nowrap; }
-.runner-match-action .arrow-icon { width: 16px; height: 16px; transition: transform var(--d-quick) var(--ease-out); }
+.runner-match-action .arrow-icon { width: 16px; height: 16px; color: var(--ink-3); transition: transform var(--d-quick) var(--ease-out); }
+.runner-match:hover .arrow-icon, .runner-match[aria-expanded='true'] .arrow-icon { color: var(--ink); }
 .runner-match:hover strong { text-decoration: underline; text-underline-offset: .2em; }
 .runner-match:hover .arrow-icon { transform: translateX(3px); }
 .runner-match[aria-expanded='true'] .runner-match-action { color: var(--ink); }

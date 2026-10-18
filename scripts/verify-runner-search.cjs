@@ -91,6 +91,8 @@ async function main() {
   assert.match(mileHtml, /limited analysis/i); assert.doesNotMatch(mileHtml, /the same pace than/);
   assert.match(mileHtml, /Casey Partial/); assert.match(mileHtml, /Incomplete edition held for review/);
   assert.match(mileHtml, /02:20:39/, 'Keep the faster held result visible as its recorded finish');
+  const listedHtml = renderToStaticMarkup(React.createElement(SelectedAnalysis, { races: [base, held], manifest, units: 'mi', listed: new Set([base.id, held.id]) }));
+  assert.doesNotMatch(listedHtml, /limited analysis|Casey Partial/i, 'A limited record the open profile already lists, tag and checkpoints, is not listed again under the analysis');
   assert.match(mileHtml, /00:16:40\.000/, 'Keep original checkpoint formatting rather than recomputing it');
   assert.match(mileHtml, /<h2 id="[^"]*-title">[^<]*, 3:30:58\.5<\/h2>/, 'A faster held result cannot replace the eligible finish (one eligible race: its heading names it)');
   assert.doesNotMatch(mileHtml, /runner-numbers|One race\. A closer look/, 'One race has no summary card and no second heading');

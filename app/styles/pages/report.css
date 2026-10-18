@@ -144,12 +144,15 @@
 .race-report-table .table th, .race-report-table .table td { white-space: nowrap; }
 .race-report .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: .2em; }
 .race-report .term-link:hover { text-decoration-style: solid; }
+/* The record's edition lines print with the report; on screen the runner view's tabs above already say them. */
+.race-report-record { display: none; }
 .race-report-record dl { display: grid; margin: var(--s-3) 0 0; border-top: 1px solid var(--rule); }
 .race-report-record dl > div { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: var(--s-3); padding: 12px 0; border-bottom: 1px solid var(--rule); }
 .race-report-record dt { font-size: var(--t-label); font-weight: 600; line-height: 1.45; color: var(--ink-3); }
 .race-report-record dd { margin: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
 .race-report-record dd strong { color: var(--ink); font-variant-numeric: tabular-nums; }
-.race-report-foot { margin-top: var(--s-5); padding-top: var(--s-3); border-top: 1px solid var(--rule); }
+/* The foot: the one Pace Notes data badge, then the site and the disclaimer. */
+.race-report-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--s-4); margin-top: var(--s-5); padding-top: var(--s-3); border-top: 1px solid var(--rule); }
 .race-report-foot p { margin: 0; font-size: var(--t-label); line-height: 1.45; color: var(--ink-3); }
 .race-report-foot strong { font-weight: 600; color: var(--ink); }
 @media (max-width: 359.98px) {
@@ -224,7 +227,12 @@ a.race-report-badge:focus-visible { outline: 2px solid var(--focus); outline-off
   .report-page .race-report-stat > .race-report-badge { margin-top: 0; }
   .report-page .race-report-stat.is-type > small { padding-right: var(--s-2); }
   .report-page .race-report-block { margin-top: var(--s-6); }
-  .report-page .race-report-actions { max-width: calc((100% - var(--s-7)) * 7 / 12); }
+  /* The actions and then the closing stack continue the right column (the tiles, the comparison, the foot), so the
+     lap screen stands alone at the left and nothing leaves a void beside the next card. */
+  .report-page .race-report-actions { max-width: none; margin-left: calc((100% - var(--s-7)) * 7 / 12 + var(--s-7)); }
+  @supports selector(:has(a)) {
+    .report-page:has(.race-report) .chapter-end { max-width: none; margin-left: calc((100% - var(--s-7)) * 7 / 12 + var(--s-7)); }
+  }
 }
 
 /* ---------- Print: the card alone, one page, ink on paper ---------- */
@@ -270,6 +278,7 @@ a.race-report-badge:focus-visible { outline: 2px solid var(--focus); outline-off
   .at20-key i { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .race-report-table .values { display: none; }
   .at20-track, .at20-track i, .at20-track b { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .race-report-record { display: block; }
   .race-report-record dl { margin-top: 2pt; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 8pt; border-top: 0; }
   .race-report-record dl > div { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 2pt 0; border-bottom: 0; }
   .race-report-record dt { font-size: 6.5pt; }

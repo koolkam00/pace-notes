@@ -145,11 +145,17 @@ export function FinishTimeStart() {
   </form>;
 }
 
-export function SelectedAnalysis({ races, manifest, units, copyEditions = NO_COPIES, report }: { races: RunnerRace[]; manifest: RunnerManifest; units: UnitSystem; copyEditions?: readonly CopyEdition[]; report?: ReportData }) {
+export function SelectedAnalysis({ races, manifest, units, copyEditions = NO_COPIES, report, listed }: {
+  races: RunnerRace[]; manifest: RunnerManifest; units: UnitSystem; copyEditions?: readonly CopyEdition[]; report?: ReportData;
+  /** Records the open profile above already lists with their tags and checkpoints: the analysis does not list them again. */
+  listed?: ReadonlySet<number>;
+}) {
   // Copy-edition records join the limited records: no best, count, year span, change or table row comes from them.
   const progression = useMemo(() => runnerProgression(races.filter(race => !inCopyEdition(race, manifest, copyEditions)), manifest), [races, manifest, copyEditions]);
   const valid = progression?.valid || [];
   const limited = races.filter(race => !analysed(race, manifest, copyEditions));
+  // The limited records not already on screen in the profile (one chosen from another match, say).
+  const unlisted = limited.filter(race => !listed?.has(race.id));
   if (!progression) {
     const copies = races.filter(race => race.eligible && inCopyEdition(race, manifest, copyEditions)).length;
     const why = copies === races.length ? 'These records are shown as recorded times only, without pacing or peer comparisons.'
@@ -176,7 +182,7 @@ export function SelectedAnalysis({ races, manifest, units, copyEditions = NO_COP
       {table}
     </>}
     <RunnerContext races={races} manifest={manifest} units={units} copyEditions={copyEditions} report={report} />
-    {limited.length > 0 && <section className="runner-limited" aria-labelledby="runner-limited-title"><h3 id="runner-limited-title" className="runner-h">{`${count(limited.length)} selected ${limited.length === 1 ? 'record has' : 'records have'} limited analysis`}</h3><LimitedRecords races={limited} manifest={manifest} copyEditions={copyEditions} /></section>}
+    {unlisted.length > 0 && <section className="runner-limited" aria-labelledby="runner-limited-title"><h3 id="runner-limited-title" className="runner-h">{`${count(unlisted.length)} selected ${unlisted.length === 1 ? 'record has' : 'records have'} limited analysis`}</h3><LimitedRecords races={unlisted} manifest={manifest} copyEditions={copyEditions} /></section>}
   </section>;
 }
 
@@ -276,6 +282,8 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
   const visibleMatches = runnerSearchPage(matches, page);
   const pages = Math.ceil(matches.length / RUNNER_PAGE_SIZE);
   const orderedRaces = useMemo(() => profile && manifest ? [...profile.races].sort((a, b) => manifest.editions[b.edition].year - manifest.editions[a.edition].year || a.id - b.id) : [], [profile, manifest]);
+  // The records the open profile lists, each with its tag and (when limited) its checkpoints.
+  const listed = useMemo(() => new Set(orderedRaces.map(race => race.id)), [orderedRaces]);
   const busy = searchLoading || waiting !== null;
   const noMatch = !!manifest && !!searched && !searchLoading && !searchError && !matches.length;
   const shelved = noMatch && !reopened;
@@ -305,7 +313,7 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
       <h2 id="runner-results-title" className="runner-h"><span role="status">{matches.length ? `${count(matches.length)} matching ${matches.length === 1 ? 'record group' : 'record groups'}` : 'No matching recorded name'}</span></h2>
       <p className="runner-note">{matches.length ? `For “${searched}”. People can share a name, and one person can appear in more than one group: check the races before combining them.` : 'Try the spelling on the original result, a surname, or fewer name parts.'}</p>
       {!matches.length && <NoMatchNext manifest={manifest} />}
-      {matches.length > 0 && <ul className="runner-matches">{visibleMatches.map(row => <li key={row[1]}><button className="runner-match" type="button" aria-expanded={profile?.id === row[1]} aria-controls="runner-profile" onClick={() => void openProfile(row[1])}><span><strong>{row[0]}</strong><small>{count(row[2])} {row[2] === 1 ? 'race' : 'races'} · {row[3] === row[4] ? row[3] : `${row[3]}–${row[4]}`} · {row[2] > 1 ? 'Including ' : ''}{row[5]}</small></span><span className="runner-match-action">{profileLoading === row[1] ? 'Loading…' : 'See races'}<Arrow /></span></button></li>)}</ul>}
+      {matches.length > 0 && <ul className="runner-matches">{visibleMatches.map(row => <li key={row[1]}><button className="runner-match" type="button" aria-expanded={profile?.id === row[1]} aria-controls="runner-profile" onClick={() => void openProfile(row[1])}><span><strong>{row[0]}</strong><small>{count(row[2])} {row[2] === 1 ? 'race' : 'races'} · {row[3] === row[4] ? row[3] : `${row[3]}–${row[4]}`} · {row[2] > 1 ? 'Including ' : ''}{row[5]}</small></span><span className="runner-match-action">{profileLoading === row[1] ? 'Loading…' : <span className="sr-only">See races</span>}<Arrow /></span></button></li>)}</ul>}
       {pages > 1 && <nav className="runner-pagination" aria-label="Search result pages"><button type="button" className="btn btn-secondary is-compact" disabled={page === 0} onClick={() => setPage(value => value - 1)}>Previous</button><span>Page {count(page + 1)} of {count(pages)} · {count(page * RUNNER_PAGE_SIZE + 1)}–{count(Math.min(matches.length, (page + 1) * RUNNER_PAGE_SIZE))} of {count(matches.length)}</span><button type="button" className="btn btn-secondary is-compact" disabled={page + 1 >= pages} onClick={() => setPage(value => value + 1)}>Next</button></nav>}
     </section>}
     {profileError && <div className="runner-error" role="alert"><p>{profileError} Select the match again to retry.</p></div>}
@@ -316,7 +324,7 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
     </section>}</div>
     {searched && matches.length > 0 && !searchLoading && !searchError && !selected.length && !confirmed && starts}
     {manifest && selected.length > 0 && <section className="runner-selection ph-no-capture" aria-labelledby="runner-selection-title"><h2 id="runner-selection-title" className="sr-only">{count(selected.length)} {selected.length === 1 ? 'race' : 'races'} selected</h2><ul className="runner-chips">{selected.map(race => <li key={race.id}><span>{raceLabel(race, manifest)} · {finishLabel(race)}{!race.eligible && <small> · limited</small>}</span><button type="button" onClick={() => toggleRace(race)} aria-label={`Remove ${race.name}, ${raceLabel(race, manifest)}, record ${race.id}`}><span aria-hidden="true" className="runner-chip-x" /></button></li>)}</ul><div className="runner-selection-actions"><button className="btn btn-primary is-compact button-primary" type="button" onClick={() => { trackAnalytics('race_comparison_opened', { selection: selected.length === 1 ? 'one' : 'multiple', availability: selected.every(race => analysed(race, manifest, copyEditions)) ? 'eligible' : selected.some(race => analysed(race, manifest, copyEditions)) ? 'mixed' : 'limited' }); setConfirmed([...selected]); setReopened(true); requestAnimationFrame(() => analysisRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })); }}>{selected.length === 1 ? 'View the selected race' : `View ${count(selected.length)} selected races`}<Arrow /></button><button className="btn btn-tertiary runner-clear" type="button" onClick={() => { setSelected([]); setConfirmed(null); }}>Clear</button></div></section>}
-    <div ref={analysisRef} className="ph-no-capture">{confirmed && manifest && !shelved && <SelectedAnalysis races={confirmed} manifest={manifest} units={units} copyEditions={copyEditions} report={report} />}</div>
+    <div ref={analysisRef} className="ph-no-capture">{confirmed && manifest && !shelved && <SelectedAnalysis races={confirmed} manifest={manifest} units={units} copyEditions={copyEditions} report={report} listed={listed} />}</div>
     </div>
   </>;
 }

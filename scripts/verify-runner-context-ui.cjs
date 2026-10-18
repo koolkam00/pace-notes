@@ -41,19 +41,23 @@ const context = { weather, terrain, weather_reason: null, terrain_reason: null }
 const original = JSON.stringify(context);
 const mileConditions = render(RunnerConditions, { context, metrics, units: 'mi' });
 assert.match(mileConditions, /32°F/);
-assert.match(mileConditions, /\+3\.6°F/);
-assert.doesNotMatch(mileConditions, /35\.6°F<\/strong>/, 'A two-degree temperature rise is 3.6°F, without adding the freezing-point offset');
+// The morning is the heading, in whole degrees: a two-degree rise is 3.6°F (4°F), without the freezing-point offset.
+assert.match(mileConditions, /<h3 class="rc-h">32°F near the start, 4°F warmer by 13:00\.<\/h3>/, 'The weather heading is the morning\'s finding');
+assert.doesNotMatch(mileConditions, /36°F warmer/, 'A two-degree temperature rise is 3.6°F, without adding the freezing-point offset');
 assert.match(mileConditions, /0 mph/); assert.match(mileConditions, /0 in/); assert.match(mileConditions, /Not available/);
 assert.match(mileConditions, /328 ft/); assert.doesNotMatch(mileConditions, /\d\.\d ft\b/, 'Climbs in whole feet, as the course pages print them'); assert.match(mileConditions, /40K–finish/, 'Sections are named by their mats in both units'); assert.doesNotMatch(mileConditions, /\d\.\d\d\s*mi\b/, 'Miles never to two decimals');
 assert.doesNotMatch(mileConditions, /first 3\.11 mi|A recorded source note|example\.org/, 'The weather and route records\' own notes and sources are not shown');
 assert.doesNotMatch(mileConditions, METHOD_COPY, 'No method or source copy in the conditions');
 assert.match(mileConditions, /Scheduled start: 09:00 local time/); assert.match(mileConditions, /Start-hour observation: 09:00/);
 assert.ok(mileConditions.indexOf('Scheduled start:') > mileConditions.indexOf('Hourly readings'), 'The observation times are in the hourly readings, not under the cells');
-assert.match(mileConditions, /<dt>Warmed by 13:00<\/dt><dd>\+3\.6°F<\/dd>/, 'The warming is named by the hour it reached');
+assert.match(mileConditions, /The route climbs 328 ft and descends 197 ft\./, 'An even race has no slowest 5K: the terrain heading gives the route\'s totals');
+const uneven = { ...race, times: RUNNER_POINTS.map((km, i) => km * 300 + (i >= 6 ? (i - 5) ** 2 * 60 : 0)) };
+assert.match(render(RunnerConditions, { context, metrics: runnerMetrics(uneven), units: 'mi' }), /Your slowest 5K, 35–\u206040K, is nearly level\./, 'The terrain heading names the race\'s slowest 5K; under 10 m net it is nearly level');
+assert.match(render(RunnerConditions, { context: { ...context, terrain: { ...terrain, sections: terrain.sections.map(section => ({ ...section, net_m: 30 })) } }, metrics: runnerMetrics(uneven), units: 'mi' }), /Your slowest 5K, 35–\u206040K, climbs 98 ft net\./, 'A slowest 5K that climbs says how far');
 const falling = render(RunnerConditions, { context: { ...context, terrain: { ...terrain, sections: terrain.sections.map(section => ({ ...section, net_m: -4 })) } }, metrics, units: 'mi' });
 assert.match(falling, /−13 ft/); assert.doesNotMatch(falling, /-13 ft/, 'A descent is printed with a true minus');
 const metricConditions = render(RunnerConditions, { context, metrics, units: 'km' });
-assert.match(metricConditions, /0°C/); assert.match(metricConditions, /\+2°C/); assert.match(metricConditions, /0 km\/h/); assert.match(metricConditions, /0 mm/); assert.match(metricConditions, /100 m/);
+assert.match(metricConditions, /0°C near the start, 2°C warmer by 13:00\./); assert.match(metricConditions, /0 km\/h/); assert.match(metricConditions, /0 mm/); assert.match(metricConditions, /100 m/);
 assert.equal(JSON.stringify(context), original, 'Display conversions must not mutate the source context');
 assert.equal(defaultGroup(race), 'age_gender');
 assert.equal(defaultGroup({ ...race, sex: null }), 'age', 'A usable age still supports age peers when gender is unrecorded');
@@ -73,16 +77,16 @@ const comparison = {
   key: 'age_gender', label: 'Women, ages 35–39', n: 201, other_n: 200, rank: 50, ties: 2, percentile: 75, median_finish: 13000,
   pace: { n: 101, from_sec: 12150, to_sec: 13050, q25: Array(9).fill(290), median: Array(9).fill(305), q75: Array(9).fill(320), late_change: { q25: 5, median: 12, q75: 20 } },
 };
-const milePeers = render(RunnerPeerComparison, { comparison, metrics, units: 'mi' });
+const milePeers = render(RunnerPeerComparison, { comparison, metrics, units: 'mi', edition: 'London 2020' });
 // One placement sentence, in the race report's words (whole numbers down); no rank line and no placing disclaimer.
 assert.match(milePeers, /Ahead of 75 in every 100 of the 200 other finishes in this group\./); assert.doesNotMatch(milePeers, /Finish \d+ of|share this time|official race placing|Slower finishes/);
-assert.match(milePeers, /Behind this race 75%/, 'The lit segment is labelled in the reading\'s words');
-assert.match(render(RunnerPeerComparison, { comparison: { ...comparison, key: 'all', percentile: 51.9 }, metrics, units: 'mi' }), /Ahead of 51 in every 100 of the 200 other finishes in this edition\./, 'Every eligible finish: the report\'s placement, whole numbers down');
+assert.match(milePeers, /Behind it 75%/, 'The lit segment is labelled like the other one ("In front of it")');
+assert.match(render(RunnerPeerComparison, { comparison: { ...comparison, key: 'all', percentile: 51.9 }, metrics, units: 'mi', edition: 'London 2020' }), /Ahead of 51 in every 100 of the 200 other eligible finishes in London 2020\./, 'Every eligible finish: the report\'s placement sentence, word for word, whole numbers down');
 assert.match(milePeers, /12 percentage points lower than/); assert.match(milePeers, /Your pace/); assert.match(milePeers, /Middle 50%/);
 assert.doesNotMatch(milePeers, METHOD_COPY, 'No percentile definition or group caveat beside the peers');
 assert.match(milePeers, /8:03\/mi/); assert.match(milePeers, /8:11\/mi/);
-assert.match(render(RunnerPeerComparison, { comparison, metrics, units: 'km' }), /5:05\/km/);
-const sparse = render(RunnerPeerComparison, { comparison: { ...comparison, pace: null }, metrics, units: 'mi' });
+assert.match(render(RunnerPeerComparison, { comparison, metrics, units: 'km', edition: 'London 2020' }), /5:05\/km/);
+const sparse = render(RunnerPeerComparison, { comparison: { ...comparison, pace: null }, metrics, units: 'mi', edition: 'London 2020' });
 assert.match(sparse, /pace group is too small/); assert.doesNotMatch(sparse, /101 eligible finishes/); assert.doesNotMatch(sparse, /12 percentage points lower/);
 
 const paired = render(SectionComparison, { focus: { race, metrics }, reference: { race: reference, metrics: runnerMetrics(reference) }, manifest, units: 'mi' });
@@ -111,7 +115,7 @@ assert.equal(render(RunnerContext, { races: [repeated], manifest: copyManifest, 
 const reportData = { indexSha: null, archetypesSha: null, openingBands: [], typeCohort: null, courses: {} };
 const withReport = render(RunnerContext, { races: [source, repeated], manifest: copyManifest, units: 'mi', copyEditions: screen, report: reportData });
 assert.equal((withReport.match(/>Make a race report</g) || []).length, 1, 'One report button, for the eligible focus race');
-assert.match(withReport, /Lakeside 2021 on one page\./); assert.doesNotMatch(withReport.split('rc-report')[1], /2025/, 'The report panel never names the copy');
+assert.match(withReport, /Lakeside 2021 on one page, to print or share\./); assert.doesNotMatch(withReport.split('rc-report')[1], /2025/, 'The report panel never names the copy');
 assert.doesNotMatch(withReport, /record 32/);
 assert.equal(render(RunnerContext, { races: [repeated], manifest: copyManifest, units: 'mi', copyEditions: screen, report: reportData }), '', 'A copy edition alone has no report button');
 assert.doesNotMatch(render(RunnerContext, { races: [source], manifest: copyManifest, units: 'mi' }), /Make a race report/, 'No report panel without the report data');

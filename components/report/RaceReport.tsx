@@ -15,6 +15,8 @@ import { loadShard, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/d
 import { PACE_BAND_INDEX } from '@/lib/tools/pace-band-data';
 import { formatDuration } from '@/lib/tools/time';
 import { MARATHON_KM, distance, type UnitSystem } from '@/lib/units';
+import { approxWords } from '@/lib/nuggets/format';
+import { capitalize } from '@/lib/nuggets/build';
 import LapList from './LapList';
 import ReportActions from './ReportActions';
 
@@ -79,8 +81,9 @@ export interface RaceReportProps {
  * The race report: one race read from its nine mat times. A night "lap screen" (the race, the finish, and on /runners
  * where it sits among the edition's finishes, then the lap list), three tiles on paper (the sustained-slowdown reading,
  * the pacing type, the first 5K), the comparison with finishes at the same time, and on /runners the edition's late
- * pace, weather and climb; then the print, image, share and copy-link actions. Every block read from Pace Notes data or
- * published research carries its badge. The same component serves /report (typed or linked times) and the runner view,
+ * pace, weather and climb (in print only: the runner view's tabs show them on screen); then the print, image, share
+ * and copy-link actions. The sustained-slowdown tile carries the Published research badge, and the foot one Pace Notes
+ * data badge for the rest. The same component serves /report (typed or linked times) and the runner view,
  * where it adds the record's own edition and never names the runner.
  */
 export default function RaceReport({ times, course, gender, data, level, fromRecord = false, record, focusOnOpen = false, onward = null }: RaceReportProps) {
@@ -137,6 +140,9 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
   const lit = model.sections.map((s) => s.tone === 'qualify');
   const sr = (s: (typeof lines.sections)[number]) => `${s.label}: ${s.split}, ${s.pace}, ${s.change} against the 5–20K pace`;
   const placement = record?.state === 'ok' ? record.placement : null;
+  // Under half a percent either way the first 5K is level: whole percentages, with decimals only at the opening groups'
+  // edges (openingPct), never "0.1% quicker".
+  const even = Math.abs(opening.fraction) < 0.005;
   return (
     <article className="race-report ph-no-capture" id={id} aria-labelledby={`${id}-title`}>
       <div className="race-report-screen night">
@@ -166,8 +172,7 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
           {type.state === 'ok' ? (
             <>
               <strong><TypeGlyph profile={type.profile} index={type.index} domain={type.domain} />{type.name}</strong>
-              <small>{count(type.n)} of {count(type.cohortN)} finishes ({shareText(type.share)}) were {type.name.toLowerCase()}s.</small>
-              <Badge kind="data" />
+              <small>{capitalize(approxWords(type.share))} of {count(type.cohortN)} finishes were {type.name.toLowerCase()}s.</small>
             </>
           ) : type.state === 'off' ? (
             <div className="tool-state is-error"><p>{type.message}</p><button type="button" className="btn btn-secondary is-compact no-print" onClick={retryType}>Try again</button></div>
@@ -175,8 +180,8 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
         </div>
         <div className="race-report-stat">
           <span>First 5K</span>
-          <strong>{Math.abs(opening.fraction) < 0.0005 ? 'Level' : `${openingPct(opening.fraction)} ${opening.fraction < 0 ? 'quicker' : 'slower'}`}</strong>
-          <small>{Math.abs(opening.fraction) < 0.0005 ? 'with' : 'than'} the 5–20K pace</small>
+          <strong>{even ? 'Level' : `${openingPct(opening.fraction)} ${opening.fraction < 0 ? 'quicker' : 'slower'}`}</strong>
+          <small>{even ? 'with' : 'than'} the 5–20K pace</small>
           <Link className="race-report-more no-print" href={handoff ? runnerHandoffHref('/analyses/starting-pace') : '/analyses/starting-pace'}>How openings like this finished</Link>
         </div>
       </div>
@@ -186,6 +191,9 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
       {record ? <Suspense fallback={null}><RecordBlock id={`${id}-record`} Head={Head} record={record} units={units} /></Suspense> : null}
 
       <footer className="race-report-foot">
+        {/* One Pace Notes data badge for the report's data blocks (the type, the comparison, the edition's lines); the
+            sustained-slowdown tile carries its own Published research badge. */}
+        <Badge kind="data" />
         <p><strong>splithappens.run</strong> · Not a prediction, and not an official placing.</p>
       </footer>
     </article>
@@ -201,7 +209,6 @@ function ComparisonBlock({ id, Head, comparison: c, model, gender, dropped, retr
   const lead = c.state === 'ok' ? c.groups[0] : null;
   return (
     <section className="race-report-block" aria-labelledby={id}>
-      <Badge kind="data" />
       <Head id={id}>{lead ? `At 20K, ${relation(at20 - lead.at20)} ${groupName(lead)}.` : 'Compared with finishes at this time'}</Head>
       {c.state === 'loading' ? <p className="race-report-meta">Loading the finishes at this time…</p> : null}
       {c.state === 'off' ? <div className="tool-state is-error"><p>{c.message}</p><button type="button" className="btn btn-secondary is-compact no-print" onClick={retry}>Try again</button></div> : null}
