@@ -17,12 +17,12 @@ export default function RailBeats() {
     const els = Array.from(document.querySelectorAll<HTMLElement>('main [data-beat][id]'));
     setBeats(els.map((el) => ({ id: el.id, label: el.dataset.beat || el.querySelector('h2, h3')?.textContent?.trim() || el.id })));
     if (!els.length || typeof IntersectionObserver === 'undefined') return;
-    // A beat is current once its top passes 35% down the screen, until the next one's does.
-    const seen = new Set<Element>();
-    const observer = new IntersectionObserver((entries) => {
-      for (const e of entries) (e.isIntersecting ? seen.add(e.target) : seen.delete(e.target));
-      const last = els.filter((el) => seen.has(el)).pop();
-      if (last) setCurrent(last.id);
+    // A beat is current once its top passes 35% down the screen, until the next one's does. Above the first beat, or
+    // once the last has scrolled away, none is: every crossing measures again, so the mark is never left behind.
+    const observer = new IntersectionObserver(() => {
+      const line = window.innerHeight * 0.35;
+      const last = els.filter((el) => el.getBoundingClientRect().top <= line).pop();
+      setCurrent(last && last.getBoundingClientRect().bottom > line ? last.id : null);
     }, { rootMargin: '0px 0px -65% 0px' });
     els.forEach((el) => observer.observe(el));
     return () => observer.disconnect();

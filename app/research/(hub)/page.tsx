@@ -28,21 +28,23 @@ export default function ResearchPage() {
   assertCohortTotals();
   const chapters = countWord(CHAPTERS.length);
   // Analyses still in the sitemap that no chapter holds (the warming and wind questions, until they fold into race-day
-  // weather): one quiet line, so every analysis keeps a way in from here. It empties itself once they leave the sitemap.
+  // weather): rows under their chapter, so every analysis keeps a way in from here. They go once they leave the sitemap.
   const inChapters = new Set(CHAPTERS.flatMap((c) => c.pages.map((p) => p.href)));
   const loose = sitemapEntries().map((e) => e.path).filter((p) => /^\/analyses\/[^/]+$/.test(p) && !inChapters.has(p));
   const titleOf = (path: string) => WEATHER_QUESTIONS.find((q) => weatherHref(q) === path)?.shortTitle ?? path.replace(/^\/analyses\//, '').replace(/-/g, ' ');
+  // They are weather questions, so they sit under the chapter that holds race-day weather.
+  const weather = CHAPTERS.find((c) => c.pages.some((p) => p.href === '/analyses/race-day-weather')) ?? CHAPTERS[CHAPTERS.length - 1];
   return <div className="contents-page">
     <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Research']])} />
     <header className="contents-hero" data-track-section="hero">
       <p className="t-kicker">Contents</p>
       <h1 className="t-display">The race, <em>start to finish</em>.</h1>
-      <p className="contents-dek"><MarathonDistance /> in {chapters} chapters. Every page, and the one thing each found.</p>
+      <p className="contents-dek"><MarathonDistance /> in {chapters} chapters: every page and the one thing it found, from the median finish to when a <Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link> begins.</p>
       <p className="contents-views">Or only the <Link href="/stories">stories</Link>, or only the <Link href="/analyses">analyses</Link>.</p>
     </header>
     <section id="analyses" className="contents-body" data-track-section="analyses" aria-label="Every chapter and page">
-      <ChapterList variant="expanded" readingOf={readingOf} label="Contents" className="contents-chapters" />
-      {loose.length ? <p className="contents-also">Also: {loose.map((path, i) => <span key={path}>{i ? ' · ' : ''}<Link href={path}>{titleOf(path)}</Link></span>)}</p> : null}
+      <ChapterList variant="expanded" readingOf={readingOf} label="Contents" className="contents-chapters"
+        extra={weather && loose.length ? { [weather.id]: loose.map((path) => ({ href: path, label: titleOf(path) })) } : {}} />
     </section>
   </div>;
 }

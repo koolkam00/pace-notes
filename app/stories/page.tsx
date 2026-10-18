@@ -1,3 +1,4 @@
+import { UnitLink as Link } from '@/components/UnitsProvider';
 import { PageList } from '@/components/ui/ChapterList';
 import { getInsightsManifest } from '@/lib/insights-server';
 import { CHAPTERS, livePages } from '@/lib/chapters';
@@ -25,7 +26,7 @@ export default function StoriesPage() {
     <div className="contents-page">
       <header className="contents-hero">
         <h1 className="t-display">Stories</h1>
-        <p className="contents-dek">{capital(countWord(count))} long reads, each a stretch of the race.</p>
+        <p className="contents-dek">{capital(countWord(count))} stories, one per stretch of the race, from round-number finishes to the <Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link>.</p>
       </header>
       <section className="contents-body" aria-label="Every story">
         <PageList kind="story" prefix="/stories/" readingOf={readingOf} label="Stories" />

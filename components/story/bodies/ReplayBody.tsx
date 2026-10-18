@@ -54,19 +54,21 @@ export default function ReplayBody() {
         unitLine={first.figure ? `${race}, at the first finish` : undefined}
         sentence={<Say nugget={back} />} />
 
-      <Beat id="replay" track="chapter-1" label="The replay" title={spread} aliases={['snapshots', 'first']}>
-        <div className="night story-replay"><HeroReplay choices={choices} /></div>
+      {/* The H2 says what the replay shows; the count of editions behind it is the one plain sentence under it. The H1
+          already states the flag frame's moment, so the replay does not repeat it, and the one control is the race. */}
+      <Beat id="replay" track="chapter-1" label="The replay" aliases={['snapshots', 'first']}
+        title={spread.guard ? <>After 20K, the field <em>spreads out</em>.</> : <>The race, finish by finish.</>}
+        dek={spread.guard ? `It did in all ${count(Number(spread.values.editions))} race editions.` : undefined}>
+        <div className="night story-replay"><HeroReplay choices={choices} layout={false} moment={false} /></div>
       </Beat>
 
       {rows.length > 1 ? (
         <Beat id="packs" track="chapter-2" label={`Together at ${matLabel(Number(packs.values.checkpoint_km) || mats[0])}`} title={packs}
-          dek={`${packEdition!.city} ${packEdition!.year}: ${count(Number(packs.values.n))} finishes passed ${matLabel(Number(packs.values.checkpoint_km))} together. The band is the middle 80% of them.`}>
+          dek={`${packEdition!.city} ${packEdition!.year}: ${count(Number(packs.values.n))} finishes passed ${matLabel(Number(packs.values.checkpoint_km))} together.`}>
           <LineProfile x={mats} xDomain={[mats[0], MARATHON_KM]} yDomain={[-reach, reach]}
             layers={[{ id: 'pack', label: 'The pack', series: [{ id: 'median', values: rows.map(() => 0) }], band: { lo, hi },
-              labels: [
-                { x: mats[lastIndex], y: hi[lastIndex], text: `${signedMin(hi[lastIndex])}`, tone: 'ink', priority: 3, prefer: 'left' },
-                { x: mats[lastIndex], y: lo[lastIndex], text: `${signedMin(lo[lastIndex])}`, tone: 'ink', priority: 2, prefer: 'left' },
-              ] }]}
+              // The band's whole width at the finish, the number the H2 names, rather than two separately rounded ends.
+              labels: [{ x: mats[lastIndex], y: hi[lastIndex], text: `${Math.round(Number(packs.values.window_min))} min apart`, tone: 'ink', priority: 3, prefer: 'left' }] }]}
             refs={[{ value: 0, label: 'Their median' }]}
             xTicks={mats.filter((_, i) => i === 0 || i === lastIndex || mats[i] % 10 === 0).map((km) => ({ value: km, label: matLabel(km) }))}
             yTicks={[{ value: reach, label: `${reach} min behind` }, { value: -reach, label: `${reach} min ahead` }]}
@@ -85,7 +87,8 @@ export default function ReplayBody() {
           dek="Their whole-race pace (dashed) slows almost as much: the quicker runners had already finished.">
           <LineProfile x={hours} xDomain={[0, Math.ceil(hours[hours.length - 1])]} yDomain={[0, top]}
             layers={[{ id: 'left', label: 'On course', series: [{ id: 'now', values: now }, { id: 'whole', values: whole, dashed: true }],
-              points: at >= 0 ? [{ x: hours[at], y: now[at], kind: 'reading' }] : [] }]}
+              points: at >= 0 ? [{ x: hours[at], y: now[at], kind: 'reading' }] : [],
+              labels: at >= 0 ? [{ x: hours[at], y: now[at], text: `${hm(Number(left.values.clock_s) / 60)} · ${pct(Number(left.values.share))} who’s left`, tone: 'signal', priority: 3, prefer: 'above' }] : [] }]}
             xTicks={Array.from({ length: Math.ceil(hours[hours.length - 1]) + 1 }, (_, h) => ({ value: h, label: h ? `${h}:00` : 'Start' }))}
             yTicks={[{ value: top, label: `${top}% slower` }, { value: top / 2, label: `${top / 2}%` }]}
             label={`${race}: the pace of the field still on course, and the whole-race pace of the same runners, each against the field's pace at the start. At ${hm(Number(left.values.clock_s) / 60)}, ${pct(Number(left.values.share))} of the slowing was who was left.`}

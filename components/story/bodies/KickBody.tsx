@@ -4,7 +4,7 @@ import { STORIES } from '@/lib/stories';
 import { getNugget } from '@/lib/nuggets';
 import { sectionName } from '@/lib/nuggets/stories';
 import { hm, pct } from '@/lib/nuggets/format';
-import Dumbbell from '@/components/viz/Dumbbell';
+import LineProfile from '@/components/viz/LineProfile';
 import DotGrid from '@/components/viz/DotGrid';
 import Values from '@/components/ui/Values';
 import Columns from '../charts/Columns';
@@ -25,11 +25,14 @@ export default function KickBody() {
   const story = STORIES.find((s) => s.slug === 'final-kick')!;
   const twins = getNugget('kick.twins'), later = getNugget('kick.later'), bands = getNugget('kick.bands'), warning = getNugget('kick.warning'), stay = getNugget('kick.stay'), magnet = getNugget('kick.magnet');
 
-  // Same pace through 20K: each pace band's finish, with and without a sustained slowdown.
+  // Same pace through 20K: how many minutes later each pace band's finishes with a sustained slowdown came in, as one
+  // line over the pace through 20K (a finish-time equivalent), the gap washed down to zero.
   const cost = data.cost.bands.filter((b) => b.slowdown_n >= 100 && b.other_n >= 100);
-  // Each band's gap, drawn from its own no-slowdown finish at zero, on a scale to the next 10 minutes. Every row
-  // carries its minutes, so the strip needs no axis of its own.
-  const gTop = Math.max(1800, Math.ceil(Math.max(...cost.map((b) => b.slowdown_finish_s - b.other_finish_s)) / 600) * 600);
+  const width = cost.length > 1 ? cost[1].lo_min - cost[0].lo_min : 15;
+  const cx = cost.map((b) => b.lo_min + width / 2);
+  const gap = cost.map((b) => (b.slowdown_finish_s - b.other_finish_s) / 60);
+  const gTop = Math.max(10, Math.ceil(Math.max(...gap) / 10) * 10);
+  const lowAt = gap.indexOf(Math.min(...gap)), highAt = gap.indexOf(Math.max(...gap));
 
   // The warning sign: the middle section the data reports, by how much slower it ran than early pace.
   const w = data.warning[Math.floor(data.warning.length / 2)];
@@ -48,9 +51,16 @@ export default function KickBody() {
         sentence={<Say nugget={later} term />} />
 
       <Beat id="twins" track="chapter-1" label="Same pace, apart" title={bands}>
-        <Dumbbell rows={cost.map((b) => ({ id: b.label, label: `${b.label} pace`, a: 0, b: b.slowdown_finish_s - b.other_finish_s, display: `+${minutes(b.slowdown_finish_s - b.other_finish_s)}` }))}
-          domain={[0, gTop]} ticks={[]}
-          keyLabels={{ a: 'No sustained slowdown', b: 'Sustained slowdown' }}
+        <LineProfile x={cx} xDomain={[cost[0].lo_min, cost[cost.length - 1].lo_min + width]} yDomain={[0, gTop]}
+          layers={[{ id: 'gap', label: 'Minutes later', series: [{ id: 'gap', values: gap }], band: { lo: gap.map(() => 0), hi: gap },
+            labels: [
+              { x: cx[lowAt], y: gap[lowAt], text: `+${Math.round(gap[lowAt])} min`, tone: 'ink', priority: 3, prefer: 'above' },
+              { x: cx[highAt], y: gap[highAt], text: `+${Math.round(gap[highAt])} min`, tone: 'ink', priority: 3, prefer: 'above' },
+            ] }]}
+          xTicks={[180, 240, 300, 360].filter((v) => v > cost[0].lo_min && v < cost[cost.length - 1].lo_min + width).map((v) => ({ value: v, label: `${hm(v)} pace` }))}
+          // One gridline, under the line: the labels on the line give its ends.
+          yTicks={[{ value: 10, label: '10 min' }]}
+          axisTitle={{ start: 'Pace through 20K, as a finish time' }}
           label={`Minutes later at the finish after a sustained slowdown, for each pace through 20K: ${Math.round(Number(bands.values.low_s) / 60)} to ${Math.round(Number(bands.values.high_s) / 60)} minutes.`}
           values={(
             <Values id="fk-twins" caption="Median finish by pace through 20K, with and without a sustained slowdown"
@@ -70,12 +80,14 @@ export default function KickBody() {
           )} />
       </Beat>
 
-      <Beat id="states" track="chapter-3" label="No second wind" title={stay} aliases={['break']}>
+      <Beat id="states" track="chapter-3" label="No second wind" title={stay} aliases={['break']}
+        dek={stay.guard ? `Finishes at sustained-slowdown pace over ${sectionName(s.source)}.` : undefined}>
         <DotGrid lit={s.stay * 100} label={`Of 100 finishes at sustained-slowdown pace over ${sectionName(s.source)}, ${Math.round(s.stay * 100)} stayed that slow over ${sectionName(s.target)}.`}
-          caption={<><strong>{Math.round(s.stay * 100)} of 100</strong> stayed that slow. {Math.round(s.back_within_10 * 100) < 1 ? 'Under 1' : Math.round(s.back_within_10 * 100)} got back within 10% of their early pace.</>} />
+          caption={<span className="dot-grid-key"><span><i className="is-lit" />Stayed that slow</span><span><i />Did not</span></span>} />
       </Beat>
 
-      <Beat id="magnet" track="chapter-4" label="The last stretch" title={magnet} aliases={['women-men']}>
+      <Beat id="magnet" track="chapter-4" label="The last stretch" title={magnet} aliases={['women-men']}
+        dek={magnet.guard ? `Of finishes with a sustained slowdown, only ${pct(Number(magnet.values.back), 1)} got back to their early pace.` : undefined}>
         <Columns max={mTop} items={lastFour.map((m, i) => ({ id: m.section, label: sectionName(m.section), value: m.all, display: pct(m.all), tone: i === lastFour.length - 1 ? 'signal' : 'ink' }))}
           label={`The share of finishes that ran each section faster than the one before: ${lastFour.map((m) => `${sectionName(m.section)} ${pct(m.all)}`).join(', ')}.`}
           caption="Ran the section faster than the one before"

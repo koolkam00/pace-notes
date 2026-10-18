@@ -78,6 +78,14 @@ export default function Scrubber({ points, initial, detents = [], label, mode = 
     return () => clearTimeout(timer.current);
   }, [index, text, onIndex]);
   useEffect(() => () => { clearTimeout(timer.current); clearTimeout(flashTimer.current); }, []);
+  // A page may set the needle from outside (a scrolly step that names a minute): a 'scrub-to' event, the index as detail.
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const to = (e: Event) => { const i = Math.max(0, Math.min(n - 1, Number((e as CustomEvent).detail) || 0)); last.current = i; setIndex(i); setCommitted(i); };
+    el.addEventListener('scrub-to', to);
+    return () => el.removeEventListener('scrub-to', to);
+  }, [n]);
 
   const move = useCallback((i: number, haptic: boolean) => {
     if (i === last.current) return;

@@ -50,15 +50,11 @@ export default function ReplayFrame({ race, clock, finished, slow, view, band = 
           <div><dt><i className="replay-swatch" aria-hidden="true" />At slowdown pace</dt><dd>{slow}</dd></div>
         </dl>
       </div>
+      {/* The rank axis is named above the field, never on it, so no dot ever runs under its words. */}
+      {view === 'field' ? <p className="replay-axis-y" aria-hidden="true">First to finish at the top</p> : null}
       <div className={`replay-box is-${view}`} style={view === 'route' && aspect ? ({ '--route-aspect': String(aspect) } as CSSProperties) : undefined}>
         {poster}
         {canvas}
-        {view === 'field' ? (
-          <>
-            <span className="replay-axis-y is-top" aria-hidden="true">First to finish</span>
-            <span className="replay-axis-y is-bottom" aria-hidden="true">Last to finish</span>
-          </>
-        ) : null}
         {status ? <p className="replay-status">{status}</p> : null}
       </div>
       {view === 'field' ? (

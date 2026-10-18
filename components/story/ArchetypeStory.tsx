@@ -1,13 +1,18 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import KeypadHint from '@/components/KeypadHint';
 import TypeGlyph from '@/components/viz/TypeGlyph';
 import { keypadInput } from '@/lib/keypad';
 import { paceColour, paceText } from '@/lib/viz/format';
+import { MARATHON_KM, sectionLabel } from '@/lib/units';
 
 const SECTION_KM = [5, 5, 5, 5, 5, 5, 5, 5, 2.195];
 const MATS = ['5K', '10K', '15K', '20K', '25K', '30K', '35K', '40K', 'Finish'];
+/** The nine sections the blocks stand for: 0–5K … 35–40K, 40K–finish. */
+const SECTIONS = MATS.map((_, i) => sectionLabel(i * 5, i === 8 ? MARATHON_KM : (i + 1) * 5));
+/** How far a block's colour runs (percent either way of the reader's own average pace). */
+const SPAN = 14;
 
 /** A checkpoint time, h:mm:ss or mm:ss; dots or commas between the groups are read as colons. */
 export function parseClock(text: string): number | null {
@@ -68,15 +73,21 @@ export function WhichArchetype({ data, initial }: { data: WhichData; initial: st
           </p>
           <ol className="which-blocks" aria-label="Each section against your own average pace">
             {result.rel.map((v, i) => {
-              const bg = paceColour(v, 14);
+              const bg = paceColour(v, SPAN);
+              // --mix: how far the block is from even, so dark mode can blend it from its own surface (story.css).
+              const style = { '--bg': bg, '--mix': `${Math.round(Math.min(1, Math.abs(v) / SPAN) * 100)}%` } as CSSProperties;
               return (
-                <li key={i} style={{ background: bg }} className={paceText(bg) === 'paper' ? 'is-dark' : undefined}>
-                  <span className="which-block-mat">{MATS[i]}</span>
+                <li key={i} style={style} className={paceText(bg) === 'paper' ? 'is-dark' : undefined}>
+                  <span className="which-block-mat">{SECTIONS[i]}</span>
                   <b>{v > 0 ? '+' : v < 0 ? '−' : ''}{Math.abs(v) >= 10 ? Math.abs(v).toFixed(0) : Math.abs(v).toFixed(1)}%</b>
                 </li>
               );
             })}
           </ol>
+          <p className="which-key" aria-hidden="true">
+            <i style={{ background: paceColour(-SPAN, SPAN) }} />Faster
+            <i style={{ background: paceColour(SPAN, SPAN) }} />Slower than your own average pace
+          </p>
         </div>
       ) : <p className="field-error which-error" role="alert">Each time needs h:mm:ss, later than the one before, with a finish between 1:30:00 and 12:00:00.</p>}
       <p className="sr-only" aria-live="polite">{type ? `You ran like a ${type.name}.` : 'Times not yet valid.'}</p>

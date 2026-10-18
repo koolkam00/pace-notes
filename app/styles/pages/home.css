@@ -83,12 +83,6 @@
 .home-beat-kicker { display: flex; align-items: center; gap: var(--s-3); margin: 0 0 var(--s-4); }
 .home-beat-kicker::before { content: ''; flex: none; width: 18px; height: 1px; background: var(--rule-strong); }
 .home-stakes .guess { max-width: none; }
-/* The home's one guess draws its 100 finishes at full width: dots of about 23 px on a phone, not the 12 px default. */
-.home-stakes .guess-dots { max-width: 22rem; gap: 10px; margin: 8px 0 4px; }
-.home-stakes .guess-dot { max-width: none; }
-/* At this size the field's unlit dots step back to the sunk paper (their --mark-quiet ring keeps the 3:1 edge), so the
-   few lit ones and the reader's rings carry the picture. */
-.home-stakes .guess-dot:not(.is-lit) { background: var(--paper-sunk); }
 .home-stakes .guess-verdict em { white-space: nowrap; }
 
 /* ---------- The chapters (components/ui/ChapterList.tsx, full) ---------- */
@@ -120,7 +114,6 @@
 /* ---------- Narrow (320 px, and 200% zoom) ---------- */
 @media (max-width: 359.98px) {
   .home-door-others { flex-direction: column; align-items: flex-start; }
-  .home-stakes .guess-dots { gap: 6px; }
 }
 @media (max-width: 299.98px) {
   /* The replay's two shares each take their own lines, and the readings step down a size, so nothing passes the edge. */
@@ -161,7 +154,9 @@
   .home-stakes .guess { grid-template-columns: minmax(0, 1fr) minmax(0, 23rem); grid-template-rows: repeat(5, auto) 1fr; column-gap: var(--s-8); align-items: start; padding: 48px; }
   .home-stakes .guess > * { grid-column: 1; }
   .home-stakes .guess > .guess-marks { grid-column: 2; grid-row: 1 / -1; }
-  .home-stakes .guess-dots { max-width: none; gap: 12px; margin-top: 0; }
+  /* Beside the question the 100 dots get a little more room: 16 px each, still one small square of the page. */
+  .home-stakes .guess-dots { max-width: 256px; gap: 10px; margin-top: 0; }
+  .home-stakes .guess-dot { max-width: 16px; }
 
   /* The chapters: the heading holds its place on the left while the list scrolls on the right. */
   .home-guide { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); column-gap: var(--s-8); align-items: start; }

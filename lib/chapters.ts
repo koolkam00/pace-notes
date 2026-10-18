@@ -263,18 +263,17 @@ export function howWeKnowOf(path: string): MethodsAnchor | null {
   return CHILD_METHODS.find(([c]) => (c.endsWith('/') ? p.startsWith(c) : p === c))?.[1] ?? null;
 }
 
-const KIND_WORD: Readonly<Record<PageKind, string>> = {
-  story: 'Story', analysis: 'Analysis', explainer: 'Explainer', tool: 'Tool', 'course-index': 'Courses', runner: 'Your race', report: 'Report', course: 'Course',
-};
-
-/** "Story 1 of 2" for a page in a chain; the kind alone for a child. */
+/**
+ * "Page 1 of 2" for a page in a chain; null for a child. A chapter mixes stories, analyses and tools, so the count is of
+ * its pages, never of one kind.
+ */
 export function placeLabel(path: string): string | null {
   const place = placeOf(path);
   if (!place) return null;
   if ('child' in place) return null;
   const live = livePages(place.chapter);
   const i = live.indexOf(place.page);
-  return `${KIND_WORD[place.page.kind]} ${i + 1} of ${live.length}`;
+  return `Page ${i + 1} of ${live.length}`;
 }
 
 /**

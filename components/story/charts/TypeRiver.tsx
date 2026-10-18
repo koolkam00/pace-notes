@@ -3,7 +3,8 @@ import ChartFrame from '@/components/viz/ChartFrame';
 import Axis from '@/components/viz/Axis';
 import Plot, { Baseline } from '@/components/viz/Plot';
 import Lens from '@/components/viz/Lens.client';
-import { areaPath, linear, pc } from '@/components/viz/scale';
+import { areaPath, linear, linePath, pc } from '@/components/viz/scale';
+import { textWidth } from '@/components/viz/labels';
 import { typeStyle } from '@/lib/viz/palette';
 
 /**
@@ -32,6 +33,8 @@ export default function TypeRiver({ bands, types, initial, ticks, label, values 
     <Plot>
       <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
         {types.map((t, j) => <path key={t.id} className="river-stream" d={areaPath(pts(j, 'hi'), pts(j, 'lo'))} />)}
+        {/* The seams between streams, drawn once each; the river's outer edge is the plot's own, so nothing frames it. */}
+        {types.slice(0, -1).map((t, j) => <path key={`seam-${t.id}`} className="river-seam" d={linePath(pts(j, 'hi'))} />)}
         {types.map((t, j) => (
           <path key={`on-${t.id}`} className={`river-on${t.id === initial ? '' : ' is-off'}`} data-layer={t.id} style={typeStyle(t.index) as CSSProperties} d={areaPath(pts(j, 'hi'), pts(j, 'lo'))} />
         ))}
@@ -39,10 +42,20 @@ export default function TypeRiver({ bands, types, initial, ticks, label, values 
       {types.map((t, j) => {
         const first = edges[j][0], last = edges[j][edges[j].length - 1];
         const a = bands[0].shares[j], b = bands[bands.length - 1].shares[j];
+        // Each end's share on a tab of the stream's own colour, so it reads on a thin stream as well as a wide one.
+        const tab = (text: string, end: boolean, at: number) => {
+          const w = Math.round(textWidth(text, 14) + 12);
+          return (
+            <g>
+              <rect className="river-tab" x={end ? '100%' : '0'} y={pc(at)} width={w} height={22} rx={4} transform={`translate(${end ? -w - 4 : 4} -11)`} />
+              <text className="river-end" x={end ? '100%' : '0'} y={pc(at)} dx={end ? -4 - w / 2 : 4 + w / 2} dy={5} textAnchor="middle">{text}</text>
+            </g>
+          );
+        };
         return (
-          <g key={`l-${t.id}`} data-layer={t.id} className={t.id === initial ? undefined : 'is-off'}>
-            <text className="viz-label river-end" x="0" dx={6} y={pc(mid(first))} dy={5}>{pct(a)}</text>
-            <text className="viz-label river-end" x="100%" dx={-6} textAnchor="end" y={pc(mid(last))} dy={5}>{pct(b)}</text>
+          <g key={`l-${t.id}`} data-layer={t.id} className={t.id === initial ? undefined : 'is-off'} style={typeStyle(t.index) as CSSProperties}>
+            {tab(pct(a), false, mid(first))}
+            {tab(pct(b), true, mid(last))}
           </g>
         );
       })}

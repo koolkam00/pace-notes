@@ -42,17 +42,16 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
       id: g, label: g === 'all' ? 'All finishes' : GROUP_LABEL[g],
       minutes,
       band: [24, 74] as [number, number],
-      marks: [
-        { index: 24, text: hm(minutes[24]), tone: 'ink' as const },
-        { index: 49, text: `Median ${hm(minutes[49])}`, tone: 'signal' as const },
-        { index: 74, text: hm(minutes[74]), tone: 'ink' as const },
-      ],
+      // The chart names the median; the lens's readout names the middle half of the group shown.
+      marks: [{ index: 49, text: `Median ${hm(minutes[49])}`, tone: 'signal' as const }],
+      readout: { key: `${g === 'all' ? 'All finishes' : GROUP_LABEL[g]} · the middle half`, value: `${hm(minutes[24])} to ${hm(minutes[74])}` },
     };
   });
   const dLo = Math.floor(Math.min(...layers.map((l) => l.minutes[0])) / 30) * 30;
   const dHi = Math.ceil(Math.max(...layers.map((l) => l.minutes[98])) / 30) * 30;
   const dotTicks = [];
-  for (let m = dLo; m <= dHi; m += 60) dotTicks.push({ value: m, label: hm(m) });
+  // Ticks on the round hours this chapter is about, never the half hours.
+  for (let m = Math.ceil(dLo / 60) * 60; m <= dHi; m += 60) dotTicks.push({ value: m, label: hm(m) });
 
   // The eras: each fully covered course's change at the 10th and 90th percentile, in minutes.
   const eras = courses.years.eras;
@@ -94,7 +93,8 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
           )} />
       </Beat>
 
-      <Beat id="front" track="chapter-2" label="Then and now" title={front}>
+      <Beat id="front" track="chapter-2" label="Then and now" title={front}
+        dek={`${eras.pre[0]}–${String(eras.pre[1]).slice(2)} against ${eras.post[0]}–${String(eras.post[1]).slice(2)}. Each dot is a course; each bar, their average.`}>
         <EraShift rows={rows} domain={[-span, span]} axisTitle={{ start: 'Faster', end: 'Slower' }}
           ticks={[-span, -span / 2, 0, span / 2, span].map((v) => ({ value: v, label: v === 0 ? '0' : `${v > 0 ? '+' : MINUS}${Math.abs(v)} min` }))}
           label={`Change in finish time from ${eras.pre[0]}–${eras.pre[1]} to ${eras.post[0]}–${eras.post[1]} across ${covered.length} courses: 10th percentile ${signedMin(eras.summary.p10.change)}, 90th percentile ${signedMin(eras.summary.p90.change)} on average.`}

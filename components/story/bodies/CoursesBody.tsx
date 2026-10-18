@@ -53,17 +53,24 @@ export default function CoursesBody() {
   const lo = Math.floor(Math.min(...all)), hi = Math.ceil(Math.max(...all));
   const slowAt = (curve: number[]) => curve.indexOf(Math.max(...curve));
   const typicalSlow = slowAt(data.typical_curve);
+  // Under "Typical" the typical course is the subject, a solid ink line; under a course it is the dashed reference,
+  // named on the line itself, so no key is needed.
+  const last = MID.length - 1;
   const layers = [
-    { id: 'typical', label: 'Typical', series: [{ id: 't', values: data.typical_curve, dashed: true }],
+    { id: 'typical', label: 'Typical', series: [{ id: 't', values: data.typical_curve, tone: 'ink' as const }],
       points: [{ x: MID[typicalSlow], y: data.typical_curve[typicalSlow], kind: 'reading' as const }],
-      labels: [{ x: MID[typicalSlow], y: data.typical_curve[typicalSlow], text: `${sectionName(data.sections[typicalSlow])} ${signed(data.typical_curve[typicalSlow])}`, tone: 'signal' as const, priority: 3 }] },
+      labels: [{ x: MID[typicalSlow], y: data.typical_curve[typicalSlow], text: `${sectionName(data.sections[typicalSlow])} ${signed(data.typical_curve[typicalSlow])}`, tone: 'signal' as const, priority: 3, prefer: 'left' as const }] },
     ...shaped.map((c) => {
       const k = slowAt(c.curve!);
       return { id: c.city, label: c.city,
         series: [{ id: 't', values: data.typical_curve, dashed: true }, { id: 'c', values: c.curve!, tone: 'ink' as const }],
-        labels: [{ x: MID[k], y: c.curve![k], text: `${sectionName(data.sections[k])} ${signed(c.curve![k])}`, tone: 'ink' as const, priority: 3 }] };
+        labels: [
+          { x: MID[k], y: c.curve![k], text: `${sectionName(data.sections[k])} ${signed(c.curve![k])}`, tone: 'ink' as const, priority: 3, prefer: 'left' as const },
+          { x: MID[last], y: data.typical_curve[last], text: 'Typical', tone: 'quiet' as const, priority: 1, prefer: 'below' as const },
+        ] };
     }),
   ];
+
 
   // How steady: the evenest type's share of finishes on each course with 10,000 or more finishes.
   const even = evenestType(types.archetypes);
@@ -83,9 +90,8 @@ export default function CoursesBody() {
         <LineProfile x={MID} xDomain={[0, 42.195]} yDomain={[lo - 1, hi + 1]} layers={layers} initial="typical" lensLabel="Course" chips
           refs={[{ value: 0, label: 'Own average pace' }]}
           xTicks={[{ value: 0, label: 'Start' }, { value: 20, label: '20K' }, { value: 30, label: '30K' }, { value: 42.195, label: 'Finish' }]}
-          yTicks={[{ value: hi, label: `${hi}% slower` }, { value: lo, label: `${Math.abs(lo)}% quicker` }]}
+          // No gridlines: the line's own labels give its extremes, and the reference line is the course's own average.
           label={`Section pace against each course's own average, the typical course first: its slowest 5K is ${sectionName(data.sections[typicalSlow])}.`}
-          keys={[{ label: 'The typical course', mark: 'dash' }]}
           values={(
             <Values id="cs-fingerprint" caption="Section pace against the course's own average"
               columns={[{ key: 'c', label: 'Course', text: true }, ...data.sections.map((s, i) => ({ key: `s${i}`, label: sectionName(s) }))]}

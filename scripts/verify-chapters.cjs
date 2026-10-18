@@ -101,7 +101,7 @@ test('howWeKnowOf, placeLabel and readingAttrs', () => {
   assert.equal(C.howWeKnowOf('/courses/boston'), '/methodology#course-pages');
   assert.equal(C.howWeKnowOf('/report'), '/methodology#race-report');
   assert.equal(C.howWeKnowOf('/methodology'), null);
-  assert.equal(C.placeLabel('/stories/round-numbers'), 'Story 1 of 2');
+  assert.equal(C.placeLabel('/stories/round-numbers'), 'Page 1 of 2');
   assert.equal(C.placeLabel('/courses/boston'), null);
   assert.deepEqual(C.readingAttrs('/stories/round-numbers'), { 'data-reading': '', 'data-marker': 'FINISH', 'data-short': 'Round numbers' });
   assert.deepEqual(C.readingAttrs('/courses/boston', 'Boston'), { 'data-reading': '', 'data-marker': '08', 'data-short': 'Boston' });
@@ -250,7 +250,7 @@ test('ChapterList: compact without readings or ids, expanded with ids and every 
 test('ChapterCrumbs', () => {
   const html = renderToStaticMarkup(React.createElement(require(path.join(root, 'components/ui/ChapterHeader.tsx')).ChapterCrumbs, { path: '/stories/round-numbers' }));
   assert.match(html, /href="\/research#chapter-06">Chapter 06 · The finish line<\/a>/);
-  assert.match(html, /· Story 1 of 2/);
+  assert.match(html, /· Page 1 of 2/);
 });
 
 for (const note of notes) console.log(`note: ${note}`);

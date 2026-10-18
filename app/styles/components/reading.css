@@ -13,6 +13,8 @@
 .big-number.is-m { font-size: var(--t-figure-m); line-height: .95; letter-spacing: -.025em; }
 .big-number.is-s { font-size: var(--t-figure-s); line-height: 1; letter-spacing: -.02em; }
 .big-number-unit { font-family: var(--sans); font-size: .36em; font-weight: 500; letter-spacing: 0; color: var(--ink-3); }
+.big-number-unit.is-words { font-family: var(--figure); font-size: .5em; font-weight: inherit; letter-spacing: -.02em; color: inherit; }
+.big-number.is-night .big-number-unit.is-words { color: inherit; }
 .big-number.is-signal { color: var(--signal); }
 .big-number.is-quiet { color: var(--ink-3); }
 .big-number.is-night { color: var(--night-ink); }
@@ -24,6 +26,10 @@
 .reading-crumbs > span:not(.marker-badge) { min-width: 0; text-wrap: balance; }
 .reading-crumbs a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; }
 .reading-crumbs a:hover { color: var(--ink); text-decoration: none; }
+/* The place ("· Analysis 2 of 2") follows the chapter at a word space, as the dot inside the chapter link does. */
+.reading-crumbs .crumb-place { margin-left: calc(.3em - 10px); }
+/* On a phone the crumbs are one line: the chapter alone (the menu and the reading bar give the place in it). */
+@media (max-width: 599.98px) { .reading-crumbs .crumb-place { display: none; } }
 .reading-title { margin: 0; max-width: 18ch; }
 .reading-title.t-title { max-width: 22ch; }
 .reading-dek { margin: var(--s-4) 0 0; max-width: var(--measure); font-size: var(--t-body); line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }

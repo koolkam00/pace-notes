@@ -30,6 +30,9 @@
   transition: transform var(--d-release) var(--spring);
 }
 .guess input[type='range'].guess-range::-moz-range-thumb { width: 30px; height: 30px; border: 1px solid var(--rule-strong); border-radius: 50%; background: var(--control-thumb); box-shadow: var(--shadow-raise); }
+/* Dark mode: the thumb is the light ink, so it reads on the dark raised surface. */
+[data-theme="dark"] .guess input[type='range'].guess-range::-webkit-slider-thumb { border-color: var(--ink); background: var(--ink); }
+[data-theme="dark"] .guess input[type='range'].guess-range::-moz-range-thumb { border-color: var(--ink); background: var(--ink); }
 .guess input[type='range'].guess-range:active::-webkit-slider-thumb { transform: scale(1.12); transition-duration: var(--d-press); }
 .guess input[type='range'].guess-range:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
 .guess input[type='range'].guess-range:disabled { cursor: default; opacity: 1; }
@@ -67,6 +70,9 @@
 .guess-dot { width: 100%; max-width: 12px; aspect-ratio: 1; height: auto; margin: 0; border-radius: 50%; border: 1px solid var(--mark-quiet); background: var(--fill-quiet); transition: background-color var(--d-quick) var(--ease-out), transform var(--d-reveal) var(--spring); transition-delay: calc(var(--i, 0) * var(--stagger)); }
 .guess-dot.is-lit { border-color: var(--signal); background: var(--signal); }
 .guess-dot.is-you { box-shadow: 0 0 0 2px var(--paper-raised), 0 0 0 4px var(--signal); }
+/* Before the first move the default guess is a quiet hairline ring, so the untouched guess never outshouts the page. */
+.guess:not(.is-touched) .guess-dot.is-you { box-shadow: 0 0 0 2px var(--paper-raised), 0 0 0 3px var(--mark-quiet); }
+.guess:not(.is-touched) .guess-dots-key i.is-you { border-color: var(--mark-quiet); }
 .guess-dots-key { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 10px; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); }
 .guess-dots-key span { display: inline-flex; align-items: center; gap: 6px; }
 .guess-dots-key i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; }

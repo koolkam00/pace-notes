@@ -43,6 +43,8 @@ function PageReading({ readingOf, page, skip }: { readingOf?: ReadingOf; page: C
   if (page.nugget === skip) return null;
   const reading = readingOf?.(page.nugget);
   if (!reading?.key) return null;
+  // A page whose title already states its figure ("… 20 minutes apart …") shows it once.
+  if (page.title.includes(`${reading.value}${reading.unit ? ` ${reading.unit.trim()}` : ''}`)) return null;
   return (
     <span className="page-reading">
       <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size="s" />
@@ -51,8 +53,10 @@ function PageReading({ readingOf, page, skip }: { readingOf?: ReadingOf; page: C
   );
 }
 
-export default function ChapterList({ variant = 'full', readingOf, label = 'Chapters', className }: {
+export default function ChapterList({ variant = 'full', readingOf, label = 'Chapters', className, extra = {} }: {
   variant?: Variant; readingOf?: ReadingOf; label?: string; className?: string;
+  /** Expanded only: plain links a chapter also holds (pages still in the sitemap that no chapter lists), by chapter id. */
+  extra?: Record<string, { href: string; label: string }[]>;
 }) {
   const parts = ([1, 2, 3] as const).map((part) => ({ part, chapters: CHAPTERS.filter((c) => c.part === part) }));
   const compact = variant === 'compact';
@@ -82,6 +86,14 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
                       </ChapterLink>
                     </li>
                   ))}
+                  {(extra[chapter.id] ?? []).map((link) => (
+                    <li key={link.href}>
+                      <ChapterLink href={link.href} match={[link.href]} className="chapter-page-link">
+                        <span className="chapter-page-title">{link.label}</span>
+                        <Arrow className="chapter-page-go" />
+                      </ChapterLink>
+                    </li>
+                  ))}
                 </ol>
               </li>
             ) : (
@@ -106,21 +118,28 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
 
 /**
  * The contents filtered to one kind of page (and, with `prefix`, one section of the site), in race order (/stories,
- * /analyses): each row is one link with the page's chapter (marker and name), its title and its reading.
+ * /analyses): the pages grouped under their chapter's line (its marker and name, said once), each row one link with
+ * the page's title and its reading.
  */
 export function PageList({ kind, prefix, readingOf, label }: { kind: PageKind; prefix?: string; readingOf?: ReadingOf; label: string }) {
-  const rows = CHAPTERS.flatMap((chapter) => livePages(chapter).filter((p) => p.kind === kind && (!prefix || p.href.startsWith(prefix))).map((page) => ({ chapter, page })));
+  const groups = CHAPTERS.map((chapter) => ({ chapter, pages: livePages(chapter).filter((p) => p.kind === kind && (!prefix || p.href.startsWith(prefix))) })).filter((g) => g.pages.length);
   return (
     <nav className="page-list" aria-label={label}>
-      <ol className="page-list-rows">
-        {rows.map(({ chapter, page }) => (
-          <li key={page.href}>
-            <ChapterLink href={page.href} className="page-list-link">
-              <span className="page-list-place"><MarkerBadge marker={chapter.marker} /><span className="t-kicker">Chapter {chapterNumber(chapter)} · {chapter.title}</span></span>
-              <span className="page-list-title">{page.title}</span>
-              <PageReading readingOf={readingOf} page={page} />
-              <Arrow className="page-list-go" />
-            </ChapterLink>
+      <ol className="page-list-groups">
+        {groups.map(({ chapter, pages }) => (
+          <li key={chapter.id} className="page-list-group">
+            <p className="page-list-chapter"><MarkerBadge marker={chapter.marker} /><span>{chapter.title}</span></p>
+            <ol className="page-list-rows">
+              {pages.map((page) => (
+                <li key={page.href}>
+                  <ChapterLink href={page.href} className="page-list-link">
+                    <span className="page-list-title">{page.title}</span>
+                    <PageReading readingOf={readingOf} page={page} />
+                    <Arrow className="page-list-go" />
+                  </ChapterLink>
+                </li>
+              ))}
+            </ol>
           </li>
         ))}
       </ol>

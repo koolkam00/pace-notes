@@ -82,9 +82,10 @@ export function UnitText({ children }: { children: string }) {
   return <>{unitText(children, context.units)}</>;
 }
 
+/** "26.2 miles" or "42.2 km" (one decimal, as every prose distance), the number and its unit held together. */
 export function MarathonDistance() {
   const { units } = useUnits();
-  return <>{units === 'mi' ? '26.2 miles' : '42.195 km'}</>;
+  return <>{units === 'mi' ? '26.2\u00a0miles' : '42.2\u00a0km'}</>;
 }
 
 /**

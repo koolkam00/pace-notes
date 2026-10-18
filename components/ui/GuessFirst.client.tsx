@@ -39,6 +39,8 @@ export default function GuessFirst({ question, truth, answer, truthLabel, compar
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const [guess, setGuess] = useState(initial ?? Math.round((min + max) / 2 / step) * step);
   const [state, setState] = useState<State>('asking');
+  // Until the reader moves the guess, its rings are drawn quiet: the loudest thing on screen is never a guess nobody made.
+  const [touched, setTouched] = useState(false);
   const [still, setStill] = useState(false);
   useEffect(() => {
     setStill(!!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || document.documentElement.hasAttribute('data-motion-off'));
@@ -63,12 +65,12 @@ export default function GuessFirst({ question, truth, answer, truthLabel, compar
       id={`${id}-range`} className={`guess-range${marks === 'ruler' ? ' is-on-ruler' : ''}`} type="range" min={min} max={max} step={step} value={guess}
       disabled={revealed} aria-describedby={`${id}-q`} aria-valuetext={fmt(guess)}
       style={{ ['--fill' as string]: at(guess) }}
-      onChange={(e) => setGuess(Number(e.target.value))}
+      onChange={(e) => { setGuess(Number(e.target.value)); setTouched(true); }}
     />
   );
 
   return (
-    <div className={`guess which-card${revealed ? ' is-revealed' : ''}${state === 'skipped' ? ' is-skipped' : ''}`}>
+    <div className={`guess which-card${revealed ? ' is-revealed' : ''}${state === 'skipped' ? ' is-skipped' : ''}${touched || revealed ? ' is-touched' : ''}`}>
       <p className="guess-question t-sentence" id={`${id}-q`}>{withEm(question)}</p>
       <div>
         <div className="guess-readout">

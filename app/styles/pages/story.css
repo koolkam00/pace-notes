@@ -9,7 +9,7 @@
 .story-hero-beat .reading-instrument { max-height: none; }
 .story-hero-beat .reading-instrument > .viz-frame { margin: 0; }
 
-/* The crumbs wrap between their parts, never inside "Story 1 of 4". */
+/* The crumbs wrap between their parts, never inside "Page 1 of 4". */
 .story-flow .reading-crumbs { flex-wrap: wrap; row-gap: 0; }
 .story-flow .reading-crumbs > .crumb-place { white-space: nowrap; }
 
@@ -19,6 +19,8 @@
 .story-beat-title { margin: 0; max-width: 22ch; }
 .story-beat-dek { margin: 0; max-width: 34rem; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
 .story-beat > .viz-frame, .story-beat > .values { max-width: var(--measure-figure); }
+/* A few columns keep a column's width, so four bars never drift apart across a wide screen. */
+.story-beat > .viz-frame.columns { max-width: var(--measure); }
 .story-beat > .values { margin-top: var(--s-4); }
 .beat-alias { display: block; position: relative; top: calc(-1 * var(--header-h)); height: 0; }
 
@@ -36,26 +38,42 @@
 
 /* ---------- The six types, beside the pacing-types reading ---------- */
 .type-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; margin: 0; padding: 0; list-style: none; }
-.type-legend li { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; font-size: var(--t-small); line-height: 1.25; color: var(--ink-2); }
+.type-legend li { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; margin: 0; font-size: var(--t-small); line-height: 1.25; color: var(--ink-2); }
 .type-legend li span { min-width: 0; }
 .type-legend li b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
 
 /* ---------- The replay band ---------- */
 .story-replay { margin-inline: calc(-1 * var(--gutter)); padding: var(--s-5) var(--gutter); background: var(--night); color: var(--night-ink); }
+/* The night card is the replay's one surface: the field inside it draws no frame of its own (no box in a box). */
+.story-replay .hero-replay .replay-box { border-radius: 0; box-shadow: none; }
 
 /* ---------- Chart forms of the stories (components/story/charts) ---------- */
-.viz-frame .era-mean { fill: var(--ink); }
+.viz-frame .era-mean { fill: var(--ink-3); }
 .viz-frame .era-mean.is-signal { fill: var(--signal); }
-.viz-frame .era-mean-text { fill: var(--ink); }
+.viz-frame .era-mean-text { fill: var(--ink-3); }
 .viz-frame .era-mean-text.is-signal { fill: var(--signal-ink); }
 
-.viz-frame .river-stream { fill: var(--paper-sunk); stroke: var(--mark-quiet); stroke-width: 1; }
+.viz-frame .river-stream { fill: var(--paper-sunk); }
+.viz-frame .river-seam { fill: none; stroke: var(--mark-quiet); stroke-width: 1; }
 .viz-frame .river-on { --type: currentColor; fill: var(--type); stroke: var(--paper); stroke-width: 1; transition: opacity var(--d-toggle) var(--ease-out); }
 .viz-frame .river-on.is-off { opacity: 0; }
-.viz-frame .river-end { font-size: 15px; }
+/* A stream's end shares sit on a raised tab edged in the stream's colour: ink text, readable on a thin stream or a wide one. */
+.viz-frame .river-tab { fill: var(--paper-raised); stroke: var(--type); stroke-width: 1.5; }
+.viz-frame .river-end { font-family: var(--sans); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; fill: var(--ink); }
+[data-theme="dark"] .viz-frame .river-on { fill: var(--type-night, var(--type)); }
+[data-theme="dark"] .viz-frame .river-tab { stroke: var(--type-night, var(--type)); }
 
-.viz-frame .col.m-quiet { stroke: none; }
-.viz-frame .col-value { font-weight: 600; }
+/* The waffle sits on the column's left edge like every other figure on a story, not centred in it. */
+.story-beat .viz-frame.waffle .viz-plot { margin-inline: 0; }
+
+/* The 100 dots' key: lit and unlit, named once. */
+.dot-grid-key { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: var(--t-small); font-weight: 400; color: var(--ink-2); }
+.dot-grid-key span { display: inline-flex; align-items: center; gap: 8px; }
+.dot-grid-key i { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--fill-quiet); box-shadow: inset 0 0 0 1px var(--mark-quiet); }
+.dot-grid-key i.is-lit { background: var(--signal); box-shadow: none; }
+
+/* The lens's one-line readout above the 99 finishes. */
+.viz-frame .pd-readout { margin-top: var(--s-3); }
 
 /* Two bars under a lens: label, track, value; the gap between the bar ends washed signal. */
 .pair-bars-views { display: grid; height: 100%; }
@@ -74,15 +92,11 @@
 .viz-frame.mini-lens .viz-plot { height: 64px; }
 
 /* ---------- Your minute (.finish-lookup, masked in session replays) ---------- */
-.finish-lookup { --lookup-h: 140px; display: grid; gap: var(--s-4); max-width: var(--measure-figure); }
+.finish-lookup { display: grid; gap: var(--s-4); max-width: var(--measure-figure); }
 .finish-lookup-field { max-width: 14rem; }
-.finish-lookup .finish-lookup-readout { margin: 0; }
-.finish-lookup-plot { position: relative; }
-.finish-lookup-plot .viz-frame.lookup-plot .viz-plot { height: var(--lookup-h); }
-.finish-lookup-you { position: absolute; width: 0; height: 0; pointer-events: none; }
-.finish-lookup-needle { position: absolute; left: -.75px; top: 0; width: 1.5px; height: calc(var(--lookup-h) * (1 - var(--t, 0))); background: var(--signal); }
-.finish-lookup-ring { position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 0 2px var(--paper), inset 0 0 0 2px var(--signal); background: var(--paper); }
-.finish-lookup-tag { position: absolute; left: 0; top: -30px; transform: translateX(-50%); font-size: var(--t-label); font-weight: 600; color: var(--signal-ink); }
+.finish-lookup .finish-lookup-readout { margin: 0; padding-top: var(--s-3); border-top: 1px solid var(--rule); }
+/* Until a time is typed the readout is the busiest minute's: quieter, so the reader's own minute is the one that stands out. */
+.finish-lookup .finish-lookup-readout:not(.is-yours) .readout-value { color: var(--ink-2); }
 .finish-lookup-result { margin: 0; font-size: var(--t-small); color: var(--ink-2); }
 
 /* ---------- Which runner were you (.which-card, masked) ---------- */
@@ -97,11 +111,18 @@
 /* The nine sections as pace blocks: three rows on a phone (like the fields above), one row from 600 px. The blocks'
    colours are the fixed pace ramp, so their text is the night pair, dark or light in either theme. */
 .which-blocks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; margin: 0; padding: 0; list-style: none; }
-.which-blocks li { display: grid; align-content: space-between; gap: 6px; min-height: 56px; padding: 8px 4px; border-radius: 2px; text-align: center; color: var(--night); }
+.which-blocks li { display: grid; align-content: space-between; gap: 6px; min-height: 56px; margin: 0; padding: 8px 4px; border-radius: 2px; text-align: center; color: var(--night); background: var(--bg, var(--paper-sunk)); }
 .which-blocks li.is-dark { color: var(--night-ink); }
 .which-blocks .which-block-mat { font-size: 12px; font-weight: 600; line-height: 1; }
 .which-blocks b { font-size: 12px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
 .which-error { margin: 0; }
+.which-key { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: calc(-1 * var(--s-2)) 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
+.which-key i { flex: none; width: 14px; height: 10px; border-radius: 2px; }
+.which-key i + i { margin-left: 10px; }
+/* Dark mode: a block blends from the dark surface by how far it is from even, so an even 5K is not a paper tile. */
+@supports (background: color-mix(in oklab, red 50%, blue)) {
+  [data-theme="dark"] .which-blocks li { background: color-mix(in oklab, var(--bg, var(--paper-sunk)) var(--mix, 0%), var(--paper-sunk)); color: var(--ink); }
+}
 
 /* ---------- Name that course ---------- */
 .ntc { display: grid; gap: var(--s-4); max-width: 34rem; }
@@ -140,7 +161,6 @@
 
 @media (min-width: 600px) {
   .type-legend { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .which-blocks { grid-template-columns: repeat(9, minmax(0, 1fr)); }
   .story-replay { margin-inline: 0; padding: var(--s-5); border-radius: var(--r-md); }
 }
 
@@ -148,5 +168,13 @@
   .story-hero-beat .reading { padding-top: var(--s-6); }
   .type-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .which-grid { grid-template-columns: repeat(9, minmax(0, 1fr)); }
+  /* Nine sections in a row once each has room for "40K–finish". */
+  .which-blocks { grid-template-columns: repeat(9, minmax(0, 1fr)); }
   .story-replay { padding: var(--s-6); }
+  /* 100 finishes beside their one line, at a size that holds the column (no grid adrift in an empty frame). */
+  .story-beat .dot-grid { display: flex; align-items: center; gap: var(--s-8); }
+  .story-beat .dot-grid-dots { grid-template-columns: repeat(10, 16px); gap: 10px; max-width: none; }
+  .story-beat .dot-grid-dots li { width: 16px; height: 16px; }
+  .story-beat .dot-grid-caption { margin: 0; }
+  .story-beat .dot-grid-key { flex-direction: column; gap: var(--s-3); }
 }

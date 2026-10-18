@@ -32,6 +32,8 @@
   .scrolly-steps { grid-column: 1; grid-row: 1; }
   .scrolly-graphic { grid-column: 2; grid-row: 1; top: calc(var(--header-h) + 24px); height: calc(100vh - var(--header-h) - 48px); align-items: center; padding: 0; }
   .scrolly-step { min-height: 70vh; display: flex; flex-direction: column; justify-content: center; }
+  /* The last step keeps its full height, so the pinned graphic is not pushed up under the header while its words are read. */
+  .scrolly-step:last-child { min-height: 70vh; padding-bottom: var(--s-5); }
 }
 
 /* Reduced motion or the Motion switch: unpinned, final state, steps as a list. */

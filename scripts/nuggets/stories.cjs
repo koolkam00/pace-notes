@@ -54,7 +54,8 @@ module.exports = function stories({ json, eq, ok, core }) {
     const mins = Math.round(-s.p10.change);
     eq(n.guard, s.p10.ci95[1] < 0 && s.p90.ci95[0] < 0 && s.p90.ci95[1] > 0 && mins >= 1, 'field.front: guard (front interval below zero, back interval straddles it)');
     if (n.guard) has(n, `*${word(mins)} minutes faster*`, 'field.front names the minutes');
-    has(n, `From ${e.pre[0]}–${String(e.pre[1]).slice(2)} to ${e.post[0]}–${String(e.post[1]).slice(2)}`, 'field.front names the eras');
+    eq([n.values.pre_from, n.values.pre_to, n.values.post_from, n.values.post_to], [...e.pre, ...e.post], 'field.front carries the eras (the beat names them under its H2)');
+    has({ ...n, guard: false }, `From ${e.pre[0]}–${String(e.pre[1]).slice(2)} to ${e.post[0]}–${String(e.post[1]).slice(2)}`, 'field.front: the fallback names the eras');
   };
 
   R['field.byrace'] = (n) => {
@@ -152,8 +153,13 @@ module.exports = function stories({ json, eq, ok, core }) {
     ok(/still crossed first/.test(n.key), 'places.gap: the approved key wording ("still crossed first")');
   };
   R['places.coin'] = (n) => {
-    const a = gapRow(pos.coin_flip['30']).share, b = gapRow(pos.coin_flip['40']).share;
-    eq(n.guard, a >= 0.4 && b < 0.3, 'places.coin: "close to a coin flip" needs 0.40, "isn\'t" under 0.30');
+    // The 30K band from three minutes back to ten whose share is nearest the 40K share a minute back.
+    const b = gapRow(pos.coin_flip['40']);
+    let a = null;
+    for (const r of pos.coin_flip['30']) if (r.gap_lo_s >= 3 * Math.max(60, b.gap_lo_s) && r.gap_lo_s <= 600 && (!a || Math.abs(r.share - b.share) < Math.abs(a.share - b.share))) a = r;
+    eq([n.values.gap30_s, n.values.at30, n.values.gap40_s, n.values.at40], [a.gap_lo_s, a.share, b.gap_lo_s, b.share], 'places.coin: the 30K band level with a minute back at 40K');
+    eq(n.guard, Math.abs(a.share - b.share) <= 0.01, 'places.coin: "as often as" needs the two within a point');
+    if (n.guard && a.gap_lo_s % 60 === 0) has(n, `${word(a.gap_lo_s / 60).replace(/^./, (c) => c.toUpperCase())} minutes back*`, 'places.coin names the 30K gap');
   };
   R['places.breakeven'] = (n) => {
     const rows = pos.breakeven;
@@ -267,7 +273,7 @@ module.exports = function stories({ json, eq, ok, core }) {
     eq(correct, id.correct, 'courses.named: correct counts the editions whose predicted course is their own');
     eq(n.values.share, id.correct / id.editions_tested, 'courses.named recounts the share');
     eq(n.guard, id.correct / id.editions_tested > 2 * id.chance, 'courses.named: guard');
-    has(n, `1 in ${Math.round(1 / id.chance)}`, 'courses.named: chance as 1 in the course count');
+    has(n, `1\u00a0in\u00a0${Math.round(1 / id.chance)}`, 'courses.named: chance as 1 in the course count (held on one line)');
   };
   R['courses.slowest'] = (n) => {
     const shaped = courses.courses.filter((c) => c.curve && c.curve.length && c.slowest_section);
@@ -321,7 +327,7 @@ module.exports = function stories({ json, eq, ok, core }) {
       [S.replayLeftFrom({ city: 'A', year: 2020, median_finish_s: 15000, composition: [{ clock_s: 15000, on_course: 10, current_kmh: 8, whole_race_kmh: 9, composition_share: 0.3 }] }), 'Late in the race, 30% of the slower pace on course reflects who’s left.'],
       [S.shapeSecond20kFrom({ count: 60, total: 100 }), '*60% of finishes* ran their second 20K faster than their first.'],
       [S.typesRiverFrom({ archetypes: [{ name: 'Even', median_cv: 1 }, { name: 'Odd', median_cv: 9 }], river: [{ label: '2:30–2:45', shares: [0.3, 0.7] }, { label: '6:00–6:15', shares: [0.2, 0.8] }] }), 'Evens: 30% of 2:30–2:45 finishes, 20% of 6:00–6:15.'],
-      [S.placesCoinFrom({ 30: [{ gap_lo_s: 60, share: 0.3 }], 40: [{ gap_lo_s: 60, share: 0.2 }] }), 'A minute back: how often the trailing finish crossed first, from 30K and from 40K.'],
+      [S.placesCoinFrom({ 30: [{ gap_lo_s: 60, share: 0.3 }, { gap_lo_s: 300, share: 0.1 }], 40: [{ gap_lo_s: 60, share: 0.2 }] }), 'How often a trailing finish crossed first, by how far back it was, from 30K and from 40K.'],
       [S.placesBreakevenFrom(null), 'Places gained after 30K, by the pace of 30–40K against a finish’s own 5–20K pace.'],
       [S.kickTwinsFrom({ strata: 1, slowdown_finishes: 1, mean_gap_s: 300, median_gap_s: 300 }), 'Same pace to 20K, apart at the finish.'],
       [S.kickStayFrom([{ source: '25–30', target: '30–35', n: 10, stay: 0.4, back_within_10: 0.1 }]), 'Of finishes at sustained-slowdown pace over 25–30K, 40% stayed that slow over 30–35K.'],

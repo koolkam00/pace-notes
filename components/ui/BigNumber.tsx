@@ -1,6 +1,7 @@
 /**
  * The reading figure (spec section 3.5): a value already formatted by lib/nuggets/format.ts, an optional unit suffix
- * (%, ×, min, ft) at 0.36 em in --ink-3, and a spoken twin. Bricolage with proportional figures; it never wraps.
+ * (%, ×, min, ft) at 0.36 em in --ink-3, and a spoken twin. A fraction's words ("1" and "in 25") are part of the
+ * figure: set at half size in the figure's own face and colour, so "1 in 25" never reads as "1". Bricolage with proportional figures; it never wraps.
  * `size="auto"` picks xl for 5 glyphs or fewer ("1.73×", "4:10", "30%"), l for 6 to 8 ("+5:00", "20% · 45%") and m beyond.
  * The visible figure is hidden from screen readers and the sr-only twin says it in full ("1.73 times").
  */
@@ -19,7 +20,7 @@ export default function BigNumber({ value, unit, size = 'auto', tone = 'ink', sr
   const cls = `big-number is-${s}${tone === 'ink' ? '' : ` is-${tone}`}${className ? ` ${className}` : ''}`;
   return (
     <span className={cls}>
-      <span aria-hidden="true">{value}{unit ? <span className="big-number-unit">{unit}</span> : null}</span>
+      <span aria-hidden="true">{value}{unit ? <span className={`big-number-unit${/^\s*in\s/.test(unit) ? ' is-words' : ''}`}>{unit}</span> : null}</span>
       <span className="sr-only">{sr}</span>
     </span>
   );

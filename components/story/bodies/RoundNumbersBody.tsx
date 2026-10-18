@@ -5,7 +5,7 @@ import { getNugget, sentenceOf } from '@/lib/nuggets';
 import { count, hm } from '@/lib/nuggets/format';
 import Histogram from '@/components/viz/Histogram';
 import Plot, { Baseline } from '@/components/viz/Plot';
-import { linear, pc, stepEdge, stepPath, u, yScale } from '@/components/viz/scale';
+import { linear, u, yScale } from '@/components/viz/scale';
 import Scrolly from '@/components/ui/Scrolly.client';
 import GuessFirst from '@/components/ui/GuessFirst.client';
 import Values from '@/components/ui/Values';
@@ -35,33 +35,6 @@ function MiniLens({ ft, minute }: { ft: FinishTimes; minute: number }) {
           </svg>
           <Baseline />
         </Plot>
-      </div>
-    </figure>
-  );
-}
-
-/** The minute histogram's silhouette for the finish lookup: no marks, so the reader's ring is the one orange thing. */
-function LookupPlot({ ft }: { ft: FinishTimes }) {
-  const bins = ft.histogram.filter((h) => h.minute >= LO && h.minute < HI);
-  const x = linear([LO, HI]);
-  const y = yScale(0, Math.max(...bins.map((b) => b.all)), { top: 0.1 });
-  const w = 1 / (HI - LO);
-  const ticks = [180, 240, 300, 360].filter((m) => m > LO && m < HI);
-  return (
-    <figure className="viz viz-frame lookup-plot">
-      <div className="viz-plot" role="img" aria-label={`Finishes in each minute from ${hm(LO)} to ${hm(HI)}`}>
-        <Plot>
-          <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
-            <path className="a-silhouette" d={stepPath(bins.map((b) => ({ x: x(b.minute), y: y(b.all) })), w)} />
-            <path className="a-edge" d={stepEdge(bins.map((b) => ({ x: x(b.minute), y: y(b.all) })), w)} />
-          </svg>
-          <Baseline />
-        </Plot>
-      </div>
-      <div className="viz-axis">
-        <svg className="viz-axis-svg" width="100%" height="24" aria-hidden="true">
-          {ticks.map((m) => <text key={m} className="tick" x={pc(x(m))} y={18} textAnchor="middle">{hm(m)}</text>)}
-        </svg>
       </div>
     </figure>
   );
@@ -97,8 +70,6 @@ export default function RoundNumbersBody() {
 
   const bubbleMark = String(rescue.values.mark);
   const lookupBins = ft.histogram.filter((h) => h.minute >= LO && h.minute < HI);
-  const lookupMax = Math.max(...lookupBins.map((b) => b.all));
-  const lookupY = yScale(0, lookupMax, { top: 0.1 });
 
   return (
     <StoryPage path={PATH}>
@@ -121,7 +92,8 @@ export default function RoundNumbersBody() {
                   side: [{ label: 'Against the curve', values: bins.map((b) => (Number.isFinite(ratio(b)) ? `${ratio(b).toFixed(2)}×` : '—')) }] },
                 initial: Math.max(0, bins.findIndex((b) => b.x === topMinute)), detents,
               }} />
-            <ScrollyLens lens={{ 0: LENS.count, 3: LENS.ratio }} />
+            <ScrollyLens lens={{ 0: LENS.count, [steps.length - 1]: LENS.ratio }}
+              needle={{ 0: Math.max(0, bins.findIndex((b) => b.x === Number(busiest.values.minute))), [steps.length - 1]: Math.max(0, bins.findIndex((b) => b.x === topMinute)) }} />
           </>
         )} />
         <Values id="rn-marks" caption="The minute before each round mark, against the smooth curve"
@@ -141,9 +113,7 @@ export default function RoundNumbersBody() {
 
       <Beat id="your-minute" track="chapter-3" label="Your minute" title={<>Where did <em>your</em> finish land?</>}>
         <MyFinish first={LO} bins={lookupBins.map((b) => b.all)} expected={lookupBins.map((b) => Math.round(expected.get(b.minute) ?? 0))}
-          tops={lookupBins.map((b) => Number(lookupY(b.all).toFixed(4)))}>
-          <LookupPlot ft={ft} />
-        </MyFinish>
+          busiest={Number(busiest.values.minute)} />
       </Beat>
     </StoryPage>
   );

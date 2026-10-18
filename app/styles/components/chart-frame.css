@@ -247,3 +247,14 @@
 .viz-frame .ghost-gap { position: absolute; top: 4px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--signal-ink); }
 .viz-frame .ghost-clock { margin-top: var(--s-4); }
 .viz-frame.ghost-race .viz-key { margin: var(--s-2) 0 var(--s-4); }
+
+/* ---------- Columns (components/story/charts/Columns.tsx; the stories and /methodology): HTML bars, each one element
+   rounded at its data end only, so no seam shows where a rounded end meets a square base ---------- */
+.viz-frame .cols-plot { position: relative; height: 100%; }
+.viz-frame .cols-slot { position: absolute; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+.viz-frame .cols-bar { flex: none; width: min(24px, calc(100% - 6px)); border-radius: 4px 4px 0 0; background: var(--ink); }
+.viz-frame .cols-bar.is-signal { background: var(--signal); }
+.viz-frame .cols-bar.is-quiet { background: var(--mark-quiet); }
+.viz-frame .cols-value { margin-bottom: 6px; font-family: var(--sans); font-size: 13px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink); }
+.viz-frame .cols-value.is-signal { color: var(--signal-ink); }
+.viz-frame .cols-base { position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--rule-strong); }

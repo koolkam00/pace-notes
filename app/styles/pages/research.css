@@ -8,10 +8,12 @@
 .contents-hero .t-display { max-width: 12ch; }
 .contents-dek { margin: 0; max-width: 30rem; font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
 .contents-body { min-width: 0; }
-.contents-views, .contents-also { margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink-3); }
-.contents-also { margin-top: var(--s-5); padding-left: calc(var(--line-x, 28px) * 2 + var(--s-3)); }
-.contents-views a, .contents-also a { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--rule-strong); text-underline-offset: .18em; }
-.contents-views a:hover, .contents-also a:hover { text-decoration-color: currentColor; }
+.contents-views { margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink-3); }
+.contents-views a { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--rule-strong); text-underline-offset: .18em; }
+.contents-views a:hover { text-decoration-color: currentColor; }
+/* The sustained-slowdown term, linked once, at its first use in the opener. */
+.contents-page .term-link, .home .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-decoration-color: currentColor; text-underline-offset: .18em; }
+.contents-page .term-link:hover, .home .term-link:hover { text-decoration-style: solid; }
 
 /* ---------- The contents: chapters as headings on the course line, their pages as the links ---------- */
 .chapter-list.is-expanded .chapter-part + .chapter-part { margin-top: var(--s-5); }
@@ -53,6 +55,18 @@
 .page-reading { grid-column: 1; display: flex; align-items: baseline; gap: 2px 8px; min-width: 0; }
 .page-reading .big-number.is-s { font-size: 1.125rem; }
 .page-reading-key { min-width: 0; font-family: var(--sans); font-size: var(--t-label); font-weight: 400; line-height: 1.35; color: var(--ink-3); }
+/* On the contents a page's reading rides on its title's line, the figure at the right, so a row stays one line tall;
+   its key joins it on a second line from 600 px. */
+.chapter-list.is-expanded .chapter-page-link { grid-template-columns: minmax(0, 1fr) auto auto; }
+.chapter-list.is-expanded .chapter-page-link .page-reading { grid-column: 2; grid-row: 1; }
+.chapter-list.is-expanded .chapter-page-link .page-reading-key { display: none; }
+.chapter-list.is-expanded .chapter-page-go { grid-column: 3; }
+
+@media (min-width: 600px) {
+  .chapter-list.is-expanded .chapter-page-link .page-reading-key { display: block; grid-column: 1; grid-row: 2; }
+  .chapter-list.is-expanded .chapter-page-link .page-reading { display: contents; }
+  .chapter-list.is-expanded .chapter-page-link .page-reading .big-number { grid-column: 2; grid-row: 1; justify-self: end; }
+}
 
 /* On a phone the marker on the line says where in the race a chapter is, as on the home page; its number shows from
    600 px. */
@@ -62,11 +76,14 @@
 /* At 200% zoom the readings step down a size, so "20% · 44%" stays inside the column. */
 @media (max-width: 299.98px) {
   .chapter-list.is-expanded .chapter-heading .chapter-reading .big-number.is-s { font-size: 1.25rem; }
-  .page-list-place { align-items: flex-start; }
-  .page-list-place .t-kicker { white-space: normal; overflow: visible; }
 }
 
-/* ---------- The filtered lists (/stories, /analyses): one row per page, a hairline between ---------- */
+/* ---------- The filtered lists (/stories, /analyses): the pages under their chapter's line, a hairline between ---------- */
+.page-list-groups { margin: 0; padding: 0; list-style: none; }
+.page-list-group { margin: 0; }
+.page-list-group + .page-list-group { margin-top: var(--s-5); }
+/* The chapter, said once over its pages: the marker and the name in sentence case. */
+.page-list-chapter { display: flex; align-items: center; gap: var(--s-2); margin: 0 0 var(--s-2); font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
 .page-list-rows { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
 .page-list-rows li { margin: 0; border-bottom: 1px solid var(--rule); }
 .page-list-link {
@@ -74,10 +91,8 @@
   padding: var(--s-4) 0 18px; color: var(--ink); text-decoration: none;
 }
 .page-list-link:hover { color: var(--ink); text-decoration: none; }
-.page-list-place { grid-column: 1; display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
-.page-list-place .t-kicker { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .page-list-title { grid-column: 1; font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; font-size: 1.375rem; line-height: 1.18; letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
-.page-list-go { align-self: center; grid-row: 1 / span 3; }
+.page-list-go { align-self: center; grid-row: 1 / span 2; }
 .page-list .page-reading { margin-top: 2px; }
 .page-list .page-reading .big-number.is-s { font-size: 1.25rem; }
 

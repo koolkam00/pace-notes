@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import ChartFrame from './ChartFrame';
+import type { ReadoutProps } from './Readout';
 import Axis from './Axis';
 import Plot, { Baseline, Gridlines, RefLine } from './Plot';
 import Lens from './Lens.client';
@@ -36,9 +37,11 @@ type Props = {
   ratioAt?: Record<number, number>;
   /** The key's words: what a bin is, what the ink bins are, what the line is. */
   keyLabels?: { bin: string; mark?: string; curve?: string };
+  /** A still chart's readout above the plot (the finding's figures), when it has no scrub. */
+  readout?: ReadoutProps;
 };
 
-export default function Histogram({ bins, curve, marks = [], reading, ticks, label, lens, scrub, labels = [], values, height = 220, heightMd = 300, keyLabels = { bin: 'Each bin' }, ratioAt = {} }: Props) {
+export default function Histogram({ bins, curve, marks = [], reading, ticks, label, lens, scrub, labels = [], values, height = 220, heightMd = 300, keyLabels = { bin: 'Each bin' }, ratioAt = {}, readout }: Props) {
   const x0 = bins[0].x, x1 = bins[bins.length - 1].x + 1;
   const x = linear([x0, x1]);
   const w = 1 / (x1 - x0);
@@ -76,13 +79,14 @@ export default function Histogram({ bins, curve, marks = [], reading, ticks, lab
     };
     ratioLayer = (
       <g data-layer="ratio" className="is-off">
-        <Gridlines lines={[{ y: ry(hi >= 1.5 ? 1.5 : hi), label: `${(hi >= 1.5 ? 1.5 : hi).toFixed(1)}×` }, { y: ry(lo), label: `${lo.toFixed(2)}×` }]} />
+        {/* The scale reads on the right, where the towers are short: 1.5×, 1× (the curve itself) and the low end. */}
+        <Gridlines side="right" lines={[{ y: ry(hi >= 1.5 ? 1.5 : hi), label: `${(hi >= 1.5 ? 1.5 : hi).toFixed(1)}×` }, { y: ry(1), label: '1×' }, { y: ry(lo), label: `${lo.toFixed(2)}×` }]} />
         <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
           <path className="a-silhouette" d={stepPath(ratios.map((r) => ({ x: x(r.x), y: ry(r.r) })), w, ry(1))} />
         </svg>
         {marks.filter((m) => m !== reading).map((m) => col(m, 'm-ink'))}
         {reading !== undefined ? col(reading, 'm-signal is-reading') : null}
-        <RefLine y={ry(1)} label="1× the curve" side="right" />
+        <RefLine y={ry(1)} />
       </g>
     );
   }
@@ -107,7 +111,7 @@ export default function Histogram({ bins, curve, marks = [], reading, ticks, lab
     <ChartFrame label={label} height={height} heightMd={heightMd} k={lens ? 'count' : undefined}
       lens={lens ? <Lens label={lens.label} options={[{ value: 'count', label: lens.count }, { value: 'ratio', label: lens.ratio }]} defaultValue="count" /> : undefined}
       scrub={scrub ? <Scrubber points={{ ...scrub.points, y: scrub.points.y ?? needleTops }} initial={scrub.initial} detents={scrub.detents} label={scrub.label} axis={axis}>{plot}</Scrubber> : undefined}
-      plot={scrub ? undefined : plot} axis={scrub ? undefined : axis}
+      plot={scrub ? undefined : plot} axis={scrub ? undefined : axis} readout={scrub ? undefined : readout}
       keys={[{ label: keyLabels.bin, mark: 'square', tone: 'quiet' }, ...(marks.length && keyLabels.mark ? [{ label: keyLabels.mark, mark: 'square' as const }] : []), ...(curve && keyLabels.curve ? [{ label: keyLabels.curve, mark: 'line' as const }] : [])]}
       values={values}
     />

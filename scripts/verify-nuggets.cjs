@@ -146,7 +146,8 @@ RECOUNT['site.totals'] = (n) => {
   const millions = (Math.round(insights.analysis_n / 1e5) / 10).toFixed(1);
   eq(n.figure.value, millions, 'site.totals: the figure is eligible finishes in millions');
   ok(core.textFor(n.headline, 'mi').includes(`*${millions} million*`) && core.textFor(n.headline, 'km').includes(`*${millions} million*`), 'site.totals: both headlines carry the same million');
-  ok(core.textFor(n.headline, 'mi').includes('26.2 miles') && core.textFor(n.headline, 'km').includes('42.2 km'), 'site.totals: the distance follows the units');
+  // The distance and its unit are held together by a no-break space.
+  ok(/26\.2\smiles/.test(core.textFor(n.headline, 'mi')) && /42\.2\skm/.test(core.textFor(n.headline, 'km')), 'site.totals: the distance follows the units');
   eq(n.guard, insights.analysis_n > 0 && runner.raw_records >= insights.analysis_n && insights.cohort.cities > 0, 'site.totals: guard');
   eq(core.finishesM(), require('../lib/seo.tsx').finishesM(), 'one "N million" on every surface (lib/seo agrees)');
 };

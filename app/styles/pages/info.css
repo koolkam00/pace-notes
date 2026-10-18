@@ -24,7 +24,7 @@
 
 /* The privacy summary: four short facts, then the switch, then the details in folds. */
 .info-facts { display: grid; gap: var(--s-3); margin: 0; padding: 0; list-style: none; }
-.info-facts li { position: relative; padding-left: 20px; font-size: var(--t-body); line-height: 1.5; color: var(--ink); }
+.info-facts li { position: relative; margin: 0; padding-left: 20px; font-size: var(--t-body); line-height: 1.5; color: var(--ink); }
 .info-facts li::before { content: ''; position: absolute; left: 2px; top: .62em; width: 6px; height: 6px; border-radius: 50%; background: var(--ink); }
 .info-choice { display: grid; gap: var(--s-3); justify-items: start; margin-top: var(--s-5); padding: var(--s-5) 0; border-block: 1px solid var(--rule); }
 .info-choice [role="status"] { margin: 0; font-size: var(--t-body); font-weight: 600; color: var(--ink); }

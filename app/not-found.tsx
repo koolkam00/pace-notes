@@ -7,7 +7,7 @@ export default function NotFound() {
   return (
     <section className="info-stop" aria-labelledby="not-found-title">
       <p className="t-kicker">404 · Off course</p>
-      <h1 id="not-found-title" className="t-display">This page isn&apos;t on the route.</h1>
+      <h1 id="not-found-title" className="t-display">This page isn’t on the route.</h1>
       <p className="info-dek">The link may be old, or the page may have moved. Pick up the course from the start, or from the contents.</p>
       <div className="info-actions">
         <Button href="/" variant="primary" arrow="right">Back to the start</Button>

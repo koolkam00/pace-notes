@@ -309,7 +309,8 @@ async function unitSwitch(h) {
     const lines = (document.querySelector('main')?.innerText ?? '').split('\n');
     return {
       working: !!control && !control.classList.contains('unit-switch-placeholder') && control.getAttribute('role') === 'group' && getComputedStyle(control).visibility === 'visible',
-      distance: lines.find((line) => /\b(?:26\.2 miles|42\.195 km)\b/.test(line)) ?? null,
+      // The number and its unit are held together by a no-break space, which \s matches.
+      distance: lines.find((line) => /\b(?:26\.2\smiles|42\.2\skm)\b/.test(line)) ?? null,
       paces: lines.filter((line) => /\d:\d\d\/(?:mi|km)\b/.test(line)),
       search: location.search,
     };
@@ -320,8 +321,8 @@ async function unitSwitch(h) {
   h.check('/research, opened directly, has the working units switch', miles.working, miles);
   if (miles.working) { await page.click('.site-header .unit-switch button:has-text("Kilometres")'); await page.waitForTimeout(400); }
   const km = await seen();
-  h.check('pressing Kilometres on /research converts its text (26.2 miles, then 42.195 km; any /mi pace, then /km) and adds units=km',
-    /26\.2 miles/.test(miles.distance ?? '') && /42\.195 km/.test(km.distance ?? '') && miles.paces.every((line) => /\/mi\b/.test(line)) && km.paces.every((line) => /\/km\b/.test(line))
+  h.check('pressing Kilometres on /research converts its text (26.2 miles, then 42.2 km; any /mi pace, then /km) and adds units=km',
+    /26\.2\smiles/.test(miles.distance ?? '') && /42\.2\skm/.test(km.distance ?? '') && miles.paces.every((line) => /\/mi\b/.test(line)) && km.paces.every((line) => /\/km\b/.test(line))
       && miles.paces.length === km.paces.length && km.search === '?units=km', { miles, km });
   await page.goto(SITE + '/methodology', { waitUntil: 'load' });
   await page.waitForTimeout(800);

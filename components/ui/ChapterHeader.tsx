@@ -5,8 +5,8 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import { chapterNumber, contentsHref, placeLabel, placeOf } from '@/lib/chapters';
 
 /**
- * The crumbs of a page in the race (the redesign spec, section 3.5): "[FINISH] Chapter 06 · The finish line · Story 1
- * of 2". The chapter part links to its row on the contents (/research#chapter-06), 44 px tall through padding. Pass it
+ * The crumbs of a page in the race (the redesign spec, section 3.5): "[FINISH] Chapter 06 · The finish line · Page 1
+ * of 2" (the place shows from 600 px). The chapter part links to its row on the contents (/research#chapter-06), 44 px tall through padding. Pass it
  * as Reading's `crumbs`; null for a page outside the race.
  */
 export function ChapterCrumbs({ path }: { path: string }) {

@@ -74,7 +74,7 @@
   .chapter-rail { display: block; }
 }
 
-/* ---------- Crumbs: "[FINISH] Chapter 06 · The finish line · Story 1 of 2" ---------- */
+/* ---------- Crumbs: "[FINISH] Chapter 06 · The finish line · Page 1 of 2" ---------- */
 .crumb-chapter { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: none; }
 .crumb-chapter:hover { color: var(--ink); text-decoration: underline; text-underline-offset: .2em; }
 .crumb-place { white-space: nowrap; }

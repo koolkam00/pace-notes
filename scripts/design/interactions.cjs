@@ -303,6 +303,8 @@ const INTERACTIONS = [
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
         for (let n = walker.nextNode(); n; n = walker.nextNode()) {
           if (!n.parentElement.closest('[data-beat]')) continue;
+          // A chart's Values twin is reference, not reading, open or closed (an earlier capture may have opened one).
+          if (n.parentElement.closest('details.values')) continue;
           // Text inside a closed <details> (a fold on /methodology) is not shown, whatever its box says: only a closed
           // fold's own summary is.
           let hidden = false;

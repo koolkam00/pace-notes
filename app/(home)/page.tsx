@@ -98,7 +98,7 @@ export default function Page() {
     <section id="guide" className="home-beat home-guide" aria-labelledby="guide-title" data-track-section="guide">
       <div className="home-guide-head">
         <h2 id="guide-title" className="t-h2">The race, <em>start to finish</em>.</h2>
-        <p className="home-guide-dek">{chapterCount.charAt(0).toUpperCase() + chapterCount.slice(1)} chapters, each a stretch of the race and the one thing the data found there.</p>
+        <p className="home-guide-dek">{chapterCount.charAt(0).toUpperCase() + chapterCount.slice(1)} chapters, each a stretch of the race and the one thing the data found there, from the median finish to when a <Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link> begins.</p>
       </div>
       <ChapterList variant="full" readingOf={readingOf} label="The chapters, start to finish" className="home-chapters" />
     </section>

@@ -8,8 +8,8 @@ import { linear, pc } from '@/components/viz/scale';
 /**
  * How the front and the back of the field moved between two eras (the redesign spec, section 7.3, #front): one row per
  * percentile, one dot per course at its change in minutes, a zero line for "no change" below the row's name, and the
- * row's average as a bar, its value beside the name. The row the sentence is about carries the signal average; the
- * other row stays ink and quiet.
+ * row's average as a bar, its value beside the name, so no key is needed. The row the sentence is about has ink
+ * dots and the signal average; the other row's dots and average stay quiet.
  */
 export type ShiftRow = { id: string; label: string; values: { id: string; v: number }[]; mean: number; display: string; tone: 'signal' | 'ink' };
 
@@ -63,7 +63,6 @@ export default function EraShift({ rows, domain, ticks, label, axisTitle, values
   return (
     <ChartFrame className="era-shift" label={label} height={height} heightMd={height} plot={plot}
       axis={<Axis ticks={ticks.map((t) => ({ x: x(t.value), label: t.label }))} title={axisTitle} />}
-      keys={[{ label: 'One course', mark: 'dot' }, { label: 'Average change', mark: 'line', tone: 'signal' }]}
       values={values} />
   );
 }

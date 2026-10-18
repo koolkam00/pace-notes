@@ -40,6 +40,8 @@ export default function MethodsDefinitions() {
   const cell = (threshold: number, length: string) => sensitivity.find((row) => Number(row.label) === threshold && String(row.length) === length);
   const share = (threshold: number, length: string) => { const v = Number(cell(threshold, length)?.value); return Number.isFinite(v) ? v : NaN; };
   const shareText = (v: number) => (Number.isFinite(v) ? `${v.toFixed(v < 0.05 ? 2 : v < 10 ? 1 : 0)}%` : '–');
+  // The columns share one precision, so a one-decimal label never sits beside whole numbers.
+  const columnText = (v: number) => (Number.isFinite(v) ? `${v.toFixed(columns.some((t) => share(t, shortest) < 10) ? 1 : 0)}%` : '–');
   const shortest = lengths[0];
   const columns = shortest ? thresholds.filter((t) => Number.isFinite(share(t, shortest))) : [];
   const atPublished = shortest ? share(PUBLISHED, shortest) : NaN;
@@ -57,7 +59,7 @@ export default function MethodsDefinitions() {
         <p className="methods-instrument-head">At {PUBLISHED}% slower for {shortest}, {shareText(atPublished)} of finishes qualify. Other thresholds catch more or fewer:</p>
         <Columns label={`Share of eligible finishes with a sustained slowdown at each minimum slowdown, over ${shortest}: ${columns.map((t) => `${t}%, ${shareText(share(t, shortest))}`).join('; ')}`}
           max={Math.max(...columns.map((t) => share(t, shortest)))} height={150} heightMd={170}
-          items={columns.map((t) => ({ id: String(t), label: String(t), value: share(t, shortest), display: shareText(share(t, shortest)), tone: t === PUBLISHED ? 'signal' as const : 'quiet' as const }))} />
+          items={columns.map((t) => ({ id: String(t), label: String(t), value: share(t, shortest), display: columnText(share(t, shortest)), tone: t === PUBLISHED ? 'signal' as const : 'quiet' as const }))} />
         <p className="methods-axis-note">Minimum slowdown, % slower than the 5–20K pace</p>
         <Values id="definition-sensitivity" caption={`Share of the ${study ? n(study.n) : ''} eligible finishes that qualify, by minimum slowdown and minimum length`}
           columns={[{ key: 'threshold', label: 'Minimum slowdown' }, ...lengths.map((length) => ({ key: length, label: length }))]}

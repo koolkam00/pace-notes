@@ -43,6 +43,8 @@
 
 /* The topics are folds (app/styles/pages/info.css); the part's rows are divided by its hairlines. */
 .methods-rows > .fold { border-top: 0; }
+/* A part's own sub-folds (Downloads) keep the hairline under each row, like every other fold. */
+.methods-rows > .fold.is-sub { border-bottom: 1px solid var(--rule); }
 .methods-rows > .fold.is-sub > summary { min-height: 56px; }
 .methods-rows > .fold.is-sub > summary .fold-title { font-size: 1.0625rem; }
 .methods-note { font-size: var(--t-small); color: var(--ink-3); }
@@ -68,8 +70,6 @@
 .methods-instrument { margin: var(--s-5) 0 var(--s-2); }
 .methods-instrument-head { max-width: var(--measure); margin: 0 0 var(--s-3); font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
 .methods-instrument .values { margin-top: var(--s-3); }
-.methods-instrument .viz-frame .col.m-quiet { fill: var(--mark-quiet); stroke: none; }
-.methods-instrument .viz-frame .col-value { font-weight: 600; }
 .methods-axis-note { margin: 4px 0 0; font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); }
 .methods-more { margin-top: var(--s-3); }
 .methods-definition > .methods-more { border-bottom: 0; }

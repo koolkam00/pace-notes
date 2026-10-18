@@ -19,7 +19,8 @@ import type { Nugget } from './types';
 export function siteTotalsFrom(t: SiteTotals): Nugget {
   const m = millions(t.finishesEligible);
   const ok = t.finishesEligible > 0 && t.results >= t.finishesEligible && t.cities > 0 && t.firstYear <= t.lastYear;
-  const headline = (units: 'mi' | 'km') => `The same ${units === 'mi' ? '26.2 miles' : distance(MARATHON_KM, 'km')}, run *${m} million* ways.`;
+  // The distance and its unit never part at a line break (a no-break space), in either unit.
+  const headline = (units: 'mi' | 'km') => `The same ${(units === 'mi' ? '26.2 miles' : distance(MARATHON_KM, 'km')).replace(' ', '\u00a0')}, run *${m} million* ways.`;
   return {
     id: 'site.totals', page: '/', denominator: 'eligible',
     values: { results: t.results, finishes: t.finishesEligible, cities: t.cities, race_years: t.raceYears, first_year: t.firstYear, last_year: t.lastYear },

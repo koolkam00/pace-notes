@@ -15,6 +15,8 @@ import { linear, pc } from '@/components/viz/scale';
  */
 export type DotLayer = {
   id: string; label: string; minutes: number[]; marks: { index: number; text: string; tone: 'signal' | 'ink' }[];
+  /** The one line the lens updates above the plot ("Recorded women · the middle half", "3:58 to 5:09"). */
+  readout?: { key: string; value: string };
   /** The run of dots the sentence names (the middle half), drawn ink; the rest stay quiet. */
   band?: [number, number];
 };
@@ -70,7 +72,16 @@ export default function PercentileDots({ layers, initial, domain, ticks, label, 
   );
   return (
     <ChartFrame className="percentile-dots" label={label} height={height} heightMd={height} k={initial}
-      lens={<Lens label={lensLabel} options={layers.map((l) => ({ value: l.id, label: l.label }))} defaultValue={initial} />}
+      lens={(
+        <>
+          <Lens label={lensLabel} options={layers.map((l) => ({ value: l.id, label: l.label }))} defaultValue={initial} />
+          {layers.map((l) => (l.readout ? (
+            <div key={l.id} className={`readout pd-readout${l.id === initial ? '' : ' is-off'}`} data-layer={l.id}>
+              <div className="readout-main"><span className="readout-key">{l.readout.key}</span><span className="readout-value">{l.readout.value}</span></div>
+            </div>
+          ) : null))}
+        </>
+      )}
       plot={plot} axis={<Axis ticks={ticks.map((t) => ({ x: x(t.value), label: t.label }))} />}
       values={values} />
   );

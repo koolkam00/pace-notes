@@ -155,8 +155,9 @@ export const STORIES: StoryDefinition[] = [
     get title() {
       return plain(sentenceOf(getNugget('kick.twins'))).replace(/\.$/, '');
     },
+    /** The H1 is the finding as a sentence, ending on its full stop like the race replay's. */
     get heading() {
-      return sentenceOf(getNugget('kick.twins')).replace(/\.$/, '');
+      return sentenceOf(getNugget('kick.twins'));
     },
     dek: 'What happens to a race after a sustained slowdown begins?',
     accent: '#E2416B',
