@@ -92,7 +92,8 @@ async function main() {
   assert.match(mileHtml, /Casey Partial/); assert.match(mileHtml, /Incomplete edition held for review/);
   assert.match(mileHtml, /02:20:39/, 'Keep the faster held result visible as its recorded finish');
   assert.match(mileHtml, /00:16:40\.000/, 'Keep original checkpoint formatting rather than recomputing it');
-  assert.match(mileHtml, /<strong>3:30:58\.5<\/strong><span>Fastest selected eligible finish/, 'A faster held result cannot replace the eligible best');
+  assert.match(mileHtml, /<strong>3:30:58\.5<\/strong><span>Finish<\/span>/, 'A faster held result cannot replace the eligible finish (one eligible race: its finish)');
+  assert.match(render([base, smallGain], 'mi'), /<span>Fastest selected eligible finish<\/span>/, 'Two eligible races: the fastest of them');
   assert.doesNotMatch(mileHtml, /\d\.\d\d\s*mi\b/, 'Miles never to two decimals (mats are named, prose distances take one decimal)'); assert.doesNotMatch(mileHtml, /5:00\/km/);
   const kmHtml = render([base], 'km'); assert.match(kmHtml, /5:00\/km/); assert.doesNotMatch(kmHtml, /\d\/mi\b/, 'Paces follow the units shown');
   const assertLimitedRecordsVisible = html => {
@@ -132,9 +133,10 @@ async function main() {
   const copyHtml = renderCopies([copy2018, copy2019, real2024, heldCopy], copies);
   const occurrences = (html, text) => html.split(text).length - 1;
   assert.match(copyHtml, /One race\. A closer look\./, 'One eligible race once the copies are left out');
-  assert.match(copyHtml, /<strong>1<\/strong><span>Eligible selected finish<\/span><small>2024<\/small>/, 'The count and year span leave the copies out');
+  assert.match(copyHtml, /<span>Finish<\/span><small>Lakeside 2024<\/small>/, 'One race left once the copies are out: its finish, named by its race');
+  assert.doesNotMatch(copyHtml, /Eligible selected finish/, 'One race carries no count of one');
   assert.doesNotMatch(copyHtml, /Your fastest selected finish in/, 'No year-over-year change from a copy');
-  assert.equal(occurrences(copyHtml.match(/<caption>All eligible races you selected<\/caption>[\s\S]*?<\/table>/)[0], '<th scope="row">'), 1, 'One row in the eligible table');
+  assert.doesNotMatch(copyHtml, /All eligible races you selected/, 'One race has no one-row table of the races');
   assert.match(copyHtml, /3 selected records have limited analysis/);
   for (const copy of copies) assert.equal(occurrences(copyHtml, copyEditionSentence(copy).replace(/'/g, '&#x27;')), 0, `${copy.city} ${copy.year}: no copy-edition sentence`);
   assert.doesNotMatch(copyHtml, /largely repeat/, 'The analysis view never explains the copy screen');

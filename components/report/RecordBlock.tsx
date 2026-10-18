@@ -3,10 +3,12 @@
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { pctSigned, type ReportRecord } from '@/lib/report';
 import { formatDuration } from '@/lib/tools/time';
-import { elevationLabel, type UnitSystem } from '@/lib/units';
+import type { UnitSystem } from '@/lib/units';
 import type { HeadTag } from './RaceReport';
 
 const count = (value: number) => value.toLocaleString('en-US');
+/** The climb in whole feet or metres: the route's sections summed, as its course page prints it. */
+const climbLabel = (metres: number, units: UnitSystem) => `${Math.round(units === 'mi' ? metres / 0.3048 : metres).toLocaleString('en-US')} ${units === 'mi' ? 'ft' : 'm'}`;
 const clock = (seconds: number) => formatDuration(seconds, true);
 const temperature = (c: number, units: UnitSystem) => `${(units === 'mi' ? c * 1.8 + 32 : c).toLocaleString('en-US', { maximumFractionDigits: 1 })}°${units === 'mi' ? 'F' : 'C'}`;
 const wind = (mps: number, units: UnitSystem) => `${(mps * (units === 'mi' ? 2.2369362920544 : 3.6)).toLocaleString('en-US', { maximumFractionDigits: 1 })} ${units === 'mi' ? 'mph' : 'km/h'}`;
@@ -31,7 +33,7 @@ export default function RecordBlock({ id, Head, record: r, units }: { id: string
         <dl>
           <div><dt>After 30K</dt><dd>{'unavailable' in r.late ? r.late.unavailable : <><strong>{pctSigned(r.late.race / 100, 1)}</strong> against its 5–20K pace; the median of the {count(r.late.n)} finishes from {clock(r.late.from)} to under {clock(r.late.to)} here: {pctSigned(r.late.median / 100, 1)}.</>}</dd></div>
           <div><dt>Weather</dt><dd>{'unavailable' in r.weather ? r.weather.unavailable : <>{temperature(r.weather.tempC, units)}, {r.weather.humidityPct.toLocaleString('en-US', { maximumFractionDigits: 1 })}% humidity and {wind(r.weather.windMps, units)} wind near the start{localHour(r.weather.start) ? ` (${localHour(r.weather.start)})` : ''}.</>}</dd></div>
-          <div><dt>Climb</dt><dd>{'unavailable' in r.climb ? r.climb.unavailable : <>{elevationLabel(r.climb.gainM, units)} over the course.</>}</dd></div>
+          <div><dt>Climb</dt><dd>{'unavailable' in r.climb ? r.climb.unavailable : <>{climbLabel(r.climb.gainM, units)} over the course.</>}</dd></div>
         </dl>
       ) : null}
     </section>

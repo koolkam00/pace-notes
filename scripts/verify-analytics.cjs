@@ -578,7 +578,8 @@ assert.match(runnerContext, /const RaceReport = lazy(?:<[^(]*>)?\(\(\) => import
 assert.doesNotMatch(runnerContext, /^import\s(?!type\s)[^;]*report\/RaceReport/m, 'RunnerContext imports the race report only dynamically');
 // Every link from a runner's profile to another page of the site carries the handoff marker (the others are sources).
 const contextLinks = [...runnerContext.matchAll(/<(UnitLink|Link|a)\s[^<>]*?href=\{([^}]*)/g)].filter(m => m[1] !== 'a' || !/source_url$/.test(m[2].trim())).map(m => m[2].trim());
-assert.ok(contextLinks.length >= 2, 'RunnerContext links found');
+// One onward link since October 18, 2026: the split check (the pacing-pattern link was cut).
+assert.ok(contextLinks.length >= 1, 'RunnerContext links found');
 for (const link of contextLinks) assert.match(link, /^runnerHandoffHref\(/, `RunnerContext link ${link.slice(0, 40)} is marked as a runner handoff`);
 for (const file of sourceFiles('components')) if (/splitCheckHref\(/.test(read(file))) assert.match(read(file), /runnerHandoffHref\(/, `${file} builds a split-check link from a runner's times without the handoff marker`);
 assert.match(read('lib/analytics.ts'), /export function trackPage[^}]*?noteRunnerHandoff\([^}]*?syncRecording/, 'trackPage notes a runner handoff before anything waits for the SDK or the recorder');

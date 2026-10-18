@@ -144,6 +144,8 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
           <BigNumber value={lines.finish} sr={`Finish ${lines.finish}`} size="l" />
           <span className="race-report-average">{lines.pace}</span>
         </p>
+        {/* The race's verdict in one line, under its finish: the reading the tiles below spell out. */}
+        <p className="race-report-verdict">{slowdown.yes ? 'A' : 'No'} <Link className="term-link" href={SLOWDOWN_HREF}>sustained slowdown</Link>{slowdown.yes && slowdown.onsetKm !== null ? ` from ${kmText(slowdown.onsetKm)}` : ''}{type.state === 'ok' ? <> · <span>{type.name}</span></> : null}</p>
         {placement ? (
           <p className="race-report-sentence">
             {'unavailable' in placement ? placement.unavailable
@@ -152,7 +154,7 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
         ) : null}
         <LapList rows={lines.sections.map((s, i) => ({ mat: s.mat, split: s.split, pace: s.pace, vs: s.vs, lit: lit[i], sr: sr(s) }))}
           baseline={paceText(model.baseline, units)} label={`Each mat's split and pace against this race's 5–20K pace${slowdown.yes && slowdown.onsetKm !== null ? `; a sustained slowdown from ${kmText(slowdown.onsetKm)}` : ''}`}
-          caption={slowdown.yes ? <>In signal: the <Link className="term-link" href={SLOWDOWN_HREF}>sustained slowdown</Link>.</> : <>No <Link className="term-link" href={SLOWDOWN_HREF}>sustained slowdown</Link> after 20K.</>} />
+          caption={slowdown.yes ? 'Highlighted: the sustained slowdown.' : undefined} />
       </div>
 
       <div className="race-report-stats">
@@ -174,7 +176,7 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
         <div className="race-report-stat">
           <span>First 5K</span>
           <strong>{Math.abs(opening.fraction) < 0.0005 ? 'Level' : `${openingPct(opening.fraction)} ${opening.fraction < 0 ? 'quicker' : 'slower'}`}</strong>
-          <small>{Math.abs(opening.fraction) < 0.0005 ? 'with' : 'than'} the 5–20K pace{opening.band ? `, in the ${opening.band.label.toLowerCase()} group` : ''}</small>
+          <small>{Math.abs(opening.fraction) < 0.0005 ? 'with' : 'than'} the 5–20K pace{opening.band ? ` (the “${opening.band.label.toLowerCase()}” group)` : ''}</small>
           <Link className="race-report-more no-print" href={handoff ? runnerHandoffHref('/analyses/starting-pace') : '/analyses/starting-pace'}>How openings like this finished</Link>
         </div>
       </div>
@@ -212,8 +214,8 @@ function ComparisonBlock({ id, Head, comparison: c, model, gender, dropped, retr
             <details className="values"><summary><span>Values<span className="values-count">{count(c.groups.length)} {c.groups.length === 1 ? 'row' : 'rows'}</span></span><span className="values-glyph" aria-hidden="true" /></summary>
               <div className="table-wrap" role="region" tabIndex={0} aria-label="Finishes at this time, by group"><table className="table">
                 <caption>Finishes from {clock(c.lo)} to {clock(c.hi)}{gender === 'all' ? '' : `, recorded ${gender}`}</caption>
-                <thead><tr><th scope="col">Group</th><th scope="col">Finishes</th><th scope="col">Median at 20K</th><th scope="col">This race at 20K</th><th scope="col">Median finish</th></tr></thead>
-                <tbody>{c.groups.map((g) => <tr key={g.key}><th scope="row">{g.name}</th><td>{count(g.n)}</td><td>{clock(g.at20)}</td><td>{ahead(at20 - g.at20)}</td><td>{clock(g.finish)}</td></tr>)}</tbody>
+                <thead><tr><th scope="col">Group</th><th scope="col">Finishes</th><th scope="col">Median at 20K</th><th scope="col">Median finish</th></tr></thead>
+                <tbody>{c.groups.map((g) => <tr key={g.key}><th scope="row">{g.name}</th><td>{count(g.n)}</td><td>{clock(g.at20)}</td><td>{clock(g.finish)}</td></tr>)}</tbody>
               </table></div>
             </details>
           </div>
@@ -230,8 +232,8 @@ const hm = (seconds: number) => { const m = Math.round(seconds / 60); return `${
 
 /**
  * This race at 20K against each group's median there (a dumbbell list, drawn in HTML so the page carries no chart
- * code): the hollow ring is the group's median, the filled dot this race; the first row, the one the heading names, has
- * its gap in signal. The scale runs a minute or more past the times on whole minutes, its ends labelled.
+ * code): the hollow ring is the group's median, the ink dot this race, the same mark in every row; only the first row's
+ * gap, the one the heading names, is in signal. The scale runs a minute or more past the times on whole minutes, its ends labelled.
  */
 function At20({ race, groups }: { race: number; groups: ReportGroup[] }) {
   const all = [race, ...groups.map((g) => g.at20)];

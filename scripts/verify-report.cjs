@@ -227,7 +227,7 @@ ok();
   assert.doesNotMatch(JSON.stringify(report.reportLines(recorded, 'mi')), /4,999|1,200|\b76(?:\.0)?%|percentile|\brank\b|9\.5%|12\.3%|°|\bft\b/, 'the image never carries the record\'s placement');
   const small = report.buildReport({ ...base, comparison: { index, indexError: null, course: 'all', gender: 'all', shard: null },
     record: { edition: { city: 'Lakeside', year: 2021 }, context: { ...sample, comparisons: { all: null } , weather: null, weather_reason: 'No verified weather.', terrain: null, terrain_reason: null }, error: null, lateChange: 1 } });
-  assert.ok('unavailable' in small.record.placement && 'unavailable' in small.record.late && small.record.weather.unavailable === 'No verified weather.' && 'unavailable' in small.record.climb, 'small or missing groups say so');
+  assert.ok('unavailable' in small.record.placement && 'unavailable' in small.record.late && small.record.weather.unavailable === 'Not available for this edition.' && small.record.climb.unavailable === 'Not available for this edition.', 'small or missing groups say so, with no data-screen reason (method copy)');
   ok(20);
 }
 assert.equal(report.REPORT_IMAGE_NAME, 'pace-notes-race-report.png'); ok();

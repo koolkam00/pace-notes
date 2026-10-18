@@ -44,7 +44,7 @@ assert.match(mileConditions, /32°F/);
 assert.match(mileConditions, /\+3\.6°F/);
 assert.doesNotMatch(mileConditions, /35\.6°F<\/strong>/, 'A two-degree temperature rise is 3.6°F, without adding the freezing-point offset');
 assert.match(mileConditions, /0 mph/); assert.match(mileConditions, /0 in/); assert.match(mileConditions, /Not available/);
-assert.match(mileConditions, /328\.1 ft/); assert.match(mileConditions, /40K–finish/, 'Sections are named by their mats in both units'); assert.doesNotMatch(mileConditions, /\d\.\d\d\s*mi\b/, 'Miles never to two decimals');
+assert.match(mileConditions, /328 ft/); assert.doesNotMatch(mileConditions, /\d\.\d ft\b/, 'Climbs in whole feet, as the course pages print them'); assert.match(mileConditions, /40K–finish/, 'Sections are named by their mats in both units'); assert.doesNotMatch(mileConditions, /\d\.\d\d\s*mi\b/, 'Miles never to two decimals');
 assert.doesNotMatch(mileConditions, /first 3\.11 mi|A recorded source note|example\.org/, 'The weather and route records\' own notes and sources are not shown');
 assert.doesNotMatch(mileConditions, METHOD_COPY, 'No method or source copy in the conditions');
 assert.match(mileConditions, /Scheduled start: 09:00 local time/); assert.match(mileConditions, /Start-hour observation: 09:00/);

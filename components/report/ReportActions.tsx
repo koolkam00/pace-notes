@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { trackAnalytics, trackFailure } from '@/lib/analytics';
 import { chunkLoadFailed } from '@/lib/chunk-reload';
 import { REPORT_IMAGE_NAME, reportImageAlt, reportLines, type ReportGender, type ReportModel } from '@/lib/report';
 import type { UnitSystem } from '@/lib/units';
 
 type Note = { kind: 'ok' | 'error'; text: string } | null;
+
+// The share sheet's code loads on the first press of Share, so the report's first paint carries none of it.
+const Sheet = lazy(() => import('@/components/ui/Sheet.client'));
 
 /**
  * Print only the report card: every sibling on its way up to <body> is hidden for the printout (`data-print-hide`) and
@@ -28,16 +31,21 @@ export function printCard(cardId: string) {
 
 /**
  * The report's outputs, in the share bar's row (`.tool-share .share-bar`, so none counts as a tool edit): print or save as
- * PDF through the browser, a 1080 × 1350 image drawn only when asked for (lib/report-image.ts, loaded with import() on
- * the first press), the share sheet, and the report's link. Analytics hears only that an image was saved or a share went
- * through (`report_exported`), a copied link and a print (`tool_used`), and a failure's kind (`site_error` `export`):
- * never a time, a course or the link.
+ * PDF through the browser (the one primary), and Share, which opens a sheet (rendered in place, inside the report's
+ * masked region) holding a 1080 × 1350 image drawn only when asked for (lib/report-image.ts, loaded with import() on the
+ * first press), the device's share sheet, the report's link and what the link carries. Analytics hears only that an
+ * image was saved or a share went through (`report_exported`), a copied link and a print (`tool_used`), and a failure's
+ * kind (`site_error` `export`): never a time, a course or the link.
  */
 export default function ReportActions({ id, model, units, link, cardId, gender }: { id: string; model: ReportModel; units: UnitSystem; link: string | null; cardId: string; gender: ReportGender }) {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [note, setNote] = useState<Note>(null);
   const [preview, setPreview] = useState<{ url: string; alt: string } | null>(null);
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  const sheetId = `${id}-share`;
   const made = useRef<{ key: string; blob: Blob } | null>(null);
   // The image follows the units and the numbers on screen: a change draws it again, and drops the preview of the last one.
   const key = `${units}|${JSON.stringify(reportLines(model, units))}`;
@@ -101,17 +109,28 @@ export default function ReportActions({ id, model, units, link, cardId, gender }
     } catch { setNote({ kind: 'error', text: 'This browser did not allow copying the link.' }); }
   };
 
+  const hint = `The link carries only the mat times${link?.includes('&course=') ? ' and the course' : ''}${gender === 'all' ? '' : `, and the ${gender} comparison`}${model.record ? '; nothing from this edition reaches it or the image' : ''}.`;
   return (
     <div className="race-report-actions no-print" id={id}>
       <div className="tool-share share-bar">
         <button type="button" className="btn btn-primary is-compact" data-not-edit onClick={() => printCard(cardId)}>Print or save as PDF</button>
-        <button type="button" className="btn btn-secondary is-compact" data-report-save aria-disabled={waiting || undefined} onClick={onSave}>{busy ? 'Making the image…' : pending ? `Loading ${pending}…` : 'Save image'}</button>
-        <button type="button" className="btn btn-secondary is-compact" aria-disabled={waiting || undefined} onClick={onShare}>Share</button>
-        {link ? <button type="button" className="btn btn-secondary is-compact" onClick={onCopy}>{copied ? 'Link copied' : 'Copy link'}</button> : null}
+        <button type="button" className="btn btn-secondary is-compact race-report-share-open" data-sheet-open={sheetId} aria-haspopup="dialog" aria-expanded={open} aria-controls={sheetId}
+          onClick={() => { setMounted(true); setOpen(true); }}>Share</button>
       </div>
-      <p className="race-report-hint">Prints on one page. The link carries only the mat times{link?.includes('&course=') ? ' and the course' : ''}{gender === 'all' ? '' : `, and the ${gender} comparison`}{model.record ? '; nothing from this edition reaches it or the image' : ''}.</p>
-      <p className={`race-report-note${note?.kind === 'error' ? ' is-error' : ''}`} aria-live="polite">{copied ? 'Link copied to the clipboard.' : note?.text ?? ''}</p>
-      {preview ? <img className="race-report-preview" src={preview.url} alt={preview.alt} width={1080} height={1350} /> : null}
+      {mounted ? (
+        <Suspense fallback={null}>
+          <Sheet id={sheetId} title="Share this report" open={open} onClose={close} className="race-report-sheet">
+            <div className="share-actions">
+              <button type="button" className="btn btn-primary is-block" data-report-save aria-disabled={waiting || undefined} onClick={onSave}>{busy ? 'Making the image…' : pending ? `Loading ${pending}…` : 'Save image'}</button>
+              <button type="button" className="btn btn-secondary is-block race-report-share-native" aria-disabled={waiting || undefined} onClick={onShare}>Share…</button>
+              {link ? <button type="button" className="btn btn-secondary is-block" onClick={onCopy}>{copied ? 'Link copied' : 'Copy link'}</button> : null}
+            </div>
+            <p className="race-report-hint">{hint}</p>
+            <p className={`race-report-note${note?.kind === 'error' ? ' is-error' : ''}`} aria-live="polite">{copied ? 'Link copied to the clipboard.' : note?.text ?? ''}</p>
+            {preview ? <img className="race-report-preview" src={preview.url} alt={preview.alt} width={1080} height={1350} /> : null}
+          </Sheet>
+        </Suspense>
+      ) : null}
     </div>
   );
 }

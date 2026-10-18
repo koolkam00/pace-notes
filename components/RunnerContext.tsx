@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, lazy, useEffect, useId, useMemo, useState, type ComponentType } from 'react';
-import { elevationLabel, matLabel, paceLabel, paceValue, sectionLabel, type UnitSystem } from '@/lib/units';
+import { matLabel, paceLabel, paceValue, sectionLabel, type UnitSystem } from '@/lib/units';
 import { paceTicks } from '@/lib/pace-ticks';
 import { runnerDuration, runnerMetrics, type RunnerManifest, type RunnerMetrics, type RunnerRace } from '@/lib/runner-search';
 import { UnitLink } from './UnitsProvider';
@@ -51,6 +51,8 @@ function crosses(values: number[], xs: number[], tick: number, [lo, hi]: [number
   }
   return false;
 }
+/** A climb, a descent or a net change in whole feet or metres, as the course pages print them. */
+const elevationLabel = (metres: number, units: UnitSystem) => `${Math.round(units === 'mi' ? metres / 0.3048 : metres).toLocaleString('en-US')} ${units === 'mi' ? 'ft' : 'm'}`;
 const temperature = (value: number, units: UnitSystem, delta = false) => `${decimal(units === 'mi' ? value * 1.8 + (delta ? 0 : 32) : value)}°${units === 'mi' ? 'F' : 'C'}`;
 const wind = (value: number, units: UnitSystem) => `${decimal(value * (units === 'mi' ? 2.2369362920544 : 3.6))} ${units === 'mi' ? 'mph' : 'km/h'}`;
 const precipitation = (value: number | null, units: UnitSystem) => value === null ? 'Not available' : `${decimal(value * (units === 'mi' ? 1 / 25.4 : 1), units === 'mi' ? 3 : 2)} ${units === 'mi' ? 'in' : 'mm'}`;
@@ -85,8 +87,8 @@ export function PacingReadings({ race, metrics, manifest, units }: MeasuredRace 
   });
   return <section className="rc-view" aria-labelledby={`${id}-title`}>
     <h3 id={`${id}-title`} className="rc-h">Late in this race, your pace was {difference(metrics.lateChange)} your early pace.</h3>
-    <p className="rc-copy">Early is 5K to 20K; late, 30K to the finish, lit below. The first 5K was {difference(metrics.openingChange)} the early pace.</p>
-    <LapList rows={rows} baseline={paceLabel(metrics.baseline, units)} label={`Pace through ${titleFor(race, manifest)}, each mat against the 5–20K pace`} />
+    <p className="rc-copy">Early is 5K to 20K; late, 30K to the finish, highlighted below. The first 5K was {difference(metrics.openingChange)} the early pace.</p>
+    <LapList rows={rows} tone="ink" baseline={paceLabel(metrics.baseline, units)} label={`Pace through ${titleFor(race, manifest)}, each mat against the 5–20K pace`} />
     <details className="values rc-details"><summary><span>Checkpoint readings</span><span className="values-glyph" aria-hidden="true" /></summary>
       <div className="rc-table-wrap table-wrap" role="region" aria-label="Recorded checkpoints" tabIndex={0}><table className="table"><caption className="sr-only">Elapsed times and section paces</caption><thead><tr><th scope="col">Checkpoint</th><th scope="col">Elapsed</th><th scope="col">Section time</th><th scope="col">Section pace</th></tr></thead><tbody>{metrics.sections.map(section => <tr key={section.end}><th scope="row">{matLabel(section.end)}</th><td>{runnerDuration(section.cumulative)}</td><td>{runnerDuration(section.elapsed)}</td><td>{paceLabel(section.pace, units)}</td></tr>)}</tbody></table></div>
     </details>
@@ -244,6 +246,5 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
         return <tr key={race.id}><th scope="row">{titleFor(race, manifest)}</th><td>{runnerDuration(metrics.finish)}</td><td>{demographic ? <>{decimal(demographic.percentile)}%<small>{demographic.label}</small></> : 'Not available'}</td><td>{data?.weather ? temperature(data.weather.temp_c, units) : 'Not available'}</td><td>{data?.weather ? decimal(data.weather.humidity_pct) + '%' : 'Not available'}</td><td>{data?.weather ? wind(data.weather.wind_mps, units) : 'Not available'}</td><td>{data?.weather ? precipitation(data.weather.precip_mm, units) : 'Not available'}</td><td>{data?.terrain ? elevationLabel(data.terrain.gain_m, units) : 'Not available'}</td></tr>;
       })}</tbody></table></div></details>}
     </section>}
-    <p className="rc-next"><UnitLink className="btn btn-tertiary" href={runnerHandoffHref(`/analyses/pacing-pattern?race=${encodeURIComponent(manifest.editions[focus.race.edition].city)}&goal=${Math.round(focus.metrics.finish / 60)}&age=all&gender=all`)}>Explore pacing across the wider study<Arrow /></UnitLink></p>
   </section>;
 }

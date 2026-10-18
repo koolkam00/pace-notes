@@ -182,9 +182,11 @@ function recordOf(record: NonNullable<ReportInput['record']>): ReportRecord {
       : { unavailable: `Too few eligible finishes in ${edition} to place this race.` },
     late: pace ? { label: `finishes from ${clock(pace.from_sec)} to under ${clock(pace.to_sec)} in ${edition}`, n: pace.n, from: pace.from_sec, to: pace.to_sec, median: pace.late_change.median, race: record.lateChange }
       : { unavailable: `Too few finishes near this time in ${edition} to compare its late pace.` },
+    // Without weather or a route, one plain line, as the runner view's conditions say it: the data screen's reasons are
+    // method copy, which lives on /methodology.
     weather: context.weather ? { tempC: context.weather.temp_c, humidityPct: context.weather.humidity_pct, windMps: context.weather.wind_mps, start: context.weather.scheduled_start }
-      : { unavailable: context.weather_reason || 'This export does not supply a verified scheduled-start weather match.' },
-    climb: context.terrain ? { gainM: context.terrain.gain_m } : { unavailable: context.terrain_reason || 'This export does not supply a route that can be aligned with the recorded timing sections.' },
+      : { unavailable: 'Not available for this edition.' },
+    climb: context.terrain ? { gainM: context.terrain.gain_m } : { unavailable: 'Not available for this edition.' },
   };
 }
 
