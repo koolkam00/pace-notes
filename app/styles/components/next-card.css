@@ -5,7 +5,7 @@
 .chapter-end { display: grid; gap: var(--s-5); max-width: var(--measure-figure); margin-top: var(--beat-gap); }
 .chapter-end .chapter-next { display: block; margin: 0; }
 
-/* The card. Selectors carry .chapter-end .chapter-next so the legacy pagination cards cannot reach it. */
+/* The card. */
 .chapter-end .chapter-next .next-card {
   position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-3); padding: var(--s-5);
   border: 0; border-radius: var(--r-md); background: var(--night); color: var(--ink); box-shadow: var(--night-edge); text-align: left; text-decoration: none;
@@ -42,6 +42,8 @@
 /* One row on every page: a long way back ("Where improvement happens") wraps inside its own link, beside "How we know". */
 .chapter-end-links > .chapter-prev { flex: 0 1 auto; min-width: 0; }
 .chapter-end-links > .chapter-how { flex: none; margin-left: auto; }
+/* Alone (the chain's first page has no way back), it sits on the left like the rest of the stack. */
+.chapter-end-links > .chapter-how:only-child { margin-left: 0; }
 .chapter-prev, .chapter-how { display: inline-flex; align-items: center; gap: var(--s-2); min-height: 44px; color: var(--ink-2); font-family: var(--sans); font-size: .9375rem; font-weight: 500; text-decoration: none; }
 .chapter-prev:hover, .chapter-how:hover { color: var(--ink); text-decoration: none; }
 .chapter-prev .arrow-icon, .chapter-how .arrow-icon { flex: none; color: var(--ink-3); }

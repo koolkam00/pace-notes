@@ -8,9 +8,9 @@
  *   node scripts/fonts/copy-fonts.cjs           copy the files and rewrite the @font-face block
  *   node scripts/fonts/copy-fonts.cjs --check   fail when a file or the block differs from what fontsource ships
  *
- * Four families, the Latin subsets first: Fraunces (opsz and wght axes only, upright and italic: no SOFT or WONK),
- * Inter (wght, with Cyrillic, Greek and Vietnamese for runner names), Bricolage Grotesque (wght, the reading figure only)
- * and JetBrains Mono (wght). The family names stay the ones fontsource uses ('Fraunces Variable' …), so the font stacks
+ * Three families, the Latin subsets first: Fraunces (opsz and wght axes only, upright and italic: no SOFT or WONK),
+ * Inter (wght, with Cyrillic, Greek and Vietnamese for runner names) and Bricolage Grotesque (wght, the reading figure
+ * only). Code on /methodology uses the device's monospace (--code), so no mono face is shipped. The family names stay the ones fontsource uses ('Fraunces Variable' …), so the font stacks
  * in app/styles/tokens.css are unchanged. URLs are /fonts/<file>: a build under NEXT_PUBLIC_BASE_PATH runs this script
  * first with that variable set, so the URLs carry the base path (app/layout.tsx preloads with it too).
  */
@@ -30,7 +30,6 @@ const FACES = [
   ['fraunces', 'opsz-italic.css', ['latin', 'latin-ext'], 'italic'],
   ['inter', 'wght.css', ['latin', 'latin-ext', 'cyrillic', 'cyrillic-ext', 'greek', 'greek-ext', 'vietnamese'], 'normal'],
   ['bricolage-grotesque', 'wght.css', ['latin', 'latin-ext'], 'normal'],
-  ['jetbrains-mono', 'wght.css', ['latin', 'latin-ext'], 'normal'],
 ];
 
 /** The @font-face blocks of a fontsource stylesheet, keyed by file name. */

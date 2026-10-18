@@ -1,8 +1,0 @@
-/* Legacy rules for the home page (WP1).
-   Split mechanically from app/globals.css and app/story.css by the code that owns each selector (WP0-A, October 2026): no rule
-   was changed. An area package deletes its selectors from its own legacy file when it rebuilds its pages.
-
-   WP1 rebuilt the home page on October 17, 2026 (app/styles/pages/home.css) and deleted its rules here. `.hero` stays:
-   the hubs, the error pages and 404 still use it until their packages rebuild them. */
-
-.hero { padding: clamp(3rem, 7vw, 6rem) 0 clamp(2.5rem, 5vw, 4rem); }

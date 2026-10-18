@@ -1,6 +1,7 @@
 /* Site-wide CSS, in cascade order (the redesign spec, section 6.1): fonts, tokens, base, layout, the components
    (alphabetical), the site-wide page sheets (home, the contents hubs, the info pages and the moved addresses' stub, which
-   sits under several routes), then the legacy rules split by owner from the old globals.css and story.css, which WP9 deletes.
+   sits under several routes). The legacy rules split from the old globals.css and story.css were deleted in WP9 (October 18,
+   2026); what plain elements still needed from them lives in base.css.
    app/layout.tsx imports this one file rather than each sheet: every separately imported sheet costs the layout's
    JavaScript an empty module on every page. Section sheets are imported by their own route layouts and pages. */
 @import './fonts.css';
@@ -37,12 +38,3 @@
 @import './pages/research.css';
 @import './pages/info.css';
 @import './pages/moved.css';
-@import './legacy/shared.css';
-@import './legacy/home.css';
-@import './legacy/stories.css';
-@import './legacy/analyses.css';
-@import './legacy/courses.css';
-@import './legacy/research.css';
-@import './legacy/info.css';
-@import './legacy/runners.css';
-@import './legacy/tools.css';

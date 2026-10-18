@@ -14,8 +14,8 @@
   color-scheme: normal;
 
   /* ---------- Legacy palette ----------
-     These keep their exact values: scripts/build-og-images.cjs (TOKENS) stops when one moves, and the legacy rules in
-     app/styles/legacy/ still use them. New CSS uses the semantic tokens below instead. */
+     These keep their exact values: scripts/build-og-images.cjs (TOKENS) stops when one moves, and a few section sheets
+     still read them. New CSS uses the semantic tokens below instead. */
   --paper: #F5F0E6;
   --paper-2: #EDE6D8;
   --paper-3: #E3D9C6;
@@ -64,6 +64,7 @@
   --ordinal-2: #8A8273;
   --ordinal-3: #676155;
   --ordinal-4: #444038;
+  --mark-lit: var(--ink);           /* a dense field of lit tiles (a waffle): ink by day, a softer light by night */
 
   /* ---------- Night (the race and the answer) ---------- */
   --night-ink-3: #8E897E;
@@ -93,11 +94,10 @@
      Inter draws the 650 of bold copy at 700, so it rewraps a paragraph when the web font arrives and the fallback does not. */
   --serif: 'Fraunces Variable', 'Fraunces Fallback', 'Fraunces Fallback Android', 'Fraunces', Georgia, 'Times New Roman', serif;
   --sans: 'Inter Variable', 'Inter Fallback', 'Inter Fallback Android', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --mono: 'JetBrains Mono Variable', 'JetBrains Mono Fallback', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --bib: 'Bricolage Grotesque Variable', 'Bricolage Grotesque Fallback', 'Bricolage Grotesque', var(--sans);
   --figure: var(--bib);             /* the reading figure only: big numbers, bib chips, the share card figure */
-  /* Code (field names on /methodology) uses the device's monospace: no web font for a handful of words. --mono is
-     legacy only (app/styles/legacy/); the redesign sets kickers and ticks in Inter, and WP9 deletes it with legacy. */
+  /* Code (field names on /methodology) uses the device's monospace: no web font for a handful of words. Kickers and
+     ticks are Inter. */
   --code: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
   /* The scale, phone to desktop. Line height and tracking sit with each type class in base.css. */
   --t-display: clamp(2.25rem, 8.6vw + .2rem, 5.25rem);
@@ -142,12 +142,6 @@
   /* A night surface's edge: nothing on the light page; a hairline ring on the dark one (below). */
   --night-edge: none;
   --night-edge-colour: transparent;
-  /* Legacy shape tokens, used by app/styles/legacy/ and the section sheets. */
-  --radius: 14px;
-  --radius-sm: 9px;
-  --shadow: 0 1px 0 rgba(21, 23, 28, .04), 0 14px 34px -22px rgba(21, 23, 28, .35);
-  --shadow-lift: 0 1px 0 rgba(21, 23, 28, .05), 0 22px 44px -24px rgba(21, 23, 28, .45);
-  --ease: cubic-bezier(.2, .7, .2, 1);
 
   /* ---------- Motion ----------
      --motion is 1, or 0 under prefers-reduced-motion and the site's Motion switch (base.css). Every duration scales with
@@ -203,8 +197,7 @@
 
 /* ---------- Night: the race and the answer, at any theme ----------
    Inside .night the semantic names take their night values, so a component written with --ink, --signal or --rule
-   reads correctly on either surface. (The legacy night bands keep the paper values of --ink, --ink-2, --ink-3 and
-   --paper: see the guard at the top of app/styles/legacy/shared.css.) */
+   reads correctly on either surface. */
 .night {
   color-scheme: dark;
   --paper: var(--night);
@@ -253,7 +246,8 @@
   --ordinal-2: #6B7180;
   --ordinal-3: #9097A5;
   --ordinal-4: #B9BECA;
-  /* The legacy surface names follow, so pages not yet rebuilt stay legible under the dark profile. */
+  --mark-lit: #9097A5;
+  /* The legacy surface names follow, so the section sheets that still read them stay legible on the dark page. */
   --paper-2: #1F242D;
   --paper-3: #2A3039;
   --card: #181C23;
@@ -291,7 +285,8 @@
     --ordinal-2: #6B7180;
     --ordinal-3: #9097A5;
     --ordinal-4: #B9BECA;
-    /* The legacy surface names follow, so pages not yet rebuilt stay legible under the dark profile. */
+    --mark-lit: #9097A5;
+    /* The legacy surface names follow, so the section sheets that still read them stay legible on the dark page. */
     --paper-2: #1F242D;
     --paper-3: #2A3039;
     --card: #181C23;
