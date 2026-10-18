@@ -209,9 +209,6 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
   const [profileError, setProfileError] = useState('');
   const [selected, setSelected] = useState<RunnerRace[]>([]);
   const [confirmed, setConfirmed] = useState<RunnerRace[] | null>(null);
-  // A search that finds no name sets the earlier analysis aside, so it never reads as that search's result; the
-  // selection bar's button brings it back.
-  const [reopened, setReopened] = useState(false);
   const searchController = useRef<AbortController | null>(null);
   const profileController = useRef<AbortController | null>(null);
   const profileHeading = useRef<HTMLHeadingElement>(null);
@@ -220,7 +217,7 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
   const runSearch = useCallback(async (value: string, source: RunnerManifest) => {
     searchController.current?.abort(); profileController.current?.abort();
     const controller = new AbortController(); searchController.current = controller;
-    setProfile(null); setProfileLoading(null); setProfileError(''); setMatches([]); setPage(0); setSearchError(''); setReopened(false);
+    setProfile(null); setProfileLoading(null); setProfileError(''); setMatches([]); setPage(0); setSearchError('');
     if (!normalizeRunnerName(value)) { setSearched(''); setSearchError('Enter a recorded name or the beginning of a name.'); setSearchLoading(false); return; }
     setSearched(value.trim()); setSearchLoading(true);
     trackAnalytics('runner_search_submitted', {});
@@ -285,10 +282,12 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
   // The records the open profile lists, each with its tag and (when limited) its checkpoints.
   const listed = useMemo(() => new Set(orderedRaces.map(race => race.id)), [orderedRaces]);
   const busy = searchLoading || waiting !== null;
+  // A search that finds no name sets the earlier selection and its analysis aside (kept in state), so neither reads as
+  // that search's result or covers its next steps; the next search that finds a name brings the selection bar back.
   const noMatch = !!manifest && !!searched && !searchLoading && !searchError && !matches.length;
-  const shelved = noMatch && !reopened;
 
   return <>
+    <div className="runner-split">
     <div className="runner-side">
     <form className="runner-search-form ph-no-capture" role="search" onSubmit={event => {
       event.preventDefault();
@@ -323,8 +322,11 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
       </li>)}</ul>
     </section>}</div>
     {searched && matches.length > 0 && !searchLoading && !searchError && !selected.length && !confirmed && starts}
-    {manifest && selected.length > 0 && <section className="runner-selection ph-no-capture" aria-labelledby="runner-selection-title"><h2 id="runner-selection-title" className="sr-only">{count(selected.length)} {selected.length === 1 ? 'race' : 'races'} selected</h2><ul className="runner-chips">{selected.map(race => <li key={race.id}><span>{raceLabel(race, manifest)} · {finishLabel(race)}{!race.eligible && <small> · limited</small>}</span><button type="button" onClick={() => toggleRace(race)} aria-label={`Remove ${race.name}, ${raceLabel(race, manifest)}, record ${race.id}`}><span aria-hidden="true" className="runner-chip-x" /></button></li>)}</ul><div className="runner-selection-actions"><button className="btn btn-primary is-compact button-primary" type="button" onClick={() => { trackAnalytics('race_comparison_opened', { selection: selected.length === 1 ? 'one' : 'multiple', availability: selected.every(race => analysed(race, manifest, copyEditions)) ? 'eligible' : selected.some(race => analysed(race, manifest, copyEditions)) ? 'mixed' : 'limited' }); setConfirmed([...selected]); setReopened(true); requestAnimationFrame(() => analysisRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })); }}>{selected.length === 1 ? 'View the selected race' : `View ${count(selected.length)} selected races`}<Arrow /></button><button className="btn btn-tertiary runner-clear" type="button" onClick={() => { setSelected([]); setConfirmed(null); }}>Clear</button></div></section>}
-    <div ref={analysisRef} className="ph-no-capture">{confirmed && manifest && !shelved && <SelectedAnalysis races={confirmed} manifest={manifest} units={units} copyEditions={copyEditions} report={report} listed={listed} />}</div>
+    {manifest && selected.length > 0 && !noMatch && <section className="runner-selection ph-no-capture" aria-labelledby="runner-selection-title"><h2 id="runner-selection-title" className="sr-only">{count(selected.length)} {selected.length === 1 ? 'race' : 'races'} selected</h2><ul className="runner-chips">{selected.map(race => <li key={race.id}><span>{raceLabel(race, manifest)} · {finishLabel(race)}{!race.eligible && <small> · limited</small>}</span><button type="button" onClick={() => toggleRace(race)} aria-label={`Remove ${race.name}, ${raceLabel(race, manifest)}, record ${race.id}`}><span aria-hidden="true" className="runner-chip-x" /></button></li>)}</ul><div className="runner-selection-actions"><button className="btn btn-primary is-compact button-primary" type="button" onClick={() => { trackAnalytics('race_comparison_opened', { selection: selected.length === 1 ? 'one' : 'multiple', availability: selected.every(race => analysed(race, manifest, copyEditions)) ? 'eligible' : selected.some(race => analysed(race, manifest, copyEditions)) ? 'mixed' : 'limited' }); setConfirmed([...selected]); requestAnimationFrame(() => analysisRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })); }}>{selected.length === 1 ? 'View the selected race' : `View ${count(selected.length)} selected races`}<Arrow /></button><button className="btn btn-tertiary runner-clear" type="button" onClick={() => { setSelected([]); setConfirmed(null); }}>Clear</button></div></section>}
     </div>
+    </div>
+    {/* The analysis reads under the search and what it found, outside their two columns (from 900 px the sticky search
+        is held by its own row, so it scrolls away there and the analysis takes the page's middle). */}
+    <div ref={analysisRef} className="runner-reading ph-no-capture">{confirmed && manifest && !noMatch && <SelectedAnalysis races={confirmed} manifest={manifest} units={units} copyEditions={copyEditions} report={report} listed={listed} />}</div>
   </>;
 }

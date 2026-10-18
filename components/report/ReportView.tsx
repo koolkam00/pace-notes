@@ -54,7 +54,7 @@ export default function ReportView({ data, crumbs }: { data: ReportData; crumbs?
         <header className="report-empty">
           <h1 className="t-title">Race report</h1>
           {query ? <>
-            <p className="report-dek">One marathon from its mat times, on one page to print, save or share. This link holds no race to read.</p>
+            <p className="report-dek">One marathon from its mat times, on one page to print, save or share.</p>
             <Starts />
           </> : <>
             <p className="report-dek report-reading" role="status">Reading the race from this link…</p>

@@ -155,7 +155,7 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
         {placement ? (
           <p className="race-report-sentence">
             {'unavailable' in placement ? placement.unavailable
-              : <>Ahead of <em>{count(Math.floor(placement.percentile))} in every 100</em> of the {count(placement.otherN)} other {placement.label}.</>}
+              : <>Ahead of <em>{count(Math.floor(placement.percentile))} in every 100</em> other {placement.label}.</>}
           </p>
         ) : null}
         <LapList rows={lines.sections.map((s, i) => ({ mat: s.mat, split: s.split, pace: s.pace, vs: s.vs, lit: lit[i], sr: sr(s) }))}

@@ -12,7 +12,7 @@ Module._resolveFilename = function (request, ...args) {
 };
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
-const { PacingReadings, SectionComparison, RunnerPeerComparison, RunnerConditions, defaultGroup } = require('../components/RunnerContext.tsx');
+const { PacingReadings, SectionComparison, RunnerPeerComparison, RunnerConditions, defaultGroup, lateWords } = require('../components/RunnerContext.tsx');
 const { runnerMetrics, RUNNER_POINTS } = require('../lib/runner-search.ts');
 const render = (component, props) => renderToStaticMarkup(React.createElement(component, props));
 /** Method, source and caveat copy, which since October 16, 2026 is on /methodology only. */
@@ -79,15 +79,17 @@ const comparison = {
 };
 const milePeers = render(RunnerPeerComparison, { comparison, metrics, units: 'mi', edition: 'London 2020' });
 // One placement sentence, in the race report's words (whole numbers down); no rank line and no placing disclaimer.
-assert.match(milePeers, /Ahead of 75 in every 100 of the 200 other finishes in this group\./); assert.doesNotMatch(milePeers, /Finish \d+ of|share this time|official race placing|Slower finishes/);
-assert.match(milePeers, /Behind it 75%/, 'The lit segment is labelled like the other one ("In front of it")');
-assert.match(render(RunnerPeerComparison, { comparison: { ...comparison, key: 'all', percentile: 51.9 }, metrics, units: 'mi', edition: 'London 2020' }), /Ahead of 51 in every 100 of the 200 other eligible finishes in London 2020\./, 'Every eligible finish: the report\'s placement sentence, word for word, whole numbers down');
-assert.match(milePeers, /12 percentage points lower than/); assert.match(milePeers, /Your pace/); assert.match(milePeers, /Middle 50%/);
+assert.match(milePeers, /Ahead of 75 in every 100 other finishes in this group\./); assert.doesNotMatch(milePeers, /of the 200 other/, 'No count in the placement: it would stand beside the pace group\'s different one'); assert.doesNotMatch(milePeers, /Finish \d+ of|share this time|official race placing|Slower finishes/);
+assert.match(milePeers, /<span>Behind it <b>75%<\/b><\/span><span>In front of it <b>25%<\/b><\/span>/, 'Both segments are named the same way, under the bar');
+assert.match(render(RunnerPeerComparison, { comparison: { ...comparison, key: 'all', percentile: 51.9 }, metrics, units: 'mi', edition: 'London 2020' }), /Ahead of 51 in every 100 other eligible finishes in London 2020\./, 'Every eligible finish: the report\'s placement sentence, word for word, whole numbers down');
+assert.match(milePeers, /You held your early pace late; the group’s median slowed 12%\./, 'The late pace in plain words, this race then the group'); assert.doesNotMatch(milePeers, /percentage points/); assert.match(milePeers, /Your pace/); assert.match(milePeers, /Middle 50%/);
 assert.doesNotMatch(milePeers, METHOD_COPY, 'No percentile definition or group caveat beside the peers');
 assert.match(milePeers, /8:03\/mi/); assert.match(milePeers, /8:11\/mi/);
 assert.match(render(RunnerPeerComparison, { comparison, metrics, units: 'km', edition: 'London 2020' }), /5:05\/km/);
+assert.equal(lateWords(13.8, 8.7), 'You slowed 13.8% late; the group’s median slowed 8.7%.');
+assert.equal(lateWords(-2.04, 0.01), 'You sped up 2% late; the group’s median held its early pace.');
 const sparse = render(RunnerPeerComparison, { comparison: { ...comparison, pace: null }, metrics, units: 'mi', edition: 'London 2020' });
-assert.match(sparse, /pace group is too small/); assert.doesNotMatch(sparse, /101 eligible finishes/); assert.doesNotMatch(sparse, /12 percentage points lower/);
+assert.match(sparse, /pace group is too small/); assert.doesNotMatch(sparse, /101 eligible finishes/); assert.doesNotMatch(sparse, /median slowed 12%/);
 
 const paired = render(SectionComparison, { focus: { race, metrics }, reference: { race: reference, metrics: runnerMetrics(reference) }, manifest, units: 'mi' });
 assert.match(paired, /0:14:03\.9 faster/); assert.match(paired, /0:01:40 less/); assert.doesNotMatch(paired, METHOD_COPY, 'No method copy beside the section comparison');

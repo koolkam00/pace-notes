@@ -218,7 +218,7 @@ ok();
   assert.equal(recorded.record.placement.label, 'eligible finishes in Lakeside 2021'); assert.match(recorded.record.late.label, /^finishes from 4:07:30 to under 4:22:30 in Lakeside 2021$/);
   const html = renderToStaticMarkup(React.createElement(ReportCard, { id: 'r', model: recorded, units: 'mi', level: 3, gender: 'all', dropped: null, retryComparison: () => {}, retryType: () => {} }));
   assert.match(html, /<h3 class="race-report-title"/); assert.doesNotMatch(html, /<h1\b/);
-  assert.match(html, /4,999 other eligible finishes in Lakeside 2021/); assert.match(html, /not an official placing/);
+  assert.match(html, /Ahead of <em>76 in every 100<\/em> other eligible finishes in Lakeside 2021\./); assert.doesNotMatch(html, /4,999/, 'the placement carries no count: it would stand beside the comparison\'s different one'); assert.match(html, /not an official placing/);
   assert.doesNotMatch(html.replace(/<[^>]+>/g, ' '), METHOD_COPY, 'no method line in the record block either');
   // The edition's lines load with the record (components/report/RecordBlock.tsx, lazily, so /report carries none of
   // their code): rendered here on their own, with the same rules.

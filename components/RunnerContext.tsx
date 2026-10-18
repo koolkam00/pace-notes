@@ -122,19 +122,29 @@ export function SectionComparison({ focus, reference, manifest, units }: { focus
   </>;
 }
 
+/**
+ * The late pace in plain words, this race's then the group's median ("You slowed 13.8% late; the group's median slowed
+ * 8.7%."), each against its own 5–20K pace: slowed, sped up, or held.
+ */
+export function lateWords(own: number, median: number): string {
+  const said = (v: number) => (Math.abs(v) < 0.05 ? null : v > 0 ? `slowed ${decimal(v)}%` : `sped up ${decimal(-v)}%`);
+  const mine = said(own), theirs = said(median);
+  return `${mine ? `You ${mine} late` : 'You held your early pace late'}; the group’s median ${theirs ?? 'held its early pace'}.`;
+}
+
 /** Where the finish sits among this edition's finishes in the chosen group, then the pace beside similar finish times. */
 export function RunnerPeerComparison({ comparison, metrics, units, edition }: { comparison: PeerComparison; metrics: RunnerMetrics; units: UnitSystem; edition: string }) {
   const pace = comparison.pace;
   const p = comparison.percentile;
-  const lateDifference = pace ? metrics.lateChange - pace.late_change.median : null;
-  // In the race report's own words ("Ahead of 51 in every 100 …", whole numbers down), so the two never disagree; the
-  // lit segment is the finishes behind this race, the share the sentence names.
+  // In the race report's own words ("Ahead of 51 in every 100 other …", whole numbers down), so the two never disagree,
+  // and without a count, which would stand beside the pace group's different one; the lit segment is the finishes
+  // behind this race, the share the sentence names, and both segments are named under the bar.
   const ahead = Math.floor(p);
   const among = comparison.key === 'all' ? `other eligible finishes in ${edition}` : 'other finishes in this group';
   const placement = <>
-    <ShareBar signalInside segments={[{ id: 'behind', label: 'Behind it', share: p / 100, display: `${ahead}%`, tone: 'signal' }, { id: 'ahead', label: 'In front of it', share: 1 - p / 100, display: `${100 - ahead}%`, tone: 'quiet' }]}
-      label={`Ahead of ${ahead} in every 100 of the ${count(comparison.other_n)} ${among}`} />
-    <p className="rc-copy">Ahead of {ahead} in every 100 of the {count(comparison.other_n)} {among}.</p>
+    <ShareBar labels="under" segments={[{ id: 'behind', label: 'Behind it', share: p / 100, display: `${ahead}%`, tone: 'signal' }, { id: 'ahead', label: 'In front of it', share: 1 - p / 100, display: `${100 - ahead}%`, tone: 'quiet' }]}
+      label={`Ahead of ${ahead} in every 100 ${among}`} />
+    <p className="rc-copy">Ahead of {ahead} in every 100 {among}.</p>
   </>;
   if (!pace) return <>{placement}<div className="rc-empty"><h3 className="rc-h">The finish comparison is available. The pace group is too small.</h3><p className="rc-copy">Choose a broader age or gender comparison to see a pacing profile.</p></div></>;
   const xs = metrics.sections.map(section => section.end);
@@ -148,7 +158,7 @@ export function RunnerPeerComparison({ comparison, metrics, units, edition }: { 
   return <>
     {placement}
     <section className="rc-peer-pacing">
-      <h3 className="rc-h">Your late-race pace change was {lateDifference !== null && Math.abs(lateDifference) < 0.05 ? 'about the same as' : `${decimal(Math.abs(lateDifference!))} percentage points ${lateDifference! > 0 ? 'higher than' : 'lower than'}`} the group median ({decimal(pace.late_change.median)}%).</h3>
+      <h3 className="rc-h">{lateWords(metrics.lateChange, pace.late_change.median)}</h3>
       <p className="rc-copy">{count(pace.n)} finishes from {runnerDuration(pace.from_sec)} to under {runnerDuration(pace.to_sec)} in this same edition.</p>
       <LineProfile x={xs} xDomain={[5, 42.195]} yDomain={axis ? axis.domain : undefined}
         xTicks={[5, 10, 20, 30, 42.195].map(km => ({ value: km, label: matLabel(km) }))}
