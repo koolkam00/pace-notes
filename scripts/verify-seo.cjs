@@ -703,8 +703,13 @@ const linkPath = (href, from) => {
   try { return decodeURIComponent(url.pathname.replace(/\/$/, '')) || '/'; } catch { return null; }
 };
 const idsOf = (page) => new Set([...page.html.matchAll(/<[a-z][\w:-]*\b[^>]*\bid\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)].map((m) => decode(m[1] ?? m[2])));
-/** The flight data of a page (React's inline payload), where a client component's props are written as escaped JSON. */
-const flightHas = (page, key, value) => new RegExp(`\\\\?"${key}\\\\?":\\\\?"${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\\\?"`).test(page.html);
+/** The arguments of a stub's forward (components/LegacyAnalysisLink.tsx): [to, guides, base path], or null without one. */
+const forwardOf = (page) => {
+  const scripts = [...page.html.matchAll(/<script\b[^>]*\bdata-forward\b[^>]*>([\s\S]*?)<\/script>/gi)];
+  const call = scripts.length === 1 ? /\}\)\(([\s\S]*)\)\s*$/.exec(scripts[0][1]) : null;
+  try { return call ? JSON.parse(`[${call[1]}]`) : null; } catch { return null; }
+};
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
 (function checkStubs() {
   for (const page of pages) {
@@ -721,9 +726,14 @@ const flightHas = (page, key, value) => new RegExp(`\\\\?"${key}\\\\?":\\\\?"${v
     if (!page) { fail('stubs', from, `has no stub in the export: a host that cannot redirect would show the 404 instead of ${to}`); continue; }
     if (page.h1.length !== 1 || page.h1[0] !== MOVED_TEXT) fail('stubs', from, `its H1 is ${JSON.stringify(page.h1.join(' | '))}, not "${MOVED_TEXT}"`);
     if (!page.hrefs.some((href) => href === to || href.startsWith(to + '?'))) fail('stubs', from, `has no visible link to ${to}`);
-    if (!flightHas(page, 'to', to)) fail('stubs', from, `has no forward to ${to} (LegacyAnalysisLink's props are not in the page's payload)`);
-    if (FORWARD_ONLY[from] !== undefined || from === '/research/personalized') {
-      for (const [hash, target] of Object.entries(routes.guideTargets())) if (!flightHas(page, hash, target)) fail('stubs', from, `does not forward #${hash} to ${target}`);
+    const forward = forwardOf(page);
+    if (!forward) fail('stubs', from, 'has no forward (one <script data-forward> from components/LegacyAnalysisLink.tsx)');
+    else {
+      const [forwardTo, guides, base] = forward;
+      if (forwardTo !== to) fail('stubs', from, `forwards to ${forwardTo}, not ${to}`);
+      if (base !== BASE_PATH) fail('stubs', from, `forwards under the base path ${JSON.stringify(base)}, not ${JSON.stringify(BASE_PATH)}`);
+      const wantGuides = FORWARD_ONLY[from] !== undefined || from === '/research/personalized' ? routes.guideTargets() : null;
+      if (JSON.stringify(guides) !== JSON.stringify(wantGuides)) fail('stubs', from, wantGuides ? 'does not forward the old #guide-<question> links to their analyses (guideTargets())' : 'forwards #guide- links it never had');
     }
     const ogUrl = (page.social['og:url'] || [])[0];
     if (ogUrl !== routes.absoluteUrl(toPath)) fail('stubs', from, `og:url is ${ogUrl || 'missing'}, not the target ${routes.absoluteUrl(toPath)}`);
