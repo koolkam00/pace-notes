@@ -58,7 +58,7 @@
 /* At 200% zoom the bar takes its own line under the numbers, and the finish steps down a size. */
 @media (max-width: 299.98px) {
   .race-report-screen { padding: 16px 14px; }
-  .race-report-finish .big-number { font-size: 2.25rem; }
+  .race-report-finish .big-number { font-size: 2rem; }
   .lap-head { display: none; }
   .lap-rows li, .lap-list.no-split .lap-rows li { grid-template-columns: auto auto minmax(0, 1fr); padding-top: 6px; }
   .lap-bar { grid-column: 1 / -1; height: 22px; }
