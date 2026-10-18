@@ -3,7 +3,7 @@
    one chart, divided by hairlines, never boxed. Every long table sits in one "All numbers" disclosure. Mobile first; from
    900 px the hero and each beat take two columns (the finding beside its chart). */
 
-.course-page { --course-gap: 28px; padding-bottom: var(--s-6); }
+.course-page { --course-gap: 24px; padding-bottom: var(--s-6); }
 .course-page .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: .2em; }
 .course-page .term-link:hover { text-decoration-style: solid; }
 
@@ -67,10 +67,12 @@
 /* ---------- Beats: a finding and one chart, a hairline between ---------- */
 .course-beat { padding-top: var(--course-gap); scroll-margin-top: calc(var(--header-h) + 64px); }
 .course-beat + .course-beat, .course-numbers + .course-beat { margin-top: var(--course-gap); border-top: 1px solid var(--rule); }
+/* The night replay band already ends its beat: no hairline under it. */
+.course-replay-beat + .course-beat { border-top: 0; }
 .course-toc + .course-beat { padding-top: var(--s-6); }
 .course-beat[tabindex="-1"]:focus { outline: none; }
 .course-h2 {
-  margin: 0; max-width: 24ch; font-family: var(--serif); font-weight: 440; font-size: clamp(1.375rem, 4.2vw + .35rem, 2.25rem);
+  margin: 0; max-width: 24ch; font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; font-size: clamp(1.375rem, 4.2vw + .35rem, 2.25rem);
   line-height: 1.15; letter-spacing: -.015em; color: var(--ink); text-wrap: balance;
 }
 .course-h2 em { font-style: italic; font-weight: inherit; color: var(--signal-ink); }
@@ -85,6 +87,7 @@
   display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "figure chart" "key chart";
   column-gap: var(--s-4); row-gap: 6px; align-items: center; margin: 0; padding: var(--s-3) 0; border-bottom: 1px solid var(--rule);
 }
+.glance-row:last-child { border-bottom: 0; padding-bottom: 0; }
 .glance-figure { grid-area: figure; min-width: 0; }
 .glance-figure .big-number { font-size: clamp(2rem, 8.2vw, 3rem); }
 .glance-key { grid-area: key; max-width: 22rem; font-size: .9375rem; line-height: 1.4; color: var(--ink-2); }
@@ -97,6 +100,9 @@
 .glance-bar.is-signal { fill: var(--signal); }
 .glance-dot { fill: var(--paper); stroke: var(--mark-quiet); stroke-width: 1.2; }
 .glance-dot.is-on { fill: var(--ink); stroke: var(--ink); }
+.glance-typical { fill: none; stroke: var(--mark-quiet); stroke-width: 1.4; stroke-dasharray: 3 3; }
+.glance-course { fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+.glance-point { fill: var(--signal); stroke: var(--paper); stroke-width: 1.5; }
 
 /* Elevation: without section paces, no pace blocks. The route's totals under the chart, one line. */
 .course-elevation-plain .pace-blocks { display: none; }
@@ -105,12 +111,19 @@
 .course-totals dt { font-weight: 600; color: var(--ink); }
 .course-totals dd { margin: 0; }
 
-/* Pacing: the dumbbell rows, a glyph beside each type's name. */
+/* Pacing: the dumbbell rows, a glyph beside each type's name; the name column wide enough for "Fast-start fader". */
+@container (min-width: 300px) { .viz-frame.dumbbell.course-types .dumbbell-rows { grid-template-columns: minmax(0, 47%) minmax(0, 1fr) 3rem; } }
 .course-types .dumbbell-label { display: inline-flex; align-items: center; gap: var(--s-2); }
 .course-types .dumbbell-label > span { min-width: 0; }
 
-/* Goals: the table is the chart. A row per goal: the goal (a link to the planner), a bar out of 100, the share. */
+/* Goals: the table is the chart. A row per goal: the goal (a link to the planner, stretched over the whole row), a bar
+   out of 100, the share. */
 .course-goals-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.course-goals-table tbody tr { position: relative; }
+.course-goals-table tbody th a::after { content: ''; position: absolute; inset: 0; }
+.course-goals-table tbody tr:hover .arrow-icon { transform: translateX(3px); color: var(--ink); }
+.course-goals-table tbody th a:focus-visible { outline: none; }
+.course-goals-table tbody th a:focus-visible::after { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
 .course-goals-table th, .course-goals-table td { padding: 0; border-bottom: 1px solid var(--rule); vertical-align: middle; }
 .course-goals-table tbody tr:first-child th, .course-goals-table tbody tr:first-child td { border-top: 1px solid var(--rule); }
 .course-goals-table tbody th { width: 6.5rem; text-align: left; }
@@ -128,10 +141,12 @@
 .course-goals-table tr.is-lead .goal-bar span { background: var(--signal); }
 .course-goals-table tr.is-lead .goal-value { color: var(--signal-ink); }
 .course-goals-table td.course-reason { padding: var(--s-3) 0; font-size: var(--t-small); color: var(--ink-3); }
+.course-goals-table tbody tr:last-child th, .course-goals-table tbody tr:last-child td { border-bottom: 0; }
 
 /* Plan: one list of link rows, 52 px each. */
 .course-links { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
 .course-links li { margin: 0; border-bottom: 1px solid var(--rule); }
+.course-links li:last-child { border-bottom: 0; }
 .course-link { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); min-height: 56px; padding: var(--s-2) 0; color: var(--ink); text-decoration: none; font-size: 1.0625rem; font-weight: 600; }
 .course-link > span { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s-3); }
 .course-link .evidence-badge { font-size: var(--t-label); font-weight: 600; color: var(--ink-2); }
@@ -166,6 +181,11 @@
 .course-spark-line { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .course-beat .chapter-end { margin-top: var(--s-6); }
 
+/* The scrubbers' detent dots show only once the needle leaves the edition the chart opens on (a mark at rest on the axis
+   would read as data). */
+.course-page .scrub:not(.is-away):not(.is-dragging) .scrub-detents i,
+.course-hero .scrub:not(.is-away):not(.is-dragging) .scrub-detents i { opacity: 0; }
+
 /* ---------- All numbers: one disclosure, every table ---------- */
 .course-numbers { margin-top: var(--course-gap); }
 .course-numbers-body { display: grid; gap: var(--s-6); }
@@ -196,15 +216,17 @@
 /* ---------- From 900 px: two columns ---------- */
 @media (min-width: 900px) {
   .course-page { --course-gap: 64px; }
+  /* The route beside the race's name, the year strip beside the reading: no column runs empty. */
   .course-hero {
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--s-8);
-    grid-template-areas: "head route" "figure route" "sentence strip" "actions strip";
-    grid-template-rows: auto 1fr auto auto; align-items: start; padding: var(--s-7) 0 var(--s-8);
+    grid-template-areas: "head route" "figure strip" "sentence strip" "actions strip";
+    grid-template-rows: auto auto auto 1fr; align-items: start; padding: var(--s-7) 0 var(--s-8);
   }
-  .course-hero-route { --route-w: 100%; justify-self: center; width: min(100%, 340px); margin-top: 0; }
-  .course-hero-route .route-face { max-height: 300px; }
-  .course-hero-figure { margin-top: var(--s-7); align-self: end; }
-  .course-hero-strip { margin-top: var(--s-5); align-self: start; }
+  .course-hero-route { --route-w: 100%; justify-self: center; align-self: center; width: min(100%, 340px); margin-top: 0; }
+  .course-hero-route .route-face { max-height: 260px; }
+  .course-hero-figure { margin-top: var(--s-7); }
+  .course-hero-key { max-width: 22rem; }
+  .course-hero-strip { margin-top: var(--s-7); align-self: start; }
   .course-beat { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); column-gap: var(--s-8); align-items: start; }
   .course-beat > .course-h2 { position: sticky; top: calc(var(--header-h) + 80px); }
   .course-beat-body { margin-top: 0; }
@@ -215,6 +237,9 @@
 
 @media (min-width: 1180px) {
   .course-toc { margin: 0; padding-inline: 0; }
+  /* The header shows the orange "Plan your race" from here: the hero's own way to the planner steps back to an outline. */
+  .course-hero-actions .btn-primary { background: transparent; border-color: var(--ink); color: var(--ink); }
+  .course-hero-actions .btn-primary:hover { background: var(--paper-sunk); border-color: var(--ink); color: var(--ink); }
 }
 
 /* At 200% zoom a phone's column is 163 px: the route face sits under the figure, chips keep their row. */
@@ -224,6 +249,8 @@
   .glance-row { grid-template-columns: minmax(0, 1fr); grid-template-areas: "figure" "key" "chart"; }
   .course-row { grid-template-columns: minmax(0, 1fr) 16px; grid-template-areas: "name go" "meta go"; }
   .course-row .course-spark { display: none; }
+  /* A long one-word race name ("Copenhagen") fits the 163 px column: a step down, and a break inside the word if it must. */
+  .course-title { font-size: 1.625rem; overflow-wrap: anywhere; hyphens: auto; }
 }
 
 @media print {

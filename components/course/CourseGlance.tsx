@@ -1,22 +1,27 @@
 import BigNumber from '@/components/ui/BigNumber';
-import { Elevation } from '@/components/story/Units';
+import LineProfile from '@/components/viz/LineProfile';
 import { getNugget, type Nugget } from '@/lib/nuggets';
-import type { CourseNugget } from '@/lib/nuggets/courses';
-import { hm } from '@/lib/nuggets/format';
+import { SIGNATURE_MIN, type CourseNugget } from '@/lib/nuggets/courses';
+import type { Courses } from '@/lib/insights';
+import { readInsight } from '@/lib/insights-server';
 import type { CoursePageData } from '@/lib/course-page';
 import ByUnits from './ByUnits.client';
-import { CourseSection, Fact } from './Fact';
+import { CourseSection, Said } from './Fact';
 
 /**
- * "What makes {city} {city}" (the redesign spec, section 7.10): up to three nugget rows divided by hairlines, each a
- * figure, the words that finish its sentence and a micro-chart of at most 48 px: the first 5K's drop or climb (the
- * route's profile on the shared height scale, the first 5K in signal), the slowest 5K (the nine sections against the
- * course's own average), and how often its pacing shape alone picked the course out (one dot per edition). A course
- * without a route or a shape fills in with its climb and its median finish, so the section is never thin.
+ * "What makes {city} {city}" (the redesign spec, section 7.10): only what sets the course apart, up to three rows divided
+ * by hairlines, each a figure, the words that finish its sentence and a micro-chart of at most 48 px. A row shows only
+ * when its nugget's guard holds: a first 5K that ends 10 m or more above or below its start (the route's profile on the
+ * shared height scale, the first 5K in signal), a slowest 5K unlike nearly every other course's (the nine sections
+ * against the course's own average), a pacing shape that picked the course out in three of four editions or more (a dot
+ * per edition), and the 5K where its pacing parts most from the typical course's (both curves, that section in signal).
+ * A course with none of these that paces within 2 points of the typical course everywhere says so, over the two curves;
+ * a course without enough editions to say either has no glance at all (the page leaves the section out).
  */
 type Row = { id: string; figure: React.ReactNode; key: string; viz?: React.ReactNode };
 
 const W = 96, H = 40;
+const line = (p: readonly (readonly [number, number])[]) => p.map(([px, py], i) => `${i ? 'L' : 'M'}${px.toFixed(1)} ${py.toFixed(1)}`).join('');
 
 /** The profile with the first 5K in signal, on the shared height scale (so a flat start draws flat). */
 function StartViz({ page }: { page: CoursePageData }) {
@@ -26,7 +31,6 @@ function StartViz({ page }: { page: CoursePageData }) {
   const x = (i: number) => (i / Math.max(1, n - 1)) * W;
   const y = (m: number) => H - 3 - ((H - 6) * (m - floor)) / page.relief;
   const pts = g.elevation_m.map((m, i) => [x(i), y(m)] as const);
-  const line = (p: readonly (readonly [number, number])[]) => p.map(([px, py], i) => `${i ? 'L' : 'M'}${px.toFixed(1)} ${py.toFixed(1)}`).join('');
   const cut = Math.max(1, Math.round(5 / g.elevation_step_km));
   return (
     <svg className="glance-viz" viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden="true" focusable="false">
@@ -66,43 +70,79 @@ function ShapeViz({ correct, editions }: { correct: number; editions: number }) 
   );
 }
 
+/** The course's pace by section (ink) over the typical course's (dashed), on one scale; the section it parts most in signal. */
+function SignatureViz({ curve, typical, at }: { curve: number[]; typical: number[]; at: number }) {
+  const span = Math.max(1, ...curve.map((v) => Math.abs(v)), ...typical.map((v) => Math.abs(v)));
+  const x = (i: number) => 3 + (i / 8) * (W - 6);
+  const y = (v: number) => H / 2 - (v / span) * (H / 2 - 4);
+  return (
+    <svg className="glance-viz" viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden="true" focusable="false">
+      <path className="glance-typical" d={line(typical.map((v, i) => [x(i), y(v)] as const))} />
+      <path className="glance-course" d={line(curve.map((v, i) => [x(i), y(v)] as const))} />
+      <circle className="glance-point" cx={x(at)} cy={y(curve[at])} r="3.5" />
+    </svg>
+  );
+}
+
 function figureOf(n: Nugget) {
   return n.figure ? <BigNumber value={n.figure.value} unit={n.figure.unit} sr={n.figure.sr} size="m" /> : null;
 }
 
+type GlanceId = 'course.start' | 'course.late' | 'course.shape' | 'course.signature';
+
+/** The glance's rows for a course, in order, at most three: the ones whose guards hold. Exported for the page's contents row. */
+export function glanceRows(page: CoursePageData): { ids: GlanceId[]; typical: boolean } {
+  const { city } = page;
+  const ids = (['course.start', 'course.late', 'course.shape', 'course.signature'] as GlanceId[]).filter((id) => {
+    const n = getNugget(id, { city });
+    return n.guard && !!n.figure && (id !== 'course.start' || !!page.geometry);
+  }).slice(0, 3);
+  const typical = !ids.length && Number(getNugget('course.signature', { city }).values.typical_like) === 1;
+  return { ids, typical };
+}
+
 export default function CourseGlance({ page }: { page: CoursePageData }) {
-  const { city, display, summary: s, geometry } = page;
-  // A two-word city stays on one line, so a long name breaks between the two, never inside one.
+  const { city, display, summary: s } = page;
+  const { ids, typical } = glanceRows(page);
+  const signature = getNugget('course.signature', { city });
+  const typicalCurve = readInsight<Courses>('courses.json').typical_curve;
+  const curve = s.curve?.length === 9 ? s.curve : null;
+  if (typical && curve) {
+    // Nothing sets the course apart: it says so, over its pace by section and the typical course's.
+    const mid = [2.5, 7.5, 12.5, 17.5, 22.5, 27.5, 32.5, 37.5, 41.1];
+    return (
+      <CourseSection id="at-a-glance" track="chapter-1" beat="At a glance" title={<Said nugget={signature} />}>
+        <div className="course-glance">
+          <LineProfile x={mid} xDomain={[0, 42.195]} xTicks={[{ value: 0, label: 'Start' }, { value: 10, label: '10K' }, { value: 20, label: '20K' }, { value: 30, label: '30K' }, { value: 40, label: '40K' }]}
+            layers={[{ id: 'shape', label: display, series: [{ id: 'typical', values: typicalCurve, dashed: true }, { id: 'course', values: curve }] }]}
+            refs={[{ value: 0, label: 'Its average pace' }]}
+            keys={[{ label: display, mark: 'line' }, { label: 'The typical course', mark: 'dash' }]}
+            label={`${display}'s pace in each 5K section against its own average, over the typical course's: no section ${SIGNATURE_MIN} points apart or more`} height={120} heightMd={170} />
+        </div>
+      </CourseSection>
+    );
+  }
+  if (!ids.length) return null;
   const kept = display.replace(/ /g, '\u00a0');
-  const start = getNugget('course.start', { city }) as CourseNugget;
-  const late = getNugget('course.late', { city });
-  const shape = getNugget('course.shape', { city });
-  const rows: Row[] = [];
-  if (start.figure && geometry) {
-    const km = start.figureKm;
-    rows.push({
-      id: 'start',
-      figure: km ? <ByUnits mi={figureOf(start)} km={<BigNumber value={km.value} unit={km.unit} sr={km.sr} size="m" />} /> : figureOf(start),
-      key: start.key!,
-      viz: <StartViz page={page} />,
-    });
-  }
-  if (late.guard && late.figure) {
-    const curve = s.curve ?? [];
-    const slowest = s.slowest_section ? page.sections.indexOf(s.slowest_section) : -1;
-    rows.push({ id: 'late', figure: figureOf(late), key: late.key!, viz: curve.length === 9 && slowest >= 0 ? <LateViz curve={curve} slowest={slowest} /> : undefined });
-  }
-  if (shape.guard && s.identified) rows.push({ id: 'shape', figure: figureOf(shape), key: shape.key!, viz: <ShapeViz correct={s.identified.correct} editions={s.identified.editions} /> });
-  // Fill-ins for a course without a route or a shape: its whole climb, then its median finish.
-  if (rows.length < 3 && geometry && !rows.some((r) => r.id === 'start')) {
-    rows.push({ id: 'climb', figure: <span className="big-number is-m"><Fact k="geo.gain" v={geometry.gain_m}><Elevation metres={geometry.gain_m} /></Fact></span>, key: 'of climbing, start to finish' });
-  }
-  if (rows.length < 3) rows.push({ id: 'median', figure: <BigNumber value={hm(s.median_s / 60)} sr={`median finish ${hm(s.median_s / 60)}`} size="m" />, key: 'the median finish in an average edition' });
+  const rows: Row[] = ids.map((id) => {
+    const n = getNugget(id, { city }) as CourseNugget;
+    if (id === 'course.start') {
+      const km = n.figureKm;
+      return { id, figure: km ? <ByUnits mi={figureOf(n)} km={<BigNumber value={km.value} unit={km.unit} sr={km.sr} size="m" />} /> : figureOf(n), key: n.key!, viz: <StartViz page={page} /> };
+    }
+    if (id === 'course.late') {
+      const slowest = s.slowest_section ? page.sections.indexOf(s.slowest_section) : -1;
+      return { id, figure: figureOf(n), key: n.key!, viz: curve && slowest >= 0 ? <LateViz curve={curve} slowest={slowest} /> : undefined };
+    }
+    if (id === 'course.shape') return { id, figure: figureOf(n), key: n.key!, viz: s.identified ? <ShapeViz correct={s.identified.correct} editions={s.identified.editions} /> : undefined };
+    const at = s.signature_section ? page.sections.indexOf(s.signature_section) : -1;
+    return { id, figure: figureOf(n), key: n.key!, viz: curve && at >= 0 ? <SignatureViz curve={curve} typical={typicalCurve} at={at} /> : undefined };
+  });
   return (
     <CourseSection id="at-a-glance" track="chapter-1" beat="At a glance" title={<>What makes {kept} <em>{kept}</em></>}>
       <div className="course-glance">
         <ul className="glance-rows">
-          {rows.slice(0, 3).map((r) => (
+          {rows.map((r) => (
             <li key={r.id} className="glance-row">
               <span className="glance-figure">{r.figure}</span>
               <span className="glance-key">{r.key}</span>

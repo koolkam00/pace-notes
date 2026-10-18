@@ -19,12 +19,14 @@ function tempTicks(lo: number, hi: number, units: UnitSystem): { value: number; 
 /**
  * "#weather": every race morning as a dot, start temperature against the share of finishes with a sustained slowdown.
  * The sentence states the warmest and coolest mornings as two facts, only when they are at least 5 °C apart (then the
- * pair is joined on the chart); otherwise it gives the span of the mornings. Never "warmer, therefore". One gridline,
- * at the top, labelled above the dots, so its label never meets a year's.
+ * pair is inked and labelled, never joined: a line across the cloud would read as a trend, "warmer, therefore"), and the
+ * chart opens on the warmer one, which the sentence leads with; otherwise it gives the span of the mornings. One
+ * gridline, at the top, labelled above the dots, so its label never meets a year's.
  */
 export default function CourseWeatherByYear({ page }: { page: CoursePageData }) {
   const { city, display, weather, hotCool } = page;
-  if (!weather.length) return null;
+  // One race morning has no chart to draw: its weather is in "All numbers".
+  if (weather.length < 2) return null;
   const n = getNugget('course.weather', { city });
   const inPair = (y: number) => !!hotCool && (hotCool.hot.year === y || hotCool.cool.year === y);
   const lo = Math.min(...weather.map((e) => e.temp)), hi = Math.max(...weather.map((e) => e.temp));
@@ -33,13 +35,13 @@ export default function CourseWeatherByYear({ page }: { page: CoursePageData }) 
   const chart = (units: UnitSystem) => (
     <Scatter points={weather.map((e) => ({ id: String(e.year), x: e.temp, y: e.slowdown, label: String(e.year), key: `${display} ${e.year}`, value: `${temp(e.temp, units)} · ${pct(e.slowdown)}`, inPair: inPair(e.year) }))}
       xDomain={[lo - pad, hi + pad]} yDomain={[0, top]} xTicks={tempTicks(lo - pad, hi + pad, units)}
-      yTicks={[{ value: top, label: pct(top) }]} pairLabel="The warmest and coolest mornings"
+      yTicks={[{ value: top, label: pct(top) }]} pairLabel="The warmest and coolest mornings" pairLine={false} selected={hotCool ? String(hotCool.hot.year) : undefined}
       axisTitle={{ end: 'At the start' }}
       label={`Start temperature against sustained slowdown, ${weather.length} ${display} race mornings`} height={150} heightMd={240} />
   );
   return (
     <CourseSection id="weather" track="chapter-7" beat="Weather" title={n.guard ? <span className="course-hotcool"><Said nugget={n} /></span> : <Said nugget={n} />}>
-      {weather.length >= 2 ? <ByUnits mi={chart('mi')} km={chart('km')} /> : null}
+      <ByUnits mi={chart('mi')} km={chart('km')} />
     </CourseSection>
   );
 }

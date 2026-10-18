@@ -18,26 +18,25 @@ export const GOAL_GAP = 'Too few finishes at this pace.';
 export default function CourseGoals({ page }: { page: CoursePageData }) {
   const { city, race, goals } = page;
   const n = getNugget('course.goal', { city });
+  if (!goals.length) return null;
   return (
     <CourseSection id="goals" track="chapter-6" beat="Goals" title={<Said nugget={n} />}>
-      {goals.length ? (
-        <CourseTable id="goals-caption" captionHidden className="course-goals-table" caption={`Of finishes on each goal's pace through 20K in the ${race}, the share that made the goal`}>
-          <thead className="sr-only"><tr><th scope="col">Goal</th><th scope="col">Made the goal, out of 100</th><th scope="col">Made the goal</th></tr></thead>
-          <tbody>
-            {goals.map(({ goal, row }) => (
-              <tr key={goal} className={goal === LEAD_GOAL ? 'is-lead' : undefined}>
-                <th scope="row"><Link href={planHref(city, goal) ?? '/tools/plan'} aria-label={`Plan a ${goalText(goal)} ${race}`}>{goalText(goal)}<Arrow /></Link></th>
-                {row ? (
-                  <>
-                    <td className="goal-bar" aria-hidden="true"><span style={{ width: `${Math.max(0.5, row.under * 100).toFixed(1)}%` }} /></td>
-                    <td className="goal-value"><Fact k={`g.under.r@${goal}`} v={row.under}>{pct(row.under)}</Fact></td>
-                  </>
-                ) : <td colSpan={2} className="course-reason" data-goal={goal}>{GOAL_GAP}</td>}
-              </tr>
-            ))}
-          </tbody>
-        </CourseTable>
-      ) : null}
+      <CourseTable id="goals-caption" captionHidden className="course-goals-table" caption={`Of finishes on each goal's pace through 20K in the ${race}, the share that made the goal`}>
+        <thead className="sr-only"><tr><th scope="col">Goal</th><th scope="col">Made the goal, out of 100</th><th scope="col">Made the goal</th></tr></thead>
+        <tbody>
+          {goals.map(({ goal, row }) => (
+            <tr key={goal} className={goal === LEAD_GOAL ? 'is-lead' : undefined}>
+              <th scope="row"><Link href={planHref(city, goal) ?? '/tools/plan'} aria-label={`Plan a ${goalText(goal)} ${race}`}>{goalText(goal)}<Arrow /></Link></th>
+              {row ? (
+                <>
+                  <td className="goal-bar" aria-hidden="true"><span style={{ width: `${Math.max(0.5, row.under * 100).toFixed(1)}%` }} /></td>
+                  <td className="goal-value"><Fact k={`g.under.r@${goal}`} v={row.under}>{pct(row.under)}</Fact></td>
+                </>
+              ) : <td colSpan={2} className="course-reason" data-goal={goal}>{GOAL_GAP}</td>}
+            </tr>
+          ))}
+        </tbody>
+      </CourseTable>
     </CourseSection>
   );
 }

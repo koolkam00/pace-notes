@@ -12,7 +12,7 @@ import { CourseSection, Fact, Said } from './Fact';
 export default function CoursePacing({ page }: { page: CoursePageData }) {
   const { city, display, types, archetypes } = page;
   const n = getNugget('course.types', { city });
-  if (!types) return <CourseSection id="pacing" track="chapter-4" beat="Pacing" title={<Said nugget={n} />} />;
+  if (!types) return null;
   const named = n.guard ? String(n.values.type) : '';
   const top = Math.max(...types.shares, ...archetypes.map((a) => a.share));
   const max = Math.ceil(top * 10 + 0.25) / 10;

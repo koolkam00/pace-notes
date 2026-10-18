@@ -76,37 +76,55 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const guard = cells.length >= 2 && whole(lo.slowdown) !== whole(hi.slowdown) && !held.has(`${city}|${lo.year}`) && !held.has(`${city}|${hi.year}`);
       step(() => eq(n.guard, guard, `course.slowdown (${city}): guard`));
       step(() => eq(n.figure.value, String(Math.round(c.slowdown * 100)), `course.slowdown (${city}): the figure`));
-      if (guard) step(() => ok(said(n).includes(`${whole(lo.slowdown)} in ${lo.year}`) && said(n).includes(`${whole(hi.slowdown)} in ${hi.year}`), `course.slowdown (${city}): the sentence names the range`));
+      if (guard) step(() => eq(said(n), `Edition by edition, between ${whole(lo.slowdown)} (${lo.year}) and ${whole(hi.slowdown)} (${hi.year}).`, `course.slowdown (${city}): the sentence names the range, low end first, in no time order`));
     }
 
-    // At a glance (1): the first 5K's net, from the route's sections.
+    // At a glance (1): the first 5K's net, from the route's sections, only from 10 m either way.
     {
       const n = at('course.start');
       const t = route ? terrain.get(city) : null;
       const net = t ? t[0].net_m : NaN;
       step(() => ok(Number.isNaN(net) ? Number.isNaN(n.values.net_m) : Math.abs(n.values.net_m - net) < 1e-9, `course.start (${city}) recounts the first 5K's net`));
       step(() => eq(n.guard, Number.isFinite(net) && Math.abs(net) >= 10, `course.start (${city}): guard`));
-      if (n.guard) step(() => eq(said(n), `The first 5K ${net < 0 ? 'drops' : 'climbs'} ${ft(net)}.`, `course.start (${city}): the sentence`));
+      step(() => eq(!!n.figure, n.guard, `course.start (${city}): a figure only for a start that drops or climbs`));
+      if (n.guard) step(() => eq(said(n), `The first 5K ends ${ft(net)} ${net < 0 ? 'lower' : 'higher'} than it starts.`, `course.start (${city}): the sentence`));
       else if (Number.isFinite(net)) step(() => eq(said(n), 'The first 5K is flat.', `course.start (${city}): a flat start says so`));
     }
 
-    // At a glance (2): the slowest 5K against the section most courses slow most in.
+    // At a glance (2): the slowest 5K, only where it is not the section most courses slow most in.
     {
       const n = at('course.late');
-      step(() => eq(n.guard, !!c.slowest_section && shaped >= 3, `course.late (${city}): guard`));
+      step(() => eq(n.guard, !!c.slowest_section && shaped >= 3 && c.slowest_section !== modal, `course.late (${city}): guard (unlike the usual section)`));
       if (n.guard) {
         const name = sectionName(courses.sections.indexOf(c.slowest_section));
         const usual = sectionName(courses.sections.indexOf(modal));
-        const text = c.slowest_section === modal ? `The slowest 5K is ${name}, as on ${tally.get(modal)} of ${shaped} courses.` : `The slowest 5K is ${name}; on ${tally.get(modal)} of ${shaped} courses it’s ${usual}.`;
-        step(() => eq(said(n), text, `course.late (${city}): the sentence`));
+        step(() => eq(said(n), `The slowest 5K is ${name}; on ${tally.get(modal)} of ${shaped} courses it’s ${usual}.`, `course.late (${city}): the sentence`));
       }
     }
 
-    // At a glance (3): how often the shape alone picked the course out.
+    // At a glance (3): how often the shape alone picked the course out, only at three in four of five or more editions.
     {
       const n = at('course.shape');
-      step(() => eq(n.guard, !!c.identified && c.identified.editions >= 2 && c.identified.correct * 2 >= c.identified.editions, `course.shape (${city}): guard (picked out in at least half its editions)`));
-      if (n.guard) step(() => ok(said(n).includes(`${c.identified.correct} of ${c.identified.editions} editions`), `course.shape (${city}): the sentence`));
+      step(() => eq(n.guard, !!c.identified && c.identified.editions >= 5 && c.identified.correct * 4 >= c.identified.editions * 3, `course.shape (${city}): guard (three in four of five or more editions)`));
+      if (n.guard) step(() => ok(said(n).startsWith(`${c.identified.correct} of ${c.identified.editions} editions were recognisable as `), `course.shape (${city}): the sentence`));
+    }
+
+    // At a glance (4): where the pacing parts most from the typical course, from 2 points on three or more editions.
+    {
+      const n = at('course.signature');
+      const i = c.signature_section ? courses.sections.indexOf(c.signature_section) : -1;
+      const solid = c.editions >= 3 && Array.isArray(c.curve) && c.curve.length === 9 && i >= 0;
+      const dev = solid ? c.curve[i] - courses.typical_curve[i] : NaN;
+      step(() => ok(!solid || Math.abs(dev - c.signature_points) < 0.011, `course.signature (${city}): the signature is the curve less the typical curve`));
+      step(() => ok(!solid || c.deviation.every((d) => Math.abs(d) <= Math.abs(c.signature_points) + 1e-9), `course.signature (${city}): no section parts further than the signature`));
+      step(() => eq(n.guard, solid && Math.abs(c.signature_points) >= 2, `course.signature (${city}): guard (2 points on three or more editions)`));
+      if (n.guard) {
+        const r = (v) => Math.round(Math.abs(v));
+        const signedPct = (v) => (r(v) === 0 ? '0%' : `${v > 0 ? '+' : '−'}${r(v)}%`);
+        const here = c.curve[i], typ = courses.typical_curve[i];
+        step(() => eq(n.key, `${signedPct(here)} against its average pace, ${signedPct(typ)} on the typical course`, `course.signature (${city}): the row`));
+        step(() => ok(signedPct(here) !== signedPct(typ), `course.signature (${city}): the two figures differ as written`));
+      } else if (solid) step(() => ok(said(n).endsWith('paces much like the typical course, 5K by 5K.'), `course.signature (${city}): within 2 points everywhere, it paces like the typical course`));
     }
 
     // #finish-times: first and latest edition medians.
@@ -115,6 +133,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const first = cells[0], last = cells[cells.length - 1];
       step(() => eq(n.guard, cells.length >= 2 && Math.abs(last.median_s - first.median_s) >= 60, `course.times (${city}): guard`));
       if (n.guard) step(() => eq(said(n), `The median finish moved from ${hm(first.median_s)} in ${first.year} to ${hm(last.median_s)} in ${last.year}.`, `course.times (${city}): the sentence`));
+      else if (cells.length >= 2) step(() => eq(said(n), hm(first.median_s) === hm(last.median_s) ? `The median finish was ${hm(first.median_s)} in both ${first.year} and ${last.year}.` : `The median finish barely moved: ${hm(first.median_s)} in ${first.year}, ${hm(last.median_s)} in ${last.year}.`, `course.times (${city}): under a minute apart, it barely moved`));
     }
 
     // #elevation: the section with the most climbing.
@@ -138,19 +157,20 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
         for (let i = 1; i < mix.shares.length; i++) if (Math.abs(mix.shares[i] - archetypes.archetypes[i].share) > Math.abs(mix.shares[best] - archetypes.archetypes[best].share)) best = i;
         const here = mix.shares[best], every = archetypes.archetypes[best].share;
         step(() => eq([n.values.type, n.guard], [archetypes.archetypes[best].slug, Math.abs(here - every) >= 0.03], `course.types (${city}) recounts the type and its guard`));
-        if (n.guard) step(() => eq(said(n), `${here > every ? 'More' : 'Fewer'} ${archetypes.archetypes[best].name}s here: ${whole(here)}, against ${whole(every)} across every course.`, `course.types (${city}): the sentence`));
+        if (n.guard) step(() => eq(said(n), `${here > every ? 'More' : 'Fewer'} ${archetypes.archetypes[best].name.toLowerCase()}s here: ${whole(here)}, against ${whole(every)} across every course.`, `course.types (${city}): the sentence`));
       } else step(() => eq(n.guard, false, `course.types (${city}): no mix, no claim`));
     }
 
     // #slowdown: every other course, with more and fewer sustained slowdowns.
     {
       const n = at('course.among');
-      const others = courses.courses.filter((o) => o.city !== city);
+      // Only courses with three or more editions are counted either side (the hollow dots on the strip are not).
+      const others = courses.courses.filter((o) => o.city !== city && o.editions >= 3);
       const higher = others.filter((o) => o.slowdown > c.slowdown).length, lower = others.filter((o) => o.slowdown < c.slowdown).length;
-      step(() => eq([n.values.higher, n.values.lower, n.values.courses], [higher, lower, others.length], `course.among (${city}) recounts the courses either side`));
+      step(() => eq([n.values.higher, n.values.lower, n.values.courses], [higher, lower, others.length], `course.among (${city}) recounts the courses with three or more editions either side`));
       step(() => eq(n.guard, c.editions >= 3 && others.length >= 5, `course.among (${city}): guard`));
       const count = higher >= lower ? higher : lower;
-      if (n.guard) step(() => eq(said(n), `${higher >= lower ? 'Fewer' : 'More'} sustained slowdowns than ${count === others.length ? 'every other course' : `${count} of ${others.length} courses`}.`, `course.among (${city}): the sentence`));
+      if (n.guard) step(() => eq(said(n), `${higher >= lower ? 'Fewer' : 'More'} sustained slowdowns than ${count} of ${others.length} courses.`, `course.among (${city}): the sentence`));
     }
 
     // #goals: the lead goal's row, where the course chooser publishes the course with enough editions.

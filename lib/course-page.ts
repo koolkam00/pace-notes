@@ -337,3 +337,17 @@ export function coursePages(): Map<string, CoursePageData> {
 }
 
 export const coursePage = (slug: string): CoursePageData | null => coursePages().get(slug) ?? null;
+
+/**
+ * A route's climb and descent as every course surface prints them: the sums of its nine supplied 5 km sections (the
+ * runner-context shards; the course chooser's totals and the runner view's), rounded to 0.1 m, so the whole route never
+ * climbs less than one of its 5Ks and a course reads the same climb on its page, on /courses, in the course chooser and
+ * in a runner's race report. The drawn profile (course-geometry.json) keeps the shape and the shared height scale; its
+ * own total stands in only where a route has no agreed sections (`key` "geo").
+ */
+export function routeClimb(page: Pick<CoursePageData, 'terrain' | 'geometry'>): { gain_m: number; loss_m: number; key: 'route' | 'geo' } | null {
+  const t = page.terrain;
+  const tenth = (v: number) => Math.round(v * 10) / 10;
+  if (t && t.length === 9) return { gain_m: tenth(t.reduce((a, x) => a + x.gain_m, 0)), loss_m: tenth(t.reduce((a, x) => a + x.loss_m, 0)), key: 'route' };
+  return page.geometry ? { gain_m: page.geometry.gain_m, loss_m: page.geometry.loss_m, key: 'geo' } : null;
+}

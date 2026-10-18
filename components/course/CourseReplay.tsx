@@ -6,7 +6,7 @@ import { CourseSection } from './Fact';
 export default function CourseReplay({ page, choices }: { page: CoursePageData; choices: ReplayChoice[] }) {
   if (!choices.length) return null;
   return (
-    <CourseSection id="replay" beat="Replay" title={<>Watch <em>{page.display} {choices[0].year}</em> unfold.</>}>
+    <CourseSection id="replay" beat="Replay" className="course-replay-beat" title={<>Watch <em>{page.display} {choices[0].year}</em> unfold.</>}>
       <div className="course-replay night"><HeroReplay choices={choices} initial={choices[0].slug} /></div>
     </CourseSection>
   );

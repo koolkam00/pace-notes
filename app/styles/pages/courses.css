@@ -1,19 +1,21 @@
 /* /courses (app/courses/page.tsx; the redesign spec, section 7.10, cut under section 00): the reading, then every course
    as one row the chips sort. Each row: the route as its face (or its pace shape), the name, the figure the order is by,
-   and its share of sustained slowdowns as a dot on one shared scale, so the sorted list reads as a chart. One column on
-   phones, two from 600 px, three from 1180 px, flowing down each column. */
+   and its share of sustained slowdowns. One column on phones, two from 600 px, three from 1180 px, flowing down each
+   column in balanced columns (CourseSort sets the rows per column). */
 
 .courses-page { padding-bottom: var(--s-6); }
 .courses-page .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: .2em; }
 .courses-reading { padding-bottom: var(--s-2); }
 .courses-reading .reading-crumbs { flex-wrap: wrap; }
+/* The H1 already says "Courses": the crumbs stop at the chapter. */
+.courses-reading .crumb-place { display: none; }
 .courses-list { margin-top: var(--s-6); }
 .course-sort .chips { margin-bottom: var(--s-4); }
 
 .course-index { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
 .course-index li { margin: 0; break-inside: avoid; border-bottom: 1px solid var(--rule); }
 .course-index-row {
-  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; grid-template-areas: "face name share" "face meta track";
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; grid-template-areas: "face name share" "face meta share";
   column-gap: var(--s-3); row-gap: 2px; align-items: center; min-height: 64px; padding: 10px 0; color: var(--ink); text-decoration: none;
 }
 .course-index-row:hover { text-decoration: none; }
@@ -29,24 +31,19 @@
 .course-index[data-sort="slowdown"] .m-default, .course-index[data-sort="az"] .m-default, .course-index:not([data-sort]) .m-default,
 .course-index[data-sort="climb"] .m-climb, .course-index[data-sort="finishes"] .m-finishes, .course-index[data-sort="temp"] .m-temp { display: inline; }
 .course-index-share { grid-area: share; justify-self: end; font-size: 1.0625rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
-.course-index-track { grid-area: track; position: relative; display: block; width: 72px; height: 10px; }
-.course-index-track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--rule-strong); }
-.course-index-track i { position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--ink); }
-.course-index-track i.is-few, .courses-key i.is-few { background: var(--paper); box-shadow: inset 0 0 0 1.5px var(--ink); }
-.courses-key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: var(--s-4) 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
-.courses-key span { display: inline-flex; align-items: center; gap: 8px; }
-.courses-key i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ink); }
 
+/* Columns as a grid that fills down each column, with as many rows as the longest column needs (--rows-2, --rows-3),
+   so the columns come out even. Each column opens on its own rule. */
 @media (min-width: 600px) {
-  .course-index { columns: 2; column-gap: var(--s-7); border-top: 0; }
-  .course-index li:first-child { border-top: 1px solid var(--rule); }
-  .course-index li { display: block; }
+  .course-index { display: grid; grid-auto-flow: column; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(var(--rows-2, 14), auto); column-gap: var(--s-7); border-top: 0; }
+  .course-index li.is-top-2 { border-top: 1px solid var(--rule); }
 }
 @media (min-width: 1180px) {
-  .course-index { columns: 3; }
+  .course-index { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(var(--rows-3, 10), auto); }
+  .course-index li.is-top-2 { border-top: 0; }
+  .course-index li.is-top-3 { border-top: 1px solid var(--rule); }
 }
 @media (max-width: 299.98px) {
-  .course-index-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name share" "meta track"; }
+  .course-index-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name share" "meta share"; }
   .course-index-face { display: none; }
-  .course-index-track { width: 48px; }
 }

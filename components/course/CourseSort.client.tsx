@@ -18,11 +18,13 @@ export default function CourseSort({ options, orders, rows, initial = 'slowdown'
 }) {
   const [sort, setSort] = useState<SortKey>(initial);
   const byId = new Map(rows.map((r) => [r.id, r.node]));
+  // Rows per column at two and three columns, and the rows that open a column (they carry its top rule).
+  const n = orders[sort].length, r2 = Math.ceil(n / 2), r3 = Math.ceil(n / 3);
   return (
     <div className="course-sort">
       <Chips label="Sort the courses" options={options} value={sort} onChange={(v) => setSort(v)} />
-      <ol className="course-index" data-sort={sort}>
-        {orders[sort].map((id) => <li key={id}>{byId.get(id)}</li>)}
+      <ol className="course-index" data-sort={sort} style={{ ['--rows-2' as string]: r2, ['--rows-3' as string]: r3 }}>
+        {orders[sort].map((id, i) => <li key={id} className={[i % r2 === 0 ? 'is-top-2' : '', i % r3 === 0 ? 'is-top-3' : ''].filter(Boolean).join(' ') || undefined}>{byId.get(id)}</li>)}
       </ol>
     </div>
   );

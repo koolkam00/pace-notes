@@ -2,7 +2,7 @@ import { Elevation } from '@/components/story/Units';
 import ElevationPace from '@/components/viz/ElevationPace';
 import { getNugget } from '@/lib/nuggets';
 import { sectionLabel } from '@/lib/nuggets/format';
-import type { CoursePageData } from '@/lib/course-page';
+import { routeClimb, type CoursePageData } from '@/lib/course-page';
 import type { UnitSystem } from '@/lib/units';
 import { SECTION_BOUNDS, signedPct } from '@/lib/viz/format';
 import ByUnits from './ByUnits.client';
@@ -13,12 +13,15 @@ const climbText = (m: number, units: UnitSystem) => (units === 'mi' ? `${Math.ro
 /**
  * "#elevation" (only with a supplied route): the route's profile on the one height scale every course page shares, with
  * each 5K section's pace against the course's own average under it, the biggest climb washed. Scrub along the course:
- * the readout gives one climb, that section's. Under it the route's two totals, up and down.
+ * the readout gives one climb, that section's. Under it the route's two totals, up and down (the sums of the same
+ * sections, so the whole never climbs less than a part).
  */
 export default function CourseElevation({ page }: { page: CoursePageData }) {
   const { city, display, geometry: g, terrain, summary: s, relief } = page;
   if (!g) return null;
   const n = getNugget('course.climb', { city });
+  // The route's totals are its sections' sums, the same climbs the readout gives one 5K at a time.
+  const climb = routeClimb(page);
   const focus = n.guard ? Number(n.values.section) : undefined;
   const curve = s.curve?.length === 9 ? s.curve : null;
   const km = g.elevation_m.map((_, i) => Math.min(g.distance_km, i * g.elevation_step_km));
@@ -30,17 +33,20 @@ export default function CourseElevation({ page }: { page: CoursePageData }) {
         display: curve ? signedPct(curve[i], 0) : terrain ? climbText(terrain[i].gain_m, units) : '—',
         climb: terrain ? climbText(curve ? terrain[i].gain_m : terrain[i].loss_m, units) : '—',
       }))}
+      reliefLabel={`+${climbText(relief, units)}`}
       label={`${display}: elevation on the height scale every course shares, with each 5K section's pace against the course's own average`} height={120} heightMd={190} />
   );
   return (
     <CourseSection id="elevation" track="chapter-3" beat="Elevation" title={<Said nugget={n} />}>
       <div className={curve ? undefined : 'course-elevation-plain'}><ByUnits mi={chart('mi')} km={chart('km')} /></div>
-      <dl className="course-totals">
-        <div>
-          <dt>Whole route</dt>
-          <dd>Climbs <Fact k="geo.gain" v={g.gain_m}><Elevation metres={g.gain_m} /></Fact>, descends <Fact k="geo.loss" v={g.loss_m}><Elevation metres={g.loss_m} /></Fact></dd>
-        </div>
-      </dl>
+      {climb ? (
+        <dl className="course-totals">
+          <div>
+            <dt>Whole route</dt>
+            <dd>Climbs <Fact k={`${climb.key}.gain`} v={climb.gain_m}><Elevation metres={climb.gain_m} /></Fact>, descends <Fact k={`${climb.key}.loss`} v={climb.loss_m}><Elevation metres={climb.loss_m} /></Fact></dd>
+          </div>
+        </dl>
+      ) : null}
     </CourseSection>
   );
 }

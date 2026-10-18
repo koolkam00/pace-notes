@@ -368,7 +368,7 @@ const KINDS = {
   'shape.editions': 'count', 'shape.courses': 'count', 'identified.correct': 'count', 'identified.editions': 'count', slowest: 'section',
   n: 'count', 'median@': 'clock', sd: 'pct', temp: 'degF', date: 'date', small: 'count', 'rows.finishes': 'count',
   'geo.distance': 'mi1', 'geo.distance2': 'mi2', 'geo.gain': 'ft', 'geo.loss': 'ft', 'geo.min': 'ft', 'geo.max': 'ft',
-  'cg.gain': 'ft', 'cg.loss': 'ft', 'cg.net': 'netft', 'cg.editions': 'count', 'cg.finishes': 'count', 't.gain': 'ft', 't.loss': 'ft', 't.net': 'netft',
+  'route.gain': 'ft', 'route.loss': 'ft', 'cg.gain': 'ft', 'cg.loss': 'ft', 'cg.net': 'netft', 'cg.editions': 'count', 'cg.finishes': 'count', 't.gain': 'ft', 't.loss': 'ft', 't.net': 'netft',
   'g.n': 'count', 'g.ed': 'count', 'g.under': 'pct', 'g.sd': 'pct', 'g.after20': 'min', 'g.p10': 'clock', 'g.p50': 'clock', 'g.p90': 'clock',
   'ty.finishes': 'count', 'ty.editions': 'count', 'ty.share': 'pct0', 'ty.all': 'pct0', 'profile.n': 'count',
   'w.start': 'text', 'w.temp': 'degF', 'w.dew': 'degF', 'w.rh': 'rh', 'w.wind': 'mph',
@@ -422,6 +422,9 @@ function resolve(dataKey, f) {
     case 'geo.loss': return f.route?.loss_m;
     case 'geo.min': return f.route?.min_m;
     case 'geo.max': return f.route?.max_m;
+    // The route's totals as the pages print them: the sums of its nine 5 km sections, to 0.1 m.
+    case 'route.gain': return f.terrain ? Math.round(f.terrain.reduce((a, x) => a + x.gain_m, 0) * 10) / 10 : undefined;
+    case 'route.loss': return f.terrain ? Math.round(f.terrain.reduce((a, x) => a + x.loss_m, 0) * 10) / 10 : undefined;
     case 'cg.gain': return f.ctx?.gain_m ?? undefined;
     case 'cg.loss': return f.ctx?.loss_m ?? undefined;
     case 'cg.net': return f.ctx?.net_m ?? undefined;
@@ -545,8 +548,17 @@ if (html) {
     if (h1.length) check(innerText(h1[0][1]) === f.race, where, `H1 "${innerText(h1[0][1])}" is not the race name "${f.race}"`);
     for (const m of body.matchAll(/<(h[1-6])\b[^>]*>([\s\S]*?)<\/\1>/g)) check(textOf(m[2]).length > 0, where, `an empty <${m[1]}>`);
 
-    // Sections: present exactly when the data supports them, each with its generic tracking id.
-    const want = { elevation: !!f.route, weather: f.weather.length > 0, replay: replay.editions.some((e) => e.city === city) };
+    // Sections: present exactly when the data gives them something to show (no heading over an empty chart), each with
+    // its generic tracking id. The glance shows the rows whose guards hold (at most three, in order), or, with none, the
+    // two curves of a course that paces like the typical one; else it is left out.
+    const GLANCE = ['course.start', 'course.late', 'course.shape', 'course.signature'];
+    const glanceIds = GLANCE.filter((id) => { const n = N.getNugget(id, { city }); return n.guard && !!n.figure && (id !== 'course.start' || !!f.route); }).slice(0, 3);
+    const typicalLike = !glanceIds.length && N.getNugget('course.signature', { city }).values.typical_like === 1;
+    const goalsShown = !!f.ctx && f.ctx.editions >= courseGoal.min_editions;
+    const want = {
+      'at-a-glance': glanceIds.length > 0 || typicalLike, 'finish-times': f.cells.length > 1, elevation: !!f.route, pacing: !!f.types,
+      goals: goalsShown, weather: f.weather.length > 1, replay: replay.editions.some((e) => e.city === city),
+    };
     for (const id of SECTIONS) {
       const present = sectionStart(body, id) >= 0;
       check(present === (want[id] ?? true), where, `section #${id} ${present ? 'present' : 'missing'}`);
@@ -562,18 +574,21 @@ if (html) {
       if (sectionStart(body, id) < 0) continue;
       check(norm(h2(id) ?? '') === norm(said(nugget, city)), where, `#${id}'s finding "${h2(id)}" is not ${nugget}'s "${said(nugget, city)}"`);
     }
+    // The hero's sentence is course.slowdown's range, shown only when its guard holds: its fallback would repeat the dek.
     const heroSentence = textOf(/<p class="course-hero-sentence[^"]*"[^>]*>([\s\S]*?)<\/p>/.exec(body)?.[1] ?? '');
-    check(norm(heroSentence) === norm(said('course.slowdown', city)), where, `the hero's sentence "${heroSentence}" is not course.slowdown's`);
+    if (N.getNugget('course.slowdown', { city }).guard) check(norm(heroSentence) === norm(said('course.slowdown', city)), where, `the hero's sentence "${heroSentence}" is not course.slowdown's`);
+    else check(!body.includes('class="course-hero-sentence'), where, `the hero shows course.slowdown's fallback "${heroSentence}", which repeats the dek`);
     const heroFigure = N.getNugget('course.slowdown', { city }).figure;
     const shownFigure = innerText(/<span class="big-number[^"]*"><span aria-hidden="true">([\s\S]*?)<\/span><span class="sr-only">/.exec(/<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '')?.[1] ?? '');
     check(heroFigure && shownFigure === `${heroFigure.value}${heroFigure.unit}` && shownFigure === F.pct0(f.s.slowdown), where, `the hero figure "${shownFigure}" is not the course's share in whole percent (${F.pct0(f.s.slowdown)})`);
     const glanceKeys = [...main.matchAll(/<span class="glance-key">([\s\S]*?)<\/span>/g)].map((m) => norm(textOf(m[1])));
-    for (const id of ['course.start', 'course.late', 'course.shape']) {
+    for (const id of GLANCE) {
       const n = N.getNugget(id, { city });
-      const shown = id === 'course.start' ? !!n.figure && !!f.route : n.guard && !!n.figure;
+      const shown = glanceIds.includes(id);
       check(glanceKeys.includes(n.key) === shown, where, `glance row ${id}: ${shown ? 'missing' : 'shown without its guard'} ("${n.key}")`);
     }
-    check(glanceKeys.length >= 2 && glanceKeys.length <= 3, where, `${glanceKeys.length} glance rows`);
+    check(glanceKeys.length === glanceIds.length, where, `${glanceKeys.length} glance rows for ${glanceIds.length} guards`);
+    if (typicalLike) check(norm(h2('at-a-glance') ?? '') === norm(said('course.signature', city)), where, `the glance's finding "${h2('at-a-glance')}" is not course.signature's fallback`);
     const tracked = [...body.matchAll(/data-track-section="([^"]+)"/g)].map((m) => m[1]);
     check(new Set(tracked).size === tracked.length, where, `a section id repeats: ${tracked}`);
 
@@ -596,7 +611,7 @@ if (html) {
     for (const w of f.weather) for (const k of ['w.temp', 'w.dew', 'w.rh', 'w.wind']) check(seen.has(`${k}@${w.year}`), where, `the ${w.year} weather row lacks ${k}`);
     for (const [g, row] of f.goalRows) if (row && f.ctx && f.ctx.editions >= courseGoal.min_editions) check(seen.has(`g.n@${g}`) && seen.has(`g.sd@${g}`) && seen.has(`g.p50@${g}`), where, `goal ${g}: the row is not printed`);
     if (f.terrain && f.route) for (let i = 0; i < 9; i += 1) check(seen.has(`t.gain@${i}`), where, `section ${i} of the route is not printed`);
-    for (const k of ['slowdown', 'block10', 'after20', 'median', ...(f.route ? ['geo.gain'] : [])]) check(seen.has(k), where, `${k} is not printed`);
+    for (const k of ['slowdown', 'block10', 'after20', 'median', ...(f.route ? [f.terrain ? 'route.gain' : 'geo.gain'] : [])]) check(seen.has(k), where, `${k} is not printed`);
 
     // Table cells hold figures, a dash or plain words; never another number.
     for (const table of main.matchAll(/<table class="[^"]*course-table[^"]*">([\s\S]*?)<\/table>/g)) {
@@ -665,10 +680,13 @@ if (html) {
       const totalsList = /<dl class="course-totals">[\s\S]*?<\/dl>/.exec(sectionOf(body, 'elevation') ?? '')?.[0] ?? '';
       // One climb total under the chart (the route's), so two climb figures never sit side by side; the chart's readout
       // gives one section's climb at a time.
-      check(/^Whole route Climbs/.test(textOf(totalsList)) && (totalsList.match(/data-k="(?:geo|cg)\.gain"/g) ?? []).length === 1 && totalsList.includes('data-k="geo.gain"'), where, `the climb total: "${textOf(totalsList)}"`);
+      // One climb total: the sums of the route's sections (the readout's climbs), so the whole never climbs less than a 5K.
+      const total = f.terrain ? 'route.gain' : 'geo.gain';
+      check(/^Whole route Climbs/.test(textOf(totalsList)) && (totalsList.match(/data-k="(?:geo|cg|route)\.gain"/g) ?? []).length === 1 && totalsList.includes(`data-k="${total}"`), where, `the climb total: "${textOf(totalsList)}"`);
+      if (f.terrain) check(f.terrain.every((x) => x.gain_m <= resolve('route.gain', f) + 0.05), where, 'a 5K section climbs more than the whole route');
       const promise = /\btwo ways\b|\b(?:both|two) (?:climb )?(?:totals|measures|measurements)\b/i.exec(elevation);
       check(!promise, where, `#elevation promises "${promise && promise[0]}"`);
-      check((/<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '').includes('data-k="geo.gain"'), where, 'the hero does not print the climb');
+      check((/<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '').includes(`data-k="${total}"`), where, 'the hero does not print the climb');
     }
 
     // Weather: the 5 °C gate, the slope sentence for the courses with one, and context.
@@ -726,7 +744,6 @@ if (html) {
     // The goal rows are #goals' chart: each of the five goals links to the planner for this course (S1 follows one).
     const goalsSection = sectionOf(body, 'goals') ?? '';
     const goalLinks = [...goalsSection.matchAll(/<tbody>[\s\S]*?<\/tbody>/g)].flatMap((t) => [...t[0].matchAll(/<th scope="row"><a\b[^>]*href="([^"]+)"/g)].map((m) => decode(m[1])));
-    const goalsShown = f.ctx && f.ctx.editions >= courseGoal.min_editions;
     check(goalLinks.length === (goalsShown ? P.COURSE_GOALS.length : 0), where, `#goals links ${goalLinks.length} goals to the planner`);
 
     // Editions in the data with no row (fewer than 100 finishes) never get a row of their own.
