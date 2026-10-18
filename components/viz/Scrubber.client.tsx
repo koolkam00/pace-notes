@@ -7,10 +7,10 @@ import Readout from './Readout';
  * The scrubber (the redesign spec, section 3.5): touch the data.
  *
  * `mode="needle"` (default): a 1.5 px signal needle down the plot, drawn behind the marks, a gap for the tick labels,
- * then a stem to a 20 px crown in the row under the axis. With `points.y` (a histogram) the needle instead runs in front
- * from the top of the column it reads down to the baseline, so it marks that column and never floats above the plot;
- * while it is away from the headline's point (`initial`) the root carries is-away, and the reading mark turns ink so
- * only one orange mark shows. A horizontal drag (a 6 px move with
+ * then a stem to a 20 px crown in the row under the axis. With `points.y` (a histogram) the needle instead stops just
+ * above the top of the column it reads, so the column itself stays in view (`points.yAlt` gives the tops under the
+ * figure's other lens); while it is away from the headline's point (`home`, default `initial`) the root carries
+ * is-away, and the reading mark turns ink so only one orange mark shows. A horizontal drag (a 6 px move with
  * |dx| > 1.2·|dy|) scrubs and a vertical one scrolls (touch-action: pan-y); a tap sets the needle; on desktop, hover moves
  * it and leaving returns it to the last tap. The needle sits on the nearest point and never eases; within 8 px of a detent
  * it snaps there, the detent's dot flashes and Android ticks (navigator.vibrate(3)).
@@ -25,8 +25,13 @@ import Readout from './Readout';
 export type ScrubPoints = {
   /** x of each point as a fraction of the plot (0 left, 1 right), in reading order. */
   x: number[];
-  /** y of each point as a fraction from the top: where the ring sits (pick mode), or where the needle starts (needle mode). */
+  /** y of each point as a fraction from the top: where the ring sits (pick mode), or the top of the column the needle stops above (needle mode). */
   y?: number[];
+  /** The column tops under the figure's other lens (data-k="ratio"), when it draws its columns differently. */
+  yAlt?: number[];
+  /** Needle mode: where the needle crosses the subject line at each point (a fraction from the top), marked with a dot
+   * while the needle is away from the headline's point (at home the chart's own reading mark is there). */
+  dot?: number[];
   keys: string[];
   values: string[];
   side?: { label: string; values: string[] }[];
@@ -35,6 +40,8 @@ export type ScrubPoints = {
 type Props = {
   points: ScrubPoints;
   initial: number;
+  /** The point the headline names, when the needle opens elsewhere (a scrolly's first step): away from it, is-away. */
+  home?: number;
   /** Indices of the meaningful values: round marks, the best point, the value the headline names. */
   detents?: number[];
   /** The slider's accessible name ("Finishes per minute, 2:00 to 7:00"). */
@@ -49,7 +56,7 @@ type Props = {
 
 const SNAP_PX = 8;
 
-export default function Scrubber({ points, initial, detents = [], label, mode = 'needle', children, axis, tone = 'ink', onIndex }: Props) {
+export default function Scrubber({ points, initial, home, detents = [], label, mode = 'needle', children, axis, tone = 'ink', onIndex }: Props) {
   const n = points.x.length;
   const clamp = (i: number) => Math.max(0, Math.min(n - 1, i));
   const [index, setIndex] = useState(clamp(initial));
@@ -78,6 +85,14 @@ export default function Scrubber({ points, initial, detents = [], label, mode = 
     return () => clearTimeout(timer.current);
   }, [index, text, onIndex]);
   useEffect(() => () => { clearTimeout(timer.current); clearTimeout(flashTimer.current); }, []);
+  // A page may set the needle from outside (a scrolly step that names a minute): a 'scrub-to' event, the index as detail.
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const to = (e: Event) => { const i = Math.max(0, Math.min(n - 1, Number((e as CustomEvent).detail) || 0)); last.current = i; setIndex(i); setCommitted(i); };
+    el.addEventListener('scrub-to', to);
+    return () => el.removeEventListener('scrub-to', to);
+  }, [n]);
 
   const move = useCallback((i: number, haptic: boolean) => {
     if (i === last.current) return;
@@ -173,17 +188,20 @@ export default function Scrubber({ points, initial, detents = [], label, mode = 
 
   const x = points.x[index] ?? 0;
   const y = points.y?.[index];
+  const yAlt = points.yAlt?.[index];
+  const dot = points.dot?.[index];
   const pos = `${(x * 100).toFixed(3)}%`;
   const hintLeft = x > 0.66;
   return (
-    <div ref={root} className={`scrub is-${mode}${dragging ? ' is-dragging' : ''}${touched ? ' is-touched' : ''}${index !== clamp(initial) ? ' is-away' : ''}`}>
+    <div ref={root} className={`scrub is-${mode}${dragging ? ' is-dragging' : ''}${touched ? ' is-touched' : ''}${index !== clamp(home ?? initial) ? ' is-away' : ''}`}>
       <Readout hidden keyText={points.keys[index]} value={points.values[index]} tone={tone} side={points.side?.map((s) => ({ label: s.label, value: s.values[index] }))} />
       <p className="sr-only" aria-live="polite">{settled}</p>
       <div className="scrub-area" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={(e) => end(e, false)} onPointerCancel={(e) => end(e, true)} onPointerLeave={onPointerLeave}>
         <div ref={plot} className="viz-plot scrub-plot" role="slider" tabIndex={0} aria-label={label}
           aria-valuemin={0} aria-valuemax={n - 1} aria-valuenow={index} aria-valuetext={text(index)} onKeyDown={onKeyDown}>
-          {mode === 'needle' ? <span className={`scrub-needle${y !== undefined ? ' is-front' : ''}`} style={{ left: pos, ...(y !== undefined ? { ['--needle-top' as string]: `${(y * 100).toFixed(3)}%` } : {}) }} aria-hidden="true" /> : null}
+          {mode === 'needle' ? <span className={`scrub-needle${y !== undefined ? ' is-front' : ''}`} style={{ left: pos, ...(y !== undefined ? { ['--needle-top' as string]: `${(y * 100).toFixed(3)}%` } : {}), ...(yAlt !== undefined ? { ['--needle-top-alt' as string]: `${(yAlt * 100).toFixed(3)}%` } : {}) }} aria-hidden="true" /> : null}
           {children}
+          {mode === 'needle' && dot !== undefined && Number.isFinite(dot) ? <span className="scrub-dot" style={{ left: pos, top: `${(dot * 100).toFixed(3)}%` }} aria-hidden="true" /> : null}
           {mode === 'needle' ? (
             <>
               <span className="scrub-detents" aria-hidden="true">

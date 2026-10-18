@@ -51,11 +51,12 @@ function inspect({ isHome }) {
   const findings = { overflow: [], tinyText: [], overlap: [], outside: [], orange: [] };
 
   // 1. Horizontal overflow, with the elements that reach past the right edge.
-  if (de.scrollWidth > vw + 1) {
+  // Any overflow at all, even 1 px: a page that can move sideways under a thumb wobbles.
+  if (de.scrollWidth > vw) {
     const wide = [];
     for (const el of document.querySelectorAll('body *')) {
       const r = el.getBoundingClientRect();
-      if (r.width && r.right > vw + 1 && getComputedStyle(el).position !== 'fixed' && !hidden(el)) {
+      if (r.width && r.right > vw + 0.5 && getComputedStyle(el).position !== 'fixed' && !hidden(el)) {
         wide.push(`${describe(el)} right=${Math.round(r.right)}`);
         if (wide.length >= 6) break;
       }

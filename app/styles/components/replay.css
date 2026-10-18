@@ -41,9 +41,7 @@
 .hero-replay .replay-poster-mat { stroke: var(--night-3); stroke-width: 1px; vector-effect: non-scaling-stroke; }
 .hero-replay .replay-canvas { opacity: 0; cursor: pointer; transition: opacity var(--d-reveal) var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .hero-replay .replay-canvas.is-shown { opacity: 1; }
-.hero-replay .replay-axis-y { position: absolute; left: 2%; font-size: 12px; font-weight: 500; line-height: 1; color: var(--night-ink-3); text-shadow: 0 0 3px var(--night), 0 0 6px var(--night); pointer-events: none; }
-.hero-replay .replay-axis-y.is-top { top: 8px; }
-.hero-replay .replay-axis-y.is-bottom { bottom: 8px; }
+.hero-replay .replay-axis-y { margin: 0 0 6px; font-size: 12px; font-weight: 500; line-height: 16px; color: var(--night-ink-3); }
 .hero-replay .replay-status { position: absolute; left: 0; right: 0; bottom: 12px; margin: 0; font-size: var(--t-small); text-align: center; color: var(--night-ink-2); }
 
 /* Play and pause: 44 px at the start of the control row, beside the race clock (never on the canvas). */

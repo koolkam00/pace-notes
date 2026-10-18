@@ -13,7 +13,8 @@ import { typeStyle } from '@/lib/viz/palette';
  * A line profile (the redesign spec, section 3.6): x along the course (mats or sections) or along any continuous
  * measure; the median as a 2 px ink line, its p25–p75 band at a 10% ink wash, even pace or typical dashed, a region the
  * sentence is about washed. It also draws the U-curve of starting pace: one line against a zero line, the side the
- * sentence is about washed signal (`fillAbove`), the best point a hollow ring.
+ * sentence is about washed signal (`fillAbove`), the best point a hollow ring. A `compare` point is the level or end the
+ * headline is measured against: a small filled ink dot (a ring is reserved for the reader).
  *
  * `layers` are the lens: goal chips or the like. Each is drawn on the server and the chosen one shows (the lens fades
  * between them). `scrub` adds the needle, with detents at the values the headline names.
@@ -24,16 +25,20 @@ export type ProfileLayer = {
   label: string;
   series: ProfileSeries[];
   band?: { lo: number[]; hi: number[] };
-  labels?: { x: number; y: number; text: string; tone?: 'ink' | 'signal' | 'quiet'; priority?: number; prefer?: LabelItem['prefer'] }[];
-  points?: { x: number; y: number; kind: 'best' | 'reading' }[];
+  labels?: { x: number; y: number; text: string; tone?: 'ink' | 'signal' | 'quiet'; priority?: number; prefer?: LabelItem['prefer']; gap?: number }[];
+  points?: { x: number; y: number; kind: 'best' | 'reading' | 'compare' }[];
+  /** A level two points share ("as often as"): a 1 px dashed --ink-3 connector at `y` from `x0` to `x1`. */
+  links?: { x0: number; x1: number; y: number }[];
 };
 
 type Props = {
   x: number[];
   xDomain?: [number, number];
   yDomain?: [number, number];
-  xTicks: { value: number; label: string }[];
+  xTicks: { value: number; label: string; priority?: number }[];
   yTicks?: { value: number; label: string }[];
+  /** Which side the gridline labels sit on: the clear one (default right). */
+  gridSide?: 'left' | 'right';
   layers: ProfileLayer[];
   initial?: string;
   lensLabel?: string;
@@ -41,7 +46,11 @@ type Props = {
   refs?: { value: number; label?: string; dashed?: boolean }[];
   /** A stretch of x the sentence is about ("after 20K"): its start drawn as a hairline with its label, washed with `fill`. */
   washes?: { from: number; to: number; label?: string; fill?: boolean }[];
-  scrub?: { points: ScrubPoints; initial: number; detents: number[]; label: string };
+  /**
+   * `follow` names the series (by id) whose value at each scrub point the needle marks with a dot while it is away from
+   * the headline's point, so a scrubbed needle always shows where it crosses the subject line.
+   */
+  scrub?: { points: ScrubPoints; initial: number; detents: number[]; label: string; follow?: string };
   axisTitle?: { start?: string; end?: string };
   label: string;
   keys?: KeyItem[];
@@ -50,12 +59,13 @@ type Props = {
   heightMd?: number;
 };
 
-export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = [], layers, initial, lensLabel, chips, refs = [], washes = [], scrub, axisTitle, label, keys, values, height = 220, heightMd = 280 }: Props) {
+export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = [], gridSide = 'right', layers, initial, lensLabel, chips, refs = [], washes = [], scrub, axisTitle, label, keys, values, height = 220, heightMd = 280 }: Props) {
   const x = linear(xDomain ?? extent(xs));
   const all = layers.flatMap((l) => [...l.series.flatMap((s) => s.values), ...(l.band ? [...l.band.lo, ...l.band.hi] : [])]).concat(refs.map((r) => r.value));
   const [lo, hi] = yDomain ?? extent(all);
   const pad = (hi - lo) * 0.06 || 1;
-  const y = yScale(yDomain ? lo : lo - pad, yDomain ? hi : hi + pad, { top: 0.12, bottom: 0.04 });
+  // A domain that starts at zero stands on the axis: its zero is the baseline, so a filled area never floats above it.
+  const y = yScale(yDomain ? lo : lo - pad, yDomain ? hi : hi + pad, { top: 0.12, bottom: yDomain && lo === 0 ? 0 : 0.04 });
   const current = initial ?? layers[0]?.id;
   const lensOn = layers.length > 1;
 
@@ -64,10 +74,17 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
     const [d0, d1] = y.domain;
     const clamp = (v: number) => Math.max(Math.min(d0, d1), Math.min(Math.max(d0, d1), v));
     const pts = (values: number[]) => values.map((v, i) => [x(xs[i]), y(clamp(v))] as [number, number]);
-    const items: LabelItem[] = (layer.labels ?? []).map((l, i) => ({ id: `${layer.id}-${i}`, text: l.text, x: x(l.x), y: y(l.y), priority: l.priority ?? (l.tone === 'signal' ? 3 : 2), tone: l.tone, prefer: l.prefer }));
-    // Labels keep clear of the points and of every line's vertices.
-    const avoid = [...(layer.points ?? []).map((p) => ({ x: x(p.x), y: y(p.y), r: 7 })),
-      ...layer.series.flatMap((sr) => sr.values.map((v, i) => ({ x: x(xs[i]), y: y(clamp(v)), r: 3 })))];
+    const items: LabelItem[] = (layer.labels ?? []).map((l, i) => ({ id: `${layer.id}-${i}`, text: l.text, x: x(l.x), y: y(l.y), priority: l.priority ?? (l.tone === 'signal' ? 3 : 2), tone: l.tone, prefer: l.prefer, gap: l.gap }));
+    // Labels keep clear of the points and of every line: its vertices and points along each segment.
+    const along = (values: number[]) => values.flatMap((v, i) => {
+      if (i === values.length - 1) return [{ x: x(xs[i]), y: y(clamp(v)), r: 3 }];
+      const [x0, y0, x1, y1] = [x(xs[i]), y(clamp(v)), x(xs[i + 1]), y(clamp(values[i + 1]))];
+      const n = Math.max(2, Math.ceil(Math.hypot((x1 - x0) * REF_WIDTH, (y1 - y0) * height) / 5));
+      return Array.from({ length: n }, (_, k) => ({ x: x0 + ((x1 - x0) * k) / n, y: y0 + ((y1 - y0) * k) / n, r: k ? 2 : 3 }));
+    });
+    const avoid = [...(layer.points ?? []).map((p) => ({ x: x(p.x), y: y(p.y), r: 7 })), ...layer.series.flatMap((sr) => along(sr.values))];
+    // …and of a level connector between two points.
+    for (const k of layer.links ?? []) for (let t = 0; t <= 20; t++) avoid.push({ x: x(k.x0 + ((k.x1 - k.x0) * t) / 20), y: y(k.y), r: 2 });
     const placed = placeLabels(items, { height, avoid });
     return (
       <g key={layer.id} data-layer={lensOn ? layer.id : undefined} className={lensOn && layer.id !== current ? 'is-off' : undefined}>
@@ -81,8 +98,11 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
               style={s.tone === 'type' ? typeStyle(s.typeIndex ?? 0) : undefined} d={linePath(pts(s.values))} />
           ))}
         </svg>
+        {(layer.links ?? []).map((k, i) => (
+          <line key={`link-${i}`} className="ref-line is-dashed is-link" x1={pc(x(k.x0))} x2={pc(x(k.x1))} y1={pc(y(k.y))} y2={pc(y(k.y))} />
+        ))}
         {(layer.points ?? []).map((p, i) => (
-          <circle key={i} className={p.kind === 'best' ? 'm-hollow-ink' : 'm-signal'} cx={pc(x(p.x))} cy={pc(y(p.y))} r={p.kind === 'best' ? 5 : 5.5} />
+          <circle key={i} className={p.kind === 'best' ? 'm-hollow-ink' : p.kind === 'compare' ? 'm-ink is-compare' : 'm-signal is-reading'} cx={pc(x(p.x))} cy={pc(y(p.y))} r={p.kind === 'best' ? 5 : p.kind === 'compare' ? 4 : 5.5} />
         ))}
         <Annotation labels={placed} />
       </g>
@@ -99,7 +119,7 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
     const w = textWidth(r.label, 13) + 4, ry = y(r.value) * height;
     const lines = firstLayer.series.map((sr) => sr.values.map((v, i) => [x(xs[i]) * REF_WIDTH, y(v) * height] as [number, number]));
     const washed = firstLayer.series.filter((sr) => sr.fillAbove !== undefined).map((sr) => sr.values.map((v, i) => [x(xs[i]) * REF_WIDTH, v > sr.fillAbove! ? 1 : 0] as [number, number]));
-    const grid = yTicks.map((t) => { const gy = y(t.value) * height; const gw = textWidth(t.label, 12, 500) + 4; return { x0: REF_WIDTH - gw, x1: REF_WIDTH, y0: gy - 18, y1: gy }; });
+    const grid = yTicks.map((t) => { const gy = y(t.value) * height; const gw = textWidth(t.label, 12, 500) + 4; return gridSide === 'left' ? { x0: 0, x1: gw, y0: gy - 18, y1: gy } : { x0: REF_WIDTH - gw, x1: REF_WIDTH, y0: gy - 18, y1: gy }; });
     const clear = (x0: number, below: boolean) => {
       const x1 = x0 + w, y0 = below ? ry + 3 : ry - 19, y1 = below ? ry + 19 : ry - 3;
       if (x0 < 0 || x1 > REF_WIDTH) return false;
@@ -135,17 +155,23 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
           {w.label ? <text className={`tick ${fitClass((textWidth(w.label, 12, 500) + 64) / Math.max(0.05, 1 - x(w.from)))}`} x={pc(x(w.from))} y="0" dy={12} dx={6}>{w.label}</text> : null}
         </g>
       ))}
-      <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label }))} side="right" />
+      <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label }))} side={gridSide} />
       {refs.map((r) => <RefLine key={r.value} y={y(r.value)} label={r.label} dashed={r.dashed} {...refSpot(r)} />)}
       {layers.map(drawLayer)}
       <Baseline />
     </Plot>
   );
-  const axis = <Axis ticks={xTicks.map((t) => ({ x: x(t.value), label: t.label }))} title={axisTitle} />;
+  const axis = <Axis ticks={xTicks.map((t) => ({ x: x(t.value), label: t.label, priority: t.priority }))} title={axisTitle} />;
+  // The followed series' value under each scrub point (one value per point, in order), as a fraction from the top.
+  const followed = (sc: NonNullable<Props['scrub']>): ScrubPoints => {
+    const series = sc.follow ? layers.flatMap((l) => l.series).find((sr) => sr.id === sc.follow) : undefined;
+    if (!series || series.values.length !== sc.points.x.length) return sc.points;
+    return { ...sc.points, dot: series.values.map((v) => (Number.isFinite(v) ? y(v) : NaN)) };
+  };
   return (
     <ChartFrame label={label} height={height} heightMd={heightMd} k={lensOn ? current : undefined}
       lens={lensOn ? <Lens label={lensLabel ?? 'Show'} options={layers.map((l) => ({ value: l.id, label: l.label }))} defaultValue={current} chips={chips} /> : undefined}
-      scrub={scrub ? <Scrubber points={scrub.points} initial={scrub.initial} detents={scrub.detents} label={scrub.label} axis={axis}>{plot}</Scrubber> : undefined}
+      scrub={scrub ? <Scrubber points={followed(scrub)} initial={scrub.initial} detents={scrub.detents} label={scrub.label} axis={axis}>{plot}</Scrubber> : undefined}
       plot={scrub ? undefined : plot} axis={scrub ? undefined : axis} keys={keys} values={values}
     />
   );

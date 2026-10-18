@@ -8,12 +8,16 @@
 
 /* The needle: 1.5 px of signal from the top of the plot to the baseline, or to the top of the mark it reads. */
 .viz-frame .scrub-needle { position: absolute; top: 0; bottom: 0; width: 1.5px; margin-left: -.75px; background: var(--signal); pointer-events: none; }
-/* A histogram's needle runs in front, from the top of the column it reads to the baseline. Under a lens whose columns
-   are drawn differently ("Against the curve") it goes back behind the marks at full height. */
-.viz-frame .scrub-needle.is-front { z-index: 1; top: var(--needle-top, 0%); width: 2px; margin-left: -1px; }
-.viz-frame[data-k="ratio"] .scrub-needle.is-front { z-index: auto; top: 0; width: 1.5px; margin-left: -.75px; }
+/* A histogram's needle runs from the top of the plot and stops 6 px above the column it reads, so the column stays in
+   view under it; under the "Against the curve" lens it stops above that lens's column instead. */
+.viz-frame .scrub-needle.is-front { bottom: auto; height: max(0px, calc(var(--needle-top, 100%) - 6px)); }
+.viz-frame[data-k="ratio"] .scrub-needle.is-front { height: max(0px, calc(var(--needle-top-alt, var(--needle-top, 100%)) - 6px)); }
 /* Away from the headline's point, the reading mark is ink: the needle is the one orange mark. */
 .viz-frame .scrub.is-away .m-signal.is-reading { fill: var(--ink); }
+/* Where the needle crosses the subject line (LineProfile's scrub.follow), shown only while it is away from the
+   headline's point, whose own reading mark is drawn there at home. */
+.viz-frame .scrub-dot { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 0 2px var(--paper); pointer-events: none; visibility: hidden; }
+.viz-frame .scrub.is-away .scrub-dot { visibility: visible; }
 
 /* Detents: small dots on the baseline at the values that matter; the one the needle reaches flashes. */
 .viz-frame .scrub-detents { position: absolute; left: 0; right: 0; top: 100%; height: 0; pointer-events: none; }
@@ -39,6 +43,9 @@
 .viz-frame.waffle .scrub-ring { width: calc(100% / var(--cols, 25) * 6 / 7); height: auto; aspect-ratio: 1; margin: 0; border-radius: 1.5px; transform: translate(-50%, -50%); background: var(--signal); box-shadow: 0 0 0 1px var(--paper); }
 @supports not (aspect-ratio: 1) { .viz-frame.waffle .scrub-ring { height: 10px; } }
 .viz-frame .is-pick .scrub-plot { cursor: pointer; }
+/* A dot strip's chosen dot grows and fills with ink, or keeps its signal on the subject: a ring is only ever the reader. */
+.viz-frame.dot-strip .scrub-ring { width: 14px; height: 14px; margin: -7px 0 0 -7px; background: var(--ink); box-shadow: 0 0 0 2px var(--paper); }
+.viz-frame.dot-strip.has-subject .scrub:not(.is-away) .scrub-ring { background: var(--signal); }
 
 @media (prefers-reduced-motion: reduce) {
   .viz-frame .scrub-detents i.is-flash { animation: none; }

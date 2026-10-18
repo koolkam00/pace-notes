@@ -6,8 +6,8 @@
 // show without scrolling, and that button is the only orange control there), the hero at 200% zoom, and its
 // course-and-goal form, which goes to the planner by GET with and without the page's JavaScript, and the keypad's dot
 // typing a colon in time fields (the home goal, a tool's time, a pace and the split check). Last, the units
-// switch: it works on /research opened directly, and every page served with the inert placeholder reads the same in
-// miles and kilometres. Then a course page's contents link, a link away and Back.
+// switch: it works on /research and /methodology opened directly, and every page served with the inert placeholder
+// reads the same in miles and kilometres. Then a course page's contents link, a link away and Back.
 const fs = require('node:fs');
 const path = require('node:path');
 const { SITE, wiggle, openMenu, type } = require('../browser.cjs');
@@ -35,15 +35,18 @@ async function browse(h, device) {
   h.check('the recorder starts on /', await run.waitForRecording(page));
   await openMenu(page);
   const links = await page.evaluate(() => [...document.querySelectorAll('#site-menu a')].map(a => ({ text: a.textContent.trim(), href: a.getAttribute('href'), primary: a.classList.contains('nav-primary'), shown: a.getClientRects().length > 0, more: !!a.closest('.nav-more') })));
-  const expected = [...MAIN, ...(device.mobile ? MORE : [])];
+  // On a wide screen the home page's header leaves out its two doors (Plan your race, Analyze a past race): the hero
+  // holds them, one path to each page per screen. The Menu on a phone lists all five.
+  const expected = device.mobile ? [...MAIN, ...MORE] : MAIN.slice(2);
   const shown = links.filter(l => l.shown);
-  h.check(`the navigation shows the five links in order${device.mobile ? ', then About, Request an analysis and Open data on the Menu\'s quieter line' : ' and nothing else'}`,
+  h.check(`the navigation shows ${device.mobile ? 'the five links in order, then About, Request an analysis and Open data on the Menu\'s quieter line' : 'Courses, Tools and Research on the home page (the hero holds the other two doors) and nothing else'}`,
     JSON.stringify(shown.map(l => [l.text, l.href])) === JSON.stringify(expected) && shown.filter(l => l.more).length === (device.mobile ? MORE.length : 0), shown);
   h.check('Plan your race is the primary (orange) link', links[0] && links[0].primary && links.filter(l => l.primary).length === 1, links);
   // The Menu is a modal sheet over the header (components/MenuSheet.tsx): close it again with Escape.
   if (device.mobile) { await page.keyboard.press('Escape'); await page.waitForTimeout(700); }
   for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, 700); await page.waitForTimeout(120); }
-  await click('a.story-card', /^\/stories\/[a-z-]+$/);
+  // A story from the home page's chapter list (its story cards left it in the redesign, WP1, October 17, 2026).
+  await click('main .chapter-list a[href^="/stories/"]', /^\/stories\/[a-z-]+$/);
   for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, 800); await page.waitForTimeout(120); }
   for (const [, href] of MAIN) {
     const from = new URL(page.url()).pathname, left = Date.now();
@@ -296,16 +299,22 @@ async function keypad(h) {
 }
 
 // Every page whose text changes with the units has the header's working switch (lib/unit-preference.ts; the build stops
-// otherwise). /research, opened directly, converts its list of analyses when Kilometres is pressed (it showed the inert
-// placeholder before); every page the export serves with the placeholder (404.html aside) reads the same in both units.
+// otherwise). /research, opened directly, converts its text when Kilometres is pressed: the contents' opener names the
+// marathon distance ("26.2 miles in eleven chapters"), and any pace a chapter's reading carries turns from /mi to /km.
+// /methodology has the working switch too (its pace bands convert). Every page the export serves with the placeholder
+// (404.html aside) reads the same in both units.
 async function unitSwitch(h) {
   const run = await h.run('units switch', DESKTOP);
   const page = await run.newPage();
   const seen = () => page.evaluate(() => {
     const control = document.querySelector('.site-header .unit-switch');
+    const lines = (document.querySelector('main')?.innerText ?? '').split('\n');
     return {
       working: !!control && !control.classList.contains('unit-switch-placeholder') && control.getAttribute('role') === 'group' && getComputedStyle(control).visibility === 'visible',
-      analyses: (document.querySelector('#analyses')?.innerText ?? '').match(/[^\n]*the first [^\n]* to the finish\./)?.[0] ?? null, search: location.search,
+      // The number and its unit are held together by a no-break space, which \s matches.
+      distance: lines.find((line) => /\b(?:26\.2\smiles|42\.2\skm)\b/.test(line)) ?? null,
+      paces: lines.filter((line) => /\d:\d\d\/(?:mi|km)\b/.test(line)),
+      search: location.search,
     };
   });
   await page.goto(SITE + '/research', { waitUntil: 'load' });
@@ -314,8 +323,13 @@ async function unitSwitch(h) {
   h.check('/research, opened directly, has the working units switch', miles.working, miles);
   if (miles.working) { await page.click('.site-header .unit-switch button:has-text("Kilometres")'); await page.waitForTimeout(400); }
   const km = await seen();
-  h.check('pressing Kilometres on /research converts its analyses (the first 3.11 mi, then the first 5 km) and adds units=km',
-    /the first 3\.11 mi to/.test(miles.analyses) && /the first 5 km to/.test(km.analyses) && km.search === '?units=km', { miles, km });
+  h.check('pressing Kilometres on /research converts its text (26.2 miles, then 42.2 km; any /mi pace, then /km) and adds units=km',
+    /26\.2\smiles/.test(miles.distance ?? '') && /42\.2\skm/.test(km.distance ?? '') && miles.paces.every((line) => /\/mi\b/.test(line)) && km.paces.every((line) => /\/km\b/.test(line))
+      && miles.paces.length === km.paces.length && km.search === '?units=km', { miles, km });
+  await page.goto(SITE + '/methodology', { waitUntil: 'load' });
+  await page.waitForTimeout(800);
+  const methods = await seen();
+  h.check('/methodology, opened directly, has the working units switch', methods.working, methods);
   const placeholders = fs.readdirSync(h.out, { recursive: true }).filter(file => file.endsWith('.html') && file !== '404.html'
     && fs.readFileSync(path.join(h.out, file), 'utf8').includes('unit-switch-placeholder')).map(file => '/' + file.replace(/\.html$/, '').replace(/(^|\/)index$/, '')).sort();
   const differ = [];
@@ -326,7 +340,7 @@ async function unitSwitch(h) {
     if (!mi || mi !== kilometres) differ.push({ page: at, miles: mi.split('\n')[line], km: kilometres.split('\n')[line] });
   }
   await run.close();
-  h.check('every page served with the inert placeholder reads the same in miles and kilometres', placeholders.length && !differ.length && !placeholders.includes('/research'), { placeholders, differ });
+  h.check('every page served with the inert placeholder reads the same in miles and kilometres', placeholders.length && !differ.length && !placeholders.includes('/research') && !placeholders.includes('/methodology'), { placeholders, differ });
   h.note(`units switch: placeholder pages ${placeholders.join(', ')}`);
 }
 

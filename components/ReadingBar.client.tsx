@@ -14,8 +14,8 @@ type Page = { marker?: string; short?: string; ticks: number[] };
  * down, under 1180 px). Left, the chapter's marker and the page's short title; right, the minutes left; along the bottom
  * a 2 px line, ink up to the reading position, a signal dot at it and a tick at every beat ([data-beat]) start.
  *
- * Minutes left: the words of the beats still below the screen ÷ 238, plus 12 s for each figure below it, rounded up, at
- * least 1. Words are counted once, in the browser, after the page loads; the ticks and the line are measured again
+ * Minutes left: the words of the beats still below the screen ÷ 238 (Values tables left out), plus 12 s for each figure
+ * below it, rounded up, at least 1. Words are counted once, in the browser, after the page loads; the ticks and the line are measured again
  * whenever the page's height changes. Nothing is sent anywhere. Decorative
  * (aria-hidden): the page's headings say the same.
  */
@@ -27,14 +27,18 @@ export default function ReadingBar() {
     const root = document.querySelector<HTMLElement>('main[data-reading], main [data-reading]');
     if (!root) { setPage(null); return; }
     const marked = Array.from(root.querySelectorAll<HTMLElement>('[data-beat]'));
-    const beats = (marked.length ? marked : [root]).map((el) => ({ el, words: (el.innerText.match(/\S+/g) || []).length }));
+    // A chart's Values twin is reference, not reading: its table never counts, even when a page opens it.
+    const count = (el: HTMLElement) => (el.innerText.match(/\S+/g) || []).length;
+    const beats = (marked.length ? marked : [root]).map((el) => ({ el, words: count(el) - Array.from(el.querySelectorAll<HTMLElement>('details.values[open]')).reduce((n, v) => n + count(v), 0) }));
     const figures = beats.flatMap(({ el }) => Array.from(el.querySelectorAll('figure')));
     let frame = 0, settle = 0, top = 0, span = 1, live = true;
+    // A beat that starts within the last screen of the page has no place on the line (it would sit on the bar's right
+    // edge): its tick is left out, so ticks stop short of the end.
     const ticksOf = () => {
       const box = root.getBoundingClientRect();
       top = box.top + window.scrollY;
       span = Math.max(1, box.height - window.innerHeight);
-      return marked.map((el) => Math.min(1, Math.max(0, (el.getBoundingClientRect().top + window.scrollY - top) / span)));
+      return marked.map((el) => Math.max(0, (el.getBoundingClientRect().top + window.scrollY - top) / span)).filter((t) => t < 0.99);
     };
     const update = () => {
       frame = 0;

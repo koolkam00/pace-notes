@@ -1,9 +1,11 @@
+import { PageList } from '@/components/ui/ChapterList';
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import RunnerLane from '@/components/art/RunnerLane';
 import { getInsightsManifest } from '@/lib/insights-server';
-import { STORIES, storyHref } from '@/lib/stories';
+import { CHAPTERS, livePages } from '@/lib/chapters';
+import { readingOf } from '@/lib/nuggets';
+import { countWord } from '@/lib/nuggets/format';
+import { STORIES, capital } from '@/lib/stories';
 import { finishesM, pageMetadata } from '@/lib/seo';
-import { count } from '@/lib/viz/format';
 
 const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
 
@@ -12,37 +14,24 @@ export function generateMetadata() {
   const published = STORIES.filter((s) => manifest.files[s.file]).length;
   // The topic list names every story, so it is used only when all of them are published.
   const description = published === STORIES.length && WORDS[published]
-    ? `${WORDS[published]} data stories from ${finishesM()} million recorded marathon finishes: pacing types, the 3:59 effect, race replays, places, the final kick, age and courses.`
+    ? `${WORDS[published]} data stories from ${finishesM()} million recorded marathon finishes: pacing types, ${STORIES.find((st) => st.slug === 'round-numbers')!.title.replace(/^The /, 'the ')}, race replays, places, the final kick, age and courses.`
     : `Data stories from ${finishesM()} million recorded marathon finishes, each starting with one finding and the evidence to explore.`;
   return pageMetadata({ title: `Marathon Data Stories from ${finishesM()}M Finishes | Pace Notes`, description, path: '/stories' });
 }
 
+/** The stories: the contents filtered to them, in race order, each with its chapter and reading (spec 7.2, cut 3 of 00). */
 export default function StoriesPage() {
-  const manifest = getInsightsManifest();
-  const stories = STORIES.filter((s) => manifest.files[s.file]);
+  const count = CHAPTERS.flatMap(livePages).filter((p) => p.kind === 'story' && p.href.startsWith('/stories/')).length;
   return (
-    <div className="stories-page">
-      <section className="night night-grain bleed story-hero">
-        <div className="container">
-          <p className="eyebrow">Stories from the data</p>
-          <h1 className="story-title">What {count(manifest.analysis_n)} marathon finishes show.</h1>
-          <p className="hero-dek">Each story starts with one finding you can say out loud, then hands you the evidence to explore.</p>
-        </div>
-        <RunnerLane dark height={100} runners={[{ finishMinutes: 170, label: '2:50' }, { finishMinutes: 230, label: '3:50' }, { finishMinutes: 290, label: '4:50' }, { finishMinutes: 350, label: '5:50' }]} />
+    <div className="contents-page">
+      <header className="contents-hero">
+        <h1 className="t-display">Stories</h1>
+        {/* The term's first use on the page (the rows' keys sit inside their links), so it links to its definition. */}
+        <p className="contents-dek">{capital(countWord(count))} stories from the race, the <Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link> among them.</p>
+      </header>
+      <section className="contents-body" aria-label="Every story">
+        <PageList kind="story" prefix="/stories/" readingOf={readingOf} label="Stories" />
       </section>
-      <ol className="story-grid">
-        {stories.map((s) => (
-          <li key={s.slug}>
-            <Link href={storyHref(s)} className="story-card" style={{ ['--story' as string]: s.accent }}>
-              <span className="story-card-number" aria-hidden="true">{s.number}</span>
-              <span className="story-card-kicker">{s.kicker}</span>
-              <h2 className="story-card-title">{s.title}</h2>
-              <span className="story-card-dek">{s.dek}</span>
-              <span className="story-card-go" aria-hidden="true">Read the story →</span>
-            </Link>
-          </li>
-        ))}
-      </ol>
     </div>
   );
 }

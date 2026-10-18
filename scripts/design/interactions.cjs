@@ -296,13 +296,24 @@ const INTERACTIONS = [
         const root = document.querySelector('main [data-reading], main[data-reading]');
         const beats = [...root.querySelectorAll('[data-beat]')];
         const box = root.getBoundingClientRect(), top = box.top + scrollY, span = Math.max(1, box.height - innerHeight);
-        const expected = beats.map((b) => Math.min(100, Math.max(0, ((b.getBoundingClientRect().top + scrollY - top) / span) * 100)));
+        // A beat starting within the last screen has no tick (it would sit on the bar's right edge).
+        const expected = beats.map((b) => Math.max(0, ((b.getBoundingClientRect().top + scrollY - top) / span) * 100)).filter((t) => t < 99);
         const ticks = [...bar.querySelectorAll('.reading-bar-line i')].map((i) => parseFloat(i.style.left));
         // Independent count: every visible text node inside the beats whose line is below the screen.
         let words = 0;
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
         for (let n = walker.nextNode(); n; n = walker.nextNode()) {
           if (!n.parentElement.closest('[data-beat]')) continue;
+          // A chart's Values twin is reference, not reading, open or closed (an earlier capture may have opened one).
+          if (n.parentElement.closest('details.values')) continue;
+          // Text inside a closed <details> (a fold on /methodology) is not shown, whatever its box says: only a closed
+          // fold's own summary is.
+          let hidden = false;
+          for (let d = n.parentElement.closest('details'); d && !hidden; d = d.parentElement && d.parentElement.closest('details')) {
+            const summary = n.parentElement.closest('summary');
+            if (!d.open && !(summary && summary.parentElement === d)) hidden = true;
+          }
+          if (hidden) continue;
           const range = document.createRange(); range.selectNodeContents(n);
           const r = range.getBoundingClientRect();
           if (!r.height) continue;

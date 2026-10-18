@@ -1,0 +1,276 @@
+/* The stories and /finish-times (WP2; the redesign spec, sections 4.1 and 7, under section 00). Imported by
+   app/stories/[slug]/layout.tsx and app/finish-times/layout.tsx. A story is the reading, at most six beats and the
+   chapter end, divided by whitespace and hairlines, never boxes; the replay band is the only night surface. */
+
+/* ---------- The page ---------- */
+/* One measure down the page: the reading, every beat's figure and Values, and the chapter end share one right edge. */
+.story-flow { min-width: 0; }
+.story-flow > .reading, .story-hero-beat > .reading { max-width: var(--measure-figure); }
+.story-hero-beat .reading { padding-top: var(--s-4); }
+.story-hero-beat .reading-rule { margin: var(--s-5) 0; }
+.story-hero-beat .reading-instrument { max-height: none; }
+.story-hero-beat .reading-instrument > .viz-frame { margin: 0; }
+
+/* The crumbs wrap between their parts, never inside "Page 1 of 4". */
+.story-flow .reading-crumbs { flex-wrap: wrap; row-gap: 0; }
+.story-flow .reading-crumbs > .crumb-place { white-space: nowrap; }
+
+/* A beat: the finding as its H2, at most a short dek, then the figure. */
+.story-beat { scroll-margin-top: calc(var(--header-h) + 8px); }
+.story-beat .beat-head { gap: var(--s-3); margin-bottom: var(--s-5); }
+.story-beat-title { margin: 0; max-width: 22ch; }
+.story-beat-dek { margin: 0; max-width: 34rem; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+/* Every figure in a story takes the same measure, so their edges line up down the page. */
+.story-beat > .viz-frame, .story-beat > .values { max-width: var(--measure-figure); }
+.story-beat > .values { margin-top: var(--s-4); }
+.beat-alias { display: block; position: relative; top: calc(-1 * var(--header-h)); height: 0; }
+
+/* A course named in a table row links to its page with a full-height target. */
+.story-page .values th a { display: inline-flex; align-items: center; min-width: 44px; min-height: 44px; }
+
+/* The sustained-slowdown term, linked once per page to its definition. */
+.story-page .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-decoration-color: currentColor; text-underline-offset: .18em; }
+.story-page .term-link:hover { text-decoration-style: solid; }
+
+/* A beat that moved: its old anchor shows one line only when a link lands on it. */
+.story-moved { display: none; margin: 0; }
+.story-moved:target { display: block; max-width: var(--measure); margin-top: var(--beat-gap); padding: var(--s-4) 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); scroll-margin-top: calc(var(--header-h) + 16px); font-size: var(--t-small); }
+.story-moved a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; color: var(--ink); }
+
+/* ---------- The six types, beside the pacing-types reading ----------
+   One column on a phone, so "Fast-start fader" keeps its line beside its share; three from 600 px, two beside the
+   figure from 900 px. */
+.type-legend { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px 16px; max-width: 20rem; margin: 0; padding: 0; list-style: none; }
+.type-legend li { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; margin: 0; font-size: var(--t-small); line-height: 1.25; color: var(--ink-2); }
+.type-legend li span { min-width: 0; }
+.type-legend li b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+/* A ruler whose marks carry their own values draws no tick row under them. */
+.viz-frame.ruler.is-labelled .viz-axis { display: none; }
+
+/* ---------- The replay band ---------- */
+.story-replay { margin-inline: calc(-1 * var(--gutter)); padding: var(--s-5) var(--gutter); background: var(--night); color: var(--night-ink); }
+/* The night card is the replay's one surface: the field inside it draws no frame of its own (no box in a box). */
+.story-replay .hero-replay .replay-box { border-radius: 0; box-shadow: none; }
+/* The race chips: on a phone the row scrolls under a wide fade on the side that has more; from 900 px every race shows,
+   wrapping inside the card. */
+.story-replay .chips[data-more='end'] .chips-row { -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 56px), transparent); mask-image: linear-gradient(to right, var(--ink) calc(100% - 56px), transparent); }
+.story-replay .chips[data-more='start'] .chips-row { -webkit-mask-image: linear-gradient(to left, var(--ink) calc(100% - 56px), transparent); mask-image: linear-gradient(to left, var(--ink) calc(100% - 56px), transparent); }
+.story-replay .chips[data-more='both'] .chips-row { -webkit-mask-image: linear-gradient(to right, transparent, var(--ink) 56px, var(--ink) calc(100% - 56px), transparent); mask-image: linear-gradient(to right, transparent, var(--ink) 56px, var(--ink) calc(100% - 56px), transparent); }
+@media (min-width: 900px) {
+  .story-replay .chips .chips-row { flex-wrap: wrap; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+}
+
+/* ---------- Chart forms of the stories (components/story/charts) ---------- */
+.viz-frame .era-mean { fill: var(--ink-3); }
+.viz-frame .era-mean.is-signal { fill: var(--signal); }
+.viz-frame .era-mean-text { fill: var(--ink-3); }
+.viz-frame .era-mean-text.is-signal { fill: var(--signal-ink); }
+
+.viz-frame .river-stream { fill: var(--paper-sunk); }
+.viz-frame .river-seam { fill: none; stroke: var(--mark-quiet); stroke-width: 1; }
+.viz-frame .river-on { --type: currentColor; fill: var(--type); stroke: var(--paper); stroke-width: 1; }
+/* A stream's end shares sit on a raised tab edged in the stream's colour: ink text, readable on a thin stream or a wide one. */
+.viz-frame .river-tab { fill: var(--paper-raised); stroke: var(--type); stroke-width: 1.5; }
+.viz-frame .river-end { font-family: var(--sans); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; fill: var(--ink); }
+[data-theme="dark"] .viz-frame .river-on { fill: var(--type-night, var(--type)); }
+[data-theme="dark"] .viz-frame .river-tab { stroke: var(--type-night, var(--type)); }
+
+/* The waffle sits on the column's left edge like every other figure on a story, not centred in it. */
+.story-beat .viz-frame.waffle .viz-plot { margin-inline: 0; }
+
+/* 100 finishes: ten by ten on a phone (a compact block, about a quarter of the screen); from 900 px one band of 25 by 4
+   across the story's measure, its dots growing with it. */
+.story-beat .dot-grid.is-band .dot-grid-dots { grid-template-columns: repeat(10, 14px); gap: 8px; max-width: none; }
+.story-beat .dot-grid.is-band .dot-grid-dots li { width: 14px; height: 14px; }
+@media (max-width: 299.98px) {
+  .story-beat .dot-grid.is-band .dot-grid-dots { grid-template-columns: repeat(10, 10px); gap: 5px; }
+  .story-beat .dot-grid.is-band .dot-grid-dots li { width: 10px; height: 10px; }
+}
+@media (min-width: 900px) {
+  .story-beat .dot-grid.is-band .dot-grid-dots { grid-template-columns: repeat(25, minmax(0, 1fr)); gap: 10px; width: 100%; max-width: var(--measure-figure); }
+  .story-beat .dot-grid.is-band .dot-grid-dots li { width: 100%; height: auto; aspect-ratio: 1; }
+}
+
+/* The 100 dots' key: lit and unlit, named once. */
+.dot-grid-key { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: var(--t-small); font-weight: 400; color: var(--ink-2); }
+.dot-grid-key span { display: inline-flex; align-items: center; gap: 8px; }
+.dot-grid-key i { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--fill-quiet); box-shadow: inset 0 0 0 1px var(--mark-quiet); }
+.dot-grid-key i.is-ink { background: var(--ink); box-shadow: none; }
+
+/* The field as 99 finishes: phone dots, and from 900 px larger dots across the story's measure. */
+.viz-frame.percentile-dots .pd-wide { display: none; }
+@media (min-width: 900px) {
+  .viz-frame.percentile-dots .pd-phone { display: none; }
+  .viz-frame.percentile-dots .pd-wide { display: inline; }
+}
+
+/* Two pairs of bars on one scale: each named, its gap drawn under it; the gap the sentence is about in signal. */
+.viz-frame.pair-bars .viz-plot { height: auto; }
+.pair-bars-views { display: grid; gap: var(--s-5); }
+.pair-bars-view { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr) 4rem; align-content: center; gap: 8px 12px; }
+.pair-bars-name { grid-column: 1 / -1; margin: 0; font-size: var(--t-small); font-weight: 600; line-height: 1.3; color: var(--ink); }
+.pair-bar { display: contents; }
+.pair-bar-label { align-self: center; font-size: var(--t-small); color: var(--ink-2); }
+.pair-bar-track { position: relative; align-self: center; height: 24px; border-radius: 2px; background: var(--paper-sunk); }
+.pair-bar-fill { position: absolute; inset: 0 auto 0 0; border-radius: 2px 4px 4px 2px; background: var(--ink); }
+.pair-bars-view:not(.is-highlight) .pair-bar-fill { background: var(--mark-quiet); }
+.pair-bar-value { align-self: center; font-size: 1.0625rem; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; color: var(--ink); }
+.pair-bar-gaprow { grid-column: 2; position: relative; height: 26px; }
+.pair-bar-gap { position: absolute; top: 0; height: 6px; border-radius: 3px; background: var(--mark-quiet); }
+.pair-bar-gap-label { position: absolute; top: 10px; transform: translateX(-100%); font-size: var(--t-label); font-weight: 600; line-height: 1.2; white-space: nowrap; color: var(--ink-2); }
+.pair-bars-view.is-highlight .pair-bar-gap { background: var(--signal); }
+.pair-bars-view.is-highlight .pair-bar-gap-label { color: var(--signal-ink); }
+
+/* Pacing types, women and men: the value column holds the widest pair ("24% · 38%"), so every pair ends on the content
+   edge. The key sits above the rows, men (the filled dots, the H2's subject) first, in the order each row's values read. */
+.pt-gender .viz-frame.dumbbell .dumbbell-rows, .pt-gender .viz-frame.dumbbell .dumbbell-axis { grid-template-columns: minmax(0, 36%) minmax(0, 1fr) 5.5rem; }
+/* A narrow figure (200% zoom): each type's name and pair share a line, its track the full width under them. */
+@container (max-width: 299.98px) {
+  .pt-gender .viz-frame.dumbbell .dumbbell-rows { grid-template-columns: minmax(0, 1fr) auto; grid-auto-flow: row dense; }
+  .pt-gender .viz-frame.dumbbell .dumbbell-label { grid-column: 1; }
+  .pt-gender .viz-frame.dumbbell .dumbbell-value { grid-column: 2; padding-top: var(--s-2); }
+  .pt-gender .viz-frame.dumbbell .dumbbell-track { grid-column: 1 / -1; }
+  .pt-gender .viz-frame.dumbbell .dumbbell-axis { display: block; }
+  .pt-gender .viz-frame.dumbbell .dumbbell-axis > span { display: none; }
+}
+.pt-gender .viz-frame.dumbbell { display: flex; flex-direction: column; }
+.pt-gender .viz-frame.dumbbell .viz-key { order: -1; flex-direction: row-reverse; justify-content: flex-end; margin: 0 0 var(--s-3); }
+
+/* ---------- Your minute (.finish-lookup, masked in session replays): the towers, then the reader's time ----------
+   A time that reads moves the towers' needle to its minute: the needle's foot becomes an orange ring on that tower,
+   with You at the needle's head (left of it near the right edge). From 900 px the field sits under the chart's column. */
+.finish-lookup { display: grid; grid-template-columns: minmax(0, 1fr); max-width: var(--measure-figure); }
+.finish-lookup-field { max-width: 14rem; }
+/* A static scrolly (reduced motion) ends on its list, with no step padding under it. */
+.finish-lookup > .scrolly.is-static ~ .finish-lookup-field { margin-top: var(--s-6); }
+.finish-lookup-result { margin: var(--s-2) 0 0; font-size: var(--t-small); color: var(--ink-2); }
+.finish-lookup.is-yours .scrub-needle::after { content: ''; position: absolute; left: 50%; top: 100%; width: 14px; height: 14px; margin: -1px 0 0 -7px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--signal), 0 0 0 2px var(--paper); }
+.finish-lookup.is-yours .scrub-needle::before { content: 'You'; position: absolute; top: 0; left: 6px; font-family: var(--sans); font-size: 13px; font-weight: 600; line-height: 1; white-space: nowrap; color: var(--signal-ink); }
+.finish-lookup.is-yours.is-left .scrub-needle::before { left: auto; right: 6px; }
+@media (min-width: 900px) {
+  .finish-lookup { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: 48px; }
+  .finish-lookup > .scrolly { grid-column: 1 / -1; }
+  .finish-lookup-field, .finish-lookup-result { grid-column: 2; }
+}
+
+/* ---------- Which runner were you (.which-card, masked) ---------- */
+.which-card { display: grid; gap: var(--s-4); max-width: var(--measure-figure); }
+.which-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3); }
+.which-field .input { min-height: 48px; padding: 0 10px; font-size: 1rem; text-align: center; }
+.which-help { margin: 0; }
+.which-result { display: grid; gap: var(--s-4); padding-top: var(--s-4); border-top: 1px solid var(--rule); }
+.which-name { display: flex; align-items: center; gap: var(--s-3); margin: 0; }
+.which-name .type-glyph { width: 48px; height: 22px; }
+.which-name strong { font-weight: inherit; font-style: italic; }
+/* The nine sections as pace blocks: three rows on a phone (like the fields above), one row from 600 px. The blocks'
+   colours are the fixed pace ramp, so their text is the night pair, dark or light in either theme. */
+.which-blocks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; margin: 0; padding: 0; list-style: none; }
+.which-blocks li { display: grid; align-content: space-between; gap: 6px; min-height: 56px; margin: 0; padding: 8px 4px; border-radius: 2px; text-align: center; color: var(--night); background: var(--bg, var(--paper-sunk)); }
+.which-blocks li.is-dark { color: var(--night-ink); }
+.which-blocks .which-block-mat { font-size: 12px; font-weight: 600; line-height: 1; }
+.which-blocks b { font-size: 12px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.which-error { margin: 0; }
+.which-key { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: calc(-1 * var(--s-2)) 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
+.which-ramp { display: inline-flex; gap: 2px; margin: 0 4px; }
+.which-key i { flex: none; width: 12px; height: 10px; border-radius: 2px; background: var(--bg, var(--paper-sunk)); }
+/* Dark mode: a block blends from the dark surface by how far it is from even, so an even 5K is not a paper tile. */
+@supports (background: color-mix(in oklab, red 50%, blue)) {
+  [data-theme="dark"] .which-blocks li, [data-theme="dark"] .which-key i { background: color-mix(in oklab, var(--bg, var(--paper-sunk)) var(--mix, 0%), var(--paper-sunk)); color: var(--ink); }
+}
+/* Dark mode: every block and key swatch keeps a hairline edge, so an even section (the ramp's midpoint) still reads as
+   a block rather than dissolving into the page. */
+[data-theme="dark"] .which-blocks li, [data-theme="dark"] .which-key i { box-shadow: inset 0 0 0 1px var(--rule-strong); }
+
+/* ---------- Name that course ---------- */
+/* The round spans the story's measure: the plot stretches to it at a fixed height, its strokes kept at screen width. */
+.ntc { display: grid; gap: var(--s-4); max-width: var(--measure-figure); }
+.ntc-figure { margin: 0; }
+.ntc-plot { display: block; width: 100%; height: 150px; overflow: visible; }
+@media (min-width: 900px) { .ntc-plot { height: 200px; } }
+.ntc-plot line, .ntc-plot path { vector-effect: non-scaling-stroke; }
+.ntc-zero { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 4 4; }
+.ntc-line { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+/* The course across its editions: quiet, under the edition's own line. */
+.ntc-own { fill: none; stroke: var(--mark-quiet); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+/* The round's year: a plain label over the plot (the H2 asks the question). */
+.ntc-year { margin: 0 0 var(--s-2); font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
+/* The mats under the plot, at their distance along the course (the ends turned inward). */
+.ntc-axis { position: relative; height: 18px; font-size: 12px; font-weight: 500; line-height: 18px; color: var(--ink-3); }
+.ntc-axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.ntc-caption { margin-top: var(--s-2); font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
+.ntc-options { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Answered: the right course ink-filled with a check; a wrong pick outlined and struck through; the rest faded. */
+.ntc-option.is-answer, .ntc-option.is-answer[aria-pressed='true'] { gap: 6px; background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.ntc-option.is-miss, .ntc-option.is-miss[aria-pressed='true'] { background: transparent; border-color: var(--rule-strong); color: var(--ink-3); text-decoration: line-through; }
+.ntc-option:disabled { opacity: .45; cursor: default; }
+.ntc-check { flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ntc-verdict { min-height: 1.5em; margin: 0; font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); }
+.ntc-next { justify-self: start; }
+
+/* ---------- Pass or be passed (#gap) ----------
+   The H2's pair (the far 30K band level with a minute back at 40K, joined at that level) and the readout's minute-back
+   row hold while the needle is on the H2's band; scrubbed away, the pair steps back and the same readout row reads the
+   40K line at the needle's gap instead, so nothing jumps and no row stands empty. */
+.pl-pair .scrub.is-away .is-link, .pl-pair .scrub.is-away .is-compare { visibility: hidden; }
+.pl-pair .scrub:not(.is-away) .readout-side > div:nth-child(2), .pl-pair .scrub.is-away .readout-side > div:nth-child(1) { display: none; }
+
+/* ---------- Round numbers: the towers' steps ----------
+   Step 0: the silhouette alone. 1: the smooth curve. 2: the minutes before each round mark. 3: against the curve. */
+.towers-scrolly[data-step='0'] .viz-frame .l-ink2, .towers-scrolly[data-step='0'] .viz-frame .histo-tower { opacity: 0; }
+.towers-scrolly[data-step='1'] .viz-frame .histo-tower { opacity: 0; }
+.towers-scrolly .viz-frame .l-ink2, .towers-scrolly .viz-frame .histo-tower { transition: opacity var(--d-step) var(--ease-out); }
+/* The key appears with the second layer and names a layer only once its step draws it (each minute; the minute before a
+   round mark; the smooth curve): a lone silhouette needs no key. */
+.towers-scrolly[data-step='0'] .viz-key, .towers-scrolly[data-step='1'] .viz-key li:nth-child(2) { opacity: 0; }
+.towers-scrolly .viz-key { transition: opacity var(--d-step) var(--ease-out); }
+.towers-scrolly .viz-key li { transition: opacity var(--d-step) var(--ease-out); }
+
+/* ---------- Phones at 200% zoom ---------- */
+@media (max-width: 359.98px) {
+  .pair-bars-view { grid-template-columns: minmax(0, 1fr) 3.5rem; }
+  .pair-bar-label { grid-column: 1 / -1; }
+  .pair-bar-gaprow { grid-column: 1; }
+}
+@media (max-width: 299.98px) {
+  /* A long word in an H1 ("Metronomes") breaks with a hyphen at 200% zoom rather than widening the page. */
+  .story-hero-beat .reading-title { overflow-wrap: break-word; hyphens: auto; }
+  .which-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* The pack's scale gives way at 200% zoom: the band's width at the finish is the label that matters. */
+  .rr-packs .viz-frame .grid-label { display: none; }
+}
+
+@media (min-width: 600px) {
+  .type-legend { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: none; }
+  /* A card from 600 px, kept to the story's measure: its edge is the same right edge as every figure and the next card. */
+  .story-replay { max-width: var(--measure-figure); margin-inline: 0; padding: var(--s-5); border-radius: var(--r-md); }
+}
+
+@media (min-width: 900px) {
+  .story-hero-beat .reading { padding-top: var(--s-6); }
+  .type-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .which-grid { grid-template-columns: repeat(9, minmax(0, 1fr)); }
+  /* Nine sections in a row once each has room for "40K–finish". */
+  .which-blocks { grid-template-columns: repeat(9, minmax(0, 1fr)); }
+  .story-replay { padding: var(--s-6); }
+  /* The towers' chart stands at the top of its pinned column, so its first screen shows the chart, not a gap. */
+  .towers-scrolly .scrolly-graphic { align-items: flex-start; }
+}
+
+/* Course fingerprints (#fingerprint): every course a faint line, the typical course in ink, each slowest 5K a dot. */
+.fingerprints .l-faint { fill: none; stroke: var(--mark-quiet); stroke-width: 1; stroke-linejoin: round; opacity: .55; }
+.fingerprints .viz-key-mark.is-line.is-quiet { background: var(--mark-quiet); box-shadow: none; height: 1px; opacity: .7; }
+
+/* Places after 30K (#shuffle): the field as one 100% bar, the gains bracketed, the tails named under its ends. */
+.place-shift .ps-bracket { position: relative; height: 34px; }
+.place-shift .ps-bracket::before { content: ''; position: absolute; left: 0; right: 0; bottom: 6px; height: 8px; border: 1.5px solid var(--ink); border-bottom: 0; border-radius: 2px 2px 0 0; }
+.place-shift .ps-bracket-label { position: absolute; right: 0; bottom: 18px; font-size: 14px; font-weight: 600; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink); }
+.place-shift .ps-track { display: flex; gap: 2px; height: 28px; }
+.place-shift .ps-seg { display: flex; align-items: center; justify-content: center; min-width: 3px; flex-basis: 0; border-radius: 3px; overflow: hidden; }
+.place-shift .ps-seg.is-ink { background: var(--ink); }
+.place-shift .ps-seg.is-quiet { background: var(--fill-quiet); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
+.place-shift .ps-ends { display: flex; justify-content: space-between; gap: var(--s-4); margin-top: var(--s-3); font-size: var(--t-small); line-height: 1.35; color: var(--ink-2); }
+.place-shift .ps-end { max-width: 10.5em; }
+.place-shift .ps-end b { display: block; font-size: 1.0625rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.place-shift .ps-end.is-right { text-align: right; }
+

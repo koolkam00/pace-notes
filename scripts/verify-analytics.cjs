@@ -679,7 +679,9 @@ for (const file of ['app', 'components'].flatMap(sourceFiles)) {
 // signal "at least 3 home chapters", which must not become automatic (docs/ANALYTICS.md).
 const homeSource = read('app/(home)/page.tsx').replace(/<HomeDoors\b/, tag => read('components/home/HomeDoors.tsx') + tag);
 const homeSections = [...withoutComments('app/(home)/page.tsx').replace(/<HomeDoors\b/, tag => withoutComments('components/home/HomeDoors.tsx') + tag).matchAll(/data-track-section="([^"]+)"/g)].map(m => m[1]);
-assert.deepEqual(homeSections, ['hero', 'paths', 'stakes', 'guide', 'steps', 'stories', 'cta'], 'Home sections: hero, the three ways to start, stakes, guide, the three steps, the story teaser and the closing call');
+// Since the redesign (WP1, October 17, 2026, on feat/redesign) the home page is four things: the hero with the three
+// ways to start, one guess, the chapters and the closing call; the three steps and the story teaser are gone.
+assert.deepEqual(homeSections, ['hero', 'paths', 'stakes', 'guide', 'cta'], 'Home sections: hero, the three ways to start, the guess, the chapters and the closing call');
 assert.ok(!homeSections.some(id => id.startsWith('chapter-')), 'The home page has no chapter-* sections');
 assert.match(homeSource, /<HomeDoors\b/, 'The home page renders its three ways to start');
 const layoutSource = read('app/layout.tsx');

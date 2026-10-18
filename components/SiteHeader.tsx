@@ -26,7 +26,7 @@ const GLYPH = (
  * reading bar takes its place meanwhile. It stays while a menu is open, while it holds keyboard focus, near the top and
  * under reduced motion, and moves only by transform (header.css), so nothing below it shifts.
  *
- * `brand` (the Pace Notes link; the credit lives in the footer only) and `chapters` (the chapter list) come from the root layout, a server
+ * `brand` (the Pace Notes link and, under it at every width, the quiet "by Andrew Kam" credit) and `chapters` (the chapter list) come from the root layout, a server
  * component, so their markup is not part of every page's JavaScript.
  */
 export default function SiteHeader({ brand, chapters }: { brand: ReactNode; chapters: ReactNode }) {

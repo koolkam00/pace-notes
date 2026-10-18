@@ -16,7 +16,7 @@ export type ValuesColumn = { key: string; label: string; text?: boolean };
 
 type Props = {
   id: string;
-  caption: string;
+  caption: ReactNode;
   columns?: ValuesColumn[];
   rows?: (string | number)[][];
   reading?: number;

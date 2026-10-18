@@ -14,10 +14,11 @@ export default function SiteNav({ id }: { id?: string }) {
   const path = usePathname() || '';
   const within = (route: string) => path === route || path.startsWith(route + '/');
   const here = (on: boolean) => (on ? 'page' as const : undefined);
-  // On the home page its own plan form is the one orange control on screen, so the wide header's pill goes quiet there.
+  // On the home page its hero holds both doors (the plan form and Analyze a past race), so from 1180 px the header leaves
+  // those two out there (menu.css): one path to each page per screen.
   return <nav id={id} aria-label="Main navigation" className="main-nav" {...(path === '/' ? { 'data-home': '' } : {})}>
-    <Link href="/tools/plan" className="nav-primary" aria-current={here(within('/tools/plan'))}>Plan your race</Link>
-    <Link href="/runners" aria-current={here(within('/runners'))}>Analyze a past race</Link>
+    <Link href="/tools/plan" className="nav-primary nav-door" aria-current={here(within('/tools/plan'))}>Plan your race</Link>
+    <Link href="/runners" className="nav-door" aria-current={here(within('/runners'))}>Analyze a past race</Link>
     <Link href="/courses" aria-current={here(within('/courses'))}>Courses</Link>
     <Link href="/tools" aria-current={here(within('/tools') && !within('/tools/plan'))}>Tools</Link>
     <Link href="/research" aria-current={here(['/research', '/stories', '/analyses', '/packs', '/slowdown'].some(within))}>Research</Link>

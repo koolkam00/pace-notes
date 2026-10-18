@@ -7,13 +7,11 @@
  * rail, the reading bar and every next card read this one file. It holds no numbers: a page's reading is a nugget id
  * that the server resolves at build (lib/nuggets/, WP0-C), passed to the components as `readingOf`.
  *
- * Server-only: titles come from lib/stories.ts and lib/ten-analyses.ts, which read the published data. Client code reads
- * what it needs from the markup (data-reading, data-pages), never this module, so the registry costs no JavaScript.
+ * Client code reads what it needs from the markup (data-reading, data-pages), never this module, so the registry costs
+ * no JavaScript.
  */
 import type { Marker } from '@/components/ui/MarkerBadge';
 import type { NuggetFigure, NuggetId } from './nuggets/types';
-import { STORIES } from './stories';
-import { TEN_ANALYSES } from './ten-analyses';
 
 export type { NuggetId };
 export type PageKind = 'story' | 'analysis' | 'explainer' | 'tool' | 'course-index' | 'runner' | 'report' | 'course';
@@ -70,13 +68,17 @@ export const partLabel = (part: 1 | 2 | 3) => `Part ${PART_WORDS[part]} · ${PAR
 /** A methods anchor built from its id (verify-chapters checks every one against the built /methodology). */
 const methods = (id: string) => `/methodology#${id}` as MethodsAnchor;
 
+/**
+ * A page carries one name everywhere the shell lists it (the rail, the reading bar, contents rows, next cards): its
+ * short title. A story's or an analysis's longer title (lib/stories.ts, lib/ten-analyses.ts) stays for its own page,
+ * search, share cards and structured data.
+ */
 const story = (slug: string, short: string, nugget: NuggetId, pending?: string): ChapterPage => ({
   href: `/stories/${slug}`, kind: 'story', short, nugget, howWeKnow: methods(`story-${slug}`), ...(pending ? { pending } : {}),
-  get title() { return STORIES.find((s) => s.slug === slug)?.title ?? short; },
+  title: short,
 });
 const analysis = (slug: string, short: string, nugget: NuggetId, howWeKnow: MethodsAnchor = '/methodology#question-methods'): ChapterPage => ({
-  href: `/analyses/${slug}`, kind: 'analysis', short, nugget, howWeKnow,
-  get title() { return TEN_ANALYSES.find((a) => a.slug === slug)?.shortTitle ?? short; },
+  href: `/analyses/${slug}`, kind: 'analysis', short, nugget, howWeKnow, title: short,
 });
 const page = (href: string, kind: PageKind, title: string, short: string, nugget: NuggetId, howWeKnow: MethodsAnchor): ChapterPage => ({ href, kind, title, short, nugget, howWeKnow });
 const tool = (slug: string, title: string, short: string, nugget: NuggetId) => page(`/tools/${slug}`, 'tool', title, short, nugget, methods(`tools-${slug}`));
@@ -88,7 +90,7 @@ const lastOf = <T,>(list: readonly T[]): T | undefined => list[list.length - 1];
 export const CHAPTERS: readonly Chapter[] = [
   { n: 1, id: 'chapter-01', part: 1, marker: 'START', title: 'The field', subtitle: 'Finish times, the replay',
     pages: [
-      page('/finish-times', 'story', 'Marathon finish times', 'Finish times', 'field.median', '/methodology#finish-times'),
+      page('/finish-times', 'story', 'Finish times', 'Finish times', 'field.median', '/methodology#finish-times'),
       story('race-replay', 'The race replay', 'replay.first'),
     ],
     lead: 'field.median', key: 'median finish' },
@@ -100,7 +102,7 @@ export const CHAPTERS: readonly Chapter[] = [
     lead: 'kick.bank', key: 'at the finish, after a first 5K over 10% fast' },
   { n: 3, id: 'chapter-03', part: 1, marker: '10K', title: 'The shape of a race', subtitle: 'Pacing types, your pattern',
     pages: [
-      story('pacing-types', 'Pacing types', 'types.metronome'),
+      story('pacing-types', 'Pacing types', 'shape.second20k'),
       analysis('pacing-pattern', 'Your pacing pattern', 'pattern.profile'),
     ],
     lead: 'shape.second20k', key: 'ran their second 20K faster than their first' },
@@ -114,13 +116,13 @@ export const CHAPTERS: readonly Chapter[] = [
   { n: 5, id: 'chapter-05', part: 1, marker: '30K', title: 'After 30K', subtitle: 'Sustained slowdown, where time goes',
     pages: [
       page('/slowdown', 'explainer', 'Sustained slowdown', 'Sustained slowdown', 'slowdown.onset', '/methodology#slowdown-method'),
-      story('final-kick', 'The second half', 'kick.twins'),
+      story('final-kick', 'After the slowdown', 'kick.twins'),
       analysis('where-time-is-gained', 'The minutes that matter', 'sections.split'),
     ],
     lead: 'slowdown.onset', key: 'of sustained slowdowns began at 30K or later' },
   { n: 6, id: 'chapter-06', part: 1, marker: 'FINISH', title: 'The finish line', subtitle: 'Round numbers, your target',
     pages: [
-      story('round-numbers', 'Round numbers', 'finish.busiest'),
+      story('round-numbers', 'Round numbers', 'round.top'),
       analysis('finish-time-context', 'Your target in context', 'target.context'),
     ],
     also: [{ href: '/tools/marathon-pace/4-00', label: 'Pace for a 4:00 goal' }],
@@ -128,22 +130,22 @@ export const CHAPTERS: readonly Chapter[] = [
     lead: 'finish.busiest', key: 'the busiest finishing minute' },
   { n: 7, id: 'chapter-07', part: 2, marker: '07', title: 'Who holds pace', subtitle: 'Women and men, age',
     pages: [
-      story('who-holds-pace', 'Who holds pace', 'holds.gender'),
+      story('who-holds-pace', 'Women and men', 'holds.gender'),
       analysis('age-and-pacing', 'Age and pace', 'age.retention'),
     ],
     lead: 'holds.gender', key: 'sustained slowdown, women · men, at the same finish times' },
   { n: 8, id: 'chapter-08', part: 2, marker: '08', title: 'Where you run', subtitle: 'Courses, hills, every city',
     pages: [
-      story('courses', 'Course fingerprints', 'courses.spread'),
+      story('courses', 'Course fingerprints', 'courses.named'),
       analysis('course-comparison', 'Compare the courses', 'courses.compare', ALL_FINISHER),
       analysis('hills-and-pacing', 'Hills and rhythm', 'terrain.climb'),
-      page('/courses', 'course-index', 'Marathon courses', 'Every course', 'courses.index', '/methodology#course-pages'),
+      page('/courses', 'course-index', 'Every course', 'Every course', 'courses.index', '/methodology#course-pages'),
     ],
     children: ['/courses/'], back: '/courses',
     lead: 'courses.spread', key: 'sustained slowdown, across courses' },
   { n: 9, id: 'chapter-09', part: 2, marker: '09', title: 'The weather', subtitle: 'Race morning, heat and wind',
     pages: [
-      story('race-morning', 'Race morning', 'weather.pairs', 'WP2'),
+      story('race-morning', 'Race morning', 'weather.pairs'),
       analysis('race-day-weather', 'Race-day weather', 'weather.start', ALL_FINISHER),
       tool('weather-match', 'Weather match', 'Weather match', 'weathermatch.mornings'),
     ],
@@ -263,18 +265,17 @@ export function howWeKnowOf(path: string): MethodsAnchor | null {
   return CHILD_METHODS.find(([c]) => (c.endsWith('/') ? p.startsWith(c) : p === c))?.[1] ?? null;
 }
 
-const KIND_WORD: Readonly<Record<PageKind, string>> = {
-  story: 'Story', analysis: 'Analysis', explainer: 'Explainer', tool: 'Tool', 'course-index': 'Courses', runner: 'Your race', report: 'Report', course: 'Course',
-};
-
-/** "Story 1 of 2" for a page in a chain; the kind alone for a child. */
+/**
+ * "Page 1 of 2" for a page in a chain; null for a child. A chapter mixes stories, analyses and tools, so the count is of
+ * its pages, never of one kind.
+ */
 export function placeLabel(path: string): string | null {
   const place = placeOf(path);
   if (!place) return null;
   if ('child' in place) return null;
   const live = livePages(place.chapter);
   const i = live.indexOf(place.page);
-  return `${KIND_WORD[place.page.kind]} ${i + 1} of ${live.length}`;
+  return `Page ${i + 1} of ${live.length}`;
 }
 
 /**

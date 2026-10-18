@@ -1,0 +1,198 @@
+/* The home page (app/(home)/page.tsx, components/home/; the redesign spec, sections 00 and 7.1): the start line, four
+   things. The night hero opens on the race replay with the plan door under it (on the right from 900 px), then one
+   guess on 100 dots, the chapters as a course line, and the closing call on night. Beats are separated by whitespace,
+   never boxes; the guess is the page's one raised surface. S1 pins the phone's first screen: at 390 x 664 and
+   402 x 714 the title, the plan button and both other ways to start end above the fold, and the button is the only
+   orange control there. */
+
+/* ---------- Night bands: full bleed out of main's column ---------- */
+.home-band { position: relative; width: 100vw; margin-left: calc(50% - 50vw); background: var(--night); color: var(--night-ink); }
+
+/* On the dark page a night band is its own surface by a shade; a hairline at each edge keeps it from dissolving. */
+[data-theme="dark"] .home-band { border-block: 1px solid var(--night-3); }
+
+/* ---------- The hero ---------- */
+.home-start { padding: var(--s-3) 0 var(--s-6); }
+.home-start-grid { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: var(--s-4); }
+.home-hero-copy, .home-hero-replay { min-width: 0; }
+/* On phones the replay comes first, above the title (the copy is first in the page's order). */
+.home-hero-replay { order: -1; }
+.home-hero-kicker { margin: 0; }
+.home-hero-title { margin-top: var(--s-2); }
+.home-hero-title em { white-space: nowrap; }
+.home-hero-dek { display: none; margin: var(--s-3) 0 0; max-width: 30rem; font-size: var(--t-body); line-height: 1.5; color: var(--night-ink-2); text-wrap: pretty; }
+
+/* The replay band (components/viz/ReplayFrame.tsx in its band variant): the race and clock, the field at a fifth of
+   the screen with the two lines its sentence names (20K and the finish) labelled at its foot, where the field's
+   tail never reaches, then the moment's
+   sentence with play and pause beside it, so the band takes one row less. */
+.home-start .hero-replay.is-band .replay-frame { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-3); }
+.home-start .hero-replay.is-band .replay-frame > * { grid-column: 1 / -1; }
+.home-start .hero-replay.is-band .replay-hud { grid-row: 1; }
+/* The rank axis named once under the HUD, so the field's S-curve reads on the first screen too; the field gives up the
+   line's height, so the plan door and both other ways to start still end above a 664 px screen (S1). */
+.home-start .hero-replay.is-band .replay-axis-y { display: block; grid-row: 2; margin: 0 0 4px; }
+.home-start .hero-replay.is-band { --replay-h: calc(22vh - 20px); }
+@supports (height: 1svh) { .home-start .hero-replay.is-band { --replay-h: clamp(108px, calc(22svh - 20px), 180px); } }
+.home-start .hero-replay.is-band .replay-box { grid-row: 3; }
+.home-start .hero-replay.is-band .replay-mats { display: block; grid-row: 3; align-self: end; z-index: 1; height: 16px; margin: 0 0 4px; pointer-events: none; }
+.home-start .hero-replay.is-band .replay-mats span { text-shadow: 0 0 3px var(--night), 0 0 6px var(--night); }
+.home-start .hero-replay.is-band .replay-mats span:not(:nth-child(3)):not(.is-finish) { display: none; }
+.home-start .hero-replay.is-band .replay-moment { grid-column: 1; grid-row: 4; min-height: 2.6em; margin-top: var(--s-2); font-size: .9375rem; }
+.home-start .hero-replay.is-band .replay-scrub { grid-column: 2; grid-row: 4; align-self: center; margin-top: var(--s-2); }
+
+/* ---------- The three ways to start (components/home/HomeDoors.tsx) ---------- */
+.home-doors { display: grid; gap: var(--s-2); margin-top: var(--s-4); }
+.home-plan { display: grid; gap: var(--s-3); margin: 0; }
+/* One instrument row, two cells divided by a hairline: the label over the value. */
+.home-plan-fields { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); border: 1px solid var(--night-3); border-radius: var(--r-sm); background: var(--night-2); }
+.home-plan-field { position: relative; display: grid; align-content: start; min-width: 0; padding: 6px 0 0; border-radius: var(--r-sm) 0 0 var(--r-sm); }
+.home-plan-field + .home-plan-field { border-left: 1px solid var(--night-3); border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.home-plan-field:focus-within { box-shadow: inset 0 0 0 2px var(--focus-night); }
+.home-plan-field-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); padding-right: 14px; }
+.home-plan-field label { display: block; padding: 0 14px; font-family: var(--sans); font-size: var(--t-label); font-weight: 600; line-height: 1.25; color: var(--night-ink-3); }
+.home-plan-field-head label { padding-right: 0; }
+.home-plan .home-plan-field .keypad-hint { font-size: .75rem; font-weight: 500; line-height: 1.25; color: var(--night-ink-3); }
+.home-plan select, .home-plan input:not([type='hidden']) {
+  display: block; width: 100%; min-width: 0; min-height: 44px; height: 44px; margin: 0; padding: 0 14px;
+  border: 0; border-radius: 0; background-color: transparent; box-shadow: none; color: var(--night-ink);
+  font-family: var(--sans); font-size: 1.0625rem; font-weight: 500; line-height: 1.3; font-variant-numeric: tabular-nums;
+}
+.home-plan select {
+  appearance: none; -webkit-appearance: none; padding-right: 36px; text-overflow: ellipsis;
+  background-image: linear-gradient(45deg, transparent 50%, var(--night-ink-2) 50%), linear-gradient(135deg, var(--night-ink-2) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 52%, calc(100% - 15px) 52%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+}
+.home-plan select option { color: var(--ink); background: var(--paper-raised); }
+.home-plan input::placeholder { color: var(--night-ink-3); opacity: 1; }
+.home-plan select:hover, .home-plan input:hover { border-color: transparent; }
+/* The cell draws the focus ring, so the control itself needs none of its own. */
+.home-plan select:focus, .home-plan input:focus, .home-plan select:focus-visible, .home-plan input:focus-visible { outline: none; border-color: transparent; box-shadow: none; }
+.home-plan-button { margin: 0; }
+
+/* The other two: a quiet line of links under the button, no boxes. */
+.home-door-others { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--s-4); margin: 0; padding: 0; list-style: none; }
+.home-door-others li { margin: 0; }
+.home-door-link {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 2px;
+  border-radius: var(--r-xs); color: var(--night-ink); font-family: var(--sans); font-size: .9375rem; font-weight: 600; line-height: 1.2;
+  text-decoration: none;
+}
+.home-door-link .arrow-icon { width: 14px; height: 14px; color: var(--night-ink-3); transition: transform var(--d-release) var(--spring); }
+.home-door-link:hover { color: var(--night-ink); text-decoration: none; }
+.home-door-link:hover .arrow-icon { transform: translateX(3px); color: var(--night-ink); }
+.home-door-link:focus-visible { outline: 2px solid var(--focus-night); outline-offset: 2px; }
+
+/* ---------- The guess (components/ui/GuessFirst.client.tsx, on 100 dots) ---------- */
+.home-beat { padding-top: var(--beat-gap); }
+.home-beat-kicker { display: flex; align-items: center; gap: var(--s-3); margin: 0 0 var(--s-4); }
+.home-beat-kicker::before { content: ''; flex: none; width: 18px; height: 1px; background: var(--rule-strong); }
+.home-stakes .guess { max-width: none; }
+.home-stakes .guess-verdict em { white-space: nowrap; }
+
+/* ---------- The chapters (components/ui/ChapterList.tsx, full) ---------- */
+.home-guide-head { display: grid; gap: var(--s-3); margin-bottom: var(--s-5); max-width: var(--measure); }
+.home-guide-dek { margin: 0; font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+/* On a phone each chapter reads down its own column: its title, then its reading (the figure and its key on one
+   baseline), so no title is squeezed beside a figure. The marker on the line says where in the race it is; the
+   chapter's number and the pages it holds show from 600 px. */
+@media (max-width: 599.98px) {
+  .home-chapters .chapter-link { grid-template-columns: calc(var(--line-x, 28px) * 2) minmax(0, 1fr); align-items: start; row-gap: 2px; min-height: 0; padding: 6px 0 12px; }
+  .home-chapters .chapter-text { padding: 11px 0 0; }
+  .home-chapters .chapter-sub { display: none; }
+  .home-chapters .chapter-reading { grid-column: 2; display: flex; flex-wrap: wrap; align-items: baseline; justify-items: start; gap: 2px 10px; max-width: none; text-align: left; }
+  .home-chapters .chapter-key { flex: 1 1 12rem; max-width: 26ch; }
+}
+
+/* From 600 px the reading sits right of its chapter in a fixed column, the figure and its key flush left together, so
+   every key runs one or two even lines and the figures line up down the list. */
+@media (min-width: 600px) {
+  .home-chapters .chapter-link { grid-template-columns: calc(var(--line-x, 28px) * 2) minmax(0, 1fr) 15.5rem; align-items: start; }
+  .home-chapters .chapter-text { padding-top: 10px; }
+  .home-chapters .chapter-reading { justify-items: start; max-width: none; padding-top: 6px; text-align: left; }
+  .home-chapters .chapter-key { max-width: none; }
+}
+
+/* ---------- The closing call ---------- */
+.home-cta { margin-top: var(--beat-gap); padding: var(--s-7) 0; }
+.home-cta-inner { display: grid; justify-items: start; gap: var(--s-5); }
+.home-cta-inner .t-h2 { max-width: 16ch; }
+.home-cta .btn-primary:focus-visible { outline-color: var(--focus-night); }
+
+/* ---------- Narrow (320 px, and 200% zoom) ---------- */
+@media (max-width: 359.98px) {
+  .home-door-others { flex-direction: column; align-items: flex-start; }
+}
+@media (max-width: 299.98px) {
+  /* The replay's two shares each take their own lines, and the readings step down a size, so nothing passes the edge. */
+  .home-start .hero-replay .replay-stats div { flex-wrap: wrap; }
+  .home-start .hero-replay .replay-stats dd { min-width: 0; text-align: left; }
+  .home-chapters .chapter-reading .big-number.is-s { font-size: 1.25rem; }
+  /* The course and goal stack, so a typed 3:45:00 and the longest course name show in full. */
+  .home-plan-fields { grid-template-columns: minmax(0, 1fr); }
+  .home-plan-field, .home-plan-field + .home-plan-field { border-radius: 0; }
+  .home-plan-field + .home-plan-field { border-left: 0; border-top: 1px solid var(--night-3); }
+  .home-plan-field-head { flex-wrap: wrap; }
+}
+
+@media (min-width: 600px) {
+  .home-hero-dek { display: block; }
+}
+
+/* ---------- Desktop: copy and form on the left (5/12), the replay on the right (7/12) ---------- */
+@media (min-width: 900px) {
+  .home-start { padding: var(--s-8) 0; }
+  .home-start-grid { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); align-items: center; column-gap: var(--s-8); }
+  .home-hero-replay { order: 0; }
+  .home-hero-title { font-size: clamp(2.75rem, 4.4vw, 4.25rem); }
+  .home-doors { margin-top: var(--s-6); }
+  /* The full replay: a taller field, the mats, the race clock to scrub and the axis words. */
+  .home-start .hero-replay.is-band { --replay-h: clamp(300px, 46vh, 440px); }
+  .home-start .hero-replay.is-band .replay-frame { display: block; }
+  .home-start .hero-replay.is-band .replay-clock { font-size: 1.75rem; }
+  .home-start .hero-replay.is-band .replay-mats, .home-start .hero-replay.is-band .replay-axis-y { display: block; }
+  .home-start .hero-replay.is-band .replay-mats { height: 22px; margin: 6px 0 0; }
+  .home-start .hero-replay.is-band .replay-mats span { text-shadow: none; }
+  .home-start .hero-replay.is-band .replay-mats span:not(:nth-child(3)):not(.is-finish) { display: block; }
+  .home-start .hero-replay.is-band .replay-track { display: block; }
+  .home-start .hero-replay.is-band .replay-moment { margin-top: var(--s-3); font-size: 1.0625rem; }
+  .home-start .hero-replay.is-band .replay-scrub { margin-top: var(--s-2); }
+
+  /* The guess: the question and its controls on the left, the 100 dots on the right. */
+  .home-stakes .guess { grid-template-columns: minmax(0, 1fr) minmax(0, 23rem); grid-template-rows: repeat(5, auto) 1fr; column-gap: var(--s-8); align-items: start; padding: 48px; }
+  .home-stakes .guess > * { grid-column: 1; }
+  .home-stakes .guess > .guess-marks { grid-column: 2; grid-row: 1 / -1; }
+  /* Beside the question the 100 dots fill their column. */
+  .home-stakes .guess-dots { max-width: 320px; gap: 10px; margin-top: 0; }
+
+  /* The chapters: the heading holds its place on the left while the list scrolls on the right. */
+  .home-guide { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); column-gap: var(--s-8); align-items: start; }
+  .home-guide-head { position: sticky; top: calc(var(--header-h) + var(--s-6)); margin-bottom: 0; }
+  .home-cta { padding: var(--s-9) 0; }
+  /* The call and its button across the band: the line on the left, the button level with its last line. */
+  .home-cta-inner { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+  .home-chapters .chapter-reading .big-number.is-s { font-size: 2.5rem; }
+}
+
+/* A chapter whose reading is a key with no figure: from 600 px the key is the row's subtitle, so no figure column is
+   reserved for it. */
+@media (min-width: 600px) {
+  .home-chapters .chapter-reading.is-key-only { grid-column: 2; justify-items: start; margin-top: -8px; padding-top: 0; text-align: left; }
+  .home-chapters .chapter-reading.is-key-only .chapter-key { max-width: none; font-size: var(--t-small); font-weight: 400; line-height: 1.35; }
+}
+
+/* The guess's answer is chapter 03's reading: on the guide its figure waits until the guess is revealed or skipped,
+   and a quiet "?" holds its place until then (silent to screen readers, which read the key). */
+@supports selector(:has(*)) {
+  .home:has(.home-stakes .guess:not(.is-revealed)) .home-guide .chapter-row[data-lead='shape.second20k'] .chapter-reading .big-number { display: none; }
+  .home:has(.home-stakes .guess:not(.is-revealed)) .home-guide .chapter-row[data-lead='shape.second20k'] .chapter-reading::before {
+    content: '?'; content: '?' / ''; font-family: var(--figure); font-weight: 660; font-size: var(--t-figure-s); line-height: 1; color: var(--ink-3);
+  }
+  @media (min-width: 600px) {
+    .home:has(.home-stakes .guess:not(.is-revealed)) .home-guide .chapter-row[data-lead='shape.second20k'] .chapter-reading::before { font-size: var(--t-figure-m); }
+    .home-chapters .chapter-link:has(.chapter-reading.is-key-only) .chapter-sub { display: none; }
+  }
+  @media (min-width: 900px) {
+    .home:has(.home-stakes .guess:not(.is-revealed)) .home-guide .chapter-row[data-lead='shape.second20k'] .chapter-reading::before { font-size: 2.5rem; }
+  }
+}

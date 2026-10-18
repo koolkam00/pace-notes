@@ -79,8 +79,8 @@
   .main-nav > a:focus-visible { border-radius: var(--r-pill); }
   .main-nav > a.nav-primary { margin: 0 6px 0 0; padding: 0 18px; }
   .main-nav > a.nav-primary[aria-current] { text-decoration: none; }
-  .main-nav[data-home] > a.nav-primary { margin-right: 0; padding: 0 12px; background: transparent; color: var(--ink-2); font-weight: 500; }
-  .main-nav[data-home] > a.nav-primary:hover { background: var(--paper-sunk); color: var(--ink); }
+  /* On the home page the hero's two doors are the way in, so the header shows Courses, Tools and Research only. */
+  .main-nav[data-home] > a.nav-door { display: none; }
   .main-nav > a::after, .main-nav .nav-more { display: none; }
 
   .menu-chapters { position: fixed; inset: 0; z-index: var(--z-sheet); margin: 0; visibility: hidden; pointer-events: none; transition: visibility 0s linear var(--d-sheet); }

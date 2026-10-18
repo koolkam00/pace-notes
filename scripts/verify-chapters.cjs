@@ -101,7 +101,7 @@ test('howWeKnowOf, placeLabel and readingAttrs', () => {
   assert.equal(C.howWeKnowOf('/courses/boston'), '/methodology#course-pages');
   assert.equal(C.howWeKnowOf('/report'), '/methodology#race-report');
   assert.equal(C.howWeKnowOf('/methodology'), null);
-  assert.equal(C.placeLabel('/stories/round-numbers'), 'Story 1 of 2');
+  assert.equal(C.placeLabel('/stories/round-numbers'), 'Page 1 of 2');
   assert.equal(C.placeLabel('/courses/boston'), null);
   assert.deepEqual(C.readingAttrs('/stories/round-numbers'), { 'data-reading': '', 'data-marker': 'FINISH', 'data-short': 'Round numbers' });
   assert.deepEqual(C.readingAttrs('/courses/boston', 'Boston'), { 'data-reading': '', 'data-marker': '08', 'data-short': 'Boston' });
@@ -237,7 +237,7 @@ test('ChapterRail marks the current page', () => {
   assert.equal(render('components/ChapterRail.tsx', { path: '/about' }), '');
 });
 test('ChapterList: compact without readings or ids, expanded with ids and every page, full with readings', () => {
-  const readingOf = (id) => ({ value: 'V', sr: id });
+  const readingOf = (id) => ({ value: '47', unit: '%', sr: id, key: 'the key' });
   const compact = render('components/ui/ChapterList.tsx', { variant: 'compact', readingOf });
   assert.equal((compact.match(/class="chapter-row"/g) || []).length, 11);
   assert.doesNotMatch(compact, /chapter-reading|id="chapter-/);
@@ -246,11 +246,15 @@ test('ChapterList: compact without readings or ids, expanded with ids and every 
   assert.equal((expanded.match(/class="chapter-page-link"/g) || []).length, live.length);
   const full = render('components/ui/ChapterList.tsx', { variant: 'full', readingOf });
   assert.equal((full.match(/class="chapter-reading"/g) || []).length, 11);
+  // A figure that is a word ("Yours") is no reading: its key shows alone, as plain text, never as a big number.
+  const words = render('components/ui/ChapterList.tsx', { variant: 'full', readingOf: (id) => ({ value: 'Yours', sr: id, key: 'nine mats, one race' }) });
+  assert.equal((words.match(/class="chapter-reading is-key-only"/g) || []).length, 11);
+  assert.doesNotMatch(words, /big-number/);
 });
 test('ChapterCrumbs', () => {
   const html = renderToStaticMarkup(React.createElement(require(path.join(root, 'components/ui/ChapterHeader.tsx')).ChapterCrumbs, { path: '/stories/round-numbers' }));
   assert.match(html, /href="\/research#chapter-06">Chapter 06 · The finish line<\/a>/);
-  assert.match(html, /· Story 1 of 2/);
+  assert.match(html, /· Page 1 of 2/);
 });
 
 for (const note of notes) console.log(`note: ${note}`);

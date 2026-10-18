@@ -10,7 +10,8 @@ import { extent, linear, pc } from './scale';
 /**
  * A dot strip (the redesign spec, section 3.6): one 10 px dot per item along a value axis, ranked by value, never A to
  * Z. Dots that would touch stack upward. The subject is signal and named by the readout; the extremes are labelled;
- * items with too few editions are hollow; the rest quiet. Tap a dot (the nearest wins) to read it out; the strip opens on the subject.
+ * items with too few editions are hollow; the rest quiet. Tap a dot (the nearest wins) to read it out: the chosen dot
+ * grows and fills with ink (signal on the subject), never a ring, which is only ever the reader. The strip opens on the subject.
  *
  * Extremes come only from filled items (spec section 3.10: a cross-course extreme needs three or more editions), so an
  * under-sampled hollow dot is never named as the fastest or slowest. Headlines take them from `stripExtremes`.
@@ -83,7 +84,7 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
   };
   const axis = <Axis ticks={ticks.map((t) => ({ x: x(t.value), label: t.label }))} />;
   return (
-    <ChartFrame className="dot-strip" label={label} height={height} heightMd={height}
+    <ChartFrame className={`dot-strip${subject >= 0 ? ' has-subject' : ''}`} label={label} height={height} heightMd={height}
       scrub={<Scrubber mode="pick" points={points} initial={Math.max(0, subject)} label={label} axis={axis}>{plot}</Scrubber>}
       keys={keyLabels && sorted.some((s) => s.hollow) ? [{ label: keyLabels.filled, mark: 'dot', tone: 'quiet' }, { label: keyLabels.hollow, mark: 'hollow' }] : undefined}
       values={values}

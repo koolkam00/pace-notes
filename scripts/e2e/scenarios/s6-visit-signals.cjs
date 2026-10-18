@@ -14,7 +14,10 @@ const { SITE, type, waitFor } = require('../browser.cjs');
 const { ROOT } = require('../inspect.cjs');
 
 const PHONE = { viewport: { width: 390, height: 844 }, mobile: true };
-const HOME_SECTIONS = ['hero', 'paths', 'stakes', 'guide', 'steps', 'stories', 'cta'];
+// The home page's sections since the redesign (WP1, October 17, 2026): the steps and the story teaser are gone.
+const HOME_SECTIONS = ['hero', 'paths', 'stakes', 'guide', 'cta'];
+// The home page's links to a story: its chapter list (the guide), since the story cards left it.
+const HOME_STORY = 'main .chapter-list a[href^="/stories/"]';
 const SENTINEL = 'E2E sentinel Private Name 3:16:41';
 // A recording shows the elements a test adds to the page (a broken image, a missing script) like any other.
 const IN_RECORDING = /\(\/s\/\)/;
@@ -47,7 +50,7 @@ async function reading(h) {
     await page.waitForTimeout(400);
   };
   // Story A, read to the end, then back to the (much longer) home page by the header logo: a client-side navigation.
-  await page.evaluate(() => document.querySelector('a.story-card[href^="/stories/"]').click());
+  await page.evaluate(selector => document.querySelector(selector).click(), HOME_STORY);
   await page.waitForURL(url => new URL(url).pathname.startsWith('/stories/'));
   const storyA = new URL(page.url()).pathname;
   await page.waitForTimeout(1500);
@@ -63,8 +66,8 @@ async function reading(h) {
   await page.waitForURL(url => new URL(url).pathname === '/');
   await page.waitForTimeout(1500);
   // Story B, read to the end, then the tab leaves the site with a full load: the story's own $pageleave.
-  const storyB = await page.evaluate(a => [...document.querySelectorAll('a.story-card[href^="/stories/"]')].map(el => new URL(el.href).pathname).find(href => href !== a), storyA);
-  await page.evaluate(href => document.querySelector(`a.story-card[href="${href}"]`).click(), storyB);
+  const storyB = await page.evaluate(([selector, a]) => [...document.querySelectorAll(selector)].map(el => new URL(el.href).pathname).find(href => href !== a), [HOME_STORY, storyA]);
+  await page.evaluate(([selector, href]) => [...document.querySelectorAll(selector)].find(el => new URL(el.href).pathname === href).click(), [HOME_STORY, storyB]);
   await page.waitForURL(url => new URL(url).pathname === storyB);
   await page.waitForTimeout(1500);
   await toBottom();
@@ -84,7 +87,7 @@ async function reading(h) {
   const sections = named(run, 'section_viewed').filter(p => p.$pathname === '/' && views[0] && p.$pageview_id === views[0].$pageview_id).map(p => p.section);
   h.check('each home section is counted once, in page order', JSON.stringify(sections) === JSON.stringify(order), { sent: sections, page: order });
   // The home page's sections since October 16, 2026, and none of them a chapter-* (autopilot/metrics.md counts those on /).
-  h.check('the home page marks hero, paths, stakes, guide, steps, stories and cta, in that order', JSON.stringify(order) === JSON.stringify(HOME_SECTIONS), order);
+  h.check('the home page marks hero, paths, stakes, guide and cta, in that order', JSON.stringify(order) === JSON.stringify(HOME_SECTIONS), order);
   h.check('no chapter-* section is sent from the home page', !named(run, 'section_viewed').some(p => p.$pathname === '/' && String(p.section).startsWith('chapter-')), shown(named(run, 'section_viewed').filter(p => p.$pathname === '/')));
   // Once the SDK has loaded, the site's events join its batch (sent every few seconds) instead of one request each.
   const perRequest = run.sent.map(r => (r.events || []).filter(e => e.event === 'section_viewed').length).filter(n => n);
@@ -95,10 +98,13 @@ async function reading(h) {
   // A story read to the end, then a client-side navigation to a longer page, stays read to the end (the next page's
   // height does not count), under the story's own path.
   const home = views.find(p => p.$pathname === '/' && p.$prev_pageview_pathname === storyA);
-  // The client-side return to /: one hero, under the / page view. The story's page view, still open as the router puts
-  // the home page in place, must not count it too.
-  const heroes = named(run, 'section_viewed').filter(p => p.section === 'hero' && (!views[0] || p.$pageview_id !== views[0].$pageview_id));
+  // The client-side return to /: one hero on /, under the / page view. The story's page view, still open as the router
+  // puts the home page in place, must not count it too. (Stories mark a hero of their own since the October 17, 2026
+  // redesign; those are checked below, each once under its story's page view.)
+  const heroes = named(run, 'section_viewed').filter(p => p.section === 'hero' && p.$pathname === '/' && (!views[0] || p.$pageview_id !== views[0].$pageview_id));
   h.check('after a client-side navigation to /, exactly one hero, carrying the / page view\'s $pageview_id', home && heroes.length === 1 && heroes[0].$pageview_id === home.$pageview_id, { home: home && home.$pageview_id, heroes: heroes.map(p => `${p.$pathname} ${p.$pageview_id}`) });
+  const storyHeroes = [storyA, storyB].map(path => named(run, 'section_viewed').filter(p => p.section === 'hero' && p.$pathname === path));
+  h.check('each story read marks its hero once, under its own page view', storyHeroes.every((list, i) => list.length === 1 && list[0].$pageview_id === (views.find(p => p.$pathname === [storyA, storyB][i]) || {}).$pageview_id), storyHeroes.map(list => list.map(p => `${p.$pathname} ${p.$pageview_id}`)));
   const viewPath = new Map(views.map(p => [p.$pageview_id, p.$pathname]));
   const misfiled = named(run, 'section_viewed').filter(p => viewPath.get(p.$pageview_id) !== p.$pathname);
   h.check('every section view carries the page view of its own page', !misfiled.length, misfiled.map(p => `${p.section} ${p.$pathname} ${p.$pageview_id}`));

@@ -1,56 +1,98 @@
 import type { FinishTimes } from '@/lib/insights';
-import { count } from '@/lib/viz/format';
-import { FinishHistogram, Rescue, SecondsLens } from '../FinishTimeStory';
-import { StorySection } from '../StoryShell';
-import { StoryData } from '../StoryData';
-import { Checkpoint, Distance, Section } from '../Units';
-import { UnitLink as Link } from '@/components/UnitsProvider';
+import { readInsight } from '@/lib/insights-server';
+import { STORIES } from '@/lib/stories';
+import { getNugget, sentenceOf } from '@/lib/nuggets';
+import { count, hm } from '@/lib/nuggets/format';
+import Histogram from '@/components/viz/Histogram';
+import Scrolly from '@/components/ui/Scrolly.client';
+import GuessFirst from '@/components/ui/GuessFirst.client';
+import Values from '@/components/ui/Values';
+import { Beat, Say, StoryHero, StoryPage } from '../StoryPage';
+import ScrollyLens from '../ScrollyLens.client';
+import MyFinish from '../FinishTimeStory';
 
-export default function RoundNumbersBody({ data }: { data: FinishTimes }) {
-  const marks = data.marks;
-  const three = marks.find((m) => m.minutes === 180)!;
-  const half = marks.find((m) => m.minutes === 210)!;
-  const four = marks.find((m) => m.minutes === 240)!;
-  const five = marks.find((m) => m.minutes === 300)!;
-  const b4 = data.bubble.find((b) => b.minutes === 240)!;
-  const fiveMin = data.cliff_index.filter((c) => c.kind === 'five');
-  const fastFive = fiveMin.filter((c) => c.minute < 210);
-  const slowFive = fiveMin.filter((c) => c.minute >= 270);
-  const med = (v: number[]) => [...v].sort((a, b) => a - b)[Math.floor(v.length / 2)] ?? NaN;
+const PATH = '/stories/round-numbers';
+const LO = 140, HI = 380;
+const LENS = { count: 'Finishes per minute', ratio: 'Against the curve' };
+
+/**
+ * The round-number effect (the redesign spec, section 7.8, under section 00): the reading (the minute that stands
+ * tallest against the curve; the H1 is named for it), then the towers as the story's one step-by-step reveal, opening on
+ * the busiest minute and ending on the scrubbable lens chart, with the reader's own finish time under it (#my-finish
+ * moves the chart's needle to that minute and rings it), then the page's one guess (the final stretch to a round mark).
+ * The scoreboard of marks lives in the towers' Values; the ten-second view, the reading's mini lens and the second,
+ * smaller silhouette of the lookup are cut.
+ */
+export default function RoundNumbersBody() {
+  const ft = readInsight<FinishTimes>('finish-times.json');
+  const story = STORIES.find((s) => s.slug === 'round-numbers')!;
+  const top = getNugget('round.top'), busiest = getNugget('finish.busiest'), marksNugget = getNugget('round.marks'), rescue = getNugget('round.rescue');
+  const topMinute = Number(top.values.minutes) - 1;
+
+  const bins = ft.histogram.filter((h) => h.minute >= LO && h.minute < HI).map((h) => ({ x: h.minute, n: h.all }));
+  const curve = ft.expected_curve.filter((c) => c.minute >= LO && c.minute < HI).map((c) => ({ x: c.minute, v: c.expected }));
+  const marks = ft.marks.filter((m) => m.kind !== 'quarter' && m.minutes - 1 >= LO && m.minutes - 1 < HI);
+  const ratioAt = Object.fromEntries(marks.map((m) => [m.minutes - 1, m.ratio]));
+  const expected = new Map(ft.expected_curve.map((c) => [c.minute, c.expected]));
+  const ratio = (b: { x: number; n: number }) => ratioAt[b.x] ?? (expected.get(b.x) ? b.n / expected.get(b.x)! : NaN);
+  const xs = bins.map((b) => (b.x - LO + 0.5) / (HI - LO));
+  const detents = marks.map((m) => bins.findIndex((b) => b.x === m.minutes - 1)).filter((i) => i >= 0);
+  const busiestAt = Math.max(0, bins.findIndex((b) => b.x === Number(busiest.values.minute)));
+  const topAt = Math.max(0, bins.findIndex((b) => b.x === topMinute));
+
+  const steps = [
+    { text: sentenceOf(busiest) },
+    { text: 'The line is a smooth curve: where finishes would fall if no minute on the clock were special.' },
+    { text: sentenceOf(marksNugget) },
+    // The readout beside the step gives the tower's ratio, so the step names the tower only.
+    { text: top.guard ? `Against the curve, the tallest tower is the minute before *${top.values.mark}*.` : `Against the curve, the minute before ${top.values.mark}.` },
+  ];
+
+  const bubbleMark = String(rescue.values.mark);
+
   return (
-    <StoryData value={{ finish: data }}>
-      <StorySection id="towers" kicker="01 · The towers" title={<>Against the curve, the tallest tower is <em>2:59</em>.</>}
-        dek={<>{count(three.minute_before)} finishes landed between 2:59:00 and 2:59:59, {three.ratio.toFixed(2)}× what a smooth curve expects. In raw counts the busiest minutes are just before 4:00, where far more finishes land; relative to the curve, 2:59 stands tallest. The minute before 3:30 holds {half.ratio.toFixed(2)}×, before 4:00 {four.ratio.toFixed(2)}×, and before 5:00 {five.ratio.toFixed(2)}×. For the median and the whole spread of finish times, see <Link href="/finish-times">marathon finish times</Link>.</>}>
-        <FinishHistogram />
-      </StorySection>
-      <StorySection id="scoreboard" kicker="02 · Every mark" title={<>Faster finish times bunch at <em>more marks</em>.</>}
-        dek={<>Below 3:30 even five-minute marks leave a step (median cliff index {med(fastFive.map((c) => c.cliff)).toFixed(2)}); after 4:30 the hours and half-hours leave the clearest steps, while five-minute marks barely do (median {med(slowFive.map((c) => c.cliff)).toFixed(2)}, where 1.00 means no step).</>}>
-        <div className="viz-card">
-          <div className="viz-head"><div><p className="viz-title">The round-number scoreboard</p><p className="viz-sub">Minute before each mark: recorded finishes against the smooth curve</p></div></div>
-          <div className="table-scroll">
-            <table className="data-table scoreboard">
-              <thead><tr><th>Mark</th><th>Finishes in the minute before</th><th>Smooth curve</th><th>Ratio (interval)</th><th>Minute after</th><th>Men</th><th>Women</th></tr></thead>
-              <tbody>
-                {marks.map((m) => (
-                  <tr key={m.mark} className={m.ratio >= 1.25 ? 'is-hot' : ''}>
-                    <td><strong>{m.mark}</strong></td><td>{count(m.minute_before)}</td><td>{count(m.expected_minute_before)}</td>
-                    <td><span className="ratio-pill" style={{ ['--w' as string]: `${Math.min(100, Math.max(0, (m.ratio - 0.8) * 100))}%` }}>{m.ratio.toFixed(2)}×</span> <small>{m.ratio_ci95[0].toFixed(2)}–{m.ratio_ci95[1].toFixed(2)}</small></td>
-                    <td>{count(m.minute_after)}</td><td>{m.men_ratio.toFixed(2)}×</td><td>{m.women_ratio === null ? 'fewer than 100' : `${m.women_ratio.toFixed(2)}×`}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </StorySection>
-      <StorySection id="seconds" kicker="03 · Seconds" title={<>The cushion is widest before <em>5:00</em>.</>}
-        dek="Zoom to ten-second bins. Before 3:00 the pile sits tight against the line; before 5:00 it spreads back over several minutes.">
-        <SecondsLens />
-      </StorySection>
-      <StorySection id="rescue" kicker="04 · The final stretch" title={<>More finishes <em>slip under 4:00</em> after <Checkpoint km={40} />.</>}
-        dek={<>Of {count(b4.over.n)} finishes projected 0–2 minutes over 4:00 at <Checkpoint km={40} />, {Math.round(b4.over.share_under * 100)}% got under it, against {Math.round(b4.over.expected_share_under * 100)}% for comparable finishes away from a round mark. Over the final <Distance km={2.195} /> they finished a median {b4.over.median_final_gain_s.toFixed(0)} seconds ahead of their own <Section i={7} /> pace{b4.over.expected_median_final_gain_s != null ? `, against ${b4.over.expected_median_final_gain_s.toFixed(0)} seconds for the comparison finishes` : ""}.</>}>
-        <Rescue />
-      </StorySection>
-    </StoryData>
+    <StoryPage path={PATH}>
+      <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
+        figure={top.figure ? { ...top.figure } : undefined} unitLine={top.guard ? 'the expected count for that minute' : top.key} fallback={!top.guard}
+        sentence={<Say nugget={top} />} />
+
+      <Beat id="towers" track="chapter-1" label="The towers" aliases={['scoreboard', 'seconds']}
+        title={marksNugget.guard ? <>Finishes pile up just under <em>round numbers</em>.</> : <>Finish times, minute by minute.</>}>
+        <MyFinish first={LO} bins={bins.map((b) => b.n)} expected={bins.map((b) => Math.round(expected.get(b.x) ?? 0))}>
+          <Scrolly className="towers-scrolly" steps={steps} graphic={(
+            <>
+              <Histogram bins={bins} curve={curve} marks={marks.map((m) => m.minutes - 1)} reading={topMinute}
+                ticks={[180, 240, 300, 360].map((m) => ({ x: m, label: hm(m) }))}
+                label={`Finishes in each minute from ${hm(LO)} to ${hm(HI)}. ${sentenceOf(top).replace(/\*/g, '')}`}
+                lens={{ label: 'Show', ...LENS }} ratioAt={ratioAt}
+                keyLabels={{ bin: 'Each minute', mark: 'The minute before a round mark', curve: 'The smooth curve' }}
+                scrub={{
+                  label: `Finish minute, ${hm(LO)} to ${hm(HI)}`,
+                  points: { x: xs, keys: bins.map((b) => `Finishes in ${hm(b.x)}:00–:59`), values: bins.map((b) => count(b.n)),
+                    side: [{ label: 'Against the curve', values: bins.map((b) => (Number.isFinite(ratio(b)) ? `${ratio(b).toFixed(2)}×` : '—')) }] },
+                  // The chart opens on step one (the busiest minute), so its first readout adds to the reading above;
+                  // the reading's minute is its home, the tower that stays orange.
+                  initial: busiestAt, home: topAt, detents,
+                }} />
+              <ScrollyLens lens={{ 0: LENS.count, [steps.length - 1]: LENS.ratio }}
+                needle={{ 0: busiestAt, [steps.length - 1]: topAt }} />
+            </>
+          )} />
+        </MyFinish>
+        <Values id="rn-marks" caption="The minute before each round mark, against the smooth curve"
+          columns={[{ key: 'm', label: 'Mark' }, { key: 'r', label: '× curve' }, { key: 'n', label: 'Finishes' }, { key: 'e', label: 'Expected' }]}
+          rows={ft.marks.map((m) => [m.mark, `${m.ratio.toFixed(2)}×`, count(m.minute_before), count(m.expected_minute_before)])}
+          reading={ft.marks.findIndex((m) => m.mark === top.values.mark)} />
+      </Beat>
+
+      <Beat id="rescue" track="chapter-2" label="The last stretch"
+        title={rescue.guard ? <>The pull works <em>late</em>, too.</> : <>Just over a round mark at 40K.</>}>
+        <GuessFirst marks="ruler" min={0} max={100} step={1} unit="%"
+          question={`At 40K, a finish is on course for just over ${bubbleMark}. What share still got under ${bubbleMark}?`}
+          truth={Number(rescue.values.under) * 100} truthLabel="got under"
+          compare={{ value: Number(rescue.values.expected) * 100, label: 'Away from a round mark' }}
+          answer={sentenceOf(rescue)} initial={50} />
+      </Beat>
+    </StoryPage>
   );
 }

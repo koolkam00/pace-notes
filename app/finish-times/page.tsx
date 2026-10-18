@@ -1,8 +1,8 @@
 import FinishTimeSummary from '@/components/FinishTimeSummary';
 import { getFinishTimeSummary, percentileLabel } from '@/lib/finish-times-summary';
+import { readInsight } from '@/lib/insights-server';
+import type { Courses } from '@/lib/insights';
 import { JsonLd, breadcrumbs, finishesM, pageMetadata } from '@/lib/seo';
-import '../tools/tools.css';
-import './finish-times.css';
 
 const PATH = '/finish-times';
 const MAX_DESCRIPTION = 155;
@@ -33,7 +33,7 @@ export default function FinishTimesPage() {
   return (
     <>
       <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Finish times']])} />
-      <FinishTimeSummary summary={getFinishTimeSummary()} />
+      <FinishTimeSummary summary={getFinishTimeSummary()} courses={readInsight<Courses>('courses.json')} />
     </>
   );
 }

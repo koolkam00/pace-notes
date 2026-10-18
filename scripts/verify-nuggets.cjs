@@ -146,7 +146,8 @@ RECOUNT['site.totals'] = (n) => {
   const millions = (Math.round(insights.analysis_n / 1e5) / 10).toFixed(1);
   eq(n.figure.value, millions, 'site.totals: the figure is eligible finishes in millions');
   ok(core.textFor(n.headline, 'mi').includes(`*${millions} million*`) && core.textFor(n.headline, 'km').includes(`*${millions} million*`), 'site.totals: both headlines carry the same million');
-  ok(core.textFor(n.headline, 'mi').includes('26.2 miles') && core.textFor(n.headline, 'km').includes('42.2 km'), 'site.totals: the distance follows the units');
+  // The distance and its unit are held together by a no-break space.
+  ok(/26\.2\smiles/.test(core.textFor(n.headline, 'mi')) && /42\.2\skm/.test(core.textFor(n.headline, 'km')), 'site.totals: the distance follows the units');
   eq(n.guard, insights.analysis_n > 0 && runner.raw_records >= insights.analysis_n && insights.cohort.cities > 0, 'site.totals: guard');
   eq(core.finishesM(), require('../lib/seo.tsx').finishesM(), 'one "N million" on every surface (lib/seo agrees)');
 };
@@ -183,6 +184,27 @@ RECOUNT['replay.first'] = (n) => {
   eq(n.figure.value, String(Math.round(best.share * 100)), 'replay.first: the figure');
   ok(core.sentenceOf(n).includes(`${best.e.city} ${best.e.year}`), 'replay.first: the sentence names the edition the data chose');
 };
+// home.second20k (WP1, the home page's guess): the pacing-shapes row read as text, its percentage over 100 (the pack's
+// other column), against the nugget's count over n; "Only" while under one half; the figure the closest "1 in d".
+RECOUNT['home.second20k'] = (n) => {
+  const lines = fs.readFileSync(path.join(ROOT, 'public/data/packs/ext_pacing_shapes/tables/patterns.csv'), 'utf8').trim().split(/\r?\n/);
+  const head = lines[0].split(',');
+  const cells = lines.map((l) => l.split(',')).find((c) => c[head.indexOf('label')] === 'Faster second 20 km');
+  ok(cells, 'home.second20k: the pack has its row');
+  const share = Number(cells[head.indexOf('value')]) / 100;
+  ok(Math.abs(n.values.share - share) < 1e-9, `home.second20k: the share recounts (${n.values.share} against ${share})`);
+  eq([n.values.faster, n.values.total], [Number(cells[head.indexOf('count')]), Number(cells[head.indexOf('n_value')])], 'home.second20k: count and n');
+  eq(n.values.total, insights.analysis_n, 'home.second20k: one family with the H1 above it (the eligible finishes)');
+  let best = null;
+  for (const d of [2, 3, 4, 5, 10, 20, 25, 50, 100]) { const err = Math.abs(1 / d - share) / share; if (err < 0.1 && (!best || err < best.err)) best = { d, err }; }
+  const words = best ? `1 in ${best.d}` : `${Math.round(share * 100)}%`;
+  eq(n.figure.value, words, 'home.second20k: the figure is the closest plain fraction');
+  eq(n.guard, share > 0 && share < 0.5, 'home.second20k: "Only" while the share is under one half');
+  eq(core.sentenceOf(n), n.guard ? `Only about *${words}* did.` : `About *${words}* did.`, 'home.second20k: the sentence');
+};
+// The story nuggets (WP2): their recounts and fixtures live in scripts/nuggets/stories.cjs.
+const storyRecounts = require('./nuggets/stories.cjs')({ json, eq, ok, core });
+Object.assign(RECOUNT, storyRecounts.RECOUNT);
 for (const [id, recount] of Object.entries(RECOUNT)) {
   const n = N.getNugget(id);
   ok(!n.placeholder, `${id} is a real nugget, not a placeholder`);
@@ -200,6 +222,10 @@ if (!args.has('--no-fixture')) {
     [stories.fieldMedianFrom({ all: 250, women: null, men: 239, total: 10 }), 'Half of all finishes took longer than *4:10*.'],
     [stories.fieldMedianFrom({ all: null, women: null, men: null, total: 0 }), 'Finish times, every recorded minute.'],
     [home.siteTotalsFrom({ results: 10, finishesEligible: 20, cities: 1, raceYears: 1, firstYear: 2020, lastYear: 2020, raw: { cities: 1, raceYears: 1, firstYear: 2020, lastYear: 2020 } }), 'Marathon finishes, mat by mat.'],
+    [home.second20kFrom({ count: 60, total: 100 }), 'About *60%* did.'],
+    [home.second20kFrom({ count: 50, total: 100 }), 'About *1 in 2* did.'],
+    [home.second20kFrom(null), 'The second 20K against the first, finish by finish.'],
+    ...storyRecounts.fixtures(stories),
   ];
   for (const [n, text] of fallbacks) {
     eq(n.guard, false, `fixture ${n.id}: the guard fails`);
@@ -226,4 +252,4 @@ if (args.has('--no-placeholders') && remaining.length) {
   console.error(`verify-nuggets: ${remaining.length} placeholder nuggets remain: ${remaining.join(', ')}`);
   process.exit(1);
 }
-console.log(`verify-nuggets: ${all.length + 1} nuggets (${N.NUGGET_IDS.length} ids), ${checks} checks; the three reference nuggets (site.totals, field.median, replay.first) recount independently. Placeholders still to replace (${remaining.length}): ${remaining.join(', ')}`);
+console.log(`verify-nuggets: ${all.length + 1} nuggets (${N.NUGGET_IDS.length} ids), ${checks} checks; the reference nuggets (site.totals, field.median, replay.first) and the home page's (home.second20k) recount independently. Placeholders still to replace (${remaining.length}): ${remaining.join(', ')}`);

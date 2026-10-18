@@ -1,0 +1,136 @@
+/* How we know (/methodology): WP7, the redesign spec, sections 4.7, 7.15 and 00. Imported by app/methodology/layout.tsx.
+   Five parts, each a heading and a list of topics that open on request, divided by hairlines, never boxes. Definitions
+   show their rule (and, where one helps, a small instrument) and open for the rest. A "Jump to" row sticks under the
+   header on phones; from 1180 px a rail lists the parts, the one in view marked. */
+
+.methods-page { padding: var(--s-6) 0 var(--s-8); }
+.methods-flow { min-width: 0; max-width: var(--measure-figure); }
+.methods-page [id] { scroll-margin-top: 136px; }
+
+/* ---------- The opener ---------- */
+.methods-hero { display: grid; gap: var(--s-3); max-width: var(--measure); }
+.methods-dek { margin: 0; max-width: 32rem; font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+
+/* ---------- Jump to: the five parts as chips, sticky under the header ---------- */
+.methods-jump {
+  position: sticky; top: var(--header-h); z-index: 2; margin: var(--s-5) calc(-1 * var(--gutter)) 0; padding: 8px var(--gutter);
+  background: var(--paper); border-bottom: 1px solid var(--rule);
+  transition: top calc(1ms + 279ms * var(--motion)) var(--ease-out);
+}
+/* While the header is away the reading bar takes its place, so the row moves up under it. */
+@supports selector(:has(*)) {
+  body:has(.site-header[data-hidden]) .methods-jump { top: var(--reading-h); }
+}
+.methods-jump ol { display: flex; gap: 8px; margin: -4px; padding: 4px 28px 4px 4px; list-style: none; overflow-x: auto;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); scrollbar-width: none; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+.methods-jump ol::-webkit-scrollbar { display: none; }
+.methods-jump li { flex: none; margin: 0; }
+.methods-jump-link {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--rule-strong); border-radius: var(--r-pill);
+  font-family: var(--sans); font-size: .9375rem; font-weight: 500; line-height: 1; color: var(--ink); text-decoration: none; white-space: nowrap;
+  transition: border-color var(--d-quick) var(--ease-out);
+}
+.methods-jump-link:hover { border-color: var(--ink); text-decoration: none; }
+.methods-jump-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---------- A part: its kicker, heading and lead, then its rows ---------- */
+.methods-part { padding-top: var(--s-8); }
+.methods-part-head { display: grid; gap: var(--s-2); max-width: var(--measure); margin-bottom: var(--s-5); }
+.methods-part-head .t-h2 { margin: 0; }
+.methods-part-lead { margin: 0; font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); }
+.methods-rows { border-top: 1px solid var(--rule); }
+.methods-part-note { max-width: var(--measure); margin: var(--s-4) 0 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink-3); }
+
+/* The topics are folds (app/styles/pages/info.css); the part's rows are divided by its hairlines. */
+.methods-rows > .fold { border-top: 0; }
+/* A part's own sub-folds (Downloads) keep the hairline under each row, like every other fold. */
+.methods-rows > .fold.is-sub { border-bottom: 1px solid var(--rule); }
+.methods-rows > .fold.is-sub > summary { min-height: 56px; }
+.methods-rows > .fold.is-sub > summary .fold-title { font-size: 1.0625rem; }
+.methods-note { font-size: var(--t-small); color: var(--ink-3); }
+.methods-page :is(.fold-body, .methods-rule, .methods-instrument-head, .methods-part-note) a:not([class]) {
+  color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--rule-strong); text-underline-offset: .18em;
+}
+.methods-page :is(.fold-body, .methods-rule, .methods-instrument-head, .methods-part-note) a:not([class]):hover { text-decoration-color: currentColor; }
+/* Links at the end of a method: a row of 44 px targets. */
+.methods-links { display: flex; flex-wrap: wrap; gap: 0 var(--s-5); }
+.fold-body p.methods-links { margin-top: var(--s-2); }
+.methods-links a { display: inline-flex; align-items: center; min-height: 44px; font-size: var(--t-small); font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--rule-strong); text-underline-offset: .18em; overflow-wrap: anywhere; }
+.methods-links a:hover { text-decoration-color: currentColor; }
+.methods-page code { overflow-wrap: anywhere; }
+
+/* ---------- Definitions: the term, its rule, an instrument, then "More" ---------- */
+.methods-definition { padding: var(--s-5) 0 0; border-bottom: 1px solid var(--rule); }
+.methods-definition + .methods-definition { border-top: 0; }
+.methods-term { margin: 0 0 var(--s-2); font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; font-size: 1.5rem; line-height: 1.15; letter-spacing: -.01em; color: var(--ink); }
+.methods-rule { max-width: var(--measure); font-size: var(--t-body); line-height: 1.55; color: var(--ink); text-wrap: pretty; }
+.methods-rule p { margin: 0; }
+.methods-rule p + p { margin-top: var(--s-2); }
+.methods-cite { font-size: var(--t-small); color: var(--ink-3); overflow-wrap: anywhere; }
+.methods-instrument { margin: var(--s-5) 0 var(--s-2); }
+.methods-instrument-head { max-width: var(--measure); margin: 0 0 var(--s-3); font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
+.methods-instrument .values { margin-top: var(--s-3); }
+.methods-axis-note { margin: 4px 0 0; font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); }
+.methods-more { margin-top: var(--s-3); }
+.methods-definition > .methods-more { border-bottom: 0; }
+.methods-definition > .methods-rule:last-child, .methods-definition > .methods-instrument:last-child { padding-bottom: var(--s-5); }
+
+/* The pacing types: each shape's glyph beside its name, two to a row. */
+.methods-types { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; margin: 0; padding: 0; list-style: none; }
+.methods-types li { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: 10px; margin: 0; font-size: var(--t-small); line-height: 1.25; color: var(--ink-2); }
+
+/* The evidence badges: each glyph and word, then what it means. */
+.methods-badges { display: grid; gap: var(--s-3); margin: 0; }
+.methods-badges div { display: grid; gap: 2px; }
+.methods-badges dt { margin: 0; }
+.methods-badges dd { margin: 0; max-width: var(--measure); font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
+
+/* ---------- Downloads: three link rows, then the files in groups ---------- */
+.methods-file {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s-4); row-gap: 2px; align-items: center;
+  min-height: 64px; padding: 12px 0; border-bottom: 1px solid var(--rule); color: var(--ink); text-decoration: none;
+}
+.methods-file:hover { color: var(--ink); text-decoration: none; }
+.methods-file:hover .methods-file-name { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .18em; }
+.methods-file:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.methods-file-name { font-family: var(--sans); font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
+.methods-file-what { grid-column: 1; font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
+.methods-file-go { grid-column: 2; grid-row: 1 / span 2; color: var(--ink-3); }
+.methods-files { margin: 0; padding: 0; list-style: none; }
+.methods-files li { margin: 0; padding: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
+.methods-files li + li { margin: 0; }
+.methods-files a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--rule-strong); text-underline-offset: .18em; overflow-wrap: anywhere; }
+.methods-packs { margin: var(--s-3) 0 0; padding: 0; list-style: none; }
+.methods-packs li { margin: 0; padding: var(--s-2) 0; border-top: 1px solid var(--rule); }
+.methods-pack-title { display: block; font-size: .9375rem; font-weight: 600; line-height: 1.35; color: var(--ink); }
+.methods-packs .methods-links { margin-top: 0; }
+
+/* ---------- The rail (from 1180 px): the parts, the one in view marked ---------- */
+.methods-rail { display: none; }
+.methods-rail .rail-title { margin: 0 0 var(--s-3); }
+.methods-rail .rail-beats { margin: 0; padding: 0; list-style: none; border-left: 1px solid var(--rule); }
+.methods-rail .rail-beats li { margin: 0; }
+.methods-rail .rail-beats .rail-link { padding-left: 14px; font-size: var(--t-small); font-weight: 500; }
+.methods-rail .rail-beats .rail-link[aria-current] { margin-left: -1px; border-left: 2px solid var(--ink); color: var(--ink); font-weight: 600; }
+.methods-rail .rail-beats .rail-link[aria-current]::before { display: none; }
+
+/* At 200% zoom the six shapes take a row each. */
+@media (max-width: 299.98px) {
+  .methods-types { grid-template-columns: minmax(0, 1fr); }
+}
+@media (min-width: 900px) {
+  .methods-page { padding: var(--s-8) 0 var(--s-9); }
+  .methods-part { padding-top: var(--s-9); }
+}
+@media (min-width: 1180px) {
+  .methods-rail { display: block; padding-top: 6px; }
+  .methods-jump { display: none; }
+  .methods-page [id] { scroll-margin-top: calc(var(--header-h) + 24px); }
+  .methods-hero .t-display { font-size: clamp(3rem, 4.4vw, 4.25rem); }
+}
+
+/* The research questions' shared rules: numbered once, each question naming the numbers it follows. */
+.fold-body ol.methods-rules { margin: var(--s-3) 0 0; padding-left: 1.4em; }
+.fold-body ol.methods-rules li + li { margin-top: var(--s-2); }
+.fold-body ol.methods-rules li { scroll-margin-top: calc(var(--header-h) + 16px); }
+.fold-body ol.methods-rules + .fold.is-sub { margin-top: var(--s-4); }

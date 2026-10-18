@@ -361,9 +361,9 @@ assert.match(chartSource('RunnerContext.tsx'), /<YAxis [^>]*domain=\{paceAxis \?
 // the server render stops (so the build stops) when such text is on a page where the switch is inert.
 {
   const { unitSwitchShown } = require('../lib/unit-preference.ts');
-  for (const page of ['/', '/about', '/slowdown', '/htw', '/research', '/your-race', '/analyses', '/analyses/pacing-pattern', '/runners', '/packs', '/packs/smyth_htw',
+  for (const page of ['/', '/about', '/slowdown', '/htw', '/research', '/your-race', '/methodology', '/analyses', '/analyses/pacing-pattern', '/runners', '/packs', '/packs/smyth_htw',
     '/courses', '/courses/boston', '/stories', '/stories/final-kick', '/tools', '/tools/plan', '/tools/qualifying/boston', '/finish-times']) assert.ok(unitSwitchShown(page), `The units switch works on ${page}`);
-  for (const page of ['/research/personalized', '/methodology', '/privacy', '/request-analysis', '/_not-found', '/toolsx', '/research-notes']) assert.equal(unitSwitchShown(page), false, `${page} keeps the inert placeholder`);
+  for (const page of ['/research/personalized', '/privacy', '/request-analysis', '/_not-found', '/toolsx', '/research-notes', '/methodology-notes']) assert.equal(unitSwitchShown(page), false, `${page} keeps the inert placeholder`);
   // A second copy of the provider whose next/navigation reports a chosen page, as the static export's render does.
   const providerFile = require.resolve('../components/UnitsProvider.tsx');
   let pathname = '/privacy';
