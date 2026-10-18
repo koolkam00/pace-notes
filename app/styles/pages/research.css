@@ -55,25 +55,6 @@
 .page-reading { grid-column: 1; display: flex; align-items: baseline; gap: 2px 8px; min-width: 0; }
 .page-reading .big-number.is-s { font-size: 1.125rem; }
 .page-reading-key { min-width: 0; font-family: var(--sans); font-size: var(--t-label); font-weight: 400; line-height: 1.35; color: var(--ink-3); }
-/* On the contents a page's reading rides on its title's line, the figure at the right, and its key says what the
-   figure is on a second line under the title, at every width (a bare number means nothing). */
-.chapter-list.is-expanded .chapter-page-link { grid-template-columns: minmax(0, 1fr) auto auto; }
-.chapter-list.is-expanded .chapter-page-go { grid-column: 3; }
-.chapter-list.is-expanded .chapter-page-link .page-reading { display: contents; }
-.chapter-list.is-expanded .chapter-page-link .page-reading .big-number { grid-column: 2; grid-row: 1; justify-self: end; }
-.chapter-list.is-expanded .chapter-page-link .page-reading-key { display: block; grid-column: 1 / 3; grid-row: 2; }
-/* A title that already states its figure ("… 20 minutes apart …") shows no second copy of it on the contents. */
-.chapter-list.is-expanded .page-reading.is-in-title .big-number { display: none; }
-
-@media (min-width: 600px) {
-  .chapter-list.is-expanded .chapter-page-link .page-reading-key { grid-column: 1; }
-}
-
-/* On a phone the marker on the line says where in the race a chapter is, as on the home page; its number shows from
-   600 px. */
-@media (max-width: 599.98px) {
-  .chapter-list.is-expanded .chapter-no { display: none; }
-}
 /* At 200% zoom the readings step down a size, so "20% · 44%" stays inside the column. */
 @media (max-width: 299.98px) {
   .chapter-list.is-expanded .chapter-heading .chapter-reading .big-number.is-s { font-size: 1.25rem; }
@@ -102,14 +83,18 @@
   .contents-page { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); column-gap: var(--s-8); align-items: start; padding: var(--s-8) 0 var(--s-9); }
   .contents-hero { position: sticky; top: calc(var(--header-h) + var(--s-6)); margin-bottom: 0; }
   .contents-hero .t-display { max-width: none; font-size: clamp(2.75rem, 4.4vw, 4.25rem); }
-  .chapter-list.is-expanded .chapter-heading { grid-template-columns: calc(var(--line-x, 28px) * 2) minmax(0, 1fr) auto; }
+  /* Each chapter is one grid: its marker and name, its pages under the name, and its reading in a fixed column on the
+     right beside both, the figure and its key flush left together, so no row waits under a tall reading. */
+  .chapter-list.is-expanded .chapter-row { display: grid; grid-template-columns: calc(var(--line-x, 28px) * 2) minmax(0, 1fr) 15.5rem; column-gap: var(--s-3); align-items: start; }
+  .chapter-list.is-expanded .chapter-heading { display: contents; }
+  .chapter-list.is-expanded .chapter-mark { grid-column: 1; grid-row: 1; }
+  .chapter-list.is-expanded .chapter-text { grid-column: 2; grid-row: 1; }
   .chapter-list.is-expanded .chapter-name { font-size: 1.625rem; }
-  .chapter-list.is-expanded .chapter-heading .chapter-reading { grid-column: 3; grid-row: 1; display: grid; justify-items: end; gap: 4px; padding-top: 4px; text-align: right; }
+  .chapter-list.is-expanded .chapter-heading .chapter-reading { grid-column: 3; grid-row: 1 / span 2; display: grid; justify-items: start; gap: 4px; padding-top: 6px; text-align: left; }
   .chapter-list.is-expanded .chapter-heading .chapter-reading .big-number.is-s { font-size: 2.25rem; }
-  .chapter-list.is-expanded .chapter-heading .chapter-key { max-width: 26ch; }
-  /* A reading that is a key alone stays under the chapter's name, so no figure column is held open for it. */
-  .chapter-list.is-expanded .chapter-heading .chapter-reading.is-key-only { grid-column: 2; grid-row: auto; justify-items: start; padding-top: 0; text-align: left; }
-  .chapter-list.is-expanded .chapter-heading .chapter-reading.is-key-only .chapter-key { max-width: none; }
+  .chapter-list.is-expanded .chapter-heading .chapter-key { max-width: none; }
+  .chapter-list.is-expanded .chapter-heading .chapter-reading.is-key-only { padding-top: 12px; }
+  .chapter-list.is-expanded .chapter-pages { grid-column: 2; grid-row: 2; margin: var(--s-1) 0 0; }
   .chapter-page-title { font-size: 1rem; }
   .page-list-title { font-size: 1.625rem; }
   .page-list .page-reading .big-number.is-s { font-size: 1.5rem; }

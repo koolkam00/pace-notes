@@ -75,7 +75,7 @@ export default function RaceMorningBody() {
       scrub={{ label: 'Start temperature',
         points: { x: curve.map((c) => (c.temp - tLo) / (tHi - tLo)), keys: curve.map((c) => `Median finish starting at ${temp(c.temp, u)}, against ${temp(base.temp, u)}`), values: curve.map((c) => `${signed(c.change)} min`),
           side: [{ label: 'Each degree here', values: local.map((v) => perDeg(v, u)) }] },
-        initial: at(warm), detents: [at(cool), at(warm)] }}
+        initial: at(warm), detents: [at(cool), at(warm)], follow: 'f' }}
       label={`Change in the median finish with the start temperature, against ${temp(base.temp, u)}: ${perDeg(Number(curveN.values.cool_slope), u)} near ${temp(cool, u)}, ${perDeg(Number(curveN.values.warm_slope), u)} near ${temp(warm, u)}.`}
       values={(
         <Values id={`rm-curve-${u}`} caption={`The median finish against the start temperature (${u === 'mi' ? '°F' : '°C'})`}
@@ -84,7 +84,7 @@ export default function RaceMorningBody() {
       )} />
   );
 
-  // The shape on a warmer morning: each section's pace against the runner's own average, per 10 °C warmer (18 °F).
+  // The shape on a warmer morning: each section's pace against the finish's own average, per 10 °C warmer (18 °F).
   const sig = w.heat_signature;
   const early = sig.findIndex((s) => s.section === tilt.values.early), late = sig.findIndex((s) => s.section === tilt.values.late);
   const span = Math.ceil(Math.max(...sig.map((s) => Math.abs(s.per_10c)))) + 1;
@@ -115,7 +115,8 @@ export default function RaceMorningBody() {
       </Beat>
 
       <Beat id="heat" track="chapter-2" label="The shape" title={tilt} aliases={['untangle']}
-        dek={early >= 0 && late >= 0 ? <ByUnits {...Object.fromEntries(UNITS.map((u) => [u, keep(`On a morning ${tempGap(10, u)} warmer, ${sectionName(sig[early].section)} ran ${Math.abs(sig[early].per_10c).toFixed(1)} points quicker against the runner’s own average, and ${sectionName(sig[late].section)} ${sig[late].per_10c.toFixed(1)} points slower.`)])) as { mi: string; km: string }} /> : undefined}>
+        // The dek says what the line measures; the two labelled sections carry the numbers.
+        dek={<ByUnits {...Object.fromEntries(UNITS.map((u) => [u, keep(`Each section’s pace against the finish’s own average, on a morning ${tempGap(10, u)} warmer.`)])) as { mi: string; km: string }} />}>
         <LineProfile x={MID} xDomain={[0, 42.195]} yDomain={[-span, span]}
           layers={[{ id: 'heat', label: 'Warmer', series: [{ id: 'h', values: sig.map((s) => s.per_10c), fillAbove: 0 }],
             points: [...(early >= 0 ? [{ x: MID[early], y: sig[early].per_10c, kind: 'compare' as const }] : []), ...(late >= 0 ? [{ x: MID[late], y: sig[late].per_10c, kind: 'reading' as const }] : [])],
@@ -125,9 +126,9 @@ export default function RaceMorningBody() {
             ] }]}
           refs={[{ value: 0, label: 'Same shape' }]}
           xTicks={[{ value: 0, label: 'Start' }, { value: 10, label: '10K' }, { value: 20, label: '20K' }, { value: 30, label: '30K' }, { value: 42.195, label: 'Finish' }]}
-          label="Each section's pace against the runner's own average on a warmer morning: quicker early, slower late."
+          label="Each section's pace against the finish's own average on a warmer morning: quicker early, slower late."
           values={(
-            <Values id="rm-heat" caption={<ByUnits mi={`Pace against the runner’s own average, per ${tempGap(10, 'mi')} warmer, by section`} km={`Pace against the runner’s own average, per ${tempGap(10, 'km')} warmer, by section`} />}
+            <Values id="rm-heat" caption={<ByUnits mi={`Pace against the finish’s own average, per ${tempGap(10, 'mi')} warmer, by section`} km={`Pace against the finish’s own average, per ${tempGap(10, 'km')} warmer, by section`} />}
               columns={[{ key: 's', label: 'Section' }, { key: 'v', label: 'Points' }, { key: 'c', label: 'Interval' }]}
               rows={sig.map((s) => [sectionName(s.section), signed(s.per_10c), `${signed(s.ci95[0])} to ${signed(s.ci95[1])}`])} />
           )} />

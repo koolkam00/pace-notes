@@ -547,7 +547,7 @@ export function roundTopFrom(marks: FinishTimes['marks']): Nugget {
     values: { mark: top.mark, minutes: top.minutes, ratio: top.ratio, n: top.minute_before, expected: top.expected_minute_before }, guard: top.ratio >= 1.5,
     headline: `${count(top.minute_before)} finishes landed between ${before}:00 and ${before}:59, *far above* the smooth curve.`,
     fallback: `${count(top.minute_before)} finishes landed between ${before}:00 and ${before}:59.`,
-    figure: { value: top.ratio.toFixed(2), unit: '×', sr: `${top.ratio.toFixed(2)} times` }, key: `the smooth curve, in the minute before ${top.mark}`,
+    figure: { value: top.ratio.toFixed(2), unit: '×', sr: `${top.ratio.toFixed(2)} times` }, key: `the expected count, in the minute before ${top.mark}`,
   };
 }
 

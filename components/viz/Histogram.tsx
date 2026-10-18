@@ -82,8 +82,10 @@ export default function Histogram({ bins, curve, marks = [], reading, ticks, lab
     };
     ratioLayer = (
       <g data-layer="ratio" className="is-off">
-        {/* The scale reads on the right, where the towers are short: 1.5×, 1× (the curve itself) and the low end. */}
-        <Gridlines side="right" lines={[{ y: ry(hi >= 1.5 ? 1.5 : hi), label: `${(hi >= 1.5 ? 1.5 : hi).toFixed(1)}×` }, { y: ry(1), label: '1×' }, { y: ry(lo), label: `${lo.toFixed(2)}×` }]} />
+        {/* One gridline, 1.5×, labelled on the right where the towers are short. The solid 1× line the towers grow from
+            is the curve itself (the key names it); a label there would sit on the late towers, and a low gridline would
+            double the axis rule. */}
+        <Gridlines side="right" lines={[{ y: ry(hi >= 1.5 ? 1.5 : hi), label: `${(hi >= 1.5 ? 1.5 : hi).toFixed(1)}×` }]} />
         <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
           <path className="a-silhouette" d={stepPath(ratios.map((r) => ({ x: x(r.x), y: ry(r.r) })), w, ry(1))} />
         </svg>

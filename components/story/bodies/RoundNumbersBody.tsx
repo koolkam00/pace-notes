@@ -53,7 +53,7 @@ export default function RoundNumbersBody() {
   return (
     <StoryPage path={PATH}>
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
-        figure={top.figure ? { ...top.figure } : undefined} unitLine={top.guard ? 'the smooth curve' : top.key} fallback={!top.guard}
+        figure={top.figure ? { ...top.figure } : undefined} unitLine={top.guard ? 'the expected count for that minute' : top.key} fallback={!top.guard}
         sentence={<Say nugget={top} />} />
 
       <Beat id="towers" track="chapter-1" label="The towers" aliases={['scoreboard', 'seconds']}

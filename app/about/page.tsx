@@ -1,5 +1,4 @@
 import Button from '@/components/ui/Button';
-import { UnitLink as Link } from '@/components/UnitsProvider';
 import { finishesM } from '@/lib/nuggets';
 import { pageMetadata } from '@/lib/seo';
 
@@ -33,9 +32,9 @@ export default function AboutPage() {
       <section className="info-section info-ask" aria-labelledby="about-ask">
         <h2 id="about-ask" className="info-h2">Ask a question</h2>
         <p>Is there a race question you wish the data could answer? Send Andrew an idea for the next analysis.</p>
+        {/* One way on: the open data is the footer's link, so it is not offered twice on this screen. */}
         <div className="info-actions">
           <Button href="/request-analysis" variant="secondary" arrow="right">Request an analysis</Button>
-          <Link className="info-link" href="/methodology#downloads">Or take the data yourself</Link>
         </div>
       </section>
     </div>

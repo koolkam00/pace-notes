@@ -22,7 +22,7 @@
 .viz-frame .viz-lens-control { display: block; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
 .viz-frame .viz-lens-control::-webkit-scrollbar { display: none; }
 .viz-frame .readout {
-  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: flex-start; gap: var(--s-3) var(--s-6);
+  display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-start; gap: var(--s-3) var(--s-6);
   min-height: 64px; padding-bottom: var(--s-3); margin-bottom: var(--figure-gap); border-bottom: 1px solid var(--rule);
 }
 .viz-frame .readout-main { display: grid; gap: 4px; min-width: 0; }

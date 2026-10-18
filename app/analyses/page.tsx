@@ -1,5 +1,5 @@
 import { PageList } from '@/components/ui/ChapterList';
-import { readingOf } from '@/lib/nuggets';
+import { getNugget, readingOf, type NuggetId } from '@/lib/nuggets';
 import { TEN_ANALYSES } from '@/lib/ten-analyses';
 import { pageMetadata } from '@/lib/seo';
 
@@ -8,6 +8,12 @@ export const metadata = pageMetadata({
   description: `${TEN_ANALYSES.length} marathon pacing questions answered with recorded 5 km splits: fast starts, checkpoints, courses, weather, hills, finish times and age.`,
   path: '/analyses',
 });
+
+/**
+ * A page's reading only once its nugget is the analysis's own verified finding: a bootstrap placeholder shows no
+ * figure, so the list is one rhythm (every row a title, or a title and its finding), never half and half by accident.
+ */
+const verifiedReadingOf = (id: NuggetId) => (getNugget(id).placeholder ? null : readingOf(id));
 
 /** The analyses: the contents filtered to them, in race order, each with its chapter and reading (spec 7.2, cut 3 of 00). */
 export default function AnalysesPage() {
@@ -18,7 +24,7 @@ export default function AnalysesPage() {
         <p className="contents-dek">Each one answers a pacing question, then lets you set it to your course and time.</p>
       </header>
       <section className="contents-body" aria-label="Every analysis">
-        <PageList kind="analysis" prefix="/analyses/" readingOf={readingOf} label="Analyses" />
+        <PageList kind="analysis" prefix="/analyses/" readingOf={verifiedReadingOf} label="Analyses" />
       </section>
     </div>
   );

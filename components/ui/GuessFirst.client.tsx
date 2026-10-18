@@ -63,7 +63,7 @@ export default function GuessFirst({ question, truth, answer, truthLabel, compar
   const range = (
     <input
       id={`${id}-range`} className={`guess-range${marks === 'ruler' ? ' is-on-ruler' : ''}`} type="range" min={min} max={max} step={step} value={guess}
-      disabled={revealed} aria-describedby={`${id}-q`} aria-valuetext={fmt(guess)}
+      disabled={revealed} aria-label="Your guess" aria-describedby={`${id}-q`} aria-valuetext={fmt(guess)}
       style={{ ['--fill' as string]: at(guess) }}
       onChange={(e) => { setGuess(Number(e.target.value)); setTouched(true); }}
     />
@@ -72,13 +72,16 @@ export default function GuessFirst({ question, truth, answer, truthLabel, compar
   return (
     <div className={`guess which-card${revealed ? ' is-revealed' : ''}${state === 'skipped' ? ' is-skipped' : ''}${touched || revealed ? ' is-touched' : ''}`}>
       <p className="guess-question t-sentence" id={`${id}-q`}>{withEm(question)}</p>
-      <div>
-        <div className="guess-readout">
-          <label className="guess-readout-key" htmlFor={`${id}-range`}>Your guess</label>
-          <span className="guess-readout-value" aria-hidden="true">{Math.round(guess)}{unit === '%' ? <small>%</small> : <small>of 100</small>}</span>
+      {/* Once revealed, the verdict says the guess, so the readout steps out (no number twice on one screen). */}
+      {!revealed ? (
+        <div>
+          <div className="guess-readout">
+            <label className="guess-readout-key" htmlFor={`${id}-range`}>Your guess</label>
+            <span className="guess-readout-value" aria-hidden="true">{Math.round(guess)}{unit === '%' ? <small className="is-pct">%</small> : <small>of 100</small>}</span>
+          </div>
+          {marks === 'dots' ? range : null}
         </div>
-        {marks === 'dots' && !revealed ? range : null}
-      </div>
+      ) : null}
 
       <div className="guess-marks">
         {marks === 'dots' ? (

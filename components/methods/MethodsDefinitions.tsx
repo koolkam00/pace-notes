@@ -69,7 +69,8 @@ export default function MethodsDefinitions() {
         <p className="methods-cite">It follows a <a href={SLOWDOWN_CITATION.url}>{SLOWDOWN_CITATION.label.replace(/^Published/, 'published')}</a>.</p>
       </>}
       instrument={columns.length > 1 && Number.isFinite(atPublished) ? <>
-        <p className="methods-instrument-head">At {PUBLISHED}% slower for {shortest}, {shareText(atPublished)} of finishes qualify. Other thresholds catch more or fewer:</p>
+        {/* The sentence takes the columns' precision, so its share and the highlighted column read the same. */}
+        <p className="methods-instrument-head">At {PUBLISHED}% slower for {shortest}, {columnText(atPublished)} of finishes qualify. Other thresholds catch more or fewer:</p>
         <Columns label={`Share of eligible finishes with a sustained slowdown at each minimum slowdown, over ${shortest}: ${columns.map((t) => `${t}%, ${shareText(share(t, shortest))}`).join('; ')}`}
           max={Math.max(...columns.map((t) => share(t, shortest)))} height={150} heightMd={170}
           items={columns.map((t) => ({ id: String(t), label: String(t), value: share(t, shortest), display: columnText(share(t, shortest)), tone: t === PUBLISHED ? 'signal' as const : 'quiet' as const }))} />

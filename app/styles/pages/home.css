@@ -29,12 +29,17 @@
 .home-start .hero-replay.is-band .replay-frame { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-3); }
 .home-start .hero-replay.is-band .replay-frame > * { grid-column: 1 / -1; }
 .home-start .hero-replay.is-band .replay-hud { grid-row: 1; }
-.home-start .hero-replay.is-band .replay-box { grid-row: 2; }
-.home-start .hero-replay.is-band .replay-mats { display: block; grid-row: 2; align-self: end; z-index: 1; height: 16px; margin: 0 0 4px; pointer-events: none; }
+/* The rank axis named once under the HUD, so the field's S-curve reads on the first screen too; the field gives up the
+   line's height, so the plan door and both other ways to start still end above a 664 px screen (S1). */
+.home-start .hero-replay.is-band .replay-axis-y { display: block; grid-row: 2; margin: 0 0 4px; }
+.home-start .hero-replay.is-band { --replay-h: calc(22vh - 20px); }
+@supports (height: 1svh) { .home-start .hero-replay.is-band { --replay-h: clamp(108px, calc(22svh - 20px), 180px); } }
+.home-start .hero-replay.is-band .replay-box { grid-row: 3; }
+.home-start .hero-replay.is-band .replay-mats { display: block; grid-row: 3; align-self: end; z-index: 1; height: 16px; margin: 0 0 4px; pointer-events: none; }
 .home-start .hero-replay.is-band .replay-mats span { text-shadow: 0 0 3px var(--night), 0 0 6px var(--night); }
 .home-start .hero-replay.is-band .replay-mats span:not(:nth-child(3)):not(.is-finish) { display: none; }
-.home-start .hero-replay.is-band .replay-moment { grid-column: 1; grid-row: 3; min-height: 2.6em; margin-top: var(--s-2); font-size: .9375rem; }
-.home-start .hero-replay.is-band .replay-scrub { grid-column: 2; grid-row: 3; align-self: center; margin-top: var(--s-2); }
+.home-start .hero-replay.is-band .replay-moment { grid-column: 1; grid-row: 4; min-height: 2.6em; margin-top: var(--s-2); font-size: .9375rem; }
+.home-start .hero-replay.is-band .replay-scrub { grid-column: 2; grid-row: 4; align-self: center; margin-top: var(--s-2); }
 
 /* ---------- The three ways to start (components/home/HomeDoors.tsx) ---------- */
 .home-doors { display: grid; gap: var(--s-2); margin-top: var(--s-4); }
@@ -94,15 +99,18 @@
 @media (max-width: 599.98px) {
   .home-chapters .chapter-link { grid-template-columns: calc(var(--line-x, 28px) * 2) minmax(0, 1fr); align-items: start; row-gap: 2px; min-height: 0; padding: 6px 0 12px; }
   .home-chapters .chapter-text { padding: 11px 0 0; }
-  .home-chapters .chapter-no, .home-chapters .chapter-sub { display: none; }
+  .home-chapters .chapter-sub { display: none; }
   .home-chapters .chapter-reading { grid-column: 2; display: flex; flex-wrap: wrap; align-items: baseline; justify-items: start; gap: 2px 10px; max-width: none; text-align: left; }
   .home-chapters .chapter-key { flex: 1 1 12rem; max-width: 26ch; }
 }
 
-/* From 600 px the reading sits right of its chapter: the figure keeps its width, the key wraps under it. */
+/* From 600 px the reading sits right of its chapter in a fixed column, the figure and its key flush left together, so
+   every key runs one or two even lines and the figures line up down the list. */
 @media (min-width: 600px) {
-  .home-chapters .chapter-reading { max-width: none; }
-  .home-chapters .chapter-key { max-width: 24ch; }
+  .home-chapters .chapter-link { grid-template-columns: calc(var(--line-x, 28px) * 2) minmax(0, 1fr) 15.5rem; align-items: start; }
+  .home-chapters .chapter-text { padding-top: 10px; }
+  .home-chapters .chapter-reading { justify-items: start; max-width: none; padding-top: 6px; text-align: left; }
+  .home-chapters .chapter-key { max-width: none; }
 }
 
 /* ---------- The closing call ---------- */
@@ -169,7 +177,7 @@
 /* A chapter whose reading is a key with no figure: from 600 px the key is the row's subtitle, so no figure column is
    reserved for it. */
 @media (min-width: 600px) {
-  .home-chapters .chapter-reading.is-key-only { grid-column: 2; justify-items: start; margin-top: -2px; text-align: left; }
+  .home-chapters .chapter-reading.is-key-only { grid-column: 2; justify-items: start; margin-top: -8px; padding-top: 0; text-align: left; }
   .home-chapters .chapter-reading.is-key-only .chapter-key { max-width: none; font-size: var(--t-small); font-weight: 400; line-height: 1.35; }
 }
 

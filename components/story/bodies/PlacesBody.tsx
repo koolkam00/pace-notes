@@ -4,6 +4,7 @@ import { STORIES } from '@/lib/stories';
 import { getNugget } from '@/lib/nuggets';
 import { ms, pct } from '@/lib/nuggets/format';
 import LineProfile from '@/components/viz/LineProfile';
+import Ruler from '@/components/viz/Ruler';
 import PlaceShift from '../charts/PlaceShift';
 import Values from '@/components/ui/Values';
 import { Beat, Say, StoryHero, StoryPage } from '../StoryPage';
@@ -46,11 +47,17 @@ export default function PlacesBody() {
 
   return (
     <StoryPage path={PATH}>
-      {/* The H1 says the comparison (twice as often), so the reading is the figure and what it counts; with no figure,
-          the sentence stands in. */}
+      {/* The H1 says the comparison (twice as often), so the reading is the figure and what it counts, and the ruler
+          draws the H1: the same gap from 30K (the figure's dot) against from 40K, on a scale that ends at a coin flip.
+          With no figure, the sentence stands in. */}
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
         figure={gap.figure ? { ...gap.figure } : undefined} unitLine={gap.figure ? gap.key : undefined} fallback={!gap.guard}
-        sentence={gap.figure ? undefined : <Say nugget={gap} />} />
+        sentence={gap.figure ? undefined : <Say nugget={gap} />}
+        instrument={gap.guard ? (
+          <Ruler min={0} max={0.5} ticks={[0, 0.25, 0.5].map((v) => ({ value: v, label: pct(v) }))}
+            label={`Crossed first from the same gap: ${pct(Number(gap.values.at30))} from 30K, ${pct(Number(gap.values.at40))} from 40K.`}
+            marks={[{ value: Number(gap.values.at30), kind: 'reading', label: 'From 30K' }, { value: Number(gap.values.at40), kind: 'compare', label: `From 40K ${pct(Number(gap.values.at40))}` }]} />
+        ) : undefined} />
 
       <Beat id="gap" track="chapter-1" label="How far back" title={coin} className={coin.guard ? 'pl-pair' : undefined}>
         <LineProfile x={gx} xDomain={span} yDomain={[0, 0.55]}
@@ -73,9 +80,12 @@ export default function PlacesBody() {
           scrub={{ label: 'Gap behind at the mat',
             points: { x: gx.map((v) => (v - span[0]) / (span[1] - span[0])), keys: r30.map((r) => `${ms(r.gap_lo_s)}–${ms(r.gap_lo_s + step)} behind at 30K, first to the line`),
               values: r30.map((r) => pct(r.share)),
-              // The side value is the H2's comparison, the same at every point: a minute back at 40K.
-              side: coin.guard ? [{ label: `${ms(Number(coin.values.gap40_s))}–${ms(Number(coin.values.gap40_s) + step)} behind at 40K`, values: r30.map(() => pct(Number(coin.values.at40))) }] : [{ label: 'From 40K, same gap', values: g40.map((v) => pct(v)) }] },
-            initial: coin.guard ? farBand : minuteBand, detents: [...new Set([minuteBand, farBand])] }}
+              // At the H2's band the side value is its comparison (a minute back at 40K); scrubbed away, the same row reads
+              // the 40K line at the needle's gap (story.css shows one of the two), so the readout never leaves a gap.
+              side: coin.guard
+                ? [{ label: `${ms(Number(coin.values.gap40_s))}–${ms(Number(coin.values.gap40_s) + step)} behind at 40K`, values: r30.map(() => pct(Number(coin.values.at40))) }, { label: 'From 40K, same gap', values: g40.map((v) => pct(v)) }]
+                : [{ label: 'From 40K, same gap', values: g40.map((v) => pct(v)) }] },
+            initial: coin.guard ? farBand : minuteBand, detents: [...new Set([minuteBand, farBand])], follow: '30' }}
           label={`How often a trailing finish crossed the line first, by how far behind it was, from 30K and from 40K: ${pct(r30[farBand].share)} from ${ms(r30[farBand].gap_lo_s)} back at 30K, ${pct(g40[minuteBand])} from ${ms(r30[minuteBand].gap_lo_s)} back at 40K.`}
           values={(
             <Values id="pl-gap" caption="Crossed the line first, by the gap behind"
@@ -91,10 +101,11 @@ export default function PlacesBody() {
           refs={[{ value: 0, label: 'No places gained' }]}
           // Even pace is the detent tick (it always shows); the slower side reads at 20% and 40%.
           xTicks={[0, 20, 40].filter((v) => v >= be[0].x && v <= be[be.length - 1].x).map((v) => ({ value: v, label: v === 0 ? 'Even' : `${v}% slower`, priority: v === 0 ? 3 : 1 }))}
-          yTicks={[{ value: beTop, label: `+${beTop}` }, { value: beBottom, label: `${MINUS}${Math.abs(beBottom)}` }]}
+          // The top of the scale only: a gridline at the bottom of the domain would double the axis rule.
+          yTicks={[{ value: beTop, label: `+${beTop}` }]}
           scrub={{ label: '30–40K pace against the 5–20K pace',
             points: { x: be.map((b) => (b.x - be[0].x) / (be[be.length - 1].x - be[0].x)), keys: be.map((b) => `30–40K ${slower(b.x)} than 5–20K, places per 100`), values: be.map((b) => (Math.abs(b.median) < 0.25 ? '±0' : signed(b.median))) },
-            initial: beAt, detents: [beAt] }}
+            initial: beAt, detents: [beAt], follow: 'median' }}
           label={`Median places gained per 100 of the field after 30K, by 30–40K pace against the 5–20K pace; the line crosses zero near ${Math.round(crossing)}% slower.`}
           values={(
             <Values id="pl-breakeven" caption="Median places gained per 100 after 30K, and the share that moved up, by 30–40K pace"
@@ -103,17 +114,16 @@ export default function PlacesBody() {
           )} />
       </Beat>
 
-      {/* The H2 gives the share that moved up; the bar shows it as the bracket's span and names only the two tails, so no
-          shown parts have to add up to it. */}
+      {/* The H2 gives the share that moved up; the bar shows it as the bracket's span and names only the two tails (in
+          places per 100, the readout's unit above), so no shown parts have to add up to it. */}
       <Beat id="shuffle" track="chapter-3" label="Up and down" title={shuffle} aliases={['gains', 'women']}>
         <PlaceShift
           segments={[
-            { id: 'lost10', label: 'lost 10 or more', share: data.sinker_share, display: pct(data.sinker_share, 1), tone: 'ink' },
-            { id: 'lost', label: 'lost fewer, or held', share: Math.max(0, 1 - data.gained_share - data.sinker_share), display: pct(Math.max(0, 1 - data.gained_share - data.sinker_share)), tone: 'quiet' },
-            { id: 'gained', label: 'gained fewer than 10', share: Math.max(0, data.gained_share - data.surger_share), display: pct(Math.max(0, data.gained_share - data.surger_share)), tone: 'quiet' },
-            { id: 'gained10', label: 'gained 10 or more', share: data.surger_share, display: pct(data.surger_share, 1), tone: 'ink' },
+            { id: 'lost10', label: 'lost 10+ places per\u00a0100', share: data.sinker_share, display: pct(data.sinker_share, 1), tone: 'ink' },
+            { id: 'between', label: 'everything between', share: Math.max(0, 1 - data.sinker_share - data.surger_share), display: '', tone: 'quiet' },
+            { id: 'gained10', label: 'gained 10+ places per\u00a0100', share: data.surger_share, display: pct(data.surger_share, 1), tone: 'ink' },
           ]}
-          up={{ from: 2, label: 'Moved up' }}
+          up={{ at: 1 - data.gained_share, label: 'Moved up' }}
           label={`Places gained or lost per 100 of the field from 30K to the finish: ${pct(data.gained_share)} moved up; ${pct(data.sinker_share, 1)} lost 10 or more, ${pct(data.surger_share, 1)} gained 10 or more.`}
           values={(
             <Values id="pl-tail" caption="Share of finishes by places gained per 100 after 30K"

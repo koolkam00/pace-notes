@@ -5,6 +5,7 @@ import { getNugget } from '@/lib/nuggets';
 import { hm, matLabel, ms, pct } from '@/lib/nuggets/format';
 import { MARATHON_KM } from '@/lib/units';
 import LineProfile from '@/components/viz/LineProfile';
+import Ruler from '@/components/viz/Ruler';
 import Values from '@/components/ui/Values';
 import PairBars from '../charts/PairBars';
 import { Beat, Say, StoryHero, StoryPage, rich } from '../StoryPage';
@@ -14,8 +15,8 @@ const MATS = [0, 5, 10, 15, 20, 25, 30, 35, 40, MARATHON_KM];
 const MINUS = '−';
 const one = (v: number) => Math.round(v * 10) / 10;
 const slower = (v: number) => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(one(v)).toFixed(1)}%`;
-/** The gap between two values, from the unrounded values (the data's gap, to one decimal). */
-const apart = (a: number, b: number) => `${Math.abs(b - a).toFixed(1)} points apart`;
+/** The gap between two bars, from their displayed one-decimal values, so it is the difference a reader would take. */
+const apart = (a: number, b: number) => `${Math.abs(one(b) - one(a)).toFixed(1)} points apart`;
 
 /**
  * Women and men, the who-holds-pace story (the redesign spec, section 7.9, under section 00): the reading (sustained slowdown, recorded
@@ -61,7 +62,13 @@ export default function DemographicsBody() {
         // The H1 says who held pace; the pair says how often each did not, and the key under it what is counted (the
         // term's first use, so it carries the link). A failed guard shows the plain sentence instead.
         unitLine={gender.guard ? rich('of finishes had a sustained slowdown, at the same finish times', { term: true }) : undefined}
-        sentence={gender.guard ? undefined : <Say nugget={gender} term />} />
+        sentence={gender.guard ? undefined : <Say nugget={gender} term />}
+        // The pair on one scale, so "more than twice" is a distance: the figures give the values, the dots their names.
+        instrument={gender.guard ? (
+          <Ruler min={0} max={Math.max(0.5, Math.ceil(m * 4) / 4)} ticks={[0, 0.25, 0.5, 0.75].filter((v) => v <= Math.max(0.5, Math.ceil(m * 4) / 4)).map((v) => ({ value: v, label: pct(v) }))}
+            label={`Sustained slowdown at the same finish times: recorded women ${pct(w)}, recorded men ${pct(m)}.`}
+            marks={[{ value: w, kind: 'reading', label: 'Women' }, { value: m, kind: 'compare', label: 'Men' }]} />
+        ) : undefined} />
 
       <Beat id="unmask" track="chapter-1" label="Pooled or matched" title={unmask}
         dek="How much slower the second 20K ran than the first.">
@@ -87,7 +94,7 @@ export default function DemographicsBody() {
           yTicks={Math.floor(gapMin[peak]) >= 1 ? [{ value: Math.floor(gapMin[peak]), label: `${Math.floor(gapMin[peak])} min behind` }] : []} gridSide="left"
           scrub={{ label: `Finishing in ${band.label}: recorded women behind recorded men, mat by mat`,
             points: { x: MATS.map((km) => km / MARATHON_KM), keys: MATS.map((km, k) => keyAt(km, gapMin[k])), values: gapMin.map(gapAt) },
-            initial: peak, detents: [peak] }}
+            initial: peak, detents: [peak], follow: 'gap' }}
           label={`Finishing in ${band.label}: recorded women behind recorded men at each mat, ${ms(Math.round(gapMin[peak] * 60))} at ${matLabel(MATS[peak])}, level at the finish.`}
           values={(
             <Values id="wh-ghost" caption={`Finishing in ${band.label}: recorded women behind recorded men at each mat`}

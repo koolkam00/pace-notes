@@ -14,6 +14,10 @@
 .viz-frame[data-k="ratio"] .scrub-needle.is-front { height: max(0px, calc(var(--needle-top-alt, var(--needle-top, 100%)) - 6px)); }
 /* Away from the headline's point, the reading mark is ink: the needle is the one orange mark. */
 .viz-frame .scrub.is-away .m-signal.is-reading { fill: var(--ink); }
+/* Where the needle crosses the subject line (LineProfile's scrub.follow), shown only while it is away from the
+   headline's point, whose own reading mark is drawn there at home. */
+.viz-frame .scrub-dot { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 0 2px var(--paper); pointer-events: none; visibility: hidden; }
+.viz-frame .scrub.is-away .scrub-dot { visibility: visible; }
 
 /* Detents: small dots on the baseline at the values that matter; the one the needle reaches flashes. */
 .viz-frame .scrub-detents { position: absolute; left: 0; right: 0; top: 100%; height: 0; pointer-events: none; }

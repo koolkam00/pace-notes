@@ -46,7 +46,11 @@ type Props = {
   refs?: { value: number; label?: string; dashed?: boolean }[];
   /** A stretch of x the sentence is about ("after 20K"): its start drawn as a hairline with its label, washed with `fill`. */
   washes?: { from: number; to: number; label?: string; fill?: boolean }[];
-  scrub?: { points: ScrubPoints; initial: number; detents: number[]; label: string };
+  /**
+   * `follow` names the series (by id) whose value at each scrub point the needle marks with a dot while it is away from
+   * the headline's point, so a scrubbed needle always shows where it crosses the subject line.
+   */
+  scrub?: { points: ScrubPoints; initial: number; detents: number[]; label: string; follow?: string };
   axisTitle?: { start?: string; end?: string };
   label: string;
   keys?: KeyItem[];
@@ -158,10 +162,16 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
     </Plot>
   );
   const axis = <Axis ticks={xTicks.map((t) => ({ x: x(t.value), label: t.label, priority: t.priority }))} title={axisTitle} />;
+  // The followed series' value under each scrub point (one value per point, in order), as a fraction from the top.
+  const followed = (sc: NonNullable<Props['scrub']>): ScrubPoints => {
+    const series = sc.follow ? layers.flatMap((l) => l.series).find((sr) => sr.id === sc.follow) : undefined;
+    if (!series || series.values.length !== sc.points.x.length) return sc.points;
+    return { ...sc.points, dot: series.values.map((v) => (Number.isFinite(v) ? y(v) : NaN)) };
+  };
   return (
     <ChartFrame label={label} height={height} heightMd={heightMd} k={lensOn ? current : undefined}
       lens={lensOn ? <Lens label={lensLabel ?? 'Show'} options={layers.map((l) => ({ value: l.id, label: l.label }))} defaultValue={current} chips={chips} /> : undefined}
-      scrub={scrub ? <Scrubber points={scrub.points} initial={scrub.initial} detents={scrub.detents} label={scrub.label} axis={axis}>{plot}</Scrubber> : undefined}
+      scrub={scrub ? <Scrubber points={followed(scrub)} initial={scrub.initial} detents={scrub.detents} label={scrub.label} axis={axis}>{plot}</Scrubber> : undefined}
       plot={scrub ? undefined : plot} axis={scrub ? undefined : axis} keys={keys} values={values}
     />
   );

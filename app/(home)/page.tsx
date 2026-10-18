@@ -98,7 +98,8 @@ export default function Page() {
     <section id="guide" className="home-beat home-guide" aria-labelledby="guide-title" data-track-section="guide">
       <div className="home-guide-head">
         <h2 id="guide-title" className="t-h2">The race, <em>start to finish</em>.</h2>
-        <p className="home-guide-dek">{chapterCount.charAt(0).toUpperCase() + chapterCount.slice(1)} chapters, each a stretch of the race.</p>
+        {/* The term's first use on the page (the chapter rows' keys sit inside their links), so it links to its definition. */}
+        <p className="home-guide-dek">{chapterCount.charAt(0).toUpperCase() + chapterCount.slice(1)} chapters, from the gun through the <Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link> to the finish line.</p>
       </div>
       <ChapterList variant="full" readingOf={readingOf} label="The chapters, start to finish" className="home-chapters" />
     </section>

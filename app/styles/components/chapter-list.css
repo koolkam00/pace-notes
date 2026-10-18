@@ -27,7 +27,6 @@
 .chapter-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .chapter-mark { position: relative; z-index: 1; display: flex; align-self: start; justify-content: center; height: 48px; align-items: center; }
 .chapter-text { display: grid; gap: 2px; min-width: 0; padding: 4px 0; }
-.chapter-no { line-height: 1.2; }
 .chapter-name { font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; font-size: 1.1875rem; line-height: 1.2; letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
 .chapter-sub { font-family: var(--sans); font-size: var(--t-small); line-height: 1.35; color: var(--ink-3); }
 

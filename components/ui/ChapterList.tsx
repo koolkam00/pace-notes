@@ -2,7 +2,8 @@ import BigNumber from './BigNumber';
 import MarkerBadge from './MarkerBadge';
 import Arrow from './Arrow';
 import ChapterLink from '@/components/ChapterLink';
-import { CHAPTERS, chapterHref, chapterNumber, livePages, partLabel, type Chapter, type ChapterPage, type PageKind, type ReadingOf } from '@/lib/chapters';
+import { UnitLink as Link } from '@/components/UnitsProvider';
+import { CHAPTERS, chapterHref, livePages, partLabel, type Chapter, type ChapterPage, type PageKind, type ReadingOf } from '@/lib/chapters';
 
 /**
  * The chapters as a course line (the redesign spec, section 3.5): each chapter's marker on a dashed line, its title and
@@ -12,11 +13,14 @@ import { CHAPTERS, chapterHref, chapterNumber, livePages, partLabel, type Chapte
  * Variants:
  * - compact: the menu and the chapters drawer. Marker, title and pages; no readings (a menu is for finding a page). The
  *   whole row links to the chapter's first page.
- * - full: the home guide. Adds "Chapter 01" (where the marker is a distance, not the number) and the chapter's reading
- *   with its key, when `readingOf` resolves it.
+ * - full: the home guide. Adds the chapter's reading with its key, when `readingOf` resolves it.
  * - expanded: the contents (/research). Each chapter is a heading with its reading, and its pages are the links under
- *   it, each with its own reading when it has one that is not the chapter's (so no figure shows twice and no page has
- *   two links on one screen). Rows carry their ids (chapter-01 …) for /research#chapter-06.
+ *   it, by title alone: one reading per chapter, so the list stays one calm rhythm and no figure shows twice. The first
+ *   chapter key that names the sustained slowdown links the term to its definition (a heading, so outside any row
+ *   link). Rows carry their ids (chapter-01 …) for /research#chapter-06.
+ *
+ * Every row has one template: the marker, the name (and on the home guide the pages it holds), the reading. No
+ * "Chapter 01" kicker: the marker on the course line already says where in the race a chapter is.
  *
  * `PageList` is the contents filtered to one kind of page (/stories, /analyses): a plain list of pages in race order,
  * each with its chapter and reading.
@@ -29,36 +33,36 @@ const pagesOf = (chapter: Chapter) => [...chapter.pages.map((p) => p.href), ...(
 
 /** A figure with no number in it ("Yours") is a word, not a reading: it shows as its key alone, in plain text. */
 const isNumber = (value: string) => /\d/.test(value);
-/** Spaces of any kind as one plain space, so a title held together with no-break spaces still matches its figure. */
-const flat = (text: string) => text.replace(/\s+/g, ' ');
-/** "Chapter 07" only where the marker is a race distance (START … FINISH); a badge that is the number says it already. */
-const ChapterNo = ({ chapter }: { chapter: Chapter }) => (String(chapter.marker) === chapterNumber(chapter) ? null : <span className="chapter-no t-kicker">Chapter {chapterNumber(chapter)}</span>);
+const TERM = /\bsustained[ -]slowdowns?\b/i;
+const TERM_HREF = '/methodology#sustained-slowdown';
+/** A key with its first "sustained slowdown" linked to the definition (only where the key sits outside a row link). */
+function KeyText({ text, term }: { text: string; term: boolean }) {
+  const m = term ? TERM.exec(text) : null;
+  if (!m) return <>{text}</>;
+  return <>{text.slice(0, m.index)}<Link href={TERM_HREF} className="term-link">{m[0]}</Link>{text.slice(m.index + m[0].length)}</>;
+}
 
-function Reading({ readingOf, id, fallbackKey, size }: { readingOf?: ReadingOf; id: Chapter['lead']; fallbackKey?: string; size: 's' | 'm' }) {
+function Reading({ readingOf, id, fallbackKey, size, term = false }: { readingOf?: ReadingOf; id: Chapter['lead']; fallbackKey?: string; size: 's' | 'm'; term?: boolean }) {
   const reading = readingOf?.(id);
   if (!reading) return null;
   const key = reading.key ?? fallbackKey;
-  if (!isNumber(reading.value)) return key ? <span className="chapter-reading is-key-only"><span className="chapter-key">{key}</span></span> : null;
+  if (!isNumber(reading.value)) return key ? <span className="chapter-reading is-key-only"><span className="chapter-key"><KeyText text={key} term={term} /></span></span> : null;
   return (
     <span className="chapter-reading">
       <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size={size} />
-      {key ? <span className="chapter-key">{key}</span> : null}
+      {key ? <span className="chapter-key"><KeyText text={key} term={term} /></span> : null}
     </span>
   );
 }
 
-/** A page's reading on one quiet line: the figure, then its key ("47% of the field had not reached 20K …"). */
-function PageReading({ readingOf, page, skip }: { readingOf?: ReadingOf; page: ChapterPage; skip?: string }) {
-  if (page.nugget === skip) return null;
+/** A page's reading on one quiet line (/stories, /analyses): the figure, then its key ("47% of the field had not …"). */
+function PageReading({ readingOf, page }: { readingOf?: ReadingOf; page: ChapterPage }) {
   const reading = readingOf?.(page.nugget);
   if (!reading?.key) return null;
-  // A figure that is a word shows its key alone. A page whose title already states its figure ("… 20 minutes apart …")
-  // keeps it on its quiet line, where the key says what it is; the contents, whose rows ride on the title's line, leave
-  // that figure out (research.css), so it never shows twice there.
+  // A figure that is a word shows its key alone.
   if (!isNumber(reading.value)) return <span className="page-reading is-key-only"><span className="page-reading-key">{reading.key}</span></span>;
-  const inTitle = flat(page.title).includes(flat(`${reading.value}${reading.unit ? ` ${reading.unit.trim()}` : ''}`));
   return (
-    <span className={`page-reading${inTitle ? ' is-in-title' : ''}`}>
+    <span className="page-reading">
       <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size="s" />
       <span className="page-reading-key">{reading.key}</span>
     </span>
@@ -72,6 +76,9 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
 }) {
   const parts = ([1, 2, 3] as const).map((part) => ({ part, chapters: CHAPTERS.filter((c) => c.part === part) }));
   const compact = variant === 'compact';
+  // The contents link the term once, in the first chapter key that uses it.
+  const keyOf = (c: Chapter) => readingOf?.(c.lead)?.key ?? c.key;
+  const termAt = variant === 'expanded' ? CHAPTERS.find((c) => readingOf?.(c.lead) && TERM.test(keyOf(c)))?.id : undefined;
   return (
     <nav className={`chapter-list is-${variant}${className ? ` ${className}` : ''}`} aria-label={label}>
       {parts.map(({ part, chapters }) => (
@@ -83,17 +90,15 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
                 <div className="chapter-heading">
                   <span className="chapter-mark"><MarkerBadge marker={chapter.marker} /></span>
                   <h2 className="chapter-text">
-                    <ChapterNo chapter={chapter} />
                     <span className="chapter-name">{chapter.title}</span>
                   </h2>
-                  <Reading readingOf={readingOf} id={chapter.lead} fallbackKey={chapter.key} size="s" />
+                  <Reading readingOf={readingOf} id={chapter.lead} fallbackKey={chapter.key} size="s" term={chapter.id === termAt} />
                 </div>
                 <ol className="chapter-pages">
                   {livePages(chapter).map((page) => (
                     <li key={page.href}>
                       <ChapterLink href={page.href} match={[page.href]} className="chapter-page-link">
                         <span className="chapter-page-title">{page.title}</span>
-                        <PageReading readingOf={readingOf} page={page} skip={chapter.lead} />
                         <Arrow className="chapter-page-go" />
                       </ChapterLink>
                     </li>
@@ -113,7 +118,6 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
                 <ChapterLink href={chapterHref(chapter)} match={pagesOf(chapter)} className="chapter-link">
                   <span className="chapter-mark"><MarkerBadge marker={chapter.marker} /></span>
                   <span className="chapter-text">
-                    {compact ? null : <ChapterNo chapter={chapter} />}
                     <span className="chapter-name">{chapter.title}</span>
                     <span className="chapter-sub">{chapter.subtitle}</span>
                   </span>

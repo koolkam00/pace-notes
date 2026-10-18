@@ -7,13 +7,11 @@
  * rail, the reading bar and every next card read this one file. It holds no numbers: a page's reading is a nugget id
  * that the server resolves at build (lib/nuggets/, WP0-C), passed to the components as `readingOf`.
  *
- * Server-only: titles come from lib/stories.ts and lib/ten-analyses.ts, which read the published data. Client code reads
- * what it needs from the markup (data-reading, data-pages), never this module, so the registry costs no JavaScript.
+ * Client code reads what it needs from the markup (data-reading, data-pages), never this module, so the registry costs
+ * no JavaScript.
  */
 import type { Marker } from '@/components/ui/MarkerBadge';
 import type { NuggetFigure, NuggetId } from './nuggets/types';
-import { STORIES } from './stories';
-import { TEN_ANALYSES } from './ten-analyses';
 
 export type { NuggetId };
 export type PageKind = 'story' | 'analysis' | 'explainer' | 'tool' | 'course-index' | 'runner' | 'report' | 'course';
@@ -70,13 +68,17 @@ export const partLabel = (part: 1 | 2 | 3) => `Part ${PART_WORDS[part]} · ${PAR
 /** A methods anchor built from its id (verify-chapters checks every one against the built /methodology). */
 const methods = (id: string) => `/methodology#${id}` as MethodsAnchor;
 
+/**
+ * A page carries one name everywhere the shell lists it (the rail, the reading bar, contents rows, next cards): its
+ * short title. A story's or an analysis's longer title (lib/stories.ts, lib/ten-analyses.ts) stays for its own page,
+ * search, share cards and structured data.
+ */
 const story = (slug: string, short: string, nugget: NuggetId, pending?: string): ChapterPage => ({
   href: `/stories/${slug}`, kind: 'story', short, nugget, howWeKnow: methods(`story-${slug}`), ...(pending ? { pending } : {}),
-  get title() { return STORIES.find((s) => s.slug === slug)?.title ?? short; },
+  title: short,
 });
 const analysis = (slug: string, short: string, nugget: NuggetId, howWeKnow: MethodsAnchor = '/methodology#question-methods'): ChapterPage => ({
-  href: `/analyses/${slug}`, kind: 'analysis', short, nugget, howWeKnow,
-  get title() { return TEN_ANALYSES.find((a) => a.slug === slug)?.shortTitle ?? short; },
+  href: `/analyses/${slug}`, kind: 'analysis', short, nugget, howWeKnow, title: short,
 });
 const page = (href: string, kind: PageKind, title: string, short: string, nugget: NuggetId, howWeKnow: MethodsAnchor): ChapterPage => ({ href, kind, title, short, nugget, howWeKnow });
 const tool = (slug: string, title: string, short: string, nugget: NuggetId) => page(`/tools/${slug}`, 'tool', title, short, nugget, methods(`tools-${slug}`));
@@ -88,7 +90,7 @@ const lastOf = <T,>(list: readonly T[]): T | undefined => list[list.length - 1];
 export const CHAPTERS: readonly Chapter[] = [
   { n: 1, id: 'chapter-01', part: 1, marker: 'START', title: 'The field', subtitle: 'Finish times, the replay',
     pages: [
-      page('/finish-times', 'story', 'Marathon finish times', 'Finish times', 'field.median', '/methodology#finish-times'),
+      page('/finish-times', 'story', 'Finish times', 'Finish times', 'field.median', '/methodology#finish-times'),
       story('race-replay', 'The race replay', 'replay.first'),
     ],
     lead: 'field.median', key: 'median finish' },
@@ -128,7 +130,7 @@ export const CHAPTERS: readonly Chapter[] = [
     lead: 'finish.busiest', key: 'the busiest finishing minute' },
   { n: 7, id: 'chapter-07', part: 2, marker: '07', title: 'Who holds pace', subtitle: 'Women and men, age',
     pages: [
-      story('who-holds-pace', 'Who holds pace', 'holds.gender'),
+      story('who-holds-pace', 'Women and men', 'holds.gender'),
       analysis('age-and-pacing', 'Age and pace', 'age.retention'),
     ],
     lead: 'holds.gender', key: 'sustained slowdown, women · men, at the same finish times' },
@@ -137,7 +139,7 @@ export const CHAPTERS: readonly Chapter[] = [
       story('courses', 'Course fingerprints', 'courses.named'),
       analysis('course-comparison', 'Compare the courses', 'courses.compare', ALL_FINISHER),
       analysis('hills-and-pacing', 'Hills and rhythm', 'terrain.climb'),
-      page('/courses', 'course-index', 'Marathon courses', 'Every course', 'courses.index', '/methodology#course-pages'),
+      page('/courses', 'course-index', 'Every course', 'Every course', 'courses.index', '/methodology#course-pages'),
     ],
     children: ['/courses/'], back: '/courses',
     lead: 'courses.spread', key: 'sustained slowdown, across courses' },

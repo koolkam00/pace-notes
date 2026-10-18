@@ -6,6 +6,7 @@ import { sectionName } from '@/lib/nuggets/stories';
 import { hm, pct } from '@/lib/nuggets/format';
 import LineProfile from '@/components/viz/LineProfile';
 import DotGrid from '@/components/viz/DotGrid';
+import Ruler from '@/components/viz/Ruler';
 import Values from '@/components/ui/Values';
 import Columns from '../charts/Columns';
 import { Beat, Moved, Say, StoryHero, StoryPage, rich } from '../StoryPage';
@@ -24,6 +25,10 @@ export default function KickBody() {
   const data = readInsight<Kick>('kick.json');
   const story = STORIES.find((s) => s.slug === 'final-kick')!;
   const twins = getNugget('kick.twins'), bands = getNugget('kick.bands'), warning = getNugget('kick.warning'), stay = getNugget('kick.stay'), magnet = getNugget('kick.magnet');
+
+  // The reading's ruler: the typical gap in whole minutes (the figure's), on a clock to the next ten minutes past it.
+  const kMin = Math.round(Number(twins.values.median_gap_s) / 60);
+  const kTop = Math.max(20, Math.ceil((kMin + 5) / 10) * 10);
 
   // Same pace through 20K: how many minutes later each pace band's finishes with a sustained slowdown came in, as one
   // line over the pace through 20K (a finish-time equivalent), the gap washed down to zero.
@@ -51,7 +56,13 @@ export default function KickBody() {
           is /methodology's (How we know). */}
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={rich(story.dek, { term: true })}
         figure={twins.figure ? { ...twins.figure } : undefined} unitLine={twins.guard ? twins.key : undefined} fallback={!twins.guard}
-        sentence={twins.guard ? undefined : <Say nugget={twins} />} />
+        sentence={twins.guard ? undefined : <Say nugget={twins} />}
+        // The two finishes on one clock, from the same pace through 20K: without one at zero, with one the figure later.
+        instrument={twins.guard ? (
+          <Ruler min={0} max={kTop} ticks={Array.from({ length: kTop / 10 + 1 }, (_, i) => ({ value: i * 10, label: i ? `+${i * 10} min` : '0' }))}
+            label={`From the same pace through 20K, the finish with a sustained slowdown came ${kMin} minutes after the finish without one.`}
+            marks={[{ value: 0, kind: 'compare', label: 'Without' }, { value: kMin, kind: 'reading', label: 'With' }]} />
+        ) : undefined} />
 
       <Beat id="twins" track="chapter-1" label="Same pace, apart" title={bands}>
         <LineProfile x={cx} xDomain={[cost[0].lo_min, cost[cost.length - 1].lo_min + width]} yDomain={[0, gTop]}
@@ -86,8 +97,10 @@ export default function KickBody() {
 
       <Beat id="states" track="chapter-3" label="No second wind" title={stay} aliases={['break']}
         dek={stay.guard ? `Finishes at sustained-slowdown pace over ${sectionName(s.source)}.` : undefined}>
-        <DotGrid lit={s.stay * 100} label={`Of 100 finishes at sustained-slowdown pace over ${sectionName(s.source)}, ${Math.round(s.stay * 100)} stayed that slow over ${sectionName(s.target)}.`}
-          caption={<span className="dot-grid-key"><span><i className="is-lit" />Stayed that slow</span><span><i />Did not</span></span>} />
+        {/* The majority in ink, as every share of a whole is drawn on the stories: the H2 carries the one accent. Ten by
+            ten on a phone; one wide band of 25 by 4 from 900 px, so it spans the measure. */}
+        <DotGrid lit={s.stay * 100} compare className="is-band" label={`Of 100 finishes at sustained-slowdown pace over ${sectionName(s.source)}, ${Math.round(s.stay * 100)} stayed that slow over ${sectionName(s.target)}.`}
+          caption={<span className="dot-grid-key"><span><i className="is-ink" />Stayed that slow</span><span><i />Did not</span></span>} />
         <Values id="fk-states" caption={`Finishes at sustained-slowdown pace over ${sectionName(s.source)}, over ${sectionName(s.target)}`}
           columns={[{ key: 'a', label: `Over ${sectionName(s.target)}` }, { key: 's', label: 'Share of those finishes' }]}
           rows={[['Stayed that slow', pct(s.stay)], ['Did not', pct(1 - s.stay)]]} reading={0} />

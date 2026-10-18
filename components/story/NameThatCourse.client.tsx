@@ -36,7 +36,7 @@ export default function NameThatCourse({ rounds, shapes, x, length, ticks, label
     <div className="ntc">
       <figure className="viz viz-frame ntc-figure">
         <p className="ntc-year">The {round.year} edition</p>
-        <svg className="ntc-plot" viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
+        <svg className="ntc-plot" viewBox={`0 0 ${W} ${H}`} width="100%" preserveAspectRatio="none" role="img"
           aria-label={`One edition's pacing shape, section by section, against the typical course${answered && own ? `, with ${round.answer}'s own shape across its editions over it` : ''}`}>
           <line className="ntc-zero" x1={PAD} x2={W - PAD} y1={zero} y2={zero} />
           {answered && own ? <path className="ntc-own" d={path(own, lo, hi)} /> : null}

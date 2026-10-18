@@ -112,9 +112,13 @@ export const STORIES: StoryDefinition[] = [
       const types = pacingTypes();
       return `${types ? capital(types) : 'Different'} ways to run the same race`;
     },
+    /** The finding: the two most common types, named from the data, when together they hold most finishes. */
     get heading() {
-      const types = pacingTypes();
-      return `${types ? capital(types) : 'Different'} ways to run *the same race*`;
+      const types = insight<Archetypes>('archetypes.json')?.archetypes ?? [];
+      const [a, b] = [...types].sort((x, y) => y.share - x.share);
+      if (a && b && a.share + b.share > 0.5) return `Most finishes were *${a.name}s or ${b.name}s*.`;
+      const count = pacingTypes();
+      return `${count ? capital(count) : 'Different'} ways to run *the same race*.`;
     },
     dek: 'Does everyone pace a marathon the same way?',
     accent: '#17A673',
@@ -133,7 +137,12 @@ export const STORIES: StoryDefinition[] = [
       const top = getNugget('round.top');
       return top.guard ? `The ${hm(Number(top.values.minutes) - 1)} effect` : 'The round-number effect';
     },
-    dek: 'Do finish times bunch up just under round numbers?', accent: '#FF5B2E',
+    /** The finding: finishes crowd in just under the round mark that stands tallest against the curve. */
+    get heading() {
+      const top = getNugget('round.top');
+      return top.guard ? `Finishes crowd in *just under ${top.values.mark}*.` : `${this.title}.`;
+    },
+    dek: 'Do round numbers change when runners finish?', accent: '#FF5B2E',
     published: '2026-10-07',
     get seoTitle() {
       return `${this.title.replace(/^the /i, 'The ').replace(/ effect$/, ' Effect')}: Marathon Finishes Bunch Under Round Times`;
@@ -188,6 +197,8 @@ export const STORIES: StoryDefinition[] = [
     seoTitle: 'Marathon Pacing by Age and Recorded Gender | Pace Notes',
     seoDescription: 'At the same finish times, recorded women and men pace marathons differently, and so do age groups. Section-by-section evidence from 5 km splits.' },
   { slug: 'courses', file: 'courses.json', number: '07', kicker: 'Where you run', title: 'Every course has a fingerprint',
+    /** The finding when a pacing shape names its course well above chance (the courses.named guard). */
+    get heading() { return getNugget('courses.named').guard ? 'A race’s pacing shape can *name its course*.' : `${this.title}.`; },
     dek: 'Does a course change how its marathon is paced?',
     accent: '#0FA3A3',
     published: '2026-10-07',

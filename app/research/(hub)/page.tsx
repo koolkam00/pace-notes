@@ -39,7 +39,7 @@ export default function ResearchPage() {
     <header className="contents-hero" data-track-section="hero">
       <p className="t-kicker">Contents</p>
       <h1 className="t-display">The race, <em>start to finish</em>.</h1>
-      <p className="contents-dek"><MarathonDistance /> in {chapters} chapters, and what each page found.</p>
+      <p className="contents-dek"><MarathonDistance /> in {chapters} chapters, and what each one found.</p>
       <p className="contents-views">Or only the <Link href="/stories">stories</Link>, or only the <Link href="/analyses">analyses</Link>.</p>
     </header>
     <section id="analyses" className="contents-body" data-track-section="analyses" aria-label="Every chapter and page">

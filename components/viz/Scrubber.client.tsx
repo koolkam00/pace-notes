@@ -29,6 +29,9 @@ export type ScrubPoints = {
   y?: number[];
   /** The column tops under the figure's other lens (data-k="ratio"), when it draws its columns differently. */
   yAlt?: number[];
+  /** Needle mode: where the needle crosses the subject line at each point (a fraction from the top), marked with a dot
+   * while the needle is away from the headline's point (at home the chart's own reading mark is there). */
+  dot?: number[];
   keys: string[];
   values: string[];
   side?: { label: string; values: string[] }[];
@@ -186,6 +189,7 @@ export default function Scrubber({ points, initial, home, detents = [], label, m
   const x = points.x[index] ?? 0;
   const y = points.y?.[index];
   const yAlt = points.yAlt?.[index];
+  const dot = points.dot?.[index];
   const pos = `${(x * 100).toFixed(3)}%`;
   const hintLeft = x > 0.66;
   return (
@@ -197,6 +201,7 @@ export default function Scrubber({ points, initial, home, detents = [], label, m
           aria-valuemin={0} aria-valuemax={n - 1} aria-valuenow={index} aria-valuetext={text(index)} onKeyDown={onKeyDown}>
           {mode === 'needle' ? <span className={`scrub-needle${y !== undefined ? ' is-front' : ''}`} style={{ left: pos, ...(y !== undefined ? { ['--needle-top' as string]: `${(y * 100).toFixed(3)}%` } : {}), ...(yAlt !== undefined ? { ['--needle-top-alt' as string]: `${(yAlt * 100).toFixed(3)}%` } : {}) }} aria-hidden="true" /> : null}
           {children}
+          {mode === 'needle' && dot !== undefined && Number.isFinite(dot) ? <span className="scrub-dot" style={{ left: pos, top: `${(dot * 100).toFixed(3)}%` }} aria-hidden="true" /> : null}
           {mode === 'needle' ? (
             <>
               <span className="scrub-detents" aria-hidden="true">

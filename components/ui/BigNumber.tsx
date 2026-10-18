@@ -13,6 +13,12 @@ export function autoSize(value: string, unit = ''): Exclude<BigNumberSize, 'auto
   return glyphs <= 5 ? 'xl' : glyphs <= 8 ? 'l' : 'm';
 }
 
+/** A % inside the value ("20% · 44%") takes the unit's small size too, so a pair reads like a single figure. */
+function suffixed(value: string) {
+  if (!value.includes('%')) return value;
+  return value.split(/(%)/).map((part, i) => (part === '%' ? <span key={i} className="big-number-unit">%</span> : part));
+}
+
 export default function BigNumber({ value, unit, size = 'auto', tone = 'ink', sr, className }: {
   value: string; unit?: string; size?: BigNumberSize; tone?: BigNumberTone; sr: string; className?: string;
 }) {
@@ -20,7 +26,7 @@ export default function BigNumber({ value, unit, size = 'auto', tone = 'ink', sr
   const cls = `big-number is-${s}${tone === 'ink' ? '' : ` is-${tone}`}${className ? ` ${className}` : ''}`;
   return (
     <span className={cls}>
-      <span aria-hidden="true">{value}{unit ? <span className={`big-number-unit${/^\s*in\s/.test(unit) ? ' is-words' : ''}`}>{unit}</span> : null}</span>
+      <span aria-hidden="true">{suffixed(value)}{unit ? <span className={`big-number-unit${/^\s*in\s/.test(unit) ? ' is-words' : ''}`}>{unit}</span> : null}</span>
       <span className="sr-only">{sr}</span>
     </span>
   );

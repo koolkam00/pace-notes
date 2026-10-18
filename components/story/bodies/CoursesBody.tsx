@@ -84,9 +84,10 @@ export default function CoursesBody() {
           xTicks={[0, 10, 20, 30, 42.195].map((km) => ({ value: km, label: km ? (km > 42 ? 'Finish' : matLabel(km)) : 'Start' }))}
           label={`Section pace against each course's own average, for ${shaped.length} courses, with each course's slowest 5K marked. ${plain(sentenceOf(slowest))}`}
           values={(
-            <Values id="cs-fingerprint" caption="Section pace against the course's own average"
+            // The summary counts the courses (the H2's and the chart's), the typical course's row heading the table.
+            <Values id="cs-fingerprint" caption="Section pace against the course's own average" count={shaped.length}
               columns={[{ key: 'c', label: 'Course', text: true }, ...data.sections.map((s, i) => ({ key: `s${i}`, label: sectionName(s) }))]}
-              rows={[['Typical', ...data.typical_curve.map(signed)], ...shaped.map((c) => [c.city, ...c.curve!.map(signed)])]} reading={0} />
+              rows={[['Typical course', ...data.typical_curve.map(signed)], ...shaped.map((c) => [c.city, ...c.curve!.map(signed)])]} reading={0} />
           )} />
       </Beat>
 
@@ -109,9 +110,9 @@ export default function CoursesBody() {
           )} />
       </Beat>
 
-      <Moved id="weather" href="/stories/race-morning">Race-morning weather has its own story now.</Moved>
-      <Moved id="heat" href="/stories/race-morning#heat">Warm mornings and the shape of the race are now on Race-morning weather.</Moved>
-      <Moved id="years" href="/finish-times#front">The front and the back of the field, then and now, are now on Marathon finish times.</Moved>
+      <Moved id="weather" href="/stories/race-morning">Race morning has its own story now.</Moved>
+      <Moved id="heat" href="/stories/race-morning#heat">Warm mornings and the shape of the race are now on Race morning.</Moved>
+      <Moved id="years" href="/finish-times#front">The front and the back of the field, then and now, are now on Finish times.</Moved>
     </StoryPage>
   );
 }

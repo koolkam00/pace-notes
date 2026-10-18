@@ -35,9 +35,11 @@ async function browse(h, device) {
   h.check('the recorder starts on /', await run.waitForRecording(page));
   await openMenu(page);
   const links = await page.evaluate(() => [...document.querySelectorAll('#site-menu a')].map(a => ({ text: a.textContent.trim(), href: a.getAttribute('href'), primary: a.classList.contains('nav-primary'), shown: a.getClientRects().length > 0, more: !!a.closest('.nav-more') })));
-  const expected = [...MAIN, ...(device.mobile ? MORE : [])];
+  // On a wide screen the home page's header leaves out its two doors (Plan your race, Analyze a past race): the hero
+  // holds them, one path to each page per screen. The Menu on a phone lists all five.
+  const expected = device.mobile ? [...MAIN, ...MORE] : MAIN.slice(2);
   const shown = links.filter(l => l.shown);
-  h.check(`the navigation shows the five links in order${device.mobile ? ', then About, Request an analysis and Open data on the Menu\'s quieter line' : ' and nothing else'}`,
+  h.check(`the navigation shows ${device.mobile ? 'the five links in order, then About, Request an analysis and Open data on the Menu\'s quieter line' : 'Courses, Tools and Research on the home page (the hero holds the other two doors) and nothing else'}`,
     JSON.stringify(shown.map(l => [l.text, l.href])) === JSON.stringify(expected) && shown.filter(l => l.more).length === (device.mobile ? MORE.length : 0), shown);
   h.check('Plan your race is the primary (orange) link', links[0] && links[0].primary && links.filter(l => l.primary).length === 1, links);
   // The Menu is a modal sheet over the header (components/MenuSheet.tsx): close it again with Escape.

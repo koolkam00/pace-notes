@@ -35,18 +35,11 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
   // Every finish as 99 finishes: the 1st to the 99th percentile of all finishes. Recorded women and men are the reading's
   // ruler and the Values table, so the beat has no control that would move it away from its H2.
   const centiles = (g: typeof FINISH_GROUPS[number]) => percentileMinutes(summary.bins.map((b) => ({ minute: b.minute, n: b[g] })), groups[g].total);
-  const layers = (['all'] as const).map((g) => {
-    const minutes = centiles(g);
-    return {
-      id: g, label: 'All finishes',
-      minutes,
-      band: [24, 74] as [number, number],
-      // The median is named (the reading above gives its time); the ends of the middle half carry their times.
-      marks: [{ index: 49, text: 'Median', tone: 'signal' as const }, { index: 24, text: hm(minutes[24]), tone: 'ink' as const }, { index: 74, text: hm(minutes[74]), tone: 'ink' as const }],
-    };
-  });
-  const dLo = Math.floor(Math.min(...layers.map((l) => l.minutes[0])) / 30) * 30;
-  const dHi = Math.ceil(Math.max(...layers.map((l) => l.minutes[98])) / 30) * 30;
+  const minutes = centiles('all');
+  // The middle half is the H2's run (its ends are the H2's times); the median is the one signal dot.
+  const layer = { minutes, band: [24, 74] as [number, number], bandLabel: 'The middle half', mark: { index: 49, text: 'Median' } };
+  const dLo = Math.floor(minutes[0] / 30) * 30;
+  const dHi = Math.ceil(minutes[98] / 30) * 30;
   const dotTicks = [];
   // Ticks on the round hours this chapter is about, never the half hours.
   for (let m = Math.ceil(dLo / 60) * 60; m <= dHi; m += 60) dotTicks.push({ value: m, label: hm(m) });
@@ -85,8 +78,8 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
         )} />
 
       <Beat id="field" track="chapter-1" label="Most finishes" title={middle}>
-        <PercentileDots layers={layers} initial="all" domain={[dLo, dHi]} ticks={dotTicks}
-          label={`99 finishes, one at each percentile from the 1st to the 99th. All finishes: median ${hm(layers[0].minutes[49])}, the middle half from ${hm(layers[0].minutes[24])} to ${hm(layers[0].minutes[74])}.`}
+        <PercentileDots layer={layer} domain={[dLo, dHi]} ticks={dotTicks}
+          label={`99 finishes, one at each percentile from the 1st to the 99th. All finishes: median ${hm(minutes[49])}, the middle half from ${hm(minutes[24])} to ${hm(minutes[74])}.`}
           values={(
             <Values id="ft-percentiles" caption="Finish time at each percentile"
               columns={[{ key: 'p', label: 'Percentile' }, ...FINISH_GROUPS.map((g) => ({ key: g, label: GROUP_LABEL[g] }))]}

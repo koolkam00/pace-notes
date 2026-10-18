@@ -29,6 +29,9 @@ export default function ReplayStage({ choices, initial, band = false, picker = f
   choices: StageChoice[]; initial: string; band?: boolean; picker?: boolean; layout?: boolean;
 }) {
   const [slug, setSlug] = useState(initial);
+  // Once the reader picks another race, it opens still on its flag frame (the run-up played once already), so race
+  // against race compares the same moment at once; play continues on request.
+  const [picked, setPicked] = useState(false);
   const [view, setView] = useState<'field' | 'route'>('field');
   const [rows, setRows] = useState<Record<string, number[][]>>({});
   const [error, setError] = useState('');
@@ -71,13 +74,13 @@ export default function ReplayStage({ choices, initial, band = false, picker = f
     <div ref={root} className={`hero-replay replay night${band ? ' is-band' : ''}`}>
       {(picker && choices.length > 1) || (layout && choice.route) ? (
         <div className="replay-pickers">
-          {picker && choices.length > 1 ? <Chips label="Choose a race to replay" options={choices.map((c) => ({ value: c.slug, label: c.race }))} value={slug} onChange={(v) => setSlug(v)} /> : null}
+          {picker && choices.length > 1 ? <Chips label="Choose a race to replay" options={choices.map((c) => ({ value: c.slug, label: c.race }))} value={slug} onChange={(v) => { setSlug(v); setPicked(true); }} /> : null}
           {layout && choice.route ? <Segmented label="Replay layout" options={[{ value: 'field', label: 'The field' }, { value: 'route', label: 'On the route' }]} value={view} onChange={(v) => setView(v as 'field' | 'route')} /> : null}
         </div>
       ) : null}
       {Component && data ? (
         <Component key={`${choice.slug}-${shownView}`} edition={{ city: choice.city, year: choice.year, finishes: choice.finishes, sample: choice.sample, rows: data, route: choice.route }}
-          flag={choice.flag_s} view={shownView} band={band} race={choice.race} moment={choice.moment} poster={shownView === 'field' ? poster : null} />
+          flag={choice.flag_s} view={shownView} band={band} race={choice.race} moment={choice.moment} poster={shownView === 'field' ? poster : null} autoplay={!picked} />
       ) : (
         <ReplayFrame race={choice.race} clock={raceClock(choice.flag_s)} finished={hudShare(choice.poster.finished)} slow={hudShare(choice.poster.slowdownPace)} view={shownView} band={band} aspect={routeAspect(choice.route?.points)}
           poster={shownView === 'field' ? poster : null} moment={choice.moment} time={choice.flag_s} max={choice.poster.last_s + 300} busy={!error} status={error || undefined} />

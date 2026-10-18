@@ -2,7 +2,7 @@ import type { CourseGeometry, ReplayIndex } from '@/lib/insights';
 import { getInsightsManifest, readInsight, replayChoices } from '@/lib/insights-server';
 import { STORIES } from '@/lib/stories';
 import { getNugget } from '@/lib/nuggets';
-import { count, hm, matLabel, pct } from '@/lib/nuggets/format';
+import { count, matLabel } from '@/lib/nuggets/format';
 import { MARATHON_KM } from '@/lib/units';
 import HeroReplay from '@/components/story/HeroReplay';
 import LineProfile from '@/components/viz/LineProfile';
@@ -16,18 +16,20 @@ const signedMin = (v: number) => (Math.abs(v) < 0.05 ? '0 min' : `${v > 0 ? '+' 
 
 /**
  * Watch a marathon unfold (the redesign spec, section 7.3, under section 00): the moment of the first finish as the
- * reading, then the replay itself (the story's signature: no step-by-step reveal), finishes that passed 10K together
- * spreading out, and, hour by hour, the share of the field's slowing on course that was who was left. The snapshots,
- * the edition strip and the even-pace ghost are cut (the ghost is chapter 03's finding); every edition is picked by the
- * data.
+ * reading, then the replay itself (the story's signature: no step-by-step reveal) and finishes that passed 10K together
+ * spreading out. The snapshots, the edition strip, the even-pace ghost (chapter 03's finding) and the who's-left line (a
+ * share of a share, which needed a paragraph to read) are cut; its old anchor lands on the packs. Every edition is
+ * picked by the data.
  */
 export default function ReplayBody() {
   const data = readInsight<ReplayIndex>('replay.json');
   const geometry = readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses;
   const story = STORIES.find((s) => s.slug === 'race-replay')!;
-  const first = getNugget('replay.first'), back = getNugget('replay.back'), spread = getNugget('replay.spread'), packs = getNugget('replay.packs'), left = getNugget('replay.left');
+  const first = getNugget('replay.first'), back = getNugget('replay.back'), spread = getNugget('replay.spread'), packs = getNugget('replay.packs');
   const routes = new Map(geometry.map((c) => [c.city, { points: c.route, km: c.route_km }]));
-  const choices = replayChoices(data.editions, getInsightsManifest(), routes);
+  // The race chips newest first (then by city), so the row reads as a calendar rather than the data's own order, and the
+  // edition the page opens on (a recent one) sits at the start of a phone's scrolling row.
+  const choices = replayChoices(data.editions, getInsightsManifest(), routes).sort((a, b) => b.year - a.year || a.city.localeCompare(b.city));
   const race = `${first.values.city} ${first.values.year}`;
 
   // Finishes that passed a mat together: the middle 80% of them, mat by mat, around their median, ahead up and behind
@@ -40,17 +42,6 @@ export default function ReplayBody() {
   const lo = rows.map((r) => (r.p50_s - r.p90_s) / 60), hi = rows.map((r) => (r.p50_s - r.p10_s) / 60);
   const reach = Math.ceil(Math.max(...hi.map(Math.abs), ...lo.map(Math.abs)) / 10) * 10;
   const lastIndex = rows.length - 1;
-
-  // Who's left: hour by hour, the share of the drop in the field's pace on course that came from who was still out
-  // there (their own whole-race pace dropping too) rather than from runners slowing.
-  const leftEdition = data.editions.find((e) => e.city === left.values.city && e.year === left.values.year);
-  const leftRace = leftEdition ? `${leftEdition.city} ${leftEdition.year}` : race;
-  const comp = (leftEdition?.composition ?? []).filter((r) => r.on_course >= 100 && typeof r.composition_share === 'number');
-  const start = (leftEdition?.composition ?? [])[0]?.current_kmh ?? NaN;
-  const share = comp.map((r) => r.composition_share! * 100);
-  const hours = comp.map((r) => r.clock_s / 3600);
-  const h0 = Math.floor(hours[0] ?? 0), h1 = Math.ceil(hours[hours.length - 1] ?? 1);
-  const at = comp.findIndex((r) => r.clock_s === left.values.clock_s);
 
   return (
     <StoryPage path={PATH}>
@@ -68,7 +59,7 @@ export default function ReplayBody() {
       </Beat>
 
       {rows.length > 1 ? (
-        <Beat id="packs" track="chapter-2" className="rr-packs" label={`Together at ${matLabel(Number(packs.values.checkpoint_km) || mats[0])}`} title={packs}
+        <Beat id="packs" track="chapter-2" className="rr-packs" aliases={['emptying']} label={`Together at ${matLabel(Number(packs.values.checkpoint_km) || mats[0])}`} title={packs}
           dek={`${packEdition!.city} ${packEdition!.year}: ${count(Number(packs.values.n))} finishes passed ${matLabel(Number(packs.values.checkpoint_km))} together.`}>
           <LineProfile x={mats} xDomain={[mats[0], MARATHON_KM]} yDomain={[-reach, reach]}
             // The band is named on itself, inside its wider lower half near the finish, clear of the median's label on the
@@ -88,25 +79,6 @@ export default function ReplayBody() {
         </Beat>
       ) : null}
 
-      {comp.length > 2 ? (
-        <Beat id="emptying" track="chapter-3" label="Who’s left" title={left}>
-          <LineProfile x={hours} xDomain={[h0, h1]} yDomain={[0, 100]}
-            layers={[{ id: 'left', label: 'Who’s left', series: [{ id: 'share', values: share }],
-              points: at >= 0 ? [{ x: hours[at], y: share[at], kind: 'reading' }] : [],
-              labels: at >= 0 ? [{ x: hours[at], y: share[at], text: `${hm(Number(left.values.clock_s) / 60)} · ${pct(Number(left.values.share))}`, tone: 'signal', priority: 3, prefer: 'above' }] : [] }]}
-            // Half is the level "mostly" has to clear: a gridline, labelled on the right, where the line has cleared it.
-            // The top gridline names the scale and the axis names the race, so the beat needs no dek.
-            xTicks={Array.from({ length: h1 - h0 + 1 }, (_, k) => ({ value: h0 + k, label: `${h0 + k}:00` }))}
-            yTicks={[{ value: 50, label: 'Half' }, { value: 100, label: '100% from who’s left' }]}
-            axisTitle={{ start: `${leftRace}, race clock` }}
-            label={`${leftRace}, hour by hour: the share of the field's slowing on course that reflects who was still out there, ${pct(Number(left.values.share))} at ${hm(Number(left.values.clock_s) / 60)}.`}
-            values={(
-              <Values id="rr-left" caption={`${leftRace}: the field on course, hour by hour`}
-                columns={[{ key: 't', label: 'Race clock' }, { key: 'n', label: 'Pace on course, against the start' }, { key: 'w', label: 'Who’s left' }, { key: 'o', label: 'Still on course' }]}
-                rows={comp.map((r, i) => [hm(r.clock_s / 60), `${Math.round((start / r.current_kmh - 1) * 100)}% slower`, pct(share[i] / 100), count(r.on_course)])} reading={at >= 0 ? at : undefined} />
-            )} />
-        </Beat>
-      ) : null}
     </StoryPage>
   );
 }

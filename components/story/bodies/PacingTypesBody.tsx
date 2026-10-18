@@ -52,7 +52,7 @@ export default function PacingTypesBody() {
 
       <Beat id="river" track="chapter-1" label="Who runs which way" title={river} aliases={['six', 'barcode', 'courses']}>
         <TypeRiver bands={bands.map((b) => ({ x: b.lo_min + width / 2, shares: b.shares }))}
-          types={types.map((t, i) => ({ id: t.slug, name: t.name, index: i }))} initial={types[even].slug}
+          types={types.map((t, i) => ({ id: t.slug, name: t.name, index: i }))} subject={even}
           ticks={[180, 240, 300, 360].filter((v) => v > bands[0].lo_min && v < bands[bands.length - 1].lo_min + width).map((v) => ({ value: v, label: hm(v) }))}
           label={`Each pacing type's share of finishes, by finish time. ${types[even].name}s: ${pct(bands[0].shares[even])} of ${bands[0].label} finishes, ${pct(bands[bands.length - 1].shares[even])} of ${bands[bands.length - 1].label}.`}
           values={(

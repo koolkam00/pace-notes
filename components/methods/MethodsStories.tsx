@@ -45,7 +45,6 @@ function storyNotes(file: string, slug: string): ReactNode[] {
         'In the snapshots, finished runners count at the finish line. “Ahead” and “moves past” are clock ranks among eligible finishes, not passes on the road.',
         'The even-pace ghost’s typical 20 km time is the median share of finish time reached at 20 km by real finishes within 2.5 minutes of its target, not anyone’s plan.',
         'A clock pack is the finishes that passed 10 km within the same 30 seconds of race time. They share elapsed times, not necessarily the same stretch of road.',
-        'The emptying-course split is descriptive accounting, not a cause.',
         `The stretch compares how far the slowest tenth trails the fastest tenth from 20 to 40 km with the first 20 km (1.00× means no change). It uses the ${n(data.stretch.editions.length)} race editions with at least 1,000 eligible finishes and a usable first 5 km, leaving out the editions whose first 5 km looks inflated by start delays. These are percentiles at each block, not the same runners.`,
         'The field-spread fan pools every eligible finish from every race.',
       ];

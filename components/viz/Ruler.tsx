@@ -55,7 +55,8 @@ export default function Ruler({ min, max, ticks, marks, label, className }: {
           <Annotation labels={above} />
           {below.map((b) => (
             <text key={b.key} className={`viz-label is-sm${b.quiet ? ' is-quiet' : ''}${b.fit ? ` ${b.fit}` : ''}`} x={pc(b.f)} y={pc(TRACK_Y)} textAnchor={b.left ? 'end' : 'start'}>
-              {b.lines.map((line, k) => <tspan key={k} x={pc(b.f)} dx={b.left ? 4 : -4} dy={k ? SIZE + 3 : 10 + SIZE * 0.78}>{line}</tspan>)}
+              {/* 4 px past the dot's centre, held inside the plot at either end (a mark at the scale's zero). */}
+              {b.lines.map((line, k) => <tspan key={k} x={pc(b.f)} dx={b.left ? Math.min(4, (1 - b.f) * REF_WIDTH) : -Math.min(4, b.f * REF_WIDTH)} dy={k ? SIZE + 3 : 10 + SIZE * 0.78}>{line}</tspan>)}
             </text>
           ))}
         </Plot>
