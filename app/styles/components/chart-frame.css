@@ -218,8 +218,10 @@
 .viz-frame .effect-null-band { fill: var(--ink); opacity: .06; }
 
 /* ---------- Elevation and pace blocks ---------- */
-.viz-frame .pace-blocks { display: flex; gap: 2px; margin-top: 6px; }
-.viz-frame .pace-block { container: pace-block / inline-size; display: flex; align-items: center; justify-content: center; flex-basis: 0; min-width: 0; height: 28px; border-radius: 3px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+/* A block is as wide as its section, with a floor (24 px, or a ninth of the row at 200% zoom) the 5 km blocks give up
+   for the 2.2 km last one, so its number always fits inside it. */
+.viz-frame .pace-blocks { container: pace-row / inline-size; display: flex; gap: 2px; margin-top: 6px; }
+.viz-frame .pace-block { container: pace-block / inline-size; display: flex; align-items: center; justify-content: center; flex-basis: 0; min-width: min(24px, calc((100% - 16px) / 9)); height: 28px; border-radius: 3px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
 .viz-frame .pace-block.is-on-paper { color: var(--night-ink); }
 .viz-frame .pace-block.is-on-ink { color: var(--night); }
 .viz-frame .pace-block.is-focus { box-shadow: inset 0 0 0 2px var(--ink); }
@@ -230,9 +232,14 @@
    the block's own colour (so light text never lands on paper); it goes only where it would cross a neighbour's (200%
    zoom). */
 .viz-frame .pace-val { padding: 0 1px; border-radius: 3px; background: inherit; }
+/* Where the last block is too narrow for a "%" (a row under 560 px), no block has one, so every number reads in one
+   unit (the readout gives it with its %). */
+@container pace-row (max-width: 559.98px) { .viz-frame .pace-pct { display: none; } }
 @container pace-block (max-width: 23.98px) { .viz-frame .pace-val.n1 .pace-pct { display: none; } }
 @container pace-block (max-width: 31.98px) { .viz-frame .pace-val.n2 { font-size: 12px; } .viz-frame .pace-val.n2 .pace-pct { display: none; } }
 @container pace-block (max-width: 37.98px) { .viz-frame .pace-val.n3 .pace-pct { display: none; } }
+/* The floor leaves a 5 km block about 15 px at 200% zoom: a two-figure value drops its knockout padding to fit. */
+@container pace-block (max-width: 17.98px) { .viz-frame .pace-val.n2 { padding: 0; letter-spacing: -.03em; } }
 @container pace-block (max-width: 11.98px) { .viz-frame .pace-val.n2 { display: none; } }
 @container pace-block (max-width: 16.98px) { .viz-frame .pace-val.n3 { display: none; } }
 @container pace-block (max-width: 5.98px) { .viz-frame .pace-val.n1 { display: none; } }

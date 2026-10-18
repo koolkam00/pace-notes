@@ -9,7 +9,8 @@ import { GOAL_GAP } from './CourseGoals';
 /**
  * "All numbers" (the redesign spec, section 00, cut 7): every long table on the course page in one disclosure after
  * the race's last chart: the whole course, edition by edition (with each race morning), 5K by 5K, goal by goal, and the
- * pacing types. Every figure is a checked <data> (scripts/verify-courses.cjs); a missing value is a dash.
+ * pacing types. Every figure is a checked <data> (scripts/verify-courses.cjs); a missing value is a dash. A duration given
+ * back carries its "+", so it never reads as a clock time or a pace.
  */
 export default function CourseNumbers({ page }: { page: CoursePageData }) {
   const { display, summary: s, editions, weather, terrain, goals, types, archetypes, counted } = page;
@@ -31,7 +32,7 @@ export default function CourseNumbers({ page }: { page: CoursePageData }) {
             <tr><th scope="row">Median finish, average edition</th><td><Fact k="median" v={s.median_s}>{clock(s.median_s)}</Fact></td></tr>
             <tr><th scope="row">Sustained slowdown, average edition</th><td><Fact k="slowdown" v={s.slowdown}>{pct(s.slowdown)}</Fact></td></tr>
             <tr><th scope="row">Second 20K more than 10% slower</th><td><Fact k="block10" v={s.block10}>{pct(s.block10)}</Fact></td></tr>
-            <tr><th scope="row">Median time given back after 20K</th><td><Fact k="after20" v={s.after20_s}>{minutes(s.after20_s)}</Fact></td></tr>
+            <tr><th scope="row">Median time given back after 20K</th><td>{s.after20_s > 0 ? '+' : ''}<Fact k="after20" v={s.after20_s}>{minutes(s.after20_s)}</Fact></td></tr>
             {climb ? <tr><th scope="row">Climb, whole route</th><td><Fact k={`${climb.key}.gain`} v={climb.gain_m}><Elevation metres={climb.gain_m} /></Fact></td></tr> : null}
           </tbody>
         </CourseTable>
@@ -87,7 +88,7 @@ export default function CourseNumbers({ page }: { page: CoursePageData }) {
                       <td><Fact k={`g.n@${goal}`} v={row.n}>{count(row.n)}</Fact></td>
                       <td><Fact k={`g.under@${goal}`} v={row.under}>{pct(row.under)}</Fact></td>
                       <td><Fact k={`g.sd@${goal}`} v={row.sd}>{pct(row.sd)}</Fact></td>
-                      <td><Fact k={`g.after20@${goal}`} v={row.after20}>{minutes(row.after20)}</Fact></td>
+                      <td>{row.after20 > 0 ? '+' : ''}<Fact k={`g.after20@${goal}`} v={row.after20}>{minutes(row.after20)}</Fact></td>
                       <td><Fact k={`g.p50@${goal}`} v={row.fin[1]}>{clock(row.fin[1])}</Fact></td>
                       <td><Fact k={`g.p10@${goal}`} v={row.fin[0]}>{clock(row.fin[0])}</Fact>–<Fact k={`g.p90@${goal}`} v={row.fin[2]}>{clock(row.fin[2])}</Fact></td>
                     </>

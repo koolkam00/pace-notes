@@ -596,7 +596,8 @@ if (html) {
     // The figure averages the editions' shares, so its words name the average edition (course.slowdown's key), never a
     // share pooled over every finish.
     const heroKey = norm(textOf(/<p class="course-hero-key"[^>]*>([\s\S]*?)<\/p>/.exec(body)?.[1] ?? ''));
-    check(heroKey === norm(N.getNugget('course.slowdown', { city }).key) && /average edition/.test(heroKey), where, `the hero figure's words "${heroKey}" do not name the average edition`);
+    const averaged = f.cells.length === 1 ? new RegExp(`^of finishes in ${f.cells[0].year} had`) : f.cells.length === 2 ? /in its two editions, on average,/ : /average edition/;
+    check(heroKey === norm(N.getNugget('course.slowdown', { city }).key) && averaged.test(heroKey), where, `the hero figure's words "${heroKey}" do not name what the figure averages`);
     const glanceKeys = [...main.matchAll(/<span class="glance-key">([\s\S]*?)<\/span>/g)].map((m) => norm(textOf(m[1])));
     for (const id of GLANCE) {
       const n = N.getNugget(id, { city });

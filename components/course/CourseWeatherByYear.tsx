@@ -30,7 +30,7 @@ export const WEATHER_MIN_MORNINGS = 3;
  * point) and there are three or more: every morning a dot, start temperature against the share of finishes with a
  * sustained slowdown. The sentence states the two mornings as two facts; the pair is inked and labelled, never joined (a
  * line across the cloud would read as a trend, "warmer, therefore"), and the chart opens on the warmer one, which the
- * sentence leads with. The y scale runs from zero on the baseline to the round ten above the dots, both labelled, and the
+ * sentence leads with, in signal (the sentence's orange word). The y scale runs from zero on the baseline to the round ten above the dots, both labelled, and the
  * readout names the measure. Elsewhere the mornings are in "All numbers".
  */
 export default function CourseWeatherByYear({ page }: { page: CoursePageData }) {
@@ -42,16 +42,19 @@ export default function CourseWeatherByYear({ page }: { page: CoursePageData }) 
   const pad = Math.max(1.5, (hi - lo) * 0.08);
   const top = Math.max(0.1, Math.ceil(Math.max(...weather.map((e) => e.slowdown)) * 10) / 10);
   const chart = (units: UnitSystem) => (
-    <Scatter points={weather.map((e) => ({ id: String(e.year), x: e.temp, y: e.slowdown, label: String(e.year), key: `${display} ${e.year}, at the start`, value: temp(e.temp, units), inPair: inPair(e.year) }))}
+    <Scatter points={weather.map((e) => ({ id: String(e.year), x: e.temp, y: e.slowdown, label: String(e.year), key: `${e.year}, at the start`, value: temp(e.temp, units), inPair: inPair(e.year) }))}
       side={[{ label: 'Sustained slowdown', values: weather.map((e) => pct(e.slowdown)) }]}
       xDomain={[lo - pad, hi + pad]} yDomain={[0, top]} xTicks={tempTicks(lo - pad, hi + pad, units)}
       yTicks={[{ value: top, label: pct(top) }, { value: 0, label: pct(0) }]} pairLabel="The warmest and coolest mornings" pairLine={false} selected={String(hotCool.hot.year)}
       axisTitle={{ end: 'At the start' }}
       label={`Start temperature against sustained slowdown, ${weather.length} ${display} race mornings`} height={150} heightMd={200} />
   );
+  // The sentence accents the warmer morning's temperature, so the chart opens with that dot in signal; where both
+  // mornings' shares round alike it says the share once, unaccented, and no dot is the reading.
+  const accented = pct(hotCool.hot.slowdown) !== pct(hotCool.cool.slowdown);
   return (
     <CourseSection id="weather" track="chapter-7" beat="Weather" title={<span className="course-hotcool"><Said nugget={n} /></span>}>
-      <ByUnits mi={chart('mi')} km={chart('km')} />
+      <div className={accented ? 'course-weather has-reading' : 'course-weather'}><ByUnits mi={chart('mi')} km={chart('km')} /></div>
     </CourseSection>
   );
 }

@@ -4,6 +4,7 @@
  * field at the flag, with the shares the HUD shows there). About 1 KB per edition in the page.
  */
 import { readInsight } from '@/lib/insights-server';
+import { displayCity } from '@/lib/course-page';
 import type { ReplayEditionMeta, ReplayIndex, ReplayRows } from '@/lib/insights';
 import type { ReplayChoice } from '@/lib/insights-server';
 import { sentenceOf } from '@/lib/nuggets/core';
@@ -27,10 +28,11 @@ export function stageChoices(choices: ReplayChoice[]): StageChoice[] {
     const last = sorted.length ? sorted[sorted.length - 1][8] : 0;
     const flag = meta?.moments?.first_finish_s ?? meta?.first_finish_s ?? (sorted[0]?.[8] ?? 0);
     const shares = sharesAt(rows, flag);
-    const moment = meta ? sentenceOf(replayFirstFrom([meta])) : '';
+    // The race as pages name it in prose ("New York City 2025"), in its label and its moment's sentence.
+    const moment = meta ? sentenceOf(replayFirstFrom([{ ...meta, city: displayCity(meta.city) }])) : '';
     return {
       slug: c.slug, city: c.city, year: c.year, finishes: c.finishes, sample: c.sample, file: c.file, version: c.version, route: c.route,
-      race: `${c.city} ${c.year}`, flag_s: flag, moment,
+      race: `${displayCity(c.city)} ${c.year}`, flag_s: flag, moment,
       poster: { flag_s: flag, last_s: last, ribbon: ribbonAt(sorted, flag), finished: Number(shares.finished.toFixed(4)), slowdownPace: Number(shares.slowdownPace.toFixed(4)) },
     };
   });

@@ -114,9 +114,12 @@ export function stripLabels(props: LayoutProps): { year: number; minWidth: numbe
   return placed.map((l) => ({ year: sorted[Number(l.id.slice(1))].year, minWidth: l.minWidth, under: !!l.under }));
 }
 
-export default function YearStrip({ editions, selected, sideLabels = [], valueDomain, average, averageLabel = 'Average', label, values, height = 160, heightMd = 200, extremeLabel, labelled }: {
+export default function YearStrip({ editions, selected, sideLabels = [], valueDomain, average, averageLabel = 'Average', label, values, height = 160, heightMd = 200, extremeLabel, labelled, signal = false }: {
   editions: YearPoint[]; selected?: number; sideLabels?: string[]; valueDomain?: [number, number]; average?: number; averageLabel?: string;
   label: string; values?: ReactNode; height?: number; heightMd?: number;
+  /** The selected edition is the reading a sentence accents: its stem and dot in signal (ink once the needle leaves it,
+   * when a signal dot rides the needle's edition instead), so the orange word lands on an orange mark. */
+  signal?: boolean;
   /** The label on the labelled editions ("2022 · 45%"). */
   extremeLabel?: (p: YearPoint) => string;
   /** The years to label; default the highest and lowest editions. */
@@ -126,12 +129,13 @@ export default function YearStrip({ editions, selected, sideLabels = [], valueDo
   const plot = (
     <Plot>
       {average !== undefined ? <RefLine y={y(average)} dashed /> : null}
-      {sorted.map((e) => {
+      {sorted.map((e, i) => {
         const top = y(e.value);
+        const mark = signal && i === sel ? 'm-signal is-reading' : 'm-context';
         return (
           <g key={e.year}>
-            <rect className="m-context" x={pc(x(e.year))} width={2} transform="translate(-1 0)" y={pc(top)} height={pc(1 - top)} />
-            <circle className="m-context" cx={pc(x(e.year))} cy={pc(top)} r={4.5} />
+            <rect className={mark} x={pc(x(e.year))} width={2} transform="translate(-1 0)" y={pc(top)} height={pc(1 - top)} />
+            <circle className={mark} cx={pc(x(e.year))} cy={pc(top)} r={4.5} />
           </g>
         );
       })}
@@ -152,6 +156,7 @@ export default function YearStrip({ editions, selected, sideLabels = [], valueDo
     keys: sorted.map((e) => String(e.year)),
     values: sorted.map((e) => e.display),
     side: sideLabels.map((l, k) => ({ label: l, values: sorted.map((e) => e.side?.[k] ?? '—') })),
+    ...(signal ? { dot: sorted.map((e) => y(e.value)) } : {}),
   };
   return (
     <ChartFrame className="year-strip" label={label} height={height} heightMd={heightMd}

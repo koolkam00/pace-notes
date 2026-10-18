@@ -6,6 +6,7 @@ import { Elevation } from '@/components/story/Units';
 import { SlowdownTerm } from '@/components/tools/EvidenceTag';
 import YearStrip, { type YearPoint } from '@/components/viz/YearStrip';
 import { getNugget } from '@/lib/nuggets';
+import { heroKeyLead } from '@/lib/nuggets/courses';
 import { hm, pct, temp } from '@/lib/nuggets/format';
 import { heldEditions, MONTHS, routeClimb, type CoursePageData } from '@/lib/course-page';
 import { planHref } from '@/lib/tools/links';
@@ -75,10 +76,12 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
       selected={opening} sideLabels={['Median finish', 'At the start']}
       valueDomain={valueDomain}
       extremeLabel={extremeLabel} labelled={labelled}
-      label={`Sustained slowdown in ${display}, edition by edition, ${span}`} height={100} heightMd={168} />
+      label={`Sustained slowdown in ${display}, edition by edition, ${span}`} height={100} heightMd={168} signal={reading.guard} />
   );
+  // Two editions are two lollipops (their numbers are in "All numbers"): the strip is drawn from three.
+  const stripped = editions.length >= 3;
   return (
-    <section className={`night course-hero${geometry ? '' : ' is-routeless'}`} data-track-section="hero">
+    <section className={`night course-hero${geometry ? '' : ' is-routeless'}${stripped ? '' : ' is-stripless'}`} data-track-section="hero">
       <div className="course-hero-head">
         <div className="reading-crumbs t-kicker course-crumbs"><ChapterCrumbs path={`/courses/${page.slug}`} place={<Link href="/courses" className="crumb-courses">Courses</Link>} /></div>
         <h1 className="course-title t-title">{race}</h1>
@@ -86,7 +89,7 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
       </div>
       <div className="course-hero-figure">
         {reading.figure ? <BigNumber value={reading.figure.value} unit={reading.figure.unit} sr={reading.figure.sr} size="xl" tone="night" /> : null}
-        <p className="course-hero-key">of finishes in the average edition had a <SlowdownTerm /></p>
+        <p className="course-hero-key">{heroKeyLead(s.editions, years[0])} <SlowdownTerm /></p>
       </div>
       {geometry ? (
         <figure className="course-hero-route">
@@ -96,8 +99,7 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
       ) : null}
       {/* How far the share ran, edition by edition: the strip below labels both ends. */}
       {reading.guard ? <p className="course-hero-sentence t-sentence"><Said nugget={reading} /></p> : null}
-      {/* Two editions are two lollipops: their numbers are in "All numbers". */}
-      {editions.length >= 3 ? <div className="course-hero-strip"><ByUnits mi={strip('mi')} km={strip('km')} /></div> : null}
+      {stripped ? <div className="course-hero-strip"><ByUnits mi={strip('mi')} km={strip('km')} /></div> : null}
       <div className="course-hero-actions">
         <Button href={planHref(city) ?? '/tools/plan'} arrow="right">Plan your {display}</Button>
       </div>

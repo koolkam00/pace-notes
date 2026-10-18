@@ -8,7 +8,8 @@ import ByUnits from '@/components/ui/ByUnits.client';
 import { CourseSection, Said } from './Fact';
 
 /**
- * "What makes {city} {city}" (the redesign spec, section 7.10): only what sets the course apart, up to three rows divided
+ * "What makes {city} {city}" (the redesign spec, section 7.10; "What sets {city} apart" for a name of two words or more,
+ * which would stutter over two lines): only what sets the course apart, up to three rows divided
  * by hairlines, each a figure, the words that finish its sentence and a micro-chart of at most 48 px. A row shows only
  * when its nugget's guard holds: a first 5K that ends 10 m or more above or below its start (that 5K's profile on its
  * own scale, over a level at the start's height), a slowest 5K unlike nearly every other course's (the nine sections
@@ -125,7 +126,7 @@ export default function CourseGlance({ page }: { page: CoursePageData }) {
     return { id, figure: figureOf(n), key: n.key!, viz: curve && at >= 0 ? <SignatureViz curve={curve} typical={typicalCurve} at={at} /> : undefined };
   });
   return (
-    <CourseSection id="at-a-glance" track="chapter-1" beat="At a glance" title={<>What makes {kept} <em>{kept}</em></>}>
+    <CourseSection id="at-a-glance" track="chapter-1" beat="At a glance" title={display.includes(' ') ? <>What sets <em>{kept}</em> apart</> : <>What makes {kept} <em>{kept}</em></>}>
       <div className="course-glance">
         <ul className="glance-rows">
           {rows.map((r) => (

@@ -102,6 +102,12 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
         && ![...dots, ...along].some((d) => meets({ x0: d.x - d.r / REF_WIDTH, x1: d.x + d.r / REF_WIDTH, y0: d.y - d.r / height, y1: d.y + d.r / height }, box)));
     if (spot) { grid.push({ y: fy, label: text, dy: spot.dy }); taken.push(spot.box); }
   }
+  // A label a gridline runs through breaks the line under it (a knockout halo), so the line never crosses the text.
+  placed = placed.map((l) => {
+    if (l.minWidth === null) return l;
+    const size = l.size ?? 14, base = l.y * height + l.dy;
+    return grid.some((g) => base - size * 0.78 - 2 <= g.y * height && g.y * height <= base + size * 0.22 + 2) ? { ...l, knockout: true } : l;
+  });
   const plot = (
     <Plot paths={runs.filter((r) => r.length > 1).map((r) => <path key={r[0].year} className="l-ink2" d={linePath(r.map((p) => [x(p.year), y(p.seconds)]))} />)}>
       <g className="viz-grid">

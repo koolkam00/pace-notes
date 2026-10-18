@@ -57,6 +57,8 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
     step(() => eq([r.values.min, r.values.max, r.values.courses], [lo, hi, solid.length], 'courses.range recounts the extremes of courses with three or more editions'));
     step(() => eq(r.guard, solid.length >= 3 && hi / lo >= 2, 'courses.range: "more than twice" needs the highest share at least twice the lowest'));
     step(() => eq(r.figure.value, `${Math.round(lo * 100)}–${Math.round(hi * 100)}`, 'courses.range: the figure'));
+    const loCity = solid.find((c) => c.slowdown === lo).city, hiCity = solid.find((c) => c.slowdown === hi).city;
+    if (r.guard) step(() => eq(said(r), `From ${named(loCity)} to ${named(hiCity)}: the same distance, more than twice the share.`, 'courses.range: the sentence names both ends'));
     // Each course's figure averages its editions' shares (verify-insights), so the words name the average edition, never
     // a share of every finish pooled.
     step(() => ok(/^of finishes in the average edition had a sustained slowdown\b/.test(r.key), 'courses.range: the key names the average edition'));
@@ -81,7 +83,10 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const guard = cells.length >= 2 && whole(lo.slowdown) !== whole(hi.slowdown) && !held.has(`${city}|${lo.year}`) && !held.has(`${city}|${hi.year}`);
       step(() => eq(n.guard, guard, `course.slowdown (${city}): guard`));
       step(() => eq(n.figure.value, String(Math.round(c.slowdown * 100)), `course.slowdown (${city}): the figure`));
-      step(() => eq(n.key, 'of finishes in the average edition had a sustained slowdown', `course.slowdown (${city}): the key names the average edition (the figure averages the editions' shares)`));
+      // The figure averages the editions' shares: the key names the average edition, the two editions' average, or with
+      // one edition its year (no average was taken).
+      const lead = cells.length === 1 ? `of finishes in ${cells[0].year} had a` : cells.length === 2 ? 'of finishes in its two editions, on average, had a' : 'of finishes in the average edition had a';
+      step(() => eq(n.key, `${lead} sustained slowdown`, `course.slowdown (${city}): the key names what the figure averages`));
       if (guard) step(() => eq(said(n), `Edition by edition, between ${whole(lo.slowdown)} (${lo.year}) and ${whole(hi.slowdown)} (${hi.year}).`, `course.slowdown (${city}): the sentence names the range, low end first, in no time order`));
     }
 
@@ -104,7 +109,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       if (n.guard) {
         const name = sectionName(courses.sections.indexOf(c.slowest_section));
         const usual = sectionName(courses.sections.indexOf(modal));
-        step(() => eq(said(n), `The slowest 5K is ${name}; on ${tally.get(modal)} of ${shaped} courses it’s ${usual}.`, `course.late (${city}): the sentence`));
+        step(() => eq(said(n), `The slowest 5K is ${name}; on ${tally.get(modal)} of the ${shaped} courses with 5K splits it’s ${usual}.`, `course.late (${city}): the sentence`));
       }
     }
 
@@ -115,7 +120,10 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const i = c.signature_section ? courses.sections.indexOf(c.signature_section) : -1;
       const solid = c.editions >= 3 && Array.isArray(c.curve) && c.curve.length === 9 && i >= 0;
       const dev = solid ? c.curve[i] - courses.typical_curve[i] : NaN;
-      const words = (v, own) => { const r = Math.round(Math.abs(v)); return r === 0 ? (own ? 'at its average pace' : 'level on the typical course') : `${r}% ${v > 0 ? 'slower' : 'quicker'}${own ? ' than its average pace' : ' on the typical course'}`; };
+      const words = (v, own) => {
+        const r = Math.round(Math.abs(v)), side = v > 0 ? 'slower' : 'quicker';
+        return own ? (r === 0 ? 'at its own average pace' : `${r}% ${side} than its own average`) : (r === 0 ? 'the typical course runs this 5K at its average pace' : `the typical course runs this 5K ${r}% ${side}`);
+      };
       step(() => ok(!solid || Math.abs(dev - c.signature_points) < 0.011, `course.signature (${city}): the signature is the curve less the typical curve`));
       step(() => ok(!solid || c.deviation.every((d) => Math.abs(d) <= Math.abs(c.signature_points) + 1e-9), `course.signature (${city}): no section parts further than the signature`));
       const here = solid ? c.curve[i] : NaN, typ = solid ? courses.typical_curve[i] : NaN;
@@ -144,7 +152,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       if (t) {
         let best = 0;
         for (let i = 1; i < 9; i++) if (t[i].gain_m > t[best].gain_m) best = i;
-        step(() => eq(n.guard, t[best].gain_m >= 15, `course.climb (${city}): guard`));
+        step(() => eq(n.guard, t[best].gain_m >= 30, `course.climb (${city}): guard (a climb from 30 m)`));
         if (n.guard) step(() => eq(said(n), `The biggest climb is ${sectionName(best)}: ${ft(t[best].gain_m)}.`, `course.climb (${city}): the sentence`));
       } else step(() => eq(n.guard, false, `course.climb (${city}): no route, no climb`));
     }
@@ -178,8 +186,10 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const words = ['zero', 'one', 'two'];
       const from = solidSelf ? '' : `, from ${words[c.editions]} edition${c.editions === 1 ? '' : 's'}`;
       const all = count === others.length ? (solidSelf ? 'any other course' : 'every course') : null;
-      const than = all ? `${all} with three or more editions` : `${count} of the ${others.length}${solidSelf ? ' other' : ''} courses with three or more editions`;
-      const want = middle ? `${named(city)}’s ${whole(c.slowdown)}: near the middle of the ${others.length + 1} courses with three or more editions.`
+      // The scope is the strip's key; the sentence keeps it only for "any other course" / "every course" and for a course
+      // with fewer editions.
+      const than = all ? `${all} with three or more editions` : solidSelf ? `${count} of ${others.length} other courses` : `${count} of the ${others.length} courses with three or more editions`;
+      const want = middle ? `${named(city)}’s ${whole(c.slowdown)}: near the middle of ${others.length + 1} courses.`
         : `${named(city)}’s ${whole(c.slowdown)}${from}: ${higher >= lower ? 'lower' : 'higher'} than on ${than}.`;
       if (n.guard) step(() => eq(said(n).replace(/\u00a0/g, ' '), want, `course.among (${city}): the sentence`));
     }
@@ -190,7 +200,17 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const ctx = goalFile.courses.find((x) => x.city === city);
       const row = ctx && ctx.editions >= goalFile.min_editions ? goalFile.rows.find((r) => r.city === city && r.goal === 240) : null;
       step(() => eq(n.guard, !!row && row.n >= 100, `course.goal (${city}): guard`));
-      if (n.guard) step(() => eq(said(n), `Of ${named(city)} finishes on 4:00 pace at 20K, ${whole(row.under)} made 4:00.`, `course.goal (${city}): the sentence`));
+      // Every course's share: the rows of the courses with enough editions, pooled by finishes.
+      const pool = goalFile.rows.filter((r) => r.goal === 240 && goalFile.courses.some((x) => x.city === r.city && x.editions >= goalFile.min_editions));
+      const poolN = pool.reduce((a, r) => a + r.n, 0), poolUnder = pool.reduce((a, r) => a + Math.round(r.under * r.n), 0) / poolN;
+      // Only a page with goal rows sets itself against every course.
+      const shows = !!ctx && ctx.editions >= goalFile.min_editions;
+      step(() => ok(shows ? poolN >= 100 && Math.abs(n.values.every - poolUnder) < 1e-12 && n.values.every_n === poolN : Number.isNaN(n.values.every), `course.goal (${city}): every course's share recounts (${n.values.every} against ${poolUnder})`));
+      if (n.guard) {
+        const gap = Math.abs(Math.round(row.under * 100) - Math.round(poolUnder * 100));
+        const against = gap >= 3 ? `, against ${whole(poolUnder)} across every course` : ', about the same as across every course';
+        step(() => eq(said(n), `Of ${named(city)} finishes on 4:00 pace at 20K, ${whole(row.under)} made 4:00${against}.`, `course.goal (${city}): the sentence`));
+      }
     }
 
     // #weather: the warmest and coolest mornings, at least the screen's gap apart.
