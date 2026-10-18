@@ -78,6 +78,9 @@ export function parseElapsed(input: string): number | null {
   return seconds !== null && seconds > 0 ? seconds : null;
 }
 
+/** The example runner's pace per km (its time at the default mat), so a new mat re-seeds the untouched time field at it. */
+const EXAMPLE_S_PER_KM = (parseElapsed(DEFAULTS.t) ?? 0) / Number(DEFAULTS.mat);
+
 /**
  * Elapsed text that parseElapsed reads back as the same number of seconds: "24:53" from 10 to 59 minutes,
  * h:mm:ss otherwise ("0:02:00", never the ambiguous "2:00"). Used for the URL and for the fields.
@@ -558,6 +561,10 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
     if (ready && RUNNER_KEYS.some((k) => q[k] !== DEFAULTS[k])) setOwnRunner(true);
   }, [ready, q]);
   const isExample = ready && !ownRunner && !RUNNER_KEYS.some((k) => fromUrl.has(k));
+  // While the time field still holds the example (nothing typed, pasted, opened or linked), choosing another mat moves
+  // the example runner there at the same pace: one tap never turns the 4:00 example into a 2:50 projection.
+  const [exampleTime, setExampleTime] = useState(true);
+  useEffect(() => { if (ready && fromUrl.has('t')) setExampleTime(false); }, [ready, fromUrl]);
 
   // Entry by elapsed time (default) or by the average pace the tracker shows.
   const [entry, setEntry] = useState<'time' | 'pace'>('time');
@@ -620,18 +627,19 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
   const chooseMat = (km: number) => {
     const patch: Partial<QueryShape> = { mat: String(km), prev: '' };
     if (entry === 'pace' && paceTyped !== null) patch.t = elapsedText(perKm(paceTyped, units) * km);
+    else if (exampleTime) patch.t = elapsedText(Math.round(EXAMPLE_S_PER_KM * km));
     setQ(patch);
   };
   const advance = () => {
     if (E === null || mat >= 40) return;
-    setEntry('time');
+    setEntry('time'); setExampleTime(false);
     setQ({ mat: String(mat + 5), prev: elapsedText(E), t: 'none' });
     window.setTimeout(() => timeRef.current?.focus(), 0);
   };
   const onPaste = useCallback((readings: MatReading[]) => {
     const latest = readings.reduce((a, b) => (b.km >= a.km ? b : a));
     const before = readings.find((r) => r.km === latest.km - 5);
-    setEntry('time');
+    setEntry('time'); setExampleTime(false);
     setQ({ mat: String(latest.km), t: elapsedText(latest.elapsed), prev: before ? elapsedText(before.elapsed) : '' });
   }, [setQ]);
   const applyFallback = (patch: Partial<QueryShape>, text: string) => {
@@ -639,7 +647,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
     setQ(patch);
   };
   const openCard = (card: RunnerCard) => {
-    setEntry('time');
+    setEntry('time'); setExampleTime(false);
     setQ({ course: card.course, mat: String(card.mat), t: elapsedText(card.t), prev: card.prev !== null ? elapsedText(card.prev) : '', v: 'trend' });
     // The card's own start clock, or none: never another runner's or an earlier race's.
     saveStart(card.start !== null ? formatClock(card.start) : '');
@@ -855,11 +863,11 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
             }} options={[{ value: 'time', label: 'Elapsed time' }, { value: 'pace', label: 'Average pace' }]} />
             {entry === 'time' ? (
               <ElapsedField id="projector-time" label={`Time at ${matName(mat, units)}`} large value={E} inputRef={timeRef}
-                onChange={(s) => setQ({ t: s === null ? 'none' : elapsedText(s) })} placeholder={mat <= 10 ? '0:49:30' : '2:21:30'}
+                onChange={(s) => { setExampleTime(false); setQ({ t: s === null ? 'none' : elapsedText(s) }); }} placeholder={mat <= 10 ? '0:49:30' : '2:21:30'}
                 hint="Chip time as the tracker shows it." />
             ) : (
               <DurationField label={`Average pace so far, per ${units === 'mi' ? 'mile' : 'kilometre'}`} mode="pace" large value={paceTyped}
-                onChange={(s) => { setPaceTyped(s); setQ({ t: s === null ? 'none' : elapsedText(perKm(s, units) * mat) }); }}
+                onChange={(s) => { setExampleTime(false); setPaceTyped(s); setQ({ t: s === null ? 'none' : elapsedText(perKm(s, units) * mat) }); }}
                 placeholder={units === 'mi' ? '9:06' : '5:39'} hint={E !== null ? `Read as ${formatDuration(E, true)} at ${matName(mat, units)}.` : 'As the tracker shows it.'} />
             )}
             {quick ? <div className="projector-quick">{quick}</div> : null}

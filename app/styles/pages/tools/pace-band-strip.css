@@ -1,29 +1,41 @@
 /* The cut-out wristband strips (components/tools/PaceBandStrip.tsx), shared by the pace band and the race planner: a
    paper preview scaled to the screen, printed at full size. The strip is a printed object, so it stays ink on paper in
-   any theme: --card for the paper, --night for the ink, --line-2 for the cell rules. */
+   any theme: its own tokens below, which never flip with data-theme (critic round 3: under the dark theme --card and
+   --night both resolved near black). Under 600 px the preview is not drawn on screen (its labels would be 5–7 px;
+   the night card above lists every mat); it still prints. */
 
 /* The paper alone reads as a sheet (no panel around it), centred in the column. */
 .pace-band-sheet-wrap { overflow-x: auto; margin: 0; padding: 4px 0 8px; }
 .pace-band-sheet-wrap:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pace-band-held-dim { opacity: .45; transition: opacity var(--d-quick); }
-.pace-band-sheet { --strip: 18.4cm; color-scheme: light; display: grid; gap: .32cm; width: calc(var(--strip) + .9cm); margin-inline: auto; padding: .35cm .45cm .45cm; background: var(--card); color: var(--night); box-shadow: var(--shadow-raise); }
-.pace-band-sheet-head { font-family: var(--sans); font-size: 6.5pt; letter-spacing: .02em; color: var(--night-3); }
+/* The strip's own colours, from the two tokens no theme redefines (--night-ink, the warm paper, and --on-accent, the
+   ink), so the paper preview is ink on paper under the dark page theme too; the greys mix the two where supported. */
+.pace-band-sheet { --strip: 18.4cm; --strip-paper: var(--night-ink); --strip-ink: var(--on-accent); --strip-ink-3: var(--on-accent); --strip-rule: var(--night-ink-2); --strip-paper-2: var(--night-ink);
+  color-scheme: light; display: grid; gap: .32cm; width: calc(var(--strip) + .9cm); margin-inline: auto; padding: .35cm .45cm .45cm; background: var(--strip-paper); color: var(--strip-ink); box-shadow: var(--shadow-raise); }
+.pace-band-sheet-head { font-family: var(--sans); font-size: 6.5pt; letter-spacing: .02em; color: var(--strip-ink-3); }
 .pace-band-strip { position: relative; display: grid; grid-template-columns: repeat(var(--cells, 10), minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr) auto;
-  width: var(--strip); height: 2.5cm; border: 1px dashed var(--night); background: var(--card); break-inside: avoid; }
-.pace-band-strip::before { content: '\2702'; position: absolute; left: -.38cm; top: -.24cm; font-size: 9pt; line-height: 1; color: var(--night); }
-.pace-band-cell { display: grid; align-content: center; justify-items: center; gap: .05cm; min-width: 0; padding: .08cm .03cm; border-right: .5pt solid var(--line-2); text-align: center; }
+  width: var(--strip); height: 2.5cm; border: 1px dashed var(--strip-ink); background: var(--strip-paper); break-inside: avoid; }
+.pace-band-strip::before { content: '\2702'; position: absolute; left: -.38cm; top: -.24cm; font-size: 9pt; line-height: 1; color: var(--strip-ink); }
+.pace-band-cell { display: grid; align-content: center; justify-items: center; gap: .05cm; min-width: 0; padding: .08cm .03cm; border-right: .5pt solid var(--strip-rule); text-align: center; }
 .pace-band-cell:nth-last-child(2) { border-right: 0; }
 .pace-band-cell .k { font-family: var(--sans); font-size: 6.4pt; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; }
 .pace-band-cell .k small { font-size: 5.8pt; font-weight: 500; text-transform: none; }
 .pace-band-cell b { font-family: var(--figure); font-size: min(12.5pt, calc(var(--strip) / var(--cells, 10) / 4.35)); font-weight: 660; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.pace-band-cell .h { font-family: var(--sans); font-size: 6.8pt; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--night-3); }
-.pace-band-cell.is-lead { border-right: 1.5pt solid var(--night); }
+.pace-band-cell .h { font-family: var(--sans); font-size: 6.8pt; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--strip-ink-3); }
+.pace-band-cell.is-lead { border-right: 1.5pt solid var(--strip-ink); }
 .pace-band-cell.is-lead .h { font-size: 5.6pt; font-weight: 500; white-space: normal; line-height: 1.2; }
 .pace-band-cell.is-finish b { text-decoration: underline; text-underline-offset: 2px; }
-.pace-band-cell.is-half { background: var(--paper-2); }
-.pace-band-strip-caption { grid-column: 1 / -1; padding: .04cm .15cm .06cm; border-top: .5pt solid var(--line-2); font-family: var(--sans); font-size: 5.4pt; line-height: 1.25; color: var(--night-3); }
+.pace-band-cell.is-half { background: var(--strip-paper-2); }
+.pace-band-strip-caption { grid-column: 1 / -1; padding: .04cm .15cm .06cm; border-top: .5pt solid var(--strip-rule); font-family: var(--sans); font-size: 5.4pt; line-height: 1.25; color: var(--strip-ink-3); }
 .pace-band-strip.is-back { display: grid; grid-template-columns: 1fr; }
 .pace-band-strip.is-back svg { display: block; width: 100%; height: 100%; min-height: 0; padding: .1cm .15cm 0; }
+.pace-band-strip.is-back svg text { fill: var(--strip-ink); }
+
+@supports (color: color-mix(in srgb, var(--paper) 50%, transparent)) {
+  .pace-band-sheet { --strip-ink-3: color-mix(in srgb, var(--strip-ink) 68%, var(--strip-paper)); --strip-rule: color-mix(in srgb, var(--strip-ink) 20%, var(--strip-paper)); --strip-paper-2: color-mix(in srgb, var(--strip-ink) 7%, var(--strip-paper)); }
+}
+
+@media screen and (max-width: 599.98px) { .pace-band-sheet-wrap { display: none; } }
 
 @media print {
   .pace-band-sheet-wrap { overflow: visible; margin: 0; padding: 0; background: none; }

@@ -27,7 +27,9 @@
 .tool-page .viz-frame :is(.viz-label, .tick), .tool-page :is(.table, .tool-table) thead th { font-variant-numeric: normal; }
 .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-color: var(--ink-3); text-underline-offset: .18em; }
 .term-link:hover { text-decoration-style: solid; }
-.tool-stat-label .term-link, .tool-ledger dt .term-link, .tool-cells dt .term-link { display: inline-flex; align-items: center; min-height: 44px; margin-block: -12px; }
+/* A 44 px target that never moves its label off the cell's baseline: inline, with the height in vertical padding (which
+   does not change the line box), so "Sustained slowdown" sits level with its neighbour's label. */
+.tool-stat-label .term-link, .tool-ledger dt .term-link, .tool-cells dt .term-link { display: inline; padding-block: 14px; }
 
 /* ---------- The workspace: inputs, then the result ---------- */
 .tool-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); align-items: start; }
@@ -92,7 +94,6 @@
 .tool-reading-kicker { margin: 0; font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; line-height: 1.4; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
 .tool-reading-figure { margin: 0; font-family: var(--figure); font-size: var(--t-figure-l); font-weight: 660; line-height: .95; letter-spacing: -.03em; color: var(--ink); font-variant-numeric: proportional-nums; overflow-wrap: anywhere; }
 .tool-reading-figure small { display: block; margin-top: 8px; font-family: var(--sans); font-size: 1.0625rem; font-weight: 500; line-height: 1.3; letter-spacing: 0; color: var(--ink-2); }
-.tool-reading-figure .is-signal { color: var(--signal); }
 .tool-reading-sub { margin: 0; font-size: .9375rem; line-height: 1.45; color: var(--ink-2); }
 .tool-reading .evidence-badge { color: var(--ink-2); }
 /* The ledger: label left, value right, a hairline between rows. */
@@ -268,6 +269,9 @@
   /* The closing stack sits under the results column, so it lines up with what it follows (the columns are 5fr and 7fr). */
   @supports selector(:has(a)) {
     .tool-page:has(.tool-workspace) > .chapter-end { max-width: none; margin-left: calc((100% - var(--s-7)) * 5 / 12 + var(--s-7)); }
+    /* Where the content above the closing stack runs the full width (the course chooser's list, the qualifying checker's
+       race list), the stack starts at the same left edge, so the page keeps one axis. */
+    .tool-page:has(.course-chooser) > .chapter-end, .tool-page:has(.qrace-more) > .chapter-end { max-width: var(--measure-figure); margin-left: 0; }
   }
 }
 
@@ -281,13 +285,15 @@
 .tools-row:hover { text-decoration: none; }
 .tools-row:hover b { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: .2em; }
 .tools-row:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
-.tools-row .arrow-icon { grid-column: 2; grid-row: 1 / span 2; width: 18px; height: 18px; transition: transform var(--d-release) var(--spring); }
+.tools-row .arrow-icon { grid-column: 2; grid-row: 1; width: 18px; height: 18px; transition: transform var(--d-release) var(--spring); }
 .tools-row:hover .arrow-icon { transform: translateX(3px); }
 .tools-row-text { display: grid; gap: 2px; min-width: 0; }
 .tools-row-text b { font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
 .tools-row-text > span { font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
-.tools-row-badges { grid-column: 1; display: flex; flex-wrap: wrap; gap: 2px 16px; }
-.tools-row-badges .evidence-badge { color: var(--ink-3); font-weight: 500; }
+/* The evidence glyphs ride on the title line (the key under the dek names them), so every row is two lines. */
+.tools-row-badges { display: inline-flex; gap: 8px; margin-left: 10px; vertical-align: .12em; }
+.tools-row-badges .evidence-badge { gap: 0; color: var(--ink-3); }
+.tools-key { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: var(--s-4) 0 0; }
 .tools-goals { display: grid; gap: var(--s-2); padding: 14px 0 10px; }
 .tools-goal-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .tools-goal-links li { margin: 0; }

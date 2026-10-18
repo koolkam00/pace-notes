@@ -2,6 +2,7 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import Arrow from '@/components/ui/Arrow';
 import PageFeedback from '@/components/PageFeedback';
 import { EvidenceBadge } from '@/components/tools/ToolShell';
+import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import { getInsightsManifest } from '@/lib/insights-server';
 import { TOOLS, toolHref, type ToolDefinition, type ToolGroup } from '@/lib/tools/registry';
 import { pageMetadata } from '@/lib/seo';
@@ -21,13 +22,22 @@ const GROUPS: { group: ToolGroup; title: string }[] = [
 /** Badges in one order on every row: Pace Notes data first, then published research, then official standards. */
 const BADGE_ORDER: ToolDefinition['evidence'] = ['data', 'research', 'official'];
 
-/** One tool, one line: its name and what it is for, its evidence, and the way in. */
+const BADGE_WORDS: Record<ToolDefinition['evidence'][number], string> = { data: 'Pace Notes data', research: 'Published research', official: 'Official standards' };
+
+/**
+ * One tool, two lines: its name with its evidence glyphs (● data, ◆ research, ■ official, keyed once under the dek and
+ * named for screen readers), and what it is for; then the way in.
+ */
 function Row({ href, title, line, badges = [] }: { href: string; title: string; line: string; badges?: ToolDefinition['evidence'] }) {
   return (
     <li>
       <Link href={href} className="tools-row">
-        <span className="tools-row-text"><b>{title}</b><span>{line}</span></span>
-        {badges.length ? <span className="tools-row-badges">{[...badges].sort((a, b) => BADGE_ORDER.indexOf(a) - BADGE_ORDER.indexOf(b)).map((e) => <EvidenceBadge key={e} kind={e} compact />)}</span> : null}
+        <span className="tools-row-text">
+          <b>{title}{badges.length ? <span className="tools-row-badges">{[...badges].sort((a, b) => BADGE_ORDER.indexOf(a) - BADGE_ORDER.indexOf(b)).map((e) => (
+            <EvidenceTag key={e} kind={e} link={false} className="is-glyph"><span className="sr-only">{BADGE_WORDS[e]}</span></EvidenceTag>
+          ))}</span> : null}</b>
+          <span>{line}</span>
+        </span>
         <Arrow />
       </Link>
     </li>
@@ -48,6 +58,8 @@ export default function ToolsPage() {
       <header className="tool-header">
         <h1 className="tool-title t-title">Runner tools</h1>
         <p className="tool-dek">For one race: plan it, pace it, follow it and read it afterwards, beside what finishes like it ran.</p>
+        {/* The evidence key, once: each row shows its glyphs. */}
+        <p className="tools-key">{BADGE_ORDER.map((e) => <EvidenceBadge key={e} kind={e} />)}</p>
       </header>
       {GROUPS.map(({ group, title }) => {
         const tools = available.filter((t) => t.group === group);

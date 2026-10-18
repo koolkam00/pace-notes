@@ -483,7 +483,8 @@ export default function QualifyingChecker() {
               {exampleNote ? <ExampleNote>{exampleNote}</ExampleNote> : null}
               <section className="tool-reading night qualifying-headline" aria-labelledby={`${ids}-headline`}>
                 <div className="tool-reading-head">
-                  <p className="tool-reading-kicker">{allExample ? 'Example · ' : ''}{DIVISIONS.find((d) => d.division === division)!.label} · {fmtTime(shown!)} · {planned ? 'planned for' : 'run'} {fmtDate(raceDate)}</p>
+                  {/* One line at a phone's width: the division and the time (the race date is in the form above). */}
+                  <p className="tool-reading-kicker">{allExample ? 'Example · ' : ''}{DIVISIONS.find((d) => d.division === division)!.label} · {fmtTime(shown!)}</p>
                   <h2 className="tool-reading-figure" id={`${ids}-headline`}>
                     {meets === items.length ? `Meets all ${items.length}` : `Meets ${meets} of ${items.length}`}
                     <small>{boston ? <BostonLine it={boston} raceDate={raceDate} /> : 'time standards'}</small>
@@ -550,7 +551,10 @@ function RaceRows({ items, named, ...rest }: { items: Item[]; named?: string } &
   const pct = (v: number) => ((Math.min(hi, Math.max(lo, v)) - lo) / span) * 100;
   return (
     <section className="qualifying-races" aria-label="Each race’s standard">
-      <p className="qualifying-races-axis" aria-hidden="true"><span>← Over</span><span>Under →</span></p>
+      {/* The two words meet at the zero line, wherever the margins put it. */}
+      <p className="qualifying-races-axis" aria-hidden="true">
+        <span className="qualifying-races-axis-track"><span style={{ right: `${100 - pct(0)}%` }}>← Over</span><span style={{ left: `${pct(0)}%` }}>Under →</span></span>
+      </p>
       <ol className="qualifying-race-list">
         {items.map((it) => {
           const { s, r, v, app } = it;

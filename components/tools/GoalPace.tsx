@@ -52,13 +52,14 @@ const other = (units: UnitSystem): UnitSystem => (units === 'mi' ? 'km' : 'mi');
 /** The dek under the H1 (ToolPageHeader wraps it): what the page sets the even-pace splits beside. Its numbers are on the night card below. */
 export function GoalPaceDek({ goal, observed }: { goal: number; observed: GoalObserved | null }) {
   const label = goalLabel(goal);
-  return <>The even-pace splits for a {label} marathon{observed ? <>, beside what {count(observed.n)} finishes just under {label} actually ran</> : null}.</>;
+  // No count here: the page's one count of finishes "just under" is the pile-up's last minute, a screen below.
+  return <>The even-pace splits for a {label} marathon{observed ? <>, beside what finishes just under {label} actually ran</> : null}.</>;
 }
 
 /** A gap against a reference, negative = ahead: "2:07 ahead of", "level with", "0:40 behind". */
 const against = (gap: number) => (Math.abs(gap) < 0.5 ? 'level with' : `${formatDuration(Math.abs(gap))} ${gap < 0 ? 'ahead of' : 'behind'}`);
-/** A finish against another: "0:06 faster", "level with them", "1:12 slower". */
-const finished = (gap: number) => (Math.abs(gap) < 0.5 ? 'level with them' : `${formatDuration(Math.abs(gap))} ${gap < 0 ? 'faster' : 'slower'}`);
+/** A finish against another, as the pace band says it: under a minute is "at about the same time", else "1:12 slower". */
+const finished = (gap: number) => (Math.abs(gap) < 60 ? 'at about the same time' : `${formatDuration(Math.abs(gap))} ${gap < 0 ? 'faster' : 'slower'}`);
 
 /** Everything below the header of a goal page. Static HTML in miles; redrawn in km once the units preference is read. */
 export function GoalPaceBody({ goal, observed, bunching, pileup }: { goal: number; observed: GoalObserved | null; bunching: GoalBunching | null; peers?: GoalPeer[];

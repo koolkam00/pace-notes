@@ -33,9 +33,13 @@ export function ToolHandoffs({ label, links }: { label: string; links: { href: s
  * were paced. Each opens at the whole minute at or below it, the way every tool hands a time on (4:11:41 is 4:11), and
  * each row names that minute (once, with no note repeated row by row).
  */
-export function MarathonHandoffs({ label, seconds }: { label: string; seconds: number }) {
+export function MarathonHandoffs({ label, seconds, plan: withPlan = true }: {
+  label: string; seconds: number;
+  /** Off where the planner is already the page's next card (each page links forward to a page once). */
+  plan?: boolean;
+}) {
   const minutes = Math.floor(seconds / 60);
-  const plan = planHref(undefined, minutes);
+  const plan = withPlan ? planHref(undefined, minutes) : null;
   const band = paceBandGoalHref(minutes);
   const pacing = pacingPatternHref(minutes);
   const time = formatHM(minutes * 60);

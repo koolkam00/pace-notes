@@ -37,7 +37,9 @@
 
 /* ---------- One row per race ---------- */
 .qualifying-races { display: grid; gap: var(--s-2); margin: 0; }
-.qualifying-races-axis { display: flex; justify-content: space-between; margin: 0 0 -4px; padding-left: calc(38% + var(--s-3)); padding-right: calc(5.5rem + var(--s-3)); font-size: .75rem; color: var(--ink-3); white-space: nowrap; }
+.qualifying-races-axis { display: block; margin: 0 0 -4px; padding-left: calc(38% + var(--s-3)); padding-right: calc(5.5rem + var(--s-3)); font-size: .75rem; line-height: 1.4; color: var(--ink-3); white-space: nowrap; }
+.qualifying-races-axis-track { position: relative; display: block; height: 1.4em; }
+.qualifying-races-axis-track > span { position: absolute; top: 0; padding-inline: 6px; }
 .qualifying-race-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
 .qualifying-race-list > li { margin: 0; border-bottom: 1px solid var(--rule); }
 .qualifying-race > summary { display: grid; grid-template-columns: minmax(0, 38%) minmax(0, 1fr) 5.5rem; align-items: center; gap: var(--s-3); min-height: 60px; padding: 8px 0; list-style: none; cursor: pointer; }

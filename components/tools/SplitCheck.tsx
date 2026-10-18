@@ -295,6 +295,7 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
   // The field being typed in: changed since it took focus. Cleared when focus leaves it.
   const [typing, setTyping] = useState<number | null>(null);
   const [pasteOpen, setPasteOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [pasteNote, setPasteNote] = useState<string | null>(null);
   // The course slug a link named that this comparison does not have; it falls back to All courses.
@@ -411,6 +412,8 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
     setQ({ course: 'all' });
   }, [ready, knownCourses, q.course, setQ]);
   const droppedCity = droppedCourse ? otherCourses[droppedCourse] ?? null : null;
+  // The comparison options open on arrival when a link chose them, or to say why a linked course was replaced.
+  useEffect(() => { if (droppedCourse) setCompareOpen(true); }, [droppedCourse]);
 
   const indexError = index.error;
   const retryIndex = index.retry;
@@ -466,13 +469,40 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
   const hintId = `${formId}-grid-hint`;
   const gridMessage = hintIssue ?? (!complete ? (entered ? `${entered} of 9 entered. Every mat is needed; gaps are never filled in.` : 'Type or paste your nine mat times.') : null);
 
+  // The comparison's course and recorded gender, in one row right above the comparison they change (they never change
+  // your own reading), so the form stays short and the answer starts on the first phone screen.
+  const compareOptions = (
+    <details className="tool-more split-check-compare-options" open={compareOpen} onToggle={(e) => setCompareOpen(e.currentTarget.open)}>
+      <summary>Compared with {q.course === 'all' ? 'all courses' : place}{genderWord ? `, ${genderWord.toLowerCase()}` : ''}</summary>
+      <div className="tool-more-body">
+        <div className="tool-field">
+          <label htmlFor={`${formId}-course`}>Compare with finishes on</label>
+          <select id={`${formId}-course`} value={q.course} onChange={(e) => { setDroppedCourse(null); setQ({ course: e.target.value }); }}
+            aria-describedby={`${formId}-course-hint`}>
+            <option value="all">All courses</option>
+            {index.data ? index.data.scopes.filter((s) => s.slug !== 'all').map((s) => <option key={s.slug} value={s.slug}>{s.city ?? s.slug}</option>)
+              : q.course !== 'all' ? <option value={q.course}>{q.course}</option> : null}
+          </select>
+          <p className={`tool-field-hint${droppedCourse && !droppedCity ? ' is-error' : ''}`} id={`${formId}-course-hint`}>
+            {droppedCity ? `${droppedCity} is not one of the split check’s courses, so you are compared with All courses. Your own sections, slowdown reading and pacing type do not depend on the course.`
+              : droppedCourse ? 'The course in this link is not in the current data, so All courses is shown.'
+              : 'Race not listed? All courses compares you with finishes from other races.'}
+          </p>
+        </div>
+        <div className="tool-field">
+          <span className="tool-label" id={`${formId}-gender`}>Recorded gender <span className="split-check-optional">optional</span></span>
+          <div role="group" aria-labelledby={`${formId}-gender`} className="ph-no-capture"><Choice label="Recorded gender" value={gender} onChange={(v) => setQ({ g: v })} options={GENDER_OPTIONS} small /></div>
+        </div>
+      </div>
+    </details>
+  );
   return (
     <div className="split-check-root">
       <div className="tool-workspace">
         <form className="tool-inputs split-check-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Split check inputs">
           {/* One kicker: the example says so in it, and the line under it says what the example is. */}
           <h2>{isExample ? 'Example · your nine mat times' : 'Your nine mat times'}</h2>
-          {isExample ? <p className="tool-field-hint split-check-example">A made-up race with a sustained slowdown from 30K. Type over it or paste your own.</p> : null}
+          {isExample ? <p className="tool-field-hint split-check-example">A made-up race with a <SlowdownTerm /> from 30K. Type over it or paste your own.</p> : null}
 
           <details className="split-check-paste" open={pasteOpen} onToggle={(e) => setPasteOpen((e.currentTarget as HTMLDetailsElement).open)}>
             <summary>Paste from a tracker or results page</summary>
@@ -500,7 +530,7 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
             })}
           </fieldset>
           <p className={`tool-field-hint${hintIssue ? ' is-error' : ''}`} id={hintId}>
-            {gridMessage ?? 'Elapsed chip time at each mat: h:mm:ss, or mm:ss before the first hour.'}<KeypadHint />
+            {gridMessage ?? 'Chip time at each mat (h:mm:ss or mm:ss).'}<KeypadHint />
           </p>
           <div className="split-check-buttons">
             <button type="button" className="btn btn-secondary is-compact" onClick={() => { setTimes(Array(9).fill(null)); setPasteText(''); setPasteNote(null); }}>Clear</button>
@@ -508,27 +538,10 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
               document.getElementById(`${formId}-t0`)?.focus();
               setTimes(fromQuery(EXAMPLE)); setPasteText(''); setPasteNote(null);
             }}>Load the example</button> : null}
+            {/* The privacy line shares the buttons' row, so the answer starts sooner. */}
+            <p className="tool-field-hint split-check-privacy">Your times stay in this browser and its address, never in analytics.</p>
           </div>
 
-          <div className="tool-field">
-            <label htmlFor={`${formId}-course`}>Compare with finishes on</label>
-            <select id={`${formId}-course`} value={q.course} onChange={(e) => { setDroppedCourse(null); setQ({ course: e.target.value }); }}
-              aria-describedby={`${formId}-course-hint`}>
-              <option value="all">All courses</option>
-              {index.data ? index.data.scopes.filter((s) => s.slug !== 'all').map((s) => <option key={s.slug} value={s.slug}>{s.city ?? s.slug}</option>)
-                : q.course !== 'all' ? <option value={q.course}>{q.course}</option> : null}
-            </select>
-            <p className={`tool-field-hint${droppedCourse && !droppedCity ? ' is-error' : ''}`} id={`${formId}-course-hint`}>
-              {droppedCity ? `${droppedCity} is not one of the split check’s courses, so you are compared with All courses. Your own sections, slowdown reading and pacing type do not depend on the course.`
-                : droppedCourse ? 'The course in this link is not in the current data, so All courses is shown.'
-                : 'Race not listed? All courses compares you with finishes from other races.'}
-            </p>
-          </div>
-          <div className="tool-field">
-            <span className="tool-label" id={`${formId}-gender`}>Recorded gender <span className="split-check-optional">optional</span></span>
-            <div role="group" aria-labelledby={`${formId}-gender`} className="ph-no-capture"><Choice label="Recorded gender" value={gender} onChange={(v) => setQ({ g: v })} options={GENDER_OPTIONS} small /></div>
-          </div>
-          <p className="tool-field-hint split-check-privacy">Your times stay in this browser and the page address. Analytics never record them.</p>
         </form>
 
         <div className={`tool-results split-check-results${stale ? ' is-stale' : ''}`}>
@@ -536,7 +549,7 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
           {view === 'l' ? <div className="tool-state">Reading the times…</div>
             : reading && shownTimes ? (
               <Results times={shownTimes} reading={reading} units={units} comparison={comparison} type={type} typeError={archetypes.error} retryType={archetypes.retry}
-                where={where} place={place} genderWord={genderWord} course={q.course} gender={gender} fallbacks={fallbacks}
+                where={where} place={place} genderWord={genderWord} course={q.course} gender={gender} fallbacks={fallbacks} compareOptions={compareOptions}
                 openingBands={openingBands} openingCities={openingCities} isExample={isExample}
                 bandCourse={knownCourses?.includes(q.course) && q.course !== 'all' ? q.course : null}
                 reportCity={q.course !== 'all' ? scope?.city ?? null : null} fromRunner={fromRunner} />
@@ -558,8 +571,10 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
 
 type TypeResult = { name: string; arch: Archetype; index: number; all: Archetype[] } | null;
 
-function Results({ times, reading, units, comparison, type, typeError, retryType, where, place, genderWord, course, gender, fallbacks, openingBands, openingCities, isExample, bandCourse, reportCity, fromRunner }: {
+function Results({ times, reading, units, comparison, type, typeError, retryType, where, place, genderWord, course, gender, fallbacks, compareOptions, openingBands, openingCities, isExample, bandCourse, reportCity, fromRunner }: {
   times: number[]; reading: SplitReading; units: UnitSystem; comparison: Comparison; type: TypeResult; typeError: string | null; retryType: () => void;
+  /** The comparison's course and gender controls, drawn above the comparison panel. */
+  compareOptions: ReactNode;
   where: string; place: string; genderWord: string; course: string; gender: Gender; fallbacks: ReactNode; openingBands: OpeningBand[]; openingCities: string[]; isExample: boolean;
   /** The chosen course when the pace band publishes it, else null. */
   bandCourse: string | null;
@@ -583,9 +598,11 @@ function Results({ times, reading, units, comparison, type, typeError, retryType
     <>
       <section className="tool-reading night split-check-headline" aria-labelledby="split-check-title">
         <div className="tool-reading-head">
-          <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}{verdict.kicker}</p>
+          {/* The form's heading already says the times are an example, so the kicker is the verdict alone (one line). */}
+          <p className="tool-reading-kicker">{verdict.kicker}</p>
           <h2 className="tool-reading-figure" id="split-check-title">
-            <span className={verdict.qualifies ? 'is-signal' : undefined}>{pctSigned(verdict.value, 0)}</span>
+            {/* The result figure is ink on every tool; orange marks only a chart's subject. */}
+            <span>{pctSigned(verdict.value, 0)}</span>
             <small>{verdict.line}</small>
           </h2>
         </div>
@@ -601,9 +618,10 @@ function Results({ times, reading, units, comparison, type, typeError, retryType
         <SectionTable reading={reading} times={times} units={units} />
       </Values>
 
-      <OpeningBeat reading={reading} units={units} bands={openingBands} cities={openingCities} place={place} course={course} gender={gender} />
+      <OpeningBeat reading={reading} units={units} bands={openingBands} />
 
-      <ComparisonPanel comparison={comparison} where={where} genderWord={genderWord} fallbacks={fallbacks} />
+      {compareOptions}
+      <ComparisonPanel comparison={comparison} where={where} genderWord={genderWord} fallbacks={fallbacks} term={!isExample} />
 
       <TypePanel reading={reading} type={type} error={typeError} retry={retryType} units={units} />
 
@@ -611,9 +629,12 @@ function Results({ times, reading, units, comparison, type, typeError, retryType
         <p>Pace Notes split check{isExample ? ' (example race)' : ''}. Mat times entered: {CHECKPOINTS.map((km, i) => `${matLabel(km)} ${formatDuration(times[i], true)}`).join(' · ')}.</p>
       </div>
 
+      {/* The one link row, after the last section: the next race's band, what followed an opening like this one, and
+          which standards this finish meets. */}
       <ToolHandoffs label="Next race" links={[
         { href: `/tools/pace-band${bandQuery ? `?${bandQuery}` : ''}`, title: 'Pace band', text: <>A wristband for {bandGoal ? formatHMGoal(times[8]) : 'your goal'}, beside the mat times of finishes that hit it.</> },
-        { href: '/stories/pacing-types', title: 'Six ways to run the same race', text: <>Every pacing type, side by side.</> },
+        { href: openingHref(reading, openingBands, openingCities, place, course, gender), title: 'Your opening, in every race', text: <>How finishes that opened like this played out.</> },
+        { href: isExample ? '/tools/qualifying' : `/tools/qualifying?t=${finish}`, title: 'Qualifying checker', text: <>Which standards {isExample ? 'a finish' : finish} meets.</> },
       ]} />
       <ShareBar extra={report ? <Link className="btn btn-primary is-compact" href={report}>Make a race report</Link> : null} />
     </>
@@ -787,15 +808,18 @@ function shortBand(b: OpeningBand): string {
   return `${f(b.lower!)} to ${f(b.upper!)}%`;
 }
 
-function OpeningBeat({ reading, units, bands, cities, place, course, gender }: {
-  reading: SplitReading; units: UnitSystem; bands: OpeningBand[]; cities: string[]; place: string; course: string; gender: Gender;
-}) {
+/** The starting-pace analysis opened on this race's opening band, course and recorded gender. */
+function openingHref(reading: SplitReading, bands: OpeningBand[], cities: string[], place: string, course: string, gender: Gender): string {
   const band = openingBandOf(reading.opening * 100, bands);
   const params = new URLSearchParams();
   if (band) params.set('opening', band.id);
   if (course !== 'all' && cities.includes(place)) params.set('race', place);
   if (gender !== 'all') params.set('gender', gender === 'men' ? 'Men' : 'Women');
-  const href = `/analyses/starting-pace${params.toString() ? `?${params.toString()}` : ''}`;
+  return `/analyses/starting-pace${params.toString() ? `?${params.toString()}` : ''}`;
+}
+
+function OpeningBeat({ reading, units, bands }: { reading: SplitReading; units: UnitSystem; bands: OpeningBand[] }) {
+  const band = openingBandOf(reading.opening * 100, bands);
   const level = Math.abs(reading.opening) < 0.0005;
   return (
     <section className="tool-panel split-check-opening" id="split-check-opening" aria-labelledby="split-check-opening-title">
@@ -813,7 +837,6 @@ function OpeningBeat({ reading, units, bands, cities, place, course, gender }: {
           ))}
         </ol>
       ) : null}
-      <p className="tool-note split-check-more"><Link href={href}>How finishes that opened like this played out</Link></p>
     </section>
   );
 }
@@ -822,8 +845,10 @@ function OpeningBeat({ reading, units, bands, cities, place, course, gender }: {
 /* Comparison with finishes in your window (Pace Notes data)           */
 /* ------------------------------------------------------------------ */
 
-function ComparisonPanel({ comparison, where, genderWord, fallbacks }: {
+function ComparisonPanel({ comparison, where, genderWord, fallbacks, term = true }: {
   comparison: Comparison; where: string; genderWord: string; fallbacks: ReactNode;
+  /** Link the term here: off when the example's line above already linked its first use. */
+  term?: boolean;
 }) {
   const ok = comparison.state === 'ok' ? comparison : null;
   return (
@@ -848,7 +873,7 @@ function ComparisonPanel({ comparison, where, genderWord, fallbacks }: {
           {fallbacks ? <div className="tool-share no-print">{fallbacks}</div> : null}
         </div>
       ) : null}
-      {ok ? <ComparisonBody ok={ok} where={where} genderWord={genderWord} fallbacks={fallbacks} /> : null}
+      {ok ? <ComparisonBody ok={ok} where={where} genderWord={genderWord} fallbacks={fallbacks} term={term} /> : null}
     </section>
   );
 }
@@ -857,8 +882,8 @@ function ComparisonPanel({ comparison, where, genderWord, fallbacks }: {
  * The page's one Pace Notes data nugget (the redesign spec, section 7.13): of finishes at this time, how many had a
  * sustained slowdown, as 100 dots. The verdict above says whether this race had one; this says how common it was.
  */
-function ComparisonBody({ ok, where, genderWord, fallbacks }: {
-  ok: Extract<Comparison, { state: 'ok' }>; where: string; genderWord: string; fallbacks: ReactNode;
+function ComparisonBody({ ok, where, genderWord, fallbacks, term }: {
+  ok: Extract<Comparison, { state: 'ok' }>; where: string; genderWord: string; fallbacks: ReactNode; term: boolean;
 }) {
   const { all, held, slow } = ok;
   const sd = all.sd ?? (slow ? slow.n / all.n : null);
@@ -869,7 +894,7 @@ function ComparisonBody({ ok, where, genderWord, fallbacks }: {
       {sd !== null ? (
         <>
           <p className="tool-nugget-text" id="split-check-compare-title">
-            Of {count(all.n)} finishes from {range} {where}{genderWord ? `, recorded as ${genderWord}` : ''}, <em>{share(sd)}</em> had a <SlowdownTerm />.
+            Of {count(all.n)} finishes from {range} {where}{genderWord ? `, recorded as ${genderWord}` : ''}, <em>{share(sd)}</em> had a {term ? <SlowdownTerm /> : 'sustained slowdown'}.
           </p>
           <DotGrid lit={lit} label={`${lit} of 100 finishes from ${range} ${where} had a sustained slowdown`} caption={<><strong>{lit} of 100</strong> finishes at your time</>} />
         </>

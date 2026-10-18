@@ -903,8 +903,6 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
               {stale.length ? (
                 <p className="tool-note predictor-stale"><strong>{stale.join(' and ')} {stale.length > 1 ? 'were' : 'was'} more than 6 months ago.</strong> A recent race predicts better.</p>
               ) : null}
-              {/* The median estimate, handed on as the whole minute at or below it, as every tool reads it (4:11:41 is 4:11). */}
-              {est.range ? <MarathonHandoffs label="With this estimate" seconds={Math.round(est.range.median)} /> : null}
 
               <section className="tool-panel predictor-methods" id="predictor-methods" aria-labelledby="predictor-methods-title">
                 <header className="tool-panel-head">
@@ -917,6 +915,9 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
               </section>
 
               <ObservedPanel indexSha={indexSha} est={est} looks={looks} look={look} setLook={setLook} units={units} />
+              {/* The median estimate, handed on as the whole minute at or below it, as every tool reads it (4:11:41 is 4:11),
+                  after the last section. The planner is the page's next card, so it is not a row here too. */}
+              {est.range ? <MarathonHandoffs label="With this estimate" seconds={Math.round(est.range.median)} plan={false} /> : null}
               <ShareBar />
             </>
           )}
@@ -943,12 +944,17 @@ function summaryText(est: Estimates): string {
 /* ------------------------------------------------------------------ */
 
 function Headline({ est, dist, units, example }: { est: Estimates; dist: Distance; units: UnitSystem; example: boolean }) {
-  const from = `from ${withArticle(`${fmtTime(est.fromS)} ${raceName(dist, units)}`)}`;
+  // The kicker stays on one line at a phone's width: "From a 1:55 half" (the marathon is the tool's own target), whole
+  // minutes without their ":00", the half by its short name.
+  const fromTime = fmtTime(est.fromS).replace(/^(\d+:\d\d):00$/, '$1');
+  const fromRace = dist.preset?.name === 'half marathon' ? 'half' : raceName(dist, units);
+  const from = `from ${withArticle(`${fromTime} ${fromRace}`)}`;
   const pace = (s: number) => fmtPace(s / est.target.km, units);
-  const name = est.target.key === 'marathon' ? 'Marathon' : est.target.label === 'Half' ? 'Half marathon' : est.target.label;
+  const name = est.target.key === 'marathon' ? '' : est.target.label === 'Half' ? 'Half marathon' : est.target.label;
+  const said = name ? `${name} ${from}` : from.replace(/^f/, 'F');
   const head = (figure: ReactNode, line: string) => (
     <div className="tool-reading-head">
-      <p className="tool-reading-kicker">{example ? 'Example · ' : ''}{name}, {from}</p>
+      <p className="tool-reading-kicker">{example ? 'Example · ' : ''}{said}</p>
       <h2 className="tool-reading-figure predictor-range">{figure}<small>{line}</small></h2>
     </div>
   );

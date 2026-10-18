@@ -22,7 +22,8 @@
 
 .split-check-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3) var(--s-2); margin: 0; padding: 0; border: 0; min-width: 0; }
 .split-check-cell { display: grid; gap: 4px; min-width: 0; }
-.split-check-cell label { display: flex; align-items: baseline; justify-content: space-between; gap: 4px; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+/* The miles sit right after their mat name, so "5K 3.1 mi" never runs into the next column's name. */
+.split-check-cell label { display: flex; align-items: baseline; justify-content: flex-start; gap: 6px; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); white-space: nowrap; }
 .split-check-cell label small { font-size: .75rem; font-weight: 400; color: var(--ink-3); }
 .tool-page .split-check-cell input { width: 100%; min-height: 48px; padding: 0 6px; border: 1px solid var(--rule-strong); border-radius: var(--r-sm); background: var(--paper-raised); color: var(--ink);
   box-shadow: none; text-align: center; font-family: var(--sans); font-size: 1rem; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0; }
@@ -30,7 +31,8 @@
 .tool-page .split-check-cell input::placeholder { color: var(--ink-3); font-weight: 400; opacity: 1; }
 .tool-page .split-check-cell input[aria-invalid='true'] { color: var(--signal-ink); box-shadow: inset 0 -2px 0 var(--signal); }
 .tool-page .split-check-cell.is-finish input { border-color: var(--ink); font-weight: 600; }
-.split-check-buttons { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.split-check-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+.split-check-buttons .split-check-privacy { flex: 1 1 12rem; margin: 0; }
 
 /* ---------- The night card: the verdict and every section ---------- */
 .split-check-bars { margin: 0; touch-action: pan-y; }
@@ -55,7 +57,6 @@
 .split-check-updating { margin: 0; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); }
 
 /* ---------- The opening among the six groups ---------- */
-.split-check-more a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }
 .split-check-bands { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
 .split-check-bands li { position: relative; display: grid; justify-items: center; align-content: start; gap: 6px; min-width: 0; margin: 0; padding: 10px 2px 0; text-align: center; }
 .split-check-bands li::before { content: ''; width: 12px; height: 12px; border-radius: 50%; background: var(--fill-quiet); box-shadow: inset 0 0 0 1px var(--mark-quiet); }

@@ -267,7 +267,9 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.doesNotMatch(handoffs(237), /<button|your chance|arithmetic/i, 'Links only (never counted as a tool edit), in the site\'s words'); ok();
   // Each tool hands on the whole minute at or below its time, the way every tool reads 4:11:41 as 4:11.
   const source = (name) => fs.readFileSync(path.join(__dirname, '..', 'components/tools', name), 'utf8');
-  assert.match(source('Predictor.tsx'), /\{est\.range \? <MarathonHandoffs label="With this estimate" seconds=\{Math\.round\(est\.range\.median\)\} \/> : null\}/); ok();
+  // The predictor's next card is the planner, so its rows leave the planner out (critic round 3, October 18, 2026).
+  assert.match(source('Predictor.tsx'), /\{est\.range \? <MarathonHandoffs label="With this estimate" seconds=\{Math\.round\(est\.range\.median\)\} plan=\{false\} \/> : null\}/); ok();
+  assert.deepEqual(hrefs(renderToStaticMarkup(React.createElement(MarathonHandoffs, { label: 'With this estimate', seconds: 237 * 60, plan: false }))), ['/tools/pace-band?goal=3:57', '/analyses/pacing-pattern?goal=237']); ok();
   assert.match(source('PaceCalculator.tsx'), /const shownSeconds = ready \? Math\.round\(seconds!\) : null;[\s\S]*<MarathonHandoffs label="With this marathon time" seconds=\{shownSeconds!\} \/>/); ok();
   assert.match(source('Handoffs.tsx'), /const minutes = Math\.floor\(seconds \/ 60\);/, 'The cards take the minute at or below the time'); ok();
 }

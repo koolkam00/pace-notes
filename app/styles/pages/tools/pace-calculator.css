@@ -4,7 +4,7 @@
    is prefixed pace-calculator- or pace-chart-. Imported by app/tools/pace-calculator/layout.tsx. */
 
 .tool-tabs { margin: 0 0 var(--s-5); }
-.tool-tabs > .tool-choice.seg { width: auto; }
+.tool-tabs > .tool-choice.seg { width: 100%; max-width: 24rem; }
 
 /* ---------- Inputs ---------- */
 .tool-inline { display: flex; align-items: center; gap: var(--s-2); }

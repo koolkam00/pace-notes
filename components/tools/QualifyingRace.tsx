@@ -69,7 +69,8 @@ export default function QualifyingRace({ s, others }: { s: Standard; others: Sta
   return (
     <div className="tool-page qrace">
       <ToolPageHeader path={racePath(s)} title={pageHeading(s)}
-        dek={<>{what} for the {year} {name}, by {birthYear ? 'birth year' : 'age group'} for {divisionWords(s)}.</>}
+        // The H1 names the race, its year and its standards, so the dek adds only how the table is set out.
+        dek={<>By {birthYear ? 'birth year' : 'age group'}, for {divisionWords(s).replace('non-binary', 'non\u2011binary')}.</>}
         trail={[['Reference'], ['Qualifying checker', '/tools/qualifying'], [`${name} ${year}`]]}>
         <p className="qrace-provenance">
           <EvidenceTag kind="official" />
@@ -89,7 +90,7 @@ export default function QualifyingRace({ s, others }: { s: Standard; others: Sta
         <p className="qrace-cta no-print"><Link className="btn btn-primary" href={checkerHref(s)}>Check a time for {shortName(s)}</Link></p>
 
         <section className="qrace-section" id="standards" aria-labelledby="qrace-standards-title">
-          <h2 className="tool-panel-title" id="qrace-standards-title">{name} {year} {program(s) ? `${program(s)} ` : ''}standards</h2>
+          <h2 className="tool-panel-title" id="qrace-standards-title">{what}</h2>
           <p className="tool-panel-meta">By {birthYear ? `birth year (the age reached in ${s.ageYear})` : age.value.toLowerCase()}, each time with its even pace over <MarathonDistance />.</p>
           <div className="tool-table-wrap table-wrap qrace-table-wrap" role="region" tabIndex={0} aria-labelledby="qrace-standards-title">
             <table className="tool-table qrace-table" data-race={s.key}>
@@ -198,6 +199,7 @@ function BostonCutoffs() {
   const lowestYears = rows.filter((c) => c.cutoff === lowest.cutoff).map((c) => c.year);
   const list = (xs: (string | number)[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
   const latest = rows[rows.length - 1];
+  const years = Array.from({ length: last - first + 1 }, (_, i) => last - i);
   return (
     <section className="qrace-section qrace-cutoffs" id="cutoffs" aria-labelledby="qrace-cutoffs-title">
       <EvidenceTag kind="official" />
@@ -206,20 +208,25 @@ function BostonCutoffs() {
       </p>
       <YearStrip label={`Boston cut-offs from ${first} to ${last}: how far under their standard accepted qualifiers had to be, from ${fmtMargin(lowest.cutoff)} to ${fmtMargin(highest.cutoff)}.`}
         editions={rows.map((c) => ({ year: c.year, value: c.cutoff, display: fmtMargin(c.cutoff), side: [grouped(c.notAccepted)] }))}
-        sideLabels={['Not accepted']} selected={latest.year} extremeLabel={(p) => `${p.year} · ${p.display}`}
+        sideLabels={['Not accepted']} selected={latest.year} extremeLabel={(p) => `${p.year} · ${p.display}`} gapLabel="No cut-off on record"
         values={(
-          <Values id="qrace-cutoff-values" caption="Cut-off: how far under their standard accepted qualifiers had to be, with the field and the qualifiers not accepted, as announced by the B.A.A." count={rows.length}>
+          <Values id="qrace-cutoff-values" caption="Cut-off: how far under their standard accepted qualifiers had to be, with the field and the qualifiers not accepted, as announced by the B.A.A." count={years.length}>
             <table className="table">
               <thead><tr><th scope="col">Race year</th><th scope="col">Cut-off</th><th scope="col">Field</th><th scope="col">Not accepted</th></tr></thead>
               <tbody>
-                {[...rows].reverse().map((c) => (
-                  <tr key={c.year}>
-                    <th scope="row">{c.year}{c.note ? <small> {c.note}</small> : null}</th>
-                    <td>{fmtMargin(c.cutoff)}</td>
-                    <td>{grouped(c.field)}</td>
-                    <td>{grouped(c.notAccepted)}</td>
-                  </tr>
-                ))}
+                {/* Every year from the first to the last; a year the race was held without a published cut-off says so, as
+                    the strip's key does. */}
+                {years.map((year) => {
+                  const c = rows.find((r) => r.year === year);
+                  return c ? (
+                    <tr key={year}>
+                      <th scope="row">{c.year}{c.note ? <small> {c.note}</small> : null}</th>
+                      <td>{fmtMargin(c.cutoff)}</td>
+                      <td>{grouped(c.field)}</td>
+                      <td>{grouped(c.notAccepted)}</td>
+                    </tr>
+                  ) : <tr key={year}><th scope="row">{year}</th><td colSpan={3}>No cut-off on record</td></tr>;
+                })}
               </tbody>
             </table>
           </Values>

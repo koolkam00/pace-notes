@@ -195,7 +195,6 @@ export default function PaceCalculator() {
                     <div><dt>Treadmill speed</dt><dd>{speedText}<small>{units === 'mi' ? `${kmh(paceKm!).toFixed(1)} km/h` : `${mph(paceKm!).toFixed(1)} mph`}</small></dd></div>
                   </dl>
                 </section>
-                {goalMinutes !== null ? <MarathonHandoffs label="With this marathon time" seconds={shownSeconds!} /> : null}
 
                 <section className="tool-panel pace-calculator-splits" aria-labelledby="pace-calculator-splits-title">
                   <header className="tool-panel-head">
@@ -208,16 +207,16 @@ export default function PaceCalculator() {
                   {intervalOptions.length < INTERVALS.length ? <p className="tool-note no-print">Shorter splits are not offered for {fmtDistance(km!, units)}: they would need more than {MAX_ROWS} rows.</p> : null}
                   <ol className="tool-laps pace-calculator-laps" aria-label={`Elapsed time at each split${diff ? '' : ' at an even pace'}`}>
                     {rows.map((r, i) => {
-                      // A cell's second line only says what differs from the split before it: a shorter last split (to
-                      // halfway or the finish) or a changed pace. At an even pace most cells have none.
-                      const len = r.km - (rows[i - 1]?.km ?? 0), lap = rows[0] ? rows[0].km : len;
-                      const split = Math.abs(len - lap) > 1e-6 ? formatDuration(r.split) : null;
+                      // A cell's second line appears only when its pace differs from the average (a faster or slower
+                      // second half), labelled as a pace. At an even pace no cell has one: a short lap's time to halfway
+                      // or the finish read as a stray number.
+                      const len = r.km - (rows[i - 1]?.km ?? 0);
                       const pace = Math.abs(r.split / len - paceKm!) > 0.5 / (units === 'mi' ? KM_PER_MILE : 1) ? fmtPace(r.split / len, units) : null;
                       return (
                         <li key={r.km} className={r.finish ? 'is-finish' : undefined}>
                           <span>{r.finish ? 'Finish' : r.halfway ? 'Halfway' : r.mat ? `${r.km}K` : fmtDistance(r.km, units)}{units === 'mi' && (r.mat || ((r.halfway || r.finish) && rows.some((x) => x.mat))) ? <small>{(r.km / KM_PER_MILE).toFixed(1)} mi</small> : null}</span>
                           <b>{formatDuration(r.elapsed, r.elapsed >= 3599.5)}</b>
-                          {split || pace ? <small className="pace-calculator-split">{[split, pace].filter(Boolean).join(' · ')}</small> : null}
+                          {pace ? <small className="pace-calculator-split">{pace}</small> : null}
                         </li>
                       );
                     })}
@@ -261,6 +260,8 @@ export default function PaceCalculator() {
                     <p className="tool-note">Not a predicted race time: for a marathon estimate from a shorter race, use the <Link href="/tools/predictor">finish-time predictor</Link>.</p>
                   </section>
                 ) : <p className="tool-note pace-calculator-predictor">For a marathon estimate from a shorter race, use the <Link href="/tools/predictor">finish-time predictor</Link>.</p>}
+                {/* Where a marathon time goes next, after the last section, never between the answer and its splits. */}
+                {goalMinutes !== null ? <MarathonHandoffs label="With this marathon time" seconds={shownSeconds!} /> : null}
                 <ShareBar />
               </>
             ) : <p className="tool-empty">{solvedOutOfRange ? solvedMessage(km!, units) : 'Enter two of distance, time and pace to see splits.'}</p>}

@@ -292,7 +292,7 @@ export default function PaceBand({ indexSha, profiles, projectorScopes, unpublis
               <section className={`tool-reading night pace-band-headline${held ? ' pace-band-held-dim' : ''}`} aria-busy={busy || undefined} aria-labelledby="pace-band-title">
                 <div className="tool-reading-head">
                   {/* The new information is the pace: the goal the visitor typed is the kicker. */}
-                  <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}Your band for {fmtGoal(goal)} · {place}</p>
+                  <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}{fmtGoal(goal)} · {place}</p>
                   <h2 className="tool-reading-figure" id="pace-band-title">
                     {formatDuration(perUnit(pKm, units))}
                     <small>per {units === 'mi' ? 'mile' : 'km'} · {formatDuration(perUnit(pKm, units === 'mi' ? 'km' : 'mi'))}/{units === 'mi' ? 'km' : 'mi'}</small>

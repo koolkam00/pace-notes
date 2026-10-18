@@ -249,13 +249,14 @@ export default function CourseChooser({ sha, screened }: {
               <section className="tool-reading night course-chooser-headline" aria-labelledby="course-chooser-title">
                 <div className="tool-reading-head">
                   <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}Goal {goalText} · {published.length} courses</p>
-                  <EvidenceTag kind="data" />
                 </div>
                 <h2 className="tool-reading-figure course-chooser-title" id="course-chooser-title">
                   {range2(published.map((p) => p.row.under))}
-                  <small>made {goalText}, of finishes on {goalText} pace through 20K, course by course</small>
+                  <small>of finishes on {goalText} pace at 20K made {goalText}, course by course</small>
                 </h2>
                 <ShareStrip items={published} goalText={goalText} />
+                {/* The badge at the card's foot, as on every other tool card. */}
+                <EvidenceTag kind="data" />
               </section>
             ) : data ? <p className="tool-empty">No course has a published row at {goalText}.</p> : null}
           </DataState>

@@ -46,6 +46,8 @@ const CASES = {
   'split-check': { path: '/tools/split-check', async drive(page, v, log) {
     // Typed with a keypad's dots (0.23.11): each box turns them into colons as they are typed (S1 checks the box).
     for (let i = 0; i < 9; i++) await step(log, 't' + i, () => type(page, `input[id$="-t${i}"]`, v.splits[i].replace(/:/g, '.')));
+    // The comparison's course and gender wait in one disclosure under the times.
+    await step(log, 'compare options', () => open(page, 'details.split-check-compare-options'));
     await step(log, 'gender', () => page.locator('.ph-no-capture[role=group] button').nth(v.genderIdx).click());
   } },
   'split-check-paste': { path: '/tools/split-check', async drive(page, v, log) {
@@ -75,6 +77,8 @@ const CASES = {
   } },
   'weather-match': { path: '/tools/weather-match', async drive(page, v, log) {
     await step(log, 'temp', () => type(page, '#weather-match-temp', v.temp));
+    // The dew point waits in the disclosure with the race (it feeds the published-research estimates only).
+    await step(log, 'more', () => open(page, 'details.weather-match-more'));
     await step(log, 'dew', () => type(page, '#weather-match-hum', v.dew));
     await step(log, 'goal', () => type(page, label(page, 'Marathon goal time'), v.marathon));
   } },

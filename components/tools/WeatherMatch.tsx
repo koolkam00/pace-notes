@@ -29,9 +29,6 @@ const REF = WEATHER_REFERENCE;
 const DEFAULTS = WEATHER_EXAMPLE;
 /** Fallbacks if the data file is unavailable; the loaded file's own values win. */
 const PACE_FALLBACK = { lo: 180, hi: 675, step: 15 };
-/** Temperatures the slider covers, in °C (the published windows run from about −2 to 28 °C). */
-const SLIDER_C: [number, number] = [-2, 30];
-const SLIDER_F: [number, number] = [28, 86];
 
 type TUnit = 'f' | 'c';
 type Tone = 'warm' | 'cool';
@@ -333,10 +330,13 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
   const winText = centre !== null ? tWindow(centre - hw, centre + hw, tUnit) : '';
   const refText = tWindow(REF.c - REF.hw, REF.c + REF.hw, tUnit);
   const bandLabel = band !== null ? bandText(band, step, units) : '';
-  const yourTemp = tempOk ? tAbs(tempC!, tUnit, 1) : '';
+  // In prose a temperature is whole °F (or °C to one decimal), never 64.4°F.
+  const yourTemp = tempOk ? tAbs(tempC!, tUnit) : '';
   const refTone = centre === null ? 'Reference' : centre - hw > REF.c + REF.hw ? 'Cooler mornings' : centre + hw < REF.c - REF.hw ? 'Warmer mornings' : 'Reference window';
   const widenLabel = hw === 2 ? `Widen to ±${tSpan(3, tUnit)}` : `Back to ±${tSpan(2, tUnit)}`;
   const toggleWiden = () => setQ({ w: hw === 2 ? '3' : '2' });
+  // The nearest published window's centre (whole °C), typed back in the field's unit: whole °F rounds to the same centre.
+  const toNearest = (c: number) => { unitMemo.current = null; setQ({ temp: tUnit === 'f' ? String(Math.round(c * 1.8 + 32)) : String(c), tu: tUnit }); };
   const yourPace = paceKm !== null ? paceText(paceKm, units, bandSpan) : '';
 
   /* ----- One short, settled status line for screen readers (the result sections are not live regions) ----- */
@@ -354,8 +354,10 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
 
   const tempHintId = useId();
   const dewHintId = useId();
-  const sliderRange = tUnit === 'f' ? SLIDER_F : SLIDER_C;
-  const sliderValue = tempIn === null ? DEFAULTS.temp[tUnit] : Math.min(sliderRange[1], Math.max(sliderRange[0], tempIn));
+  // The disclosure opens on arrival when a link or an earlier visit put a value in it.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreHas = (q.dew !== '' && q.dew !== 'none') || q.hum === 'rh' || q.course !== '';
+  useEffect(() => { if (ready && moreHas) setMoreOpen(true); }, [ready, moreHas]);
   const exampleGoal = by === 'goal' && q.goal === DEFAULT_GOAL && !fromUrl.has('goal') && !goalEdited;
   // The shared example marker: shown only while the forecast and goal are the untouched examples (a linked course does not change the match).
   const isExample = ready && exampleTemp && exampleDew && exampleGoal;
@@ -395,40 +397,12 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
               </div>
               <button type="button" aria-label="One degree warmer" onClick={() => nudgeTemp(1)}>+</button>
             </div>
-            <input type="range" className="weather-match-slider" min={sliderRange[0]} max={sliderRange[1]} step={tUnit === 'f' ? 1 : 0.5} value={sliderValue}
-              aria-label={`Start temperature, ${unitSign(tUnit)}`} aria-valuetext={`${num(sliderValue, 1)} ${unitSign(tUnit)}`}
-              onChange={(e) => { unitMemo.current = null; setQ({ temp: e.target.value, tu: tUnit }); }} />
             <p className={`tool-field-hint${tempBad ? ' is-error' : ''}`} id={tempHintId}>
               {tempField === '' || partial(tempField) ? 'Type the forecast temperature for your start time.'
                 : tempIn === null ? `Type a number in ${unitSign(tUnit)}, such as ${DEFAULTS.temp[tUnit]}.`
                   : !tempOk ? `Try a temperature between ${tAbs(-30, tUnit, 0)} and ${tAbs(50, tUnit, 0)}.`
                     : exampleTemp ? 'An example. Type the forecast for your start time.'
                       : 'The forecast for your start time.'}
-            </p>
-          </div>
-
-          <div className="tool-field">
-            <div className="weather-match-label-row">
-              <label htmlFor="weather-match-hum">{hum === 'rh' ? 'Relative humidity' : 'Dew point'} <span className="weather-match-optional">optional</span></label>
-              <Choice label="Humidity measure" small value={hum} onChange={switchHum} options={[{ value: 'dew', label: 'Dew point' }, { value: 'rh', label: 'Humidity' }]} />
-            </div>
-            <div className="weather-match-num">
-              {hum === 'dew' ? (
-                <input id="weather-match-hum" inputMode="decimal" autoComplete="off" spellCheck={false} value={dewField} placeholder={`e.g. ${DEFAULTS.dew[tUnit]}`}
-                  aria-invalid={dewBad || undefined} aria-describedby={dewHintId}
-                  onChange={(e) => { unitMemo.current = null; setQ({ dew: e.target.value.trim() === '' ? 'none' : e.target.value, tu: tUnit }); }} />
-              ) : (
-                <input id="weather-match-hum" inputMode="decimal" autoComplete="off" spellCheck={false} value={q.rh} placeholder="e.g. 70"
-                  aria-invalid={(q.rh !== '' && !rhOk) || undefined} aria-describedby={dewHintId} onChange={(e) => setQ({ rh: e.target.value.trim() })} />
-              )}
-              <span aria-hidden="true">{hum === 'rh' ? '%' : unitSign(tUnit)}</span>
-            </div>
-            <p className={`tool-field-hint${dewBad || (hum === 'rh' && q.rh !== '' && !rhOk) ? ' is-error' : ''}`} id={dewHintId}>
-              {dewAbove ? 'A dew point cannot be above the air temperature.'
-                : dewBad ? `Type a number in ${unitSign(tUnit)}, such as ${DEFAULTS.dew[tUnit]}.`
-                  : hum === 'rh' && q.rh !== '' && !rhOk ? 'Try a humidity between 1 and 100%.'
-                    : hum === 'rh' && dewOk ? `Dew point ${tAbs(dewC!, tUnit)}. Used for the published-research estimates only.`
-                      : 'Used for the published-research estimates only.'}
             </p>
           </div>
 
@@ -449,16 +423,48 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
               hint={paceKm !== null ? <>Held for the whole race: {formatDuration(Math.round(paceKm * MARATHON_KM), true)}.</> : `Type a pace such as ${units === 'mi' ? '9:09' : '5:41'}.`} />
           )}
 
-          <div className="tool-field">
-            <label htmlFor="weather-match-course">Your race <span className="weather-match-optional">optional</span></label>
-            <select id="weather-match-course" value={data ? q.course : ''} onChange={(e) => setQ({ course: e.target.value })} disabled={!data}>
-              <option value="">{data ? 'None' : error ? 'Not available' : 'Loading courses…'}</option>
-              {courses.map((c) => <option key={c.slug} value={c.slug}>{c.city}</option>)}
-            </select>
-            <p className="tool-field-hint">
-              {data && q.course && !course ? 'That course is not in this tool. ' : null}Shows its past race mornings. It does not change the match.
-            </p>
-          </div>
+          {/* The two optional inputs wait in one disclosure: the dew point feeds the published-research estimates only, and
+              a race shows its past mornings; neither changes the match, so the answer comes right after the forecast and pace. */}
+          <details className="tool-more weather-match-more" open={moreOpen} onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
+            <summary>Dew point and your race</summary>
+            <div className="tool-more-body">
+              <div className="tool-field">
+                <div className="weather-match-label-row">
+                  <label htmlFor="weather-match-hum">{hum === 'rh' ? 'Relative humidity' : 'Dew point'} <span className="weather-match-optional">optional</span></label>
+                  <Choice label="Humidity measure" small value={hum} onChange={switchHum} options={[{ value: 'dew', label: 'Dew point' }, { value: 'rh', label: 'Humidity' }]} />
+                </div>
+                <div className="weather-match-num">
+                  {hum === 'dew' ? (
+                    <input id="weather-match-hum" inputMode="decimal" autoComplete="off" spellCheck={false} value={dewField} placeholder={`e.g. ${DEFAULTS.dew[tUnit]}`}
+                      aria-invalid={dewBad || undefined} aria-describedby={dewHintId}
+                      onChange={(e) => { unitMemo.current = null; setQ({ dew: e.target.value.trim() === '' ? 'none' : e.target.value, tu: tUnit }); }} />
+                  ) : (
+                    <input id="weather-match-hum" inputMode="decimal" autoComplete="off" spellCheck={false} value={q.rh} placeholder="e.g. 70"
+                      aria-invalid={(q.rh !== '' && !rhOk) || undefined} aria-describedby={dewHintId} onChange={(e) => setQ({ rh: e.target.value.trim() })} />
+                  )}
+                  <span aria-hidden="true">{hum === 'rh' ? '%' : unitSign(tUnit)}</span>
+                </div>
+                <p className={`tool-field-hint${dewBad || (hum === 'rh' && q.rh !== '' && !rhOk) ? ' is-error' : ''}`} id={dewHintId}>
+                  {dewAbove ? 'A dew point cannot be above the air temperature.'
+                    : dewBad ? `Type a number in ${unitSign(tUnit)}, such as ${DEFAULTS.dew[tUnit]}.`
+                      : hum === 'rh' && q.rh !== '' && !rhOk ? 'Try a humidity between 1 and 100%.'
+                        : hum === 'rh' && dewOk ? `Dew point ${tAbs(dewC!, tUnit)}. Used for the published-research estimates only.`
+                          : 'Used for the published-research estimates only.'}
+                </p>
+              </div>
+
+              <div className="tool-field">
+                <label htmlFor="weather-match-course">Your race <span className="weather-match-optional">optional</span></label>
+                <select id="weather-match-course" value={data ? q.course : ''} onChange={(e) => setQ({ course: e.target.value })} disabled={!data}>
+                  <option value="">{data ? 'None' : error ? 'Not available' : 'Loading courses…'}</option>
+                  {courses.map((c) => <option key={c.slug} value={c.slug}>{c.city}</option>)}
+                </select>
+                <p className="tool-field-hint">
+                  {data && q.course && !course ? 'That course is not in this tool. ' : null}Shows its past race mornings. It does not change the match.
+                </p>
+              </div>
+            </div>
+          </details>
         </form>
 
         <div className="tool-results">
@@ -473,7 +479,7 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
           ) : match ? (
             <>
               <ResultCard match={match} units={units} tUnit={tUnit} hw={hw} centre={centre} winText={winText} refText={refText} refTone={refTone}
-                bandLabel={bandLabel} yourTemp={yourTemp} yourPace={yourPace} widenLabel={widenLabel} onWiden={toggleWiden} isExample={isExample}
+                bandLabel={bandLabel} yourTemp={yourTemp} yourPace={yourPace} widenLabel={widenLabel} onWiden={toggleWiden} onNearest={toNearest} isExample={isExample}
                 warmCount={warmCount} coldCount={coldCount} total={data.editions.length} paceLo={paceLo} paceHi={paceHi} step={step} badTemp={tempBad} />
 
               {match.kind === 'ok' ? (
@@ -532,10 +538,10 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
 /* tree, so the widen button keeps focus when the state changes)       */
 /* ------------------------------------------------------------------ */
 
-function ResultCard({ match, units, tUnit, hw, centre, winText, refText, refTone, bandLabel, yourTemp, yourPace, widenLabel, onWiden, isExample,
+function ResultCard({ match, units, tUnit, hw, centre, winText, refText, refTone, bandLabel, yourTemp, yourPace, widenLabel, onWiden, onNearest, isExample,
   warmCount, coldCount, total, paceLo, paceHi, step, badTemp }: {
   match: Match; units: UnitSystem; tUnit: TUnit; hw: number; centre: number | null; winText: string; refText: string; refTone: string;
-  bandLabel: string; yourTemp: string; yourPace: string; widenLabel: string; onWiden: () => void; isExample: boolean;
+  bandLabel: string; yourTemp: string; yourPace: string; widenLabel: string; onWiden: () => void; onNearest: (c: number) => void; isExample: boolean;
   warmCount: number; coldCount: number; total: number; paceLo: number; paceHi: number; step: number; badTemp: boolean;
 }) {
   const titleId = useId();
@@ -543,7 +549,9 @@ function ResultCard({ match, units, tUnit, hw, centre, winText, refText, refTone
   let figure: ReactNode;
   let body: ReactNode = null;
   let widenNote: string | null = null;
-  const showWiden = match.kind === 'ok' || match.kind === 'no-row';
+  // Widening is offered only where it finds something (or to narrow back); otherwise the nearest published window is.
+  const showWiden = match.kind === 'ok' || (match.kind === 'no-row' && (hw === 3 || match.widenHelps));
+  const nearest = match.kind === 'no-row' && !showWiden && match.nearest !== null ? match.nearest : null;
   const inBand = <span className="weather-match-nowrap">{bandLabel}</span>;
 
   if (match.kind === 'ok') {
@@ -551,10 +559,12 @@ function ResultCard({ match, units, tUnit, hw, centre, winText, refText, refTone
     const same = ref !== null && centre === REF.c && hw === REF.hw;
     const cols = ref && !same ? [{ key: 'yours', name: 'Yours', sub: winText, r: row }, { key: 'ref', name: refTone, sub: refText, r: ref }] : [{ key: 'yours', name: 'Yours', sub: winText, r: row }];
     kicker = `${isExample ? 'Example · ' : ''}Mornings like ${yourTemp}`;
+    // The figure is the one share; the reference's share is said beside it, so the table below carries only what the
+    // sentence does not (median finish and races) and the term is linked once.
     figure = (
       <>
-        <span className="is-signal">{pctShare(row.sd)}</span>
-        <small>of {count(row.n)} finishes at {inBand} had a <SlowdownTerm /> on mornings of {winText}.</small>
+        <span>{pctShare(row.sd)}</span>
+        <small>of {count(row.n)} finishes at {inBand} had a <SlowdownTerm /> on mornings of {winText}{ref && !same ? <>; {pctShare(ref.sd)} on {refTone.toLowerCase()}, {refText}</> : null}.</small>
       </>
     );
     body = (
@@ -564,7 +574,6 @@ function ResultCard({ match, units, tUnit, hw, centre, winText, refText, refTone
           <tr><th scope="col"><span className="sr-only">Measure</span></th>{cols.map((c) => <th key={c.key} scope="col" className={`is-${c.key}`}>{c.name}<small>{c.sub}</small></th>)}</tr>
         </thead>
         <tbody>
-          <tr><th scope="row"><SlowdownTerm>Sustained slowdown</SlowdownTerm></th>{cols.map((c) => <td key={c.key} className={`is-${c.key}`}>{pctShare(c.r.sd)}</td>)}</tr>
           <tr><th scope="row">Median finish</th>{cols.map((c) => <td key={c.key} className={`is-${c.key}`}>{formatHM(c.r.fin[1])}</td>)}</tr>
           <tr><th scope="row">Races</th>{cols.map((c) => <td key={c.key} className={`is-${c.key}`}>{count(c.r.ed.length)}</td>)}</tr>
         </tbody>
@@ -587,12 +596,12 @@ function ResultCard({ match, units, tUnit, hw, centre, winText, refText, refTone
         {n < 3
           ? <>{n === 0 ? 'No race' : `Only ${plural(n, 'race')}`} started at {winText}. </>
           : <>{count(n)} races started at {winText}, but too few of their finishes ran a 5–20K pace of {inBand}. </>}
-        {match.nearest !== null ? <>At your pace, the nearest published window is centred on {tAbs(match.nearest, tUnit, tUnit === 'f' ? 1 : 0)}. </> : null}
+        {match.nearest !== null ? <>At your pace, the nearest published window is centred on {tAbs(match.nearest, tUnit, 0)}. </> : null}
         {centre !== null && centre >= 15 ? <>Warm race mornings are rare: {count(warmCount)} of {count(total)} races here started at {tAbs(20, tUnit, 0)} or warmer.</> : null}
         {centre !== null && centre <= 5 ? <>Cold race mornings are rare too: {count(coldCount)} of {count(total)} races here started at {tAbs(3, tUnit, 0)} or colder.</> : null}
       </p>
     );
-    if (hw === 2) widenNote = match.widenHelps ? `A ±${tSpan(3, tUnit)} window has a published row at your pace.` : `A ±${tSpan(3, tUnit)} window has none either.`;
+    if (hw === 2 && match.widenHelps) widenNote = `A ±${tSpan(3, tUnit)} window has a published row at your pace.`;
   }
 
   return (
@@ -606,6 +615,10 @@ function ResultCard({ match, units, tUnit, hw, centre, winText, refText, refTone
         <div className="weather-match-actions">
           <button type="button" className="btn btn-secondary is-compact weather-match-widen" aria-pressed={hw === 3} onClick={onWiden}>{widenLabel}</button>
           {widenNote ? <span>{widenNote}</span> : null}
+        </div>
+      ) : nearest !== null ? (
+        <div className="weather-match-actions">
+          <button type="button" className="btn btn-secondary is-compact weather-match-widen" onClick={() => onNearest(nearest)}>Show mornings near {tAbs(nearest, tUnit, 0)}</button>
         </div>
       ) : null}
       {match.kind === 'ok' || match.kind === 'no-row' ? <EvidenceTag kind="data" /> : null}
