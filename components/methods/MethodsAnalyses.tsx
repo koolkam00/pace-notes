@@ -1,4 +1,4 @@
-import { UnitLink as Link } from '@/components/UnitsProvider';
+import { UnitLink as Link, UnitText } from '@/components/UnitsProvider';
 import { getAllFinisherContextStart } from '@/lib/all-finisher-context-server';
 import { getFinishTimeSummary, clockMinute } from '@/lib/finish-times-summary';
 import { readInsight } from '@/lib/insights-server';
@@ -57,7 +57,7 @@ export default function MethodsAnalyses() {
       <p>Checkpoint comparisons use current elapsed progress instead of a previous marathon time. They match a two-minute elapsed-time interval and, when entered, the most recent 5 km pace against the elapsed average pace. They need at least 100 complete finishes in the elapsed-time band, even after broadening age, gender and recent pace trend. The entered time sets the required remaining pace exactly, while historical outcomes describe the whole matching interval. These proportions have not been calibrated as personal forecasts.</p>
       {PERSONAL_QUESTIONS.map((question) => {
         const primary = question.id === 'opening' ? undefined : TEN_ANALYSES.find((item) => item.id === question.id);
-        return <details className="methodology" key={question.id}><summary>{question.title}</summary><div className="methodology-content"><p>{question.method}</p><Link href={primary ? analysisHref(primary) + (['courses', 'weather'].includes(question.id) ? '?comparison=history' : '') : `/research/personalized#guide-${question.id}`}>Open this personalized question</Link></div></details>;
+        return <Detail key={question.id} title={question.title}><p>{question.method}</p><p className="methods-links"><Link href={primary ? analysisHref(primary) + (['courses', 'weather'].includes(question.id) ? '?comparison=history' : '') : `/research/personalized#guide-${question.id}`}>Open this personalized question</Link></p></Detail>;
       })}
       <Detail id="guide-answers" title="Reading each answer in the personalized guide">
         <p>Pace-profile answers describe achieved finishes in the displayed band. The visitor’s time is a comparison threshold, and historical intentions are unknown.</p>
@@ -85,12 +85,12 @@ export default function MethodsAnalyses() {
       <p>In the earlier-best comparison, finish outcomes show actual time differences from the earlier finish. Mean differences in the opening 10 km and the remaining distance add up to the mean whole-race difference. Section curves in each mode show median pace changes against that mode’s reference. Medians for separate sections need not add up to a finish median.</p>
       <p>Sustained-slowdown rates use every finish in the selected opening group, with the <a href="#sustained-slowdown">published definition</a>. Onset shares use only finishes with a sustained slowdown and need at least 100 of them. They locate the first qualifying recorded section beginning at 20, 25, 30 or 35 km, not the exact moment or physiological cause.</p>
       <p>These are pooled observations from complete eligible finishes. The groups are not matched across race editions or adjusted for weather, terrain or changing fitness. A faster opening can go with more late slowing and, in the history comparison, still a faster finish than an earlier best. Neither mode establishes a time penalty, a best strategy, physiological failure or the likelihood of not finishing.</p>
-      <p><Link href="/analyses/starting-pace">Open the fast-start analysis</Link> · <a href={dataHref('fast-start/all-finishers.json')}>All-finisher data</a> · <a href={dataHref('fast-start/evidence.json')}>Earlier-result data</a></p>
+      <p className="methods-links"><Link href="/analyses/starting-pace">Open the fast-start analysis</Link><a href={dataHref('fast-start/all-finishers.json')}>All-finisher data</a><a href={dataHref('fast-start/evidence.json')}>Earlier-result data</a></p>
     </Topic>
 
     <Topic id="all-finisher-context" title="All-finisher views: courses, race-day weather and downhill starts">
       <p>The all-finisher views (course comparison, race-day weather, downhill starts and the archive views built on them) start from every eligible finish: {n(allFinisher.analysis_n)} in the current release. No earlier race or identity link is needed, and the same person can contribute several races. Weather groups also need a validated start-hour temperature, and terrain groups a supplied opening elevation profile. A finish missing weather or terrain still counts in the other pacing comparisons. Missing ages and recorded genders stay in All. Incomplete and held source editions are left out but stay searchable in Find a runner.</p>
-      <p>Each eligible finish supplies its own 5–20 km pace reference. The views compare late pace (30 km to the finish), the time after 20 km, nine section paces and sustained slowdown. No identity link, earlier result, target or eventual-finish filter is used. Optional early-pace groups use observed 5–20 km pace below 4:30/km, 4:30 to below 5:30/km, 5:30 to below 6:30/km, and 6:30/km or slower. This is pace run on the day, not measured fitness.</p>
+      <p><UnitText>{'Each eligible finish supplies its own 5–20K pace reference. The views compare late pace (30K to the finish), the time after 20K, nine section paces and sustained slowdown. No identity link, earlier result, target or eventual-finish filter is used. Optional early-pace groups use observed 5–20K pace: below 4:30/km, from 4:30/km to below 5:30/km, from 5:30/km to below 6:30/km, and 6:30/km or slower. This is pace run on the day, not measured fitness.'}</UnitText></p>
       <p>Course, temperature and terrain groups need at least {allFinisher.min_edition} selected finishes per edition, {allFinisher.min_editions} editions and {allFinisher.min_cell} finishes in total. Every retained edition has equal weight in slowdown rates and in averages of edition medians. The middle 80% of edition medians describes differences between editions, not a confidence interval or any runner’s range. Pacing consistency takes the middle-80% spread of late pace change within each edition, then averages those spreads. These describe different race fields. They do not rank course difficulty or estimate a heat penalty.</p>
       <p>The <a href="#baselines">time after 20 km</a> averages edition medians. The finish counts in the exact-values tables are pooled finishes; they are not the denominator of the edition-weighted slowdown rate.</p>
       <p>Temperature groups use validated modelled start-hour temperature: below 5 °C, 5 to below 10 °C, 10 to below 15 °C, 15 to below 20 °C, and 20 °C or warmer. Missing conditions stay missing. Course, exact-age, recorded-gender and early-pace filters select exact cohorts; sparse groups are never quietly broadened. Early pace can itself respond to weather, so stratifying by it does not isolate weather’s effect.</p>
@@ -98,7 +98,7 @@ export default function MethodsAnalyses() {
       <p>Onset distributions pool only finishes with a sustained slowdown and need at least 100 of them; their weighting differs from the edition-average slowdown rate. Actual pooled finish-time medians give field context.</p>
       <p>The race-day browser shows one edition at a time, with at least 100 matching finishes. It describes the eligible finishes in that edition, not official standings or every starter, and one edition does not meet the three-edition requirement for a broader comparison. Its start-hour temperature is modelled, and its opening elevation change is the supplied net change over the first 5 km. To compare one runner with peers from the same edition, use <Link href="/runners">Find a runner</Link>.</p>
       <p>The slow-start and pacing-variability archive views reuse the all-finisher opening calculation. Weather profiles, course consistency, course profiles and same-edition pacing use the context calculation above. Earlier-best outcome panels keep their original cohorts and methods.</p>
-      <p><Link href="/analyses/race-day-weather">Weather</Link> · <Link href="/analyses/course-comparison">Courses</Link> · <Link href="/analyses/downhill-start">Downhill starts</Link> · <a href={dataHref('all-finisher-context/evidence.json')}>Calculation data and methods</a></p>
+      <p className="methods-links"><Link href="/analyses/race-day-weather">Weather</Link><Link href="/analyses/course-comparison">Courses</Link><Link href="/analyses/downhill-start">Downhill starts</Link><a href={dataHref('all-finisher-context/evidence.json')}>Calculation data and methods</a></p>
     </Topic>
 
     <Topic id="finish-times" title="Finish times">
@@ -117,37 +117,31 @@ export default function MethodsAnalyses() {
       <Detail title="How the weather screen was calculated">
         {weather.methodology.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
       </Detail>
-      <p><a href={dataHref('weather/evidence.json')}>Download all three screening results and edition values</a> · <a href="https://open-meteo.com/en/docs/historical-weather-api">Weather source definitions</a></p>
+      <p className="methods-links"><a href={dataHref('weather/evidence.json')}>All three screening results and edition values</a><a href="https://open-meteo.com/en/docs/historical-weather-api">Weather source definitions</a></p>
     </Topic>
 
     <Topic id="question-methods" title="Research questions">
       <p>The research archive’s {QUESTIONS.length} questions are organized around race strategy, courses and conditions, goals and finishing, runner differences, and learning over time. The original question lists are included, with six additions about successful strategies, personal-best gains, crowding, consistency and course adaptation. {calculated.length} of the {QUESTIONS.length} questions have results recalculated from the public export.</p>
       <p>Some answers are partial: a course comparison cannot isolate a course’s effect, and a route proxy cannot establish the hills used in an old edition. Group running and crowding need start and checkpoint clock times that this export does not have.</p>
       <p>Questions about improvement, repeat races, course familiarity and learning compare linked races, so they need a recorded race history. With one race, you can still explore opening pace and late slowing, or a race’s conditions and same-edition peers; those cannot show personal improvement or learning. Weather, course patterns, slow starts and opening consistency also include finishes without an earlier race. Their original recorded-history comparisons stay in the research archive, with their own definitions and a smaller cohort than the single-race views.</p>
-      <p>Open a question for its definitions, comparison groups, sample rules, limits and data files. Chart samples can be smaller than the eligible cohort. The result page shows the answer and its charts.</p>
-      {questions.map((question) => <details className="methodology" key={question.id}>
-        <summary>{question.number}. {question.title}</summary>
-        <div className="methodology-content">
-          {question.method.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
-          {question.dataset && <p><strong>Eligible sample:</strong> {n(question.dataset.n)} {question.dataset.unit || 'eligible finishes'}{question.dataset.scope && question.dataset.scope !== 'descriptive' ? ` (${question.dataset.scope})` : ''}.</p>}
-          {question.detail && <p><strong>Keep in mind:</strong> {question.detail}</p>}
-          <AnswerNotes question={question} />
-          {question.nextAnalysis && <><p><strong>Measure:</strong> {question.nextAnalysis.measure}</p><p><strong>Compare:</strong> {question.nextAnalysis.compare}</p><p><strong>Still needed:</strong> {question.nextAnalysis.needs}</p></>}
-          <div className="source-links"><Link href={`/packs/${question.id}`}>Read the answer &amp; charts</Link>{question.sources.map((source) => <a href={source.href} key={source.href}>{source.label}</a>)}</div>
-        </div>
-      </details>)}
+      <p>Open a question for its definitions, comparison groups, sample rules, limits and data files. Chart samples can be smaller than the eligible cohort. Every question’s data is under <a href="#archive">Downloads</a>.</p>
+      {questions.map((question) => <Detail key={question.id} title={`${question.number}. ${question.title}`}>
+        {question.method.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+        {question.dataset && <p><strong>Eligible sample:</strong> {n(question.dataset.n)} {question.dataset.unit || 'eligible finishes'}{question.dataset.scope && question.dataset.scope !== 'descriptive' ? ` (${question.dataset.scope})` : ''}.</p>}
+        {question.detail && <p><strong>Keep in mind:</strong> {question.detail}</p>}
+        <AnswerNotes question={question} />
+        {question.nextAnalysis && <><p><strong>Measure:</strong> {question.nextAnalysis.measure}</p><p><strong>Compare:</strong> {question.nextAnalysis.compare}</p><p><strong>Still needed:</strong> {question.nextAnalysis.needs}</p></>}
+        {question.sources.length > 0 && <p className="methods-links">{question.sources.map((source) => <a href={source.href} key={source.href}>{source.label}</a>)}</p>}
+      </Detail>)}
       <h4 id="supporting-analyses">Supporting analyses</h4>
       <p>These supporting analyses in the archive list their methods and data here.</p>
-      {extras.map((extra) => <details className="methodology" key={extra.id}>
-        <summary>{extra.title}</summary>
-        <div className="methodology-content">
-          {extra.method.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
-          {extra.dataset && <p><strong>Eligible sample:</strong> {n(extra.dataset.n)} {extra.dataset.unit || 'eligible finishes'}{extra.dataset.scope && extra.dataset.scope !== 'descriptive' ? ` (${extra.dataset.scope})` : ''}.</p>}
-          {extra.detail && <p><strong>Keep in mind:</strong> {extra.detail}</p>}
-          <AnswerNotes question={extra} />
-          <div className="source-links"><Link href={`/packs/${extra.id}`}>Read the answer &amp; charts</Link>{extra.sources.map((source) => <a href={source.href} key={source.href}>{source.label}</a>)}</div>
-        </div>
-      </details>)}
+      {extras.map((extra) => <Detail key={extra.id} title={extra.title}>
+        {extra.method.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+        {extra.dataset && <p><strong>Eligible sample:</strong> {n(extra.dataset.n)} {extra.dataset.unit || 'eligible finishes'}{extra.dataset.scope && extra.dataset.scope !== 'descriptive' ? ` (${extra.dataset.scope})` : ''}.</p>}
+        {extra.detail && <p><strong>Keep in mind:</strong> {extra.detail}</p>}
+        <AnswerNotes question={extra} />
+        {extra.sources.length > 0 && <p className="methods-links">{extra.sources.map((source) => <a href={source.href} key={source.href}>{source.label}</a>)}</p>}
+      </Detail>)}
     </Topic>
   </>;
 }

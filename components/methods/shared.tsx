@@ -4,7 +4,14 @@ import type { ReactNode } from 'react';
  * Shared pieces of the Methods & sources page (/methodology). Since October 16, 2026 every method, definition, data
  * source, coverage note and limit lives on that page only; the other pages show the insights and link here. Every id
  * used here is a stable anchor: the site links /methodology#<id> (verify-seo checks that each linked id exists).
- * The page's units switch is inert, so nothing here converts units: distances are the recorded metric timing points.
+ *
+ * The page reads as five parts (the redesign spec, sections 7.15 and 00): each part is a heading and a list of topics,
+ * and each topic opens on request, so the page is short with every topic closed. A link to a topic, or to anything
+ * inside one, opens it (MethodsHash). Definitions are cards that show their rule, and open for the rest.
+ *
+ * The page's units switch works (lib/unit-preference.ts): the mats are named 5K … 40K in both units, and paces written
+ * per km go through UnitText, so they read per mile in miles. Distances that define a method (42.195 km, the final
+ * 2.195 km) stay as defined.
  */
 
 export const base = () => process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -32,24 +39,45 @@ export function editionList(editions: { city: string; year: number }[]): string 
   }));
 }
 
-/** One part of the page (an H2), such as "Definitions". */
-export function Part({ id, eyebrow, title, children }: { id: string; eyebrow: string; title: string; children: ReactNode }) {
-  return <section id={id} className="methods-part" aria-labelledby={`${id}-title`}>
-    <p className="methods-eyebrow">{eyebrow}</p>
-    <h2 id={`${id}-title`}>{title}</h2>
-    {children}
+/** One part of the page: its kicker, its heading (an H2) and a one-line lead, then its topics. A beat for the rail and the reading bar. */
+export function Part({ id, n: number, short, title, lead, children }: { id: string; n: number; short: string; title: string; lead?: ReactNode; children: ReactNode }) {
+  return <section id={id} className="methods-part" aria-labelledby={`${id}-title`} data-beat={short}>
+    <header className="methods-part-head">
+      <p className="t-kicker">Part {number}</p>
+      <h2 id={`${id}-title`} className="t-h2">{title}</h2>
+      {lead ? <p className="methods-part-lead">{lead}</p> : null}
+    </header>
+    <div className="methods-rows">{children}</div>
   </section>;
 }
 
-/** One topic within a part (an H3), always visible, so a link to its id lands on readable text. */
+/** The plus that turns into a minus as a row opens (drawn by app/styles/pages/info.css). */
+export const Glyph = () => <span className="fold-glyph" aria-hidden="true" />;
+
+/** One topic: a row that opens on request (a fold). A link to its id, or to an id inside it, opens it. */
 export function Topic({ id, title, children }: { id: string; title: string; children: ReactNode }) {
-  return <section id={id} className="methods-topic" aria-labelledby={`${id}-title`}>
-    <h3 id={`${id}-title`}>{title}</h3>
-    {children}
-  </section>;
+  return <details id={id} className="fold">
+    <summary><h3 className="fold-title">{title}</h3><Glyph /></summary>
+    <div className="fold-body">{children}</div>
+  </details>;
 }
 
-/** A longer item that opens on request (the per-question, per-tool and per-story methods). */
+/** A longer item inside a topic that opens on its own (each story's, question's and tool's method). */
 export function Detail({ id, title, children }: { id?: string; title: string; children: ReactNode }) {
-  return <details className="methodology" id={id}><summary>{title}</summary><div className="methodology-content">{children}</div></details>;
+  return <details className="fold is-sub" id={id}><summary><span className="fold-title">{title}</span><Glyph /></summary><div className="fold-body">{children}</div></details>;
+}
+
+/**
+ * A definition: the term, its rule in a line or two and, where one helps, a small instrument that draws it. The rest
+ * opens under "More". Shown open, so a link to the term lands on its rule.
+ */
+export function Definition({ id, term, rule, instrument, more, children }: {
+  id: string; term: string; rule: ReactNode; instrument?: ReactNode; more?: string; children?: ReactNode;
+}) {
+  return <section id={id} className="methods-definition" aria-labelledby={`${id}-term`}>
+    <h3 id={`${id}-term`} className="methods-term">{term}</h3>
+    <div className="methods-rule">{rule}</div>
+    {instrument ? <div className="methods-instrument">{instrument}</div> : null}
+    {children ? <details className="fold is-sub methods-more"><summary><span className="fold-title">{more ?? `More on ${term.toLowerCase()}`}</span><Glyph /></summary><div className="fold-body">{children}</div></details> : null}
+  </section>;
 }

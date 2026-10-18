@@ -3,8 +3,8 @@ import path from 'node:path';
 import release from '@/analysis/release.json';
 
 /**
- * The public inventory, built from the same manifests used by runner search. Shown only on /methodology (#data-coverage),
- * whose units switch is inert, so it names no unit conversion.
+ * The public inventory, built from the same manifests used by runner search. Shown only on /methodology (#data-coverage,
+ * inside the Coverage topic). It names no unit conversion.
  */
 export default function DataCoverage() {
   const read = (name: string) => JSON.parse(fs.readFileSync(path.join(process.cwd(), 'public/data', name), 'utf8'));
@@ -20,12 +20,14 @@ export default function DataCoverage() {
   return <section id="data-coverage">
     <h4>Marathons and years</h4>
     <p>The database contains results from {races.size} marathons and {runners.editions.length} city-and-year editions. The years below are the years recorded, including partial editions. They do not imply complete fields or usable splits for every runner. Each analysis applies its timing and source-quality checks.</p>
-    <details className="coverage-list"><summary>See every marathon and recorded year</summary>
-      <div className="table-scroll"><table className="data-table">
-        <caption>Race results in the database</caption>
-        <thead><tr><th scope="col">Marathon</th><th scope="col">Recorded years</th></tr></thead>
-        <tbody>{[...races].sort(([a], [b]) => a.localeCompare(b)).map(([race, years]) => <tr key={race}><th scope="row">{race}</th><td>{[...years].sort((a, b) => a - b).join(', ')}</td></tr>)}</tbody>
-      </table></div>
+    <details className="fold is-sub"><summary><span className="fold-title">Every marathon and recorded year</span><span className="fold-glyph" aria-hidden="true" /></summary>
+      <div className="fold-body"><div className="table-wrap" role="region" tabIndex={0} aria-labelledby="data-coverage-caption">
+        <table className="table">
+          <caption id="data-coverage-caption" className="sr-only">Race results in the database</caption>
+          <thead><tr><th scope="col">Marathon</th><th scope="col" className="is-text">Recorded years</th></tr></thead>
+          <tbody>{[...races].sort(([a], [b]) => a.localeCompare(b)).map(([race, years]) => <tr key={race}><th scope="row">{race}</th><td className="is-text">{[...years].sort((a, b) => a - b).join(', ')}</td></tr>)}</tbody>
+        </table>
+      </div></div>
     </details>
     <h4>Race results</h4>
     <p>Recorded names, marathon and year, finish times, checkpoint splits, and age and recorded gender where supplied. Candidate links help find a runner’s other results; visitors confirm which races belong to them.</p>

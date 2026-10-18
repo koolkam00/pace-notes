@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { STORIES, storyHref } from '@/lib/stories';
-import { Detail, Topic, and, editionList, n } from './shared';
+import { Detail, Topic, and, dataHref, editionList, n } from './shared';
 
 type Edition = { city: string; year: number };
 type Screened = Edition & { reason: string };
@@ -13,7 +13,7 @@ type StoryFile = { method: string };
  * adopted release. The method paragraph itself is the file's `method`, as the story pages showed it before
  * October 16, 2026.
  */
-function storyNotes(file: string): ReactNode[] {
+function storyNotes(file: string, slug: string): ReactNode[] {
   switch (file) {
     case 'archetypes.json': return [
       'In the six-runner race, each runner follows one type’s average profile scaled to the same finish time, so any time a profile gains early is given back later.',
@@ -98,17 +98,21 @@ function storyNotes(file: string): ReactNode[] {
         years: { eras: { high_coverage_courses: unknown[]; coverage_rule: number } };
       }>(file);
       const variants = Object.entries(data.identification.variants).map(([name, share]) => `${name.charAt(0).toLowerCase()}${name.slice(1)} ${Math.round(share * 100)}%`);
+      // Two stories read courses.json: the course fingerprints, and race-morning weather (split out on October 17, 2026).
+      if (slug === 'race-morning') return [
+        `Weather is never personal or wave exposure, and other things also changed between years.${data.weather.excluded.length
+          ? ` ${editionList(data.weather.excluded)} ${data.weather.excluded.length > 1 ? 'have' : 'has'} no valid weather row and ${data.weather.excluded.length > 1 ? 'are' : 'is'} left out of the weather charts.` : ''}`,
+        'Same-course pairs need starts at least 5 °C apart, and pairs share editions, so they are not independent tests.',
+        <>Within-course slopes are simple descriptive slopes. The prespecified <a href="#weather">weather screen</a> remains the adjusted analysis.</>,
+        'In the untangled view each course’s dots are moved so its own averages sit at the centre; the pooled view mixes field, terrain and climate.',
+        'The heat signature is an average within-course association, drawn as a straight line from the typical curve at the average start. Its finish and slowdown readouts use a separate curved fit, compared with a 10 °C start on the same course. Hottest and coolest mornings use courses with three or more editions.',
+        'Race-morning temperatures are modelled for the scheduled start at one point in the city (see Weather and elevation sources).',
+      ];
       return [
         'Late fade fits each edition curve as a distance-weighted multiple of the typical curve; 1.00× is typical, and the signature is what remains.',
         `Name that course matches each edition’s fade-removed signature to the nearest course average, built without that edition. That variant was chosen among four, all reported in the data file: ${variants.join('; ')}.`,
         'Course means the supplied city label, not a verified historical route. Route maps and elevation are the current supplied course files, and the elevation model misses bridge decks; in New York it reads them as water level.',
         'Relative pace mixes terrain, field ability, weather and race behaviour.',
-        `Weather is never personal or wave exposure, and other things also changed between years.${data.weather.excluded.length
-          ? ` ${editionList(data.weather.excluded)} ${data.weather.excluded.length > 1 ? 'have' : 'has'} no valid weather row and ${data.weather.excluded.length > 1 ? 'are' : 'is'} left out of the weather charts.` : ''}`,
-        <>Within-course slopes are simple descriptive slopes. The prespecified <a href="#weather">weather screen</a> remains the adjusted analysis.</>,
-        'In the untangled view each course’s dots are moved so its own averages sit at the centre; the pooled view mixes field, terrain and climate.',
-        'Same-course pairs need starts at least 5 °C apart, and pairs share editions, so they are not independent tests.',
-        'The heat signature is an average within-course association, drawn as a straight line from the typical curve at the average start. Its finish and slowdown readouts use a separate curved fit, compared with a 10 °C start on the same course. Hottest and coolest mornings use courses with three or more editions.',
         'The same-early-pace comparison weights each edition equally and draws only courses with at least 3 editions and 1,000 finishes in the band. Matching on early pace balances speed, not ability, goals or weather.',
         `The editions whose first 5 km looks inflated (${and([...new Set(data.shape_cohort.start_offset_editions.map((e) => e.city))])}) are left out of every shape statistic.`,
         `Field size counts eligible finishes with all nine splits, not official finishers, and missing years include coverage gaps as well as cancellations.${getInsightsManifest().duplicate_edition_screen.length ? ' Copy editions are left out.' : ''}`,
@@ -130,11 +134,11 @@ export default function MethodsStories() {
     <p>The data stories use {n(manifest.analysis_n)} eligible finishes. These are every record in the adopted release with all nine checkpoints present and increasing, a finish between 1:30 and 12:00 and every section between 2 and 20 minutes per kilometre, after the reviewed source-quality exclusions. {copies.length ? `${and(copies.map((c) => `${c.city} ${c.year}`))} ${copies.length > 1 ? 'are' : 'is'} also left out, because ${copies.length > 1 ? 'their' : 'its'} records duplicate the ${copies[0].city} ${copies[0].duplicate_of} field. ` : ''}Counts are race finishes, not unique runners. Associations describe what went together; they do not explain why.</p>
     {stories.map((story) => {
       const data = readInsight<StoryFile>(story.file);
-      const notes = storyNotes(story.file);
+      const notes = storyNotes(story.file, story.slug);
       return <Detail key={story.slug} id={`story-${story.slug}`} title={story.title}>
         <p>{data.method}</p>
         {notes.length > 0 && <ul>{notes.map((note, i) => <li key={i}>{note}</li>)}</ul>}
-        <p><Link href={storyHref(story)}>Read the story</Link> · <a href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/data/insights/${story.file}`}>{story.file}</a></p>
+        <p className="methods-links"><Link href={storyHref(story)}>Read the story</Link><a href={dataHref(`insights/${story.file}`)}>{story.file}</a></p>
       </Detail>;
     })}
   </Topic>;

@@ -2,7 +2,7 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import { copyEditions } from '@/lib/duplicate-editions';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { BOSTON_CUTOFFS, STANDARDS, VERIFIED_AT } from '@/lib/tools/qualifying';
-import { EVIDENCE_LABEL, EVIDENCE_TEXT, TOOLS, toolHref, type ToolEvidence } from '@/lib/tools/registry';
+import { toolHref } from '@/lib/tools/registry';
 import { Detail, Topic, and, day, editionList, n } from './shared';
 
 type Edition = { city: string; year: number; finishes: number };
@@ -17,7 +17,7 @@ const hm = (minutes: number) => `${Math.floor(minutes / 60)}:${String(minutes % 
 const fahrenheitDelta = (c: number) => (c * 1.8).toFixed(1);
 const fahrenheit = (c: number) => (c * 1.8 + 32).toFixed(1);
 
-/** The runner tools: what each evidence badge means, the tool data's screens, then each tool's method (#tools-<slug>). */
+/** The runner tools: the tool data's screens, then each tool's method (#tools-<slug>). The badges are defined under Definitions (#evidence). */
 export default function MethodsTools() {
   const manifest = getInsightsManifest();
   const band = readInsight<PaceBand>('tools/pace-band.json');
@@ -40,16 +40,8 @@ export default function MethodsTools() {
   const coverage = projector.validation.map((row) => row.coverage_p10_p90);
   const boston = BOSTON_CUTOFFS.find((c) => /random/i.test(c.note ?? ''));
   const drawn = STANDARDS.find((s) => s.key === 'boston')?.randomSelection?.drawn;
-  const shown = TOOLS.filter((tool) => !tool.file || manifest.files[tool.file]);
-  const kinds: ToolEvidence[] = ['data', 'research', 'official'];
   return <Topic id="tools" title="Runner tools">
-    <h4 id="evidence">Evidence badges</h4>
-    <p>Each tool labels its panels with the kind of evidence they show. Numbers with different labels are never combined into one figure, subtracted from each other or passed between tools.</p>
-    <dl className="methods-badges">
-      {kinds.map((kind) => <div key={kind}><dt>{EVIDENCE_LABEL[kind]}</dt><dd>{EVIDENCE_TEXT[kind]} {kind === 'data' ? 'Every share is an observed share of complete finishes, not a forecast for any one runner.' : kind === 'research' ? 'Shown as ranges, each method on its own, and kept apart from Pace Notes results.' : 'Kept apart from the data.'} Used by the {and(shown.filter((tool) => tool.evidence.includes(kind)).map((tool) => tool.title.toLowerCase()))}.</dd></div>)}
-    </dl>
-    <p>Plain calculations from your own inputs carry no badge: even-pace splits, mile rows, pace charts, unit conversion and targets. They come straight from what you type and are not observations.</p>
-    <p>The race report and the course pages use the same badges. On the race report, Published research marks the published sustained-slowdown definition. A plan is worked out from your own goal; the Pace Notes data beside it describes past finishes and never picks a pace.</p>
+    <p>Each tool labels its panels with the kind of evidence they show (see <a href="#evidence">Evidence badges</a>); plain calculations from your own inputs carry no badge.</p>
 
     <h4 id="tools-data">What the tool data includes</h4>
     <p>The tools that use Pace Notes data count only complete finishes with all nine official 5 km checkpoint times. Runners who stopped are not in the data, so no group can say how often people drop out. Counts are finishes, not people: one runner can appear in several editions. The source records only the 5 km mats, so there are no observed halfway or mile splits, and 20 km is the 20 km mat, not halfway.</p>
@@ -88,7 +80,7 @@ export default function MethodsTools() {
       <p><strong>Not modelled:</strong> adding weekly mileage cut Vickers and Vertosick’s typical error from about 19.5 to about 15 minutes, but their coefficients are not reproduced. No course, weather, age or sex adjustment is applied, and every estimate assumes marathon-specific training, a flat course and cool weather.</p>
       <p><strong>The Pace Notes data panel</strong> takes the even pace of the estimate you pick and finds the race-day projector’s All-courses group at 20 km. That group holds complete finishes whose 20 km time put them in the same {projector.band_s / 60}-minute band of even-pace finish (20 km time × 42.195 ÷ 20). It shows their finish percentiles (stored from the 5th to the 95th in steps of 5), the share under the estimate (interpolated between percentiles, so approximate) and the share with a sustained slowdown. Pace Notes holds marathons only, so it cannot test a half-to-full prediction.</p>
       <p><strong>Why marathon predictions run fast.</strong> The classic formulas assume your endurance carries over: Riegel’s 1.06 and the Daniels–Gilbert equations both describe runners trained for the distance, which is why the page calls Riegel the best case. On the page the estimates are labelled Riegel 1.06, Daniels–Gilbert, the half-to-full exponents (from the RunningAHEAD training logs), your two races (the two-race accuracy is from Vickers and Vertosick’s study of recreational runners) and Tanda, from Tanda (2011).</p>
-      <p className="source-links">
+      <p className="methods-links">
         <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5000509/">Vickers &amp; Vertosick (2016), BMC Sports Science, Medicine and Rehabilitation 8:26</a>
         <a href="https://www.runningahead.com/forums/post/2b60fbf5f01e41fcae69ea40a70223d4">RunningAHEAD half-to-full exponents, 4,402 training logs</a>
         <a href="https://en.wikipedia.org/wiki/Peter_Riegel">Riegel (1981), American Scientist 69:285–290</a>
@@ -122,7 +114,7 @@ export default function MethodsTools() {
       {warm.length > 0 && <p>Warm data is sparse: of {n(match.editions.length)} editions with weather, {n(warm.length)} started at 20 °C (68 °F) or warmer: {and(warm.map((e) => `${e.city} ${e.year} (${e.temp_c.toFixed(1)} °C)`))}. Windows centred above about 21 °C rest largely on these few editions, and no published window is centred above {topCentre} °C ({fahrenheit(topCentre).replace(/\.0$/, '')} °F).</p>}
       <p><strong>Published research panel.</strong> Relative humidity uses the Magnus form (Alduchov and Eskridge 1996). Wet-bulb uses Stull (2011), valid for 5–99% humidity and −20 to 50 °C. Shade WBGT ≈ 0.7 × wet-bulb + 0.3 × air temperature. It is a shade estimate: direct sun can add several degrees, and a psychrometric wet-bulb only approximates the natural wet-bulb a WBGT meter reads. The simplified “ACSM-87” WBGT is not used because it is not an accurate approximation (Brimicombe et al. 2023).</p>
       <p>The flags are the race-risk categories of the 1996 ACSM position stand on distance running (Armstrong et al.): green below 18 °C WBGT, yellow 18–23, red 23–28, black above 28. They describe heat-illness risk for the field, not a pace. The current ACSM consensus (Roberts et al. 2023) uses region-specific thresholds instead. Ely et al. (2007) is shown as the extra slowing over its coolest WBGT band (5–10 °C). Mantzios et al. (2022) is shown as 0.2% (elite marathon finalists) to 0.4% (all endurance events) per °C WBGT above 15 °C. Hadley’s table adds temperature and dew point in whole °F, and the RunnersConnect bands use the unrounded dew point. Hadley and RunnersConnect are rules of thumb, not studies. Ely and Mantzios describe elite and top finishers. Knechtle et al. (2019) is one race’s association (Boston 1972–2018), shown as reported and not applied to your goal. On the page, Ely et al. is labelled “Top finishers, seven marathons”, Mantzios et al. “Elite marathon finalists”, Knechtle et al. “Boston finishers, 1972–2018”, Hadley’s table “Temperature + dew point table” and the RunnersConnect bands “Dew-point bands”. Inside Mantzios et al.’s 7.5–15 °C WBGT best range no warm-side slope applies; the study also reports slower times in the cold, which the panel does not quantify. Each method stays a separate range, and minutes are the published percentage multiplied by your goal. None of these figures is fitted to Pace Notes data, combined with it or passed to any other tool.</p>
-      <p className="source-links">
+      <p className="methods-links">
         <a href="https://experts.umn.edu/en/publications/impact-of-weather-on-marathon-running-performance/">Ely, Cheuvront, Roberts &amp; Montain (2007), Med Sci Sports Exerc 39:487–493</a>
         <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC8677617/">Mantzios et al. (2022), Med Sci Sports Exerc 54:153–161</a>
         <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC6407773">Knechtle et al. (2019), PLoS One 14:e0212797</a>
@@ -158,13 +150,13 @@ export default function MethodsTools() {
       <p>Boston’s downhill index: a course’s net drop (start elevation minus finish elevation) adds 5:00 for 1,500–2,999 ft and 10:00 for 3,000–5,999 ft, and a drop of 6,000 ft or more is not accepted. A drop typed in metres uses the B.A.A.’s own metric thresholds (457.2 m, 914.2 m and 1,828.6 m), which are not exact conversions. The B.A.A. does not list affected courses, and its statements differ on how long the index will last.</p>
       <p>Past cut-offs are not a forecast. The B.A.A. accepts qualifiers fastest relative to their standard until the field is full and announces the cut-off afterwards; neither the B.A.A. nor Pace Notes predicts cut-offs.{boston && drawn ? ` For ${boston.year} about ${n(drawn)} qualifiers who missed the cut-off were drawn at random. The “about ${Math.round((drawn / (boston.notAccepted + drawn)) * 100)}%” is Pace Notes’ own calculation from B.A.A. counts: ${n(drawn)} ÷ (${n(boston.notAccepted)} turned away + ${n(drawn)} drawn).` : ''} New York’s capped-pool cut-offs are as reported by NYRR. Application badges compare your device’s clock with the official opening and closing times where the race states them, and with the listed dates otherwise. Tokyo is not included because its standards could not be verified from an official page.</p>
       <p>Times to aim for are each standard minus your buffer (and Boston’s index for your drop), as an even pace. They are not advice about what buffer is enough. The even-pace table on each race page divides each standard by the marathon distance; it is calculated, not recorded, and real races are rarely run at an even pace.</p>
-      <p className="source-links">
+      <p className="methods-links">
         {STANDARDS.flatMap((s) => s.sources).map((source) => <a key={source.url} href={source.url}>{source.label}</a>)}
         <a href="https://www.baa.org/news/record-field-of-qualifiers-accepted-into-the-131st-boston-marathon-presented-by-bank-of-america/">B.A.A.: record field of qualifiers accepted into the 131st Boston Marathon</a>
         <a href="https://www.baa.org/news/2026-and-2027-registration-updates-boston-marathon-presented-bank-america/">B.A.A.: 2026 and 2027 registration updates (downhill index)</a>
         <a href="https://www.londonmarathonevents.co.uk/london-marathon/championship-entry">London Marathon Events: Championship entry</a>
       </p>
-      <p><Link href={toolHref('qualifying')}>Open the qualifying checker</Link></p>
+      <p className="methods-links"><Link href={toolHref('qualifying')}>Open the qualifying checker</Link></p>
     </Detail>
   </Topic>;
 }
