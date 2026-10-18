@@ -87,7 +87,7 @@ async function main() {
   const smallGain = { ...base, id: 9, edition: 2, times: [...base.times.slice(0, 8), base.times[8] - 0.2] };
   assert.match(render([base, smallGain], 'mi'), /0:00:00\.2 faster than/, 'A measurable fractional-second change must not be called the same time');
   const mileHtml = render([base, held], 'mi');
-  assert.match(mileHtml, /8:03\/mi/); assert.match(mileHtml, /3:30:58\.5/); assert.match(mileHtml, /the same pace as your early pace/);
+  assert.match(mileHtml, /8:03\/mi/); assert.match(mileHtml, /3:30:58\.5/); assert.match(mileHtml, /the same pace as its 5–20K pace/);
   assert.match(mileHtml, /limited analysis/i); assert.doesNotMatch(mileHtml, /the same pace than/);
   assert.match(mileHtml, /Casey Partial/); assert.match(mileHtml, /Incomplete edition held for review/);
   assert.match(mileHtml, /02:20:39/, 'Keep the faster held result visible as its recorded finish');

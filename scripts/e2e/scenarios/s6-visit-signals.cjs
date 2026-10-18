@@ -42,8 +42,8 @@ async function reading(h) {
   const order = await page.evaluate(() => [...document.querySelectorAll('[data-track-section]')].map(el => el.dataset.trackSection));
   for (let i = 0; i < 60; i++) { await page.mouse.wheel(0, 600); await page.waitForTimeout(90); }
   await page.waitForTimeout(800);
-  await page.click('.unit-switch button:has-text("Kilometres")'); await page.waitForTimeout(300);
-  await page.click('.unit-switch button:has-text("Kilometres")'); await page.waitForTimeout(300);
+  await page.click('.unit-switch button:has-text("Kilometers")'); await page.waitForTimeout(300);
+  await page.click('.unit-switch button:has-text("Kilometers")'); await page.waitForTimeout(300);
   await page.click('.unit-switch button:has-text("Miles")'); await page.waitForTimeout(300);
   const toBottom = async () => {
     for (let i = 0; i < 80 && await page.evaluate(() => window.scrollY + innerHeight < document.documentElement.scrollHeight - 2); i++) { await page.mouse.wheel(0, 900); await page.waitForTimeout(60); }

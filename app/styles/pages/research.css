@@ -5,7 +5,9 @@
 
 .contents-page { padding: var(--s-6) 0 var(--s-5); }
 .contents-hero { display: grid; gap: var(--s-3); max-width: var(--measure); margin-bottom: var(--s-5); }
-.contents-hero .t-display { max-width: 12ch; }
+/* Every hub's H1 is the title token, whatever class its markup carries (/analyses still says display); /tools and
+   /courses set the same. */
+.contents-hero > h1 { max-width: 12ch; font-size: var(--t-title); line-height: 1.04; letter-spacing: -.02em; }
 .contents-dek { margin: 0; max-width: 30rem; font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
 .contents-body { min-width: 0; }
 .contents-views { margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink-3); }
@@ -45,10 +47,10 @@
 }
 .chapter-list.is-expanded .chapter-page-link:hover { color: var(--ink); text-decoration: none; }
 .chapter-page-title { font-family: var(--sans); font-size: .9375rem; font-weight: 600; line-height: 1.3; color: var(--ink); }
-.chapter-page-link:hover .chapter-page-title, .page-list-link:hover .page-list-title { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .18em; }
-.chapter-page-link:focus-visible, .page-list-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.chapter-page-link:hover .chapter-page-title { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .18em; }
+.chapter-page-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
 .chapter-page-go, .page-list-go { grid-column: 2; grid-row: 1; color: var(--ink-3); transition: transform var(--d-quick) var(--ease-out); }
-.chapter-page-link:hover .chapter-page-go, .page-list-link:hover .page-list-go { transform: translateX(3px); color: var(--ink); }
+.chapter-page-link:hover .chapter-page-go { transform: translateX(3px); color: var(--ink); }
 .chapter-page-link[aria-current] .chapter-page-title::after { content: ' · You are here'; font-weight: 600; color: var(--signal-ink); }
 
 /* A page's own reading, on one quiet line under its title: the figure small, then its key. */
@@ -60,29 +62,37 @@
   .chapter-list.is-expanded .chapter-heading .chapter-reading .big-number.is-s { font-size: 1.25rem; }
 }
 
-/* ---------- The filtered lists (/stories, /analyses): the pages under their chapter's line, a hairline between ---------- */
+/* ---------- The filtered lists (/stories, /analyses): the pages under their chapter's line, one hairline over each ----------
+   A row is a grid (the title, its reading under it, the arrow beside both); the title's link covers the row from
+   behind, so the whole row is one tap target, and a term link in a key sits above it. */
 .page-list-groups { margin: 0; padding: 0; list-style: none; }
 .page-list-group { margin: 0; }
 .page-list-group + .page-list-group { margin-top: var(--s-5); }
 /* The chapter, said once over its pages: the marker and the name in sentence case. */
 .page-list-chapter { display: flex; align-items: center; gap: var(--s-2); margin: 0 0 var(--s-2); font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
-.page-list-rows { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
-.page-list-rows li { margin: 0; border-bottom: 1px solid var(--rule); }
-.page-list-link {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s-4); row-gap: 6px; align-items: start;
-  padding: var(--s-4) 0 18px; color: var(--ink); text-decoration: none;
+.page-list-rows { margin: 0; padding: 0; list-style: none; }
+.page-list-row {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s-4); row-gap: 6px; align-items: start;
+  margin: 0; padding: var(--s-4) 0 18px; border-top: 1px solid var(--rule);
 }
+.page-list-link { grid-column: 1; grid-row: 1; color: var(--ink); text-decoration: none; }
+.page-list-link::after { content: ''; position: absolute; inset: 0; border-radius: var(--r-xs); }
 .page-list-link:hover { color: var(--ink); text-decoration: none; }
-.page-list-title { grid-column: 1; font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; font-size: 1.375rem; line-height: 1.18; letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
-.page-list-go { align-self: center; grid-row: 1 / span 2; }
-.page-list .page-reading { margin-top: 2px; }
+.page-list-link:focus-visible { outline: none; }
+.page-list-link:focus-visible::after { outline: 2px solid var(--focus); outline-offset: 2px; }
+.page-list-row:hover .page-list-title { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .18em; }
+.page-list-row:hover .page-list-go { transform: translateX(3px); color: var(--ink); }
+.page-list-row .term-link { position: relative; z-index: 1; }
+.page-list-title { font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; font-size: 1.375rem; line-height: 1.18; letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
+.page-list-go { align-self: center; grid-column: 2; grid-row: 1 / span 2; }
+.page-list .page-reading { grid-column: 1; grid-row: 2; margin-top: 2px; }
 .page-list .page-reading .big-number.is-s { font-size: 1.25rem; }
 
 /* ---------- Desktop: the opener on the left, the list on the right ---------- */
 @media (min-width: 900px) {
   .contents-page { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); column-gap: var(--s-8); align-items: start; padding: var(--s-8) 0 var(--s-9); }
   .contents-hero { position: sticky; top: calc(var(--header-h) + var(--s-6)); margin-bottom: 0; }
-  .contents-hero .t-display { max-width: none; font-size: clamp(2.75rem, 4.4vw, 4.25rem); }
+  .contents-hero > h1 { max-width: none; }
   /* Each chapter is one grid: its marker and name, its pages under the name, and its reading in a fixed column on the
      right beside both, the figure and its key flush left together, so no row waits under a tall reading. */
   .chapter-list.is-expanded .chapter-row { display: grid; grid-template-columns: calc(var(--line-x, 28px) * 2) minmax(0, 1fr) 15.5rem; column-gap: var(--s-3); align-items: start; }
@@ -93,7 +103,6 @@
   .chapter-list.is-expanded .chapter-heading .chapter-reading { grid-column: 3; grid-row: 1 / span 2; display: grid; justify-items: start; gap: 4px; padding-top: 6px; text-align: left; }
   .chapter-list.is-expanded .chapter-heading .chapter-reading .big-number.is-s { font-size: 2.25rem; }
   .chapter-list.is-expanded .chapter-heading .chapter-key { max-width: none; }
-  .chapter-list.is-expanded .chapter-heading .chapter-reading.is-key-only { padding-top: 12px; }
   .chapter-list.is-expanded .chapter-pages { grid-column: 2; grid-row: 2; margin: var(--s-1) 0 0; }
   .chapter-page-title { font-size: 1rem; }
   .page-list-title { font-size: 1.625rem; }

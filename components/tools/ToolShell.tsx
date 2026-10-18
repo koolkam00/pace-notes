@@ -73,7 +73,7 @@ export function ToolEnd({ path, how }: { path: string; how: `/methodology#${stri
     <div className="chapter-end tool-end">
       <p className="chapter-end-links">
         <Link href="/tools" className="chapter-prev"><Arrow dir="left" /><span>All tools</span></Link>
-        <Link href={how} className="chapter-how">How we know<Arrow dir="up-right" /></Link>
+        <Link href={how} className="chapter-how">How we know<Arrow /></Link>
       </p>
       <PageFeedback />
     </div>

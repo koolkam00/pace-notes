@@ -51,8 +51,8 @@
 .unit-switch button:hover { border-color: transparent; color: var(--ink); }
 .unit-switch button:focus-visible { outline: 2px solid var(--focus); outline-offset: -4px; }
 .unit-switch .unit-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
-/* The inert copy on pages whose text never changes with the units: gone under 1180 px, where the Menu button keeps the
-   right edge; from 1180 px an invisible switch of the same width, so the five links stay put from page to page. */
+/* The inert copy on the few pages whose text never changes with the units (the moved addresses' stubs and the 404): it
+   takes no room at any width, so no gap opens in the header there. */
 .unit-switch-placeholder { display: none; visibility: hidden; }
 .unit-switch-placeholder button { width: 44px; padding: 0; font-size: 0; pointer-events: none; }
 
@@ -81,7 +81,6 @@
   .header-controls > .unit-switch-placeholder + .nav-toggle { margin-left: auto; }
 }
 @media (min-width: 1180px) {
-  .unit-switch-placeholder { display: flex; }
   .nav-toggle { display: none; }
   .chapters-toggle { display: inline-flex; }
   .header-controls { gap: var(--s-2); }

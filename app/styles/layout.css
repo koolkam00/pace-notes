@@ -2,10 +2,14 @@
    One breakpoint scale everywhere: narrow (max-width: 359.98px), tiny (max-width: 299.98px), sm (min-width: 600px),
    md (min-width: 900px) and lg (min-width: 1180px). scripts/verify-css.cjs fails on any other width. */
 
-/* The page column: a 16 px gutter on a 390 px phone (358 px of content), 48 px at most. Until WP9 the legacy
-   .container rule (same properties) loads later and keeps today's widths on legacy pages. */
+/* The page column: a 16 px gutter on a 390 px phone (358 px of content), 48 px at most. */
 .container { width: min(calc(100% - 2 * var(--gutter)), var(--container)); margin-inline: auto; }
 .measure { max-width: var(--measure); }
+
+/* The page is a column: header, main, footer. Main takes the room a short page leaves, so the footer rests at the foot
+   of the screen (a 404 or /about on a desktop), never mid-screen over a band of empty paper. */
+:where(body) { display: flex; flex-direction: column; min-height: 100vh; min-height: 100svh; }
+.main-content { flex: 1 0 auto; }
 
 /* A beat: one claim, one figure, at most one control. Beats are separated by whitespace and hairlines, never cards. */
 .beat { padding-top: var(--beat-gap); }

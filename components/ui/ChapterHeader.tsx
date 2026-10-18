@@ -2,15 +2,15 @@ import type { ReactNode } from 'react';
 import MarkerBadge from './MarkerBadge';
 import { withEm } from './withEm';
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import { chapterNumber, contentsHref, placeLabel, placeOf } from '@/lib/chapters';
+import { chapterNumber, contentsHref, placeOf } from '@/lib/chapters';
 
 /**
  * The crumbs of a page in the race (the redesign spec, section 3.5), the one treatment every page in the race uses:
- * "[FINISH] Chapter 06 · The finish line · Page 1 of 2". The chapter's number shows once: a chapter after the finish
- * (07 to 11) has it on its badge, so its text is the title alone ("[08] Where you run"; screen readers still hear
- * "Chapter 08"). The chapter part links to its row on the contents (/research#chapter-06), 44 px tall. The place
- * shows from 600 px: the page's "Page N of M" (lib/chapters.ts placeLabel), or `place` when the page names its own
- * (a course page's "Courses"), or nothing with `place={false}`. Its separator is drawn by CSS in the gap before it,
+ * "[FINISH] Chapter 06 · The finish line". The chapter's number shows once: a chapter after the finish (07 to 11) has
+ * it on its badge, so its text is the title alone ("[08] Where you run"; screen readers still hear "Chapter 08"). The
+ * chapter part links to its row on the contents (/research#chapter-06), 44 px tall. No "Page N of M": the rail, the
+ * menu and the next card ("Next in this chapter") already say where a page sits. A page that names its own place
+ * (a course page's "Courses") passes `place`, shown from 600 px; its separator is drawn by CSS in the gap before it,
  * so a wrapped line never opens on "·". Pass it as Reading's `crumbs`; null for a page outside the race.
  */
 export function ChapterCrumbs({ path, place: own }: { path: string; place?: ReactNode | false }) {
@@ -18,7 +18,7 @@ export function ChapterCrumbs({ path, place: own }: { path: string; place?: Reac
   if (!place) return null;
   const { chapter } = place;
   const number = chapterNumber(chapter);
-  const where = own === false ? null : own ?? placeLabel(path);
+  const where = own === false ? null : own ?? null;
   return (
     <>
       <MarkerBadge marker={chapter.marker} />

@@ -18,9 +18,9 @@ export const metadata = pageMetadata({
 
 /**
  * /runners (the redesign spec, section 7.12): reached from the navigation, so it opens on the task, not a reading. The
- * chapter line, the H1 and its dek, then the search (usable from the first paint) and two ways in without a name; from
- * 900 px the search is a sticky left column and everything it finds reads in the right one. Ends on the closing stack:
- * on to the split check, back to chapter 09.
+ * chapter line, the H1 and its dek, then the search (usable from the first paint) and two ways in without a name, in one
+ * column at every width (centred from 900 px). Ends on the closing stack: back to the split check (chapter 10's first
+ * page), on to chapter 11.
  */
 export default function RunnersPage() {
   // Read at build time from the verified story manifest, so the page carries the copy editions and their counts, and the

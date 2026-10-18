@@ -50,7 +50,7 @@ function storyDataset() {
     variableMeasured: [
       '5 km checkpoint split times', 'Finish time', 'Section pace relative to the same finish’s own pace',
       'Sustained slowdown (25% or more slower than the 5–20 km pace for at least 5 km after 20 km)',
-      'Recorded gender', 'Age group', 'Modelled race-morning temperature',
+      'Recorded gender', 'Age group', 'Modeled race-morning temperature',
     ],
     distribution: files.map((f) => ({ '@type': 'DataDownload', name: f, encodingFormat: 'application/json', contentUrl: absoluteUrl(`/data/insights/${f}`) })),
   };
@@ -86,7 +86,7 @@ export default function MethodologyPage() {
     <article className="methods-flow">
       <header className="methods-hero">
         <p className="t-kicker">Methods and sources</p>
-        <h1 className="t-display">How we know</h1>
+        <h1 className="t-title">How we know</h1>
         <p className="methods-dek">Where the numbers come from, what each term means, how each one is worked out, and what none of them can show.</p>
       </header>
       <nav className="methods-jump" aria-label="Jump to a part">
@@ -123,7 +123,7 @@ export default function MethodologyPage() {
           <p>Keep all published timing points, including halfway and the finish; bib and provider IDs; reported age and category; gun and chip times; official finish, withdrawal, disqualification and non-start statuses; and result corrections. Availability varies by organizer and year.</p>
           <p>Do not infer a withdrawal from one missing timing read, or a debut marathon from a runner’s first appearance in this database.</p>
           <h4>Preserve the evidence</h4>
-          <p>For every added field, keep its source URL, race edition, retrieval date, original unit, and whether it was observed, modelled or inferred. Keep one weather record per place and time, then join it to estimated segment exposure. Between timing mats, a runner’s exact location is an estimate.</p>
+          <p>For every added field, keep its source URL, race edition, retrieval date, original unit, and whether it was observed, modeled or inferred. Keep one weather record per place and time, then join it to estimated segment exposure. Between timing mats, a runner’s exact location is an estimate.</p>
           <p>Hourly wind plus route direction can estimate headwind exposure. Route geometry can estimate turn counts. Crowd density, shade, training, shoes and individual fuelling are harder to reconstruct consistently over 20 years and should not be assumed.</p>
         </Topic>
       </Part>

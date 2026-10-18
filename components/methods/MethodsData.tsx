@@ -4,7 +4,7 @@ import DataCoverage from '@/components/DataCoverage';
 import { sourceReleaseHref } from '@/lib/data-source';
 import { copyEditions } from '@/lib/duplicate-editions';
 import { getExtensions } from '@/lib/extension-data';
-import { getInsightsManifest } from '@/lib/insights-server';
+import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { getPersonalSummary } from '@/lib/personalized-data';
 import { getWeatherEvidence } from '@/lib/weather-data';
 import { TEN_ANALYSES } from '@/lib/ten-analyses';
@@ -19,6 +19,9 @@ export default function MethodsData() {
   const weather = getWeatherEvidence();
   const copies = copyEditions();
   const sourceHref = sourceReleaseHref(release.tag);
+  // The tool total, said beside the totals above only when its two edition screens account for the whole difference.
+  const band = readInsight<{ cohort_n: number; screens: { start_offset: { finishes: number }[]; grid: { finishes: number }[] } }>('tools/pace-band.json');
+  const tools = { n: band.cohort_n, whole: manifest.analysis_n - [...band.screens.start_offset, ...band.screens.grid].reduce((sum, e) => sum + e.finishes, 0) === band.cohort_n };
   return <Part id="data" n={1} short="The data" title="The data" lead="Where the finishes come from, and which of them count.">
     <Topic id="study-aims" title="What the study is for">
       <p>The study follows the whole race: how runners start, spread their effort, respond to the course, finish and improve over time. It asks about four things.</p>
@@ -34,7 +37,7 @@ export default function MethodsData() {
       <p>Pace Notes uses five kinds of source. They are kept apart, and no figure combines them.</p>
       <ul>
         <li><strong>Race results.</strong> Recorded results from big-city marathons: recorded names, marathon and year, finish times, the official 5 km checkpoint times, and age and recorded gender where the race supplied them. They come from one public data export, the <a href="#release">current release</a>.</li>
-        <li><strong>Weather.</strong> <a href="https://open-meteo.com/en/docs/historical-weather-api">Open-Meteo historical weather estimates</a> for one point in each city, for the hour of the scheduled start and the hours after it. They are modelled, not measured at any runner.</li>
+        <li><strong>Weather.</strong> <a href="https://open-meteo.com/en/docs/historical-weather-api">Open-Meteo historical weather estimates</a> for one point in each city, for the hour of the scheduled start and the hours after it. They are modeled, not measured at any runner.</li>
         <li><strong>Routes and elevation.</strong> Each race’s current route file, supplied with the data, with elevation from a digital elevation model. Whether earlier editions ran the same route is not known.</li>
         <li><strong>Official standards.</strong> Qualifying times, age rules, windows and dates, transcribed from each race’s own pages and dated by when they were last checked.</li>
         <li><strong>Published research.</strong> Published models and studies, cited in full under <a href="#tools">Runner tools</a>. None is fitted to Pace Notes data.</li>
@@ -56,7 +59,7 @@ export default function MethodsData() {
 
     <Topic id="totals" title="Which pages start from which total">
       <CohortNote />
-      <p>Each page then applies its own screens, listed in its section below.</p>
+      <p>Each page then applies its own screens, listed in its section below.{tools.whole ? <> The tools with Pace Notes data keep {n(tools.n)} of the {n(manifest.analysis_n)}: the editions without start delays or shifted mats (<a href="#tools-data">what the tool data includes</a>).</> : null}</p>
     </Topic>
 
     <Topic id="copy-editions" title="Copy editions">

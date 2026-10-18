@@ -40,7 +40,7 @@ export const EVIDENCE_LABEL: Record<ToolEvidence, string> = {
  * `{finishes}` is the tool cohort, filled from the published data where the text is shown (never typed here).
  */
 export const EVIDENCE_TEXT: Record<ToolEvidence, string> = {
-  data: 'Observed from {finishes} screened marathon finishes with all nine 5 km checkpoints. Descriptive, never a personal probability.',
+  data: 'Observed from {finishes} screened marathon finishes: the eligible finishes, less the editions with start delays or shifted mats. Descriptive, never a personal probability.',
   research: 'Published models and studies, cited. Not fitted to Pace Notes data.',
   official: 'Transcribed from official race pages, with the date they were checked.',
 };

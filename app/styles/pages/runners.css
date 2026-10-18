@@ -1,13 +1,11 @@
 /* /runners (WP6, the redesign spec section 7.12): the chapter line, the H1 and its dek, then the name search as one
    instrument cell, two ways in without a name as 64 px rows, the matches as 56 px rows, a profile's races to tick, a
    selection bar that sticks to the bottom while races are chosen, and the selected races' analysis: the answer on
-   night, then the race in context in three views. From 900 px the search is a sticky left column (5/12) and what it
-   finds reads in the right one (7/12); the analysis of the chosen races reads below both, centred. The race report's
-   styles are in pages/report.css. */
+   night, then the race in context in three views. From 900 px it is one centred column; the analysis of the chosen
+   races reads below it, wider, on the same axis. The race report's styles are in pages/report.css. */
 
 .runner-page { padding-top: var(--s-5); }
-/* Every heading here is set in the redesign's Fraunces: optical size following the size, weight 440 (the legacy h1/h2
-   rules in legacy/shared.css set a 96/144 display cut at 600, which crushes the letters at these sizes). */
+/* Every heading here is set in the redesign's Fraunces: optical size following the size, weight 440. */
 .runner-page h1, .runner-page h2, .runner-page h3, .runner-page h4 { font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; }
 .runner-head { max-width: 46rem; }
 .runner-head h1 { margin: 0; }
@@ -15,27 +13,22 @@
 .runner-work { margin-top: var(--s-6); }
 .runner-split, .runner-side, .runner-main, .runner-reading { min-width: 0; }
 .runner-page .chapter-end { margin-top: var(--s-8); }
+/* From 900 px the task is one centred column (42rem): the heading, the search, the two ways in and what the search
+   finds, then the closing stack at the same measure, so no column runs empty beside another. The selected races'
+   analysis reads under it at the figure measure, on the same axis, and the closing stack follows it there. */
 @media (min-width: 900px) {
+  .runner-head, .runner-split, .runner-page .chapter-end { max-width: 42rem; margin-inline: auto; }
   .runner-work { margin-top: var(--s-7); }
-  .runner-split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); align-items: start; column-gap: var(--s-7); }
-  .runner-side { position: sticky; top: calc(var(--header-h) + var(--s-5)); }
-  /* The selected races' analysis: below both columns, centred at the figure measure, so once a race is open no column
-     runs empty beside it (the search sticks only within the columns' own box, so it scrolls away above it). */
   .runner-reading > .runner-analysis { max-width: var(--measure-figure); margin-inline: auto; }
-  .runner-main > .runner-starts:first-child, .runner-main > .runner-results:first-child { margin-top: 0; }
-  .runner-main > .runner-starts:first-child { padding-top: 22px; }
-  /* The closing stack lines up with the right column, where everything the search finds reads. */
-  .runner-page .chapter-end { margin-left: calc((100% - var(--s-7)) * 5 / 12 + var(--s-7)); }
-  /* With races open, it follows the analysis into the page's middle instead. */
-  @supports selector(:has(a)) { .runner-page:has(.runner-analysis) .chapter-end { max-width: var(--measure-figure); margin-inline: auto; } }
+  @supports selector(:has(a)) { .runner-page:has(.runner-analysis) .chapter-end { max-width: var(--measure-figure); } }
 }
 
 /* Small text shared by the page: help lines and notes under a heading. */
 .runner-note { margin: var(--s-2) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
 .runner-status { margin-top: var(--s-4); }
 .runner-h { margin: 0; font-family: var(--serif); font-weight: 440; font-size: var(--t-sentence); line-height: 1.25; letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
-.runner-h:focus { outline: none; }
-.runner-h:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: var(--r-xs); }
+.runner-h:focus, .runner-reading h2:focus { outline: none; }
+.runner-h:focus-visible, .runner-reading h2:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: var(--r-xs); }
 .runner-error { display: grid; justify-items: start; gap: var(--s-2); margin-top: var(--s-4); padding: var(--s-3) 0; border-top: 2px solid var(--signal); font-size: var(--t-small); line-height: 1.45; color: var(--ink); }
 .runner-error p { margin: 0; }
 
@@ -167,7 +160,6 @@ label.runner-race-row { cursor: pointer; }
 .runner-analysis-head p { margin: var(--s-3) 0 0; max-width: var(--measure); font-size: var(--t-body); line-height: 1.55; color: var(--ink-2); }
 /* The answer, on night: the best finish as the figure, then its pace and the count of eligible finishes. */
 .runner-numbers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: var(--s-5); padding: 20px; border-radius: var(--r-md); background: var(--paper); color: var(--ink); box-shadow: var(--night-edge); }
-/* The legacy shared card look of .runner-numbers > div (app/styles/legacy/shared.css) is undone here. */
 .runner-numbers > div { min-width: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
 .runner-numbers > div:first-child { grid-column: 1 / -1; padding-bottom: var(--s-4); border-bottom: 1px solid var(--rule); }
 .runner-numbers > div + div { padding-top: var(--s-4); }
