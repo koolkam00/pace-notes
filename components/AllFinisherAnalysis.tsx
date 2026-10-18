@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
+import { cloneElement, isValidElement, useEffect, useId, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { UnitLink as Link, useUnits } from './UnitsProvider';
 import { elevationLabel, type UnitSystem } from '@/lib/units';
 import { clock } from '@/lib/personalized';
@@ -8,7 +8,7 @@ import { MARATHON_SECTION_ENDS, sectionLabel } from '@/lib/section-labels';
 import { trackAnalytics } from '@/lib/analytics';
 import { unitHref } from '@/lib/unit-preference';
 import { ms } from '@/lib/nuggets/format';
-import { ALL_FINISHER_DEFAULT, allFinisherGroupLabel, bandWords, allFinisherGroups, allFinisherRow, allFinisherSearch, earlyPaceLabel, loadAllFinisherContext, readAllFinisherSelection,
+import { ALL_FINISHER_DEFAULT, allFinisherGroupLabel, bandShort, bandWords, allFinisherGroups, allFinisherRow, allFinisherSearch, earlyPaceLabel, loadAllFinisherContext, readAllFinisherSelection,
   type AllFinisherEvidence, type AllFinisherGroup, type AllFinisherKind, type AllFinisherSelection, type AllFinisherStart } from '@/lib/all-finisher-context';
 import MakeItYours from './ui/MakeItYours.client';
 import Segmented from './ui/Segmented.client';
@@ -64,15 +64,6 @@ export function defaultFocus(groups: AllFinisherGroup[], kind: AllFinisherKind):
   return groups.reduce<AllFinisherGroup | undefined>((a, b) => (!a || (lowest ? b[measure] < a[measure] : b[measure] > a[measure]) ? b : a), undefined);
 }
 
-/** A start-temperature band as a short column label: "41–50°F", "<41°F", "68°F+". */
-function bandShort(g: AllFinisherGroup, units: UnitSystem) {
-  const t = (c: number) => Math.round(units === 'mi' ? c * 1.8 + 32 : c);
-  const deg = units === 'mi' ? '°F' : '°C';
-  if (g.lower_c == null) return `<${t(g.upper_c!)}${deg}`;
-  if (g.upper_c == null) return `${t(g.lower_c)}${deg}+`;
-  return `${t(g.lower_c)}–${t(g.upper_c)}${deg}`;
-}
-
 /**
  * One selection's results (the redesign spec, sections 7.4, 7.10 and 7.11): the headline (pinned by
  * verify-all-finisher-context-client), one sentence about the group followed, one chart, and every group's values.
@@ -113,7 +104,7 @@ export function AllFinisherResults({ groups, kind, start, units, focus, comparis
       keyLabels={{ filled: 'Three or more editions', hollow: 'Fewer editions' }}
       label={`${headline(groups, kind, named)} One dot per course; tap a dot to read it.`} />;
   } else if (kind === 'weather') {
-    chart = <Columns items={groups.map(g => ({ id: g.id, label: bandShort(g, units), value: g.slowdown_pct, display: percent(g.slowdown_pct), tone: g.edition_n < 5 ? 'hollow' : g.id === focus.id ? 'signal' : 'ink' }))}
+    chart = <Columns items={groups.map(g => ({ id: g.id, label: bandShort(g, units, false), value: g.slowdown_pct, display: percent(g.slowdown_pct), tone: g.edition_n < 5 ? 'hollow' : g.id === focus.id ? 'signal' : 'ink' }))}
       max={Math.ceil(Math.max(...groups.map(g => g.slowdown_pct)) / 10) * 10 + 5} label={headline(groups, kind, named)}
       keys={groups.some(g => g.edition_n < 5) ? [{ label: 'Fewer than five races', mark: 'hollow' }] : undefined} />;
   } else {
@@ -153,11 +144,25 @@ export function AllFinisherResults({ groups, kind, start, units, focus, comparis
  * pace, age group, recorded gender, and the group to follow, in one form (a sheet under 900 px, inline from 900 px).
  * The all-course example is in the page; anything else loads the published evidence, checked against its hash.
  */
-export default function AllFinisherAnalysis({ kind, start, history, title, description, archive = false, linkTerm = true }: { kind: AllFinisherKind; start: AllFinisherStart; history?: ReactNode; title?: string; description?: string; archive?: boolean; related?: ReactNode; linkTerm?: boolean }) {
+export default function AllFinisherAnalysis({ kind, start, history, title, description, archive = false, linkTerm = true, opening = ALL_FINISHER_DEFAULT.opening, untouched: untouchedView = 'chart' }: {
+  kind: AllFinisherKind; start: AllFinisherStart; history?: ReactNode; title?: string; description?: string; archive?: boolean; related?: ReactNode; linkTerm?: boolean;
+  /** Downhill starts: the opening band the explorer opens on (the page picks it from the data). */
+  opening?: string;
+  /**
+   * What the explorer shows before the visitor changes anything: 'chart' the example's results, 'none' the selection
+   * row alone, when the page's answer above already draws the example's chart. Any change shows the results.
+   */
+  untouched?: 'chart' | 'none';
+}) {
   const { units } = useUnits();
   const formId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
-  const [selection, setSelection] = useState<AllFinisherSelection>(ALL_FINISHER_DEFAULT);
-  const [draft, setDraft] = useState<AllFinisherSelection>(ALL_FINISHER_DEFAULT);
+  const base = useMemo<AllFinisherSelection>(() => ({ ...ALL_FINISHER_DEFAULT, opening }), [opening]);
+  const [selection, setSelection] = useState<AllFinisherSelection>(base);
+  const [draft, setDraft] = useState<AllFinisherSelection>(base);
+  // The comparison was switched from inside the sheet: the sheet of the mode switched to opens on arrival, and focus
+  // returns to the switch (each mode's form draws its own, so the pressed button is a new one).
+  const [switched, setSwitched] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<AllFinisherEvidence | null>(null);
   const [loading, setLoading] = useState(false), [error, setError] = useState(''), [retry, setRetry] = useState(0);
   const [focusId, setFocusId] = useState(''), [comparisonId, setComparisonId] = useState('');
@@ -165,9 +170,9 @@ export default function AllFinisherAnalysis({ kind, start, history, title, descr
   const all = selection.mode === 'all' || !history;
   const initial = allFinisherRow([start.initial], selection);
   useEffect(() => {
-    const restore = () => { const p = new URLSearchParams(window.location.search); const next = readAllFinisherSelection(window.location.search, start); setSelection(next); setDraft(next); setFocusId(p.get('focus') || ''); setComparisonId(p.get('compare') || ''); setFocusDraft(p.get('focus') || ''); setComparisonDraft(p.get('compare') || ''); };
+    const restore = () => { const p = new URLSearchParams(window.location.search); const next = readAllFinisherSelection(window.location.search, start, opening); setSelection(next); setDraft(next); setFocusId(p.get('focus') || ''); setComparisonId(p.get('compare') || ''); setFocusDraft(p.get('focus') || ''); setComparisonDraft(p.get('compare') || ''); };
     restore(); window.addEventListener('popstate', restore); return () => window.removeEventListener('popstate', restore);
-  }, [start]);
+  }, [start, opening]);
   useEffect(() => {
     if (!all || initial || data) { setLoading(false); setError(''); return; }
     const controller = new AbortController(); setLoading(true); setError('');
@@ -187,11 +192,17 @@ export default function AllFinisherAnalysis({ kind, start, history, title, descr
     window.history.pushState(null, '', unitHref(window.location.pathname + '?' + params.toString(), units));
   };
   const mode = (value: 'all' | 'history') => {
+    setSwitched(true);
     const params = new URLSearchParams(window.location.search); params.set('comparison', value);
     if (value === 'all') { params.delete('previous'); params.delete('prior'); }
     window.history.pushState(null, '', unitHref(window.location.pathname + '?' + params.toString(), units)); window.dispatchEvent(new PopStateEvent('popstate'));
   };
   const pending = all && !initial && !data && !error;
+  useEffect(() => {
+    if (!switched) return;
+    const frame = window.requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>('.explore-mode button[aria-pressed="true"]')?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [all, switched]);
   const label = (group: AllFinisherGroup) => allFinisherGroupLabel(group, kind, units);
   const field = (key: string) => `${formId}-${key}`;
   const follows = kind !== 'downhill' && groups.length > 1;
@@ -203,22 +214,26 @@ export default function AllFinisherAnalysis({ kind, start, history, title, descr
     ...(selection.early_pace === 'all' ? [] : [earlyPaceLabel(start.early_pace_bands.find(b => b.id === selection.early_pace)!, units)]), ...(selection.age === 'all' ? [] : [selection.age]),
     ...(selection.gender === 'all' ? [] : [selection.gender]), ...(all ? [] : ['With an earlier result'])].filter(Boolean).join(' · ');
   // The untouched example: the page's answer already states the spread across courses or start temperatures.
-  const untouched = !focusId && !comparisonId && (Object.keys(ALL_FINISHER_DEFAULT) as (keyof AllFinisherSelection)[]).every(key => selection[key] === ALL_FINISHER_DEFAULT[key]);
+  const untouched = !focusId && !comparisonId && (Object.keys(base) as (keyof AllFinisherSelection)[]).every(key => selection[key] === base[key]);
   const head = !(untouched && (kind === 'courses' || kind === 'weather'));
-  const modes = history && <div className="explore-mode"><Segmented label="Choose the comparison" block value={all ? 'all' : 'history'} onChange={value => mode(value as 'all' | 'history')}
-    options={[{ value: 'all', label: 'All eligible finishes' }, { value: 'history', label: 'With an earlier result' }]} /><p className="field-hint">{all ? 'No previous race needed' : 'Compared with recorded race history'}</p></div>;
-  return <div className="analysis-layout explorer af-explorer">
+  const shown = !untouched || untouchedView === 'chart';
+  // The comparison switch is the form's first control, in the sheet under 900 px and inline from 900 px, in both modes:
+  // the earlier-result explorer takes it as its own first control.
+  const modes = history ? <div className="explore-mode"><Segmented label="Choose the comparison" block value={all ? 'all' : 'history'} onChange={value => mode(value as 'all' | 'history')}
+    options={[{ value: 'all', label: 'All eligible finishes' }, { value: 'history', label: 'With an earlier result' }]} /><p className="field-hint">{all ? 'No previous race needed' : 'Compared with recorded race history'}</p></div> : null;
+  const historyView = isValidElement(history) ? cloneElement(history as ReactElement<{ modeSwitch?: ReactNode; defaultOpen?: boolean }>, { modeSwitch: modes, defaultOpen: switched }) : history;
+  return <div className="analysis-layout explorer af-explorer" ref={root}>
     {archive ? <header className="explorer-head"><h1 className="t-title">{title}</h1>{description ? <p className="t-body">{description}</p> : null}</header> : null}
-    {modes}
-    {!all ? history : <>
-      <MakeItYours id={`${formId}-miy`} summary={summary} busy={pending || loading}>
+    {!all ? historyView : <>
+      <MakeItYours id={`${formId}-miy`} summary={summary} busy={pending || loading} defaultOpen={switched}>
         <form className="explore-form" onSubmit={event => { event.preventDefault(); apply(draft); }}>
+          {modes}
           <div className="explore-fields">
             {kind !== 'courses' && kind !== 'course-consistency' && kind !== 'course-profile' && <div className="field"><label className="field-label" htmlFor={field('course')}>Course</label><select id={field('course')} className="select" value={draft.city} onChange={event => setDraft({ ...draft, city: event.target.value })}>{start.cities.map(city => <option key={city} value={city}>{cityName(city)}</option>)}</select></div>}
             <div className="field"><label className="field-label" htmlFor={field('early')}>Early-race pace</label><select id={field('early')} className="select" value={draft.early_pace} onChange={event => setDraft({ ...draft, early_pace: event.target.value })}>{start.early_pace_bands.map(band => <option key={band.id} value={band.id}>{earlyPaceLabel(band, units)}</option>)}</select></div>
             {kind === 'downhill' && <div className="field"><label className="field-label" htmlFor={field('opening')}>Opening pace</label><select id={field('opening')} className="select" value={draft.opening} onChange={event => setDraft({ ...draft, opening: event.target.value })}>{start.opening_bands.map(band => <option key={band.id} value={band.id}>{capital(bandWords(band.label))}</option>)}</select></div>}
             <div className="field"><label className="field-label" htmlFor={field('age')}>Age group</label><select id={field('age')} className="select" value={draft.age} onChange={event => setDraft({ ...draft, age: event.target.value })}>{start.ages.map(age => <option key={age} value={age}>{age === 'all' ? 'All ages' : age}</option>)}</select></div>
-            <div className="field"><label className="field-label" htmlFor={field('gender')}>Recorded gender</label><select id={field('gender')} className="select" value={draft.gender} onChange={event => setDraft({ ...draft, gender: event.target.value })}>{start.genders.map(gender => <option key={gender} value={gender}>{gender === 'all' ? 'All recorded categories' : gender}</option>)}</select></div>
+            <div className="field"><label className="field-label" htmlFor={field('gender')}>Recorded gender</label><select id={field('gender')} className="select" value={draft.gender} onChange={event => setDraft({ ...draft, gender: event.target.value })}>{start.genders.map(gender => <option key={gender} value={gender}>{gender === 'all' ? 'All' : gender}</option>)}</select></div>
             {follows && focus && <div className="field"><label className="field-label" htmlFor={field('focus')}>{followLabel}</label><select id={field('focus')} className="select" value={focusDraft || focus.id} onChange={event => setFocusDraft(event.target.value)}>{groups.map(group => <option key={group.id} value={group.id}>{label(group)}</option>)}</select></div>}
             {isProfileKind(kind) && focus && <div className="field"><label className="field-label" htmlFor={field('compare')}>Compare pacing with</label><select id={field('compare')} className="select" value={comparisonDraft || comparison?.id || 'none'} onChange={event => setComparisonDraft(event.target.value)}><option value="none">No comparison line</option>{groups.filter(group => group.id !== (focusDraft || focus.id)).map(group => <option key={group.id} value={group.id}>{label(group)}</option>)}</select></div>}
           </div>
@@ -229,8 +244,9 @@ export default function AllFinisherAnalysis({ kind, start, history, title, descr
       <div className="miy-results">
         {(pending || loading) && !row ? <p className="explore-state">Loading the comparison…</p>
           : error ? <div className="explore-state" role="alert"><p>{error}</p><button type="button" className="btn btn-secondary is-compact" onClick={() => setRetry(value => value + 1)}>Try again</button></div>
+          : !shown ? null
           : focus ? <AllFinisherResults groups={groups} kind={kind} start={start} units={units} focus={focus} comparison={comparison} head={head} followed={!!focusId} linkTerm={linkTerm} />
-          : <div className="explore-state"><h2 className="explore-title">Not enough results for this exact comparison.</h2><p>Try a broader course, early pace, age or gender{kind === 'downhill' ? ', or another opening' : ''}.</p><button className="btn btn-secondary is-compact" type="button" onClick={() => apply(ALL_FINISHER_DEFAULT, '', '')}>Reset the comparison</button></div>}
+          : <div className="explore-state"><h2 className="explore-title">Not enough results for this exact comparison.</h2><p>Try a broader course, early pace, age or gender{kind === 'downhill' ? ', or another opening' : ''}.</p><button className="btn btn-secondary is-compact" type="button" onClick={() => apply(base, '', '')}>Reset the comparison</button></div>}
       </div>
     </>}
   </div>;

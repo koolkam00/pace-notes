@@ -15,8 +15,8 @@ type Page = { marker?: string; short?: string; ticks: number[] };
  * a 2 px line, ink up to the reading position, a signal dot at it and a tick at every beat ([data-beat]) start.
  *
  * Minutes left: the words of the beats still below the screen ÷ 238, plus 12 s for each figure below it, rounded up, at
- * least 1. Words are counted once, in the browser, after the page loads; the ticks and the line are measured again
- * whenever the page's height changes. Nothing is sent anywhere. Decorative
+ * least 1. Words, ticks and the line are measured in the browser after the page loads and again whenever the page's
+ * height changes. Nothing is sent anywhere. Decorative
  * (aria-hidden): the page's headings say the same.
  */
 export default function ReadingBar() {
@@ -27,7 +27,10 @@ export default function ReadingBar() {
     const root = document.querySelector<HTMLElement>('main[data-reading], main [data-reading]');
     if (!root) { setPage(null); return; }
     const marked = Array.from(root.querySelectorAll<HTMLElement>('[data-beat]'));
-    const beats = (marked.length ? marked : [root]).map((el) => ({ el, words: (el.innerText.match(/\S+/g) || []).length }));
+    // Words are counted again whenever the page's height changes (a Values table or a disclosure opened), so the
+    // minutes left and the line always describe the same page.
+    const count = () => (marked.length ? marked : [root]).map((el) => ({ el, words: (el.innerText.match(/\S+/g) || []).length }));
+    let beats = count();
     const figures = beats.flatMap(({ el }) => Array.from(el.querySelectorAll('figure')));
     let frame = 0, settle = 0, top = 0, span = 1, live = true;
     const ticksOf = () => {
@@ -54,7 +57,7 @@ export default function ReadingBar() {
       if (out.textContent !== text) out.textContent = text;
     };
     const onScroll = () => { if (!frame) frame = requestAnimationFrame(update); };
-    const remeasure = () => { if (!live) return; setPage((was) => (was ? { ...was, ticks: ticksOf() } : was)); onScroll(); };
+    const remeasure = () => { if (!live) return; beats = count(); setPage((was) => (was ? { ...was, ticks: ticksOf() } : was)); onScroll(); };
     setPage({ marker: root.dataset.marker, short: root.dataset.short, ticks: ticksOf() });
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });

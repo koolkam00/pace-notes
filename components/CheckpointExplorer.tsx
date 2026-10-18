@@ -76,8 +76,8 @@ export default function CheckpointExplorer({ summary, profile: start = EXAMPLE_P
   const share = result ? percentUnder(result.row, profile.goal) : null;
   const remaining = (profile.goal * 60 - request.elapsed) / (42.195 - request.checkpoint);
   const field = (key: string) => `${formId}-${key}`;
-  // The choices that vary first: the mat and its time, then the goal and the course.
-  const summaryText = [`${request.checkpoint}K in ${clock(request.elapsed, true)}`, `goal ${clock(profile.goal * 60)}`, cityName(profile.city), ...(profile.age === 'all' ? [] : [profile.age]), ...(profile.gender === 'all' ? [] : [profile.gender])].join(' · ');
+  // The mat and its split, then only the choices that differ from the example (never the default goal or "All courses").
+  const summaryText = [`${request.checkpoint}K in ${clock(request.elapsed, true)}`, ...(profile.goal === start.goal ? [] : [`goal ${clock(profile.goal * 60)}`]), ...(profile.city === start.city ? [] : [cityName(profile.city)]), ...(profile.age === 'all' ? [] : [profile.age]), ...(profile.gender === 'all' ? [] : [profile.gender])].join(' · ');
   const submit = () => {
     const goal = parseMinutes(goalText);
     const elapsed = parseElapsed(elapsedText), section = sectionText.trim() ? parseSection(sectionText) : null;
@@ -105,7 +105,7 @@ export default function CheckpointExplorer({ summary, profile: start = EXAMPLE_P
           <div className="explore-fields">
             <div className="field"><label className="field-label" htmlFor={field('section')}>Latest 5 km · optional</label><input id={field('section')} className="input" value={sectionText} onChange={event => setSectionText(keypadInput(event.target, event.nativeEvent))} placeholder="e.g. 28:00" inputMode="decimal" spellCheck={false} autoComplete="off" /></div>
             <div className="field"><label className="field-label" htmlFor={field('age')}>Age group</label><select id={field('age')} className="select" value={draft.age} onChange={event => setDraft({ ...draft, age: event.target.value })}>{AGE_OPTIONS.map(age => <option key={age} value={age}>{age === 'all' ? 'All ages' : age}</option>)}</select></div>
-            <div className="field"><label className="field-label" htmlFor={field('gender')}>Recorded gender</label><select id={field('gender')} className="select" value={draft.gender} onChange={event => setDraft({ ...draft, gender: event.target.value })}><option value="all">All recorded categories</option><option value="Women">Women</option><option value="Men">Men</option></select></div>
+            <div className="field"><label className="field-label" htmlFor={field('gender')}>Recorded gender</label><select id={field('gender')} className="select" value={draft.gender} onChange={event => setDraft({ ...draft, gender: event.target.value })}><option value="all">All</option><option value="Women">Women</option><option value="Men">Men</option></select></div>
           </div>
         </details>
         {formError && <p className="field-error" role="alert">{formError}</p>}

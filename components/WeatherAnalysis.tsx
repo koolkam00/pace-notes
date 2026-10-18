@@ -2,13 +2,12 @@
 import { useId } from 'react';
 import { useUnits } from './UnitsProvider';
 import { withEm } from './ui/withEm';
-import BigNumber from './ui/BigNumber';
 import Values from './ui/Values';
 import ChartFrame from './viz/ChartFrame';
 import Axis from './viz/Axis';
 import Plot from './viz/Plot';
 import { linear, pc } from './viz/scale';
-import { weatherLabel, weatherNumber, weatherUnit, weatherValue } from '@/lib/weather-display';
+import { weatherLabel, weatherNumber } from '@/lib/weather-display';
 import type { NuggetText } from '@/lib/nuggets/types';
 import type { WeatherCandidate, WeatherDefinition, WeatherEvidence } from '@/lib/weather-types';
 
@@ -21,8 +20,6 @@ const SIDES: Record<WeatherCandidate['id'], [string, string, string]> = {
 };
 /** The table's short column name for each exposure; the caption says it in full. */
 const SHORT: Record<WeatherCandidate['id'], string> = { warming: 'Rise', wind: 'Wind', humidity: 'Dew point' };
-/** A race day's exposure in whole units ("11°F", "10 mph"), as the tab's sentence says it. */
-const whole = (value: number, id: WeatherCandidate['id'], units: 'mi' | 'km') => `${Math.round(weatherValue(value, id, units))}${id === 'wind' ? ' ' : ''}${weatherUnit(id, units)}`;
 const pp = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${weatherNumber(Math.abs(value), 1)}`;
 
 /**
@@ -57,16 +54,10 @@ export default function WeatherAnalysis({ candidate, evidence, sentence }: { def
   );
   return <div className="analysis-layout weather-effect">
     {text ? <p className="weather-sentence t-sentence">{withEm(text)}</p> : null}
+    {/* The sentence above names the two race days and the estimate; the card draws the estimate and its interval against
+        zero and the band of no material difference, and adds only the interval's ends. */}
     <div className="answer-card night effect-card">
-      <p className="answer-kicker t-kicker">{heading}</p>
-      <dl className="effect-days">
-        <div><dt>{SIDES[candidate.id][0]}</dt><dd>{whole(exposure.q25, candidate.id, units)}</dd></div>
-        <div><dt>{SIDES[candidate.id][1]}</dt><dd>{whole(exposure.q75, candidate.id, units)}</dd></div>
-      </dl>
-      <div className="effect-result">
-        <span className="effect-result-label">{SIDES[candidate.id][2]}</span>
-        <BigNumber value={isNull ? '≈ 0' : pp(effect.estimate)} unit={isNull ? undefined : 'pts'} size="l" tone={isNull ? 'quiet' : 'signal'} sr={`${pp(effect.estimate)} percentage points`} />
-      </div>
+      <p className="answer-kicker t-kicker">{SIDES[candidate.id][2]}, in points</p>
       <ChartFrame className="effect-strip" label={`${heading}: ${pp(effect.estimate)} percentage points; ${interval} ${pp(effect.low)} to ${pp(effect.high)}`} height={64} heightMd={64} plot={plot}
         axis={<Axis ticks={ticks.map(t => ({ x: x(t), label: tickLabel(t) }))} />} keys={[{ label: 'No material difference', mark: 'band' }]} />
       <p className="answer-foot">{interval}: {pp(effect.low)} to {pp(effect.high)} percentage points.</p>

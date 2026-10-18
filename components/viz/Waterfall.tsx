@@ -13,8 +13,13 @@ import { linear, pc, yScale } from './scale';
  */
 export type WaterfallStep = { id: string; label: string; value: number; display: string };
 
-export default function Waterfall({ steps, total, yTicks = [], label, values, height = 200, heightMd = 250 }: {
+export default function Waterfall({ steps, total, yTicks = [], xTicks, label, values, height = 200, heightMd = 250 }: {
   steps: WaterfallStep[]; total: { label: string; display: string }; yTicks?: { value: number; label: string }[]; label: string; values?: ReactNode; height?: number; heightMd?: number;
+  /**
+   * Axis labels in bar units (0 is the first bar's left edge, `steps.length` the last one's right edge), e.g. the mats
+   * between sections, evenly spaced. By default every bar is named under its centre and the total under its own.
+   */
+  xTicks?: { at: number; label: string }[];
 }) {
   const ends: number[] = [];
   steps.reduce((sum, s) => { ends.push(sum + s.value); return sum + s.value; }, 0);
@@ -46,7 +51,8 @@ export default function Waterfall({ steps, total, yTicks = [], label, values, he
   );
   return (
     <ChartFrame className="waterfall" label={label} height={height} heightMd={heightMd} plot={plot}
-      axis={<Axis ticks={[...steps.map((s, i) => ({ x: x(i + 0.5), label: s.label, priority: i === big ? 3 : 1 })), { x: x(n - 0.5), label: total.label, priority: 2 }]} />}
+      axis={<Axis ticks={xTicks ? [...xTicks.map((t) => ({ x: x(t.at), label: t.label, priority: 2 })), { x: x(n - 0.5), label: total.label, priority: 3 }]
+        : [...steps.map((s, i) => ({ x: x(i + 0.5), label: s.label, priority: i === big ? 3 : 1 })), { x: x(n - 0.5), label: total.label, priority: 2 }]} />}
       values={values}
     />
   );

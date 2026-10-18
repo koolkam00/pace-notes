@@ -36,8 +36,11 @@ export default function AgePacing() {
             { x: pooledLo, y: rows[pooledLo].pooled, text: `${rows[pooledLo].age} ${signedPct(rows[pooledLo].pooled)}`, priority: 1, prefer: 'above' },
             { x: mid, y: rows[mid].same, text: `Near ${hm(goal)}: ${signedPct(sameLo)} to ${signedPct(sameHi)}`, tone: 'signal', priority: 3, prefer: 'below' },
           ] }]}
-        xTicks={rows.map((r, i) => ({ value: i, label: r.age })).filter((_, i) => i % 2 === 0 || i === rows.length - 1)}
-        yTicks={[{ value: Math.floor(hi), label: signedPct(Math.floor(hi)) }]}
+        // Three evenly spaced ages (the ends and the middle) at every width; every group is in Values.
+        xTicks={[...new Set([0, Math.round((rows.length - 1) / 2), rows.length - 1])].map((i) => ({ value: i, label: rows[i].age }))}
+        // Gridlines every 5 points inside the range, so the gap between the lines can be read; none near the top, where
+        // the oldest group's label sits at the right edge.
+        yTicks={Array.from({ length: Math.floor(hi / 5) - Math.ceil(lo / 5) + 1 }, (_, k) => (Math.ceil(lo / 5) + k) * 5).filter((t) => t > lo && t < Math.max(...vals) - 2).slice(-3).map((t) => ({ value: t, label: signedPct(t) }))}
         keys={[{ label: 'All finishes', mark: 'line', tone: 'quiet' }, { label: `Finishes near ${hm(goal)}`, mark: 'line', tone: 'signal' }]}
         label={`The second 20K against the first, by age group: pooled from ${signedPct(rows[pooledLo].pooled)} at ${rows[pooledLo].age} to ${signedPct(rows[pooledHi].pooled)} at ${rows[pooledHi].age}; near ${hm(goal)}, every age within ${Number(n.values.same_spread).toFixed(1)} points`}
         values={<Values id="age-two" caption="The second 20K against the first, by age group" columns={[{ key: 'a', label: 'Age group' }, { key: 'p', label: 'All finishes' }, { key: 's', label: `Near ${hm(goal)}` }]}

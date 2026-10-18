@@ -15,6 +15,7 @@ import { bandWords } from '@/lib/all-finisher-context';
 import { delta, ms, pct, spokenTime } from '@/lib/nuggets/format';
 
 const PATH = '/analyses/starting-pace';
+const capitalize = (s: string) => s.replace(/^[a-z]/, (c) => c.toUpperCase());
 
 /** Chapter 02, page 1: the matched bank-and-pay answer, the U-curve of opening pace, then Make it yours. */
 export default function StartingPace() {
@@ -61,12 +62,15 @@ function OpeningCurve() {
   const span = xs[xs.length - 1] - xs[0];
   return (
     // Behind is down and ahead is up, as on every pace and gap chart on the site: the best finish is the curve's peak.
-    <LineProfile x={xs} yDomain={[Math.max(hi, yTicks[0].value), floor]}
+    // Half a bin of room at each end, so the outermost ticks (on bin centres) stay inside the axis.
+    <LineProfile x={xs} xDomain={[xs[0] - 0.5, xs[xs.length - 1] + 0.5]} yDomain={[Math.max(hi, yTicks[0].value), floor]}
       layers={[{ id: 'u', label: 'Finish', series: [{ id: 'finish', values: curve.map((c) => c.finish_s), fillAbove: 0 }],
         // The best point is ringed; the readout above names its value, so no label sits under the needle.
         points: [{ x: best.lo + 0.5, y: best.finish_s, kind: 'best' }] }]}
       refs={[{ value: 0, label: 'same pace' }]}
-      xTicks={[-10, -5, 0, 5, 10].filter((t) => t >= curve[0].lo && t <= curve[curve.length - 1].lo + 1).map((t) => ({ value: t, label: t === 0 ? 'even' : `${Math.abs(t)}%` }))}
+      // Each tick sits on the centre of the 1% bin that starts at it, counting away from even (even: 0–1% slower; 10%
+      // fast: 10–11% faster), so the detents at even and 10% fast land on their labels.
+      xTicks={[-10, -5, 0, 5, 10].filter((t) => t >= curve[0].lo && t <= curve[curve.length - 1].lo + 1).map((t) => ({ value: t < 0 ? t - 0.5 : t + 0.5, label: t === 0 ? 'even' : `${Math.abs(t)}%` }))}
       axisTitle={{ start: 'Faster first 5K', end: 'Slower first 5K' }}
       yTicks={yTicks}
       scrub={{
@@ -76,9 +80,10 @@ function OpeningCurve() {
         initial: bestI, detents: [evenI, bestI, fastI].filter((i) => i >= 0),
       }}
       label={`The finish against same-pace finishes, by first-5K pace; the best average finish went with a first 5K ${openingWords(best.lo)}`}
-      values={<Values id="sp-curve-values" caption="The finish against the same 5–20K pace, by first 5K"
-        columns={[{ key: 'b', label: 'First 5K', text: true }, { key: 'o', label: 'First 5K time' }, { key: 'f', label: 'At the finish' }, { key: 's', label: 'Sustained slowdown' }]}
-        rows={kick.bank.bands.map((b) => [b.label, delta(b.open_s), delta(b.finish_s), pct(b.slowdown)])} />}
+      // The curve's own twin, 1% bin by bin, as the readout reads it (the explorer below gives the six wider bands).
+      values={<Values id="sp-curve-values" caption="Against the same race and 5–20K pace, by first 5K"
+        columns={[{ key: 'b', label: 'First 5K', text: true }, { key: 'f', label: 'At the finish' }, { key: 'a', label: 'After 20K' }, { key: 's', label: 'Sustained slowdown' }]}
+        rows={curve.map((c) => [capitalize(openingWords(c.lo)), delta(c.finish_s), delta(c.after20_s), pct(c.slowdown)])} reading={bestI} />}
       height={220} heightMd={280} />
   );
 }

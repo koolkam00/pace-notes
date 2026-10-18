@@ -37,6 +37,9 @@ export default function DownhillStart() {
   // The axis spans the rates to the nearest ten points, so a few points' gap still reads.
   const all = rows.flatMap((r) => [r.down!.slowdown_pct, r.other!.slowdown_pct]);
   const lo = Math.floor(Math.min(...all) / 10) * 10 / 100, top = Math.ceil(Math.max(...all) / 10) * 10 / 100;
+  // The explorer opens on the band where the two kinds of course differ most, the clearest row of the dumbbell above
+  // (never on a band whose rate the previous page gave from another comparison).
+  const clearest = rows.reduce<(typeof rows)[number] | undefined>((b, r) => (!b || Math.abs(r.other!.slowdown_pct - r.down!.slowdown_pct) > Math.abs(b.other!.slowdown_pct - b.down!.slowdown_pct) ? r : b), undefined);
   return (
     <AnalysisShell path={PATH} title={opening} dek="What follows a downhill opening?" answer={answer}>
       <Beat id="by-band" track="chapter-1" label="Band by band" title={bands} term>
@@ -47,7 +50,7 @@ export default function DownhillStart() {
           values={<Values id="dh-bands" caption="Sustained slowdown by opening band" columns={[{ key: 'b', label: 'Opening', text: true }, { key: 'd', label: 'Downhill-start courses' }, { key: 'o', label: 'Every other course' }]}
             rows={rows.map((r) => [band(r.band.label), pct(r.down!.slowdown_pct / 100), pct(r.other!.slowdown_pct / 100)])} />} />
       </Beat>
-      <ExploreBeat track="chapter-2"><AllFinisherAnalysis kind="downhill" start={start} linkTerm={false} /></ExploreBeat>
+      <ExploreBeat track="chapter-2"><AllFinisherAnalysis kind="downhill" start={start} linkTerm={false} opening={clearest?.band.id} /></ExploreBeat>
     </AnalysisShell>
   );
 }

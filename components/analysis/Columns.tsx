@@ -27,7 +27,10 @@ export default function Columns({ items, max, label, keys, values, height = 180,
   const hi = items.reduce((b, c, i) => (c.value > items[b].value ? i : b), 0);
   const shown = items.map((c, i) => all || i === lo || i === hi || c.tone === 'signal');
   const lab: LabelItem[] = items.flatMap((c, i) => (shown[i] ? [{ id: c.id, text: c.display, x: x(i + 0.5), y: y(c.value), priority: c.tone === 'signal' ? 3 : 2, tone: c.tone === 'signal' ? 'signal' as const : 'ink' as const, size: c.tone === 'signal' ? 14 : 13, gap: 6, prefer: 'above' as const }] : []));
-  const placed = placeLabels(lab, { height, boxes: items.map((c, i) => ({ x0: x(i + 0.5) - 12 / 288, x1: x(i + 0.5) + 12 / 288, y0: y(c.value), y1: 1 })) });
+  // Below 200 px (a phone at 200% zoom) only the extremes and the signal column keep their values; the rest are in Values.
+  const key = new Set([lo, hi, ...items.flatMap((c, i) => (c.tone === 'signal' ? [i] : []))].map((i) => items[i].id));
+  const placed = placeLabels(lab, { height, boxes: items.map((c, i) => ({ x0: x(i + 0.5) - 12 / 288, x1: x(i + 0.5) + 12 / 288, y0: y(c.value), y1: 1 })) })
+    .map((p) => (key.has(p.id) || p.minWidth === null ? p : { ...p, minWidth: Math.max(p.minWidth, 200) }));
   const plot = (
     <Plot>
       {gridLabel ? <Gridlines lines={[{ y: y(gridLabel.value), label: gridLabel.label }]} side="right" /> : null}

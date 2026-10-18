@@ -1,38 +1,33 @@
-import Receipt from '@/components/ui/Receipt';
 import AnalysisExplorer from '@/components/AnalysisExplorer';
-import AnalysisShell, { ExploreBeat } from '../Shell';
+import AnalysisShell, { AnswerCard, ExploreBeat } from '../Shell';
+import ExplorerChart from '../ExplorerChart';
 import { analysisBySlug } from '@/lib/ten-analyses';
-import { getAnalysisStart, getCityData } from '@/lib/analysis-server';
-import { EXAMPLE_PROFILE } from '@/lib/analysis-profile';
+import { getAnalysisStart } from '@/lib/analysis-server';
 import { getNugget } from '@/lib/nuggets';
-import { delta, hm, ms, pct, spokenPct, spokenTime } from '@/lib/nuggets/format';
+import { hm } from '@/lib/nuggets/format';
 
 const PATH = '/analyses/where-time-is-gained';
 
-/** Chapter 05, page 3: finishes just under and just over 4:00, where they split, then Make it yours. */
+/**
+ * Chapter 05, page 3: finishes just under and just over 4:00, the gap between them built section by section as a
+ * waterfall (the H1 gives the total and the share after 20K), then Make it yours, which draws its own waterfall only once
+ * the visitor changes something.
+ */
 export default function WhereTime() {
   const definition = analysisBySlug('where-time-is-gained')!;
   const { summary, answers } = getAnalysisStart();
   const n = getNugget('sections.split');
-  const v = n.values as { goal_min: number; gap_s: number; after20_s: number; share: number };
-  const near = getCityData(EXAMPLE_PROFILE.city).cohorts['all|all|all']?.near.find((x) => x.target === v.goal_min);
-  // The result is the H1's accent (the share of the gap opened after 20K). The two lines add up to the finish gap: each
-  // is rounded from the same whole seconds, so the receipt never reads 1:08 + 1:34 = 2:43.
-  const total = Math.round(v.gap_s), after = Math.round(v.after20_s), before = total - after;
-  const answer = near ? (
-    <Receipt kicker={`Just under ${hm(v.goal_min)} against just over`}
-      lines={[
-        { label: 'Apart at 20K', value: ms(before), sr: spokenTime(before) },
-        { label: 'Added after 20K', value: delta(after), sr: `${spokenTime(after)} more` },
-        { label: 'Apart at the finish', value: ms(total), sr: spokenTime(total) },
-      ]}
-      result={{ label: 'Of the gap, opened after 20K', value: pct(Number(v.share)), sr: `${spokenPct(Number(v.share))} of the gap opened after 20K`, fallback: n.guard ? undefined : `${ms(total)} apart at the finish` }}
-      footer={`Finishes ${hm(v.goal_min - 5)}–${hm(v.goal_min)} against ${hm(v.goal_min)}–${hm(v.goal_min + 5)}`} />
+  const goal = Number(n.values.goal_min);
+  const initialAnswer = answers.find((a) => a.id === definition.id)!;
+  const answer = initialAnswer.charts.length ? (
+    <AnswerCard kicker={`Just under ${hm(goal)} against just over`} foot={`Finishes ${hm(goal - 5)}–${hm(goal)} against ${hm(goal)}–${hm(goal + 5)}`}>
+      <ExplorerChart id="sections" answer={initialAnswer} goal={goal} units="mi" valuesId="wt-answer" />
+    </AnswerCard>
   ) : null;
   return (
     <AnalysisShell path={PATH} title={n} dek={definition.title} answer={answer}>
       <ExploreBeat track="chapter-1">
-        <AnalysisExplorer definition={definition} summary={summary} initialAnswer={answers.find((a) => a.id === definition.id)!} />
+        <AnalysisExplorer definition={definition} summary={summary} initialAnswer={initialAnswer} untouched="none" />
       </ExploreBeat>
     </AnalysisShell>
   );

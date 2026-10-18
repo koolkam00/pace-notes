@@ -6,7 +6,7 @@ import ByUnits from '../ByUnits.client';
 import { analysisBySlug } from '@/lib/ten-analyses';
 import { getAnalysisStart } from '@/lib/analysis-server';
 import { getNugget } from '@/lib/nuggets';
-import { hm, ms, pct, spokenPct, spokenTime } from '@/lib/nuggets/format';
+import { hm, ms, spokenTime } from '@/lib/nuggets/format';
 import type { UnitSystem } from '@/lib/units';
 
 const PATH = '/analyses/finding-improvement';
@@ -26,13 +26,12 @@ export default function FindingImprovement() {
     const i = exact.map((e, k) => ({ k, gap: (e - whole[k]) * Math.sign(left) })).sort((a, b) => b.gap - a.gap)[0].k;
     whole[i] += Math.sign(left); left -= Math.sign(left);
   }
-  const share = Number(gains.values.share);
-  // The result is the H1's accent: the share of the time found from 30K to the finish.
+  // The H1 gives the share found from 30K; the receipt adds what it does not say: the three parts, each per mile, and
+  // the total they add up to.
   const receipt = (u: UnitSystem) => (
     <Receipt kicker={`Improving finishes near ${hm(g.goal_min)}, against an earlier best`}
       lines={BLOCKS.map(([label, km], i) => ({ label, key: per(whole[i], km, u), value: ms(whole[i]), sr: spokenTime(whole[i]) }))}
-      result={{ label: `Found from 30K to the finish`, value: pct(share), sr: `${spokenPct(share)} of the time found`, fallback: gains.guard ? undefined : `${ms(whole[2])} from 30K to the finish` }}
-      footer={`${ms(whole.reduce((a, b) => a + b, 0))} faster in all`} />
+      result={{ label: 'Faster in all', value: ms(whole.reduce((a, b) => a + b, 0)), sr: `${spokenTime(whole.reduce((a, b) => a + b, 0))} faster in all` }} />
   );
   const r = next.values as { observed: number; expected: number };
   const lit = (s: number) => Math.round(s * 100);

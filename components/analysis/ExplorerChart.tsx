@@ -27,13 +27,15 @@ const signedPct = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(
 
 export type TerrainExtras = { elevation: number[] | null; step: number; relief: number };
 
-export default function ExplorerChart({ id, answer, goal, units, terrain, valuesId, selectedAge }: {
+export default function ExplorerChart({ id, answer, goal, units, terrain, valuesId, selectedAge, example = false }: {
   id: string; answer: GuideAnswer; goal: number; units: UnitSystem; terrain?: TerrainExtras; valuesId: string; selectedAge?: string;
+  /** The page's own example (its answer card), not the visitor's selection: the goal is the page's, not "You". */
+  example?: boolean;
 }): ReactNode {
   if (id === 'profile') return <PaceProfile answer={answer} goal={goal} units={units} valuesId={valuesId} />;
   if (id === 'terrain') return <Terrain answer={answer} units={units} terrain={terrain} valuesId={valuesId} />;
   if (id === 'sections') return <Sections answer={answer} goal={goal} valuesId={valuesId} />;
-  if (id === 'ambition') return <Target answer={answer} goal={goal} valuesId={valuesId} />;
+  if (id === 'ambition') return <Target answer={answer} goal={goal} valuesId={valuesId} example={example} />;
   if (id === 'gains') return <Gains answer={answer} goal={goal} units={units} valuesId={valuesId} />;
   if (id === 'age') return <Ages answer={answer} valuesId={valuesId} selectedAge={selectedAge} />;
   return null;
@@ -61,7 +63,7 @@ function PaceProfile({ answer, goal, units, valuesId }: { answer: GuideAnswer; g
       scrub={{ label: 'Section pace, start to finish', initial: slowest, detents: [slowest],
         points: { x: SECTION_MIDS.map((m) => m / 42.195), keys: MARATHON_SECTION_ENDS.map((e) => `${sectionLabel(e)}, median pace`), values: rows.map((r) => pace(r.mid)),
           side: [{ label: 'Middle half', values: rows.map((r) => `${paceLabel(r.lo / k, units, false)}–${pace(r.hi)}`) }] } }}
-      keys={[{ label: 'Middle half of finishes', mark: 'band' }, { label: `Even ${hm(goal)} pace`, mark: 'dash' }]}
+      keys={[{ label: 'Middle half of finishes', mark: 'band' }, { label: `Even ${hm(goal)} pace, ${pace(even)}`, mark: 'dash' }]}
       label={`Median section pace for ${answer.comparison ?? 'finishes near this time'}; slowest in ${sectionLabel(MARATHON_SECTION_ENDS[slowest])} at ${pace(rows[slowest].mid)}`}
       values={<Values id={valuesId} caption="Median section pace, with the middle half of finishes" columns={[{ key: 's', label: 'Section' }, { key: 'm', label: 'Median' }, { key: 'r', label: 'Middle half' }]}
         rows={rows.map((r, i) => [sectionLabel(MARATHON_SECTION_ENDS[i]), pace(r.mid), `${paceLabel(r.lo / k, units, false)}–${pace(r.hi)}`])} reading={slowest} />}
@@ -102,25 +104,34 @@ function Sections({ answer, goal, valuesId }: { answer: GuideAnswer; goal: numbe
   const steps = rows.map((r, i) => ({ id: String(i), label: sectionLabel(MARATHON_SECTION_ENDS[i]), value: (num(r.above) - num(r.below)) * 60, display: signed((num(r.above) - num(r.below)) * 60) }));
   const total = steps.reduce((s, x) => s + x.value, 0);
   const big = steps.reduce((a, b) => (b.value > a.value ? b : a));
+  // The mats between the sections, evenly every 10K, then the finish gap under its own bar.
+  const mats = steps.length === MARATHON_SECTION_ENDS.length ? [0, 2, 4, 6, 8].map((at) => ({ at, label: at ? `${MARATHON_SECTION_ENDS[at - 1]}K` : 'Start' })) : undefined;
   return (
-    <Waterfall steps={steps} total={{ label: 'Finish', display: signed(total) }}
+    <Waterfall steps={steps} total={{ label: 'Finish', display: signed(total) }} xTicks={mats}
       label={`The gap between finishes just over and just under ${hm(goal)}, built section by section; ${big.label} added the most, ${big.display}`}
       values={<Values id={valuesId} caption={`Just over ${hm(goal)} against just under, by section`} columns={[{ key: 's', label: 'Section' }, { key: 'g', label: 'Gap added' }]} rows={[...steps.map((s) => [s.label, s.display]), ['Finish', signed(total)]]} />} />
   );
 }
 
-/** The share of the comparison's finishes under each time, the goal ringed. */
-function Target({ answer, goal, valuesId }: { answer: GuideAnswer; goal: number; valuesId: string }) {
+/**
+ * The share of the comparison's finishes under each time, the goal ringed. The visitor's own goal is "You" and the
+ * readout opens on it; the page's example rings its goal by name and opens the readout on the median finish, the one
+ * figure its headline (the shares under three round times) does not already give.
+ */
+function Target({ answer, goal, valuesId, example }: { answer: GuideAnswer; goal: number; valuesId: string; example: boolean }) {
   const rows = answer.charts[0]?.rows ?? [];
   const pts = rows.map((r) => ({ x: num(r.label), share: num(r.value) / 100 })).filter((p) => p.share >= 0.01 && p.share <= 0.99);
   if (pts.length < 2) return null;
   const at = pts.reduce((b, p) => (Math.abs(p.x - goal) < Math.abs(b.x - goal) ? p : b));
   const marks = Array.from({ length: 24 }, (_, i) => 120 + i * 30).filter((m) => m >= pts[0].x && m <= pts[pts.length - 1].x);
   const ticks = marks.filter((m) => m % 60 === 0);
+  // The median: the first time with half the finishes under it.
+  const half = pts.findIndex((p) => p.share >= 0.5);
+  const open = example && half >= 0 ? half : pts.indexOf(at);
   return (
-    <Cdf points={pts} you={goal} ticks={ticks.map((m) => ({ value: m, label: hm(m) }))}
+    <Cdf points={pts} you={goal} youLabel={example ? hm(goal) : 'You'} ticks={ticks.map((m) => ({ value: m, label: hm(m) }))}
       scrub={{ label: 'Finish time', points: { x: pts.map((p) => (p.x - pts[0].x) / (pts[pts.length - 1].x - pts[0].x)), keys: pts.map((p) => `Finishes under ${hm(p.x)}`), values: pts.map((p) => `${Math.round(p.share * 100)}%`) },
-        initial: pts.indexOf(at), detents: marks.map((m) => pts.findIndex((p) => p.x === m)).filter((i) => i >= 0) }}
+        initial: open, detents: [...marks.map((m) => pts.findIndex((p) => p.x === m)), ...(example ? [half] : [])].filter((i, k, all) => i >= 0 && all.indexOf(i) === k) }}
       label={`The share of finishes under each time; ${Math.round(at.share * 100)}% under ${hm(goal)}`}
       values={<Values id={valuesId} caption="Finishes under each round time" columns={[{ key: 't', label: 'Under' }, { key: 's', label: 'Share of finishes' }]} rows={marks.map((m) => [hm(m), `${Math.round((pts.find((p) => p.x === m)?.share ?? NaN) * 100)}%`])} />} />
   );

@@ -265,7 +265,7 @@ export function coursesSpreadFrom(groups: AllFinisherGroup[]): Nugget {
   return {
     id: 'courses.spread', page: '/stories/courses', denominator: 'course', term: '/methodology#sustained-slowdown',
     values: { lo: l, hi: h, courses: list.length }, guard: list.length >= 2 && h / l > 1.5,
-    headline: `Across courses, sustained slowdown ran from *${range}* of finishes.`,
+    headline: `Across courses, sustained slowdown ran from *${pct(l)} to ${pct(h)}* of finishes.`,
     fallback: `Sustained slowdown across courses: ${range} of finishes.`,
     figure: list.length ? { value: `${pct(l).replace('%', '')}–${pct(h).replace('%', '')}`, unit: '%', sr: `${pct(l)} to ${pct(h)}` } : null,
     key: 'sustained slowdown, across courses',
@@ -379,7 +379,8 @@ export function gainsFinalFrom(row: { values: number[]; total: number; n: number
     id: 'gains.final', page: '/analyses/finding-improvement', denominator: 'eligible',
     values: row ? { goal_min: goal, open_min: row.values[0], middle_min: row.values[1], final_min: row.values[2], total_min: row.total, share, n: row.n } : {},
     guard: !!row && row.n >= 100 && row.values.length === 3 && share > distance,
-    headline: `Improving finishes near ${hm(goal)} found *${pct(share)}* of their time from 30K to the finish.`,
+    // The comparison in the sentence: the stretch from 30K is under a third of the distance.
+    headline: `Improving finishes near ${hm(goal)} found *${pct(share)}* of their time in the last ${pct(distance)} of the race.`,
     fallback: `Where improving finishes near ${hm(goal)} found their time.`,
     figure: shareFigure(share), key: 'of the time improving finishes found came from 30K to the finish',
   };

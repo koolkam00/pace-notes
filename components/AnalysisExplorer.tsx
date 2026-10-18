@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { useUnits } from './UnitsProvider';
 import { unitText, type UnitSystem } from '@/lib/units';
 import { findingText } from '@/lib/analysis-display';
@@ -97,7 +97,7 @@ export function insightHeadline(id: string, answer: GuideAnswer, goal: number, u
  * 4:00 example unless the page says otherwise); any other selection loads its course's published aggregate.
  * `historyMode` is the earlier-result view of courses and start temperatures, which keeps the archive's range charts.
  */
-export default function AnalysisExplorer({ definition, summary, initialAnswer, start = EXAMPLE_PROFILE, terrain, historyMode = false, untouched = 'chart' }: {
+export default function AnalysisExplorer({ definition, summary, initialAnswer, start = EXAMPLE_PROFILE, terrain, historyMode = false, untouched = 'chart', modeSwitch, defaultOpen = false }: {
   definition: AnalysisDefinition; summary: PersonalSummary; initialAnswer: GuideAnswer; start?: Profile;
   /** Hills: each course's supplied elevation profile and the shared height scale. */
   terrain?: { elevations: Record<string, number[]>; step: number; relief: number }; historyMode?: boolean; weatherQuestions?: unknown[];
@@ -107,6 +107,10 @@ export default function AnalysisExplorer({ definition, summary, initialAnswer, s
    * 'none' only the selection row, when the answer above already draws that chart. Any change shows the headline too.
    */
   untouched?: 'chart' | 'none';
+  /** The comparison switch of the all-finisher explorer this one stands in for (history mode): the form's first control. */
+  modeSwitch?: ReactNode;
+  /** Open the sheet on arrival: the visitor switched to this comparison from inside the other explorer's sheet. */
+  defaultOpen?: boolean;
 }) {
   const { units } = useUnits();
   const formId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -167,19 +171,19 @@ export default function AnalysisExplorer({ definition, summary, initialAnswer, s
   const timeLabel = ['profile', 'terrain', 'gains', 'age'].includes(definition.id) ? 'Finish time to explore' : 'Target time';
   // Only the choices that matter: the course, the time, and a refinement once one is set (never "All ages").
   const summaryText = [cityName(profile.city), ...(definition.controls.time ? [clock(profile.goal * 60)] : []), ...(profile.age === 'all' ? [] : [profile.age]),
-    ...(profile.gender === 'all' ? [] : [profile.gender]), ...(profile.previous === null ? [] : [`earlier ${clock(profile.previous * 60)}`])].join(' · ');
+    ...(profile.gender === 'all' ? [] : [profile.gender]), ...(profile.previous === null ? [] : [`earlier ${clock(profile.previous * 60)}`]), ...(historyMode ? ['With an earlier result'] : [])].join(' · ');
   const cityOptions = summary.cities.filter(row => !courseOnly || row.city !== EXAMPLE_PROFILE.city);
   const terrainExtras: TerrainExtras | undefined = terrain ? { elevation: terrain.elevations[profile.city] ?? null, step: terrain.step, relief: terrain.relief } : undefined;
   const refinements = (
           <div className="explore-fields">
             {definition.controls.age && <div className="field"><label className="field-label" htmlFor={field('age')}>Age group</label><select id={field('age')} className="select" value={draft.age} onChange={event => setDraft({ ...draft, age: event.target.value })}>{AGE_OPTIONS.map(age => <option key={age} value={age}>{age === 'all' ? 'All ages' : age}</option>)}</select></div>}
-            <div className="field"><label className="field-label" htmlFor={field('gender')}>Recorded gender</label><select id={field('gender')} className="select" value={draft.gender} onChange={event => setDraft({ ...draft, gender: event.target.value })}><option value="all">All recorded categories</option><option value="Women">Women</option><option value="Men">Men</option></select></div>
+            <div className="field"><label className="field-label" htmlFor={field('gender')}>Recorded gender</label><select id={field('gender')} className="select" value={draft.gender} onChange={event => setDraft({ ...draft, gender: event.target.value })}><option value="all">All</option><option value="Women">Women</option><option value="Men">Men</option></select></div>
             {definition.controls.previous && <div className="field"><label className="field-label" htmlFor={field('previous')}>Earlier marathon · optional</label><input id={field('previous')} className="input" value={previousText} onChange={event => setPreviousText(keypadInput(event.target, event.nativeEvent))} placeholder="e.g. 4:15" inputMode="decimal" spellCheck={false} autoComplete="off" /></div>}
           </div>
   );
   const shown = changed || untouched === 'chart';
   return <div className="analysis-layout explorer guide-explorer">
-    <MakeItYours id={`${formId}-miy`} summary={summaryText} busy={loading}>
+    <MakeItYours id={`${formId}-miy`} summary={summaryText} busy={loading} defaultOpen={defaultOpen}>
       <form className="explore-form" onSubmit={event => {
         event.preventDefault();
         const goal = definition.controls.time ? parseMinutes(timeText) : draft.goal;
@@ -188,6 +192,7 @@ export default function AnalysisExplorer({ definition, summary, initialAnswer, s
         if (previousText.trim() && definition.controls.previous && (earlier === null || earlier < 90 || earlier > 720)) { setFormError('Enter your earlier marathon time in hours:minutes, or leave it blank.'); return; }
         applyProfile({ ...draft, goal, previous: earlier });
       }}>
+        {modeSwitch}
         {(definition.controls.course || definition.controls.time) && <div className="explore-fields">
           {definition.controls.course && <div className="field"><label className="field-label" htmlFor={field('course')}>Course</label><select id={field('course')} className="select" value={draft.city} onChange={event => setDraft({ ...draft, city: event.target.value })}>{cityOptions.map(row => <option key={row.city} value={row.city}>{cityName(row.city)}</option>)}</select></div>}
           {definition.controls.time && <div className="field"><label className="field-label" htmlFor={field('time')}>{timeLabel}</label><input id={field('time')} className="input" value={timeText} onChange={event => setTimeText(keypadInput(event.target, event.nativeEvent))} placeholder="4:00" inputMode="decimal" spellCheck={false} autoComplete="off" aria-describedby={field('time-help')} /><p className="field-hint" id={field('time-help')}>Hours:minutes.<KeypadHint /></p></div>}

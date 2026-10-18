@@ -54,14 +54,16 @@ function Cushion({ goal, mat }: { goal: number; mat: number }) {
   const halfAt = Number(getNugget('checkpoint.cushion').values.half_at_min);
   const initial = Number.isFinite(halfAt) ? curve.findIndex((p) => p.elapsed <= halfAt && halfAt < p.elapsed + 2) : halfI;
   const t0 = Math.ceil(xs[0] / 10) * 10, t1 = Math.floor(xs[xs.length - 1] / 10) * 10;
-  const ticks = Array.from({ length: Math.floor((t1 - t0) / 10) + 1 }, (_, i) => t0 + i * 10);
+  // Every ten minutes, and even pace named under its own line at every width (a round tick within four minutes of it
+  // gives way), so the H2's "ahead of even pace" can be read off the chart.
+  const ticks = Array.from({ length: Math.floor((t1 - t0) / 10) + 1 }, (_, i) => t0 + i * 10).filter((t) => Math.abs(t - evenMin) >= 4);
   const range = (p: { elapsed: number }) => `${clock(p.elapsed * 60).slice(0, -3)}–${clock((p.elapsed + 2) * 60).slice(0, -3)}`;
   return (
     <LineProfile x={xs} xDomain={[xs[0], xs[xs.length - 1]]} yDomain={[0, 100]}
       layers={[{ id: 'c', label: 'Under the goal', series: [{ id: 's', values: curve.map((p) => p.share * 100) }] }]}
       refs={[{ value: 50, dashed: true, label: 'half' }]}
-      washes={evenI >= 0 ? [{ from: evenMin, to: evenMin, label: `even ${hm(goal)}` }] : []}
-      xTicks={ticks.map((t) => ({ value: t, label: hm(t) }))}
+      washes={evenI >= 0 ? [{ from: evenMin, to: evenMin }] : []}
+      xTicks={[...ticks.map((t) => ({ value: t, label: hm(t) })), ...(evenI >= 0 ? [{ value: evenMin, label: 'even' }] : [])].sort((a, b) => a.value - b.value)}
       yTicks={[{ value: 100, label: '100%' }]}
       scrub={{ label: `Split at ${mat}K`, initial: Math.max(0, initial), detents: [evenI, initial].filter((i) => i >= 0),
         points: { x: xs.map((x) => (x - xs[0]) / (xs[xs.length - 1] - xs[0])), keys: curve.map((p) => `At ${mat}K in ${range(p)}, under ${hm(goal)}`), values: curve.map((p) => pct(p.share)),

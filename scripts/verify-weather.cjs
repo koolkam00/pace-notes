@@ -230,10 +230,13 @@ try {
       assert.ok(html.replace(/<\/?em>/g, '').includes(said), `The tab states its finding: ${said}`);
       assert.match(html, /98\.3% uncertainty interval/);
       assert.doesNotMatch(html, /95% uncertainty interval|95% confidence interval|95% interval/);
-      // The two race days in whole units, as the tab's sentence says them ("11°F", "10 mph"), converted from the data.
+      // The two race days in whole units, converted from the data, said once: in the tab's sentence ("11°F", "10 mph"),
+      // never again on the card under it.
       const whole = (value) => `${Math.round(weatherValue(value, candidate.id, units))}${candidate.id === 'wind' ? ' ' : ''}${candidate.id === 'wind' ? (units === 'mi' ? 'mph' : 'km/h') : units === 'mi' ? '°F' : '°C'}`;
-      assert.ok(html.includes(`<dd>${whole(candidate.exposure.q25)}</dd>`), `The smaller race day reads ${whole(candidate.exposure.q25)}`);
-      assert.ok(html.includes(`<dd>${whole(candidate.exposure.q75)}</dd>`), `The larger race day reads ${whole(candidate.exposure.q75)}`);
+      if (nugget?.guard) for (const q of [candidate.exposure.q25, candidate.exposure.q75]) {
+        assert.ok(said.includes(whole(q)), `The tab's sentence names the race day ${whole(q)}`);
+        assert.ok(!html.includes(`<dd>${whole(q)}</dd>`), `The card does not repeat the race day ${whole(q)}`);
+      }
       assert.ok(html.includes('Observed race days'), 'The edition browser is labeled as observed race days, apart from the adjusted estimate');
       assert.ok(html.includes('percentage points'));
       assert.doesNotMatch(html, /half-marathon splits are measured|observed halfway/);
