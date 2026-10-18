@@ -51,7 +51,7 @@ export function kickBankFrom(bands: BankBand[]): Nugget {
     headline: `A first 5K ${said} banked ${ms(-(fastest?.open_s ?? 0))}, and *finished ${ms(fastest?.finish_s ?? 0)} behind*.`,
     fallback: 'How a fast first 5K finished, against the same pace.',
     figure: fastest ? { value: delta(fastest.finish_s), sr: `${spokenTime(Math.abs(fastest.finish_s))} ${fastest.finish_s > 0 ? 'behind' : 'ahead'}` } : null,
-    key: `at the finish against the same 5–20K pace, after a first 5K ${said}`,
+    key: `later at the finish, after a first 5K ${said}`,
   };
 }
 
@@ -165,7 +165,7 @@ export function checkpointUnderFrom(row: { n: number; elapsed: number; finish: n
     guard: ok && share < 0.5,
     headline: `On even ${hm(goal)} pace at ${mat}K, only *${pct(share)}* got under ${hm(goal)}.`,
     fallback: `On even ${hm(goal)} pace at ${mat}K, ${pct(share)} of finishes got under ${hm(goal)}.`,
-    figure: shareFigure(share), key: `on even ${hm(goal)} pace at ${mat}K got under ${hm(goal)}`,
+    figure: shareFigure(share), key: `on ${hm(goal)} pace at ${mat}K got under ${hm(goal)}`,
   };
 }
 
@@ -211,7 +211,7 @@ export function sectionsSplitFrom(near: { below: { durations: number[]; n: numbe
     headline: `Just under and just over ${hm(goal)} ended ${ms(total)} apart. *${pct(share)}* of the gap opened after 20K.`,
     fallback: `Just under and just over ${hm(goal)}: ${ms(total)} apart at the finish, section by section.`,
     figure: ok ? { value: ms(total), sr: `${spokenTime(total)} apart` } : null,
-    key: `apart at the finish, just under and just over ${hm(goal)}`,
+    key: `apart: ${hm(goal - 5)}–${hm(goal)} against ${hm(goal)}–${hm(goal + 5)} finishes`,
   };
 }
 
@@ -259,7 +259,7 @@ export function ageRetentionFrom(rows: AgeRow[], goal = GOAL): Nugget {
     headline: `Across all finishes, ${both ? 'the youngest and oldest' : 'older runners'} slowed more. At the same finish time, age *barely mattered*.`,
     fallback: 'How the second 20K changed with age, pooled and at the same finish time.',
     figure: finite(same) ? { value: one(same), unit: 'pts', sr: `${one(same)} points between age groups near a ${hm(goal)} finish` } : null,
-    key: `between age groups near a ${hm(goal)} finish`,
+    key: `between age groups in second-half slowing, at ${hm(goal)}`,
   };
 }
 
@@ -272,18 +272,6 @@ function courseRange(groups: AllFinisherGroup[]) {
   const lo = list.reduce<AllFinisherGroup | null>((a, b) => (!a || b.slowdown_pct < a.slowdown_pct ? b : a), null);
   const hi = list.reduce<AllFinisherGroup | null>((a, b) => (!a || b.slowdown_pct > a.slowdown_pct ? b : a), null);
   return { list, lo, hi, l: lo ? lo.slowdown_pct / 100 : NaN, h: hi ? hi.slowdown_pct / 100 : NaN };
-}
-export function coursesSpreadFrom(groups: AllFinisherGroup[]): Nugget {
-  const { list, l, h } = courseRange(groups);
-  const range = `${pct(l).replace('%', '')}–${pct(h)}`;
-  return {
-    id: 'courses.spread', page: '/stories/courses', denominator: 'course', term: '/methodology#sustained-slowdown',
-    values: { lo: l, hi: h, courses: list.length }, guard: list.length >= 2 && h / l > 1.5,
-    headline: `Across courses, sustained slowdown ran from *${pct(l)} to ${pct(h)}* of finishes.`,
-    fallback: `Sustained slowdown across courses: ${range} of finishes.`,
-    figure: list.length ? { value: `${pct(l).replace('%', '')}–${pct(h).replace('%', '')}`, unit: '%', sr: `${pct(l)} to ${pct(h)}` } : null,
-    key: 'sustained slowdown, across courses',
-  };
 }
 export function coursesCompareFrom(groups: AllFinisherGroup[]): Nugget {
   const { list, lo, hi, l, h } = courseRange(groups);
@@ -386,7 +374,7 @@ export function kickRecurrenceFrom(r: Recurrence): Nugget {
     guard: !!after && after.pairs >= 100 && observed > expected,
     headline: `After a sustained slowdown, *${pct(observed)}* of next races had one too (${pct(expected)} typical).`,
     fallback: `After a sustained slowdown, ${pct(observed)} of next races had one too; ${pct(expected)} was typical.`,
-    figure: shareFigure(observed), key: `of next races had one too, after a sustained slowdown (${pct(expected)} typical)`,
+    figure: shareFigure(observed), key: `had another sustained slowdown in the next race (${pct(expected)} typical)`,
   };
 }
 
@@ -445,7 +433,6 @@ export const ANALYSIS_NUGGETS: Record<string, Builder> = {
   'sections.split': () => sectionsSplitFrom(allCourses()?.near.find((n) => n.target === GOAL) ?? null),
   'target.context': () => targetContextFrom(allCourses()),
   'age.retention': () => ageRetentionFrom(ageRows(getCityData(EXAMPLE_PROFILE.city))),
-  'courses.spread': () => coursesSpreadFrom(af().initial.courses),
   'courses.compare': () => coursesCompareFrom(af().initial.courses),
   'terrain.climb': () => { const { city } = getTerrainDefault(); return terrainClimbFrom(city, terrainSections(getCityData(city))); },
   'weather.start': () => weatherStartFrom(af().initial.weather),

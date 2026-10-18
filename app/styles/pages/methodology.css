@@ -126,7 +126,6 @@
   .methods-rail { display: block; padding-top: 6px; }
   .methods-jump { display: none; }
   .methods-page [id] { scroll-margin-top: calc(var(--header-h) + 24px); }
-  .methods-hero .t-display { font-size: clamp(3rem, 4.4vw, 4.25rem); }
 }
 
 /* The research questions' shared rules: numbered once, each question naming the numbers it follows. */

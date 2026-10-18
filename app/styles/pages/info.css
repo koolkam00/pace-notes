@@ -6,7 +6,9 @@
 
 .info-page { padding: var(--s-6) 0 var(--s-8); }
 .info-hero { display: grid; gap: var(--s-3); max-width: var(--measure); }
-.info-hero .t-display { max-width: 16ch; }
+/* One size for every info page's H1 (the about, privacy, request, 404, error and methods pages): the title token on a
+   phone, the side column's size from 900 px. */
+.info-hero > h1 { max-width: 16ch; }
 .info-dek { margin: 0; max-width: 32rem; font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
 .info-body { max-width: var(--measure); margin-top: var(--s-7); }
 .info-section { padding: var(--s-6) 0; border-top: 1px solid var(--rule); }
@@ -17,6 +19,13 @@
 .info-section a:not([class]) { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--rule-strong); text-underline-offset: .18em; }
 .info-section a:not([class]):hover { text-decoration-color: currentColor; }
 .info-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-5); margin-top: var(--s-5); }
+/* The page's one way on, after its last section: a quiet line with the plain arrow, never a second button. */
+.info-next { margin: 0; padding-top: var(--s-5); border-top: 1px solid var(--rule); }
+.info-folds + .info-next { border-top: 0; }
+.info-next-link { display: inline-flex; align-items: center; gap: var(--s-2); min-height: 44px; font-size: 1rem; font-weight: 600; color: var(--ink); text-decoration: none; }
+.info-next-link .arrow-icon { color: var(--ink-3); transition: transform var(--d-quick) var(--ease-out); }
+.info-next-link:hover { color: var(--ink); text-decoration: none; }
+.info-next-link:hover .arrow-icon { transform: translateX(3px); color: var(--ink); }
 
 /* The privacy summary: four short facts, then the switch, then the details in folds. */
 .info-facts { display: grid; gap: var(--s-3); margin: 0; padding: 0; list-style: none; }
@@ -85,15 +94,15 @@
 
 /* ---------- The 404 and the error page: a kicker, the heading, one line and two ways on ---------- */
 .info-stop { display: grid; gap: var(--s-3); justify-items: start; max-width: var(--measure); padding: var(--s-9) 0 var(--s-8); }
-.info-stop .t-display { max-width: 14ch; }
+.info-stop > h1 { max-width: 14ch; }
 .info-stop h1:focus { outline: none; }
 
 /* From 900 px the opener holds the left of the page (5/12) and the text runs on the right (7/12), as on the contents. */
 @media (min-width: 900px) {
   .info-page { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--s-8); align-items: start; padding: var(--s-8) 0 var(--s-9); }
   .info-hero { position: sticky; top: calc(var(--header-h) + var(--s-6)); }
-  .info-hero .t-display { max-width: none; font-size: clamp(2.75rem, 3.6vw, 3.75rem); }
+  .info-hero > h1, .info-stop > h1, .methods-hero > h1 { font-size: clamp(2.75rem, 3.6vw, 3.75rem); }
+  .info-hero > h1 { max-width: none; }
   .info-body { margin-top: 0; }
   .info-body > .info-section:first-child { padding-top: 0; border-top: 0; }
-  .info-stop .t-display { font-size: clamp(3rem, 4.4vw, 4.25rem); }
 }

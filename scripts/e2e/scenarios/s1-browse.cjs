@@ -161,7 +161,7 @@ async function homeForm(h) {
     const page = await run.newPage();
     await page.goto(SITE + '/', { waitUntil: 'load' });
     await page.waitForTimeout(800);
-    if (km) { await page.click('.unit-switch button:has-text("Kilometres")'); await page.waitForTimeout(300); }
+    if (km) { await page.click('.unit-switch button:has-text("Kilometers")'); await page.waitForTimeout(300); }
     await page.selectOption('#home-plan-course', course);
     if (goal) await type(page, '#home-plan-goal', goal);
     // The address the form asked for, before the planner tidies its own query.
@@ -255,10 +255,12 @@ async function keypad(h) {
   const page = await run.newPage();
   await page.goto(SITE + '/', { waitUntil: 'load' });
   await page.waitForTimeout(800);
-  const hint = await hintOf(page, '.home-plan .keypad-hint');
-  h.check('phone: the home goal shows "Tap . for :", hidden from screen readers', hint && hint.shown && hint.ariaHidden === 'true' && hint.text === 'Tap . for :', hint);
+  // The hint waits for the goal's focus (the keypad up), so the first screen carries no stray punctuation.
+  const before = await hintOf(page, '.home-plan .keypad-hint');
   await page.selectOption('#home-plan-course', 'berlin');
   const typed = await typeOnly(page, '#home-plan-goal', '3.30');
+  const hint = await hintOf(page, '.home-plan .keypad-hint');
+  h.check('phone: the home goal shows "Tap . for :" once it has focus, not before, hidden from screen readers', before && !before.shown && hint && hint.shown && hint.ariaHidden === 'true' && hint.text === 'Tap . for :', { before, hint });
   h.check('phone: typing 3.30 into the home goal shows 3:30', typed === '3:30', typed);
   const [request] = await Promise.all([
     page.waitForRequest(r => r.isNavigationRequest() && new URL(r.url()).pathname === '/tools/plan', { timeout: 15000 }),
@@ -301,10 +303,11 @@ async function keypad(h) {
 }
 
 // Every page whose text changes with the units has the header's working switch (lib/unit-preference.ts; the build stops
-// otherwise). /research, opened directly, converts its text when Kilometres is pressed: the contents' opener names the
+// otherwise). /research, opened directly, converts its text when Kilometers is pressed: the contents' opener names the
 // marathon distance ("26.2 miles in eleven chapters"), and any pace a chapter's reading carries turns from /mi to /km.
 // /methodology has the working switch too (its pace bands convert). Every page the export serves with the placeholder
-// (404.html aside) reads the same in both units.
+// reads the same in both units: since /privacy and /request-analysis took the working switch (October 18, 2026) that is
+// the 404 page alone, besides the moved addresses' stubs.
 async function unitSwitch(h) {
   const run = await h.run('units switch', DESKTOP);
   const page = await run.newPage();
@@ -323,16 +326,16 @@ async function unitSwitch(h) {
   await page.waitForTimeout(800);
   const miles = await seen();
   h.check('/research, opened directly, has the working units switch', miles.working, miles);
-  if (miles.working) { await page.click('.site-header .unit-switch button:has-text("Kilometres")'); await page.waitForTimeout(400); }
+  if (miles.working) { await page.click('.site-header .unit-switch button:has-text("Kilometers")'); await page.waitForTimeout(400); }
   const km = await seen();
-  h.check('pressing Kilometres on /research converts its text (26.2 miles, then 42.2 km; any /mi pace, then /km) and adds units=km',
+  h.check('pressing Kilometers on /research converts its text (26.2 miles, then 42.2 km; any /mi pace, then /km) and adds units=km',
     /26\.2\smiles/.test(miles.distance ?? '') && /42\.2\skm/.test(km.distance ?? '') && miles.paces.every((line) => /\/mi\b/.test(line)) && km.paces.every((line) => /\/km\b/.test(line))
       && miles.paces.length === km.paces.length && km.search === '?units=km', { miles, km });
   await page.goto(SITE + '/methodology', { waitUntil: 'load' });
   await page.waitForTimeout(800);
   const methods = await seen();
   h.check('/methodology, opened directly, has the working units switch', methods.working, methods);
-  const served = fs.readdirSync(h.out, { recursive: true }).filter(file => file.endsWith('.html') && file !== '404.html')
+  const served = fs.readdirSync(h.out, { recursive: true }).filter(file => file.endsWith('.html'))
     .map(file => ({ at: '/' + file.replace(/\.html$/, '').replace(/(^|\/)index$/, ''), html: fs.readFileSync(path.join(h.out, file), 'utf8') }))
     .filter(({ html }) => html.includes('unit-switch-placeholder'));
   // A stub (components/MovedPage.tsx) replaces itself with its target while the HTML is read (<script data-forward>).

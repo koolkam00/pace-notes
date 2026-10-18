@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { withEm } from '@/components/ui/withEm';
+import ByUnits from '@/components/ui/ByUnits.client';
 import { fieldX } from './replay-geometry';
 
 /**
@@ -19,7 +20,8 @@ export type FrameProps = {
   band?: boolean;
   poster?: ReactNode;
   canvas?: ReactNode;
-  moment?: string;
+  /** The flag frame's sentence: one string, or both units' (a distance in it), shown in the reader's units. */
+  moment?: string | { mi: string; km: string };
   momentOn?: boolean;
   playing?: boolean;
   onPlay?: () => void;
@@ -63,7 +65,7 @@ export default function ReplayFrame({ race, clock, finished, slow, view, band = 
           <span className="is-finish">Finish</span>
         </div>
       ) : null}
-      {moment ? <p className={`replay-moment${momentOn ? '' : ' is-off'}`}>{withEm(moment)}</p> : null}
+      {moment ? <p className={`replay-moment${momentOn ? '' : ' is-off'}`}>{typeof moment === 'string' ? withEm(moment) : <ByUnits mi={withEm(moment.mi)} km={withEm(moment.km)} />}</p> : null}
       <div className="replay-scrub">
         <button type="button" className="replay-play" onClick={onPlay} disabled={!ready}>
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">

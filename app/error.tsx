@@ -27,7 +27,7 @@ export default function PageError({ error }: { error: Error & { digest?: string 
   return (
     <section className="info-stop page-error">
       <p className="t-kicker">Loading error</p>
-      <h1 ref={heading} tabIndex={-1} className="t-display">This page didn&apos;t load properly</h1>
+      <h1 ref={heading} tabIndex={-1} className="t-title">This page didn&apos;t load properly</h1>
       <p className="info-dek">Something went wrong while loading this page. Reloading usually fixes it.</p>
       <div className="info-actions">
         <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}><span>Reload the page</span></button>

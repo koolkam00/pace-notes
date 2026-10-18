@@ -2,7 +2,7 @@ import type { Demographics } from '@/lib/insights';
 import { readInsight } from '@/lib/insights-server';
 import { STORIES } from '@/lib/stories';
 import { getNugget } from '@/lib/nuggets';
-import { hm, matLabel, ms, pct } from '@/lib/nuggets/format';
+import { matLabel, ms, pct } from '@/lib/nuggets/format';
 import { MARATHON_KM } from '@/lib/units';
 import LineProfile from '@/components/viz/LineProfile';
 import Ruler from '@/components/viz/Ruler';
@@ -20,16 +20,17 @@ const apart = (a: number, b: number) => `${Math.abs(one(b) - one(a)).toFixed(1)}
 
 /**
  * Women and men, the who-holds-pace story (the redesign spec, section 7.9, under section 00): the reading (sustained slowdown, recorded
- * women against recorded men at the same finish times) as a pair of figures, then three beats: the gap pooled and matched,
- * both drawn, how far behind recorded men recorded women ran at each mat in the band with the most matched finishes (a
- * scrub along the course; the ghost race's two-dot strip is cut), and the gap at every finish time.
+ * women against recorded men at the same finish times) as a pair of figures, then two beats: the gap pooled and matched,
+ * both drawn, and how far behind recorded men recorded women ran at each mat in the band with the most matched finishes
+ * (a scrub along the course; the ghost race's two-dot strip is cut). The gap at every finish time is cut: it restated
+ * the opener.
  * The age ladder is cut (age is /analyses/age-and-pacing's finding) and so is the women's share by city (who runs, not
  * how they pace).
  */
 export default function DemographicsBody() {
   const data = readInsight<Demographics>('demographics.json');
   const story = STORIES.find((s) => s.slug === 'who-holds-pace')!;
-  const gender = getNugget('holds.gender'), unmask = getNugget('holds.unmask'), ghost = getNugget('holds.ghost'), bands = getNugget('holds.bands');
+  const gender = getNugget('holds.gender'), unmask = getNugget('holds.unmask'), ghost = getNugget('holds.ghost');
   const w = Number(gender.values.women), m = Number(gender.values.men);
   const o = data.overall;
 
@@ -44,16 +45,6 @@ export default function DemographicsBody() {
   const place = (km: number) => (km ? `At ${matLabel(km)}` : 'At the start');
   const keyAt = (km: number, min: number) => (Math.abs(secs(min)) < 1 ? place(km) : `${place(km)}, ${secs(min) > 0 ? 'women' : 'men'} behind by`);
   const gapAt = (min: number) => (Math.abs(secs(min)) < 1 ? 'Level' : ms(Math.abs(secs(min))));
-
-  // The gap at every finish time: each band's sustained-slowdown share for recorded women and men.
-  const rows = data.bands.filter((b) => b.women_n >= 100 && b.men_n >= 100);
-  const width = rows.length > 1 ? rows[1].lo_min - rows[0].lo_min : 10;
-  const bx = rows.map((b) => b.lo_min + width / 2);
-  // Round gridlines: quarters of the share, up to the quarter above the highest band.
-  const bTop = Math.ceil(Math.max(...rows.map((b) => b.men_slowdown)) * 4) / 4;
-  const last = rows.length - 1;
-  // The lines are named where they stand furthest apart, clear of the axis labels at either end.
-  const mid = rows.reduce((best, b, i) => (i > 0 && i < last && b.men_slowdown - b.women_slowdown > rows[best].men_slowdown - rows[best].women_slowdown ? i : best), Math.floor(last / 2));
 
   return (
     <StoryPage path={PATH}>
@@ -85,7 +76,9 @@ export default function DemographicsBody() {
           )} />
       </Beat>
 
-      <Beat id="ghost" track="chapter-2" label="Mat by mat" title={ghost}>
+      {/* The gap at every finish time restated the opener's finding (at the same finish times), so it is cut; its
+          anchors land here. */}
+      <Beat id="ghost" track="chapter-2" label="Mat by mat" title={ghost} aliases={['bands', 'age', 'field']}>
         <LineProfile x={MATS} xDomain={[0, MARATHON_KM]} yDomain={[0, gapTop]}
           layers={[{ id: 'gap', label: 'Women behind', series: [{ id: 'gap', values: gapMin }], band: { lo: gapMin.map(() => 0), hi: gapMin },
             points: [{ x: MATS[peak], y: gapMin[peak], kind: 'reading' }] }]}
@@ -103,22 +96,6 @@ export default function DemographicsBody() {
           )} />
       </Beat>
 
-      <Beat id="bands" track="chapter-3" label="Every finish time" title={bands} aliases={['age', 'field']}>
-        <LineProfile x={bx} xDomain={[rows[0].lo_min, rows[last].lo_min + width]} yDomain={[0, bTop]}
-          layers={[{ id: 'bands', label: 'Sustained slowdown', series: [{ id: 'women', values: rows.map((b) => b.women_slowdown), tone: 'quiet' }, { id: 'men', values: rows.map((b) => b.men_slowdown) }],
-            labels: [
-              { x: bx[mid], y: rows[mid].men_slowdown, text: 'Recorded men', tone: 'ink', priority: 3, prefer: 'above' },
-              { x: bx[mid], y: rows[mid].women_slowdown, text: 'Recorded women', tone: 'quiet', priority: 2, prefer: 'below' },
-            ] }]}
-          xTicks={[180, 240, 300, 360, 420].filter((v) => v > rows[0].lo_min && v <= rows[last].lo_min + width).map((v) => ({ value: v, label: hm(v) }))}
-          yTicks={[0.25, 0.5, 0.75].filter((v) => v <= bTop).map((v) => ({ value: v, label: pct(v) }))} gridSide="left"
-          label={`Sustained slowdown by finish time, recorded women and men, from ${hm(rows[0].lo_min)} to ${hm(rows[last].lo_min + width)}.`}
-          values={(
-            <Values id="wh-bands" caption="Sustained slowdown by finish time, recorded women and men"
-              columns={[{ key: 'b', label: 'Finish time' }, { key: 'w', label: 'Women' }, { key: 'm', label: 'Men' }]}
-              rows={rows.map((b) => [b.label, pct(b.women_slowdown), pct(b.men_slowdown)])} />
-          )} />
-      </Beat>
     </StoryPage>
   );
 }

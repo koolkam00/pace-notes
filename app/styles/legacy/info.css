@@ -1,4 +1,0 @@
-/* Legacy rules for /methodology, /about, /privacy, /request-analysis and the error pages (WP7).
-   Split mechanically from app/globals.css and app/story.css by the code that owns each selector (WP0-A, October 2026).
-   WP7 rebuilt these pages (app/styles/pages/info.css and pages/methodology.css), so every rule that was here is gone;
-   WP9 deletes this file with the rest of legacy/. */

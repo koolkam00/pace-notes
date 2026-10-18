@@ -4,14 +4,14 @@
 //
 // The start line (the redesign spec, sections 00 and 7.1): four things. The night hero opens on the race replay and the
 // plan door (hero, paths); one guess (stakes); the chapters as a course line, each with its reading (guide); and the
-// closing call (cta). Every number comes from lib/nuggets (site.totals, replay.first through the replay, home.second20k
-// and each chapter's lead), never typed here.
+// closing call (cta). Every number comes from lib/nuggets (site.totals, replay.back as the replay's moment, home.second20k
+// and each chapter's lead), never typed here. The band's moment is how far the back of the field had come, so the home
+// page never opens on the race-replay story's own finding (the share short of 20K).
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { assertCohortTotals } from '@/components/CohortNote';
 import HomeDoors from '@/components/home/HomeDoors';
 import UnitSentence from '@/components/home/UnitSentence.client';
 import HeroReplay from '@/components/story/HeroReplay';
-import Arrow from '@/components/ui/Arrow';
 import ChapterList from '@/components/ui/ChapterList';
 import GuessFirst from '@/components/ui/GuessFirst.client';
 import { withEm } from '@/components/ui/withEm';
@@ -60,8 +60,10 @@ export default function Page() {
   const { cities, first_year: firstYear, last_year: lastYear } = totals.values;
   const guess = getNugget('home.second20k');
   const share = Number(guess.values.share);
-  // The guess's chapter: the one whose lead is the second 20K against the first.
-  const shape = CHAPTERS.find((c) => c.lead === 'shape.second20k');
+  // The guess's chapter: the shape of a race (the one that holds the pacing types).
+  const shape = CHAPTERS.find((c) => c.pages.some((p) => p.href === '/stories/pacing-types'));
+  const back = getNugget('replay.back');
+  const moment = { mi: sentenceOf(back, 'mi'), km: sentenceOf(back, 'km') };
   const chapterCount = countWord(CHAPTERS.length);
 
   const website = {
@@ -78,7 +80,7 @@ export default function Page() {
           <HomeDoors courses={courses} />
         </div>
         <div className="home-hero-replay">
-          <HeroReplay choices={choices.filter((c) => c.slug === pick)} band />
+          <HeroReplay choices={choices.filter((c) => c.slug === pick)} band moment={moment} />
         </div>
       </div>
     </section>
@@ -107,7 +109,7 @@ export default function Page() {
     <section className="night home-band home-cta" aria-labelledby="cta-title" data-track-section="cta">
       <div className="container home-cta-inner">
         <h2 id="cta-title" className="t-h2">Your next marathon starts with <em>a plan</em>.</h2>
-        <Link className="btn btn-primary" href="/tools/plan">Plan your race<Arrow /></Link>
+        <Link className="btn btn-primary" href="/tools/plan">Plan your race</Link>
       </div>
     </section>
   </div><JsonLd data={website} /></>;

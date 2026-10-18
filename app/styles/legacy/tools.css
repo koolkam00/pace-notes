@@ -1,3 +1,0 @@
-/* Legacy rules for the runner tools (WP4).
-   Split mechanically from app/globals.css and app/story.css by the code that owns each selector (WP0-A, October 2026): no rule
-   was changed. An area package deletes its selectors from its own legacy file when it rebuilds its pages. */

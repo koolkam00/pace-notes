@@ -1,6 +1,6 @@
 'use strict';
 // The runner pages' nugget recount (lib/nuggets/runners.ts; WP6), run by scripts/verify-nuggets.cjs. runner.yours is
-// chapter 10's lead: the word "Yours" and the key "nine mats, one race". The mats are recounted here from the published
+// /runners' reading: no figure (a card never sets a word in figure type) and the key "nine mats, one race". The mats are recounted here from the published
 // runner manifest's checkpoints with a second, plain implementation; the fixtures prove the fallback renders (a list
 // that stops short of the finish, or runs out of order) and that a flipped guard is caught.
 const fs = require('node:fs');
@@ -25,7 +25,7 @@ module.exports = function runnerRecounts({ ROOT, N, core, ok, eq, problems }) {
     eq(n.key, guard ? `${word} mats, one race` : 'mat by mat, one race', 'runner.yours: the key names the recounted mats');
     if (guard) ok(core.sentenceOf(n).includes(`*${word}*`) && core.sentenceOf(n).includes(`from ${km[0]}K`), 'runner.yours: the sentence names the mats and the first one');
     else eq(core.sentenceOf(n), 'A past race, read mat by mat.', 'runner.yours: the fallback renders');
-    eq([n.figure.value, n.figure.sr, n.placeholder], ['Yours', 'Yours', undefined], 'runner.yours: the reading is the word, and no placeholder');
+    eq([n.figure, n.placeholder], [null, undefined], 'runner.yours: no figure (no word in figure type), and no placeholder');
   };
 
   const n = N.getNugget('runner.yours');

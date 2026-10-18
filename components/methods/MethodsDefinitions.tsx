@@ -36,8 +36,8 @@ export default function MethodsDefinitions() {
   const answer = getStudyAnswer();
   const timing = getWallTimingAnswer();
   const definitionText = answer.method[0];
-  // The tool cohort (finishes with all nine 5 km checkpoints), from the data the tools read: a different total from the
-  // eligible finishes the definitions count, so it is named by its checkpoints wherever it shows.
+  // The tool cohort, from the data the tools read: the eligible finishes less the editions the tools screen out (start
+  // delays, shifted mats), so the badge says which finishes it leaves out wherever it shows.
   const toolCohort = getInsightsManifest().files['tools/projector.json'] ? readInsight<{ cohort_n: number }>('tools/projector.json').cohort_n : NaN;
   const toolFinishes = Number.isFinite(toolCohort) ? `${(toolCohort / 1e6).toFixed(2)} million` : 'the';
   // Each figure repeats the definition as its first line; it is shown once, above.
@@ -102,7 +102,7 @@ export default function MethodsDefinitions() {
     </Definition>
 
     <Definition id="evidence" term="Evidence badges"
-      rule={<p>Every tool panel is labelled with the kind of evidence it shows. Numbers with different labels are never combined, subtracted from each other or passed between tools.</p>}
+      rule={<p>Every tool panel is labeled with the kind of evidence it shows. Numbers with different labels are never combined, subtracted from each other or passed between tools.</p>}
       instrument={<dl className="methods-badges">
         {kinds.map((kind) => <div key={kind}><dt><EvidenceTag kind={kind} link={false} /></dt><dd>{EVIDENCE_TEXT[kind].replace('{finishes}', toolFinishes)}</dd></div>)}
       </dl>}>
@@ -154,7 +154,7 @@ export default function MethodsDefinitions() {
         <li><strong>Matched comparisons.</strong> The matched gender comparison uses a matched subset with a common mix of race editions and 20K times; the pooled chart uses every eligible finish in each recorded category. The three pace-trend groups at 20K share the same race and 20K time mix; negative means a faster finish.</li>
         <li><strong>Experience charts</strong> show percentage-point change; negative means less slowing than in the previous race. Pace-shape medians use each finish’s own normalized section paces, and the final 2.195 km is left out of the equal-distance comparison.</li>
         <li><strong>Missing values</strong> stay missing. They are never plotted as zero.</li>
-        <li><strong>Units.</strong> The timing mats keep their names in miles and kilometres. A distance between mats reads with one decimal in miles; paces convert exactly. Every threshold stays metric, as recorded.</li>
+        <li><strong>Units.</strong> The timing mats keep their names in miles and kilometers. A distance between mats reads with one decimal in miles; paces convert exactly. Every threshold stays metric, as recorded.</li>
       </ul>
       <p>In the analyses:</p>
       <ul>

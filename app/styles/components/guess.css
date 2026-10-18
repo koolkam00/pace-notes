@@ -89,6 +89,9 @@
 /* Revealed: the guess steps back to a hairline ring in --ink-3 (and its key with it), so the truth's signal dots lead. */
 .guess.is-revealed .guess-dot.is-you { box-shadow: 0 0 0 2px var(--paper-raised), 0 0 0 3px var(--ink-3); }
 .guess.is-revealed .guess-dots-key i.is-you { border: 1px solid var(--ink-3); }
+/* The ruler's You ring steps back the same way, so the truth is the one orange mark on the line. */
+.guess.is-revealed .guess-mark.is-you { border-width: 1.5px; border-color: var(--ink-3); }
+.guess.is-revealed .guess-mark-label.is-you { color: var(--ink-3); }
 
 /* Asking: the marks show only the guess. Revealed: the truth and the comparison arrive. */
 .guess:not(.is-revealed) .guess-mark.is-truth, .guess:not(.is-revealed) .guess-mark.is-compare { opacity: 0; transform: scale(.6); }

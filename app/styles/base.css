@@ -1,7 +1,7 @@
 /* Base: reset, element defaults, focus, selection, the motion switch, type classes and utilities (the redesign spec,
-   sections 3.2, 3.7 and 6.1). Element rules sit in :where() so any class wins over them. Until WP9 deletes
-   app/styles/legacy/, the legacy element rules load after this file and win where both set a property; this file sets
-   no element property the legacy rules leave alone, so legacy pages look exactly as before. */
+   sections 3.2, 3.7 and 6.1). Element rules sit in :where() or on bare element selectors, so any class wins over them.
+   The element defaults, skip link, night surface, motion net and print rules that app/styles/legacy/ held moved here when
+   WP9 deleted it (October 18, 2026). */
 
 /* ---------- Motion: one switch for the OS setting and the site's Motion toggle (data-motion-off on <html>) ---------- */
 @media (prefers-reduced-motion: reduce) {
@@ -40,8 +40,60 @@
 ::selection { background: var(--signal-wash); color: var(--ink); }
 
 /* The focus ring: 2 px of --focus with a 2 px offset (--focus is gold on night). Components that draw their own ring
-   repeat it with their class, which also outranks the legacy ring until WP9. */
+   repeat it with their class. */
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---------- Element defaults ----------
+   What plain elements still need where no component styles them: list rhythm, captions, links in running text,
+   form controls and disclosure rows. Plain element selectors, so any class outranks them. */
+ul, ol { padding-left: 1.35rem; }
+li + li { margin-top: .45rem; }
+figcaption, .chart-note { margin-top: .7rem; font-size: .8125rem; line-height: 1.6; color: var(--ink-3); }
+/* A link inside running text is underlined, so it never depends on colour alone. */
+p > a:not([class]), li > a:not([class]) { text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--rule-strong); text-underline-offset: .18em; }
+p > a:not([class]):hover, li > a:not([class]):hover { text-decoration-color: currentColor; }
+label { font-size: .875rem; color: var(--ink-3); }
+summary { min-height: 48px; padding-block: .7rem; font-size: .9375rem; font-weight: 600; color: var(--ink); }
+summary::marker { color: var(--ink-3); font-size: .8em; }
+th { font-weight: 600; }
+button {
+  min-height: 44px; padding: .6rem 1.05rem; border: 1px solid var(--rule-strong); border-radius: var(--r-pill);
+  background: var(--paper-raised); line-height: 1.3; font-size: .9375rem; font-weight: 600;
+  transition: background-color var(--d-quick) var(--ease-out), border-color var(--d-quick) var(--ease-out), transform var(--d-quick) var(--ease-out), box-shadow var(--d-quick) var(--ease-out);
+}
+button:hover { border-color: var(--ink-2); }
+button:disabled { opacity: .55; cursor: wait; }
+input, select {
+  width: 100%; max-width: 100%; min-height: 46px; padding: .6rem .8rem; border: 1px solid var(--rule-strong);
+  border-radius: var(--r-sm); background: var(--paper-raised); font-size: 1rem; line-height: 1.35;
+  transition: border-color var(--d-quick) var(--ease-out), box-shadow var(--d-quick) var(--ease-out);
+}
+select {
+  appearance: none; -webkit-appearance: none; padding-right: 2.4rem;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-2) 50%), linear-gradient(135deg, var(--ink-2) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 52%, calc(100% - 13px) 52%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+}
+input:hover, select:hover { border-color: var(--ink-3); }
+input:focus, select:focus, textarea:focus { border-color: var(--focus); box-shadow: 0 0 0 2px var(--focus); outline: none; }
+input[type='checkbox'], input[type='radio'] { width: 20px; height: 20px; min-height: 20px; accent-color: var(--ink); }
+input[type='range'] { padding: 0; border: 0; background: none; min-height: 32px; accent-color: var(--signal); box-shadow: none; }
+
+/* ---------- The skip link and the night surface ---------- */
+.skip-link { position: fixed; left: var(--gutter); top: -8rem; z-index: 100; padding: .7rem 1rem; border-radius: var(--r-pill); background: var(--ink); color: var(--paper); font-weight: 600; }
+.skip-link:focus { top: var(--s-4); }
+/* Night: the race and the answer (the tokens give its colours); a night surface clips what it holds. */
+.night { position: relative; background: var(--night); color: var(--night-ink); overflow: hidden; isolation: isolate; }
+
+/* ---------- Reduced motion and the Motion switch: a last net under the motion tokens ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+:root[data-motion-off] *, :root[data-motion-off] *::before, :root[data-motion-off] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+
+@media print {
+  .site-header, .site-footer, .skip-link { display: none; }
+  .container { width: 100%; }
+}
 
 /* ---------- Type classes (section 3.2) ----------
    Three faces, as few weights as the page needs: Fraunces 440 speaks (every heading and the reading's sentence, its

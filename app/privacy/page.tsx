@@ -1,4 +1,6 @@
 import AnalyticsPreference from '@/components/AnalyticsPreference';
+import { UnitLink as Link } from '@/components/UnitsProvider';
+import Arrow from '@/components/ui/Arrow';
 import type { AnalyticsEvents } from '@/lib/analytics-policy';
 import { pageMetadata } from '@/lib/seo';
 
@@ -17,7 +19,7 @@ const COUNTED: Record<keyof AnalyticsEvents, string> = {
   race_comparison_opened: 'opening a race comparison',
   analysis_filters_applied: 'changing analysis filters: which analysis, and whether one course or all courses, never the values chosen',
   data_download_clicked: 'clicks on data download links',
-  units_changed: 'choosing miles or kilometres',
+  units_changed: 'choosing miles or kilometers',
   tool_used: 'whether a tool was used, printed or its link copied, never what you entered',
   page_feedback: 'your answer to “Was this useful?”',
   page_feedback_reason: 'the reason you pick after answering “No”, from four fixed choices',
@@ -45,7 +47,7 @@ export default function PrivacyPage() {
   return <article className="info-page">
     <header className="info-hero">
       <p className="t-kicker">Your visit</p>
-      <h1 className="t-display">Privacy &amp; analytics</h1>
+      <h1 className="t-title">Privacy &amp; analytics</h1>
       <p className="info-dek">How we measure use of the site, what we never record, and how to switch it off.</p>
     </header>
     <div className="info-body">
@@ -89,7 +91,7 @@ export default function PrivacyPage() {
           <summary><h2 className="fold-title">Runner searches, and what stays on this device</h2><Glyph /></summary>
           <div className="fold-body">
             <p>Runner lookup uses public race records. Comparison filters and tool inputs, such as a goal time or recorded splits, can appear in the page address, so they can be included when you share a link and in requests to the website host. Runner-name searches are kept out of the page address: the search text stays in this browser tab’s history, so Back and Forward return to your results. Filters and search text are removed from PostHog analytics events, and runner-search pages are never recorded.</p>
-            <p>If you open a page from a runner’s results, this tab notes only that fact in its session storage, so the pages you reach from there in this tab are not recorded either, even after a reload, until you open another part of the site. The site stores your miles or kilometres preference locally, and your analytics choice when you change it. When we test two designs of a page, this tab’s session storage keeps which one you were given, so the page stays the same while the tab is open; it holds nothing else, and goes away when the tab is closed. If a page’s files fail to load, the tab also notes the time it reloaded the page, so it does not keep reloading.</p>
+            <p>If you open a page from a runner’s results, this tab notes only that fact in its session storage, so the pages you reach from there in this tab are not recorded either, even after a reload, until you open another part of the site. The site stores your miles or kilometers preference locally, and your analytics choice when you change it. When we test two designs of a page, this tab’s session storage keeps which one you were given, so the page stays the same while the tab is open; it holds nothing else, and goes away when the tab is closed. If a page’s files fail to load, the tab also notes the time it reloaded the page, so it does not keep reloading.</p>
             <p>The public marathon dataset is separate from visitor analytics. Searching for a runner does not identify you as that runner.</p>
           </div>
         </details>
@@ -100,6 +102,7 @@ export default function PrivacyPage() {
           </div>
         </details>
       </div>
+      <p className="info-next"><Link href="/research" className="info-next-link">Back to Contents<Arrow /></Link></p>
     </div>
   </article>;
 }

@@ -30,7 +30,7 @@ const ROOT = path.join(__dirname, '..');
 const OUT = path.join(ROOT, 'out');
 const SITE = 'https://splithappens.run';
 // The pages carry the redesign's type: Fraunces at 440 with its italic accent in every reading H1 (round numbers, starting
-// pace), Bricolage in the figures, Inter everywhere, and JetBrains Mono only in /methodology's file paths.
+// pace), Bricolage in the figures and Inter everywhere (code uses the device's monospace, with no web font).
 const PAGES = ['/', '/stories', '/stories/pacing-types', '/stories/final-kick', '/stories/round-numbers', '/tools', '/tools/predictor', '/tools/pace-band', '/analyses', '/analyses/pacing-pattern', '/analyses/starting-pace', '/courses', '/runners', '/about', '/methodology'];
 const FONTS = path.join(ROOT, 'public/fonts');
 
@@ -81,12 +81,13 @@ const LOCAL = {
 /**
  * The fallback faces. `weight` and `style` are the face's descriptors, so each face stands in for the runs of text its web
  * font sets at those weights and styles, and is measured on them against `measure`. Fraunces (opsz and wght only, no
- * SOFT or WONK) is set at 440 in the redesign's type, matched against the regular serif from 20 px up; headings at
- * 530–659 keep a bold match at their display optical sizes (`minOpsz`). Since the integration (October 18, 2026) no page
- * sets Fraunces at 660 or more, a bold Fraunces italic or a bold JetBrains Mono, so those faces were dropped with the
- * /design-system gallery that last set them. Bricolage Grotesque only sets figures, at 660. The Android faces are single regular faces (Android
- * draws them bold the way it draws any bold system text), so they are measured on every run against the regular
- * Liberation font and scaled by the capsize widths in `scale`.
+ * SOFT or WONK) is set at 440 in the redesign's type, matched against the regular serif from 20 px up. Since the
+ * integration (October 18, 2026) no page sets Fraunces at 660 or more or a bold Fraunces italic, so those faces were
+ * dropped with the /design-system gallery that last set them; the bold match for headings at 530–659 and JetBrains Mono
+ * went with the legacy styles that last set them (WP9, October 18, 2026). Bricolage Grotesque only sets figures, at 660.
+ * The Android faces are single regular faces (Android draws them bold the way it draws any bold system text), so they
+ * are measured on every run against the regular Liberation font and scaled by the capsize widths in `scale`; Fraunces's
+ * from 20 px like its regular face, since no page sets the 96 px display cut the legacy headings had.
  *
  * `narrow` scales a face below its average match. Fraunces italics are short phrases inside headings, and the italic
  * file arrives after the upright one, so for a moment a heading is upright Fraunces with its italic phrase in the
@@ -97,13 +98,11 @@ const LOCAL = {
  */
 const FACES = [
   { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '100 529', minOpsz: 20, local: LOCAL.serif, measure: 'Liberation Serif', file: 'fraunces-latin-opsz-normal.woff2' },
-  { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '530 659', minOpsz: 96, local: LOCAL.serifBold, measure: 'Liberation Serif Bold', file: 'fraunces-latin-opsz-normal.woff2' },
   { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '100 529', style: 'italic', minOpsz: 20, narrow: 0.965, local: LOCAL.serifItalic, measure: 'Liberation Serif Italic', file: 'fraunces-latin-opsz-italic.woff2' },
-  { family: 'Fraunces Fallback Android', web: 'Fraunces Variable', minOpsz: 96, local: LOCAL.notoSerif, measure: 'Liberation Serif', scale: ['timesNewRoman', 'notoSerif'], file: 'fraunces-latin-opsz-normal.woff2' },
+  { family: 'Fraunces Fallback Android', web: 'Fraunces Variable', minOpsz: 20, local: LOCAL.notoSerif, measure: 'Liberation Serif', scale: ['timesNewRoman', 'notoSerif'], file: 'fraunces-latin-opsz-normal.woff2' },
   { family: 'Inter Fallback', web: 'Inter Variable', weight: '100 599', local: LOCAL.sans, measure: 'Liberation Sans', file: 'inter-latin-wght-normal.woff2' },
   { family: 'Inter Fallback', web: 'Inter Variable', weight: '600 900', local: LOCAL.sansBold, measure: 'Liberation Sans Bold', file: 'inter-latin-wght-normal.woff2' },
   { family: 'Inter Fallback Android', web: 'Inter Variable', local: LOCAL.roboto, measure: 'Liberation Sans', scale: ['arial', 'roboto'], file: 'inter-latin-wght-normal.woff2' },
-  { family: 'JetBrains Mono Fallback', web: 'JetBrains Mono Variable', weight: '100 599', local: LOCAL.mono, measure: 'Liberation Mono', file: 'jetbrains-mono-latin-wght-normal.woff2' },
   { family: 'Bricolage Grotesque Fallback', web: 'Bricolage Grotesque Variable', weight: '100 900', local: LOCAL.sansBold, measure: 'Liberation Sans Bold', file: 'bricolage-grotesque-latin-wght-normal.woff2' },
 ];
 

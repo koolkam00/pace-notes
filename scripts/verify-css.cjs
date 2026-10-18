@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
-// The CSS contract of the redesign (the spec, sections 3.4 and 6.1), checked over app/styles/** (legacy/ is exempt
-// until WP9 deletes it):
+// The CSS contract of the redesign (the spec, sections 3.4 and 6.1), checked over every sheet in app/styles/**
+// (the legacy sheets were deleted in WP9, October 18, 2026):
 //   1. colour literals (hex, rgb(), hsl(), white/black) appear only in tokens.css; everything else uses a token;
 //   2. a @media width query uses the one breakpoint scale: base, narrow (max-width: 359.98px), tiny (max-width:
 //      299.98px), sm (min-width: 600px), md (min-width: 900px), lg (min-width: 1180px), or the complement of one of them
@@ -210,7 +210,7 @@ function files(dir) {
   const out = [];
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
-    if (e.isDirectory()) { if (e.name !== 'legacy') out.push(...files(p)); }
+    if (e.isDirectory()) out.push(...files(p));
     else if (e.name.endsWith('.css')) out.push(p);
   }
   return out.sort();
@@ -278,7 +278,7 @@ function main() {
     for (const p of problems) console.error('  ' + p);
     process.exit(1);
   }
-  console.log(`verify-css: ${list.length} files in app/styles (legacy exempt) follow the token, breakpoint, chart-text, quiet-edge and compatibility rules; the dark theme reads the same by attribute and by system setting; the pace ramp stays off the signal hue`);
+  console.log(`verify-css: ${list.length} files in app/styles follow the token, breakpoint, chart-text, quiet-edge and compatibility rules; the dark theme reads the same by attribute and by system setting; the pace ramp stays off the signal hue`);
 }
 
 main();

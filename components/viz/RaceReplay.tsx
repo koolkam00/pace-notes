@@ -27,7 +27,7 @@ type Props = {
   view?: 'field' | 'route';
   band?: boolean;
   race: string;
-  moment?: string;
+  moment?: string | { mi: string; km: string };
   poster?: ReactNode;
   autoplay?: boolean;
 };

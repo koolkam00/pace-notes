@@ -121,16 +121,17 @@ export default function RaceMorningBody() {
           layers={[{ id: 'heat', label: 'Warmer', series: [{ id: 'h', values: sig.map((s) => s.per_10c), fillAbove: 0 }],
             points: [...(early >= 0 ? [{ x: MID[early], y: sig[early].per_10c, kind: 'compare' as const }] : []), ...(late >= 0 ? [{ x: MID[late], y: sig[late].per_10c, kind: 'reading' as const }] : [])],
             labels: [
-              ...(early >= 0 ? [{ x: MID[early], y: sig[early].per_10c, text: `${sectionName(sig[early].section)} ${signed(sig[early].per_10c)}`, tone: 'ink' as const, priority: 2, prefer: 'below' as const }] : []),
-              ...(late >= 0 ? [{ x: MID[late], y: sig[late].per_10c, text: `${sectionName(sig[late].section)} ${signed(sig[late].per_10c)}`, tone: 'signal' as const, priority: 3, prefer: 'above' as const }] : []),
+              // Each label carries its unit (% of the finish's own average pace), as the dek says.
+              ...(early >= 0 ? [{ x: MID[early], y: sig[early].per_10c, text: `${sectionName(sig[early].section)} ${signed(sig[early].per_10c)}%`, tone: 'ink' as const, priority: 2, prefer: 'below' as const }] : []),
+              ...(late >= 0 ? [{ x: MID[late], y: sig[late].per_10c, text: `${sectionName(sig[late].section)} ${signed(sig[late].per_10c)}%`, tone: 'signal' as const, priority: 3, prefer: 'above' as const }] : []),
             ] }]}
           refs={[{ value: 0, label: 'Same shape' }]}
           xTicks={[{ value: 0, label: 'Start' }, { value: 10, label: '10K' }, { value: 20, label: '20K' }, { value: 30, label: '30K' }, { value: 42.195, label: 'Finish' }]}
           label="Each section's pace against the finish's own average on a warmer morning: quicker early, slower late."
           values={(
             <Values id="rm-heat" caption={<ByUnits mi={`Pace against the finish’s own average, per ${tempGap(10, 'mi')} warmer, by section`} km={`Pace against the finish’s own average, per ${tempGap(10, 'km')} warmer, by section`} />}
-              columns={[{ key: 's', label: 'Section' }, { key: 'v', label: 'Points' }, { key: 'c', label: 'Interval' }]}
-              rows={sig.map((s) => [sectionName(s.section), signed(s.per_10c), `${signed(s.ci95[0])} to ${signed(s.ci95[1])}`])} />
+              columns={[{ key: 's', label: 'Section' }, { key: 'v', label: 'Pace' }, { key: 'c', label: 'Interval' }]}
+              rows={sig.map((s) => [sectionName(s.section), `${signed(s.per_10c)}%`, `${signed(s.ci95[0])}% to ${signed(s.ci95[1])}%`])} />
           )} />
       </Beat>
     </StoryPage>

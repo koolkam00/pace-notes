@@ -32,8 +32,6 @@ type Variant = 'compact' | 'full' | 'expanded';
 
 const pagesOf = (chapter: Chapter) => [...chapter.pages.map((p) => p.href), ...(chapter.children ?? []), ...(chapter.also ?? []).map((a) => a.href)];
 
-/** A figure with no number in it ("Yours") is a word, not a reading: it shows as its key alone, in plain text. */
-const isNumber = (value: string) => /\d/.test(value);
 const TERM = /\bsustained[ -]slowdowns?\b/i;
 const TERM_HREF = '/methodology#sustained-slowdown';
 /** A key with its first "sustained slowdown" linked to the definition (only where the key sits outside a row link). */
@@ -47,7 +45,6 @@ function Reading({ readingOf, id, fallbackKey, size, term = false }: { readingOf
   const reading = readingOf?.(id);
   if (!reading) return null;
   const key = reading.key ?? fallbackKey;
-  if (!isNumber(reading.value)) return key ? <span className="chapter-reading is-key-only"><span className="chapter-key"><KeyText text={key} term={term} /></span></span> : null;
   return (
     <span className="chapter-reading">
       <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size={size} />
@@ -57,15 +54,13 @@ function Reading({ readingOf, id, fallbackKey, size, term = false }: { readingOf
 }
 
 /** A page's reading on one quiet line (/stories, /analyses): the figure, then its key ("47% of the field had not …"). */
-function PageReading({ readingOf, page }: { readingOf?: ReadingOf; page: ChapterPage }) {
+function PageReading({ readingOf, page, term = false }: { readingOf?: ReadingOf; page: ChapterPage; term?: boolean }) {
   const reading = readingOf?.(page.nugget);
   if (!reading?.key) return null;
-  // A figure that is a word shows its key alone.
-  if (!isNumber(reading.value)) return <span className="page-reading is-key-only"><span className="page-reading-key">{joinRanges(reading.key)}</span></span>;
   return (
     <span className="page-reading">
       <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size="s" />
-      <span className="page-reading-key">{joinRanges(reading.key)}</span>
+      <span className="page-reading-key"><KeyText text={reading.key} term={term} /></span>
     </span>
   );
 }
@@ -115,7 +110,7 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
                 </ol>
               </li>
             ) : (
-              <li className="chapter-row" key={chapter.id} data-lead={chapter.lead}>
+              <li className="chapter-row" key={chapter.id}>
                 <ChapterLink href={chapterHref(chapter)} match={pagesOf(chapter)} className="chapter-link">
                   <span className="chapter-mark"><MarkerBadge marker={chapter.marker} /></span>
                   <span className="chapter-text">
@@ -135,11 +130,14 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
 
 /**
  * The contents filtered to one kind of page (and, with `prefix`, one section of the site), in race order (/stories,
- * /analyses): the pages grouped under their chapter's line (its marker and name, said once), each row one link with
- * the page's title and its reading.
+ * /analyses): the pages grouped under their chapter's line (its marker and name, said once), each row the page's
+ * title as its link, then its reading. The link covers the whole row from behind (its ::after), so the row is one tap
+ * target while the reading stays outside the link: with `term`, the first key that names the sustained slowdown links
+ * the term to its definition, above the row's link, never nested in it.
  */
-export function PageList({ kind, prefix, readingOf, label }: { kind: PageKind; prefix?: string; readingOf?: ReadingOf; label: string }) {
+export function PageList({ kind, prefix, readingOf, label, term = false }: { kind: PageKind; prefix?: string; readingOf?: ReadingOf; label: string; term?: boolean }) {
   const groups = CHAPTERS.map((chapter) => ({ chapter, pages: livePages(chapter).filter((p) => p.kind === kind && (!prefix || p.href.startsWith(prefix))) })).filter((g) => g.pages.length);
+  const termAt = term ? groups.flatMap((g) => g.pages).find((p) => TERM.test(readingOf?.(p.nugget)?.key ?? ''))?.href : undefined;
   return (
     <nav className="page-list" aria-label={label}>
       <ol className="page-list-groups">
@@ -148,12 +146,10 @@ export function PageList({ kind, prefix, readingOf, label }: { kind: PageKind; p
             <p className="page-list-chapter"><MarkerBadge marker={chapter.marker} /><span>{chapter.title}</span></p>
             <ol className="page-list-rows">
               {pages.map((page) => (
-                <li key={page.href}>
-                  <ChapterLink href={page.href} className="page-list-link">
-                    <span className="page-list-title">{page.title}</span>
-                    <PageReading readingOf={readingOf} page={page} />
-                    <Arrow className="page-list-go" />
-                  </ChapterLink>
+                <li key={page.href} className="page-list-row">
+                  <ChapterLink href={page.href} className="page-list-link"><span className="page-list-title">{page.title}</span></ChapterLink>
+                  <PageReading readingOf={readingOf} page={page} term={page.href === termAt} />
+                  <Arrow className="page-list-go" />
                 </li>
               ))}
             </ol>

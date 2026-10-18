@@ -3,7 +3,7 @@
 // Checks the chapter registry, lib/chapters.ts (the redesign spec, sections 2.2 and 2.3), which the header's menu, the
 // chapters drawer, the contents, the rail, the reading bar and every next card read.
 //
-//   1. Unit tests of the registry's functions (placeOf, nextOf, prevOf, howWeKnowOf, placeLabel, readingAttrs and
+//   1. Unit tests of the registry's functions (placeOf, nextOf, prevOf, howWeKnowOf, readingAttrs and
 //      cleanPath) on known pages, and its shape: eleven chapters in three parts, the markers in race order, ids
 //      chapter-01 … chapter-11, short titles of 28 characters or fewer, unique hrefs, nugget ids of the form area.name.
 //   2. The chain, walked forward from /finish-times with nextOf, visits every built page once and ends on /tools/plan
@@ -96,13 +96,11 @@ test('a pending page is skipped by every link', () => {
     assert.notEqual(C.chapterHref(chapter), page.href);
   }
 });
-test('howWeKnowOf, placeLabel and readingAttrs', () => {
+test('howWeKnowOf and readingAttrs', () => {
   assert.equal(C.howWeKnowOf('/stories/round-numbers'), '/methodology#story-round-numbers');
   assert.equal(C.howWeKnowOf('/courses/boston'), '/methodology#course-pages');
   assert.equal(C.howWeKnowOf('/report'), '/methodology#race-report');
   assert.equal(C.howWeKnowOf('/methodology'), null);
-  assert.equal(C.placeLabel('/stories/round-numbers'), 'Page 1 of 2');
-  assert.equal(C.placeLabel('/courses/boston'), null);
   assert.deepEqual(C.readingAttrs('/stories/round-numbers'), { 'data-reading': '', 'data-marker': 'FINISH', 'data-short': 'Round numbers' });
   assert.deepEqual(C.readingAttrs('/courses/boston', 'Boston'), { 'data-reading': '', 'data-marker': '08', 'data-short': 'Boston' });
   assert.deepEqual(C.readingAttrs('/methodology', 'Methods'), { 'data-reading': '', 'data-short': 'Methods' });
@@ -219,8 +217,8 @@ test('ChapterEnd on an analysis: the next card is the last link of nav.analysis-
   assert.ok(nav, 'nav.analysis-pagination');
   assert.deepEqual(hrefs(nav[1]), ['/stories/pacing-types']);
   assert.match(nav[1], /Next chapter · The shape of a race/);
-  assert.match(nav[1], /value of shape\.second20k/, 'the next chapter\'s lead, not the page\'s reading');
-  assert.match(nav[1], /ran their second 20K faster than their first/, 'the chapter key under the lead');
+  assert.match(nav[1], /value of types\.top/, 'the next chapter\'s lead, not the page\'s reading');
+  assert.match(nav[1], /were the two commonest pacing types/, 'the chapter key under the lead');
 });
 test('ChapterEnd: the finish card on /tools/plan, no tracking or feedback when asked, nothing outside the race', () => {
   const plan = render('components/ChapterEnd.tsx', { path: '/tools/plan', track: false, feedback: false });
@@ -246,22 +244,22 @@ test('ChapterList: compact without readings or ids, expanded with ids and every 
   assert.equal((expanded.match(/class="chapter-page-link"/g) || []).length, live.length);
   const full = render('components/ui/ChapterList.tsx', { variant: 'full', readingOf });
   assert.equal((full.match(/class="chapter-reading"/g) || []).length, 11);
-  // A figure that is a word ("Yours") is no reading: its key shows alone, as plain text, never as a big number.
-  const words = render('components/ui/ChapterList.tsx', { variant: 'full', readingOf: (id) => ({ value: 'Yours', sr: id, key: 'nine mats, one race' }) });
-  assert.equal((words.match(/class="chapter-reading is-key-only"/g) || []).length, 11);
-  assert.doesNotMatch(words, /big-number/);
+  // No reading, no figure slot: a chapter whose lead had none would show its title alone (verify-nuggets requires
+  // every chapter lead to carry a number, so none does).
+  const none = render('components/ui/ChapterList.tsx', { variant: 'full', readingOf: () => null });
+  assert.doesNotMatch(none, /chapter-reading|big-number/);
 });
 test('ChapterCrumbs', () => {
   const { ChapterCrumbs } = require(path.join(root, 'components/ui/ChapterHeader.tsx'));
   const crumbs = (props) => renderToStaticMarkup(React.createElement(ChapterCrumbs, props));
   const text = (html) => html.replace(/<span class="sr-only">[^<]*<\/span>/g, '').replace(/<[^>]+>/g, '');
-  // A race chapter: its distance marker, then "Chapter 06 · The finish line" (the number kept whole), then the place,
-  // whose "·" CSS draws (no line may open on it).
+  // A race chapter: its distance marker, then "Chapter 06 · The finish line" (the number kept whole), and no page count
+  // (the rail, the menu and the next card say where a page sits).
   const html = crumbs({ path: '/stories/round-numbers' });
   assert.match(html, /href="\/research#chapter-06"/);
   assert.match(html, /<span class="crumb-number">Chapter 06\u00a0·<\/span> <span class="crumb-title">The finish line<\/span>/);
-  assert.match(html, /<span class="crumb-place">Page 1 of 2<\/span>/);
-  assert.equal(text(html), 'FINISHChapter 06\u00a0· The finish linePage 1 of 2');
+  assert.doesNotMatch(html, /crumb-place|Page \d/);
+  assert.equal(text(html), 'FINISHChapter 06\u00a0· The finish line');
   // A chapter after the finish shows its number once, on the badge; screen readers still hear "Chapter 08".
   const course = crumbs({ path: '/courses/boston', place: 'Courses' });
   assert.equal(text(course), '08Where you runCourses');

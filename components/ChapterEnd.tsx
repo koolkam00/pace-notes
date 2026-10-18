@@ -35,8 +35,9 @@ export default function ChapterEnd({ path, readingOf, variant = 'story', track =
       </nav>
       {prev || how ? (
         <p className="chapter-end-links">
-          {prev ? <ChapterLink href={prev.href} className="chapter-prev"><Arrow dir="left" /><span><span className="sr-only">Previous: </span>{prev.short}</span></ChapterLink> : <span />}
-          {how ? <Link href={how} className="chapter-how">How we know<Arrow dir="up-right" /></Link> : null}
+          {prev ? <ChapterLink href={prev.href} className="chapter-prev"><Arrow dir="left" /><span><span className="sr-only">Previous: </span>{prev.short}</span></ChapterLink> : null}
+          {/* An internal page, so the plain arrow (↗ is for links that leave the site); alone, it sits on the left. */}
+          {how ? <Link href={how} className="chapter-how">How we know<Arrow /></Link> : null}
         </p>
       ) : null}
       {feedback ? <PageFeedback /> : null}

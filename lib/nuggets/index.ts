@@ -56,7 +56,7 @@ export function readingOf(id: NuggetId): (NuggetFigure & { key?: string }) | nul
 
 /**
  * readingOf for a next card: a placeholder nugget (one an area package has yet to replace) shows no figure, so a card
- * never reads "Yours: nine mats, one race" or "28 course pages" as if it were a finding. Contents rows keep readingOf.
+ * never reads "28 course pages" as if it were a finding. Contents rows keep readingOf.
  */
 export function settledReadingOf(id: NuggetId): (NuggetFigure & { key?: string }) | null {
   return getNugget(id).placeholder ? null : readingOf(id);
@@ -78,7 +78,7 @@ export const PAGE_NUGGET: Readonly<Record<string, NuggetId>> = {
   '/stories/race-replay': 'replay.first',
   '/analyses/starting-pace': 'kick.bank',
   '/analyses/downhill-start': 'downhill.opening',
-  '/stories/pacing-types': 'shape.second20k',
+  '/stories/pacing-types': 'types.top',
   '/analyses/pacing-pattern': 'pattern.profile',
   '/analyses/checkpoint': 'checkpoint.under',
   '/stories/places': 'places.gap',
@@ -105,8 +105,8 @@ export const PAGE_NUGGET: Readonly<Record<string, NuggetId>> = {
 
 /** Each chapter's contents-row reading, chapters 01 to 11 in order (spec section 2.2: the lead and its key). */
 export const CHAPTER_LEAD: readonly NuggetId[] = [
-  'field.median', 'kick.bank', 'shape.second20k', 'checkpoint.under', 'slowdown.onset', 'finish.busiest',
-  'holds.gender', 'courses.spread', 'weather.pairs', 'runner.yours', 'kick.recurrence',
+  'field.median', 'kick.bank', 'types.top', 'checkpoint.under', 'slowdown.onset', 'finish.busiest',
+  'holds.gender', 'courses.named', 'weather.pairs', 'splitcheck.mats', 'kick.recurrence',
 ];
 
 /** Ids still served by WP0-C's bootstrap placeholders (scripts/verify-nuggets.cjs lists them; WP9 fails while any remain). */

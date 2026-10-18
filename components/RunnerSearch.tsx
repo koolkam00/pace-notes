@@ -272,6 +272,15 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
     } catch (error) { if (!controller.signal.aborted) { setProfileError(errorMessage(error)); setProfileLoading(null); } }
   };
   useEffect(() => { if (profile) profileHeading.current?.focus({ preventScroll: false }); }, [profile]);
+  // Once the chosen races' analysis is on screen, focus moves to its first heading, as the profile step's does, so a
+  // keyboard or screen-reader user lands where the page scrolled (the scroll itself is the View button's).
+  useEffect(() => {
+    if (!confirmed) return;
+    const heading = analysisRef.current?.querySelector<HTMLElement>('h2');
+    if (!heading) return;
+    heading.tabIndex = -1;
+    heading.focus({ preventScroll: true });
+  }, [confirmed]);
   const toggleRace = (race: RunnerRace) => {
     setSelected(previous => previous.some(row => row.id === race.id) ? previous.filter(row => row.id !== race.id) : [...previous, race]);
     setConfirmed(null);
@@ -325,8 +334,8 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
     {manifest && selected.length > 0 && !noMatch && <section className="runner-selection ph-no-capture" aria-labelledby="runner-selection-title"><h2 id="runner-selection-title" className="sr-only">{count(selected.length)} {selected.length === 1 ? 'race' : 'races'} selected</h2><ul className="runner-chips">{selected.map(race => <li key={race.id}><span>{raceLabel(race, manifest)} · {finishLabel(race)}{!race.eligible && <small> · limited</small>}</span><button type="button" onClick={() => toggleRace(race)} aria-label={`Remove ${race.name}, ${raceLabel(race, manifest)}, record ${race.id}`}><span aria-hidden="true" className="runner-chip-x" /></button></li>)}</ul><div className="runner-selection-actions"><button className="btn btn-primary is-compact button-primary" type="button" onClick={() => { trackAnalytics('race_comparison_opened', { selection: selected.length === 1 ? 'one' : 'multiple', availability: selected.every(race => analysed(race, manifest, copyEditions)) ? 'eligible' : selected.some(race => analysed(race, manifest, copyEditions)) ? 'mixed' : 'limited' }); setConfirmed([...selected]); requestAnimationFrame(() => analysisRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })); }}>{selected.length === 1 ? 'View the selected race' : `View ${count(selected.length)} selected races`}<Arrow /></button><button className="btn btn-tertiary runner-clear" type="button" onClick={() => { setSelected([]); setConfirmed(null); }}>Clear</button></div></section>}
     </div>
     </div>
-    {/* The analysis reads under the search and what it found, outside their two columns (from 900 px the sticky search
-        is held by its own row, so it scrolls away there and the analysis takes the page's middle). */}
+    {/* The analysis reads under the search and what it found, outside their column (from 900 px it is wider, on the
+        same axis). */}
     <div ref={analysisRef} className="runner-reading ph-no-capture">{confirmed && manifest && !noMatch && <SelectedAnalysis races={confirmed} manifest={manifest} units={units} copyEditions={copyEditions} report={report} listed={listed} />}</div>
   </>;
 }

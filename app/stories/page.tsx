@@ -1,5 +1,4 @@
 import { PageList } from '@/components/ui/ChapterList';
-import { UnitLink as Link } from '@/components/UnitsProvider';
 import { getInsightsManifest } from '@/lib/insights-server';
 import { CHAPTERS, livePages } from '@/lib/chapters';
 import { readingOf } from '@/lib/nuggets';
@@ -25,12 +24,12 @@ export default function StoriesPage() {
   return (
     <div className="contents-page">
       <header className="contents-hero">
-        <h1 className="t-display">Stories</h1>
-        {/* The term's first use on the page (the rows' keys sit inside their links), so it links to its definition. */}
-        <p className="contents-dek">{capital(countWord(count))} stories from the race, the <Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link> among them.</p>
+        <h1 className="t-title">Stories</h1>
+        <p className="contents-dek">{capital(countWord(count))} long reads, one per stretch of the race.</p>
       </header>
       <section className="contents-body" aria-label="Every story">
-        <PageList kind="story" prefix="/stories/" readingOf={readingOf} label="Stories" />
+        {/* The first row key that names the sustained slowdown links the term to its definition. */}
+        <PageList kind="story" prefix="/stories/" readingOf={readingOf} label="Stories" term />
       </section>
     </div>
   );

@@ -21,7 +21,7 @@ Three faces, self-hosted from `public/fonts/` (copied from the `@fontsource-vari
 | Inter | `--sans` | Text, controls, labels, kickers, ticks and readouts |
 | Bricolage Grotesque 660 | `--figure` | The reading figure only (`components/ui/BigNumber.tsx`) |
 
-JetBrains Mono (`--mono`) is left only for the remaining legacy rules in `app/styles/legacy/`. The scale is in `app/styles/tokens.css` and the classes in `base.css`: `.t-display`, `.t-title`, `.t-h2`, `.t-sentence`, `.t-body`, `.t-small`, `.t-label`, `.t-direct`, `.t-kicker`, `.t-tick` and `.t-readout`, with `--t-figure-xl/l/m/s` for big numbers. Nothing on a chart or a control is under 12 px (`verify-css` rule 3). Headings balance their lines (`text-wrap: balance`), so no heading ends on one orphan word.
+Code (`<code>`, which only `/methodology` shows) uses the system monospace stack, `--code`; JetBrains Mono and its `--mono` token were dropped with the legacy sheets in WP9 (October 18, 2026). The scale is in `app/styles/tokens.css` and the classes in `base.css`: `.t-display`, `.t-title`, `.t-h2`, `.t-sentence`, `.t-body`, `.t-small`, `.t-label`, `.t-direct`, `.t-kicker`, `.t-tick` and `.t-readout`, with `--t-figure-xl/l/m/s` for big numbers. Nothing on a chart or a control is under 12 px (`verify-css` rule 3). Headings balance their lines (`text-wrap: balance`), so no heading ends on one orphan word.
 
 ## Colour
 

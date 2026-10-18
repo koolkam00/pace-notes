@@ -271,7 +271,8 @@
 .place-shift .ps-bracket { position: relative; height: 34px; }
 .place-shift .ps-bracket::before { content: ''; position: absolute; left: 0; right: 0; bottom: 6px; height: 8px; border: 1.5px solid var(--ink); border-bottom: 0; border-radius: 2px 2px 0 0; }
 .place-shift .ps-bracket-label { position: absolute; right: 0; bottom: 18px; font-size: 14px; font-weight: 600; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink); }
-.place-shift .ps-track { display: flex; gap: 2px; height: 28px; }
+.place-shift .ps-track { position: relative; display: flex; gap: 2px; height: 28px; }
+.place-shift .ps-divide { position: absolute; top: -6px; bottom: 0; width: 1.5px; margin-left: 0; background: var(--ink); box-shadow: 0 0 0 1px var(--paper); }
 .place-shift .ps-seg { display: flex; align-items: center; justify-content: center; min-width: 3px; flex-basis: 0; border-radius: 3px; overflow: hidden; }
 .place-shift .ps-seg.is-ink { background: var(--ink); }
 .place-shift .ps-seg.is-quiet { background: var(--fill-quiet); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }

@@ -16,8 +16,9 @@ import { linear, pc, stepEdge, stepPath, u, yScale } from './scale';
  * bins redrawn as their ratio to the curve, diverging from a solid 1× line (the honest comparison).
  *
  * Pass `scrub` to make it scrubbable: the needle comes down from the top of the plot and stops just above the bin it
- * reads (under either lens), so the bin stays in view; away from the reading (`scrub.home`, default `scrub.initial`),
- * the reading's tower turns ink and the needle is the one orange mark.
+ * reads (under either lens), so the bin stays in view; at the reading itself the orange tower is the mark and the needle
+ * steps out (scrubber.css); away from the reading (`scrub.home`, default `scrub.initial`), the reading's tower turns
+ * ink and the needle is the one orange mark.
  */
 export type Bin = { x: number; n: number };
 
@@ -82,10 +83,9 @@ export default function Histogram({ bins, curve, marks = [], reading, ticks, lab
     };
     ratioLayer = (
       <g data-layer="ratio" className="is-off">
-        {/* One gridline, 1.5×, labelled on the right where the towers are short. The solid 1× line the towers grow from
-            is the curve itself (the key names it); a label there would sit on the late towers, and a low gridline would
-            double the axis rule. */}
-        <Gridlines side="right" lines={[{ y: ry(hi >= 1.5 ? 1.5 : hi), label: `${(hi >= 1.5 ? 1.5 : hi).toFixed(1)}×` }]} />
+        {/* One gridline, 1.5×, labelled on the right where the towers are short; the solid 1× line the towers grow from
+            (the curve itself) carries its own label there too. */}
+        <Gridlines side="right" lines={[{ y: ry(hi >= 1.5 ? 1.5 : hi), label: `${(hi >= 1.5 ? 1.5 : hi).toFixed(1)}×` }, { y: ry(1), label: '1×' }]} />
         <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
           <path className="a-silhouette" d={stepPath(ratios.map((r) => ({ x: x(r.x), y: ry(r.r) })), w, ry(1))} />
         </svg>

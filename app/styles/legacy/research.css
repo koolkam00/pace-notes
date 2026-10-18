@@ -1,4 +1,0 @@
-/* Legacy rules for the research hub (WP7).
-   Split mechanically from app/globals.css and app/story.css by the code that owns each selector (WP0-A, October 2026).
-   WP7 rebuilt /research, /stories and /analyses on the contents list (app/styles/pages/research.css), so every rule
-   that was here is gone; WP9 deletes this file with the rest of legacy/. */

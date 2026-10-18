@@ -181,8 +181,9 @@ function recordOf(record: NonNullable<ReportInput['record']>): ReportRecord {
   const pace = all?.pace ?? null;
   return {
     edition, state: 'ok',
-    placement: all ? { label: `eligible finishes in ${edition}`, n: all.n, otherN: all.other_n, rank: all.rank, ties: all.ties, percentile: all.percentile, medianFinish: all.median_finish }
-      : { unavailable: `Too few eligible finishes in ${edition} to place this race.` },
+    // "Ahead of 51 in every 100 other finishes in Copenhagen 2022": which finishes count is /methodology's.
+    placement: all ? { label: `finishes in ${edition}`, n: all.n, otherN: all.other_n, rank: all.rank, ties: all.ties, percentile: all.percentile, medianFinish: all.median_finish }
+      : { unavailable: `Too few finishes in ${edition} to place this race.` },
     late: pace ? { label: `finishes from ${clock(pace.from_sec)} to under ${clock(pace.to_sec)} in ${edition}`, n: pace.n, from: pace.from_sec, to: pace.to_sec, median: pace.late_change.median, race: record.lateChange }
       : { unavailable: `Too few finishes near this time in ${edition} to compare its late pace.` },
     // Without weather or a route, one plain line, as the runner view's conditions say it: the data screen's reasons are

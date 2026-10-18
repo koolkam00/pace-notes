@@ -1,7 +1,0 @@
-/* Legacy rules for the stories and /finish-times (WP2).
-   Split mechanically from app/globals.css and app/story.css by the code that owns each selector (WP0-A, October 2026).
-   WP2 rebuilt the stories and /finish-times on app/styles/pages/story.css and deleted their rules here (October 17, 2026).
-   What remains is used outside them: the closing stack's spacing and the course elevation's labels (WP9 deletes this file). */
-
-.story-pagination { margin-top: 2.5rem; }
-.course-elevation .elevation text { fill: var(--night-ink-2); }

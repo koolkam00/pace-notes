@@ -365,12 +365,12 @@ assert.match(chartSource('RunnerContext.tsx'), /<LineProfile [^>]*yDomain=\{axis
 {
   const { unitSwitchShown } = require('../lib/unit-preference.ts');
   for (const page of ['/', '/about', '/slowdown', '/research', '/methodology', '/analyses', '/analyses/pacing-pattern', '/runners',
-    '/courses', '/courses/boston', '/stories', '/stories/final-kick', '/tools', '/tools/plan', '/tools/qualifying/boston', '/finish-times']) assert.ok(unitSwitchShown(page), `The units switch works on ${page}`);
+    '/courses', '/courses/boston', '/stories', '/stories/final-kick', '/tools', '/tools/plan', '/tools/qualifying/boston', '/finish-times', '/privacy', '/request-analysis']) assert.ok(unitSwitchShown(page), `The units switch works on ${page}`);
   // The moved addresses' stubs (lib/seo-routes.ts movedTo) show no text that changes with the units.
-  for (const page of ['/research/personalized', '/htw', '/your-race', '/packs', '/packs/smyth_htw', '/packs/r01_banking_time', '/privacy', '/request-analysis', '/_not-found', '/toolsx', '/research-notes', '/methodology-notes']) assert.equal(unitSwitchShown(page), false, `${page} keeps the inert placeholder`);
+  for (const page of ['/research/personalized', '/htw', '/your-race', '/packs', '/packs/smyth_htw', '/packs/r01_banking_time', '/_not-found', '/toolsx', '/research-notes', '/methodology-notes']) assert.equal(unitSwitchShown(page), false, `${page} keeps the inert placeholder`);
   // A second copy of the provider whose next/navigation reports a chosen page, as the static export's render does.
   const providerFile = require.resolve('../components/UnitsProvider.tsx');
-  let pathname = '/privacy';
+  let pathname = '/htw';
   const realLoad = Module._load;
   const cached = require.cache[providerFile];
   delete require.cache[providerFile];
@@ -382,7 +382,7 @@ assert.match(chartSource('RunnerContext.tsx'), /<LineProfile [^>]*yDomain=\{axis
   try { units = require(providerFile); } finally { Module._load = realLoad; require.cache[providerFile] = cached; }
   const page = (...children) => renderToStaticMarkup(React.createElement(units.default, null, ...children));
   const e = React.createElement;
-  const inert = /\/privacy shows text that changes with the units, but the header's units switch is inert there/;
+  const inert = /\/htw shows text that changes with the units, but the header's units switch is inert there/;
   assert.throws(() => page(e(units.UnitText, null, 'From the first 5 km to the finish.')), inert, 'Converted prose on an inert page stops the build');
   assert.throws(() => page(e(units.MarathonDistance)), inert);
   assert.throws(() => page(e(function Chart() { return `${units.useUnits().units} axis`; })), inert, 'So does any figure that reads the units');

@@ -5,9 +5,9 @@ import { useEffect, useRef } from 'react';
  * Turns a scrolly's chart with its steps (round numbers): it watches the scrolly's data-step, presses the lens option
  * each step names through the lens's own buttons, and moves the needle to the point each step names (a 'scrub-to'
  * event on the scrubber), so the control and the readout always say what the step's words say. Once the steps are
- * passed the chart is the reader's. Under reduced motion (or the site's Motion switch) it does nothing: the scrolly is a
- * static list and the chart keeps its server state, which is the first step's (its lens and its point, the first item
- * of the list), never one step's lens with another's needle. Renders nothing.
+ * passed the chart is the reader's. Under reduced motion (or the site's Motion switch) the scrolly is a static list
+ * that ends on its last step, so the chart is set once to the last step's state (its lens and its point together),
+ * never left on the first step's while the list ends on another. Renders nothing.
  */
 export default function ScrollyLens({ lens, needle = {} }: { lens: Record<number, string>; needle?: Record<number, number> }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -33,7 +33,8 @@ export default function ScrollyLens({ lens, needle = {} }: { lens: Record<number
       }
     };
     const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || document.documentElement.hasAttribute('data-motion-off');
-    if (still || typeof MutationObserver !== 'function') return;
+    // A static list ends on its last step: show that step's state, once (a press and a set point, nothing animated).
+    if (still || typeof MutationObserver !== 'function') { show(Math.max(...Object.keys(lens).map(Number), ...Object.keys(needle).map(Number))); return; }
     const apply = () => { const step = Number(root.dataset.step); if (Number.isFinite(step)) show(step); };
     const mo = new MutationObserver(apply);
     mo.observe(root, { attributes: true, attributeFilter: ['data-step'] });
