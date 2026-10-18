@@ -118,7 +118,7 @@ export function splitCheckMatsFrom(shard: Pick<PaceBandShard, 'window_s' | 'grou
     headline: `Of finishes from ${hm(lo)} to ${hm(hi)}, those that later slowed passed 20K *${ms(gap20)} ahead* of those that held pace.`,
     fallback: held && slow ? `Finishes from ${hm(lo)} to ${hm(hi)}, mat by mat: those that held pace and those that later slowed.` : 'Check your splits against finishes at the same time.',
     figure: ok ? { value: ms(gap20), sr: spokenTime(gap20) } : null,
-    key: 'ahead at 20K, for the same finish',
+    key: 'ahead at 20K, then slowed to the same finish',
     term: '/methodology#sustained-slowdown',
   };
 }

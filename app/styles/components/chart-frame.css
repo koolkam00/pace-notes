@@ -1,8 +1,10 @@
 /* The chart frame and the marks every form shares (components/viz; the redesign spec, sections 3.5 and 3.6).
-   A chart is figure.viz.viz-frame: .viz keeps it out of session replay, .viz-frame scopes these rules away from the legacy
-   charts that also carry .viz until their packages rebuild them. Marks are drawn in plot fractions (SVG percentages
+   A chart is figure.viz.viz-frame: .viz keeps it out of session replay and draws its SVG as a block that may paint past
+   its box (a label at the plot's edge), .viz-frame scopes the frame's rules. Marks are drawn in plot fractions (SVG percentages
    and a stretched 1000-unit path space), so text keeps its pixel size at every width; labels that stop fitting at
    200% zoom hide by width class through the container queries at the end. Ticks and chart text are 12 px or more. */
+
+.viz svg { display: block; overflow: visible; }
 
 .viz-frame {
   --plot-h: 200px;
@@ -54,6 +56,8 @@
 .viz-frame .a-band { fill: var(--ink); opacity: .1; }
 .viz-frame .a-wash { fill: var(--ink); opacity: .028; }
 .viz-frame .a-signal { fill: var(--signal-wash); }
+/* A bracket on the span a sentence names (LineProfile's `bracket`). */
+.viz-frame .bracket-line { fill: var(--signal); }
 
 /* Marks drawn as shapes */
 .viz-frame .m-quiet { fill: var(--fill-quiet); stroke: var(--mark-quiet); stroke-width: 1.5; }
@@ -208,6 +212,9 @@
 
 /* ---------- Waffle: square tiles at any width ---------- */
 .viz-frame.waffle { --ratio: 2.78; --cols: 25; }
+/* Lit tiles in --mark-lit: on a dark page a field of 249 near-white squares would outshine the one orange tile. */
+.viz-frame.waffle .m-ink { fill: var(--mark-lit); }
+.viz-frame.waffle .viz-key-mark.is-square:not(.is-quiet):not(.is-signal) { background: var(--mark-lit); }
 .viz-frame.waffle .viz-plot { height: auto; aspect-ratio: var(--ratio); width: 100%; max-width: calc(var(--cols) * 14px); margin-inline: auto; }
 @supports not (aspect-ratio: 1) {
   .viz-frame.waffle .viz-plot { height: 0; padding-top: 36%; }

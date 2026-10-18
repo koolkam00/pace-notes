@@ -99,8 +99,9 @@ export default function PlacesBody() {
           layers={[{ id: 'be', label: 'Places', series: [{ id: 'median', values: be.map((b) => b.median), fillAbove: 0 }],
             points: [{ x: be[beAt].x, y: be[beAt].median, kind: 'reading' }] }]}
           refs={[{ value: 0, label: 'No places gained' }]}
-          // Even pace is the detent tick (it always shows); the slower side reads at 20% and 40%.
-          xTicks={[0, 20, 40].filter((v) => v >= be[0].x && v <= be[be.length - 1].x).map((v) => ({ value: v, label: v === 0 ? 'Even' : `${v}% slower`, priority: v === 0 ? 3 : 1 }))}
+          // Even pace always shows; a slower tick near the needle's opening crossing is left out, so the eye never reads
+          // "20%" under a needle at the H2's 17%.
+          xTicks={[0, 20, 40].filter((v) => v >= be[0].x && v <= be[be.length - 1].x && (v === 0 || Math.abs(v - be[beAt].x) > 6)).map((v) => ({ value: v, label: v === 0 ? 'Even' : `${v}% slower`, priority: v === 0 ? 3 : 1 }))}
           // The top of the scale only: a gridline at the bottom of the domain would double the axis rule.
           yTicks={[{ value: beTop, label: `+${beTop}` }]}
           scrub={{ label: '30–40K pace against the 5–20K pace',
@@ -114,14 +115,15 @@ export default function PlacesBody() {
           )} />
       </Beat>
 
-      {/* The H2 gives the share that moved up; the bar shows it as the bracket's span and names only the two tails (in
-          places per 100, the readout's unit above), so no shown parts have to add up to it. */}
-      <Beat id="shuffle" track="chapter-3" label="Up and down" title={shuffle} aliases={['gains', 'women']}>
+      {/* The H2 gives the share that moved up; the bar shows it as the bracket's span (its edge a tick through the bar)
+          and names only the two tails, so no shown parts have to add up to it. The dek names the unit once. */}
+      <Beat id="shuffle" track="chapter-3" label="Up and down" title={shuffle} aliases={['gains', 'women']}
+        dek="Places per 100 finishers, from 30K to the finish.">
         <PlaceShift
           segments={[
-            { id: 'lost10', label: 'lost 10+ places per\u00a0100', share: data.sinker_share, display: pct(data.sinker_share, 1), tone: 'ink' },
+            { id: 'lost10', label: 'dropped 10+ places', share: data.sinker_share, display: pct(data.sinker_share, 1), tone: 'ink' },
             { id: 'between', label: 'everything between', share: Math.max(0, 1 - data.sinker_share - data.surger_share), display: '', tone: 'quiet' },
-            { id: 'gained10', label: 'gained 10+ places per\u00a0100', share: data.surger_share, display: pct(data.surger_share, 1), tone: 'ink' },
+            { id: 'gained10', label: 'gained 10+ places', share: data.surger_share, display: pct(data.surger_share, 1), tone: 'ink' },
           ]}
           up={{ at: 1 - data.gained_share, label: 'Moved up' }}
           label={`Places gained or lost per 100 of the field from 30K to the finish: ${pct(data.gained_share)} moved up; ${pct(data.sinker_share, 1)} lost 10 or more, ${pct(data.surger_share, 1)} gained 10 or more.`}

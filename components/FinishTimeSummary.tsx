@@ -54,11 +54,11 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
   ];
   const span = Math.ceil(Math.max(...rows.flatMap((r) => r.values.map((v) => Math.abs(v.v)))) / 5) * 5;
 
-  // Race by race: the median finish of each course with 100 or more finishes and three or more editions (the courses the
-  // H2's range spans); the courses with fewer editions stay in Values.
+  // Race by race: the median finish of each course with 100 or more finishes; those with three or more editions (the
+  // courses the H2's range spans) are filled, the rest hollow.
   const list = courses.courses.filter((c) => c.finishes >= 100);
   const drawn = list.filter((c) => c.editions >= 3);
-  const t0 = Math.floor(Math.min(...drawn.map((c) => c.median_s)) / 1800) * 1800, t1 = Math.ceil(Math.max(...drawn.map((c) => c.median_s)) / 1800) * 1800;
+  const t0 = Math.floor(Math.min(...list.map((c) => c.median_s)) / 1800) * 1800, t1 = Math.ceil(Math.max(...list.map((c) => c.median_s)) / 1800) * 1800;
   const stripTicks = [];
   for (let t = t0; t <= t1; t += 1800) stripTicks.push({ value: t, label: hm(t / 60) });
 
@@ -101,9 +101,12 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
       </Beat>
 
       <Beat id="by-race" track="chapter-3" label="Race by race" title={byRace}>
-        <DotStrip items={drawn.map((c) => ({ id: c.city, label: c.city, value: c.median_s, display: hm(c.median_s / 60), detail: count(c.finishes) }))}
+        {/* Every course the table lists is drawn: the H2's range comes from the filled ones (three or more editions),
+            and the rest are hollow, so the strip and its Values count the same courses. */}
+        <DotStrip items={list.map((c) => ({ id: c.city, label: c.city, value: c.median_s, display: hm(c.median_s / 60), detail: count(c.finishes), hollow: c.editions < 3 }))}
           domain={[t0, t1]} ticks={stripTicks} readoutKey="Finishes"
-          label={`Median finish of ${drawn.length} courses with three or more editions, ranked; tap a dot to read it`}
+          keyLabels={list.length > drawn.length ? { filled: 'Three or more editions', hollow: 'Fewer editions' } : undefined}
+          label={`Median finish of ${list.length} courses, ranked (${drawn.length} with three or more editions filled, the rest hollow); tap a dot to read it`}
           values={(
             <Values id="ft-races" caption="Median finish by course" count={list.length}>
               <table className="table">

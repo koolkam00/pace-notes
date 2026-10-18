@@ -1,9 +1,9 @@
 /**
  * The runner pages' nugget (WP6; the redesign spec, sections 2.2 and 5). /runners has no reading of its own: it is
  * reached from the navigation, holds no data value until a visitor finds a race, and is never recorded. /report has
- * none either. runner.yours is chapter 10's lead on the contents and on the next card into the chapter: the word "Yours"
- * and the key "nine mats, one race", with the mats counted from the runner manifest's checkpoints rather than typed.
- * Server only; scripts/nuggets/runners.cjs recounts it.
+ * none either. So runner.yours has no figure (a card or a contents row never sets a word in figure type); its sentence
+ * and key count the mats from the runner manifest's checkpoints rather than typing them. Chapter 10's lead is the split
+ * check's finding (splitcheck.mats). Server only; scripts/nuggets/runners.cjs recounts it.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -25,7 +25,7 @@ export function runnerYoursFrom(points: number[]): Nugget {
     guard,
     headline: guard ? `A past race, read at its *${word}* mats from ${matLabel(points[0])} to the finish.` : '',
     fallback: 'A past race, read mat by mat.',
-    figure: { value: 'Yours', sr: 'Yours' },
+    figure: null,
     key: guard ? `${word} mats, one race` : 'mat by mat, one race',
   };
 }

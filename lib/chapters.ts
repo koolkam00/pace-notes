@@ -99,20 +99,20 @@ export const CHAPTERS: readonly Chapter[] = [
       analysis('starting-pace', 'Starting pace', 'kick.bank', '/methodology#fast-start-method'),
       analysis('downhill-start', 'Downhill starts', 'downhill.opening', ALL_FINISHER),
     ],
-    lead: 'kick.bank', key: 'at the finish, after a first 5K over 10% fast' },
+    lead: 'kick.bank', key: 'later at the finish, after a fast first 5K' },
   { n: 3, id: 'chapter-03', part: 1, marker: '10K', title: 'The shape of a race', subtitle: 'Pacing types, your pattern',
     pages: [
-      story('pacing-types', 'Pacing types', 'shape.second20k'),
+      story('pacing-types', 'Pacing types', 'types.top'),
       analysis('pacing-pattern', 'Your pacing pattern', 'pattern.profile'),
     ],
-    lead: 'shape.second20k', key: 'ran their second 20K faster than their first' },
+    lead: 'types.top', key: 'were the two commonest pacing types' },
   { n: 4, id: 'chapter-04', part: 1, marker: 'HALF', title: 'Halfway to 30K', subtitle: 'Checkpoints, places, the projector',
     pages: [
       analysis('checkpoint', 'From a checkpoint', 'checkpoint.under'),
       story('places', 'Pass or be passed', 'places.gap'),
       tool('projector', 'Race-day projector', 'Race-day projector', 'projector.range'),
     ],
-    lead: 'checkpoint.under', key: 'on even 4:00 pace at 30K got under 4:00' },
+    lead: 'checkpoint.under', key: 'on 4:00 pace at 30K got under 4:00' },
   { n: 5, id: 'chapter-05', part: 1, marker: '30K', title: 'After 30K', subtitle: 'Sustained slowdown, where time goes',
     pages: [
       page('/slowdown', 'explainer', 'Sustained slowdown', 'Sustained slowdown', 'slowdown.onset', '/methodology#slowdown-method'),
@@ -133,7 +133,7 @@ export const CHAPTERS: readonly Chapter[] = [
       story('who-holds-pace', 'Women and men', 'holds.gender'),
       analysis('age-and-pacing', 'Age and pace', 'age.retention'),
     ],
-    lead: 'holds.gender', key: 'sustained slowdown, women · men, at the same finish times' },
+    lead: 'holds.gender', key: 'women · men with a sustained slowdown, same finish times' },
   { n: 8, id: 'chapter-08', part: 2, marker: '08', title: 'Where you run', subtitle: 'Courses, hills, every city',
     pages: [
       story('courses', 'Course fingerprints', 'courses.named'),
@@ -142,7 +142,7 @@ export const CHAPTERS: readonly Chapter[] = [
       page('/courses', 'course-index', 'Every course', 'Every course', 'courses.index', '/methodology#course-pages'),
     ],
     children: ['/courses/'], back: '/courses',
-    lead: 'courses.spread', key: 'sustained slowdown, across courses' },
+    lead: 'courses.named', key: 'of editions named from their pacing shape alone' },
   { n: 9, id: 'chapter-09', part: 2, marker: '09', title: 'The weather', subtitle: 'Race morning, heat and wind',
     pages: [
       story('race-morning', 'Race morning', 'weather.pairs'),
@@ -150,20 +150,22 @@ export const CHAPTERS: readonly Chapter[] = [
       tool('weather-match', 'Weather match', 'Weather match', 'weathermatch.mornings'),
     ],
     lead: 'weather.pairs', key: 'same-course pairs: the warmer year had more sustained slowdowns' },
-  { n: 10, id: 'chapter-10', part: 3, marker: '10', title: 'Your race', subtitle: 'Your result, your splits',
+  // The split check opens the chapter: its finding is the chapter's lead, so the card into the chapter promises what the
+  // page it opens holds; a past race (a search, no reading of its own) follows it.
+  { n: 10, id: 'chapter-10', part: 3, marker: '10', title: 'Your race', subtitle: 'Your splits, a past race',
     pages: [
-      page('/runners', 'runner', 'Analyze a past race', 'Analyze a past race', 'runner.yours', '/methodology#runner-search'),
       tool('split-check', 'Split check', 'Split check', 'splitcheck.mats'),
+      page('/runners', 'runner', 'Analyze a past race', 'Analyze a past race', 'runner.yours', '/methodology#runner-search'),
     ],
     children: ['/report'], back: '/runners',
-    lead: 'runner.yours', key: 'nine mats, one race' },
+    lead: 'splitcheck.mats', key: 'ahead at 20K, then slowed to the same finish' },
   { n: 11, id: 'chapter-11', part: 3, marker: '11', title: 'The next one', subtitle: 'Improvement, your plan',
     pages: [
       analysis('finding-improvement', 'Where improvement happens', 'kick.recurrence'),
       tool('plan', 'Plan your race', 'Plan your race', 'plan.goal'),
     ],
     also: [{ href: '/tools/pace-band', label: 'Pace band' }, { href: '/tools/course-chooser', label: 'Course chooser' }, { href: '/tools/predictor', label: 'Finish-time predictor' }],
-    lead: 'kick.recurrence', key: 'of next races had one too, after a sustained slowdown' },
+    lead: 'kick.recurrence', key: 'had another sustained slowdown in the next race' },
 ];
 
 /** The /methodology anchors of off-chain pages that end on a ChapterEnd. */
@@ -263,19 +265,6 @@ export function howWeKnowOf(path: string): MethodsAnchor | null {
   if ('page' in place) return place.page.howWeKnow;
   const p = cleanPath(path);
   return CHILD_METHODS.find(([c]) => (c.endsWith('/') ? p.startsWith(c) : p === c))?.[1] ?? null;
-}
-
-/**
- * "Page 1 of 2" for a page in a chain; null for a child. A chapter mixes stories, analyses and tools, so the count is of
- * its pages, never of one kind.
- */
-export function placeLabel(path: string): string | null {
-  const place = placeOf(path);
-  if (!place) return null;
-  if ('child' in place) return null;
-  const live = livePages(place.chapter);
-  const i = live.indexOf(place.page);
-  return `Page ${i + 1} of ${live.length}`;
 }
 
 /**

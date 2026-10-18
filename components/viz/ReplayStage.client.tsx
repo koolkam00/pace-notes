@@ -18,11 +18,12 @@ export type StageChoice = {
   route: ReplayEdition['route'];
   race: string;
   flag_s: number;
-  moment: string;
+  /** The flag frame's sentence: one string, or both units' (the home band's distance). */
+  moment: string | { mi: string; km: string };
   poster: ReplayPosterData;
 };
 
-type Replay = ComponentType<{ edition: ReplayEdition; flag: number; view?: 'field' | 'route'; band?: boolean; race: string; moment?: string; poster?: ReactNode; autoplay?: boolean }>;
+type Replay = ComponentType<{ edition: ReplayEdition; flag: number; view?: 'field' | 'route'; band?: boolean; race: string; moment?: StageChoice['moment']; poster?: ReactNode; autoplay?: boolean }>;
 let loaded: Replay | null = null;
 
 export default function ReplayStage({ choices, initial, band = false, picker = false, layout = false }: {

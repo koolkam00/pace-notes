@@ -24,7 +24,10 @@ export type ProfileLayer = {
   id: string;
   label: string;
   series: ProfileSeries[];
-  band?: { lo: number[]; hi: number[] };
+  /** A p10–p90 (or p25–p75) band; `edge` draws its two edges as 1.5 px --mark-quiet lines. */
+  band?: { lo: number[]; hi: number[]; edge?: boolean };
+  /** The span the sentence names, as a signal bracket at `x` from `y0` to `y1`, its label on the inside (left). */
+  bracket?: { x: number; y0: number; y1: number; label: string };
   labels?: { x: number; y: number; text: string; tone?: 'ink' | 'signal' | 'quiet'; priority?: number; prefer?: LabelItem['prefer']; gap?: number }[];
   points?: { x: number; y: number; kind: 'best' | 'reading' | 'compare' }[];
   /** A level two points share ("as often as"): a 1 px dashed --ink-3 connector at `y` from `x0` to `x1`. */
@@ -83,6 +86,11 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
       return Array.from({ length: n }, (_, k) => ({ x: x0 + ((x1 - x0) * k) / n, y: y0 + ((y1 - y0) * k) / n, r: k ? 2 : 3 }));
     });
     const avoid = [...(layer.points ?? []).map((p) => ({ x: x(p.x), y: y(p.y), r: 7 })), ...layer.series.flatMap((sr) => along(sr.values))];
+    // …and of a bracket's label (to the bracket's left, at its middle).
+    if (layer.bracket) {
+      const bx = x(layer.bracket.x), by = (y(layer.bracket.y0) + y(layer.bracket.y1)) / 2, bw = (textWidth(layer.bracket.label, 14) + 14) / REF_WIDTH;
+      for (let t = 0; t <= 6; t++) avoid.push({ x: bx - (bw * t) / 6, y: by, r: 10 });
+    }
     // …and of a level connector between two points.
     for (const k of layer.links ?? []) for (let t = 0; t <= 20; t++) avoid.push({ x: x(k.x0 + ((k.x1 - k.x0) * t) / 20), y: y(k.y), r: 2 });
     const placed = placeLabels(items, { height, avoid });
@@ -90,6 +98,7 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
       <g key={layer.id} data-layer={lensOn ? layer.id : undefined} className={lensOn && layer.id !== current ? 'is-off' : undefined}>
         <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
           {layer.band ? <path className="a-band" d={areaPath(pts(layer.band.hi), pts(layer.band.lo))} /> : null}
+          {layer.band?.edge ? <><path className="a-edge" d={linePath(pts(layer.band.hi))} /><path className="a-edge" d={linePath(pts(layer.band.lo))} /></> : null}
           {layer.series.filter((s) => s.fillAbove !== undefined).map((s) => (
             <path key={`fill-${s.id}`} className="a-signal" d={areaPath(pts(s.values.map((v) => Math.max(v, s.fillAbove!))), pts(s.values.map(() => s.fillAbove!)))} />
           ))}
@@ -101,6 +110,7 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
         {(layer.links ?? []).map((k, i) => (
           <line key={`link-${i}`} className="ref-line is-dashed is-link" x1={pc(x(k.x0))} x2={pc(x(k.x1))} y1={pc(y(k.y))} y2={pc(y(k.y))} />
         ))}
+        {layer.bracket ? <Bracket {...layer.bracket} x={x(layer.bracket.x)} y0={y(layer.bracket.y0)} y1={y(layer.bracket.y1)} /> : null}
         {(layer.points ?? []).map((p, i) => (
           <circle key={i} className={p.kind === 'best' ? 'm-hollow-ink' : p.kind === 'compare' ? 'm-ink is-compare' : 'm-signal is-reading'} cx={pc(x(p.x))} cy={pc(y(p.y))} r={p.kind === 'best' ? 5 : p.kind === 'compare' ? 4 : 5.5} />
         ))}
@@ -177,5 +187,23 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
       scrub={scrub ? <Scrubber points={followed(scrub)} initial={scrub.initial} detents={scrub.detents} label={scrub.label} axis={axis}>{plot}</Scrubber> : undefined}
       plot={scrub ? undefined : plot} axis={scrub ? undefined : axis} keys={keys} values={values}
     />
+  );
+}
+
+/**
+ * A bracket on the plot: a 1.5 px signal line from y0 to y1 (fractions from the top) at x, with 6 px caps turned
+ * inward (left), and its label inside it, level with its middle (the sentence's span: "49 min"). At the plot's right
+ * edge it is held just inside, so the stroke never clips.
+ */
+function Bracket({ x, y0, y1, label }: { x: number; y0: number; y1: number; label: string }) {
+  const top = Math.min(y0, y1), bottom = Math.max(y0, y1);
+  const at = pc(Math.min(1, Math.max(0, x)));
+  return (
+    <g className="viz-bracket">
+      <rect className="bracket-line" x={at} y={pc(top)} width={1.5} height={pc(bottom - top)} transform="translate(-1.5 0)" />
+      <rect className="bracket-line" x={at} y={pc(top)} width={7} height={1.5} transform="translate(-7 0)" />
+      <rect className="bracket-line" x={at} y={pc(bottom)} width={7} height={1.5} transform="translate(-7 -1.5)" />
+      <text className="viz-label is-signal" x={at} y={pc((top + bottom) / 2)} dx={-12} dy={5} textAnchor="end">{label}</text>
+    </g>
   );
 }

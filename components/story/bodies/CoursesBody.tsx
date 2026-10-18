@@ -71,9 +71,9 @@ export default function CoursesBody() {
         figure={named.figure ? { ...named.figure } : undefined} unitLine={named.guard ? named.key : undefined} fallback={!named.guard}
         sentence={named.guard ? undefined : <Say nugget={named} />}
         instrument={named.guard ? (
-          <Ruler min={0} max={1} ticks={[]} className="is-labelled"
-            // Both marks are named, the chance with its share (the figure gives the shape's), so no tick row.
-            marks={[{ value: Number(named.values.share), kind: 'reading', label: 'By its shape' }, { value: Number(named.values.chance), kind: 'compare', label: `By chance ${pct(Number(named.values.chance))}` }]}
+          <Ruler min={0} max={1} ticks={[0, 0.5, 1].map((v) => ({ value: v, label: pct(v) }))}
+            // Both marks carry their shares on a 0–100% scale, as the other story openers' rulers do.
+            marks={[{ value: Number(named.values.share), kind: 'reading', label: `By its shape ${pct(Number(named.values.share))}` }, { value: Number(named.values.chance), kind: 'compare', label: `By chance ${pct(Number(named.values.chance))}` }]}
             label={`Editions named from their pacing shape: ${pct(Number(named.values.share))}, against about ${pct(Number(named.values.chance))} by chance.`} />
         ) : undefined} />
 

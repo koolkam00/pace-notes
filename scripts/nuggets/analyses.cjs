@@ -140,12 +140,6 @@ module.exports = function analyses({ json, eq, ok, core }) {
     for (const c of list) { if (c.slowdown_pct < lo.slowdown_pct) lo = c; if (c.slowdown_pct > hi.slowdown_pct) hi = c; }
     return { list, lo, hi };
   };
-  R['courses.spread'] = (n) => {
-    const { list, lo, hi } = courseRange();
-    close(n.values.lo, lo.slowdown_pct / 100, 'courses.spread: low'); close(n.values.hi, hi.slowdown_pct / 100, 'courses.spread: high');
-    eq(n.values.courses, list.length, 'courses.spread: courses');
-    eq(n.guard, hi.slowdown_pct / lo.slowdown_pct > 1.5, 'courses.spread: guard');
-  };
   R['courses.compare'] = (n) => {
     const { lo, hi } = courseRange();
     eq([n.values.lo_course, n.values.hi_course], [lo.label, hi.label], 'courses.compare recounts the extremes');

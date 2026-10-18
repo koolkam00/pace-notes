@@ -102,17 +102,20 @@ for (const city of json('public/data/insights/courses.json').courses.map((c) => 
 for (const [page, id] of Object.entries(N.PAGE_NUGGET)) ok(N.NUGGET_IDS.includes(id), `${page} names nugget ${id}, which is registered`);
 eq(N.CHAPTER_LEAD.length, 11, 'one lead per chapter');
 for (const id of N.CHAPTER_LEAD) ok(N.NUGGET_IDS.includes(id), `chapter lead ${id} is registered`);
+// Every chapter leads with a number: eleven readings, each a figure with a digit in it (never a word in figure type).
+for (const id of N.CHAPTER_LEAD) ok(/\d/.test(N.getNugget(id).figure?.value ?? ''), `chapter lead ${id} has a figure with a number`);
+eq(new Set(N.CHAPTER_LEAD).size, N.CHAPTER_LEAD.length, 'eleven different chapter leads');
 // The contents keys are the approved wording (spec section 2.2), reproduced from the data where they hold a number.
 const keys = Object.fromEntries(N.CHAPTER_LEAD.map((id) => [id, N.getNugget(id).key]));
 eq(keys['field.median'], 'median finish', 'chapter 01 key');
 eq(keys['slowdown.onset'], 'of sustained slowdowns began at 30K or later', 'chapter 05 key');
 eq(keys['finish.busiest'], 'the busiest finishing minute', 'chapter 06 key');
-eq(keys['holds.gender'], 'sustained slowdown, women · men, at the same finish times', 'chapter 07 key');
-eq(keys['courses.spread'], 'sustained slowdown, across courses', 'chapter 08 key');
+eq(keys['holds.gender'], 'women · men with a sustained slowdown, same finish times', 'chapter 07 key');
+eq(keys['courses.named'], 'of editions named from their pacing shape alone', 'chapter 08 key');
 eq(keys['weather.pairs'], 'same-course pairs: the warmer year had more sustained slowdowns', 'chapter 09 key');
-eq(keys['runner.yours'], 'nine mats, one race', 'chapter 10 key');
-ok(/^of next races had one too, after a sustained slowdown \(\d+% typical\)$/.test(keys['kick.recurrence']), 'chapter 11 key');
-ok(/^at the finish against the same 5–20K pace, after a first 5K over \d+% fast$/.test(keys['kick.bank']), 'chapter 02 key');
+eq(keys['splitcheck.mats'], 'ahead at 20K, then slowed to the same finish', 'chapter 10 key');
+ok(/^had another sustained slowdown in the next race \(\d+% typical\)$/.test(keys['kick.recurrence']), 'chapter 11 key');
+ok(/^later at the finish, after a first 5K over \d+% fast$/.test(keys['kick.bank']), 'chapter 02 key');
 
 // lib/chapters.ts (WP0-B) names a nugget for every page and chapter: every one must be registered, and agree with
 // PAGE_NUGGET and CHAPTER_LEAD here.

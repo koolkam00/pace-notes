@@ -46,7 +46,8 @@ export default function KickBody() {
   // The last stretch: the share running each section faster than the one before.
   // The last four sections drawn (so each name fits a phone), every section in the table.
   const lastFour = data.magnet.slice(-4);
-  const mTop = Math.ceil(Math.max(...lastFour.map((m) => m.all)) * 10) / 10;
+  // The beat's subject is finishes with a sustained slowdown (the H2's share), so the columns are theirs.
+  const mTop = Math.ceil(Math.max(...lastFour.map((m) => m.slowdown)) * 10) / 10;
   const s = data.recovery.stay[0];
 
   return (
@@ -107,13 +108,13 @@ export default function KickBody() {
       </Beat>
 
       <Beat id="magnet" track="chapter-4" label="The last stretch" title={magnet} aliases={['women-men']}>
-        <Columns max={mTop} items={lastFour.map((m, i) => ({ id: m.section, label: sectionName(m.section), value: m.all, display: pct(m.all), tone: i === lastFour.length - 1 ? 'signal' : 'ink' }))}
-          label={`The share of finishes that ran each section faster than the one before: ${lastFour.map((m) => `${sectionName(m.section)} ${pct(m.all)}`).join(', ')}.`}
-          caption="Ran the section faster than the one before"
+        <Columns max={mTop} items={lastFour.map((m, i) => ({ id: m.section, label: sectionName(m.section), value: m.slowdown, display: pct(m.slowdown), tone: i === lastFour.length - 1 ? 'signal' : 'ink' }))}
+          label={`The share of finishes with a sustained slowdown that ran each section faster than the one before: ${lastFour.map((m) => `${sectionName(m.section)} ${pct(m.slowdown)}`).join(', ')}.`}
+          caption="With a sustained slowdown: ran the section faster than the one before"
           values={(
             <Values id="fk-magnet" caption="Ran the section faster than the one before"
-              columns={[{ key: 's', label: 'Section' }, { key: 'a', label: 'All finishes' }, { key: 'd', label: 'With a sustained slowdown' }]}
-              rows={data.magnet.map((m) => [sectionName(m.section), pct(m.all), pct(m.slowdown)])} reading={data.magnet.length - 1} />
+              columns={[{ key: 's', label: 'Section' }, { key: 'd', label: 'With a sustained slowdown' }, { key: 'a', label: 'All finishes' }]}
+              rows={data.magnet.map((m) => [sectionName(m.section), pct(m.slowdown), pct(m.all)])} reading={data.magnet.length - 1} />
           )} />
       </Beat>
 

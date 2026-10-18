@@ -180,15 +180,20 @@ export function replayTitleFrom(first: Nugget): Nugget {
   };
 }
 
-/** The reading's sentence: how far the back of the field had come at that moment, in the replay.first edition. */
+/**
+ * The home band's moment (its flag frame, the first finish, in the replay.first edition): how far the back of the field
+ * had come. The race-replay story opens on the share short of 20K (replay.first); the home page says this instead, so
+ * the two never lead with the same finding. "Just" needs the back short of halfway.
+ */
 export function replayBackFrom(edition: Pick<ReplayEditionMeta, 'city' | 'year' | 'moments'> | null): Nugget {
   const km = edition?.moments?.back_km_at_first ?? NaN;
   const ok = Number.isFinite(km) && km > 0 && km < MARATHON_KM / 2;
+  const race = edition ? `${edition.city} ${edition.year}` : '';
   return {
-    id: 'replay.back', page: '/stories/race-replay', denominator: 'positions',
+    id: 'replay.back', page: '/', denominator: 'positions',
     values: { back_km: km, city: edition?.city ?? '', year: edition?.year ?? NaN }, guard: ok,
-    headline: both((u) => `At that moment, the back of the field had covered just *${distance(km, u)}*.`),
-    fallback: Number.isFinite(km) ? both((u) => `At that moment, the back of the field had covered ${distance(km, u)}.`) : 'The whole field, on one race clock.',
+    headline: both((u) => `When the first runner finished ${race}, the back of the field had covered just *${distance(km, u)}*.`),
+    fallback: Number.isFinite(km) ? both((u) => `When the first runner finished ${race}, the back of the field had covered ${distance(km, u)}.`) : 'The whole field, on one race clock.',
     figure: null,
   };
 }
@@ -197,18 +202,6 @@ function replayBack(): Nugget {
   const { editions } = readInsight<ReplayIndex>('replay.json');
   const slug = String(replayFirst().values.slug ?? '');
   return replayBackFrom(editions.find((e) => e.slug === slug) ?? null);
-}
-
-/** #replay: in how many editions the field spread out more over 20–40K than over 0–20K. "All" needs every one. */
-export function replaySpreadFrom(stretch: Pick<NonNullable<ReplayIndex['stretch']>, 'wider_after_20' | 'editions'> | null | undefined): Nugget {
-  const n = stretch?.editions.length ?? 0, k = stretch?.wider_after_20 ?? 0;
-  return {
-    id: 'replay.spread', page: '/stories/race-replay#replay', denominator: 'positions',
-    values: { wider: k, editions: n }, guard: n > 0 && k === n,
-    headline: `In all ${count(n)} race editions, the field spread out *more after 20K* than before it.`,
-    fallback: n ? `In ${count(k)} of ${count(n)} race editions, the field spread out more after 20K than before it.` : 'The whole field, on one race clock.',
-    figure: null,
-  };
 }
 
 /** #packs: finishes that passed the same mat together, and how far apart the middle 80% of them finished, in the page's own edition (replay.first's). */
@@ -226,62 +219,28 @@ export function replayPacksFrom(edition: Pick<ReplayEditionMeta, 'slug' | 'city'
   };
 }
 
-/**
- * #emptying: late in the race (the race-clock reading nearest the edition's median finish), the share of the drop in
- * the field's speed on course that reflects who is still out there. "Mostly" needs a majority.
- */
-export function replayLeftFrom(edition: Pick<ReplayEditionMeta, 'city' | 'year' | 'median_finish_s' | 'composition'> | null): Nugget {
-  const rows = (edition?.composition ?? []).filter((r) => typeof r.composition_share === 'number');
-  const at = rows.length && edition ? rows.reduce((a, b) => (Math.abs(b.clock_s - edition.median_finish_s) < Math.abs(a.clock_s - edition.median_finish_s) ? b : a)) : null;
-  const share = at?.composition_share ?? NaN;
-  return {
-    id: 'replay.left', page: '/stories/race-replay#emptying', denominator: 'positions',
-    values: { city: edition?.city ?? '', year: edition?.year ?? NaN, clock_s: at?.clock_s ?? NaN, share, on_course: at?.on_course ?? NaN },
-    guard: share > 0.5 && share < 1,
-    headline: 'Late in the race, the slower pace on course is mostly *who’s left*.',
-    fallback: Number.isFinite(share) ? `Late in the race, ${pct(share)} of the slower pace on course reflects who’s left.` : 'The pace on course, hour by hour.',
-    figure: null,
-  };
-}
-
-function replayLeft(): Nugget {
-  const { editions } = readInsight<ReplayIndex>('replay.json');
-  const slug = String(replayFirst().values.slug ?? '');
-  return replayLeftFrom(editions.find((e) => e.slug === slug) ?? null);
-}
-
 // ---------- Chapter 03 · The shape of a race (/stories/pacing-types) ----------
 
 /** A word unit follows its figure after a no-break space (the figure draws its unit with no gap of its own). */
 const NBSP = '\u00a0';
 
-/** A figure from inWords: "1 in 25" → 1 with the unit " in 25"; "4%" → 4 with "%". */
-function oneIn(words: string): { value: string; unit?: string } {
-  const one = /^1 (in \d+)$/.exec(words);
-  if (one) return { value: '1', unit: `${NBSP}${one[1]}` };
-  const share = /^([\d.]+)%$/.exec(words);
-  return share ? { value: share[1], unit: '%' } : { value: words };
-}
-
-/** Chapter 03 lead and the pacing-types reading (its figure and key; the six types are its instrument): the share of finishes whose second 20K was faster than their first. */
-export function shapeSecond20kFrom(row: { count: number; total: number } | null): Nugget {
-  const share = row && row.total > 0 && row.count >= 0 && row.count <= row.total ? row.count / row.total : NaN;
-  const known = Number.isFinite(share) && share > 0 && share < 1;
+/**
+ * Chapter 03 lead and the pacing-types reading (the six types are its instrument): the two commonest types, named from
+ * the data, and their share of finishes together. "Most" needs the two to hold more than half.
+ */
+export function typesTopFrom(types: Pick<Archetypes['archetypes'][number], 'name' | 'share'>[]): Nugget {
+  const [a, b] = [...types].sort((x, y) => y.share - x.share);
+  const share = a && b ? a.share + b.share : NaN;
+  const names = a && b ? `${a.name}s or ${b.name}s` : '';
   return {
-    id: 'shape.second20k', page: '/stories/pacing-types', denominator: 'eligible',
-    values: { share, n: row?.count ?? NaN, total: row?.total ?? NaN }, guard: known && share < 0.5,
-    headline: `Only *${inWords(share, 'finishes')}* ran their second 20K faster than their first.`,
-    fallback: known ? `*${inWords(share, 'finishes')}* ran their second 20K faster than their first.` : 'The second 20K against the first, finish by finish.',
-    // "1 in 25" as a big 1 with "in 25" beside it, so the figure keeps its width beside the sentence.
-    figure: known ? { ...oneIn(inWords(share)), sr: inWords(share, 'finishes') } : null,
-    key: 'ran their second 20K faster than their first',
+    id: 'types.top', page: '/stories/pacing-types', denominator: 'shape',
+    values: { first: a?.name ?? '', first_share: a?.share ?? NaN, second: b?.name ?? '', second_share: b?.share ?? NaN, share, types: types.length },
+    guard: Number.isFinite(share) && share > 0.5 && share < 1,
+    headline: `Most finishes were *${names}*.`,
+    fallback: types.length ? `${capitalize(countWord(types.length))} ways to run *the same race*.` : 'Ways to run the same race.',
+    figure: shareFigure(share),
+    key: `were ${names}`,
   };
-}
-
-function shapeSecond20k(): Nugget {
-  const row = table('ext_pacing_shapes', 'patterns.csv').find((r) => r.label === 'Faster second 20 km');
-  const n = Number(row?.count), total = Number(row?.n_value);
-  return shapeSecond20kFrom(row && Number.isFinite(n) && Number.isFinite(total) ? { count: n, total } : null);
 }
 
 /** The evenest pacing type: the lowest median pace variation. */
@@ -506,15 +465,18 @@ export function kickStayFrom(stay: Kick['recovery']['stay']): Nugget {
   };
 }
 
-/** #magnet: the share that ran the last 2.2K faster than 35–40K, and how few with a sustained slowdown got back to their early pace. */
-export function kickMagnetFrom(k: Pick<Kick['kick'], 'share' | 'slowdown_final_below_baseline'>): Nugget {
+/**
+ * #magnet: of finishes with a sustained slowdown (the beat's subject, after "no second wind"), the share that ran the
+ * last 2.2K faster than 35–40K, and how few of them got back to their early pace. "Even so" needs a majority.
+ */
+export function kickMagnetFrom(k: Pick<Kick['kick'], 'slowdown_share' | 'slowdown_final_below_baseline'>): Nugget {
   const last = MARATHON_KM - 40;
-  const ok = k.share > 0.5 && k.slowdown_final_below_baseline < 0.1;
+  const ok = k.slowdown_share > 0.5 && k.slowdown_final_below_baseline < 0.1;
   return {
     id: 'kick.magnet', page: '/stories/final-kick#magnet', denominator: 'kick',
-    values: { share: k.share, back: k.slowdown_final_below_baseline }, guard: ok,
-    headline: both((u) => `Even so, *${pct(k.share)}* of finishes sped up over the last ${distance(last, u)}.`),
-    fallback: both((u) => `${pct(k.share)} of finishes sped up over the last ${distance(last, u)}; ${pct(k.slowdown_final_below_baseline, 1)} of those with a sustained slowdown got back to their early pace.`),
+    values: { share: k.slowdown_share, back: k.slowdown_final_below_baseline }, guard: ok,
+    headline: both((u) => `Even so, *${pct(k.slowdown_share)}* of finishes with a sustained slowdown sped up over the last ${distance(last, u)}.`),
+    fallback: both((u) => `Of finishes with a sustained slowdown, ${pct(k.slowdown_share)} sped up over the last ${distance(last, u)}; ${pct(k.slowdown_final_below_baseline, 1)} got back to their early pace.`),
     figure: null,
   };
 }
@@ -589,7 +551,7 @@ export function holdsGenderFrom(o: Pick<Demographics['overall'], 'women_slowdown
     headline: `At the same finish times, *${pct(w)}* of recorded women’s finishes had a sustained slowdown, against ${pct(m)} of men’s.`,
     fallback: `At the same finish times: recorded women ${pct(w)}, recorded men ${pct(m)}.`,
     figure: { value: `${pct(w)} · ${pct(m)}`, sr: `${spokenPct(w)} of recorded women, ${spokenPct(m)} of recorded men` },
-    key: 'sustained slowdown, women · men, at the same finish times',
+    key: 'women · men with a sustained slowdown, same finish times',
   };
 }
 
@@ -638,21 +600,6 @@ export function holdsGhostFrom(bands: Pick<Demographics['bands'][number], 'label
   };
 }
 
-/** #bands: in how many finish bands men's finishes had more sustained slowdowns than women's. "Every" needs all of them. */
-export function holdsBandsFrom(bands: Pick<Demographics['bands'][number], 'lo_min' | 'women_n' | 'men_n' | 'women_slowdown' | 'men_slowdown'>[]): Nugget {
-  const rows = bands.filter((b) => b.women_n >= 100 && b.men_n >= 100);
-  const more = rows.filter((b) => b.men_slowdown > b.women_slowdown).length;
-  const width = rows.length > 1 ? rows[1].lo_min - rows[0].lo_min : 10;
-  const from = rows[0]?.lo_min ?? NaN, to = (rows[rows.length - 1]?.lo_min ?? NaN) + width;
-  return {
-    id: 'holds.bands', page: '/stories/who-holds-pace#bands', denominator: 'demographics',
-    values: { bands: rows.length, men_more: more, from_min: from, to_min: to }, guard: rows.length >= 2 && more === rows.length,
-    headline: `From ${hm(from)} to ${hm(to)}, men’s finishes had more sustained slowdowns *at every finish time*.`,
-    fallback: `Men’s finishes had more sustained slowdowns in ${count(more)} of ${count(rows.length)} finish-time bands.`,
-    figure: null,
-  };
-}
-
 // ---------- Chapter 08 · Where you run (/stories/courses) ----------
 
 /**
@@ -679,7 +626,7 @@ export function coursesSlowestFrom(courses: Pick<Courses['courses'][number], 'sl
   return {
     id: 'courses.slowest', page: '/stories/courses#fingerprint', denominator: 'course',
     values: { section, k, n: shaped.length }, guard: shaped.length > 0 && k > shaped.length / 2,
-    headline: `On *${k} of ${shaped.length}* courses, the slowest 5K was ${sectionName(section)}.`,
+    headline: `On *${k} of ${shaped.length}* courses with a pacing shape, the slowest 5K was ${sectionName(section)}.`,
     fallback: 'The slowest 5K, course by course.',
     figure: null,
   };
@@ -781,11 +728,9 @@ export const STORY_NUGGETS: Record<string, Builder> = {
   'replay.first': replayFirst,
   'replay.title': () => replayTitleFrom(replayFirst()),
   'replay.back': replayBack,
-  'replay.spread': () => replaySpreadFrom(readInsight<ReplayIndex>('replay.json').stretch),
   // The page's own edition (the replay.first one, like the replay and #emptying), so the story never switches race.
   'replay.packs': () => { const slug = String(replayFirst().values.slug ?? ''); return replayPacksFrom(readInsight<ReplayIndex>('replay.json').editions.find((e) => e.slug === slug) ?? null); },
-  'replay.left': replayLeft,
-  'shape.second20k': shapeSecond20k,
+  'types.top': () => typesTopFrom(archetypes().archetypes),
   'types.river': () => typesRiverFrom(archetypes()),
   'types.gender': () => typesGenderFrom(archetypes()),
   'places.gap': () => placesGapFrom(positions().coin_flip),
@@ -808,7 +753,6 @@ export const STORY_NUGGETS: Record<string, Builder> = {
   'holds.title': () => holdsTitleFrom(demographics().overall),
   'holds.unmask': () => holdsUnmaskFrom(demographics().overall),
   'holds.ghost': () => holdsGhostFrom(demographics().bands),
-  'holds.bands': () => holdsBandsFrom(demographics().bands),
   'courses.named': () => coursesNamedFrom(courses().identification),
   'courses.slowest': () => coursesSlowestFrom(courses().courses),
   'courses.steady': () => coursesSteadyFrom(archetypes()),

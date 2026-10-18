@@ -112,14 +112,8 @@ export const STORIES: StoryDefinition[] = [
       const types = pacingTypes();
       return `${types ? capital(types) : 'Different'} ways to run the same race`;
     },
-    /** The finding: the two most common types, named from the data, when together they hold most finishes. */
-    get heading() {
-      const types = insight<Archetypes>('archetypes.json')?.archetypes ?? [];
-      const [a, b] = [...types].sort((x, y) => y.share - x.share);
-      if (a && b && a.share + b.share > 0.5) return `Most finishes were *${a.name}s or ${b.name}s*.`;
-      const count = pacingTypes();
-      return `${count ? capital(count) : 'Different'} ways to run *the same race*.`;
-    },
+    /** The finding (the types.top nugget): the two commonest types, named from the data, when together they hold most finishes. */
+    get heading() { return sentenceOf(getNugget('types.top')); },
     dek: 'Does everyone pace a marathon the same way?',
     accent: '#17A673',
     published: '2026-10-07',
@@ -194,8 +188,14 @@ export const STORIES: StoryDefinition[] = [
     get heading() { return headingOf('holds.title', this.title); },
     dek: 'Do women and men run the second half differently?', accent: '#7A4DFF',
     published: '2026-10-07',
-    seoTitle: 'Marathon Pacing by Age and Recorded Gender | Pace Notes',
-    seoDescription: 'At the same finish times, recorded women and men pace marathons differently, and so do age groups. Section-by-section evidence from 5 km splits.' },
+    seoTitle: 'Women and Men: Who Holds Marathon Pace | Pace Notes',
+    get seoDescription() {
+      const n = getNugget('holds.gender');
+      const w = Number(n.values.women), m = Number(n.values.men);
+      return n.guard
+        ? `At the same finish times, ${Math.round(w * 100)}% of recorded women’s marathon finishes had a sustained slowdown, against ${Math.round(m * 100)}% of men’s. Mat by mat, from 5 km splits.`
+        : 'Recorded women and men at the same marathon finish times, mat by mat, from 5 km splits.';
+    } },
   { slug: 'courses', file: 'courses.json', number: '07', kicker: 'Where you run', title: 'Every course has a fingerprint',
     /** The finding when a pacing shape names its course well above chance (the courses.named guard). */
     get heading() { return getNugget('courses.named').guard ? 'A race’s pacing shape can *name its course*.' : `${this.title}.`; },
