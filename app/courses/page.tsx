@@ -14,7 +14,7 @@ import { readInsight } from '@/lib/insights-server';
 import { getNugget, readingOf, sentenceOf } from '@/lib/nuggets';
 import { MIN_EDITIONS } from '@/lib/nuggets/courses';
 import { count } from '@/lib/nuggets/format';
-import { JsonLd, absoluteUrl, breadcrumbs, pageMetadata } from '@/lib/seo';
+import { JsonLd, absoluteUrl, pageCrumbs, pageMetadata } from '@/lib/seo';
 import '@/app/styles/pages/courses.css';
 
 export function generateMetadata() {
@@ -92,7 +92,7 @@ export default function CoursesPage() {
   };
   return (
     <div className="courses-page" {...readingAttrs('/courses')}>
-      <JsonLd data={[breadcrumbs([['Pace Notes', '/'], ['Courses']]), list]} />
+      <JsonLd data={[pageCrumbs('/courses', 'Courses'), list]} />
       <Reading crumbs={<ChapterCrumbs path="/courses" />} title="Courses" titleSize="title" dek={sentenceOf(index).replace(/\*/g, '')}
         figure={range.figure ? { ...range.figure, size: 'xl' } : undefined}
         unitLine={<>of finishes had a <SlowdownTerm />, course by course</>}

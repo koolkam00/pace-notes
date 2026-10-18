@@ -7,6 +7,7 @@ import type { Metadata } from 'next';
 import { getInsightsManifest } from './insights-server';
 import { absoluteUrl, assertCleanPath, movedTo } from './seo-routes';
 import { DEFAULT_OG_IMAGE, ogImageFor } from './og-paths';
+import { chapterNumber, placeOf } from './chapters';
 
 export { SITE_URL, absoluteUrl } from './seo-routes';
 export { DEFAULT_OG_IMAGE } from './og-paths';
@@ -85,11 +86,31 @@ export function JsonLd({ data }: { data: object | object[] }) {
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, '\\u003c') }} />;
 }
 
+export type Crumb = [name: string, path?: string];
+
 /** schema.org BreadcrumbList from [name, path] pairs; the last (current) item may leave out its path. */
-export function breadcrumbs(items: [name: string, path?: string][]) {
+export function breadcrumbs(items: Crumb[]) {
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: items.map(([name, path], index) => ({ '@type': 'ListItem', position: index + 1, name, ...(path ? { item: absoluteUrl(path) } : {}) })),
   };
+}
+
+/**
+ * The chapter crumb of a page in the race (the redesign spec, section 6.8): "Chapter 06 · The finish line", linked to the
+ * contents, where every chapter is listed (a breadcrumb URL cannot carry the chapter's #anchor). Null outside the race.
+ */
+export function chapterCrumb(path: string): Crumb | null {
+  const place = placeOf(path);
+  return place ? [`Chapter ${chapterNumber(place.chapter)} · ${place.chapter.title}`, '/research'] : null;
+}
+
+/**
+ * A page's breadcrumbs: Pace Notes › its chapter (when it is in the race) › its parents › the page. `section` stands in for
+ * the chapter on a page outside the race (["Runner tools", "/tools"]), so every page keeps a second crumb.
+ */
+export function pageCrumbs(path: string, name: string, { section, parents = [] }: { section?: Crumb; parents?: Crumb[] } = {}) {
+  const chapter = chapterCrumb(path) ?? section;
+  return breadcrumbs([['Pace Notes', '/'], ...(chapter ? [chapter] : []), ...parents, [name]]);
 }

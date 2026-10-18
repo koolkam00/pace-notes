@@ -16,7 +16,7 @@ import { readingAttrs } from '@/lib/chapters';
 import { courseDescription, coursePage, coursePages, courseTitle } from '@/lib/course-page';
 import type { ReplayIndex } from '@/lib/insights';
 import { getInsightsManifest, readInsight, replayChoices } from '@/lib/insights-server';
-import { JsonLd, breadcrumbs, pageMetadata } from '@/lib/seo';
+import { JsonLd, pageCrumbs, pageMetadata } from '@/lib/seo';
 import '@/app/styles/pages/course.css';
 
 export function generateStaticParams() { return [...coursePages().keys()].map((city) => ({ city })); }
@@ -52,7 +52,7 @@ export default function CityPage({ params }: { params: { city: string } }) {
   ];
   return (
     <div className="course-page" {...readingAttrs(`/courses/${page.slug}`, page.race)}>
-      <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Courses', '/courses'], [page.race]])} />
+      <JsonLd data={pageCrumbs(`/courses/${params.city}`, page.race, { parents: [['Courses', '/courses']] })} />
       <CourseHero page={page} />
       <CourseToc sections={sections} />
       <CourseGlance page={page} />
