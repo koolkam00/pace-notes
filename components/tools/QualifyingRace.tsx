@@ -9,6 +9,8 @@ import { Pace } from '@/components/story/Units';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import { ToolEnd, ToolPageHeader } from '@/components/tools/ToolShell';
 import Values from '@/components/ui/Values';
+import Arrow from '@/components/ui/Arrow';
+import ScrollCue from '@/components/ui/ScrollCue.client';
 import YearStrip from '@/components/viz/YearStrip';
 import { QualifyingRaceLinks } from '@/components/tools/QualifyingRaceLinks';
 import {
@@ -58,7 +60,9 @@ export default function QualifyingRace({ s, others, course }: { s: Standard; oth
   const detail = editionDetail(s);
   const age = ageRule(s);
   const time = timeRule(s);
-  const cols = divisions(s);
+  // Where every non-binary standard equals the women's (the race says so in its note), one column carries both.
+  const shared = divisions(s).some((c) => c.key === 'nonbinary') && s.bands.every((b) => b.nonbinary === b.women);
+  const cols = divisions(s).filter((c) => !(shared && c.key === 'nonbinary')).map((c) => (shared && c.key === 'women' ? { ...c, label: 'Women, non-binary' } : c));
   const birthYear = s.ageRule === 'birth-year' && s.ageYear !== undefined;
   const last = lastRunDate(s);
   const what = capital(program(s) ? `${program(s)} standards` : 'qualifying standards');
@@ -89,7 +93,7 @@ export default function QualifyingRace({ s, others, course }: { s: Standard; oth
         <section className="qrace-section" id="standards" aria-labelledby="qrace-standards-title">
           <h2 className="tool-panel-title" id="qrace-standards-title">{name} {year} {program(s) ? `${program(s)} ` : ''}standards</h2>
           <p className="tool-panel-meta">By {birthYear ? `birth year (the age reached in ${s.ageYear})` : age.value.toLowerCase()}{s.ageRule === 'race-day' && s.ageDate ? ` (${fmtDate(s.ageDate)})` : ''}, each time with its even pace over <MarathonDistance />.</p>
-          <div className="tool-table-wrap qrace-table-wrap" role="region" tabIndex={0} aria-labelledby="qrace-standards-title">
+          <div className="tool-table-wrap table-wrap qrace-table-wrap" role="region" tabIndex={0} aria-labelledby="qrace-standards-title">
             <table className="tool-table qrace-table" data-race={s.key}>
               <caption className="sr-only">{name} {year} {program(s) ? `${program(s)} ` : ''}standards in hours, minutes and seconds, each with the even pace for a finish exactly on it.</caption>
               <thead>
@@ -113,6 +117,9 @@ export default function QualifyingRace({ s, others, course }: { s: Standard; oth
               </tbody>
             </table>
           </div>
+          {/* Shown only while the table is wider than the screen (ScrollCue marks the section). */}
+          <span className="qrace-cue" aria-hidden="true">Scroll<Arrow /></span>
+          <ScrollCue target="standards" />
           <p className="tool-note">{s.nonbinaryNote}</p>
         </section>
 

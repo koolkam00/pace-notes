@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
@@ -15,6 +15,9 @@ export function EvidenceBadge({ kind, compact = false }: { kind: ToolEvidence; c
   return <EvidenceTag kind={kind} link={!compact} />;
 }
 
+/** A title whose hyphenated words never break at the hyphen ("Marathon race-day projector"). */
+const unbroken = (title: string) => title.split(/(\S+-\S+)/).map((part, i) => (i % 2 ? <span key={i} className="nowrap">{part}</span> : part));
+
 /**
  * The opener of every /tools page (the redesign spec, section 4.4): the crumbs (the chapter for a tool in the race,
  * "Tools · Reference" for a lookup), the H1, one line of purpose and the kinds of evidence it uses. The breadcrumb is
@@ -29,15 +32,17 @@ export function ToolPageHeader({ path, title, dek, badges = [], trail, children 
   const parent = trail.slice(0, -1);
   return (
     <header className="tool-header">
-      <div className="reading-crumbs t-kicker tool-crumbs">
+      <div className={`reading-crumbs t-kicker tool-crumbs${inRace ? '' : ' is-plain'}`}>
         {inRace ? <ChapterCrumbs path={path} /> : (
           <>
             <Link href="/tools" className="crumb-chapter">Tools</Link>
-            {parent.map(([label, href]) => (href ? <Link key={label} href={href} className="crumb-chapter">· {label}</Link> : <span key={label}>· {label}</span>))}
+            {parent.map(([label, href]) => (
+              <Fragment key={label}><span aria-hidden="true">·</span>{href ? <Link href={href} className="crumb-chapter">{label}</Link> : <span>{label}</span>}</Fragment>
+            ))}
           </>
         )}
       </div>
-      <h1 className="tool-title t-title">{title}</h1>
+      <h1 className="tool-title t-title">{typeof title === 'string' ? unbroken(title) : title}</h1>
       {dek ? <p className="tool-dek">{dek}</p> : null}
       {badges.length ? <div className="tool-badges">{badges.map((e) => <EvidenceBadge key={e} kind={e} />)}</div> : null}
       {children}

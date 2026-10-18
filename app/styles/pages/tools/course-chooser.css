@@ -18,8 +18,11 @@
 .cc-strip-ends { display: flex; justify-content: space-between; gap: var(--s-4); margin-top: 8px; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); }
 
 /* ---------- Every course: the controls, then one row each ---------- */
-.course-chooser-toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-3); }
-.course-chooser-toolbar > .tool-field:first-child, .course-chooser-order { grid-column: 1 / -1; }
+.course-chooser-toolbar { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-3); }
+.course-chooser-toolbar > .tool-field { max-width: 22rem; }
+.course-chooser-filters > summary { font-size: var(--t-small); }
+.course-chooser-filter-count { font-weight: 500; color: var(--ink-2); }
+.course-chooser-filter-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: var(--s-3); padding-bottom: var(--s-3); }
 .course-chooser-status { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s-3); }
 .course-chooser-rows { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); counter-reset: none; }
 .course-chooser-rows > li { margin: 0; border-bottom: 1px solid var(--rule); }
@@ -39,13 +42,10 @@
 .cc-row:hover .cc-plan .arrow-icon { transform: translateX(3px); }
 
 @media (max-width: 359.98px) {
-  .course-chooser-toolbar { grid-template-columns: minmax(0, 1fr); }
   .cc-row { grid-template-columns: minmax(0, 1fr) 3rem; grid-template-areas: 'name share' 'bar bar' 'sub sub' 'plan plan'; }
   .cc-plan { justify-content: flex-start; }
 }
 @media (min-width: 900px) {
-  .course-chooser-toolbar { grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)) auto; align-items: end; }
-  .course-chooser-toolbar > .tool-field:first-child, .course-chooser-order { grid-column: auto; }
   .course-chooser-list { max-width: var(--measure-figure); }
   .cc-row { grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr) 3.5rem auto; grid-template-areas: 'name bar share plan' 'sub sub sub plan'; }
 }

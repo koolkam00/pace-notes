@@ -16,8 +16,13 @@
 .qrace-section > * { margin: 0; }
 .qrace-section .evidence-badge { justify-self: start; }
 
-/* The standards: the age column stays while the divisions scroll on a narrow phone. */
-.qrace-table-wrap { -webkit-mask-image: linear-gradient(to right, var(--ink) 0, var(--ink) calc(100% - 16px), transparent); mask-image: linear-gradient(to right, var(--ink) 0, var(--ink) calc(100% - 16px), transparent); }
+/* The standards: the age column stays while the divisions scroll on a narrow phone. The right edge fades, and the
+   "Scroll" cue shows, only while the table is wider than the screen (ScrollCue sets data-overflow on the section). */
+.qrace-section[data-overflow='true'] .qrace-table-wrap { -webkit-mask-image: linear-gradient(to right, var(--ink) 0, var(--ink) calc(100% - 24px), transparent); mask-image: linear-gradient(to right, var(--ink) 0, var(--ink) calc(100% - 24px), transparent); }
+.qrace-cue { display: none; align-items: center; gap: 6px; min-height: 24px; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+.qrace-cue .arrow-icon { width: 14px; height: 14px; }
+.qrace-section[data-overflow='true'] .qrace-cue { display: inline-flex; }
+.qrace-table thead th { white-space: normal; }
 .qrace-table th[scope='row'], .qrace-table thead th:first-child { position: sticky; left: 0; z-index: 1; background: var(--paper); }
 .qrace-table td { color: var(--ink); font-weight: 600; vertical-align: top; padding-top: 10px; padding-bottom: 10px; height: auto; }
 .qrace-table td small { display: block; margin-top: 2px; font-size: .75rem; font-weight: 400; color: var(--ink-3); }

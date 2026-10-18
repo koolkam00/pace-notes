@@ -28,7 +28,6 @@ const GOAL_MIN_S = 90 * 60;
 const GOAL_MAX_S = 480 * 60;
 const OBS_MIN = 150;
 const OBS_MAX = 390;
-const PRESETS = [180, 210, 240, 270, 300];
 /** The course chooser covers goals from 2:30 to 6:30 (minutes). */
 const CHOOSER_MIN = 150;
 const CHOOSER_MAX = 390;
@@ -259,9 +258,6 @@ export default function PaceBand({ indexSha, profiles, projectorScopes, unpublis
           <h2>Your race</h2>
           <GoalField seconds={goal} raw={q.goal} onChange={setGoal} onStep={step} onProblem={setFieldProblem}
             onEdit={() => setChanged((c) => (c.any ? c : { ...c, any: true }))} />
-          <div className="tool-presets" role="group" aria-label="Common goals">
-            {PRESETS.map((m) => <button key={m} type="button" aria-pressed={goal === m * 60} onClick={() => setGoal(m * 60)}>{formatHM(m * 60)}</button>)}
-          </div>
           <div className="tool-field">
             <label htmlFor="pace-band-course">Course</label>
             <select id="pace-band-course" value={course} onChange={(e) => setQ({ course: e.target.value })}>
@@ -295,15 +291,18 @@ export default function PaceBand({ indexSha, profiles, projectorScopes, unpublis
               ) : null}
               <section className={`tool-reading night pace-band-headline${held ? ' pace-band-held-dim' : ''}`} aria-busy={busy || undefined} aria-labelledby="pace-band-title">
                 <div className="tool-reading-head">
-                  <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}Your band · {place}</p>
-                  <h2 className="tool-reading-figure" id="pace-band-title">{fmtGoal(goal)}</h2>
+                  {/* The new information is the pace: the goal the visitor typed is the kicker. */}
+                  <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}Your band for {fmtGoal(goal)} · {place}</p>
+                  <h2 className="tool-reading-figure" id="pace-band-title">
+                    {formatDuration(perUnit(pKm, units))}
+                    <small>per {units === 'mi' ? 'mile' : 'km'} · {formatDuration(perUnit(pKm, units === 'mi' ? 'km' : 'mi'))}/{units === 'mi' ? 'km' : 'mi'}</small>
+                  </h2>
                 </div>
-                <dl className="tool-cells">
-                  {(units === 'mi' ? ['mi', 'km'] as const : ['km', 'mi'] as const).map((u) => (
-                    <div key={u}><dt>{u === 'mi' ? 'Per mile' : 'Per km'}</dt><dd>{formatDuration(perUnit(pKm, u))}</dd></div>
-                  ))}
-                  {overrun ? <div><dt>Watch pace, reading {pct(overrun, 1)} long</dt><dd>{formatDuration(perUnit(watchTarget(pKm, overrun), units))}</dd></div> : null}
-                </dl>
+                {overrun ? (
+                  <dl className="tool-cells">
+                    <div><dt>Watch pace, reading {pct(overrun, 1)} long</dt><dd>{formatDuration(perUnit(watchTarget(pKm, overrun), units))}</dd></div>
+                  </dl>
+                ) : null}
                 <ol className="tool-laps" aria-label={`Even-pace elapsed time at each 5 km mat for ${fmtGoal(goal)}`}>
                   {CHECKPOINTS.map((km, i) => (
                     <li key={km} className={i === 8 ? 'is-finish' : undefined}><span><MatName km={km} units={units} /></span><b>{formatDuration(i === 8 ? goal : pKm * km)}</b></li>

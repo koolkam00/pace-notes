@@ -18,13 +18,16 @@ const GROUPS: { group: ToolGroup; title: string }[] = [
   { group: 'reference', title: 'Reference' },
 ];
 
+/** Badges in one order on every row: Pace Notes data first, then published research, then official standards. */
+const BADGE_ORDER: ToolDefinition['evidence'] = ['data', 'research', 'official'];
+
 /** One tool, one line: its name and what it is for, its evidence, and the way in. */
 function Row({ href, title, line, badges = [] }: { href: string; title: string; line: string; badges?: ToolDefinition['evidence'] }) {
   return (
     <li>
       <Link href={href} className="tools-row">
         <span className="tools-row-text"><b>{title}</b><span>{line}</span></span>
-        {badges.length ? <span className="tools-row-badges">{badges.map((e) => <EvidenceBadge key={e} kind={e} compact />)}</span> : null}
+        {badges.length ? <span className="tools-row-badges">{[...badges].sort((a, b) => BADGE_ORDER.indexOf(a) - BADGE_ORDER.indexOf(b)).map((e) => <EvidenceBadge key={e} kind={e} compact />)}</span> : null}
         <Arrow />
       </Link>
     </li>

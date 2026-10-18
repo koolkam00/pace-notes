@@ -62,10 +62,10 @@ const toUnit = (c: number, u: TUnit) => (u === 'f' ? cToF(c) : c);
 const fromUnit = (v: number, u: TUnit) => (u === 'f' ? fToC(v) : v);
 const unitSign = (u: TUnit) => (u === 'f' ? '°F' : '°C');
 const other = (u: TUnit): TUnit => (u === 'f' ? 'c' : 'f');
-/** An absolute temperature: 64 °F, 17.8 °C. */
-const tAbs = (c: number, u: TUnit, digits = u === 'f' ? 0 : 1) => `${num(toUnit(c, u), digits)}\u00a0${unitSign(u)}`;
-/** A recorded race temperature: whole °F, or °C always with one decimal (5.0 °C beside 5.4 °C). */
-const tData = (c: number, u: TUnit, sign = true) => `${num(toUnit(c, u), u === 'f' ? 0 : 1, u === 'c')}${sign ? `\u00a0${unitSign(u)}` : '°'}`;
+/** An absolute temperature: 64°F, 17.8°C (unspaced, as every page writes it). */
+const tAbs = (c: number, u: TUnit, digits = u === 'f' ? 0 : 1) => `${num(toUnit(c, u), digits)}${unitSign(u)}`;
+/** A recorded race temperature: whole °F, or °C always with one decimal (5.0°C beside 5.4°C). */
+const tData = (c: number, u: TUnit, sign = true) => `${num(toUnit(c, u), u === 'f' ? 0 : 1, u === 'c')}${sign ? unitSign(u) : '°'}`;
 /**
  * A temperature converted for the other unit's field, with the fewest decimals (1, then 2) that keep the
  * matched centre (the whole °C it rounds to) unchanged, so switching units never moves the window.
@@ -78,11 +78,11 @@ function convertTemp(c: number, u: TUnit): string {
   }
   return String(Math.round(toUnit(c, u) * 1000) / 1000);
 }
-/** A window of start temperatures: "60.8–68 °F", "16–20 °C". */
-const tWindow = (lo: number, hi: number, u: TUnit) => `${num(toUnit(lo, u), 1)}${toUnit(lo, u) < 0 ? ' to ' : '–'}${num(toUnit(hi, u), 1)}\u00a0${unitSign(u)}`;
-/** A temperature difference (×1.8, no +32): "±3.6 °F". */
-const tSpan = (dc: number, u: TUnit) => `${num(u === 'f' ? dc * 1.8 : dc, 1)}\u00a0${unitSign(u)}`;
-const tDelta = (dc: number, u: TUnit) => { const v = u === 'f' ? dc * 1.8 : dc; return `${v > 0 ? '+' : ''}${num(v, 1)} ${unitSign(u)}`; };
+/** A window of start temperatures, in whole °F or whole °C (the windows are whole °C): "61–68°F", "16–20°C". */
+const tWindow = (lo: number, hi: number, u: TUnit) => `${num(toUnit(lo, u), 0)}${toUnit(lo, u) < 0 ? ' to ' : '–'}${num(toUnit(hi, u), 0)}${unitSign(u)}`;
+/** A temperature difference (×1.8, no +32), whole: "±5°F", "±3°C". */
+const tSpan = (dc: number, u: TUnit) => `${num(u === 'f' ? dc * 1.8 : dc, 0)}${unitSign(u)}`;
+const tDelta = (dc: number, u: TUnit) => { const v = u === 'f' ? dc * 1.8 : dc; return `${v > 0 ? '+' : ''}${num(v, 1)}${unitSign(u)}`; };
 const wind = (mps: number, units: UnitSystem) => (units === 'mi' ? `${num(mps * 2.236936, 1)} mph` : `${num(mps * 3.6, 0)} km/h`);
 const pctShare = (share: number) => (share > 0 && share < 0.005 ? '<1%' : `${Math.round(share * 100)}%`);
 const signedPct = (fraction: number) => { const v = Math.round(fraction * 1000) / 10; return `${v > 0 ? '+' : v < 0 ? MINUS : ''}${num(Math.abs(v), 1)}%`; };
@@ -499,7 +499,7 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
                         : `${count(match.row.ed.length)} of the ${count(match.inWindow)} editions that started in your window, ${winText}, matched and are highlighted.`
                       : match.inWindow.length === 0 ? `No edition started in your window, ${winText}.`
                         : `${cap(plural(match.inWindow.length, 'edition'))} started in your window, ${winText}, and ${match.inWindow.length === 1 ? 'is' : 'are'} highlighted.`}`} />
-                  <EditionChips units={units} tUnit={tUnit}
+                  <EditionValues id="weather-match-editions-values" units={units} tUnit={tUnit} caption={match.kind === 'ok' ? 'The matched races and their race-morning weather' : 'The races that started in this window and their race-morning weather'}
                     editions={(match.kind === 'ok' ? match.row.ed.map((id) => byId.get(id)).filter((e): e is WeatherEdition => !!e) : match.inWindow).sort((a, b) => a.temp_c - b.temp_c || a.city.localeCompare(b.city))}
                     empty="No edition started in this window." />
                 </section>
@@ -565,7 +565,6 @@ function ResultCard({ match, units, tUnit, hw, centre, winText, refText, refTone
         </thead>
         <tbody>
           <tr><th scope="row"><SlowdownTerm>Sustained slowdown</SlowdownTerm></th>{cols.map((c) => <td key={c.key} className={`is-${c.key}`}>{pctShare(c.r.sd)}</td>)}</tr>
-          <tr><th scope="row">Extra time after {checkpointLabel(20, units)}</th>{cols.map((c) => <td key={c.key} className={`is-${c.key}`}>{mss(c.r.after20, true)}</td>)}</tr>
           <tr><th scope="row">Median finish</th>{cols.map((c) => <td key={c.key} className={`is-${c.key}`}>{formatHM(c.r.fin[1])}</td>)}</tr>
           <tr><th scope="row">Races</th>{cols.map((c) => <td key={c.key} className={`is-${c.key}`}>{count(c.r.ed.length)}</td>)}</tr>
         </tbody>
@@ -628,8 +627,8 @@ function SectionsPanel({ match, units, centre, hw, winText, refText, refTone }: 
     <section className="tool-panel weather-match-sections" aria-labelledby="weather-match-sections-title">
       <p className="tool-nugget-text" id="weather-match-sections-title">
         {showRef && Math.abs(more) >= 30
-          ? <>After {checkpointLabel(20, units)}, the median finish on mornings like yours lost <em>{mss(row.after20, true)}</em> to its own 5–20K pace, against {mss(ref!.after20, true)} on {refTone.toLowerCase()}.</>
-          : <>After {checkpointLabel(20, units)}, the median finish on mornings like yours lost <em>{mss(row.after20, true)}</em> to its own 5–20K pace.</>}
+          ? <>After {checkpointLabel(20, units)}, the median finish on mornings like yours lost <em>{mss(Math.abs(row.after20))}</em> to its own 5–20K pace, against {mss(Math.abs(ref!.after20))} on {refTone.toLowerCase()}.</>
+          : <>After {checkpointLabel(20, units)}, the median finish on mornings like yours lost <em>{mss(Math.abs(row.after20))}</em> to its own 5–20K pace.</>}
       </p>
       <ProfileChart mine={row.profile} reference={showRef ? ref!.profile : null} units={units} mineLabel={`Yours, ${winText}`} refLabel={`${refTone}, ${refText}`} />
       <Values id="weather-match-sections-values" caption={`Median pace in each section against the same finishes’ 5–20K pace (positive is slower): mornings of ${winText}${showRef ? ` and ${refText}` : ''}`} count={9}>
@@ -810,53 +809,28 @@ function TempStrip({ editions, tUnit, marker, centre, hw, showRef, emphasis, leg
   );
 }
 
-function EditionChips({ editions, tUnit, units, empty, limit = 11, showYearFirst = false }: {
-  editions: WeatherEdition[]; tUnit: TUnit; units: UnitSystem; empty: string; limit?: number; showYearFirst?: boolean;
+/** The races behind a result, with each race morning's weather, as a Values table (no chip cloud: the strip above is the picture). */
+function EditionValues({ id, editions, tUnit, units, empty, caption }: {
+  id: string; editions: WeatherEdition[]; tUnit: TUnit; units: UnitSystem; empty: string; caption: string;
 }) {
-  const [open, setOpen] = useState<number | null>(null);
-  const [all, setAll] = useState(false);
-  const detailId = useId();
-  const chipRefs = useRef(new Map<number, HTMLButtonElement>());
-  const moreRef = useRef<HTMLButtonElement>(null);
-  const shown = all ? editions : editions.slice(0, limit);
-  const current = editions.find((e) => e.id === open) ?? null;
-  // Close removes the detail (and its button), so focus goes back to the chip that opened it, or to "Show all" if that chip is hidden.
-  const close = () => {
-    const chip = open !== null ? chipRefs.current.get(open) : undefined;
-    setOpen(null);
-    (chip ?? moreRef.current)?.focus();
-  };
-  if (!editions.length) return <p className="tool-note">{empty}</p>;
+  if (!editions.length) return empty ? <p className="tool-note">{empty}</p> : null;
   return (
-    <div className="weather-match-chipset">
-      <ul className="weather-match-chips">
-        {shown.map((e) => (
-          <li key={e.id}>
-            <button type="button" aria-expanded={open === e.id} aria-controls={detailId} onClick={() => setOpen(open === e.id ? null : e.id)}
-              ref={(el) => { if (el) chipRefs.current.set(e.id, el); else chipRefs.current.delete(e.id); }}>
-              <b>{showYearFirst ? e.year : `${e.city} ${e.year}`}</b><span>{tData(e.temp_c, tUnit, false)}<span className="sr-only">{tUnit === 'f' ? 'F' : 'C'}</span></span>
-            </button>
-          </li>
-        ))}
-        {editions.length > limit ? (
-          <li><button type="button" className="weather-match-more" ref={moreRef} onClick={() => setAll(!all)}>{all ? 'Show fewer' : `All ${editions.length}`}</button></li>
-        ) : null}
-      </ul>
-      <div id={detailId} aria-live="polite">
-        {current ? (
-          <div className="weather-match-detail">
-            <p className="weather-match-detail-title"><b>{current.city} {current.year}</b>{[dateText(current.date), startText(current.start) ? `scheduled start ${startText(current.start)}` : null].filter(Boolean).map((t) => <span key={t}> · {t}</span>)}</p>
-            <dl>
-              <div><dt>Start temperature</dt><dd>{tData(current.temp_c, tUnit)} <small>({tData(current.temp_c, other(tUnit))})</small></dd></div>
-              <div><dt>Dew point</dt><dd>{current.dew_c !== null ? tData(current.dew_c, tUnit) : '—'}</dd></div>
-              <div><dt>Wind</dt><dd>{current.wind_mps !== null ? wind(current.wind_mps, units) : '—'}</dd></div>
-              <div><dt>Warming, first 4 hours</dt><dd>{current.warming_c !== null ? tDelta(current.warming_c, tUnit) : '—'}</dd></div>
-            </dl>
-            <button type="button" className="btn btn-secondary is-compact weather-match-close" onClick={close}>Close</button>
-          </div>
-        ) : <p className="weather-match-chip-hint">Tap an edition for its race-morning weather.</p>}
-      </div>
-    </div>
+    <Values id={id} caption={caption} count={editions.length}>
+      <table className="table">
+        <thead><tr><th scope="col">Race</th><th scope="col">Start</th><th scope="col">Dew point</th><th scope="col">Wind</th><th scope="col">Warming, 4 hours</th></tr></thead>
+        <tbody>
+          {editions.map((e) => (
+            <tr key={e.id}>
+              <th scope="row">{e.city} {e.year}{dateText(e.date) ? <small> {dateText(e.date)}{startText(e.start) ? `, ${startText(e.start)}` : ''}</small> : null}</th>
+              <td>{tData(e.temp_c, tUnit)}</td>
+              <td>{e.dew_c !== null ? tData(e.dew_c, tUnit) : '—'}</td>
+              <td>{e.wind_mps !== null ? wind(e.wind_mps, units) : '—'}</td>
+              <td>{e.warming_c !== null ? tDelta(e.warming_c, tUnit) : '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Values>
   );
 }
 
@@ -882,7 +856,7 @@ function CoursePanel({ course, tUnit, units, tempC, centre, hw, all }: {
       </header>
       <TempStrip editions={all} tUnit={tUnit} marker={tempC} centre={centre} hw={hw} emphasis={new Set(course.editions.map((e) => e.id))} ring
         legend={course.city} label={`${course.editions.length === 1 ? `Start temperature of the one ${course.city} edition, ${tData(lo, tUnit)}` : `Start temperatures of ${count(course.editions.length)} ${course.city} editions, from ${tData(lo, tUnit)} to ${tData(hi, tUnit)}`}, among all editions.`} />
-      <EditionChips editions={course.editions} tUnit={tUnit} units={units} empty="" showYearFirst limit={24} />
+      <EditionValues id="weather-match-course-values" editions={[...course.editions].sort((a, b) => a.year - b.year)} tUnit={tUnit} units={units} empty="" caption={`${course.city}: every race morning`} />
     </section>
   );
 }
@@ -891,12 +865,20 @@ function CoursePanel({ course, tUnit, units, tempC, centre, hw, all }: {
 /* Published research panel                                            */
 /* ------------------------------------------------------------------ */
 
-const FLAG_TEXT: Record<Flag, { name: string; range: string; risk: string }> = {
-  green: { name: 'Green', range: 'below 18 °C', risk: 'low risk of heat illness, not none' },
-  yellow: { name: 'Yellow', range: '18–23 °C', risk: 'moderate risk' },
-  red: { name: 'Red', range: '23–28 °C', risk: 'high risk' },
-  black: { name: 'Black', range: 'above 28 °C', risk: 'very high risk' },
+/** The ACSM race flags by WBGT (°C in the position stand), each range in the visitor's unit. */
+const FLAG_TEXT: Record<Flag, { name: string; range: (u: TUnit) => string; risk: string }> = {
+  green: { name: 'Green', range: (u) => `below ${wb(18, u)}`, risk: 'low risk' },
+  yellow: { name: 'Yellow', range: (u) => wbRange(18, 23, u), risk: 'moderate risk' },
+  red: { name: 'Red', range: (u) => wbRange(23, 28, u), risk: 'high risk' },
+  black: { name: 'Black', range: (u) => `above ${wb(28, u)}`, risk: 'very high risk' },
 };
+/** A published WBGT threshold (°C) in the visitor's unit, whole: "64°F", "18°C". */
+function wb(c: number, u: TUnit): string { return u === 'f' ? `${Math.round(cToF(c))}°F` : `${num(c, 1)}°C`; }
+function wbRange(lo: number, hi: number, u: TUnit): string { return u === 'f' ? `${Math.round(cToF(lo))}–${Math.round(cToF(hi))}°F` : `${num(lo, 1)}–${num(hi, 1)}°C`; }
+/** A WBGT difference (°C) in the visitor's unit: "0.9°F", "0.5°C". */
+function wbGap(dc: number, u: TUnit): string { return u === 'f' ? `${num(dc * 1.8, 1)}°F` : `${num(dc, 1)}°C`; }
+/** A rate per degree (published per °C) in the visitor's degree. */
+function perDeg(perC: number, u: TUnit): string { return u === 'f' ? `${num(perC / 1.8, 2)}% per °F` : `${num(perC, 1)}% per °C`; }
 /** Mantzios et al. 2022 per °C WBGT above 15 °C (elite marathon finalists, all endurance events), read from the shared function. */
 const MANTZIOS_PER_C = mantzios(16);
 const MANTZIOS_BEST: [number, number] = [7.5, 15];
@@ -905,7 +887,7 @@ const HADLEY_UPTO = [100, 110, 120, 130, 140, 150, 160, 170, 180];
 const hadleyBand = (sum: number) => { const i = HADLEY_UPTO.findIndex((u) => sum <= u); return i <= 0 ? '100 or below' : `${HADLEY_UPTO[i - 1] + 1}–${HADLEY_UPTO[i]}`; };
 const DEW_BELOW = [55, 60, 65, 70, 75, 80];
 /** The RunnersConnect band a dew point (°F, unrounded) falls in: "60 to under 65 °F". */
-const dewBand = (d: number) => { const i = DEW_BELOW.findIndex((u) => d < u); return i <= 0 ? 'below 55 °F' : `${DEW_BELOW[i - 1]} to under ${DEW_BELOW[i]} °F`; };
+const dewBand = (d: number) => { const i = DEW_BELOW.findIndex((u) => d < u); return i <= 0 ? 'below 55°F' : `${DEW_BELOW[i - 1]} to under ${DEW_BELOW[i]}°F`; };
 const ELY_BANDS = [7.5, 12.5, 17.5, 22.5].map((w, i) => ({ lo: 5 + 5 * i, hi: 10 + 5 * i, ...ely(w)! }));
 const NEED_TEXT: Record<Exclude<Need, null>, { short: string; note: string }> = {
   temp: { short: 'needs a start temperature', note: 'Type a start temperature to see the heat-stress estimates and published adjustments for your forecast.' },
@@ -918,11 +900,11 @@ interface Method {
   key: string; name: string; kind: string; range: PercentRange | null; rangeText?: string; body: ReactNode; extra?: ReactNode;
 }
 
-function Knechtle() {
+function Knechtle({ tUnit }: { tUnit: TUnit }) {
   return (
     <li className="weather-match-method is-statement">
       <p className="weather-match-method-head"><b>Boston finishers, 1972–2018</b><span>Published study</span></p>
-      <p className="weather-match-method-body">Boston 1972–2018: across all finishers, times were about 1 min 47 s slower for each 1 °C rise in average air temperature (1.8 °F).</p>
+      <p className="weather-match-method-body">Boston 1972–2018: across all finishers, times were about 1 min 47 s slower for each {tUnit === 'f' ? '1.8°F (1°C)' : '1°C'} rise in average air temperature.</p>
     </li>
   );
 }
@@ -952,14 +934,14 @@ function ResearchPanel({ tempC, dewC, need, tUnit, goal, by, paceLabel }: {
       key: 'ely', name: 'Top finishers, seven marathons', kind: 'Published study', range,
       rangeText: !ready ? undefined : wbgt! < 5 ? 'Below the table' : !cur ? 'Beyond the table' : undefined,
       body: !ready ? null : cur && bandIdx === 0 ? (
-        <>At 5–10 °C WBGT, top-three finishers in seven marathons ran {num(base.men)}% (men) and {num(base.women)}% (women) off course records. No extra slowing here.</>
+        <>At a WBGT of {wbRange(5, 10, tUnit)}, top-three finishers in seven marathons ran {num(base.men)}% (men) and {num(base.women)}% (women) off course records. No extra slowing here.</>
       ) : cur ? (
-        <>Top-three finishers in seven marathons ran {num(cur.men)}% (men) and {num(cur.women)}% (women) off course records at {ELY_BANDS[bandIdx].lo}–{ELY_BANDS[bandIdx].hi} °C WBGT, against {num(base.men)}% and {num(base.women)}% at 5–10 °C. Places 25 to 300 slowed more as WBGT rose.</>
-      ) : wbgt! < 5 ? <>The table starts at 5 °C WBGT; your shade estimate is cooler.</> : <>The table stops at 25 °C WBGT; your shade estimate is warmer. Places 25 to 300 slowed more than the leaders as WBGT rose.</>,
+        <>Top-three finishers in seven marathons ran {num(cur.men)}% (men) and {num(cur.women)}% (women) off course records at a WBGT of {wbRange(ELY_BANDS[bandIdx].lo, ELY_BANDS[bandIdx].hi, tUnit)}, against {num(base.men)}% and {num(base.women)}% at {wbRange(5, 10, tUnit)}. Places 25 to 300 slowed more as WBGT rose.</>
+      ) : wbgt! < 5 ? <>The table starts at a WBGT of {wb(5, tUnit)}; your shade estimate is cooler.</> : <>The table stops at a WBGT of {wb(25, tUnit)}; your shade estimate is warmer. Places 25 to 300 slowed more than the leaders as WBGT rose.</>,
       extra: ready ? (
         <table className="weather-match-ely">
           <thead><tr><th scope="col">WBGT</th><th scope="col">Men</th><th scope="col">Women</th></tr></thead>
-          <tbody>{ELY_BANDS.map((b, i) => <tr key={b.lo} className={i === bandIdx ? 'is-current' : undefined}><td>{b.lo}–{b.hi} °C{i === bandIdx ? <span className="sr-only"> (your conditions)</span> : null}</td><td>{num(b.men)}%</td><td>{num(b.women)}%</td></tr>)}</tbody>
+          <tbody>{ELY_BANDS.map((b, i) => <tr key={b.lo} className={i === bandIdx ? 'is-current' : undefined}><td>{wbRange(b.lo, b.hi, tUnit)}{i === bandIdx ? <span className="sr-only"> (your conditions)</span> : null}</td><td>{num(b.men)}%</td><td>{num(b.women)}%</td></tr>)}</tbody>
         </table>
       ) : null,
     });
@@ -971,9 +953,9 @@ function ResearchPanel({ tempC, dewC, need, tUnit, goal, by, paceLabel }: {
       key: 'mantzios', name: 'Elite marathon finalists', kind: 'Published study',
       range: wbgt !== null ? mantzios(wbgt) : null,
       body: !ready ? null : excess > 0
-        ? <>Your shade WBGT is {num(excess)} °C above 15 °C. Elite marathon finalists ran about {num(MANTZIOS_PER_C.low)}% slower per °C above it; across all the study’s endurance events, about {num(MANTZIOS_PER_C.high)}% per °C.</>
-        : wbgt! >= MANTZIOS_BEST[0] ? <>Inside the 7.5–15 °C WBGT range where peak performances were most likely.</>
-          : <>Cooler than the 7.5–15 °C WBGT range where peak performances were most likely. Times were slower in the cold too.</>,
+        ? <>Your shade WBGT is {wbGap(excess, tUnit)} above {wb(15, tUnit)}. Elite marathon finalists ran about {perDeg(MANTZIOS_PER_C.low, tUnit)} slower above it; across all the study’s endurance events, about {perDeg(MANTZIOS_PER_C.high, tUnit)}.</>
+        : wbgt! >= MANTZIOS_BEST[0] ? <>Inside the WBGT range of {wbRange(MANTZIOS_BEST[0], MANTZIOS_BEST[1], tUnit)}, where peak performances were most likely.</>
+          : <>Cooler than the WBGT range of {wbRange(MANTZIOS_BEST[0], MANTZIOS_BEST[1], tUnit)}, where peak performances were most likely. Times were slower in the cold too.</>,
     });
   }
   // Hadley: the table is written in whole °F, so each reading is rounded before adding.
@@ -985,7 +967,7 @@ function ResearchPanel({ tempC, dewC, need, tUnit, goal, by, paceLabel }: {
     methods.push({
       key: 'hadley', name: 'Temperature + dew point table', kind: 'Rule of thumb', range,
       rangeText: sum !== null && !range ? 'No pace' : undefined,
-      body: sum === null ? null : <>Temperature plus dew point is {a} + {b} = {sum} °F. {range ? (sum <= 100 ? 'At 100 or below the table suggests no change.' : `Its ${hadleyBand(sum)} band suggests running ${pctNum(range.low)}–${pctNum(range.high)}% slower.`) : 'Above 180 the table advises against hard running at all.'}</>,
+      body: sum === null ? null : <>Temperature plus dew point is {a} + {b} = {sum}°F. {range ? (sum <= 100 ? 'At 100 or below the table suggests no change.' : `Its ${hadleyBand(sum)} band suggests running ${pctNum(range.low)}–${pctNum(range.high)}% slower.`) : 'Above 180 the table advises against hard running at all.'}</>,
     });
   }
   // RunnersConnect: the band is chosen from the unrounded dew point.
@@ -994,7 +976,7 @@ function ResearchPanel({ tempC, dewC, need, tUnit, goal, by, paceLabel }: {
     methods.push({
       key: 'rc', name: 'Dew-point bands', kind: 'Rule of thumb', range,
       rangeText: tdF !== null && !range ? 'Run by effort' : undefined,
-      body: tdF === null ? null : <>Dew point {num(tdF, 1)} °F{tUnit === 'c' ? ` (${num(dewC!, 1)} °C)` : ''}. {range ? (tdF < 55 ? 'Below 55 °F the bands suggest no change.' : `The ${dewBand(tdF)} band suggests about ${range.low === range.high ? pctNum(range.low) : `${pctNum(range.low)}–${pctNum(range.high)}`}% slower.`) : 'At 80 °F and above the bands advise running by effort, not pace.'}</>,
+      body: tdF === null ? null : <>Dew point {num(tdF, 0)}°F{tUnit === 'c' ? ` (${num(dewC!, 1)}°C)` : ''}. {range ? (tdF < 55 ? 'Below 55°F the bands suggest no change.' : `The ${dewBand(tdF)} band suggests about ${range.low === range.high ? pctNum(range.low) : `${pctNum(range.low)}–${pctNum(range.high)}`}% slower.`) : 'At 80°F and above the bands advise running by effort, not pace.'}</>,
     });
   }
   const ranges = methods.map((m) => m.range).filter((r): r is PercentRange => r !== null);
@@ -1008,15 +990,15 @@ function ResearchPanel({ tempC, dewC, need, tUnit, goal, by, paceLabel }: {
       <header className="tool-panel-head">
         <EvidenceTag kind="research" />
         <h2 className="tool-panel-title" id="weather-match-research-title">
-          {ready && flag ? <>Shade WBGT about {tAbs(wbgt!, tUnit)}: an ACSM <em>{FLAG_TEXT[flag].name.toLowerCase()}</em> flag.</> : 'What published research and rules of thumb suggest'}
+          {ready && flag ? <>Heat stress about {tAbs(wbgt!, tUnit)}: <em className="nowrap">{FLAG_TEXT[flag].risk}</em> on the race-flag scale.</> : 'What published research and rules of thumb suggest'}
         </h2>
         {goalText && by === 'pace' ? <p className="tool-panel-meta">Minutes are on {goalText}, your {paceLabel} held for the whole race.</p> : null}
       </header>
       {severe ? (
         <p className="weather-match-warning" role="note">
           <strong>{FLAG_TEXT[flag!].name} flag conditions.</strong> {flag === 'black'
-            ? 'The ACSM position stand rates WBGT above 28 °C as very high risk of heat exhaustion or heatstroke, and recommends that a race be postponed, rescheduled or cancelled.'
-            : 'The ACSM position stand rates WBGT of 23–28 °C as high risk: any runner may get heat exhaustion or heatstroke, and anyone particularly sensitive to heat or humidity probably should not run.'} Follow your race organiser’s guidance on the day.
+            ? `The ACSM position stand rates a WBGT ${FLAG_TEXT.black.range(tUnit)} as very high risk of heat exhaustion or heatstroke, and recommends that a race be postponed, rescheduled or cancelled.`
+            : `The ACSM position stand rates a WBGT of ${FLAG_TEXT.red.range(tUnit)} as high risk: any runner may get heat exhaustion or heatstroke, and anyone particularly sensitive to heat or humidity probably should not run.`} Follow your race organiser’s guidance on the day.
         </p>
       ) : null}
       {need ? <p className="tool-note">{NEED_TEXT[need].note}</p> : null}
@@ -1027,7 +1009,7 @@ function ResearchPanel({ tempC, dewC, need, tUnit, goal, by, paceLabel }: {
             <div><dt>Relative humidity</dt><dd>{rh !== null ? `${num(rh, 0)}%` : '—'}{rh === null ? <small>{needShort}</small> : null}</dd></div>
             <div><dt>Wet-bulb</dt><dd>{tw !== null ? tAbs(tw, tUnit) : '—'}{tw === null ? <small>{needShort}</small> : stullOut ? <small>outside the tested range</small> : null}</dd></div>
             <div><dt>Shade WBGT ≈</dt><dd>{wbgt !== null ? tAbs(wbgt, tUnit) : '—'}{wbgt === null ? <small>{needShort}</small> : null}</dd></div>
-            <div className={flag ? `weather-match-flag is-${flag}` : 'weather-match-flag'}><dt>ACSM race flag</dt><dd>{flag ? <><i aria-hidden="true" />{FLAG_TEXT[flag].name}</> : '—'}<small>{flag ? `WBGT ${FLAG_TEXT[flag].range}: ${FLAG_TEXT[flag].risk}` : needShort}</small></dd></div>
+            <div className={flag ? `weather-match-flag is-${flag}` : 'weather-match-flag'}><dt>ACSM race flag</dt><dd>{flag ? <><i aria-hidden="true" />{FLAG_TEXT[flag].name}</> : '—'}<small>{flag ? `WBGT ${FLAG_TEXT[flag].range(tUnit)}: ${FLAG_TEXT[flag].risk}${flag === 'green' ? ', not none' : ''}` : needShort}</small></dd></div>
           </dl>
           <ul className="weather-match-methods">
             {ready ? methods.map((mth) => (
@@ -1043,7 +1025,7 @@ function ResearchPanel({ tempC, dewC, need, tUnit, goal, by, paceLabel }: {
                 {mth.extra}
               </li>
             )) : null}
-            <Knechtle />
+            <Knechtle tUnit={tUnit} />
           </ul>
           {ready ? (
             <p className="tool-note">

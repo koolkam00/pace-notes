@@ -46,10 +46,11 @@ function ChartScroller({ labelledBy, note, children }: { labelledBy: string; not
   );
 }
 
-/** Column head for a timing point: the km point, with its mile equivalent when the visitor reads miles. Halfway names both. */
+/** Column head for a timing point: the mat ("10K"), with its mile equivalent when the visitor reads miles. Halfway names both. */
 function PointHead({ point, units }: { point: ChartPoint; units: UnitSystem }) {
   if (point.halfway) return <>Half<span className="goal-chart-sub">{units === 'mi' ? `${oneDecimal(point.km / KM_PER_MILE)} mi` : `${oneDecimal(point.km)} km`}</span></>;
-  return <>{point.km} km{units === 'mi' ? <span className="goal-chart-sub">{oneDecimal(point.km / KM_PER_MILE)} mi</span> : null}</>;
+  // Mats are named as on the course ("10K"), with the mile equivalent under them in miles mode.
+  return <>{point.km}K{units === 'mi' ? <span className="goal-chart-sub">{oneDecimal(point.km / KM_PER_MILE)} mi</span> : null}</>;
 }
 
 /**

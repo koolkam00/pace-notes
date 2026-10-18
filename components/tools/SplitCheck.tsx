@@ -204,7 +204,7 @@ const displayAll = (times: (number | null)[]) => times.map(displayTime);
 /* ------------------------------------------------------------------ */
 
 const fmtPace = (sPerKm: number, units: UnitSystem) => `${formatDuration(perUnit(sPerKm, units))}/${units}`;
-const share = (v: number) => `${(v * 100).toFixed(1)}%`;
+const share = (v: number) => `${Math.round(v * 100)}%`;
 /** A section's name, the same in both unit modes: "30–35K", "40K–finish". */
 const secName = (i: number) => sectionLabel(SECTION_BOUNDS[i][0], SECTION_BOUNDS[i][1]);
 /** The reference block, the runner's own 5–20K pace. */
@@ -684,29 +684,42 @@ function SectionBars({ reading, units }: { reading: SplitReading; units: UnitSys
   const yB = y(B);
   const yT = y(T);
   const gap = narrow ? 2 : 3;
-  // Percentage labels at the end of each bar, moved apart when neighbours would touch.
+  // Percentage labels (12 px) beyond the end of each bar, kept clear of every other bar, of the 25% line and of each
+  // other: a label that would touch one steps on, away from the base line, 13 px at a time.
   type Box = { x0: number; x1: number; y0: number; y1: number };
-  const boxes: Box[] = [];
+  const hit = (a: Box, b: Box) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
+  const bars: Box[] = reading.paces.map((_, i) => {
+    const [a, b] = SECTION_BOUNDS[i];
+    const yp = y(paces[i]);
+    return { x0: x(a) + gap, x1: x(b) - gap, y0: Math.min(yp, yB), y1: Math.min(yp, yB) + Math.max(Math.abs(yp - yB), 2) };
+  });
+  const rule: Box = { x0: x(20), x1: m.l + iw, y0: yT - 3, y1: yT + 3 };
+  const placed: Box[] = [];
+  // On a phone the sections are too narrow for every figure: only the accent bars keep theirs (or, with none, the
+  // slowest 5K after 20K); the Values table under the card has every section.
+  const anyQualify = reading.vsBaseline.some((_, i) => toneOf(reading, i) === 'qualify');
+  let worst = 4;
+  for (let i = 5; i < reading.vsBaseline.length; i += 1) if (reading.vsBaseline[i] > reading.vsBaseline[worst]) worst = i;
+  const labelled = (i: number) => !narrow || (anyQualify ? toneOf(reading, i) === 'qualify' : i === worst);
   const labels = reading.vsBaseline.map((v, i) => {
     const [a, b] = SECTION_BOUNDS[i];
     const cx0 = (x(a) + x(b)) / 2;
-    const yp = y(paces[i]);
     const text = pctSigned(v, 0);
-    if (text === '0%') return { i, cx: cx0, ly: 0, text, tone: toneOf(reading, i) };
-    const w = text.length * 7.4 + 6;
-    // Kept inside the chart: slid in from the right edge, and under the base line when there is no room above it.
+    if (text === '0%' || !labelled(i)) return { i, cx: cx0, ly: 0, text: '0%', tone: toneOf(reading, i) };
+    const w = text.length * 8.4 + 4; // 12 px semibold figures, measured, with 2 px either side
     const cx = Math.max(w / 2 + 1, Math.min(cx0, width - w / 2 - 1));
     // Slower sections label below their bar, quicker ones above; a label with no room there goes to the other side.
     let below = v >= 0;
-    let ly = below ? Math.max(yp, yB) + 15 : Math.min(yp, yB) - 6;
-    if (below && ly > m.t + ih + 4) { below = false; ly = Math.max(yp, yB) - 5; }
-    if (!below && ly < 13) { below = true; ly = Math.max(yp, yB) + 15; }
-    for (let k = 0; k < 6; k += 1) {
+    const start = (side: boolean) => (side ? bars[i].y1 + 14 : bars[i].y0 - 5);
+    let ly = start(below);
+    if (below && ly > H - 2) { below = false; ly = start(false); }
+    if (!below && ly < 12) { below = true; ly = start(true); }
+    for (let k = 0; k < 10; k += 1) {
       const box = { x0: cx - w / 2, x1: cx + w / 2, y0: ly - 11, y1: ly + 2 };
-      if (!boxes.some((p) => box.x0 < p.x1 && box.x1 > p.x0 && box.y0 < p.y1 && box.y1 > p.y0)) { boxes.push(box); break; }
+      if (![...bars.filter((_, j) => j !== i), rule, ...placed].some((p) => hit(box, p))) { placed.push(box); break; }
       ly += below ? 13 : -13;
     }
-    ly = Math.max(12, Math.min(ly, H - m.b - 2));
+    ly = Math.max(12, Math.min(ly, H - m.b + 10));
     return { i, cx, ly, text, tone: toneOf(reading, i) };
   });
   const xTicks = fitTicks([0, 10, 20, 30, 40].map((km) => ({ x: x(km), label: km ? `${km}K` : 'Start' })), width);
@@ -943,7 +956,8 @@ function TypePanel({ reading, type, error, retry, units }: { reading: SplitReadi
       <EvidenceTag kind="data" />
       <div className="tool-panel-head">
         <p className="tool-nugget-text" id="split-check-type-title">The shape of your race: <em>{type.name}</em>, like {share(arch.share)} of finishes.</p>
-        <p className="tool-panel-meta">{arch.blurb}</p>
+        {/* The mats in the site's grammar ("25K", "30–40K"), whatever the data file says. */}
+        <p className="tool-panel-meta">{arch.blurb.replace(/(\d+)–(\d+) km\b/g, '$1–$2K').replace(/(\d+) km\b/g, '$1K')}</p>
       </div>
       <ProfileChart reading={reading} arch={arch} units={units} />
     </section>
@@ -994,7 +1008,7 @@ function ProfileChart({ reading, arch, units }: { reading: SplitReading; arch: A
         {you.map((v, i) => <circle key={i} className="split-check-you-dot" cx={x(mids[i])} cy={y(v)} r={3} />)}
         {ends.map((e) => <text key={e.key} x={m.l + iw + 8} y={e.ly + 4} className={`split-check-end is-${e.key}`}>{e.text}</text>)}
       </svg>
-      <p className="split-check-axis-note">Up is quicker than your average pace.</p>
+
     </div>
   );
 }

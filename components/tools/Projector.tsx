@@ -52,9 +52,9 @@ const VARIANT_SUFFIX: Record<string, string> = {
   all: '',
   men: ', recorded as men',
   women: ', recorded as women',
-  faster: ' with a quicker last 5 km',
-  similar: ' with a similar last 5 km',
-  slower: ' with a slower last 5 km',
+  faster: ' with a quicker last 5K',
+  similar: ' with a similar last 5K',
+  slower: ' with a slower last 5K',
 };
 
 /** Elapsed chip time as trackers show it. "24:53" (or "24:53.4") is minutes:seconds; "2:21" is hours:minutes; three groups are h:mm:ss. */
@@ -523,6 +523,10 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
   const settledTargetProblem = useSettled(targetProblem, 700);
   const targetError = targetProblem !== null && targetProblem === settledTargetProblem ? targetProblem : null;
   const pref = (PREFS as string[]).includes(q.v) ? (q.v as Pref) : 'trend';
+  // The optional fields wait in one disclosure, open once any of them holds a value (typed, or from a link).
+  const [moreOpen, setMoreOpen] = useState(false);
+  const hasMore = !!q.prev || (!!q.target && q.target !== 'none') || q.v !== DEFAULTS.v;
+  useEffect(() => { if (ready && hasMore) setMoreOpen(true); }, [ready, hasMore]);
   const scopeInfo = index ? index.scopes.find((s) => s.slug === q.course) ?? index.scopes.find((s) => s.slug === 'all') ?? index.scopes[0] : null;
   const scope = scopeInfo?.slug ?? (q.course || 'all');
   const scopeName = scopeInfo ? scopeInfo.city ?? 'All courses' : 'All courses';
@@ -594,7 +598,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
     compareHint = prev !== null ? 'Trend is off while a recorded gender is chosen.' : 'Matched on the pace so far and recorded gender.';
   } else if (pref === 'trend') {
     if (trend) variant = trend.kind;
-    compareHint = trend ? `Matched on a ${trend.kind === 'faster' ? 'quicker' : trend.kind} last 5 km too.`
+    compareHint = trend ? `Matched on a ${trend.kind === 'faster' ? 'quicker' : trend.kind} last 5K too.`
       : mat === 5 ? `The trend starts at the ${matName(10, units)} mat.` : `Add the ${matName(mat - 5, units)} time to match the trend too.`;
   } else compareHint = 'Matched on the pace so far only.';
   const P = E !== null ? (E * MARATHON_KM) / mat : null;
@@ -649,7 +653,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
   const toResult = () => document.getElementById('projector-result')?.scrollIntoView({ block: 'start' });
 
   const prefOptions: { value: Pref; label: string }[] = [
-    { value: 'trend', label: 'The same pace and last-5 km trend' }, { value: 'all', label: 'The same pace' },
+    { value: 'trend', label: 'The same pace and the same last 5K' }, { value: 'all', label: 'The same pace' },
     ...(scope === 'all' || pref === 'women' || pref === 'men' ? [{ value: 'women' as Pref, label: 'The same pace, recorded as women' }, { value: 'men' as Pref, label: 'The same pace, recorded as men' }] : []),
   ];
 
@@ -679,7 +683,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
     if (variant !== 'all' && cellAt(shard.cells.all, band)) {
       options.push(variant === 'men' || variant === 'women'
         ? { label: `Use all ${scopeName} finishes`, patch: { v: 'all' }, note: 'Gender removed: recorded-gender groups exist for All courses only.' }
-        : { label: 'Remove trend', patch: { v: 'all' }, note: `Trend removed: too few ${scopeName} finishes on this pace at ${matName(mat, units)} had a ${variant} last 5 km.` });
+        : { label: 'Remove trend', patch: { v: 'all' }, note: `Trend removed: too few ${scopeName} finishes on this pace at ${matName(mat, units)} had a ${variant} last 5K.` });
     }
     if (scope !== 'all') {
       const all = index.scopes.find((s) => s.slug === 'all')?.mats[String(mat)]?.bands;
@@ -723,14 +727,8 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
     const minutes = (n: number) => `${n} minute${n === 1 ? '' : 's'}`;
     status = `${isExample ? `Example: ${formatDuration(E, true)} at ${matName(mat, units)}. ` : ''}${scopeName} at ${matName(mat, units)}: on ${bandText} even pace, ${count(cell.n)} finishes. Median finish ${formatDuration(median, true)}; 10th to 90th percentile ${rangeText.replace('–', ' to ')}.`
       + (nextRow.km < 42 ? ` ${matName(nextRow.km, units)}: ${span(nextRow.lo, nextRow.hi).replace('–', ' to ')}.` : '');
-    quick = (
-      <>
-        {isExample ? <p className="projector-quick-text">Example time. Type your runner’s tracker time above.</p> : null}
-        <p className="projector-quick-text">Finish <b>{rangeText}</b>, median {formatDuration(median, true)}.</p>
-        {nextRow.km < 42 ? <p className="projector-quick-text">{matName(nextRow.km, units)}: <b>{span(nextRow.lo, nextRow.hi)}</b></p> : null}
-        <button type="button" className="projector-link-button" data-not-edit onClick={toResult}>Full result ↓</button>
-      </>
-    );
+    // The night card is the result; under the time field there is only the jump to it (it repeats none of it).
+    quick = <button type="button" className="projector-link-button" data-not-edit onClick={toResult}>Full result ↓</button>;
     results = (
       <>
         <section className="tool-reading night projector-headline" aria-labelledby="projector-title">
@@ -863,21 +861,26 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
               <button type="button" className="projector-link-button no-print" onClick={advance}>Passed {matName(mat + 5, units)}? Next mat →</button>
             ) : null}
           </div>
-          {mat > 5 ? (
-            <ElapsedField id="projector-prev" label={<>Time at {matName(mat - 5, units)} <span className="projector-optional">optional</span></>} value={prevRaw}
-              onChange={(s) => setQ({ prev: s === null ? '' : elapsedText(s) })} placeholder="h:mm:ss" error={prevError}
-              hint={trend ? `Last 5 km at ${paceText(trend.lastPace, units)}: ${trend.r >= 0 ? '+' : '−'}${Math.abs(trend.r * 100).toFixed(1)}% against the average so far.${Math.abs(trend.r) > 0.3 ? ' That is an unusually large change: check both times.' : ''}` : 'Adds the trend of the last 5 km.'} />
-          ) : null}
-          <DurationField label={<>Target finish <span className="projector-optional">optional</span></>} value={targetRaw}
-            onChange={(s) => setQ({ target: s === null ? '' : targetText(Math.round(s)) })} placeholder="4:00" hint="Hours and minutes, e.g. 3:59." error={targetError} />
-          <div className="tool-field projector-pref">
-            <label htmlFor="projector-compare">Compare with finishes on</label>
-            <select id="projector-compare" value={pref} onChange={(e) => setQ({ v: e.target.value })} aria-describedby="projector-compare-hint">
-              {prefOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <p className="tool-field-hint" id="projector-compare-hint">{compareHint}</p>
-          </div>
-          <PasteBox onRead={onPaste} units={units} />
+          <details className="tool-more projector-more" open={moreOpen} onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
+            <summary>An earlier mat, a target or the tracker’s splits</summary>
+            <div className="tool-more-body">
+              {mat > 5 ? (
+                <ElapsedField id="projector-prev" label={<>Time at {matName(mat - 5, units)} <span className="projector-optional">optional</span></>} value={prevRaw}
+                  onChange={(s) => setQ({ prev: s === null ? '' : elapsedText(s) })} placeholder="h:mm:ss" error={prevError}
+                  hint={trend ? `Last 5K at ${paceText(trend.lastPace, units)}: ${trend.r >= 0 ? '+' : '−'}${Math.abs(trend.r * 100).toFixed(1)}% against the average so far.${Math.abs(trend.r) > 0.3 ? ' That is an unusually large change: check both times.' : ''}` : 'Adds the trend of the last 5K.'} />
+              ) : null}
+              <DurationField label={<>Target finish <span className="projector-optional">optional</span></>} value={targetRaw}
+                onChange={(s) => setQ({ target: s === null ? '' : targetText(Math.round(s)) })} placeholder="4:00" hint="Hours and minutes, e.g. 3:59." error={targetError} />
+              <div className="tool-field projector-pref">
+                <label htmlFor="projector-compare">Compare with finishes on</label>
+                <select id="projector-compare" value={pref} onChange={(e) => setQ({ v: e.target.value })} aria-describedby="projector-compare-hint">
+                  {prefOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+                <p className="tool-field-hint" id="projector-compare-hint">{compareHint}</p>
+              </div>
+              <PasteBox onRead={onPaste} units={units} />
+            </div>
+          </details>
         </form>
 
         <div className="tool-results" id="projector-result">

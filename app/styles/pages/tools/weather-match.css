@@ -69,28 +69,6 @@
 .weather-match-marker { stroke: var(--ink); stroke-width: 1.5; }
 .weather-match-strip svg .weather-match-marker-label { font-weight: 600; fill: var(--ink); }
 
-/* ---------- Race chips ---------- */
-.weather-match-chipset { display: grid; gap: var(--s-3); }
-.weather-match-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.weather-match-chips li { margin: 0; }
-.tool-page .weather-match-chips button { display: inline-flex; align-items: baseline; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: var(--r-pill);
-  background: transparent; color: var(--ink); box-shadow: none; font-size: var(--t-small); font-weight: 500; }
-.tool-page .weather-match-chips button:hover { border-color: var(--ink); }
-.tool-page .weather-match-chips button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.weather-match-chips button b { font-weight: 600; }
-.weather-match-chips button > span { font-size: var(--t-label); color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.tool-page .weather-match-chips button[aria-expanded='true'] { border-color: var(--ink); background: var(--ink); color: var(--paper); }
-.tool-page .weather-match-chips button[aria-expanded='true'] > span { color: var(--paper); opacity: .75; }
-.tool-page .weather-match-chips .weather-match-more { border-style: dashed; color: var(--ink-2); font-weight: 600; }
-.weather-match-chip-hint { margin: 0; font-size: var(--t-label); color: var(--ink-3); }
-.weather-match-detail { display: grid; gap: var(--s-3); padding-top: var(--s-3); border-top: 1px solid var(--rule); }
-.weather-match-detail-title { margin: 0; font-size: .9375rem; line-height: 1.45; }
-.weather-match-detail-title span { color: var(--ink-3); }
-.weather-match-detail dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-3) var(--s-4); margin: 0; }
-.weather-match-detail dt { font-size: var(--t-label); font-weight: 500; color: var(--ink-3); }
-.weather-match-detail dd { margin: 2px 0 0; font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
-.weather-match-detail dd small { font-size: var(--t-label); font-weight: 400; color: var(--ink-3); }
-.weather-match-close { justify-self: start; }
 
 /* ---------- Published research (folded) ---------- */
 .weather-match-research .tool-panel-title em { font-style: italic; color: var(--ink); }
@@ -116,11 +94,12 @@
 .weather-match-ely tr.is-current td { color: var(--ink); font-weight: 600; }
 
 @media (min-width: 600px) {
-  .weather-match-detail dl { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .weather-match-conditions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 @media print {
-  .weather-match-slider, .weather-match-widen, .weather-match-chip-hint, .weather-match-close, .weather-match-more { display: none; }
+  .weather-match-slider, .weather-match-widen { display: none; }
   .weather-match-temp > button { display: none; }
 }
+
+.weather-match-editions .values tbody th small, .weather-match-course .values tbody th small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }

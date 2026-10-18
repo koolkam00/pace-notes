@@ -5,7 +5,7 @@ import { useWidth } from '@/components/viz/useSize';
 import { fitTicks } from '@/components/tools/ticks';
 import { CHECKPOINTS } from '@/lib/tools/pace-band-data';
 import { formatDuration } from '@/lib/tools/time';
-import { KM_PER_MILE, MARATHON_KM, type UnitSystem } from '@/lib/units';
+import { MARATHON_KM, type UnitSystem } from '@/lib/units';
 
 /** One line: its gap at each of the nine mats in seconds (negative = ahead of the reference), and how it is drawn. */
 export interface MatLine { key: string; label: string; gaps: number[]; tone: 'ink' | 'signal' | 'quiet' }
@@ -20,7 +20,7 @@ export const aheadText = (seconds: number) => (Math.abs(seconds) < 0.5 ? 'level'
  * with round joins, the one the sentence is about in signal. Direct labels sit at the right end on wide screens and in
  * the key on phones, so none is cut off or crossed by a line. Ticks are 12 px. Drawn in pixels at the measured width.
  */
-export default function MatLines({ lines, zero, zeroTick = 'Even', units, label }: {
+export default function MatLines({ lines, zero, zeroTick = 'Even', units: _units, label }: {
   lines: MatLine[];
   /** What the zero line is, said in full in the key under the chart: "even pace for 4:00", "your race". */
   zero: string;
@@ -54,9 +54,8 @@ export default function MatLines({ lines, zero, zeroTick = 'Even', units, label 
   // Ticks clear of the zero line's own label.
   for (let v = lo; v <= hi + 1e-9; v += tick) if (v !== 0 && Math.abs(y(v) - y(0)) >= 14) ticks.push(v);
   const path = (gaps: number[]) => [0, ...gaps].map((v, i) => `${i ? 'L' : 'M'}${x(kms[i]).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
-  const xTicks = fitTicks(units === 'mi'
-    ? [0, 10, 20].map((mi) => ({ x: x(mi * KM_PER_MILE), label: mi ? `${mi} mi` : 'Start' }))
-    : [0, 10, 20, 30, 40].map((km) => ({ x: x(km), label: km ? `${km}K` : 'Start' })), width);
+  // The mats are named as they are on the course, in both unit modes (spec section 3.10): Start, 10K … 40K.
+  const xTicks = fitTicks([0, 10, 20, 30, 40].map((km) => ({ x: x(km), label: km ? `${km}K` : 'Start' })), width);
   // End labels (a name and its gap under it), kept at least 36 px apart.
   const ends = lines.map((l) => ({ l, ly: y(l.gaps[8]) })).sort((a, b) => a.ly - b.ly);
   for (let k = 1; k < ends.length; k += 1) if (ends[k].ly - ends[k - 1].ly < 36) ends[k].ly = ends[k - 1].ly + 36;

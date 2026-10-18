@@ -24,7 +24,7 @@ const INTERVALS: { value: SplitInterval; label: string }[] = [
 /** The splits offered as buttons; 400 m and ¼ mi rows stay readable from a link that asks for them. */
 const SHOWN_INTERVALS: SplitInterval[] = ['5k', 'mi', 'km'];
 const DIFFS = [-300, -180, -120, -60, 0, 60, 120, 180, 300];
-const DEFAULTS = { view: 'calc', d: 'marathon', km: '', t: '3:30:00', p: '', solve: 'pace', split: '', diff: '0' };
+const DEFAULTS = { view: 'calc', d: 'marathon', km: '', t: '4:00:00', p: '', solve: 'pace', split: '', diff: '0' };
 /** The query keys that hold the visitor's inputs: a link that sets any of them is not the example. */
 const INPUT_KEYS = ['d', 'km', 't', 'p', 'solve'] as const;
 
@@ -169,7 +169,7 @@ export default function PaceCalculator() {
               ) : null}
             </div>
             <DurationField label={`Time${solve === 'time' ? ' (solved)' : ''}`} large value={solve === 'time' ? (ready ? seconds : null) : timeS}
-              onChange={(s) => edit('time', { t: s === null ? '' : formatDuration(s, true) })} placeholder="3:30:00" />
+              onChange={(s) => edit('time', { t: s === null ? '' : formatDuration(s, true) })} placeholder="4:00:00" />
             <DurationField label={`Pace per ${units === 'mi' ? 'mile' : 'kilometre'}${solve === 'pace' ? ' (solved)' : ''}`} mode="pace" large
               value={solve === 'pace' ? (ready ? perUnit(paceKm!, units) : null) : paceUnitS} onChange={(s) => edit('pace', { p: s === null ? '' : formatDuration(s) })} placeholder={units === 'mi' ? '8:00' : '5:00'} />
             <p className="tool-field-hint">Type in any two boxes; the third updates. The one marked “solved” is calculated.</p>

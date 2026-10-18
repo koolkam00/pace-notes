@@ -278,6 +278,8 @@ async function toolEdits(h) {
   await page.waitForTimeout(800);
   await page.selectOption('#course-chooser-sort', 'under');
   await page.waitForTimeout(300);
+  // The two filters sit behind one disclosure (one control on the beat).
+  await page.locator('details.course-chooser-filters > summary').click();
   await page.selectOption('#course-chooser-open', 'downhill');
   await page.waitForTimeout(500);
   await page.goto(SITE + '/tools/projector', { waitUntil: 'load' });

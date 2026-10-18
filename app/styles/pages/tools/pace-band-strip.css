@@ -2,10 +2,11 @@
    paper preview scaled to the screen, printed at full size. The strip is a printed object, so it stays ink on paper in
    any theme: --card for the paper, --night for the ink, --line-2 for the cell rules. */
 
-.pace-band-sheet-wrap { overflow-x: auto; margin: 0; padding: 12px; border-radius: var(--r-sm); background: var(--paper-sunk); }
+/* The paper alone reads as a sheet (no panel around it), centred in the column. */
+.pace-band-sheet-wrap { overflow-x: auto; margin: 0; padding: 4px 0 8px; }
 .pace-band-sheet-wrap:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pace-band-held-dim { opacity: .45; transition: opacity var(--d-quick); }
-.pace-band-sheet { --strip: 18.4cm; color-scheme: light; display: grid; gap: .32cm; width: calc(var(--strip) + .9cm); padding: .35cm .45cm .45cm; background: var(--card); color: var(--night); box-shadow: var(--shadow-raise); }
+.pace-band-sheet { --strip: 18.4cm; color-scheme: light; display: grid; gap: .32cm; width: calc(var(--strip) + .9cm); margin-inline: auto; padding: .35cm .45cm .45cm; background: var(--card); color: var(--night); box-shadow: var(--shadow-raise); }
 .pace-band-sheet-head { font-family: var(--sans); font-size: 6.5pt; letter-spacing: .02em; color: var(--night-3); }
 .pace-band-strip { position: relative; display: grid; grid-template-columns: repeat(var(--cells, 10), minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr) auto;
   width: var(--strip); height: 2.5cm; border: 1px dashed var(--night); background: var(--card); break-inside: avoid; }
@@ -27,7 +28,7 @@
 @media print {
   .pace-band-sheet-wrap { overflow: visible; margin: 0; padding: 0; background: none; }
   /* Width follows the printable area (strip 18.4 cm + .45 cm for the scissor marks), so A4 and Letter print unscaled. */
-  .pace-band-sheet { width: auto; max-width: calc(var(--strip) + .45cm); padding: 0 0 0 .45cm; box-shadow: none; zoom: 1 !important; }
+  .pace-band-sheet { width: auto; max-width: calc(var(--strip) + .45cm); margin-inline: 0; padding: 0 0 0 .45cm; box-shadow: none; zoom: 1 !important; }
   .pace-band-held-dim { opacity: 1 !important; }
   .pace-band-strip, .pace-band-cell, .pace-band-cell.is-half { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

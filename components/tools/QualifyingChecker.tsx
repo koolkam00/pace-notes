@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
@@ -190,7 +190,8 @@ function verdict(r: QualifyResult, opts: { uk: boolean; nyrrGuaranteed: boolean;
     case 'misses':
       return { tone: 'bad', label: 'Misses the standard', short: 'Misses' };
     default: {
-      if (key === 'london' && !opts.uk) return { tone: 'warn', label: 'Meets the time · UK residents only', short: 'UK only', route: 'If you live in the UK, tick it under “Course and entry details”.' };
+      // It meets the time (the headline counts it); residency decides the route, so the row says both.
+      if (key === 'london' && !opts.uk) return { tone: 'good', label: 'Meets the time · UK residents only', short: 'Meets · UK only', route: 'Good For Age is for UK residents. If you live in the UK, tick it under “Course and entry details”.' };
       const route: Record<string, string> = {
         boston: 'You can apply. Acceptance depends on the cut-off.',
         nyc: opts.nyrrGuaranteed ? 'Guaranteed entry: a time from the 2026 TCS New York City Marathon.' : 'Enters the capped pool, fastest first.',
@@ -261,7 +262,6 @@ export default function QualifyingChecker() {
   const [dropUnitChoice, setDropUnit] = useState<'ft' | 'm' | null>(null);
   const [nyrr, setNyrr] = useState(false);
   const [uk, setUk] = useState(false);
-  const [buffer, setBuffer] = useState(0);
   const [storageRead, setStorageRead] = useState(false);
   const [timeFocused, setTimeFocused] = useState(false);
   const [interacted, setInteracted] = useState(false);
@@ -421,7 +421,7 @@ export default function QualifyingChecker() {
               onChange={(e) => { setBirth(e.target.value); setExample(false); }} />
             <p className={`tool-field-hint${birthOk && !orderError ? '' : ' is-error'}`} id={`${ids}-birth-hint`}>
               {!birthOk ? 'Enter your date of birth: each race works out your age group differently.'
-                : orderError ?? (example ? `An example runner born ${fmtDate(EXAMPLE_BIRTH)}. ` : '')}
+                : orderError ?? ''}
               {birthOk && !orderError ? 'It stays in this browser: never in the link or analytics.' : null}
             </p>
             <label className="tool-check">
@@ -491,9 +491,7 @@ export default function QualifyingChecker() {
               </section>
 
               <RaceRows items={items} birth={birth} raceDate={raceDate} seconds={shown!} division={division} drop={drop}
-                dropIgnored={!dropValid} nyrr={nyrr} nyrrGuaranteed={nyrrGuaranteed} uk={uk} />
-
-              <TargetsPanel items={items} seconds={shown!} buffer={buffer} setBuffer={setBuffer} drop={drop} units={units} gender={bandGender} />
+                dropIgnored={!dropValid} nyrr={nyrr} nyrrGuaranteed={nyrrGuaranteed} uk={uk} units={units} gender={bandGender} named={boston?.s.key} />
 
               <p className="tool-note qualifying-share-note">The copied link carries your division, time and race date, never your date of birth.</p>
               <ShareBar />
@@ -541,7 +539,7 @@ function BostonLine({ it, raceDate }: { it: Item; raceDate: string }) {
 
 /* ---------- One row per race: its margin as a bar, opening to its rules ---------- */
 
-function RaceRows({ items, ...rest }: { items: Item[] } & Omit<Parameters<typeof RaceBody>[0], 'it'>) {
+function RaceRows({ items, named, ...rest }: { items: Item[]; named?: string } & Omit<Parameters<typeof RaceBody>[0], 'it'>) {
   const margins = items.map((it) => it.r.margin).filter((m): m is number => m !== null);
   const CAP = 30 * 60;
   const lo = Math.max(-CAP, Math.floor(Math.min(-300, ...margins) / 300) * 300);
@@ -558,7 +556,8 @@ function RaceRows({ items, ...rest }: { items: Item[] } & Omit<Parameters<typeof
           const clipped = m !== null && (m > hi || m < lo);
           return (
             <li key={s.key}>
-              <details className={`qualifying-race is-${v.tone}`} id={`qualifying-${s.key}`}>
+              {/* The race the night card names is the one signal bar; every other race that meets is ink. */}
+              <details className={`qualifying-race is-${v.tone}${s.key === named ? ' is-named' : ''}`} id={`qualifying-${s.key}`}>
                 <summary>
                   <span className="qualifying-race-name"><b>{SHORT[s.key]} {yearOf(s)}</b><small className={`qualifying-app is-${app.kind}`}>{app.short}</small></span>
                   <span className="qualifying-race-track" aria-hidden="true">
@@ -568,7 +567,7 @@ function RaceRows({ items, ...rest }: { items: Item[] } & Omit<Parameters<typeof
                   <span className="qualifying-race-value">
                     <b>{m !== null ? formatMargin(m) : '—'}</b>
                     {m !== null ? <span className="sr-only"> {marginWord(m)} the standard.</span> : null}
-                    <small><span aria-hidden="true">{GLYPH[v.tone]}</span> {v.short}</small>
+                    <small><span aria-hidden="true">{GLYPH[v.tone]}</span> {v.short.includes(' · ') ? v.short.split(' · ').map((part, k) => <Fragment key={k}>{k ? ' · ' : ''}<span className="nowrap">{part}</span></Fragment>) : v.short}</small>
                   </span>
                 </summary>
                 <RaceBody it={it} {...rest} />
@@ -581,9 +580,11 @@ function RaceRows({ items, ...rest }: { items: Item[] } & Omit<Parameters<typeof
   );
 }
 
-function RaceBody({ it, birth, raceDate, seconds, division, drop, dropIgnored, nyrrGuaranteed, uk }: {
+function RaceBody({ it, birth, raceDate, seconds, division, drop, dropIgnored, nyrrGuaranteed, uk, units, gender }: {
   it: Item; birth: string; raceDate: string; seconds: number; division: Division; drop?: Drop;
-  dropIgnored: boolean; nyrr: boolean; nyrrGuaranteed: boolean; uk: boolean;
+  dropIgnored: boolean; nyrr: boolean; nyrrGuaranteed: boolean; uk: boolean; units: UnitSystem;
+  /** The division the visitor chose, passed to the pace band's observed columns (none for non-binary or the example division). */
+  gender: 'men' | 'women' | null;
 }) {
   const { s, r, v, app } = it;
   const age = ageText(s, r, birth, raceDate);
@@ -602,7 +603,6 @@ function RaceBody({ it, birth, raceDate, seconds, division, drop, dropIgnored, n
   const needed = r.limit !== null && index !== null ? r.limit - (index ?? 0) - (s.comparison === 'strictly-under' ? 1 : 0) : null;
   const passesTime = r.margin !== null && (s.comparison === 'strictly-under' ? r.margin > 0 : r.margin >= 0);
   const extraNote = v.tone === 'muted' ? null
-    : r.status === 'misses' && needed !== null ? `To meet it: ${fmtTime(needed)} or faster${index ? ' on this course' : ''}.`
     : r.status === 'outside-window' ? `The time ${passesTime ? 'would meet' : 'would also miss'} the standard, but ${fmtDate(raceDate)} is ${outside ?? 'outside this edition’s window'}.`
     : null;
   const bostonUnsure = s.key === 'boston' && why === 'registration' && !outside && raceDate >= BOSTON_WINDOW_UNSURE_FROM;
@@ -618,6 +618,12 @@ function RaceBody({ it, birth, raceDate, seconds, division, drop, dropIgnored, n
   }
   if (s.key === 'sydney') fine.unshift('Gun or net (chip) time is accepted. This checker uses the chip time you entered; a gun time is usually a little slower.');
   const timeHint = s.key === 'sydney' ? 'Chip (net) time; Sydney also accepts gun time' : 'Chip (net) time';
+  // The time to aim for on this course: the standard less any downhill index, a second inside a strict "under". Its even
+  // pace, and the pace band for it (whole minutes, the minute at or below), when the band takes that goal.
+  const aim = needed !== null && v.tone !== 'muted' && !it.courseOut ? needed : null;
+  const aimPace = aim !== null ? `${formatDuration(perUnit(aim / MARATHON_KM, units))}/${units}` : '';
+  const aimMinutes = aim !== null ? Math.floor(aim / 60) : 0;
+  const aimHref = `/tools/pace-band?goal=${Math.floor(aimMinutes / 60)}:${pad(aimMinutes % 60)}${gender ? `&g=${gender}` : ''}`;
   return (
     <div className="qualifying-race-body">
       <div className={`qualifying-verdict is-${v.tone}`}>
@@ -648,6 +654,8 @@ function RaceBody({ it, birth, raceDate, seconds, division, drop, dropIgnored, n
           <dd className="tool-ledger-note">{s.key === 'boston' && index === null ? `Not counted: courses dropping ${BOSTON_BOUNDS[drop!.unit][2]} or more are not accepted (this one: ${dropShown}).`
             : s.key === 'boston' && index ? `${fmtTime(seconds)} chip + ${index / 60}:00 downhill index for a ${dropShown} net drop`
               : s.key === 'boston' ? (drop ? `Chip time; no downhill index for a ${dropShown} drop (under ${BOSTON_BOUNDS[drop.unit][0]})` : 'Chip time; add a course drop for the downhill index') : timeHint}</dd></div>
+        {aim !== null ? <div><dt>Aim for</dt><dd>{fmtTime(aim)}</dd>
+          <dd className="tool-ledger-note">{aimPace} even pace{index ? `, with the ${index / 60}:00 downhill index` : ''}{s.comparison === 'strictly-under' ? ', a second inside the standard' : ''}{within(aim, BAND_RANGE) ? <> · <Link href={aimHref}>Pace band for it</Link></> : null}</dd></div> : null}
         <div><dt>Age used</dt><dd>{age.value}</dd><dd className="tool-ledger-note">{age.rule}</dd></div>
         <div><dt>Window</dt><dd className={outside ? 'is-signal' : undefined}>{outside ? 'Outside' : 'Inside'}</dd>
           <dd className="tool-ledger-note">{s.windowNote}{why === 'applications' && end ? ` The time must be run by ${fmtDate(end)}, when applications ${app.kind === 'closed' ? 'closed' : 'close'}.` : ''}{why === 'registration' ? ` ${end!.slice(0, 4)} registration week has not been dated; it is usually mid-September.` : ''}</dd></div>
@@ -782,64 +790,5 @@ function CutoffChart({ margin }: { margin: number | null }) {
         ) : null}
       </svg> : null}
     </div>
-  );
-}
-
-/* ---------- Targets: standard minus a buffer, and the even pace for it ---------- */
-
-function TargetsPanel({ items, seconds, buffer, setBuffer, drop, units, gender }: {
-  items: Item[]; seconds: number; buffer: number; setBuffer: (n: number) => void; drop?: Drop; units: UnitSystem;
-  /** The division the visitor chose, passed to the pace band's observed columns (none for non-binary or the example division). */
-  gender: 'men' | 'women' | null;
-}) {
-  // A course the race does not accept has no target on it; the note below says which races are left out.
-  const rows = items.filter((it) => it.r.limit !== null && !it.courseOut);
-  const leftOut = items.filter((it) => it.courseOut).map((it) => SHORT[it.s.key]);
-  const bostonIndex = drop ? bostonIndexFor(drop) ?? 0 : 0;
-  const target = (it: Item) => it.r.limit! - (it.s.key === 'boston' ? bostonIndex : 0) - buffer * 60 - (it.s.comparison === 'strictly-under' ? 1 : 0);
-  // Pace band goals are whole minutes: the minute at or below the target, as H:MM.
-  const goalParam = (t: number) => { const mins = Math.floor(t / 60); return `${Math.floor(mins / 60)}:${pad(mins % 60)}`; };
-  const bandHref = (t: number) => `/tools/pace-band?goal=${goalParam(t)}${gender ? `&g=${gender}` : ''}`;
-  // The buttons stay focusable at 0 and 30 (aria-disabled), so a keyboard user's focus never falls back to the page.
-  const set = (n: number) => setBuffer(Math.max(0, Math.min(30, n)));
-  return (
-    <section className="tool-panel qualifying-targets-panel" aria-labelledby="qualifying-targets-title">
-      <header className="tool-panel-head">
-        <h2 className="tool-panel-title" id="qualifying-targets-title">Times to aim for</h2>
-        <p className="tool-panel-meta">Each standard less a buffer, with its even pace.</p>
-      </header>
-      <div className="qualifying-buffer no-print">
-        <span className="tool-label" id="qualifying-buffer-label">Buffer under each standard</span>
-        <div className="tool-stepper" role="group" aria-labelledby="qualifying-buffer-label">
-          <button type="button" aria-label="One minute less buffer" aria-disabled={buffer <= 0 || undefined} onClick={() => { if (buffer > 0) set(buffer - 1); }}>−</button>
-          <div className="tool-stepper-value"><b className="qualifying-buffer-value" aria-live="polite">{buffer} min</b></div>
-          <button type="button" aria-label="One minute more buffer" aria-disabled={buffer >= 30 || undefined} onClick={() => { if (buffer < 30) set(buffer + 1); }}>+</button>
-        </div>
-      </div>
-      <ul className="qualifying-target-list">
-        {rows.map((it) => {
-          const t = target(it);
-          const diff = t - seconds;
-          const pace = `${formatDuration(perUnit(t / MARATHON_KM, units))}/${units}`;
-          const inner = (
-            <>
-              <span className="qualifying-target-name"><b>{SHORT[it.s.key]} {yearOf(it.s)}</b><small>standard {fmtTime(it.r.limit!)}{it.s.key === 'boston' && bostonIndex ? `, −${bostonIndex / 60}:00 index` : ''}</small></span>
-              <span className="qualifying-target-time"><b>{fmtTime(t)}</b><small>{pace}</small></span>
-              <span className={`qualifying-target-diff${diff >= 0 ? '' : ' is-over'}`}>{formatMargin(diff)}</span>
-            </>
-          );
-          return (
-            <li key={it.s.key}>
-              {within(t, BAND_RANGE) ? <Link className="qualifying-target" href={bandHref(t)} aria-label={`${SHORT[it.s.key]}: aim for ${fmtTime(t)}, ${pace}; pace band for this target`}>{inner}</Link>
-                : <span className="qualifying-target">{inner}</span>}
-            </li>
-          );
-        })}
-      </ul>
-      <p className="tool-note">
-        The last column is your {fmtTime(seconds)} against each target. {rows.some((it) => it.s.comparison === 'strictly-under') ? 'London needs a time strictly under its standard, so its target is a second inside. ' : ''}
-        {bostonIndex ? `Boston’s target includes the ${bostonIndex / 60}:00 downhill index for your course. ` : ''}{leftOut.length ? `${leftOut.join(' and ')} ${leftOut.length > 1 ? 'are' : 'is'} left out: ${leftOut.length > 1 ? 'they do' : 'it does'} not accept a course with this drop.` : ''}
-      </p>
-    </section>
   );
 }

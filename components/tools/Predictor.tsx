@@ -11,7 +11,7 @@ import { useWidth } from '@/components/viz/useSize';
 import { loadInsight } from '@/lib/insights';
 import { loadShard, shareUnder, type ProjectorIndex, type ProjectorShard } from '@/lib/tools/data';
 import { HALF_KM, MARATHON_KM, perKm, perUnit, unitKm } from '@/lib/tools/pace';
-import { REALISTIC_B, RIEGEL_B, TANDA_RANGE_S, marathonRange, personalExponent, riegel, tandaPace, timeForVdot, vdot, type MarathonRange } from '@/lib/tools/predictor';
+import { TANDA_RANGE_S, marathonRange, personalExponent, riegel, tandaPace, timeForVdot, vdot, type MarathonRange } from '@/lib/tools/predictor';
 import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
 import { keypadInput } from '@/lib/keypad';
 import { count } from '@/lib/viz/format';
@@ -310,16 +310,16 @@ function estimate(target: Preset, race: { km: number; seconds: number }, race2: 
   const d = Number.isFinite(dRaw) ? dRaw : null;
   let personal: Estimates['personal'] = null;
   if (race2 && race2.ok) {
-    if (Math.abs(race2.km - race.km) < 0.05) personal = { error: 'Use two different distances to fit an exponent.' };
+    if (Math.abs(race2.km - race.km) < 0.05) personal = { error: 'Use two different distances.' };
     else {
       const b = personalExponent(race.km, race.seconds, race2.km, race2.seconds);
       const long = race.km > race2.km ? { km: race.km, s: race.seconds } : { km: race2.km, s: race2.seconds };
       const warnings: string[] = [];
       const usable = b > 0.9 && b < 1.5;
-      if (!usable) warnings.push(`These two races give an exponent of ${b.toFixed(2)}, too far from the usual 1.00 to 1.30 to apply. Check both times and distances.`);
-      else if (b < 1 || b > 1.3) warnings.push(`An exponent of ${b.toFixed(2)} is outside the usual 1.00 to 1.30. Check both times, and whether either race was hilly, hot or not run all-out.`);
+      if (!usable) warnings.push('These two races slow down between their distances far more or less than runners usually do, so they give no estimate. Check both times and distances.');
+      else if (b < 1 || b > 1.3) warnings.push('These two races slow down between their distances unusually much or little. Check both times, and whether either race was hilly, hot or not run all-out.');
       // "More than 6 months ago" is open-ended, so with it either race can be more than 6 months from the other.
-      if (ago === '6+' || ago2 === '6+') warnings.push('These races may be more than 6 months apart; a change in fitness between them distorts the exponent.');
+      if (ago === '6+' || ago2 === '6+') warnings.push('These races may be more than 6 months apart; a change in fitness between them skews the estimate.');
       personal = { b, seconds: usable ? riegel(long.s, long.km, target.km, b) : null, fromKm: long.km, fromS: long.s, warnings };
     }
   }
@@ -600,8 +600,9 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
   const lookRef = useRef<HTMLDivElement>(null);
   if (!est.isMarathon || !indexSha) return null;
   const chosen = looks.find((l) => l.key === look) ?? looks[0];
-  // Every time on the page is shown to the second, so the panel (and its projector link) works from that same second.
-  const T = Math.round(chosen.seconds);
+  // The whole minute at or below the estimate, the way the handoffs above hand it on (4:11:41 is 4:11), so the page
+  // names one time for it, not 4:11 here and 4:12 there.
+  const T = goalMinute(chosen.seconds);
   const bandS = index?.band_s ?? 120;
   const band = Math.floor(T / bandS) * bandS;
   const cells = shard?.cells.all;
@@ -721,7 +722,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
       // Keep the result meaningful while the visitor types their own time: Riegel-equivalent at the new distance.
       const next = Math.round(riegel(race1.seconds, race1.km, nextKm));
       patch.t = fmtTime(next);
-      setConverted(`Filled in from your ${fmtTime(race1.seconds)} ${raceName(dist1, units)} with Riegel 1.06. Type your own ${RACES.find((r) => r.key === key)!.name} time.`);
+      setConverted(`Filled in from your ${fmtTime(race1.seconds)} ${raceName(dist1, units)} by the classic formula. Type your own ${RACES.find((r) => r.key === key)!.name} time.`);
     }
     setQ(patch);
   };
@@ -736,26 +737,27 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
   const looks: Look[] = [];
   if (est) {
     const pace = (s: number) => fmtPace(s / est.target.km, units);
+    // Plain names for each estimate; which published formula is which lives on /methodology#tools-predictor.
     rows.push({
-      key: 'riegel', label: `Riegel ${RIEGEL_B.toFixed(2)}`, detail: est.isMarathon ? 'best case' : '',
+      key: 'riegel', label: 'Classic formula', detail: est.isMarathon ? 'the best case' : '',
       value: fmtTime(est.riegel), kind: 'point', at: est.riegel, tone: 'ink',
       tip: [`${fmtTime(est.riegel)} · ${pace(est.riegel)}`, est.isMarathon ? 'A median 10:09 too fast for recreational runners.' : 'Holds up well for races up to the half.'],
     });
     rows.push(est.daniels !== null ? {
-      key: 'daniels', label: 'Daniels–Gilbert', detail: '',
+      key: 'daniels', label: 'Fitness equations', detail: '',
       value: fmtTime(est.daniels), kind: 'point', at: est.daniels, tone: 'ink',
-      tip: [`${fmtTime(est.daniels)} · ${pace(est.daniels)}`, `Implies an exponent of ${est.danielsB!.toFixed(3)} here.`],
+      tip: [`${fmtTime(est.daniels)} · ${pace(est.daniels)}`, est.isMarathon ? 'About as optimistic as the best case.' : 'Close to the classic formula up to the half.'],
     } : {
-      key: 'daniels', label: 'Daniels–Gilbert', detail: 'not applied at walking speed', value: 'not applied', kind: 'none', tone: 'ink',
+      key: 'daniels', label: 'Fitness equations', detail: 'not applied at walking speed', value: 'not applied', kind: 'none', tone: 'ink',
       tip: [`Your race averaged ${fmtPace(est.fromS / est.fromKm, units)}, slower than ${fmtPace(DANIELS_PACE_MAX, units)}, so no number is shown.`],
     });
     if (est.range) {
       const r = est.range;
       const [a, b] = rangeText(r.low, r.high);
       rows.push({
-        key: 'range', label: 'Half-to-full exponents', detail: `typical range ${REALISTIC_B.low}–${REALISTIC_B.high}, median ${REALISTIC_B.median}`,
+        key: 'range', label: 'The typical range', detail: 'recreational runners',
         value: `${a}–${b}`, kind: 'range', lo: r.low, mid: r.median, hi: r.high, tone: 'violet',
-        tip: [`${fmtTime(r.low)} to ${fmtTime(r.high)}`, `Median exponent ${REALISTIC_B.median}: ${fmtTime(r.median)} · ${pace(r.median)}`],
+        tip: [`${fmtTime(r.low)} to ${fmtTime(r.high)}`, `Median estimate ${fmtTime(r.median)} · ${pace(r.median)}`],
       });
       looks.push(
         { key: 'median', label: 'Median estimate', chip: 'Median', seconds: r.median },
@@ -767,22 +769,22 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
     if (est.personal && 'b' in est.personal) {
       const p = est.personal;
       rows.push({
-        key: 'personal', label: 'Your two races', detail: `exponent ${p.b.toFixed(2)}`,
+        key: 'personal', label: 'Your two races', detail: '',
         value: p.seconds !== null ? fmtTime(p.seconds) : 'not applied', kind: p.seconds !== null ? 'point' : 'none', at: p.seconds ?? undefined, tone: 'outline',
-        tip: p.seconds !== null ? [`${fmtTime(p.seconds)} · ${pace(p.seconds)}`, `Exponent ${p.b.toFixed(3)}, applied from your ${nameForKm(p.fromKm, units)}.`] : ['Outside the range where an exponent means much.'],
+        tip: p.seconds !== null ? [`${fmtTime(p.seconds)} · ${pace(p.seconds)}`, `Your own slowdown between the two distances, applied from your ${nameForKm(p.fromKm, units)}.`] : ['These two races are too far apart in form to apply.'],
       });
     }
     if (est.tanda && 'inRange' in est.tanda) {
       const t = est.tanda;
       rows.push({
-        key: 'tanda', label: 'Tanda', detail: t.inRange ? '±4 min' : '2:47–3:36 finishes only',
+        key: 'tanda', label: 'From training volume', detail: t.inRange ? '±4 min' : '2:47–3:36 finishes only',
         value: t.seconds !== null ? fmtTime(t.seconds) : 'outside its range', kind: t.seconds !== null ? 'point' : 'none', at: t.seconds ?? undefined,
         whisker: t.seconds !== null ? TANDA_SE_S : undefined, tone: 'outline',
         tip: t.seconds !== null ? [`${fmtTime(t.seconds)} · ${pace(t.seconds)}`, 'Typically within about 4 minutes.'] : ['Outside the 2:47–3:36 this formula covers, so no number is shown.'],
       });
     }
   }
-  const chartLabel = est ? `Predicted ${est.target.name} times by method. ${rows.map((r) => `${r.label}: ${r.kind === 'range' ? `${fmtTime(r.lo!)} to ${fmtTime(r.hi!)}, median ${fmtTime(r.mid!)}` : r.value}`).join('. ')}.` : '';
+  const chartLabel = est ? `Predicted ${est.target.name} times, estimate by estimate. ${rows.map((r) => `${r.label}: ${r.kind === 'range' ? `${fmtTime(r.lo!)} to ${fmtTime(r.hi!)}, median ${fmtTime(r.mid!)}` : r.value}`).join('. ')}.` : '';
 
   // Pace-band goals: the whole minute at or below each estimate, inside the band's 1:30 to 8:00.
   const bandTimes = est?.range
@@ -835,10 +837,10 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
           <details className="predictor-more" open={open2} onToggle={(e) => setOpen2(e.currentTarget.open)}>
             <summary ref={second}>
               Add a second race <span className="predictor-optional">optional</span>
-              {race2?.ok && est?.personal && 'b' in est.personal ? <span className="predictor-summary-value">exponent {est.personal.b.toFixed(2)}</span> : null}
+              {race2?.ok && est?.personal && 'b' in est.personal && est.personal.seconds !== null ? <span className="predictor-summary-value">{fmtTime(est.personal.seconds)}</span> : null}
             </summary>
             <div className="predictor-more-body">
-              <p className="tool-field-hint">A second race at another distance fits your own exponent.</p>
+              <p className="tool-field-hint">A second race at another distance gives an estimate from your own slowdown between them.</p>
               <DistanceChips labelId={`${uid}-d2`} label="Distance" value={dist2.key} onPick={(key) => setQ({ d2: key, km2: key === 'custom' ? q.km2 || '15' : '' })} />
               {dist2.key === 'custom' ? (
                 <DistanceField id={`${uid}-km2`} label="Race distance" km={dist2.typedKm} units={units} suffix={units} hint={snapHint(dist2)}
@@ -849,6 +851,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
                 hint={race2?.ok && t2 !== null ? `Read as ${spoken(t2)} · ${fmtPace(race2.seconds / race2.km, units)}` : undefined}
                 onText={(text) => setQ({ t2: text, d2: q.d2 || dist2.key })} />
               <AgoSelect id={`${uid}-ago2`} value={q.ago2} onChange={(v) => setQ({ ago2: v })} />
+              {est?.personal && 'b' in est.personal ? est.personal.warnings.map((w) => <p key={w} className="tool-field-hint is-error">{w}</p>) : null}
               {q.t2 ? (
                 <button type="button" className="predictor-link-button" onClick={() => {
                   // This button goes away with the race, so focus moves to the disclosure it sits in first.
@@ -903,16 +906,11 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
               <section className="tool-panel predictor-methods" id="predictor-methods" aria-labelledby="predictor-methods-title">
                 <header className="tool-panel-head">
                   <EvidenceTag kind="research" />
-                  <h2 className="tool-panel-title" id="predictor-methods-title">Every published method, side by side</h2>
+                  <h2 className="tool-panel-title" id="predictor-methods-title">Every estimate, side by side</h2>
                 </header>
                 <MethodChart rows={rows} fuzzy={!!est.range && est.range.extrapolation === 'shorter'} label={chartLabel} />
-                <details className="tool-more">
-                  <summary>Why marathon predictions run fast</summary>
-                  <div className="tool-more-body">
-                    <Explainer est={est} />
-                    <MethodTable est={est} units={units} dist={dist1} onAddSecond={openSecond} onAddTanda={openTanda} />
-                  </div>
-                </details>
+                {/* Two more estimates, from inputs the form folds away. */}
+                {est.isMarathon && !(est.personal && 'b' in est.personal) ? <p className="tool-note predictor-prompt"><button type="button" className="predictor-link-button" onClick={openSecond}>Add a second race</button> or <button type="button" className="predictor-link-button" onClick={openTanda}>training volume</button> for your own estimate.</p> : null}
               </section>
 
               <ObservedPanel indexSha={indexSha} est={est} looks={looks} look={look} setLook={setLook} units={units} />
@@ -932,7 +930,7 @@ function summaryText(est: Estimates): string {
     return `Marathon: typical range ${fmtTime(r.low)} to ${fmtTime(r.high)}, median estimate ${fmtTime(r.median)}, best case ${fmtTime(est.riegel)}.`;
   }
   const name = est.target.key === 'half' ? 'Half marathon' : est.target.label;
-  if (est.daniels === null) return `${name}: ${fmtTime(est.riegel)} by Riegel 1.06.`;
+  if (est.daniels === null) return `${name}: ${fmtTime(est.riegel)}.`;
   const [lo, hi] = [Math.min(est.riegel, est.daniels), Math.max(est.riegel, est.daniels)];
   return `${name}: ${fmtTime(lo)} to ${fmtTime(hi)}.`;
 }
@@ -969,7 +967,7 @@ function Headline({ est, dist, units, example }: { est: Estimates; dist: Distanc
   if (est.daniels === null) {
     return (
       <section className="tool-reading night predictor-headline" aria-label="Your estimate">
-        {head(fmtTime(est.riegel), `Riegel ${RIEGEL_B.toFixed(2)} only; the Daniels–Gilbert equations are not applied at walking speed.`)}
+        {head(fmtTime(est.riegel), 'One classic formula only: the fitness equations are not applied at walking speed.')}
         <EvidenceTag kind="research" />
       </section>
     );
@@ -981,108 +979,10 @@ function Headline({ est, dist, units, example }: { est: Estimates; dist: Distanc
     <section className="tool-reading night predictor-headline" aria-label="Your estimate">
       {head(a === b ? a : <>{a}<span className="predictor-to">–</span>{b}</>, 'Both classic formulas hold up well for races up to the half marathon.')}
       <dl className="tool-cells">
-        <div><dt>Riegel {RIEGEL_B.toFixed(2)}</dt><dd>{fmtTime(est.riegel)}<small>{pace(est.riegel)}</small></dd></div>
-        <div><dt>Daniels–Gilbert</dt><dd>{fmtTime(est.daniels)}<small>{pace(est.daniels)}</small></dd></div>
+        <div><dt>Classic formula</dt><dd>{fmtTime(est.riegel)}<small>{pace(est.riegel)}</small></dd></div>
+        <div><dt>Fitness equations</dt><dd>{fmtTime(est.daniels)}<small>{pace(est.daniels)}</small></dd></div>
       </dl>
       <EvidenceTag kind="research" />
     </section>
-  );
-}
-
-function MethodTable({ est, units, dist, onAddSecond, onAddTanda }: { est: Estimates; units: UnitSystem; dist: Distance; onAddSecond: () => void; onAddTanda: () => void }) {
-  const pace = (s: number) => fmtPace(s / est.target.km, units);
-  const targetLabel = est.target.key === 'half' ? 'Half' : est.target.label;
-  type Row = { key: string; name: ReactNode; source: ReactNode | null; time: ReactNode; pace: ReactNode; note: ReactNode; cls?: string };
-  const rows: Row[] = [
-    {
-      key: 'riegel', name: <>Riegel, b = {RIEGEL_B.toFixed(2)}</>, source: est.isMarathon ? 'Best case' : null,
-      time: fmtTime(est.riegel), pace: pace(est.riegel),
-      note: est.isMarathon
-        ? <>For recreational runners, a median <b>10:09 too fast</b>, and at least 10 min too fast for half of them.</>
-        : <>Holds up well for races up to the half marathon.</>,
-    },
-    est.daniels !== null ? {
-      key: 'daniels', name: 'Daniels–Gilbert equations', source: null,
-      time: fmtTime(est.daniels), pace: pace(est.daniels),
-      note: est.isMarathon
-        ? <>Implies an exponent of {est.danielsB!.toFixed(3)} here: about as optimistic as Riegel for the marathon.</>
-        : <>Implies an exponent of {est.danielsB!.toFixed(3)} here.</>,
-    } : {
-      key: 'daniels', cls: 'is-prompt', name: 'Daniels–Gilbert equations', source: null, time: '—', pace: '',
-      note: <span className="predictor-warn">Not applied: your race averaged {fmtPace(est.fromS / est.fromKm, units)}, slower than {fmtPace(DANIELS_PACE_MAX, units)}, about walking speed.</span>,
-    },
-  ];
-  if (est.range) {
-    const r = est.range;
-    rows.push(
-      { key: 'low', name: <>Exponent {REALISTIC_B.low}</>, source: 'Most common half-to-full', time: fmtTime(r.low), pace: pace(r.low),
-        note: <>The most common slowdown from a half to a full.</> },
-      { key: 'median', cls: 'is-key', name: <>Exponent {REALISTIC_B.median}</>, source: 'Median half-to-full', time: fmtTime(r.median), pace: pace(r.median),
-        note: <>Half of runners slowed more than this from the half to the full.</> },
-      { key: 'high', name: <>Exponent {REALISTIC_B.high}</>, source: 'Mean half-to-full', time: fmtTime(r.high), pace: pace(r.high),
-        note: <>The mean. Many runners fell well outside {REALISTIC_B.low} to {REALISTIC_B.high}.</> },
-    );
-  }
-  const p = est.personal;
-  if (p && 'b' in p) {
-    rows.push({
-      key: 'personal', name: <>Your two races, b = {p.b.toFixed(3)}</>, source: null,
-      time: p.seconds !== null ? fmtTime(p.seconds) : '—', pace: p.seconds !== null ? pace(p.seconds) : '—',
-      note: <>Applied from your {nameForKm(p.fromKm, units)}. An off day in either race moves it. For recreational runners, two-race estimates were the most accurate, typically within about 14 min.{p.warnings.map((w) => <span key={w} className="predictor-warn"> {w}</span>)}</>,
-    });
-  } else {
-    rows.push({
-      key: 'personal', cls: 'is-prompt', name: 'Your two races', source: null, time: '—', pace: '',
-      note: <>{p && 'error' in p ? <span className="predictor-warn">{p.error} </span> : null}<button type="button" className="predictor-link-button" onClick={onAddSecond}>Add a second race</button> to fit your own exponent.</>,
-    });
-  }
-  if (est.isMarathon) {
-    const t = est.tanda;
-    if (t && 'inRange' in t) {
-      rows.push({
-        key: 'tanda', name: 'Tanda', source: `${fmtKm(t.k, units)}/week at ${fmtPace(t.p, units)}`,
-        time: t.seconds !== null ? fmtTime(t.seconds) : '—', pace: t.seconds !== null ? pace(t.seconds) : '—',
-        note: t.inRange
-          ? <>Typically within about 4 min.</>
-          : <span className="predictor-warn">Outside the 2:47 to 3:36 this formula covers, so no number is shown.</span>,
-      });
-    } else {
-      rows.push({
-        key: 'tanda', cls: 'is-prompt', name: 'Tanda', source: null, time: '—', pace: '',
-        note: t && 'error' in t
-          ? <><span className="predictor-warn">{t.error} </span><button type="button" className="predictor-link-button" onClick={onAddTanda}>Check training volume</button>.</>
-          : <><button type="button" className="predictor-link-button" onClick={onAddTanda}>Add training volume</button> for a training-based estimate (finishes of 2:47 to 3:36 only).</>,
-      });
-    }
-  }
-  return (
-    <div className="tool-table-wrap predictor-table-wrap">
-      <table className="tool-table predictor-table">
-        <thead><tr><th scope="col">Estimate</th><th scope="col">{targetLabel}</th><th scope="col">How it tends to run</th></tr></thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.key} className={r.cls}>
-              <th scope="row" className="predictor-m-name"><span>{r.name}</span>{r.source ? <small>{r.source}</small> : null}</th>
-              <td className="predictor-m-time">{r.time}{r.pace ? <small>{r.pace}</small> : null}</td>
-              <td className="predictor-m-note">{r.note}</td>
-            </tr>
-          ))}
-        </tbody>
-        <caption>Published research, applied to your {raceName(dist, units)}.</caption>
-      </table>
-    </div>
-  );
-}
-
-function Explainer({ est }: { est: Estimates }) {
-  if (!est.isMarathon) {
-    return <p className="tool-callout">Up to the half marathon, endurance carries over between distances well enough that the classic formulas hold for recreational runners. The marathon is where they break down.</p>;
-  }
-  return (
-    <ol className="predictor-reasons">
-      <li><b>On recreational runners they miss by about ten minutes.</b> Riegel holds up to the half, but its marathon times ran a median 10:09 too fast, and about three in four runners were slower than predicted.</li>
-      <li><b>Runners slow more from the half to the full.</b> The exponent was {REALISTIC_B.low} most often, {REALISTIC_B.median} at the median and {REALISTIC_B.high} on average: the range above.</li>
-      <li><b>Training volume matters.</b> Adding weekly mileage cut the typical miss from about 19.5 to about 15 minutes.</li>
-    </ol>
   );
 }

@@ -91,6 +91,7 @@ const CASES = {
   'qualifying-url': { path: v => `/tools/qualifying?t=${v.marathon}&div=${v.genderIdx === 1 ? 'M' : 'X'}&race=${v.race}` },
   'projector': { path: '/tools/projector', reload: true, async drive(page, v, log) {
     await step(log, 'time', () => type(page, '#projector-time', v.mat25));
+    await step(log, 'more', () => open(page, 'details.projector-more'));
     await step(log, 'prev', () => type(page, '#projector-prev', v.mat20));
     await step(log, 'target', () => type(page, label(page, /Target finish/, false), v.hm));
     await step(log, 'start', () => type(page, '#projector-start', v.start));

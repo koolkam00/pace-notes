@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import Arrow from '@/components/ui/Arrow';
-import { Choice, DataState, GoalBar, ShareBar } from '@/components/tools/ui';
+import { DataState, GoalBar, ShareBar } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { loadInsight } from '@/lib/insights';
 import type { CourseContext, CourseGoal, CourseGoalRow } from '@/lib/tools/data';
@@ -22,9 +22,9 @@ const DATA_PATH = 'tools/course-goal.json';
 /** Fallbacks before the data file loads; the loaded file's own values win. */
 const GOALS_FALLBACK: [number, number] = [150, 390];
 const STEP_FALLBACK = 5;
-const DEFAULT_GOAL = 210;
-const PRESETS = [180, 195, 210, 225, 240, 270, 300];
-const DEFAULTS = { goal: '3:30', sort: 'under', dir: '', month: '', open: '' };
+/** The 4:00 example every tool and goal page opens on (spec section 4.4). */
+const DEFAULT_GOAL = 240;
+const DEFAULTS = { goal: '4:00', sort: 'under', dir: '', month: '', open: '' };
 
 type SortKey = 'name' | 'under' | 'sd' | 'after20' | 'n';
 type Dir = 'asc' | 'desc';
@@ -141,7 +141,7 @@ export default function CourseChooser({ sha, screened }: {
   const { units } = useUnits();
   const [q, setQuery, ready, fromUrl] = useQueryState(DEFAULTS);
   const { data, error, retry } = useCourseGoal(sha);
-  // The example: the default 3:30 goal, untouched and not from a link. Any change or linked value ends it.
+  // The example: the default 4:00 goal, untouched and not from a link. Any change or linked value ends it.
   const [touched, setTouched] = useState(false);
   const setQ = (patch: Partial<typeof DEFAULTS>) => { setTouched(true); setQuery(patch); };
   const isExample = ready && !touched && fromUrl.size === 0;
@@ -237,9 +237,6 @@ export default function CourseChooser({ sha, screened }: {
             </div>
             <p className="tool-field-hint" id="course-chooser-goal-hint">{noGoal ? `${step}-minute steps from ${hm(range[0])} to ${hm(range[1])}.` : `Even pace ${paceText(evenKm, units)} · ${paceText(evenKm, units === 'mi' ? 'km' : 'mi')}.`}</p>
           </div>
-          <div className="tool-presets" role="group" aria-label="Common goals">
-            {PRESETS.map((m) => <button key={m} type="button" aria-pressed={!noGoal && goal === m} onClick={() => setGoal(m)}>{hm(m)}</button>)}
-          </div>
           {note ? <p className="tool-field-hint">{note}</p> : null}
         </form>
 
@@ -267,6 +264,7 @@ export default function CourseChooser({ sha, screened }: {
           <div className="course-chooser-list ph-no-capture" data-tool-controls>
             <section className="tool-panel" aria-labelledby="course-chooser-courses">
               <h2 className="tool-panel-title" id="course-chooser-courses">Every course at {goalText}</h2>
+              {/* One control on the beat: the sort. The two filters wait behind one disclosure; a link's order (dir) still applies. */}
               <div className="course-chooser-toolbar no-print">
                 <div className="tool-field">
                   <label htmlFor="course-chooser-sort">Sort by</label>
@@ -278,26 +276,26 @@ export default function CourseChooser({ sha, screened }: {
                     <option value="name">Course name</option>
                   </select>
                 </div>
-                <div className="tool-field">
-                  <label htmlFor="course-chooser-month">Race month</label>
-                  <select id="course-chooser-month" ref={monthRef} value={month === null ? '' : String(month)} onChange={(e) => setQ({ month: e.target.value })}>
-                    <option value="">Any month</option>
-                    {monthOptions.map(({ m, n }) => <option key={m} value={m}>{MONTHS_LONG[m - 1]} ({n})</option>)}
-                  </select>
-                </div>
-                <div className="tool-field">
-                  <label htmlFor="course-chooser-open">First 5K</label>
-                  <select id="course-chooser-open" value={opening} onChange={(e) => setQ({ open: e.target.value })}>
-                    <option value="">Any</option>
-                    <option value="downhill">Downhill only ({openingCount('downhill')})</option>
-                    <option value="other">Not downhill ({openingCount('other')})</option>
-                  </select>
-                </div>
-                <div className="tool-field course-chooser-order">
-                  <span className="tool-label" aria-hidden="true">Order</span>
-                  <Choice label="Order" small value={dir} onChange={(v) => setQ({ dir: v === DEFAULT_DIR[sort] ? '' : v })}
-                    options={(sort === 'name' ? ['asc', 'desc'] : ['desc', 'asc']).map((d) => ({ value: d as Dir, label: orderLabel(sort, d as Dir) }))} />
-                </div>
+                <details className="tool-more course-chooser-filters" open={filtered || undefined}>
+                  <summary>Filter by race month or first 5K{filtered ? <span className="course-chooser-filter-count"> · {[month !== null ? MONTHS_LONG[month - 1] : null, opening === 'downhill' ? 'downhill start' : opening === 'other' ? 'no downhill start' : null].filter(Boolean).join(', ')}</span> : null}</summary>
+                  <div className="tool-more-body course-chooser-filter-fields">
+                    <div className="tool-field">
+                      <label htmlFor="course-chooser-month">Race month</label>
+                      <select id="course-chooser-month" ref={monthRef} value={month === null ? '' : String(month)} onChange={(e) => setQ({ month: e.target.value })}>
+                        <option value="">Any month</option>
+                        {monthOptions.map(({ m, n }) => <option key={m} value={m}>{MONTHS_LONG[m - 1]} ({n})</option>)}
+                      </select>
+                    </div>
+                    <div className="tool-field">
+                      <label htmlFor="course-chooser-open">First 5K</label>
+                      <select id="course-chooser-open" value={opening} onChange={(e) => setQ({ open: e.target.value })}>
+                        <option value="">Any</option>
+                        <option value="downhill">Downhill only ({openingCount('downhill')})</option>
+                        <option value="other">Not downhill ({openingCount('other')})</option>
+                      </select>
+                    </div>
+                  </div>
+                </details>
               </div>
               <p className="tool-note course-chooser-status">
                 {statusText}{sort !== 'name' ? ' Not a ranking of course difficulty.' : ''}

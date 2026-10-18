@@ -66,9 +66,11 @@
 .predictor-table th:last-child { text-align: left; }
 .predictor-table tr.is-key th, .predictor-table tr.is-key td { color: var(--ink); }
 .predictor-table tr.is-prompt .predictor-m-name span, .predictor-table tr.is-prompt .predictor-m-time { color: var(--ink-3); }
-.predictor-table .predictor-link-button { position: relative; min-height: 0; font-size: inherit; }
+.predictor-table .predictor-link-button, .predictor-prompt .predictor-link-button { position: relative; min-height: 0; font-size: inherit; line-height: inherit; }
 /* Inline in a sentence, so the 44 px reach comes from a pseudo-element. */
-.predictor-table .predictor-link-button::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
+.predictor-table .predictor-link-button::after, .predictor-prompt .predictor-link-button::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
+/* Both buttons come first, on the first line, so their 44 px reaches never overlap. */
+.predictor-prompt { line-height: 1.5; }
 .predictor-warn { color: var(--signal-ink); }
 @supports (container-type: inline-size) {
   @container predictor-table (max-width: 600px) {

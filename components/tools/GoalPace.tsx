@@ -43,7 +43,7 @@ const count = (n: number) => Math.round(n).toLocaleString('en-US');
 const clock = (s: number) => formatDuration(s, true);
 /** Elapsed time at a mat: m:ss under an hour, h:mm:ss after, as in the pace charts. */
 const elapsed = (s: number) => formatDuration(s, Math.round(s) >= 3600);
-const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
+const pct = (v: number) => `${Math.round(v * 100)}%`;
 const paceText = (sPerKm: number, units: UnitSystem) => `${formatDuration(perUnit(sPerKm, units))}/${units}`;
 const unitWord = (units: UnitSystem) => (units === 'mi' ? 'mile' : 'km');
 const other = (units: UnitSystem): UnitSystem => (units === 'mi' ? 'km' : 'mi');
@@ -56,8 +56,6 @@ export function GoalPaceDek({ goal, observed }: { goal: number; observed: GoalOb
 
 /** A gap against a reference, negative = ahead: "2:07 ahead of", "level with", "0:40 behind". */
 const against = (gap: number) => (Math.abs(gap) < 0.5 ? 'level with' : `${formatDuration(Math.abs(gap))} ${gap < 0 ? 'ahead of' : 'behind'}`);
-/** The same gap on its own: "2:45 ahead", "level", "0:40 behind". */
-const apart = (gap: number) => (Math.abs(gap) < 0.5 ? 'level' : `${formatDuration(Math.abs(gap))} ${gap < 0 ? 'ahead' : 'behind'}`);
 /** A finish against another: "0:06 faster", "level with them", "1:12 slower". */
 const finished = (gap: number) => (Math.abs(gap) < 0.5 ? 'level with them' : `${formatDuration(Math.abs(gap))} ${gap < 0 ? 'faster' : 'slower'}`);
 
@@ -75,10 +73,7 @@ export function GoalPaceBody({ goal, observed, bunching }: { goal: number; obser
   const gapText = observed ? evenPaceGapText(goal, observed.e50) : null;
   const groupText = observed?.held && observed.slow ? groupGapText(observed.held.e50, observed.slow.e50) : null;
   const i20 = CHECKPOINTS.indexOf(20);
-  const i35 = CHECKPOINTS.indexOf(35);
   const last = CHECKPOINTS.length - 1;
-  const gapShort = observed && gapText
-    ? `At 20K their median time was ${against(observed.e50[i20] - even[i20])} even pace; at 35K it was ${apart(observed.e50[i35] - even[i35])}.` : null;
   const groupShort = observed?.held && observed.slow && groupText
     ? `At 20K they were ${against(observed.slow.e50[i20] - observed.held.e50[i20])} those that held pace, and they finished ${finished(observed.slow.e50[last] - observed.held.e50[last])}.` : null;
 
@@ -95,7 +90,7 @@ export function GoalPaceBody({ goal, observed, bunching }: { goal: number; obser
         <ol className="tool-laps" aria-label={`Elapsed time at each 5 km mat for an even-pace ${label}`}>
           {CHECKPOINTS.map((km, i) => (
             <li key={km} className={i === CHECKPOINTS.length - 1 ? 'is-finish' : undefined}>
-              <span>{i === CHECKPOINTS.length - 1 ? 'Finish' : `${km}K`}{units === 'mi' && i < CHECKPOINTS.length - 1 ? <small>{(km / KM_PER_MILE).toFixed(1)} mi</small> : null}</span>
+              <span>{i === CHECKPOINTS.length - 1 ? 'Finish' : `${km}K`}{units === 'mi' ? <small>{(km / KM_PER_MILE).toFixed(1)} mi</small> : null}</span>
               <b>{elapsed(even[i])}</b>
             </li>
           ))}
@@ -126,26 +121,33 @@ export function GoalPaceBody({ goal, observed, bunching }: { goal: number; obser
         </section>
       ) : null}
 
-      {observed && gapText ? (
-        <section className="tool-panel goal-pace-gap" aria-labelledby="goal-pace-gap-title">
-          <EvidenceTag kind="data" />
-          <h2 className="tool-panel-title" id="goal-pace-gap-title">Finishes just under {label} didn’t run even either</h2>
-          <p className="tool-panel-meta">{gapShort}</p>
+      {/* One chart for what finishes just under the goal ran: held pace against a sustained slowdown, both against even
+          pace. The median of every finish is the middle column of its Values, so no second, near-identical chart. */}
+      {observed?.held && observed.slow && observed.sd != null ? (
+        <section className="tool-panel goal-pace-slowdown" aria-labelledby="goal-pace-slowdown-title">
+          {bunching ? null : <EvidenceTag kind="data" />}
+          <h2 className="tool-nugget-text" id="goal-pace-slowdown-title">Finishes just under {label} didn’t run even either: <em>{pct(observed.sd)}</em> had a <SlowdownTerm />.</h2>
+          {groupShort ? <p className="tool-panel-meta">{groupShort}</p> : null}
           <MatLines units={units} zero={`Even pace for ${label}`}
-            lines={[{ key: 'median', label: 'Median', tone: 'signal', gaps: CHECKPOINTS.map((_, i) => observed.e50[i] - even[i]) }]}
-            label={`The median elapsed time of ${count(observed.n)} finishes from ${span} against even pace for ${label} at every mat. ${gapText}`} />
-          <Values id="goal-pace-observed" caption={`Elapsed time at each mat: even pace for ${label}, and the median and middle half of ${count(observed.n)} finishes from ${span}`} count={CHECKPOINTS.length}>
+            lines={[
+              { key: 'held', label: 'Held pace', tone: 'ink', gaps: CHECKPOINTS.map((_, i) => observed.held!.e50[i] - even[i]) },
+              { key: 'slow', label: 'Sustained slowdown', tone: 'signal', gaps: CHECKPOINTS.map((_, i) => observed.slow!.e50[i] - even[i]) },
+            ]}
+            label={`Median elapsed time against even pace for ${label} at every mat: ${count(observed.held.n)} finishes from ${span} that held pace and ${count(observed.slow.n)} with a sustained slowdown. ${groupText ?? ''} ${gapText ?? ''}`} />
+          <Values id="goal-pace-groups" caption={`Elapsed time at each mat: even pace for ${label}, and the median of ${count(observed.n)} finishes from ${span}, of those that held pace and of those with a sustained slowdown`} count={CHECKPOINTS.length}>
             <table className="table">
-              <thead><tr><th scope="col">Mat</th><th scope="col">Even pace</th><th scope="col">Median</th><th scope="col">Middle half</th></tr></thead>
+              <thead><tr><th scope="col">Mat</th><th scope="col">Even pace</th><th scope="col">Median</th><th scope="col">Held pace</th><th scope="col">Sustained slowdown</th></tr></thead>
               <tbody>
                 {CHECKPOINTS.map((km, i) => (
                   <tr key={km}>
                     <th scope="row">{i === CHECKPOINTS.length - 1 ? 'Finish' : `${km}K`}</th>
                     <td>{elapsed(even[i])}</td>
                     <td>{elapsed(observed.e50[i])}</td>
-                    <td>{observed.e25 && observed.e75 ? <>{elapsed(observed.e25[i])}<span aria-hidden="true">–</span><span className="sr-only"> to </span>{elapsed(observed.e75[i])}</> : '—'}</td>
+                    <td>{elapsed(observed.held!.e50[i])}</td>
+                    <td>{elapsed(observed.slow!.e50[i])}</td>
                   </tr>
                 ))}
+                <tr><th scope="row">Finishes</th><td></td><td>{count(observed.n)}</td><td>{count(observed.held.n)}</td><td>{count(observed.slow.n)}</td></tr>
               </tbody>
             </table>
           </Values>
@@ -154,34 +156,6 @@ export function GoalPaceBody({ goal, observed, bunching }: { goal: number; obser
         <section className="tool-panel">
           <EvidenceTag kind="data" />
           <p className="tool-state">The observed mat times are not available in this build. The even-pace splits still apply.</p>
-        </section>
-      ) : null}
-
-      {observed?.held && observed.slow && observed.sd != null ? (
-        <section className="tool-panel goal-pace-slowdown" aria-labelledby="goal-pace-slowdown-title">
-          <p className="tool-nugget-text" id="goal-pace-slowdown-title"><em>{pct(observed.sd)}</em> of these finishes had a <SlowdownTerm />.</p>
-          {groupShort ? <p className="tool-panel-meta">{groupShort}</p> : null}
-          <MatLines units={units} zero={`Even pace for ${label}`}
-            lines={[
-              { key: 'held', label: 'Held pace', tone: 'ink', gaps: CHECKPOINTS.map((_, i) => observed.held!.e50[i] - even[i]) },
-              { key: 'slow', label: 'Sustained slowdown', tone: 'signal', gaps: CHECKPOINTS.map((_, i) => observed.slow!.e50[i] - even[i]) },
-            ]}
-            label={`Median elapsed time against even pace for ${label} at every mat: ${count(observed.held.n)} finishes from ${span} that held pace and ${count(observed.slow.n)} with a sustained slowdown. ${groupText ?? ''}`} />
-          <Values id="goal-pace-groups" caption={`Median elapsed time at each mat for finishes from ${span} that held pace and that had a sustained slowdown`} count={CHECKPOINTS.length}>
-            <table className="table">
-              <thead><tr><th scope="col">Mat</th><th scope="col">Held pace</th><th scope="col">Sustained slowdown</th></tr></thead>
-              <tbody>
-                {CHECKPOINTS.map((km, i) => (
-                  <tr key={km}>
-                    <th scope="row">{i === CHECKPOINTS.length - 1 ? 'Finish' : `${km}K`}</th>
-                    <td>{elapsed(observed.held!.e50[i])}</td>
-                    <td>{elapsed(observed.slow!.e50[i])}</td>
-                  </tr>
-                ))}
-                <tr><th scope="row">Finishes</th><td>{count(observed.held.n)}</td><td>{count(observed.slow.n)}</td></tr>
-              </tbody>
-            </table>
-          </Values>
         </section>
       ) : null}
 
