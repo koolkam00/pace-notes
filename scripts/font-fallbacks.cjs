@@ -30,8 +30,8 @@ const ROOT = path.join(__dirname, '..');
 const OUT = path.join(ROOT, 'out');
 const SITE = 'https://splithappens.run';
 // The pages carry the redesign's type: Fraunces at 440 with its italic accent in every reading H1 (round numbers, starting
-// pace), Bricolage in the figures, Inter everywhere.
-const PAGES = ['/', '/stories', '/stories/pacing-types', '/stories/final-kick', '/stories/round-numbers', '/tools', '/tools/predictor', '/tools/pace-band', '/analyses', '/analyses/pacing-pattern', '/analyses/starting-pace', '/courses', '/runners', '/about'];
+// pace), Bricolage in the figures, Inter everywhere, and JetBrains Mono only in /methodology's file paths.
+const PAGES = ['/', '/stories', '/stories/pacing-types', '/stories/final-kick', '/stories/round-numbers', '/tools', '/tools/predictor', '/tools/pace-band', '/analyses', '/analyses/pacing-pattern', '/analyses/starting-pace', '/courses', '/runners', '/about', '/methodology'];
 const FONTS = path.join(ROOT, 'public/fonts');
 
 const WOFF2_TAGS = ['cmap', 'head', 'hhea', 'hmtx', 'maxp', 'name', 'OS/2', 'post', 'cvt ', 'fpgm', 'glyf', 'loca', 'prep', 'CFF ', 'VORG', 'EBDT', 'EBLC', 'gasp', 'hdmx', 'kern', 'LTSH', 'PCLT', 'VDMX', 'vhea', 'vmtx', 'BASE', 'GDEF', 'GPOS', 'GSUB', 'EBSC', 'JSTF', 'MATH', 'CBDT', 'CBLC', 'COLR', 'CPAL', 'SVG ', 'sbix', 'acnt', 'avar', 'bdat', 'bloc', 'bsln', 'cvar', 'fdsc', 'feat', 'fmtx', 'fvar', 'gvar', 'hsty', 'just', 'lcar', 'mort', 'morx', 'opbd', 'prop', 'trak', 'Zapf', 'Silf', 'Glat', 'Gloc', 'Feat', 'Sill'];
@@ -81,9 +81,10 @@ const LOCAL = {
 /**
  * The fallback faces. `weight` and `style` are the face's descriptors, so each face stands in for the runs of text its web
  * font sets at those weights and styles, and is measured on them against `measure`. Fraunces (opsz and wght only, no
- * SOFT or WONK) is set at 440 in the redesign's type, matched against the regular serif from 20 px up, and at
- * 600–700 in the legacy pages: titles at 680 get their own match, headings at 600–640 another, both at their display
- * optical sizes (`minOpsz`). Bricolage Grotesque only sets figures: 660 in the redesign, 700–780 in the legacy pages. The Android faces are single regular faces (Android
+ * SOFT or WONK) is set at 440 in the redesign's type, matched against the regular serif from 20 px up; headings at
+ * 530–659 keep a bold match at their display optical sizes (`minOpsz`). Since the integration (October 18, 2026) no page
+ * sets Fraunces at 660 or more, a bold Fraunces italic or a bold JetBrains Mono, so those faces were dropped with the
+ * /design-system gallery that last set them. Bricolage Grotesque only sets figures, at 660. The Android faces are single regular faces (Android
  * draws them bold the way it draws any bold system text), so they are measured on every run against the regular
  * Liberation font and scaled by the capsize widths in `scale`.
  *
@@ -97,15 +98,12 @@ const LOCAL = {
 const FACES = [
   { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '100 529', minOpsz: 20, local: LOCAL.serif, measure: 'Liberation Serif', file: 'fraunces-latin-opsz-normal.woff2' },
   { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '530 659', minOpsz: 96, local: LOCAL.serifBold, measure: 'Liberation Serif Bold', file: 'fraunces-latin-opsz-normal.woff2' },
-  { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '660 900', minOpsz: 96, local: LOCAL.serifBold, measure: 'Liberation Serif Bold', file: 'fraunces-latin-opsz-normal.woff2' },
   { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '100 529', style: 'italic', minOpsz: 20, narrow: 0.965, local: LOCAL.serifItalic, measure: 'Liberation Serif Italic', file: 'fraunces-latin-opsz-italic.woff2' },
-  { family: 'Fraunces Fallback', web: 'Fraunces Variable', weight: '530 900', style: 'italic', minOpsz: 96, narrow: 0.965, local: LOCAL.serifBoldItalic, measure: 'Liberation Serif Bold Italic', file: 'fraunces-latin-opsz-italic.woff2' },
   { family: 'Fraunces Fallback Android', web: 'Fraunces Variable', minOpsz: 96, local: LOCAL.notoSerif, measure: 'Liberation Serif', scale: ['timesNewRoman', 'notoSerif'], file: 'fraunces-latin-opsz-normal.woff2' },
   { family: 'Inter Fallback', web: 'Inter Variable', weight: '100 599', local: LOCAL.sans, measure: 'Liberation Sans', file: 'inter-latin-wght-normal.woff2' },
   { family: 'Inter Fallback', web: 'Inter Variable', weight: '600 900', local: LOCAL.sansBold, measure: 'Liberation Sans Bold', file: 'inter-latin-wght-normal.woff2' },
   { family: 'Inter Fallback Android', web: 'Inter Variable', local: LOCAL.roboto, measure: 'Liberation Sans', scale: ['arial', 'roboto'], file: 'inter-latin-wght-normal.woff2' },
   { family: 'JetBrains Mono Fallback', web: 'JetBrains Mono Variable', weight: '100 599', local: LOCAL.mono, measure: 'Liberation Mono', file: 'jetbrains-mono-latin-wght-normal.woff2' },
-  { family: 'JetBrains Mono Fallback', web: 'JetBrains Mono Variable', weight: '600 900', local: LOCAL.monoBold, measure: 'Liberation Mono Bold', file: 'jetbrains-mono-latin-wght-normal.woff2' },
   { family: 'Bricolage Grotesque Fallback', web: 'Bricolage Grotesque Variable', weight: '100 900', local: LOCAL.sansBold, measure: 'Liberation Sans Bold', file: 'bricolage-grotesque-latin-wght-normal.woff2' },
 ];
 
@@ -163,12 +161,16 @@ async function measure() {
       const tab = await context.newPage();
       await tab.goto(SITE + page, { waitUntil: 'load' });
       await tab.addStyleTag({ content: css });
-      const missing = await tab.evaluate(async (names) => {
+      // Load every web face the fallbacks stand in for, too: a face used only in a closed fold (the file paths in
+      // /methodology's downloads) is not fetched until the fold opens, and the probe would measure the browser default.
+      const webs = FACES.map((face) => `${face.style || 'normal'} ${face.weight ? face.weight.split(' ')[0] : 400} 16px "${face.web}"`);
+      const missing = await tab.evaluate(async ([names, fonts]) => {
         await document.fonts.ready;
+        await Promise.all(fonts.map((font) => document.fonts.load(font)));
         const absent = [];
         for (const name of names) if (!(await document.fonts.load(`16px "Measure ${name}"`)).length) absent.push(name);
         return absent;
-      }, measured);
+      }, [measured, webs]);
       if (missing.length) throw new Error(`Install the Liberation fonts: ${missing.join(', ')} not found`);
       const pageTotals = await tab.evaluate(measurePage, FACES);
       pageTotals.forEach(([web, fallback], i) => { totals[i][0] += web; totals[i][1] += fallback; });
