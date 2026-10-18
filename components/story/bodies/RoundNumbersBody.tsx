@@ -44,7 +44,8 @@ export default function RoundNumbersBody() {
     { text: sentenceOf(busiest) },
     { text: 'The line is a smooth curve: where finishes would fall if no minute on the clock were special.' },
     { text: sentenceOf(marksNugget) },
-    { text: top.guard ? `Against the curve, the tallest tower is the minute before *${top.values.mark}*: ${Number(top.values.ratio).toFixed(2)} times what it expects.` : `Against the curve, the minute before ${top.values.mark}.` },
+    // The readout beside the step gives the tower's ratio, so the step names the tower only.
+    { text: top.guard ? `Against the curve, the tallest tower is the minute before *${top.values.mark}*.` : `Against the curve, the minute before ${top.values.mark}.` },
   ];
 
   const bubbleMark = String(rescue.values.mark);

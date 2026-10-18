@@ -7,6 +7,8 @@ import { getExtensions } from '@/lib/extension-data';
 import { getInsightsManifest } from '@/lib/insights-server';
 import { getPersonalSummary } from '@/lib/personalized-data';
 import { getWeatherEvidence } from '@/lib/weather-data';
+import { TEN_ANALYSES } from '@/lib/ten-analyses';
+import { countWord } from '@/lib/nuggets/format';
 import { Part, Topic, day, n } from './shared';
 
 /** Part 1: what the data is, where it comes from and which records are analyzed. The files are under Downloads (Part 5). */
@@ -47,7 +49,7 @@ export default function MethodsData() {
     </Topic>
 
     <Topic id="coverage" title="Coverage">
-      {personalized && <p>The ten analyses use {n(personalized.n)} finishes with a complete set of usable splits, across {personalized.cities.filter((c) => c.city !== 'All courses').length} cities. A finish is one performance, so a runner can appear more than once. Times at successive checkpoints give the average pace for each section. Records also include age, recorded gender and candidate links between a runner’s races. Weather estimates and course profiles add context where they exist.</p>}
+      {personalized && <p>The {countWord(TEN_ANALYSES.length)} ranked analyses use {n(personalized.n)} finishes with a complete set of usable splits, across {personalized.cities.filter((c) => c.city !== 'All courses').length} cities. A finish is one performance, so a runner can appear more than once. Times at successive checkpoints give the average pace for each section. Records also include age, recorded gender and candidate links between a runner’s races. Weather estimates and course profiles add context where they exist.</p>}
       <p>Individual tables can have smaller samples because they need more fields. History, exact-age and weather comparisons use subsets.</p>
       <DataCoverage />
     </Topic>
@@ -60,7 +62,7 @@ export default function MethodsData() {
     <Topic id="copy-editions" title="Copy editions">
       {copies.length === 0 ? <p>No edition in the current release repeats another edition’s field.</p> : <>
         {copies.map((copy) => <p key={`${copy.city}-${copy.year}`}>{copy.city} {copy.year}’s records largely repeat the {copy.city} {copy.duplicate_of} field: {n(copy.identical_nine_time_twins)} of its {n(copy.eligible_removed)} finishes share all nine checkpoint times with a {copy.duplicate_of} finish.</p>)}
-        <p>The stories, the course pages and the runner tools leave {copies.length > 1 ? 'these editions' : 'this edition'} out. Course pages count {copies.length > 1 ? 'them' : 'it'} only in the pooled pace profile. The ten analyses and the sustained-slowdown study still include {copies.length > 1 ? 'them' : 'it'}. Find a runner shows {copies.length > 1 ? 'their' : 'its'} records as recorded times only, without pacing, peer or weather comparisons.</p>
+        <p>The stories, the course pages and the runner tools leave {copies.length > 1 ? 'these editions' : 'this edition'} out. Course pages count {copies.length > 1 ? 'them' : 'it'} only in the pooled pace profile. The {countWord(TEN_ANALYSES.length)} ranked analyses and the sustained-slowdown study still include {copies.length > 1 ? 'them' : 'it'}. Find a runner shows {copies.length > 1 ? 'their' : 'its'} records as recorded times only, without pacing, peer or weather comparisons.</p>
       </>}
     </Topic>
 

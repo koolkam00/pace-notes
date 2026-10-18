@@ -71,15 +71,15 @@ export default function ReplayBody() {
         <Beat id="packs" track="chapter-2" className="rr-packs" label={`Together at ${matLabel(Number(packs.values.checkpoint_km) || mats[0])}`} title={packs}
           dek={`${packEdition!.city} ${packEdition!.year}: ${count(Number(packs.values.n))} finishes passed ${matLabel(Number(packs.values.checkpoint_km))} together.`}>
           <LineProfile x={mats} xDomain={[mats[0], MARATHON_KM]} yDomain={[-reach, reach]}
+            // The band is named on itself, inside its wider lower half near the finish, clear of the median's label on the
+            // upper right (the H2 gives its width at the finish), so it needs no key.
             layers={[{ id: 'pack', label: 'The pack', series: [{ id: 'median', values: rows.map(() => 0) }], band: { lo, hi },
-              // The band's whole width at the finish, the number the H2 names, rather than two separately rounded ends.
-              labels: [{ x: mats[lastIndex], y: lo[lastIndex], text: `${Math.round(Number(packs.values.window_min))} min apart`, tone: 'ink', priority: 3, prefer: 'left' }] }]}
+              labels: [{ x: mats[Math.max(1, lastIndex - 1)], y: lo[Math.max(1, lastIndex - 1)] * 0.35, text: 'Middle 80%', tone: 'ink', priority: 3, prefer: 'below' }] }]}
             refs={[{ value: 0, label: 'Their median' }]}
             xTicks={mats.filter((_, i) => i === 0 || i === lastIndex || mats[i] % 10 === 0).map((km) => ({ value: km, label: matLabel(km) }))}
             // The scale reads on the left, at 10K, where the pack is still one line; the finish end carries the width.
             yTicks={[{ value: reach, label: `${reach} min ahead` }, { value: -reach, label: `${reach} min behind` }]} gridSide="left"
             label={`Finishes that passed ${matLabel(mats[0])} together in ${packEdition!.city} ${packEdition!.year}: the middle 80% spread from ${matLabel(mats[0])} to ${Math.round(Number(packs.values.window_min))} minutes apart at the finish.`}
-            keys={[{ label: 'The middle 80% of the pack', mark: 'band' }]}
             values={(
               <Values id="rr-pack" caption={`The pack in ${packEdition!.city} ${packEdition!.year}, mat by mat, against its median`}
                 columns={[{ key: 'm', label: 'Mat' }, { key: 's', label: 'Middle 80% apart' }, { key: 'a', label: 'Its front' }, { key: 'b', label: 'Its back' }]}
@@ -89,15 +89,16 @@ export default function ReplayBody() {
       ) : null}
 
       {comp.length > 2 ? (
-        <Beat id="emptying" track="chapter-3" label="Who’s left" title={left}
-          dek={`${leftRace}, hour by hour: how much of the slower pace on course was who was still out there, rather than runners slowing.`}>
+        <Beat id="emptying" track="chapter-3" label="Who’s left" title={left}>
           <LineProfile x={hours} xDomain={[h0, h1]} yDomain={[0, 100]}
             layers={[{ id: 'left', label: 'Who’s left', series: [{ id: 'share', values: share }],
               points: at >= 0 ? [{ x: hours[at], y: share[at], kind: 'reading' }] : [],
               labels: at >= 0 ? [{ x: hours[at], y: share[at], text: `${hm(Number(left.values.clock_s) / 60)} · ${pct(Number(left.values.share))}`, tone: 'signal', priority: 3, prefer: 'above' }] : [] }]}
             // Half is the level "mostly" has to clear: a gridline, labelled on the right, where the line has cleared it.
+            // The top gridline names the scale and the axis names the race, so the beat needs no dek.
             xTicks={Array.from({ length: h1 - h0 + 1 }, (_, k) => ({ value: h0 + k, label: `${h0 + k}:00` }))}
-            yTicks={[{ value: 50, label: 'Half' }, { value: 100, label: '100%' }]}
+            yTicks={[{ value: 50, label: 'Half' }, { value: 100, label: '100% from who’s left' }]}
+            axisTitle={{ start: `${leftRace}, race clock` }}
             label={`${leftRace}, hour by hour: the share of the field's slowing on course that reflects who was still out there, ${pct(Number(left.values.share))} at ${hm(Number(left.values.clock_s) / 60)}.`}
             values={(
               <Values id="rr-left" caption={`${leftRace}: the field on course, hour by hour`}

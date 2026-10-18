@@ -18,9 +18,8 @@
 .story-beat .beat-head { gap: var(--s-3); margin-bottom: var(--s-5); }
 .story-beat-title { margin: 0; max-width: 22ch; }
 .story-beat-dek { margin: 0; max-width: 34rem; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+/* Every figure in a story takes the same measure, so their edges line up down the page. */
 .story-beat > .viz-frame, .story-beat > .values { max-width: var(--measure-figure); }
-/* A few columns keep a column's width, so four bars never drift apart across a wide screen. */
-.story-beat > .viz-frame.columns { max-width: var(--measure); }
 .story-beat > .values { margin-top: var(--s-4); }
 .beat-alias { display: block; position: relative; top: calc(-1 * var(--header-h)); height: 0; }
 
@@ -41,6 +40,9 @@
 .type-legend li { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; margin: 0; font-size: var(--t-small); line-height: 1.25; color: var(--ink-2); }
 .type-legend li span { min-width: 0; }
 .type-legend li b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+/* A ruler whose marks carry their own values draws no tick row under them. */
+.viz-frame.ruler.is-labelled .viz-axis { display: none; }
 
 /* ---------- The replay band ---------- */
 .story-replay { margin-inline: calc(-1 * var(--gutter)); padding: var(--s-5) var(--gutter); background: var(--night); color: var(--night-ink); }
@@ -65,6 +67,12 @@
 
 /* The waffle sits on the column's left edge like every other figure on a story, not centred in it. */
 .story-beat .viz-frame.waffle .viz-plot { margin-inline: 0; }
+
+/* 100 finishes on a phone: the grid takes the column's width (up to 300 px), its dots growing with it. */
+@media (max-width: 899.98px) {
+  .story-beat .dot-grid-dots { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: clamp(6px, 2.6vw, 10px); width: 100%; max-width: 300px; }
+  .story-beat .dot-grid-dots li { width: 100%; height: auto; aspect-ratio: 1; }
+}
 
 /* The 100 dots' key: lit and unlit, named once. */
 .dot-grid-key { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: var(--t-small); font-weight: 400; color: var(--ink-2); }
@@ -143,6 +151,9 @@
 @supports (background: color-mix(in oklab, red 50%, blue)) {
   [data-theme="dark"] .which-blocks li, [data-theme="dark"] .which-key i { background: color-mix(in oklab, var(--bg, var(--paper-sunk)) var(--mix, 0%), var(--paper-sunk)); color: var(--ink); }
 }
+/* Dark mode: every block and key swatch keeps a hairline edge, so an even section (the ramp's midpoint) still reads as
+   a block rather than dissolving into the page. */
+[data-theme="dark"] .which-blocks li, [data-theme="dark"] .which-key i { box-shadow: inset 0 0 0 1px var(--rule-strong); }
 
 /* ---------- Name that course ---------- */
 .ntc { display: grid; gap: var(--s-4); max-width: 34rem; }
@@ -152,9 +163,12 @@
 .ntc-line { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
 /* The course across its editions: quiet, under the edition's own line. */
 .ntc-own { fill: none; stroke: var(--mark-quiet); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
-.ntc-axis { display: flex; justify-content: space-between; font-size: 12px; font-weight: 500; color: var(--ink-3); }
+/* The round's year: a plain label over the plot (the H2 asks the question). */
+.ntc-year { margin: 0 0 var(--s-2); font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
+/* The mats under the plot, at their distance along the course (the ends turned inward). */
+.ntc-axis { position: relative; height: 18px; font-size: 12px; font-weight: 500; line-height: 18px; color: var(--ink-3); }
+.ntc-axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
 .ntc-caption { margin-top: var(--s-2); font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
-.ntc-q { margin: 0; font-family: var(--serif); font-size: var(--t-sentence); line-height: 1.25; color: var(--ink); }
 .ntc-options { display: flex; flex-wrap: wrap; gap: 8px; }
 /* Answered: the right course ink-filled with a check; a wrong pick outlined and struck through; the rest faded. */
 .ntc-option.is-answer, .ntc-option.is-answer[aria-pressed='true'] { gap: 6px; background: var(--ink); border-color: var(--ink); color: var(--paper); }
@@ -164,13 +178,20 @@
 .ntc-verdict { min-height: 1.5em; margin: 0; font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); }
 .ntc-next { justify-self: start; }
 
+/* ---------- Pass or be passed (#gap) ----------
+   The H2's pair (the far 30K band level with a minute back at 40K, joined at that level) and the readout's 40K row hold
+   while the needle is on the H2's band; scrubbed away, the readout and the needle read the 30K line alone. */
+.pl-pair .scrub.is-away .readout-side, .pl-pair .scrub.is-away .is-link, .pl-pair .scrub.is-away .is-compare { visibility: hidden; }
+
 /* ---------- Round numbers: the towers' steps ----------
    Step 0: the silhouette alone. 1: the smooth curve. 2: the minutes before each round mark. 3: against the curve. */
 .towers-scrolly[data-step='0'] .viz-frame .l-ink2, .towers-scrolly[data-step='0'] .viz-frame .histo-tower { opacity: 0; }
 .towers-scrolly[data-step='1'] .viz-frame .histo-tower { opacity: 0; }
 .towers-scrolly .viz-frame .l-ink2, .towers-scrolly .viz-frame .histo-tower { transition: opacity var(--d-step) var(--ease-out); }
-/* The key names a layer only once its step draws it (Each minute; the minute before a round mark; the smooth curve). */
-.towers-scrolly[data-step='0'] .viz-key li:nth-child(n+2), .towers-scrolly[data-step='1'] .viz-key li:nth-child(2) { opacity: 0; }
+/* The key appears with the second layer and names a layer only once its step draws it (each minute; the minute before a
+   round mark; the smooth curve): a lone silhouette needs no key. */
+.towers-scrolly[data-step='0'] .viz-key, .towers-scrolly[data-step='1'] .viz-key li:nth-child(2) { opacity: 0; }
+.towers-scrolly .viz-key { transition: opacity var(--d-step) var(--ease-out); }
 .towers-scrolly .viz-key li { transition: opacity var(--d-step) var(--ease-out); }
 
 /* ---------- Phones at 200% zoom ---------- */
@@ -204,6 +225,8 @@
   .story-beat .dot-grid-dots li { width: 16px; height: 16px; }
   .story-beat .dot-grid-caption { margin: 0; }
   .story-beat .dot-grid-key { flex-direction: column; gap: var(--s-3); }
+  /* The towers' chart stands at the top of its pinned column, so its first screen shows the chart, not a gap. */
+  .towers-scrolly .scrolly-graphic { align-items: flex-start; }
 }
 
 /* Course fingerprints (#fingerprint): every course a faint line, the typical course in ink, each slowest 5K a dot. */
@@ -223,6 +246,3 @@
 .place-shift .ps-end b { display: block; font-size: 1.0625rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
 .place-shift .ps-end.is-right { text-align: right; }
 
-/* The reading's six types: the evenest, the one the figure counts, carries its share in signal ink. */
-.type-legend li.is-reading { color: var(--ink); font-weight: 600; }
-.type-legend li.is-reading b { color: var(--signal-ink); }

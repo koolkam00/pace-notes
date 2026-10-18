@@ -69,7 +69,7 @@ export const PAGE_NUGGET: Readonly<Record<string, NuggetId>> = {
   '/stories/race-replay': 'replay.first',
   '/analyses/starting-pace': 'kick.bank',
   '/analyses/downhill-start': 'downhill.opening',
-  '/stories/pacing-types': 'types.metronome',
+  '/stories/pacing-types': 'shape.second20k',
   '/analyses/pacing-pattern': 'pattern.profile',
   '/analyses/checkpoint': 'checkpoint.under',
   '/stories/places': 'places.gap',

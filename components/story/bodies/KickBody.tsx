@@ -23,7 +23,7 @@ const minutes = (s: number) => `${Math.round(s / 60)} min`;
 export default function KickBody() {
   const data = readInsight<Kick>('kick.json');
   const story = STORIES.find((s) => s.slug === 'final-kick')!;
-  const twins = getNugget('kick.twins'), later = getNugget('kick.later'), bands = getNugget('kick.bands'), warning = getNugget('kick.warning'), stay = getNugget('kick.stay'), magnet = getNugget('kick.magnet');
+  const twins = getNugget('kick.twins'), bands = getNugget('kick.bands'), warning = getNugget('kick.warning'), stay = getNugget('kick.stay'), magnet = getNugget('kick.magnet');
 
   // Same pace through 20K: how many minutes later each pace band's finishes with a sustained slowdown came in, as one
   // line over the pace through 20K (a finish-time equivalent), the gap washed down to zero.
@@ -47,16 +47,18 @@ export default function KickBody() {
   return (
     <StoryPage path={PATH}>
       {/* The question under the H1 is the term's first use, so it carries the one link to its definition. The H1 says
-          it in words, the figure gives the minutes once, and the sentence says who is compared. */}
+          it in words and the figure gives the minutes once, with what they are under it. Who the comparison holds level
+          is /methodology's (How we know). */}
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={rich(story.dek, { term: true })}
         figure={twins.figure ? { ...twins.figure } : undefined} unitLine={twins.guard ? twins.key : undefined} fallback={!twins.guard}
-        sentence={<Say nugget={later} />} />
+        sentence={twins.guard ? undefined : <Say nugget={twins} />} />
 
       <Beat id="twins" track="chapter-1" label="Same pace, apart" title={bands}>
         <LineProfile x={cx} xDomain={[cost[0].lo_min, cost[cost.length - 1].lo_min + width]} yDomain={[0, gTop]}
           layers={[{ id: 'gap', label: 'Minutes later', series: [{ id: 'gap', values: gap }], band: { lo: gap.map(() => 0), hi: gap },
             labels: [
-              { x: cx[lowAt], y: gap[lowAt], text: `+${Math.round(gap[lowAt])} min`, tone: 'ink', priority: 3, prefer: 'above' },
+              // Lifted clear of the line as it climbs to the right, so the label stands above its point, not on the area.
+              { x: cx[lowAt], y: gap[lowAt], text: `+${Math.round(gap[lowAt])} min`, tone: 'ink', priority: 3, prefer: 'above', gap: 30 },
               { x: cx[highAt], y: gap[highAt], text: `+${Math.round(gap[highAt])} min`, tone: 'ink', priority: 3, prefer: 'above' },
             ] }]}
           xTicks={[180, 240, 300, 360].filter((v) => v > cost[0].lo_min && v < cost[cost.length - 1].lo_min + width).map((v) => ({ value: v, label: `${hm(v)} pace` }))}

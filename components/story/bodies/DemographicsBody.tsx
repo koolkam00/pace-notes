@@ -7,15 +7,15 @@ import { MARATHON_KM } from '@/lib/units';
 import LineProfile from '@/components/viz/LineProfile';
 import Values from '@/components/ui/Values';
 import PairBars from '../charts/PairBars';
-import { Beat, Say, StoryHero, StoryPage } from '../StoryPage';
+import { Beat, Say, StoryHero, StoryPage, rich } from '../StoryPage';
 
 const PATH = '/stories/who-holds-pace';
 const MATS = [0, 5, 10, 15, 20, 25, 30, 35, 40, MARATHON_KM];
 const MINUS = '−';
 const one = (v: number) => Math.round(v * 10) / 10;
 const slower = (v: number) => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(one(v)).toFixed(1)}%`;
-/** The gap between two shown values, from the shown (rounded) values, so the three on screen add up. */
-const apart = (a: number, b: number) => `${Math.abs(one(b) - one(a)).toFixed(1)} points apart`;
+/** The gap between two values, from the unrounded values (the data's gap, to one decimal). */
+const apart = (a: number, b: number) => `${Math.abs(b - a).toFixed(1)} points apart`;
 
 /**
  * Women and men, the who-holds-pace story (the redesign spec, section 7.9, under section 00): the reading (sustained slowdown, recorded
@@ -58,7 +58,10 @@ export default function DemographicsBody() {
     <StoryPage path={PATH}>
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek} fallback={!gender.guard}
         figures={[{ value: pct(w).replace('%', ''), unit: '%', sr: `${pct(w)} of recorded women's finishes`, key: 'Recorded women' }, { value: pct(m).replace('%', ''), unit: '%', sr: `${pct(m)} of recorded men's finishes`, key: 'Recorded men' }]}
-        sentence={<Say nugget={gender} term />} />
+        // The H1 says who held pace; the pair says how often each did not, and the key under it what is counted (the
+        // term's first use, so it carries the link). A failed guard shows the plain sentence instead.
+        unitLine={gender.guard ? rich('of finishes had a sustained slowdown, at the same finish times', { term: true }) : undefined}
+        sentence={gender.guard ? undefined : <Say nugget={gender} term />} />
 
       <Beat id="unmask" track="chapter-1" label="Pooled or matched" title={unmask}
         dek="How much slower the second 20K ran than the first.">

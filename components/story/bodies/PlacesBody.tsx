@@ -46,21 +46,25 @@ export default function PlacesBody() {
 
   return (
     <StoryPage path={PATH}>
+      {/* The H1 says the comparison (twice as often), so the reading is the figure and what it counts; with no figure,
+          the sentence stands in. */}
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
-        figure={gap.figure ? { ...gap.figure } : undefined} fallback={!gap.guard} sentence={<Say nugget={gap} />} />
+        figure={gap.figure ? { ...gap.figure } : undefined} unitLine={gap.figure ? gap.key : undefined} fallback={!gap.guard}
+        sentence={gap.figure ? undefined : <Say nugget={gap} />} />
 
-      <Beat id="gap" track="chapter-1" label="How far back" title={coin}>
+      <Beat id="gap" track="chapter-1" label="How far back" title={coin} className={coin.guard ? 'pl-pair' : undefined}>
         <LineProfile x={gx} xDomain={span} yDomain={[0, 0.55]}
-          // The H2's equality drawn: the 30K band (signal, under the needle) level with a minute back at 40K (ringed),
-          // joined at that level. The 30K line is the subject in ink; the 40K line is the quiet comparison.
+          // The H2's equality drawn: the 30K band (signal, under the needle) level with a minute back at 40K (a small ink
+          // dot), joined at that level. The 30K line is the subject in ink; the 40K line is the quiet comparison. Once
+          // the needle leaves the H2's band, the pair, its connector and the 40K row of the readout step back (story.css),
+          // so the readout and the marks never describe two different comparisons.
           layers={[{ id: 'gap', label: 'Crossed first', series: [{ id: '40', values: g40, tone: 'quiet' }, { id: '30', values: r30.map((r) => r.share) }],
-            points: coin.guard ? [{ x: gx[minuteBand], y: g40[minuteBand], kind: 'best' }, { x: gx[farBand], y: r30[farBand].share, kind: 'reading' }] : [],
+            points: coin.guard ? [{ x: gx[minuteBand], y: g40[minuteBand], kind: 'compare' }, { x: gx[farBand], y: r30[farBand].share, kind: 'reading' }] : [],
             links: coin.guard ? [{ x0: gx[minuteBand], x1: gx[farBand], y: g40[minuteBand] }] : [],
             labels: [
               // Both lines named in the open middle, clear of the needle at the far band.
               { x: gx[Math.min(gx.length - 1, 4)], y: r30[Math.min(gx.length - 1, 4)].share, text: 'From 30K', tone: 'ink', priority: 3, prefer: 'above' },
               { x: gx[Math.min(gx.length - 1, 6)], y: g40[Math.min(g40.length - 1, 6)], text: 'From 40K', tone: 'quiet', priority: 2, prefer: 'above' },
-              ...(coin.guard ? [{ x: gx[minuteBand], y: g40[minuteBand], text: `${ms(Number(coin.values.gap40_s))}–${ms(Number(coin.values.gap40_s) + step)} at 40K`, tone: 'ink' as const, priority: 3, prefer: 'above' as const }] : []),
             ] }]}
           refs={[{ value: 0.5, label: 'A coin flip', dashed: true }]}
           xTicks={[0, 60, 120, 180, 240, 300, 360, 420, 480, 540, 600].filter((s) => s <= span[1] && (span[1] <= 300 || s % 120 === 0)).map((s) => ({ value: s, label: s ? `${s / 60} min` : '0' }))}

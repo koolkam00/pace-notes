@@ -37,8 +37,8 @@ function rounds(data: Courses): Round[] {
 
 /**
  * Every course has a fingerprint (the redesign spec, section 7.10, under section 00): the reading (a course named from
- * its pacing shape alone, against chance in its sentence), then the shape of a race course by course, the game, and how steady the field ran on each
- * course. The weather beats moved to /stories/race-morning and the years to /finish-times#front; their old anchors hold
+ * its pacing shape alone, against chance on its ruler), then the shape of a race course by course, the game, and how
+ * steady the field ran on each course. The weather beats moved to /stories/race-morning and the years to /finish-times#front; their old anchors hold
  * a line that shows only when a link lands there. The matched-pace deck and the hills are cut (the course comparison
  * and hills analyses carry them).
  */
@@ -53,9 +53,10 @@ export default function CoursesBody() {
   const common = data.sections.indexOf(String(slowest.values.section));
   const typicalSlow = data.typical_curve.indexOf(Math.max(...data.typical_curve));
 
-  // How steady: the evenest type's share of finishes on each course with 10,000 or more finishes.
+  // How steady: the evenest type's share of finishes on each course with 10,000 or more finishes and three or more
+  // editions (the courses the H2's range spans); the strip and its Values hold the same courses.
   const even = evenestType(types.archetypes);
-  const big = types.courses.filter((c) => c.finishes >= 10000);
+  const big = types.courses.filter((c) => c.finishes >= 10000 && c.editions >= 3);
   const sLo = Math.floor(Math.min(...big.map((c) => c.shares[even])) * 10) / 10, sHi = Math.ceil(Math.max(...big.map((c) => c.shares[even])) * 10) / 10;
   const evenName = types.archetypes[even].name;
 
@@ -64,13 +65,16 @@ export default function CoursesBody() {
 
   return (
     <StoryPage path={PATH}>
+      {/* The figure and its key say the finding; the ruler sets it against chance, as a share (so the identification
+          set's course count never shows beside the shape cohort's). A failed guard shows the plain sentence instead. */}
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
-        figure={named.figure ? { ...named.figure } : undefined} fallback={!named.guard} sentence={<Say nugget={named} />}
-        instrument={Number.isFinite(Number(named.values.share)) ? (
-          <Ruler min={0} max={1} ticks={[0, 0.25, 0.5, 0.75, 1].map((v) => ({ value: v, label: pct(v) }))}
-            // The figure gives the share, so the ruler names its two marks: the shape against chance.
-            marks={[{ value: Number(named.values.share), kind: 'reading', label: 'By its shape' }, { value: Number(named.values.chance), kind: 'typical', label: 'By\u00a0chance' }]}
-            label={`Editions named from their pacing shape: ${pct(Number(named.values.share))}, against ${pct(Number(named.values.chance))} by chance.`} />
+        figure={named.figure ? { ...named.figure } : undefined} unitLine={named.guard ? named.key : undefined} fallback={!named.guard}
+        sentence={named.guard ? undefined : <Say nugget={named} />}
+        instrument={named.guard ? (
+          <Ruler min={0} max={1} ticks={[]} className="is-labelled"
+            // Both marks are named, the chance with its share (the figure gives the shape's), so no tick row.
+            marks={[{ value: Number(named.values.share), kind: 'reading', label: 'By its shape' }, { value: Number(named.values.chance), kind: 'compare', label: `By chance ${pct(Number(named.values.chance))}` }]}
+            label={`Editions named from their pacing shape: ${pct(Number(named.values.share))}, against about ${pct(Number(named.values.chance))} by chance.`} />
         ) : undefined} />
 
       <Beat id="fingerprint" track="chapter-1" label="The fingerprint" title={slowest}>
@@ -87,16 +91,17 @@ export default function CoursesBody() {
       </Beat>
 
       {game.length ? (
-        <Beat id="name" track="chapter-2" label="Name that course" title={<>Name that <em>course</em>.</>}>
-          <NameThatCourse rounds={game} shapes={shapes} sections={['Start', 'Finish']} />
+        <Beat id="name" track="chapter-2" label="Name that course" title={<>Which course ran <em>this shape</em>?</>}>
+          <NameThatCourse rounds={game} shapes={shapes} x={MID} length={42.195} labelledBy="name-title"
+            ticks={[0, 10, 20, 30, 42.195].map((km) => ({ km, label: km ? (km > 42 ? 'Finish' : matLabel(km)) : 'Start' }))} />
         </Beat>
       ) : null}
 
       <Beat id="steadiness" track="chapter-3" label="How steady" title={steady} aliases={['matched', 'hills']}>
-        <DotStrip items={big.map((c) => ({ id: c.city, label: c.city, value: c.shares[even], display: pct(c.shares[even]), detail: count(c.finishes), hollow: c.editions < 3 }))}
+        <DotStrip items={big.map((c) => ({ id: c.city, label: c.city, value: c.shares[even], display: pct(c.shares[even]), detail: count(c.finishes) }))}
           domain={[sLo, sHi]} ticks={Array.from({ length: Math.round((sHi - sLo) * 10) + 1 }, (_, i) => sLo + i / 10).map((v) => ({ value: v, label: pct(v) }))}
-          readoutKey="Finishes" keyLabels={{ filled: 'Three or more editions', hollow: 'Fewer editions' }}
-          label={`${evenName}s as a share of each course's finishes, ${big.length} courses with 10,000 or more finishes; tap a dot to read it`}
+          readoutKey="Finishes"
+          label={`${evenName}s as a share of each course's finishes, ${big.length} courses with 10,000 or more finishes and three or more editions; tap a dot to read it`}
           values={(
             <Values id="cs-steady" caption={`${evenName}s as a share of finishes, by course`}
               columns={[{ key: 'c', label: 'Course', text: true }, { key: 's', label: `${evenName}s` }, { key: 'n', label: 'Finishes' }]}

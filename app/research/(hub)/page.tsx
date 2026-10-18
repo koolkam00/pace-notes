@@ -13,7 +13,7 @@ import { countWord } from '@/lib/nuggets/format';
 
 export const metadata = pageMetadata({
   title: 'Marathon Pacing Research: Stories and Analyses | Pace Notes',
-  description: 'Data stories, ten marathon pacing analyses you can set to your course and time, and the sustained-slowdown study, all in one place.',
+  description: 'Data stories, marathon pacing analyses you can set to your course and time, and the sustained-slowdown study, all in one place.',
   path: '/research',
 });
 

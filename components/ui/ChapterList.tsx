@@ -12,7 +12,8 @@ import { CHAPTERS, chapterHref, chapterNumber, livePages, partLabel, type Chapte
  * Variants:
  * - compact: the menu and the chapters drawer. Marker, title and pages; no readings (a menu is for finding a page). The
  *   whole row links to the chapter's first page.
- * - full: the home guide. Adds "Chapter 01" and the chapter's reading with its key, when `readingOf` resolves it.
+ * - full: the home guide. Adds "Chapter 01" (where the marker is a distance, not the number) and the chapter's reading
+ *   with its key, when `readingOf` resolves it.
  * - expanded: the contents (/research). Each chapter is a heading with its reading, and its pages are the links under
  *   it, each with its own reading when it has one that is not the chapter's (so no figure shows twice and no page has
  *   two links on one screen). Rows carry their ids (chapter-01 …) for /research#chapter-06.
@@ -30,6 +31,8 @@ const pagesOf = (chapter: Chapter) => [...chapter.pages.map((p) => p.href), ...(
 const isNumber = (value: string) => /\d/.test(value);
 /** Spaces of any kind as one plain space, so a title held together with no-break spaces still matches its figure. */
 const flat = (text: string) => text.replace(/\s+/g, ' ');
+/** "Chapter 07" only where the marker is a race distance (START … FINISH); a badge that is the number says it already. */
+const ChapterNo = ({ chapter }: { chapter: Chapter }) => (String(chapter.marker) === chapterNumber(chapter) ? null : <span className="chapter-no t-kicker">Chapter {chapterNumber(chapter)}</span>);
 
 function Reading({ readingOf, id, fallbackKey, size }: { readingOf?: ReadingOf; id: Chapter['lead']; fallbackKey?: string; size: 's' | 'm' }) {
   const reading = readingOf?.(id);
@@ -80,7 +83,7 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
                 <div className="chapter-heading">
                   <span className="chapter-mark"><MarkerBadge marker={chapter.marker} /></span>
                   <h2 className="chapter-text">
-                    <span className="chapter-no t-kicker">Chapter {chapterNumber(chapter)}</span>
+                    <ChapterNo chapter={chapter} />
                     <span className="chapter-name">{chapter.title}</span>
                   </h2>
                   <Reading readingOf={readingOf} id={chapter.lead} fallbackKey={chapter.key} size="s" />
@@ -110,7 +113,7 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
                 <ChapterLink href={chapterHref(chapter)} match={pagesOf(chapter)} className="chapter-link">
                   <span className="chapter-mark"><MarkerBadge marker={chapter.marker} /></span>
                   <span className="chapter-text">
-                    {compact ? null : <span className="chapter-no t-kicker">Chapter {chapterNumber(chapter)}</span>}
+                    {compact ? null : <ChapterNo chapter={chapter} />}
                     <span className="chapter-name">{chapter.title}</span>
                     <span className="chapter-sub">{chapter.subtitle}</span>
                   </span>

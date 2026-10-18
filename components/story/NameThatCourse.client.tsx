@@ -5,17 +5,20 @@ import Arrow from '@/components/ui/Arrow';
 /**
  * Name that course (the redesign spec, section 7.10, #name): one edition's pacing shape against the typical race, three
  * courses to choose from, then the answer, with the course's own shape across its editions drawn over the edition's.
- * Every round is chosen on the server, from the data; the pick lives in component state only.
+ * The beat's H2 asks the question (`labelledBy` names it for the choices), so the round shows its year as a plain label.
+ * Sections sit at their distance along the course (`x`, km) with the fingerprint chart's mats as ticks, so a dip can be
+ * placed. Every round is chosen on the server, from the data; the pick lives in component state only.
  */
 export type Round = { year: number; answer: string; model: string; options: string[]; signature: number[] };
 
 const W = 320, H = 120, PAD = 14;
 
-function path(values: number[], lo: number, hi: number) {
-  return values.map((v, i) => `${i ? 'L' : 'M'}${(PAD + ((W - 2 * PAD) * i) / (values.length - 1)).toFixed(1)} ${(PAD + (H - 2 * PAD) * (1 - (v - lo) / (hi - lo || 1))).toFixed(1)}`).join('');
-}
-
-export default function NameThatCourse({ rounds, shapes, sections }: { rounds: Round[]; shapes: Record<string, number[]>; sections: string[] }) {
+export default function NameThatCourse({ rounds, shapes, x, length, ticks, labelledBy }: {
+  rounds: Round[]; shapes: Record<string, number[]>; x: number[]; length: number; ticks: { km: number; label: string }[]; labelledBy: string;
+}) {
+  const px = (km: number) => PAD + ((W - 2 * PAD) * km) / length;
+  const path = (values: number[], lo: number, hi: number) =>
+    values.map((v, i) => `${i ? 'L' : 'M'}${px(x[i]).toFixed(1)} ${(PAD + (H - 2 * PAD) * (1 - (v - lo) / (hi - lo || 1))).toFixed(1)}`).join('');
   const [i, setI] = useState(0);
   const [pick, setPick] = useState<string | null>(null);
   const round = rounds[i];
@@ -32,19 +35,24 @@ export default function NameThatCourse({ rounds, shapes, sections }: { rounds: R
   return (
     <div className="ntc">
       <figure className="viz viz-frame ntc-figure">
+        <p className="ntc-year">The {round.year} edition</p>
         <svg className="ntc-plot" viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
           aria-label={`One edition's pacing shape, section by section, against the typical course${answered && own ? `, with ${round.answer}'s own shape across its editions over it` : ''}`}>
           <line className="ntc-zero" x1={PAD} x2={W - PAD} y1={zero} y2={zero} />
           {answered && own ? <path className="ntc-own" d={path(own, lo, hi)} /> : null}
           <path className="ntc-line" d={path(round.signature, lo, hi)} />
         </svg>
-        <div className="ntc-axis" aria-hidden="true"><span>{sections[0]}</span><span>{sections[sections.length - 1]}</span></div>
+        <div className="ntc-axis" aria-hidden="true">
+          {ticks.map((t, k) => (
+            // The ends sit flush with the plot's edges; the mats between are centred on their distance.
+            <span key={t.label} style={k === 0 ? { left: 0, transform: 'none' } : k === ticks.length - 1 ? { right: 0, transform: 'none' } : { left: `${((px(t.km) / W) * 100).toFixed(2)}%` }}>{t.label}</span>
+          ))}
+        </div>
         <figcaption className="ntc-caption">
           {answered && own ? <>Grey: {round.answer} across its editions.</> : <>Above the dashed line: slower than the typical course in that section.</>}
         </figcaption>
       </figure>
-      <p className="ntc-q" id={`ntc-q-${i}`}>Which course ran this shape in {round.year}?</p>
-      <div className="ntc-options" role="group" aria-labelledby={`ntc-q-${i}`}>
+      <div className="ntc-options" role="group" aria-labelledby={labelledBy}>
         {round.options.map((city) => {
           const state = !answered ? '' : city === round.answer ? ' is-answer' : city === pick ? ' is-miss' : ' is-out';
           return (

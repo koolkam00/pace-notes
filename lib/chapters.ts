@@ -100,7 +100,7 @@ export const CHAPTERS: readonly Chapter[] = [
     lead: 'kick.bank', key: 'at the finish, after a first 5K over 10% fast' },
   { n: 3, id: 'chapter-03', part: 1, marker: '10K', title: 'The shape of a race', subtitle: 'Pacing types, your pattern',
     pages: [
-      story('pacing-types', 'Pacing types', 'types.metronome'),
+      story('pacing-types', 'Pacing types', 'shape.second20k'),
       analysis('pacing-pattern', 'Your pacing pattern', 'pattern.profile'),
     ],
     lead: 'shape.second20k', key: 'ran their second 20K faster than their first' },
@@ -114,7 +114,7 @@ export const CHAPTERS: readonly Chapter[] = [
   { n: 5, id: 'chapter-05', part: 1, marker: '30K', title: 'After 30K', subtitle: 'Sustained slowdown, where time goes',
     pages: [
       page('/slowdown', 'explainer', 'Sustained slowdown', 'Sustained slowdown', 'slowdown.onset', '/methodology#slowdown-method'),
-      story('final-kick', 'The second half', 'kick.twins'),
+      story('final-kick', 'After the slowdown', 'kick.twins'),
       analysis('where-time-is-gained', 'The minutes that matter', 'sections.split'),
     ],
     lead: 'slowdown.onset', key: 'of sustained slowdowns began at 30K or later' },

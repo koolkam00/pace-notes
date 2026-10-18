@@ -12,8 +12,9 @@
 .big-number.is-l { font-size: var(--t-figure-l); line-height: .9; letter-spacing: -.03em; }
 .big-number.is-m { font-size: var(--t-figure-m); line-height: .95; letter-spacing: -.025em; }
 .big-number.is-s { font-size: var(--t-figure-s); line-height: 1; letter-spacing: -.02em; }
-.big-number-unit { font-family: var(--sans); font-size: .36em; font-weight: 500; letter-spacing: 0; color: var(--ink-3); }
-.big-number-unit.is-words { font-family: var(--figure); font-size: .5em; font-weight: inherit; letter-spacing: -.02em; color: inherit; }
+/* A suffix never drops under 12 px, so "1.73×" or "20 min" in a small figure still reads as one. */
+.big-number-unit { font-family: var(--sans); font-size: max(.36em, 12px); font-weight: 500; letter-spacing: 0; color: var(--ink-3); }
+.big-number-unit.is-words { font-family: var(--figure); font-size: max(.5em, 12px); font-weight: inherit; letter-spacing: -.02em; color: inherit; }
 .big-number.is-night .big-number-unit.is-words { color: inherit; }
 .big-number.is-signal { color: var(--signal); }
 .big-number.is-quiet { color: var(--ink-3); }

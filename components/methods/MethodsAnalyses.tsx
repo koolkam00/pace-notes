@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { UnitLink as Link, UnitText } from '@/components/UnitsProvider';
 import { getAllFinisherContextStart } from '@/lib/all-finisher-context-server';
 import { getFinishTimeSummary, clockMinute } from '@/lib/finish-times-summary';
@@ -8,6 +9,7 @@ import { EXTRA_TITLES, QUESTIONS } from '@/lib/question-catalog';
 import { getExtraAnswer, getQuestions } from '@/lib/research-data';
 import { splitAnswer } from '@/lib/research-display';
 import { TEN_ANALYSES, analysisHref } from '@/lib/ten-analyses';
+import { countWord } from '@/lib/nuggets/format';
 import { WEATHER_QUESTIONS, weatherHref } from '@/lib/weather-catalog';
 import { getWeatherAnalyses, getWeatherEvidence } from '@/lib/weather-data';
 import { Detail, Topic, and, dataHref, day, n } from './shared';
@@ -29,7 +31,10 @@ function AnswerNotes({ question }: { question: Parameters<typeof splitAnswer>[0]
   return <p><strong>{question.available ? 'Reading the answer:' : 'Why it has no answer:'}</strong> {moved.join(' ')}</p>;
 }
 
-/** The ten analyses, fast starts, all-finisher views, finish times, weather questions and the research archive. */
+/** "Ten" as a sentence's first word. */
+const Capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/** The ranked analyses, fast starts, all-finisher views, finish times, weather questions and the research archive. */
 export default function MethodsAnalyses() {
   const personalized = getPersonalSummary();
   const allFinisher = getAllFinisherContextStart();
@@ -43,14 +48,33 @@ export default function MethodsAnalyses() {
   const downhill = readInsight<{ courses: { city: string; downhill_opening: boolean }[] }>('tools/course-goal.json').courses.filter((c) => c.downhill_opening).map((c) => c.city);
   const extras = Object.keys(EXTRA_TITLES).filter((id) => id !== 'smyth_htw').map((id) => getExtraAnswer(id));
   const confidence = weather.prespecified_gate.confidence;
+  // The counts the analyses' paragraph names, from the registries (never typed): the ranked analyses, those that run on
+  // the personalized engine by default (fast starts, courses and weather, the three the paragraph names, have their own
+  // views) and the guide's.
+  const ranked = TEN_ANALYSES.length;
+  const OWN_VIEWS = ['opening', 'courses', 'weather'];
+  const engine = PERSONAL_QUESTIONS.filter((q) => TEN_ANALYSES.some((a) => a.id === q.id) && !OWN_VIEWS.includes(q.id)).length;
+  // Paragraphs that three or more research questions repeat word for word (the timing screens, the record joins, the
+  // earlier benchmark and the like): said once, above the questions, which then keep only their own.
+  const folds = [...questions, ...extras];
+  const seen = new Map<string, number>();
+  for (const fold of folds) for (const paragraph of new Set(fold.method)) seen.set(paragraph, (seen.get(paragraph) ?? 0) + 1);
+  const sharedList = [...seen.entries()].filter(([, k]) => k >= 3).map(([paragraph]) => paragraph);
+  const shared = new Map(sharedList.map((paragraph, i) => [paragraph, i + 1]));
+  const own = (method: string[]) => method.filter((paragraph) => !shared.has(paragraph));
+  /** The shared rules a question follows, by number, each linked to its text. */
+  const ruleRefs = (method: string[]) => {
+    const numbers = [...new Set(method.map((paragraph) => shared.get(paragraph)).filter((k): k is number => k !== undefined))].sort((a, b) => a - b);
+    return numbers.length ? <p>Shared rules it follows: {numbers.map((k, i) => <Fragment key={k}>{i ? ', ' : ''}<a href={`#question-rule-${k}`}>{k}</a></Fragment>)}.</p> : null;
+  };
   return <>
-    <Topic id="personalized" title="The ten analyses">
+    <Topic id="personalized" title="The ranked analyses">
       {personalized && <p>The personalized analyses use {n(personalized.n)} eligible finishes, {n(personalized.age_n)} of them with an exact usable age. The usable earlier-benchmark cohort holds {n(personalized.history_n)} finishes. Combining course, age, recorded gender and earlier-time filters can make samples much smaller.</p>}
-      <p>The ten analyses are ranked by how useful they are to runners and how strong the evidence is. Seven use the personalized engine. Fast starts, course comparisons and race-day weather have their own views that need no earlier result, described below. The course and weather pages keep an earlier-result comparison as an option. Each page shows only the controls that apply to its question. The research guide keeps the twelve original personalized comparisons.</p>
+      <p>The {countWord(ranked)} ranked analyses are ordered by how useful they are to runners and how strong the evidence is. {Capital(countWord(engine))} use the personalized engine. Fast starts, course comparisons and race-day weather have their own views that need no earlier result, described below. The course and weather pages keep an earlier-result comparison as an option. Each page shows only the controls that apply to its question. The research guide keeps the {countWord(PERSONAL_QUESTIONS.length)} original personalized comparisons.</p>
       <h4>Earlier-result views and broadened filters</h4>
       <p>The earlier-result views (course comparison, race-day weather and where improving runners find time) need a usable recorded history. Leaving the earlier-time filter blank includes every eligible history group, but never finishes without an earlier benchmark. One race cannot show improvement. Improvement compares a finish with the fastest eligible finish in any strictly earlier year; the course and weather finish changes use the fastest eligible finish in the two strictly earlier calendar years.</p>
       <h4>Shared personalized-engine methods</h4>
-      <p>These rules apply to the seven personalized views, the optional earlier-result course and weather modes, and the research guide. The all-finisher views use the exact filters described under <a href="#all-finisher-context">All-finisher views</a>.</p>
+      <p>These rules apply to the {countWord(engine)} personalized views, the optional earlier-result course and weather modes, and the research guide. The all-finisher views use the exact filters described under <a href="#all-finisher-context">All-finisher views</a>.</p>
       {getPersonalMethod().map((method, index) => <p key={`personal-common-${index}`}>{method}</p>)}
       <p>A visitor’s previous marathon time is compared with bands of earlier recorded bests, not an exact last-race match. A custom target can be any whole minute; success counts and nearby-finish comparisons use that exact threshold. Pacing profiles and improvement breakdowns use the displayed 15-minute achieved-time band centred on the nearest preset, with the upper boundary excluded.</p>
       <p>When a narrow combination of filters has too few finishes, the engine keeps the selected course and tries broader age and gender groups before dropping an earlier-time restriction. Each answer names any filter it broadened. Cross-course comparisons use one common set of filters across all displayed courses. A missing comparison is never shown as zero or filled with an invented estimate. Age-group and course comparisons deliberately vary the dimension being compared. These fallback rules do not apply to the fast-start or all-finisher views.</p>
@@ -125,8 +149,14 @@ export default function MethodsAnalyses() {
       <p>Some answers are partial: a course comparison cannot isolate a course’s effect, and a route proxy cannot establish the hills used in an old edition. Group running and crowding need start and checkpoint clock times that this export does not have.</p>
       <p>Questions about improvement, repeat races, course familiarity and learning compare linked races, so they need a recorded race history. With one race, you can still explore opening pace and late slowing, or a race’s conditions and same-edition peers; those cannot show personal improvement or learning. Weather, course patterns, slow starts and opening consistency also include finishes without an earlier race. Their original recorded-history comparisons stay in the research archive, with their own definitions and a smaller cohort than the single-race views.</p>
       <p>Open a question for its definitions, comparison groups, sample rules, limits and data files. Chart samples can be smaller than the eligible cohort. Every question’s data is under <a href="#archive">Downloads</a>.</p>
+      {sharedList.length ? <>
+        <h4 id="question-rules">Shared rules</h4>
+        <p>Many questions follow the same rules. Each is written once here, and every question names the ones it follows.</p>
+        <ol className="methods-rules">{sharedList.map((paragraph, index) => <li key={index} id={`question-rule-${index + 1}`}>{paragraph}</li>)}</ol>
+      </> : null}
       {questions.map((question) => <Detail key={question.id} title={`${question.number}. ${question.title}`}>
-        {question.method.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+        {own(question.method).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+        {ruleRefs(question.method)}
         {question.dataset && <p><strong>Eligible sample:</strong> {n(question.dataset.n)} {question.dataset.unit || 'eligible finishes'}{question.dataset.scope && question.dataset.scope !== 'descriptive' ? ` (${question.dataset.scope})` : ''}.</p>}
         {question.detail && <p><strong>Keep in mind:</strong> {question.detail}</p>}
         <AnswerNotes question={question} />
@@ -136,7 +166,8 @@ export default function MethodsAnalyses() {
       <h4 id="supporting-analyses">Supporting analyses</h4>
       <p>These supporting analyses in the archive list their methods and data here.</p>
       {extras.map((extra) => <Detail key={extra.id} title={extra.title}>
-        {extra.method.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+        {own(extra.method).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+        {ruleRefs(extra.method)}
         {extra.dataset && <p><strong>Eligible sample:</strong> {n(extra.dataset.n)} {extra.dataset.unit || 'eligible finishes'}{extra.dataset.scope && extra.dataset.scope !== 'descriptive' ? ` (${extra.dataset.scope})` : ''}.</p>}
         {extra.detail && <p><strong>Keep in mind:</strong> {extra.detail}</p>}
         <AnswerNotes question={extra} />

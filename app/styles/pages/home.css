@@ -154,9 +154,8 @@
   .home-stakes .guess { grid-template-columns: minmax(0, 1fr) minmax(0, 23rem); grid-template-rows: repeat(5, auto) 1fr; column-gap: var(--s-8); align-items: start; padding: 48px; }
   .home-stakes .guess > * { grid-column: 1; }
   .home-stakes .guess > .guess-marks { grid-column: 2; grid-row: 1 / -1; }
-  /* Beside the question the 100 dots get a little more room: 16 px each, still one small square of the page. */
-  .home-stakes .guess-dots { max-width: 256px; gap: 10px; margin-top: 0; }
-  .home-stakes .guess-dot { max-width: 16px; }
+  /* Beside the question the 100 dots fill their column. */
+  .home-stakes .guess-dots { max-width: 320px; gap: 10px; margin-top: 0; }
 
   /* The chapters: the heading holds its place on the left while the list scrolls on the right. */
   .home-guide { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); column-gap: var(--s-8); align-items: start; }

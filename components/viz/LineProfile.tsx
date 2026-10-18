@@ -13,7 +13,8 @@ import { typeStyle } from '@/lib/viz/palette';
  * A line profile (the redesign spec, section 3.6): x along the course (mats or sections) or along any continuous
  * measure; the median as a 2 px ink line, its p25–p75 band at a 10% ink wash, even pace or typical dashed, a region the
  * sentence is about washed. It also draws the U-curve of starting pace: one line against a zero line, the side the
- * sentence is about washed signal (`fillAbove`), the best point a hollow ring.
+ * sentence is about washed signal (`fillAbove`), the best point a hollow ring. A `compare` point is the level or end the
+ * headline is measured against: a small filled ink dot (a ring is reserved for the reader).
  *
  * `layers` are the lens: goal chips or the like. Each is drawn on the server and the chosen one shows (the lens fades
  * between them). `scrub` adds the needle, with detents at the values the headline names.
@@ -24,8 +25,8 @@ export type ProfileLayer = {
   label: string;
   series: ProfileSeries[];
   band?: { lo: number[]; hi: number[] };
-  labels?: { x: number; y: number; text: string; tone?: 'ink' | 'signal' | 'quiet'; priority?: number; prefer?: LabelItem['prefer'] }[];
-  points?: { x: number; y: number; kind: 'best' | 'reading' }[];
+  labels?: { x: number; y: number; text: string; tone?: 'ink' | 'signal' | 'quiet'; priority?: number; prefer?: LabelItem['prefer']; gap?: number }[];
+  points?: { x: number; y: number; kind: 'best' | 'reading' | 'compare' }[];
   /** A level two points share ("as often as"): a 1 px dashed --ink-3 connector at `y` from `x0` to `x1`. */
   links?: { x0: number; x1: number; y: number }[];
 };
@@ -69,7 +70,7 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
     const [d0, d1] = y.domain;
     const clamp = (v: number) => Math.max(Math.min(d0, d1), Math.min(Math.max(d0, d1), v));
     const pts = (values: number[]) => values.map((v, i) => [x(xs[i]), y(clamp(v))] as [number, number]);
-    const items: LabelItem[] = (layer.labels ?? []).map((l, i) => ({ id: `${layer.id}-${i}`, text: l.text, x: x(l.x), y: y(l.y), priority: l.priority ?? (l.tone === 'signal' ? 3 : 2), tone: l.tone, prefer: l.prefer }));
+    const items: LabelItem[] = (layer.labels ?? []).map((l, i) => ({ id: `${layer.id}-${i}`, text: l.text, x: x(l.x), y: y(l.y), priority: l.priority ?? (l.tone === 'signal' ? 3 : 2), tone: l.tone, prefer: l.prefer, gap: l.gap }));
     // Labels keep clear of the points and of every line: its vertices and points along each segment.
     const along = (values: number[]) => values.flatMap((v, i) => {
       if (i === values.length - 1) return [{ x: x(xs[i]), y: y(clamp(v)), r: 3 }];
@@ -94,10 +95,10 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
           ))}
         </svg>
         {(layer.links ?? []).map((k, i) => (
-          <line key={`link-${i}`} className="ref-line is-dashed" x1={pc(x(k.x0))} x2={pc(x(k.x1))} y1={pc(y(k.y))} y2={pc(y(k.y))} />
+          <line key={`link-${i}`} className="ref-line is-dashed is-link" x1={pc(x(k.x0))} x2={pc(x(k.x1))} y1={pc(y(k.y))} y2={pc(y(k.y))} />
         ))}
         {(layer.points ?? []).map((p, i) => (
-          <circle key={i} className={p.kind === 'best' ? 'm-hollow-ink' : 'm-signal is-reading'} cx={pc(x(p.x))} cy={pc(y(p.y))} r={p.kind === 'best' ? 5 : 5.5} />
+          <circle key={i} className={p.kind === 'best' ? 'm-hollow-ink' : p.kind === 'compare' ? 'm-ink is-compare' : 'm-signal is-reading'} cx={pc(x(p.x))} cy={pc(y(p.y))} r={p.kind === 'best' ? 5 : p.kind === 'compare' ? 4 : 5.5} />
         ))}
         <Annotation labels={placed} />
       </g>

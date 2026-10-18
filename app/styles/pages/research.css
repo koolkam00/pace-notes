@@ -3,7 +3,7 @@
    900 px it holds its place on the left while the list scrolls on the right, as the home page's chapters do.
    Site-wide (app/styles/site.css), so the three hubs share it without a route sheet of their own. */
 
-.contents-page { padding: var(--s-6) 0 var(--s-6); }
+.contents-page { padding: var(--s-6) 0 var(--s-5); }
 .contents-hero { display: grid; gap: var(--s-3); max-width: var(--measure); margin-bottom: var(--s-5); }
 .contents-hero .t-display { max-width: 12ch; }
 .contents-dek { margin: 0; max-width: 30rem; font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
@@ -40,8 +40,8 @@
 .chapter-list.is-expanded .chapter-pages { margin: var(--s-1) 0 0 calc(var(--line-x, 28px) * 2 + var(--s-3)); border-top: 0; }
 .chapter-list.is-expanded .chapter-pages li + li .chapter-page-link { border-top: 1px solid var(--rule); }
 .chapter-list.is-expanded .chapter-page-link {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-3); row-gap: 2px;
-  min-height: 44px; padding: 8px 0; border-bottom: 0; color: var(--ink); text-decoration: none;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-3); row-gap: 0;
+  min-height: 44px; padding: 6px 0; border-bottom: 0; color: var(--ink); text-decoration: none;
 }
 .chapter-list.is-expanded .chapter-page-link:hover { color: var(--ink); text-decoration: none; }
 .chapter-page-title { font-family: var(--sans); font-size: .9375rem; font-weight: 600; line-height: 1.3; color: var(--ink); }
@@ -55,19 +55,18 @@
 .page-reading { grid-column: 1; display: flex; align-items: baseline; gap: 2px 8px; min-width: 0; }
 .page-reading .big-number.is-s { font-size: 1.125rem; }
 .page-reading-key { min-width: 0; font-family: var(--sans); font-size: var(--t-label); font-weight: 400; line-height: 1.35; color: var(--ink-3); }
-/* On the contents a page's reading rides on its title's line, the figure at the right, so a row stays one line tall;
-   its key joins it on a second line from 600 px. */
+/* On the contents a page's reading rides on its title's line, the figure at the right, and its key says what the
+   figure is on a second line under the title, at every width (a bare number means nothing). */
 .chapter-list.is-expanded .chapter-page-link { grid-template-columns: minmax(0, 1fr) auto auto; }
-.chapter-list.is-expanded .chapter-page-link .page-reading { grid-column: 2; grid-row: 1; }
-.chapter-list.is-expanded .chapter-page-link .page-reading-key { display: none; }
 .chapter-list.is-expanded .chapter-page-go { grid-column: 3; }
+.chapter-list.is-expanded .chapter-page-link .page-reading { display: contents; }
+.chapter-list.is-expanded .chapter-page-link .page-reading .big-number { grid-column: 2; grid-row: 1; justify-self: end; }
+.chapter-list.is-expanded .chapter-page-link .page-reading-key { display: block; grid-column: 1 / 3; grid-row: 2; }
 /* A title that already states its figure ("… 20 minutes apart …") shows no second copy of it on the contents. */
 .chapter-list.is-expanded .page-reading.is-in-title .big-number { display: none; }
 
 @media (min-width: 600px) {
-  .chapter-list.is-expanded .chapter-page-link .page-reading-key { display: block; grid-column: 1; grid-row: 2; }
-  .chapter-list.is-expanded .chapter-page-link .page-reading { display: contents; }
-  .chapter-list.is-expanded .chapter-page-link .page-reading .big-number { grid-column: 2; grid-row: 1; justify-self: end; }
+  .chapter-list.is-expanded .chapter-page-link .page-reading-key { grid-column: 1; }
 }
 
 /* On a phone the marker on the line says where in the race a chapter is, as on the home page; its number shows from

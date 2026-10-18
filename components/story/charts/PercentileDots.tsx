@@ -11,7 +11,7 @@ import { linear, pc } from '@/components/viz/scale';
  * The field as 99 finishes (the redesign spec, section 7.3, #field): one dot for each percentile finish time, from the
  * 1st to the 99th, binned into columns and stacked, so the field's shape builds itself out of finishes. The median is
  * the signal dot; the run the sentence names (the middle half) is ink, its ends labelled with their times; the rest
- * quiet. A lens switches the group (all finishes, recorded women, recorded men); every layer is drawn on the server.
+ * quiet. Given more than one layer, a lens switches the group; every layer is drawn on the server.
  *
  * Two sizes of the same picture, binned alike: 8 px dots for phones, and 12 px dots from 900 px, where the figure is held
  * to the text measure, so the shape keeps its weight on a wide screen instead of thinning out across it.
@@ -41,7 +41,7 @@ function binned(xs: number[]): { x: number; level: number }[] {
 }
 
 export default function PercentileDots({ layers, initial, domain, ticks, label, lensLabel, values }: {
-  layers: DotLayer[]; initial: string; domain: [number, number]; ticks: { value: number; label: string }[]; label: string; lensLabel: string; values?: ReactNode;
+  layers: DotLayer[]; initial: string; domain: [number, number]; ticks: { value: number; label: string }[]; label: string; lensLabel?: string; values?: ReactNode;
 }) {
   const x = linear(domain);
   const dots = layers.map((l) => binned(l.minutes.map((m) => x(m))));
@@ -84,8 +84,8 @@ export default function PercentileDots({ layers, initial, domain, ticks, label, 
     </Plot>
   );
   return (
-    <ChartFrame className="percentile-dots" label={label} height={heightOf('phone')} heightMd={heightOf('wide')} k={initial}
-      lens={<Lens label={lensLabel} options={layers.map((l) => ({ value: l.id, label: l.label }))} defaultValue={initial} />}
+    <ChartFrame className="percentile-dots" label={label} height={heightOf('phone')} heightMd={heightOf('wide')} k={layers.length > 1 ? initial : undefined}
+      lens={layers.length > 1 ? <Lens label={lensLabel ?? 'Show'} options={layers.map((l) => ({ value: l.id, label: l.label }))} defaultValue={initial} /> : undefined}
       plot={plot} axis={<Axis ticks={ticks.map((t) => ({ x: x(t.value), label: t.label }))} />}
       values={values} />
   );

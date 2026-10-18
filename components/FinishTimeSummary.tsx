@@ -18,7 +18,7 @@ const signedMin = (v: number) => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(
 
 /**
  * Chapter 01's opener, /finish-times (the redesign spec, section 7.3, under section 00): the median finish with the
- * recorded women's and men's medians on a ruler, then three beats: the field as 99 finishes, the front of the field
+ * recorded women's and men's medians on a ruler, then three beats: every finish as 99 finishes, the front of the field
  * against the back across the eras, and the median race by race. Every number comes from the field.* nuggets and the
  * verified story data; what the numbers cover and how they are counted is on /methodology.
  */
@@ -28,22 +28,20 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
   const all = groups.all;
   const p10 = at(all, 0.1), p90 = at(all, 0.9);
 
-  // The ruler: the 10th to the 90th percentile, a tick every half hour, the three medians.
+  // The ruler: the 10th to the 90th percentile and the three medians, each dot labelled with its time (so no tick row).
   const lo = p10 ?? 180, hi = p90 ?? 330;
-  const rulerTicks = [];
-  for (let m = Math.ceil(lo / 30) * 30; m <= hi; m += 30) rulerTicks.push({ value: m, label: hm(m) });
   const medians = FINISH_GROUPS.map((g) => ({ g, m: groups[g].median })).filter((x): x is { g: typeof FINISH_GROUPS[number]; m: number } => x.m !== null);
 
-  // The field as 99 finishes: the 1st to the 99th percentile of each group.
+  // Every finish as 99 finishes: the 1st to the 99th percentile of all finishes. Recorded women and men are the reading's
+  // ruler and the Values table, so the beat has no control that would move it away from its H2.
   const centiles = (g: typeof FINISH_GROUPS[number]) => percentileMinutes(summary.bins.map((b) => ({ minute: b.minute, n: b[g] })), groups[g].total);
-  const layers = FINISH_GROUPS.map((g) => {
+  const layers = (['all'] as const).map((g) => {
     const minutes = centiles(g);
     return {
-      id: g, label: g === 'all' ? 'All finishes' : GROUP_LABEL[g],
+      id: g, label: 'All finishes',
       minutes,
       band: [24, 74] as [number, number],
-      // The median is named (the reading above gives its time); the ends of the middle half carry their times, so a
-      // group the lens shows reads at once without a readout repeating the H2.
+      // The median is named (the reading above gives its time); the ends of the middle half carry their times.
       marks: [{ index: 49, text: 'Median', tone: 'signal' as const }, { index: 24, text: hm(minutes[24]), tone: 'ink' as const }, { index: 74, text: hm(minutes[74]), tone: 'ink' as const }],
     };
   });
@@ -63,29 +61,31 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
   ];
   const span = Math.ceil(Math.max(...rows.flatMap((r) => r.values.map((v) => Math.abs(v.v)))) / 5) * 5;
 
-  // Race by race: the median finish of each course with 100 or more finishes; fewer than three editions drawn hollow.
+  // Race by race: the median finish of each course with 100 or more finishes and three or more editions (the courses the
+  // H2's range spans); the courses with fewer editions stay in Values.
   const list = courses.courses.filter((c) => c.finishes >= 100);
-  const t0 = Math.floor(Math.min(...list.map((c) => c.median_s)) / 1800) * 1800, t1 = Math.ceil(Math.max(...list.map((c) => c.median_s)) / 1800) * 1800;
+  const drawn = list.filter((c) => c.editions >= 3);
+  const t0 = Math.floor(Math.min(...drawn.map((c) => c.median_s)) / 1800) * 1800, t1 = Math.ceil(Math.max(...drawn.map((c) => c.median_s)) / 1800) * 1800;
   const stripTicks = [];
   for (let t = t0; t <= t1; t += 1800) stripTicks.push({ value: t, label: hm(t / 60) });
 
   return (
     <StoryPage path={PATH}>
-      {/* The H1 is the finding and the figure its time; the sentence adds the gap between recorded women and men, and the
-          ruler draws the three medians (the reading's dot is named, its time being the figure). */}
+      {/* The H1 is the finding in words and the figure its time; the sentence adds the gap between recorded women and
+          men, and the ruler draws the three medians (the reading's dot is named, its time being the figure). */}
       <StoryHero path={PATH} title={title.guard ? sentenceOf(title) : 'Marathon finish times'} dek="How long does a marathon take?"
         figure={median.figure ? { ...median.figure } : undefined} unitLine={median.key} fallback={!median.guard}
         sentence={<Say nugget={gap} />}
         instrument={(
-          <Ruler min={lo} max={hi} ticks={rulerTicks}
+          <Ruler min={lo} max={hi} ticks={[]} className="is-labelled"
             label={`Median finish between the 10th and 90th percentile: ${medians.map(({ g, m }) => `${GROUP_LABEL[g].toLowerCase()} ${hm(m)}`).join(', ')}`}
             marks={medians.map(({ g, m }) => g === 'all'
               ? { value: m, kind: 'reading' as const, label: 'All' }
               : { value: m, kind: 'compare' as const, label: `${GROUP_LABEL[g]} ${hm(m)}` })} />
         )} />
 
-      <Beat id="field" track="chapter-1" label="The field" title={middle}>
-        <PercentileDots layers={layers} initial="all" domain={[dLo, dHi]} ticks={dotTicks} lensLabel="Finishes"
+      <Beat id="field" track="chapter-1" label="Most finishes" title={middle}>
+        <PercentileDots layers={layers} initial="all" domain={[dLo, dHi]} ticks={dotTicks}
           label={`99 finishes, one at each percentile from the 1st to the 99th. All finishes: median ${hm(layers[0].minutes[49])}, the middle half from ${hm(layers[0].minutes[24])} to ${hm(layers[0].minutes[74])}.`}
           values={(
             <Values id="ft-percentiles" caption="Finish time at each percentile"
@@ -108,10 +108,9 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
       </Beat>
 
       <Beat id="by-race" track="chapter-3" label="Race by race" title={byRace}>
-        <DotStrip items={list.map((c) => ({ id: c.city, label: c.city, value: c.median_s, display: hm(c.median_s / 60), detail: count(c.finishes), hollow: c.editions < 3 }))}
+        <DotStrip items={drawn.map((c) => ({ id: c.city, label: c.city, value: c.median_s, display: hm(c.median_s / 60), detail: count(c.finishes) }))}
           domain={[t0, t1]} ticks={stripTicks} readoutKey="Finishes"
-          keyLabels={{ filled: 'Three or more editions', hollow: 'Fewer editions' }}
-          label={`Median finish of ${list.length} courses, ranked; tap a dot to read it`}
+          label={`Median finish of ${drawn.length} courses with three or more editions, ranked; tap a dot to read it`}
           values={(
             <Values id="ft-races" caption="Median finish by course" count={list.length}>
               <table className="table">

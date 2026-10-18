@@ -128,3 +128,9 @@
   .methods-page [id] { scroll-margin-top: calc(var(--header-h) + 24px); }
   .methods-hero .t-display { font-size: clamp(3rem, 4.4vw, 4.25rem); }
 }
+
+/* The research questions' shared rules: numbered once, each question naming the numbers it follows. */
+.fold-body ol.methods-rules { margin: var(--s-3) 0 0; padding-left: 1.4em; }
+.fold-body ol.methods-rules li + li { margin-top: var(--s-2); }
+.fold-body ol.methods-rules li { scroll-margin-top: calc(var(--header-h) + 16px); }
+.fold-body ol.methods-rules + .fold.is-sub { margin-top: var(--s-4); }

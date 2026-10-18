@@ -68,12 +68,17 @@ export function fieldGapFrom(medians: { women: number | null; men: number | null
   };
 }
 
-/** /finish-times H1: the median as a finding ("Half of all finishes took longer than 4:10."); the reading's ruler adds women and men. */
+/**
+ * /finish-times H1: the median as a finding in words ("More than half of all finishes took over four hours."), so the
+ * reading's figure is the one place the median's time shows. "Over" needs the median at least a minute past the hour.
+ */
 export function fieldTitleFrom(median: number | null): Nugget {
+  const hours = median !== null ? Math.floor(median / 60) : NaN;
+  const ok = median !== null && hours >= 1 && median - hours * 60 >= 1;
   return {
     id: 'field.title', page: '/finish-times', denominator: 'story',
-    values: { median_min: median ?? NaN }, guard: median !== null,
-    headline: median !== null ? `Half of all finishes took longer than *${hm(median)}*.` : '',
+    values: { median_min: median ?? NaN, hours }, guard: ok,
+    headline: ok ? `More than half of all finishes took *over ${countWord(hours)} hours*.` : '',
     fallback: 'Marathon finish times',
     figure: null,
   };
@@ -258,7 +263,7 @@ function oneIn(words: string): { value: string; unit?: string } {
   return share ? { value: share[1], unit: '%' } : { value: words };
 }
 
-/** Chapter 03 lead and the pacing-types reading: the share of finishes whose second 20K was faster than their first. */
+/** Chapter 03 lead and the pacing-types reading (its figure and key; the six types are its instrument): the share of finishes whose second 20K was faster than their first. */
 export function shapeSecond20kFrom(row: { count: number; total: number } | null): Nugget {
   const share = row && row.total > 0 && row.count >= 0 && row.count <= row.total ? row.count / row.total : NaN;
   const known = Number.isFinite(share) && share > 0 && share < 1;
@@ -281,19 +286,6 @@ function shapeSecond20k(): Nugget {
 
 /** The evenest pacing type: the lowest median pace variation. */
 export const evenestType = (types: Pick<Archetypes['archetypes'][number], 'median_cv'>[]) => types.reduce((best, t, i) => (t.median_cv < types[best].median_cv ? i : best), 0);
-
-/** /stories/pacing-types on the contents: the share of finishes in the evenest type. */
-export function typesMetronomeFrom(types: Pick<Archetypes['archetypes'][number], 'name' | 'share' | 'median_cv'>[]): Nugget {
-  const i = types.length ? evenestType(types) : -1;
-  const t = types[i];
-  return {
-    id: 'types.metronome', page: '/stories/pacing-types', denominator: 'shape',
-    values: { types: types.length, name: t?.name ?? '', share: t?.share ?? NaN, median_cv: t?.median_cv ?? NaN }, guard: types.length >= 2,
-    headline: t ? `The evenest of the ${countWord(types.length)} shapes, the ${t.name}, was *${pct(t.share)}* of finishes.` : '',
-    fallback: 'The shapes of a marathon, finish by finish.',
-    figure: t ? shareFigure(t.share) : null, key: t ? `ran as the ${t.name}, the evenest type` : undefined,
-  };
-}
 
 /** #river: the evenest type's share of the first and the last finish band. "Fades" needs the first at least twice the last. */
 export function typesRiverFrom(data: Pick<Archetypes, 'archetypes' | 'river'>): Nugget {
@@ -467,17 +459,6 @@ export function kickTitleFrom(cost: Pick<Kick['cost']['stratified'], 'median_gap
   };
 }
 
-/** The final-kick reading's sentence: who the comparison holds level (the figure above gives the typical gap). */
-export function kickLaterFrom(cost: Kick['cost']['stratified']): Nugget {
-  return {
-    id: 'kick.later', page: '/stories/final-kick', denominator: 'kick', term: '/methodology#sustained-slowdown',
-    values: { median_gap_s: cost.median_gap_s }, guard: cost.median_gap_s > 600,
-    headline: 'Compared within the same race, recorded gender and 5–20K pace.',
-    fallback: 'Finish times with and without a sustained slowdown, within the same race, recorded gender and 5–20K pace.',
-    figure: null,
-  };
-}
-
 /** #twins: the gap at the finish across every 5–20K pace band. "At every pace" needs a positive gap in each band. */
 export function kickBandsFrom(bands: Kick['cost']['bands']): Nugget {
   const rows = bands.filter((b) => b.slowdown_n >= 100 && b.other_n >= 100);
@@ -540,28 +521,32 @@ export function kickMagnetFrom(k: Pick<Kick['kick'], 'share' | 'slowdown_final_b
 
 // ---------- Chapter 06 · The finish line (/stories/round-numbers) ----------
 
-/** Chapter 06 lead: the busiest finishing minute (all finishes). The busiest is the argmax, so the guard is that it exists. */
+/** Chapter 06 lead: the busiest finishing minute (all finishes). The busiest is the argmax, so the guard is that it exists. The
+ * scrolly's first step says it; the chart's readout beside the step gives its count. */
 export function finishBusiestFrom(histogram: FinishTimes['histogram']): Nugget {
   const peak = histogram.length ? histogram.reduce((a, b) => (b.all > a.all ? b : a)) : null;
   return {
     id: 'finish.busiest', page: '/stories/round-numbers', denominator: 'story',
     values: { minute: peak?.minute ?? NaN, n: peak?.all ?? NaN }, guard: !!peak && peak.all > 0,
-    headline: peak ? `Every finish, minute by minute: the busiest was *${hm(peak.minute)}*, with ${count(peak.all)} finishes.` : '',
+    headline: peak ? `Every finish, minute by minute: the busiest is *${hm(peak.minute)}*.` : '',
     fallback: 'Every finish, minute by minute.',
     figure: peak ? { value: hm(peak.minute), sr: spokenTime(peak.minute * 60) } : null, key: 'the busiest finishing minute',
   };
 }
 
-/** The round-numbers reading: the minute before the round mark that stands tallest against the smooth curve. */
+/**
+ * The round-numbers reading: the minute before the round mark that stands tallest against the smooth curve. The figure
+ * gives its ratio; the sentence gives the count and the minute, and "far above" needs the ratio at one and a half or more.
+ */
 export function roundTopFrom(marks: FinishTimes['marks']): Nugget {
   const top = marks.length ? marks.reduce((a, b) => (b.ratio > a.ratio ? b : a)) : null;
   if (!top) return { id: 'round.top', page: '/stories/round-numbers', denominator: 'story', values: {}, guard: false, headline: '', fallback: 'Finish times, minute by minute.', figure: null };
   const before = hm(top.minutes - 1);
   return {
     id: 'round.top', page: '/stories/round-numbers', denominator: 'story',
-    values: { mark: top.mark, minutes: top.minutes, ratio: top.ratio, n: top.minute_before, expected: top.expected_minute_before }, guard: top.ratio > 1.1,
-    headline: `Between ${before}:00 and ${before}:59, ${count(top.minute_before)} finishes landed: *${top.ratio.toFixed(2)} times* what a smooth curve expects.`,
-    fallback: `Between ${before}:00 and ${before}:59, ${count(top.minute_before)} finishes landed.`,
+    values: { mark: top.mark, minutes: top.minutes, ratio: top.ratio, n: top.minute_before, expected: top.expected_minute_before }, guard: top.ratio >= 1.5,
+    headline: `${count(top.minute_before)} finishes landed between ${before}:00 and ${before}:59, *far above* the smooth curve.`,
+    fallback: `${count(top.minute_before)} finishes landed between ${before}:00 and ${before}:59.`,
     figure: { value: top.ratio.toFixed(2), unit: '×', sr: `${top.ratio.toFixed(2)} times` }, key: `the smooth curve, in the minute before ${top.mark}`,
   };
 }
@@ -670,15 +655,16 @@ export function holdsBandsFrom(bands: Pick<Demographics['bands'][number], 'lo_mi
 
 // ---------- Chapter 08 · Where you run (/stories/courses) ----------
 
-/** The courses reading: how often an edition's own pacing shape named its course, against chance. */
+/**
+ * The courses reading: how often an edition's own pacing shape named its course, against chance (as a share, so the
+ * identification set's course count never shows beside the shape cohort's). The page draws both on its ruler.
+ */
 export function coursesNamedFrom(id: Pick<Courses['identification'], 'correct' | 'editions_tested' | 'chance' | 'courses'>): Nugget {
   const share = id.editions_tested > 0 ? id.correct / id.editions_tested : NaN;
-  const k = id.chance > 0 ? Math.round(1 / id.chance) : NaN;
   return {
     id: 'courses.named', page: '/stories/courses', denominator: 'course',
     values: { correct: id.correct, tested: id.editions_tested, share, chance: id.chance, courses: id.courses }, guard: share > 2 * id.chance,
-    // Which courses could be compared is /methodology's; the sentence keeps the finding and its chance level.
-    headline: `From its pacing shape alone, an edition’s course was named *${pct(share)}* of the time. By chance: 1\u00a0in\u00a0${k}.`,
+    headline: `From its pacing shape alone, an edition’s course was named *${pct(share)}* of the time; by chance, about ${pct(id.chance)}.`,
     fallback: `From its pacing shape alone, an edition’s course was named correctly ${pct(share)} of the time.`,
     figure: shareFigure(share), key: 'of editions named from their pacing shape alone',
   };
@@ -800,7 +786,6 @@ export const STORY_NUGGETS: Record<string, Builder> = {
   'replay.packs': () => { const slug = String(replayFirst().values.slug ?? ''); return replayPacksFrom(readInsight<ReplayIndex>('replay.json').editions.find((e) => e.slug === slug) ?? null); },
   'replay.left': replayLeft,
   'shape.second20k': shapeSecond20k,
-  'types.metronome': () => typesMetronomeFrom(archetypes().archetypes),
   'types.river': () => typesRiverFrom(archetypes()),
   'types.gender': () => typesGenderFrom(archetypes()),
   'places.gap': () => placesGapFrom(positions().coin_flip),
@@ -811,7 +796,6 @@ export const STORY_NUGGETS: Record<string, Builder> = {
   'slowdown.onset': slowdownLate,
   'kick.twins': () => kickTwinsFrom(kick().cost.stratified),
   'kick.title': () => kickTitleFrom(kick().cost.stratified),
-  'kick.later': () => kickLaterFrom(kick().cost.stratified),
   'kick.bands': () => kickBandsFrom(kick().cost.bands),
   'kick.warning': () => kickWarningFrom(kick().warning),
   'kick.stay': () => kickStayFrom(kick().recovery.stay),

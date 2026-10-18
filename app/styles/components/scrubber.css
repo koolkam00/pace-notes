@@ -39,6 +39,9 @@
 .viz-frame.waffle .scrub-ring { width: calc(100% / var(--cols, 25) * 6 / 7); height: auto; aspect-ratio: 1; margin: 0; border-radius: 1.5px; transform: translate(-50%, -50%); background: var(--signal); box-shadow: 0 0 0 1px var(--paper); }
 @supports not (aspect-ratio: 1) { .viz-frame.waffle .scrub-ring { height: 10px; } }
 .viz-frame .is-pick .scrub-plot { cursor: pointer; }
+/* A dot strip's chosen dot grows and fills with ink, or keeps its signal on the subject: a ring is only ever the reader. */
+.viz-frame.dot-strip .scrub-ring { width: 14px; height: 14px; margin: -7px 0 0 -7px; background: var(--ink); box-shadow: 0 0 0 2px var(--paper); }
+.viz-frame.dot-strip.has-subject .scrub:not(.is-away) .scrub-ring { background: var(--signal); }
 
 @media (prefers-reduced-motion: reduce) {
   .viz-frame .scrub-detents i.is-flash { animation: none; }

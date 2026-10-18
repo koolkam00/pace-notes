@@ -9,7 +9,7 @@ import Waffle from '@/components/viz/Waffle';
 import LineProfile from '@/components/viz/LineProfile';
 import Values from '@/components/ui/Values';
 import ByUnits from '../ByUnits.client';
-import { Beat, Say, StoryHero, StoryPage, keep } from '../StoryPage';
+import { Beat, Say, StoryHero, StoryPage, keep, rich } from '../StoryPage';
 
 const PATH = '/stories/race-morning';
 const MID = [2.5, 7.5, 12.5, 17.5, 22.5, 27.5, 32.5, 37.5, 41.1];
@@ -32,14 +32,19 @@ export default function RaceMorningBody() {
   const w = data.weather;
   const p = w.pairs;
 
-  // The pairs, cooler year first: the readout's key names which year is which, and its values (sustained slowdown) and
-  // the start temperatures beside them follow that order.
+  // The pairs, cooler year first: the readout's key names what its values are (sustained slowdown) and the pair, and the
+  // start temperatures beside them follow the same order, cooler then warmer.
   const pairName = (x: (typeof p.list)[number]) => `${x.city} ${x.cool_year} · ${x.hot_year}`;
   const tiles = (u: UnitSystem) => p.list.map((x) => ({
     id: `${x.city}-${x.cool_year}-${x.hot_year}`, lit: x.hotter_slowed_more,
-    key: `${x.city}: cooler ${x.cool_year} · warmer ${x.hot_year}`, value: `${pct(x.cool_slowdown)} · ${pct(x.hot_slowdown)}`,
+    key: `Sustained slowdown, ${pairName(x)}`, value: `${pct(x.cool_slowdown)} · ${pct(x.hot_slowdown)}`,
     side: `${temp(x.cool_temp, u)} · ${temp(x.hot_temp, u)}`, pair: pairName(x),
   }));
+  // The readout opens on the pair furthest apart at the start (the first such in the data), the clearest case of a
+  // warmer morning; the waffle draws the warmer-had-more pairs first, so its index counts in that order.
+  const widest = p.list.reduce((best, x, i) => (x.hot_temp - x.cool_temp > p.list[best].hot_temp - p.list[best].cool_temp ? i : best), 0);
+  const order = [...p.list.keys()].sort((a, b) => Number(p.list[b].hotter_slowed_more) - Number(p.list[a].hotter_slowed_more) || a - b);
+  const opening = Math.max(0, order.indexOf(widest));
 
   // The finish against the start temperature: the median finish's change from the curve's zero point, degree by degree.
   const curve = w.curvature.finish_min_curve;
@@ -57,10 +62,11 @@ export default function RaceMorningBody() {
   const curveChart = (u: UnitSystem) => (
     <LineProfile x={curve.map((c) => c.temp)} xDomain={[tLo, tHi]} yDomain={[bottom, top]}
       layers={[{ id: 'curve', label: 'Finish', series: [{ id: 'f', values: curve.map((c) => c.change), fillAbove: 0 }],
-        points: [{ x: cool, y: curve[at(cool)].change, kind: 'best' }, { x: warm, y: curve[at(warm)].change, kind: 'reading' }],
+        // The warm end is the H2's and the needle's (the readout gives its rate); the cool end it is compared with is
+        // a small ink dot carrying its own rate.
+        points: [{ x: cool, y: curve[at(cool)].change, kind: 'compare' }, { x: warm, y: curve[at(warm)].change, kind: 'reading' }],
         labels: [
           { x: cool, y: curve[at(cool)].change, text: perDeg(Number(curveN.values.cool_slope), u), tone: 'ink', priority: 2, prefer: 'above' },
-          { x: warm, y: curve[at(warm)].change, text: perDeg(Number(curveN.values.warm_slope), u), tone: 'signal', priority: 3, prefer: 'left' },
         ] }]}
       refs={[{ value: 0, label: `As at ${temp(base.temp, u)}` }]}
       xTicks={tickTemps(u).map((c) => ({ value: c, label: temp(c, u) }))}
@@ -85,11 +91,15 @@ export default function RaceMorningBody() {
 
   return (
     <StoryPage path={PATH}>
+      {/* The figure counts the pairs and its key says what was counted (the term's first use, so it links); the waffle
+          draws them one by one. A failed guard shows the plain sentence instead. */}
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
-        figure={pairs.figure ? { ...pairs.figure } : undefined} fallback={!pairs.guard} sentence={<Say nugget={pairs} term />}
+        figure={pairs.figure ? { ...pairs.figure } : undefined} fallback={!pairs.guard}
+        unitLine={pairs.guard && pairs.key ? rich(pairs.key, { term: true }) : undefined}
+        sentence={pairs.guard ? undefined : <Say nugget={pairs} term />}
         instrument={(
           <ByUnits {...Object.fromEntries(UNITS.map((u) => [u, (
-            <Waffle key={u} tiles={tiles(u)} sideLabel="At the start" label={`${p.hotter_slowed_more} of ${p.total} same-course pairs: the warmer year had more sustained slowdowns; tap a square to read its pair`}
+            <Waffle key={u} tiles={tiles(u)} initial={opening} sideLabel="At the start" label={`${p.hotter_slowed_more} of ${p.total} same-course pairs: the warmer year had more sustained slowdowns; tap a square to read its pair`}
               keyLabels={{ lit: 'Warmer year, more sustained slowdowns', other: 'Cooler year, as many or more' }}
               values={<Values id={`rm-pairs-${u}`} caption="Same-course pairs: start temperature and sustained slowdown" columns={[{ key: 'p', label: 'Pair, cooler · warmer', text: true }, { key: 't', label: 'At the start' }, { key: 's', label: 'Sustained slowdown' }]}
                 rows={tiles(u).map((t) => [t.pair, t.side, t.value])} />} />
@@ -108,7 +118,7 @@ export default function RaceMorningBody() {
         dek={early >= 0 && late >= 0 ? <ByUnits {...Object.fromEntries(UNITS.map((u) => [u, keep(`On a morning ${tempGap(10, u)} warmer, ${sectionName(sig[early].section)} ran ${Math.abs(sig[early].per_10c).toFixed(1)} points quicker against the runner’s own average, and ${sectionName(sig[late].section)} ${sig[late].per_10c.toFixed(1)} points slower.`)])) as { mi: string; km: string }} /> : undefined}>
         <LineProfile x={MID} xDomain={[0, 42.195]} yDomain={[-span, span]}
           layers={[{ id: 'heat', label: 'Warmer', series: [{ id: 'h', values: sig.map((s) => s.per_10c), fillAbove: 0 }],
-            points: [...(early >= 0 ? [{ x: MID[early], y: sig[early].per_10c, kind: 'best' as const }] : []), ...(late >= 0 ? [{ x: MID[late], y: sig[late].per_10c, kind: 'reading' as const }] : [])],
+            points: [...(early >= 0 ? [{ x: MID[early], y: sig[early].per_10c, kind: 'compare' as const }] : []), ...(late >= 0 ? [{ x: MID[late], y: sig[late].per_10c, kind: 'reading' as const }] : [])],
             labels: [
               ...(early >= 0 ? [{ x: MID[early], y: sig[early].per_10c, text: `${sectionName(sig[early].section)} ${signed(sig[early].per_10c)}`, tone: 'ink' as const, priority: 2, prefer: 'below' as const }] : []),
               ...(late >= 0 ? [{ x: MID[late], y: sig[late].per_10c, text: `${sectionName(sig[late].section)} ${signed(sig[late].per_10c)}`, tone: 'signal' as const, priority: 3, prefer: 'above' as const }] : []),
