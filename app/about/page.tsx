@@ -1,5 +1,6 @@
-import { UnitLink as Link, UnitText } from '@/components/UnitsProvider';
-import CreatorCredit from '@/components/CreatorCredit';
+import Button from '@/components/ui/Button';
+import { UnitLink as Link } from '@/components/UnitsProvider';
+import { finishesM } from '@/lib/nuggets';
 import { pageMetadata } from '@/lib/seo';
 
 export const metadata = pageMetadata({
@@ -7,10 +8,36 @@ export const metadata = pageMetadata({
   description: 'Why Pace Notes exists, who made it, and how to ask Andrew Kam for a new marathon pacing analysis.',
   path: '/about',
 });
+
+/**
+ * About (the redesign spec, sections 7.15 and 00): short and personal. Who makes it, why it exists, and the one place
+ * to ask for an analysis. Every data-source and coverage sentence is on /methodology.
+ */
 export default function AboutPage() {
-  return <article className="about-page"><header className="directory-heading"><p className="eyebrow">About the study</p><h1>More understanding.<br /><span><UnitText>Every kilometre.</UnitText></span></h1><p>A marathon result tells you the time. This study helps you see the race.</p></header>
-    <div className="about-body"><section><h2>Why it exists</h2><p>Runners make decisions about pace, targets and courses with incomplete information. Pace Notes makes large collections of race results understandable and useful to explore.</p><p>Its ten main analyses follow the questions a runner might ask before or after a race: how people pace, what follows different starts, how conditions compare, and where improvement appears.</p><p>The study is a way to investigate your race, not an individual training plan or a promise of a result.</p><CreatorCredit /></section>
-    <section><h2>Begin with one question</h2><p>Start with the pacing pattern, then follow the next question or choose another of the ten.</p><Link className="text-link" href="/analyses/pacing-pattern">Explore your pacing pattern <span aria-hidden="true">↗</span></Link></section>
-    <section><h2>What would you like to know?</h2><p>If there is a race question you wish Pace Notes could answer, send Andrew an idea for a new analysis.</p><Link className="text-link" href="/request-analysis">Request an analysis <span aria-hidden="true">↗</span></Link></section></div>
+  return <article className="info-page">
+    <header className="info-hero">
+      <p className="t-kicker">About</p>
+      <h1 className="t-display">A finish time is one number. <em>The race</em> is the rest.</h1>
+      <p className="info-dek">Pace Notes reads the recorded splits of {finishesM()} million marathon finishes, so a runner can see how races like theirs went.</p>
+    </header>
+    <div className="info-body">
+      <section className="info-section" aria-labelledby="about-who">
+        <h2 id="about-who" className="info-h2">Who makes it</h2>
+        <p>Pace Notes is made by Andrew Kam, from public race results and the questions runners ask before and after a marathon.</p>
+      </section>
+      <section className="info-section" aria-labelledby="about-why">
+        <h2 id="about-why" className="info-h2">Why it exists</h2>
+        <p>Runners choose a pace, a goal and a course with little to go on. A finish time says how a race ended, not how it unfolded. Pace Notes shows what happened, mat by mat, in races like yours.</p>
+        <p>It describes past races. It is not a training plan or a promise of a result.</p>
+      </section>
+      <section className="info-section info-ask" aria-labelledby="about-ask">
+        <h2 id="about-ask" className="info-h2">Ask a question</h2>
+        <p>Is there a race question you wish the data could answer? Send Andrew an idea for the next analysis.</p>
+        <div className="info-actions">
+          <Button href="/request-analysis" variant="secondary" arrow="right">Request an analysis</Button>
+          <Link className="info-link" href="/methodology#downloads">Or take the data yourself</Link>
+        </div>
+      </section>
+    </div>
   </article>;
 }
