@@ -797,11 +797,12 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
           <div className="projector-clock no-print">
             <div className="tool-field projector-start">
               <label htmlFor="projector-start">Start-line crossing time <span className="projector-optional">optional</span></label>
-              <input id="projector-start" inputMode="text" autoComplete="off" placeholder="9:14 am" value={startText}
+              <input id="projector-start" inputMode="text" autoComplete="off" value={startText}
                 aria-invalid={startText.trim() !== '' && start === null ? true : undefined} aria-describedby="projector-start-hint"
                 onChange={(e) => saveStart(e.target.value)} />
               <p className="tool-field-hint" id="projector-start-hint">
-                {startText.trim() !== '' && start === null ? 'Try 9:14 am or 09:14.' : 'For clock times. Kept on this device for 12 hours.'}
+                {/* The example lives in the hint, not a placeholder that reads as an entered time. */}
+                {startText.trim() !== '' && start === null ? 'Try 9:14 am or 09:14.' : 'For clock times, e.g. 9:14 am. Kept on this device for 12 hours.'}
               </p>
             </div>
             {start !== null ? <Choice label="Show times as" small value={clockView} onChange={setClockView} options={[{ value: 'clock', label: 'Clock' }, { value: 'elapsed', label: 'Elapsed' }]} /> : null}

@@ -3,6 +3,7 @@
  * Names and years come from lib/tools/qualifying.ts; links keep the reader's units (UnitLink).
  */
 import { UnitLink as Link } from '@/components/UnitsProvider';
+import Arrow from '@/components/ui/Arrow';
 import { capital, program, racePath, raceYear, shortName } from '@/components/tools/QualifyingRaceText';
 import type { Standard } from '@/lib/tools/qualifying';
 
@@ -20,9 +21,13 @@ export function QualifyingRaceLinks({ races, label, compact = false }: { races: 
       {races.map((s) => (
         <li key={s.key}>
           <Link href={racePath(s)}>
-            <b>{shortName(s)} {raceYear(s)}</b>
-            {/* A race's own name for its standards ("Good For Age"); the generic "Qualifying standards" said nothing. */}
-            {program(s) ? <span>{capital(program(s)!)} standards</span> : null}
+            <span className="qrace-link-text">
+              <b>{shortName(s)} {raceYear(s)}</b>
+              {/* A race's own name for its standards ("Good For Age"); the generic "Qualifying standards" said nothing. */}
+              {program(s) ? <span>{capital(program(s)!)} standards</span> : null}
+            </span>
+            {/* The trailing arrow every link row on the site carries. */}
+            <Arrow />
           </Link>
         </li>
       ))}

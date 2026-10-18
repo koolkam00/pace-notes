@@ -36,11 +36,11 @@ function ageRule(s: Standard): { value: string; detail: string; column: string; 
 }
 
 /** The time rule in the checker's words (comparisonText in lib/tools/qualifying.ts), driven by `comparison` and `comparisonStated`. */
-function timeRule(s: Standard): { value: string; detail: string } {
+function timeRule(s: Standard): { value: string; detail?: string } {
   if (s.comparison === 'strictly-under') return { value: 'Strictly under the standard', detail: 'A time equal to the standard does not qualify.' };
   if (s.comparisonStated) return { value: 'At or under the standard', detail: 'A time equal to the standard qualifies.' };
-  return { value: `At or under the standard ${ASSUMED_COMPARISON}`,
-    detail: 'A time equal to the standard counts here.' };
+  // The value already says an equal time counts (and that the race does not state it), so no second sentence.
+  return { value: `At or under the standard ${ASSUMED_COMPARISON}` };
 }
 
 /**
@@ -51,7 +51,7 @@ function otherRules(s: Standard): string[] {
   return (s.extra ?? []).filter((rule) => !(s.ageRule === 'time-run' && /^Age is your age on the day you ran/i.test(rule)));
 }
 
-export default function QualifyingRace({ s, others }: { s: Standard; others: Standard[] }) {
+export default function QualifyingRace({ s }: { s: Standard }) {
   const year = raceYear(s);
   const name = raceName(s);
   const detail = editionDetail(s);
@@ -85,7 +85,7 @@ export default function QualifyingRace({ s, others }: { s: Standard; others: Sta
           {!(s.ageRule === 'race-day' && s.ageDate) && detail ? <div><dt>Race day</dt><dd>{detail}</dd></div> : null}
           <div><dt>Age used</dt><dd>{age.value}</dd><dd className="tool-ledger-note">{age.detail}</dd></div>
           <div><dt>Window</dt><dd className="qrace-window">{fmtDate(s.windowStart)} – {windowEnd}</dd></div>
-          <div><dt>Time rule</dt><dd>{time.value}</dd><dd className="tool-ledger-note">{time.detail}</dd></div>
+          <div><dt>Time rule</dt><dd>{time.value}</dd>{time.detail ? <dd className="tool-ledger-note">{time.detail}</dd> : null}</div>
         </dl>
         <p className="qrace-cta no-print"><Link className="btn btn-primary" href={checkerHref(s)}>Check a time for {shortName(s)}</Link></p>
 
@@ -135,7 +135,7 @@ export default function QualifyingRace({ s, others }: { s: Standard; others: Sta
               <h3>Age group</h3>
               <p>{age.sentence}</p>
               <h3>Time</h3>
-              <p>{time.value}. {time.detail}</p>
+              <p>{time.value}.{time.detail ? ` ${time.detail}` : ''}</p>
               {otherRules(s).length ? (
                 <>
                   <h3>Other rules</h3>
@@ -150,11 +150,8 @@ export default function QualifyingRace({ s, others }: { s: Standard; others: Sta
         {s.key === 'boston' ? <BostonCutoffs /> : null}
       </div>
 
-      {/* One way on (every race is one tap away there) and, in the closing row, one way back. */}
-      <nav className="tool-handoffs qrace-forward no-print" aria-label="Every race">
-        <ul><li><Link href="/tools/qualifying"><span className="tool-handoff-text"><b>Check one time against all {others.length + 1} races</b></span><Arrow /></Link></li></ul>
-      </nav>
-
+      {/* One way on, the checker (the primary under the glance: every race is one tap away there) and, in the closing
+          row, one way back. */}
       <ToolEnd path="/tools/qualifying" how="/methodology#tools-qualifying" />
     </div>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { ToolHandoffs } from '@/components/tools/Handoffs';
@@ -13,7 +13,7 @@ import { useWidth } from '@/components/viz/useSize';
 import { fitTicks } from '@/components/tools/ticks';
 import { runnerHandoff } from '@/lib/analytics-policy';
 import { loadInsight, type Archetype, type Archetypes } from '@/lib/insights';
-import { openingBandOf, openingPct, pctSigned, qualifies, reportLink, toneOf, windowCells, windowCheck, type OpeningBand } from '@/lib/report-shared';
+import { pctSigned, qualifies, reportLink, toneOf, windowCells, windowCheck } from '@/lib/report-shared';
 import { loadShard, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
 import type { PaceBandCell } from '@/lib/tools/pace-band-data';
 import { MARATHON_KM, MATS_KM, perUnit } from '@/lib/tools/pace';
@@ -22,7 +22,6 @@ import { formatDuration, parseDuration } from '@/lib/tools/time';
 import { keypadInput } from '@/lib/keypad';
 import { KM_PER_MILE, matLabel, sectionLabel, type UnitSystem } from '@/lib/units';
 import { SECTION_BOUNDS, count, signedPct } from '@/lib/viz/format';
-import { typeStyle } from '@/lib/viz/palette';
 
 /* ------------------------------------------------------------------ */
 /* Constants                                                           */
@@ -281,8 +280,8 @@ function issueText(i: number, kind: FieldIssue, parsed: (number | null)[]): stri
   return `The ${SECTION_NAMES[i]} km section works out at ${formatDuration(pace)} per km; every section must be between 2:00 and 20:00 per km. Check the ${i ? `${matWord(i - 1)} and ${matWord(i)} times` : `${matWord(i)} time`}.`;
 }
 
-export default function SplitCheck({ indexSha, archetypesSha, openingBands, openingCities, bandCourses, otherCourses }: {
-  indexSha: string | null; archetypesSha: string | null; openingBands: OpeningBand[]; openingCities: string[];
+export default function SplitCheck({ indexSha, archetypesSha, bandCourses, otherCourses }: {
+  indexSha: string | null; archetypesSha: string | null;
   /** Course slugs the pace band (and so this comparison) publishes, read at build time. */
   bandCourses: string[];
   /** Cities other Pace Notes data knows but this comparison does not, by slug (a runner-page link may name one). */
@@ -548,9 +547,9 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
           {stale ? <p className="split-check-updating" aria-hidden="true">Showing your last complete race</p> : null}
           {view === 'l' ? <div className="tool-state">Reading the times…</div>
             : reading && shownTimes ? (
-              <Results times={shownTimes} reading={reading} units={units} comparison={comparison} type={type} typeError={archetypes.error} retryType={archetypes.retry}
-                where={where} place={place} genderWord={genderWord} course={q.course} gender={gender} fallbacks={fallbacks} compareOptions={compareOptions}
-                openingBands={openingBands} openingCities={openingCities} isExample={isExample}
+              <Results times={shownTimes} reading={reading} units={units} comparison={comparison} type={type}
+                where={where} genderWord={genderWord} gender={gender} fallbacks={fallbacks} compareOptions={compareOptions}
+                isExample={isExample}
                 bandCourse={knownCourses?.includes(q.course) && q.course !== 'all' ? q.course : null}
                 reportCity={q.course !== 'all' ? scope?.city ?? null : null} fromRunner={fromRunner} />
             ) : view[0] === 'e' ? (
@@ -571,11 +570,11 @@ export default function SplitCheck({ indexSha, archetypesSha, openingBands, open
 
 type TypeResult = { name: string; arch: Archetype; index: number; all: Archetype[] } | null;
 
-function Results({ times, reading, units, comparison, type, typeError, retryType, where, place, genderWord, course, gender, fallbacks, compareOptions, openingBands, openingCities, isExample, bandCourse, reportCity, fromRunner }: {
-  times: number[]; reading: SplitReading; units: UnitSystem; comparison: Comparison; type: TypeResult; typeError: string | null; retryType: () => void;
+function Results({ times, reading, units, comparison, type, where, genderWord, gender, fallbacks, compareOptions, isExample, bandCourse, reportCity, fromRunner }: {
+  times: number[]; reading: SplitReading; units: UnitSystem; comparison: Comparison; type: TypeResult;
   /** The comparison's course and gender controls, drawn above the comparison panel. */
   compareOptions: ReactNode;
-  where: string; place: string; genderWord: string; course: string; gender: Gender; fallbacks: ReactNode; openingBands: OpeningBand[]; openingCities: string[]; isExample: boolean;
+  where: string; genderWord: string; gender: Gender; fallbacks: ReactNode; isExample: boolean;
   /** The chosen course when the pace band publishes it, else null. */
   bandCourse: string | null;
   /** The compared course's name for the race report link (null for all courses). */
@@ -618,23 +617,18 @@ function Results({ times, reading, units, comparison, type, typeError, retryType
         <SectionTable reading={reading} times={times} units={units} />
       </Values>
 
-      <OpeningBeat reading={reading} units={units} bands={openingBands} />
-
+      {/* The page's one data beat: how common a sustained slowdown was at this time, and this race's pacing type (its
+          share is Pace Notes data too) on one line under it. */}
       {compareOptions}
-      <ComparisonPanel comparison={comparison} where={where} genderWord={genderWord} fallbacks={fallbacks} term={!isExample} />
-
-      <TypePanel reading={reading} type={type} error={typeError} retry={retryType} units={units} />
+      <ComparisonPanel comparison={comparison} where={where} genderWord={genderWord} fallbacks={fallbacks} term={!isExample} type={type} />
 
       <div className="print-only split-check-print">
         <p>Pace Notes split check{isExample ? ' (example race)' : ''}. Mat times entered: {CHECKPOINTS.map((km, i) => `${matLabel(km)} ${formatDuration(times[i], true)}`).join(' · ')}.</p>
       </div>
 
-      {/* The one link row, after the last section: the next race's band, what followed an opening like this one, and
-          which standards this finish meets. */}
+      {/* One next step, after the last section (section 00): the next race's band. */}
       <ToolHandoffs label="Next race" links={[
         { href: `/tools/pace-band${bandQuery ? `?${bandQuery}` : ''}`, title: 'Pace band', text: <>A wristband for {bandGoal ? formatHMGoal(times[8]) : 'your goal'}, beside the mat times of finishes that hit it.</> },
-        { href: openingHref(reading, openingBands, openingCities, place, course, gender), title: 'Your opening, in every race', text: <>How finishes that opened like this played out.</> },
-        { href: isExample ? '/tools/qualifying' : `/tools/qualifying?t=${finish}`, title: 'Qualifying checker', text: <>Which standards {isExample ? 'a finish' : finish} meets.</> },
       ]} />
       <ShareBar extra={report ? <Link className="btn btn-primary is-compact" href={report}>Make a race report</Link> : null} />
     </>
@@ -797,58 +791,15 @@ function SectionTable({ reading, times, units }: { reading: SplitReading; times:
 }
 
 /* ------------------------------------------------------------------ */
-/* Opening (calculated, placed among the six published opening groups) */
-/* ------------------------------------------------------------------ */
-
-function shortBand(b: OpeningBand): string {
-  if (b.lower === null && b.upper !== null) return `< −${Math.abs(b.upper)}%`;
-  if (b.upper === null && b.lower !== null) return `> +${b.lower}%`;
-  if (b.lower !== null && b.upper !== null && b.lower === -b.upper) return `±${b.upper}%`;
-  const f = (v: number) => `${v < 0 ? '−' : '+'}${Math.abs(v)}`;
-  return `${f(b.lower!)} to ${f(b.upper!)}%`;
-}
-
-/** The starting-pace analysis opened on this race's opening band, course and recorded gender. */
-function openingHref(reading: SplitReading, bands: OpeningBand[], cities: string[], place: string, course: string, gender: Gender): string {
-  const band = openingBandOf(reading.opening * 100, bands);
-  const params = new URLSearchParams();
-  if (band) params.set('opening', band.id);
-  if (course !== 'all' && cities.includes(place)) params.set('race', place);
-  if (gender !== 'all') params.set('gender', gender === 'men' ? 'Men' : 'Women');
-  return `/analyses/starting-pace${params.toString() ? `?${params.toString()}` : ''}`;
-}
-
-function OpeningBeat({ reading, units, bands }: { reading: SplitReading; units: UnitSystem; bands: OpeningBand[] }) {
-  const band = openingBandOf(reading.opening * 100, bands);
-  const level = Math.abs(reading.opening) < 0.0005;
-  return (
-    <section className="tool-panel split-check-opening" id="split-check-opening" aria-labelledby="split-check-opening-title">
-      <p className="tool-nugget-text" id="split-check-opening-title">
-        {level ? <>You ran your first 5K <em>at</em> your {BASE} pace.</>
-          : <>You ran your first 5K <em>{openingPct(reading.opening)} {reading.opening < 0 ? 'quicker' : 'slower'}</em> than your {BASE} pace.</>}
-      </p>
-      {bands.length ? (
-        <ol className="split-check-bands" aria-label="The six opening groups, quickest first">
-          {bands.map((b) => (
-            <li key={b.id} className={band?.id === b.id ? 'is-you' : undefined} aria-current={band?.id === b.id ? 'true' : undefined}>
-              <span>{shortBand(b)}</span>
-              {band?.id === b.id ? <b>You</b> : null}
-            </li>
-          ))}
-        </ol>
-      ) : null}
-    </section>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Comparison with finishes in your window (Pace Notes data)           */
 /* ------------------------------------------------------------------ */
 
-function ComparisonPanel({ comparison, where, genderWord, fallbacks, term = true }: {
+function ComparisonPanel({ comparison, where, genderWord, fallbacks, term = true, type }: {
   comparison: Comparison; where: string; genderWord: string; fallbacks: ReactNode;
   /** Link the term here: off when the example's line above already linked its first use. */
   term?: boolean;
+  /** This race's pacing type, once the types load: one line under the dots. */
+  type: TypeResult;
 }) {
   const ok = comparison.state === 'ok' ? comparison : null;
   return (
@@ -874,6 +825,7 @@ function ComparisonPanel({ comparison, where, genderWord, fallbacks, term = true
         </div>
       ) : null}
       {ok ? <ComparisonBody ok={ok} where={where} genderWord={genderWord} fallbacks={fallbacks} term={term} /> : null}
+      {type ? <p className="tool-panel-meta split-check-shape">Your shape: <b>{type.name}</b>, like {share(type.arch.share)} of finishes.</p> : null}
     </section>
   );
 }
@@ -906,83 +858,3 @@ function ComparisonBody({ ok, where, genderWord, fallbacks, term }: {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Pacing type (Pace Notes data: clusters of complete finishes)        */
-/* ------------------------------------------------------------------ */
-
-function TypePanel({ reading, type, error, retry, units }: { reading: SplitReading; type: TypeResult; error: string | null; retry: () => void; units: UnitSystem }) {
-  if (!type) {
-    return (
-      <section className="tool-panel split-check-type" id="split-check-type" aria-labelledby="split-check-type-title">
-        <EvidenceTag kind="data" />
-        {error ? (
-          <div className="tool-state is-error split-check-off">
-            <p className="tool-panel-title" id="split-check-type-title">{error === 'missing' ? 'The pacing types are not part of this build.' : `${error}`} Everything else on this page still applies.</p>
-            {error !== 'missing' ? <div className="tool-share no-print"><button type="button" className="btn btn-secondary is-compact" onClick={() => { focusHeading('split-check-type'); retry(); }}>Try again</button></div> : null}
-          </div>
-        ) : <p className="tool-state tool-panel-title" id="split-check-type-title">Loading the pacing types…</p>}
-      </section>
-    );
-  }
-  const { arch } = type;
-  return (
-    <section className="tool-panel split-check-type" id="split-check-type" aria-labelledby="split-check-type-title" style={typeStyle(type.index) as CSSProperties}>
-      <EvidenceTag kind="data" />
-      <div className="tool-panel-head">
-        <p className="tool-nugget-text" id="split-check-type-title">The shape of your race: <em>{type.name}</em>, like {share(arch.share)} of finishes.</p>
-        {/* The mats in the site's grammar ("25K", "30–40K"), whatever the data file says. */}
-        <p className="tool-panel-meta">{arch.blurb.replace(/(\d+)–(\d+) km\b/g, '$1–$2K').replace(/(\d+) km\b/g, '$1K')}</p>
-      </div>
-      <ProfileChart reading={reading} arch={arch} units={units} />
-    </section>
-  );
-}
-
-/** Your section paces against your own average, beside the median of your pacing type and its middle half. */
-function ProfileChart({ reading, arch, units }: { reading: SplitReading; arch: Archetype; units: UnitSystem }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const width = useWidth(ref, 640);
-  const narrow = width < 480;
-  const H = narrow ? 170 : 210;
-  const m = { l: 48, r: narrow ? 60 : 76, t: 12, b: 24 };
-  const mids = SECTION_BOUNDS.map(([a, b]) => (a + b) / 2);
-  const you = reading.relative;
-  const values = [...you, ...arch.profile_p25, ...arch.profile_p75, 0];
-  const minV = Math.min(...values);
-  const maxV = Math.max(...values);
-  const span = Math.max(maxV - minV, 4);
-  const tick = [2, 5, 10, 20, 25, 50].find((s) => span / s <= 4) ?? 50;
-  const lo = Math.floor(minV / tick) * tick;
-  const hi = Math.ceil(maxV / tick) * tick;
-  const iw = Math.max(40, width - m.l - m.r);
-  const ih = H - m.t - m.b;
-  const x = (km: number) => m.l + (km / MARATHON_KM) * iw;
-  const y = (v: number) => m.t + ((v - lo) / (hi - lo || 1)) * ih;
-  const ticks: number[] = [];
-  for (let v = lo; v <= hi + 1e-9; v += tick) ticks.push(v);
-  const line = (vals: number[]) => vals.map((v, i) => `${i ? 'L' : 'M'}${x(mids[i]).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
-  const band = `${line(arch.profile_p25)} ${[...arch.profile_p75].reverse().map((v, j) => `L${x(mids[8 - j]).toFixed(1)} ${y(v).toFixed(1)}`).join(' ')} Z`;
-  const ends = [{ key: 'you', text: 'You', ly: y(you[8]) }, { key: 'type', text: 'Typical', ly: y(arch.profile[8]) }].sort((a, b) => a.ly - b.ly);
-  if (ends[1].ly - ends[0].ly < 16) ends[1].ly = ends[0].ly + 16;
-  const xTicks = fitTicks([0, 10, 20, 30, 40].map((km) => ({ x: x(km), label: km ? `${km}K` : 'Start' })), width);
-  return (
-    <div ref={ref} className="split-check-profile">
-      <svg width={width} height={H} role="img"
-        aria-label={`Each section's pace against your own average pace, beside the typical ${arch.name}. You: ${you.map((v, i) => `${secName(i)} ${signedPct(v, 1)}`).join(', ')}. Typical ${arch.name}: ${arch.profile.map((v, i) => `${secName(i)} ${signedPct(v, 1)}`).join(', ')}.`}>
-        {ticks.map((v) => (
-          <g key={v} className="split-check-gridline">
-            <line x1={m.l} x2={m.l + iw} y1={y(v)} y2={y(v)} />
-            <text x={m.l - 8} y={y(v) + 4} textAnchor="end">{v > 0 ? `+${v}` : v < 0 ? `−${Math.abs(v)}` : '0'}%</text>
-          </g>
-        ))}
-        {xTicks.map((t) => <text key={t.label} className="split-check-tick" x={t.x} y={H - 4} textAnchor={t.anchor}>{t.label}</text>)}
-        <path className="split-check-type-band" d={band} />
-        <path className="split-check-type-line" d={line(arch.profile)} />
-        <path className="split-check-you-line" d={line(you)} />
-        {you.map((v, i) => <circle key={i} className="split-check-you-dot" cx={x(mids[i])} cy={y(v)} r={3} />)}
-        {ends.map((e) => <text key={e.key} x={m.l + iw + 8} y={e.ly + 4} className={`split-check-end is-${e.key}`}>{e.text}</text>)}
-      </svg>
-
-    </div>
-  );
-}

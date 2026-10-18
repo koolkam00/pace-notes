@@ -179,6 +179,11 @@
 
 /* ---------- Copy link, print ---------- */
 .tool-share { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); margin: 0; }
+/* A secondary action in the row set as an underlined text button ("Print this plan"), 44 px tall. */
+.tool-page .tool-text-button { min-height: 44px; padding: 0 2px; border: 0; border-radius: var(--r-xs); background: none; box-shadow: none; color: var(--ink); font: inherit; font-size: var(--t-small); font-weight: 600;
+  text-decoration: underline; text-decoration-color: var(--rule-strong); text-underline-offset: 4px; cursor: pointer; }
+.tool-page .tool-text-button:hover { text-decoration-color: currentColor; }
+.tool-page .tool-text-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 /* ---------- Handoffs: one row per next step ---------- */
 .tool-handoffs { display: grid; gap: var(--s-2); margin: 0; }

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { PILEUP_RATIO } from '@/lib/tools/goal-facts';
 import { notFound } from 'next/navigation';
 import ChartFrame from '@/components/viz/ChartFrame';
 import Plot, { Baseline } from '@/components/viz/Plot';
@@ -79,7 +80,7 @@ function bunchingFor(minute: number): GoalBunching | null {
  * The pile-up as a figure: finishes per minute for ten minutes either side of the goal, the smooth curve over them and the
  * minute before the goal in signal. Server-drawn (no script on the page), from the same finish-time file as the sentence.
  */
-function pileupFigure(minute: number): ReactNode {
+function pileupFigure(minute: number, piled: boolean): ReactNode {
   try {
     const ft = readInsight<FinishTimes>(FINISH_TIMES);
     const lo = minute - 10, hi = minute + 10;
@@ -95,7 +96,8 @@ function pileupFigure(minute: number): ReactNode {
     const x = linear([lo, hi]), w = 1 / (hi - lo);
     const y = yScale(0, Math.max(...bins.map((b) => b.n), ...curve.map((c) => c.v)), { top: 0.16 });
     const top = y(at(before));
-    const placed = placeLabels([{ id: 'before', text: hm(before), x: x(before + 0.5), y: top, priority: 3, tone: 'signal', gap: 6 }], { height });
+    // A pile-up below PILEUP_RATIO is no finding: its tower and name are ink, not the signal.
+    const placed = placeLabels([{ id: 'before', text: hm(before), x: x(before + 0.5), y: top, priority: 3, tone: piled ? 'signal' : 'ink', gap: 6 }], { height });
     const plot = (
       <Plot>
         <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
@@ -103,7 +105,7 @@ function pileupFigure(minute: number): ReactNode {
           <path className="a-edge" d={stepEdge(bins.map((b) => ({ x: x(b.x), y: y(b.n) })), w)} />
           <path className="l-ink2" d={curve.map((c, i) => `${i ? 'L' : 'M'}${u(x(c.x + 0.5))} ${u(y(c.v))}`).join('')} />
         </svg>
-        <rect className="m-signal is-reading histo-tower" x={pc(x(before))} width={pc(w)} y={pc(top)} height={pc(1 - top)} />
+        <rect className={`${piled ? 'm-signal' : 'm-ink'} is-reading histo-tower`} x={pc(x(before))} width={pc(w)} y={pc(top)} height={pc(1 - top)} />
         <Annotation labels={placed} />
         <Baseline />
       </Plot>
@@ -166,7 +168,7 @@ export default function GoalPacePage({ params }: { params: { goal: string } }) {
         <p className="print-only goal-chart-print-note">Pace Notes {label} marathon pace. splithappens.run{goalPagePath(minute)}</p>
       </ToolPageHeader>
       <div className="goal-pace-stack">
-        <GoalPaceBody goal={minute} observed={observed} bunching={bunching} peers={peers} pileup={bunching ? pileupFigure(minute) : null} />
+        <GoalPaceBody goal={minute} observed={observed} bunching={bunching} peers={peers} pileup={bunching ? pileupFigure(minute, bunching.ratio >= PILEUP_RATIO) : null} />
       </div>
       <ToolEnd path={goalPagePath(minute)} how="/methodology#tools-goal-pages" />
     </div>

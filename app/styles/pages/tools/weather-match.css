@@ -35,29 +35,17 @@
 
 /* ---------- Charts ---------- */
 .weather-match-figure { margin: 0; }
-.weather-match-chart svg, .weather-match-strip svg { display: block; overflow: visible; }
-.weather-match-chart svg text, .weather-match-strip svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
-.weather-match-grid line { stroke: var(--rule); }
-.weather-match-zero { stroke: var(--ink-3); }
-.weather-match-line path { fill: none; stroke-width: 2.5; stroke-linejoin: round; }
-.weather-match-line.is-yours path { stroke: var(--signal); }
-.weather-match-line.is-yours circle { fill: var(--signal); stroke: var(--paper); stroke-width: 1.5; }
-.weather-match-line.is-ref path { stroke: var(--ink); stroke-width: 2; stroke-dasharray: 5 4; }
-.weather-match-line.is-ref circle { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }
-.weather-match-chart svg .weather-match-end { font-weight: 600; }
-.weather-match-chart svg .weather-match-end.is-yours { fill: var(--signal-ink); }
-.weather-match-chart svg .weather-match-end.is-ref { fill: var(--ink); }
+.weather-match-strip svg { display: block; overflow: visible; }
+.weather-match-strip svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
 .weather-match-legend { display: flex; flex-wrap: wrap; gap: 4px var(--s-4); margin: var(--s-2) 0 0; padding: 0; list-style: none; font-size: var(--t-label); color: var(--ink-2); }
 .weather-match-legend li { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
-.weather-match-legend i { flex: none; width: 18px; height: 0; border-top: 2.5px solid var(--signal); }
-.weather-match-legend .is-ref i { border-top: 2px dashed var(--ink); }
-.weather-match-legend.is-strip i { width: 10px; height: 10px; border: 0; border-radius: 50%; background: var(--fill-quiet); box-shadow: inset 0 0 0 1px var(--mark-quiet); }
+.weather-match-legend.is-strip i { flex: none; width: 10px; height: 10px; border: 0; border-radius: 50%; background: var(--fill-quiet); box-shadow: inset 0 0 0 1px var(--mark-quiet); }
 .weather-match-legend.is-strip .is-on i { background: var(--ink); box-shadow: none; }
 .weather-match-legend.is-strip .is-ring i { background: var(--paper); box-shadow: inset 0 0 0 2px var(--ink); }
 .weather-match-legend.is-strip .is-zone-yours i { width: 14px; border-radius: 2px; background: var(--wash); box-shadow: none; }
 .weather-match-legend.is-strip .is-zone-ref i { width: 14px; border-radius: 2px; background: none; box-shadow: none; border: 1px dashed var(--ink-3); }
 
-/* The races in ink on a wash: the accent stays with the line chart above, the beat it shares a screen with. */
+/* The races in ink on a wash: the reading's accent is the card's. */
 .weather-match-zone.is-yours { fill: var(--wash); }
 .weather-match-zone.is-ref { fill: none; stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; }
 .weather-match-axis { stroke: var(--rule-strong); }

@@ -169,11 +169,12 @@ export default function PaceCalculator() {
                 </>
               ) : null}
             </div>
-            <DurationField label={`Time${solve === 'time' ? ' (solved)' : ''}`} large value={solve === 'time' ? (ready ? seconds : null) : timeS}
-              onChange={(s) => edit('time', { t: s === null ? '' : formatDuration(s, true) })} placeholder="4:00:00" />
+            {/* The solved box stays empty: its value is the result card's figure just below, so the screen says it once. */}
+            <DurationField label={`Time${solve === 'time' ? ' (solved)' : ''}`} large value={solve === 'time' ? null : timeS}
+              onChange={(s) => edit('time', { t: s === null ? '' : formatDuration(s, true) })} placeholder={solve === 'time' ? 'In the result' : '4:00:00'} />
             <DurationField label={`Pace per ${units === 'mi' ? 'mile' : 'kilometre'}${solve === 'pace' ? ' (solved)' : ''}`} mode="pace" large
-              value={solve === 'pace' ? (ready ? perUnit(paceKm!, units) : null) : paceUnitS} onChange={(s) => edit('pace', { p: s === null ? '' : formatDuration(s) })} placeholder={units === 'mi' ? '8:00' : '5:00'} />
-            <p className="tool-field-hint">Type in any two boxes; the third updates. The one marked “solved” is calculated.</p>
+              value={solve === 'pace' ? null : paceUnitS} onChange={(s) => edit('pace', { p: s === null ? '' : formatDuration(s) })} placeholder={solve === 'pace' ? 'In the result' : units === 'mi' ? '8:00' : '5:00'} />
+            <p className="tool-field-hint">Type in any two boxes; the result gives the third.</p>
           </form>
 
           <div className="tool-results">
@@ -257,11 +258,12 @@ export default function PaceCalculator() {
                     <dl className="tool-cells pace-calculator-distances">
                       {others.map((d) => <div key={d.key}><dt>{d.label}</dt><dd>{formatDuration(paceKm! * d.km, paceKm! * d.km >= 3599.5)}</dd></div>)}
                     </dl>
-                    <p className="tool-note">Not a predicted race time: for a marathon estimate from a shorter race, use the <Link href="/tools/predictor">finish-time predictor</Link>.</p>
+                    <p className="tool-note">Not a predicted race time.</p>
                   </section>
-                ) : <p className="tool-note pace-calculator-predictor">For a marathon estimate from a shorter race, use the <Link href="/tools/predictor">finish-time predictor</Link>.</p>}
-                {/* Where a marathon time goes next, after the last section, never between the answer and its splits. */}
-                {goalMinutes !== null ? <MarathonHandoffs label="With this marathon time" seconds={shownSeconds!} /> : null}
+                ) : null}
+                {/* Where a marathon time goes next, after the last section, never between the answer and its splits: one row,
+                    the planner (the chapter end carries the rest). */}
+                {goalMinutes !== null ? <MarathonHandoffs label="With this marathon time" seconds={shownSeconds!} to={['plan', 'band']} /> : null}
                 <ShareBar />
               </>
             ) : <p className="tool-empty">{solvedOutOfRange ? solvedMessage(km!, units) : 'Enter two of distance, time and pace to see splits.'}</p>}

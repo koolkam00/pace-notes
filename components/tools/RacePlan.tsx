@@ -309,17 +309,17 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
           <div data-track-section="pace-band" hidden={!planned}>
             {planned ? (
               <section className="tool-panel plan-band" id="plan-band" aria-labelledby="plan-band-title">
-                <header className="tool-panel-head">
-                  {/* The strips are the visitor's own even-pace times; the small "H" line is observed, so the panel carries the
-                      data badge whenever that line is drawn, as the pace band's own print panel does. */}
-                  {comparison?.held ? <EvidenceTag kind="data" /> : null}
+                {/* No badge: the strips are the visitor's own even-pace times (the page's data badge sits on the nugget
+                    above, and the printed page names its source). Under 600 px the preview is not drawn, so the heading
+                    goes with it and the actions stand alone. */}
+                <header className="tool-panel-head plan-band-head">
                   <h2 className="tool-panel-title" id="plan-band-title">Your pace band</h2>
                 </header>
                 <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={units === 'mi' ? 'mi' : 'km'} overrun={0} place={place} genderWord=""
                   observed={comparison ? { held: comparison.held, lo: comparison.lo, hi: comparison.hi, place, genderWord: '' } : null} profile={null} showBack={false} waiting={false} />
                 <ShareBar print={false} extra={<>
-                  <button type="button" className="btn btn-secondary is-compact" data-not-edit onClick={() => printAs('strip')}>Print wristband strips</button>
-                  <button type="button" className="btn btn-secondary is-compact" data-not-edit onClick={() => printAs('plan')}>Print this plan</button>
+                  <button type="button" className="btn btn-primary is-compact" data-not-edit onClick={() => printAs('strip')}>Print wristband strips</button>
+                  <button type="button" className="tool-text-button" data-not-edit onClick={() => printAs('plan')}>Print this plan</button>
                 </>} />
               </section>
             ) : null}
@@ -330,14 +330,10 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
               <div className="print-only plan-print-mats"><MatTable goal={goal} pKm={pKm} units={units} observed={comparison} /></div>
               {/* Only a page that prints observed columns (the mat table's groups and the "H" line) is attributed to the data. */}
               <p className="print-only plan-print-source">{comparison ? 'Your plan beside Pace Notes data' : 'Your race plan'} · splithappens.run/tools/plan</p>
-              <ToolHandoffs label="Next steps" links={[
+              {/* One next step, the most likely one (section 00: one link forward per screen); the chapter end carries the rest. */}
+              <ToolHandoffs label="Next step" links={[
                 { href: `/tools/pace-band?goal=${fmtGoal(goal)}${course?.band ? `&course=${course.slug}` : ''}`, title: 'The full pace band',
                   text: <>For a watch that reads long, recorded-gender groups and a route strip for the back.</> },
-                { href: `/tools/weather-match?goal=${formatDuration(goal, true)}${course?.weather ? `&course=${course.slug}` : ''}`, title: 'Weather match',
-                  text: <>Past race mornings at your forecast, and how finishes at your pace held up.</> },
-                { href: `/tools/projector?target=${formatDuration(goal, true)}&t=none${course?.projector ? `&course=${course.slug}` : ''}`, title: 'Race-day projector',
-                  text: <>On race day, a tracker time gives the finish range{course?.projector ? ` in ${course.city}` : ''}.</> },
-                ...(course?.page ? [{ href: `/courses/${course.slug}`, title: `${course.city} course page`, text: <>How finishes paced this course, edition by edition.</> }] : []),
               ]} />
               {dataError && !goalData.error ? <DataProblem error={dataError} onRetry={retry} /> : null}
               <GoalBar label="Goal" onStep={step}>

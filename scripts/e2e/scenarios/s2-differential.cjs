@@ -64,16 +64,13 @@ const CASES = {
     await step(log, 'tp', () => type(page, label(page, /Average training pace/, false), v.tp.replace(':', '.')));
   } },
   'predictor-url': { path: v => `/tools/predictor?t=${v.half}&d=half&t2=${v.tenK}&d2=10k&wk=${v.weekly}&tp=${v.tp}` },
-  // The result's next steps open the pace band and the pacing-pattern analysis with a time worked out from the typed one
-  // in their address: those pages must record it no more than a time typed there.
+  // The result's next step opens the pace band with a time worked out from the typed one in its address: that page must
+  // record it no more than a time typed there. (One row since the redesign's section 00; the pacing-pattern link went.)
   'predictor-handoff': { path: '/tools/predictor', async drive(page, v, log) {
     await step(log, 't1', () => type(page, 'input[id$="-t1"]', v.half));
     await page.waitForTimeout(1200);
     await step(log, 'pace band', async () => { await page.locator('.tool-handoffs a:has-text("Turn this into a pace band")').click(); await page.waitForURL(/\/tools\/pace-band\?goal=\d:\d\d$/); });
     await page.waitForTimeout(2000); await wiggle(page, 5);
-    await step(log, 'back', () => page.goBack()); await page.waitForTimeout(1500);
-    await step(log, 'pacing pattern', async () => { await page.locator('.tool-handoffs a:has-text("See how finishers near this time paced")').click(); await page.waitForURL(/\/analyses\/pacing-pattern\?goal=\d+$/); });
-    await page.waitForTimeout(2500); await wiggle(page, 5);
   } },
   'weather-match': { path: '/tools/weather-match', async drive(page, v, log) {
     await step(log, 'temp', () => type(page, '#weather-match-temp', v.temp));

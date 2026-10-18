@@ -29,8 +29,6 @@ const GOAL_MAX_S = 480 * 60;
 const OBS_MIN = 150;
 const OBS_MAX = 390;
 /** The course chooser covers goals from 2:30 to 6:30 (minutes). */
-const CHOOSER_MIN = 150;
-const CHOOSER_MAX = 390;
 /** Typing commits a readable goal after this pause, so a prefix such as "3:3" on the way to "3:35" is not taken as the goal. */
 const COMMIT_MS = 400;
 /** After this pause, an unreadable or out-of-range goal is flagged even before the field loses focus. */
@@ -232,9 +230,7 @@ export default function PaceBand({ indexSha, profiles, projectorScopes, unpublis
   );
   const badGoal = q.goal.trim().slice(0, 24);
 
-  // Cross-tool links. The course chooser gets the whole minute at or below the goal, only inside its 2:30–6:30 range.
-  const chooserGoal = minute !== null && minute >= CHOOSER_MIN && minute <= CHOOSER_MAX ? minute : null;
-  // The projector gets the exact goal, the course only when it publishes it, and t=none so it waits for a tracker time
+  // The cross-tool link: the projector gets the exact goal, the course only when it publishes it, and t=none so it waits for a tracker time
   // instead of showing its example runner. Its recorded-gender groups exist for All courses only.
   const projectorCourse = course !== 'all' && projectorScopes?.includes(course) ? course : 'all';
   const projector = {
@@ -315,8 +311,9 @@ export default function PaceBand({ indexSha, profiles, projectorScopes, unpublis
                 {fresh?.held ? <EvidenceTag kind="data" /> : null}
               </section>
 
+              {/* The same source as the card above when it draws the held line (its data badge), so no second badge then. */}
               <section className="tool-panel pace-band-observed" id="pace-band-observed" aria-labelledby="pace-band-observed-title">
-                <EvidenceTag kind="data" />
+                {fresh?.held ? null : <EvidenceTag kind="data" />}
                 {stale ? <p className="tool-note">Loading {place}{genderWord ? `, ${genderWord}` : ''}…</p> : null}
                 {observed.state === 'loading' && !stale ? <p className="tool-state" id="pace-band-observed-title">Loading the finishes near {fmtGoal(goal)}…</p> : null}
                 {shown.state === 'off' ? (
@@ -377,10 +374,8 @@ export default function PaceBand({ indexSha, profiles, projectorScopes, unpublis
 
               {/* Links and the copied link carry the goal on screen, so they wait while the field holds something else. */}
               {held ? null : (
-                <ToolHandoffs label="Next steps" links={[
-                  chooserGoal !== null
-                    ? { href: `/tools/course-chooser?goal=${formatHM(chooserGoal * 60)}`, title: 'Every course at this goal', text: <>How finishes on {formatHM(chooserGoal * 60)} pace held up on each course.</> }
-                    : { href: '/tools/course-chooser', title: 'Every course at your goal', text: <>The course chooser covers goals from 2:30 to 6:30.</> },
+                // One next step (section 00): race day, where the band is worn.
+                <ToolHandoffs label="Next step" links={[
                   { href: projector.href, title: `Race-day projector${projector.label}`, text: <>On race day, a tracker time gives the finish range for {fmtGoal(goal)}{projector.note}.</> },
                 ]} />
               )}
@@ -537,11 +532,11 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
   /** Open the print options on arrival: a link set one of them. */
   optionsOpen?: boolean;
 }) {
-  const held = observed?.held ?? null;
   return (
     <section className="tool-panel pace-band-print-panel" id="pace-band-band" aria-labelledby="pace-band-print-title">
-      <header className="tool-panel-head">
-        {held ? <EvidenceTag kind="data" /> : null}
+      {/* No badge: the strips are the visitor's own even-pace times (the card above carries the data badge, and the
+          printed page names its source). Under 600 px the preview is not drawn, so the heading goes with it. */}
+      <header className="tool-panel-head pace-band-print-head">
         <h2 className="tool-panel-title" id="pace-band-print-title">Print your wristband</h2>
       </header>
       {/* One control for the beat: the print options fold into one disclosure (rows, a watch that reads long, the back). */}
@@ -558,7 +553,7 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
         observed={observed} profile={profile} showBack={showBack} waiting={waiting} />
       <ShareBar print={false} extra={<>
         <button type="button" className="btn btn-primary is-compact" data-not-edit disabled={waiting} aria-describedby={waiting ? 'pace-band-print-held' : undefined} onClick={() => onPrint('strip')}>Print wristband strips</button>
-        <button type="button" className="btn btn-secondary is-compact" data-not-edit disabled={waiting} aria-describedby={waiting ? 'pace-band-print-held' : undefined} onClick={() => onPrint('page')}>Print full page</button>
+        <button type="button" className="tool-text-button" data-not-edit disabled={waiting} aria-describedby={waiting ? 'pace-band-print-held' : undefined} onClick={() => onPrint('page')}>Print full page</button>
       </>} />
       {waiting ? <p className="tool-note" id="pace-band-print-held">Fix the goal above to print. The preview still shows {fmtGoal(goal)}.</p> : null}
       {values}

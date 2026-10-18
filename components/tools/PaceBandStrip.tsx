@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, type CSSProperties } from 'react';
 import { useWidth } from '@/components/viz/useSize';
 import { perUnit, watchTarget, type SplitInterval, type SplitRow } from '@/lib/tools/pace';
 import { CHECKPOINTS, fmtGoal, fmtPace } from '@/lib/tools/pace-band-data';
@@ -43,7 +43,8 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
   return (
     <>
       <div className={`pace-band-sheet-wrap${waiting ? ' pace-band-held-dim' : ''}`} ref={wrapRef}>
-        <div className="pace-band-sheet" style={{ zoom }}>
+        {/* --zoom lets the screen-only labels stay 11 px after the zoom (pace-band-strip.css). */}
+        <div className="pace-band-sheet" style={{ zoom, ['--zoom' as string]: zoom } as CSSProperties}>
           <p className="pace-band-sheet-head">Pace Notes · pace band · {fmtGoal(goal)} goal · {place}{genderWord ? ` · ${genderWord}` : ''} · cut along the dashed lines</p>
           <div className="pace-band-strip is-mats">
             <div className="pace-band-cell is-lead">

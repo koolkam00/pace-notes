@@ -36,6 +36,13 @@
 }
 
 @media screen and (max-width: 599.98px) { .pace-band-sheet-wrap { display: none; } }
+/* On screen the preview is scaled to fit (--zoom), so its printed micro text would be 5–9 px. The preview keeps only the
+   mat names and the even times: the header line, the strips' legend, the mats' miles and the held line are print only
+   (the night card above lists every held time), and the mat names stay 11 px after the zoom. Print keeps every size. */
+@media screen {
+  .pace-band-sheet-head, .pace-band-strip-caption, .pace-band-cell .k small, .pace-band-cell .h { display: none; }
+  .pace-band-cell .k { font-size: min(15px, calc(11px / var(--zoom, 1))); }
+}
 
 @media print {
   .pace-band-sheet-wrap { overflow: visible; margin: 0; padding: 0; background: none; }

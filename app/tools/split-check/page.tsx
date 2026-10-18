@@ -2,7 +2,7 @@ import SplitCheck from '@/components/tools/SplitCheck';
 import { ToolEnd, ToolHeader } from '@/components/tools/ToolShell';
 import { pageMetadata } from '@/lib/seo';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
-import { ARCHETYPES, openingGroups, otherCourses } from '@/lib/split-check-server';
+import { ARCHETYPES, otherCourses } from '@/lib/split-check-server';
 import type { PaceBandIndex } from '@/lib/tools/data';
 
 export const metadata = pageMetadata({
@@ -18,13 +18,12 @@ export default function SplitCheckPage() {
   const indexSha = manifest.files[INDEX]?.sha256 ?? null;
   const archetypesSha = manifest.files[ARCHETYPES]?.sha256 ?? null;
   const index = indexSha ? readInsight<PaceBandIndex>(INDEX) : null;
-  const { bands, cities } = openingGroups();
   const bandCourses = (index?.scopes ?? []).map((s) => s.slug).filter((s) => s !== 'all');
 
   return (
     <div className="tool-page">
       <ToolHeader slug="split-check" />
-      <SplitCheck indexSha={indexSha} archetypesSha={archetypesSha} openingBands={bands} openingCities={cities}
+      <SplitCheck indexSha={indexSha} archetypesSha={archetypesSha}
         bandCourses={bandCourses} otherCourses={otherCourses(index)} />
       <ToolEnd path="/tools/split-check" how="/methodology#tools-split-check" />
     </div>

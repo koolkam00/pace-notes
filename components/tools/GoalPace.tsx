@@ -6,7 +6,7 @@ import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { ToolHandoffs } from '@/components/tools/Handoffs';
 import MatLines from '@/components/tools/MatLines';
 import Values from '@/components/ui/Values';
-import { evenPaceGapText, groupGapText, type GoalPeer } from '@/lib/tools/goal-facts';
+import { PILEUP_RATIO, UNEVEN_SHARE, evenPaceGapText, groupGapText, type GoalPeer } from '@/lib/tools/goal-facts';
 import { MARATHON_KM, MATS_KM, perUnit, splitTable } from '@/lib/tools/pace';
 import { evenAt, goalLabel, paceBandHref } from '@/lib/tools/pace-chart';
 import { formatDuration } from '@/lib/tools/time';
@@ -78,8 +78,12 @@ export function GoalPaceBody({ goal, observed, bunching, pileup }: { goal: numbe
   const groupText = observed?.held && observed.slow ? groupGapText(observed.held.e50, observed.slow.e50) : null;
   const i20 = CHECKPOINTS.indexOf(20);
   const last = CHECKPOINTS.length - 1;
+  // The subject named: the finishes that slowed, not every finish under the goal.
   const groupShort = observed?.held && observed.slow && groupText
-    ? `At 20K they were ${against(observed.slow.e50[i20] - observed.held.e50[i20])} those that held pace, and they finished ${finished(observed.slow.e50[last] - observed.held.e50[last])}.` : null;
+    ? `Those that slowed passed 20K ${against(observed.slow.e50[i20] - observed.held.e50[i20])} those that held pace, and finished ${finished(observed.slow.e50[last] - observed.held.e50[last])}.` : null;
+  // A pile-up is a finding only when it stands well above the curve; a small bump reads as what it is.
+  const piled = !!bunching && bunching.ratio >= PILEUP_RATIO;
+  const uneven = observed?.sd != null && observed.sd >= UNEVEN_SHARE;
 
   return (
     <>
@@ -118,7 +122,9 @@ export function GoalPaceBody({ goal, observed, bunching, pileup }: { goal: numbe
         <section className="tool-panel goal-pace-bunching" aria-labelledby="goal-pace-bunching-title">
           <EvidenceTag kind="data" />
           <h2 className="tool-nugget-text" id="goal-pace-bunching-title">
-            {count(bunching.before)} finishes landed in the last minute under {label}: <em>{bunching.ratio.toFixed(2)}×</em> what a smooth curve expects there.
+            {piled
+              ? <>{count(bunching.before)} finishes landed in the last minute under {label}: <em>{bunching.ratio.toFixed(2)}×</em> what a smooth curve expects there.</>
+              : <>Finishes near {label} stay close to the smooth curve: the minute before it holds {bunching.ratio.toFixed(2)}× the curve.</>}
           </h2>
           {pileup}
           <p className="tool-note goal-pace-more"><Link href="/stories/round-numbers">The 3:59 effect</Link></p>
@@ -130,7 +136,9 @@ export function GoalPaceBody({ goal, observed, bunching, pileup }: { goal: numbe
       {observed?.held && observed.slow && observed.sd != null ? (
         <section className="tool-panel goal-pace-slowdown" aria-labelledby="goal-pace-slowdown-title">
           {bunching ? null : <EvidenceTag kind="data" />}
-          <h2 className="tool-nugget-text" id="goal-pace-slowdown-title">Finishes just under {label} didn’t run even either: <em>{pct(observed.sd)}</em> had a <SlowdownTerm />.</h2>
+          <h2 className="tool-nugget-text" id="goal-pace-slowdown-title">{uneven
+            ? <>Finishes just under {label} didn’t run even: <em>{pct(observed.sd)}</em> had a <SlowdownTerm />.</>
+            : <>Most finishes just under {label} held their pace: only <em>{pct(observed.sd)}</em> had a <SlowdownTerm />.</>}</h2>
           {groupShort ? <p className="tool-panel-meta">{groupShort}</p> : null}
           <MatLines units={units} zero={`Even pace for ${label}`}
             lines={[

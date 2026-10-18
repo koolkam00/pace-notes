@@ -756,10 +756,10 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
     });
     if (est.range) {
       const r = est.range;
-      const [a, b] = rangeText(r.low, r.high);
       rows.push({
+        // The card above gives the range; its row names the median, the tick on the bar.
         key: 'range', label: 'The typical range', detail: 'recreational runners',
-        value: `${a}–${b}`, kind: 'range', lo: r.low, mid: r.median, hi: r.high, tone: 'violet',
+        value: `median ${fmtTime(r.median)}`, kind: 'range', lo: r.low, mid: r.median, hi: r.high, tone: 'violet',
         tip: [`${fmtTime(r.low)} to ${fmtTime(r.high)}`, `Median estimate ${fmtTime(r.median)} · ${pace(r.median)}`],
       });
       looks.push(
@@ -798,8 +798,6 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
   const medianGoal = medianMinute !== null && bandTimes.includes(medianMinute) ? medianMinute : null;
   const chooserGoal = medianMinute !== null && medianMinute >= CHOOSER_MIN_S && medianMinute <= CHOOSER_MAX_S ? medianMinute : null;
 
-  const openSecond = () => { setOpen2(true); setTimeout(() => race2Ref.current?.focus(), 30); };
-  const openTanda = () => { setOpenT(true); setTimeout(() => tandaRef.current?.querySelector('input')?.focus(), 30); };
 
   const stale = [q.ago === '6+' ? 'Your recent race' : null, race2?.ok && q.ago2 === '6+' ? 'Your second race' : null].filter(Boolean) as string[];
 
@@ -904,20 +902,19 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
                 <p className="tool-note predictor-stale"><strong>{stale.join(' and ')} {stale.length > 1 ? 'were' : 'was'} more than 6 months ago.</strong> A recent race predicts better.</p>
               ) : null}
 
+              {/* Every estimate's figure is here, once: the card above gives the range alone. The source is the card's
+                  (published research), so no second badge. */}
               <section className="tool-panel predictor-methods" id="predictor-methods" aria-labelledby="predictor-methods-title">
                 <header className="tool-panel-head">
-                  <EvidenceTag kind="research" />
                   <h2 className="tool-panel-title" id="predictor-methods-title">Every estimate, side by side</h2>
                 </header>
                 <MethodChart rows={rows} fuzzy={!!est.range && est.range.extrapolation === 'shorter'} label={chartLabel} />
-                {/* Two more estimates, from inputs the form folds away. */}
-                {est.isMarathon && !(est.personal && 'b' in est.personal) ? <p className="tool-note predictor-prompt"><button type="button" className="predictor-link-button" onClick={openSecond}>Add a second race</button> or <button type="button" className="predictor-link-button" onClick={openTanda}>training volume</button> for your own estimate.</p> : null}
               </section>
 
               <ObservedPanel indexSha={indexSha} est={est} looks={looks} look={look} setLook={setLook} units={units} />
               {/* The median estimate, handed on as the whole minute at or below it, as every tool reads it (4:11:41 is 4:11),
                   after the last section. The planner is the page's next card, so it is not a row here too. */}
-              {est.range ? <MarathonHandoffs label="With this estimate" seconds={Math.round(est.range.median)} plan={false} /> : null}
+              {est.range ? <MarathonHandoffs label="With this estimate" seconds={Math.round(est.range.median)} to={['band', 'pacing']} /> : null}
               <ShareBar />
             </>
           )}
@@ -964,11 +961,7 @@ function Headline({ est, dist, units, example }: { est: Estimates; dist: Distanc
     return (
       <section className="tool-reading night predictor-headline" aria-label="Your estimate">
         {head(<><span className="sr-only">Typical recreational range: </span>{a}<span className="predictor-to">–</span>{b}</>,
-          `The typical recreational range${r.extrapolation === 'shorter' ? ', less certain from a shorter race' : ''}.`)}
-        <dl className="tool-cells">
-          <div><dt>Median estimate</dt><dd>{formatDuration(r.median, true)}<small>{pace(r.median)}</small></dd></div>
-          <div><dt>Classic formula</dt><dd>{formatDuration(est.riegel, true)}<small>{pace(est.riegel)}</small></dd></div>
-        </dl>
+          `The typical recreational range${r.extrapolation === 'shorter' ? ', less certain from a shorter race' : ''}: ${pace(r.low).replace(/\/\w+$/, '')}–${pace(r.high)}.`)}
         <EvidenceTag kind="research" />
       </section>
     );
@@ -987,10 +980,6 @@ function Headline({ est, dist, units, example }: { est: Estimates; dist: Distanc
   return (
     <section className="tool-reading night predictor-headline" aria-label="Your estimate">
       {head(a === b ? a : <>{a}<span className="predictor-to">–</span>{b}</>, 'Both classic formulas hold up well for races up to the half marathon.')}
-      <dl className="tool-cells">
-        <div><dt>Classic formula</dt><dd>{fmtTime(est.riegel)}<small>{pace(est.riegel)}</small></dd></div>
-        <div><dt>Fitness equations</dt><dd>{fmtTime(est.daniels)}<small>{pace(est.daniels)}</small></dd></div>
-      </dl>
       <EvidenceTag kind="research" />
     </section>
   );

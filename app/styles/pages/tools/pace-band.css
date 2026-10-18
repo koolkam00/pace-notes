@@ -29,6 +29,13 @@
 /* ---------- The band to print ---------- */
 .pace-band-controls { display: grid; gap: var(--s-4); }
 .pace-band-options { border-bottom: 1px solid var(--rule); }
+/* Under 600 px the preview is not drawn (pace-band-strip.css), so its heading goes too. */
+@media screen and (max-width: 599.98px) {
+  .pace-band-print-head { display: none; }
+  /* The panel's own hairline is the one above the options row: no second rule 40 px below it. */
+  .pace-band-print-panel { padding-top: 0; }
+  .pace-band-print-panel > .pace-band-options { border-top: 0; }
+}
 .pace-band-controls .tool-choice .seg-btn { padding-inline: 8px; }
 
 /* ---------- Print ---------- */

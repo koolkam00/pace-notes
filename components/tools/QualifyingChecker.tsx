@@ -13,7 +13,7 @@ import {
   BOSTON_CUTOFFS, CHICAGO_ROUTE, STANDARDS, VERIFIED_AT, bostonDownhillIndex, bostonDownhillIndexMetres, clearedCutoffs, comparisonText, evaluate,
   type Band, type Division, type QualifyInput, type QualifyResult, type Standard,
 } from '@/lib/tools/qualifying';
-import { formatDuration, formatMargin, parseDuration } from '@/lib/tools/time';
+import { formatDuration, parseDuration } from '@/lib/tools/time';
 import { METRES_PER_FOOT, type UnitSystem } from '@/lib/units';
 
 /* ---------- Constants ---------- */
@@ -223,6 +223,9 @@ function bandText(s: Standard, b: Band, division: Division): string {
 }
 
 const marginWord = (m: number) => (m > 0 ? 'under' : m < 0 ? 'over' : 'exactly on');
+/** A margin in words, never a sign ("14:00 under", "3:00 over"): elsewhere on the site + means slower or behind. */
+const marginAmount = (m: number) => formatDuration(Math.abs(Math.round(m)));
+const marginText = (m: number) => (Math.round(m) === 0 ? 'exactly on' : `${marginAmount(m)} ${marginWord(m)}`);
 const fmtTime = (s: number) => formatDuration(s, true);
 const yearOf = (s: Standard) => s.edition.slice(0, 4);
 
@@ -366,7 +369,7 @@ export default function QualifyingChecker() {
     : !birthOk ? 'Enter your date of birth: each race works out your age group differently.'
     : orderError ?? '';
   // One short, always-mounted status line for screen readers, sent once typing settles and only after the visitor changes something.
-  const status = ready ? `${headline}.${boston && boston.r.margin !== null ? ` Boston ${yearOf(boston.s)}: ${formatMargin(boston.r.margin)} ${marginWord(boston.r.margin)} the standard.` : ''}` : emptyMessage;
+  const status = ready ? `${headline}.${boston && boston.r.margin !== null ? ` Boston ${yearOf(boston.s)}: ${marginText(boston.r.margin)} the standard.` : ''}` : emptyMessage;
   const settledStatus = useSettled(interacted ? status : '', 600);
 
   // Which inputs are still the example runner's. The birth date never travels in a link, so it stays an example until entered here.
@@ -534,7 +537,7 @@ function BostonLine({ it, raceDate }: { it: Item; raceDate: string }) {
   const { r } = it;
   if (r.margin === null) return <>Boston {yearOf(it.s)}: {(it.v.reason ?? it.v.label).replace(/\.$/, '')}.</>;
   const sum = cutoffSummary(r.margin);
-  const lead = <>Boston {yearOf(it.s)}: <b>{formatMargin(r.margin)}</b> {marginWord(r.margin)} the standard</>;
+  const lead = r.margin === 0 ? <>Boston {yearOf(it.s)}: exactly on the standard</> : <>Boston {yearOf(it.s)}: <b>{marginAmount(r.margin)}</b> {marginWord(r.margin)} the standard</>;
   if (r.status === 'outside-window') return <>{lead}, but the race date is {outsideReason(it.s, raceDate) ?? 'outside its window'}.</>;
   if (r.margin < 0) return <>{lead}.</>;
   return <>{lead}, enough for {sum.recent} of the last 4 cut-offs ({sum.span}).</>;
@@ -571,8 +574,9 @@ function RaceRows({ items, named, ...rest }: { items: Item[]; named?: string } &
                     {m !== null ? <i className={`qualifying-race-bar${m < 0 ? ' is-neg' : ''}${clipped ? ' is-clipped' : ''}`} style={{ left: `${Math.min(pct(0), pct(m))}%`, width: `${Math.max(0.6, Math.abs(pct(m) - pct(0)))}%` }} /> : null}
                   </span>
                   <span className="qualifying-race-value">
-                    <b>{m !== null ? formatMargin(m) : '—'}</b>
-                    {m !== null ? <span className="sr-only"> {marginWord(m)} the standard.</span> : null}
+                    {/* The amount, then its direction in words (the bar carries it too): never a sign. */}
+                    <b>{m !== null ? <>{marginAmount(m)}<span className="qualifying-race-word"> {Math.round(m) === 0 ? 'on' : marginWord(m)}</span></> : '—'}</b>
+                    {m !== null ? <span className="sr-only"> the standard.</span> : null}
                     <small><span aria-hidden="true">{GLYPH[v.tone]}</span> {v.short.includes(' · ') ? v.short.split(' · ').map((part, k) => <Fragment key={k}>{k ? ' · ' : ''}<span className="nowrap">{part}</span></Fragment>) : v.short}</small>
                   </span>
                 </summary>
@@ -633,7 +637,7 @@ function RaceBody({ it, birth, raceDate, seconds, division, drop, dropIgnored, n
   return (
     <div className="qualifying-race-body">
       <div className={`qualifying-verdict is-${v.tone}`}>
-        <p className="qualifying-status"><span className="qualifying-glyph" aria-hidden="true">{GLYPH[v.tone]}</span>{v.label}{r.margin !== null ? <span className="qualifying-margin"> · {formatMargin(r.margin)} {marginWord(r.margin)}</span> : null}</p>
+        <p className="qualifying-status"><span className="qualifying-glyph" aria-hidden="true">{GLYPH[v.tone]}</span>{v.label}{r.margin !== null ? <span className="qualifying-margin"> · {marginText(r.margin)}</span> : null}</p>
         {v.route || v.reason || extraNote || notes.length || bostonUnsure || (dropIgnored && usesDrop) ? (
           <ul className="qualifying-verdict-notes">
             {v.route ? <li>{v.route}</li> : null}
@@ -674,7 +678,7 @@ function RaceBody({ it, birth, raceDate, seconds, division, drop, dropIgnored, n
       {pools.length && r.margin !== null && r.margin >= 0 && !nyrrGuaranteed ? (
         <p className="tool-note qualifying-pool">
           <strong>The capped pool.</strong> NYRR reported how far under their standard non-NYRR qualifiers had to be: {listWords(pools.map((p) => `${formatDuration(p.seconds)} for ${p.year} (${p.accepted} accepted)`))}.
-          {' '}A margin of {formatMargin(r.margin)} {poolSentence(r.margin, pools)}. Past years, not a forecast.
+          {' '}A margin of {marginAmount(r.margin)} {poolSentence(r.margin, pools)}. Past years, not a forecast.
         </p>
       ) : null}
 
@@ -702,8 +706,8 @@ function BostonHistory({ margin, outside }: { margin: number | null; outside: bo
     <section className="qualifying-boston" aria-labelledby="qualifying-boston-history">
       <h3 id="qualifying-boston-history">
         {margin === null ? 'Every past cut-off'
-          : margin < 0 ? <>A time {formatMargin(margin).slice(1)} over the standard could not apply in any year.</>
-            : <>Your <b>{formatMargin(margin)}</b> would have cleared {sum!.all} of {sum!.total} cut-offs since {BOSTON_CUTOFFS[0].year}.</>}
+          : margin < 0 ? <>A time {marginAmount(margin)} over the standard could not apply in any year.</>
+            : <>Your <b>{marginAmount(margin)}</b> margin would have cleared {sum!.all} of {sum!.total} cut-offs since {BOSTON_CUTOFFS[0].year}.</>}
       </h3>
       {outside && margin !== null && margin >= 0 ? <p className="tool-note">This compares the margin only: the race date is outside the window.</p> : null}
       <CutoffChart margin={margin} />
@@ -765,7 +769,7 @@ function CutoffChart({ margin }: { margin: number | null }) {
   for (let t = 0; t <= yMax; t += 120) ticks.push(t);
   const sum = margin !== null && margin >= 0 ? cutoffSummary(margin) : null;
   const label = `Boston Marathon cut-offs from ${rows[0].year} to ${rows[rows.length - 1].year}, from 0:00 to ${formatDuration(maxCut)} under the standard. `
-    + (margin === null ? 'No margin to compare.' : margin < 0 ? `Your time is ${formatMargin(margin).slice(1)} over the standard, so it clears none.` : `Your margin of ${formatMargin(margin)} would have cleared ${sum!.all} of ${sum!.total}, including ${sum!.recent} of the last 4 (${sum!.span}).`);
+    + (margin === null ? 'No margin to compare.' : margin < 0 ? `Your time is ${marginAmount(margin)} over the standard, so it clears none.` : `Your margin of ${marginAmount(margin)} would have cleared ${sum!.all} of ${sum!.total}, including ${sum!.recent} of the last 4 (${sum!.span}).`);
   const lineY = margin !== null && margin >= 0 ? y(margin) : null;
   const above = margin !== null && margin > yMax;
   // Every year that has room for its label (about 22 px for "’27", 34 px for "2027"), counted back from the latest.
@@ -792,7 +796,7 @@ function CutoffChart({ margin }: { margin: number | null }) {
         <line className="qualifying-base" x1={m.l} x2={width - m.r} y1={m.t + plotH} y2={m.t + plotH} />
         {lineY !== null ? <line className="qualifying-margin-rule" x1={m.l} x2={width - m.r} y1={lineY} y2={lineY} /> : null}
         {lineY !== null ? (
-          <text className="qualifying-margin-label" x={m.l + 4} y={Math.max(12, lineY - 7)}>{above ? `Your ${formatMargin(margin!)} is above every cut-off` : `Your ${formatMargin(margin!)}`}</text>
+          <text className="qualifying-margin-label" x={m.l + 4} y={Math.max(12, lineY - 7)}>{above ? `Your ${marginAmount(margin!)} is above every cut-off` : `Your ${marginAmount(margin!)}`}</text>
         ) : null}
       </svg> : null}
     </div>

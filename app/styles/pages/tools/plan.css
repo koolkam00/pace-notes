@@ -28,6 +28,11 @@
 
 /* ---------- The pace band ---------- */
 .plan-band .tool-share { margin-top: var(--s-2); }
+/* Under 600 px the preview is not drawn (pace-band-strip.css), so its heading goes too: the actions stand alone. */
+@media screen and (max-width: 599.98px) {
+  .plan-band-head { display: none; }
+  .plan-band .tool-share { margin-top: 0; }
+}
 
 @media (min-width: 600px) {
   .plan-nugget { grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-6); }

@@ -6,7 +6,7 @@ import Arrow from '@/components/ui/Arrow';
 import ChapterEnd from '@/components/ChapterEnd';
 import PageFeedback from '@/components/PageFeedback';
 import { placeOf } from '@/lib/chapters';
-import { readingOf } from '@/lib/nuggets';
+import { settledReadingOf } from '@/lib/nuggets';
 import { toolBySlug, type ToolEvidence } from '@/lib/tools/registry';
 import { JsonLd, breadcrumbs } from '@/lib/seo';
 
@@ -68,7 +68,7 @@ export function ToolHeader({ slug, title, children }: { slug: string; title?: Re
  * this useful?". One way forward, one way back.
  */
 export function ToolEnd({ path, how }: { path: string; how: `/methodology#${string}` }) {
-  if (placeOf(path)) return <ChapterEnd path={path} readingOf={readingOf} />;
+  if (placeOf(path)) return <ChapterEnd path={path} readingOf={settledReadingOf} />;
   return (
     <div className="chapter-end tool-end">
       <p className="chapter-end-links">

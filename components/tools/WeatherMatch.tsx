@@ -82,7 +82,6 @@ const tDelta = (dc: number, u: TUnit) => { const v = u === 'f' ? dc * 1.8 : dc; 
 const wind = (mps: number, units: UnitSystem) => (units === 'mi' ? `${num(mps * 2.236936, 1)} mph` : `${num(mps * 3.6, 0)} km/h`);
 const pctShare = (share: number) => (share > 0 && share < 0.005 ? '<1%' : `${Math.round(share * 100)}%`);
 /** A signed whole percent ("+16%"), as the sentence above the chart says it. */
-const signedWhole = (fraction: number) => { const v = Math.round(fraction * 100); return `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(v)}%`; };
 const signedPct = (fraction: number) => { const v = Math.round(fraction * 1000) / 10; return `${v > 0 ? '+' : v < 0 ? MINUS : ''}${num(Math.abs(v), 1)}%`; };
 const pctNum = (v: number) => num(v, v !== 0 && Math.abs(v) < 0.1 ? 2 : 1);
 const key = (c: number, hw: number, pace: number) => `${c}|${hw}|${pace}`;
@@ -483,7 +482,7 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
                 warmCount={warmCount} coldCount={coldCount} total={data.editions.length} paceLo={paceLo} paceHi={paceHi} step={step} badTemp={tempBad} />
 
               {match.kind === 'ok' ? (
-                <SectionsPanel match={match} units={units} centre={centre!} hw={hw} winText={winText} refText={refText} refTone={refTone} />
+                <SectionValues match={match} units={units} centre={centre!} hw={hw} winText={winText} refText={refText} refTone={refTone} />
               ) : null}
 
               {centre !== null && (match.kind === 'ok' || match.kind === 'no-row') ? (
@@ -518,12 +517,11 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
           <ResearchPanel tempC={tempOk ? tempC : null} dewC={dewOk ? dewC : null} need={need} tUnit={tUnit} goal={goalForResearch} by={by} paceLabel={yourPace} />
 
           {linkS !== null ? (
-            <ToolHandoffs label="Next steps" links={linkInRange ? [
+            /* One next step (section 00): the pace band for this goal. */
+            <ToolHandoffs label="Next step" links={linkInRange ? [
               { href: bandHref, title: `Pace band${bandCourse ? ` for ${course!.city}` : ''}`, text: <>The mat times of finishes just under {linkHM}{bandWhy}.</> },
-              { href: `/tools/course-chooser?goal=${linkHM}`, title: `Every course at ${linkHM}`, text: <>Each course’s race mornings beside how finishes at your pace held up.</> },
             ] : [
               { href: bandHref, title: 'Pace band', text: <>Even splits for {linkHM}.</> },
-              { href: '/tools/course-chooser', title: 'Course chooser', text: <>Goals from 2:30 to 6:30, course by course.</> },
             ]} />
           ) : null}
           <ShareBar />
@@ -630,122 +628,34 @@ function ResultCard({ match, units, tUnit, hw, centre, winText, refText, refTone
 /* Section by section                                                  */
 /* ------------------------------------------------------------------ */
 
-function SectionsPanel({ match, units, centre, hw, winText, refText, refTone }: {
+/**
+ * Every section's median pace against the same finishes' 5–20K pace, mornings like yours beside the reference, as a
+ * table under the card (section 00: the result and one data beat; the section chart went, critic round 3).
+ */
+function SectionValues({ match, units, centre, hw, winText, refText, refTone }: {
   match: Extract<Match, { kind: 'ok' }>; units: UnitSystem; centre: number; hw: number; winText: string; refText: string; refTone: string;
 }) {
   const { row, ref } = match;
   const showRef = ref !== null && !(centre === REF.c && hw === REF.hw);
-  // The sentence reads off the chart, in the chart's unit: the slowest section on mornings like yours, and the reference
-  // in that same section (both labelled on the chart).
-  const slow = row.profile.reduce((b, v, i) => (v > row.profile[b] ? i : b), 0);
-  const whole = (v: number) => `${Math.round(Math.abs(v) * 100)}%`;
-  const word = (v: number) => (v < 0 ? 'faster' : 'slower');
-  const both = showRef && Math.round(Math.abs(row.profile[slow] - ref!.profile[slow]) * 100) >= 1;
   return (
-    <section className="tool-panel weather-match-sections" aria-labelledby="weather-match-sections-title">
-      <p className="tool-nugget-text" id="weather-match-sections-title">
-        In {secName(slow)}, the median pace on mornings like yours was <em>{whole(row.profile[slow])} {word(row.profile[slow])}</em> than the same finishes’ 5–20K pace{both ? <>; on {refTone.toLowerCase()}, {whole(ref!.profile[slow])}</> : null}.
-      </p>
-      <ProfileChart mine={row.profile} reference={showRef ? ref!.profile : null} units={units} mineLabel={`Yours, ${winText}`} refLabel={`${refTone}, ${refText}`} at={slow} />
-      <Values id="weather-match-sections-values" caption={`Median pace in each section against the same finishes’ 5–20K pace (positive is slower): mornings of ${winText}${showRef ? ` and ${refText}` : ''}`} count={9}>
-        <table className="table">
-          <thead><tr><th scope="col">Section</th><th scope="col">Yours</th>{showRef ? <th scope="col">{refTone}</th> : null}</tr></thead>
-          <tbody>
-            {row.profile.map((v, i) => (
-              <tr key={i}><th scope="row">{secName(i)}</th><td>{signedPct(v)}</td>{showRef ? <td>{signedPct(ref!.profile[i])}</td> : null}</tr>
-            ))}
-            <tr><th scope="row">Finishes</th><td>{count(row.n)}</td>{showRef ? <td>{count(ref!.n)}</td> : null}</tr>
-            <tr><th scope="row">Finish, 10th–90th</th><td>{formatHM(row.fin[0])}–{formatHM(row.fin[2])}</td>{showRef ? <td>{formatHM(ref!.fin[0])}–{formatHM(ref!.fin[2])}</td> : null}</tr>
-            <tr><th scope="row">Pace change, {checkpointLabel(30, units)} to finish</th><td>{signedPct(row.late)}</td>{showRef ? <td>{signedPct(ref!.late)}</td> : null}</tr>
-          </tbody>
-        </table>
-      </Values>
-    </section>
+    <Values id="weather-match-sections-values" caption={`Median pace in each section against the same finishes’ 5–20K pace (positive is slower): mornings of ${winText}${showRef ? ` and ${refText}` : ''}`} count={9}>
+      <table className="table">
+        <thead><tr><th scope="col">Section</th><th scope="col">Yours</th>{showRef ? <th scope="col">{refTone}</th> : null}</tr></thead>
+        <tbody>
+          {row.profile.map((v, i) => (
+            <tr key={i}><th scope="row">{secName(i)}</th><td>{signedPct(v)}</td>{showRef ? <td>{signedPct(ref!.profile[i])}</td> : null}</tr>
+          ))}
+          <tr><th scope="row">Finishes</th><td>{count(row.n)}</td>{showRef ? <td>{count(ref!.n)}</td> : null}</tr>
+          <tr><th scope="row">Finish, 10th–90th</th><td>{formatHM(row.fin[0])}–{formatHM(row.fin[2])}</td>{showRef ? <td>{formatHM(ref!.fin[0])}–{formatHM(ref!.fin[2])}</td> : null}</tr>
+          <tr><th scope="row">Pace change, {checkpointLabel(30, units)} to finish</th><td>{signedPct(row.late)}</td>{showRef ? <td>{signedPct(ref!.late)}</td> : null}</tr>
+        </tbody>
+      </table>
+    </Values>
   );
 }
 
 /** A section's name, the same in both unit modes: "30–35K". */
 const secName = (i: number) => sectionName(SECTION_BOUNDS[i][0], SECTION_BOUNDS[i][1]);
-
-/**
- * Median section pace against the finishes' own 5–20K pace: mornings like yours in the accent, the reference dashed in
- * ink. Slower is down, as on every pace profile. Drawn in pixels at the measured width.
- */
-function ProfileChart({ mine, reference, units, mineLabel, refLabel, at }: { mine: number[]; reference: number[] | null; units: UnitSystem; mineLabel: string; refLabel: string; at: number }) {
-  const box = useRef<HTMLDivElement>(null);
-  const width = useWidth(box, 640);
-  const narrow = width < 520;
-  const H = narrow ? 210 : 250;
-  const m = { l: 44, r: narrow ? 10 : 40, t: 14, b: 24 };
-  const values = [...mine, ...(reference ?? [])].map((v) => v * 100);
-  const lo = Math.min(-2, Math.floor(Math.min(...values) - 0.5));
-  const hi = Math.max(4, Math.ceil(Math.max(...values) + 1));
-  const span = hi - lo;
-  const tickStep = span <= 8 ? 2 : span <= 16 ? 4 : span <= 32 ? 8 : 10;
-  const ticks: number[] = [];
-  for (let v = Math.ceil(lo / tickStep) * tickStep; v <= hi + 1e-9; v += tickStep) ticks.push(v);
-  const x = (km: number) => m.l + (km / MARATHON_KM) * (width - m.l - m.r);
-  const y = (pct: number) => m.t + ((pct - lo) / span) * (H - m.t - m.b); // slower (positive) lower down
-  const mids = SECTION_BOUNDS.map(([a, b]) => (a + b) / 2);
-  const path = (vals: number[]) => `M${vals.map((v, i) => `${x(mids[i]).toFixed(1)},${y(v * 100).toFixed(1)}`).join('L')}`;
-  const xTicks = fitTicks([0, 10, 20, 30, 40].map((km) => ({ x: x(km), label: km ? `${km}K` : 'Start' })), width);
-  // The sentence's two values, labelled on their points in the section it names, at every width: each label takes the
-  // first spot (left, right, above, below) clear of both lines, the other label and the plot's edges.
-  const segs = [mine, ...(reference ? [reference] : [])].flatMap((vals) => vals.slice(1).map((v, i) => [x(mids[i]), y(vals[i] * 100), x(mids[i + 1]), y(v * 100)] as const));
-  const hits = (b: { x0: number; y0: number; x1: number; y1: number }) => segs.some(([ax, ay, bx, by]) => {
-    for (let k = 0; k <= 12; k++) { const px = ax + ((bx - ax) * k) / 12, py = ay + ((by - ay) * k) / 12; if (px > b.x0 - 3 && px < b.x1 + 3 && py > b.y0 - 3 && py < b.y1 + 3) return true; }
-    return false;
-  });
-  const taken: { x0: number; y0: number; x1: number; y1: number }[] = [];
-  const place = (px: number, py: number, text: string) => {
-    const w = text.length * 8, h = 14;
-    // Beside, above and below the point, then the corners, each a little further out until one is clear.
-    const spots = [8, 14, 22, 30].flatMap((d) => [[px - d - w, py - h / 2], [px + d, py - h / 2], [px - w / 2, py - d - h], [px - w / 2, py + d],
-      [px - d - w, py - d - h], [px + d, py - d - h], [px - d - w, py + d], [px + d, py + d]]);
-    const box = (sx: number, sy: number) => ({ x0: sx, y0: sy, x1: sx + w, y1: sy + h });
-    const inside = (b: ReturnType<typeof box>) => b.x0 >= 2 && b.x1 <= width - 2 && b.y0 >= 0 && b.y1 <= H - m.b + 4;
-    const clash = (b: ReturnType<typeof box>) => taken.some((t) => t.x0 < b.x1 + 4 && t.x1 > b.x0 - 4 && t.y0 < b.y1 + 2 && t.y1 > b.y0 - 2);
-    const pick = spots.map(([sx, sy]) => box(sx, sy)).find((b) => inside(b) && !hits(b) && !clash(b)) ?? box(spots[0][0], spots[0][1]);
-    taken.push(pick);
-    return { x: pick.x0, y: pick.y0 + h - 3 };
-  };
-  const labelMine = place(x(mids[at]), y(mine[at] * 100), signedWhole(mine[at]));
-  const labelRef = reference ? place(x(mids[at]), y(reference[at] * 100), signedWhole(reference[at])) : null;
-  const describe = (vals: number[]) => vals.map((v, i) => `${secName(i)} ${signedPct(v)}`).join(', ');
-  const aria = `Median section pace against the 5–20K pace. ${mineLabel}: ${describe(mine)}.${reference ? ` ${refLabel}: ${describe(reference)}.` : ''}`;
-  return (
-    <figure className="weather-match-figure">
-      <div ref={box} className="weather-match-chart">
-        <svg width={width} height={H} role="img" aria-label={aria}>
-          {ticks.map((v) => (
-            <g key={v} className="weather-match-grid">
-              <line x1={m.l} x2={width - m.r} y1={y(v)} y2={y(v)} />
-              <text x={m.l - 8} y={y(v) + 4} textAnchor="end">{v === 0 ? '0' : `${v > 0 ? '+' : MINUS}${Math.abs(v)}%`}</text>
-            </g>
-          ))}
-          <line className="weather-match-zero" x1={m.l} x2={width - m.r} y1={y(0)} y2={y(0)} />
-          {xTicks.map((t) => <text key={t.label} className="weather-match-tick" x={t.x} y={H - 4} textAnchor={t.anchor}>{t.label}</text>)}
-          {reference ? (
-            <g className="weather-match-line is-ref">
-              <path d={path(reference)} />
-              {reference.map((v, i) => <circle key={i} cx={x(mids[i])} cy={y(v * 100)} r={3} />)}
-            </g>
-          ) : null}
-          <g className="weather-match-line is-yours">
-            <path d={path(mine)} />
-            {mine.map((v, i) => <circle key={i} cx={x(mids[i])} cy={y(v * 100)} r={3.5} />)}
-          </g>
-          <text x={labelMine.x} y={labelMine.y} className="weather-match-end is-yours">{signedWhole(mine[at])}</text>
-          {reference && labelRef ? <text x={labelRef.x} y={labelRef.y} className="weather-match-end is-ref">{signedWhole(reference[at])}</text> : null}
-        </svg>
-      </div>
-      <ul className="weather-match-legend" aria-hidden="true">
-        <li className="is-yours"><i />{mineLabel}</li>
-        {reference ? <li className="is-ref"><i />{refLabel}</li> : null}
-      </ul>
-    </figure>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /* Start-temperature strip and race chips                              */

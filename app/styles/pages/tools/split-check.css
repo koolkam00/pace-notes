@@ -36,8 +36,8 @@
 
 /* ---------- The night card: the verdict and every section ---------- */
 .split-check-bars { margin: 0; touch-action: pan-y; }
-.split-check-bars svg, .split-check-profile svg { display: block; overflow: visible; }
-.split-check-bars svg text, .split-check-profile svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+.split-check-bars svg { display: block; overflow: visible; }
+.split-check-bars svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
 .split-check-gridline line { stroke: var(--rule); }
 .split-check-bar { fill: var(--fill-quiet); stroke: var(--mark-quiet); stroke-width: 1; }
 .split-check-bar.is-slow { fill: var(--ordinal-2); stroke: var(--ordinal-2); }
@@ -56,38 +56,15 @@
 .split-check-results.is-stale > :not(.split-check-updating) { opacity: .5; transition: opacity var(--d-quick); }
 .split-check-updating { margin: 0; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); }
 
-/* ---------- The opening among the six groups ---------- */
-.split-check-bands { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
-.split-check-bands li { position: relative; display: grid; justify-items: center; align-content: start; gap: 6px; min-width: 0; margin: 0; padding: 10px 2px 0; text-align: center; }
-.split-check-bands li::before { content: ''; width: 12px; height: 12px; border-radius: 50%; background: var(--fill-quiet); box-shadow: inset 0 0 0 1px var(--mark-quiet); }
-/* You are an orange ring, as everywhere on the site. */
-.split-check-bands li.is-you::before { width: 14px; height: 14px; margin-top: -1px; background: var(--paper); box-shadow: inset 0 0 0 2.5px var(--signal); }
-.split-check-bands span { font-size: .75rem; line-height: 1.25; color: var(--ink-3); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.split-check-bands b { font-size: var(--t-label); font-weight: 600; color: var(--ink); }
-.split-check-bands li.is-you span { color: var(--ink); font-weight: 600; }
-
 /* ---------- Finishes at the same time ---------- */
 .split-check-unavailable { display: grid; gap: var(--s-2); }
 .split-check-off { display: grid; gap: var(--s-3); padding: 0; }
 .split-check-compare .values small { display: inline; font-size: .75rem; color: var(--ink-3); }
 
-/* ---------- The shape of the race ---------- */
-.split-check-profile { margin: 0; }
-.split-check-profile .split-check-type-band { fill: var(--type); fill-opacity: .18; }
-/* On the dark page the wash needs more body and an edge, or a dark type colour dissolves into the paper. */
-[data-theme="dark"] .split-check-profile .split-check-type-band { fill-opacity: .32; stroke: var(--type); stroke-opacity: .55; stroke-width: 1; }
-.split-check-profile .split-check-type-line { fill: none; stroke: var(--type); stroke-width: 2; stroke-dasharray: 5 4; }
-.split-check-profile .split-check-you-line { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; }
-.split-check-profile .split-check-you-dot { fill: var(--ink); stroke: var(--paper); stroke-width: 1.5; }
-.split-check-profile svg .split-check-end { font-weight: 600; fill: var(--ink); }
-.split-check-profile svg .split-check-end.is-type { fill: var(--ink-2); }
-/* --type and --type-night come inline from lib/viz/palette typeStyle; in the dark theme the chart takes the night one. */
-.split-check-type { --type: var(--ink-2); --type-night: var(--ink-2); }
-[data-theme="dark"] .split-check-type .split-check-profile { --type: var(--type-night); }
+/* ---------- The race's pacing type: one line under the dots ---------- */
+.split-check-shape { margin: var(--s-3) 0 0; }
+.split-check-shape b { font-weight: 600; color: var(--ink); }
 
-@media (min-width: 600px) {
-  .split-check-bands span { font-size: var(--t-label); }
-}
 /* A phone at 200% text: two mats a row, and a label may wrap under its time. */
 @media (max-width: 299.98px) {
   .split-check-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

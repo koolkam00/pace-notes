@@ -22,5 +22,5 @@ export function generateMetadata({ params }: { params: { race: string } }) {
 export default function QualifyingRacePage({ params }: { params: { race: string } }) {
   const s = standardByKey(params.race);
   if (!s) notFound();
-  return <QualifyingRace s={s} others={STANDARDS.filter((o) => o.key !== s.key)} />;
+  return <QualifyingRace s={s} />;
 }
