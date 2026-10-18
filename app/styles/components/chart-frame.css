@@ -194,7 +194,8 @@
 .viz-frame.share-bar .share-bar-callout-text { position: absolute; top: 0; font-size: 14px; font-weight: 600; line-height: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--signal-ink); }
 .viz-frame.share-bar .share-bar-leader { position: absolute; top: 20px; bottom: 0; width: 1px; margin-left: -0.5px; background: var(--signal-ink); }
 .viz-frame.share-bar .is-quiet { background: var(--fill-quiet); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); color: var(--ink); }
-.viz-frame.share-bar .is-ord-1 { background: var(--ordinal-1); color: var(--ink); }
+/* Ordinal 1 is under 3:1 on both grounds: it keeps a 1 px quiet edge, as the quiet fill does. */
+.viz-frame.share-bar .is-ord-1 { background: var(--ordinal-1); box-shadow: inset 0 0 0 1px var(--mark-quiet); color: var(--ink); }
 .viz-frame.share-bar .is-ord-2 { background: var(--ordinal-2); }
 .viz-frame.share-bar .is-ord-3 { background: var(--ordinal-3); color: var(--paper); }
 .viz-frame.share-bar .is-ord-4 { background: var(--ordinal-4); color: var(--paper); }

@@ -27,15 +27,17 @@ const signedPct = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(
 
 export type TerrainExtras = { elevation: number[] | null; step: number };
 
-export default function ExplorerChart({ id, answer, goal, units, terrain, valuesId, selectedAge, example = false }: {
+export default function ExplorerChart({ id, answer, goal, units, terrain, valuesId, selectedAge, example = false, yours = !example }: {
   id: string; answer: GuideAnswer; goal: number; units: UnitSystem; terrain?: TerrainExtras; valuesId: string; selectedAge?: string;
-  /** The page's own example (its answer card), not the visitor's selection: the goal is the page's, not "You". */
+  /** The page's own example (its answer card), not the visitor's selection. */
   example?: boolean;
+  /** The goal is one the visitor set: ringed as "You". Otherwise (the page's 4:00) it is ringed by its time. */
+  yours?: boolean;
 }): ReactNode {
   if (id === 'profile') return <PaceProfile answer={answer} goal={goal} units={units} valuesId={valuesId} />;
   if (id === 'terrain') return <Terrain answer={answer} units={units} terrain={terrain} valuesId={valuesId} />;
-  if (id === 'sections') return <Sections answer={answer} goal={goal} valuesId={valuesId} />;
-  if (id === 'ambition') return <Target answer={answer} goal={goal} valuesId={valuesId} example={example} />;
+  if (id === 'sections') return <Sections answer={answer} goal={goal} valuesId={valuesId} example={example} />;
+  if (id === 'ambition') return <Target answer={answer} goal={goal} valuesId={valuesId} yours={yours} />;
   if (id === 'gains') return <Gains answer={answer} goal={goal} units={units} valuesId={valuesId} />;
   if (id === 'age') return <Ages answer={answer} valuesId={valuesId} selectedAge={selectedAge} />;
   return null;
@@ -61,10 +63,11 @@ function PaceProfile({ answer, goal, units, valuesId }: { answer: GuideAnswer; g
       refs={[{ value: even, dashed: true, label: `even ${hm(goal)}` }]}
       xTicks={KM_TICKS}
       scrub={{ label: 'Section pace, start to finish', initial: slowest, detents: [slowest],
+        // The side value is the H1's measure: each section against even pace ("+40 s/mi"); the middle half is in Values.
         points: { x: SECTION_MIDS.map((m) => m / 42.195), keys: MARATHON_SECTION_ENDS.map((e) => `${sectionLabel(e)}, median pace`), values: rows.map((r) => pace(r.mid)),
-          side: [{ label: 'Middle half', values: rows.map((r) => `${paceLabel(r.lo / k, units, false)}–${pace(r.hi)}`) }] } }}
+          side: [{ label: 'Against even', values: rows.map((r) => { const d = Math.round(r.mid - even); return `${d > 0 ? '+' : d < 0 ? '−' : ''}${Math.abs(d)} s/${units}`; }) }] } }}
       keys={[{ label: 'Middle half of finishes', mark: 'band' }, { label: `Even ${hm(goal)} pace, ${pace(even)}`, mark: 'dash' }]}
-      label={`Median section pace for ${answer.comparison ?? 'finishes near this time'}; slowest in ${sectionLabel(MARATHON_SECTION_ENDS[slowest])} at ${pace(rows[slowest].mid)}`}
+      label={`Median section pace for finishes near ${hm(goal)}; slowest in ${sectionLabel(MARATHON_SECTION_ENDS[slowest])} at ${pace(rows[slowest].mid)}`}
       values={<Values id={valuesId} caption="Median section pace, with the middle half of finishes" columns={[{ key: 's', label: 'Section' }, { key: 'm', label: 'Median' }, { key: 'r', label: 'Middle half' }]}
         rows={rows.map((r, i) => [sectionLabel(MARATHON_SECTION_ENDS[i]), pace(r.mid), `${paceLabel(r.lo / k, units, false)}–${pace(r.hi)}`])} reading={slowest} />}
       height={210} heightMd={260} />
@@ -92,7 +95,7 @@ function Terrain({ answer, units, terrain, valuesId }: { answer: GuideAnswer; un
   // answer draws it: on the scale every course shares a flat course was a hairline under an empty plot.
   const own = Math.max(50, Math.ceil((Math.max(...metres) - Math.min(...metres)) / 25) * 25);
   return (
-    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={wholeElevation(own, units)} focus={slowest} readoutKeys={['Climb', 'Pace against its average']}
+    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={`scale ${wholeElevation(own, units)}`} focus={slowest} readoutKeys={['Climb', 'Pace against its average']}
       sections={MARATHON_SECTION_ENDS.map((end, i) => ({ label: sectionLabel(end), startKm: i ? MARATHON_SECTION_ENDS[i - 1] : 0, endKm: end, pct: pct[i], display: signedPct(Math.round(pct[i])), climb: climb(i) }))}
       label={`Elevation, its top line ${wholeElevation(own, units)} above the lowest point, with each 5K's pace against the finishes' own average; slowest in ${sectionLabel(MARATHON_SECTION_ENDS[slowest])}`}
       values={<Values id={valuesId} caption="By section: the climb and the pace against its own average" columns={[{ key: 's', label: 'Section' }, { key: 'c', label: 'Climb' }, { key: 'p', label: 'Pace against its average' }]}
@@ -100,8 +103,12 @@ function Terrain({ answer, units, terrain, valuesId }: { answer: GuideAnswer; un
   );
 }
 
-/** Just over the goal against just under, section by section: the gap built from the start to the finish. */
-function Sections({ answer, goal, valuesId }: { answer: GuideAnswer; goal: number; valuesId: string }) {
+/**
+ * Just over the goal against just under, section by section: the gap built from the start to the finish. The page's own
+ * example washes the stretch after 20K, the share its H1 names; a visitor's selection marks its widest section, the one
+ * its headline names.
+ */
+function Sections({ answer, goal, valuesId, example }: { answer: GuideAnswer; goal: number; valuesId: string; example: boolean }) {
   const rows = answer.charts[0]?.rows ?? [];
   if (!rows.length) return null;
   const steps = rows.map((r, i) => ({ id: String(i), label: sectionLabel(MARATHON_SECTION_ENDS[i]), value: (num(r.above) - num(r.below)) * 60, display: signed((num(r.above) - num(r.below)) * 60) }));
@@ -109,8 +116,11 @@ function Sections({ answer, goal, valuesId }: { answer: GuideAnswer; goal: numbe
   const big = steps.reduce((a, b) => (b.value > a.value ? b : a));
   // The mats between the sections, evenly every 10K, then the finish gap under its own bar.
   const mats = steps.length === MARATHON_SECTION_ENDS.length ? [0, 2, 4, 6, 8].map((at) => ({ at, label: at ? `${MARATHON_SECTION_ENDS[at - 1]}K` : 'Start' })) : undefined;
+  const from20 = MARATHON_SECTION_ENDS.findIndex((end, i) => i > 0 && MARATHON_SECTION_ENDS[i - 1] >= 20);
+  const after = steps.slice(from20).reduce((s, x) => s + x.value, 0);
+  const span = example && mats && from20 > 0 && total > 0 && after > 0 ? { from: from20, text: `After 20K ${Math.round((100 * after) / total)}%` } : undefined;
   return (
-    <Waterfall steps={steps} total={{ label: 'Finish', display: signed(total) }} xTicks={mats}
+    <Waterfall steps={steps} total={{ label: 'Finish', display: signed(total) }} xTicks={mats} span={span}
       label={`The gap between finishes just over and just under ${hm(goal)}, built section by section; ${big.label} added the most, ${big.display}`}
       values={<Values id={valuesId} caption={`Just over ${hm(goal)} against just under, by section`} columns={[{ key: 's', label: 'Section' }, { key: 'g', label: 'Gap added' }]} rows={[...steps.map((s) => [s.label, s.display]), ['Finish', signed(total)]]} />} />
   );
@@ -119,10 +129,10 @@ function Sections({ answer, goal, valuesId }: { answer: GuideAnswer; goal: numbe
 /**
  * The share of the comparison's finishes under each time, the goal ringed. The readout opens on the goal, the share the
  * headline names, so the needle (the page's one orange mark) and the H1's accent agree; its side value is the median
- * finish, the one figure the headline does not already give. The visitor's own goal is "You"; the page's example rings
- * its goal by name.
+ * finish, the one figure the headline does not already give. A goal the visitor set is "You"; the page's own goal is
+ * ringed by its time.
  */
-function Target({ answer, goal, valuesId, example }: { answer: GuideAnswer; goal: number; valuesId: string; example: boolean }) {
+function Target({ answer, goal, valuesId, yours }: { answer: GuideAnswer; goal: number; valuesId: string; yours: boolean }) {
   const rows = answer.charts[0]?.rows ?? [];
   const pts = rows.map((r) => ({ x: num(r.label), share: num(r.value) / 100 })).filter((p) => p.share >= 0.01 && p.share <= 0.99);
   if (pts.length < 2) return null;
@@ -133,7 +143,7 @@ function Target({ answer, goal, valuesId, example }: { answer: GuideAnswer; goal
   const half = pts.findIndex((p) => p.share >= 0.5);
   const median = half >= 0 ? [{ label: 'Median finish', values: pts.map(() => hm(pts[half].x)) }] : undefined;
   return (
-    <Cdf points={pts} you={goal} youLabel={example ? hm(goal) : 'You'} ticks={ticks.map((m) => ({ value: m, label: hm(m) }))}
+    <Cdf points={pts} you={goal} youLabel={yours ? 'You' : hm(goal)} ticks={ticks.map((m) => ({ value: m, label: hm(m) }))}
       scrub={{ label: 'Finish time', points: { x: pts.map((p) => (p.x - pts[0].x) / (pts[pts.length - 1].x - pts[0].x)), keys: pts.map((p) => `Finishes under ${hm(p.x)}`), values: pts.map((p) => `${Math.round(p.share * 100)}%`), side: median },
         initial: pts.indexOf(at), detents: [...marks.map((m) => pts.findIndex((p) => p.x === m)), half].filter((i, k, all) => i >= 0 && all.indexOf(i) === k) }}
       label={`The share of finishes under each time; ${Math.round(at.share * 100)}% under ${hm(goal)}`}

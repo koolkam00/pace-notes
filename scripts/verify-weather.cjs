@@ -253,7 +253,7 @@ try {
   // Race-day weather holds the questions as tabs: start temperature, then each supported weather question.
   provider.useUnits = () => ({ units: 'mi', setUnits() {} });
   const page = renderToStaticMarkup(React.createElement(provider.default, null, React.createElement(route.default, { params: { slug: 'race-day-weather' } })));
-  for (const id of ['temperature', ...ready.map(candidate => candidate.id)]) assert.match(page, new RegExp(`<div id="${id}" class="weather-panel"`), `race-day-weather: the ${id} tab`);
+  for (const id of ['temperature', ...ready.map(candidate => candidate.id)]) assert.match(page, new RegExp(`<div class="weather-panel" data-tab="${id}"`), `race-day-weather: the ${id} tab`);
   assert.match(page, /percentage points\./, 'race-day-weather: the weather questions render inside it');
   assert.doesNotMatch(page, /\d% uncertainty interval/, 'race-day-weather: the interval level belongs on /methodology');
 } finally {

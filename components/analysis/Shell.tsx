@@ -7,7 +7,7 @@ import ChapterEnd from '@/components/ChapterEnd';
 import ByUnits from './ByUnits.client';
 import { keepTogether } from '@/components/ui/keepTogether';
 import { readingAttrs } from '@/lib/chapters';
-import { readingOf, sentenceOf, textFor, type Nugget, type NuggetText } from '@/lib/nuggets';
+import { sentenceOf, settledReadingOf, textFor, type Nugget, type NuggetText } from '@/lib/nuggets';
 import type { TRACKED_SECTIONS } from '@/lib/analytics-policy';
 
 type Track = (typeof TRACKED_SECTIONS)[number];
@@ -17,9 +17,12 @@ type Track = (typeof TRACKED_SECTIONS)[number];
  * `term` links the sentence's first "sustained slowdown" to the nugget's /methodology anchor: pass it where the page
  * uses the term first, so each page links it once.
  */
-export function Say({ nugget, plain = false, term = false }: { nugget: Nugget; plain?: boolean; term?: boolean }) {
+export function Say({ nugget, plain = false, term = false, quiet = false }: { nugget: Nugget; plain?: boolean; term?: boolean;
+  /** A null result: its accent stays italic but in ink, never the signal (a null result looks null). */
+  quiet?: boolean;
+}) {
   const text: NuggetText = nugget.guard ? nugget.headline : nugget.fallback;
-  return <SayText text={text} plain={plain || !nugget.guard} term={term ? nugget.term : undefined} />;
+  return <SayText text={text} plain={plain || !nugget.guard} term={term ? nugget.term : undefined} quiet={quiet} />;
 }
 
 const TERM = /sustained slowdowns?/i;
@@ -38,19 +41,19 @@ function run(text: string, link: { href?: string; done: boolean }): ReactNode {
 }
 
 /** A sentence with its one *…* accent as <em>, its ranges unbroken and, given `term`, its first use of the term linked. */
-function sentence(s: string, plain: boolean, term?: string): ReactNode {
+function sentence(s: string, plain: boolean, term?: string, quiet = false): ReactNode {
   const m = /^([\s\S]*?)\*([^*]+)\*([\s\S]*)$/.exec(s);
   const parts = m ? [{ t: m[1] }, { t: m[2], em: !plain }, { t: m[3] }] : [{ t: s.replace(/\*/g, '') }];
   const link = { href: term, done: false };
   return <>{parts.map((p, i) => {
     const node = run(p.t, link);
-    return p.em ? <em key={i}>{node}</em> : <Fragment key={i}>{node}</Fragment>;
+    return p.em ? <em key={i} className={quiet ? 'is-null' : undefined}>{node}</em> : <Fragment key={i}>{node}</Fragment>;
   })}</>;
 }
 
 /** A sentence, or its miles and kilometres versions. `plain` drops the accent (a fallback asserts nothing). */
-export function SayText({ text, plain = false, term }: { text: NuggetText; plain?: boolean; term?: string }) {
-  const show = (s: string) => sentence(s, plain, term);
+export function SayText({ text, plain = false, term, quiet = false }: { text: NuggetText; plain?: boolean; term?: string; quiet?: boolean }) {
+  const show = (s: string) => sentence(s, plain, term, quiet);
   if (typeof text === 'string') return <>{show(text)}</>;
   if (text.mi === text.km) return <>{show(text.mi)}</>;
   return <ByUnits mi={show(text.mi)} km={show(text.km)} />;
@@ -81,7 +84,7 @@ export default function AnalysisShell({ path, title, titleTerm = false, heading,
           <Reading crumbs={<ChapterCrumbs path={path} />} title={heading ?? <Say nugget={title} term={titleTerm} />} titleSize="title" dek={dek} variant="receipt" receipt={answer} />
         </section>
         {children}
-        <ChapterEnd path={path} variant="analysis" readingOf={readingOf} />
+        <ChapterEnd path={path} variant="analysis" readingOf={settledReadingOf} />
       </div>
     </div>
   );

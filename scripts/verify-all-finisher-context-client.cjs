@@ -114,14 +114,15 @@ async function main() {
   assert.equal(allFinisherCharts([sparse],sparse,undefined,'courses','mi').onset,null);
   // Too few detected slowdowns to place their start: the onset cell is a dash, never an invented section.
   assert.match(render(AllFinisherResults,{groups:[sparse],kind:'courses',start,units:'mi',focus:sparse}),/>—</);
-  for(const slug of ['course-comparison','race-day-weather']) {
+  // Course comparison, race-day weather and downhill starts compare every eligible finish only: their earlier-result
+  // views were cut under the redesign's section 00 (course and weather against an earlier best stay in the research
+  // guide, /research/personalized), so the form has no comparison switch.
+  for(const slug of ['course-comparison','race-day-weather','downhill-start']) {
     const html=render(AnalysisPage,{params:{slug}});
-    assert.match(html,/All eligible finishes/);assert.match(html,/No previous race needed/);assert.doesNotMatch(html,eligibleText,'Coverage counts belong on /methodology');
-  }
-  // Downhill starts compare every eligible finish only (its earlier-result view was cut under the redesign's section 00).
-  {
-    const html=render(AnalysisPage,{params:{slug:'downhill-start'}});
-    assert.match(html,/>Opening pace</);assert.doesNotMatch(html,/With an earlier result/);assert.doesNotMatch(html,eligibleText,'Coverage counts belong on /methodology');
+    assert.match(html,/>Early-race pace</);assert.doesNotMatch(html,/With an earlier result|Choose the comparison/);assert.doesNotMatch(html,eligibleText,'Coverage counts belong on /methodology');
+    if(slug==='downhill-start') assert.match(html,/>Opening pace</);
+    // Update comparison is inert until a setting changes, and says so.
+    assert.match(html,/<button type="submit" class="btn btn-secondary is-compact" aria-disabled="true" aria-describedby="[^"]+-why">Update comparison<\/button><p class="field-hint explore-submit-hint" id="[^"]+-why">Change a setting to compare<\/p>/,`${slug}: Update comparison waits for a change`);
   }
   for(const id of [...Object.keys(BROADER_ARCHIVE),'rn3_heat_curves','ext_weather_pacing_patterns']) {
     const html=render(PackPage,{params:{packId:id}});

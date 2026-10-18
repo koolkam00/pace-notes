@@ -151,7 +151,9 @@ for (const slug of [...TEN_ANALYSES.map(item => item.slug), 'downhill-start']) {
 // The weather questions became tabs: race-day weather draws them, and their old routes forward with the tab's hash.
 {
   const html = page('race-day-weather');
-  for (const tab of ['temperature', 'warming', 'wind']) assert.match(html, new RegExp(`class="weather-panel" id="${tab}"|id="${tab}" class="weather-panel"|<div[^>]*id="${tab}"[^>]*class="weather-panel"`), `race-day-weather: the ${tab} tab`);
+  for (const tab of ['temperature', 'warming', 'wind']) assert.match(html, new RegExp(`<div class="weather-panel" data-tab="${tab}"`), `race-day-weather: the ${tab} tab`);
+  // The hash picks a tab; no element carries its id, so a redirected visitor lands on the finding, not below it.
+  for (const tab of ['temperature', 'warming', 'wind']) assert.doesNotMatch(html, new RegExp(`id="${tab}"`), `race-day-weather: no #${tab} anchor to jump to`);
   for (const [slug, hash] of [['warming-and-pacing', 'warming'], ['wind-and-pacing', 'wind']]) {
     const stub = page(slug);
     assert.match(stub, /This page has moved/, `${slug}: a moved stub`);

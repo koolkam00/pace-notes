@@ -1,9 +1,9 @@
 import DotStrip from '@/components/viz/DotStrip';
 import Values from '@/components/ui/Values';
-import AllFinisherWithHistory from '@/components/AllFinisherWithHistory';
+import AllFinisherAnalysis from '@/components/AllFinisherAnalysis';
 import AnalysisShell, { AnswerCard, ExploreBeat } from '../Shell';
+import { publishedCourses } from '@/lib/analysis-server';
 import { analysisBySlug } from '@/lib/ten-analyses';
-import { getAnalysisStart } from '@/lib/analysis-server';
 import { getAllFinisherContextStart } from '@/lib/all-finisher-context-server';
 import { getNugget } from '@/lib/nuggets';
 import { comparableCourses, courseName } from '@/lib/nuggets/analyses';
@@ -18,8 +18,8 @@ const PATH = '/analyses/course-comparison';
  */
 export default function CourseComparison() {
   const definition = analysisBySlug('course-comparison')!;
-  const { summary, answers } = getAnalysisStart();
-  const start = getAllFinisherContextStart('courses');
+  const raw = getAllFinisherContextStart('courses');
+  const start = { ...raw, cities: publishedCourses(raw.cities) };
   const n = getNugget('courses.compare');
   // Every course with 100 finishes or more; fewer than three editions is drawn hollow and never named an end (the H1's
   // ends are the same comparable courses).
@@ -29,8 +29,7 @@ export default function CourseComparison() {
   const v = sorted.map((c) => c.slowdown_pct);
   const lo = Math.floor(Math.min(...v) / 10) * 10, hi = Math.ceil(Math.max(...v) / 10) * 10;
   const ticks = Array.from({ length: Math.round((hi - lo) / 10) + 1 }, (_, i) => lo + i * 10);
-  // The high end is the H1's accent ("2.4 times as common at the high end"): its dot is the signal and the readout opens
-  // on it; the low end is named on its dot.
+  // The high end is the H1's accent: its dot is the signal and the readout opens on it; the low end is named on its dot.
   const high = comparableCourses(shown).reduce<(typeof shown)[number] | undefined>((a, b) => (!a || b.slowdown_pct > a.slowdown_pct ? b : a), undefined);
   const answer = sorted.length >= 2 ? (
     <AnswerCard kicker="Sustained slowdown by course">
@@ -42,12 +41,10 @@ export default function CourseComparison() {
           rows={sorted.map((c) => [courseName(c.label), pct(c.slowdown_pct / 100), c.edition_n, count(c.n)])} />} />
     </AnswerCard>
   ) : null;
-  const historyDefinition = { ...definition, dek: 'See how finish times compared with the same runners’ earlier bests, course by course.' };
   return (
     <AnalysisShell path={PATH} title={n} titleTerm dek={definition.title} answer={answer}>
       <ExploreBeat track="chapter-1">
-        <AllFinisherWithHistory kind="courses" start={start} linkTerm={false} untouched="none"
-          history={{ definition: historyDefinition, summary, initialAnswer: answers.find((a) => a.id === definition.id)! }} />
+        <AllFinisherAnalysis kind="courses" start={start} linkTerm={false} untouched="none" />
       </ExploreBeat>
     </AnalysisShell>
   );

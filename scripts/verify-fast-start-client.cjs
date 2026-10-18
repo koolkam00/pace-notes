@@ -117,10 +117,10 @@ async function main() {
   assert.ok(Math.abs(allCharts.accounting.rows[0].value+allCharts.accounting.rows[1].value-allCharts.accounting.rows[2].value)<1e-6);
   for(const units of ['mi','km']) {
     const html=render(FastStartResults,{row:allRow,focus:allFocus,start:starts.all,units});
-    assert.match(html,/>Median finish</); assert.match(html,/than the same distance at its early-race pace/);
+    assert.match(html,/>Median finish</); assert.match(html,/than its own early-race pace/);
     assert.match(html,SLOWDOWN_LINK);
     noMethodCopy(html,`all-finisher results (${units})`);
-    assert.match(html,/After 20K, the median finish took /);
+    assert.match(html,/After 20K, the median finish ran /);
     assert.doesNotMatch(html,/earlier recorded best|earlier-best|All earlier times/,'All mode cannot present its reference as a prior result');
     assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016/);
   }

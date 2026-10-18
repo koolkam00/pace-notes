@@ -12,7 +12,7 @@ import { ALL_FINISHER_DEFAULT, allFinisherGroupLabel, bandShort, bandWords, allF
   type AllFinisherEvidence, type AllFinisherGroup, type AllFinisherKind, type AllFinisherSelection, type AllFinisherStart } from '@/lib/all-finisher-context';
 import MakeItYours from './ui/MakeItYours.client';
 import { keepTogether } from './ui/keepTogether';
-import type { GuideExplorerParts } from './AnalysisExplorer';
+import { AnswerAbove, ExploreSubmit } from './analysis/ExploreSubmit';
 import Segmented from './ui/Segmented.client';
 import Values from './ui/Values';
 import DotStrip from './viz/DotStrip';
@@ -167,16 +167,14 @@ export function AllFinisherResults({ groups, kind, start, units, focus, comparis
  */
 export type AllFinisherProps = {
   kind: AllFinisherKind; start: AllFinisherStart; title?: string; description?: string; archive?: boolean; related?: ReactNode; linkTerm?: boolean;
-  /**
-   * An archive page's own view of the earlier-result comparison, drawn under the form's switch. Course comparison and
-   * race-day weather draw the guide explorer in this one's form instead (AllFinisherWithHistory).
-   */
+  /** An archive page's own view of the earlier-result comparison, drawn under the form's switch. */
   history?: ReactNode;
   /** Downhill starts: the opening band the explorer opens on (the page picks it from the data). */
   opening?: string;
   /**
    * What the explorer shows before the visitor changes anything: 'chart' the example's results, 'none' the selection
-   * row alone, when the page's answer above already draws the example's chart. Any change shows the results.
+   * row alone, when the page's answer above already draws the example's chart. Any other selection shows its results;
+   * the example set again shows one line back to the answer ('none').
    */
   untouched?: 'chart' | 'none';
 };
@@ -185,12 +183,9 @@ export default function AllFinisherAnalysis({ history, ...props }: AllFinisherPr
   return <AllFinisherExplorer {...props} historyNode={history} />;
 }
 
-/**
- * The explorer itself. `historyParts` is the guide explorer's state drawn in this form (AllFinisherWithHistory), so both
- * comparisons share one Make it yours and one form and the switch never remounts; `historyNode` an archive's own view.
- */
-export function AllFinisherExplorer({ kind, start, historyParts, historyNode, onHistory, title, description, archive = false, linkTerm = true, opening = ALL_FINISHER_DEFAULT.opening, untouched: untouchedView = 'chart' }: Omit<AllFinisherProps, 'history'> & {
-  historyParts?: GuideExplorerParts; historyNode?: ReactNode; onHistory?: (active: boolean) => void;
+/** The explorer itself; `historyNode` is an archive page's own earlier-result view, drawn under the comparison switch. */
+function AllFinisherExplorer({ kind, start, historyNode, title, description, archive = false, linkTerm = true, opening = ALL_FINISHER_DEFAULT.opening, untouched: untouchedView = 'chart' }: Omit<AllFinisherProps, 'history'> & {
+  historyNode?: ReactNode;
 }) {
   const { units } = useUnits();
   const formId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -201,12 +196,13 @@ export function AllFinisherExplorer({ kind, start, historyParts, historyNode, on
   const [loading, setLoading] = useState(false), [error, setError] = useState(''), [retry, setRetry] = useState(0);
   const [focusId, setFocusId] = useState(''), [comparisonId, setComparisonId] = useState('');
   const [focusDraft, setFocusDraft] = useState(''), [comparisonDraft, setComparisonDraft] = useState('');
-  const hasHistory = !!historyParts || historyNode != null;
+  // The visitor (or the address) chose a selection: the example set again then reads as the answer above.
+  const [chosen, setChosen] = useState(false);
+  const hasHistory = historyNode != null;
   const all = selection.mode === 'all' || !hasHistory;
-  useEffect(() => { onHistory?.(!all); }, [all, onHistory]);
   const initial = allFinisherRow([start.initial], selection);
   useEffect(() => {
-    const restore = () => { const p = new URLSearchParams(window.location.search); const next = readAllFinisherSelection(window.location.search, start, opening); setSelection(next); setDraft(next); setFocusId(p.get('focus') || ''); setComparisonId(p.get('compare') || ''); setFocusDraft(p.get('focus') || ''); setComparisonDraft(p.get('compare') || ''); };
+    const restore = () => { const p = new URLSearchParams(window.location.search); const next = readAllFinisherSelection(window.location.search, start, opening); setSelection(next); setDraft(next); setFocusId(p.get('focus') || ''); setComparisonId(p.get('compare') || ''); setFocusDraft(p.get('focus') || ''); setComparisonDraft(p.get('compare') || ''); p.delete('units'); setChosen(p.toString() !== ''); };
     restore(); window.addEventListener('popstate', restore); return () => window.removeEventListener('popstate', restore);
   }, [start, opening]);
   useEffect(() => {
@@ -221,7 +217,7 @@ export function AllFinisherExplorer({ kind, start, historyParts, historyNode, on
   const comparison = kind === 'downhill' ? groups.find(g => g.id !== focus?.id) : comparisonId === 'none' ? undefined : groups.find(group => group.id === comparisonId && group.id !== focus?.id) || groups.find(group => group.id !== focus?.id);
   const apply = (next: AllFinisherSelection, nextFocus = focusDraft, nextCompare = comparisonDraft) => {
     if (kind === 'courses' || kind === 'weather') trackAnalytics('analysis_filters_applied', { analysis: kind, course_scope: next.city === 'All courses' ? 'all' : 'single' });
-    setSelection(next); setDraft(next); setFocusId(nextFocus); setComparisonId(nextCompare);
+    setSelection(next); setDraft(next); setFocusId(nextFocus); setComparisonId(nextCompare); setChosen(true);
     const params = new URLSearchParams(allFinisherSearch(next));
     if (nextFocus) params.set('focus', nextFocus);
     if (nextCompare) params.set('compare', nextCompare);
@@ -243,22 +239,25 @@ export function AllFinisherExplorer({ kind, start, historyParts, historyNode, on
   const summary = [...(openingBand ? [`First 5K ${bandWords(openingBand.label)}`] : []), selection.city === 'All courses' ? 'All courses' : cityName(selection.city),
     ...(selection.early_pace === 'all' ? [] : [earlyPaceLabel(start.early_pace_bands.find(b => b.id === selection.early_pace)!, units)]), ...(selection.age === 'all' ? [] : [selection.age]),
     ...(selection.gender === 'all' ? [] : [selection.gender]), ...(all ? [] : ['With an earlier result'])].filter(Boolean).join(' · ');
+  const same = (a: AllFinisherSelection, b: AllFinisherSelection) => (Object.keys(b) as (keyof AllFinisherSelection)[]).every(key => a[key] === b[key]);
+  // The group followed and the comparison line as the form shows them (a blank draft is the view's default).
+  const shownFocus = (id: string) => id || focus?.id || '', shownCompare = (id: string) => id || comparison?.id || 'none';
+  const fallback = defaultFocus(groups, kind);
   // The untouched example: the page's answer already states the spread across courses or start temperatures.
-  const untouched = !focusId && !comparisonId && (Object.keys(base) as (keyof AllFinisherSelection)[]).every(key => selection[key] === base[key]);
+  const untouched = same(selection, base) && (!focusId || focusId === fallback?.id) && !comparisonId;
   const head = !(untouched && (kind === 'courses' || kind === 'weather'));
   const shown = !untouched || untouchedView === 'chart';
-  // The comparison switch is the form's first control, in the sheet under 900 px and inline from 900 px. Both comparisons
-  // draw in this one Make it yours and this one form, the switch first, so a switch keeps its identity and its focus.
+  // Update comparison does something only once the form differs from the selection on screen.
+  const ready = !same(draft, selection) || shownFocus(focusDraft) !== shownFocus(focusId) || (isProfileKind(kind) && shownCompare(comparisonDraft) !== shownCompare(comparisonId));
+  // The comparison switch (archive pages only) is the form's first control.
   const modes = hasHistory ? <div className="explore-mode"><Segmented label="Choose the comparison" block value={all ? 'all' : 'history'} onChange={value => mode(value as 'all' | 'history')}
     options={[{ value: 'all', label: 'All eligible finishes' }, { value: 'history', label: 'With an earlier result' }]} /><p className="field-hint">{all ? 'No previous race needed' : 'Compared with recorded race history'}</p></div> : null;
-  // The earlier-result view: the guide explorer's fields and results, or an archive's own view under the switch alone.
-  const hx: GuideExplorerParts | null = all ? null : historyParts ?? { formId, summaryText: summary, busy: false, onSubmit: event => event.preventDefault(), fields: null, after: historyNode };
   return <div className="analysis-layout explorer af-explorer">
     {archive ? <header className="explorer-head"><h1 className="t-title">{title}</h1>{description ? <p className="t-body">{description}</p> : null}</header> : null}
-    <MakeItYours id={`${formId}-miy`} summary={hx ? hx.summaryText : summary} busy={hx ? hx.busy : pending || loading}>
-      <form className="explore-form" onSubmit={hx ? hx.onSubmit : event => { event.preventDefault(); apply(draft); }}>
+    <MakeItYours id={`${formId}-miy`} summary={summary} busy={all && (pending || loading)}>
+      <form className="explore-form" onSubmit={event => { event.preventDefault(); if (all && ready) apply(draft); }}>
         {modes}
-        {hx ? <Fragment key="history">{hx.fields}</Fragment> : <Fragment key="all">
+        {all ? <Fragment key="all">
           <div className="explore-fields">
             {kind !== 'courses' && kind !== 'course-consistency' && kind !== 'course-profile' && <div className="field"><label className="field-label" htmlFor={field('course')}>Course</label><select id={field('course')} className="select" value={draft.city} onChange={event => setDraft({ ...draft, city: event.target.value })}>{start.cities.map(city => <option key={city} value={city}>{cityName(city)}</option>)}</select></div>}
             <div className="field"><label className="field-label" htmlFor={field('early')}>Early-race pace</label><select id={field('early')} className="select" value={draft.early_pace} onChange={event => setDraft({ ...draft, early_pace: event.target.value })}>{start.early_pace_bands.map(band => <option key={band.id} value={band.id}>{earlyPaceLabel(band, units)}</option>)}</select></div>
@@ -268,15 +267,16 @@ export function AllFinisherExplorer({ kind, start, historyParts, historyNode, on
             {follows && focus && <div className="field"><label className="field-label" htmlFor={field('focus')}>{followLabel}</label><select id={field('focus')} className="select" value={focusDraft || focus.id} onChange={event => setFocusDraft(event.target.value)}>{groups.map(group => <option key={group.id} value={group.id}>{label(group)}</option>)}</select></div>}
             {isProfileKind(kind) && focus && <div className="field"><label className="field-label" htmlFor={field('compare')}>Compare pacing with</label><select id={field('compare')} className="select" value={comparisonDraft || comparison?.id || 'none'} onChange={event => setComparisonDraft(event.target.value)}><option value="none">No comparison line</option>{groups.filter(group => group.id !== (focusDraft || focus.id)).map(group => <option key={group.id} value={group.id}>{label(group)}</option>)}</select></div>}
           </div>
-          <button type="submit" className="btn btn-secondary is-compact explore-submit">Update comparison</button>
-        </Fragment>}
+          <ExploreSubmit ready={ready} id={formId} />
+        </Fragment> : null}
       </form>
     </MakeItYours>
-    {hx ? hx.after : <>
-      <div className="sr-only" role="status">{pending || loading ? 'Loading your comparison.' : error ? '' : focus ? `Comparison updated. ${groups.length} groups are available.` : 'Not enough results for this exact selection.'}</div>
+    {!all ? historyNode : <>
+      <div className="sr-only" role="status">{pending || loading ? 'Loading your comparison.' : error ? '' : !chosen ? '' : focus ? `Comparison updated: ${summary}.` : 'Not enough results for this exact selection.'}</div>
       <div className="miy-results">
         {(pending || loading) && !row ? <p className="explore-state">Loading the comparison…</p>
           : error ? <div className="explore-state" role="alert"><p>{error}</p><button type="button" className="btn btn-secondary is-compact" onClick={() => setRetry(value => value + 1)}>Try again</button></div>
+          : untouched && chosen && untouchedView === 'none' ? <AnswerAbove />
           : !shown ? null
           : focus ? <AllFinisherResults groups={groups} kind={kind} start={start} units={units} focus={focus} comparison={comparison} head={head} followed={!!focusId} linkTerm={linkTerm} />
           : <div className="explore-state"><h2 className="explore-title">Not enough results for this exact comparison.</h2><p>Try a broader course, early pace, age or gender{kind === 'downhill' ? ', or another opening' : ''}.</p><button className="btn btn-secondary is-compact" type="button" onClick={() => apply(base, '', '')}>Reset the comparison</button></div>}

@@ -1,5 +1,5 @@
 import Values from '@/components/ui/Values';
-import AllFinisherWithHistory from '@/components/AllFinisherWithHistory';
+import AllFinisherAnalysis from '@/components/AllFinisherAnalysis';
 import WeatherAnalysis from '@/components/WeatherAnalysis';
 import AnalysisShell, { AnswerCard, ExploreBeat, Say } from '../Shell';
 import Columns from '../Columns';
@@ -7,7 +7,7 @@ import ByUnits from '../ByUnits.client';
 import WeatherTabs from '../WeatherTabs.client';
 import TabTitle from '../TabTitle.client';
 import { analysisBySlug } from '@/lib/ten-analyses';
-import { getAnalysisStart } from '@/lib/analysis-server';
+import { publishedCourses } from '@/lib/analysis-server';
 import { getAllFinisherContextStart } from '@/lib/all-finisher-context-server';
 import { getWeatherEvidence } from '@/lib/weather-data';
 import { getNugget } from '@/lib/nuggets';
@@ -26,8 +26,8 @@ const cap = (s: string) => s.replace(/^[a-z]/, (c) => c.toUpperCase());
  */
 export default function RaceDayWeather() {
   const definition = analysisBySlug('race-day-weather')!;
-  const { summary, answers } = getAnalysisStart();
-  const start = getAllFinisherContextStart('weather');
+  const raw = getAllFinisherContextStart('weather');
+  const start = { ...raw, cities: publishedCourses(raw.cities) };
   const evidence = getWeatherEvidence();
   const n = getNugget('weather.start');
   const bands = start.initial.weather.filter((g) => g.n >= 100).sort((a, b) => (a.upper_c ?? Infinity) - (b.upper_c ?? Infinity));
@@ -52,16 +52,14 @@ export default function RaceDayWeather() {
     ...(['warming', 'wind'] as const).flatMap((id) => {
       const candidate = ready(id);
       if (!candidate) return [];
-      return [{ id, label: id === 'warming' ? 'Warming' : 'Wind', title: <Say nugget={getNugget(id === 'warming' ? 'weather.warming' : 'weather.wind')} />, panel: <WeatherAnalysis candidate={candidate} evidence={evidence} /> }];
+      return [{ id, label: id === 'warming' ? 'Warming' : 'Wind', title: <Say nugget={getNugget(id === 'warming' ? 'weather.warming' : 'weather.wind')} quiet={id === 'wind'} />, panel: <WeatherAnalysis candidate={candidate} evidence={evidence} /> }];
     }),
   ];
-  const historyDefinition = { ...definition, dek: 'See how finish times compared with the same runners’ earlier bests in cooler and warmer races.' };
   return (
     <AnalysisShell path={PATH} title={n} heading={<TabTitle titles={tabs.map(({ id, title }) => ({ id, title }))} />} dek={definition.title}
       answer={<WeatherTabs tabs={tabs.map(({ id, label, panel }) => ({ id, label, panel }))} />}>
       <ExploreBeat track="chapter-1">
-        <AllFinisherWithHistory kind="weather" start={start} linkTerm={false} untouched="none"
-          history={{ definition: historyDefinition, summary, initialAnswer: answers.find((a) => a.id === definition.id)! }} />
+        <AllFinisherAnalysis kind="weather" start={start} linkTerm={false} untouched="none" />
       </ExploreBeat>
     </AnalysisShell>
   );

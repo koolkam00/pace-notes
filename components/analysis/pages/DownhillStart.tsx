@@ -3,6 +3,7 @@ import Dumbbell from '@/components/viz/Dumbbell';
 import Values from '@/components/ui/Values';
 import AllFinisherAnalysis from '@/components/AllFinisherAnalysis';
 import AnalysisShell, { AnswerCard, Beat, ExploreBeat } from '../Shell';
+import { publishedCourses } from '@/lib/analysis-server';
 import { getAllFinisherContextStart } from '@/lib/all-finisher-context-server';
 import { getNugget } from '@/lib/nuggets';
 import { countWord, pct } from '@/lib/nuggets/format';
@@ -12,7 +13,8 @@ const PATH = '/analyses/downhill-start';
 
 /** Chapter 02, page 2: a downhill start and the opening, then opening band by opening band, then Make it yours. */
 export default function DownhillStart() {
-  const start = getAllFinisherContextStart('downhill');
+  const raw = getAllFinisherContextStart('downhill');
+  const start = { ...raw, cities: publishedCourses(raw.cities) };
   const opening = getNugget('downhill.opening'), bands = getNugget('downhill.bands');
   const v = opening.values as { downhill: number; other: number; courses: number };
   const rows = start.opening_bands.map((band) => ({

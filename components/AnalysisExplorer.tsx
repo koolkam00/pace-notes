@@ -11,11 +11,11 @@ import { type AnalysisDefinition } from '@/lib/ten-analyses';
 import { EXAMPLE_PROFILE, profileSearch, readAnalysisProfile, sameProfile } from '@/lib/analysis-profile';
 import { loadAnalysisAggregate } from '@/lib/analysis-aggregates';
 import { MARATHON_SECTION_ENDS, sectionLabel } from '@/lib/section-labels';
-import AnalysisChart from './AnalysisChart';
 import KeypadHint from './KeypadHint';
 import { keepTogether } from './ui/keepTogether';
 import MakeItYours from './ui/MakeItYours.client';
 import ExplorerChart, { wholeElevation, type TerrainExtras } from './analysis/ExplorerChart';
+import { AnswerAbove, ExploreSubmit } from './analysis/ExploreSubmit';
 import { trackAnalytics } from '@/lib/analytics';
 import { unitHref } from '@/lib/unit-preference';
 
@@ -94,29 +94,26 @@ export function insightHeadline(id: string, answer: GuideAnswer, goal: number, u
 type ExplorerProps = {
   definition: AnalysisDefinition; summary: PersonalSummary; initialAnswer: GuideAnswer; start?: Profile;
   /** Hills: each course's supplied elevation profile and the shared height scale. */
-  terrain?: { elevations: Record<string, number[]>; step: number }; historyMode?: boolean; weatherQuestions?: unknown[];
+  terrain?: { elevations: Record<string, number[]>; step: number };
   /**
    * What the explorer shows before the visitor changes anything. The page's answer already states the example, so the
    * explorer never repeats its headline: 'chart' draws the example's chart alone (the page's only picture of it),
-   * 'none' only the selection row, when the answer above already draws that chart. Any change shows the headline too.
+   * 'none' only the selection row, when the answer above already draws that chart. Any other selection shows its
+   * headline and chart; the example set again shows one line back to the answer ('none').
    */
   untouched?: 'chart' | 'none';
 };
-/** The props a host explorer passes to stand this one in as its earlier-result comparison. */
-export type HistoryExplorerProps = Pick<ExplorerProps, 'definition' | 'summary' | 'initialAnswer'>;
 
-/** One explorer's state, drawn by a host: its selection row, the form's fields and submit, and what follows the form. */
-export type GuideExplorerParts = { formId: string; summaryText: string; busy: boolean; onSubmit: (event: FormEvent<HTMLFormElement>) => void; fields: ReactNode; after: ReactNode };
+/** One explorer's state: its selection row, the form's fields and submit, and what follows the form. */
+type GuideExplorerParts = { formId: string; summaryText: string; busy: boolean; onSubmit: (event: FormEvent<HTMLFormElement>) => void; fields: ReactNode; after: ReactNode };
 
 /**
  * The explorer of a guide analysis as state and parts (the redesign spec, sections 3.5 and 4.2): course, finish time and
  * the refinements in one form (every S2-pinned label kept), then the selection's headline and one chart. The page's
  * default is drawn at build (`initialAnswer` for `start`, the all-course 4:00 example unless the page says otherwise);
- * any other selection loads its course's published aggregate, only while `active`. `historyMode` is the earlier-result
- * view of courses and start temperatures, which keeps the archive's range charts; the all-finisher explorer hosts it in
- * its own form, so its comparison switch never remounts.
+ * any other selection loads its course's published aggregate.
  */
-export function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_PROFILE, terrain, historyMode = false, untouched = 'chart', active = true }: ExplorerProps & { active?: boolean }): GuideExplorerParts {
+function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_PROFILE, terrain, untouched = 'chart' }: ExplorerProps): GuideExplorerParts {
   const { units } = useUnits();
   const formId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const text = (value: string | undefined) => unitText(value || '', units);
@@ -151,14 +148,14 @@ export function useGuideExplorer({ definition, summary, initialAnswer, start = E
     return () => window.removeEventListener('popstate', restore);
   }, [summary, courseOnly, start.city]);
   useEffect(() => {
-    if (!active || !usesCityData || sameProfile(profile, start)) { setLoading(false); setError(''); return; }
+    if (!usesCityData || sameProfile(profile, start)) { setLoading(false); setError(''); return; }
     const controller = new AbortController();
     setLoading(true); setError('');
     loadAnalysisAggregate<CityData>(city.file, city.city, summary.as_of, controller.signal)
       .then(value => { if (!controller.signal.aborted) { setData(value); setLoading(false); } })
       .catch(reason => { if (!controller.signal.aborted) { setError(reason.message); setLoading(false); } });
     return () => controller.abort();
-  }, [active, city.file, city.city, summary.as_of, profile, retry, usesCityData, start]);
+  }, [city.file, city.city, summary.as_of, profile, retry, usesCityData, start]);
   const answer = useMemo(() => {
     if (definition.id === 'courses') return buildGuide({ city: 'All courses', cohorts: {}, terrain: [] }, summary, profile).find(item => item.id === definition.id)!;
     if (sameProfile(profile, start)) return initialAnswer;
@@ -169,14 +166,14 @@ export function useGuideExplorer({ definition, summary, initialAnswer, start = E
   const applyProfile = (nextProfile: Profile) => {
     trackAnalytics('analysis_filters_applied', { analysis: definition.id, course_scope: nextProfile.city === 'All courses' ? 'all' : 'single' });
     setSelection(nextProfile); setChanged(true); setFormError('');
-    window.history.pushState(null, '', unitHref(window.location.pathname + profileSearch(nextProfile) + (historyMode ? '&comparison=history' : ''), units));
+    window.history.pushState(null, '', unitHref(window.location.pathname + profileSearch(nextProfile), units));
   };
   const visibleAnswer = answer ? insightHeadline(definition.id, answer, profile.goal, units, profile.city) || findingText(answer, units) : '';
   const field = (key: string) => `${formId}-${key}`;
   const timeLabel = ['profile', 'terrain', 'gains', 'age'].includes(definition.id) ? 'Finish time to explore' : 'Target time';
   // Only the choices that matter: the course, the time, and a refinement once one is set (never "All ages").
   const summaryText = [cityName(profile.city), ...(definition.controls.time ? [clock(profile.goal * 60)] : []), ...(profile.age === 'all' ? [] : [profile.age]),
-    ...(profile.gender === 'all' ? [] : [profile.gender]), ...(profile.previous === null ? [] : [`earlier ${clock(profile.previous * 60)}`]), ...(historyMode ? ['With an earlier result'] : [])].join(' · ');
+    ...(profile.gender === 'all' ? [] : [profile.gender]), ...(profile.previous === null ? [] : [`earlier ${clock(profile.previous * 60)}`])].join(' · ');
   const cityOptions = summary.cities.filter(row => !courseOnly || row.city !== EXAMPLE_PROFILE.city);
   const terrainExtras: TerrainExtras | undefined = terrain ? { elevation: terrain.elevations[profile.city] ?? null, step: terrain.step } : undefined;
   const refinements = (
@@ -186,11 +183,18 @@ export function useGuideExplorer({ definition, summary, initialAnswer, start = E
             {definition.controls.previous && <div className="field"><label className="field-label" htmlFor={field('previous')}>Earlier marathon · optional</label><input id={field('previous')} className="input" value={previousText} onChange={event => setPreviousText(keypadInput(event.target, event.nativeEvent))} placeholder="e.g. 4:15" inputMode="decimal" spellCheck={false} autoComplete="off" /></div>}
           </div>
   );
+  // The form as typed: Update comparison does something only once it differs from the selection on screen (a time that
+  // does not parse counts as a change, so its message shows).
+  const typedGoal = definition.controls.time ? parseMinutes(timeText) : draft.goal;
+  const typedEarlier = definition.controls.previous ? (previousText.trim() ? parseMinutes(previousText) : null) : draft.previous;
+  const ready = typedGoal === null || (definition.controls.previous && !!previousText.trim() && typedEarlier === null) || !sameProfile({ ...draft, goal: typedGoal, previous: typedEarlier }, profile);
+  // The page's own example, set again after a change: the answer above already draws it.
+  const atExample = sameProfile(profile, start);
   const shown = changed || untouched === 'chart';
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const goal = definition.controls.time ? parseMinutes(timeText) : draft.goal;
-    const earlier = definition.controls.previous ? (previousText.trim() ? parseMinutes(previousText) : null) : draft.previous;
+    if (!ready) return;
+    const goal = typedGoal, earlier = typedEarlier;
     if (goal === null || goal < GOAL_MIN || goal > GOAL_MAX) { setFormError('Enter a time between ' + clock(GOAL_MIN * 60) + ' and ' + clock(GOAL_MAX * 60) + ', using hours:minutes.'); return; }
     if (previousText.trim() && definition.controls.previous && (earlier === null || earlier < 90 || earlier > 720)) { setFormError('Enter your earlier marathon time in hours:minutes, or leave it blank.'); return; }
     applyProfile({ ...draft, goal, previous: earlier });
@@ -204,19 +208,19 @@ export function useGuideExplorer({ definition, summary, initialAnswer, start = E
       ? <details className="profile-refinements" open={refining} onToggle={event => setRefining(event.currentTarget.open)}><summary>Refine by {definition.controls.age ? 'age, ' : ''}gender{definition.controls.previous ? ' or an earlier marathon' : ''}</summary>{refinements}</details>
       : refinements}
     {formError && <p className="field-error" role="alert">{formError}</p>}
-    <button type="submit" className="btn btn-secondary is-compact explore-submit">Update comparison</button>
+    <ExploreSubmit ready={ready} id={formId} />
   </>;
   const after = <>
-    <div className="sr-only" role="status">{loading ? 'Loading your comparison.' : changed && answer ? 'Comparison updated. ' + (answer.comparison || '') : ''}</div>
+    <div className="sr-only" role="status">{loading ? 'Loading your comparison.' : changed && answer ? `Comparison updated: ${summaryText}.` : ''}</div>
     <div className="miy-results">
       {loading && !answer ? <p className="explore-state">Loading the comparison…</p>
         : error ? <div className="explore-state" role="alert"><p>{error}</p><button className="btn btn-secondary is-compact" onClick={() => setRetry(value => value + 1)} type="button">Try loading again</button></div>
+        : changed && atExample && untouched === 'none' ? <AnswerAbove />
         : answer && shown ? <div className="explore-results">
-          {changed ? <h2 className="explore-title">{keepTogether(text(visibleAnswer))}</h2> : null}
+          {changed && !atExample ? <h2 className="explore-title">{keepTogether(text(visibleAnswer))}</h2> : null}
           {answer.widened && <p className="explore-note">{text(answer.widened)}</p>}
           {!hasResults ? <div className="explore-state"><p>Try All courses, fewer refinements or another finish time.</p><button className="btn btn-secondary is-compact" type="button" onClick={() => applyProfile(start)}>Back to the example</button></div>
-            : historyMode ? <AnalysisChart charts={answer.charts} analysisId={definition.id + profileSearch(profile)} />
-            : <ExplorerChart id={definition.id} answer={answer} goal={profile.goal} units={units} terrain={terrainExtras} valuesId={`${formId}-values`} selectedAge={profile.age === 'all' ? undefined : profile.age} />}
+            : <ExplorerChart id={definition.id} answer={answer} goal={profile.goal} units={units} terrain={terrainExtras} valuesId={`${formId}-values`} selectedAge={profile.age === 'all' ? undefined : profile.age} example={atExample} yours={profile.goal !== start.goal} />}
         </div> : null}
     </div>
   </>;

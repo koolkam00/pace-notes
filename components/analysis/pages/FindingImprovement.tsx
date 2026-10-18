@@ -26,12 +26,14 @@ export default function FindingImprovement() {
     const i = exact.map((e, k) => ({ k, gap: (e - whole[k]) * Math.sign(left) })).sort((a, b) => b.gap - a.gap)[0].k;
     whole[i] += Math.sign(left); left -= Math.sign(left);
   }
-  // The H1 gives the share found from 30K; the receipt adds what it does not say: the three parts, each per mile, and
-  // the total they add up to.
+  // The receipt adds up the H1: the three parts, each per mile, then the H1's accent as its result (the share of the
+  // time found after 30K, the card's one orange figure) and the total it is a share of.
+  const total = whole.reduce((a, b) => a + b, 0);
   const receipt = (u: UnitSystem) => (
     <Receipt kicker={`Near ${hm(g.goal_min)}, against earlier best`}
       lines={BLOCKS.map(([label, km], i) => ({ label, key: per(whole[i], km, u), value: ms(whole[i]), sr: spokenTime(whole[i]) }))}
-      result={{ label: 'Faster in all', value: ms(whole.reduce((a, b) => a + b, 0)), sr: `${spokenTime(whole.reduce((a, b) => a + b, 0))} faster in all` }} />
+      result={gains.guard && gains.figure ? { label: 'Found after 30K', value: `${gains.figure.value}${gains.figure.unit ?? ''}`, sr: `${gains.figure.sr} of the time found came after 30K` } : { label: 'Faster in all', value: ms(total), sr: `${spokenTime(total)} faster in all` }}
+      extra={gains.guard ? { label: 'Faster in all', value: ms(total), sr: `${spokenTime(total)} faster in all` } : undefined} />
   );
   const r = next.values as { observed: number; expected: number };
   const lit = (s: number) => Math.round(s * 100);

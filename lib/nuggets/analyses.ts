@@ -19,7 +19,7 @@ import { getStudyEvidence } from '@/lib/research-data';
 import { MARATHON_SECTION_ENDS } from '@/lib/section-labels';
 import { getWeatherEvidence } from '@/lib/weather-data';
 import type { WeatherCandidate } from '@/lib/weather-types';
-import { MARATHON_KM, type UnitSystem } from '@/lib/units';
+import { MARATHON_KM, distance, type UnitSystem } from '@/lib/units';
 import { clock, count, countWord, delta, hm, ms, pct, sectionLabel, spokenPct, spokenTime, temp } from './format';
 import { capitalize, shareFigure, type Builder } from './build';
 import type { Nugget } from './types';
@@ -176,7 +176,8 @@ export function checkpointCushionFrom(curve: CushionPoint[], goal = GOAL, mat = 
     id: 'checkpoint.cushion', page: '/analyses/checkpoint#cushion', denominator: 'eligible',
     values: { goal_min: goal, mat_km: mat, even_min: even, half_at_min: at, ahead_min: ahead },
     guard: finite(at) && minutes >= 1,
-    headline: `Half made ${hm(goal)} from about *${countWord(minutes)} ${minutes === 1 ? 'minute' : 'minutes'}* ahead of even pace at ${mat}K.`,
+    // "About half": the 50% point is interpolated between 2-minute bands, and the readout opens on the band holding it.
+    headline: `About half made ${hm(goal)} from *${countWord(minutes)} ${minutes === 1 ? 'minute' : 'minutes'}* ahead of even pace at ${mat}K.`,
     fallback: `At ${mat}K, the share that got under ${hm(goal)}, by split.`,
     figure: finite(at) ? { value: clock(at * 60).replace(/:\d\d$/, ''), sr: `${spokenTime(at * 60)} at ${mat}K` } : null,
   };
@@ -277,7 +278,8 @@ export function coursesCompareFrom(groups: AllFinisherGroup[]): Nugget {
     id: 'courses.compare', page: '/analyses/course-comparison', denominator: 'course', term: '/methodology#sustained-slowdown',
     values: { lo: l, hi: h, courses: list.length, lo_course: lo?.label ?? '', hi_course: hi?.label ?? '' },
     guard: list.length >= 2 && h / l > 1.5,
-    headline: `Sustained slowdown ranged from ${pct(l)} to ${pct(h)} of finishes across courses, *${(h / l).toFixed(1)} times* as common at the high end.`,
+    // The accent is the high end, the card's one orange dot (its readout opens there); the low end is named in ink.
+    headline: `Sustained slowdown ranged from ${pct(l)} to *${pct(h)}* of finishes across courses.`,
     fallback: `Sustained slowdown across ${count(list.length)} courses.`,
     figure: list.length ? { value: `${pct(l).replace('%', '')}–${pct(h).replace('%', '')}`, unit: '%', sr: `${pct(l)} to ${pct(h)}` } : null,
     key: 'sustained slowdown, course by course',
@@ -337,7 +339,9 @@ export function weatherWarmingFrom(c: WeatherCandidate | undefined): Nugget {
     id: 'weather.warming', page: '/analyses/race-day-weather#warming', denominator: 'course',
     values: c ? { q25: c.exposure.q25, q75: c.exposure.q75, estimate: c.effect.estimate, low: c.effect.low, high: c.effect.high } : {},
     guard: ok,
-    headline: both((u) => `When it warmed ${riseWords(c?.exposure.q75 ?? NaN, u)} instead of ${riseWords(c?.exposure.q25 ?? NaN, u)} over four hours, the second 20K slowed about *${one(c?.effect.estimate ?? NaN)} points* more.`),
+    // The estimate is in percentage points of the second 20K's pace change, said as a whole percent (the card's axis
+    // reads +2, +4); the four hours and the interval are on /methodology.
+    headline: both((u) => `A day that warmed ${riseWords(c?.exposure.q75 ?? NaN, u)}, not ${riseWords(c?.exposure.q25 ?? NaN, u)}, slowed the second 20K about *${Math.round(c?.effect.estimate ?? NaN)}%* more.`),
     fallback: 'Warming through the race, and the second 20K.',
     figure: c ? { value: `+${one(c.effect.estimate)}`, unit: 'pts', sr: `${one(c.effect.estimate)} points` } : null,
   };
@@ -349,7 +353,7 @@ export function weatherWindFrom(c: WeatherCandidate | undefined): Nugget {
     id: 'weather.wind', page: '/analyses/race-day-weather#wind', denominator: 'course',
     values: c ? { q25: c.exposure.q25, q75: c.exposure.q75, estimate: c.effect.estimate, low: c.effect.low, high: c.effect.high } : {},
     guard: ok,
-    headline: both((u) => `Wind of ${windWords(c?.exposure.q75 ?? NaN, u)} instead of ${windWords(c?.exposure.q25 ?? NaN, u)} at the start made *no material difference*: under 1 point.`),
+    headline: both((u) => `Wind of ${windWords(c?.exposure.q75 ?? NaN, u)} instead of ${windWords(c?.exposure.q25 ?? NaN, u)} at the start made *no material difference*: under 1%.`),
     fallback: 'Wind at the start, and the second 20K.',
     figure: c ? { value: '≈ 0', sr: 'about zero' } : null,
   };
@@ -374,13 +378,14 @@ export function kickRecurrenceFrom(r: Recurrence): Nugget {
 /** Improving finishes near the goal: the share of their gain found from 30K to the finish, against its share of the distance. */
 export function gainsFinalFrom(row: { values: number[]; total: number; n: number } | null, goal = GOAL): Nugget {
   const share = row && row.total > 0 ? row.values[2] / row.total : NaN;
-  const distance = (MARATHON_KM - 30) / MARATHON_KM;
+  const stretch = (MARATHON_KM - 30) / MARATHON_KM;
   return {
     id: 'gains.final', page: '/analyses/finding-improvement', denominator: 'eligible',
     values: row ? { goal_min: goal, open_min: row.values[0], middle_min: row.values[1], final_min: row.values[2], total_min: row.total, share, n: row.n } : {},
-    guard: !!row && row.n >= 100 && row.values.length === 3 && share > distance,
-    // The comparison in the sentence: the stretch from 30K is under a third of the distance.
-    headline: `Improving finishes near ${hm(goal)} found *${pct(share)}* of their time in the last ${pct(distance)} of the race.`,
+    guard: !!row && row.n >= 100 && row.values.length === 3 && share > stretch,
+    // One share in the sentence (of the time found), and the stretch it came from as a distance, so two percentages of
+    // different things never sit together; the guard holds that stretch to less than its share of the race.
+    headline: both((u) => `Improving finishes near ${hm(goal)} found *${pct(share)}* of their time after 30K, the last ${distance(MARATHON_KM - 30, u)}.`),
     fallback: `Where improving finishes near ${hm(goal)} found their time.`,
     figure: shareFigure(share), key: 'of the time improving finishes found came from 30K to the finish',
   };

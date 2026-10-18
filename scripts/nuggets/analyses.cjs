@@ -151,7 +151,7 @@ module.exports = function analyses({ json, eq, ok, core }) {
     eq([n.values.lo_course, n.values.hi_course], [lo.label, hi.label], 'courses.compare recounts the extremes');
     ok(!shown(n).includes(lo.label) && !shown(n).includes(hi.label), 'courses.compare: the headline names no course');
     ok(shown(n).includes(pct(lo.slowdown_pct / 100)) && shown(n).includes(pct(hi.slowdown_pct / 100)), 'courses.compare: the headline names both ends');
-    if (n.guard) ok(shown(n).includes(`${(hi.slowdown_pct / lo.slowdown_pct).toFixed(1)} times`), 'courses.compare: the headline names the high end against the low (the receipt\'s result)');
+    if (n.guard) ok(shown(n).includes(`*${pct(hi.slowdown_pct / 100)}*`), 'courses.compare: the accent is the high end, the card\'s orange dot');
   };
 
   R['terrain.climb'] = (n) => {
@@ -183,7 +183,7 @@ module.exports = function analyses({ json, eq, ok, core }) {
   R['weather.warming'] = (n) => {
     const c = wx.candidates.find((x) => x.id === 'warming');
     eq(n.guard, c.status === 'ready' && c.takeaway_type === 'association' && c.effect.low > 0, 'weather.warming: guard');
-    if (n.guard) ok(shown(n).includes(`${(Math.round(c.effect.estimate * 10) / 10).toFixed(1)} points`) && shown(n, 'mi').includes(`${(c.exposure.q75 * 1.8).toFixed(0)}°F`), 'weather.warming: the sentence names the estimate and the rise');
+    if (n.guard) ok(shown(n).includes(`*${Math.round(c.effect.estimate)}%*`) && shown(n, 'mi').includes(`${(c.exposure.q75 * 1.8).toFixed(0)}°F`), 'weather.warming: the sentence names the estimate and the rise');
   };
   R['weather.wind'] = (n) => {
     const c = wx.candidates.find((x) => x.id === 'wind');

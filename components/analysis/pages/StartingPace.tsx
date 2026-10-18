@@ -5,6 +5,7 @@ import FastStartAnalysis from '@/components/FastStartAnalysis';
 import AnalysisShell, { Beat, ExploreBeat } from '../Shell';
 import GoalLine from '../GoalLine.client';
 import { analysisBySlug } from '@/lib/ten-analyses';
+import { publishedCourses } from '@/lib/analysis-server';
 import { getFastStartStarts } from '@/lib/fast-start-server';
 import { fastEdge } from '@/lib/fast-start';
 import { readInsight } from '@/lib/insights-server';
@@ -21,7 +22,9 @@ const capitalize = (s: string) => s.replace(/^[a-z]/, (c) => c.toUpperCase());
 export default function StartingPace() {
   const definition = analysisBySlug('starting-pace')!;
   const bank = getNugget('kick.bank'), sweet = getNugget('kick.sweetspot');
-  const starts = getFastStartStarts();
+  const all = getFastStartStarts();
+  // The explorer offers the course pages' list (the files also hold courses with no page).
+  const starts = { all: { ...all.all, cities: publishedCourses(all.all.cities) }, history: { ...all.history, cities: publishedCourses(all.history.cities) } };
   const v = bank.values as { band?: string; open_s?: number; after20_s?: number; finish_s?: number };
   const edge = (() => { const b = starts.all.bands.find((x) => x.label === v.band); return b ? fastEdge(b) : null; })();
   const said = bandWords(v.band ?? '');

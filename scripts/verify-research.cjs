@@ -296,8 +296,7 @@ for (const question of [...questions, ...extras]) for (const source of question.
   }
 }
 
-// /slowdown: where sustained slowdowns began, the spread across courses and the earlier-best columns, each from the current
-// study and the all-finisher evidence; the term links to its definition once; no method copy, source links or Recharts.
+// /slowdown: where sustained slowdowns began and the earlier-best columns, each from the current study; the term links to its definition once; no method copy, source links or Recharts.
 {
   const React = require('react');
   const { renderToStaticMarkup } = require('react-dom/server');
@@ -309,7 +308,9 @@ for (const question of [...questions, ...extras]) for (const source of question.
   const total = rows.reduce((s, r) => s + r.episodes, 0), late = rows.filter(r => r.label >= 30).reduce((s, r) => s + r.episodes, 0);
   assert.match(html, /<h1[^>]*>Sustained slowdown: <em>when<\/em> it begins, and where\.<\/h1>/);
   assert.ok(html.includes(`>${Math.round(100 * late / total)}<`), '/slowdown: the reading is the share that began at 30K or later');
-  for (const id of ['answer', 'courses', 'history']) assert.match(html, new RegExp(`<section[^>]*id="${id}"`), `/slowdown: the ${id} beat`);
+  for (const id of ['answer', 'history']) assert.match(html, new RegExp(`<section[^>]*id="${id}"`), `/slowdown: the ${id} beat`);
+  // The spread across courses is course comparison's finding: /slowdown does not repeat it.
+  assert.doesNotMatch(html, /<section[^>]*id="courses"/, '/slowdown: no course beat');
   assert.equal((html.match(/href="\/methodology#sustained-slowdown"/g) || []).length, 1, '/slowdown links the term to its definition once');
   const history = study.figures.find(f => f.id === 'history').charts[0].rows.filter(r => r.n_value >= 100);
   for (const r of history) assert.ok(html.includes(`${Math.round(r.value)}%`), `/slowdown: the ${r.label} column`);

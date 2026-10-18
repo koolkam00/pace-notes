@@ -12,6 +12,7 @@ import { useUnits } from './UnitsProvider';
 import KeypadHint from './KeypadHint';
 import MakeItYours from './ui/MakeItYours.client';
 import Ruler from './viz/Ruler';
+import { AnswerAbove, ExploreSubmit } from './analysis/ExploreSubmit';
 import { trackAnalytics } from '@/lib/analytics';
 import { unitHref } from '@/lib/unit-preference';
 
@@ -47,6 +48,8 @@ export default function CheckpointExplorer({ summary, profile: start = EXAMPLE_P
   const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
   const [retry, setRetry] = useState(0);
+  // The visitor (or the address) chose a selection: the example set again then reads as the answer above.
+  const [chosen, setChosen] = useState(false);
   const isInitial = !!initial && profile.city === start.city && profile.age === 'all' && profile.gender === 'all' && profile.goal === start.goal
     && request.checkpoint === initial.checkpoint && request.elapsed === initial.elapsed && request.section === null;
   const city = summary.cities.find(row => row.city === profile.city) ?? summary.cities[0];
@@ -57,7 +60,8 @@ export default function CheckpointExplorer({ summary, profile: start = EXAMPLE_P
       const mat = Number(new URLSearchParams(window.location.search).get('mat'));
       const km = MATS.includes(mat) ? mat : 30;
       const elapsed = parseElapsed(new URLSearchParams(window.location.search).get('at') || '') ?? evenAt(read.goal, km);
-      setCheckpoint(km); setElapsedText(clock(elapsed, true)); setRequest({ checkpoint: km, elapsed, section: null });
+      setCheckpoint(km); setElapsedText(clock(elapsed, true)); setSectionText(''); setRequest({ checkpoint: km, elapsed, section: null });
+      const query = new URLSearchParams(window.location.search); query.delete('units'); setChosen(query.toString() !== '');
     };
     restore(); window.addEventListener('popstate', restore);
     return () => window.removeEventListener('popstate', restore);
@@ -78,15 +82,20 @@ export default function CheckpointExplorer({ summary, profile: start = EXAMPLE_P
   const field = (key: string) => `${formId}-${key}`;
   // The mat and its split, then only the choices that differ from the example (never the default goal or "All courses").
   const summaryText = [`${request.checkpoint}K in ${clock(request.elapsed, true)}`, ...(profile.goal === start.goal ? [] : [`goal ${clock(profile.goal * 60)}`]), ...(profile.city === start.city ? [] : [cityName(profile.city)]), ...(profile.age === 'all' ? [] : [profile.age]), ...(profile.gender === 'all' ? [] : [profile.gender])].join(' · ');
+  // The form as typed: Update comparison does something only once it differs from the result on screen (a time that does
+  // not parse counts as a change, so its message shows).
+  const typedGoal = parseMinutes(goalText), typedElapsed = parseElapsed(elapsedText), typedSection = sectionText.trim() ? parseSection(sectionText) : null;
+  const ready = typedGoal === null || typedElapsed === null || (!!sectionText.trim() && typedSection === null) || typedGoal !== profile.goal || draft.city !== profile.city || draft.age !== profile.age
+    || draft.gender !== profile.gender || checkpoint !== request.checkpoint || typedElapsed !== request.elapsed || typedSection !== request.section;
   const submit = () => {
-    const goal = parseMinutes(goalText);
-    const elapsed = parseElapsed(elapsedText), section = sectionText.trim() ? parseSection(sectionText) : null;
+    if (!ready) return;
+    const goal = typedGoal, elapsed = typedElapsed, section = typedSection;
     if (goal === null || goal < GOAL_MIN || goal > GOAL_MAX) { setFormError('Enter a goal between ' + clock(GOAL_MIN * 60) + ' and ' + clock(GOAL_MAX * 60) + ', using hours:minutes.'); return; }
     if (elapsed === null || elapsed <= 0 || elapsed >= 12 * 3600) { setFormError('Enter your elapsed time as hours:minutes:seconds, for example 2:50:00.'); return; }
     if (sectionText.trim() && (section === null || section < 600 || section > 6000 || section > elapsed)) { setFormError('Enter a 5 km time between 10:00 and 100:00, shorter than the total elapsed time.'); return; }
     const next = { ...draft, goal };
     trackAnalytics('analysis_filters_applied', { analysis: 'checkpoint', course_scope: next.city === 'All courses' ? 'all' : 'single' });
-    setFormError(''); setProfile(next); setData(prev => (prev?.city === next.city ? prev : null)); setRequest({ checkpoint, elapsed, section });
+    setFormError(''); setProfile(next); setData(prev => (prev?.city === next.city ? prev : null)); setRequest({ checkpoint, elapsed, section }); setChosen(true);
     window.history.pushState(null, '', unitHref(`${window.location.pathname}${profileSearch(next)}&mat=${checkpoint}&at=${clock(elapsed, true)}`, units));
   };
   const lo = result ? result.row.finish[0] / 60 : 0, hi = result ? result.row.finish[2] / 60 : 0;
@@ -109,18 +118,18 @@ export default function CheckpointExplorer({ summary, profile: start = EXAMPLE_P
           </div>
         </details>
         {formError && <p className="field-error" role="alert">{formError}</p>}
-        <button type="submit" className="btn btn-secondary is-compact explore-submit">Update comparison</button>
+        <ExploreSubmit ready={ready} id={formId} />
       </form>
     </MakeItYours>
-    <div className="sr-only" role="status">{loading ? 'Loading the checkpoint comparison.' : ''}</div>
+    <div className="sr-only" role="status">{loading ? 'Loading the checkpoint comparison.' : chosen && result ? `Comparison updated: ${summaryText}.` : ''}</div>
     <div className="miy-results">
       {loading && !result ? <p className="explore-state">Loading the checkpoint comparison…</p>
         : error ? <div className="explore-state" role="alert"><p>{error}</p><button type="button" className="btn btn-secondary is-compact" onClick={() => setRetry(n => n + 1)}>Try again</button></div>
         // The page's answer and its cushion beat already read the example: until the visitor changes it, the explorer is
         // its selection row alone.
-        : isInitial ? null
+        : isInitial ? (chosen ? <AnswerAbove /> : null)
         : !result ? <div className="explore-state"><h2 className="explore-title">Too few comparable finishes.</h2><p>Try another elapsed time or All courses.</p></div>
-        : <div className="explore-results" aria-live="polite">
+        : <div className="explore-results">
           <h2 className="explore-title">At {request.checkpoint}K in {clock(request.elapsed, true)}, {share === null ? 'the share' : `${Math.round(share)}%`} of finishes got under {clock(profile.goal * 60)}.</h2>
           {(result.widened || result.trendWidened) && <p className="explore-note">{result.widened} {result.trendWidened ? 'The recent pace trend was broadened to every trend.' : ''}</p>}
           <dl className="explore-cells">

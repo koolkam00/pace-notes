@@ -17,6 +17,15 @@ function summary() {
   return value;
 }
 
+/**
+ * The courses an explorer offers, in their own order: All courses and the courses with published comparisons, the
+ * course pages' list. The all-finisher and fast-start files also hold courses that have no page (Melbourne, Tokyo…).
+ */
+export function publishedCourses(cities: string[]): string[] {
+  const keep = new Set(summary().cities.map((row) => row.city));
+  return cities.filter((city) => keep.has(city));
+}
+
 /** One course's comparison file (or All courses), read once per build. */
 export function getCityData(city: string): CityData {
   const hit = cities.get(city);

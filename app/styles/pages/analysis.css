@@ -169,3 +169,13 @@
   .analysis-explore .explore-form > .profile-refinements { border-top: 0; }
   .analysis-hero .reading { padding-top: var(--s-6); }
 }
+
+/* ---------- Update comparison, and the example set again ---------- */
+/* Inert until a setting changes (aria-disabled): its hint under it says why. */
+.explore-submit { display: grid; justify-items: start; gap: 6px; }
+.explore-submit-hint { margin: 0; }
+/* The example set again: one line back to the answer, which already draws it. */
+.explore-same { margin: 0; }
+.explore-same-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule-strong, var(--ink-3)); text-underline-offset: 4px; }
+.explore-same-link:hover { text-decoration-color: currentColor; }
+.analysis-hero { scroll-margin-top: var(--header-h); }

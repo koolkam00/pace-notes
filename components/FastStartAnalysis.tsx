@@ -7,12 +7,13 @@ import { AGE_OPTIONS } from '@/lib/personalized-catalog';
 import { clock } from '@/lib/personalized';
 import { MARATHON_SECTION_ENDS, sectionLabel } from '@/lib/section-labels';
 import { bandWords } from '@/lib/all-finisher-context';
-import { FAST_START_DEFAULT, PRIOR_OPTIONS, fastStartRow, fastStartSearch, loadFastStartEvidence, readFastStartSelection, referenceTimeDifference, timeChange,
+import { FAST_START_DEFAULT, PRIOR_OPTIONS, fastStartRow, fastStartSearch, loadFastStartEvidence, readFastStartSelection, timeChange,
   type FastStartEvidence, type FastStartGroup, type FastStartRow, type FastStartSelection, type FastStartStart, type FastStartStarts, type FastStartMode } from '@/lib/fast-start';
 import MakeItYours from './ui/MakeItYours.client';
 import Segmented from './ui/Segmented.client';
 import Values from './ui/Values';
 import LineProfile from './viz/LineProfile';
+import { AnswerAbove, ExploreSubmit } from './analysis/ExploreSubmit';
 import { trackAnalytics } from '@/lib/analytics';
 import { unitHref } from '@/lib/unit-preference';
 
@@ -45,7 +46,6 @@ export function FastStartResults({ row, focus, start, units: _units }: { row: Fa
   const section = (index: number) => sectionLabel(MARATHON_SECTION_ENDS[index]);
   const slowest = focus.pace_pct.reduce((best, value, i) => value > focus.pace_pct[best] ? i : best, 0);
   const peak = focus.pace_pct[slowest];
-  const differs = (seconds: number) => referenceTimeDifference(seconds).toLowerCase();
   const values = [...focus.pace_pct, ...(steady ? steady.pace_pct : []), 0];
   const lo = Math.floor(Math.min(...values) / 5) * 5, hi = Math.ceil(Math.max(...values) / 5) * 5;
   const step = hi - lo > 30 ? 10 : 5;
@@ -54,7 +54,9 @@ export function FastStartResults({ row, focus, start, units: _units }: { row: Fa
       <h2 className="explore-title">{percent(rate)} developed a <Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link>.</h2>
       <p className="explore-sentence">
         {all
-          ? <>After 20K, the median finish took <strong>{differs(focus.after20_delta_median_s!)}</strong> than the same distance at its early-race pace.</>
+          // Against its own early pace (the receipt's "behind" is against same-pace finishes, so the words differ).
+          ? Math.abs(focus.after20_delta_median_s!) < 3 ? <>After 20K, the median finish held its own early-race pace.</>
+            : <>After 20K, the median finish ran <strong>{timeChange(focus.after20_delta_median_s!).toLowerCase()}</strong> than its own early-race pace.</>
           : <>The median finish was <strong>{Math.abs(focus.finish_delta_median_s) < 3 ? 'about the same as' : timeChange(focus.finish_delta_median_s).toLowerCase() + ' than'}</strong> the runner’s earlier recorded best.</>}
       </p>
       {/* Slower is down, as on every pace chart on the site, with room under the slowest section for its label. */}
@@ -98,12 +100,14 @@ export default function FastStartAnalysis({ starts, defaultOpening = 'fast10', t
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
+  // The visitor (or the address) chose a selection: the example set again then reads as the answer above.
+  const [chosen, setChosen] = useState(false);
   const start = starts[selection.mode];
   const all = selection.mode === 'all';
   const data = datasets[selection.mode];
   const initialRow = fastStartRow([start.initial], selection);
   useEffect(() => {
-    const restore = () => { const params = new URLSearchParams(window.location.search); if (!params.has('opening')) params.set('opening', defaultOpening); const next = readFastStartSelection(params.toString(), starts.all); setSelection(next); setDraft(next); };
+    const restore = () => { const params = new URLSearchParams(window.location.search); params.delete('units'); setChosen(params.toString() !== ''); if (!params.has('opening')) params.set('opening', defaultOpening); const next = readFastStartSelection(params.toString(), starts.all); setSelection(next); setDraft(next); };
     restore(); window.addEventListener('popstate', restore); return () => window.removeEventListener('popstate', restore);
   }, [starts, defaultOpening]);
   useEffect(() => {
@@ -117,7 +121,7 @@ export default function FastStartAnalysis({ starts, defaultOpening = 'fast10', t
   const focus = row?.groups.find(group => group.band === selection.band);
   const apply = (next: FastStartSelection) => {
     trackAnalytics('analysis_filters_applied', { analysis: 'opening', course_scope: next.city === 'All courses' ? 'all' : 'single' });
-    setSelection(next); setDraft(next);
+    setSelection(next); setDraft(next); setChosen(true);
     window.history.pushState(null, '', unitHref(window.location.pathname + fastStartSearch(next), units));
   };
   const pending = loading || (!initialRow && !data && !error);
@@ -127,11 +131,15 @@ export default function FastStartAnalysis({ starts, defaultOpening = 'fast10', t
   const field = (key: string) => `${formId}-${key}`;
   // The untouched example: the page's receipt already states it, so with 'none' only the selection row shows until a change.
   const base: FastStartSelection = { ...FAST_START_DEFAULT, band: defaultOpening };
-  const shown = untouchedView === 'chart' || (Object.keys(base) as (keyof FastStartSelection)[]).some(key => selection[key] !== base[key]);
+  const same = (a: FastStartSelection, b: FastStartSelection) => (Object.keys(b) as (keyof FastStartSelection)[]).every(key => a[key] === b[key]);
+  const atExample = same(selection, base);
+  const shown = untouchedView === 'chart' || !atExample;
+  // Update comparison does something only once the form differs from the selection on screen.
+  const ready = !same(draft, selection);
   return <div className="analysis-layout explorer fs-explorer">
     {archive ? <header className="explorer-head"><h1 className="t-title">{title}</h1>{description ? <p className="t-body">{description}</p> : null}</header> : null}
     <MakeItYours id={`${formId}-miy`} summary={summary} busy={pending}>
-      <form className="explore-form" onSubmit={event => { event.preventDefault(); apply(draft); }}>
+      <form className="explore-form" onSubmit={event => { event.preventDefault(); if (ready) apply(draft); }}>
         <div className="explore-mode">
           <Segmented label="Choose the comparison" block value={all ? 'all' : 'history'} onChange={value => apply({ ...draft, mode: value as FastStartMode, prior: 'all' })}
             options={[{ value: 'all', label: 'All eligible finishes' }, { value: 'history', label: 'With an earlier result' }]} />
@@ -144,13 +152,14 @@ export default function FastStartAnalysis({ starts, defaultOpening = 'fast10', t
           <div className="field"><label className="field-label" htmlFor={field('age')}>Age group</label><select id={field('age')} className="select" value={draft.age} onChange={e => setDraft({ ...draft, age: e.target.value })}>{AGE_OPTIONS.map(age => <option key={age} value={age}>{age === 'all' ? 'All ages' : age}</option>)}</select></div>
           <div className="field"><label className="field-label" htmlFor={field('gender')}>Recorded gender</label><select id={field('gender')} className="select" value={draft.gender} onChange={e => setDraft({ ...draft, gender: e.target.value })}><option value="all">All</option><option value="Women">Women</option><option value="Men">Men</option></select></div>
         </div>
-        <button type="submit" className="btn btn-secondary is-compact explore-submit">Update comparison</button>
+        <ExploreSubmit ready={ready} id={formId} />
       </form>
     </MakeItYours>
-    <div className="sr-only" role="status">{pending ? 'Loading the starting-pace comparison.' : error ? '' : focus ? 'Comparison updated.' : 'Not enough recorded finishes for this exact selection.'}</div>
+    <div className="sr-only" role="status">{pending ? 'Loading the starting-pace comparison.' : error || !chosen ? '' : focus ? `Comparison updated: ${summary}.` : 'Not enough recorded finishes for this exact selection.'}</div>
     <div className="miy-results">
       {pending && !row ? <p className="explore-state">Loading the comparison…</p>
         : error ? <div className="explore-state" role="alert"><p>{error}</p><button type="button" className="btn btn-secondary is-compact" onClick={() => setRetry(n => n + 1)}>Try again</button></div>
+        : atExample && chosen && untouchedView === 'none' ? <AnswerAbove />
         : !shown ? null
         : row && focus ? <FastStartResults row={row} focus={focus} start={start} units={units} />
         : <div className="explore-state"><h2 className="explore-title">Not enough results for this starting group.</h2><p>Try another opening or a broader course, age or gender{!all && ', or every earlier time'}.</p><button className="btn btn-secondary is-compact" type="button" onClick={() => apply({ ...FAST_START_DEFAULT, mode: selection.mode, band: defaultOpening })}>Reset the comparison</button></div>}
