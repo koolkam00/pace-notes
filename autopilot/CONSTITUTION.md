@@ -12,7 +12,7 @@ The autopilot exists to make https://splithappens.run more useful to the runners
 5. The privacy page must stay accurate. If a change would make it inaccurate, do not ship the change.
 
 ## 2. Data integrity (never)
-1. Never change `analysis/**`, `public/data/**`, the release pins (`analysis/release.json`, `analysis/weather-release.json`) or anything tied to release tag `private-export-20260912-0934`.
+1. Never change `analysis/**`, `public/data/**`, the release pins (`analysis/release.json`, `analysis/weather-release.json`) or anything tied to the adopted release (the tag in `analysis/release.json`, currently `htw-db-2026-10-16-1652`) or to an earlier release such as `private-export-20260912-0934`.
 2. Never invent, estimate, round differently or re-derive a number shown to visitors. Every figure on the site must come from the published data files or existing computed outputs, used the same way they are used today. Plain calculations on a visitor's own inputs (paces, splits, conversions) are fine.
 3. Interpretation rules apply to all new copy:
    - No causal claims.
@@ -27,7 +27,7 @@ The autopilot exists to make https://splithappens.run more useful to the runners
 1. Use "Pace Notes" branding. The credit is the plain text "Andrew Kam".
 2. Say "sustained slowdown", with the doi:10.1371/journal.pone.0251513 citation where the term is defined. Never write "the wall", never write "arithmetic", never write "your chance".
 3. Miles are the default unit.
-4. Never show `private-export` or `20260912` in visible copy.
+4. Never show release tags or their dates in visible copy: `private-export`, `htw-db-`, `20260912` or `20261016`.
 5. Write plain, warm, accurate English for runners. Prefer showing over claiming. No hype, dark patterns, fake urgency, nagging pop-ups or manipulative copy.
 
 ## 4. How changes are made (always)
