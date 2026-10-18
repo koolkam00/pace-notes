@@ -122,7 +122,7 @@ export function GoalPaceBody({ goal, observed, bunching }: { goal: number; obser
           <p className="tool-nugget-text">
             {count(bunching.before)} finishes landed in the last minute under {label}: <em>{bunching.ratio.toFixed(2)}×</em> what a smooth curve expects there.
           </p>
-          <p className="tool-note"><Link href="/stories/round-numbers">The 3:59 effect</Link></p>
+          <p className="tool-note goal-pace-more"><Link href="/stories/round-numbers">The 3:59 effect</Link></p>
         </section>
       ) : null}
 

@@ -619,7 +619,6 @@ function Results({ times, reading, units, comparison, type, typeError, retryType
 
       <ToolHandoffs label="Next race" links={[
         { href: `/tools/pace-band${bandQuery ? `?${bandQuery}` : ''}`, title: 'Pace band', text: <>A wristband for {bandGoal ? formatHMGoal(times[8]) : 'your goal'}, beside the mat times of finishes that hit it.</> },
-        { href: isExample ? '/tools/qualifying' : `/tools/qualifying?t=${finish}`, title: 'Qualifying checker', text: <>Which standards {isExample ? 'a finish' : finish} meets.</> },
         { href: '/stories/pacing-types', title: 'Six ways to run the same race', text: <>Every pacing type, side by side.</> },
       ]} />
       <ShareBar extra={report ? <Link className="btn btn-primary is-compact" href={report}>Make a race report</Link> : null} />
