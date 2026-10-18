@@ -8,23 +8,19 @@ The route policy lives in [`lib/seo-routes.ts`](../lib/seo-routes.ts). The sitem
 
 | Pages | Robots | Canonical | In the sitemap |
 | --- | --- | --- | --- |
-| Home, the research hub `/research` (October 16, 2026), stories, tools, analyses, courses, about, methodology, privacy, slowdown, `/research/personalized` | index, follow | the page itself | yes |
+| Home, the research hub `/research` (October 16, 2026), stories, tools, analyses, courses, about, methodology, privacy, slowdown | index, follow | the page itself | yes |
 | The search pages: the two pace charts, the five goal pages, the six qualifying race pages and `/finish-times` ([below](#search-pages-october-2026)) | index, follow | the page itself | yes |
-| The 33 primary research questions under `/packs` | index, follow | the page itself | yes |
-| 45 pack aliases (`ext_*`, most `s*`, `rn3`, `p1`, `p2`) | index, follow | the primary pack (`packCanonical(id)`) | no |
-| `THIN_PACKS`: p3, p4, r16, r33, rn1, rn4 | noindex, follow | none | no |
-| `NOINDEX`: `/runners`, `/your-race`, `/request-analysis`, `/htw`, `/packs/smyth_htw`, `/report` | noindex, follow | none | no |
+| The moved addresses' stubs (`movedTo()`, [below](#moved-addresses-october-18-2026)): `/packs` and every `/packs/<id>`, `/research/personalized`, `/your-race`, `/htw`, `/packs/smyth_htw` and the two weather questions | noindex, follow | none (`og:url` names the target) | no |
+| `NOINDEX`: `/runners`, `/your-race`, `/request-analysis`, `/report`, `/design-system` | noindex, follow | none | no |
 | 404 | noindex, follow (`app/not-found.tsx`; see the note below) | none | no |
 
 `app/not-found.tsx` sets `robots: { index: false, follow: true }`, which replaces the layout's `index, follow`. Next.js adds its own `noindex` tag to the not-found page as well, so `out/404.html` carries two robots tags, `noindex` and `noindex, follow`, and they agree. The page is also served with a 404 status, so it is never indexed.
 
 Reasons:
-- **Pack aliases** repeat the text of a primary page. The canonical points at the primary, which the `/packs` index already links to.
-- **Thin packs** have fewer than 170 words of text. Four only say the current release cannot answer the question.
+- **Moved addresses** answer a 308 on Vercel; their stubs exist only for a host that cannot redirect.
 - **`/runners`** looks up recorded names. Runner profiles must never be indexable.
-- **`/your-race`** is a client-side redirect. **`/request-analysis`** is an email form.
+- **`/your-race`** is a client-side redirect (a moved address with no 308, so it can read old `#guide-*` links). **`/request-analysis`** is an email form.
 - **`/report`** (October 16, 2026; repository state, not yet deployed) is one race's report, read from the nine times in its own address: no canonical, no structured data, no share card of its own (it uses the default words-only card) and not in the sitemap.
-- **`/htw` and `/packs/smyth_htw`** are old addresses. On Vercel they redirect to `/slowdown`.
 
 Query strings (`?units=`, `?race=`, `?goal=` and so on) never appear in a canonical, an `og:url` or the sitemap. The static export serves the same HTML for every query, so the canonical on the clean path covers all of them. Runner names, birth dates, labels and search text never go in a URL, the sitemap, structured data or analytics.
 
@@ -39,7 +35,8 @@ Query strings (`?units=`, `?race=`, `?goal=` and so on) never appear in a canoni
 - **[`lib/seo.tsx`](../lib/seo.tsx)** (server components only):
   - `pageMetadata({ title, description, path, type, noindex, canonicalPath, image, imageAlt, publishedTime, modifiedTime })` returns the title, description, absolute canonical, the full Open Graph block, the X card and robots. It throws if `path` contains `?` or `#`. A page-level `openGraph` replaces the layout's, so the helper always returns the whole object.
   - `finishesM()` gives the analysis cohort in millions ("3.4"), read from `analysis_n` in `public/data/insights/manifest.json`. Use it for every "N.N million" in a title or description, never a typed number.
-  - `JsonLd` renders a JSON-LD block with `<` escaped. `breadcrumbs()` builds a BreadcrumbList.
+  - `JsonLd` renders a JSON-LD block with `<` escaped. `breadcrumbs()` builds a BreadcrumbList; `pageCrumbs(path, name, { section, parents })` builds one with the page's chapter (`chapterCrumb()`: "Chapter 08 · Where you run", linked to `/research`) as its second crumb when the page is in the race (October 18, 2026; the course pages use it, and the other areas switch to it as they land).
+  - `movedMetadata(path, title, description)` is the metadata of a moved address's stub.
 - **[`lib/og-paths.ts`](../lib/og-paths.ts)** picks the social image for a page: its own card (a story, tool, goal page, qualifying race page, course or `/finish-times`), else the parent tool's card, else its section's card, else `/og/default.png`. It only returns files that exist in `public/`. See [Share cards](#share-cards-publicog).
 
 How a page uses it:
@@ -50,16 +47,15 @@ import { canonicalPathFor, isNoindex } from '@/lib/seo-routes';
 
 export const metadata = pageMetadata({ title: 'Printable Marathon Pace Band for Any Goal | Pace Notes', description: '…', path: '/tools/pace-band' });
 
-// A pack page:
-const path = `/packs/${id}`;
-pageMetadata({ title, description, path, noindex: isNoindex(path), canonicalPath: canonicalPathFor(path) ?? undefined });
+// A moved address's stub (noindex, og:url on the target; throws if lib/seo-routes.ts does not list the path as moved):
+export const metadata = movedMetadata('/packs', 'Research Archive: Moved | Pace Notes', '…');
 ```
 
 ## robots.txt and the sitemap
 
 - **[`app/robots.ts`](../app/robots.ts)** writes `out/robots.txt`. It allows everything except `/data/runners/index/` and `/data/runners/profiles/`, the two folders that hold recorded names. Pages render their charts from the rest of `/data`, so `/data`, `/_next`, `/og` and `/icons` stay crawlable. It also points to the sitemap.
 - **[`app/sitemap.ts`](../app/sitemap.ts)** writes `out/sitemap.xml` from `sitemapEntries()`. It uses absolute URLs and no `priority` or `changefreq`, because Google ignores both.
-  - The list comes from the same registries as the pages: `STORIES` (filtered by the data manifest), `TOOLS`, `TEN_ANALYSES` plus the ready weather analyses plus downhill-start, `getCourseNames()`, the primary packs, the fixed pages and `EXTRA_SITEMAP_PAGES` (the search pages). That is 115 URLs on October 8, 2026 (101 before the search pages), and 117 on October 16, 2026 with the race planner (`/tools/plan`, through `TOOLS`) and the research hub (`/research`, a fixed page whose `CONTENT_DATES` entry is its `lastmod`; the home page's is 2026-10-16 too, for its new text).
+  - The list comes from the same registries as the pages: `STORIES` (filtered by the data manifest, so `/stories/race-morning` arrives with its story), `TOOLS`, `TEN_ANALYSES` plus downhill-start, `getCourseNames()`, the fixed pages and `EXTRA_SITEMAP_PAGES` (the search pages). Since October 18, 2026 (branch state, not deployed) the research archive, `/research/personalized` and the two weather questions are moved addresses and out of the sitemap. That is 115 URLs on October 8, 2026 (101 before the search pages), and 117 on October 16, 2026 with the race planner (`/tools/plan`, through `TOOLS`) and the research hub (`/research`, a fixed page whose `CONTENT_DATES` entry is its `lastmod`; the home page's is 2026-10-16 too, for its new text).
   - `sitemapEntries()` throws if a path repeats, has a query or fragment, is noindex, or is not its own canonical.
   - **New content pages** register in their own module under [`lib/seo-pages/`](../lib/seo-pages/), which `EXTRA_SITEMAP_PAGES` in `lib/seo-routes.ts` collects (see [Search pages](#search-pages-october-2026)). A new entry in `TOOLS` is picked up automatically.
 - **`lastmod` is honest.** It is the newest `as_of` date of the data the page shows (insights manifest, study, weather, personalized guide, fast-start, all-finisher, `pack_meta`, or `VERIFIED_AT` for qualifying and the qualifying race pages). Pages that are mostly written text use the hand-kept `CONTENT_DATES` map. When neither applies, `lastmod` is left out (`/privacy`, for example). The build never uses today's date or git dates. **When you change the visible text of a page in `CONTENT_DATES`, update its date.**
@@ -183,13 +179,15 @@ CI runs it after `npm run build` in [`site-validation.yml`](../.github/workflows
 | Check | Fails when |
 | --- | --- |
 | `head-tags` | a page (404 excepted) lacks exactly one non-empty `<title>`, meta description or `<h1>` |
-| `robots-meta` | noindex is missing from a `NOINDEX` path, a `THIN_PACKS` page or the 404, is on any other page, or two robots tags disagree; or a pack is noindex only because `packCanonical()` found no primary page |
+| `robots-meta` | noindex is missing from a `NOINDEX` path, a moved address's stub or the 404, is on any other page, or two robots tags disagree |
 | `canonical` | an indexable page lacks exactly one canonical, or it is off `https://splithappens.run`, has `?`, `#` or a trailing slash, or differs from `canonicalPathFor(path)`; or a noindex page has one |
-| `aliases` | a pack alias's primary page is not indexable, was not built, or is not its own canonical |
+| `stubs` | a moved address (`movedPages()`) has no stub in the export, or its stub lacks the H1 "This page has moved", a visible link to the target, the forward (`LegacyAnalysisLink`'s props in the page's payload; the `#guide-*` map on the guide's two stubs) or `og:url` on the target, or carries JSON-LD; or the target is missing, noindex, or lacks the `#anchor` it names; or a built page is a moved address `movedPages()` does not list |
+| `redirects` | `vercel.json`, matched the way Vercel matches it (in order, first match wins; `:name*` also matches nothing), does not 308 a moved address to `movedTo()` (the forward-only `/your-race` must not redirect), redirects a sitemap or indexable page, sends a rule to a page that is not built and indexable, or answers anything but 308 |
+| `moved-links` | a page links a moved address instead of its target (pages another package is still rebuilding are reported as warnings, `PENDING_LINKS`, until it lands; an entry that no longer applies fails) |
 | `social-tags` | an indexable page lacks `og:title`, `og:description`, `og:image`, `twitter:card` or `og:url`, or `og:url` is not the canonical |
 | `og-image` | an `og:image` or `twitter:image` is off the host, missing from the export, or not 1200×630 (read from the PNG, JPEG or WebP header) |
-| `duplicates` | two indexable pages (aliases included) share a title or a description |
-| `sitemap` | `sitemap.xml` does not parse, repeats a `<loc>`, has a relative or unclean `<loc>`, lists a page that is missing, noindex, an alias or not its own canonical, misses an indexable self-canonical page, disagrees with `sitemapEntries()`, or has a `lastmod` in the future or not among the data and content dates |
+| `duplicates` | two indexable pages share a title or a description |
+| `sitemap` | `sitemap.xml` does not parse, repeats a `<loc>`, has a relative or unclean `<loc>`, lists a page that is missing, noindex or not its own canonical, misses an indexable self-canonical page, disagrees with `sitemapEntries()`, or has a `lastmod` in the future or not among the data and content dates |
 | `robots-txt` | the `Sitemap:` line is missing, a group disallows `/`, any group blocks the pages, `/_next/`, `/data/` (outside the two runner folders), `/og/` or `/icons/`, or the runner folders are not blocked |
 | `json-ld` | a block does not parse, its `@context` is not schema.org, a `Person` is anyone but "Andrew Kam" or carries a URL, `/runners` has any, a `ProfilePage` appears, a site URL has a query, or breadcrumb positions are not 1..n or point off the host |
 | `banned-words` | "the wall", "arithmetic" or "your chance" (any form: "your chances", or up to two words between, as in "your personal chance") is in visible text, alt, title or aria-label text, metadata or JSON-LD |
@@ -202,7 +200,17 @@ CI runs it after `npm run build` in [`site-validation.yml`](../.github/workflows
 | `orphans` | a story or analysis page in the sitemap is not linked from `/research`, or any other sitemap page but the home page is linked from no other page in the export (October 16, 2026) |
 | `home-form` | the home page's course select (`#home-plan-course`) does not have the planner's options (`#plan-course` on `/tools/plan`), the same values and names in the same order: the home list comes from the course pages, the planner's from its own data (October 16, 2026) |
 
-Warnings only: titles over 60 characters, descriptions over 155 (the site's limits), `og-image-fallback` (a page that uses a less specific card than the one `scripts/build-og-images.cjs` makes for it: a stale build or a missing card), and policy notes (noindex pages that also say nofollow, JSON-LD on pages the plan keeps without it, `changefreq` or `priority` in the sitemap).
+Warnings only: titles over 60 characters, descriptions over 155 (the site's limits), `pending` (links and anchors another redesign package changes when it lands), `og-image-fallback` (a page that uses a less specific card than the one `scripts/build-og-images.cjs` makes for it: a stale build or a missing card), and policy notes (noindex pages that also say nofollow, JSON-LD on pages the plan keeps without it, `changefreq` or `priority` in the sitemap).
+
+## Moved addresses (October 18, 2026)
+
+Branch state on `feat/redesign`, not deployed. The redesign closed the research archive (`/packs` and its 84 question pages), the archived personalized guide (`/research/personalized`) and the two weather-question pages (now tabs of race-day weather). Each old address is listed in `lib/seo-routes.ts`: `movedTo(path)` says where it went and `movedPages()` lists every address that keeps a stub.
+
+- **On Vercel** each answers a 308 from `vercel.json`, so a visitor never sees the old page. A 308 keeps the query; the browser keeps the visitor's `#hash` unless the target names its own (`#downloads`, a weather tab).
+- **The stub** (`components/MovedPage.tsx`) is for a host that cannot redirect (the optional GitHub Pages build): the H1 "This page has moved", one sentence, one button to the target, and `components/LegacyAnalysisLink.tsx`, which replaces the page with the target in the browser (base path, query and hash kept as a 308 would; the guide's two stubs also send an old `#guide-<question>` link to the analysis that answers it). Stubs are noindex, have no canonical link and no JSON-LD, and name the target in `og:url`.
+- **`/your-race`** is the one moved address without a 308 (`FORWARD_ONLY`): a redirect would drop the hash before the page could read it.
+- **The data stays.** The research packs' files under `public/data/packs/` are unchanged and published; `/methodology#downloads` lists them.
+- `verify-seo` checks the stubs (`stubs`), matches `vercel.json` against `movedTo()` the way Vercel does (`redirects`), and fails when a page links an old address (`moved-links`); `verify-seo-live` asks the live site for every path redirect in `vercel.json` after a deploy.
 
 ## After a deploy: `verify-seo-live`
 
@@ -218,6 +226,7 @@ node scripts/verify-seo-live.cjs --base https://<preview>.vercel.app   # path ch
 | www host | `https://www.splithappens.run/tools?x=1` answers 308 to `https://splithappens.run/tools?x=1` |
 | old host | `https://htw-live-study.vercel.app/slowdown?a=1` answers 308 to `https://splithappens.run/slowdown?a=1` |
 | `/htw`, `/packs/smyth_htw` | each answers 308 to `/slowdown` |
+| every other path redirect in `vercel.json` (October 18, 2026) | answers 308 to its destination, `#anchor` included; a `:name` parameter is tried with a sample segment (`/packs/r01_banking_time`) |
 | `/robots.txt` | 200 `text/plain`, with the `Sitemap:` line and no `Disallow: /` |
 | `/sitemap.xml` | 200 XML with a sitemaps.org `<urlset>`, and every `<loc>` answers 200 without a redirect |
 | `/data/insights/manifest.json` | sends `X-Robots-Tag: noindex` |
@@ -240,6 +249,10 @@ Next.js `redirects()` and `headers()` do not work with `output: 'export'`, so th
 | `/htw` | 308 to `/slowdown` |
 | `/packs/smyth_htw` | 308 to `/slowdown` |
 | `/tools/marathon-pace` | 308 to `/tools/marathon-pace-chart` (the goal pages sit below this path, which has no page of its own) |
+| `/courses/melbourne` | 308 to `/courses` (October 17, 2026: Melbourne's only edition is excluded in release 1652, so the page is not built) |
+| `/packs`, `/packs/:id*` | 308 to `/methodology#downloads` (October 18, 2026: the research archive closed; its data files stay under `/data/packs/`). The `/packs/smyth_htw` rule comes first, so that address keeps `/slowdown` |
+| `/research/personalized` | 308 to `/research` (the guide's questions are the analyses) |
+| `/analyses/warming-and-pacing`, `/analyses/wind-and-pacing` | 308 to `/analyses/race-day-weather#warming` and `#wind` (tabs of race-day weather) |
 | Every path | `Referrer-Policy: strict-origin`, the same policy as the `<meta name="referrer">` tag from `app/layout.tsx`, so the requests a page makes before that tag is parsed also send only the origin |
 | Every `.txt` path except `/robots.txt` | `X-Robots-Tag: noindex` (the React Server Components payloads the export writes beside each page, such as `out/tools.txt`, which the client fetches on in-app navigation) |
 | `/data/*` | `X-Robots-Tag: noindex` (files stay downloadable and fetchable) |
@@ -264,6 +277,7 @@ curl -sI 'https://splithappens.run/data/insights/manifest.json' | grep -i x-robo
 curl -sI 'https://splithappens.run/runners?q=x' | grep -i x-robots-tag                   # noindex, nofollow
 curl -sI 'https://splithappens.run/tools/'                   # 308 to /tools in one hop
 curl -sI 'https://splithappens.run/tools/marathon-pace'      # 308, location /tools/marathon-pace-chart
+curl -sI 'https://splithappens.run/packs/r01_banking_time'   # 308, location /methodology#downloads
 curl -sI 'https://splithappens.run/tools.txt' | grep -i -e x-robots-tag -e referrer-policy   # noindex; strict-origin
 curl -s  'https://splithappens.run/robots.txt'               # the rules above and the Sitemap line
 curl -s  'https://splithappens.run/sitemap.xml' | grep -c '<loc>'
@@ -276,13 +290,12 @@ curl -sf 'https://splithappens.run/data/live.json' | python3 -m json.tool > /dev
 - [x] **Vercel www redirect.** (Done: `www.splithappens.run` redirects with 308.) Project → Settings → Domains. Set `www.splithappens.run` to "Redirect to splithappens.run" with **308 Permanent** (add it if it is not listed). Before the change it answered 307. Check: `curl -sI 'https://www.splithappens.run/tools?x=1'` returns 308 to `https://splithappens.run/tools?x=1`.
 - [x] **Old vercel.app host.** (Done: covered by the live check, which passes.) Run the first `curl` above. If it does not return 308, set the redirect in Settings → Domains instead. Do not remove the domain.
 - [ ] **Google Search Console.** (The `google-site-verification` TXT record was added in Vercel DNS and resolves publicly; the owner finishes verification in Search Console.) Add a Domain property for `splithappens.run` and verify it with a TXT record in Vercel DNS. Submit `sitemap.xml`. Request indexing for `/`, `/tools/pace-calculator`, `/tools/qualifying`, `/tools/marathon-pace-chart`, `/finish-times`, `/courses`, `/courses/boston`, `/stories/round-numbers` and `/slowdown`.
-- [ ] **After two to three weeks.** Inspect `/slowdown`: Google's chosen canonical should be on `splithappens.run`. In the Pages report, "Alternate page with proper canonical" is expected for pack aliases. Look into any "Duplicate, Google chose different canonical".
+- [ ] **After two to three weeks.** Inspect `/slowdown`: Google's chosen canonical should be on `splithappens.run`. Since the October 2026 redesign the old pack pages answer 308 and should drop out as "Page with redirect". Look into any "Duplicate, Google chose different canonical".
 - [ ] **Bing Webmaster Tools.** Import the site from Search Console, or add it and verify by DNS. Submit `https://splithappens.run/sitemap.xml`.
 - [ ] **GitHub.** Set the repository's About → Website to `https://splithappens.run`.
 
 ### Known minor items (left as they are)
 
-- **Pack pages put `h3` chart titles straight after the `h1`.** The charts inside a research question use `h3` titles with no `h2` between (`/packs/r32_where_pbs_are_gained` goes h1, h3, h3). Pre-existing; a heading-order nit that accessibility checkers flag, not an indexing problem.
 - **The host redirect's value is unescaped on purpose.** The old-host rule in `vercel.json` matches `htw-live-study.vercel.app` with its dots unescaped. As a regular expression an unescaped dot also matches a dot, so the rule works whether Vercel reads the value as a literal host or as a pattern; escaping it would only be right under one of the two readings.
 
 ### Decisions still open for the owner

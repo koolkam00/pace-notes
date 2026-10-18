@@ -18,21 +18,11 @@ Earlier-result modes on the course and weather pages continue to measure finish 
 
 ## Routes and preserved history
 
-The primary `/analyses/course-comparison` and `/analyses/race-day-weather` pages use the broader views by default and offer the distinct earlier-result comparison. `/analyses/downhill-start` adds the broader downhill view with access to the original history-based guide. The twelve-question research guide retains its original method and links to these broader views.
+The primary `/analyses/course-comparison` and `/analyses/race-day-weather` pages use the broader views by default and offer the distinct earlier-result comparison. `/analyses/downhill-start` adds the broader downhill view with access to the original history-based guide. The twelve-question research guide (`/research/personalized`) closed on October 18, 2026 (branch state); its calculations stay in the analyses.
 
-These research archive routes and their existing aliases expose the new defaults while retaining their original earlier-result evidence in a separate mode or, for opening views, an expandable section:
+Until October 18, 2026 seven research-archive routes (`/packs/r01_banking_time`, `r02_recover_slow_start`, `r34_pacing_risk_reward`, `r13_great_day_vs_consistency`, `r35_course_adaptation`, `r15_weather_penalty_who` and `s5_pacing_vs_difficult_day`, with their aliases) showed these broader views by default. The redesign closed the archive (branch state, not deployed; [SEO](SEO.md#moved-addresses-october-18-2026)): those addresses are stubs that forward to `/methodology#downloads`, and the calculation data they read is unchanged.
 
-| Archive route | Broader default |
-| --- | --- |
-| `/packs/r02_recover_slow_start` | All-finisher opening view, initially more than 5% slower. |
-| `/packs/r01_banking_time` | All-finisher opening view, initially more than 10% faster. |
-| `/packs/r34_pacing_risk_reward` | All-finisher opening outcomes and ranges, initially within 2%. |
-| `/packs/r13_great_day_vs_consistency` | Within-edition late-pacing variation by course. |
-| `/packs/r35_course_adaptation` | Within-race section profiles by course. |
-| `/packs/r15_weather_penalty_who` | Within-race section profiles across temperature bands. |
-| `/packs/s5_pacing_vs_difficult_day` | Selected race-edition pacing summaries and a link to individual same-edition peers. |
-
-The opening pages reuse the previously verified all-finisher fast-start output and its optional earlier-best mode. The other defaults use the new context output. Shared underlying observations do not make these independent studies; archive alternatives do not alter the primary ten's ranking. Earlier-result questions that inherently need multiple races remain clearly identified as such.
+The opening views reused the previously verified all-finisher fast-start output and its optional earlier-best mode. The other defaults used the new context output. Shared underlying observations do not make these independent studies. Earlier-result questions that inherently need multiple races remain clearly identified as such.
 
 ## Inputs, eligibility and exact filters
 
