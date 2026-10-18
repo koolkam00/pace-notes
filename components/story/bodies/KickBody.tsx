@@ -8,7 +8,7 @@ import LineProfile from '@/components/viz/LineProfile';
 import DotGrid from '@/components/viz/DotGrid';
 import Ruler from '@/components/viz/Ruler';
 import Values from '@/components/ui/Values';
-import Columns from '../charts/Columns';
+import Columns from '@/components/viz/Columns';
 import { Beat, Moved, Say, StoryHero, StoryPage, rich } from '../StoryPage';
 
 const PATH = '/stories/final-kick';

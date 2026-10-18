@@ -2,7 +2,7 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import Values from '@/components/ui/Values';
 import TypeGlyph from '@/components/viz/TypeGlyph';
-import Columns from '@/components/story/charts/Columns';
+import Columns from '@/components/viz/Columns';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { countWord } from '@/lib/nuggets/format';
 import { getStudyAnswer, getStudyEvidence, getWallTimingAnswer } from '@/lib/research-data';
@@ -72,7 +72,7 @@ export default function MethodsDefinitions() {
         {/* The sentence takes the columns' precision, so its share and the highlighted column read the same. */}
         <p className="methods-instrument-head">At {PUBLISHED}% slower for {shortest}, {columnText(atPublished)} of finishes qualify. Other thresholds catch more or fewer:</p>
         <Columns label={`Share of eligible finishes with a sustained slowdown at each minimum slowdown, over ${shortest}: ${columns.map((t) => `${t}%, ${shareText(share(t, shortest))}`).join('; ')}`}
-          max={Math.max(...columns.map((t) => share(t, shortest)))} height={150} heightMd={170}
+          max={Math.max(...columns.map((t) => share(t, shortest)))} height={150} heightMd={170} every
           items={columns.map((t) => ({ id: String(t), label: String(t), value: share(t, shortest), display: columnText(share(t, shortest)), tone: t === PUBLISHED ? 'signal' as const : 'quiet' as const }))} />
         <p className="methods-axis-note">Minimum slowdown, % slower than the 5–20K pace</p>
         <Values id="definition-sensitivity" caption={`Share of the ${study ? n(study.n) : ''} eligible finishes that qualify, by minimum slowdown and minimum length`}

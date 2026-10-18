@@ -17,7 +17,7 @@ import Segmented from './ui/Segmented.client';
 import Values from './ui/Values';
 import DotStrip from './viz/DotStrip';
 import LineProfile from './viz/LineProfile';
-import Columns from './analysis/Columns';
+import Columns from '@/components/viz/Columns';
 
 /** Shares in whole percent everywhere in the explorer, as the page's charts and answer show them. */
 const percent = (value: number) => `${Math.round(value)}%`;

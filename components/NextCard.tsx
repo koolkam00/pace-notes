@@ -1,4 +1,5 @@
 import Arrow from './ui/Arrow';
+import { joinRanges } from '@/components/ui/keepTogether';
 import BigNumber from './ui/BigNumber';
 import MarkerBadge from './ui/MarkerBadge';
 import ChapterLink from './ChapterLink';
@@ -29,7 +30,7 @@ export default function NextCard({ next, reading }: { next: Next; reading?: Chap
       {reading ? (
         <span className="next-card-reading">
           <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size="m" tone="night" />
-          {key ? <span className="next-card-key">{key}</span> : null}
+          {key ? <span className="next-card-key">{joinRanges(key)}</span> : null}
         </span>
       ) : null}
       <span className="next-card-go" aria-hidden="true"><Arrow /></span>

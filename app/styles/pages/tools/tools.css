@@ -61,7 +61,6 @@
 .tool-page .tool-field input[aria-invalid='true'] { color: var(--signal-ink); box-shadow: inset 0 -2px 0 var(--signal); }
 .tool-field-hint { margin: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
 .tool-field-hint.is-error { color: var(--signal-ink); font-weight: 600; }
-.tool-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr)); gap: var(--s-3); }
 .tool-check { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: var(--t-small); color: var(--ink-2); line-height: 1.35; cursor: pointer; }
 .tool-check input { flex: none; width: 20px; height: 20px; min-height: 20px; margin: 0; accent-color: var(--ink); }
 
@@ -126,14 +125,11 @@
 .tool-panel-head .evidence-badge { justify-self: start; }
 .tool-panel-title { margin: 0; max-width: 30ch; font-family: var(--serif); font-optical-sizing: auto; font-size: var(--t-sentence); font-weight: 440; line-height: 1.22; letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
 .tool-panel-title em { font-style: italic; color: var(--signal-ink); }
-.tool-panel-kicker { margin: 0; font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; line-height: 1.4; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
 .tool-panel-meta { margin: 0; max-width: var(--measure); font-size: var(--t-small); line-height: 1.5; color: var(--ink-3); }
 .tool-note { margin: 0; max-width: var(--measure); font-size: var(--t-small); line-height: 1.5; color: var(--ink-3); }
 .tool-note strong { color: var(--ink-2); font-weight: 600; }
-.tool-note a, .tool-panel-meta a, .tool-callout a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--ink-3); text-underline-offset: .18em; }
+.tool-note a, .tool-panel-meta a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--ink-3); text-underline-offset: .18em; }
 .tool-note a:hover, .tool-panel-meta a:hover { text-decoration-color: var(--ink); }
-.tool-callout { margin: 0; max-width: var(--measure); font-size: var(--t-small); line-height: 1.55; color: var(--ink-2); }
-.tool-callout strong { color: var(--ink); font-weight: 600; }
 .tool-state { margin: 0; padding: var(--s-4) 0; font-size: .9375rem; line-height: 1.5; color: var(--ink-3); }
 .tool-state.is-error { color: var(--signal-ink); }
 .tool-empty { margin: 0; padding: var(--s-4) 0; font-size: .9375rem; line-height: 1.55; color: var(--ink-2); }
@@ -159,7 +155,6 @@
 .tool-table tbody th { font-size: .875rem; font-weight: 600; color: var(--ink); }
 .tool-table td { color: var(--ink-2); font-weight: 400; }
 .tool-table tfoot th, .tool-table tfoot td { font-size: var(--t-label); color: var(--ink-3); border-bottom: 0; }
-.tool-table.wrap-first td:first-child, .tool-table.wrap-first th:first-child { white-space: normal; min-width: 7rem; }
 .tool-table tr.is-mat td, .tool-table tr.is-mat th { color: var(--ink); font-weight: 600; }
 .tool-table tr.is-key td, .tool-table tr.is-key th { color: var(--ink); font-weight: 600; }
 .tool-table tr.is-finish td, .tool-table tr.is-finish th { border-top: 1.5px solid var(--ink); color: var(--ink); font-weight: 600; }
@@ -169,12 +164,6 @@
 .tool-table small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
 
 /* ---------- Range bar (predictor, projector) ---------- */
-.range-bar { position: relative; height: 64px; margin: var(--s-2) 0 var(--s-5); }
-.range-bar-track { position: absolute; left: 0; right: 0; top: 28px; height: 6px; border-radius: 999px; background: var(--fill-quiet); box-shadow: inset 0 0 0 1px var(--mark-quiet); }
-.range-bar-span { position: absolute; top: 25px; height: 12px; border-radius: 999px; background: var(--ink); }
-.range-bar-mark { position: absolute; top: 14px; width: 2px; height: 34px; background: var(--signal); transform: translateX(-1px); }
-.range-bar-mark span { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: .75rem; font-weight: 600; white-space: nowrap; color: var(--ink); }
-.range-bar-axis { position: absolute; left: 0; right: 0; top: 46px; display: flex; justify-content: space-between; font-size: .75rem; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 
 /* ---------- Copy link, print ---------- */
 .tool-share { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); margin: 0; }

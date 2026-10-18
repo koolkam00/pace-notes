@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { joinRanges } from '@/components/ui/keepTogether';
 import Reading, { type Figure } from '@/components/ui/Reading';
 import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
 import ChapterRail from '@/components/ChapterRail';
@@ -15,7 +16,7 @@ const TERM = /\bsustained[ -]slowdowns?\b/i;
 export const TERM_HREF = '/methodology#sustained-slowdown';
 
 /** A range ("35–40K", "2022–26") never breaks at its dash: a word joiner holds the two ends together. */
-export const keep = (text: string) => text.replace(/(\d)–(?=\d)/g, '$1–\u2060');
+export const keep = joinRanges;
 
 /**
  * A sentence with its one *…* accent as <em>. With `term`, the first "sustained slowdown" in it links to its definition

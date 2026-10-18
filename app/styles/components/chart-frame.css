@@ -158,18 +158,6 @@
 .night .type-glyph path, [data-theme="dark"] .type-glyph path { stroke: var(--type-night); }
 
 /* ---------- Ten-second bins: the columns spring to the chosen mark (data-k), only transform animates ---------- */
-.viz-frame.bin-lens .bin { --h: 0; --h0: 0; --h1: 0; --h2: 0; --h3: 0; --h4: 0; --h5: 0; transform-box: fill-box; transform-origin: 50% 100%; transform: scaleY(var(--h)); transition: transform var(--d-toggle) var(--spring); }
-.viz-frame.bin-lens .bin.is-before { fill: var(--ink); }
-.viz-frame.bin-lens .bin.is-after { fill: var(--mark-quiet); }
-.viz-frame.bin-lens[data-k="0"] .bin { --h: var(--h0); }
-.viz-frame.bin-lens[data-k="1"] .bin { --h: var(--h1); }
-.viz-frame.bin-lens[data-k="2"] .bin { --h: var(--h2); }
-.viz-frame.bin-lens[data-k="3"] .bin { --h: var(--h3); }
-.viz-frame.bin-lens[data-k="4"] .bin { --h: var(--h4); }
-.viz-frame.bin-lens[data-k="5"] .bin { --h: var(--h5); }
-.viz-frame.bin-lens[data-k="0"] .bin.peak-0, .viz-frame.bin-lens[data-k="1"] .bin.peak-1, .viz-frame.bin-lens[data-k="2"] .bin.peak-2,
-.viz-frame.bin-lens[data-k="3"] .bin.peak-3, .viz-frame.bin-lens[data-k="4"] .bin.peak-4, .viz-frame.bin-lens[data-k="5"] .bin.peak-5 { fill: var(--signal); }
-.viz-frame.bin-lens .bin-mark { fill: var(--ink); }
 
 /* ---------- Dumbbell rows: label | track | value, 44 px each ---------- */
 .viz-frame.dumbbell .dumbbell-rows, .viz-frame.dumbbell .dumbbell-axis { display: grid; grid-template-columns: minmax(0, 38%) minmax(0, 1fr) 4.5rem; column-gap: var(--s-3); }
@@ -227,15 +215,7 @@
 }
 
 /* ---------- Effect band: a null result is grey ---------- */
-.viz-frame .effect-on .effect-dot { fill: var(--ink); stroke: var(--paper); stroke-width: 2; }
-.viz-frame .effect-on .effect-whisker { fill: var(--ink); }
-.viz-frame .effect-on .effect-band { fill: var(--signal-wash); }
-.viz-frame .effect-on .effect-estimate { stroke: var(--signal); stroke-width: 2; }
-.viz-frame .effect-null .effect-dot { fill: var(--mark-quiet); stroke: var(--paper); stroke-width: 2; }
-.viz-frame .effect-null .effect-whisker { fill: var(--mark-quiet); }
-.viz-frame .effect-null .effect-band { fill: var(--ink); opacity: .08; }
 .viz-frame .effect-null-band { fill: var(--ink); opacity: .06; }
-.viz-frame .effect-null .effect-estimate { stroke: var(--mark-quiet); stroke-width: 2; }
 
 /* ---------- Elevation and pace blocks ---------- */
 .viz-frame .pace-blocks { display: flex; gap: 2px; margin-top: 6px; }
@@ -258,35 +238,8 @@
 @container pace-block (max-width: 5.98px) { .viz-frame .pace-val.n1 { display: none; } }
 
 /* ---------- Slope lines ---------- */
-.viz-frame .slope-line { stroke-width: 1.5; }
-.viz-frame .slope-named .slope-line { stroke: var(--ink); stroke-width: 2; }
-.viz-frame .slope-quiet .slope-line { stroke: var(--mark-quiet); stroke-width: 1; opacity: .6; }
-.viz-frame .slope-quiet circle.m-context { stroke-width: 1; }
 
 /* ---------- Ghost race: two runners on one line, the clock under the thumb ---------- */
-.viz-frame.ghost-race { --plot-h: 44px; --plot-h-md: 44px; }
-.viz-frame .ghost-track { position: relative; height: 64px; margin: 0 8px; }
-.viz-frame .ghost-line { position: absolute; left: 0; right: 0; top: 34px; height: 2px; border-radius: 1px; background: var(--rule-strong); }
-.viz-frame .ghost-tick { position: absolute; top: 36px; width: 1px; height: 5px; margin-left: -0.5px; background: var(--rule-strong); }
-.viz-frame .ghost-tick.is-mat { height: 9px; background: var(--ink-3); }
-.viz-frame .ghost-mat { position: absolute; top: 47px; transform: translateX(-50%); font-size: 12px; font-weight: 500; line-height: 1; white-space: nowrap; color: var(--ink-3); }
-.viz-frame .ghost-mat.is-start { transform: none; }
-.viz-frame .ghost-mat.is-end { transform: translateX(-100%); }
-.viz-frame .ghost-span { position: absolute; top: 34px; height: 2px; background: var(--signal); }
-.viz-frame .ghost-dot { position: absolute; top: 35px; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; }
-.viz-frame .ghost-dot.is-runner { background: var(--ink); box-shadow: 0 0 0 2px var(--paper); }
-.viz-frame .ghost-dot.is-ghost { background: var(--paper); box-shadow: inset 0 0 0 2px var(--mark-quiet); }
-.viz-frame .ghost-gap { position: absolute; top: 4px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--signal-ink); }
-.viz-frame .ghost-clock { margin-top: var(--s-4); }
-.viz-frame.ghost-race .viz-key { margin: var(--s-2) 0 var(--s-4); }
 
-/* ---------- Columns (components/story/charts/Columns.tsx; the stories and /methodology): HTML bars, each one element
-   rounded at its data end only, so no seam shows where a rounded end meets a square base ---------- */
-.viz-frame .cols-plot { position: relative; height: 100%; }
-.viz-frame .cols-slot { position: absolute; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
-.viz-frame .cols-bar { flex: none; width: min(24px, calc(100% - 6px)); border-radius: 4px 4px 0 0; background: var(--ink); }
-.viz-frame .cols-bar.is-signal { background: var(--signal); }
-.viz-frame .cols-bar.is-quiet { background: var(--mark-quiet); }
-.viz-frame .cols-value { margin-bottom: 6px; font-family: var(--sans); font-size: 13px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink); }
-.viz-frame .cols-value.is-signal { color: var(--signal-ink); }
-.viz-frame .cols-base { position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--rule-strong); }
+/* ---------- Columns (components/viz/Columns.tsx): a column's square foot takes its fill, never its edge ---------- */
+.viz-frame .column-foot { stroke: none; }

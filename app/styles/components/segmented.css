@@ -47,8 +47,6 @@
 .night .seg-btn[aria-pressed='true'] { color: var(--night); }
 
 /* A row that might not fit scrolls sideways inside the gutter rather than clipping. */
-.seg-scroll { max-width: 100%; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
-.seg-scroll::-webkit-scrollbar { display: none; }
 
 /* Under 360 px (200% zoom) a long control keeps 44 px buttons and scrolls sideways inside its track. */
 @media (max-width: 359.98px) {

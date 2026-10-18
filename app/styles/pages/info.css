@@ -16,11 +16,7 @@
 .info-section p + p, .info-section p + ul, .info-section ul + p { margin-top: var(--s-3); }
 .info-section a:not([class]) { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--rule-strong); text-underline-offset: .18em; }
 .info-section a:not([class]):hover { text-decoration-color: currentColor; }
-.info-list { margin: 0; padding-left: 1.15em; }
-.info-list li + li { margin-top: 6px; }
 .info-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-5); margin-top: var(--s-5); }
-.info-link { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--rule-strong); text-underline-offset: .18em; }
-.info-link:hover { text-decoration-color: currentColor; }
 
 /* The privacy summary: four short facts, then the switch, then the details in folds. */
 .info-facts { display: grid; gap: var(--s-3); margin: 0; padding: 0; list-style: none; }

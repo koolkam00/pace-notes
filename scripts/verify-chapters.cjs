@@ -259,9 +259,9 @@ test('ChapterCrumbs', () => {
   // whose "·" CSS draws (no line may open on it).
   const html = crumbs({ path: '/stories/round-numbers' });
   assert.match(html, /href="\/research#chapter-06"/);
-  assert.match(html, /<span class="crumb-number">Chapter 06<\/span> · The finish line/);
+  assert.match(html, /<span class="crumb-number">Chapter 06\u00a0·<\/span> <span class="crumb-title">The finish line<\/span>/);
   assert.match(html, /<span class="crumb-place">Page 1 of 2<\/span>/);
-  assert.equal(text(html), 'FINISHChapter 06 · The finish linePage 1 of 2');
+  assert.equal(text(html), 'FINISHChapter 06\u00a0· The finish linePage 1 of 2');
   // A chapter after the finish shows its number once, on the badge; screen readers still hear "Chapter 08".
   const course = crumbs({ path: '/courses/boston', place: 'Courses' });
   assert.equal(text(course), '08Where you runCourses');

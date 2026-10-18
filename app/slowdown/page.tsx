@@ -4,7 +4,7 @@ import Values from '@/components/ui/Values';
 import ShareBar from '@/components/viz/ShareBar';
 import ChapterRail from '@/components/ChapterRail';
 import ChapterEnd from '@/components/ChapterEnd';
-import Columns from '@/components/analysis/Columns';
+import Columns from '@/components/viz/Columns';
 import { Beat } from '@/components/analysis/Shell';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { getStudyEvidence } from '@/lib/research-data';

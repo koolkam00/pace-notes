@@ -72,7 +72,6 @@
 .course-beat-body { margin-top: var(--s-4); min-width: 0; }
 .course-beat-body > * + * { margin-top: var(--s-5); }
 .course-beat-body .viz-frame { max-width: none; }
-.course-callout { margin: 0; font-size: var(--t-body); line-height: 1.55; color: var(--ink-2); }
 
 /* At a glance: three rows, hairlines between, a figure, its words and a micro-chart. */
 .course-glance .glance-rows { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }

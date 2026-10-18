@@ -2,7 +2,7 @@ import Values from '@/components/ui/Values';
 import AllFinisherAnalysis from '@/components/AllFinisherAnalysis';
 import WeatherAnalysis from '@/components/WeatherAnalysis';
 import AnalysisShell, { AnswerCard, ExploreBeat, Say } from '../Shell';
-import Columns from '../Columns';
+import Columns from '@/components/viz/Columns';
 import ByUnits from '@/components/ui/ByUnits.client';
 import WeatherTabs from '../WeatherTabs.client';
 import TabTitle from '../TabTitle.client';

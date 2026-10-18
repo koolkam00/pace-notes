@@ -49,8 +49,6 @@
 .guess input[type='range'].guess-range.is-on-ruler:disabled { pointer-events: none; }
 .guess-range.is-on-ruler:focus-visible + span .guess-mark.is-you { box-shadow: 0 0 0 2px var(--paper-raised), 0 0 0 4px var(--focus); }
 .guess:not(.is-revealed) .guess-ruler { cursor: grab; }
-.guess-scale { display: flex; justify-content: space-between; margin-top: -4px; }
-.guess-scale .t-tick { color: var(--ink-3); }
 
 /* The marks: a ruler, or 100 dots. On the ruler, You labels the top row and the truth the row under it, both
    directly above their marks; a comparison is a small filled dot named in the key below. */

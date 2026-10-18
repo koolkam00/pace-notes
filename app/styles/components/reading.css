@@ -35,6 +35,8 @@
 .reading-crumbs a:hover { color: var(--ink); text-decoration: none; }
 .reading-crumbs .crumb-text { text-wrap: balance; }
 .reading-crumbs .crumb-number { white-space: nowrap; }
+/* Where the chapter must wrap (a phone at 200% zoom), it breaks after "Chapter 06 ·", and its name stays whole. */
+.reading-crumbs .crumb-title { display: inline-block; }
 .reading-crumbs .crumb-place { position: relative; white-space: nowrap; }
 .reading-crumbs .crumb-place::before { content: "·"; position: absolute; right: calc(100% + 5px); top: 50%; transform: translate(50%, -50%); }
 /* On a phone the crumbs are the chapter alone (the menu and the reading bar give the place in it). */

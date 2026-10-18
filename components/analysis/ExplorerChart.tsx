@@ -4,7 +4,7 @@ import LineProfile from '@/components/viz/LineProfile';
 import Waterfall from '@/components/viz/Waterfall';
 import Cdf from '@/components/viz/Cdf';
 import ElevationPace from '@/components/viz/ElevationPace';
-import Columns from './Columns';
+import Columns from '@/components/viz/Columns';
 import { MARATHON_SECTION_ENDS, sectionLabel } from '@/lib/section-labels';
 import { elevationValue, paceLabel, type UnitSystem } from '@/lib/units';
 

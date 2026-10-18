@@ -1,28 +1,34 @@
 import type { ReactNode } from 'react';
-import ChartFrame, { type KeyItem } from '@/components/viz/ChartFrame';
-import Axis from '@/components/viz/Axis';
-import Plot, { Baseline, Gridlines } from '@/components/viz/Plot';
-import Annotation from '@/components/viz/Annotation';
-import { placeLabels, REF_WIDTH, textWidth, type LabelItem } from '@/components/viz/labels';
-import { linear, pc, yScale } from '@/components/viz/scale';
+import ChartFrame, { type KeyItem } from './ChartFrame';
+import Axis from './Axis';
+import Plot, { Baseline, Gridlines } from './Plot';
+import Annotation from './Annotation';
+import { placeLabels, REF_WIDTH, textWidth, type LabelItem } from './labels';
+import { linear, pc, yScale } from './scale';
 
 /**
- * Columns for a few ordered groups (start-temperature bands, earlier-best bands, age groups): one column of at most
- * 24 px per group on a shared zero baseline, the group the sentence is about in signal, the rest ink, a group with too
- * few races hollow. With six groups or fewer every column carries its value; with more, only the extremes and the
- * subject do (the rest stay in Values). Server-drawn and stretched to any width.
+ * Columns for a few ordered groups (the redesign spec, section 3.6; start-temperature bands, earlier-best bands, age
+ * groups, the pace bins of a story): one 22 px column per group on a shared zero baseline, its data end rounded and its
+ * foot square on the baseline, the group the sentence is about in signal, the rest ink or quiet, a group with too few
+ * races hollow. With six groups or fewer (or `every`) every column carries its value; with more, only the extremes and
+ * the subject do (the rest stay in Values). `caption` names the axis under it. Server-drawn and stretched to any width.
+ * The one columns form of the site: stories, analyses, /slowdown and /methodology all draw this one.
  */
 export type Column = { id: string; label: string; value: number; display: string; tone?: 'signal' | 'ink' | 'quiet' | 'hollow' };
 
-export default function Columns({ items, max, label, keys, values, height = 180, heightMd = 220, gridLabel }: {
+export default function Columns({ items, max, label, keys, values, height = 180, heightMd = 220, gridLabel, caption, every = false }: {
   items: Column[]; max?: number; label: string; keys?: KeyItem[]; values?: ReactNode; height?: number; heightMd?: number;
   /** A label for the top gridline ("50%"). */
   gridLabel?: { value: number; label: string };
+  /** The axis named under the chart ("Pace at 30K against the 5–20K pace"). */
+  caption?: ReactNode;
+  /** Every column carries its value, however many there are. */
+  every?: boolean;
 }) {
   const top = max ?? Math.max(...items.map((c) => c.value)) * 1.05;
   const y = yScale(0, top, { top: 0.16 });
   const x = linear([0, items.length]);
-  const all = items.length <= 6;
+  const all = every || items.length <= 6;
   const lo = items.reduce((b, c, i) => (c.value < items[b].value ? i : b), 0);
   const hi = items.reduce((b, c, i) => (c.value > items[b].value ? i : b), 0);
   const shown = items.map((c, i) => all || i === lo || i === hi || c.tone === 'signal');
@@ -45,7 +51,13 @@ export default function Columns({ items, max, label, keys, values, height = 180,
       {items.map((c, i) => {
         const h = Math.max(0.004, 1 - y(c.value));
         const cls = c.tone === 'signal' ? 'm-signal' : c.tone === 'hollow' ? 'm-hollow' : c.tone === 'quiet' ? 'm-quiet' : 'm-ink';
-        return <rect key={c.id} className={`column ${cls}`} x={pc(x(i + 0.5))} width={22} transform="translate(-11 0)" y={pc(1 - h)} height={pc(h)} rx={3} />;
+        // The data end is rounded; a 3 px square foot over the rounded bottom corners stands the column on the baseline.
+        return (
+          <g key={c.id} className={`column ${cls}`}>
+            <rect x={pc(x(i + 0.5))} width={22} transform="translate(-11 0)" y={pc(1 - h)} height={pc(h)} rx={3} />
+            {h > 0.02 && c.tone !== 'hollow' ? <rect className="column-foot" x={pc(x(i + 0.5))} width={22} transform="translate(-11 -3)" y="100%" height={3} /> : null}
+          </g>
+        );
       })}
       <Baseline />
       <Annotation labels={placed} />
@@ -55,7 +67,7 @@ export default function Columns({ items, max, label, keys, values, height = 180,
     <ChartFrame className="columns" label={label} height={height} heightMd={heightMd} plot={plot}
       // The signal column and the labelled extremes are named under their columns first, then the ends.
       axis={<Axis ticks={items.map((c, i) => ({ x: x(i + 0.5), label: c.label, priority: c.tone === 'signal' ? 4 : !all && (i === lo || i === hi) ? 3 : i === 0 || i === items.length - 1 ? 2 : 1 }))} />}
-      keys={keys} values={values}
+      keys={keys} values={values} caption={caption}
     />
   );
 }

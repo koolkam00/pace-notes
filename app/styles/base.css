@@ -72,7 +72,6 @@
 }
 .t-tick { font-family: var(--sans); font-size: var(--t-tick); font-weight: 500; line-height: 1; letter-spacing: .01em; font-variant-numeric: tabular-nums; color: var(--ink-3); }
 .t-readout { font-family: var(--sans); font-size: var(--t-readout); font-weight: 600; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
-.tnum { font-variant-numeric: tabular-nums; }
 
 /* ---------- Utilities ---------- */
 /* A figure with its unit, a range or a hyphenated word that never breaks across lines ("41–50°F", "finish-line"). */

@@ -17,7 +17,10 @@ export default function ChapterRail({ path }: { path: string }) {
   return (
     <aside className="rail chapter-rail">
       <nav aria-label={`Chapter ${chapterNumber(chapter)}`}>
-        <p className="rail-chapter"><MarkerBadge marker={chapter.marker} /><span className="t-kicker">Chapter {chapterNumber(chapter)}</span></p>
+        {/* The chapter's number shows once: a chapter after the finish has it on its badge (as in ChapterCrumbs). */}
+        <p className="rail-chapter"><MarkerBadge marker={chapter.marker} />{chapter.marker === chapterNumber(chapter)
+          ? <span className="sr-only">Chapter {chapterNumber(chapter)}</span>
+          : <span className="t-kicker">Chapter {chapterNumber(chapter)}</span>}</p>
         <p className="rail-title">{chapter.title}</p>
         <ol className="rail-pages">
           {livePages(chapter).map((page) => (

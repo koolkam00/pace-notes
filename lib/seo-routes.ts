@@ -9,6 +9,7 @@ import { TOOLS } from './tools/registry';
 import { VERIFIED_AT } from './tools/qualifying';
 import { TEN_ANALYSES, type AnalysisId } from './ten-analyses';
 import { getWeatherAnalyses, getWeatherEvidence } from './weather-data';
+import { weatherHref } from './weather-catalog';
 import { getFastStartStarts } from './fast-start-server';
 import { getAllFinisherContextStart } from './all-finisher-context-server';
 import { getCourseNames, slugifyCity } from './course-data';
@@ -59,9 +60,6 @@ const MOVED: Readonly<Record<string, string>> = {
  */
 export const FORWARD_ONLY: Readonly<Record<string, string>> = { '/your-race': '/research' };
 
-/** The weather questions that became tabs of race-day weather (their own pages are stubs), by question id; any other opens its first tab. */
-const WEATHER_TABS: Readonly<Record<string, string>> = { warming: 'warming', wind: 'wind' };
-
 /** Where a moved address went (a path, possibly with a #tab or #section), or null for a page that did not move. */
 export function movedTo(path: string): string | null {
   assertCleanPath(path);
@@ -71,7 +69,8 @@ export function movedTo(path: string): string | null {
   if (/^\/packs\/[^/]+$/.test(path)) return '/methodology#downloads';
   const analysis = /^\/analyses\/([^/]+)$/.exec(path);
   const weather = analysis && getWeatherAnalyses().find((item) => item.slug === analysis[1]);
-  return weather ? `/analyses/race-day-weather#${own(WEATHER_TABS, weather.id) ?? 'temperature'}` : null;
+  // The weather questions that became tabs of race-day weather (their own pages are stubs): lib/weather-catalog.ts.
+  return weather ? weatherHref(weather) : null;
 }
 
 /** The former research-archive question pages, each now a stub (app/packs/[packId]): every registry, question and extension id. */

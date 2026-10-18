@@ -26,7 +26,7 @@ export function ChapterCrumbs({ path, place: own }: { path: string; place?: Reac
         <span className="crumb-text">
           {chapter.marker === number
             ? <><span className="sr-only">Chapter {number} · </span>{chapter.title}</>
-            : <><span className="crumb-number">Chapter {number}</span>{' · '}{chapter.title}</>}
+            : <><span className="crumb-number">Chapter {number}{'\u00a0·'}</span>{' '}<span className="crumb-title">{chapter.title}</span></>}
         </span>
       </Link>
       {where ? <span className="crumb-place">{where}</span> : null}

@@ -1,4 +1,5 @@
 import BigNumber from './BigNumber';
+import { joinRanges } from '@/components/ui/keepTogether';
 import MarkerBadge from './MarkerBadge';
 import Arrow from './Arrow';
 import ChapterLink from '@/components/ChapterLink';
@@ -38,8 +39,8 @@ const TERM_HREF = '/methodology#sustained-slowdown';
 /** A key with its first "sustained slowdown" linked to the definition (only where the key sits outside a row link). */
 function KeyText({ text, term }: { text: string; term: boolean }) {
   const m = term ? TERM.exec(text) : null;
-  if (!m) return <>{text}</>;
-  return <>{text.slice(0, m.index)}<Link href={TERM_HREF} className="term-link">{m[0]}</Link>{text.slice(m.index + m[0].length)}</>;
+  if (!m) return <>{joinRanges(text)}</>;
+  return <>{joinRanges(text.slice(0, m.index))}<Link href={TERM_HREF} className="term-link">{m[0]}</Link>{joinRanges(text.slice(m.index + m[0].length))}</>;
 }
 
 function Reading({ readingOf, id, fallbackKey, size, term = false }: { readingOf?: ReadingOf; id: Chapter['lead']; fallbackKey?: string; size: 's' | 'm'; term?: boolean }) {
@@ -60,11 +61,11 @@ function PageReading({ readingOf, page }: { readingOf?: ReadingOf; page: Chapter
   const reading = readingOf?.(page.nugget);
   if (!reading?.key) return null;
   // A figure that is a word shows its key alone.
-  if (!isNumber(reading.value)) return <span className="page-reading is-key-only"><span className="page-reading-key">{reading.key}</span></span>;
+  if (!isNumber(reading.value)) return <span className="page-reading is-key-only"><span className="page-reading-key">{joinRanges(reading.key)}</span></span>;
   return (
     <span className="page-reading">
       <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size="s" />
-      <span className="page-reading-key">{reading.key}</span>
+      <span className="page-reading-key">{joinRanges(reading.key)}</span>
     </span>
   );
 }

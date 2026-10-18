@@ -50,38 +50,10 @@
 .predictor-chart .predictor-whisker line { stroke: var(--ink-2); stroke-width: 1.5; }
 .predictor-tip { min-width: 12rem; max-width: 17rem; }
 
-.predictor-reasons { display: grid; gap: var(--s-3); margin: 0; padding: 0; list-style: none; counter-reset: reason; }
-.predictor-reasons li { position: relative; margin: 0; padding-left: 2rem; font-size: .9375rem; line-height: 1.55; color: var(--ink-2); counter-increment: reason; }
-.predictor-reasons li::before { content: counter(reason); position: absolute; left: 0; top: 0; font-family: var(--figure); font-size: 1.125rem; font-weight: 660; line-height: 1.4; color: var(--ink-3); }
-.predictor-reasons b { color: var(--ink); font-weight: 600; }
-
 /* The method table, in the disclosure: rows stack into cards by the width the results column has. */
-.predictor-table-wrap { container: predictor-table / inline-size; }
-.predictor-table th, .predictor-table td { height: auto; padding-top: 10px; padding-bottom: 10px; vertical-align: top; }
-.predictor-table .predictor-m-name span { display: block; font-size: .9375rem; color: var(--ink); white-space: normal; }
-.predictor-table .predictor-m-name small, .predictor-table .predictor-m-time small { display: block; margin-top: 2px; font-size: .75rem; font-weight: 400; color: var(--ink-3); white-space: normal; }
-.predictor-table .predictor-m-time { font-weight: 600; color: var(--ink); }
-.predictor-table .predictor-m-note { white-space: normal; text-align: left; font-size: var(--t-label); line-height: 1.5; color: var(--ink-2); }
-.predictor-table th:last-child { text-align: left; }
-.predictor-table tr.is-key th, .predictor-table tr.is-key td { color: var(--ink); }
-.predictor-table tr.is-prompt .predictor-m-name span, .predictor-table tr.is-prompt .predictor-m-time { color: var(--ink-3); }
-.predictor-table .predictor-link-button, .predictor-prompt .predictor-link-button { position: relative; min-height: 0; font-size: inherit; line-height: inherit; }
 /* Inline in a sentence, so the 44 px reach comes from a pseudo-element. */
-.predictor-table .predictor-link-button::after, .predictor-prompt .predictor-link-button::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
 /* Both buttons come first, on the first line, so their 44 px reaches never overlap. */
-.predictor-prompt { line-height: 1.5; }
-.predictor-warn { color: var(--signal-ink); }
 @supports (container-type: inline-size) {
-  @container predictor-table (max-width: 600px) {
-    .predictor-table thead { display: none; }
-    .predictor-table, .predictor-table tbody { display: block; }
-    .predictor-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s-3); padding: 12px 0; border-bottom: 1px solid var(--rule); }
-    .predictor-table tbody th, .predictor-table td { display: block; height: auto; padding: 0; border: 0; }
-    .predictor-table .predictor-m-name { grid-column: 1; grid-row: 1; }
-    .predictor-table .predictor-m-time { grid-column: 2; grid-row: 1; text-align: right; }
-    .predictor-table .predictor-m-note { grid-column: 1 / -1; grid-row: 2; margin-top: 6px; }
-    .predictor-table caption { display: block; }
-  }
 }
 
 /* ---------- What finishes on that pace at 20K did ---------- */
