@@ -327,7 +327,10 @@ async function planner(h) {
   await run.close();
   const used = named(run, 'tool_used').map(p => `${p.$pathname}:${p.action}`);
   const sections = named(run, 'section_viewed').filter(p => p.$pathname === '/tools/plan').map(p => p.section);
-  h.check('planner: the course result, the mat comparison and the pace band are each seen once, in page order', JSON.stringify(sections) === '["result","comparison","pace-band"]', sections);
+  // Since the October 2026 redesign the page is short enough for the scroll to reach the chapter's end ("related") too:
+  // it may follow the planner's three, once.
+  const own = sections.filter(s => s !== 'related');
+  h.check('planner: the course result, the mat comparison and the pace band are each seen once, in page order', JSON.stringify(own) === '["result","comparison","pace-band"]' && sections.length - own.length <= 1 && (sections.length === own.length || sections[sections.length - 1] === 'related'), sections);
   h.check('planner: both print buttons are prints and Copy link a copied link; none is an edit', JSON.stringify(used) === '["/tools/plan:print","/tools/plan:print","/tools/plan:copy_link"]', used);
   let link = null;
   try { link = new URL(copied); } catch { /* checked below */ }
