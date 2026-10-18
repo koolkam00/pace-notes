@@ -7,7 +7,8 @@
 // course-and-goal form, which goes to the planner by GET with and without the page's JavaScript, and the keypad's dot
 // typing a colon in time fields (the home goal, a tool's time, a pace and the split check). Last, the units
 // switch: it works on /research opened directly, and every page served with the inert placeholder reads the same in
-// miles and kilometres. Then a course page's contents link, a link away and Back.
+// miles and kilometres (a moved address's stub forwards before anyone reads it, keeping the query, to a page with the
+// working switch, so it is left out). Then a course page's contents link, a link away and Back.
 const fs = require('node:fs');
 const path = require('node:path');
 const { SITE, wiggle, openMenu, type } = require('../browser.cjs');
@@ -316,8 +317,12 @@ async function unitSwitch(h) {
   const km = await seen();
   h.check('pressing Kilometres on /research converts its analyses (the first 3.11 mi, then the first 5 km) and adds units=km',
     /the first 3\.11 mi to/.test(miles.analyses) && /the first 5 km to/.test(km.analyses) && km.search === '?units=km', { miles, km });
-  const placeholders = fs.readdirSync(h.out, { recursive: true }).filter(file => file.endsWith('.html') && file !== '404.html'
-    && fs.readFileSync(path.join(h.out, file), 'utf8').includes('unit-switch-placeholder')).map(file => '/' + file.replace(/\.html$/, '').replace(/(^|\/)index$/, '')).sort();
+  const served = fs.readdirSync(h.out, { recursive: true }).filter(file => file.endsWith('.html') && file !== '404.html')
+    .map(file => ({ at: '/' + file.replace(/\.html$/, '').replace(/(^|\/)index$/, ''), html: fs.readFileSync(path.join(h.out, file), 'utf8') }))
+    .filter(({ html }) => html.includes('unit-switch-placeholder'));
+  // A stub (components/MovedPage.tsx) replaces itself with its target while the HTML is read (<script data-forward>).
+  const forwards = served.filter(({ html }) => html.includes('<script data-forward')).map(({ at }) => at);
+  const placeholders = served.filter(({ html }) => !html.includes('<script data-forward')).map(({ at }) => at).sort();
   const differ = [];
   for (const at of placeholders) {
     const text = async units => { await page.goto(`${SITE}${at}?units=${units}`, { waitUntil: 'load' }); await page.waitForTimeout(800); return page.evaluate(() => document.querySelector('main')?.innerText ?? ''); };
@@ -327,7 +332,7 @@ async function unitSwitch(h) {
   }
   await run.close();
   h.check('every page served with the inert placeholder reads the same in miles and kilometres', placeholders.length && !differ.length && !placeholders.includes('/research'), { placeholders, differ });
-  h.note(`units switch: placeholder pages ${placeholders.join(', ')}`);
+  h.note(`units switch: placeholder pages ${placeholders.join(', ')}; ${forwards.length} moved addresses' stubs left out`);
 }
 
 // A course page's in-page links (the contents, "sustained slowdown", "finish times by year") go through the router, so

@@ -6,5 +6,5 @@ import { movedTo } from '@/lib/seo-routes';
 export const metadata = movedMetadata('/packs', 'Research Archive: Moved | Pace Notes', 'The Pace Notes research archive now lives in the methodology, where every data file is still free to download.');
 
 export default function PacksMoved() {
-  return <MovedPage to={movedTo('/packs')!} action="Go to Downloads">The research archive now lives in the methodology, where every data file is still free to download.</MovedPage>;
+  return <MovedPage to={movedTo('/packs')!} action="Go to downloads">The research archive now lives in the methodology, where every data file is still free to download.</MovedPage>;
 }

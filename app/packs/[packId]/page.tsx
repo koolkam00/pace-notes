@@ -14,5 +14,5 @@ export function generateMetadata({ params }: { params: { packId: string } }) {
 }
 
 export default function PackMoved({ params }: { params: { packId: string } }) {
-  return <MovedPage to={movedTo(`/packs/${params.packId}`)!} action="Go to Downloads">{SENTENCE}</MovedPage>;
+  return <MovedPage to={movedTo(`/packs/${params.packId}`)!} action="Go to downloads">{SENTENCE}</MovedPage>;
 }

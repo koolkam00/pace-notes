@@ -4,3 +4,8 @@
 .moved-page { display: grid; gap: var(--s-5); justify-items: start; align-content: center; min-height: max(60vh, 22rem); padding-block: var(--s-7); }
 .moved-page > * { margin: 0; }
 .moved-page .t-body { max-width: 30rem; }
+/* On a desktop screen the stub fills the space down to the footer, so the footer sits at the foot of the screen rather
+   than halfway down it. */
+@media (min-width: 900px) {
+  .moved-page { min-height: calc(100vh - var(--header-h) - 11rem); min-height: calc(100svh - var(--header-h) - 11rem); }
+}
