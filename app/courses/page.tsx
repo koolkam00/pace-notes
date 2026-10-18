@@ -47,9 +47,10 @@ function ShapeFace({ curve }: { curve: number[] }) {
  * /courses (the redesign spec, section 7.10, cut under section 00): the reading (how far sustained slowdown runs from
  * one course to the next across the courses with three or more editions, from the same courses.json share each course
  * page leads with), then every course as one row the chips sort: its route as its face (or its pace shape), its name,
- * the figure the order is by, its share of sustained slowdowns and, along the row's foot, that share as a bar on one
- * scale for every row, so the sorted list is the chart. The courses with fewer than three editions follow under their
- * own hairline, quieter, since the range above leaves them out. The ItemList stays alphabetical.
+ * and the figure the order is by, at the right and again as a bar under the name on one scale for every row, so the
+ * sorted list is the chart (start temperatures, a range, draw as a span on one temperature scale). Under any other
+ * order the share of sustained slowdowns moves to the row's small line. The courses with fewer than three editions
+ * follow under their own hairline, quieter, since the range above leaves them out. The ItemList stays alphabetical.
  */
 export default function CoursesPage() {
   const pages = [...coursePages().values()];
@@ -60,8 +61,15 @@ export default function CoursesPage() {
   const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
   const range = getNugget('courses.range');
   const index = getNugget('courses.index');
-  // One scale for every row's bar: zero to the round ten above the highest share.
+  // One scale for every row's bar, per order: zero to the round ten above the highest share, zero to the most climbing and
+  // the most finishes, and for start temperatures the coolest to the warmest morning on any course.
   const scale = Math.ceil(Math.max(...pages.map((p) => p.summary.slowdown)) * 10) / 10;
+  const most = (v: number[]) => Math.max(1, ...v);
+  const climbTop = most(pages.map((p) => routeClimb(p)?.gain_m ?? 0));
+  const finishTop = most(pages.map((p) => p.summary.finishes));
+  const allTemps = [...temps.values()].flat();
+  const tLo = Math.min(...allTemps), tHi = Math.max(...allTemps);
+  const pc = (v: number) => `${Math.max(0, Math.min(100, v * 100)).toFixed(1)}%`;
   const few = pages.filter((p) => p.summary.editions < MIN_EDITIONS).map((p) => p.slug);
   const by = (f: (p: (typeof pages)[number]) => number | null, dir: 1 | -1) =>
     [...pages].sort((a, b) => { const x = f(a), y = f(b); if (x === null) return 1; if (y === null) return -1; return dir * (x - y) || a.city.localeCompare(b.city); }).map((p) => p.slug);
@@ -76,6 +84,7 @@ export default function CoursesPage() {
     const t = temps.get(p.city) ?? [];
     const share = p.summary.slowdown;
     const climb = routeClimb(p);
+    const editions = `${count(p.summary.editions)} ${p.summary.editions === 1 ? 'edition' : 'editions'}`;
     return {
       id: p.slug,
       node: (
@@ -83,13 +92,22 @@ export default function CoursesPage() {
           <span className="course-index-face">{p.geometry ? <RouteFace course={p.geometry} /> : <ShapeFace curve={p.summary.curve ?? []} />}</span>
           <span className="course-index-name">{p.display}</span>
           <span className="course-index-meta">
-            <span className="m-default">{count(p.summary.editions)} {p.summary.editions === 1 ? 'edition' : 'editions'}{climb ? <> · <Elevation metres={climb.gain_m} /> climb</> : null}</span>
-            <span className="m-climb">{climb ? <><Elevation metres={climb.gain_m} /> of climbing</> : 'No route drawn'}</span>
-            <span className="m-finishes">{count(p.summary.finishes)} finishes</span>
-            <span className="m-temp">{t.length ? <>{t.length > 1 ? <><Temperature c={Math.min(...t)} />–</> : null}<Temperature c={Math.max(...t)} /> at the start</> : 'No race mornings'}</span>
+            <span className="m-default">{editions}{climb ? <> · <Elevation metres={climb.gain_m} /> climb</> : null}</span>
+            <span className="m-other">{Math.round(share * 100)}% sustained slowdown</span>
           </span>
-          <span className="course-index-share"><Fact k="slowdown.r" v={share}>{Math.round(share * 100)}%</Fact></span>
-          <span className="course-index-bar" aria-hidden="true" style={{ width: `${((100 * share) / scale).toFixed(1)}%` }} />
+          {/* The figure the order is by; the share first, the one the course page leads with. */}
+          <span className="course-index-share">
+            <span className="f-slowdown"><Fact k="slowdown.r" v={share}>{Math.round(share * 100)}%</Fact></span>
+            <span className="f-climb">{climb ? <><Elevation metres={climb.gain_m} /><span className="sr-only"> of climbing</span></> : '—'}</span>
+            <span className="f-finishes">{count(p.summary.finishes)}<span className="sr-only"> finishes</span></span>
+            <span className="f-temp">{t.length ? <>{t.length > 1 ? <><Temperature c={Math.min(...t)} />–</> : null}<Temperature c={Math.max(...t)} /><span className="sr-only"> at the start</span></> : '—'}</span>
+          </span>
+          <span className="course-index-track" aria-hidden="true">
+            <i className="b-slowdown" style={{ width: pc(share / scale) }} />
+            {climb ? <i className="b-climb" style={{ width: pc(climb.gain_m / climbTop) }} /> : null}
+            <i className="b-finishes" style={{ width: pc(p.summary.finishes / finishTop) }} />
+            {t.length ? <i className="b-temp" style={{ left: pc((Math.min(...t) - tLo) / (tHi - tLo || 1)), width: `max(3px, ${pc((Math.max(...t) - Math.min(...t)) / (tHi - tLo || 1))})` }} /> : null}
+          </span>
         </Link>
       ),
     };
