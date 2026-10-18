@@ -215,7 +215,7 @@ export default function PaceCalculator() {
                       const pace = Math.abs(r.split / len - paceKm!) > 0.5 / (units === 'mi' ? KM_PER_MILE : 1) ? fmtPace(r.split / len, units) : null;
                       return (
                         <li key={r.km} className={r.finish ? 'is-finish' : undefined}>
-                          <span>{r.finish ? 'Finish' : r.halfway ? 'Halfway' : r.mat ? `${r.km}K` : fmtDistance(r.km, units)}{r.mat && units === 'mi' ? <small>{(r.km / KM_PER_MILE).toFixed(1)} mi</small> : null}</span>
+                          <span>{r.finish ? 'Finish' : r.halfway ? 'Halfway' : r.mat ? `${r.km}K` : fmtDistance(r.km, units)}{units === 'mi' && (r.mat || ((r.halfway || r.finish) && rows.some((x) => x.mat))) ? <small>{(r.km / KM_PER_MILE).toFixed(1)} mi</small> : null}</span>
                           <b>{formatDuration(r.elapsed, r.elapsed >= 3599.5)}</b>
                           {split || pace ? <small className="pace-calculator-split">{[split, pace].filter(Boolean).join(' · ')}</small> : null}
                         </li>

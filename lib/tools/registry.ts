@@ -49,7 +49,7 @@ export const TOOLS: ToolDefinition[] = [
     dek: 'An even-pace wristband to print, beside the mat times of finishes that made your goal.' },
   { slug: 'course-chooser', title: 'Course chooser', short: 'Your goal pace, every course', group: 'race', evidence: ['data'], accent: '#0FA3A3', file: 'tools/course-goal.json',
     dek: 'How finishes on your goal pace held up on every course.' },
-  { slug: 'predictor', title: 'Finish-time predictor', heading: 'Marathon time predictor', short: 'From a recent race', group: 'race', evidence: ['research', 'data'], accent: '#7A4DFF', file: 'tools/projector.json',
+  { slug: 'predictor', title: 'Finish-time predictor', heading: 'Marathon time predictor', short: 'From a recent race', group: 'race', evidence: ['data', 'research'], accent: '#7A4DFF', file: 'tools/projector.json',
     dek: 'A marathon range from a recent race, and where finishes on that pace ended.' },
   { slug: 'weather-match', title: 'Weather match', short: 'Mornings like your forecast', group: 'race', evidence: ['data', 'research'], accent: '#F4B23E', file: 'tools/weather-match.json',
     dek: 'Past race mornings like your forecast, and how finishes at your pace held up.' },

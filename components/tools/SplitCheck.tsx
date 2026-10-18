@@ -746,7 +746,7 @@ function SectionBars({ reading, units }: { reading: SplitReading; units: UnitSys
         ))}
       </svg>
       <ul className="split-check-key" aria-hidden="true">
-        <li className="is-base"><i />{BASE} pace, {fmtPace(reading.baseline, units)}</li>
+        <li className="is-base"><i />{BASE} pace</li>
         <li className="is-threshold"><i />25% slower after 20K</li>
       </ul>
     </div>

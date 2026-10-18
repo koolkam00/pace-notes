@@ -871,8 +871,8 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
             </summary>
             <div className="predictor-more-body">
               {target.key === 'marathon' ? (
-                <p className="tool-field-hint">For Tanda’s formula: your averages over the 8 weeks before the race you are predicting.</p>
-              ) : <p className="tool-field-hint">Tanda’s formula predicts marathons only. Switch the prediction to a marathon to use it.</p>}
+                <p className="tool-field-hint">Your averages over the 8 weeks before the race you are predicting.</p>
+              ) : <p className="tool-field-hint">Training volume predicts marathons only. Switch the prediction to a marathon to use it.</p>}
               <DistanceField id={`${uid}-wk`} label="Average weekly distance" km={wk} units={units} suffix={`${units} / week`}
                 hint={tandaIssue?.field === 'wk' && tandaIssue.missing ? tandaIssue.error : undefined}
                 error={tandaIssue?.field === 'wk' && !tandaIssue.missing ? tandaIssue.error : null}

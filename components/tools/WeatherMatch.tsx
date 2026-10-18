@@ -61,7 +61,6 @@ const partial = (text: string) => /^[-−–.,]$/.test(text.trim());
 const toUnit = (c: number, u: TUnit) => (u === 'f' ? cToF(c) : c);
 const fromUnit = (v: number, u: TUnit) => (u === 'f' ? fToC(v) : v);
 const unitSign = (u: TUnit) => (u === 'f' ? '°F' : '°C');
-const other = (u: TUnit): TUnit => (u === 'f' ? 'c' : 'f');
 /** An absolute temperature: 64°F, 17.8°C (unspaced, as every page writes it). */
 const tAbs = (c: number, u: TUnit, digits = u === 'f' ? 0 : 1) => `${num(toUnit(c, u), digits)}${unitSign(u)}`;
 /** A recorded race temperature: whole °F, or °C always with one decimal (5.0°C beside 5.4°C). */
@@ -332,7 +331,6 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
 
   /* ----- Labels shared by panels ----- */
   const winText = centre !== null ? tWindow(centre - hw, centre + hw, tUnit) : '';
-  const winAlt = centre !== null ? tWindow(centre - hw, centre + hw, other(tUnit)) : '';
   const refText = tWindow(REF.c - REF.hw, REF.c + REF.hw, tUnit);
   const bandLabel = band !== null ? bandText(band, step, units) : '';
   const yourTemp = tempOk ? tAbs(tempC!, tUnit, 1) : '';
@@ -404,8 +402,8 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
               {tempField === '' || partial(tempField) ? 'Type the forecast temperature for your start time.'
                 : tempIn === null ? `Type a number in ${unitSign(tUnit)}, such as ${DEFAULTS.temp[tUnit]}.`
                   : !tempOk ? `Try a temperature between ${tAbs(-30, tUnit, 0)} and ${tAbs(50, tUnit, 0)}.`
-                    : exampleTemp ? `An example (${tAbs(tempC!, other(tUnit))}). Type the forecast for your start time.`
-                      : `At the start time (${tAbs(tempC!, other(tUnit))}).`}
+                    : exampleTemp ? 'An example. Type the forecast for your start time.'
+                      : 'The forecast for your start time.'}
             </p>
           </div>
 

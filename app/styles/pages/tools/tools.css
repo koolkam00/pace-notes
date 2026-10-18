@@ -22,6 +22,9 @@
 
 /* "Sustained slowdown" linked to its definition on /methodology. Inside running text it is an inline link; as a label
    on its own (a ledger key) it takes the 44 px hit area through padding. */
+/* Inter's tabular figures widen the hyphen ("non - binary"): words on charts and in table headers take proportional
+   figures; readouts, inputs and table cells keep tabular ones. */
+.tool-page .viz-frame :is(.viz-label, .tick), .tool-page :is(.table, .tool-table) thead th { font-variant-numeric: normal; }
 .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-color: var(--ink-3); text-underline-offset: .18em; }
 .term-link:hover { text-decoration-style: solid; }
 .tool-stat-label .term-link, .tool-ledger dt .term-link, .tool-cells dt .term-link { display: inline-flex; align-items: center; min-height: 44px; margin-block: -12px; }
@@ -109,7 +112,7 @@
 
 /* The mats as a lap list: nine rows, the finish ruled off. */
 .tool-laps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 var(--s-4); margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
-.tool-laps li { display: grid; gap: 2px; margin: 0; padding: 10px 0; border-bottom: 1px solid var(--rule); min-width: 0; }
+.tool-laps li { display: grid; align-content: start; gap: 2px; margin: 0; padding: 10px 0; border-bottom: 1px solid var(--rule); min-width: 0; }
 .tool-laps li:nth-last-child(-n + 3) { border-bottom: 0; }
 .tool-laps li > span { font-size: var(--t-label); font-weight: 500; line-height: 1.25; color: var(--ink-3); }
 .tool-laps li > span small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
