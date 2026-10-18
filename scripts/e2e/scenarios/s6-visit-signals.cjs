@@ -345,13 +345,18 @@ async function raceReport(h) {
   await page.goto(`${SITE}/report?s=${REPORT_S}&course=berlin`, { waitUntil: 'load' });
   await page.waitForSelector('.race-report-table', { timeout: 20000 });
   for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, 500); await page.waitForTimeout(250); }
-  const button = name => page.locator('.race-report-actions button', { hasText: name });
+  // Print sits in the report's bar; Save image, Share… and Copy link in the sheet its Share button opens (a modal: it is
+  // closed for the print and opened again for the link).
+  const button = name => page.locator('.race-report-actions .share-bar button', { hasText: name });
+  const inSheet = name => page.locator('.race-report-sheet.is-open button', { hasText: name });
+  const openSheet = async () => { await page.locator('.race-report-actions .race-report-share-open').click(); await page.waitForSelector('.race-report-sheet.is-open [data-report-save]', { timeout: 15000 }); await page.waitForTimeout(300); };
+  await openSheet();
   // First an image the browser cannot encode: the export fails, reported once, with the button's own message.
   await page.evaluate(() => { window.__e2eToBlob = HTMLCanvasElement.prototype.toBlob; HTMLCanvasElement.prototype.toBlob = function (callback) { callback(null); }; });
-  for (let i = 0; i < 2; i++) { await button('Save image').click(); await page.waitForTimeout(800); }
-  const message = await page.locator('.race-report-note').textContent();
+  for (let i = 0; i < 2; i++) { await inSheet('Save image').click(); await page.waitForTimeout(800); }
+  const message = await page.locator('.race-report-sheet .race-report-note').textContent();
   await page.evaluate(() => { HTMLCanvasElement.prototype.toBlob = window.__e2eToBlob; });
-  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), button('Save image').click()]);
+  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), inSheet('Save image').click()]);
   const saved = download.suggestedFilename();
   await page.waitForTimeout(400);
   // The share sheet: first cancelled, then sent (with the image file, as iOS Safari offers it).
@@ -360,11 +365,14 @@ async function raceReport(h) {
     Object.defineProperty(navigator, 'canShare', { configurable: true, value: data => Boolean(data && data.files) });
     Object.defineProperty(navigator, 'share', { configurable: true, value: async () => { window.__e2eShares += 1; if (window.__e2eShares === 1) throw new DOMException('Share canceled', 'AbortError'); } });
   });
-  await button('Share').click();
+  await page.locator('.race-report-sheet .race-report-share-native').click();
   await waitFor(() => page.evaluate(() => window.__e2eShares === 1), 10000, 200);
   await page.waitForTimeout(400);
-  await button('Share').click();
+  await page.locator('.race-report-sheet .race-report-share-native').click();
   await waitFor(() => page.evaluate(() => window.__e2eShares === 2), 10000, 200);
+  await page.waitForTimeout(400);
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.race-report-sheet:not(.is-open)', { state: 'attached', timeout: 5000 });
   await page.waitForTimeout(400);
   // window.print() would open the print dialog: the page's beforeprint stands in for it.
   await page.evaluate(() => { window.print = () => { window.dispatchEvent(new Event('beforeprint')); window.dispatchEvent(new Event('afterprint')); }; });
@@ -372,7 +380,8 @@ async function raceReport(h) {
   await page.waitForTimeout(300);
   // The browser's clipboard is shared by the jobs running at once, so the copied text is caught in the page instead.
   await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.__e2eCopied = text; } } }); });
-  await button('Copy link').click();
+  await openSheet();
+  await inSheet('Copy link').click();
   await page.waitForTimeout(400);
   const copied = await page.evaluate(() => window.__e2eCopied || '');
   await run.close();
