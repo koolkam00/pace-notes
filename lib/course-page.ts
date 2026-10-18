@@ -166,14 +166,6 @@ export function editionContexts(): Map<string, EditionContext> {
   return found;
 }
 
-/** The race months of a course, from the race dates of its editions in the story data. */
-function raceMonths(courses: Courses, city: string): number[] {
-  const all = editionContexts();
-  const months = courses.years.cells.filter((c) => c.city === city).map((c) => all.get(editionKey(city, c.year))?.date).filter((d): d is string => !!d).map((d) => Number(d.slice(5, 7)));
-  return [...new Set(months)].sort((a, b) => a - b);
-}
-
-
 // ---------- The page model ----------
 
 export type EditionRow = { year: number; n: number; median_s: number; slowdown: number; temp: number | null; date: string | null };
@@ -210,7 +202,6 @@ export type CoursePageData = {
   /** Whether the pace band (and so the split check's course preset) publishes this course. */
   band: boolean;
   qualifyingKey: string | null;
-  months: number[];
   /** The one height scale every course page draws its elevation on: the largest relief of any course page's route, rounded up to 50 m. */
   relief: number;
   /** Every course, for the strip on each page (the same courses.json share each course page leads with). */
@@ -327,7 +318,6 @@ export function coursePages(): Map<string, CoursePageData> {
       goalsScreened: goal && !context ? screenedReason(city, goal.screens) : fewEditions,
       band: bandSlugs.has(slug),
       qualifyingKey: qualifyingKeyForCity(city),
-      months: raceMonths(courses, city),
       relief, field, allCurves,
       shapedLike: near.map((c) => ({ city: c.city, slug: courseSlug(c.city), display: displayCity(c.city), slowdown: c.slowdown, editions: c.editions, finishes: c.finishes, curve: c.curve ?? [], distance: c.distance })),
     });

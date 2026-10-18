@@ -300,8 +300,8 @@ function courseTypes(ctx?: NuggetContext): Nugget {
 }
 
 /**
- * The hero's sentence: where the course's share sits among the other courses with three or more editions (the strip
- * under #slowdown shows every course, the rest hollow), said only for a course with three or more editions itself, as a
+ * #slowdown's finding, over the strip of every course: where the course's share sits among the other courses with three
+ * or more editions (the rest are hollow on the strip), said only for a course with three or more editions itself, as a
  * count of them, or "any other course" when it is the count of all of them. The scope is said every time, since the
  * count leaves out the hollow dots.
  */
@@ -318,35 +318,16 @@ function courseAmong(ctx?: NuggetContext): Nugget {
   // The accent never breaks across lines ("16 of the 24" stays together).
   const than = count === n ? '*any\u00a0other\u00a0course* with three or more editions' : `*${count}\u00a0of\u00a0the\u00a0${n}* other courses with three or more editions`;
   return {
-    id: 'course.among', page: `/courses/${page?.slug ?? ''}`, denominator: 'course',
+    id: 'course.among', page: `/courses/${page?.slug ?? ''}#slowdown`, denominator: 'course',
     values: { share: s?.slowdown ?? NaN, higher, lower, courses: n },
     guard,
-    headline: `${fewer ? 'Lower' : 'Higher'} than on ${than}.`,
+    headline: `${page?.display ?? 'This course'}’s ${pct(s?.slowdown ?? NaN)}: ${fewer ? 'lower' : 'higher'} than on ${than}.`,
     fallback: `${page?.display ?? 'This course'} beside every course.`,
     figure: null,
   };
 }
 
-/**
- * #slowdown: the spread the strip draws, across the courses with three or more editions (the hollow dots have fewer),
- * low end first. The same courses.json shares each course page leads with.
- */
-function courseField(ctx?: NuggetContext): Nugget {
-  const page = pageFor(ctx);
-  const range = coursesRangeFrom(page?.field ?? []);
-  const { min, max, courses } = range.values as { min: number; max: number; courses: number };
-  const guard = !!page && courses >= 3 && Number.isFinite(min) && Number.isFinite(max) && pct(min) !== pct(max);
-  return {
-    id: 'course.field', page: `/courses/${page?.slug ?? ''}#slowdown`, denominator: 'course',
-    values: { min, max, courses, min_city: range.values.min_city, max_city: range.values.max_city },
-    guard,
-    headline: `Across courses with three or more editions, *${pct(min)} to ${pct(max)}* had a sustained slowdown.`,
-    fallback: 'Sustained slowdown on every course.',
-    figure: null,
-  };
-}
-
-/** #goals: of finishes on the lead goal's pace through 20K here, the share that made the goal. */
+/** #goals: of finishes on the lead goal's pace at 20K here, the share that made the goal (the denominator said first). */
 function courseGoal(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
   const row = page?.goals.find((g) => g.goal === LEAD_GOAL)?.row ?? null;
@@ -356,13 +337,13 @@ function courseGoal(ctx?: NuggetContext): Nugget {
     id: 'course.goal', page: `/courses/${page?.slug ?? ''}#goals`, denominator: 'tool',
     values: { goal: LEAD_GOAL, under: row?.under ?? NaN, n: row?.n ?? 0 },
     guard,
-    headline: `On ${g} pace through 20K, *${pct(row?.under ?? NaN)}* of ${page?.display ?? ''} finishes made ${g}.`,
+    headline: `Of ${page?.display ?? ''} finishes on ${g} pace at 20K, *${pct(row?.under ?? NaN)}* made ${g}.`,
     fallback: page?.goals.length ? `Goal times from 3:00 to 5:00 on ${page.display}.` : `No goal times for ${page?.display ?? 'this course'}.`,
     figure: row ? shareFigure(row.under) : null,
   };
 }
 
-/** #weather: the warmest and coolest race mornings (five or more °C apart), or the span of the mornings. */
+/** #weather: the warmest and coolest race mornings (five or more °C apart), or the span of the mornings; a share both mornings round to is said once. */
 function courseWeather(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
   const hc = page?.hotCool ?? null;
@@ -374,7 +355,10 @@ function courseWeather(ctx?: NuggetContext): Nugget {
     values: hc ? { hot_year: hc.hot.year, hot_temp: hc.hot.temp, hot_share: hc.hot.slowdown, cool_year: hc.cool.year, cool_temp: hc.cool.temp, cool_share: hc.cool.slowdown, editions: w.length }
       : { editions: w.length, coolest: lo, warmest: hi },
     guard,
-    headline: hc ? both((u) => `At *${temp(hc.hot.temp, u)}* in ${hc.hot.year}, ${pct(hc.hot.slowdown)} had a sustained slowdown. At ${temp(hc.cool.temp, u)} in ${hc.cool.year}, ${pct(hc.cool.slowdown)}.`) : '',
+    // Two mornings whose shares round alike say the share once: the point is that it did not move.
+    headline: hc ? both((u) => pct(hc.hot.slowdown) === pct(hc.cool.slowdown)
+      ? `At ${temp(hc.hot.temp, u)} in ${hc.hot.year} and at ${temp(hc.cool.temp, u)} in ${hc.cool.year}, the same *${pct(hc.hot.slowdown)}* had a sustained slowdown.`
+      : `At *${temp(hc.hot.temp, u)}* in ${hc.hot.year}, ${pct(hc.hot.slowdown)} had a sustained slowdown. At ${temp(hc.cool.temp, u)} in ${hc.cool.year}, ${pct(hc.cool.slowdown)}.`) : '',
     fallback: both((u) => w.length >= 2 ? `Race mornings from ${temp(lo, u)} to ${temp(hi, u)}.` : w.length ? `One race morning: ${temp(lo, u)} at the start.` : 'Race mornings.'),
     figure: null,
   };
@@ -392,10 +376,9 @@ export const COURSE_NUGGETS: Record<string, Builder> = {
   'course.climb': courseClimb,
   'course.types': courseTypes,
   'course.among': courseAmong,
-  'course.field': courseField,
   'course.goal': courseGoal,
   'course.weather': courseWeather,
 };
 
 /** The nuggets a course page builds with its city (index.ts CONTEXT_NUGGETS). */
-export const COURSE_CONTEXT_NUGGETS = ['course.slowdown', 'course.start', 'course.late', 'course.shape', 'course.signature', 'course.times', 'course.climb', 'course.types', 'course.among', 'course.field', 'course.goal', 'course.weather'] as const;
+export const COURSE_CONTEXT_NUGGETS = ['course.slowdown', 'course.start', 'course.late', 'course.shape', 'course.signature', 'course.times', 'course.climb', 'course.types', 'course.among', 'course.goal', 'course.weather'] as const;

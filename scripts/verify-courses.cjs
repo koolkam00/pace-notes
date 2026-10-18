@@ -550,7 +550,8 @@ if (html) {
 
     // Sections: present exactly when the data gives them something to show (no heading over an empty chart), each with
     // its generic tracking id. The glance shows the rows whose guards hold (at most three, in order), or, with none, the
-    // two curves of a course that paces like the typical one; else it is left out.
+    // two curves of a course that paces like the typical one (unless #pacing already says its types are like every
+    // course's: one null finding, said once); else it is left out.
     const GLANCE = ['course.start', 'course.late', 'course.shape', 'course.signature'];
     let glanceIds = GLANCE.filter((id) => { const n = N.getNugget(id, { city }); return n.guard && !!n.figure && (id !== 'course.start' || !!f.route); });
     // The signature row stays out beside a row about the same stretch: the first 5K beside the start row, a section next
@@ -558,7 +559,8 @@ if (html) {
     const sigAt = f.s.signature_section ? courses.sections.indexOf(f.s.signature_section) : -1, slowAt = f.s.slowest_section ? courses.sections.indexOf(f.s.slowest_section) : -1;
     if (glanceIds.includes('course.signature') && ((glanceIds.includes('course.late') && Math.abs(sigAt - slowAt) <= 1) || (glanceIds.includes('course.start') && sigAt === 0))) glanceIds = glanceIds.filter((id) => id !== 'course.signature');
     glanceIds = glanceIds.slice(0, 3);
-    const typicalLike = !glanceIds.length && N.getNugget('course.signature', { city }).values.typical_like === 1;
+    // A course that paces like the typical one says so at a glance only where #pacing does not say the same of its types.
+    const typicalLike = !glanceIds.length && N.getNugget('course.signature', { city }).values.typical_like === 1 && (!f.types || N.getNugget('course.types', { city }).guard);
     const goalsShown = !!f.ctx && f.ctx.editions >= courseGoal.min_editions;
     // The race mornings show only as the warmest/coolest contrast (5 °C or more) over three or more of them.
     const pairGap = f.hotCool ? Math.round((f.hotCool.hot.temp - f.hotCool.cool.temp) * 10) / 10 : null;
@@ -578,15 +580,16 @@ if (html) {
     // Each finding is its nugget's sentence, word for word (the default miles view), so a page says only what its
     // recount allows (scripts/nuggets/courses.cjs).
     const h2 = (id) => { const m = new RegExp(`<h2 id="${id}-title"[^>]*>([\\s\\S]*?)<\\/h2>`).exec(body); return m ? textOf(m[1]) : null; };
-    for (const [id, nugget] of [['finish-times', 'course.times'], ['elevation', 'course.climb'], ['pacing', 'course.types'], ['slowdown', 'course.field'], ['goals', 'course.goal'], ['weather', 'course.weather']]) {
+    for (const [id, nugget] of [['finish-times', 'course.times'], ['elevation', 'course.climb'], ['pacing', 'course.types'], ['slowdown', 'course.among'], ['goals', 'course.goal'], ['weather', 'course.weather']]) {
       if (sectionStart(body, id) < 0) continue;
       check(norm(h2(id) ?? '') === norm(said(nugget, city)), where, `#${id}'s finding "${h2(id)}" is not ${nugget}'s "${said(nugget, city)}"`);
     }
-    // The hero's sentence says where the share sits among the other courses (course.among), shown only when its guard
-    // holds; the edition range is the year strip's, labelled on it.
+    // The hero's sentence is how far the share ran edition by edition (course.slowdown), shown only when its guard holds;
+    // the year strip labels the two editions it names. Where the course sits among the others is #slowdown's H2.
     const heroSentence = textOf(/<p class="course-hero-sentence[^"]*"[^>]*>([\s\S]*?)<\/p>/.exec(body)?.[1] ?? '');
-    if (N.getNugget('course.among', { city }).guard) check(norm(heroSentence) === norm(said('course.among', city)), where, `the hero's sentence "${heroSentence}" is not course.among's`);
-    else check(!body.includes('class="course-hero-sentence'), where, `the hero shows course.among's fallback "${heroSentence}"`);
+    const range = N.getNugget('course.slowdown', { city });
+    if (range.guard) check(norm(heroSentence) === norm(said('course.slowdown', city)), where, `the hero's sentence "${heroSentence}" is not course.slowdown's`);
+    else check(!body.includes('class="course-hero-sentence'), where, `the hero shows course.slowdown's fallback "${heroSentence}"`);
     const heroFigure = N.getNugget('course.slowdown', { city }).figure;
     const shownFigure = innerText(/<span class="big-number[^"]*"><span aria-hidden="true">([\s\S]*?)<\/span><span class="sr-only">/.exec(/<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '')?.[1] ?? '');
     check(heroFigure && shownFigure === `${heroFigure.value}${heroFigure.unit}` && shownFigure === F.pct0(f.s.slowdown), where, `the hero figure "${shownFigure}" is not the course's share in whole percent (${F.pct0(f.s.slowdown)})`);

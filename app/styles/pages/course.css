@@ -28,7 +28,7 @@
 .course-crumbs .crumb-place { position: relative; white-space: nowrap; }
 .course-crumbs .crumb-place::before { content: "·"; position: absolute; right: calc(100% + 4px); top: 50%; transform: translateY(-50%); }
 .course-title { margin: var(--s-2) 0 0; color: var(--ink); max-width: 16ch; }
-.course-hero .hero-dek { margin: var(--s-3) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
+.course-hero .hero-dek { margin: var(--s-3) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); text-wrap: pretty; }
 
 .course-hero-figure { grid-area: figure; display: grid; gap: var(--s-2); justify-items: start; margin-top: var(--s-5); min-width: 0; }
 .course-hero-figure .big-number { margin-left: -.04em; }
@@ -99,7 +99,8 @@
 .glance-key { grid-area: key; max-width: 22rem; font-size: .9375rem; line-height: 1.4; color: var(--ink-2); }
 .glance-chart { grid-area: chart; align-self: center; }
 .glance-viz { display: block; overflow: visible; }
-.glance-line { fill: none; stroke: var(--mark-quiet); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.glance-level { stroke: var(--mark-quiet); stroke-width: 1; stroke-dasharray: 3 3; }
+.glance-start { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }
 .glance-signal { fill: none; stroke: var(--signal); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; }
 .glance-axis { fill: var(--rule-strong); }
 .glance-bar { fill: var(--mark-quiet); }
@@ -121,8 +122,9 @@
 @container (min-width: 300px) { .viz-frame.dumbbell.course-types .dumbbell-rows { grid-template-columns: minmax(0, 47%) minmax(0, 1fr) 3rem; } }
 .course-types .dumbbell-label { display: inline-flex; align-items: center; gap: var(--s-2); }
 .course-types .dumbbell-label > span { min-width: 0; }
-/* The key's filled mark is neutral: every row's filled dot is in its own type's colour. */
-.viz-frame.course-types .viz-key-mark.course-types-key { background: var(--mark-quiet); box-shadow: none; }
+/* The key's filled mark is a filled dot in a type's colour, like every row's. */
+.viz-frame.course-types .viz-key-mark.course-types-key { background: var(--type, var(--ink)); box-shadow: none; }
+[data-theme="dark"] .viz-frame.course-types .viz-key-mark.course-types-key { background: var(--type-night, var(--ink)); }
 
 /* Goals: the table is the chart. A row per goal: the goal (a link to the planner, stretched over the whole row), a bar
    out of 100, the share. */
@@ -147,7 +149,6 @@
 .course-goals-table .goal-bar span { position: absolute; left: 0; top: 50%; height: 8px; margin-top: -4px; border-radius: 4px; background: var(--ink); }
 .course-goals-table .goal-value { width: 4rem; padding-left: var(--s-3); text-align: right; font-size: 1.0625rem; font-weight: 600; white-space: nowrap; }
 .course-goals-table tr.is-lead .goal-bar span { background: var(--signal); }
-.course-goals-table tr.is-lead .goal-value { color: var(--signal-ink); }
 .course-goals-table td.course-reason { padding: var(--s-3) 0; font-size: var(--t-small); color: var(--ink-3); }
 .course-goals-table tbody tr:last-child th, .course-goals-table tbody tr:last-child td { border-bottom: 0; }
 
@@ -240,7 +241,15 @@
   .course-beat-body { margin-top: 0; }
   .course-beat .chapter-end { grid-column: 1 / -1; }
   .course-numbers { max-width: none; }
-  .glance-row { grid-template-columns: minmax(0, 12rem) minmax(0, 1fr) auto; grid-template-areas: "figure key chart"; }
+  /* The figure's column is as wide as its figure ("40K–finish" is wider than "9 of 10"), so a figure never prints over
+     its words; with subgrid every row shares the widest figure's column and the words line up. */
+  .glance-row { grid-template-columns: max-content minmax(0, 1fr) auto; grid-template-areas: "figure key chart"; column-gap: var(--s-6); }
+}
+@supports (grid-template-columns: subgrid) {
+  @media (min-width: 900px) {
+    .course-glance .glance-rows { display: grid; grid-template-columns: max-content minmax(0, 1fr) auto; column-gap: var(--s-6); }
+    .course-glance .glance-row { grid-column: 1 / -1; grid-template-columns: subgrid; }
+  }
 }
 
 @media (min-width: 1180px) {

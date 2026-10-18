@@ -54,14 +54,10 @@ export function yearPad(first: number, last: number): number {
   return Math.max(0.6, (half * (last - first)) / (REF_WIDTH - 2 * half));
 }
 
-export default function YearStrip({ editions, selected, sideLabels = [], valueDomain, average, averageLabel = 'Average', label, values, height = 160, heightMd = 200, extremeLabel, labelled }: {
-  editions: YearPoint[]; selected?: number; sideLabels?: string[]; valueDomain?: [number, number]; average?: number; averageLabel?: string;
-  label: string; values?: ReactNode; height?: number; heightMd?: number;
-  /** The label on the labelled editions ("2022 · 45%"). */
-  extremeLabel?: (p: YearPoint) => string;
-  /** The years to label; default the highest and lowest editions. */
-  labelled?: number[];
-}) {
+type LayoutProps = { editions: YearPoint[]; selected?: number; valueDomain?: [number, number]; average?: number; height: number; extremeLabel?: (p: YearPoint) => string; labelled?: number[] };
+
+/** The strip's scales, gaps and placed labels (shared by the chart and stripLabels). */
+function layout({ editions, selected, valueDomain, average, height, extremeLabel, labelled }: LayoutProps) {
   const sorted = [...editions].sort((a, b) => a.year - b.year);
   const first = sorted[0].year, last = sorted[sorted.length - 1].year;
   const pad = yearPad(first, last);
@@ -116,6 +112,28 @@ export default function YearStrip({ editions, selected, sideLabels = [], valueDo
   const dropped = items.filter((it) => narrow.some((l) => l.id === it.id && l.minWidth === null));
   const wide = dropped.length ? place(dropped, [...taken, ...narrow.filter((l) => l.minWidth !== null).map((l) => placedBox(l, height))], WIDE).map((l) => (l.minWidth === null ? l : { ...l, minWidth: WIDE })) : [];
   const placed = [...own, ...narrow.map((l) => wide.find((w) => w.id === l.id) ?? l)];
+  return { sorted, first, last, x, y, maxI, minI, sel, gaps, years, scrubOf, placed };
+}
+
+/**
+ * Where each labelled year's label lands for a given opening edition: its year and the narrowest plot width it shows
+ * from (0 everywhere, null nowhere; the label of the opening edition hides under the needle, the readout says it). For
+ * a page choosing which edition its strip opens on, so the years a sentence names are on the strip.
+ */
+export function stripLabels(props: LayoutProps): { year: number; minWidth: number | null; under: boolean }[] {
+  const { sorted, placed } = layout(props);
+  return placed.map((l) => ({ year: sorted[Number(l.id.slice(1))].year, minWidth: l.minWidth, under: !!l.under }));
+}
+
+export default function YearStrip({ editions, selected, sideLabels = [], valueDomain, average, averageLabel = 'Average', label, values, height = 160, heightMd = 200, extremeLabel, labelled }: {
+  editions: YearPoint[]; selected?: number; sideLabels?: string[]; valueDomain?: [number, number]; average?: number; averageLabel?: string;
+  label: string; values?: ReactNode; height?: number; heightMd?: number;
+  /** The label on the labelled editions ("2022 · 45%"). */
+  extremeLabel?: (p: YearPoint) => string;
+  /** The years to label; default the highest and lowest editions. */
+  labelled?: number[];
+}) {
+  const { sorted, first, last, x, y, maxI, minI, sel, gaps, years, scrubOf, placed } = layout({ editions, selected, valueDomain, average, height, extremeLabel, labelled });
   const plot = (
     <Plot>
       {gaps.map((g) => <rect key={g.from} className="a-wash year-gap" x={pc(x(g.from - 0.5))} width={pc(x(g.to + 0.5) - x(g.from - 0.5))} y="0" height="100%" />)}

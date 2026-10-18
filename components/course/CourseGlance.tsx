@@ -11,31 +11,39 @@ import { CourseSection, Said } from './Fact';
 /**
  * "What makes {city} {city}" (the redesign spec, section 7.10): only what sets the course apart, up to three rows divided
  * by hairlines, each a figure, the words that finish its sentence and a micro-chart of at most 48 px. A row shows only
- * when its nugget's guard holds: a first 5K that ends 10 m or more above or below its start (the route's profile on the
- * shared height scale, the first 5K in signal), a slowest 5K unlike nearly every other course's (the nine sections
+ * when its nugget's guard holds: a first 5K that ends 10 m or more above or below its start (that 5K's profile on its
+ * own scale, over a level at the start's height), a slowest 5K unlike nearly every other course's (the nine sections
  * against the course's own average), 5K splits that told the course apart in nine of ten of its editions or more (a dot
  * per edition), and the 5K where its pacing parts most from the typical course's (both curves, that section in signal).
- * A course with none of these that paces within 3 points of the typical course everywhere says so, over the two curves;
- * a course without enough editions to say either has no glance at all (the page leaves the section out).
+ * A course with none of these that paces within 3 points of the typical course everywhere says so, over the two curves,
+ * unless #pacing says the same of its pacing types; a course with nothing to say has no glance at all (the page leaves
+ * the section out).
  */
 type Row = { id: string; figure: React.ReactNode; key: string; viz?: React.ReactNode };
 
 const W = 96, H = 40;
 const line = (p: readonly (readonly [number, number])[]) => p.map(([px, py], i) => `${i ? 'L' : 'M'}${px.toFixed(1)} ${py.toFixed(1)}`).join('');
 
-/** The profile with the first 5K in signal, on the shared height scale (so a flat start draws flat). */
+/**
+ * The first 5K alone, on its own height scale: the profile from a dot at the start to a dot at 5K, in signal, over a
+ * dashed level at the start's height, so the end sits plainly below it (or above). The figure beside it says how far.
+ */
 function StartViz({ page }: { page: CoursePageData }) {
   const g = page.geometry!;
-  const n = g.elevation_m.length;
-  const floor = Math.min(...g.elevation_m);
-  const x = (i: number) => (i / Math.max(1, n - 1)) * W;
-  const y = (m: number) => H - 3 - ((H - 6) * (m - floor)) / page.relief;
-  const pts = g.elevation_m.map((m, i) => [x(i), y(m)] as const);
-  const cut = Math.max(1, Math.round(5 / g.elevation_step_km));
+  const cut = Math.min(g.elevation_m.length - 1, Math.max(1, Math.round(5 / g.elevation_step_km)));
+  const first = g.elevation_m.slice(0, cut + 1);
+  const lo = Math.min(...first), hi = Math.max(...first);
+  const pad = 6;
+  const x = (i: number) => pad + (i / cut) * (W - 2 * pad);
+  const y = (m: number) => pad + ((H - 2 * pad) * (hi - m)) / Math.max(1, hi - lo);
+  const pts = first.map((m, i) => [x(i), y(m)] as const);
+  const end = pts[pts.length - 1];
   return (
     <svg className="glance-viz" viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden="true" focusable="false">
-      <path className="glance-line" d={line(pts)} />
-      <path className="glance-signal" d={line(pts.slice(0, cut + 1))} />
+      <line className="glance-level" x1={pad} x2={W - pad} y1={pts[0][1]} y2={pts[0][1]} />
+      <path className="glance-signal" d={line(pts)} />
+      <circle className="glance-start" cx={pts[0][0]} cy={pts[0][1]} r="3" />
+      <circle className="glance-point" cx={end[0]} cy={end[1]} r="3.5" />
     </svg>
   );
 }
@@ -108,7 +116,9 @@ export function glanceRows(page: CoursePageData): { ids: GlanceId[]; typical: bo
     ids = ids.filter((id) => id !== 'course.signature');
   }
   ids = ids.slice(0, 3);
-  const typical = !ids.length && Number(getNugget('course.signature', { city }).values.typical_like) === 1;
+  // A course that paces like the typical one says so here only where #pacing has a type that differs: where its types
+  // are like every course's too, #pacing's sentence is the one null finding, said once.
+  const typical = !ids.length && Number(getNugget('course.signature', { city }).values.typical_like) === 1 && (!page.types || getNugget('course.types', { city }).guard);
   return { ids, typical };
 }
 

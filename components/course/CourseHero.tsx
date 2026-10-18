@@ -4,7 +4,7 @@ import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { Elevation } from '@/components/story/Units';
 import { SlowdownTerm } from '@/components/tools/EvidenceTag';
-import YearStrip from '@/components/viz/YearStrip';
+import YearStrip, { stripLabels, type YearPoint } from '@/components/viz/YearStrip';
 import { getNugget } from '@/lib/nuggets';
 import { hm, pct, temp } from '@/lib/nuggets/format';
 import { heldEditions, MONTHS, routeClimb, type CoursePageData } from '@/lib/course-page';
@@ -15,32 +15,77 @@ import { Fact, Said } from './Fact';
 import RouteFace from './RouteFace';
 
 /**
+ * When the race is run: its usual month (the one most editions were run in), with any other month named with its years
+ * ("April; October in 2021"), so a one-off autumn date never reads as a second race each year. Where no month leads,
+ * all of them.
+ */
+function raceMonths(editions: { year: number; date: string | null }[]): string {
+  const seen = new Map<number, number[]>();
+  for (const e of editions) if (e.date) { const m = Number(e.date.slice(5, 7)); seen.set(m, [...(seen.get(m) ?? []), e.year]); }
+  const months = [...seen.keys()].sort((a, b) => a - b);
+  const most = Math.max(0, ...[...seen.values()].map((y) => y.length));
+  const usual = months.filter((m) => seen.get(m)!.length === most);
+  if (usual.length !== 1) return months.map((m) => MONTHS[m - 1]).join(' and ');
+  // Years as runs: three or more in a row as a span ("2015–2018"), the rest listed.
+  const years = (y: number[]) => {
+    const runs: number[][] = [];
+    for (const year of [...y].sort((a, b) => a - b)) { const last = runs[runs.length - 1]; if (last && year === last[last.length - 1] + 1) last.push(year); else runs.push([year]); }
+    const parts = runs.flatMap((r) => (r.length >= 3 ? [`${r[0]}–${r[r.length - 1]}`] : r.map(String)));
+    return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
+  };
+  // The other months in the order they were first run.
+  const others = months.filter((m) => m !== usual[0]).sort((a, b) => Math.min(...seen.get(a)!) - Math.min(...seen.get(b)!)).map((m) => `${MONTHS[m - 1]} in ${years(seen.get(m)!)}`);
+  return `${MONTHS[usual[0] - 1]}${others.length ? `; ${others.join('; ')}` : ''}`;
+}
+
+/**
  * The night hero (the redesign spec, sections 4.3 and 7.10, cut under section 00): the race, when it is run, then the
  * reading: the share of its finishes with a sustained slowdown, the route as its face (with the climb), the sentence
- * that says where the share sits among the other courses (course.among; a course with fewer than three editions has
- * none), and, with three or more editions, the year strip to scrub them. The strip opens on the latest edition the source policy keeps, which
- * the readout names, and labels the highest and lowest; the label under the needle hides, since the readout says it.
+ * that says how far the share ran edition by edition (course.slowdown, shown only when its guard holds), and, with three
+ * or more editions, the year strip to scrub them. The strip opens on the latest edition the source policy keeps, or on
+ * an end of the range where that leaves a named year without room for its label, so both years the sentence names are
+ * on the strip (the one under the needle in the readout); the label under the needle hides, since the readout says it. Where this course sits among the others is #slowdown's finding, over the strip of every course.
  * One action: the planner for this course, an outline from 1180 px, where the header carries the orange "Plan your race".
  */
 export default function CourseHero({ page }: { page: CoursePageData }) {
-  const { city, display, race, summary: s, geometry, editions, months } = page;
+  const { city, display, race, summary: s, geometry, editions } = page;
   const reading = getNugget('course.slowdown', { city });
-  const among = getNugget('course.among', { city });
   const climb = routeClimb(page);
   const years = s.years;
   const span = years.length > 1 ? `${years[0]}–${years[years.length - 1]}` : String(years[0] ?? '');
-  const when = months.map((m) => MONTHS[m - 1]).join(' and ');
+  const when = raceMonths(editions);
   const held = heldEditions();
   const kept = editions.filter((e) => !held.has(`${page.city}|${e.year}`));
   const latest = kept[kept.length - 1]?.year ?? editions[editions.length - 1]?.year;
-  // The extremes among the editions the policy keeps: the strip labels these two.
-  const extremes = kept.length > 1 ? [...new Set([kept.reduce((a, b) => (b.slowdown < a.slowdown ? b : a)).year, kept.reduce((a, b) => (b.slowdown > a.slowdown ? b : a)).year])] : [];
+  // The strip labels the two editions the sentence names; without the sentence, the extremes among the editions the
+  // policy keeps.
+  const extremes = reading.guard ? [Number(reading.values.lo_year), Number(reading.values.hi_year)]
+    : kept.length > 1 ? [...new Set([kept.reduce((a, b) => (b.slowdown < a.slowdown ? b : a)).year, kept.reduce((a, b) => (b.slowdown > a.slowdown ? b : a)).year])] : [];
+  const points = (units: UnitSystem): YearPoint[] => editions.map((e) => ({ year: e.year, value: e.slowdown, display: pct(e.slowdown), side: [hm(e.median_s / 60), e.temp === null ? '—' : temp(e.temp, units)] }));
+  const valueDomain: [number, number] = [0, Math.max(0.1, Math.ceil(Math.max(...editions.map((e) => e.slowdown)) * 10) / 10)];
+  const extremeLabel = (p: YearPoint) => `${p.year} · ${p.display}`;
+  // The strip opens on the latest edition the policy keeps, or, where that leaves a year the sentence names without
+  // room for its label on the narrowest phone (288 px of plot), on an end of the range, whose year the readout then
+  // says. Where the two ends crowd each other even so (London's 2024 and 2025), it opens on one end and labels only the
+  // other: both years are on the strip, one in the readout.
+  const covered = (open: number, named: number[]) => {
+    const shown = stripLabels({ editions: points('mi'), selected: open, valueDomain, height: 100, extremeLabel, labelled: named });
+    return named.every((yr) => yr === open || shown.some((l) => l.year === yr && l.minWidth !== null && l.minWidth <= 288));
+  };
+  const ends = reading.guard ? [Number(reading.values.hi_year), Number(reading.values.lo_year)] : [];
+  let opening = latest, labelled = extremes;
+  if (editions.length >= 3) {
+    const found = [...new Set([latest, ...ends])].find((open) => covered(open, extremes));
+    const alone = found === undefined ? ends.find((open) => covered(open, ends.filter((yr) => yr !== open))) : undefined;
+    if (found !== undefined) opening = found;
+    else if (alone !== undefined) { opening = alone; labelled = ends.filter((yr) => yr !== alone); }
+  }
   const strip = (units: UnitSystem) => (
     <YearStrip
-      editions={editions.map((e) => ({ year: e.year, value: e.slowdown, display: pct(e.slowdown), side: [hm(e.median_s / 60), e.temp === null ? '—' : temp(e.temp, units)] }))}
-      selected={latest} sideLabels={['Median finish', 'At the start']}
-      valueDomain={[0, Math.max(0.1, Math.ceil(Math.max(...editions.map((e) => e.slowdown)) * 10) / 10)]}
-      extremeLabel={(p) => `${p.year} · ${p.display}`} labelled={extremes}
+      editions={points(units)}
+      selected={opening} sideLabels={['Median finish', 'At the start']}
+      valueDomain={valueDomain}
+      extremeLabel={extremeLabel} labelled={labelled}
       label={`Sustained slowdown in ${display}, edition by edition, ${span}`} height={100} heightMd={168} />
   );
   return (
@@ -60,8 +105,8 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
           {climb ? <figcaption><Fact k={`${climb.key}.gain`} v={climb.gain_m}><Elevation metres={climb.gain_m} /></Fact> of climbing</figcaption> : null}
         </figure>
       ) : null}
-      {/* What the share means: lower or higher than on how many other courses. Without three editions, no sentence. */}
-      {among.guard ? <p className="course-hero-sentence t-sentence"><Said nugget={among} /></p> : null}
+      {/* How far the share ran, edition by edition: the strip below labels both ends. */}
+      {reading.guard ? <p className="course-hero-sentence t-sentence"><Said nugget={reading} /></p> : null}
       {/* Two editions are two lollipops: their numbers are in "All numbers". */}
       {editions.length >= 3 ? <div className="course-hero-strip"><ByUnits mi={strip('mi')} km={strip('km')} /></div> : null}
       <div className="course-hero-actions">

@@ -28,6 +28,8 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
   const MATS = [[0, 5], [5, 10], [10, 15], [15, 20], [20, 25], [25, 30], [30, 35], [35, 40], [40, 42.195]];
   const sectionName = (i) => (i === 8 ? '40K–finish' : `${MATS[i][0]}–${MATS[i][1]}K`);
   const said = (n) => core.textFor(n.guard ? n.headline : n.fallback, 'mi').replace(/\*/g, '');
+  // The name a page writes: New York's page says New York City.
+  const named = (city) => (city === 'New York' ? 'New York City' : city);
   let checks = 0;
   const step = (fn) => { fn(); checks++; };
 
@@ -169,8 +171,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       } else step(() => eq(n.guard, false, `course.types (${city}): no mix, no claim`));
     }
 
-    // The hero's sentence: every other course with three or more editions, with a higher and a lower share; #slowdown's
-    // H2: the spread across those courses.
+    // #slowdown's H2: every other course with three or more editions, with a higher and a lower share.
     {
       const n = at('course.among');
       // Only courses with three or more editions are counted either side (the hollow dots on the strip are not).
@@ -180,11 +181,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const count = higher >= lower ? higher : lower;
       step(() => eq(n.guard, c.editions >= 3 && others.length >= 5 && count > 0, `course.among (${city}): guard`));
       const than = count === others.length ? 'any other course with three or more editions' : `${count} of the ${others.length} other courses with three or more editions`;
-      if (n.guard) step(() => eq(said(n).replace(/\u00a0/g, ' '), `${higher >= lower ? 'Lower' : 'Higher'} than on ${than}.`, `course.among (${city}): the sentence`));
-      const f = at('course.field');
-      const lo = Math.min(...solid.map((o) => o.slowdown)), hi = Math.max(...solid.map((o) => o.slowdown));
-      step(() => eq([f.values.min, f.values.max, f.values.courses, f.guard], [lo, hi, solid.length, solid.length >= 3 && whole(lo) !== whole(hi)], `course.field (${city}) recounts the spread`));
-      if (f.guard) step(() => eq(said(f), `Across courses with three or more editions, ${whole(lo)} to ${whole(hi)} had a sustained slowdown.`, `course.field (${city}): the sentence`));
+      if (n.guard) step(() => eq(said(n).replace(/\u00a0/g, ' '), `${named(city)}’s ${whole(c.slowdown)}: ${higher >= lower ? 'lower' : 'higher'} than on ${than}.`, `course.among (${city}): the sentence`));
     }
 
     // #goals: the lead goal's row, where the course chooser publishes the course with enough editions.
@@ -193,7 +190,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const ctx = goalFile.courses.find((x) => x.city === city);
       const row = ctx && ctx.editions >= goalFile.min_editions ? goalFile.rows.find((r) => r.city === city && r.goal === 240) : null;
       step(() => eq(n.guard, !!row && row.n >= 100, `course.goal (${city}): guard`));
-      if (n.guard) step(() => ok(said(n).startsWith(`On 4:00 pace through 20K, ${whole(row.under)} of `), `course.goal (${city}): the sentence`));
+      if (n.guard) step(() => eq(said(n), `Of ${named(city)} finishes on 4:00 pace at 20K, ${whole(row.under)} made 4:00.`, `course.goal (${city}): the sentence`));
     }
 
     // #weather: the warmest and coolest mornings, at least the screen's gap apart.
@@ -202,7 +199,10 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const hc = courses.weather.hot_cool.find((h) => h.city === city);
       const gap = hc ? Math.round((hc.hot.temp - hc.cool.temp) * 10) / 10 : null;
       step(() => eq(n.guard, gap !== null && gap >= courses.weather.pairs.min_gap_c, `course.weather (${city}): the 5 °C gate`));
-      if (n.guard) step(() => eq(said(n), `At ${degF(hc.hot.temp)} in ${hc.hot.year}, ${whole(hc.hot.slowdown)} had a sustained slowdown. At ${degF(hc.cool.temp)} in ${hc.cool.year}, ${whole(hc.cool.slowdown)}.`, `course.weather (${city}): the sentence`));
+      // Shares that round alike are said once.
+      if (n.guard) step(() => eq(said(n), whole(hc.hot.slowdown) === whole(hc.cool.slowdown)
+        ? `At ${degF(hc.hot.temp)} in ${hc.hot.year} and at ${degF(hc.cool.temp)} in ${hc.cool.year}, the same ${whole(hc.hot.slowdown)} had a sustained slowdown.`
+        : `At ${degF(hc.hot.temp)} in ${hc.hot.year}, ${whole(hc.hot.slowdown)} had a sustained slowdown. At ${degF(hc.cool.temp)} in ${hc.cool.year}, ${whole(hc.cool.slowdown)}.`, `course.weather (${city}): the sentence`));
     }
   }
 
