@@ -45,8 +45,9 @@ export default function DownhillStart() {
   return (
     <AnalysisShell path={PATH} title={opening} dek="What follows a downhill opening?" answer={answer}>
       <Beat id="by-band" track="chapter-1" label="Band by band" title={bands} term>
-        {/* Bare rows: the label and a wide track, so a gap of a point or two reads; the values are in Values. */}
-        <Dumbbell bare rows={rows.map((r) => ({ id: r.band.id, label: band(r.band.label), a: r.other!.slowdown_pct / 100, b: r.down!.slowdown_pct / 100, display: pct(r.down!.slowdown_pct / 100) }))}
+        {/* Bare rows: the label and a wide track, so a gap of a point or two reads; the values are in Values. The band
+            the H2 names (its accent) is the signal row, when its guard holds. */}
+        <Dumbbell bare rows={rows.map((r) => ({ id: r.band.id, label: band(r.band.label), a: r.other!.slowdown_pct / 100, b: r.down!.slowdown_pct / 100, display: pct(r.down!.slowdown_pct / 100), highlight: bands.guard && r.band.id === bands.values.band }))}
           domain={[lo, top]} ticks={[lo, (lo + top) / 2, top].map((t) => ({ value: t, label: pct(t) }))} keyLabels={{ a: 'Every other course', b: 'Downhill-start courses' }}
           label={`Sustained slowdown by opening band, downhill-start courses against every other course: 2 points or more fewer in ${bands.values.fewer} of ${bands.values.total} bands, within a point or so in the rest`}
           values={<Values id="dh-bands" caption="Sustained slowdown by opening band" columns={[{ key: 'b', label: 'Opening', text: true }, { key: 'd', label: 'Downhill-start courses' }, { key: 'o', label: 'Every other course' }]}

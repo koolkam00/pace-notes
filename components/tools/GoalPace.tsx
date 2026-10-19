@@ -3,7 +3,6 @@
 import type { ReactNode } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
-import { ToolHandoffs } from '@/components/tools/Handoffs';
 import DotGrid from '@/components/viz/DotGrid';
 import Values from '@/components/ui/Values';
 import { UNEVEN_SHARE, evenPaceGapText, groupGapText, type GoalPeer } from '@/lib/tools/goal-facts';
@@ -114,6 +113,8 @@ export function GoalPaceBody({ goal, observed, bunching, pileup }: { goal: numbe
           </tbody>
         </table>
       </Values>
+      {/* The splits as a band to print, said beside them: the chapter end below is the page's one way forward. */}
+      <p className="tool-note goal-pace-more goal-pace-band"><Link href={paceBandHref(goal)}>Print these as a pace band</Link></p>
 
       {bunching ? (
         <section className="tool-panel goal-pace-bunching" aria-labelledby="goal-pace-bunching-title">
@@ -163,11 +164,6 @@ export function GoalPaceBody({ goal, observed, bunching, pileup }: { goal: numbe
         </section>
       ) : null}
 
-      {/* One next step (the pace band); the chapter end below carries the way back. Other goals are one tap away on the
-          pace chart and the tools list. */}
-      <ToolHandoffs label={`Racing for ${label}?`} links={[
-        { href: paceBandHref(goal), title: `Pace band for ${label}`, text: <>Print it, with the observed mat times for your course.</> },
-      ]} />
     </>
   );
 }

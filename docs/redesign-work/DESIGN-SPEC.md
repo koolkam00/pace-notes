@@ -2144,7 +2144,8 @@ node scripts/design/shoot.cjs --routes=<comma list | @file> --out=<dir> [--profi
 4. text-on-text overlap above 2 px² inside a `figure.viz`;
 5. text outside its SVG;
 6. console errors and page errors;
-7. on `/` only, more than one `rgb(255, 91, 46)` control on the first screen.
+7. on `/` only, more than one `rgb(255, 91, 46)` control on the first screen;
+8. HTML text inside a `figure.viz` cut off at the figure's edge or at an element that clips its overflow, by more than 1 px (a scroller's content and an ellipsis are exempt). Added October 18, 2026 (round 1, part B), after a pace block's "+3" ran past the frame on phones.
 
 **The "looks off" checklist.** A page is not done while any of these is visible in its captures:
 1. A label collides with another label, or a label crosses a mark.

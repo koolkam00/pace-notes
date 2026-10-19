@@ -11,7 +11,8 @@ import { linear, pc } from './scale';
  * The reading's and your labels sit above the line; comparisons' and typical's sit below it on two lines (the name,
  * then its value), each turned away from the reading (a mark left of it reads leftwards, one right of it rightwards),
  * so long names ("Recorded women" / "4:30") fit beside each other. A label that would leave the plot at a narrow width
- * hides there (it stays in the sentence).
+ * hides there (it stays in the sentence). An optional `band` lays a range (the middle 80% of finishes) on the line as a
+ * quiet bar under the marks.
  */
 export type RulerMark = { value: number; kind: 'reading' | 'typical' | 'compare' | 'you'; label?: string };
 
@@ -19,8 +20,10 @@ const HEIGHT = 80;
 const TRACK_Y = 30 / HEIGHT;
 const SIZE = 13;
 
-export default function Ruler({ min, max, ticks, marks, label, className }: {
+export default function Ruler({ min, max, ticks, marks, label, className, band }: {
   min: number; max: number; ticks: { value: number; label: string }[]; marks: RulerMark[]; label: string; className?: string;
+  /** A range drawn on the line under the marks (lo and hi on the scale's own values). */
+  band?: { lo: number; hi: number };
 }) {
   const x = linear([min, max]);
   const order = { reading: 4, you: 3, compare: 2, typical: 1 } as const;
@@ -46,6 +49,7 @@ export default function Ruler({ min, max, ticks, marks, label, className }: {
       plot={(
         <Plot>
           <rect className="ruler-track" x="0" y={pc(TRACK_Y)} width="100%" height="1" />
+          {band ? <rect className="a-band" x={pc(Math.max(0, x(band.lo)))} y={pc(TRACK_Y)} width={pc(Math.max(0, Math.min(1, x(band.hi)) - Math.max(0, x(band.lo))))} height="10" rx="5" transform="translate(0 -4.5)" /> : null}
           {[...marks].sort((a, b) => order[a.kind] - order[b.kind]).map((m, i) => {
             const cx = pc(x(m.value)), cy = pc(TRACK_Y);
             if (m.kind === 'typical') return <circle key={i} className="m-hollow" cx={cx} cy={cy} r={5.5} />;

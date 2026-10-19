@@ -27,7 +27,8 @@
 
 /* ---------- The answer card: a figure answer on night (dot grids, cells, a chart) ---------- */
 .answer-card { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); max-width: 34rem; padding: 20px; border-radius: var(--r-md); background: var(--paper); color: var(--ink); box-shadow: var(--night-edge); }
-.answer-kicker { margin: 0; color: var(--ink-3); }
+/* A kicker that wraps does so in two even lines, never a lone word under a full one. */
+.answer-kicker { margin: 0; color: var(--ink-3); text-wrap: balance; }
 .answer-foot { margin: 0; font-size: var(--t-label); line-height: 1.4; color: var(--ink-3); }
 .answer-card .viz-frame { margin: 0; }
 
@@ -173,6 +174,12 @@
   .analysis-explore .explore-form > .explore-fields { display: contents; }
   .analysis-explore .explore-form > .explore-fields > .field { grid-column: auto; min-width: 0; }
   .analysis-explore .explore-form > .explore-submit { grid-column: -2 / -1; margin-top: 25px; }
+  /* Two fields (a course and a time): the button takes the third track of their own row, and the refinements and any
+     message run under all three, so the button never stands alone on a row of its own. */
+  @supports selector(:has(a)) {
+    .analysis-explore .explore-form:has(> .explore-fields > .field:nth-child(2):last-child) > .explore-submit { order: 1; }
+    .analysis-explore .explore-form:has(> .explore-fields > .field:nth-child(2):last-child) > :is(.profile-refinements, .field-error) { order: 2; }
+  }
   .analysis-explore .explore-form > .profile-refinements { border-top: 0; }
   .explore-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .analysis-hero .reading { padding-top: var(--s-6); }

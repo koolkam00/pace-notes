@@ -737,7 +737,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
   };
 
   const pace1 = race1.ok ? race1.seconds / race1.km : null;
-  const timeHint = converted ?? (race1.ok && t1 !== null ? `Read as ${spoken(t1)} · ${fmtPace(pace1!, units)}` : 'h:mm:ss, or mm:ss for short races');
+  const timeHint = converted ?? (race1.ok && t1 !== null ? `Read as ${spoken(t1)} · ${fmtPace(pace1!, units)}.` : 'h:mm:ss, or mm:ss for short races.');
   const race1Error = !race1.ok ? race1.message : null;
   const snapHint = (d: Distance) => (d.key === 'custom' && d.preset ? `Treated as ${withArticle(d.preset.name)} (${fmtKm(d.preset.km, units)}).` : undefined);
 
@@ -854,7 +854,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
               ) : null}
               <RaceTimeField id={`${uid}-t2`} label="Finish time" text={q.t2} km={dist2.km} inputRef={race2Ref}
                 error={race2 && !race2.ok ? race2.message : est?.personal && 'error' in est.personal ? est.personal.error : null}
-                hint={race2?.ok && t2 !== null ? `Read as ${spoken(t2)} · ${fmtPace(race2.seconds / race2.km, units)}` : undefined}
+                hint={race2?.ok && t2 !== null ? `Read as ${spoken(t2)} · ${fmtPace(race2.seconds / race2.km, units)}.` : undefined}
                 onText={(text) => setQ({ t2: text, d2: q.d2 || dist2.key })} />
               <AgoSelect id={`${uid}-ago2`} value={q.ago2} onChange={(v) => setQ({ ago2: v })} />
               <AgoSelect id={`${uid}-ago1`} label="When you ran your recent race" value={q.ago} onChange={(v) => setQ({ ago: v })} />

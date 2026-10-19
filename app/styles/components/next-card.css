@@ -44,6 +44,9 @@
 .chapter-end-links > .chapter-how { flex: none; margin-left: auto; }
 /* Alone (the chain's first page has no way back), it sits on the left like the rest of the stack. */
 .chapter-end-links > .chapter-how:only-child { margin-left: 0; }
+/* From a phone's width the row never wraps (wrapping set "How we know" alone at the right of a line of its own): the way
+   back gives up width and breaks inside its own link. Under 360 px (200% zoom) the two still stack. */
+@media (min-width: 360px) { .chapter-end-links { flex-wrap: nowrap; } }
 .chapter-prev, .chapter-how { display: inline-flex; align-items: center; gap: var(--s-2); min-height: 44px; color: var(--ink-2); font-family: var(--sans); font-size: .9375rem; font-weight: 500; text-decoration: none; }
 .chapter-prev:hover, .chapter-how:hover { color: var(--ink); text-decoration: none; }
 .chapter-prev .arrow-icon, .chapter-how .arrow-icon { flex: none; color: var(--ink-3); }

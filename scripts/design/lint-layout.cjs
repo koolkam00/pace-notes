@@ -8,7 +8,9 @@
 //   4. text-on-text overlap above 2 px² inside a figure.viz (and the course pages' glance rows);
 //   5. SVG text outside its SVG;
 //   6. console errors and page errors;
-//   7. on / only, more than one rgb(255, 91, 46) control on the first screen.
+//   7. on / only, more than one rgb(255, 91, 46) control on the first screen;
+//   8. HTML text inside a figure.viz cut off at the figure's edge or at an element that clips its overflow (a pace
+//      block's "+3" past the frame, a tile's "+4%"), by more than 1 px; a scroller's content and an ellipsis are exempt.
 //
 //   node scripts/design/lint-layout.cjs --routes=<comma list | @file> [--widths=195,320,390,1440] [--dir=out]
 //        [--json=<file>] [--only=1,2,3] [--max=12]
@@ -48,7 +50,7 @@ function inspect({ isHome }) {
     }
     return false;
   };
-  const findings = { overflow: [], tinyText: [], overlap: [], outside: [], orange: [] };
+  const findings = { overflow: [], tinyText: [], overlap: [], outside: [], orange: [], clipped: [] };
 
   // 1. Horizontal overflow, with the elements that reach past the right edge.
   // Any overflow at all, even 1 px: a page that can move sideways under a thumb wobbles.
@@ -118,6 +120,36 @@ function inspect({ isHome }) {
         const w = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
         const h = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
         if (w > 0 && h > 0 && w * h > 2) findings.overlap.push(`${a.what} × ${b.what} (${(w * h).toFixed(0)} px²)`);
+      }
+    }
+  }
+
+  // 8. HTML text in a figure cut off: each line box against the figure and against every element between them that
+  // clips its overflow sideways. A scroller (overflow auto or scroll) may hold content past its edge by design, and an
+  // ellipsis is a deliberate cut, so neither counts.
+  for (const fig of document.querySelectorAll('figure.viz')) {
+    if (hidden(fig)) continue;
+    const walker = document.createTreeWalker(fig, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const el = n.parentElement;
+      if (!n.textContent.trim() || !el || el.closest('svg') || el.closest('details:not([open])') || hidden(el)) continue;
+      const clippers = [];
+      for (let a = el; a; a = a.parentElement) {
+        const cs = getComputedStyle(a);
+        if (/auto|scroll/.test(cs.overflowX)) break;
+        if (a === fig || /hidden|clip/.test(cs.overflowX)) { if (cs.textOverflow !== 'ellipsis') clippers.push(a); }
+        if (a === fig) break;
+      }
+      const range = document.createRange();
+      range.selectNodeContents(n);
+      for (const r of range.getClientRects()) {
+        if (r.width < 0.5 || r.height < 0.5) continue;
+        const cut = clippers.find((c) => { const b = c.getBoundingClientRect(); return r.left < b.left - 1 || r.right > b.right + 1; });
+        if (cut) {
+          const b = cut.getBoundingClientRect();
+          findings.clipped.push(`${describe(el)} [${Math.round(r.left)}–${Math.round(r.right)}] cut by ${describe(cut).slice(0, 60)} [${Math.round(b.left)}–${Math.round(b.right)}]`);
+          break;
+        }
       }
     }
   }
@@ -208,19 +240,20 @@ async function lintOne(browser, route, width, opts) {
     5: findings.outside,
     6: errors.concat(status === 200 ? [] : [`status ${status}`]),
     7: findings.orange,
+    8: findings.clipped,
   };
   for (const k of Object.keys(checks)) if (!opts.only.has(Number(k))) delete checks[k];
   return { route, width, checks, foreign };
 }
 
-const NAMES = { 1: 'horizontal overflow', 2: 'hit area under 44×44', 3: 'chart text under 12 px', 4: 'text overlaps text in a figure', 5: 'text outside its SVG', 6: 'console or page error', 7: 'more than one orange control on the first screen' };
+const NAMES = { 1: 'horizontal overflow', 2: 'hit area under 44×44', 3: 'chart text under 12 px', 4: 'text overlaps text in a figure', 5: 'text outside its SVG', 6: 'console or page error', 7: 'more than one orange control on the first screen', 8: 'chart text clipped' };
 
 async function main() {
   const a = args(process.argv.slice(2));
   const routes = readRoutes(a.routes);
   const widths = String(a.widths || '195,320,390,1440').split(',').map(Number).filter(Boolean);
   const dir = path.resolve(ROOT, a.dir || 'out');
-  const only = new Set(String(a.only || '1,2,3,4,5,6,7').split(',').map(Number));
+  const only = new Set(String(a.only || '1,2,3,4,5,6,7,8').split(',').map(Number));
   const max = Number(a.max || 12);
   if (!fs.existsSync(path.join(dir, 'index.html'))) throw new Error(`No export at ${dir}: run npm run build first.`);
   const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined, args: ['--proxy-server=http://127.0.0.1:9', '--proxy-bypass-list=<-loopback>'] });

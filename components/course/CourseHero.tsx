@@ -97,8 +97,9 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
           {climb ? <figcaption><Fact k={`${climb.key}.gain`} v={climb.gain_m}><Elevation metres={climb.gain_m} /></Fact> of climbing</figcaption> : null}
         </figure>
       ) : null}
-      {/* How far the share ran, edition by edition: the strip below labels both ends. */}
-      {reading.guard ? <p className="course-hero-sentence t-sentence"><Said nugget={reading} /></p> : null}
+      {/* How far the share ran, edition by edition: the strip below labels both ends. Without a strip (two editions) no
+          mark carries the orange, so the sentence is said plainly. */}
+      {reading.guard ? <p className="course-hero-sentence t-sentence">{stripped || typeof reading.headline !== 'string' ? <Said nugget={reading} /> : reading.headline.replace(/\*/g, '')}</p> : null}
       {stripped ? <div className="course-hero-strip"><ByUnits mi={strip('mi')} km={strip('km')} /></div> : null}
       <div className="course-hero-actions">
         <Button href={planHref(city) ?? '/tools/plan'} arrow="right">Plan your {display}</Button>

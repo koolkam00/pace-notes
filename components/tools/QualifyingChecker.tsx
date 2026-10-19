@@ -403,7 +403,7 @@ export default function QualifyingChecker() {
           <h2>Your marathon</h2>
           <div className="qualifying-time" onFocus={() => setTimeFocused(true)} onBlur={() => setTimeFocused(false)}>
             <DurationField label="Chip (net) time" large value={seconds} placeholder="3:29:00" error={timeError}
-              onChange={(s) => { mark('t'); setQ({ t: s === null ? '' : formatDuration(s, true) }); }} hint="h:mm:ss, e.g. 3:29:00 or 3:29" />
+              onChange={(s) => { mark('t'); setQ({ t: s === null ? '' : formatDuration(s, true) }); }} hint="h:mm:ss, e.g. 3:29:00 or 3:29." />
           </div>
           <div className="tool-field">
             {/* Men, Women, Non-binary say what they are: the group's name is for screen readers. */}
@@ -427,15 +427,18 @@ export default function QualifyingChecker() {
             <p className={`tool-field-hint${raceOk ? '' : ' is-error'}${raceOk && !planned ? ' sr-only' : ''}`} id={`${ids}-race-hint`}>
               {raceOk ? (planned ? 'A future race date checks a planned race against the current windows.' : 'The day you ran it.') : 'Enter the race date.'}
             </p>
-            <p className={`tool-field-hint${birthOk && !orderError ? '' : ' is-error'}`} id={`${ids}-birth-hint`}>
-              {!birthOk ? 'Enter your date of birth: each race works out your age group differently.'
-                : orderError ?? ''}
-              {birthOk && !orderError ? 'Your birth date stays in this browser, never in links or analytics.' : null}
-            </p>
+            {/* A missing or impossible date is said under the fields; otherwise the privacy note sits under "Remember", as
+                its second line, so the answer starts sooner on a phone. */}
+            {!birthOk || orderError ? (
+              <p className="tool-field-hint is-error" id={`${ids}-birth-hint`}>
+                {!birthOk ? 'Enter your date of birth: each race works out your age group differently.' : orderError}
+              </p>
+            ) : null}
             <label className="tool-check">
-              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} aria-describedby={`${ids}-birth-note`} />
               <span>Remember my date of birth on this device</span>
             </label>
+            {birthOk && !orderError ? <p className="tool-field-hint qualifying-birth-note" id={`${ids}-birth-hint`}><span id={`${ids}-birth-note`}>It never goes into links or analytics.</span></p> : null}
           </div>
 
           <details className="qualifying-more">

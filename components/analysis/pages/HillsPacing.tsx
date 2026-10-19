@@ -57,7 +57,8 @@ export default function HillsPacing() {
   ) : null;
   const answer = sections ? (
     // The route's whole climb is in the kicker, above the chart: a context line never sits under Values.
-    <AnswerCard kicker={<ByUnits mi={`${courseName(city)}, near ${hm(v.goal_min)} · ${elevation(climbed, 'mi')} of climb`} km={`${courseName(city)}, near ${hm(v.goal_min)} · ${elevation(climbed, 'km')} of climb`} />}>
+    // The climb's words stay on one line ("708\u00a0ft of\u00a0climb").
+    <AnswerCard kicker={<ByUnits mi={`${courseName(city)}, near ${hm(v.goal_min)} · ${`${elevation(climbed, 'mi')} of climb`.replace(/ /g, '\u00a0')}`} km={`${courseName(city)}, near ${hm(v.goal_min)} · ${`${elevation(climbed, 'km')} of climb`.replace(/ /g, '\u00a0')}`} />}>
       <ByUnits mi={chart('mi')} km={chart('km')} />
     </AnswerCard>
   ) : null;

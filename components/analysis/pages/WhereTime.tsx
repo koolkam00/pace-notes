@@ -21,7 +21,7 @@ export default function WhereTime() {
   const initialAnswer = answers.find((a) => a.id === definition.id)!;
   const answer = initialAnswer.charts.length ? (
     // The two groups are named in the kicker, above the chart: a context line never sits under Values.
-    <AnswerCard kicker={`Just under ${hm(goal)} (${hm(goal - 5)}–${hm(goal)}) and just over (${hm(goal)}–${hm(goal + 5)})`}>
+    <AnswerCard kicker={`Finishes ${hm(goal - 5)}–${hm(goal)} against ${hm(goal)}–${hm(goal + 5)}`}>
       <ExplorerChart id="sections" answer={initialAnswer} goal={goal} units="mi" valuesId="wt-answer" example />
     </AnswerCard>
   ) : null;

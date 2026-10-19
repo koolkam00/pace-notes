@@ -16,6 +16,8 @@
 .qualifying-dates > .tool-field { min-width: 0; }
 .qualifying-dates > :is(p, .tool-check) { grid-column: 1 / -1; margin: 0; }
 .qualifying-dates > .tool-check { margin-top: var(--s-1); }
+/* The privacy note is "Remember"'s second line, under its words (past the 20 px box and its 10 px gap). */
+.qualifying-dates > .qualifying-birth-note { margin-top: calc(var(--s-2) * -1 - 10px); padding-left: 30px; }
 @media (max-width: 299.98px) { .qualifying-dates { grid-template-columns: minmax(0, 1fr); } }
 .qualifying-more { border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
 .qualifying-more > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s-2); min-height: 48px; padding: 0 28px 0 0; position: relative; list-style: none; cursor: pointer;

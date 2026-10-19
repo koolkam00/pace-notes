@@ -138,6 +138,7 @@ export default function CheckpointExplorer({ summary, profile: start = EXAMPLE_P
             <div><dt>Pace for {clock(profile.goal * 60)} from here</dt><dd>{remaining > 0 ? paceLabel(remaining, units) : 'Already past'}</dd></div>
           </dl>
           <Ruler min={t0} max={t1} ticks={Array.from({ length: Math.round((t1 - t0) / step) + 1 }, (_, i) => t0 + i * step).map(v => ({ value: v, label: clock(v * 60) }))}
+            band={{ lo: result.row.finish[0] / 60, hi: result.row.finish[2] / 60 }}
             marks={[{ value: result.row.finish[1] / 60, kind: 'compare', label: `Median ${clock(result.row.finish[1])}` }, { value: profile.goal, kind: 'you', label: `Goal ${clock(profile.goal * 60)}` }]}
             label={`Finishes from ${request.checkpoint}K in ${clock(request.elapsed, true)}: median ${clock(result.row.finish[1], true)}, the middle 80% from ${clock(result.row.finish[0])} to ${clock(result.row.finish[2])}; the goal is ${clock(profile.goal * 60)}`} />
         </div>}

@@ -90,6 +90,16 @@ export default function Scrubber({ points, initial, home, detents = [], label, m
     return () => clearTimeout(timer.current);
   }, [index, text, onIndex]);
   useEffect(() => () => { clearTimeout(timer.current); clearTimeout(flashTimer.current); }, []);
+  // The frame's width, so the "‹ drag ›" hint turns to the handle's left wherever it would run past the frame's edge (a
+  // phone at 200% zoom), not only past two thirds of the way across.
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = root.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   // A page may set the needle from outside (a scrolly step that names a minute): a 'scrub-to' event, the index as detail.
   useEffect(() => {
     const el = root.current;
@@ -201,7 +211,8 @@ export default function Scrubber({ points, initial, home, detents = [], label, m
   const dot = points.dot?.[index];
   const waiting = mode === 'pick' && !!prompt && !touched && !hovering;
   const pos = `${(x * 100).toFixed(3)}%`;
-  const hintLeft = x > 0.66;
+  // The hint takes 20 px of gap and about 56 px of words; before the frame is measured, a phone's turn (0.8 across).
+  const hintLeft = width ? x * width + 76 > width : x > 0.8;
   return (
     <div ref={root} className={`scrub is-${mode}${dragging ? ' is-dragging' : ''}${touched ? ' is-touched' : ''}${index !== clamp(home ?? initial) ? ' is-away' : ''}`}>
       {waiting ? <Readout hidden keyText={prompt} value="" />

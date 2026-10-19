@@ -31,6 +31,8 @@
 .goal-pace-headline .tool-reading-figure small { font-variant-numeric: tabular-nums; }
 .goal-pace-stack > .values { margin-top: calc(var(--s-3) - var(--s-6)); }
 .goal-pace-more a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }
+/* The pace band link belongs to the splits above it: it sits just under their Values row, not a whole gap away. */
+.goal-pace-stack > .goal-pace-band { margin-top: calc(var(--s-2) - var(--s-6)); }
 
 @media print {
   .goal-chart-wrap.is-overflow { -webkit-mask-image: none; mask-image: none; }
