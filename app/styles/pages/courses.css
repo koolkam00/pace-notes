@@ -7,7 +7,8 @@
 
 .courses-page { padding-bottom: var(--s-6); }
 .courses-page .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: .2em; }
-.courses-reading { padding-bottom: var(--s-2); }
+/* Chapter 08's hub opens where its course pages do: the crumb at the page-top token (round 5 merge). */
+.reading.courses-reading { padding-top: var(--page-top); padding-bottom: var(--s-2); }
 .courses-list { margin-top: 0; }
 .course-sort .chips { margin-bottom: var(--s-3); }
 .course-index-key { margin: 0 0 var(--s-4); max-width: var(--measure); font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); text-wrap: pretty; }

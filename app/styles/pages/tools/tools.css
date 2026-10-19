@@ -13,6 +13,9 @@
 
 .tool-header { display: grid; gap: var(--s-3); max-width: 44rem; padding: var(--s-4) 0 var(--s-6); }
 .tool-crumbs { margin: 0; flex-wrap: wrap; color: var(--ink-3); }
+/* The crumb row sits 8 px above the H1, as a Reading's does (the header's 12 px gap less 4 px), so the tools' H1 lands
+   where every chapter template's does (round 5 merge). A hidden crumb row takes its margin with it. */
+.tool-header > .tool-crumbs { margin-bottom: calc(var(--s-2) - var(--s-3)); }
 .tool-crumbs .crumb-chapter { min-height: 44px; }
 /* "Tools · Reference · …": the dots at a word space, as inside a chapter crumb. */
 .tool-crumbs.is-plain { gap: 0 .3em; }

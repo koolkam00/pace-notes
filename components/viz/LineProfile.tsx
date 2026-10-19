@@ -5,7 +5,7 @@ import Plot, { Baseline, Gridlines, RefLine } from './Plot';
 import Lens from './Lens.client';
 import Scrubber, { type ScrubPoints } from './Scrubber.client';
 import Annotation from './Annotation';
-import { fitClass, keepClearOf, placeLabels, REF_WIDTH, textWidth, type LabelItem } from './labels';
+import { fitClass, keepClearOf, placeLabels, REF_WIDTH, textWidth, WIDTH_STEPS, type Box, type LabelItem } from './labels';
 import { areaPath, extent, linear, linePath, pc, yScale } from './scale';
 import { typeStyle } from '@/lib/viz/palette';
 
@@ -106,6 +106,8 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
       // The bracket's text box is taken at its full glyph height (ascenders and descenders), measured in Chromium.
       keepClearOf(placed, (w) => { const x1 = Math.min(1, Math.max(0, x(b.x))) * w - 12; return { x0: x1 - bw, x1, y0: base - 14 * 0.95, y1: base + 14 * 0.3 }; }, height);
     }
+    // …and a label the resting needle would run through below the reference width hides there.
+    if (needleX !== null) keepClearOf(placed, needleAt, height);
     return (
       <g key={layer.id} data-layer={lensOn ? layer.id : undefined} className={lensOn && layer.id !== current ? 'is-off' : undefined}>
         <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
@@ -138,6 +140,16 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
   // A domain passed high to low draws larger values lower (pace: slower down, ahead up).
   const flipped = y(1) > y(0);
   const needleX = scrub ? (scrub.points.x[scrub.initial] ?? null) : null;
+  // The needle the chart opens on runs the plot's height. Labels are placed clear of it at the reference width; below
+  // it (200% zoom) a label keeps its px size while the plot narrows, so a label the resting needle would run through
+  // there carries the width class that hides it (the readout and All numbers keep it; lint-layout check 11).
+  const needleAt = (w: number): Box => ({ x0: (needleX ?? 0) * w - 1, x1: (needleX ?? 0) * w + 1, y0: 0, y1: height });
+  const clearOfNeedle = (box: (w: number) => { x0: number; x1: number }): string | undefined => {
+    if (needleX === null) return undefined;
+    let min = 0;
+    for (const w of WIDTH_STEPS) { const n = needleAt(w), b = box(w); if (b.x0 < n.x1 + 2 && n.x0 < b.x1 + 2) min = WIDTH_STEPS.find((s) => s > w) ?? REF_WIDTH; }
+    return min ? `w${min}` : undefined;
+  };
   // A bracket on the plot's right edge keeps a 12 px gutter free of a right-end label (its line and caps).
   const gutter = layers.some((l) => l.bracket && x(l.bracket.x) > 0.95) ? 12 : 0;
   const refSpot = (r: { value: number; label?: string }): { side?: 'left' | 'right'; at?: number; below?: boolean; inset?: number } => {
@@ -180,12 +192,19 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
         <g key={i}>
           {w.fill ? <rect className="a-wash" x={pc(x(w.from))} width={pc(x(w.to) - x(w.from))} y="0" height="100%" /> : null}
           <rect className="grid-line" x={pc(x(w.from))} width={1} y="0" height="100%" transform="translate(-0.5 0)" />
-          {w.label ? <text className={`tick ${fitClass((textWidth(w.label, 12, 500) + 64) / Math.max(0.05, 1 - x(w.from)))}`} x={pc(x(w.from))} y="0" dy={12} dx={6}>{w.label}</text> : null}
+          {w.label ? <text className={['tick', fitClass((textWidth(w.label, 12, 500) + 64) / Math.max(0.05, 1 - x(w.from))), clearOfNeedle((pw) => ({ x0: x(w.from) * pw + 6, x1: x(w.from) * pw + 6 + textWidth(w.label!, 12, 500) }))].filter(Boolean).join(' ')} x={pc(x(w.from))} y="0" dy={12} dx={6}>{w.label}</text> : null}
         </g>
       ))}
-      <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label }))} side={gridSide} />
+      <Gridlines lines={yTicks.map((t) => {
+        const gw = textWidth(t.label, 12, 500) + 4;
+        return { y: y(t.value), label: t.label, className: clearOfNeedle((pw) => (gridSide === 'left' ? { x0: 0, x1: gw } : { x0: pw - gw, x1: pw })) };
+      })} side={gridSide} />
       {yCue ? <text className="tick" x="0" y="0" dy={13}>{yCue}</text> : null}
-      {refs.map((r) => <RefLine key={r.value} y={y(r.value)} label={r.label} dashed={r.dashed} {...refSpot(r)} />)}
+      {refs.map((r) => {
+        const spot = refSpot(r), rw = r.label ? textWidth(r.label, 13) + 4 : 0;
+        const labelClass = r.label ? clearOfNeedle((pw) => { const x0 = spot.at !== undefined ? spot.at * pw : spot.side === 'left' ? 0 : pw - (spot.inset ?? 0) - rw; return { x0, x1: x0 + rw }; }) : undefined;
+        return <RefLine key={r.value} y={y(r.value)} label={r.label} dashed={r.dashed} labelClass={labelClass} {...spot} />;
+      })}
       {layers.map(drawLayer)}
       <Baseline />
     </Plot>
