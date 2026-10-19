@@ -32,11 +32,12 @@
 .check { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: var(--t-small); color: var(--ink-2); cursor: pointer; }
 .check input[type='checkbox'] { width: 20px; height: 20px; min-height: 20px; margin: 0; accent-color: var(--ink); }
 
-/* "Tap . for :" (components/KeypadHint.tsx): touch screens only, decided by CSS at first paint so nothing moves. The two
-   keys are bold glyphs, not key caps: caps cost width, and the hint must stay on its field's help line. */
+/* "Tap . for :" (components/KeypadHint.tsx): on a touch screen, only while one of its fields has focus (is-on, set by
+   the component), so no first screen carries it. The two keys are bold glyphs, not key caps: caps cost width, and the
+   hint must stay on its field's help line. */
 .keypad-hint { display: none; }
 @media (pointer: coarse) {
-  .keypad-hint { display: inline; white-space: nowrap; }
-  .keypad-hint.is-block { display: block; margin: 0; color: var(--ink-3); font-size: .75rem; line-height: 1.45; }
+  .keypad-hint.is-on { display: inline; white-space: nowrap; }
+  .keypad-hint.is-block.is-on { display: block; margin: 0; color: var(--ink-3); font-size: .75rem; line-height: 1.45; }
 }
 .keypad-hint kbd { font-family: var(--sans); font-size: 1.08em; font-weight: 600; line-height: 1; color: inherit; }

@@ -4,9 +4,7 @@
  * is a getter that reads the number from the verified story data at build time, so none is typed in.
  */
 import { getInsightsManifest, readInsight } from './insights-server';
-import type { Archetypes, Courses, InsightsManifest, Kick, ReplayIndex } from './insights';
-import { checkpointLabel } from './viz/format';
-import { hm } from './nuggets/format';
+import type { Archetypes, Courses, InsightsManifest, ReplayIndex } from './insights';
 import { getNugget, sentenceOf } from './nuggets';
 
 /** One parsed copy of each story file per verified manifest, so the getters below do not re-read files on every access. */
@@ -42,26 +40,8 @@ export interface StoryDefinition {
 
 const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 
-/**
- * An observed share in words for the start of a sentence: "Three in four" for 0.7457, the simplest
- * n in d (d up to 10) within one percentage point of the share, otherwise "75% of".
- */
-export function shareInWords(share: number): string {
-  for (let d = 2; d < WORDS.length; d += 1) {
-    const n = Math.round(share * d);
-    if (n > 0 && n < d && Math.abs(n / d - share) <= 0.01) return `${WORDS[n][0].toUpperCase()}${WORDS[n].slice(1)} in ${WORDS[d]}`;
-  }
-  return `${Math.round(share * 100)}% of`;
-}
-
 /** Screened finishes in millions with one decimal, the same value as finishesM() in lib/seo.tsx (not imported: lib/seo-routes imports this file). */
 const finishesMillions = () => (getInsightsManifest().analysis_n / 1e6).toFixed(1);
-
-/** "Three in four" from kick.json: finishes that ran the final 2.195 km faster than 35–40 km. Null when the kick data is not in this build. */
-function kickShare(): string | null {
-  const kick = insight<Kick>('kick.json');
-  return kick ? shareInWords(kick.kick.share) : null;
-}
 
 /** A small count in words ("six"), or null when it has no word. */
 export const countWord = (n: number | null) => (n !== null && n > 0 && n < WORDS.length ? WORDS[n] : null);
@@ -126,11 +106,8 @@ export const STORIES: StoryDefinition[] = [
       return `Grouping millions of recorded marathon finishes by the shape of their 5 km splits reveals ${types ? `${types} ` : ''}recurring pacing types, and how often a shape repeats.`;
     } },
   { slug: 'round-numbers', file: 'finish-times.json', number: '02', kicker: 'Round numbers',
-    /** Named for the minute that stands tallest against the smooth curve (the round.top nugget), never a typed time. */
-    get title() {
-      const top = getNugget('round.top');
-      return top.guard ? `The ${hm(Number(top.values.minutes) - 1)} effect` : 'The round-number effect';
-    },
+    /** One name everywhere the story is listed or linked: the chapter's short name for it. */
+    title: 'Round numbers',
     /** The finding: finishes crowd in just under the round mark that stands tallest against the curve. */
     get heading() {
       const top = getNugget('round.top');
@@ -138,9 +115,7 @@ export const STORIES: StoryDefinition[] = [
     },
     dek: 'Do round numbers change when runners finish?', accent: '#FF5B2E',
     published: '2026-10-07',
-    get seoTitle() {
-      return `${this.title.replace(/^the /i, 'The ').replace(/ effect$/, ' Effect')}: Marathon Finishes Bunch Under Round Times`;
-    },
+    seoTitle: 'Round Numbers: Marathon Finishes Bunch Under Round Times',
     get seoDescription() {
       return `Marathon finish times pile up just under every hour and half-hour. See the bunching second by second in ${finishesMillions()} million recorded finishes.`;
     } },
@@ -166,9 +141,7 @@ export const STORIES: StoryDefinition[] = [
     dek: 'How much can still change after 30K?', accent: '#2F5BFF',
     published: '2026-10-07',
     seoTitle: 'How Marathon Places Change Late in the Race | Pace Notes',
-    get seoDescription() {
-      return `How much a marathon field reorders after the ${checkpointLabel(20, 'km')} mat (${checkpointLabel(20, 'mi')}), who moves up late and which section reshuffles finishing places the most.`;
-    } },
+    seoDescription: 'How much a marathon field reorders after 30K: how often a finish trailing there still crossed the line first, and how many moved up late.' },
   { slug: 'final-kick', file: 'kick.json', number: '05', kicker: 'After 30K',
     /** The short name its list rows and next cards show (its reading gives the minutes). */
     title: 'After the slowdown',
@@ -180,9 +153,11 @@ export const STORIES: StoryDefinition[] = [
     accent: '#E2416B',
     published: '2026-10-07',
     seoTitle: 'The Marathon Final Kick: Who Speeds Up Late | Pace Notes',
+    /** The page's own finding (kick.twins), then what the story follows. */
     get seoDescription() {
-      const share = kickShare();
-      return `${share ? `${share} recorded marathon finishes speed up over the final stretch. ` : ''}Where fields slow, and how late speed-ups and sustained slowdowns line up.`;
+      const twins = getNugget('kick.twins');
+      const lead = twins.guard ? `Same pace to 20K, ${twins.figure?.value} minutes apart at the finish. ` : '';
+      return `${lead}What followed a sustained slowdown in recorded marathon finishes, from the warning sign to the finish.`;
     } },
   { slug: 'who-holds-pace', file: 'demographics.json', number: '06', kicker: 'Gender and age', title: 'Women and men',
     get heading() { return headingOf('holds.title', this.title); },

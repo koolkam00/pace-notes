@@ -63,7 +63,28 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
   for (let t = t0; t <= t1; t += 1800) stripTicks.push({ value: t, label: hm(t / 60) });
 
   return (
-    <StoryPage path={PATH}>
+    <StoryPage path={PATH} numbers={[
+      <Values key="ft-percentiles" bare id="ft-percentiles" caption="Finish time at each percentile"
+        columns={[{ key: 'p', label: 'Percentile' }, ...FINISH_GROUPS.map((g) => ({ key: g, label: GROUP_LABEL[g] }))]}
+        rows={[0.1, 0.25, 0.5, 0.75, 0.9].map((p) => [ordinal(p), ...FINISH_GROUPS.map((g) => { const m = at(groups[g], p); return m === null ? '—' : clockMinute(m); })])}
+        reading={2} />,
+      <Values key="ft-eras" bare id="ft-eras" caption={`Change from ${eras.pre[0]}–${eras.pre[1]} to ${eras.post[0]}–${eras.post[1]}, by course`}
+        columns={[{ key: 'c', label: 'Course', text: true }, { key: 'f', label: 'Front, 10th percentile' }, { key: 'b', label: 'Back, 90th percentile' }]}
+        rows={[...covered].sort((a, b) => change(a.p10) - change(b.p10)).map((c) => [c.city, signedMin(change(c.p10)), signedMin(change(c.p90))])} />,
+      <Values key="ft-races" bare id="ft-races" caption="Median finish by course" count={list.length}>
+        <table className="table">
+          <thead><tr><th scope="col" className="is-text">Course</th><th scope="col">Median finish</th><th scope="col">Editions</th><th scope="col">Finishes</th></tr></thead>
+          <tbody>
+            {[...list].sort((a, b) => a.median_s - b.median_s).map((c) => (
+              <tr key={c.city}>
+                <th scope="row" className="is-text"><Link href={`/courses/${courseSlug(c.city)}`}>{c.city}</Link></th>
+                <td>{hm(c.median_s / 60)}</td><td>{c.editions}</td><td>{count(c.finishes)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Values>,
+    ]}>
       {/* The H1 is the finding in words and the figure its time; the sentence adds the gap between recorded women and
           men, and the ruler draws the three medians (the reading's dot is named, its time being the figure). */}
       <StoryHero path={PATH} title={title.guard ? sentenceOf(title) : 'Marathon finish times'} dek="How long does a marathon take?"
@@ -79,49 +100,25 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
 
       <Beat id="field" track="chapter-1" label="Most finishes" title={middle}>
         <PercentileDots layer={layer} domain={[dLo, dHi]} ticks={dotTicks}
-          label={`99 finishes, one at each percentile from the 1st to the 99th. All finishes: median ${hm(minutes[49])}, the middle half from ${hm(minutes[24])} to ${hm(minutes[74])}.`}
-          values={(
-            <Values id="ft-percentiles" caption="Finish time at each percentile"
-              columns={[{ key: 'p', label: 'Percentile' }, ...FINISH_GROUPS.map((g) => ({ key: g, label: GROUP_LABEL[g] }))]}
-              rows={[0.1, 0.25, 0.5, 0.75, 0.9].map((p) => [ordinal(p), ...FINISH_GROUPS.map((g) => { const m = at(groups[g], p); return m === null ? '—' : clockMinute(m); })])}
-              reading={2} />
-          )} />
+          label={`99 finishes, one at each percentile from the 1st to the 99th. All finishes: median ${hm(minutes[49])}, the middle half from ${hm(minutes[24])} to ${hm(minutes[74])}.`} />
       </Beat>
 
       <Beat id="front" track="chapter-2" label="Then and now" title={front}
         dek={`${eras.pre[0]}–${String(eras.pre[1]).slice(2)} against ${eras.post[0]}–${String(eras.post[1]).slice(2)}. Each dot is a course; each bar, their average.`}>
         <EraShift rows={rows} domain={[-span, span]} axisTitle={{ start: 'Faster', end: 'Slower' }}
           ticks={[-span, -span / 2, 0, span / 2, span].map((v) => ({ value: v, label: v === 0 ? '0' : `${v > 0 ? '+' : MINUS}${Math.abs(v)} min` }))}
-          label={`Change in finish time from ${eras.pre[0]}–${eras.pre[1]} to ${eras.post[0]}–${eras.post[1]} across ${covered.length} courses: 10th percentile ${signedMin(eras.summary.p10.change)}, 90th percentile ${signedMin(eras.summary.p90.change)} on average.`}
-          values={(
-            <Values id="ft-eras" caption={`Change from ${eras.pre[0]}–${eras.pre[1]} to ${eras.post[0]}–${eras.post[1]}, by course`}
-              columns={[{ key: 'c', label: 'Course', text: true }, { key: 'f', label: 'Front, 10th percentile' }, { key: 'b', label: 'Back, 90th percentile' }]}
-              rows={[...covered].sort((a, b) => change(a.p10) - change(b.p10)).map((c) => [c.city, signedMin(change(c.p10)), signedMin(change(c.p90))])} />
-          )} />
+          label={`Change in finish time from ${eras.pre[0]}–${eras.pre[1]} to ${eras.post[0]}–${eras.post[1]} across ${covered.length} courses: 10th percentile ${signedMin(eras.summary.p10.change)}, 90th percentile ${signedMin(eras.summary.p90.change)} on average.`} />
       </Beat>
 
       <Beat id="by-race" track="chapter-3" label="Race by race" title={byRace}>
         {/* Every course the table lists is drawn: the H2's range comes from the filled ones (three or more editions),
             and the rest are hollow, so the strip and its Values count the same courses. */}
-        <DotStrip items={list.map((c) => ({ id: c.city, label: c.city, value: c.median_s, display: hm(c.median_s / 60), detail: count(c.finishes), hollow: c.editions < 3 }))}
+        {/* The H2's two medians (its accent) are the two signal dots, so the strip draws the range it names. */}
+        <DotStrip items={list.map((c) => ({ id: c.city, label: c.city, value: c.median_s, display: hm(c.median_s / 60), detail: count(c.finishes), hollow: c.editions < 3,
+          subject: byRace.guard && (c.city === byRace.values.low || c.city === byRace.values.high) }))}
           domain={[t0, t1]} ticks={stripTicks} readoutKey="Finishes"
           keyLabels={list.length > drawn.length ? { filled: 'Three or more editions', hollow: 'Fewer editions' } : undefined}
-          label={`Median finish of ${list.length} courses, ranked (${drawn.length} with three or more editions filled, the rest hollow); tap a dot to read it`}
-          values={(
-            <Values id="ft-races" caption="Median finish by course" count={list.length}>
-              <table className="table">
-                <thead><tr><th scope="col" className="is-text">Course</th><th scope="col">Median finish</th><th scope="col">Editions</th><th scope="col">Finishes</th></tr></thead>
-                <tbody>
-                  {[...list].sort((a, b) => a.median_s - b.median_s).map((c) => (
-                    <tr key={c.city}>
-                      <th scope="row" className="is-text"><Link href={`/courses/${courseSlug(c.city)}`}>{c.city}</Link></th>
-                      <td>{hm(c.median_s / 60)}</td><td>{c.editions}</td><td>{count(c.finishes)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Values>
-          )} />
+          label={`Median finish of ${list.length} courses, ranked (${drawn.length} with three or more editions filled, the rest hollow); tap a dot to read it`} />
       </Beat>
     </StoryPage>
   );

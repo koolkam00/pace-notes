@@ -43,7 +43,7 @@ export function FinishCard() {
   return (
     <div className="next-card night is-finish">
       <span className="next-card-kicker t-kicker">Finish</span>
-      <p className="next-card-title">You’ve read the race, <em>start to finish</em>.</p>
+      <p className="next-card-title">You’ve read the race, start to finish.</p>
       <p className="finish-card-links">
         <Link href="/research" className="finish-card-link">Contents <Arrow /></Link>
         <Link href="/runners" className="finish-card-link">Analyze a past race <Arrow /></Link>

@@ -18,7 +18,7 @@ import { paceBandShardPath, type PaceBandCell } from './tools/pace-band-data';
 import { SECTION_KM, classify, readSplits, validateSplits, type SplitReading } from './tools/splits';
 import { formatDuration } from './tools/time';
 import { KM_PER_MILE, matLabel, sectionLabel, type UnitSystem } from './units';
-import { approxWords } from './nuggets/format';
+import { approxWords, pct } from './nuggets/format';
 
 export * from './report-shared';
 
@@ -236,7 +236,8 @@ export const paceText = (sPerKm: number, units: UnitSystem) => `${formatDuration
 export const sectionText = (section: Pick<ReportSection, 'startKm' | 'endKm'>) => sectionLabel(section.startKm, section.endKm);
 /** A mat by its name in both unit modes: "30K", "Finish". */
 export const kmText = (km: number) => matLabel(km);
-export const shareText = (v: number) => `${(v * 100).toFixed(1)}%`;
+/** A share in whole percent, as the report speaks everywhere else ("11%"). */
+export const shareText = (v: number) => pct(v);
 
 /**
  * What the saved image shows, line by line, and what its alternative text says: the race, finish and average pace, the
@@ -252,7 +253,7 @@ export function reportLines(model: ReportModel, units: UnitSystem) {
     baseline: `5–20K pace ${paceText(model.baseline, units)}`,
     sections: model.sections.map((s) => ({ label: sectionText(s), mat: matLabel(s.endKm), split: formatDuration(Math.round(s.seconds)), pace: paceText(s.pace, units), change: pctSigned(s.vsBaseline), tone: s.tone, vs: s.vsBaseline })),
     slowdown: model.slowdown.yes && model.slowdown.onsetKm !== null ? `Sustained slowdown: yes, from ${kmText(model.slowdown.onsetKm)}` : 'Sustained slowdown: no',
-    type: t.state === 'ok' ? `Pacing type: ${t.name}, the shape of ${approxWords(t.share)} of ${count(t.cohortN)} ${t.label}` : null,
+    type: t.state === 'ok' ? `Pacing type: ${t.name}, the shape of ${approxWords(t.share)} finishes` : null,
     comparison: c.state === 'ok' ? `Of ${count(c.n)} ${c.label}, ${c.slowdownShare === null ? 'the share with a sustained slowdown is not published' : `${shareText(c.slowdownShare)} had a sustained slowdown`}.` : null,
   };
 }

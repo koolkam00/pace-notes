@@ -51,12 +51,26 @@ export default function KickBody() {
   const s = data.recovery.stay[0];
 
   return (
-    <StoryPage path={PATH}>
+    <StoryPage path={PATH} numbers={[
+      <Values key="twins" bare id="fk-twins" caption="Median finish by pace through 20K, with and without a sustained slowdown"
+        columns={[{ key: 'p', label: 'Pace through 20K' }, { key: 'a', label: 'Without' }, { key: 'b', label: 'With' }, { key: 'g', label: 'Apart' }]}
+        rows={cost.map((b) => [b.label, hm(b.other_finish_s / 60), hm(b.slowdown_finish_s / 60), minutes(b.slowdown_finish_s - b.other_finish_s)])} />,
+      <Values key="warning" bare id="fk-warning" caption={`Pace at ${sectionName(w.after)} against the 5–20K pace, and the share that went on to a sustained slowdown`}
+        columns={[{ key: 'p', label: `Pace at ${sectionName(w.after)}` }, { key: 's', label: 'Went on to one' }]}
+        rows={w.rows.map((r) => [r.label, pct(r.later)])} />,
+      <Values key="states" bare id="fk-states" caption={`Finishes at sustained-slowdown pace over ${sectionName(s.source)}, over ${sectionName(s.target)}`}
+        columns={[{ key: 'a', label: `Over ${sectionName(s.target)}` }, { key: 's', label: 'Share of those finishes' }]}
+        rows={[['Stayed that slow', pct(s.stay)], ['Did not', pct(1 - s.stay)]]} reading={0} />,
+      <Values key="magnet" bare id="fk-magnet" caption="Ran the section faster than the one before"
+        columns={[{ key: 's', label: 'Section' }, { key: 'd', label: 'With a sustained slowdown' }, { key: 'a', label: 'All finishes' }]}
+        rows={data.magnet.map((m) => [sectionName(m.section), pct(m.slowdown), pct(m.all)])} reading={data.magnet.length - 1} />,
+    ]}>
       {/* The question under the H1 is the term's first use, so it carries the one link to its definition. The H1 says
           it in words and the figure gives the minutes once, with what they are under it. Who the comparison holds level
           is /methodology's (How we know). */}
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={rich(story.dek, { term: true })}
-        figure={twins.figure ? { ...twins.figure } : undefined} unitLine={twins.guard ? twins.key : undefined} fallback={!twins.guard}
+        // The unit line names the comparison the H1 leaves out (with a slowdown against without); the H1 has the pace.
+        figure={twins.figure ? { ...twins.figure } : undefined} unitLine={twins.guard ? 'later at the finish with a sustained slowdown than without' : undefined} fallback={!twins.guard}
         sentence={twins.guard ? undefined : <Say nugget={twins} />}
         // The two finishes on one clock, from the same pace through 20K: without one at zero, with one the figure later.
         instrument={twins.guard ? (
@@ -69,53 +83,36 @@ export default function KickBody() {
         <LineProfile x={cx} xDomain={[cost[0].lo_min, cost[cost.length - 1].lo_min + width]} yDomain={[0, gTop]}
           layers={[{ id: 'gap', label: 'Minutes later', series: [{ id: 'gap', values: gap }], band: { lo: gap.map(() => 0), hi: gap },
             labels: [
-              // Lifted clear of the line as it climbs to the right, so the label stands above its point, not on the area.
-              { x: cx[lowAt], y: gap[lowAt], text: `+${Math.round(gap[lowAt])} min`, tone: 'ink', priority: 3, prefer: 'above', gap: 30 },
-              { x: cx[highAt], y: gap[highAt], text: `+${Math.round(gap[highAt])} min`, tone: 'ink', priority: 3, prefer: 'above' },
+              // The H2's two ends ("13 to 24 minutes"), in the accent the H2 gives them. Lifted clear of the line as it
+              // climbs to the right, so each label stands above its point, not on the area.
+              { x: cx[lowAt], y: gap[lowAt], text: `+${Math.round(gap[lowAt])} min`, tone: 'signal', priority: 3, prefer: 'above', gap: 30 },
+              { x: cx[highAt], y: gap[highAt], text: `+${Math.round(gap[highAt])} min`, tone: 'signal', priority: 3, prefer: 'above' },
             ] }]}
           xTicks={[180, 240, 300, 360].filter((v) => v > cost[0].lo_min && v < cost[cost.length - 1].lo_min + width).map((v) => ({ value: v, label: `${hm(v)} pace` }))}
           // No gridline: the labels on the line give its ends, and the area stands on the zero line.
           yTicks={[]}
           axisTitle={{ start: 'Pace through 20K, as a finish time' }}
-          label={`Minutes later at the finish after a sustained slowdown, for each pace through 20K: ${Math.round(Number(bands.values.low_s) / 60)} to ${Math.round(Number(bands.values.high_s) / 60)} minutes.`}
-          values={(
-            <Values id="fk-twins" caption="Median finish by pace through 20K, with and without a sustained slowdown"
-              columns={[{ key: 'p', label: 'Pace through 20K' }, { key: 'a', label: 'Without' }, { key: 'b', label: 'With' }, { key: 'g', label: 'Apart' }]}
-              rows={cost.map((b) => [b.label, hm(b.other_finish_s / 60), hm(b.slowdown_finish_s / 60), minutes(b.slowdown_finish_s - b.other_finish_s)])} />
-          )} />
+          label={`Minutes later at the finish after a sustained slowdown, for each pace through 20K: ${Math.round(Number(bands.values.low_s) / 60)} to ${Math.round(Number(bands.values.high_s) / 60)} minutes.`} />
       </Beat>
 
       <Beat id="warning" track="chapter-2" label="The warning sign" title={warning}>
         <Columns max={wTop} items={w.rows.map((r, i) => ({ id: r.label, label: r.label.replace(/ slower$/, '').replace(/% /, '%'), value: r.later, display: pct(r.later), tone: i === w.rows.length - 1 ? 'signal' : 'ink' }))}
           label={`How often each pace at ${sectionName(w.after)}, against the 5–20K pace, was followed by a sustained slowdown: from ${pct(w.rows[0].later)} to ${pct(w.rows[w.rows.length - 1].later)}.`}
-          caption={`Pace at ${sectionName(w.after)} against the 5–20K pace`}
-          values={(
-            <Values id="fk-warning" caption={`Pace at ${sectionName(w.after)} against the 5–20K pace, and the share that went on to a sustained slowdown`}
-              columns={[{ key: 'p', label: `Pace at ${sectionName(w.after)}` }, { key: 's', label: 'Went on to one' }]}
-              rows={w.rows.map((r) => [r.label, pct(r.later)])} />
-          )} />
+          caption={`Pace at ${sectionName(w.after)} against the 5–20K pace`} />
       </Beat>
 
       <Beat id="states" track="chapter-3" label="No second wind" title={stay} aliases={['break']}
         dek={stay.guard ? `Finishes at sustained-slowdown pace over ${sectionName(s.source)}.` : undefined}>
-        {/* The majority in ink, as every share of a whole is drawn on the stories: the H2 carries the one accent. Ten by
-            ten on a phone; one wide band of 25 by 4 from 900 px, so it spans the measure. */}
-        <DotGrid lit={s.stay * 100} compare className="is-band" label={`Of 100 finishes at sustained-slowdown pace over ${sectionName(s.source)}, ${Math.round(s.stay * 100)} stayed that slow over ${sectionName(s.target)}.`}
-          caption={<span className="dot-grid-key"><span><i className="is-ink" />Stayed that slow</span><span><i />Did not</span></span>} />
-        <Values id="fk-states" caption={`Finishes at sustained-slowdown pace over ${sectionName(s.source)}, over ${sectionName(s.target)}`}
-          columns={[{ key: 'a', label: `Over ${sectionName(s.target)}` }, { key: 's', label: 'Share of those finishes' }]}
-          rows={[['Stayed that slow', pct(s.stay)], ['Did not', pct(1 - s.stay)]]} reading={0} />
+        {/* The H2's accent is the share that stayed that slow, so those dots are the signal: orange words on orange marks.
+            Ten by ten across the column on a phone; one wide band of 25 by 4 from 900 px, so it spans the measure. */}
+        <DotGrid lit={s.stay * 100} className="is-band" label={`Of 100 finishes at sustained-slowdown pace over ${sectionName(s.source)}, ${Math.round(s.stay * 100)} stayed that slow over ${sectionName(s.target)}.`}
+          caption={<span className="dot-grid-key"><span><i className="is-signal" />Stayed that slow</span><span><i />Did not</span></span>} />
       </Beat>
 
       <Beat id="magnet" track="chapter-4" label="The last stretch" title={magnet} aliases={['women-men']}>
         <Columns max={mTop} items={lastFour.map((m, i) => ({ id: m.section, label: sectionName(m.section), value: m.slowdown, display: pct(m.slowdown), tone: i === lastFour.length - 1 ? 'signal' : 'ink' }))}
           label={`The share of finishes with a sustained slowdown that ran each section faster than the one before: ${lastFour.map((m) => `${sectionName(m.section)} ${pct(m.slowdown)}`).join(', ')}.`}
-          caption="With a sustained slowdown: ran the section faster than the one before"
-          values={(
-            <Values id="fk-magnet" caption="Ran the section faster than the one before"
-              columns={[{ key: 's', label: 'Section' }, { key: 'd', label: 'With a sustained slowdown' }, { key: 'a', label: 'All finishes' }]}
-              rows={data.magnet.map((m) => [sectionName(m.section), pct(m.slowdown), pct(m.all)])} reading={data.magnet.length - 1} />
-          )} />
+          caption="With a sustained slowdown: ran the section faster than the one before" />
       </Beat>
 
       <Moved id="bank" href="/analyses/starting-pace">Fast starts and what followed are now on Starting pace.</Moved>

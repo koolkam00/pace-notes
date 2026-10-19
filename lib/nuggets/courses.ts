@@ -55,14 +55,17 @@ function pageFor(ctx?: NuggetContext): CoursePageData | null {
 
 // ---------- /courses ----------
 
-/** The index's count: every course page. Its figure is the contents row and the next card into /courses. */
+/**
+ * The index's count: every course page, the page's dek. A count of pages is not a finding, so it has no figure: the
+ * next card into /courses and its contents row show the page's title alone.
+ */
 function coursesIndex(): Nugget {
   const n = coursePages().size;
   return {
     id: 'courses.index', page: '/courses', denominator: 'course', values: { courses: n }, guard: n > 0,
     headline: `*${count(n)}* city marathons.`,
     fallback: 'City marathons.',
-    figure: n > 0 ? { value: count(n), sr: `${count(n)} courses` } : null, key: 'city marathons, one distance',
+    figure: null,
   };
 }
 

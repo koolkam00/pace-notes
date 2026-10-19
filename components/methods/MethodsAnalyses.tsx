@@ -35,7 +35,7 @@ function AnswerNotes({ question }: { question: Parameters<typeof splitAnswer>[0]
 /** "Ten" as a sentence's first word. */
 const Capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
-/** The ranked analyses, fast starts, all-finisher views, finish times, weather questions and the research archive. */
+/** The analyses, fast starts, all-finisher views, finish times, weather questions and the research archive. */
 export default function MethodsAnalyses() {
   const personalized = getPersonalSummary();
   const allFinisher = getAllFinisherContextStart();
@@ -49,14 +49,16 @@ export default function MethodsAnalyses() {
   const downhill = readInsight<{ courses: { city: string; downhill_opening: boolean }[] }>('tools/course-goal.json').courses.filter((c) => c.downhill_opening).map((c) => c.city);
   const extras = Object.keys(EXTRA_TITLES).filter((id) => id !== 'smyth_htw').map((id) => getExtraAnswer(id));
   const confidence = weather.prespecified_gate.confidence;
-  // The counts the analyses' paragraph names, from the registries (never typed): the ranked analyses, those that run on
+  // The counts the analyses' paragraph names, from the registries (never typed): the registry's analyses, those that run on
   // the personalized engine by default (fast starts, courses and weather, the three the paragraph names, have their own
   // views) and the guide's.
   const ranked = TEN_ANALYSES.length;
-  // The analysis pages the chapters list beyond the ranked ones (downhill starts), named once so the counts agree with /analyses.
+  // The analysis pages the chapters list beyond the registry's (downhill starts), counted so the total agrees with /analyses.
   const unranked = CHAPTERS.flatMap((c) => livePages(c)).filter((p) => p.kind === 'analysis' && !TEN_ANALYSES.some((a) => p.href === analysisHref(a))).map((p) => p.short);
   const OWN_VIEWS = ['opening', 'courses', 'weather'];
   const engine = PERSONAL_QUESTIONS.filter((q) => TEN_ANALYSES.some((a) => a.id === q.id) && !OWN_VIEWS.includes(q.id)).length;
+  // The analyses with their own views: the three above, then the pages beyond the registry (downhill starts).
+  const ownViews = and(['Fast starts', 'course comparisons', 'race-day weather', ...unranked.map((name) => name.toLowerCase())]);
   // Paragraphs that three or more research questions repeat word for word (the timing screens, the record joins, the
   // earlier benchmark and the like): said once, above the questions, which then keep only their own.
   const folds = [...questions, ...extras];
@@ -71,9 +73,9 @@ export default function MethodsAnalyses() {
     return numbers.length ? <p>Shared rules it follows: {numbers.map((k, i) => <Fragment key={k}>{i ? ', ' : ''}<a href={`#question-rule-${k}`}>{k}</a></Fragment>)}.</p> : null;
   };
   return <>
-    <Topic id="personalized" title="The ranked analyses">
+    <Topic id="personalized" title="The analyses">
       {personalized && <p>The personalized analyses use {n(personalized.n)} eligible finishes, {n(personalized.age_n)} of them with an exact usable age. The usable earlier-benchmark cohort holds {n(personalized.history_n)} finishes. Combining course, age, recorded gender and earlier-time filters can make samples much smaller.</p>}
-      <p>The {countWord(ranked)} ranked analyses are ordered by how useful they are to runners and how strong the evidence is.{unranked.length ? ` ${unranked.join(' and ')} ${unranked.length === 1 ? 'is an analysis page' : 'are analysis pages'} beside them, ${countWord(ranked + unranked.length)} in all.` : ''} {Capital(countWord(engine))} use the personalized engine. Fast starts, course comparisons and race-day weather have their own views that need no earlier result, described below. Each page shows only the controls that apply to its question. The {countWord(PERSONAL_QUESTIONS.length)} original personalized comparisons are described below, and their data stay free to download.</p>
+      <p>The {countWord(ranked + unranked.length)} analyses are listed by chapter. {Capital(countWord(engine))} use the personalized engine. {ownViews} have their own views that need no earlier result, described below. Each page shows only the controls that apply to its question. The {countWord(PERSONAL_QUESTIONS.length)} original personalized comparisons are described below, and their data stay free to download.</p>
       <h4>Earlier-result views and broadened filters</h4>
       <p>The earlier-result views (where improving runners find time, and the original course and weather comparisons) need a usable recorded history. Leaving the earlier-time filter blank includes every eligible history group, but never finishes without an earlier benchmark. One race cannot show improvement. Improvement compares a finish with the fastest eligible finish in any strictly earlier year; the course and weather finish changes use the fastest eligible finish in the two strictly earlier calendar years.</p>
       <h4>Shared personalized-engine methods</h4>

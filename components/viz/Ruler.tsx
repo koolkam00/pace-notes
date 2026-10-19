@@ -8,16 +8,21 @@ import { linear, pc } from './scale';
 /**
  * A one-line scale (the redesign spec, section 3.5): a hairline from `min` to `max` with four or five ticks. Marks: the
  * reading as a signal dot, typical or expected as a hollow ring, a comparison as an ink dot, you as an orange ring.
- * The reading's and your labels sit above the line; comparisons' and typical's sit below it on two lines (the name,
- * then its value), each turned away from the reading (a mark left of it reads leftwards, one right of it rightwards),
- * so long names ("Recorded women" / "4:30") fit beside each other. A label that would leave the plot at a narrow width
- * hides there (it stays in the sentence). An optional `band` lays a range (the middle 80% of finishes) on the line as a
- * quiet bar under the marks.
+ * With ticks, every label sits above the line and the ticks directly under it (8 px), so the scale reads as one
+ * instrument: labels, line, ticks. Without ticks (the line alone), comparisons' and typical's labels sit below it on
+ * two lines (the name, then its value), each turned away from the reading (a mark left of it reads leftwards, one right
+ * of it rightwards), so long names ("Recorded women" / "4:30") fit beside each other. A label that would leave the plot
+ * at a narrow width hides there (it stays in the sentence). An optional `band` lays a range (the middle 80% of
+ * finishes) on the line as a quiet bar under the marks.
  */
 export type RulerMark = { value: number; kind: 'reading' | 'typical' | 'compare' | 'you'; label?: string };
 
+/** Labels above and below the line (no ticks): the line a third of the way down. */
 const HEIGHT = 80;
-const TRACK_Y = 30 / HEIGHT;
+const TRACK = 30;
+/** Labels above, ticks under (8 px from the line to the plot's foot, where the axis starts). */
+const TIGHT = 46;
+const TIGHT_TRACK = 38;
 const SIZE = 13;
 
 export default function Ruler({ min, max, ticks, marks, label, className, band }: {
@@ -26,13 +31,16 @@ export default function Ruler({ min, max, ticks, marks, label, className, band }
   band?: { lo: number; hi: number };
 }) {
   const x = linear([min, max]);
+  const tight = ticks.length > 0;
+  const height = tight ? TIGHT : HEIGHT;
+  const TRACK_Y = (tight ? TIGHT_TRACK : TRACK) / height;
   const order = { reading: 4, you: 3, compare: 2, typical: 1 } as const;
-  const top = marks.filter((m) => m.label && (m.kind === 'reading' || m.kind === 'you'));
-  const items: LabelItem[] = top.map((m, i) => ({ id: `t${i}`, text: m.label!, x: x(m.value), y: TRACK_Y, priority: order[m.kind], size: m.kind === 'reading' ? 14 : SIZE, gap: 12, tone: m.kind === 'reading' ? 'signal' : 'ink', prefer: 'above' }));
-  const above = placeLabels(items, { height: HEIGHT, avoid: marks.map((m) => ({ x: x(m.value), y: TRACK_Y, r: 7 })) }).map((l) => (l.dy > 0 ? { ...l, minWidth: null } : l));
-  // Under the line, on two lines: each label reads away from the reading, from 4 px past its dot's centre.
+  const top = marks.filter((m) => m.label && (tight || m.kind === 'reading' || m.kind === 'you'));
+  const items: LabelItem[] = top.map((m, i) => ({ id: `t${i}`, text: m.label!, x: x(m.value), y: TRACK_Y, priority: order[m.kind], size: m.kind === 'reading' ? 14 : SIZE, gap: 12, tone: m.kind === 'reading' ? 'signal' : m.kind === 'typical' ? 'quiet' : 'ink', prefer: 'above' }));
+  const above = placeLabels(items, { height, avoid: marks.map((m) => ({ x: x(m.value), y: TRACK_Y, r: 7 })) }).map((l) => (l.dy > 0 ? { ...l, minWidth: null } : l));
+  // Without ticks, under the line on two lines: each label reads away from the reading, from 4 px past its dot's centre.
   const pivot = x(marks.find((m) => m.kind === 'reading')?.value ?? (min + max) / 2);
-  const below = marks.filter((m) => m.label && (m.kind === 'compare' || m.kind === 'typical')).map((m, i) => {
+  const below = (tight ? [] : marks).filter((m) => m.label && (m.kind === 'compare' || m.kind === 'typical')).map((m, i) => {
     const text = m.label!, cut = text.lastIndexOf(' ');
     const lines = cut > 0 ? [text.slice(0, cut), text.slice(cut + 1)] : [text];
     const f = x(m.value), w = Math.max(...lines.map((l) => textWidth(l, SIZE)));
@@ -45,7 +53,7 @@ export default function Ruler({ min, max, ticks, marks, label, className, band }
     return { key: `b${i}`, lines, f, left, fit, quiet: m.kind === 'typical' };
   });
   return (
-    <ChartFrame className={`ruler${className ? ` ${className}` : ''}`} label={label} height={HEIGHT} heightMd={HEIGHT}
+    <ChartFrame className={`ruler${tight ? ' is-tight' : ''}${className ? ` ${className}` : ''}`} label={label} height={height} heightMd={height}
       plot={(
         <Plot>
           <rect className="ruler-track" x="0" y={pc(TRACK_Y)} width="100%" height="1" />
@@ -65,7 +73,7 @@ export default function Ruler({ min, max, ticks, marks, label, className, band }
           ))}
         </Plot>
       )}
-      axis={<Axis ticks={ticks.map((t) => ({ x: x(t.value), label: t.label }))} />}
+      axis={tight ? <Axis ticks={ticks.map((t) => ({ x: x(t.value), label: t.label }))} /> : undefined}
     />
   );
 }

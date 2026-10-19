@@ -308,7 +308,9 @@ for (const question of [...questions, ...extras]) for (const source of question.
   const total = rows.reduce((s, r) => s + r.episodes, 0), late = rows.filter(r => r.label >= 30).reduce((s, r) => s + r.episodes, 0);
   // "Most … began at 30K or later" holds only while more than half of them did.
   assert.ok(late / total > 0.5, '/slowdown: most sustained slowdowns began at 30K or later');
-  assert.match(html, /<h1[^>]*>Most <a class="term-link" href="\/methodology#sustained-slowdown">sustained slowdowns<\/a> began at <em>30K or later<\/em>\.<\/h1>/);
+  // The H1 is the finding with no link; the unit line under the figure gives the base and links the term once.
+  assert.match(html, /<h1[^>]*>Most sustained slowdowns began at <em>30K or later<\/em>\.<\/h1>/);
+  assert.ok(html.includes(`<p class="reading-unit-line">of the ${total.toLocaleString('en-US')} <a class="term-link" href="/methodology#sustained-slowdown">sustained slowdowns</a></p>`), '/slowdown: the unit line names every sustained slowdown and links the term');
   assert.ok(html.includes(`>${Math.round(100 * late / total)}<`), '/slowdown: the reading is the share that began at 30K or later');
   for (const id of ['answer', 'history']) assert.match(html, new RegExp(`<section[^>]*id="${id}"`), `/slowdown: the ${id} beat`);
   // The spread across courses is course comparison's finding: /slowdown does not repeat it.

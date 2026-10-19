@@ -226,12 +226,16 @@ async function journey(h, blocklist) {
     await page.click('.runner-selection-actions .button-primary');
     await page.waitForSelector('.runner-context', { timeout: 30000 });
     await page.waitForTimeout(1500);
+    // A viewed selection folds to one quiet row (October 19, 2026); Edit opens its chips again, whose remove buttons
+    // name each record, so the harvest finds every record ID the page holds, as it did before the fold.
+    if (await page.locator('.runner-edit').count()) { await page.click('.runner-edit'); await page.waitForTimeout(300); }
   };
   const harvest = () => page.evaluate(() => {
     const text = ['#runner-profile', '.runner-selection', '.runner-context'].map(s => document.querySelector(s)?.innerText || '').join('\n');
     const names = [...document.querySelectorAll('.runner-match strong')].map(n => n.textContent.trim()).filter(Boolean).slice(0, 3);
     // Record IDs no longer show in the view's visible copy (October 18, 2026): they are in each record's closed
-    // disclosure, the selection's remove buttons and, where two races would read the same, a select option.
+    // disclosure, the selection's remove buttons (opened with Edit) and, where two races would read the same, a select
+    // option.
     const held = ['#runner-profile', '.runner-selection', '.runner-context'].map(s => document.querySelector(s)?.textContent || '').join('\n')
       + '\n' + [...document.querySelectorAll('.runner-selection [aria-label]')].map(e => e.getAttribute('aria-label')).join('\n');
     const ids = [...new Set([...held.matchAll(/record (\d{3,})/gi)].map(m => m[1]))];

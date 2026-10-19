@@ -33,8 +33,8 @@ export function printCard(cardId: string) {
 
 /**
  * The report's outputs, in the share bar's row (`.tool-share .share-bar`, so none counts as a tool edit): print or save as
- * PDF through the browser (the one primary; on a touch screen, where Share is what a phone does, Share takes the primary
- * look and comes first, app/styles/pages/report.css), and Share, which opens a sheet (rendered in place, inside the report's
+ * PDF through the browser (the one primary; on a touch screen or under 600 px, where Share is what a phone does, Share
+ * takes the primary look and comes first, app/styles/pages/report.css), and Share, which opens a sheet (rendered in place, inside the report's
  * masked region) holding a 1080 × 1350 image drawn only when asked for (lib/report-image.ts, loaded with import() on the
  * first press), the device's share sheet, the report's link and what the link carries, and on /report these times in the
  * split check (`onward`). Analytics hears only that an

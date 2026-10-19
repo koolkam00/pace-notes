@@ -45,17 +45,24 @@ export default function ReplayBody() {
   const midIndex = Math.max(1, mats.indexOf(30) >= 0 ? mats.indexOf(30) : Math.floor(lastIndex / 2));
 
   return (
-    <StoryPage path={PATH}>
+    <StoryPage path={PATH} numbers={[
+      rows.length > 1 ? (
+        <Values key="rr-pack" bare id="rr-pack" caption={`The pack in ${packEdition!.city} ${packEdition!.year}, mat by mat, against its median`}
+          columns={[{ key: 'm', label: 'Mat' }, { key: 's', label: 'Middle 80% apart' }, { key: 'a', label: 'Its front' }, { key: 'b', label: 'Its back' }]}
+          rows={rows.map((r, i) => [matLabel(r.km), `${Math.round(hi[i] - lo[i])} min`, signedMin(-hi[i]), signedMin(-lo[i])])} reading={lastIndex} />
+      ) : null,
+    ]}>
       {/* The H1 states the flag frame's moment and the figure gives its share, so the replay under them (the instrument
-          the H1 describes) shows no sentence of its own; its one control is the race. Links to the old #replay beat land
-          on it. */}
+          the H1 describes) shows no sentence of the opening edition's own (an edition the reader picks says its own);
+          its one control is the race. Links to the old #replay beat land on it. */}
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
         figure={first.figure ? { ...first.figure } : undefined} fallback={!first.guard}
         unitLine={first.figure ? `${race}, at the first finish` : undefined}>
         <div id="replay" className="night story-replay">
           <span id="snapshots" className="beat-alias" aria-hidden="true" />
           <span id="first" className="beat-alias" aria-hidden="true" />
-          <HeroReplay choices={choices} layout={false} moment={false} />
+          {/* The figure above is the opening edition's; a race the reader picks says its own share at its flag. */}
+          <HeroReplay choices={choices} layout={false} moment="others" />
         </div>
       </StoryHero>
 
@@ -69,17 +76,13 @@ export default function ReplayBody() {
             // inside its lower half at 30K, clear of the bracket's label.
             layers={[{ id: 'pack', label: 'The pack', series: [{ id: 'median', values: rows.map(() => 0) }], band: { lo, hi, edge: true },
               bracket: { x: mats[lastIndex], y0: lo[lastIndex], y1: hi[lastIndex], label: `${Math.round(Number(packs.values.window_min))} min` },
-              labels: [{ x: mats[midIndex], y: lo[midIndex] * 0.45, text: 'Middle 80%', tone: 'ink', priority: 3, prefer: 'below' }] }]}
+              // Centred in the band's lower half at 30K, where it is widest before the finish: never on an edge.
+              labels: [{ x: mats[midIndex], y: lo[midIndex] * 0.5, text: 'Middle 80%', tone: 'ink', priority: 3, prefer: 'right', gap: -40 }] }]}
             refs={[{ value: 0, label: 'Their median' }]}
             xTicks={mats.filter((_, i) => i === 0 || i === lastIndex || mats[i] % 10 === 0).map((km) => ({ value: km, label: matLabel(km) }))}
             // The scale reads on the left, at 10K, where the pack is still one line; the finish end carries the width.
             yTicks={[{ value: reach, label: `${reach} min ahead` }, { value: -reach, label: `${reach} min behind` }]} gridSide="left"
-            label={`Finishes that passed ${matLabel(mats[0])} together in ${packEdition!.city} ${packEdition!.year}: the middle 80% spread from ${matLabel(mats[0])} to ${Math.round(Number(packs.values.window_min))} minutes apart at the finish.`}
-            values={(
-              <Values id="rr-pack" caption={`The pack in ${packEdition!.city} ${packEdition!.year}, mat by mat, against its median`}
-                columns={[{ key: 'm', label: 'Mat' }, { key: 's', label: 'Middle 80% apart' }, { key: 'a', label: 'Its front' }, { key: 'b', label: 'Its back' }]}
-                rows={rows.map((r, i) => [matLabel(r.km), `${Math.round(hi[i] - lo[i])} min`, signedMin(-hi[i]), signedMin(-lo[i])])} reading={lastIndex} />
-            )} />
+            label={`Finishes that passed ${matLabel(mats[0])} together in ${packEdition!.city} ${packEdition!.year}: the middle 80% spread from ${matLabel(mats[0])} to ${Math.round(Number(packs.values.window_min))} minutes apart at the finish.`} />
         </Beat>
       ) : null}
 

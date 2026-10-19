@@ -5,7 +5,7 @@ import { DEFAULT_UNITS, type UnitSystem } from './units';
 // that changes with the units must be listed: in the server render (the static export's build) useUnits, UnitText and
 // MarathonDistance (components/UnitsProvider.tsx) throw on any other page, so a page left out stops the build.
 // The moved addresses' stubs (/packs, /htw, /your-race …) and the 404 show no such text, so their switch stays inert
-// (and takes no room: those pages are reached by an old link, so their header may differ by the switch).
+// (unseen, it keeps the switch's room, so their header matches every other page's).
 const UNIT_PAGES = ['/', '/about', '/methodology', '/slowdown', '/research', '/privacy', '/request-analysis'];
 const UNIT_SECTIONS = ['/analyses', '/runners', '/report', '/courses', '/stories', '/tools', '/finish-times'];
 

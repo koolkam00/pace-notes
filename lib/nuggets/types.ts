@@ -37,6 +37,8 @@ export type Nugget<V extends Record<string, number | string> = Record<string, nu
   fallback: NuggetText;
   /** The reading's figure, or null for a page with no data value (a tool, "Yours"). */
   figure: NuggetFigure | null;
+  /** The figure in kilometres, when it names a distance, a height or a temperature (the figure is the miles version). */
+  figureKm?: NuggetFigure;
   /** The short key under the figure on a contents row (the approved wording in the spec, section 2.2). */
   key?: string;
   /** The /methodology anchor of the term the sentence uses, linked once per page. */

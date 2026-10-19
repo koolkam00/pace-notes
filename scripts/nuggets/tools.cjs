@@ -14,14 +14,15 @@ module.exports = function tools({ json, eq, ok, core }) {
 
   // plan.goal: every course's row at the goal, pooled by finishes.
   R['plan.goal'] = (n) => {
-    const rows = json('public/data/insights/tools/course-goal.json').rows.filter((r) => r.goal === GOAL);
+    const data = json('public/data/insights/tools/course-goal.json');
+    const rows = data.rows.filter((r) => r.goal === GOAL);
     let total = 0;
     let made = 0;
     for (const r of rows) { total += r.n; made += r.n * r.under; }
     eq([n.values.n, n.values.courses], [total, rows.length], 'plan.goal recounts the pooled finishes and courses');
     ok(Math.abs(n.values.under - made / total) < 1e-9, 'plan.goal recounts the pooled share');
     eq(n.guard, total >= 100 && made / total < 0.5, 'plan.goal: guard');
-    if (n.guard) ok(shown(n).includes(`*${Math.round((made / total) * 100)}* made 4:00`), 'plan.goal: the headline names the recounted share');
+    if (n.guard) ok(shown(n).includes(`within ${Math.round(data.tolerance * 100)}% of 4:00 pace through 20K, *${Math.round((made / total) * 100)}* made 4:00`), 'plan.goal: the headline names the window and the recounted share');
   };
 
   // projector.range: all courses, the 25K mat, the 2-minute band whose top is the goal; its 10th and 90th percentile
@@ -40,22 +41,25 @@ module.exports = function tools({ json, eq, ok, core }) {
     eq([n.values.band, n.values.n, n.values.p10, n.values.p90, n.values.spread], [band, cells.n[i], p10, p90, spread], 'projector.range recounts the band, its finishes and the window');
     eq(n.guard, cells.n[i] >= 100 && spread > 0, 'projector.range: guard');
     if (n.guard) ok(shown(n).includes(`*${spread}-minute*`) && n.figure.value === String(spread), 'projector.range: the headline and figure name the recounted window');
+    ok(shown(n).includes(`on course for ${hm(GOAL - shard.band_s / 60)}–${hm(GOAL)} at 25K`), 'projector.range: the group is named by its own band');
   };
 
-  // splitcheck.mats: the pace band's all-course group for the whole minute three above the example finish (4:03:31).
-  R['splitcheck.mats'] = (n) => {
+  // splitcheck.share: the pace band's all-course group for the whole minute three above the example finish (4:03:31):
+  // its sustained-slowdown share, as the split check's dot grid draws it.
+  R['splitcheck.share'] = (n) => {
     const shard = json('public/data/insights/tools/pace-band/all/all.json');
     const finish = 4 * 3600 + 3 * 60 + 31;
     const minute = Math.floor(finish / 60) + 3;
-    const at = (group) => { const i = group.g.indexOf(minute); return i < 0 ? null : { n: group.n[i], e: group.e50[i] }; };
-    const held = at(shard.groups.held);
-    const slow = at(shard.groups.slowdown);
-    ok(held && slow, 'splitcheck.mats: both groups are published at the example window');
-    const gap = held.e[3] - slow.e[3];
-    eq([n.values.minute, n.values.held_n, n.values.slow_n, n.values.gap20, n.values.finish_gap], [minute, held.n, slow.n, gap, slow.e[8] - held.e[8]], 'splitcheck.mats recounts the window and the 20K gap');
-    eq(n.guard, held.n >= 100 && slow.n >= 100 && gap >= 60 && Math.abs(slow.e[8] - held.e[8]) < 60, 'splitcheck.mats: guard');
+    const i = shard.groups.all.g.indexOf(minute);
+    ok(i >= 0, 'splitcheck.share: the example window is published');
+    const all = { n: shard.groups.all.n[i], sd: shard.groups.all.sd ? shard.groups.all.sd[i] : null };
+    const j = shard.groups.slowdown.g.indexOf(minute);
+    const sd = all.sd ?? shard.groups.slowdown.n[j] / all.n;
+    eq([n.values.minute, n.values.n], [minute, all.n], 'splitcheck.share recounts the window');
+    ok(Math.abs(n.values.sd - sd) < 1e-12, 'splitcheck.share recounts the share');
+    eq(n.guard, all.n >= 100 && sd > 0 && sd < 1, 'splitcheck.share: guard');
     const lo = minute - shard.window_s / 60;
-    if (n.guard) ok(shown(n).includes(`from ${hm(lo)} to ${hm(minute - 1)}`) && shown(n).includes(`*${msOf(gap)} ahead*`), 'splitcheck.mats: the headline names the window and the gap');
+    if (n.guard) ok(shown(n).includes(`from ${hm(lo)} to ${hm(minute - 1)}`) && shown(n).includes(`*${pct(sd)}*`) && n.figure.value === pct(sd).replace('%', ''), 'splitcheck.share: the headline and figure name the window and the share');
   };
 
   // weathermatch.mornings: 18 °C ±2 against 8–12 °C, in the 5–20K pace band holding 4:00 even pace.
@@ -82,12 +86,12 @@ module.exports = function tools({ json, eq, ok, core }) {
     const Q = [0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95];
     const wRow = (c, sd) => ({ c, hw: 2, pace: 330, n: 500, ed: [1, 2, 3], sd, after20: 0, late: 0, fin: [0, 0, 0], profile: [] });
     return [
-      [T.planGoalFrom([{ goal: 240, city: 'X', n: 400, ed: 5, under: 0.6, sd: 0.2, after20: 0, fin: [0, 0, 0] }]), '60% of finishes on 4:00 pace through 20K made 4:00.'],
+      [T.planGoalFrom([{ goal: 240, city: 'X', n: 400, ed: 5, under: 0.6, sd: 0.2, after20: 0, fin: [0, 0, 0] }]), '60% of finishes within 2% of 4:00 pace through 20K made 4:00.'],
       [T.planGoalFrom([]), 'Plan your race: a course, a goal and a pace band.'],
-      [T.projectorRangeFrom(pjShard([14000, 14299, 14500, 14901, 15300, 15996, 16500]), Q), 'Finishes on 4:00 pace at 25K ended from 3:58 to 4:27.'],
+      [T.projectorRangeFrom(pjShard([14000, 14299, 14500, 14901, 15300, 15996, 16500]), Q), 'Finishes on course for 3:58–4:00 at 25K ended from 3:58 to 4:27.'],
       [T.projectorRangeFrom(null, Q), 'From a tracker time at any mat, the finishes that followed.'],
-      [T.splitCheckMatsFrom({ window_s: 300, groups: { held: pbGroup(6725, 14606, 500), slowdown: pbGroup(6700, 14614, 500) } }, 14611), 'Finishes from 4:01 to 4:05, mat by mat: those that held pace and those that later slowed.'],
-      [T.splitCheckMatsFrom(null, 14611), 'Check your splits against finishes at the same time.'],
+      [T.splitCheckShareFrom({ window_s: 300, groups: { all: pbGroup(0, 0, 50), held: pbGroup(0, 0, 40), slowdown: pbGroup(0, 0, 10) } }, 14611), 'Finishes from 4:01 to 4:05, mat by mat.'],
+      [T.splitCheckShareFrom(null, 14611), 'Check your splits against finishes at the same time.'],
       [T.weatherMatchMorningsFrom({ rows: [wRow(18, 0.3), wRow(10, 0.3)], pace_range_s: [180, 675], pace_step_s: 15 }), 'At 4:00 pace, 30% of finishes on 64°F mornings had a sustained slowdown.'],
       [T.weatherMatchMorningsFrom(null), 'Race-morning weather, matched to past races at your pace.'],
     ];

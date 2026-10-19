@@ -209,6 +209,9 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
   const [profileError, setProfileError] = useState('');
   const [selected, setSelected] = useState<RunnerRace[]>([]);
   const [confirmed, setConfirmed] = useState<RunnerRace[] | null>(null);
+  // Once the selection is viewed its bar folds to a quiet row ("3 races selected · Edit"): the orange button comes back
+  // only when the selection changes (which sets the view aside), and Edit opens the chips to remove one.
+  const [editing, setEditing] = useState(false);
   const searchController = useRef<AbortController | null>(null);
   const profileController = useRef<AbortController | null>(null);
   const profileHeading = useRef<HTMLHeadingElement>(null);
@@ -283,7 +286,7 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
   }, [confirmed]);
   const toggleRace = (race: RunnerRace) => {
     setSelected(previous => previous.some(row => row.id === race.id) ? previous.filter(row => row.id !== race.id) : [...previous, race]);
-    setConfirmed(null);
+    setConfirmed(null); setEditing(false);
   };
   const visibleMatches = runnerSearchPage(matches, page);
   const pages = Math.ceil(matches.length / RUNNER_PAGE_SIZE);
@@ -322,7 +325,7 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
       <p className="runner-note">{matches.length ? `For “${searched}”. People can share a name, and one person can appear in more than one group: check the races before combining them.` : 'Try the spelling on the original result, a surname, or fewer name parts.'}</p>
       {!matches.length && <NoMatchNext manifest={manifest} />}
       {matches.length > 0 && <ul className="runner-matches">{visibleMatches.map(row => <li key={row[1]}><button className="runner-match" type="button" aria-expanded={profile?.id === row[1]} aria-controls="runner-profile" onClick={() => void openProfile(row[1])}><span><strong>{row[0]}</strong><small>{count(row[2])} {row[2] === 1 ? 'race' : 'races'} · {row[3] === row[4] ? row[3] : `${row[3]}–${row[4]}`} · {row[2] > 1 ? 'Including ' : ''}{row[5]}</small></span><span className="runner-match-action">{profileLoading === row[1] ? 'Loading…' : <span className="sr-only">See races</span>}<Arrow /></span></button></li>)}</ul>}
-      {pages > 1 && <nav className="runner-pagination" aria-label="Search result pages"><button type="button" className="btn btn-secondary is-compact" disabled={page === 0} onClick={() => setPage(value => value - 1)}>Previous</button><span>Page {count(page + 1)} of {count(pages)} · {count(page * RUNNER_PAGE_SIZE + 1)}–{count(Math.min(matches.length, (page + 1) * RUNNER_PAGE_SIZE))} of {count(matches.length)}</span><button type="button" className="btn btn-secondary is-compact" disabled={page + 1 >= pages} onClick={() => setPage(value => value + 1)}>Next</button></nav>}
+      {pages > 1 && <nav className="runner-pagination" aria-label="Search result pages"><button type="button" className="btn btn-secondary is-compact" disabled={page === 0} onClick={() => setPage(value => value - 1)}>Previous</button><span>{count(page * RUNNER_PAGE_SIZE + 1)}–{count(Math.min(matches.length, (page + 1) * RUNNER_PAGE_SIZE))} of {count(matches.length)}</span><button type="button" className="btn btn-secondary is-compact" disabled={page + 1 >= pages} onClick={() => setPage(value => value + 1)}>Next</button></nav>}
     </section>}
     {profileError && <div className="runner-error" role="alert"><p>{profileError} Select the match again to retry.</p></div>}
     <div id="runner-profile" className="ph-no-capture">{manifest && profile && <section className="runner-profile" aria-labelledby="runner-profile-title"><h2 id="runner-profile-title" className="runner-h" tabIndex={-1} ref={profileHeading}>{profile.names.filter(Boolean).join(' / ') || 'Recorded race group'}</h2><p className="runner-note">Tick only the races you recognize. You can add races from other matches too.</p>
@@ -331,7 +334,11 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
       </li>)}</ul>
     </section>}</div>
     {searched && matches.length > 0 && !searchLoading && !searchError && !selected.length && !confirmed && starts}
-    {manifest && selected.length > 0 && !noMatch && <section className="runner-selection ph-no-capture" aria-labelledby="runner-selection-title"><h2 id="runner-selection-title" className="sr-only">{count(selected.length)} {selected.length === 1 ? 'race' : 'races'} selected</h2><ul className="runner-chips">{selected.map(race => <li key={race.id}><span>{raceLabel(race, manifest)} · {finishLabel(race)}{!race.eligible && <small> · limited</small>}</span><button type="button" onClick={() => toggleRace(race)} aria-label={`Remove ${race.name}, ${raceLabel(race, manifest)}, record ${race.id}`}><span aria-hidden="true" className="runner-chip-x" /></button></li>)}</ul><div className="runner-selection-actions"><button className="btn btn-primary is-compact button-primary" type="button" onClick={() => { trackAnalytics('race_comparison_opened', { selection: selected.length === 1 ? 'one' : 'multiple', availability: selected.every(race => analysed(race, manifest, copyEditions)) ? 'eligible' : selected.some(race => analysed(race, manifest, copyEditions)) ? 'mixed' : 'limited' }); setConfirmed([...selected]); requestAnimationFrame(() => analysisRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })); }}>{selected.length === 1 ? 'View the selected race' : `View ${count(selected.length)} selected races`}<Arrow /></button><button className="btn btn-tertiary runner-clear" type="button" onClick={() => { setSelected([]); setConfirmed(null); }}>Clear</button></div></section>}
+    {manifest && selected.length > 0 && !noMatch && (confirmed && !editing
+      ? <section className="runner-selection is-quiet ph-no-capture" aria-labelledby="runner-selection-title"><p className="runner-selection-row"><span id="runner-selection-title">{count(selected.length)} {selected.length === 1 ? 'race' : 'races'} selected</span><button type="button" className="btn btn-tertiary runner-edit" aria-expanded={false} onClick={() => setEditing(true)}>Edit</button></p></section>
+      : <section className="runner-selection ph-no-capture" aria-labelledby="runner-selection-title"><h2 id="runner-selection-title" className="sr-only">{count(selected.length)} {selected.length === 1 ? 'race' : 'races'} selected</h2><ul className="runner-chips">{selected.map(race => <li key={race.id}><span>{raceLabel(race, manifest)} · {finishLabel(race)}{!race.eligible && <small> · limited</small>}</span><button type="button" onClick={() => toggleRace(race)} aria-label={`Remove ${race.name}, ${raceLabel(race, manifest)}, record ${race.id}`}><span aria-hidden="true" className="runner-chip-x" /></button></li>)}</ul><div className="runner-selection-actions">{confirmed
+        ? <button className="btn btn-tertiary runner-done" type="button" aria-expanded={true} onClick={() => setEditing(false)}>Done</button>
+        : <button className="btn btn-primary is-compact button-primary" type="button" onClick={() => { trackAnalytics('race_comparison_opened', { selection: selected.length === 1 ? 'one' : 'multiple', availability: selected.every(race => analysed(race, manifest, copyEditions)) ? 'eligible' : selected.some(race => analysed(race, manifest, copyEditions)) ? 'mixed' : 'limited' }); setConfirmed([...selected]); setEditing(false); requestAnimationFrame(() => analysisRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })); }}>{selected.length === 1 ? 'View the selected race' : `View ${count(selected.length)} selected races`}<Arrow /></button>}<button className="btn btn-tertiary runner-clear" type="button" onClick={() => { setSelected([]); setConfirmed(null); setEditing(false); }}>Clear</button></div></section>)}
     </div>
     </div>
     {/* The analysis reads under the search and what it found, outside their column (from 900 px it is wider, on the

@@ -14,6 +14,8 @@
 //   4. Every story and analysis in the sitemap appears exactly once in CHAPTERS, except the pages the spec merges away.
 //   5. Every howWeKnow anchor is an id in the built /methodology page (when out/methodology.html exists; `--html`
 //      requires it). The built pages' own "How we know" links are also checked by verify-seo (methods-anchors).
+//   7. Each chapter's lead is its first page's reading, and (with the export) that page's opener shows its figure.
+//   8. No reading's unit line repeats its H1 (with the export).
 //   6. The shell's components rendered on the server: the closing stack (its related section, the one next card last in
 //      its pagination nav as S2 and S3 follow it, no also rows, the way back, How we know, PageFeedback; the finish
 //      card on /tools/plan; a next chapter's lead and key), the rail's current page, the chapter list's variants and
@@ -191,6 +193,67 @@ if (fs.existsSync(methodology)) {
     check(!!id && ids.has(id), p, `How we know ${anchor} is not an id on /methodology`);
   }
 } else check(!requireHtml, 'methodology', `--html needs ${path.relative(root, methodology)}: build first`);
+
+// ---------- 7. Each chapter opens on the number it is announced by ----------
+// A chapter's lead (the number on the home guide, the contents and the next card into it) is its first page's own
+// reading, so a reader who taps a number lands on it. With the export, the figure must be in that page's opener (the
+// reading or the analysis answer, above the first beat). A tool draws its reading in the browser from the same data, so
+// its export holds none: the nugget recount (verify-nuggets) checks the tool's window instead, and the note says so.
+const PAGE_NUGGET = require(path.join(root, 'lib/nuggets/index.ts')).PAGE_NUGGET;
+for (const c of C.CHAPTERS) {
+  const first = C.livePages(c)[0];
+  check(first && c.lead === first.nugget, c.id, `the lead ${c.lead} is not the first page's reading (${first && first.nugget})`);
+  check(first && PAGE_NUGGET[first.href] === c.lead, c.id, `PAGE_NUGGET names ${first && PAGE_NUGGET[first.href]} for ${first && first.href}, not the lead ${c.lead}`);
+}
+const textOf = (html) => html.replace(/<span class="sr-only">[\s\S]*?<\/span>/g, '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;|\u00a0/g, ' ').replace(/&amp;/g, '&').replace(/&#x27;|&rsquo;/g, '’').replace(/\s+/g, ' ');
+/** The page's opener: from <main> to the first beat after the hero (a story's reading, an analysis's answer). */
+function opener(html) {
+  const main = html.indexOf('<main');
+  if (main < 0) return '';
+  const rest = html.slice(main);
+  const beats = [...rest.matchAll(/<section\b[^>]*\sdata-beat="[^"]*"/g)].map((m) => m.index);
+  const hero = /<(?:header class="reading|section class="analysis-hero)/.exec(rest);
+  const end = beats.find((i) => hero && i > hero.index + 10) ?? rest.length;
+  return rest.slice(0, end);
+}
+if (hasOut) {
+  const { getNugget } = require(path.join(root, 'lib/nuggets/index.ts'));
+  for (const c of C.CHAPTERS) {
+    const first = C.livePages(c)[0];
+    if (!first) continue;
+    const figure = getNugget(c.lead).figure;
+    if (!figure) continue;
+    if (first.kind === 'tool') { notes.push(`${c.id}: ${first.href} draws its reading (${figure.value}${figure.unit || ''}) in the browser; verify-nuggets recounts its window`); continue; }
+    const file = [`${first.href.slice(1)}.html`, `${first.href.slice(1)}/index.html`].map((f) => path.join(OUT, f)).find((f) => fs.existsSync(f));
+    if (!file) continue;
+    // A figure's unit is its own span, so "20 %" in the text is "20%"; a pair ("20% · 44%") is two figures on the page.
+    const head = textOf(opener(fs.readFileSync(file, 'utf8'))).replace(/(\d) ([%×])/g, '$1$2');
+    const parts = figure.value.replace(/\u00a0/g, ' ').split(' · ');
+    check(parts.every((v) => head.includes(v)), c.id, `${first.href} does not open on the lead's figure "${figure.value}" (the number the chapter row and the next card promise)`);
+  }
+}
+
+// ---------- 8. A reading's unit line adds to its H1 ----------
+// Under the big figure, the unit line names the base or the comparison the H1 leaves out; it never repeats the H1
+// (five words in a row from the unit line found in the H1 fail).
+if (hasOut) {
+  const words = (t) => t.toLowerCase().replace(/[^a-z0-9%:–\s-]/g, ' ').split(/\s+/).filter(Boolean);
+  const pages = [];
+  const walk = (dir) => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) { const f = path.join(dir, e.name); if (e.isDirectory()) { if (e.name !== '_next') walk(f); } else if (e.name.endsWith('.html')) pages.push(f); } };
+  walk(OUT);
+  let seen = 0;
+  for (const file of pages) {
+    const html = fs.readFileSync(file, 'utf8');
+    const h1 = /<h1\b[^>]*class="reading-title[^"]*"[^>]*>([\s\S]*?)<\/h1>/.exec(html);
+    const unit = /<p class="reading-unit-line">([\s\S]*?)<\/p>/.exec(html);
+    if (!h1 || !unit) continue;
+    seen++;
+    const a = words(textOf(h1[1])).join(' '), b = words(textOf(unit[1]));
+    const run = b.length >= 5 ? b.findIndex((_, i) => i + 5 <= b.length && a.includes(b.slice(i, i + 5).join(' '))) : -1;
+    check(run < 0, path.relative(OUT, file), `the unit line "${textOf(unit[1]).trim()}" repeats the H1 ("${b.slice(run, run + 5).join(' ')}")`);
+  }
+  check(seen >= 8, 'unit lines', `only ${seen} pages with a reading's unit line were found`);
+}
 
 // ---------- 6. The components, rendered ----------
 const React = require('react');

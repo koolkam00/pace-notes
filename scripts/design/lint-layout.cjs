@@ -9,8 +9,9 @@
 //   5. SVG text outside its SVG;
 //   6. console errors and page errors;
 //   7. on / only, more than one rgb(255, 91, 46) control on the first screen;
-//   8. HTML text inside a figure.viz cut off at the figure's edge or at an element that clips its overflow (a pace
-//      block's "+3" past the frame, a tile's "+4%"), by more than 1 px; a scroller's content and an ellipsis are exempt.
+//   8. HTML text inside a figure.viz or a card (a next card, a receipt, the report's and the runner's night cards, an
+//      answer card) cut off at its edge or at an element that clips its overflow (a pace block's "+3" past the frame, a
+//      tile's "+4%", a next card's "improvemen"), by more than 1 px; a scroller's content and an ellipsis are exempt.
 //
 //   node scripts/design/lint-layout.cjs --routes=<comma list | @file> [--widths=195,320,390,1440] [--dir=out]
 //        [--json=<file>] [--only=1,2,3] [--max=12]
@@ -124,22 +125,29 @@ function inspect({ isHome }) {
     }
   }
 
-  // 8. HTML text in a figure cut off: each line box against the figure and against every element between them that
-  // clips its overflow sideways. A scroller (overflow auto or scroll) may hold content past its edge by design, and an
-  // ellipsis is a deliberate cut, so neither counts.
-  for (const fig of document.querySelectorAll('figure.viz')) {
+  // 8. HTML text in a figure or a card cut off: each line box against the figure (or card) and against every element
+  // between them that clips its overflow sideways. A scroller (overflow auto or scroll) may hold content past its edge
+  // by design, and an ellipsis is a deliberate cut, so neither counts; nor does a visually hidden name (a 1 px box).
+  // Each text belongs to its nearest figure or card only.
+  const CLIP_ROOTS = 'figure.viz, .next-card, .receipt, .race-report-screen, .answer-card, .runner-numbers';
+  for (const fig of document.querySelectorAll(CLIP_ROOTS)) {
     if (hidden(fig)) continue;
     const walker = document.createTreeWalker(fig, NodeFilter.SHOW_TEXT);
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
       const el = n.parentElement;
-      if (!n.textContent.trim() || !el || el.closest('svg') || el.closest('details:not([open])') || hidden(el)) continue;
+      if (!n.textContent.trim() || !el || el.closest(CLIP_ROOTS) !== fig || el.closest('svg') || el.closest('details:not([open])') || hidden(el)) continue;
       const clippers = [];
+      let unseen = false;
       for (let a = el; a; a = a.parentElement) {
         const cs = getComputedStyle(a);
         if (/auto|scroll/.test(cs.overflowX)) break;
-        if (a === fig || /hidden|clip/.test(cs.overflowX)) { if (cs.textOverflow !== 'ellipsis') clippers.push(a); }
+        if (a === fig || /hidden|clip/.test(cs.overflowX)) {
+          if (a !== fig && a.getBoundingClientRect().width <= 1.5) { unseen = true; break; }
+          if (cs.textOverflow !== 'ellipsis') clippers.push(a);
+        }
         if (a === fig) break;
       }
+      if (unseen) continue;
       const range = document.createRange();
       range.selectNodeContents(n);
       for (const r of range.getClientRects()) {

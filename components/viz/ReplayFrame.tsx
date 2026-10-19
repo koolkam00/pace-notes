@@ -5,7 +5,8 @@ import { fieldX } from './replay-geometry';
 
 /**
  * The replay's frame (the redesign spec, sections 3.6 and 7.1), drawn the same before and after its canvas loads so
- * nothing moves: the race and the clock on the left, the shares finished and at slowdown pace on the right, the canvas
+ * nothing moves: the race and the clock on the left, the shares finished and at slowdown pace on the right (the home
+ * band, whose sentence is about distance, shows the share finished alone and draws no slowdown colour), the canvas
  * box (its height fixed in CSS) with the poster under the canvas, the moment's sentence under it (its two lines
  * reserved, dimmed to --night-ink-3 while the race runs on), and the control row: play and pause, then the race clock
  * with hour ticks. Nothing sits on the canvas, so no control ever covers the leaders reaching the line. Pure markup: RaceReplay passes the
@@ -49,7 +50,7 @@ export default function ReplayFrame({ race, clock, finished, slow, view, band = 
         </div>
         <dl className="replay-stats">
           <div><dt>Finished</dt><dd>{finished}</dd></div>
-          <div><dt><i className="replay-swatch" aria-hidden="true" />At slowdown pace</dt><dd>{slow}</dd></div>
+          {band ? null : <div><dt><i className="replay-swatch" aria-hidden="true" />At slowdown pace</dt><dd>{slow}</dd></div>}
         </dl>
       </div>
       {/* The rank axis is named above the field, never on it, so no dot ever runs under its words. */}

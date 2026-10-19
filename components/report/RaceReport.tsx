@@ -172,7 +172,7 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
           {type.state === 'ok' ? (
             <>
               <strong><TypeGlyph profile={type.profile} index={type.index} domain={type.domain} />{type.name}</strong>
-              <small>{capitalize(approxWords(type.share))} of {count(type.cohortN)} finishes were {type.name.toLowerCase()}s.</small>
+              <small>{capitalize(approxWords(type.share))} finishes were {type.name}s.</small>
             </>
           ) : type.state === 'off' ? (
             <div className="tool-state is-error"><p>{type.message}</p><button type="button" className="btn btn-secondary is-compact no-print" onClick={retryType}>Try again</button></div>

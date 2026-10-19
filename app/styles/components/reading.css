@@ -47,7 +47,7 @@
 .reading-rule { height: 1px; margin: var(--s-6) 0 var(--s-5); border: 0; background: var(--rule); }
 .reading-figure { display: grid; justify-items: start; gap: var(--s-2); }
 .reading-figure .big-number { margin-left: -.04em; }
-.reading-unit-line { margin: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
+.reading-unit-line { margin: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); text-wrap: pretty; }
 .reading-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); margin-top: var(--s-5); }
 .reading-sentence { margin: 0; max-width: 34rem; }
 .reading-instrument { max-width: 34rem; max-height: 120px; overflow: visible; }
@@ -65,6 +65,8 @@
 .reading.is-null .big-number { color: var(--ink-3); }
 
 /* A fallback reading (its guard failed) shows the neutral sentence and the plain observed value. */
+/* One accent per screen, the H1's (or the figure's): the sentence under the figure keeps its italic in ink. */
+.reading .reading-sentence em { color: var(--ink); }
 .reading.is-fallback .reading-sentence em { color: inherit; font-style: normal; }
 
 /* Range: 19–46% with a strip. */

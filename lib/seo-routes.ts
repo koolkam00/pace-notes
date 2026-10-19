@@ -104,26 +104,27 @@ export const ROBOTS_DISALLOW: readonly string[] = ['/data/runners/index/', '/dat
  */
 export const CONTENT_DATES: Readonly<Record<string, string>> = {
   // The redesign (October 18, 2026) rewrote every hub, story and info page: each opens on its reading now, its beats
-  // were cut to the findings, and the chapter crumbs and closing stack are new.
-  '/': '2026-10-18',
-  '/research': '2026-10-18',
-  '/about': '2026-10-18',
-  '/methodology': '2026-10-18',
-  '/stories': '2026-10-18',
+  // were cut to the findings, and the chapter crumbs and closing stack are new. October 19: the chapter leads, keys and
+  // story copy were edited again (round 2, part A), and each page's tables moved into one "All numbers" row.
+  '/': '2026-10-19',
+  '/research': '2026-10-19',
+  '/about': '2026-10-19',
+  '/methodology': '2026-10-19',
+  '/stories': '2026-10-19',
   '/tools': '2026-10-18',
   '/tools/pace-calculator': '2026-10-18',
   '/analyses': '2026-10-18',
   '/courses': '2026-10-18',
-  '/slowdown': '2026-10-18',
-  '/privacy': '2026-10-18',
-  '/stories/pacing-types': '2026-10-18',
-  '/stories/round-numbers': '2026-10-18',
-  '/stories/race-replay': '2026-10-18',
-  '/stories/places': '2026-10-18',
-  '/stories/final-kick': '2026-10-18',
-  '/stories/courses': '2026-10-18',
-  '/stories/who-holds-pace': '2026-10-18',
-  '/stories/race-morning': '2026-10-18',
+  '/slowdown': '2026-10-19',
+  '/privacy': '2026-10-19',
+  '/stories/pacing-types': '2026-10-19',
+  '/stories/round-numbers': '2026-10-19',
+  '/stories/race-replay': '2026-10-19',
+  '/stories/places': '2026-10-19',
+  '/stories/final-kick': '2026-10-19',
+  '/stories/courses': '2026-10-19',
+  '/stories/who-holds-pace': '2026-10-19',
+  '/stories/race-morning': '2026-10-19',
 };
 
 export type SitemapEntry = { path: string; lastmod?: string };

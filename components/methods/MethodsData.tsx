@@ -3,11 +3,12 @@ import CohortNote from '@/components/CohortNote';
 import DataCoverage from '@/components/DataCoverage';
 import { sourceReleaseHref } from '@/lib/data-source';
 import { copyEditions } from '@/lib/duplicate-editions';
+import { getAllFinisherContextStart } from '@/lib/all-finisher-context-server';
+import { CHAPTERS, livePages } from '@/lib/chapters';
 import { getExtensions } from '@/lib/extension-data';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { getPersonalSummary } from '@/lib/personalized-data';
 import { getWeatherEvidence } from '@/lib/weather-data';
-import { TEN_ANALYSES } from '@/lib/ten-analyses';
 import { countWord } from '@/lib/nuggets/format';
 import { Part, Topic, day, n } from './shared';
 
@@ -18,6 +19,11 @@ export default function MethodsData() {
   const personalized = getPersonalSummary();
   const weather = getWeatherEvidence();
   const copies = copyEditions();
+  // Every analysis page (the chapters' list, as /analyses shows it). They share one total when the all-finisher views
+  // start from the personalized analyses' eligible finishes; otherwise the sentences below keep to the personalized ones.
+  const analyses = CHAPTERS.flatMap((c) => livePages(c)).filter((p) => p.kind === 'analysis').length;
+  const oneTotal = !!personalized && getAllFinisherContextStart().analysis_n === personalized.n;
+  const theAnalyses = oneTotal ? `The ${countWord(analyses)} analyses, listed by chapter,` : 'The personalized analyses';
   const sourceHref = sourceReleaseHref(release.tag);
   // The tool total, said beside the totals above only when its two edition screens account for the whole difference.
   const band = readInsight<{ cohort_n: number; screens: { start_offset: { finishes: number }[]; grid: { finishes: number }[] } }>('tools/pace-band.json');
@@ -52,7 +58,7 @@ export default function MethodsData() {
     </Topic>
 
     <Topic id="coverage" title="Coverage">
-      {personalized && <p>The {countWord(TEN_ANALYSES.length)} ranked analyses use {n(personalized.n)} finishes with a complete set of usable splits, across {personalized.cities.filter((c) => c.city !== 'All courses').length} cities. A finish is one performance, so a runner can appear more than once. Times at successive checkpoints give the average pace for each section. Records also include age, recorded gender and candidate links between a runner’s races. Weather estimates and course profiles add context where they exist.</p>}
+      {personalized && <p>{theAnalyses} use {n(personalized.n)} finishes with a complete set of usable splits, across {personalized.cities.filter((c) => c.city !== 'All courses').length} cities. A finish is one performance, so a runner can appear more than once. Times at successive checkpoints give the average pace for each section. Records also include age, recorded gender and candidate links between a runner’s races. Weather estimates and course profiles add context where they exist.</p>}
       <p>Individual tables can have smaller samples because they need more fields. History, exact-age and weather comparisons use subsets.</p>
       <DataCoverage />
     </Topic>
@@ -65,7 +71,7 @@ export default function MethodsData() {
     <Topic id="copy-editions" title="Copy editions">
       {copies.length === 0 ? <p>No edition in the current release repeats another edition’s field.</p> : <>
         {copies.map((copy) => <p key={`${copy.city}-${copy.year}`}>{copy.city} {copy.year}’s records largely repeat the {copy.city} {copy.duplicate_of} field: {n(copy.identical_nine_time_twins)} of its {n(copy.eligible_removed)} finishes share all nine checkpoint times with a {copy.duplicate_of} finish.</p>)}
-        <p>The stories, the course pages and the runner tools leave {copies.length > 1 ? 'these editions' : 'this edition'} out. Course pages count {copies.length > 1 ? 'them' : 'it'} only in the pooled pace profile. The {countWord(TEN_ANALYSES.length)} ranked analyses and the sustained-slowdown study still include {copies.length > 1 ? 'them' : 'it'}. Find a runner shows {copies.length > 1 ? 'their' : 'its'} records as recorded times only, without pacing, peer or weather comparisons.</p>
+        <p>The stories, the course pages and the runner tools leave {copies.length > 1 ? 'these editions' : 'this edition'} out. Course pages count {copies.length > 1 ? 'them' : 'it'} only in the pooled pace profile. {oneTotal ? 'The analyses' : 'The personalized analyses'} and the sustained-slowdown study still include {copies.length > 1 ? 'them' : 'it'}. Find a runner shows {copies.length > 1 ? 'their' : 'its'} records as recorded times only, without pacing, peer or weather comparisons.</p>
       </>}
     </Topic>
 

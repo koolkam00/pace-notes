@@ -84,7 +84,7 @@ export const defaultGroup = (race: RunnerRace): ComparisonKey => runnerAgeBand(r
 /**
  * The race's own pacing: the late change as the view's finding, then the lap list, every row alike (the sentence says
  * what the late bars show; lit rows mean a sustained slowdown, and only the race report lights them). With the race
- * report open below, its own lap list carries the mats, so this one steps aside.
+ * report open below, its own card carries the finding and the mats, so the heading and this list step aside.
  */
 export function PacingReadings({ race, metrics, manifest, units, laps = true }: MeasuredRace & { manifest: RunnerManifest; units: UnitSystem; laps?: boolean }) {
   const id = useId();
@@ -95,9 +95,11 @@ export function PacingReadings({ race, metrics, manifest, units, laps = true }: 
   });
   return <section className="rc-view" aria-labelledby={`${id}-title`}>
     {/* The race's voice, as the report beside it speaks: a name search can find a namesake's record. */}
-    <h3 id={`${id}-title`} className="rc-h">Late in this race, the pace was {difference(metrics.lateChange)} its 5–20K pace.</h3>
+    {/* With the report open below, its card says the same (its lap list and its First 5K tile), so the heading steps
+        aside with the lap list: it stays the section's name for screen readers, over nothing visible. */}
+    <h3 id={`${id}-title`} className={laps ? 'rc-h' : 'sr-only'}>Late in this race, the pace was {difference(metrics.lateChange)} its 5–20K pace.</h3>
     {/* The first 5K only where it parted from the early pace by 1% or more: a smaller difference says nothing. */}
-    {Math.abs(metrics.openingChange) >= 1 ? <p className="rc-copy">The first 5K was {difference(metrics.openingChange)} the 5–20K pace.</p> : null}
+    {laps && Math.abs(metrics.openingChange) >= 1 ? <p className="rc-copy">The first 5K was {difference(metrics.openingChange)} the 5–20K pace.</p> : null}
     {laps ? <LapList rows={rows} baseline={paceLabel(metrics.baseline, units)} label={`Pace through ${titleFor(race, manifest)}, each mat against the 5–20K pace`} /> : null}
     <details className="values rc-details"><summary><span>Checkpoint readings</span><span className="values-glyph" aria-hidden="true" /></summary>
       <div className="rc-table-wrap table-wrap" role="region" aria-label="Recorded checkpoints" tabIndex={0}><table className="table"><caption className="sr-only">Elapsed times and section paces</caption><thead><tr><th scope="col">Checkpoint</th><th scope="col">Elapsed</th><th scope="col">Section time</th><th scope="col">Section pace</th></tr></thead><tbody>{metrics.sections.map(section => <tr key={section.end}><th scope="row">{matLabel(section.end)}</th><td>{runnerDuration(section.cumulative)}</td><td>{runnerDuration(section.elapsed)}</td><td>{paceLabel(section.pace, units)}</td></tr>)}</tbody></table></div>

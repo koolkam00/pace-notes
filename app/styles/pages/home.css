@@ -28,9 +28,8 @@
 .home-start .hero-replay.is-band .replay-frame { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-3); }
 .home-start .hero-replay.is-band .replay-frame > * { grid-column: 1 / -1; }
 .home-start .hero-replay.is-band .replay-hud { grid-row: 1; }
-/* The rank axis named once under the HUD, so the field's S-curve reads on the first screen too; the field gives up the
-   line's height, so the plan door and both other ways to start still end above a 664 px screen (S1). */
-.home-start .hero-replay.is-band .replay-axis-y { display: block; grid-row: 2; margin: 0 0 4px; }
+/* The band keeps the race, its clock and the share finished; the rank axis's name and the slowdown colour are the
+   stories' (the band's sentence is about distance), so its first screen has one accent, the H1's. */
 .home-start .hero-replay.is-band { --replay-h: calc(22vh - 20px); }
 @supports (height: 1svh) { .home-start .hero-replay.is-band { --replay-h: clamp(108px, calc(22svh - 20px), 180px); } }
 .home-start .hero-replay.is-band .replay-box { grid-row: 3; }
@@ -52,9 +51,6 @@
 .home-plan-field label { display: block; padding: 0 14px; font-family: var(--sans); font-size: var(--t-label); font-weight: 600; line-height: 1.25; color: var(--night-ink-3); }
 .home-plan-field-head label { padding-right: 0; }
 .home-plan .home-plan-field .keypad-hint { font-size: .75rem; font-weight: 500; line-height: 1.25; color: var(--night-ink-3); }
-/* "Tap . for :" waits until the goal has focus (the keypad is up), so the first screen carries no stray punctuation. */
-.home-plan .home-plan-field .keypad-hint { display: none; }
-@media (pointer: coarse) { .home-plan .home-plan-field.is-goal:focus-within .keypad-hint { display: inline; } }
 .home-plan select, .home-plan input:not([type='hidden']) {
   display: block; width: 100%; min-width: 0; min-height: 44px; height: 44px; margin: 0; padding: 0 14px;
   border: 0; border-radius: 0; background-color: transparent; box-shadow: none; color: var(--night-ink);
@@ -98,8 +94,13 @@
 /* On a phone each chapter reads down its own column: its title, then its reading (the figure, its key under it), so no
    title is squeezed beside a figure and every row has the same shape. The marker on the line says where in the race
    it is; the pages it holds show from 600 px. */
+/* Each row ends in the contents' arrow (ink-3, nudged on hover), centred on the row in its own narrow column. */
+.home-chapters .chapter-go { align-self: center; color: var(--ink-3); transition: transform var(--d-quick) var(--ease-out), color var(--d-quick) var(--ease-out); }
+.home-chapters .chapter-link:hover .chapter-go { transform: translateX(3px); color: var(--ink); }
+.home-chapters .chapter-link:active { transform: scale(.99); transition: transform var(--d-press) var(--ease-out); }
 @media (max-width: 599.98px) {
-  .home-chapters .chapter-link { grid-template-columns: calc(var(--line-x, 28px) * 2) minmax(0, 1fr); align-items: start; row-gap: 2px; min-height: 0; padding: 6px 0 12px; }
+  .home-chapters .chapter-link { grid-template-columns: calc(var(--line-x, 28px) * 2) minmax(0, 1fr) auto; align-items: start; row-gap: 2px; min-height: 0; padding: 6px 0 12px; }
+  .home-chapters .chapter-go { grid-column: 3; grid-row: 1 / span 2; }
   .home-chapters .chapter-text { padding: 11px 0 0; }
   .home-chapters .chapter-sub { display: none; }
   .home-chapters .chapter-reading { grid-column: 2; display: grid; justify-items: start; gap: 4px; max-width: none; text-align: left; }
@@ -109,7 +110,7 @@
 /* From 600 px the reading sits right of its chapter in a fixed column, the figure and its key flush left together, so
    every key runs one or two even lines and the figures line up down the list. */
 @media (min-width: 600px) {
-  .home-chapters .chapter-link { grid-template-columns: calc(var(--line-x, 28px) * 2) minmax(0, 1fr) 15.5rem; align-items: start; }
+  .home-chapters .chapter-link { grid-template-columns: calc(var(--line-x, 28px) * 2) minmax(0, 1fr) 15.5rem auto; align-items: start; }
   .home-chapters .chapter-text { padding-top: 10px; }
   .home-chapters .chapter-reading { justify-items: start; max-width: none; padding-top: 6px; text-align: left; }
   .home-chapters .chapter-key { max-width: none; }
@@ -117,6 +118,9 @@
 
 /* ---------- The closing call ---------- */
 .home-cta { margin-top: var(--beat-gap); padding: var(--s-7) 0; }
+/* The home ends on the night call: the band runs down to the footer's hairline instead of leaving the footer's top
+   margin as a strip of paper under it. */
+.home-cta:last-child { margin-bottom: calc(-1 * var(--s-8)); }
 .home-cta-inner { display: grid; justify-items: start; gap: var(--s-5); }
 .home-cta-inner .t-h2 { max-width: 16ch; }
 .home-cta .btn-primary:focus-visible { outline-color: var(--focus-night); }

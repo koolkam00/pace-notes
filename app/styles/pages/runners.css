@@ -1,8 +1,8 @@
 /* /runners (WP6, the redesign spec section 7.12): the chapter line, the H1 and its dek, then the name search as one
    instrument cell, two ways in without a name as 64 px rows, the matches as 56 px rows, a profile's races to tick, a
-   selection bar that sticks to the bottom while races are chosen, and the selected races' analysis: the answer on
-   night, then the race in context in three views. From 900 px it is one centred column; the analysis of the chosen
-   races reads below it, wider, on the same axis. The race report's styles are in pages/report.css. */
+   selection bar that sticks to the bottom while races are chosen (a quiet row once they are viewed), and the selected
+   races' analysis: the answer on night, then the race in context in three views. From 900 px it is one centred column
+   at one measure. The race report's styles are in pages/report.css. */
 
 .runner-page { padding-top: var(--s-5); }
 /* Every heading here is set in the redesign's Fraunces: optical size following the size, weight 440. */
@@ -13,14 +13,12 @@
 .runner-work { margin-top: var(--s-6); }
 .runner-split, .runner-side, .runner-main, .runner-reading { min-width: 0; }
 .runner-page .chapter-end { margin-top: var(--s-8); }
-/* From 900 px the task is one centred column (42rem): the heading, the search, the two ways in and what the search
-   finds, then the closing stack at the same measure, so no column runs empty beside another. The selected races'
-   analysis reads under it at the figure measure, on the same axis, and the closing stack follows it there. */
+/* From 900 px the page is one centred column at one measure (46rem, the race report's): the heading, the search, the
+   two ways in and what the search finds, the selected races' analysis and the closing stack share both edges, so the
+   left edge never jumps between sections. */
 @media (min-width: 900px) {
-  .runner-head, .runner-split, .runner-page .chapter-end { max-width: 42rem; margin-inline: auto; }
+  .runner-head, .runner-split, .runner-reading > .runner-analysis, .runner-page .chapter-end { max-width: 46rem; margin-inline: auto; }
   .runner-work { margin-top: var(--s-7); }
-  .runner-reading > .runner-analysis { max-width: var(--measure-figure); margin-inline: auto; }
-  @supports selector(:has(a)) { .runner-page:has(.runner-analysis) .chapter-end { max-width: var(--measure-figure); } }
 }
 
 /* Small text shared by the page: help lines and notes under a heading. */
@@ -146,6 +144,10 @@ label.runner-race-row { cursor: pointer; }
 .runner-chips button::after { content: ''; position: absolute; inset: -6px; }
 .runner-chips button:hover { color: var(--ink); }
 .runner-chips button:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
+/* Once viewed, the bar is one quiet row: the count, then Edit (which opens the chips again, with Done and Clear). */
+.runner-selection.is-quiet { display: block; padding: 2px 4px 2px 14px; box-shadow: none; }
+.runner-selection-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin: 0; font-size: var(--t-small); font-weight: 600; line-height: 1.3; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.runner-edit, .runner-done { flex: none; padding-inline: var(--s-3); font-size: var(--t-small); }
 .runner-chip-x { position: relative; width: 10px; height: 10px; }
 .runner-chip-x::before, .runner-chip-x::after { content: ''; position: absolute; left: 50%; top: 50%; width: 11px; height: 1.5px; background: currentColor; transform: translate(-50%, -50%) rotate(45deg); }
 .runner-chip-x::after { transform: translate(-50%, -50%) rotate(-45deg); }

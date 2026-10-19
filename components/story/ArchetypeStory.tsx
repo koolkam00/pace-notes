@@ -32,9 +32,9 @@ export type WhichData = {
 /**
  * "Which runner were you?" (the redesign spec, section 7.5, #you): the reader's nine mat times, classified in the
  * browser with the published classifier, answer as the type's glyph, its name and its share of finishes, with the nine
- * sections as pace blocks. The root is .which-card, masked in session replays; the times live in component state only.
- * Pre-filled with an example, so the beat never opens empty; the answer speaks of "this example" until a time is
- * changed, and of "you" only after.
+ * sections as pace blocks. The answer comes first, for a pre-filled example, so the beat never opens on a form or
+ * empty; the nine fields sit behind "Try your own splits". The root is .which-card, masked in session replays; the
+ * times live in component state only. The answer speaks of "this example" until a time is changed, and of "you" after.
  */
 export function WhichArchetype({ data, initial }: { data: WhichData; initial: string[] }) {
   const [values, setValues] = useState<string[]>(initial);
@@ -55,8 +55,8 @@ export function WhichArchetype({ data, initial }: { data: WhichData; initial: st
     return { rel, best: dist.indexOf(Math.min(...dist)) };
   }, [valid, times, data]);
   const type = result ? data.types[result.best] : null;
-  return (
-    <div className="which-card">
+  const grid = (
+    <>
       <div className="which-grid">
         {MATS.map((label, i) => (
           <label key={label} className="field which-field">
@@ -67,11 +67,17 @@ export function WhichArchetype({ data, initial }: { data: WhichData; initial: st
         ))}
       </div>
       <p className="field-hint which-help" id="which-help">Your time at each mat, h:mm:ss.<KeypadHint /></p>
+    </>
+  );
+  return (
+    <div className="which-card">
+      {/* The answer first (the example's, until a time is changed), then the nine fields behind one row: a form never
+          opens a beat. */}
       {result && type ? (
         <div className="which-result">
           <p className="which-name t-sentence">
             <TypeGlyph profile={type.profile} index={result.best} domain={data.domain} />
-            <span>{edited ? 'You' : 'This example'} ran like a <strong>{type.name}</strong>, the shape of <em>{Math.round(type.share * 100)}%</em> of finishes.</span>
+            <span>{edited ? 'You' : 'This example'} ran like a <strong>{type.name}</strong>, the shape of {Math.round(type.share * 100)}% of finishes.</span>
           </p>
           <ol className="which-blocks" aria-label={`Each section against ${edited ? 'your' : 'its'} own average pace`}>
             {result.rel.map((v, i) => {
@@ -96,6 +102,13 @@ export function WhichArchetype({ data, initial }: { data: WhichData; initial: st
           </p>
         </div>
       ) : <p className="field-error which-error" role="alert">Each time needs h:mm:ss, later than the one before, with a finish between 1:30:00 and 12:00:00.</p>}
+      <details className="values which-try" open={edited || undefined}>
+        <summary>
+          <span>{edited ? 'Your splits' : 'Try your own splits'}</span>
+          <span className="values-glyph" aria-hidden="true" />
+        </summary>
+        <div className="which-try-body">{grid}</div>
+      </details>
       <p className="sr-only" aria-live="polite">{type ? `${edited ? 'You' : 'This example'} ran like a ${type.name}.` : 'Times not yet valid.'}</p>
     </div>
   );

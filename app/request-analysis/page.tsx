@@ -1,3 +1,4 @@
+import InfoNext from '@/components/InfoNext';
 import AnalysisRequest from '@/components/AnalysisRequest';
 import { pageMetadata } from '@/lib/seo';
 
@@ -18,6 +19,7 @@ export default function RequestAnalysisPage() {
     </header>
     <div className="info-body">
       <AnalysisRequest />
+      <InfoNext />
     </div>
   </article>;
 }

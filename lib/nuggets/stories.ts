@@ -12,6 +12,7 @@ import { readInsight } from '@/lib/insights-server';
 import type { Archetypes, Courses, Demographics, FinishTimes, Kick, Positions, ReplayEditionMeta, ReplayIndex } from '@/lib/insights';
 import { getStudyEvidence, table } from '@/lib/research-data';
 import { MARATHON_KM, type UnitSystem } from '@/lib/units';
+import { displayCity } from '@/lib/course-page';
 import { approxWords, count, countWord, distance, hm, inWords, matLabel, ms, pct, perDegree, sectionLabel, spokenPct, spokenTime, temp, tempGap } from './format';
 import { capitalize, shareFigure, type Builder } from './build';
 import type { Nugget, UnitsAware } from './types';
@@ -19,6 +20,8 @@ import type { Nugget, UnitsAware } from './types';
 const MINUS = '−';
 /** A signed number with the minus sign: −5.8, +2.2. */
 const signed = (v: number, digits = 1) => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(v).toFixed(digits)}`;
+/** One decimal. */
+const one = (v: number) => v.toFixed(1);
 /** Both unit modes of a sentence. */
 const both = (f: (units: UnitSystem) => string): UnitsAware<string> => ({ mi: f('mi'), km: f('km') });
 /** A data section label ("35–40", "40–42.2") as its mat names ("35–40K", "40K–finish"). */
@@ -181,17 +184,18 @@ export function replayTitleFrom(first: Nugget): Nugget {
 }
 
 /**
- * The home band's moment (its flag frame, the first finish, in the replay.first edition): how far the back of the field
- * had come. The race-replay story opens on the share short of 20K (replay.first); the home page says this instead, so
- * the two never lead with the same finding. "Just" needs the back short of halfway.
+ * The home band's moment (its flag frame, the first finish): how far the back of the field had come, in the edition
+ * where it had come least (argmin of the back's distance at the first finish). The race-replay story opens on another
+ * finding, the share short of 20K, in its own edition (replay.first), so the home page and chapter 01 never open on the
+ * same race and moment unless the data picks one edition for both. "Just" needs the back short of halfway.
  */
-export function replayBackFrom(edition: Pick<ReplayEditionMeta, 'city' | 'year' | 'moments'> | null): Nugget {
+export function replayBackFrom(edition: Pick<ReplayEditionMeta, 'city' | 'year' | 'moments'> & { slug?: string } | null): Nugget {
   const km = edition?.moments?.back_km_at_first ?? NaN;
   const ok = Number.isFinite(km) && km > 0 && km < MARATHON_KM / 2;
-  const race = edition ? `${edition.city} ${edition.year}` : '';
+  const race = edition ? `${displayCity(edition.city)} ${edition.year}` : '';
   return {
     id: 'replay.back', page: '/', denominator: 'positions',
-    values: { back_km: km, city: edition?.city ?? '', year: edition?.year ?? NaN }, guard: ok,
+    values: { back_km: km, slug: edition?.slug ?? '', city: edition?.city ?? '', year: edition?.year ?? NaN }, guard: ok,
     headline: both((u) => `When the first runner finished ${race}, the back of the field had covered just *${distance(km, u)}*.`),
     fallback: Number.isFinite(km) ? both((u) => `When the first runner finished ${race}, the back of the field had covered ${distance(km, u)}.`) : 'The whole field, on one race clock.',
     figure: null,
@@ -199,9 +203,8 @@ export function replayBackFrom(edition: Pick<ReplayEditionMeta, 'city' | 'year' 
 }
 
 function replayBack(): Nugget {
-  const { editions } = readInsight<ReplayIndex>('replay.json');
-  const slug = String(replayFirst().values.slug ?? '');
-  return replayBackFrom(editions.find((e) => e.slug === slug) ?? null);
+  const known = readInsight<ReplayIndex>('replay.json').editions.filter((e) => Number.isFinite(e.moments?.back_km_at_first));
+  return replayBackFrom(known.length ? known.reduce((a, b) => (b.moments!.back_km_at_first < a.moments!.back_km_at_first ? b : a)) : null);
 }
 
 /** #packs: finishes that passed the same mat together, and how far apart the middle 80% of them finished, in the page's own edition (replay.first's). */
@@ -236,7 +239,8 @@ export function typesTopFrom(types: Pick<Archetypes['archetypes'][number], 'name
     id: 'types.top', page: '/stories/pacing-types', denominator: 'shape',
     values: { first: a?.name ?? '', first_share: a?.share ?? NaN, second: b?.name ?? '', second_share: b?.share ?? NaN, share, types: types.length },
     guard: Number.isFinite(share) && share > 0.5 && share < 1,
-    headline: `Most finishes were *${names}*.`,
+    // No accent: the two names would carry it over two display lines; the legend under the figure marks the pair.
+    headline: `Most finishes were ${names}.`,
     fallback: types.length ? `${capitalize(countWord(types.length))} ways to run *the same race*.` : 'Ways to run the same race.',
     figure: shareFigure(share),
     key: `were ${names}`,
@@ -400,7 +404,7 @@ export function kickTwinsFrom(cost: Kick['cost']['stratified']): Nugget {
     headline: `Same pace to 20K, *${minutes}${NBSP}minutes* apart at the finish.`,
     fallback: 'Same pace to 20K, apart at the finish.',
     figure: Number.isFinite(minutes) ? { value: String(minutes), unit: `${NBSP}min`, sr: `${minutes} minutes` } : null,
-    key: 'later at the finish, after a sustained slowdown',
+    key: 'later at the finish with a sustained slowdown than without, on the same pace to 20K',
   };
 }
 
@@ -509,7 +513,8 @@ export function roundTopFrom(marks: FinishTimes['marks']): Nugget {
     values: { mark: top.mark, minutes: top.minutes, ratio: top.ratio, n: top.minute_before, expected: top.expected_minute_before }, guard: top.ratio >= 1.5,
     headline: `${count(top.minute_before)} finishes landed between ${before}:00 and ${before}:59, *far above* the smooth curve.`,
     fallback: `${count(top.minute_before)} finishes landed between ${before}:00 and ${before}:59.`,
-    figure: { value: top.ratio.toFixed(2), unit: '×', sr: `${top.ratio.toFixed(2)} times` }, key: `the expected count, in the minute before ${top.mark}`,
+    // One decimal: the figure is a size a reader feels ("1.7×"); the towers' Values keep the two-decimal ratios.
+    figure: { value: top.ratio.toFixed(1), unit: '×', sr: `${top.ratio.toFixed(1)} times` }, key: `the expected count in the minute before ${top.mark}`,
   };
 }
 
@@ -521,8 +526,27 @@ export function roundMarksFrom(marks: FinishTimes['marks']): Nugget {
   return {
     id: 'round.marks', page: '/stories/round-numbers#towers', denominator: 'story',
     values: { marks: big.length, above: big.filter((m) => m.ratio > 1.05).length, quarters: quarters.length, flat }, guard: ok,
-    headline: 'The minute before every hour and half-hour stands above the curve. *Quarter-hours* mostly don’t.',
+    // The beat's H2, the H1's finding widened (the H1 names 3:00): no accent, since the towers it names are ink.
+    headline: 'A crowd gathers before every hour and half-hour.',
     fallback: 'The minute before each round mark, against the curve.',
+    figure: null,
+  };
+}
+
+/**
+ * The scrolly's last step, its end state (the chart against the curve, the needle on a quarter-hour): hours and
+ * half-hours stand above the curve, and quarter-hours mostly don't, named by the busiest quarter-hour under 1.05×.
+ * The same guard as round.marks, plus that quarter-hour itself.
+ */
+export function roundQuarterFrom(marks: FinishTimes['marks']): Nugget {
+  const marked = roundMarksFrom(marks);
+  const flat = marks.filter((m) => m.kind === 'quarter' && m.ratio < 1.05);
+  const q = flat.length ? flat.reduce((a, b) => (b.minute_before > a.minute_before ? b : a)) : null;
+  return {
+    id: 'round.quarter', page: '/stories/round-numbers#towers', denominator: 'story',
+    values: { mark: q?.mark ?? '', minutes: q?.minutes ?? NaN, ratio: q?.ratio ?? NaN, n: q?.minute_before ?? NaN }, guard: marked.guard && !!q,
+    headline: q ? `Against the curve, the minute before every hour and half-hour stands tall; before a quarter-hour like *${q.mark}*, it mostly doesn’t.` : '',
+    fallback: 'Against the curve, the minute before each round mark.',
     figure: null,
   };
 }
@@ -575,7 +599,9 @@ export function holdsUnmaskFrom(o: Pick<Demographics['overall'], 'pooled_women_b
     id: 'holds.unmask', page: '/stories/who-holds-pace#unmask', denominator: 'demographics',
     values: { pooled_women: o.pooled_women_block, pooled_men: o.pooled_men_block, women: o.women_block, men: o.men_block, ratio: r },
     guard: pooled > 0 && matched > 0 && r >= 2,
-    headline: `Compared within the same race and finish minute, the gap is *${countWord(Math.round(r))} times* as big.`,
+    // Both metrics and both gaps in one sentence: the ratio is of second-20K slowing gaps, never of the sustained-slowdown
+    // shares the page opens on.
+    headline: `Matched by race and finish minute, recorded men slowed *${one(matched)} points* more than women over the second 20K, ${countWord(Math.round(r))} times the ${one(pooled)} points of every finish pooled.`,
     fallback: `Second 20K against the first, pooled: women ${signed(o.pooled_women_block)}%, men ${signed(o.pooled_men_block)}%. Same race and finish minute: ${signed(o.women_block)}% and ${signed(o.men_block)}%.`,
     figure: null,
   };
@@ -613,7 +639,7 @@ export function coursesNamedFrom(id: Pick<Courses['identification'], 'correct' |
     values: { correct: id.correct, tested: id.editions_tested, share, chance: id.chance, courses: id.courses }, guard: share > 2 * id.chance,
     headline: `From its pacing shape alone, an edition’s course was named *${pct(share)}* of the time; by chance, about ${pct(id.chance)}.`,
     fallback: `From its pacing shape alone, an edition’s course was named correctly ${pct(share)} of the time.`,
-    figure: shareFigure(share), key: 'of editions named from their pacing shape alone',
+    figure: shareFigure(share), key: `of races were traced to their course by pacing shape alone (chance: ${pct(id.chance)})`,
   };
 }
 
@@ -748,6 +774,7 @@ export const STORY_NUGGETS: Record<string, Builder> = {
   'finish.busiest': () => finishBusiestFrom(finish().histogram),
   'round.top': () => roundTopFrom(finish().marks),
   'round.marks': () => roundMarksFrom(finish().marks),
+  'round.quarter': () => roundQuarterFrom(finish().marks),
   'round.rescue': () => roundRescueFrom(finish().bubble),
   'holds.gender': () => holdsGenderFrom(demographics().overall),
   'holds.title': () => holdsTitleFrom(demographics().overall),

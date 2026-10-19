@@ -520,7 +520,8 @@ const required = { 'tool-workspace': toolComponents, 'tool-results': toolCompone
   // The analysis page wrapper (WP3: components/analysis/Shell.tsx holds the answer, the goal line and the explorer) and each explorer root.
   'analysis-layout': ['components/analysis/Shell.tsx', 'components/AnalysisExplorer.tsx', 'components/AllFinisherAnalysis.tsx', 'components/FastStartAnalysis.tsx', 'components/CheckpointExplorer.tsx', 'components/WeatherAnalysis.tsx'],
   // .personalized-guide stays in the policy (harmless) but has no file since the guide was removed (WP8, spec 6.6).
-  'which-card': ['components/story/ArchetypeStory.tsx', 'components/ui/GuessFirst.client.tsx'], 'finish-lookup': ['components/story/FinishTimeStory.tsx'],
+  // .finish-lookup stays in the policy (harmless) but has no file since the round-numbers lookup was cut (October 19, 2026).
+  'which-card': ['components/story/ArchetypeStory.tsx', 'components/ui/GuessFirst.client.tsx'],
   'home-plan': ['components/home/HomeDoors.tsx'] };
 for (const [token, files] of Object.entries(required)) {
   for (const file of files) assert.ok(hasClass(read(file), token), `${file} still renders .${token}`);

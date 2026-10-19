@@ -1,6 +1,6 @@
 import Reading from '@/components/ui/Reading';
 import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
-import Values from '@/components/ui/Values';
+import Values, { AllNumbers } from '@/components/ui/Values';
 import ShareBar from '@/components/viz/ShareBar';
 import ChapterRail from '@/components/ChapterRail';
 import ChapterEnd from '@/components/ChapterEnd';
@@ -12,6 +12,7 @@ import { getNugget, settledReadingOf } from '@/lib/nuggets';
 import { approxWords, count, pct, sectionLabel } from '@/lib/nuggets/format';
 import { capitalize } from '@/lib/nuggets/build';
 import { pageMetadata } from '@/lib/seo';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 
 const PATH = '/slowdown';
 
@@ -33,7 +34,7 @@ const bestLabel = (label: string) => label.replace(/(\d+)\s*hours?/g, '$1:00').r
  * Chapter 05's opener (the redesign spec, section 7.7, under section 00): where sustained slowdowns began, then one
  * finding: how it rose with an earlier best's time. The spread across courses is course comparison's finding (chapter
  * 08), so it is not repeated here. The definition and its citation are on /methodology#sustained-slowdown, linked once
- * from the H1.
+ * from the unit line under the figure (never from the H1, where a dotted underline would outweigh the accent).
  */
 export default function Page() {
   const study = getStudyEvidence();
@@ -48,8 +49,8 @@ export default function Page() {
     { id: 'late', label: '30K or later', share: late / total, display: '', tone: 'signal' as const },
   ];
   const rate = Number(onset.values.rate);
-  // The H1 is the finding (its first "sustained slowdowns" linked to the definition); the figure under it gives the
-  // share, and the dek how common one was.
+  // The H1 is the finding; the figure under it gives the share, its unit line the base (every sustained slowdown, the
+  // term linked to its definition), and the dek how common one was.
   const title = { ...onset, headline: 'Most sustained slowdowns began at *30K or later*.', fallback: 'Sustained slowdown: when it began, and where.' };
   const bands = (study?.figures.find((f) => f.id === 'history')?.charts[0]?.rows ?? []).filter((r) => Number(r.n_value) >= 100);
   const first = bands[0];
@@ -58,20 +59,24 @@ export default function Page() {
       <ChapterRail path={PATH} />
       <article className="analysis-flow">
         <section className="analysis-hero" id="answer" data-track-section="hero" data-beat="Where it began">
-          <Reading crumbs={<ChapterCrumbs path={PATH} />} title={<Say nugget={title} term />} titleSize="title"
+          <Reading crumbs={<ChapterCrumbs path={PATH} />} title={<Say nugget={title} />} titleSize="title"
             dek={Number.isFinite(rate) ? `${capitalize(approxWords(rate))} finishes had one.` : 'Where sustained slowdowns began.'}
-            figure={onset.figure ? { ...onset.figure } : undefined} unitLine={onset.key}
+            figure={onset.figure ? { ...onset.figure } : undefined}
+            unitLine={<>of the {count(total)} <Link href={onset.term ?? '/methodology#sustained-slowdown'} className="term-link">sustained slowdowns</Link></>}
             instrument={<ShareBar segments={segments} inside={false} label={`Where sustained slowdowns began: ${segments.map((s) => `${s.label} ${s.display || pct(s.share)}`).join(', ')}`} />} />
         </section>
         {first ? (
           <Beat id="history" track="chapter-1" label="Earlier best" title={history}>
             <Columns items={bands.map((r, i) => ({ id: String(i), label: bestLabel(String(r.label)), value: Number(r.value), display: pct(Number(r.value) / 100), tone: i === 0 ? 'signal' : 'ink' }))}
               max={Math.ceil(Math.max(...bands.map((r) => Number(r.value))) / 10) * 10 + 5}
-              label={`Sustained slowdown by earlier recorded best: ${bands.map((r) => `${r.label} ${pct(Number(r.value) / 100)}`).join(', ')}`}
-              values={<Values id="sd-history" caption="Sustained slowdown by earlier recorded best" columns={[{ key: 'b', label: 'Earlier best', text: true }, { key: 's', label: 'Sustained slowdown' }, { key: 'n', label: 'Finishes' }]}
-                rows={bands.map((r) => [String(r.label), pct(Number(r.value) / 100), count(Number(r.n_value))])} />} />
+              label={`Sustained slowdown by earlier recorded best: ${bands.map((r) => `${r.label} ${pct(Number(r.value) / 100)}`).join(', ')}`} />
           </Beat>
         ) : null}
+        {/* The page's tables in one row at its foot, as on every story and course page. */}
+        <AllNumbers tables={[
+          first ? <Values key="history" bare id="sd-history" caption="Sustained slowdown by earlier recorded best" columns={[{ key: 'b', label: 'Earlier best', text: true }, { key: 's', label: 'Sustained slowdown' }, { key: 'n', label: 'Finishes' }]}
+            rows={bands.map((r) => [String(r.label), pct(Number(r.value) / 100), count(Number(r.n_value))])} /> : null,
+        ]} className="story-numbers" />
         <ChapterEnd path={PATH} readingOf={settledReadingOf} />
       </article>
     </div>

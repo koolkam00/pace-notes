@@ -6,6 +6,7 @@ import ChapterRail from '@/components/ChapterRail';
 import ChapterEnd from '@/components/ChapterEnd';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import ByUnits from '@/components/ui/ByUnits.client';
+import { AllNumbers } from '@/components/ui/Values';
 import type { TRACKED_SECTIONS } from '@/lib/analytics-policy';
 import { readingAttrs } from '@/lib/chapters';
 import { readingOf, type Nugget, type NuggetText } from '@/lib/nuggets';
@@ -52,15 +53,17 @@ export function Say({ nugget, term = false }: { nugget: Nugget; term?: boolean }
 }
 
 /**
- * A story page (the redesign spec, section 4.1, under section 00): the reading, at most six beats and the closing stack,
- * with the chapter rail beside them from 1180 px. Every section is a tracked beat: hero, chapter-1 … chapter-n, related.
+ * A story page (the redesign spec, section 4.1, under section 00): the reading, at most six beats, one "All numbers"
+ * disclosure holding every chart's table (`numbers`, each a `<Values bare …/>`), and the closing stack, with the chapter
+ * rail beside them from 1180 px. Every section is a tracked beat: hero, chapter-1 … chapter-n, related.
  */
-export function StoryPage({ path, className, children }: { path: string; className?: string; children: ReactNode }) {
+export function StoryPage({ path, className, numbers = [], children }: { path: string; className?: string; numbers?: ReactNode[]; children: ReactNode }) {
   return (
     <div className={`story-page with-rail${className ? ` ${className}` : ''}`} {...readingAttrs(path)}>
       <ChapterRail path={path} />
       <article className="story-flow">
         {children}
+        <AllNumbers tables={numbers} className="story-numbers" />
         <ChapterEnd path={path} readingOf={readingOf} />
       </article>
     </div>

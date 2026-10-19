@@ -40,12 +40,16 @@
 .type-legend li { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; margin: 0; font-size: var(--t-small); line-height: 1.25; color: var(--ink-2); }
 .type-legend li span { min-width: 0; }
 .type-legend li b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+/* The H1's two types, in ink among the six; the other four step back. */
+.type-legend.has-lead li:not(.is-lead) { color: var(--ink-3); }
+.type-legend.has-lead li:not(.is-lead) b { font-weight: 500; color: var(--ink-3); }
+.type-legend li.is-lead { color: var(--ink); font-weight: 600; }
 
 /* A ruler whose marks carry their own values draws no tick row under them. */
 .viz-frame.ruler.is-labelled .viz-axis { display: none; }
 
 /* ---------- The replay band ---------- */
-.story-replay { margin-inline: calc(-1 * var(--gutter)); padding: var(--s-5) var(--gutter); background: var(--night); color: var(--night-ink); }
+.story-replay { margin-inline: calc(-1 * var(--gutter)); padding: var(--s-5) var(--gutter); background: var(--night); color: var(--night-ink); box-shadow: inset 0 1px 0 var(--night-edge-colour), inset 0 -1px 0 var(--night-edge-colour); }
 /* The night card is the replay's one surface: the field inside it draws no frame of its own (no box in a box). */
 .story-replay .hero-replay .replay-box { border-radius: 0; box-shadow: none; }
 /* The race chips: on a phone the row scrolls under a wide fade on the side that has more; from 900 px every race shows,
@@ -79,13 +83,12 @@
 /* The waffle sits on the column's left edge like every other figure on a story, not centred in it. */
 .story-beat .viz-frame.waffle .viz-plot { margin-inline: 0; }
 
-/* 100 finishes: ten by ten on a phone (a compact block, about a quarter of the screen); from 900 px one band of 25 by 4
-   across the story's measure, its dots growing with it. */
-.story-beat .dot-grid.is-band .dot-grid-dots { grid-template-columns: repeat(10, 14px); gap: 8px; max-width: none; }
-.story-beat .dot-grid.is-band .dot-grid-dots li { width: 14px; height: 14px; }
+/* 100 finishes: ten by ten across the column on a phone (up to 300 px, as the home page's grid), never a small block on
+   one side of an empty frame; from 900 px one band of 25 by 4 across the story's measure, its dots growing with it. */
+.story-beat .dot-grid.is-band .dot-grid-dots { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 8px; width: 100%; max-width: 300px; }
+.story-beat .dot-grid.is-band .dot-grid-dots li { width: 100%; height: auto; aspect-ratio: 1; }
 @media (max-width: 299.98px) {
-  .story-beat .dot-grid.is-band .dot-grid-dots { grid-template-columns: repeat(10, 10px); gap: 5px; }
-  .story-beat .dot-grid.is-band .dot-grid-dots li { width: 10px; height: 10px; }
+  .story-beat .dot-grid.is-band .dot-grid-dots { gap: 5px; }
 }
 @media (min-width: 900px) {
   .story-beat .dot-grid.is-band .dot-grid-dots { grid-template-columns: repeat(25, minmax(0, 1fr)); gap: 10px; width: 100%; max-width: var(--measure-figure); }
@@ -97,6 +100,7 @@
 .dot-grid-key span { display: inline-flex; align-items: center; gap: 8px; }
 .dot-grid-key i { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--fill-quiet); box-shadow: inset 0 0 0 1px var(--mark-quiet); }
 .dot-grid-key i.is-ink { background: var(--ink); box-shadow: none; }
+.dot-grid-key i.is-signal { background: var(--signal); box-shadow: none; }
 
 /* The field as 99 finishes: phone dots, and from 900 px larger dots across the story's measure. */
 .viz-frame.percentile-dots .pd-wide { display: none; }
@@ -137,29 +141,17 @@
 .pt-gender .viz-frame.dumbbell { display: flex; flex-direction: column; }
 .pt-gender .viz-frame.dumbbell .viz-key { order: -1; flex-direction: row-reverse; justify-content: flex-end; margin: 0 0 var(--s-3); }
 
-/* ---------- Your minute (.finish-lookup, masked in session replays): the towers, then the reader's time ----------
-   A time that reads moves the towers' needle to its minute: the needle's foot becomes an orange ring on that tower,
-   with You at the needle's head (left of it near the right edge). From 900 px the field sits under the chart's column. */
-.finish-lookup { display: grid; grid-template-columns: minmax(0, 1fr); max-width: var(--measure-figure); }
-.finish-lookup-field { max-width: 14rem; }
-/* A static scrolly (reduced motion) ends on its list, with no step padding under it. */
-.finish-lookup > .scrolly.is-static ~ .finish-lookup-field { margin-top: var(--s-6); }
-.finish-lookup-result { margin: var(--s-2) 0 0; font-size: var(--t-small); color: var(--ink-2); }
-.finish-lookup.is-yours .scrub-needle::after { content: ''; position: absolute; left: 50%; top: 100%; width: 14px; height: 14px; margin: -1px 0 0 -7px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--signal), 0 0 0 2px var(--paper); }
-.finish-lookup.is-yours .scrub-needle::before { content: 'You'; position: absolute; top: 0; left: 6px; font-family: var(--sans); font-size: 13px; font-weight: 600; line-height: 1; white-space: nowrap; color: var(--signal-ink); }
-.finish-lookup.is-yours.is-left .scrub-needle::before { left: auto; right: 6px; }
-@media (min-width: 900px) {
-  .finish-lookup { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: 48px; }
-  .finish-lookup > .scrolly { grid-column: 1 / -1; }
-  .finish-lookup-field, .finish-lookup-result { grid-column: 2; }
-}
+/* ---------- The towers (round numbers): the scrolly at the figure's measure ---------- */
+.towers-scrolly { max-width: var(--measure-figure); }
 
 /* ---------- Which runner were you (.which-card, masked) ---------- */
 .which-card { display: grid; gap: var(--s-4); max-width: var(--measure-figure); }
 .which-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3); }
 .which-field .input { min-height: 48px; padding: 0 10px; font-size: 1rem; text-align: center; }
 .which-help { margin: 0; }
-.which-result { display: grid; gap: var(--s-4); padding-top: var(--s-4); border-top: 1px solid var(--rule); }
+.which-result { display: grid; gap: var(--s-4); }
+.which-try { margin-top: 0; }
+.which-try-body { display: grid; gap: var(--s-3); padding: var(--s-2) 0 var(--s-5); }
 .which-name { display: flex; align-items: center; gap: var(--s-3); margin: 0; }
 .which-name .type-glyph { width: 48px; height: 22px; }
 .which-name strong { font-weight: inherit; font-style: italic; }
@@ -249,7 +241,7 @@
 @media (min-width: 600px) {
   .type-legend { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: none; }
   /* A card from 600 px, kept to the story's measure: its edge is the same right edge as every figure and the next card. */
-  .story-replay { max-width: var(--measure-figure); margin-inline: 0; padding: var(--s-5); border-radius: var(--r-md); }
+  .story-replay { max-width: var(--measure-figure); margin-inline: 0; padding: var(--s-5); border-radius: var(--r-md); box-shadow: var(--night-edge); }
 }
 
 @media (min-width: 900px) {
@@ -272,9 +264,9 @@
 .place-shift .ps-bracket::before { content: ''; position: absolute; left: 0; right: 0; bottom: 6px; height: 8px; border: 1.5px solid var(--ink); border-bottom: 0; border-radius: 2px 2px 0 0; }
 .place-shift .ps-bracket-label { position: absolute; right: 0; bottom: 18px; font-size: 14px; font-weight: 600; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink); }
 .place-shift .ps-track { position: relative; display: flex; gap: 2px; height: 28px; }
-.place-shift .ps-divide { position: absolute; top: -6px; bottom: 0; width: 1.5px; margin-left: 0; background: var(--ink); box-shadow: 0 0 0 1px var(--paper); }
 .place-shift .ps-seg { display: flex; align-items: center; justify-content: center; min-width: 3px; flex-basis: 0; border-radius: 3px; overflow: hidden; }
 .place-shift .ps-seg.is-ink { background: var(--ink); }
+.place-shift .ps-seg.is-signal { background: var(--signal); }
 .place-shift .ps-seg.is-quiet { background: var(--fill-quiet); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
 .place-shift .ps-ends { display: flex; justify-content: space-between; gap: var(--s-4); margin-top: var(--s-3); font-size: var(--t-small); line-height: 1.35; color: var(--ink-2); }
 .place-shift .ps-end { max-width: 10.5em; }

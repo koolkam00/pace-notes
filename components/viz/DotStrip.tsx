@@ -83,7 +83,8 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
   };
   // A label hides while the pick ring is on its dot (Scrubber's is-under): the readout names it then.
   // The subject's own label (labelSubject) stands clear of the pick ring it opens with and never hides under it.
-  const lab: LabelItem[] = [...labelled].map((i) => ({ id: String(i), text: sorted[i].label, x: x(sorted[i].value), y: yOf(lift(i)), priority: i === subject ? 3 : 1, tone: i === subject ? 'signal' : 'ink', size: i === subject ? 14 : 13, gap: i === subject ? RING + 2 : 10, prefer: 'above' as const, ...(i === subject && labelSubject ? {} : { at: i }) }));
+  // Every signal dot's label is in the signal (a strip may mark both ends a heading names); the opening one is first.
+  const lab: LabelItem[] = [...labelled].map((i) => ({ id: String(i), text: sorted[i].label, x: x(sorted[i].value), y: yOf(lift(i)), priority: i === subject ? 3 : sorted[i].subject ? 2 : 1, tone: sorted[i].subject ? 'signal' : 'ink', size: i === subject ? 14 : 13, gap: i === subject ? RING + 2 : 10, prefer: 'above' as const, ...(i === subject && labelSubject ? {} : { at: i }) }));
   const labels = placeLabels(lab, { height, avoid: sorted.map((s, i) => ({ x: x(s.value), y: yOf(levels[i]), r: R })) });
   const leaders = [...labelled].filter((i) => lift(i) > levels[i]).map((i) => ({ i, y0: yOf(lift(i)) - (R + 2) / height, y1: yOf(levels[i]) - (R + 2) / height }));
   const plot = (

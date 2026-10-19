@@ -13,7 +13,7 @@ export default function NotFound() {
       <h1 id="not-found-title" className="t-title">This page isn’t on the route.</h1>
       <p className="info-dek">The link may be old, or the page may have moved. Pick up the course from the start, or from the contents.</p>
       <div className="info-actions">
-        <Button href="/" variant="secondary" arrow="right">Back to the start</Button>
+        <Button href="/" variant="secondary">Back to the start</Button>
         <Button href="/research" variant="tertiary">Contents</Button>
       </div>
     </section>

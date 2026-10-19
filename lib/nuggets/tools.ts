@@ -34,22 +34,25 @@ function optional<T>(name: string): T | null {
 // ---------- Chapter 11 · the race planner ----------
 
 /**
- * Of finishes on the goal's pace through 20K, on every published course pooled, the share that made the goal: "Of 100
- * finishes on 4:00 pace through 20K, 15 made 4:00." The guard holds while fewer than half made it (the sentence's point
- * is how few did); otherwise the share is stated plainly.
+ * Of finishes whose 5–20K pace was within the course-goal file's tolerance (2%) of the goal's even pace, on every
+ * published course pooled, the share that made the goal: "Of 100 finishes within 2% of 4:00 pace through 20K, 14 made
+ * 4:00." The window is named in the sentence and the key, so "on 4:00 pace at 20K" never means two groups on two pages
+ * (the checkpoint analysis and the projector use their own windows, and say so). The guard holds while fewer than half
+ * made it (the sentence's point is how few did); otherwise the share is stated plainly.
  */
-export function planGoalFrom(rows: CourseGoalRow[], goal: number = GOAL): Nugget {
+export function planGoalFrom(rows: CourseGoalRow[], goal: number = GOAL, tolerance = 0.02): Nugget {
   const share = goalShare(rows, goal);
   const g = hm(goal);
   const made = share ? Math.round(share.under * 100) : null;
+  const near = `within ${Math.round(tolerance * 100)}% of ${g} pace through 20K`;
   return {
     id: 'plan.goal', page: '/tools/plan', denominator: 'tool',
-    values: share ? { goal, n: share.n, under: share.under, courses: share.courses } : { goal },
+    values: share ? { goal, tolerance, n: share.n, under: share.under, courses: share.courses } : { goal, tolerance },
     guard: share !== null && share.under < 0.5,
-    headline: `Of 100 finishes on ${g} pace through 20K, *${made}* made ${g}.`,
-    fallback: share ? `${pct(share.under)} of finishes on ${g} pace through 20K made ${g}.` : 'Plan your race: a course, a goal and a pace band.',
+    headline: `Of 100 finishes ${near}, *${made}* made ${g}.`,
+    fallback: share ? `${pct(share.under)} of finishes ${near} made ${g}.` : 'Plan your race: a course, a goal and a pace band.',
     figure: share ? { value: pct(share.under).replace('%', ''), unit: '%', sr: spokenPct(share.under) } : null,
-    key: `of finishes on ${g} pace at 20K made ${g}`,
+    key: `of finishes ${near} made ${g}`,
   };
 }
 
@@ -61,7 +64,7 @@ const PROJECTOR_MAT = 25;
 /**
  * Finishes on the goal's even pace at the projector's opening mat, all courses: the window, in whole minutes, that
  * holds their 10th to 90th percentile finish, widened as the tool widens it (the low end down to the minute, the high
- * end up). "80% of finishes on 4:00 pace at 25K ended within a 29-minute window." The goal's pace band is the one whose
+ * end up). "80% of finishes on course for 3:58–4:00 at 25K ended within a 29-minute window." The goal's band is the one whose
  * top is the goal (3:58–4:00 for 4:00). The guard holds while the group has at least 100 finishes.
  */
 export function projectorRangeFrom(shard: Pick<ProjectorShard, 'band_s' | 'cells'> | null, quantiles: number[], goal: number = GOAL, mat: number = PROJECTOR_MAT): Nugget {
@@ -79,14 +82,17 @@ export function projectorRangeFrom(shard: Pick<ProjectorShard, 'band_s' | 'cells
   const hi = q ? Math.ceil(q[i90] / 60) : NaN;
   const spread = hi - lo;
   const ok = q !== null && n >= 100 && spread > 0;
+  // The projector's own window, named wherever the group is (never "on 4:00 pace", which another page uses for another
+  // group): finishes whose even-pace projection at the mat fell in the band, 3:58–4:00 for 4:00.
+  const band_ = shard ? `${hm(goal - shard.band_s / 60)}–${g}` : g;
   return {
     id: 'projector.range', page: '/tools/projector', denominator: 'tool',
     values: q ? { goal, mat, band, n, p10: q[i10], p50: i50 >= 0 ? q[i50] : NaN, p90: q[i90], spread } : { goal, mat },
     guard: ok,
-    headline: `80% of finishes on ${g} pace at ${at} ended within a *${spread}-minute* window.`,
-    fallback: q ? `Finishes on ${g} pace at ${at} ended from ${hm(lo)} to ${hm(hi)}.` : 'From a tracker time at any mat, the finishes that followed.',
-    figure: ok ? { value: String(spread), unit: 'min', sr: `${spread} minutes` } : null,
-    key: `finish window for 80% on ${g} pace at ${at}`,
+    headline: `80% of finishes on course for ${band_} at ${at} ended within a *${spread}-minute* window.`,
+    fallback: q ? `Finishes on course for ${band_} at ${at} ended from ${hm(lo)} to ${hm(hi)}.` : 'From a tracker time at any mat, the finishes that followed.',
+    figure: ok ? { value: String(spread), unit: '\u00a0min', sr: `${spread} minutes` } : null,
+    key: `the window that held 80% of finishes on course for ${band_} at ${at}`,
   };
 }
 
@@ -96,29 +102,29 @@ export function projectorRangeFrom(shard: Pick<ProjectorShard, 'band_s' | 'cells
 const SPLIT_FINISH = SPLIT_EXAMPLE.split(',')[8].split(':').reduce((a, v) => a * 60 + Number(v), 0);
 
 /**
- * The finishes the split check compares its example race with (the pace band's group for the whole minute three above
- * the finish, all courses, as lib/report-shared windowCheck picks it): at the 20K mat, how far ahead the median of those
- * that later had a sustained slowdown was of the median of those that held pace. "Of finishes from 4:01 to 4:05, those
- * that later slowed passed 20K 7:48 ahead of those that held pace." The guard holds while both groups have 100
- * finishes, the gap is at least a minute, and the two medians finished within a minute of each other (the key says so).
+ * The split check's one data beat for its example race: of the finishes it compares the example with (the pace band's
+ * all-course group for the whole minute three above the finish, as lib/report-shared windowCheck picks it), the share
+ * with a sustained slowdown. "Of finishes from 4:01 to 4:05, 23% had a sustained slowdown." The page draws the same
+ * share as 100 dots for the same window, so the number a reader taps on the chapter row is the one the page shows. The
+ * guard holds while the window has 100 finishes and a published share.
  */
-export function splitCheckMatsFrom(shard: Pick<PaceBandShard, 'window_s' | 'groups'> | null, finish: number = SPLIT_FINISH): Nugget {
+export function splitCheckShareFrom(shard: Pick<PaceBandShard, 'window_s' | 'groups'> | null, finish: number = SPLIT_FINISH): Nugget {
   const minute = Math.floor(finish / 60) + 3;
-  const held = shard ? cellOf(shard.groups.held, minute) : null;
+  const all = shard ? cellOf(shard.groups.all, minute) : null;
   const slow = shard ? cellOf(shard.groups.slowdown, minute) : null;
+  const sd = all ? all.sd ?? (slow ? slow.n / all.n : NaN) : NaN;
   const lo = minute - (shard?.window_s ?? 300) / 60;
   const hi = minute - 1;
-  const gap20 = held && slow ? held.e50[3] - slow.e50[3] : NaN;
-  const finishGap = held && slow ? slow.e50[8] - held.e50[8] : NaN;
-  const ok = held !== null && slow !== null && held.n >= 100 && slow.n >= 100 && gap20 >= 60 && Math.abs(finishGap) < 60;
+  const ok = all !== null && all.n >= 100 && Number.isFinite(sd) && sd > 0 && sd < 1;
+  const range = `from ${hm(lo)} to ${hm(hi)}`;
   return {
-    id: 'splitcheck.mats', page: '/tools/split-check', denominator: 'tool',
-    values: held && slow ? { finish, minute, held_n: held.n, slow_n: slow.n, held20: held.e50[3], slow20: slow.e50[3], gap20, finish_gap: finishGap } : { finish, minute },
+    id: 'splitcheck.share', page: '/tools/split-check', denominator: 'tool',
+    values: all ? { finish, minute, n: all.n, sd } : { finish, minute },
     guard: ok,
-    headline: `Of finishes from ${hm(lo)} to ${hm(hi)}, those that later slowed passed 20K *${ms(gap20)} ahead* of those that held pace.`,
-    fallback: held && slow ? `Finishes from ${hm(lo)} to ${hm(hi)}, mat by mat: those that held pace and those that later slowed.` : 'Check your splits against finishes at the same time.',
-    figure: ok ? { value: ms(gap20), sr: spokenTime(gap20) } : null,
-    key: 'ahead at 20K, then slowed to the same finish',
+    headline: `Of finishes ${range}, *${pct(sd)}* had a sustained slowdown.`,
+    fallback: all ? `Finishes ${range}, mat by mat.` : 'Check your splits against finishes at the same time.',
+    figure: ok ? { value: pct(sd).replace('%', ''), unit: '%', sr: spokenPct(sd) } : null,
+    key: `of finishes ${range} had a sustained slowdown`,
     term: '/methodology#sustained-slowdown',
   };
 }
@@ -153,13 +159,13 @@ export function weatherMatchMorningsFrom(data: Pick<WeatherMatch, 'rows' | 'pace
     headline: both((u) => `At ${g} pace, *${pct(mine?.sd ?? NaN)}* of finishes on ${temp(c, u)} mornings had a sustained slowdown, against ${pct(base?.sd ?? NaN)} on ${temp(ref.lo, u).replace(/°[CF]$/, '')}–${temp(ref.hi, u)} mornings.`),
     fallback: mine ? both((u) => `At ${g} pace, ${pct(mine.sd)} of finishes on ${temp(c, u)} mornings had a sustained slowdown.`) : 'Race-morning weather, matched to past races at your pace.',
     figure: ok ? { value: pct(mine!.sd).replace('%', ''), unit: '%', sr: spokenPct(mine!.sd) } : null,
-    key: `sustained slowdown at ${g} pace on a warm race morning`,
+    key: `had a sustained slowdown at ${g} pace on a warm morning, against ${pct(base?.sd ?? NaN)} on a cool one`,
     term: '/methodology#sustained-slowdown',
   };
 }
 
 export const TOOL_NUGGETS: Record<string, Builder> = {
-  'splitcheck.mats': () => splitCheckMatsFrom(optional<PaceBandShard>('tools/pace-band/all/all.json')),
+  'splitcheck.share': () => splitCheckShareFrom(optional<PaceBandShard>('tools/pace-band/all/all.json')),
   'projector.range': () => projectorRangeFrom(optional<ProjectorShard>(`tools/projector/all/${PROJECTOR_MAT}.json`), optional<ProjectorIndex>('tools/projector.json')?.quantiles ?? []),
   'weathermatch.mornings': () => weatherMatchMorningsFrom(optional<WeatherMatch>('tools/weather-match.json')),
   'plan.goal': () => planGoalFrom(optional<CourseGoal>('tools/course-goal.json')?.rows ?? []),

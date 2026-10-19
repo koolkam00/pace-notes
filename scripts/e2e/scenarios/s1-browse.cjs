@@ -284,10 +284,15 @@ async function keypad(h) {
   const paceHint = await page.evaluate(() => [...document.querySelectorAll('.tool-field')].filter(f => /Pace per/.test(f.querySelector('label')?.textContent ?? '')).map(f => !!f.querySelector('.keypad-hint')));
   h.check('phone: the pace field has no keypad hint (its dot is a decimal point)', JSON.stringify(paceHint) === '[false]', paceHint);
 
-  // At 200% zoom (195 px wide) the inline hint wraps as one piece, never leaving the colon alone on a line.
+  // At 200% zoom (195 px wide) the inline hint, shown once the goal has focus, wraps as one piece, never leaving the
+  // colon alone on a line; before the focus no hint shows (no first screen carries it).
   await page.setViewportSize({ width: 195, height: 800 });
   await page.goto(SITE + '/tools/pace-band', { waitUntil: 'load' });
   await page.waitForTimeout(1200);
+  const idle = await page.evaluate(() => [...document.querySelectorAll('.keypad-hint')].filter(el => getComputedStyle(el).display !== 'none').length);
+  h.check('phone: no keypad hint shows before a time field has focus', idle === 0, idle);
+  await page.locator('.tool-field-hint').first().evaluate((el) => el.closest('.tool-field, .tool-goal, .field')?.querySelector('input')?.focus());
+  await page.waitForTimeout(200);
   const narrow = await page.evaluate(() => [...document.querySelectorAll('.tool-field-hint .keypad-hint')].filter(el => getComputedStyle(el).display !== 'none').map(el => new Set([...el.getClientRects()].map(r => Math.round(r.top))).size));
   h.check('phone at 195 px: the pace band goal\'s inline "Tap . for :" sits on one line', narrow.length === 1 && narrow[0] === 1, narrow);
   await page.setViewportSize(PHONE.viewport);
@@ -295,10 +300,11 @@ async function keypad(h) {
   // The split check's nine boxes share one hint; each box turns dots into colons, and its pasted list is left as it is.
   await page.goto(SITE + '/tools/split-check', { waitUntil: 'load' });
   await page.waitForTimeout(1200);
-  const gridHint = await hintOf(page, '.split-check-inputs fieldset ~ .tool-field-hint .keypad-hint');
+  const gridIdle = await hintOf(page, '.split-check-inputs fieldset ~ .tool-field-hint .keypad-hint');
   const mat = await typeOnly(page, 'input[id$="-t2"]', '1.12.55');
-  h.check('phone: the split check shows one keypad hint for its nine boxes, and 1.12.55 typed in a box shows 1:12:55',
-    gridHint && gridHint.shown && mat === '1:12:55' && await page.locator('.split-check-inputs .keypad-hint').count() === 1, { gridHint, mat });
+  const gridHint = await hintOf(page, '.split-check-inputs fieldset ~ .tool-field-hint .keypad-hint');
+  h.check('phone: the split check shows one keypad hint for its nine boxes once a box has focus, and 1.12.55 typed in a box shows 1:12:55',
+    gridIdle && !gridIdle.shown && gridHint && gridHint.shown && mat === '1:12:55' && await page.locator('.split-check-inputs .keypad-hint').count() === 1, { gridIdle, gridHint, mat });
   await run.close();
 }
 

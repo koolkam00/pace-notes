@@ -46,7 +46,17 @@ export default function PlacesBody() {
 
 
   return (
-    <StoryPage path={PATH}>
+    <StoryPage path={PATH} numbers={[
+      <Values key="pl-gap" bare id="pl-gap" caption="Crossed the line first, by the gap behind"
+        columns={[{ key: 'g', label: 'Behind by' }, { key: 'a', label: 'From 30K' }, { key: 'b', label: 'From 40K' }]}
+        rows={r30.map((r, i) => [`${ms(r.gap_lo_s)}–${ms(r.gap_lo_s + step)}`, pct(r.share), pct(g40[i])])} reading={farBand} />,
+      <Values key="pl-breakeven" bare id="pl-breakeven" caption="Median places gained per 100 after 30K, and the share that moved up, by 30–40K pace"
+        columns={[{ key: 'x', label: '30–40K pace' }, { key: 'm', label: 'Places per 100' }, { key: 'g', label: 'Moved up' }]}
+        rows={be.map((b) => [slower(b.x), signed(b.median), pct(b.gained)])} reading={beAt} />,
+      <Values key="pl-tail" bare id="pl-tail" caption="Share of finishes by places gained per 100 after 30K"
+        columns={[{ key: 'p', label: 'Places per 100' }, { key: 's', label: 'Share of finishes' }]}
+        rows={data.histogram.map((h) => [h.lo <= -30 ? `${MINUS}30 or more lost` : h.lo >= 14 ? '+14 or more' : signed(h.lo, 0), pct(h.share, 1)])} />,
+    ]}>
       {/* The H1 says the comparison (twice as often), so the reading is the figure and what it counts, and the ruler
           draws the H1: the same gap from 30K (the figure's dot) against from 40K, on a scale that ends at a coin flip.
           With no figure, the sentence stands in. */}
@@ -86,12 +96,7 @@ export default function PlacesBody() {
                 ? [{ label: `${ms(Number(coin.values.gap40_s))}–${ms(Number(coin.values.gap40_s) + step)} behind at 40K`, values: r30.map(() => pct(Number(coin.values.at40))) }, { label: 'From 40K, same gap', values: g40.map((v) => pct(v)) }]
                 : [{ label: 'From 40K, same gap', values: g40.map((v) => pct(v)) }] },
             initial: coin.guard ? farBand : minuteBand, detents: [...new Set([minuteBand, farBand])], follow: '30' }}
-          label={`How often a trailing finish crossed the line first, by how far behind it was, from 30K and from 40K: ${pct(r30[farBand].share)} from ${ms(r30[farBand].gap_lo_s)} back at 30K, ${pct(g40[minuteBand])} from ${ms(r30[minuteBand].gap_lo_s)} back at 40K.`}
-          values={(
-            <Values id="pl-gap" caption="Crossed the line first, by the gap behind"
-              columns={[{ key: 'g', label: 'Behind by' }, { key: 'a', label: 'From 30K' }, { key: 'b', label: 'From 40K' }]}
-              rows={r30.map((r, i) => [`${ms(r.gap_lo_s)}–${ms(r.gap_lo_s + step)}`, pct(r.share), pct(g40[i])])} reading={farBand} />
-          )} />
+          label={`How often a trailing finish crossed the line first, by how far behind it was, from 30K and from 40K: ${pct(r30[farBand].share)} from ${ms(r30[farBand].gap_lo_s)} back at 30K, ${pct(g40[minuteBand])} from ${ms(r30[minuteBand].gap_lo_s)} back at 40K.`} />
       </Beat>
 
       <Beat id="break-even" track="chapter-2" label="Slowing and still gaining" title={breakeven} dek="Pace from 30K to 40K, against the finish’s own 5–20K pace.">
@@ -107,12 +112,7 @@ export default function PlacesBody() {
           scrub={{ label: '30–40K pace against the 5–20K pace',
             points: { x: be.map((b) => (b.x - be[0].x) / (be[be.length - 1].x - be[0].x)), keys: be.map((b) => `30–40K ${slower(b.x)} than 5–20K, places per 100`), values: be.map((b) => (Math.abs(b.median) < 0.25 ? '±0' : signed(b.median))) },
             initial: beAt, detents: [beAt], follow: 'median' }}
-          label={`Median places gained per 100 of the field after 30K, by 30–40K pace against the 5–20K pace; the line crosses zero near ${Math.round(crossing)}% slower.`}
-          values={(
-            <Values id="pl-breakeven" caption="Median places gained per 100 after 30K, and the share that moved up, by 30–40K pace"
-              columns={[{ key: 'x', label: '30–40K pace' }, { key: 'm', label: 'Places per 100' }, { key: 'g', label: 'Moved up' }]}
-              rows={be.map((b) => [slower(b.x), signed(b.median), pct(b.gained)])} reading={beAt} />
-          )} />
+          label={`Median places gained per 100 of the field after 30K, by 30–40K pace against the 5–20K pace; the line crosses zero near ${Math.round(crossing)}% slower.`} />
       </Beat>
 
       {/* The H2 gives the share that moved up; the bar shows it as the bracket's span (its edge a tick through the bar)
@@ -121,17 +121,12 @@ export default function PlacesBody() {
         dek="Places per 100 finishers, from 30K to the finish.">
         <PlaceShift
           segments={[
-            { id: 'lost10', label: 'dropped 10+ places', share: data.sinker_share, display: pct(data.sinker_share, 1), tone: 'ink' },
+            { id: 'lost10', label: 'dropped 10+ places', share: data.sinker_share, display: pct(data.sinker_share, 1), tone: 'signal' },
             { id: 'between', label: 'everything between', share: Math.max(0, 1 - data.sinker_share - data.surger_share), display: '', tone: 'quiet' },
-            { id: 'gained10', label: 'gained 10+ places', share: data.surger_share, display: pct(data.surger_share, 1), tone: 'ink' },
+            { id: 'gained10', label: 'gained 10+ places', share: data.surger_share, display: pct(data.surger_share, 1), tone: 'signal' },
           ]}
           up={{ at: 1 - data.gained_share, label: 'Moved up' }}
-          label={`Places gained or lost per 100 of the field from 30K to the finish: ${pct(data.gained_share)} moved up; ${pct(data.sinker_share, 1)} lost 10 or more, ${pct(data.surger_share, 1)} gained 10 or more.`}
-          values={(
-            <Values id="pl-tail" caption="Share of finishes by places gained per 100 after 30K"
-              columns={[{ key: 'p', label: 'Places per 100' }, { key: 's', label: 'Share of finishes' }]}
-              rows={data.histogram.map((h) => [h.lo <= -30 ? `${MINUS}30 or more lost` : h.lo >= 14 ? '+14 or more' : signed(h.lo, 0), pct(h.share, 1)])} />
-          )} />
+          label={`Places gained or lost per 100 of the field from 30K to the finish: ${pct(data.gained_share)} moved up; ${pct(data.sinker_share, 1)} lost 10 or more, ${pct(data.surger_share, 1)} gained 10 or more.`} />
       </Beat>
     </StoryPage>
   );

@@ -1,3 +1,4 @@
+import InfoNext from '@/components/InfoNext';
 import RailBeats from '@/components/RailBeats.client';
 import MethodsAnalyses from '@/components/methods/MethodsAnalyses';
 import MethodsData from '@/components/methods/MethodsData';
@@ -129,6 +130,7 @@ export default function MethodologyPage() {
       </Part>
 
       <MethodsDownloads />
+      <InfoNext />
       <MethodsHash />
     </article>
     {dataset ? <JsonLd data={dataset} /> : null}

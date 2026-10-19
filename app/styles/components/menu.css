@@ -81,6 +81,9 @@
   .main-nav > a.nav-primary[aria-current] { text-decoration: none; }
   /* On the home page the hero's two doors are the way in, so the header shows Courses, Tools and Research only. */
   .main-nav[data-home] > a.nav-door { display: none; }
+  /* A page with its own call to action on its first screen (SiteNav): the plan pill is a plain link there. */
+  .main-nav[data-quiet-primary] > a.nav-primary { margin: 0; padding: 0 12px; background: transparent; color: var(--ink-2); font-weight: 500; }
+  .main-nav[data-quiet-primary] > a.nav-primary:hover { background: var(--paper-sunk); color: var(--ink); }
   .main-nav > a::after, .main-nav .nav-more { display: none; }
 
   .menu-chapters { position: fixed; inset: 0; z-index: var(--z-sheet); margin: 0; visibility: hidden; pointer-events: none; transition: visibility 0s linear var(--d-sheet); }

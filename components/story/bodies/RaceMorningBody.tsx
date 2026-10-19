@@ -76,12 +76,17 @@ export default function RaceMorningBody() {
         points: { x: curve.map((c) => (c.temp - tLo) / (tHi - tLo)), keys: curve.map((c) => `Median finish starting at ${temp(c.temp, u)}, against ${temp(base.temp, u)}`), values: curve.map((c) => `${signed(c.change)} min`),
           side: [{ label: 'Each degree here', values: local.map((v) => perDeg(v, u)) }] },
         initial: at(warm), detents: [at(cool), at(warm)], follow: 'f' }}
-      label={`Change in the median finish with the start temperature, against ${temp(base.temp, u)}: ${perDeg(Number(curveN.values.cool_slope), u)} near ${temp(cool, u)}, ${perDeg(Number(curveN.values.warm_slope), u)} near ${temp(warm, u)}.`}
-      values={(
-        <Values id={`rm-curve-${u}`} caption={`The median finish against the start temperature (${u === 'mi' ? '°F' : '°C'})`}
-          columns={[{ key: 't', label: 'At the start' }, { key: 'c', label: 'Median finish' }, { key: 'd', label: 'Each degree' }]}
-          rows={curve.filter((_, i) => i % 2 === 0).map((c) => [temp(c.temp, u), `${signed(c.change)} min`, perDeg(local[curve.indexOf(c)], u)])} />
-      )} />
+      label={`Change in the median finish with the start temperature, against ${temp(base.temp, u)}: ${perDeg(Number(curveN.values.cool_slope), u)} near ${temp(cool, u)}, ${perDeg(Number(curveN.values.warm_slope), u)} near ${temp(warm, u)}.`} />
+  );
+  // The page's tables, in its All numbers at the foot (each in the reader's units where it has degrees).
+  const pairsTable = (u: UnitSystem) => (
+    <Values bare id={`rm-pairs-${u}`} caption="Same-course pairs: start temperature and sustained slowdown" columns={[{ key: 'p', label: 'Pair, cooler · warmer', text: true }, { key: 't', label: 'At the start' }, { key: 's', label: 'Sustained slowdown' }]}
+      rows={tiles(u).map((t) => [t.pair, t.side, t.value])} />
+  );
+  const curveTable = (u: UnitSystem) => (
+    <Values bare id={`rm-curve-${u}`} caption={`The median finish against the start temperature (${u === 'mi' ? '°F' : '°C'})`}
+      columns={[{ key: 't', label: 'At the start' }, { key: 'c', label: 'Median finish' }, { key: 'd', label: 'Each degree' }]}
+      rows={curve.filter((_, i) => i % 2 === 0).map((c) => [temp(c.temp, u), `${signed(c.change)} min`, perDeg(local[curve.indexOf(c)], u)])} />
   );
 
   // The shape on a warmer morning: each section's pace against the finish's own average, per 10 °C warmer (18 °F).
@@ -90,7 +95,13 @@ export default function RaceMorningBody() {
   const span = Math.ceil(Math.max(...sig.map((s) => Math.abs(s.per_10c)))) + 1;
 
   return (
-    <StoryPage path={PATH}>
+    <StoryPage path={PATH} numbers={[
+      <ByUnits key="pairs" mi={pairsTable('mi')} km={pairsTable('km')} />,
+      <ByUnits key="curve" mi={curveTable('mi')} km={curveTable('km')} />,
+      <Values key="heat" bare id="rm-heat" caption={<ByUnits mi={`Pace against the finish’s own average, per ${tempGap(10, 'mi')} warmer, by section`} km={`Pace against the finish’s own average, per ${tempGap(10, 'km')} warmer, by section`} />}
+        columns={[{ key: 's', label: 'Section' }, { key: 'v', label: 'Pace' }, { key: 'c', label: 'Interval' }]}
+        rows={sig.map((s) => [sectionName(s.section), `${signed(s.per_10c)}%`, `${signed(s.ci95[0])}% to ${signed(s.ci95[1])}%`])} />,
+    ]}>
       {/* The figure counts the pairs and its key says what was counted (the term's first use, so it links); the waffle
           draws them one by one. A failed guard shows the plain sentence instead. */}
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
@@ -100,9 +111,7 @@ export default function RaceMorningBody() {
         instrument={(
           <ByUnits {...Object.fromEntries(UNITS.map((u) => [u, (
             <Waffle key={u} tiles={tiles(u)} initial={opening} sideLabel="At the start" label={`${p.hotter_slowed_more} of ${p.total} same-course pairs: the warmer year had more sustained slowdowns; tap a square to read its pair`}
-              keyLabels={{ lit: 'Warmer year, more sustained slowdowns', other: 'Cooler year, as many or more' }}
-              values={<Values id={`rm-pairs-${u}`} caption="Same-course pairs: start temperature and sustained slowdown" columns={[{ key: 'p', label: 'Pair, cooler · warmer', text: true }, { key: 't', label: 'At the start' }, { key: 's', label: 'Sustained slowdown' }]}
-                rows={tiles(u).map((t) => [t.pair, t.side, t.value])} />} />
+              keyLabels={{ lit: 'Warmer year, more sustained slowdowns', other: 'Cooler year, as many or more' }} />
           )])) as { mi: JSX.Element; km: JSX.Element }} />
         )}>
         {/* The pairs were a beat of their own; links to it land on the reading, which now draws them. */}
@@ -127,12 +136,7 @@ export default function RaceMorningBody() {
             ] }]}
           refs={[{ value: 0, label: 'Same shape' }]}
           xTicks={[{ value: 0, label: 'Start' }, { value: 10, label: '10K' }, { value: 20, label: '20K' }, { value: 30, label: '30K' }, { value: 42.195, label: 'Finish' }]}
-          label="Each section's pace against the finish's own average on a warmer morning: quicker early, slower late."
-          values={(
-            <Values id="rm-heat" caption={<ByUnits mi={`Pace against the finish’s own average, per ${tempGap(10, 'mi')} warmer, by section`} km={`Pace against the finish’s own average, per ${tempGap(10, 'km')} warmer, by section`} />}
-              columns={[{ key: 's', label: 'Section' }, { key: 'v', label: 'Pace' }, { key: 'c', label: 'Interval' }]}
-              rows={sig.map((s) => [sectionName(s.section), `${signed(s.per_10c)}%`, `${signed(s.ci95[0])}% to ${signed(s.ci95[1])}%`])} />
-          )} />
+          label="Each section's pace against the finish's own average on a warmer morning: quicker early, slower late." />
       </Beat>
     </StoryPage>
   );

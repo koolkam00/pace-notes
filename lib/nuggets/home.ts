@@ -6,7 +6,8 @@
  *   eligible family.
  * - home.second20k: the page's one guess (#stakes). Of every eligible finish, the share whose second 20K was faster
  *   than its first, from the pacing-shapes pack (the "Faster second 20 km" row, its count over its n). "Only" needs the
- *   share under one half; the figure is the plain fraction (inWords), so "Only about 1 in 25 did." Same family as the
+ *   share under one half; the answer counts out of 100, as the guess does, then gives the plain fraction (inWords):
+ *   "Only about 4 did: 1 in 25." The figure is that fraction. Same family as the
  *   H1 above it: the pack's n is the eligible count.
  */
 import { MARATHON_KM } from '@/lib/units';
@@ -27,7 +28,7 @@ export function siteTotalsFrom(t: SiteTotals): Nugget {
     guard: ok,
     headline: { mi: headline('mi'), km: headline('km') },
     fallback: 'Marathon finishes, mat by mat.',
-    figure: { value: m, unit: 'million', sr: `${count(t.finishesEligible)} finishes` },
+    figure: { value: m, unit: '\u00a0million', sr: `${count(t.finishesEligible)} finishes` },
     key: `finishes · ${t.cities} city marathons · ${t.firstYear}–${t.lastYear}`,
   };
 }
@@ -43,11 +44,14 @@ export function second20kFrom(row: Second20kRow | null): Nugget {
   const share = row && row.total > 0 && row.count >= 0 && row.count <= row.total ? row.count / row.total : NaN;
   const known = Number.isFinite(share) && share > 0 && share < 1;
   const words = known ? inWords(share) : '';
+  // The guess counts finishes out of 100, so the answer does too, then says it as a fraction: "Only about 4 did: 1 in 25."
+  const of100 = known ? Math.round(share * 100) : NaN;
+  const counted = words.startsWith('1 in ') && of100 >= 1;
   return {
     id: 'home.second20k', page: '/#stakes', denominator: 'eligible',
     values: { share, faster: row?.count ?? NaN, total: row?.total ?? NaN },
     guard: known && share < 0.5,
-    headline: `Only about *${words}* did.`,
+    headline: counted ? `Only about *${of100}* did: ${words}.` : `Only about *${words}* did.`,
     fallback: known ? `About *${words}* did.` : 'The second 20K against the first, finish by finish.',
     figure: known ? { value: words, sr: inWords(share, 'finishes') } : null,
     key: 'ran their second 20K faster than their first',

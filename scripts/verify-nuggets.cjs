@@ -105,17 +105,46 @@ for (const id of N.CHAPTER_LEAD) ok(N.NUGGET_IDS.includes(id), `chapter lead ${i
 // Every chapter leads with a number: eleven readings, each a figure with a digit in it (never a word in figure type).
 for (const id of N.CHAPTER_LEAD) ok(/\d/.test(N.getNugget(id).figure?.value ?? ''), `chapter lead ${id} has a figure with a number`);
 eq(new Set(N.CHAPTER_LEAD).size, N.CHAPTER_LEAD.length, 'eleven different chapter leads');
-// The contents keys are the approved wording (spec section 2.2), reproduced from the data where they hold a number.
+// The contents keys are the approved wording (spec section 2.2, rewritten October 19, 2026 as plain sentence fragments
+// that name their comparison), reproduced from the data where they hold a number.
 const keys = Object.fromEntries(N.CHAPTER_LEAD.map((id) => [id, N.getNugget(id).key]));
 eq(keys['field.median'], 'median finish', 'chapter 01 key');
+ok(/^behind at the finish after a first 5K over \d+% fast, against the same race and 5–20K pace$/.test(keys['kick.bank']), 'chapter 02 key');
 eq(keys['slowdown.onset'], 'of sustained slowdowns began at 30K or later', 'chapter 05 key');
-eq(keys['finish.busiest'], 'the busiest finishing minute', 'chapter 06 key');
+ok(/^the expected count in the minute before \d:\d\d$/.test(keys['round.top']), 'chapter 06 key');
 eq(keys['holds.gender'], 'women · men with a sustained slowdown, same finish times', 'chapter 07 key');
-eq(keys['courses.named'], 'of editions named from their pacing shape alone', 'chapter 08 key');
+ok(/^of races were traced to their course by pacing shape alone \(chance: \d+%\)$/.test(keys['courses.named']), 'chapter 08 key');
 eq(keys['weather.pairs'], 'same-course pairs: the warmer year had more sustained slowdowns', 'chapter 09 key');
-eq(keys['splitcheck.mats'], 'ahead at 20K, then slowed to the same finish', 'chapter 10 key');
-ok(/^had another sustained slowdown in the next race \(\d+% typical\)$/.test(keys['kick.recurrence']), 'chapter 11 key');
-ok(/^later at the finish, after a first 5K over \d+% fast$/.test(keys['kick.bank']), 'chapter 02 key');
+ok(/^of finishes from \d:\d\d to \d:\d\d had a sustained slowdown$/.test(keys['splitcheck.share']), 'chapter 10 key');
+eq(keys['gains.final'], 'of the time improving finishes found came after 30K', 'chapter 11 key');
+
+// Every key stands alone as a short phrase a runner reads under its figure: never a bare figure jammed against a unit
+// ("1.0pts"), at most 90 characters.
+for (const n of all.filter((x) => x.key)) {
+  ok(n.key.length <= 90, `${n.id}: the key "${n.key}" is over 90 characters`);
+  ok(!n.figure || !n.figure.unit || /^[%×]$/.test(n.figure.unit) || /^[\u00a0 ]|^°[CF]$|^in /.test(n.figure.unit), `${n.id}: the figure's unit "${n.figure && n.figure.unit}" needs a space before it`);
+}
+// A pace group is named by its window wherever a key names one, and one goal at one mat is one window: "on 4:00 pace
+// at 20K" never stands for two different groups on two pages (the course-goal data's 5–20K pace within 2%, the
+// checkpoint's 2-minute band, the projector's projected-finish band).
+{
+  const GROUP = /\b(?:on (?:even )?(\d:\d\d) pace|within \d+% of (\d:\d\d) pace|on course for \d:\d\d–(\d:\d\d))\b[^,]*?\b(?:at|through) (\d+K)\b/;
+  const WINDOW = /within \d+%|\d:\d\d–\d:\d\d/;
+  const windows = new Map();
+  for (const n of all.filter((x) => x.key)) {
+    const m = GROUP.exec(n.key) || (/\bthrough (\d+K) in (\d:\d\d–\d:\d\d), on even (\d:\d\d) pace\b/.exec(n.key) && null);
+    const named = /\bthrough (\d+K) in (\d:\d\d–\d:\d\d), on even (\d:\d\d) pace\b/.exec(n.key);
+    if (!m && !named) continue;
+    ok(WINDOW.test(n.key), `${n.id}: the key "${n.key}" names a pace group without its window`);
+    const goal = named ? named[3] : m[1] || m[2] || m[3];
+    const mat = named ? named[1] : m[4];
+    const window = (WINDOW.exec(n.key) || [''])[0];
+    const at = `${goal} at ${mat}`;
+    if (windows.has(at)) ok(windows.get(at).window === window, `${n.id} and ${windows.get(at).id}: "${at}" is two windows (${window}; ${windows.get(at).window})`);
+    else windows.set(at, { id: n.id, window });
+  }
+  ok(windows.size >= 3, 'the plan, projector and checkpoint keys each name their window');
+}
 
 // lib/chapters.ts (WP0-B) names a nugget for every page and chapter: every one must be registered, and agree with
 // PAGE_NUGGET and CHAPTER_LEAD here.
@@ -203,7 +232,8 @@ RECOUNT['home.second20k'] = (n) => {
   const words = best ? `1 in ${best.d}` : `${Math.round(share * 100)}%`;
   eq(n.figure.value, words, 'home.second20k: the figure is the closest plain fraction');
   eq(n.guard, share > 0 && share < 0.5, 'home.second20k: "Only" while the share is under one half');
-  eq(core.sentenceOf(n), n.guard ? `Only about *${words}* did.` : `About *${words}* did.`, 'home.second20k: the sentence');
+  const of100 = Math.round(share * 100);
+  eq(core.sentenceOf(n), !n.guard ? `About *${words}* did.` : best && of100 >= 1 ? `Only about *${of100}* did: ${words}.` : `Only about *${words}* did.`, 'home.second20k: the sentence, counted out of 100 as the guess is');
 };
 // The story nuggets (WP2): their recounts and fixtures live in scripts/nuggets/stories.cjs.
 const storyRecounts = require('./nuggets/stories.cjs')({ json, eq, ok, core });

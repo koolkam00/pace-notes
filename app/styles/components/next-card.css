@@ -59,6 +59,12 @@
   .next-card-title, .next-card-reading { margin-right: 0; }
   .next-card-go { position: static; justify-self: end; }
 }
+/* 200% zoom (under 300 px): the title steps down a size and a word too long for the card ("improvement") may break,
+   so nothing is cut at the card's edge. */
+@media (max-width: 299.98px) {
+  .chapter-end .chapter-next .next-card { padding: var(--s-4); }
+  .next-card-title { font-size: 1.375rem; overflow-wrap: anywhere; hyphens: auto; }
+}
 
 @media (min-width: 900px) {
   .chapter-end .chapter-next .next-card { padding: var(--s-6); }

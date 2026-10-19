@@ -47,7 +47,14 @@ export default function DemographicsBody() {
   const gapAt = (min: number) => (Math.abs(secs(min)) < 1 ? 'Level' : ms(Math.abs(secs(min))));
 
   return (
-    <StoryPage path={PATH}>
+    <StoryPage path={PATH} numbers={[
+      <Values key="wh-unmask" bare id="wh-unmask" caption="Second 20K against the first, recorded women and men"
+        columns={[{ key: 'v', label: 'Compared' }, { key: 'w', label: 'Women' }, { key: 'm', label: 'Men' }]}
+        rows={[['Pooled', slower(o.pooled_women_block), slower(o.pooled_men_block)], ['Same race and minute', slower(o.women_block), slower(o.men_block)]]} reading={1} />,
+      <Values key="wh-ghost" bare id="wh-ghost" caption={`Finishing in ${band.label}: recorded women behind recorded men at each mat`}
+        columns={[{ key: 'm', label: 'Mat' }, { key: 'g', label: 'Women behind' }]}
+        rows={band.ghost_s.map((g, k) => [matLabel(MATS[k + 1]), ms(g)])} reading={peak - 1} />,
+    ]}>
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek} fallback={!gender.guard}
         figures={[{ value: pct(w).replace('%', ''), unit: '%', sr: `${pct(w)} of recorded women's finishes`, key: 'Recorded women' }, { value: pct(m).replace('%', ''), unit: '%', sr: `${pct(m)} of recorded men's finishes`, key: 'Recorded men' }]}
         // The H1 says who held pace; the pair says how often each did not, and the key under it what is counted (the
@@ -68,12 +75,7 @@ export default function DemographicsBody() {
             { id: 'pooled', label: 'Every finish, pooled', bars: [{ label: 'Recorded women', value: o.pooled_women_block, display: slower(o.pooled_women_block) }, { label: 'Recorded men', value: o.pooled_men_block, display: slower(o.pooled_men_block) }], gap: apart(o.pooled_women_block, o.pooled_men_block) },
             { id: 'matched', label: 'Same race, same finish minute', bars: [{ label: 'Recorded women', value: o.women_block, display: slower(o.women_block) }, { label: 'Recorded men', value: o.men_block, display: slower(o.men_block) }], gap: apart(o.women_block, o.men_block) },
           ]}
-          label={`Second 20K against the first. Pooled: women ${slower(o.pooled_women_block)}, men ${slower(o.pooled_men_block)}. Same race and finish minute: women ${slower(o.women_block)}, men ${slower(o.men_block)}.`}
-          values={(
-            <Values id="wh-unmask" caption="Second 20K against the first, recorded women and men"
-              columns={[{ key: 'v', label: 'Compared' }, { key: 'w', label: 'Women' }, { key: 'm', label: 'Men' }]}
-              rows={[['Pooled', slower(o.pooled_women_block), slower(o.pooled_men_block)], ['Same race and minute', slower(o.women_block), slower(o.men_block)]]} reading={1} />
-          )} />
+          label={`Second 20K against the first. Pooled: women ${slower(o.pooled_women_block)}, men ${slower(o.pooled_men_block)}. Same race and finish minute: women ${slower(o.women_block)}, men ${slower(o.men_block)}.`} />
       </Beat>
 
       {/* The gap at every finish time restated the opener's finding (at the same finish times), so it is cut; its
@@ -88,12 +90,7 @@ export default function DemographicsBody() {
           scrub={{ label: `Finishing in ${band.label}: recorded women behind recorded men, mat by mat`,
             points: { x: MATS.map((km) => km / MARATHON_KM), keys: MATS.map((km, k) => keyAt(km, gapMin[k])), values: gapMin.map(gapAt) },
             initial: peak, detents: [peak], follow: 'gap' }}
-          label={`Finishing in ${band.label}: recorded women behind recorded men at each mat, ${ms(Math.round(gapMin[peak] * 60))} at ${matLabel(MATS[peak])}, level at the finish.`}
-          values={(
-            <Values id="wh-ghost" caption={`Finishing in ${band.label}: recorded women behind recorded men at each mat`}
-              columns={[{ key: 'm', label: 'Mat' }, { key: 'g', label: 'Women behind' }]}
-              rows={band.ghost_s.map((g, k) => [matLabel(MATS[k + 1]), ms(g)])} reading={peak - 1} />
-          )} />
+          label={`Finishing in ${band.label}: recorded women behind recorded men at each mat, ${ms(Math.round(gapMin[peak] * 60))} at ${matLabel(MATS[peak])}, level at the finish.`} />
       </Beat>
 
     </StoryPage>

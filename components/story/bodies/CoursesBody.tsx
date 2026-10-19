@@ -64,7 +64,14 @@ export default function CoursesBody() {
   const shapes = Object.fromEntries(data.courses.filter((c) => c.signature?.length === 9).map((c) => [c.city, c.signature!]));
 
   return (
-    <StoryPage path={PATH}>
+    <StoryPage path={PATH} numbers={[
+      <Values key="cs-fingerprint" bare id="cs-fingerprint" caption="Section pace against the course's own average" count={shaped.length}
+        columns={[{ key: 'c', label: 'Course', text: true }, ...data.sections.map((s, i) => ({ key: `s${i}`, label: sectionName(s) }))]}
+        rows={[['Typical course', ...data.typical_curve.map(signed)], ...shaped.map((c) => [c.city, ...c.curve!.map(signed)])]} reading={0} />,
+      <Values key="cs-steady" bare id="cs-steady" caption={`${evenName}s as a share of finishes, by course`}
+        columns={[{ key: 'c', label: 'Course', text: true }, { key: 's', label: `${evenName}s` }, { key: 'n', label: 'Finishes' }]}
+        rows={[...big].sort((a, b) => a.shares[even] - b.shares[even]).map((c) => [c.city, pct(c.shares[even]), count(c.finishes)])} />,
+    ]}>
       {/* The figure and its key say the finding; the ruler sets it against chance, as a share (so the identification
           set's course count never shows beside the shape cohort's). A failed guard shows the plain sentence instead. */}
       <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
@@ -82,17 +89,11 @@ export default function CoursesBody() {
           commonLabel={slowest.guard ? `${sectionName(String(slowest.values.section))} · ${count(Number(slowest.values.k))} courses` : sectionName(data.sections[typicalSlow])}
           courses={shaped.map((c) => ({ id: c.city, label: c.city, curve: c.curve! }))}
           xTicks={[0, 10, 20, 30, 42.195].map((km) => ({ value: km, label: km ? (km > 42 ? 'Finish' : matLabel(km)) : 'Start' }))}
-          label={`Section pace against each course's own average, for ${shaped.length} courses, with each course's slowest 5K marked. ${plain(sentenceOf(slowest))}`}
-          values={(
-            // The summary counts the courses (the H2's and the chart's), the typical course's row heading the table.
-            <Values id="cs-fingerprint" caption="Section pace against the course's own average" count={shaped.length}
-              columns={[{ key: 'c', label: 'Course', text: true }, ...data.sections.map((s, i) => ({ key: `s${i}`, label: sectionName(s) }))]}
-              rows={[['Typical course', ...data.typical_curve.map(signed)], ...shaped.map((c) => [c.city, ...c.curve!.map(signed)])]} reading={0} />
-          )} />
+          label={`Section pace against each course's own average, for ${shaped.length} courses, with each course's slowest 5K marked. ${plain(sentenceOf(slowest))}`} />
       </Beat>
 
       {game.length ? (
-        <Beat id="name" track="chapter-2" label="Name that course" title={<>Which course ran <em>this shape</em>?</>}>
+        <Beat id="name" track="chapter-2" label="Name that course" title="Which course ran this shape?">
           <NameThatCourse rounds={game} shapes={shapes} x={MID} length={42.195} labelledBy="name-title"
             ticks={[0, 10, 20, 30, 42.195].map((km) => ({ km, label: km ? (km > 42 ? 'Finish' : matLabel(km)) : 'Start' }))} />
         </Beat>
@@ -102,12 +103,7 @@ export default function CoursesBody() {
         <DotStrip items={big.map((c) => ({ id: c.city, label: c.city, value: c.shares[even], display: pct(c.shares[even]), detail: count(c.finishes) }))}
           domain={[sLo, sHi]} ticks={Array.from({ length: Math.round((sHi - sLo) * 10) + 1 }, (_, i) => sLo + i / 10).map((v) => ({ value: v, label: pct(v) }))}
           readoutKey="Finishes"
-          label={`${evenName}s as a share of each course's finishes, ${big.length} courses with 10,000 or more finishes and three or more editions; tap a dot to read it`}
-          values={(
-            <Values id="cs-steady" caption={`${evenName}s as a share of finishes, by course`}
-              columns={[{ key: 'c', label: 'Course', text: true }, { key: 's', label: `${evenName}s` }, { key: 'n', label: 'Finishes' }]}
-              rows={[...big].sort((a, b) => a.shares[even] - b.shares[even]).map((c) => [c.city, pct(c.shares[even]), count(c.finishes)])} />
-          )} />
+          label={`${evenName}s as a share of each course's finishes, ${big.length} courses with 10,000 or more finishes and three or more editions; tap a dot to read it`} />
       </Beat>
 
       <Moved id="weather" href="/stories/race-morning">Race morning has its own story now.</Moved>

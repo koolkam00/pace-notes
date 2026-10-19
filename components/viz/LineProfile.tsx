@@ -135,9 +135,11 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
   // A domain passed high to low draws larger values lower (pace: slower down, ahead up).
   const flipped = y(1) > y(0);
   const needleX = scrub ? (scrub.points.x[scrub.initial] ?? null) : null;
-  const refSpot = (r: { value: number; label?: string }): { side?: 'left' | 'right'; at?: number; below?: boolean } => {
+  // A bracket on the plot's right edge keeps a 12 px gutter free of a right-end label (its line and caps).
+  const gutter = layers.some((l) => l.bracket && x(l.bracket.x) > 0.95) ? 12 : 0;
+  const refSpot = (r: { value: number; label?: string }): { side?: 'left' | 'right'; at?: number; below?: boolean; inset?: number } => {
     if (!r.label || !firstLayer) return { side: 'left' };
-    const w = textWidth(r.label, 13) + 4, ry = y(r.value) * height;
+    const w = textWidth(r.label, 13) + 4 + gutter, ry = y(r.value) * height;
     const lines = firstLayer.series.map((sr) => sr.values.map((v, i) => [x(xs[i]) * REF_WIDTH, y(v) * height] as [number, number]));
     const washed = firstLayer.series.filter((sr) => sr.fillAbove !== undefined).map((sr) => sr.values.map((v, i) => [x(xs[i]) * REF_WIDTH, v > sr.fillAbove! ? 1 : 0] as [number, number]));
     const grid = yTicks.map((t) => { const gy = y(t.value) * height; const gw = textWidth(t.label, 12, 500) + 4; return gridSide === 'left' ? { x0: 0, x1: gw, y0: gy - 18, y1: gy } : { x0: REF_WIDTH - gw, x1: REF_WIDTH, y0: gy - 18, y1: gy }; });
@@ -160,8 +162,8 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
       if (below === flipped && washed.some((pts) => pts.some(([px, on]) => on && px > x0 - 3 && px < x1 + 3))) return false;
       return true;
     };
-    const ends: [number, boolean, { side?: 'left' | 'right'; at?: number; below?: boolean }][] = [
-      [REF_WIDTH - w, false, { side: 'right' }], [0, false, { side: 'left' }], [REF_WIDTH - w, true, { side: 'right', below: true }], [0, true, { side: 'left', below: true }],
+    const ends: [number, boolean, { side?: 'left' | 'right'; at?: number; below?: boolean; inset?: number }][] = [
+      [REF_WIDTH - w, false, { side: 'right', inset: gutter }], [0, false, { side: 'left' }], [REF_WIDTH - w, true, { side: 'right', below: true, inset: gutter }], [0, true, { side: 'left', below: true }],
     ];
     for (const [x0, below, spot] of ends) if (clear(x0, below)) return spot;
     for (const below of [false, true]) for (let x0 = 8; x0 + w <= REF_WIDTH; x0 += 8) if (clear(x0, below)) return { at: x0 / REF_WIDTH, below };

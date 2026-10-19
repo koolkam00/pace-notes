@@ -5,8 +5,8 @@
 // The start line (the redesign spec, sections 00 and 7.1): four things. The night hero opens on the race replay and the
 // plan door (hero, paths); one guess (stakes); the chapters as a course line, each with its reading (guide); and the
 // closing call (cta). Every number comes from lib/nuggets (site.totals, replay.back as the replay's moment, home.second20k
-// and each chapter's lead), never typed here. The band's moment is how far the back of the field had come, so the home
-// page never opens on the race-replay story's own finding (the share short of 20K).
+// and each chapter's lead), never typed here. The band's moment is how far the back of the field had come, in the edition
+// where it had come least, so the home page never opens on the race-replay story's own race and finding.
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { assertCohortTotals } from '@/components/CohortNote';
 import HomeDoors from '@/components/home/HomeDoors';
@@ -19,7 +19,7 @@ import { getCourseNames } from '@/lib/course-data';
 import { getPersonalSummary } from '@/lib/personalized-data';
 import { getStudyEvidence } from '@/lib/research-data';
 import { getInsightsManifest, readInsight, replayChoices } from '@/lib/insights-server';
-import { CHAPTERS, chapterHref, chapterNumber } from '@/lib/chapters';
+import { CHAPTERS, chapterNumber } from '@/lib/chapters';
 import { getNugget, readingOf, sentenceOf, textFor } from '@/lib/nuggets';
 import { countWord } from '@/lib/nuggets/format';
 import { courseSpan } from '@/lib/stories';
@@ -51,8 +51,10 @@ export default function Page() {
   const geometry = readInsight<{ courses: CourseGeometry[] }>('course-geometry.json');
   const routes = new Map(geometry.courses.map((c) => [c.city, { points: c.route, km: c.route_km }]));
   const choices = replayChoices(replay.editions, manifest, routes);
-  // The band has no race picker, so it carries only the edition the data picks (the replay.first nugget's argmax).
-  const pick = defaultReplaySlug(choices);
+  // The band has no race picker, so it carries only the edition its moment names (replay.back: where the back of the
+  // field had come least at the first finish), never chapter 01's own edition and finding.
+  const back = getNugget('replay.back');
+  const pick = choices.some((c) => c.slug === back.values.slug) ? String(back.values.slug) : defaultReplaySlug(choices);
   const courses = getCourseNames().map((city) => ({ city, slug: courseSlug(city) }));
 
   const totals = getNugget('site.totals');
@@ -60,9 +62,9 @@ export default function Page() {
   const { cities, first_year: firstYear, last_year: lastYear } = totals.values;
   const guess = getNugget('home.second20k');
   const share = Number(guess.values.share);
-  // The guess's chapter: the shape of a race (the one that holds the pacing types).
-  const shape = CHAPTERS.find((c) => c.pages.some((p) => p.href === '/stories/pacing-types'));
-  const back = getNugget('replay.back');
+  // The guess hands off to the page that develops it: the pacing pattern (finishes run fast early and slow late, which
+  // is why so few ran a faster second 20K), in its chapter's words.
+  const pattern = CHAPTERS.flatMap((c) => c.pages.map((page) => ({ c, page }))).find(({ page }) => page.href === '/analyses/pacing-pattern');
   const moment = { mi: sentenceOf(back, 'mi'), km: sentenceOf(back, 'km') };
   const chapterCount = countWord(CHAPTERS.length);
 
@@ -80,7 +82,7 @@ export default function Page() {
           <HomeDoors courses={courses} />
         </div>
         <div className="home-hero-replay">
-          <HeroReplay choices={choices.filter((c) => c.slug === pick)} band moment={moment} />
+          <HeroReplay choices={choices.filter((c) => c.slug === pick)} initial={pick} band moment={moment} />
         </div>
       </div>
     </section>
@@ -92,14 +94,14 @@ export default function Page() {
           marks="dots" unit="of 100" min={0} max={60} step={1}
           question="Of 100 finishes, how many ran their second 20K faster than their first?"
           truth={share * 100} truthLabel="Second 20K faster" answer={sentenceOf(guess)}
-          next={shape ? { href: chapterHref(shape), label: `Chapter ${chapterNumber(shape)} · ${shape.title}` } : undefined}
+          next={pattern ? { href: pattern.page.href, label: `Chapter ${chapterNumber(pattern.c)} · ${pattern.page.short}` } : undefined}
         />
       ) : <p className="t-sentence">{withEm(sentenceOf(guess))}</p>}
     </section>
 
     <section id="guide" className="home-beat home-guide" aria-labelledby="guide-title" data-track-section="guide">
       <div className="home-guide-head">
-        <h2 id="guide-title" className="t-h2">The race, <em>start to finish</em>.</h2>
+        <h2 id="guide-title" className="t-h2">The race, start to finish.</h2>
         {/* The term's first use on the page (the chapter rows' keys sit inside their links), so it links to its definition. */}
         <p className="home-guide-dek">{chapterCount.charAt(0).toUpperCase() + chapterCount.slice(1)} chapters, from the gun through the <Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link> to the finish line.</p>
       </div>
@@ -108,7 +110,7 @@ export default function Page() {
 
     <section className="night home-band home-cta" aria-labelledby="cta-title" data-track-section="cta">
       <div className="container home-cta-inner">
-        <h2 id="cta-title" className="t-h2">Your next marathon starts with <em>a plan</em>.</h2>
+        <h2 id="cta-title" className="t-h2">Your next marathon starts with a plan.</h2>
         <Link className="btn btn-primary" href="/tools/plan">Plan your race</Link>
       </div>
     </section>

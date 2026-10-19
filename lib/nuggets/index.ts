@@ -49,16 +49,16 @@ export function getNugget(id: NuggetId, ctx?: NuggetContext): Nugget {
  * no figure. Pages pass it to ChapterEnd and ChapterList, so next cards and contents rows show the same number the
  * page leads with.
  */
-export function readingOf(id: NuggetId): (NuggetFigure & { key?: string }) | null {
-  const { figure, key } = getNugget(id);
-  return figure ? { ...figure, key } : null;
+export function readingOf(id: NuggetId): (NuggetFigure & { key?: string; km?: NuggetFigure }) | null {
+  const { figure, figureKm, key } = getNugget(id);
+  return figure ? { ...figure, key, ...(figureKm ? { km: figureKm } : {}) } : null;
 }
 
 /**
  * readingOf for a next card: a placeholder nugget (one an area package has yet to replace) shows no figure, so a card
  * never reads "28 course pages" as if it were a finding. Contents rows keep readingOf.
  */
-export function settledReadingOf(id: NuggetId): (NuggetFigure & { key?: string }) | null {
+export function settledReadingOf(id: NuggetId): (NuggetFigure & { key?: string; km?: NuggetFigure }) | null {
   return getNugget(id).placeholder ? null : readingOf(id);
 }
 
@@ -98,15 +98,19 @@ export const PAGE_NUGGET: Readonly<Record<string, NuggetId>> = {
   '/analyses/race-day-weather': 'weather.start',
   '/tools/weather-match': 'weathermatch.mornings',
   '/runners': 'runner.yours',
-  '/tools/split-check': 'splitcheck.mats',
+  '/tools/split-check': 'splitcheck.share',
   '/analyses/finding-improvement': 'gains.final',
   '/tools/plan': 'plan.goal',
 };
 
-/** Each chapter's contents-row reading, chapters 01 to 11 in order (spec section 2.2: the lead and its key). */
+/**
+ * Each chapter's contents-row reading, chapters 01 to 11 in order (spec section 2.2: the lead and its key). A chapter's
+ * lead is its first page's own reading, so the number a reader taps on the home guide, the contents or a next card is
+ * the number that page opens on (verify-chapters checks both).
+ */
 export const CHAPTER_LEAD: readonly NuggetId[] = [
-  'field.median', 'kick.bank', 'types.top', 'checkpoint.under', 'slowdown.onset', 'finish.busiest',
-  'holds.gender', 'courses.named', 'weather.pairs', 'splitcheck.mats', 'kick.recurrence',
+  'field.median', 'kick.bank', 'types.top', 'checkpoint.under', 'slowdown.onset', 'round.top',
+  'holds.gender', 'courses.named', 'weather.pairs', 'splitcheck.share', 'gains.final',
 ];
 
 /** Ids still served by WP0-C's bootstrap placeholders (scripts/verify-nuggets.cjs lists them; WP9 fails while any remain). */

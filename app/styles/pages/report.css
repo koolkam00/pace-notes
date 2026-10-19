@@ -68,8 +68,10 @@
   .race-report-screen { padding: 16px 14px; }
   .race-report-finish .big-number { font-size: 2rem; }
   .lap-head { display: none; }
-  .lap-rows li, .lap-list.no-split .lap-rows li { grid-template-columns: auto auto minmax(0, 1fr); padding-top: 6px; }
-  .lap-bar { grid-column: 1 / -1; height: 22px; }
+  /* The mat, split and pace run as words on a line, and the pace wraps under them when the three do not fit (the finish
+     row's "Finish 10:40 7:49/mi" at 195 px), so nothing passes the screen's edge. */
+  .lap-rows li, .lap-list.no-split .lap-rows li { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 6px; padding-top: 6px; }
+  .lap-bar { flex: 1 1 100%; height: 22px; }
   .lap-bar i { top: 4px; }
 }
 
@@ -88,6 +90,14 @@
 .race-report-stat .type-glyph { width: 32px; height: 15px; }
 .race-report-more { display: inline-flex; align-items: center; min-height: 44px; margin: -8px 0 -10px; font-size: var(--t-small); font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-color: var(--ink-3); text-underline-offset: .2em; }
 .race-report-more:hover { text-decoration-color: var(--ink); }
+/* Under 360 px (a small phone, or zoom) each tile stacks: the label, the value (the type's glyph before its name), then
+   the sentence and the badge at the full width, so no word is left alone in a narrow column. */
+@media (max-width: 359.98px) {
+  .race-report-stat { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'label' 'value' 'small' 'extra'; gap: 4px; }
+  .race-report-stat > strong, .race-report-stat > .race-report-badge, .race-report-stat > .tool-state { justify-self: start; text-align: left; }
+  .race-report-stat > strong { flex-wrap: wrap; }
+  .race-report-stat.is-type > small { padding-right: 0; }
+}
 @media (min-width: 600px) {
   .race-report-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--rule); }
   .race-report-stat { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'label' 'value' 'small' 'extra'; align-content: start; gap: 6px; padding: 16px; border-bottom: 0; border-left: 1px solid var(--rule); }
@@ -129,7 +139,8 @@
 .at20-key-median { box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
 .at20-key-race { background: var(--ink); }
 @media (max-width: 359.98px) {
-  .at20-rows, .at20-axis { grid-template-columns: minmax(0, 1fr) 5rem; }
+  /* The value column holds "6:03 behind" whole (the rows and the axis share it, so the ends stay under the tracks). */
+  .at20-rows, .at20-axis { grid-template-columns: minmax(0, 1fr) 6rem; }
   .at20-label { grid-column: 1 / -1; padding-top: var(--s-2); }
   .at20-axis > span:first-child { display: none; }
 }
@@ -191,8 +202,9 @@ a.race-report-badge:focus-visible { outline: 2px solid var(--focus); outline-off
 @media (min-width: 600px) {
   .race-report-actions .share-bar .btn-primary { flex: 0 1 auto; }
 }
-/* On a touch screen Share is what a phone does: it takes the primary look and comes first; Print steps back. */
-@media (pointer: coarse) {
+/* On a touch screen or a phone-width window Share is what a phone does: it takes the primary look and comes first;
+   Print steps back. */
+@media (pointer: coarse), (max-width: 599.98px) {
   .race-report-actions .share-bar .race-report-share-open { order: -1; flex: 1 1 auto; background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
   .race-report-actions .share-bar .race-report-share-open:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
   .race-report-actions .share-bar .race-report-share-open:active { background: var(--accent-press); border-color: var(--accent-press); }
@@ -219,7 +231,8 @@ a.race-report-badge:focus-visible { outline: 2px solid var(--focus); outline-off
 @media screen and (min-width: 900px) {
   .report-page { max-width: none; }
   .report-page .race-report { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); grid-template-rows: auto auto 1fr auto; column-gap: var(--s-7); align-items: start; }
-  .report-page .race-report-screen { grid-column: 1; grid-row: 1 / -1; }
+  /* The lap screen stays in view beside the tiles and the comparison as they scroll, so the left column never empties. */
+  .report-page .race-report-screen { grid-column: 1; grid-row: 1 / -1; position: sticky; top: calc(var(--header-h) + var(--s-4)); }
   .report-page .race-report-stats, .report-page .race-report-block, .report-page .race-report-foot { grid-column: 2; }
   .report-page .race-report-foot { align-self: end; }
   /* Beside the screen the tiles are rows again: the label at the left, the value at the right. */
@@ -229,12 +242,9 @@ a.race-report-badge:focus-visible { outline: 2px solid var(--focus); outline-off
   .report-page .race-report-stat > .race-report-badge { margin-top: 0; }
   .report-page .race-report-stat.is-type > small { padding-right: var(--s-2); }
   .report-page .race-report-block { margin-top: var(--s-6); }
-  /* The actions and then the closing stack continue the right column (the tiles, the comparison, the foot), so the
-     lap screen stands alone at the left and nothing leaves a void beside the next card. */
+  /* The actions continue the right column (the tiles, the comparison, the foot); the two columns end there, and the
+     closing stack starts again at the page's left edge at its own width, as on every other page. */
   .report-page .race-report-actions { max-width: none; margin-left: calc((100% - var(--s-7)) * 7 / 12 + var(--s-7)); }
-  @supports selector(:has(a)) {
-    .report-page:has(.race-report) .chapter-end { max-width: none; margin-left: calc((100% - var(--s-7)) * 7 / 12 + var(--s-7)); }
-  }
 }
 
 /* ---------- Print: the card alone, one page, ink on paper ---------- */

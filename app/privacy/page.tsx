@@ -1,6 +1,5 @@
 import AnalyticsPreference from '@/components/AnalyticsPreference';
-import { UnitLink as Link } from '@/components/UnitsProvider';
-import Arrow from '@/components/ui/Arrow';
+import InfoNext from '@/components/InfoNext';
 import type { AnalyticsEvents } from '@/lib/analytics-policy';
 import { pageMetadata } from '@/lib/seo';
 
@@ -102,7 +101,7 @@ export default function PrivacyPage() {
           </div>
         </details>
       </div>
-      <p className="info-next"><Link href="/research" className="info-next-link">Back to Contents<Arrow /></Link></p>
+      <InfoNext />
     </div>
   </article>;
 }

@@ -2,13 +2,12 @@ import type { CSSProperties, ReactNode } from 'react';
 
 /**
  * The whole field after 30K as one 100% bar (the redesign spec, section 7.6, #shuffle, under section 00): big drops,
- * everything between, and big gains, left to right. A bracket spans the share that moved up (from `up.at`, a fraction of
- * the bar), its edge carried down through the bar as a tick, so moved down and moved up meet at a visible line; the two
- * tails are ink and named under the bar's ends with their shares, so the drops against the gains read at a glance, and
- * the quiet middle carries no figure a reader would add up against the headline's. HTML, exact proportions, 2 px gaps;
- * the histogram behind it is in Values.
+ * everything between, and big gains, left to right. A bracket over the bar spans the share that moved up (from `up.at`,
+ * a fraction of the bar); the middle is one quiet segment with no divider, so nothing unlabelled is drawn. The two
+ * tails, the H2's "3 to 1", are in the signal and named under the bar's ends with their shares. HTML, exact
+ * proportions, 2 px gaps; the histogram behind it is in All numbers.
  */
-export type ShiftSegment = { id: string; label: string; share: number; display: string; tone: 'ink' | 'quiet' };
+export type ShiftSegment = { id: string; label: string; share: number; display: string; tone: 'ink' | 'quiet' | 'signal' };
 
 export default function PlaceShift({ segments, up, label, values }: {
   /** Left to right: lost the most … gained the most. The first and last are the tails named under the bar. */
@@ -28,8 +27,6 @@ export default function PlaceShift({ segments, up, label, values }: {
       </div>
       <div className="ps-track" role="img" aria-label={label}>
         {segments.map((x) => <span key={x.id} className={`ps-seg is-${x.tone}`} style={{ flexGrow: x.share / total } as CSSProperties} />)}
-        {/* Where moved down meets moved up: the bracket's edge carried down through the bar. */}
-        <span className="ps-divide" aria-hidden="true" style={{ left: `${(upStart * 100).toFixed(2)}%` } as CSSProperties} />
       </div>
       <div className="ps-ends" aria-hidden="true">
         <span className="ps-end"><b>{first.display}</b>{first.label}</span>

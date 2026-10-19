@@ -3,7 +3,7 @@
  * reached from the navigation, holds no data value until a visitor finds a race, and is never recorded. /report has
  * none either. So runner.yours has no figure (a card or a contents row never sets a word in figure type); its sentence
  * and key count the mats from the runner manifest's checkpoints rather than typing them. Chapter 10's lead is the split
- * check's finding (splitcheck.mats). Server only; scripts/nuggets/runners.cjs recounts it.
+ * check's finding (splitcheck.share). Server only; scripts/nuggets/runners.cjs recounts it.
  */
 import fs from 'node:fs';
 import path from 'node:path';

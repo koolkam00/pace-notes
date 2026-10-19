@@ -51,7 +51,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
   // /courses
   {
     const n = N.getNugget('courses.index');
-    step(() => eq([n.values.courses, n.guard, n.figure.value], [courses.courses.length, courses.courses.length > 0, courses.courses.length.toLocaleString('en-US')], 'courses.index recounts the course pages'));
+    step(() => eq([n.values.courses, n.guard, n.figure], [courses.courses.length, courses.courses.length > 0, null], 'courses.index recounts the course pages (a count of pages, so no figure on a card)'));
     const r = N.getNugget('courses.range');
     const lo = Math.min(...solid.map((c) => c.slowdown)), hi = Math.max(...solid.map((c) => c.slowdown));
     step(() => eq([r.values.min, r.values.max, r.values.courses], [lo, hi, solid.length], 'courses.range recounts the extremes of courses with three or more editions'));

@@ -14,7 +14,8 @@ import { CHAPTERS, chapterHref, livePages, partLabel, type Chapter, type Chapter
  * Variants:
  * - compact: the menu and the chapters drawer. Marker, title and pages; no readings (a menu is for finding a page). The
  *   whole row links to the chapter's first page.
- * - full: the home guide. Adds the chapter's reading with its key, when `readingOf` resolves it.
+ * - full: the home guide. Adds the chapter's reading with its key, when `readingOf` resolves it, and the trailing
+ *   arrow every other list of links on the site carries, so each row reads as a way in.
  * - expanded: the contents (/research). Each chapter is a heading with its reading, and its pages are the links under
  *   it, by title alone: one reading per chapter, so the list stays one calm rhythm and no figure shows twice. The first
  *   chapter key that names the sustained slowdown links the term to its definition (a heading, so outside any row
@@ -118,6 +119,7 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
                     <span className="chapter-sub">{chapter.subtitle}</span>
                   </span>
                   {compact ? null : <Reading readingOf={readingOf} id={chapter.lead} fallbackKey={chapter.key} size="s" />}
+                  {compact ? null : <Arrow className="chapter-go" />}
                 </ChapterLink>
               </li>
             ))}

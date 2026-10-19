@@ -17,11 +17,13 @@ export type { ReplayChoice };
  */
 export default function HeroReplay({ choices, initial, band = false, picker, layout = true, moment = true }: {
   choices: ReplayChoice[]; initial?: string; band?: boolean; picker?: boolean; layout?: boolean;
-  /** The flag frame's sentence under the field; off where the page's own headline already says it. */
-  moment?: boolean | UnitsAware<string>;
+  /** The flag frame's sentence under the field; off where the page's own headline already says it, or 'others': only
+   *  for an edition the reader picks (the page's own edition is its headline's, so its sentence would repeat it). */
+  moment?: boolean | 'others' | UnitsAware<string>;
 }) {
   if (!choices.length) return null;
-  const stage = stageChoices(choices).map((c) => (moment === true ? c : { ...c, moment: moment || '' }));
-  const start = initial && stage.some((c) => c.slug === initial) ? initial : defaultReplaySlug(stage)!;
+  const all = stageChoices(choices);
+  const start = initial && all.some((c) => c.slug === initial) ? initial : defaultReplaySlug(all)!;
+  const stage = all.map((c) => (moment === true || (moment === 'others' && c.slug !== start) ? c : { ...c, moment: moment === 'others' ? '' : moment || '' }));
   return <ReplayStage choices={stage} initial={start} band={band} picker={picker ?? (!band && stage.length > 1)} layout={layout && !band} />;
 }

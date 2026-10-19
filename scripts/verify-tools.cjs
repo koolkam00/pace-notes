@@ -164,8 +164,6 @@ assert.deepEqual(time.parseTrackerText('25K 2:05:31\n30 km 02:31:07 4:59/km\nHal
     [12600, 1350, 9000, 9000]); ok();
   const archetype = require('../components/story/ArchetypeStory.tsx');
   assert.deepEqual(['0.25.30', '1.12.55', '3,51,00', '0.25.75'].map(archetype.parseClock), [1530, 4375, 13860, null]); ok();
-  const finish = require('../components/story/FinishTimeStory.tsx');
-  assert.deepEqual(['3.58.42', '3.30', '1.12.55', '13.00', '3.75'].map(finish.parseTime), [14322, 12600, null, null, null]); ok();
 }
 
 // ---- pace calculations

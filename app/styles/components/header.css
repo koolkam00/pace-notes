@@ -52,8 +52,9 @@
 .unit-switch button:focus-visible { outline: 2px solid var(--focus); outline-offset: -4px; }
 .unit-switch .unit-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 /* The inert copy on the few pages whose text never changes with the units (the moved addresses' stubs and the 404): it
-   takes no room at any width, so no gap opens in the header there. */
-.unit-switch-placeholder { display: none; visibility: hidden; }
+   keeps the switch's room, unseen, so the header is the same on every page (Menu and Chapters never shift). */
+.unit-switch-placeholder { visibility: hidden; }
+.unit-switch-placeholder::before { content: none; }
 .unit-switch-placeholder button { width: 44px; padding: 0; font-size: 0; pointer-events: none; }
 
 .nav-toggle, .chapters-toggle {

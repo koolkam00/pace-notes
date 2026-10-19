@@ -94,6 +94,8 @@
 .hero-replay.is-band .replay-clock { font-size: 1.375rem; }
 .hero-replay.is-band .replay-mats, .hero-replay.is-band .replay-track, .hero-replay.is-band .replay-axis-y { display: none; }
 .hero-replay.is-band .replay-moment { margin-top: var(--s-2); font-size: 1rem; }
+/* One accent on the home's first screen, the H1's: the band's moment keeps its italic in night ink. */
+.hero-replay.is-band .replay-moment em { color: var(--night-ink); }
 
 @media (min-width: 600px) {
   .hero-replay .replay-box { border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--night-3); }

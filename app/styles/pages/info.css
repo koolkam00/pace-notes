@@ -101,7 +101,6 @@
 @media (min-width: 900px) {
   .info-page { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--s-8); align-items: start; padding: var(--s-8) 0 var(--s-9); }
   .info-hero { position: sticky; top: calc(var(--header-h) + var(--s-6)); }
-  .info-hero > h1, .info-stop > h1, .methods-hero > h1 { font-size: clamp(2.75rem, 3.6vw, 3.75rem); }
   .info-hero > h1 { max-width: none; }
   .info-body { margin-top: 0; }
   .info-body > .info-section:first-child { padding-top: 0; border-top: 0; }

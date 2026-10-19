@@ -1,6 +1,5 @@
-import Arrow from '@/components/ui/Arrow';
+import InfoNext from '@/components/InfoNext';
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import { CHAPTERS, chapterHref, chapterNumber } from '@/lib/chapters';
 import { finishesM } from '@/lib/nuggets';
 import { pageMetadata } from '@/lib/seo';
 
@@ -17,11 +16,10 @@ export const metadata = pageMetadata({
  * coverage sentence is on /methodology.
  */
 export default function AboutPage() {
-  const first = CHAPTERS[0];
   return <article className="info-page">
     <header className="info-hero">
       <p className="t-kicker">About</p>
-      <h1 className="t-title">A finish time is one number. <em className="nowrap">The race</em> is the rest.</h1>
+      <h1 className="t-title">A finish time is one number. The race is the rest.</h1>
       <p className="info-dek">Pace Notes reads the recorded splits of {finishesM()} million marathon finishes, so a runner can see how races like theirs went.</p>
     </header>
     <div className="info-body">
@@ -35,9 +33,7 @@ export default function AboutPage() {
         <p>Runners choose a pace, a goal and a course with little to go on. A finish time says how a race ended, not how it unfolded. Pace Notes shows what happened, mat by mat, in races like yours.</p>
         <p>It describes past races. It is not a training plan or a promise of a result.</p>
       </section>
-      <p className="info-next">
-        <Link href={chapterHref(first)} className="info-next-link">Start reading: Chapter {chapterNumber(first)} · {first.title}<Arrow /></Link>
-      </p>
+      <InfoNext />
     </div>
   </article>;
 }

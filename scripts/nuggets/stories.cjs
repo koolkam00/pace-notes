@@ -74,12 +74,16 @@ module.exports = function stories({ json, eq, ok, core }) {
   };
 
   R['replay.back'] = (n) => {
-    const km = first.e.moments.back_km_at_first;
-    eq(n.values.back_km, km, 'replay.back reads the replay.first edition');
+    let least = null;
+    for (const e of replay.editions) if (e.moments && Number.isFinite(e.moments.back_km_at_first) && (!least || e.moments.back_km_at_first < least.moments.back_km_at_first)) least = e;
+    const km = least.moments.back_km_at_first;
+    eq([n.values.slug, n.values.back_km], [least.slug, km], 'replay.back reads the edition whose back of the field had come least at the first finish');
     eq(n.guard, km > 0 && km < 42.195 / 2, 'replay.back: "just" while under half the distance');
-    has(n, `${(km / 1.609344).toFixed(1)} mi`, 'replay.back: one-decimal miles', 'mi');
-    has(n, `${km.toFixed(1)} km`, 'replay.back: one-decimal kilometres', 'km');
-    has(n, `When the first runner finished ${first.e.city} ${first.e.year},`, 'replay.back: the home band names the edition the data chose');
+    // At most one decimal, a whole number without its ".0" (lib/units distance).
+    const one = (v) => v.toFixed(1).replace(/\.0$/, '');
+    has(n, `${one(km / 1.609344)} mi`, 'replay.back: one-decimal miles', 'mi');
+    has(n, `${one(km)} km`, 'replay.back: one-decimal kilometres', 'km');
+    has(n, `When the first runner finished ${least.city === 'New York' ? 'New York City' : least.city} ${least.year},`, 'replay.back: the home band names the edition the data chose');
   };
 
   R['replay.packs'] = (n) => {
@@ -99,7 +103,7 @@ module.exports = function stories({ json, eq, ok, core }) {
     close(n.values.share, share, 'types.top recounts their share together');
     eq(n.guard, share > 0.5 && share < 1, 'types.top: "most" needs more than half');
     eq(n.figure.value, String(Math.round(share * 100)), 'types.top: the figure');
-    if (n.guard) has(n, `*${sorted[0].name}s or ${sorted[1].name}s*`, 'types.top names both types');
+    if (n.guard) has(n, `were ${sorted[0].name}s or ${sorted[1].name}s.`, 'types.top names both types (no accent: the legend marks them)');
     eq(n.key, `were ${sorted[0].name}s or ${sorted[1].name}s`, 'types.top: the key names both types');
   };
 
@@ -217,12 +221,21 @@ module.exports = function stories({ json, eq, ok, core }) {
     eq([n.values.mark, n.values.ratio, n.values.n], [top.mark, top.ratio, top.minute_before], 'round.top: the mark with the largest ratio');
     eq(n.guard, top.ratio >= 1.5, 'round.top: "far above" needs one and a half times the curve or more');
     has(n, `${top.minute_before.toLocaleString('en-US')} finishes landed between ${hm(top.minutes - 1)}:00 and ${hm(top.minutes - 1)}:59`, 'round.top: the count and the minute (the mark less one, never typed)');
-    eq(n.figure.value, top.ratio.toFixed(2), 'round.top: the figure');
-    ok(!shown(n).includes(top.ratio.toFixed(2)), 'round.top: the sentence leaves the ratio to the figure');
+    eq(n.figure.value, top.ratio.toFixed(1), 'round.top: the figure, one decimal');
+    ok(!shown(n).includes(top.ratio.toFixed(2)) && !shown(n).includes(`${top.ratio.toFixed(1)}×`), 'round.top: the sentence leaves the ratio to the figure');
   };
   R['round.marks'] = (n) => {
     const big = ft.marks.filter((m) => m.kind === 'hour' || m.kind === 'half-hour'), q = ft.marks.filter((m) => m.kind === 'quarter');
     eq(n.guard, big.every((m) => m.ratio > 1.05) && q.filter((m) => m.ratio < 1.05).length > q.length / 2, 'round.marks: every hour and half-hour above 1.05, most quarters under it');
+  };
+  R['round.quarter'] = (n) => {
+    const big = ft.marks.filter((m) => m.kind === 'hour' || m.kind === 'half-hour'), q = ft.marks.filter((m) => m.kind === 'quarter');
+    const flat = q.filter((m) => m.ratio < 1.05);
+    let busiest = null;
+    for (const m of flat) if (!busiest || m.minute_before > busiest.minute_before) busiest = m;
+    eq(n.values.mark, busiest ? busiest.mark : '', 'round.quarter: the busiest quarter-hour under 1.05× the curve');
+    eq(n.guard, big.every((m) => m.ratio > 1.05) && flat.length > q.length / 2 && !!busiest, 'round.quarter: the round.marks guard and its quarter-hour');
+    if (n.guard) has(n, `like *${busiest.mark}*`, 'round.quarter names the quarter-hour');
   };
   R['round.rescue'] = (n) => {
     let b = ft.bubble[0];
@@ -240,7 +253,10 @@ module.exports = function stories({ json, eq, ok, core }) {
     const o = demo.overall, r = (o.men_block - o.women_block) / (o.pooled_men_block - o.pooled_women_block);
     close(n.values.ratio, r, 'holds.unmask recounts the ratio of the gaps');
     eq(n.guard, r >= 2 && o.men_block > o.women_block && o.pooled_men_block > o.pooled_women_block, 'holds.unmask: guard');
-    if (n.guard) has(n, `*${word(Math.round(r))} times*`, 'holds.unmask names the ratio in words');
+    if (n.guard) {
+      has(n, `*${(o.men_block - o.women_block).toFixed(1)} points*`, 'holds.unmask names the matched gap in points');
+      has(n, `${word(Math.round(r))} times the ${(o.pooled_men_block - o.pooled_women_block).toFixed(1)} points of every finish pooled`, 'holds.unmask names the ratio in words and the pooled gap it is a ratio of');
+    }
   };
   R['holds.ghost'] = (n) => {
     let b = demo.bands[0];

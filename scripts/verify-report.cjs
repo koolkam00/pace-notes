@@ -163,7 +163,7 @@ for (const scope of index.scopes) {
           const text = html.replace(/<[^>]+>/g, ' ').replace(/&#x27;|&#39;/g, '\'').replace(/&amp;/g, '&').replace(/\s+/g, ' ');
           assert.ok(text.includes(`${c.n.toLocaleString('en-US')} ${c.label}`), 'the comparison names its finishes and its group');
           for (const g of c.groups) assert.ok(text.includes(`${g.name} ${g.n.toLocaleString('en-US')}`), `${g.name}: its finishes`);
-          assert.ok(text.includes(`${capitalize(approxWords(model.type.share))} of ${archetypes.cohort_n.toLocaleString('en-US')} finishes were ${model.type.name.toLowerCase()}s`), 'the pacing type names its finishes and its share, in words');
+          assert.ok(text.includes(`${capitalize(approxWords(model.type.share))} finishes were ${model.type.name}s`) && !text.includes(archetypes.cohort_n.toLocaleString('en-US')), 'the pacing type names its share in words, under the type\'s own name, without the cohort count (that is on /methodology)');
           assert.ok(!text.includes('doi:10.1371/journal.pone.0251513') && !text.includes(splits.SLOWDOWN_DEFINITION), 'no definition or citation on the card');
           assert.doesNotMatch(text, METHOD_COPY, 'no method line on the card');
           assert.match(html, new RegExp(`<a\\b[^>]*href="${SLOWDOWN_HREF}"[^>]*>sustained slowdown</a>`), 'the term links to its definition');

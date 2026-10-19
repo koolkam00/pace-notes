@@ -44,3 +44,6 @@
 .scrolly.is-static .scrolly-step { min-height: 0; padding: 0; display: list-item; }
 .scrolly.is-static .scrolly-step p { color: var(--ink-2); }
 .scrolly.is-static .scrolly-step > .t-kicker { display: none; }
+/* A step about an earlier state is left out of the static list; one remaining step is a sentence, not a list. */
+.scrolly.is-static .scrolly-step.is-moving { display: none; }
+.scrolly.is-static.has-one-still .scrolly-steps { padding-left: 0; list-style: none; }

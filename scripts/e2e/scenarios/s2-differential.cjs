@@ -134,8 +134,9 @@ const CASES = {
     await step(log, 'plan your race', async () => { await page.locator('.home-plan-button').click(); await page.waitForURL(url => new URL(url).pathname === '/tools/plan'); });
     await page.waitForTimeout(1500); await wiggle(page, 5);
   } },
-  'round-numbers': { path: '/stories/round-numbers', async drive(page, v, log) { await step(log, 'my finish', () => type(page, '#my-finish', v.marathon)); } },
+  // The type finder answers for its example first; its nine fields open from "Try your own splits".
   'pacing-types': { path: '/stories/pacing-types', async drive(page, v, log) {
+    await step(log, 'open', () => open(page, 'details.which-try'));
     const inputs = page.locator('.which-card input');
     const n = await inputs.count();
     if (!n) log.push('FAIL no .which-card inputs');

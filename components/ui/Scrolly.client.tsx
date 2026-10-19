@@ -11,9 +11,11 @@ import { withEm } from './withEm';
  * changes only when a step crosses that line: scroll position never drives animation and scrolling is never taken over.
  *
  * The server markup carries data-step="final", so without the script, and under reduced motion or the site's Motion
- * switch, the graphic shows its end state, unpinned, with the steps as a short list after it.
+ * switch, the graphic shows its end state, unpinned, with the steps true of that state as a short list after it.
  */
-export type ScrollyStep = { kicker?: string; text: string };
+/** `still: false` marks a step that describes a state the end state no longer shows (an earlier lens): the static list
+ *  (reduced motion, the Motion switch) leaves it out, so every step listed beside the final graphic is true of it. */
+export type ScrollyStep = { kicker?: string; text: string; still?: boolean };
 
 export default function Scrolly({ graphic, steps, className }: { graphic: ReactNode; steps: ScrollyStep[]; className?: string }) {
   const root = useRef<HTMLDivElement>(null);
@@ -72,11 +74,11 @@ export default function Scrolly({ graphic, steps, className }: { graphic: ReactN
     return () => { io?.disconnect(); cancelAnimationFrame(frame); window.removeEventListener('resize', watch); window.removeEventListener('scroll', settle); };
   }, []);
   return (
-    <div ref={root} className={`scrolly${className ? ` ${className}` : ''}`} data-step="final">
+    <div ref={root} className={`scrolly${steps.filter((s) => s.still !== false).length === 1 ? ' has-one-still' : ''}${className ? ` ${className}` : ''}`} data-step="final">
       <div className="scrolly-graphic">{graphic}</div>
       <ol className="scrolly-steps">
         {steps.map((s, i) => (
-          <li className="scrolly-step" key={i}>
+          <li className={`scrolly-step${s.still === false ? ' is-moving' : ''}`} key={i}>
             {s.kicker ? <span className="t-kicker">{s.kicker}</span> : null}
             <p>{withEm(s.text)}</p>
           </li>

@@ -35,18 +35,21 @@ export function Baseline({ y = 1 }: { y?: number }) {
 }
 
 /** A reference line across the plot: solid ink for zero, 1× or an own average; dashed for even pace, expected or typical. */
-export function RefLine({ y, dashed = false, label, side = 'right', at, below = false }: {
+export function RefLine({ y, dashed = false, label, side = 'right', at, below = false, inset = 0 }: {
   y: number; dashed?: boolean; label?: string; side?: 'left' | 'right';
   /** Where the label starts, as a fraction of the plot (left-aligned there), instead of an end of the line. */
   at?: number;
   /** The label sits under the line instead of over it. */
   below?: boolean;
+  /** Px kept free at the line's right end (a bracket standing there), so a right-end label never touches it. */
+  inset?: number;
 }) {
   const lx = at !== undefined ? pc(at) : side === 'left' ? '0' : '100%';
+  const right = at === undefined && side !== 'left';
   return (
     <g>
       <line className={dashed ? 'ref-line is-dashed' : 'ref-line'} x1="0" x2="100%" y1={pc(y)} y2={pc(y)} />
-      {label ? <text className="viz-label is-quiet is-sm" x={lx} y={pc(y)} dy={below ? 15 : -6} textAnchor={at !== undefined || side === 'left' ? 'start' : 'end'}>{label}</text> : null}
+      {label ? <text className="viz-label is-quiet is-sm" x={lx} y={pc(y)} dx={right && inset ? -inset : undefined} dy={below ? 15 : -6} textAnchor={right ? 'end' : 'start'}>{label}</text> : null}
     </g>
   );
 }

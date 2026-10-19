@@ -180,7 +180,8 @@ export default function RaceReplay({ edition, flag, view = 'field', band = false
     for (let i = 0; i < n; i++) {
       const p = positionAt(sorted[i], t);
       const [x, y] = place(p.km, i);
-      if (p.slowdownPace) { slow.push([x, y]); continue; }
+      // The home band draws one ink field (its sentence is about distance, not slowdowns); the stories mark slowdown pace.
+      if (p.slowdownPace && !band) { slow.push([x, y]); continue; }
       g.globalAlpha = p.finished ? 0.4 : 0.85;
       g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
     }

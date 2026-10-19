@@ -4,13 +4,17 @@
  * Early drifter, Cliff, Fast-start fader. The fast-start fader moved off orange (owner decision 8), so orange only ever
  * means the reading.
  *
- * Both sets pass the dataviz validator (CVD ΔE ≥ 13.1 on paper; on night one adjacent pair, fast-start fader and Cliff,
- * sits at 7.8, legal because every row is labelled and carries its glyph). Server components need the values, so they
- * live here rather than in CSS; SVG marks take both through `typeStyle()` and components/viz CSS picks the night set
- * inside .night and under the dark theme, so no chart chooses colours by theme in JavaScript.
+ * Both sets pass the dataviz validator on every pair, not only neighbours (October 19, 2026): normal-vision ΔE ≥ 15.5
+ * on paper and ≥ 17.8 on night and the dark page, so a row a heading names never matches a second row by colour. The
+ * early drifter moved from violet to plum (it sat ΔE 7–10 from the gentle fader's blue) and the night fast-start fader
+ * to a deeper rust (it sat ΔE 5 from the late fader's ochre). Under simulated colour blindness the cliff's rose and
+ * the metronome's green stay close (ΔE 3.3 deutan on night), legal because every row is labelled and carries its
+ * glyph. Server components need the values, so they live here rather than in CSS; SVG marks take both through
+ * `typeStyle()` and components/viz CSS picks the night set inside .night and under the dark theme, so no chart chooses
+ * colours by theme in JavaScript.
  */
-export const ARCHETYPE_COLOURS = ['#0F8F62', '#2F5BFF', '#B07A0C', '#7A4DFF', '#E2416B', '#8E4512'] as const;
-export const ARCHETYPE_COLOURS_NIGHT = ['#139C6C', '#5A7CFF', '#C08A1C', '#8D6CF5', '#E0507A', '#B57A2E'] as const;
+export const ARCHETYPE_COLOURS = ['#0F8F62', '#2F5BFF', '#B07A0C', '#782090', '#E2416B', '#8E4512'] as const;
+export const ARCHETYPE_COLOURS_NIGHT = ['#139C6C', '#5A7CFF', '#C08A1C', '#9040A8', '#E0507A', '#964E2A'] as const;
 
 /** Inline custom properties for a pacing-type mark: `--type` on paper, `--type-night` on night and in dark mode. */
 export function typeStyle(index: number): Record<string, string> {

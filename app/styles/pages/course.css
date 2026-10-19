@@ -15,7 +15,9 @@
   grid-template-areas: "head head" "figure route" "sentence sentence" "strip strip" "actions actions";
   column-gap: var(--s-4); align-items: end;
   padding: var(--s-4) 0 var(--s-5); background: var(--night); color: var(--ink);
-  box-shadow: 0 0 0 100vmax var(--night); clip-path: inset(0 -100vmax);
+  /* On the dark page a hairline (--night-edge-colour, transparent on paper) at its top and foot keeps the band from
+     dissolving into the page, as the home page's bands do. */
+  box-shadow: 0 0 0 100vmax var(--night), 0 1px 0 100vmax var(--night-edge-colour), 0 -1px 0 100vmax var(--night-edge-colour); clip-path: inset(-1px -100vmax);
 }
 .course-hero-head { grid-area: head; }
 .course-crumbs { margin-bottom: 0; color: var(--ink-3); }

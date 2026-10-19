@@ -22,7 +22,7 @@ import type { WeatherCandidate } from '@/lib/weather-types';
 import { MARATHON_KM, distance, type UnitSystem } from '@/lib/units';
 import { clock, count, countWord, delta, hm, ms, pct, sectionLabel, spokenPct, spokenTime, temp } from './format';
 import { capitalize, shareFigure, type Builder } from './build';
-import type { Nugget } from './types';
+import type { Nugget, NuggetFigure } from './types';
 
 const GOAL = EXAMPLE_PROFILE.goal;
 const both = (f: (u: UnitSystem) => string) => ({ mi: f('mi'), km: f('km') });
@@ -35,6 +35,8 @@ export const courseName = (city: string) => (city === 'New York' ? 'New York Cit
 const perUnit = (sPerKm: number, u: UnitSystem) => `${Math.round(u === 'mi' ? sPerKm * 1.609344 : sPerKm)} s/${u}`;
 /** One decimal, en-US. */
 const one = (v: number) => (Math.round(v * 10) / 10).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+/** Percentage points as a figure: one decimal, a whole number without its ".0" ("1", "0.8"). */
+const points = (v: number) => one(v).replace(/\.0$/, '');
 
 // ---------- Chapter 02 · starting pace ----------
 
@@ -50,8 +52,10 @@ export function kickBankFrom(bands: BankBand[]): Nugget {
     guard: ok,
     headline: `A first 5K ${said} banked ${ms(-(fastest?.open_s ?? 0))}, and *finished ${ms(fastest?.finish_s ?? 0)} behind*.`,
     fallback: 'How a fast first 5K finished, against the same pace.',
-    figure: fastest ? { value: delta(fastest.finish_s), sr: `${spokenTime(Math.abs(fastest.finish_s))} ${fastest.finish_s > 0 ? 'behind' : 'ahead'}` } : null,
-    key: `later at the finish, after a first 5K ${said}`,
+    // The figure is the H1's accent as the receipt prints it ("5:06 behind"); the key names what it is behind: the same
+    // race's finishes at the same 5–20K pace.
+    figure: fastest ? { value: ms(fastest.finish_s), sr: `${spokenTime(Math.abs(fastest.finish_s))} ${fastest.finish_s > 0 ? 'behind' : 'ahead'}` } : null,
+    key: `${fastest && fastest.finish_s < 0 ? 'ahead' : 'behind'} at the finish after a first 5K ${said}, against the same race and 5–20K pace`,
   };
 }
 
@@ -102,7 +106,8 @@ export function downhillOpeningFrom(groups: AllFinisherGroup[], bands: OpeningBa
     figure: !finite(a.share) ? null : pct(a.share) === pct(b.share)
       ? { value: pct(a.share).replace('%', ''), unit: '%', sr: `${spokenPct(a.share)} on downhill-start courses and elsewhere` }
       : { value: `${pct(a.share).replace('%', '')} · ${pct(b.share).replace('%', '')}`, unit: '%', sr: `${spokenPct(a.share)} on downhill-start courses, ${spokenPct(b.share)} elsewhere` },
-    key: pct(a.share) === pct(b.share) ? 'opened more than 5% fast, with a downhill start or without' : 'opened more than 5% fast: downhill-start courses · the rest',
+    // A null reads as one: the key says the share was the same either way.
+    key: pct(a.share) === pct(b.share) ? 'opened over 5% fast: the same share with a downhill start or without' : 'opened over 5% fast: downhill-start courses · every other course',
   };
 }
 
@@ -156,6 +161,8 @@ export function patternFrom(paces: number[], goal = GOAL): Nugget {
 
 // ---------- Chapter 04 · checkpoint ----------
 
+/** A 2-minute elapsed band at a mat, from its first minute: "2:50–2:52". */
+const band = (from: number) => (finite(from) ? `${hm(from)}–${hm(from + 2)}` : '');
 /** Of finishes on even goal pace at the mat (the band holding it), the share that got under the goal. */
 export function checkpointUnderFrom(row: { n: number; elapsed: number; finish: number[] } | null, share: number, goal = GOAL, mat = 30): Nugget {
   const ok = !!row && row.n >= 100 && finite(share);
@@ -165,7 +172,9 @@ export function checkpointUnderFrom(row: { n: number; elapsed: number; finish: n
     guard: ok && share < 0.5,
     headline: `On even ${hm(goal)} pace at ${mat}K, only *${pct(share)}* got under ${hm(goal)}.`,
     fallback: `On even ${hm(goal)} pace at ${mat}K, ${pct(share)} of finishes got under ${hm(goal)}.`,
-    figure: shareFigure(share), key: `on ${hm(goal)} pace at ${mat}K got under ${hm(goal)}`,
+    // The key names the group's window (the 2-minute band at the mat that holds even goal pace), so "on 4:00 pace" never
+    // stands for two different groups on two pages.
+    figure: shareFigure(share), key: `of finishes through ${mat}K in ${band(row?.elapsed ?? NaN)}, on even ${hm(goal)} pace, got under ${hm(goal)}`,
   };
 }
 
@@ -210,8 +219,10 @@ export function sectionsSplitFrom(near: { below: { durations: number[]; n: numbe
     guard: ok && share > distance,
     headline: `Just under and just over ${hm(goal)} ended ${ms(total)} apart. *${pct(share)}* of the gap opened after 20K.`,
     fallback: `Just under and just over ${hm(goal)}: ${ms(total)} apart at the finish, section by section.`,
-    figure: ok ? { value: ms(total), sr: `${spokenTime(total)} apart` } : null,
-    key: `apart: ${hm(goal - 5)}–${hm(goal)} against ${hm(goal)}–${hm(goal + 5)} finishes`,
+    // The figure is where the gap opened (the H1's accent), not its size: two neighbouring five-minute bands are always
+    // about five minutes apart, so the size alone teaches nothing.
+    figure: ok ? shareFigure(share) : null,
+    key: `of the ${ms(total)} between finishes just under and just over ${hm(goal)} opened after 20K`,
   };
 }
 
@@ -258,8 +269,8 @@ export function ageRetentionFrom(rows: AgeRow[], goal = GOAL): Nugget {
     guard: rows.length >= 2 && older && same <= 1.5 && same < pooled / 2,
     headline: `Across all finishes, ${both ? 'the youngest and oldest' : 'older runners'} slowed more. At the same finish time, age *barely mattered*.`,
     fallback: 'How the second 20K changed with age, pooled and at the same finish time.',
-    figure: finite(same) ? { value: one(same), unit: 'pts', sr: `${one(same)} points between age groups near a ${hm(goal)} finish` } : null,
-    key: `between age groups in second-half slowing, at ${hm(goal)}`,
+    figure: finite(same) ? { value: points(same), unit: `\u00a0${points(same) === '1' ? 'point' : 'points'}`, sr: `${one(same)} points between age groups near a ${hm(goal)} finish` } : null,
+    key: `apart at most, age group to age group, in second-20K slowing near ${hm(goal)}`,
   };
 }
 
@@ -283,7 +294,7 @@ export function coursesCompareFrom(groups: AllFinisherGroup[]): Nugget {
     headline: `Sustained slowdown ranged from ${pct(l)} to *${pct(h)}* of finishes across courses.`,
     fallback: `Sustained slowdown across ${count(list.length)} courses.`,
     figure: list.length ? { value: `${pct(l).replace('%', '')}–${pct(h).replace('%', '')}`, unit: '%', sr: `${pct(l)} to ${pct(h)}` } : null,
-    key: 'sustained slowdown, course by course',
+    key: 'of finishes had a sustained slowdown, from the steadiest course to the least steady',
   };
 }
 
@@ -314,6 +325,13 @@ export function tempBand(g: Pick<AllFinisherGroup, 'lower_c' | 'upper_c'>, u: Un
   if (g.upper_c == null) return `${temp(g.lower_c, u)} or warmer`;
   return `${temp(g.lower_c, u).replace(/°[CF]$/, '')}–${temp(g.upper_c, u)}`;
 }
+/** A band as a figure: "41–50" with its unit, or "<41" and "68+" for an open band. */
+function bandFigure(g: Pick<AllFinisherGroup, 'lower_c' | 'upper_c'>, u: UnitSystem): NuggetFigure {
+  const unit = u === 'mi' ? '°F' : '°C';
+  const n = (c: number) => temp(c, u).replace(/°[CF]$/, '');
+  const value = g.lower_c == null ? `<${n(g.upper_c!)}` : g.upper_c == null ? `${n(g.lower_c)}+` : `${n(g.lower_c)}–${n(g.upper_c)}`;
+  return { value, unit, sr: tempBand(g, u).replace('°F', ' degrees Fahrenheit').replace('°C', ' degrees Celsius') };
+}
 /** The start-temperature band with the fewest sustained slowdowns (five or more editions), against the coldest band. */
 export function weatherStartFrom(groups: AllFinisherGroup[]): Nugget {
   const bands = groups.filter((g) => g.edition_n >= 5 && g.n >= 100 && finite(g.slowdown_pct));
@@ -326,8 +344,10 @@ export function weatherStartFrom(groups: AllFinisherGroup[]): Nugget {
     guard: ok,
     headline: both((u) => `The coolest start wasn’t the steadiest: *${low ? tempBand(low, u) : ''}* had the fewest sustained slowdowns.`),
     fallback: 'Sustained slowdown by start temperature.',
-    figure: low ? shareFigure(low.slowdown_pct / 100) : null,
-    key: 'sustained slowdown, at the steadiest start temperature',
+    // The band is the figure (the H1's accent), in the reader's units; its share is on the page's chart.
+    figure: low ? bandFigure(low, 'mi') : null,
+    ...(low ? { figureKm: bandFigure(low, 'km') } : {}),
+    key: 'the start temperature with the fewest sustained slowdowns',
   };
 }
 
@@ -390,7 +410,7 @@ export function gainsFinalFrom(row: { values: number[]; total: number; n: number
     // different things never sit together; the guard holds that stretch to less than its share of the race.
     headline: both((u) => `Improving finishes near ${hm(goal)} found *${pct(share)}* of their time after 30K, the last ${distance(MARATHON_KM - 30, u)}.`),
     fallback: `Where improving finishes near ${hm(goal)} found their time.`,
-    figure: shareFigure(share), key: 'of the time improving finishes found came from 30K to the finish',
+    figure: shareFigure(share), key: 'of the time improving finishes found came after 30K',
   };
 }
 

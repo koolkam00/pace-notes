@@ -54,9 +54,11 @@ export default function GuessFirst({ question, truth, answer, truthLabel, compar
     window.setTimeout(() => setState('revealed'), 260);
   };
   const gap = Math.round(Math.abs(guess - truth));
+  // A share guessed as a percentage is "points" off; a count of 100 finishes needs no gap in words, the dots show it.
+  const off = unit === '%' ? `, ${gap} ${gap === 1 ? 'point' : 'points'} ${guess > truth ? 'high' : 'low'}.` : '.';
   const verdict = !revealed ? '' : state === 'skipped'
     ? answer
-    : `${gap <= Math.max(1, step) ? `You guessed ${fmt(guess)}, right on it.` : `You guessed ${fmt(guess)}, ${gap} ${gap === 1 ? 'point' : 'points'} ${guess > truth ? 'high' : 'low'}.`} ${answer}`;
+    : `${gap <= Math.max(1, step) ? `You guessed ${fmt(guess)}, right on it.` : `You guessed ${fmt(guess)}${off}`} ${answer}`;
   const at = (v: number) => `${((Math.max(min, Math.min(max, v)) - min) / (max - min || 1)) * 100}%`;
   const edge = (v: number) => (v - min) / (max - min || 1) < 0.08 ? ' at-start' : (v - min) / (max - min || 1) > 0.92 ? ' at-end' : '';
 
