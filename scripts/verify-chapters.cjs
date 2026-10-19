@@ -318,7 +318,7 @@ test('ChapterEnd: the finish card on /tools/plan, no tracking or feedback when a
   assert.match(plan, /is-finish/);
   // The way on from the finish (round 3): back to the start of the race, chapter 01, and on to a past race.
   assert.ok([C.chapterHref(C.CHAPTERS[0]), '/runners'].every((h) => hrefs(plan).includes(h)), hrefs(plan).join(' '));
-  assert.match(plan, /Start at the gun: Chapter 01 · /);
+  assert.match(plan, /Back to the gun: Chapter 01 /);
   assert.equal(render('components/ChapterEnd.tsx', { path: '/methodology', feedback: false }), '');
 });
 test('ChapterRail marks the current page', () => {

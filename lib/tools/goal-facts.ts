@@ -114,14 +114,14 @@ export function sectionPaceText(goalMinutes: number, s50: number[], units: UnitS
   return `${head}; on the ${s50[other[0]] < even ? 'fast' : 'slow'} side it was furthest ${sections(other)}, ${amount(other[0])}.`;
 }
 
-/** The sustained-slowdown median against the held-pace median: at 20 km, where they were furthest apart, and at the finish. */
+/** The sustained-slowdown median against the median of finishes without one: at 20 km, where they were furthest apart, and at the finish. */
 export function groupGapText(held: number[], slow: number[]): string | null {
   if (held.length !== CHECKPOINTS_KM.length || slow.length !== CHECKPOINTS_KM.length || I20 < 0) return null;
   const diff = slow.map((t, i) => t - held[i]);
   const abs = diff.map(Math.abs);
   const widest = extreme(abs, CHECKPOINTS_KM.map((_, i) => i).filter((i) => i !== FINISH), (a, b) => a > b);
   const d20 = diff[I20];
-  const at20 = `At 20 km the median time of the finishes with a sustained slowdown was ${ahead(d20)} the median of those that held pace`;
+  const at20 = `At 20 km the median time of the finishes with a sustained slowdown was ${ahead(d20)} the median of those without one`;
   const apart = abs[widest[0]] ? (widest.length === 1 && widest[0] === I20 ? ', their widest gap at any mat' : `; the two medians were furthest apart at ${mats(widest)} (${span(abs[widest[0]])})`) : '';
   const f = diff[FINISH];
   const end = f < 0 ? `the slowdown group’s median was ${span(f)} faster` : f > 0 ? `the slowdown group’s median was ${span(f)} slower` : 'the two medians were level';
@@ -153,7 +153,7 @@ export function editionsText(editions: number, total: number | null): string {
 export const PILEUP_RATIO = 1.15;
 /**
  * The sustained-slowdown share from which a goal page says finishes just under the goal "didn't run even"; below it
- * (3:00) most of them held their pace, and the page says so.
+ * (3:00) few of them had one, and the page says so.
  */
 export const UNEVEN_SHARE = 0.25;
 

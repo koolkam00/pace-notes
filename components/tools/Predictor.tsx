@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
+import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { Choice, DataState, DurationField, EvidencePanel, ExampleNote, ShareBar, Stat } from '@/components/tools/ui';
 import KeypadHint from '@/components/KeypadHint';
@@ -566,7 +566,7 @@ function FinishStrip({ q, Q, est }: { q: number[]; Q: number[]; est: number }) {
   const maxD = Math.max(...dens);
   const step = niceStep(hi - lo, narrow ? 4 : 7, [60, 120, 300, 600, 900, 1800, 3600]);
   const ticks = fittingTicks(lo, hi, step, x, width, fmtShort);
-  const label = `Finish times of these finishes, in 5% slices: 10th percentile ${fmtTime(q[i10])}, median ${fmtTime(q[i50])}, 90th percentile ${fmtTime(q[i90])}. ${fmtShort(est)} pace is marked.`;
+  const label = `Finish times of these finishes, in 5% slices: 10th percentile ${fmtTime(q[i10])}, median ${fmtTime(q[i50])}, 90th percentile ${fmtTime(q[i90])}. ${fmtShort(est)} pace is marked; the finishes under it are highlighted.`;
   return (
     <div ref={ref} className="viz predictor-strip">
       <svg width={width} height={H} role="img" aria-label={label}>
@@ -576,9 +576,20 @@ function FinishStrip({ q, Q, est }: { q: number[]; Q: number[]; est: number }) {
             <text x={x(t)} y={base + 18} textAnchor="middle">{fmtShort(t)}</text>
           </g>
         ))}
+        {/* The share under the estimate is the reading: each 5% slice holds its finishes evenly, so the part of the bars
+            left of the dashed line, in the accent, is that share's area; the rest is quiet. */}
         {dens.map((dv, i) => {
           const h = (dv / maxD) * (plotH - 6);
-          return <rect key={i} x={x(q[i])} width={Math.max(0.5, x(q[i + 1]) - x(q[i]))} y={base - h} height={h} className="predictor-strip-bar" />;
+          const x0 = x(q[i]);
+          const x1 = Math.max(x0 + 0.5, x(q[i + 1]));
+          const xe = x(est);
+          if (x1 <= xe || x0 >= xe) return <rect key={i} x={x0} width={x1 - x0} y={base - h} height={h} className={`predictor-strip-bar${x1 <= xe ? ' is-under' : ''}`} />;
+          return (
+            <g key={i}>
+              <rect x={x0} width={xe - x0} y={base - h} height={h} className="predictor-strip-bar is-under" />
+              <rect x={xe} width={x1 - xe} y={base - h} height={h} className="predictor-strip-bar" />
+            </g>
+          );
         })}
         <line x1={m.l} x2={width - m.r} y1={base} y2={base} className="predictor-strip-base" />
         <RangeBracket b={bracket} y={bracketY} />
@@ -597,19 +608,6 @@ function FinishStrip({ q, Q, est }: { q: number[]; Q: number[]; est: number }) {
 }
 
 type Projected = ReturnType<typeof useProjector>;
-
-/** The median finish of finishes on the chosen estimate's even pace at 20 km (the card's data line), when published. */
-function medianOnPace(proj: Projected, est: Estimates, looks: Look[], look: LookKey): { T: number; median: number } | null {
-  const { index, shard } = proj;
-  if (!est.isMarathon || !index || !shard) return null;
-  const chosen = looks.find((l) => l.key === look) ?? looks[0];
-  if (!chosen) return null;
-  const T = goalMinute(chosen.seconds);
-  const bandS = index.band_s ?? 120;
-  const i = shard.cells.all.b.indexOf(Math.floor(T / bandS) * bandS);
-  const i50 = qIndex(index.quantiles ?? [], 0.5);
-  return i >= 0 && i50 >= 0 ? { T, median: shard.cells.all.q[i][i50] } : null;
-}
 
 function ObservedPanel({ indexSha, proj, est, looks, look, setLook, units }: {
   indexSha: string | null; proj: Projected; est: Estimates; looks: Look[]; look: LookKey; setLook: (k: LookKey) => void; units: UnitSystem;
@@ -645,20 +643,15 @@ function ObservedPanel({ indexSha, proj, est, looks, look, setLook, units }: {
         {cells && i >= 0 ? (() => {
           const q = cells.q[i];
           const share = shareUnder(T, q, Q);
-          const sd = cells.sd[i][0] + cells.sd[i][1];
           const shareText = share.bound === 'below' ? '5% or fewer' : share.bound === 'above' ? 'more than 95%' : pctText(share.share);
           return (
             <>
-              {/* The card above gives the median finish; this beat's sentence is what it means for the estimate: how few
-                  of those finishes got under it. */}
+              {/* What the estimate means for finishes that ran it: how few got under it, and where half of them had
+                  finished. The chart's orange is that share (its bars left of the dashed line); the median is ink. */}
               <p className="tool-nugget-text" id="predictor-data-title">
-                Of finishes on {fmtShort(T)} pace at 20K, <em>{shareText}</em> got under {fmtShort(T)}.
+                On {fmtShort(T)} pace at 20K, <em>{shareText}</em> got under {fmtShort(T)}; their median was {fmtShort(q[i50])}.
               </p>
               <FinishStrip q={q} Q={Q} est={T} />
-              <dl className="tool-cells">
-                <div><dt>Median finish</dt><dd>{fmtShort(q[i50])}</dd></div>
-                <div><dt><SlowdownTerm>Sustained slowdown</SlowdownTerm></dt><dd>{pctText(sd)}</dd></div>
-              </dl>
               {lookChoice}
             </>
           );
@@ -814,9 +807,8 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
     ? `Your recent race is already ${withArticle(target.name)}. Pick a shorter race, or predict another distance.`
     : (typing ? null : race1Error) ?? 'Enter the distance and finish time of a recent race to see the range.';
 
-  // The finishes on the chosen estimate's pace at 20 km: one load, read by the card's data line and the data beat.
+  // The finishes on the chosen estimate's pace at 20 km: one load, read by the data beat.
   const proj = useProjector(indexSha, !!est?.isMarathon);
-  const onPace = est ? medianOnPace(proj, est, looks, look) : null;
 
   // One always-present status line for screen readers: a short summary, spoken once the inputs settle.
   const summary = est ? summaryText(est) : emptyText;
@@ -839,10 +831,9 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
           ) : (
             /* Every estimate's figure sits inside the research card (one source, one badge at its foot), so no unbadged
                published-research block stands between it and the Pace Notes data panel. */
-            <Headline est={est} dist={dist1} units={units} example={isExample}
-              // The data reading on the card's last line, with its own badge (critic round 3: the page's most learnable
-              // fact sat two screens down, under the form): where finishes on this pace at 20K ended.
-              reading={onPace ? <p className="predictor-card-reading">On this pace at 20K, finishes ended a median <b>{fmtShort(onPace.median)}</b>. <EvidenceTag kind="data" /></p> : null}>
+            /* The card is published research only and ends on its one badge (critic round 4: a Pace Notes data line on it
+               combined two kinds of evidence and put two answers on the first screen); the data beat below has its own. */
+            <Headline est={est} dist={dist1} units={units} example={isExample}>
               {/* Every estimate folds away: the range is the answer, the formulas behind it are a tap below. */}
               <details className="tool-more predictor-methods" id="predictor-methods">
                 <summary>Every estimate, side by side</summary>
@@ -865,9 +856,9 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
             onText={(text) => { setConverted(null); setQ({ t: text }); }} hint={timeHint} />
           <div className="tool-field predictor-target">
             <span className="tool-label" aria-hidden="true">Predict</span>
-            {/* The recent race's own distance is not a prediction: that option is shown but cannot be chosen. */}
+            {/* The recent race's own distance is not a prediction, so it is not offered (a greyed option read as broken). */}
             <Choice label="Distance to predict" value={target.key} onChange={(v) => setQ({ to: v })}
-              options={TARGETS.map((t) => ({ value: t.key, label: t.label, disabled: t.key !== target.key && dist1.km !== null && Math.abs(dist1.km - t.km) < 0.05, title: `Your recent race is ${withArticle(t.name)}` }))} />
+              options={TARGETS.filter((t) => t.key === target.key || dist1.km === null || Math.abs(dist1.km - t.km) >= 0.05).map((t) => ({ value: t.key, label: t.label }))} />
           </div>
 
           <details className="predictor-more" open={open2} onToggle={(e) => setOpen2(e.currentTarget.open)}>
@@ -961,7 +952,7 @@ function summaryText(est: Estimates): string {
 /* Result sections                                                     */
 /* ------------------------------------------------------------------ */
 
-function Headline({ est, dist, units, example, children, reading }: { est: Estimates; dist: Distance; units: UnitSystem; example: boolean; children?: ReactNode; reading?: ReactNode }) {
+function Headline({ est, dist, units, example, children }: { est: Estimates; dist: Distance; units: UnitSystem; example: boolean; children?: ReactNode }) {
   // The kicker stays on one line at a phone's width: "From a 1:55 half" (the marathon is the tool's own target), whole
   // minutes without their ":00", the half by its short name.
   const fromTime = fmtTime(est.fromS).replace(/^(\d+:\d\d):00$/, '$1');
@@ -981,11 +972,12 @@ function Headline({ est, dist, units, example, children, reading }: { est: Estim
     const [a, b] = rangeText(r.low, r.high);
     return (
       <section className="tool-reading night predictor-headline" aria-label="Your estimate">
+        {/* The range's median is named here, in the whole minute the data beat below reads (4:11:41 is 4:11), so the beat's
+            "On 4:11 pace at 20K" points back to a number on this card. */}
         {head(<><span className="sr-only">Typical recreational range: </span>{a}<span className="predictor-to">–</span>{b}</>,
-          `The typical recreational range${r.extrapolation === 'shorter' ? ', less certain from a shorter race' : ''}: ${pace(r.low).replace(/\/\w+$/, '')}–${pace(r.high)}.`)}
+          `The typical recreational range${r.extrapolation === 'shorter' ? ', less certain from a shorter race' : ''}, median ${fmtShort(goalMinute(r.median))} (${pace(r.median)}).`)}
         {children}
         <EvidenceTag kind="research" />
-        {reading}
       </section>
     );
   }

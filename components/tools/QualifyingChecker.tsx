@@ -572,7 +572,7 @@ function RaceRows({ items, named, ...rest }: { items: Item[]; named?: string } &
           const clipped = m !== null && (m > hi || m < lo);
           return (
             <li key={s.key}>
-              {/* The race the night card names is the one signal bar; every other race that meets is ink. */}
+              {/* Every race that meets is ink; the race the night card names is set in a heavier weight. */}
               <details className={`qualifying-race is-${v.tone}${s.key === named ? ' is-named' : ''}`} id={`qualifying-${s.key}`}>
                 <summary>
                   <span className="qualifying-race-name"><b>{SHORT[s.key]} {yearOf(s)}</b><small className={`qualifying-app is-${app.kind}`}>{app.short}</small></span>

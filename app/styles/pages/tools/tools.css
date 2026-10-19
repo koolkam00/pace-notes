@@ -315,9 +315,6 @@
 .tools-row-text { display: grid; gap: 2px; min-width: 0; }
 .tools-row-text b { font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
 .tools-row-text > span { font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
-/* Each row's second line is its example's reading: the figure in ink, then its key, then the evidence word that says what kind of number it is. */
-.tools-row-reading strong { font-weight: 650; color: var(--ink); font-variant-numeric: tabular-nums; }
-.tools-row-text .tools-row-badge { display: inline-flex; margin-left: 2px; color: var(--ink-3); font-size: var(--t-small); white-space: nowrap; vertical-align: baseline; }
 .tools-goals { display: grid; gap: var(--s-2); padding: 14px 0 10px; }
 .tools-goal-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .tools-goal-links li { margin: 0; }
@@ -369,7 +366,3 @@
 .tool-page .range-bracket line { stroke: var(--ink-2); stroke-width: 1.5; }
 .tool-page svg .range-bracket text { font-family: var(--sans); font-size: 12px; font-weight: 500; fill: var(--ink-2); font-variant-numeric: tabular-nums; }
 
-/* The closing stack's way back stays on one line (the planner's "Where improvement happens"): when it and "How we know"
-   do not fit side by side, "How we know" takes its own row instead of the way back breaking in two. */
-.tool-page .chapter-end-links { flex-wrap: wrap; }
-@media (min-width: 360px) { .tool-page .chapter-end-links > .chapter-prev > span { white-space: nowrap; } }

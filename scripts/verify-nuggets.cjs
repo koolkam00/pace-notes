@@ -116,7 +116,7 @@ ok(/^as many finishes as expected in the minute before \d:\d\d$/.test(keys['roun
 eq(keys['holds.gender'], 'of recorded women’s and men’s finishes had a sustained slowdown, at the same finish times', 'chapter 07 key');
 ok(/^of races were traced to their course by pacing shape alone \(chance: \d+%\)$/.test(keys['courses.named']), 'chapter 08 key');
 eq(keys['weather.pairs'], 'same-course pairs where the warmer year had more sustained slowdowns', 'chapter 09 key');
-ok(/^of finishes near \d:\d\d had a sustained slowdown$/.test(keys['splitcheck.share']), 'chapter 10 key');
+ok(/^of finishes near the example’s \d:\d\d had a sustained slowdown$/.test(keys['splitcheck.share']), 'chapter 10 key');
 eq(keys['gains.final'], 'of the time improving finishes gained came after 30K', 'chapter 11 key');
 
 // Every key stands alone as a short phrase a runner reads under its figure: never a bare figure jammed against a unit

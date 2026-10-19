@@ -459,9 +459,9 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.ok(say(F.sectionPaceText(300, [384, 386, 392, 402, 423, 439, 464, 471, 436], 'mi')).includes('1:11 per mile slower; on the fast side it was furthest between the start and 5 km, 1:09 per mile faster')); ok();
   // Held pace against sustained slowdown (4:00 and 5:00 medians).
   const held = [1656, 3300, 4947, 6603, 8281, 9980, 11720, 13498, 14259], slow = [1518, 3023, 4545, 6099, 7736, 9471, 11365, 13412, 14253];
-  assert.equal(say(F.groupGapText(held, slow)), 'At 20 km the median time of the finishes with a sustained slowdown was 8:24 ahead of the median of those that held pace; the two medians were furthest apart at 25 km (9:05), and at the finish the slowdown group’s median was 6 seconds faster.'); ok();
+  assert.equal(say(F.groupGapText(held, slow)), 'At 20 km the median time of the finishes with a sustained slowdown was 8:24 ahead of the median of those without one; the two medians were furthest apart at 25 km (9:05), and at the finish the slowdown group’s median was 6 seconds faster.'); ok();
   assert.ok(say(F.groupGapText([1986, 3992, 6017, 8077, 10213, 12393, 14645, 16910, 17845], [1833, 3668, 5540, 7493, 9606, 11866, 14319, 16841, 17846])).endsWith('at the finish the slowdown group’s median was 1 second slower.')); ok();
-  assert.ok(say(F.groupGapText(held, held)).endsWith('level with the median of those that held pace, and at the finish the two medians were level.')); ok();
+  assert.ok(say(F.groupGapText(held, held)).endsWith('level with the median of those without one, and at the finish the two medians were level.')); ok();
   // Where the slowdowns began: the most common onset section, with ties named.
   assert.equal(say(F.onsetText([546, 3299, 13127, 15378], [20, 25, 30, 35])), 'The sustained slowdown most often began in the 35 to 40 km section: 15,378 of the 32,350 finishes with one (47.5%).'); ok();
   assert.equal(say(F.onsetText([10, 30, 30, 0], [20, 25, 30, 35])), 'The sustained slowdown most often began in the 25 to 30 km and 30 to 35 km sections: 30 of the 70 finishes with one in each (42.9% each).'); ok();

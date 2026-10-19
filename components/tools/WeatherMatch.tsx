@@ -5,12 +5,11 @@ import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { Choice, DurationField, ShareBar, Stepper } from '@/components/tools/ui';
 import { fmtGoal } from '@/lib/tools/pace-band-data';
-import Values from '@/components/ui/Values';
+import Values, { AllNumbers } from '@/components/ui/Values';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
 import { fitTicks } from '@/components/tools/ticks';
 import { loadInsight } from '@/lib/insights';
-import { courseSlug } from '@/lib/tools/links';
 import type { WeatherEdition, WeatherMatch as WeatherMatchData, WeatherRow } from '@/lib/tools/data';
 import { MARATHON_KM, perKm, perUnit } from '@/lib/tools/pace';
 import { formatClock, formatDuration, formatHM, parseClock, parseDuration } from '@/lib/tools/time';
@@ -23,7 +22,7 @@ import { sectionLabel as sectionName, type UnitSystem } from '@/lib/units';
 /* ------------------------------------------------------------------ */
 
 const DATA_PATH = 'tools/weather-match.json';
-/** The fixed reference window: editions that started at 8–12 °C, same pace band. Shown beside, never subtracted. */
+/** The fixed reference window: editions that started at 6–10 °C, same pace band. Shown beside, never subtracted. */
 const REF = WEATHER_REFERENCE;
 /** An example forecast so the page shows a full result before anything is typed. */
 const DEFAULTS = WEATHER_EXAMPLE;
@@ -188,7 +187,7 @@ const DEFAULT_GOAL = '4:00';
 
 export default function WeatherMatch({ sha }: { sha: string | null }) {
   const { units } = useUnits();
-  const [q, setQuery, ready, fromUrl] = useQueryState({ temp: '', tu: '', hum: 'dew', dew: '', rh: '', by: '', goal: DEFAULT_GOAL, pace: '', pu: '', course: '', w: '2' });
+  const [q, setQuery, ready, fromUrl] = useQueryState({ temp: '', tu: '', hum: 'dew', dew: '', rh: '', by: '', goal: DEFAULT_GOAL, pace: '', pu: '', w: '2' });
   const { data, error, retry } = useWeatherData(sha);
   // The goal stays an example until the visitor edits it or a link supplies it (a link leaves out a 4:00:00 goal, as the default).
   const [goalEdited, setGoalEdited] = useState(false);
@@ -290,11 +289,6 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
 
   const rowMap = useMemo(() => new Map((data?.rows ?? []).map((r) => [key(r.c, r.hw, r.pace), r])), [data]);
   const byId = useMemo(() => new Map((data?.editions ?? []).map((e) => [e.id, e])), [data]);
-  const courses = useMemo(() => {
-    const m = new Map<string, WeatherEdition[]>();
-    for (const e of data?.editions ?? []) m.set(e.city, [...(m.get(e.city) ?? []), e]);
-    return [...m.entries()].map(([city, eds]) => ({ city, slug: courseSlug(city), editions: eds.sort((a, b) => a.year - b.year) })).sort((a, b) => a.city.localeCompare(b.city));
-  }, [data]);
 
   const match: Match | null = useMemo(() => {
     if (!data) return null;
@@ -316,7 +310,6 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
     return { kind: 'no-row', inWindow, paces: here.length ? [Math.min(...here), Math.max(...here)] : null, nearest, widenHelps: hw === 2 && rowMap.has(key(centre, 3, band)) };
   }, [data, centre, paceKm, band, paceLo, hw, rowMap]);
 
-  const course = courses.find((c) => c.slug === q.course) ?? null;
   const warmCount = data ? data.editions.filter((e) => e.temp_c >= 20).length : 0;
   const coldCount = data ? data.editions.filter((e) => e.temp_c <= 3).length : 0;
 
@@ -348,12 +341,8 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
 
   const tempHintId = useId();
   const dewHintId = useId();
-  // The disclosure opens on arrival when a link or an earlier visit put a value in it.
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreHas = (q.dew !== '' && q.dew !== 'none') || q.hum === 'rh' || q.course !== '';
-  useEffect(() => { if (ready && moreHas) setMoreOpen(true); }, [ready, moreHas]);
   const exampleGoal = by === 'goal' && q.goal === DEFAULT_GOAL && !fromUrl.has('goal') && !goalEdited;
-  // The shared example marker: shown only while the forecast and goal are the untouched examples (a linked course does not change the match).
+  // The shared example marker: shown only while the forecast and goal are the untouched examples.
   const isExample = ready && exampleTemp && exampleDew && exampleGoal;
 
   return (
@@ -424,58 +413,38 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
               hint={paceKm !== null ? <>Held for the whole race: {formatDuration(Math.round(paceKm * MARATHON_KM), true)}.</> : `Type a pace such as ${units === 'mi' ? '9:09' : '5:41'}.`} />
           )}
 
-          {/* The two optional inputs wait in one disclosure: the dew point feeds the published-research estimates only, and
-              a race shows its past mornings; neither changes the match, so the answer comes right after the forecast and pace. */}
-          <details className="tool-more weather-match-more" open={moreOpen} onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
-            <summary>Dew point and your race</summary>
-            <div className="tool-more-body">
-              <div className="tool-field">
-                <div className="weather-match-label-row">
-                  <label htmlFor="weather-match-hum">{hum === 'rh' ? 'Relative humidity' : 'Dew point'} <span className="weather-match-optional">optional</span></label>
-                  <Choice label="Humidity measure" small value={hum} onChange={switchHum} options={[{ value: 'dew', label: 'Dew point' }, { value: 'rh', label: 'Humidity' }]} />
-                </div>
-                <div className="weather-match-num">
-                  {hum === 'dew' ? (
-                    <input id="weather-match-hum" inputMode="decimal" autoComplete="off" spellCheck={false} value={dewField} placeholder={`e.g. ${DEFAULTS.dew[tUnit]}`}
-                      aria-invalid={dewBad || undefined} aria-describedby={dewHintId}
-                      onChange={(e) => { unitMemo.current = null; setQ({ dew: e.target.value.trim() === '' ? 'none' : e.target.value, tu: tUnit }); }} />
-                  ) : (
-                    <input id="weather-match-hum" inputMode="decimal" autoComplete="off" spellCheck={false} value={q.rh} placeholder="e.g. 70"
-                      aria-invalid={(q.rh !== '' && !rhOk) || undefined} aria-describedby={dewHintId} onChange={(e) => setQ({ rh: e.target.value.trim() })} />
-                  )}
-                  <span aria-hidden="true">{hum === 'rh' ? '%' : unitSign(tUnit)}</span>
-                </div>
-                <p className={`tool-field-hint${dewBad || (hum === 'rh' && q.rh !== '' && !rhOk) ? ' is-error' : ''}`} id={dewHintId}>
-                  {dewAbove ? 'A dew point cannot be above the air temperature.'
-                    : dewBad ? `Type a number in ${unitSign(tUnit)}, such as ${DEFAULTS.dew[tUnit]}.`
-                      : hum === 'rh' && q.rh !== '' && !rhOk ? 'Try a humidity between 1 and 100%.'
-                        : hum === 'rh' && dewOk ? `Dew point ${tAbs(dewC!, tUnit)}. Used for the published-research estimates only.`
-                          : 'Used for the published-research estimates only.'}
-                </p>
-              </div>
-
-              <div className="tool-field">
-                <label htmlFor="weather-match-course">Your race <span className="weather-match-optional">optional</span></label>
-                <select id="weather-match-course" value={data ? q.course : ''} onChange={(e) => setQ({ course: e.target.value })} disabled={!data}>
-                  <option value="">{data ? 'None' : error ? 'Not available' : 'Loading courses…'}</option>
-                  {courses.map((c) => <option key={c.slug} value={c.slug}>{c.city}</option>)}
-                </select>
-                <p className="tool-field-hint">
-                  {data && q.course && !course ? 'That course is not in this tool. ' : null}Shows its past race mornings. It does not change the match.
-                </p>
-              </div>
+          {/* The dew point is one optional row (critic round 4: a fold of its own was one of four on the page); it feeds the
+              published-research estimates only, so the match never waits for it. */}
+          <div className="tool-field weather-match-dew">
+            <div className="weather-match-label-row">
+              <label htmlFor="weather-match-hum">{hum === 'rh' ? 'Relative humidity' : 'Dew point'} <span className="weather-match-optional">optional</span></label>
+              <Choice label="Humidity measure" small value={hum} onChange={switchHum} options={[{ value: 'dew', label: 'Dew point' }, { value: 'rh', label: 'Humidity' }]} />
             </div>
-          </details>
+            <div className="weather-match-num">
+              {hum === 'dew' ? (
+                <input id="weather-match-hum" inputMode="decimal" autoComplete="off" spellCheck={false} value={dewField} placeholder={`e.g. ${DEFAULTS.dew[tUnit]}`}
+                  aria-invalid={dewBad || undefined} aria-describedby={dewHintId}
+                  onChange={(e) => { unitMemo.current = null; setQ({ dew: e.target.value.trim() === '' ? 'none' : e.target.value, tu: tUnit }); }} />
+              ) : (
+                <input id="weather-match-hum" inputMode="decimal" autoComplete="off" spellCheck={false} value={q.rh} placeholder="e.g. 70"
+                  aria-invalid={(q.rh !== '' && !rhOk) || undefined} aria-describedby={dewHintId} onChange={(e) => setQ({ rh: e.target.value.trim() })} />
+              )}
+              <span aria-hidden="true">{hum === 'rh' ? '%' : unitSign(tUnit)}</span>
+            </div>
+            <p className={`tool-field-hint${dewBad || (hum === 'rh' && q.rh !== '' && !rhOk) ? ' is-error' : ''}`} id={dewHintId}>
+              {dewAbove ? 'A dew point cannot be above the air temperature.'
+                : dewBad ? `Type a number in ${unitSign(tUnit)}, such as ${DEFAULTS.dew[tUnit]}.`
+                  : hum === 'rh' && q.rh !== '' && !rhOk ? 'Try a humidity between 1 and 100%.'
+                    : hum === 'rh' && dewOk ? `Dew point ${tAbs(dewC!, tUnit)}. Used for the published-research estimates only.`
+                      : 'Used for the published-research estimates only.'}
+            </p>
+          </div>
         </form>
 
         <div className="tool-results">
           <p className="sr-only" role="status">{settledStatus}</p>
           {!error && data && match ? (
             <>
-              {match.kind === 'ok' ? (
-                <SectionValues match={match} units={units} centre={centre!} hw={hw} winText={winText} refText={refText} refTone={refTone} />
-              ) : null}
-
               {centre !== null && (match.kind === 'ok' || match.kind === 'no-row') ? (
                 <section className="tool-panel weather-match-editions" aria-labelledby="weather-match-editions-title">
                   <header className="tool-panel-head">
@@ -484,7 +453,7 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
                     </h2>
                     {match.kind === 'ok' && match.row.ed.length < match.inWindow ? (
                       <p className="tool-panel-meta">{cap(plural(match.inWindow - match.row.ed.length, 'more race'))} started in the window with too few finishes at your pace.</p>
-                    ) : null}
+                    ) : match.kind === 'no-row' && !match.inWindow.length ? <p className="tool-panel-meta">No edition started in this window.</p> : null}
                   </header>
                   <TempStrip editions={data.editions} tUnit={tUnit} marker={tempC} centre={centre} hw={hw} refName={refTone}
                     emphasis={new Set(match.kind === 'ok' ? match.row.ed : match.inWindow.map((e) => e.id))}
@@ -495,13 +464,18 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
                         : `${count(match.row.ed.length)} of the ${count(match.inWindow)} editions that started in your window, ${winText}, matched and are highlighted.`
                       : match.inWindow.length === 0 ? `No edition started in your window, ${winText}.`
                         : `${cap(plural(match.inWindow.length, 'edition'))} started in your window, ${winText}, and ${match.inWindow.length === 1 ? 'is' : 'are'} highlighted.`}`} />
-                  <EditionValues id="weather-match-editions-values" units={units} tUnit={tUnit} caption={match.kind === 'ok' ? 'The matched races and their race-morning weather' : 'The races that started in this window and their race-morning weather'}
-                    editions={(match.kind === 'ok' ? match.row.ed.map((id) => byId.get(id)).filter((e): e is WeatherEdition => !!e) : match.inWindow).sort((a, b) => a.temp_c - b.temp_c || a.city.localeCompare(b.city))}
-                    empty="No edition started in this window." />
                 </section>
               ) : null}
 
-              {course ? <CoursePanel course={course} tUnit={tUnit} units={units} tempC={tempOk ? tempC : null} centre={centre} hw={hw} all={data.editions} /> : null}
+              {/* One "All numbers" for the page (critic round 4: two table folds, a dew-point fold and the research fold
+                  were four): the sections beside the reference, then the races and their mornings. */}
+              {centre !== null && (match.kind === 'ok' || match.kind === 'no-row') ? (
+                <AllNumbers id="weather-match-numbers" className="weather-match-numbers" tables={[
+                  match.kind === 'ok' ? <SectionValues key="sections" match={match} units={units} centre={centre} hw={hw} winText={winText} refText={refText} refTone={refTone} /> : null,
+                  <EditionValues key="editions" id="weather-match-editions-values" units={units} tUnit={tUnit} caption={match.kind === 'ok' ? 'The matched races and their race-morning weather' : 'The races that started in this window and their race-morning weather'}
+                    editions={(match.kind === 'ok' ? match.row.ed.map((id) => byId.get(id)).filter((e): e is WeatherEdition => !!e) : match.inWindow).sort((a, b) => a.temp_c - b.temp_c || a.city.localeCompare(b.city))} />,
+                ]} />
+              ) : null}
             </>
           ) : null}
 
@@ -587,25 +561,27 @@ function ResultCard({ match, units, tUnit, hw, centre, winText, refText, refTone
     if (hw === 2 && match.widenHelps) widenNote = `A ±${tSpan(3, tUnit)} window has a published row at your pace.`;
   }
 
+  // The night card holds the answer only; the window's one control is a quiet text action under it (critic round 4: a
+  // button inside the card read as part of the answer). It stays in one place in the tree, so it keeps focus.
   return (
-    <section className={`tool-reading night weather-match-headline${match.kind === 'ok' ? '' : ' is-unavailable'}`} aria-labelledby={titleId}>
-      <div className="tool-reading-head">
-        <p className="tool-reading-kicker">{kicker}</p>
-        <h2 className="tool-reading-figure" id={titleId}>{figure}</h2>
-      </div>
-      {body}
-      {showWiden ? (
-        <div className="weather-match-actions">
-          <button type="button" className="btn btn-secondary is-compact weather-match-widen" aria-pressed={hw === 3} onClick={onWiden}>{widenLabel}</button>
-          {widenNote ? <span>{widenNote}</span> : null}
+    <>
+      <section className={`tool-reading night weather-match-headline${match.kind === 'ok' ? '' : ' is-unavailable'}`} aria-labelledby={titleId}>
+        <div className="tool-reading-head">
+          <p className="tool-reading-kicker">{kicker}</p>
+          <h2 className="tool-reading-figure" id={titleId}>{figure}</h2>
         </div>
-      ) : nearest !== null ? (
-        <div className="weather-match-actions">
-          <button type="button" className="btn btn-secondary is-compact weather-match-widen" onClick={() => onNearest(nearest)}>Show mornings near {tAbs(nearest, tUnit, 0)}</button>
+        {body}
+        {match.kind === 'ok' || match.kind === 'no-row' ? <EvidenceTag kind="data" /> : null}
+      </section>
+      {showWiden || nearest !== null ? (
+        <div className="weather-match-actions no-print">
+          {showWiden
+            ? <button type="button" className="tool-text-button weather-match-widen" aria-pressed={hw === 3} onClick={onWiden}>{widenLabel}</button>
+            : <button type="button" className="tool-text-button weather-match-widen" onClick={() => onNearest(nearest!)}>Show mornings near {tAbs(nearest!, tUnit, 0)}</button>}
+          {showWiden && widenNote ? <span>{widenNote}</span> : null}
         </div>
       ) : null}
-      {match.kind === 'ok' || match.kind === 'no-row' ? <EvidenceTag kind="data" /> : null}
-    </section>
+    </>
   );
 }
 
@@ -623,7 +599,7 @@ function SectionValues({ match, units, centre, hw, winText, refText, refTone }: 
   const { row, ref } = match;
   const showRef = ref !== null && !(centre === REF.c && hw === REF.hw);
   return (
-    <Values id="weather-match-sections-values" caption={`Median pace in each section against the same finishes’ 5–20K pace (positive is slower): mornings of ${winText}${showRef ? ` and ${refText}` : ''}`} count={9}>
+    <Values bare id="weather-match-sections-values" caption={`Median pace in each section against the same finishes’ 5–20K pace (positive is slower): mornings of ${winText}${showRef ? ` and ${refText}` : ''}`}>
       <table className="table">
         <thead><tr><th scope="col">Section</th><th scope="col">Yours</th>{showRef ? <th scope="col">{refTone}</th> : null}</tr></thead>
         <tbody>
@@ -647,14 +623,14 @@ const secName = (i: number) => sectionName(SECTION_BOUNDS[i][0], SECTION_BOUNDS[
 /* ------------------------------------------------------------------ */
 
 /**
- * Every edition as a dot at its start temperature, stacked where they meet: the matched ones (or a course's) emphasised,
+ * Every edition as a dot at its start temperature, stacked where they meet: the matched ones emphasised,
  * your window and the reference window shaded, your forecast a line. Drawn in pixels at the measured width.
  */
-function TempStrip({ editions, tUnit, marker, centre, hw, refName, emphasis, legend, label, ring }: {
+function TempStrip({ editions, tUnit, marker, centre, hw, refName, emphasis, legend, label }: {
   editions: WeatherEdition[]; tUnit: TUnit; marker: number | null; centre: number | null; hw: number;
   /** The reference window's name in the result's table ("Cooler mornings"), so the legend calls it the same. */
   refName?: string;
-  emphasis: Set<number>; legend: string; label: string; ring?: boolean;
+  emphasis: Set<number>; legend: string; label: string;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const width = useWidth(box, 640);
@@ -720,7 +696,7 @@ function TempStrip({ editions, tUnit, marker, centre, hw, refName, emphasis, leg
           <text x={width - m.r} y={base + 18} textAnchor="end">{unitSign(tUnit)}</text>
           {ordered.map((p) => {
             const on = emphasis.has(p.e.id);
-            return <circle key={p.e.id} cx={p.x} cy={mid + p.level * gap} r={on ? r + 0.4 : r} className={on ? (ring ? 'weather-match-dot is-ring' : 'weather-match-dot is-on') : 'weather-match-dot'} />;
+            return <circle key={p.e.id} cx={p.x} cy={mid + p.level * gap} r={on ? r + 0.4 : r} className={on ? 'weather-match-dot is-on' : 'weather-match-dot'} />;
           })}
           {marker !== null ? (
             <g>
@@ -731,7 +707,7 @@ function TempStrip({ editions, tUnit, marker, centre, hw, refName, emphasis, leg
         </svg>
       </div>
       <ul className="weather-match-legend is-strip" aria-hidden="true">
-        {emphasis.size ? <li className={ring ? 'is-ring' : 'is-on'}><i />{legend}</li> : null}
+        {emphasis.size ? <li className="is-on"><i />{legend}</li> : null}
         <li className="is-dot"><i />Other races</li>
         {centre !== null ? <li className="is-zone-yours"><i />Your window</li> : null}
         {showRef ? <li className="is-zone-ref"><i />{refName}, {tWindow(REF.c - REF.hw, REF.c + REF.hw, tUnit)}</li> : null}
@@ -741,12 +717,12 @@ function TempStrip({ editions, tUnit, marker, centre, hw, refName, emphasis, leg
 }
 
 /** The races behind a result, with each race morning's weather, as a Values table (no chip cloud: the strip above is the picture). */
-function EditionValues({ id, editions, tUnit, units, empty, caption }: {
-  id: string; editions: WeatherEdition[]; tUnit: TUnit; units: UnitSystem; empty: string; caption: string;
+function EditionValues({ id, editions, tUnit, units, caption }: {
+  id: string; editions: WeatherEdition[]; tUnit: TUnit; units: UnitSystem; caption: string;
 }) {
-  if (!editions.length) return empty ? <p className="tool-note">{empty}</p> : null;
+  if (!editions.length) return null;
   return (
-    <Values id={id} caption={caption} count={editions.length}>
+    <Values bare id={id} caption={caption}>
       <table className="table">
         <thead><tr><th scope="col">Race</th><th scope="col">Start</th><th scope="col">Dew point</th><th scope="col">Wind</th><th scope="col">Warming, 4 hours</th></tr></thead>
         <tbody>
@@ -762,33 +738,6 @@ function EditionValues({ id, editions, tUnit, units, empty, caption }: {
         </tbody>
       </table>
     </Values>
-  );
-}
-
-function CoursePanel({ course, tUnit, units, tempC, centre, hw, all }: {
-  course: { city: string; editions: WeatherEdition[] }; tUnit: TUnit; units: UnitSystem; tempC: number | null; centre: number | null; hw: number; all: WeatherEdition[];
-}) {
-  const temps = course.editions.map((e) => e.temp_c);
-  const [lo, hi] = [Math.min(...temps), Math.max(...temps)];
-  const inWindow = centre !== null ? course.editions.filter((e) => Math.abs(e.temp_c - centre) <= hw + 1e-9).length : 0;
-  const warmer = tempC !== null ? course.editions.filter((e) => e.temp_c > tempC).length : 0;
-  let relation = '';
-  if (tempC !== null) {
-    const every = course.editions.length === 1 ? `the one ${course.city} edition` : `every ${course.city} edition`;
-    if (tempC > hi) relation = `Your forecast is warmer than ${every} here.`;
-    else if (tempC < lo) relation = `Your forecast is cooler than ${every} here.`;
-    else relation = `${cap(plural(warmer, 'edition'))} of ${course.editions.length} started warmer than your forecast.`;
-  }
-  return (
-    <section className="tool-panel weather-match-course" aria-labelledby="weather-match-course-title">
-      <header className="tool-panel-head">
-        <h2 className="tool-panel-title" id="weather-match-course-title">{course.city}: {lo === hi ? tData(lo, tUnit) : <>{tData(lo, tUnit, false)} to {tData(hi, tUnit)}</>} at the start</h2>
-        <p className="tool-panel-meta">{cap(plural(course.editions.length, 'race'))}. {centre !== null ? `${inWindow === 0 ? 'None' : cap(plural(inWindow, 'race'))} started in your window. ` : ''}{relation}</p>
-      </header>
-      <TempStrip editions={all} tUnit={tUnit} marker={tempC} centre={centre} hw={hw} emphasis={new Set(course.editions.map((e) => e.id))} ring
-        legend={course.city} label={`${course.editions.length === 1 ? `Start temperature of the one ${course.city} edition, ${tData(lo, tUnit)}` : `Start temperatures of ${count(course.editions.length)} ${course.city} editions, from ${tData(lo, tUnit)} to ${tData(hi, tUnit)}`}, among all editions.`} />
-      <EditionValues id="weather-match-course-values" editions={[...course.editions].sort((a, b) => a.year - b.year)} tUnit={tUnit} units={units} empty="" caption={`${course.city}: every race morning`} />
-    </section>
   );
 }
 

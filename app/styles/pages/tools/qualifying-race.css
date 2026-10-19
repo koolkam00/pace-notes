@@ -3,6 +3,12 @@
    race publishes them (Boston's year strip, New York's pool) and the other races. Every class here is prefixed qrace-.
    Imported by app/tools/qualifying/[race]/layout.tsx, inside the checker's layout, whose sheet holds the list of races. */
 
+/* From a desktop width the title runs the table's measure, two lines instead of three (critic round 4: a narrow H1 left
+   the first screen's right side empty). */
+@media (min-width: 900px) {
+  .qrace .tool-header { max-width: var(--measure-figure); }
+  .qrace .tool-title { max-width: 24ch; }
+}
 .qrace-provenance { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s-3); margin: 0; font-size: var(--t-label); color: var(--ink-3); }
 .qrace-provenance a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); font-weight: 600; }
 .qrace-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); max-width: var(--measure-figure); }

@@ -299,11 +299,12 @@ async function journey(h, blocklist) {
     await page.waitForURL('**/tools/split-check**');
   });
   await settle(2000);
-  const onward = await page.evaluate(() => [...document.querySelectorAll('a[href^="/tools/"], a[href^="/analyses/"]')].map(a => a.getAttribute('href')).filter(href => href.includes('?') && !href.includes('split-check')));
-  // Since critic round 4 (October 18, 2026) the split check has one next step, the pace band. Its link keeps the goal
-  // and course in the query, so it continues the handoff; it is reloaded, and is the query page Back returns to after
+  const onward = await page.evaluate(() => [...document.querySelectorAll('a[href^="/tools/"], a[href^="/analyses/"], a[href^="/report"]')].map(a => a.getAttribute('href')).filter(href => href.includes('?') && !href.includes('split-check')));
+  // Since WP9 round 4 (October 19, 2026) the split check's one action with a query is the race report (the pace band
+  // button went: the chapter's next card is the one way forward, and the planner leads to the band). The report's link
+  // keeps the times in the query, so it continues the handoff; it is reloaded, and is the query page Back returns to after
   // the handoff ends.
-  const ONWARD = [['pace band', /^\/tools\/pace-band/]];
+  const ONWARD = [['race report', /^\/report/]];
   const last = ONWARD[ONWARD.length - 1];
   for (const [key, pattern] of ONWARD) {
     const href = onward.find(link => pattern.test(link));

@@ -124,8 +124,9 @@ export function splitCheckShareFrom(shard: Pick<PaceBandShard, 'window_s' | 'gro
     headline: `Of finishes ${range}, *${pct(sd)}* had a sustained slowdown.`,
     fallback: all ? `Finishes ${range}, mat by mat.` : 'Check your splits against finishes at the same time.',
     figure: ok ? { value: pct(sd).replace('%', ''), unit: '%', sr: spokenPct(sd) } : null,
-    // The key names the time without its window (the page shows the window): a runner reads "near 4:03".
-    key: `of finishes near ${hm(Math.floor(finish / 60))} had a sustained slowdown`,
+    // The key names the time without its window (the page shows the window), and whose time it is: on home and the
+    // contents a bare "4:03" had no context (critic round 4).
+    key: `of finishes near the example’s ${hm(Math.floor(finish / 60))} had a sustained slowdown`,
     term: '/methodology#sustained-slowdown',
   };
 }
@@ -134,9 +135,9 @@ export function splitCheckShareFrom(shard: Pick<PaceBandShard, 'window_s' | 'gro
 
 /**
  * The weather match's example morning (its example forecast's whole °C, the page's default ±2 °C window) against its
- * fixed 8–12 °C reference, for finishes in the 5–20K pace band that holds the example goal's even pace (4:00): the share
+ * fixed 6–10 °C reference, for finishes in the 5–20K pace band that holds the example goal's even pace (4:00): the share
  * with a sustained slowdown in each. "At 4:00 pace, 45% of finishes on 64°F mornings had a sustained slowdown, against
- * 31% on 46–54°F mornings." The guard holds while both rows are published with 100 finishes and the example morning's share is
+ * 29% on 43–50°F mornings." The guard holds while both rows are published with 100 finishes and the example morning's share is
  * at least two points above the reference's.
  */
 export function weatherMatchMorningsFrom(data: Pick<WeatherMatch, 'rows' | 'pace_range_s' | 'pace_step_s'> | null, goal: number = GOAL): Nugget {

@@ -86,6 +86,14 @@ function sortItems(items: Item[], key: SortKey, dir: Dir): Item[] {
   });
 }
 
+/** A row's sort value, when the list is sorted by something its bar does not show: "53% of them had a sustained slowdown · ". */
+function sortValue(key: SortKey, row: CourseGoalRow, units: UnitSystem): string {
+  if (key === 'sd') return `${pctText(row.sd)} of them had a sustained slowdown · `;
+  if (key === 'after20') return `${formatDuration(row.after20, true)} after ${units === 'mi' ? '12.4 mi' : '20 km'} · `;
+  if (key === 'n') return `${count(row.n)} finishes · `;
+  return '';
+}
+
 function orderLabel(key: SortKey, dir: Dir): string {
   if (key === 'name') return dir === 'asc' ? 'A to Z' : 'Z to A';
   if (key === 'after20') return dir === 'asc' ? 'Shortest first' : 'Longest first';
@@ -319,7 +327,9 @@ export default function CourseChooser({ sha, screened }: {
                         <span className="cc-name">{displayCity(course.city)}</span>
                         <span className="cc-bar" aria-hidden="true"><i style={{ width: `${(row.under / barTop) * 100}%` }} />{pooled ? <b className="cc-bar-mark" style={{ left: `${(pooled.under / barTop) * 100}%` }} /> : null}</span>
                         <span className="cc-share"><b>{pctText(row.under)}</b><span className="sr-only"> made {goalText}</span></span>
-                        <span className="cc-sub">{pctText(row.sd)} sustained slowdown · {monthText(course.months)}{course.downhill_opening ? ' · downhill start' : ''}<span className="sr-only"> · {count(row.n)} finishes</span></span>
+                        {/* One reading a row (critic round 4: a second share, of another group than the course pages', read as a
+                            second number for the course): its month, and the value it is sorted by when that is not the share. */}
+                        <span className="cc-sub">{sortValue(sort, row, units)}{monthText(course.months)}{course.downhill_opening ? ' · downhill start' : ''}<span className="sr-only"> · {count(row.n)} finishes</span></span>
                         {/* The whole row is the link: its name says where it goes, so no visible label repeats on every row. */}
                         <span className="cc-plan"><span className="sr-only">Plan {goalText} in {displayCity(course.city)}</span><Arrow /></span>
                       </Link>
