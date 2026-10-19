@@ -30,6 +30,8 @@ type Props = {
   ticks: { x: number; label: string }[];
   label: string;
   lens?: { count: string; ratio: string; label: string };
+  /** false: both layers are drawn but no control is (a scrolly's steps turn the lens, ScrollyLens). */
+  lensControl?: boolean;
   scrub?: { points: ScrubPoints; initial: number; detents: number[]; label: string; home?: number };
   labels?: { x: number; text: string; tone?: 'ink' | 'signal' }[];
   values?: ReactNode;
@@ -43,7 +45,7 @@ type Props = {
   readout?: ReadoutProps;
 };
 
-export default function Histogram({ bins, curve, marks = [], reading, ticks, label, lens, scrub, labels = [], values, height = 220, heightMd = 300, keyLabels = { bin: 'Each bin' }, ratioAt = {}, readout }: Props) {
+export default function Histogram({ bins, curve, marks = [], reading, ticks, label, lens, lensControl = true, scrub, labels = [], values, height = 220, heightMd = 300, keyLabels = { bin: 'Each bin' }, ratioAt = {}, readout }: Props) {
   const x0 = bins[0].x, x1 = bins[bins.length - 1].x + 1;
   const x = linear([x0, x1]);
   const w = 1 / (x1 - x0);
@@ -83,16 +85,16 @@ export default function Histogram({ bins, curve, marks = [], reading, ticks, lab
     };
     ratioLayer = (
       <g data-layer="ratio" className="is-off">
-        {/* One gridline, 1.5×, labelled on the right where the towers are short; the solid 1× line the towers grow from
-            (the curve itself) is labelled at its left end, above the plot's empty corner (the early minutes sit under the
-            curve), never on the noisy right where its label crossed the bars. */}
-        <Gridlines side="right" lines={[{ y: ry(hi >= 1.5 ? 1.5 : hi), label: `${(hi >= 1.5 ? 1.5 : hi).toFixed(1)}×` }]} />
+        {/* One gridline, 1.5×, labelled on the right where the towers are short, and naming its base ("1.5× the
+            curve"), so the solid line the towers grow from reads as the curve itself (the key's line) without a label
+            of its own: at either end of that line a tower ran through one (round 5). */}
+        <Gridlines side="right" lines={[{ y: ry(hi >= 1.5 ? 1.5 : hi), label: `${(hi >= 1.5 ? 1.5 : hi).toFixed(1)}× the curve` }]} />
         <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
           <path className="a-silhouette" d={stepPath(ratios.map((r) => ({ x: x(r.x), y: ry(r.r) })), w, ry(1))} />
         </svg>
         {marks.filter((m) => m !== reading).map((m) => col(m, 'm-ink'))}
         {reading !== undefined ? col(reading, 'm-signal is-reading') : null}
-        <RefLine y={ry(1)} label="1×" side="left" />
+        <RefLine y={ry(1)} />
       </g>
     );
   }
@@ -114,7 +116,7 @@ export default function Histogram({ bins, curve, marks = [], reading, ticks, lab
   const needleTopsAlt = ratioTop ? scrub?.points.x.map((px) => ratioTop!(binAt(px).x)) : undefined;
   return (
     <ChartFrame label={label} height={height} heightMd={heightMd} k={lens ? 'count' : undefined}
-      lens={lens ? <Lens label={lens.label} options={[{ value: 'count', label: lens.count }, { value: 'ratio', label: lens.ratio }]} defaultValue="count" /> : undefined}
+      lens={lens && lensControl ? <Lens label={lens.label} options={[{ value: 'count', label: lens.count }, { value: 'ratio', label: lens.ratio }]} defaultValue="count" /> : undefined}
       scrub={scrub ? <Scrubber points={{ ...scrub.points, y: scrub.points.y ?? needleTops, yAlt: scrub.points.yAlt ?? needleTopsAlt }} initial={scrub.initial} home={scrub.home} detents={scrub.detents} label={scrub.label} axis={axis}>{plot}</Scrubber> : undefined}
       plot={scrub ? undefined : plot} axis={scrub ? undefined : axis} readout={scrub ? undefined : readout}
       keys={[{ label: keyLabels.bin, mark: 'square', tone: 'quiet' }, ...(marks.length && keyLabels.mark ? [{ label: keyLabels.mark, mark: 'square' as const }] : []), ...(curve && keyLabels.curve ? [{ label: keyLabels.curve, mark: 'line' as const }] : [])]}

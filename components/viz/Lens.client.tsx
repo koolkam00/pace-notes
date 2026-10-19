@@ -3,6 +3,7 @@
 import { useRef } from 'react';
 import Chips from '@/components/ui/Chips.client';
 import Segmented from '@/components/ui/Segmented.client';
+import { applyLens } from './lens-layer';
 
 /**
  * A figure's one lens (the redesign spec, section 3.5, Chart frame): a Segmented control (up to five options) or Chips,
@@ -19,9 +20,7 @@ export default function Lens({ label, options, defaultValue, chips = false }: {
   const ref = useRef<HTMLSpanElement>(null);
   const choose = (value: string) => {
     const figure = ref.current?.closest<HTMLElement>('.viz');
-    if (!figure) return;
-    figure.dataset.k = value;
-    figure.querySelectorAll<HTMLElement | SVGElement>('[data-layer]').forEach((el) => el.classList.toggle('is-off', el.dataset.layer !== value));
+    if (figure) applyLens(figure, value);
   };
   return (
     <span ref={ref} className="viz-lens-control">

@@ -68,7 +68,7 @@
 .rail-beats { margin: 0 0 var(--s-2); }
 .rail-beats .rail-link { min-height: 44px; padding-left: 26px; font-size: var(--t-label); font-weight: 400; }
 .rail-beats .rail-link[aria-current] { color: var(--ink); }
-.rail-beats .rail-link[aria-current]::before { content: ''; flex: none; width: 6px; height: 6px; margin: 0 8px 0 -14px; border-radius: 50%; background: var(--signal); }
+.rail-beats .rail-link[aria-current]::before { content: ''; flex: none; width: 6px; height: 6px; margin: 0 8px 0 -14px; border-radius: 50%; background: var(--ink); }
 @media (min-width: 1180px) {
   .chapter-rail { display: block; }
   /* The rail beside the page names the chapter (its marker, number and title), so the crumb above the H1 does not say

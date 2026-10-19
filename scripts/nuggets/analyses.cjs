@@ -134,6 +134,8 @@ module.exports = function analyses({ json, eq, ok, core }) {
     eq(n.guard, s[0] > s[1] && s[1] > s[2] && s[2] < 0.1, 'target.context: guard');
     // The finding is the lowest mark's (chapter 01 owns the share under 4:00): the sentence names 3:00 and its share.
     ok(shown(n).startsWith('Only ') && shown(n).endsWith('under 3:00.') && shown(n).includes(`*${pct(s[2])}*`) && !shown(n).includes(pct(s[0])), 'target.context: the sentence names the share under 3:00, not under 4:00');
+    // The card's key sets the share against the goal's own (the comparison that makes it a finding).
+    eq(n.key, `of finishes were under 3:00, against ${pct(s[0])} under 4:00`, 'target.context: the key names its comparison');
   };
 
   R['age.retention'] = (n) => {
@@ -168,6 +170,9 @@ module.exports = function analyses({ json, eq, ok, core }) {
     ok(!shown(n).includes(lo.label) && !shown(n).includes(hi.label), 'courses.compare: the headline names no course');
     ok(shown(n).includes(pct(lo.slowdown_pct / 100)) && shown(n).includes(pct(hi.slowdown_pct / 100)), 'courses.compare: the headline names both ends');
     if (n.guard) ok(shown(n).includes(`*${pct(hi.slowdown_pct / 100)}*`), 'courses.compare: the accent is the high end, the card\'s orange dot');
+    // The card's figure is the ratio of the two ends, one decimal (the page's H1 gives the ends themselves).
+    const ratio = (Math.round((hi.slowdown_pct / lo.slowdown_pct) * 10) / 10).toFixed(1);
+    eq(n.figure && n.figure.value, ratio, 'courses.compare: the card\'s figure is the high end over the low end');
   };
 
   R['terrain.climb'] = (n) => {

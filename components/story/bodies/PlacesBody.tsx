@@ -102,7 +102,8 @@ export default function PlacesBody() {
 
       <Beat id="break-even" track="chapter-2" label="Slowing and still gaining" title={breakeven} dek="Pace from 30K to 40K, against the finish’s own 5–20K pace.">
         <LineProfile x={be.map((b) => b.x)} xDomain={[be[0].x, be[be.length - 1].x]} yDomain={[beBottom, beTop]}
-          layers={[{ id: 'be', label: 'Places', series: [{ id: 'median', values: be.map((b) => b.median), fillAbove: 0 }],
+          // The side that still gained places in the sand wash, so orange stays the needle's and its crossing's (round 5).
+          layers={[{ id: 'be', label: 'Places', series: [{ id: 'median', values: be.map((b) => b.median), fillAbove: 0, fillTone: 'quiet' }],
             points: [{ x: be[beAt].x, y: be[beAt].median, kind: 'reading' }] }]}
           refs={[{ value: 0, label: 'No places gained' }]}
           // Even pace always shows; a slower tick near the needle's opening crossing is left out, so the eye never reads
@@ -123,7 +124,7 @@ export default function PlacesBody() {
       {/* The H2's "3 to 1" as length: two bars on one scale, big drops (its subject, the one orange mark) against big
           gains (ink), each with its share at its end. The dek names the unit once. */}
       <Beat id="shuffle" track="chapter-3" label="Up and down" title={shuffle} aliases={['gains', 'women']}
-        dek="Share of finishes by places moved from 30K to the finish, counted per 100 in each race.">
+        dek="Finishes that moved 10 or more places per 100 runners in their race, from 30K to the line.">
         <PlaceShift
           rows={[
             { id: 'lost10', label: 'Dropped 10+ places', share: data.sinker_share, display: pct(data.sinker_share, 1), tone: 'signal' },

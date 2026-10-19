@@ -28,17 +28,17 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
   const { groups } = summary;
   const title = getNugget('field.title'), median = getNugget('field.median'), middle = getNugget('field.middle'), front = getNugget('field.front'), byRace = getNugget('field.byrace');
 
-  // The opener's ruler: whole hours around the median, the hour the H1 names (the median's own) and everything past it.
+  /* The opener's ruler draws the H1's claim on the scale the dots below use: everything past the hour it names (the
+     median's own) is the reading, an orange run named for that hour, and the median an ink dot inside it (round 5: an
+     orange median on its own scale was a second orange, and a second scale, beside the H1's). */
   const medianAll = groups.all.median ?? NaN;
   const hourMark = Math.floor(medianAll / 60) * 60;
-  const rLo = hourMark - 60, rHi = hourMark + 120;
-  const rulerTicks = [rLo, hourMark, hourMark + 60, rHi].map((m) => ({ value: m, label: hm(m) }));
 
   // Every finish as 99 finishes: the 1st to the 99th percentile of all finishes. Recorded women and men are the reading's
   // ruler and the Values table, so the beat has no control that would move it away from its H2.
   const centiles = (g: typeof FINISH_GROUPS[number]) => percentileMinutes(summary.bins.map((b) => ({ minute: b.minute, n: b[g] })), groups[g].total);
   const minutes = centiles('all');
-  // The middle half is the H2's run (its ends are the H2's times); the median is the one signal dot.
+  // The middle half is the H2's run (its ends are the H2's times), the one emphasis; the median is named in ink.
   const layer = { minutes, band: [24, 74] as [number, number], bandLabel: 'The middle half', mark: { index: 49, text: 'Median' } };
   const dLo = Math.floor(minutes[0] / 30) * 30;
   const dHi = Math.ceil(minutes[98] / 30) * 30;
@@ -88,13 +88,13 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
         </table>
       </Values>,
     ]}>
-      {/* The H1 is the finding in words and the figure its time; the ruler draws the H1's claim: the hour it names,
-          the time past it as a span, and the median (the figure's dot) inside that span. */}
+      {/* The H1 is the finding in words and the figure its time; the ruler draws the H1's claim: the time past the hour
+          it names as the orange run, and the median (the figure's time) an ink dot inside it. */}
       <StoryHero path={PATH} title={title.guard ? sentenceOf(title) : 'Marathon finish times'}
         figure={median.figure ? { ...median.figure } : undefined} unitLine={median.key} fallback={!median.guard}
         instrument={title.guard && median.guard ? (
-          <Ruler min={rLo} max={rHi} ticks={rulerTicks} band={{ lo: hourMark, hi: rHi }}
-            marks={[{ value: medianAll, kind: 'reading', label: 'Median' }]}
+          <Ruler min={dLo} max={dHi} ticks={dotTicks} band={{ lo: hourMark, hi: dHi, label: `Over ${hm(hourMark)}`, tone: 'signal' }}
+            marks={[{ value: medianAll, kind: 'compare', label: 'Median' }]}
             label={`The median finish, ${hm(medianAll)}, sits past ${hm(hourMark)}: more than half of all finishes took longer than ${hm(hourMark)}.`} />
         ) : undefined} />
 

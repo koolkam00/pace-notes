@@ -123,6 +123,8 @@ export interface ReportInput {
 
 const count = (value: number) => value.toLocaleString('en-US');
 const clock = (seconds: number) => formatDuration(seconds, true);
+/** A comparison window's end to the minute, floored ("4:01 to 4:05"), as the split check writes the same window. */
+const windowEnd = (seconds: number) => { const m = Math.floor(seconds / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
 
 function comparisonOf(input: ReportInput['comparison'], finish: number): ReportComparison {
   const { index, indexError, course, gender, shard } = input;
@@ -141,17 +143,19 @@ function comparisonOf(input: ReportInput['comparison'], finish: number): ReportC
   if (!shard || shard.path !== path || (!shard.data && !shard.error)) return { state: 'loading' };
   if (shard.error || !shard.data) return { state: 'off', message: shard.error ?? 'This data could not be loaded. Check the connection and try again.' };
   const { lo, hi, all, held, slow } = windowCells(shard.data, check.minute, index.window_s);
-  if (!all) return { state: 'unavailable', title: 'Too few finishes at this time.', message: `Too few complete finishes ran ${clock(lo)} to ${clock(hi)} ${where}${recorded} to compare.` };
+  if (!all) return { state: 'unavailable', title: 'Too few finishes at this time.', message: `Too few complete finishes ran ${windowEnd(lo)} to ${windowEnd(hi)} ${where}${recorded} to compare.` };
   const group = (key: ReportGroup['key'], name: string, cell: PaceBandCell): ReportGroup => ({ key, name, n: cell.n, ed: cell.ed, at20: cell.e50[3], finish: cell.e50[8] });
-  // Held pace against sustained slowdown, each with 100 finishes; when neither has them, the whole window instead.
-  const groups = held || slow ? [held ? group('held', 'Held pace', held) : null, slow ? group('slowdown', 'Sustained slowdown', slow) : null].filter((g): g is ReportGroup => g !== null)
+  // No sustained slowdown against a sustained slowdown, each with 100 finishes; when neither has them, the whole window
+  // instead. The group is named in the measure's own words everywhere it is drawn or counted (round 5: "Held pace"
+  // here, "No sustained slowdown" on the goal pages), since a finish without one may still have slowed.
+  const groups = held || slow ? [held ? group('held', 'No sustained slowdown', held) : null, slow ? group('slowdown', 'Sustained slowdown', slow) : null].filter((g): g is ReportGroup => g !== null)
     : [group('all', 'All finishes in the window', all)];
-  const missing = !held && !slow ? 'Neither the held-pace nor the sustained-slowdown group has enough finishes, so the whole window is shown.'
-    : !held ? 'The held-pace group has too few finishes to show.' : !slow ? 'The sustained-slowdown group has too few finishes to show.' : null;
+  const missing = !held && !slow ? 'Neither group, with or without a sustained slowdown, has enough finishes, so the whole window is shown.'
+    : !held ? 'The finishes with no sustained slowdown are too few to show.' : !slow ? 'The finishes with a sustained slowdown are too few to show.' : null;
   // The window pools every edition of the course: the label says so, beside an edition's own counts in the runner view.
   const pooled = scope.slug === 'all' ? where : `${where}, every edition`;
   return {
-    state: 'ok', label: `complete finishes from ${clock(lo)} to ${clock(hi)} ${pooled}${recorded}`, n: all.n, ed: all.ed, lo, hi,
+    state: 'ok', label: `complete finishes from ${windowEnd(lo)} to ${windowEnd(hi)} ${pooled}${recorded}`, n: all.n, ed: all.ed, lo, hi,
     slowdownShare: all.sd ?? (slow ? slow.n / all.n : null), groups, missing,
   };
 }

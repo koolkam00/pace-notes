@@ -5,3 +5,6 @@
 .viz-frame.ruler { --plot-h: 80px; --plot-h-md: 80px; }
 .viz-frame.ruler .viz-plot { height: var(--plot-h); }
 .viz-frame.ruler .ruler-track { fill: var(--rule-strong); }
+/* A band that is the reading itself (the stretch the headline names, /finish-times' "Over 4:00"): a thin signal run on
+   the line, full strength, the marks on it in ink. */
+.viz-frame.ruler .a-band.is-signal { fill: var(--signal); opacity: 1; }

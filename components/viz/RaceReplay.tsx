@@ -135,6 +135,9 @@ export default function RaceReplay({ edition, flag, view = 'field', band = false
   // bright part of the field.
   const held = Math.abs(time - flag) < 30 && phase !== 'intro' && phase !== 'playing';
   const dimFrom = split && held && mode === 'field' ? split.km : Infinity;
+  // On the home band the sentence names both ends of the field (the first finish and how far its back had come), each a
+  // ring on the frame: the runners between step back a little while it holds, so both rings read (round 5).
+  const hush = !!mark && held && mode === 'field';
 
   const draw = useCallback(() => {
     const node = canvas.current;
@@ -188,11 +191,11 @@ export default function RaceReplay({ edition, flag, view = 'field', band = false
       const p = positionAt(sorted[i], t);
       const [x, y] = place(p.km, i);
       g.fillStyle = p.km >= dimFrom ? c.ink3 : c.ink;
-      g.globalAlpha = p.finished ? 0.4 : p.km >= dimFrom ? 0.6 : 0.85;
+      g.globalAlpha = p.finished ? 0.4 : p.km >= dimFrom || hush ? 0.6 : 0.85;
       g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
     }
     g.globalAlpha = 1;
-  }, [size, time, sorted, mode, locate, edition.route, band, dimFrom]);
+  }, [size, time, sorted, mode, locate, edition.route, band, dimFrom, hush]);
 
   useEffect(() => { draw(); }, [draw]);
 

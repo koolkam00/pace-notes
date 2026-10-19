@@ -152,9 +152,9 @@ export function splitCheckShareFrom(shard: Pick<PaceBandShard, 'window_s' | 'gro
     headline: `Of finishes ${range}, *${pct(sd)}* had a sustained slowdown.`,
     fallback: all ? `Finishes ${range}, mat by mat.` : 'Check your splits against finishes at the same time.',
     figure: ok ? { value: pct(sd).replace('%', ''), unit: '%', sr: spokenPct(sd) } : null,
-    // The key names the time without its window (the page shows the window), and whose time it is: on home and the
-    // contents a bare "4:03" had no context (critic round 4).
-    key: `of finishes near the example’s ${hm(Math.floor(finish / 60))} had a sustained slowdown`,
+    // The key stands alone, with the window it counts: it is read on home, the contents and the weather match's card,
+    // where no example sits above it (round 5: "the example’s 4:03" named an example none of them shows).
+    key: `of finishes ${range} had a sustained slowdown`,
     term: '/methodology#sustained-slowdown',
   };
 }

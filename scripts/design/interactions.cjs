@@ -239,8 +239,8 @@ const INTERACTIONS = [
   },
   {
     // The replay at its flag frame (waits for the run-up to land, up to 10 s), then playing. At the flag, no label over
-    // the field may sit on a drawn runner: the canvas's pixels under every label box (the mats, the mark, the split
-    // share) are read back, and a label with bright runner pixels under it is a collision the layout linter cannot see.
+    // the field may sit on a drawn runner: the canvas's pixels under every label box (the mats, the mark, the first
+    // finisher, the split share) are read back, and a label with bright runner pixels under it is a collision the layout linter cannot see.
     name: 'replay',
     selector: '.replay',
     async run(page, el, snap) {
@@ -259,7 +259,7 @@ const INTERACTIONS = [
         const c = canvas.getBoundingClientRect();
         const sx = canvas.width / c.width, sy = canvas.height / c.height;
         const out = [];
-        for (const label of node.querySelectorAll('.replay-mats span, .replay-mark b, .replay-split')) {
+        for (const label of node.querySelectorAll('.replay-mats span, .replay-mark b, .replay-first b, .replay-split')) {
           const r = label.getBoundingClientRect();
           if (!r.width || !r.height || getComputedStyle(label).display === 'none') continue;
           const x0 = Math.max(r.left, c.left), x1 = Math.min(r.right, c.right), y0 = Math.max(r.top, c.top), y1 = Math.min(r.bottom, c.bottom);
@@ -273,7 +273,13 @@ const INTERACTIONS = [
       });
       problems.push(...hits);
       const play = el.locator('button').filter({ hasText: /play|▶/i }).first();
-      if (await play.count()) { await play.click().catch(() => {}); await pause(page, 1500); await snap('replay-playing'); }
+      if (await play.count()) {
+        await play.click().catch(() => {}); await pause(page, 1500); await snap('replay-playing');
+        // The flag frame's marks are true at that frame only: once the clock runs on, none may still show.
+        const stale = await el.evaluate((node) => [...node.querySelectorAll('.replay-mark, .replay-first, .replay-split')]
+          .filter((m) => Number(getComputedStyle(m).opacity) > 0.05).map((m) => m.textContent.trim() || m.className));
+        for (const m of stale) problems.push(`"${m}" still shows while the replay plays past its flag frame`);
+      }
       return problems;
     },
   },

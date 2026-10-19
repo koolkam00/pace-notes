@@ -32,11 +32,12 @@
 /* The chapter's name is the row's heading (h2): the kicker and the title in their own faces. */
 .chapter-list.is-expanded .chapter-text { margin: 0; padding: 10px 0 0; font: inherit; letter-spacing: normal; }
 .chapter-list.is-expanded .chapter-name { font-size: 1.375rem; line-height: 1.15; }
-/* The chapter's reading under its name: the figure and its key on one baseline. */
+/* The chapter's reading under its name: the figure, then its key under it, on every row (round 5: a key beside a short
+   figure but under a wide one made the column of keys jump left and right), as on the home guide. */
 .chapter-list.is-expanded .chapter-heading .chapter-reading {
-  grid-column: 2; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; max-width: none; text-align: left;
+  grid-column: 2; display: grid; justify-items: start; gap: 4px; max-width: none; text-align: left;
 }
-.chapter-list.is-expanded .chapter-heading .chapter-key { flex: 1 1 12rem; max-width: 30ch; }
+.chapter-list.is-expanded .chapter-heading .chapter-key { max-width: 30ch; }
 
 /* The pages: one link each, under the chapter, a hairline between them. */
 .chapter-list.is-expanded .chapter-pages { margin: var(--s-1) 0 0 calc(var(--line-x, 28px) * 2 + var(--s-3)); border-top: 0; }

@@ -4,7 +4,7 @@
    races' analysis: the answer on night, then the race in context in three views. From 900 px it is one centred column
    at one measure. The race report's styles are in pages/report.css. */
 
-.runner-page { padding-top: var(--s-5); }
+.runner-page { padding-top: var(--page-top); }
 /* Every heading here is set in the redesign's Fraunces: optical size following the size, weight 440. */
 .runner-page h1, .runner-page h2, .runner-page h3, .runner-page h4 { font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; }
 .runner-head { max-width: 46rem; }
@@ -67,10 +67,12 @@ a.runner-start:focus-visible, a.runner-row:focus-visible { outline: 2px solid va
 .runner-start-time label { display: grid; gap: 2px; color: var(--ink); }
 .runner-start-time label b { font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
 .runner-start-time label span { font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
-.runner-start-fields { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
-.runner-start-fields .input { flex: 1 1 auto; min-width: 0; max-width: 14rem; }
-.runner-start-go { flex: none; width: 52px; padding: 0; }
-.runner-start-go .arrow-icon { width: 18px; height: 18px; }
+/* The field and its labelled button share a row; on a very narrow screen the button wraps under the field. */
+.runner-start-fields { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-3); }
+.runner-start-fields .input { flex: 1 1 8rem; min-width: 0; max-width: 14rem; }
+/* The finish time's submit is the same labelled outline pill as the name search's "Find races" (round 5: a bare arrow
+   circle one beat below a labelled pill read as two families). */
+.runner-start-go { flex: none; padding-inline: 18px; }
 .runner-start-time .keypad-hint.is-block { margin-top: 6px; }
 .runner-start-error { color: var(--signal-ink); font-weight: 600; }
 
@@ -227,7 +229,10 @@ label.runner-race-row { cursor: pointer; }
 .rc-delta-rows li { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr) 4.5rem; align-items: center; column-gap: var(--s-3); min-height: 40px; margin: 0; border-bottom: 1px solid var(--rule); font-size: var(--t-small); font-variant-numeric: tabular-nums; }
 .rc-delta-rows li > span:first-child { font-weight: 600; color: var(--ink); white-space: nowrap; }
 .rc-delta-rows li > strong { font-weight: 600; text-align: right; white-space: nowrap; }
-.rc-delta-rows li.is-lit .rc-delta-track b { background: var(--signal); }
+/* The comparison is ink (round 5: its orange 35–40K beside the Pacing tab's orange slowdown meant two things on one
+   screen): the largest gap in full ink with its value in bold, the heading carrying the reading. */
+.rc-delta-rows li.is-lit .rc-delta-track b { background: var(--ink); }
+.rc-delta-rows li.is-lit > strong { font-weight: 700; color: var(--ink); }
 .rc-delta-key { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr) 4.5rem; column-gap: var(--s-3); margin-top: 6px; font-size: .75rem; line-height: 1.3; color: var(--ink-3); }
 .rc-delta-key-track { display: grid; grid-template-columns: 1fr 1fr; }
 .rc-delta-key-track > span:first-child { padding-right: 8px; text-align: right; }
@@ -241,7 +246,7 @@ label.runner-race-row { cursor: pointer; }
 .rc-report > .btn { margin-top: var(--s-4); }
 .rc-report .race-report-root { margin-top: 0; }
 .rc-multi { margin-top: var(--s-7); padding-top: var(--s-6); border-top: 1px solid var(--rule); }
-.rc-multi > h2 { margin: 0; font-size: var(--t-h2); text-wrap: balance; }
+.rc-multi > h2 { margin: 0; font-family: var(--serif); font-weight: 440; font-size: var(--t-sentence); line-height: 1.25; letter-spacing: -.01em; text-wrap: balance; }
 .rc-multi > .values { margin-top: var(--s-5); }
 .rc-multi > .rc-focus { margin-top: var(--s-4); }
 
@@ -250,3 +255,19 @@ label.runner-race-row { cursor: pointer; }
 @media (min-width: 1180px) {
   .chain-frame .runner-head, .chain-frame .runner-split, .chain-frame .runner-reading > .runner-analysis, .chain-frame .runner-page .chapter-end { margin-inline: 0; }
 }
+
+/* The report in the view's place: one quiet way back above its card. */
+.rc-report-back { margin: 0 0 var(--s-3); padding-inline: 0; }
+.rc-heading + .rc-report { margin-top: var(--s-4); padding-top: 0; border-top: 0; }
+
+/* After a match is opened the results fold to one row (the name searched, its count, Change), and the profile, then
+   the analysis, scroll to the top under the header with room to breathe (round 5). */
+.runner-results-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--s-4); margin: 0; padding: 6px 0; border-block: 1px solid var(--rule); font-size: var(--t-small); color: var(--ink-2); }
+.runner-results-row b { font-weight: 600; color: var(--ink); }
+.runner-results-row .btn { padding-inline: 0; }
+#runner-profile-title, .runner-reading { scroll-margin-top: calc(var(--header-h) + 16px); }
+/* The report's way back, and the analysis it returns to, land under the header; the section takes focus without a ring. */
+.rc-report-back, .runner-context { scroll-margin-top: calc(var(--header-h) + 16px); }
+.runner-context:focus { outline: none; }
+/* A race's checkbox takes the site's focus ring, as every other control does. */
+.runner-races input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

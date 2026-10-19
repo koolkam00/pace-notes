@@ -53,10 +53,11 @@ export function kickBankFrom(bands: BankBand[]): Nugget {
     guard: ok,
     headline: `A first 5K ${said} banked ${ms(-(fastest?.open_s ?? 0))}, and *finished ${ms(fastest?.finish_s ?? 0)} behind*.`,
     fallback: 'How a fast first 5K finished, against the same pace.',
-    // The figure is the H1's accent as the receipt prints it ("5:06 behind"); the key is the finding in two phone lines.
-    // What it is behind (finishes at the same 5–20K pace) is the page's to say.
+    // The figure is the H1's accent as the receipt prints it ("5:06 behind"); the key is the finding in two phone lines,
+    // and it names whom the finish was behind (runners of the same 5–20K pace), because it is read away from the page,
+    // on home and the contents (round 5).
     figure: fastest ? { value: ms(fastest.finish_s), sr: `${spokenTime(Math.abs(fastest.finish_s))} ${fastest.finish_s > 0 ? 'behind' : 'ahead'}` } : null,
-    key: `${fastest && fastest.finish_s < 0 ? 'ahead' : 'behind'} at the finish, after a first 5K ${said}`,
+    key: `${fastest && fastest.finish_s < 0 ? 'ahead of' : 'behind'} same-pace runners at the finish, after a first 5K ${said}`,
   };
 }
 
@@ -277,7 +278,8 @@ export function targetContextFrom(cohort: Pick<PersonalCohort, 'cdf' | 'cdf_min'
     guard: ok,
     headline: `Only *${pct(shares[2])}* of finishes were under ${hm(marks[2])}.`,
     fallback: `Finishes under ${hm(goal)}, ${hm(marks[1])} and ${hm(marks[2])}.`,
-    figure: shareFigure(shares[2]), key: `of finishes were under ${hm(marks[2])}`,
+    // The card names the comparison that makes the share a finding: how far it falls from the goal's own share.
+    figure: shareFigure(shares[2]), key: `of finishes were under ${hm(marks[2])}, against ${pct(shares[0])} under ${hm(goal)}`,
   };
 }
 
@@ -339,8 +341,10 @@ export function coursesCompareFrom(groups: AllFinisherGroup[]): Nugget {
     // The accent is the high end, the card's one orange dot (its readout opens there); the low end is named in ink.
     headline: `Sustained slowdown ran from ${pct(l)} to *${pct(h)}*, course by course.`,
     fallback: `Sustained slowdown across ${count(list.length)} courses.`,
-    figure: list.length ? { value: `${pct(l).replace('%', '')}–${pct(h).replace('%', '')}`, unit: '%', sr: `${pct(l)} to ${pct(h)}` } : null,
-    key: 'of finishes had a sustained slowdown, from the steadiest course to the least steady',
+    // The card into this page (and its contents row) says the gap as one ratio, so the page's own two ends are the
+    // payoff one tap later, never the same range twice in a row (round 5).
+    figure: list.length >= 2 && l > 0 ? { value: one(h / l), unit: '×', sr: `${one(h / l)} times` } : null,
+    key: 'as common a sustained slowdown on the least steady course as on the steadiest',
   };
 }
 
@@ -465,7 +469,8 @@ export function gainsFinalFrom(row: { values: number[]; total: number; n: number
     // One clause; the stretch as a distance, against its share of the race, is the page's dek.
     headline: `Near ${hm(goal)}, improving finishes found *${pct(share)}* of their time after 30K.`,
     fallback: `Where improving finishes near ${hm(goal)} found their time.`,
-    figure: shareFigure(share), key: 'of the time improving finishes gained came after 30K',
+    // "Of the minutes", never "of the time": read first as "44% of the time" (how often), it said something else.
+    figure: shareFigure(share), key: 'of the minutes improving finishes gained came after 30K',
   };
 }
 

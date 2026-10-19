@@ -313,7 +313,7 @@ async function main() {
   assert.deepEqual([...runnersHtml.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/g)].map(m => m[1]), ['Analyze a past race']);
   assert.match(runnersHtml, /<a class="runner-start" href="\/tools\/split-check"><b>Have your splits\? Paste them<\/b>/);
   const finishForm = runnersHtml.match(/<form class="runner-start runner-start-time"[^>]*>[\s\S]*?<\/form>/)?.[0] ?? '';
-  assert.match(finishForm, /action="\/analyses\/pacing-pattern" method="get"/); assert.match(finishForm, /Only know your finish time\?/); assert.match(finishForm, /See how finishes near it were paced/);
+  assert.match(finishForm, /action="\/analyses\/pacing-pattern" method="get"/); assert.match(finishForm, /Only know your finish time\?/); assert.match(finishForm, /see how finishes near it were paced/i); assert.match(finishForm, /<button[^>]*type="submit">See finishes<\/button>/, 'The finish-time button says what it does (round 5: it was an arrow alone)');
   assert.doesNotMatch(finishForm, /<input[^>]*\sname=/, 'The finish-time field has no name');
   assert.deepEqual(metadata.robots, { index: false, follow: true }, '/runners is noindex, follow');
   assert.equal(metadata.alternates, undefined, 'A noindex page has no canonical');

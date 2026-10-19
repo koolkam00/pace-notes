@@ -7,8 +7,9 @@ import { countWord, hm, pct } from '@/lib/nuggets/format';
 import TypeGlyph from '@/components/viz/TypeGlyph';
 import Values from '@/components/ui/Values';
 import TypeRiver from '../charts/TypeRiver';
-import { Beat, Moved, Say, StoryHero, StoryPage } from '../StoryPage';
+import { Beat, Moved, Say, StoryHero, StoryPage, rich } from '../StoryPage';
 import { WhichArchetype } from '../ArchetypeStory';
+import { classifyTimes, parseClock } from '@/lib/pacing-type';
 
 const PATH = '/stories/pacing-types';
 /** The mat times the type finder opens on: an even-ish 3:51 that fades late. */
@@ -34,6 +35,13 @@ export default function PacingTypesBody() {
   const ranked = types.map((t, i) => ({ t, i })).sort((a, b) => b.t.share - a.t.share);
   const bands = data.river;
   const width = bands.length > 1 ? bands[1].lo_min - bands[0].lo_min : 15;
+  // The type finder's heading is its example's reading, from the same classifier the finder runs on a reader's times.
+  const example = classifyTimes(EXAMPLE.map(parseClock), data.classifier);
+  const exampleType = example ? types[example.best] : null;
+  const finishSeconds = parseClock(EXAMPLE[8]);
+  const youTitle = exampleType && finishSeconds !== null
+    ? `This ${hm(Math.floor(finishSeconds / 60))} ran like ${/^[AEIOU]/i.test(exampleType.name) ? 'an' : 'a'} *${exampleType.name}*, as ${pct(exampleType.share)} of finishes did.`
+    : 'Your pacing type, from your splits.';
 
   return (
     <StoryPage path={PATH} numbers={[
@@ -68,7 +76,7 @@ export default function PacingTypesBody() {
       {/* The women-and-men beat is chapter 07's: an old link to it lands on this line, which shows only then. */}
       <Moved id="gender" href="/stories/who-holds-pace">Women and men, at the same finish times, are now chapter 07: Who holds pace.</Moved>
 
-      <Beat id="you" track="chapter-2" label="Your type" title="Which runner were you?" aliases={['habits']}>
+      <Beat id="you" track="chapter-2" label="Your type" title={rich(youTitle)} aliases={['habits']}>
         <WhichArchetype initial={EXAMPLE}
           data={{ types: types.map((t) => ({ name: t.name, share: t.share, profile: t.profile })), domain,
             classifier: { clip_lo: data.classifier.clip_lo, clip_hi: data.classifier.clip_hi, weights: data.classifier.weights, centroids: data.classifier.centroids } }} />

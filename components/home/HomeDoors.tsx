@@ -40,7 +40,7 @@ export default function HomeDoors({ courses }: { courses: HomeCourse[] }) {
       </form>
       <ul className="home-door-others">
         <li><Link href="/runners" className="home-door home-door-link">Analyze a past race<Arrow /></Link></li>
-        <li><Link href={chapterHref(CHAPTERS[0])} className="home-door home-door-link">Read it start to finish<Arrow /></Link></li>
+        <li><Link href={chapterHref(CHAPTERS[0])} className="home-door home-door-link">Start at the gun<Arrow /></Link></li>
       </ul>
     </section>
   );

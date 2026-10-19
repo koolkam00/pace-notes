@@ -17,8 +17,9 @@ const MINUS = '−';
 /** A signed value; one that rounds to zero is plain "0.0", never "−0.0". */
 const signed = (v: number, digits = 1) => (Math.abs(v) < 0.5 * 10 ** -digits ? (0).toFixed(digits) : `${v > 0 ? '+' : MINUS}${Math.abs(v).toFixed(digits)}`);
 const UNITS: UnitSystem[] = ['mi', 'km'];
-/** A section's shift in points of the finish's own average pace: "3.0 points quicker", "3.1 points slower". */
-const shift = (v: number) => (Math.abs(v) < 0.05 ? 'no shift' : `${Math.abs(v).toFixed(1)} points ${v < 0 ? 'quicker' : 'slower'}`);
+/** A section's shift against the finish's own average pace, in percent as All numbers gives it: "3.0% quicker",
+ *  "3.1% slower" (round 5: "points" had no stated base). */
+const shift = (v: number) => (Math.abs(v) < 0.05 ? 'no shift' : `${Math.abs(v).toFixed(1)}% ${v < 0 ? 'quicker' : 'slower'}`);
 
 /**
  * Race-morning weather (the redesign spec, section 7.11, new, under section 00): the weather half of the old course
@@ -131,14 +132,14 @@ export default function RaceMorningBody() {
 
       <Beat id="heat" track="chapter-2" label="The shape" title={tilt} aliases={['untangle']}
         // The dek says what the line measures (a shift, against a cooler morning's shape); the two labelled sections
-        // carry the numbers, in points of the finish's own average pace.
+        // carry the numbers, in percent of the finish's own average pace.
         dek={<ByUnits {...Object.fromEntries(UNITS.map((u) => [u, keep(`How much each section’s pace shifts, against the finish’s own average, on a morning ${tempGap(10, u)} warmer.`)])) as { mi: string; km: string }} />}>
         <LineProfile x={MID} xDomain={[0, 42.195]} yDomain={[-span, span]}
           // Quicker and slower both in ink (slower is never orange): the shape is the finding, not one section.
           layers={[{ id: 'heat', label: 'Warmer', series: [{ id: 'h', values: sig.map((s) => s.per_10c), fillAbove: 0, fillTone: 'quiet' }],
             points: [...(early >= 0 ? [{ x: MID[early], y: sig[early].per_10c, kind: 'compare' as const }] : []), ...(late >= 0 ? [{ x: MID[late], y: sig[late].per_10c, kind: 'compare' as const }] : [])],
             labels: [
-              // Each label says the shift in points of the finish's own average pace, and which way, as the dek says.
+              // Each label says the shift in percent of the finish's own average pace, and which way, as the dek says.
               ...(early >= 0 ? [{ x: MID[early], y: sig[early].per_10c, text: `${sectionName(sig[early].section)}: ${shift(sig[early].per_10c)}`, tone: 'ink' as const, priority: 2, prefer: 'below' as const }] : []),
               ...(late >= 0 ? [{ x: MID[late], y: sig[late].per_10c, text: `${sectionName(sig[late].section)}: ${shift(sig[late].per_10c)}`, tone: 'ink' as const, priority: 3, prefer: 'above' as const }] : []),
             ] }]}

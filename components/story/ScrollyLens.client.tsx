@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef } from 'react';
+import { applyLens } from '@/components/viz/lens-layer';
 
 /**
  * Turns a scrolly's chart with its steps (round numbers): it watches the scrolly's data-step, presses the lens option
@@ -11,7 +12,11 @@ import { useEffect, useRef } from 'react';
  * needle opens on the page's own reading (round numbers' 2:59), so the readout agrees with the heading above it.
  * Renders nothing.
  */
-export default function ScrollyLens({ lens, needle = {}, stillAt }: { lens: Record<number, string>; needle?: Record<number, number>; stillAt?: number }) {
+export default function ScrollyLens({ lens, needle = {}, stillAt, values }: {
+  lens: Record<number, string>; needle?: Record<number, number>; stillAt?: number;
+  /** The layer each lens name shows, where the figure draws no control to press ({ 'Against the curve': 'ratio' }). */
+  values?: Record<string, string>;
+}) {
   const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     const root = ref.current?.closest<HTMLElement>('.scrolly');
@@ -21,13 +26,22 @@ export default function ScrollyLens({ lens, needle = {}, stillAt }: { lens: Reco
       return keys.length ? map[Math.max(...keys)] : undefined;
     };
     let lastLens = '', lastNeedle = -1;
+    const end = Math.max(...Object.keys(lens).map(Number), ...Object.keys(needle).map(Number));
     const show = (step: number, at_ = at(needle, step)) => {
       const want = at(lens, step);
       if (want && want !== lastLens) {
         lastLens = want;
         const button = Array.from(root.querySelectorAll<HTMLButtonElement>('.viz-lens button')).find((b) => b.dataset.value === want || b.textContent === want);
-        if (button && button.getAttribute('aria-pressed') !== 'true') button.click();
+        if (button) { if (button.getAttribute('aria-pressed') !== 'true') button.click(); }
+        else {
+          // No control (the steps own the lens): set the figure's layer by its value ("count", "ratio") directly.
+          const figure = root.querySelector<HTMLElement>('.viz');
+          if (figure) applyLens(figure, values?.[want] ?? want);
+        }
       }
+      // The scrubber is the reader's once the steps are passed: until then the steps move the needle, and the drag
+      // handle stays hidden, so the beat has one control at a time (round 5).
+      root.toggleAttribute('data-free', step >= end);
       const i = at_;
       if (i !== undefined && i !== lastNeedle) {
         lastNeedle = i;
@@ -37,8 +51,7 @@ export default function ScrollyLens({ lens, needle = {}, stillAt }: { lens: Reco
     const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || document.documentElement.hasAttribute('data-motion-off');
     // A static list ends on its last step: show that step's state, once (a press and a set point, nothing animated).
     if (still || typeof MutationObserver !== 'function') {
-      const last = Math.max(...Object.keys(lens).map(Number), ...Object.keys(needle).map(Number));
-      show(last, stillAt ?? at(needle, last));
+      show(end, stillAt ?? at(needle, end));
       return;
     }
     const apply = () => { const step = Number(root.dataset.step); if (Number.isFinite(step)) show(step); };
@@ -46,6 +59,6 @@ export default function ScrollyLens({ lens, needle = {}, stillAt }: { lens: Reco
     mo.observe(root, { attributes: true, attributeFilter: ['data-step'] });
     apply();
     return () => mo.disconnect();
-  }, [lens, needle, stillAt]);
+  }, [lens, needle, stillAt, values]);
   return <span ref={ref} hidden />;
 }

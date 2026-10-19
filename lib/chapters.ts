@@ -48,8 +48,11 @@ export type Chapter = {
   also?: { href: string; label: string }[];
   /** Pages that belong to the chapter without being in its chain: a path, or a prefix ending in "/". */
   children?: string[];
-  /** Where a child's "← previous" goes (default: the chapter's last page). */
+  /** Where a child's "← previous" goes (default: the chapter's hub, else its last page). */
   back?: string;
+  /** The off-chain page a chapter's children belong to (/courses for the course pages): their way back, listed in the
+   *  rail and the contents, never in the next chain (round 5: a directory was a stop the journey stalled on). */
+  hub?: ChapterPage;
   /** The contents-row reading. */
   lead: NuggetId;
   /** The key under the lead when its nugget has none (spec 2.2); the nugget's own key, when it has one, takes its place. */
@@ -99,7 +102,7 @@ export const CHAPTERS: readonly Chapter[] = [
       analysis('starting-pace', 'Starting pace', 'kick.bank', '/methodology#fast-start-method'),
       analysis('downhill-start', 'Downhill starts', 'downhill.opening', ALL_FINISHER),
     ],
-    lead: 'kick.bank', key: 'behind at the finish, after a very fast first 5K' },
+    lead: 'kick.bank', key: 'behind same-pace runners at the finish, after a very fast first 5K' },
   { n: 3, id: 'chapter-03', part: 1, marker: '10K', title: 'The shape of a race', subtitle: 'Pacing types, your pattern',
     pages: [
       story('pacing-types', 'Pacing types', 'types.top'),
@@ -136,14 +139,16 @@ export const CHAPTERS: readonly Chapter[] = [
       analysis('age-and-pacing', 'Age and pace', 'age.retention'),
     ],
     lead: 'holds.gender', key: 'of recorded women’s and men’s finishes had a sustained slowdown, at the same finish times' },
+  // Every course (/courses) is the chapter's hub: the course pages' parent and way back, not a stop in the chain, so
+  // hills hands straight on to the weather.
   { n: 8, id: 'chapter-08', part: 2, marker: '08', title: 'Where you run', subtitle: 'Courses, hills, every city',
     pages: [
       story('courses', 'Course fingerprints', 'courses.named'),
       analysis('course-comparison', 'Compare the courses', 'courses.compare', ALL_FINISHER),
       analysis('hills-and-pacing', 'Hills and pacing', 'terrain.climb'),
-      page('/courses', 'course-index', 'Every course', 'Every course', 'courses.index', '/methodology#course-pages'),
     ],
-    children: ['/courses/'], back: '/courses',
+    hub: page('/courses', 'course-index', 'Every course', 'Every course', 'courses.index', '/methodology#course-pages'),
+    children: ['/courses/'],
     lead: 'courses.named', key: 'of races traced to their course by pacing shape alone' },
   { n: 9, id: 'chapter-09', part: 2, marker: '09', title: 'The weather', subtitle: 'Race morning, heat and wind',
     pages: [
@@ -161,14 +166,14 @@ export const CHAPTERS: readonly Chapter[] = [
       page('/runners', 'runner', 'Analyze a past race', 'Analyze a past race', 'runner.yours', '/methodology#runner-search'),
     ],
     children: ['/report'], back: '/runners',
-    lead: 'splitcheck.share', key: 'of finishes near the example’s time had a sustained slowdown' },
+    lead: 'splitcheck.share', key: 'of finishes at one finish time had a sustained slowdown' },
   { n: 11, id: 'chapter-11', part: 3, marker: '11', title: 'The next one', subtitle: 'Improvement, your plan',
     pages: [
       analysis('finding-improvement', 'Where runners improve', 'gains.final'),
       tool('plan', 'Plan your race', 'Plan your race', 'plan.courses'),
     ],
     also: [{ href: '/tools/pace-band', label: 'Pace band' }, { href: '/tools/course-chooser', label: 'Course chooser' }, { href: '/tools/predictor', label: 'Finish-time predictor' }],
-    lead: 'gains.final', key: 'of the time improving finishes gained came after 30K' },
+    lead: 'gains.final', key: 'of the minutes improving finishes gained came after 30K' },
 ];
 
 /** The /methodology anchors of off-chain pages that end on a ChapterEnd. */
@@ -196,7 +201,8 @@ export const chapterHref = (chapter: Chapter) => livePages(chapter)[0]?.href ?? 
 export const contentsHref = (chapter: Chapter) => `/research#${chapter.id}`;
 
 const isChild = (chapter: Chapter, path: string) =>
-  (chapter.children ?? []).some((c) => (c.endsWith('/') ? path.startsWith(c) && path.length > c.length : path === c))
+  chapter.hub?.href === path
+  || (chapter.children ?? []).some((c) => (c.endsWith('/') ? path.startsWith(c) && path.length > c.length : path === c))
   || (chapter.also ?? []).some((a) => a.href === path);
 
 export type Place =
@@ -251,6 +257,9 @@ export function prevOf(path: string): ChapterPage | null {
   const { chapter } = place;
   if ('child' in place) {
     const live = livePages(chapter);
+    const here = cleanPath(path);
+    // The hub hands back to the chain's last page; its children hand back to the hub.
+    if (chapter.hub && chapter.hub.href !== here) return chapter.hub;
     return live.find((p) => p.href === chapter.back) ?? lastOf(live) ?? null;
   }
   const before = lastOf(chapter.pages.slice(0, place.index).filter((p) => !p.pending));
@@ -268,6 +277,7 @@ export function howWeKnowOf(path: string): MethodsAnchor | null {
   if (!place) return null;
   if ('page' in place) return place.page.howWeKnow;
   const p = cleanPath(path);
+  if (place.chapter.hub?.href === p) return place.chapter.hub.howWeKnow;
   return CHILD_METHODS.find(([c]) => (c.endsWith('/') ? p.startsWith(c) : p === c))?.[1] ?? null;
 }
 
@@ -279,10 +289,10 @@ export function readingAttrs(path: string, short?: string): Record<string, strin
   const place = placeOf(path);
   const attrs: Record<string, string> = { 'data-reading': '' };
   if (place) attrs['data-marker'] = place.chapter.marker;
-  const title = short ?? (place && 'page' in place ? place.page.short : place?.chapter.title);
+  const title = short ?? (place && 'page' in place ? place.page.short : place && place.chapter.hub?.href === cleanPath(path) ? place.chapter.hub.short : place?.chapter.title);
   if (title) attrs['data-short'] = title;
   return attrs;
 }
 
 /** Every nugget id the registry names: lib/nuggets must resolve each one (verify-nuggets, verify-chapters). */
-export const CHAPTER_NUGGETS: readonly NuggetId[] = [...new Set(CHAPTERS.flatMap((c) => [c.lead, ...c.pages.map((p) => p.nugget)]))];
+export const CHAPTER_NUGGETS: readonly NuggetId[] = [...new Set(CHAPTERS.flatMap((c) => [c.lead, ...c.pages.map((p) => p.nugget), ...(c.hub ? [c.hub.nugget] : [])]))];

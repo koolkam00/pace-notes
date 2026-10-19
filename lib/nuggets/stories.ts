@@ -396,15 +396,17 @@ export function kickTwinsFrom(cost: Kick['cost']['stratified']): Nugget {
 
 /**
  * The final-kick H1: its own finding with its number (round 4: "Same pace to 20K, far apart" repeated chapter 01's
- * "Same 10K split, 49 minutes apart" and withheld its number). Said as an observation, never a cause; the same guard as
- * kick.twins (a typical gap of more than ten minutes), whose figure gives the same whole minutes.
+ * "Same 10K split, 49 minutes apart" and withheld its number), in one short claim (round 5: four display lines, then the
+ * same minutes again as a big figure). The comparison, the same pace to 20K, is the opener's dek. Said as an
+ * observation, never a cause; the same guard as kick.twins (a typical gap of more than ten minutes), whose figure, on
+ * the card into the page, gives the same whole minutes.
  */
 export function kickTitleFrom(cost: Pick<Kick['cost']['stratified'], 'median_gap_s'>): Nugget {
   const minutes = Math.round(cost.median_gap_s / 60);
   return {
     id: 'kick.title', page: '/stories/final-kick', denominator: 'kick',
     values: { median_gap_s: cost.median_gap_s }, guard: cost.median_gap_s > 600,
-    headline: `From the same pace to 20K, finishes with a sustained slowdown came in *${minutes}${NBSP}minutes* later.`,
+    headline: `A sustained slowdown: *${minutes}${NBSP}minutes* later at the finish.`,
     fallback: 'From the same pace to 20K, finishes with and without a sustained slowdown.',
     figure: null,
   };
@@ -569,13 +571,17 @@ export function holdsGenderFrom(o: Pick<Demographics['overall'], 'women_slowdown
   };
 }
 
-/** /stories/who-holds-pace H1: at the same finish times, recorded women held their pace more often (fewer sustained slowdowns). */
+/**
+ * /stories/who-holds-pace H1: at the same finish times, recorded women had far fewer sustained slowdowns, said in the
+ * measure's own words (round 5: "held their pace" named the group three ways across the site, and a finish without a
+ * sustained slowdown may still have slowed). "Far" needs men at least half as many again.
+ */
 export function holdsTitleFrom(o: Pick<Demographics['overall'], 'women_slowdown' | 'men_slowdown'>): Nugget {
   const w = o.women_slowdown, m = o.men_slowdown;
   return {
     id: 'holds.title', page: '/stories/who-holds-pace', denominator: 'demographics',
     values: { women: w, men: m }, guard: w > 0 && m > 1.5 * w,
-    headline: 'Recorded women *held their pace* more often.',
+    headline: 'Recorded women had *far fewer* sustained slowdowns.',
     fallback: 'Women and men',
     figure: null,
   };
@@ -616,9 +622,10 @@ export function holdsGhostFrom(bands: Pick<Demographics['bands'][number], 'label
   return {
     id: 'holds.ghost', page: '/stories/who-holds-pace#ghost', denominator: 'demographics',
     values: { band: b?.label ?? '', gap_s: gap, mat_km: mats[k] ?? NaN }, guard: together && gap >= 60,
-    // The lesson the chart draws, not only the gap's size: the men who were ahead gave it all back by the finish (the
-    // guard's `together`). The band is the beat's dek, so the H2 stays one clause of twelve words.
-    headline: b ? `Recorded men led by *${ms(gap)}* at ${matLabel(mats[k])}, then gave it all back.` : '',
+    // The selection is the frame and the gap the finding: these finishes share a finish band, so their meeting at the
+    // line is true by construction and is never told as a result (round 5: "then gave it all back" read as one). The
+    // guard (`together`) keeps the band one whose two groups finished within 30 seconds of each other.
+    headline: b ? `Finishing in ${b.label}, recorded men were *${ms(gap)}* ahead at ${matLabel(mats[k])}.` : '',
     fallback: b ? `Finishing in ${b.label}: recorded men and women, mat by mat.` : 'Recorded men and women, mat by mat.',
     figure: null,
   };

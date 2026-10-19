@@ -162,7 +162,7 @@ assert.deepEqual(time.parseTrackerText('25K 2:05:31\n30 km 02:31:07 4:59/km\nHal
   // The readers that fall back to parseDuration keep a typed unit too ("3.5h" shows "3:5h").
   assert.deepEqual([predictor.parseRaceTime('3:5h', 42.195), predictor.parseRaceTime('22:5 min', 5), projector.parseElapsed('2:5h'), split.parseMatTime('2:5h')],
     [12600, 1350, 9000, 9000]); ok();
-  const archetype = require('../components/story/ArchetypeStory.tsx');
+  const archetype = require('../lib/pacing-type.ts');   // the type finder's reader (moved out of ArchetypeStory, round 5)
   assert.deepEqual(['0.25.30', '1.12.55', '3,51,00', '0.25.75'].map(archetype.parseClock), [1530, 4375, 13860, null]); ok();
 }
 
@@ -570,6 +570,14 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   const archetypes = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/data/insights/archetypes.json'), 'utf8'));
   const k = splits.classify(r0.relative, archetypes.classifier);
   assert.equal(archetypes.classifier.names[k], 'Metronome'); ok();
+  // The type finder's own reader (lib/pacing-type.ts, also run at build for the story's example) agrees with the tools' classifier.
+  const finder = require('../lib/pacing-type.ts');
+  for (const t of [even, slow]) {
+    const got = finder.classifyTimes(t, archetypes.classifier);
+    assert.ok(got, 'the type finder reads a plain marathon');
+    assert.equal(got.best, splits.classify(splits.readSplits(t).relative, archetypes.classifier), 'type finder and tools classifier agree');
+  }
+  checks += 2;
 }
 
 // ---- interpolated share under a time

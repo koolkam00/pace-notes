@@ -4,6 +4,7 @@ import { STORIES } from '@/lib/stories';
 import { getNugget, sentenceOf } from '@/lib/nuggets';
 import { count, hm } from '@/lib/nuggets/format';
 import Histogram from '@/components/viz/Histogram';
+import Ruler from '@/components/viz/Ruler';
 import Scrolly from '@/components/ui/Scrolly.client';
 import GuessFirst from '@/components/ui/GuessFirst.client';
 import Values from '@/components/ui/Values';
@@ -57,6 +58,16 @@ export default function RoundNumbersBody() {
   const ratioFrom = hasQuarter ? last - 1 : last;
 
   const bubbleMark = String(rescue.values.mark);
+  // The opener's instrument: the H1's minute against the curve, as two marks on one count scale (what the curve expected,
+  // what came), so the figure's "1.7×" is drawn, not only said, and a desktop opener's right half holds it.
+  const topRow = ft.marks.find((m) => m.mark === top.values.mark);
+  const scaleTop = topRow ? Math.ceil(Math.max(topRow.minute_before, topRow.expected_minute_before) / 5000) * 5000 : 0;
+  const instrument = top.guard && topRow && scaleTop > 0 ? (
+    <Ruler min={0} max={scaleTop} ticks={[0, scaleTop / 2, scaleTop].map((v) => ({ value: v, label: count(v) }))}
+      marks={[{ value: topRow.expected_minute_before, kind: 'typical', label: `Expected ${count(topRow.expected_minute_before)}` },
+        { value: topRow.minute_before, kind: 'reading', label: `${hm(topMinute)} ${count(topRow.minute_before)}` }]}
+      label={`Finishes from ${hm(topMinute)} to ${hm(topMinute + 1)}: ${count(topRow.minute_before)}, against ${count(topRow.expected_minute_before)} on the smooth curve.`} />
+  ) : undefined;
 
   return (
     <StoryPage path={PATH} numbers={[
@@ -69,7 +80,7 @@ export default function RoundNumbersBody() {
           words; the count itself is the scrolly's last readout (a sentence here restated the H1 a third time). */}
       <StoryHero path={PATH} title={story.heading ?? story.title}
         figure={top.figure ? { ...top.figure } : undefined} unitLine={top.key} fallback={!top.guard}
-        sentence={top.figure ? undefined : <Say nugget={top} />} />
+        sentence={top.figure ? undefined : <Say nugget={top} />} instrument={instrument} />
 
       <Beat id="towers" track="chapter-1" label="The towers" aliases={['scoreboard', 'seconds', 'my-finish']} title={marksNugget}>
         <Scrolly className="towers-scrolly" steps={steps} graphic={(
@@ -77,18 +88,20 @@ export default function RoundNumbersBody() {
             <Histogram bins={bins} curve={curve} marks={marks.map((m) => m.minutes - 1)} reading={topMinute}
               ticks={[180, 240, 300, 360].map((m) => ({ x: m, label: hm(m) }))}
               label={`Finishes in each minute from ${hm(LO)} to ${hm(HI)}. ${sentenceOf(top).replace(/\*/g, '')}`}
-              lens={{ label: 'Show', ...LENS }} ratioAt={ratioAt}
-              keyLabels={{ bin: 'Each minute', mark: 'The minute before a round mark', curve: 'The smooth curve' }}
+              // The steps turn the lens (ScrollyLens), so the beat draws no lens control of its own (round 5: a lens, a
+              // scrubber and four steps were three controls on one beat).
+              lens={{ label: 'Show', ...LENS }} lensControl={false} ratioAt={ratioAt}
+              keyLabels={{ bin: 'Each minute', mark: 'Minute before a round mark', curve: 'The curve' }}
               scrub={{
                 label: `Finish minute, ${hm(LO)} to ${hm(HI)}`,
-                points: { x: xs, keys: bins.map((b) => `Finishes in ${hm(b.x)}:00–:59`), values: bins.map((b) => count(b.n)),
+                points: { x: xs, keys: bins.map((b) => `Finishes from ${hm(b.x)} to ${hm(b.x + 1)}`), values: bins.map((b) => count(b.n)),
                   // One decimal, as the figure above it says "1.7×" (the marks' two-decimal ratios are in All numbers).
                   side: [{ label: 'Against the curve', values: bins.map((b) => (Number.isFinite(ratio(b)) ? `${ratio(b).toFixed(1)}×` : '—')) }] },
                 // The chart opens on step one (the busiest minute), so its first readout adds to the reading above;
                 // the reading's minute is its home, the tower that stays orange.
                 initial: busiestAt, home: topAt, detents,
               }} />
-            <ScrollyLens lens={{ 0: LENS.count, [ratioFrom]: LENS.ratio }}
+            <ScrollyLens lens={{ 0: LENS.count, [ratioFrom]: LENS.ratio }} values={{ [LENS.count]: 'count', [LENS.ratio]: 'ratio' }}
               needle={{ 0: busiestAt, ...(hasQuarter ? { [ratioFrom]: quarterAt } : {}), [last]: topAt }} stillAt={topAt} />
           </>
         )} />

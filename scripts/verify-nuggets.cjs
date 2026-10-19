@@ -110,20 +110,24 @@ eq(new Set(N.CHAPTER_LEAD).size, N.CHAPTER_LEAD.length, 'eleven different chapte
 // that name their comparison, and again in round 3 in a runner's words), reproduced from the data where they hold a number.
 const keys = Object.fromEntries(N.CHAPTER_LEAD.map((id) => [id, N.getNugget(id).key]));
 eq(keys['field.median'], 'median finish', 'chapter 01 key');
-ok(/^behind at the finish, after a first 5K over \d+% fast$/.test(keys['kick.bank']), 'chapter 02 key');
+ok(/^behind same-pace runners at the finish, after a first 5K over \d+% fast$/.test(keys['kick.bank']), 'chapter 02 key');
 eq(keys['slowdown.onset'], 'of sustained slowdowns began at 30K or later', 'chapter 05 key');
 ok(/^as many finishes as expected in the minute before \d:\d\d$/.test(keys['round.top']), 'chapter 06 key');
 eq(keys['holds.gender'], 'of recorded women’s and men’s finishes had a sustained slowdown, at the same finish times', 'chapter 07 key');
 ok(/^of races traced to their course by pacing shape alone, against \d+% by chance$/.test(keys['courses.named']), 'chapter 08 key');
 eq(keys['weather.pairs'], 'same-course pairs: the warmer year had more sustained slowdowns', 'chapter 09 key');
-ok(/^of finishes near the example’s \d:\d\d had a sustained slowdown$/.test(keys['splitcheck.share']), 'chapter 10 key');
+ok(/^of finishes from \d:\d\d to \d:\d\d had a sustained slowdown$/.test(keys['splitcheck.share']), 'chapter 10 key');
 ok(/^of finishes on even \d:\d\d pace at 30K still got under \d:\d\d$/.test(keys['checkpoint.under']), 'chapter 04 key');
-eq(keys['gains.final'], 'of the time improving finishes gained came after 30K', 'chapter 11 key');
+eq(keys['gains.final'], 'of the minutes improving finishes gained came after 30K', 'chapter 11 key');
 
 // Every key stands alone as a short phrase a runner reads under its figure: never a bare figure jammed against a unit
 // ("1.0pts"), at most 90 characters.
 for (const n of all.filter((x) => x.key)) {
   ok(n.key.length <= 90, `${n.id}: the key "${n.key}" is over 90 characters`);
+  // A key that opens on a direction names what it is measured against, because it is read away from its page (home,
+  // the contents, a next card): "behind same-pace runners", "slower than even pace", never a bare "behind at the
+  // finish" (round 5).
+  if (/^(ahead|behind|slower|faster|quicker|later|earlier)\b/i.test(n.key)) ok(/\b(than|same|against|of the|elsewhere|typical)\b/i.test(n.key), `${n.id}: the key "${n.key}" opens on a direction without naming its comparator`);
   ok(!n.figure || !n.figure.unit || /^[%×]$/.test(n.figure.unit) || /^[\u00a0 ]|^°[CF]$|^in /.test(n.figure.unit), `${n.id}: the figure's unit "${n.figure && n.figure.unit}" needs a space before it`);
 }
 // One goal at one mat is one group: "on 4:00 pace at 20K" never stands for two different windows on two pages (the

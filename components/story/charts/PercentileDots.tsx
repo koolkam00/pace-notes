@@ -9,8 +9,9 @@ import { linear, pc } from '@/components/viz/scale';
 /**
  * The field as 99 finishes (the redesign spec, section 7.3, #field): one dot for each percentile finish time, from the
  * 1st to the 99th, binned into columns and stacked, so the field's shape builds itself out of finishes. The run the H2
- * names (the middle half) is ink and named in the key; the H2 gives its ends, so no time is printed on the dots. The
- * median is the one signal dot, on top of its column, named by a label with a short leader. The rest are quiet.
+ * names (the middle half) is ink and named in the key, the figure's one emphasis; the H2 gives its ends, so no time is
+ * printed on the dots. The median, inside it, is named in ink by a label with a short leader, on top of its column
+ * (round 5: an orange median here was the third orange median in two screens). The rest are quiet.
  *
  * Two sizes of the same picture, binned alike: 8 px dots for phones, and 16 px dots from 900 px, so the figure spans the
  * story's measure and keeps its weight on a wide screen.
@@ -20,7 +21,7 @@ export type DotLayer = {
   /** The run of dots the H2 names (the middle half), drawn ink and named in the key. */
   band: [number, number];
   bandLabel: string;
-  /** The one signal dot (the median) and its label. */
+  /** The named dot (the median) and its label, in ink. */
   mark: { index: number; text: string };
 };
 
@@ -65,7 +66,7 @@ export default function PercentileDots({ layer, domain, ticks, label, values }: 
     // Above the tallest column within the label's reach, so a crowded neighbour never covers it.
     const reach = textWidth(layer.mark.text, 14) / 2 + r + 2;
     const near = d.filter((p) => Math.abs(p.x - m.x) * width < reach).map((p) => p.level);
-    const placed = placeLabels([{ id: 'mark', text: layer.mark.text, x: m.x, y: yOf(Math.max(...near)), priority: 3, size: 14, tone: 'signal', gap: r + 6, prefer: 'above' }],
+    const placed = placeLabels([{ id: 'mark', text: layer.mark.text, x: m.x, y: yOf(Math.max(...near)), priority: 3, size: 14, tone: 'ink', gap: r + 6, prefer: 'above' }],
       { height, width, avoid: d.map((p) => ({ x: p.x, y: yOf(p.level), r })) });
     const lab = placed[0];
     // The leader: from under the label to the top of the median's dot (px, from the label's anchor point).
@@ -74,7 +75,7 @@ export default function PercentileDots({ layer, domain, ticks, label, values }: 
       <g className={`pd-${size}`}>
         {layer.minutes.map((_, i) => {
           const inBand = i >= layer.band[0] && i <= layer.band[1];
-          return <circle key={i} className={i === layer.mark.index ? 'm-signal' : inBand ? 'm-ink' : 'm-context'} cx={pc(d[i].x)} cy={pc(yOf(d[i].level))} r={r} />;
+          return <circle key={i} className={inBand || i === layer.mark.index ? 'm-ink' : 'm-context'} cx={pc(d[i].x)} cy={pc(yOf(d[i].level))} r={r} />;
         })}
         {lab.minWidth !== null && Math.abs(lab.dx) <= 16 && to - from > 3 ? (
           <rect className="leader" x={pc(m.x)} y={pc(lab.y)} width={1} height={to - from} transform={`translate(-0.5 ${from})`} />

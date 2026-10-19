@@ -16,7 +16,7 @@ import { JsonLd, absoluteUrl, pageMetadata } from '@/lib/seo';
 import { dataDate } from '@/lib/seo-routes';
 
 export const metadata = pageMetadata({
-  title: 'Methods & Sources: How Pace Notes Studies Marathon Splits',
+  title: 'How We Know: Pace Notes Methods and Sources',
   description: 'Where the Pace Notes marathon data comes from, what sustained slowdown and the other terms mean, how each number is worked out, and what it cannot show.',
   path: '/methodology',
 });
@@ -86,7 +86,6 @@ export default function MethodologyPage() {
     </aside>
     <article className="methods-flow">
       <header className="methods-hero">
-        <p className="t-kicker">Methods and sources</p>
         <h1 className="t-title">How we know</h1>
         <p className="methods-dek">Where the numbers come from, what each term means, how each one is worked out, and what none of them can show.</p>
       </header>

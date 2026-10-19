@@ -5,6 +5,12 @@
 .viz-frame .scrub-area { position: relative; touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 .viz-frame .scrub-plot { cursor: crosshair; outline: none; }
 .viz-frame .scrub-plot:focus-visible { outline: 2px solid var(--focus); outline-offset: 6px; border-radius: var(--r-xs); }
+/* Where an axis runs under the plot, the ring takes in its tick labels too (round 5: a ring 6 px under the plot ran
+   along the tops of "0", "2 min", "4 min"): drawn by the plot's ::after, so the slider keeps its focus. */
+@supports selector(:has(*)) {
+  .viz-frame .scrub-area:has(> .viz-axis) > .scrub-plot:focus-visible { outline: none; }
+  .viz-frame .scrub-area:has(> .viz-axis) > .scrub-plot:focus-visible::after { content: ''; position: absolute; top: -6px; right: -6px; bottom: -32px; left: -6px; border: 2px solid var(--focus); border-radius: var(--r-xs); pointer-events: none; }
+}
 
 /* The needle: 1.5 px of signal from the top of the plot to the baseline, or to the top of the mark it reads. */
 .viz-frame .scrub-needle { position: absolute; top: 0; bottom: 0; width: 1.5px; margin-left: -.75px; background: var(--signal); pointer-events: none; }
@@ -50,8 +56,9 @@
 .viz-frame.waffle .scrub-ring { width: calc(100% / var(--cols, 25) * 6 / 7); height: auto; aspect-ratio: 1; margin: 0; border-radius: 1.5px; transform: translate(-50%, -50%); background: var(--signal); box-shadow: 0 0 0 1px var(--paper); }
 @supports not (aspect-ratio: 1) { .viz-frame.waffle .scrub-ring { height: 10px; } }
 .viz-frame .is-pick .scrub-plot { cursor: pointer; }
-/* A dot strip's chosen dot grows and fills with ink, or keeps its signal on the subject: a ring is only ever the reader. */
-.viz-frame.dot-strip .scrub-ring { width: 14px; height: 14px; margin: -7px 0 0 -7px; background: var(--ink); box-shadow: 0 0 0 2px var(--paper); }
+/* A dot strip's chosen dot fills with ink at its own size (round 5: grown, it covered its stacked neighbours), or keeps
+   its signal on the subject: a ring is only ever the reader. */
+.viz-frame.dot-strip .scrub-ring { width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; background: var(--ink); box-shadow: 0 0 0 1.5px var(--paper); }
 .viz-frame.dot-strip.has-subject .scrub:not(.is-away) .scrub-ring { background: var(--signal); }
 
 @media (prefers-reduced-motion: reduce) {

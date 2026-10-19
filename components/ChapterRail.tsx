@@ -23,7 +23,8 @@ export default function ChapterRail({ path }: { path: string }) {
           : <span className="t-kicker">Chapter {chapterNumber(chapter)}</span>}</p>
         <p className="rail-title">{chapter.title}</p>
         <ol className="rail-pages">
-          {livePages(chapter).map((page) => (
+          {/* The chapter's hub (Every course) after its chain: the course pages' parent, reached from the rail. */}
+          {[...livePages(chapter), ...(chapter.hub ? [chapter.hub] : [])].map((page) => (
             <li key={page.href}>
               <ChapterLink href={page.href} className="rail-link" {...(page.href === here ? { 'aria-current': 'page' as const } : {})}>{page.short}</ChapterLink>
               {page.href === here ? <RailBeats /> : null}

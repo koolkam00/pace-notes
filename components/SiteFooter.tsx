@@ -12,7 +12,7 @@ export default function SiteFooter() {
       <div className="container site-footer-inner">
         <p className="site-footer-brand"><Link href="/" className="site-footer-home">Pace Notes</Link><span>by Andrew Kam</span></p>
         <nav className="site-footer-links" aria-label="About Pace Notes">
-          <Link href="/methodology">Methodology</Link>
+          <Link href="/methodology">How we know</Link>
           <Link href="/about">About</Link>
           <Link href="/privacy">Privacy</Link>
           <Link href="/request-analysis">Request an analysis</Link>

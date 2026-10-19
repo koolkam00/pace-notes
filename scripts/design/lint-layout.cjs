@@ -184,13 +184,20 @@ function inspect({ isHome }) {
   for (const a of document.querySelectorAll('h1 .term-link')) if (!hidden(a)) findings.termH1.push(describe(a.closest('h1')));
 
   // 7. A first screen has one orange control at most, on every route (round 4: the header's plan pill beside a tool's
-  // own primary was two).
+  // own primary was two). A control counts when its orange (its own fill, or an orange part of it such as a next card's
+  // go button) shows on the first screen at all, even cut by the fold (round 5: a next card's go half under the fold
+  // beside the header's pill was not counted). The header's brand mark is the site's name, not a control colour.
   {
     const orange = [];
+    const ORANGE = 'rgb(255, 91, 46)';
     for (const el of document.querySelectorAll('a, button, input[type="submit"], input[type="button"]')) {
-      const r = el.getBoundingClientRect();
-      if (!r.width || r.bottom <= 0 || r.top >= vh || hidden(el)) continue;
-      if (getComputedStyle(el).backgroundColor === 'rgb(255, 91, 46)') orange.push(describe(el));
+      if (hidden(el)) continue;
+      const part = getComputedStyle(el).backgroundColor === ORANGE ? el
+        : [...el.querySelectorAll('*')].find((c) => getComputedStyle(c).backgroundColor === ORANGE && !hidden(c) && !c.closest('.brand-mark'));
+      if (!part) continue;
+      const r = part.getBoundingClientRect();
+      if (!r.width || !r.height || r.bottom <= 0 || r.top >= vh) continue;
+      orange.push(describe(el));
     }
     if (orange.length > 1) findings.orange.push(`${orange.length} orange controls on the first screen: ${orange.join(', ')}`);
   }

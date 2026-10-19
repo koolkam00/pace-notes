@@ -235,7 +235,8 @@ async function journey(h, blocklist) {
   };
   const harvest = () => page.evaluate(() => {
     const text = ['#runner-profile', '.runner-selection', '.runner-context'].map(s => document.querySelector(s)?.innerText || '').join('\n');
-    const names = [...document.querySelectorAll('.runner-match strong')].map(n => n.textContent.trim()).filter(Boolean).slice(0, 3);
+    // The results fold to one row once a match is opened (round 5), so the opened group's own heading names it too.
+    const names = [...document.querySelectorAll('.runner-match strong, #runner-profile-title')].map(n => n.textContent.trim()).filter(Boolean).slice(0, 3);
     // Record IDs no longer show in the view's visible copy (October 18, 2026): they are in each record's closed
     // disclosure, the selection's remove buttons (opened with Edit) and, where two races would read the same, a select
     // option.

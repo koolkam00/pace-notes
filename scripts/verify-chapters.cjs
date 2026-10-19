@@ -80,6 +80,10 @@ test('nextOf: within a chapter, into the next one, from a child, and the finish'
   const into = C.nextOf('/stories/race-replay');
   assert.deepEqual([href(into), into.opensChapter, into.chapter.n], ['/analyses/starting-pace', true, 2]);
   assert.equal(C.nextOf('/courses/boston').chapter.n, 9);
+  // Every course is chapter 08's hub, off the chain (round 5): hills hands straight on to the weather, and the hub too.
+  const hills = C.nextOf('/analyses/hills-and-pacing');
+  assert.deepEqual([href(hills), hills.opensChapter, hills.chapter.n], ['/stories/race-morning', true, 9]);
+  assert.equal(href(C.nextOf('/courses')), '/stories/race-morning');
   assert.equal(href(C.nextOf('/report')), '/analyses/finding-improvement');
   assert.equal(href(C.nextOf('/tools/pace-band')), '/tools/plan');
   assert.equal(C.nextOf('/tools/plan'), null);
@@ -89,6 +93,8 @@ test('prevOf: within a chapter, across chapters, children and the start', () => 
   assert.equal(C.prevOf('/stories/race-replay').href, '/finish-times');
   assert.equal(C.prevOf('/analyses/starting-pace').href, '/stories/race-replay');
   assert.equal(C.prevOf('/courses/boston').href, '/courses');
+  assert.equal(C.prevOf('/courses').href, '/analyses/hills-and-pacing');
+  assert.equal(C.prevOf('/stories/race-morning').href, '/analyses/hills-and-pacing');
   assert.equal(C.prevOf('/report').href, '/runners');
   assert.equal(C.prevOf('/tools/marathon-pace/3-30').href, '/analyses/finish-time-context');
   assert.equal(C.prevOf('/finish-times'), null);
@@ -159,7 +165,7 @@ const built = (p) => hasOut
   : sitemap.includes(p) || (routes.NOINDEX.includes(p) && appRoute(p));
 if (!hasOut) notes.push(`no export in ${path.relative(root, OUT) || '.'}: routes checked against the sitemap and app/, anchors not checked`);
 
-const children = C.CHAPTERS.flatMap((c) => [...(c.also ?? []).map((a) => a.href), ...(c.children ?? []).filter((x) => !x.endsWith('/'))]);
+const children = C.CHAPTERS.flatMap((c) => [...(c.hub ? [c.hub.href] : []), ...(c.also ?? []).map((a) => a.href), ...(c.children ?? []).filter((x) => !x.endsWith('/'))]);
 const prefixed = C.CHAPTERS.flatMap((c) => (c.children ?? []).filter((x) => x.endsWith('/')));
 const childSamples = prefixed.map((prefix) => sitemap.find((p) => p.startsWith(prefix))).filter(Boolean);
 check(childSamples.length === prefixed.length, 'routes', `a child prefix has no built page: ${prefixed.join(', ')}`);
@@ -297,6 +303,33 @@ if (hasOut) {
   check(headings >= 20, 'beat headings', `only ${headings} h2.t-h2 headings were found in the export`);
 }
 
+// ---------- 10. An opener says its number once ----------
+// Read start to finish, a page's number arrives on the card into it, then in its H1's accent, then in the figure right
+// under the H1 (round 5): the opener must not say it twice. A figure under the H1 whose number is the H1 accent's own
+// fails on a story (its H1 says the finding in words, the figure carries the number); on an analysis or a tool, whose
+// receipt is its package's, it is a note.
+if (hasOut) {
+  const NUMBER = /\d[\d,.:]*(?:%|×)?/g;
+  for (const p of live) {
+    const file = [`${p.slice(1)}.html`, `${p.slice(1)}/index.html`].map((f) => path.join(OUT, f)).find((f) => fs.existsSync(f));
+    if (!file) continue;
+    const head = opener(fs.readFileSync(file, 'utf8'));
+    const h1 = /<h1\b[^>]*>([\s\S]*?)<\/h1>/.exec(head);
+    const em = h1 && /<em>([\s\S]*?)<\/em>/.exec(h1[1]);
+    if (!em) continue;
+    const accent = textOf(em[1]).match(NUMBER) || [];
+    const after = head.slice(head.indexOf(h1[0]) + h1[0].length);
+    const big = /<span class="big-number[^"]*"><span aria-hidden="true">([\s\S]*?)<\/span><span class="sr-only">/.exec(after);
+    const figure = big ? textOf(big[1]).replace(/\s+/g, '').match(NUMBER) || [] : [];
+    const twice = accent.filter((n) => figure.some((f) => f.replace(/[%×]$/, '') === n.replace(/[%×]$/, '')));
+    if (!twice.length) continue;
+    const place = C.placeOf(p);
+    const message = `the H1's accent "${textOf(em[1]).trim()}" and the figure under it ("${textOf(big[1]).trim()}") say ${twice.join(', ')} twice: say it once`;
+    if (place && 'page' in place && ['analysis', 'tool'].includes(place.page.kind)) notes.push(`${p}: ${message}`);
+    else check(false, p, message);
+  }
+}
+
 // ---------- 6. The components, rendered ----------
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
@@ -331,7 +364,7 @@ test('ChapterEnd: the finish card on /tools/plan, no tracking or feedback when a
   assert.match(plan, /is-finish/);
   // The way on from the finish (round 3): back to the start of the race, chapter 01, and on to a past race.
   assert.ok([C.chapterHref(C.CHAPTERS[0]), '/runners'].every((h) => hrefs(plan).includes(h)), hrefs(plan).join(' '));
-  assert.match(plan, /Back to the gun: Chapter 01 /);
+  assert.match(plan, /Back to the gun · Chapter 01 /);
   assert.equal(render('components/ChapterEnd.tsx', { path: '/methodology', feedback: false }), '');
 });
 test('ChapterRail marks the current page', () => {
@@ -348,7 +381,8 @@ test('ChapterList: compact without readings or ids, expanded with ids and every 
   assert.doesNotMatch(compact, /chapter-reading|id="chapter-/);
   const expanded = render('components/ui/ChapterList.tsx', { variant: 'expanded', readingOf });
   assert.deepEqual([...expanded.matchAll(/<li class="chapter-row" id="(chapter-\d\d)"/g)].map((m) => m[1]), C.CHAPTERS.map((c) => c.id));
-  assert.equal((expanded.match(/class="chapter-page-link"/g) || []).length, live.length);
+  // Every chain page, and each chapter's hub (Every course) after its chain.
+  assert.equal((expanded.match(/class="chapter-page-link"/g) || []).length, live.length + C.CHAPTERS.filter((c) => c.hub).length);
   const full = render('components/ui/ChapterList.tsx', { variant: 'full', readingOf });
   assert.equal((full.match(/class="chapter-reading"/g) || []).length, 11);
   // No reading, no figure slot: a chapter whose lead had none would show its title alone (verify-nuggets requires

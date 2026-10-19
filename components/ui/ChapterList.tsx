@@ -30,7 +30,7 @@ import { CHAPTERS, chapterHref, livePages, partLabel, type Chapter, type Chapter
  */
 type Variant = 'compact' | 'full' | 'expanded';
 
-const pagesOf = (chapter: Chapter) => [...chapter.pages.map((p) => p.href), ...(chapter.children ?? []), ...(chapter.also ?? []).map((a) => a.href)];
+const pagesOf = (chapter: Chapter) => [...chapter.pages.map((p) => p.href), ...(chapter.hub ? [chapter.hub.href] : []), ...(chapter.children ?? []), ...(chapter.also ?? []).map((a) => a.href)];
 
 /** A key as plain text: the rows are links (or sit in a whole-row link), so a key never holds a second tap target; the
  *  page a row opens links the term in its own first screen. */
@@ -85,7 +85,8 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
                   <Reading readingOf={readingOf} id={chapter.lead} fallbackKey={chapter.key} size="s" />
                 </div>
                 <ol className="chapter-pages">
-                  {livePages(chapter).map((page) => (
+                  {/* The chapter's hub (Every course) closes its list: a page of the chapter, outside its chain. */}
+                  {[...livePages(chapter), ...(chapter.hub ? [chapter.hub] : [])].map((page) => (
                     <li key={page.href}>
                       <ChapterLink href={page.href} match={[page.href]} className="chapter-page-link">
                         <span className="chapter-page-title">{page.title}</span>

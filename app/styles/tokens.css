@@ -176,6 +176,9 @@
   --measure-figure: 52rem;
   --measure-wide: 75rem;
   --header-h: 56px;
+  /* The space from the header to a crumb-led page's first line (its crumb row on a phone, its H1 beside the rail):
+     one value on every chapter template, so paging through a chapter the title never steps (round 5). */
+  --page-top: var(--s-4);
   --reading-h: 36px;
   --chip-h: 48px;
 }
@@ -193,6 +196,7 @@
     --t-body: 1.125rem;
     --t-readout: 2rem;
     --header-h: 64px;
+    --page-top: var(--s-6);
   }
 }
 

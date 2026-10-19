@@ -141,7 +141,7 @@ export function FinishTimeStart() {
     window.location.assign(unitHref(href, units));
   }}>
     <label htmlFor="runner-finish-time"><b>Only know your finish time?</b><span>Type it to see how finishes near it were paced.</span></label>
-    <div className="runner-start-fields"><input id="runner-finish-time" className="input" inputMode="decimal" autoComplete="off" spellCheck={false} placeholder="4:05:30" value={text} aria-invalid={error ? true : undefined} aria-describedby={error ? 'runner-finish-time-error' : undefined} onChange={event => { setText(keypadInput(event.target, event.nativeEvent)); setError(''); }} /><button className="btn btn-secondary runner-start-go" type="submit"><span className="sr-only">See how finishes near it were paced</span><Arrow /></button></div>
+    <div className="runner-start-fields"><input id="runner-finish-time" className="input" inputMode="decimal" autoComplete="off" spellCheck={false} placeholder="4:05:30" value={text} aria-invalid={error ? true : undefined} aria-describedby={error ? 'runner-finish-time-error' : undefined} onChange={event => { setText(keypadInput(event.target, event.nativeEvent)); setError(''); }} /><button className="btn btn-secondary runner-start-go" type="submit">See finishes</button></div>
     <KeypadHint block />
     {error && <p className="runner-note runner-start-error" id="runner-finish-time-error" role="alert">{error}</p>}
   </form>;
@@ -199,6 +199,9 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts,
   const [profile, setProfile] = useState<RunnerProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState<number | null>(null);
   const [profileError, setProfileError] = useState('');
+  // Once a match is opened the results fold to one row (the name, its count, Change), so the profile it opened is the
+  // next thing on screen, not under 25 rows of other names (round 5); Change unfolds them.
+  const [listOpen, setListOpen] = useState(true);
   const [selected, setSelected] = useState<RunnerRace[]>([]);
   const [confirmed, setConfirmed] = useState<RunnerRace[] | null>(null);
   // Once the selection is viewed its bar folds to a quiet row ("3 races selected · Edit"): the orange button comes back
@@ -212,7 +215,7 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts,
   const runSearch = useCallback(async (value: string, source: RunnerManifest) => {
     searchController.current?.abort(); profileController.current?.abort();
     const controller = new AbortController(); searchController.current = controller;
-    setProfile(null); setProfileLoading(null); setProfileError(''); setMatches([]); setPage(0); setSearchError('');
+    setProfile(null); setProfileLoading(null); setProfileError(''); setMatches([]); setPage(0); setSearchError(''); setListOpen(true);
     if (!normalizeRunnerName(value)) { setSearched(''); setSearchError('Enter a recorded name or the beginning of a name.'); setSearchLoading(false); return; }
     setSearched(value.trim()); setSearchLoading(true);
     trackAnalytics('runner_search_submitted', {});
@@ -263,10 +266,12 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts,
     setProfile(null); setProfileLoading(id); setProfileError('');
     try {
       const value = await loadRunnerProfile(id, manifest, controller.signal);
-      if (!controller.signal.aborted) { setProfile(value); setProfileLoading(null); trackAnalytics('runner_profile_opened', {}); }
+      if (!controller.signal.aborted) { setProfile(value); setProfileLoading(null); setListOpen(false); trackAnalytics('runner_profile_opened', {}); }
     } catch (error) { if (!controller.signal.aborted) { setProfileError(errorMessage(error)); setProfileLoading(null); } }
   };
-  useEffect(() => { if (profile) profileHeading.current?.focus({ preventScroll: false }); }, [profile]);
+  // The opened profile's heading takes focus; with the list folded to one row above it, the focus scroll brings it up
+  // under the header (its scroll margin).
+  useEffect(() => { if (profile) profileHeading.current?.focus(); }, [profile]);
   // Once the chosen races' analysis is on screen, focus moves to its first heading, as the profile step's does, so a
   // keyboard or screen-reader user lands where the page scrolled (the scroll itself is the View button's).
   useEffect(() => {
@@ -281,6 +286,8 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts,
     setConfirmed(null); setEditing(false);
   };
   const visibleMatches = runnerSearchPage(matches, page);
+  // Only with matches: the empty page renders no number (a throwing toLocaleString must fail the results, not hydration).
+  const groupsFound = matches.length ? `${count(matches.length)} matching ${matches.length === 1 ? 'record group' : 'record groups'}` : '';
   const pages = Math.ceil(matches.length / RUNNER_PAGE_SIZE);
   const orderedRaces = useMemo(() => profile && manifest ? [...profile.races].sort((a, b) => manifest.editions[b.edition].year - manifest.editions[a.edition].year || a.id - b.id) : [], [profile, manifest]);
   // The records the open profile lists, each with its tag and (when limited) its checkpoints.
@@ -304,7 +311,7 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts,
       else window.history.pushState({ runnerQuery: value }, '', href);
       if (manifest) void runSearch(query, manifest);
       else { if (manifestError) setManifestRetry(attempt => attempt + 1); setWaiting(query); }
-    }}><label htmlFor="runner-name" className="runner-search-label">Recorded name</label><div className="runner-search-fields"><input id="runner-name" className="input" type="search" enterKeyHint="search" autoComplete="name" maxLength={120} value={query} onChange={event => setQuery(event.target.value)} placeholder="First or last name" aria-describedby="runner-name-help" /><button className="btn btn-secondary runner-search-go" type="submit" aria-busy={busy || undefined}>{busy ? 'Searching…' : 'Find races'}</button></div><p id="runner-name-help" className="runner-note">Any order, with or without accents; the first three letters of a name are enough.</p></form>
+    }}><label htmlFor="runner-name" className="runner-search-label">Recorded name</label><div className="runner-search-fields"><input id="runner-name" className="input" type="search" enterKeyHint="search" autoComplete="name" maxLength={120} value={query} onChange={event => setQuery(event.target.value)} placeholder="First or last name" aria-describedby="runner-name-help" /><button className="btn btn-secondary runner-search-go" type="submit" aria-busy={busy || undefined}>{busy ? 'Searching…' : 'Find races'}</button></div><p id="runner-name-help" className="runner-note">Any order, with or without accents; three letters are enough.</p></form>
     {waiting !== null && <p className="runner-note runner-status" role="status">Finding matching names…</p>}
     {manifestError && <div className="runner-error" role="alert"><p>{manifestError}</p><button type="button" className="btn btn-secondary is-compact" onClick={() => setManifestRetry(value => value + 1)}>Try again</button></div>}
     {searchError && <div className="runner-error" role="alert"><p>{searchError}</p>{searched && <button type="button" className="btn btn-secondary is-compact" onClick={() => manifest && void runSearch(searched, manifest)}>Try again</button>}</div>}
@@ -312,16 +319,18 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts,
     </div>
     <div className="runner-main">
     {!searched && starts}
-    {manifest && searched && !searchLoading && !searchError && <section className="runner-results ph-no-capture" aria-labelledby="runner-results-title">
-      <h2 id="runner-results-title" className="runner-h"><span role="status">{matches.length ? `${count(matches.length)} matching ${matches.length === 1 ? 'record group' : 'record groups'}` : 'No matching recorded name'}</span></h2>
-      <p className="runner-note">{matches.length ? `For “${searched}”. People can share a name, and one person can appear in more than one group: check the races before combining them.` : 'Try the spelling on the original result, a surname, or fewer name parts.'}</p>
+    {manifest && searched && !searchLoading && !searchError && <section className="runner-results ph-no-capture" aria-labelledby="runner-results-title">{profile && !listOpen && matches.length > 0
+      ? <p className="runner-results-row"><span id="runner-results-title"><b>{searched}</b> · {groupsFound}</span><button type="button" className="btn btn-tertiary" onClick={() => setListOpen(true)}>Change</button></p>
+      : <>
+      <h2 id="runner-results-title" className="runner-h"><span role="status">{matches.length ? groupsFound : 'No matching recorded name'}</span></h2>
+      <p className="runner-note">{matches.length ? `For “${searched}”. People can share a name: check the races before combining them.` : 'Try the spelling on the original result, a surname, or fewer name parts.'}</p>
       {!matches.length && <NoMatchNext manifest={manifest} />}
-      {matches.length > NARROW_ABOVE && <p className="runner-note runner-narrow">Add a first name to narrow {count(matches.length)} groups.</p>}
+      {matches.length > NARROW_ABOVE && <p className="runner-note runner-narrow">Add a first name to narrow them.</p>}
       {/* Each row as a runner recognizes a race: one race by its city and year ("Washington 2014"), several by their
           count and span ("3 races · 2011–2025"). */}
       {matches.length > 0 && <ul className="runner-matches">{visibleMatches.map(row => <li key={row[1]}><button className="runner-match" type="button" aria-expanded={profile?.id === row[1]} aria-controls="runner-profile" onClick={() => void openProfile(row[1])}><span><strong>{shownName(row[0])}</strong><small>{row[2] === 1 ? `${row[5]} ${row[3]}` : `${count(row[2])} races · ${row[3] === row[4] ? row[3] : `${row[3]}–${row[4]}`}`}</small></span><span className="runner-match-action">{profileLoading === row[1] ? 'Loading…' : <span className="sr-only">See races</span>}<Arrow /></span></button></li>)}</ul>}
       {pages > 1 && <nav className="runner-pagination" aria-label="Search result pages"><button type="button" className="btn btn-secondary is-compact" disabled={page === 0} onClick={() => setPage(value => value - 1)}>Previous</button><span>{count(page * RUNNER_PAGE_SIZE + 1)}–{count(Math.min(matches.length, (page + 1) * RUNNER_PAGE_SIZE))} of {count(matches.length)}</span><button type="button" className="btn btn-secondary is-compact" disabled={page + 1 >= pages} onClick={() => setPage(value => value + 1)}>Next</button></nav>}
-    </section>}
+    </>}</section>}
     {profileError && <div className="runner-error" role="alert"><p>{profileError} Select the match again to retry.</p></div>}
     <div id="runner-profile" className="ph-no-capture">{manifest && profile && <section className="runner-profile" aria-labelledby="runner-profile-title"><h2 id="runner-profile-title" className="runner-h" tabIndex={-1} ref={profileHeading}>{[...new Set(profile.names.filter(Boolean).map(displayName))].join(' / ') || 'Recorded race group'}</h2><p className="runner-note">Tick only the races you recognize. You can add races from other matches too.</p>
       <ul className="runner-races">{orderedRaces.map(race => <li className="runner-race" key={race.id}><label className="runner-race-row"><input type="checkbox" checked={selected.some(row => row.id === race.id)} onChange={() => toggleRace(race)} /><span className="runner-race-body"><RunnerRecordDetails race={race} manifest={manifest} copyEditions={copyEditions} /></span></label>

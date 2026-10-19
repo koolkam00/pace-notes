@@ -11,7 +11,7 @@ export const WIDE = '(min-width: 1180px)';
 /**
  * The site menu (the redesign spec, section 2.4): under 600 px a bottom sheet, from 600 to 1179 px a right drawer. Top to
  * bottom: nav#site-menu (the five links and the .nav-more line, nothing else: S1), the chapters (nav.chapter-list, server
- * markup from the root layout) and a small row of Methodology and Privacy.
+ * markup from the root layout) and a small row of How we know (/methodology) and Privacy.
  *
  * From 1180 px the same markup serves the wide header (menu.css): the sheet and its panel flatten (display: contents), so
  * nav#site-menu is one row of the header and only the chapters show, in their own right drawer (#site-chapters), opened by
@@ -56,7 +56,7 @@ export default function MenuSheet({ open, onClose, chapters }: { open: MenuMode;
               {chapters}
             </div>
           </div>
-          <p className="menu-foot"><Link href="/methodology" className="menu-foot-link">Methodology</Link><Link href="/privacy" className="menu-foot-link">Privacy</Link></p>
+          <p className="menu-foot"><Link href="/methodology" className="menu-foot-link">How we know</Link><Link href="/privacy" className="menu-foot-link">Privacy</Link></p>
         </div>
       </div>
     </div>

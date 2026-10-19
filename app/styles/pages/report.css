@@ -4,13 +4,13 @@
    and published research carry their badges; calculations from the race's own times carry none. It prints as one page,
    ink on paper. The lap list (components/report/LapList.tsx) is styled here for both pages. */
 
-.report-page { padding-top: var(--s-5); }
+.report-page { padding-top: var(--page-top); }
 /* The report's headings in the redesign's Fraunces (optical size following the size, weight 440), not the legacy
    h1/h2 display cut; inside the runner view too. */
 .report-page h1, .report-page h2, .report-page h3, .report-page h4, .race-report h1, .race-report h2, .race-report h3, .race-report h4 { font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; }
 /* Inside main.container, so the site's gutter and left edge: only a reading width of its own. */
 .report-page { max-width: 46rem; }
-.report-crumbs { margin-bottom: var(--s-3); }
+/* .report-crumbs keeps the reading crumbs' own spacing, so the H1 lands where every chapter page's does. */
 
 /* ---------- The card ---------- */
 .race-report-root { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); min-width: 0; }
@@ -177,7 +177,8 @@ a.race-report-badge:focus-visible { outline: 2px solid var(--focus); outline-off
 
 /* ---------- Actions ---------- */
 .race-report-actions { display: grid; gap: var(--s-2); }
-/* Two actions: print (the primary) and Share, which opens the sheet with the image, the device's share and the link. */
+/* Two actions: Share (the primary, at every width), which opens the sheet with the image, the device's share and the
+   link, then Print. */
 .race-report-actions .share-bar { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .race-report-actions .share-bar .btn { padding-inline: 18px; }
 .race-report-actions .share-bar .btn-primary { flex: 1 1 auto; }
@@ -196,15 +197,6 @@ a.race-report-badge:focus-visible { outline: 2px solid var(--focus); outline-off
 .race-report-preview-wait { padding: var(--s-3); font-size: var(--t-label); line-height: 1.35; text-align: center; color: var(--ink-3); }
 @media (min-width: 600px) {
   .race-report-actions .share-bar .btn-primary { flex: 0 1 auto; }
-}
-/* On a touch screen or a phone-width window Share is what a phone does: it takes the primary look and comes first;
-   Print steps back. */
-@media (pointer: coarse), (max-width: 599.98px) {
-  .race-report-actions .share-bar .race-report-share-open { order: -1; flex: 1 1 auto; background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-  .race-report-actions .share-bar .race-report-share-open:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-  .race-report-actions .share-bar .race-report-share-open:active { background: var(--accent-press); border-color: var(--accent-press); }
-  .race-report-actions .share-bar .race-report-print { flex: 0 1 auto; background: transparent; border-color: var(--ink); color: var(--ink); }
-  .race-report-actions .share-bar .race-report-print:hover { background: var(--paper-sunk); border-color: var(--ink); color: var(--ink); }
 }
 
 /* ---------- Without a race in the link ---------- */
@@ -243,8 +235,10 @@ a.race-report-badge:focus-visible { outline: 2px solid var(--focus); outline-off
   .report-page .race-report-stat.is-type > small { padding-right: var(--s-2); }
   .report-page .race-report-block { margin-top: var(--s-6); }
   /* The actions continue the right column (the tiles, the comparison, the foot); the two columns end there, and the
-     closing stack starts again at the page's left edge at its own width, as on every other page. */
+     closing stack spans both, so its card ends on the report's own right edge (round 5: at its own width it lined up
+     with nothing above it). */
   .report-page .race-report-actions { max-width: none; margin-left: calc((100% - var(--s-7)) * 7 / 12 + var(--s-7)); }
+  .report-page .chapter-end { max-width: none; }
 }
 
 /* ---------- Print: the card alone, one page, ink on paper ---------- */

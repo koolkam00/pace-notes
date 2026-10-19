@@ -129,9 +129,11 @@ export default function ReportActions({ id, model, units, link, cardId, gender, 
   return (
     <div className="race-report-actions no-print" id={id}>
       <div className="tool-share share-bar">
-        <button type="button" className="btn btn-primary is-compact race-report-print" data-not-edit onClick={() => printCard(cardId)}>Print or save as PDF</button>
-        <button type="button" className="btn btn-secondary is-compact race-report-share-open" data-sheet-open={sheetId} aria-haspopup="dialog" aria-expanded={open} aria-controls={sheetId}
+        {/* Share is the one primary at every width, Print the outline beside it (round 5: the two traded colours
+            between a phone and a desktop). */}
+        <button type="button" className="btn btn-primary is-compact race-report-share-open" data-sheet-open={sheetId} aria-haspopup="dialog" aria-expanded={open} aria-controls={sheetId}
           onClick={() => { setMounted(true); setOpen(true); }}>Share</button>
+        <button type="button" className="btn btn-secondary is-compact race-report-print" data-not-edit onClick={() => printCard(cardId)}>Print or save as PDF</button>
       </div>
       {mounted ? (
         <Suspense fallback={null}>

@@ -264,6 +264,9 @@ module.exports = function stories({ json, eq, ok, core }) {
     const gap = Math.max(...b.ghost_s);
     eq([n.values.band, n.values.gap_s], [b.label, gap], 'holds.ghost: the band with the most matched finishes, its widest gap');
     eq(n.guard, Math.abs(b.ghost_s[b.ghost_s.length - 1]) < 30 && gap >= 60, 'holds.ghost: "finished together" within 30 seconds');
+    // The band is the frame, the gap at its widest mat the finding; the meeting at the line (true by construction) is
+    // never told as a result.
+    if (n.guard) ok(core.sentenceOf(n).startsWith(`Finishing in ${b.label}, recorded men were *`) && !/gave it all back/.test(core.sentenceOf(n)), 'holds.ghost: the band frames the gap');
   };
   R['holds.title'] = (n) => {
     const o = demo.overall;

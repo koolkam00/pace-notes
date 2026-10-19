@@ -1,11 +1,12 @@
 'use client';
 
-import { Suspense, lazy, useEffect, useId, useMemo, useState, type ComponentType } from 'react';
+import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState, type ComponentType } from 'react';
 import { MARATHON_KM, matLabel, paceLabel, paceValue, sectionLabel, type UnitSystem } from '@/lib/units';
 import { paceTicks } from '@/lib/pace-ticks';
 import { runnerDuration, runnerMetrics, type RunnerManifest, type RunnerMetrics, type RunnerRace } from '@/lib/runner-search';
 import { UnitLink } from './UnitsProvider';
 import Segmented from './ui/Segmented.client';
+import Arrow from './ui/Arrow';
 import Values from './ui/Values';
 import LineProfile from './viz/LineProfile';
 import ShareBar from './viz/ShareBar';
@@ -88,10 +89,10 @@ export const defaultGroup = (race: RunnerRace): ComparisonKey => runnerAgeBand(r
  * The race's own pacing: the race report's verdict as the view's finding (the split check's rules on the record's whole
  * seconds: a sustained slowdown, where it began and how far off the 5–20K pace; or the slowest stretch after 20K), then
  * the lap list with the report's own rows lit, so the view and the report a tap below say the same thing in the same
- * words. With the race report open below, its own card carries the finding and the mats, so the heading and this list
- * step aside. The view's one way on is the race report (round 4: the split check is in the report's share sheet).
+ * words. With the race report open, the report takes the view's place (its card carries the finding and the mats). The
+ * view's one way on is the race report (round 4: the split check is in the report's share sheet).
  */
-export function PacingReadings({ race, metrics, manifest, units, laps = true }: MeasuredRace & { manifest: RunnerManifest; units: UnitSystem; laps?: boolean }) {
+export function PacingReadings({ race, metrics, manifest, units }: MeasuredRace & { manifest: RunnerManifest; units: UnitSystem }) {
   const id = useId();
   const times = wholeSeconds(metrics);
   const reading = times ? readSplits(times) : null;
@@ -110,14 +111,12 @@ export function PacingReadings({ race, metrics, manifest, units, laps = true }: 
   const opening = metrics.openingChange / 100;
   return <section className="rc-view" aria-labelledby={`${id}-title`}>
     {/* The race's voice, as the report beside it speaks: a name search can find a namesake's record. */}
-    {/* With the report open below, its card says the same (its lap list and its First 5K tile), so the heading steps
-        aside with the lap list: it stays the section's name for screen readers, over nothing visible. */}
-    <h3 id={`${id}-title`} className={laps ? 'rc-h' : 'sr-only'}>{heading}</h3>
+    <h3 id={`${id}-title`} className="rc-h">{heading}</h3>
     {/* The first 5K only where it parted from the early pace by 1% or more: a smaller difference says nothing. In the
         report's words and precision ("5.3% quicker"), so the two never disagree. */}
-    {laps && Math.abs(metrics.openingChange) >= 1 ? <p className="rc-copy">The first 5K was {openingPct(opening)} {opening < 0 ? 'quicker' : 'slower'} than the {joinRanges('5–20K')} pace.</p> : null}
-    {laps ? <LapList rows={rows} baseline={paceLabel(metrics.baseline, units)} label={`Pace through ${titleFor(race, manifest)}, each mat against the 5–20K pace${verdict?.slowdown ? `; a sustained slowdown from ${matLabel(verdict.onsetKm)}` : ''}`}
-      caption={verdict?.slowdown ? 'Highlighted: the sustained slowdown.' : undefined} /> : null}
+    {Math.abs(metrics.openingChange) >= 1 ? <p className="rc-copy">The first 5K was {openingPct(opening)} {opening < 0 ? 'quicker' : 'slower'} than the {joinRanges('5–20K')} pace.</p> : null}
+    <LapList rows={rows} baseline={paceLabel(metrics.baseline, units)} label={`Pace through ${titleFor(race, manifest)}, each mat against the 5–20K pace${verdict?.slowdown ? `; a sustained slowdown from ${matLabel(verdict.onsetKm)}` : ''}`}
+      caption={verdict?.slowdown ? 'Highlighted: the sustained slowdown.' : undefined} />
     <details className="values rc-details"><summary><span>Checkpoint readings</span><span className="values-glyph" aria-hidden="true" /></summary>
       <div className="rc-table-wrap table-wrap" role="region" aria-label="Recorded checkpoints" tabIndex={0}><table className="table"><caption className="sr-only">Elapsed times and section paces</caption><thead><tr><th scope="col">Checkpoint</th><th scope="col">Elapsed</th><th scope="col">Section time</th><th scope="col">Section pace</th></tr></thead><tbody>{metrics.sections.map(section => <tr key={section.end}><th scope="row">{matLabel(section.end)}</th><td>{runnerDuration(section.cumulative)}</td><td>{runnerDuration(section.elapsed)}</td><td>{paceLabel(section.pace, units)}</td></tr>)}</tbody></table></div>
     </details>
@@ -277,6 +276,15 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
   // to that focus race shows it again where it was.
   const [reportFor, setReportFor] = useState<number | null>(null);
   const [reportPressed, setReportPressed] = useState(false);
+  // Opening the report brings its way back and its top under the header; closing it returns to the analysis's top,
+  // which takes focus (the button pressed has gone).
+  const sectionRef = useRef<HTMLElement>(null), backRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!reportPressed) return;
+    const target = reportFor === null ? sectionRef.current : backRef.current;
+    target?.scrollIntoView({ block: 'start' });
+    if (reportFor === null) target?.focus({ preventScroll: true });
+  }, [reportFor, reportPressed]);
   useEffect(() => {
     const controller = new AbortController(); setLoading(true); setFailure(''); setContexts({});
     loadRaceInsights(races, manifest, controller.signal).then(data => { if (!controller.signal.aborted) { setContexts(data); setLoading(false); } }).catch(error => { if (!controller.signal.aborted) { setFailure(error instanceof Error ? error.message : 'Race context could not load. Try again.'); setLoading(false); } });
@@ -304,16 +312,19 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
   const reportTimes = report ? wholeSeconds(focus.metrics) : null;
   // The split check with these times is in the report's share sheet, the view's one way on.
   const splitHref = splitCheckHref(focus.metrics.sections.map(section => section.cumulative), edition.city);
-  const reportOpen = reportFor === focus.race.id;
+  const reportOpen = reportFor === focus.race.id, showReport = reportOpen && report && reportTimes;
   // A race is named by its edition and finish; the record number is added only where two races would read the same.
   const raceName = ({ race, metrics }: MeasuredRace) => `${titleFor(race, manifest)} · ${runnerDuration(metrics.finish)}`;
   const optionText = (row: MeasuredRace, rows: MeasuredRace[]) => rows.filter(other => raceName(other) === raceName(row)).length > 1 ? `${raceName(row)} · record ${row.race.id}` : raceName(row);
-  return <section className="runner-context ph-no-capture" aria-labelledby={`${id}-title`}>
+  return <section ref={sectionRef} tabIndex={-1} className="runner-context ph-no-capture" aria-labelledby={`${id}-title`}>
     {/* One heading: the race in view (with two or more, the focus race the select picks). */}
     <header className="rc-heading"><h2 id={`${id}-title`} className={valid.length < 2 ? undefined : 'sr-only'}>{`${titleFor(focus.race, manifest)}, ${runnerDuration(focus.metrics.finish)}`}</h2><label className="rc-focus" htmlFor={`${id}-focus`} hidden={valid.length < 2}>Focus race<select id={`${id}-focus`} className="select" value={focus.race.id} onChange={event => { setReportPressed(false); setFocusId(Number(event.target.value)); }}>{valid.map(row => <option key={row.race.id} value={row.race.id}>{optionText(row, valid)}</option>)}</select></label></header>
+    {/* With the race report open it takes the view's place (round 5: appended under the view, it repeated the Pacing
+        tab's lap list a screen higher): the tabs and the comparison step aside behind one way back. */}
+    {showReport ? null : <>
     <Segmented className="rc-tabs" label="Race detail view" options={TABS} value={tab} onChange={setTab} block />
     <div className="rc-panel" id={`${id}-panel`}>
-      {tab === 'pacing' && <PacingReadings {...focus} manifest={manifest} units={units} laps={!(report && reportTimes && reportOpen)} />}
+      {tab === 'pacing' && <PacingReadings {...focus} manifest={manifest} units={units} />}
       {tab === 'peers' && <><label className="rc-group-control" htmlFor={`${id}-group`}>Compare with runners in this edition<select id={`${id}-group`} className="select" value={selectedGroup} onChange={event => setGroupState({ race: focus.race.id, key: event.target.value as ComparisonKey })}>{groupOptions.map(option => <option key={option.key} value={option.key} disabled={!option.available}>{option.label}</option>)}</select></label>{unavailable}{context && (comparison ? <RunnerPeerComparison comparison={comparison} metrics={focus.metrics} units={units} edition={titleFor(focus.race, manifest)} /> : <div className="rc-empty"><h3 className="rc-h">This group is too small for a reliable comparison.</h3><p className="rc-copy">The recorded pacing is under “Pacing.”</p>{selectedGroup !== 'all' && <button type="button" className="btn btn-secondary is-compact" onClick={() => setGroupState({ race: focus.race.id, key: 'all' })}>Compare with all eligible runners</button>}</div>)}</>}
       {tab === 'conditions' && <>{unavailable}{context && <RunnerConditions context={context} metrics={focus.metrics} units={units} wet={wetFocus} />}</>}
     </div>
@@ -328,11 +339,12 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
         })}</tbody></table>
       </Values>
     </section>}
+    </>}
     {report && reportTimes && <section className="rc-report" aria-labelledby={`${id}-report-title`}>
       <h3 id={`${id}-report-title`} className={reportOpen ? 'sr-only' : 'rc-h'}>{titleFor(focus.race, manifest)} on one page, to print or share.</h3>
       {/* Marked for section_viewed: the section tracker watches sections that join the page after it first looked. */}
       {reportOpen
-        ? <div data-track-section="report"><Suspense fallback={<p className="rc-copy" role="status">Loading the race report…</p>}><RaceReport times={reportTimes} course={courseSlug(edition.city)} gender="all" data={report} level={3}
+        ? <div data-track-section="report"><button ref={backRef} type="button" className="btn btn-tertiary rc-report-back" onClick={() => setReportFor(null)}><Arrow dir="left" />Back to the analysis</button><Suspense fallback={<p className="rc-copy" role="status">Loading the race report…</p>}><RaceReport times={reportTimes} course={courseSlug(edition.city)} gender="all" data={report} level={3}
           record={{ edition: { city: edition.city, year: edition.year }, context: context && wetFocus ? { ...context, terrain: null } : context ?? null, error: failure || null, lateChange: focus.metrics.lateChange }} focusOnOpen={reportPressed} onward={splitHref ? runnerHandoffHref(splitHref) : null} /></Suspense></div>
         : <button type="button" className="btn btn-secondary" onClick={() => { setReportPressed(true); setReportFor(focus.race.id); }}>Make a race report</button>}
     </section>}

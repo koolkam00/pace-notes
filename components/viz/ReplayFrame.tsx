@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { withEm } from '@/components/ui/withEm';
 import ByUnits from '@/components/ui/ByUnits.client';
-import { fieldX } from './replay-geometry';
+import { FIELD_BOX, fieldX, MARATHON } from './replay-geometry';
 
 /**
  * The replay's frame (the redesign spec, sections 3.6 and 7.1), drawn the same before and after its canvas loads so
@@ -43,6 +43,12 @@ export type FrameProps = {
   split?: { km: number; label: string };
 };
 
+/*
+ * Every mark the moment's sentence names (the first finisher, the back of the field, the share short of 20K) is true at
+ * the flag frame only, so each shows while that frame holds and fades out as soon as the clock leaves it (round 5: a
+ * label drawn through the run-up and the playback contradicted the frame under it).
+ */
+
 export default function ReplayFrame({ race, clock, finished, view, poster, canvas, moment, momentOn = true, playing = false, onPlay, time = 0, max = 0, onScrub, valuetext, busy, status, live = false, aspect, mark, split }: FrameProps) {
   const hours = Math.max(0, Math.floor(max / 3600));
   const ready = !!onScrub;
@@ -65,6 +71,13 @@ export default function ReplayFrame({ race, clock, finished, view, poster, canva
         <div className="replay-plot">
           {poster}
           {canvas}
+          {/* The first finisher, on the finish line in the top lane: the sentence's "When the first runner finished" is
+              drawn, not only counted (the sample need not hold the winner, whose lane is the top one). */}
+          {moment && view === 'field' ? (
+            <span className={`replay-first${momentOn ? '' : ' is-off'}`} style={{ left: `${(fieldX(MARATHON) * 100).toFixed(2)}%`, top: `${(FIELD_BOX.top * 100).toFixed(2)}%` }} aria-hidden="true">
+              <s /><b>1st</b>
+            </span>
+          ) : null}
           {mark && view === 'field' ? (
             <span className={`replay-mark${momentOn ? '' : ' is-off'}`} style={{ left: `${(fieldX(mark.km) * 100).toFixed(2)}%` }} aria-hidden="true">
               <b><ByUnits mi={mark.label.mi} km={mark.label.km} /></b><i /><s />

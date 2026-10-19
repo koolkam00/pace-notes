@@ -1,6 +1,7 @@
 /* The reading bar (components/ReadingBar.client.tsx; the redesign spec, sections 2.4 and 3.5): 36 px, under the header's
    row, shown only while the header is away, so it slides up into the header's place. The marker and the page's short
-   title, the minutes left, and along the bottom a 2 px line: ink to the reading position, a signal dot at it, a 1 px
+   title, the minutes left, and along the bottom a 2 px line: ink to the reading position, an ink dot at it (chrome, so
+   never the accent: round 5), a 1 px
    tick at every beat. --p (0 to 1) is set by the bar as the page scrolls. Solid paper: nothing reads through it. */
 
 .reading-bar {
@@ -20,7 +21,7 @@
 .reading-bar-line { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--rule); clip-path: inset(-12px 0 -12px 0); }
 .reading-bar-line i { position: absolute; bottom: 0; width: 1px; height: 6px; background: var(--ink-3); }
 .reading-bar-fill { position: absolute; inset: 0; background: var(--ink); transform-origin: left center; transform: scaleX(var(--p, 0)); }
-.reading-bar-dot { position: absolute; top: 50%; left: calc(var(--p, 0) * (100% - 10px) + 5px); width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 0 2px var(--paper); }
+.reading-bar-dot { position: absolute; top: 50%; left: calc(var(--p, 0) * (100% - 10px) + 5px); width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 2px var(--paper); }
 
 @media (min-width: 1180px) {
   .reading-bar { display: none; }

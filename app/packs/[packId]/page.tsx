@@ -7,7 +7,7 @@ import { movedPackIds, movedTo } from '@/lib/seo-routes';
 export const dynamicParams = false;
 export function generateStaticParams() { return movedPackIds().map((packId) => ({ packId })); }
 
-const SENTENCE = 'The research archive now lives in the methodology, where every data file is still free to download.';
+const SENTENCE = 'The research packs now live in How we know, where every data file is still free to download.';
 
 export function generateMetadata({ params }: { params: { packId: string } }) {
   return movedMetadata(`/packs/${params.packId}`, 'Research Archive: Moved | Pace Notes', SENTENCE);

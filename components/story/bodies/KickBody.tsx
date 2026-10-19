@@ -8,6 +8,7 @@ import LineProfile from '@/components/viz/LineProfile';
 import DotGrid from '@/components/viz/DotGrid';
 import Values from '@/components/ui/Values';
 import Columns from '@/components/viz/Columns';
+import Ruler from '@/components/viz/Ruler';
 import { Beat, Moved, Say, StoryHero, StoryPage, rich } from '../StoryPage';
 
 const PATH = '/stories/final-kick';
@@ -38,11 +39,10 @@ export default function KickBody() {
   const w = data.warning[Math.floor(data.warning.length / 2)];
   const wTop = Math.ceil(Math.max(...w.rows.map((r) => r.later)) * 10) / 10;
 
-  // The last stretch: the share running each section faster than the one before.
-  // The last four sections drawn (so each name fits a phone), every section in the table.
-  const lastFour = data.magnet.slice(-4);
-  // The beat's subject is finishes with a sustained slowdown (the H2's share), so the columns are theirs.
-  const mTop = Math.ceil(Math.max(...lastFour.map((m) => m.slowdown)) * 10) / 10;
+  // The last stretch: the share running each section faster than the one before, for finishes with a sustained
+  // slowdown (the H2's share): the final section, and the band of every section before it (every section in the table).
+  const final = data.magnet[data.magnet.length - 1];
+  const before = data.magnet.slice(0, -1);
   const s = data.recovery.stay[0];
 
   return (
@@ -60,14 +60,14 @@ export default function KickBody() {
         columns={[{ key: 's', label: 'Section' }, { key: 'd', label: 'With a sustained slowdown' }, { key: 'a', label: 'All finishes' }]}
         rows={data.magnet.map((m) => [sectionName(m.section), pct(m.slowdown), pct(m.all)])} reading={data.magnet.length - 1} />,
     ]}>
-      {/* The H1 is the finding with its minutes; the figure holds them and its unit line says what they are a gap
-          against (finishes without one), the term's first use, so it carries the one link to its definition. The next
-          beat draws the gap at every pace, so the reading needs no instrument of its own. */}
+      {/* The H1 says the finding with its minutes, once (round 5: a big "20 min" under it said them again); the dek
+          names the comparison, the same pace to 20K, and carries the term's one link to its definition. The next beat
+          draws the gap at every pace, so the opener needs no figure or instrument of its own. */}
       <StoryHero path={PATH} title={story.heading ?? story.title}
-        figure={twins.figure ? { ...twins.figure } : undefined} unitLine={twins.guard ? rich('the typical gap, against finishes with no sustained slowdown', { term: true }) : undefined} fallback={!twins.guard}
-        sentence={twins.guard ? undefined : <Say nugget={twins} term />} />
+        dek={twins.guard ? rich('Against finishes with no sustained slowdown, from the same pace through 20K.', { term: true }) : undefined}
+        fallback={!twins.guard} sentence={twins.guard ? undefined : <Say nugget={twins} term />} />
 
-      <Beat id="twins" track="chapter-1" label="Same pace, apart" title={bands} dek="With a sustained slowdown against without, at each pace through 20K.">
+      <Beat id="twins" track="chapter-1" label="Same pace, apart" title={bands}>
         <LineProfile x={cx} xDomain={[cost[0].lo_min, cost[cost.length - 1].lo_min + width]} yDomain={[0, gTop]}
           layers={[{ id: 'gap', label: 'Minutes later', series: [{ id: 'gap', values: gap }], band: { lo: gap.map(() => 0), hi: gap },
             labels: [
@@ -98,10 +98,13 @@ export default function KickBody() {
           caption={<span className="dot-grid-key"><span><i className="is-ink" />Stayed that slow</span><span><i />Did not</span></span>} />
       </Beat>
 
-      <Beat id="magnet" track="chapter-4" label="The last stretch" title={magnet} aliases={['women-men']} dek={magnet.guard ? 'Finishes with a sustained slowdown.' : undefined}>
-        <Columns max={mTop} items={lastFour.map((m, i) => ({ id: m.section, label: sectionName(m.section), value: m.slowdown, display: pct(m.slowdown), tone: i === lastFour.length - 1 ? 'signal' : 'ink' }))}
-          label={`The share of finishes with a sustained slowdown that ran each section faster than the one before: ${lastFour.map((m) => `${sectionName(m.section)} ${pct(m.slowdown)}`).join(', ')}.`}
-          caption="With a sustained slowdown: ran the section faster than the one before" />
+      {/* A scale, not a second set of columns (round 5: two near-identical bar charts on one page): the last stretch's
+          share as the one orange dot, against the band every 5K before it held. */}
+      <Beat id="magnet" track="chapter-4" label="The last stretch" title={magnet} aliases={['women-men']} dek={magnet.guard ? 'Finishes with a sustained slowdown, against each 5K before.' : undefined}>
+        <Ruler min={0} max={1} ticks={[0, 0.25, 0.5, 0.75, 1].map((v) => ({ value: v, label: pct(v) }))}
+          band={{ lo: Math.min(...before.map((m) => m.slowdown)), hi: Math.max(...before.map((m) => m.slowdown)), label: 'Each 5K before' }}
+          marks={[{ value: final.slowdown, kind: 'reading', label: `${sectionName(final.section)} ${pct(final.slowdown)}` }]}
+          label={`Of finishes with a sustained slowdown, ${pct(final.slowdown)} ran ${sectionName(final.section)} faster than the section before, against ${pct(Math.min(...before.map((m) => m.slowdown)))} to ${pct(Math.max(...before.map((m) => m.slowdown)))} in each 5K from ${sectionName(before[0].section)} on.`} />
       </Beat>
 
       <Moved id="bank" href="/analyses/starting-pace">Fast starts and what followed are now on Starting pace.</Moved>

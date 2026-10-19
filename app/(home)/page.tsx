@@ -10,6 +10,7 @@
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { assertCohortTotals } from '@/components/CohortNote';
 import HomeDoors from '@/components/home/HomeDoors';
+import InfoNext from '@/components/InfoNext';
 import UnitSentence from '@/components/home/UnitSentence.client';
 import HeroReplay from '@/components/story/HeroReplay';
 import ChapterList from '@/components/ui/ChapterList';
@@ -60,7 +61,6 @@ export default function Page() {
 
   const totals = getNugget('site.totals');
   const title = totals.guard ? totals.headline : totals.fallback;
-  const { cities, first_year: firstYear, last_year: lastYear } = totals.values;
   const guess = getNugget('home.second20k');
   const share = Number(guess.values.share);
   // The guess hands off to the page that continues it: the pacing types, whose opener restates the answer ("Only 1 in
@@ -77,7 +77,6 @@ export default function Page() {
     <section className="night home-band home-start" aria-labelledby="hero-title" data-track-section="hero">
       <div className="container home-start-grid">
         <div className="home-hero-copy">
-          <p className="t-kicker home-hero-kicker">{cities} city marathons · {firstYear}–{lastYear}</p>
           <h1 id="hero-title" className="t-display home-hero-title"><UnitSentence mi={textFor(title, 'mi')} km={textFor(title, 'km')} /></h1>
           <p className="home-hero-dek">Pick a course and a goal. See how finishes at that pace held up there.</p>
           <HomeDoors courses={courses} />
@@ -96,7 +95,7 @@ export default function Page() {
           marks="dots" unit="of 100" min={0} max={60} step={1}
           question="Of 100 finishes, how many ran their second 20K faster than their first?"
           truth={share * 100} truthLabel="Second 20K faster" answer={sentenceOf(guess)}
-          next={pattern ? { href: pattern.page.href, label: `Chapter ${chapterNumber(pattern.c)} · ${pattern.page.short}` } : undefined}
+          next={pattern ? { href: pattern.page.href, label: `Chapter ${chapterNumber(pattern.c)} · ${pattern.c.title}` } : undefined}
         />
       ) : <p className="t-sentence">{withEm(sentenceOf(guess))}</p>}
     </section>
@@ -108,6 +107,8 @@ export default function Page() {
         <p className="home-guide-dek">{chapterCount.charAt(0).toUpperCase() + chapterCount.slice(1)} chapters, from the gun through the <Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link> to the finish line.</p>
       </div>
       <ChapterList variant="full" readingOf={readingOf} label="The chapters, start to finish" className="home-chapters" />
+      {/* The guide ends on the way in, in the words the finish card answers ("Back to the gun"). */}
+      <InfoNext className="home-guide-start" />
     </section>
 
     <section className="night home-band home-cta" aria-labelledby="cta-title" data-track-section="cta">

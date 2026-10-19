@@ -50,7 +50,7 @@ export function FinishCard() {
       <p className="next-card-title">That’s the race, start to finish.</p>
       <p className="finish-card-links">
         {/* Short enough for one line at 390 px (critic round 4: "· The field" left "field" alone on a line). */}
-        <Link href={chapterHref(first)} className="finish-card-link">Back to the gun: Chapter {chapterNumber(first)} <Arrow /></Link>
+        <Link href={chapterHref(first)} className="finish-card-link">Back to the gun · Chapter {chapterNumber(first)} <Arrow /></Link>
         <Link href="/runners" className="finish-card-link">Analyze a past race <Arrow /></Link>
       </p>
     </div>

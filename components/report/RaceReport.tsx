@@ -112,7 +112,8 @@ export default function RaceReport({ times, course, gender, data, level, example
   const link = reportLink(times, city, gender, handoff);
   const retry = () => { if (index.error) index.retry(); else retryShard(); };
   const cardId = `${id}-card`;
-  useEffect(() => { if (focusOnOpen) document.getElementById(`${cardId}-title`)?.focus(); }, [focusOnOpen, cardId]);
+  // preventScroll: the page that opens the report places it (the runner view scrolls its way back into view).
+  useEffect(() => { if (focusOnOpen) document.getElementById(`${cardId}-title`)?.focus({ preventScroll: true }); }, [focusOnOpen, cardId]);
   return (
     <div className="race-report-root ph-no-capture">
       <ReportCard id={cardId} model={model} units={units} level={level} gender={gender} dropped={dropped} retryComparison={retry} retryType={archetypes.retry} handoff={handoff} example={example} />
@@ -222,8 +223,9 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
   );
 }
 
-/** "the typical finisher who held pace": a comparison group's median, as the heading names it. */
-const groupName = (g: ReportGroup) => (g.key === 'held' ? 'the typical finisher who held pace' : g.key === 'slowdown' ? 'the typical finisher with a sustained slowdown' : 'the typical finisher at this time');
+/** "the typical finish with no sustained slowdown": a comparison group's median, as the heading names it, in the measure's
+ *  own words (round 5). */
+const groupName = (g: ReportGroup) => (g.key === 'held' ? 'the typical finish with no sustained slowdown' : g.key === 'slowdown' ? 'the typical finish with a sustained slowdown' : 'the typical finish at this time');
 
 function ComparisonBlock({ id, Head, comparison: c, model, gender, dropped, retry }: { id: string; Head: HeadTag; comparison: ReportComparison; model: ReportModel; gender: ReportGender; dropped: string | null; retry: () => void }) {
   const note = dropped ? <p className="race-report-meta">{dropped} is not one of the comparison’s courses, so this race is compared with finishes on all courses.</p> : null;

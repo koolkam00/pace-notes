@@ -6,7 +6,7 @@
 /* One measure down the page: the reading, every beat's figure and Values, and the chapter end share one right edge. */
 .story-flow { min-width: 0; }
 .story-flow > .reading, .story-hero-beat > .reading { max-width: var(--measure-figure); }
-.story-hero-beat .reading { padding-top: var(--s-4); }
+.story-hero-beat .reading { padding-top: var(--page-top); }
 .story-hero-beat .reading-rule { margin: var(--s-5) 0; }
 .story-hero-beat .reading-instrument { max-height: none; }
 .story-hero-beat .reading-instrument > .viz-frame { margin: 0; }
@@ -98,16 +98,16 @@
 /* The waffle sits on the column's left edge like every other figure on a story, not centred in it. */
 .story-beat .viz-frame.waffle .viz-plot { margin-inline: 0; }
 
-/* 100 finishes: ten by ten across the column on a phone (up to 300 px, as the home page's grid), never a small block on
-   one side of an empty frame; from 900 px one band of 25 by 4 across the story's measure, its dots growing with it. */
-.story-beat .dot-grid.is-band .dot-grid-dots { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 8px; width: 100%; max-width: 300px; }
+/* 100 finishes as a band across the column: 20 by 5 on a phone, 25 by 4 from 900 px, the dots about 12 px, so 84 lit
+   dots read as a share and never as a black slab (round 5: ten by ten at 23 px was the heaviest ink on the page). Under
+   300 px (200% zoom) ten by ten. */
+.story-beat .dot-grid.is-band .dot-grid-dots { grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 5px; width: 100%; max-width: 22rem; }
 .story-beat .dot-grid.is-band .dot-grid-dots li { width: 100%; height: auto; aspect-ratio: 1; }
 @media (max-width: 299.98px) {
-  .story-beat .dot-grid.is-band .dot-grid-dots { gap: 5px; }
+  .story-beat .dot-grid.is-band .dot-grid-dots { grid-template-columns: repeat(10, minmax(0, 1fr)); }
 }
 @media (min-width: 900px) {
-  .story-beat .dot-grid.is-band .dot-grid-dots { grid-template-columns: repeat(25, minmax(0, 1fr)); gap: 10px; width: 100%; max-width: var(--measure-figure); }
-  .story-beat .dot-grid.is-band .dot-grid-dots li { width: 100%; height: auto; aspect-ratio: 1; }
+  .story-beat .dot-grid.is-band .dot-grid-dots { grid-template-columns: repeat(25, minmax(0, 1fr)); gap: 7px; max-width: 30rem; }
 }
 
 /* The 100 dots' key: lit and unlit, named once. */
@@ -217,6 +217,12 @@
 .towers-scrolly[data-step='0'] .viz-key, .towers-scrolly[data-step='1'] .viz-key li:nth-child(2) { opacity: 0; }
 .towers-scrolly .viz-key { transition: opacity var(--d-step) var(--ease-out); }
 .towers-scrolly .viz-key li { transition: opacity var(--d-step) var(--ease-out); }
+/* The steps own the lens and the needle (ScrollyLens): until the last step the drag handle and its detents stay hidden
+   and the plot takes no touches, so the beat has one control at a time; data-free hands the needle to the reader. The
+   readout's "Against the curve" value shows only under that lens, so the per-minute steps read one number. */
+.towers-scrolly:not([data-free]) .scrub-crown-row, .towers-scrolly:not([data-free]) .scrub-detents { visibility: hidden; }
+.towers-scrolly:not([data-free]) .scrub-area { pointer-events: none; }
+.towers-scrolly .viz[data-k='count'] .readout-side { visibility: hidden; }
 
 /* ---------- Phones at 200% zoom ---------- */
 @media (max-width: 359.98px) {
@@ -239,7 +245,7 @@
 }
 
 @media (min-width: 900px) {
-  .story-hero-beat .reading { padding-top: var(--s-6); }
+  .story-hero-beat .reading { padding-top: var(--page-top); }
   .type-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .which-grid { grid-template-columns: repeat(9, minmax(0, 1fr)); }
   /* Nine sections in a row once each has room for "40K–finish". */
@@ -267,3 +273,6 @@
   .place-shift .ps-row { grid-template-columns: 11rem minmax(0, 1fr); align-items: center; gap: var(--s-4); }
 }
 
+/* The courses named on the bundle (the slowest 5K elsewhere) knock the 27 faint lines out wider than a plain label's
+   halo, so no line runs through or behind their words (round 5). */
+.fingerprints .viz-label { stroke-width: 5px; }

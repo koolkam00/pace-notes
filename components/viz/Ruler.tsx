@@ -27,8 +27,9 @@ const SIZE = 13;
 
 export default function Ruler({ min, max, ticks, marks, label, className, band }: {
   min: number; max: number; ticks: { value: number; label: string }[]; marks: RulerMark[]; label: string; className?: string;
-  /** A range drawn on the line under the marks (lo and hi on the scale's own values). */
-  band?: { lo: number; hi: number };
+  /** A range drawn on the line under the marks (lo and hi on the scale's own values), named above its middle when it has
+   *  a label (in quiet ink: the reading keeps the one accent). */
+  band?: { lo: number; hi: number; label?: string; tone?: 'quiet' | 'signal' };
 }) {
   const x = linear([min, max]);
   const tight = ticks.length > 0;
@@ -37,6 +38,9 @@ export default function Ruler({ min, max, ticks, marks, label, className, band }
   const order = { reading: 4, you: 3, compare: 2, typical: 1 } as const;
   const top = marks.filter((m) => m.label && (tight || m.kind === 'reading' || m.kind === 'you'));
   const items: LabelItem[] = top.map((m, i) => ({ id: `t${i}`, text: m.label!, x: x(m.value), y: TRACK_Y, priority: order[m.kind], size: m.kind === 'reading' ? 14 : SIZE, gap: 12, tone: m.kind === 'reading' ? 'signal' : m.kind === 'typical' ? 'quiet' : 'ink', prefer: 'above' }));
+  // A signal band is the reading itself (the stretch the headline names): a thin orange run on the line, named in signal.
+  const signalBand = band?.tone === 'signal';
+  if (band?.label && tight) items.push({ id: 'band', text: band.label, x: Math.max(0, Math.min(1, x((band.lo + band.hi) / 2))), y: TRACK_Y, priority: signalBand ? 5 : 0, size: signalBand ? 14 : SIZE, gap: 12, tone: signalBand ? 'signal' : 'quiet', prefer: 'above' });
   const above = placeLabels(items, { height, avoid: marks.map((m) => ({ x: x(m.value), y: TRACK_Y, r: 7 })) }).map((l) => (l.dy > 0 ? { ...l, minWidth: null } : l));
   // Without ticks, under the line on two lines: each label reads away from the reading, from 4 px past its dot's centre.
   const pivot = x(marks.find((m) => m.kind === 'reading')?.value ?? (min + max) / 2);
@@ -57,7 +61,8 @@ export default function Ruler({ min, max, ticks, marks, label, className, band }
       plot={(
         <Plot>
           <rect className="ruler-track" x="0" y={pc(TRACK_Y)} width="100%" height="1" />
-          {band ? <rect className="a-band" x={pc(Math.max(0, x(band.lo)))} y={pc(TRACK_Y)} width={pc(Math.max(0, Math.min(1, x(band.hi)) - Math.max(0, x(band.lo))))} height="10" rx="5" transform="translate(0 -4.5)" /> : null}
+          {band ? <rect className={signalBand ? 'a-band is-signal' : 'a-band'} x={pc(Math.max(0, x(band.lo)))} y={pc(TRACK_Y)} width={pc(Math.max(0, Math.min(1, x(band.hi)) - Math.max(0, x(band.lo))))}
+            height={signalBand ? 4 : 10} rx={signalBand ? 2 : 5} transform={signalBand ? 'translate(0 -1.5)' : 'translate(0 -4.5)'} /> : null}
           {[...marks].sort((a, b) => order[a.kind] - order[b.kind]).map((m, i) => {
             const cx = pc(x(m.value)), cy = pc(TRACK_Y);
             if (m.kind === 'typical') return <circle key={i} className="m-hollow" cx={cx} cy={cy} r={5.5} />;

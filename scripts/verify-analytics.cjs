@@ -558,7 +558,8 @@ assert.ok(hasClasses(raceReport, 'race-report', 'ph-no-capture'), 'RaceReport: t
 assert.match(read('lib/report-shared.ts'), /if \(fromRecord\) return runnerHandoffHref\(href\);/, 'A report link built from a runner record carries the handoff marker and nothing else');
 assert.match(read('components/report/ReportView.tsx'), /<div className="report-tracked" data-track-section="report" hidden=\{!times\}>/, '/report marks its report from the first render, hidden until one shows');
 // The runner view's report appears after a press: it is marked, and the tracker watches sections that join the page later.
-assert.match(runnerContext, /<div data-track-section="report"><Suspense /, 'The runner view marks its race report');
+// The marked section holds the report (after its way back to the analysis, round 5).
+assert.match(runnerContext, /<div data-track-section="report">(?:<button [^>]*rc-report-back[^>]*>[^\n]*?<\/button>)?<Suspense /, 'The runner view marks its race report');
 assert.match(read('components/SectionTracker.tsx'), /new MutationObserver\([\s\S]*?\.observe\(document\.body, \{ childList: true, subtree: true \}\)/, 'SectionTracker watches marked sections added after its first look');
 // A link to a never-recorded page stops the recorder before that page is built, and that function only ever stops it.
 const siteAnalytics = read('components/SiteAnalytics.tsx');

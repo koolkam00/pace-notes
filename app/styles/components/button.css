@@ -19,6 +19,8 @@
 .btn:focus-visible, .btn.is-focus { outline: 2px solid var(--focus); outline-offset: 2px; }
 .btn:active:not(:disabled):not([aria-disabled='true']), .btn.is-pressed { transform: scale(.98); transition-duration: var(--d-press); }
 .btn .arrow-icon { width: 16px; height: 16px; transition: transform var(--d-release) var(--spring); }
+/* A filled pill carries no arrow anywhere, hand-written ones included (Button's rule, round 5). */
+.btn-primary .arrow-icon { display: none; }
 .btn:hover .arrow-icon { transform: translateX(3px); }
 .btn.is-compact { min-height: 48px; padding: 0 20px; font-size: 1rem; }
 .btn.is-block { display: flex; width: 100%; }

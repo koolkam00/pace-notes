@@ -47,20 +47,24 @@
 /* The point the moment names (the home band: how far the back of the field had come): a ring on the last lane at that
    exact distance, a hairline rising from it and the distance at its top, in the empty upper left of the field (the
    field's back is low on the left, its front high on the right), never on the axis row. The rise is capped at 120 px,
-   so a tall plot keeps the label near its ring. Shown while the flag frame holds; dimmed with the sentence once the
-   race runs on. */
-.hero-replay .replay-mark { position: absolute; top: max(6%, calc(94% - 120px)); bottom: 6%; width: 0; pointer-events: none; color: var(--night-ink); transition: color var(--d-toggle) var(--ease-out); }
+   so a tall plot keeps the label near its ring. Shown while the flag frame holds only: it fades out as soon as the
+   clock leaves that frame, where its distance is no longer true. */
+.hero-replay .replay-mark { position: absolute; top: max(6%, calc(94% - 120px)); bottom: 6%; width: 0; pointer-events: none; color: var(--night-ink); transition: opacity var(--d-toggle) var(--ease-out); }
 .hero-replay .replay-mark b { position: absolute; top: -2px; left: 5px; font-size: 12px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .hero-replay .replay-mark i { position: absolute; top: 0; bottom: 4px; left: -.5px; width: 1px; background: var(--night-ink-3); }
 .hero-replay .replay-mark s { position: absolute; bottom: 0; left: 0; width: 8px; height: 8px; border: 1.5px solid currentColor; border-radius: 50%; transform: translate(-50%, 50%); box-sizing: border-box; }
-.hero-replay .replay-mark.is-off { color: var(--night-ink-3); }
+.hero-replay .replay-mark.is-off, .hero-replay .replay-split.is-off, .hero-replay .replay-first.is-off { opacity: 0; }
+/* The first finisher: a ring on the finish line in the top lane (where the field's first finish is drawn), "1st"
+   under it on the line, where nobody has arrived yet at the flag frame. The same ring as the back of the field's. */
+.hero-replay .replay-first { position: absolute; width: 0; height: 0; pointer-events: none; color: var(--night-ink); transition: opacity var(--d-toggle) var(--ease-out); }
+.hero-replay .replay-first s { position: absolute; top: 0; left: 0; width: 8px; height: 8px; border: 1.5px solid currentColor; border-radius: 50%; background: var(--night); transform: translate(-50%, -50%); box-sizing: border-box; }
+.hero-replay .replay-first b { position: absolute; top: 7px; left: 0; transform: translateX(-50%); font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; }
 /* At 200% zoom (under 300 px) the plot is too short for the flag: the sentence names the distance. */
 @media (max-width: 299.98px) { .hero-replay .replay-mark { display: none; } }
 /* The share the sentence gives (the race-replay story: short of 20K), set inside the stretch it counts, against that
    mat, above the field's back: bright ink while the flag frame holds (the H1's italic above is the screen's one orange,
-   round 4), ink-3 with the sentence after. */
-.hero-replay .replay-split { position: absolute; top: 6%; max-width: 44%; margin-right: 8px; font-size: 13px; font-weight: 600; line-height: 1.25; text-align: right; color: var(--night-ink); pointer-events: none; transition: color var(--d-toggle) var(--ease-out); }
-.hero-replay .replay-split.is-off { color: var(--night-ink-3); }
+   round 4), and gone once the clock leaves that frame, where the share is no longer true (round 5). */
+.hero-replay .replay-split { position: absolute; top: 6%; max-width: 44%; margin-right: 8px; font-size: 13px; font-weight: 600; line-height: 1.25; text-align: right; color: var(--night-ink); pointer-events: none; transition: opacity var(--d-toggle) var(--ease-out); }
 .hero-replay .replay-status { position: absolute; left: 0; right: 0; bottom: 12px; margin: 0; font-size: var(--t-small); text-align: center; color: var(--night-ink-2); }
 
 /* Play and pause: 44 px at the start of the control row, beside the race clock (never on the canvas). */
@@ -90,6 +94,9 @@
 /* The sentence's figure is ink italic everywhere: the plot's mark (or the page's H1) carries the orange. */
 .hero-replay .replay-moment em { font-style: italic; font-weight: 600; white-space: nowrap; color: var(--night-ink); }
 .hero-replay .replay-moment.is-off, .hero-replay .replay-moment.is-off em { color: var(--night-ink-3); }
+/* The home band's sentence is the first screen's finding, so it reads in full ink from the first paint; only its figure
+   waits in ink-3 for the flag frame, when the marks it names are drawn (round 5). */
+.hero-replay.is-band .replay-moment.is-off { color: var(--night-ink); }
 
 /* The control row: play, then the race clock (a 44 px range over a 2 px track, hour ticks under it). */
 .hero-replay .replay-scrub { display: flex; align-items: flex-start; gap: var(--s-3); margin-top: var(--s-2); }

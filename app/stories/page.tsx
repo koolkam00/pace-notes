@@ -8,8 +8,9 @@ import { finishesM, pageMetadata } from '@/lib/seo';
 
 const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
 
-/** The stories as the contents list them (their chapter names, in race order). */
-const storyPages = () => CHAPTERS.flatMap(livePages).filter((p) => p.kind === 'story' && p.href.startsWith('/stories/'));
+/** The stories as the contents list them (their chapter names, in race order), chapter 01's /finish-times among them, so
+ *  the list is an honest cut of the chain a reader follows (round 5). */
+const storyPages = () => CHAPTERS.flatMap(livePages).filter((p) => p.kind === 'story');
 /** A story's name inside a sentence: lower case, except a name that starts with a proper noun. */
 const inSentence = (name: string) => name.replace(/^The /, 'the ').replace(/^([A-Z])(?=[a-z])/, (c) => c.toLowerCase());
 
@@ -39,7 +40,7 @@ export default function StoriesPage() {
         <p className="contents-dek">{capital(countWord(count))} stories, one finding each.</p>
       </header>
       <section className="contents-body" aria-label="Every story">
-        <PageList kind="story" prefix="/stories/" readingOf={readingOf} label="Stories" />
+        <PageList kind="story" readingOf={readingOf} label="Stories" />
       </section>
     </div>
   );
