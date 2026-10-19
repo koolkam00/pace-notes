@@ -33,12 +33,17 @@ export function DurationField({ label, value, onChange, mode = 'race', placehold
   // The parent's value as last seen. The text follows the parent only when that value itself changes (a stepper, a
   // preset, the address), never because the parent set aside what was typed (a goal tool takes marathon times only, so a
   // half-typed "3" or a cleared field leaves its goal where it was): the visitor's text is theirs until they leave it.
+  // A change the parent makes in answer to a keystroke (taking the typed time, clearing its goal for a half-typed "3.",
+  // or keeping its own) never rewrites the text: `typing` marks the render that keystroke causes, and is cleared after it.
   const seen = useRef(value);
+  const typing = useRef(false);
   useEffect(() => {
     if (value === seen.current) return;
     seen.current = value;
+    if (typing.current) return;
     if (value === null || parseDuration(text, mode) !== value) setText(value === null ? '' : show(value));
   }, [value, mode, text]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { typing.current = false; });
   const parsed = text.trim() ? parseDuration(text, mode) : null;
   const unreadable = touched && text.trim() !== '' && parsed === null;
   const invalid = unreadable || Boolean(error);
@@ -51,6 +56,7 @@ export function DurationField({ label, value, onChange, mode = 'race', placehold
         onFocus={solved ? (e) => e.currentTarget.select() : undefined}
         onChange={(e) => {
           const typed = keypadInput(e.target, e.nativeEvent, mode);
+          typing.current = true;
           setText(typed);
           onChange(typed.trim() ? parseDuration(typed, mode) : null);
         }}
