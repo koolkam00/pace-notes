@@ -25,3 +25,15 @@ export function AnswerAbove() {
     </p>
   );
 }
+
+/**
+ * What the explorer shows under its headline when the selection is drawn on the page's answer card (HeroSwap): one line
+ * back up to it, so the visitor sees where the comparison went rather than a second chart here.
+ */
+export function AnswerRedrawn() {
+  return (
+    <p className="explore-same">
+      <Link href="#answer" prefetch={false} className="explore-same-link">Drawn in the answer above <Arrow dir="up" /></Link>
+    </p>
+  );
+}

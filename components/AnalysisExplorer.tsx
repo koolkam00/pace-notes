@@ -15,9 +15,9 @@ import { MARATHON_SECTION_ENDS, sectionLabel } from '@/lib/section-labels';
 import KeypadHint from './KeypadHint';
 import { keepTogether } from './ui/keepTogether';
 import MakeItYours from './ui/MakeItYours.client';
-import ExplorerChart, { wholeElevation, type TerrainExtras } from './analysis/ExplorerChart';
-import { AnswerAbove, ExploreSubmit } from './analysis/ExploreSubmit';
-import { HERO_EVENT, type HeroDetail } from './analysis/hero-event';
+import ExplorerChart, { explorerParts, wholeElevation, type TerrainExtras } from './analysis/ExplorerChart';
+import { AnswerAbove, AnswerRedrawn, ExploreSubmit } from './analysis/ExploreSubmit';
+import { sendHero } from './analysis/hero-event';
 import { trackAnalytics } from '@/lib/analytics';
 import { unitHref } from '@/lib/unit-preference';
 
@@ -29,24 +29,70 @@ type Row = { label: string; value: number };
 const extremes = (rows: Row[]) => rows.reduce((range, row) => ({ low: row.value < range.low.value ? row : range.low, high: row.value > range.high.value ? row : range.high }), { low: rows[0], high: rows[0] });
 
 /**
- * The headline for comparisons whose stored answer only says what can be compared: state what the chart shows instead.
- * Read from the chart rows on screen, so it always matches them. Returns '' to keep the stored answer. Pinned by
- * verify-ten-analyses: "…split most in the 35–40K section…" and "Across N age groups, the second 20K ranged from …".
+ * The page's own example, which a selection is measured against: the hero's answer, its finish time and course, and
+ * (hills) every course combined at that time.
  */
-export function insightHeadline(id: string, answer: GuideAnswer, goal: number, units: UnitSystem, city = '', baseline?: number[]): string {
+export type HeadlineReference = { answer: GuideAnswer; goal: number; city: string; baseline?: number[] };
+
+/** The section paces' fast-early and slow-late gaps against even pace, in whole seconds a mile or km (or null). */
+function paceShape(answer: GuideAnswer, goal: number, units: UnitSystem): { fast: number; slow: number } | null {
+  const chart = answer.charts[0];
+  const p = (chart?.rows ?? []).map(row => Number(row.value)).filter(Number.isFinite);
+  const even = goal / 42.195;
+  if (p.length < 2) return null;
+  const fast = Math.min(...p), slow = Math.max(...p);
+  if (!(fast < even && slow > even)) return null;
+  const per = (minPerKm: number) => Math.round(Math.abs(minPerKm) * 60 * (units === 'mi' ? 1.609344 : 1));
+  return { fast: per(even - fast), slow: per(slow - even) };
+}
+
+/** The gap between finishes just over and just under the goal, in seconds, and its share after 20K (or null). */
+function gapShape(answer: GuideAnswer): { total: number; share: number } | null {
+  const rows = answer.charts[0]?.rows ?? [];
+  const d = rows.map(row => (Number(row.above) - Number(row.below)) * 60);
+  if (d.length !== MARATHON_SECTION_ENDS.length || !d.every(Number.isFinite)) return null;
+  const total = d.reduce((a, b) => a + b, 0), after = d.filter((_, i) => MARATHON_SECTION_ENDS[i] > 20).reduce((a, b) => a + b, 0);
+  return total > 0 ? { total, share: after / total } : null;
+}
+
+/** The share of finishes under a time from the curve's rows (whole percent at the nearest row), or NaN. */
+function shareUnder(answer: GuideAnswer, goal: number): number {
+  const p = (answer.charts[0]?.rows ?? []).map(r => ({ x: Number(r.label), share: Number(r.value) })).filter(r => Number.isFinite(r.x) && Number.isFinite(r.share));
+  if (!p.length) return NaN;
+  return Math.round(p.reduce((b, r) => (Math.abs(r.x - goal) < Math.abs(b.x - goal) ? r : b)).share);
+}
+
+/** Each section's climb and its pace against every course, and the reading (lib/terrain-reading.ts). */
+function terrainShape(answer: GuideAnswer, baseline?: number[]) {
+  const pace = answer.charts.find(c => c.unit === 'min/km');
+  const climbs = answer.charts.find(c => c.series.some(s => s.key === 'gain'));
+  if (!pace || !climbs || !baseline?.length) return null;
+  const gain = MARATHON_SECTION_ENDS.map(end => Number(climbs.rows.find(r => r.label === sectionLabel(end))?.gain));
+  const vs = againstElsewhere(pace.rows.map(r => Number(r.value) * 60), baseline);
+  if (vs.length !== MARATHON_SECTION_ENDS.length) return null;
+  return { gain, vs, reading: terrainReading(gain, vs) };
+}
+
+const mss = (s: number) => { const t = Math.round(Math.abs(s)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+
+/**
+ * The headline for a selection, in the grammar of the page's own answer and measured against it (critic round 5: the
+ * second sentence dropped the comparison the hero taught). Read from the chart rows on screen, so it always matches
+ * them. `reference` is the page's example; without it the sentence states the selection alone. Returns '' to keep the
+ * stored answer. Pinned by verify-ten-analyses.
+ */
+export function insightHeadline(id: string, answer: GuideAnswer, goal: number, units: UnitSystem, city = '', baseline?: number[], reference?: HeadlineReference): string {
   const chart = answer.charts[0];
   if (!chart?.rows.length) return '';
   const rows = (key: string) => chart.rows.map(row => ({ label: String(row.label).replace(' (selected)', ''), value: Number(row[key]) })).filter(row => Number.isFinite(row.value));
-  if (id === 'courses' || id === 'weather') {
-    const values = rows('value');
-    if (!values.length) return '';
-    const what = id === 'courses' ? 'courses' : 'start temperatures';
-    if (values.length === 1) return `The median finish was ${change(values[0].value)} ${Math.abs(values[0].value) < 0.05 ? 'as' : 'than'} the same runners’ earlier best.`;
-    const { low, high } = extremes(values);
-    // Courses are not named: one course at the top of the range is not a ranking of course difficulty.
-    return id === 'courses' ? `Across ${values.length} ${what}, median finishes ranged from ${change(low.value)} to ${change(high.value)} than the same runners’ earlier bests.`
-      : `Across ${values.length} ${what}, median finishes ranged from ${change(low.value)} (${low.label}) to ${change(high.value)} (${high.label}) than the same runners’ earlier bests.`;
-  }
+  const name = cityName(city), near = clock(goal * 60);
+  const course = city && city !== 'All courses';
+  // Where the example differs from the selection, in the words of the comparison: "on every course", "near 4:00".
+  const against = (ref: HeadlineReference) => {
+    const where = ref.city !== city ? (ref.city === 'All courses' ? 'on every course' : `in ${cityName(ref.city)}`) : '';
+    const when = ref.goal !== goal ? `near ${clock(ref.goal * 60)}` : '';
+    return [where, when].filter(Boolean).join(' ') || 'for every finish';
+  };
   if (id === 'age') {
     const values = rows('value');
     if (values.length < 2) return '';
@@ -54,43 +100,62 @@ export function insightHeadline(id: string, answer: GuideAnswer, goal: number, u
     return `Across ${values.length} age groups, the second 20K ranged from ${change(low.value)} (${low.label}) to ${change(high.value)} (${high.label}) than the first.`;
   }
   if (id === 'sections') {
-    const gaps = chart.rows.map(row => ({ label: String(row.label), value: Number(row.above) - Number(row.below) })).filter(row => Number.isFinite(row.value));
-    if (!gaps.length) return '';
-    const { high } = extremes(gaps);
-    if (high.value < 0.05) return '';
-    const gap = Math.round(high.value * 60);
-    return `The two groups split most in the ${high.label} section, where finishes just over ${clock(goal * 60)} took ${Math.floor(gap / 60)}:${String(gap % 60).padStart(2, '0')} more than those just under.`;
+    // As the H1 says it: the share of the gap that opened after 20K.
+    const g = gapShape(answer);
+    if (!g) return '';
+    const ref = reference ? gapShape(reference.answer) : null;
+    const lead = course ? `In ${name}, near ${near}, ` : reference && reference.goal !== goal ? `Near ${near}, ` : '';
+    const said = `${Math.round(g.share * 100)}% of the ${mss(g.total)} gap opened after 20K`;
+    return `${lead}${said}${ref && reference ? `, against ${Math.round(ref.share * 100)}% ${against(reference)}` : ''}.`;
   }
   if (id === 'profile') {
-    // The shape, as the page's H1 says it (fast early, slow late against even pace); the chart's readout gives the paces.
-    const p = rows('value'), even = goal / 42.195;
-    if (p.length < 2) return '';
-    const fast = Math.min(...p.map(r => r.value)), slow = Math.max(...p.map(r => r.value));
-    if (!(fast < even && slow > even)) return '';
-    const per = (minPerKm: number) => `${Math.round(Math.abs(minPerKm) * 60 * (units === 'mi' ? 1.609344 : 1))} s/${units}`;
-    return `Finishes near ${clock(goal * 60)} ran ${per(even - fast)} fast early and ${per(slow - even)} slow late, against even pace.`;
+    // The shape, as the page's H1 says it (fast early, slow late against even pace), against the example's.
+    const p = paceShape(answer, goal, units);
+    if (!p) return '';
+    const ref = reference ? paceShape(reference.answer, reference.goal, units) : null;
+    const per = units === 'mi' ? 'mile' : 'kilometer';
+    return `${course ? `In ${name}, near` : 'Near'} ${near}, finishes ran ${p.fast} seconds a ${per} fast early and ${p.slow} slow late${ref && reference ? `, against ${ref.fast} and ${ref.slow} ${against(reference)}` : ''}.`;
   }
   if (id === 'ambition') {
-    // Whole percent, as the chart's readout shows it.
-    const p = rows('value').map(r => ({ x: Number(r.label), share: r.value })).filter(r => Number.isFinite(r.x));
-    if (!p.length) return '';
-    const at = p.reduce((b, r) => (Math.abs(r.x - goal) < Math.abs(b.x - goal) ? r : b));
-    return `${Math.round(at.share)}% of these finishes were under ${clock(goal * 60)}.`;
+    // Whole percent, as the chart's readout shows it; against the example's curve at the same time.
+    const at = shareUnder(answer, goal);
+    if (!Number.isFinite(at)) return '';
+    const ref = reference ? shareUnder(reference.answer, reference.city === city ? reference.goal : goal) : NaN;
+    const cmp = reference && Number.isFinite(ref)
+      ? reference.city !== city ? `, against ${ref}% on every course` : reference.goal !== goal ? `, against ${ref}% under ${clock(reference.goal * 60)}` : ''
+      : '';
+    return `${course ? `In ${name}, ` : ''}${at}% of finishes were under ${near}${cmp}.`;
+  }
+  if (id === 'gains') {
+    // As the H1 says it: the share of the time found after 30K, against the example's.
+    const share = (a: GuideAnswer) => {
+      const v = (a.charts[0]?.rows ?? []).map(r => Number(r.value));
+      const total = v.reduce((x, y) => x + y, 0);
+      return v.length === 3 && v.every(Number.isFinite) && total > 0 ? Math.round((100 * v[2]) / total) : NaN;
+    };
+    const mine = share(answer);
+    if (!Number.isFinite(mine)) return '';
+    const ref = reference ? share(reference.answer) : NaN;
+    return `${course ? `In ${name}, near` : 'Near'} ${near}, improving finishes found ${mine}% of their time after 30K${reference && Number.isFinite(ref) ? `, against ${ref}% ${against(reference)}` : ''}.`;
   }
   if (id === 'terrain') {
     // Each 5K against the same 5K on every course combined (lib/terrain-reading.ts), as the page's answer reads it.
-    const pace = answer.charts.find(c => c.unit === 'min/km');
-    const climbs = answer.charts.find(c => c.series.some(s => s.key === 'gain'));
-    if (!pace || !climbs || !baseline?.length) return '';
-    const gain = MARATHON_SECTION_ENDS.map(end => Number(climbs.rows.find(r => r.label === sectionLabel(end))?.gain));
-    const vs = againstElsewhere(pace.rows.map(r => Number(r.value) * 60), baseline);
-    if (vs.length !== MARATHON_SECTION_ENDS.length) return '';
-    const reading = terrainReading(gain, vs);
-    const name = cityName(city), near = clock(goal * 60);
-    if (!reading) return `After the first 5K, no 5K on ${name} climbs ${wholeElevation(TERRAIN_CLIMB_M, units)}.`;
-    return reading.slower
-      ? `${name}’s ${sectionLabel(MARATHON_SECTION_ENDS[reading.i])} climb (+${wholeElevation(reading.gain, units)}) ran ${Math.round(reading.vs)}% slower than the same 5K elsewhere, near ${near}.`
-      : `Near ${near}, no climb on ${name} ran more than 1% slower than the same 5K elsewhere.`;
+    const t = terrainShape(answer, baseline);
+    if (!t) return '';
+    const ref = reference ? terrainShape(reference.answer, reference.baseline) : null;
+    const refName = reference ? cityName(reference.city) : '';
+    const cmp = ref?.reading?.slower && reference && reference.city !== city ? `, against ${Math.round(ref.reading.vs)}% on ${refName}’s` : '';
+    if (!t.reading) {
+      // No 5K after the first climbs the floor: say so as a reading, with the course's biggest climb from the data.
+      const later = t.gain.map((g, i) => (i > 0 && Number.isFinite(g) ? g : -Infinity));
+      const top = Math.max(...later);
+      if (!Number.isFinite(top)) return '';
+      const first = Number.isFinite(t.gain[0]) && t.gain[0] >= TERRAIN_CLIMB_M;
+      return `${first ? 'After the first 5K, ' : ''}${name} has no real climb: its biggest 5K gains ${wholeElevation(top, units)}.`;
+    }
+    return t.reading.slower
+      ? `${name}’s ${sectionLabel(MARATHON_SECTION_ENDS[t.reading.i])} climb ran ${Math.round(t.reading.vs)}% slower than elsewhere${cmp}.`
+      : `No climb on ${name} ran more than 1% slower than elsewhere${cmp}.`;
   }
   return '';
 }
@@ -185,7 +250,9 @@ function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_
     window.history.pushState(null, '', unitHref(window.location.pathname + profileSearch(nextProfile), units));
   };
   const baseline = terrain?.baselines?.[String(targetBucket(profile.goal))];
-  const visibleAnswer = answer ? insightHeadline(definition.id, answer, profile.goal, units, profile.city, baseline) || findingText(answer, units) : '';
+  // The page's own example, which the selection's headline is measured against (and, on pacing pattern, drawn beside).
+  const reference = useMemo<HeadlineReference>(() => ({ answer: initialAnswer, goal: start.goal, city: start.city, baseline: terrain?.baselines?.[String(targetBucket(start.goal))] }), [initialAnswer, start.goal, start.city, terrain?.baselines]);
+  const visibleAnswer = answer ? insightHeadline(definition.id, answer, profile.goal, units, profile.city, baseline, reference) || findingText(answer, units) : '';
   const field = (key: string) => `${formId}-${key}`;
   const timeLabel = ['profile', 'terrain', 'gains', 'age'].includes(definition.id) ? 'Finish time to explore' : 'Target time';
   // Only the choices that matter: the course, the time, and a refinement once one is set (never "All ages").
@@ -208,12 +275,17 @@ function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_
   // The page's own example, set again after a change: the answer above already draws it.
   const atExample = sameProfile(profile, start);
   const shown = changed || untouched === 'chart';
-  // The answer card follows the selection (HeroSwap): the visitor's own curve while it differs from the example.
+  // The answer card follows the selection (HeroSwap): the selection drawn on the answer's own chart, in its grammar, its
+  // "All numbers" under the card, while it differs from the example (critic round 5: a second chart of the same kind
+  // under the form, on paper, doubled the page).
+  const selectedAge = profile.age === 'all' ? undefined : profile.age;
   useEffect(() => {
     if (!hero) return;
-    const detail: HeroDetail = changed && !atExample && answer && hasResults ? { id: definition.id, answer, goal: profile.goal, kicker: summaryText } : null;
-    window.dispatchEvent(new CustomEvent(HERO_EVENT, { detail }));
-  }, [hero, changed, atExample, answer, hasResults, definition.id, profile.goal, summaryText]);
+    const parts = changed && !atExample && answer && hasResults ? explorerParts({ id: definition.id, answer, goal: profile.goal, units, valuesId: `${formId}-values`, selectedAge,
+      terrain: terrain ? { elevation: terrain.elevations[profile.city] ?? null, step: terrain.step, baseline } : undefined,
+      yours: profile.goal !== start.goal, reference: { answer: reference.answer, goal: reference.goal, label: profile.city !== start.city ? (start.city === EXAMPLE_PROFILE.city ? 'Every course' : cityName(start.city)) : 'Every finish' }, apart: true }) : null;
+    sendHero(parts ? { kicker: summaryText, chart: parts.chart, values: parts.values } : null);
+  }, [hero, changed, atExample, answer, hasResults, definition.id, profile.goal, profile.city, selectedAge, summaryText, units, terrain, baseline, formId, start.goal, start.city, reference]);
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!ready) return;
@@ -243,8 +315,8 @@ function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_
           {changed && !atExample ? <h2 className="explore-title">{keepTogether(text(visibleAnswer))}</h2> : null}
           {answer.widened && <p className="explore-note">{text(answer.widened)}</p>}
           {!hasResults ? <div className="explore-state"><p>Try All courses, fewer refinements or another finish time.</p><button className="btn btn-secondary is-compact" type="button" onClick={() => applyProfile(start)}>Back to the example</button></div>
-            : hero ? null
-            : <ExplorerChart id={definition.id} answer={answer} goal={profile.goal} units={units} terrain={terrainExtras} valuesId={`${formId}-values`} selectedAge={profile.age === 'all' ? undefined : profile.age} example={atExample} yours={profile.goal !== start.goal} />}
+            : hero ? <AnswerRedrawn />
+            : <ExplorerChart id={definition.id} answer={answer} goal={profile.goal} units={units} terrain={terrainExtras} valuesId={`${formId}-values`} selectedAge={selectedAge} example={atExample} yours={profile.goal !== start.goal} />}
         </div> : null}
     </div>
   </>;

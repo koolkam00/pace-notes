@@ -4,7 +4,7 @@ import { TEN_ANALYSES, analysisBySlug } from '@/lib/ten-analyses';
 import { getWeatherAnalyses } from '@/lib/weather-data';
 import { JsonLd, breadcrumbs, movedMetadata, pageMetadata } from '@/lib/seo';
 import { movedTo } from '@/lib/seo-routes';
-import { PAGE_NUGGET, getNugget, sentenceOf } from '@/lib/nuggets';
+import { PAGE_NUGGET, getNugget, sentenceOf, type NuggetId } from '@/lib/nuggets';
 import { hm } from '@/lib/nuggets/format';
 import StartingPace from '@/components/analysis/pages/StartingPace';
 import DownhillStart from '@/components/analysis/pages/DownhillStart';
@@ -39,8 +39,8 @@ const SEO: Record<string, { title: string; description: string; crumb?: string }
   'finish-time-context': { title: 'Marathon Finish Times: Where Yours Falls | Pace Notes', description: 'See where a marathon finish time falls among comparable recorded finishes. Observed shares of finishes, not predictions.' },
   'finding-improvement': { title: 'Where Faster Marathon Finishes Found Time | Pace Notes', description: 'See where faster marathon finishes found their minutes against an earlier result: the opening, the middle or the late race. Not training advice.' },
   'age-and-pacing': { title: 'Marathon Pace Retention by Age Group | Pace Notes', description: `Compare how marathon finishes held pace from the first 20 km (${mi(20)}) to the second across age groups and recorded genders, within one finish-time band.` },
-  'warming-and-pacing': { title: 'Marathon Pacing When the Temperature Rises | Pace Notes', description: 'See how a temperature rise during a marathon relates to how well runners held their pace later in the race.' },
-  'wind-and-pacing': { title: 'Wind and Marathon Pacing: Windy vs Calm Races | Pace Notes', description: 'Compare late-race slowing on windier and calmer marathon race days.' },
+  'warming-and-pacing': { title: 'Marathon Pacing When the Temperature Rises | Pace Notes', description: 'Warming through a marathon, and how much more the second 20K slowed.' },
+  'wind-and-pacing': { title: 'Wind and Marathon Pacing: Windy vs Calm Races | Pace Notes', description: 'Wind at the start of a marathon, and the second 20K.' },
   'downhill-start': { title: 'Downhill Marathon Starts and Later Pace | Pace Notes', description: 'Compare opening pace and later slowing on marathon courses that start with a larger descent against courses with other openings.', crumb: 'Downhill starts' },
 };
 
@@ -64,8 +64,16 @@ const TAIL: Record<string, string> = {
   'finding-improvement': 'Where faster marathon finishes found their minutes.',
 };
 
+/** The weather tabs' old routes: each describes its tab's finding (critic round 5: the warming one said "held pace"). */
+const COMPAT_NUGGET: Record<string, NuggetId> = { 'warming-and-pacing': 'weather.warming', 'wind-and-pacing': 'weather.wind' };
+
 /** The page's finding, then what it lets a reader do; the finding alone when both would pass 155 characters. */
 function describe(slug: string, fallback: string): string {
+  const compat = COMPAT_NUGGET[slug];
+  if (compat) {
+    const nugget = getNugget(compat);
+    return nugget.guard ? sentenceOf(nugget, DEFAULT_UNITS).replace(/\*/g, '') : fallback;
+  }
   const id = PAGE_NUGGET[`/analyses/${slug}`];
   const tail = TAIL[slug];
   if (!id || !tail) return fallback;

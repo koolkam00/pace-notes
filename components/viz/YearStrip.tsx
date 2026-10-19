@@ -141,7 +141,8 @@ export default function YearStrip({ editions, selected, sideLabels = [], valueDo
   // stem that rises through it (an edition above the average), the needle where the strip opens or another label.
   const avgSpot = (() => {
     if (!averageOnLine || average === undefined) return null;
-    const ay = y(average), w = (textWidth(averageLabel, 13, 500) + 6) / REF_WIDTH;
+    // Measured on the narrowest plot (a 195 px screen): clear of the needle and the stems there, it is clear wider too.
+    const ay = y(average), w = (textWidth(averageLabel, 13, 500) + 6) / 160;
     const boxes = placed.filter((l) => l.minWidth !== null).map((l) => placedBox(l, height));
     const needleX = x(sorted[sel].year);
     const clear = (x0: number) => {

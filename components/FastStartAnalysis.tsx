@@ -28,7 +28,7 @@ const signedPct = (v: number) => { const r = Math.round(v); return `${r > 0 ? '+
  * The starting-pace explorer's results for one selection (the redesign spec, section 7.4, under section 00): how often a
  * sustained slowdown followed this opening and, in one sentence, what happened after 20K; one chart (pace through the
  * race against the steady opening, its slowest section labelled) and every opening's values, where each one's slowdowns
- * most often began. Pinned copy (verify-fast-start-client): "developed a sustained slowdown" and its term link.
+ * most often began. Pinned copy (verify-fast-start-client): "had a sustained slowdown, against …" and its term link.
  */
 export function FastStartResults({ row, focus, start, units: _units }: { row: FastStartRow; focus: FastStartGroup; start: FastStartStart; units: UnitSystem }) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -51,7 +51,9 @@ export function FastStartResults({ row, focus, start, units: _units }: { row: Fa
   const step = hi - lo > 30 ? 10 : 5;
   return (
     <div className="explore-results">
-      <h2 className="explore-title">{percent(rate)} developed a <Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link>.</h2>
+      {/* In the grammar of the page's dek ("had a sustained slowdown, against …"), measured against the steady openings in
+          the same selection (critic round 5: the bare rate dropped the comparison and changed the verb). */}
+      <h2 className="explore-title">{cityName(row.city)}: {percent(rate)} had a <Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link>{steady ? <>, against {percent(100 * steady.slowdown_n / steady.n)} after a first&nbsp;5K {bandWords(start.bands.find(b => b.id === 'steady')?.label ?? 'within 2%')}</> : null}.</h2>
       <p className="explore-sentence">
         {all
           // Against its own early pace (the receipt's "behind" is against same-pace finishes, so the words differ).

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { useUnits } from '@/components/UnitsProvider';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import PaceBandStrip from '@/components/tools/PaceBandStrip';
-import { DurationField, ExampleNote, GoalBar, ShareBar, Stepper } from '@/components/tools/ui';
+import { DurationField, GoalBar, ShareBar, Stepper } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
 import Values from '@/components/ui/Values';
 import { loadInsight } from '@/lib/insights';

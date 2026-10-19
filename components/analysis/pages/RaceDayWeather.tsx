@@ -1,8 +1,8 @@
-import Values from '@/components/ui/Values';
 import AllFinisherAnalysis from '@/components/AllFinisherAnalysis';
 import WeatherAnalysis from '@/components/WeatherAnalysis';
-import AnalysisShell, { AnswerCard, ExploreBeat, Say } from '../Shell';
-import Columns from '@/components/viz/Columns';
+import AnalysisShell, { AnswerCard, ExploreBeat, Say, said } from '../Shell';
+import HeroSwap from '../HeroSwap.client';
+import { bandColumns } from '../all-finisher-hero';
 import ByUnits from '@/components/ui/ByUnits.client';
 import WeatherTabs from '../WeatherTabs.client';
 import TabTitle from '../TabTitle.client';
@@ -11,14 +11,11 @@ import { publishedCourses } from '@/lib/analysis-server';
 import { getAllFinisherContextStart } from '@/lib/all-finisher-context-server';
 import { getWeatherEvidence } from '@/lib/weather-data';
 import { getNugget } from '@/lib/nuggets';
-import { tempBand } from '@/lib/nuggets/analyses';
-import { count, pct, temp } from '@/lib/nuggets/format';
+import { temp } from '@/lib/nuggets/format';
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import { bandShort } from '@/lib/all-finisher-context';
 import type { UnitSystem } from '@/lib/units';
 
 const PATH = '/analyses/race-day-weather';
-const cap = (s: string) => s.replace(/^[a-z]/, (c) => c.toUpperCase());
 
 /**
  * Chapter 09, page 2: three answers in tabs (start temperature, warming through the race, wind at the start), each shown
@@ -33,19 +30,16 @@ export default function RaceDayWeather() {
   const n = getNugget('weather.start');
   const bands = start.initial.weather.filter((g) => g.n >= 100).sort((a, b) => (a.upper_c ?? Infinity) - (b.upper_c ?? Infinity));
   // The fewest sustained slowdowns among bands with five or more races (the H1's band) is the signal column; a band with
-  // fewer races is hollow and keyed, never the finding.
-  const steady = bands.filter((g) => g.edition_n >= 5);
-  const low = steady.reduce<(typeof bands)[number] | undefined>((a, b) => (!a || b.slowdown_pct < a.slowdown_pct ? b : a), undefined);
-  const top = Math.ceil(Math.max(...bands.map((g) => g.slowdown_pct)) / 10) * 10 + 5;
-  const columns = (u: UnitSystem) => (
-    <AnswerCard kicker={`By start temperature, ${u === 'mi' ? '°F' : '°C'}`}>
-      <Columns items={bands.map((g) => ({ id: g.id, label: bandShort(g, u, false), value: g.slowdown_pct, display: pct(g.slowdown_pct / 100), tone: g.edition_n < 5 ? 'hollow' : g === low ? 'signal' : 'ink' }))}
-        max={top} keys={bands.some((g) => g.edition_n < 5) ? [{ label: 'Fewer than five races', mark: 'hollow' }] : undefined}
-        label={`Sustained slowdown by start temperature, from ${bands.map((g) => `${tempBand(g, u)} ${pct(g.slowdown_pct / 100)}`).join(', ')}${low ? `; the fewest at ${tempBand(low, u)}` : ''}`}
-        values={<Values id={`rdw-bands-${u}`} caption="Sustained slowdown by start temperature" columns={[{ key: 't', label: 'At the start', text: true }, { key: 's', label: 'Sustained slowdown' }, { key: 'r', label: 'Races' }, { key: 'n', label: 'Finishes' }]}
-          rows={bands.map((g) => [cap(tempBand(g, u)), pct(g.slowdown_pct / 100), g.edition_n, count(g.n)])} reading={low ? bands.indexOf(low) : undefined} />} />
+  // fewer races is hollow and keyed, never the finding. Drawn by all-finisher-hero.tsx, as a Make it yours selection
+  // redraws it on this card (HeroSwap).
+  const low = bands.filter((g) => g.edition_n >= 5).reduce<(typeof bands)[number] | undefined>((a, b) => (!a || b.slowdown_pct < a.slowdown_pct ? b : a), undefined);
+  const parts = (u: UnitSystem) => bandColumns(start.initial.weather, u, { id: `rdw-bands-${u}` });
+  const mi = parts('mi'), km = parts('km');
+  const columns = mi && km ? (
+    <AnswerCard values={<HeroSwap slot="values"><ByUnits mi={mi.values} km={km.values} /></HeroSwap>}>
+      <HeroSwap kicker={<ByUnits mi={mi.kicker} km={km.kicker} />}><ByUnits mi={mi.chart} km={km.chart} /></HeroSwap>
     </AnswerCard>
-  );
+  ) : null;
   // The term is linked here, under the H1, never in it (a dotted underline in the display face outweighed the accent).
   // Below the steadiest band the share rose again when every colder band (100 finishes or more) had more.
   const colder = low && low.lower_c != null ? bands.filter((g) => g.upper_c != null && g.upper_c <= low.lower_c!) : [];
@@ -62,7 +56,7 @@ export default function RaceDayWeather() {
   // Each tab's finding is the page's H1 while that tab is selected (TabTitle), one clause; its setup or base is the dek
   // under it, so the panel carries no second headline.
   const tabs = [
-    { id: 'temperature', label: 'Start temperature', title: <Say nugget={n} />, dek: temperatureDek, panel: <ByUnits mi={columns('mi')} km={columns('km')} /> },
+    { id: 'temperature', label: 'Start temperature', title: <Say nugget={n} />, dek: temperatureDek, panel: columns },
     ...(['warming', 'wind'] as const).flatMap((id) => {
       const candidate = ready(id);
       if (!candidate) return [];
@@ -75,10 +69,10 @@ export default function RaceDayWeather() {
     }),
   ];
   return (
-    <AnalysisShell path={PATH} title={n} heading={<TabTitle titles={tabs.map(({ id, title }) => ({ id, title }))} />} dek={<TabTitle titles={tabs.map(({ id, dek }) => ({ id, title: dek }))} />}
+    <AnalysisShell path={PATH} title={n} heading={<TabTitle titles={tabs.map(({ id, title }) => ({ id, title }))} documentTitles={Object.fromEntries((['warming', 'wind'] as const).filter((id) => ready(id)).map((id) => [id, `${said(nuggets[id])} | Pace Notes`]))} />} dek={<TabTitle titles={tabs.map(({ id, dek }) => ({ id, title: dek }))} />}
       answer={<WeatherTabs tabs={tabs.map(({ id, label, panel }) => ({ id, label, panel }))} />}>
       <ExploreBeat track="chapter-1">
-        <AllFinisherAnalysis kind="weather" start={start} linkTerm={false} untouched="none" />
+        <AllFinisherAnalysis kind="weather" start={start} linkTerm={false} untouched="none" hero />
       </ExploreBeat>
     </AnalysisShell>
   );

@@ -69,8 +69,6 @@ function OpeningCurve() {
   const xs = curve.map((c) => c.lo + 0.5);
   const best = curve.reduce((a, b) => (b.finish_s < a.finish_s ? b : a));
   const plateau = sweetBand(curve);
-  const spread = plateau ? Math.round(plateau.spread) : 0;
-  const inBand = (c: (typeof curve)[number]) => !!plateau && plateau.bins.length > 1 && plateau.bins.includes(c);
   const lo = Math.min(...curve.map((c) => c.finish_s)), hi = Math.max(...curve.map((c) => c.finish_s));
   const step = 120;
   // In words, as the readout and the receipt say a gap ("2:00 ahead", "6:00 behind"), never a sign to decode.
@@ -98,8 +96,9 @@ function OpeningCurve() {
         label: 'First 5K against the pace that followed',
         // On the plot's own x scale (half a bin of room each side), so the needle and its detents sit on the ticks.
         // The readout says each gap in words ("1:48 ahead"), as the receipt above does.
-        // A bin inside the best band says how close the band's bins finished (the H2 names only the band).
-        points: { x: xs.map((x) => (x - xs[0] + 0.5) / (span + 1)), keys: curve.map((c) => `First 5K ${openingWords(c.lo)}, at the finish${inBand(c) ? ` (the best band, all within ${spread} seconds)` : ''}`), values: curve.map((c) => gap(c.finish_s)),
+        // One line ("First 5K 2–3% slower · at the finish"): the washed band shows the plateau, so the key never repeats
+        // the H2 (critic round 5).
+        points: { x: xs.map((x) => (x - xs[0] + 0.5) / (span + 1)), keys: curve.map((c) => `First 5K ${openingWords(c.lo)} · at the finish`), values: curve.map((c) => gap(c.finish_s)),
           side: [{ label: 'After 20K', values: curve.map((c) => gap(c.after20_s)) }, { label: 'Sustained slowdown', values: curve.map((c) => pct(c.slowdown)) }] },
         initial: bestI, detents,
         // Away from the best bin (ringed), a dot marks where the needle meets the curve, so the readout is tied to it.

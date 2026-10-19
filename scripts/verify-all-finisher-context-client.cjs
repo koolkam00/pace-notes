@@ -66,6 +66,16 @@ async function main() {
       }
       const html=render(AllFinisherResults,{groups,kind,start,units,focus,comparison,linkTerm:false});
       assert.match(html,/<h2[^>]*>(?:Sustained slowdown rates (?:ranged from|were)|The sustained slowdown rate was|Late-race pace|Late-race experiences varied most in|After a first 5K [^,<]+, sustained slowdown rates were)/,kind+': the headline states the spread across groups');
+      // Drawn on the page's answer card (HeroSwap, critic round 5, October 19, 2026): the headline takes the H1's grammar
+      // and its comparison, the chart and Values move to the card, and one line leads back up to it.
+      if(kind==='courses'||kind==='weather') {
+        const redrawn=render(AllFinisherResults,{groups,kind,start,units,focus,comparison,linkTerm:false,redrawn:true,place:kind==='weather'?'Berlin':''});
+        const said=(markup)=>markup.match(/<h2[^>]*>([\s\S]*?)<\/h2>/)[1].replace(/<[^>]*>/g,'');
+        if(kind==='courses') assert.match(said(redrawn),/^Sustained slowdown ran from \d+% \([^)]+\) to \d+% \([^)]+\), course by course[,.]/,'courses: the redrawn headline in the H1 grammar');
+        if(kind==='weather') assert.match(said(redrawn),/^In Berlin, .+ starts had the fewe(?:r|st) sustained slowdowns: \d+%, against \d+% at .+\.$/,'weather: the redrawn headline in the H1 grammar');
+        assert.doesNotMatch(redrawn,/class="viz |class="values/,kind+': no second chart or table under the form');
+        assert.match(redrawn,/Drawn in the answer above/,kind+': one line up to the answer');
+      }
       // Downhill starts name the opening band the rates are for, first, so one band's rate never reads as the overall rate.
       if(kind==='downhill') assert.match(html,/<h2[^>]*>After a first 5K over 10% fast, sustained slowdown rates were \d+% \((?:downhill-start courses|every other course)\) and \d+% /,'downhill: the headline names its opening band');
       // One sentence under the headline; where each group's slowdowns most often began is in Values (October 18, 2026).

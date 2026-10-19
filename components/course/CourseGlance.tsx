@@ -99,7 +99,9 @@ function ShapeChart({ display, curve, typical, at }: { display: string; curve: n
       xTicks={[{ value: 0, label: 'Start' }, { value: 2, label: '10K' }, { value: 4, label: '20K' }, { value: 6, label: '30K' }, { value: 8, label: '40K' }]}
       refs={[{ value: 0, label: 'Average pace' }]} washes={[{ from: at, to: at + 1, fill: true }]}
       layers={[{ id: 'shape', label: display, series: [{ id: 'typical', values: typical, dashed: true }, { id: 'course', values: curve, tone: 'ink' }],
-        points: [{ x: at + 0.5, y: curve[at], kind: 'reading' }], labels: [{ x: at + 0.5, y: curve[at], text: name, tone: 'ink', priority: 3 }] }]}
+        // The row's sentence names the section, so the chart marks it (the wash and the point) without a second label,
+        // which met "Average pace" at 195-320 px.
+        points: [{ x: at + 0.5, y: curve[at], kind: 'reading' }] }]}
       keys={[{ label: `${display}, 5K by 5K`, mark: 'line' }, { label: 'The typical course', mark: 'dash' }]}
       label={`${display}’s pace 5K by 5K against its own average, the typical course beside it; ${name} marked`} height={132} heightMd={176} />
   );

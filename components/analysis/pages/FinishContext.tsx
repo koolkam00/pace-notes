@@ -1,6 +1,6 @@
 import AnalysisExplorer from '@/components/AnalysisExplorer';
 import AnalysisShell, { AnswerCard, ExploreBeat } from '../Shell';
-import ExplorerChart from '../ExplorerChart';
+import { explorerParts } from '../ExplorerChart';
 import HeroSwap from '../HeroSwap.client';
 import { analysisBySlug } from '@/lib/ten-analyses';
 import { getAnalysisAnswers, getAnalysisStart } from '@/lib/analysis-server';
@@ -27,12 +27,11 @@ export default function FinishContext() {
   const median = field.guard && Number(field.values.total) === Number(n.values.n) ? Number(field.values.median_min) : null;
   const start = { ...EXAMPLE_PROFILE, goal: mark };
   const initialAnswer = getAnalysisAnswers(start).find((a) => a.id === definition.id)!;
-  const answer = initialAnswer.charts.length ? (
+  const parts = explorerParts({ id: 'ambition', answer: initialAnswer, goal: mark, units: 'mi', valuesId: 'ftc-answer', example: true, apart: true });
+  const answer = parts ? (
     // Make it yours moves this chart (HeroSwap): the visitor's curve and time replace the example here, never a second copy.
-    <AnswerCard>
-      <HeroSwap kicker="Every finish, every course">
-        <ExplorerChart id="ambition" answer={initialAnswer} goal={mark} units="mi" valuesId="ftc-answer" example />
-      </HeroSwap>
+    <AnswerCard values={<HeroSwap slot="values">{parts?.values}</HeroSwap>}>
+      <HeroSwap kicker="Every finish, every course">{parts?.chart}</HeroSwap>
     </AnswerCard>
   ) : null;
   return (

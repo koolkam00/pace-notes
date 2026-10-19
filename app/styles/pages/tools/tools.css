@@ -348,6 +348,12 @@
 .mat-lines svg .mat-lines-name { font-size: 13px; font-weight: 600; fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
 .mat-lines svg .mat-lines-name.is-signal { fill: var(--signal-ink); }
 .mat-lines svg .mat-lines-name.is-quiet { fill: var(--ink-3); }
+/* Where a name has no room on the chart, every line is named here instead (MatLines). */
+.mat-lines-key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: var(--s-3) 0 0; padding: 0; list-style: none; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
+.mat-lines-key li { display: inline-flex; align-items: center; gap: 8px; }
+.mat-lines-key-mark { flex: none; width: 16px; height: 2px; border-radius: 1px; background: var(--ink); }
+.mat-lines-key-mark.is-signal { background: var(--signal); }
+.mat-lines-key-mark.is-quiet { background: var(--mark-quiet); }
 /* The gap the sentence names, bracketed at its mat. */
 .mat-lines-bracket path { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; }
 .mat-lines svg .mat-lines-bracket text { font-size: 14px; font-weight: 600; fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }

@@ -84,8 +84,9 @@ export default function MatLines({ lines, zeroTick = 'Even', units: _units, labe
     return { bx, top, bottom };
   })() : null;
   if (br && bracket) taken.push({ x0: br.bx - 6, x1: br.bx + 10 + bracket.label.length * 8.6, y0: br.top - 2, y1: br.bottom + 2 });
-  // Each name: beside a mat of its own line, above it or below it, its furthest point from even pace tried first.
-  const names = lines.map((l) => {
+  // Each name: beside a mat of its own line, above it or below it, its furthest point from even pace tried first, centred
+  // on the mat, then starting or ending there.
+  const placedNames = lines.map((l) => {
     const size = 13, w = l.label.length * 7.1 + 4;
     const order = l.gaps.map((g, i) => i).sort((a, b) => Math.abs(l.gaps[b]) - Math.abs(l.gaps[a]));
     const other = lines.filter((o) => o !== l);
@@ -93,9 +94,9 @@ export default function MatLines({ lines, zeroTick = 'Even', units: _units, labe
       const px = x(CHECKPOINTS[i]), py = y(l.gaps[i]);
       // Away from the other line: above when this line runs above it there, below when under it.
       const above = other.length ? l.gaps[i] <= other[0].gaps[i] : l.gaps[i] <= 0;
-      for (const side of [above, !above]) {
+      for (const side of [above, !above]) for (const start of [px - w / 2, px, px - w]) {
         const base = side ? py - 9 : py + 9 + size * 0.8;
-        const x0 = Math.max(m.l, Math.min(px - w / 2, m.l + iw - w));
+        const x0 = Math.max(m.l, Math.min(start, m.l + iw - w));
         const box = { x0, x1: x0 + w, y0: base - size * 0.8 - 1, y1: base + 3 };
         if (box.y0 < 0 || box.y1 > zeroY + (hi > 0 ? ih : 0) - 1 || box.y1 > H - m.b) continue;
         if (taken.some((t) => hit(t, box))) continue;
@@ -105,6 +106,10 @@ export default function MatLines({ lines, zeroTick = 'Even', units: _units, labe
     }
     return null;
   });
+  // A line with no room for its name (a narrow phone) would be unnamed: then every line is named in a key under the
+  // chart instead, so the two never read differently.
+  const named = placedNames.every(Boolean);
+  const names = named ? placedNames : [];
   return (
     <figure className="viz mat-lines" ref={ref}>
       <svg width={width} height={H} role="img" aria-label={label}>
@@ -131,6 +136,11 @@ export default function MatLines({ lines, zeroTick = 'Even', units: _units, labe
         ))}
         {names.map((n) => (n ? <text key={n.l.key} className={`mat-lines-name is-${n.l.tone}`} x={n.x} y={n.y}>{n.l.label}</text> : null))}
       </svg>
+      {named ? null : (
+        <ul className="mat-lines-key" aria-hidden="true">
+          {lines.map((l) => <li key={l.key}><i className={`mat-lines-key-mark is-${l.tone}`} />{l.label}</li>)}
+        </ul>
+      )}
     </figure>
   );
 }

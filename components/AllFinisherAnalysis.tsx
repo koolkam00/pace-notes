@@ -12,7 +12,9 @@ import { ALL_FINISHER_DEFAULT, allFinisherGroupLabel, bandShort, bandWords, allF
   type AllFinisherEvidence, type AllFinisherGroup, type AllFinisherKind, type AllFinisherSelection, type AllFinisherStart } from '@/lib/all-finisher-context';
 import MakeItYours from './ui/MakeItYours.client';
 import { keepTogether } from './ui/keepTogether';
-import { AnswerAbove, ExploreSubmit } from './analysis/ExploreSubmit';
+import { AnswerAbove, AnswerRedrawn, ExploreSubmit } from './analysis/ExploreSubmit';
+import { sendHero } from './analysis/hero-event';
+import { bandColumns, courseStrip } from './analysis/all-finisher-hero';
 import Segmented from './ui/Segmented.client';
 import Values from './ui/Values';
 import DotStrip from './viz/DotStrip';
@@ -68,6 +70,34 @@ function headline(groups: AllFinisherGroup[], kind: AllFinisherKind, label: (gro
     : `Sustained slowdown rates ranged from ${value(low)} (${label(low)}) to ${value(high)} (${label(high)})${few ? ` across ${few}` : ''}.`;
 }
 
+/**
+ * The headline when the selection is drawn on the page's answer card (HeroSwap), in the grammar of the page's own H1 and
+ * measured against it (critic round 5: "Sustained slowdown rates were 24% (50–59°F) and 35% (59–68°F)" read as a list).
+ * Courses: the range across courses with three or more editions, against the example's. Start temperatures: the band
+ * with the fewest among bands with five or more races, against the one with the most. '' keeps the plain headline.
+ */
+function answerHeadline(groups: AllFinisherGroup[], kind: AllFinisherKind, label: (g: AllFinisherGroup) => string, example: AllFinisherStart['initial'], place: string): string {
+  const ends = (list: AllFinisherGroup[]) => {
+    const sorted = list.filter(g => g.n >= 100 && Number.isFinite(g.slowdown_pct)).sort((a, b) => a.slowdown_pct - b.slowdown_pct);
+    return sorted.length >= 2 ? { low: sorted[0], high: sorted[sorted.length - 1], n: sorted.length } : null;
+  };
+  if (kind === 'courses') {
+    const mine = ends(groups.filter(g => g.edition_n >= 3)), ref = ends(example.courses.filter(g => g.edition_n >= 3));
+    if (!mine) return '';
+    const same = ref && percent(ref.low.slowdown_pct) === percent(mine.low.slowdown_pct) && percent(ref.high.slowdown_pct) === percent(mine.high.slowdown_pct);
+    return `Sustained slowdown ran from ${percent(mine.low.slowdown_pct)} (${label(mine.low)}) to ${percent(mine.high.slowdown_pct)} (${label(mine.high)}), course by course${ref && !same ? `, against ${percent(ref.low.slowdown_pct)} to ${percent(ref.high.slowdown_pct)} for every finish` : ''}.`;
+  }
+  if (kind === 'weather') {
+    // Among bands with five or more races, as the H1 picks its band; with fewer than two of those, every band shown.
+    const mine = ends(groups.filter(g => g.edition_n >= 5)) ?? ends(groups);
+    if (!mine) return '';
+    const lower = (t: string) => t.replace(/^[A-Z]/, c => c.toLowerCase());
+    const lead = place ? `In ${place}, ${lower(label(mine.low))}` : capital(label(mine.low));
+    return `${lead} starts had the ${mine.n === 2 ? 'fewer' : 'fewest'} sustained slowdowns: ${percent(mine.low.slowdown_pct)}, against ${percent(mine.high.slowdown_pct)} at ${lower(label(mine.high))}.`;
+  }
+  return '';
+}
+
 /** Recorded gender in the site's one order: All, Women, Men (then anything else the data adds). */
 const GENDERS = ['all', 'Women', 'Men'];
 const genderRank = (g: string) => (GENDERS.includes(g) ? GENDERS.indexOf(g) : GENDERS.length);
@@ -83,7 +113,10 @@ export function defaultFocus(groups: AllFinisherGroup[], kind: AllFinisherKind):
   if (isProfileKind(kind)) return groups[0];
   const measure = measureOf(kind);
   const lowest = kind !== 'course-consistency' && kind !== 'courses';
-  return groups.reduce<AllFinisherGroup | undefined>((a, b) => (!a || (lowest ? b[measure] < a[measure] : b[measure] > a[measure]) ? b : a), undefined);
+  // As the page's answer picks its end: a course with three or more editions, a start band with five or more races
+  // (a hollow mark is never the finding), unless none qualifies.
+  const firm = groups.filter(g => kind === 'courses' ? g.edition_n >= 3 : kind === 'weather' ? g.edition_n >= 5 : true);
+  return (firm.length ? firm : groups).reduce<AllFinisherGroup | undefined>((a, b) => (!a || (lowest ? b[measure] < a[measure] : b[measure] > a[measure]) ? b : a), undefined);
 }
 
 /**
@@ -92,7 +125,7 @@ export function defaultFocus(groups: AllFinisherGroup[], kind: AllFinisherKind):
  * Courses: a ranked dot strip. Start temperatures: columns. Downhill starts and the profile views: the pace through the
  * race, the group followed against its comparison.
  */
-export function AllFinisherResults({ groups, kind, start, units, focus, comparison, head = true, followed = true, linkTerm = true }: {
+export function AllFinisherResults({ groups, kind, start, units, focus, comparison, head = true, followed = true, linkTerm = true, redrawn = false, place = '' }: {
   groups: AllFinisherGroup[]; kind: AllFinisherKind; start: AllFinisherStart; units: UnitSystem; focus: AllFinisherGroup; comparison?: AllFinisherGroup;
   /** Show the headline. Off for the untouched example when the page's answer already states the same spread. */
   head?: boolean;
@@ -100,6 +133,10 @@ export function AllFinisherResults({ groups, kind, start, units, focus, comparis
   followed?: boolean;
   /** Link the headline's "sustained slowdown" to /methodology; off where the page has already linked the term. */
   linkTerm?: boolean;
+  /** The selection is drawn on the page's answer card (HeroSwap): the headline and sentence here, then one line up to it. */
+  redrawn?: boolean;
+  /** The course chosen, for the redrawn headline ("In Berlin, …"); '' for every course. */
+  place?: string;
 }) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const raceDay = kind === 'race-day';
@@ -110,7 +147,7 @@ export function AllFinisherResults({ groups, kind, start, units, focus, comparis
   // In a sentence the downhill groups read in lower case: "(downhill-start courses)".
   const named = (group: AllFinisherGroup) => kind === 'downhill' ? label(group).replace(/^[A-Z]/, c => c.toLowerCase()) : label(group);
   const band = kind === 'downhill' ? start.opening_bands.find(b => b.id === focus.opening) : undefined;
-  const title = headline(shown, kind, named, band ? bandWords(band.label) : undefined);
+  const title = (redrawn ? answerHeadline(groups, kind, label, start.initial, place) : '') || headline(shown, kind, named, band ? bandWords(band.label) : undefined);
   const measure = measureOf(kind);
   const display = (g: AllFinisherGroup) => measure === 'late_spread_pct' ? `${g.late_spread_pct.toLocaleString('en-US', { maximumFractionDigits: 1 })} pts` : measure === 'late_pct' ? signedPct(g.late_pct) : percent(g.slowdown_pct);
   let chart: ReactNode;
@@ -154,12 +191,12 @@ export function AllFinisherResults({ groups, kind, start, units, focus, comparis
         {label(focus)}: the typical finish took <strong>{timeDifference(focus.after20_delta_s)}</strong> after 20K than the same distance at early-race pace.
       </p>
       {raceDay && <p className="explore-note">{focus.temp_c == null ? 'Start-hour temperature is unavailable.' : `Start-hour temperature: ${Math.round(units === 'mi' ? focus.temp_c * 1.8 + 32 : focus.temp_c)}°${units === 'mi' ? 'F' : 'C'}.`} {focus.opening_net_m == null ? '' : `Net elevation change over the first 5K: ${elevationLabel(focus.opening_net_m, units)}.`}</p>}
-      {chart}
+      {redrawn ? <AnswerRedrawn /> : <>{chart}
       <Values id={`${id}-values`} caption={title}
         columns={[{ key: 'g', label: raceDay ? 'Race edition' : kind === 'weather' || kind === 'weather-profile' ? 'At the start' : kind === 'downhill' ? 'Opening' : 'Course', text: true },
           { key: 's', label: raceDay ? 'Slowdown rate in this edition' : 'Sustained slowdown' }, { key: 'o', label: 'Most often began' }, { key: 'l', label: 'Late-race pace' }, { key: 't', label: 'After 20K' }, { key: 'm', label: 'Median finish' }, { key: 'n', label: 'Finishes' }]}
         rows={[...shown].sort((a, b) => a[measure] - b[measure]).map(g => [label(g), percent(g.slowdown_pct), onsetText(g), paceChange(g.late_pct), timeDifference(g.after20_delta_s), clock(g.actual_finish_median_s, true), g.n.toLocaleString('en-US')])}
-        reading={[...shown].sort((a, b) => a[measure] - b[measure]).indexOf(focus)} />
+        reading={[...shown].sort((a, b) => a[measure] - b[measure]).indexOf(focus)} /></>}
     </div>
   );
 }
@@ -177,6 +214,11 @@ export type AllFinisherProps = {
   /** Downhill starts: the opening band the explorer opens on (the page picks it from the data). */
   opening?: string;
   /**
+   * Courses and start temperatures: a selection redraws the page's answer card (HeroSwap, all-finisher-hero.tsx) in its
+   * own grammar, and the explorer shows its headline and sentence with one line up to it, never a second chart.
+   */
+  hero?: boolean;
+  /**
    * What the explorer shows before the visitor changes anything: 'chart' the example's results, 'none' the selection
    * row alone, when the page's answer above already draws the example's chart. Any other selection shows its results;
    * the example set again shows one line back to the answer ('none').
@@ -189,7 +231,7 @@ export default function AllFinisherAnalysis({ history, ...props }: AllFinisherPr
 }
 
 /** The explorer itself; `historyNode` is an archive page's own earlier-result view, drawn under the comparison switch. */
-function AllFinisherExplorer({ kind, start, historyNode, title, description, archive = false, linkTerm = true, opening = ALL_FINISHER_DEFAULT.opening, untouched: untouchedView = 'chart' }: Omit<AllFinisherProps, 'history'> & {
+function AllFinisherExplorer({ kind, start, historyNode, title, description, archive = false, linkTerm = true, opening = ALL_FINISHER_DEFAULT.opening, untouched: untouchedView = 'chart', hero = false }: Omit<AllFinisherProps, 'history'> & {
   historyNode?: ReactNode;
 }) {
   const { units } = useUnits();
@@ -241,8 +283,12 @@ function AllFinisherExplorer({ kind, start, historyNode, title, description, arc
   // The selection row names only the choices that matter, the one that varies first: the opening band on downhill
   // starts, then the course; defaults ("All early paces", "All ages") are left out.
   const openingBand = kind === 'downhill' ? start.opening_bands.find(b => b.id === selection.opening) : undefined;
-  const summary = [...(openingBand ? [`First 5K ${bandWords(openingBand.label)}`] : []), selection.city === 'All courses' ? 'All courses' : cityName(selection.city),
-    ...(selection.early_pace === 'all' ? [] : [earlyPaceLabel(start.early_pace_bands.find(b => b.id === selection.early_pace)!, units)]), ...(selection.age === 'all' ? [] : [selection.age]),
+  // A courses view names the course it follows ("Washington · all paces", critic round 5: "All courses" said nothing on a
+  // page that compares courses).
+  const courseView = kind === 'courses' || kind === 'course-consistency' || kind === 'course-profile';
+  // Downhill starts across every course read as what the view compares ("Downhill starts"), so the row names the subject.
+  const summary = [...(openingBand ? [`First 5K ${bandWords(openingBand.label)}`] : []), courseView ? (focus ? label(focus) : 'All courses') : selection.city === 'All courses' ? (kind === 'downhill' ? 'Downhill starts' : 'All courses') : cityName(selection.city),
+    ...(selection.early_pace === 'all' ? (courseView && focus ? ['all paces'] : []) : [earlyPaceLabel(start.early_pace_bands.find(b => b.id === selection.early_pace)!, units)]), ...(selection.age === 'all' ? [] : [selection.age]),
     ...(selection.gender === 'all' ? [] : [selection.gender]), ...(all ? [] : ['With an earlier result'])].filter(Boolean).join(' · ');
   const same = (a: AllFinisherSelection, b: AllFinisherSelection) => (Object.keys(b) as (keyof AllFinisherSelection)[]).every(key => a[key] === b[key]);
   // The group followed and the comparison line as the form shows them (a blank draft is the view's default).
@@ -254,6 +300,15 @@ function AllFinisherExplorer({ kind, start, historyNode, title, description, arc
   const shown = !untouched || untouchedView === 'chart';
   // Update comparison does something only once the form differs from the selection on screen.
   const ready = !same(draft, selection) || shownFocus(focusDraft) !== shownFocus(focusId) || (isProfileKind(kind) && shownCompare(comparisonDraft) !== shownCompare(comparisonId));
+  // Courses and start temperatures: a selection redraws the page's answer card in its own grammar (HeroSwap); the example
+  // (or a selection with too few results) puts the page's own back. While a selection loads, the card keeps what it shows.
+  const heroKind = hero && (kind === 'courses' || kind === 'weather');
+  useEffect(() => {
+    if (!heroKind || (all && (pending || loading) && !row)) return;
+    const parts = !untouched && focus ? (kind === 'courses' ? courseStrip(groups, { id: `${formId}-values`, subject: focus.id }) : bandColumns(groups, units, { id: `${formId}-values`, subject: focus.id })) : null;
+    // The kicker names the selection; start temperatures keep the card's unit ("Berlin, by start temperature, °F").
+    sendHero(parts ? { kicker: kind === 'weather' ? `${summary}, by start temperature, ${units === 'mi' ? '°F' : '°C'}` : summary, chart: parts.chart, values: parts.values } : null);
+  }, [heroKind, all, pending, loading, row, untouched, focus, kind, groups, units, formId, summary]);
   // The comparison switch (archive pages only) is the form's first control.
   const modes = hasHistory ? <div className="explore-mode"><Segmented label="Choose the comparison" block value={all ? 'all' : 'history'} onChange={value => mode(value as 'all' | 'history')}
     options={[{ value: 'all', label: 'All finishes' }, { value: 'history', label: 'With an earlier result' }]} /><p className="field-hint">{all ? 'No previous race needed' : 'Compared with recorded race history'}</p></div> : null;
@@ -283,7 +338,7 @@ function AllFinisherExplorer({ kind, start, historyNode, title, description, arc
           : error ? <div className="explore-state" role="alert"><p>{error}</p><button type="button" className="btn btn-secondary is-compact" onClick={() => setRetry(value => value + 1)}>Try again</button></div>
           : untouched && chosen && untouchedView === 'none' ? <AnswerAbove />
           : !shown ? null
-          : focus ? <AllFinisherResults groups={groups} kind={kind} start={start} units={units} focus={focus} comparison={comparison} head={head} followed={!!focusId} linkTerm={linkTerm} />
+          : focus ? <AllFinisherResults groups={groups} kind={kind} start={start} units={units} focus={focus} comparison={comparison} head={head} followed={!!focusId} linkTerm={linkTerm} redrawn={heroKind} place={selection.city === 'All courses' ? '' : cityName(selection.city)} />
           : <div className="explore-state"><h2 className="explore-title">Not enough results for this exact comparison.</h2><p>Try a broader course, early pace, age or gender{kind === 'downhill' ? ', or another opening' : ''}.</p><button className="btn btn-secondary is-compact" type="button" onClick={() => apply(base, '', '')}>Reset the comparison</button></div>}
       </div>
     </>}

@@ -544,9 +544,12 @@ export default function SplitCheck({ indexSha, archetypesSha, bandCourses, other
             })}
           </fieldset>
           {/* The example's line takes the hint's place, under the times it describes (the data beat above links the term). */}
-          <p className={`tool-field-hint${hintIssue ? ' is-error' : ''}`} id={hintId} role={hintIssue ? 'alert' : undefined}>
+          <p className={`tool-field-hint${hintIssue ? ' is-error' : ''}`} id={hintId}>
             {gridMessage ?? (isExample ? 'A made-up race with a sustained slowdown from 30K. Type over it or paste your own.' : 'Chip time at each mat (h:mm:ss or mm:ss).')}<KeypadHint />
           </p>
+          {/* An issue is announced from a live region that is always in the page (role="alert" as a plain attribute), so a
+              recording never differs by an attribute that says whether a typed time was accepted. */}
+          <p className="sr-only" role="alert">{hintIssue ?? ''}</p>
           {/* Paste and Clear share one row with the privacy line; the paste box opens under it. */}
           <div className="split-check-buttons">
             <button type="button" className="btn btn-secondary is-compact split-check-paste-toggle" aria-expanded={pasteOpen} aria-controls={`${formId}-paste-box`}

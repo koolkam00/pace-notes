@@ -57,6 +57,7 @@ export default function ElevationPace({ km, metres, relief, reliefLabel, section
   const line = km.map((k, i) => [x(k), y(metres[i])] as [number, number]);
   const start = initial ?? focus ?? 0;
   const last = focus !== undefined && focusTo !== undefined && sections[focusTo] && focusTo >= focus ? focusTo : focus ?? 0;
+  const labelRight = !!sections[start] && x((sections[start].startKm + sections[start].endKm) / 2) < 0.5;
   const plot = (
     <Plot paths={(
       <>
@@ -68,7 +69,9 @@ export default function ElevationPace({ km, metres, relief, reliefLabel, section
       {focus !== undefined && sections[focus] ? <rect className="a-signal" x={pc(x(sections[focus].startKm))} width={pc(x(sections[last].endKm) - x(sections[focus].startKm))} y={reliefLabel ? pc(top) : '0'} height={reliefLabel ? pc(1 - top) : '100%'} /> : null}
       {/* The top line's label hides below the plot width it fits (200% zoom); the chart's name keeps the relief. */}
       {reliefLabel ? <Gridlines lines={[{ y: top }]} /> : null}
-      {reliefLabel ? <text className={`tick grid-label ${reliefFit(reliefLabel)}`.trim()} x="0" y={pc(top)} dy={-5}>{reliefLabel}</text> : null}
+      {/* On the side away from where the needle opens, so the needle never runs through it (critic round 5: a flat
+          course opened on 5–10K, under a label at the left). */}
+      {reliefLabel ? <text className={`tick grid-label ${reliefFit(reliefLabel)}`.trim()} x={labelRight ? '100%' : '0'} textAnchor={labelRight ? 'end' : undefined} y={pc(top)} dy={-5}>{reliefLabel}</text> : null}
       <Baseline />
     </Plot>
   );

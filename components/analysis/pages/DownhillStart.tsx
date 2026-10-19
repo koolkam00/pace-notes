@@ -34,8 +34,10 @@ export default function DownhillStart() {
   const downN = start.initial.downhill.filter((g) => g.terrain === 'downhill').reduce((t, g) => t + g.n, 0);
   const biggest = start.initial.courses.filter((c) => (c.edition_indices ?? []).some((i) => down.has(i))).reduce<{ label: string; n: number } | null>((b, c) => (!b || c.n > b.n ? c : b), null);
   const most = biggest && downN ? biggest.n / downN : 0;
+  // Said as a finding, not a cohort note (critic round 5): "Mostly Boston, with Sydney and Warsaw, against every other course."
+  const big = biggest ? courseName(biggest.label) : '';
   const dek = named.length === v.courses && named.length > 1
-    ? `${and(named)} against every other course${most >= 0.5 ? `; ${courseName(biggest!.label)} is ${most >= 0.75 ? 'most' : 'over half'} of the downhill-start finishes` : ''}.`
+    ? most >= 0.5 ? `Mostly ${big}, with ${and(named.filter((c) => c !== big))}, against every other course.` : `${and(named)} against every other course.`
     : 'Downhill-start courses against every other course.';
   const answer = (
     <AnswerCard kicker="Of 100, opened over 5% fast" className="answer-pair is-null">
@@ -57,9 +59,12 @@ export default function DownhillStart() {
   // The axis spans the rates to the nearest ten points, so a few points' gap still reads.
   const all = rows.flatMap((r) => [r.down!.slowdown_pct, r.other!.slowdown_pct]);
   const lo = Math.floor(Math.min(...all) / 10) * 10 / 100, top = Math.ceil(Math.max(...all) / 10) * 10 / 100;
-  // The explorer opens on the band where the two kinds of course differ most, the clearest row of the dumbbell above
-  // (never on a band whose rate the previous page gave from another comparison).
-  const clearest = rows.reduce<(typeof rows)[number] | undefined>((b, r) => (!b || Math.abs(r.other!.slowdown_pct - r.down!.slowdown_pct) > Math.abs(b.other!.slowdown_pct - b.down!.slowdown_pct) ? r : b), undefined);
+  // The explorer opens on a fast opening, the page's subject (critic round 5: "within 2%" continued neither the downhill
+  // nor the fast start): the bounded band over 5% fast ("5–10% fast"), never the open "over 10% fast" whose rate the
+  // previous page gave from another comparison; else the band where the two kinds of course differ most.
+  const edges = (band: unknown) => band as { lower?: number | null; upper?: number | null };
+  const fastOpen = rows.find((r) => { const e = edges(r.band); return typeof e.upper === 'number' && e.upper <= -5 && e.lower != null; });
+  const clearest = fastOpen ?? rows.reduce<(typeof rows)[number] | undefined>((b, r) => (!b || Math.abs(r.other!.slowdown_pct - r.down!.slowdown_pct) > Math.abs(b.other!.slowdown_pct - b.down!.slowdown_pct) ? r : b), undefined);
   return (
     <AnalysisShell path={PATH} title={opening} dek={dek} answer={answer}>
       <Beat id="by-band" track="chapter-1" label="Band by band" title={bands} term>

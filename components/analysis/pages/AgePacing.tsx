@@ -30,7 +30,9 @@ export default function AgePacing() {
   const mid = Math.floor((rows.length - 1) / 2);
   const answer = rows.length >= 2 ? (
     // The kicker says what the values measure: how much slower each group ran its second 20K than its first.
-    <AnswerCard kicker="Second 20K against the first, by age group">
+    <AnswerCard kicker="Second 20K against the first, by age group"
+      values={<Values id="age-two" caption="The second 20K against the first, by age group" columns={[{ key: 'a', label: 'Age group' }, { key: 'p', label: 'All finishes' }, { key: 's', label: `Near ${hm(goal)}` }]}
+        rows={rows.map((r) => [r.age, signedPct(r.pooled), signedPct(r.same)])} />}>
       <LineProfile x={xs} xDomain={[-0.4, rows.length - 0.6]} yDomain={[lo, hi]}
         layers={[{ id: 'a', label: 'Age', series: [{ id: 'pooled', values: rows.map((r) => r.pooled), tone: 'quiet' }, { id: 'same', values: rows.map((r) => r.same), tone: 'signal' }],
           labels: [
@@ -46,8 +48,6 @@ export default function AgePacing() {
         yTicks={Array.from({ length: Math.floor(hi / 5) - Math.ceil(lo / 5) + 1 }, (_, k) => (Math.ceil(lo / 5) + k) * 5).filter((t) => t > lo && t < Math.max(...vals) - 2).slice(-3).map((t) => ({ value: t, label: `${t > 0 ? '+' : t < 0 ? '−' : ''}${Math.abs(t)}%` }))}
         keys={[{ label: 'All finishes', mark: 'line', tone: 'quiet' }, { label: `Finishes near ${hm(goal)}`, mark: 'line', tone: 'signal' }]}
         label={`The second 20K against the first, by age group: pooled from ${signedPct(rows[pooledLo].pooled)} at ${rows[pooledLo].age} to ${signedPct(rows[pooledHi].pooled)} at ${rows[pooledHi].age}; near ${hm(goal)}, every age within ${Number(n.values.same_spread).toFixed(1)} points`}
-        values={<Values id="age-two" caption="The second 20K against the first, by age group" columns={[{ key: 'a', label: 'Age group' }, { key: 'p', label: 'All finishes' }, { key: 's', label: `Near ${hm(goal)}` }]}
-          rows={rows.map((r) => [r.age, signedPct(r.pooled), signedPct(r.same)])} />}
         height={200} heightMd={240} />
     </AnswerCard>
   ) : null;

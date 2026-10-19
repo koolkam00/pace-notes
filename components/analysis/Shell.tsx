@@ -116,13 +116,19 @@ export function ExploreBeat({ track, children }: { track: Track; children: React
   );
 }
 
-/** A night answer card for an answer that is a figure rather than a receipt (dot grids, a chart). */
-export function AnswerCard({ kicker, children, foot, className }: { kicker?: ReactNode; children: ReactNode; foot?: ReactNode; className?: string }) {
-  return (
+/**
+ * A night answer card for an answer that is a figure rather than a receipt (dot grids, a chart). The card holds the
+ * answer only: the chart's "All numbers" (`values`) sits on paper directly under it, as at the foot of a story's beat,
+ * never inside the night surface (critic round 5).
+ */
+export function AnswerCard({ kicker, children, foot, className, values }: { kicker?: ReactNode; children: ReactNode; foot?: ReactNode; className?: string; values?: ReactNode }) {
+  const card = (
     <div className={`answer-card night${className ? ` ${className}` : ''}`}>
       {kicker ? <p className="answer-kicker t-kicker">{kicker}</p> : null}
       {children}
       {foot ? <p className="answer-foot">{foot}</p> : null}
     </div>
   );
+  if (!values) return card;
+  return <div className="answer-stack">{card}<div className="answer-values">{values}</div></div>;
 }

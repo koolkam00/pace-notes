@@ -4,6 +4,9 @@ import Plot, { Baseline } from '@/components/viz/Plot';
 import Scrubber from '@/components/viz/Scrubber.client';
 import Annotation from '@/components/viz/Annotation';
 import { keepClearOf, placeLabels, REF_WIDTH, textWidth, widthClass, type LabelItem, type PlacedLabel } from '@/components/viz/labels';
+
+/** The narrowest plot a course chart is drawn at (a 195 px screen, 200% zoom). */
+const NARROW = 160;
 import { extent, linear, linePath, pc, yScale } from '@/components/viz/scale';
 import { yearPad, yearTicks } from '@/components/viz/YearStrip';
 
@@ -115,9 +118,13 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
     const text = hm(v);
     const w = (textWidth(text, 12, 500) + 6) / REF_WIDTH;
     const fy = y(v);
+    // Against the resting needle the label is measured on the narrowest plot (200% zoom), where its pixels take the
+    // largest share: clear there, it is clear at every wider plot.
+    const wN = (textWidth(text, 12, 500) + 6) / NARROW;
     for (const { at, end } of sides) {
       const box = { x0: end ? at - w : at, x1: end ? at : at + w, y0: fy - 14 / height, y1: fy - 3 / height };
-      if (box.y0 >= 0 && box.x0 >= 0 && box.x1 <= 1 && !meets(rest, box) && !boxes.some((t) => meets(t, box)) && !marks.some((m) => meets(m, box))) {
+      const narrow = { ...box, x0: end ? at - wN : at, x1: end ? at : at + wN };
+      if (box.y0 >= 0 && box.x0 >= 0 && box.x1 <= 1 && !meets(rest, narrow) && !boxes.some((t) => meets(t, box)) && !marks.some((m) => meets(m, box))) {
         boxes.push(box);
         return { y: fy, label: text, at, end, shown: true };
       }

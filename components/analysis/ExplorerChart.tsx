@@ -27,39 +27,59 @@ const signed = (s: number) => { const t = Math.round(Math.abs(s)); return `${s <
 /** The hills chart's extras: the course's supplied profile, its step, and every course combined at the finish time. */
 export type TerrainExtras = { elevation: number[] | null; step: number; baseline?: number[] };
 
-export default function ExplorerChart({ id, answer, goal, units, terrain, valuesId, selectedAge, example = false, yours = !example }: {
+type ChartProps = {
   id: string; answer: GuideAnswer; goal: number; units: UnitSystem; terrain?: TerrainExtras; valuesId: string; selectedAge?: string;
   /** The page's own example (its answer card), not the visitor's selection. */
   example?: boolean;
   /** The goal is one the visitor set: ringed as "You". Otherwise (the page's 4:00) it is ringed by its time. */
   yours?: boolean;
-}): ReactNode {
-  if (id === 'profile') return <PaceProfile answer={answer} goal={goal} units={units} valuesId={valuesId} />;
-  if (id === 'terrain') return <Terrain answer={answer} units={units} terrain={terrain} valuesId={valuesId} />;
-  if (id === 'sections') return <Sections answer={answer} goal={goal} valuesId={valuesId} example={example} />;
-  if (id === 'ambition') return <Target answer={answer} goal={goal} valuesId={valuesId} yours={yours} />;
-  if (id === 'gains') return <Gains answer={answer} goal={goal} units={units} valuesId={valuesId} />;
-  if (id === 'age') return <Ages answer={answer} valuesId={valuesId} selectedAge={selectedAge} />;
+  /** The page's own example, drawn as a quiet line beside a selection on the answer card (pace profile, same time). */
+  reference?: { answer: GuideAnswer; goal: number; label: string };
+};
+/** A chart and its table twin. `values` is drawn inside the chart's frame unless the caller asked for it apart. */
+export type ChartParts = { chart: ReactNode; values: ReactNode };
+
+export default function ExplorerChart(props: ChartProps): ReactNode {
+  return explorerParts(props)?.chart ?? null;
+}
+
+/**
+ * The chart with its "All numbers" apart (`apart`), for a night answer card: the card holds the answer only and the
+ * table sits on paper under it (AnswerCard's `values`). Without `apart` the table stays in the chart's frame.
+ */
+export function explorerParts({ id, answer, goal, units, terrain, valuesId, selectedAge, example = false, yours = !example, reference, apart = false }: ChartProps & { apart?: boolean }): ChartParts | null {
+  const inFrame = !apart;
+  if (id === 'profile') return paceProfile({ answer, goal, units, valuesId, reference: reference && reference.goal === goal ? reference : undefined }, inFrame);
+  if (id === 'terrain') return terrainChart({ answer, units, terrain, valuesId }, inFrame);
+  if (id === 'sections') return sections({ answer, goal, valuesId, example }, inFrame);
+  if (id === 'ambition') return target({ answer, goal, valuesId, yours }, inFrame);
+  if (id === 'gains') return gains({ answer, goal, units, valuesId }, inFrame);
+  if (id === 'age') return ages({ answer, valuesId, selectedAge }, inFrame);
   return null;
 }
 
 /** Pace through the race for finishes near the goal: the median, its middle half, even goal pace dashed. */
-function PaceProfile({ answer, goal, units, valuesId }: { answer: GuideAnswer; goal: number; units: UnitSystem; valuesId: string }) {
+function paceProfile({ answer, goal, units, valuesId, reference }: { answer: GuideAnswer; goal: number; units: UnitSystem; valuesId: string; reference?: ChartProps['reference'] }, inFrame: boolean): ChartParts | null {
   const chart = answer.charts.find((c) => c.unit === 'min/km');
   if (!chart) return null;
   const k = units === 'mi' ? 1.609344 : 1;
   const rows = chart.rows.map((r) => ({ end: num(r.label), lo: num(r.low) * 60 * k, mid: num(r.value) * 60 * k, hi: num(r.high) * 60 * k }));
+  // The example's median, a quiet line beside a selection at the same time ("Every course"), so the change reads at once.
+  const refChart = reference?.answer.charts.find((c) => c.unit === 'min/km');
+  const ref = refChart && refChart.rows.length === rows.length ? refChart.rows.map((r) => num(r.value) * 60 * k) : null;
   const even = ((goal * 60) / 42.195) * k;
   // The domain fits the middle half and even pace with a little room; the readout carries the values, so no gridline
   // label sits where the needle opens and no label repeats the readout.
-  const lo = Math.min(...rows.map((r) => r.lo), even), hi = Math.max(...rows.map((r) => r.hi), even);
+  const lo = Math.min(...rows.map((r) => r.lo), even, ...(ref ?? [])), hi = Math.max(...rows.map((r) => r.hi), even, ...(ref ?? []));
   const room = (hi - lo) * 0.12 || 5;
   const slowest = rows.reduce((b, r, i) => (r.mid > rows[b].mid ? i : b), 0);
   const pace = (s: number) => paceLabel(s / k, units);
-  return (
+  const values = <Values id={valuesId} caption="Median section pace, with the middle half of finishes" columns={[{ key: 's', label: 'Section' }, { key: 'm', label: 'Median' }, { key: 'r', label: 'Middle half' }]}
+    rows={rows.map((r, i) => [sectionLabel(MARATHON_SECTION_ENDS[i]), pace(r.mid), `${paceLabel(r.lo / k, units, false)}–${pace(r.hi)}`])} reading={slowest} />;
+  return { values, chart: (
     // Slower is down, as on every pace chart on the site (the domain runs from slow at the foot to fast at the top).
     <LineProfile x={SECTION_MIDS} xDomain={[0, 42.195]} yDomain={[hi + room, lo - room]}
-      layers={[{ id: 'p', label: 'Median', series: [{ id: 'm', values: rows.map((r) => r.mid) }], band: { lo: rows.map((r) => r.lo), hi: rows.map((r) => r.hi) } }]}
+      layers={[{ id: 'p', label: 'Median', series: [...(ref ? [{ id: 'r', values: ref, tone: 'quiet' as const }] : []), { id: 'm', values: rows.map((r) => r.mid) }], band: { lo: rows.map((r) => r.lo), hi: rows.map((r) => r.hi) } }]}
       refs={[{ value: even, dashed: true, label: `even ${hm(goal)}, ${pace(even)}` }]}
       xTicks={KM_TICKS}
       scrub={{ label: 'Section pace, start to finish', initial: slowest, detents: [slowest],
@@ -68,19 +88,18 @@ function PaceProfile({ answer, goal, units, valuesId }: { answer: GuideAnswer; g
           side: [{ label: 'Against even', values: rows.map((r) => { const d = Math.round(r.mid - even); return `${d > 0 ? '+' : d < 0 ? '−' : ''}${Math.abs(d)} s/${units}`; }) }] } }}
       // Even pace is named on its own dashed line, so the key holds only the band; the cue says which way is faster.
       yCue="faster ↑"
-      keys={[{ label: 'Middle half of finishes', mark: 'band' }]}
+      keys={[{ label: 'Middle half of finishes', mark: 'band' }, ...(ref && reference ? [{ label: reference.label, mark: 'line' as const, tone: 'quiet' as const }] : [])]}
       label={`Median section pace for finishes near ${hm(goal)}; slowest in ${sectionLabel(MARATHON_SECTION_ENDS[slowest])} at ${pace(rows[slowest].mid)}`}
-      values={<Values id={valuesId} caption="Median section pace, with the middle half of finishes" columns={[{ key: 's', label: 'Section' }, { key: 'm', label: 'Median' }, { key: 'r', label: 'Middle half' }]}
-        rows={rows.map((r, i) => [sectionLabel(MARATHON_SECTION_ENDS[i]), pace(r.mid), `${paceLabel(r.lo / k, units, false)}–${pace(r.hi)}`])} reading={slowest} />}
+      values={inFrame ? values : undefined}
       height={210} heightMd={260} />
-  );
+  ) };
 }
 
 /**
  * A course's climbs on its own height scale, with each section's pace against the same section on every course combined
- * at the same finish time (lib/terrain-reading.ts), the reading's climb washed (else the section that ran slowest).
+ * at the same finish time (lib/terrain-reading.ts), the reading's climb washed (none on a course with no real climb).
  */
-function Terrain({ answer, units, terrain, valuesId }: { answer: GuideAnswer; units: UnitSystem; terrain?: TerrainExtras; valuesId: string }) {
+function terrainChart({ answer, units, terrain, valuesId }: { answer: GuideAnswer; units: UnitSystem; terrain?: TerrainExtras; valuesId: string }, inFrame: boolean): ChartParts | null {
   const pace = answer.charts.find((c) => c.unit === 'min/km');
   const climbs = answer.charts.find((c) => c.series.some((s) => s.key === 'gain'));
   const net = answer.charts.find((c) => c.unit === 'm' && c.series.length === 1);
@@ -90,7 +109,12 @@ function Terrain({ answer, units, terrain, valuesId }: { answer: GuideAnswer; un
   const gainOf = (i: number) => num(climbs?.rows.find((r) => r.label === sectionLabel(MARATHON_SECTION_ENDS[i]))?.gain);
   const netOf = (i: number) => num(net?.rows.find((r) => r.label === sectionLabel(MARATHON_SECTION_ENDS[i]))?.value);
   const reading = terrainReading(MARATHON_SECTION_ENDS.map((_, i) => gainOf(i)), vs);
-  const focus = reading?.i ?? vs.reduce((b, v, i) => (v > vs[b] ? i : b), 0);
+  // The reading's climb is washed and the readout opens on it. A course with no real climb (none of 30 m after the first
+  // 5K) gets no wash, which would mark a climb the headline says is not there (critic round 5): its readout opens on its
+  // biggest climb after the first 5K, the one the headline names.
+  const biggest = MARATHON_SECTION_ENDS.reduce((b, _, i) => (i > 0 && Number.isFinite(gainOf(i)) && (b < 1 || gainOf(i) > gainOf(b)) ? i : b), 0);
+  const focus = reading?.i;
+  const opens = reading?.i ?? biggest;
   // The supplied route's profile where there is one, else the section nets joined end to end.
   const km = terrain.elevation ? terrain.elevation.map((_, i) => Math.min(42.195, i * terrain.step)) : [0, ...MARATHON_SECTION_ENDS];
   let h = 0;
@@ -99,13 +123,14 @@ function Terrain({ answer, units, terrain, valuesId }: { answer: GuideAnswer; un
   // The course's own height scale (its relief rounded up to 25 m, at least 50 m), its top line labelled, as the page's
   // answer draws it: on the scale every course shares a flat course was a hairline under an empty plot.
   const own = Math.max(50, Math.ceil((Math.max(...metres) - Math.min(...metres)) / 25) * 25);
-  return (
-    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={`${wholeElevation(own, units)} above the low point`} focus={focus} readoutKeys={['Climb', 'Against every course']}
+  const values = <Values id={valuesId} caption="By section: the climb, and the pace against the same 5K on every course combined" columns={[{ key: 's', label: 'Section' }, { key: 'c', label: 'Climb' }, { key: 'p', label: 'Against elsewhere' }]}
+    rows={MARATHON_SECTION_ENDS.map((end, i) => [sectionLabel(end), climb(i), signedWhole(vs[i])])} reading={opens} />;
+  return { values, chart: (
+    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={`${wholeElevation(own, units)} above the low point`} focus={focus} initial={opens} readoutKeys={['Climb', 'Against every course']}
       sections={MARATHON_SECTION_ENDS.map((end, i) => ({ label: sectionLabel(end), startKm: i ? MARATHON_SECTION_ENDS[i - 1] : 0, endKm: end, pct: vs[i], display: signedWhole(vs[i]), climb: climb(i) }))}
-      label={`Elevation, its top line ${wholeElevation(own, units)} above the lowest point, with each 5K's pace against the same 5K on every course combined; ${sectionLabel(MARATHON_SECTION_ENDS[focus])} washed`}
-      values={<Values id={valuesId} caption="By section: the climb, and the pace against the same 5K on every course combined" columns={[{ key: 's', label: 'Section' }, { key: 'c', label: 'Climb' }, { key: 'p', label: 'Against elsewhere' }]}
-        rows={MARATHON_SECTION_ENDS.map((end, i) => [sectionLabel(end), climb(i), signedWhole(vs[i])])} reading={focus} />} />
-  );
+      label={`Elevation, its top line ${wholeElevation(own, units)} above the lowest point, with each 5K's pace against the same 5K on every course combined; ${focus !== undefined ? `${sectionLabel(MARATHON_SECTION_ENDS[focus])} washed` : `its biggest climb ${sectionLabel(MARATHON_SECTION_ENDS[opens])}`}`}
+      values={inFrame ? values : undefined} />
+  ) };
 }
 
 /**
@@ -113,7 +138,7 @@ function Terrain({ answer, units, terrain, valuesId }: { answer: GuideAnswer; un
  * example washes the stretch after 20K, the share its H1 names; a visitor's selection marks its widest section, the one
  * its headline names.
  */
-function Sections({ answer, goal, valuesId, example }: { answer: GuideAnswer; goal: number; valuesId: string; example: boolean }) {
+function sections({ answer, goal, valuesId, example }: { answer: GuideAnswer; goal: number; valuesId: string; example: boolean }, inFrame: boolean): ChartParts | null {
   const rows = answer.charts[0]?.rows ?? [];
   if (!rows.length) return null;
   const steps = rows.map((r, i) => ({ id: String(i), label: sectionLabel(MARATHON_SECTION_ENDS[i]), value: (num(r.above) - num(r.below)) * 60, display: signed((num(r.above) - num(r.below)) * 60) }));
@@ -124,13 +149,14 @@ function Sections({ answer, goal, valuesId, example }: { answer: GuideAnswer; go
   const from20 = MARATHON_SECTION_ENDS.findIndex((end, i) => i > 0 && MARATHON_SECTION_ENDS[i - 1] >= 20);
   const after = steps.slice(from20).reduce((s, x) => s + x.value, 0);
   const span = example && mats && from20 > 0 && total > 0 && after > 0 ? { from: from20, text: `After 20K ${Math.round((100 * after) / total)}%` } : undefined;
-  return (
+  const values = <Values id={valuesId} caption={`Just over ${hm(goal)} against just under, by section`} columns={[{ key: 's', label: 'Section' }, { key: 'g', label: 'Gap added' }]} rows={[...steps.map((s) => [s.label, s.display]), ['Gap at the finish', signed(total)]]} />;
+  return { values, chart: (
     // The total bar is the gap at the finish ("the 4:51 gap"): "Gap" fits centred under it on the narrowest phone, where
     // "Finish" turned to end at its tick and sat under the 40K–finish step.
     <Waterfall steps={steps} total={{ label: 'Gap', display: signed(total) }} xTicks={mats} span={span}
       label={`The gap between finishes just over and just under ${hm(goal)}, built section by section; ${big.label} added the most, ${big.display}`}
-      values={<Values id={valuesId} caption={`Just over ${hm(goal)} against just under, by section`} columns={[{ key: 's', label: 'Section' }, { key: 'g', label: 'Gap added' }]} rows={[...steps.map((s) => [s.label, s.display]), ['Gap at the finish', signed(total)]]} />} />
-  );
+      values={inFrame ? values : undefined} />
+  ) };
 }
 
 /**
@@ -138,14 +164,15 @@ function Sections({ answer, goal, valuesId, example }: { answer: GuideAnswer; go
  * headline names, so the needle (the page's one orange mark) and the H1's accent agree. A goal the visitor set is
  * "You"; the page's own goal is ringed by its time.
  */
-function Target({ answer, goal, valuesId, yours }: { answer: GuideAnswer; goal: number; valuesId: string; yours: boolean }) {
+function target({ answer, goal, valuesId, yours }: { answer: GuideAnswer; goal: number; valuesId: string; yours: boolean }, inFrame: boolean): ChartParts | null {
   const rows = answer.charts[0]?.rows ?? [];
   const all = rows.map((r) => ({ x: num(r.label), share: num(r.value) / 100 })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.share));
-  // The curve is cropped to the 1st–99th percentile so its tails do not flatten it, but it starts at least 45 minutes
-  // before the goal: a needle at a goal near the fast tail (3:00) otherwise sat in the gridline labels' column.
+  // The curve is cropped to the 1st–99th percentile so its tails do not flatten it, but it starts at least an hour before
+  // the goal: a needle at a goal near the fast tail (3:00) otherwise sat in the gridline labels' column (at 195 px with
+  // 45 minutes, critic round 5's needle check).
   const cropped = all.filter((p) => p.share >= 0.01 && p.share <= 0.99);
   if (cropped.length < 2) return null;
-  const from = Math.min(cropped[0].x, goal - 45);
+  const from = Math.min(cropped[0].x, goal - 60);
   const pts = all.filter((p) => p.x >= from && p.x <= cropped[cropped.length - 1].x && p.share <= 0.99);
   const at = pts.reduce((b, p) => (Math.abs(p.x - goal) < Math.abs(b.x - goal) ? p : b));
   const marks = Array.from({ length: 24 }, (_, i) => 120 + i * 30).filter((m) => m >= pts[0].x && m <= pts[pts.length - 1].x);
@@ -157,17 +184,18 @@ function Target({ answer, goal, valuesId, yours }: { answer: GuideAnswer; goal: 
   const ringLabel = yours ? 'You' : ticks.includes(goal) ? '' : hm(goal);
   // The detents are the labelled hours only: each snap point draws a dot on the axis, so a detent off a labelled tick
   // read as a misplaced tick. The half hours stay in Values.
-  return (
+  const values = <Values id={valuesId} caption="Finishes under each round time" columns={[{ key: 't', label: 'Under' }, { key: 's', label: 'Share of finishes' }]} rows={marks.map((m) => [hm(m), `${Math.round((pts.find((p) => p.x === m)?.share ?? NaN) * 100)}%`])} />;
+  return { values, chart: (
     <Cdf points={pts} you={goal} youLabel={ringLabel} ticks={ticks.map((m) => ({ value: m, label: hm(m) }))}
       scrub={{ label: 'Finish time', points: { x: pts.map((p) => (p.x - pts[0].x) / (pts[pts.length - 1].x - pts[0].x)), dot, keys: pts.map((p) => `Finishes under ${hm(p.x)}`), values: pts.map((p) => `${Math.round(p.share * 100)}%`) },
         initial: pts.indexOf(at), detents: ticks.map((m) => pts.findIndex((p) => p.x === m)).filter((i, k, all) => i >= 0 && all.indexOf(i) === k) }}
       label={`The share of finishes under each time; ${Math.round(at.share * 100)}% under ${hm(goal)}`}
-      values={<Values id={valuesId} caption="Finishes under each round time" columns={[{ key: 't', label: 'Under' }, { key: 's', label: 'Share of finishes' }]} rows={marks.map((m) => [hm(m), `${Math.round((pts.find((p) => p.x === m)?.share ?? NaN) * 100)}%`])} />} />
-  );
+      values={inFrame ? values : undefined} />
+  ) };
 }
 
 /** Where improving finishes found their time: the three blocks building the total gain. */
-function Gains({ answer, goal, units, valuesId }: { answer: GuideAnswer; goal: number; units: UnitSystem; valuesId: string }) {
+function gains({ answer, goal, units, valuesId }: { answer: GuideAnswer; goal: number; units: UnitSystem; valuesId: string }, inFrame: boolean): ChartParts | null {
   const rows = answer.charts[0]?.rows ?? [];
   if (rows.length !== 3) return null;
   const labels = ['0–10K', '10–30K', '30K–finish'];
@@ -180,24 +208,26 @@ function Gains({ answer, goal, units, valuesId }: { answer: GuideAnswer; goal: n
   const KM = [10, 20, 12.195];
   const perKm = steps.map((s, i) => s.value / KM[i]);
   const focus = perKm.reduce((b, v, i) => (v > perKm[b] ? i : b), 0);
-  return (
+  const values = <Values id={valuesId} caption="Time found against the earlier best, by part of the race" columns={[{ key: 'b', label: 'Part of the race' }, { key: 'm', label: 'Time found' }, { key: 'k', label: units === 'mi' ? 'Per mile' : 'Per km' }]}
+    rows={steps.map((s, i) => [s.label, s.display, `${Math.round(perKm[i] * (units === 'mi' ? 1.609344 : 1))} s`])} reading={focus} />;
+  return { values, chart: (
     <Waterfall steps={steps} total={{ label: 'In all', display: plain(total) }} focus={focus}
       label={`Where improving finishes near ${hm(goal)} found their time against an earlier best: ${steps.map((s) => `${s.label} ${s.display}`).join(', ')}, ${plain(total)} in all`}
-      values={<Values id={valuesId} caption="Time found against the earlier best, by part of the race" columns={[{ key: 'b', label: 'Part of the race' }, { key: 'm', label: 'Time found' }, { key: 'k', label: units === 'mi' ? 'Per mile' : 'Per km' }]}
-        rows={steps.map((s, i) => [s.label, s.display, `${Math.round(perKm[i] * (units === 'mi' ? 1.609344 : 1))} s`])} reading={focus} />} />
-  );
+      values={inFrame ? values : undefined} />
+  ) };
 }
 
 /** The second 20K against the first, age group by age group (one decimal everywhere, as on the page's own card). */
-function Ages({ answer, valuesId, selectedAge }: { answer: GuideAnswer; valuesId: string; selectedAge?: string }) {
+function ages({ answer, valuesId, selectedAge }: { answer: GuideAnswer; valuesId: string; selectedAge?: string }, inFrame: boolean): ChartParts | null {
   const signedPct = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)}%`;
   const rows = (answer.charts[0]?.rows ?? []).map((r) => ({ age: String(r.label).replace(' (selected)', ''), value: num(r.value), n: num(r.n_value) }));
   if (rows.length < 2) return null;
   const max = Math.ceil(Math.max(...rows.map((r) => r.value)) / 2) * 2 + 2;
-  return (
+  const values = <Values id={valuesId} caption="The second 20K against the first, by age group" columns={[{ key: 'a', label: 'Age group' }, { key: 'v', label: 'Second 20K' }, { key: 'n', label: 'Finishes' }]}
+    rows={rows.map((r) => [r.age, signedPct(r.value), Number.isFinite(r.n) ? r.n.toLocaleString('en-US') : '—'])} />;
+  return { values, chart: (
     <Columns items={rows.map((r) => ({ id: r.age, label: r.age, value: r.value, display: signedPct(r.value), tone: r.age === selectedAge ? 'signal' : 'ink' }))} max={max}
       label={`The second 20K against the first, by age group: ${rows.map((r) => `${r.age} ${signedPct(r.value)}`).join(', ')}`}
-      values={<Values id={valuesId} caption="The second 20K against the first, by age group" columns={[{ key: 'a', label: 'Age group' }, { key: 'v', label: 'Second 20K' }, { key: 'n', label: 'Finishes' }]}
-        rows={rows.map((r) => [r.age, signedPct(r.value), Number.isFinite(r.n) ? r.n.toLocaleString('en-US') : '—'])} />} />
-  );
+      values={inFrame ? values : undefined} />
+  ) };
 }
