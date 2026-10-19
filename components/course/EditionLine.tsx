@@ -3,7 +3,7 @@ import Axis from '@/components/viz/Axis';
 import Plot, { Baseline } from '@/components/viz/Plot';
 import Scrubber from '@/components/viz/Scrubber.client';
 import Annotation from '@/components/viz/Annotation';
-import { placeLabels, REF_WIDTH, textWidth, type LabelItem, type PlacedLabel } from '@/components/viz/labels';
+import { keepClearOf, placeLabels, REF_WIDTH, textWidth, widthClass, type LabelItem, type PlacedLabel } from '@/components/viz/labels';
 import { extent, linear, linePath, pc, yScale } from '@/components/viz/scale';
 import { yearPad, yearTicks } from '@/components/viz/YearStrip';
 
@@ -117,6 +117,16 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
     });
   };
   const grid = sides.map(labelOn).reduce((best, g) => (g.filter((l) => l.shown).length > best.filter((l) => l.shown).length ? g : best)).filter((g) => g.shown);
+  // Below the reference width (200% zoom) a gridline's label keeps its pixels at the plot's edge while the edition's label
+  // moves in with the plot: the edition's label hides where it would meet one (its leader with it), and the readout and
+  // the Values table keep it (Frankfurt at 195 px, round 4 merge).
+  for (const g of grid) {
+    const w = textWidth(g.label, 12, 500) + 6;
+    keepClearOf(placed, (width) => {
+      const ax = g.at * width;
+      return { x0: g.end ? ax - w : ax, x1: g.end ? ax : ax + w, y0: g.y * height - 14, y1: g.y * height - 3 };
+    }, height);
+  }
   // A label a gridline runs through breaks the line under it (a knockout halo), so the line never crosses the text.
   placed = placed.map((l) => {
     if (l.minWidth === null) return l;
@@ -136,7 +146,7 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
       {sorted.map((p, i) => <circle key={p.year} className={i === sel ? 'm-signal is-reading' : 'm-ink'} cx={pc(x(p.year))} cy={pc(y(p.seconds))} r={i === sel ? 5.5 : 4} />)}
       {lifted ? placed.filter((l) => l.minWidth !== null && l.dy < 0).map((l) => {
         const from = l.y + (l.dy + 3) / height, to = y(sorted[start].seconds) - 6 / height;
-        return to - from > 4 / height ? <rect key="leader" className="leader" data-scrub-i={l.at} x={pc(l.x)} width={1} transform="translate(-0.5 0)" y={pc(from)} height={pc(to - from)} /> : null;
+        return to - from > 4 / height ? <rect key="leader" className={['leader', widthClass(l.minWidth)].filter(Boolean).join(' ')} data-scrub-i={l.at} x={pc(l.x)} width={1} transform="translate(-0.5 0)" y={pc(from)} height={pc(to - from)} /> : null;
       }) : null}
       <Annotation labels={placed} />
       <Baseline />
