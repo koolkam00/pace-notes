@@ -130,10 +130,12 @@ export default function CourseGlance({ page }: { page: CoursePageData }) {
     }
     if (id === 'course.late') {
       const slowest = s.slowest_section ? page.sections.indexOf(s.slowest_section) : -1;
-      return { id, figure: figureOf(n), key: n.key!, note: `than its average pace, at ${name(slowest)}`, viz: curve && slowest >= 0 ? <LateViz curve={curve} slowest={slowest} /> : undefined };
+      return { id, figure: figureOf(n), key: n.key!, note: `than ${display}’s average pace, at ${name(slowest)}`, viz: curve && slowest >= 0 ? <LateViz curve={curve} slowest={slowest} /> : undefined };
     }
     const at = s.signature_section ? page.sections.indexOf(s.signature_section) : -1;
-    return { id, figure: figureOf(n), key: n.key!, note: `than the typical course, at ${name(at)}`, viz: curve && at >= 0 ? <SignatureViz curve={curve} typical={typicalCurve} at={at} /> : undefined };
+    // Alone, the H2 says the one figure (critic round 4: the two curves' percentages beside it read as three numbers), so
+    // the row is its chart, with a note saying which line is which.
+    return { id, figure: single ? null : figureOf(n), key: n.key!, note: single ? `${display}, 5K by 5K; the typical course dashed` : undefined, viz: curve && at >= 0 ? <SignatureViz curve={curve} typical={typicalCurve} at={at} /> : undefined };
   });
   return (
     <CourseSection id="at-a-glance" track="chapter-1" beat="At a glance"
@@ -143,7 +145,7 @@ export default function CourseGlance({ page }: { page: CoursePageData }) {
           {rows.map((r, i) => (
             <li key={r.id} className={`glance-row${i > 0 ? ' is-quiet' : ''}${r.figure ? '' : ' is-chart'}`}>
               {r.figure ? <span className="glance-figure">{r.figure}</span> : null}
-              {single ? (r.figure && r.note ? <span className="glance-note">{r.note}</span> : null) : <span className="glance-key">{r.key}</span>}
+              {single ? (r.note ? <span className="glance-note">{r.note}</span> : null) : <span className="glance-key">{r.key}</span>}
               {r.viz ? <span className="glance-chart">{r.viz}</span> : null}
             </li>
           ))}

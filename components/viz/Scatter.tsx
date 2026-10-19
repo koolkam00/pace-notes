@@ -15,7 +15,7 @@ import { extent, linear, pc, yScale } from './scale';
  */
 export type ScatterPoint = { id: string; x: number; y: number; label: string; key: string; value: string; inPair?: boolean };
 
-export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, label, axisTitle, values, height = 220, heightMd = 280, labelAll = false, selected, pairLine = true, side }: {
+export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, label, axisTitle, values, height = 220, heightMd = 280, labelAll = false, selected, pairLine = true, side, prompt }: {
   points: ScatterPoint[]; xTicks: { value: number; label: string }[]; yTicks: { value: number; label: string }[];
   xDomain?: [number, number]; yDomain?: [number, number]; label: string;
   axisTitle?: { start?: string; end?: string }; values?: ReactNode; height?: number; heightMd?: number;
@@ -27,6 +27,8 @@ export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, labe
   pairLine?: boolean;
   /** Side values for the readout, one per point (the y measure named, so the readout says what the dots' height is). */
   side?: { label: string; values: string[] }[];
+  /** Open on nothing, the readout holding this prompt until a dot is picked (where the heading already says the reading). */
+  prompt?: string;
 }) {
   const [x0, x1] = xDomain ?? extent(points.map((p) => p.x));
   const [y0, y1] = yDomain ?? extent(points.map((p) => p.y));
@@ -36,7 +38,9 @@ export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, labe
   const y = y0 === 0 ? yScale(0, y1 + yp, { top: 0.1, bottom: 0 }) : yScale(y0 - yp, y1 + yp, { top: 0.1, bottom: 0.06 });
   const pair = points.filter((p) => p.inPair);
   const chosen = selected !== undefined ? points.findIndex((p) => p.id === selected) : -1;
-  const start = chosen >= 0 ? chosen : Math.max(0, points.findIndex((p) => p.inPair));
+  const first = chosen >= 0 ? chosen : Math.max(0, points.findIndex((p) => p.inPair));
+  // With a prompt no dot opens ringed, so no label keeps clear of a ring.
+  const start = prompt ? -1 : first;
   const joined = pairLine && pair.length === 2;
   // The point the chart opens on carries the pick ring (12 px round it): its own label stands clear of the ring and
   // stays (the pair is labelled directly, so the open dot is named like the other); any other label hides while the
@@ -60,7 +64,7 @@ export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, labe
   const scrub = { x: points.map((p) => x(p.x)), y: points.map((p) => y(p.y)), keys: points.map((p) => p.key), values: points.map((p) => p.value), side };
   return (
     <ChartFrame className="scatter" label={label} height={height} heightMd={heightMd}
-      scrub={<Scrubber mode="pick" points={scrub} initial={start} label={label} axis={axis}>{plot}</Scrubber>}
+      scrub={<Scrubber mode="pick" points={scrub} initial={first} label={label} axis={axis} prompt={prompt}>{plot}</Scrubber>}
       keys={pair.length === 2 ? [{ label: 'Other editions', mark: 'dot', tone: 'quiet' }] : undefined}
       values={values}
     />

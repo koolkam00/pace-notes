@@ -13,7 +13,8 @@ import { yearPad, yearTicks } from '@/components/viz/YearStrip';
  * which would read as a highlight); the editions are the scrub points, so the needle steps across a gap. The y scale spans at least 20 minutes,
  * centred on the editions, so a few seconds never draw as a climb or a drop (a steady course draws flat), and two to
  * four round-minute gridlines bracket the editions, one at or below the quickest and one at or above the slowest, each
- * labelled above its own line: at the left, or at the right where the left is taken. The edition the readout opens on (the one the sentence accents) is signal
+ * labelled above its own line, all on one side (the left, else the right); a line that side cannot label is not drawn.
+ * The edition the readout opens on (the one the sentence accents) is signal
  * and unlabelled, since the readout names it; the other the sentence names is labelled in one format, on a leader where
  * the editions crowd it, and hides while the needle sits on it. Scrub the years: each edition's median and finishes.
  */
@@ -93,26 +94,29 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
     // Wide margins either side, so a gridline's label never reads as part of this one on the same baseline.
     return { x0: (x0 - 16) / REF_WIDTH, x1: (x0 + w + 16) / REF_WIDTH, y0: (base - 15) / height, y1: (base + 6) / height };
   });
-  // Each bracketing line is labelled above itself, never below (a label under its line reads as the band below's): at
-  // the left, else at the right end where a dot, the line or a label takes the left. A line with no clear spot either
-  // side is drawn unlabelled.
+  // Each bracketing line is labelled above itself, never below (a label under its line reads as the band below's), and
+  // every label on one side (critic round 4: labels jumping between the ends read as improvised): the left end, else
+  // the right end, else just inside the resting needle where it stands at the right, whichever labels the most lines
+  // (the left on a tie). A line with no clear spot on that side is not drawn: every gridline drawn is labelled.
   const meets = (a: { x0: number; x1: number; y0: number; y1: number }, b: { x0: number; x1: number; y0: number; y1: number }) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
-  const grid: { y: number; label: string; at: number; end: boolean; shown: boolean }[] = [];
   // The needle the chart opens on runs the plot's height: no gridline label sits across it.
   const rest = { x0: needle.x0 - 8 / REF_WIDTH, x1: needle.x0 + 8 / REF_WIDTH, y0: 0, y1: 1 };
-  for (const v of lines) {
-    const text = hm(v);
-    const w = (textWidth(text, 12, 500) + 6) / REF_WIDTH;
-    const fy = y(v);
-    // At the left end, at the right end, then (where the resting needle stands at that end) just inside the needle.
-    const beside = rest.x0 > 0.5 ? rest.x0 : null;
-    const spots: { at: number; end: boolean }[] = [{ at: 0, end: false }, { at: 1, end: true }, ...(beside !== null ? [{ at: beside, end: true }] : [])];
-    const spot = spots.map(({ at, end }) => ({ at, end, box: { x0: end ? at - w : at, x1: end ? at : at + w, y0: fy - 14 / height, y1: fy - 3 / height } }))
-      .find(({ box }) => box.y0 >= 0 && box.x0 >= 0 && !meets(rest, box) && !taken.some((t) => meets(t, box))
-        && ![...dots, ...along].some((d) => meets({ x0: d.x - d.r / REF_WIDTH, x1: d.x + d.r / REF_WIDTH, y0: d.y - d.r / height, y1: d.y + d.r / height }, box)));
-    grid.push({ y: fy, label: text, at: spot?.at ?? 0, end: !!spot?.end, shown: !!spot });
-    if (spot) taken.push(spot.box);
-  }
+  const beside = rest.x0 > 0.5 ? rest.x0 : null;
+  const sides: { at: number; end: boolean }[] = [{ at: 0, end: false }, { at: 1, end: true }, ...(beside !== null ? [{ at: beside, end: true }] : [])];
+  const marks = [...dots, ...along].map((d) => ({ x0: d.x - d.r / REF_WIDTH, x1: d.x + d.r / REF_WIDTH, y0: d.y - d.r / height, y1: d.y + d.r / height }));
+  const labelOn = ({ at, end }: { at: number; end: boolean }) => {
+    const boxes = [...taken];
+    return lines.map((v) => {
+      const text = hm(v);
+      const w = (textWidth(text, 12, 500) + 6) / REF_WIDTH;
+      const fy = y(v);
+      const box = { x0: end ? at - w : at, x1: end ? at : at + w, y0: fy - 14 / height, y1: fy - 3 / height };
+      const clear = box.y0 >= 0 && box.x0 >= 0 && !meets(rest, box) && !boxes.some((t) => meets(t, box)) && !marks.some((m) => meets(m, box));
+      if (clear) boxes.push(box);
+      return { y: fy, label: text, at, end, shown: clear };
+    });
+  };
+  const grid = sides.map(labelOn).reduce((best, g) => (g.filter((l) => l.shown).length > best.filter((l) => l.shown).length ? g : best)).filter((g) => g.shown);
   // A label a gridline runs through breaks the line under it (a knockout halo), so the line never crosses the text.
   placed = placed.map((l) => {
     if (l.minWidth === null) return l;
@@ -125,7 +129,7 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
         {grid.map((g) => (
           <g key={g.label}>
             <rect className="grid-line" x="0" y={pc(g.y)} width="100%" height="1" />
-            {g.shown ? <text className="tick grid-label" x={pc(g.at)} y={pc(g.y)} dy={-5} textAnchor={g.end ? 'end' : undefined}>{g.label}</text> : null}
+            <text className="tick grid-label" x={pc(g.at)} y={pc(g.y)} dy={-5} textAnchor={g.end ? 'end' : undefined}>{g.label}</text>
           </g>
         ))}
       </g>

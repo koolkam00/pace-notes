@@ -2,14 +2,16 @@
    as one row the chips sort. Each row: the route as its face (or its pace shape), the name, and the figure the order is
    by, at the right (the sorted figures are the ranking; no bar repeats them); under any order but the share and A–Z,
    the share moves to the small line. The courses with fewer than three editions follow
-   under their own label, quieter. One column on phones, two from 600 px, three from 1180 px, flowing down each column in
-   balanced columns (CourseSort sets the rows per column). */
+   under their own label in the share's order, their share quieter. One column on phones, two from 600 px, three from
+   1180 px, read across each row (a ranked list reads row by row). */
 
 .courses-page { padding-bottom: var(--s-6); }
 .courses-page .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: .2em; }
 .courses-reading { padding-bottom: var(--s-2); }
 .courses-list { margin-top: 0; }
-.course-sort .chips { margin-bottom: var(--s-4); }
+.course-sort .chips { margin-bottom: var(--s-3); }
+.course-index-key { margin: 0 0 var(--s-4); max-width: var(--measure); font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); text-wrap: pretty; }
+.course-index-key .term-link { color: inherit; }
 
 .course-index { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
 .course-index li { margin: 0; break-inside: avoid; border-bottom: 1px solid var(--rule); }
@@ -25,9 +27,6 @@
    clots into a scribble, without the hero's start and finish marks. */
 .course-index-face .route-face-line { stroke-width: 1.4px; }
 .course-index-face .route-face-mark { display: none; }
-.course-index-face-svg { display: block; width: 44px; height: 44px; }
-.course-index-shape { fill: none; stroke: var(--mark-quiet); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
-.course-index-level { stroke: var(--mark-quiet); stroke-width: 1; stroke-dasharray: 2 3; }
 .course-index-name { grid-area: name; min-width: 0; font-size: 1rem; font-weight: 600; line-height: 1.25; }
 .course-index-meta { grid-area: meta; min-width: 0; font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); }
 .course-index-share { grid-area: share; justify-self: end; font-size: 1.0625rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; white-space: nowrap; }
@@ -40,28 +39,22 @@
 .course-index[data-sort="climb"] .f-climb,
 .course-index[data-sort="finishes"] .f-finishes,
 .course-index[data-sort="temp"] .f-temp { display: inline; }
-/* Fewer than three editions: the figure quieter, under their own label in the share's order (the range above leaves them
-   out), in their sorted place under any other. */
+/* Fewer than three editions: the share quieter (a climb or a finish count is not less sure), under their own label in the
+   share's order (the range above leaves them out), in their sorted place under any other. */
 .course-index-foot { margin: var(--s-6) 0 var(--s-2); font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
-.course-index li.is-few .course-index-share { color: var(--ink-3); }
+.course-index li.is-few .f-slowdown { color: var(--ink-3); }
 
-/* Columns as a grid that fills down each column, with as many rows as the longest column needs (--rows-2, --rows-3),
-   so the columns come out even. Each column opens on its own rule. */
+/* Columns as a grid read across each row, so the order runs left to right, then down. The first row opens on a rule. */
 @media (min-width: 600px) {
-  .course-index { display: grid; grid-auto-flow: column; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(var(--rows-2, 14), auto); column-gap: var(--s-7); border-top: 0; }
-  .course-index li.is-top-2 { border-top: 1px solid var(--rule); }
+  .course-index { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s-7); border-top: 0; }
+  .course-index li:nth-child(-n + 2) { border-top: 1px solid var(--rule); }
 }
 @media (min-width: 1180px) {
-  .course-index { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(var(--rows-3, 10), auto); }
-  .course-index li.is-top-2 { border-top: 0; }
-  .course-index li.is-top-3 { border-top: 1px solid var(--rule); }
+  .course-index { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .course-index li:nth-child(3) { border-top: 1px solid var(--rule); }
 }
 @media (max-width: 299.98px) {
   .course-index-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name share" "meta share"; }
   .course-index-face { display: none; }
 }
-/* From 900 px the closing stack is centred under the full-width list (the hub has no reading column for it to line
-   up with), so no void opens on either side. */
-@media (min-width: 900px) {
-  .courses-page .chapter-end { margin-inline: auto; }
-}
+/* The closing stack sits at the left, as on every course page. */
