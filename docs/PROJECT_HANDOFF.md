@@ -13,6 +13,32 @@
 
 **Open (not done here):** 186 live legacy CSS rules remained under `app/styles/legacy/` (exempt from `verify-css`; deleted in WP9 round 1, below); `package.json` still lists `recharts` (only `QuestionLineChart`, which no page renders, and the `verify-research`/`verify-ten-analyses` fixtures use it) and the `@fontsource-variable` packages (`copy-fonts --check` reads them), left because dropping a dependency means a lockfile update, and this integration ran without `npm install`; some lane pages keep layout-specific display sizes outside the type scale; real WebKit and iOS Safari are not verified; the PostHog metric decisions in the StoryBrand section below still apply to the redesigned home page.
 
+### WP9 round 1, part B and the merge (October 18–19, 2026)
+
+**Repository state:** part B (courses, analyses, tools) on `rd/fb` had merged part A (`2580f4d`) with no conflicts, so `feat/redesign` fast-forwarded to it (`e01a5e7`); two commits followed here, and the branch is pushed to `origin/feat/redesign` (draft pull request #71), not merged into `main`. The `wt/rd-fb` worktree and the `rd/fb` branch are removed. **Deployed state:** not deployed. `analysis/**`, `public/data/**` and both pins are unchanged against `main`.
+
+- **Part B** (`f2bfa1d`, `478cd0c`, `b2d0292`, `e01a5e7`). Courses: pace blocks never clip (a 24 px floor, no "%" under a 560 px row); one- and two-edition heroes centre the route and say "in 2025" or "in its two editions, on average"; the goals bars mark every course's share. Analyses: one field median (4:10) across the journey; the warming and wind cards draw their band of no material difference on the plot; the headlines for downhill start, age and `/slowdown` are guarded and recounted. Tools: one goal control (the keypad field with − / + steppers); the result card is higher on a 390 × 844 phone (projector 696 px, predictor 705, split check 725); one-tone histograms with a named 80% bracket. It also adds lint-layout check 8: HTML text in a figure cut off at the figure's edge or at an element that clips its overflow. The opt-in shared changes are listed in each commit message.
+- **Found after the merge** (`f977668`): check 8 (part B) flagged the pair bars on `/stories/who-holds-pace` (part A) at every width. The value column was narrower than "+10.2%", so values ran 2 to 10 px past the frame. At 195 px the gap labels also started up to 23 px off the left of the screen. The column is now 4.5rem at every width, and a gap label too long for the space before its bar's end starts at the row's start instead.
+- **Integration cleanups** (`884ee94`): the unused `app/tools/tools.css` (it still named the removed `--mono`) is deleted; "Kilometers" and "Labeled" replace the two UK spellings part B kept; `/analyses`' H1 takes `t-title`, like the other hubs (no visible change); a stale comment is gone.
+- **Checks (October 19, 2026, dummy-key builds):**
+  - Source: `tsc --noEmit` clean; `npm run verify:data` (all 24 verifiers; `verify-nuggets` 68 nuggets, 3,659 checks, 0 placeholders; `verify-chapters` 11 chapters, 27 pages in the chain); `verify:css` (with its self-test and `copy-fonts --check`); `verify:analytics`; `verify:autopilot`; `verify:compat` on the source.
+  - Build of `884ee94`: `verify:compat -- --build` (93 files); `verify:seo` (22 checks) with `verify-courses --html` (28 pages, 4,584 figures); `og:check` (65 cards). The layout linter ran on all 84 routes at 195, 320, 390 and 1440 px: 336 runs, 4 failures, all the who-holds-pace pair bars above.
+  - Build of `f977668`: the five changed routes re-linted at the four widths (20 runs, 0 failures); `font-fallbacks --check` (7 faces). Browser scenarios: S1, S3, S4, S5, S6 and S7 passed, along with 28 of the 29 S2 jobs. `S2 projector` timed out once at 360 s with two workers (its first visitor stopped after 5 events, then the harness's cleanup hung until it was stopped). It passed alone, and so did the whole of S2 on the next run (205 of 205 checks). S8 passed without `--write-budget`: the 36 pages' initial JavaScript ran from −2,314 B (`/tools/marathon-pace/3-30`) to +1,073 B (`/tools/weather-match`) against `budget.json`, and lab CLS was at most 0.0018 (`/stories/round-numbers`).
+  - The same scenarios had passed on the merged head `e01a5e7` before the two commits.
+  - Python tests were not run: no analysis code changed.
+- **Open (not done here):**
+  - Sparse desktop night answer cards (part A #43).
+  - The warming and wind stubs should quote the old title (#49, `app/analyses/[slug]/page.tsx`).
+  - Qualifying's "Meets 2 of 6" still falls below the 844 px fold.
+  - The "Next step" pace-band rows on weather match and split check.
+  - The weather scatter key's ink dot, where the warm reading is now orange.
+  - "Pace against its average" on the course pages, against the analyses' "their whole-race average".
+  - Font weight 700 in three tools sheets.
+  - The tools hub's header padding (72 px against 88 px on the contents hubs).
+  - `/analyses/finish-time-context`'s H1 repeats chapter 01's finding.
+  - Check 8 is only partly proven: run on part A's older export, it did not flag the original pace-block clip.
+  - Real WebKit and iOS Safari are not verified.
+
 ### WP9 round 1, part A: the journey, the shell and the legacy sheets (October 18, 2026)
 
 **Repository state:** committed on `feat/redesign` in the `wt/rd` worktree, not pushed; part B (analyses, tools, courses) runs at the same time on `rd/fb`. **Deployed state:** not deployed. `analysis/**`, `public/data/**` and both pins are unchanged.
