@@ -506,8 +506,14 @@ const DOI = 'doi:10.1371/journal.pone.0251513';
 const DOI_URL = 'https://doi.org/10.1371/journal.pone.0251513';
 // No #replay: the race replay is the home page's and chapter 01's, not a third time on every course page (critic round 2).
 const SECTIONS = ['at-a-glance', 'finish-times', 'elevation', 'pacing', 'slowdown', 'goals', 'weather', 'plan', 'other-courses'];
-/** The page's foot: one quiet line each, no heading (round 3, October 19, 2026). */
-const FOOT = new Set(['plan', 'other-courses']);
+/**
+ * The page's foot: #other-courses holds the closing stack every page ends on, no heading and no list ahead of it, and
+ * #plan is the hero's "Plan your …" (critic round 5, October 19, 2026: the tools row and the courses paced alike made the
+ * course pages the one template that ended on forward lists; the courses paced alike are #pacing's last line).
+ */
+const FOOT = new Set(['other-courses']);
+/** #plan sits in the hero, around its one action: an element, not a section of its own (sections never nest). */
+const IN_HERO = new Set(['plan']);
 /** Where the term links: its definition on /methodology. */
 const SLOWDOWN_HREF = '/methodology#sustained-slowdown';
 /** What a goal with no published row says, whatever the file's reason (the reason is method, on /methodology). */
@@ -585,12 +591,20 @@ if (html) {
       'at-a-glance': glanceIds.length > 0, 'finish-times': f.cells.length >= 3 && N.getNugget('course.times', { city }).guard, elevation: elevationShown, pacing: !!f.types,
       goals: goalsShown, weather: weatherShown,
     };
+    const hero = /<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '';
     for (const id of SECTIONS) {
+      if (IN_HERO.has(id)) {
+        // The hero's action row, marked as the page's call to action, holding the planner for this course.
+        const row = new RegExp(`<div id="${id}"[^>]*>[\\s\\S]*?</div>`).exec(hero)?.[0] ?? '';
+        check(new RegExp(`^<div id="${id}"[^>]*data-track-section="${TRACK[id]}"`).test(row) && row.includes(`href="/tools/plan?course=${slug}"`), where, `#${id} is not the hero's planner, marked ${TRACK[id]}`);
+        check(sectionStart(body, id) < 0, where, `#${id} is a section of its own again`);
+        continue;
+      }
       const present = sectionStart(body, id) >= 0;
       check(present === (want[id] ?? true), where, `section #${id} ${present ? 'present' : 'missing'}`);
       const fragment = present ? sectionOf(body, id) : null;
       if (fragment && TRACK[id]) check(new RegExp(`^<section[^>]*data-track-section="${TRACK[id]}"`).test(fragment), where, `#${id} is not marked ${TRACK[id]}`);
-      if (fragment) check(FOOT.has(id) ? !/<h2\b/.test(fragment) && /<p class="course-foot-line"/.test(fragment) : /<h2\b/.test(fragment), where, FOOT.has(id) ? `#${id} is not one quiet line` : `#${id} has no H2`);
+      if (fragment) check(FOOT.has(id) ? !/<h2\b/.test(fragment) && /^<section[^>]*>\s*<div class="chapter-end"/.test(fragment) : /<h2\b/.test(fragment), where, FOOT.has(id) ? `#${id} is not the closing stack alone` : `#${id} has no H2`);
     }
     check(/data-track-section="hero"/.test(body), where, 'the hero is not marked');
     // Each finding is its nugget's sentence, word for word (the default miles view), so a page says only what its
@@ -771,9 +785,10 @@ if (html) {
     }
     check(hrefs.includes(`/tools/plan?course=${slug}`), where, 'no link to the planner for this course');
     check(new RegExp(`<a\\b[^>]*href="/tools/plan\\?course=${slug}"[^>]*>(?:<[^>]+>)*Plan your ${city === 'New York' ? 'New York City' : city}<`).test(main), where, 'no "Plan your …" button to the planner');
-    const key_ = Object.keys(QUALIFYING_COURSE).find((k) => QUALIFYING_COURSE[k] === city);
-    check(hrefs.includes(`/tools/qualifying/${key_}`) === !!key_, where, key_ ? 'no link back to its qualifying page' : 'a qualifying link on a course without standards');
-    if (bandSlugs.has(slug)) check(hrefs.includes(`/tools/pace-band?course=${slug}`) && hrefs.includes(`/tools/split-check?course=${slug}`), where, 'no pace band or split check preset for a course they publish');
+    // One way into the tools: the planner (the hero's action and the goal rows), which carries the pace band and the
+    // splits; no row of other tools (critic round 5). The tools stay one tap away in the menu.
+    const tools = hrefs.filter((h) => h.startsWith('/tools/') && !h.startsWith('/tools/plan'));
+    check(!tools.length, where, `a tool link other than the planner: ${tools.join(', ')}`);
 
     // Tables scroll sideways in a named region that takes keyboard focus, labelled by the table's caption.
     for (const m of main.matchAll(/<div\b([^>]*class="tool-table-wrap course-table-wrap"[^>]*)>\s*<table\b[^>]*>\s*<caption\b([^>]*)>/g)) {

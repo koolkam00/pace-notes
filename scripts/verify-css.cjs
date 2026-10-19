@@ -21,7 +21,10 @@
 //      block never reads as the reading (principle 3);
 //   9. the dark theme follows the system setting (spec section 3.9): tokens.css's [data-theme="dark"] block and its
 //      @media (prefers-color-scheme: dark) :root:not([data-theme="light"]) twin hold the same declarations, and every
-//      component rule written for [data-theme="dark"] has the same rule under the media query, and none without one.
+//      component rule written for [data-theme="dark"] has the same rule under the media query, and none without one;
+//  10. every component that colours a block from the pace ramp (paceColour) also hands it the dark theme's ramp
+//      (PACE_RAMP_DARK), so no light-ramp colour is painted inline on the dark page (round 5: the elevation blocks' cream
+//      "0" was the brightest mark on the night page).
 //
 //   node scripts/verify-css.cjs            checks app/styles
 //   node scripts/verify-css.cjs --self-test checks the checker against planted mistakes
@@ -35,7 +38,7 @@ const WIDTHS = new Set(['max-width:359.98px', 'max-width:299.98px', 'min-width:6
   'max-width:599.98px', 'max-width:899.98px', 'max-width:1179.98px', 'min-width:360px', 'min-width:300px']);
 const SMALL_TEXT_FILES = new Set(['components/chart-frame.css', 'components/scrubber.css']);
 /** Custom properties components set in a style attribute (stagger index, slider fill, segmented thumb). */
-const LOCAL = new Set(['--i', '--fill', '--thumb-x', '--thumb-w']);
+const LOCAL = new Set(['--i', '--fill', '--thumb-x', '--thumb-w', '--bg', '--bg-dark']);
 const declared = (css) => new Set([...uncomment(css).matchAll(/(--[a-z0-9-]+)\s*:/gi)].map((m) => m[1]));
 let TOKENS = null;
 const tokens = () => (TOKENS ??= declared(fs.existsSync(path.join(STYLES, 'tokens.css')) ? fs.readFileSync(path.join(STYLES, 'tokens.css'), 'utf8') : ''));
@@ -272,18 +275,30 @@ function selfTest() {
   return failed ? 1 : 0;
 }
 
+/** 10. A component painting the pace ramp inline passes the dark ramp too. */
+function checkRampUse(root) {
+  const problems = [];
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? walk(path.join(dir, d.name)) : /\.tsx?$/.test(d.name) ? [path.join(dir, d.name)] : []));
+  for (const file of [...walk(path.join(root, 'components')), ...walk(path.join(root, 'app'))]) {
+    const src = fs.readFileSync(file, 'utf8');
+    if (/\bpaceColour\(/.test(src) && !/\bPACE_RAMP_DARK\b/.test(src)) problems.push(`${path.relative(root, file)}: paces a block with paceColour() but never with PACE_RAMP_DARK, so the dark page shows the light ramp`);
+  }
+  return problems;
+}
+
 function main() {
   if (process.argv.includes('--self-test')) process.exit(selfTest());
   const list = files(STYLES);
   const problems = list.flatMap((f) => check(f, fs.readFileSync(f, 'utf8')))
     .concat(checkDark(list.map((f) => [path.relative(STYLES, f), fs.readFileSync(f, 'utf8')])))
-    .concat(checkRamp(fs.readFileSync(path.join(ROOT, 'lib', 'viz', 'format.ts'), 'utf8'), fs.readFileSync(path.join(STYLES, 'tokens.css'), 'utf8')));
+    .concat(checkRamp(fs.readFileSync(path.join(ROOT, 'lib', 'viz', 'format.ts'), 'utf8'), fs.readFileSync(path.join(STYLES, 'tokens.css'), 'utf8')))
+    .concat(checkRampUse(ROOT));
   if (problems.length) {
     console.error(`verify-css: ${problems.length} problem${problems.length === 1 ? '' : 's'}`);
     for (const p of problems) console.error('  ' + p);
     process.exit(1);
   }
-  console.log(`verify-css: ${list.length} files in app/styles follow the token, breakpoint, chart-text, quiet-edge and compatibility rules; the dark theme reads the same by attribute and by system setting; the pace ramp stays off the signal hue`);
+  console.log(`verify-css: ${list.length} files in app/styles follow the token, breakpoint, chart-text, quiet-edge and compatibility rules; the dark theme reads the same by attribute and by system setting; the pace ramp stays off the signal hue and has its dark twin wherever it is painted`);
 }
 
 main();

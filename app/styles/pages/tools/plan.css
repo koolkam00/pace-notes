@@ -10,6 +10,18 @@
 .plan-unavailable { color: var(--ink-2); }
 .plan-error { display: grid; gap: var(--s-3); justify-items: start; }
 
+/* ---------- From 900 px: the inputs beside the card, then the rest across the whole column ----------
+   (critic round 5: the data beat, the band and the finish card sat in the right column with the left one empty under
+   the inputs, the band clipped and the finish card half the width of every other closing card.) */
+@media (min-width: 900px) {
+  .plan-root .tool-workspace { grid-template-rows: auto auto; }
+  .plan-root .tool-workspace > .tool-inputs { grid-row: 1; position: static; max-height: none; overflow: visible; background: none; }
+  .plan-root .tool-workspace > .tool-answer ~ .tool-results { grid-column: 1 / -1; grid-row: 2; max-width: var(--measure-figure); }
+  @supports selector(:has(a)) {
+    .tool-page:has(.plan-root .tool-workspace) > .chapter-end { max-width: var(--measure-figure); margin-left: 0; }
+  }
+}
+
 /* ---------- The card: the pace, and from 900 px four mat times in its right half ---------- */
 .plan-card-mats { display: none; }
 @media (min-width: 900px) {
@@ -19,17 +31,32 @@
   .plan-card-mats dd { margin: 4px 0 0; font-family: var(--sans); font-size: 1.5rem; font-weight: 600; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
 }
 
-/* ---------- The nugget: the sentence beside its 100 dots ---------- */
-.plan-nugget { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); align-items: center; }
+/* ---------- The nugget: the sentence over every course at the goal ---------- */
+.plan-nugget { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+/* Every course on one line (RacePlan CourseSpread): a hairline, a dot per course stacked where they touch, the spread
+   from the lowest to the highest in signal (or the chosen course's dot alone, named above it), all courses together a
+   quiet tick, the two ends named under the line. */
+.plan-spread { --dot: 10px; --step: 10px; --label: 22px; max-width: var(--measure-figure); }
+.plan-spread-line { position: relative; height: calc(var(--label) + 8px + var(--stack, 0) * var(--step) + var(--dot)); }
+.plan-spread-line::before { content: ''; position: absolute; left: 0; right: 0; bottom: calc(var(--dot) / 2); height: 1px; background: var(--rule-strong); }
+.plan-spread-dot { position: absolute; bottom: calc(var(--level, 0) * var(--step)); width: var(--dot); height: var(--dot); margin-left: calc(var(--dot) / -2); border-radius: 50%; background: var(--mark-quiet); box-shadow: 0 0 0 1.5px var(--paper); }
+.plan-spread-dot.is-chosen { z-index: 1; background: var(--signal); }
+.plan-spread-span { position: absolute; bottom: calc(var(--dot) / 2 - 1px); height: 3px; border-radius: 2px; background: var(--signal); }
+.plan-spread-tick { position: absolute; bottom: calc(var(--dot) / 2); width: 1px; height: calc(var(--label) - 4px + var(--stack, 0) * var(--step) + var(--dot)); margin-left: -.5px; background: var(--ink-3); }
+.plan-spread-all, .plan-spread-name { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; font-size: var(--t-label); line-height: 1.3; }
+.plan-spread-all { font-weight: 500; color: var(--ink-3); }
+.plan-spread-name { font-weight: 600; color: var(--ink); }
+.plan-spread-all.is-start, .plan-spread-name.is-start, .plan-spread-ends .is-start { transform: translateX(-6px); }
+.plan-spread-all.is-end, .plan-spread-name.is-end, .plan-spread-ends .is-end { transform: translateX(calc(-100% + 6px)); }
+.plan-spread-ends { position: relative; height: 22px; margin-top: 6px; }
+.plan-spread-ends span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; font-size: var(--t-label); font-weight: 500; line-height: 1.3; color: var(--ink-3); }
+.plan-pooled { margin: 0 0 var(--s-3); font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
 .plan-mat-table tbody th small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
 .plan-mat-table tfoot td, .plan-mat-table tfoot th { height: 36px; }
 
 /* ---------- The pace band ---------- */
 .plan-band .tool-share { margin-top: var(--s-2); }
 
-@media (min-width: 600px) {
-  .plan-nugget { grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-6); }
-}
 
 /* ---------- Print: one Letter or A4 page at the browser's default margins (the plan), or the wristband strips alone ---------- */
 @media print {

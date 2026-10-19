@@ -76,7 +76,7 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
     <YearStrip
       editions={points(units)}
       selected={opening} sideLabels={['Median finish', 'At the start']}
-      valueDomain={valueDomain} average={s.slowdown} averageLabel="Average year"
+      valueDomain={valueDomain} average={s.slowdown} averageLabel="Average year" averageOnLine gaps="not in the data"
       extremeLabel={extremeLabel} labelled={labelled}
       label={`Sustained slowdown in ${display}, edition by edition, ${span}`} height={100} heightMd={168} signal={reading.guard} />
   );
@@ -103,7 +103,10 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
           mark carries the orange, so the sentence is said plainly. */}
       {reading.guard ? <p className="course-hero-sentence t-sentence">{stripped || typeof reading.headline !== 'string' ? <Said nugget={reading} /> : reading.headline.replace(/\*/g, '')}</p> : null}
       {stripped ? <div className="course-hero-strip"><ByUnits mi={strip('mi')} km={strip('km')} /></div> : null}
-      <div className="course-hero-actions">
+      {/* #plan, the page's call to action (its `cta` id): the planner for this course, which carries the pace band and
+          the splits; the other tools are in the menu (critic round 5: a second row of tool links at the foot made the
+          course pages the one template that ended on forward lists). */}
+      <div id="plan" tabIndex={-1} className="course-hero-actions" data-track-section="cta">
         <Button href={planHref(city) ?? '/tools/plan'} arrow="right">Plan your {display}</Button>
       </div>
     </section>

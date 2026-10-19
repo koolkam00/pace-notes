@@ -1,11 +1,11 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import ChartFrame from './ChartFrame';
 import Axis from './Axis';
 import Plot, { Baseline, Gridlines } from './Plot';
 import Scrubber from './Scrubber.client';
 import { areaPath, linear, linePath, pc } from './scale';
 import { fitClass, textWidth } from './labels';
-import { paceColour, paceText } from '@/lib/viz/format';
+import { PACE_RAMP_DARK, paceColour, paceText } from '@/lib/viz/format';
 
 /**
  * Elevation and pace (the redesign spec, section 3.6): the course profile as a 2 px ink line over a quiet area with an
@@ -76,12 +76,14 @@ export default function ElevationPace({ km, metres, relief, reliefLabel, section
     <div className="pace-blocks" aria-hidden="true">
       {sections.map((s, i) => {
         const bg = paceColour(s.pct, 12);
+        // The dark theme takes its own ramp (critic round 5: the light ramp's cream middle was the brightest mark on the
+        // night page while it means "no difference"); chart-frame.css picks the variable by theme.
         // The number, and its % sign apart, so a block too narrow for the sign drops it (chart-frame.css, by the
         // block's own width and the number's length).
         const unit = s.display.endsWith('%');
         const num = unit ? s.display.slice(0, -1) : s.display;
         return (
-          <span key={s.label} className={`pace-block is-on-${paceText(bg)}${focus !== undefined && i >= focus && i <= last ? ' is-focus' : ''}${s.display.length > 3 ? ' is-long' : ''}`} style={{ flexGrow: s.endKm - s.startKm, background: bg }}>
+          <span key={s.label} className={`pace-block is-on-${paceText(bg)}${focus !== undefined && i >= focus && i <= last ? ' is-focus' : ''}${s.display.length > 3 ? ' is-long' : ''}`} style={{ flexGrow: s.endKm - s.startKm, '--bg': bg, '--bg-dark': paceColour(s.pct, 12, PACE_RAMP_DARK) } as CSSProperties}>
             <span className={`pace-val n${Math.min(3, num.length)}`}>{num}{unit ? <span className="pace-pct">%</span> : null}</span>
           </span>
         );

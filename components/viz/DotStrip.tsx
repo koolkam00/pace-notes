@@ -91,9 +91,18 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
   // nothing, so both extremes carry their labels, in one treatment. labelSubject names the subject too, extreme or not.
   const opened = prompt ? -1 : Math.max(0, subject);
   const labelled = new Set<number>([...(ends ? ends.map((e) => sorted.indexOf(e)) : []), ...(labelSubject && subject >= 0 ? [subject] : [])].filter((i) => i !== opened || (labelSubject && i === subject)));
+  const pxOf = (i: number) => x(sorted[i].value) * REF_WIDTH;
+  // The subject's own label wins: an extreme within one label's width of it is left to the readout, so neither label's
+  // leader climbs through the other (critic round 5: Hamburg's leader ran through "Valencia" beside it).
+  if (labelSubject && subject >= 0) {
+    for (const i of [...labelled]) {
+      if (i === subject) continue;
+      const reach = Math.max(textWidth(sorted[i].label, 13), textWidth(sorted[subject].label, 14)) + 8;
+      if (Math.abs(pxOf(i) - pxOf(subject)) < reach) labelled.delete(i);
+    }
+  }
   // A label rises above the tallest stack under its own width (at the narrowest phone), on a leader down to its dot
   // when it had to climb, so a stacked neighbour never hides it.
-  const pxOf = (i: number) => x(sorted[i].value) * REF_WIDTH;
   const lift = (i: number) => {
     const reach = textWidth(sorted[i].label, 13) + 6;
     return Math.max(levels[i], ...placed.filter((p) => Math.abs(p.px - pxOf(i)) < reach).map((p) => p.level));

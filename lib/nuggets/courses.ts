@@ -101,10 +101,28 @@ export function heroKeyLead(editions: number, year: number | undefined): string 
   return editions === 1 ? `of finishes in ${year} had a` : editions === 2 ? 'of finishes in its two editions, on average, had a' : 'of finishes in an average year had a';
 }
 
+/** The fewest race mornings #weather draws: two or three dots say nothing a sentence would not. */
+export const WEATHER_MIN_MORNINGS = 3;
+
+/** Whether a course page shows #weather: the warmest and coolest mornings 5 °C or more apart, over three or more. */
+export const weatherShown = (page: CoursePageData | null) => !!page?.hotCool && page.weather.length >= WEATHER_MIN_MORNINGS;
+
+/**
+ * The edition the hero accents (course.slowdown's high end), when its sentence shows: every other section of the page
+ * leaves it out of its own sentence and never opens its chart on it, so a reader who scrolls the whole page learns one
+ * fact per section, not one edition three times (critic round 5).
+ */
+export function heroYear(ctx?: NuggetContext): number | null {
+  const n = courseSlowdown(ctx);
+  return n.guard ? Number(n.values.hi_year) : null;
+}
+
 /**
  * The hero: the share of finishes with a sustained slowdown in the average edition (summary.slowdown averages the
  * editions' shares, so the words name the average edition, never a share pooled over every finish), and how far it ran
- * edition by edition.
+ * edition by edition. Where the high end was also the course's warmest (or coolest) race morning and the page shows
+ * #weather, the sentence says so once, here ("and 54% (2016), its warmest morning"), and #weather compares the other
+ * mornings.
  */
 function courseSlowdown(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
@@ -117,11 +135,16 @@ function courseSlowdown(ctx?: NuggetContext): Nugget {
   const named = (year: number) => !!page && !held.has(`${page.city}|${year}`);
   const guard = !!s && Number.isFinite(share) && s.editions >= 2 && pct(lo) !== pct(hi) && lo < hi && named(loYear) && named(hiYear);
   const years = s?.years ?? [];
+  // The high end's morning, against every other morning the policy keeps (strictly warmer or cooler than all of them).
+  const mornings = weatherShown(page) ? page!.weather.filter((e) => named(e.year)) : [];
+  const own = mornings.find((e) => e.year === hiYear);
+  const rest = mornings.filter((e) => e.year !== hiYear);
+  const end = guard && own && rest.length ? (rest.every((e) => e.temp < own.temp) ? 'warmest' : rest.every((e) => e.temp > own.temp) ? 'coolest' : '') : '';
   return {
     id: 'course.slowdown', page: `/courses/${courseSlug(page?.city ?? city)}`, denominator: 'course', term: TERM,
-    values: { city: page?.city ?? city, share, lo, hi, lo_year: loYear, hi_year: hiYear, editions: s?.editions ?? 0 },
+    values: { city: page?.city ?? city, share, lo, hi, lo_year: loYear, hi_year: hiYear, editions: s?.editions ?? 0, morning: end === 'warmest' ? 1 : end === 'coolest' ? -1 : 0 },
     guard,
-    headline: `Edition by edition, between ${pct(lo)} (${loYear}) and *${pct(hi)}* (${hiYear}).`,
+    headline: `Edition by edition, between ${pct(lo)} (${loYear}) and *${pct(hi)}* (${hiYear})${end ? `, its ${end} morning` : ''}.`,
     fallback: years.length > 1 ? `Every ${city} edition, ${years[0]} to ${years[years.length - 1]}.` : years.length ? `The ${years[0]} edition.` : `${city}, edition by edition.`,
     figure: shareFigure(share), key: `${heroKeyLead(s?.editions ?? 0, years[0])} sustained slowdown`,
   };
@@ -227,11 +250,25 @@ function courseSignature(ctx?: NuggetContext): Nugget {
   };
 }
 
+/** The trend compares the first three editions with the last three: six or more editions, so the two never overlap. */
+export const TREND_EDITIONS = 3;
+/** The median finish "got quicker" (or slower) from five minutes between the two sets' averages. */
+export const TREND_S = 5 * 60;
+
+const floorMinute = (s: number) => finishMinute(s);
+const ceilMinute = (s: number) => finishMinute(Math.ceil(s / 60) * 60);
+/** Years as a list: "2016", "2016 and 2018", "2015, 2016 and 2018". */
+const yearList = (ys: number[]) => (ys.length > 1 ? `${ys.slice(0, -1).join(', ')} and ${ys[ys.length - 1]}` : String(ys[0] ?? ''));
+
 /**
- * #finish-times: the range of the median finish across the editions (three or more), low end first, each end a year the
- * source policy neither holds nor copies; under six minutes, how steady it was ("within 4 minutes"); a range under a
- * minute says the median held. Two editions: first to latest. Clock times are floored to the minute, as a race clock
- * reads (3:59:36 is 3:59, never 4:00).
+ * #finish-times: what the hero has not told (critic round 5: the hero's readout already gives its year's median). With
+ * six or more editions whose first three and last three average five minutes or more apart, the trend ("The median
+ * finish got 11 minutes quicker from the first three editions to the last three."); medians that spread under six
+ * minutes, the window every one fell in, its ends rounded outward ("Every median finish fell between 4:10 and 4:16.");
+ * otherwise the range, low end first, accenting the end that is not the hero's edition. A range end another edition
+ * shares to the minute names both years. The line opens on the accented end, or on the latest edition other than the
+ * hero's. Each named end is a year the source policy neither holds nor copies. Clock times are floored to the minute, as
+ * a race clock reads (3:59:36 is 3:59, never 4:00). Two editions: first to latest.
  */
 function courseTimes(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
@@ -244,14 +281,38 @@ function courseTimes(ctx?: NuggetContext): Nugget {
   const first = eds[0], last = eds[eds.length - 1];
   const spread = lo && hi ? hi.median_s - lo.median_s : NaN;
   const guard = eds.length >= 3 && !!lo && !!hi && spread >= MOVED_S && at(lo) !== at(hi);
-  // Within six minutes, the whole minutes every median sits within (at least the floored ends' difference).
-  const within = Math.ceil(spread / 60);
+  const hero = heroYear(ctx);
+  // The year #weather accents (its warmer morning, told as two facts): this sentence never accents it too.
+  const weatherYear = Number(courseWeather(ctx).values.accent_year);
+  const k = TREND_EDITIONS;
+  const mean = (a: typeof named) => a.reduce((sum, e) => sum + e.median_s, 0) / a.length;
+  const drift = named.length >= 2 * k ? mean(named.slice(-k)) - mean(named.slice(0, k)) : NaN;
+  const trend = guard && Math.abs(drift) >= TREND_S;
+  const steady = guard && !trend && spread < STEADY_S;
+  // The range's accent: the low end, unless another section accents its edition (the hero's, or #weather's warmer
+  // morning), then the high end, else neither.
+  const free = (e: { year: number }) => e.year !== hero && e.year !== weatherYear;
+  const accent = guard && !trend && !steady && lo && hi ? [lo, hi].find(free) : undefined;
+  const other = accent && lo && hi ? (accent === lo ? hi : lo) : undefined;
+  const ranged = guard && !trend && !steady;
+  // The line opens on the accented end, else on the latest edition other than the hero's.
+  const opening = accent ?? [...named].reverse().find((e) => e.year !== hero) ?? last;
+  const yearsAt = (end: { median_s: number }) => named.filter((e) => at(e) === at(end)).map((e) => e.year);
+  const endText = (end: { median_s: number }) => (end === accent ? `*${at(end)}*` : at(end)) + ` in ${yearList(yearsAt(end))}`;
+  const minutes = Math.round(Math.abs(drift) / 60);
   return {
     id: 'course.times', page: `/courses/${page?.slug ?? ''}#finish-times`, denominator: 'course',
-    values: { lo_year: lo?.year ?? NaN, lo_s: lo?.median_s ?? NaN, hi_year: hi?.year ?? NaN, hi_s: hi?.median_s ?? NaN, editions: eds.length, steady: spread < STEADY_S ? 1 : 0 },
+    values: {
+      lo_year: lo?.year ?? NaN, lo_s: lo?.median_s ?? NaN, hi_year: hi?.year ?? NaN, hi_s: hi?.median_s ?? NaN, editions: eds.length,
+      steady: steady ? 1 : 0, trend: trend ? 1 : 0, drift_s: drift, accent_year: accent?.year ?? NaN,
+      // The end the line labels: the other end the range names (with no accent, the low end; the line opens on the latest).
+      other_year: ranged && lo && hi ? (other ?? lo).year : NaN, open_year: opening?.year ?? NaN, hero_year: hero ?? NaN,
+    },
     guard,
-    headline: !lo || !hi ? '' : spread < STEADY_S ? `Every median finish within *${within} minutes*: ${at(lo)} to ${at(hi)}.`
-      : `The median finish ranged from ${at(lo)} in ${lo.year} to *${at(hi)}* in ${hi.year}.`,
+    headline: !lo || !hi ? ''
+      : trend ? `The median finish got *${minutes} minutes ${drift < 0 ? 'quicker' : 'slower'}* from the first three editions to the last three.`
+        : steady ? `Every median finish fell between ${floorMinute(lo.median_s)} and ${ceilMinute(hi.median_s)}.`
+          : `The median finish ranged from ${endText(lo)} to ${endText(hi)}.`,
     // Within a minute the median "held"; two editions read first to latest.
     fallback: eds.length >= 3 && lo && hi
       ? (at(lo) === at(hi) ? `The median finish was *${at(lo)}* in every edition.` : `The median finish held within a minute: ${at(lo)} to *${at(hi)}*.`)
@@ -311,7 +372,8 @@ function courseTypes(ctx?: NuggetContext): Nugget {
     guard,
     // The comparator once, without its count (the key under the rows names the set).
     headline: `${here > every ? 'More' : 'Fewer'} *${name}* here: ${pct(here)}, against ${pct(every)} elsewhere.`,
-    fallback: page?.types ? `Paced much like the other courses: every type within ${Math.round(TYPE_GAP * 100)}% of its share elsewhere.` : `No pacing types for ${page?.display ?? 'this course'}.`,
+    // TYPE_GAP is percentage points (critic round 5: "within 3% of its share" read as a relative 3%).
+    fallback: page?.types ? `Paced much like the other courses: every type within ${Math.round(TYPE_GAP * 100)} points of its share on the other courses.` : `No pacing types for ${page?.display ?? 'this course'}.`,
     figure: null,
   };
 }
@@ -341,12 +403,11 @@ function courseAmong(ctx?: NuggetContext): Nugget {
   // The accent never breaks across lines ("16 of the 24" stays together).
   const nb = (t: string) => t.replace(/ /g, '\u00a0');
   const side = fewer ? 'lower' : 'higher';
-  // The accent is the comparison's number. Every course counted has three or more editions; the sentence says so where
-  // it counts all of them. A course of fewer editions leads with how many it has, so the sentence never trails a
-  // qualifier ("From its two editions, Barcelona’s 22% is lower than 22 of the 25 courses.").
-  // The comparator without the set's size (critic round 4: three section-by-section set sizes on one page read as
-  // noise); the strip's key names the set, the courses with three or more editions.
-  const than = count === n ? `${side} than *${nb('every other')}* course` : `${side} than *${nb(`${count} of the`)}* other courses`;
+  // The accent is the comparison's count with its set, in one unbroken span ("21 of 24"), and the set is named every
+  // time (critic round 5: "lower than 21 of the other courses" over a strip of 27 other dots read as a miscount). A
+  // course of fewer editions leads with how many it has and is not one of the set, so it says "courses", not "other".
+  const set = `${solid ? 'other ' : ''}courses with three or more editions`;
+  const than = count === n ? `${side} than *${nb(`all ${n}`)}* ${set}` : `${side} than *${nb(`${count} of ${n}`)}* ${set}`;
   const from = `From its ${countWord(s?.editions ?? 0)} ${s?.editions === 1 ? 'edition' : 'editions'}`;
   return {
     id: 'course.among', page: `/courses/${page?.slug ?? ''}#slowdown`, denominator: 'course',
@@ -358,13 +419,18 @@ function courseAmong(ctx?: NuggetContext): Nugget {
   };
 }
 
-/** A course's goal share "parts" from every course's from 3 whole percentage points; closer, it is about the same. */
-export const GOAL_GAP_MIN = 3;
+/**
+ * A course's goal share "parts" from the other courses' from 2 points apart as the page prints them (critic round 5: the
+ * rule ran on unrounded shares, so "12%, about the same" sat over a ring drawn at 15%); within one printed point the two
+ * are about the same.
+ */
+export const GOAL_GAP_MIN = 2;
 
 /**
- * #goals: of finishes on the lead goal's pace at 20K here, the share that made the goal (the denominator said first),
- * against the same share across every course (the rows pooled by finishes, lib/course-page.ts pooledGoal), so a runner
- * can tell a hard course from a kind one. Within 3 points the two are "about the same".
+ * #goals: of finishes on the lead goal's pace through 20K here (their 5–20K pace within 2% of it), the share that made
+ * the goal (the denominator said first), against the same share across the other courses (their rows pooled by
+ * finishes, lib/course-page.ts pooledGoal), so a runner can tell a hard course from a kind one. Both shares are said,
+ * except within one printed point, where the two are "about the same".
  */
 function courseGoal(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
@@ -373,58 +439,64 @@ function courseGoal(ctx?: NuggetContext): Nugget {
   const every = line?.every ?? null;
   const guard = !!row && row.n >= 100;
   const g = goalText(LEAD_GOAL);
-  const gap = row && every ? Math.abs(Math.round(row.under * 100) - Math.round(every.under * 100)) : 0;
+  // The gap between the two shares as printed (pct), so the words never disagree with the figures beside them.
+  const printed = (v: number) => Number(pct(v).replace('%', ''));
+  const gap = row && every ? Math.abs(printed(row.under) - printed(every.under)) : 0;
   // Against the other courses (this one left out of the pool), named once without their count: the key names the set.
   const against = !every ? '' : gap >= GOAL_GAP_MIN ? `, against ${pct(every.under)} elsewhere` : ', about the same as elsewhere';
   return {
     id: 'course.goal', page: `/courses/${page?.slug ?? ''}#goals`, denominator: 'tool',
     values: { goal: LEAD_GOAL, under: row?.under ?? NaN, n: row?.n ?? 0, every: every?.under ?? NaN, every_n: every?.n ?? 0, every_courses: every?.courses ?? 0 },
     guard,
-    headline: `Of ${page?.display ?? ''} finishes on ${g} pace at 20K, *${pct(row?.under ?? NaN)}* made ${g}${against}.`,
+    headline: `Of ${page?.display ?? ''} finishes on ${g} pace through 20K, *${pct(row?.under ?? NaN)}* made ${g}${against}.`,
     fallback: page?.goals.length ? `Goal times from 3:00 to 5:00 on ${page.display}.` : `No goal times for ${page?.display ?? 'this course'}.`,
     figure: row ? shareFigure(row.under) : null,
   };
 }
 
 /**
- * The warmest and coolest mornings' shares differ "by weather" from this many whole points; closer, the course's
- * weather sorted nothing (critic round 4: Boston's 29% at 61°F against 25% at 38°F read as a warm-day effect while its
- * highest-share year started at 46°F). The sentence never says "worst" (verify-courses bans rank words).
+ * The warmest and coolest mornings' shares differ "by weather" from this many whole points; closer, the two read as
+ * about the same share (critic round 4: Boston's 29% at 61°F against 25% at 38°F read as a warm-day effect). The sentence
+ * never says "worst" (verify-courses bans rank words).
  */
 export const WEATHER_GAP = 5;
 
 /**
- * #weather: the warmest and coolest race mornings (five or more °C apart), or the span of the mornings. A share both
- * mornings round to is said once; shares under WEATHER_GAP points apart are a null, said as one: where the course's
- * highest-share year is neither of the two, "weather didn't sort its slowdowns", with that year's share and start; otherwise
- * "about the same share" warm or cool. Only a gap of WEATHER_GAP points or more is told as two facts.
+ * #weather: the warmest and coolest race mornings other than the hero's edition (critic round 5: the hero already tells
+ * that year's share and its start; where it was the warmest or coolest morning, the hero says so once), at least the
+ * screen's gap apart (5 °C). A share both mornings round to is said once; shares under WEATHER_GAP points apart are said
+ * as one null ("Warm or cool, about the same share…"); a gap of WEATHER_GAP points or more is told as two facts. Where
+ * the other mornings are closer than the screen's gap, the sentence says the span of every morning. Held and copied
+ * editions are never named.
  */
 function courseWeather(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
-  const hc = page?.hotCool ?? null;
   const w = page?.weather ?? [];
-  const guard = !!hc;
   const lo = w.length ? Math.min(...w.map((e) => e.temp)) : NaN, hi = w.length ? Math.max(...w.map((e) => e.temp)) : NaN;
   const held = heldEditions();
-  const named = w.filter((e) => !!page && !held.has(`${page.city}|${e.year}`));
-  const worst = named.length ? named.reduce((a, b) => (b.slowdown > a.slowdown ? b : a)) : null;
-  const same = !!hc && pct(hc.hot.slowdown) === pct(hc.cool.slowdown);
-  const gap = hc ? Math.abs(Math.round(hc.hot.slowdown * 100) - Math.round(hc.cool.slowdown * 100)) : NaN;
-  const quiet = !!hc && !same && gap < WEATHER_GAP;
-  const unsorted = quiet && !!worst && worst.year !== hc!.hot.year && worst.year !== hc!.cool.year && Math.round(worst.slowdown * 100) > Math.round(Math.max(hc!.hot.slowdown, hc!.cool.slowdown) * 100);
-  const display = page?.display ?? 'This course';
+  const hero = heroYear(ctx);
+  const pool = w.filter((e) => !!page && !held.has(`${page.city}|${e.year}`) && e.year !== hero);
+  // Ties go to the later edition, as the published pair does.
+  const hot = pool.length ? pool.reduce((a, b) => (b.temp >= a.temp ? b : a)) : null;
+  const cool = pool.length ? pool.reduce((a, b) => (b.temp <= a.temp ? b : a)) : null;
+  const minGap = readInsight<Courses>('courses.json').weather.pairs.min_gap_c;
+  const apartC = hot && cool ? Math.round((hot.temp - cool.temp) * 10) / 10 : NaN;
+  const guard = weatherShown(page) && !!hot && !!cool && hot.year !== cool.year && apartC >= minGap;
+  const same = guard && pct(hot!.slowdown) === pct(cool!.slowdown);
+  const gap = guard ? Math.abs(Math.round(hot!.slowdown * 100) - Math.round(cool!.slowdown * 100)) : NaN;
+  const quiet = guard && !same && gap < WEATHER_GAP;
   return {
     id: 'course.weather', page: `/courses/${page?.slug ?? ''}#weather`, denominator: 'course',
-    values: hc ? { hot_year: hc.hot.year, hot_temp: hc.hot.temp, hot_share: hc.hot.slowdown, cool_year: hc.cool.year, cool_temp: hc.cool.temp, cool_share: hc.cool.slowdown, editions: w.length,
-      quiet: quiet ? 1 : 0, worst_year: unsorted ? worst!.year : NaN, worst_share: unsorted ? worst!.slowdown : NaN, worst_temp: unsorted ? worst!.temp : NaN }
-      : { editions: w.length, coolest: lo, warmest: hi },
+    values: guard ? { hot_year: hot!.year, hot_temp: hot!.temp, hot_share: hot!.slowdown, cool_year: cool!.year, cool_temp: cool!.temp, cool_share: cool!.slowdown, editions: w.length, quiet: quiet ? 1 : 0, hero_year: hero ?? NaN,
+      // Two facts accent the warmer morning's start; a null accents nothing.
+      accent_year: !same && !quiet ? hot!.year : NaN }
+      : { editions: w.length, coolest: lo, warmest: hi, hero_year: hero ?? NaN, accent_year: NaN },
     guard,
     // Two mornings whose shares round alike say the share once: the point is that it did not move.
-    headline: hc ? both((u) => same
-      ? `At ${temp(hc.hot.temp, u)} in ${hc.hot.year} and at ${temp(hc.cool.temp, u)} in ${hc.cool.year}, the same ${pct(hc.hot.slowdown)} had a sustained slowdown.`
-      : unsorted ? `Weather didn’t sort ${display}’s slowdowns: its highest share, ${pct(worst!.slowdown)}, started at ${temp(worst!.temp, u)}.`
-        : quiet ? `Warm or cool, about the same share had a sustained slowdown: ${pct(hc.hot.slowdown)} at ${temp(hc.hot.temp, u)}, ${pct(hc.cool.slowdown)} at ${temp(hc.cool.temp, u)}.`
-          : `At *${temp(hc.hot.temp, u)}* in ${hc.hot.year}, ${pct(hc.hot.slowdown)} had a sustained slowdown. At ${temp(hc.cool.temp, u)} in ${hc.cool.year}, ${pct(hc.cool.slowdown)}.`) : '',
+    headline: guard ? both((u) => same
+      ? `At ${temp(hot!.temp, u)} in ${hot!.year} and at ${temp(cool!.temp, u)} in ${cool!.year}, the same ${pct(hot!.slowdown)} had a sustained slowdown.`
+      : quiet ? `Warm or cool, about the same share had a sustained slowdown: ${pct(hot!.slowdown)} at ${temp(hot!.temp, u)}, ${pct(cool!.slowdown)} at ${temp(cool!.temp, u)}.`
+        : `At *${temp(hot!.temp, u)}* in ${hot!.year}, ${pct(hot!.slowdown)} had a sustained slowdown. At ${temp(cool!.temp, u)} in ${cool!.year}, ${pct(cool!.slowdown)}.`) : '',
     fallback: both((u) => w.length >= 2 ? `Race mornings from ${temp(lo, u)} to ${temp(hi, u)}.` : w.length ? `One race morning: ${temp(lo, u)} at the start.` : 'Race mornings.'),
     figure: null,
   };

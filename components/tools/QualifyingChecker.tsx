@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
+import { checkedDate } from '@/components/tools/QualifyingRaceText';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { Choice, DurationField, ShareBar } from '@/components/tools/ui';
 import Values from '@/components/ui/Values';
@@ -382,9 +383,11 @@ export default function QualifyingChecker() {
   // What is still the example's, in the card's kicker ("Women · 3:30:00 · example birth date"): a paragraph above the
   // card pushed the answer down while the visitor typed below it (critic round 3), so the card never moves.
   const stillShort = [
-    exampleTime && shown !== null ? 'time' : null, exampleDiv ? 'division' : null, exampleRace && raceOk ? 'race date' : null, example ? 'birth date' : null,
+    exampleTime && shown !== null ? 'time' : null, exampleDiv ? 'division' : null, exampleRace && raceOk ? 'race date' : null, example ? 'age' : null,
   ].filter((x): x is string => x !== null);
-  const kickerExample = allExample ? '' : stillShort.length ? ` · example ${listWords(stillShort)}` : '';
+  // The kicker stays one line, the time then the division, the same order as the untouched example's; what is still the
+  // example's is one quiet line under the card (critic round 5: two lines of caps named the division twice).
+  const stillExample = allExample || !stillShort.length ? '' : `Example ${listWords(stillShort)}: add yours below.`;
   // Links to the pace band name the division only when the visitor chose it (from the link or here).
   const bandGender = !exampleDiv && division !== 'nonbinary' ? division : null;
 
@@ -399,15 +402,16 @@ export default function QualifyingChecker() {
             <>
               <section className="tool-reading night qualifying-headline" aria-labelledby={`${ids}-headline`}>
                 <div className="tool-reading-head">
-                  {/* One line at a phone's width: the division and the time (the race date is in the form below). */}
-                  <p className="tool-reading-kicker">{allExample ? 'Example · ' : ''}{DIVISIONS.find((d) => d.division === division)!.label} · {fmtTime(shown!)}{kickerExample}</p>
+                  {/* One line at a phone's width: the time and the division (the race date is in the form below). */}
+                  <p className="tool-reading-kicker">{allExample ? 'Example · ' : ''}{fmtTime(shown!)} · {DIVISIONS.find((d) => d.division === division)!.label}</p>
                   <h2 className="tool-reading-figure" id={`${ids}-headline`}>
                     {meets === items.length ? `Meets all ${items.length}` : `Meets ${meets} of ${items.length}`}
                     <small>{boston ? <BostonLine it={boston} raceDate={raceDate} /> : 'time standards'}</small>
                   </h2>
                 </div>
-                <p className="qualifying-checked"><EvidenceTag kind="official" /><span>Checked <time dateTime={VERIFIED_AT}>{fmtDate(VERIFIED_AT)}</time></span></p>
+                <p className="qualifying-checked"><EvidenceTag kind="official" /><span>Checked <time dateTime={VERIFIED_AT}>{checkedDate()}</time></span></p>
               </section>
+              {stillExample ? <p className="qualifying-still">{stillExample}</p> : null}
             </>
           ) : (
             <p className="tool-empty">{emptyMessage}</p>

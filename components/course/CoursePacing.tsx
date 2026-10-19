@@ -1,3 +1,5 @@
+import { Fragment } from 'react';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 import TypeGlyph from '@/components/viz/TypeGlyph';
 import { linear, pc } from '@/components/viz/scale';
 import { getNugget } from '@/lib/nuggets';
@@ -8,10 +10,12 @@ import { CourseSection, Fact, Said } from './Fact';
 /**
  * "#pacing": the six pacing types, each a row with its glyph and colour: this course's share (filled, in the type's
  * colour) against the other courses' share, pooled by finishes (hollow, its key naming how many), the gap in signal on
- * the row the sentence names.
+ * the row the sentence names. Its last line names the three courses whose pacing fingerprints sit nearest this one's
+ * (five or more editions), "Paced most like Berlin: Eindhoven, Frankfurt and Hamburg." (critic round 5: said here, with
+ * the pacing it is about, rather than as a list ahead of the closing stack).
  */
 export default function CoursePacing({ page }: { page: CoursePageData }) {
-  const { city, display, types, typesElsewhere, archetypes } = page;
+  const { city, display, types, typesElsewhere, archetypes, shapedLike } = page;
   const n = getNugget('course.types', { city });
   if (!types || !typesElsewhere) return null;
   const named = n.guard ? String(n.values.type) : '';
@@ -47,6 +51,17 @@ export default function CoursePacing({ page }: { page: CoursePageData }) {
           <li><i className="viz-key-mark is-hollow" />{`${typesElsewhere.courses} other courses`}</li>
         </ul>
       </figure>
+      {shapedLike.length ? (
+        <p className="course-alike">
+          Paced most like {display}:{' '}
+          {shapedLike.map((r, i) => (
+            <Fragment key={r.slug}>
+              {i ? (i === shapedLike.length - 1 ? ' and ' : ', ') : null}
+              <Link href={`/courses/${r.slug}`} className="course-alike-link">{r.display}</Link>
+            </Fragment>
+          ))}.
+        </p>
+      ) : null}
     </CourseSection>
   );
 }

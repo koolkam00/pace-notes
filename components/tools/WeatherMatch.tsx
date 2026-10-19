@@ -521,7 +521,8 @@ function ResultCard({ match, units, tUnit, hw, centre, winText, refText, refTone
     figure = (
       <>
         <span>{pctShare(row.sd)}</span>
-        <small>of finishes at {inBand} had a <SlowdownTerm /> on mornings like yours{ref && !same ? <>; {pctShare(ref.sd)} on {other}</> : null}.</small>
+        {/* "Yours" is the visitor's own forecast: the example's morning is named by its temperature (critic round 5). */}
+        <small>of finishes at {inBand} had a <SlowdownTerm /> on mornings like {isExample ? yourTemp : 'yours'}{ref && !same ? <>; {pctShare(ref.sd)} on {other}</> : null}.</small>
       </>
     );
     body = (
@@ -678,13 +679,9 @@ function TempStrip({ editions, tUnit, marker, centre, hw, refName, emphasis, leg
     <figure className="weather-match-figure">
       <div ref={box} className="weather-match-strip">
         <svg width={width} height={H} role="img" aria-label={label}>
-          {/* The reference window as dashed edges above and below the swarm, so no line crosses a dot. */}
-          {showRef ? (
-            <g className="weather-match-zone is-ref">
-              <line x1={x(REF.c - REF.hw)} x2={x(REF.c + REF.hw)} y1={top} y2={top} />
-              <line x1={x(REF.c - REF.hw)} x2={x(REF.c + REF.hw)} y1={base - 6} y2={base - 6} />
-            </g>
-          ) : null}
+          {/* The reference window drawn the way "your window" is, a lighter band behind its races (critic round 5: two
+              dashed edges above and below the swarm read as stray marks). */}
+          {showRef ? <rect x={x(REF.c - REF.hw)} y={top} width={Math.max(0, x(REF.c + REF.hw) - x(REF.c - REF.hw))} height={base - top - 6} className="weather-match-zone is-ref" /> : null}
           {centre !== null ? <rect x={x(centre - hw)} y={top} width={Math.max(0, x(centre + hw) - x(centre - hw))} height={base - top - 6} className="weather-match-zone is-yours" /> : null}
           <line className="weather-match-axis" x1={m.l} x2={width - m.r} y1={base} y2={base} />
           {shownTicks.map((c) => (

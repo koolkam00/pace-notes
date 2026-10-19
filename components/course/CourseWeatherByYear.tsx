@@ -1,5 +1,6 @@
 import Scatter from '@/components/viz/Scatter';
 import { getNugget } from '@/lib/nuggets';
+import { WEATHER_MIN_MORNINGS } from '@/lib/nuggets/courses';
 import { pct, temp } from '@/lib/nuggets/format';
 import type { CoursePageData } from '@/lib/course-page';
 import type { UnitSystem } from '@/lib/units';
@@ -22,27 +23,25 @@ export function tempTicks(lo: number, hi: number, units: UnitSystem): { value: n
   return wide.length >= 2 ? wide : at(units === 'mi' ? 5 : 2);
 }
 
-/** The fewest race mornings the scatter draws: two or three dots say nothing a sentence would not. */
-export const WEATHER_MIN_MORNINGS = 3;
+export { WEATHER_MIN_MORNINGS };
 
 /**
  * "#weather", only where the warmest and coolest race mornings are at least 5 °C apart (the contrast is the beat's whole
  * point) and there are three or more: every morning a dot, start temperature against the share of finishes with a
- * sustained slowdown. The sentence states the two mornings as two facts; the pair is inked and labelled by year, no key, never joined (a
- * line across the cloud would read as a trend, "warmer, therefore"). The heading says the reading, so the readout opens on
- * a prompt and no dot is orange (a picked one rings in ink); where the sentence is course.weather's null naming the
- * course's worst year, that year alone is inked and labelled. The y scale runs from zero on
- * the baseline to the round ten above the dots, both labelled, and the readout names the measure. Elsewhere the mornings
- * are in "All numbers".
+ * sustained slowdown. The sentence compares the warmest and coolest mornings other than the hero's edition (the hero
+ * tells that one, course.weather): the two it names are inked and labelled by year, no key, never joined (a line across
+ * the cloud would read as a trend, "warmer, therefore"). The heading says the reading, so the readout opens on a prompt
+ * and no dot is orange (a picked one rings in ink); where the other mornings are too close to compare, the sentence
+ * gives the span and no dot is inked. The y scale runs from zero on the baseline to the round ten above the dots, both
+ * labelled, and the readout names the measure. Elsewhere the mornings are in "All numbers".
  */
 export default function CourseWeatherByYear({ page }: { page: CoursePageData }) {
   const { city, display, weather, hotCool } = page;
   if (!hotCool || weather.length < WEATHER_MIN_MORNINGS) return null;
   const n = getNugget('course.weather', { city });
-  // A gap under WEATHER_GAP points is a null (course.weather): where the course's worst year is neither morning, the
-  // sentence names that year instead, so it alone is inked and labelled.
-  const worstYear = Number((n.values as Record<string, number>).worst_year);
-  const inPair = Number.isFinite(worstYear) ? (y: number) => y === worstYear : (y: number) => hotCool.hot.year === y || hotCool.cool.year === y;
+  const v = n.values as Record<string, number>;
+  const pair = n.guard ? [v.hot_year, v.cool_year] : [];
+  const inPair = (y: number) => pair.includes(y);
   const lo = Math.min(...weather.map((e) => e.temp)), hi = Math.max(...weather.map((e) => e.temp));
   const pad = Math.max(1.5, (hi - lo) * 0.08);
   const top = Math.max(0.1, Math.ceil(Math.max(...weather.map((e) => e.slowdown)) * 10) / 10);
@@ -50,7 +49,7 @@ export default function CourseWeatherByYear({ page }: { page: CoursePageData }) 
     <Scatter points={weather.map((e) => ({ id: String(e.year), x: e.temp, y: e.slowdown, label: String(e.year), key: `${e.year}, at the start`, value: temp(e.temp, units), inPair: inPair(e.year) }))}
       side={[{ label: 'Sustained slowdown', values: weather.map((e) => pct(e.slowdown)) }]}
       xDomain={[lo - pad, hi + pad]} yDomain={[0, top]} xTicks={tempTicks(lo - pad, hi + pad, units)}
-      yTicks={[{ value: top, label: pct(top) }, { value: 0, label: pct(0) }]} pairLine={false} selected={String(hotCool.hot.year)} prompt="Choose a dot to read its year"
+      yTicks={[{ value: top, label: pct(top) }, { value: 0, label: pct(0) }]} pairLine={false} selected={String(pair[0] ?? weather[weather.length - 1].year)} prompt="Choose a dot to read its year"
       axisTitle={{ end: 'At the start' }}
       label={`Start temperature against sustained slowdown, ${weather.length} ${display} race mornings`} height={150} heightMd={200} />
   );
