@@ -64,12 +64,13 @@ const CASES = {
     await step(log, 'tp', () => type(page, label(page, /Average training pace/, false), v.tp.replace(':', '.')));
   } },
   'predictor-url': { path: v => `/tools/predictor?t=${v.half}&d=half&t2=${v.tenK}&d2=10k&wk=${v.weekly}&tp=${v.tp}` },
-  // The result's next step opens the pace band with a time worked out from the typed one in its address: that page must
-  // record it no more than a time typed there. (One row since the redesign's section 00; the pacing-pattern link went.)
-  'predictor-handoff': { path: '/tools/predictor', async drive(page, v, log) {
-    await step(log, 't1', () => type(page, 'input[id$="-t1"]', v.half));
+  // The result's next step opens the planner with a time worked out from the typed one in its address: that page must
+  // record it no more than a time typed there. (The pace calculator's one row since the redesign's section 00: the
+  // predictor's next card is the planner itself, so it carries no row.)
+  'calculator-handoff': { path: '/tools/pace-calculator', async drive(page, v, log) {
+    await step(log, 'time', () => type(page, label(page, 'Time'), v.marathon));
     await page.waitForTimeout(1200);
-    await step(log, 'pace band', async () => { await page.locator('.tool-handoffs a:has-text("Turn this into a pace band")').click(); await page.waitForURL(/\/tools\/pace-band\?goal=\d:\d\d$/); });
+    await step(log, 'planner', async () => { await page.locator('.tool-handoffs a:has-text("Plan this goal")').click(); await page.waitForURL(/\/tools\/plan\?goal=\d:\d\d$/); });
     await page.waitForTimeout(2000); await wiggle(page, 5);
   } },
   'weather-match': { path: '/tools/weather-match', async drive(page, v, log) {
@@ -238,6 +239,6 @@ module.exports = {
   title: 'Every tool, analysis and calculator with two sets of values (typed and in the address)',
   jobs: ({ quick }) => [
     { name: 'every tool has a case', weight: 1, run: async h => everyTool(h) },
-    ...Object.keys(CASES).filter(name => !quick || QUICK.includes(name)).map(name => ({ name, weight: CASES[name].reload ? 32 : name === 'analysis' || name === 'predictor-handoff' ? 25 : 18, run: h => differential(h, name) })),
+    ...Object.keys(CASES).filter(name => !quick || QUICK.includes(name)).map(name => ({ name, weight: CASES[name].reload ? 32 : name === 'analysis' || name === 'calculator-handoff' ? 25 : 18, run: h => differential(h, name) })),
   ],
 };

@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import DotGrid from '@/components/viz/DotGrid';
-import Values from '@/components/ui/Values';
+import ScrollCue from '@/components/ui/ScrollCue.client';
 import { UNEVEN_SHARE, evenPaceGapText, groupGapText, type GoalPeer } from '@/lib/tools/goal-facts';
 import { MARATHON_KM, MATS_KM, perUnit, splitTable } from '@/lib/tools/pace';
 import { evenAt, goalLabel, paceBandHref } from '@/lib/tools/pace-chart';
@@ -62,9 +62,25 @@ export function GoalPaceDek({ goal, observed }: { goal: number; observed: GoalOb
 }
 
 /** Everything below the header of a goal page. Static HTML in miles; redrawn in km once the units preference is read. */
-export function GoalPaceBody({ goal, observed, bunching, pileup }: { goal: number; observed: GoalObserved | null; bunching: GoalBunching | null; peers?: GoalPeer[];
+/** The pile-up's minutes as a table: each minute's finishes and the smooth curve's expectation, the reading row marked. */
+export interface PileupTable { caption: string; rows: [string, string, string][]; reading: number }
+
+/** One table of the page's "All numbers": its caption over a scrolling table, with the scroll cue the Values rows use. */
+function NumbersTable({ id, caption, children }: { id: string; caption: string; children: ReactNode }) {
+  return (
+    <section className="values-table" id={id}>
+      <p className="values-caption" id={`${id}-caption`}>{caption}</p>
+      <div className="values-scroll"><div className="table-wrap" role="region" tabIndex={0} aria-labelledby={`${id}-caption`}>{children}</div></div>
+      <ScrollCue target={id} />
+    </section>
+  );
+}
+
+export function GoalPaceBody({ goal, observed, bunching, pileup, pileupTable }: { goal: number; observed: GoalObserved | null; bunching: GoalBunching | null; peers?: GoalPeer[];
   /** The pile-up's figure, drawn on the server (a mini minute histogram). */
-  pileup?: ReactNode }) {
+  pileup?: ReactNode;
+  /** Its numbers, for the page's one "All numbers" disclosure. */
+  pileupTable?: PileupTable | null }) {
   const { units } = useUnits();
   const label = goalLabel(goal);
   const seconds = goal * 60;
@@ -100,19 +116,6 @@ export function GoalPaceBody({ goal, observed, bunching, pileup }: { goal: numbe
           ))}
         </ol>
       </section>
-      <Values id="goal-pace-every" caption={`Elapsed time at an even pace for a ${label} marathon, every ${unitWord(units)}, with the 5 km mats and halfway`} count={fine.length}>
-        <table className="table">
-          <thead><tr><th scope="col">Split</th><th scope="col">Elapsed</th></tr></thead>
-          <tbody>
-            {fine.map((r) => (
-              <tr key={r.km} className={r.mat || r.halfway || r.finish ? 'is-reading' : undefined}>
-                <th scope="row">{r.finish ? 'Finish' : r.halfway ? 'Halfway' : r.mat && units === 'mi' ? `${r.km}K mat` : units === 'mi' ? `${Math.round(r.km / KM_PER_MILE)} mi` : `${Math.round(r.km)} km${r.mat ? ' mat' : ''}`}</th>
-                <td>{elapsed(r.elapsed)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Values>
       {/* The splits as a band to print, said beside them: the chapter end below is the page's one way forward. */}
       <p className="tool-note goal-pace-more goal-pace-band"><Link href={paceBandHref(goal)}>Print these as a pace band</Link></p>
 
@@ -125,7 +128,6 @@ export function GoalPaceBody({ goal, observed, bunching, pileup }: { goal: numbe
               : <>Finishes near {label} stay close to the smooth curve: the minute before it holds {bunching.ratio.toFixed(2)}× the curve.</>}
           </h2>
           {pileup}
-          <p className="tool-note goal-pace-more"><Link href="/stories/round-numbers">The 3:59 effect</Link></p>
         </section>
       ) : null}
 
@@ -137,25 +139,8 @@ export function GoalPaceBody({ goal, observed, bunching, pileup }: { goal: numbe
             ? <>Finishes just under {label} didn’t run even: <em>{pct(observed.sd)}</em> had a <SlowdownTerm />.</>
             : <>Most finishes just under {label} held their pace: only <em>{pct(observed.sd)}</em> had a <SlowdownTerm />.</>}</h2>
           {/* The share on 100 dots. The two groups mat by mat (held pace against a sustained slowdown) are the pace band's
-              chart, one tap on; here they are the table under the dots, so the two pages never draw the same chart. */}
+              chart, one tap on; here they are a table in All numbers, so the two pages never draw the same chart. */}
           <DotGrid lit={Math.round(observed.sd * 100)} label={`Of 100 finishes from ${span}, ${Math.round(observed.sd * 100)} had a sustained slowdown. ${groupText ?? ''} ${gapText ?? ''}`.trim()} />
-          <Values id="goal-pace-groups" caption={`Elapsed time at each mat: even pace for ${label}, and the median of ${count(observed.n)} finishes from ${span}, of those that held pace and of those with a sustained slowdown`} count={CHECKPOINTS.length}>
-            <table className="table">
-              <thead><tr><th scope="col">Mat</th><th scope="col">Even pace</th><th scope="col">Median</th><th scope="col">Held pace</th><th scope="col">Sustained slowdown</th></tr></thead>
-              <tbody>
-                {CHECKPOINTS.map((km, i) => (
-                  <tr key={km}>
-                    <th scope="row">{i === CHECKPOINTS.length - 1 ? 'Finish' : `${km}K`}</th>
-                    <td>{elapsed(even[i])}</td>
-                    <td>{elapsed(observed.e50[i])}</td>
-                    <td>{elapsed(observed.held!.e50[i])}</td>
-                    <td>{elapsed(observed.slow!.e50[i])}</td>
-                  </tr>
-                ))}
-                <tr><th scope="row">Finishes</th><td></td><td>{count(observed.n)}</td><td>{count(observed.held.n)}</td><td>{count(observed.slow.n)}</td></tr>
-              </tbody>
-            </table>
-          </Values>
         </section>
       ) : !observed ? (
         <section className="tool-panel">
@@ -164,6 +149,60 @@ export function GoalPaceBody({ goal, observed, bunching, pileup }: { goal: numbe
         </section>
       ) : null}
 
+      {/* Section 00, cut 7: the page's tables in one disclosure at its foot, each with its caption, not a Values row under
+          every beat. */}
+      <details className="values all-numbers goal-pace-numbers" id="goal-pace-numbers">
+        <summary>
+          <span>All numbers<span className="values-count">{observed?.held && observed.slow ? (pileupTable ? 3 : 2) : pileupTable ? 2 : 1} tables</span></span>
+          <span className="values-glyph" aria-hidden="true" />
+        </summary>
+        <div className="values-body all-numbers-body">
+          <NumbersTable id="goal-pace-every" caption={`Elapsed time at an even pace for a ${label} marathon, every ${unitWord(units)}, with the 5 km mats and halfway`}>
+            <table className="table">
+            <thead><tr><th scope="col">Split</th><th scope="col">Elapsed</th></tr></thead>
+            <tbody>
+              {fine.map((r) => (
+                <tr key={r.km} className={r.mat || r.halfway || r.finish ? 'is-reading' : undefined}>
+                  <th scope="row">{r.finish ? 'Finish' : r.halfway ? 'Halfway' : r.mat && units === 'mi' ? `${r.km}K mat` : units === 'mi' ? `${Math.round(r.km / KM_PER_MILE)} mi` : `${Math.round(r.km)} km${r.mat ? ' mat' : ''}`}</th>
+                  <td>{elapsed(r.elapsed)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          </NumbersTable>
+          {observed?.held && observed.slow ? (
+            <NumbersTable id="goal-pace-groups" caption={`Elapsed time at each mat: even pace for ${label}, and the median of ${count(observed.n)} finishes from ${span}, of those that held pace and of those with a sustained slowdown`}>
+              <table className="table">
+                <thead><tr><th scope="col">Mat</th><th scope="col">Even pace</th><th scope="col">Median</th><th scope="col">Held pace</th><th scope="col">Sustained slowdown</th></tr></thead>
+                <tbody>
+                  {CHECKPOINTS.map((km, i) => (
+                    <tr key={km}>
+                      <th scope="row">{i === CHECKPOINTS.length - 1 ? 'Finish' : `${km}K`}</th>
+                      <td>{elapsed(even[i])}</td>
+                      <td>{elapsed(observed.e50[i])}</td>
+                      <td>{elapsed(observed.held!.e50[i])}</td>
+                      <td>{elapsed(observed.slow!.e50[i])}</td>
+                    </tr>
+                  ))}
+                  <tr><th scope="row">Finishes</th><td></td><td>{count(observed.n)}</td><td>{count(observed.held.n)}</td><td>{count(observed.slow.n)}</td></tr>
+                </tbody>
+              </table>
+            </NumbersTable>
+          ) : null}
+          {pileupTable ? (
+            <NumbersTable id="goal-pace-pileup" caption={pileupTable.caption}>
+              <table className="table">
+                <thead><tr><th scope="col">Minute</th><th scope="col">Finishes</th><th scope="col">Smooth curve</th></tr></thead>
+                <tbody>
+                  {pileupTable.rows.map((row, i) => (
+                    <tr key={row[0]} className={i === pileupTable.reading ? 'is-reading' : undefined}><th scope="row">{row[0]}</th><td>{row[1]}</td><td>{row[2]}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </NumbersTable>
+          ) : null}
+        </div>
+      </details>
     </>
   );
 }

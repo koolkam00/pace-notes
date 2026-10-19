@@ -3,7 +3,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { ToolHandoffs } from '@/components/tools/Handoffs';
 import { Choice, DurationField, ShareBar, Stepper } from '@/components/tools/ui';
 import { fmtGoal } from '@/lib/tools/pace-band-data';
 import Values from '@/components/ui/Values';
@@ -115,8 +114,6 @@ const paceText = (sPerKm: number, units: UnitSystem, band: { lo: number; step: n
 /** The 5–20 km stretch that defines each finish's own baseline pace: always named in km (the published definition), glossed in miles. */
 const stretch = (units: UnitSystem) => (units === 'mi' ? '5–20 km (3.1–12.4 mi)' : '5–20 km');
 /** Observed pace-band goals run from 2:30 to 6:30, and so do the course chooser's goals (minutes). */
-const LINK_GOALS: [number, number] = [150, 390];
-const hmMinutes = (minutes: number) => `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -186,13 +183,10 @@ function useSettled<T>(value: T, ms: number): T {
 
 type Need = 'temp' | 'dew' | 'rh' | 'dew-above' | null;
 
-const DEFAULT_GOAL = '4:00:00';
+/** The goal is kept in the address as h:mm (h:mm:ss with seconds), as on every goal tool. */
+const DEFAULT_GOAL = '4:00';
 
-/**
- * `paceBand`: the courses the pace band publishes, each with its observed whole-minute goals as [first, last] runs
- * (null when unknown); null when the pace band is not in this build. Read at build time by the page.
- */
-export default function WeatherMatch({ sha, paceBand }: { sha: string | null; paceBand: Record<string, [number, number][] | null> | null }) {
+export default function WeatherMatch({ sha }: { sha: string | null }) {
   const { units } = useUnits();
   const [q, setQuery, ready, fromUrl] = useQueryState({ temp: '', tu: '', hum: 'dew', dew: '', rh: '', by: '', goal: DEFAULT_GOAL, pace: '', pu: '', course: '', w: '2' });
   const { data, error, retry } = useWeatherData(sha);
@@ -291,7 +285,7 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
   const switchBy = (next: 'goal' | 'pace') => {
     if (next === by) return;
     if (next === 'pace') setQ({ by: 'pace', pace: paceKm ? formatDuration(paceSeconds(paceKm, units, bandSpan)) : q.pace, pu: units });
-    else setQ({ by: '', pace: '', pu: '', goal: paceKm ? formatDuration(Math.round(paceKm * MARATHON_KM), true) : q.goal });
+    else setQ({ by: '', pace: '', pu: '', goal: paceKm ? fmtGoal(Math.round(paceKm * MARATHON_KM)) : q.goal });
   };
 
   const rowMap = useMemo(() => new Map((data?.rows ?? []).map((r) => [key(r.c, r.hw, r.pace), r])), [data]);
@@ -362,24 +356,26 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
   // The shared example marker: shown only while the forecast and goal are the untouched examples (a linked course does not change the match).
   const isExample = ready && exampleTemp && exampleDew && exampleGoal;
 
-  /* ----- Links to other tools: the pace band takes the whole minute at or below the time; both tools observe goals from 2:30 to 6:30 ----- */
-  const linkS = goalForResearch !== null ? Math.round(goalForResearch) : null;
-  const linkMinute = linkS !== null ? Math.floor(linkS / 60) : null;
-  const linkHM = linkMinute !== null ? hmMinutes(linkMinute) : '';
-  const goalLabel = linkS === null ? '' : linkS % 60 ? formatDuration(linkS, true) : linkHM;
-  const linkInRange = linkMinute !== null && linkMinute >= LINK_GOALS[0] && linkMinute <= LINK_GOALS[1];
-  // A course goes with the pace-band link only when the pace band publishes it with an observed window at this minute.
-  const bandKnows = course !== null && paceBand !== null && Object.prototype.hasOwnProperty.call(paceBand, course.slug);
-  const bandRuns = bandKnows ? paceBand![course!.slug] : null;
-  const bandCourse = linkInRange && bandKnows && (bandRuns === null || bandRuns.some(([a, b]) => linkMinute! >= a && linkMinute! <= b));
-  const bandHref = `/tools/pace-band?goal=${linkHM}${bandCourse ? `&course=${course!.slug}` : ''}`;
-  const bandWhy = !course || bandCourse || !linkInRange || paceBand === null ? ''
-    : bandKnows ? ` (all courses: too few ${course.city} finishes at this goal)`
-      : ` (all courses: ${course.city} has no band of its own)`;
-
   return (
     <div className="weather-match">
       <div className="tool-workspace">
+        {/* The answer first (the analyses' grammar): mornings like the example forecast, then the morning that makes it
+            yours, then the races behind it and the published estimates. */}
+        <div className="tool-results tool-answer">
+          {error ? (
+            <div className="tool-state is-error weather-match-error" role="alert">
+              <p>{error} The published-research estimates below still work.</p>
+              {retry ? <button type="button" className="btn btn-secondary is-compact" onClick={retry}>Try again</button> : null}
+            </div>
+          ) : !data ? (
+            <p className="tool-state">Loading the data…</p>
+          ) : match ? (
+            <ResultCard match={match} units={units} tUnit={tUnit} hw={hw} centre={centre} winText={winText} refText={refText} refTone={refTone}
+              bandLabel={bandLabel} yourTemp={yourTemp} yourPace={yourPace} widenLabel={widenLabel} onWiden={toggleWiden} onNearest={toNearest} isExample={isExample}
+              warmCount={warmCount} coldCount={coldCount} total={data.editions.length} paceLo={paceLo} paceHi={paceHi} step={step} badTemp={tempBad} />
+          ) : null}
+        </div>
+
         <form className="tool-inputs weather-match-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Weather match inputs">
           <h2>Your race morning</h2>
 
@@ -415,9 +411,9 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
           {by === 'goal' ? (
             // The goal control every goal tool shares: − / + a minute round the field, "Goal finish time", shown as h:mm.
             <div className="tool-goal">
-              <Stepper label="Goal" onStep={(d) => { const m = (goalS ?? 4 * 3600) / 60; setQ({ goal: formatDuration(Math.max(90, Math.min(480, d > 0 ? Math.floor(m) + 1 : Math.ceil(m) - 1)) * 60, true) }); }}>
+              <Stepper label="Goal" onStep={(d) => { const m = (goalS ?? 4 * 3600) / 60; setQ({ goal: fmtGoal(Math.max(90, Math.min(480, d > 0 ? Math.floor(m) + 1 : Math.ceil(m) - 1)) * 60) }); }}>
                 <DurationField label="Goal finish time" large value={goalS} placeholder="4:00" format={fmtGoal}
-                  onChange={(s) => setQ({ goal: s === null ? '' : formatDuration(s, true) })}
+                  onChange={(s) => setQ({ goal: s === null ? '' : fmtGoal(s) })}
                   hint={paceKm !== null ? <>Even pace {yourPace} ({paceText(paceKm, units === 'mi' ? 'km' : 'mi', bandSpan)}).</> : 'h:mm or h:mm:ss, such as 4:00 or 3:45.'} />
               </Stepper>
             </div>
@@ -474,19 +470,8 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
 
         <div className="tool-results">
           <p className="sr-only" role="status">{settledStatus}</p>
-          {error ? (
-            <div className="tool-state is-error weather-match-error" role="alert">
-              <p>{error} The published-research estimates below still work.</p>
-              {retry ? <button type="button" className="btn btn-secondary is-compact" onClick={retry}>Try again</button> : null}
-            </div>
-          ) : !data ? (
-            <p className="tool-state">Loading the data…</p>
-          ) : match ? (
+          {!error && data && match ? (
             <>
-              <ResultCard match={match} units={units} tUnit={tUnit} hw={hw} centre={centre} winText={winText} refText={refText} refTone={refTone}
-                bandLabel={bandLabel} yourTemp={yourTemp} yourPace={yourPace} widenLabel={widenLabel} onWiden={toggleWiden} onNearest={toNearest} isExample={isExample}
-                warmCount={warmCount} coldCount={coldCount} total={data.editions.length} paceLo={paceLo} paceHi={paceHi} step={step} badTemp={tempBad} />
-
               {match.kind === 'ok' ? (
                 <SectionValues match={match} units={units} centre={centre!} hw={hw} winText={winText} refText={refText} refTone={refTone} />
               ) : null}
@@ -522,14 +507,7 @@ export default function WeatherMatch({ sha, paceBand }: { sha: string | null; pa
 
           <ResearchPanel tempC={tempOk ? tempC : null} dewC={dewOk ? dewC : null} need={need} tUnit={tUnit} goal={goalForResearch} by={by} paceLabel={yourPace} />
 
-          {linkS !== null ? (
-            /* One next step (section 00): the pace band for this goal. */
-            <ToolHandoffs label="Next step" links={linkInRange ? [
-              { href: bandHref, title: `Pace band${bandCourse ? ` for ${course!.city}` : ''}`, text: <>The mat times of finishes just under {linkHM}{bandWhy}.</> },
-            ] : [
-              { href: bandHref, title: 'Pace band', text: <>Even splits for {linkHM}.</> },
-            ]} />
-          ) : null}
+          {/* One way forward: the chapter's next card. */}
           <ShareBar />
         </div>
       </div>

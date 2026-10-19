@@ -1,7 +1,7 @@
 /* The pace charts by goal time (/tools/marathon-pace-chart, /tools/half-marathon-pace-chart) and the goal pages
    (/tools/marathon-pace/<goal>; the redesign spec, section 7.14). A chart is one table at a time, its goal column held
    while the timing points scroll, the far edge fading while there is more to see. A goal page is the even pace on one
-   night card, then what finishes just under the goal ran, each beat with its Values table. Every class here is prefixed
+   night card, then what finishes just under the goal ran, its tables in one All numbers disclosure at the foot. Every class here is prefixed
    goal-chart- or goal-pace-. Imported by the three routes' layouts. */
 
 /* ---------- The chart ---------- */
@@ -29,10 +29,18 @@
 .goal-pace-stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); max-width: var(--measure-figure); }
 .goal-pace-stack > * { margin: 0; min-width: 0; }
 .goal-pace-headline .tool-reading-figure small { font-variant-numeric: tabular-nums; }
-.goal-pace-stack > .values { margin-top: calc(var(--s-3) - var(--s-6)); }
 .goal-pace-more a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }
-/* The pace band link belongs to the splits above it: it sits just under their Values row, not a whole gap away. */
+/* The pace band link belongs to the splits on the card above it: just under it, not a whole gap away. */
 .goal-pace-stack > .goal-pace-band { margin-top: calc(var(--s-2) - var(--s-6)); }
+/* All numbers: the page's three tables in one disclosure at its foot, a gap between them, each fading at its right edge
+   while it has more to show. */
+.goal-pace-numbers .all-numbers-body { display: grid; gap: var(--s-6); }
+.goal-pace-numbers .values-table { min-width: 0; }
+.goal-pace-numbers .values-table[data-overflow='true'] .values-scroll::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; z-index: 2; width: 24px; background: linear-gradient(to right, transparent, var(--paper)); pointer-events: none; }
+/* From 900 px a goal page is one centred column, as the analyses are, never a column against the left edge. */
+@media (min-width: 900px) {
+  .goal-pace-page { max-width: var(--measure-figure); margin-inline: auto; }
+}
 
 @media print {
   .goal-chart-wrap.is-overflow { -webkit-mask-image: none; mask-image: none; }

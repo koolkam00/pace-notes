@@ -87,7 +87,8 @@ export default function QualifyingRace({ s }: { s: Standard }) {
           <div><dt>Window</dt><dd className="qrace-window">{fmtDate(s.windowStart)} – {windowEnd}</dd></div>
           <div><dt>Time rule</dt><dd>{time.value}</dd>{time.detail ? <dd className="tool-ledger-note">{time.detail}</dd> : null}</div>
         </dl>
-        <p className="qrace-cta no-print"><Link className="btn btn-primary" href={checkerHref(s)}>Check a time for {shortName(s)}</Link></p>
+        {/* A secondary button: the header's "Plan your race" is the screen's one orange call to action. */}
+        <p className="qrace-cta no-print"><Link className="btn btn-secondary" href={checkerHref(s)}>Check a time for {shortName(s)}</Link></p>
 
         <section className="qrace-section" id="standards" aria-labelledby="qrace-standards-title">
           <h2 className="tool-panel-title" id="qrace-standards-title">{what}</h2>

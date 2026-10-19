@@ -56,7 +56,7 @@ export default function ToolsPage() {
   return (
     <div className="tool-page tools-index">
       <header className="tool-header">
-        <h1 className="tool-title t-title">Runner tools</h1>
+        <h1 className="tool-title t-title">Tools</h1>
         <p className="tool-dek">For one race: plan it, pace it, follow it and read it afterwards, beside what finishes like it ran.</p>
         {/* The evidence key, once: each row shows its glyphs. */}
         <p className="tools-key">{BADGE_ORDER.map((e) => <EvidenceBadge key={e} kind={e} />)}</p>

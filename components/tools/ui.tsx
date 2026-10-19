@@ -30,13 +30,14 @@ export function DurationField({ label, value, onChange, mode = 'race', placehold
   const show = (s: number) => (format ? format(s) : formatDuration(s, mode === 'race'));
   const [text, setText] = useState(value === null ? '' : show(value));
   const [touched, setTouched] = useState(false);
-  const last = useRef(value);
+  // The parent's value as last seen. The text follows the parent only when that value itself changes (a stepper, a
+  // preset, the address), never because the parent set aside what was typed (a goal tool takes marathon times only, so a
+  // half-typed "3" or a cleared field leaves its goal where it was): the visitor's text is theirs until they leave it.
+  const seen = useRef(value);
   useEffect(() => {
-    // Follow outside changes (steppers, presets) without fighting the visitor's typing.
-    if (value !== last.current) {
-      last.current = value;
-      if (value === null || parseDuration(text, mode) !== value) setText(value === null ? '' : show(value));
-    }
+    if (value === seen.current) return;
+    seen.current = value;
+    if (value === null || parseDuration(text, mode) !== value) setText(value === null ? '' : show(value));
   }, [value, mode, text]); // eslint-disable-line react-hooks/exhaustive-deps
   const parsed = text.trim() ? parseDuration(text, mode) : null;
   const unreadable = touched && text.trim() !== '' && parsed === null;
@@ -51,11 +52,11 @@ export function DurationField({ label, value, onChange, mode = 'race', placehold
         onChange={(e) => {
           const typed = keypadInput(e.target, e.nativeEvent, mode);
           setText(typed);
-          const next = typed.trim() ? parseDuration(typed, mode) : null;
-          last.current = next;
-          onChange(next);
+          onChange(typed.trim() ? parseDuration(typed, mode) : null);
         }}
-        onBlur={() => { setTouched(true); if (parsed !== null) setText(show(parsed)); }} />
+        // Once left, the field shows the value in use: what was typed, written out, or the parent's own value when it set
+        // the typed one aside.
+        onBlur={() => { setTouched(true); if (parsed !== null) setText(show(value !== null && value !== parsed ? value : parsed)); }} />
       {unreadable ? <p className="tool-field-hint is-error" id={`${inputId}-hint`}>Try {mode === 'race' ? '3:30:00, 3:30 or 210' : '8:05'}.{keypad}</p>
         : error ? <p className="tool-field-hint is-error" id={`${inputId}-hint`}>{error}{keypad}</p>
         : hint ? <p className="tool-field-hint" id={`${inputId}-hint`}>{hint}{keypad}</p> : mode === 'race' ? <KeypadHint block /> : null}
@@ -69,11 +70,16 @@ export function DurationField({ label, value, onChange, mode = 'race', placehold
  * script: the pressed button carries the raised surface itself, so nothing moves on load.
  */
 export function Choice<T extends string | number>({ label, options, value, onChange, small = false }: {
-  label: string; options: { value: T; label: ReactNode }[]; value: T; onChange: (v: T) => void; small?: boolean;
+  label: string; value: T; onChange: (v: T) => void; small?: boolean;
+  /** `disabled` keeps an option in view, focusable and named by its `title`, but not choosable (aria-disabled). */
+  options: { value: T; label: ReactNode; disabled?: boolean; title?: string }[];
 }) {
   return (
     <div className={`seg tool-choice${small ? ' is-small' : ''}`} role="group" aria-label={label}>
-      {options.map((o) => <button key={String(o.value)} type="button" className="seg-btn" aria-pressed={o.value === value} onClick={() => onChange(o.value)}><span className="seg-label">{o.label}</span></button>)}
+      {options.map((o) => (
+        <button key={String(o.value)} type="button" className="seg-btn" aria-pressed={o.value === value} aria-disabled={o.disabled || undefined}
+          title={o.disabled ? o.title : undefined} onClick={() => { if (!o.disabled) onChange(o.value); }}><span className="seg-label">{o.label}</span></button>
+      ))}
     </div>
   );
 }
@@ -104,10 +110,24 @@ export function GoalBar({ label, onStep, step = 60, labels, disabled, children }
   const ref = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(false);
   useEffect(() => {
-    const inputs = ref.current?.closest('.tool-workspace')?.querySelector('.tool-inputs');
-    if (!inputs || typeof IntersectionObserver !== 'function') return undefined;
-    const io = new IntersectionObserver(([entry]) => setShown(!entry.isIntersecting && entry.boundingClientRect.top < 0));
+    const workspace = ref.current?.closest('.tool-workspace');
+    const inputs = workspace?.querySelector('.tool-inputs');
+    if (!workspace || !inputs || typeof IntersectionObserver !== 'function') return undefined;
+    // Shown once the inputs have scrolled up out of view, and stepped away while an actions row (Copy link, Print) is on
+    // screen, so the bar never sits over a button it would hide.
+    let above = false;
+    const actions = new Set<Element>();
+    const update = () => setShown(above && actions.size === 0);
+    const io = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target === inputs) above = !entry.isIntersecting && entry.boundingClientRect.top < 0;
+        else if (entry.isIntersecting) actions.add(entry.target);
+        else actions.delete(entry.target);
+      }
+      update();
+    });
     io.observe(inputs);
+    workspace.querySelectorAll('.tool-share').forEach((row) => io.observe(row));
     return () => io.disconnect();
   }, []);
   const amount = step >= 60 ? `${step / 60} minute${step === 60 ? '' : 's'}` : `${step} seconds`;
@@ -160,11 +180,12 @@ export function ExampleNote({ children }: { children?: ReactNode }) {
 }
 
 /**
- * Copy-link and print buttons. The copied link carries the units on screen, so it opens the same way for someone else.
- * `.share-bar` keeps these out of the count of tool edits (components/SiteAnalytics.tsx): a copied link is counted on
- * its own, and so is printing.
+ * Copy link, and Print only where a page's result is made to print (`print`: the pace calculator's splits, the qualifying
+ * list; the planner and the pace band pass their own print buttons as `extra`). The copied link carries the units on
+ * screen, so it opens the same way for someone else. `.share-bar` keeps these out of the count of tool edits
+ * (components/SiteAnalytics.tsx): a copied link is counted on its own, and so is printing.
  */
-export function ShareBar({ print = true, extra }: { print?: boolean; extra?: ReactNode }) {
+export function ShareBar({ print = false, extra }: { print?: boolean; extra?: ReactNode }) {
   const [copied, setCopied] = useState(false);
   const { units } = useUnits();
   return (

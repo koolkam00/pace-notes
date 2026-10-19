@@ -51,11 +51,11 @@ export function ToolPageHeader({ path, title, dek, badges = [], trail, children 
   );
 }
 
-/** The opener of a registered tool: its heading, purpose and badges from lib/tools/registry.ts. */
+/** The opener of a registered tool: its name, purpose and badges from lib/tools/registry.ts (one name: the H1 is the title). */
 export function ToolHeader({ slug, title, children }: { slug: string; title?: ReactNode; children?: ReactNode }) {
   const tool = toolBySlug(slug)!;
   return (
-    <ToolPageHeader path={`/tools/${slug}`} title={title ?? tool.heading ?? tool.title} dek={tool.dek} badges={tool.evidence}
+    <ToolPageHeader path={`/tools/${slug}`} title={title ?? tool.title} dek={tool.dek} badges={tool.evidence}
       trail={[...(tool.group === 'reference' ? [['Reference'] as [string]] : []), [tool.title]]}>
       {children}
     </ToolPageHeader>

@@ -7,8 +7,7 @@ import Axis from '@/components/viz/Axis';
 import Annotation from '@/components/viz/Annotation';
 import { placeLabels } from '@/components/viz/labels';
 import { linear, pc, stepEdge, stepPath, u, yScale } from '@/components/viz/scale';
-import Values from '@/components/ui/Values';
-import { GoalPaceBody, GoalPaceDek, type GoalBunching, type GoalObserved } from '@/components/tools/GoalPace';
+import { GoalPaceBody, GoalPaceDek, type GoalBunching, type GoalObserved, type PileupTable } from '@/components/tools/GoalPace';
 import { ToolEnd, ToolPageHeader } from '@/components/tools/ToolShell';
 import type { FinishTimes } from '@/lib/insights';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
@@ -94,7 +93,7 @@ function bunchingFor(minute: number): GoalBunching | null {
  * The pile-up as a figure: finishes per minute for ten minutes either side of the goal, the smooth curve over them and the
  * minute before the goal in signal. Server-drawn (no script on the page), from the same finish-time file as the sentence.
  */
-function pileupFigure(minute: number, run: GoalBunching['run']): ReactNode {
+function pileupFigure(minute: number, run: GoalBunching['run']): { figure: ReactNode; table: PileupTable } | null {
   try {
     const ft = readInsight<FinishTimes>(FINISH_TIMES);
     const lo = minute - 10, hi = minute + 10;
@@ -126,14 +125,19 @@ function pileupFigure(minute: number, run: GoalBunching['run']): ReactNode {
         <Baseline />
       </Plot>
     );
-    return (
+    // The minutes as a table go to the page's one "All numbers" disclosure, not a Values row under the chart.
+    const table: PileupTable = {
+      caption: `Finishes per minute around ${hm(minute)}, and what a smooth curve expects`,
+      rows: bins.map((b) => [hm(b.x), b.n.toLocaleString('en-US'), Math.round(curve.find((c) => c.x === b.x)?.v ?? NaN).toLocaleString('en-US')]),
+      reading: bins.findIndex((b) => b.x === (run ? run.to : before)),
+    };
+    const figure = (
       <ChartFrame label={`Finishes per minute from ${hm(lo)} to ${hm(hi)}, against a smooth curve: ${run ? `${run.n.toLocaleString('en-US')} from ${hm(run.from)} to ${hm(run.to)}, ${run.ratio.toFixed(2)} times the curve` : `${at(before).toLocaleString('en-US')} in the minute before ${hm(minute)}`}`}
         height={height} heightMd={150} plot={plot}
         axis={<Axis ticks={[lo, minute, hi].map((m) => ({ x: x(m), label: hm(m) }))} />}
-        keys={[{ label: 'Finishes per minute', mark: 'square', tone: 'quiet' }, { label: 'Smooth curve', mark: 'line' }]}
-        values={<Values id="goal-pace-pileup" caption={`Finishes per minute around ${hm(minute)}, and what a smooth curve expects`} columns={[{ key: 'm', label: 'Minute' }, { key: 'n', label: 'Finishes' }, { key: 'e', label: 'Smooth curve' }]}
-          rows={bins.map((b) => [hm(b.x), b.n.toLocaleString('en-US'), Math.round(curve.find((c) => c.x === b.x)?.v ?? NaN).toLocaleString('en-US')])} reading={bins.findIndex((b) => b.x === (run ? run.to : before))} />} />
+        keys={[{ label: 'Finishes per minute', mark: 'square', tone: 'quiet' }, { label: 'Smooth curve', mark: 'line' }]} />
     );
+    return { figure, table };
   } catch {
     return null;
   }
@@ -174,6 +178,7 @@ export default function GoalPacePage({ params }: { params: { goal: string } }) {
   const observed = observedFor(minute);
   const bunching = bunchingFor(minute);
   const peers = goalPeers();
+  const pileup = bunching ? pileupFigure(minute, bunching.run) : null;
 
   return (
     <div className="tool-page goal-pace-page">
@@ -184,7 +189,7 @@ export default function GoalPacePage({ params }: { params: { goal: string } }) {
         <p className="print-only goal-chart-print-note">Pace Notes {label} marathon pace. splithappens.run{goalPagePath(minute)}</p>
       </ToolPageHeader>
       <div className="goal-pace-stack">
-        <GoalPaceBody goal={minute} observed={observed} bunching={bunching} peers={peers} pileup={bunching ? pileupFigure(minute, bunching.run) : null} />
+        <GoalPaceBody goal={minute} observed={observed} bunching={bunching} peers={peers} pileup={pileup?.figure ?? null} pileupTable={pileup?.table ?? null} />
       </div>
       <ToolEnd path={goalPagePath(minute)} how="/methodology#tools-goal-pages" />
     </div>

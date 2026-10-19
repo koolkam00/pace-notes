@@ -41,8 +41,11 @@
 .split-check-bars svg { display: block; overflow: visible; }
 .split-check-bars svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
 .split-check-gridline line { stroke: var(--rule); }
-.split-check-bar { fill: var(--fill-quiet); stroke: var(--mark-quiet); stroke-width: 1; }
-.split-check-bar.is-slow { fill: var(--ordinal-2); stroke: var(--ordinal-2); }
+/* On the night card every bar is a mark (3:1 or more against the card): quicker and even sections in the quiet mark tone,
+   slower ones a step lighter, the section the verdict names in the accent. The track fill (--fill-quiet) is 1.4:1 there, too
+   faint for a bar the reader has to see to read the race from its start. */
+.split-check-bar { fill: var(--mark-quiet); stroke: none; }
+.split-check-bar.is-slow { fill: var(--ordinal-3); }
 .split-check-bar.is-qualify { fill: var(--signal); stroke: var(--signal); }
 .split-check-base { stroke: var(--ink); stroke-width: 1.5; }
 .split-check-threshold { stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 4 3; }

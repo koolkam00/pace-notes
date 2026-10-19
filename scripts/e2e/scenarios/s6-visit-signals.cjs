@@ -275,7 +275,7 @@ async function restored(h) {
   h.check('page_feedback once on the tool, as sent', named(signals, 'page_feedback').length === 1 && named(signals, 'page_feedback_reason').length === 0, shown(named(signals, 'page_feedback')));
 }
 
-// Edits outside a tool's workspace (the course chooser's list) count; buttons that only jump down the page or print do not.
+// Edits outside a tool's workspace (the course chooser's list) count; buttons that only jump within the page or print do not.
 async function toolEdits(h) {
   const run = await h.run('tool edits', { ...PHONE });
   const page = await run.newPage();
@@ -290,13 +290,13 @@ async function toolEdits(h) {
   await page.waitForTimeout(500);
   await page.goto(SITE + '/tools/projector', { waitUntil: 'load' });
   await page.waitForTimeout(1200);
-  await page.locator('button:has-text("Full result ↓")').first().click();
+  await page.locator('button:has-text("Result ↑")').first().click();
   await page.waitForTimeout(500);
   // A result's next step is not an edit, on the tool it leaves or on the one it opens with the time filled in.
-  await page.goto(SITE + '/tools/predictor', { waitUntil: 'load' });
+  await page.goto(SITE + '/tools/pace-calculator', { waitUntil: 'load' });
   await page.waitForTimeout(1200);
-  await page.locator('.tool-handoffs a:has-text("Turn this into a pace band")').click();
-  await page.waitForURL(/\/tools\/pace-band\?goal=\d:\d\d$/);
+  await page.locator('.tool-handoffs a:has-text("Plan this goal")').click();
+  await page.waitForURL(/\/tools\/plan\?goal=\d:\d\d$/);
   const handedOn = page.url();
   await page.waitForTimeout(1500);
   await page.goto(SITE + '/tools/pace-band', { waitUntil: 'load' });
@@ -308,9 +308,9 @@ async function toolEdits(h) {
   await run.close();
   const used = named(run, 'tool_used').map(p => `${p.$pathname}:${p.action}`);
   h.check('changing the course chooser\'s list is one edit', JSON.stringify(used.filter(u => u.startsWith('/tools/course-chooser'))) === '["/tools/course-chooser:edit"]', used);
-  h.check('"Full result ↓" is not an edit', !used.some(u => u.startsWith('/tools/projector')), used);
+  h.check('"Result ↑" is not an edit', !used.some(u => u.startsWith('/tools/projector')), used);
   h.check('printing the pace band is a print, not an edit', JSON.stringify(used.filter(u => u.startsWith('/tools/pace-band'))) === '["/tools/pace-band:print"]', used);
-  h.check('following a result\'s next step is not an edit', !used.some(u => u.startsWith('/tools/predictor')) && named(run, '$pageview').filter(p => p.$pathname === '/tools/pace-band').length === 2, { used, handedOn });
+  h.check('following a result\'s next step is not an edit', !used.some(u => u.startsWith('/tools/pace-calculator') || u.startsWith('/tools/plan')) && named(run, '$pageview').filter(p => p.$pathname === '/tools/plan').length === 1, { used, handedOn });
 }
 
 // The race planner: its course result, mat comparison and pace band are each seen once, in page order; its two print

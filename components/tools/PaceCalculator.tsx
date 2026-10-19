@@ -140,6 +140,28 @@ export default function PaceCalculator() {
       </div>
       {q.view === 'chart' ? <PaceChart units={units} from={chartFrom} setFrom={setChartFrom} /> : (
         <div className="tool-workspace">
+          {/* The answer first (the analyses' grammar): the third value for the example, then the two that make it yours. */}
+          <div className="tool-results tool-answer">
+            {ready ? (
+                <section className="tool-reading night pace-calculator-headline" aria-labelledby="pace-calculator-title">
+                  <div className="tool-reading-head">
+                    <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}{solve === 'distance' ? `${formatDuration(seconds!, true)} at ${fmtPace(paceKm!, units)}` : `${preset ? preset.label : fmtDistance(km!, units)}${solve === 'pace' ? ` in ${formatDuration(seconds!, true)}` : ` at ${fmtPace(paceKm!, units)}`}`}</p>
+                    <h2 className="tool-reading-figure" id="pace-calculator-title">
+                      {solve === 'pace' ? <>{formatDuration(perUnit(paceKm!, units))}<small>per {units === 'mi' ? 'mile' : 'kilometre'}</small></>
+                        : solve === 'time' ? <>{formatDuration(seconds!, true)}<small>for {fmtDistance(km!, units)}</small></>
+                          : <>{fmtDistance(km!, units)}<small>in {formatDuration(seconds!, true)}</small></>}
+                    </h2>
+                  </div>
+                  <dl className="tool-cells">
+                    {solve === 'pace'
+                      ? <div><dt>Per {units === 'mi' ? 'km' : 'mile'}</dt><dd>{fmtPace(paceKm!, units === 'mi' ? 'km' : 'mi')}</dd></div>
+                      : <div><dt>Pace</dt><dd>{fmtPace(paceKm!, units)}<small>{fmtPace(paceKm!, units === 'mi' ? 'km' : 'mi')}</small></dd></div>}
+                    <div><dt>Treadmill speed</dt><dd>{speedText}<small>{units === 'mi' ? `${kmh(paceKm!).toFixed(1)} km/h` : `${mph(paceKm!).toFixed(1)} mph`}</small></dd></div>
+                  </dl>
+                </section>
+            ) : <p className="tool-empty">{solvedOutOfRange ? solvedMessage(km!, units) : 'Enter two of distance, time and pace to see splits.'}</p>}
+          </div>
+
           <form className="tool-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Pace calculator inputs">
             <h2>Any two of three</h2>
             <div className="tool-field">
@@ -169,35 +191,21 @@ export default function PaceCalculator() {
                 </>
               ) : null}
             </div>
-            {/* The solved box shows its value, quieter, and typing in it makes it one of the two. */}
+            {/* The solved box shows the card's value as its quiet placeholder (the card above states it, so the box does not
+                repeat it in ink), and typing in it makes it one of the two. */}
             <DurationField label={`Time${solve === 'time' ? ' (solved)' : ''}`} large solved={solve === 'time'}
-              value={solve === 'time' ? (ready ? Math.round(seconds!) : null) : timeS}
-              onChange={(s) => edit('time', { t: s === null ? '' : formatDuration(s, true) })} placeholder={solve === 'time' ? undefined : '4:00:00'} />
+              value={solve === 'time' ? null : timeS}
+              onChange={(s) => edit('time', { t: s === null ? '' : formatDuration(s, true) })}
+              placeholder={solve === 'time' ? (ready ? formatDuration(Math.round(seconds!), true) : undefined) : '4:00:00'} />
             <DurationField label={`Pace per ${units === 'mi' ? 'mile' : 'kilometre'}${solve === 'pace' ? ' (solved)' : ''}`} mode="pace" large solved={solve === 'pace'}
-              value={solve === 'pace' ? (ready ? Math.round(perUnit(paceKm!, units)) : null) : paceUnitS}
-              onChange={(s) => edit('pace', { p: s === null ? '' : formatDuration(s) })} placeholder={solve === 'pace' ? undefined : units === 'mi' ? '8:00' : '5:00'} />
+              value={solve === 'pace' ? null : paceUnitS}
+              onChange={(s) => edit('pace', { p: s === null ? '' : formatDuration(s) })}
+              placeholder={solve === 'pace' ? (ready ? formatDuration(Math.round(perUnit(paceKm!, units))) : undefined) : units === 'mi' ? '8:00' : '5:00'} />
           </form>
 
           <div className="tool-results">
             {ready ? (
               <>
-                <section className="tool-reading night pace-calculator-headline" aria-labelledby="pace-calculator-title">
-                  <div className="tool-reading-head">
-                    <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}{solve === 'distance' ? `${formatDuration(seconds!, true)} at ${fmtPace(paceKm!, units)}` : `${preset ? preset.label : fmtDistance(km!, units)}${solve === 'pace' ? ` in ${formatDuration(seconds!, true)}` : ` at ${fmtPace(paceKm!, units)}`}`}</p>
-                    <h2 className="tool-reading-figure" id="pace-calculator-title">
-                      {solve === 'pace' ? <>{formatDuration(perUnit(paceKm!, units))}<small>per {units === 'mi' ? 'mile' : 'kilometre'}</small></>
-                        : solve === 'time' ? <>{formatDuration(seconds!, true)}<small>for {fmtDistance(km!, units)}</small></>
-                          : <>{fmtDistance(km!, units)}<small>in {formatDuration(seconds!, true)}</small></>}
-                    </h2>
-                  </div>
-                  <dl className="tool-cells">
-                    {solve === 'pace'
-                      ? <div><dt>Per {units === 'mi' ? 'km' : 'mile'}</dt><dd>{fmtPace(paceKm!, units === 'mi' ? 'km' : 'mi')}</dd></div>
-                      : <div><dt>Pace</dt><dd>{fmtPace(paceKm!, units)}<small>{fmtPace(paceKm!, units === 'mi' ? 'km' : 'mi')}</small></dd></div>}
-                    <div><dt>Treadmill speed</dt><dd>{speedText}<small>{units === 'mi' ? `${kmh(paceKm!).toFixed(1)} km/h` : `${mph(paceKm!).toFixed(1)} mph`}</small></dd></div>
-                  </dl>
-                </section>
-
                 <section className="tool-panel pace-calculator-splits" aria-labelledby="pace-calculator-splits-title">
                   <header className="tool-panel-head">
                     <h2 className="tool-panel-title" id="pace-calculator-splits-title">{diff ? `Splits, second half ${diff < 0 ? 'faster' : 'slower'} by ${Math.abs(diff) / 60} min` : 'Splits at an even pace'}</h2>
@@ -265,9 +273,9 @@ export default function PaceCalculator() {
                 {/* Where a marathon time goes next, after the last section, never between the answer and its splits: one row,
                     the planner (the chapter end carries the rest). */}
                 {goalMinutes !== null ? <MarathonHandoffs label="With this marathon time" seconds={shownSeconds!} to={['plan', 'band']} /> : null}
-                <ShareBar />
+                <ShareBar print />
               </>
-            ) : <p className="tool-empty">{solvedOutOfRange ? solvedMessage(km!, units) : 'Enter two of distance, time and pace to see splits.'}</p>}
+            ) : null}
           </div>
         </div>
       )}

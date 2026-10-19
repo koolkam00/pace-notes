@@ -207,7 +207,7 @@ export default function CourseChooser({ sha, screened }: {
     return { n, under: published.reduce((sum, p) => sum + p.row.n * p.row.under, 0) / n };
   }, [published]);
   // The bars read on one fixed scale, 0 to 50% (0 to 100% should any share pass half), never stretched to the largest
-  // share, so a 27% share never fills its track; a faint tick marks every course pooled.
+  // share, so a 27% share never fills its track; a faint tick marks every course pooled, keyed once above the rows.
   const barTop = Math.max(...published.map((p) => p.row.under), 0) > 0.5 ? 1 : 0.5;
 
   const filtered = month !== null || opening !== '';
@@ -222,6 +222,28 @@ export default function CourseChooser({ sha, screened }: {
     <div className="course-chooser">
       <p className="sr-only" role="status">{srStatus}</p>
       <div className="tool-workspace">
+        {/* The answer first (the analyses' grammar): the spread for the example goal, then the goal that makes it yours. */}
+        <div className="tool-results tool-answer">
+          <DataState error={error} loading={!data && !error}>
+            {data && noGoal ? <p className="tool-empty">Choose a goal from {hm(range[0])} to {hm(range[1])} to see how finishes at that pace held up on each course.</p>
+            : data && pooled ? (
+              <section className="tool-reading night course-chooser-headline" aria-labelledby="course-chooser-title">
+                <div className="tool-reading-head">
+                  <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}Goal {goalText} · {published.length} courses</p>
+                </div>
+                <h2 className="tool-reading-figure course-chooser-title" id="course-chooser-title">
+                  {range2(published.map((p) => p.row.under))}
+                  <small>of finishes within {Math.round((data.tolerance ?? 0.02) * 100)}% of {goalText} pace at 20K made {goalText}, course by course</small>
+                </h2>
+                <ShareStrip items={published} goalText={goalText} />
+                {/* The badge at the card's foot, as on every other tool card. */}
+                <EvidenceTag kind="data" />
+              </section>
+            ) : data ? <p className="tool-empty">No course has a published row at {goalText}.</p> : null}
+          </DataState>
+          {error && retry ? <button type="button" className="btn btn-secondary is-compact course-chooser-retry" onClick={retryLoad}>Try again</button> : null}
+        </div>
+
         <form className="tool-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Course chooser goal">
           <h2>Your goal</h2>
           {/* The goal control every goal tool shares (a typed goal snaps to the published 5-minute grid, and the note
@@ -237,24 +259,6 @@ export default function CourseChooser({ sha, screened }: {
         </form>
 
         <div className="tool-results">
-          <DataState error={error} loading={!data && !error}>
-            {data && noGoal ? <p className="tool-empty">Choose a goal from {hm(range[0])} to {hm(range[1])} to see how finishes at that pace held up on each course.</p>
-            : data && pooled ? (
-              <section className="tool-reading night course-chooser-headline" aria-labelledby="course-chooser-title">
-                <div className="tool-reading-head">
-                  <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}Goal {goalText} · {published.length} courses</p>
-                </div>
-                <h2 className="tool-reading-figure course-chooser-title" id="course-chooser-title">
-                  {range2(published.map((p) => p.row.under))}
-                  <small>of finishes on {goalText} pace at 20K made {goalText}, course by course</small>
-                </h2>
-                <ShareStrip items={published} goalText={goalText} />
-                {/* The badge at the card's foot, as on every other tool card. */}
-                <EvidenceTag kind="data" />
-              </section>
-            ) : data ? <p className="tool-empty">No course has a published row at {goalText}.</p> : null}
-          </DataState>
-          {error && retry ? <button type="button" className="btn btn-secondary is-compact course-chooser-retry" onClick={retryLoad}>Try again</button> : null}
           {data && !noGoal ? (
             <>
           {/* Every row, heading and axis below follows the visitor's goal, so session replays leave these out. */}
@@ -298,6 +302,8 @@ export default function CourseChooser({ sha, screened }: {
                 {statusText}{sort !== 'name' ? ' Not a ranking of course difficulty.' : ''}
                 {filtered ? <> <button type="button" className="btn btn-tertiary course-chooser-clear no-print" onClick={clearFilters}>Clear filters</button></> : null}
               </p>
+              {/* The tick on every bar, named once: every course pooled, on the bars' own scale. */}
+              {pooled ? <p className="cc-key" aria-hidden="true"><i className="cc-key-mark" />{pctText(pooled.under)} on every course together</p> : null}
 
               {visible.length ? (
                 <ol className="course-chooser-rows">

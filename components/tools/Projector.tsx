@@ -669,7 +669,10 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
   ];
 
   /* ---------- Results ---------- */
-  let results: ReactNode;
+  // The answer (the night card, or what stands in for it) comes before the inputs, the analyses' grammar; `results` is
+  // everything after them.
+  let answer: ReactNode = null;
+  let results: ReactNode = null;
   // One short summary for screen readers (announced once typing settles) and, on phones, under the time field.
   let status = '';
   let quick: ReactNode = null;
@@ -677,16 +680,16 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
   let jump = false;
   const loadError = indexError ?? (index && E !== null ? shardState.error : null);
   if (loadError) {
-    results = <LoadError error={loadError} onRetry={indexError ? retryIndex : shardState.retry} />;
+    answer = <LoadError error={loadError} onRetry={indexError ? retryIndex : shardState.retry} />;
     status = loadError;
     quick = <p className="projector-quick-text is-error">{loadError}</p>;
   } else if (!index || !scopeInfo) {
-    results = <p className="tool-state">Loading the data…</p>;
+    answer = <p className="tool-state">Loading the data…</p>;
   } else if (E === null || P === null || band === null) {
-    results = <p className="tool-empty">Enter the elapsed time at {matName(mat, units)} from the tracker, or paste the tracker’s splits, to see where similar finishes ended{target !== null ? ` and how many were under ${targetText(target)}` : ''}.</p>;
+    answer = <p className="tool-empty">Enter the elapsed time at {matName(mat, units)} from the tracker, or paste the tracker’s splits, to see where similar finishes ended{target !== null ? ` and how many were under ${targetText(target)}` : ''}.</p>;
     status = `Enter the elapsed time at ${matName(mat, units)}.`;
   } else if (!shard) {
-    results = <p className="tool-state">Loading the data…</p>;
+    answer = <p className="tool-state">Loading the data…</p>;
     quick = <p className="projector-quick-text">Loading…</p>;
   } else if (!cell) {
     const range = scopeInfo.mats[String(mat)]?.bands ?? null;
@@ -712,10 +715,10 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
     quick = (
       <>
         <p className="projector-quick-text"><b>No published group</b> for this time and comparison.</p>
-        <button type="button" className="projector-link-button" data-not-edit onClick={toResult}>See the options ↓</button>
+        <button type="button" className="projector-link-button" data-not-edit onClick={toResult}>See the options ↑</button>
       </>
     );
-    results = (
+    answer = (
       <section className="tool-panel projector-unavailable" aria-labelledby="projector-unavailable-title">
         <p className="tool-reading-kicker">No published group</p>
         <h2 className="tool-panel-title" id="projector-unavailable-title">{heading}</h2>
@@ -742,11 +745,11 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
     const matRows = laterRows.filter((r) => r.km < 42);
     status = `${isExample ? `Example: ${formatDuration(E, true)} at ${matName(mat, units)}. ` : ''}${scopeName} at ${matName(mat, units)}: on ${bandText} even pace, ${count(cell.n)} finishes. Median finish ${formatDuration(median, true)}; 10th to 90th percentile ${rangeText.replace('–', ' to ')}.`
       + (nextRow.km < 42 ? ` ${matName(nextRow.km, units)}: ${span(nextRow.lo, nextRow.hi).replace('–', ' to ')}.` : '');
-    // The night card is the result; under the time field there is only the jump to it (it repeats none of it).
-    quick = <button type="button" className="projector-link-button" data-not-edit onClick={toResult}>Full result ↓</button>;
+    // The night card is the result, above the inputs; under the time field there is only the way back up to it (it
+    // repeats none of it).
+    quick = <button type="button" className="projector-link-button" data-not-edit onClick={toResult}>Result ↑</button>;
     jump = true;
-    results = (
-      <>
+    answer = (
         <section className="tool-reading night projector-headline" aria-labelledby="projector-title">
           <div className="tool-reading-head">
             <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}{scopeName} · at {matName(mat, units)}</p>
@@ -771,7 +774,9 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
             Entered: {formatDuration(E, true)} at {matName(mat, units)}{prev !== null ? `, ${formatDuration(prev, true)} at ${matName(mat - 5, units)}` : ''}{start !== null ? `, start ${formatClock(start)}` : ''}{target !== null ? `, target ${targetText(target)}` : ''}.
           </p>
         </section>
-
+    );
+    results = (
+      <>
         <section className="tool-panel projector-ended" aria-labelledby="projector-ended-title">
           <p className="tool-nugget-text" id="projector-ended-title">
             Held to the finish, this pace makes {formatDuration(P, true)}.{' '}
@@ -855,6 +860,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
         </section>
       ) : null}
       <div className="tool-workspace">
+        <div className="tool-results tool-answer" id="projector-result">{answer}</div>
         <form className="tool-inputs projector-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Projector inputs">
           <h2>From the tracker</h2>
           <MatChips mat={mat} units={units} onChange={chooseMat} />
@@ -906,7 +912,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
           </details>
         </form>
 
-        <div className="tool-results" id="projector-result">
+        <div className="tool-results">
           <p className="sr-only" role="status">{settledStatus}</p>
           {results}
         </div>
