@@ -108,7 +108,7 @@
 /* Two pairs of bars on one scale: each named, its gap drawn under it; the gap the sentence is about in signal. */
 .viz-frame.pair-bars .viz-plot { height: auto; }
 .pair-bars-views { display: grid; gap: var(--s-5); }
-.pair-bars-view { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr) 4rem; align-content: center; gap: 8px 12px; }
+.pair-bars-view { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr) 4.5rem; align-content: center; gap: 8px 12px; }
 .pair-bars-name { grid-column: 1 / -1; margin: 0; font-size: var(--t-small); font-weight: 600; line-height: 1.3; color: var(--ink); }
 .pair-bar { display: contents; }
 .pair-bar-label { align-self: center; font-size: var(--t-small); color: var(--ink-2); }
@@ -118,7 +118,7 @@
 .pair-bar-value { align-self: center; font-size: 1.0625rem; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; color: var(--ink); }
 .pair-bar-gaprow { grid-column: 2; position: relative; height: 26px; }
 .pair-bar-gap { position: absolute; top: 0; height: 6px; border-radius: 3px; background: var(--mark-quiet); }
-.pair-bar-gap-label { position: absolute; top: 10px; transform: translateX(-100%); font-size: var(--t-label); font-weight: 600; line-height: 1.2; white-space: nowrap; color: var(--ink-2); }
+.pair-bar-gap-label { position: absolute; top: 10px; left: 0; text-align: right; font-size: var(--t-label); font-weight: 600; line-height: 1.2; white-space: nowrap; color: var(--ink-2); }
 .pair-bars-view.is-highlight .pair-bar-gap { background: var(--signal); }
 .pair-bars-view.is-highlight .pair-bar-gap-label { color: var(--signal-ink); }
 
@@ -234,7 +234,7 @@
 
 /* ---------- Phones at 200% zoom ---------- */
 @media (max-width: 359.98px) {
-  .pair-bars-view { grid-template-columns: minmax(0, 1fr) 3.5rem; }
+  .pair-bars-view { grid-template-columns: minmax(0, 1fr) 4.5rem; }
   .pair-bar-label { grid-column: 1 / -1; }
   .pair-bar-gaprow { grid-column: 1; }
 }
