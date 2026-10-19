@@ -25,8 +25,6 @@ const INTERVALS: { value: SplitInterval; label: string }[] = [
 const SHOWN_INTERVALS: SplitInterval[] = ['5k', 'mi', 'km'];
 const DIFFS = [-300, -180, -120, -60, 0, 60, 120, 180, 300];
 const DEFAULTS = { view: 'calc', d: 'marathon', km: '', t: '4:00:00', p: '', solve: 'pace', split: '', diff: '0' };
-/** The query keys that hold the visitor's inputs: a link that sets any of them is not the example. */
-const INPUT_KEYS = ['d', 'km', 't', 'p', 'solve'] as const;
 
 /* Custom distances: plain decimals only, from 0.1 to 1,000 km, so a typed value or a shared link cannot build a table of many thousands of rows. */
 const MIN_KM = 0.1;
@@ -66,7 +64,7 @@ function useSettled<T>(value: T, ms: number): T {
 
 export default function PaceCalculator() {
   const { units } = useUnits();
-  const [q, setQ, queryReady, fromUrl] = useQueryState(DEFAULTS);
+  const [q, setQ] = useQueryState(DEFAULTS);
   const [chartFrom, setChartFrom] = useState(units === 'mi' ? 300 : 180);
   // The visitor changed an input on this page (hides the example note and lets the status line speak).
   const [touched, setTouched] = useState(false);
@@ -124,7 +122,6 @@ export default function PaceCalculator() {
   const shownSeconds = ready ? Math.round(seconds!) : null;
   const goalMinutes = shownSeconds !== null && isMarathon ? Math.floor(shownSeconds / 60) : null;
 
-  const isExample = queryReady && !touched && !INPUT_KEYS.some((k) => fromUrl.has(k));
   const speedText = ready ? (units === 'mi' ? `${mph(paceKm!).toFixed(1)} mph` : `${kmh(paceKm!).toFixed(1)} km/h`) : '';
   const status = ready
     ? `${preset && solve !== 'distance' ? preset.label : fmtDistance(km!, units)} in ${formatDuration(seconds!, seconds! >= 3600)}: ${formatDuration(perUnit(paceKm!, units))} per ${units === 'mi' ? 'mile' : 'km'}, ${speedText}.`
@@ -140,28 +137,6 @@ export default function PaceCalculator() {
       </div>
       {q.view === 'chart' ? <PaceChart units={units} from={chartFrom} setFrom={setChartFrom} /> : (
         <div className="tool-workspace">
-          {/* The answer first (the analyses' grammar): the third value for the example, then the two that make it yours. */}
-          <div className="tool-results tool-answer">
-            {ready ? (
-                <section className="tool-reading night pace-calculator-headline" aria-labelledby="pace-calculator-title">
-                  <div className="tool-reading-head">
-                    <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}{solve === 'distance' ? `${formatDuration(seconds!, true)} at ${fmtPace(paceKm!, units)}` : `${preset ? preset.label : fmtDistance(km!, units)}${solve === 'pace' ? ` in ${formatDuration(seconds!, true)}` : ` at ${fmtPace(paceKm!, units)}`}`}</p>
-                    <h2 className="tool-reading-figure" id="pace-calculator-title">
-                      {solve === 'pace' ? <>{formatDuration(perUnit(paceKm!, units))}<small>per {units === 'mi' ? 'mile' : 'kilometre'}</small></>
-                        : solve === 'time' ? <>{formatDuration(seconds!, true)}<small>for {fmtDistance(km!, units)}</small></>
-                          : <>{fmtDistance(km!, units)}<small>in {formatDuration(seconds!, true)}</small></>}
-                    </h2>
-                  </div>
-                  <dl className="tool-cells">
-                    {solve === 'pace'
-                      ? <div><dt>Per {units === 'mi' ? 'km' : 'mile'}</dt><dd>{fmtPace(paceKm!, units === 'mi' ? 'km' : 'mi')}</dd></div>
-                      : <div><dt>Pace</dt><dd>{fmtPace(paceKm!, units)}<small>{fmtPace(paceKm!, units === 'mi' ? 'km' : 'mi')}</small></dd></div>}
-                    <div><dt>Treadmill speed</dt><dd>{speedText}<small>{units === 'mi' ? `${kmh(paceKm!).toFixed(1)} km/h` : `${mph(paceKm!).toFixed(1)} mph`}</small></dd></div>
-                  </dl>
-                </section>
-            ) : <p className="tool-empty">{solvedOutOfRange ? solvedMessage(km!, units) : 'Enter two of distance, time and pace to see splits.'}</p>}
-          </div>
-
           <form className="tool-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Pace calculator inputs">
             <h2>Any two of three</h2>
             <div className="tool-field">
@@ -191,16 +166,26 @@ export default function PaceCalculator() {
                 </>
               ) : null}
             </div>
-            {/* The solved box shows the card's value as its quiet placeholder (the card above states it, so the box does not
-                repeat it in ink), and typing in it makes it one of the two. */}
+            {/* The converter is the answer (critic round 3: a night card above it repeated the planner's 9:09): the solved
+                box holds the third value in ink, and typing in it makes it one of the two. */}
             <DurationField label={`Time${solve === 'time' ? ' (solved)' : ''}`} large solved={solve === 'time'}
-              value={solve === 'time' ? null : timeS}
+              value={solve === 'time' ? (ready ? Math.round(seconds!) : null) : timeS}
               onChange={(s) => edit('time', { t: s === null ? '' : formatDuration(s, true) })}
-              placeholder={solve === 'time' ? (ready ? formatDuration(Math.round(seconds!), true) : undefined) : '4:00:00'} />
+              placeholder="4:00:00" />
             <DurationField label={`Pace per ${units === 'mi' ? 'mile' : 'kilometre'}${solve === 'pace' ? ' (solved)' : ''}`} mode="pace" large solved={solve === 'pace'}
-              value={solve === 'pace' ? null : paceUnitS}
+              value={solve === 'pace' ? (ready ? Math.round(perUnit(paceKm!, units)) : null) : paceUnitS}
               onChange={(s) => edit('pace', { p: s === null ? '' : formatDuration(s) })}
-              placeholder={solve === 'pace' ? (ready ? formatDuration(Math.round(perUnit(paceKm!, units))) : undefined) : units === 'mi' ? '8:00' : '5:00'} />
+              placeholder={units === 'mi' ? '8:00' : '5:00'} />
+            {/* What the two give besides the third: the solved distance (it has no box of its own), the pace in the other
+                unit and the treadmill speed. */}
+            {ready ? (
+              <dl className="tool-cells pace-calculator-also">
+                {solve === 'distance'
+                  ? <div><dt>Distance (solved)</dt><dd>{fmtDistance(km!, units)}</dd></div>
+                  : <div><dt>Per {units === 'mi' ? 'km' : 'mile'}</dt><dd>{fmtPace(paceKm!, units === 'mi' ? 'km' : 'mi')}</dd></div>}
+                <div><dt>Treadmill speed</dt><dd>{speedText}<small>{units === 'mi' ? `${kmh(paceKm!).toFixed(1)} km/h` : `${mph(paceKm!).toFixed(1)} mph`}</small></dd></div>
+              </dl>
+            ) : <p className="tool-empty">{solvedOutOfRange ? solvedMessage(km!, units) : 'Enter two of distance, time and pace to see splits.'}</p>}
           </form>
 
           <div className="tool-results">

@@ -248,8 +248,9 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
           <div data-track-section="result" hidden={!planned}>
             {planned ? (
               <section className="tool-reading night plan-headline" aria-labelledby="plan-headline-title">
-                {/* The new number is the pace, as on the pace band and the goal pages: the goal the visitor typed is the
-                    kicker. The mat times are the wristband's, below, so the card does not list them a second time. */}
+                {/* The new number is the pace, as on the goal pages: the goal the visitor typed is the kicker. On a phone the
+                    mat times are the wristband's, below; from 900 px four of them fill the card's right half (critic round 3:
+                    a 670 px card held one number), hidden from assistive tech, which reads them on the strips. */}
                 <div className="tool-reading-head">
                   <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}<span id="plan-headline-title">{fmtGoal(goal)}{city ? ` in ${city}` : ''}</span></p>
                   <h2 className="tool-reading-figure">
@@ -257,6 +258,11 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
                     <small>per {units === 'mi' ? 'mile' : 'km'}, even pace · {formatDuration(perUnit(pKm, units === 'mi' ? 'km' : 'mi'))}/{units === 'mi' ? 'km' : 'mi'}</small>
                   </h2>
                 </div>
+                <dl className="plan-card-mats" aria-hidden="true">
+                  {([['5K', pKm * 5], ['Half', goal / 2], ['30K', pKm * 30], ['Finish', goal]] as const).map(([k, t]) => (
+                    <div key={k}><dt>{k}</dt><dd>{formatDuration(t)}</dd></div>
+                  ))}
+                </dl>
               </section>
             ) : null}
           </div>
@@ -292,9 +298,10 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
                 <EvidenceTag kind="data" />
                 <div className="plan-nugget">
                   <p className="tool-nugget-text" id="plan-comparison-title">
-                    Of 100 finishes {nearGoal} through 20K {isAll ? `across ${shareOk.courses} courses` : `in ${city}`}, <em>{madeOf100}</em> made {shareGoal}.
+                    {/* No course count on All courses (critic round 3): the course box above names the scope. */}
+                    Of 100 finishes {nearGoal} through 20K{isAll ? '' : ` in ${city}`}, <em>{madeOf100}</em> made {shareGoal}.
                   </p>
-                  <DotGrid lit={madeOf100} label={`Of 100 finishes ${nearGoal} through 20 km ${isAll ? 'across every course' : `in ${city}`}, ${madeOf100} made ${shareGoal}.`} />
+                  <DotGrid lit={madeOf100} label={`Of 100 finishes ${nearGoal} through 20 km${isAll ? '' : ` in ${city}`}, ${madeOf100} made ${shareGoal}.`} />
                 </div>
                 {shareOk.rounded ? <p className="tool-note">{roundedNote(shareOk.minutes, goal, goalData.data!.goal_step_min)}</p> : null}
                 <Values id="plan-mats-values" caption={comparison ? `Every mat: your plan beside finishes from ${formatDuration(comparison.lo, true)} to ${formatDuration(comparison.hi, true)} ${where}` : 'Every mat: your plan'} count={9}>

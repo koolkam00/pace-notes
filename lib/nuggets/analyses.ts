@@ -17,6 +17,7 @@ import { percentUnder } from '@/lib/personalized';
 import type { CityData, Distribution, PersonalCohort } from '@/lib/personalized-types';
 import { getStudyEvidence } from '@/lib/research-data';
 import { MARATHON_SECTION_ENDS } from '@/lib/section-labels';
+import { terrainReading } from '@/lib/terrain-reading';
 import { getWeatherEvidence } from '@/lib/weather-data';
 import type { WeatherCandidate } from '@/lib/weather-types';
 import { MARATHON_KM, distance, type UnitSystem } from '@/lib/units';
@@ -31,12 +32,12 @@ const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFi
 const section = (i: number) => sectionLabel(i ? MARATHON_SECTION_ENDS[i - 1] : 0, MARATHON_SECTION_ENDS[i]);
 /** A course's display name. */
 export const courseName = (city: string) => (city === 'New York' ? 'New York City' : city);
-/** Seconds per km as seconds per mile or per km, rounded: "25 s/mi". */
-const perUnit = (sPerKm: number, u: UnitSystem) => `${Math.round(u === 'mi' ? sPerKm * 1.609344 : sPerKm)} s/${u}`;
+/** Seconds per km as seconds per mile or per km, unrounded. */
+const perSec = (sPerKm: number, u: UnitSystem) => (u === 'mi' ? sPerKm * 1.609344 : sPerKm);
+/** The same in words: "25 seconds a mile", "15 seconds a kilometer". */
+const perWords = (sPerKm: number, u: UnitSystem) => `${Math.round(perSec(sPerKm, u))} seconds a ${u === 'mi' ? 'mile' : 'kilometer'}`;
 /** One decimal, en-US. */
 const one = (v: number) => (Math.round(v * 10) / 10).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-/** Percentage points as a figure: one decimal, a whole number without its ".0" ("1", "0.8"). */
-const points = (v: number) => one(v).replace(/\.0$/, '');
 
 // ---------- Chapter 02 · starting pace ----------
 
@@ -92,12 +93,13 @@ export function kickSweetSpotFrom(curve: CurvePoint[]): Nugget {
   const best = band?.best ?? null;
   const words = band ? (band.bins.length > 1 && band.from >= 0 ? `${band.from}–${band.to}% slower` : openingWords(band.from)) : '';
   const spread = band ? Math.round(band.spread) : NaN;
-  const close = band && band.bins.length > 1 ? `, all within ${spread} ${spread === 1 ? 'second' : 'seconds'} of each other` : '';
+  const close = band && band.bins.length > 1 ? `, all within ${spread} ${spread === 1 ? 'second' : 'seconds'}` : '';
   return {
     id: 'kick.sweetspot', page: '/analyses/starting-pace#sweet-spot', denominator: 'kick',
     values: band && best ? { lo: band.from, hi: band.to, best_lo: best.lo, spread_s: band.spread, bins: band.bins.length, n: best.n, finish_s: best.finish_s, after20_s: best.after20_s, slowdown: best.slowdown } : {},
     guard: !!band && !!best && band.from >= 0 && best.lo > 0 && band.bins.every((c) => c.finish_s < 0),
-    headline: `A first 5K *${words}* than the pace that followed finished best${close}.`,
+    // Short (about ten words): the band and how close its bins finished; the readout gives each bin.
+    headline: `Best: a first 5K *${words}* than what followed${close}.`,
     fallback: best ? `The best average finish went with a first 5K ${openingWords(best.lo)} than the pace that followed.` : 'The finish against the same pace, by first 5K.',
     figure: best ? { value: delta(best.finish_s), sr: `${spokenTime(Math.abs(best.finish_s))} ${best.finish_s < 0 ? 'ahead' : 'behind'}` } : null,
   };
@@ -130,7 +132,7 @@ export function downhillOpeningFrom(groups: AllFinisherGroup[], bands: OpeningBa
       ? { value: pct(a.share).replace('%', ''), unit: '%', sr: `${spokenPct(a.share)} on downhill-start courses and elsewhere` }
       : { value: `${pct(a.share).replace('%', '')} · ${pct(b.share).replace('%', '')}`, unit: '%', sr: `${spokenPct(a.share)} on downhill-start courses, ${spokenPct(b.share)} elsewhere` },
     // A null reads as one: the key says the share was the same either way.
-    key: pct(a.share) === pct(b.share) ? 'opened over 5% fast: the same share with a downhill start or without' : 'opened over 5% fast: downhill-start courses · every other course',
+    key: pct(a.share) === pct(b.share) ? 'opened over 5% fast, with a downhill start or without' : 'opened over 5% fast: downhill-start courses · every other course',
   };
 }
 
@@ -175,11 +177,14 @@ export function patternFrom(paces: number[], goal = GOAL): Nugget {
     id: 'pattern.profile', page: '/analyses/pacing-pattern', denominator: 'eligible',
     values: ok0 ? { goal_min: goal, even_s: even, fast_i: fast, slow_i: slow, turn_i: turn, fast_s: paces[fast], slow_s: paces[slow] } : {},
     guard: ok,
-    // One clause, at most three lines on a phone: the page's dek says the finishes did not run even pace.
-    headline: both((u) => `Near ${hm(goal)}: ${perUnit(even - paces[fast], u)} fast early, *${perUnit(paces[slow] - even, u)} slow* late.`),
+    // In words a runner says ("25 seconds a mile"); the page's dek says where the slowing began and peaked.
+    headline: both((u) => `Near ${hm(goal)}, finishes ran ${perWords(even - paces[fast], u)} fast early and *${Math.round(perSec(paces[slow] - even, u))} slow* late.`),
     fallback: `How finishes near ${hm(goal)} paced each 5K, against even ${hm(goal)} pace.`,
-    figure: ok0 ? { value: section(slow), sr: `${section(slow)}, the slowest 5K` } : null,
-    key: `the slowest 5K, for finishes near ${hm(goal)}`,
+    // The figure is the H1's late number (how far the slowest 5K ran behind even pace), never the slowest 5K's name: that
+    // 35–40K is the slowest 5K is true on almost every course, so the name alone teaches nothing.
+    figure: ok ? { value: String(Math.round(perSec(paces[slow] - even, 'mi'))), unit: '\u00a0s/mi', sr: `${Math.round(perSec(paces[slow] - even, 'mi'))} seconds a mile` } : null,
+    ...(ok ? { figureKm: { value: String(Math.round(perSec(paces[slow] - even, 'km'))), unit: '\u00a0s/km', sr: `${Math.round(perSec(paces[slow] - even, 'km'))} seconds a kilometer` } } : {}),
+    key: `slower than even pace at ${ok ? section(slow) : ''}, for finishes near ${hm(goal)}`,
   };
 }
 
@@ -284,6 +289,11 @@ export function ageRows(data: CityData, goal = GOAL): AgeRow[] {
     .filter((r) => r.pooledN >= 100 && r.sameN >= 100 && finite(r.pooled) && finite(r.same))
     .sort((a, b) => parseInt(a.age, 10) - parseInt(b.age, 10));
 }
+/** The second 20K's slowing near the goal across the age groups, in whole percent: "7–8", or "7" when both ends round alike. */
+function sameRange(rows: AgeRow[]): string {
+  const lo = Math.round(Math.min(...rows.map((r) => r.same))), hi = Math.round(Math.max(...rows.map((r) => r.same)));
+  return lo === hi ? String(lo) : `${lo}–${hi}`;
+}
 export function ageRetentionFrom(rows: AgeRow[], goal = GOAL): Nugget {
   const lo = rows.reduce<AgeRow | null>((a, b) => (!a || b.pooled < a.pooled ? b : a), null);
   const hi = rows.reduce<AgeRow | null>((a, b) => (!a || b.pooled > a.pooled ? b : a), null);
@@ -300,8 +310,10 @@ export function ageRetentionFrom(rows: AgeRow[], goal = GOAL): Nugget {
     // The finding alone; the pooled shape (u_shape) is the page's dek.
     headline: 'At the same finish time, age *barely mattered*.',
     fallback: 'How the second 20K changed with age, pooled and at the same finish time.',
-    figure: finite(same) ? { value: points(same), unit: `\u00a0${points(same) === '1' ? 'point' : 'points'}`, sr: `${one(same)} points between age groups near a ${hm(goal)} finish` } : null,
-    key: `the widest gap between age groups in second-20K slowing, near ${hm(goal)}`,
+    // Not the spread (a null drawn as a big number), but what every age group near the goal did: its second 20K ran
+    // this much slower than its first, the same few percent whatever the age.
+    figure: rows.length ? { value: sameRange(rows), unit: '%', sr: `${sameRange(rows).replace('–', ' to ')} percent slower` } : null,
+    key: `slower over the second 20K than the first, in every age group near ${hm(goal)}`,
   };
 }
 
@@ -329,22 +341,26 @@ export function coursesCompareFrom(groups: AllFinisherGroup[]): Nugget {
   };
 }
 
-/** The data-chosen course's biggest-climbing 5K and slowest 5K for finishes near the goal. */
+/**
+ * The data-chosen course's climbing 5K against the same 5K on every course combined, near the goal (terrainReading in
+ * lib/terrain-reading.ts): how much slower it ran than the same stretch elsewhere, never the race's own late slowing
+ * (35–40K is the slowest 5K near 4:00 on almost every course, hill or none).
+ */
 export function terrainClimbFrom(city: string, sections: TerrainSection[] | null, goal = GOAL): Nugget {
-  const ok0 = !!sections && sections.every((s) => finite(s.gain) && finite(s.pace));
-  const climb = ok0 ? sections!.reduce((b, s, i) => (s.gain > sections![b].gain ? i : b), 0) : -1;
-  const slow = ok0 ? sections!.reduce((b, s, i) => (s.pace > sections![b].pace ? i : b), 0) : -1;
+  const ok0 = !!sections && sections.length === MARATHON_SECTION_ENDS.length && sections.every((s) => finite(s.pace) && finite(s.vs));
+  const reading = ok0 ? terrainReading(sections!.map((s) => s.gain), sections!.map((s) => s.vs)) : null;
   const name = courseName(city);
+  const at = reading ? section(reading.i) : '';
+  const r = reading ? Math.round(reading.vs) : NaN;
   return {
     id: 'terrain.climb', page: '/analyses/hills-and-pacing', denominator: 'eligible',
-    values: ok0 ? { city, goal_min: goal, climb_i: climb, slow_i: slow, climb_m: sections![climb].gain, slow_pct: sections![slow].pct, total_m: sections!.reduce((s, x) => s + x.gain, 0) } : { city },
-    guard: ok0 && climb === slow,
-    headline: `${name}’s biggest climb is *its slowest 5K*.`,
-    fallback: `Where ${name} climbs, and where it slows.`,
-    // How much slower the climb ran (its pace against the finishes' own average): the pacing pattern's figure is the
-    // slowest 5K's name, so this page's own number is the climb's cost, never the same "35–40K" twice in a list.
-    figure: ok0 && climb === slow && Math.round(sections![slow].pct) > 0 ? { value: String(Math.round(sections![slow].pct)), unit: '%', sr: `${Math.round(sections![slow].pct)} percent slower` } : null,
-    key: `slower than average on ${name}’s biggest climb`,
+    values: reading ? { city, goal_min: goal, climb_i: reading.i, climb_m: reading.gain, vs: reading.vs, own_pct: sections![reading.i].pct } : { city, goal_min: goal },
+    guard: !!reading && reading.slower,
+    // One clause; the setup (finishes near the goal, each 5K against the same 5K on every course) is the page's dek.
+    headline: `${name}’s ${at} climb ran *${r}% slower* than elsewhere.`,
+    fallback: `Where ${name} climbs, against the same 5Ks elsewhere.`,
+    figure: reading && reading.slower ? { value: String(r), unit: '%', sr: `${r} percent slower` } : null,
+    key: `slower than the same 5K elsewhere, on ${name}’s ${at} climb`,
   };
 }
 
@@ -361,7 +377,8 @@ function bandFigure(g: Pick<AllFinisherGroup, 'lower_c' | 'upper_c'>, u: UnitSys
   const unit = u === 'mi' ? '°F' : '°C';
   const n = (c: number) => temp(c, u).replace(/°[CF]$/, '');
   const value = g.lower_c == null ? `<${n(g.upper_c!)}` : g.upper_c == null ? `${n(g.lower_c)}+` : `${n(g.lower_c)}–${n(g.upper_c)}`;
-  return { value, unit, sr: tempBand(g, u).replace('°F', ' degrees Fahrenheit').replace('°C', ' degrees Celsius') };
+  // The degree sign stays on the number, as the page sets it ("41–50°F"), never apart as a unit.
+  return { value: `${value}${unit}`, sr: tempBand(g, u).replace('°F', ' degrees Fahrenheit').replace('°C', ' degrees Celsius') };
 }
 /** The start-temperature band with the fewest sustained slowdowns (five or more editions), against the coldest band. */
 export function weatherStartFrom(groups: AllFinisherGroup[]): Nugget {

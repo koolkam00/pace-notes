@@ -6,6 +6,9 @@ import { EXAMPLE_PROFILE } from './analysis-profile';
 import { MARATHON_SECTION_ENDS } from './section-labels';
 import type { Profile } from './personalized-catalog';
 import type { CheckpointData, CheckpointRow, CityData } from './personalized-types';
+import { readInsight } from './insights-server';
+import type { CourseGeometry } from './insights';
+import { againstAverage, againstElsewhere, terrainReading, underWater } from './terrain-reading';
 
 const TABLES = path.join(process.cwd(), 'public/data/packs/ext_personalized_guide/tables');
 const cities = new Map<string, CityData>();
@@ -78,39 +81,63 @@ export function getCheckpointDefault(checkpoint = 30, goal = EXAMPLE_PROFILE.goa
   return allCheckpoints().rows.find(r => r.checkpoint === checkpoint && r.elapsed === band && r.trend === 'all' && r.age === 'all' && r.gender === 'all') ?? null;
 }
 
-export type TerrainSection = { end: number; gain: number; net: number; pace: number; pct: number };
+export type TerrainSection = { end: number; gain: number; net: number; pace: number; pct: number; vs: number };
+
+/** Every course combined: the median section paces of all finishes near the goal (the hills reading's baseline). */
+export function terrainBaseline(goal = EXAMPLE_PROFILE.goal): number[] {
+  return getCityData(EXAMPLE_PROFILE.city).cohorts['all|all|all']?.profiles[String(Math.round(goal / 15) * 15)]?.pace.map(p => p[1]) ?? [];
+}
+
+/** The baseline at every finish-time bucket, for the hills explorer (its comparison is always all ages and genders). */
+export function terrainBaselines(): Record<string, number[]> {
+  const profiles = getCityData(EXAMPLE_PROFILE.city).cohorts['all|all|all']?.profiles ?? {};
+  return Object.fromEntries(Object.entries(profiles).map(([bucket, p]) => [bucket, p.pace.map(x => x[1])]));
+}
 
 /**
  * A course's sections for finishes near the goal: the supplied climb and net change of each 5 km section, the median
- * section pace and that pace against the finishes' own average (distance-weighted). Null when either is missing.
+ * section pace, that pace against the finishes' own average (distance-weighted) and, `vs`, against the same section on
+ * every course combined (lib/terrain-reading.ts). Null when either is missing.
  */
 export function terrainSections(data: CityData, goal = EXAMPLE_PROFILE.goal): TerrainSection[] | null {
   const profile = data.cohorts['all|all|all']?.profiles[String(Math.round(goal / 15) * 15)];
   if (!profile || data.terrain.length !== MARATHON_SECTION_ENDS.length) return null;
-  const lengths = MARATHON_SECTION_ENDS.map((end, i) => end - (i ? MARATHON_SECTION_ENDS[i - 1] : 0));
-  const total = lengths.reduce((s, l) => s + l, 0);
-  const mean = profile.pace.reduce((s, p, i) => s + p[1] * lengths[i], 0) / total;
+  const paces = profile.pace.map(p => p[1]);
+  const own = againstAverage(paces), vs = againstElsewhere(paces, terrainBaseline(goal));
   return MARATHON_SECTION_ENDS.map((end, i) => {
     const t = data.terrain.find(x => Math.abs(x.end - end) < 0.001);
-    return { end, gain: t?.gain ?? NaN, net: t?.net ?? NaN, pace: profile.pace[i][1], pct: (profile.pace[i][1] / mean - 1) * 100 };
+    return { end, gain: t?.gain ?? NaN, net: t?.net ?? NaN, pace: paces[i], pct: own[i] ?? NaN, vs: vs[i] ?? NaN };
   });
 }
 
+/** The courses the hills page may draw: a supplied route profile at the release's step that does not read the water under a bridge. */
+export function terrainProfiles(): Record<string, number[]> {
+  const geometry = readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses;
+  const step = geometry[0]?.elevation_step_km ?? 0.5;
+  return Object.fromEntries(geometry
+    .filter(g => g.elevation_step_km === step && summary().cities.some(c => c.city === g.city) && !underWater(g.city, g.elevation_m, step))
+    .map(g => [g.city, g.elevation_m.map(m => Math.round(m * 10) / 10)]));
+}
+
+/** The courses with a supplied profile that reads the water under a bridge: the hills page offers them nowhere. */
+export function terrainHidden(): string[] {
+  const geometry = readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses;
+  return geometry.filter(g => summary().cities.some(c => c.city === g.city) && underWater(g.city, g.elevation_m, g.elevation_step_km)).map(g => g.city);
+}
+
 /**
- * The course the hills page opens on, chosen by the data (never a city literal): of the courses whose biggest-climbing
- * 5 km section is also their slowest for finishes near 4:00, the one that climbs the most in all. When no course has
- * both in one section, the course that climbs the most, and `matched` is false.
+ * The course the hills page opens on, chosen by the data (never a city literal): of the courses it may draw (a supplied
+ * route whose profile does not read the water under a bridge), the one whose climbing 5K ran slowest against the same 5K
+ * on every course combined (terrainReading). `matched` is false when no course's climb ran slower by TERRAIN_GAP.
  */
 export function getTerrainDefault(): { city: string; matched: boolean } {
-  const scored = summary().cities.filter(c => c.city !== EXAMPLE_PROFILE.city).flatMap(c => {
+  const drawn = terrainProfiles();
+  const scored = summary().cities.filter(c => c.city !== EXAMPLE_PROFILE.city && drawn[c.city]).flatMap(c => {
     const sections = terrainSections(getCityData(c.city));
-    if (!sections || sections.some(s => !Number.isFinite(s.gain))) return [];
-    const climb = sections.reduce((a, b) => (b.gain > a.gain ? b : a));
-    const slow = sections.reduce((a, b) => (b.pace > a.pace ? b : a));
-    return [{ city: c.city, total: sections.reduce((s, x) => s + x.gain, 0), matched: climb.end === slow.end }];
+    const reading = sections ? terrainReading(sections.map(s => s.gain), sections.map(s => s.vs)) : null;
+    return reading ? [{ city: c.city, vs: reading.vs, matched: reading.slower }] : [];
   });
-  if (!scored.length) throw new Error('No course has a terrain profile.');
-  const pool = scored.some(s => s.matched) ? scored.filter(s => s.matched) : scored;
-  const best = pool.reduce((a, b) => (b.total > a.total ? b : a));
+  if (!scored.length) throw new Error('No course has a terrain profile with a climb.');
+  const best = scored.reduce((a, b) => (b.vs > a.vs ? b : a));
   return { city: best.city, matched: best.matched };
 }

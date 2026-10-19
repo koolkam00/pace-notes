@@ -7,7 +7,8 @@ import { CourseSection, Fact, Said } from './Fact';
 
 /**
  * "#pacing": the six pacing types, each a row with its glyph and colour: this course's share (filled, in the type's
- * colour) against every course's (hollow), the gap in signal on the row the sentence names.
+ * colour) against the share across every course with 5K splits (hollow, its key naming how many), the gap in signal on
+ * the row the sentence names.
  */
 export default function CoursePacing({ page }: { page: CoursePageData }) {
   const { city, display, types, archetypes } = page;
@@ -21,7 +22,7 @@ export default function CoursePacing({ page }: { page: CoursePageData }) {
   return (
     <CourseSection id="pacing" track="chapter-4" beat="Pacing" title={<Said nugget={n} />}>
       <figure className="viz viz-frame dumbbell course-types">
-        <ul className="dumbbell-rows" role="img" aria-label={`The six pacing types in ${display}, each against every course: ${archetypes.map((a, i) => `${a.name} ${Math.round(types.shares[i] * 100)}% against ${Math.round(a.share * 100)}%`).join(', ')}`}>
+        <ul className="dumbbell-rows" role="img" aria-label={`The six pacing types in ${display}, each against ${n.values.courses} courses: ${archetypes.map((a, i) => `${a.name} ${Math.round(types.shares[i] * 100)}% against ${Math.round(a.share * 100)}%`).join(', ')}`}>
           {archetypes.map((a, i) => {
             const on = a.slug === named;
             const xa = x(a.share), xb = x(types.shares[i]);
@@ -42,7 +43,7 @@ export default function CoursePacing({ page }: { page: CoursePageData }) {
         <ul className="viz-key" aria-hidden="true">
           {/* The filled mark in ink: filled is this course, whatever colour each row's type gives its dot. */}
           <li><i className="viz-key-mark" />{display}</li>
-          <li><i className="viz-key-mark is-hollow" />Every course</li>
+          <li><i className="viz-key-mark is-hollow" />{`${n.values.courses} courses`}</li>
         </ul>
       </figure>
     </CourseSection>

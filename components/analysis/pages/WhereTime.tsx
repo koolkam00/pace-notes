@@ -4,7 +4,9 @@ import ExplorerChart from '../ExplorerChart';
 import { analysisBySlug } from '@/lib/ten-analyses';
 import { getAnalysisStart } from '@/lib/analysis-server';
 import { getNugget } from '@/lib/nuggets';
-import { hm, ms } from '@/lib/nuggets/format';
+import { hm, pct } from '@/lib/nuggets/format';
+import ByUnits from '@/components/ui/ByUnits.client';
+import { MARATHON_KM, distance, type UnitSystem } from '@/lib/units';
 
 const PATH = '/analyses/where-time-is-gained';
 
@@ -19,6 +21,7 @@ export default function WhereTime() {
   const n = getNugget('sections.split');
   const goal = Number(n.values.goal_min);
   const initialAnswer = answers.find((a) => a.id === definition.id)!;
+  const after = (u: UnitSystem) => `After 20K is the last ${distance(MARATHON_KM - 20, u)}, ${pct((MARATHON_KM - 20) / MARATHON_KM)} of the distance.`;
   const answer = initialAnswer.charts.length ? (
     // The two groups are named in the kicker, above the chart: a context line never sits under Values.
     <AnswerCard kicker={`Finishes ${hm(goal - 5)}–${hm(goal)} against ${hm(goal)}–${hm(goal + 5)}`}>
@@ -27,7 +30,9 @@ export default function WhereTime() {
   ) : null;
   return (
     <AnalysisShell path={PATH} title={n} answer={answer}
-      dek={n.guard ? `Finishes just under and just over ${hm(goal)} ended ${ms(Number(n.values.gap_s))} apart.` : definition.title}>
+      // The share's base: after 20K is a little over half the race, so the H1's share is read against it (the guard holds
+      // the share above it). The two groups are the card's kicker and the gap its total bar.
+      dek={n.guard ? <ByUnits mi={after('mi')} km={after('km')} /> : definition.title}>
       <ExploreBeat track="chapter-1">
         <AnalysisExplorer definition={definition} summary={summary} initialAnswer={initialAnswer} untouched="none" />
       </ExploreBeat>

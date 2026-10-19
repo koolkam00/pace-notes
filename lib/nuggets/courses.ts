@@ -8,11 +8,12 @@
  * source policy holds or the duplicate-edition screen copies. scripts/nuggets/courses.cjs recounts every one from the raw
  * files for every course, and checks that its guard and sentence follow.
  */
-import { coursePage, coursePages, displayCity as cityName, heldEditions, type CoursePageData } from '@/lib/course-page';
+import { coursePage, coursePages, finishMinute, heldEditions, type CoursePageData } from '@/lib/course-page';
 import { readInsight } from '@/lib/insights-server';
-import type { Courses } from '@/lib/insights';
+import type { Archetypes, Courses } from '@/lib/insights';
 import { courseSlug } from '@/lib/tools/links';
-import { count, countWord, hm, pct, sectionLabel, temp } from './format';
+import { underWater } from '@/lib/terrain-reading';
+import { count, countWord, pct, sectionLabel, temp } from './format';
 import { shareFigure, type Builder } from './build';
 import type { Nugget, NuggetContext, NuggetFigure, UnitsAware } from './types';
 
@@ -33,26 +34,14 @@ export const NET_MIN_M = 30;
 export const CLIMB_MIN_M = 30;
 /** Two neighbouring 5K climbs within 10% of each other are one stretch: the heading names the pair, never a near tie. */
 export const CLIMB_TIE = 0.9;
-/** Routes genuinely below sea level (polders), whose profile may sit under 0 m. */
-const BELOW_SEA_LEVEL = new Set(['Amsterdam', 'Rotterdam']);
-/** How long a profile may sit at or below 0 m on any other route before it reads as the water under a bridge, in km. */
-const UNDER_WATER_KM = 0.5;
-
 /**
- * A route profile from a terrain model records the water under a bridge, not its deck (New York's Verrazzano reads
- * -1.6 m at 0.6–2.0 km, where runners climb). Where a route that is not below sea level sits at or below 0 m for 0.5 km
- * or more, its climbs are not ranked and its start is not described: the sections still give each 5K's numbers, but no
+ * A route profile from a terrain model records the water under a bridge, not its deck (lib/terrain-reading.ts): where it
+ * does, its climbs are not ranked and its start is not described: the sections still give each 5K's numbers, but no
  * heading names a biggest climb or a drop the bridges hide.
  */
 export function profileUnderWater(page: CoursePageData | null): boolean {
   const g = page?.geometry;
-  if (!g || BELOW_SEA_LEVEL.has(page.city)) return false;
-  let run = 0;
-  for (const m of g.elevation_m) {
-    run = m <= 0 ? run + 1 : 0;
-    if ((run - 1) * g.elevation_step_km >= UNDER_WATER_KM) return true;
-  }
-  return false;
+  return !!g && underWater(page.city, g.elevation_m, g.elevation_step_km);
 }
 /** The 40K–finish section is 2.2 km, not a 5K: its words say "stretch". */
 const stretchOf = (i: number) => (i === SECTION_KM.length - 1 ? 'stretch' : '5K');
@@ -65,6 +54,11 @@ export const SIGNATURE_MIN = 3;
 export const TYPE_GAP = 0.03;
 /** A median finish "moved" from 60 seconds. */
 export const MOVED_S = 60;
+/**
+ * Medians that spread less than six minutes are a steady course, said as such ("Every median finish within 4 minutes"),
+ * not as a range whose ends would read as a swing (the line draws them on a 20-minute scale, flat).
+ */
+export const STEADY_S = 6 * 60;
 /** The goal a course page leads with (whole minutes): the planner's default. */
 export const LEAD_GOAL = 240;
 
@@ -178,26 +172,30 @@ function courseLate(ctx?: NuggetContext): Nugget {
   const k = modal ? (counts.get(modal) ?? 0) : 0;
   const guard = i >= 0 && m >= 0 && n >= 3 && slowest !== modal;
   const name = sectionOf(i), usual = sectionOf(m);
+  const display = page?.display ?? 'This course';
+  // The row's figure is how much slower than its own average the slowest section runs: a reading, not a section name.
+  const v = page?.summary.curve?.length === 9 && i >= 0 ? page.summary.curve[i] : NaN;
+  const by = Math.round(Math.abs(v));
   return {
     id: 'course.late', page: `/courses/${page?.slug ?? ''}#at-a-glance`, denominator: 'shape',
-    values: { section: slowest ?? '', modal: modal ?? '', k, n },
+    values: { section: slowest ?? '', modal: modal ?? '', k, n, pace: v },
     guard,
-    headline: `The slowest ${stretchOf(i)} is *${name}*; on ${k} of the ${n} courses with 5K splits it’s ${usual}.`,
-    fallback: i >= 0 && m >= 0 ? `The slowest ${stretchOf(i)} is ${name}, as on ${k} of the ${n} courses with 5K splits.` : i >= 0 ? `The slowest ${stretchOf(i)} is ${name}.` : 'Where the median finish slowed most.',
-    figure: i >= 0 ? { value: name, sr: name } : null,
-    key: `the slowest ${stretchOf(i)}; on ${k} of the ${n} courses with 5K splits, it’s ${usual}`,
+    headline: `${display}’s slowest ${stretchOf(i)} is *${name}*; on ${k} of ${n} courses it’s ${usual}.`,
+    fallback: i >= 0 && m >= 0 ? `${display}’s slowest ${stretchOf(i)} is ${name}, as on ${k} of ${n} courses.` : i >= 0 ? `${display}’s slowest ${stretchOf(i)} is ${name}.` : 'Where the median finish slowed most.',
+    figure: i >= 0 && Number.isFinite(v) && v > 0 ? { value: `${by}%`, unit: ' slower', sr: `${by}% slower` } : null,
+    key: `than average at ${name}, ${display}’s slowest ${stretchOf(i)}; on ${k} of ${n} courses it’s ${usual}`,
   };
 }
 
 /**
- * A section's pace against its course's own average, in words: on this course "4% slower than its own average" (or "at
- * its own average pace"); on the typical course "the typical course runs this 5K 1% quicker" (or "at its average pace").
+ * A section's pace against its course's own average, in a runner's words: on this course "2% slower than" (its average
+ * pace follows) or "at"; on the typical course "1% quicker" or "at its average pace".
  */
-function paceWords(v: number, own: boolean, stretch = '5K'): string {
+function paceWords(v: number, own: boolean): string {
   const n = Math.round(Math.abs(v));
   const side = v > 0 ? 'slower' : 'quicker';
-  if (own) return n === 0 ? 'at its own average pace' : `${n}% ${side} than its own average`;
-  return n === 0 ? `the typical course runs this ${stretch} at its average pace` : `the typical course runs this ${stretch} ${n}% ${side}`;
+  if (own) return n === 0 ? 'at' : `${n}% ${side} than`;
+  return n === 0 ? 'at its average pace' : `${n}% ${side}`;
 }
 
 /**
@@ -215,40 +213,50 @@ function courseSignature(ctx?: NuggetContext): Nugget {
   const here = curve && i >= 0 ? curve[i] : NaN, typical = i >= 0 ? (data.typical_curve[i] ?? NaN) : NaN;
   const pts = s?.signature_points ?? NaN;
   const solid = !!s && !!curve && s.editions >= MIN_EDITIONS && Number.isFinite(pts) && Number.isFinite(here) && Number.isFinite(typical);
-  const guard = solid && Math.abs(pts) >= SIGNATURE_MIN && paceWords(here, true) !== paceWords(typical, true);
+  const guard = solid && Math.abs(pts) >= SIGNATURE_MIN && Math.round(here) !== Math.round(typical);
   const display = page?.display ?? 'This course';
   const name = sectionOf(i);
-  const key = `${paceWords(here, true)}; ${paceWords(typical, false, stretchOf(i))}`;
+  // The figure is how far the section parts from the typical course's, from the two whole percentages the words give
+  // (so the three numbers add up on the page); 3 points apart rounds to at least 3.
+  const apart = Math.round(here) - Math.round(typical);
+  const own = paceWords(here, true);
+  const ownAccent = own === 'at' ? '*at its average pace*' : `*${own.replace(/ than$/, '')}* than its average pace`;
   return {
     id: 'course.signature', page: `/courses/${page?.slug ?? ''}#at-a-glance`, denominator: 'shape',
-    values: { section: s?.signature_section ?? '', here, typical, points: pts, editions: s?.editions ?? 0, typical_like: solid && Math.abs(pts) < SIGNATURE_MIN ? 1 : 0 },
+    values: { section: s?.signature_section ?? '', here, typical, points: pts, apart, editions: s?.editions ?? 0, typical_like: solid && Math.abs(pts) < SIGNATURE_MIN ? 1 : 0 },
     guard,
-    headline: `${display}’s ${name}: *${paceWords(here, true)}*; ${paceWords(typical, false, stretchOf(i))}.`,
+    headline: `${display}’s ${name} runs ${ownAccent}; the typical course runs it ${paceWords(typical, false)}.`,
     fallback: solid ? `${display} paces *much like the typical course*, 5K by 5K.` : 'Its pacing, 5K by 5K.',
-    figure: guard ? { value: name, sr: name } : null,
-    key: solid ? key : undefined,
+    figure: guard ? { value: `${Math.abs(apart)}%`, unit: apart > 0 ? ' slower' : ' quicker', sr: `${Math.abs(apart)}% ${apart > 0 ? 'slower' : 'quicker'}` } : null,
+    key: solid ? `${name} runs ${own} ${display}’s average pace; the typical course runs it ${paceWords(typical, false)}` : undefined,
   };
 }
 
 /**
  * #finish-times: the range of the median finish across the editions (three or more), low end first, each end a year the
- * source policy neither holds nor copies; a range under a minute says the median held. Two editions: first to latest.
+ * source policy neither holds nor copies; under six minutes, how steady it was ("within 4 minutes"); a range under a
+ * minute says the median held. Two editions: first to latest. Clock times are floored to the minute, as a race clock
+ * reads (3:59:36 is 3:59, never 4:00).
  */
 function courseTimes(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
   const eds = page?.editions ?? [];
-  const at = (e: { median_s: number }) => hm(e.median_s / 60);
+  const at = (e: { median_s: number }) => finishMinute(e.median_s);
   const held = heldEditions();
   const named = eds.filter((e) => !!page && !held.has(`${page.city}|${e.year}`));
   const lo = named.length ? named.reduce((a, b) => (b.median_s < a.median_s ? b : a)) : undefined;
   const hi = named.length ? named.reduce((a, b) => (b.median_s > a.median_s ? b : a)) : undefined;
   const first = eds[0], last = eds[eds.length - 1];
-  const guard = eds.length >= 3 && !!lo && !!hi && hi.median_s - lo.median_s >= MOVED_S && at(lo) !== at(hi);
+  const spread = lo && hi ? hi.median_s - lo.median_s : NaN;
+  const guard = eds.length >= 3 && !!lo && !!hi && spread >= MOVED_S && at(lo) !== at(hi);
+  // Within six minutes, the whole minutes every median sits within (at least the floored ends' difference).
+  const within = Math.ceil(spread / 60);
   return {
     id: 'course.times', page: `/courses/${page?.slug ?? ''}#finish-times`, denominator: 'course',
-    values: { lo_year: lo?.year ?? NaN, lo_s: lo?.median_s ?? NaN, hi_year: hi?.year ?? NaN, hi_s: hi?.median_s ?? NaN, editions: eds.length },
+    values: { lo_year: lo?.year ?? NaN, lo_s: lo?.median_s ?? NaN, hi_year: hi?.year ?? NaN, hi_s: hi?.median_s ?? NaN, editions: eds.length, steady: spread < STEADY_S ? 1 : 0 },
     guard,
-    headline: lo && hi ? `The median finish ranged from ${at(lo)} in ${lo.year} to *${at(hi)}* in ${hi.year}.` : '',
+    headline: !lo || !hi ? '' : spread < STEADY_S ? `Every median finish within *${within} minutes*: ${at(lo)} to ${at(hi)}.`
+      : `The median finish ranged from ${at(lo)} in ${lo.year} to *${at(hi)}* in ${hi.year}.`,
     // Within a minute the median "held"; two editions read first to latest.
     fallback: eds.length >= 3 && lo && hi
       ? (at(lo) === at(hi) ? `The median finish was *${at(lo)}* in every edition.` : `The median finish held within a minute: ${at(lo)} to *${at(hi)}*.`)
@@ -290,6 +298,8 @@ function courseClimb(ctx?: NuggetContext): Nugget {
 /** #pacing: the pacing type whose share differs most from every course's. */
 function courseTypes(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
+  // The courses the pacing types are counted over: every course with 5K splits, named by their number, never "every course".
+  const across = readInsight<Archetypes>('archetypes.json').courses.length;
   const shares = page?.types?.shares ?? [];
   const all = page?.archetypes ?? [];
   let i = -1;
@@ -300,10 +310,10 @@ function courseTypes(ctx?: NuggetContext): Nugget {
   const name = i >= 0 ? `${all[i].name.toLowerCase()}s` : '';
   return {
     id: 'course.types', page: `/courses/${page?.slug ?? ''}#pacing`, denominator: 'shape',
-    values: { type: i >= 0 ? all[i].slug : '', here, every },
+    values: { type: i >= 0 ? all[i].slug : '', here, every, courses: across },
     guard,
-    headline: `${here > every ? 'More' : 'Fewer'} *${name}* here: ${pct(here)}, against ${pct(every)} across every course.`,
-    fallback: page?.types ? `Paced much like every course: no type more than ${Math.round(TYPE_GAP * 100)} points apart.` : `No pacing types for ${page?.display ?? 'this course'}.`,
+    headline: `${here > every ? 'More' : 'Fewer'} *${name}* here: ${pct(here)}, against ${pct(every)} across ${across} courses.`,
+    fallback: page?.types ? `Paced much like the other courses: every type within ${Math.round(TYPE_GAP * 100)}% of its share across all ${across}.` : `No pacing types for ${page?.display ?? 'this course'}.`,
     figure: null,
   };
 }
@@ -332,18 +342,19 @@ function courseAmong(ctx?: NuggetContext): Nugget {
   const share = pct(s?.slowdown ?? NaN);
   // The accent never breaks across lines ("16 of the 24" stays together).
   const nb = (t: string) => t.replace(/ /g, '\u00a0');
-  const all = solid ? 'any other course' : 'every course';
-  // The scope (three or more editions) is the strip's key; the sentence keeps it only where it would otherwise claim
-  // every course. A course of fewer editions says so last, briefly ("lower than 22 of 25 courses, from two editions").
-  const than = count === n ? `${fewer ? 'lower' : 'higher'} than *${nb(all)}* with three or more editions`
-    : solid ? `${fewer ? 'lower' : 'higher'} than *${nb(`${count} of the ${n}`)}* other courses`
-      : `${fewer ? 'lower' : 'higher'} than *${nb(`${count} of ${n}`)}* courses`;
-  const from = solid ? '' : `, from ${countWord(s?.editions ?? 0)} ${s?.editions === 1 ? 'edition' : 'editions'}`;
+  const side = fewer ? 'lower' : 'higher';
+  // The accent is the comparison's number. Every course counted has three or more editions; the sentence says so where
+  // it counts all of them. A course of fewer editions leads with how many it has, so the sentence never trails a
+  // qualifier ("From its two editions, Barcelona’s 22% is lower than 22 of the 25 courses.").
+  const than = solid
+    ? (count === n ? `${side} than *${nb(`all ${n}`)}* other courses with three or more editions` : `${side} than *${nb(`${count} of the ${n}`)}* other courses`)
+    : (count === n ? `${side} than *${nb(`all ${n}`)}* courses with three or more` : `${side} than *${nb(`${count} of the ${n}`)}* courses`);
+  const from = `From its ${countWord(s?.editions ?? 0)} ${s?.editions === 1 ? 'edition' : 'editions'}`;
   return {
     id: 'course.among', page: `/courses/${page?.slug ?? ''}#slowdown`, denominator: 'course',
     values: { share: s?.slowdown ?? NaN, higher, lower, courses: n, editions: s?.editions ?? 0, middle: middle ? 1 : 0 },
     guard,
-    headline: middle ? `${name}’s ${share}: *${nb('near the middle')}* of ${n + 1} courses.` : `${name}’s ${share}: ${than}${from}.`,
+    headline: middle ? `${name}’s ${share}: *${nb('near the middle')}* of ${n + 1} courses.` : solid ? `${name}’s ${share}: ${than}.` : `${from}, ${name}’s ${share} is ${than}.`,
     fallback: `${name} beside every course.`,
     figure: null,
   };
@@ -365,10 +376,12 @@ function courseGoal(ctx?: NuggetContext): Nugget {
   const guard = !!row && row.n >= 100;
   const g = goalText(LEAD_GOAL);
   const gap = row && every ? Math.abs(Math.round(row.under * 100) - Math.round(every.under * 100)) : 0;
-  const against = !every ? '' : gap >= GOAL_GAP_MIN ? `, against ${pct(every.under)} across every course` : ', about the same as across every course';
+  // The pooled courses by their number, as the planner and the course chooser name them ("across 24 courses").
+  const across = every ? `across ${every.courses} courses` : '';
+  const against = !every ? '' : gap >= GOAL_GAP_MIN ? `, against ${pct(every.under)} ${across}` : `, about the same as ${across}`;
   return {
     id: 'course.goal', page: `/courses/${page?.slug ?? ''}#goals`, denominator: 'tool',
-    values: { goal: LEAD_GOAL, under: row?.under ?? NaN, n: row?.n ?? 0, every: every?.under ?? NaN, every_n: every?.n ?? 0 },
+    values: { goal: LEAD_GOAL, under: row?.under ?? NaN, n: row?.n ?? 0, every: every?.under ?? NaN, every_n: every?.n ?? 0, every_courses: every?.courses ?? 0 },
     guard,
     headline: `Of ${page?.display ?? ''} finishes on ${g} pace at 20K, *${pct(row?.under ?? NaN)}* made ${g}${against}.`,
     fallback: page?.goals.length ? `Goal times from 3:00 to 5:00 on ${page.display}.` : `No goal times for ${page?.display ?? 'this course'}.`,

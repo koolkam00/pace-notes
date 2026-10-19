@@ -7,21 +7,22 @@ import { CourseSection, Said } from './Fact';
 
 /**
  * "#slowdown": every course on one strip by its share of finishes with a sustained slowdown (the same courses.json
- * share each course page leads with), this one in signal and named in the key; courses with fewer than three editions
- * hollow, the extremes among the rest labelled. The H2 says this course's share and where it sits among the courses
- * with three or more editions (course.among), so the readout waits for a tap to name another course.
+ * share each course page leads with), this one in signal and named on its dot; courses with fewer than three editions
+ * hollow (the key names only those), the extremes among the rest labelled. The H2 says this course's share and where it
+ * sits among the courses with three or more editions (course.among); the readout opens on this course, as every chart
+ * opens on its reading, and a tap reads out another.
  */
 export default function CourseSlowdown({ page }: { page: CoursePageData }) {
   const { city, display, field } = page;
   const n = getNugget('course.among', { city });
-  // Room past the highest share (to the next 5 points, at least 5 points on), so a name labelled at the right end of
-  // the strip stays inside it on the narrowest phone.
-  const top = Math.ceil((Math.max(...field.map((c) => c.slowdown)) + 0.05) * 20) / 20;
+  // Room past the highest share (to the next 2 points, at least 8 points on), so a name labelled at the right end of
+  // the strip stays inside it on the narrowest phone, also where this course's own label pushes it along.
+  const top = Math.ceil((Math.max(...field.map((c) => c.slowdown)) + 0.08) * 50) / 50;
   const ticks = Array.from({ length: Math.floor(top * 10) }, (_, i) => (i + 1) / 10).map((v) => ({ value: v, label: pct(v) }));
   return (
     <CourseSection id="slowdown" track="chapter-5" beat="Slowdowns" title={<Said nugget={n} />}>
       <DotStrip items={field.map((c) => ({ id: c.slug, label: c.display, value: c.slowdown, display: pct(c.slowdown), hollow: c.editions < MIN_EDITIONS, subject: c.city === city }))}
-        domain={[0.1, top]} ticks={ticks.filter((t) => t.value >= 0.1)} keyLabels={{ filled: 'Three or more editions', hollow: 'Fewer editions' }} prompt="Choose a dot to see its course"
+        domain={[0.1, top]} ticks={ticks.filter((t) => t.value >= 0.1)} keyLabels={{ hollow: 'Fewer editions' }} labelSubject
         label={`Sustained slowdown on every course, ${display} among them`} />
     </CourseSection>
   );

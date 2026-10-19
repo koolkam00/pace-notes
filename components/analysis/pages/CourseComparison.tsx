@@ -8,6 +8,7 @@ import { getAllFinisherContextStart } from '@/lib/all-finisher-context-server';
 import { getNugget } from '@/lib/nuggets';
 import { comparableCourses, courseName } from '@/lib/nuggets/analyses';
 import { count, pct } from '@/lib/nuggets/format';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 
 const PATH = '/analyses/course-comparison';
 /** The courses most readers know, named in quiet ink on a wide strip (DotStrip `named`); any not shown is skipped. */
@@ -35,7 +36,7 @@ export default function CourseComparison() {
   // The high end is the H1's accent: its dot is the signal and the readout opens on it; the low end is named on its dot.
   const high = comparableCourses(shown).reduce<(typeof shown)[number] | undefined>((a, b) => (!a || b.slowdown_pct > a.slowdown_pct ? b : a), undefined);
   const answer = sorted.length >= 2 ? (
-    <AnswerCard kicker={`Sustained slowdown on ${sorted.length} courses${sorted.every((c) => comparable.has(c.id)) ? ' with three or more editions' : ''}`}>
+    <AnswerCard kicker={`${sorted.length} courses${sorted.every((c) => comparable.has(c.id)) ? ' with three or more editions' : ''}`}>
       <DotStrip labelSubject mdScale={1.4} named={MAJORS} hint={<><span className="hint-tap">Tap a dot</span><span className="hint-select">Select a dot</span> to read its course</>} items={sorted.map((c) => ({ id: c.id, label: courseName(c.label), value: c.slowdown_pct, display: pct(c.slowdown_pct / 100), detail: count(c.n), hollow: !comparable.has(c.id), subject: c === high }))}
         domain={[lo, Math.max(...v) > hi - 5 ? hi + 5 : hi]} ticks={ticks.map((t) => ({ value: t, label: `${t}%` }))} readoutKey="Finishes"
         keyLabels={{ filled: 'Three or more editions', hollow: 'Fewer editions' }}
@@ -45,7 +46,9 @@ export default function CourseComparison() {
     </AnswerCard>
   ) : null;
   return (
-    <AnalysisShell path={PATH} title={n} titleTerm dek={definition.title} answer={answer}>
+    // The term is linked in the dek, under the H1, never in it (a dotted underline in the display face outweighed the accent).
+    <AnalysisShell path={PATH} title={n} answer={answer}
+      dek={<>One dot per course: its share of finishes with a <Link href={n.term ?? '/methodology#sustained-slowdown'} className="term-link">sustained slowdown</Link>.</>}>
       <ExploreBeat track="chapter-1">
         <AllFinisherAnalysis kind="courses" start={start} linkTerm={false} untouched="none" />
       </ExploreBeat>

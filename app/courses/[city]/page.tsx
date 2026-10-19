@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import CourseElevation from '@/components/course/CourseElevation';
+import CourseElevation, { elevationShown } from '@/components/course/CourseElevation';
 import CourseFinishTimes, { timesShown } from '@/components/course/CourseFinishTimes';
 import CourseGlance, { glanceRows } from '@/components/course/CourseGlance';
 import CourseGoals from '@/components/course/CourseGoals';
@@ -31,8 +31,9 @@ export function generateMetadata({ params }: { params: { city: string } }) {
 /**
  * One course page (the redesign spec, sections 4.3 and 7.10, cut under section 00): the night hero with the race's
  * reading, then one finding and one chart per section in the pinned order (at a glance, finish times, elevation,
- * pacing, sustained slowdown, goals, weather, plan, other courses), each only where the course's data gives it
- * something to show, every long table in one "All numbers" disclosure, and the closing stack. Sections and their data are in docs/SEO.md ("Course pages"); every figure is
+ * pacing, sustained slowdown, goals, weather), each only where the course's data gives it something to show, every long
+ * table in one "All numbers" disclosure, then the foot: one quiet line of tools (#plan), one sentence of the courses paced
+ * like this one (#other-courses) and the closing stack. The contents row lists the findings only. Sections and their data are in docs/SEO.md ("Course pages"); every figure is
  * checked against its file by scripts/verify-courses.cjs and every sentence by scripts/verify-nuggets.cjs.
  */
 export default function CityPage({ params }: { params: { city: string } }) {
@@ -42,8 +43,8 @@ export default function CityPage({ params }: { params: { city: string } }) {
   const glance = glanceRows(page);
   const shown: [string, string, boolean][] = [
     ['at-a-glance', 'At a glance', glance.length > 0], ['finish-times', 'Finish times', timesShown(page)],
-    ['elevation', 'Elevation', !!page.geometry], ['pacing', 'Pacing', !!page.types], ['slowdown', 'Slowdowns', true], ['goals', 'Goals', page.goals.length > 0],
-    ['weather', 'Weather', !!page.hotCool && page.weather.length >= WEATHER_MIN_MORNINGS], ['plan', 'Plan', true],
+    ['elevation', 'Elevation', elevationShown(page)], ['pacing', 'Pacing', !!page.types], ['slowdown', 'Slowdowns', true], ['goals', 'Goals', page.goals.length > 0],
+    ['weather', 'Weather', !!page.hotCool && page.weather.length >= WEATHER_MIN_MORNINGS],
   ];
   const sections = shown.filter(([, , on]) => on).map(([id, name]) => [id, name] as [string, string]);
   return (

@@ -75,7 +75,9 @@ function inspect({ isHome }) {
   const svgTexts = [];
   for (const svg of document.querySelectorAll('svg')) {
     const sr = svg.getBoundingClientRect();
-    if (sr.width < 40 || sr.height < 20 || hidden(svg)) continue;
+    // A closed disclosure's content is not rendered (Chromium hides it with content-visibility, so its boxes are stale):
+    // it is checked with the disclosure open, as every other check here skips it.
+    if (sr.width < 40 || sr.height < 20 || hidden(svg) || svg.closest('details:not([open])')) continue;
     for (const t of svg.querySelectorAll('text')) {
       if (!t.textContent.trim() || hidden(t)) continue;
       const m = t.getScreenCTM();

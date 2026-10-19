@@ -323,7 +323,11 @@ for (const city of CITIES) {
     types: archetypes.courses.find((c) => c.city === city) ?? null,
     slope: courses.weather.per_course_slopes.find((x) => x.city === city) ?? null,
     copies: copies.filter((c) => c.city === city),
-    race: (route && route.race) || s.race || `${city} Marathon`,
+    // The race's own name, without a sponsor's in front ("PZU Warsaw Marathon" is the Warsaw Marathon), as every course is titled.
+    race: ((route && route.race) || s.race || `${city} Marathon`).replace(/^PZU\s+/, ''),
+    // A route profile at or below 0 m for 0.5 km or more where no polder explains it reads the water under a bridge
+    // (New York, Dubai): the page draws no elevation and prints no climb from it.
+    wet: !!route && !['Amsterdam', 'Rotterdam'].includes(city) && (() => { let run = 0; for (const m of route.elevation_m) { run = m <= 0 ? run + 1 : 0; if ((run - 1) * route.elevation_step_km >= 0.5) return true; } return false; })(),
     allFinisherPct: af ? `${af.slowdown_pct.toFixed(1)}%` : null,
   });
 }
@@ -495,6 +499,8 @@ const DOI = 'doi:10.1371/journal.pone.0251513';
 const DOI_URL = 'https://doi.org/10.1371/journal.pone.0251513';
 // No #replay: the race replay is the home page's and chapter 01's, not a third time on every course page (critic round 2).
 const SECTIONS = ['at-a-glance', 'finish-times', 'elevation', 'pacing', 'slowdown', 'goals', 'weather', 'plan', 'other-courses'];
+/** The page's foot: one quiet line each, no heading (round 3, October 19, 2026). */
+const FOOT = new Set(['plan', 'other-courses']);
 /** Where the term links: its definition on /methodology. */
 const SLOWDOWN_HREF = '/methodology#sustained-slowdown';
 /** What a goal with no published row says, whatever the file's reason (the reason is method, on /methodology). */
@@ -565,8 +571,10 @@ if (html) {
     // The race mornings show only as the warmest/coolest contrast (5 °C or more) over three or more of them.
     const pairGap = f.hotCool ? Math.round((f.hotCool.hot.temp - f.hotCool.cool.temp) * 10) / 10 : null;
     const weatherShown = pairGap !== null && pairGap >= courses.weather.pairs.min_gap_c && f.weather.length >= 3;
+    // #elevation: a route whose profile is sound, with pace blocks or a climb its heading can name.
+    const elevationShown = !!f.route && !f.wet && (f.s.curve?.length === 9 || climbNugget.guard);
     const want = {
-      'at-a-glance': glanceIds.length > 0, 'finish-times': f.cells.length >= 3 && N.getNugget('course.times', { city }).guard, elevation: !!f.route, pacing: !!f.types,
+      'at-a-glance': glanceIds.length > 0, 'finish-times': f.cells.length >= 3 && N.getNugget('course.times', { city }).guard, elevation: elevationShown, pacing: !!f.types,
       goals: goalsShown, weather: weatherShown,
     };
     for (const id of SECTIONS) {
@@ -574,7 +582,7 @@ if (html) {
       check(present === (want[id] ?? true), where, `section #${id} ${present ? 'present' : 'missing'}`);
       const fragment = present ? sectionOf(body, id) : null;
       if (fragment && TRACK[id]) check(new RegExp(`^<section[^>]*data-track-section="${TRACK[id]}"`).test(fragment), where, `#${id} is not marked ${TRACK[id]}`);
-      if (fragment) check(/<h2\b/.test(fragment), where, `#${id} has no H2`);
+      if (fragment) check(FOOT.has(id) ? !/<h2\b/.test(fragment) && /<p class="course-foot-line"/.test(fragment) : /<h2\b/.test(fragment), where, FOOT.has(id) ? `#${id} is not one quiet line` : `#${id} has no H2`);
     }
     check(/data-track-section="hero"/.test(body), where, 'the hero is not marked');
     // Each finding is its nugget's sentence, word for word (the default miles view), so a page says only what its
@@ -599,12 +607,19 @@ if (html) {
     const averaged = f.cells.length === 1 ? new RegExp(`^of finishes in ${f.cells[0].year} had`) : f.cells.length === 2 ? /in its two editions, on average,/ : /in an average year/;
     check(heroKey === norm(N.getNugget('course.slowdown', { city }).key) && averaged.test(heroKey), where, `the hero figure's words "${heroKey}" do not name what the figure averages`);
     const glanceKeys = [...main.matchAll(/<span class="glance-key">([\s\S]*?)<\/span>/g)].map((m) => norm(textOf(m[1])));
-    for (const id of GLANCE) {
-      const n = N.getNugget(id, { city });
-      const shown = glanceIds.includes(id);
-      check(glanceKeys.includes(n.key) === shown, where, `glance row ${id}: ${shown ? 'missing' : 'shown without its guard'} ("${n.key}")`);
+    // One row is the section's finding: its sentence is the H2 and no key repeats it. Two or three each carry their key.
+    if (glanceIds.length === 1) {
+      check(norm(h2('at-a-glance') ?? '') === norm(said(glanceIds[0], city)) && glanceKeys.length === 0, where, `the one glance row ${glanceIds[0]}: the H2 "${h2('at-a-glance')}" is not its sentence, or a key repeats it`);
+    } else {
+      for (const id of GLANCE) {
+        const n = N.getNugget(id, { city });
+        const shown = glanceIds.includes(id);
+        check(glanceKeys.includes(n.key) === shown, where, `glance row ${id}: ${shown ? 'missing' : 'shown without its guard'} ("${n.key}")`);
+      }
+      check(glanceKeys.length === glanceIds.length, where, `${glanceKeys.length} glance rows for ${glanceIds.length} guards`);
     }
-    check(glanceKeys.length === glanceIds.length, where, `${glanceKeys.length} glance rows for ${glanceIds.length} guards`);
+    // A row's figure is a reading, never a section's name.
+    for (const m of (sectionOf(body, 'at-a-glance') ?? '').matchAll(/<span class="glance-figure">([\s\S]*?)<\/span><\/span><\/span>/g)) check(!/\d+–\d+K|K–finish/.test(textOf(m[1])), where, `a glance figure names a section: "${textOf(m[1])}"`);
     const tracked = [...body.matchAll(/data-track-section="([^"]+)"/g)].map((m) => m[1]);
     check(new Set(tracked).size === tracked.length, where, `a section id repeats: ${tracked}`);
 
@@ -626,8 +641,10 @@ if (html) {
     for (const c of f.cells) for (const k of ['n', 'median', 'sd']) check(seen.has(`${k}@${c.year}`), where, `the ${c.year} row lacks ${k}`);
     for (const w of f.weather) for (const k of ['w.temp', 'w.dew', 'w.rh', 'w.wind']) check(seen.has(`${k}@${w.year}`), where, `the ${w.year} weather row lacks ${k}`);
     for (const [g, row] of f.goalRows) if (row && f.ctx && f.ctx.editions >= courseGoal.min_editions) check(seen.has(`g.n@${g}`) && seen.has(`g.sd@${g}`) && seen.has(`g.p50@${g}`), where, `goal ${g}: the row is not printed`);
-    if (f.terrain && f.route) for (let i = 0; i < 9; i += 1) check(seen.has(`t.gain@${i}`), where, `section ${i} of the route is not printed`);
-    for (const k of ['slowdown', 'block10', 'after20', 'median', ...(f.route ? [f.terrain ? 'route.gain' : 'geo.gain'] : [])]) check(seen.has(k), where, `${k} is not printed`);
+    if (f.terrain && f.route && !f.wet) for (let i = 0; i < 9; i += 1) check(seen.has(`t.gain@${i}`), where, `section ${i} of the route is not printed`);
+    for (const k of ['slowdown', 'block10', 'after20', 'median', ...(f.route && !f.wet ? [f.terrain ? 'route.gain' : 'geo.gain'] : [])]) check(seen.has(k), where, `${k} is not printed`);
+    // A profile under water prints no climb, descent or net anywhere on the page.
+    if (f.wet) check(![...seen].some((k) => /^(?:t\.(?:gain|loss|net)@|(?:route|geo|cg)\.(?:gain|loss))/.test(k)), where, 'a climb from a profile that reads the water under a bridge is printed');
     // One climb, everywhere on the page: every printed whole-route climb total is the same figure from the same key.
     const climbs = [...main.matchAll(/<data\b([^>]*)>/g)].map((m) => ({ k: attr(m[1], 'data-k'), v: attr(m[1], 'value') })).filter((d) => /^(?:geo|route|cg)\.gain$/.test(d.k ?? ''));
     check(new Set(climbs.map((d) => `${d.k}=${d.v}`)).size <= 1, where, `the page prints more than one whole-route climb: ${[...new Set(climbs.map((d) => `${d.k}=${d.v}`))].join(', ')}`);
@@ -694,7 +711,7 @@ if (html) {
     }
 
     // Elevation: the two climb totals each under its own label where both are printed, and "two ways" only over two.
-    if (f.route) {
+    if (f.route && elevationShown) {
       const elevation = textOf(sectionOf(body, 'elevation') ?? '');
       const totalsList = /<dl class="course-totals">[\s\S]*?<\/dl>/.exec(sectionOf(body, 'elevation') ?? '')?.[0] ?? '';
       // One climb total under the chart (the route's), so two climb figures never sit side by side; the chart's readout
@@ -705,8 +722,8 @@ if (html) {
       if (f.terrain) check(f.terrain.every((x) => x.gain_m <= resolve('route.gain', f) + 0.05), where, 'a 5K section climbs more than the whole route');
       const promise = /\btwo ways\b|\b(?:both|two) (?:climb )?(?:totals|measures|measurements)\b/i.exec(elevation);
       check(!promise, where, `#elevation promises "${promise && promise[0]}"`);
-      check((/<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '').includes(`data-k="${total}"`), where, 'the hero does not print the climb');
     }
+    if (f.route && !f.wet) check((/<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '').includes(`data-k="${f.terrain ? 'route.gain' : 'geo.gain'}"`), where, 'the hero does not print the climb');
 
     // Weather: the 5 °C gate, the slope sentence for the courses with one, and context.
     const gap = f.hotCool ? Math.round((f.hotCool.hot.temp - f.hotCool.cool.temp) * 10) / 10 : null;

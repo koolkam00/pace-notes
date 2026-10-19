@@ -4,7 +4,7 @@ import BigNumber from './ui/BigNumber';
 import MarkerBadge from './ui/MarkerBadge';
 import ChapterLink from './ChapterLink';
 import { UnitLink as Link } from './UnitsProvider';
-import { chapterNumber, type ChapterReading, type Next } from '@/lib/chapters';
+import { CHAPTERS, chapterHref, chapterNumber, type ChapterReading, type Next } from '@/lib/chapters';
 
 /**
  * The next card (the redesign spec, section 2.6): one night card that is one link to the next page. Its kicker says
@@ -38,14 +38,18 @@ export default function NextCard({ next, reading }: { next: Next; reading?: Chap
   );
 }
 
-/** The journey's finish (/tools/plan): no next page, a way back to the contents and on to a past race. */
+/**
+ * The journey's finish (/tools/plan): no next page. Most visitors reach the planner from home or the header without
+ * reading a chapter (critic round 3), so the line is true either way and the first way on is the start of the race.
+ */
 export function FinishCard() {
+  const first = CHAPTERS[0];
   return (
     <div className="next-card night is-finish">
       <span className="next-card-kicker t-kicker">Finish</span>
-      <p className="next-card-title">You’ve read the race, start to finish.</p>
+      <p className="next-card-title">That’s the race, start to finish.</p>
       <p className="finish-card-links">
-        <Link href="/research" className="finish-card-link">Contents <Arrow /></Link>
+        <Link href={chapterHref(first)} className="finish-card-link">Start at the gun: Chapter {chapterNumber(first)} · {first.title} <Arrow /></Link>
         <Link href="/runners" className="finish-card-link">Analyze a past race <Arrow /></Link>
       </p>
     </div>

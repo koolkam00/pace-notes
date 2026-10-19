@@ -102,6 +102,7 @@ export default function MethodsAnalyses() {
         <p>Returning-runner answers normalize both appearances to their own marathon average. These paired changes can reflect fitness, conditions and route changes as well as familiarity, and they are not selected by the visitor’s target.</p>
         <p>Improvement answers split the mean total improvement into three blocks that add up to it.</p>
         <p>Terrain answers show the available city route profile beside pooled historical finishes. They do not establish the terrain used in each edition or explain an individual slowdown.</p>
+        <p>Hills and pacing compares each 5 km section with the same section on every course combined, near the same finish time: each section’s median pace against its own course’s distance-weighted average, minus the same for every course, in percentage points. Late slowing happens on every course, so a section’s pace against its own course alone would credit a hill with it. The page opens on the course whose climbing section (30 m or more of ascent, after the first 5 km, whose pace also reflects the start’s crowding) ran slowest against elsewhere. A route profile that sits at or below 0 m for 0.5 km or more away from the polders records the water under a bridge rather than its deck; those courses are not drawn or offered there.</p>
         <p>The earlier-result comparisons and the questions on improvement gains and returning to a course need an earlier recorded result.</p>
       </Detail>
     </Topic>

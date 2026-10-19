@@ -86,9 +86,11 @@ module.exports = function analyses({ json, eq, ok, core }) {
     p.forEach((v, i) => { if (v < p[fast]) fast = i; if (v > p[slow]) slow = i; });
     eq([n.values.fast_i, n.values.slow_i], [fast, slow], 'pattern.profile recounts the fastest and slowest 5K');
     eq(n.guard, p[fast] < even && even < p[slow] && fast < slow, 'pattern.profile: guard');
-    const mi = (s) => `${Math.round(s * 1.609344)} s/mi`;
-    if (n.guard) ok(shown(n, 'mi').includes(`${mi(even - p[fast])} fast`) && shown(n, 'mi').includes(`${mi(p[slow] - even)} slow`), 'pattern.profile: the miles headline names both gaps');
-    if (n.guard) ok(shown(n, 'km').includes(`${Math.round(even - p[fast])} s/km fast`), 'pattern.profile: the kilometres headline');
+    // In runner words: "25 seconds a mile fast early and *40 slow* late"; the figure is the late number.
+    const mi = (s) => Math.round(s * 1.609344);
+    if (n.guard) ok(shown(n, 'mi').includes(`${mi(even - p[fast])} seconds a mile fast`) && shown(n, 'mi').includes(`*${mi(p[slow] - even)} slow*`), 'pattern.profile: the miles headline names both gaps');
+    if (n.guard) ok(shown(n, 'km').includes(`${Math.round(even - p[fast])} seconds a kilometer fast`) && shown(n, 'km').includes(`*${Math.round(p[slow] - even)} slow*`), 'pattern.profile: the kilometres headline');
+    if (n.guard) eq([n.figure.value, n.figureKm.value], [String(mi(p[slow] - even)), String(Math.round(p[slow] - even))], 'pattern.profile: the figure is the late gap in both units');
   };
 
   const checkpointRows = () => json(`public/data/packs/ext_personalized_guide/tables/${guide.cities.find((c) => c.city === 'All courses').checkpoint_file}`).rows
@@ -167,27 +169,45 @@ module.exports = function analyses({ json, eq, ok, core }) {
   };
 
   R['terrain.climb'] = (n) => {
-    const scored = [];
+    // Each 5K near the goal against the same 5K on every course combined (each against its own distance-weighted
+    // average), on the courses the page may draw: a supplied route at the release's step whose profile does not sit at or
+    // under 0 m for 0.5 km away from the polders. The reading is the climbing 5K (30 m or more, after the first 5K) that
+    // ran slowest against elsewhere, over every such course.
+    const geo = json('public/data/insights/course-geometry.json').courses;
+    const step = geo[0].elevation_step_km;
+    const wet = (g) => {
+      if (g.city === 'Amsterdam' || g.city === 'Rotterdam') return false;
+      let run = 0;
+      for (const m of g.elevation_m) { run = m <= 0 ? run + 1 : 0; if ((run - 1) * g.elevation_step_km >= 0.5) return true; }
+      return false;
+    };
+    const len = ENDS.map((e, i) => e - (i ? ENDS[i - 1] : 0));
+    const rel = (p) => { const mean = p.reduce((a, v, i) => a + v * len[i], 0) / KM; return p.map((v) => (v / mean - 1) * 100); };
+    const base = rel(allCourses().profiles[String(GOAL)].pace.map((x) => x[1]));
+    let best = null;
     for (const c of guide.cities) {
       if (c.city === 'All courses') continue;
-      const d = cityFile(c.city);
-      const p = d.cohorts['all|all|all']?.profiles[String(GOAL)];
-      if (!p || d.terrain.length !== 9 || d.terrain.some((t) => t.gain === null)) continue;
-      let climb = 0, slow = 0, total = 0;
-      d.terrain.forEach((t, i) => { total += t.gain; if (t.gain > d.terrain[climb].gain) climb = i; if (p.pace[i][1] > p.pace[slow][1]) slow = i; });
-      scored.push({ city: c.city, total, matched: climb === slow, climb });
+      const g = geo.find((x) => x.city === c.city);
+      if (!g || g.elevation_step_km !== step || wet(g)) continue;
+      const d = cityFile(c.city), p = d.cohorts['all|all|all']?.profiles[String(GOAL)];
+      if (!p || d.terrain.length !== 9) continue;
+      const own = rel(p.pace.map((x) => x[1]));
+      for (let i = 1; i < 9; i++) {
+        const t = d.terrain.find((x) => Math.abs(x.end - ENDS[i]) < 0.001);
+        if (!t || !(t.gain >= 30)) continue;
+        if (!best || own[i] - base[i] > best.vs) best = { city: c.city, i, vs: own[i] - base[i] };
+      }
     }
-    const pool = scored.some((s) => s.matched) ? scored.filter((s) => s.matched) : scored;
-    const best = pool.reduce((a, b) => (b.total > a.total ? b : a));
+    ok(!!best, 'terrain.climb: some drawn course has a climbing 5K');
     eq(n.values.city, best.city, 'terrain.climb recounts the data-chosen course');
-    eq(n.values.climb_i, best.climb, 'terrain.climb: its biggest climb');
-    eq(n.guard, best.matched, 'terrain.climb: guard (the climb is the slowest 5K)');
-    // Its figure is the climb's pace against the finishes' distance-weighted average, in whole percent.
-    if (n.figure) {
-      const d = cityFile(best.city), p = d.cohorts['all|all|all'].profiles[String(GOAL)].pace.map((x) => x[1]);
-      const ends = [5, 10, 15, 20, 25, 30, 35, 40, 42.195], len = ends.map((e, i) => e - (i ? ends[i - 1] : 0));
-      const mean = p.reduce((a, v, i) => a + v * len[i], 0) / 42.195;
-      eq(n.figure.value, String(Math.round((p[best.climb] / mean - 1) * 100)), 'terrain.climb: the figure is the climb\'s pace against the average');
+    eq(n.values.climb_i, best.i, 'terrain.climb: its climbing 5K');
+    close(n.values.vs, best.vs, 'terrain.climb: against the same 5K elsewhere', 1e-9);
+    ok(!wet(geo.find((g) => g.city === best.city)), 'terrain.climb: the chosen profile does not read the water under a bridge');
+    eq(n.guard, Math.round(best.vs) >= 2, 'terrain.climb: guard (2% slower or more)');
+    const at = best.i === 8 ? '40K–finish' : `${ENDS[best.i - 1]}–${ENDS[best.i]}K`;
+    if (n.guard) {
+      ok(shown(n).includes(`${at} climb ran *${Math.round(best.vs)}% slower*`), 'terrain.climb: the headline names the section and the recounted gap');
+      eq(n.figure.value, String(Math.round(best.vs)), 'terrain.climb: the figure is the gap against elsewhere');
     }
   };
 
@@ -253,7 +273,8 @@ module.exports = function analyses({ json, eq, ok, core }) {
       [A.checkpointUnderFrom({ n: 500, elapsed: 170, finish: [0, 14000, 0] }, 0.6), 'On even 4:00 pace at 30K, 60% of finishes got under 4:00.'],
       [A.checkpointCushionFrom([{ elapsed: 170, n: 500, share: 0.4, median: 0 }]), 'At 30K, the share that got under 4:00, by split.'],
       [A.sectionsSplitFrom({ below: { durations: Array(9).fill(100), n: 500 }, above: { durations: [130, 130, 130, 130, 101, 101, 101, 101, 101], n: 500 } }), 'Just under and just over 4:00: 2:05 apart at the finish, section by section.'],
-      [A.terrainClimbFrom('Fixture', [0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => ({ end: 5, gain: i === 2 ? 50 : 5, net: 0, pace: i === 6 ? 400 : 300, pct: 0 }))), 'Where Fixture climbs, and where it slows.'],
+      // A climb that ran like the same 5K elsewhere (1 point): no finding, said neutrally.
+      [A.terrainClimbFrom('Fixture', [0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => ({ end: 5, gain: i === 2 ? 50 : 5, net: 0, pace: 300, pct: 0, vs: i === 2 ? 1 : 0 }))), 'Where Fixture climbs, against the same 5Ks elsewhere.'],
       [A.weatherStartFrom([{ id: 'c', lower_c: null, upper_c: 5, n: 500, edition_n: 9, slowdown_pct: 20 }, { id: 'w', lower_c: 5, upper_c: null, n: 500, edition_n: 9, slowdown_pct: 30 }]), 'Sustained slowdown by start temperature.'],
       [A.kickRecurrenceFrom({ pairs: 1000, after_slowdown: { pairs: 500, observed: 0.2, expected: 0.3 }, after_none: null }), 'After a sustained slowdown, 20% of next races had one too; 30% was typical.'],
       [A.gainsFinalFrom({ values: [5, 10, 2], total: 17, n: 500 }), 'Where improving finishes near 4:00 found their time.'],

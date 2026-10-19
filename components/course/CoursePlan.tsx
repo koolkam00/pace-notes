@@ -1,30 +1,34 @@
-import Arrow from '@/components/ui/Arrow';
+import { Fragment } from 'react';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
-import { shortName, standardByKey } from '@/components/tools/QualifyingRaceText';
+import { standardByKey } from '@/components/tools/QualifyingRaceText';
 import type { CoursePageData } from '@/lib/course-page';
-import { CourseSection } from './Fact';
 
 /**
- * "Plan your {city}": the tools that take this course, as one list of rows: the pace band and the split check (with the
- * course preset where the pace band publishes it), and the official qualifying standards for the six races that have
- * them. The planner is the hero's one action, so it is not repeated here.
+ * The tools that take this course, as one quiet row of inline links after the race's last finding (no heading: the
+ * planner is the hero's one action, and a heading over a list without it promised the wrong thing): the pace band and
+ * the split check (with the course preset where the pace band publishes it), and the official qualifying standards for
+ * the six races that have them, labelled as such. Marked for section_viewed as the page's cta.
  */
 export default function CoursePlan({ page }: { page: CoursePageData }) {
   const { slug, display, band, qualifyingKey } = page;
   const standard = qualifyingKey ? standardByKey(qualifyingKey) : undefined;
-  const rows = [
-    ...(band ? [{ href: `/tools/pace-band?course=${slug}`, title: 'Make a pace band' }] : []),
+  const links = [
+    ...(band ? [{ href: `/tools/pace-band?course=${slug}`, title: 'Pace band' }] : []),
     { href: band ? `/tools/split-check?course=${slug}` : '/tools/split-check', title: 'Check your splits' },
+    ...(standard ? [{ href: `/tools/qualifying/${standard.key}`, title: 'Qualifying times' }] : []),
   ];
   return (
-    <CourseSection id="plan" track="cta" beat="Plan" title={<>Plan <em className="is-plain">your</em> {display}.</>}>
-      <ul className="course-links">
-        {rows.map((r) => <li key={r.href}><Link href={r.href} className="course-link"><span>{r.title}</span><Arrow /></Link></li>)}
-        {standard ? (
-          <li><Link href={`/tools/qualifying/${standard.key}`} className="course-link"><span>{shortName(standard)} qualifying times<EvidenceTag kind="official" link={false} /></span><Arrow /></Link></li>
-        ) : null}
-      </ul>
-    </CourseSection>
+    <section id="plan" tabIndex={-1} className="course-foot" aria-label={`Tools for ${display}`} data-track-section="cta">
+      <p className="course-foot-line">
+        {links.map((l, i) => (
+          <Fragment key={l.href}>
+            {i ? <span className="course-foot-sep" aria-hidden="true"> · </span> : null}
+            <Link href={l.href} className="course-foot-link">{l.title}</Link>
+            {standard && l.href.startsWith('/tools/qualifying/') ? <> <EvidenceTag kind="official" link={false} /></> : null}
+          </Fragment>
+        ))}
+      </p>
+    </section>
   );
 }

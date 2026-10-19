@@ -292,10 +292,9 @@ async function toolEdits(h) {
   await page.locator('details.course-chooser-filters > summary').click();
   await page.selectOption('#course-chooser-open', 'downhill');
   await page.waitForTimeout(500);
+  // The projector's result sits right above its inputs (no "Result ↑" link since WP9 round 3): opening it is no edit.
   await page.goto(SITE + '/tools/projector', { waitUntil: 'load' });
   await page.waitForTimeout(1200);
-  await page.locator('button:has-text("Result ↑")').first().click();
-  await page.waitForTimeout(500);
   // A result's next step is not an edit, on the tool it leaves or on the one it opens with the time filled in.
   await page.goto(SITE + '/tools/pace-calculator', { waitUntil: 'load' });
   await page.waitForTimeout(1200);
@@ -312,7 +311,7 @@ async function toolEdits(h) {
   await run.close();
   const used = named(run, 'tool_used').map(p => `${p.$pathname}:${p.action}`);
   h.check('changing the course chooser\'s list is one edit', JSON.stringify(used.filter(u => u.startsWith('/tools/course-chooser'))) === '["/tools/course-chooser:edit"]', used);
-  h.check('"Result ↑" is not an edit', !used.some(u => u.startsWith('/tools/projector')), used);
+  h.check('opening the projector is not an edit', !used.some(u => u.startsWith('/tools/projector')), used);
   h.check('printing the pace band is a print, not an edit', JSON.stringify(used.filter(u => u.startsWith('/tools/pace-band'))) === '["/tools/pace-band:print"]', used);
   h.check('following a result\'s next step is not an edit', !used.some(u => u.startsWith('/tools/pace-calculator') || u.startsWith('/tools/plan')) && named(run, '$pageview').filter(p => p.$pathname === '/tools/plan').length === 1, { used, handedOn });
 }
@@ -529,7 +528,7 @@ const OTHER_DATA_PAGES = [
   { path: '/stories/race-replay' },
   { path: '/report?s=0:25:50,0:52:24,1:19:06,1:45:54,2:13:18,2:42:41,3:16:39,3:49:12,4:03:31&course=berlin', label: 'the race report' },
   { path: '/runners', act: async page => { await page.locator('#runner-name').fill('Smith'); await page.keyboard.press('Enter'); } },
-  { path: '/analyses/pacing-pattern', label: 'an analysis after a filter change', act: async page => { await page.locator('.profile-refinements summary').click(); await page.getByLabel('Age group', { exact: false }).first().selectOption({ index: 3 }); await page.getByRole('button', { name: /Update comparison/ }).click(); } },
+  { path: '/analyses/pacing-pattern', label: 'an analysis after a filter change', act: async page => { await page.locator('.miy-chip').first().click(); await page.locator('.profile-refinements summary').click(); await page.getByLabel('Age group', { exact: false }).first().selectOption({ index: 3 }); await page.getByRole('button', { name: /Update comparison/ }).click(); } },
 ];
 async function dataFailure(h, target) {
   const run = await h.run(target.path, {});

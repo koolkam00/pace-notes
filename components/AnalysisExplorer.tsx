@@ -5,7 +5,8 @@ import { unitText, type UnitSystem } from '@/lib/units';
 import { findingText } from '@/lib/analysis-display';
 import type { CityData, PersonalSummary } from '@/lib/personalized-types';
 import { AGE_OPTIONS, GOAL_MIN, GOAL_MAX, type Profile } from '@/lib/personalized-catalog';
-import { buildGuide, clock, parseMinutes, type GuideAnswer } from '@/lib/personalized';
+import { buildGuide, clock, parseMinutes, targetBucket, type GuideAnswer } from '@/lib/personalized';
+import { againstElsewhere, terrainReading, TERRAIN_CLIMB_M } from '@/lib/terrain-reading';
 import { keypadInput } from '@/lib/keypad';
 import { type AnalysisDefinition } from '@/lib/ten-analyses';
 import { EXAMPLE_PROFILE, profileSearch, readAnalysisProfile, sameProfile } from '@/lib/analysis-profile';
@@ -16,6 +17,7 @@ import { keepTogether } from './ui/keepTogether';
 import MakeItYours from './ui/MakeItYours.client';
 import ExplorerChart, { wholeElevation, type TerrainExtras } from './analysis/ExplorerChart';
 import { AnswerAbove, ExploreSubmit } from './analysis/ExploreSubmit';
+import { HERO_EVENT, type HeroDetail } from './analysis/hero-event';
 import { trackAnalytics } from '@/lib/analytics';
 import { unitHref } from '@/lib/unit-preference';
 
@@ -31,7 +33,7 @@ const extremes = (rows: Row[]) => rows.reduce((range, row) => ({ low: row.value 
  * Read from the chart rows on screen, so it always matches them. Returns '' to keep the stored answer. Pinned by
  * verify-ten-analyses: "…split most in the 35–40K section…" and "Across N age groups, the second 20K ranged from …".
  */
-export function insightHeadline(id: string, answer: GuideAnswer, goal: number, units: UnitSystem, city = ''): string {
+export function insightHeadline(id: string, answer: GuideAnswer, goal: number, units: UnitSystem, city = '', baseline?: number[]): string {
   const chart = answer.charts[0];
   if (!chart?.rows.length) return '';
   const rows = (key: string) => chart.rows.map(row => ({ label: String(row.label).replace(' (selected)', ''), value: Number(row[key]) })).filter(row => Number.isFinite(row.value));
@@ -76,25 +78,30 @@ export function insightHeadline(id: string, answer: GuideAnswer, goal: number, u
     return `${Math.round(at.share)}% of these finishes were under ${clock(goal * 60)}.`;
   }
   if (id === 'terrain') {
+    // Each 5K against the same 5K on every course combined (lib/terrain-reading.ts), as the page's answer reads it.
     const pace = answer.charts.find(c => c.unit === 'min/km');
     const climbs = answer.charts.find(c => c.series.some(s => s.key === 'gain'));
-    if (!pace || !climbs) return '';
+    if (!pace || !climbs || !baseline?.length) return '';
     const gain = MARATHON_SECTION_ENDS.map(end => Number(climbs.rows.find(r => r.label === sectionLabel(end))?.gain));
-    const p = pace.rows.map(r => Number(r.value));
-    if (gain.some(v => !Number.isFinite(v)) || p.some(v => !Number.isFinite(v))) return '';
-    const climb = gain.reduce((b, v, i) => v > gain[b] ? i : b, 0), slow = p.reduce((b, v, i) => v > p[b] ? i : b, 0);
-    const name = cityName(city);
-    return climb === slow
-      ? `${name}’s biggest climb, ${sectionLabel(MARATHON_SECTION_ENDS[climb])} (+${wholeElevation(gain[climb], units)}), is also its slowest 5K near ${clock(goal * 60)}.`
-      : `${name} climbs most in ${sectionLabel(MARATHON_SECTION_ENDS[climb])} (+${wholeElevation(gain[climb], units)}); near ${clock(goal * 60)} its slowest 5K is ${sectionLabel(MARATHON_SECTION_ENDS[slow])}.`;
+    const vs = againstElsewhere(pace.rows.map(r => Number(r.value) * 60), baseline);
+    if (vs.length !== MARATHON_SECTION_ENDS.length) return '';
+    const reading = terrainReading(gain, vs);
+    const name = cityName(city), near = clock(goal * 60);
+    if (!reading) return `After the first 5K, no 5K on ${name} climbs ${wholeElevation(TERRAIN_CLIMB_M, units)}.`;
+    return reading.slower
+      ? `${name}’s ${sectionLabel(MARATHON_SECTION_ENDS[reading.i])} climb (+${wholeElevation(reading.gain, units)}) ran ${Math.round(reading.vs)}% slower than the same 5K elsewhere, near ${near}.`
+      : `Near ${near}, no climb on ${name} ran more than 1% slower than the same 5K elsewhere.`;
   }
   return '';
 }
 
 type ExplorerProps = {
   definition: AnalysisDefinition; summary: PersonalSummary; initialAnswer: GuideAnswer; start?: Profile;
-  /** Hills: each course's supplied elevation profile and the shared height scale. */
-  terrain?: { elevations: Record<string, number[]>; step: number };
+  /**
+   * Hills: each drawable course's supplied elevation profile and its step, every course combined at each finish-time
+   * bucket (the comparison's baseline), and the courses never offered (a profile that reads the water under a bridge).
+   */
+  terrain?: { elevations: Record<string, number[]>; step: number; baselines?: Record<string, number[]>; hidden?: string[] };
   /**
    * What the explorer shows before the visitor changes anything. The page's answer already states the example, so the
    * explorer never repeats its headline: 'chart' draws the example's chart alone (the page's only picture of it),
@@ -102,6 +109,11 @@ type ExplorerProps = {
    * headline and chart; the example set again shows one line back to the answer ('none').
    */
   untouched?: 'chart' | 'none';
+  /**
+   * The visitor's selection takes over the page's answer card (HeroSwap) instead of drawing a second copy of its chart
+   * under the form: the form then shows its one-line headline alone.
+   */
+  hero?: boolean;
 };
 
 /** One explorer's state: its selection row, the form's fields and submit, and what follows the form. */
@@ -113,7 +125,7 @@ type GuideExplorerParts = { formId: string; summaryText: string; busy: boolean; 
  * default is drawn at build (`initialAnswer` for `start`, the all-course 4:00 example unless the page says otherwise);
  * any other selection loads its course's published aggregate.
  */
-function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_PROFILE, terrain, untouched = 'chart' }: ExplorerProps): GuideExplorerParts {
+function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_PROFILE, terrain, untouched = 'chart', hero = false }: ExplorerProps): GuideExplorerParts {
   const { units } = useUnits();
   const formId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const text = (value: string | undefined) => unitText(value || '', units);
@@ -139,14 +151,18 @@ function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_
     // units=km alone is not a comparison: a kilometres visitor arriving from a link still starts with the example.
     const restore = () => {
       const query = new URLSearchParams(window.location.search); query.delete('units');
-      const read = readAnalysisProfile(window.location.search, summary);
+      // Without a time in the address, the page's own starting time (finish-time context opens on the H1's 3:00).
+      const parsed = readAnalysisProfile(window.location.search, summary);
+      const read = query.has('goal') ? parsed : { ...parsed, goal: start.goal };
       // A course-only analysis never shows "All courses": without a course in the address it opens on its own.
-      setSelection(courseOnly && (read.city === EXAMPLE_PROFILE.city || !query.has('race')) ? { ...read, city: start.city } : read);
+      // Hills compares a course with every course at the same time, for all ages and genders: its refinements are not offered.
+      const course = courseOnly ? { ...read, age: 'all', gender: 'all', previous: null } : read;
+      setSelection(courseOnly && (read.city === EXAMPLE_PROFILE.city || !query.has('race') || terrain?.hidden?.includes(read.city)) ? { ...course, city: start.city } : course);
       setChanged(query.toString() !== ''); setFormError('');
     };
     restore(); window.addEventListener('popstate', restore);
     return () => window.removeEventListener('popstate', restore);
-  }, [summary, courseOnly, start.city]);
+  }, [summary, courseOnly, start.city, start.goal, terrain?.hidden]);
   useEffect(() => {
     if (!usesCityData || sameProfile(profile, start)) { setLoading(false); setError(''); return; }
     const controller = new AbortController();
@@ -168,14 +184,15 @@ function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_
     setSelection(nextProfile); setChanged(true); setFormError('');
     window.history.pushState(null, '', unitHref(window.location.pathname + profileSearch(nextProfile), units));
   };
-  const visibleAnswer = answer ? insightHeadline(definition.id, answer, profile.goal, units, profile.city) || findingText(answer, units) : '';
+  const baseline = terrain?.baselines?.[String(targetBucket(profile.goal))];
+  const visibleAnswer = answer ? insightHeadline(definition.id, answer, profile.goal, units, profile.city, baseline) || findingText(answer, units) : '';
   const field = (key: string) => `${formId}-${key}`;
   const timeLabel = ['profile', 'terrain', 'gains', 'age'].includes(definition.id) ? 'Finish time to explore' : 'Target time';
   // Only the choices that matter: the course, the time, and a refinement once one is set (never "All ages").
   const summaryText = [cityName(profile.city), ...(definition.controls.time ? [clock(profile.goal * 60)] : []), ...(profile.age === 'all' ? [] : [profile.age]),
     ...(profile.gender === 'all' ? [] : [profile.gender]), ...(profile.previous === null ? [] : [`earlier ${clock(profile.previous * 60)}`])].join(' · ');
-  const cityOptions = summary.cities.filter(row => !courseOnly || row.city !== EXAMPLE_PROFILE.city);
-  const terrainExtras: TerrainExtras | undefined = terrain ? { elevation: terrain.elevations[profile.city] ?? null, step: terrain.step } : undefined;
+  const cityOptions = summary.cities.filter(row => !courseOnly || (row.city !== EXAMPLE_PROFILE.city && !terrain?.hidden?.includes(row.city)));
+  const terrainExtras: TerrainExtras | undefined = terrain ? { elevation: terrain.elevations[profile.city] ?? null, step: terrain.step, baseline } : undefined;
   const refinements = (
           <div className="explore-fields">
             {definition.controls.age && <div className="field"><label className="field-label" htmlFor={field('age')}>Age group</label><select id={field('age')} className="select" value={draft.age} onChange={event => setDraft({ ...draft, age: event.target.value })}>{AGE_OPTIONS.map(age => <option key={age} value={age}>{age === 'all' ? 'All ages' : age}</option>)}</select></div>}
@@ -191,6 +208,12 @@ function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_
   // The page's own example, set again after a change: the answer above already draws it.
   const atExample = sameProfile(profile, start);
   const shown = changed || untouched === 'chart';
+  // The answer card follows the selection (HeroSwap): the visitor's own curve while it differs from the example.
+  useEffect(() => {
+    if (!hero) return;
+    const detail: HeroDetail = changed && !atExample && answer && hasResults ? { id: definition.id, answer, goal: profile.goal, kicker: summaryText } : null;
+    window.dispatchEvent(new CustomEvent(HERO_EVENT, { detail }));
+  }, [hero, changed, atExample, answer, hasResults, definition.id, profile.goal, summaryText]);
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!ready) return;
@@ -204,7 +227,7 @@ function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_
       {definition.controls.course && <div className="field"><label className="field-label" htmlFor={field('course')}>Course</label><select id={field('course')} className="select" value={draft.city} onChange={event => setDraft({ ...draft, city: event.target.value })}>{cityOptions.map(row => <option key={row.city} value={row.city}>{cityName(row.city)}</option>)}</select></div>}
       {definition.controls.time && <div className="field"><label className="field-label" htmlFor={field('time')}>{timeLabel}</label><input id={field('time')} className="input" value={timeText} onChange={event => setTimeText(keypadInput(event.target, event.nativeEvent))} onBlur={() => { const m = parseMinutes(timeText); if (m !== null) setTimeText(clock(m * 60)); }} placeholder="4:00" inputMode="decimal" spellCheck={false} autoComplete="off" aria-describedby={field('time-help')} /><p className="field-hint" id={field('time-help')}>Hours:minutes.<KeypadHint /></p></div>}
     </div>}
-    {definition.controls.course || definition.controls.time
+    {courseOnly ? null : definition.controls.course || definition.controls.time
       ? <details className="profile-refinements" open={refining} onToggle={event => setRefining(event.currentTarget.open)}><summary>Refine by {definition.controls.age ? 'age, ' : ''}gender{definition.controls.previous ? ' or an earlier marathon' : ''}</summary>{refinements}</details>
       : refinements}
     {formError && <p className="field-error" role="alert">{formError}</p>}
@@ -220,6 +243,7 @@ function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_
           {changed && !atExample ? <h2 className="explore-title">{keepTogether(text(visibleAnswer))}</h2> : null}
           {answer.widened && <p className="explore-note">{text(answer.widened)}</p>}
           {!hasResults ? <div className="explore-state"><p>Try All courses, fewer refinements or another finish time.</p><button className="btn btn-secondary is-compact" type="button" onClick={() => applyProfile(start)}>Back to the example</button></div>
+            : hero ? null
             : <ExplorerChart id={definition.id} answer={answer} goal={profile.goal} units={units} terrain={terrainExtras} valuesId={`${formId}-values`} selectedAge={profile.age === 'all' ? undefined : profile.age} example={atExample} yours={profile.goal !== start.goal} />}
         </div> : null}
     </div>

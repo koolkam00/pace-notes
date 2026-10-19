@@ -1,6 +1,7 @@
-/* The pace band (/tools/pace-band; the redesign spec, section 7.13): the goal, the band on one night card, what finishes
-   near the goal ran (held pace against sustained slowdown, mat by mat), then the band to print. Every class here is
-   prefixed pace-band-. Imported by app/tools/pace-band/layout.tsx, with pace-band-strip.css. */
+/* The pace band (/tools/pace-band; the redesign spec, section 7.13): the band to print first (its kicker, the strips, one
+   Print button and the folded options), the goal and course, then what finishes near the goal ran (held pace against
+   sustained slowdown, mat by mat). Every class here is prefixed pace-band-. Imported by app/tools/pace-band/layout.tsx,
+   with pace-band-strip.css. */
 
 /* ---------- The goal between its −/+ buttons ---------- */
 .pace-band-goal .tool-stepper { grid-template-columns: 44px minmax(0, 1fr) 44px; }
@@ -9,7 +10,7 @@
 /* ---------- Held: the goal field holds text that is not a goal, so everything below shows the last good goal ---------- */
 .pace-band-held b { font-weight: 600; color: var(--ink); }
 .pace-band-dim { opacity: .45; transition: opacity var(--d-quick); }
-.pace-band-headline[aria-busy='true'] .tool-cells, .pace-band-headline[aria-busy='true'] .tool-laps { opacity: .55; transition: opacity var(--d-quick); }
+.pace-band-print-panel[aria-busy='true'] .pace-band-sheet-wrap { opacity: .55; transition: opacity var(--d-quick); }
 
 /* ---------- What finishes near the goal ran ---------- */
 .pace-band-observed > div { display: grid; gap: var(--s-4); }
@@ -22,11 +23,10 @@
 .pace-band-wrist tr.is-mat th, .pace-band-wrist tr.is-mat td { font-weight: 600; color: var(--ink); }
 .pace-band-wrist tr.is-finish th, .pace-band-wrist tr.is-finish td { border-top: 1.5px solid var(--ink); font-weight: 600; color: var(--ink); }
 
-/* Each lap's second line: the held-pace median under the even time (Pace Notes data, badged on the card). */
-.pace-band-lap-held { font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.pace-band-held-key { font-size: var(--t-label); color: var(--ink-3); }
-
-/* ---------- The band to print ---------- */
+/* ---------- The band to print: the page's answer ---------- */
+.pace-band-print-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); min-width: 0; }
+.pace-band-print-panel > * { margin: 0; min-width: 0; }
+.pace-band-page-print { margin: 0; }
 .pace-band-controls { display: grid; gap: var(--s-4); }
 .pace-band-options { border-bottom: 1px solid var(--rule); }
 .pace-band-controls .tool-choice .seg-btn { padding-inline: 8px; }

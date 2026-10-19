@@ -251,31 +251,23 @@ export default function PaceBand({ indexSha, profiles, unpublished }: {
                   Showing <b>{fmtGoal(goal)}</b>. {fieldProblem === EMPTY_GOAL ? 'Type a goal below to update the band.' : 'Fix the goal below to update the band; nothing here follows it until then.'}
                 </p>
               ) : null}
-              <section className={`tool-reading night pace-band-headline${held ? ' pace-band-held-dim' : ''}`} aria-busy={busy || undefined} aria-labelledby="pace-band-title">
-                <div className="tool-reading-head">
-                  {/* The new information is the pace: the goal the visitor typed is the kicker. */}
-                  <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}{fmtGoal(goal)} · {place}</p>
-                  <h2 className="tool-reading-figure" id="pace-band-title">
-                    {formatDuration(perUnit(pKm, units))}
-                    <small>per {units === 'mi' ? 'mile' : 'km'} · {formatDuration(perUnit(pKm, units === 'mi' ? 'km' : 'mi'))}/{units === 'mi' ? 'km' : 'mi'}</small>
-                  </h2>
-                </div>
-                {overrun ? (
-                  <dl className="tool-cells">
-                    <div><dt>Watch pace, reading {pct(overrun, 1)} long</dt><dd>{formatDuration(perUnit(watchTarget(pKm, overrun), units))}</dd></div>
-                  </dl>
-                ) : null}
-                {/* Each mat's even-pace time and, under it, the median of the finishes near the goal that held pace: the
-                    band's small line, legible here (the print preview below is only a thumbnail). */}
-                <ol className="tool-laps" aria-label={`Even-pace elapsed time at each 5 km mat for ${fmtGoal(goal)}${fresh?.held ? ', with the held-pace median' : ''}`}>
-                  {CHECKPOINTS.map((km, i) => (
-                    <li key={km} className={i === 8 ? 'is-finish' : undefined}><span><MatName km={km} units={units} /></span><b>{formatDuration(i === 8 ? goal : pKm * km)}</b>
-                      {fresh?.held ? <small className="pace-band-lap-held">held {formatDuration(fresh.held.e50[i])}</small> : null}</li>
-                  ))}
-                </ol>
-                {fresh?.held ? <p className="tool-reading-sub pace-band-held-key">Held: the median of {count(fresh.held.n)} finishes from {formatDuration(fresh.lo, true)} to {formatDuration(fresh.hi, true)} that held pace.</p> : null}
-                {fresh?.held ? <EvidenceTag kind="data" /> : null}
-              </section>
+              {/* The answer is the band itself (critic round 3): the wristband to print opens the page, its one Print
+                  button under it and the print options folded below, never a second card repeating the planner's pace. */}
+              <PrintPanel goal={goal} pKm={pKm} units={units} rows={rows} interval={interval} overrun={overrun} place={place} genderWord={genderWord}
+                kicker={`${isExample ? 'Example · ' : ''}${fmtGoal(goal)} · ${place} · ${formatDuration(perUnit(pKm, units))}/${units} even${overrun ? ` · watch ${fmtPace(watchTarget(pKm, overrun), units)}` : ''}`} busy={busy}
+                observed={fresh} profile={profile} showBack={showBack} onBack={(v) => setQ({ back: v ? '1' : '0' })} onPrint={printAs} waiting={held}
+                controls={<>
+                  <div className="tool-field">
+                    <span className="tool-label" id="pace-band-rows">Rows</span>
+                    <div role="group" aria-labelledby="pace-band-rows"><Choice label="Band rows" small value={interval} onChange={(v) => setQ({ split: v })} options={ROW_OPTIONS} /></div>
+                  </div>
+                  <div className="tool-field">
+                    <span className="tool-label" id="pace-band-watch">If my watch reads long</span>
+                    <div role="group" aria-labelledby="pace-band-watch"><Choice label="Watch reads the course long by" small value={String(overrun * 100)} onChange={(v) => setQ({ watch: v })} options={WATCH_OPTIONS} /></div>
+                  </div>
+                </>}
+                optionsOpen={Boolean(q.split) || overrun !== 0}
+                values={<Values id="pace-band-rows-values" caption={`Every marker on the band: even-pace elapsed time for ${fmtGoal(goal)}`} count={rows.length}><Wristband rows={rows} goal={goal} pKm={pKm} units={units} overrun={overrun} /></Values>} />
             </>
           )}
         </div>
@@ -305,9 +297,9 @@ export default function PaceBand({ indexSha, profiles, unpublished }: {
         <div className="tool-results">
           {goal !== null && pKm !== null ? (
             <>
-              {/* The same source as the card when it draws the held line (its data badge), so no second badge then. */}
+              {/* The page's one badge: the finishes near the goal (the band above is the visitor's own even pace). */}
               <section className="tool-panel pace-band-observed" id="pace-band-observed" aria-labelledby="pace-band-observed-title">
-                {fresh?.held ? null : <EvidenceTag kind="data" />}
+                <EvidenceTag kind="data" />
                 {stale ? <p className="tool-note">Loading {place}{genderWord ? `, ${genderWord}` : ''}…</p> : null}
                 {observed.state === 'loading' && !stale ? <p className="tool-state" id="pace-band-observed-title">Loading the finishes near {fmtGoal(goal)}…</p> : null}
                 {shown.state === 'off' ? (
@@ -349,21 +341,6 @@ export default function PaceBand({ indexSha, profiles, unpublished }: {
                   </div>
                 ) : null}
               </section>
-
-              <PrintPanel goal={goal} pKm={pKm} units={units} rows={rows} interval={interval} overrun={overrun} place={place} genderWord={genderWord}
-                observed={fresh} profile={profile} showBack={showBack} onBack={(v) => setQ({ back: v ? '1' : '0' })} onPrint={printAs} waiting={held}
-                controls={<>
-                  <div className="tool-field">
-                    <span className="tool-label" id="pace-band-rows">Rows</span>
-                    <div role="group" aria-labelledby="pace-band-rows"><Choice label="Band rows" small value={interval} onChange={(v) => setQ({ split: v })} options={ROW_OPTIONS} /></div>
-                  </div>
-                  <div className="tool-field">
-                    <span className="tool-label" id="pace-band-watch">If my watch reads long</span>
-                    <div role="group" aria-labelledby="pace-band-watch"><Choice label="Watch reads the course long by" small value={String(overrun * 100)} onChange={(v) => setQ({ watch: v })} options={WATCH_OPTIONS} /></div>
-                  </div>
-                </>}
-                optionsOpen={Boolean(q.split) || overrun !== 0}
-                values={<Values id="pace-band-rows-values" caption={`Every marker on the band: even-pace elapsed time for ${fmtGoal(goal)}`} count={rows.length}><Wristband rows={rows} goal={goal} pKm={pKm} units={units} overrun={overrun} /></Values>} />
 
               <div className="print-only pace-band-print-notes">
                 <p>Pace Notes pace band · splithappens.run/tools/pace-band</p>
@@ -514,9 +491,14 @@ function ObservedTable({ cells, units }: { cells: ObservedOk; units: UnitSystem 
   );
 }
 
-/** The band to print: its controls, a live preview of the cut-out strips (the strips themselves for @media print), the print buttons and the band as a table. */
-function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWord, observed, profile, showBack, onBack, onPrint, waiting, controls, values, optionsOpen = false }: {
+/**
+ * The band to print, the page's answer: the kicker (goal, course and even pace), a live preview of the cut-out strips (the
+ * strips themselves for @media print), the one Print button, and the print options folded under it: rows, a watch that
+ * reads long, the back strip, the full page and the band as a table.
+ */
+function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWord, kicker, busy, observed, profile, showBack, onBack, onPrint, waiting, controls, values, optionsOpen = false }: {
   goal: number; pKm: number; units: UnitSystem; rows: ReturnType<typeof splitTable>; interval: SplitInterval; overrun: number; place: string; genderWord: string;
+  kicker: string; busy: boolean;
   observed: ObservedOk | null; profile: RouteProfile | null; showBack: boolean; onBack: (v: boolean) => void; onPrint: (mode: 'strip' | 'page') => void;
   /** The goal field holds text that is not a goal: printing waits until it is fixed. */
   waiting: boolean; controls: ReactNode; values: ReactNode;
@@ -524,13 +506,16 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
   optionsOpen?: boolean;
 }) {
   return (
-    <section className="tool-panel pace-band-print-panel" id="pace-band-band" aria-labelledby="pace-band-print-title">
-      {/* No badge: the strips are the visitor's own even-pace times (the card above carries the data badge, and the
-          printed page names its source). */}
-      <header className="tool-panel-head pace-band-print-head">
-        <h2 className="tool-panel-title" id="pace-band-print-title">Print your wristband</h2>
-      </header>
-      {/* One control for the beat: the print options fold into one disclosure (rows, a watch that reads long, the back). */}
+    <section className="pace-band-print-panel" id="pace-band-band" aria-labelledby="pace-band-print-title" aria-busy={busy || undefined}>
+      {/* No badge: the strips on screen are the visitor's own even-pace times (the finishes below carry the data badge, and
+          the printed strip names its source). */}
+      <p className="tool-reading-kicker pace-band-kicker" id="pace-band-print-title">{kicker}</p>
+      <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={interval} overrun={overrun} place={place} genderWord={genderWord}
+        observed={observed} profile={profile} showBack={showBack} waiting={waiting} />
+      <ShareBar extra={<button type="button" className="btn btn-primary is-compact" data-not-edit disabled={waiting} aria-describedby={waiting ? 'pace-band-print-held' : undefined} onClick={() => onPrint('strip')}>Print wristband strips</button>} />
+      {waiting ? <p className="tool-note" id="pace-band-print-held">Fix the goal below to print. The preview still shows {fmtGoal(goal)}.</p> : null}
+      {/* One control for the beat: the print options fold into one disclosure (rows, a watch that reads long, the back,
+          the whole page instead of the strips). */}
       <details className="tool-more pace-band-options no-print" open={optionsOpen || undefined}>
         <summary>Print options</summary>
         <div className="tool-more-body pace-band-controls">
@@ -538,17 +523,11 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
           {profile ? (
             <label className="tool-check"><input type="checkbox" checked={showBack} onChange={(e) => onBack(e.target.checked)} />A route elevation strip for the back ({profile.city})</label>
           ) : null}
-          {/* Every marker on the band, as a table: with the options, not a third disclosure beside the print buttons. */}
+          <p className="pace-band-page-print"><button type="button" className="tool-text-button" data-not-edit disabled={waiting} onClick={() => onPrint('page')}>Print the full page instead</button></p>
+          {/* Every marker on the band, as a table: with the options, not a third disclosure beside the print button. */}
           {values}
         </div>
       </details>
-      <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={interval} overrun={overrun} place={place} genderWord={genderWord}
-        observed={observed} profile={profile} showBack={showBack} waiting={waiting} />
-      <ShareBar extra={<>
-        <button type="button" className="btn btn-primary is-compact" data-not-edit disabled={waiting} aria-describedby={waiting ? 'pace-band-print-held' : undefined} onClick={() => onPrint('strip')}>Print wristband strips</button>
-        <button type="button" className="tool-text-button" data-not-edit disabled={waiting} aria-describedby={waiting ? 'pace-band-print-held' : undefined} onClick={() => onPrint('page')}>Print full page</button>
-      </>} />
-      {waiting ? <p className="tool-note" id="pace-band-print-held">Fix the goal above to print. The preview still shows {fmtGoal(goal)}.</p> : null}
     </section>
   );
 }

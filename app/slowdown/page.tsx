@@ -45,10 +45,11 @@ export default function Page() {
   const segments = [
     // Ordinal 2 then 3: ordinal 1 is under 3:1 on paper and on night.
     ...rows.filter((r) => Number(r.label) < 30).map((r, i) => ({ id: String(r.label), label: sectionLabel(Number(r.label), Number(r.label) + 5), share: Number(r.episodes) / total, display: pct(Number(r.episodes) / total), tone: (i ? 3 : 2) as 2 | 3 })),
-    // The big figure states this share and the H1 names the segment in the same signal, so the bar carries no callout.
-    { id: 'late', label: '', share: late / total, display: '', tone: 'signal' as const },
+    // The big figure states this share, so the orange segment is named in place without it ("30K or later"): the reading
+    // is on the bar, not carried across from the figure.
+    { id: 'late', label: '30K or later', share: late / total, display: '', tone: 'signal' as const },
   ];
-  const barLabel = `Where sustained slowdowns began: ${segments.map((s) => `${s.label || '30K or later'} ${s.display || pct(s.share)}`).join(', ')}`;
+  const barLabel = `Where sustained slowdowns began: ${segments.map((s) => `${s.label} ${s.display || pct(s.share)}`).join(', ')}`;
   const rate = Number(onset.values.rate);
   // The H1 is the finding; the figure under it gives the share, its unit line the base (every sustained slowdown, the
   // term linked to its definition), and the dek how common one was.

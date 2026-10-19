@@ -103,7 +103,9 @@ const CASES = {
     await step(log, 'save card', () => page.getByRole('button', { name: 'Save runner card' }).click());
   } },
   'projector-url': { path: v => `/tools/projector?mat=25&t=${v.mat25}&prev=${v.mat20}&target=${v.hm}:00` },
+  // Make it yours is a chip and a sheet at every width (WP9 round 3): Change opens the form.
   'analysis': { path: '/analyses/pacing-pattern', async drive(page, v, log) {
+    await step(log, 'change', () => page.locator('.miy-chip').first().click());
     await step(log, 'time', () => type(page, label(page, 'Finish time to explore', false), v.hm));
     await step(log, 'refine', () => page.locator('.profile-refinements summary').click());
     await step(log, 'age', () => label(page, 'Age group', false).selectOption({ index: v.ageIdx }));
@@ -121,6 +123,7 @@ const CASES = {
   // (WP8), live on the checkpoint analysis; its optional fields may sit in a closed <details>. The guide's previous
   // marathon and age group are typed by the 'analysis' case above.
   'checkpoint': { path: '/analyses/checkpoint', async drive(page, v, log) {
+    await step(log, 'change', () => page.locator('.miy-chip').first().click());
     await step(log, 'optional', () => open(page, 'details.guide-optional'));
     await step(log, 'elapsed', () => type(page, label(page, /Elapsed time/, false), v.mat25));
     await step(log, '5 km', () => type(page, label(page, /^(Latest|Last) /, false), v.fiveK));

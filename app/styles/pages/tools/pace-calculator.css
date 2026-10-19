@@ -1,5 +1,5 @@
-/* The pace calculator (/tools/pace-calculator; the redesign spec, section 7.13): any two of distance, time and pace, the
-   third on one night card, then the splits as a lap list (5K mats first), the same pace at other distances and, on its
+/* The pace calculator (/tools/pace-calculator; the redesign spec, section 7.13): any two of distance, time and pace give
+   the third in its own box (the converter is the answer), then the splits as a lap list (5K mats first), the same pace at other distances and, on its
    own tab, a printable pace chart. A plain calculation from the visitor's inputs, so no evidence badge. Every class here
    is prefixed pace-calculator- or pace-chart-. Imported by app/tools/pace-calculator/layout.tsx. */
 
@@ -13,6 +13,10 @@
 .tool-page .tool-inline input:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
 .tool-page .tool-inline input[aria-invalid='true'] { color: var(--signal-ink); box-shadow: inset 0 -2px 0 var(--signal); }
 .tool-inline span { font-size: .9375rem; font-weight: 500; color: var(--ink-3); }
+
+/* The pace in the other unit and the treadmill speed, under the three boxes: quiet cells, no card. */
+.pace-calculator-also { margin: 0; padding-top: var(--s-3); border-top: 1px solid var(--rule); }
+.pace-calculator-also dd { font-size: 1.25rem; }
 
 /* ---------- Splits ---------- */
 .pace-calculator-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-4); }

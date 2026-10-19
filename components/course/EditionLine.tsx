@@ -11,8 +11,9 @@ import { yearPad, yearTicks } from '@/components/viz/YearStrip';
  * The median finish, edition by edition (the redesign spec, section 7.10 "#finish-times"): a dot per edition on a
  * time-scaled axis, joined only across consecutive years, so a year with no edition leaves the line broken (no band,
  * which would read as a highlight); the editions are the scrub points, so the needle steps across a gap. The y scale spans at least 20 minutes,
- * centred on the editions, so a few seconds never draw as a climb or a drop, and up to two round-minute gridlines carry
- * it, labelled inside the plot on its left. The edition the readout opens on (the one the sentence accents) is signal
+ * centred on the editions, so a few seconds never draw as a climb or a drop (a steady course draws flat), and two to
+ * four round-minute gridlines bracket the editions, one at or below the quickest and one at or above the slowest, each
+ * labelled above its own line: at the left, or at the right where the left is taken. The edition the readout opens on (the one the sentence accents) is signal
  * and unlabelled, since the readout names it; the other the sentence names is labelled in one format, on a leader where
  * the editions crowd it, and hides while the needle sits on it. Scrub the years: each edition's median and finishes.
  */
@@ -20,8 +21,10 @@ export type EditionPoint = { year: number; seconds: number; display: string; sid
 
 /** The fewest minutes the y scale spans. */
 const MIN_SPAN_S = 20 * 60;
-/** Gridline steps, in minutes: the first that puts one to three lines inside the plot. */
+/** Gridline steps, in minutes: the first whose lines bracket the editions in four lines or fewer. */
 const GRID_STEPS = [5, 10, 15, 30, 60];
+/** The most gridlines a step may draw to bracket the editions. */
+const MAX_LINES = 4;
 const hm = (seconds: number) => { const m = Math.round(seconds / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
 
 export default function EditionLine({ points, selected, from, label, sideLabel, height = 170, heightMd = 220 }: {
@@ -32,9 +35,17 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
   const pad = yearPad(first, last);
   const x = linear([first - pad, last + pad]);
   const [lo, hi] = extent(sorted.map((p) => p.seconds));
-  const span = Math.max(MIN_SPAN_S, (hi - lo) * 1.35);
+  // The gridlines: the first step whose round lines from at or below the quickest median to at or above the slowest
+  // number four or fewer; at least two, so the slope has a scale to be read against.
+  const step = (GRID_STEPS.find((m) => (Math.ceil(hi / (m * 60)) - Math.floor(lo / (m * 60))) + 1 <= MAX_LINES) ?? 60) * 60;
+  const g0 = Math.floor(lo / step) * step;
+  const g1 = Math.max(Math.ceil(hi / step) * step, g0 + step);
+  const lines = Array.from({ length: Math.round((g1 - g0) / step) + 1 }, (_, k) => g0 + k * step);
+  // At least 20 minutes, centred on the editions, and always the bracketing lines.
+  const half = Math.max(MIN_SPAN_S, (hi - lo) * 1.35) / 2;
   const mid = (lo + hi) / 2;
-  const y = yScale(mid - span / 2, mid + span / 2, { top: 0.1, bottom: 0.1 });
+  // The top line's label sits above it inside the plot: at least 17 px of room over the highest line.
+  const y = yScale(Math.min(mid - half, g0), Math.max(mid + half, g1), { top: Math.max(0.1, 17 / height), bottom: 0.1 });
   const sel = Math.max(0, sorted.findIndex((p) => p.year === selected));
   const start = from !== undefined ? sorted.findIndex((p) => p.year === from) : -1;
   // Runs of consecutive years, joined; the years between runs are gaps.
@@ -82,25 +93,25 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
     // Wide margins either side, so a gridline's label never reads as part of this one on the same baseline.
     return { x0: (x0 - 16) / REF_WIDTH, x1: (x0 + w + 16) / REF_WIDTH, y0: (base - 15) / height, y1: (base + 6) / height };
   });
-  // Round-minute gridlines inside the plot, each labelled at the left above its line (or below it when a dot, the line
-  // or the label above sits there); a line whose label has no clear spot is left out, since an unlabelled line carries
-  // nothing.
-  const inside = (v: number) => y(v) > 0.04 && y(v) < 0.96;
-  const step = (GRID_STEPS.find((m) => {
-    const n = Array.from({ length: 200 }, (_, k) => Math.ceil((mid - span / 2) / (m * 60)) * m * 60 + k * m * 60).filter((v) => v <= mid + span / 2 && inside(v)).length;
-    return n >= 1 && n <= 3;
-  }) ?? 60) * 60;
+  // Each bracketing line is labelled above itself, never below (a label under its line reads as the band below's): at
+  // the left, else at the right end where a dot, the line or a label takes the left. A line with no clear spot either
+  // side is drawn unlabelled.
   const meets = (a: { x0: number; x1: number; y0: number; y1: number }, b: { x0: number; x1: number; y0: number; y1: number }) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
-  const grid: { y: number; label: string; dy: number }[] = [];
-  for (let v = Math.ceil((mid - span / 2) / step) * step; v <= mid + span / 2 && grid.length < 2; v += step) {
-    if (!inside(v)) continue;
+  const grid: { y: number; label: string; at: number; end: boolean; shown: boolean }[] = [];
+  // The needle the chart opens on runs the plot's height: no gridline label sits across it.
+  const rest = { x0: needle.x0 - 8 / REF_WIDTH, x1: needle.x0 + 8 / REF_WIDTH, y0: 0, y1: 1 };
+  for (const v of lines) {
     const text = hm(v);
     const w = (textWidth(text, 12, 500) + 6) / REF_WIDTH;
     const fy = y(v);
-    const spot = [-5, 15].map((dy) => ({ dy, box: { x0: 0, x1: w, y0: fy + (dy - 11) / height, y1: fy + (dy + 2) / height } }))
-      .find(({ box }) => box.y0 >= 0 && box.y1 <= 1 && !taken.some((t) => meets(t, box))
+    // At the left end, at the right end, then (where the resting needle stands at that end) just inside the needle.
+    const beside = rest.x0 > 0.5 ? rest.x0 : null;
+    const spots: { at: number; end: boolean }[] = [{ at: 0, end: false }, { at: 1, end: true }, ...(beside !== null ? [{ at: beside, end: true }] : [])];
+    const spot = spots.map(({ at, end }) => ({ at, end, box: { x0: end ? at - w : at, x1: end ? at : at + w, y0: fy - 14 / height, y1: fy - 3 / height } }))
+      .find(({ box }) => box.y0 >= 0 && box.x0 >= 0 && !meets(rest, box) && !taken.some((t) => meets(t, box))
         && ![...dots, ...along].some((d) => meets({ x0: d.x - d.r / REF_WIDTH, x1: d.x + d.r / REF_WIDTH, y0: d.y - d.r / height, y1: d.y + d.r / height }, box)));
-    if (spot) { grid.push({ y: fy, label: text, dy: spot.dy }); taken.push(spot.box); }
+    grid.push({ y: fy, label: text, at: spot?.at ?? 0, end: !!spot?.end, shown: !!spot });
+    if (spot) taken.push(spot.box);
   }
   // A label a gridline runs through breaks the line under it (a knockout halo), so the line never crosses the text.
   placed = placed.map((l) => {
@@ -114,7 +125,7 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
         {grid.map((g) => (
           <g key={g.label}>
             <rect className="grid-line" x="0" y={pc(g.y)} width="100%" height="1" />
-            <text className="tick grid-label" x="0" y={pc(g.y)} dy={g.dy}>{g.label}</text>
+            {g.shown ? <text className="tick grid-label" x={pc(g.at)} y={pc(g.y)} dy={-5} textAnchor={g.end ? 'end' : undefined}>{g.label}</text> : null}
           </g>
         ))}
       </g>

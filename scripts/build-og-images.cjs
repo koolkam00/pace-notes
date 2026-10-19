@@ -89,9 +89,12 @@ const SECTION_CARDS = [
   { name: 'packs', eyebrow: 'Research archive', title: 'The marathon pacing *research archive.*', accent: TOKENS.violet },
 ];
 
-/** Same rule as raceName() in lib/course-page.ts: the supplied route's race, else the course summary's, else the city plus " Marathon". */
+/**
+ * Same rule as raceName() in lib/course-page.ts: the supplied route's race, else the course summary's, else the city plus
+ * " Marathon", without a sponsor's name in front ("PZU Warsaw Marathon" is the Warsaw Marathon).
+ */
 function raceName(city, geometry, summary) {
-  return (geometry && geometry.race) || (summary && summary.race) || `${city} Marathon`;
+  return ((geometry && geometry.race) || (summary && summary.race) || `${city} Marathon`).replace(/^PZU\s+/, '');
 }
 
 /** Pages under /tools that are not in the tools registry, with their own card: the page's eyebrow and H1, and its accent. */

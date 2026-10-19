@@ -37,7 +37,7 @@ const WIDE = 720;
 
 export default function DotStrip({ items, domain, ticks, label, readoutKey, values, labelExtremes = true, keyLabels, prompt, labelSubject = false, hint, named, mdScale = 1 }: {
   items: StripItem[]; domain?: [number, number]; ticks: { value: number; label: string }[]; label: string;
-  /** Name the subject on its dot too when it is an extreme (it then never hides under the pick ring). */
+  /** Name the subject on its dot too, extreme or not (it then never hides under the pick ring). */
   labelSubject?: boolean;
   /** A quiet line under the strip saying it can be tapped ("Tap a dot to read its course"). */
   hint?: ReactNode;
@@ -48,8 +48,9 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
    * (Values keeps every item).
    */
   named?: string[]; mdScale?: number;
-  /** The key's words when some dots are hollow ("Three or more editions", "Fewer editions"). */
-  keyLabels?: { filled: string; hollow: string };
+  /** The key's words when some dots are hollow ("Three or more editions", "Fewer editions"); without `filled`, the
+   * key names the hollow dots only. */
+  keyLabels?: { filled?: string; hollow: string };
   /** The readout's words until a dot is picked ("Choose a dot to see its course"); the key then names the subject. */
   prompt?: string;
   /** The readout's side label for each item's detail ("Finishes"). */
@@ -82,9 +83,9 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
   const ends = labelExtremes ? stripExtremes(sorted) : null;
   // The readout above the plot names the dot the strip opens on (the subject, else the lowest), and the ring sits on it,
   // so that dot carries no label of its own: the labels name the extremes it is not. With a prompt the strip opens on
-  // nothing, so both extremes carry their labels, in one treatment.
+  // nothing, so both extremes carry their labels, in one treatment. labelSubject names the subject too, extreme or not.
   const opened = prompt ? -1 : Math.max(0, subject);
-  const labelled = new Set<number>((ends ? ends.map((e) => sorted.indexOf(e)) : []).filter((i) => i !== opened || (labelSubject && i === subject)));
+  const labelled = new Set<number>([...(ends ? ends.map((e) => sorted.indexOf(e)) : []), ...(labelSubject && subject >= 0 ? [subject] : [])].filter((i) => i !== opened || (labelSubject && i === subject)));
   // A label rises above the tallest stack under its own width (at the narrowest phone), on a leader down to its dot
   // when it had to climb, so a stacked neighbour never hides it.
   const pxOf = (i: number) => x(sorted[i].value) * REF_WIDTH;
@@ -170,7 +171,7 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
       scrub={<Scrubber mode="pick" points={points} initial={Math.max(0, subject)} label={label} axis={axis} prompt={prompt}>{plot}</Scrubber>}
       keys={[
         ...(prompt && subject >= 0 ? [{ label: sorted[subject].label, mark: 'dot' as const, tone: 'signal' as const }] : []),
-        ...(keyLabels && sorted.some((s) => s.hollow) ? [{ label: keyLabels.filled, mark: 'dot' as const, tone: 'quiet' as const }, { label: keyLabels.hollow, mark: 'hollow' as const }] : []),
+        ...(keyLabels && sorted.some((s) => s.hollow) ? [...(keyLabels.filled ? [{ label: keyLabels.filled, mark: 'dot' as const, tone: 'quiet' as const }] : []), { label: keyLabels.hollow, mark: 'hollow' as const }] : []),
       ]}
       caption={hint}
       values={values}

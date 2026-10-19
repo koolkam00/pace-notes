@@ -183,7 +183,7 @@ export default function GoalPacePage({ params }: { params: { goal: string } }) {
   return (
     <div className="tool-page goal-pace-page">
       {/* No header badge: the splits card is a plain calculation, and the observed beats below carry the one badge. */}
-      <ToolPageHeader path={goalPagePath(minute)} title={`${label} marathon pace`} badges={[]}
+      <ToolPageHeader path={goalPagePath(minute)} title={`${label} marathon pace`}
         trail={[['Reference'], ['Marathon pace chart', '/tools/marathon-pace-chart'], [`${label} marathon pace`]]}
         dek={<GoalPaceDek goal={minute} observed={observed} />}>
         <p className="print-only goal-chart-print-note">Pace Notes {label} marathon pace. splithappens.run{goalPagePath(minute)}</p>

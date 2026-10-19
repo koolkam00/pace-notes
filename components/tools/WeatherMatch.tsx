@@ -541,12 +541,13 @@ function ResultCard({ match, units, tUnit, hw, centre, winText, refText, refTone
     const same = ref !== null && centre === REF.c && hw === REF.hw;
     const cols = ref && !same ? [{ key: 'yours', name: 'Yours', sub: winText, r: row }, { key: 'ref', name: refTone, sub: refText, r: ref }] : [{ key: 'yours', name: 'Yours', sub: winText, r: row }];
     kicker = `${isExample ? 'Example · ' : ''}Mornings like ${yourTemp}`;
-    // The figure is the one share; the reference's share is said beside it, so the table below carries only what the
-    // sentence does not (median finish and races) and the term is linked once.
+    // The figure is the one share; the reference's share is said beside it in plain words, the two temperature windows
+    // are the table's column heads (critic round 3: a 30-word key repeated them), and the term is linked once.
+    const other = refTone === 'Reference window' ? `${refText} mornings` : refTone.toLowerCase();
     figure = (
       <>
         <span>{pctShare(row.sd)}</span>
-        <small>of {count(row.n)} finishes at {inBand} had a <SlowdownTerm /> on mornings of {winText}{ref && !same ? <>; {pctShare(ref.sd)} on {refTone.toLowerCase()}, {refText}</> : null}.</small>
+        <small>of finishes at {inBand} had a <SlowdownTerm /> on mornings like yours{ref && !same ? <>; {pctShare(ref.sd)} on {other}</> : null}.</small>
       </>
     );
     body = (

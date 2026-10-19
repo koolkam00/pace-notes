@@ -11,6 +11,7 @@ import { elevationValue, paceLabel, type UnitSystem } from '@/lib/units';
 /** An elevation in whole feet or metres ("+171 ft"): a climb is never read to a tenth. */
 export const wholeElevation = (metres: number, units: UnitSystem) => `${Math.round(elevationValue(metres, units)).toLocaleString('en-US')}\u00a0${units === 'mi' ? 'ft' : 'm'}`;
 import type { GuideAnswer } from '@/lib/personalized';
+import { againstElsewhere, signedWhole, terrainReading } from '@/lib/terrain-reading';
 
 /**
  * The explorer's one chart for each guide analysis (the redesign spec, section 7), drawn from the selection's answer:
@@ -18,14 +19,13 @@ import type { GuideAnswer } from '@/lib/personalized';
  * the server draws the example and the browser redraws a comparison the visitor picks.
  */
 const SECTION_MIDS = MARATHON_SECTION_ENDS.map((end, i) => ((i ? MARATHON_SECTION_ENDS[i - 1] : 0) + end) / 2);
-const LENGTHS = MARATHON_SECTION_ENDS.map((end, i) => end - (i ? MARATHON_SECTION_ENDS[i - 1] : 0));
 const KM_TICKS = [{ value: 0, label: 'Start' }, { value: 10, label: '10K' }, { value: 20, label: '20K' }, { value: 30, label: '30K' }, { value: 42.195, label: 'Finish' }];
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : NaN);
 const hm = (min: number) => `${Math.floor(min / 60)}:${String(Math.round(min % 60)).padStart(2, '0')}`;
 const signed = (s: number) => { const t = Math.round(Math.abs(s)); return `${s < 0 && t ? '−' : '+'}${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
-const signedPct = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 1 })}%`;
 
-export type TerrainExtras = { elevation: number[] | null; step: number };
+/** The hills chart's extras: the course's supplied profile, its step, and every course combined at the finish time. */
+export type TerrainExtras = { elevation: number[] | null; step: number; baseline?: number[] };
 
 export default function ExplorerChart({ id, answer, goal, units, terrain, valuesId, selectedAge, example = false, yours = !example }: {
   id: string; answer: GuideAnswer; goal: number; units: UnitSystem; terrain?: TerrainExtras; valuesId: string; selectedAge?: string;
@@ -76,18 +76,21 @@ function PaceProfile({ answer, goal, units, valuesId }: { answer: GuideAnswer; g
   );
 }
 
-/** A course's climbs on its own height scale, with each section's pace against the finishes' own average. */
+/**
+ * A course's climbs on its own height scale, with each section's pace against the same section on every course combined
+ * at the same finish time (lib/terrain-reading.ts), the reading's climb washed (else the section that ran slowest).
+ */
 function Terrain({ answer, units, terrain, valuesId }: { answer: GuideAnswer; units: UnitSystem; terrain?: TerrainExtras; valuesId: string }) {
   const pace = answer.charts.find((c) => c.unit === 'min/km');
   const climbs = answer.charts.find((c) => c.series.some((s) => s.key === 'gain'));
   const net = answer.charts.find((c) => c.unit === 'm' && c.series.length === 1);
-  if (!pace || !terrain) return null;
-  const p = pace.rows.map((r) => num(r.value));
-  const mean = p.reduce((s, v, i) => s + v * LENGTHS[i], 0) / 42.195;
-  const pct = p.map((v) => (v / mean - 1) * 100);
+  if (!pace || !terrain?.baseline) return null;
+  const vs = againstElsewhere(pace.rows.map((r) => num(r.value) * 60), terrain.baseline);
+  if (vs.length !== MARATHON_SECTION_ENDS.length) return null;
   const gainOf = (i: number) => num(climbs?.rows.find((r) => r.label === sectionLabel(MARATHON_SECTION_ENDS[i]))?.gain);
   const netOf = (i: number) => num(net?.rows.find((r) => r.label === sectionLabel(MARATHON_SECTION_ENDS[i]))?.value);
-  const slowest = pct.reduce((b, v, i) => (v > pct[b] ? i : b), 0);
+  const reading = terrainReading(MARATHON_SECTION_ENDS.map((_, i) => gainOf(i)), vs);
+  const focus = reading?.i ?? vs.reduce((b, v, i) => (v > vs[b] ? i : b), 0);
   // The supplied route's profile where there is one, else the section nets joined end to end.
   const km = terrain.elevation ? terrain.elevation.map((_, i) => Math.min(42.195, i * terrain.step)) : [0, ...MARATHON_SECTION_ENDS];
   let h = 0;
@@ -97,11 +100,11 @@ function Terrain({ answer, units, terrain, valuesId }: { answer: GuideAnswer; un
   // answer draws it: on the scale every course shares a flat course was a hairline under an empty plot.
   const own = Math.max(50, Math.ceil((Math.max(...metres) - Math.min(...metres)) / 25) * 25);
   return (
-    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={`${wholeElevation(own, units)} above the low point`} focus={slowest} readoutKeys={['Climb', 'Pace against their whole-race average']}
-      sections={MARATHON_SECTION_ENDS.map((end, i) => ({ label: sectionLabel(end), startKm: i ? MARATHON_SECTION_ENDS[i - 1] : 0, endKm: end, pct: pct[i], display: signedPct(Math.round(pct[i])), climb: climb(i) }))}
-      label={`Elevation, its top line ${wholeElevation(own, units)} above the lowest point, with each 5K's pace against the finishes' own average; slowest in ${sectionLabel(MARATHON_SECTION_ENDS[slowest])}`}
-      values={<Values id={valuesId} caption="By section: the climb and the finishes' pace against their whole-race average" columns={[{ key: 's', label: 'Section' }, { key: 'c', label: 'Climb' }, { key: 'p', label: 'Pace against their average' }]}
-        rows={MARATHON_SECTION_ENDS.map((end, i) => [sectionLabel(end), climb(i), signedPct(pct[i])])} reading={slowest} />} />
+    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={`${wholeElevation(own, units)} above the low point`} focus={focus} readoutKeys={['Climb', 'Against every course']}
+      sections={MARATHON_SECTION_ENDS.map((end, i) => ({ label: sectionLabel(end), startKm: i ? MARATHON_SECTION_ENDS[i - 1] : 0, endKm: end, pct: vs[i], display: signedWhole(vs[i]), climb: climb(i) }))}
+      label={`Elevation, its top line ${wholeElevation(own, units)} above the lowest point, with each 5K's pace against the same 5K on every course combined; ${sectionLabel(MARATHON_SECTION_ENDS[focus])} washed`}
+      values={<Values id={valuesId} caption="By section: the climb, and the pace against the same 5K on every course combined" columns={[{ key: 's', label: 'Section' }, { key: 'c', label: 'Climb' }, { key: 'p', label: 'Against elsewhere' }]}
+        rows={MARATHON_SECTION_ENDS.map((end, i) => [sectionLabel(end), climb(i), signedWhole(vs[i])])} reading={focus} />} />
   );
 }
 
@@ -137,16 +140,26 @@ function Sections({ answer, goal, valuesId, example }: { answer: GuideAnswer; go
  */
 function Target({ answer, goal, valuesId, yours }: { answer: GuideAnswer; goal: number; valuesId: string; yours: boolean }) {
   const rows = answer.charts[0]?.rows ?? [];
-  const pts = rows.map((r) => ({ x: num(r.label), share: num(r.value) / 100 })).filter((p) => p.share >= 0.01 && p.share <= 0.99);
-  if (pts.length < 2) return null;
+  const all = rows.map((r) => ({ x: num(r.label), share: num(r.value) / 100 })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.share));
+  // The curve is cropped to the 1st–99th percentile so its tails do not flatten it, but it starts at least 45 minutes
+  // before the goal: a needle at a goal near the fast tail (3:00) otherwise sat in the gridline labels' column.
+  const cropped = all.filter((p) => p.share >= 0.01 && p.share <= 0.99);
+  if (cropped.length < 2) return null;
+  const from = Math.min(cropped[0].x, goal - 45);
+  const pts = all.filter((p) => p.x >= from && p.x <= cropped[cropped.length - 1].x && p.share <= 0.99);
   const at = pts.reduce((b, p) => (Math.abs(p.x - goal) < Math.abs(b.x - goal) ? p : b));
   const marks = Array.from({ length: 24 }, (_, i) => 120 + i * 30).filter((m) => m >= pts[0].x && m <= pts[pts.length - 1].x);
   const ticks = marks.filter((m) => m % 60 === 0);
+  // Where the needle meets the curve, as Cdf's own scale places it (yScale(0, 1, { top: 0.06 })), marked while scrubbing.
+  const dot = pts.map((p) => 1 - p.share * 0.94);
+  // The page's own goal sits on a labelled hour: the tick under it names it, so its ring carries no second "3:00" (which
+  // also ran over the rising curve). A goal the visitor set is ringed "You".
+  const ringLabel = yours ? 'You' : ticks.includes(goal) ? '' : hm(goal);
   // The detents are the labelled hours only: each snap point draws a dot on the axis, so a detent off a labelled tick
   // read as a misplaced tick. The half hours stay in Values.
   return (
-    <Cdf points={pts} you={goal} youLabel={yours ? 'You' : hm(goal)} ticks={ticks.map((m) => ({ value: m, label: hm(m) }))}
-      scrub={{ label: 'Finish time', points: { x: pts.map((p) => (p.x - pts[0].x) / (pts[pts.length - 1].x - pts[0].x)), keys: pts.map((p) => `Finishes under ${hm(p.x)}`), values: pts.map((p) => `${Math.round(p.share * 100)}%`) },
+    <Cdf points={pts} you={goal} youLabel={ringLabel} ticks={ticks.map((m) => ({ value: m, label: hm(m) }))}
+      scrub={{ label: 'Finish time', points: { x: pts.map((p) => (p.x - pts[0].x) / (pts[pts.length - 1].x - pts[0].x)), dot, keys: pts.map((p) => `Finishes under ${hm(p.x)}`), values: pts.map((p) => `${Math.round(p.share * 100)}%`) },
         initial: pts.indexOf(at), detents: ticks.map((m) => pts.findIndex((p) => p.x === m)).filter((i, k, all) => i >= 0 && all.indexOf(i) === k) }}
       label={`The share of finishes under each time; ${Math.round(at.share * 100)}% under ${hm(goal)}`}
       values={<Values id={valuesId} caption="Finishes under each round time" columns={[{ key: 't', label: 'Under' }, { key: 's', label: 'Share of finishes' }]} rows={marks.map((m) => [hm(m), `${Math.round((pts.find((p) => p.x === m)?.share ?? NaN) * 100)}%`])} />} />

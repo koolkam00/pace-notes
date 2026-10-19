@@ -29,7 +29,8 @@ export default function AgePacing() {
   const sameLo = Math.min(...rows.map((r) => r.same)), sameHi = Math.max(...rows.map((r) => r.same));
   const mid = Math.floor((rows.length - 1) / 2);
   const answer = rows.length >= 2 ? (
-    <AnswerCard kicker="The second 20K, by age group">
+    // The kicker says what the values measure: how much slower each group ran its second 20K than its first.
+    <AnswerCard kicker="Second 20K against the first, by age group">
       <LineProfile x={xs} xDomain={[-0.4, rows.length - 0.6]} yDomain={[lo, hi]}
         layers={[{ id: 'a', label: 'Age', series: [{ id: 'pooled', values: rows.map((r) => r.pooled), tone: 'quiet' }, { id: 'same', values: rows.map((r) => r.same), tone: 'signal' }],
           labels: [
