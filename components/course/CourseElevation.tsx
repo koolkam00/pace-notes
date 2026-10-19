@@ -26,13 +26,15 @@ export default function CourseElevation({ page }: { page: CoursePageData }) {
   // The section the sentence names (the biggest climb, or the most any 5K climbs): washed when it is a climb, and the
   // section the readout opens on either way, so the readout gives the climb the sentence says.
   const focus = n.guard ? Number(n.values.section) : undefined;
+  // Two neighbouring climbs within 10% of each other are named as one stretch: both washed.
+  const focusTo = n.guard ? Number(n.values.section_to) : undefined;
   const opens = Number.isInteger(n.values.section) && Number(n.values.section) >= 0 ? Number(n.values.section) : undefined;
   const curve = s.curve?.length === 9 ? s.curve : null;
   const km = g.elevation_m.map((_, i) => Math.min(g.distance_km, i * g.elevation_step_km));
   // The readout leads with the section's climb (the sentence's number); beside it, the section's pace against the
   // course's own average, or without a pacing shape (no blocks), its descent.
   const chart = (units: UnitSystem) => (
-    <ElevationPace km={km} metres={g.elevation_m} relief={relief} fit lead="climb" focus={focus} initial={opens} readoutKeys={curve ? ['Climb', 'Pace against its average'] : ['Climb', 'Descent']}
+    <ElevationPace km={km} metres={g.elevation_m} relief={relief} fit lead="climb" focus={focus} focusTo={focusTo} initial={opens} readoutKeys={curve ? ['Climb', 'Pace against its average'] : ['Climb', 'Descent']}
       sections={SECTION_BOUNDS.map(([a, b], i) => ({
         label: sectionLabel(a, b), startKm: a, endKm: b, pct: curve ? curve[i] : 0,
         display: curve ? signedPct(curve[i], 0) : terrain ? climbText(terrain[i].loss_m, units) : '—',

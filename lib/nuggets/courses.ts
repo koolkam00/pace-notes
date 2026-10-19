@@ -25,12 +25,37 @@ const SECTION_KM: readonly [number, number][] = [[0, 5], [5, 10], [10, 15], [15,
 /** At least three editions for a course to stand at either end of a cross-course comparison (section 3.10). */
 export const MIN_EDITIONS = 3;
 /**
- * The first 5K "drops" or "climbs" from 10 m net either way. A 5K section is "the biggest climb" from 30 m (about 100 ft)
- * of ascent: on a flat course the steepest 5K's 18 m is no climb a runner would name, and a heading about it beside a
- * slow 5K would read as its cause.
+ * The first 5K "drops" or "climbs" from 30 m net either way, and a 5K section is "the biggest climb" from 30 m (about
+ * 100 ft) of ascent: a start 10 m lower at 5K is no identity a runner would name (critic round 2), and on a flat course
+ * the steepest 5K's 18 m is no climb, and a heading about it beside a slow 5K would read as its cause.
  */
-export const NET_MIN_M = 10;
+export const NET_MIN_M = 30;
 export const CLIMB_MIN_M = 30;
+/** Two neighbouring 5K climbs within 10% of each other are one stretch: the heading names the pair, never a near tie. */
+export const CLIMB_TIE = 0.9;
+/** Routes genuinely below sea level (polders), whose profile may sit under 0 m. */
+const BELOW_SEA_LEVEL = new Set(['Amsterdam', 'Rotterdam']);
+/** How long a profile may sit at or below 0 m on any other route before it reads as the water under a bridge, in km. */
+const UNDER_WATER_KM = 0.5;
+
+/**
+ * A route profile from a terrain model records the water under a bridge, not its deck (New York's Verrazzano reads
+ * -1.6 m at 0.6–2.0 km, where runners climb). Where a route that is not below sea level sits at or below 0 m for 0.5 km
+ * or more, its climbs are not ranked and its start is not described: the sections still give each 5K's numbers, but no
+ * heading names a biggest climb or a drop the bridges hide.
+ */
+export function profileUnderWater(page: CoursePageData | null): boolean {
+  const g = page?.geometry;
+  if (!g || BELOW_SEA_LEVEL.has(page.city)) return false;
+  let run = 0;
+  for (const m of g.elevation_m) {
+    run = m <= 0 ? run + 1 : 0;
+    if ((run - 1) * g.elevation_step_km >= UNDER_WATER_KM) return true;
+  }
+  return false;
+}
+/** The 40K–finish section is 2.2 km, not a 5K: its words say "stretch". */
+const stretchOf = (i: number) => (i === SECTION_KM.length - 1 ? 'stretch' : '5K');
 /**
  * The glance's rows say only what sets a course apart: a 5K section "parts" from the typical course from 3 points of
  * pace against the course's own average (2 points rounds to look like 3 as whole percentages, and sets nothing apart).
@@ -56,8 +81,8 @@ function pageFor(ctx?: NuggetContext): CoursePageData | null {
 // ---------- /courses ----------
 
 /**
- * The index's count: every course page, the page's dek. A count of pages is not a finding, so it has no figure: the
- * next card into /courses and its contents row show the page's title alone.
+ * The index's count: every course page, the /courses dek. It carries no figure: a count of pages is not a finding, so
+ * the contents row and the next card into /courses show none (the spread across courses is course-comparison's alone).
  */
 function coursesIndex(): Nugget {
   const n = coursePages().size;
@@ -69,41 +94,15 @@ function coursesIndex(): Nugget {
   };
 }
 
-/**
- * The index's reading: the spread of sustained slowdown across courses with three or more editions, each course's share
- * in its average edition (the course pages' figure). "More than twice" needs the highest share at least twice the lowest.
- */
-export function coursesRangeFrom(field: { city: string; slowdown: number; editions: number }[]): Nugget {
-  const solid = field.filter((c) => c.editions >= MIN_EDITIONS && Number.isFinite(c.slowdown));
-  const lo = solid.length ? solid.reduce((a, b) => (b.slowdown < a.slowdown ? b : a)) : null;
-  const hi = solid.length ? solid.reduce((a, b) => (b.slowdown > a.slowdown ? b : a)) : null;
-  const ratio = lo && hi && lo.slowdown > 0 ? hi.slowdown / lo.slowdown : NaN;
-  const guard = solid.length >= 3 && ratio >= 2;
-  const whole = (v: number) => String(Math.round(v * 100));
-  return {
-    id: 'courses.range', page: '/courses', denominator: 'course', term: TERM,
-    values: { courses: solid.length, min: lo?.slowdown ?? NaN, max: hi?.slowdown ?? NaN, min_city: lo?.city ?? '', max_city: hi?.city ?? '', ratio },
-    guard,
-    headline: `From ${lo ? cityName(lo.city) : ''} to ${hi ? cityName(hi.city) : ''}: the same distance, *more than twice* the share.`,
-    fallback: 'Sustained slowdown, course by course.',
-    figure: lo && hi ? { value: `${whole(lo.slowdown)}–${whole(hi.slowdown)}`, unit: '%', sr: `${whole(lo.slowdown)} to ${whole(hi.slowdown)} percent` } : null,
-    key: 'of finishes in the average edition had a sustained slowdown, course by course',
-  };
-}
-
-function coursesRange(): Nugget {
-  return coursesRangeFrom([...coursePages().values()].map((p) => p.summary));
-}
-
 // ---------- A course page ----------
 
 /**
  * The words under a course hero's figure, up to the term: the figure averages the editions' shares, so with three or
- * more editions they name the average edition; with two, the average of the two; with one, its year (no averaging
- * happened). course.slowdown's key is these words and the term.
+ * more editions they name an average year (plain words for the average edition); with two, the average of the two;
+ * with one, its year (no averaging happened). course.slowdown's key is these words and the term.
  */
 export function heroKeyLead(editions: number, year: number | undefined): string {
-  return editions === 1 ? `of finishes in ${year} had a` : editions === 2 ? 'of finishes in its two editions, on average, had a' : 'of finishes in the average edition had a';
+  return editions === 1 ? `of finishes in ${year} had a` : editions === 2 ? 'of finishes in its two editions, on average, had a' : 'of finishes in an average year had a';
 }
 
 /**
@@ -133,14 +132,15 @@ function courseSlowdown(ctx?: NuggetContext): Nugget {
 }
 
 /**
- * At a glance (1): the net change over the first 5K of the supplied route, said only from 10 m either way (a flat start
- * sets no course apart). Net, not climb: the elevation section gives each 5K's climb.
+ * At a glance (1): the net change over the first 5K of the supplied route, said only from 30 m either way (a flat start
+ * sets no course apart) and never on a profile that reads the water under a bridge. Net, not climb: the elevation
+ * section gives each 5K's climb.
  */
 function courseStart(ctx?: NuggetContext): CourseNugget {
   const page = pageFor(ctx);
   const net = page?.terrain?.[0]?.net_m ?? NaN;
   const has = Number.isFinite(net);
-  const guard = has && Math.abs(net) >= NET_MIN_M;
+  const guard = has && Math.abs(net) >= NET_MIN_M && !profileUnderWater(page);
   const word = net < 0 ? 'lower' : 'higher';
   const unit = (u: 'mi' | 'km') => (u === 'mi' ? `${ft(net)} ft` : `${metres(net)} m`);
   return {
@@ -182,10 +182,10 @@ function courseLate(ctx?: NuggetContext): Nugget {
     id: 'course.late', page: `/courses/${page?.slug ?? ''}#at-a-glance`, denominator: 'shape',
     values: { section: slowest ?? '', modal: modal ?? '', k, n },
     guard,
-    headline: `The slowest 5K is *${name}*; on ${k} of the ${n} courses with 5K splits it’s ${usual}.`,
-    fallback: i >= 0 && m >= 0 ? `The slowest 5K is ${name}, as on ${k} of the ${n} courses with 5K splits.` : i >= 0 ? `The slowest 5K is ${name}.` : 'Where the median finish slowed most.',
+    headline: `The slowest ${stretchOf(i)} is *${name}*; on ${k} of the ${n} courses with 5K splits it’s ${usual}.`,
+    fallback: i >= 0 && m >= 0 ? `The slowest ${stretchOf(i)} is ${name}, as on ${k} of the ${n} courses with 5K splits.` : i >= 0 ? `The slowest ${stretchOf(i)} is ${name}.` : 'Where the median finish slowed most.',
     figure: i >= 0 ? { value: name, sr: name } : null,
-    key: `the slowest 5K; on ${k} of the ${n} courses with 5K splits, it’s ${usual}`,
+    key: `the slowest ${stretchOf(i)}; on ${k} of the ${n} courses with 5K splits, it’s ${usual}`,
   };
 }
 
@@ -193,11 +193,11 @@ function courseLate(ctx?: NuggetContext): Nugget {
  * A section's pace against its course's own average, in words: on this course "4% slower than its own average" (or "at
  * its own average pace"); on the typical course "the typical course runs this 5K 1% quicker" (or "at its average pace").
  */
-function paceWords(v: number, own: boolean): string {
+function paceWords(v: number, own: boolean, stretch = '5K'): string {
   const n = Math.round(Math.abs(v));
   const side = v > 0 ? 'slower' : 'quicker';
   if (own) return n === 0 ? 'at its own average pace' : `${n}% ${side} than its own average`;
-  return n === 0 ? 'the typical course runs this 5K at its average pace' : `the typical course runs this 5K ${n}% ${side}`;
+  return n === 0 ? `the typical course runs this ${stretch} at its average pace` : `the typical course runs this ${stretch} ${n}% ${side}`;
 }
 
 /**
@@ -218,12 +218,12 @@ function courseSignature(ctx?: NuggetContext): Nugget {
   const guard = solid && Math.abs(pts) >= SIGNATURE_MIN && paceWords(here, true) !== paceWords(typical, true);
   const display = page?.display ?? 'This course';
   const name = sectionOf(i);
-  const key = `${paceWords(here, true)}; ${paceWords(typical, false)}`;
+  const key = `${paceWords(here, true)}; ${paceWords(typical, false, stretchOf(i))}`;
   return {
     id: 'course.signature', page: `/courses/${page?.slug ?? ''}#at-a-glance`, denominator: 'shape',
     values: { section: s?.signature_section ?? '', here, typical, points: pts, editions: s?.editions ?? 0, typical_like: solid && Math.abs(pts) < SIGNATURE_MIN ? 1 : 0 },
     guard,
-    headline: `${display}’s ${name}: *${paceWords(here, true)}*; ${paceWords(typical, false)}.`,
+    headline: `${display}’s ${name}: *${paceWords(here, true)}*; ${paceWords(typical, false, stretchOf(i))}.`,
     fallback: solid ? `${display} paces *much like the typical course*, 5K by 5K.` : 'Its pacing, 5K by 5K.',
     figure: guard ? { value: name, sr: name } : null,
     key: solid ? key : undefined,
@@ -259,20 +259,30 @@ function courseTimes(ctx?: NuggetContext): Nugget {
   };
 }
 
-/** #elevation: the 5K section with the most climbing on the supplied route. */
+/**
+ * #elevation: the 5K section with the most climbing on the supplied route. Where its neighbour climbs within 10% of it,
+ * the two are one stretch ("25–35K: 333 ft"), both washed, so the heading never names a winner by a few metres. A
+ * profile that reads the water under a bridge ranks no climb (profileUnderWater).
+ */
 function courseClimb(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
   const t = page?.terrain ?? null;
   const i = t ? t.reduce((b, s, j) => (s.gain_m > t[b].gain_m ? j : b), 0) : -1;
-  const gain = t && i >= 0 ? t[i].gain_m : NaN;
-  const guard = Number.isFinite(gain) && gain >= CLIMB_MIN_M;
-  const unit = (u: 'mi' | 'km') => (u === 'mi' ? `${ft(gain)} ft` : `${metres(gain)} m`);
+  const top = t && i >= 0 ? t[i].gain_m : NaN;
+  const wet = profileUnderWater(page);
+  const guard = Number.isFinite(top) && top >= CLIMB_MIN_M && !wet;
+  const next = t && i >= 0 ? [i - 1, i + 1].filter((j) => j >= 0 && j < t.length).reduce<number>((b, j) => (b < 0 || t[j].gain_m > t[b].gain_m ? j : b), -1) : -1;
+  const pair = guard && next >= 0 && t![next].gain_m >= CLIMB_TIE * top;
+  const from = pair ? Math.min(i, next) : i, to = pair ? Math.max(i, next) : i;
+  const gain = pair ? t![from].gain_m + t![to].gain_m : top;
+  const name = from >= 0 ? sectionLabel(SECTION_KM[from][0], SECTION_KM[to][1]) : '—';
+  const unit = (u: 'mi' | 'km', m = gain) => (u === 'mi' ? `${ft(m)} ft` : `${metres(m)} m`);
   return {
     id: 'course.climb', page: `/courses/${page?.slug ?? ''}#elevation`, denominator: 'none',
-    values: { section: i, gain_m: gain },
+    values: { section: from, section_to: to, gain_m: gain, under_water: wet ? 1 : 0 },
     guard,
-    headline: both((u) => `The biggest climb is *${sectionOf(i)}*: ${unit(u)}.`),
-    fallback: both((u) => Number.isFinite(gain) ? `No 5K climbs more than ${unit(u)}.` : 'The route, start to finish.'),
+    headline: both((u) => `The biggest climb is *${name}*: ${unit(u)}.`),
+    fallback: both((u) => (wet ? 'The route, start to finish.' : Number.isFinite(top) ? `No ${stretchOf(i)} climbs more than ${unit(u, top)}.` : 'The route, start to finish.')),
     figure: null,
   };
 }
@@ -324,16 +334,16 @@ function courseAmong(ctx?: NuggetContext): Nugget {
   const nb = (t: string) => t.replace(/ /g, '\u00a0');
   const all = solid ? 'any other course' : 'every course';
   // The scope (three or more editions) is the strip's key; the sentence keeps it only where it would otherwise claim
-  // every course, or where a course of fewer editions names the courses it is set against.
-  const than = count === n ? `${fewer ? 'lower' : 'higher'} than on *${nb(all)}* with three or more editions`
-    : solid ? `${fewer ? 'lower' : 'higher'} than on *${nb(`${count} of ${n}`)}* other courses`
-      : `${fewer ? 'lower' : 'higher'} than on *${nb(`${count} of the ${n}`)}* courses with three or more editions`;
+  // every course. A course of fewer editions says so last, briefly ("lower than 22 of 25 courses, from two editions").
+  const than = count === n ? `${fewer ? 'lower' : 'higher'} than *${nb(all)}* with three or more editions`
+    : solid ? `${fewer ? 'lower' : 'higher'} than *${nb(`${count} of the ${n}`)}* other courses`
+      : `${fewer ? 'lower' : 'higher'} than *${nb(`${count} of ${n}`)}* courses`;
   const from = solid ? '' : `, from ${countWord(s?.editions ?? 0)} ${s?.editions === 1 ? 'edition' : 'editions'}`;
   return {
     id: 'course.among', page: `/courses/${page?.slug ?? ''}#slowdown`, denominator: 'course',
     values: { share: s?.slowdown ?? NaN, higher, lower, courses: n, editions: s?.editions ?? 0, middle: middle ? 1 : 0 },
     guard,
-    headline: middle ? `${name}’s ${share}: *${nb('near the middle')}* of ${n + 1} courses.` : `${name}’s ${share}${from}: ${than}.`,
+    headline: middle ? `${name}’s ${share}: *${nb('near the middle')}* of ${n + 1} courses.` : `${name}’s ${share}: ${than}${from}.`,
     fallback: `${name} beside every course.`,
     figure: null,
   };
@@ -389,7 +399,6 @@ function courseWeather(ctx?: NuggetContext): Nugget {
 
 export const COURSE_NUGGETS: Record<string, Builder> = {
   'courses.index': coursesIndex,
-  'courses.range': coursesRange,
   'course.slowdown': courseSlowdown,
   'course.start': courseStart,
   'course.late': courseLate,

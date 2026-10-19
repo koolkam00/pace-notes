@@ -128,13 +128,17 @@ for (const pattern of METHOD_COPY) assert.doesNotMatch(checkpointHtml, pattern, 
 const UnitsProvider = require('../components/UnitsProvider.tsx').default;
 const AnalysisPage = require('../app/analyses/[slug]/page.tsx').default;
 const page = (slug) => renderToStaticMarkup(React.createElement(UnitsProvider, null, React.createElement(AnalysisPage, { params: { slug } })));
+// The pages whose H1 is the finding alone, their setup clause moved into the dek in place of the question.
+const DEK_SETUP = ['age-and-pacing', 'pacing-pattern', 'where-time-is-gained', 'finding-improvement', 'race-day-weather'];
 for (const slug of [...TEN_ANALYSES.map(item => item.slug), 'downhill-start']) {
   const html = page(slug);
   const definition = analysisBySlug(slug);
   assert.equal((html.match(/<h1[\s>]/g) || []).length, 1, `${slug}: one H1`);
   const h1 = html.indexOf('<h1'), answer = html.indexOf('id="answer"'), explore = html.indexOf('id="explore"'), end = html.indexOf('analysis-pagination');
   assert.ok(h1 >= 0 && answer >= 0 && h1 > answer && explore > h1 && end > explore, `${slug}: the finding, then the explorer, then the chapter end`);
-  if (definition) assert.ok(html.includes(definition.title.replace(/'/g, '&#x27;')), `${slug}: the question dek`);
+  // The dek is the question, or (where the H1 is one clause, WP9 round 2) the setup the finding needs: never empty.
+  assert.match(html, /<p class="reading-dek">[^<]+/, `${slug}: a dek under the H1`);
+  if (definition && !html.includes(definition.title.replace(/'/g, '&#x27;'))) assert.ok(DEK_SETUP.includes(slug), `${slug}: the question dek, or a setup clause it is listed for`);
   assert.match(html, /class="analysis-layout analysis-flow"/, `${slug}: the page sits in the masked .analysis-layout`);
   // The answer is a picture: a chart, a dot grid or a receipt inside the hero (critic round 2, October 18, 2026: the
   // chart that proves the finding sits in the night card, not below Make it yours). The explorer opens on its selection

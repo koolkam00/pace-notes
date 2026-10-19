@@ -237,29 +237,8 @@ export default function PaceBand({ indexSha, profiles, unpublished }: {
     <div className="pace-band-root" data-print={printMode}>
       <p className="sr-only" role="status">{status}</p>
       <div className="tool-workspace">
-        <form className="tool-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Pace band inputs">
-          <h2>Your race</h2>
-          <GoalField seconds={goal} raw={q.goal} onChange={setGoal} onStep={step} onProblem={setFieldProblem}
-            onEdit={() => setChanged((c) => (c.any ? c : { ...c, any: true }))} />
-          <div className="tool-field">
-            <label htmlFor="pace-band-course">Course</label>
-            <select id="pace-band-course" value={course} onChange={(e) => setQ({ course: e.target.value })}>
-              <option value="all">All courses</option>
-              {index ? (
-                <>
-                  {!scope && course !== 'all' ? <option value={course} disabled>{known ? `${known.city} · not published` : 'Unknown course'}</option> : null}
-                  {index.scopes.filter((s) => s.slug !== 'all').map((s) => <option key={s.slug} value={s.slug}>{s.city ?? s.slug}</option>)}
-                </>
-              ) : course !== 'all' ? <option value={course}>{profile?.city ?? known?.city ?? 'Loading courses…'}</option> : null}
-            </select>
-          </div>
-          <div className="tool-field">
-            <span className="tool-label" id="pace-band-gender">Recorded gender</span>
-            <div role="group" aria-labelledby="pace-band-gender" className="ph-no-capture"><Choice label="Recorded gender" value={gender} onChange={(v) => setQ({ g: v })} options={GENDER_OPTIONS} small /></div>
-          </div>
-        </form>
-
-        <div className="tool-results">
+        {/* The answer first (the analyses' grammar): the band's pace for the example, then the inputs that make it yours. */}
+        <div className="tool-results tool-answer">
           {goal === null || pKm === null ? (
             <p className="tool-empty">
               {badGoal ? <>The goal in this link, “{badGoal}”, is not a marathon time from 1:30 to 8:00. </> : null}
@@ -269,7 +248,7 @@ export default function PaceBand({ indexSha, profiles, unpublished }: {
             <>
               {held ? (
                 <p className="tool-note pace-band-held">
-                  Showing <b>{fmtGoal(goal)}</b>. {fieldProblem === EMPTY_GOAL ? 'Type a goal above to update the band.' : 'Fix the goal above to update the band; nothing below follows it until then.'}
+                  Showing <b>{fmtGoal(goal)}</b>. {fieldProblem === EMPTY_GOAL ? 'Type a goal below to update the band.' : 'Fix the goal below to update the band; nothing here follows it until then.'}
                 </p>
               ) : null}
               <section className={`tool-reading night pace-band-headline${held ? ' pace-band-held-dim' : ''}`} aria-busy={busy || undefined} aria-labelledby="pace-band-title">
@@ -297,8 +276,36 @@ export default function PaceBand({ indexSha, profiles, unpublished }: {
                 {fresh?.held ? <p className="tool-reading-sub pace-band-held-key">Held: the median of {count(fresh.held.n)} finishes from {formatDuration(fresh.lo, true)} to {formatDuration(fresh.hi, true)} that held pace.</p> : null}
                 {fresh?.held ? <EvidenceTag kind="data" /> : null}
               </section>
+            </>
+          )}
+        </div>
 
-              {/* The same source as the card above when it draws the held line (its data badge), so no second badge then. */}
+        <form className="tool-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Pace band inputs">
+          <h2>Your race</h2>
+          <GoalField seconds={goal} raw={q.goal} onChange={setGoal} onStep={step} onProblem={setFieldProblem}
+            onEdit={() => setChanged((c) => (c.any ? c : { ...c, any: true }))} />
+          <div className="tool-field">
+            <label htmlFor="pace-band-course">Course</label>
+            <select id="pace-band-course" value={course} onChange={(e) => setQ({ course: e.target.value })}>
+              <option value="all">All courses</option>
+              {index ? (
+                <>
+                  {!scope && course !== 'all' ? <option value={course} disabled>{known ? `${known.city} · not published` : 'Unknown course'}</option> : null}
+                  {index.scopes.filter((s) => s.slug !== 'all').map((s) => <option key={s.slug} value={s.slug}>{s.city ?? s.slug}</option>)}
+                </>
+              ) : course !== 'all' ? <option value={course}>{profile?.city ?? known?.city ?? 'Loading courses…'}</option> : null}
+            </select>
+          </div>
+          <div className="tool-field">
+            <span className="tool-label" id="pace-band-gender">Recorded gender</span>
+            <div role="group" aria-labelledby="pace-band-gender" className="ph-no-capture"><Choice label="Recorded gender" value={gender} onChange={(v) => setQ({ g: v })} options={GENDER_OPTIONS} small /></div>
+          </div>
+        </form>
+
+        <div className="tool-results">
+          {goal !== null && pKm !== null ? (
+            <>
+              {/* The same source as the card when it draws the held line (its data badge), so no second badge then. */}
               <section className="tool-panel pace-band-observed" id="pace-band-observed" aria-labelledby="pace-band-observed-title">
                 {fresh?.held ? null : <EvidenceTag kind="data" />}
                 {stale ? <p className="tool-note">Loading {place}{genderWord ? `, ${genderWord}` : ''}…</p> : null}
@@ -320,7 +327,9 @@ export default function PaceBand({ indexSha, profiles, unpublished }: {
                   <div className={stale ? 'pace-band-dim' : undefined}>
                     {slowAt20 !== null && finishGap !== null ? (
                       <p className="tool-nugget-text" id="pace-band-observed-title">
-                        Finishes that later had a <SlowdownTerm /> passed 20K <em>{formatDuration(Math.abs(slowAt20))} {slowAt20 >= 0 ? 'earlier' : 'later'}</em> than those that held pace{Math.abs(finishGap) < 60 ? ', and finished at about the same time' : ''}.
+                        {/* The finish window named, as the split check names its own: the two pages' gaps are for two
+                            different windows, so neither reads as the other's number. */}
+                        Of finishes from {formatHM(Math.floor(ok.lo / 60) * 60)} to {formatHM(Math.floor(ok.hi / 60) * 60)} {ok.where}, those that later had a <SlowdownTerm /> passed 20K <em>{formatDuration(Math.abs(slowAt20))} {slowAt20 >= 0 ? 'ahead of' : 'behind'}</em> those that held pace{Math.abs(finishGap) < 60 ? ', and finished at about the same time' : ''}.
                       </p>
                     ) : (
                       <p className="tool-nugget-text" id="pace-band-observed-title">Where finishes from {formatDuration(ok.lo, true)} to {formatDuration(ok.hi, true)} {ok.where} were at each mat.</p>
@@ -366,7 +375,7 @@ export default function PaceBand({ indexSha, profiles, unpublished }: {
                 <b>{fmtGoal(goal)}</b><span>{fmtPace(pKm, units)}</span>
               </GoalBar>
             </>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
@@ -535,7 +544,7 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
       </details>
       <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={interval} overrun={overrun} place={place} genderWord={genderWord}
         observed={observed} profile={profile} showBack={showBack} waiting={waiting} />
-      <ShareBar print={false} extra={<>
+      <ShareBar extra={<>
         <button type="button" className="btn btn-primary is-compact" data-not-edit disabled={waiting} aria-describedby={waiting ? 'pace-band-print-held' : undefined} onClick={() => onPrint('strip')}>Print wristband strips</button>
         <button type="button" className="tool-text-button" data-not-edit disabled={waiting} aria-describedby={waiting ? 'pace-band-print-held' : undefined} onClick={() => onPrint('page')}>Print full page</button>
       </>} />

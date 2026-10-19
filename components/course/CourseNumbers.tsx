@@ -62,7 +62,7 @@ export default function CourseNumbers({ page }: { page: CoursePageData }) {
         </CourseTable>
         {terrain ? (
           <CourseTable id="numbers-sections-caption" caption={`${display}, 5K by 5K`}>
-            <thead><tr><th scope="col">Section</th><th scope="col">Climb</th><th scope="col">Descent</th><th scope="col">Net</th><th scope="col">Pace against its average</th></tr></thead>
+            <thead><tr><th scope="col">Section</th><th scope="col">Climb</th><th scope="col">Descent</th><th scope="col">Net</th><th scope="col" className="nowrap">Pace vs. avg.</th></tr></thead>
             <tbody>
               {terrain.map((t, i) => (
                 <tr key={i}>

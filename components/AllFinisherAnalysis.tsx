@@ -256,7 +256,7 @@ function AllFinisherExplorer({ kind, start, historyNode, title, description, arc
   const ready = !same(draft, selection) || shownFocus(focusDraft) !== shownFocus(focusId) || (isProfileKind(kind) && shownCompare(comparisonDraft) !== shownCompare(comparisonId));
   // The comparison switch (archive pages only) is the form's first control.
   const modes = hasHistory ? <div className="explore-mode"><Segmented label="Choose the comparison" block value={all ? 'all' : 'history'} onChange={value => mode(value as 'all' | 'history')}
-    options={[{ value: 'all', label: 'All eligible finishes' }, { value: 'history', label: 'With an earlier result' }]} /><p className="field-hint">{all ? 'No previous race needed' : 'Compared with recorded race history'}</p></div> : null;
+    options={[{ value: 'all', label: 'All finishes' }, { value: 'history', label: 'With an earlier result' }]} /><p className="field-hint">{all ? 'No previous race needed' : 'Compared with recorded race history'}</p></div> : null;
   return <div className="analysis-layout explorer af-explorer">
     {archive ? <header className="explorer-head"><h1 className="t-title">{title}</h1>{description ? <p className="t-body">{description}</p> : null}</header> : null}
     <MakeItYours id={`${formId}-miy`} summary={summary} busy={all && (pending || loading)}>
@@ -272,7 +272,7 @@ function AllFinisherExplorer({ kind, start, historyNode, title, description, arc
             {follows && focus && <div className="field"><label className="field-label" htmlFor={field('focus')}>{followLabel}</label><select id={field('focus')} className="select" value={focusDraft || focus.id} onChange={event => setFocusDraft(event.target.value)}>{groups.map(group => <option key={group.id} value={group.id}>{label(group)}</option>)}</select></div>}
             {isProfileKind(kind) && focus && <div className="field"><label className="field-label" htmlFor={field('compare')}>Compare pacing with</label><select id={field('compare')} className="select" value={comparisonDraft || comparison?.id || 'none'} onChange={event => setComparisonDraft(event.target.value)}><option value="none">No comparison line</option>{groups.filter(group => group.id !== (focusDraft || focus.id)).map(group => <option key={group.id} value={group.id}>{label(group)}</option>)}</select></div>}
           </div>
-          <ExploreSubmit ready={ready} id={formId} />
+          <ExploreSubmit ready={ready} />
         </Fragment> : null}
       </form>
     </MakeItYours>

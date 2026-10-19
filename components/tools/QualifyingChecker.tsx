@@ -398,6 +398,29 @@ export default function QualifyingChecker() {
     <div className="qualifying">
       <p className="sr-only" role="status">{settledStatus}</p>
       <div className="tool-workspace">
+        {/* The answer first (the analyses' grammar): how many standards the example time meets, then the time, division
+            and dates that make it yours, then race by race. */}
+        <div className="tool-results tool-answer">
+          {ready ? (
+            <>
+              {exampleNote ? <ExampleNote>{exampleNote}</ExampleNote> : null}
+              <section className="tool-reading night qualifying-headline" aria-labelledby={`${ids}-headline`}>
+                <div className="tool-reading-head">
+                  {/* One line at a phone's width: the division and the time (the race date is in the form below). */}
+                  <p className="tool-reading-kicker">{allExample ? 'Example · ' : ''}{DIVISIONS.find((d) => d.division === division)!.label} · {fmtTime(shown!)}</p>
+                  <h2 className="tool-reading-figure" id={`${ids}-headline`}>
+                    {meets === items.length ? `Meets all ${items.length}` : `Meets ${meets} of ${items.length}`}
+                    <small>{boston ? <BostonLine it={boston} raceDate={raceDate} /> : 'time standards'}</small>
+                  </h2>
+                </div>
+                <p className="qualifying-checked"><EvidenceTag kind="official" /><span>Checked <time dateTime={VERIFIED_AT}>{fmtDate(VERIFIED_AT)}</time></span></p>
+              </section>
+            </>
+          ) : (
+            <p className="tool-empty">{emptyMessage}</p>
+          )}
+        </div>
+
         <form className="tool-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Qualifying checker inputs"
           onChangeCapture={() => setInteracted(true)} onClickCapture={(e) => { if ((e.target as HTMLElement).closest('button')) setInteracted(true); }}>
           <h2>Your marathon</h2>
@@ -489,28 +512,13 @@ export default function QualifyingChecker() {
         <div className="tool-results">
           {ready ? (
             <>
-              {exampleNote ? <ExampleNote>{exampleNote}</ExampleNote> : null}
-              <section className="tool-reading night qualifying-headline" aria-labelledby={`${ids}-headline`}>
-                <div className="tool-reading-head">
-                  {/* One line at a phone's width: the division and the time (the race date is in the form above). */}
-                  <p className="tool-reading-kicker">{allExample ? 'Example · ' : ''}{DIVISIONS.find((d) => d.division === division)!.label} · {fmtTime(shown!)}</p>
-                  <h2 className="tool-reading-figure" id={`${ids}-headline`}>
-                    {meets === items.length ? `Meets all ${items.length}` : `Meets ${meets} of ${items.length}`}
-                    <small>{boston ? <BostonLine it={boston} raceDate={raceDate} /> : 'time standards'}</small>
-                  </h2>
-                </div>
-                <p className="qualifying-checked"><EvidenceTag kind="official" /><span>Checked <time dateTime={VERIFIED_AT}>{fmtDate(VERIFIED_AT)}</time></span></p>
-              </section>
-
               <RaceRows items={items} birth={birth} raceDate={raceDate} seconds={shown!} division={division} drop={drop}
                 dropIgnored={!dropValid} nyrr={nyrr} nyrrGuaranteed={nyrrGuaranteed} uk={uk} units={units} gender={bandGender} named={boston?.s.key} />
 
               <p className="tool-note qualifying-share-note">The copied link carries your division, time and race date, never your date of birth.</p>
-              <ShareBar />
+              <ShareBar print />
             </>
-          ) : (
-            <p className="tool-empty">{emptyMessage}</p>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

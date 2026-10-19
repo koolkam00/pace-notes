@@ -46,17 +46,25 @@ export default function RaceDayWeather() {
     </AnswerCard>
   );
   const ready = (id: 'warming' | 'wind') => evidence.candidates.find((c) => c.id === id && c.status === 'ready');
-  // Each tab's finding is the page's H1 while that tab is selected (TabTitle), so the panel carries no second headline.
+  // The base the warming tab's points are on: how much slower the second 20K ran than the first in the median race.
+  const changes = evidence.editions.map((e) => e.pace_change_pct).filter(Number.isFinite).sort((a, b) => a - b);
+  const typical = changes.length ? (changes[Math.floor((changes.length - 1) / 2)] + changes[Math.ceil((changes.length - 1) / 2)]) / 2 : NaN;
+  const nuggets = { warming: getNugget('weather.warming'), wind: getNugget('weather.wind') };
+  // Each tab's finding is the page's H1 while that tab is selected (TabTitle), one clause; its setup or base is the dek
+  // under it, so the panel carries no second headline.
   const tabs = [
-    { id: 'temperature', label: 'Start temperature', title: <Say nugget={n} term />, panel: <ByUnits mi={columns('mi')} km={columns('km')} /> },
+    { id: 'temperature', label: 'Start temperature', title: <Say nugget={n} term />, dek: n.guard ? 'The coolest start wasn’t the steadiest.' : definition.title, panel: <ByUnits mi={columns('mi')} km={columns('km')} /> },
     ...(['warming', 'wind'] as const).flatMap((id) => {
       const candidate = ready(id);
       if (!candidate) return [];
-      return [{ id, label: id === 'warming' ? 'Warming' : 'Wind', title: <Say nugget={getNugget(id === 'warming' ? 'weather.warming' : 'weather.wind')} quiet={id === 'wind'} />, panel: <WeatherAnalysis candidate={candidate} evidence={evidence} /> }];
+      const dek = !nuggets[id].guard ? definition.title
+        : id === 'warming' ? (Number.isFinite(typical) ? `In the median race the second 20K ran ${Math.round(typical)}% slower than the first.` : definition.title)
+          : 'The second 20K changed by less than a point either way.';
+      return [{ id, label: id === 'warming' ? 'Warming' : 'Wind', title: <Say nugget={nuggets[id]} quiet={id === 'wind'} />, dek, panel: <WeatherAnalysis candidate={candidate} evidence={evidence} /> }];
     }),
   ];
   return (
-    <AnalysisShell path={PATH} title={n} heading={<TabTitle titles={tabs.map(({ id, title }) => ({ id, title }))} />} dek={definition.title}
+    <AnalysisShell path={PATH} title={n} heading={<TabTitle titles={tabs.map(({ id, title }) => ({ id, title }))} />} dek={<TabTitle titles={tabs.map(({ id, dek }) => ({ id, title: dek }))} />}
       answer={<WeatherTabs tabs={tabs.map(({ id, label, panel }) => ({ id, label, panel }))} />}>
       <ExploreBeat track="chapter-1">
         <AllFinisherAnalysis kind="weather" start={start} linkTerm={false} untouched="none" />

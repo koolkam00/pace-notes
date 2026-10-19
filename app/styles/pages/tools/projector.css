@@ -44,11 +44,11 @@
 .tool-page .projector-paste textarea:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
 .projector-paste .tool-field-hint { padding-bottom: var(--s-3); }
 
-/* Phones: the short result right under the time field, so a new mat time shows its effect without scrolling. */
+/* Phones: under the time field, the way back up to the night card (or a short state: no group, an error). */
 .projector-quick { display: none; }
 @media (max-width: 899.98px) {
   .projector-quick { display: grid; gap: 2px; padding-top: var(--s-3); border-top: 1px solid var(--rule); }
-  /* "Full result ↓" alone: beside the elapsed/pace switch, so the night card starts a row sooner. */
+  /* "Result ↑" alone: beside the elapsed/pace switch, so it takes no row of its own. */
   @supports selector(:has(a)) {
     .projector-entry:has(> .projector-quick.is-jump) { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
     .projector-entry:has(> .projector-quick.is-jump) > * { grid-column: 1 / -1; }
@@ -82,11 +82,15 @@
 .projector-chart svg .projector-marker.is-median { fill: var(--signal-ink); }
 
 /* ---------- The rest of the race ---------- */
-/* From one to eight mats remain, so each lap carries its own top rule instead of counting rows. */
-.projector-laps { grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 0; }
-.tool-laps.projector-laps li, .tool-laps.projector-laps li:nth-last-child(-n + 3) { border-top: 1px solid var(--rule); border-bottom: 0; }
-.projector-laps b { font-size: 1.125rem; }
-.projector-lap-median { font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+/* From one to seven mats remain, so they are a list, one row per mat (never a grid with a hole in it): the mat on the
+   left, where the middle 80% passed on the right, their median under it. */
+.tool-laps.projector-laps { grid-template-columns: minmax(0, 1fr); border-top: 1px solid var(--rule); }
+.tool-laps.projector-laps li, .tool-laps.projector-laps li:nth-last-child(-n + 3) { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 2px var(--s-4);
+  padding: 12px 0; border-top: 0; border-bottom: 1px solid var(--rule); }
+.tool-laps.projector-laps li:last-child { border-bottom: 0; }
+.projector-laps li > span { grid-row: 1 / span 2; align-self: center; }
+.projector-laps b { font-size: 1.125rem; text-align: right; }
+.projector-lap-median { font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); font-variant-numeric: tabular-nums; text-align: right; }
 .projector-clock { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-3) var(--s-4); }
 .projector-clock .projector-start { flex: 1 1 15rem; max-width: 22rem; }
 .projector-clock > .tool-choice.seg { width: auto; margin-bottom: 26px; }
@@ -129,6 +133,4 @@
 .projector-card-update .btn { min-height: 52px; }
 .projector-card-update .tool-field-hint, .projector-card-update > .keypad-hint { grid-column: 1 / -1; }
 
-@media (min-width: 600px) {
-  .projector-laps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
+

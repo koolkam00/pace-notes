@@ -6,8 +6,8 @@ import ByUnits from '@/components/ui/ByUnits.client';
 import { analysisBySlug } from '@/lib/ten-analyses';
 import { getAnalysisStart } from '@/lib/analysis-server';
 import { getNugget } from '@/lib/nuggets';
-import { hm, ms, spokenTime } from '@/lib/nuggets/format';
-import type { UnitSystem } from '@/lib/units';
+import { hm, ms, pct, spokenTime } from '@/lib/nuggets/format';
+import { MARATHON_KM, distance, type UnitSystem } from '@/lib/units';
 
 const PATH = '/analyses/finding-improvement';
 const BLOCKS: [string, number][] = [['0–10K', 10], ['10–30K', 20], ['30K–finish', 12.195]];
@@ -36,10 +36,13 @@ export default function FindingImprovement() {
       result={gains.guard && gains.figure ? { label: 'Found after 30K', value: `${gains.figure.value}${gains.figure.unit ?? ''}`, sr: `${gains.figure.sr} of the time found came after 30K` } : { label: 'Faster in all', value: ms(total), sr: `${spokenTime(total)} faster in all` }}
       extra={gains.guard ? { label: 'Faster in all', value: ms(total), sr: `${spokenTime(total)} faster in all` } : undefined} />
   );
+  const stretch = (u: UnitSystem) => `After 30K is the last ${distance(MARATHON_KM - 30, u)}, ${pct((MARATHON_KM - 30) / MARATHON_KM)} of the distance.`;
   const r = next.values as { observed: number; expected: number };
   const lit = (s: number) => Math.round(s * 100);
   return (
-    <AnalysisShell path={PATH} title={gains} dek={definition.title} answer={Number.isFinite(g.total_min) ? <ByUnits mi={receipt('mi')} km={receipt('km')} /> : null}>
+    <AnalysisShell path={PATH} title={gains} answer={Number.isFinite(g.total_min) ? <ByUnits mi={receipt('mi')} km={receipt('km')} /> : null}
+      // The stretch the H1 names, as a distance against its share of the race (its share of the time found is larger).
+      dek={gains.guard ? <ByUnits mi={stretch('mi')} km={stretch('km')} /> : definition.title}>
       <Beat id="next-race" track="chapter-1" label="The next race" title={next} term>
         <div className="beat-grids">
           <DotGrid lit={lit(r.observed)} label={`${lit(r.observed)} of 100 next races had a sustained slowdown after one`} caption={<><strong>{lit(r.observed)} of 100</strong> after a sustained slowdown</>} />

@@ -34,12 +34,16 @@
   .pace-band-sheet { --strip-ink-3: color-mix(in srgb, var(--strip-ink) 68%, var(--strip-paper)); --strip-rule: color-mix(in srgb, var(--strip-ink) 20%, var(--strip-paper)); --strip-paper-2: color-mix(in srgb, var(--strip-ink) 7%, var(--strip-paper)); }
 }
 
-/* A phone keeps the preview legible (PaceBandStrip's fixed zoom) and scrolls it sideways in an edge-faded frame. */
+/* A phone keeps the preview legible (PaceBandStrip's fixed zoom) and scrolls it sideways. The cue is a fade in the
+   sheet's own paper, pinned to the frame's right edge (sticky inside the scroller), never a mask: a mask faded the paper
+   sheet into the page, which under the dark theme drew a dark smear across it. */
+.pace-band-sheet-fade { display: none; }
 @media screen and (max-width: 599.98px) {
-  .pace-band-sheet-wrap.is-scroll { overscroll-behavior-x: contain; scrollbar-width: none; padding-right: 24px;
-    -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 32px), transparent); mask-image: linear-gradient(to right, var(--ink) calc(100% - 32px), transparent); }
+  .pace-band-sheet-wrap.is-scroll { display: flex; align-items: stretch; overscroll-behavior-x: contain; scrollbar-width: none; }
   .pace-band-sheet-wrap.is-scroll::-webkit-scrollbar { display: none; }
-  .pace-band-sheet-wrap.is-scroll .pace-band-sheet { margin-inline: 0; }
+  .pace-band-sheet-wrap.is-scroll .pace-band-sheet { flex: none; margin-inline: 0; }
+  .pace-band-sheet-wrap.is-scroll .pace-band-sheet-fade { position: sticky; right: 0; display: block; flex: none; width: 28px; margin-left: -28px; pointer-events: none;
+    background: linear-gradient(to right, transparent, var(--night-ink) 85%); }
 }
 /* On screen the preview is scaled to fit (--zoom), so its printed micro text would be 5–9 px. The preview keeps only the
    mat names and the even times: the header line, the strips' legend, the mats' miles and the held line are print only

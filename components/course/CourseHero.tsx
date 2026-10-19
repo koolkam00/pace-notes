@@ -46,7 +46,7 @@ function raceMonths(editions: { year: number; date: string | null }[]): string {
  * desktop, so no cell runs empty), the sentence
  * that says how far the share ran edition by edition (course.slowdown, shown only when its guard holds), and, with three
  * or more editions, the year strip to scrub them. The strip opens on the edition the sentence accents, so the needle,
- * the readout and the orange word agree, and labels the other end; without the sentence, it opens on the latest edition
+ * the readout and the orange word agree; without the sentence, it opens on the latest edition
  * the source policy keeps. Where this course sits among the others is #slowdown's finding, over the strip of every course.
  * One action: the planner for this course, an outline from 1180 px, where the header carries the orange "Plan your race".
  */
@@ -66,10 +66,10 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
   const valueDomain: [number, number] = [0, Math.max(0.1, Math.ceil(Math.max(...editions.map((e) => e.slowdown)) * 10) / 10)];
   const extremeLabel = (p: YearPoint) => `${p.year} · ${p.display}`;
   // With the sentence, the strip opens on the edition it accents (the high end), so the needle, the readout and the
-  // orange word name one year; the low end is the one label (shown wherever it has room). Without it, the latest
-  // edition the policy keeps, with the extremes labelled.
+  // orange word name one year, and no other label: the sentence names the low end, and a label beside the needle read
+  // as the needle's own (critic round 2). Without it, the latest edition the policy keeps, with the extremes labelled.
   const opening = reading.guard ? Number(reading.values.hi_year) : latest;
-  const labelled = reading.guard ? [Number(reading.values.lo_year)] : extremes;
+  const labelled = reading.guard ? [] : extremes;
   const strip = (units: UnitSystem) => (
     <YearStrip
       editions={points(units)}
@@ -85,7 +85,7 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
       <div className="course-hero-head">
         <div className="reading-crumbs t-kicker course-crumbs"><ChapterCrumbs path={`/courses/${page.slug}`} place={<Link href="/courses" className="crumb-courses">Courses</Link>} /></div>
         <h1 className="course-title t-title">{race}</h1>
-        <p className="hero-dek">{s.editions === 1 ? `One edition, ${span}` : `${s.editions} editions, ${span}`}{when ? ` · ${when}` : ''}</p>
+        <p className="hero-dek">{s.editions === 1 ? `One edition, ${span}` : `${s.editions} editions, ${span}`}{when ? `\u00a0· ${when}` : ''}</p>
       </div>
       <div className="course-hero-figure">
         {reading.figure ? <BigNumber value={reading.figure.value} unit={reading.figure.unit} sr={reading.figure.sr} size="xl" tone="night" /> : null}

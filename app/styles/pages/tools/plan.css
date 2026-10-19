@@ -1,13 +1,11 @@
-/* The race planner (/tools/plan; the redesign spec, section 7.13): the course and goal, the plan on one night card with
-   the mats as a lap list, one Pace Notes data nugget on 100 dots, the pace band to print, then the next steps. Every
+/* The race planner (/tools/plan; the redesign spec, section 7.13): the plan's pace on one night card, the course and goal
+   that make it yours, one Pace Notes data nugget on 100 dots, then the pace band to print (its strips hold the mat times). Every
    class here is prefixed plan-. Imported by app/tools/plan/layout.tsx, with pace-band-strip.css. */
 
 /* The tracked-section wrappers are the results' grid items: they may shrink below their content (the strip preview). */
 .plan-root [data-track-section] { min-width: 0; }
 
 /* ---------- The plan ---------- */
-.plan-headline-title span { font-family: var(--serif); font-size: .5em; font-weight: 440; letter-spacing: -.01em; color: var(--ink-2); }
-.plan-mats-k small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
 .plan-problem { font-size: 1rem; }
 .plan-unavailable { color: var(--ink-2); }
 .plan-error { display: grid; gap: var(--s-3); justify-items: start; }
@@ -26,6 +24,7 @@
 
 /* ---------- Print: one Letter or A4 page at the browser's default margins (the plan), or the wristband strips alone ---------- */
 @media print {
+  .plan-root .tool-workspace { gap: .25cm; }
   .plan-root .tool-results { display: flex; flex-direction: column; gap: .25cm; }
   .plan-headline, .plan-root [data-track-section='result'], .plan-root [data-track-section='comparison'], .plan-error, .plan-unavailable, .plan-root .tool-handoffs, .plan-root .tool-example { display: none !important; }
   /* Nothing below the source line, so a full page does not spill onto a blank second one. */

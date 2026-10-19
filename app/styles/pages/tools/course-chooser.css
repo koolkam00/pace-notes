@@ -1,5 +1,6 @@
-/* The course chooser (/tools/course-chooser; the redesign spec, section 7.13): a goal, the spread of the share that made
-   it on one night card with a dot per course, then every course as one row, ranked by that share. Every class here is
+/* The course chooser (/tools/course-chooser; the redesign spec, section 7.13): the spread of the share that made the goal
+   on one night card with a tick per course, the goal that makes it yours, then every course as one row, ranked by that
+   share. Every class here is
    prefixed course-chooser- or cc-. Imported by app/tools/course-chooser/layout.tsx. */
 
 .course-chooser { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); min-width: 0; }
@@ -32,6 +33,9 @@
 /* Every course pooled, on every row's scale: a faint tick (the night card above gives its share). */
 .cc-bar { position: relative; }
 .cc-bar .cc-bar-mark { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--ink-3); box-shadow: 0 0 0 1px var(--paper); }
+/* The tick's key, once above the rows: the same 2 px mark, then what it is. */
+.cc-key { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--t-label); line-height: 1.35; color: var(--ink-3); }
+.cc-key-mark { flex: none; width: 2px; height: 12px; border-radius: 1px; background: var(--ink-3); }
 .cc-share { grid-area: share; text-align: right; font-variant-numeric: tabular-nums; }
 .cc-share b { font-size: 1.0625rem; font-weight: 600; }
 /* The rows' screen-reader words sit at the row's corner, never past a clipped line's end (that would widen the page). */
@@ -50,9 +54,9 @@
 /* One input: from 900 px the goal and the card share the first row and the list runs the full width under them (two
    columns of ranked rows from 1180 px), so no column stands empty beside it. */
 @media (min-width: 900px) {
-  .course-chooser .tool-workspace { row-gap: var(--s-7); }
+  .course-chooser .tool-workspace { grid-template-rows: none; row-gap: var(--s-7); }
   .course-chooser .tool-results { display: contents; }
-  .course-chooser .tool-inputs { position: static; grid-column: 1; grid-row: 1; max-height: none; overflow: visible; }
+  .course-chooser .tool-workspace > .tool-inputs { position: static; grid-column: 1; grid-row: 1; max-height: none; overflow: visible; }
   .course-chooser .tool-results > * { grid-column: 2; }
   .course-chooser .tool-results > .course-chooser-list, .course-chooser .tool-results > .tool-share { grid-column: 1 / -1; }
   .cc-row { grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr) 3.5rem 14px; grid-template-areas: 'name bar share plan' 'sub sub sub .'; }

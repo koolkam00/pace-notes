@@ -308,6 +308,33 @@ async function keypad(h) {
   await run.close();
 }
 
+// Every goal tool's goal can be cleared and typed again: four Backspaces empty the 4:00 example (a tool that sets aside a
+// half-typed time, such as the course chooser's 5-minute grid, never writes its own goal back over the visitor's text),
+// and a keypad's 3.30 reads 3:30 in the field once it is left and goal=3:30 in the address, h:mm on every tool.
+async function goalRetype(h) {
+  const run = await h.run('goal retype', PHONE);
+  const page = await run.newPage();
+  const seen = [];
+  for (const route of ['/tools/plan', '/tools/pace-band', '/tools/course-chooser', '/tools/weather-match']) {
+    await page.goto(SITE + route, { waitUntil: 'load' });
+    await page.waitForTimeout(1200);
+    const field = page.getByLabel('Goal finish time', { exact: true }).first();
+    await field.scrollIntoViewIfNeeded({ timeout: 8000 });
+    await field.click({ timeout: 8000 });
+    await page.keyboard.press('End');
+    for (let i = 0; i < 4; i += 1) { await page.keyboard.press('Backspace'); await page.waitForTimeout(60); }
+    const cleared = await field.inputValue();
+    await field.pressSequentially('3.30', { delay: 60 });
+    const typed = await field.inputValue();
+    await field.evaluate((el) => el.blur());
+    await page.waitForTimeout(900);
+    seen.push({ route, cleared, typed, left: await field.inputValue(), goal: new URL(page.url()).searchParams.get('goal') });
+  }
+  await run.close();
+  h.check('every goal tool: four Backspaces clear the 4:00 example, and a typed 3.30 reads 3:30 in the field and goal=3:30 in the address',
+    seen.every((r) => r.cleared === '' && r.typed === '3:30' && r.left === '3:30' && r.goal === '3:30'), seen);
+}
+
 // Every page whose text changes with the units has the header's working switch (lib/unit-preference.ts; the build stops
 // otherwise). /research, opened directly, converts its text when Kilometers is pressed: the contents' opener names the
 // marathon distance ("26.2 miles in eleven chapters"), and any pace a chapter's reading carries turns from /mi to /km.
@@ -389,7 +416,7 @@ async function courseBack(h, device) {
 
 module.exports = {
   id: 'S1',
-  title: 'Browsing: home, story, the five main links, an analysis, privacy; the home page\'s first screen and form; the units switch; Back to a course page',
+  title: 'Browsing: home, story, the five main links, an analysis, privacy; the home page\'s first screen and form; the units switch; Back to a course page; every goal tool\'s goal retyped',
   jobs: ({ quick }) => [
     { name: 'desktop', weight: 34, run: h => browse(h, DESKTOP) },
     ...(quick ? [] : [{ name: 'phone', weight: 34, run: h => browse(h, PHONE) }]),
@@ -399,5 +426,6 @@ module.exports = {
     { name: 'keypad colon', weight: 8, run: keypad },
     { name: 'units switch', weight: 12, run: unitSwitch },
     { name: 'course page Back', weight: 8, run: h => courseBack(h, PHONE) },
+    { name: 'goal retype', weight: 8, run: goalRetype },
   ],
 };

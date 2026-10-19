@@ -4,6 +4,7 @@ import Axis from './Axis';
 import Plot, { Baseline, Gridlines } from './Plot';
 import Scrubber, { type ScrubPoints } from './Scrubber.client';
 import { linear, linePath, pc, yScale } from './scale';
+import { REF_WIDTH, textWidth } from './labels';
 
 /**
  * A cumulative curve (the redesign spec, section 3.6): the share of finishes under each time, cropped to the 1st–99th
@@ -29,9 +30,10 @@ export default function Cdf({ points, you, youLabel = 'You', ticks, scrub, label
           {/* The visitor's own time is an orange ring ("You"); a page's example time is an ink ring with its name, so the
               needle stays the one orange mark. */}
           <circle className={youLabel === 'You' ? 'm-ring' : 'm-hollow-ink'} cx={pc(x(you_.x))} cy={pc(y(you_.share))} r={youLabel === 'You' ? 7 : 6} />
-          {/* The example's name sits left of its ring, above the curve, clear of the needle that opens to its right. */}
-          {youLabel === 'You'
-            ? <text className="viz-label is-signal" x={pc(x(you_.x))} y={pc(y(you_.share))} dx={12} dy={4}>{youLabel}</text>
+          {/* The example's name sits left of its ring, above the curve, clear of the needle that opens on it; a ring too
+              near the left edge for that (3:00) takes its name on the right, under the rising curve. */}
+          {youLabel === 'You' || x(you_.x) * REF_WIDTH < textWidth(youLabel, 14) + 14
+            ? <text className={youLabel === 'You' ? 'viz-label is-signal' : 'viz-label'} x={pc(x(you_.x))} y={pc(y(you_.share))} dx={12} dy={4}>{youLabel}</text>
             : <text className="viz-label" x={pc(x(you_.x))} y={pc(y(you_.share))} dx={-12} dy={4} textAnchor="end">{youLabel}</text>}
         </g>
       ) : null}

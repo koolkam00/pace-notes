@@ -141,6 +141,8 @@
 /* ---------- Labels hide below the width they fit (200% zoom); they stay in Values ---------- */
 .viz-frame .w-never { display: none; }
 @container (max-width: 719.98px) { .viz-frame .w720 { display: none; } }
+/* Marks placed for the taller plot a 900 px screen draws (DotStrip's named labels) hide below it. */
+@media (max-width: 899.98px) { .viz-frame .md-only { display: none; } }
 @container (max-width: 599.98px) { .viz-frame .w600 { display: none; } }
 @container (max-width: 479.98px) { .viz-frame .w480 { display: none; } }
 @container (max-width: 419.98px) { .viz-frame .w420 { display: none; } }

@@ -8,14 +8,11 @@ import CourseNumbers from '@/components/course/CourseNumbers';
 import CourseOthers from '@/components/course/CourseOthers';
 import CoursePacing from '@/components/course/CoursePacing';
 import CoursePlan from '@/components/course/CoursePlan';
-import CourseReplay from '@/components/course/CourseReplay';
 import CourseSlowdown from '@/components/course/CourseSlowdown';
 import CourseToc from '@/components/course/CourseToc';
 import CourseWeatherByYear, { WEATHER_MIN_MORNINGS } from '@/components/course/CourseWeatherByYear';
 import { readingAttrs } from '@/lib/chapters';
 import { courseDescription, coursePage, coursePages, courseTitle } from '@/lib/course-page';
-import type { ReplayIndex } from '@/lib/insights';
-import { getInsightsManifest, readInsight, replayChoices } from '@/lib/insights-server';
 import { JsonLd, pageCrumbs, pageMetadata } from '@/lib/seo';
 import '@/app/styles/pages/course.css';
 
@@ -34,21 +31,19 @@ export function generateMetadata({ params }: { params: { city: string } }) {
 /**
  * One course page (the redesign spec, sections 4.3 and 7.10, cut under section 00): the night hero with the race's
  * reading, then one finding and one chart per section in the pinned order (at a glance, finish times, elevation,
- * pacing, sustained slowdown, goals, weather, plan, replay, other courses), each only where the course's data gives it
+ * pacing, sustained slowdown, goals, weather, plan, other courses), each only where the course's data gives it
  * something to show, every long table in one "All numbers" disclosure, and the closing stack. Sections and their data are in docs/SEO.md ("Course pages"); every figure is
  * checked against its file by scripts/verify-courses.cjs and every sentence by scripts/verify-nuggets.cjs.
  */
 export default function CityPage({ params }: { params: { city: string } }) {
   const page = coursePage(params.city);
   if (!page) notFound();
-  const replay = readInsight<ReplayIndex>('replay.json').editions.filter((e) => e.city === page.city);
-  const choices = replayChoices(replay, getInsightsManifest(), new Map(page.geometry ? [[page.city, { points: page.geometry.route, km: page.geometry.route_km }]] : []));
   // A section shows only when it has something to show: no heading over an empty chart.
   const glance = glanceRows(page);
   const shown: [string, string, boolean][] = [
     ['at-a-glance', 'At a glance', glance.length > 0], ['finish-times', 'Finish times', timesShown(page)],
     ['elevation', 'Elevation', !!page.geometry], ['pacing', 'Pacing', !!page.types], ['slowdown', 'Slowdowns', true], ['goals', 'Goals', page.goals.length > 0],
-    ['weather', 'Weather', !!page.hotCool && page.weather.length >= WEATHER_MIN_MORNINGS], ['plan', 'Plan', true], ['replay', 'Replay', choices.length > 0],
+    ['weather', 'Weather', !!page.hotCool && page.weather.length >= WEATHER_MIN_MORNINGS], ['plan', 'Plan', true],
   ];
   const sections = shown.filter(([, , on]) => on).map(([id, name]) => [id, name] as [string, string]);
   return (
@@ -65,7 +60,6 @@ export default function CityPage({ params }: { params: { city: string } }) {
       <CourseWeatherByYear page={page} />
       <CourseNumbers page={page} />
       <CoursePlan page={page} />
-      <CourseReplay page={page} choices={choices} />
       <CourseOthers page={page} />
     </div>
   );

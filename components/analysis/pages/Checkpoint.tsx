@@ -43,7 +43,7 @@ export default function Checkpoint() {
   );
 }
 
-/** The share of finishes under the goal, by 2-minute split at the mat: drag along the splits; even pace and the 50% point are detents. */
+/** The share of finishes under the goal, by 2-minute split at the mat: drag along the splits from the 50% point. */
 function Cushion({ goal, mat }: { goal: number; mat: number }) {
   const all = getCheckpointCurve(mat, goal);
   const curve = all.filter((p) => p.share <= 0.99 && p.share >= 0.01);
@@ -66,7 +66,9 @@ function Cushion({ goal, mat }: { goal: number; mat: number }) {
       washes={evenI >= 0 ? [{ from: evenMin, to: evenMin }] : []}
       xTicks={[...ticks.map((t) => ({ value: t, label: hm(t) })), ...(evenI >= 0 ? [{ value: evenMin, label: 'even' }] : [])].sort((a, b) => a.value - b.value)}
       yTicks={[{ value: 100, label: '100%' }]}
-      scrub={{ label: `Split at ${mat}K`, initial: Math.max(0, initial), detents: [evenI, initial].filter((i) => i >= 0),
+      // No detents: each draws a dot on the axis, and the 2-minute bins' centres never sit on a labelled tick (even pace
+      // falls inside a bin), so a snap dot would read as a tick off its own label. The needle opens on the finding.
+      scrub={{ label: `Split at ${mat}K`, initial: Math.max(0, initial), detents: [],
         points: { x: xs.map((x) => (x - xs[0]) / (xs[xs.length - 1] - xs[0])), keys: curve.map((p) => `At ${mat}K in ${range(p)}, under ${hm(goal)}`), values: curve.map((p) => pct(p.share)),
           side: [{ label: 'Median finish', values: curve.map((p) => clock(p.median)) }] } }}
       axisTitle={{ start: `← faster at ${mat}K`, end: `slower at ${mat}K →` }}

@@ -5,7 +5,6 @@ import CourseSort, { type SortKey } from '@/components/course/CourseSort.client'
 import { Fact } from '@/components/course/Fact';
 import RouteFace from '@/components/course/RouteFace';
 import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
-import { SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { readingAttrs } from '@/lib/chapters';
 import Reading from '@/components/ui/Reading';
 import { coursePages, raceName, routeClimb } from '@/lib/course-page';
@@ -44,14 +43,13 @@ function ShapeFace({ curve }: { curve: number[] }) {
 }
 
 /**
- * /courses (the redesign spec, section 7.10, cut under section 00): the reading (how far sustained slowdown runs from
- * one course to the next across the courses with three or more editions, from the same courses.json share each course
- * page leads with), then every course as one row the chips sort: its route as its face (or its pace shape), its name,
+ * /courses (the redesign spec, section 7.10, cut under section 00): the H1 and the dek, then every course as one row
+ * the chips sort: its route as its face (or its pace shape), its name,
  * and the figure the order is by, at the right and again as a bar under the name on one scale for every row, so the
  * sorted list is the chart (start temperatures, a range, draw as a span on one temperature scale). Under any other
  * order the share of sustained slowdowns moves to the row's small line. The courses with fewer than three editions are
- * drawn quieter: under the share's order they follow under their own hairline, since the range above leaves them out;
- * under any other they stand in their sorted place. The ItemList stays alphabetical.
+ * drawn quieter: under the share's order they follow under their own hairline; under any other they stand in their
+ * sorted place. The ItemList stays alphabetical.
  */
 export default function CoursesPage() {
   const pages = [...coursePages().values()];
@@ -60,7 +58,6 @@ export default function CoursesPage() {
   const temps = new Map<string, number[]>();
   for (const w of courses.weather.editions) temps.set(w.city, [...(temps.get(w.city) ?? []), w.temp]);
   const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
-  const range = getNugget('courses.range');
   const index = getNugget('courses.index');
   // One scale for every row's bar, per order: zero to the round ten above the highest share, zero to the most climbing and
   // the most finishes, and for start temperatures the coolest to the warmest morning on any course.
@@ -93,7 +90,7 @@ export default function CoursesPage() {
           <span className="course-index-face">{p.geometry ? <RouteFace course={p.geometry} /> : <ShapeFace curve={p.summary.curve ?? []} />}</span>
           <span className="course-index-name">{p.display}</span>
           <span className="course-index-meta">
-            <span className="m-default">{editions}{climb ? <> · <Elevation metres={climb.gain_m} /> climb</> : null}</span>
+            <span className="m-default">{editions}{climb ? <>{'\u00a0· '}<span className="nowrap"><Elevation metres={climb.gain_m} /> climb</span></> : null}</span>
             <span className="m-other">{Math.round(share * 100)}% sustained slowdown</span>
           </span>
           {/* The figure the order is by; the share first, the one the course page leads with. */}
@@ -120,10 +117,8 @@ export default function CoursesPage() {
   return (
     <div className="courses-page" {...readingAttrs('/courses')}>
       <JsonLd data={[pageCrumbs('/courses', 'Courses'), list]} />
-      <Reading crumbs={<ChapterCrumbs path="/courses" />} title="Courses" titleSize="title" dek={sentenceOf(index).replace(/\*/g, '')}
-        figure={range.figure ? { ...range.figure, size: 'xl' } : undefined}
-        unitLine={<>of finishes in the average edition had a <SlowdownTerm />, on the courses with three or more editions</>}
-        sentence={sentenceOf(range)} fallback={!range.guard} className="courses-reading" />
+      {/* One list (section 00): the H1, the dek, then every course. The spread across courses is course-comparison's. */}
+      <Reading crumbs={<ChapterCrumbs path="/courses" />} title="Courses" titleSize="title" dek={sentenceOf(index).replace(/\*/g, '')} className="courses-reading" />
       <section className="courses-list" aria-label="Every course">
         <CourseSort initial="slowdown" orders={orders} rows={rows} foot={few} footTitle="Fewer than three editions"
           options={[{ value: 'slowdown', label: 'Sustained slowdown' }, { value: 'climb', label: 'Climb' }, { value: 'finishes', label: 'Finishes' }, { value: 'temp', label: 'Start temperature' }, { value: 'az', label: 'A–Z' }]} />

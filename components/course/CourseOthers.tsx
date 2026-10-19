@@ -39,7 +39,7 @@ export default function CourseOthers({ page }: { page: CoursePageData }) {
   const base = summary.curve ?? [];
   const span = Math.max(1, ...[base, ...rows.map((r) => curves.get(r.city) ?? [])].flat().map((v) => Math.abs(v)));
   return (
-    <CourseSection id="other-courses" track="related" beat="More courses" title={shaped ? <>Shaped like <em>{display}</em>.</> : <>Courses near {display}’s share.</>}>
+    <CourseSection id="other-courses" track="related" beat="More courses" title={shaped ? <>Shaped like <em className="is-plain">{display}</em>.</> : <>Courses near {display}’s share.</>}>
       {shaped ? (
         <ul className="viz-key course-rows-key" aria-hidden="true">
           <li><i className="course-key-line" />Each course, 5K by 5K</li>

@@ -10,9 +10,12 @@ export type ToolGroup = 'race' | 'reference';
 
 export interface ToolDefinition {
   slug: string;
-  /** Short name for the list, navigation and breadcrumbs. */
+  /** The tool's one name: its H1, its row on /tools, the navigation, the chapters and the breadcrumbs. */
   title: string;
-  /** The page's H1 when it should say more than the short title. */
+  /**
+   * The search phrase ("Marathon race planner"): the tool's social card only. The page's <title> and description carry it
+   * too, from the page's own metadata; the H1 is the title, the name every link to the tool uses.
+   */
   heading?: string;
   /** The tool's line on /tools. */
   short: string;
@@ -46,7 +49,7 @@ export const EVIDENCE_TEXT: Record<ToolEvidence, string> = {
 };
 
 export const TOOLS: ToolDefinition[] = [
-  { slug: 'plan', title: 'Race planner', heading: 'Marathon race planner', short: 'Course, goal and pace band', group: 'race', evidence: ['data'], accent: '#1D3FD8', file: 'tools/course-goal.json',
+  { slug: 'plan', title: 'Plan your race', heading: 'Marathon race planner', short: 'Course, goal and pace band', group: 'race', evidence: ['data'], accent: '#1D3FD8', file: 'tools/course-goal.json',
     dek: 'Pick a course and a goal: your splits, your pace band, and how that pace held up there.' },
   { slug: 'pace-band', title: 'Pace band', heading: 'Marathon pace band', short: 'A wristband for your goal', group: 'race', evidence: ['data'], accent: '#FF5B2E', file: 'tools/pace-band.json',
     dek: 'An even-pace wristband to print, beside the mat times of finishes that made your goal.' },

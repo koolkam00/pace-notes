@@ -172,7 +172,6 @@ const courseGoal = insight('tools/course-goal.json');
 const paceBand = insight('tools/pace-band.json');
 const projector = insight('tools/projector.json');
 const weatherMatch = insight('tools/weather-match.json');
-const replay = insight('replay.json');
 const runnerBytes = fs.readFileSync(path.join(root, 'public/data/runners/manifest.json'));
 const runners = JSON.parse(runnerBytes.toString());
 const context = read('public/data/runner-context/manifest.json');
@@ -494,7 +493,8 @@ const BANNED = [[/\bthe wall\b/i, '"the wall"'], [/arithmetic/i, '"arithmetic"']
 const RANK = /\b(?:rank|ranks|ranked|ranking|rankings|fastest|toughest|hardest|easiest|harder|easier|tougher|similar|best|worst|top \d+)\b/i;
 const DOI = 'doi:10.1371/journal.pone.0251513';
 const DOI_URL = 'https://doi.org/10.1371/journal.pone.0251513';
-const SECTIONS = ['at-a-glance', 'finish-times', 'elevation', 'pacing', 'slowdown', 'goals', 'weather', 'plan', 'replay', 'other-courses'];
+// No #replay: the race replay is the home page's and chapter 01's, not a third time on every course page (critic round 2).
+const SECTIONS = ['at-a-glance', 'finish-times', 'elevation', 'pacing', 'slowdown', 'goals', 'weather', 'plan', 'other-courses'];
 /** Where the term links: its definition on /methodology. */
 const SLOWDOWN_HREF = '/methodology#sustained-slowdown';
 /** What a goal with no published row says, whatever the file's reason (the reason is method, on /methodology). */
@@ -567,7 +567,7 @@ if (html) {
     const weatherShown = pairGap !== null && pairGap >= courses.weather.pairs.min_gap_c && f.weather.length >= 3;
     const want = {
       'at-a-glance': glanceIds.length > 0, 'finish-times': f.cells.length >= 3 && N.getNugget('course.times', { city }).guard, elevation: !!f.route, pacing: !!f.types,
-      goals: goalsShown, weather: weatherShown, replay: replay.editions.some((e) => e.city === city),
+      goals: goalsShown, weather: weatherShown,
     };
     for (const id of SECTIONS) {
       const present = sectionStart(body, id) >= 0;
@@ -585,7 +585,7 @@ if (html) {
       check(norm(h2(id) ?? '') === norm(said(nugget, city)), where, `#${id}'s finding "${h2(id)}" is not ${nugget}'s "${said(nugget, city)}"`);
     }
     // The hero's sentence is how far the share ran edition by edition (course.slowdown), shown only when its guard holds;
-    // the year strip labels the two editions it names. Where the course sits among the others is #slowdown's H2.
+    // the year strip opens on the edition it accents. Where the course sits among the others is #slowdown's H2.
     const heroSentence = textOf(/<p class="course-hero-sentence[^"]*"[^>]*>([\s\S]*?)<\/p>/.exec(body)?.[1] ?? '');
     const range = N.getNugget('course.slowdown', { city });
     if (range.guard) check(norm(heroSentence) === norm(said('course.slowdown', city)), where, `the hero's sentence "${heroSentence}" is not course.slowdown's`);
@@ -596,7 +596,7 @@ if (html) {
     // The figure averages the editions' shares, so its words name the average edition (course.slowdown's key), never a
     // share pooled over every finish.
     const heroKey = norm(textOf(/<p class="course-hero-key"[^>]*>([\s\S]*?)<\/p>/.exec(body)?.[1] ?? ''));
-    const averaged = f.cells.length === 1 ? new RegExp(`^of finishes in ${f.cells[0].year} had`) : f.cells.length === 2 ? /in its two editions, on average,/ : /average edition/;
+    const averaged = f.cells.length === 1 ? new RegExp(`^of finishes in ${f.cells[0].year} had`) : f.cells.length === 2 ? /in its two editions, on average,/ : /in an average year/;
     check(heroKey === norm(N.getNugget('course.slowdown', { city }).key) && averaged.test(heroKey), where, `the hero figure's words "${heroKey}" do not name what the figure averages`);
     const glanceKeys = [...main.matchAll(/<span class="glance-key">([\s\S]*?)<\/span>/g)].map((m) => norm(textOf(m[1])));
     for (const id of GLANCE) {
@@ -797,15 +797,14 @@ if (html) {
       check(d && attr(d[1], 'data-k') === 'slowdown.r' && attr(d[1], 'value') === String(s0) && innerText(d[2]) === F.pct0(s0), where, `the ${city} row: ${d ? innerText(d[2]) : 'no share'} against the page's ${F.pct0(s0)}`);
       check(!/with complete splits|supplied/i.test(textOf(row)), where, `the ${city} row carries coverage copy: "${textOf(row)}"`);
     }
-    // The reading's range leaves out the courses with fewer than three editions: they follow under their own label, and
-    // the range's own ends are the extremes of the rest.
+    // The courses with fewer than three editions follow under their own label.
     const footList = /<ol class="course-index is-foot"[\s\S]*?<\/ol>/.exec(markup(full))?.[0] ?? '';
     const footSlugs = [...footList.matchAll(/href="\/courses\/([^"?#]+)/g)].map((m) => m[1]).sort();
     const fewSlugs = CITIES.filter((c) => facts.get(c).s.editions < 3).map(slugOf).sort();
     check(JSON.stringify(footSlugs) === JSON.stringify(fewSlugs), where, `the courses under "Fewer than three editions" are ${footSlugs}, not ${fewSlugs}`);
-    const solidShares = CITIES.filter((c) => facts.get(c).s.editions >= 3).map((c) => facts.get(c).s.slowdown);
-    const figure = textOf(/<div class="reading-figure[\s\S]*?<\/div>/.exec(markup(full))?.[0] ?? '');
-    check(figure.includes(`${F.pct0(Math.min(...solidShares)).replace('%', '')}–${F.pct0(Math.max(...solidShares)).replace('%', '')}`) && /three or more editions/.test(figure), where, `the reading "${figure}" is not the range of the courses with three or more editions`);
+    // One list (section 00): the H1 and the dek, then the courses. The spread across courses (19–46%) is course
+    // comparison's finding alone, so /courses draws no reading figure (critic round 2).
+    check(!/class="reading-figure/.test(markup(full)), where, '/courses draws a reading figure: the spread across courses belongs to course comparison');
     const dek = textOf(/<p class="reading-dek">([\s\S]*?)<\/p>/.exec(markup(full))?.[1] ?? '');
     check(dek.length > 0 && !/supplied|route file/i.test(dek), where, `the /courses dek names a data source or is missing: "${dek}"`);
     const main = /<main\b[\s\S]*<\/main>/.exec(markup(full))?.[0] ?? '';

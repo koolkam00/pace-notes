@@ -4,7 +4,6 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type R
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { Choice, DataState, DurationField, EvidencePanel, ExampleNote, ShareBar, Stat } from '@/components/tools/ui';
-import { MarathonHandoffs } from '@/components/tools/Handoffs';
 import KeypadHint from '@/components/KeypadHint';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
@@ -56,12 +55,7 @@ const AGO = [
   { value: '6+', label: 'More than 6 months ago' },
 ];
 const DEFAULTS = { d: 'half', km: '', t: '1:55:00', ago: '', to: 'marathon', d2: '', km2: '', t2: '', ago2: '', wk: '', tp: '' };
-/** Links to other tools. The pace band takes a goal from 1:30 to 8:00 and the course chooser from 2:30 to 6:30 (whole minutes). */
-const BAND_MIN_S = 90 * 60;
-const BAND_MAX_S = 480 * 60;
-const CHOOSER_MIN_S = 150 * 60;
-const CHOOSER_MAX_S = 390 * 60;
-/** The goal another tool is given for an estimate: the whole minute at or below it, so every tool reads 4:11:41 as 4:11. */
+/** The whole minute at or below an estimate, the way every tool reads a time (4:11:41 is 4:11). */
 const goalMinute = (s: number) => Math.floor(Math.round(s) / 60) * 60;
 type Query = typeof DEFAULTS;
 type LookKey = 'median' | 'riegel' | 'low' | 'high';
@@ -552,13 +546,13 @@ function FinishStrip({ q, Q, est }: { q: number[]; Q: number[]; est: number }) {
   const [lo, hi] = [lo0 - pad, hi0 + pad];
   const m = { l: 8, r: 8 };
   const x = (s: number) => m.l + ((s - lo) / (hi - lo)) * (width - m.l - m.r);
-  const fmt = narrow ? fmtShort : fmtTime;
   const tiny = width < 300;
   const markers = stackLabels([
     // The marker is the whole minute the cohort is on pace for ("On 4:11 pace"), never the estimate's own label: the
     // card above gives the estimate to the second.
     { key: 'est', x: x(est), label: tiny ? fmtShort(est) : `On ${fmtShort(est)} pace`, tone: 'est' as const },
-    { key: 'median', x: x(q[i50]), label: `Their median ${fmt(q[i50])}`, tone: 'median' as const },
+    // The median in whole minutes, as the sentence above names it (one precision for one number).
+    { key: 'median', x: x(q[i50]), label: `Their median ${fmtShort(q[i50])}`, tone: 'median' as const },
   ], width, m.l);
   const labelRows = Math.max(1, ...markers.map((mk) => mk.row + 1));
   const top = 8 + labelRows * 17;
@@ -609,8 +603,8 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
   const lookRef = useRef<HTMLDivElement>(null);
   if (!est.isMarathon || !indexSha) return null;
   const chosen = looks.find((l) => l.key === look) ?? looks[0];
-  // The whole minute at or below the estimate, the way the handoffs above hand it on (4:11:41 is 4:11), so the page
-  // names one time for it, not 4:11 here and 4:12 there.
+  // The whole minute at or below the estimate, the way every tool hands a time on (4:11:41 is 4:11), so the page names
+  // one time for it, not 4:11 here and 4:12 there.
   const T = goalMinute(chosen.seconds);
   const bandS = index?.band_s ?? 120;
   const band = Math.floor(T / bandS) * bandS;
@@ -641,7 +635,7 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
           return (
             <>
               <p className="tool-nugget-text" id="predictor-data-title">
-                Finishes on {fmtShort(T)} pace at 20K finished in a median <em>{formatDuration(q[i50], true)}</em>.
+                Finishes on {fmtShort(T)} pace at 20K finished in a median <em>{fmtShort(q[i50])}</em>.
               </p>
               <FinishStrip q={q} Q={Q} est={T} />
               <dl className="tool-cells">
@@ -795,15 +789,6 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
   }
   const chartLabel = est ? `Predicted ${est.target.name} times, estimate by estimate. ${rows.map((r) => `${r.label}: ${r.kind === 'range' ? `${fmtTime(r.lo!)} to ${fmtTime(r.hi!)}, median ${fmtTime(r.mid!)}` : r.value}`).join('. ')}.` : '';
 
-  // Pace-band goals: the whole minute at or below each estimate, inside the band's 1:30 to 8:00.
-  const bandTimes = est?.range
-    ? [...new Set([est.riegel, est.range.low, est.range.median, est.range.high].map(goalMinute))].filter((s) => s >= BAND_MIN_S && s <= BAND_MAX_S).sort((a, b) => a - b)
-    : [];
-
-  const medianMinute = est?.range ? goalMinute(est.range.median) : null;
-  const medianGoal = medianMinute !== null && bandTimes.includes(medianMinute) ? medianMinute : null;
-  const chooserGoal = medianMinute !== null && medianMinute >= CHOOSER_MIN_S && medianMinute <= CHOOSER_MAX_S ? medianMinute : null;
-
 
   const stale = [q.ago === '6+' ? 'Your recent race' : null, race2?.ok && q.ago2 === '6+' ? 'Your second race' : null].filter(Boolean) as string[];
 
@@ -826,6 +811,22 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
   return (
     <div className="predictor">
       <div className="tool-workspace">
+        {/* The answer first (the analyses' grammar): the range for the example race, then the race that makes it yours. */}
+        <div className={`tool-results tool-answer${held ? ' predictor-held' : ''}`} aria-busy={held ? true : undefined}>
+          {!est ? (
+            <p className="tool-empty">{emptyText}</p>
+          ) : (
+            /* Every estimate's figure sits inside the research card (one source, one badge at its foot), so no unbadged
+               published-research block stands between it and the Pace Notes data panel. */
+            <Headline est={est} dist={dist1} units={units} example={isExample}>
+              <div className="predictor-methods" id="predictor-methods">
+                <h3 className="predictor-methods-title">Every estimate, side by side</h3>
+                <MethodChart rows={rows} fuzzy={!!est.range && est.range.extrapolation === 'shorter'} label={chartLabel} />
+              </div>
+            </Headline>
+          )}
+        </div>
+
         <form className="tool-inputs predictor-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Finish-time predictor inputs">
           <h2>Your recent race</h2>
           <DistanceChips labelId={`${uid}-d1`} label="Distance" quiet value={dist1.key} onPick={pickDistance} />
@@ -837,7 +838,9 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
             onText={(text) => { setConverted(null); setQ({ t: text }); }} hint={timeHint} />
           <div className="tool-field predictor-target">
             <span className="tool-label" aria-hidden="true">Predict</span>
-            <Choice label="Distance to predict" value={target.key} onChange={(v) => setQ({ to: v })} options={TARGETS.map((t) => ({ value: t.key, label: t.label }))} />
+            {/* The recent race's own distance is not a prediction: that option is shown but cannot be chosen. */}
+            <Choice label="Distance to predict" value={target.key} onChange={(v) => setQ({ to: v })}
+              options={TARGETS.map((t) => ({ value: t.key, label: t.label, disabled: t.key !== target.key && dist1.km !== null && Math.abs(dist1.km - t.km) < 0.05, title: `Your recent race is ${withArticle(t.name)}` }))} />
           </div>
 
           <details className="predictor-more" open={open2} onToggle={(e) => setOpen2(e.currentTarget.open)}>
@@ -899,30 +902,16 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
 
         <div className={`tool-results${held ? ' predictor-held' : ''}`} aria-busy={held ? true : undefined}>
           <p className="sr-only" role="status">{announce}</p>
-          {!est ? (
-            <p className="tool-empty">{emptyText}</p>
-          ) : (
+          {est ? (
             <>
-              {/* Every estimate's figure sits inside the research card (one source, one badge at its foot), so no unbadged
-                  published-research block stands between it and the Pace Notes data panel. */}
-              <Headline est={est} dist={dist1} units={units} example={isExample}>
-                <div className="predictor-methods" id="predictor-methods">
-                  <h3 className="predictor-methods-title">Every estimate, side by side</h3>
-                  <MethodChart rows={rows} fuzzy={!!est.range && est.range.extrapolation === 'shorter'} label={chartLabel} />
-                </div>
-              </Headline>
               {stale.length ? (
                 <p className="tool-note predictor-stale"><strong>{stale.join(' and ')} {stale.length > 1 ? 'were' : 'was'} more than 6 months ago.</strong> A recent race predicts better.</p>
               ) : null}
-
-
               <ObservedPanel indexSha={indexSha} est={est} looks={looks} look={look} setLook={setLook} units={units} />
-              {/* The median estimate, handed on as the whole minute at or below it, as every tool reads it (4:11:41 is 4:11),
-                  after the last section. The planner is the page's next card, so it is not a row here too. */}
-              {est.range ? <MarathonHandoffs label="With this estimate" seconds={Math.round(est.range.median)} to={['band', 'pacing']} /> : null}
+              {/* One way forward: the chapter's next card (the planner). The share row is the only action here. */}
               <ShareBar />
             </>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

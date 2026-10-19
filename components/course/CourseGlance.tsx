@@ -126,7 +126,7 @@ export default function CourseGlance({ page }: { page: CoursePageData }) {
     return { id, figure: figureOf(n), key: n.key!, viz: curve && at >= 0 ? <SignatureViz curve={curve} typical={typicalCurve} at={at} /> : undefined };
   });
   return (
-    <CourseSection id="at-a-glance" track="chapter-1" beat="At a glance" title={display.includes(' ') ? <>What sets <em>{kept}</em> apart</> : <>What makes {kept} <em>{kept}</em></>}>
+    <CourseSection id="at-a-glance" track="chapter-1" beat="At a glance" title={display.includes(' ') ? <>What sets <em className="is-plain">{kept}</em> apart</> : <>What makes {kept} <em className="is-plain">{kept}</em></>}>
       <div className="course-glance">
         <ul className="glance-rows">
           {rows.map((r) => (

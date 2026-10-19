@@ -8,7 +8,7 @@
 .courses-page { padding-bottom: var(--s-6); }
 .courses-page .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: .2em; }
 .courses-reading { padding-bottom: var(--s-2); }
-.courses-list { margin-top: var(--s-6); }
+.courses-list { margin-top: 0; }
 .course-sort .chips { margin-bottom: var(--s-4); }
 
 .course-index { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
@@ -21,6 +21,8 @@
 .course-index-row:hover .course-index-name { text-decoration: underline; text-underline-offset: .2em; text-decoration-thickness: 1px; }
 .course-index-face { grid-area: face; display: block; width: 44px; height: 44px; color: var(--ink); }
 .course-index-face .route-face { width: 44px; height: 44px; }
+/* At 44 px the route's line is the face: the same 2.25 px line as the hero, without its start and finish marks. */
+.course-index-face .route-face-mark { display: none; }
 .course-index-face-svg { display: block; width: 44px; height: 44px; }
 .course-index-shape { fill: none; stroke: var(--mark-quiet); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
 .course-index-level { stroke: var(--mark-quiet); stroke-width: 1; stroke-dasharray: 2 3; }
@@ -63,11 +65,8 @@
   .course-index-face { display: none; }
   .course-index-track { left: 0; }
 }
-/* The unit line names the range's scope; it wraps evenly, never onto one orphan word. */
-.courses-reading .reading-unit-line { text-wrap: balance; }
-
-/* From 900 px the closing stack lines up with the reading's sentence column (the Reading grid's sixth of twelve
-   columns, 32 px gaps) and runs to the right edge, so no void opens beside it. */
+/* From 900 px the closing stack is centred under the full-width list (the hub has no reading column for it to line
+   up with), so no void opens on either side. */
 @media (min-width: 900px) {
-  .courses-page .chapter-end { max-width: none; margin-left: calc((100% - 11 * 32px) * 5 / 12 + 5 * 32px); }
+  .courses-page .chapter-end { margin-inline: auto; }
 }

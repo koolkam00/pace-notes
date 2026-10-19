@@ -41,8 +41,9 @@ export default function ShareBar({ segments, label, values, inside: labelsInside
   let start = 0;
   const spans = drawn.map((s) => { const a = start; start += s.share / total; return [a, start] as const; });
   const subject = drawn.findIndex((s) => s.tone === 'signal');
-  // An empty display leaves the callout as the segment's name alone (the page's figure already states its share).
-  const callout = subject >= 0 && !inside[subject] ? `${drawn[subject].label}${drawn[subject].display ? ` ${drawn[subject].display}` : ''}` : '';
+  // An empty display leaves the callout as the segment's name alone (the page's figure already states its share); an empty
+  // label as well leaves no callout at all (the sentence above names the segment, in the same signal).
+  const callout = subject >= 0 && !inside[subject] && (drawn[subject].label || drawn[subject].display) ? `${drawn[subject].label}${drawn[subject].display ? ` ${drawn[subject].display}` : ''}`.trim() : '';
   const centre = subject >= 0 ? ((spans[subject][0] + spans[subject][1]) / 2) * 100 : 0;
   const w = callout ? Math.ceil(textWidth(callout, 14)) + 2 : 0;
   const keyed = drawn.map((s, i) => ({ s, i })).filter(({ s, i }) => i !== subject && inside[i] !== `${s.label} ${s.display}`);

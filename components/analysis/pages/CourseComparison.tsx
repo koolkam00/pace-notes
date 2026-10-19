@@ -10,6 +10,8 @@ import { comparableCourses, courseName } from '@/lib/nuggets/analyses';
 import { count, pct } from '@/lib/nuggets/format';
 
 const PATH = '/analyses/course-comparison';
+/** The courses most readers know, named in quiet ink on a wide strip (DotStrip `named`); any not shown is skipped. */
+const MAJORS = ['Boston', 'Berlin', 'Chicago', 'London', 'New York'];
 
 /**
  * Chapter 08, page 2: the spread of sustained slowdown across courses drawn as one ranked dot strip, its two ends named
@@ -34,10 +36,10 @@ export default function CourseComparison() {
   const high = comparableCourses(shown).reduce<(typeof shown)[number] | undefined>((a, b) => (!a || b.slowdown_pct > a.slowdown_pct ? b : a), undefined);
   const answer = sorted.length >= 2 ? (
     <AnswerCard kicker={`Sustained slowdown on ${sorted.length} courses${sorted.every((c) => comparable.has(c.id)) ? ' with three or more editions' : ''}`}>
-      <DotStrip labelSubject hint="Tap a dot to read its course" items={sorted.map((c) => ({ id: c.id, label: courseName(c.label), value: c.slowdown_pct, display: pct(c.slowdown_pct / 100), detail: count(c.n), hollow: !comparable.has(c.id), subject: c === high }))}
+      <DotStrip labelSubject mdScale={1.4} named={MAJORS} hint={<><span className="hint-tap">Tap a dot</span><span className="hint-select">Select a dot</span> to read its course</>} items={sorted.map((c) => ({ id: c.id, label: courseName(c.label), value: c.slowdown_pct, display: pct(c.slowdown_pct / 100), detail: count(c.n), hollow: !comparable.has(c.id), subject: c === high }))}
         domain={[lo, Math.max(...v) > hi - 5 ? hi + 5 : hi]} ticks={ticks.map((t) => ({ value: t, label: `${t}%` }))} readoutKey="Finishes"
         keyLabels={{ filled: 'Three or more editions', hollow: 'Fewer editions' }}
-        label={`Sustained slowdown by course, one dot per course, from ${pct(v[0] / 100)} to ${pct(v[v.length - 1] / 100)}; tap a dot to read it`}
+        label={`Sustained slowdown by course, one dot per course, from ${pct(v[0] / 100)} to ${pct(v[v.length - 1] / 100)}; select a dot to read it`}
         values={<Values id="cc-courses" caption="Sustained slowdown by course" columns={[{ key: 'c', label: 'Course', text: true }, { key: 's', label: 'Sustained slowdown' }, { key: 'e', label: 'Editions' }, { key: 'n', label: 'Finishes' }]}
           rows={sorted.map((c) => [courseName(c.label), pct(c.slowdown_pct / 100), c.edition_n, count(c.n)])} />} />
     </AnswerCard>

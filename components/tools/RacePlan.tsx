@@ -199,9 +199,12 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
   const retry = () => { if (goalData.error) goalData.retry(); if (bandIndex.error) bandIndex.retry(); if (shard.error) shard.retry(); };
   const madeOf100 = shareOk ? Math.round(shareOk.under * 100) : null;
   const shareGoal = shareOk ? formatHM(shareOk.minutes * 60) : null;
+  // The group's window, named wherever the group is ("within 2% of 4:00 pace"), as the chapter's reading names it: the
+  // checkpoint analysis and the projector say "on 4:00 pace" of groups of their own.
+  const nearGoal = shareGoal ? `within ${Math.round((goalData.data?.tolerance ?? 0.02) * 100)}% of ${shareGoal} pace` : null;
   const summary = goal === null || pKm === null ? problem : loading ? null : [
     `${fmtGoal(goal)} goal${course ? ` in ${course.city}` : ''}: even pace ${fmtPace(pKm, units)}.`,
-    shareOk ? `Pace Notes data: of 100 finishes on ${shareGoal} pace through 20 km ${where}, ${madeOf100} made ${shareGoal}.` : '',
+    shareOk ? `Pace Notes data: of 100 finishes ${nearGoal} through 20 km ${where}, ${madeOf100} made ${shareGoal}.` : '',
     result?.state === 'unavailable' ? 'No course results for this goal.' : '',
     dataError ?? '',
   ].filter(Boolean).join(' ');
@@ -231,6 +234,34 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
   return (
     <div className="plan-root" data-print={printMode}>
       <div className="tool-workspace">
+        {/* The answer first (the analyses' grammar): the plan for the example, then the inputs that make it yours. */}
+        <div className="tool-results tool-answer">
+          {!planned ? <p className="tool-empty plan-problem">{problem}</p> : (
+            <div className="print-only plan-print-head">
+              <p className="plan-print-kicker">Pace Notes · race plan</p>
+              <p className="plan-print-title">{place} · {fmtGoal(goal)} goal</p>
+              <p>Even pace {fmtPace(pKm, units)} · {fmtPace(pKm, units === 'mi' ? 'km' : 'mi')}. Cut the strips out along the dashed lines.</p>
+            </div>
+          )}
+          {/* SectionTracker looks for the marked sections once per page view, so each stays mounted, hidden while it has
+              nothing to show, and counts when it first shows. */}
+          <div data-track-section="result" hidden={!planned}>
+            {planned ? (
+              <section className="tool-reading night plan-headline" aria-labelledby="plan-headline-title">
+                {/* The new number is the pace, as on the pace band and the goal pages: the goal the visitor typed is the
+                    kicker. The mat times are the wristband's, below, so the card does not list them a second time. */}
+                <div className="tool-reading-head">
+                  <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}<span id="plan-headline-title">{fmtGoal(goal)}{city ? ` in ${city}` : ''}</span></p>
+                  <h2 className="tool-reading-figure">
+                    {formatDuration(perUnit(pKm, units))}
+                    <small>per {units === 'mi' ? 'mile' : 'km'}, even pace · {formatDuration(perUnit(pKm, units === 'mi' ? 'km' : 'mi'))}/{units === 'mi' ? 'km' : 'mi'}</small>
+                  </h2>
+                </div>
+              </section>
+            ) : null}
+          </div>
+        </div>
+
         <form className="tool-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Race planner inputs">
           <h2>Your race</h2>
           <div className="tool-field">
@@ -251,52 +282,19 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
 
         <div className="tool-results">
           <p className="sr-only" aria-live="polite">{status}</p>
-          {!planned ? <p className="tool-empty plan-problem">{problem}</p> : (
-            <div className="print-only plan-print-head">
-              <p className="plan-print-kicker">Pace Notes · race plan</p>
-              <p className="plan-print-title">{place} · {fmtGoal(goal)} goal</p>
-              <p>Even pace {fmtPace(pKm, units)} · {fmtPace(pKm, units === 'mi' ? 'km' : 'mi')}. Cut the strips out along the dashed lines.</p>
-            </div>
-          )}
-
-          {/* SectionTracker looks for the marked sections once per page view, so each stays mounted, hidden while it has
-              nothing to show, and counts when it first shows. */}
-          <div data-track-section="result" hidden={!planned}>
-            {planned ? (
-              <section className="tool-reading night plan-headline" aria-labelledby="plan-headline-title">
-                <div className="tool-reading-head">
-                  <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}Your plan · even pace</p>
-                  <h2 className="tool-reading-figure plan-headline-title" id="plan-headline-title">{fmtGoal(goal)}{city ? <span> in {city}</span> : null}</h2>
-                </div>
-                <dl className="tool-cells plan-paces">
-                  {(units === 'mi' ? ['mi', 'km'] as const : ['km', 'mi'] as const).map((u) => (
-                    <div key={u}><dt>{u === 'mi' ? 'Per mile' : 'Per km'}</dt><dd>{formatDuration(perUnit(pKm, u))}</dd></div>
-                  ))}
-                </dl>
-                <ol className="tool-laps plan-mats" aria-label={`Even-pace elapsed time at each 5 km mat for ${fmtGoal(goal)}`}>
-                  {CHECKPOINTS.map((km, i) => (
-                    <li key={km} className={i === 8 ? 'is-finish' : undefined}>
-                      <span className="plan-mats-k"><MatName km={km} units={units} /></span>
-                      <b>{formatDuration(i === 8 ? goal : pKm * km)}</b>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            ) : null}
-          </div>
           {planned && (missing || goalData.error) ? (
             goalData.error ? <DataProblem error={goalData.error} onRetry={retry} /> : <p className="tool-note plan-unavailable">{missing}</p>
           ) : null}
 
           <div data-track-section="comparison" hidden={!planned || !shareOk}>
-            {planned && shareOk && madeOf100 !== null && shareGoal ? (
+            {planned && shareOk && madeOf100 !== null && shareGoal && nearGoal ? (
               <section className="tool-panel plan-comparison" id="plan-comparison" aria-labelledby="plan-comparison-title">
                 <EvidenceTag kind="data" />
                 <div className="plan-nugget">
                   <p className="tool-nugget-text" id="plan-comparison-title">
-                    Of 100 finishes on {shareGoal} pace through 20K {isAll ? `across ${shareOk.courses} courses` : `in ${city}`}, <em>{madeOf100}</em> made {shareGoal}.
+                    Of 100 finishes {nearGoal} through 20K {isAll ? `across ${shareOk.courses} courses` : `in ${city}`}, <em>{madeOf100}</em> made {shareGoal}.
                   </p>
-                  <DotGrid lit={madeOf100} label={`Of 100 finishes on ${shareGoal} pace through 20 km ${isAll ? 'across every course' : `in ${city}`}, ${madeOf100} made ${shareGoal}.`} />
+                  <DotGrid lit={madeOf100} label={`Of 100 finishes ${nearGoal} through 20 km ${isAll ? 'across every course' : `in ${city}`}, ${madeOf100} made ${shareGoal}.`} />
                 </div>
                 {shareOk.rounded ? <p className="tool-note">{roundedNote(shareOk.minutes, goal, goalData.data!.goal_step_min)}</p> : null}
                 <Values id="plan-mats-values" caption={comparison ? `Every mat: your plan beside finishes from ${formatDuration(comparison.lo, true)} to ${formatDuration(comparison.hi, true)} ${where}` : 'Every mat: your plan'} count={9}>
@@ -317,7 +315,7 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
                 <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={units === 'mi' ? 'mi' : 'km'} overrun={0} place={place} genderWord=""
                   observed={comparison ? { held: comparison.held, lo: comparison.lo, hi: comparison.hi, place, genderWord: '' } : null} profile={null} showBack={false} waiting={false} />
                 {/* One print action, the band this page exists for; the browser's own print command gives the whole plan. */}
-                <ShareBar print={false} extra={<button type="button" className="btn btn-primary is-compact" data-not-edit onClick={() => printAs('strip')}>Print wristband strips</button>} />
+                <ShareBar extra={<button type="button" className="btn btn-primary is-compact" data-not-edit onClick={() => printAs('strip')}>Print wristband strips</button>} />
               </section>
             ) : null}
           </div>

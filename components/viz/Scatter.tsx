@@ -9,14 +9,15 @@ import { extent, linear, pc, yScale } from './scale';
 
 /**
  * A scatter of few points (the redesign spec, section 3.6): 8 px dots; the pair the sentence compares is ink and
- * labelled (labels flip side when they would collide, and keep clear of the ring the chart opens on), joined by a 1 px
- * dashed line unless `pairLine` is off, the rest quiet. Tap any dot to read it out.
+ * labelled directly (labels flip side when they would collide, and keep clear of the ring the chart opens on), joined by
+ * a 1 px dashed line unless `pairLine` is off, the rest quiet. Tap any dot to read it out. The dots' knockout is one
+ * layer drawn under all of them, so overlapping dots read as one cluster, never as crescents cut by a neighbour's halo.
  */
 export type ScatterPoint = { id: string; x: number; y: number; label: string; key: string; value: string; inPair?: boolean };
 
-export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, label, pairLabel = 'the pair', axisTitle, values, height = 220, heightMd = 280, labelAll = false, selected, pairLine = true, side }: {
+export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, label, axisTitle, values, height = 220, heightMd = 280, labelAll = false, selected, pairLine = true, side }: {
   points: ScatterPoint[]; xTicks: { value: number; label: string }[]; yTicks: { value: number; label: string }[];
-  xDomain?: [number, number]; yDomain?: [number, number]; label: string; pairLabel?: string;
+  xDomain?: [number, number]; yDomain?: [number, number]; label: string;
   axisTitle?: { start?: string; end?: string }; values?: ReactNode; height?: number; heightMd?: number;
   /** Label every point (a scatter of very few), not only the pair; tapping reads any point either way. */
   labelAll?: boolean;
@@ -37,9 +38,10 @@ export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, labe
   const chosen = selected !== undefined ? points.findIndex((p) => p.id === selected) : -1;
   const start = chosen >= 0 ? chosen : Math.max(0, points.findIndex((p) => p.inPair));
   const joined = pairLine && pair.length === 2;
-  // The point the chart opens on carries the pick ring (12 px round it): its own label stands clear of the ring, and
-  // hides while the ring is on it (the readout names it), so it never reads as the label of a neighbouring dot.
-  const items: LabelItem[] = points.map((p, i) => ({ p, i })).filter(({ p }) => labelAll || p.inPair).map(({ p, i }) => ({ id: p.id, text: p.label, x: x(p.x), y: y(p.y), priority: p.inPair ? 3 : 1, size: 13, prefer: 'right', gap: i === start ? 17 : 8, tone: p.inPair ? 'ink' : 'quiet', at: i, under: i === start }));
+  // The point the chart opens on carries the pick ring (12 px round it): its own label stands clear of the ring and
+  // stays (the pair is labelled directly, so the open dot is named like the other); any other label hides while the
+  // ring is on its dot (the readout names it then).
+  const items: LabelItem[] = points.map((p, i) => ({ p, i })).filter(({ p }) => labelAll || p.inPair).map(({ p, i }) => ({ id: p.id, text: p.label, x: x(p.x), y: y(p.y), priority: p.inPair ? 3 : 1, size: 13, prefer: 'right', gap: i === start ? 17 : 8, tone: p.inPair ? 'ink' : 'quiet', ...(i === start ? {} : { at: i }) }));
   // Labels keep clear of every dot, of the ring the chart opens on (12 px round its point) and of the pair's line.
   const avoid = points.map((p, i) => ({ x: x(p.x), y: y(p.y), r: i === start ? 13 : 4 }));
   const along = joined ? Array.from({ length: 9 }, (_, k) => ({ x: x(pair[0].x) + ((k + 1) / 10) * (x(pair[1].x) - x(pair[0].x)), y: y(pair[0].y) + ((k + 1) / 10) * (y(pair[1].y) - y(pair[0].y)), r: 2 })) : [];
@@ -48,7 +50,8 @@ export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, labe
     <Plot>
       <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label }))} />
       {joined ? <line className="ref-line is-dashed" x1={pc(x(pair[0].x))} y1={pc(y(pair[0].y))} x2={pc(x(pair[1].x))} y2={pc(y(pair[1].y))} /> : null}
-      {points.map((p) => <circle key={p.id} className={p.inPair ? 'm-ink' : 'm-context'} cx={pc(x(p.x))} cy={pc(y(p.y))} r={4} />)}
+      {points.map((p) => <circle key={`h${p.id}`} className="m-halo" cx={pc(x(p.x))} cy={pc(y(p.y))} r={6} />)}
+      {points.map((p) => <circle key={p.id} className={p.inPair ? 'm-ink is-flat' : 'm-context is-flat'} cx={pc(x(p.x))} cy={pc(y(p.y))} r={4} />)}
       <Annotation labels={placed} />
       <Baseline />
     </Plot>
@@ -58,7 +61,7 @@ export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, labe
   return (
     <ChartFrame className="scatter" label={label} height={height} heightMd={heightMd}
       scrub={<Scrubber mode="pick" points={scrub} initial={start} label={label} axis={axis}>{plot}</Scrubber>}
-      keys={pair.length === 2 ? [{ label: pairLabel, mark: joined ? 'dash' : 'dot' }, { label: 'Other editions', mark: 'dot', tone: 'quiet' }] : undefined}
+      keys={pair.length === 2 ? [{ label: 'Other editions', mark: 'dot', tone: 'quiet' }] : undefined}
       values={values}
     />
   );

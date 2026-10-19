@@ -226,9 +226,9 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.equal(chart.formatTenths(59.96), '1:00.0'); assert.equal(chart.formatTenths(3725.25), '1:02:05.3'); checks += 2;
 }
 
-// ---- handoffs from a result (MarathonHandoffs in components/tools/Handoffs.tsx): the predictor's median estimate and the pace
-// calculator's marathon time open the pace band and the pacing-pattern analysis with the time filled in, in the forms
-// those pages read and inside the ranges they take, as if typed there.
+// ---- handoffs from a result (MarathonHandoffs in components/tools/Handoffs.tsx): the pace calculator's marathon time opens
+// the planner (or the pace band, or the pacing-pattern analysis) with the time filled in, in the forms those pages read and
+// inside the ranges they take, as if typed there.
 {
   const links = require('../lib/tools/links.ts');
   const { GOAL_MIN, GOAL_MAX } = require('../lib/personalized-catalog.ts');
@@ -268,8 +268,9 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.doesNotMatch(handoffs(237), /<button|your chance|arithmetic/i, 'Links only (never counted as a tool edit), in the site\'s words'); ok();
   // Each tool hands on the whole minute at or below its time, the way every tool reads 4:11:41 as 4:11.
   const source = (name) => fs.readFileSync(path.join(__dirname, '..', 'components/tools', name), 'utf8');
-  // The predictor's next card is the planner, so its one row is the pace band; the calculator's is the planner.
-  assert.match(source('Predictor.tsx'), /\{est\.range \? <MarathonHandoffs label="With this estimate" seconds=\{Math\.round\(est\.range\.median\)\} to=\{\['band', 'pacing'\]\} \/> : null\}/); ok();
+  // The predictor's one way forward is its chapter's next card (the planner), so it has no row of its own (section 00,
+  // cut 4); the pace calculator, a reference tool with no next card, keeps one row: the planner.
+  assert.doesNotMatch(source('Predictor.tsx'), /MarathonHandoffs|ToolHandoffs/, 'The predictor ends on its next card alone'); ok();
   assert.match(source('PaceCalculator.tsx'), /const shownSeconds = ready \? Math\.round\(seconds!\) : null;[\s\S]*<MarathonHandoffs label="With this marathon time" seconds=\{shownSeconds!\} to=\{\['plan', 'band'\]\} \/>/); ok();
   assert.match(source('Handoffs.tsx'), /const minutes = Math\.floor\(seconds \/ 60\);/, 'The cards take the minute at or below the time'); ok();
 }
@@ -314,7 +315,7 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   // A race page links on once, to the checker (its primary under the glance, opening on this race), and back once
   // (critic rounds 2 and 3, October 18, 2026): no second checker link, no chip cloud of the other races and no
   // course-page link, which the course pages' own qualifying links cover.
-  assert.match(sourceOf('components/tools/QualifyingRace.tsx'), /<Link className="btn btn-primary" href=\{checkerHref\(s\)\}>Check a time for \{shortName\(s\)\}<\/Link>/, 'The race page links on to the checker'); ok();
+  assert.match(sourceOf('components/tools/QualifyingRace.tsx'), /<Link className="btn btn-secondary" href=\{checkerHref\(s\)\}>Check a time for \{shortName\(s\)\}<\/Link>/, 'The race page links on to the checker (a secondary button: the header holds the one orange call to action)'); ok();
   assert.doesNotMatch(sourceOf('components/tools/QualifyingRace.tsx'), /href="\/tools\/qualifying"/, 'One link to the checker'); ok();
   assert.doesNotMatch(sourceOf('components/tools/QualifyingRace.tsx'), /QualifyingRaceLinks|course\.href/, 'No second list of links at the end of a race page'); ok();
   assert.deepEqual(qualifying.STANDARDS.map((s) => qualifying.QUALIFYING_COURSE[s.key]), ['Boston', 'New York', 'London', 'Chicago', 'Berlin', 'Sydney'], 'Every race with standards names its course');
@@ -408,10 +409,14 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   const { renderToStaticMarkup } = require('react-dom/server');
   const RacePlan = require('../components/tools/RacePlan.tsx').default;
   const html = renderToStaticMarkup(React.createElement(RacePlan, { courseGoalSha: null, paceBandSha: null, courses: [] }));
-  assert.match(html, /class="tool-workspace"[\s\S]*class="tool-inputs"[\s\S]*class="tool-results"><p class="sr-only" aria-live="polite">/); ok();
-  assert.match(html, /Per mile[\s\S]*9:09[\s\S]*Per km[\s\S]*5:41/, '4:00 even pace: 9:09/mi and 5:41/km, miles first'); ok();
-  assert.deepEqual([...html.matchAll(/class="plan-mats-k">[^<]*(?:<small>[^<]*<\/small>)?<\/span><b>([^<]+)<\/b>/g)].map((m) => m[1]),
-    ['28:26', '56:53', '1:25:19', '1:53:45', '2:22:12', '2:50:38', '3:19:05', '3:47:31', '4:00:00'], 'Even-pace time at each mat for 4:00 (14,400 s ÷ 42.195 km × each mat)'); ok();
+  // The answer first (the analyses' grammar): the plan's card in a left-out results slot, then the inputs, then the rest.
+  assert.match(html, /class="tool-workspace"><div class="tool-results tool-answer">[\s\S]*plan-headline[\s\S]*class="tool-inputs"[\s\S]*class="tool-results"><p class="sr-only" aria-live="polite">/, 'The card, then the inputs, then the results'); ok();
+  // The card leads with the pace (miles first), as the pace band and the goal pages do: the goal is its kicker.
+  assert.match(html, /<span id="plan-headline-title">4:00<\/span><\/p><h2 class="tool-reading-figure">9:09<small>per mile, even pace · 5:41\/km<\/small><\/h2>/, '4:00 even pace: 9:09 per mile and 5:41/km, the goal as the kicker'); ok();
+  // The mat times are listed once on screen (the wristband strips) and once in print (the mat table), never on the card.
+  assert.doesNotMatch(html, /plan-mats/, 'No lap list on the card'); ok();
+  assert.deepEqual([...html.matchAll(/<tr( class="is-finish")?><th scope="row">(?:\d+K|Finish)(?:<small>[^<]*<\/small>)?<\/th><td>([^<]+)<\/td>/g)].map((m) => m[2]).slice(0, 9),
+    ['28:26', '56:53', '1:25:19', '1:53:45', '2:22:12', '2:50:38', '3:19:05', '3:47:31', '4:00:00'], 'Even-pace time at each mat for 4:00 (14,400 s ÷ 42.195 km × each mat), in the printed mat table'); ok();
   // The tracker looks for sections once per page view, so all three are mounted from the start; the comparison is hidden until its data shows.
   assert.deepEqual([...html.matchAll(/<div data-track-section="([^"]+)"( hidden="")?>/g)].map((m) => m[1] + (m[2] ? ' (hidden)' : '')), ['result', 'comparison (hidden)', 'pace-band']); ok();
   assert.match(html, /class="tool-share share-bar no-print"><button[^>]*>Copy link<\/button><button type="button" class="btn btn-primary is-compact"[^>]*>Print wristband strips<\/button><span class="sr-only"/, 'Copy link and the one print action (the wristband strips) share one row'); ok();

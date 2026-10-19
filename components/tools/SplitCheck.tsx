@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { ToolHandoffs } from '@/components/tools/Handoffs';
 import DotGrid from '@/components/viz/DotGrid';
 import { Choice, ShareBar } from '@/components/tools/ui';
 import Values from '@/components/ui/Values';
@@ -18,7 +17,7 @@ import { loadShard, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/d
 import type { PaceBandCell } from '@/lib/tools/pace-band-data';
 import { MARATHON_KM, MATS_KM, perUnit } from '@/lib/tools/pace';
 import { SECTION_KM, SECTION_NAMES, SPLIT_EXAMPLE, classify, readSplits, validateSplits, type SplitReading } from '@/lib/tools/splits';
-import { formatDuration, parseDuration } from '@/lib/tools/time';
+import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
 import { keypadInput } from '@/lib/keypad';
 import { KM_PER_MILE, matLabel, sectionLabel, type UnitSystem } from '@/lib/units';
 import { SECTION_BOUNDS, count, signedPct } from '@/lib/viz/format';
@@ -35,7 +34,8 @@ const EXAMPLE = SPLIT_EXAMPLE;
 const DEFAULTS = { s: EXAMPLE, course: 'all', g: 'all' };
 
 type Gender = 'all' | 'men' | 'women';
-const GENDER_OPTIONS: { value: Gender; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'men', label: 'Men' }, { value: 'women', label: 'Women' }];
+/** All, Women, Men: the order every tool and page lists recorded gender in. */
+const GENDER_OPTIONS: { value: Gender; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'women', label: 'Women' }, { value: 'men', label: 'Men' }];
 
 /* ------------------------------------------------------------------ */
 /* Parsing                                                             */
@@ -498,9 +498,22 @@ export default function SplitCheck({ indexSha, archetypesSha, bandCourses, other
   return (
     <div className="split-check-root">
       <div className="tool-workspace">
+        {/* The answer first (the analyses' grammar): the reading of the example race, then the nine times that make it
+            yours, then the rest of the reading and the finishes at the same time. */}
+        <div className={`tool-results tool-answer split-check-results${stale ? ' is-stale' : ''}`}>
+          {stale ? <p className="split-check-updating" aria-hidden="true">Showing your last complete race</p> : null}
+          {view === 'l' ? <div className="tool-state">Reading the times…</div>
+            : reading && shownTimes ? <ResultCard reading={reading} times={shownTimes} units={units} isExample={isExample} />
+            : view[0] === 'e' ? (
+              <div className="tool-state is-error"><strong>Check your times.</strong> {view.slice(1)}</div>
+            ) : (
+              <div className="tool-empty">Enter all nine elapsed times (5, 10, 15, 20, 25, 30, 35 and 40 km, and the finish) to read your race. {entered ? `${entered} of 9 so far.` : ''} Missing mats are never estimated.</div>
+            )}
+        </div>
+
         <form className="tool-inputs split-check-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Split check inputs">
-          {/* One kicker: the example says so in it, and the line under the times says what the example is. */}
-          <h2>{isExample ? 'Example · your nine mat times' : 'Your nine mat times'}</h2>
+          {/* The card above says the race is an example; the line under the times says what the example is. */}
+          <h2>Your nine mat times</h2>
           <fieldset className="split-check-grid" aria-describedby={hintId}>
             <legend className="sr-only">Elapsed time at each 5 km mat and the finish</legend>
             {CHECKPOINTS.map((km, i) => {
@@ -542,19 +555,12 @@ export default function SplitCheck({ indexSha, archetypesSha, bandCourses, other
         </form>
 
         <div className={`tool-results split-check-results${stale ? ' is-stale' : ''}`}>
-          {stale ? <p className="split-check-updating" aria-hidden="true">Showing your last complete race</p> : null}
-          {view === 'l' ? <div className="tool-state">Reading the times…</div>
-            : reading && shownTimes ? (
-              <Results times={shownTimes} reading={reading} units={units} comparison={comparison} type={type}
-                where={where} genderWord={genderWord} gender={gender} fallbacks={fallbacks} compareOptions={compareOptions}
-                isExample={isExample}
-                bandCourse={knownCourses?.includes(q.course) && q.course !== 'all' ? q.course : null}
-                reportCity={q.course !== 'all' ? scope?.city ?? null : null} fromRunner={fromRunner} />
-            ) : view[0] === 'e' ? (
-              <div className="tool-state is-error"><strong>Check your times.</strong> {view.slice(1)}</div>
-            ) : (
-              <div className="tool-empty">Enter all nine elapsed times (5, 10, 15, 20, 25, 30, 35 and 40 km, and the finish) to read your race. {entered ? `${entered} of 9 so far.` : ''} Missing mats are never estimated.</div>
-            )}
+          {reading && shownTimes && view !== 'l' ? (
+            <ResultRest times={shownTimes} reading={reading} units={units} comparison={comparison} type={type}
+              where={where} genderWord={genderWord} gender={gender} fallbacks={fallbacks} compareOptions={compareOptions}
+              isExample={isExample} reportCity={q.course !== 'all' ? scope?.city ?? null : null} fromRunner={fromRunner}
+              bandCourse={knownCourses?.includes(q.course) && q.course !== 'all' ? q.course : null} />
+          ) : null}
         </div>
       </div>
       <p className="sr-only" role="status">{status}</p>
@@ -568,49 +574,53 @@ export default function SplitCheck({ indexSha, archetypesSha, bandCourses, other
 
 type TypeResult = { name: string; arch: Archetype; index: number; all: Archetype[] } | null;
 
-function Results({ times, reading, units, comparison, type, where, genderWord, gender, fallbacks, compareOptions, isExample, bandCourse, reportCity, fromRunner }: {
+/** The night card: the verdict, every section against the runner's own 5–20K pace, the finish and that pace. */
+function ResultCard({ times, reading, units, isExample }: { times: number[]; reading: SplitReading; units: UnitSystem; isExample: boolean }) {
+  const verdict = verdictOf(reading);
+  const avg = times[8] / MARATHON_KM;
+  return (
+    <section className="tool-reading night split-check-headline" aria-labelledby="split-check-title">
+      <div className="tool-reading-head">
+        <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}{verdict.kicker}</p>
+        <h2 className="tool-reading-figure" id="split-check-title">
+          {/* The result figure is ink on every tool; orange marks only a chart's subject. */}
+          <span>{pctSigned(verdict.value, 0)}</span>
+          <small>{verdict.line}</small>
+        </h2>
+      </div>
+      <SectionBars reading={reading} units={units} />
+      <dl className="tool-cells">
+        <div><dt>Finish</dt><dd>{formatDuration(times[8], true)}<small>{fmtPace(avg, units)}</small></dd></div>
+        <div><dt>{BASE} pace</dt><dd>{fmtPace(reading.baseline, units)}</dd></div>
+      </dl>
+      <EvidenceTag kind="research" />
+    </section>
+  );
+}
+
+/** Everything after the inputs: every section as a table, the finishes at the same time, the print line and the actions. */
+function ResultRest({ times, reading, units, comparison, type, where, genderWord, gender, fallbacks, compareOptions, isExample, reportCity, fromRunner, bandCourse }: {
   times: number[]; reading: SplitReading; units: UnitSystem; comparison: Comparison; type: TypeResult;
   /** The comparison's course and gender controls, drawn above the comparison panel. */
   compareOptions: ReactNode;
   where: string; genderWord: string; gender: Gender; fallbacks: ReactNode; isExample: boolean;
-  /** The chosen course when the pace band publishes it, else null. */
-  bandCourse: string | null;
   /** The compared course's name for the race report link (null for all courses). */
   reportCity: string | null;
   /** The page was opened from a runner's record (via=runner). */
   fromRunner: boolean;
+  /** The compared course when the pace band publishes it, for the band's preset. */
+  bandCourse: string | null;
 }) {
-  const verdict = verdictOf(reading);
-  const avg = times[8] / MARATHON_KM;
-  const finish = formatDuration(times[8], true);
-  // The pace band takes goals from 1:30 to 8:00 as the whole minute at or below the finish, the course when it publishes
-  // it, and the recorded gender chosen here.
-  const goalMinute = Math.floor(times[8] / 60);
-  const bandGoal = goalMinute >= 90 && goalMinute <= 480 ? `goal=${formatHMGoal(times[8])}` : '';
-  const bandQuery = [bandGoal, bandCourse ? `course=${bandCourse}` : '', gender !== 'all' ? `g=${gender}` : ''].filter(Boolean).join('&');
   // The race report reads the same times, course and comparison group (none from a runner's record); the made-up example
   // gets no report.
   const report = isExample ? null : reportLink(times, reportCity, gender, fromRunner);
+  // The next race's band, as an action beside Copy link (never a link row): the whole minute at or below this finish
+  // (goals from 1:30 to 8:00), the course when the band publishes it, and the recorded gender chosen here.
+  const goalMinute = Math.floor(times[8] / 60);
+  const bandQuery = [goalMinute >= 90 && goalMinute <= 480 ? `goal=${formatHM(goalMinute * 60)}` : '', bandCourse ? `course=${bandCourse}` : '', gender !== 'all' ? `g=${gender}` : ''].filter(Boolean).join('&');
+  const band = `/tools/pace-band${bandQuery ? `?${bandQuery}` : ''}`;
   return (
     <>
-      <section className="tool-reading night split-check-headline" aria-labelledby="split-check-title">
-        <div className="tool-reading-head">
-          {/* The form's heading already says the times are an example, so the kicker is the verdict alone (one line). */}
-          <p className="tool-reading-kicker">{verdict.kicker}</p>
-          <h2 className="tool-reading-figure" id="split-check-title">
-            {/* The result figure is ink on every tool; orange marks only a chart's subject. */}
-            <span>{pctSigned(verdict.value, 0)}</span>
-            <small>{verdict.line}</small>
-          </h2>
-        </div>
-        <SectionBars reading={reading} units={units} />
-        <dl className="tool-cells">
-          <div><dt>Finish</dt><dd>{finish}<small>{fmtPace(avg, units)}</small></dd></div>
-          <div><dt>{BASE} pace</dt><dd>{fmtPace(reading.baseline, units)}</dd></div>
-        </dl>
-        <EvidenceTag kind="research" />
-      </section>
-
       <Values id="split-check-sections" caption={`Every section: its time, its pace and its difference from your ${BASE} pace (positive is slower)`} count={9}>
         <SectionTable reading={reading} times={times} units={units} />
       </Values>
@@ -624,19 +634,13 @@ function Results({ times, reading, units, comparison, type, where, genderWord, g
         <p>Pace Notes split check{isExample ? ' (example race)' : ''}. Mat times entered: {CHECKPOINTS.map((km, i) => `${matLabel(km)} ${formatDuration(times[i], true)}`).join(' · ')}.</p>
       </div>
 
-      {/* One next step, after the last section (section 00): the next race's band. */}
-      <ToolHandoffs label="Next race" links={[
-        { href: `/tools/pace-band${bandQuery ? `?${bandQuery}` : ''}`, title: 'Pace band', text: <>A wristband for {bandGoal ? formatHMGoal(times[8]) : 'your goal'}, beside the mat times of finishes that hit it.</> },
-      ]} />
-      <ShareBar extra={report ? <Link className="btn btn-primary is-compact" href={report}>Make a race report</Link> : null} />
+      {/* One way forward: the chapter's next card. The race report and the next race's band are this tool's own actions, beside Copy link. */}
+      <ShareBar extra={<>
+        {report ? <Link className="btn btn-primary is-compact" href={report}>Make a race report</Link> : null}
+        <Link className="btn btn-secondary is-compact" href={band}>Make a pace band</Link>
+      </>} />
     </>
   );
-}
-
-/** Whole-minute goal for the pace band link: your finish rounded down. */
-function formatHMGoal(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
 }
 
 /**
@@ -828,28 +832,34 @@ function ComparisonPanel({ comparison, where, genderWord, fallbacks, term = true
   );
 }
 
+/** A finish window's end in whole minutes, as the chapters name it ("4:01 to 4:05"). */
+const windowEnd = (seconds: number) => formatHM(Math.floor(seconds / 60) * 60);
+
 /**
- * The page's one Pace Notes data nugget (the redesign spec, section 7.13): of finishes at this time, how many had a
- * sustained slowdown, as 100 dots. The verdict above says whether this race had one; this says how common it was.
+ * The page's one Pace Notes data nugget (the redesign spec, section 7.13; chapter 10's lead): of finishes at this time,
+ * how many had a sustained slowdown, as 100 dots. "Of 9,874 finishes from 4:01 to 4:05 on all courses, 23% had a
+ * sustained slowdown." The window is named in whole minutes, as the chapter's row names it, so the number a reader taps
+ * there is the one this page shows. The verdict above says whether this race had one; this says how common it was.
  */
 function ComparisonBody({ ok, where, genderWord, fallbacks, term }: {
   ok: Extract<Comparison, { state: 'ok' }>; where: string; genderWord: string; fallbacks: ReactNode; term: boolean;
 }) {
   const { all, held, slow } = ok;
   const sd = all.sd ?? (slow ? slow.n / all.n : null);
-  const range = `${formatDuration(ok.lo, true)} to ${formatDuration(ok.hi, true)}`;
+  const range = `${windowEnd(ok.lo)} to ${windowEnd(ok.hi)}`;
+  const recorded = genderWord ? `, recorded as ${genderWord}` : '';
   const lit = sd === null ? 0 : Math.round(sd * 100);
   return (
     <>
       {sd !== null ? (
         <>
           <p className="tool-nugget-text" id="split-check-compare-title">
-            Of {count(all.n)} finishes from {range} {where}{genderWord ? `, recorded as ${genderWord}` : ''}, <em>{share(sd)}</em> had a {term ? <SlowdownTerm /> : 'sustained slowdown'}.
+            Of {count(all.n)} finishes from {range} {where}{recorded}, <em>{share(sd)}</em> had a {term ? <SlowdownTerm /> : 'sustained slowdown'}.
           </p>
           <DotGrid lit={lit} label={`${lit} of 100 finishes from ${range} ${where} had a sustained slowdown`} caption={<><strong>{lit} of 100</strong> finishes at your time</>} />
         </>
       ) : (
-        <p className="tool-nugget-text" id="split-check-compare-title">{count(all.n)} finishes from {range} {where}{genderWord ? `, recorded as ${genderWord}` : ''}.</p>
+        <p className="tool-nugget-text" id="split-check-compare-title">{count(all.n)} finishes from {range} {where}{recorded}.</p>
       )}
       {(!held || !slow) && fallbacks ? <div className="tool-share no-print">{fallbacks}</div> : null}
     </>

@@ -96,7 +96,7 @@ async function main() {
       }
     }
     const page=render(AllFinisherAnalysis,{kind,start,history:React.createElement('p',null,'HISTORY RESULT')});
-    assert.match(page,/aria-pressed="true">All eligible finishes/);
+    assert.match(page,/aria-pressed="true">All finishes</);
     assert.match(page,/No previous race needed/);
     assert.match(page,/Early-race pace/);
     assert.doesNotMatch(page,/>Target time</);
@@ -118,8 +118,8 @@ async function main() {
     const html=render(AnalysisPage,{params:{slug}});
     assert.match(html,/>Early-race pace</);assert.doesNotMatch(html,/With an earlier result|Choose the comparison/);assert.doesNotMatch(html,eligibleText,'Coverage counts belong on /methodology');
     if(slug==='downhill-start') assert.match(html,/>Opening pace</);
-    // Update comparison is inert until a setting changes, and says so.
-    assert.match(html,/<button type="submit" class="btn btn-secondary is-compact" aria-disabled="true" aria-describedby="[^"]+-why">Update comparison<\/button><p class="field-hint explore-submit-hint" id="[^"]+-why">Change a setting to compare<\/p>/,`${slug}: Update comparison waits for a change`);
+    // Update comparison appears only once a setting changes: never an inert button with a line saying why.
+    assert.doesNotMatch(html,/Update comparison|Change a setting to compare/,`${slug}: Update comparison waits for a change`);
   }
   // The research archive's broader views (/packs/<id>) closed with the archive (the redesign spec, section 00): each
   // address is a moved stub now, so only the analyses above render these explorers.

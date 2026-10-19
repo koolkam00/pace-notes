@@ -77,6 +77,9 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
           ))}
           {showBack && profile ? <ElevationStrip profile={profile} units={units} /> : null}
         </div>
+        {/* The scroll cue on a phone: the sheet's own paper fading in at the frame's right edge, pinned there while the
+            sheet scrolls under it, so the cue is paper on paper in either page theme (a mask showed the dark page). */}
+        {phone ? <span className="pace-band-sheet-fade" aria-hidden="true" /> : null}
       </div>
     </>
   );

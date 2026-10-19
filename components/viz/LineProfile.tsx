@@ -57,6 +57,9 @@ type Props = {
    */
   scrub?: { points: ScrubPoints; initial: number; detents: number[]; label: string; follow?: string };
   axisTitle?: { start?: string; end?: string };
+  /** A quiet direction cue at the plot's top left, where a y axis is read ("faster ↑"), for a scale drawn against habit
+   * (slower down). */
+  yCue?: string;
   label: string;
   keys?: KeyItem[];
   values?: ReactNode;
@@ -64,7 +67,7 @@ type Props = {
   heightMd?: number;
 };
 
-export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = [], gridSide = 'right', layers, initial, lensLabel, chips, refs = [], washes = [], scrub, axisTitle, label, keys, values, height = 220, heightMd = 280 }: Props) {
+export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = [], gridSide = 'right', layers, initial, lensLabel, chips, refs = [], washes = [], scrub, axisTitle, yCue, label, keys, values, height = 220, heightMd = 280 }: Props) {
   const x = linear(xDomain ?? extent(xs));
   const all = layers.flatMap((l) => [...l.series.flatMap((s) => s.values), ...(l.band ? [...l.band.lo, ...l.band.hi] : [])]).concat(refs.map((r) => r.value));
   const [lo, hi] = yDomain ?? extent(all);
@@ -143,6 +146,7 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
     const lines = firstLayer.series.map((sr) => sr.values.map((v, i) => [x(xs[i]) * REF_WIDTH, y(v) * height] as [number, number]));
     const washed = firstLayer.series.filter((sr) => sr.fillAbove !== undefined).map((sr) => sr.values.map((v, i) => [x(xs[i]) * REF_WIDTH, v > sr.fillAbove! ? 1 : 0] as [number, number]));
     const grid = yTicks.map((t) => { const gy = y(t.value) * height; const gw = textWidth(t.label, 12, 500) + 4; return gridSide === 'left' ? { x0: 0, x1: gw, y0: gy - 18, y1: gy } : { x0: REF_WIDTH - gw, x1: REF_WIDTH, y0: gy - 18, y1: gy }; });
+    if (yCue) grid.push({ x0: 0, x1: textWidth(yCue, 12, 500) + 4, y0: 0, y1: 18 });
     const clear = (x0: number, below: boolean) => {
       const x1 = x0 + w, y0 = below ? ry + 3 : ry - 19, y1 = below ? ry + 19 : ry - 3;
       if (x0 < 0 || x1 > REF_WIDTH) return false;
@@ -180,6 +184,7 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
         </g>
       ))}
       <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label }))} side={gridSide} />
+      {yCue ? <text className="tick" x="0" y="0" dy={13}>{yCue}</text> : null}
       {refs.map((r) => <RefLine key={r.value} y={y(r.value)} label={r.label} dashed={r.dashed} {...refSpot(r)} />)}
       {layers.map(drawLayer)}
       <Baseline />

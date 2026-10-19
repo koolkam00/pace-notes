@@ -35,11 +35,20 @@ module.exports = function analyses({ json, eq, ok, core }) {
   };
 
   R['kick.sweetspot'] = (n) => {
+    // The best bin and its plateau: the unbroken run of 1% neighbours within 10 seconds of its finish.
+    const usable = kick.bank.curve.filter((c) => c.n >= 100).sort((a, b) => a.lo - b.lo);
     let best = null;
-    for (const c of kick.bank.curve) if (c.n >= 100 && (!best || c.finish_s < best.finish_s)) best = c;
-    eq(n.values.lo, best.lo, 'kick.sweetspot recounts the best opening bin');
-    eq(n.guard, best.lo > 0 && best.finish_s < 0, 'kick.sweetspot: guard');
-    if (n.guard) ok(shown(n).includes(`${best.lo}–${best.lo + 1}% slower`), 'kick.sweetspot: the headline names the bin');
+    for (const c of usable) if (!best || c.finish_s < best.finish_s) best = c;
+    let a = usable.indexOf(best), b = a;
+    const near = (c, prev) => c && Math.abs(c.lo - prev.lo) === 1 && c.finish_s - best.finish_s <= 10;
+    while (near(usable[a - 1], usable[a])) a -= 1;
+    while (near(usable[b + 1], usable[b])) b += 1;
+    const bins = usable.slice(a, b + 1);
+    eq(n.values.best_lo, best.lo, 'kick.sweetspot recounts the best opening bin');
+    eq(n.values.lo, bins[0].lo, 'kick.sweetspot recounts the plateau\'s first bin');
+    eq(n.values.hi, bins[bins.length - 1].lo + 1, 'kick.sweetspot recounts the plateau\'s end');
+    eq(n.guard, bins[0].lo >= 0 && best.lo > 0 && bins.every((c) => c.finish_s < 0), 'kick.sweetspot: guard');
+    if (n.guard && bins.length > 1) ok(shown(n).includes(`${bins[0].lo}–${bins[bins.length - 1].lo + 1}% slower`) && shown(n).includes(`within ${Math.round(Math.max(...bins.map((c) => c.finish_s)) - best.finish_s)} seconds`), 'kick.sweetspot: the headline names the band and how close it is, never one bin');
   };
 
   const fastIds = af.opening_bands.filter((b) => typeof b.upper === 'number' && b.upper <= -5).map((b) => b.id);
@@ -118,8 +127,9 @@ module.exports = function analyses({ json, eq, ok, core }) {
     const c = allCourses();
     const s = [under(c, GOAL), under(c, 210), under(c, 180)];
     close(n.values.share, s[0], 'target.context: under 4:00'); close(n.values.share2, s[1], 'target.context: under 3:30'); close(n.values.share3, s[2], 'target.context: under 3:00');
-    eq(n.guard, s[0] > s[1] && s[1] > s[2], 'target.context: guard');
-    ok(shown(n).startsWith(`*${pct(s[0])}*`), 'target.context: the sentence leads with the share');
+    eq(n.guard, s[0] > s[1] && s[1] > s[2] && s[2] < 0.1, 'target.context: guard');
+    // The finding is the lowest mark's (chapter 01 owns the share under 4:00): the sentence names 3:00 and its share.
+    ok(shown(n).startsWith('Only ') && shown(n).endsWith('under 3:00.') && shown(n).includes(`*${pct(s[2])}*`) && !shown(n).includes(pct(s[0])), 'target.context: the sentence names the share under 3:00, not under 4:00');
   };
 
   R['age.retention'] = (n) => {
@@ -138,7 +148,8 @@ module.exports = function analyses({ json, eq, ok, core }) {
     // "The youngest and oldest" only on a U: the least slowing at a middle age, both ends a point or more above it.
     rows.sort((a, b) => parseInt(a.age, 10) - parseInt(b.age, 10));
     const u = rows.length >= 3 && lo !== rows[0] && lo !== rows[rows.length - 1] && rows[0].pooled - lo.pooled >= 1 && rows[rows.length - 1].pooled - lo.pooled >= 1;
-    if (n.guard) ok(shown(n).startsWith(`Across all finishes, ${u ? 'the youngest and oldest' : 'older runners'} slowed more.`), 'age.retention: the pooled shape in words');
+    // The finding alone (one clause, three lines on a phone); the pooled shape is the page's dek, from u_shape.
+    if (n.guard) ok(shown(n) === 'At the same finish time, age *barely mattered*.' && n.values.u_shape === (u ? 1 : 0), 'age.retention: the finding alone, and the pooled shape in values');
   };
 
   const courseRange = () => {
