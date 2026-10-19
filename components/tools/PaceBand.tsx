@@ -37,7 +37,7 @@ const DEFAULTS = { goal: '4:00', course: 'all', g: 'all', split: '', watch: '0',
 
 type Gender = 'all' | 'men' | 'women';
 const GENDER_OPTIONS: { value: Gender; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'women', label: 'Women' }, { value: 'men', label: 'Men' }];
-const ROW_OPTIONS: { value: SplitInterval; label: string }[] = [{ value: 'mi', label: 'Miles' }, { value: 'km', label: 'Kilometres' }, { value: '5k', label: '5K mats' }];
+const ROW_OPTIONS: { value: SplitInterval; label: string }[] = [{ value: 'mi', label: 'Miles' }, { value: 'km', label: 'Kilometers' }, { value: '5k', label: '5K mats' }];
 const WATCH_OPTIONS = [{ value: '0', label: 'Exact' }, { value: '0.5', label: '+0.5%' }, { value: '1', label: '+1%' }, { value: '1.5', label: '+1.5%' }];
 
 const clampGoal = (s: number) => Math.min(GOAL_MAX_S, Math.max(GOAL_MIN_S, s));

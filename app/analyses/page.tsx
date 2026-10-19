@@ -23,7 +23,7 @@ export default function AnalysesPage() {
   return (
     <div className="contents-page">
       <header className="contents-hero">
-        <h1 className="t-display">Analyses</h1>
+        <h1 className="t-title">Analyses</h1>
         <p className="contents-dek">Each one answers a pacing question, then lets you set it to your course and time.</p>
       </header>
       <section className="contents-body" aria-label="Every analysis">

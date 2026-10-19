@@ -9,7 +9,7 @@
 /* Inter's tabular figures widen the hyphen ("early - race", "non - binary"): words on charts and in table headers take
    proportional figures; readouts and table cells keep tabular ones. */
 .analysis-page .viz-frame :is(.viz-label, .tick), .analysis-page .table thead th { font-variant-numeric: normal; }
-/* Every heading here is Fraunces at its own optical size: none inherits the legacy display cut (WP9 deletes that rule). */
+/* Every heading here is Fraunces at its own optical size. */
 .analysis-page :is(h1, h2, h3, h4) { font-variation-settings: normal; }
 /* The term link (the page's first "sustained slowdown"): the text's own colour, a dotted underline, as on the tools. */
 .analysis-page .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-color: var(--ink-3); text-decoration-thickness: 1px; text-underline-offset: .18em; }

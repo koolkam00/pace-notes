@@ -527,7 +527,7 @@ export default function SplitCheck({ indexSha, archetypesSha, bandCourses, other
             <label htmlFor={`${formId}-paste`} className="sr-only">Pasted split text</label>
             <textarea id={`${formId}-paste`} rows={4} value={pasteText} onChange={(e) => onPaste(e.target.value)} spellCheck={false} autoComplete="off"
               placeholder={'5K 0:25:50\n10K 0:52:24\n…\nFinish 4:03:31'} aria-describedby={`${formId}-paste-note`} />
-            <p className="tool-field-hint" id={`${formId}-paste-note`} aria-live="polite">{pasteNote ?? 'Copy the split table and paste it here. Labelled 5K…40K and Finish lines are read; halfway, mile splits, paces and clock times are skipped.'}</p>
+            <p className="tool-field-hint" id={`${formId}-paste-note`} aria-live="polite">{pasteNote ?? 'Copy the split table and paste it here. Labeled 5K…40K and Finish lines are read; halfway, mile splits, paces and clock times are skipped.'}</p>
           </details>
           <div className="split-check-buttons">
             <button type="button" className="btn btn-secondary is-compact" onClick={() => { setTimes(Array(9).fill(null)); setPasteText(''); setPasteNote(null); }}>Clear</button>
