@@ -373,7 +373,7 @@ const KINDS = {
   'geo.distance': 'mi1', 'geo.distance2': 'mi2', 'geo.gain': 'ft', 'geo.loss': 'ft', 'geo.min': 'ft', 'geo.max': 'ft',
   'route.gain': 'ft', 'route.loss': 'ft', 'cg.gain': 'ft', 'cg.loss': 'ft', 'cg.net': 'netft', 'cg.editions': 'count', 'cg.finishes': 'count', 't.gain': 'ft', 't.loss': 'ft', 't.net': 'netft',
   'g.n': 'count', 'g.ed': 'count', 'g.under': 'pct', 'g.sd': 'pct', 'g.after20': 'min', 'g.p10': 'clock', 'g.p50': 'clock', 'g.p90': 'clock',
-  'ty.finishes': 'count', 'ty.editions': 'count', 'ty.share': 'pct0', 'ty.all': 'pct0', 'profile.n': 'count',
+  'ty.finishes': 'count', 'ty.editions': 'count', 'ty.share': 'pct0', 'ty.all': 'pct0', 'ty.else': 'pct0', 'profile.n': 'count',
   'w.start': 'text', 'w.temp': 'degF', 'w.dew': 'degF', 'w.rh': 'rh', 'w.wind': 'mph',
   'hc.cool.year': 'year', 'hc.hot.year': 'year', 'hc.cool.temp': 'degF', 'hc.hot.temp': 'degF', 'hc.cool.sd': 'pct', 'hc.hot.sd': 'pct',
   slope: 'slopeF', 'slope.r': 'r2', 'slope.editions': 'count', curve: 'spct1',
@@ -448,6 +448,13 @@ function resolve(dataKey, f) {
     case 'ty.editions': return f.types?.editions;
     case 'ty.share': return f.types?.shares[arg];
     case 'ty.all': return archetypes.archetypes[arg]?.share;
+    // The other courses' share of the type, pooled by finishes: the comparator the pacing rows draw (the course itself
+    // left out of the set it is compared with; critic round 4).
+    case 'ty.else': {
+      const others = archetypes.courses.filter((c) => c.city !== f.s.city);
+      const n = others.reduce((a, c) => a + c.finishes, 0);
+      return n ? others.reduce((a, c) => a + c.shares[arg] * c.finishes, 0) / n : undefined;
+    }
     case 'profile.n': return profileN.get(f.s.city);
     case 'w.start': return shards.get(key(f.s.city, arg))?.weather?.scheduled_start;
     case 'w.temp': return w?.temp;
@@ -571,8 +578,9 @@ if (html) {
     // The race mornings show only as the warmest/coolest contrast (5 °C or more) over three or more of them.
     const pairGap = f.hotCool ? Math.round((f.hotCool.hot.temp - f.hotCool.cool.temp) * 10) / 10 : null;
     const weatherShown = pairGap !== null && pairGap >= courses.weather.pairs.min_gap_c && f.weather.length >= 3;
-    // #elevation: a route whose profile is sound, with pace blocks or a climb its heading can name.
-    const elevationShown = !!f.route && !f.wet && (f.s.curve?.length === 9 || climbNugget.guard);
+    // #elevation: a route whose profile is sound, with a climb its heading can name (a flat course's beat only said no
+    // 5K climbs much; its climb is the hero's; critic round 4).
+    const elevationShown = !!f.route && !f.wet && climbNugget.guard;
     const want = {
       'at-a-glance': glanceIds.length > 0, 'finish-times': f.cells.length >= 3 && N.getNugget('course.times', { city }).guard, elevation: elevationShown, pacing: !!f.types,
       goals: goalsShown, weather: weatherShown,
@@ -814,11 +822,17 @@ if (html) {
       check(d && attr(d[1], 'data-k') === 'slowdown.r' && attr(d[1], 'value') === String(s0) && innerText(d[2]) === F.pct0(s0), where, `the ${city} row: ${d ? innerText(d[2]) : 'no share'} against the page's ${F.pct0(s0)}`);
       check(!/with complete splits|supplied/i.test(textOf(row)), where, `the ${city} row carries coverage copy: "${textOf(row)}"`);
     }
-    // The courses with fewer than three editions follow under their own label.
-    const footList = /<ol class="course-index is-foot"[\s\S]*?<\/ol>/.exec(markup(full))?.[0] ?? '';
-    const footSlugs = [...footList.matchAll(/href="\/courses\/([^"?#]+)/g)].map((m) => m[1]).sort();
+    // The list opens A–Z (the share's order is course comparison's finding; critic round 4), under a key saying what
+    // the figure is, and the courses with fewer than three editions are marked (their share drawn quieter).
+    const index = /<ol class="course-index"[^>]*>([\s\S]*?)<\/ol>/.exec(markup(full));
+    const order = [...(index?.[1] ?? '').matchAll(/href="\/courses\/([^"?#]+)/g)].map((m) => m[1]);
+    check(index && /data-sort="az"/.test(index[0]) && JSON.stringify(order) === JSON.stringify([...CITIES].sort((a, b) => a.localeCompare(b)).map(slugOf)), where, `the list does not open A–Z: ${order.join(', ')}`);
+    check(!/<ol class="course-index is-foot"/.test(markup(full)), where, 'the A–Z list sets the fewer-edition courses apart');
+    const fewMarked = [...(index?.[1] ?? '').matchAll(/<li class="is-few"><a\b[^>]*href="\/courses\/([^"?#]+)/g)].map((m) => m[1]).sort();
     const fewSlugs = CITIES.filter((c) => facts.get(c).s.editions < 3).map(slugOf).sort();
-    check(JSON.stringify(footSlugs) === JSON.stringify(fewSlugs), where, `the courses under "Fewer than three editions" are ${footSlugs}, not ${fewSlugs}`);
+    check(JSON.stringify(fewMarked) === JSON.stringify(fewSlugs), where, `the courses marked as fewer than three editions are ${fewMarked}, not ${fewSlugs}`);
+    const key = textOf(/<p class="course-index-key"[^>]*>([\s\S]*?)<\/p>/.exec(markup(full))?.[1] ?? '');
+    check(/share of finishes with a sustained slowdown\s*, in an average year/.test(key), where, `the list's key: "${key}"`);
     // One list (section 00): the H1 and the dek, then the courses. The spread across courses (19–46%) is course
     // comparison's finding alone, so /courses draws no reading figure (critic round 2).
     check(!/class="reading-figure/.test(markup(full)), where, '/courses draws a reading figure: the spread across courses belongs to course comparison');

@@ -3,6 +3,7 @@ import { Elevation, Temperature } from '@/components/story/Units';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import CourseSort, { type SortKey } from '@/components/course/CourseSort.client';
 import { Fact } from '@/components/course/Fact';
+import { SlowdownTerm } from '@/components/tools/EvidenceTag';
 import RouteFace from '@/components/course/RouteFace';
 import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
 import { readingAttrs } from '@/lib/chapters';
@@ -28,28 +29,15 @@ export function generateMetadata() {
   return pageMetadata({ title, description: describe(span).length <= 155 ? describe(span) : describe(''), path: '/courses' });
 }
 
-const W = 44, H = 44;
-
-/**
- * A course's pace shape, in the face's box, for a course with no supplied route (never an empty box): a quiet line over
- * a dashed level (its own average pace), so it reads as a different kind of mark from the routes drawn in ink.
- */
-function ShapeFace({ curve }: { curve: number[] }) {
-  const level = <line className="course-index-level" x1="4" x2={W - 4} y1={H / 2} y2={H / 2} />;
-  if (curve.length !== 9) return <svg className="course-index-face-svg" viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">{level}</svg>;
-  const span = Math.max(1, ...curve.map((v) => Math.abs(v)));
-  const d = curve.map((v, i) => `${i ? 'L' : 'M'}${(4 + (i / 8) * (W - 8)).toFixed(1)} ${(H / 2 - (v / span) * (H / 2 - 6)).toFixed(1)}`).join('');
-  return <svg className="course-index-face-svg" viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">{level}<path className="course-index-shape" d={d} /></svg>;
-}
-
 /**
  * /courses (the redesign spec, section 7.10, cut under section 00): the H1 and the dek, then every course as one row
- * the chips sort: its route as its face in a fine ink-2 line (or its pace shape), its name, and the figure the order is
- * by, at the right; the sorted figures are the ranking, so no bar repeats them (bars under every row read as
- * underlines). Under any other order the share of sustained slowdowns moves to the row's small line. A route whose
- * profile reads the water under a bridge prints no climb (as on its page). The courses with fewer than three editions are
- * drawn quieter: under the share's order they follow under their own hairline; under any other they stand in their
- * sorted place. The ItemList stays alphabetical.
+ * the chips sort, A–Z first (the share's order is course comparison's finding; critic round 4), under a key line saying
+ * what the row's figure is: its route as its face in a fine ink-2 line (an empty face where no route was supplied, as
+ * the hero leaves the route out), its name, and the figure the order is by, at the right; the sorted figures are the
+ * ranking, so no bar repeats them. Under any order but A–Z and the share, the share of sustained slowdowns moves to the
+ * row's small line. A route whose profile reads the water under a bridge prints no climb (as on its page). A course
+ * with fewer than three editions has its share drawn quieter: under the share's order it follows under its own
+ * hairline; under any other it stands in its sorted place. The ItemList stays alphabetical.
  */
 export default function CoursesPage() {
   const pages = [...coursePages().values()];
@@ -80,7 +68,7 @@ export default function CoursesPage() {
       id: p.slug,
       node: (
         <Link href={`/courses/${p.slug}`} className="course-index-row">
-          <span className="course-index-face">{p.geometry ? <RouteFace course={p.geometry} /> : <ShapeFace curve={p.summary.curve ?? []} />}</span>
+          <span className="course-index-face">{p.geometry ? <RouteFace course={p.geometry} /> : null}</span>
           <span className="course-index-name">{p.display}</span>
           <span className="course-index-meta">
             <span className="m-default">{editions}{climb ? <>{'\u00a0· '}<span className="nowrap"><Elevation metres={climb.gain_m} /> climb</span></> : null}</span>
@@ -97,6 +85,15 @@ export default function CoursesPage() {
       ),
     };
   });
+  // Each order's key, in place of the figure's guesswork: what the number at the row's end is, and in what order.
+  const share = <>Each course’s share of finishes with a <SlowdownTerm />, in an average year</>;
+  const keys: Record<SortKey, React.ReactNode> = {
+    az: <>{share}.</>,
+    slowdown: <>{share}, lowest first.</>,
+    climb: <>Each route’s climbing, start to finish, most first.</>,
+    finishes: <>Finishes on each course, most first.</>,
+    temp: <>Start temperatures across each course’s race mornings, coolest on average first.</>,
+  };
   const list = {
     '@context': 'https://schema.org', '@type': 'ItemList', name: 'Marathon courses', itemListOrder: 'https://schema.org/ItemListOrderAscending', numberOfItems: alpha.length,
     itemListElement: alpha.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: raceName(p.city, p.geometry, p.summary), url: absoluteUrl(`/courses/${p.slug}`) })),
@@ -107,8 +104,8 @@ export default function CoursesPage() {
       {/* One list (section 00): the H1, the dek, then every course. The spread across courses is course-comparison's. */}
       <Reading crumbs={<ChapterCrumbs path="/courses" />} title="Courses" titleSize="title" dek={sentenceOf(index).replace(/\*/g, '')} className="courses-reading" />
       <section className="courses-list" aria-label="Every course">
-        <CourseSort initial="slowdown" orders={orders} rows={rows} foot={few} footTitle="Fewer than three editions"
-          options={[{ value: 'slowdown', label: 'Sustained slowdown' }, { value: 'climb', label: 'Climb' }, { value: 'finishes', label: 'Finishes' }, { value: 'temp', label: 'Start temperature' }, { value: 'az', label: 'A–Z' }]} />
+        <CourseSort initial="az" orders={orders} rows={rows} keys={keys} foot={few} footTitle="Fewer than three editions"
+          options={[{ value: 'az', label: 'A–Z' }, { value: 'slowdown', label: 'Sustained slowdown' }, { value: 'climb', label: 'Climb' }, { value: 'finishes', label: 'Finishes' }, { value: 'temp', label: 'Start temperature' }]} />
       </section>
       <ChapterEnd path="/courses" readingOf={readingOf} />
     </div>

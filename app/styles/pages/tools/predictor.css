@@ -1,5 +1,5 @@
-/* The finish-time predictor (/tools/predictor; the redesign spec, section 7.13): a recent race, the range on one night
-   card (◆ published research), the next steps, every published method side by side, then, kept apart, what finishes on
+/* The finish-time predictor (/tools/predictor; the redesign spec, section 7.13): the range on one night card (◆ published
+   research, its one badge, every published method folded inside it), the recent race, then, kept apart, what finishes on
    that pace at 20K did (● Pace Notes data). The two are never combined. Every class here is prefixed predictor-.
    Imported by app/tools/predictor/layout.tsx. */
 
@@ -35,10 +35,6 @@
 /* Folded under the range (a tap away): the disclosure's own hairline, its summary in the card's quieter ink. */
 .predictor-methods { --wash: var(--paper-sunk); }
 .predictor-methods > summary { color: var(--ink-2); font-size: var(--t-label); }
-/* The card's last line: the data reading, under a hairline, its own badge at its end. */
-.predictor-card-reading { margin: 0; padding-top: var(--s-4); border-top: 1px solid var(--rule); font-size: 1rem; line-height: 1.45; color: var(--ink-2); }
-.predictor-card-reading b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
-.predictor-card-reading .evidence-badge { margin-left: 6px; white-space: nowrap; }
 .predictor-chart { position: relative; margin: 0; touch-action: manipulation; cursor: default; }
 .predictor-chart svg { display: block; user-select: none; -webkit-user-select: none; overflow: visible; }
 .predictor-chart svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
@@ -77,13 +73,15 @@
 .predictor-strip svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
 .predictor-strip .grid line { stroke: var(--rule); }
 .predictor-strip .predictor-strip-bar { fill: var(--fill-quiet); stroke: var(--mark-quiet); stroke-width: .75; }
+/* The reading: the finishes under the estimate (the sentence's orange share). */
+.predictor-strip .predictor-strip-bar.is-under { fill: var(--signal); stroke: var(--signal); }
 .predictor-strip .predictor-strip-base { stroke: var(--rule-strong); }
 .predictor-strip .predictor-marker-line { stroke-width: 2; }
-.predictor-strip .predictor-marker-line.is-median { stroke: var(--signal); }
+.predictor-strip .predictor-marker-line.is-median { stroke: var(--ink); }
 .predictor-strip .predictor-marker-line.is-est { stroke: var(--ink); stroke-dasharray: 4 3; stroke-width: 1.5; }
 .predictor-strip .predictor-marker-halo { fill: var(--paper); }
 .predictor-strip svg .predictor-marker { font-size: 12px; font-weight: 600; }
-.predictor-strip svg .predictor-marker.is-median { fill: var(--signal-ink); }
+.predictor-strip svg .predictor-marker.is-median { fill: var(--ink); }
 .predictor-strip svg .predictor-marker.is-est { fill: var(--ink); }
 .predictor-retry { justify-self: start; }
 

@@ -9,6 +9,8 @@ import type { CourseGeometry } from '@/lib/insights';
  */
 const SIZE = 100;
 const PAD = 7;
+/** Start and finish closer than this (viewBox units, about 7–14 px on screen) draw as one start/finish mark. */
+const JOINED = 4;
 
 function point([x, y]: [number, number]): [number, number] {
   const s = SIZE - PAD * 2;
@@ -32,11 +34,21 @@ export default function RouteFace({ course, label, fit = false, className }: {
     <svg className={`route-face${className ? ` ${className}` : ''}`} viewBox={box} width="100%" focusable="false"
       {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })}>
       <path className="route-face-line" d={d} fill="none" stroke="currentColor" strokeWidth={2.25} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-      <g className="route-face-mark">
-        <path d={`M${sx.toFixed(2)} ${sy.toFixed(2)}h0`} stroke="currentColor" strokeWidth={10} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        <path d={`M${sx.toFixed(2)} ${sy.toFixed(2)}h0`} stroke="var(--route-surface, var(--paper))" strokeWidth={5} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        <path d={`M${fx.toFixed(2)} ${fy.toFixed(2)}h0`} stroke="currentColor" strokeWidth={8} strokeLinecap="square" vectorEffect="non-scaling-stroke" />
-      </g>
+      {/* Start and finish a few units apart (an out-and-back or a loop) are one mark, a square inside the ring, never two
+          marks run together into a blob. */}
+      {Math.hypot(fx - sx, fy - sy) < JOINED ? (
+        <g className="route-face-mark">
+          <path d={`M${fx.toFixed(2)} ${fy.toFixed(2)}h0`} stroke="currentColor" strokeWidth={14} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          <path d={`M${fx.toFixed(2)} ${fy.toFixed(2)}h0`} stroke="var(--route-surface, var(--paper))" strokeWidth={9} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          <path d={`M${fx.toFixed(2)} ${fy.toFixed(2)}h0`} stroke="currentColor" strokeWidth={5} strokeLinecap="square" vectorEffect="non-scaling-stroke" />
+        </g>
+      ) : (
+        <g className="route-face-mark">
+          <path d={`M${sx.toFixed(2)} ${sy.toFixed(2)}h0`} stroke="currentColor" strokeWidth={10} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          <path d={`M${sx.toFixed(2)} ${sy.toFixed(2)}h0`} stroke="var(--route-surface, var(--paper))" strokeWidth={5} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          <path d={`M${fx.toFixed(2)} ${fy.toFixed(2)}h0`} stroke="currentColor" strokeWidth={8} strokeLinecap="square" vectorEffect="non-scaling-stroke" />
+        </g>
+      )}
     </svg>
   );
 }

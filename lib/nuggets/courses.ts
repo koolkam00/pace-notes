@@ -185,25 +185,15 @@ function courseLate(ctx?: NuggetContext): Nugget {
     headline: `${display}’s slowest ${stretchOf(i)} is *${name}*; on ${k} of ${n} courses it’s ${usual}.`,
     fallback: i >= 0 && m >= 0 ? `${display}’s slowest ${stretchOf(i)} is ${name}, as on ${k} of ${n} courses.` : i >= 0 ? `${display}’s slowest ${stretchOf(i)} is ${name}.` : 'Where the median finish slowed most.',
     figure: i >= 0 && Number.isFinite(v) && v > 0 ? { value: `${by}%`, unit: ' slower', sr: `${by}% slower` } : null,
-    key: `than average at ${name}, ${display}’s slowest ${stretchOf(i)}; on ${k} of ${n} courses it’s ${usual}`,
+    // The baseline named (critic round 4: "than average" beside the hills page's "than elsewhere" read as one number).
+    key: `than ${display}’s average pace, at ${name}, its slowest ${stretchOf(i)}; on ${k} of ${n} courses it’s ${usual}`,
   };
 }
 
 /**
- * A section's pace against its course's own average, in a runner's words: on this course "2% slower than" (its average
- * pace follows) or "at"; on the typical course "1% quicker" or "at its average pace".
- */
-function paceWords(v: number, own: boolean): string {
-  const n = Math.round(Math.abs(v));
-  const side = v > 0 ? 'slower' : 'quicker';
-  if (own) return n === 0 ? 'at' : `${n}% ${side} than`;
-  return n === 0 ? 'at its average pace' : `${n}% ${side}`;
-}
-
-/**
  * At a glance (3): the 5K section where the course's pacing parts most from the typical course's (each against its own
- * average pace), said from 3 points apart on a course with three or more editions, in words: "1% quicker than its
- * average pace; 4% slower on the typical course". Where no section parts that far, the course "paces much like the
+ * average pace), said from 3 points apart on a course with three or more editions, as one figure: "London’s first 5K
+ * runs 3% quicker than on the typical course." Where no section parts that far, the course "paces much like the
  * typical course", which the glance says alone when nothing else sets the course apart.
  */
 function courseSignature(ctx?: NuggetContext): Nugget {
@@ -221,16 +211,19 @@ function courseSignature(ctx?: NuggetContext): Nugget {
   // The figure is how far the section parts from the typical course's, from the two whole percentages the words give
   // (so the three numbers add up on the page); 3 points apart rounds to at least 3.
   const apart = Math.round(here) - Math.round(typical);
-  const own = paceWords(here, true);
-  const ownAccent = own === 'at' ? '*at its average pace*' : `*${own.replace(/ than$/, '')}* than its average pace`;
+  // One figure in runner words (critic round 4: the two percentages and their difference read as three numbers on one
+  // screen): how far the section parts from the typical course's, each against its own average pace. The two
+  // percentages behind it are the glance row's note and "All numbers".
+  const place = i === 0 ? 'first 5K' : i === SECTION_KM.length - 1 ? 'last stretch' : name;
+  const side = apart > 0 ? 'slower' : 'quicker';
   return {
     id: 'course.signature', page: `/courses/${page?.slug ?? ''}#at-a-glance`, denominator: 'shape',
     values: { section: s?.signature_section ?? '', here, typical, points: pts, apart, editions: s?.editions ?? 0, typical_like: solid && Math.abs(pts) < SIGNATURE_MIN ? 1 : 0 },
     guard,
-    headline: `${display}’s ${name} runs ${ownAccent}; the typical course runs it ${paceWords(typical, false)}.`,
+    headline: `${display}’s ${place} runs *${Math.abs(apart)}% ${side}* than on the typical course.`,
     fallback: solid ? `${display} paces *much like the typical course*, 5K by 5K.` : 'Its pacing, 5K by 5K.',
-    figure: guard ? { value: `${Math.abs(apart)}%`, unit: apart > 0 ? ' slower' : ' quicker', sr: `${Math.abs(apart)}% ${apart > 0 ? 'slower' : 'quicker'}` } : null,
-    key: solid ? `${name} runs ${own} ${display}’s average pace; the typical course runs it ${paceWords(typical, false)}` : undefined,
+    figure: guard ? { value: `${Math.abs(apart)}%`, unit: ` ${side}`, sr: `${Math.abs(apart)}% ${side}` } : null,
+    key: solid ? `than on the typical course, at ${name}` : undefined,
   };
 }
 
@@ -300,13 +293,15 @@ function courseClimb(ctx?: NuggetContext): Nugget {
 /** #pacing: the pacing type whose share differs most from every course's. */
 function courseTypes(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
-  // The courses the pacing types are counted over: every course with 5K splits, named by their number, never "every course".
-  const across = readInsight<Archetypes>('archetypes.json').courses.length;
+  // The other courses with 5K splits, their shares pooled by finishes (this course left out of the set it is compared
+  // with); the key under the rows names how many.
+  const across = page?.typesElsewhere?.courses ?? readInsight<Archetypes>('archetypes.json').courses.length - 1;
   const shares = page?.types?.shares ?? [];
   const all = page?.archetypes ?? [];
+  const elsewhere = page?.typesElsewhere?.shares ?? [];
   let i = -1;
-  shares.forEach((v, j) => { if (all[j] && (i < 0 || Math.abs(v - all[j].share) > Math.abs(shares[i] - all[i].share))) i = j; });
-  const here = i >= 0 ? shares[i] : NaN, every = i >= 0 ? all[i].share : NaN;
+  shares.forEach((v, j) => { if (all[j] && Number.isFinite(elsewhere[j]) && (i < 0 || Math.abs(v - elsewhere[j]) > Math.abs(shares[i] - elsewhere[i]))) i = j; });
+  const here = i >= 0 ? shares[i] : NaN, every = i >= 0 ? elsewhere[i] : NaN;
   const guard = i >= 0 && Math.abs(here - every) >= TYPE_GAP;
   // The type's name in lower case mid-sentence ("Fewer early drifters here").
   const name = i >= 0 ? `${all[i].name.toLowerCase()}s` : '';
@@ -314,8 +309,9 @@ function courseTypes(ctx?: NuggetContext): Nugget {
     id: 'course.types', page: `/courses/${page?.slug ?? ''}#pacing`, denominator: 'shape',
     values: { type: i >= 0 ? all[i].slug : '', here, every, courses: across },
     guard,
-    headline: `${here > every ? 'More' : 'Fewer'} *${name}* here: ${pct(here)}, against ${pct(every)} across ${across} courses.`,
-    fallback: page?.types ? `Paced much like the other courses: every type within ${Math.round(TYPE_GAP * 100)}% of its share across all ${across}.` : `No pacing types for ${page?.display ?? 'this course'}.`,
+    // The comparator once, without its count (the key under the rows names the set).
+    headline: `${here > every ? 'More' : 'Fewer'} *${name}* here: ${pct(here)}, against ${pct(every)} elsewhere.`,
+    fallback: page?.types ? `Paced much like the other courses: every type within ${Math.round(TYPE_GAP * 100)}% of its share elsewhere.` : `No pacing types for ${page?.display ?? 'this course'}.`,
     figure: null,
   };
 }
@@ -348,15 +344,15 @@ function courseAmong(ctx?: NuggetContext): Nugget {
   // The accent is the comparison's number. Every course counted has three or more editions; the sentence says so where
   // it counts all of them. A course of fewer editions leads with how many it has, so the sentence never trails a
   // qualifier ("From its two editions, Barcelona’s 22% is lower than 22 of the 25 courses.").
-  const than = solid
-    ? (count === n ? `${side} than *${nb(`all ${n}`)}* other courses with three or more editions` : `${side} than *${nb(`${count} of the ${n}`)}* other courses`)
-    : (count === n ? `${side} than *${nb(`all ${n}`)}* courses with three or more` : `${side} than *${nb(`${count} of the ${n}`)}* courses`);
+  // The comparator without the set's size (critic round 4: three section-by-section set sizes on one page read as
+  // noise); the strip's key names the set, the courses with three or more editions.
+  const than = count === n ? `${side} than *${nb('every other')}* course` : `${side} than *${nb(`${count} of the`)}* other courses`;
   const from = `From its ${countWord(s?.editions ?? 0)} ${s?.editions === 1 ? 'edition' : 'editions'}`;
   return {
     id: 'course.among', page: `/courses/${page?.slug ?? ''}#slowdown`, denominator: 'course',
     values: { share: s?.slowdown ?? NaN, higher, lower, courses: n, editions: s?.editions ?? 0, middle: middle ? 1 : 0 },
     guard,
-    headline: middle ? `${name}’s ${share}: *${nb('near the middle')}* of ${n + 1} courses.` : solid ? `${name}’s ${share}: ${than}.` : `${from}, ${name}’s ${share} is ${than}.`,
+    headline: middle ? `${name}’s ${share}: *${nb('near the middle')}* of the courses.` : solid ? `${name}’s ${share}: ${than}.` : `${from}, ${name}’s ${share} is ${than}.`,
     fallback: `${name} beside every course.`,
     figure: null,
   };
@@ -378,9 +374,8 @@ function courseGoal(ctx?: NuggetContext): Nugget {
   const guard = !!row && row.n >= 100;
   const g = goalText(LEAD_GOAL);
   const gap = row && every ? Math.abs(Math.round(row.under * 100) - Math.round(every.under * 100)) : 0;
-  // The pooled courses by their number, as the planner and the course chooser name them ("across 24 courses").
-  const across = every ? `across ${every.courses} courses` : '';
-  const against = !every ? '' : gap >= GOAL_GAP_MIN ? `, against ${pct(every.under)} ${across}` : `, about the same as ${across}`;
+  // Against the other courses (this one left out of the pool), named once without their count: the key names the set.
+  const against = !every ? '' : gap >= GOAL_GAP_MIN ? `, against ${pct(every.under)} elsewhere` : ', about the same as elsewhere';
   return {
     id: 'course.goal', page: `/courses/${page?.slug ?? ''}#goals`, denominator: 'tool',
     values: { goal: LEAD_GOAL, under: row?.under ?? NaN, n: row?.n ?? 0, every: every?.under ?? NaN, every_n: every?.n ?? 0, every_courses: every?.courses ?? 0 },
@@ -391,22 +386,45 @@ function courseGoal(ctx?: NuggetContext): Nugget {
   };
 }
 
-/** #weather: the warmest and coolest race mornings (five or more °C apart), or the span of the mornings; a share both mornings round to is said once. */
+/**
+ * The warmest and coolest mornings' shares differ "by weather" from this many whole points; closer, the course's
+ * weather sorted nothing (critic round 4: Boston's 29% at 61°F against 25% at 38°F read as a warm-day effect while its
+ * highest-share year started at 46°F). The sentence never says "worst" (verify-courses bans rank words).
+ */
+export const WEATHER_GAP = 5;
+
+/**
+ * #weather: the warmest and coolest race mornings (five or more °C apart), or the span of the mornings. A share both
+ * mornings round to is said once; shares under WEATHER_GAP points apart are a null, said as one: where the course's
+ * highest-share year is neither of the two, "weather didn't sort its slowdowns", with that year's share and start; otherwise
+ * "about the same share" warm or cool. Only a gap of WEATHER_GAP points or more is told as two facts.
+ */
 function courseWeather(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
   const hc = page?.hotCool ?? null;
   const w = page?.weather ?? [];
   const guard = !!hc;
   const lo = w.length ? Math.min(...w.map((e) => e.temp)) : NaN, hi = w.length ? Math.max(...w.map((e) => e.temp)) : NaN;
+  const held = heldEditions();
+  const named = w.filter((e) => !!page && !held.has(`${page.city}|${e.year}`));
+  const worst = named.length ? named.reduce((a, b) => (b.slowdown > a.slowdown ? b : a)) : null;
+  const same = !!hc && pct(hc.hot.slowdown) === pct(hc.cool.slowdown);
+  const gap = hc ? Math.abs(Math.round(hc.hot.slowdown * 100) - Math.round(hc.cool.slowdown * 100)) : NaN;
+  const quiet = !!hc && !same && gap < WEATHER_GAP;
+  const unsorted = quiet && !!worst && worst.year !== hc!.hot.year && worst.year !== hc!.cool.year && Math.round(worst.slowdown * 100) > Math.round(Math.max(hc!.hot.slowdown, hc!.cool.slowdown) * 100);
+  const display = page?.display ?? 'This course';
   return {
     id: 'course.weather', page: `/courses/${page?.slug ?? ''}#weather`, denominator: 'course',
-    values: hc ? { hot_year: hc.hot.year, hot_temp: hc.hot.temp, hot_share: hc.hot.slowdown, cool_year: hc.cool.year, cool_temp: hc.cool.temp, cool_share: hc.cool.slowdown, editions: w.length }
+    values: hc ? { hot_year: hc.hot.year, hot_temp: hc.hot.temp, hot_share: hc.hot.slowdown, cool_year: hc.cool.year, cool_temp: hc.cool.temp, cool_share: hc.cool.slowdown, editions: w.length,
+      quiet: quiet ? 1 : 0, worst_year: unsorted ? worst!.year : NaN, worst_share: unsorted ? worst!.slowdown : NaN, worst_temp: unsorted ? worst!.temp : NaN }
       : { editions: w.length, coolest: lo, warmest: hi },
     guard,
     // Two mornings whose shares round alike say the share once: the point is that it did not move.
-    headline: hc ? both((u) => pct(hc.hot.slowdown) === pct(hc.cool.slowdown)
+    headline: hc ? both((u) => same
       ? `At ${temp(hc.hot.temp, u)} in ${hc.hot.year} and at ${temp(hc.cool.temp, u)} in ${hc.cool.year}, the same ${pct(hc.hot.slowdown)} had a sustained slowdown.`
-      : `At *${temp(hc.hot.temp, u)}* in ${hc.hot.year}, ${pct(hc.hot.slowdown)} had a sustained slowdown. At ${temp(hc.cool.temp, u)} in ${hc.cool.year}, ${pct(hc.cool.slowdown)}.`) : '',
+      : unsorted ? `Weather didn’t sort ${display}’s slowdowns: its highest share, ${pct(worst!.slowdown)}, started at ${temp(worst!.temp, u)}.`
+        : quiet ? `Warm or cool, about the same share had a sustained slowdown: ${pct(hc.hot.slowdown)} at ${temp(hc.hot.temp, u)}, ${pct(hc.cool.slowdown)} at ${temp(hc.cool.temp, u)}.`
+          : `At *${temp(hc.hot.temp, u)}* in ${hc.hot.year}, ${pct(hc.hot.slowdown)} had a sustained slowdown. At ${temp(hc.cool.temp, u)} in ${hc.cool.year}, ${pct(hc.cool.slowdown)}.`) : '',
     fallback: both((u) => w.length >= 2 ? `Race mornings from ${temp(lo, u)} to ${temp(hi, u)}.` : w.length ? `One race morning: ${temp(lo, u)} at the start.` : 'Race mornings.'),
     figure: null,
   };

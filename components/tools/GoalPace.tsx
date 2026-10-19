@@ -126,8 +126,8 @@ export function GoalPaceBody({ goal, observed, bunching, pileup, pileupTable }: 
           {bunching ? null : <EvidenceTag kind="data" />}
           <h2 className="tool-nugget-text" id="goal-pace-slowdown-title">{uneven
             ? <>Finishes just under {label} didn’t run even: <em>{pct(observed.sd)}</em> had a <SlowdownTerm />.</>
-            : <>Most finishes just under {label} held their pace: only <em>{pct(observed.sd)}</em> had a <SlowdownTerm />.</>}</h2>
-          {/* The share on 100 dots. The two groups mat by mat (held pace against a sustained slowdown) are the pace band's
+            : <>Of finishes just under {label}, only <em>{pct(observed.sd)}</em> had a <SlowdownTerm />.</>}</h2>
+          {/* The share on 100 dots. The two groups mat by mat (with and without a sustained slowdown) are the pace band's
               chart, one tap on; here they are a table in All numbers, so the two pages never draw the same chart. */}
           <DotGrid lit={Math.round(observed.sd * 100)} label={`Of 100 finishes from ${span}, ${Math.round(observed.sd * 100)} had a sustained slowdown. ${groupText ?? ''} ${gapText ?? ''}`.trim()} />
         </section>
@@ -155,9 +155,9 @@ export function GoalPaceBody({ goal, observed, bunching, pileup, pileupTable }: 
           </table>
         </Values>,
         observed?.held && observed.slow ? (
-          <Values bare key="groups" id="goal-pace-groups" caption={`Elapsed time at each mat: even pace for ${label}, and the median of ${count(observed.n)} finishes from ${span}, of those that held pace and of those with a sustained slowdown`}>
+          <Values bare key="groups" id="goal-pace-groups" caption={`Elapsed time at each mat: even pace for ${label}, and the median of ${count(observed.n)} finishes from ${span}, of those with no sustained slowdown and of those with one`}>
             <table className="table">
-              <thead><tr><th scope="col">Mat</th><th scope="col">Even pace</th><th scope="col">Median</th><th scope="col">Held pace</th><th scope="col">Sustained slowdown</th></tr></thead>
+              <thead><tr><th scope="col">Mat</th><th scope="col">Even pace</th><th scope="col">Median</th><th scope="col">No sustained slowdown</th><th scope="col">Sustained slowdown</th></tr></thead>
               <tbody>
                 {CHECKPOINTS.map((km, i) => (
                   <tr key={km}>

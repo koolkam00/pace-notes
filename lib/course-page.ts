@@ -178,7 +178,7 @@ export function editionContexts(): Map<string, EditionContext> {
 
 export type EditionRow = { year: number; n: number; median_s: number; slowdown: number; temp: number | null; date: string | null };
 export type WeatherRow = WeatherEdition & { start: string | null };
-/** A goal's row on this course, and the share that made it across every course with rows (`every`, pooled by finishes). */
+/** A goal's row on this course, and the share that made it across the other courses with rows (`every`, pooled by finishes; this course left out). */
 export type GoalLine = { goal: number; row: CourseGoalRow | null; reason: string | null; every: GoalPooled | null };
 export type GoalPooled = { under: number; n: number; courses: number };
 
@@ -186,9 +186,9 @@ export type GoalPooled = { under: number; n: number; courses: number };
 export const POOLED_MIN_N = 100;
 
 /**
- * Every course's finishes on a goal's pace at 20K pooled (the course chooser's rows for courses with enough editions,
- * each row's finishes under the goal recovered from its share and count): the share that made the goal across every
- * course, which a course page sets its own row against. Null below 100 finishes.
+ * The finishes on a goal's pace at 20K pooled over a set of courses (the course chooser's rows for courses with enough
+ * editions, each row's finishes under the goal recovered from its share and count): a course page passes the other
+ * courses, so it sets its own row against the share that made the goal elsewhere. Null below 100 finishes.
  */
 export function pooledGoal(rows: Pick<CourseGoalRow, 'city' | 'goal' | 'n' | 'under'>[], goal: number, cities: Set<string>): GoalPooled | null {
   const kept = rows.filter((r) => r.goal === goal && cities.has(r.city));
@@ -222,6 +222,12 @@ export type CoursePageData = {
   hotCool: HotCool | null;
   types: { finishes: number; editions: number; shares: number[] } | null;
   archetypes: { name: string; slug: string; share: number; profile: number[] }[];
+  /**
+   * Each pacing type's share across the other courses with 5K splits (this one left out, their shares pooled by
+   * finishes), the set a course is compared with (critic round 4: a pool that held the course itself understated every
+   * gap); `courses` counts them. Null without a mix of its own.
+   */
+  typesElsewhere: { shares: number[]; courses: number } | null;
   goals: GoalLine[];
   /** Why the course has no goal rows at all (every edition screened out), else null. */
   goalsScreened: string | null;
@@ -312,7 +318,14 @@ export function coursePages(): Map<string, CoursePageData> {
   const allCurves = courses.courses.filter((c) => names.includes(c.city) && c.curve?.length === 9).map((c) => ({ city: c.city, curve: c.curve! }));
   // The courses whose goal rows a page shows (enough editions), whose rows pool into every course's share per goal.
   const goalCities = new Set((goal?.courses ?? []).filter((c) => names.includes(c.city) && c.editions >= (goal?.min_editions ?? Infinity)).map((c) => c.city));
-  const pooled = new Map<number, GoalPooled | null>(COURSE_GOALS.map((g) => [g, goal ? pooledGoal(goal.rows, g, goalCities) : null]));
+  // Each course is set against the others: its own rows are left out of the pool it is compared with.
+  const pooledFor = (city: string) => new Map<number, GoalPooled | null>(COURSE_GOALS.map((g) => [g, goal ? pooledGoal(goal.rows, g, new Set([...goalCities].filter((c) => c !== city))) : null]));
+  /** The other courses' pacing-type shares, pooled by finishes. */
+  const typesElsewhere = (city: string) => {
+    const others = archetypes.courses.filter((c) => c.city !== city);
+    const n = others.reduce((a, c) => a + c.finishes, 0);
+    return n ? { shares: archetypes.archetypes.map((_, i) => others.reduce((a, c) => a + c.shares[i] * c.finishes, 0) / n), courses: others.length } : null;
+  };
   const built = new Map<string, CoursePageData>();
   for (const city of names) {
     const summary = courses.courses.find((c) => c.city === city);
@@ -335,6 +348,7 @@ export function coursePages(): Map<string, CoursePageData> {
     const context = goal?.courses.find((c) => c.city === city) ?? null;
     // Too few editions for any goal: one sentence instead of five rows saying the same thing.
     const fewEditions = goal && context && context.editions < goal.min_editions ? tooFewEditions(context.editions, goal.min_editions) : null;
+    const pooled = pooledFor(city);
     const goals: GoalLine[] = goal && context && !fewEditions ? COURSE_GOALS.map((g) => {
       const row = goal.rows.find((r) => r.city === city && r.goal === g) ?? null;
       const every = pooled.get(g) ?? null;
@@ -349,6 +363,7 @@ export function coursePages(): Map<string, CoursePageData> {
       hotCool: hotCoolShown(courses.weather.hot_cool.find((h) => h.city === city), courses.weather.pairs.min_gap_c),
       types: types ? { finishes: types.finishes, editions: types.editions, shares: types.shares } : null,
       archetypes: archetypes.archetypes.map(({ name, slug: s, share, profile }) => ({ name, slug: s, share, profile })),
+      typesElsewhere: types ? typesElsewhere(city) : null,
       goals,
       goalsScreened: goal && !context ? screenedReason(city, goal.screens) : fewEditions,
       band: bandSlugs.has(slug),

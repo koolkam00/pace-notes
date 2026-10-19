@@ -69,7 +69,8 @@ export default function Page() {
         </section>
         {first ? (
           <Beat id="history" track="chapter-1" label="Earlier best" title={history}>
-            <Columns items={bands.map((r, i) => ({ id: String(i), label: bestLabel(String(r.label)), value: Number(r.value), display: pct(Number(r.value) / 100), tone: i === 0 ? 'signal' : 'ink' }))}
+            {/* The accent is the H2's: the slowest band's share, the end the gradient rises to. */}
+            <Columns items={bands.map((r, i) => ({ id: String(i), label: bestLabel(String(r.label)), value: Number(r.value), display: pct(Number(r.value) / 100), tone: i === bands.length - 1 ? 'signal' : 'ink' }))}
               max={Math.ceil(Math.max(...bands.map((r) => Number(r.value))) / 10) * 10 + 5}
               label={`Sustained slowdown by earlier recorded best: ${bands.map((r) => `${r.label} ${pct(Number(r.value) / 100)}`).join(', ')}`} />
           </Beat>
@@ -77,7 +78,7 @@ export default function Page() {
         {/* The page's tables in one row at its foot, as on every story and course page. */}
         <AllNumbers tables={[
           first ? <Values key="history" bare id="sd-history" caption="Sustained slowdown by earlier recorded best" columns={[{ key: 'b', label: 'Earlier best', text: true }, { key: 's', label: 'Sustained slowdown' }, { key: 'n', label: 'Finishes' }]}
-            rows={bands.map((r) => [String(r.label), pct(Number(r.value) / 100), count(Number(r.n_value))])} /> : null,
+            rows={bands.map((r) => [bestLabel(String(r.label)), pct(Number(r.value) / 100), count(Number(r.n_value))])} /> : null,
         ]} className="story-numbers" />
         <ChapterEnd path={PATH} readingOf={settledReadingOf} />
       </article>

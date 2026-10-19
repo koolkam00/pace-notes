@@ -92,14 +92,14 @@ export function kickSweetSpotFrom(curve: CurvePoint[]): Nugget {
   const band = sweetBand(curve);
   const best = band?.best ?? null;
   const words = band ? (band.bins.length > 1 && band.from >= 0 ? `${band.from}–${band.to}% slower` : openingWords(band.from)) : '';
-  const spread = band ? Math.round(band.spread) : NaN;
-  const close = band && band.bins.length > 1 ? `, all within ${spread} ${spread === 1 ? 'second' : 'seconds'}` : '';
+
   return {
     id: 'kick.sweetspot', page: '/analyses/starting-pace#sweet-spot', denominator: 'kick',
     values: band && best ? { lo: band.from, hi: band.to, best_lo: best.lo, spread_s: band.spread, bins: band.bins.length, n: best.n, finish_s: best.finish_s, after20_s: best.after20_s, slowdown: best.slowdown } : {},
     guard: !!band && !!best && band.from >= 0 && best.lo > 0 && band.bins.every((c) => c.finish_s < 0),
-    // Short (about ten words): the band and how close its bins finished; the readout gives each bin.
-    headline: `Best: a first 5K *${words}* than what followed${close}.`,
+    // Short (ten words): the band only; how close its bins finished is the readout's, bin by bin (critic round 4: "all
+    // within 6 seconds" of what was never said).
+    headline: `Best: a first 5K *${words}* than the rest.`,
     fallback: best ? `The best average finish went with a first 5K ${openingWords(best.lo)} than the pace that followed.` : 'The finish against the same pace, by first 5K.',
     figure: best ? { value: delta(best.finish_s), sr: `${spokenTime(Math.abs(best.finish_s))} ${best.finish_s < 0 ? 'ahead' : 'behind'}` } : null,
   };
@@ -132,32 +132,37 @@ export function downhillOpeningFrom(groups: AllFinisherGroup[], bands: OpeningBa
       ? { value: pct(a.share).replace('%', ''), unit: '%', sr: `${spokenPct(a.share)} on downhill-start courses and elsewhere` }
       : { value: `${pct(a.share).replace('%', '')} · ${pct(b.share).replace('%', '')}`, unit: '%', sr: `${spokenPct(a.share)} on downhill-start courses, ${spokenPct(b.share)} elsewhere` },
     // A null reads as one: the key says the share was the same either way.
-    key: pct(a.share) === pct(b.share) ? 'opened over 5% fast, with a downhill start or without' : 'opened over 5% fast: downhill-start courses · every other course',
+    key: pct(a.share) === pct(b.share) ? 'opened over 5% fast, downhill start or not' : 'opened over 5% fast: downhill-start courses · every other course',
   };
 }
 
 /** Two shares "differ" from 2 whole percentage points; within a point or so they are the same. */
 export const BAND_GAP = 2;
+/** "Slightly fewer": at most this many whole points fewer in any band. */
+export const BAND_SLIGHT = 5;
 
 /**
- * Band by band, the opening band where downhill-start courses and the rest differ most in sustained slowdown, said
- * only from 2 whole points apart (a 1-point gap is a null and reads as one). `fewer` counts the bands that differ by 2
- * points or more with fewer slowdowns on the downhill-start courses, for the chart's spoken label.
+ * Band by band, the pattern across every opening band, never its widest gap (critic round 4: picking the band with the
+ * widest gap sold the best case of a near-null). The H2 says "similar or slightly fewer" while no band has 2 or more
+ * points more sustained slowdowns on the downhill-start courses, none has more than 5 points fewer, and at least one
+ * has 2 or more fewer; "about the same" while every band is within a point or so. `fewer` and `more` count the bands
+ * 2 points or more apart each way, for the chart's spoken label.
  */
 export function downhillBandsFrom(groups: AllFinisherGroup[], bands: OpeningBand[]): Nugget {
   const pairs = bands.map((band) => ({ band, down: groups.find((g) => g.terrain === 'downhill' && g.opening === band.id), other: groups.find((g) => g.terrain === 'other' && g.opening === band.id) }))
     .filter((p) => p.down && p.other && p.down.n >= 100 && p.other.n >= 100);
-  const gap = (p: (typeof pairs)[number]) => Math.round(p.other!.slowdown_pct) - Math.round(p.down!.slowdown_pct);
-  const fewer = pairs.filter((p) => gap(p) >= BAND_GAP).length;
+  const gaps = pairs.map((p) => Math.round(p.other!.slowdown_pct) - Math.round(p.down!.slowdown_pct));
+  const fewer = gaps.filter((g) => g >= BAND_GAP).length;
+  const more = gaps.filter((g) => g <= -BAND_GAP).length;
   const total = pairs.length;
-  const clearest = pairs.reduce<(typeof pairs)[number] | undefined>((b, p) => (!b || Math.abs(p.other!.slowdown_pct - p.down!.slowdown_pct) > Math.abs(b.other!.slowdown_pct - b.down!.slowdown_pct) ? p : b), undefined);
-  const down = clearest ? clearest.down!.slowdown_pct / 100 : NaN, other = clearest ? clearest.other!.slowdown_pct / 100 : NaN;
-  const words = clearest ? (clearest.band.id === 'steady' ? 'within 2% of pace' : bandWords(clearest.band.label)) : '';
+  const widest = gaps.length ? Math.max(...gaps) : NaN;
+  const pattern = total < 3 || more > 0 || !(widest <= BAND_SLIGHT) ? null : fewer > 0 ? 'fewer' : 'same';
   return {
     id: 'downhill.bands', page: '/analyses/downhill-start#by-band', denominator: 'eligible', term: '/methodology#sustained-slowdown',
-    values: { fewer, total, band: clearest?.band.id ?? '', downhill: down, other },
-    guard: !!clearest && Math.abs(gap(clearest)) >= BAND_GAP,
-    headline: `Opening ${words}, *${pct(down)}* had a sustained slowdown on downhill-start courses, against ${pct(other)} elsewhere.`,
+    values: { fewer, more, total, widest },
+    guard: pattern !== null,
+    headline: pattern === 'same' ? 'Band by band, downhill starts had *about the same* sustained slowdowns.'
+      : 'Band by band, downhill starts had *similar or slightly fewer* sustained slowdowns.',
     fallback: 'Sustained slowdown by opening band, downhill-start courses against the rest.',
     figure: null,
   };
@@ -223,7 +228,7 @@ export function checkpointCushionFrom(curve: CushionPoint[], goal = GOAL, mat = 
     values: { goal_min: goal, mat_km: mat, even_min: even, half_at_min: at, ahead_min: ahead },
     guard: finite(at) && minutes >= 1,
     // "About half": the 50% point is interpolated between 2-minute bands, and the readout opens on the band holding it.
-    headline: `About half made ${hm(goal)} from *${countWord(minutes)} ${minutes === 1 ? 'minute' : 'minutes'}* ahead of even pace at ${mat}K.`,
+    headline: `About half made ${hm(goal)} from *${countWord(minutes)} ${minutes === 1 ? 'minute' : 'minutes'}* ahead of pace at ${mat}K.`,
     fallback: `At ${mat}K, the share that got under ${hm(goal)}, by split.`,
     figure: finite(at) ? { value: clock(at * 60).replace(/:\d\d$/, ''), sr: `${spokenTime(at * 60)} at ${mat}K` } : null,
   };
@@ -441,7 +446,7 @@ export function kickRecurrenceFrom(r: Recurrence): Nugget {
     id: 'kick.recurrence', page: '/analyses/finding-improvement#next-race', denominator: 'kick', term: '/methodology#sustained-slowdown',
     values: { observed, expected, pairs: after?.pairs ?? NaN, none_observed: r.after_none?.observed ?? NaN, none_pairs: r.after_none?.pairs ?? NaN },
     guard: !!after && after.pairs >= 100 && observed > expected,
-    headline: `After a sustained slowdown, *${pct(observed)}* of next races had one too (${pct(expected)} typical).`,
+    headline: `After a sustained slowdown, *${pct(observed)}* of next races had another (${pct(expected)} typical).`,
     fallback: `After a sustained slowdown, ${pct(observed)} of next races had one too; ${pct(expected)} was typical.`,
     figure: shareFigure(observed), key: `had another sustained slowdown in the next race (${pct(expected)} typical)`,
   };
@@ -475,10 +480,11 @@ export function slowdownHistoryFrom(rows: { label: string; value: number; n: num
     id: 'slowdown.history', page: '/slowdown#history', denominator: 'eligible', term: '/methodology#sustained-slowdown',
     values: first ? { first: first.label, first_share: first.value / 100, last: last.label, last_share: last.value / 100, bands: usable.length } : {},
     guard: rising,
-    // One clause; the columns name each band ("Under 3:00" … "4:00+").
-    headline: first ? `The slower the earlier best, the more sustained slowdowns: *${pct(first.value / 100)}* to ${pct(last.value / 100)}.` : '',
+    // One clause with a subject (critic round 4: "the slower the earlier best" was clipped); the accent is the slowest
+    // band's share, the end the gradient rises to. The columns name each band ("Under 3:00" … "4:00+").
+    headline: first ? `Runners with slower earlier bests had more sustained slowdowns: ${pct(first.value / 100)} to *${pct(last.value / 100)}*.` : '',
     fallback: 'Sustained slowdown by earlier recorded best.',
-    figure: first ? shareFigure(first.value / 100) : null,
+    figure: last ? shareFigure(last.value / 100) : null,
   };
 }
 

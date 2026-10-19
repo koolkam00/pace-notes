@@ -1,5 +1,5 @@
 /* The weather match (/tools/weather-match; the redesign spec, section 7.13): a forecast and a pace, then mornings like it
-   on one night card beside the 8–12 °C reference (● Pace Notes data), section by section, the races behind the window,
+   on one night card beside the 6–10 °C reference (● Pace Notes data), section by section, the races behind the window,
    and the published research kept apart and folded (◆). Yours is the accent, the reference ink. Every class here is
    prefixed weather-match-. Imported by app/tools/weather-match/layout.tsx. */
 
@@ -29,7 +29,10 @@
 .weather-match-cols thead th small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
 .weather-match-cols td { font-size: 1.25rem; font-weight: 600; letter-spacing: -.01em; color: var(--ink); }
 .weather-match-cols td.is-ref { font-weight: 500; color: var(--ink-2); }
-.weather-match-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+.weather-match-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s-3); }
+/* The window's control sits close under the card it changes (the answer column's gap is 32 px, 48 px from 900 px). */
+.tool-answer > .weather-match-actions { margin-top: -20px; }
+@media (min-width: 900px) { .tool-answer > .weather-match-actions { margin-top: -36px; } }
 .weather-match-actions span { font-size: var(--t-small); color: var(--ink-2); }
 .weather-match-error { display: grid; justify-items: start; gap: var(--s-3); }
 
@@ -41,7 +44,6 @@
 .weather-match-legend li { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
 .weather-match-legend.is-strip i { flex: none; width: 10px; height: 10px; border: 0; border-radius: 50%; background: var(--fill-quiet); box-shadow: inset 0 0 0 1px var(--mark-quiet); }
 .weather-match-legend.is-strip .is-on i { background: var(--ink); box-shadow: none; }
-.weather-match-legend.is-strip .is-ring i { background: var(--paper); box-shadow: inset 0 0 0 2px var(--ink); }
 .weather-match-legend.is-strip .is-zone-yours i { width: 14px; border-radius: 2px; background: var(--wash); box-shadow: none; }
 .weather-match-legend.is-strip .is-zone-ref i { width: 14px; border-radius: 0; background: none; box-shadow: none; border: 0; border-block: 1.5px dashed var(--ink-3); }
 
@@ -51,7 +53,6 @@
 .weather-match-axis { stroke: var(--rule-strong); }
 .weather-match-dot { fill: var(--fill-quiet); stroke: var(--mark-quiet); stroke-width: 1; }
 .weather-match-dot.is-on { fill: var(--ink); stroke: var(--paper); }
-.weather-match-dot.is-ring { fill: var(--paper); stroke: var(--ink); stroke-width: 2; }
 .weather-match-marker { stroke: var(--ink); stroke-width: 1.5; }
 .weather-match-strip svg .weather-match-marker-label { font-weight: 600; fill: var(--ink); }
 
@@ -88,7 +89,7 @@
   .weather-match-temp > button { display: none; }
 }
 
-.weather-match-editions .values tbody th small, .weather-match-course .values tbody th small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
+.weather-match-numbers tbody th small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
 
 /* "Your pace" and its two choices on one line, the control as wide as its words. */
 .weather-match-by { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); }

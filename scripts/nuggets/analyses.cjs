@@ -48,7 +48,8 @@ module.exports = function analyses({ json, eq, ok, core }) {
     eq(n.values.lo, bins[0].lo, 'kick.sweetspot recounts the plateau\'s first bin');
     eq(n.values.hi, bins[bins.length - 1].lo + 1, 'kick.sweetspot recounts the plateau\'s end');
     eq(n.guard, bins[0].lo >= 0 && best.lo > 0 && bins.every((c) => c.finish_s < 0), 'kick.sweetspot: guard');
-    if (n.guard && bins.length > 1) ok(shown(n).includes(`${bins[0].lo}–${bins[bins.length - 1].lo + 1}% slower`) && shown(n).includes(`within ${Math.round(Math.max(...bins.map((c) => c.finish_s)) - best.finish_s)} seconds`), 'kick.sweetspot: the headline names the band and how close it is, never one bin');
+    // The band, never one bin; how close its bins finished is the readout's (WP9 round 4).
+    if (n.guard && bins.length > 1) ok(shown(n).includes(`${bins[0].lo}–${bins[bins.length - 1].lo + 1}% slower*`) && shown(n).split(/\s+/).length <= 12, 'kick.sweetspot: the headline names the band, in at most 12 words');
   };
 
   const fastIds = af.opening_bands.filter((b) => typeof b.upper === 'number' && b.upper <= -5).map((b) => b.id);
@@ -65,18 +66,19 @@ module.exports = function analyses({ json, eq, ok, core }) {
   };
 
   R['downhill.bands'] = (n) => {
-    let fewer = 0, total = 0, best = null;
+    // The pattern across every band (never the widest gap): no band 2 points or more higher on the downhill-start
+    // courses, none more than 5 points lower, and at least one 2 or more lower ("similar or slightly fewer").
+    const gaps = [];
     for (const band of af.opening_bands) {
       const d = afRow.downhill.find((g) => g.terrain === 'downhill' && g.opening === band.id);
       const o = afRow.downhill.find((g) => g.terrain === 'other' && g.opening === band.id);
       if (!d || !o || d.n < 100 || o.n < 100) continue;
-      total++; if (Math.round(o.slowdown_pct) - Math.round(d.slowdown_pct) >= 2) fewer++;
-      if (!best || Math.abs(o.slowdown_pct - d.slowdown_pct) > Math.abs(best.o.slowdown_pct - best.d.slowdown_pct)) best = { band, d, o };
+      gaps.push(Math.round(o.slowdown_pct) - Math.round(d.slowdown_pct));
     }
-    eq([n.values.fewer, n.values.total, n.values.band], [fewer, total, best.band.id], 'downhill.bands recounts the bands and the clearest one');
-    // A band "differs" from 2 whole points; a 1-point gap is a null.
-    eq(n.guard, Math.abs(Math.round(best.o.slowdown_pct) - Math.round(best.d.slowdown_pct)) >= 2, 'downhill.bands: guard (2 points apart)');
-    if (n.guard) ok(shown(n).includes(`*${Math.round(best.d.slowdown_pct)}%*`) && shown(n).includes(`against ${Math.round(best.o.slowdown_pct)}% elsewhere`), 'downhill.bands: the sentence names the clearest band\'s two shares');
+    const fewer = gaps.filter((g) => g >= 2).length, more = gaps.filter((g) => g <= -2).length, widest = Math.max(...gaps);
+    eq([n.values.fewer, n.values.more, n.values.total, n.values.widest], [fewer, more, gaps.length, widest], 'downhill.bands recounts the bands each way');
+    eq(n.guard, gaps.length >= 3 && more === 0 && widest <= 5, 'downhill.bands: guard (no band higher, none more than 5 points lower)');
+    if (n.guard) ok(shown(n).includes(fewer ? '*similar or slightly fewer*' : '*about the same*'), 'downhill.bands: the sentence states the pattern');
   };
 
   R['pattern.profile'] = (n) => {

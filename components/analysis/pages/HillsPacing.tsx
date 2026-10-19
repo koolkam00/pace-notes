@@ -47,12 +47,14 @@ export default function HillsPacing() {
   const scale = (u: UnitSystem) => `${elevation(own, u)} above the low point`;
   const label = (i: number) => sectionLabel(i ? MARATHON_SECTION_ENDS[i - 1] : 0, MARATHON_SECTION_ENDS[i]);
   const climb = (g: number, u: UnitSystem) => (Number.isFinite(g) ? `+${elevation(g, u)}` : '—');
+  const net = (d: number, u: UnitSystem) => (!Number.isFinite(d) ? '—' : Math.round(Math.abs(elevationValue(d, u))) === 0 ? '0' : `${d > 0 ? '+' : '−'}${elevation(Math.abs(d), u)}`);
   const chart = (u: UnitSystem) => sections ? (
-    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={scale(u)} focus={v.climb_i} readoutKeys={['Climb', 'Against every course']}
+    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={scale(u)} focus={v.climb_i} readoutKeys={['Climbing', 'Against every course']}
       sections={sections.map((s, i) => ({ label: label(i), startKm: i ? MARATHON_SECTION_ENDS[i - 1] : 0, endKm: s.end, pct: s.vs, display: signedWhole(s.vs), climb: climb(s.gain, u) }))}
       label={`${courseName(city)}'s elevation, its top line ${elevation(own, u)} above its lowest point, with each 5K's pace near ${hm(v.goal_min)} against the same 5K on every course combined; ${label(v.climb_i)}, its climb, is washed`}
-      values={<Values id={`hills-answer-${u}`} caption={`${courseName(city)} by section: the climb, and the pace near ${hm(v.goal_min)} against the same 5K on every course combined`} columns={[{ key: 's', label: 'Section' }, { key: 'c', label: 'Climb' }, { key: 'p', label: 'Against elsewhere' }]}
-        rows={sections.map((s, i) => [label(i), climb(s.gain, u), signedWhole(s.vs)])} reading={v.climb_i} />} />
+      // Climbing is the gain only (Boston's downhill first 5K still climbs 83 ft), so the net change sits beside it.
+      values={<Values id={`hills-answer-${u}`} caption={`${courseName(city)} by section: the climbing, the net change, and the pace near ${hm(v.goal_min)} against the same 5K on every course combined`} columns={[{ key: 's', label: 'Section' }, { key: 'c', label: 'Climbing' }, { key: 'n', label: 'Net' }, { key: 'p', label: 'Against elsewhere' }]}
+        rows={sections.map((s, i) => [label(i), climb(s.gain, u), net(s.net, u), signedWhole(s.vs)])} reading={v.climb_i} />} />
   ) : null;
   const answer = sections ? (
     // The course and the time, kept on one line each ("near\u00a04:00"); the climb is in the readout.
@@ -61,7 +63,8 @@ export default function HillsPacing() {
     </AnswerCard>
   ) : null;
   return (
-    <AnalysisShell path={PATH} title={n} dek={`Each 5K near ${hm(v.goal_min)}, against the same 5K on every course combined.`} answer={answer}>
+    // The blocks' unit said once (on a phone they drop their % signs): each 5K's pace, in %, against the same 5K elsewhere.
+    <AnalysisShell path={PATH} title={n} dek={`Each 5K’s pace near ${hm(v.goal_min)}, in % against the same 5K on every course combined.`} answer={answer}>
       <ExploreBeat track="chapter-1">
         <AnalysisExplorer definition={definition} summary={summary} initialAnswer={getAnalysisAnswers(start).find((a) => a.id === definition.id)!} start={start} terrain={{ elevations, step, baselines: terrainBaselines(), hidden: terrainHidden() }} untouched="none" />
       </ExploreBeat>

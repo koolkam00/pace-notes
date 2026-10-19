@@ -75,7 +75,7 @@ module.exports = function tools({ json, eq, ok, core }) {
     if (n.guard) ok(shown(n).includes(`from ${hm(lo)} to ${hm(minute - 1)}`) && shown(n).includes(`*${pct(sd)}*`) && n.figure.value === pct(sd).replace('%', ''), 'splitcheck.share: the headline and figure name the window and the share');
   };
 
-  // weathermatch.mornings: 18 °C ±2 against 8–12 °C, in the 5–20K pace band holding 4:00 even pace.
+  // weathermatch.mornings: 18 °C ±2 against 6–10 °C, in the 5–20K pace band holding 4:00 even pace.
   R['weathermatch.mornings'] = (n) => {
     const data = json('public/data/insights/tools/weather-match.json');
     const pace = (GOAL * 60) / 42.195;
@@ -83,7 +83,13 @@ module.exports = function tools({ json, eq, ok, core }) {
     const band = lo + data.pace_step_s * Math.floor((pace - lo) / data.pace_step_s);
     const row = (c) => data.rows.find((r) => r.c === c && r.hw === 2 && r.pace === band);
     const mine = row(18);
-    const ref = row(10);
+    const ref = row(8);
+    // The reference window (6–10 °C) lies inside the start-temperature band the race-day weather analysis finds the
+    // steadiest, so chapter 09 names one good window.
+    const af = json('public/data/all-finisher-context/evidence.json');
+    const afAll = af.rows.find((r) => r.city === 'All courses' && r.age === 'all' && r.gender === 'all' && r.early_pace === 'all');
+    const steady = afAll.weather.filter((g) => g.edition_n >= 5 && g.n >= 100).reduce((a, b) => (b.slowdown_pct < a.slowdown_pct ? b : a));
+    ok((steady.lower_c ?? -Infinity) <= 8 - 2 && (steady.upper_c ?? Infinity) >= 8 + 2, `weathermatch.mornings: the 6–10 °C reference lies inside the analysis's steadiest band (${steady.lower_c}–${steady.upper_c} °C)`);
     ok(mine && ref, 'weathermatch.mornings: both rows are published');
     eq([n.values.band, n.values.n, n.values.sd, n.values.ref_n, n.values.ref_sd], [band, mine.n, mine.sd, ref.n, ref.sd], 'weathermatch.mornings recounts both rows');
     eq(n.guard, mine.n >= 100 && ref.n >= 100 && mine.sd >= ref.sd + 0.02, 'weathermatch.mornings: guard');
@@ -107,7 +113,7 @@ module.exports = function tools({ json, eq, ok, core }) {
       [T.projectorRangeFrom(null, Q), 'From a tracker time at any mat, the finishes that followed.'],
       [T.splitCheckShareFrom({ window_s: 300, groups: { all: pbGroup(0, 0, 50), held: pbGroup(0, 0, 40), slowdown: pbGroup(0, 0, 10) } }, 14611), 'Finishes from 4:01 to 4:05, mat by mat.'],
       [T.splitCheckShareFrom(null, 14611), 'Check your splits against finishes at the same time.'],
-      [T.weatherMatchMorningsFrom({ rows: [wRow(18, 0.3), wRow(10, 0.3)], pace_range_s: [180, 675], pace_step_s: 15 }), 'At 4:00 pace, 30% of finishes on 64°F mornings had a sustained slowdown.'],
+      [T.weatherMatchMorningsFrom({ rows: [wRow(18, 0.3), wRow(8, 0.3)], pace_range_s: [180, 675], pace_step_s: 15 }), 'At 4:00 pace, 30% of finishes on 64°F mornings had a sustained slowdown.'],
       [T.weatherMatchMorningsFrom(null), 'Race-morning weather, matched to past races at your pace.'],
     ];
   }

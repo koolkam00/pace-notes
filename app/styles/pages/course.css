@@ -104,7 +104,8 @@
 .course-glance.is-single .glance-rows { border-top: 0; }
 .course-glance.is-single .glance-row { grid-template-areas: "figure chart" "note chart"; padding-top: 0; }
 .glance-note { grid-area: note; font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
-.course-glance .glance-row.is-chart { display: block; }
+.course-glance .glance-row.is-chart { display: flex; align-items: center; gap: var(--s-4); }
+.course-glance .glance-row.is-chart .glance-chart { order: -1; }
 
 /* Elevation: without section paces, no pace blocks. The route's totals under the chart, one line. */
 .course-elevation-plain .pace-blocks { display: none; }
@@ -187,7 +188,6 @@
 /* One knockout layer under every dot (Scatter's m-halo), so a cluster's dots never cut crescents into each other. */
 .course-page .viz-frame.scatter circle.m-halo { fill: var(--paper); stroke: none; }
 .course-page .viz-frame.scatter circle.is-flat { stroke: none; }
-.course-page .course-weather.has-reading .viz-frame.scatter .scrub:not(.is-away) .scrub-ring { background: var(--signal); }
 
 /* Keyboard focus rings the whole instrument (the plot, its ticks and the drag handle), never a box drawn between the
    baseline and the tick labels. */
@@ -249,8 +249,9 @@
   }
   .course-hero-route { --route-w: 100%; justify-self: center; align-self: center; width: min(100%, 340px); margin-top: 0; }
   /* Without a route the year strip takes the route's place beside the race's name: no cell runs empty. */
-  .course-hero.is-routeless { grid-template-areas: "head strip" "figure strip" "sentence strip" "actions strip"; }
-  .course-hero.is-routeless .course-hero-strip { margin-top: 0; align-self: center; }
+  /* Without a route the name and figure take the whole width and the year strip keeps its row beside its sentence, so
+     the instrument never floats up beside the hero figure, away from the sentence that names it (critic round 4). */
+  .course-hero.is-routeless { grid-template-areas: "head head" "figure figure" "sentence strip" "actions strip"; grid-template-rows: auto auto auto 1fr; }
   /* With one or two editions there is no strip: the route takes the whole right column, centred against the reading,
      and the band ends after the button. */
   .course-hero.is-stripless { grid-template-areas: "head route" "figure route" "sentence route" "actions route"; grid-template-rows: auto auto auto auto; align-content: center; }
@@ -279,9 +280,8 @@
 
 @media (min-width: 1180px) {
   .course-toc { margin: 0; padding-inline: 0; }
-  /* The header shows the orange "Plan your race" from here: the hero's own way to the planner steps back to an outline. */
-  .course-hero-actions .btn-primary { background: transparent; border-color: var(--ink); color: var(--ink); }
-  .course-hero-actions .btn-primary:hover { background: var(--paper-sunk); border-color: var(--ink); color: var(--ink); }
+  /* The header's "Plan your race" steps down to a plain link on a course page (SiteNav data-quiet-primary), so the hero's
+     "Plan your Boston" stays the screen's one primary. */
 }
 
 /* At 200% zoom a phone's column is 163 px: the route face sits under the figure, chips keep their row. */

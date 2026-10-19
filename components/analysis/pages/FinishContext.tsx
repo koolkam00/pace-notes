@@ -6,6 +6,7 @@ import { analysisBySlug } from '@/lib/ten-analyses';
 import { getAnalysisAnswers, getAnalysisStart } from '@/lib/analysis-server';
 import { EXAMPLE_PROFILE } from '@/lib/analysis-profile';
 import { getNugget } from '@/lib/nuggets';
+import { hm } from '@/lib/nuggets/format';
 
 const PATH = '/analyses/finish-time-context';
 
@@ -22,6 +23,8 @@ export default function FinishContext() {
   // Make it yours' starting selection ("All courses · 3:00"), so the chip names what the card draws and a visitor's 4:00
   // moves the needle.
   const mark = Number(n.guard ? n.values.mark3_min : n.values.goal_min);
+  const field = getNugget('field.median');
+  const median = field.guard && Number(field.values.total) === Number(n.values.n) ? Number(field.values.median_min) : null;
   const start = { ...EXAMPLE_PROFILE, goal: mark };
   const initialAnswer = getAnalysisAnswers(start).find((a) => a.id === definition.id)!;
   const answer = initialAnswer.charts.length ? (
@@ -33,7 +36,8 @@ export default function FinishContext() {
     </AnswerCard>
   ) : null;
   return (
-    <AnalysisShell path={PATH} title={n} dek={definition.title} answer={answer}>
+    // The dek qualifies the H1 with the field's median (the same finishes; chapter 01's figure), never a question.
+    <AnalysisShell path={PATH} title={n} dek={median ? `The median finish was ${hm(median)}.` : undefined} answer={answer}>
       <ExploreBeat track="chapter-1">
         <AnalysisExplorer definition={definition} summary={summary} initialAnswer={initialAnswer} start={start} untouched="none" hero />
       </ExploreBeat>

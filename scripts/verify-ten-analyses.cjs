@@ -129,7 +129,9 @@ const UnitsProvider = require('../components/UnitsProvider.tsx').default;
 const AnalysisPage = require('../app/analyses/[slug]/page.tsx').default;
 const page = (slug) => renderToStaticMarkup(React.createElement(UnitsProvider, null, React.createElement(AnalysisPage, { params: { slug } })));
 // The pages whose H1 is the finding alone, their setup clause moved into the dek in place of the question.
-const DEK_SETUP = ['age-and-pacing', 'pacing-pattern', 'where-time-is-gained', 'finding-improvement', 'race-day-weather', 'hills-and-pacing', 'course-comparison', 'starting-pace'];
+// WP9 round 4: checkpoint, finish-time context and downhill start state the fact their H1 needs (who passed the mat, the
+// median, the three courses) in place of the question.
+const DEK_SETUP = ['age-and-pacing', 'pacing-pattern', 'where-time-is-gained', 'finding-improvement', 'race-day-weather', 'hills-and-pacing', 'course-comparison', 'starting-pace', 'checkpoint', 'finish-time-context', 'downhill-start'];
 for (const slug of [...TEN_ANALYSES.map(item => item.slug), 'downhill-start']) {
   const html = page(slug);
   const definition = analysisBySlug(slug);

@@ -22,7 +22,7 @@ const SIDES: Record<WeatherCandidate['id'], [string, string, string]> = {
 const SHORT: Record<WeatherCandidate['id'], string> = { warming: 'Rise', wind: 'Wind', humidity: 'Dew point' };
 const pp = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${weatherNumber(Math.abs(value), 1)}`;
 /** The plot's height in px: a row for the band's label, then the mark with its label above and its interval under. */
-const H = 96;
+const H = 104;
 const at = (px: number) => `${((px / H) * 100).toFixed(2)}%`;
 
 /**
@@ -53,7 +53,7 @@ export default function WeatherAnalysis({ candidate, evidence, sentence }: { def
   const heading = EXPOSURE[candidate.id];
   // The interval's ends in plain words; its level (a method choice) is on /methodology.
   const range = `Between ${pp(effect.low)} and ${pp(effect.high)} percentage points`;
-  const y = 58;
+  const y = 66;
   const plot = (
     <Plot>
       {/* The zone runs the plot's full height, down to the axis, a quiet field behind the marks rather than a box. */}

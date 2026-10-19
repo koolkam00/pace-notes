@@ -14,7 +14,7 @@ import { GOAL_GAP } from './CourseGoals';
  * back carries its "+", so it never reads as a clock time or a pace.
  */
 export default function CourseNumbers({ page }: { page: CoursePageData }) {
-  const { display, summary: s, editions, weather, terrain, goals, types, archetypes, counted } = page;
+  const { display, summary: s, editions, weather, terrain, goals, types, typesElsewhere, archetypes, counted } = page;
   // The one climb the page prints everywhere (the hero, #elevation, /courses): the route's 5K sections summed. A profile
   // that reads the water under a bridge prints no climb, descent or net anywhere: its 5K table keeps the pace only.
   const wet = profileUnderWater(page);
@@ -109,13 +109,13 @@ export default function CourseNumbers({ page }: { page: CoursePageData }) {
         ) : null}
         {types ? (
           <CourseTable id="numbers-types-caption" caption={`${display}, pacing types`}>
-            <thead><tr><th scope="col">Pacing type</th><th scope="col">{display}</th><th scope="col">Every course</th></tr></thead>
+            <thead><tr><th scope="col">Pacing type</th><th scope="col">{display}</th><th scope="col">Other courses</th></tr></thead>
             <tbody>
               {archetypes.map((a, i) => (
                 <tr key={a.slug}>
                   <th scope="row">{a.name}</th>
                   <td><Fact k={`ty.share@${i}`} v={types.shares[i]}>{Math.round(types.shares[i] * 100)}%</Fact></td>
-                  <td><Fact k={`ty.all@${i}`} v={a.share}>{Math.round(a.share * 100)}%</Fact></td>
+                  <td>{typesElsewhere ? <Fact k={`ty.else@${i}`} v={typesElsewhere.shares[i]}>{Math.round(typesElsewhere.shares[i] * 100)}%</Fact> : '–'}</td>
                 </tr>
               ))}
             </tbody>

@@ -16,9 +16,10 @@ export default function SiteNav({ id }: { id?: string }) {
   const here = (on: boolean) => (on ? 'page' as const : undefined);
   // On the home page its hero holds both doors (the plan form and Analyze a past race), so from 1180 px the header leaves
   // those two out there (menu.css): one path to each page per screen. On a page whose own first screen holds its call to
-  // action (a race report's actions, a qualifying race's check, the request form's send, the pace band's print), the
-  // header's plan link steps down to a plain link from 1180 px, so the screen has one orange control (layout lint 7).
-  const ownAction = ['/report', '/request-analysis', '/tools/pace-band'].includes(path.replace(/\/$/, '')) || /^\/tools\/qualifying\/[^/]+$/.test(path);
+  // action (a race report's actions, a qualifying race's check, the request form's send, the pace band's print, a course
+  // page's "Plan your Boston"), the header's plan link steps down to a plain link from 1180 px, so the screen has one
+  // orange control (layout lint 7).
+  const ownAction = ['/report', '/request-analysis', '/tools/pace-band'].includes(path.replace(/\/$/, '')) || /^\/(?:tools\/qualifying|courses)\/[^/]+$/.test(path);
   return <nav id={id} aria-label="Main navigation" className="main-nav" {...(path === '/' ? { 'data-home': '' } : {})} {...(ownAction ? { 'data-quiet-primary': '' } : {})}>
     <Link href="/tools/plan" className="nav-primary nav-door" aria-current={here(within('/tools/plan'))}>Plan your race</Link>
     <Link href="/runners" className="nav-door" aria-current={here(within('/runners'))}>Analyze a past race</Link>

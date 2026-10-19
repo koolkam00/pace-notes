@@ -62,8 +62,9 @@
 .qualifying-race-bar { position: absolute; top: 6px; height: 12px; border-radius: 2px; background: var(--ink); }
 .qualifying-race-bar.is-neg { background: var(--mark-quiet); }
 .is-good .qualifying-race-bar { background: var(--ink); }
-/* One orange bar: the race the night card names, when it meets. */
-.qualifying-race.is-named.is-good .qualifying-race-bar { background: var(--signal); }
+/* Every race that meets is ink (critic round 4: one orange bar among two that meet read as if that race were special);
+   the race the night card names is marked by weight only. */
+.qualifying-race.is-named .qualifying-race-name b { font-weight: 700; }
 .qualifying-race-value { display: grid; justify-items: end; gap: 1px; text-align: right; font-variant-numeric: tabular-nums; }
 .qualifying-race-value b { font-size: 1.0625rem; font-weight: 600; color: var(--ink); white-space: nowrap; }
 .qualifying-race-word { font-size: .8125rem; font-weight: 500; color: var(--ink-2); }

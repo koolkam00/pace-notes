@@ -113,13 +113,15 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
         const usual = sectionName(courses.sections.indexOf(modal));
         const i = courses.sections.indexOf(c.slowest_section);
         step(() => eq(said(n), `${named(city)}’s slowest ${stretch(i)} is ${name}; on ${tally.get(modal)} of ${shaped} courses it’s ${usual}.`, `course.late (${city}): the sentence`));
+        // The row names its baseline, the course's own average pace (the hills page's is other courses; critic round 4).
+        step(() => eq(n.key, `than ${named(city)}’s average pace, at ${name}, its slowest ${stretch(i)}; on ${tally.get(modal)} of ${shaped} courses it’s ${usual}`, `course.late (${city}): the row names its baseline`));
         // The row's figure: how much slower than the course's own average its slowest section runs, in whole percent.
         step(() => eq(n.figure && `${n.figure.value}${n.figure.unit}`, `${Math.round(c.curve[i])}% slower`, `course.late (${city}): the figure`));
       }
     }
 
-    // At a glance (3): where the pacing parts most from the typical course, from 3 points on three or more editions, in
-    // words ("1% quicker than its average pace; 4% slower on the typical course").
+    // At a glance (3): where the pacing parts most from the typical course, from 3 points on three or more editions, as
+    // one figure ("London’s first 5K runs 3% quicker than on the typical course").
     {
       const n = at('course.signature');
       const i = c.signature_section ? courses.sections.indexOf(c.signature_section) : -1;
@@ -134,9 +136,11 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const here = solid ? c.curve[i] : NaN, typ = solid ? courses.typical_curve[i] : NaN;
       step(() => eq(n.guard, solid && Math.abs(c.signature_points) >= 3 && words(here, true) !== words(typ, true), `course.signature (${city}): guard (3 points on three or more editions)`));
       if (n.guard) {
-        step(() => eq(n.key, `${sectionName(i)} runs ${words(here, true)} ${named(city)}’s average pace; the typical course runs it ${words(typ, false)}`, `course.signature (${city}): the row`));
         // The figure is how far the section parts from the typical course's: the difference of the two whole percentages.
         const apart = Math.round(here) - Math.round(typ);
+        const place = i === 0 ? 'first 5K' : i === 8 ? 'last stretch' : sectionName(i);
+        step(() => eq(said(n), `${named(city)}’s ${place} runs ${Math.abs(apart)}% ${apart > 0 ? 'slower' : 'quicker'} than on the typical course.`, `course.signature (${city}): the sentence, one figure`));
+        step(() => eq(n.key, `than on the typical course, at ${sectionName(i)}`, `course.signature (${city}): the row`));
         step(() => eq(`${n.figure.value}${n.figure.unit}`, `${Math.abs(apart)}% ${apart > 0 ? 'slower' : 'quicker'}`, `course.signature (${city}): the figure`));
         step(() => ok(Math.abs(apart) >= 3, `course.signature (${city}): the figure parts by 3 or more`));
       }
@@ -178,19 +182,22 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       } else step(() => eq(n.guard, false, `course.climb (${city}): no route, no climb`));
     }
 
-    // #pacing: the type whose share differs most from every course's.
+    // #pacing: the type whose share differs most from the other courses' (theirs pooled by finishes, this course left out
+    // of the set it is compared with; critic round 4).
     {
       const n = at('course.types');
       const mix = archetypes.courses.find((x) => x.city === city);
       if (mix) {
+        const rest = archetypes.courses.filter((x) => x.city !== city);
+        const restN = rest.reduce((a, x) => a + x.finishes, 0);
+        const else_ = mix.shares.map((_, i) => rest.reduce((a, x) => a + x.shares[i] * x.finishes, 0) / restN);
         let best = 0;
-        for (let i = 1; i < mix.shares.length; i++) if (Math.abs(mix.shares[i] - archetypes.archetypes[i].share) > Math.abs(mix.shares[best] - archetypes.archetypes[best].share)) best = i;
-        const here = mix.shares[best], every = archetypes.archetypes[best].share;
-        step(() => eq([n.values.type, n.guard], [archetypes.archetypes[best].slug, Math.abs(here - every) >= 0.03], `course.types (${city}) recounts the type and its guard`));
-        // The types are counted over every course with 5K splits, named by their number.
-        const across = archetypes.courses.length;
-        if (n.guard) step(() => eq(said(n), `${here > every ? 'More' : 'Fewer'} ${archetypes.archetypes[best].name.toLowerCase()}s here: ${whole(here)}, against ${whole(every)} across ${across} courses.`, `course.types (${city}): the sentence`));
-        else step(() => eq(said(n), `Paced much like the other courses: every type within 3% of its share across all ${across}.`, `course.types (${city}): within 3 points everywhere, the null finding`));
+        for (let i = 1; i < mix.shares.length; i++) if (Math.abs(mix.shares[i] - else_[i]) > Math.abs(mix.shares[best] - else_[best])) best = i;
+        const here = mix.shares[best], every = else_[best];
+        step(() => eq([n.values.type, n.guard, n.values.courses], [archetypes.archetypes[best].slug, Math.abs(here - every) >= 0.03, rest.length], `course.types (${city}) recounts the type, its guard and the other courses`));
+        step(() => ok(Math.abs(n.values.every - every) < 1e-12, `course.types (${city}): the other courses' share recounts`));
+        if (n.guard) step(() => eq(said(n), `${here > every ? 'More' : 'Fewer'} ${archetypes.archetypes[best].name.toLowerCase()}s here: ${whole(here)}, against ${whole(every)} elsewhere.`, `course.types (${city}): the sentence`));
+        else step(() => eq(said(n), 'Paced much like the other courses: every type within 3% of its share elsewhere.', `course.types (${city}): within 3 points everywhere, the null finding`));
       } else step(() => eq(n.guard, false, `course.types (${city}): no mix, no claim`));
     }
 
@@ -209,10 +216,10 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const words = ['zero', 'one', 'two'];
       const side = higher >= lower ? 'lower' : 'higher';
       const all = count === others.length;
-      // A course of fewer editions leads with how many it has; the scope is said where the sentence counts all of them.
-      const than = solidSelf ? (all ? `all ${others.length} other courses with three or more editions` : `${count} of the ${others.length} other courses`)
-        : (all ? `all ${others.length} courses with three or more` : `${count} of the ${others.length} courses`);
-      const want = middle ? `${named(city)}’s ${whole(c.slowdown)}: near the middle of ${others.length + 1} courses.`
+      // The comparator without the set's size (the strip's key names the courses counted); a course of fewer editions
+      // leads with how many it has.
+      const than = all ? 'every other course' : `${count} of the other courses`;
+      const want = middle ? `${named(city)}’s ${whole(c.slowdown)}: near the middle of the courses.`
         : solidSelf ? `${named(city)}’s ${whole(c.slowdown)}: ${side} than ${than}.`
           : `From its ${words[c.editions]} edition${c.editions === 1 ? '' : 's'}, ${named(city)}’s ${whole(c.slowdown)} is ${side} than ${than}.`;
       if (n.guard) step(() => eq(said(n).replace(/\u00a0/g, ' '), want, `course.among (${city}): the sentence`));
@@ -224,16 +231,17 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const ctx = goalFile.courses.find((x) => x.city === city);
       const row = ctx && ctx.editions >= goalFile.min_editions ? goalFile.rows.find((r) => r.city === city && r.goal === 240) : null;
       step(() => eq(n.guard, !!row && row.n >= 100, `course.goal (${city}): guard`));
-      // Every course's share: the rows of the courses with enough editions, pooled by finishes.
-      const pool = goalFile.rows.filter((r) => r.goal === 240 && goalFile.courses.some((x) => x.city === r.city && x.editions >= goalFile.min_editions));
+      // The other courses' share: the rows of the other courses with enough editions, pooled by finishes (this course left
+      // out of the set it is compared with; critic round 4).
+      const pool = goalFile.rows.filter((r) => r.goal === 240 && r.city !== city && goalFile.courses.some((x) => x.city === r.city && x.editions >= goalFile.min_editions));
       const poolN = pool.reduce((a, r) => a + r.n, 0), poolUnder = pool.reduce((a, r) => a + Math.round(r.under * r.n), 0) / poolN;
       // Only a page with goal rows sets itself against every course.
       const shows = !!ctx && ctx.editions >= goalFile.min_editions;
-      step(() => ok(shows ? poolN >= 100 && Math.abs(n.values.every - poolUnder) < 1e-12 && n.values.every_n === poolN : Number.isNaN(n.values.every), `course.goal (${city}): every course's share recounts (${n.values.every} against ${poolUnder})`));
+      step(() => ok(shows ? poolN >= 100 && Math.abs(n.values.every - poolUnder) < 1e-12 && n.values.every_n === poolN && n.values.every_courses === pool.length : Number.isNaN(n.values.every), `course.goal (${city}): the other courses' share recounts (${n.values.every} against ${poolUnder})`));
       if (n.guard) {
         const gap = Math.abs(Math.round(row.under * 100) - Math.round(poolUnder * 100));
-        // The pooled courses by their number, as the planner names them.
-        const against = gap >= 3 ? `, against ${whole(poolUnder)} across ${pool.length} courses` : `, about the same as across ${pool.length} courses`;
+        // The comparator once, without its count (the legend names how many).
+        const against = gap >= 3 ? `, against ${whole(poolUnder)} elsewhere` : ', about the same as elsewhere';
         step(() => eq(said(n), `Of ${named(city)} finishes on 4:00 pace at 20K, ${whole(row.under)} made 4:00${against}.`, `course.goal (${city}): the sentence`));
       }
     }
@@ -244,10 +252,23 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const hc = courses.weather.hot_cool.find((h) => h.city === city);
       const gap = hc ? Math.round((hc.hot.temp - hc.cool.temp) * 10) / 10 : null;
       step(() => eq(n.guard, gap !== null && gap >= courses.weather.pairs.min_gap_c, `course.weather (${city}): the 5 °C gate`));
-      // Shares that round alike are said once.
-      if (n.guard) step(() => eq(said(n), whole(hc.hot.slowdown) === whole(hc.cool.slowdown)
-        ? `At ${degF(hc.hot.temp)} in ${hc.hot.year} and at ${degF(hc.cool.temp)} in ${hc.cool.year}, the same ${whole(hc.hot.slowdown)} had a sustained slowdown.`
-        : `At ${degF(hc.hot.temp)} in ${hc.hot.year}, ${whole(hc.hot.slowdown)} had a sustained slowdown. At ${degF(hc.cool.temp)} in ${hc.cool.year}, ${whole(hc.cool.slowdown)}.`, `course.weather (${city}): the sentence`));
+      // Shares that round alike are said once; under 5 whole points apart the pair is a null (critic round 4): where the
+      // course's worst year (no held or copied edition) is neither morning and higher than both, weather didn't sort
+      // its slowdowns; otherwise about the same share, warm or cool. Only 5 points or more is told as two facts.
+      if (n.guard) {
+        const same = whole(hc.hot.slowdown) === whole(hc.cool.slowdown);
+        const apart = Math.abs(Math.round(hc.hot.slowdown * 100) - Math.round(hc.cool.slowdown * 100));
+        const mornings = courses.weather.editions.filter((e) => e.city === city && !held.has(`${city}|${e.year}`));
+        const worst = mornings.reduce((a, b) => (b.slowdown > a.slowdown ? b : a), mornings[0]);
+        const quiet = !same && apart < 5;
+        const unsorted = quiet && !!worst && worst.year !== hc.hot.year && worst.year !== hc.cool.year && Math.round(worst.slowdown * 100) > Math.round(Math.max(hc.hot.slowdown, hc.cool.slowdown) * 100);
+        step(() => eq(n.values.quiet, quiet ? 1 : 0, `course.weather (${city}): the null rule`));
+        step(() => eq(said(n), same
+          ? `At ${degF(hc.hot.temp)} in ${hc.hot.year} and at ${degF(hc.cool.temp)} in ${hc.cool.year}, the same ${whole(hc.hot.slowdown)} had a sustained slowdown.`
+          : unsorted ? `Weather didn’t sort ${named(city)}’s slowdowns: its highest share, ${whole(worst.slowdown)}, started at ${degF(worst.temp)}.`
+            : quiet ? `Warm or cool, about the same share had a sustained slowdown: ${whole(hc.hot.slowdown)} at ${degF(hc.hot.temp)}, ${whole(hc.cool.slowdown)} at ${degF(hc.cool.temp)}.`
+              : `At ${degF(hc.hot.temp)} in ${hc.hot.year}, ${whole(hc.hot.slowdown)} had a sustained slowdown. At ${degF(hc.cool.temp)} in ${hc.cool.year}, ${whole(hc.cool.slowdown)}.`, `course.weather (${city}): the sentence`));
+      }
     }
   }
 

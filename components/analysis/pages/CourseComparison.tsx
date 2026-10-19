@@ -37,10 +37,10 @@ export default function CourseComparison() {
   const high = comparableCourses(shown).reduce<(typeof shown)[number] | undefined>((a, b) => (!a || b.slowdown_pct > a.slowdown_pct ? b : a), undefined);
   const answer = sorted.length >= 2 ? (
     <AnswerCard kicker={`${sorted.length} courses${sorted.every((c) => comparable.has(c.id)) ? ' with three or more editions' : ''}`}>
-      <DotStrip labelSubject mdScale={1.4} named={MAJORS} hint={<><span className="hint-tap">Tap a dot</span><span className="hint-select">Select a dot</span> to read its course</>} items={sorted.map((c) => ({ id: c.id, label: courseName(c.label), value: c.slowdown_pct, display: pct(c.slowdown_pct / 100), detail: count(c.n), hollow: !comparable.has(c.id), subject: c === high }))}
+      <DotStrip labelSubject mdScale={1.4} named={MAJORS} hint="Choose a dot to read its course" items={sorted.map((c) => ({ id: c.id, label: courseName(c.label), value: c.slowdown_pct, display: pct(c.slowdown_pct / 100), detail: count(c.n), hollow: !comparable.has(c.id), subject: c === high }))}
         domain={[lo, Math.max(...v) > hi - 5 ? hi + 5 : hi]} ticks={ticks.map((t) => ({ value: t, label: `${t}%` }))} readoutKey="Finishes"
         keyLabels={{ filled: 'Three or more editions', hollow: 'Fewer editions' }}
-        label={`Sustained slowdown by course, one dot per course, from ${pct(v[0] / 100)} to ${pct(v[v.length - 1] / 100)}; select a dot to read it`}
+        label={`Sustained slowdown by course, one dot per course, from ${pct(v[0] / 100)} to ${pct(v[v.length - 1] / 100)}; choose a dot to read it`}
         values={<Values id="cc-courses" caption="Sustained slowdown by course" columns={[{ key: 'c', label: 'Course', text: true }, { key: 's', label: 'Sustained slowdown' }, { key: 'e', label: 'Editions' }, { key: 'n', label: 'Finishes' }]}
           rows={sorted.map((c) => [courseName(c.label), pct(c.slowdown_pct / 100), c.edition_n, count(c.n)])} />} />
     </AnswerCard>
@@ -48,7 +48,7 @@ export default function CourseComparison() {
   return (
     // The term is linked in the dek, under the H1, never in it (a dotted underline in the display face outweighed the accent).
     <AnalysisShell path={PATH} title={n} answer={answer}
-      dek={<>One dot per course: its share of finishes with a <Link href={n.term ?? '/methodology#sustained-slowdown'} className="term-link">sustained slowdown</Link>.</>}>
+      dek={<>Each course’s share of finishes with a <Link href={n.term ?? '/methodology#sustained-slowdown'} className="term-link">sustained slowdown</Link>, in an average year.</>}>
       <ExploreBeat track="chapter-1">
         <AllFinisherAnalysis kind="courses" start={start} linkTerm={false} untouched="none" />
       </ExploreBeat>

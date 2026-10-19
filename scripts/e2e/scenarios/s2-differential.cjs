@@ -46,12 +46,13 @@ const CASES = {
   'split-check': { path: '/tools/split-check', async drive(page, v, log) {
     // Typed with a keypad's dots (0.23.11): each box turns them into colons as they are typed (S1 checks the box).
     for (let i = 0; i < 9; i++) await step(log, 't' + i, () => type(page, `input[id$="-t${i}"]`, v.splits[i].replace(/:/g, '.')));
-    // The comparison's course and gender wait in one disclosure under the times.
+    // The comparison's course and gender wait in the one "All numbers" fold under the times.
     await step(log, 'compare options', () => open(page, 'details.split-check-compare-options'));
     await step(log, 'gender', () => page.locator('.ph-no-capture[role=group] button').nth(v.genderIdx).click());
   } },
   'split-check-paste': { path: '/tools/split-check', async drive(page, v, log) {
-    await step(log, 'open', async () => { const summary = page.locator('.split-check-paste summary'); if (await summary.count()) await summary.click(); });
+    // "Paste times" opens the paste box under the row of buttons.
+    await step(log, 'open', async () => { const toggle = page.locator('.split-check-paste-toggle'); if (await toggle.count()) await toggle.click(); });
     await step(log, 'paste', async () => { await page.locator('textarea[id$="-paste"]').fill(`${v.label}\n` + ['5K', '10K', '15K', '20K', '25K', '30K', '35K', '40K', 'Finish'].map((k, i) => `${k} ${v.splits[i]}`).join('\n')); await page.keyboard.press('Tab'); });
   } },
   'split-check-url': { path: v => `/tools/split-check?s=${v.splits.join(',')}&course=boston&g=${v.genderIdx === 1 ? 'women' : 'men'}` },

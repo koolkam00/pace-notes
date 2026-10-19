@@ -29,15 +29,20 @@ export const WEATHER_MIN_MORNINGS = 3;
  * "#weather", only where the warmest and coolest race mornings are at least 5 °C apart (the contrast is the beat's whole
  * point) and there are three or more: every morning a dot, start temperature against the share of finishes with a
  * sustained slowdown. The sentence states the two mornings as two facts; the pair is inked and labelled by year, no key, never joined (a
- * line across the cloud would read as a trend, "warmer, therefore"), and the chart opens on the warmer one, which the
- * sentence leads with, in signal (the sentence's orange word). The y scale runs from zero on the baseline to the round ten above the dots, both labelled, and the
- * readout names the measure. Elsewhere the mornings are in "All numbers".
+ * line across the cloud would read as a trend, "warmer, therefore"). The heading says the reading, so the readout opens on
+ * a prompt and no dot is orange (a picked one rings in ink); where the sentence is course.weather's null naming the
+ * course's worst year, that year alone is inked and labelled. The y scale runs from zero on
+ * the baseline to the round ten above the dots, both labelled, and the readout names the measure. Elsewhere the mornings
+ * are in "All numbers".
  */
 export default function CourseWeatherByYear({ page }: { page: CoursePageData }) {
   const { city, display, weather, hotCool } = page;
   if (!hotCool || weather.length < WEATHER_MIN_MORNINGS) return null;
   const n = getNugget('course.weather', { city });
-  const inPair = (y: number) => hotCool.hot.year === y || hotCool.cool.year === y;
+  // A gap under WEATHER_GAP points is a null (course.weather): where the course's worst year is neither morning, the
+  // sentence names that year instead, so it alone is inked and labelled.
+  const worstYear = Number((n.values as Record<string, number>).worst_year);
+  const inPair = Number.isFinite(worstYear) ? (y: number) => y === worstYear : (y: number) => hotCool.hot.year === y || hotCool.cool.year === y;
   const lo = Math.min(...weather.map((e) => e.temp)), hi = Math.max(...weather.map((e) => e.temp));
   const pad = Math.max(1.5, (hi - lo) * 0.08);
   const top = Math.max(0.1, Math.ceil(Math.max(...weather.map((e) => e.slowdown)) * 10) / 10);
@@ -45,16 +50,13 @@ export default function CourseWeatherByYear({ page }: { page: CoursePageData }) 
     <Scatter points={weather.map((e) => ({ id: String(e.year), x: e.temp, y: e.slowdown, label: String(e.year), key: `${e.year}, at the start`, value: temp(e.temp, units), inPair: inPair(e.year) }))}
       side={[{ label: 'Sustained slowdown', values: weather.map((e) => pct(e.slowdown)) }]}
       xDomain={[lo - pad, hi + pad]} yDomain={[0, top]} xTicks={tempTicks(lo - pad, hi + pad, units)}
-      yTicks={[{ value: top, label: pct(top) }, { value: 0, label: pct(0) }]} pairLine={false} selected={String(hotCool.hot.year)}
+      yTicks={[{ value: top, label: pct(top) }, { value: 0, label: pct(0) }]} pairLine={false} selected={String(hotCool.hot.year)} prompt="Choose a dot to read its year"
       axisTitle={{ end: 'At the start' }}
       label={`Start temperature against sustained slowdown, ${weather.length} ${display} race mornings`} height={150} heightMd={200} />
   );
-  // The sentence accents the warmer morning's temperature, so the chart opens with that dot in signal; where both
-  // mornings' shares round alike it says the share once, unaccented, and no dot is the reading.
-  const accented = pct(hotCool.hot.slowdown) !== pct(hotCool.cool.slowdown);
   return (
     <CourseSection id="weather" track="chapter-7" beat="Weather" title={<span className="course-hotcool"><Said nugget={n} /></span>}>
-      <div className={accented ? 'course-weather has-reading' : 'course-weather'}><ByUnits mi={chart('mi')} km={chart('km')} /></div>
+      <div className="course-weather"><ByUnits mi={chart('mi')} km={chart('km')} /></div>
     </CourseSection>
   );
 }

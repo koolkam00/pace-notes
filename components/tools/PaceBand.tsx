@@ -181,7 +181,7 @@ export default function PaceBand({ indexSha, profiles, unpublished }: {
     notice,
     held ? `${fieldProblem} The results below still show ${fmtGoal(goal)}.` : '',
     `${fmtGoal(goal)} goal: even pace ${fmtPace(pKm, units)}.`,
-    fresh && freshGap !== null ? `Pace Notes data: at the 20 km mat, finishes with a sustained slowdown were a median ${formatDuration(Math.abs(freshGap))} ${freshGap >= 0 ? 'earlier' : 'later'} than those that held pace.` : '',
+    fresh && freshGap !== null ? `Pace Notes data: at the 20 km mat, finishes with a sustained slowdown were a median ${formatDuration(Math.abs(freshGap))} ${freshGap >= 0 ? 'earlier' : 'later'} than those without one.` : '',
     fresh && fresh.all.sd !== undefined ? `${pct(fresh.all.sd)} of ${count(fresh.all.n)} finishes in the window had a sustained slowdown.` : '',
     observed.state === 'unavailable' ? `Observed finishes: ${observed.title}` : '',
     observed.state === 'off' ? `Observed finishes: ${observed.message}` : '',
@@ -321,7 +321,9 @@ export default function PaceBand({ indexSha, profiles, unpublished }: {
                       <p className="tool-nugget-text" id="pace-band-observed-title">
                         {/* The finish window named, as the split check names its own: the two pages' gaps are for two
                             different windows, so neither reads as the other's number. */}
-                        Of finishes from {formatHM(Math.floor(ok.lo / 60) * 60)} to {formatHM(Math.floor(ok.hi / 60) * 60)} {ok.where}, those that later had a <SlowdownTerm /> passed 20K <em>{formatDuration(Math.abs(slowAt20))} {slowAt20 >= 0 ? 'ahead of' : 'behind'}</em> those that held pace{Math.abs(finishGap) < 60 ? ', and finished at about the same time' : ''}.
+                        {/* Both groups finished in the window by construction, so the sentence says only where they were at
+                            20K (critic round 4: "and finished at about the same time" read as a finding). */}
+                        Of finishes from {formatHM(Math.floor(ok.lo / 60) * 60)} to {formatHM(Math.floor(ok.hi / 60) * 60)} {ok.where}, those with a <SlowdownTerm /> passed 20K <em>{formatDuration(Math.abs(slowAt20))} {slowAt20 >= 0 ? 'ahead of' : 'behind'}</em> those without one.
                       </p>
                     ) : (
                       <p className="tool-nugget-text" id="pace-band-observed-title">Where finishes from {formatDuration(ok.lo, true)} to {formatDuration(ok.hi, true)} {ok.where} were at each mat.</p>
@@ -330,10 +332,10 @@ export default function PaceBand({ indexSha, profiles, unpublished }: {
                       <MatLines units={units} zero={`Even pace for ${fmtGoal(goal)}`}
                         bracket={slowAt20 !== null && ok.held && ok.slow ? { km: 20, label: formatDuration(Math.abs(slowAt20)) } : undefined}
                         lines={[
-                          ...(ok.held ? [{ key: 'held', label: 'Held pace', tone: 'ink' as const, gaps: CHECKPOINTS.map((_, i) => gapAt(ok.held, i)!) }] : []),
+                          ...(ok.held ? [{ key: 'held', label: 'No sustained slowdown', tone: 'ink' as const, gaps: CHECKPOINTS.map((_, i) => gapAt(ok.held, i)!) }] : []),
                           ...(ok.slow ? [{ key: 'slow', label: 'Sustained slowdown', tone: 'signal' as const, gaps: CHECKPOINTS.map((_, i) => gapAt(ok.slow, i)!) }] : []),
                         ]}
-                        label={`Median elapsed time against even pace for ${fmtGoal(goal)} at every mat, for finishes from ${formatDuration(ok.lo, true)} to ${formatDuration(ok.hi, true)} ${ok.where}.${ok.held ? ` Held pace: ${aheadText(gapAt(ok.held, 3)!)} at 20 km.` : ''}${ok.slow ? ` Sustained slowdown: ${aheadText(gapAt(ok.slow, 3)!)} at 20 km.` : ''}`} />
+                        label={`Median elapsed time against even pace for ${fmtGoal(goal)} at every mat, for finishes from ${formatDuration(ok.lo, true)} to ${formatDuration(ok.hi, true)} ${ok.where}.${ok.held ? ` No sustained slowdown: ${aheadText(gapAt(ok.held, 3)!)} at 20 km.` : ''}${ok.slow ? ` Sustained slowdown: ${aheadText(gapAt(ok.slow, 3)!)} at 20 km.` : ''}`} />
                     ) : null}
                     <Values id="pace-band-observed-values" caption={`Median elapsed time at each mat, finishes from ${formatDuration(ok.lo, true)} to ${formatDuration(ok.hi, true)} ${ok.where}${ok.genderWord ? `, recorded as ${ok.genderWord}` : ''}`} count={9}>
                       <ObservedTable cells={ok} units={units} />
@@ -458,7 +460,7 @@ function Wristband({ rows, goal, pKm, units, overrun }: { rows: ReturnType<typeo
   );
 }
 
-/** Mat by mat: the median elapsed time of every finish in the window, of those that held pace and of those with a sustained slowdown. */
+/** Mat by mat: the median elapsed time of every finish in the window, of those with no sustained slowdown and of those with one. */
 function ObservedTable({ cells, units }: { cells: ObservedOk; units: UnitSystem }) {
   const { all, held, slow } = cells;
   return (
@@ -467,7 +469,7 @@ function ObservedTable({ cells, units }: { cells: ObservedOk; units: UnitSystem 
         <tr>
           <th scope="col">Mat</th>
           <th scope="col">All</th>
-          {held ? <th scope="col">Held pace</th> : null}
+          {held ? <th scope="col">No sustained slowdown</th> : null}
           {slow ? <th scope="col">Sustained slowdown</th> : null}
         </tr>
       </thead>

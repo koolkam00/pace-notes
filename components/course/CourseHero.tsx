@@ -48,7 +48,8 @@ function raceMonths(editions: { year: number; date: string | null }[]): string {
  * or more editions, the year strip to scrub them. The strip opens on the edition the sentence accents, so the needle,
  * the readout and the orange word agree; without the sentence, it opens on the latest edition
  * the source policy keeps. Where this course sits among the others is #slowdown's finding, over the strip of every course.
- * One action: the planner for this course, an outline from 1180 px, where the header carries the orange "Plan your race".
+ * One action: the planner for this course, the screen's one primary (from 1180 px the header's "Plan your race" steps down to a
+ * plain link on course pages, SiteNav data-quiet-primary).
  */
 export default function CourseHero({ page }: { page: CoursePageData }) {
   const { city, display, race, summary: s, geometry, editions } = page;
@@ -75,7 +76,7 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
     <YearStrip
       editions={points(units)}
       selected={opening} sideLabels={['Median finish', 'At the start']}
-      valueDomain={valueDomain}
+      valueDomain={valueDomain} average={s.slowdown} averageLabel="Average year"
       extremeLabel={extremeLabel} labelled={labelled}
       label={`Sustained slowdown in ${display}, edition by edition, ${span}`} height={100} heightMd={168} signal={reading.guard} />
   );
