@@ -2,11 +2,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useUnits } from '@/components/UnitsProvider';
 import ExplorerChart from './ExplorerChart';
-import type { GuideAnswer } from '@/lib/personalized';
-
-/** What the explorer sends when the visitor's selection should take over the answer card (`pn:hero`); null puts it back. */
-export type HeroDetail = { id: string; answer: GuideAnswer; goal: number; kicker: string } | null;
-export const HERO_EVENT = 'pn:hero';
+import { HERO_EVENT, type HeroDetail } from './hero-event';
 
 /**
  * The answer card's kicker and chart, which Make it yours can take over (finish-time context): the page draws its one

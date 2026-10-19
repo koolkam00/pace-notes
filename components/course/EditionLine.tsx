@@ -97,17 +97,20 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
   // the left, else at the right end where a dot, the line or a label takes the left. A line with no clear spot either
   // side is drawn unlabelled.
   const meets = (a: { x0: number; x1: number; y0: number; y1: number }, b: { x0: number; x1: number; y0: number; y1: number }) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
-  const grid: { y: number; label: string; end: boolean; shown: boolean }[] = [];
+  const grid: { y: number; label: string; at: number; end: boolean; shown: boolean }[] = [];
   // The needle the chart opens on runs the plot's height: no gridline label sits across it.
   const rest = { x0: needle.x0 - 8 / REF_WIDTH, x1: needle.x0 + 8 / REF_WIDTH, y0: 0, y1: 1 };
   for (const v of lines) {
     const text = hm(v);
     const w = (textWidth(text, 12, 500) + 6) / REF_WIDTH;
     const fy = y(v);
-    const spot = [false, true].map((end) => ({ end, box: { x0: end ? 1 - w : 0, x1: end ? 1 : w, y0: fy - 14 / height, y1: fy - 3 / height } }))
-      .find(({ box }) => box.y0 >= 0 && !meets(rest, box) && !taken.some((t) => meets(t, box))
+    // At the left end, at the right end, then (where the resting needle stands at that end) just inside the needle.
+    const beside = rest.x0 > 0.5 ? rest.x0 : null;
+    const spots: { at: number; end: boolean }[] = [{ at: 0, end: false }, { at: 1, end: true }, ...(beside !== null ? [{ at: beside, end: true }] : [])];
+    const spot = spots.map(({ at, end }) => ({ at, end, box: { x0: end ? at - w : at, x1: end ? at : at + w, y0: fy - 14 / height, y1: fy - 3 / height } }))
+      .find(({ box }) => box.y0 >= 0 && box.x0 >= 0 && !meets(rest, box) && !taken.some((t) => meets(t, box))
         && ![...dots, ...along].some((d) => meets({ x0: d.x - d.r / REF_WIDTH, x1: d.x + d.r / REF_WIDTH, y0: d.y - d.r / height, y1: d.y + d.r / height }, box)));
-    grid.push({ y: fy, label: text, end: !!spot?.end, shown: !!spot });
+    grid.push({ y: fy, label: text, at: spot?.at ?? 0, end: !!spot?.end, shown: !!spot });
     if (spot) taken.push(spot.box);
   }
   // A label a gridline runs through breaks the line under it (a knockout halo), so the line never crosses the text.
@@ -122,7 +125,7 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
         {grid.map((g) => (
           <g key={g.label}>
             <rect className="grid-line" x="0" y={pc(g.y)} width="100%" height="1" />
-            {g.shown ? <text className="tick grid-label" x={g.end ? '100%' : '0'} y={pc(g.y)} dy={-5} textAnchor={g.end ? 'end' : undefined}>{g.label}</text> : null}
+            {g.shown ? <text className="tick grid-label" x={pc(g.at)} y={pc(g.y)} dy={-5} textAnchor={g.end ? 'end' : undefined}>{g.label}</text> : null}
           </g>
         ))}
       </g>

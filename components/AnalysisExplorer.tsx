@@ -17,7 +17,7 @@ import { keepTogether } from './ui/keepTogether';
 import MakeItYours from './ui/MakeItYours.client';
 import ExplorerChart, { wholeElevation, type TerrainExtras } from './analysis/ExplorerChart';
 import { AnswerAbove, ExploreSubmit } from './analysis/ExploreSubmit';
-import { HERO_EVENT, type HeroDetail } from './analysis/HeroSwap.client';
+import { HERO_EVENT, type HeroDetail } from './analysis/hero-event';
 import { trackAnalytics } from '@/lib/analytics';
 import { unitHref } from '@/lib/unit-preference';
 
