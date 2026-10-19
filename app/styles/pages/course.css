@@ -60,8 +60,6 @@
 /* ---------- Beats: a finding and one chart, a hairline between ---------- */
 .course-beat { padding-top: var(--course-gap); scroll-margin-top: calc(var(--header-h) + var(--s-4)); }
 .course-beat + .course-beat, .course-numbers + .course-beat { margin-top: var(--course-gap); border-top: 1px solid var(--rule); }
-/* The night replay band already ends its beat: no hairline under it. */
-.course-replay-beat + .course-beat { border-top: 0; }
 .course-toc + .course-beat { padding-top: var(--s-6); }
 .course-beat[tabindex="-1"]:focus { outline: none; }
 .course-h2 {
@@ -69,6 +67,8 @@
   line-height: 1.15; letter-spacing: -.015em; color: var(--ink); text-wrap: balance;
 }
 .course-h2 em { font-style: italic; font-weight: inherit; color: var(--signal-ink); }
+/* An accent that names no number or section the chart draws ("What makes Boston Boston") is ink: orange is the reading. */
+.course-h2 em.is-plain { color: inherit; }
 .course-beat-body { margin-top: var(--s-4); min-width: 0; }
 .course-beat-body > * + * { margin-top: var(--s-5); }
 .course-beat-body .viz-frame { max-width: none; }
@@ -138,6 +138,18 @@
 .course-key-ring { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--paper); box-shadow: inset 0 0 0 1.5px var(--ink-2); }
 .course-goals-table td.course-reason { padding: var(--s-3) 0; font-size: var(--t-small); color: var(--ink-3); }
 .course-goals-table tbody tr:last-child th, .course-goals-table tbody tr:last-child td { border-bottom: 0; }
+/* The bars' scale, under the bar column: zero and the round ten above the largest share. */
+.course-goals-table tfoot td, .course-goals-table tfoot th { padding: 0; border: 0; }
+.course-goals-table tfoot .goal-axis-track { padding-top: 6px; font-size: 12px; font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums; text-align: left; }
+.course-goals-table .goal-axis-ends { display: flex; justify-content: space-between; }
+/* At 200% zoom the bar keeps a readable track: the goal and value columns narrow and the arrow goes (the row is still
+   the link). */
+@media (max-width: 299.98px) {
+  .course-goals-table .goal-bar { min-width: 64px; }
+  .course-goals-table tbody th { width: 2.75rem; }
+  .course-goals-table .goal-value { width: auto; padding-left: var(--s-2); }
+  .course-goals-table .goal-go { display: none; }
+}
 
 /* Plan: one list of link rows, 52 px each. */
 .course-links { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
@@ -149,11 +161,6 @@
 .course-link .arrow-icon { flex: none; color: var(--ink-3); transition: transform var(--d-quick) var(--ease-out); }
 .course-link:hover { text-decoration: none; }
 .course-link:hover .arrow-icon { transform: translateX(4px); color: var(--ink); }
-
-/* The replay: a night band edge to edge on phones, a rounded frame from 600 px; its field a little shorter than the
-   story's, since here it closes the page rather than leading it. */
-.course-replay { margin: 0 calc(-1 * var(--gutter)); padding: var(--s-4) var(--gutter); background: var(--night); }
-.course-replay .hero-replay { --replay-h: clamp(200px, 52vw, 400px); }
 
 /* Shaped like: link rows with a sparkline. */
 .course-rows { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
@@ -196,6 +203,9 @@
 /* The weather scatter's chosen morning is its dot drawn larger, never a target: the warmer morning the sentence accents
    in signal while the chart rests on it, any other morning the reader picks in ink. */
 .course-page .viz-frame.scatter .scrub-ring { width: 12px; height: 12px; margin: -6px 0 0 -6px; background: var(--ink); box-shadow: 0 0 0 2px var(--paper); }
+/* One knockout layer under every dot (Scatter's m-halo), so a cluster's dots never cut crescents into each other. */
+.course-page .viz-frame.scatter circle.m-halo { fill: var(--paper); stroke: none; }
+.course-page .viz-frame.scatter circle.is-flat { stroke: none; }
 .course-page .course-weather.has-reading .viz-frame.scatter .scrub:not(.is-away) .scrub-ring { background: var(--signal); }
 
 /* Keyboard focus rings the whole instrument (the plot, its ticks and the drag handle), never a box drawn between the
@@ -229,7 +239,6 @@
 /* ---------- From 600 px ---------- */
 @media (min-width: 600px) {
   .course-hero { --route-w: 168px; }
-  .course-replay { margin: 0; padding: var(--s-5); border-radius: var(--r-md); }
 }
 
 /* ---------- From 900 px: two columns ---------- */
@@ -289,7 +298,7 @@
 }
 
 @media print {
-  .course-toc, .course-replay, .course-hero-actions { display: none; }
+  .course-toc, .course-hero-actions { display: none; }
   .course-hero { box-shadow: none; clip-path: none; }
 }
 .course-beat-body > .course-rows-key + .course-rows { margin-top: 0; }

@@ -1,10 +1,11 @@
 import type { CourseGeometry } from '@/lib/insights';
 
 /**
- * A course's route as a face (the redesign spec, section 3.6 "Route"): the supplied route drawn as one line on a soft
- * glow, a start ring and a checkered finish. A server SVG in a square box that fits any width; the line keeps its stroke
- * width at every size. It draws in currentColor: night ink in the hero, ink in the course rows. Its paint is set on the
- * marks themselves, so it needs no sheet. Decorative unless `label` names it.
+ * A course's route as a face (the redesign spec, section 3.6 "Route"): the supplied route drawn as one 2.25 px line, a
+ * start ring and a finish square, each the same size on screen whatever the box (non-scaling strokes; a zero-length
+ * stroke draws a fixed-size mark), so a complex route never thickens into a blob and its ends never drown in it. A
+ * server SVG in a box that fits any width. It draws in currentColor: night ink in the hero, ink in the course rows; the
+ * start ring's centre is the surface (--route-surface, paper by default). Decorative unless `label` names it.
  */
 const SIZE = 100;
 const PAD = 7;
@@ -30,13 +31,11 @@ export default function RouteFace({ course, label, fit = false, className }: {
   return (
     <svg className={`route-face${className ? ` ${className}` : ''}`} viewBox={box} width="100%" focusable="false"
       {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })}>
-      <path className="route-face-glow" d={d} fill="none" stroke="currentColor" strokeOpacity={0.14} strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" />
-      <path className="route-face-line" d={d} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
-      <circle className="route-face-start" cx={sx} cy={sy} r={2.6} fill="none" stroke="currentColor" strokeWidth={1.5} />
-      <g className="route-face-finish" transform={`translate(${(fx - 2.6).toFixed(2)} ${(fy - 2.6).toFixed(2)})`} fill="currentColor">
-        <rect width="5.2" height="5.2" rx=".6" fillOpacity={0.25} stroke="currentColor" strokeWidth={0.5} />
-        <rect width="2.6" height="2.6" />
-        <rect x="2.6" y="2.6" width="2.6" height="2.6" />
+      <path className="route-face-line" d={d} fill="none" stroke="currentColor" strokeWidth={2.25} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      <g className="route-face-mark">
+        <path d={`M${sx.toFixed(2)} ${sy.toFixed(2)}h0`} stroke="currentColor" strokeWidth={10} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        <path d={`M${sx.toFixed(2)} ${sy.toFixed(2)}h0`} stroke="var(--route-surface, var(--paper))" strokeWidth={5} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        <path d={`M${fx.toFixed(2)} ${fy.toFixed(2)}h0`} stroke="currentColor" strokeWidth={8} strokeLinecap="square" vectorEffect="non-scaling-stroke" />
       </g>
     </svg>
   );

@@ -28,7 +28,7 @@ export const WEATHER_MIN_MORNINGS = 3;
 /**
  * "#weather", only where the warmest and coolest race mornings are at least 5 °C apart (the contrast is the beat's whole
  * point) and there are three or more: every morning a dot, start temperature against the share of finishes with a
- * sustained slowdown. The sentence states the two mornings as two facts; the pair is inked and labelled, never joined (a
+ * sustained slowdown. The sentence states the two mornings as two facts; the pair is inked and labelled by year, no key, never joined (a
  * line across the cloud would read as a trend, "warmer, therefore"), and the chart opens on the warmer one, which the
  * sentence leads with, in signal (the sentence's orange word). The y scale runs from zero on the baseline to the round ten above the dots, both labelled, and the
  * readout names the measure. Elsewhere the mornings are in "All numbers".
@@ -45,7 +45,7 @@ export default function CourseWeatherByYear({ page }: { page: CoursePageData }) 
     <Scatter points={weather.map((e) => ({ id: String(e.year), x: e.temp, y: e.slowdown, label: String(e.year), key: `${e.year}, at the start`, value: temp(e.temp, units), inPair: inPair(e.year) }))}
       side={[{ label: 'Sustained slowdown', values: weather.map((e) => pct(e.slowdown)) }]}
       xDomain={[lo - pad, hi + pad]} yDomain={[0, top]} xTicks={tempTicks(lo - pad, hi + pad, units)}
-      yTicks={[{ value: top, label: pct(top) }, { value: 0, label: pct(0) }]} pairLabel="The warmest and coolest mornings" pairLine={false} selected={String(hotCool.hot.year)}
+      yTicks={[{ value: top, label: pct(top) }, { value: 0, label: pct(0) }]} pairLine={false} selected={String(hotCool.hot.year)}
       axisTitle={{ end: 'At the start' }}
       label={`Start temperature against sustained slowdown, ${weather.length} ${display} race mornings`} height={150} heightMd={200} />
   );

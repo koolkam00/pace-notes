@@ -122,9 +122,11 @@ function Sections({ answer, goal, valuesId, example }: { answer: GuideAnswer; go
   const after = steps.slice(from20).reduce((s, x) => s + x.value, 0);
   const span = example && mats && from20 > 0 && total > 0 && after > 0 ? { from: from20, text: `After 20K ${Math.round((100 * after) / total)}%` } : undefined;
   return (
-    <Waterfall steps={steps} total={{ label: 'Finish', display: signed(total) }} xTicks={mats} span={span}
+    // The total bar is the gap at the finish ("the 4:51 gap"): "Gap" fits centred under it on the narrowest phone, where
+    // "Finish" turned to end at its tick and sat under the 40K–finish step.
+    <Waterfall steps={steps} total={{ label: 'Gap', display: signed(total) }} xTicks={mats} span={span}
       label={`The gap between finishes just over and just under ${hm(goal)}, built section by section; ${big.label} added the most, ${big.display}`}
-      values={<Values id={valuesId} caption={`Just over ${hm(goal)} against just under, by section`} columns={[{ key: 's', label: 'Section' }, { key: 'g', label: 'Gap added' }]} rows={[...steps.map((s) => [s.label, s.display]), ['Finish', signed(total)]]} />} />
+      values={<Values id={valuesId} caption={`Just over ${hm(goal)} against just under, by section`} columns={[{ key: 's', label: 'Section' }, { key: 'g', label: 'Gap added' }]} rows={[...steps.map((s) => [s.label, s.display]), ['Gap at the finish', signed(total)]]} />} />
   );
 }
 

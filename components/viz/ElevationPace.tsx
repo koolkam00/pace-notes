@@ -24,8 +24,10 @@ export type PaceSection = { label: string; startKm: number; endKm: number; pct: 
  * keeps a 44 px touch target. */
 const FIT_MIN = 0.4;
 
-export default function ElevationPace({ km, metres, relief, reliefLabel, sections, focus, initial, label, readoutKeys, lead = 'pace', values, height = 150, heightMd = 190, fit = false }: {
+export default function ElevationPace({ km, metres, relief, reliefLabel, sections, focus, focusTo, initial, label, readoutKeys, lead = 'pace', values, height = 150, heightMd = 190, fit = false }: {
   km: number[]; metres: number[]; relief: number; sections: PaceSection[]; focus?: number;
+  /** The last section of a washed stretch that starts at `focus` (two neighbouring climbs named as one). */
+  focusTo?: number;
   /** The section the readout opens on (the one the sentence names); default the washed one, else the first. */
   initial?: number;
   label: string;
@@ -53,6 +55,7 @@ export default function ElevationPace({ km, metres, relief, reliefLabel, section
   const y = (m: number) => 1 - bottom - ((1 - top - bottom) * ((m - floor) / Math.max(1, relief))) / share;
   const line = km.map((k, i) => [x(k), y(metres[i])] as [number, number]);
   const start = initial ?? focus ?? 0;
+  const last = focus !== undefined && focusTo !== undefined && sections[focusTo] && focusTo >= focus ? focusTo : focus ?? 0;
   const plot = (
     <Plot paths={(
       <>
@@ -61,7 +64,7 @@ export default function ElevationPace({ km, metres, relief, reliefLabel, section
       </>
     )}>
       {/* The wash stays inside the plot: under a labelled top line it starts there, not above it. */}
-      {focus !== undefined && sections[focus] ? <rect className="a-signal" x={pc(x(sections[focus].startKm))} width={pc(x(sections[focus].endKm) - x(sections[focus].startKm))} y={reliefLabel ? pc(top) : '0'} height={reliefLabel ? pc(1 - top) : '100%'} /> : null}
+      {focus !== undefined && sections[focus] ? <rect className="a-signal" x={pc(x(sections[focus].startKm))} width={pc(x(sections[last].endKm) - x(sections[focus].startKm))} y={reliefLabel ? pc(top) : '0'} height={reliefLabel ? pc(1 - top) : '100%'} /> : null}
       {reliefLabel ? <Gridlines lines={[{ y: top, label: reliefLabel }]} /> : null}
       <Baseline />
     </Plot>
@@ -75,7 +78,7 @@ export default function ElevationPace({ km, metres, relief, reliefLabel, section
         const unit = s.display.endsWith('%');
         const num = unit ? s.display.slice(0, -1) : s.display;
         return (
-          <span key={s.label} className={`pace-block is-on-${paceText(bg)}${i === focus ? ' is-focus' : ''}${s.display.length > 3 ? ' is-long' : ''}`} style={{ flexGrow: s.endKm - s.startKm, background: bg }}>
+          <span key={s.label} className={`pace-block is-on-${paceText(bg)}${focus !== undefined && i >= focus && i <= last ? ' is-focus' : ''}${s.display.length > 3 ? ' is-long' : ''}`} style={{ flexGrow: s.endKm - s.startKm, background: bg }}>
             <span className={`pace-val n${Math.min(3, num.length)}`}>{num}{unit ? <span className="pace-pct">%</span> : null}</span>
           </span>
         );

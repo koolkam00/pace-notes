@@ -27,6 +27,16 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
   const degF = (c) => `${(c * 1.8 + 32).toFixed(0)}°F`;
   const MATS = [[0, 5], [5, 10], [10, 15], [15, 20], [20, 25], [25, 30], [30, 35], [35, 40], [40, 42.195]];
   const sectionName = (i) => (i === 8 ? '40K–finish' : `${MATS[i][0]}–${MATS[i][1]}K`);
+  // The 40K–finish section is 2.2 km: its words say "stretch", never "5K".
+  const stretch = (i) => (i === 8 ? 'stretch' : '5K');
+  // A profile at or below 0 m for 0.5 km or more on a route that is not a polder reads the water under a bridge.
+  const underWater = (city) => {
+    const g = geometry.find((x) => x.city === city);
+    if (!g || city === 'Amsterdam' || city === 'Rotterdam') return false;
+    let run = 0;
+    for (const m of g.elevation_m) { run = m <= 0 ? run + 1 : 0; if ((run - 1) * g.elevation_step_km >= 0.5) return true; }
+    return false;
+  };
   const said = (n) => core.textFor(n.guard ? n.headline : n.fallback, 'mi').replace(/\*/g, '');
   // The name a page writes: New York's page says New York City.
   const named = (city) => (city === 'New York' ? 'New York City' : city);
@@ -51,17 +61,8 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
   // /courses
   {
     const n = N.getNugget('courses.index');
-    step(() => eq([n.values.courses, n.guard, n.figure.value], [courses.courses.length, courses.courses.length > 0, courses.courses.length.toLocaleString('en-US')], 'courses.index recounts the course pages'));
-    const r = N.getNugget('courses.range');
-    const lo = Math.min(...solid.map((c) => c.slowdown)), hi = Math.max(...solid.map((c) => c.slowdown));
-    step(() => eq([r.values.min, r.values.max, r.values.courses], [lo, hi, solid.length], 'courses.range recounts the extremes of courses with three or more editions'));
-    step(() => eq(r.guard, solid.length >= 3 && hi / lo >= 2, 'courses.range: "more than twice" needs the highest share at least twice the lowest'));
-    step(() => eq(r.figure.value, `${Math.round(lo * 100)}–${Math.round(hi * 100)}`, 'courses.range: the figure'));
-    const loCity = solid.find((c) => c.slowdown === lo).city, hiCity = solid.find((c) => c.slowdown === hi).city;
-    if (r.guard) step(() => eq(said(r), `From ${named(loCity)} to ${named(hiCity)}: the same distance, more than twice the share.`, 'courses.range: the sentence names both ends'));
-    // Each course's figure averages its editions' shares (verify-insights), so the words name the average edition, never
-    // a share of every finish pooled.
-    step(() => ok(/^of finishes in the average edition had a sustained slowdown\b/.test(r.key), 'courses.range: the key names the average edition'));
+    // A count of pages is not a finding: the index has no figure, so no card or contents row reads one.
+    step(() => eq([n.values.courses, n.guard, n.figure], [courses.courses.length, courses.courses.length > 0, null], 'courses.index recounts the course pages and draws no figure'));
   }
 
   for (const c of courses.courses) {
@@ -85,7 +86,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       step(() => eq(n.figure.value, String(Math.round(c.slowdown * 100)), `course.slowdown (${city}): the figure`));
       // The figure averages the editions' shares: the key names the average edition, the two editions' average, or with
       // one edition its year (no average was taken).
-      const lead = cells.length === 1 ? `of finishes in ${cells[0].year} had a` : cells.length === 2 ? 'of finishes in its two editions, on average, had a' : 'of finishes in the average edition had a';
+      const lead = cells.length === 1 ? `of finishes in ${cells[0].year} had a` : cells.length === 2 ? 'of finishes in its two editions, on average, had a' : 'of finishes in an average year had a';
       step(() => eq(n.key, `${lead} sustained slowdown`, `course.slowdown (${city}): the key names what the figure averages`));
       if (guard) step(() => eq(said(n), `Edition by edition, between ${whole(lo.slowdown)} (${lo.year}) and ${whole(hi.slowdown)} (${hi.year}).`, `course.slowdown (${city}): the sentence names the range, low end first, in no time order`));
     }
@@ -96,7 +97,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const t = route ? terrain.get(city) : null;
       const net = t ? t[0].net_m : NaN;
       step(() => ok(Number.isNaN(net) ? Number.isNaN(n.values.net_m) : Math.abs(n.values.net_m - net) < 1e-9, `course.start (${city}) recounts the first 5K's net`));
-      step(() => eq(n.guard, Number.isFinite(net) && Math.abs(net) >= 10, `course.start (${city}): guard`));
+      step(() => eq(n.guard, Number.isFinite(net) && Math.abs(net) >= 30 && !underWater(city), `course.start (${city}): guard (30 m net, and no bridge read as water)`));
       step(() => eq(!!n.figure, n.guard, `course.start (${city}): a figure only for a start that drops or climbs`));
       if (n.guard) step(() => eq(said(n), `The first 5K ends ${ft(net)} ${net < 0 ? 'lower' : 'higher'} than it starts.`, `course.start (${city}): the sentence`));
       else if (Number.isFinite(net)) step(() => eq(said(n), 'The first 5K is flat.', `course.start (${city}): a flat start says so`));
@@ -109,7 +110,8 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       if (n.guard) {
         const name = sectionName(courses.sections.indexOf(c.slowest_section));
         const usual = sectionName(courses.sections.indexOf(modal));
-        step(() => eq(said(n), `The slowest 5K is ${name}; on ${tally.get(modal)} of the ${shaped} courses with 5K splits it’s ${usual}.`, `course.late (${city}): the sentence`));
+        const i = courses.sections.indexOf(c.slowest_section);
+        step(() => eq(said(n), `The slowest ${stretch(i)} is ${name}; on ${tally.get(modal)} of the ${shaped} courses with 5K splits it’s ${usual}.`, `course.late (${city}): the sentence`));
       }
     }
 
@@ -122,7 +124,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const dev = solid ? c.curve[i] - courses.typical_curve[i] : NaN;
       const words = (v, own) => {
         const r = Math.round(Math.abs(v)), side = v > 0 ? 'slower' : 'quicker';
-        return own ? (r === 0 ? 'at its own average pace' : `${r}% ${side} than its own average`) : (r === 0 ? 'the typical course runs this 5K at its average pace' : `the typical course runs this 5K ${r}% ${side}`);
+        return own ? (r === 0 ? 'at its own average pace' : `${r}% ${side} than its own average`) : (r === 0 ? `the typical course runs this ${stretch(i)} at its average pace` : `the typical course runs this ${stretch(i)} ${r}% ${side}`);
       };
       step(() => ok(!solid || Math.abs(dev - c.signature_points) < 0.011, `course.signature (${city}): the signature is the curve less the typical curve`));
       step(() => ok(!solid || c.deviation.every((d) => Math.abs(d) <= Math.abs(c.signature_points) + 1e-9), `course.signature (${city}): no section parts further than the signature`));
@@ -152,8 +154,15 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       if (t) {
         let best = 0;
         for (let i = 1; i < 9; i++) if (t[i].gain_m > t[best].gain_m) best = i;
-        step(() => eq(n.guard, t[best].gain_m >= 30, `course.climb (${city}): guard (a climb from 30 m)`));
-        if (n.guard) step(() => eq(said(n), `The biggest climb is ${sectionName(best)}: ${ft(t[best].gain_m)}.`, `course.climb (${city}): the sentence`));
+        const wet = underWater(city);
+        step(() => eq(n.guard, t[best].gain_m >= 30 && !wet, `course.climb (${city}): guard (a climb from 30 m, and no bridge read as water)`));
+        // A neighbour within 10% of the biggest climb makes the two one stretch, named and summed.
+        const near = [best - 1, best + 1].filter((j) => j >= 0 && j < 9).sort((a, b) => t[b].gain_m - t[a].gain_m)[0];
+        const pair = n.guard && t[near].gain_m >= 0.9 * t[best].gain_m;
+        const a = pair ? Math.min(best, near) : best, b = pair ? Math.max(best, near) : best;
+        const name = a === b ? sectionName(a) : `${MATS[a][0]}–${b === 8 ? 'finish' : `${MATS[b][1]}K`}`;
+        if (n.guard) step(() => eq(said(n), `The biggest climb is ${name}: ${ft(pair ? t[a].gain_m + t[b].gain_m : t[best].gain_m)}.`, `course.climb (${city}): the sentence`));
+        if (wet) step(() => eq(said(n), 'The route, start to finish.', `course.climb (${city}): a profile under water ranks no climb`));
       } else step(() => eq(n.guard, false, `course.climb (${city}): no route, no climb`));
     }
 
@@ -188,9 +197,9 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const all = count === others.length ? (solidSelf ? 'any other course' : 'every course') : null;
       // The scope is the strip's key; the sentence keeps it only for "any other course" / "every course" and for a course
       // with fewer editions.
-      const than = all ? `${all} with three or more editions` : solidSelf ? `${count} of ${others.length} other courses` : `${count} of the ${others.length} courses with three or more editions`;
+      const than = all ? `${all} with three or more editions` : solidSelf ? `${count} of the ${others.length} other courses` : `${count} of ${others.length} courses`;
       const want = middle ? `${named(city)}’s ${whole(c.slowdown)}: near the middle of ${others.length + 1} courses.`
-        : `${named(city)}’s ${whole(c.slowdown)}${from}: ${higher >= lower ? 'lower' : 'higher'} than on ${than}.`;
+        : `${named(city)}’s ${whole(c.slowdown)}: ${higher >= lower ? 'lower' : 'higher'} than ${than}${from}.`;
       if (n.guard) step(() => eq(said(n).replace(/\u00a0/g, ' '), want, `course.among (${city}): the sentence`));
     }
 
@@ -226,11 +235,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
     }
   }
 
-  // Fixtures: the index's fallback renders on a field whose spread is under twice, and every course nugget falls back
-  // for a city with no page.
-  const C = require(path.join(ROOT, 'lib/nuggets/courses.ts'));
-  const flat = C.coursesRangeFrom([{ city: 'A', slowdown: 0.2, editions: 5 }, { city: 'B', slowdown: 0.3, editions: 5 }, { city: 'C', slowdown: 0.35, editions: 5 }]);
-  step(() => eq([flat.guard, core.sentenceOf(flat)], [false, 'Sustained slowdown, course by course.'], 'fixture courses.range: under twice falls back'));
+  // Fixtures: every course nugget falls back for a city with no page.
   const none = N.getNugget('course.weather', { city: 'Nowhere' });
   step(() => eq([none.guard, core.sentenceOf(none)], [false, 'Race mornings.'], 'fixture course.weather: a city with no page falls back'));
   for (const id of N.CONTEXT_NUGGETS) step(() => eq(N.getNugget(id, { city: 'Nowhere' }).guard, false, `fixture ${id}: no page, no claim`));

@@ -97,13 +97,15 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
   const labels = placeLabels(lab, { height, avoid: sorted.map((s, i) => ({ x: x(s.value), y: yOf(levels[i]), r: R })) });
   const leaders = [...labelled].filter((i) => lift(i) > levels[i]).map((i) => ({ i, y0: yOf(lift(i)) - (R + 2) / height, y1: yOf(levels[i]) - (R + 2) / height }));
   const heightMd = Math.round(height * mdScale);
-  const wide = named?.length ? placeNamed(named) : [];
+  // Greedy placement depends on the order: the labels are placed left to right and right to left, and the pass that
+  // names more of them is kept.
+  const wide = named?.length ? [placeNamed(named, 1), placeNamed(named, -1)].reduce((a, b) => (b.length > a.length ? b : a)) : [];
   /**
-   * The named labels at the wide plot (WIDE px by heightMd): each above the dots under its own width, one 15 px row up
-   * at a time until it is clear of the labels and leaders already there, on a leader down to its dot; one that finds no
-   * room is left out. The dots are kept 8 px round, the largest page CSS draws them.
+   * The named labels at the wide plot (WIDE px by heightMd): each above the dots under its own width, centred on its
+   * leader or slid along it, one 15 px row up at a time until it is clear of the labels and leaders already there; one
+   * that finds no room is left out. The dots are kept 8 px round, the largest page CSS draws them.
    */
-  function placeNamed(ids: string[]) {
+  function placeNamed(ids: string[], dir: 1 | -1) {
     const W = WIDE, H = heightMd, size = 13, ROW = 15;
     const px = sorted.map((s, i) => ({ x: x(s.value) * W, y: yOf(levels[i]) * H }));
     const hit = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
@@ -112,20 +114,30 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
       ...leaders.map((l) => ({ x0: px[l.i].x - 2, x1: px[l.i].x + 2, y0: l.y0 * H, y1: l.y1 * H })),
     ];
     const out: { i: number; label: PlacedLabel; y0: number; y1: number }[] = [];
-    for (const i of sorted.map((_, j) => j).filter((j) => ids.includes(sorted[j].id) && !labelled.has(j) && j !== subject)) {
+    const want = sorted.map((_, j) => j).filter((j) => ids.includes(sorted[j].id) && !labelled.has(j) && j !== subject).sort((a, b) => dir * (a - b));
+    for (const i of want) {
       const w = textWidth(sorted[i].label, size, 500);
-      const x0 = Math.min(Math.max(px[i].x - w / 2, 0), W - w);
-      const under = px.filter((d) => d.x + 8 > x0 - 2 && d.x - 8 < x0 + w + 2);
-      const top = Math.min(...under.map((d) => d.y)) - 8 - 6;
-      for (let row = 0; row < 8; row++) {
-        const base = top - row * ROW;
-        const box = { x0: x0 - 3, x1: x0 + w + 3, y0: base - size * 0.78 - 2, y1: base + size * 0.22 + 2 };
-        const lead = { x0: px[i].x - 2, x1: px[i].x + 2, y0: base + 3, y1: px[i].y - 8 };
-        if (box.y0 < 0) break;
-        if (taken.some((b) => hit(b, box) || hit(b, lead))) continue;
-        taken.push(box, lead);
-        out.push({ i, y0: (base + 3) / H, y1: (px[i].y - 8) / H, label: { id: `n${i}`, text: sorted[i].label, x: x(sorted[i].value), y: yOf(levels[i]), dx: x0 - px[i].x, dy: base - px[i].y, anchor: 'start', priority: 0, size, tone: 'quiet', at: i, minWidth: WIDE } });
-        break;
+      // Centred over its leader first, then slid a quarter or more of its width either way (the leader still under it);
+      // first clear of the named dots still to come, whose leaders will rise there, then anywhere.
+      const spots = [0, 0.25, -0.25, 0.4, -0.4].map((k) => Math.min(Math.max(px[i].x - w / 2 + k * w, 0), W - w));
+      const later = want.slice(want.indexOf(i) + 1).map((j) => px[j].x);
+      let done = false;
+      for (const strict of [true, false]) {
+        for (let row = 0; row < 8 && !done; row++) {
+          for (const x0 of spots) {
+            if (strict && later.some((lx) => lx > x0 - 6 && lx < x0 + w + 6)) continue;
+            const under = px.filter((d) => d.x + 8 > x0 - 2 && d.x - 8 < x0 + w + 2);
+            const base = Math.min(...under.map((d) => d.y)) - 8 - 6 - row * ROW;
+            const box = { x0: x0 - 3, x1: x0 + w + 3, y0: base - size * 0.78 - 2, y1: base + size * 0.22 + 2 };
+            const lead = { x0: px[i].x - 2, x1: px[i].x + 2, y0: base + 3, y1: px[i].y - 8 };
+            if (box.y0 < 0 || taken.some((b) => hit(b, box) || hit(b, lead))) continue;
+            taken.push(box, lead);
+            out.push({ i, y0: (base + 3) / H, y1: (px[i].y - 8) / H, label: { id: `n${i}`, text: sorted[i].label, x: x(sorted[i].value), y: yOf(levels[i]), dx: x0 - px[i].x, dy: base - px[i].y, anchor: 'start', priority: 0, size, tone: 'quiet', at: i, minWidth: WIDE } });
+            done = true;
+            break;
+          }
+        }
+        if (done) break;
       }
     }
     return out;
