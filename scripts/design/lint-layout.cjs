@@ -11,7 +11,9 @@
 //   7. on / only, more than one rgb(255, 91, 46) control on the first screen;
 //   8. HTML text inside a figure.viz or a card (a next card, a receipt, the report's and the runner's night cards, an
 //      answer card) cut off at its edge or at an element that clips its overflow (a pace block's "+3" past the frame, a
-//      tile's "+4%", a next card's "improvemen"), by more than 1 px; a scroller's content and an ellipsis are exempt.
+//      tile's "+4%", a next card's "improvemen"), by more than 1 px; a scroller's content and an ellipsis are exempt;
+//   9. a term link (.term-link) inside an h1: its dotted underline in the display face outweighs the H1's accent, so a
+//      page links the term in its dek or unit line instead (WP9 round 3).
 //
 //   node scripts/design/lint-layout.cjs --routes=<comma list | @file> [--widths=195,320,390,1440] [--dir=out]
 //        [--json=<file>] [--only=1,2,3] [--max=12]
@@ -51,7 +53,10 @@ function inspect({ isHome }) {
     }
     return false;
   };
-  const findings = { overflow: [], tinyText: [], overlap: [], outside: [], orange: [], clipped: [] };
+  const findings = { overflow: [], tinyText: [], overlap: [], outside: [], orange: [], clipped: [], h1Term: [] };
+
+  // 9. No term link in the H1.
+  for (const el of document.querySelectorAll('h1 .term-link')) if (!hidden(el)) findings.h1Term.push(describe(el));
 
   // 1. Horizontal overflow, with the elements that reach past the right edge.
   // Any overflow at all, even 1 px: a page that can move sideways under a thumb wobbles.
@@ -249,19 +254,20 @@ async function lintOne(browser, route, width, opts) {
     6: errors.concat(status === 200 ? [] : [`status ${status}`]),
     7: findings.orange,
     8: findings.clipped,
+    9: findings.h1Term,
   };
   for (const k of Object.keys(checks)) if (!opts.only.has(Number(k))) delete checks[k];
   return { route, width, checks, foreign };
 }
 
-const NAMES = { 1: 'horizontal overflow', 2: 'hit area under 44×44', 3: 'chart text under 12 px', 4: 'text overlaps text in a figure', 5: 'text outside its SVG', 6: 'console or page error', 7: 'more than one orange control on the first screen', 8: 'chart text clipped' };
+const NAMES = { 1: 'horizontal overflow', 2: 'hit area under 44×44', 3: 'chart text under 12 px', 4: 'text overlaps text in a figure', 5: 'text outside its SVG', 6: 'console or page error', 7: 'more than one orange control on the first screen', 8: 'chart text clipped', 9: 'term link in the H1' };
 
 async function main() {
   const a = args(process.argv.slice(2));
   const routes = readRoutes(a.routes);
   const widths = String(a.widths || '195,320,390,1440').split(',').map(Number).filter(Boolean);
   const dir = path.resolve(ROOT, a.dir || 'out');
-  const only = new Set(String(a.only || '1,2,3,4,5,6,7,8').split(',').map(Number));
+  const only = new Set(String(a.only || '1,2,3,4,5,6,7,8,9').split(',').map(Number));
   const max = Number(a.max || 12);
   if (!fs.existsSync(path.join(dir, 'index.html'))) throw new Error(`No export at ${dir}: run npm run build first.`);
   const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined, args: ['--proxy-server=http://127.0.0.1:9', '--proxy-bypass-list=<-loopback>'] });

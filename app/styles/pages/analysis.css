@@ -133,8 +133,8 @@
   .explore-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* From 900 px the form is inline at the top of the beat (the panel's own title names it, so the kicker goes). The answer
-   spans the column: a receipt sets its lines beside its result, divided by a hairline, so the first screen has no void. */
+/* From 900 px the answer spans the column: a receipt sets its lines beside its result, divided by a hairline, so the first
+   screen has no void. Make it yours stays its one-line chip, its form in the sheet (a right drawer). */
 @media (min-width: 900px) {
   .analysis-hero .receipt-wrap, .analysis-hero .answer-card, .analysis-hero .weather-tabs { max-width: none; }
   .analysis-hero .receipt { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr auto; column-gap: 48px; padding: 28px 32px; }
@@ -149,43 +149,19 @@
   .analysis-hero .answer-dots { grid-template-columns: auto minmax(0, 16rem); }
   @supports selector(:has(a)) {
     /* Two near-equal halves, as on downhill starts: the dots and their label on the left (a little wider, so the label
-       stays on one line), the two cells on the right, apart and on the label's baseline: neither half a void nor crammed. */
-    .analysis-hero .answer-card:has(.answer-cells) { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); column-gap: 48px; align-items: end; }
+       stays on one line), the two cells on the right, apart; both halves centred on the dot grid's height, so neither
+       half has a void above its values (critic round 3: bottom-aligned cells left 120 px of night over them). */
+    .analysis-hero .answer-card:has(.answer-cells) { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); column-gap: 48px; align-items: stretch; }
     .analysis-hero .answer-card:has(.answer-cells) > .answer-kicker { grid-column: 1 / -1; }
-    .analysis-hero .answer-card:has(.answer-cells) .answer-dots { grid-template-columns: auto minmax(0, 1fr); }
+    .analysis-hero .answer-card:has(.answer-cells) .answer-dots { grid-template-columns: auto minmax(0, 1fr); align-items: center; }
     /* The two values each take the column they need (a band "2:50–2:52" never breaks at its dash), sharing the half. */
-    .analysis-hero .answer-card:has(.answer-cells) .answer-cells { grid-template-columns: repeat(2, max-content); justify-content: start; column-gap: 40px; padding: 0 0 0 48px; border-top: 0; border-left: 1px solid var(--rule); align-self: stretch; align-content: end; }
+    .analysis-hero .answer-card:has(.answer-cells) .answer-cells { grid-template-columns: repeat(2, max-content); justify-content: start; column-gap: 40px; padding: 0 0 0 48px; border-top: 0; border-left: 1px solid var(--rule); align-self: stretch; align-content: center; }
   }
   .analysis-hero .answer-grids { grid-template-columns: repeat(2, minmax(0, 18rem)); justify-content: start; column-gap: 64px; }
   /* A dot strip across the full answer card: 14 px dots on the strip DotStrip draws 1.4 times taller here (mdScale),
      so the stacks keep their 1 px gaps; the chosen dot's fill grows with the dots. */
   #answer .viz-frame.dot-strip circle { r: 7px; }
   #answer .viz-frame.dot-strip .scrub-ring { width: 20px; height: 20px; margin: -10px 0 0 -10px; }
-  .miy-beat .miy { margin-bottom: var(--s-6); }
-  /* The beat keeps its kicker at every width (the phone's "MAKE IT YOURS"), so the panel's own small title steps back
-     (still its accessible name). The inline form is a quiet grid under a hairline, never a box: three equal tracks the
-     second row reuses, the button in the last track (lined up with the inputs, under the labels), the comparison
-     switch, the refinements and any message across all three. */
-  .analysis-explore .miy-panel { border: 0; border-top: 1px solid var(--rule); border-radius: 0; background: none; }
-  .analysis-explore .miy-panel .sheet-head { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .analysis-explore .miy-panel .sheet-body { padding: var(--s-5) 0 0; }
-  .analysis-explore .explore-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: var(--s-4) var(--s-5); }
-  .analysis-explore .explore-form > * { grid-column: 1 / -1; }
-  .analysis-explore .explore-form > .explore-fields { display: contents; }
-  .analysis-explore .explore-form > .explore-fields > .field { grid-column: auto; min-width: 0; }
-  .analysis-explore .explore-form > .explore-submit { grid-column: -2 / -1; margin-top: 25px; }
-  /* Two fields (a course and a time): the button takes the third track of their own row, and the refinements and any
-     message run under all three, so the button never stands alone on a row of its own. */
-  @supports selector(:has(a)) {
-    .analysis-explore .explore-form:has(> .explore-fields > .field:nth-child(2):last-child) > .explore-submit { order: 1; }
-    .analysis-explore .explore-form:has(> .explore-fields > .field:nth-child(2):last-child) > :is(.profile-refinements, .field-error) { order: 2; }
-    /* Four fields (the checkpoint's): two by two, the button in the third track of the second row, in line with it. */
-    .analysis-explore .explore-form:has(> .explore-fields > .field:nth-child(4):last-child) > .explore-fields > .field:nth-child(3) { grid-column: 1; }
-    .analysis-explore .explore-form:has(> .explore-fields > .field:nth-child(4):last-child) > .explore-submit { order: 1; }
-    .analysis-explore .explore-form:has(> .explore-fields > .field:nth-child(4):last-child) > :is(.profile-refinements, .field-error) { order: 2; }
-  }
-  .analysis-explore .explore-form > .profile-refinements { border-top: 0; }
-  .explore-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .analysis-hero .reading { padding-top: var(--s-6); }
 }
 

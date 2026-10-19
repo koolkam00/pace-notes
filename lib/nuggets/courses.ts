@@ -12,6 +12,7 @@ import { coursePage, coursePages, displayCity as cityName, heldEditions, type Co
 import { readInsight } from '@/lib/insights-server';
 import type { Courses } from '@/lib/insights';
 import { courseSlug } from '@/lib/tools/links';
+import { underWater } from '@/lib/terrain-reading';
 import { count, countWord, hm, pct, sectionLabel, temp } from './format';
 import { shareFigure, type Builder } from './build';
 import type { Nugget, NuggetContext, NuggetFigure, UnitsAware } from './types';
@@ -33,26 +34,14 @@ export const NET_MIN_M = 30;
 export const CLIMB_MIN_M = 30;
 /** Two neighbouring 5K climbs within 10% of each other are one stretch: the heading names the pair, never a near tie. */
 export const CLIMB_TIE = 0.9;
-/** Routes genuinely below sea level (polders), whose profile may sit under 0 m. */
-const BELOW_SEA_LEVEL = new Set(['Amsterdam', 'Rotterdam']);
-/** How long a profile may sit at or below 0 m on any other route before it reads as the water under a bridge, in km. */
-const UNDER_WATER_KM = 0.5;
-
 /**
- * A route profile from a terrain model records the water under a bridge, not its deck (New York's Verrazzano reads
- * -1.6 m at 0.6–2.0 km, where runners climb). Where a route that is not below sea level sits at or below 0 m for 0.5 km
- * or more, its climbs are not ranked and its start is not described: the sections still give each 5K's numbers, but no
+ * A route profile from a terrain model records the water under a bridge, not its deck (lib/terrain-reading.ts): where it
+ * does, its climbs are not ranked and its start is not described: the sections still give each 5K's numbers, but no
  * heading names a biggest climb or a drop the bridges hide.
  */
 export function profileUnderWater(page: CoursePageData | null): boolean {
   const g = page?.geometry;
-  if (!g || BELOW_SEA_LEVEL.has(page.city)) return false;
-  let run = 0;
-  for (const m of g.elevation_m) {
-    run = m <= 0 ? run + 1 : 0;
-    if ((run - 1) * g.elevation_step_km >= UNDER_WATER_KM) return true;
-  }
-  return false;
+  return !!g && underWater(page.city, g.elevation_m, g.elevation_step_km);
 }
 /** The 40K–finish section is 2.2 km, not a 5K: its words say "stretch". */
 const stretchOf = (i: number) => (i === SECTION_KM.length - 1 ? 'stretch' : '5K');

@@ -14,7 +14,7 @@ import ScrollCue from '@/components/ui/ScrollCue.client';
 import YearStrip from '@/components/viz/YearStrip';
 import {
   ageLabel, bornLabel, capital, checkedDate, checkerHref, divisionWords, divisions, editionDetail, fmtDate, fmtMargin, fmtStandard,
-  lastRunDate, pageHeading, program, racePath, raceName, raceYear, shortName,
+  lastRunDate, pageHeading, program, racePath, raceName, raceYear,
 } from '@/components/tools/QualifyingRaceText';
 import { MARATHON_KM } from '@/lib/tools/pace';
 import { ASSUMED_COMPARISON, BOSTON_CUTOFFS, VERIFIED_AT, type Standard } from '@/lib/tools/qualifying';
@@ -80,18 +80,13 @@ export default function QualifyingRace({ s }: { s: Standard }) {
       </ToolPageHeader>
 
       <div className="qrace-body">
-        {/* The race date is said once: under "Age used" when ages count on race day, else on its own row. */}
-        <dl className="tool-ledger qrace-glance">
-          {!(s.ageRule === 'race-day' && s.ageDate) && detail ? <div><dt>Race day</dt><dd>{detail}</dd></div> : null}
-          <div><dt>Age used</dt><dd>{age.value}</dd><dd className="tool-ledger-note">{age.detail}</dd></div>
-          <div><dt>Window</dt><dd className="qrace-window">{fmtDate(s.windowStart)} – {windowEnd}</dd></div>
-          <div><dt>Time rule</dt><dd>{time.value}</dd>{time.detail ? <dd className="tool-ledger-note">{time.detail}</dd> : null}</div>
-        </dl>
-        {/* A secondary button: the header's "Plan your race" is the screen's one orange call to action. */}
-        <p className="qrace-cta no-print"><Link className="btn btn-secondary" href={checkerHref(s)}>Check a time for {shortName(s)}</Link></p>
-
         <section className="qrace-section" id="standards" aria-labelledby="qrace-standards-title">
-          <h2 className="tool-panel-title" id="qrace-standards-title">{what}</h2>
+          {/* The table the title promises opens the page (critic round 3: the first screen held only its rules), the way
+              to check a time beside its title: a secondary button, the header's "Plan your race" stays the one orange. */}
+          <div className="qrace-standards-head">
+            <h2 className="tool-panel-title" id="qrace-standards-title">{what}</h2>
+            <Link className="btn btn-secondary is-compact no-print" href={checkerHref(s)}>Check a time</Link>
+          </div>
           <p className="tool-panel-meta">By {birthYear ? `birth year (the age reached in ${s.ageYear})` : age.value.toLowerCase()}, each time with its even pace over <MarathonDistance />.</p>
           <div className="tool-table-wrap table-wrap qrace-table-wrap" role="region" tabIndex={0} aria-labelledby="qrace-standards-title">
             <table className="tool-table qrace-table" data-race={s.key}>
@@ -123,6 +118,14 @@ export default function QualifyingRace({ s }: { s: Standard }) {
           <p className="tool-note">{s.nonbinaryNote}</p>
         </section>
 
+        {/* The race date is said once: under "Age used" when ages count on race day, else on its own row. */}
+        <dl className="tool-ledger qrace-glance">
+          {!(s.ageRule === 'race-day' && s.ageDate) && detail ? <div><dt>Race day</dt><dd>{detail}</dd></div> : null}
+          <div><dt>Age used</dt><dd>{age.value}</dd><dd className="tool-ledger-note">{age.detail}</dd></div>
+          <div><dt>Window</dt><dd className="qrace-window">{fmtDate(s.windowStart)} – {windowEnd}</dd></div>
+          <div><dt>Time rule</dt><dd>{time.value}</dd>{time.detail ? <dd className="tool-ledger-note">{time.detail}</dd> : null}</div>
+        </dl>
+
         <section className="qrace-section qrace-rules" id="rules" aria-labelledby="qrace-rules-title">
           <h2 className="tool-panel-title" id="qrace-rules-title">Meeting the standard is not entry by itself</h2>
           <p>{s.entry}</p>
@@ -151,8 +154,8 @@ export default function QualifyingRace({ s }: { s: Standard }) {
         {s.key === 'boston' ? <BostonCutoffs /> : null}
       </div>
 
-      {/* One way on, the checker (the primary under the glance: every race is one tap away there) and, in the closing
-          row, one way back. */}
+      {/* One way on, the checker (the button beside the table's title: every race is one tap away there) and, in the
+          closing row, one way back. */}
       <ToolEnd path="/tools/qualifying" how="/methodology#tools-qualifying" />
     </div>
   );

@@ -58,9 +58,11 @@ export default function WeatherAnalysis({ candidate, evidence, sentence }: { def
     <Plot>
       {/* The zone runs the plot's full height, down to the axis, a quiet field behind the marks rather than a box. */}
       <rect className="effect-null-band" x={pc(x(-band))} width={pc(x(band) - x(-band))} y={0} height="100%" />
-      {/* The band named on the plot: in full where the card is wide enough, short at 200% zoom. */}
-      <text className="tick effect-band-label is-wide" x={pc(x(0))} y={at(14)} textAnchor="middle">No material difference</text>
-      <text className="tick effect-band-label is-narrow" x={pc(x(-band))} y={at(14)}>Within ±{band} pt</text>
+      {/* The band named inside itself, centred on zero: on two lines, which fit the ±1 point band on a phone (one line ran
+          past both its edges), and as "±1 pt" at 200% zoom. */}
+      <text className="tick effect-band-label is-wide" x={pc(x(0))} y={at(14)} textAnchor="middle">No material</text>
+      <text className="tick effect-band-label is-wide" x={pc(x(0))} y={at(29)} textAnchor="middle">difference</text>
+      <text className="tick effect-band-label is-narrow" x={pc(x(0))} y={at(14)} textAnchor="middle">±{band} pt</text>
       <rect className={isNull ? 'm-context effect-interval' : 'm-signal effect-interval'} x={pc(x(effect.low))} width={pc(x(effect.high) - x(effect.low))} y={at(y)} height={4} rx={2} transform="translate(0 -2)" />
       <circle className={isNull ? 'm-context' : 'm-signal'} cx={pc(x(effect.estimate))} cy={at(y)} r={7} />
       <text className="viz-label effect-estimate" x={pc(x(effect.estimate))} y={at(y - 15)} textAnchor="middle">{pp(effect.estimate)} pts</text>

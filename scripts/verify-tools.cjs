@@ -413,8 +413,10 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.match(html, /class="tool-workspace"><div class="tool-results tool-answer">[\s\S]*plan-headline[\s\S]*class="tool-inputs"[\s\S]*class="tool-results"><p class="sr-only" aria-live="polite">/, 'The card, then the inputs, then the results'); ok();
   // The card leads with the pace (miles first), as the pace band and the goal pages do: the goal is its kicker.
   assert.match(html, /<span id="plan-headline-title">4:00<\/span><\/p><h2 class="tool-reading-figure">9:09<small>per mile, even pace · 5:41\/km<\/small><\/h2>/, '4:00 even pace: 9:09 per mile and 5:41/km, the goal as the kicker'); ok();
-  // The mat times are listed once on screen (the wristband strips) and once in print (the mat table), never on the card.
+  // The mat times are listed once on a phone (the wristband strips) and once in print (the mat table); from 900 px four of
+  // them fill the card's right half, hidden from assistive tech (which reads every mat on the strips), never a lap list.
   assert.doesNotMatch(html, /plan-mats/, 'No lap list on the card'); ok();
+  assert.match(html, /<dl class="plan-card-mats" aria-hidden="true"><div><dt>5K<\/dt><dd>28:26<\/dd><\/div><div><dt>Half<\/dt><dd>2:00:00<\/dd><\/div><div><dt>30K<\/dt><dd>2:50:38<\/dd><\/div><div><dt>Finish<\/dt><dd>4:00:00<\/dd><\/div><\/dl>/, 'The card\'s four desktop mats, hidden from assistive tech'); ok();
   assert.deepEqual([...html.matchAll(/<tr( class="is-finish")?><th scope="row">(?:\d+K|Finish)(?:<small>[^<]*<\/small>)?<\/th><td>([^<]+)<\/td>/g)].map((m) => m[2]).slice(0, 9),
     ['28:26', '56:53', '1:25:19', '1:53:45', '2:22:12', '2:50:38', '3:19:05', '3:47:31', '4:00:00'], 'Even-pace time at each mat for 4:00 (14,400 s ÷ 42.195 km × each mat), in the printed mat table'); ok();
   // The tracker looks for sections once per page view, so all three are mounted from the start; the comparison is hidden until its data shows.

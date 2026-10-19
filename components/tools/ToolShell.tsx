@@ -20,11 +20,12 @@ const unbroken = (title: string) => title.split(/(\S+-\S+)/).map((part, i) => (i
 
 /**
  * The opener of every /tools page (the redesign spec, section 4.4): the crumbs (the chapter for a tool in the race,
- * "Tools · Reference" for a lookup), the H1, one line of purpose and the kinds of evidence it uses. The breadcrumb is
- * also JSON-LD. No hue, no rule, no icon.
+ * "Tools · Reference" for a lookup), the H1 and one line of purpose. The breadcrumb is also JSON-LD. No hue, no rule, no
+ * icon, and no row of badges: each badge sits on the panel its evidence feeds (critic round 3: a header row over a plain
+ * calculation read as its label, and put two badges on every first screen; /tools carries the legend).
  */
-export function ToolPageHeader({ path, title, dek, badges = [], trail, children }: {
-  path: string; title: ReactNode; dek?: ReactNode; badges?: ToolEvidence[];
+export function ToolPageHeader({ path, title, dek, trail, children }: {
+  path: string; title: ReactNode; dek?: ReactNode;
   /** The breadcrumb below "Tools": [label, href?] pairs, the page's own name last. */
   trail: [string, string?][]; children?: ReactNode;
 }) {
@@ -44,18 +45,17 @@ export function ToolPageHeader({ path, title, dek, badges = [], trail, children 
       </div>
       <h1 className="tool-title t-title">{typeof title === 'string' ? unbroken(title) : title}</h1>
       {dek ? <p className="tool-dek">{dek}</p> : null}
-      {badges.length ? <div className="tool-badges">{badges.map((e) => <EvidenceBadge key={e} kind={e} />)}</div> : null}
       {children}
       <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Runner tools', '/tools'], ...parent.filter(([, href]) => href), trail[trail.length - 1]])} />
     </header>
   );
 }
 
-/** The opener of a registered tool: its name, purpose and badges from lib/tools/registry.ts (one name: the H1 is the title). */
+/** The opener of a registered tool: its name and purpose from lib/tools/registry.ts (one name: the H1 is the title). */
 export function ToolHeader({ slug, title, children }: { slug: string; title?: ReactNode; children?: ReactNode }) {
   const tool = toolBySlug(slug)!;
   return (
-    <ToolPageHeader path={`/tools/${slug}`} title={title ?? tool.title} dek={tool.dek} badges={tool.evidence}
+    <ToolPageHeader path={`/tools/${slug}`} title={title ?? tool.title} dek={tool.dek}
       trail={[...(tool.group === 'reference' ? [['Reference'] as [string]] : []), [tool.title]]}>
       {children}
     </ToolPageHeader>

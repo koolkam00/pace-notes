@@ -18,7 +18,6 @@
 .tool-crumbs.is-plain { gap: 0 .3em; }
 .tool-title { margin: 0; font-family: var(--serif); font-optical-sizing: auto; font-weight: 440; color: var(--ink); max-width: 18ch; }
 .tool-dek { margin: 0; max-width: 34rem; font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
-.tool-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; min-height: 28px; }
 
 /* "Sustained slowdown" linked to its definition on /methodology. Inside running text it is an inline link; as a label
    on its own (a ledger key) it takes the 44 px hit area through padding. */
@@ -64,7 +63,8 @@
 /* The cell's value: the time a runner types, large and calm. */
 .tool-page .tool-field.is-large input { min-height: 60px; font-size: 1.5rem; font-weight: 600; letter-spacing: -.01em; }
 /* A value worked out from the other fields (the pace calculator's third box): quieter, on the page's paper. */
-.tool-page .tool-field.is-solved input:not([type='checkbox']):not([type='radio']):not(:focus) { border-color: var(--rule); background: transparent; color: var(--ink-3); font-weight: 500; }
+/* The calculator's solved box holds the answer: in ink, a little heavier, on the sunk paper of a value worked out. */
+.tool-page .tool-field.is-solved input:not([type='checkbox']):not([type='radio']):not(:focus) { border-color: transparent; background: var(--paper-sunk); color: var(--ink); font-weight: 660; }
 .tool-page .tool-field input[aria-invalid='true'] { color: var(--signal-ink); box-shadow: inset 0 -2px 0 var(--signal); }
 .tool-field-hint { margin: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
 .tool-field-hint.is-error { color: var(--signal-ink); font-weight: 600; }
@@ -241,7 +241,7 @@
 /* ---------- Print: tools print their result panels only ---------- */
 .print-only { display: none; }
 @media print {
-  .site-header, .site-footer, .skip-link, .tool-inputs, .tool-share, .no-print, .tool-header .tool-badges, .chapter-end, .tool-goalbar { display: none !important; }
+  .site-header, .site-footer, .skip-link, .tool-inputs, .tool-share, .no-print, .chapter-end, .tool-goalbar { display: none !important; }
   .print-only { display: block; }
   .tool-workspace { grid-template-columns: 1fr; }
   .tool-page svg[viewBox] { max-width: 100%; height: auto; }
@@ -315,14 +315,9 @@
 .tools-row-text { display: grid; gap: 2px; min-width: 0; }
 .tools-row-text b { font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
 .tools-row-text > span { font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
-/* The evidence glyphs ride on the title line (the key under the dek names them), so every row is two lines. */
-.tools-row-badges { display: inline-flex; gap: 12px; margin-left: 12px; vertical-align: .1em; }
-.tools-row-badges .evidence-badge { gap: 0; color: var(--ink-2); }
-/* 10 px glyphs, so ● and ◆ tell apart at a glance. */
-.tools-row-badges .evidence-badge::before { width: 10px; height: 10px; }
-.tools-row-badges .evidence-research::before { width: 8.5px; height: 8.5px; margin: 0 1px; }
-.tools-row-badges .evidence-official::before { width: 9px; height: 9px; }
-.tools-key { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: var(--s-4) 0 0; }
+/* Each row's second line is its example's reading: the figure in ink, then its key, then the evidence word that says what kind of number it is. */
+.tools-row-reading strong { font-weight: 650; color: var(--ink); font-variant-numeric: tabular-nums; }
+.tools-row-text .tools-row-badge { display: inline-flex; margin-left: 2px; color: var(--ink-3); font-size: var(--t-small); white-space: nowrap; vertical-align: baseline; }
 .tools-goals { display: grid; gap: var(--s-2); padding: 14px 0 10px; }
 .tools-goal-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .tools-goal-links li { margin: 0; }
@@ -334,9 +329,6 @@
 .tools-privacy { margin: 0; max-width: var(--measure); font-size: var(--t-small); line-height: 1.5; color: var(--ink-3); }
 @media (min-width: 900px) {
   .tools-index .tool-header { padding-top: var(--s-8); }
-  .tools-row { grid-template-columns: minmax(0, 1fr) auto auto; }
-  .tools-row-badges { grid-column: 2; grid-row: 1 / span 2; justify-content: flex-end; }
-  .tools-row .arrow-icon { grid-column: 3; }
   .tools-goals { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
 }
 
@@ -376,3 +368,8 @@
 /* The bracket under a finish-time histogram, named in a gap in its line. */
 .tool-page .range-bracket line { stroke: var(--ink-2); stroke-width: 1.5; }
 .tool-page svg .range-bracket text { font-family: var(--sans); font-size: 12px; font-weight: 500; fill: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+/* The closing stack's way back stays on one line (the planner's "Where improvement happens"): when it and "How we know"
+   do not fit side by side, "How we know" takes its own row instead of the way back breaking in two. */
+.tool-page .chapter-end-links { flex-wrap: wrap; }
+.tool-page .chapter-end-links > .chapter-prev > span { white-space: nowrap; }

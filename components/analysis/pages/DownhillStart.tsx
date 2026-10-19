@@ -8,8 +8,11 @@ import { getAllFinisherContextStart } from '@/lib/all-finisher-context-server';
 import { getNugget } from '@/lib/nuggets';
 import { countWord, pct } from '@/lib/nuggets/format';
 import { bandWords } from '@/lib/all-finisher-context';
+import { courseName } from '@/lib/nuggets/analyses';
 
 const PATH = '/analyses/downhill-start';
+/** "Boston, Sydney and Warsaw". */
+const and = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 
 /** Chapter 02, page 2: a downhill start and the opening, then opening band by opening band, then Make it yours. */
 export default function DownhillStart() {
@@ -21,13 +24,17 @@ export default function DownhillStart() {
     band, down: start.initial.downhill.find((g) => g.terrain === 'downhill' && g.opening === band.id), other: start.initial.downhill.find((g) => g.terrain === 'other' && g.opening === band.id),
   })).filter((r) => r.down && r.other);
   const lit = (share: number) => Math.round(share * 100);
+  // The downhill-start courses by name, from the data: every course whose editions the downhill groups hold, so a runner
+  // can tell whether their race is one of them.
+  const down = new Set(start.initial.downhill.filter((g) => g.terrain === 'downhill').flatMap((g) => g.edition_indices ?? []));
+  const named = start.initial.courses.filter((c) => (c.edition_indices ?? []).some((i) => down.has(i))).map((c) => courseName(c.label));
   const band = (label: string) => bandWords(label).replace(/^[a-z]/, (c) => c.toUpperCase());
   const answer = (
     <AnswerCard kicker="Of 100, opened over 5% fast" className="answer-pair">
       <div className="answer-grids">
         <div className="answer-grid">
           <DotGrid lit={lit(v.downhill)} label={`${lit(v.downhill)} of 100 finishes on downhill-start courses opened over 5% fast`} />
-          <p className="answer-grid-label"><strong>{lit(v.downhill)}</strong> on the {countWord(v.courses)} downhill-start courses</p>
+          <p className="answer-grid-label"><strong>{lit(v.downhill)}</strong> {named.length === v.courses ? <>on {and(named)}, the downhill starts</> : <>on the {countWord(v.courses)} downhill-start courses</>}</p>
         </div>
         <div className="answer-grid">
           <DotGrid lit={lit(v.other)} compare label={`${lit(v.other)} of 100 finishes elsewhere opened over 5% fast`} />

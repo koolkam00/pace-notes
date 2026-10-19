@@ -69,21 +69,20 @@ export { textFor };
  * session replays (the Make it yours sheet, the goal line and every result the visitor picks are inside it). From
  * 1180 px the chapter rail runs beside it.
  */
-export default function AnalysisShell({ path, title, titleTerm = false, heading, dek, answer, children }: {
+export default function AnalysisShell({ path, title, heading, dek, answer, children }: {
   path: string; title: Nugget; answer: ReactNode; children: ReactNode;
   /** The line under the H1: the finding's setup when the H1 is one clause (its second clause moved here), else the question. */
   dek: ReactNode;
-  /** The H1's content when it is not the title nugget's sentence alone (race-day weather's tab-driven finding). */
+  /** The H1's content when it is not the title nugget's sentence alone (race-day weather's tab-driven finding). The H1
+   * never links the term: a dotted underline in the display face outweighed its accent, so pages link it in the dek. */
   heading?: ReactNode;
-  /** Link the H1's "sustained slowdown" (when the H1 is the page's first use of the term). */
-  titleTerm?: boolean;
 }) {
   return (
     <div className="analysis-page with-rail" {...readingAttrs(path)}>
       <ChapterRail path={path} />
       <div className="analysis-layout analysis-flow">
         <section className="analysis-hero" id="answer" data-track-section="hero" data-beat="The answer">
-          <Reading crumbs={<ChapterCrumbs path={path} />} title={heading ?? <Say nugget={title} term={titleTerm} />} titleSize="title" dek={dek} variant="receipt" receipt={answer} />
+          <Reading crumbs={<ChapterCrumbs path={path} />} title={heading ?? <Say nugget={title} />} titleSize="title" dek={dek} variant="receipt" receipt={answer} />
         </section>
         {children}
         <ChapterEnd path={path} variant="analysis" readingOf={settledReadingOf} />

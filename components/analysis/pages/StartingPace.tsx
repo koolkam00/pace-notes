@@ -14,9 +14,12 @@ import { getNugget } from '@/lib/nuggets';
 import { openingWords, sweetBand } from '@/lib/nuggets/analyses';
 import { bandWords } from '@/lib/all-finisher-context';
 import { delta, ms, pct, spokenTime } from '@/lib/nuggets/format';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 
 const PATH = '/analyses/starting-pace';
 const capitalize = (s: string) => s.replace(/^[a-z]/, (c) => c.toUpperCase());
+/** A gap against the same pace in words: "1:48 ahead", "2:04 behind", "even". */
+const gap = (s: number) => { const r = Math.round(s); return r === 0 ? 'even' : `${ms(Math.abs(r))} ${r < 0 ? 'ahead' : 'behind'}`; };
 
 /** Chapter 02, page 1: the matched bank-and-pay answer, the U-curve of opening pace, then Make it yours. */
 export default function StartingPace() {
@@ -25,7 +28,7 @@ export default function StartingPace() {
   const all = getFastStartStarts();
   // The explorer offers the course pages' list (the files also hold courses with no page).
   const starts = { all: { ...all.all, cities: publishedCourses(all.all.cities) }, history: { ...all.history, cities: publishedCourses(all.history.cities) } };
-  const v = bank.values as { band?: string; open_s?: number; after20_s?: number; finish_s?: number };
+  const v = bank.values as { band?: string; open_s?: number; after20_s?: number; finish_s?: number; slowdown?: number; expected?: number };
   const edge = (() => { const b = starts.all.bands.find((x) => x.label === v.band); return b ? fastEdge(b) : null; })();
   const said = bandWords(v.band ?? '');
   // The two lines add up to the result: each is rounded from the same whole seconds (the 5–20K part, matched by design,
@@ -42,7 +45,11 @@ export default function StartingPace() {
       goal={edge !== null ? <GoalLine band={said} edge={edge} /> : undefined} />
   ) : null;
   return (
-    <AnalysisShell path={PATH} title={bank} dek={definition.title} answer={answer}>
+    // The dek is the band's sustained slowdowns against the same race and pace (the term linked here, once, under the H1).
+    <AnalysisShell path={PATH} title={bank} answer={answer}
+      dek={bank.guard && Number(v.slowdown) > Number(v.expected)
+        ? <>Of these finishes, {pct(Number(v.slowdown))} had a <Link href={bank.term ?? '/methodology#sustained-slowdown'} className="term-link">sustained slowdown</Link>, against {pct(Number(v.expected))} at the same race and pace.</>
+        : definition.title}>
       <Beat id="sweet-spot" track="chapter-1" label="The sweet spot" title={sweet}><OpeningCurve /></Beat>
       <ExploreBeat track="chapter-2"><FastStartAnalysis starts={starts} untouched="none" /></ExploreBeat>
     </AnalysisShell>
@@ -84,8 +91,10 @@ function OpeningCurve() {
       yTicks={yTicks}
       scrub={{
         label: 'First 5K against the pace that followed',
-        points: { x: xs.map((x) => (x - xs[0]) / span), keys: curve.map((c) => `First 5K ${openingWords(c.lo)}, at the finish`), values: curve.map((c) => delta(c.finish_s)),
-          side: [{ label: 'After 20K', values: curve.map((c) => delta(c.after20_s)) }, { label: 'Sustained slowdown', values: curve.map((c) => pct(c.slowdown)) }] },
+        // On the plot's own x scale (half a bin of room each side), so the needle and its detents sit on the ticks.
+        // The readout says each gap in words ("1:48 ahead"), as the receipt above does.
+        points: { x: xs.map((x) => (x - xs[0] + 0.5) / (span + 1)), keys: curve.map((c) => `First 5K ${openingWords(c.lo)}, at the finish`), values: curve.map((c) => gap(c.finish_s)),
+          side: [{ label: 'After 20K', values: curve.map((c) => gap(c.after20_s)) }, { label: 'Sustained slowdown', values: curve.map((c) => pct(c.slowdown)) }] },
         initial: bestI, detents,
         // Away from the best bin (ringed), a dot marks where the needle meets the curve, so the readout is tied to it.
         follow: 'finish',
@@ -94,7 +103,7 @@ function OpeningCurve() {
       // The curve's own twin, 1% bin by bin, as the readout reads it (the explorer below gives the six wider bands).
       values={<Values id="sp-curve-values" caption="Against the same race and 5–20K pace, by first 5K"
         columns={[{ key: 'b', label: 'First 5K', text: true }, { key: 'f', label: 'At the finish' }, { key: 'a', label: 'After 20K' }, { key: 's', label: 'Sustained slowdown' }]}
-        rows={curve.map((c) => [capitalize(openingWords(c.lo)), delta(c.finish_s), delta(c.after20_s), pct(c.slowdown)])} reading={bestI} />}
+        rows={curve.map((c) => [capitalize(openingWords(c.lo)), gap(c.finish_s), gap(c.after20_s), pct(c.slowdown)])} reading={bestI} />}
       height={220} heightMd={280} />
   );
 }

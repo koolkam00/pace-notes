@@ -15,7 +15,6 @@ import { formatClock, formatDuration, formatHM, parseClock, parseDuration, parse
 import { keypadInput } from '@/lib/keypad';
 import { count } from '@/lib/viz/format';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
-import { RangeBracket, bracketLayout } from '@/components/tools/RangeBracket';
 
 /* ------------------------------------------------------------------ */
 /* Constants and pure helpers                                          */
@@ -362,8 +361,8 @@ function stackLabels(markers: Marker[], width: number, margin: number) {
 }
 
 /**
- * The finish times of the group as a density drawn from its published percentiles, the bracket under it naming the
- * middle 80% (the card's range), the median in the accent, the even-pace finish of the times entered dashed, and the target, when one is set, in ink.
+ * The finish times of the group as a density drawn from its published percentiles, the median in the accent, the
+ * even-pace finish of the times entered dashed, and the target, when one is set, in ink.
  * Drawn in pixels at the measured width, so labels stay 12 px.
  */
 function FinishChart({ q, Q, P, target, targetTag }: { q: number[]; Q: number[]; P: number; target: number | null; targetTag: string | null }) {
@@ -388,9 +387,9 @@ function FinishChart({ q, Q, P, target, targetTag }: { q: number[]; Q: number[];
   const top = 8 + rows * 18;
   const plotH = narrow ? 88 : 108;
   const base = top + plotH;
-  const bracket = bracketLayout(x(q[i10]), x(q[i90]), `80% of finishes: ${windowText(q[i10], q[i90])}`, width, m.l, `80%: ${windowText(q[i10], q[i90])}`);
-  const bracketY = base + 34;
-  const H = bracketY + bracket.height;
+  // No bracket under the bars: the card above already gives the middle 80% (critic round 3), so the chart shows only the
+  // new fact, the even-pace finish against the median.
+  const H = base + 26;
   const densities = q.slice(0, -1).map((v, i) => 0.05 / Math.max(1, q[i + 1] - v));
   const maxD = Math.max(...densities);
   const step = niceStep(hi - lo, narrow ? 4 : 7, [60, 120, 300, 600, 900, 1800, 3600, 7200]);
@@ -411,7 +410,6 @@ function FinishChart({ q, Q, P, target, targetTag }: { q: number[]; Q: number[];
           return <rect key={i} className="projector-bar" x={x(q[i])} width={Math.max(0.5, x(q[i + 1]) - x(q[i]))} y={base - h} height={h} />;
         })}
         <line className="projector-base" x1={m.l} x2={width - m.r} y1={base} y2={base} />
-        <RangeBracket b={bracket} y={bracketY} />
         {markers.map((mk) => (
           <line key={mk.key} className={`projector-marker-line is-${mk.tone}`} x1={mk.x} x2={mk.x} y1={14 + mk.row * 18 + 4} y2={base} />
         ))}
@@ -745,10 +743,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
     const matRows = laterRows.filter((r) => r.km < 42);
     status = `${isExample ? `Example: ${formatDuration(E, true)} at ${matName(mat, units)}. ` : ''}${scopeName} at ${matName(mat, units)}: on ${bandText} even pace, ${count(cell.n)} finishes. Median finish ${formatDuration(median, true)}; 10th to 90th percentile ${rangeText.replace('–', ' to ')}.`
       + (nextRow.km < 42 ? ` ${matName(nextRow.km, units)}: ${span(nextRow.lo, nextRow.hi).replace('–', ' to ')}.` : '');
-    // The night card is the result, above the inputs; under the time field there is only the way back up to it (it
-    // repeats none of it).
-    quick = <button type="button" className="projector-link-button" data-not-edit onClick={toResult}>Result ↑</button>;
-    jump = true;
+    // The night card is the result, right above the inputs: no link back up to it (critic round 3).
     answer = (
         <section className="tool-reading night projector-headline" aria-labelledby="projector-title">
           <div className="tool-reading-head">
@@ -778,10 +773,12 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
     results = (
       <>
         <section className="tool-panel projector-ended" aria-labelledby="projector-ended-title">
+          {/* Only the new fact (the card gives the range and the median): what even pace makes, and how far the median
+              finish ended from it. */}
           <p className="tool-nugget-text" id="projector-ended-title">
-            Held to the finish, this pace makes {formatDuration(P, true)}.{' '}
-            {Math.abs(gapS) < 30 ? <>The median finish was <em>about the same</em>.</>
-              : <>The median finish was <em>{formatDuration(Math.abs(gapS))} {gapS > 0 ? 'later' : 'earlier'}</em>.</>}
+            Held to the finish, this pace makes {formatDuration(P, true)};{' '}
+            {Math.abs(gapS) < 30 ? <>the median was <em>about the same</em>.</>
+              : <>the median was <em>{formatDuration(Math.abs(gapS))} {gapS > 0 ? 'later' : 'earlier'}</em>.</>}
           </p>
           <FinishChart q={cell.q} Q={Q} P={P} target={passed ? null : target} targetTag={targetTag} />
         </section>

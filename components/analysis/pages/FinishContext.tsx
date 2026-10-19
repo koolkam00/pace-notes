@@ -1,6 +1,7 @@
 import AnalysisExplorer from '@/components/AnalysisExplorer';
 import AnalysisShell, { AnswerCard, ExploreBeat } from '../Shell';
 import ExplorerChart from '../ExplorerChart';
+import HeroSwap from '../HeroSwap.client';
 import { analysisBySlug } from '@/lib/ten-analyses';
 import { getAnalysisStart } from '@/lib/analysis-server';
 import { getNugget } from '@/lib/nuggets';
@@ -20,14 +21,17 @@ export default function FinishContext() {
   const mark = Number(n.guard ? n.values.mark3_min : n.values.goal_min);
   const initialAnswer = answers.find((a) => a.id === definition.id)!;
   const answer = initialAnswer.charts.length ? (
-    <AnswerCard kicker="Every finish, every course">
-      <ExplorerChart id="ambition" answer={initialAnswer} goal={mark} units="mi" valuesId="ftc-answer" example />
+    // Make it yours moves this chart (HeroSwap): the visitor's curve and time replace the example here, never a second copy.
+    <AnswerCard>
+      <HeroSwap kicker="Every finish, every course">
+        <ExplorerChart id="ambition" answer={initialAnswer} goal={mark} units="mi" valuesId="ftc-answer" example />
+      </HeroSwap>
     </AnswerCard>
   ) : null;
   return (
     <AnalysisShell path={PATH} title={n} dek={definition.title} answer={answer}>
       <ExploreBeat track="chapter-1">
-        <AnalysisExplorer definition={definition} summary={summary} initialAnswer={initialAnswer} untouched="none" />
+        <AnalysisExplorer definition={definition} summary={summary} initialAnswer={initialAnswer} untouched="none" hero />
       </ExploreBeat>
     </AnalysisShell>
   );

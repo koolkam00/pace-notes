@@ -19,7 +19,8 @@ export default function FindingImprovement() {
   const gains = getNugget('gains.final'), next = getNugget('kick.recurrence');
   const g = gains.values as { goal_min: number; open_min: number; middle_min: number; final_min: number; total_min: number };
   const mins = [g.open_min, g.middle_min, g.final_min];
-  // Seconds per mile or km in the site's one style ("28 s/mi"), as the pacing pages write it.
+  // Seconds per mile or km in the site's one style ("28 s/mi"), as the pacing pages write it; each line says its
+  // direction ("28 s/mi faster"), so its time never reads as a split.
   const per = (s: number, km: number, u: UnitSystem) => `${Math.round((s / km) * (u === 'mi' ? 1.609344 : 1))} s/${u}`;
   // Each block in whole seconds, rounded so the three add up to the total (largest remainder).
   const exact = mins.map((m) => m * 60), whole = exact.map(Math.round);
@@ -32,7 +33,7 @@ export default function FindingImprovement() {
   const total = whole.reduce((a, b) => a + b, 0);
   const receipt = (u: UnitSystem) => (
     <Receipt kicker={`Near ${hm(g.goal_min)}, against earlier best`}
-      lines={BLOCKS.map(([label, km], i) => ({ label, key: per(whole[i], km, u), value: ms(whole[i]), sr: spokenTime(whole[i]) }))}
+      lines={BLOCKS.map(([label, km], i) => ({ label, key: `${per(whole[i], km, u)} faster`, value: ms(whole[i]), sr: `${spokenTime(whole[i])} faster` }))}
       result={gains.guard && gains.figure ? { label: 'Found after 30K', value: `${gains.figure.value}${gains.figure.unit ?? ''}`, sr: `${gains.figure.sr} of the time found came after 30K` } : { label: 'Faster in all', value: ms(total), sr: `${spokenTime(total)} faster in all` }}
       extra={gains.guard ? { label: 'Faster in all', value: ms(total), sr: `${spokenTime(total)} faster in all` } : undefined} />
   );

@@ -213,6 +213,7 @@ export default function CourseChooser({ sha, screened }: {
   const filtered = month !== null || opening !== '';
   const at20 = units === 'mi' ? '12.4 mi' : '20 km';
   const statusText = `${filtered ? `Showing ${visible.length} of ${published.length}` : `Showing all ${published.length}`} published courses at ${goalText}, ${sort === 'name' ? (dir === 'asc' ? 'in alphabetical order' : 'in reverse alphabetical order') : `by ${sortName(sort, goalText, at20)}, ${orderLabel(sort, dir).toLowerCase()}`}.`;
+  const shortStatus = `${filtered ? `${visible.length} of ${published.length} courses${sort === 'name' ? '.' : ', b'}` : sort === 'name' ? '' : 'B'}${sort === 'name' ? '' : `y ${sortName(sort, goalText, at20)}. Not a difficulty ranking.`}`;
   // The one live region: a short summary that changes with the goal, sort and filters (load and error states are DataState's).
   const srStatus = !data ? '' : noGoal ? `Choose a goal from ${hm(range[0])} to ${hm(range[1])} to compare courses.`
     : `${published.length} courses have a row at ${goalText}. ${statusText}${sort !== 'name' ? ' Not a ranking of course difficulty.' : ''}`;
@@ -298,12 +299,17 @@ export default function CourseChooser({ sha, screened }: {
                   </div>
                 </details>
               </div>
-              <p className="tool-note course-chooser-status">
-                {statusText}{sort !== 'name' ? ' Not a ranking of course difficulty.' : ''}
-                {filtered ? <> <button type="button" className="btn btn-tertiary course-chooser-clear no-print" onClick={clearFilters}>Clear filters</button></> : null}
-              </p>
-              {/* The tick on every bar, named once: every course pooled, on the bars' own scale. */}
-              {pooled ? <p className="cc-key" aria-hidden="true"><i className="cc-key-mark" />{pctText(pooled.under)} on every course together</p> : null}
+              {/* One short line (critic round 3): the order and that it is not a difficulty ranking; the sort control states
+                  the direction, and the full sentence is the live region's. */}
+              {shortStatus || filtered ? (
+                <p className="tool-note course-chooser-status">
+                  {shortStatus}
+                  {filtered ? <> <button type="button" className="btn btn-tertiary course-chooser-clear no-print" onClick={clearFilters}>Clear filters</button></> : null}
+                </p>
+              ) : null}
+              {/* The tick on every bar, named once: the published courses pooled, on the bars' own scale, the set named by its
+                  count, never "every course" (the chooser publishes only the courses with a row at this goal). */}
+              {pooled ? <p className="cc-key" aria-hidden="true"><i className="cc-key-mark" />{pctText(pooled.under)} across all {published.length} courses</p> : null}
 
               {visible.length ? (
                 <ol className="course-chooser-rows">

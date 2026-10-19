@@ -10,7 +10,7 @@ import { useWidth } from '@/components/viz/useSize';
 import { loadInsight } from '@/lib/insights';
 import { loadShard, shareUnder, type ProjectorIndex, type ProjectorShard } from '@/lib/tools/data';
 import { HALF_KM, MARATHON_KM, perKm, perUnit, unitKm } from '@/lib/tools/pace';
-import { TANDA_RANGE_S, marathonRange, personalExponent, riegel, tandaPace, timeForVdot, vdot, type MarathonRange } from '@/lib/tools/predictor';
+import { PREDICTOR_EXAMPLE, TANDA_RANGE_S, marathonRange, personalExponent, riegel, tandaPace, timeForVdot, vdot, type MarathonRange } from '@/lib/tools/predictor';
 import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
 import { keypadInput } from '@/lib/keypad';
 import { count } from '@/lib/viz/format';
@@ -54,7 +54,7 @@ const AGO = [
   { value: '3-6', label: '3 to 6 months ago' },
   { value: '6+', label: 'More than 6 months ago' },
 ];
-const DEFAULTS = { d: 'half', km: '', t: '1:55:00', ago: '', to: 'marathon', d2: '', km2: '', t2: '', ago2: '', wk: '', tp: '' };
+const DEFAULTS = { d: PREDICTOR_EXAMPLE.key as string, km: '', t: formatDuration(PREDICTOR_EXAMPLE.seconds, true), ago: '', to: 'marathon', d2: '', km2: '', t2: '', ago2: '', wk: '', tp: '' };
 /** The whole minute at or below an estimate, the way every tool reads a time (4:11:41 is 4:11). */
 const goalMinute = (s: number) => Math.floor(Math.round(s) / 60) * 60;
 type Query = typeof DEFAULTS;
@@ -596,10 +596,25 @@ function FinishStrip({ q, Q, est }: { q: number[]; Q: number[]; est: number }) {
   );
 }
 
-function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
-  indexSha: string | null; est: Estimates; looks: Look[]; look: LookKey; setLook: (k: LookKey) => void; units: UnitSystem;
+type Projected = ReturnType<typeof useProjector>;
+
+/** The median finish of finishes on the chosen estimate's even pace at 20 km (the card's data line), when published. */
+function medianOnPace(proj: Projected, est: Estimates, looks: Look[], look: LookKey): { T: number; median: number } | null {
+  const { index, shard } = proj;
+  if (!est.isMarathon || !index || !shard) return null;
+  const chosen = looks.find((l) => l.key === look) ?? looks[0];
+  if (!chosen) return null;
+  const T = goalMinute(chosen.seconds);
+  const bandS = index.band_s ?? 120;
+  const i = shard.cells.all.b.indexOf(Math.floor(T / bandS) * bandS);
+  const i50 = qIndex(index.quantiles ?? [], 0.5);
+  return i >= 0 && i50 >= 0 ? { T, median: shard.cells.all.q[i][i50] } : null;
+}
+
+function ObservedPanel({ indexSha, proj, est, looks, look, setLook, units }: {
+  indexSha: string | null; proj: Projected; est: Estimates; looks: Look[]; look: LookKey; setLook: (k: LookKey) => void; units: UnitSystem;
 }) {
-  const { index, shard, error, retry } = useProjector(indexSha, est.isMarathon);
+  const { index, shard, error, retry } = proj;
   const lookRef = useRef<HTMLDivElement>(null);
   if (!est.isMarathon || !indexSha) return null;
   const chosen = looks.find((l) => l.key === look) ?? looks[0];
@@ -634,12 +649,14 @@ function ObservedPanel({ indexSha, est, looks, look, setLook, units }: {
           const shareText = share.bound === 'below' ? '5% or fewer' : share.bound === 'above' ? 'more than 95%' : pctText(share.share);
           return (
             <>
+              {/* The card above gives the median finish; this beat's sentence is what it means for the estimate: how few
+                  of those finishes got under it. */}
               <p className="tool-nugget-text" id="predictor-data-title">
-                Finishes on {fmtShort(T)} pace at 20K finished in a median <em>{fmtShort(q[i50])}</em>.
+                Of finishes on {fmtShort(T)} pace at 20K, <em>{shareText}</em> got under {fmtShort(T)}.
               </p>
               <FinishStrip q={q} Q={Q} est={T} />
               <dl className="tool-cells">
-                <div><dt>Finished under {fmtShort(T)}</dt><dd>{shareText}</dd></div>
+                <div><dt>Median finish</dt><dd>{fmtShort(q[i50])}</dd></div>
                 <div><dt><SlowdownTerm>Sustained slowdown</SlowdownTerm></dt><dd>{pctText(sd)}</dd></div>
               </dl>
               {lookChoice}
@@ -797,6 +814,10 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
     ? `Your recent race is already ${withArticle(target.name)}. Pick a shorter race, or predict another distance.`
     : (typing ? null : race1Error) ?? 'Enter the distance and finish time of a recent race to see the range.';
 
+  // The finishes on the chosen estimate's pace at 20 km: one load, read by the card's data line and the data beat.
+  const proj = useProjector(indexSha, !!est?.isMarathon);
+  const onPace = est ? medianOnPace(proj, est, looks, look) : null;
+
   // One always-present status line for screen readers: a short summary, spoken once the inputs settle.
   const summary = est ? summaryText(est) : emptyText;
   const [announce, setAnnounce] = useState('');
@@ -818,11 +839,17 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
           ) : (
             /* Every estimate's figure sits inside the research card (one source, one badge at its foot), so no unbadged
                published-research block stands between it and the Pace Notes data panel. */
-            <Headline est={est} dist={dist1} units={units} example={isExample}>
-              <div className="predictor-methods" id="predictor-methods">
-                <h3 className="predictor-methods-title">Every estimate, side by side</h3>
-                <MethodChart rows={rows} fuzzy={!!est.range && est.range.extrapolation === 'shorter'} label={chartLabel} />
-              </div>
+            <Headline est={est} dist={dist1} units={units} example={isExample}
+              // The data reading on the card's last line, with its own badge (critic round 3: the page's most learnable
+              // fact sat two screens down, under the form): where finishes on this pace at 20K ended.
+              reading={onPace ? <p className="predictor-card-reading">On this pace at 20K, finishes ended a median <b>{fmtShort(onPace.median)}</b>. <EvidenceTag kind="data" /></p> : null}>
+              {/* Every estimate folds away: the range is the answer, the formulas behind it are a tap below. */}
+              <details className="tool-more predictor-methods" id="predictor-methods">
+                <summary>Every estimate, side by side</summary>
+                <div className="tool-more-body">
+                  <MethodChart rows={rows} fuzzy={!!est.range && est.range.extrapolation === 'shorter'} label={chartLabel} />
+                </div>
+              </details>
             </Headline>
           )}
         </div>
@@ -907,7 +934,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
               {stale.length ? (
                 <p className="tool-note predictor-stale"><strong>{stale.join(' and ')} {stale.length > 1 ? 'were' : 'was'} more than 6 months ago.</strong> A recent race predicts better.</p>
               ) : null}
-              <ObservedPanel indexSha={indexSha} est={est} looks={looks} look={look} setLook={setLook} units={units} />
+              <ObservedPanel indexSha={indexSha} proj={proj} est={est} looks={looks} look={look} setLook={setLook} units={units} />
               {/* One way forward: the chapter's next card (the planner). The share row is the only action here. */}
               <ShareBar />
             </>
@@ -934,7 +961,7 @@ function summaryText(est: Estimates): string {
 /* Result sections                                                     */
 /* ------------------------------------------------------------------ */
 
-function Headline({ est, dist, units, example, children }: { est: Estimates; dist: Distance; units: UnitSystem; example: boolean; children?: ReactNode }) {
+function Headline({ est, dist, units, example, children, reading }: { est: Estimates; dist: Distance; units: UnitSystem; example: boolean; children?: ReactNode; reading?: ReactNode }) {
   // The kicker stays on one line at a phone's width: "From a 1:55 half" (the marathon is the tool's own target), whole
   // minutes without their ":00", the half by its short name.
   const fromTime = fmtTime(est.fromS).replace(/^(\d+:\d\d):00$/, '$1');
@@ -958,6 +985,7 @@ function Headline({ est, dist, units, example, children }: { est: Estimates; dis
           `The typical recreational range${r.extrapolation === 'shorter' ? ', less certain from a shorter race' : ''}: ${pace(r.low).replace(/\/\w+$/, '')}–${pace(r.high)}.`)}
         {children}
         <EvidenceTag kind="research" />
+        {reading}
       </section>
     );
   }

@@ -4,7 +4,7 @@ import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { Choice, DurationField, ExampleNote, ShareBar } from '@/components/tools/ui';
+import { Choice, DurationField, ShareBar } from '@/components/tools/ui';
 import Values from '@/components/ui/Values';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
@@ -379,18 +379,12 @@ export default function QualifyingChecker() {
   const exampleDiv = !changed.div && (!fromUrl.has('div') || divFallback);
   const exampleRace = !fromUrl.has('race') && !changed.race;
   const allExample = exampleTime && exampleDiv && exampleRace && example && !changed.more;
-  const stillExample = [
-    exampleTime && shown !== null ? `time (${fmtTime(shown)})` : null,
-    exampleDiv ? `division (${DIVISION_WORD[division]})` : null,
-    exampleRace && raceOk ? `race date (${fmtDate(raceDate)})` : null,
-    example ? `date of birth (${fmtDate(EXAMPLE_BIRTH)})` : null,
+  // What is still the example's, in the card's kicker ("Women · 3:30:00 · example birth date"): a paragraph above the
+  // card pushed the answer down while the visitor typed below it (critic round 3), so the card never moves.
+  const stillShort = [
+    exampleTime && shown !== null ? 'time' : null, exampleDiv ? 'division' : null, exampleRace && raceOk ? 'race date' : null, example ? 'birth date' : null,
   ].filter((x): x is string => x !== null);
-  const exampleNote = !ready ? null
-    // Every input the example's: the card's kicker says "Example", and the inputs above show it, so no paragraph repeats
-    // them. Only a partly typed example names what is still the example's (the date of birth sets every age group).
-    : allExample ? null
-    : stillExample.length ? <>The {listWords(stillExample)} {stillExample.length > 1 ? 'are still examples' : 'is still the example'}. Enter yours{example ? ': each race works out your age group differently' : ''}.</>
-    : null;
+  const kickerExample = allExample ? '' : stillShort.length ? ` · example ${listWords(stillShort)}` : '';
   // Links to the pace band name the division only when the visitor chose it (from the link or here).
   const bandGender = !exampleDiv && division !== 'nonbinary' ? division : null;
 
@@ -403,11 +397,10 @@ export default function QualifyingChecker() {
         <div className="tool-results tool-answer">
           {ready ? (
             <>
-              {exampleNote ? <ExampleNote>{exampleNote}</ExampleNote> : null}
               <section className="tool-reading night qualifying-headline" aria-labelledby={`${ids}-headline`}>
                 <div className="tool-reading-head">
                   {/* One line at a phone's width: the division and the time (the race date is in the form below). */}
-                  <p className="tool-reading-kicker">{allExample ? 'Example · ' : ''}{DIVISIONS.find((d) => d.division === division)!.label} · {fmtTime(shown!)}</p>
+                  <p className="tool-reading-kicker">{allExample ? 'Example · ' : ''}{DIVISIONS.find((d) => d.division === division)!.label} · {fmtTime(shown!)}{kickerExample}</p>
                   <h2 className="tool-reading-figure" id={`${ids}-headline`}>
                     {meets === items.length ? `Meets all ${items.length}` : `Meets ${meets} of ${items.length}`}
                     <small>{boston ? <BostonLine it={boston} raceDate={raceDate} /> : 'time standards'}</small>

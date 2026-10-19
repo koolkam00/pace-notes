@@ -274,7 +274,7 @@ async function journey(h, blocklist) {
   run.options.needles.push(new RegExp(`[?&]goal=${goal}(&|$)`));
   await step('analysis with the handoff marker', async () => { await page.goto(`${SITE}/analyses/pacing-pattern?goal=${goal}&age=all&gender=all&via=runner`, { waitUntil: 'load' }); });
   await settle(3000);
-  await step('filter change (the marker is dropped, the query kept)', async () => { await page.locator('.profile-refinements summary').click(); await page.getByLabel('Age group', { exact: false }).first().selectOption({ index: 4 }); await page.getByRole('button', { name: /Update comparison/ }).click(); });
+  await step('filter change (the marker is dropped, the query kept)', async () => { await page.locator('.miy-chip').first().click(); await page.locator('.profile-refinements summary').click(); await page.getByLabel('Age group', { exact: false }).first().selectOption({ index: 4 }); await page.getByRole('button', { name: /Update comparison/ }).click(); });
   await settle(3000);
   await step('reload', () => page.reload({ waitUntil: 'load' }));
   await settle(9000); // longer than the recorder's start delay after a full load
