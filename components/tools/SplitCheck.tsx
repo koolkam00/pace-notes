@@ -558,7 +558,8 @@ export default function SplitCheck({ indexSha, archetypesSha, bandCourses, other
           {reading && shownTimes && view !== 'l' ? (
             <ResultRest times={shownTimes} reading={reading} units={units} comparison={comparison} type={type}
               where={where} genderWord={genderWord} gender={gender} fallbacks={fallbacks} compareOptions={compareOptions}
-              isExample={isExample} reportCity={q.course !== 'all' ? scope?.city ?? null : null} fromRunner={fromRunner} />
+              isExample={isExample} reportCity={q.course !== 'all' ? scope?.city ?? null : null} fromRunner={fromRunner}
+              bandCourse={knownCourses?.includes(q.course) && q.course !== 'all' ? q.course : null} />
           ) : null}
         </div>
       </div>
@@ -598,7 +599,7 @@ function ResultCard({ times, reading, units, isExample }: { times: number[]; rea
 }
 
 /** Everything after the inputs: every section as a table, the finishes at the same time, the print line and the actions. */
-function ResultRest({ times, reading, units, comparison, type, where, genderWord, gender, fallbacks, compareOptions, isExample, reportCity, fromRunner }: {
+function ResultRest({ times, reading, units, comparison, type, where, genderWord, gender, fallbacks, compareOptions, isExample, reportCity, fromRunner, bandCourse }: {
   times: number[]; reading: SplitReading; units: UnitSystem; comparison: Comparison; type: TypeResult;
   /** The comparison's course and gender controls, drawn above the comparison panel. */
   compareOptions: ReactNode;
@@ -607,10 +608,17 @@ function ResultRest({ times, reading, units, comparison, type, where, genderWord
   reportCity: string | null;
   /** The page was opened from a runner's record (via=runner). */
   fromRunner: boolean;
+  /** The compared course when the pace band publishes it, for the band's preset. */
+  bandCourse: string | null;
 }) {
   // The race report reads the same times, course and comparison group (none from a runner's record); the made-up example
   // gets no report.
   const report = isExample ? null : reportLink(times, reportCity, gender, fromRunner);
+  // The next race's band, as an action beside Copy link (never a link row): the whole minute at or below this finish
+  // (goals from 1:30 to 8:00), the course when the band publishes it, and the recorded gender chosen here.
+  const goalMinute = Math.floor(times[8] / 60);
+  const bandQuery = [goalMinute >= 90 && goalMinute <= 480 ? `goal=${formatHM(goalMinute * 60)}` : '', bandCourse ? `course=${bandCourse}` : '', gender !== 'all' ? `g=${gender}` : ''].filter(Boolean).join('&');
+  const band = `/tools/pace-band${bandQuery ? `?${bandQuery}` : ''}`;
   return (
     <>
       <Values id="split-check-sections" caption={`Every section: its time, its pace and its difference from your ${BASE} pace (positive is slower)`} count={9}>
@@ -626,8 +634,11 @@ function ResultRest({ times, reading, units, comparison, type, where, genderWord
         <p>Pace Notes split check{isExample ? ' (example race)' : ''}. Mat times entered: {CHECKPOINTS.map((km, i) => `${matLabel(km)} ${formatDuration(times[i], true)}`).join(' · ')}.</p>
       </div>
 
-      {/* One way forward: the chapter's next card. The race report is this tool's own action, beside Copy link. */}
-      <ShareBar extra={report ? <Link className="btn btn-primary is-compact" href={report}>Make a race report</Link> : null} />
+      {/* One way forward: the chapter's next card. The race report and the next race's band are this tool's own actions, beside Copy link. */}
+      <ShareBar extra={<>
+        {report ? <Link className="btn btn-primary is-compact" href={report}>Make a race report</Link> : null}
+        <Link className="btn btn-secondary is-compact" href={band}>Make a pace band</Link>
+      </>} />
     </>
   );
 }
