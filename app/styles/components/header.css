@@ -68,6 +68,8 @@
 .nav-toggle:focus-visible, .chapters-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .nav-toggle svg, .chapters-toggle svg { flex: none; }
 .chapters-toggle { display: none; }
+/* The no-JavaScript stand-in for Menu (a link to the contents): shown only by app/layout.tsx's noscript style. */
+.nav-fallback { display: none; align-items: center; min-height: 44px; padding: 0 12px; color: var(--ink); font-family: var(--sans); font-size: .9375rem; font-weight: 600; text-decoration: none; }
 
 /* Narrow (a 320 px phone, or zoom): the Menu button is its glyph alone; "Menu" stays its name. */
 @media (max-width: 359.98px) {

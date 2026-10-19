@@ -58,6 +58,7 @@
   --accent-press: #E84C20;
   --on-accent: #15171C;             /* ink text on the accent: 5.80:1 */
   --focus: #2346E6;                 /* focus ring, 2 px with a 2 px offset */
+  --focus-paper: #2346E6;           /* the paper ring, for a night card's ring drawn outside it, on the paper */
   --scrim: rgba(14, 17, 22, .38);
   --control-thumb: var(--paper-raised); /* the segmented thumb */
   --ordinal-1: #ADA390;             /* one-hue ordinal ramp for ordered buckets shown together */
@@ -240,6 +241,7 @@
   --signal-ink: #FF8A63;
   --signal-wash: rgba(255, 106, 61, .14);
   --focus: #8FA6FF;
+  --focus-paper: #8FA6FF;
   --scrim: rgba(0, 0, 0, .55);
   --control-thumb: #3A414D;
   --ordinal-1: #4A505C;
@@ -279,6 +281,7 @@
     --signal-ink: #FF8A63;
     --signal-wash: rgba(255, 106, 61, .14);
     --focus: #8FA6FF;
+    --focus-paper: #8FA6FF;
     --scrim: rgba(0, 0, 0, .55);
     --control-thumb: #3A414D;
     --ordinal-1: #4A505C;

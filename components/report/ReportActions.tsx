@@ -35,9 +35,10 @@ export function printCard(cardId: string) {
  * The report's outputs, in the share bar's row (`.tool-share .share-bar`, so none counts as a tool edit): print or save as
  * PDF through the browser (the one primary; on a touch screen or under 600 px, where Share is what a phone does, Share
  * takes the primary look and comes first, app/styles/pages/report.css), and Share, which opens a sheet (rendered in place, inside the report's
- * masked region) holding a 1080 × 1350 image drawn only when asked for (lib/report-image.ts, loaded with import() on the
- * first press), the device's share sheet, the report's link and what the link carries, and on /report these times in the
- * split check (`onward`). Analytics hears only that an
+ * masked region) that opens on the 1080 × 1350 image itself, drawn when the sheet first opens (lib/report-image.ts, loaded
+ * with import() then; a quiet 4:5 placeholder holds its place meanwhile), then saving it, the device's share sheet, the
+ * report's link and what the link carries, and on /report these times in the split check (`onward`). Analytics hears
+ * only that an
  * image was saved or a share went through (`report_exported`), a copied link and a print (`tool_used`), and a failure's
  * kind (`site_error` `export`): never a time, a course or the link.
  */
@@ -80,8 +81,19 @@ export default function ReportActions({ id, model, units, link, cardId, gender, 
     a.click();
     trackAnalytics('report_exported', { format: 'image' });
     setPreview({ url, alt: reportImageAlt(model, units) });
-    setNote({ kind: 'ok', text: 'Saved. On a phone, press and hold the image below to keep it.' });
+    setNote({ kind: 'ok', text: 'Saved. On a phone, press and hold the image above to keep it.' });
   };
+  // The sheet opens on the image it shares: drawn once the sheet is open and the data is in, and again only when the
+  // numbers or the units change. Drawing it is not an export, so analytics hears nothing until it is saved or shared.
+  const [drawFailed, setDrawFailed] = useState(false);
+  useEffect(() => {
+    if (!open || preview || pending !== null) return;
+    let live = true;
+    setDrawFailed(false);
+    image().then((blob) => { if (live) setPreview({ url: URL.createObjectURL(blob), alt: reportImageAlt(model, units) }); }, () => { if (live) setDrawFailed(true); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, preview, pending, key]);
 
   const onSave = async () => {
     if (waiting) return;
@@ -124,6 +136,11 @@ export default function ReportActions({ id, model, units, link, cardId, gender, 
       {mounted ? (
         <Suspense fallback={null}>
           <Sheet id={sheetId} title="Share this report" open={open} onClose={close} className="race-report-sheet">
+            {/* The card itself first, the reward; its 4:5 place is held while it draws, so the buttons never move. */}
+            <figure className={`race-report-preview-frame${preview ? ' is-ready' : ''}`}>
+              {preview ? <img className="race-report-preview" src={preview.url} alt={preview.alt} width={1080} height={1350} />
+                : <span className="race-report-preview-wait" role="status">{drawFailed ? 'The image could not be drawn here.' : 'Drawing the image…'}</span>}
+            </figure>
             <div className="share-actions">
               <button type="button" className="btn btn-primary is-block" data-report-save aria-disabled={waiting || undefined} onClick={onSave}>{busy ? 'Making the image…' : pending ? `Loading ${pending}…` : 'Save image'}</button>
               <button type="button" className="btn btn-secondary is-block race-report-share-native" aria-disabled={waiting || undefined} onClick={onShare}>Send with another app</button>
@@ -132,7 +149,6 @@ export default function ReportActions({ id, model, units, link, cardId, gender, 
             </div>
             <p className="race-report-hint">{hint}</p>
             <p className={`race-report-note${note?.kind === 'error' ? ' is-error' : ''}`} aria-live="polite">{copied ? 'Link copied to the clipboard.' : note?.text ?? ''}</p>
-            {preview ? <img className="race-report-preview" src={preview.url} alt={preview.alt} width={1080} height={1350} /> : null}
           </Sheet>
         </Suspense>
       ) : null}

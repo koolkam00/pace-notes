@@ -46,7 +46,7 @@ export default function PrivacyPage() {
   return <article className="info-page">
     <header className="info-hero">
       <p className="t-kicker">Your visit</p>
-      <h1 className="t-title">Privacy &amp; analytics</h1>
+      <h1 className="t-title">Privacy &amp; analytics</h1>
       <p className="info-dek">How we measure use of the site, what we never record, and how to switch it off.</p>
     </header>
     <div className="info-body">
@@ -75,13 +75,13 @@ export default function PrivacyPage() {
           <div className="fold-body">
             <p>PostHog also records anonymous session replays of visits: what is on screen, mouse movement, clicks and scrolling. We watch them to understand how pages are used and to spot anything that is broken or confusing.</p>
             <p>What you type into a form is masked in your browser before it is sent, and so is the text of the tool and analysis panels that respond to it, such as your goal time or age group. The tools’ results, the charts in those panels and the gender or division you choose in a tool are left out of replays. A replay still shows the layout of the page and where you click. Runner-search pages, runner names, race reports and pages opened from a runner’s results are never recorded. Page and link addresses are recorded without query strings or anything after a “#”. No console logs or network requests are recorded.</p>
-            <p>Recordings are kept for 30 days and then deleted. Do Not Track, Global Privacy Control and the switch above stop recordings and all other analytics.</p>
+            <p>Recordings are kept for 30 days and then deleted.</p>
           </div>
         </details>
         <details className="fold">
           <summary><h2 className="fold-title">What identifies you, and what does not</h2><Glyph /></summary>
           <div className="fold-body">
-            <p>A random ID for your browser tab links the visits made in that tab. It is kept in that tab’s session storage and goes away when the tab is closed, although a tab your browser restores or duplicates keeps it; if your browser blocks session storage, it is kept only in the open page. We do not use cookies, and nothing identifies you by name.</p>
+            <p>A random ID for your browser tab links the visits made in that tab. It is kept in that tab’s session storage and goes away when the tab is closed, although a tab your browser restores or duplicates keeps it; if your browser blocks session storage, it is kept only in the open page.</p>
             <p>Events include the page path, referring website domain, browser and device type, and broad action categories. We exclude search text, runner names, selected record IDs, personal filter values, URL query strings and fragments. Like any website service, PostHog receives your IP address with each request. It uses the address to estimate the visit’s country and city and to spot automated traffic, then discards it, so the address is not stored. Automatic click capture and advertising tracking are off.</p>
             <p>PostHog processes analytics data on our behalf. Read <a href="https://posthog.com/privacy">PostHog’s privacy notice</a> and <a href="https://posthog.com/docs/session-replay/privacy">how its session replays mask data</a>. Website hosting providers also process requests to deliver the site.</p>
           </div>

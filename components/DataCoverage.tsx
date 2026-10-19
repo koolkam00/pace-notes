@@ -12,14 +12,20 @@ export default function DataCoverage() {
   const context = read('runner-context/manifest.json');
   if (runners.release_tag !== release.tag || context.release_tag !== release.tag) throw new Error('Data coverage must match the study inputs');
   const races = new Map<string, Set<number>>();
-  for (const edition of runners.editions as { race: string; year: number }[]) {
+  const byCity = new Map<string, Set<string>>();
+  for (const edition of runners.editions as { race: string; year: number; city: string }[]) {
     const years = races.get(edition.race) || new Set<number>();
     years.add(edition.year);
     races.set(edition.race, years);
+    byCity.set(edition.city, (byCity.get(edition.city) || new Set<string>()).add(edition.race));
   }
+  // A city with more than one marathon is named, so the marathon count reads beside the cities count ("34 cities")
+  // without a gap: "35 marathons (Warsaw has two)".
+  const words = ['', 'one', 'two', 'three', 'four', 'five'];
+  const several = [...byCity].filter(([, set]) => set.size > 1).map(([city, set]) => `${city} has ${words[set.size] ?? set.size}`);
   return <section id="data-coverage">
     <h4>Marathons and years</h4>
-    <p>The database contains results from {races.size} marathons and {runners.editions.length} city-and-year editions. The years below are the years recorded, including partial editions. They do not imply complete fields or usable splits for every runner. Each analysis applies its timing and source-quality checks.</p>
+    <p>The database contains results from {races.size} marathons{several.length ? ` (${several.join('; ')})` : ''} and {runners.editions.length} city-and-year editions. The years below are the years recorded, including partial editions. They do not imply complete fields or usable splits for every runner. Each analysis applies its timing and source-quality checks.</p>
     <details className="fold is-sub"><summary><span className="fold-title">Every marathon and recorded year</span><span className="fold-glyph" aria-hidden="true" /></summary>
       <div className="fold-body"><div className="table-wrap" role="region" tabIndex={0} aria-labelledby="data-coverage-caption">
         <table className="table">

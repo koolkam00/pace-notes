@@ -40,7 +40,8 @@ const F = require('../lib/nuggets/format.ts');
 eq(F.IN_WORDS_DENOMINATORS, [2, 3, 4, 5, 10, 20, 25, 50, 100], 'inWords uses the fixed denominator list');
 eq([0.0395, 0.5, 0.26, 0.105, 0.0198, 0.3, 0.012, 0.0101].map((v) => F.inWords(v)), ['1 in 25', '1 in 2', '1 in 4', '1 in 10', '1 in 50', '30%', '1%', '1 in 100'], 'inWords: the closest 1 in d within 10%, else the percentage');
 eq([0.0395, 0.3, 0.012].map((v) => F.inWords(v, 'finishes')), ['1 in 25 finishes', '30% of finishes', '1% of finishes'], 'inWords with a noun reads as a phrase in both branches');
-eq([0.30, 0.72, 0.68, 0.719, 0.5, 0.04, 0.96, 0.745].map(F.approxWords), ['about 3 in 10', 'just over 7 in 10', 'just under 7 in 10', 'just over 7 in 10', 'about 5 in 10', '4%', '96%', '75%'], 'approxWords: about, just over, just under');
+eq([0.30, 0.72, 0.68, 0.719, 0.5, 0.04, 0.96, 0.745].map((v) => F.approxWords(v)), ['about 3 in 10', 'just over 7 in 10', 'just under 7 in 10', 'just over 7 in 10', 'about 5 in 10', '4%', '96%', '75%'], 'approxWords: about, just over, just under');
+eq([0.30, 0.14, 0.035].map((v) => F.approxWords(v, 'finishes')), ['about 3 in 10 finishes', '14% of finishes', '4% of finishes'], 'approxWords with a noun reads as a phrase in both branches (never "14% finishes")');
 eq([0, 7, 12, 13, 1234].map(F.countWord), ['zero', 'seven', 'twelve', '13', '1,234'], 'countWord: words to twelve, figures beyond');
 eq([F.count(15856), F.count(10000), F.count(3871767)], ['15,856', '10,000', '3,871,767'], 'counts are written out, never "10K"');
 eq([F.pct(0.4716), F.pct(0.0016), F.pct(-0.0001), F.pct(0.30281, 1)], ['47%', '0%', '0%', '30.3%'], 'pct');
@@ -106,17 +107,17 @@ for (const id of N.CHAPTER_LEAD) ok(N.NUGGET_IDS.includes(id), `chapter lead ${i
 for (const id of N.CHAPTER_LEAD) ok(/\d/.test(N.getNugget(id).figure?.value ?? ''), `chapter lead ${id} has a figure with a number`);
 eq(new Set(N.CHAPTER_LEAD).size, N.CHAPTER_LEAD.length, 'eleven different chapter leads');
 // The contents keys are the approved wording (spec section 2.2, rewritten October 19, 2026 as plain sentence fragments
-// that name their comparison), reproduced from the data where they hold a number.
+// that name their comparison, and again in round 3 in a runner's words), reproduced from the data where they hold a number.
 const keys = Object.fromEntries(N.CHAPTER_LEAD.map((id) => [id, N.getNugget(id).key]));
 eq(keys['field.median'], 'median finish', 'chapter 01 key');
-ok(/^behind at the finish after a first 5K over \d+% fast, against the same race and 5–20K pace$/.test(keys['kick.bank']), 'chapter 02 key');
+ok(/^behind runners of the same 5–20K pace at the finish, after a first 5K over \d+% fast$/.test(keys['kick.bank']), 'chapter 02 key');
 eq(keys['slowdown.onset'], 'of sustained slowdowns began at 30K or later', 'chapter 05 key');
-ok(/^the expected count in the minute before \d:\d\d$/.test(keys['round.top']), 'chapter 06 key');
-eq(keys['holds.gender'], 'women · men with a sustained slowdown, same finish times', 'chapter 07 key');
+ok(/^as many finishes as expected in the minute before \d:\d\d$/.test(keys['round.top']), 'chapter 06 key');
+eq(keys['holds.gender'], 'of recorded women’s and men’s finishes had a sustained slowdown, at the same finish times', 'chapter 07 key');
 ok(/^of races were traced to their course by pacing shape alone \(chance: \d+%\)$/.test(keys['courses.named']), 'chapter 08 key');
-eq(keys['weather.pairs'], 'same-course pairs: the warmer year had more sustained slowdowns', 'chapter 09 key');
-ok(/^of finishes from \d:\d\d to \d:\d\d had a sustained slowdown$/.test(keys['splitcheck.share']), 'chapter 10 key');
-eq(keys['gains.final'], 'of the time improving finishes found came after 30K', 'chapter 11 key');
+eq(keys['weather.pairs'], 'same-course pairs where the warmer year had more sustained slowdowns', 'chapter 09 key');
+ok(/^of finishes near \d:\d\d had a sustained slowdown$/.test(keys['splitcheck.share']), 'chapter 10 key');
+eq(keys['gains.final'], 'of the time improving finishes gained came after 30K', 'chapter 11 key');
 
 // Every key stands alone as a short phrase a runner reads under its figure: never a bare figure jammed against a unit
 // ("1.0pts"), at most 90 characters.

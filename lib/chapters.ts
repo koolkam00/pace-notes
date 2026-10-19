@@ -99,19 +99,21 @@ export const CHAPTERS: readonly Chapter[] = [
       analysis('starting-pace', 'Starting pace', 'kick.bank', '/methodology#fast-start-method'),
       analysis('downhill-start', 'Downhill starts', 'downhill.opening', ALL_FINISHER),
     ],
-    lead: 'kick.bank', key: 'behind at the finish after a very fast first 5K' },
+    lead: 'kick.bank', key: 'behind runners of the same later pace at the finish, after a very fast first 5K' },
   { n: 3, id: 'chapter-03', part: 1, marker: '10K', title: 'The shape of a race', subtitle: 'Pacing types, your pattern',
     pages: [
       story('pacing-types', 'Pacing types', 'types.top'),
       analysis('pacing-pattern', 'Your pacing pattern', 'pattern.profile'),
     ],
-    lead: 'types.top', key: 'were the two commonest pacing types' },
-  { n: 4, id: 'chapter-04', part: 1, marker: 'HALF', title: 'Halfway to 30K', subtitle: 'Checkpoints, places, the projector',
+    lead: 'types.top', key: 'were the two most common pacing types' },
+  // The projector is a race-day tool, so it sits beside the chapter (also), and part one reads as one story from the gun
+  // to the finish line: places hands straight on to the sustained slowdown.
+  { n: 4, id: 'chapter-04', part: 1, marker: 'HALF', title: 'Halfway to 30K', subtitle: 'Checkpoints, places',
     pages: [
       analysis('checkpoint', 'From a checkpoint', 'checkpoint.under'),
       story('places', 'Pass or be passed', 'places.gap'),
-      tool('projector', 'Race-day projector', 'Race-day projector', 'projector.range'),
     ],
+    also: [{ href: '/tools/projector', label: 'Race-day projector' }],
     lead: 'checkpoint.under', key: 'of finishes on even goal pace at 30K got under the goal' },
   { n: 5, id: 'chapter-05', part: 1, marker: '30K', title: 'After 30K', subtitle: 'Sustained slowdown, where time goes',
     pages: [
@@ -127,13 +129,13 @@ export const CHAPTERS: readonly Chapter[] = [
     ],
     also: [{ href: '/tools/marathon-pace/4-00', label: 'Pace for a 4:00 goal' }],
     children: ['/tools/marathon-pace/'],
-    lead: 'round.top', key: 'the expected count in the minute before a round mark' },
+    lead: 'round.top', key: 'as many finishes as expected in the minute before a round mark' },
   { n: 7, id: 'chapter-07', part: 2, marker: '07', title: 'Who holds pace', subtitle: 'Women and men, age',
     pages: [
       story('who-holds-pace', 'Women and men', 'holds.gender'),
       analysis('age-and-pacing', 'Age and pace', 'age.retention'),
     ],
-    lead: 'holds.gender', key: 'women · men with a sustained slowdown, same finish times' },
+    lead: 'holds.gender', key: 'of recorded women’s and men’s finishes had a sustained slowdown, at the same finish times' },
   { n: 8, id: 'chapter-08', part: 2, marker: '08', title: 'Where you run', subtitle: 'Courses, hills, every city',
     pages: [
       story('courses', 'Course fingerprints', 'courses.named'),
@@ -149,7 +151,7 @@ export const CHAPTERS: readonly Chapter[] = [
       analysis('race-day-weather', 'Race-day weather', 'weather.start', ALL_FINISHER),
       tool('weather-match', 'Weather match', 'Weather match', 'weathermatch.mornings'),
     ],
-    lead: 'weather.pairs', key: 'same-course pairs: the warmer year had more sustained slowdowns' },
+    lead: 'weather.pairs', key: 'same-course pairs where the warmer year had more sustained slowdowns' },
   // The split check opens the chapter: its one data beat (how common a sustained slowdown was at the example's finish
   // time) is the chapter's lead, so the card into the chapter promises what the page it opens holds; a past race (a
   // search, no reading of its own) follows it.
@@ -159,18 +161,19 @@ export const CHAPTERS: readonly Chapter[] = [
       page('/runners', 'runner', 'Analyze a past race', 'Analyze a past race', 'runner.yours', '/methodology#runner-search'),
     ],
     children: ['/report'], back: '/runners',
-    lead: 'splitcheck.share', key: 'of finishes at the example’s time had a sustained slowdown' },
+    lead: 'splitcheck.share', key: 'of finishes near the example’s time had a sustained slowdown' },
   { n: 11, id: 'chapter-11', part: 3, marker: '11', title: 'The next one', subtitle: 'Improvement, your plan',
     pages: [
       analysis('finding-improvement', 'Where improvement happens', 'gains.final'),
       tool('plan', 'Plan your race', 'Plan your race', 'plan.goal'),
     ],
     also: [{ href: '/tools/pace-band', label: 'Pace band' }, { href: '/tools/course-chooser', label: 'Course chooser' }, { href: '/tools/predictor', label: 'Finish-time predictor' }],
-    lead: 'gains.final', key: 'of the time improving finishes found came after 30K' },
+    lead: 'gains.final', key: 'of the time improving finishes gained came after 30K' },
 ];
 
 /** The /methodology anchors of off-chain pages that end on a ChapterEnd. */
 const CHILD_METHODS: readonly [string, MethodsAnchor][] = [
+  ['/tools/projector', '/methodology#tools-projector'],
   ['/courses/', '/methodology#course-pages'], ['/report', '/methodology#race-report'], ['/tools/marathon-pace/', '/methodology#tools-goal-pages'],
   ['/tools/pace-band', '/methodology#tools-pace-band'], ['/tools/course-chooser', '/methodology#tools-course-chooser'], ['/tools/predictor', '/methodology#tools-predictor'],
 ];

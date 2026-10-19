@@ -16,6 +16,9 @@ import { PACE_BAND_INDEX } from '@/lib/tools/pace-band-data';
 import { formatDuration } from '@/lib/tools/time';
 import { MARATHON_KM, distance, type UnitSystem } from '@/lib/units';
 import { approxWords } from '@/lib/nuggets/format';
+import { timesVerdict } from '@/lib/report-shared';
+import { readSplits } from '@/lib/tools/splits';
+import { sectionLabel } from '@/lib/units';
 import { capitalize } from '@/lib/nuggets/build';
 import LapList from './LapList';
 import ReportActions from './ReportActions';
@@ -140,6 +143,10 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
   const lit = model.sections.map((s) => s.tone === 'qualify');
   const sr = (s: (typeof lines.sections)[number]) => `${s.label}: ${s.split}, ${s.pace}, ${s.change} against the 5–20K pace`;
   const placement = record?.state === 'ok' ? record.placement : null;
+  // One orange thing per card: the sustained-slowdown rows when the race has one (the report's verdict), else the
+  // sentence's accent. Without a record (a typed or shared link) the sentence is the verdict from the times alone.
+  const verdict = timesVerdict(readSplits(model.times));
+  const sentenceClass = `race-report-sentence${slowdown.yes ? ' is-quiet' : ''}`;
   // Under half a percent either way the first 5K is level: whole percentages, with decimals only at the opening groups'
   // edges (openingPct), never "0.1% quicker".
   const even = Math.abs(opening.fraction) < 0.005;
@@ -153,11 +160,19 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
           <span className="race-report-average">{lines.pace}</span>
         </p>
         {placement ? (
-          <p className="race-report-sentence">
+          <p className={sentenceClass}>
             {'unavailable' in placement ? placement.unavailable
               : <>Ahead of <em>{count(Math.floor(placement.percentile))} in every 100</em> other {placement.label}.</>}
           </p>
-        ) : null}
+        ) : record ? null : (
+          <p className={sentenceClass}>
+            {verdict.slowdown
+              ? <><em>A sustained slowdown</em> from {kmText(verdict.onsetKm)}, {verdict.off} off the 5–20K pace.</>
+              : verdict.worst
+                ? <><em>No sustained slowdown</em>: the slowest stretch after 20K, {sectionLabel(model.sections[verdict.worst.index].startKm, model.sections[verdict.worst.index].endKm)}, ran {verdict.worst.off} off the 5–20K pace.</>
+                : <><em>No sustained slowdown</em>: every stretch after 20K held the 5–20K pace or better.</>}
+          </p>
+        )}
         <LapList rows={lines.sections.map((s, i) => ({ mat: s.mat, split: s.split, pace: s.pace, vs: s.vs, lit: lit[i], sr: sr(s) }))}
           baseline={paceText(model.baseline, units)} label={`Each mat's split and pace against this race's 5–20K pace${slowdown.yes && slowdown.onsetKm !== null ? `; a sustained slowdown from ${kmText(slowdown.onsetKm)}` : ''}`}
           caption={slowdown.yes ? 'Highlighted: the sustained slowdown.' : undefined} />
@@ -172,7 +187,7 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
           {type.state === 'ok' ? (
             <>
               <strong><TypeGlyph profile={type.profile} index={type.index} domain={type.domain} />{type.name}</strong>
-              <small>{capitalize(approxWords(type.share))} finishes were {type.name}s.</small>
+              <small>{capitalize(approxWords(type.share, 'finishes'))} were {type.name}s.</small>
             </>
           ) : type.state === 'off' ? (
             <div className="tool-state is-error"><p>{type.message}</p><button type="button" className="btn btn-secondary is-compact no-print" onClick={retryType}>Try again</button></div>
@@ -218,13 +233,6 @@ function ComparisonBlock({ id, Head, comparison: c, model, gender, dropped, retr
           <p>{count(c.n)} {c.label}{c.slowdownShare !== null ? <>: <strong>{shareText(c.slowdownShare)}</strong> had a <Link className="term-link" href={SLOWDOWN_HREF}>sustained slowdown</Link></> : null}.</p>
           <div className="race-report-table">
             <At20 race={at20} groups={c.groups} />
-            <details className="values"><summary><span>Values<span className="values-count">{count(c.groups.length)} {c.groups.length === 1 ? 'row' : 'rows'}</span></span><span className="values-glyph" aria-hidden="true" /></summary>
-              <div className="table-wrap" role="region" tabIndex={0} aria-label="Finishes at this time, by group"><table className="table">
-                <caption>Finishes from {clock(c.lo)} to {clock(c.hi)}{gender === 'all' ? '' : `, recorded ${gender}`}</caption>
-                <thead><tr><th scope="col">Group</th><th scope="col">Finishes</th><th scope="col">Median at 20K</th><th scope="col">Median finish</th></tr></thead>
-                <tbody>{c.groups.map((g) => <tr key={g.key}><th scope="row">{g.name}</th><td>{count(g.n)}</td><td>{clock(g.at20)}</td><td>{clock(g.finish)}</td></tr>)}</tbody>
-              </table></div>
-            </details>
           </div>
           {c.missing ? <p className="race-report-meta">{c.missing}</p> : null}
         </>
@@ -239,8 +247,10 @@ const hm = (seconds: number) => { const m = Math.round(seconds / 60); return `${
 
 /**
  * This race at 20K against each group's median there (a dumbbell list, drawn in HTML so the page carries no chart
- * code): the hollow ring is the group's median, the ink dot this race, the same mark in every row; only the first row's
- * gap, the one the heading names, is in signal. The scale runs a minute or more past the times on whole minutes, its ends labelled.
+ * code): the hollow ring is the group's median, the ink dot this race, the same mark in every row; the first row's gap,
+ * the one the heading names, is drawn in ink-2 (the card's one orange is its verdict). Each row prints its group's
+ * finishes and median finish under its name, so the numbers need no fold of their own. The scale runs a minute or more
+ * past the times on whole minutes, its ends labelled.
  */
 function At20({ race, groups }: { race: number; groups: ReportGroup[] }) {
   const all = [race, ...groups.map((g) => g.at20)];
@@ -251,7 +261,7 @@ function At20({ race, groups }: { race: number; groups: ReportGroup[] }) {
       <ul className="at20-rows" role="img" aria-label={`At 20K: this race ${clock(race)}; ${groups.map((g) => `${g.name.toLowerCase()} median ${clock(g.at20)}`).join('; ')}.`}>
         {groups.map((g, i) => (
           <li key={g.key} className={i === 0 ? 'is-lit' : undefined}>
-            <span className="at20-label">{g.name}</span>
+            <span className="at20-label">{g.name}<small>{count(g.n)} finishes · median finish {clock(g.finish)}</small></span>
             <span className="at20-track" aria-hidden="true">
               <i style={{ left: at(Math.min(race, g.at20)), width: at(lo + Math.abs(race - g.at20)) }} />
               <b className="at20-median" style={{ left: at(g.at20) }} />

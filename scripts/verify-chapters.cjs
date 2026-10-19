@@ -16,6 +16,8 @@
 //      requires it). The built pages' own "How we know" links are also checked by verify-seo (methods-anchors).
 //   7. Each chapter's lead is its first page's reading, and (with the export) that page's opener shows its figure.
 //   8. No reading's unit line repeats its H1 (with the export).
+//   9. Every beat heading (h2.t-h2) is a beat's finding in one clause: at most 12 words (with the export). The analyses'
+//      and the tools' headings are reported as notes until their package shortens them; every other page fails.
 //   6. The shell's components rendered on the server: the closing stack (its related section, the one next card last in
 //      its pagination nav as S2 and S3 follow it, no also rows, the way back, How we know, PageFeedback; the finish
 //      card on /tools/plan; a next chapter's lead and key), the rail's current page, the chapter list's variants and
@@ -255,6 +257,32 @@ if (hasOut) {
   check(seen >= 8, 'unit lines', `only ${seen} pages with a reading's unit line were found`);
 }
 
+// ---------- 9. A beat's heading is its finding, not its full statement ----------
+// At 26–42 px a heading of 16 to 27 words runs five or six lines on a phone and spends the beat's words; the qualifier
+// belongs in the dek or the caption. Twelve words at most (the spec's "about ten").
+const H2_MAX_WORDS = 12;
+if (hasOut) {
+  const pages = [];
+  const walk = (dir) => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) { const f = path.join(dir, e.name); if (e.isDirectory()) { if (e.name !== '_next') walk(f); } else if (e.name.endsWith('.html')) pages.push(f); } };
+  walk(OUT);
+  let headings = 0;
+  for (const file of pages) {
+    const route = '/' + path.relative(OUT, file).replace(/\\/g, '/').replace(/(\/index)?\.html$/, '').replace(/^index$/, '');
+    const place = C.placeOf(route);
+    const lenient = place && 'page' in place && ['analysis', 'tool'].includes(place.page.kind);
+    const html = fs.readFileSync(file, 'utf8');
+    for (const m of html.matchAll(/<h2\b[^>]*class="[^"]*\bt-h2\b[^"]*"[^>]*>([\s\S]*?)<\/h2>/g)) {
+      headings++;
+      const text = textOf(m[1]).replace(/\u2060/g, '').trim();
+      const words = text.split(/\s+/).filter(Boolean).length;
+      if (words <= H2_MAX_WORDS) continue;
+      if (lenient) notes.push(`${route}: the beat heading "${text}" is ${words} words (at most ${H2_MAX_WORDS}; the analyses' package shortens it)`);
+      else check(false, route, `the beat heading "${text}" is ${words} words: at most ${H2_MAX_WORDS}, one clause (the qualifier goes in the dek or the caption)`);
+    }
+  }
+  check(headings >= 20, 'beat headings', `only ${headings} h2.t-h2 headings were found in the export`);
+}
+
 // ---------- 6. The components, rendered ----------
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
@@ -281,7 +309,7 @@ test('ChapterEnd on an analysis: the next card is the last link of nav.analysis-
   assert.deepEqual(hrefs(nav[1]), ['/stories/pacing-types']);
   assert.match(nav[1], /Next chapter · The shape of a race/);
   assert.match(nav[1], /value of types\.top/, 'the next chapter\'s lead, not the page\'s reading');
-  assert.match(nav[1], /were the two commonest pacing types/, 'the chapter key under the lead');
+  assert.match(nav[1], /were the two most common pacing types/, 'the chapter key under the lead');
 });
 test('ChapterEnd: the finish card on /tools/plan, no tracking or feedback when asked, nothing outside the race', () => {
   const plan = render('components/ChapterEnd.tsx', { path: '/tools/plan', track: false, feedback: false });

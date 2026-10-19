@@ -18,6 +18,14 @@ import {
 } from '@/lib/runner-search';
 
 const count = (value: number) => value.toLocaleString('en-US');
+/**
+ * A result's name for reading in a list: a name recorded all in capitals ("ABBI JOHNSON") in title case ("Abbi
+ * Johnson", after spaces, hyphens and apostrophes); any name with a lower-case letter exactly as recorded. The record's
+ * own heading and details keep the recorded spelling.
+ */
+export const listName = (name: string) => (/\p{Ll}/u.test(name) ? name : name.toLocaleLowerCase('en-US').replace(/(^|[\s'’(-])(\p{L})/gu, (_, before: string, letter: string) => before + letter.toLocaleUpperCase('en-US')));
+/** Above this many groups the results ask for a first name, so a common surname never means paging through thousands. */
+const NARROW_ABOVE = 100;
 const raceLabel = (race: RunnerRace, manifest: RunnerManifest) => {
   const edition = manifest.editions[race.edition];
   return `${edition.city === 'New York' ? 'New York City' : edition.city} ${edition.year}`;
@@ -324,7 +332,10 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
       <h2 id="runner-results-title" className="runner-h"><span role="status">{matches.length ? `${count(matches.length)} matching ${matches.length === 1 ? 'record group' : 'record groups'}` : 'No matching recorded name'}</span></h2>
       <p className="runner-note">{matches.length ? `For “${searched}”. People can share a name, and one person can appear in more than one group: check the races before combining them.` : 'Try the spelling on the original result, a surname, or fewer name parts.'}</p>
       {!matches.length && <NoMatchNext manifest={manifest} />}
-      {matches.length > 0 && <ul className="runner-matches">{visibleMatches.map(row => <li key={row[1]}><button className="runner-match" type="button" aria-expanded={profile?.id === row[1]} aria-controls="runner-profile" onClick={() => void openProfile(row[1])}><span><strong>{row[0]}</strong><small>{count(row[2])} {row[2] === 1 ? 'race' : 'races'} · {row[3] === row[4] ? row[3] : `${row[3]}–${row[4]}`} · {row[2] > 1 ? 'Including ' : ''}{row[5]}</small></span><span className="runner-match-action">{profileLoading === row[1] ? 'Loading…' : <span className="sr-only">See races</span>}<Arrow /></span></button></li>)}</ul>}
+      {matches.length > NARROW_ABOVE && <p className="runner-note runner-narrow">Add a first name to narrow {count(matches.length)} groups.</p>}
+      {/* Each row as a runner recognizes a race: one race by its city and year ("Washington 2014"), several by their
+          count and span ("3 races · 2011–2025"). */}
+      {matches.length > 0 && <ul className="runner-matches">{visibleMatches.map(row => <li key={row[1]}><button className="runner-match" type="button" aria-expanded={profile?.id === row[1]} aria-controls="runner-profile" onClick={() => void openProfile(row[1])}><span><strong>{listName(row[0])}</strong><small>{row[2] === 1 ? `${row[5]} ${row[3]}` : `${count(row[2])} races · ${row[3] === row[4] ? row[3] : `${row[3]}–${row[4]}`}`}</small></span><span className="runner-match-action">{profileLoading === row[1] ? 'Loading…' : <span className="sr-only">See races</span>}<Arrow /></span></button></li>)}</ul>}
       {pages > 1 && <nav className="runner-pagination" aria-label="Search result pages"><button type="button" className="btn btn-secondary is-compact" disabled={page === 0} onClick={() => setPage(value => value - 1)}>Previous</button><span>{count(page * RUNNER_PAGE_SIZE + 1)}–{count(Math.min(matches.length, (page + 1) * RUNNER_PAGE_SIZE))} of {count(matches.length)}</span><button type="button" className="btn btn-secondary is-compact" disabled={page + 1 >= pages} onClick={() => setPage(value => value + 1)}>Next</button></nav>}
     </section>}
     {profileError && <div className="runner-error" role="alert"><p>{profileError} Select the match again to retry.</p></div>}

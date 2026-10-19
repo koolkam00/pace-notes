@@ -108,10 +108,12 @@ export default function Scrubber({ points, initial, home, detents = [], label, m
     el.addEventListener('scrub-to', to);
     return () => el.removeEventListener('scrub-to', to);
   }, [n]);
-  // A label naming the point under the needle hides while the needle is there: the readout says it.
+  // A label naming the point under the needle hides while the needle is there: the readout says it. While a prompt
+  // waits nothing is picked, so every label shows (a strip's lowest end is labelled, not hidden under an unseen ring).
+  const waiting = mode === 'pick' && !!prompt && !touched && !hovering;
   useEffect(() => {
-    root.current?.querySelectorAll('[data-scrub-i]').forEach((el) => el.classList.toggle('is-under', el.getAttribute('data-scrub-i') === String(index)));
-  }, [index]);
+    root.current?.querySelectorAll('[data-scrub-i]').forEach((el) => el.classList.toggle('is-under', !waiting && el.getAttribute('data-scrub-i') === String(index)));
+  }, [index, waiting]);
 
   const move = useCallback((i: number, haptic: boolean) => {
     if (i === last.current) return;
@@ -209,7 +211,6 @@ export default function Scrubber({ points, initial, home, detents = [], label, m
   const y = points.y?.[index];
   const yAlt = points.yAlt?.[index];
   const dot = points.dot?.[index];
-  const waiting = mode === 'pick' && !!prompt && !touched && !hovering;
   const pos = `${(x * 100).toFixed(3)}%`;
   // The hint takes 20 px of gap and about 56 px of words; before the frame is measured, a phone's turn (0.8 across).
   const hintLeft = width ? x * width + 76 > width : x > 0.8;

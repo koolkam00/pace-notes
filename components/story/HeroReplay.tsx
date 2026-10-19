@@ -15,15 +15,19 @@ export type { ReplayChoice };
  * flag frame's sentence: each edition's own (true), none (false), or one given in both units for a page that replays a
  * single edition (the home band's).
  */
-export default function HeroReplay({ choices, initial, band = false, picker, layout = true, moment = true }: {
+export default function HeroReplay({ choices, initial, band = false, picker, layout = true, moment = true, mark }: {
   choices: ReplayChoice[]; initial?: string; band?: boolean; picker?: boolean; layout?: boolean;
-  /** The flag frame's sentence under the field; off where the page's own headline already says it, or 'others': only
-   *  for an edition the reader picks (the page's own edition is its headline's, so its sentence would repeat it). */
-  moment?: boolean | 'others' | UnitsAware<string>;
+  /** The point the moment names, marked on the opening edition's field at its flag frame (the home band). */
+  mark?: { km: number; label: { mi: string; km: string } };
+  /** The flag frame's sentence under the field; off where the page's own headline already says it, 'others': only for
+   *  an edition the reader picks (the page's own edition is its headline's, so its sentence would repeat it), or
+   *  'exact': every edition's own, its share in figures (the H1 above says it in words). */
+  moment?: boolean | 'others' | 'exact' | UnitsAware<string>;
 }) {
   if (!choices.length) return null;
-  const all = stageChoices(choices);
+  const all = stageChoices(choices, { exact: moment === 'exact' });
   const start = initial && all.some((c) => c.slug === initial) ? initial : defaultReplaySlug(all)!;
-  const stage = all.map((c) => (moment === true || (moment === 'others' && c.slug !== start) ? c : { ...c, moment: moment === 'others' ? '' : moment || '' }));
+  const stage = all.map((c) => (moment === true || moment === 'exact' || (moment === 'others' && c.slug !== start) ? c : { ...c, moment: moment === 'others' ? '' : moment || '' }))
+    .map((c) => (mark && c.slug === start ? { ...c, mark } : c));
   return <ReplayStage choices={stage} initial={start} band={band} picker={picker ?? (!band && stage.length > 1)} layout={layout && !band} />;
 }

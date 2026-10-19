@@ -92,7 +92,7 @@ export function projectorRangeFrom(shard: Pick<ProjectorShard, 'band_s' | 'cells
     headline: `80% of finishes on course for ${band_} at ${at} ended within a *${spread}-minute* window.`,
     fallback: q ? `Finishes on course for ${band_} at ${at} ended from ${hm(lo)} to ${hm(hi)}.` : 'From a tracker time at any mat, the finishes that followed.',
     figure: ok ? { value: String(spread), unit: '\u00a0min', sr: `${spread} minutes` } : null,
-    key: `the window that held 80% of finishes on course for ${band_} at ${at}`,
+    key: `apart at the finish: the middle 80% of those on course for ${band_} at ${at}`,
   };
 }
 
@@ -124,7 +124,8 @@ export function splitCheckShareFrom(shard: Pick<PaceBandShard, 'window_s' | 'gro
     headline: `Of finishes ${range}, *${pct(sd)}* had a sustained slowdown.`,
     fallback: all ? `Finishes ${range}, mat by mat.` : 'Check your splits against finishes at the same time.',
     figure: ok ? { value: pct(sd).replace('%', ''), unit: '%', sr: spokenPct(sd) } : null,
-    key: `of finishes ${range} had a sustained slowdown`,
+    // The key names the time without its window (the page shows the window): a runner reads "near 4:03".
+    key: `of finishes near ${hm(Math.floor(finish / 60))} had a sustained slowdown`,
     term: '/methodology#sustained-slowdown',
   };
 }

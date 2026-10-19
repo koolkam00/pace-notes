@@ -74,7 +74,7 @@ export default function CoursesBody() {
     ]}>
       {/* The figure and its key say the finding; the ruler sets it against chance, as a share (so the identification
           set's course count never shows beside the shape cohort's). A failed guard shows the plain sentence instead. */}
-      <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
+      <StoryHero path={PATH} title={story.heading ?? story.title}
         figure={named.figure ? { ...named.figure } : undefined} unitLine={named.guard ? named.key : undefined} fallback={!named.guard}
         sentence={named.guard ? undefined : <Say nugget={named} />}
         instrument={named.guard ? (
@@ -84,7 +84,7 @@ export default function CoursesBody() {
             label={`Editions named from their pacing shape: ${pct(Number(named.values.share))}, against about ${pct(Number(named.values.chance))} by chance.`} />
         ) : undefined} />
 
-      <Beat id="fingerprint" track="chapter-1" label="The fingerprint" title={slowest}>
+      <Beat id="fingerprint" track="chapter-1" label="The fingerprint" title={slowest} dek="Courses with a pacing shape, each against its own average pace.">
         <Fingerprints x={MID} xDomain={[0, 42.195]} typical={data.typical_curve} common={common >= 0 ? common : typicalSlow}
           commonLabel={slowest.guard ? `${sectionName(String(slowest.values.section))} · ${count(Number(slowest.values.k))} courses` : sectionName(data.sections[typicalSlow])}
           courses={shaped.map((c) => ({ id: c.city, label: c.city, curve: c.curve! }))}

@@ -27,25 +27,19 @@ export const FIELD_BOX = { left: 0.02, right: 0.06, top: 0.06, bottom: 0.06 } as
 export const fieldX = (km: number) => FIELD_BOX.left + (1 - FIELD_BOX.left - FIELD_BOX.right) * (Math.min(km, MARATHON) / MARATHON);
 export const fieldY = (rankFraction: number) => FIELD_BOX.top + (1 - FIELD_BOX.top - FIELD_BOX.bottom) * rankFraction;
 
-export type Position = { km: number; finished: boolean; slowdownPace: boolean };
+export type Position = { km: number; finished: boolean };
 
-/**
- * Where a runner is at race-clock second `t`: distance covered (linear between mats), whether they have finished, and
- * whether they are after 20K in a section run at least 25% slower than their own 5–20K pace (sustained-slowdown pace).
- */
+/** Where a runner is at race-clock second `t`: distance covered (linear between mats) and whether they have finished. */
 export function positionAt(row: number[], t: number): Position {
   const finish = row[8];
-  if (t >= finish) return { km: MARATHON, finished: true, slowdownPace: false };
-  if (t <= 0) return { km: 0, finished: false, slowdownPace: false };
+  if (t >= finish) return { km: MARATHON, finished: true };
+  if (t <= 0) return { km: 0, finished: false };
   let j = 0;
   while (j < 8 && row[j] <= t) j += 1;
   const start = j === 0 ? 0 : row[j - 1];
   const end = row[j];
   const f = (t - start) / Math.max(1, end - start);
-  const km = KM[j] + f * (KM[j + 1] - KM[j]);
-  const baseline = (row[3] - row[0]) / 15;
-  const pace = (end - start) / (KM[j + 1] - KM[j]);
-  return { km, finished: false, slowdownPace: j >= 4 && baseline > 0 && pace / baseline - 1 >= 0.25 };
+  return { km: KM[j] + f * (KM[j + 1] - KM[j]), finished: false };
 }
 
 /** Rows sorted by finish time (rank 0 = first to finish). */
@@ -64,16 +58,11 @@ export function ribbonAt(sorted: number[][], t: number, points = 40): [number, n
   });
 }
 
-/** Shares of the sample finished and at sustained-slowdown pace at second `t`. */
-export function sharesAt(rows: number[][], t: number): { finished: number; slowdownPace: number } {
-  let finished = 0, slow = 0;
-  for (const row of rows) {
-    const p = positionAt(row, t);
-    if (p.finished) finished += 1;
-    else if (p.slowdownPace) slow += 1;
-  }
-  const n = rows.length || 1;
-  return { finished: finished / n, slowdownPace: slow / n };
+/** The share of the sample finished at second `t`. */
+export function sharesAt(rows: number[][], t: number): { finished: number } {
+  let finished = 0;
+  for (const row of rows) if (positionAt(row, t).finished) finished += 1;
+  return { finished: finished / (rows.length || 1) };
 }
 
 /** h:mm:ss on the race clock. */
@@ -107,5 +96,4 @@ export type ReplayPosterData = {
   last_s: number;
   ribbon: [number, number][];
   finished: number;
-  slowdownPace: number;
 };

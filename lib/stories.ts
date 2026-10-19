@@ -101,9 +101,12 @@ export const STORIES: StoryDefinition[] = [
       const types = pacingTypes();
       return `${types ? `${capital(types)} ` : ''}Marathon Pacing Types from 5 km Splits | Pace Notes`;
     },
+    /** The page's own readings: the two most common types' share (types.top), the types and the finder. */
     get seoDescription() {
       const types = pacingTypes();
-      return `Grouping millions of recorded marathon finishes by the shape of their 5 km splits reveals ${types ? `${types} ` : ''}recurring pacing types, and how often a shape repeats.`;
+      const top = getNugget('types.top');
+      const lead = top.guard ? `${Math.round(Number(top.values.share) * 100)}% of finishes were ${top.values.first}s or ${top.values.second}s: ` : '';
+      return `${lead}${types ? `${types} ` : ''}pacing types from 5 km splits, and which one your splits match.`.replace(/^./, (c) => c.toUpperCase());
     } },
   { slug: 'round-numbers', file: 'finish-times.json', number: '02', kicker: 'Round numbers',
     /** One name everywhere the story is listed or linked: the chapter's short name for it. */
@@ -141,7 +144,7 @@ export const STORIES: StoryDefinition[] = [
     dek: 'How much can still change after 30K?', accent: '#2F5BFF',
     published: '2026-10-07',
     seoTitle: 'How Marathon Places Change Late in the Race | Pace Notes',
-    seoDescription: 'How much a marathon field reorders after 30K: how often a finish trailing there still crossed the line first, and how many moved up late.' },
+    seoDescription: 'How much a marathon field reorders after 30K: how often a finish trailing there still beat the runner ahead to the line, and how many moved up late.' },
   { slug: 'final-kick', file: 'kick.json', number: '05', kicker: 'After 30K',
     /** The short name its list rows and next cards show (its reading gives the minutes). */
     title: 'After the slowdown',
@@ -152,7 +155,11 @@ export const STORIES: StoryDefinition[] = [
     dek: 'What happens to a race after a sustained slowdown begins?',
     accent: '#E2416B',
     published: '2026-10-07',
-    seoTitle: 'The Marathon Final Kick: Who Speeds Up Late | Pace Notes',
+    /** The page's finding: same pace to 20K, the typical gap at the finish with a sustained slowdown (kick.twins). */
+    get seoTitle() {
+      const twins = getNugget('kick.twins');
+      return twins.guard && twins.figure ? `After a Marathon Slowdown: ${twins.figure.value} Minutes Apart | Pace Notes` : 'After a Marathon Slowdown | Pace Notes';
+    },
     /** The page's own finding (kick.twins), then what the story follows. */
     get seoDescription() {
       const twins = getNugget('kick.twins');

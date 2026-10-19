@@ -112,6 +112,9 @@ input[type='range'] { padding: 0; border: 0; background: none; min-height: 32px;
 .t-h2 { font-size: var(--t-h2); line-height: 1.1; letter-spacing: -.018em; text-wrap: balance; }
 .t-sentence { font-size: var(--t-sentence); line-height: 1.25; letter-spacing: -.01em; text-wrap: pretty; }
 .t-display em, .t-title em, .t-h2 em, .t-sentence em { font-style: italic; font-weight: inherit; color: var(--signal-ink); }
+/* One accent per screen, the reading's: the H1 carries it. A beat's H2 keeps its italic in ink, so orange marks the page's
+   one reading and the chart marks under each H2, never every heading down the page. */
+.t-h2 em { color: inherit; }
 /* A null result's accent: italic, in ink (a null result looks null). */
 .t-display em.is-null, .t-title em.is-null, .t-h2 em.is-null, .t-sentence em.is-null { color: var(--ink-2); }
 .t-body { font-family: var(--sans); font-size: var(--t-body); font-weight: 400; line-height: 1.6; color: var(--ink-2); }

@@ -17,6 +17,8 @@ import { trackFailure } from '@/lib/analytics';
 import { chunkLoadFailed } from '@/lib/chunk-reload';
 import { isCopyEdition, type CopyEdition } from '@/lib/duplicate-editions-shared';
 import type { ReportData } from '@/lib/report';
+import { openingPct, timesVerdict, toneOf } from '@/lib/report-shared';
+import { readSplits } from '@/lib/tools/splits';
 import { loadRaceInsights, runnerAgeBand, runnerGender, type ComparisonKey, type PeerComparison, type RaceInsights, type RunnerTerrain, type RunnerWeather } from '@/lib/runner-context';
 import type { RaceReportProps } from './report/RaceReport';
 
@@ -82,25 +84,38 @@ const wholeSeconds = (metrics: RunnerMetrics) => {
 export const defaultGroup = (race: RunnerRace): ComparisonKey => runnerAgeBand(race.age) && runnerGender(race.sex) ? 'age_gender' : runnerGender(race.sex) ? 'gender' : runnerAgeBand(race.age) ? 'age' : 'all';
 
 /**
- * The race's own pacing: the late change as the view's finding, then the lap list, every row alike (the sentence says
- * what the late bars show; lit rows mean a sustained slowdown, and only the race report lights them). With the race
- * report open below, its own card carries the finding and the mats, so the heading and this list step aside.
+ * The race's own pacing: the race report's verdict as the view's finding (the split check's rules on the record's whole
+ * seconds: a sustained slowdown, where it began and how far off the 5–20K pace; or the slowest stretch after 20K), then
+ * the lap list with the report's own rows lit, so the view and the report a tap below say the same thing in the same
+ * words. With the race report open below, its own card carries the finding and the mats, so the heading and this list
+ * step aside.
  */
 export function PacingReadings({ race, metrics, manifest, units, laps = true }: MeasuredRace & { manifest: RunnerManifest; units: UnitSystem; laps?: boolean }) {
   const id = useId();
   const splitHref = splitCheckHref(metrics.sections.map(section => section.cumulative), manifest.editions[race.edition]?.city);
-  const rows = metrics.sections.map((section) => {
+  const times = wholeSeconds(metrics);
+  const reading = times ? readSplits(times) : null;
+  const verdict = reading ? timesVerdict(reading) : null;
+  const rows = metrics.sections.map((section, i) => {
     const vs = section.pace / metrics.baseline - 1;
-    return { mat: matLabel(section.end), split: split(section.elapsed), pace: paceLabel(section.pace, units), vs, sr: `${sectionLabel(section.start, section.end)}: ${paceLabel(section.pace, units)}, ${signed(100 * vs)} against the 5–20K pace` };
+    return { mat: matLabel(section.end), split: split(section.elapsed), pace: paceLabel(section.pace, units), vs, lit: reading ? toneOf(reading, i) === 'qualify' : false, sr: `${sectionLabel(section.start, section.end)}: ${paceLabel(section.pace, units)}, ${signed(100 * vs)} against the 5–20K pace` };
   });
+  const term = <UnitLink className="term-link" href="/methodology#sustained-slowdown">sustained slowdown</UnitLink>;
+  const heading = !verdict ? <>From 30K, the pace was {difference(metrics.lateChange)} the 5–20K pace.</>
+    : verdict.slowdown ? <>A {term} from {matLabel(verdict.onsetKm)}, {verdict.off} off the 5–20K pace.</>
+      : verdict.worst ? <>No {term}: the slowest stretch after 20K, {sectionLabel(metrics.sections[verdict.worst.index].start, metrics.sections[verdict.worst.index].end)}, ran {verdict.worst.off} off the 5–20K pace.</>
+        : <>No {term}: every stretch after 20K held the 5–20K pace or better.</>;
+  const opening = metrics.openingChange / 100;
   return <section className="rc-view" aria-labelledby={`${id}-title`}>
     {/* The race's voice, as the report beside it speaks: a name search can find a namesake's record. */}
     {/* With the report open below, its card says the same (its lap list and its First 5K tile), so the heading steps
         aside with the lap list: it stays the section's name for screen readers, over nothing visible. */}
-    <h3 id={`${id}-title`} className={laps ? 'rc-h' : 'sr-only'}>Late in this race, the pace was {difference(metrics.lateChange)} its 5–20K pace.</h3>
-    {/* The first 5K only where it parted from the early pace by 1% or more: a smaller difference says nothing. */}
-    {laps && Math.abs(metrics.openingChange) >= 1 ? <p className="rc-copy">The first 5K was {difference(metrics.openingChange)} the 5–20K pace.</p> : null}
-    {laps ? <LapList rows={rows} baseline={paceLabel(metrics.baseline, units)} label={`Pace through ${titleFor(race, manifest)}, each mat against the 5–20K pace`} /> : null}
+    <h3 id={`${id}-title`} className={laps ? 'rc-h' : 'sr-only'}>{heading}</h3>
+    {/* The first 5K only where it parted from the early pace by 1% or more: a smaller difference says nothing. In the
+        report's words and precision ("5.3% quicker"), so the two never disagree. */}
+    {laps && Math.abs(metrics.openingChange) >= 1 ? <p className="rc-copy">The first 5K was {openingPct(opening)} {opening < 0 ? 'quicker' : 'slower'} than the 5–20K pace.</p> : null}
+    {laps ? <LapList rows={rows} baseline={paceLabel(metrics.baseline, units)} label={`Pace through ${titleFor(race, manifest)}, each mat against the 5–20K pace${verdict?.slowdown ? `; a sustained slowdown from ${matLabel(verdict.onsetKm)}` : ''}`}
+      caption={verdict?.slowdown ? 'Highlighted: the sustained slowdown.' : undefined} /> : null}
     <details className="values rc-details"><summary><span>Checkpoint readings</span><span className="values-glyph" aria-hidden="true" /></summary>
       <div className="rc-table-wrap table-wrap" role="region" aria-label="Recorded checkpoints" tabIndex={0}><table className="table"><caption className="sr-only">Elapsed times and section paces</caption><thead><tr><th scope="col">Checkpoint</th><th scope="col">Elapsed</th><th scope="col">Section time</th><th scope="col">Section pace</th></tr></thead><tbody>{metrics.sections.map(section => <tr key={section.end}><th scope="row">{matLabel(section.end)}</th><td>{runnerDuration(section.cumulative)}</td><td>{runnerDuration(section.elapsed)}</td><td>{paceLabel(section.pace, units)}</td></tr>)}</tbody></table></div>
     </details>

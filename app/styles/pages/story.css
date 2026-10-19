@@ -10,6 +10,10 @@
 .story-hero-beat .reading-rule { margin: var(--s-5) 0; }
 .story-hero-beat .reading-instrument { max-height: none; }
 .story-hero-beat .reading-instrument > .viz-frame { margin: 0; }
+/* A bare opener (the race replay: the H1, then the replay as its reading) has no hairline: the night band follows the
+   H1 after the usual gap between a heading and its figure. */
+.story-hero-beat.is-bare .reading-rule { display: none; }
+.story-hero-beat.is-bare > .story-replay { margin-top: var(--s-6); }
 
 /* A beat: the finding as its H2, at most a short dek, then the figure. */
 .story-beat { scroll-margin-top: calc(var(--header-h) + 8px); }
@@ -19,6 +23,8 @@
 /* Every figure in a story takes the same measure, so their edges line up down the page. */
 .story-beat > .viz-frame, .story-beat > .values { max-width: var(--measure-figure); }
 .story-beat > .values { margin-top: var(--s-4); }
+/* The page's All numbers row at the foot takes the same measure as every figure above it. */
+.story-numbers { max-width: var(--measure-figure); }
 .beat-alias { display: block; position: relative; top: calc(-1 * var(--header-h)); height: 0; }
 
 /* A course named in a table row links to its page with a full-height target. */
@@ -125,21 +131,6 @@
 .pair-bar-gap-label { position: absolute; top: 10px; left: 0; text-align: right; font-size: var(--t-label); font-weight: 600; line-height: 1.2; white-space: nowrap; color: var(--ink-2); }
 .pair-bars-view.is-highlight .pair-bar-gap { background: var(--signal); }
 .pair-bars-view.is-highlight .pair-bar-gap-label { color: var(--signal-ink); }
-
-/* Pacing types, women and men: the value column holds the widest pair ("24% · 38%"), so every pair ends on the content
-   edge. The key sits above the rows, men (the filled dots, the H2's subject) first, in the order each row's values read. */
-.pt-gender .viz-frame.dumbbell .dumbbell-rows, .pt-gender .viz-frame.dumbbell .dumbbell-axis { grid-template-columns: minmax(0, 36%) minmax(0, 1fr) 5.5rem; }
-/* A narrow figure (200% zoom): each type's name and pair share a line, its track the full width under them. */
-@container (max-width: 299.98px) {
-  .pt-gender .viz-frame.dumbbell .dumbbell-rows { grid-template-columns: minmax(0, 1fr) auto; grid-auto-flow: row dense; }
-  .pt-gender .viz-frame.dumbbell .dumbbell-label { grid-column: 1; }
-  .pt-gender .viz-frame.dumbbell .dumbbell-value { grid-column: 2; padding-top: var(--s-2); }
-  .pt-gender .viz-frame.dumbbell .dumbbell-track { grid-column: 1 / -1; }
-  .pt-gender .viz-frame.dumbbell .dumbbell-axis { display: block; }
-  .pt-gender .viz-frame.dumbbell .dumbbell-axis > span { display: none; }
-}
-.pt-gender .viz-frame.dumbbell { display: flex; flex-direction: column; }
-.pt-gender .viz-frame.dumbbell .viz-key { order: -1; flex-direction: row-reverse; justify-content: flex-end; margin: 0 0 var(--s-3); }
 
 /* ---------- The towers (round numbers): the scrolly at the figure's measure ---------- */
 .towers-scrolly { max-width: var(--measure-figure); }

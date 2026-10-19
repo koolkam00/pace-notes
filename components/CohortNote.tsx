@@ -6,6 +6,8 @@ import { capital, countWord } from '@/lib/stories';
 import { TEN_ANALYSES } from '@/lib/ten-analyses';
 import { EVIDENCE_LABEL, TOOLS, type ToolDefinition } from '@/lib/tools/registry';
 import { count } from '@/lib/viz/format';
+import { countWord as numberWord } from '@/lib/nuggets/format';
+import { CHAPTERS } from '@/lib/chapters';
 
 const and = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
 const lower = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
@@ -82,7 +84,10 @@ export default function CohortNote() {
   const ten = countWord(TEN_ANALYSES.length) ?? String(TEN_ANALYSES.length);
   const others = otherToolsSentence(other);
   if (!copies.length || all === screened) {
-    const every = and([...screenedList(data), `the ${ten} analyses`, 'the sustained-slowdown study']);
+    // With one total, every analysis the chapters list starts from it: counted from the registry (lib/chapters.ts), so
+    // the number matches /analyses and the contents.
+    const analyses = CHAPTERS.flatMap((c) => c.pages).filter((p) => p.kind === 'analysis' && !p.pending).length;
+    const every = and([...screenedList(data), `the ${numberWord(analyses)} analyses`, 'the sustained-slowdown study']);
     return <p className="cohort-note">{capital(every)} start from the same {count(all)} finishes.{others ? ` ${others}` : ''}</p>;
   }
   return (

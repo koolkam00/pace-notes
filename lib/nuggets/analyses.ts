@@ -52,10 +52,10 @@ export function kickBankFrom(bands: BankBand[]): Nugget {
     guard: ok,
     headline: `A first 5K ${said} banked ${ms(-(fastest?.open_s ?? 0))}, and *finished ${ms(fastest?.finish_s ?? 0)} behind*.`,
     fallback: 'How a fast first 5K finished, against the same pace.',
-    // The figure is the H1's accent as the receipt prints it ("5:06 behind"); the key names what it is behind: the same
-    // race's finishes at the same 5–20K pace.
+    // The figure is the H1's accent as the receipt prints it ("5:06 behind"); the key names what it is behind, in a
+    // runner's words: finishes in the same race at the same 5–20K pace.
     figure: fastest ? { value: ms(fastest.finish_s), sr: `${spokenTime(Math.abs(fastest.finish_s))} ${fastest.finish_s > 0 ? 'behind' : 'ahead'}` } : null,
-    key: `${fastest && fastest.finish_s < 0 ? 'ahead' : 'behind'} at the finish after a first 5K ${said}, against the same race and 5–20K pace`,
+    key: `${fastest && fastest.finish_s < 0 ? 'ahead of' : 'behind'} runners of the same 5–20K pace at the finish, after a first 5K ${said}`,
   };
 }
 
@@ -198,7 +198,7 @@ export function checkpointUnderFrom(row: { n: number; elapsed: number; finish: n
     fallback: `On even ${hm(goal)} pace at ${mat}K, ${pct(share)} of finishes got under ${hm(goal)}.`,
     // The key names the group's window (the 2-minute band at the mat that holds even goal pace), so "on 4:00 pace" never
     // stands for two different groups on two pages.
-    figure: shareFigure(share), key: `of finishes through ${mat}K in ${band(row?.elapsed ?? NaN)}, on even ${hm(goal)} pace, got under ${hm(goal)}`,
+    figure: shareFigure(share), key: `of finishes on even ${hm(goal)} pace at ${mat}K (${band(row?.elapsed ?? NaN)}) got under ${hm(goal)}`,
   };
 }
 
@@ -301,7 +301,7 @@ export function ageRetentionFrom(rows: AgeRow[], goal = GOAL): Nugget {
     headline: 'At the same finish time, age *barely mattered*.',
     fallback: 'How the second 20K changed with age, pooled and at the same finish time.',
     figure: finite(same) ? { value: points(same), unit: `\u00a0${points(same) === '1' ? 'point' : 'points'}`, sr: `${one(same)} points between age groups near a ${hm(goal)} finish` } : null,
-    key: `apart at most, age group to age group, in second-20K slowing near ${hm(goal)}`,
+    key: `the widest gap between age groups in second-20K slowing, near ${hm(goal)}`,
   };
 }
 
@@ -445,7 +445,7 @@ export function gainsFinalFrom(row: { values: number[]; total: number; n: number
     // One clause; the stretch as a distance, against its share of the race, is the page's dek.
     headline: `Near ${hm(goal)}, improving finishes found *${pct(share)}* of their time after 30K.`,
     fallback: `Where improving finishes near ${hm(goal)} found their time.`,
-    figure: shareFigure(share), key: 'of the time improving finishes found came after 30K',
+    figure: shareFigure(share), key: 'of the time improving finishes gained came after 30K',
   };
 }
 
@@ -456,13 +456,12 @@ export function slowdownHistoryFrom(rows: { label: string; value: number; n: num
   const usable = rows.filter((r) => r.n >= 100 && finite(r.value));
   const first = usable[0], last = usable[usable.length - 1];
   const rising = usable.length >= 2 && usable.every((r, i) => !i || r.value > usable[i - 1].value);
-  // "4 hours" never breaks between the number and its unit.
-  const lower = (s: string) => s.replace(/^[A-Z]/, (c) => c.toLowerCase()).replace(/(\d) (hours?|minutes?)\b/g, '$1\u00a0$2');
   return {
     id: 'slowdown.history', page: '/slowdown#history', denominator: 'eligible', term: '/methodology#sustained-slowdown',
     values: first ? { first: first.label, first_share: first.value / 100, last: last.label, last_share: last.value / 100, bands: usable.length } : {},
     guard: rising,
-    headline: first ? `An earlier best ${lower(first.label)}: *${pct(first.value / 100)}* had a sustained slowdown. ${capitalize(lower(last.label))}: ${pct(last.value / 100)}.` : '',
+    // One clause; the columns name each band ("Under 3:00" … "4:00+").
+    headline: first ? `The slower the earlier best, the more sustained slowdowns: *${pct(first.value / 100)}* to ${pct(last.value / 100)}.` : '',
     fallback: 'Sustained slowdown by earlier recorded best.',
     figure: first ? shareFigure(first.value / 100) : null,
   };

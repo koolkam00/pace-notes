@@ -15,21 +15,21 @@ const MINUS = '−';
 const signedMin = (v: number) => (Math.abs(v) < 0.05 ? '0 min' : `${v > 0 ? '+' : MINUS}${Math.abs(v).toFixed(1)} min`);
 
 /**
- * Watch a marathon unfold (the redesign spec, section 7.3, under section 00): the moment of the first finish as the
- * reading, with the replay itself directly under its figure (the story's signature: no step-by-step reveal), then the
- * finishes that passed 10K together spreading out. The home page's band says how far the back of the field had come at
- * that moment, so this page never repeats it. Every edition is picked by the data.
+ * Watch a marathon unfold (the redesign spec, section 7.3, under section 00): the moment of the first finish as the H1,
+ * and the replay itself straight under it (the story's signature: no step-by-step reveal), its caption at the flag
+ * frame giving the share in figures for whichever race is picked, so the page's number always matches the race on
+ * screen. Then the finishes that passed 10K together spreading out. The home page's band says how far the back of the
+ * field had come at that moment, so this page never repeats it. Every edition is picked by the data.
  */
 export default function ReplayBody() {
   const data = readInsight<ReplayIndex>('replay.json');
   const geometry = readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses;
   const story = STORIES.find((s) => s.slug === 'race-replay')!;
-  const first = getNugget('replay.first'), packs = getNugget('replay.packs');
+  const packs = getNugget('replay.packs');
   const routes = new Map(geometry.map((c) => [c.city, { points: c.route, km: c.route_km }]));
   // The race chips newest first (then by city), so the row reads as a calendar rather than the data's own order, and the
   // edition the page opens on (a recent one) sits at the start of a phone's scrolling row.
   const choices = replayChoices(data.editions, getInsightsManifest(), routes).sort((a, b) => b.year - a.year || a.city.localeCompare(b.city));
-  const race = `${first.values.city} ${first.values.year}`;
 
   // Finishes that passed a mat together: the middle 80% of them, mat by mat, around their median, ahead up and behind
   // down, as the replay above draws its field (first to finish at the top).
@@ -52,17 +52,14 @@ export default function ReplayBody() {
           rows={rows.map((r, i) => [matLabel(r.km), `${Math.round(hi[i] - lo[i])} min`, signedMin(-hi[i]), signedMin(-lo[i])])} reading={lastIndex} />
       ) : null,
     ]}>
-      {/* The H1 states the flag frame's moment and the figure gives its share, so the replay under them (the instrument
-          the H1 describes) shows no sentence of the opening edition's own (an edition the reader picks says its own);
-          its one control is the race. Links to the old #replay beat land on it. */}
-      <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
-        figure={first.figure ? { ...first.figure } : undefined} fallback={!first.guard}
-        unitLine={first.figure ? `${race}, at the first finish` : undefined}>
+      {/* The H1 states the flag frame's moment in words; the replay under it is the reading: its one control is the
+          race, and the caption at its flag frame gives that race's own share in figures ("When the first runner
+          finished London 2026, 47% of the field had not reached 20K."). Links to the old #replay beat land on it. */}
+      <StoryHero path={PATH} title={story.heading ?? story.title}>
         <div id="replay" className="night story-replay">
           <span id="snapshots" className="beat-alias" aria-hidden="true" />
           <span id="first" className="beat-alias" aria-hidden="true" />
-          {/* The figure above is the opening edition's; a race the reader picks says its own share at its flag. */}
-          <HeroReplay choices={choices} layout={false} moment="others" />
+          <HeroReplay choices={choices} layout={false} moment="exact" />
         </div>
       </StoryHero>
 

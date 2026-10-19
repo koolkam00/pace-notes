@@ -22,6 +22,7 @@ import { getInsightsManifest, readInsight, replayChoices } from '@/lib/insights-
 import { CHAPTERS, chapterNumber } from '@/lib/chapters';
 import { getNugget, readingOf, sentenceOf, textFor } from '@/lib/nuggets';
 import { countWord } from '@/lib/nuggets/format';
+import { oneDecimal } from '@/lib/nuggets/stories';
 import { courseSpan } from '@/lib/stories';
 import { JsonLd, SITE_URL, finishesM, pageMetadata } from '@/lib/seo';
 import { courseSlug } from '@/lib/tools/links';
@@ -62,9 +63,9 @@ export default function Page() {
   const { cities, first_year: firstYear, last_year: lastYear } = totals.values;
   const guess = getNugget('home.second20k');
   const share = Number(guess.values.share);
-  // The guess hands off to the page that develops it: the pacing pattern (finishes run fast early and slow late, which
-  // is why so few ran a faster second 20K), in its chapter's words.
-  const pattern = CHAPTERS.flatMap((c) => c.pages.map((page) => ({ c, page }))).find(({ page }) => page.href === '/analyses/pacing-pattern');
+  // The guess hands off to the page that continues it: the pacing types, whose opener restates the answer ("Only 1 in
+  // 25 finishes ran their second 20K faster than their first", types.second20k) above the shapes most finishes ran.
+  const pattern = CHAPTERS.flatMap((c) => c.pages.map((page) => ({ c, page }))).find(({ page }) => page.href === '/stories/pacing-types');
   const moment = { mi: sentenceOf(back, 'mi'), km: sentenceOf(back, 'km') };
   const chapterCount = countWord(CHAPTERS.length);
 
@@ -82,7 +83,8 @@ export default function Page() {
           <HomeDoors courses={courses} />
         </div>
         <div className="home-hero-replay">
-          <HeroReplay choices={choices.filter((c) => c.slug === pick)} initial={pick} band moment={moment} />
+          <HeroReplay choices={choices.filter((c) => c.slug === pick)} initial={pick} band moment={moment}
+            mark={Number.isFinite(Number(back.values.back_km)) ? { km: Number(back.values.back_km), label: { mi: oneDecimal(Number(back.values.back_km), 'mi'), km: oneDecimal(Number(back.values.back_km), 'km') } } : undefined} />
         </div>
       </div>
     </section>

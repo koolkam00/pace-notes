@@ -3,6 +3,7 @@ import { readInsight } from '@/lib/insights-server';
 import { STORIES } from '@/lib/stories';
 import { getNugget } from '@/lib/nuggets';
 import { matLabel, ms, pct } from '@/lib/nuggets/format';
+import { pointsApart } from '@/lib/nuggets/stories';
 import { MARATHON_KM } from '@/lib/units';
 import LineProfile from '@/components/viz/LineProfile';
 import Ruler from '@/components/viz/Ruler';
@@ -15,8 +16,6 @@ const MATS = [0, 5, 10, 15, 20, 25, 30, 35, 40, MARATHON_KM];
 const MINUS = '−';
 const one = (v: number) => Math.round(v * 10) / 10;
 const slower = (v: number) => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(one(v)).toFixed(1)}%`;
-/** The gap between two bars, from their displayed one-decimal values, so it is the difference a reader would take. */
-const apart = (a: number, b: number) => `${Math.abs(one(b) - one(a)).toFixed(1)} points apart`;
 
 /**
  * Women and men, the who-holds-pace story (the redesign spec, section 7.9, under section 00): the reading (sustained slowdown, recorded
@@ -55,7 +54,7 @@ export default function DemographicsBody() {
         columns={[{ key: 'm', label: 'Mat' }, { key: 'g', label: 'Women behind' }]}
         rows={band.ghost_s.map((g, k) => [matLabel(MATS[k + 1]), ms(g)])} reading={peak - 1} />,
     ]}>
-      <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek} fallback={!gender.guard}
+      <StoryHero path={PATH} title={story.heading ?? story.title} fallback={!gender.guard}
         figures={[{ value: pct(w).replace('%', ''), unit: '%', sr: `${pct(w)} of recorded women's finishes`, key: 'Recorded women' }, { value: pct(m).replace('%', ''), unit: '%', sr: `${pct(m)} of recorded men's finishes`, key: 'Recorded men' }]}
         // The H1 says who held pace; the pair says how often each did not, and the key under it what is counted (the
         // term's first use, so it carries the link). A failed guard shows the plain sentence instead.
@@ -68,12 +67,14 @@ export default function DemographicsBody() {
             marks={[{ value: w, kind: 'reading', label: 'Women' }, { value: m, kind: 'compare', label: 'Men' }]} />
         ) : undefined} />
 
+      {/* The H2 is one clause (the gap, like for like, against every finish pooled); the two groups carry the gaps, each
+          from the unrounded difference (pointsApart), the same values the nugget's ratio is taken from. */}
       <Beat id="unmask" track="chapter-1" label="Pooled or matched" title={unmask}
-        dek="How much slower the second 20K ran than the first.">
+        dek="How much slower the second 20K ran than the first, recorded women against men.">
         <PairBars highlight="matched" max={Math.ceil(Math.max(o.men_block, o.pooled_men_block) / 5) * 5}
           views={[
-            { id: 'pooled', label: 'Every finish, pooled', bars: [{ label: 'Recorded women', value: o.pooled_women_block, display: slower(o.pooled_women_block) }, { label: 'Recorded men', value: o.pooled_men_block, display: slower(o.pooled_men_block) }], gap: apart(o.pooled_women_block, o.pooled_men_block) },
-            { id: 'matched', label: 'Same race, same finish minute', bars: [{ label: 'Recorded women', value: o.women_block, display: slower(o.women_block) }, { label: 'Recorded men', value: o.men_block, display: slower(o.men_block) }], gap: apart(o.women_block, o.men_block) },
+            { id: 'pooled', label: 'Every finish, pooled', bars: [{ label: 'Recorded women', value: o.pooled_women_block, display: slower(o.pooled_women_block) }, { label: 'Recorded men', value: o.pooled_men_block, display: slower(o.pooled_men_block) }], gap: pointsApart(Number(unmask.values.pooled_gap)) },
+            { id: 'matched', label: 'Same race, same finish minute', bars: [{ label: 'Recorded women', value: o.women_block, display: slower(o.women_block) }, { label: 'Recorded men', value: o.men_block, display: slower(o.men_block) }], gap: pointsApart(Number(unmask.values.matched_gap)) },
           ]}
           label={`Second 20K against the first. Pooled: women ${slower(o.pooled_women_block)}, men ${slower(o.pooled_men_block)}. Same race and finish minute: women ${slower(o.women_block)}, men ${slower(o.men_block)}.`} />
       </Beat>

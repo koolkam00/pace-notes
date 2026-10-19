@@ -30,6 +30,8 @@
 .race-report-average { font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .race-report-sentence { margin: var(--s-4) 0 0; max-width: 32rem; font-family: var(--serif); font-weight: 440; font-size: 1.25rem; line-height: 1.3; letter-spacing: -.01em; color: var(--ink); text-wrap: pretty; }
 .race-report-sentence em { font-style: italic; color: var(--signal-ink); }
+/* One orange thing per card: with a sustained slowdown its rows carry it, so the sentence keeps its italic in ink. */
+.race-report-sentence.is-quiet em { color: inherit; }
 
 /* The lap list: mat, split, pace and a bar from the race's own 5–20K pace (the zero line, --zero). */
 .lap-list { margin: var(--s-5) 0 0; min-width: 0; }
@@ -123,11 +125,13 @@
 .at20-rows { margin: 0; padding: 0; list-style: none; }
 .at20-rows li { display: contents; }
 .at20-label { align-self: center; min-width: 0; font-size: var(--t-small); font-weight: 500; line-height: 1.25; color: var(--ink-2); }
+/* The group's finishes and median finish, printed under its name (no fold for two rows). */
+.at20-label small { display: block; margin-top: 2px; font-size: var(--t-label); font-weight: 400; line-height: 1.3; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .at20-rows li.is-lit .at20-label { font-weight: 600; color: var(--ink); }
 .at20-track { position: relative; height: 44px; min-width: 0; }
 .at20-track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--rule); }
 .at20-track i { position: absolute; top: calc(50% - 1px); height: 2px; background: var(--rule-strong); }
-.at20-rows li.is-lit .at20-track i { background: var(--signal); }
+.at20-rows li.is-lit .at20-track i { background: var(--ink-2); }
 .at20-track b { position: absolute; top: 50%; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; }
 .at20-median { background: var(--paper); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
 .at20-race { background: var(--ink); box-shadow: 0 0 0 2px var(--paper); }
@@ -144,17 +148,6 @@
   .at20-label { grid-column: 1 / -1; padding-top: var(--s-2); }
   .at20-axis > span:first-child { display: none; }
 }
-.race-report-table .values { margin-top: var(--s-3); }
-/* A table wider than the screen scrolls sideways under a sticky first column, with a shade at the right edge while there
-   is more to see (a cover of paper riding at the table's end hides it there). No script. */
-.race-report-table .table-wrap {
-  overflow-x: auto; overscroll-behavior-x: contain;
-  background:
-    linear-gradient(to left, var(--paper) 40%, transparent) 100% 0 / 32px 100% no-repeat local,
-    linear-gradient(to left, var(--rule-strong), transparent) 100% 0 / 12px 100% no-repeat scroll;
-}
-.race-report-table .table th:first-child { position: sticky; left: 0; z-index: 1; background: var(--paper); }
-.race-report-table .table th, .race-report-table .table td { white-space: nowrap; }
 .race-report .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: .2em; }
 .race-report .term-link:hover { text-decoration-style: solid; }
 /* The record's edition lines print with the report; on screen the runner view's tabs above already say them. */
@@ -198,7 +191,13 @@ a.race-report-badge:focus-visible { outline: 2px solid var(--focus); outline-off
 .race-report-hint, .race-report-note { margin: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
 .race-report-note:empty { display: none; }
 .race-report-note.is-error { color: var(--signal-ink); }
-.race-report-preview { display: block; width: min(100%, 300px); height: auto; margin-top: var(--s-2); border-radius: var(--r-md); }
+/* The sheet opens on the image it shares: 60% of the sheet's width (at most 260 px), 4:5, a small radius; a quiet placeholder
+   holds the same box while it draws, so the buttons under it never move. */
+.race-report-preview-frame { display: grid; place-items: center; width: min(60%, 260px); min-height: 12rem; margin: 0 auto var(--s-5); border-radius: var(--r-sm); background: var(--paper-sunk); overflow: hidden; }
+@supports (aspect-ratio: 1) { .race-report-preview-frame { min-height: 0; aspect-ratio: 4 / 5; } }
+.race-report-preview-frame.is-ready { background: transparent; box-shadow: var(--shadow-raise); }
+.race-report-preview { display: block; width: 100%; height: 100%; object-fit: cover; }
+.race-report-preview-wait { padding: var(--s-3); font-size: var(--t-label); line-height: 1.35; text-align: center; color: var(--ink-3); }
 @media (min-width: 600px) {
   .race-report-actions .share-bar .btn-primary { flex: 0 1 auto; }
 }
@@ -288,7 +287,6 @@ a.race-report-badge:focus-visible { outline: 2px solid var(--focus); outline-off
   .at20-ends { font-size: 7pt; }
   .at20-key { margin-top: 3pt; font-size: 7pt; }
   .at20-key i { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-  .race-report-table .values { display: none; }
   .at20-track, .at20-track i, .at20-track b { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .race-report-record { display: block; }
   .race-report-record dl { margin-top: 2pt; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 8pt; border-top: 0; }

@@ -89,6 +89,21 @@
 .page-list .page-reading .big-number.is-s { font-size: 1.25rem; }
 
 /* ---------- Desktop: the opener on the left, the list on the right ---------- */
+/* /tools takes the same template (its markup is the tools sheet's): the title, dek and badge key hold the left column
+   while the two lists run in the right one, so every hub reads the same on a wide screen; /courses keeps its grid, since
+   its rows are data. */
+@media (min-width: 900px) {
+  .tool-page.tools-index { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); column-gap: var(--s-8); align-items: start; padding-top: var(--s-8); }
+  .tool-page.tools-index > .tool-header { grid-column: 1; grid-row: 1 / span 3; position: sticky; top: calc(var(--header-h) + var(--s-6)); padding: 0; }
+  .tool-page.tools-index > .tools-group, .tool-page.tools-index > .tool-end { grid-column: 2; }
+  .tool-page.tools-index > .tools-group:first-of-type { padding-top: 0; }
+  .tool-page.tools-index .tools-list { max-width: none; }
+}
+/* A hub's H1 sits in the left column, so on a wide screen it is capped below the home page's (63 px at 1440) and sized
+   to that column: "start to finish." (5.8 em) stays on one line, so the Contents title breaks only at its comma. */
+@media (min-width: 900px) {
+  .contents-hero > h1, .tool-page.tools-index .tool-title { font-size: min(var(--t-title), 3.9rem, calc((min(100vw - 2 * var(--gutter), var(--container)) - var(--s-8)) / 18.2)); }
+}
 @media (min-width: 900px) {
   .contents-page { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); column-gap: var(--s-8); align-items: start; padding: var(--s-8) 0 var(--s-9); }
   .contents-hero { position: sticky; top: calc(var(--header-h) + var(--s-6)); margin-bottom: 0; }

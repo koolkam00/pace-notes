@@ -64,7 +64,7 @@ module.exports = function stories({ json, eq, ok, core }) {
     for (const c of solid) { if (c.median_s < lo.median_s) lo = c; if (c.median_s > hi.median_s) hi = c; }
     eq([n.values.low, n.values.high, n.values.courses], [lo.city, hi.city, solid.length], 'field.byrace recounts the extremes among courses with three or more editions');
     eq(n.guard, solid.length >= 2 && hi.median_s - lo.median_s >= 60, 'field.byrace: guard');
-    if (n.guard) has(n, `*${hm(lo.median_s / 60)} to ${hm(hi.median_s / 60)}*`, 'field.byrace names the medians');
+    if (n.guard) has(n, `course\u00a0by\u00a0course: *${hm(lo.median_s / 60)} to ${hm(hi.median_s / 60)}*`, 'field.byrace names the medians, course by course (each a course median across its editions)');
     ok(!shown(n).includes(lo.city) && !shown(n).includes(hi.city), 'field.byrace: no course name in the headline (owner decision 7)');
   };
 
@@ -79,10 +79,9 @@ module.exports = function stories({ json, eq, ok, core }) {
     const km = least.moments.back_km_at_first;
     eq([n.values.slug, n.values.back_km], [least.slug, km], 'replay.back reads the edition whose back of the field had come least at the first finish');
     eq(n.guard, km > 0 && km < 42.195 / 2, 'replay.back: "just" while under half the distance');
-    // At most one decimal, a whole number without its ".0" (lib/units distance).
-    const one = (v) => v.toFixed(1).replace(/\.0$/, '');
-    has(n, `${one(km / 1.609344)} mi`, 'replay.back: one-decimal miles', 'mi');
-    has(n, `${one(km)} km`, 'replay.back: one-decimal kilometres', 'km');
+    // One decimal in both units, kept when it is whole ("8.0 km" beside "4.9 mi"), held to its unit.
+    has(n, `${(km / 1.609344).toFixed(1)}\u00a0mi`, 'replay.back: one-decimal miles', 'mi');
+    has(n, `${km.toFixed(1)}\u00a0km`, 'replay.back: one-decimal kilometres', 'km');
     has(n, `When the first runner finished ${least.city === 'New York' ? 'New York City' : least.city} ${least.year},`, 'replay.back: the home band names the edition the data chose');
   };
 
@@ -114,22 +113,15 @@ module.exports = function stories({ json, eq, ok, core }) {
     if (n.guard) has(n, `*${pct(a)}* of ${types.river[0].label}`, 'types.river names the first band');
   };
 
-  R['types.gender'] = (n) => {
-    const w = types.gender.women.standardized_shares, m = types.gender.men.standardized_shares;
-    let c = 0;
-    for (let i = 1; i < w.length; i++) if (w[i] > 0 && m[i] / w[i] > m[c] / w[c]) c = i;
-    eq([n.values.type, n.values.ratio], [types.archetypes[c].name, m[c] / w[c]], 'types.gender: the type with the largest men-to-women ratio');
-    eq(n.guard, m[c] / w[c] >= 2, 'types.gender: "N times" needs two or more');
-    if (n.guard) has(n, `*${word(Math.round(m[c] / w[c]))} times*`, 'types.gender names the ratio in words');
-  };
-
   const gapRow = (rows) => rows.reduce((a, b) => (Math.abs(b.gap_lo_s - 60) < Math.abs(a.gap_lo_s - 60) ? b : a));
   R['places.gap'] = (n) => {
     const a = gapRow(pos.coin_flip['30']), b = gapRow(pos.coin_flip['40']);
     eq([n.values.at30, n.values.at40], [a.share, b.share], 'places.gap: the bands nearest a minute back');
     eq(n.guard, a.share > b.share, 'places.gap: "still" needs 30K above 40K');
     eq(n.figure.value, String(Math.round(a.share * 100)), 'places.gap: the figure');
-    ok(/still crossed first/.test(n.key), 'places.gap: the approved key wording ("still crossed first")');
+    // "First" against what: the runner ahead at the mat, never the race (a runner would read "crossed first" as winning).
+    ok(/still beat the runner ahead to the line$/.test(n.key), 'places.gap: the key names whom the finish beat');
+    ok(!/crossed first|got to the line first/.test(shown(n)) && !/crossed first/.test(n.key), 'places.gap: never "crossed first"');
   };
   R['places.title'] = (n) => {
     const a = gapRow(pos.coin_flip['30']), b = gapRow(pos.coin_flip['40']);
@@ -145,7 +137,7 @@ module.exports = function stories({ json, eq, ok, core }) {
     for (const r of pos.coin_flip['30']) if (r.gap_lo_s >= 3 * Math.max(60, b.gap_lo_s) && r.gap_lo_s <= 600 && (!a || Math.abs(r.share - b.share) < Math.abs(a.share - b.share))) a = r;
     eq([n.values.gap30_s, n.values.at30, n.values.gap40_s, n.values.at40], [a.gap_lo_s, a.share, b.gap_lo_s, b.share], 'places.coin: the 30K band level with a minute back at 40K');
     eq(n.guard, Math.abs(a.share - b.share) <= 0.01, 'places.coin: "as often as" needs the two within a point');
-    if (n.guard && a.gap_lo_s % 60 === 0) has(n, `${word(a.gap_lo_s / 60).replace(/^./, (c) => c.toUpperCase())} minutes back*`, 'places.coin names the 30K gap');
+    if (n.guard && a.gap_lo_s % 60 === 0) has(n, `${word(a.gap_lo_s / 60).replace(/^./, (c) => c.toUpperCase())} minutes back* at 30K was as good as`, 'places.coin names the 30K gap');
   };
   R['places.breakeven'] = (n) => {
     const rows = pos.breakeven;
@@ -163,7 +155,7 @@ module.exports = function stories({ json, eq, ok, core }) {
     up = pos.gained_share;
     const r = pos.sinker_share / pos.surger_share;
     eq(n.guard, up > 0.5 && r >= 1.5, 'places.shuffle: guard');
-    if (n.guard) has(n, `*${Math.round(r)} to 1*`, 'places.shuffle names the ratio');
+    if (n.guard) has(n, `outnumbered big gains *${Math.round(r)} to 1*`, 'places.shuffle names the ratio');
   };
 
   R['kick.twins'] = (n) => {
@@ -200,8 +192,10 @@ module.exports = function stories({ json, eq, ok, core }) {
     eq(kick.magnet[kick.magnet.length - 1].slowdown, kick.kick.slowdown_share, 'kick.magnet: the last section of the magnet is the slowdown group\'s kick share');
     close(kick.kick.slowdown_faster / kick.kick.slowdown_n, kick.kick.slowdown_share, 'kick.magnet: the slowdown share is its count over its group', 1e-9);
     eq(n.values.share, kick.kick.slowdown_share, 'kick.magnet: the sentence counts the slowdown group, not all finishes');
-    eq(n.guard, kick.kick.slowdown_share > 0.5 && kick.kick.slowdown_final_below_baseline < 0.1, 'kick.magnet: guard');
-    if (n.guard) has(n, `*${pct(kick.kick.slowdown_share)}* of finishes with a sustained slowdown`, 'kick.magnet: one denominator, named');
+    eq(n.guard, kick.kick.slowdown_final_below_baseline < 0.1 && kick.kick.slowdown_share > 0.5, 'kick.magnet: guard');
+    // The group is the beat's dek ("Finishes with a sustained slowdown."); the fallback names it in the sentence.
+    if (n.guard) has(n, `Even so, *${pct(kick.kick.slowdown_share)}* sped up`, 'kick.magnet: the share');
+    has({ ...n, guard: false }, `Of finishes with a sustained slowdown, ${pct(kick.kick.slowdown_share)}`, 'kick.magnet: the fallback names its denominator');
     has(n, 'last 1.4 mi', 'kick.magnet: the last 2.2 km in one-decimal miles', 'mi');
     has(n, 'last 2.2 km', 'kick.magnet: the last 2.2 km in kilometres', 'km');
   };
@@ -221,6 +215,8 @@ module.exports = function stories({ json, eq, ok, core }) {
     eq([n.values.mark, n.values.ratio, n.values.n], [top.mark, top.ratio, top.minute_before], 'round.top: the mark with the largest ratio');
     eq(n.guard, top.ratio >= 1.5, 'round.top: "far above" needs one and a half times the curve or more');
     has(n, `${top.minute_before.toLocaleString('en-US')} finishes landed between ${hm(top.minutes - 1)}:00 and ${hm(top.minutes - 1)}:59`, 'round.top: the count and the minute (the mark less one, never typed)');
+    ok(!/curve/.test(shown(n)), 'round.top: the opener never names the smooth curve before the chart draws it');
+    eq(n.key, `as many finishes as expected in the minute before ${top.mark}`, 'round.top: the key');
     eq(n.figure.value, top.ratio.toFixed(1), 'round.top: the figure, one decimal');
     ok(!shown(n).includes(top.ratio.toFixed(2)) && !shown(n).includes(`${top.ratio.toFixed(1)}×`), 'round.top: the sentence leaves the ratio to the figure');
   };
@@ -253,10 +249,13 @@ module.exports = function stories({ json, eq, ok, core }) {
     const o = demo.overall, r = (o.men_block - o.women_block) / (o.pooled_men_block - o.pooled_women_block);
     close(n.values.ratio, r, 'holds.unmask recounts the ratio of the gaps');
     eq(n.guard, r >= 2 && o.men_block > o.women_block && o.pooled_men_block > o.pooled_women_block, 'holds.unmask: guard');
-    if (n.guard) {
-      has(n, `*${(o.men_block - o.women_block).toFixed(1)} points*`, 'holds.unmask names the matched gap in points');
-      has(n, `${word(Math.round(r))} times the ${(o.pooled_men_block - o.pooled_women_block).toFixed(1)} points of every finish pooled`, 'holds.unmask names the ratio in words and the pooled gap it is a ratio of');
-    }
+    // The bars' gap labels come from these unrounded gaps (5.552 reads 5.6 points apart, never 15.5 − 10.0 = 5.5).
+    close(n.values.matched_gap, o.men_block - o.women_block, 'holds.unmask: the matched gap, unrounded');
+    close(n.values.pooled_gap, o.pooled_men_block - o.pooled_women_block, 'holds.unmask: the pooled gap, unrounded');
+    const S = require('../../lib/nuggets/stories.ts');
+    eq(S.pointsApart(n.values.matched_gap), `${(o.men_block - o.women_block).toFixed(1)} points apart`, 'holds.unmask: the matched bars\' gap label is the unrounded difference');
+    eq(S.pointsApart(n.values.pooled_gap), `${(o.pooled_men_block - o.pooled_women_block).toFixed(1)} points apart`, 'holds.unmask: the pooled bars\' gap label');
+    if (n.guard) has(n, `the gap was *${Math.round(r) === 2 ? 'twice' : `${word(Math.round(r))} times`}* as wide`, 'holds.unmask names the ratio in words');
   };
   R['holds.ghost'] = (n) => {
     let b = demo.bands[0];
@@ -269,19 +268,6 @@ module.exports = function stories({ json, eq, ok, core }) {
     const o = demo.overall;
     eq([n.values.women, n.values.men], [o.women_slowdown, o.men_slowdown], 'holds.title reads the matched shares');
     eq(n.guard, o.women_slowdown > 0 && o.men_slowdown > 1.5 * o.women_slowdown, 'holds.title: "more often" needs men half as many again');
-  };
-  R['field.gap'] = (n) => {
-    // Nearest-rank medians of recorded women's and men's finishes from the one-minute histogram and the cohort totals.
-    const median = (key) => {
-      const rank = Math.ceil(insights.cohort[key] / 2);
-      let seen = 0;
-      for (const row of ft.histogram) { seen += row[key]; if (seen >= rank) return row.minute; }
-      return null;
-    };
-    const w = median('women'), m = median('men');
-    eq([n.values.women_median_min, n.values.men_median_min], [w, m], 'field.gap recounts the two medians');
-    eq(n.guard, w !== null && m !== null && w - m >= 1, 'field.gap: "after" needs women\'s median at least a minute later');
-    if (n.guard) has(n, `*${w - m} minutes* after`, 'field.gap names the gap in minutes');
   };
   R['field.title'] = (n) => {
     eq(n.values.median_min, minuteAt(0.5), 'field.title recounts the median');
@@ -307,7 +293,7 @@ module.exports = function stories({ json, eq, ok, core }) {
     const [s, k] = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
     eq([n.values.section, n.values.k, n.values.n], [s, k, shaped.length], 'courses.slowest recounts the commonest slowest section');
     eq(n.guard, k > shaped.length / 2, 'courses.slowest: guard');
-    if (n.guard) has(n, `*${k} of ${shaped.length}* courses with a pacing shape, the slowest 5K was ${section(s)}`, 'courses.slowest names it (and which courses it counts)');
+    if (n.guard) has(n, `The slowest 5K was ${section(s)} on *${k} of ${shaped.length}* courses`, 'courses.slowest names it and how many courses');
   };
   R['courses.steady'] = (n) => {
     const big = types.courses.filter((c) => c.finishes >= 10000 && c.editions >= 3).map((c) => c.shares[even]);
@@ -352,12 +338,12 @@ module.exports = function stories({ json, eq, ok, core }) {
     return [
       [S.fieldMiddleFrom({ p25: null, median: 250, p75: 290 }), 'Every finish time, from the front of the field to the back.'],
       [S.fieldFrontFrom(eras), 'From 2015–19 to 2022–26, the 10th-percentile finish changed by −0.4 min and the 90th by +1.0 min.'],
-      [S.fieldByRaceFrom([{ city: 'A', finishes: 500, editions: 3, median_s: 15000 }]), 'Median finish, race by race.'],
+      [S.fieldByRaceFrom([{ city: 'A', finishes: 500, editions: 3, median_s: 15000 }]), 'Median finish, course by course.'],
       [S.typesTopFrom([{ name: 'Even', share: 0.3 }, { name: 'Odd', share: 0.15 }]), 'Two ways to run *the same race*.'],
-      [S.replayBackFrom({ city: 'A', year: 2020, moments: { back_km_at_first: 30 } }), 'When the first runner finished A 2020, the back of the field had covered 18.6 mi.'],
+      [S.replayBackFrom({ city: 'A', year: 2020, moments: { back_km_at_first: 30 } }), 'When the first runner finished A 2020, the back of the field had covered 18.6\u00a0mi.'],
       [S.kickMagnetFrom({ slowdown_share: 0.4, slowdown_final_below_baseline: 0.02 }), 'Of finishes with a sustained slowdown, 40% sped up over the last 1.4 mi; 2.0% got back to their early pace.'],
       [S.typesRiverFrom({ archetypes: [{ name: 'Even', median_cv: 1 }, { name: 'Odd', median_cv: 9 }], river: [{ label: '2:30–2:45', shares: [0.3, 0.7] }, { label: '6:00–6:15', shares: [0.2, 0.8] }] }), 'Evens: 30% of 2:30–2:45 finishes, 20% of 6:00–6:15.'],
-      [S.placesCoinFrom({ 30: [{ gap_lo_s: 60, share: 0.3 }, { gap_lo_s: 300, share: 0.1 }], 40: [{ gap_lo_s: 60, share: 0.2 }] }), 'How often a trailing finish got to the line first, by how far back it was, from 30K and from 40K.'],
+      [S.placesCoinFrom({ 30: [{ gap_lo_s: 60, share: 0.3 }, { gap_lo_s: 300, share: 0.1 }], 40: [{ gap_lo_s: 60, share: 0.2 }] }), 'How often a finish beat the runner ahead to the line, by how far back it was, from 30K and from 40K.'],
       [S.placesBreakevenFrom(null), 'Places gained after 30K, by the pace of 30–40K against a finish’s own 5–20K pace.'],
       [S.kickTwinsFrom({ strata: 1, slowdown_finishes: 1, mean_gap_s: 300, median_gap_s: 300 }), 'Same pace to 20K, apart at the finish.'],
       [S.kickTitleFrom({ median_gap_s: 300 }), 'Same pace to 20K, apart at the finish.'],
@@ -368,8 +354,6 @@ module.exports = function stories({ json, eq, ok, core }) {
       [S.coursesSlowestFrom([{ slowest_section: '35–40', curve: [1] }, { slowest_section: '30–35', curve: [1] }]), 'The slowest 5K, course by course.'],
       [S.fieldTitleFrom(null), 'Marathon finish times'],
       [S.fieldTitleFrom(240), 'Marathon finish times'],
-      [S.fieldGapFrom({ women: 239, men: 250 }), 'Recorded women’s median finish was 3:59; recorded men’s, 4:10.'],
-      [S.fieldGapFrom({ women: null, men: 250 }), 'Recorded women’s and men’s finish times, side by side.'],
       [S.placesTitleFrom({ 30: [{ gap_lo_s: 60, share: 0.3 }], 40: [{ gap_lo_s: 60, share: 0.2 }] }), 'Pass or be passed'],
       [S.holdsTitleFrom({ women_slowdown: 0.3, men_slowdown: 0.4 }), 'Women and men'],
       [S.weatherTitleFrom({ hotter_slowed_more: 4, total: 10 }), 'Race-morning weather'],

@@ -1,10 +1,9 @@
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import Ruler from '@/components/viz/Ruler';
 import DotStrip from '@/components/viz/DotStrip';
 import Values from '@/components/ui/Values';
 import PercentileDots from '@/components/story/charts/PercentileDots';
 import EraShift from '@/components/story/charts/EraShift';
-import { Beat, Say, StoryHero, StoryPage } from '@/components/story/StoryPage';
+import { Beat, StoryHero, StoryPage } from '@/components/story/StoryPage';
 import { FINISH_GROUPS, GROUP_LABEL, clockMinute, ordinal, percentileMinutes, type FinishTimeSummary as Summary, type GroupSummary } from '@/lib/finish-times-summary';
 import type { Courses } from '@/lib/insights';
 import { getNugget, sentenceOf } from '@/lib/nuggets';
@@ -17,20 +16,15 @@ const MINUS = '−';
 const signedMin = (v: number) => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(v).toFixed(1)} min`;
 
 /**
- * Chapter 01's opener, /finish-times (the redesign spec, section 7.3, under section 00): the median finish with the
- * recorded women's and men's medians on a ruler, then three beats: every finish as 99 finishes, the front of the field
- * against the back across the eras, and the median race by race. Every number comes from the field.* nuggets and the
- * verified story data; what the numbers cover and how they are counted is on /methodology.
+ * Chapter 01's opener, /finish-times (the redesign spec, section 7.3, under section 00): the median finish alone under
+ * the H1 (recorded women's and men's medians are in All numbers: women against men is chapter 07's story), then three
+ * beats: every finish as 99 finishes, the front of the field against the back across the eras, and the median course by
+ * course. Every number comes from the field.* nuggets and the verified story data; what the numbers cover and how they
+ * are counted is on /methodology.
  */
 export default function FinishTimeSummary({ summary, courses }: { summary: Summary; courses: Courses }) {
   const { groups } = summary;
-  const title = getNugget('field.title'), median = getNugget('field.median'), gap = getNugget('field.gap'), middle = getNugget('field.middle'), front = getNugget('field.front'), byRace = getNugget('field.byrace');
-  const all = groups.all;
-  const p10 = at(all, 0.1), p90 = at(all, 0.9);
-
-  // The ruler: the 10th to the 90th percentile and the three medians, each dot labelled with its time (so no tick row).
-  const lo = p10 ?? 180, hi = p90 ?? 330;
-  const medians = FINISH_GROUPS.map((g) => ({ g, m: groups[g].median })).filter((x): x is { g: typeof FINISH_GROUPS[number]; m: number } => x.m !== null);
+  const title = getNugget('field.title'), median = getNugget('field.median'), middle = getNugget('field.middle'), front = getNugget('field.front'), byRace = getNugget('field.byrace');
 
   // Every finish as 99 finishes: the 1st to the 99th percentile of all finishes. Recorded women and men are the reading's
   // ruler and the Values table, so the beat has no control that would move it away from its H2.
@@ -54,11 +48,12 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
   ];
   const span = Math.ceil(Math.max(...rows.flatMap((r) => r.values.map((v) => Math.abs(v.v)))) / 5) * 5;
 
-  // Race by race: the median finish of each course with 100 or more finishes; those with three or more editions (the
-  // courses the H2's range spans) are filled, the rest hollow.
+  // Course by course: each course's median finish across its editions. The strip draws the courses the H2's range spans
+  // (100 or more finishes and three or more editions), so no dot sits past the range it names; All numbers lists every
+  // course with 100 or more finishes, with its editions.
   const list = courses.courses.filter((c) => c.finishes >= 100);
   const drawn = list.filter((c) => c.editions >= 3);
-  const t0 = Math.floor(Math.min(...list.map((c) => c.median_s)) / 1800) * 1800, t1 = Math.ceil(Math.max(...list.map((c) => c.median_s)) / 1800) * 1800;
+  const t0 = Math.floor(Math.min(...drawn.map((c) => c.median_s)) / 1800) * 1800, t1 = Math.ceil(Math.max(...drawn.map((c) => c.median_s)) / 1800) * 1800;
   const stripTicks = [];
   for (let t = t0; t <= t1; t += 1800) stripTicks.push({ value: t, label: hm(t / 60) });
 
@@ -85,18 +80,9 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
         </table>
       </Values>,
     ]}>
-      {/* The H1 is the finding in words and the figure its time; the sentence adds the gap between recorded women and
-          men, and the ruler draws the three medians (the reading's dot is named, its time being the figure). */}
-      <StoryHero path={PATH} title={title.guard ? sentenceOf(title) : 'Marathon finish times'} dek="How long does a marathon take?"
-        figure={median.figure ? { ...median.figure } : undefined} unitLine={median.key} fallback={!median.guard}
-        sentence={<Say nugget={gap} />}
-        instrument={(
-          <Ruler min={lo} max={hi} ticks={[]} className="is-labelled"
-            label={`Median finish between the 10th and 90th percentile: ${medians.map(({ g, m }) => `${GROUP_LABEL[g].toLowerCase()} ${hm(m)}`).join(', ')}`}
-            marks={medians.map(({ g, m }) => g === 'all'
-              ? { value: m, kind: 'reading' as const, label: 'All' }
-              : { value: m, kind: 'compare' as const, label: `${GROUP_LABEL[g]} ${hm(m)}` })} />
-        )} />
+      {/* The H1 is the finding in words and the figure its time, alone: the beats under it draw the field. */}
+      <StoryHero path={PATH} title={title.guard ? sentenceOf(title) : 'Marathon finish times'}
+        figure={median.figure ? { ...median.figure } : undefined} unitLine={median.key} fallback={!median.guard} />
 
       <Beat id="field" track="chapter-1" label="Most finishes" title={middle}>
         <PercentileDots layer={layer} domain={[dLo, dHi]} ticks={dotTicks}
@@ -110,15 +96,12 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
           label={`Change in finish time from ${eras.pre[0]}–${eras.pre[1]} to ${eras.post[0]}–${eras.post[1]} across ${covered.length} courses: 10th percentile ${signedMin(eras.summary.p10.change)}, 90th percentile ${signedMin(eras.summary.p90.change)} on average.`} />
       </Beat>
 
-      <Beat id="by-race" track="chapter-3" label="Race by race" title={byRace}>
-        {/* Every course the table lists is drawn: the H2's range comes from the filled ones (three or more editions),
-            and the rest are hollow, so the strip and its Values count the same courses. */}
-        {/* The H2's two medians (its accent) are the two signal dots, so the strip draws the range it names. */}
-        <DotStrip items={list.map((c) => ({ id: c.city, label: c.city, value: c.median_s, display: hm(c.median_s / 60), detail: count(c.finishes), hollow: c.editions < 3,
-          subject: byRace.guard && (c.city === byRace.values.low || c.city === byRace.values.high) }))}
-          domain={[t0, t1]} ticks={stripTicks} readoutKey="Finishes"
-          keyLabels={list.length > drawn.length ? { filled: 'Three or more editions', hollow: 'Fewer editions' } : undefined}
-          label={`Median finish of ${list.length} courses, ranked (${drawn.length} with three or more editions filled, the rest hollow); tap a dot to read it`} />
+      {/* The strip draws the courses the H2's range spans, its two ends named in one treatment (ink labels); a tapped dot
+          is read out, so the only orange on it is the reader's pick. */}
+      <Beat id="by-race" track="chapter-3" label="Course by course" title={byRace} dek="Each course’s median across its editions, three or more.">
+        <DotStrip items={drawn.map((c) => ({ id: c.city, label: c.city, value: c.median_s, display: hm(c.median_s / 60), detail: count(c.finishes) }))}
+          domain={[t0, t1]} ticks={stripTicks} readoutKey="Finishes" prompt="Tap a dot to read its course"
+          label={`Median finish of ${drawn.length} courses with three or more editions, ranked; tap a dot to read it`} />
       </Beat>
     </StoryPage>
   );

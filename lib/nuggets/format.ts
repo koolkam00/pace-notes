@@ -62,16 +62,17 @@ function nearestOneIn(share: number): number | null {
 
 /**
  * A share in tenths for prose: "about 3 in 10" (within a hundredth of a tenth's step), "just over 7 in 10" or
- * "just under 7 in 10" (up to 3.5 hundredths away); otherwise the percentage.
+ * "just under 7 in 10" (up to 3.5 hundredths away); otherwise the percentage. With a `noun`, a phrase that reads in
+ * both branches ("about 3 in 10 finishes", "14% of finishes"), so a caller never builds "14% finishes".
  */
-export function approxWords(share: number): string {
+export function approxWords(share: number, noun?: string): string {
   if (!finite(share)) return '—';
   const tenths = share * 10;
   const n = Math.round(tenths);
   const gap = tenths - n;
-  if (n < 1 || n > 9 || Math.abs(gap) > 0.35) return pct(share);
-  if (Math.abs(gap) <= 0.1) return `about ${n} in 10`;
-  return `${gap > 0 ? 'just over' : 'just under'} ${n} in 10`;
+  if (n < 1 || n > 9 || Math.abs(gap) > 0.35) return noun ? `${pct(share)} of ${noun}` : pct(share);
+  const words = Math.abs(gap) <= 0.1 ? `about ${n} in 10` : `${gap > 0 ? 'just over' : 'just under'} ${n} in 10`;
+  return noun ? `${words} ${noun}` : words;
 }
 
 /** Whole minutes as h:mm: 250 → "4:10". */

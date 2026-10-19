@@ -12,8 +12,8 @@ export type { ReplayEdition } from './replay-geometry';
  * ReplayStage). Every finish of a sampled field on one race clock.
  *
  * The field view draws rank lanes: x is distance covered, y is finish rank (fastest at the top), so the field reads as
- * a needle that tilts as the race unfolds. Dots are --night-ink; dots after 20K in a section at least 25% slower than
- * their own 5–20K pace are --night-signal. The route view runs the same dots on the course map.
+ * a needle that tilts as the race unfolds. Dots are --night-ink, finished ones dimmer; no layer colours who slowed
+ * (slower is never orange). The route view runs the same dots on the course map.
  *
  * Play: when the frame is 35% in view it runs once from 20 race-minutes before the first finish (the flag) up to it, at
  * 3 race-minutes a second, and pauses there with the moment's sentence. Play continues to the last finish; tapping the
@@ -28,6 +28,7 @@ type Props = {
   band?: boolean;
   race: string;
   moment?: string | { mi: string; km: string };
+  mark?: { km: number; label: { mi: string; km: string } };
   poster?: ReactNode;
   autoplay?: boolean;
 };
@@ -41,7 +42,7 @@ type Phase = 'waiting' | 'intro' | 'flag' | 'playing' | 'paused' | 'ended';
 function tokens(el: Element) {
   const cs = getComputedStyle(el);
   const v = (name: string) => cs.getPropertyValue(name).trim();
-  return { ink: v('--night-ink'), signal: v('--night-signal'), quiet: v('--night-mark-quiet'), rule: v('--night-3'), ink3: v('--night-ink-3') };
+  return { ink: v('--night-ink'), quiet: v('--night-mark-quiet'), rule: v('--night-3'), ink3: v('--night-ink-3') };
 }
 
 function routeLocator(route: NonNullable<ReplayEdition['route']>) {
@@ -63,7 +64,7 @@ function hash(i: number) {
   return ((x ^ (x >>> 16)) >>> 0) / 4294967296;
 }
 
-export default function RaceReplay({ edition, flag, view = 'field', band = false, race, moment, poster, autoplay = true }: Props) {
+export default function RaceReplay({ edition, flag, view = 'field', band = false, race, moment, mark, poster, autoplay = true }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const reduced = usePrefersReducedMotion();
@@ -175,19 +176,14 @@ export default function RaceReplay({ edition, flag, view = 'field', band = false
       g.globalAlpha = 1;
       place = (km, i) => [fieldX(km) * W, fieldY(n > 1 ? i / (n - 1) : 0.5) * H];
     }
-    const slow: [number, number][] = [];
     g.fillStyle = c.ink;
     for (let i = 0; i < n; i++) {
       const p = positionAt(sorted[i], t);
       const [x, y] = place(p.km, i);
-      // The home band draws one ink field (its sentence is about distance, not slowdowns); the stories mark slowdown pace.
-      if (p.slowdownPace && !band) { slow.push([x, y]); continue; }
       g.globalAlpha = p.finished ? 0.4 : 0.85;
       g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
     }
     g.globalAlpha = 1;
-    g.fillStyle = c.signal;
-    for (const [x, y] of slow) { g.beginPath(); g.arc(x, y, r + 0.3, 0, Math.PI * 2); g.fill(); }
   }, [size, time, sorted, mode, locate, edition.route, band]);
 
   useEffect(() => { draw(); }, [draw]);
@@ -209,11 +205,11 @@ export default function RaceReplay({ edition, flag, view = 'field', band = false
   const atFlag = Math.abs(time - flag) < 30;
   return (
     <div ref={box} className="replay-measure">
-      <ReplayFrame race={race} clock={raceClock(time)} finished={hudShare(shares.finished)} slow={hudShare(shares.slowdownPace)} view={mode} band={band} aspect={routeAspect(edition.route?.points)}
+      <ReplayFrame race={race} clock={raceClock(time)} finished={hudShare(shares.finished)} view={mode} aspect={routeAspect(edition.route?.points)}
         poster={poster}
         canvas={<canvas ref={canvas} className={`replay-canvas${shown ? ' is-shown' : ''}`} onClick={toggle} role="img"
           aria-label={`${race}: ${edition.sample.toLocaleString('en-US')} sampled finishes on one race clock, ${raceClock(time)}. ${hudShare(shares.finished)} finished.`} />}
-        moment={moment} momentOn={atFlag && !playing} playing={playing} onPlay={toggle} time={time} max={max} onScrub={scrub} valuetext={raceClock(time)} live={shown} />
+        moment={moment} mark={mark} momentOn={atFlag && !playing} playing={playing} onPlay={toggle} time={time} max={max} onScrub={scrub} valuetext={raceClock(time)} live={shown} />
     </div>
   );
 }

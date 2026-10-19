@@ -1,7 +1,7 @@
 'use client';
 import { type ComponentType, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { UnitSwitch } from './UnitsProvider';
+import { UnitLink, UnitSwitch } from './UnitsProvider';
 import MenuSheet, { WIDE, type MenuMode } from './MenuSheet';
 import { usePrefersReducedMotion } from './art/useTicker';
 
@@ -95,6 +95,9 @@ export default function SiteHeader({ brand, chapters }: { brand: ReactNode; chap
           <UnitSwitch />
           {opener('menu', 'site-sheet', 'nav-toggle', 'Menu')}
           {opener('chapters', 'site-chapters', 'chapters-toggle', 'Chapters')}
+          {/* Without JavaScript the Menu and Chapters buttons cannot open (app/layout.tsx's noscript style hides them):
+              this plain link to the contents takes the Menu's place on a phone. */}
+          <UnitLink className="nav-fallback" href="/research">Contents</UnitLink>
         </div>
       </div>
       {ReadingBar && !still ? <ReadingBar /> : null}

@@ -3,7 +3,8 @@ import Arrow from './Arrow';
 import ScrollCue from './ScrollCue.client';
 
 /**
- * Values: every chart's table twin, in a disclosure (spec section 3.5). The summary reads "Values" and the row count;
+ * Values: a chart's table twin, in a disclosure (spec section 3.5). The summary reads "All numbers" and the row count,
+ * the one name every table fold on the site carries (a page's foot gathers its tables under the same name, AllNumbers);
  * inside, a focusable scroll region labelled by the visible caption holds the table (first column sticky, tabular
  * figures, 44 px rows). When the table is wider than the column, the right edge fades (24 px) and a "Scroll" cue shows.
  * Order the columns key first, then the finding the page's sentence names, then supporting counts, so a narrow screen
@@ -58,7 +59,7 @@ export default function Values({ id, caption, columns, rows, reading, count, ope
   return (
     <details className={`values${className ? ` ${className}` : ''}`} id={id} open={open || undefined}>
       <summary>
-        <span>Values{typeof n === 'number' ? <span className="values-count">{n.toLocaleString('en-US')} {n === 1 ? 'row' : 'rows'}</span> : null}</span>
+        <span>All numbers{typeof n === 'number' ? <span className="values-count">{n.toLocaleString('en-US')} {n === 1 ? 'row' : 'rows'}</span> : null}</span>
         <span className="values-glyph" aria-hidden="true" />
       </summary>
       <div className="values-body">{body}</div>

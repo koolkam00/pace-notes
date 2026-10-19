@@ -13,7 +13,7 @@
 .hero-replay .replay-pickers { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); margin-bottom: var(--s-4); }
 .hero-replay .replay-pickers > * { max-width: 100%; }
 
-/* The HUD: the race and its clock; the shares finished and at slowdown pace. */
+/* The HUD: the race and its clock; the share finished. */
 .hero-replay .replay-hud { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s-4); margin-bottom: var(--s-3); }
 .hero-replay .replay-race { margin: 0 0 2px; font-size: var(--t-kicker); font-weight: 600; line-height: 1.3; letter-spacing: .08em; text-transform: uppercase; color: var(--night-ink-3); }
 .hero-replay .replay-clock { margin: 0; font-size: 1.75rem; font-weight: 600; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--night-ink); }
@@ -24,7 +24,6 @@
 .hero-replay .replay-stats div { display: flex; align-items: baseline; justify-content: flex-end; gap: var(--s-2); min-width: 0; }
 .hero-replay .replay-stats dt { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--night-ink-3); white-space: nowrap; }
 .hero-replay .replay-stats dd { margin: 0; min-width: 4.6ch; font-size: 1rem; font-weight: 600; line-height: 1.3; font-variant-numeric: tabular-nums; text-align: right; color: var(--night-ink); }
-.hero-replay .replay-swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--night-signal); }
 
 /* The canvas box: fixed height, the poster under the canvas, the canvas fading in over it. */
 .hero-replay .replay-box { position: relative; height: var(--replay-h); overflow: hidden; background: var(--night); }
@@ -42,6 +41,13 @@
 .hero-replay .replay-canvas { opacity: 0; cursor: pointer; transition: opacity var(--d-reveal) var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .hero-replay .replay-canvas.is-shown { opacity: 1; }
 .hero-replay .replay-axis-y { margin: 0 0 6px; font-size: 12px; font-weight: 500; line-height: 16px; color: var(--night-ink-3); }
+/* The point the moment names (the home band: how far the back of the field had come), at the foot of the field: a short
+   tick and its distance, shown while the flag frame holds and dimmed with the sentence once the race runs on. */
+.hero-replay .replay-mark { position: absolute; bottom: 2px; display: inline-flex; align-items: flex-end; gap: 4px; transform: translateX(-1px); pointer-events: none;
+  font-size: 12px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--night-ink); transition: color var(--d-toggle) var(--ease-out); }
+.hero-replay .replay-mark i { display: block; width: 1px; height: 14px; background: var(--night-ink); transition: background-color var(--d-toggle) var(--ease-out); }
+.hero-replay .replay-mark.is-off { color: var(--night-ink-3); }
+.hero-replay .replay-mark.is-off i { background: var(--night-ink-3); }
 .hero-replay .replay-status { position: absolute; left: 0; right: 0; bottom: 12px; margin: 0; font-size: var(--t-small); text-align: center; color: var(--night-ink-2); }
 
 /* Play and pause: 44 px at the start of the control row, beside the race clock (never on the canvas). */

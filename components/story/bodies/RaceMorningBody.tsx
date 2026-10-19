@@ -17,6 +17,8 @@ const MINUS = '−';
 /** A signed value; one that rounds to zero is plain "0.0", never "−0.0". */
 const signed = (v: number, digits = 1) => (Math.abs(v) < 0.5 * 10 ** -digits ? (0).toFixed(digits) : `${v > 0 ? '+' : MINUS}${Math.abs(v).toFixed(digits)}`);
 const UNITS: UnitSystem[] = ['mi', 'km'];
+/** A section's shift in points of the finish's own average pace: "3.0 points quicker", "3.1 points slower". */
+const shift = (v: number) => (Math.abs(v) < 0.05 ? 'no shift' : `${Math.abs(v).toFixed(1)} points ${v < 0 ? 'quicker' : 'slower'}`);
 
 /**
  * Race-morning weather (the redesign spec, section 7.11, new, under section 00): the weather half of the old course
@@ -61,7 +63,8 @@ export default function RaceMorningBody() {
     : [0, 5, 10, 15, 20, 25].filter((c) => c >= tLo && c <= tHi));
   const curveChart = (u: UnitSystem) => (
     <LineProfile x={curve.map((c) => c.temp)} xDomain={[tLo, tHi]} yDomain={[bottom, top]}
-      layers={[{ id: 'curve', label: 'Finish', series: [{ id: 'f', values: curve.map((c) => c.change), fillAbove: 0 }],
+      // Slower is never orange: the slower side is washed quiet; the H2's point is the needle's.
+      layers={[{ id: 'curve', label: 'Finish', series: [{ id: 'f', values: curve.map((c) => c.change), fillAbove: 0, fillTone: 'quiet' }],
         // The warm end is the H2's and the needle's (the readout gives its rate); the cool end it is compared with is
         // a small ink dot carrying its own rate.
         points: [{ x: cool, y: curve[at(cool)].change, kind: 'compare' }, { x: warm, y: curve[at(warm)].change, kind: 'reading' }],
@@ -102,15 +105,16 @@ export default function RaceMorningBody() {
         columns={[{ key: 's', label: 'Section' }, { key: 'v', label: 'Pace' }, { key: 'c', label: 'Interval' }]}
         rows={sig.map((s) => [sectionName(s.section), `${signed(s.per_10c)}%`, `${signed(s.ci95[0])}% to ${signed(s.ci95[1])}%`])} />,
     ]}>
-      {/* The figure counts the pairs and its key says what was counted (the term's first use, so it links); the waffle
-          draws them one by one. A failed guard shows the plain sentence instead. */}
-      <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
+      {/* The figure counts the pairs and its unit line says what was counted, the pairs' minimum gap in the reader's
+          units (the term's first use, so it links); the waffle draws them one by one. A failed guard shows the plain
+          sentence instead. */}
+      <StoryHero path={PATH} title={story.heading ?? story.title}
         figure={pairs.figure ? { ...pairs.figure } : undefined} fallback={!pairs.guard}
-        unitLine={pairs.guard && pairs.key ? rich(pairs.key, { term: true }) : undefined}
+        unitLine={pairs.guard ? <ByUnits {...Object.fromEntries(UNITS.map((u) => [u, rich(`same-course pairs at least ${tempGap(p.min_gap_c, u)} apart where the warmer year had more sustained slowdowns`, { term: true })])) as { mi: JSX.Element; km: JSX.Element }} /> : undefined}
         sentence={pairs.guard ? undefined : <Say nugget={pairs} term />}
         instrument={(
           <ByUnits {...Object.fromEntries(UNITS.map((u) => [u, (
-            <Waffle key={u} tiles={tiles(u)} initial={opening} sideLabel="At the start" label={`${p.hotter_slowed_more} of ${p.total} same-course pairs: the warmer year had more sustained slowdowns; tap a square to read its pair`}
+            <Waffle key={u} tiles={tiles(u)} initial={opening} sideLabel="At the start, cooler · warmer" label={`${p.hotter_slowed_more} of ${p.total} same-course pairs: the warmer year had more sustained slowdowns; tap a square to read its pair`}
               keyLabels={{ lit: 'Warmer year, more sustained slowdowns', other: 'Cooler year, as many or more' }} />
           )])) as { mi: JSX.Element; km: JSX.Element }} />
         )}>
@@ -124,15 +128,17 @@ export default function RaceMorningBody() {
       </Beat>
 
       <Beat id="heat" track="chapter-2" label="The shape" title={tilt} aliases={['untangle']}
-        // The dek says what the line measures; the two labelled sections carry the numbers.
-        dek={<ByUnits {...Object.fromEntries(UNITS.map((u) => [u, keep(`Each section’s pace against the finish’s own average, on a morning ${tempGap(10, u)} warmer.`)])) as { mi: string; km: string }} />}>
+        // The dek says what the line measures (a shift, against a cooler morning's shape); the two labelled sections
+        // carry the numbers, in points of the finish's own average pace.
+        dek={<ByUnits {...Object.fromEntries(UNITS.map((u) => [u, keep(`How much each section’s pace shifts, against the finish’s own average, on a morning ${tempGap(10, u)} warmer.`)])) as { mi: string; km: string }} />}>
         <LineProfile x={MID} xDomain={[0, 42.195]} yDomain={[-span, span]}
-          layers={[{ id: 'heat', label: 'Warmer', series: [{ id: 'h', values: sig.map((s) => s.per_10c), fillAbove: 0 }],
-            points: [...(early >= 0 ? [{ x: MID[early], y: sig[early].per_10c, kind: 'compare' as const }] : []), ...(late >= 0 ? [{ x: MID[late], y: sig[late].per_10c, kind: 'reading' as const }] : [])],
+          // Quicker and slower both in ink (slower is never orange): the shape is the finding, not one section.
+          layers={[{ id: 'heat', label: 'Warmer', series: [{ id: 'h', values: sig.map((s) => s.per_10c), fillAbove: 0, fillTone: 'quiet' }],
+            points: [...(early >= 0 ? [{ x: MID[early], y: sig[early].per_10c, kind: 'compare' as const }] : []), ...(late >= 0 ? [{ x: MID[late], y: sig[late].per_10c, kind: 'compare' as const }] : [])],
             labels: [
-              // Each label carries its unit (% of the finish's own average pace), as the dek says.
-              ...(early >= 0 ? [{ x: MID[early], y: sig[early].per_10c, text: `${sectionName(sig[early].section)} ${signed(sig[early].per_10c)}%`, tone: 'ink' as const, priority: 2, prefer: 'below' as const }] : []),
-              ...(late >= 0 ? [{ x: MID[late], y: sig[late].per_10c, text: `${sectionName(sig[late].section)} ${signed(sig[late].per_10c)}%`, tone: 'signal' as const, priority: 3, prefer: 'above' as const }] : []),
+              // Each label says the shift in points of the finish's own average pace, and which way, as the dek says.
+              ...(early >= 0 ? [{ x: MID[early], y: sig[early].per_10c, text: `${sectionName(sig[early].section)}: ${shift(sig[early].per_10c)}`, tone: 'ink' as const, priority: 2, prefer: 'below' as const }] : []),
+              ...(late >= 0 ? [{ x: MID[late], y: sig[late].per_10c, text: `${sectionName(sig[late].section)}: ${shift(sig[late].per_10c)}`, tone: 'ink' as const, priority: 3, prefer: 'above' as const }] : []),
             ] }]}
           refs={[{ value: 0, label: 'Same shape' }]}
           xTicks={[{ value: 0, label: 'Start' }, { value: 10, label: '10K' }, { value: 20, label: '20K' }, { value: 30, label: '30K' }, { value: 42.195, label: 'Finish' }]}

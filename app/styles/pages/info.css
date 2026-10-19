@@ -9,6 +9,8 @@
 /* One size for every info page's H1 (the about, privacy, request, 404, error and methods pages): the title token on a
    phone, the side column's size from 900 px. */
 .info-hero > h1 { max-width: 16ch; }
+/* A title of two sentences sets each on its own line (/about), so the second never starts at the end of a line. */
+.info-hero > h1 .title-line { display: block; }
 .info-dek { margin: 0; max-width: 32rem; font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
 .info-body { max-width: var(--measure); margin-top: var(--s-7); }
 .info-section { padding: var(--s-6) 0; border-top: 1px solid var(--rule); }
@@ -101,7 +103,8 @@
 @media (min-width: 900px) {
   .info-page { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--s-8); align-items: start; padding: var(--s-8) 0 var(--s-9); }
   .info-hero { position: sticky; top: calc(var(--header-h) + var(--s-6)); }
-  .info-hero > h1 { max-width: none; }
+  /* The info titles stay below the home page's H1 (63 px at 1440), as the hubs' do. */
+  .info-hero > h1 { max-width: none; font-size: min(var(--t-title), 3.9rem); }
   .info-body { margin-top: 0; }
   .info-body > .info-section:first-child { padding-top: 0; border-top: 0; }
 }

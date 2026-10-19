@@ -36,6 +36,10 @@ export const viewport = {
   ],
 };
 
+// Without JavaScript the header's Menu and Chapters buttons and the footer's Motion switch cannot work, so they are
+// hidden and a plain link to the contents stands in for Menu on a phone (components/SiteHeader.tsx, .nav-fallback).
+const NO_SCRIPT_STYLE = '<style>.nav-toggle,.chapters-toggle,.motion-toggle{display:none!important}@media (max-width:1179.98px){.nav-fallback{display:inline-flex!important}}</style>';
+
 // The two faces every page sets first (Fraunces headings, Inter text), self-hosted under the base path (spec 6.3).
 const FONT_BASE = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const PRELOAD_FONTS = ['fraunces-latin-opsz-normal.woff2', 'inter-latin-wght-normal.woff2'];
@@ -44,7 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     // The experiments script (ExperimentHead) names this tab's variants on <html> before React hydrates it.
     <html lang="en" suppressHydrationWarning>
-      <head>{PRELOAD_FONTS.map((file) => <link key={file} rel="preload" as="font" type="font/woff2" crossOrigin="anonymous" href={`${FONT_BASE}/fonts/${file}`} />)}<script type="module" async dangerouslySetInnerHTML={{ __html: RELOAD_ON_FAILED_FILE }} /><ExperimentHead /></head>
+      <head>{PRELOAD_FONTS.map((file) => <link key={file} rel="preload" as="font" type="font/woff2" crossOrigin="anonymous" href={`${FONT_BASE}/fonts/${file}`} />)}<script type="module" async dangerouslySetInnerHTML={{ __html: RELOAD_ON_FAILED_FILE }} /><ExperimentHead /><noscript dangerouslySetInnerHTML={{ __html: NO_SCRIPT_STYLE }} /></head>
       <body><UnitsProvider>
         <a className="skip-link" href="#main">Skip to content</a>
         <SiteHeader

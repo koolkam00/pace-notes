@@ -63,6 +63,27 @@ export function openingPct(frac: number): string {
 /* ---------- Section tones (the split check's bar colours) ---------- */
 
 export type Tone = 'quick' | 'even' | 'slow' | 'qualify';
+/**
+ * One race's verdict from its nine times alone, in the split check's own rules: the race report's night card says it
+ * when the race has no record (a shared link), and the runner view's pacing heading says it for a record. With a
+ * sustained slowdown, where it began and how far off the 5–20 km pace its slowest qualifying section ran; without one,
+ * the slowest section after 20 km and how far off that pace it ran (null when every one held the pace or better).
+ * Percentages are threshold-safe (pctAbs), so the words never round across 25%.
+ */
+export type TimesVerdict =
+  | { slowdown: true; onsetKm: number; off: string }
+  | { slowdown: false; worst: { index: number; off: string } | null };
+export function timesVerdict(r: SplitReading): TimesVerdict {
+  if (r.slowdown && r.onsetKm !== null) {
+    const from = 4 + (r.onsetKm - 20) / 5;
+    const off = Math.max(...r.vsBaseline.slice(from).filter((_, k) => toneOf(r, from + k) === 'qualify'));
+    return { slowdown: true, onsetKm: r.onsetKm, off: pctAbs(off) };
+  }
+  const late = r.vsBaseline.slice(4);
+  const worst = Math.max(...late);
+  return { slowdown: false, worst: worst >= 0.005 ? { index: 4 + late.indexOf(worst), off: pctAbs(worst) } : null };
+}
+
 /** Bar category: a qualifying section is a 5 km section after 20 km at least 25% slower, or the final 2.195 km extending one. */
 export function toneOf(r: SplitReading, i: number): Tone {
   const v = r.vsBaseline[i];

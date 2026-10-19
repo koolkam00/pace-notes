@@ -5,20 +5,18 @@ import { fieldX } from './replay-geometry';
 
 /**
  * The replay's frame (the redesign spec, sections 3.6 and 7.1), drawn the same before and after its canvas loads so
- * nothing moves: the race and the clock on the left, the shares finished and at slowdown pace on the right (the home
- * band, whose sentence is about distance, shows the share finished alone and draws no slowdown colour), the canvas
- * box (its height fixed in CSS) with the poster under the canvas, the moment's sentence under it (its two lines
- * reserved, dimmed to --night-ink-3 while the race runs on), and the control row: play and pause, then the race clock
- * with hour ticks. Nothing sits on the canvas, so no control ever covers the leaders reaching the line. Pure markup: RaceReplay passes the
- * handlers; the placeholder passes none and its controls are disabled.
+ * nothing moves: the race and the clock on the left, the share finished on the right, the canvas box (its height fixed
+ * in CSS) with the poster under the canvas, the moment's sentence under it (its two lines reserved, dimmed to
+ * --night-ink-3 while the race runs on), and the control row: play and pause, then the race clock with hour ticks.
+ * The field is one ink colour: slower is never orange (principle 3), and the replay's stories are about where the field
+ * is, not who slowed. Nothing sits on the canvas, so no control ever covers the leaders reaching the line. Pure markup:
+ * RaceReplay passes the handlers; the placeholder passes none and its controls are disabled.
  */
 export type FrameProps = {
   race: string;
   clock: string;
   finished: string;
-  slow: string;
   view: 'field' | 'route';
-  band?: boolean;
   poster?: ReactNode;
   canvas?: ReactNode;
   /** The flag frame's sentence: one string, or both units' (a distance in it), shown in the reader's units. */
@@ -36,9 +34,12 @@ export type FrameProps = {
   live?: boolean;
   /** The route view's width-to-height ratio (routeAspect), so the frame fits the course's shape. */
   aspect?: number;
+  /** A point the moment's sentence names (the home band: how far the back of the field had come), marked at the foot of
+   *  the field with its distance while the flag frame shows: a tick and a label, never a control. */
+  mark?: { km: number; label: { mi: string; km: string } };
 };
 
-export default function ReplayFrame({ race, clock, finished, slow, view, band = false, poster, canvas, moment, momentOn = true, playing = false, onPlay, time = 0, max = 0, onScrub, valuetext, busy, status, live = false, aspect }: FrameProps) {
+export default function ReplayFrame({ race, clock, finished, view, poster, canvas, moment, momentOn = true, playing = false, onPlay, time = 0, max = 0, onScrub, valuetext, busy, status, live = false, aspect, mark }: FrameProps) {
   const hours = Math.max(0, Math.floor(max / 3600));
   const ready = !!onScrub;
   return (
@@ -50,7 +51,6 @@ export default function ReplayFrame({ race, clock, finished, slow, view, band = 
         </div>
         <dl className="replay-stats">
           <div><dt>Finished</dt><dd>{finished}</dd></div>
-          {band ? null : <div><dt><i className="replay-swatch" aria-hidden="true" />At slowdown pace</dt><dd>{slow}</dd></div>}
         </dl>
       </div>
       {/* The rank axis is named above the field, never on it, so no dot ever runs under its words. */}
@@ -58,6 +58,11 @@ export default function ReplayFrame({ race, clock, finished, slow, view, band = 
       <div className={`replay-box is-${view}`} style={view === 'route' && aspect ? ({ '--route-aspect': String(aspect) } as CSSProperties) : undefined}>
         {poster}
         {canvas}
+        {mark && view === 'field' ? (
+          <span className={`replay-mark${momentOn ? '' : ' is-off'}`} style={{ left: `${(fieldX(mark.km) * 100).toFixed(2)}%` }} aria-hidden="true">
+            <i /><ByUnits mi={mark.label.mi} km={mark.label.km} />
+          </span>
+        ) : null}
         {status ? <p className="replay-status">{status}</p> : null}
       </div>
       {view === 'field' ? (

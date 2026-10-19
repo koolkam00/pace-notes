@@ -21,9 +21,11 @@ export type StageChoice = {
   /** The flag frame's sentence: one string, or both units' (the home band's distance). */
   moment: string | { mi: string; km: string };
   poster: ReplayPosterData;
+  /** The point the moment names, marked on the field at the flag frame (the home band's back of the field). */
+  mark?: { km: number; label: { mi: string; km: string } };
 };
 
-type Replay = ComponentType<{ edition: ReplayEdition; flag: number; view?: 'field' | 'route'; band?: boolean; race: string; moment?: StageChoice['moment']; poster?: ReactNode; autoplay?: boolean }>;
+type Replay = ComponentType<{ edition: ReplayEdition; flag: number; view?: 'field' | 'route'; band?: boolean; race: string; moment?: StageChoice['moment']; mark?: StageChoice['mark']; poster?: ReactNode; autoplay?: boolean }>;
 let loaded: Replay | null = null;
 
 export default function ReplayStage({ choices, initial, band = false, picker = false, layout = false }: {
@@ -81,10 +83,10 @@ export default function ReplayStage({ choices, initial, band = false, picker = f
       ) : null}
       {Component && data ? (
         <Component key={`${choice.slug}-${shownView}`} edition={{ city: choice.city, year: choice.year, finishes: choice.finishes, sample: choice.sample, rows: data, route: choice.route }}
-          flag={choice.flag_s} view={shownView} band={band} race={choice.race} moment={choice.moment} poster={shownView === 'field' ? poster : null} autoplay={!picked} />
+          flag={choice.flag_s} view={shownView} band={band} race={choice.race} moment={choice.moment} mark={choice.mark} poster={shownView === 'field' ? poster : null} autoplay={!picked} />
       ) : (
-        <ReplayFrame race={choice.race} clock={raceClock(choice.flag_s)} finished={hudShare(choice.poster.finished)} slow={hudShare(choice.poster.slowdownPace)} view={shownView} band={band} aspect={routeAspect(choice.route?.points)}
-          poster={shownView === 'field' ? poster : null} moment={choice.moment} time={choice.flag_s} max={choice.poster.last_s + 300} busy={!error} status={error || undefined} />
+        <ReplayFrame race={choice.race} clock={raceClock(choice.flag_s)} finished={hudShare(choice.poster.finished)} view={shownView} aspect={routeAspect(choice.route?.points)}
+          poster={shownView === 'field' ? poster : null} moment={choice.moment} mark={choice.mark} time={choice.flag_s} max={choice.poster.last_s + 300} busy={!error} status={error || undefined} />
       )}
     </div>
   );

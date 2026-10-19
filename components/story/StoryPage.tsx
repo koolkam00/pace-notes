@@ -70,13 +70,19 @@ export function StoryPage({ path, className, numbers = [], children }: { path: s
   );
 }
 
-/** The opener: crumbs, the H1, the question, then the reading (figure, unit line, sentence, a small instrument). */
+/**
+ * The opener: crumbs, the H1, then the reading (figure, unit line, sentence, a small instrument). No question dek: the
+ * finding comes first, and the question lives in the page's title and description. A `dek` is a line that earns its
+ * place (the pacing types' continuation of the home page's guess). With no figure, sentence or instrument (the race
+ * replay, whose replay is its reading), the hairline under the H1 goes too, so the H1 sits straight over the children.
+ */
 export function StoryHero({ path, title, dek, figure, figures, variant, unitLine, sentence, instrument, fallback, label = 'The reading', children }: {
   path: string; title: ReactNode; dek?: ReactNode; figure?: Figure; figures?: [Figure, Figure]; variant?: 'figure' | 'pair';
   unitLine?: ReactNode; sentence?: ReactNode; instrument?: ReactNode; fallback?: boolean; label?: string; children?: ReactNode;
 }) {
+  const bare = !figure && !figures && !sentence && !instrument;
   return (
-    <section className="story-hero-beat" data-track-section="hero" data-beat={label}>
+    <section className={`story-hero-beat${bare ? ' is-bare' : ''}`} data-track-section="hero" data-beat={label}>
       <Reading crumbs={<ChapterCrumbs path={path} />} title={typeof title === 'string' ? rich(title) : title} dek={dek}
         variant={variant ?? (figures ? 'pair' : 'figure')} figure={figure} figures={figures} unitLine={unitLine}
         sentence={sentence} instrument={instrument} fallback={fallback} />

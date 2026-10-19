@@ -10,6 +10,9 @@
 .runner-head { max-width: 46rem; }
 .runner-head h1 { margin: 0; }
 .runner-dek { margin: var(--s-4) 0 0; max-width: var(--measure); font-size: var(--t-body); line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
+/* The sustained-slowdown term, linked to its definition where the page first uses it (the dek; the pacing heading). */
+.runner-page .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-decoration-color: currentColor; text-underline-offset: .18em; }
+.runner-page .term-link:hover { text-decoration-style: solid; }
 .runner-work { margin-top: var(--s-6); }
 .runner-split, .runner-side, .runner-main, .runner-reading { min-width: 0; }
 .runner-page .chapter-end { margin-top: var(--s-8); }

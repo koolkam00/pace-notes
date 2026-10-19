@@ -163,7 +163,7 @@ for (const scope of index.scopes) {
           const text = html.replace(/<[^>]+>/g, ' ').replace(/&#x27;|&#39;/g, '\'').replace(/&amp;/g, '&').replace(/\s+/g, ' ');
           assert.ok(text.includes(`${c.n.toLocaleString('en-US')} ${c.label}`), 'the comparison names its finishes and its group');
           for (const g of c.groups) assert.ok(text.includes(`${g.name} ${g.n.toLocaleString('en-US')}`), `${g.name}: its finishes`);
-          assert.ok(text.includes(`${capitalize(approxWords(model.type.share))} finishes were ${model.type.name}s`) && !text.includes(archetypes.cohort_n.toLocaleString('en-US')), 'the pacing type names its share in words, under the type\'s own name, without the cohort count (that is on /methodology)');
+          assert.ok(text.includes(`${capitalize(approxWords(model.type.share, 'finishes'))} were ${model.type.name}s`) && !text.includes(archetypes.cohort_n.toLocaleString('en-US')), 'the pacing type names its share in words, under the type\'s own name, without the cohort count (that is on /methodology)');
           assert.ok(!text.includes('doi:10.1371/journal.pone.0251513') && !text.includes(splits.SLOWDOWN_DEFINITION), 'no definition or citation on the card');
           assert.doesNotMatch(text, METHOD_COPY, 'no method line on the card');
           assert.match(html, new RegExp(`<a\\b[^>]*href="${SLOWDOWN_HREF}"[^>]*>sustained slowdown</a>`), 'the term links to its definition');
@@ -191,6 +191,26 @@ for (const scope of index.scopes) {
 }
 assert.ok(compared > 200 && unpublished > 0, `windows compared (${compared}) and unpublished ones (${unpublished}) both checked`);
 ok();
+
+// ---------- The pacing-type tile reads as a sentence for every type ----------
+// approxWords falls back to a percentage away from a round tenth, so each of the six types' shares is set on one model
+// and rendered: "About 3 in 10 finishes were Gentle faders.", "14% of finishes were Early drifters.", never "14% finishes".
+{
+  const model = report.buildReport({ times: EXAMPLE, race: { city: null }, openingBands: bands, types: { data: archetypes, error: null, cohort },
+    comparison: { index, indexError: null, course: 'all', gender: 'all', shard: null } });
+  assert.equal(archetypes.archetypes.length, 6, 'six pacing types');
+  for (const a of archetypes.archetypes) {
+    const m = { ...model, type: { ...model.type, state: 'ok', name: a.name, share: a.share, n: a.n } };
+    const html = renderToStaticMarkup(React.createElement(ReportCard, { id: 'r', model: m, units: 'mi', level: 1, gender: 'all', dropped: null, retryComparison: () => {}, retryType: () => {} }));
+    const text = html.replace(/<[^>]+>/g, ' ').replace(/&#x27;|&#39;/g, '\'').replace(/&amp;/g, '&').replace(/\s+/g, ' ');
+    const words = capitalize(approxWords(a.share, 'finishes'));
+    assert.ok(text.includes(`${words} were ${a.name}s.`), `${a.name}: the tile reads "${words} were ${a.name}s."`);
+    assert.doesNotMatch(text, /\d% finishes/, `${a.name}: never "N% finishes"`);
+    const line = report.reportLines(m, 'mi').type;
+    assert.ok(line === `Pacing type: ${a.name}, the shape of ${approxWords(a.share, 'finishes')}` && !/\d% finishes/.test(line), `${a.name}: the image's line reads as a phrase`);
+    ok(3);
+  }
+}
 
 // ---------- Loading, failures and the runner record ----------
 {

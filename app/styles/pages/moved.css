@@ -1,7 +1,8 @@
 /* Moved addresses (WP8): the noindex stub kept at each one for hosts that cannot redirect (components/MovedPage.tsx).
    One heading, one sentence and one way on, the heading at the same fixed offset under the header on every stub (the
    404's), so the short page never floats to a different height. The heading keeps one line wherever it fits. */
-.moved-page { display: grid; gap: var(--s-5); justify-items: start; align-content: start; min-height: max(60vh, 22rem); padding: var(--s-9) 0 var(--s-8); }
+/* On a phone the stub, its header and its footer fit one 844 px screen, so an almost empty page never scrolls. */
+.moved-page { display: grid; gap: var(--s-5); justify-items: start; align-content: start; min-height: max(55vh, 20rem); padding: var(--s-9) 0 var(--s-8); }
 .moved-page > * { margin: 0; }
 .moved-page .t-body { max-width: 30rem; }
 /* On a desktop screen the stub fills the space down to the footer, so the footer sits at the foot of the screen rather

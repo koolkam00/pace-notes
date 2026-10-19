@@ -19,7 +19,8 @@ const LENS = { count: 'Finishes per minute', ratio: 'Against the curve' };
  * tallest against the curve; the H1 is named for it), then the towers as the story's one step-by-step reveal: its H2
  * widens the H1 to every hour and half-hour, its steps open on the busiest minute, turn the chart against the curve and
  * end on the contrast the H2 leaves out, a quarter-hour that stays level (never the reading's 2:59 again). Under reduced
- * motion the chart shows that end state and only the step true of it. Then the page's one guess (the final stretch to a
+ * motion the chart shows the end state's lens with its needle on the reading's 2:59 (so the readout agrees with the H2
+ * above it) and only the last step, which is true of it. Then the page's one guess (the final stretch to a
  * round mark). The scoreboard of marks is in All numbers; the reader's own finish lookup is cut (the next page, Your
  * target in context, is that lookup), so the beat has one control.
  */
@@ -60,8 +61,10 @@ export default function RoundNumbersBody() {
         rows={ft.marks.map((m) => [m.mark, `${m.ratio.toFixed(2)}×`, count(m.minute_before), count(m.expected_minute_before)])}
         reading={ft.marks.findIndex((m) => m.mark === top.values.mark)} />,
     ]}>
-      <StoryHero path={PATH} title={story.heading ?? story.title} dek={story.dek}
-        figure={top.figure ? { ...top.figure } : undefined} unitLine={top.guard ? 'the expected count for that minute' : top.key} fallback={!top.guard}
+      {/* The figure is how many times the expected count the minute held, its unit line says so in a runner's words,
+          and the sentence gives the count and the minute; the smooth curve is named only once the chart draws it. */}
+      <StoryHero path={PATH} title={story.heading ?? story.title}
+        figure={top.figure ? { ...top.figure } : undefined} unitLine={top.key} fallback={!top.guard}
         sentence={<Say nugget={top} />} />
 
       <Beat id="towers" track="chapter-1" label="The towers" aliases={['scoreboard', 'seconds', 'my-finish']} title={marksNugget}>
@@ -81,7 +84,7 @@ export default function RoundNumbersBody() {
                 initial: busiestAt, home: topAt, detents,
               }} />
             <ScrollyLens lens={{ 0: LENS.count, [steps.length - 1]: LENS.ratio }}
-              needle={{ 0: busiestAt, [steps.length - 1]: endAt }} />
+              needle={{ 0: busiestAt, [steps.length - 1]: endAt }} stillAt={topAt} />
           </>
         )} />
       </Beat>
