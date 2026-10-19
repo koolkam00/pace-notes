@@ -189,7 +189,9 @@ export function weatherMatchMorningsFrom(data: Pick<WeatherMatch, 'rows' | 'pace
     headline: both((u) => `At ${g} pace, *${pct(mine?.sd ?? NaN)}* of finishes on ${temp(c, u)} mornings had a sustained slowdown, against ${pct(base?.sd ?? NaN)} on ${temp(ref.lo, u).replace(/°[CF]$/, '')}–${temp(ref.hi, u)} mornings.`),
     fallback: mine ? both((u) => `At ${g} pace, ${pct(mine.sd)} of finishes on ${temp(c, u)} mornings had a sustained slowdown.`) : 'Race-morning weather, matched to past races at your pace.',
     figure: ok ? { value: pct(mine!.sd).replace('%', ''), unit: '%', sr: spokenPct(mine!.sd) } : null,
-    key: `had a sustained slowdown at ${g} pace on a warm morning, against ${pct(base?.sd ?? NaN)} on a cool one`,
+    // The card into the page carries the one share (critic round 5: "against 29% on a cool one" read as chapter 09's 26%
+    // for 41–50°F starts, a different window and group); the page names its reference window beside it.
+    key: `of finishes at ${g} pace had a sustained slowdown on a warm morning`,
     term: '/methodology#sustained-slowdown',
   };
 }

@@ -71,13 +71,18 @@ export default function WeatherAnalysis({ candidate, evidence, sentence }: { def
   );
   return <div className="analysis-layout weather-effect">
     {text ? <p className="weather-sentence t-sentence">{withEm(text)}</p> : null}
-    <div className="answer-card night effect-card">
-      <p className="answer-kicker t-kicker">{SIDES[candidate.id][2]}</p>
-      <ChartFrame className="effect-strip" label={`${heading}: ${pp(effect.estimate)} percentage points. ${range}.`} height={H} heightMd={H} plot={plot}
-        axis={<Axis ticks={ticks.map(t => ({ x: x(t), label: tickLabel(t) }))} title={{ end: 'Percentage points' }} />}
-        values={<Values id={`${id}-days`} caption={`Observed race days: ${heading.toLowerCase()} and second-20K slowing`} count={evidence.editions.length}
+    {/* The night card holds the answer only; its "All numbers" sits on paper under it (AnswerCard's rule). */}
+    <div className="answer-stack">
+      <div className="answer-card night effect-card">
+        <p className="answer-kicker t-kicker">{SIDES[candidate.id][2]}</p>
+        <ChartFrame className="effect-strip" label={`${heading}: ${pp(effect.estimate)} percentage points. ${range}.`} height={H} heightMd={H} plot={plot}
+          axis={<Axis ticks={ticks.map(t => ({ x: x(t), label: tickLabel(t) }))} title={{ end: 'Percentage points' }} />} />
+      </div>
+      <div className="answer-values">
+        <Values id={`${id}-days`} caption={`Observed race days: ${heading.toLowerCase()} and second-20K slowing`} count={evidence.editions.length}
           columns={[{ key: 'e', label: 'Race', text: true }, { key: 'x', label: SHORT[candidate.id] }, { key: 's', label: 'Second 20K' }, { key: 'n', label: 'Finishes' }]}
-          rows={evidence.editions.map(row => [`${row.city} ${row.year}`, weatherLabel(row[exposure.key], candidate.id, units), `${weatherNumber(row.pace_change_pct, 1)}%`, row.n.toLocaleString('en-US')])} />} />
+          rows={evidence.editions.map(row => [`${row.city} ${row.year}`, weatherLabel(row[exposure.key], candidate.id, units), `${weatherNumber(row.pace_change_pct, 1)}%`, row.n.toLocaleString('en-US')])} />
+      </div>
     </div>
   </div>;
 }

@@ -89,7 +89,14 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       // one edition its year (no average was taken).
       const lead = cells.length === 1 ? `of finishes in ${cells[0].year} had a` : cells.length === 2 ? 'of finishes in its two editions, on average, had a' : 'of finishes in an average year had a';
       step(() => eq(n.key, `${lead} sustained slowdown`, `course.slowdown (${city}): the key names what the figure averages`));
-      if (guard) step(() => eq(said(n), `Edition by edition, between ${whole(lo.slowdown)} (${lo.year}) and ${whole(hi.slowdown)} (${hi.year}).`, `course.slowdown (${city}): the sentence names the range, low end first, in no time order`));
+      // Where the high end was also the warmest (or coolest) of the mornings the policy keeps, on a page that shows
+      // #weather, the hero says so once (critic round 5), and #weather compares the other mornings.
+      const hc = courses.weather.hot_cool.find((h) => h.city === city);
+      const shown = !!hc && Math.round((hc.hot.temp - hc.cool.temp) * 10) / 10 >= courses.weather.pairs.min_gap_c && courses.weather.editions.filter((e) => e.city === city).length >= 3;
+      const kept = shown ? courses.weather.editions.filter((e) => e.city === city && !held.has(`${city}|${e.year}`)) : [];
+      const own = kept.find((e) => e.year === hi.year), rest = kept.filter((e) => e.year !== hi.year);
+      const end = guard && own && rest.length ? (rest.every((e) => e.temp < own.temp) ? 'warmest' : rest.every((e) => e.temp > own.temp) ? 'coolest' : '') : '';
+      if (guard) step(() => eq(said(n), `Edition by edition, between ${whole(lo.slowdown)} (${lo.year}) and ${whole(hi.slowdown)} (${hi.year})${end ? `, its ${end} morning` : ''}.`, `course.slowdown (${city}): the sentence names the range, low end first, in no time order`));
     }
 
     // At a glance (1): the first 5K's net, from the route's sections, only from 10 m either way.
@@ -147,7 +154,9 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       else if (solid && Math.abs(c.signature_points) < 3) step(() => ok(said(n).endsWith('paces much like the typical course, 5K by 5K.'), `course.signature (${city}): within 3 points everywhere, it paces like the typical course`));
     }
 
-    // #finish-times: the range of the edition medians (three or more editions), low end first, never a held edition.
+    // #finish-times: what the hero has not told. Six or more editions whose first three and last three average five
+    // minutes or more apart are a trend; medians under six minutes apart, the window every one fell in (ends rounded
+    // outward); otherwise the range, low end first, accenting an end no other section accents. Never a held edition.
     {
       const n = at('course.times');
       const named = cells.filter((x) => !held.has(`${city}|${x.year}`));
@@ -156,11 +165,38 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       step(() => eq(n.guard, guard, `course.times (${city}): guard`));
       if (guard) {
         step(() => eq([n.values.lo_year, n.values.hi_year], [lo.year, hi.year], `course.times (${city}): the range ends`));
-        // Under six minutes apart, the medians read as steady; otherwise as a range.
         const spread = hi.median_s - lo.median_s;
-        step(() => eq(said(n), spread < 360 ? `Every median finish within ${Math.ceil(spread / 60)} minutes: ${hm(lo.median_s)} to ${hm(hi.median_s)}.`
-          : `The median finish ranged from ${hm(lo.median_s)} in ${lo.year} to ${hm(hi.median_s)} in ${hi.year}.`, `course.times (${city}): the sentence`));
+        const avg = (xs) => xs.reduce((a, x) => a + x.median_s, 0) / xs.length;
+        const drift = named.length >= 6 ? avg(named.slice(-3)) - avg(named.slice(0, 3)) : NaN;
+        const hero = at('course.slowdown');
+        const heroYear = hero.guard ? hero.values.hi_year : null;
+        const wx = at('course.weather');
+        const wxYear = wx.guard && !wx.values.quiet && whole(wx.values.hot_share) !== whole(wx.values.cool_share) ? wx.values.hot_year : null;
+        const ceil = (s) => hm(Math.ceil(s / 60) * 60);
+        const years = (end) => { const ys = named.filter((x) => hm(x.median_s) === hm(end.median_s)).map((x) => x.year); return ys.length > 1 ? `${ys.slice(0, -1).join(', ')} and ${ys[ys.length - 1]}` : String(ys[0]); };
+        let want, accent = null;
+        if (Math.abs(drift) >= 300) want = `The median finish got ${Math.round(Math.abs(drift) / 60)} minutes ${drift < 0 ? 'quicker' : 'slower'} from the first three editions to the last three.`;
+        else if (spread < 360) want = `Every median finish fell between ${hm(lo.median_s)} and ${ceil(hi.median_s)}.`;
+        else {
+          accent = [lo, hi].find((e) => e.year !== heroYear && e.year !== wxYear) ?? null;
+          want = `The median finish ranged from ${hm(lo.median_s)} in ${years(lo)} to ${hm(hi.median_s)} in ${years(hi)}.`;
+        }
+        step(() => eq(said(n), want, `course.times (${city}): the sentence`));
+        step(() => eq(Number.isNaN(n.values.accent_year) ? null : n.values.accent_year, accent ? accent.year : null, `course.times (${city}): the accented end`));
+        // The line opens on the accented end, or on the latest edition other than the hero's.
+        const opening = accent ?? [...named].reverse().find((x) => x.year !== heroYear);
+        step(() => eq(n.values.open_year, opening.year, `course.times (${city}): the line opens on ${opening.year}`));
+        step(() => ok(n.values.open_year !== heroYear, `course.times (${city}): the line never opens on the hero's edition`));
       }
+    }
+
+    // One edition, one section (critic round 5): no edition year is accented in more than one section of the page (the
+    // hero's high end, #finish-times' accented end, #weather's warmer morning), and #weather never names the hero's.
+    {
+      const hero = at('course.slowdown'), times = at('course.times'), wx = at('course.weather');
+      const accents = [hero.guard ? hero.values.hi_year : NaN, times.guard ? times.values.accent_year : NaN, wx.guard ? wx.values.accent_year : NaN].filter((y) => Number.isFinite(y));
+      step(() => eq(new Set(accents).size, accents.length, `${city}: an edition is accented in more than one section (${accents.join(', ')})`));
+      if (hero.guard && wx.guard) step(() => ok(wx.values.hot_year !== hero.values.hi_year && wx.values.cool_year !== hero.values.hi_year, `${city}: #weather names the hero's edition`));
     }
 
     // #elevation: the section with the most climbing.
@@ -197,7 +233,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
         step(() => eq([n.values.type, n.guard, n.values.courses], [archetypes.archetypes[best].slug, Math.abs(here - every) >= 0.03, rest.length], `course.types (${city}) recounts the type, its guard and the other courses`));
         step(() => ok(Math.abs(n.values.every - every) < 1e-12, `course.types (${city}): the other courses' share recounts`));
         if (n.guard) step(() => eq(said(n), `${here > every ? 'More' : 'Fewer'} ${archetypes.archetypes[best].name.toLowerCase()}s here: ${whole(here)}, against ${whole(every)} elsewhere.`, `course.types (${city}): the sentence`));
-        else step(() => eq(said(n), 'Paced much like the other courses: every type within 3% of its share elsewhere.', `course.types (${city}): within 3 points everywhere, the null finding`));
+        else step(() => eq(said(n), 'Paced much like the other courses: every type within 3 points of its share on the other courses.', `course.types (${city}): within 3 points everywhere, the null finding`));
       } else step(() => eq(n.guard, false, `course.types (${city}): no mix, no claim`));
     }
 
@@ -218,7 +254,8 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const all = count === others.length;
       // The comparator without the set's size (the strip's key names the courses counted); a course of fewer editions
       // leads with how many it has.
-      const than = all ? 'every other course' : `${count} of the other courses`;
+      const set = `${solidSelf ? 'other ' : ''}courses with three or more editions`;
+      const than = all ? `all ${others.length} ${set}` : `${count} of ${others.length} ${set}`;
       const want = middle ? `${named(city)}’s ${whole(c.slowdown)}: near the middle of the courses.`
         : solidSelf ? `${named(city)}’s ${whole(c.slowdown)}: ${side} than ${than}.`
           : `From its ${words[c.editions]} edition${c.editions === 1 ? '' : 's'}, ${named(city)}’s ${whole(c.slowdown)} is ${side} than ${than}.`;
@@ -239,35 +276,44 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const shows = !!ctx && ctx.editions >= goalFile.min_editions;
       step(() => ok(shows ? poolN >= 100 && Math.abs(n.values.every - poolUnder) < 1e-12 && n.values.every_n === poolN && n.values.every_courses === pool.length : Number.isNaN(n.values.every), `course.goal (${city}): the other courses' share recounts (${n.values.every} against ${poolUnder})`));
       if (n.guard) {
-        const gap = Math.abs(Math.round(row.under * 100) - Math.round(poolUnder * 100));
+        // The gap as the page prints the two shares (toFixed), so the words never disagree with the figures: within one
+        // printed point, about the same.
+        const printed = (v) => Number((v * 100).toFixed(0));
+        const gap = Math.abs(printed(row.under) - printed(poolUnder));
         // The comparator once, without its count (the legend names how many).
-        const against = gap >= 3 ? `, against ${whole(poolUnder)} elsewhere` : ', about the same as elsewhere';
-        step(() => eq(said(n), `Of ${named(city)} finishes on 4:00 pace at 20K, ${whole(row.under)} made 4:00${against}.`, `course.goal (${city}): the sentence`));
+        const against = gap >= 2 ? `, against ${printed(poolUnder)}% elsewhere` : ', about the same as elsewhere';
+        step(() => eq(said(n), `Of ${named(city)} finishes on 4:00 pace through 20K, ${printed(row.under)}% made 4:00${against}.`, `course.goal (${city}): the sentence`));
       }
     }
 
-    // #weather: the warmest and coolest mornings, at least the screen's gap apart.
+    // #weather: the warmest and coolest mornings other than the hero's edition, at least the screen's gap apart, on a
+    // page that shows the section (the published pair 5 °C apart, three or more mornings).
     {
       const n = at('course.weather');
       const hc = courses.weather.hot_cool.find((h) => h.city === city);
-      const gap = hc ? Math.round((hc.hot.temp - hc.cool.temp) * 10) / 10 : null;
-      step(() => eq(n.guard, gap !== null && gap >= courses.weather.pairs.min_gap_c, `course.weather (${city}): the 5 °C gate`));
-      // Shares that round alike are said once; under 5 whole points apart the pair is a null (critic round 4): where the
-      // course's worst year (no held or copied edition) is neither morning and higher than both, weather didn't sort
-      // its slowdowns; otherwise about the same share, warm or cool. Only 5 points or more is told as two facts.
-      if (n.guard) {
-        const same = whole(hc.hot.slowdown) === whole(hc.cool.slowdown);
-        const apart = Math.abs(Math.round(hc.hot.slowdown * 100) - Math.round(hc.cool.slowdown * 100));
-        const mornings = courses.weather.editions.filter((e) => e.city === city && !held.has(`${city}|${e.year}`));
-        const worst = mornings.reduce((a, b) => (b.slowdown > a.slowdown ? b : a), mornings[0]);
+      const mornings = courses.weather.editions.filter((e) => e.city === city);
+      const shown = !!hc && Math.round((hc.hot.temp - hc.cool.temp) * 10) / 10 >= courses.weather.pairs.min_gap_c && mornings.length >= 3;
+      const hero = at('course.slowdown');
+      const heroYear = hero.guard ? hero.values.hi_year : null;
+      const pool = mornings.filter((e) => !held.has(`${city}|${e.year}`) && e.year !== heroYear).sort((a, b) => a.year - b.year);
+      let hot = null, cool = null;
+      for (const e of pool) { if (!hot || e.temp >= hot.temp) hot = e; if (!cool || e.temp <= cool.temp) cool = e; }
+      const guard = shown && !!hot && hot.year !== cool.year && Math.round((hot.temp - cool.temp) * 10) / 10 >= courses.weather.pairs.min_gap_c;
+      step(() => eq(n.guard, guard, `course.weather (${city}): the pair other than the hero's edition, 5 °C apart`));
+      // Shares that round alike are said once; under 5 whole points apart, about the same share, warm or cool; 5 points
+      // or more, two facts. Otherwise the span of every morning.
+      if (guard) {
+        const same = whole(hot.slowdown) === whole(cool.slowdown);
+        const apart = Math.abs(Math.round(hot.slowdown * 100) - Math.round(cool.slowdown * 100));
         const quiet = !same && apart < 5;
-        const unsorted = quiet && !!worst && worst.year !== hc.hot.year && worst.year !== hc.cool.year && Math.round(worst.slowdown * 100) > Math.round(Math.max(hc.hot.slowdown, hc.cool.slowdown) * 100);
-        step(() => eq(n.values.quiet, quiet ? 1 : 0, `course.weather (${city}): the null rule`));
+        step(() => eq([n.values.hot_year, n.values.cool_year, n.values.quiet], [hot.year, cool.year, quiet ? 1 : 0], `course.weather (${city}): the pair and the null rule`));
         step(() => eq(said(n), same
-          ? `At ${degF(hc.hot.temp)} in ${hc.hot.year} and at ${degF(hc.cool.temp)} in ${hc.cool.year}, the same ${whole(hc.hot.slowdown)} had a sustained slowdown.`
-          : unsorted ? `Weather didn’t sort ${named(city)}’s slowdowns: its highest share, ${whole(worst.slowdown)}, started at ${degF(worst.temp)}.`
-            : quiet ? `Warm or cool, about the same share had a sustained slowdown: ${whole(hc.hot.slowdown)} at ${degF(hc.hot.temp)}, ${whole(hc.cool.slowdown)} at ${degF(hc.cool.temp)}.`
-              : `At ${degF(hc.hot.temp)} in ${hc.hot.year}, ${whole(hc.hot.slowdown)} had a sustained slowdown. At ${degF(hc.cool.temp)} in ${hc.cool.year}, ${whole(hc.cool.slowdown)}.`, `course.weather (${city}): the sentence`));
+          ? `At ${degF(hot.temp)} in ${hot.year} and at ${degF(cool.temp)} in ${cool.year}, the same ${whole(hot.slowdown)} had a sustained slowdown.`
+          : quiet ? `Warm or cool, about the same share had a sustained slowdown: ${whole(hot.slowdown)} at ${degF(hot.temp)}, ${whole(cool.slowdown)} at ${degF(cool.temp)}.`
+            : `At ${degF(hot.temp)} in ${hot.year}, ${whole(hot.slowdown)} had a sustained slowdown. At ${degF(cool.temp)} in ${cool.year}, ${whole(cool.slowdown)}.`, `course.weather (${city}): the sentence`));
+      } else if (mornings.length >= 2) {
+        const temps = mornings.map((e) => e.temp);
+        step(() => eq(said(n), `Race mornings from ${degF(Math.min(...temps))} to ${degF(Math.max(...temps))}.`, `course.weather (${city}): the span`));
       }
     }
   }

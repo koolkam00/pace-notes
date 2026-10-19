@@ -92,6 +92,8 @@
 .viz-frame .viz-label.is-sm { font-size: 13px; }
 .viz-frame .viz-label.is-signal { fill: var(--signal-ink); }
 .viz-frame .viz-label.is-quiet { fill: var(--ink-3); font-weight: 500; }
+/* A year with no edition in the data, at the foot of a year strip or edition line: a faint tick, read out when scrubbed. */
+.viz-frame .gap-tick { fill: var(--rule-strong); }
 /* A label that had to sit on a reference line breaks the line under it. */
 .viz-frame .viz-label.is-knockout { stroke-width: 8px; }
 
@@ -235,8 +237,18 @@
    for the 2.2 km last one, so its number always fits inside it. */
 .viz-frame .pace-blocks { container: pace-row / inline-size; display: flex; gap: 2px; margin-top: 6px; }
 .viz-frame .pace-block { container: pace-block / inline-size; display: flex; align-items: center; justify-content: center; flex-basis: 0; min-width: min(24px, calc((100% - 16px) / 9)); height: 28px; border-radius: 3px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+.viz-frame .pace-block { background: var(--bg); }
 .viz-frame .pace-block.is-on-paper { color: var(--night-ink); }
 .viz-frame .pace-block.is-on-ink { color: var(--night); }
+/* Dark mode: the blocks take the dark theme's own ramp (--bg-dark, lib/viz/format.ts PACE_RAMP_DARK), its even middle
+   close to the surface with a hairline edge, light ink on every step (round 5: the light ramp's cream "0" was the
+   brightest mark on the night page). */
+[data-theme="dark"] .viz-frame .pace-block { background: var(--bg-dark, var(--bg)); color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule); }
+[data-theme="dark"] .viz-frame .pace-block.is-focus { box-shadow: inset 0 0 0 2px var(--ink); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .viz-frame .pace-block { background: var(--bg-dark, var(--bg)); color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule); }
+  :root:not([data-theme="light"]) .viz-frame .pace-block.is-focus { box-shadow: inset 0 0 0 2px var(--ink); }
+}
 .viz-frame .pace-block.is-focus { box-shadow: inset 0 0 0 2px var(--ink); }
 /* A four-character value ("+10%") steps down to 12 px, so it never fills its block edge to edge on a phone. */
 .viz-frame .pace-block.is-long { font-size: 12px; }

@@ -57,6 +57,9 @@ type Observed =
   | { state: 'ok'; minute: number; all: Cell; held: Cell | null; slow: Cell | null; lo: number; hi: number; where: string; place: string; genderWord: string };
 type ObservedOk = Extract<Observed, { state: 'ok' }>;
 
+/** A finish gap in plain words: "5 seconds", "1 second", "1:05". */
+const spokenGap = (seconds: number) => { const s = Math.round(Math.abs(seconds)); return s < 60 ? `${s} second${s === 1 ? '' : 's'}` : formatDuration(s); };
+
 export default function PaceBand({ indexSha, profiles, unpublished }: {
   indexSha: string | null; profiles: RouteProfile[]; unpublished: Record<string, UnpublishedCourse>;
 }) {
@@ -321,15 +324,16 @@ export default function PaceBand({ indexSha, profiles, unpublished }: {
                       <p className="tool-nugget-text" id="pace-band-observed-title">
                         {/* The finish window named, as the split check names its own: the two pages' gaps are for two
                             different windows, so neither reads as the other's number. */}
-                        {/* Both groups finished in the window by construction, so the sentence says only where they were at
-                            20K (critic round 4: "and finished at about the same time" read as a finding). */}
-                        Of finishes from {formatHM(Math.floor(ok.lo / 60) * 60)} to {formatHM(Math.floor(ok.hi / 60) * 60)} {ok.where}, those with a <SlowdownTerm /> passed 20K <em>{formatDuration(Math.abs(slowAt20))} {slowAt20 >= 0 ? 'ahead of' : 'behind'}</em> those without one.
+                        {/* Where they were at 20K, and how far apart their medians finished (critic round 5: the page's lesson,
+                            minutes banked early and the same finish, sat only in the key). An observation of the two medians,
+                            never a cause. */}
+                        Of finishes from {formatHM(Math.floor(ok.lo / 60) * 60)} to {formatHM(Math.floor(ok.hi / 60) * 60)} {ok.where}, those with a <SlowdownTerm /> passed 20K <em>{formatDuration(Math.abs(slowAt20))} {slowAt20 >= 0 ? 'ahead of' : 'behind'}</em> those without one, and finished {Math.abs(finishGap) < 0.5 ? 'level' : `${spokenGap(finishGap)} apart`}.
                       </p>
                     ) : (
                       <p className="tool-nugget-text" id="pace-band-observed-title">Where finishes from {formatDuration(ok.lo, true)} to {formatDuration(ok.hi, true)} {ok.where} were at each mat.</p>
                     )}
                     {ok.held || ok.slow ? (
-                      <MatLines units={units} zero={`Even pace for ${fmtGoal(goal)}`}
+                      <MatLines units={units}
                         bracket={slowAt20 !== null && ok.held && ok.slow ? { km: 20, label: formatDuration(Math.abs(slowAt20)) } : undefined}
                         lines={[
                           ...(ok.held ? [{ key: 'held', label: 'No sustained slowdown', tone: 'ink' as const, gaps: CHECKPOINTS.map((_, i) => gapAt(ok.held, i)!) }] : []),

@@ -14,7 +14,8 @@ import { extent, linear, pc, yScale } from './scale';
  * gap, which stays in view but is never read out. Every stem is quiet: the scrubber's needle is the one signal mark, on
  * the edition the readout names.
  * The years it labels (by default the highest and lowest) keep one label format, lifted on a leader where neighbours
- * crowd them; the label under the needle hides, since the readout says it. The average is a dashed reference in the key.
+ * crowd them; the label under the needle hides, since the readout says it. The average is a dashed reference, named in
+ * the key or (`averageOnLine`) on the line itself. With `gaps`, the years between editions are read out too.
  */
 export type YearPoint = { year: number; value: number; display: string; side?: string[] };
 
@@ -51,10 +52,10 @@ export function yearPad(first: number, last: number): number {
   return Math.max(0.6, (half * (last - first)) / (REF_WIDTH - 2 * half));
 }
 
-type LayoutProps = { editions: YearPoint[]; selected?: number; valueDomain?: [number, number]; average?: number; height: number; extremeLabel?: (p: YearPoint) => string; labelled?: number[] };
+type LayoutProps = { editions: YearPoint[]; selected?: number; valueDomain?: [number, number]; average?: number; height: number; extremeLabel?: (p: YearPoint) => string; labelled?: number[]; gaps?: string };
 
 /** The strip's scales, scrub points and placed labels (shared by the chart and stripLabels). */
-function layout({ editions, selected, valueDomain, average, height, extremeLabel, labelled }: LayoutProps) {
+function layout({ editions, selected, valueDomain, average, height, extremeLabel, labelled, gaps }: LayoutProps) {
   const sorted = [...editions].sort((a, b) => a.year - b.year);
   const first = sorted[0].year, last = sorted[sorted.length - 1].year;
   const pad = yearPad(first, last);
@@ -64,8 +65,10 @@ function layout({ editions, selected, valueDomain, average, height, extremeLabel
   const maxI = sorted.reduce((b, e, i) => (e.value > sorted[b].value ? i : b), 0);
   const minI = sorted.reduce((b, e, i) => (e.value < sorted[b].value ? i : b), 0);
   const sel = Math.max(0, sorted.findIndex((e) => e.year === selected));
-  // The editions are the scrub points (a gap year is never one): the needle snaps edition to edition.
-  const scrubOf = (year: number) => sorted.findIndex((e) => e.year === year);
+  // The editions are the scrub points: the needle snaps edition to edition. With `gaps`, every year from the first to
+  // the last is one, and a year with no edition reads out as such ("2016 · not in the data").
+  const years = gaps ? Array.from({ length: last - first + 1 }, (_, k) => first + k) : sorted.map((e) => e.year);
+  const scrubOf = (year: number) => years.indexOf(year);
   const textOf = extremeLabel ?? ((p: YearPoint) => `${p.year}`);
   const named = new Set(labelled ?? [sorted[maxI].year, sorted[minI].year]);
   // A labelled year may sit low among taller neighbours: its label then rises above the tallest dot within its width (at
@@ -101,7 +104,7 @@ function layout({ editions, selected, valueDomain, average, height, extremeLabel
   const dropped = items.filter((it) => narrow.some((l) => l.id === it.id && l.minWidth === null));
   const wide = dropped.length ? place(dropped, [...taken, ...narrow.filter((l) => l.minWidth !== null).map((l) => placedBox(l, height))], WIDE).map((l) => (l.minWidth === null ? l : { ...l, minWidth: WIDE })) : [];
   const placed = [...own, ...narrow.map((l) => wide.find((w) => w.id === l.id) ?? l)];
-  return { sorted, first, last, x, y, maxI, minI, sel, scrubOf, placed };
+  return { sorted, first, last, x, y, maxI, minI, sel, scrubOf, placed, years };
 }
 
 /**
@@ -114,8 +117,15 @@ export function stripLabels(props: LayoutProps): { year: number; minWidth: numbe
   return placed.map((l) => ({ year: sorted[Number(l.id.slice(1))].year, minWidth: l.minWidth, under: !!l.under }));
 }
 
-export default function YearStrip({ editions, selected, sideLabels = [], valueDomain, average, averageLabel = 'Average', label, values, height = 160, heightMd = 200, extremeLabel, labelled, signal = false }: {
+export default function YearStrip({ editions, selected, sideLabels = [], valueDomain, average, averageLabel = 'Average', averageOnLine = false, gaps, label, values, height = 160, heightMd = 200, extremeLabel, labelled, signal = false }: {
   editions: YearPoint[]; selected?: number; sideLabels?: string[]; valueDomain?: [number, number]; average?: number; averageLabel?: string;
+  /** Name the average on its own line (its right end, else its left, clear of every stem that crosses it), not in a key. */
+  averageOnLine?: boolean;
+  /**
+   * Make each year with no edition a scrub point that reads out "{year} · {gaps}" ("not in the data"), with a faint tick
+   * at its foot, so a year missing from the data never reads as a race that was not run, or as nothing at all.
+   */
+  gaps?: string;
   label: string; values?: ReactNode; height?: number; heightMd?: number;
   /** The selected edition is the reading a sentence accents: its stem and dot in signal (ink once the needle leaves it,
    * when a signal dot rides the needle's edition instead), so the orange word lands on an orange mark. */
@@ -125,10 +135,31 @@ export default function YearStrip({ editions, selected, sideLabels = [], valueDo
   /** The years to label; default the highest and lowest editions. */
   labelled?: number[];
 }) {
-  const { sorted, first, last, x, y, maxI, minI, sel, scrubOf, placed } = layout({ editions, selected, valueDomain, average, height, extremeLabel, labelled });
+  const { sorted, first, last, x, y, maxI, minI, sel, scrubOf, placed, years } = layout({ editions, selected, valueDomain, average, height, extremeLabel, labelled, gaps });
+  const byYear = new Map(sorted.map((e) => [e.year, e]));
+  // The average's own label, on its line at the narrowest phone plot: at the right end, else the left, never across a
+  // stem that rises through it (an edition above the average), the needle where the strip opens or another label.
+  const avgSpot = (() => {
+    if (!averageOnLine || average === undefined) return null;
+    // Measured on the narrowest plot (a 195 px screen): clear of the needle and the stems there, it is clear wider too.
+    const ay = y(average), w = (textWidth(averageLabel, 13, 500) + 6) / 160;
+    const boxes = placed.filter((l) => l.minWidth !== null).map((l) => placedBox(l, height));
+    const needleX = x(sorted[sel].year);
+    const clear = (x0: number) => {
+      const x1 = x0 + w, y0 = ay - 18 / height, y1 = ay - 2 / height;
+      if (x0 < 0 || x1 > 1 || y0 < 0) return false;
+      if (needleX > x0 - 6 / REF_WIDTH && needleX < x1 + 6 / REF_WIDTH) return false;
+      if (sorted.some((e) => x(e.year) > x0 - 5 / REF_WIDTH && x(e.year) < x1 + 5 / REF_WIDTH && y(e.value) - 5 / height < y1)) return false;
+      return !boxes.some((b) => b.x0 < x1 && x0 < b.x1 && b.y0 < y1 && y0 < b.y1);
+    };
+    for (const x0 of [1 - w, 0, ...Array.from({ length: 24 }, (_, k) => 1 - w - ((k + 1) * (1 - w)) / 25)]) if (clear(x0)) return { x0, right: x0 === 1 - w };
+    return null;
+  })();
   const plot = (
     <Plot>
       {average !== undefined ? <RefLine y={y(average)} dashed /> : null}
+      {avgSpot ? <text className="viz-label is-quiet is-sm" x={pc(avgSpot.right ? 1 : avgSpot.x0)} y={pc(y(average!))} dy={-6} textAnchor={avgSpot.right ? 'end' : 'start'}>{averageLabel}</text> : null}
+      {gaps ? years.filter((yr) => !byYear.has(yr)).map((yr) => <rect key={`gap${yr}`} className="gap-tick" x={pc(x(yr))} width={1} transform="translate(-0.5 0)" y={pc(1 - 5 / height)} height={pc(5 / height)} />) : null}
       {sorted.map((e, i) => {
         const top = y(e.value);
         const mark = signal && i === sel ? 'm-signal is-reading' : 'm-context';
@@ -152,16 +183,16 @@ export default function YearStrip({ editions, selected, sideLabels = [], valueDo
   );
   const axis = <Axis centred ticks={yearTicks(first, last).map((yr) => ({ x: x(yr), label: String(yr) }))} />;
   const points = {
-    x: sorted.map((e) => x(e.year)),
-    keys: sorted.map((e) => String(e.year)),
-    values: sorted.map((e) => e.display),
-    side: sideLabels.map((l, k) => ({ label: l, values: sorted.map((e) => e.side?.[k] ?? '—') })),
-    ...(signal ? { dot: sorted.map((e) => y(e.value)) } : {}),
+    x: years.map((yr) => x(yr)),
+    keys: years.map((yr) => (byYear.has(yr) ? String(yr) : `${yr} · ${gaps}`)),
+    values: years.map((yr) => byYear.get(yr)?.display ?? '—'),
+    side: sideLabels.map((l, k) => ({ label: l, values: years.map((yr) => byYear.get(yr)?.side?.[k] ?? '—') })),
+    ...(signal ? { dot: years.map((yr) => { const e = byYear.get(yr); return e ? y(e.value) : NaN; }) } : {}),
   };
   return (
     <ChartFrame className="year-strip" label={label} height={height} heightMd={heightMd}
       scrub={<Scrubber points={points} initial={scrubOf(sorted[sel].year)} detents={[...new Set([maxI, minI, sel])].map((i) => scrubOf(sorted[i].year))} label={label} axis={axis}>{plot}</Scrubber>}
-      keys={average !== undefined ? [{ label: averageLabel, mark: 'dash' as const }] : undefined}
+      keys={average !== undefined && !avgSpot ? [{ label: averageLabel, mark: 'dash' as const }] : undefined}
       values={values}
     />
   );

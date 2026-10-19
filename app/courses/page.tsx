@@ -88,7 +88,8 @@ export default function CoursesPage() {
   // Each order's key, in place of the figure's guesswork: what the number at the row's end is, and in what order.
   const share = <>Each course’s share of finishes with a <SlowdownTerm />, in an average year</>;
   const keys: Record<SortKey, React.ReactNode> = {
-    az: <>{share}.</>,
+    // A–Z draws the fewer-edition shares quieter: the key says why (critic round 5), as the share's order says by its title.
+    az: few.length ? <>{share}; in grey, from fewer than three editions.</> : <>{share}.</>,
     slowdown: <>{share}, lowest first.</>,
     climb: <>Each route’s climbing, start to finish, most first.</>,
     finishes: <>Finishes on each course, most first.</>,

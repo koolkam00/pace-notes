@@ -9,10 +9,9 @@ import { paceBandGoalHref, pacingPatternHref, planHref } from '@/lib/tools/links
  * Next steps from a result: one row per page it opens, with the result filled in (the redesign spec, section 3.5:
  * "Turn this into a pace band →", rows, not cards). The value travels in the link's query only (analytics keeps a page's
  * path alone), and the page it opens shows it in its own masked workspace, as if typed. Following a link is not a tool
- * edit: components/SiteAnalytics.tsx counts typing, choices and buttons. `accent` is ignored (no per-tool hues); it is
- * accepted only while components/course/CoursePlan.tsx (WP5) still passes it.
+ * edit: components/SiteAnalytics.tsx counts typing, choices and buttons.
  */
-export function ToolHandoffs({ label, links }: { label: string; links: { href: string; title: string; text: ReactNode; accent?: string }[] }) {
+export function ToolHandoffs({ label, links }: { label: string; links: { href: string; title: string; text: ReactNode }[] }) {
   if (!links.length) return null;
   return (
     <nav className="tool-handoffs no-print" aria-label={label}>

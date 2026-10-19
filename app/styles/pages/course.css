@@ -99,11 +99,10 @@
 /* One accent per section: the first row's chart carries the orange, the rows after it draw in ink. */
 .glance-row.is-quiet .glance-signal { stroke: var(--ink); }
 .glance-row.is-quiet .glance-bar.is-signal, .glance-row.is-quiet .glance-point { fill: var(--ink); }
-/* One row is the section's finding: its sentence is the H2, so the row is its figure, a short note and its chart, with
-   no rules round it. */
+/* One row is the section's finding: its sentence is the H2, so the row is its chart, drawn at the column's width
+   (ShapeChart), or its figure and chart with no rules round it. */
 .course-glance.is-single .glance-rows { border-top: 0; }
-.course-glance.is-single .glance-row { grid-template-areas: "figure chart" "note chart"; padding-top: 0; }
-.glance-note { grid-area: note; font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
+.course-glance.is-single .glance-row { grid-template-areas: "figure chart"; padding-top: 0; }
 .course-glance .glance-row.is-chart { display: flex; align-items: center; gap: var(--s-4); }
 .course-glance .glance-row.is-chart .glance-chart { order: -1; }
 
@@ -217,19 +216,18 @@
 .course-numbers .course-table tbody th { font-weight: 500; color: var(--ink); }
 .course-numbers .course-table td.course-reason { text-align: left; white-space: normal; color: var(--ink-3); }
 
-/* ---------- The foot: after "All numbers", the tools and the courses paced like this one, each one quiet line of inline
-   links (no heading, no list), then the closing stack ---------- */
+/* ---------- The foot: after "All numbers", the closing stack every page ends on ---------- */
 .course-foot { margin-top: var(--s-6); scroll-margin-top: calc(var(--header-h) + var(--s-4)); }
 .course-foot[tabindex="-1"]:focus { outline: none; }
-.course-foot + .course-foot { margin-top: var(--s-3); }
-.course-foot-line { margin: 0; max-width: var(--measure); font-size: 1rem; line-height: 1.6; color: var(--ink-2); text-wrap: pretty; }
-/* Each link's hit area is 44 px tall (a pseudo-element; the line keeps its own height), so the row is easy to tap. */
-.course-foot-link { position: relative; white-space: nowrap; font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .22em; text-decoration-color: var(--rule-strong); }
-.course-foot-link:hover { text-decoration-color: var(--ink); }
-.course-foot-link::after { content: ''; position: absolute; inset: -12px -2px; }
-.course-foot-sep { color: var(--ink-3); }
-.course-foot-line .evidence-badge { font-size: var(--t-label); font-weight: 600; color: var(--ink-2); white-space: nowrap; }
-.course-foot.is-last .chapter-end { margin-top: var(--s-6); }
+.course-foot.is-last .chapter-end { margin-top: 0; }
+
+/* #pacing's last line: the courses paced most like this one, three inline links in a quiet sentence (each link's hit
+   area 44 px tall, a pseudo-element; the line keeps its own height). */
+.course-alike { margin: var(--s-4) 0 0; max-width: var(--measure); font-size: var(--t-small); line-height: 1.6; color: var(--ink-2); text-wrap: pretty; }
+.course-alike-link { position: relative; white-space: nowrap; color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .22em; text-decoration-color: var(--rule-strong); }
+.course-alike-link:hover { text-decoration-color: var(--ink); }
+.course-alike-link::after { content: ''; position: absolute; inset: -12px -2px; }
+#plan[tabindex="-1"]:focus { outline: none; }
 
 /* ---------- From 600 px ---------- */
 @media (min-width: 600px) {
@@ -242,12 +240,17 @@
   /* The route beside the race's name and its figure (the figure follows the name directly; the route spans both rows),
      the year strip beside the sentence and the action: no column runs empty. The figure's row is the flexible one, so
      the route's height opens no gap under the name. */
+  /* Two rows under the name (critic round 5: the name broke in a narrow column while the route floated small in an empty
+     frame, and the strip fell below the fold): the race's name on one line across the band; then the figure beside the
+     route; then the sentence and the action beside the year strip. The whole hero, drag handle included, fits a
+     1440 × 900 screen. */
   .course-hero {
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--s-8);
-    grid-template-areas: "head route" "figure route" "sentence strip" "actions strip";
-    grid-template-rows: auto 1fr auto 1fr; align-items: start; padding: var(--s-7) 0 var(--s-8);
+    grid-template-areas: "head head" "figure route" "sentence strip" "actions strip";
+    grid-template-rows: auto auto auto 1fr; align-items: start; padding: var(--s-6) 0 var(--s-7);
   }
-  .course-hero-route { --route-w: 100%; justify-self: center; align-self: center; width: min(100%, 340px); margin-top: 0; }
+  .course-title { max-width: none; }
+  .course-hero-route { --route-w: 100%; justify-self: center; align-self: center; width: min(100%, 440px); margin-top: var(--s-4); }
   /* Without a route the year strip takes the route's place beside the race's name: no cell runs empty. */
   /* Without a route the name and figure take the whole width and the year strip keeps its row beside its sentence, so
      the instrument never floats up beside the hero figure, away from the sentence that names it (critic round 4). */
@@ -257,8 +260,8 @@
   .course-hero.is-stripless { grid-template-areas: "head route" "figure route" "sentence route" "actions route"; grid-template-rows: auto auto auto auto; align-content: center; }
   .course-hero.is-stripless .course-hero-route { grid-row: 1 / -1; align-self: center; }
   .course-hero.is-routeless.is-stripless { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "figure" "sentence" "actions"; }
-  .course-hero-route .route-face { max-height: 260px; }
-  .course-hero-figure { margin-top: var(--s-6); }
+  .course-hero-route .route-face { max-height: 220px; }
+  .course-hero-figure { margin-top: var(--s-5); }
   .course-hero-key { max-width: 22rem; }
   .course-hero-strip { margin-top: var(--s-5); align-self: start; }
   .course-beat { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); column-gap: var(--s-8); align-items: start; }
@@ -269,7 +272,7 @@
   /* The figure's column is as wide as its figure ("40K–finish" is wider than "9 of 10"), so a figure never prints over
      its words; with subgrid every row shares the widest figure's column and the words line up. */
   .glance-row { grid-template-columns: max-content minmax(0, 1fr) auto; grid-template-areas: "figure key chart"; column-gap: var(--s-6); }
-  .course-glance.is-single .glance-row { grid-template-columns: max-content minmax(0, 1fr) auto; grid-template-areas: "figure note chart"; }
+  .course-glance.is-single .glance-row { grid-template-columns: max-content auto; grid-template-areas: "figure chart"; }
 }
 @supports (grid-template-columns: subgrid) {
   @media (min-width: 900px) {
@@ -289,7 +292,7 @@
   .course-hero { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "figure" "route" "sentence" "strip" "actions"; }
   .course-hero-route { --route-w: 120px; justify-self: start; margin-top: var(--s-4); }
   .glance-row { grid-template-columns: minmax(0, 1fr); grid-template-areas: "figure" "key" "chart"; }
-  .course-glance.is-single .glance-row { grid-template-areas: "figure" "note" "chart"; }
+  .course-glance.is-single .glance-row { grid-template-areas: "figure" "chart"; }
   /* A long one-word race name ("Copenhagen") fits the 163 px column: a step down, and a break inside the word if it must. */
   .course-title { font-size: 1.625rem; overflow-wrap: anywhere; hyphens: auto; }
 }

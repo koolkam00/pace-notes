@@ -32,9 +32,10 @@
 .goal-pace-more a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }
 /* The pace band link belongs to the splits on the card above it: just under it, not a whole gap away. */
 .goal-pace-stack > .goal-pace-band { margin-top: calc(var(--s-2) - var(--s-6)); }
-/* From 900 px a goal page is one centred column, as the analyses are, never a column against the left edge. */
+/* From 900 px a goal page is one column at the chain frame's content start (the rail beside it from 1180 px), as the
+   analyses and the other chapter tools are (critic round 5: a centred 720 px column made the chapter's tools jump). */
 @media (min-width: 900px) {
-  .goal-pace-page { max-width: var(--measure-figure); margin-inline: auto; }
+  .goal-pace-page { max-width: var(--measure-figure); }
 }
 
 @media print {

@@ -24,8 +24,8 @@ export interface ToolDefinition {
   group: ToolGroup;
   evidence: ToolEvidence[];
   /**
-   * @deprecated No tool draws a per-tool hue any more (the redesign spec, section 7.14). Kept only because
-   * components/course/CoursePlan.tsx (WP5) still reads it; remove both together.
+   * The tool's share-card accent (scripts/build-og-images.cjs, public/og/tools/<slug>.png). No page draws a per-tool hue
+   * (the redesign spec, section 7.14); changing a value redraws that card.
    */
   accent: string;
   /** The index file in public/data/insights that must be in the verified manifest, if any. */

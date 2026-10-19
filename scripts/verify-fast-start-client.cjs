@@ -81,7 +81,8 @@ async function main() {
   assert.equal(timeChange(focus.finish_delta_median_s),finishChange,'The finish change reads as the evidence median');
   for (const units of ['mi','km']) {
     const html=render(FastStartResults,{row:start.initial,focus,start,units});
-    assert.match(html,new RegExp(esc(focusRate)+' developed a <a [^>]*>sustained slowdown</a>'));
+    // The page's grammar, measured against the steady openings of the same selection (critic round 5, October 19, 2026).
+    assert.match(html,new RegExp(esc(focusRate)+' had a <a [^>]*>sustained slowdown</a>, against '+esc(steadyRate)+' after a first(?:&nbsp;|\u00a0)5K within 2%'));
     assert.match(html,new RegExp(esc(timeChange(focus.finish_delta_median_s))));
     assert.match(html,new RegExp(esc(steadyRate))); assert.match(html,new RegExp(focus.n.toLocaleString('en-US'))); assert.match(html,new RegExp(focus.slowdown_n.toLocaleString('en-US')));
     assert.match(html,/earlier recorded best/);

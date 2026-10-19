@@ -15,7 +15,11 @@
 //   9. more than one coloured heading accent (an em in an h1, h2 or h3 drawn in a colour other than its heading's) within
 //      one screen's height: orange marks the page's one reading, so H2s keep their italic in ink (round 3, October 19);
 //  10. a term link (.term-link) inside an h1: a dotted underline under display type outweighs the reading's accent; the
-//      term is linked from the unit line or the figure's key instead.
+//      term is linked from the unit line or the figure's key instead;
+//  11. a line crossing text inside a figure.viz: a label's leader (.leader) through another label, or the scrubber's
+//      needle (.scrub-needle) through a label or a gridline's label in its plot, by more than 2 px (round 5, October 19:
+//      Hamburg's leader through "Valencia", the hills needle through "164 ft above the low point"; check 4 compares
+//      text with text only).
 //
 //   node scripts/design/lint-layout.cjs --routes=<comma list | @file> [--widths=195,320,390,1440] [--dir=out]
 //        [--json=<file>] [--only=1,2,3] [--max=12]
@@ -55,7 +59,7 @@ function inspect({ isHome }) {
     }
     return false;
   };
-  const findings = { overflow: [], tinyText: [], overlap: [], outside: [], orange: [], clipped: [], accents: [], termH1: [] };
+  const findings = { overflow: [], tinyText: [], overlap: [], outside: [], orange: [], clipped: [], accents: [], termH1: [], crossed: [] };
 
   // 1. Horizontal overflow, with the elements that reach past the right edge.
   // Any overflow at all, even 1 px: a page that can move sideways under a thumb wobbles.
@@ -180,6 +184,31 @@ function inspect({ isHome }) {
   for (let i = 1; i < accented.length; i++) {
     if (accented[i].top - accented[i - 1].top < vh) findings.accents.push(`${accented[i - 1].what} and ${accented[i].what}, ${Math.round(accented[i].top - accented[i - 1].top)}px apart`);
   }
+  // 11. A leader or the needle through text in its figure: the line's box (a vertical hairline) against each visible text
+  // box in the same SVG (a leader) or the same plot (the needle), its x inside the text's width and more than 2 px of
+  // the text's height crossed. A leader's own label sits clear of its top end, so it never counts.
+  for (const fig of document.querySelectorAll('figure.viz')) {
+    if (hidden(fig) || fig.closest('details:not([open])')) continue;
+    const textsIn = (root) => {
+      const out = [];
+      for (const t of root.querySelectorAll('svg text')) { if (t.textContent.trim() && !hidden(t)) out.push({ r: t.getBoundingClientRect(), what: describe(t) }); }
+      return out;
+    };
+    const lines = [];
+    for (const l of fig.querySelectorAll('.leader')) if (!hidden(l)) lines.push({ el: l, root: l.closest('svg.viz-svg') || l.ownerSVGElement || fig });
+    for (const n of fig.querySelectorAll('.scrub-needle')) if (!hidden(n)) lines.push({ el: n, root: n.parentElement || fig });
+    for (const { el, root } of lines) {
+      const r = el.getBoundingClientRect();
+      if (r.height < 2) continue;
+      const cx = r.left + r.width / 2;
+      for (const t of textsIn(root)) {
+        if (cx <= t.r.left + 1 || cx >= t.r.right - 1) continue;
+        const h = Math.min(r.bottom, t.r.bottom - 2) - Math.max(r.top, t.r.top + 2);
+        if (h > 2) findings.crossed.push(`${describe(el)} through ${t.what} (${h.toFixed(0)} px)`);
+      }
+    }
+  }
+
   // 10. No term link inside an h1.
   for (const a of document.querySelectorAll('h1 .term-link')) if (!hidden(a)) findings.termH1.push(describe(a.closest('h1')));
 
@@ -280,19 +309,20 @@ async function lintOne(browser, route, width, opts) {
     8: findings.clipped,
     9: findings.accents,
     10: findings.termH1,
+    11: findings.crossed,
   };
   for (const k of Object.keys(checks)) if (!opts.only.has(Number(k))) delete checks[k];
   return { route, width, checks, foreign };
 }
 
-const NAMES = { 1: 'horizontal overflow', 2: 'hit area under 44×44', 3: 'chart text under 12 px', 4: 'text overlaps text in a figure', 5: 'text outside its SVG', 6: 'console or page error', 7: 'more than one orange control on the first screen', 8: 'chart text clipped', 9: 'two coloured heading accents within one screen', 10: 'a term link inside an h1' };
+const NAMES = { 1: 'horizontal overflow', 2: 'hit area under 44×44', 3: 'chart text under 12 px', 4: 'text overlaps text in a figure', 5: 'text outside its SVG', 6: 'console or page error', 7: 'more than one orange control on the first screen', 8: 'chart text clipped', 9: 'two coloured heading accents within one screen', 10: 'a term link inside an h1', 11: 'a leader or the needle crosses text in a figure' };
 
 async function main() {
   const a = args(process.argv.slice(2));
   const routes = readRoutes(a.routes);
   const widths = String(a.widths || '195,320,390,1440').split(',').map(Number).filter(Boolean);
   const dir = path.resolve(ROOT, a.dir || 'out');
-  const only = new Set(String(a.only || '1,2,3,4,5,6,7,8,9,10').split(',').map(Number));
+  const only = new Set(String(a.only || '1,2,3,4,5,6,7,8,9,10,11').split(',').map(Number));
   const max = Number(a.max || 12);
   if (!fs.existsSync(path.join(dir, 'index.html'))) throw new Error(`No export at ${dir}: run npm run build first.`);
   const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined, args: ['--proxy-server=http://127.0.0.1:9', '--proxy-bypass-list=<-loopback>'] });

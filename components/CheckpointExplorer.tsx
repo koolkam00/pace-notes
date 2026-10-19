@@ -23,7 +23,7 @@ type Result = { row: CheckpointRow; widened: string; trendWidened: boolean };
 
 /**
  * The checkpoint explorer (Make it yours, the redesign spec, section 7.6): the course, the goal, the mat, the time on the
- * clock there and, optionally, the latest 5 km and the refinements, in one form (a sheet under 900 px, inline from
+ * clock there and, optionally, the latest 5K and the refinements, in one form (a sheet under 900 px, inline from
  * 900 px). It opens pre-filled with even goal pace at 30K, the example the page's answer reads, so until the visitor
  * changes something it shows only its selection row (the page never repeats the answer); anything else loads its
  * course's published checkpoint file.
@@ -42,6 +42,9 @@ export default function CheckpointExplorer({ summary, profile: start = EXAMPLE_P
   const [checkpoint, setCheckpoint] = useState(initial?.checkpoint ?? 30);
   const [elapsedText, setElapsedText] = useState(clock(initial?.elapsed ?? evenAt(start.goal, 30), true));
   const [sectionText, setSectionText] = useState('');
+  // Until the visitor types an elapsed time, it follows even pace for the target at the chosen mat (critic round 5: a
+  // 3:30 target kept 4:00's 2:50:38 at 30K, a split no 3:30 runner passes).
+  const [elapsedEdited, setElapsedEdited] = useState(false);
   const [request, setRequest] = useState<Request>({ checkpoint: initial?.checkpoint ?? 30, elapsed: initial?.elapsed ?? evenAt(start.goal, 30), section: null });
   const [data, setData] = useState<CheckpointData | null>(null);
   const [error, setError] = useState('');
@@ -60,7 +63,7 @@ export default function CheckpointExplorer({ summary, profile: start = EXAMPLE_P
       const mat = Number(new URLSearchParams(window.location.search).get('mat'));
       const km = MATS.includes(mat) ? mat : 30;
       const elapsed = parseElapsed(new URLSearchParams(window.location.search).get('at') || '') ?? evenAt(read.goal, km);
-      setCheckpoint(km); setElapsedText(clock(elapsed, true)); setSectionText(''); setRequest({ checkpoint: km, elapsed, section: null });
+      setCheckpoint(km); setElapsedText(clock(elapsed, true)); setElapsedEdited(new URLSearchParams(window.location.search).has('at')); setSectionText(''); setRequest({ checkpoint: km, elapsed, section: null });
       const query = new URLSearchParams(window.location.search); query.delete('units'); setChosen(query.toString() !== '');
     };
     restore(); window.addEventListener('popstate', restore);
@@ -92,7 +95,7 @@ export default function CheckpointExplorer({ summary, profile: start = EXAMPLE_P
     const goal = typedGoal, elapsed = typedElapsed, section = typedSection;
     if (goal === null || goal < GOAL_MIN || goal > GOAL_MAX) { setFormError('Enter a goal between ' + clock(GOAL_MIN * 60) + ' and ' + clock(GOAL_MAX * 60) + ', using hours:minutes.'); return; }
     if (elapsed === null || elapsed <= 0 || elapsed >= 12 * 3600) { setFormError('Enter your elapsed time as hours:minutes:seconds, for example 2:50:00.'); return; }
-    if (sectionText.trim() && (section === null || section < 600 || section > 6000 || section > elapsed)) { setFormError('Enter a 5 km time between 10:00 and 100:00, shorter than the total elapsed time.'); return; }
+    if (sectionText.trim() && (section === null || section < 600 || section > 6000 || section > elapsed)) { setFormError('Enter a 5K time between 10:00 and 100:00, shorter than the total elapsed time.'); return; }
     const next = { ...draft, goal };
     trackAnalytics('analysis_filters_applied', { analysis: 'checkpoint', course_scope: next.city === 'All courses' ? 'all' : 'single' });
     setFormError(''); setProfile(next); setData(prev => (prev?.city === next.city ? prev : null)); setRequest({ checkpoint, elapsed, section }); setChosen(true);
@@ -106,13 +109,13 @@ export default function CheckpointExplorer({ summary, profile: start = EXAMPLE_P
       <form className="explore-form" onSubmit={event => { event.preventDefault(); submit(); }}>
         <div className="explore-fields">
           <div className="field"><label className="field-label" htmlFor={field('course')}>Course</label><select id={field('course')} className="select" value={draft.city} onChange={event => setDraft({ ...draft, city: event.target.value })}>{summary.cities.map(row => <option key={row.city} value={row.city}>{cityName(row.city)}</option>)}</select></div>
-          <div className="field"><label className="field-label" htmlFor={field('goal')}>Target time</label><input id={field('goal')} className="input" value={goalText} onChange={event => setGoalText(keypadInput(event.target, event.nativeEvent))} onBlur={() => { const m = parseMinutes(goalText); if (m !== null) setGoalText(clock(m * 60)); }} placeholder="4:00" inputMode="decimal" spellCheck={false} autoComplete="off" aria-describedby={field('goal-help')} /><p className="field-hint" id={field('goal-help')}>Hours:minutes.<KeypadHint /></p></div>
-          <div className="field"><label className="field-label" htmlFor={field('mat')}>Checkpoint</label><select id={field('mat')} className="select" value={checkpoint} onChange={event => { const km = Number(event.target.value); setCheckpoint(km); setElapsedText(clock(evenAt(parseMinutes(goalText) ?? profile.goal, km), true)); }}>{MATS.map(km => <option key={km} value={km}>{km}K</option>)}</select></div>
-          <div className="field"><label className="field-label" htmlFor={field('elapsed')}>Elapsed time</label><input id={field('elapsed')} className="input" value={elapsedText} onChange={event => setElapsedText(keypadInput(event.target, event.nativeEvent))} placeholder="2:50:00" inputMode="decimal" spellCheck={false} autoComplete="off" aria-describedby={field('elapsed-help')} /><p className="field-hint" id={field('elapsed-help')}>Hours:minutes:seconds.<KeypadHint /></p></div>
+          <div className="field"><label className="field-label" htmlFor={field('goal')}>Target time</label><input id={field('goal')} className="input" value={goalText} onChange={event => { const next = keypadInput(event.target, event.nativeEvent); setGoalText(next); const m = parseMinutes(next); if (!elapsedEdited && m !== null && m >= GOAL_MIN && m <= GOAL_MAX) setElapsedText(clock(evenAt(m, checkpoint), true)); }} onBlur={() => { const m = parseMinutes(goalText); if (m !== null) setGoalText(clock(m * 60)); }} placeholder="4:00" inputMode="decimal" spellCheck={false} autoComplete="off" aria-describedby={field('goal-help')} /><p className="field-hint" id={field('goal-help')}>Hours:minutes.<KeypadHint /></p></div>
+          <div className="field"><label className="field-label" htmlFor={field('mat')}>Checkpoint</label><select id={field('mat')} className="select" value={checkpoint} onChange={event => { const km = Number(event.target.value); setCheckpoint(km); setElapsedEdited(false); setElapsedText(clock(evenAt(parseMinutes(goalText) ?? profile.goal, km), true)); }}>{MATS.map(km => <option key={km} value={km}>{km}K</option>)}</select></div>
+          <div className="field"><label className="field-label" htmlFor={field('elapsed')}>Elapsed time</label><input id={field('elapsed')} className="input" value={elapsedText} onChange={event => { setElapsedText(keypadInput(event.target, event.nativeEvent)); setElapsedEdited(true); }} placeholder="2:50:00" inputMode="decimal" spellCheck={false} autoComplete="off" aria-describedby={field('elapsed-help')} /><p className="field-hint" id={field('elapsed-help')}>Hours:minutes:seconds.<KeypadHint /></p></div>
         </div>
-        <details className="guide-optional profile-refinements"><summary>Add your latest 5 km, age or gender</summary>
+        <details className="guide-optional profile-refinements"><summary>Add your latest 5K, age or gender</summary>
           <div className="explore-fields">
-            <div className="field"><label className="field-label" htmlFor={field('section')}>Latest 5 km · optional</label><input id={field('section')} className="input" value={sectionText} onChange={event => setSectionText(keypadInput(event.target, event.nativeEvent))} placeholder="e.g. 28:00" inputMode="decimal" spellCheck={false} autoComplete="off" /></div>
+            <div className="field"><label className="field-label" htmlFor={field('section')}>Latest 5K · optional</label><input id={field('section')} className="input" value={sectionText} onChange={event => setSectionText(keypadInput(event.target, event.nativeEvent))} placeholder="e.g. 28:00" inputMode="decimal" spellCheck={false} autoComplete="off" /></div>
             <div className="field"><label className="field-label" htmlFor={field('age')}>Age group</label><select id={field('age')} className="select" value={draft.age} onChange={event => setDraft({ ...draft, age: event.target.value })}>{AGE_OPTIONS.map(age => <option key={age} value={age}>{age === 'all' ? 'All ages' : age}</option>)}</select></div>
             <div className="field"><label className="field-label" htmlFor={field('gender')}>Recorded gender</label><select id={field('gender')} className="select" value={draft.gender} onChange={event => setDraft({ ...draft, gender: event.target.value })}><option value="all">All</option><option value="Women">Women</option><option value="Men">Men</option></select></div>
           </div>

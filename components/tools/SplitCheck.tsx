@@ -269,15 +269,21 @@ function useHeld<T>(value: T, hold: boolean): T {
 }
 
 type FieldIssue = 'unreadable' | 'order' | 'pace' | 'finish';
-const matWord = (i: number) => (i === 8 ? 'finish' : `${CHECKPOINTS[i]} km`);
+/** A mat as the grid names it, in both unit modes: "5K" … "40K", "Finish". */
+const matName = (i: number) => (i === 8 ? 'Finish' : matLabel(CHECKPOINTS[i]));
 
-/** What is wrong with one field, naming the mats involved. */
-function issueText(i: number, kind: FieldIssue, parsed: (number | null)[]): string {
-  if (kind === 'unreadable') return `Couldn’t read the ${matWord(i)} time. Use h:mm:ss (1:45:54), or mm:ss before the first hour (25:50).`;
-  if (kind === 'order') return `The ${matWord(i)} time must be later than the ${matWord(i - 1)} time.`;
-  if (kind === 'finish') return 'The finish must be between 1:30:00 and 12:00:00.';
+/**
+ * What is wrong with one field, in one short line: the mat as the grid names it, the time typed, and a pace in the
+ * visitor's own unit (critic round 5: a 30-word sentence in kilometres, printed twice). "5K: 3:15:00 is 62:46/mi. Check
+ * this time."
+ */
+function issueText(i: number, kind: FieldIssue, parsed: (number | null)[], units: UnitSystem): string {
+  const t = parsed[i] !== null && parsed[i] !== undefined ? formatDuration(parsed[i]!, true) : '';
+  if (kind === 'unreadable') return `${matName(i)}: couldn’t read this time. Use h:mm:ss (1:45:54), or mm:ss before the first hour (25:50).`;
+  if (kind === 'order') return `${matName(i)}: ${t} is not later than the ${matName(i - 1)} time. Check these two times.`;
+  if (kind === 'finish') return `Finish: ${t} is outside 1:30:00 to 12:00:00. Check this time.`;
   const pace = ((parsed[i] ?? 0) - (i ? parsed[i - 1] ?? 0 : 0)) / SECTION_KM[i];
-  return `The ${SECTION_NAMES[i]} km section works out at ${formatDuration(pace)} per km; every section must be between 2:00 and 20:00 per km. Check the ${i ? `${matWord(i - 1)} and ${matWord(i)} times` : `${matWord(i)} time`}.`;
+  return i ? `${matName(i - 1)} to ${matName(i)} is ${fmtPace(pace, units)}. Check these two times.` : `${matName(i)}: ${t} is ${fmtPace(pace, units)}. Check this time.`;
 }
 
 export default function SplitCheck({ indexSha, archetypesSha, bandCourses, otherCourses }: {
@@ -375,7 +381,7 @@ export default function SplitCheck({ indexSha, archetypesSha, bandCourses, other
   const quiet = (i: number) => typing !== null && (i === typing || i === typing + 1);
   const firstIssue = (skip: (i: number) => boolean) => {
     const i = fieldProblem.findIndex((p, k) => p !== null && !skip(k));
-    return i < 0 ? null : issueText(i, fieldProblem[i] as FieldIssue, parsed);
+    return i < 0 ? null : issueText(i, fieldProblem[i] as FieldIssue, parsed, units);
   };
   const blockMessage = firstIssue(() => false) ?? problem;
   const hintIssue = firstIssue(quiet) ?? (editing ? null : problem);
@@ -383,7 +389,11 @@ export default function SplitCheck({ indexSha, archetypesSha, bandCourses, other
   // What the results column shows, as a key. While a field is being typed in and does not yet make a valid race, the
   // column keeps what it showed before (the last valid race, dimmed), instead of jumping between states on each keystroke.
   const currentView = !loaded ? 'l' : times ? `r${times.join(',')}` : blockMessage ? `e${blockMessage}` : 'p';
-  const view = useHeld(currentView, editing && !times);
+  // A mat time that does not make a race is said once, under the grid (critic round 5: it was printed twice on the first
+  // screen): the card above keeps the last complete race, dimmed, or, before there was one, the empty state.
+  const lastRace = useRef<string | null>(null);
+  if (currentView[0] === 'r') lastRace.current = currentView;
+  const view = useHeld(currentView[0] === 'e' ? lastRace.current ?? 'p' : currentView, editing && !times);
   const shownTimes = useMemo(() => (view[0] === 'r' ? view.slice(1).split(',').map(Number) : null), [view]);
   const reading = useMemo(() => (shownTimes ? readSplits(shownTimes) : null), [shownTimes]);
   const stale = shownTimes !== null && !times;
@@ -461,8 +471,8 @@ export default function SplitCheck({ indexSha, archetypesSha, bandCourses, other
 
   // One short status line for screen readers, updated only when no field is being typed in.
   const verdict = reading ? verdictOf(reading) : null;
-  const settled = view === 'l' ? '' : verdict && shownTimes && !stale ? `${verdict.kicker}. ${pctSigned(verdict.value, 0)}: ${verdict.line} Finish ${formatDuration(shownTimes[8], true)}.`
-    : view[0] === 'e' ? `Check your times. ${view.slice(1)}` : '';
+  // The grid's own line announces a problem (role="alert"), so the status line says nothing then.
+  const settled = view === 'l' ? '' : verdict && shownTimes && !stale ? `${verdict.kicker}. ${pctSigned(verdict.value, 0)}: ${verdict.line} Finish ${formatDuration(shownTimes[8], true)}.` : '';
   const status = useHeld(settled, editing);
 
   const hintId = `${formId}-grid-hint`;
@@ -503,9 +513,7 @@ export default function SplitCheck({ indexSha, archetypesSha, bandCourses, other
           {stale ? <p className="split-check-updating" aria-hidden="true">Showing your last complete race</p> : null}
           {view === 'l' ? <div className="tool-state">Reading the times…</div>
             : reading && shownTimes ? <ResultCard reading={reading} units={units} isExample={isExample} />
-            : view[0] === 'e' ? (
-              <div className="tool-state is-error"><strong>Check your times.</strong> {view.slice(1)}</div>
-            ) : (
+            : (
               <div className="tool-empty">Enter all nine elapsed times (5, 10, 15, 20, 25, 30, 35 and 40 km, and the finish) to read your race. {entered ? `${entered} of 9 so far.` : ''} Missing mats are never estimated.</div>
             )}
         </div>
@@ -539,6 +547,9 @@ export default function SplitCheck({ indexSha, archetypesSha, bandCourses, other
           <p className={`tool-field-hint${hintIssue ? ' is-error' : ''}`} id={hintId}>
             {gridMessage ?? (isExample ? 'A made-up race with a sustained slowdown from 30K. Type over it or paste your own.' : 'Chip time at each mat (h:mm:ss or mm:ss).')}<KeypadHint />
           </p>
+          {/* An issue is announced from a live region that is always in the page (role="alert" as a plain attribute), so a
+              recording never differs by an attribute that says whether a typed time was accepted. */}
+          <p className="sr-only" role="alert">{hintIssue ?? ''}</p>
           {/* Paste and Clear share one row with the privacy line; the paste box opens under it. */}
           <div className="split-check-buttons">
             <button type="button" className="btn btn-secondary is-compact split-check-paste-toggle" aria-expanded={pasteOpen} aria-controls={`${formId}-paste-box`}
@@ -582,7 +593,7 @@ type TypeResult = { name: string; arch: Archetype; index: number; all: Archetype
  * visitor's own times, so it carries no badge (AGENTS.md); the data beat under it carries the page's one.
  */
 function ResultCard({ reading, units, isExample }: { reading: SplitReading; units: UnitSystem; isExample: boolean }) {
-  const verdict = verdictOf(reading);
+  const verdict = verdictOf(reading, isExample);
   return (
     <section className="tool-reading night split-check-headline" aria-labelledby="split-check-title">
       <div className="tool-reading-head">
@@ -593,7 +604,7 @@ function ResultCard({ reading, units, isExample }: { reading: SplitReading; unit
           <small>{verdict.line}</small>
         </h2>
       </div>
-      <SectionBars reading={reading} units={units} />
+      <SectionBars reading={reading} units={units} example={isExample} />
     </section>
   );
 }
@@ -647,18 +658,20 @@ function ResultRest({ times, reading, units, gender, compareOptions, compareOpen
  * The reading on the night card: the section that decides the verdict, against the runner's own 5–20K pace. With a
  * sustained slowdown, the section it began in; without one, the slowest 5K after 20K.
  */
-function verdictOf(r: SplitReading): { kicker: string; value: number; qualifies: boolean; line: string } {
+function verdictOf(r: SplitReading, example = false): { kicker: string; value: number; qualifies: boolean; line: string } {
   const vs = r.vsBaseline;
+  // "You" is the visitor's own race: the made-up example is spoken of in the third person until they type (critic round 5).
+  const [own, base] = example ? ['This race’s', `its ${BASE}`] : ['Your', `your ${BASE}`];
   if (r.slowdown && r.onsetKm !== null) {
     const i0 = (r.onsetKm - 20) / 5 + 4;
     return { kicker: `Sustained slowdown from ${matLabel(r.onsetKm)}`, value: vs[i0], qualifies: true,
-      line: `Your ${secName(i0)} against your ${BASE} pace.` };
+      line: `${own} ${secName(i0)} against ${base} pace.` };
   }
   let worst = 4;
   for (let i = 5; i < 8; i += 1) if (vs[i] > vs[worst]) worst = i;
   const v = vs[worst];
   return { kicker: 'No sustained slowdown', value: v, qualifies: false,
-    line: v > -0.02 ? `Your slowest 5K after 20K, ${secName(worst)}, against your ${BASE} pace.` : `Every 5K after 20K was quicker than your ${BASE} pace; ${secName(worst)} came closest.` };
+    line: v > -0.02 ? `${own} slowest 5K after 20K, ${secName(worst)}, against ${base} pace.` : `Every 5K after 20K was quicker than ${base} pace; ${secName(worst)} came closest.` };
 }
 
 /* ------------------------------------------------------------------ */
@@ -667,10 +680,11 @@ function verdictOf(r: SplitReading): { kicker: string; value: number; qualifies:
 
 /**
  * Each section's pace as a bar from the runner's own 5–20K pace (the solid line): quicker up, slower down. The 25%-slower
- * line runs from 20K to the finish; sections at or past it after 20K are in the accent, the others quiet. Drawn in
- * pixels at the measured width, on the night card.
+ * line runs from 20K to the finish; sections at or past it after 20K are in ink, the others quiet (critic round 5: the
+ * page's one orange is the data beat's reading, the finishes near this time, never the race's own bar). Drawn in pixels
+ * at the measured width, on the night card.
  */
-function SectionBars({ reading, units }: { reading: SplitReading; units: UnitSystem }) {
+function SectionBars({ reading, units, example = false }: { reading: SplitReading; units: UnitSystem; example?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 640);
   const narrow = width < 480;
@@ -735,7 +749,7 @@ function SectionBars({ reading, units }: { reading: SplitReading; units: UnitSys
   });
   const xTicks = fitTicks([0, 10, 20, 30, 40].map((km) => ({ x: x(km), label: km ? `${km}K` : 'Start' })), width);
   const qualifying = reading.vsBaseline.map((v, i) => (i >= 4 && i <= 7 && qualifies(v) ? secName(i) : null)).filter(Boolean);
-  const aria = `Each section's pace against your ${BASE} pace of ${fmtPace(reading.baseline, units)}; 25% slower is ${fmtPace(reading.baseline * 1.25, units)}. `
+  const aria = `Each section's pace against ${example ? 'the race’s' : 'your'} ${BASE} pace of ${fmtPace(reading.baseline, units)}; 25% slower is ${fmtPace(reading.baseline * 1.25, units)}. `
     + reading.paces.map((p, i) => `${secName(i)}: ${fmtPace(p, units)}, ${pctSigned(reading.vsBaseline[i])}`).join('; ')
     + `. ${qualifying.length ? `At least 25% slower after 20K: ${qualifying.join(', ')}.` : 'No 5K section after 20K was 25% or more slower.'}`;
   return (

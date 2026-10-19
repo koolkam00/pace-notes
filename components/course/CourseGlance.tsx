@@ -1,4 +1,5 @@
 import BigNumber from '@/components/ui/BigNumber';
+import LineProfile from '@/components/viz/LineProfile';
 import { getNugget, type Nugget } from '@/lib/nuggets';
 import type { CourseNugget } from '@/lib/nuggets/courses';
 import type { Courses } from '@/lib/insights';
@@ -23,8 +24,8 @@ import { CourseSection, Said } from './Fact';
  * the "Name that course" game on /stories/courses.
  * A course with none of these has no glance at all (the page leaves the section out and opens on its first difference).
  */
-/** A row: its figure, the words that finish its sentence, and (alone, under its sentence as the H2) a short note naming what the figure is against. */
-type Row = { id: string; figure: React.ReactNode; key: string; note?: string; viz?: React.ReactNode };
+/** A row: its figure, the words that finish its sentence and its micro-chart; alone (its sentence the H2), a wide chart. */
+type Row = { id: string; figure: React.ReactNode; key: string; viz?: React.ReactNode; wide?: React.ReactNode };
 
 const W = 96, H = 40;
 const line = (p: readonly (readonly [number, number])[]) => p.map(([px, py], i) => `${i ? 'L' : 'M'}${px.toFixed(1)} ${py.toFixed(1)}`).join('');
@@ -83,6 +84,29 @@ function SignatureViz({ curve, typical, at }: { curve: number[]; typical: number
   );
 }
 
+/**
+ * One row alone is the section's finding (its sentence is the H2), so it gets a chart a runner can read (critic round 5:
+ * a 96 × 40 sparkline beside its caption was the smallest mark on the page): the course's pace 5K by 5K against its own
+ * average (slower up, the average a solid hairline), the typical course dashed, the section the sentence names washed,
+ * its point in signal and its name on it, at the column's width.
+ */
+function ShapeChart({ display, curve, typical, at }: { display: string; curve: number[]; typical: number[]; at: number }) {
+  const span = Math.max(2, ...curve.map((v) => Math.abs(v)), ...typical.map((v) => Math.abs(v)));
+  const top = Math.ceil(span + 0.5);
+  const name = SECTION_BOUNDS[at] ? sectionLabel(...SECTION_BOUNDS[at]) : '';
+  return (
+    <LineProfile x={curve.map((_, i) => i + 0.5)} xDomain={[0, 9]} yDomain={[-top, top]}
+      xTicks={[{ value: 0, label: 'Start' }, { value: 2, label: '10K' }, { value: 4, label: '20K' }, { value: 6, label: '30K' }, { value: 8, label: '40K' }]}
+      refs={[{ value: 0, label: 'Average pace' }]} washes={[{ from: at, to: at + 1, fill: true }]}
+      layers={[{ id: 'shape', label: display, series: [{ id: 'typical', values: typical, dashed: true }, { id: 'course', values: curve, tone: 'ink' }],
+        // The row's sentence names the section, so the chart marks it (the wash and the point) without a second label,
+        // which met "Average pace" at 195-320 px.
+        points: [{ x: at + 0.5, y: curve[at], kind: 'reading' }] }]}
+      keys={[{ label: `${display}, 5K by 5K`, mark: 'line' }, { label: 'The typical course', mark: 'dash' }]}
+      label={`${display}’s pace 5K by 5K against its own average, the typical course beside it; ${name} marked`} height={132} heightMd={176} />
+  );
+}
+
 function figureOf(n: Nugget) {
   return n.figure ? <BigNumber value={n.figure.value} unit={n.figure.unit} sr={n.figure.sr} size="m" /> : null;
 }
@@ -119,7 +143,6 @@ export default function CourseGlance({ page }: { page: CoursePageData }) {
   if (!ids.length) return null;
   const kept = display.replace(/ /g, '\u00a0');
   const single = ids.length === 1 ? getNugget(ids[0], { city }) : null;
-  const name = (i: number) => (SECTION_BOUNDS[i] ? sectionLabel(...SECTION_BOUNDS[i]) : '');
   const rows: Row[] = ids.map((id) => {
     const n = getNugget(id, { city }) as CourseNugget;
     if (id === 'course.start') {
@@ -130,27 +153,33 @@ export default function CourseGlance({ page }: { page: CoursePageData }) {
     }
     if (id === 'course.late') {
       const slowest = s.slowest_section ? page.sections.indexOf(s.slowest_section) : -1;
-      return { id, figure: figureOf(n), key: n.key!, note: `than ${display}’s average pace, at ${name(slowest)}`, viz: curve && slowest >= 0 ? <LateViz curve={curve} slowest={slowest} /> : undefined };
+      // Alone, the H2 names the section and the usual one: the row is the wide chart, the typical course's late fade beside it.
+      if (single && curve && slowest >= 0) return { id, figure: null, key: n.key!, wide: <ShapeChart display={display} curve={curve} typical={typicalCurve} at={slowest} /> };
+      return { id, figure: figureOf(n), key: n.key!, viz: curve && slowest >= 0 ? <LateViz curve={curve} slowest={slowest} /> : undefined };
     }
     const at = s.signature_section ? page.sections.indexOf(s.signature_section) : -1;
     // Alone, the H2 says the one figure (critic round 4: the two curves' percentages beside it read as three numbers), so
-    // the row is its chart, with a note saying which line is which.
-    return { id, figure: single ? null : figureOf(n), key: n.key!, note: single ? `${display}, 5K by 5K; the typical course dashed` : undefined, viz: curve && at >= 0 ? <SignatureViz curve={curve} typical={typicalCurve} at={at} /> : undefined };
+    // the row is its chart, drawn wide.
+    if (single && curve && at >= 0) return { id, figure: null, key: n.key!, wide: <ShapeChart display={display} curve={curve} typical={typicalCurve} at={at} /> };
+    return { id, figure: figureOf(n), key: n.key!, viz: curve && at >= 0 ? <SignatureViz curve={curve} typical={typicalCurve} at={at} /> : undefined };
   });
+  const wide = single ? rows[0].wide : null;
   return (
     <CourseSection id="at-a-glance" track="chapter-1" beat="At a glance"
       title={single ? <Said nugget={single} /> : display.includes(' ') ? <>What sets <em className="is-plain">{kept}</em> apart</> : <>What makes {kept} <em className="is-plain">{kept}</em></>}>
+      {wide ? <div className="course-glance is-single is-wide">{wide}</div> : (
       <div className={`course-glance${single ? ' is-single' : ''}`}>
         <ul className="glance-rows">
           {rows.map((r, i) => (
             <li key={r.id} className={`glance-row${i > 0 ? ' is-quiet' : ''}${r.figure ? '' : ' is-chart'}`}>
               {r.figure ? <span className="glance-figure">{r.figure}</span> : null}
-              {single ? (r.note ? <span className="glance-note">{r.note}</span> : null) : <span className="glance-key">{r.key}</span>}
+              {single ? null : <span className="glance-key">{r.key}</span>}
               {r.viz ? <span className="glance-chart">{r.viz}</span> : null}
             </li>
           ))}
         </ul>
       </div>
+      )}
     </CourseSection>
   );
 }

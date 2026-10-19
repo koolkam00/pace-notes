@@ -1,15 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useUnits } from '@/components/UnitsProvider';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import PaceBandStrip from '@/components/tools/PaceBandStrip';
-import { DurationField, ExampleNote, GoalBar, ShareBar, Stepper } from '@/components/tools/ui';
+import { DurationField, GoalBar, ShareBar, Stepper } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
-import DotGrid from '@/components/viz/DotGrid';
 import Values from '@/components/ui/Values';
 import { loadInsight } from '@/lib/insights';
-import { loadShard, type CourseGoal, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
+import { loadShard, type CourseGoal, type CourseGoalRow, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
 import { MARATHON_KM, perUnit, splitTable } from '@/lib/tools/pace';
 import { CHECKPOINTS, PACE_BAND_INDEX, cellOf, fmtGoal, fmtPace, paceBandShardPath, type PaceBandCell } from '@/lib/tools/pace-band-data';
 import { COURSE_GOAL_FILE, PLAN_GOAL_MAX_S, PLAN_GOAL_MIN_S, courseGoalResult, goalShare, publishedGoal, readPlanGoal, roundedNote } from '@/lib/tools/plan';
@@ -111,6 +110,52 @@ function MatTable({ goal, pKm, units, observed }: { goal: number; pKm: number; u
   );
 }
 
+/**
+ * Every course on one line at the goal (critic round 5: the card into the planner promises "7–27% made 4:00, course by
+ * course", so the planner opens on that spread, not on the pooled share): each course with 100 finishes on the goal's
+ * pace through 20K as a dot at its share; the spread from the lowest to the highest in signal, or, with a course chosen,
+ * that course's dot alone, named above it; the lowest and highest named below; all courses together a quiet tick.
+ * Static HTML, no script: the course box above is the control.
+ */
+function CourseSpread({ rows, chosen, pooled, label }: { rows: CourseGoalRow[]; chosen: string | null; pooled: number | null; label: string }) {
+  const lo = rows[0], hi = rows[rows.length - 1];
+  const top = Math.max(0.1, Math.ceil((hi.under + 0.02) * 10) / 10);
+  const at = (v: number) => `${((Math.min(v, top) / top) * 100).toFixed(2)}%`;
+  const pct = (v: number) => `${Math.round(v * 100)}%`;
+  const mine = chosen ? rows.find((r) => r.city === chosen) ?? null : null;
+  // A label near an edge is held inside the line: anchored to its left or right end instead of its middle.
+  const side = (v: number) => (v / top < 0.18 ? 'is-start' : v / top > 0.82 ? 'is-end' : '');
+  const near = (a: number, b: number) => Math.abs(a - b) / top < 0.16;
+  // Dots that would touch stack upward (at the narrowest phone line, 288 px), the chosen course on the line itself.
+  const W = 288, D = 10;
+  const order = [...rows].sort((a, b) => Number(b === mine) - Number(a === mine));
+  const placed: { px: number; level: number }[] = [];
+  const level = new Map<CourseGoalRow, number>();
+  for (const r of order) {
+    const px = (Math.min(r.under, top) / top) * W;
+    let lv = 0;
+    while (placed.some((p) => p.level === lv && Math.abs(p.px - px) < D)) lv++;
+    placed.push({ px, level: lv });
+    level.set(r, lv);
+  }
+  const stack = Math.max(0, ...placed.map((p) => p.level));
+  return (
+    <div className="plan-spread" role="img" aria-label={label} style={{ ['--stack' as string]: stack } as CSSProperties}>
+      <div className="plan-spread-line" aria-hidden="true">
+        {pooled !== null && !(mine && near(mine.under, pooled)) ? <span className={`plan-spread-all ${side(pooled)}`.trim()} style={{ left: at(pooled) }}>All courses</span> : null}
+        {pooled !== null ? <i className="plan-spread-tick" style={{ left: at(pooled) }} /> : null}
+        {mine ? null : <i className="plan-spread-span" style={{ left: at(lo.under), width: `calc(${at(hi.under)} - ${at(lo.under)})` }} />}
+        {rows.map((r) => <i key={r.city} className={`plan-spread-dot${mine === r ? ' is-chosen' : ''}`} style={{ left: at(r.under), ['--level' as string]: level.get(r) ?? 0 } as CSSProperties} />)}
+        {mine ? <span className={`plan-spread-name ${side(mine.under)}`.trim()} style={{ left: at(mine.under) }}>{mine.city} {pct(mine.under)}</span> : null}
+      </div>
+      <div className="plan-spread-ends" aria-hidden="true">
+        {mine !== lo ? <span className={side(lo.under) || undefined} style={{ left: at(lo.under) }}>{lo.city} {pct(lo.under)}</span> : null}
+        {mine !== hi ? <span className={side(hi.under) || undefined} style={{ left: at(hi.under) }}>{hi.city} {pct(hi.under)}</span> : null}
+      </div>
+    </div>
+  );
+}
+
 /** A data file that could not be loaded or verified, with a way to load it again. */
 function DataProblem({ error, onRetry }: { error: string; onRetry: () => void }) {
   return (
@@ -178,6 +223,15 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
     return null;
   }, [goalData.data, goal, isAll, published, result]);
   const shareOk = share && typeof share.n === 'number' && typeof share.under === 'number' ? share as { n: number; under: number; courses: number; minutes: number; rounded: boolean } : null;
+  // Every course's share at the published goal, lowest first: the courses the course-goal file lists, each with 100 such
+  // finishes (plan.courses's set, the chapter card's 7–27%), and the share across every course pooled (All numbers).
+  const spread = useMemo(() => {
+    if (!goalData.data || !published) return null;
+    const listed = new Set(goalData.data.courses.map((c) => c.city));
+    const at = goalData.data.rows.filter((r) => r.goal === published.minutes && listed.has(r.city) && r.n >= 100).sort((a, b) => a.under - b.under || a.city.localeCompare(b.city));
+    return at.length >= 2 ? at : null;
+  }, [goalData.data, published]);
+  const pooled = goalData.data && published ? goalShare(goalData.data.rows, published.minutes) : null;
   const rows = useMemo(() => (goal === null ? [] : splitTable(goal, MARATHON_KM, units === 'mi' ? 'mi' : 'km')), [goal, units]);
 
   // Printing: the wristband strips alone, or the one-page plan (also what the browser's own print command gives).
@@ -202,9 +256,14 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
   // The group's window, named wherever the group is ("within 2% of 4:00 pace"), as the chapter's reading names it: the
   // checkpoint analysis and the projector say "on 4:00 pace" of groups of their own.
   const nearGoal = shareGoal ? `within ${Math.round((goalData.data?.tolerance ?? 0.02) * 100)}% of ${shareGoal} pace` : null;
+  const range = spread ? `${Math.round(spread[0].under * 100)}–${Math.round(spread[spread.length - 1].under * 100)}%` : null;
+  // The data beat's sentence: the spread, course by course; with a course chosen, its share first and the spread after.
+  const spreadText = spread && range && nearGoal && shareGoal
+    ? (isAll ? `of finishes ${nearGoal} through 20K, ${range} made ${shareGoal}, course by course.` : `of finishes ${nearGoal} through 20K in ${course?.city ?? ''}, ${madeOf100}% made ${shareGoal}; course by course, ${range}.`)
+    : null;
   const summary = goal === null || pKm === null ? problem : loading ? null : [
     `${fmtGoal(goal)} goal${course ? ` in ${course.city}` : ''}: even pace ${fmtPace(pKm, units)}.`,
-    shareOk ? `Pace Notes data: of 100 finishes ${nearGoal} through 20 km ${where}, ${madeOf100} made ${shareGoal}.` : '',
+    shareOk ? `Pace Notes data: ${spreadText ?? `of 100 finishes ${nearGoal} through 20 km ${where}, ${madeOf100} made ${shareGoal}.`}` : '',
     result?.state === 'unavailable' ? 'No course results for this goal.' : '',
     dataError ?? '',
   ].filter(Boolean).join(' ');
@@ -297,14 +356,19 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
               <section className="tool-panel plan-comparison" id="plan-comparison" aria-labelledby="plan-comparison-title">
                 <EvidenceTag kind="data" />
                 <div className="plan-nugget">
+                  {/* The spread, course by course, as the card into this page promises it; with a course chosen, its share
+                      first (the reading) and the spread after. The share across every course pooled is in All numbers. */}
                   <p className="tool-nugget-text" id="plan-comparison-title">
-                    {/* No course count on All courses (critic round 3): the course box above names the scope. */}
-                    Of 100 finishes {nearGoal} through 20K{isAll ? '' : ` in ${city}`}, <em>{madeOf100}</em> made {shareGoal}.
+                    {spread && range ? (isAll
+                      ? <>Of finishes {nearGoal} through 20K, <em>{range}</em> made {shareGoal}, course by course.</>
+                      : <>Of finishes {nearGoal} through 20K in {city}, <em>{madeOf100}%</em> made {shareGoal}; course by course, {range}.</>)
+                      : <>Of finishes {nearGoal} through 20K{isAll ? '' : ` in ${city}`}, <em>{madeOf100}%</em> made {shareGoal}.</>}
                   </p>
-                  <DotGrid lit={madeOf100} label={`Of 100 finishes ${nearGoal} through 20 km${isAll ? '' : ` in ${city}`}, ${madeOf100} made ${shareGoal}.`} />
+                  {spread ? <CourseSpread rows={spread} chosen={isAll ? null : city} pooled={pooled?.under ?? null} label={spreadText ?? ''} /> : null}
                 </div>
                 {shareOk.rounded ? <p className="tool-note">{roundedNote(shareOk.minutes, goal, goalData.data!.goal_step_min)}</p> : null}
                 <Values id="plan-mats-values" caption={comparison ? `Every mat: your plan beside finishes from ${formatDuration(comparison.lo, true)} to ${formatDuration(comparison.hi, true)} ${where}` : 'Every mat: your plan'} count={9}>
+                  {pooled ? <p className="plan-pooled">On every course together, {Math.round(pooled.under * 100)} of 100 finishes {nearGoal} through 20K made {shareGoal}.</p> : null}
                   <MatTable goal={goal} pKm={pKm} units={units} observed={comparison} />
                 </Values>
               </section>

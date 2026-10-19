@@ -98,9 +98,9 @@ export function kickSweetSpotFrom(curve: CurvePoint[]): Nugget {
     id: 'kick.sweetspot', page: '/analyses/starting-pace#sweet-spot', denominator: 'kick',
     values: band && best ? { lo: band.from, hi: band.to, best_lo: best.lo, spread_s: band.spread, bins: band.bins.length, n: best.n, finish_s: best.finish_s, after20_s: best.after20_s, slowdown: best.slowdown } : {},
     guard: !!band && !!best && band.from >= 0 && best.lo > 0 && band.bins.every((c) => c.finish_s < 0),
-    // Short (ten words): the band only; how close its bins finished is the readout's, bin by bin (critic round 4: "all
-    // within 6 seconds" of what was never said).
-    headline: `Best: a first 5K *${words}* than the rest.`,
+    // Short: the band only, against the 5–20K pace it is measured on ("the rest" read as the rest of the field, critic
+    // round 5); the washed band on the curve shows how flat its top is.
+    headline: `Best: a first 5K *${words}* than the next 15K.`,
     fallback: best ? `The best average finish went with a first 5K ${openingWords(best.lo)} than the pace that followed.` : 'The finish against the same pace, by first 5K.',
     figure: best ? { value: delta(best.finish_s), sr: `${spokenTime(Math.abs(best.finish_s))} ${best.finish_s < 0 ? 'ahead' : 'behind'}` } : null,
   };

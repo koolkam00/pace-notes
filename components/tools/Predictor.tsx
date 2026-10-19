@@ -58,8 +58,8 @@ const DEFAULTS = { d: PREDICTOR_EXAMPLE.key as string, km: '', t: formatDuration
 /** The whole minute at or below an estimate, the way every tool reads a time (4:11:41 is 4:11). */
 const goalMinute = (s: number) => Math.floor(Math.round(s) / 60) * 60;
 type Query = typeof DEFAULTS;
-type LookKey = 'median' | 'riegel' | 'low' | 'high';
-interface Look { key: LookKey; label: string; chip: string; seconds: number }
+/** The estimate the data beat follows: the card's median. */
+interface Look { key: 'median'; label: string; chip: string; seconds: number }
 
 const fmtTime = (s: number) => formatDuration(s, s >= 3600);
 /** "4:12" for times over an hour (to the minute), "50:10" under. */
@@ -609,13 +609,19 @@ function FinishStrip({ q, Q, est }: { q: number[]; Q: number[]; est: number }) {
 
 type Projected = ReturnType<typeof useProjector>;
 
-function ObservedPanel({ indexSha, proj, est, looks, look, setLook, units }: {
-  indexSha: string | null; proj: Projected; est: Estimates; looks: Look[]; look: LookKey; setLook: (k: LookKey) => void; units: UnitSystem;
+/**
+ * The data beat: what the card's median estimate means for finishes that passed 20K on its even pace (critic round 5:
+ * a control choosing between four estimates re-aimed a chart whose point the median already makes; the other estimates
+ * are in "Every estimate, side by side").
+ */
+function ObservedPanel({ indexSha, proj, est, looks, units: _units }: {
+  indexSha: string | null; proj: Projected; est: Estimates; looks: Look[]; units: UnitSystem;
 }) {
   const { index, shard, error, retry } = proj;
-  const lookRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
   if (!est.isMarathon || !indexSha) return null;
-  const chosen = looks.find((l) => l.key === look) ?? looks[0];
+  const chosen = looks.find((l) => l.key === 'median') ?? looks[0];
+  if (!chosen) return null;
   // The whole minute at or below the estimate, the way every tool hands a time on (4:11:41 is 4:11), so the page names
   // one time for it, not 4:11 here and 4:12 there.
   const T = goalMinute(chosen.seconds);
@@ -625,19 +631,11 @@ function ObservedPanel({ indexSha, proj, est, looks, look, setLook, units }: {
   const i = cells ? cells.b.indexOf(band) : -1;
   const Q = index?.quantiles ?? [];
   const i50 = qIndex(Q, 0.5);
-  const lookChoice = (
-    <div className="tool-field predictor-look no-print" ref={lookRef}>
-      <span className="tool-label" id="predictor-look-label">On even pace at 20K for</span>
-      <div className="seg tool-choice is-small" role="group" aria-labelledby="predictor-look-label">
-        {looks.map((l) => <button key={l.key} type="button" className="seg-btn" aria-pressed={l.key === chosen.key} onClick={() => setLook(l.key)}>{l.chip}</button>)}
-      </div>
-    </div>
-  );
   const bandRange = `${fmtShort(band)}–${fmtShort(band + bandS)}`;
   const scope = index?.scopes.find((s) => s.slug === 'all');
   const bands = scope?.mats['20']?.bands ?? null;
   return (
-    <section className="tool-panel predictor-data" id="predictor-data" aria-labelledby="predictor-data-title">
+    <section className="tool-panel predictor-data" id="predictor-data" aria-labelledby="predictor-data-title" ref={panelRef} tabIndex={-1}>
       <EvidenceTag kind="data" />
       <DataState error={error} loading={!error && (!index || !shard)}>
         {cells && i >= 0 ? (() => {
@@ -652,7 +650,6 @@ function ObservedPanel({ indexSha, proj, est, looks, look, setLook, units }: {
                 On {fmtShort(T)} pace at 20K, <em>{shareText}</em> got under {fmtShort(T)}; their median was {fmtShort(q[i50])}.
               </p>
               <FinishStrip q={q} Q={Q} est={T} />
-              {lookChoice}
             </>
           );
         })() : (
@@ -661,14 +658,13 @@ function ObservedPanel({ indexSha, proj, est, looks, look, setLook, units }: {
               Too few finishes passed 20 km on {bandRange} even pace to show.
               {bands ? ` Groups at 20 km cover even paces from about ${fmtShort(bands[0])} to ${fmtShort(bands[1] + bandS)}.` : ''}
             </p>
-            {lookChoice}
           </>
         )}
       </DataState>
       {error ? (
         <button type="button" className="btn btn-secondary is-compact predictor-retry" onClick={() => {
-          // The button goes away while the data reloads, so focus moves to the estimate buttons above it first.
-          lookRef.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus();
+          // The button goes away while the data reloads, so focus moves to the panel first.
+          panelRef.current?.focus();
           retry();
         }}>Try again</button>
       ) : null}
@@ -690,7 +686,6 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
   const [converted, setConverted] = useState<string | null>(null);
   const [open2, setOpen2] = useState(false);
   const [openT, setOpenT] = useState(false);
-  const [look, setLook] = useState<LookKey>('median');
   const [typing, setTyping] = useState(false);
   const lastGood = useRef<{ km: number; seconds: number } | null>(null);
   const race2Ref = useRef<HTMLInputElement>(null);
@@ -772,12 +767,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
         value: `median ${fmtTime(r.median)}`, kind: 'range', lo: r.low, mid: r.median, hi: r.high, tone: 'violet',
         tip: [`${fmtTime(r.low)} to ${fmtTime(r.high)}`, `Median estimate ${fmtTime(r.median)} · ${pace(r.median)}`],
       });
-      looks.push(
-        { key: 'median', label: 'Median estimate', chip: 'Median', seconds: r.median },
-        { key: 'riegel', label: 'Classic formula', chip: 'Classic', seconds: est.riegel },
-        { key: 'low', label: 'Range start', chip: 'Range start', seconds: r.low },
-        { key: 'high', label: 'Range end', chip: 'Range end', seconds: r.high },
-      );
+      looks.push({ key: 'median', label: 'Median estimate', chip: 'Median', seconds: r.median });
     }
     if (est.personal && 'b' in est.personal) {
       const p = est.personal;
@@ -925,7 +915,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
               {stale.length ? (
                 <p className="tool-note predictor-stale"><strong>{stale.join(' and ')} {stale.length > 1 ? 'were' : 'was'} more than 6 months ago.</strong> A recent race predicts better.</p>
               ) : null}
-              <ObservedPanel indexSha={indexSha} proj={proj} est={est} looks={looks} look={look} setLook={setLook} units={units} />
+              <ObservedPanel indexSha={indexSha} proj={proj} est={est} looks={looks} units={units} />
               {/* One way forward: the chapter's next card (the planner). The share row is the only action here. */}
               <ShareBar />
             </>

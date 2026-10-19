@@ -242,7 +242,7 @@ export default function CourseChooser({ sha, screened }: {
                 </div>
                 <h2 className="tool-reading-figure course-chooser-title" id="course-chooser-title">
                   {range2(published.map((p) => p.row.under))}
-                  <small>of finishes within {Math.round((data.tolerance ?? 0.02) * 100)}% of {goalText} pace at 20K made {goalText}, course by course</small>
+                  <small>of finishes within {Math.round((data.tolerance ?? 0.02) * 100)}% of {goalText} pace through 20K made {goalText}, course by course</small>
                 </h2>
                 <ShareStrip items={published} goalText={goalText} />
                 {/* The badge at the card's foot, as on every other tool card. */}

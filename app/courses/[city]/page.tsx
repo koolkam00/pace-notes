@@ -7,7 +7,6 @@ import CourseHero from '@/components/course/CourseHero';
 import CourseNumbers from '@/components/course/CourseNumbers';
 import CourseOthers from '@/components/course/CourseOthers';
 import CoursePacing from '@/components/course/CoursePacing';
-import CoursePlan from '@/components/course/CoursePlan';
 import CourseSlowdown from '@/components/course/CourseSlowdown';
 import CourseToc from '@/components/course/CourseToc';
 import CourseWeatherByYear, { WEATHER_MIN_MORNINGS } from '@/components/course/CourseWeatherByYear';
@@ -32,8 +31,8 @@ export function generateMetadata({ params }: { params: { city: string } }) {
  * One course page (the redesign spec, sections 4.3 and 7.10, cut under section 00): the night hero with the race's
  * reading, then one finding and one chart per section in the pinned order (at a glance, finish times, elevation,
  * pacing, sustained slowdown, goals, weather), each only where the course's data gives it something to show, every long
- * table in one "All numbers" disclosure, then the foot: one quiet line of tools (#plan), one sentence of the courses paced
- * like this one (#other-courses) and the closing stack. The contents row lists the findings only. Sections and their data are in docs/SEO.md ("Course pages"); every figure is
+ * table in one "All numbers" disclosure, then the closing stack every page ends on (#other-courses). The hero's "Plan your
+ * …" is #plan, the page's call to action. The contents row lists the findings only. Sections and their data are in docs/SEO.md ("Course pages"); every figure is
  * checked against its file by scripts/verify-courses.cjs and every sentence by scripts/verify-nuggets.cjs.
  */
 export default function CityPage({ params }: { params: { city: string } }) {
@@ -60,7 +59,6 @@ export default function CityPage({ params }: { params: { city: string } }) {
       <CourseGoals page={page} />
       <CourseWeatherByYear page={page} />
       <CourseNumbers page={page} />
-      <CoursePlan page={page} />
       <CourseOthers page={page} />
     </div>
   );

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { PILEUP_RATIO } from '@/lib/tools/goal-facts';
 import { notFound } from 'next/navigation';
+import ChainFrame from '@/components/ChainFrame';
 import ChartFrame from '@/components/viz/ChartFrame';
 import Plot, { Baseline } from '@/components/viz/Plot';
 import Axis from '@/components/viz/Axis';
@@ -180,8 +181,9 @@ export default function GoalPacePage({ params }: { params: { goal: string } }) {
   const peers = goalPeers();
   const pileup = bunching ? pileupFigure(minute, bunching.run) : null;
 
+  // In the chain's frame (the chapter rail from 1180 px), as every page with a chapter crumb is (critic round 5).
   return (
-    <div className="tool-page goal-pace-page">
+    <ChainFrame path={goalPagePath(minute)}><div className="tool-page goal-pace-page">
       {/* No header badge: the splits card is a plain calculation, and the observed beats below carry the one badge. */}
       <ToolPageHeader path={goalPagePath(minute)} title={`${label} marathon pace`}
         trail={[['Reference'], ['Marathon pace chart', '/tools/marathon-pace-chart'], [`${label} marathon pace`]]}
@@ -192,6 +194,6 @@ export default function GoalPacePage({ params }: { params: { goal: string } }) {
         <GoalPaceBody goal={minute} observed={observed} bunching={bunching} peers={peers} pileup={pileup?.figure ?? null} pileupTable={pileup?.table ?? null} />
       </div>
       <ToolEnd path={goalPagePath(minute)} how="/methodology#tools-goal-pages" />
-    </div>
+    </div></ChainFrame>
   );
 }

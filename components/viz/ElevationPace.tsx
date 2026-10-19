@@ -1,11 +1,11 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import ChartFrame from './ChartFrame';
 import Axis from './Axis';
 import Plot, { Baseline, Gridlines } from './Plot';
 import Scrubber from './Scrubber.client';
 import { areaPath, linear, linePath, pc } from './scale';
 import { fitClass, textWidth } from './labels';
-import { paceColour, paceText } from '@/lib/viz/format';
+import { PACE_RAMP_DARK, paceColour, paceText } from '@/lib/viz/format';
 
 /**
  * Elevation and pace (the redesign spec, section 3.6): the course profile as a 2 px ink line over a quiet area with an
@@ -57,6 +57,7 @@ export default function ElevationPace({ km, metres, relief, reliefLabel, section
   const line = km.map((k, i) => [x(k), y(metres[i])] as [number, number]);
   const start = initial ?? focus ?? 0;
   const last = focus !== undefined && focusTo !== undefined && sections[focusTo] && focusTo >= focus ? focusTo : focus ?? 0;
+  const labelRight = !!sections[start] && x((sections[start].startKm + sections[start].endKm) / 2) < 0.5;
   const plot = (
     <Plot paths={(
       <>
@@ -68,7 +69,9 @@ export default function ElevationPace({ km, metres, relief, reliefLabel, section
       {focus !== undefined && sections[focus] ? <rect className="a-signal" x={pc(x(sections[focus].startKm))} width={pc(x(sections[last].endKm) - x(sections[focus].startKm))} y={reliefLabel ? pc(top) : '0'} height={reliefLabel ? pc(1 - top) : '100%'} /> : null}
       {/* The top line's label hides below the plot width it fits (200% zoom); the chart's name keeps the relief. */}
       {reliefLabel ? <Gridlines lines={[{ y: top }]} /> : null}
-      {reliefLabel ? <text className={`tick grid-label ${reliefFit(reliefLabel)}`.trim()} x="0" y={pc(top)} dy={-5}>{reliefLabel}</text> : null}
+      {/* On the side away from where the needle opens, so the needle never runs through it (critic round 5: a flat
+          course opened on 5–10K, under a label at the left). */}
+      {reliefLabel ? <text className={`tick grid-label ${reliefFit(reliefLabel)}`.trim()} x={labelRight ? '100%' : '0'} textAnchor={labelRight ? 'end' : undefined} y={pc(top)} dy={-5}>{reliefLabel}</text> : null}
       <Baseline />
     </Plot>
   );
@@ -76,12 +79,14 @@ export default function ElevationPace({ km, metres, relief, reliefLabel, section
     <div className="pace-blocks" aria-hidden="true">
       {sections.map((s, i) => {
         const bg = paceColour(s.pct, 12);
+        // The dark theme takes its own ramp (critic round 5: the light ramp's cream middle was the brightest mark on the
+        // night page while it means "no difference"); chart-frame.css picks the variable by theme.
         // The number, and its % sign apart, so a block too narrow for the sign drops it (chart-frame.css, by the
         // block's own width and the number's length).
         const unit = s.display.endsWith('%');
         const num = unit ? s.display.slice(0, -1) : s.display;
         return (
-          <span key={s.label} className={`pace-block is-on-${paceText(bg)}${focus !== undefined && i >= focus && i <= last ? ' is-focus' : ''}${s.display.length > 3 ? ' is-long' : ''}`} style={{ flexGrow: s.endKm - s.startKm, background: bg }}>
+          <span key={s.label} className={`pace-block is-on-${paceText(bg)}${focus !== undefined && i >= focus && i <= last ? ' is-focus' : ''}${s.display.length > 3 ? ' is-long' : ''}`} style={{ flexGrow: s.endKm - s.startKm, '--bg': bg, '--bg-dark': paceColour(s.pct, 12, PACE_RAMP_DARK) } as CSSProperties}>
             <span className={`pace-val n${Math.min(3, num.length)}`}>{num}{unit ? <span className="pace-pct">%</span> : null}</span>
           </span>
         );
