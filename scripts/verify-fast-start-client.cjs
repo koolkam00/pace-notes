@@ -106,7 +106,7 @@ async function main() {
   const page=render(FastStartAnalysis,{starts});
   assert.match(page,/Opening pace/); assert.match(page,/No previous race needed/); assert.doesNotMatch(page,/>Earlier recorded best</); assert.doesNotMatch(page,/>Target time</);
   assert.doesNotMatch(page,new RegExp(eligible.toLocaleString('en-US')),'Coverage counts belong on /methodology'); noMethodCopy(page,'fast-start page');
-  assert.match(page,/aria-pressed="true">All eligible finishes/);
+  assert.match(page,/aria-pressed="true">All finishes</);
   assert.match(page,/With an earlier result/);
   const allRow=starts.all.initial, allFocus=allRow.groups.find(g=>g.band==='fast10');
   assert.equal(allRow.groups.reduce((sum,g)=>sum+g.n,0),eligible);

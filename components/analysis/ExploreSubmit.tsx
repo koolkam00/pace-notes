@@ -2,17 +2,14 @@ import Link from 'next/link';
 import Arrow from '@/components/ui/Arrow';
 
 /**
- * The explorer's one action (every Make it yours form): inert until a setting differs from the selection on screen, so
- * tapping it always shows something. Inert is aria-disabled rather than disabled, so it keeps its place in the tab order
- * and its hint says why; a tap or an Enter in a field does nothing then (the click's default, the form's submission, is
- * prevented before the sheet hears it).
+ * The explorer's one action (every Make it yours form), shown only once a setting differs from the selection on screen,
+ * so it is never an inert button with a line saying why, and tapping it always shows something.
  */
-export function ExploreSubmit({ ready, id }: { ready: boolean; id: string }) {
+export function ExploreSubmit({ ready }: { ready: boolean }) {
+  if (!ready) return null;
   return (
     <div className="explore-submit">
-      <button type="submit" className="btn btn-secondary is-compact" aria-disabled={ready ? undefined : true} aria-describedby={ready ? undefined : `${id}-why`}
-        onClick={(event) => { if (!ready) event.preventDefault(); }}>Update comparison</button>
-      {ready ? null : <p className="field-hint explore-submit-hint" id={`${id}-why`}>Change a setting to compare</p>}
+      <button type="submit" className="btn btn-secondary is-compact">Update comparison</button>
     </div>
   );
 }

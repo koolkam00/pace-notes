@@ -4,7 +4,7 @@ import Axis from './Axis';
 import Plot, { Baseline } from './Plot';
 import Scrubber from './Scrubber.client';
 import Annotation from './Annotation';
-import { placeLabels, REF_WIDTH, textWidth, type LabelItem } from './labels';
+import { placeLabels, REF_WIDTH, textWidth, type LabelItem, type PlacedLabel } from './labels';
 import { extent, linear, pc } from './scale';
 
 /**
@@ -32,12 +32,22 @@ const STEP = 11;
 /** The pick ring's reach round the dot it opens on (20 px across, plus its 2 px line). */
 const RING = 12;
 
-export default function DotStrip({ items, domain, ticks, label, readoutKey, values, labelExtremes = true, keyLabels, prompt, labelSubject = false, hint }: {
+/** Where `named` labels are placed: a plot this wide (they hide on narrower ones, and below a 900 px screen). */
+const WIDE = 720;
+
+export default function DotStrip({ items, domain, ticks, label, readoutKey, values, labelExtremes = true, keyLabels, prompt, labelSubject = false, hint, named, mdScale = 1 }: {
   items: StripItem[]; domain?: [number, number]; ticks: { value: number; label: string }[]; label: string;
   /** Name the subject on its dot too when it is an extreme (it then never hides under the pick ring). */
   labelSubject?: boolean;
   /** A quiet line under the strip saying it can be tapped ("Tap a dot to read its course"). */
-  hint?: string;
+  hint?: ReactNode;
+  /**
+   * From a 900 px screen: the strip is `mdScale` times taller (the stacks keep their shape; page CSS may grow the dots
+   * to 7 px), and the `named` items (ids) carry quiet labels on leaders where the plot is 720 px or wider, so a reader
+   * finds the items they know before tapping. They are placed for that height and width and hide on anything smaller
+   * (Values keeps every item).
+   */
+  named?: string[]; mdScale?: number;
   /** The key's words when some dots are hollow ("Three or more editions", "Fewer editions"). */
   keyLabels?: { filled: string; hollow: string };
   /** The readout's words until a dot is picked ("Choose a dot to see its course"); the key then names the subject. */
@@ -86,14 +96,51 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
   const lab: LabelItem[] = [...labelled].map((i) => ({ id: String(i), text: sorted[i].label, x: x(sorted[i].value), y: yOf(lift(i)), priority: i === subject ? 3 : 1, tone: i === subject ? 'signal' : 'ink', size: i === subject ? 14 : 13, gap: i === subject ? RING + 2 : 10, prefer: 'above' as const, ...(i === subject && labelSubject ? {} : { at: i }) }));
   const labels = placeLabels(lab, { height, avoid: sorted.map((s, i) => ({ x: x(s.value), y: yOf(levels[i]), r: R })) });
   const leaders = [...labelled].filter((i) => lift(i) > levels[i]).map((i) => ({ i, y0: yOf(lift(i)) - (R + 2) / height, y1: yOf(levels[i]) - (R + 2) / height }));
+  const heightMd = Math.round(height * mdScale);
+  const wide = named?.length ? placeNamed(named) : [];
+  /**
+   * The named labels at the wide plot (WIDE px by heightMd): each above the dots under its own width, one 15 px row up
+   * at a time until it is clear of the labels and leaders already there, on a leader down to its dot; one that finds no
+   * room is left out. The dots are kept 8 px round, the largest page CSS draws them.
+   */
+  function placeNamed(ids: string[]) {
+    const W = WIDE, H = heightMd, size = 13, ROW = 15;
+    const px = sorted.map((s, i) => ({ x: x(s.value) * W, y: yOf(levels[i]) * H }));
+    const hit = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+    const taken: Box[] = [
+      ...labels.filter((l) => l.minWidth !== null).map((l) => labelBox(l, W, H, 2)),
+      ...leaders.map((l) => ({ x0: px[l.i].x - 2, x1: px[l.i].x + 2, y0: l.y0 * H, y1: l.y1 * H })),
+    ];
+    const out: { i: number; label: PlacedLabel; y0: number; y1: number }[] = [];
+    for (const i of sorted.map((_, j) => j).filter((j) => ids.includes(sorted[j].id) && !labelled.has(j) && j !== subject)) {
+      const w = textWidth(sorted[i].label, size, 500);
+      const x0 = Math.min(Math.max(px[i].x - w / 2, 0), W - w);
+      const under = px.filter((d) => d.x + 8 > x0 - 2 && d.x - 8 < x0 + w + 2);
+      const top = Math.min(...under.map((d) => d.y)) - 8 - 6;
+      for (let row = 0; row < 8; row++) {
+        const base = top - row * ROW;
+        const box = { x0: x0 - 3, x1: x0 + w + 3, y0: base - size * 0.78 - 2, y1: base + size * 0.22 + 2 };
+        const lead = { x0: px[i].x - 2, x1: px[i].x + 2, y0: base + 3, y1: px[i].y - 8 };
+        if (box.y0 < 0) break;
+        if (taken.some((b) => hit(b, box) || hit(b, lead))) continue;
+        taken.push(box, lead);
+        out.push({ i, y0: (base + 3) / H, y1: (px[i].y - 8) / H, label: { id: `n${i}`, text: sorted[i].label, x: x(sorted[i].value), y: yOf(levels[i]), dx: x0 - px[i].x, dy: base - px[i].y, anchor: 'start', priority: 0, size, tone: 'quiet', at: i, minWidth: WIDE } });
+        break;
+      }
+    }
+    return out;
+  }
   const plot = (
     <Plot>
       <Baseline y={base} />
-      {leaders.map((l) => <rect key={`ld${l.i}`} className="leader" data-scrub-i={l.i} x={pc(x(sorted[l.i].value))} width={1} transform="translate(-0.5 0)" y={pc(l.y0)} height={pc(Math.max(0, l.y1 - l.y0))} />)}
+      {/* The subject's own label never hides under the pick ring it opens with (labelSubject), nor does its leader. */}
+      {leaders.map((l) => <rect key={`ld${l.i}`} className="leader" data-scrub-i={labelSubject && l.i === subject ? undefined : l.i} x={pc(x(sorted[l.i].value))} width={1} transform="translate(-0.5 0)" y={pc(l.y0)} height={pc(Math.max(0, l.y1 - l.y0))} />)}
+      {wide.map((n) => <rect key={`nl${n.i}`} className="leader w720 md-only" data-scrub-i={n.i} x={pc(x(sorted[n.i].value))} width={1} transform="translate(-0.5 0)" y={pc(n.y0)} height={pc(Math.max(0, n.y1 - n.y0))} />)}
       {sorted.map((s, i) => (
         <circle key={s.id} className={s.subject ? 'm-signal' : s.hollow ? 'm-hollow' : 'm-context'} cx={pc(x(s.value))} cy={pc(yOf(levels[i]))} r={R} />
       ))}
       <Annotation labels={labels} />
+      {wide.length ? <g className="md-only"><Annotation labels={wide.map((n) => n.label)} /></g> : null}
     </Plot>
   );
   const points = {
@@ -105,7 +152,7 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
   };
   const axis = <Axis ticks={ticks.map((t) => ({ x: x(t.value), label: t.label }))} />;
   return (
-    <ChartFrame className={`dot-strip${subject >= 0 ? ' has-subject' : ''}`} label={label} height={height} heightMd={height}
+    <ChartFrame className={`dot-strip${subject >= 0 ? ' has-subject' : ''}`} label={label} height={height} heightMd={heightMd}
       scrub={<Scrubber mode="pick" points={points} initial={Math.max(0, subject)} label={label} axis={axis} prompt={prompt}>{plot}</Scrubber>}
       keys={[
         ...(prompt && subject >= 0 ? [{ label: sorted[subject].label, mark: 'dot' as const, tone: 'signal' as const }] : []),
@@ -115,4 +162,15 @@ export default function DotStrip({ items, domain, ticks, label, readoutKey, valu
       values={values}
     />
   );
+}
+
+type Box = { x0: number; x1: number; y0: number; y1: number };
+/** A placed label's text box at a given plot size, px, padded. */
+function labelBox(l: PlacedLabel, W: number, H: number, pad: number): Box {
+  const size = l.size ?? 14;
+  const w = textWidth(l.text, size);
+  const ax = l.x * W + l.dx;
+  const x0 = l.anchor === 'middle' ? ax - w / 2 : l.anchor === 'end' ? ax - w : ax;
+  const base = l.y * H + l.dy;
+  return { x0: x0 - pad, x1: x0 + w + pad, y0: base - size * 0.78 - pad, y1: base + size * 0.22 + pad };
 }

@@ -56,7 +56,8 @@ export default function WeatherAnalysis({ candidate, evidence, sentence }: { def
   const y = 58;
   const plot = (
     <Plot>
-      <rect className="effect-null-band" x={pc(x(-band))} width={pc(x(band) - x(-band))} y={at(22)} height={at(H - 26)} rx={4} />
+      {/* The zone runs the plot's full height, down to the axis, a quiet field behind the marks rather than a box. */}
+      <rect className="effect-null-band" x={pc(x(-band))} width={pc(x(band) - x(-band))} y={0} height="100%" />
       {/* The band named on the plot: in full where the card is wide enough, short at 200% zoom. */}
       <text className="tick effect-band-label is-wide" x={pc(x(0))} y={at(14)} textAnchor="middle">No material difference</text>
       <text className="tick effect-band-label is-narrow" x={pc(x(-band))} y={at(14)}>Within ±{band} pt</text>

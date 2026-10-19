@@ -23,7 +23,7 @@ export default function PacingPattern() {
   const initialAnswer = answers.find((a) => a.id === definition.id)!;
   const chart = (u: UnitSystem) => <ExplorerChart id="profile" answer={initialAnswer} goal={goal} units={u} valuesId={`pp-answer-${u}`} />;
   return (
-    <AnalysisShell path={PATH} title={n} dek={definition.title}
+    <AnalysisShell path={PATH} title={n} dek={n.guard ? `Finishes near ${hm(goal)} didn’t run even ${hm(goal)} pace.` : definition.title}
       answer={initialAnswer.charts.length ? <AnswerCard kicker={`Finishes near ${hm(goal)}, 5K by 5K`}><ByUnits mi={chart('mi')} km={chart('km')} /></AnswerCard> : null}>
       <ExploreBeat track="chapter-1">
         <AnalysisExplorer definition={definition} summary={summary} initialAnswer={initialAnswer} untouched="none" />

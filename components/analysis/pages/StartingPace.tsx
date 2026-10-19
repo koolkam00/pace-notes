@@ -11,7 +11,7 @@ import { fastEdge } from '@/lib/fast-start';
 import { readInsight } from '@/lib/insights-server';
 import type { Kick } from '@/lib/insights';
 import { getNugget } from '@/lib/nuggets';
-import { openingWords } from '@/lib/nuggets/analyses';
+import { openingWords, sweetBand } from '@/lib/nuggets/analyses';
 import { bandWords } from '@/lib/all-finisher-context';
 import { delta, ms, pct, spokenTime } from '@/lib/nuggets/format';
 
@@ -49,43 +49,48 @@ export default function StartingPace() {
   );
 }
 
-/** The U-curve: the finish against same-pace finishes, by first-5K pace, scrubbable, opening on the best point. */
+/**
+ * The U-curve: the finish against same-pace finishes, by first-5K pace, scrubbable, opening on the best point. The
+ * plateau the H2 names (the bins within 10 seconds of the best) is washed, not one bin ringed: on a flat top the best
+ * bin wins by a second or two.
+ */
 function OpeningCurve() {
   const kick = readInsight<Kick>('kick.json');
   const curve = [...kick.bank.curve].filter((c) => c.n >= 100).sort((a, b) => a.lo - b.lo);
   const xs = curve.map((c) => c.lo + 0.5);
   const best = curve.reduce((a, b) => (b.finish_s < a.finish_s ? b : a));
+  const plateau = sweetBand(curve);
   const lo = Math.min(...curve.map((c) => c.finish_s)), hi = Math.max(...curve.map((c) => c.finish_s));
   const step = 120;
   const yTicks = [Math.ceil(hi / step) * step, Math.floor(lo / step) * step].map((value) => ({ value, label: delta(value) }));
   const floor = yTicks[1].value - step * 0.75;
-  const evenI = curve.findIndex((c) => c.lo === 0);
-  const fastI = curve.reduce((b, c, i) => (c.lo + 1 <= -10 && (b < 0 || c.lo > curve[b].lo) ? i : b), -1);
   const bestI = curve.indexOf(best);
   const span = xs[xs.length - 1] - xs[0];
+  // Each tick sits on the centre of the 1% bin that starts at it, counting away from even (even: 0–1% slower; 10%
+  // fast: 10–11% faster). The detents are those ticks' own bins only: a snap point draws a dot on the axis, so one off a
+  // labelled tick read as a misplaced tick.
+  const ticks = [-10, -5, 0, 5, 10].filter((t) => t >= curve[0].lo && t <= curve[curve.length - 1].lo + 1).map((t) => ({ value: t < 0 ? t - 0.5 : t + 0.5, label: t === 0 ? 'even' : `${Math.abs(t)}%` }));
+  const detents = ticks.map((t) => xs.indexOf(t.value)).filter((i) => i >= 0);
   return (
     // Behind is down and ahead is up, as on every pace and gap chart on the site: the best finish is the curve's peak.
     // The behind side is a quiet fill (slower is never orange).
     // Half a bin of room at each end, so the outermost ticks (on bin centres) stay inside the axis.
     <LineProfile x={xs} xDomain={[xs[0] - 0.5, xs[xs.length - 1] + 0.5]} yDomain={[Math.max(hi, yTicks[0].value), floor]}
-      layers={[{ id: 'u', label: 'Finish', series: [{ id: 'finish', values: curve.map((c) => c.finish_s), fillAbove: 0, fillTone: 'quiet' }],
-        // The best point is ringed; the readout above names its value, so no label sits under the needle.
-        points: [{ x: best.lo + 0.5, y: best.finish_s, kind: 'best' }] }]}
+      layers={[{ id: 'u', label: 'Finish', series: [{ id: 'finish', values: curve.map((c) => c.finish_s), fillAbove: 0, fillTone: 'quiet' }] }]}
       refs={[{ value: 0, label: 'same pace' }]}
-      // Each tick sits on the centre of the 1% bin that starts at it, counting away from even (even: 0–1% slower; 10%
-      // fast: 10–11% faster), so the detents at even and 10% fast land on their labels.
-      xTicks={[-10, -5, 0, 5, 10].filter((t) => t >= curve[0].lo && t <= curve[curve.length - 1].lo + 1).map((t) => ({ value: t < 0 ? t - 0.5 : t + 0.5, label: t === 0 ? 'even' : `${Math.abs(t)}%` }))}
+      washes={plateau && plateau.bins.length > 1 ? [{ from: plateau.from, to: plateau.to, fill: true }] : []}
+      xTicks={ticks}
       axisTitle={{ start: 'Faster first 5K', end: 'Slower first 5K' }}
       yTicks={yTicks}
       scrub={{
         label: 'First 5K against the pace that followed',
         points: { x: xs.map((x) => (x - xs[0]) / span), keys: curve.map((c) => `First 5K ${openingWords(c.lo)}, at the finish`), values: curve.map((c) => delta(c.finish_s)),
           side: [{ label: 'After 20K', values: curve.map((c) => delta(c.after20_s)) }, { label: 'Sustained slowdown', values: curve.map((c) => pct(c.slowdown)) }] },
-        initial: bestI, detents: [evenI, bestI, fastI].filter((i) => i >= 0),
+        initial: bestI, detents,
         // Away from the best bin (ringed), a dot marks where the needle meets the curve, so the readout is tied to it.
         follow: 'finish',
       }}
-      label={`The finish against same-pace finishes, by first-5K pace; the best average finish went with a first 5K ${openingWords(best.lo)}`}
+      label={`The finish against same-pace finishes, by first-5K pace; the best average finishes went with a first 5K ${plateau && plateau.bins.length > 1 ? `${plateau.from}–${plateau.to}% slower, within ${Math.round(plateau.spread)} seconds of each other` : openingWords(best.lo)}`}
       // The curve's own twin, 1% bin by bin, as the readout reads it (the explorer below gives the six wider bands).
       values={<Values id="sp-curve-values" caption="Against the same race and 5–20K pace, by first 5K"
         columns={[{ key: 'b', label: 'First 5K', text: true }, { key: 'f', label: 'At the finish' }, { key: 'a', label: 'After 20K' }, { key: 's', label: 'Sustained slowdown' }]}

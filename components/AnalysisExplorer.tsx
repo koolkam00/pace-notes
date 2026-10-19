@@ -180,7 +180,7 @@ function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_
           <div className="explore-fields">
             {definition.controls.age && <div className="field"><label className="field-label" htmlFor={field('age')}>Age group</label><select id={field('age')} className="select" value={draft.age} onChange={event => setDraft({ ...draft, age: event.target.value })}>{AGE_OPTIONS.map(age => <option key={age} value={age}>{age === 'all' ? 'All ages' : age}</option>)}</select></div>}
             <div className="field"><label className="field-label" htmlFor={field('gender')}>Recorded gender</label><select id={field('gender')} className="select" value={draft.gender} onChange={event => setDraft({ ...draft, gender: event.target.value })}><option value="all">All</option><option value="Women">Women</option><option value="Men">Men</option></select></div>
-            {definition.controls.previous && <div className="field"><label className="field-label" htmlFor={field('previous')}>Earlier marathon · optional</label><input id={field('previous')} className="input" value={previousText} onChange={event => setPreviousText(keypadInput(event.target, event.nativeEvent))} placeholder="e.g. 4:15" inputMode="decimal" spellCheck={false} autoComplete="off" /></div>}
+            {definition.controls.previous && <div className="field"><label className="field-label" htmlFor={field('previous')}>Earlier marathon · optional</label><input id={field('previous')} className="input" value={previousText} onChange={event => setPreviousText(keypadInput(event.target, event.nativeEvent))} onBlur={() => { const m = previousText.trim() ? parseMinutes(previousText) : null; if (m !== null) setPreviousText(clock(m * 60)); }} placeholder="e.g. 4:15" inputMode="decimal" spellCheck={false} autoComplete="off" /></div>}
           </div>
   );
   // The form as typed: Update comparison does something only once it differs from the selection on screen (a time that
@@ -202,13 +202,13 @@ function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_
   const fields = <>
     {(definition.controls.course || definition.controls.time) && <div className="explore-fields">
       {definition.controls.course && <div className="field"><label className="field-label" htmlFor={field('course')}>Course</label><select id={field('course')} className="select" value={draft.city} onChange={event => setDraft({ ...draft, city: event.target.value })}>{cityOptions.map(row => <option key={row.city} value={row.city}>{cityName(row.city)}</option>)}</select></div>}
-      {definition.controls.time && <div className="field"><label className="field-label" htmlFor={field('time')}>{timeLabel}</label><input id={field('time')} className="input" value={timeText} onChange={event => setTimeText(keypadInput(event.target, event.nativeEvent))} placeholder="4:00" inputMode="decimal" spellCheck={false} autoComplete="off" aria-describedby={field('time-help')} /><p className="field-hint" id={field('time-help')}>Hours:minutes.<KeypadHint /></p></div>}
+      {definition.controls.time && <div className="field"><label className="field-label" htmlFor={field('time')}>{timeLabel}</label><input id={field('time')} className="input" value={timeText} onChange={event => setTimeText(keypadInput(event.target, event.nativeEvent))} onBlur={() => { const m = parseMinutes(timeText); if (m !== null) setTimeText(clock(m * 60)); }} placeholder="4:00" inputMode="decimal" spellCheck={false} autoComplete="off" aria-describedby={field('time-help')} /><p className="field-hint" id={field('time-help')}>Hours:minutes.<KeypadHint /></p></div>}
     </div>}
     {definition.controls.course || definition.controls.time
       ? <details className="profile-refinements" open={refining} onToggle={event => setRefining(event.currentTarget.open)}><summary>Refine by {definition.controls.age ? 'age, ' : ''}gender{definition.controls.previous ? ' or an earlier marathon' : ''}</summary>{refinements}</details>
       : refinements}
     {formError && <p className="field-error" role="alert">{formError}</p>}
-    <ExploreSubmit ready={ready} id={formId} />
+    <ExploreSubmit ready={ready} />
   </>;
   const after = <>
     <div className="sr-only" role="status">{loading ? 'Loading your comparison.' : changed && answer ? `Comparison updated: ${summaryText}.` : ''}</div>

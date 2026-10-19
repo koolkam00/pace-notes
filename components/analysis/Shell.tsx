@@ -70,7 +70,9 @@ export { textFor };
  * 1180 px the chapter rail runs beside it.
  */
 export default function AnalysisShell({ path, title, titleTerm = false, heading, dek, answer, children }: {
-  path: string; title: Nugget; dek: string; answer: ReactNode; children: ReactNode;
+  path: string; title: Nugget; answer: ReactNode; children: ReactNode;
+  /** The line under the H1: the finding's setup when the H1 is one clause (its second clause moved here), else the question. */
+  dek: ReactNode;
   /** The H1's content when it is not the title nugget's sentence alone (race-day weather's tab-driven finding). */
   heading?: ReactNode;
   /** Link the H1's "sustained slowdown" (when the H1 is the page's first use of the term). */

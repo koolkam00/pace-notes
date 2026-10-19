@@ -46,8 +46,9 @@ export default function HillsPacing() {
   const own = Math.max(50, Math.ceil((Math.max(...metres) - Math.min(...metres)) / 25) * 25);
   // The route's whole climb, the figure its course page gives (the section climbs only cover the timed 5Ks).
   const climbed = geometry.find((g) => g.city === city)?.gain_m ?? v.total_m;
-  // The top line is labelled with its height above the lowest point (the baseline).
-  const scale = (u: UnitSystem) => elevation(own, u);
+  // The top line is labelled with its height above the lowest point (the baseline), in words: a bare "164 ft" read as
+  // the course's altitude.
+  const scale = (u: UnitSystem) => `${elevation(own, u)} above the low point`;
   const chart = (u: UnitSystem) => sections ? (
     <ElevationPace km={km} metres={metres} relief={own} reliefLabel={scale(u)} focus={v.climb_i} readoutKeys={['Climb', 'Pace against their whole-race average']}
       sections={sections.map((s, i) => ({ label: sectionLabel(i ? MARATHON_SECTION_ENDS[i - 1] : 0, s.end), startKm: i ? MARATHON_SECTION_ENDS[i - 1] : 0, endKm: s.end, pct: s.pct, display: signedPct(s.pct), climb: Number.isFinite(s.gain) ? `+${elevation(s.gain, u)}` : '—' }))}
@@ -57,8 +58,8 @@ export default function HillsPacing() {
   ) : null;
   const answer = sections ? (
     // The route's whole climb is in the kicker, above the chart: a context line never sits under Values.
-    // The climb's words stay on one line ("708\u00a0ft of\u00a0climb").
-    <AnswerCard kicker={<ByUnits mi={`${courseName(city)}, near ${hm(v.goal_min)} · ${`${elevation(climbed, 'mi')} of climb`.replace(/ /g, '\u00a0')}`} km={`${courseName(city)}, near ${hm(v.goal_min)} · ${`${elevation(climbed, 'km')} of climb`.replace(/ /g, '\u00a0')}`} />}>
+    // The climb's words stay on one line ("708\u00a0ft of\u00a0climb"), as does "near\u00a04:00".
+    <AnswerCard kicker={<ByUnits mi={`${courseName(city)}, near\u00a0${hm(v.goal_min)} · ${`${elevation(climbed, 'mi')} of climb`.replace(/ /g, '\u00a0')}`} km={`${courseName(city)}, near\u00a0${hm(v.goal_min)} · ${`${elevation(climbed, 'km')} of climb`.replace(/ /g, '\u00a0')}`} />}>
       <ByUnits mi={chart('mi')} km={chart('km')} />
     </AnswerCard>
   ) : null;

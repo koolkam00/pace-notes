@@ -60,13 +60,15 @@ function PaceProfile({ answer, goal, units, valuesId }: { answer: GuideAnswer; g
     // Slower is down, as on every pace chart on the site (the domain runs from slow at the foot to fast at the top).
     <LineProfile x={SECTION_MIDS} xDomain={[0, 42.195]} yDomain={[hi + room, lo - room]}
       layers={[{ id: 'p', label: 'Median', series: [{ id: 'm', values: rows.map((r) => r.mid) }], band: { lo: rows.map((r) => r.lo), hi: rows.map((r) => r.hi) } }]}
-      refs={[{ value: even, dashed: true, label: `even ${hm(goal)}` }]}
+      refs={[{ value: even, dashed: true, label: `even ${hm(goal)}, ${pace(even)}` }]}
       xTicks={KM_TICKS}
       scrub={{ label: 'Section pace, start to finish', initial: slowest, detents: [slowest],
         // The side value is the H1's measure: each section against even pace ("+40 s/mi"); the middle half is in Values.
         points: { x: SECTION_MIDS.map((m) => m / 42.195), keys: MARATHON_SECTION_ENDS.map((e) => `${sectionLabel(e)}, median pace`), values: rows.map((r) => pace(r.mid)),
           side: [{ label: 'Against even', values: rows.map((r) => { const d = Math.round(r.mid - even); return `${d > 0 ? '+' : d < 0 ? '−' : ''}${Math.abs(d)} s/${units}`; }) }] } }}
-      keys={[{ label: 'Middle half of finishes', mark: 'band' }, { label: `Even ${hm(goal)} pace, ${pace(even)}`, mark: 'dash' }]}
+      // Even pace is named on its own dashed line, so the key holds only the band; the cue says which way is faster.
+      yCue="faster ↑"
+      keys={[{ label: 'Middle half of finishes', mark: 'band' }]}
       label={`Median section pace for finishes near ${hm(goal)}; slowest in ${sectionLabel(MARATHON_SECTION_ENDS[slowest])} at ${pace(rows[slowest].mid)}`}
       values={<Values id={valuesId} caption="Median section pace, with the middle half of finishes" columns={[{ key: 's', label: 'Section' }, { key: 'm', label: 'Median' }, { key: 'r', label: 'Middle half' }]}
         rows={rows.map((r, i) => [sectionLabel(MARATHON_SECTION_ENDS[i]), pace(r.mid), `${paceLabel(r.lo / k, units, false)}–${pace(r.hi)}`])} reading={slowest} />}
@@ -95,7 +97,7 @@ function Terrain({ answer, units, terrain, valuesId }: { answer: GuideAnswer; un
   // answer draws it: on the scale every course shares a flat course was a hairline under an empty plot.
   const own = Math.max(50, Math.ceil((Math.max(...metres) - Math.min(...metres)) / 25) * 25);
   return (
-    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={wholeElevation(own, units)} focus={slowest} readoutKeys={['Climb', 'Pace against their whole-race average']}
+    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={`${wholeElevation(own, units)} above the low point`} focus={slowest} readoutKeys={['Climb', 'Pace against their whole-race average']}
       sections={MARATHON_SECTION_ENDS.map((end, i) => ({ label: sectionLabel(end), startKm: i ? MARATHON_SECTION_ENDS[i - 1] : 0, endKm: end, pct: pct[i], display: signedPct(Math.round(pct[i])), climb: climb(i) }))}
       label={`Elevation, its top line ${wholeElevation(own, units)} above the lowest point, with each 5K's pace against the finishes' own average; slowest in ${sectionLabel(MARATHON_SECTION_ENDS[slowest])}`}
       values={<Values id={valuesId} caption="By section: the climb and the finishes' pace against their whole-race average" columns={[{ key: 's', label: 'Section' }, { key: 'c', label: 'Climb' }, { key: 'p', label: 'Pace against their average' }]}
@@ -138,13 +140,12 @@ function Target({ answer, goal, valuesId, yours }: { answer: GuideAnswer; goal: 
   const at = pts.reduce((b, p) => (Math.abs(p.x - goal) < Math.abs(b.x - goal) ? p : b));
   const marks = Array.from({ length: 24 }, (_, i) => 120 + i * 30).filter((m) => m >= pts[0].x && m <= pts[pts.length - 1].x);
   const ticks = marks.filter((m) => m % 60 === 0);
-  // The first whole minute with half the finishes under it: a detent. Its minute is never printed as "the median"
-  // (that rounds up; /finish-times gives the field's median from the data itself).
-  const half = pts.findIndex((p) => p.share >= 0.5);
+  // The detents are the labelled hours only: each snap point draws a dot on the axis, so a detent off a labelled tick
+  // read as a misplaced tick. The half hours stay in Values.
   return (
     <Cdf points={pts} you={goal} youLabel={yours ? 'You' : hm(goal)} ticks={ticks.map((m) => ({ value: m, label: hm(m) }))}
       scrub={{ label: 'Finish time', points: { x: pts.map((p) => (p.x - pts[0].x) / (pts[pts.length - 1].x - pts[0].x)), keys: pts.map((p) => `Finishes under ${hm(p.x)}`), values: pts.map((p) => `${Math.round(p.share * 100)}%`) },
-        initial: pts.indexOf(at), detents: [...marks.map((m) => pts.findIndex((p) => p.x === m)), half].filter((i, k, all) => i >= 0 && all.indexOf(i) === k) }}
+        initial: pts.indexOf(at), detents: ticks.map((m) => pts.findIndex((p) => p.x === m)).filter((i, k, all) => i >= 0 && all.indexOf(i) === k) }}
       label={`The share of finishes under each time; ${Math.round(at.share * 100)}% under ${hm(goal)}`}
       values={<Values id={valuesId} caption="Finishes under each round time" columns={[{ key: 't', label: 'Under' }, { key: 's', label: 'Share of finishes' }]} rows={marks.map((m) => [hm(m), `${Math.round((pts.find((p) => p.x === m)?.share ?? NaN) * 100)}%`])} />} />
   );

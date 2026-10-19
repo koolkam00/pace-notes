@@ -62,16 +62,39 @@ export function openingWords(lo: number): string {
   if (lo + 1 <= 0) return `${Math.abs(lo + 1)}–${Math.abs(lo)}% faster`;
   return 'within 1% of even';
 }
-/** The opening bin with the best average finish against the same pace (argmin of finish_s). */
+/** How close to the best bin's finish a neighbouring bin must be to share its plateau, in seconds. */
+export const PLATEAU_S = 10;
+/**
+ * The opening bins that finished best against the same pace: the bin with the best average finish (argmin of finish_s)
+ * and every neighbouring 1% bin, run unbroken, within PLATEAU_S of it. A one-second winner on a flat stretch is a near
+ * tie, so the sentence names the band and how close it is ("A first 5K 1–4% slower than the pace that followed finished
+ * best, all within 6 seconds of each other"), never one bin. The guard holds while the band is on the slower side and
+ * ahead of the same pace.
+ */
+export function sweetBand(curve: CurvePoint[]): { best: CurvePoint; from: number; to: number; spread: number; bins: CurvePoint[] } | null {
+  const usable = curve.filter((c) => c.n >= 100).sort((a, b) => a.lo - b.lo);
+  const best = usable.reduce<CurvePoint | null>((a, b) => (!a || b.finish_s < a.finish_s ? b : a), null);
+  if (!best) return null;
+  const i = usable.indexOf(best);
+  const near = (c: CurvePoint | undefined, prev: CurvePoint) => !!c && Math.abs(c.lo - prev.lo) === 1 && c.finish_s - best.finish_s <= PLATEAU_S;
+  let a = i, b = i;
+  while (near(usable[a - 1], usable[a])) a -= 1;
+  while (near(usable[b + 1], usable[b])) b += 1;
+  const bins = usable.slice(a, b + 1);
+  return { best, from: bins[0].lo, to: bins[bins.length - 1].lo + 1, spread: Math.max(...bins.map((c) => c.finish_s)) - best.finish_s, bins };
+}
 export function kickSweetSpotFrom(curve: CurvePoint[]): Nugget {
-  const best = curve.filter((c) => c.n >= 100).reduce<CurvePoint | null>((a, b) => (!a || b.finish_s < a.finish_s ? b : a), null);
-  const words = best ? openingWords(best.lo) : '';
+  const band = sweetBand(curve);
+  const best = band?.best ?? null;
+  const words = band ? (band.bins.length > 1 && band.from >= 0 ? `${band.from}–${band.to}% slower` : openingWords(band.from)) : '';
+  const spread = band ? Math.round(band.spread) : NaN;
+  const close = band && band.bins.length > 1 ? `, all within ${spread} ${spread === 1 ? 'second' : 'seconds'} of each other` : '';
   return {
     id: 'kick.sweetspot', page: '/analyses/starting-pace#sweet-spot', denominator: 'kick',
-    values: best ? { lo: best.lo, n: best.n, finish_s: best.finish_s, after20_s: best.after20_s, slowdown: best.slowdown } : {},
-    guard: !!best && best.lo > 0 && best.finish_s < 0,
-    headline: `The best average finish went with a first 5K *${words}* than the pace that followed.`,
-    fallback: best ? `The best average finish went with a first 5K ${words} than the pace that followed.` : 'The finish against the same pace, by first 5K.',
+    values: band && best ? { lo: band.from, hi: band.to, best_lo: best.lo, spread_s: band.spread, bins: band.bins.length, n: best.n, finish_s: best.finish_s, after20_s: best.after20_s, slowdown: best.slowdown } : {},
+    guard: !!band && !!best && band.from >= 0 && best.lo > 0 && band.bins.every((c) => c.finish_s < 0),
+    headline: `A first 5K *${words}* than the pace that followed finished best${close}.`,
+    fallback: best ? `The best average finish went with a first 5K ${openingWords(best.lo)} than the pace that followed.` : 'The finish against the same pace, by first 5K.',
     figure: best ? { value: delta(best.finish_s), sr: `${spokenTime(Math.abs(best.finish_s))} ${best.finish_s < 0 ? 'ahead' : 'behind'}` } : null,
   };
 }
@@ -147,7 +170,8 @@ export function patternFrom(paces: number[], goal = GOAL): Nugget {
     id: 'pattern.profile', page: '/analyses/pacing-pattern', denominator: 'eligible',
     values: ok0 ? { goal_min: goal, even_s: even, fast_i: fast, slow_i: slow, turn_i: turn, fast_s: paces[fast], slow_s: paces[slow] } : {},
     guard: ok,
-    headline: both((u) => `Finishes near ${hm(goal)} didn’t run ${hm(goal)} pace: ${perUnit(even - paces[fast], u)} fast early, *${perUnit(paces[slow] - even, u)} slow* late.`),
+    // One clause, at most three lines on a phone: the page's dek says the finishes did not run even pace.
+    headline: both((u) => `Near ${hm(goal)}: ${perUnit(even - paces[fast], u)} fast early, *${perUnit(paces[slow] - even, u)} slow* late.`),
     fallback: `How finishes near ${hm(goal)} paced each 5K, against even ${hm(goal)} pace.`,
     figure: ok0 ? { value: section(slow), sr: `${section(slow)}, the slowest 5K` } : null,
     key: `the slowest 5K, for finishes near ${hm(goal)}`,
@@ -208,7 +232,8 @@ export function sectionsSplitFrom(near: { below: { durations: number[]; n: numbe
     id: 'sections.split', page: '/analyses/where-time-is-gained', denominator: 'eligible',
     values: { goal_min: goal, gap_s: total, after20_s: after, share, widest_i: widest, widest_s: d[widest] ?? NaN, below_n: near?.below.n ?? NaN, above_n: near?.above.n ?? NaN },
     guard: ok && share > distance,
-    headline: `Just under and just over ${hm(goal)} ended ${ms(total)} apart. *${pct(share)}* of the gap opened after 20K.`,
+    // One clause: the page's dek names the two groups and how far apart they ended.
+    headline: `*${pct(share)}* of the ${ms(total)} gap opened after 20K.`,
     fallback: `Just under and just over ${hm(goal)}: ${ms(total)} apart at the finish, section by section.`,
     figure: ok ? { value: ms(total), sr: `${spokenTime(total)} apart` } : null,
     key: `apart: ${hm(goal - 5)}–${hm(goal)} against ${hm(goal)}–${hm(goal + 5)} finishes`,
@@ -217,18 +242,23 @@ export function sectionsSplitFrom(near: { below: { durations: number[]; n: numbe
 
 // ---------- Chapter 06 · finish-time context ----------
 
-/** The shares of finishes under the goal and the next two lower half-hours. */
+/**
+ * The shares of finishes under the goal and the next two lower half-hours. The finding is the lowest mark's: how few
+ * finishes are under it ("Only 5% of finishes were under 3:00"). The share under the goal itself is chapter 01's
+ * (more than half took over four hours), so this page does not lead with it. The guard holds while the shares fall from
+ * mark to mark and fewer than one in ten finishes are under the lowest.
+ */
 export function targetContextFrom(cohort: Pick<PersonalCohort, 'cdf' | 'cdf_min' | 'n'> | null, goal = GOAL): Nugget {
   const marks = [goal, Math.ceil(goal / 30) * 30 - 30, Math.ceil(goal / 30) * 30 - 60];
   const shares = marks.map((m) => (cohort ? (percentUnder(cohort as Distribution, m) ?? NaN) / 100 : NaN));
-  const ok = !!cohort && cohort.n >= 100 && shares.every(finite) && shares[0] > shares[1] && shares[1] > shares[2];
+  const ok = !!cohort && cohort.n >= 100 && shares.every(finite) && shares[0] > shares[1] && shares[1] > shares[2] && shares[2] < 0.1;
   return {
     id: 'target.context', page: '/analyses/finish-time-context', denominator: 'eligible',
     values: { goal_min: goal, mark2_min: marks[1], mark3_min: marks[2], share: shares[0], share2: shares[1], share3: shares[2], n: cohort?.n ?? NaN },
     guard: ok,
-    headline: `*${pct(shares[0])}* of finishes were under ${hm(goal)}. Under ${hm(marks[1])}: ${pct(shares[1])}. Under ${hm(marks[2])}: ${pct(shares[2])}.`,
+    headline: `Only *${pct(shares[2])}* of finishes were under ${hm(marks[2])}.`,
     fallback: `Finishes under ${hm(goal)}, ${hm(marks[1])} and ${hm(marks[2])}.`,
-    figure: shareFigure(shares[0]), key: `of finishes were under ${hm(goal)}`,
+    figure: shareFigure(shares[2]), key: `of finishes were under ${hm(marks[2])}`,
   };
 }
 
@@ -256,7 +286,8 @@ export function ageRetentionFrom(rows: AgeRow[], goal = GOAL): Nugget {
     id: 'age.retention', page: '/analyses/age-and-pacing', denominator: 'eligible',
     values: { groups: rows.length, pooled_lo_age: lo?.age ?? '', pooled_hi_age: hi?.age ?? '', pooled_spread: pooled, same_spread: same, goal_min: goal, u_shape: both ? 1 : 0 },
     guard: rows.length >= 2 && older && same <= 1.5 && same < pooled / 2,
-    headline: `Across all finishes, ${both ? 'the youngest and oldest' : 'older runners'} slowed more. At the same finish time, age *barely mattered*.`,
+    // The finding alone; the pooled shape (u_shape) is the page's dek.
+    headline: 'At the same finish time, age *barely mattered*.',
     fallback: 'How the second 20K changed with age, pooled and at the same finish time.',
     figure: finite(same) ? { value: one(same), unit: 'pts', sr: `${one(same)} points between age groups near a ${hm(goal)} finish` } : null,
     key: `between age groups in second-half slowing, at ${hm(goal)}`,
@@ -280,7 +311,7 @@ export function coursesCompareFrom(groups: AllFinisherGroup[]): Nugget {
     values: { lo: l, hi: h, courses: list.length, lo_course: lo?.label ?? '', hi_course: hi?.label ?? '' },
     guard: list.length >= 2 && h / l > 1.5,
     // The accent is the high end, the card's one orange dot (its readout opens there); the low end is named in ink.
-    headline: `Sustained slowdown ranged from ${pct(l)} to *${pct(h)}* of finishes across courses.`,
+    headline: `Sustained slowdown ran from ${pct(l)} to *${pct(h)}*, course by course.`,
     fallback: `Sustained slowdown across ${count(list.length)} courses.`,
     figure: list.length ? { value: `${pct(l).replace('%', '')}–${pct(h).replace('%', '')}`, unit: '%', sr: `${pct(l)} to ${pct(h)}` } : null,
     key: 'sustained slowdown, course by course',
@@ -324,7 +355,8 @@ export function weatherStartFrom(groups: AllFinisherGroup[]): Nugget {
     id: 'weather.start', page: '/analyses/race-day-weather', denominator: 'course', term: '/methodology#sustained-slowdown',
     values: { band: low?.id ?? '', lower_c: low?.lower_c ?? NaN, upper_c: low?.upper_c ?? NaN, slowdown: low ? low.slowdown_pct / 100 : NaN, bands: bands.length },
     guard: ok,
-    headline: both((u) => `The coolest start wasn’t the steadiest: *${low ? tempBand(low, u) : ''}* had the fewest sustained slowdowns.`),
+    // The band first; "the coolest start wasn't the steadiest" is the tab's dek.
+    headline: both((u) => `*${low ? tempBand(low, u) : ''}* starts had the fewest sustained slowdowns.`),
     fallback: 'Sustained slowdown by start temperature.',
     figure: low ? shareFigure(low.slowdown_pct / 100) : null,
     key: 'sustained slowdown, at the steadiest start temperature',
@@ -344,7 +376,8 @@ export function weatherWarmingFrom(c: WeatherCandidate | undefined): Nugget {
     guard: ok,
     // The estimate is in percentage points of the second 20K's pace change, said in whole points as the card labels it
     // ("+2.1 pts"); the four hours and the interval are on /methodology.
-    headline: both((u) => `A day that warmed ${riseWords(c?.exposure.q75 ?? NaN, u)}, not ${riseWords(c?.exposure.q25 ?? NaN, u)}, slowed the second 20K about *${Math.round(c?.effect.estimate ?? NaN)} ${Math.round(c?.effect.estimate ?? NaN) === 1 ? 'point' : 'points'}* more.`),
+    // The base (how much the second 20K slowed in a typical race) is the tab's dek.
+    headline: both((u) => `Warming ${riseWords(c?.exposure.q75 ?? NaN, u)}, not ${riseWords(c?.exposure.q25 ?? NaN, u)}: the second 20K slowed *${Math.round(c?.effect.estimate ?? NaN)} ${Math.round(c?.effect.estimate ?? NaN) === 1 ? 'point' : 'points'}* more.`),
     fallback: 'Warming through the race, and the second 20K.',
     figure: c ? { value: `+${one(c.effect.estimate)}`, unit: 'pts', sr: `${one(c.effect.estimate)} points` } : null,
   };
@@ -356,7 +389,8 @@ export function weatherWindFrom(c: WeatherCandidate | undefined): Nugget {
     id: 'weather.wind', page: '/analyses/race-day-weather#wind', denominator: 'course',
     values: c ? { q25: c.exposure.q25, q75: c.exposure.q75, estimate: c.effect.estimate, low: c.effect.low, high: c.effect.high } : {},
     guard: ok,
-    headline: both((u) => `Wind of ${windWords(c?.exposure.q75 ?? NaN, u)} instead of ${windWords(c?.exposure.q25 ?? NaN, u)} at the start made *no material difference*: under 1 point.`),
+    // "Under 1 point either way" is the tab's dek.
+    headline: both((u) => `Wind of ${windWords(c?.exposure.q75 ?? NaN, u)}, not ${windWords(c?.exposure.q25 ?? NaN, u)}, made *no material difference*.`),
     fallback: 'Wind at the start, and the second 20K.',
     figure: c ? { value: '≈ 0', sr: 'about zero' } : null,
   };
@@ -388,7 +422,8 @@ export function gainsFinalFrom(row: { values: number[]; total: number; n: number
     guard: !!row && row.n >= 100 && row.values.length === 3 && share > stretch,
     // One share in the sentence (of the time found), and the stretch it came from as a distance, so two percentages of
     // different things never sit together; the guard holds that stretch to less than its share of the race.
-    headline: both((u) => `Improving finishes near ${hm(goal)} found *${pct(share)}* of their time after 30K, the last ${distance(MARATHON_KM - 30, u)}.`),
+    // One clause; the stretch as a distance, against its share of the race, is the page's dek.
+    headline: `Near ${hm(goal)}, improving finishes found *${pct(share)}* of their time after 30K.`,
     fallback: `Where improving finishes near ${hm(goal)} found their time.`,
     figure: shareFigure(share), key: 'of the time improving finishes found came from 30K to the finish',
   };

@@ -142,7 +142,7 @@ export default function FastStartAnalysis({ starts, defaultOpening = 'fast10', t
       <form className="explore-form" onSubmit={event => { event.preventDefault(); if (ready) apply(draft); }}>
         <div className="explore-mode">
           <Segmented label="Choose the comparison" block value={all ? 'all' : 'history'} onChange={value => apply({ ...draft, mode: value as FastStartMode, prior: 'all' })}
-            options={[{ value: 'all', label: 'All eligible finishes' }, { value: 'history', label: 'With an earlier result' }]} />
+            options={[{ value: 'all', label: 'All finishes' }, { value: 'history', label: 'With an earlier result' }]} />
           <p className="field-hint">{all ? 'No previous race needed' : 'Compared with a recorded best'}</p>
         </div>
         <div className="explore-fields">
@@ -152,7 +152,7 @@ export default function FastStartAnalysis({ starts, defaultOpening = 'fast10', t
           <div className="field"><label className="field-label" htmlFor={field('age')}>Age group</label><select id={field('age')} className="select" value={draft.age} onChange={e => setDraft({ ...draft, age: e.target.value })}>{AGE_OPTIONS.map(age => <option key={age} value={age}>{age === 'all' ? 'All ages' : age}</option>)}</select></div>
           <div className="field"><label className="field-label" htmlFor={field('gender')}>Recorded gender</label><select id={field('gender')} className="select" value={draft.gender} onChange={e => setDraft({ ...draft, gender: e.target.value })}><option value="all">All</option><option value="Women">Women</option><option value="Men">Men</option></select></div>
         </div>
-        <ExploreSubmit ready={ready} id={formId} />
+        <ExploreSubmit ready={ready} />
       </form>
     </MakeItYours>
     <div className="sr-only" role="status">{pending ? 'Loading the starting-pace comparison.' : error || !chosen ? '' : focus ? `Comparison updated: ${summary}.` : 'Not enough recorded finishes for this exact selection.'}</div>

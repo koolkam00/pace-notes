@@ -46,7 +46,9 @@ export default function Waterfall({ steps, total, yTicks = [], xTicks, label, va
     // own bar: a label wider than the bars never reads as its neighbour's.
     { id: 'big', text: `${steps[big].label} ${steps[big].display}`, x: x(big + 0.5), y: bars[big].top, priority: 3, tone: washed ? 'ink' : 'signal', gap: washed ? 16 : 8, ...(washed ? { prefer: 'above' as const, only: 'above' as const } : {}) },
     ...steps.flatMap((s, i) => (i !== big && (every || i === 0) ? [{ id: i === 0 ? 'first' : `s${i}`, text: `${s.label} ${s.display}`, x: x(i + 0.5), y: bars[i].top, priority: 2, size: 13, gap: 8 } as LabelItem] : [])),
-    { id: 'total', text: total.display, x: x(n - 0.5), y: y(Math.max(0, ends[ends.length - 1])), priority: 2, size: 13, gap: 8 },
+    // Over a washed stretch the sentence names the stretch and the total ("66% of the 4:51 gap"), so the total's value
+    // outranks the largest step's label: both of the sentence's numbers are drawn.
+    { id: 'total', text: total.display, x: x(n - 0.5), y: y(Math.max(0, ends[ends.length - 1])), priority: washed ? 3.5 : 2, size: 13, gap: 8 },
   ];
   const placed = placeLabels(items, { height, boxes: [...bars.map((b) => ({ x0: x(b.i + 0.18), x1: x(b.i + 0.82), y0: b.top, y1: b.bottom })), { x0: x(n - 1 + 0.18), x1: x(n - 1 + 0.82), y0: Math.min(y(0), y(ends[ends.length - 1])), y1: Math.max(y(0), y(ends[ends.length - 1])) }] });
   const plot = (

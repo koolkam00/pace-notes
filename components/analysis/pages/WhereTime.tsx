@@ -4,7 +4,7 @@ import ExplorerChart from '../ExplorerChart';
 import { analysisBySlug } from '@/lib/ten-analyses';
 import { getAnalysisStart } from '@/lib/analysis-server';
 import { getNugget } from '@/lib/nuggets';
-import { hm } from '@/lib/nuggets/format';
+import { hm, ms } from '@/lib/nuggets/format';
 
 const PATH = '/analyses/where-time-is-gained';
 
@@ -26,7 +26,8 @@ export default function WhereTime() {
     </AnswerCard>
   ) : null;
   return (
-    <AnalysisShell path={PATH} title={n} dek={definition.title} answer={answer}>
+    <AnalysisShell path={PATH} title={n} answer={answer}
+      dek={n.guard ? `Finishes just under and just over ${hm(goal)} ended ${ms(Number(n.values.gap_s))} apart.` : definition.title}>
       <ExploreBeat track="chapter-1">
         <AnalysisExplorer definition={definition} summary={summary} initialAnswer={initialAnswer} untouched="none" />
       </ExploreBeat>

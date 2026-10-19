@@ -51,7 +51,9 @@ export default function AgePacing() {
     </AnswerCard>
   ) : null;
   return (
-    <AnalysisShell path={PATH} title={n} dek={definition.title} answer={answer}>
+    <AnalysisShell path={PATH} title={n} answer={answer}
+      // The H1 is the finding at the same finish time; the pooled shape is its setup, here.
+      dek={n.guard ? `Across all finishes, ${n.values.u_shape ? 'the youngest and oldest' : 'older runners'} slowed more.` : definition.title}>
       <ExploreBeat track="chapter-1">
         <AnalysisExplorer definition={definition} summary={summary} initialAnswer={answers.find((a) => a.id === definition.id)!} untouched="none" />
       </ExploreBeat>
