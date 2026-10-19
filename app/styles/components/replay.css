@@ -57,8 +57,9 @@
 /* At 200% zoom (under 300 px) the plot is too short for the flag: the sentence names the distance. */
 @media (max-width: 299.98px) { .hero-replay .replay-mark { display: none; } }
 /* The share the sentence gives (the race-replay story: short of 20K), set inside the stretch it counts, against that
-   mat, above the field's back: the plot's one orange mark while the flag frame holds; ink-3 with the sentence after. */
-.hero-replay .replay-split { position: absolute; top: 6%; max-width: 44%; margin-right: 8px; font-size: 13px; font-weight: 600; line-height: 1.25; text-align: right; color: var(--night-signal-ink); pointer-events: none; transition: color var(--d-toggle) var(--ease-out); }
+   mat, above the field's back: bright ink while the flag frame holds (the H1's italic above is the screen's one orange,
+   round 4), ink-3 with the sentence after. */
+.hero-replay .replay-split { position: absolute; top: 6%; max-width: 44%; margin-right: 8px; font-size: 13px; font-weight: 600; line-height: 1.25; text-align: right; color: var(--night-ink); pointer-events: none; transition: color var(--d-toggle) var(--ease-out); }
 .hero-replay .replay-split.is-off { color: var(--night-ink-3); }
 .hero-replay .replay-status { position: absolute; left: 0; right: 0; bottom: 12px; margin: 0; font-size: var(--t-small); text-align: center; color: var(--night-ink-2); }
 

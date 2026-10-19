@@ -347,9 +347,11 @@ async function journey(h, blocklist) {
   await run.close();
 
   h.check('every step ran', !log.some(line => line.startsWith('FAIL')), log.filter(line => line.startsWith('FAIL')));
-  // The report joins /runners after a press, after the section tracker first looked: it is still seen, once.
+  // The report joins /runners after a press, after the section tracker first looked: it is still seen, once per page
+  // view. Since round 4 (October 19, 2026) the journey opens it on both visits to /runners (the second time for the
+  // split-check link in its share sheet), so it is seen twice there, once on each visit.
   const reportViews = run.events().filter(({ e }) => e.event === 'section_viewed' && e.properties.section === 'report').map(({ e }) => e.properties.$pathname);
-  h.check('the race report on /runners is one section_viewed report there', reportViews.filter(p => p === '/runners').length === 1, reportViews);
+  h.check('the race report on /runners is one section_viewed report on each of its two visits', reportViews.filter(p => p === '/runners').length === 2, reportViews);
   h.inspect.invariants(run);
   const recorded = [...run.recordedPages.keys()];
   h.check('/stories and /tools were recorded (so I5 is not empty)', recorded.includes('/stories') && recorded.includes('/tools'), recorded);
