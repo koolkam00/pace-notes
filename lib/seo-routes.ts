@@ -105,16 +105,17 @@ export const ROBOTS_DISALLOW: readonly string[] = ['/data/runners/index/', '/dat
 export const CONTENT_DATES: Readonly<Record<string, string>> = {
   // The redesign (October 18, 2026) rewrote every hub, story and info page: each opens on its reading now, its beats
   // were cut to the findings, and the chapter crumbs and closing stack are new. October 19: the chapter leads, keys and
-  // story copy were edited again (round 2, part A), and each page's tables moved into one "All numbers" row.
+  // story copy were edited again (round 2, part A), and each page's tables moved into one "All numbers" row; the tools
+  // open answer first with short H1s, the analyses' H1s became one clause and /courses opens on its list (part B).
   '/': '2026-10-19',
   '/research': '2026-10-19',
   '/about': '2026-10-19',
   '/methodology': '2026-10-19',
   '/stories': '2026-10-19',
-  '/tools': '2026-10-18',
-  '/tools/pace-calculator': '2026-10-18',
-  '/analyses': '2026-10-18',
-  '/courses': '2026-10-18',
+  '/tools': '2026-10-19',
+  '/tools/pace-calculator': '2026-10-19',
+  '/analyses': '2026-10-19',
+  '/courses': '2026-10-19',
   '/slowdown': '2026-10-19',
   '/privacy': '2026-10-19',
   '/stories/pacing-types': '2026-10-19',
@@ -130,7 +131,7 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
 export type SitemapEntry = { path: string; lastmod?: string };
 
 /** The course pages (/courses/<slug>) were rewritten on this date; their lastmod is the later of it and their data's. */
-export const COURSE_PAGES_WRITTEN = '2026-10-18';
+export const COURSE_PAGES_WRITTEN = '2026-10-19';
 
 /**
  * New content pages register in their own module under lib/seo-pages/ (pace, qualifying, finish-times), collected here.

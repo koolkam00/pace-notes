@@ -64,6 +64,9 @@
 /* ---------- What finishes on that pace at 20K did ---------- */
 /* Content-sized options: all four fit a 390 px phone, and scroll in their track at 200% text. */
 .predictor-look .tool-choice.seg { grid-auto-columns: auto; }
+/* Each option keeps its label's width (the small choice's 44 px floor would let "Range start" run over its neighbours
+   at 195 px); a row too wide for the column scrolls in its track. */
+.predictor-look .tool-choice.is-small .seg-btn { min-width: max-content; }
 .predictor-strip { margin: 0; }
 .predictor-strip svg { display: block; overflow: visible; }
 .predictor-strip svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
