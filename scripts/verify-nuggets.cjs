@@ -110,13 +110,14 @@ eq(new Set(N.CHAPTER_LEAD).size, N.CHAPTER_LEAD.length, 'eleven different chapte
 // that name their comparison, and again in round 3 in a runner's words), reproduced from the data where they hold a number.
 const keys = Object.fromEntries(N.CHAPTER_LEAD.map((id) => [id, N.getNugget(id).key]));
 eq(keys['field.median'], 'median finish', 'chapter 01 key');
-ok(/^behind runners of the same 5–20K pace at the finish, after a first 5K over \d+% fast$/.test(keys['kick.bank']), 'chapter 02 key');
+ok(/^behind at the finish, after a first 5K over \d+% fast$/.test(keys['kick.bank']), 'chapter 02 key');
 eq(keys['slowdown.onset'], 'of sustained slowdowns began at 30K or later', 'chapter 05 key');
 ok(/^as many finishes as expected in the minute before \d:\d\d$/.test(keys['round.top']), 'chapter 06 key');
 eq(keys['holds.gender'], 'of recorded women’s and men’s finishes had a sustained slowdown, at the same finish times', 'chapter 07 key');
-ok(/^of races were traced to their course by pacing shape alone \(chance: \d+%\)$/.test(keys['courses.named']), 'chapter 08 key');
-eq(keys['weather.pairs'], 'same-course pairs where the warmer year had more sustained slowdowns', 'chapter 09 key');
-ok(/^of finishes near \d:\d\d had a sustained slowdown$/.test(keys['splitcheck.share']), 'chapter 10 key');
+ok(/^of races traced to their course by pacing shape alone, against \d+% by chance$/.test(keys['courses.named']), 'chapter 08 key');
+eq(keys['weather.pairs'], 'same-course pairs: the warmer year had more sustained slowdowns', 'chapter 09 key');
+ok(/^of finishes near the example’s \d:\d\d had a sustained slowdown$/.test(keys['splitcheck.share']), 'chapter 10 key');
+ok(/^of finishes on even \d:\d\d pace at 30K still got under \d:\d\d$/.test(keys['checkpoint.under']), 'chapter 04 key');
 eq(keys['gains.final'], 'of the time improving finishes gained came after 30K', 'chapter 11 key');
 
 // Every key stands alone as a short phrase a runner reads under its figure: never a bare figure jammed against a unit
@@ -125,9 +126,10 @@ for (const n of all.filter((x) => x.key)) {
   ok(n.key.length <= 90, `${n.id}: the key "${n.key}" is over 90 characters`);
   ok(!n.figure || !n.figure.unit || /^[%×]$/.test(n.figure.unit) || /^[\u00a0 ]|^°[CF]$|^in /.test(n.figure.unit), `${n.id}: the figure's unit "${n.figure && n.figure.unit}" needs a space before it`);
 }
-// A pace group is named by its window wherever a key names one, and one goal at one mat is one window: "on 4:00 pace
-// at 20K" never stands for two different groups on two pages (the course-goal data's 5–20K pace within 2%, the
-// checkpoint's 2-minute band, the projector's projected-finish band).
+// One goal at one mat is one group: "on 4:00 pace at 20K" never stands for two different windows on two pages (the
+// course-goal data's 5–20K pace within 2%, the checkpoint's 2-minute band, the projector's projected-finish band). A key
+// may leave its window to its page (round 4: a key reads as a finding, not a caption) only while no other key names
+// the same goal at the same mat.
 {
   const GROUP = /\b(?:on (?:even )?(\d:\d\d) pace|within \d+% of (\d:\d\d) pace|on course for \d:\d\d–(\d:\d\d))\b[^,]*?\b(?:at|through) (\d+K)\b/;
   const WINDOW = /within \d+%|\d:\d\d–\d:\d\d/;
@@ -136,7 +138,6 @@ for (const n of all.filter((x) => x.key)) {
     const m = GROUP.exec(n.key) || (/\bthrough (\d+K) in (\d:\d\d–\d:\d\d), on even (\d:\d\d) pace\b/.exec(n.key) && null);
     const named = /\bthrough (\d+K) in (\d:\d\d–\d:\d\d), on even (\d:\d\d) pace\b/.exec(n.key);
     if (!m && !named) continue;
-    ok(WINDOW.test(n.key), `${n.id}: the key "${n.key}" names a pace group without its window`);
     const goal = named ? named[3] : m[1] || m[2] || m[3];
     const mat = named ? named[1] : m[4];
     const window = (WINDOW.exec(n.key) || [''])[0];

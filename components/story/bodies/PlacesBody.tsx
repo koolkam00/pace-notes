@@ -16,8 +16,8 @@ const signed = (v: number, digits = 1) => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${
 /**
  * Pass or be passed (the redesign spec, section 7.6, under section 00): the reading (a minute back at 30K against the
  * same gap at 40K), then three beats: how far back at 30K matched a minute back at 40K (the gap scrubbed from both
- * mats), how much slowing after 30K still gained places, and the field after 30K as one bar: most moved up, while big
- * drops outnumbered big gains. The women-against-men editions are cut (chapter 07
+ * mats), how much slowing after 30K still gained places, and big drops against big gains after 30K as two bars on
+ * one scale. The women-against-men editions are cut (chapter 07
  * is about recorded gender); every band and crossing comes from positions.json.
  */
 export default function PlacesBody() {
@@ -110,24 +110,26 @@ export default function PlacesBody() {
           xTicks={[0, 20, 40].filter((v) => v >= be[0].x && v <= be[be.length - 1].x && (v === 0 || Math.abs(v - be[beAt].x) > 6)).map((v) => ({ value: v, label: v === 0 ? 'Even' : `${v}% slower`, priority: v === 0 ? 3 : 1 }))}
           // The top of the scale only: a gridline at the bottom of the domain would double the axis rule.
           yTicks={[{ value: beTop, label: `+${beTop}` }]}
+          // The readout leads with the H2's quantity, the pace (the big figure follows the needle's x), and its key says
+          // what that pace did to places, so the first number a reader meets is the "17% slower" the H2 names.
           scrub={{ label: '30–40K pace against the 5–20K pace',
-            points: { x: be.map((b) => (b.x - be[0].x) / (be[be.length - 1].x - be[0].x)), keys: be.map((b) => `30–40K ${slower(b.x)} than 5–20K, places per 100`), values: be.map((b) => (Math.abs(b.median) < 0.25 ? '±0' : signed(b.median))) },
+            points: { x: be.map((b) => (b.x - be[0].x) / (be[be.length - 1].x - be[0].x)),
+              keys: be.map((b) => (Math.abs(b.median) < 0.25 ? '30–40K pace: no places gained or lost after 30K' : `30–40K pace: ${signed(b.median)} places per 100 after 30K`)),
+              values: be.map((b) => (b.x === 0 ? 'Even' : slower(b.x))) },
             initial: beAt, detents: [beAt], follow: 'median' }}
           label={`Median places gained per 100 of the field after 30K, by 30–40K pace against the 5–20K pace; the line crosses zero near ${Math.round(crossing)}% slower.`} />
       </Beat>
 
-      {/* The H2 gives the two tails' ratio; the bracket spans the share that moved up and names it, and the bar names
-          only the two tails, so no shown parts have to add up to it. The dek names the unit once. */}
+      {/* The H2's "3 to 1" as length: two bars on one scale, big drops (its subject, the one orange mark) against big
+          gains (ink), each with its share at its end. The dek names the unit once. */}
       <Beat id="shuffle" track="chapter-3" label="Up and down" title={shuffle} aliases={['gains', 'women']}
         dek="Share of finishes by places moved from 30K to the finish, counted per 100 in each race.">
         <PlaceShift
-          segments={[
-            { id: 'lost10', label: 'dropped 10+ places', share: data.sinker_share, display: pct(data.sinker_share, 1), tone: 'signal' },
-            { id: 'between', label: 'everything between', share: Math.max(0, 1 - data.sinker_share - data.surger_share), display: '', tone: 'quiet' },
-            { id: 'gained10', label: 'gained 10+ places', share: data.surger_share, display: pct(data.surger_share, 1), tone: 'signal' },
+          rows={[
+            { id: 'lost10', label: 'Dropped 10+ places', share: data.sinker_share, display: pct(data.sinker_share, 1), tone: 'signal' },
+            { id: 'gained10', label: 'Gained 10+ places', share: data.surger_share, display: pct(data.surger_share, 1), tone: 'ink' },
           ]}
-          up={{ at: 1 - data.gained_share, label: `Moved up ${pct(data.gained_share)}` }}
-          label={`Places gained or lost per 100 of the field from 30K to the finish: ${pct(data.gained_share)} moved up; ${pct(data.sinker_share, 1)} lost 10 or more, ${pct(data.surger_share, 1)} gained 10 or more.`} />
+          label={`Places gained or lost per 100 of the field from 30K to the finish: ${pct(data.sinker_share, 1)} lost 10 or more, ${pct(data.surger_share, 1)} gained 10 or more (${pct(data.gained_share)} moved up at all).`} />
       </Beat>
     </StoryPage>
   );

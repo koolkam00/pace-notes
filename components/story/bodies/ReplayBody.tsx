@@ -65,7 +65,7 @@ export default function ReplayBody() {
 
       {rows.length > 1 ? (
         <Beat id="packs" track="chapter-1" className="rr-packs" aliases={['emptying']} label={`Together at ${matLabel(Number(packs.values.checkpoint_km) || mats[0])}`} title={packs}
-          dek={`${packEdition!.city} ${packEdition!.year}: ${count(Number(packs.values.n))} finishes passed ${matLabel(Number(packs.values.checkpoint_km))} together.`}>
+          dek={`${packEdition!.city} ${packEdition!.year}: ${count(Number(packs.values.n))} finishes passed ${matLabel(Number(packs.values.checkpoint_km))} within the same half minute.`}>
           <LineProfile x={mats} xDomain={[mats[0], MARATHON_KM]} yDomain={[-reach, reach]}
             // The band is named on itself, inside its wider lower half near the finish, clear of the median's label on the
             // upper right (the H2 gives its width at the finish), so it needs no key.

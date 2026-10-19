@@ -81,7 +81,8 @@ export default function DemographicsBody() {
 
       {/* The gap at every finish time restated the opener's finding (at the same finish times), so it is cut; its
           anchors land here. */}
-      <Beat id="ghost" track="chapter-2" label="Mat by mat" title={ghost} aliases={['bands', 'age', 'field']}>
+      <Beat id="ghost" track="chapter-2" label="Mat by mat" title={ghost} aliases={['bands', 'age', 'field']}
+        dek={`Recorded women and men finishing in ${band.label}, mat by mat.`}>
         <LineProfile x={MATS} xDomain={[0, MARATHON_KM]} yDomain={[0, gapTop]}
           layers={[{ id: 'gap', label: 'Women behind', series: [{ id: 'gap', values: gapMin }], band: { lo: gapMin.map(() => 0), hi: gapMin },
             points: [{ x: MATS[peak], y: gapMin[peak], kind: 'reading' }] }]}
@@ -89,7 +90,10 @@ export default function DemographicsBody() {
           // One gridline, the whole minute under the peak, labelled on the left, where the line is still low.
           yTicks={Math.floor(gapMin[peak]) >= 1 ? [{ value: Math.floor(gapMin[peak]), label: `${Math.floor(gapMin[peak])} min behind` }] : []} gridSide="left"
           scrub={{ label: `Finishing in ${band.label}: recorded women behind recorded men, mat by mat`,
-            points: { x: MATS.map((km) => km / MARATHON_KM), keys: MATS.map((km, k) => keyAt(km, gapMin[k])), values: gapMin.map(gapAt) },
+            // The mat's gap, with the finish as its comparator (level by construction), so the readout shows the
+            // H2's "gave it all back" rather than echoing its gap.
+            points: { x: MATS.map((km) => km / MARATHON_KM), keys: MATS.map((km, k) => keyAt(km, gapMin[k])), values: gapMin.map(gapAt),
+              side: [{ label: 'At the finish', values: gapMin.map(() => gapAt(gapMin[gapMin.length - 1])) }] },
             initial: peak, detents: [peak], follow: 'gap' }}
           label={`Finishing in ${band.label}: recorded women behind recorded men at each mat, ${ms(Math.round(gapMin[peak] * 60))} at ${matLabel(MATS[peak])}, level at the finish.`} />
       </Beat>

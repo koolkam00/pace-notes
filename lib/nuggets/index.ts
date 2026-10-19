@@ -100,7 +100,7 @@ export const PAGE_NUGGET: Readonly<Record<string, NuggetId>> = {
   '/runners': 'runner.yours',
   '/tools/split-check': 'splitcheck.share',
   '/analyses/finding-improvement': 'gains.final',
-  '/tools/plan': 'plan.goal',
+  '/tools/plan': 'plan.courses',
 };
 
 /**

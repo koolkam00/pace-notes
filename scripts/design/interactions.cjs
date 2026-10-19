@@ -238,15 +238,43 @@ const INTERACTIONS = [
     },
   },
   {
+    // The replay at its flag frame (waits for the run-up to land, up to 10 s), then playing. At the flag, no label over
+    // the field may sit on a drawn runner: the canvas's pixels under every label box (the mats, the mark, the split
+    // share) are read back, and a label with bright runner pixels under it is a collision the layout linter cannot see.
     name: 'replay',
     selector: '.replay',
     async run(page, el, snap) {
+      const problems = [];
       await inView(el);
-      await pause(page, 2500);
+      await page.waitForFunction((node) => {
+        const m = node.querySelector('.replay-moment');
+        return !!node.querySelector('canvas.replay-canvas.is-shown') && (!m || !m.classList.contains('is-off'));
+      }, await el.elementHandle(), { timeout: 10000 }).catch(() => problems.push('the flag frame did not arrive within 10 s'));
+      await pause(page, 400);
       await snap('replay-flag');
+      const hits = await el.evaluate((node) => {
+        const canvas = node.querySelector('canvas.replay-canvas');
+        if (!canvas || !canvas.width) return [];
+        const g = canvas.getContext('2d');
+        const c = canvas.getBoundingClientRect();
+        const sx = canvas.width / c.width, sy = canvas.height / c.height;
+        const out = [];
+        for (const label of node.querySelectorAll('.replay-mats span, .replay-mark b, .replay-split')) {
+          const r = label.getBoundingClientRect();
+          if (!r.width || !r.height || getComputedStyle(label).display === 'none') continue;
+          const x0 = Math.max(r.left, c.left), x1 = Math.min(r.right, c.right), y0 = Math.max(r.top, c.top), y1 = Math.min(r.bottom, c.bottom);
+          if (x1 - x0 < 1 || y1 - y0 < 1) continue;
+          const data = g.getImageData(Math.floor((x0 - c.left) * sx), Math.floor((y0 - c.top) * sy), Math.max(1, Math.floor((x1 - x0) * sx)), Math.max(1, Math.floor((y1 - y0) * sy))).data;
+          let bright = 0;
+          for (let i = 0; i < data.length; i += 4) if (data[i + 3] > 90 && data[i] + data[i + 1] + data[i + 2] > 420) bright += 1;
+          if (bright > 3) out.push(`"${label.textContent.trim()}" sits on ${bright} runner pixels`);
+        }
+        return out;
+      });
+      problems.push(...hits);
       const play = el.locator('button').filter({ hasText: /play|▶/i }).first();
       if (await play.count()) { await play.click().catch(() => {}); await pause(page, 1500); await snap('replay-playing'); }
-      return [];
+      return problems;
     },
   },
   {

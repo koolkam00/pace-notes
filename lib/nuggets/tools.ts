@@ -56,6 +56,34 @@ export function planGoalFrom(rows: CourseGoalRow[], goal: number = GOAL, toleran
   };
 }
 
+/**
+ * The planner's reading in the chain (its contents row and the cards into it): the course it asks a runner to pick,
+ * counted. Of finishes within the course-goal file's tolerance of the goal's even pace through 20K, the share that made
+ * the goal on each listed course with 100 such finishes, lowest to highest: "7–27% made 4:00 from within 2% of its pace
+ * through 20K, course by course." The pooled share (plan.goal) is the planner's own first line and chapter 04's
+ * checkpoint has a share of its own, so the card into the journey's last page says what only the planner adds: the
+ * course moves it. The guard holds for two courses at least five points apart.
+ */
+export function planCoursesFrom(data: Pick<CourseGoal, 'rows' | 'courses' | 'tolerance'> | null, goal: number = GOAL): Nugget {
+  const g = hm(goal);
+  const listed = new Set((data?.courses ?? []).map((c) => c.city));
+  const at = (data?.rows ?? []).filter((r) => r.goal === goal && listed.has(r.city) && r.n >= 100);
+  const lo = at.length ? at.reduce((a, b) => (b.under < a.under ? b : a)) : null;
+  const hi = at.length ? at.reduce((a, b) => (b.under > a.under ? b : a)) : null;
+  const whole = (v: number) => Math.round(v * 100);
+  const ok = !!lo && !!hi && at.length >= 2 && whole(hi.under) - whole(lo.under) >= 5;
+  const tol = Math.round((data?.tolerance ?? 0.02) * 100);
+  return {
+    id: 'plan.courses', page: '/tools/plan', denominator: 'tool',
+    values: lo && hi ? { goal, courses: at.length, low: lo.under, high: hi.under, low_city: lo.city, high_city: hi.city } : { goal },
+    guard: ok,
+    headline: ok ? `Of finishes within ${tol}% of ${g} pace through 20K, *${whole(lo!.under)}–${whole(hi!.under)}%* made ${g}, course by course.` : '',
+    fallback: 'Plan your race: a course, a goal and a pace band.',
+    figure: ok ? { value: `${whole(lo!.under)}–${whole(hi!.under)}`, unit: '%', sr: `${whole(lo!.under)} to ${whole(hi!.under)} percent` } : null,
+    key: `made ${g} from within ${tol}% of its pace through 20K, course by course`,
+  };
+}
+
 // ---------- Chapter 04 · the race-day projector ----------
 
 /** The mat the projector opens on (its example runner's 25K). */
@@ -124,8 +152,9 @@ export function splitCheckShareFrom(shard: Pick<PaceBandShard, 'window_s' | 'gro
     headline: `Of finishes ${range}, *${pct(sd)}* had a sustained slowdown.`,
     fallback: all ? `Finishes ${range}, mat by mat.` : 'Check your splits against finishes at the same time.',
     figure: ok ? { value: pct(sd).replace('%', ''), unit: '%', sr: spokenPct(sd) } : null,
-    // The key names the time without its window (the page shows the window): a runner reads "near 4:03".
-    key: `of finishes near ${hm(Math.floor(finish / 60))} had a sustained slowdown`,
+    // The key names the example's time without its window (the page shows the window), as the example's: "near 4:03"
+    // alone read as an odd time beside readings about 4:00 or the whole field.
+    key: `of finishes near the example’s ${hm(Math.floor(finish / 60))} had a sustained slowdown`,
     term: '/methodology#sustained-slowdown',
   };
 }
@@ -170,4 +199,5 @@ export const TOOL_NUGGETS: Record<string, Builder> = {
   'projector.range': () => projectorRangeFrom(optional<ProjectorShard>(`tools/projector/all/${PROJECTOR_MAT}.json`), optional<ProjectorIndex>('tools/projector.json')?.quantiles ?? []),
   'weathermatch.mornings': () => weatherMatchMorningsFrom(optional<WeatherMatch>('tools/weather-match.json')),
   'plan.goal': () => planGoalFrom(optional<CourseGoal>('tools/course-goal.json')?.rows ?? []),
+  'plan.courses': () => planCoursesFrom(optional<CourseGoal>('tools/course-goal.json')),
 };

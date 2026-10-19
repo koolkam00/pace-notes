@@ -28,3 +28,14 @@
   .with-rail { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 48px; width: min(calc(100% - 2 * var(--gutter)), var(--container-rail)); margin-inline: auto; }
   .with-rail > .rail { position: sticky; top: calc(var(--header-h) + 24px); align-self: start; max-height: calc(100vh - var(--header-h) - 48px); overflow: auto; }
 }
+
+/* The chain's frame for a page without a shell of its own (components/ChainFrame.tsx: the chain's tools and /runners):
+   the same rail and content column as a story or an analysis. */
+.chain-flow { min-width: 0; }
+/* Beside the rail the plan's card is about 470 px wide: its four mat times go under the pace, in one row, so the pace
+   ("9:09") never breaks across lines (round 4). */
+@media (min-width: 1180px) {
+  .chain-frame .plan-headline { grid-template-columns: minmax(0, 1fr); }
+  .chain-frame .plan-card-mats { grid-template-columns: repeat(4, auto); justify-content: start; gap: var(--s-2) var(--s-6); margin-top: var(--s-4); padding: var(--s-4) 0 0; border-left: 0; border-top: 1px solid var(--rule); }
+  .chain-frame .plan-card-mats dd { font-size: 1.125rem; }
+}

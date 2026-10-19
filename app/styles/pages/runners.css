@@ -160,25 +160,11 @@ label.runner-race-row { cursor: pointer; }
 }
 
 /* ---------- The selected races ---------- */
+/* A recorded country code after a name: quiet, not part of the name. */
+.runner-country { font-weight: 400; color: var(--ink-3); }
 .runner-analysis { margin-top: var(--s-7); scroll-margin-top: calc(var(--header-h) + var(--s-4)); }
 .runner-analysis-head h2 { margin: 0; font-size: var(--t-h2); }
 .runner-analysis-head p { margin: var(--s-3) 0 0; max-width: var(--measure); font-size: var(--t-body); line-height: 1.55; color: var(--ink-2); }
-/* The answer, on night: the best finish as the figure, then its pace and the count of eligible finishes. */
-.runner-numbers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: var(--s-5); padding: 20px; border-radius: var(--r-md); background: var(--paper); color: var(--ink); box-shadow: var(--night-edge); }
-.runner-numbers > div { min-width: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
-.runner-numbers > div:first-child { grid-column: 1 / -1; padding-bottom: var(--s-4); border-bottom: 1px solid var(--rule); }
-.runner-numbers > div + div { padding-top: var(--s-4); }
-.runner-numbers > div:nth-child(3) { padding-left: var(--s-4); border-left: 1px solid var(--rule); }
-.runner-numbers strong, .runner-numbers span, .runner-numbers small { display: block; }
-.runner-numbers strong { font-family: var(--sans); font-size: 1.5rem; font-weight: 600; line-height: 1.1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
-.runner-numbers > div:first-child strong { font-family: var(--figure); font-size: var(--t-figure-l); font-weight: 660; line-height: .95; letter-spacing: -.03em; font-variant-numeric: normal; white-space: nowrap; }
-.runner-numbers span { margin-top: 6px; font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-2); }
-.runner-numbers small { margin-top: 2px; font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); }
-@media (max-width: 359.98px) {
-  .runner-numbers > div:first-child strong { font-size: 2.5rem; white-space: normal; }
-}
-.runner-takeaway { margin: var(--s-4) 0 0; max-width: 34rem; font-family: var(--serif); font-weight: 440; font-size: 1.25rem; line-height: 1.3; color: var(--ink); text-wrap: pretty; }
-.runner-analysis > .runner-table-wrap { margin-top: var(--s-5); }
 .runner-table-wrap .table caption { padding-bottom: var(--s-2); }
 
 /* ---------- The race in context ---------- */
@@ -199,12 +185,14 @@ label.runner-race-row { cursor: pointer; }
 .rc-h { margin: 0; font-family: var(--serif); font-weight: 440; font-size: var(--t-sentence); line-height: 1.25; letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
 .rc-copy { margin: var(--s-2) 0 0; max-width: var(--measure); font-size: var(--t-body); line-height: 1.55; color: var(--ink-2); }
 .rc-note { margin: var(--s-2) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
-.rc-next { margin: var(--s-4) 0 0; }
 .rc-details { margin-top: var(--s-4); }
 .rc-details > summary > span:first-child { font-weight: 600; }
 .rc-details .rc-note { margin-bottom: var(--s-4); }
 .rc-table-wrap td small { display: block; font-size: var(--t-label); color: var(--ink-3); white-space: normal; }
 .rc-empty { padding: var(--s-4) 0; }
+/* A missing weather or route record: a quiet note under what the tab has, not a finding. */
+.rc-panel > .rc-note:first-child { margin-top: 0; }
+.rc-weather + .rc-note { margin-top: var(--s-5); }
 .rc-view .lap-list { margin-top: var(--s-5); }
 .rc-peer-pacing { margin-top: var(--s-6); }
 .rc-peer-pacing .viz-frame { margin-top: var(--s-4); }
@@ -247,15 +235,18 @@ label.runner-race-row { cursor: pointer; }
 @media (max-width: 359.98px) {
   .rc-delta-rows li, .rc-delta-key, .rc-terrain-head, .rc-terrain-rows li { grid-template-columns: 4.75rem minmax(0, 1fr) 4.5rem; column-gap: var(--s-2); }
 }
-.rc-pair-summary { margin-top: var(--s-5); }
-.rc-pair-summary > strong { display: block; font-family: var(--figure); font-size: var(--t-figure-m); font-weight: 660; line-height: 1; letter-spacing: -.025em; color: var(--ink); }
-.rc-pair-summary p { margin: var(--s-2) 0 0; font-size: var(--t-small); color: var(--ink-3); }
 
 /* The race report in the runner view, and the comparison across selected races. */
 .rc-report { margin-top: var(--s-7); padding-top: var(--s-6); border-top: 1px solid var(--rule); }
 .rc-report > .btn { margin-top: var(--s-4); }
 .rc-report .race-report-root { margin-top: 0; }
 .rc-multi { margin-top: var(--s-7); padding-top: var(--s-6); border-top: 1px solid var(--rule); }
-.rc-kicker { margin: 0 0 var(--s-2); }
-.rc-multi > h2 { margin: 0; font-size: var(--t-h2); }
+.rc-multi > h2 { margin: 0; font-size: var(--t-h2); text-wrap: balance; }
+.rc-multi > .values { margin-top: var(--s-5); }
 .rc-multi > .rc-focus { margin-top: var(--s-4); }
+
+/* From 1180 px /runners sits in the chain's frame beside the chapter rail (components/ChainFrame.tsx): its column keeps
+   its measure but starts at the content column's edge, where every story and analysis starts. */
+@media (min-width: 1180px) {
+  .chain-frame .runner-head, .chain-frame .runner-split, .chain-frame .runner-reading > .runner-analysis, .chain-frame .runner-page .chapter-end { margin-inline: 0; }
+}

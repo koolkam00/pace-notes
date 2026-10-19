@@ -1,11 +1,10 @@
 'use client';
 
 import { Suspense, lazy, useEffect, useId, useMemo, useState, type ComponentType } from 'react';
-import { matLabel, paceLabel, paceValue, sectionLabel, type UnitSystem } from '@/lib/units';
+import { MARATHON_KM, matLabel, paceLabel, paceValue, sectionLabel, type UnitSystem } from '@/lib/units';
 import { paceTicks } from '@/lib/pace-ticks';
 import { runnerDuration, runnerMetrics, type RunnerManifest, type RunnerMetrics, type RunnerRace } from '@/lib/runner-search';
 import { UnitLink } from './UnitsProvider';
-import Arrow from './ui/Arrow';
 import Segmented from './ui/Segmented.client';
 import Values from './ui/Values';
 import LineProfile from './viz/LineProfile';
@@ -28,9 +27,9 @@ const decimal = (value: number, digits = 1) => value.toLocaleString('en-US', { m
 const titleFor = (race: RunnerRace, manifest: RunnerManifest) => `${manifest.editions[race.edition].city} ${manifest.editions[race.edition].year}`;
 /** A change in pace in whole percent, as every share on the site reads; under half a percent it is the same pace. */
 const difference = (value: number) => Math.abs(value) < 0.5 ? 'the same pace as' : `${Math.round(Math.abs(value))}% ${value > 0 ? 'slower' : 'faster'} than`;
-const timeDifference = (seconds: number) => Math.abs(seconds) < 0.0005 ? 'The same finish time' : `${runnerDuration(Math.abs(seconds))} ${seconds < 0 ? 'faster' : 'slower'}`;
-const signed = (value: number) => { const text = decimal(Math.abs(value)); return `${Number(text) === 0 ? '' : value > 0 ? '+' : '−'}${text}%`; };
-/** A section's time as a stopwatch split: m:ss, or h:mm:ss past the hour. */
+/** A change against the 5–20K pace in whole percent, signed, as the report's rows say it. */
+const signed = (value: number) => { const v = Math.round(Math.abs(value)); return `${v === 0 ? '' : value > 0 ? '+' : '−'}${v}%`; };
+/** A section's time, or a difference, as a stopwatch split: m:ss, or h:mm:ss past the hour ("17:49", never "0:17:49"). */
 const split = (seconds: number) => {
   const s = Math.round(seconds), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = String(s % 60).padStart(2, '0');
   return h ? `${h}:${String(m).padStart(2, '0')}:${r}` : `${m}:${r}`;
@@ -68,6 +67,7 @@ const localHour = (value: string) => {
   return match ? `${match[1].padStart(2, '0')}:${match[2]}` : 'Not available';
 };
 const NO_COPIES: CopyEdition[] = [];
+const NO_CITIES: string[] = [];
 // The race report's code loads only when a report is asked for, so /runners keeps its initial JavaScript.
 const ReportUnavailable = () => <p className="rc-copy">The race report didn&apos;t load. Reload the page to try again.</p>;
 const RaceReport = lazy<ComponentType<RaceReportProps>>(() => import('./report/RaceReport').catch((error: Error) => {
@@ -89,17 +89,17 @@ export const defaultGroup = (race: RunnerRace): ComparisonKey => runnerAgeBand(r
  * seconds: a sustained slowdown, where it began and how far off the 5–20K pace; or the slowest stretch after 20K), then
  * the lap list with the report's own rows lit, so the view and the report a tap below say the same thing in the same
  * words. With the race report open below, its own card carries the finding and the mats, so the heading and this list
- * step aside.
+ * step aside. The view's one way on is the race report (round 4: the split check is in the report's share sheet).
  */
 export function PacingReadings({ race, metrics, manifest, units, laps = true }: MeasuredRace & { manifest: RunnerManifest; units: UnitSystem; laps?: boolean }) {
   const id = useId();
-  const splitHref = splitCheckHref(metrics.sections.map(section => section.cumulative), manifest.editions[race.edition]?.city);
   const times = wholeSeconds(metrics);
   const reading = times ? readSplits(times) : null;
   const verdict = reading ? timesVerdict(reading) : null;
+  // The last mat is named by its distance (42.2K), as on the report: "Finish 19:51" read as a finish time.
   const rows = metrics.sections.map((section, i) => {
     const vs = section.pace / metrics.baseline - 1;
-    return { mat: matLabel(section.end), split: split(section.elapsed), pace: paceLabel(section.pace, units), vs, lit: reading ? toneOf(reading, i) === 'qualify' : false, sr: `${sectionLabel(section.start, section.end)}: ${paceLabel(section.pace, units)}, ${signed(100 * vs)} against the 5–20K pace` };
+    return { mat: i === metrics.sections.length - 1 ? `${MARATHON_KM.toFixed(1)}K` : matLabel(section.end), split: split(section.elapsed), pace: paceLabel(section.pace, units), vs, lit: reading ? toneOf(reading, i) === 'qualify' : false, sr: `${sectionLabel(section.start, section.end)}: ${paceLabel(section.pace, units)}, ${signed(100 * vs)} against the 5–20K pace` };
   });
   const term = <UnitLink className="term-link" href="/methodology#sustained-slowdown">sustained slowdown</UnitLink>;
   // Ranges never break at their dash ("5–20K", "30–35K"): joinRanges puts a word joiner after each.
@@ -121,36 +121,45 @@ export function PacingReadings({ race, metrics, manifest, units, laps = true }: 
     <details className="values rc-details"><summary><span>Checkpoint readings</span><span className="values-glyph" aria-hidden="true" /></summary>
       <div className="rc-table-wrap table-wrap" role="region" aria-label="Recorded checkpoints" tabIndex={0}><table className="table"><caption className="sr-only">Elapsed times and section paces</caption><thead><tr><th scope="col">Checkpoint</th><th scope="col">Elapsed</th><th scope="col">Section time</th><th scope="col">Section pace</th></tr></thead><tbody>{metrics.sections.map(section => <tr key={section.end}><th scope="row">{matLabel(section.end)}</th><td>{runnerDuration(section.cumulative)}</td><td>{runnerDuration(section.elapsed)}</td><td>{paceLabel(section.pace, units)}</td></tr>)}</tbody></table></div>
     </details>
-    {splitHref && <p className="rc-next"><UnitLink className="btn btn-tertiary" href={runnerHandoffHref(splitHref)}>Read this race in the split check<Arrow /></UnitLink></p>}
   </section>;
 }
 
-/** Two of the selected races, section by section: the finish difference, and where it came from. */
-export function SectionComparison({ focus, reference, manifest, units }: { focus: MeasuredRace; reference: MeasuredRace; manifest: RunnerManifest; units: UnitSystem }) {
+/**
+ * Two of the selected races in one beat: the finish difference and where most of it came from, as the heading ("New York
+ * 2024 was 17:49 slower than Chicago 2023; 3:11 of it in 35–40K."), then each section's difference as a bar. A section
+ * larger than the whole difference (others ran the other way) is "the largest change", never "of it".
+ */
+export function comparisonWords(focus: string, reference: string, finish: number, largest: { label: string; delta: number }): string {
+  const same = Math.abs(finish) < 0.5;
+  const lead = same ? `${focus} and ${reference} took the same time` : `${focus} was ${split(Math.abs(finish))} ${finish > 0 ? 'slower' : 'faster'} than ${reference}`;
+  const part = Math.abs(largest.delta) < 0.5 ? ''
+    : !same && Math.sign(largest.delta) === Math.sign(finish) && Math.abs(largest.delta) <= Math.abs(finish) + 0.5 ? `; ${split(Math.abs(largest.delta))} of it in ${largest.label}`
+      : `; the largest change was ${largest.label}, ${split(Math.abs(largest.delta))} ${largest.delta > 0 ? 'more' : 'less'}`;
+  return joinRanges(`${lead}${part}.`);
+}
+
+export function SectionComparison({ focus, reference, manifest, id }: { focus: MeasuredRace; reference: MeasuredRace; manifest: RunnerManifest; id: string }) {
   const rows = focus.metrics.sections.map((section, i) => ({ ...section, delta: section.elapsed - reference.metrics.sections[i].elapsed }));
   const max = Math.max(1, ...rows.map(row => Math.abs(row.delta)));
   const largest = rows.reduce((best, row) => Math.abs(row.delta) > Math.abs(best.delta) ? row : best, rows[0]);
-  const deltaText = (seconds: number) => Math.abs(seconds) < 0.0005 ? 'No change' : `${seconds < 0 ? '−' : '+'}${runnerDuration(Math.abs(seconds))}`;
   const deltaShort = (seconds: number) => Math.abs(seconds) < 0.5 ? 'Level' : `${seconds < 0 ? '−' : '+'}${split(Math.abs(seconds))}`;
   return <>
-    <div className="rc-pair-summary"><strong>{timeDifference(focus.metrics.finish - reference.metrics.finish)}</strong><p>{titleFor(focus.race, manifest)} compared with {titleFor(reference.race, manifest)}.</p></div>
-    <p className="rc-copy">{Math.abs(largest.delta) < 0.0005 ? 'Every recorded section took the same time.' : <>The largest section difference was {sectionLabel(largest.start, largest.end)}: {runnerDuration(Math.abs(largest.delta))} {largest.delta < 0 ? 'less' : 'more'} time in the focus race.</>}</p>
+    <h2 id={id}>{comparisonWords(titleFor(focus.race, manifest), titleFor(reference.race, manifest), focus.metrics.finish - reference.metrics.finish, { label: sectionLabel(largest.start, largest.end), delta: largest.delta })}</h2>
     <figure className="viz rc-deltas">
-      <ol className="rc-delta-rows" aria-label="Each section, the focus race's time against the comparison race's">{rows.map(row => <li className={row === largest && Math.abs(row.delta) >= 0.0005 ? 'is-lit' : undefined} key={row.end}><span>{sectionLabel(row.start, row.end)}</span><span className="rc-delta-track" aria-hidden="true"><b style={{ left: row.delta < 0 ? `${50 - 50 * Math.abs(row.delta) / max}%` : '50%', width: `${Math.max(0.5, 50 * Math.abs(row.delta) / max)}%` }} /></span><strong>{deltaShort(row.delta)}</strong></li>)}</ol>
+      <ol className="rc-delta-rows" aria-label="Each section, the focus race's time against the comparison race's">{rows.map(row => <li className={row === largest && Math.abs(row.delta) >= 0.5 ? 'is-lit' : undefined} key={row.end}><span>{sectionLabel(row.start, row.end)}</span><span className="rc-delta-track" aria-hidden="true"><b style={{ left: row.delta < 0 ? `${50 - 50 * Math.abs(row.delta) / max}%` : '50%', width: `${Math.max(0.5, 50 * Math.abs(row.delta) / max)}%` }} /></span><strong>{deltaShort(row.delta)}</strong></li>)}</ol>
       <figcaption className="rc-delta-key" aria-hidden="true"><span /><span className="rc-delta-key-track"><span>Less time</span><span>More time</span></span><span /></figcaption>
     </figure>
-    <details className="values rc-details"><summary><span>Exact section times</span><span className="values-glyph" aria-hidden="true" /></summary><div className="rc-table-wrap table-wrap" role="region" aria-label="Selected race section comparison" tabIndex={0}><table className="table"><caption>Focus race minus comparison race</caption><thead><tr><th scope="col">Section</th><th scope="col">Focus race</th><th scope="col">Comparison race</th><th scope="col">Difference</th></tr></thead><tbody>{rows.map((row, i) => <tr key={row.end}><th scope="row">{sectionLabel(row.start, row.end)}</th><td>{runnerDuration(row.elapsed)}</td><td>{runnerDuration(reference.metrics.sections[i].elapsed)}</td><td>{deltaText(row.delta)}</td></tr>)}</tbody></table></div></details>
   </>;
 }
 
 /**
- * The late pace in plain words, this race's then the group's median ("This race slowed 14% late; the group's median
- * slowed 9%."), each against its own 5–20K pace, in whole percent: slowed, sped up, or held.
+ * The late pace in plain words, this race's then the group's median, as one named measure: from 30K against its own
+ * 5–20K pace, in whole percent ("From 30K this race ran 14% slower than its 5–20K pace; the group’s median ran 9%
+ * slower."). The Pacing tab's fallback and the side-by-side table name the same measure.
  */
 export function lateWords(own: number, median: number): string {
-  const said = (v: number) => (Math.abs(v) < 0.5 ? null : v > 0 ? `slowed ${Math.round(v)}%` : `sped up ${Math.round(-v)}%`);
-  const mine = said(own), theirs = said(median);
-  return `${mine ? `This race ${mine} late` : 'This race held its early pace late'}; the group’s median ${theirs ?? 'held its early pace'}.`;
+  const said = (v: number, full: boolean) => (Math.abs(v) < 0.5 ? 'held its 5–20K pace' : `ran ${Math.round(Math.abs(v))}% ${v > 0 ? 'slower' : 'faster'}${full ? ' than its 5–20K pace' : ''}`);
+  return `From 30K this race ${said(own, true)}; the group’s median ${said(median, false)}.`;
 }
 
 /** Where the finish sits among this edition's finishes in the chosen group, then the pace beside similar finish times. */
@@ -179,13 +188,13 @@ export function RunnerPeerComparison({ comparison, metrics, units, edition }: { 
   return <>
     {placement}
     <section className="rc-peer-pacing">
-      <h3 className="rc-h">{lateWords(metrics.lateChange, pace.late_change.median)}</h3>
+      <h3 className="rc-h">{joinRanges(lateWords(metrics.lateChange, pace.late_change.median))}</h3>
       <p className="rc-copy">{count(pace.n)} finishes from {runnerDuration(pace.from_sec)} to under {runnerDuration(pace.to_sec)} in this same edition.</p>
       <LineProfile x={xs} xDomain={[5, 42.195]} yDomain={axis ? axis.domain : undefined}
         xTicks={[5, 10, 20, 30, 42.195].map(km => ({ value: km, label: matLabel(km) }))}
         yTicks={grid.map(v => ({ value: v, label: clear(v) ? tick(v) : '' }))}
         layers={[{ id: 'pace', label: 'Pace', series: [{ id: 'median', values: median, dashed: true }, { id: 'you', values: yours, tone: 'signal' }], band: { lo, hi } }]}
-        label={`Pace by section, higher is slower: this race beside the group median and its middle 50%. Late-race change ${decimal(metrics.lateChange)}% against the group's ${decimal(pace.late_change.median)}%.`}
+        label={`Pace by section, higher is slower: this race beside the group median and its middle 50%. ${lateWords(metrics.lateChange, pace.late_change.median)}`}
         keys={[{ label: 'This race', mark: 'line', tone: 'signal' }, { label: 'Group median', mark: 'dash' }, { label: 'Middle 50%', mark: 'band' }]}
         height={200} heightMd={240}
         values={<Values id={`rc-peers-${comparison.key}`} caption="This race beside the group" columns={[{ key: 's', label: 'Section' }, { key: 'y', label: 'This race' }, { key: 'm', label: 'Median' }, { key: 'r', label: 'Middle 50%' }]}
@@ -215,25 +224,12 @@ function WeatherContext({ weather, units }: { weather: RunnerWeather; units: Uni
 }
 
 /**
- * The terrain's finding beside this race's pacing: what the route did over the race's slowest 5K section (side by side,
- * never a cause), else the route's two totals.
+ * The route beside this race's pacing: its two totals as the heading, then each section's net climb beside the pace
+ * (side by side, never a cause: round 4 cut the "slowest 5K climbs" heading, which read as one).
  */
-function terrainLine(terrain: RunnerTerrain, metrics: RunnerMetrics, units: UnitSystem) {
-  const fives = metrics.sections.slice(0, -1);
-  const slowest = fives.reduce((a, b) => (b.pace > a.pace ? b : a), fives[0]);
-  // An even race has no slowest 5K to name (within half a second per km): the route's totals instead.
-  const even = !slowest || Math.max(...fives.map(s => s.pace)) - Math.min(...fives.map(s => s.pace)) < 0.5;
-  const at = !even && terrain.sections.find(section => Math.abs(section.start_km - slowest.start) < 0.0001 && Math.abs(section.end_km - slowest.end) < 0.0001);
-  if (!at || !slowest) return `The route climbs ${elevationLabel(terrain.gain_m, units)} and descends ${elevationLabel(terrain.loss_m, units)}.`;
-  // Under 10 m either way a 5K is nearly level (the course pages' rule for the first 5K).
-  const where = Math.abs(at.net_m) < 10 ? 'is nearly level' : `${at.net_m > 0 ? 'climbs' : 'drops'} ${elevationLabel(Math.abs(at.net_m), units)} net`;
-  // The section's name never breaks at its dash ("35–40K").
-  return `The slowest 5K, ${sectionLabel(slowest.start, slowest.end).replace('–', '–\u2060')}, ${where}.`;
-}
-
 function TerrainContext({ terrain, metrics, units }: { terrain: RunnerTerrain; metrics: RunnerMetrics; units: UnitSystem }) {
   const max = Math.max(1, ...terrain.sections.map(section => Math.abs(section.net_m)));
-  return <section className="rc-terrain"><h3 className="rc-h">{terrainLine(terrain, metrics, units)}</h3>
+  return <section className="rc-terrain"><h3 className="rc-h">{`The route climbs ${elevationLabel(terrain.gain_m, units)} and descends ${elevationLabel(terrain.loss_m, units)}.`}</h3>
     <dl className="rc-cells"><div><dt>Climbing</dt><dd>{elevationLabel(terrain.gain_m, units)}</dd></div><div><dt>Descending</dt><dd>{elevationLabel(terrain.loss_m, units)}</dd></div></dl>
     <figure className="viz rc-terrain-figure">
       <div className="rc-terrain-head" aria-hidden="true"><span>Section</span><span>Net climb</span><span>Pace</span></div>
@@ -246,14 +242,25 @@ function TerrainContext({ terrain, metrics, units }: { terrain: RunnerTerrain; m
   </section>;
 }
 
-export function RunnerConditions({ context, metrics, units }: { context: RaceInsights; metrics: RunnerMetrics; units: UnitSystem }) {
-  return <>{context.weather ? <WeatherContext weather={context.weather} units={units} /> : <section className="rc-empty"><h3 className="rc-h">Weather is not available for this edition.</h3></section>}{context.terrain ? <TerrainContext terrain={context.terrain} metrics={metrics} units={units} /> : <section className="rc-empty"><h3 className="rc-h">Terrain is not available for this edition.</h3></section>}</>;
+/**
+ * The edition's weather and route. A missing one is a quiet note, not a finding; a route whose profile reads the water
+ * under its bridges (`wet`: New York, Dubai; lib/terrain-reading underWater, as the course pages rank no climb there)
+ * shows no climb at all.
+ */
+export function RunnerConditions({ context, metrics, units, wet = false }: { context: RaceInsights; metrics: RunnerMetrics; units: UnitSystem; wet?: boolean }) {
+  return <>{context.weather ? <WeatherContext weather={context.weather} units={units} /> : <p className="rc-note">Weather is not available for this edition.</p>}{wet ? null : context.terrain ? <TerrainContext terrain={context.terrain} metrics={metrics} units={units} /> : <p className="rc-note">Terrain is not available for this edition.</p>}</>;
 }
 
 type Tab = 'pacing' | 'peers' | 'conditions';
 const TABS: { value: Tab; label: string }[] = [{ value: 'pacing', label: 'Pacing' }, { value: 'peers', label: 'Similar runners' }, { value: 'conditions', label: 'Conditions' }];
 
-export default function RunnerContext({ races: selected, manifest, units, copyEditions = NO_COPIES, report }: { races: RunnerRace[]; manifest: RunnerManifest; units: UnitSystem; copyEditions?: readonly CopyEdition[]; report?: ReportData }) {
+/**
+ * The selected races' view: the focus race (its own heading, or with two or more the select that picks it, never both),
+ * its tabs, then with two or more one comparison beat, and the view's one way on, the race report (round 4: the
+ * progression card, its sentence and the race table went; the table's numbers are in the comparison's All numbers).
+ * `wet` names the cities whose route profile reads the water under a bridge: no climb shows for them.
+ */
+export default function RunnerContext({ races: selected, manifest, units, copyEditions = NO_COPIES, report, wet = NO_CITIES }: { races: RunnerRace[]; manifest: RunnerManifest; units: UnitSystem; copyEditions?: readonly CopyEdition[]; report?: ReportData; wet?: readonly string[] }) {
   const id = useId();
   // A copy edition repeats another year's field: it is no focus race, comparison, context row or split-check link.
   const races = useMemo(() => selected.filter(race => !isCopyEdition(manifest.editions[race.edition], copyEditions)), [selected, manifest, copyEditions]);
@@ -293,34 +300,41 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
   const reference = others.find(row => row.race.id === referenceId) || others.find(row => manifest.editions[row.race.edition].city === manifest.editions[focus.race.edition].city) || others[0];
   const unavailable = <>{loading && <p className="rc-copy" role="status">Loading this edition’s comparisons and conditions…</p>}{failure && <div className="runner-error" role="alert"><p>{failure}</p><button type="button" className="btn btn-secondary is-compact" onClick={() => setRetry(value => value + 1)}>Try again</button></div>}</>;
   const edition = manifest.editions[focus.race.edition];
+  const wetFocus = wet.includes(edition.city);
   const reportTimes = report ? wholeSeconds(focus.metrics) : null;
+  // The split check with these times is in the report's share sheet, the view's one way on.
+  const splitHref = splitCheckHref(focus.metrics.sections.map(section => section.cumulative), edition.city);
   const reportOpen = reportFor === focus.race.id;
   // A race is named by its edition and finish; the record number is added only where two races would read the same.
   const raceName = ({ race, metrics }: MeasuredRace) => `${titleFor(race, manifest)} · ${runnerDuration(metrics.finish)}`;
   const optionText = (row: MeasuredRace, rows: MeasuredRace[]) => rows.filter(other => raceName(other) === raceName(row)).length > 1 ? `${raceName(row)} · record ${row.race.id}` : raceName(row);
   return <section className="runner-context ph-no-capture" aria-labelledby={`${id}-title`}>
     {/* One heading: the race in view (with two or more, the focus race the select picks). */}
-    <header className="rc-heading"><h2 id={`${id}-title`}>{`${titleFor(focus.race, manifest)}, ${runnerDuration(focus.metrics.finish)}`}</h2><label className="rc-focus" htmlFor={`${id}-focus`} hidden={valid.length < 2}>Focus race<select id={`${id}-focus`} className="select" value={focus.race.id} onChange={event => { setReportPressed(false); setFocusId(Number(event.target.value)); }}>{valid.map(row => <option key={row.race.id} value={row.race.id}>{optionText(row, valid)}</option>)}</select></label></header>
+    <header className="rc-heading"><h2 id={`${id}-title`} className={valid.length < 2 ? undefined : 'sr-only'}>{`${titleFor(focus.race, manifest)}, ${runnerDuration(focus.metrics.finish)}`}</h2><label className="rc-focus" htmlFor={`${id}-focus`} hidden={valid.length < 2}>Focus race<select id={`${id}-focus`} className="select" value={focus.race.id} onChange={event => { setReportPressed(false); setFocusId(Number(event.target.value)); }}>{valid.map(row => <option key={row.race.id} value={row.race.id}>{optionText(row, valid)}</option>)}</select></label></header>
     <Segmented className="rc-tabs" label="Race detail view" options={TABS} value={tab} onChange={setTab} block />
     <div className="rc-panel" id={`${id}-panel`}>
       {tab === 'pacing' && <PacingReadings {...focus} manifest={manifest} units={units} laps={!(report && reportTimes && reportOpen)} />}
       {tab === 'peers' && <><label className="rc-group-control" htmlFor={`${id}-group`}>Compare with runners in this edition<select id={`${id}-group`} className="select" value={selectedGroup} onChange={event => setGroupState({ race: focus.race.id, key: event.target.value as ComparisonKey })}>{groupOptions.map(option => <option key={option.key} value={option.key} disabled={!option.available}>{option.label}</option>)}</select></label>{unavailable}{context && (comparison ? <RunnerPeerComparison comparison={comparison} metrics={focus.metrics} units={units} edition={titleFor(focus.race, manifest)} /> : <div className="rc-empty"><h3 className="rc-h">This group is too small for a reliable comparison.</h3><p className="rc-copy">The recorded pacing is under “Pacing.”</p>{selectedGroup !== 'all' && <button type="button" className="btn btn-secondary is-compact" onClick={() => setGroupState({ race: focus.race.id, key: 'all' })}>Compare with all eligible runners</button>}</div>)}</>}
-      {tab === 'conditions' && <>{unavailable}{context && <RunnerConditions context={context} metrics={focus.metrics} units={units} />}</>}
+      {tab === 'conditions' && <>{unavailable}{context && <RunnerConditions context={context} metrics={focus.metrics} units={units} wet={wetFocus} />}</>}
     </div>
+    {reference && <section className="rc-multi" aria-labelledby={`${id}-comparison-title`}>
+      <SectionComparison focus={focus} reference={reference} manifest={manifest} id={`${id}-comparison-title`} />
+      {others.length > 1 ? <label className="rc-focus" htmlFor={`${id}-reference`}>Compared with<select id={`${id}-reference`} className="select" value={reference.race.id} onChange={event => setReferenceId(Number(event.target.value))}>{others.map(row => <option key={row.race.id} value={row.race.id}>{optionText(row, others)}</option>)}</select></label> : null}
+      <Values id={`${id}-races`} caption="The selected races side by side" count={valid.length}>
+        <table className="table"><thead><tr><th scope="col">Race</th><th scope="col">Finish</th><th scope="col">Average pace</th><th scope="col">From 30K, against 5–20K</th><th scope="col">Ahead of, in every 100</th><th scope="col">Start temperature</th><th scope="col">Humidity</th><th scope="col">Wind</th><th scope="col">Start-hour precipitation</th><th scope="col">Climbing</th></tr></thead><tbody>{valid.map(({ race, metrics }) => {
+          const data = loading || failure ? undefined : contexts[race.id], demographic = data?.comparisons[defaultGroup(race)];
+          const none = loading ? '…' : 'Not available';
+          return <tr key={race.id}><th scope="row">{titleFor(race, manifest)}</th><td>{runnerDuration(metrics.finish)}</td><td>{paceLabel(metrics.pace, units)}</td><td>{signed(metrics.lateChange)}</td><td>{demographic ? <>{Math.floor(demographic.percentile)}<small>{demographic.label}</small></> : none}</td><td>{data?.weather ? temperature(data.weather.temp_c, units) : none}</td><td>{data?.weather ? decimal(data.weather.humidity_pct) + '%' : none}</td><td>{data?.weather ? wind(data.weather.wind_mps, units) : none}</td><td>{data?.weather ? precipitation(data.weather.precip_mm, units) : none}</td><td>{data?.terrain && !wet.includes(manifest.editions[race.edition].city) ? elevationLabel(data.terrain.gain_m, units) : none}</td></tr>;
+        })}</tbody></table>
+      </Values>
+    </section>}
     {report && reportTimes && <section className="rc-report" aria-labelledby={`${id}-report-title`}>
       <h3 id={`${id}-report-title`} className={reportOpen ? 'sr-only' : 'rc-h'}>{titleFor(focus.race, manifest)} on one page, to print or share.</h3>
       {/* Marked for section_viewed: the section tracker watches sections that join the page after it first looked. */}
       {reportOpen
         ? <div data-track-section="report"><Suspense fallback={<p className="rc-copy" role="status">Loading the race report…</p>}><RaceReport times={reportTimes} course={courseSlug(edition.city)} gender="all" data={report} level={3}
-          record={{ edition: { city: edition.city, year: edition.year }, context: context ?? null, error: failure || null, lateChange: focus.metrics.lateChange }} focusOnOpen={reportPressed} /></Suspense></div>
+          record={{ edition: { city: edition.city, year: edition.year }, context: context && wetFocus ? { ...context, terrain: null } : context ?? null, error: failure || null, lateChange: focus.metrics.lateChange }} focusOnOpen={reportPressed} onward={splitHref ? runnerHandoffHref(splitHref) : null} /></Suspense></div>
         : <button type="button" className="btn btn-secondary" onClick={() => { setReportPressed(true); setReportFor(focus.race.id); }}>Make a race report</button>}
-    </section>}
-    {reference && <section className="rc-multi" aria-labelledby={`${id}-comparison-title`}><p className="t-kicker rc-kicker">Across your selected races</p><h2 id={`${id}-comparison-title`}>Where did the time change?</h2><label className="rc-focus" htmlFor={`${id}-reference`}>Compare the focus race with<select id={`${id}-reference`} className="select" value={reference.race.id} onChange={event => setReferenceId(Number(event.target.value))}>{others.map(row => <option key={row.race.id} value={row.race.id}>{optionText(row, others)}</option>)}</select></label><SectionComparison focus={focus} reference={reference} manifest={manifest} units={units} />
-      {unavailable}
-      {!loading && !failure && <details className="values rc-details"><summary><span>The races side by side</span><span className="values-glyph" aria-hidden="true" /></summary><div className="rc-table-wrap table-wrap" role="region" aria-label="Selected race context comparison" tabIndex={0}><table className="table"><caption>The selected races side by side</caption><thead><tr><th scope="col">Race</th><th scope="col">Finish</th><th scope="col">Age/gender finish percentile</th><th scope="col">Start temperature</th><th scope="col">Humidity</th><th scope="col">Wind</th><th scope="col">Start-hour precipitation</th><th scope="col">Climbing</th></tr></thead><tbody>{valid.map(({ race, metrics }) => {
-        const data = contexts[race.id], demographic = data?.comparisons[defaultGroup(race)];
-        return <tr key={race.id}><th scope="row">{titleFor(race, manifest)}</th><td>{runnerDuration(metrics.finish)}</td><td>{demographic ? <>{decimal(demographic.percentile)}%<small>{demographic.label}</small></> : 'Not available'}</td><td>{data?.weather ? temperature(data.weather.temp_c, units) : 'Not available'}</td><td>{data?.weather ? decimal(data.weather.humidity_pct) + '%' : 'Not available'}</td><td>{data?.weather ? wind(data.weather.wind_mps, units) : 'Not available'}</td><td>{data?.weather ? precipitation(data.weather.precip_mm, units) : 'Not available'}</td><td>{data?.terrain ? elevationLabel(data.terrain.gain_m, units) : 'Not available'}</td></tr>;
-      })}</tbody></table></div></details>}
     </section>}
   </section>;
 }

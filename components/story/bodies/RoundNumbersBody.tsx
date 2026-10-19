@@ -17,10 +17,9 @@ const LENS = { count: 'Finishes per minute', ratio: 'Against the curve' };
 /**
  * The round-number effect (the redesign spec, section 7.8, under section 00): the reading (the minute that stands
  * tallest against the curve; the H1 is named for it), then the towers as the story's one step-by-step reveal: its H2
- * widens the H1 to every hour and half-hour, its steps open on the busiest minute, turn the chart against the curve and
- * end on the contrast the H2 leaves out, a quarter-hour that stays level (never the reading's 2:59 again). Under reduced
- * motion the chart shows the end state's lens with its needle on the reading's 2:59 (so the readout agrees with the H2
- * above it) and only the last step, which is true of it. Then the page's one guess (the final stretch to a
+ * widens the H1 to every hour and half-hour, its steps open on the busiest minute, turn the chart against the curve,
+ * show a quarter-hour that stays level, and end on the H1's own minute, the tallest tower (2:59). Under reduced motion the
+ * chart shows the end state's lens with its needle on that minute and the steps that are true of it. Then the page's one guess (the final stretch to a
  * round mark). The scoreboard of marks is in All numbers; the reader's own finish lookup is cut (the next page, Your
  * target in context, is that lookup), so the beat has one control.
  */
@@ -42,15 +41,20 @@ export default function RoundNumbersBody() {
   const busiestAt = Math.max(0, bins.findIndex((b) => b.x === Number(busiest.values.minute)));
   const topAt = Math.max(0, bins.findIndex((b) => b.x === topMinute));
   const quarterAt = bins.findIndex((b) => b.x === Number(quarter.values.minutes) - 1);
-  const endAt = quarter.guard && quarterAt >= 0 ? quarterAt : topAt;
+  const hasQuarter = quarter.guard && quarterAt >= 0;
 
-  // The first two steps describe the per-minute view, so the static list (reduced motion) leaves them out: it shows
-  // the chart against the curve with the last step only.
+  // The first two steps describe the per-minute view, so the static list (reduced motion) leaves them out: it shows the
+  // chart against the curve with the steps true of it. The steps then turn the chart against the curve, show a
+  // quarter-hour that stays level (the contrast), and end where the H1 is: the minute before its mark, the tallest
+  // tower, so the animated reading closes the loop with the headline as the static one does.
   const steps = [
     { text: sentenceOf(busiest), still: false },
     { text: 'The line is a smooth curve: where finishes would fall if no minute on the clock were special.', still: false },
-    { text: sentenceOf(quarter) },
+    ...(hasQuarter ? [{ text: sentenceOf(quarter) }] : []),
+    { text: top.guard ? `Tallest of all: the minute before ${top.values.mark}.` : `The minute before ${top.values.mark}, against the curve.` },
   ];
+  const last = steps.length - 1;
+  const ratioFrom = hasQuarter ? last - 1 : last;
 
   const bubbleMark = String(rescue.values.mark);
 
@@ -61,11 +65,11 @@ export default function RoundNumbersBody() {
         rows={ft.marks.map((m) => [m.mark, `${m.ratio.toFixed(2)}×`, count(m.minute_before), count(m.expected_minute_before)])}
         reading={ft.marks.findIndex((m) => m.mark === top.values.mark)} />,
     ]}>
-      {/* The figure is how many times the expected count the minute held, its unit line says so in a runner's words,
-          and the sentence gives the count and the minute; the smooth curve is named only once the chart draws it. */}
+      {/* The figure is how many times the expected count the minute held and its unit line says so in a runner's
+          words; the count itself is the scrolly's last readout (a sentence here restated the H1 a third time). */}
       <StoryHero path={PATH} title={story.heading ?? story.title}
         figure={top.figure ? { ...top.figure } : undefined} unitLine={top.key} fallback={!top.guard}
-        sentence={<Say nugget={top} />} />
+        sentence={top.figure ? undefined : <Say nugget={top} />} />
 
       <Beat id="towers" track="chapter-1" label="The towers" aliases={['scoreboard', 'seconds', 'my-finish']} title={marksNugget}>
         <Scrolly className="towers-scrolly" steps={steps} graphic={(
@@ -78,13 +82,14 @@ export default function RoundNumbersBody() {
               scrub={{
                 label: `Finish minute, ${hm(LO)} to ${hm(HI)}`,
                 points: { x: xs, keys: bins.map((b) => `Finishes in ${hm(b.x)}:00–:59`), values: bins.map((b) => count(b.n)),
-                  side: [{ label: 'Against the curve', values: bins.map((b) => (Number.isFinite(ratio(b)) ? `${ratio(b).toFixed(2)}×` : '—')) }] },
+                  // One decimal, as the figure above it says "1.7×" (the marks' two-decimal ratios are in All numbers).
+                  side: [{ label: 'Against the curve', values: bins.map((b) => (Number.isFinite(ratio(b)) ? `${ratio(b).toFixed(1)}×` : '—')) }] },
                 // The chart opens on step one (the busiest minute), so its first readout adds to the reading above;
                 // the reading's minute is its home, the tower that stays orange.
                 initial: busiestAt, home: topAt, detents,
               }} />
-            <ScrollyLens lens={{ 0: LENS.count, [steps.length - 1]: LENS.ratio }}
-              needle={{ 0: busiestAt, [steps.length - 1]: endAt }} stillAt={topAt} />
+            <ScrollyLens lens={{ 0: LENS.count, [ratioFrom]: LENS.ratio }}
+              needle={{ 0: busiestAt, ...(hasQuarter ? { [ratioFrom]: quarterAt } : {}), [last]: topAt }} stillAt={topAt} />
           </>
         )} />
       </Beat>

@@ -16,6 +16,7 @@
 //      requires it). The built pages' own "How we know" links are also checked by verify-seo (methods-anchors).
 //   7. Each chapter's lead is its first page's reading, and (with the export) that page's opener shows its figure.
 //   8. No reading's unit line repeats its H1 (with the export).
+//   7b. Every card in the chain carries a figure: each page's reading (the first page of a chapter: its lead) has one.
 //   9. Every beat heading (h2.t-h2) is a beat's finding in one clause: at most 12 words (with the export). The analyses'
 //      and the tools' headings are reported as notes until their package shortens them; every other page fails.
 //   6. The shell's components rendered on the server: the closing stack (its related section, the one next card last in
@@ -206,6 +207,18 @@ for (const c of C.CHAPTERS) {
   const first = C.livePages(c)[0];
   check(first && c.lead === first.nugget, c.id, `the lead ${c.lead} is not the first page's reading (${first && first.nugget})`);
   check(first && PAGE_NUGGET[first.href] === c.lead, c.id, `PAGE_NUGGET names ${first && PAGE_NUGGET[first.href]} for ${first && first.href}, not the lead ${c.lead}`);
+}
+// Every card in the chain promises a number (round 4): the card into a page within its chapter shows that page's
+// reading, and the card into a new chapter its lead, so every one of them must have a figure.
+{
+  const N = require(path.join(root, 'lib/nuggets/index.ts'));
+  for (const c of C.CHAPTERS) {
+    C.livePages(c).forEach((p, i) => {
+      const id = i === 0 ? c.lead : p.nugget;
+      const figure = N.getNugget(id).figure;
+      check(!!figure && /\d/.test(figure.value || ''), p.href, `the card into it would carry no figure (${id} has ${figure ? `"${figure.value}"` : 'none'})`);
+    });
+  }
 }
 const textOf = (html) => html.replace(/<span class="sr-only">[\s\S]*?<\/span>/g, '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;|\u00a0/g, ' ').replace(/&amp;/g, '&').replace(/&#x27;|&rsquo;/g, '’').replace(/\s+/g, ' ');
 /** The page's opener: from <main> to the first beat after the hero (a story's reading, an analysis's answer). */

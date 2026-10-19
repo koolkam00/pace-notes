@@ -72,9 +72,17 @@ export function sectionLabel(index: number, _units?: UnitSystem): string {
  */
 export const PACE_RAMP = ['#1D3FD8', '#4F79F7', '#9DB6FB', '#EFE8DA', '#EDA6C1', '#C65F9E', '#8F1449'] as const;
 
-/** Continuous diverging colour for a relative pace change in percent. */
-export function paceColour(relativePct: number, span = 12): string {
-  const stops = PACE_RAMP.map((hex) => [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)]);
+/**
+ * The same scale for the dark theme (round 4: blending the light ramp into the dark surface turned the inner steps to
+ * one muddy slate): its own seven stops from a deep blue through the dark surface (#20252E, an even section) to a
+ * crimson, every step a distinct colour on #1F242D (OKLab ΔE ≥ 15 between the five legend steps), light ink on every
+ * colour at 4.5:1 or better, the warm stops off the signal like the light ramp's (verify-css checks both ramps).
+ */
+export const PACE_RAMP_DARK = ['#3D5CE0', '#2E47A6', '#26335F', '#20252E', '#4B2742', '#83305E', '#B23A73'] as const;
+
+/** Continuous diverging colour for a relative pace change in percent (`ramp`: the dark theme's own stops). */
+export function paceColour(relativePct: number, span = 12, ramp: readonly string[] = PACE_RAMP): string {
+  const stops = ramp.map((hex) => [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)]);
   const u = Math.max(0, Math.min(1, (relativePct / span + 1) / 2)) * (stops.length - 1);
   const i = Math.min(stops.length - 2, Math.floor(u));
   const f = u - i;

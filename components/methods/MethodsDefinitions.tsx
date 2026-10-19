@@ -4,6 +4,7 @@ import Values from '@/components/ui/Values';
 import TypeGlyph from '@/components/viz/TypeGlyph';
 import Columns from '@/components/viz/Columns';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
+import { finishesM } from '@/lib/seo';
 import { countWord } from '@/lib/nuggets/format';
 import { getStudyAnswer, getStudyEvidence, getWallTimingAnswer } from '@/lib/research-data';
 import { getStudyFigures } from '@/lib/study-figures';
@@ -18,11 +19,13 @@ const PUBLISHED = Number(/at least (\d+)% slower/.exec(SLOWDOWN_DEFINITION)?.[1]
 /**
  * The rule as the card states it, in reading order (when, how much, how slow, against what), from the definition's own
  * numbers: "After 20K, at least 5 km run 25% or more slower than the runner's own 5–20K pace." The definition's second
- * sentence (contiguous sections, the final 2.195 km) follows it unchanged.
+ * sentence (contiguous sections, the last 2.2 km) follows it.
  */
 const RULE = (() => {
   const m = /at least (\d+(?:\.\d+)?) km after (\d+) km run at least (\d+)% slower than the runner’s own (\d+)–(\d+) km pace\.\s*(.*)$/.exec(SLOWDOWN_DEFINITION);
-  return m ? `After ${m[2]}K, at least ${m[1]} km run ${m[3]}% or more slower than the runner’s own ${m[4]}–${m[5]}K pace. ${m[6]}` : SLOWDOWN_DEFINITION;
+  // The last section in a runner's words (one decimal, both units: the site's default is miles), never "2.195 km".
+  const last = (text: string) => text.replace(/the final 2\.195 km/, 'the last 2.2 km (1.4 mi)');
+  return m ? `After ${m[2]}K, at least ${m[1]} km run ${m[3]}% or more slower than the runner’s own ${m[4]}–${m[5]}K pace. ${last(m[6])}` : SLOWDOWN_DEFINITION;
 })();
 
 /**
@@ -40,6 +43,11 @@ export default function MethodsDefinitions() {
   // delays, shifted mats), so the badge says which finishes it leaves out wherever it shows.
   const toolCohort = getInsightsManifest().files['tools/projector.json'] ? readInsight<{ cohort_n: number }>('tools/projector.json').cohort_n : NaN;
   const toolFinishes = Number.isFinite(toolCohort) ? `${(toolCohort / 1e6).toFixed(2)} million` : 'the';
+  // The data badge says one total with its subset (round 4: "3.71 million" alone beside the site's 3.9 million read as two
+  // totals): the eligible finishes, then the tools' share of them, both read from the release.
+  const dataText = Number.isFinite(toolCohort)
+    ? `Observed from the ${finishesM()} million eligible finishes; the tools use the ${toolFinishes} without start delays or shifted mats. Descriptive, never a personal probability.`
+    : EVIDENCE_TEXT.data.replace('{finishes}', toolFinishes);
   // Each figure repeats the definition as its first line; it is shown once, above.
   const figures = getStudyFigures().map((figure) => ({ ...figure, method: figure.method.filter((line) => line !== definitionText) }));
   const types = readInsight<Archetypes>('archetypes.json');
@@ -104,7 +112,7 @@ export default function MethodsDefinitions() {
     <Definition id="evidence" term="Evidence badges"
       rule={<p>Every tool panel is labeled with the kind of evidence it shows. Numbers with different labels are never combined, subtracted from each other or passed between tools.</p>}
       instrument={<dl className="methods-badges">
-        {kinds.map((kind) => <div key={kind}><dt><EvidenceTag kind={kind} link={false} /></dt><dd>{EVIDENCE_TEXT[kind].replace('{finishes}', toolFinishes)}</dd></div>)}
+        {kinds.map((kind) => <div key={kind}><dt><EvidenceTag kind={kind} link={false} /></dt><dd>{kind === 'data' ? dataText : EVIDENCE_TEXT[kind].replace('{finishes}', toolFinishes)}</dd></div>)}
       </dl>}>
       {kinds.map((kind) => <p key={kind}><strong>{EVIDENCE_LABEL[kind]}.</strong> {kind === 'data' ? 'Every share is an observed share of complete finishes, not a forecast for any one runner.' : kind === 'research' ? 'Shown as ranges, each method on its own, and kept apart from Pace Notes results.' : 'Kept apart from the data.'} Used by the {and(shown.filter((tool) => tool.evidence.includes(kind)).map((tool) => tool.title.toLowerCase()))}.</p>)}
       <p>Plain calculations from your own inputs carry no badge: even-pace splits, mile rows, pace charts, unit conversion and targets. They come straight from what you type and are not observations.</p>

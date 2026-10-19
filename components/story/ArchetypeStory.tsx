@@ -4,7 +4,7 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import KeypadHint from '@/components/KeypadHint';
 import TypeGlyph from '@/components/viz/TypeGlyph';
 import { keypadInput } from '@/lib/keypad';
-import { paceColour, paceText } from '@/lib/viz/format';
+import { PACE_RAMP_DARK, paceColour, paceText } from '@/lib/viz/format';
 import { MARATHON_KM, sectionLabel } from '@/lib/units';
 
 const SECTION_KM = [5, 5, 5, 5, 5, 5, 5, 5, 2.195];
@@ -82,8 +82,8 @@ export function WhichArchetype({ data, initial }: { data: WhichData; initial: st
           <ol className="which-blocks" aria-label={`Each section against ${edited ? 'your' : 'its'} own average pace`}>
             {result.rel.map((v, i) => {
               const bg = paceColour(v, SPAN);
-              // --mix: how far the block is from even, so dark mode can blend it from its own surface (story.css).
-              const style = { '--bg': bg, '--mix': `${Math.round(Math.min(1, Math.abs(v) / SPAN) * 100)}%` } as CSSProperties;
+              // --bg-dark: the dark theme's own ramp (story.css), never the light one blended into the surface.
+              const style = { '--bg': bg, '--bg-dark': paceColour(v, SPAN, PACE_RAMP_DARK) } as CSSProperties;
               return (
                 <li key={i} style={style} className={paceText(bg) === 'paper' ? 'is-dark' : undefined}>
                   <span className="which-block-mat">{SECTIONS[i]}</span>
@@ -92,11 +92,11 @@ export function WhichArchetype({ data, initial }: { data: WhichData; initial: st
               );
             })}
           </ol>
-          {/* The key is the blocks' own ramp, five steps from faster to slower, blended in dark mode exactly as they are. */}
+          {/* The key is the blocks' own ramp, five steps from faster to slower, in the dark theme's own colours there. */}
           <p className="which-key" aria-hidden="true">
             Faster
             <span className="which-ramp">
-              {[-SPAN, -SPAN / 2, 0, SPAN / 2, SPAN].map((v) => <i key={v} style={{ '--bg': paceColour(v, SPAN), '--mix': `${Math.round((Math.abs(v) / SPAN) * 100)}%` } as CSSProperties} />)}
+              {[-SPAN, -SPAN / 2, 0, SPAN / 2, SPAN].map((v) => <i key={v} style={{ '--bg': paceColour(v, SPAN), '--bg-dark': paceColour(v, SPAN, PACE_RAMP_DARK) } as CSSProperties} />)}
             </span>
             Slower than {edited ? 'your' : 'its'} own average pace
           </p>

@@ -62,8 +62,8 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
   // /courses
   {
     const n = N.getNugget('courses.index');
-    // A count of pages is not a finding: the index has no figure, so no card or contents row reads one.
-    step(() => eq([n.values.courses, n.guard, n.figure], [courses.courses.length, courses.courses.length > 0, null], 'courses.index recounts the course pages and draws no figure'));
+    // The card into the list promises what the list holds: its count of course pages, as the dek says it.
+    step(() => eq([n.values.courses, n.guard, n.figure && n.figure.value], [courses.courses.length, courses.courses.length > 0, courses.courses.length.toLocaleString('en-US')], 'courses.index recounts the course pages, its figure the count'));
   }
 
   for (const c of courses.courses) {

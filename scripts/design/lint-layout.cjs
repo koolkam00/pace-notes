@@ -8,7 +8,7 @@
 //   4. text-on-text overlap above 2 px² inside a figure.viz (and the course pages' glance rows);
 //   5. SVG text outside its SVG;
 //   6. console errors and page errors;
-//   7. on / only, more than one rgb(255, 91, 46) control on the first screen;
+//   7. more than one rgb(255, 91, 46) control on the first screen (every route since round 4);
 //   8. HTML text inside a figure.viz or a card (a next card, a receipt, the report's and the runner's night cards, an
 //      answer card) cut off at its edge or at an element that clips its overflow (a pace block's "+3" past the frame, a
 //      tile's "+4%", a next card's "improvemen"), by more than 1 px; a scroller's content and an ellipsis are exempt;
@@ -183,8 +183,9 @@ function inspect({ isHome }) {
   // 10. No term link inside an h1.
   for (const a of document.querySelectorAll('h1 .term-link')) if (!hidden(a)) findings.termH1.push(describe(a.closest('h1')));
 
-  // 7. The home page's first screen has one orange control at most.
-  if (isHome) {
+  // 7. A first screen has one orange control at most, on every route (round 4: the header's plan pill beside a tool's
+  // own primary was two).
+  {
     const orange = [];
     for (const el of document.querySelectorAll('a, button, input[type="submit"], input[type="button"]')) {
       const r = el.getBoundingClientRect();

@@ -29,6 +29,8 @@ type Props = {
   race: string;
   moment?: string | { mi: string; km: string };
   mark?: { km: number; label: { mi: string; km: string } };
+  /** The share the flag sentence gives, short of a mat: at the flag frame the runners past it step back to ink-3. */
+  split?: { km: number; label: string };
   poster?: ReactNode;
   autoplay?: boolean;
 };
@@ -64,7 +66,7 @@ function hash(i: number) {
   return ((x ^ (x >>> 16)) >>> 0) / 4294967296;
 }
 
-export default function RaceReplay({ edition, flag, view = 'field', band = false, race, moment, mark, poster, autoplay = true }: Props) {
+export default function RaceReplay({ edition, flag, view = 'field', band = false, race, moment, mark, split, poster, autoplay = true }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const reduced = usePrefersReducedMotion();
@@ -129,6 +131,11 @@ export default function RaceReplay({ edition, flag, view = 'field', band = false
     return () => cancelAnimationFrame(frame);
   }, [phase, flag, max]);
 
+  // The flag frame holds (the sentence is on): the runners past the sentence's mat step back, so its share is the
+  // bright part of the field.
+  const held = Math.abs(time - flag) < 30 && phase !== 'intro' && phase !== 'playing';
+  const dimFrom = split && held && mode === 'field' ? split.km : Infinity;
+
   const draw = useCallback(() => {
     const node = canvas.current;
     const c = colours.current;
@@ -171,20 +178,21 @@ export default function RaceReplay({ edition, flag, view = 'field', band = false
       g.beginPath(); g.moveTo(fx, FIELD_BOX.top * H); g.lineTo(fx, (1 - FIELD_BOX.bottom) * H); g.stroke();
       g.setLineDash([]);
       const x20 = fieldX(20) * W;
-      g.globalAlpha = 0.5;
+      // The 20K mat: quiet, and full strength while the flag frame counts the field short of it.
+      g.globalAlpha = Number.isFinite(dimFrom) ? 1 : 0.5;
       g.beginPath(); g.moveTo(x20, FIELD_BOX.top * H); g.lineTo(x20, (1 - FIELD_BOX.bottom) * H); g.stroke();
       g.globalAlpha = 1;
       place = (km, i) => [fieldX(km) * W, fieldY(n > 1 ? i / (n - 1) : 0.5) * H];
     }
-    g.fillStyle = c.ink;
     for (let i = 0; i < n; i++) {
       const p = positionAt(sorted[i], t);
       const [x, y] = place(p.km, i);
-      g.globalAlpha = p.finished ? 0.4 : 0.85;
+      g.fillStyle = p.km >= dimFrom ? c.ink3 : c.ink;
+      g.globalAlpha = p.finished ? 0.4 : p.km >= dimFrom ? 0.6 : 0.85;
       g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
     }
     g.globalAlpha = 1;
-  }, [size, time, sorted, mode, locate, edition.route, band]);
+  }, [size, time, sorted, mode, locate, edition.route, band, dimFrom]);
 
   useEffect(() => { draw(); }, [draw]);
 
@@ -209,7 +217,7 @@ export default function RaceReplay({ edition, flag, view = 'field', band = false
         poster={poster}
         canvas={<canvas ref={canvas} className={`replay-canvas${shown ? ' is-shown' : ''}`} onClick={toggle} role="img"
           aria-label={`${race}: ${edition.sample.toLocaleString('en-US')} sampled finishes on one race clock, ${raceClock(time)}. ${hudShare(shares.finished)} finished.`} />}
-        moment={moment} mark={mark} momentOn={atFlag && !playing} playing={playing} onPlay={toggle} time={time} max={max} onScrub={scrub} valuetext={raceClock(time)} live={shown} />
+        moment={moment} mark={mark} split={split} momentOn={atFlag && !playing} playing={playing} onPlay={toggle} time={time} max={max} onScrub={scrub} valuetext={raceClock(time)} live={shown} />
     </div>
   );
 }

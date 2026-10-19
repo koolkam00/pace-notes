@@ -69,8 +69,10 @@ export interface RaceReportProps {
   course: string;
   gender: ReportGender;
   data: ReportData;
-  /** The card title's level: 1 on /report, 3 inside the runner view. */
-  level: 1 | 3;
+  /** The card title's level: 1 on /report, 2 for /report's example, 3 inside the runner view. */
+  level: 1 | 2 | 3;
+  /** /report without a race: the made-up example, labelled so, with no actions (nothing of the visitor's to print or share). */
+  example?: boolean;
   /** A link opened from a runner record (via=runner): its onward links keep the marker. */
   fromRecord?: boolean;
   /** A runner record on /runners: its edition, that edition's context and the record's own late change. Never in a link. */
@@ -90,7 +92,7 @@ export interface RaceReportProps {
  * data badge for the rest. The same component serves /report (typed or linked times) and the runner view,
  * where it adds the record's own edition and never names the runner.
  */
-export default function RaceReport({ times, course, gender, data, level, fromRecord = false, record, focusOnOpen = false, onward = null }: RaceReportProps) {
+export default function RaceReport({ times, course, gender, data, level, example = false, fromRecord = false, record, focusOnOpen = false, onward = null }: RaceReportProps) {
   const { units } = useUnits();
   const id = useId();
   const index = useVerified<PaceBandIndex>(PACE_BAND_INDEX, data.indexSha);
@@ -113,8 +115,8 @@ export default function RaceReport({ times, course, gender, data, level, fromRec
   useEffect(() => { if (focusOnOpen) document.getElementById(`${cardId}-title`)?.focus(); }, [focusOnOpen, cardId]);
   return (
     <div className="race-report-root ph-no-capture">
-      <ReportCard id={cardId} model={model} units={units} level={level} gender={gender} dropped={dropped} retryComparison={retry} retryType={archetypes.retry} handoff={handoff} />
-      <ReportActions id={`${id}-actions`} model={model} units={units} link={link} cardId={cardId} gender={gender} onward={onward} />
+      <ReportCard id={cardId} model={model} units={units} level={level} gender={gender} dropped={dropped} retryComparison={retry} retryType={archetypes.retry} handoff={handoff} example={example} />
+      {example ? null : <ReportActions id={`${id}-actions`} model={model} units={units} link={link} cardId={cardId} gender={gender} onward={onward} />}
     </div>
   );
 }
@@ -129,16 +131,18 @@ function Badge({ kind }: { kind: 'data' | 'research' }) {
   return <Link className={`race-report-badge is-${kind}`} href={EVIDENCE_HREF}>{kind === 'data' ? 'Pace Notes data' : 'Published research'}</Link>;
 }
 
-export type HeadTag = 'h2' | 'h4';
+export type HeadTag = 'h2' | 'h3' | 'h4';
 
 /** The card itself, from a built model (exported for scripts/verify-report.cjs, which renders it without the data hooks). */
-export function ReportCard({ id, model, units, level, gender, dropped, retryComparison, retryType, handoff = false }: {
-  id: string; model: ReportModel; units: UnitSystem; level: 1 | 3; gender: ReportGender; dropped: string | null; retryComparison: () => void; retryType: () => void;
+export function ReportCard({ id, model, units, level, gender, dropped, retryComparison, retryType, handoff = false, example = false }: {
+  id: string; model: ReportModel; units: UnitSystem; level: 1 | 2 | 3; gender: ReportGender; dropped: string | null; retryComparison: () => void; retryType: () => void;
+  /** /report's made-up example: the kicker says so. */
+  example?: boolean;
   /** From a runner record: the one onward link keeps the handoff marker, so the page it opens is not recorded either. */
   handoff?: boolean;
 }) {
-  const Title = level === 1 ? 'h1' : 'h3';
-  const Head: HeadTag = level === 1 ? 'h2' : 'h4';
+  const Title = (['h1', 'h2', 'h3'] as const)[level - 1];
+  const Head: HeadTag = (['h2', 'h3', 'h4'] as const)[level - 1];
   const lines = reportLines(model, units);
   const { slowdown, opening, type, comparison, record } = model;
   const lit = model.sections.map((s) => s.tone === 'qualify');
@@ -154,7 +158,7 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
   return (
     <article className="race-report ph-no-capture" id={id} aria-labelledby={`${id}-title`}>
       <div className="race-report-screen night">
-        <p className="race-report-kicker"><span>Race report</span><span>{distance(MARATHON_KM, units)}</span></p>
+        <p className="race-report-kicker"><span>{example ? 'Example · a made-up race' : 'Race report'}</span><span>{distance(MARATHON_KM, units)}</span></p>
         <Title className="race-report-title" id={`${id}-title`} tabIndex={-1}><span className="race-report-race">{model.race ?? 'Marathon'}</span></Title>
         <p className="race-report-finish">
           <BigNumber value={lines.finish} sr={`Finish ${lines.finish}`} size="l" />
@@ -174,7 +178,9 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
                 : <><em>No sustained slowdown</em>: {joinRanges('every stretch after 20K held the 5–20K pace or better.')}</>}
           </p>
         )}
-        <LapList rows={lines.sections.map((s, i) => ({ mat: s.mat, split: s.split, pace: s.pace, vs: s.vs, lit: lit[i], sr: sr(s) }))}
+        {/* The last mat is named by its distance, 42.2K, not "Finish": beside its 2.2 km split, "Finish 10:40" read as a
+            finish time under the card's own (round 4), and the finish row no longer stands on a total's rule. */}
+        <LapList rows={lines.sections.map((s, i) => ({ mat: i === lines.sections.length - 1 ? `${MARATHON_KM.toFixed(1)}K` : s.mat, split: s.split, pace: s.pace, vs: s.vs, lit: lit[i], sr: sr(s) }))}
           baseline={paceText(model.baseline, units)} label={`Each mat's split and pace against this race's 5–20K pace${slowdown.yes && slowdown.onsetKm !== null ? `; a sustained slowdown from ${kmText(slowdown.onsetKm)}` : ''}`}
           caption={slowdown.yes ? 'Highlighted: the sustained slowdown.' : undefined} />
       </div>
@@ -246,23 +252,32 @@ function ComparisonBlock({ id, Head, comparison: c, model, gender, dropped, retr
 /** h:mm, for the ends of the 20K scale. */
 const hm = (seconds: number) => { const m = Math.round(seconds / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
 
+/** A finish to the minute, floored as a race clock reads it. */
+const hmFloor = (seconds: number) => { const m = Math.floor(seconds / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
+
 /**
  * This race at 20K against each group's median there (a dumbbell list, drawn in HTML so the page carries no chart
  * code): the hollow ring is the group's median, the ink dot this race, the same mark in every row; the first row's gap,
- * the one the heading names, is drawn in ink-2 (the card's one orange is its verdict). Each row prints its group's
- * finishes and median finish under its name, so the numbers need no fold of their own. The scale runs a minute or more
- * past the times on whole minutes, its ends labelled.
+ * the one the heading names, is drawn in ink-2 (the card's one orange is its verdict). Each row is one line of name and
+ * count over its track (round 4: four-line labels cramped the rows), and the groups' median finishes are said once
+ * under them: groups at the same finish time finish together, which is the point (one was well ahead at 20K). The scale
+ * runs a minute or more past the times on whole minutes, its ends labelled.
  */
 function At20({ race, groups }: { race: number; groups: ReportGroup[] }) {
   const all = [race, ...groups.map((g) => g.at20)];
   const lo = (Math.floor(Math.min(...all) / 60) - 1) * 60, hi = (Math.ceil(Math.max(...all) / 60) + 1) * 60;
   const at = (v: number) => `${((100 * (v - lo)) / (hi - lo)).toFixed(2)}%`;
+  const finishes = groups.map((g) => g.finish);
+  const together = Math.max(...finishes) - Math.min(...finishes) < 60;
+  const finishLine = together
+    ? `${groups.length === 2 ? 'Both groups' : 'Every group'} finished at a median ${hmFloor(Math.min(...finishes))}.`
+    : `Median finish: ${groups.map((g) => `${g.name.toLowerCase()} ${clock(g.finish)}`).join(' · ')}.`;
   return (
     <figure className="viz at20">
-      <ul className="at20-rows" role="img" aria-label={`At 20K: this race ${clock(race)}; ${groups.map((g) => `${g.name.toLowerCase()} median ${clock(g.at20)}`).join('; ')}.`}>
+      <ul className="at20-rows" role="img" aria-label={`At 20K: this race ${clock(race)}; ${groups.map((g) => `${g.name.toLowerCase()} median ${clock(g.at20)}`).join('; ')}. ${finishLine}`}>
         {groups.map((g, i) => (
           <li key={g.key} className={i === 0 ? 'is-lit' : undefined}>
-            <span className="at20-label">{g.name}<small>{count(g.n)} finishes · median finish {clock(g.finish)}</small></span>
+            <span className="at20-label">{g.name} <small>· {count(g.n)} finishes</small></span>
             <span className="at20-track" aria-hidden="true">
               <i style={{ left: at(Math.min(race, g.at20)), width: at(lo + Math.abs(race - g.at20)) }} />
               <b className="at20-median" style={{ left: at(g.at20) }} />
@@ -272,7 +287,8 @@ function At20({ race, groups }: { race: number; groups: ReportGroup[] }) {
           </li>
         ))}
       </ul>
-      <div className="at20-axis" aria-hidden="true"><span /><span className="at20-ends"><span>{hm(lo)}</span><span>{hm(hi)}</span></span><span /></div>
+      <div className="at20-axis" aria-hidden="true"><span className="at20-ends"><span>{hm(lo)}</span><span>{hm(hi)}</span></span><span /></div>
+      <p className="at20-finish">{finishLine}</p>
       <ul className="viz-key at20-key" aria-hidden="true"><li><i className="at20-key-median" />Group median at 20K</li><li><i className="at20-key-race" />This race at 20K</li></ul>
     </figure>
   );

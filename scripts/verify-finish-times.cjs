@@ -188,6 +188,14 @@ for (const g of GROUPS) {
   const solid = list.filter((c) => c.editions >= 3);
   const lo = solid.reduce((a, b) => (b.median_s < a.median_s ? b : a)), hi = solid.reduce((a, b) => (b.median_s > a.median_s ? b : a));
   assert.ok(lo.median_s < hi.median_s, 'Race by race: the range runs low to high');
+  // Medians floor to the minute, as the course pages read a clock (3:59:56 is "3:59", never a rounded "4:00"), in the
+  // H2's range and in the strip and table under it.
+  const floored = (s) => { const m = Math.floor(s / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
+  const built = path.join(root, 'out/finish-times.html');
+  if (fs.existsSync(built)) {
+    const text = fs.readFileSync(built, 'utf8').replace(/<[^>]+>/g, '').replace(/&nbsp;|\u00a0/g, ' ');
+    assert.ok(text.includes(`${floored(lo.median_s)} to ${floored(hi.median_s)}`), `Race by race: the built H2 names the floored range ${floored(lo.median_s)} to ${floored(hi.median_s)}`);
+  }
 }
 // The page names no course in a headline and types no number: its figures come from lib/nuggets and the data.
 {

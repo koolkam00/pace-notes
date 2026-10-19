@@ -32,6 +32,9 @@
 @supports (aspect-ratio: 1) {
   .hero-replay .replay-box.is-route { width: 100%; height: auto; aspect-ratio: var(--route-aspect, 1); min-height: 160px; max-height: 520px; }
 }
+/* The plot: canvas, poster and their labels. It stops --plot-b short of the box's foot, where the home band sets its
+   axis row, so no runner is ever drawn under a label. */
+.hero-replay .replay-plot { position: absolute; top: 0; right: 0; bottom: var(--plot-b, 0px); left: 0; }
 .hero-replay .replay-poster, .hero-replay .replay-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
 .hero-replay .replay-poster { transition: opacity var(--d-reveal) var(--ease-out); }
 .hero-replay .replay-frame.is-live .replay-poster { opacity: 0; }
@@ -41,15 +44,22 @@
 .hero-replay .replay-canvas { opacity: 0; cursor: pointer; transition: opacity var(--d-reveal) var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .hero-replay .replay-canvas.is-shown { opacity: 1; }
 .hero-replay .replay-axis-y { margin: 0 0 6px; font-size: 12px; font-weight: 500; line-height: 16px; color: var(--night-ink-3); }
-/* The point the moment names (the home band: how far the back of the field had come), at the foot of the field: a short
-   tick and its distance, shown while the flag frame holds and dimmed with the sentence once the race runs on. */
-.hero-replay .replay-mark { position: absolute; bottom: 2px; display: inline-flex; align-items: flex-end; gap: 4px; transform: translateX(-1px); pointer-events: none;
-  font-size: 12px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--night-ink); transition: color var(--d-toggle) var(--ease-out); }
-.hero-replay .replay-mark i { display: block; width: 1px; height: 14px; background: var(--night-ink); transition: background-color var(--d-toggle) var(--ease-out); }
+/* The point the moment names (the home band: how far the back of the field had come): a ring on the last lane at that
+   exact distance, a hairline rising from it and the distance at its top, in the empty upper left of the field (the
+   field's back is low on the left, its front high on the right), never on the axis row. The rise is capped at 120 px,
+   so a tall plot keeps the label near its ring. Shown while the flag frame holds; dimmed with the sentence once the
+   race runs on. */
+.hero-replay .replay-mark { position: absolute; top: max(6%, calc(94% - 120px)); bottom: 6%; width: 0; pointer-events: none; color: var(--night-ink); transition: color var(--d-toggle) var(--ease-out); }
+.hero-replay .replay-mark b { position: absolute; top: -2px; left: 5px; font-size: 12px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hero-replay .replay-mark i { position: absolute; top: 0; bottom: 4px; left: -.5px; width: 1px; background: var(--night-ink-3); }
+.hero-replay .replay-mark s { position: absolute; bottom: 0; left: 0; width: 8px; height: 8px; border: 1.5px solid currentColor; border-radius: 50%; transform: translate(-50%, 50%); box-sizing: border-box; }
 .hero-replay .replay-mark.is-off { color: var(--night-ink-3); }
-.hero-replay .replay-mark.is-off i { background: var(--night-ink-3); }
-/* At 200% zoom (under 300 px) the plot is too short for a label beside Start and 20K: the sentence names the distance. */
+/* At 200% zoom (under 300 px) the plot is too short for the flag: the sentence names the distance. */
 @media (max-width: 299.98px) { .hero-replay .replay-mark { display: none; } }
+/* The share the sentence gives (the race-replay story: short of 20K), set inside the stretch it counts, against that
+   mat, above the field's back: the plot's one orange mark while the flag frame holds; ink-3 with the sentence after. */
+.hero-replay .replay-split { position: absolute; top: 6%; max-width: 44%; margin-right: 8px; font-size: 13px; font-weight: 600; line-height: 1.25; text-align: right; color: var(--night-signal-ink); pointer-events: none; transition: color var(--d-toggle) var(--ease-out); }
+.hero-replay .replay-split.is-off { color: var(--night-ink-3); }
 .hero-replay .replay-status { position: absolute; left: 0; right: 0; bottom: 12px; margin: 0; font-size: var(--t-small); text-align: center; color: var(--night-ink-2); }
 
 /* Play and pause: 44 px at the start of the control row, beside the race clock (never on the canvas). */
@@ -76,7 +86,8 @@
   font-family: var(--serif); font-size: 1.0625rem; font-weight: 440; line-height: 1.3; letter-spacing: -.005em; color: var(--night-ink);
   text-wrap: pretty; transition: color var(--d-toggle) var(--ease-out);
 }
-.hero-replay .replay-moment em { font-style: italic; white-space: nowrap; color: var(--night-signal-ink); }
+/* The sentence's figure is ink italic everywhere: the plot's mark (or the page's H1) carries the orange. */
+.hero-replay .replay-moment em { font-style: italic; font-weight: 600; white-space: nowrap; color: var(--night-ink); }
 .hero-replay .replay-moment.is-off, .hero-replay .replay-moment.is-off em { color: var(--night-ink-3); }
 
 /* The control row: play, then the race clock (a 44 px range over a 2 px track, hour ticks under it). */
@@ -102,11 +113,11 @@
 .hero-replay.is-band .replay-clock { font-size: 1.375rem; }
 .hero-replay.is-band .replay-mats, .hero-replay.is-band .replay-track, .hero-replay.is-band .replay-axis-y { display: none; }
 .hero-replay.is-band .replay-moment { margin-top: var(--s-2); font-size: 1rem; }
-/* One accent on the home's first screen, the H1's: the band's moment keeps its italic in night ink. */
-.hero-replay.is-band .replay-moment em { color: var(--night-ink); }
 
+/* On its own (a course page), the field has a hairline frame from 600 px; inside a night band (home, the story) the
+   band is the one surface and the field draws none. */
 @media (min-width: 600px) {
-  .hero-replay .replay-box { border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--night-3); }
+  .hero-replay:not(.is-band) .replay-box { border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--night-3); }
 }
 @media (max-width: 359.98px) {
   .hero-replay .replay-hud { flex-wrap: wrap; }

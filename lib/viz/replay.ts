@@ -8,6 +8,7 @@ import { displayCity } from '@/lib/course-page';
 import type { ReplayEditionMeta, ReplayIndex, ReplayRows } from '@/lib/insights';
 import type { ReplayChoice } from '@/lib/insights-server';
 import { sentenceOf, textFor } from '@/lib/nuggets/core';
+import { matLabel, pct } from '@/lib/nuggets/format';
 import { replayFirstFrom } from '@/lib/nuggets/stories';
 import { byFinish, ribbonAt, sharesAt } from '@/components/viz/replay-geometry';
 import type { StageChoice } from '@/components/viz/ReplayStage.client';
@@ -36,9 +37,12 @@ export function stageChoices(choices: ReplayChoice[], { exact = false }: { exact
     // The race as pages name it in prose ("New York City 2025"), in its label and its moment's sentence.
     const first = meta ? replayFirstFrom([{ ...meta, city: displayCity(meta.city) }]) : null;
     const moment = first ? (exact ? textFor(first.fallback) : sentenceOf(first)) : '';
+    // With the share in figures, the field it counts is labelled on the plot, inside its own stretch (short of 20K).
+    const share = Number(first?.values.share);
+    const split = exact && Number.isFinite(share) && share > 0 ? { km: 20, label: `${pct(share)} not yet at ${matLabel(20)}` } : undefined;
     return {
       slug: c.slug, city: c.city, year: c.year, finishes: c.finishes, sample: c.sample, file: c.file, version: c.version, route: c.route,
-      race: `${displayCity(c.city)} ${c.year}`, flag_s: flag, moment,
+      race: `${displayCity(c.city)} ${c.year}`, flag_s: flag, moment, split,
       poster: { flag_s: flag, last_s: last, ribbon: ribbonAt(sorted, flag), finished: Number(shares.finished.toFixed(4)) },
     };
   });

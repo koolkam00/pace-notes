@@ -39,8 +39,7 @@ export default function StoriesPage() {
         <p className="contents-dek">{capital(countWord(count))} stories, one finding each.</p>
       </header>
       <section className="contents-body" aria-label="Every story">
-        {/* The first row key that names the sustained slowdown links the term to its definition. */}
-        <PageList kind="story" prefix="/stories/" readingOf={readingOf} label="Stories" term />
+        <PageList kind="story" prefix="/stories/" readingOf={readingOf} label="Stories" />
       </section>
     </div>
   );

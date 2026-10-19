@@ -84,14 +84,15 @@ export default function Histogram({ bins, curve, marks = [], reading, ticks, lab
     ratioLayer = (
       <g data-layer="ratio" className="is-off">
         {/* One gridline, 1.5×, labelled on the right where the towers are short; the solid 1× line the towers grow from
-            (the curve itself) carries its own label there too. */}
-        <Gridlines side="right" lines={[{ y: ry(hi >= 1.5 ? 1.5 : hi), label: `${(hi >= 1.5 ? 1.5 : hi).toFixed(1)}×` }, { y: ry(1), label: '1×' }]} />
+            (the curve itself) is labelled at its left end, above the plot's empty corner (the early minutes sit under the
+            curve), never on the noisy right where its label crossed the bars. */}
+        <Gridlines side="right" lines={[{ y: ry(hi >= 1.5 ? 1.5 : hi), label: `${(hi >= 1.5 ? 1.5 : hi).toFixed(1)}×` }]} />
         <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
           <path className="a-silhouette" d={stepPath(ratios.map((r) => ({ x: x(r.x), y: ry(r.r) })), w, ry(1))} />
         </svg>
         {marks.filter((m) => m !== reading).map((m) => col(m, 'm-ink'))}
         {reading !== undefined ? col(reading, 'm-signal is-reading') : null}
-        <RefLine y={ry(1)} />
+        <RefLine y={ry(1)} label="1×" side="left" />
       </g>
     );
   }

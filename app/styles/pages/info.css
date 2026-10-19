@@ -4,7 +4,9 @@
 
    A prose page: a kicker, the H1 and one line, then short sections divided by hairlines at the reading measure. */
 
-.info-page { padding: var(--s-6) 0 var(--s-8); }
+/* No bottom padding: the footer's own 64 px margin is the gap under the closing line (with both, about 150 px of paper
+   read as the page running out rather than ending). */
+.info-page { padding: var(--s-6) 0 0; }
 .info-hero { display: grid; gap: var(--s-3); max-width: var(--measure); }
 /* One size for every info page's H1 (the about, privacy, request, 404, error and methods pages): the title token on a
    phone, the side column's size from 900 px. */
@@ -101,7 +103,7 @@
 
 /* From 900 px the opener holds the left of the page (5/12) and the text runs on the right (7/12), as on the contents. */
 @media (min-width: 900px) {
-  .info-page { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--s-8); align-items: start; padding: var(--s-8) 0 var(--s-9); }
+  .info-page { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--s-8); align-items: start; padding: var(--s-8) 0 var(--s-5); }
   .info-hero { position: sticky; top: calc(var(--header-h) + var(--s-6)); }
   /* The info titles stay below the home page's H1 (63 px at 1440), as the hubs' do. */
   .info-hero > h1 { max-width: none; font-size: min(var(--t-title), 3.9rem); }

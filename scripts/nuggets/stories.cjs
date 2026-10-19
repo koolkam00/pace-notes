@@ -64,7 +64,7 @@ module.exports = function stories({ json, eq, ok, core }) {
     for (const c of solid) { if (c.median_s < lo.median_s) lo = c; if (c.median_s > hi.median_s) hi = c; }
     eq([n.values.low, n.values.high, n.values.courses], [lo.city, hi.city, solid.length], 'field.byrace recounts the extremes among courses with three or more editions');
     eq(n.guard, solid.length >= 2 && hi.median_s - lo.median_s >= 60, 'field.byrace: guard');
-    if (n.guard) has(n, `course by\u00a0course: *${hm(lo.median_s / 60)} to ${hm(hi.median_s / 60)}*`, 'field.byrace names the medians, course by course (each a course median across its editions)');
+    if (n.guard) has(n, `course by\u00a0course: *${hm(Math.floor(lo.median_s / 60))} to ${hm(Math.floor(hi.median_s / 60))}*`, 'field.byrace names the medians floored to the minute, course by course (each a course median across its editions)');
     ok(!shown(n).includes(lo.city) && !shown(n).includes(hi.city), 'field.byrace: no course name in the headline (owner decision 7)');
   };
 
@@ -102,7 +102,7 @@ module.exports = function stories({ json, eq, ok, core }) {
     close(n.values.share, share, 'types.top recounts their share together');
     eq(n.guard, share > 0.5 && share < 1, 'types.top: "most" needs more than half');
     eq(n.figure.value, String(Math.round(share * 100)), 'types.top: the figure');
-    if (n.guard) has(n, `were ${sorted[0].name}s or ${sorted[1].name}s.`, 'types.top names both types (no accent: the legend marks them)');
+    if (n.guard) has(n, `were *${sorted[0].name}s or ${sorted[1].name}s*.`, 'types.top names both types, the reading as its accent');
     eq(n.key, `were ${sorted[0].name}s or ${sorted[1].name}s`, 'types.top: the key names both types');
   };
 
@@ -166,8 +166,9 @@ module.exports = function stories({ json, eq, ok, core }) {
     if (n.guard) has(n, `*${Math.round(s.median_gap_s / 60)}\u00a0minutes*`, 'kick.twins: the minutes held to their unit');
   };
   R['kick.title'] = (n) => {
-    eq(n.guard, kick.cost.stratified.median_gap_s > 600, 'kick.title: "far apart" needs a typical gap of more than ten minutes');
-    ok(!/\d/.test(shown(n).replace('20K', '')), 'kick.title: the H1 says it in words; the figure under it gives the minutes');
+    eq(n.guard, kick.cost.stratified.median_gap_s > 600, 'kick.title: the headline needs a typical gap of more than ten minutes');
+    // Round 4: the H1 is its own finding with its number, the same whole minutes kick.twins's figure gives.
+    if (n.guard) ok(shown(n).includes(`*${Math.round(kick.cost.stratified.median_gap_s / 60)}\u00a0minutes* later`), 'kick.title: the H1 names the recounted minutes');
   };
   R['kick.bands'] = (n) => {
     const gaps = kick.cost.bands.filter((b) => b.slowdown_n >= 100 && b.other_n >= 100).map((b) => b.slowdown_finish_s - b.other_finish_s);
@@ -346,7 +347,7 @@ module.exports = function stories({ json, eq, ok, core }) {
       [S.placesCoinFrom({ 30: [{ gap_lo_s: 60, share: 0.3 }, { gap_lo_s: 300, share: 0.1 }], 40: [{ gap_lo_s: 60, share: 0.2 }] }), 'How often a finish beat the runner ahead to the line, by how far back it was, from 30K and from 40K.'],
       [S.placesBreakevenFrom(null), 'Places gained after 30K, by the pace of 30–40K against a finish’s own 5–20K pace.'],
       [S.kickTwinsFrom({ strata: 1, slowdown_finishes: 1, mean_gap_s: 300, median_gap_s: 300 }), 'Same pace to 20K, apart at the finish.'],
-      [S.kickTitleFrom({ median_gap_s: 300 }), 'Same pace to 20K, apart at the finish.'],
+      [S.kickTitleFrom({ median_gap_s: 300 }), 'From the same pace to 20K, finishes with and without a sustained slowdown.'],
       [S.kickStayFrom([{ source: '25–30', target: '30–35', n: 10, stay: 0.4, back_within_10: 0.1 }]), 'Of finishes at sustained-slowdown pace over 25–30K, 40% stayed that slow over 30–35K.'],
       [S.roundTopFrom([{ mark: '3:00', minutes: 180, ratio: 1.02, minute_before: 100, expected_minute_before: 98 }]), '100 finishes landed between 2:59:00 and 2:59:59.'],
       [S.roundRescueFrom([{ mark: '4:00', minutes: 240, over: { n: 10, share_under: 0.2, expected_share_under: 0.3 } }]), '20% did. Away from a round mark, 30%.'],

@@ -61,7 +61,7 @@ export default function Page() {
       <ChapterRail path={PATH} />
       <article className="analysis-flow">
         <section className="analysis-hero" id="answer" data-track-section="hero" data-beat="Where it began">
-          <Reading crumbs={<ChapterCrumbs path={PATH} />} title={<Say nugget={title} />}
+          <Reading crumbs={<ChapterCrumbs path={PATH} />} title={<Say nugget={title} />} titleSize="title"
             dek={Number.isFinite(rate) ? `${capitalize(approxWords(rate, 'finishes'))} had one.` : 'Where sustained slowdowns began.'}
             figure={onset.figure ? { ...onset.figure } : undefined}
             unitLine={<>of the {count(total)} <Link href={onset.term ?? '/methodology#sustained-slowdown'} className="term-link">sustained slowdowns</Link></>}

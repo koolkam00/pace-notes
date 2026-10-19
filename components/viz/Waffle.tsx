@@ -13,10 +13,15 @@ import { pc } from './scale';
  */
 export type WaffleTile = { id: string; lit: boolean; key: string; value: string; side?: string };
 
-export default function Waffle({ tiles, columns = 25, label, keyLabels, values, initial, sideLabel }: {
+export default function Waffle({ tiles, columns = 25, label, keyLabels, values, initial, sideLabel, line = false, hint }: {
   tiles: WaffleTile[]; columns?: number; label: string; keyLabels: { lit: string; other: string }; values?: ReactNode; initial?: number;
   /** The readout's side label for each tile's `side` value. */
   sideLabel?: string;
+  /** The readout as one quiet line (each tile's `key` says it all, its value empty), so a waffle under a reading's big
+   * figure never stacks a second pair of big numbers under it. */
+  line?: boolean;
+  /** A quiet line under the waffle saying a square can be picked. */
+  hint?: ReactNode;
 }) {
   const ordered = [...tiles.filter((t) => t.lit), ...tiles.filter((t) => !t.lit)];
   const rows = Math.ceil(ordered.length / columns);
@@ -38,7 +43,7 @@ export default function Waffle({ tiles, columns = 25, label, keyLabels, values, 
     side: sideLabel ? [{ label: sideLabel, values: ordered.map((t) => t.side ?? '—') }] : undefined,
   };
   return (
-    <ChartFrame className="waffle" label={label} style={{ '--ratio': String(columns / rows), '--cols': String(columns) } as CSSProperties}
+    <ChartFrame className={`waffle${line ? ' is-line' : ''}`} label={label} caption={hint} style={{ '--ratio': String(columns / rows), '--cols': String(columns) } as CSSProperties}
       scrub={<Scrubber mode="pick" points={points} initial={initial ?? 0} label={label}>{plot}</Scrubber>}
       keys={[{ label: keyLabels.lit, mark: 'square' }, { label: keyLabels.other, mark: 'square', tone: 'quiet' }]}
       values={values}

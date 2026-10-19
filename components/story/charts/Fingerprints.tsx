@@ -8,9 +8,9 @@ import { linear, linePath, pc, yScale } from '@/components/viz/scale';
 
 /**
  * Every course's pacing shape at once (the redesign spec, section 7.10, #fingerprint, under section 00): each course's
- * section pace against its own average as a quiet line, the typical course in ink, and each course's slowest 5K as a dot.
- * The dots of the section the sentence names are signal and that column carries its one label; the courses whose
- * slowest 5K fell elsewhere are ink dots named beside them (the key says which is which). Up is slower, said once at
+ * section pace against its own average as a quiet line and the typical course in ink. The courses whose slowest 5K is
+ * the section the sentence names are one signal bracket over that column, with its one label; the courses whose slowest
+ * 5K fell elsewhere are ink dots named beside them (the key names them). Up is slower, said once at
  * the top left ("slower ↑"). No lens: the claim is read from the figure at a glance.
  */
 export type Fingerprint = { id: string; label: string; curve: number[] };
@@ -28,14 +28,18 @@ export default function Fingerprints({ x, xDomain, courses, typical, common, com
   const peakOf = (curve: number[]) => curve.indexOf(Math.max(...curve));
   const peaks = courses.map((c) => ({ c, k: peakOf(c.curve) }));
   const dots = peaks.map(({ c, k }) => ({ id: c.id, label: c.label, k, x: sx(x[k]), y: y(c.curve[k]), on: k === common }));
-  const top = dots.filter((d) => d.on).reduce((a, b) => (b.y < a.y ? b : a), dots.find((d) => d.on) ?? dots[0]);
+  // The courses whose slowest 5K is the common section are one bracket over that column (round 4: 25 orange dots
+  // stacked there crowded the one place the eye should rest), labelled once; the others stay ink dots, named.
+  const on = dots.filter((d) => d.on);
+  const bracket = on.length ? { x: on[0].x, y0: Math.min(...on.map((d) => d.y)), y1: Math.max(...on.map((d) => d.y)) } : null;
   const items: LabelItem[] = [
-    ...(top ? [{ id: 'common', text: commonLabel, x: top.x, y: top.y, priority: 3, tone: 'signal' as const, prefer: 'above' as const }] : []),
+    ...(bracket ? [{ id: 'common', text: commonLabel, x: bracket.x, y: bracket.y0, priority: 3, tone: 'signal' as const, prefer: 'above' as const }] : []),
     ...dots.filter((d) => !d.on).map((d) => ({ id: d.id, text: d.label, x: d.x, y: d.y, priority: 2, tone: 'ink' as const, size: 13, prefer: 'left' as const })),
   ];
   // The direction cue sits at the top left, so no label is placed over it.
   const cue = [0.02, 0.06, 0.1].map((cx) => ({ x: cx, y: 8 / height, r: 8 }));
-  const avoid = [...dots.map((d) => ({ x: d.x, y: d.y, r: 5 })), ...typical.map((v, i) => ({ x: sx(x[i]), y: y(v), r: 3 })), ...cue];
+  const avoid = [...dots.filter((d) => !d.on).map((d) => ({ x: d.x, y: d.y, r: 5 })), ...typical.map((v, i) => ({ x: sx(x[i]), y: y(v), r: 3 })), ...cue,
+    ...(bracket ? [0, 0.25, 0.5, 0.75, 1].map((f) => ({ x: bracket.x, y: bracket.y0 + f * (bracket.y1 - bracket.y0), r: 6 })) : [])];
   const placed = placeLabels(items, { height, avoid });
   const pts = (values: number[]) => values.map((v, i) => [sx(x[i]), y(v)] as [number, number]);
   const plot = (
@@ -48,7 +52,13 @@ export default function Fingerprints({ x, xDomain, courses, typical, common, com
         <path className="l-ink" d={linePath(pts(typical))} />
       </svg>
       {dots.filter((d) => !d.on).map((d) => <circle key={d.id} className="m-ink fp-dot" cx={pc(d.x)} cy={pc(d.y)} r={4} />)}
-      {dots.filter((d) => d.on).map((d) => <circle key={d.id} className="m-signal fp-dot" cx={pc(d.x)} cy={pc(d.y)} r={4} />)}
+      {bracket ? (
+        <g className="fp-bracket">
+          <rect className="m-signal" x={pc(bracket.x)} y={pc(bracket.y0)} width={2} height={pc(Math.max(0, bracket.y1 - bracket.y0))} transform="translate(-1 0)" />
+          <rect className="m-signal" x={pc(bracket.x)} y={pc(bracket.y0)} width={10} height={2} transform="translate(-5 -1)" />
+          <rect className="m-signal" x={pc(bracket.x)} y={pc(bracket.y1)} width={10} height={2} transform="translate(-5 -1)" />
+        </g>
+      ) : null}
       <Annotation labels={placed} />
       <Baseline />
     </Plot>
@@ -56,7 +66,7 @@ export default function Fingerprints({ x, xDomain, courses, typical, common, com
   return (
     <ChartFrame className="fingerprints" label={label} height={height} heightMd={heightMd} plot={plot}
       axis={<Axis ticks={xTicks.map((t) => ({ x: sx(t.value), label: t.label }))} />}
-      keys={[{ label: 'Typical course', mark: 'line' }, { label: 'Each course', mark: 'line', tone: 'quiet' }, { label: 'Its slowest 5K', mark: 'dot', tone: 'signal' },
+      keys={[{ label: 'Typical course', mark: 'line' }, { label: 'Each course', mark: 'line', tone: 'quiet' },
         ...(dots.some((d) => !d.on) ? [{ label: 'Slowest 5K elsewhere', mark: 'dot' as const }] : [])]}
       values={values} />
   );

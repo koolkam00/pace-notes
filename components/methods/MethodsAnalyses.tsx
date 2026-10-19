@@ -35,7 +35,7 @@ function AnswerNotes({ question }: { question: Parameters<typeof splitAnswer>[0]
 /** "Ten" as a sentence's first word. */
 const Capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
-/** The analyses, fast starts, all-finisher views, finish times, weather questions and the research archive. */
+/** The analyses, fast starts, all-finisher views, finish times, weather questions and the research packs. */
 export default function MethodsAnalyses() {
   const personalized = getPersonalSummary();
   const allFinisher = getAllFinisherContextStart();
@@ -121,7 +121,7 @@ export default function MethodsAnalyses() {
     </Topic>
 
     <Topic id="all-finisher-context" title="All-finisher views: courses, race-day weather and downhill starts">
-      <p>The all-finisher views (course comparison, race-day weather, downhill starts and the archive views built on them) start from every eligible finish: {n(allFinisher.analysis_n)} in the current release. No earlier race or identity link is needed, and the same person can contribute several races. Weather groups also need a validated start-hour temperature, and terrain groups a supplied opening elevation profile. A finish missing weather or terrain still counts in the other pacing comparisons. Missing ages and recorded genders stay in All. Incomplete and held source editions are left out but stay searchable in Find a runner.</p>
+      <p>The all-finisher views (course comparison, race-day weather and downhill starts) start from every eligible finish: {n(allFinisher.analysis_n)} in the current release. No earlier race or identity link is needed, and the same person can contribute several races. Weather groups also need a validated start-hour temperature, and terrain groups a supplied opening elevation profile. A finish missing weather or terrain still counts in the other pacing comparisons. Missing ages and recorded genders stay in All. Incomplete and held source editions are left out but stay searchable in Find a runner.</p>
       <p><UnitText>{'Each eligible finish supplies its own 5–20K pace reference. The views compare late pace (30K to the finish), the time after 20K, nine section paces and sustained slowdown. No identity link, earlier result, target or eventual-finish filter is used. Optional early-pace groups use observed 5–20K pace: below 4:30/km, from 4:30/km to below 5:30/km, from 5:30/km to below 6:30/km, and 6:30/km or slower. This is pace run on the day, not measured fitness.'}</UnitText></p>
       <p>Course, temperature and terrain groups need at least {allFinisher.min_edition} selected finishes per edition, {allFinisher.min_editions} editions and {allFinisher.min_cell} finishes in total. Every retained edition has equal weight in slowdown rates and in averages of edition medians. The middle 80% of edition medians describes differences between editions, not a confidence interval or any runner’s range. Pacing consistency takes the middle-80% spread of late pace change within each edition, then averages those spreads. These describe different race fields. They do not rank course difficulty or estimate a heat penalty.</p>
       <p>The <a href="#baselines">time after 20 km</a> averages edition medians. The finish counts in the exact-values tables are pooled finishes; they are not the denominator of the edition-weighted slowdown rate.</p>
@@ -129,7 +129,7 @@ export default function MethodsAnalyses() {
       <p>Downhill-start comparisons cross the six <a href="#opening-groups">opening groups</a> with a supplied first-5 km net descent greater than 25 m, or other known supplied profiles.{downhill.length ? ` On the current routes, the courses with that descent are ${and(downhill)}.` : ''} Their fields and other course features differ, so the comparison cannot isolate a downhill effect. Net change is a coarse route proxy: a section can hold climbs and descents, and historical route validity is unknown. No personal exposure, physiological effort or hill effect is inferred.</p>
       <p>Onset distributions pool only finishes with a sustained slowdown and need at least 100 of them; their weighting differs from the edition-average slowdown rate. Actual pooled finish-time medians give field context.</p>
       <p>The race-day browser shows one edition at a time, with at least 100 matching finishes. It describes the eligible finishes in that edition, not official standings or every starter, and one edition does not meet the three-edition requirement for a broader comparison. Its start-hour temperature is modeled, and its opening elevation change is the supplied net change over the first 5 km. To compare one runner with peers from the same edition, use <Link href="/runners">Find a runner</Link>.</p>
-      <p>The slow-start and pacing-variability archive views reuse the all-finisher opening calculation. Weather profiles, course consistency, course profiles and same-edition pacing use the context calculation above. Earlier-best outcome panels keep their original cohorts and methods.</p>
+      <p>The slow-start and pacing-variability research packs reuse the all-finisher opening calculation. Weather profiles, course consistency, course profiles and same-edition pacing use the context calculation above. Earlier-best outcome panels keep their original cohorts and methods.</p>
       <p className="methods-links"><Link href="/analyses/race-day-weather">Weather</Link><Link href="/analyses/course-comparison">Courses</Link><Link href="/analyses/downhill-start">Downhill starts</Link><a href={dataHref('all-finisher-context/evidence.json')}>Calculation data and methods</a></p>
     </Topic>
 
@@ -153,9 +153,9 @@ export default function MethodsAnalyses() {
     </Topic>
 
     <Topic id="question-methods" title="Research questions">
-      <p>The research archive’s {QUESTIONS.length} questions are organized around race strategy, courses and conditions, goals and finishing, runner differences, and learning over time. The original question lists are included, with six additions about successful strategies, personal-best gains, crowding, consistency and course adaptation. {calculated.length} of the {QUESTIONS.length} questions have results recalculated from the public export.</p>
+      <p>The research packs’ {QUESTIONS.length} questions are organized around race strategy, courses and conditions, goals and finishing, runner differences, and learning over time. The original question lists are included, with six additions about successful strategies, personal-best gains, crowding, consistency and course adaptation. {calculated.length} of the {QUESTIONS.length} questions have results recalculated from the public export.</p>
       <p>Some answers are partial: a course comparison cannot isolate a course’s effect, and a route proxy cannot establish the hills used in an old edition. Group running and crowding need start and checkpoint clock times that this export does not have.</p>
-      <p>Questions about improvement, repeat races, course familiarity and learning compare linked races, so they need a recorded race history. With one race, you can still explore opening pace and late slowing, or a race’s conditions and same-edition peers; those cannot show personal improvement or learning. Weather, course patterns, slow starts and opening consistency also include finishes without an earlier race. Their original recorded-history comparisons stay in the research archive, with their own definitions and a smaller cohort than the single-race views.</p>
+      <p>Questions about improvement, repeat races, course familiarity and learning compare linked races, so they need a recorded race history. With one race, you can still explore opening pace and late slowing, or a race’s conditions and same-edition peers; those cannot show personal improvement or learning. Weather, course patterns, slow starts and opening consistency also include finishes without an earlier race. Their original recorded-history comparisons stay in the research packs, with their own definitions and a smaller cohort than the single-race views.</p>
       <p>Open a question for its definitions, comparison groups, sample rules, limits and data files. Chart samples can be smaller than the eligible cohort. Every question’s data is under <a href="#archive">Downloads</a>.</p>
       {sharedList.length ? <>
         <h4 id="question-rules">Shared rules</h4>
@@ -172,7 +172,7 @@ export default function MethodsAnalyses() {
         {question.sources.length > 0 && <p className="methods-links">{question.sources.map((source) => <a href={source.href} key={source.href}>{source.label}</a>)}</p>}
       </Detail>)}
       <h4 id="supporting-analyses">Supporting analyses</h4>
-      <p>These supporting analyses in the archive list their methods and data here.</p>
+      <p>These supporting analyses in the research packs list their methods and data here.</p>
       {extras.map((extra) => <Detail key={extra.id} title={extra.title}>
         {own(extra.method).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
         {ruleRefs(extra.method)}

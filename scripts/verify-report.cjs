@@ -162,7 +162,9 @@ for (const scope of index.scopes) {
           const html = renderToStaticMarkup(React.createElement(ReportCard, { id: 'r', model, units, level: 1, gender, dropped: null, retryComparison: () => {}, retryType: () => {} }));
           const text = html.replace(/<[^>]+>/g, ' ').replace(/&#x27;|&#39;/g, '\'').replace(/&amp;/g, '&').replace(/\s+/g, ' ');
           assert.ok(text.includes(`${c.n.toLocaleString('en-US')} ${c.label}`), 'the comparison names its finishes and its group');
-          for (const g of c.groups) assert.ok(text.includes(`${g.name} ${g.n.toLocaleString('en-US')}`), `${g.name}: its finishes`);
+          for (const g of c.groups) assert.ok(text.includes(`${g.name} · ${g.n.toLocaleString('en-US')} finishes`), `${g.name}: its finishes, on one line`);
+          // The groups' median finishes are said once under the rows (round 4), not in each row's label.
+          assert.ok(/ finished at a median \d+:\d\d\.| Median finish: /.test(text), 'the median finishes, said once');
           assert.ok(text.includes(`${capitalize(approxWords(model.type.share, 'finishes'))} were ${model.type.name}s`) && !text.includes(archetypes.cohort_n.toLocaleString('en-US')), 'the pacing type names its share in words, under the type\'s own name, without the cohort count (that is on /methodology)');
           assert.ok(!text.includes('doi:10.1371/journal.pone.0251513') && !text.includes(splits.SLOWDOWN_DEFINITION), 'no definition or citation on the card');
           assert.doesNotMatch(text, METHOD_COPY, 'no method line on the card');

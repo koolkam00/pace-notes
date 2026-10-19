@@ -75,8 +75,9 @@ function pageFor(ctx?: NuggetContext): CoursePageData | null {
 // ---------- /courses ----------
 
 /**
- * The index's count: every course page, the /courses dek. It carries no figure: a count of pages is not a finding, so
- * the contents row and the next card into /courses show none (the spread across courses is course-comparison's alone).
+ * The index's count: every course page, the /courses dek. Its figure is that count (round 4: every card in the chain
+ * carries a number, and the card into a list promises what the list holds), never a share across courses, which is
+ * course-comparison's alone.
  */
 function coursesIndex(): Nugget {
   const n = coursePages().size;
@@ -84,7 +85,8 @@ function coursesIndex(): Nugget {
     id: 'courses.index', page: '/courses', denominator: 'course', values: { courses: n }, guard: n > 0,
     headline: `*${count(n)}* city marathons.`,
     fallback: 'City marathons.',
-    figure: null,
+    figure: n > 0 ? { value: count(n), sr: `${count(n)} city marathons` } : null,
+    key: 'city marathons, each with its own page',
   };
 }
 

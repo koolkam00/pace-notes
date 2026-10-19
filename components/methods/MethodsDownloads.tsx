@@ -77,7 +77,7 @@ export default function MethodsDownloads() {
       <Files files={toolFiles.map((file) => ({ href: dataHref(`insights/${file}`), name: file.replace(/^tools\//, ''), what: TOOLS.filter((tool) => tool.file === file).map((tool) => tool.title).join(', ') }))} />
     </Detail>}
 
-    {packs.length > 0 && <Detail id="archive" title="The research archive’s data">
+    {packs.length > 0 && <Detail id="archive" title="The research packs’ data">
       <p>The {packs.length} earlier research questions, each with its method and the tables behind its charts. Their methods are under <a href="#question-methods">Research questions</a>.</p>
       <ul className="methods-packs">{packs.map((pack) => <li key={pack.id}>
         <span className="methods-pack-title">{pack.title}</span>

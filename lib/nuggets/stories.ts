@@ -122,7 +122,8 @@ export function fieldByRaceFrom(courses: Pick<Courses['courses'][number], 'city'
     id: 'field.byrace', page: '/finish-times#by-race', denominator: 'course',
     values: { courses: solid.length, low_s: lo?.median_s ?? NaN, high_s: hi?.median_s ?? NaN, low: lo?.city ?? '', high: hi?.city ?? '' },
     guard: ok,
-    headline: ok ? `Median finish, course by\u00a0course: *${hm(lo!.median_s / 60)} to ${hm(hi!.median_s / 60)}*.` : '',
+    // Floored to the minute, as the course pages and a race clock read a time (3:59:56 is "3:59", never "4:00").
+    headline: ok ? `Median finish, course by\u00a0course: *${hm(Math.floor(lo!.median_s / 60))} to ${hm(Math.floor(hi!.median_s / 60))}*.` : '',
     fallback: 'Median finish, course by course.',
     figure: null,
   };
@@ -226,8 +227,8 @@ export function typesTopFrom(types: Pick<Archetypes['archetypes'][number], 'name
     id: 'types.top', page: '/stories/pacing-types', denominator: 'shape',
     values: { first: a?.name ?? '', first_share: a?.share ?? NaN, second: b?.name ?? '', second_share: b?.share ?? NaN, share, types: types.length },
     guard: Number.isFinite(share) && share > 0.5 && share < 1,
-    // No accent: the two names would carry it over two display lines; the legend under the figure marks the pair.
-    headline: `Most finishes were ${names}.`,
+    // The reading is the accent (round 4: the one story H1 without one), the pair the figure under it counts.
+    headline: `Most finishes were *${names}*.`,
     fallback: types.length ? `${capitalize(countWord(types.length))} ways to run *the same race*.` : 'Ways to run the same race.',
     figure: shareFigure(share),
     key: `were ${names}`,
@@ -394,15 +395,17 @@ export function kickTwinsFrom(cost: Kick['cost']['stratified']): Nugget {
 }
 
 /**
- * The final-kick H1, the finding in words ("far apart"), so the reading's figure gives the minutes once: the same guard
- * as kick.twins (a typical gap of more than ten minutes).
+ * The final-kick H1: its own finding with its number (round 4: "Same pace to 20K, far apart" repeated chapter 01's
+ * "Same 10K split, 49 minutes apart" and withheld its number). Said as an observation, never a cause; the same guard as
+ * kick.twins (a typical gap of more than ten minutes), whose figure gives the same whole minutes.
  */
 export function kickTitleFrom(cost: Pick<Kick['cost']['stratified'], 'median_gap_s'>): Nugget {
+  const minutes = Math.round(cost.median_gap_s / 60);
   return {
     id: 'kick.title', page: '/stories/final-kick', denominator: 'kick',
     values: { median_gap_s: cost.median_gap_s }, guard: cost.median_gap_s > 600,
-    headline: 'Same pace to 20K, *far apart* at the finish.',
-    fallback: 'Same pace to 20K, apart at the finish.',
+    headline: `From the same pace to 20K, finishes with a sustained slowdown came in *${minutes}${NBSP}minutes* later.`,
+    fallback: 'From the same pace to 20K, finishes with and without a sustained slowdown.',
     figure: null,
   };
 }
@@ -613,7 +616,9 @@ export function holdsGhostFrom(bands: Pick<Demographics['bands'][number], 'label
   return {
     id: 'holds.ghost', page: '/stories/who-holds-pace#ghost', denominator: 'demographics',
     values: { band: b?.label ?? '', gap_s: gap, mat_km: mats[k] ?? NaN }, guard: together && gap >= 60,
-    headline: b ? `Finishing in ${b.label}, recorded men were *${ms(gap)}* ahead at ${matLabel(mats[k])}.` : '',
+    // The lesson the chart draws, not only the gap's size: the men who were ahead gave it all back by the finish (the
+    // guard's `together`). The band is the beat's dek, so the H2 stays one clause of twelve words.
+    headline: b ? `Recorded men led by *${ms(gap)}* at ${matLabel(mats[k])}, then gave it all back.` : '',
     fallback: b ? `Finishing in ${b.label}: recorded men and women, mat by mat.` : 'Recorded men and women, mat by mat.',
     figure: null,
   };
@@ -632,7 +637,7 @@ export function coursesNamedFrom(id: Pick<Courses['identification'], 'correct' |
     values: { correct: id.correct, tested: id.editions_tested, share, chance: id.chance, courses: id.courses }, guard: share > 2 * id.chance,
     headline: `From its pacing shape alone, an edition’s course was named *${pct(share)}* of the time; by chance, about ${pct(id.chance)}.`,
     fallback: `From its pacing shape alone, an edition’s course was named correctly ${pct(share)} of the time.`,
-    figure: shareFigure(share), key: `of races were traced to their course by pacing shape alone (chance: ${pct(id.chance)})`,
+    figure: shareFigure(share), key: `of races traced to their course by pacing shape alone, against ${pct(id.chance)} by chance`,
   };
 }
 
@@ -680,7 +685,7 @@ export function weatherPairsFrom(pairs: Pick<Courses['weather']['pairs'], 'hotte
     headline: both((u) => `In pairs of editions of the same course at least ${tempGap(gap, u)} apart at the start, the warmer one *usually* had more sustained slowdowns.`),
     fallback: both((u) => `${count(n)} of ${count(total)} same-course pairs at least ${tempGap(gap, u)} apart at the start: the warmer year had more sustained slowdowns.`),
     figure: Number.isFinite(n) ? { value: count(n), unit: `${NBSP}of ${count(total)}`, sr: `${count(n)} of ${count(total)}` } : null,
-    key: 'same-course pairs where the warmer year had more sustained slowdowns',
+    key: 'same-course pairs: the warmer year had more sustained slowdowns',
   };
 }
 

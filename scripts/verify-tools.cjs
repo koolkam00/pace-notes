@@ -687,7 +687,8 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
     // The registry types no figure: /methodology fills {finishes} with the cohort from this file.
     assert.ok(registry.EVIDENCE_TEXT.data.includes('{finishes}') && !/\d million/.test(registry.EVIDENCE_TEXT.data), 'Evidence text leaves the tool cohort to the data');
     const built = path.join(__dirname, '..', 'out/methodology.html');
-    if (fs.existsSync(built)) assert.ok(fs.readFileSync(built, 'utf8').includes(`${(n / 1e6).toFixed(2)} million screened marathon finishes`), 'The built /methodology quotes the tool cohort');
+    // One total with its subset (round 4): the eligible finishes, then the tool cohort within them.
+    if (fs.existsSync(built)) assert.ok(fs.readFileSync(built, 'utf8').includes(`the tools use the ${(n / 1e6).toFixed(2)} million without start delays or shifted mats`), 'The built /methodology quotes the tool cohort as a subset of the eligible finishes');
     checks++;
   }
   const slugs = registry.TOOLS.map((t) => t.slug);

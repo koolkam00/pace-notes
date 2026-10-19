@@ -3,7 +3,7 @@
    show their rule (and, where one helps, a small instrument) and open for the rest. A "Jump to" row sticks under the
    header on phones; from 1180 px a rail lists the parts, the one in view marked. */
 
-.methods-page { padding: var(--s-6) 0 var(--s-8); }
+.methods-page { padding: var(--s-6) 0 0; }
 .methods-flow { min-width: 0; max-width: var(--measure-figure); }
 .methods-page [id] { scroll-margin-top: 136px; }
 

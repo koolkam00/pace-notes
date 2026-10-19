@@ -53,10 +53,10 @@ export function kickBankFrom(bands: BankBand[]): Nugget {
     guard: ok,
     headline: `A first 5K ${said} banked ${ms(-(fastest?.open_s ?? 0))}, and *finished ${ms(fastest?.finish_s ?? 0)} behind*.`,
     fallback: 'How a fast first 5K finished, against the same pace.',
-    // The figure is the H1's accent as the receipt prints it ("5:06 behind"); the key names what it is behind, in a
-    // runner's words: finishes in the same race at the same 5–20K pace.
+    // The figure is the H1's accent as the receipt prints it ("5:06 behind"); the key is the finding in two phone lines.
+    // What it is behind (finishes at the same 5–20K pace) is the page's to say.
     figure: fastest ? { value: ms(fastest.finish_s), sr: `${spokenTime(Math.abs(fastest.finish_s))} ${fastest.finish_s > 0 ? 'behind' : 'ahead'}` } : null,
-    key: `${fastest && fastest.finish_s < 0 ? 'ahead of' : 'behind'} runners of the same 5–20K pace at the finish, after a first 5K ${said}`,
+    key: `${fastest && fastest.finish_s < 0 ? 'ahead' : 'behind'} at the finish, after a first 5K ${said}`,
   };
 }
 
@@ -190,8 +190,6 @@ export function patternFrom(paces: number[], goal = GOAL): Nugget {
 
 // ---------- Chapter 04 · checkpoint ----------
 
-/** A 2-minute elapsed band at a mat, from its first minute: "2:50–2:52". */
-const band = (from: number) => (finite(from) ? `${hm(from)}–${hm(from + 2)}` : '');
 /** Of finishes on even goal pace at the mat (the band holding it), the share that got under the goal. */
 export function checkpointUnderFrom(row: { n: number; elapsed: number; finish: number[] } | null, share: number, goal = GOAL, mat = 30): Nugget {
   const ok = !!row && row.n >= 100 && finite(share);
@@ -201,9 +199,9 @@ export function checkpointUnderFrom(row: { n: number; elapsed: number; finish: n
     guard: ok && share < 0.5,
     headline: `On even ${hm(goal)} pace at ${mat}K, only *${pct(share)}* got under ${hm(goal)}.`,
     fallback: `On even ${hm(goal)} pace at ${mat}K, ${pct(share)} of finishes got under ${hm(goal)}.`,
-    // The key names the group's window (the 2-minute band at the mat that holds even goal pace), so "on 4:00 pace" never
-    // stands for two different groups on two pages.
-    figure: shareFigure(share), key: `of finishes on even ${hm(goal)} pace at ${mat}K (${band(row?.elapsed ?? NaN)}) got under ${hm(goal)}`,
+    // The key is the finding; the group's 2-minute band at the mat is the page's (no other key names this goal at this
+    // mat, which verify-nuggets checks).
+    figure: shareFigure(share), key: `of finishes on even ${hm(goal)} pace at ${mat}K still got under ${hm(goal)}`,
   };
 }
 

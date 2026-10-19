@@ -6,7 +6,6 @@ import { sectionName } from '@/lib/nuggets/stories';
 import { hm, pct } from '@/lib/nuggets/format';
 import LineProfile from '@/components/viz/LineProfile';
 import DotGrid from '@/components/viz/DotGrid';
-import Ruler from '@/components/viz/Ruler';
 import Values from '@/components/ui/Values';
 import Columns from '@/components/viz/Columns';
 import { Beat, Moved, Say, StoryHero, StoryPage, rich } from '../StoryPage';
@@ -25,10 +24,6 @@ export default function KickBody() {
   const data = readInsight<Kick>('kick.json');
   const story = STORIES.find((s) => s.slug === 'final-kick')!;
   const twins = getNugget('kick.twins'), bands = getNugget('kick.bands'), warning = getNugget('kick.warning'), stay = getNugget('kick.stay'), magnet = getNugget('kick.magnet');
-
-  // The reading's ruler: the typical gap in whole minutes (the figure's), on a clock to the next ten minutes past it.
-  const kMin = Math.round(Number(twins.values.median_gap_s) / 60);
-  const kTop = Math.max(20, Math.ceil((kMin + 5) / 10) * 10);
 
   // Same pace through 20K: how many minutes later each pace band's finishes with a sustained slowdown came in, as one
   // line over the pace through 20K (a finish-time equivalent), the gap washed down to zero.
@@ -65,19 +60,12 @@ export default function KickBody() {
         columns={[{ key: 's', label: 'Section' }, { key: 'd', label: 'With a sustained slowdown' }, { key: 'a', label: 'All finishes' }]}
         rows={data.magnet.map((m) => [sectionName(m.section), pct(m.slowdown), pct(m.all)])} reading={data.magnet.length - 1} />,
     ]}>
-      {/* The H1 says it in words and the figure gives the minutes once, with what they are under it: the unit line is
-          the term's first use, so it carries the one link to its definition. Who the comparison holds level is
-          /methodology's (How we know). */}
+      {/* The H1 is the finding with its minutes; the figure holds them and its unit line says what they are a gap
+          against (finishes without one), the term's first use, so it carries the one link to its definition. The next
+          beat draws the gap at every pace, so the reading needs no instrument of its own. */}
       <StoryHero path={PATH} title={story.heading ?? story.title}
-        // The unit line names the comparison the H1 leaves out (with a slowdown against without); the H1 has the pace.
-        figure={twins.figure ? { ...twins.figure } : undefined} unitLine={twins.guard ? rich('later at the finish with a sustained slowdown than without', { term: true }) : undefined} fallback={!twins.guard}
-        sentence={twins.guard ? undefined : <Say nugget={twins} term />}
-        // The two finishes on one clock, from the same pace through 20K: without one at zero, with one the figure later.
-        instrument={twins.guard ? (
-          <Ruler min={0} max={kTop} ticks={Array.from({ length: kTop / 10 + 1 }, (_, i) => ({ value: i * 10, label: i ? `+${i * 10} min` : '0' }))}
-            label={`From the same pace through 20K, the finish with a sustained slowdown came ${kMin} minutes after the finish without one.`}
-            marks={[{ value: 0, kind: 'compare', label: 'Without' }, { value: kMin, kind: 'reading', label: 'With' }]} />
-        ) : undefined} />
+        figure={twins.figure ? { ...twins.figure } : undefined} unitLine={twins.guard ? rich('the typical gap, against finishes with no sustained slowdown', { term: true }) : undefined} fallback={!twins.guard}
+        sentence={twins.guard ? undefined : <Say nugget={twins} term />} />
 
       <Beat id="twins" track="chapter-1" label="Same pace, apart" title={bands} dek="With a sustained slowdown against without, at each pace through 20K.">
         <LineProfile x={cx} xDomain={[cost[0].lo_min, cost[cost.length - 1].lo_min + width]} yDomain={[0, gTop]}

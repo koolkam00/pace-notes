@@ -85,7 +85,10 @@ async function main() {
   const sameYearHtml = render([base, changed], 'mi');
   assert.doesNotMatch(sameYearHtml, /Your fastest selected finish in/);
   const smallGain = { ...base, id: 9, edition: 2, times: [...base.times.slice(0, 8), base.times[8] - 0.2] };
-  assert.match(render([base, smallGain], 'mi'), /0:00:00\.2 faster than/, 'A measurable fractional-second change must not be called the same time');
+  // Two eligible races lead with the focus race and one comparison beat (round 4, October 19, 2026): no progression card,
+  // no sentence repeating the difference and no race table outside the comparison's All numbers.
+  const twoHtml = render([base, smallGain], 'mi');
+  assert.match(twoHtml, /class="rc-multi"/); assert.doesNotMatch(twoHtml, /runner-numbers|Fastest selected eligible finish|recorded progression|All eligible races you selected|Your fastest selected finish in/);
   const mileHtml = render([base, held], 'mi');
   assert.match(mileHtml, /8:03\/mi/); assert.match(mileHtml, /3:30:58\.5/); assert.match(mileHtml, /No <a [^>]*>sustained slowdown<\/a>: every stretch after 20K held the 5–\u2060?20K pace or better\./, 'An even race: the report\'s verdict, in its words');
   // The pacing view leads with the race report's verdict (lib/report-verdict timesVerdict), in the report's words.
@@ -103,7 +106,7 @@ async function main() {
   assert.match(mileHtml, /00:16:40\.000/, 'Keep original checkpoint formatting rather than recomputing it');
   assert.match(mileHtml, /<h2 id="[^"]*-title">[^<]*, 3:30:58\.5<\/h2>/, 'A faster held result cannot replace the eligible finish (one eligible race: its heading names it)');
   assert.doesNotMatch(mileHtml, /runner-numbers|One race\. A closer look/, 'One race has no summary card and no second heading');
-  assert.match(render([base, smallGain], 'mi'), /<span>Fastest selected eligible finish<\/span>/, 'Two eligible races: the fastest of them');
+  assert.match(twoHtml, /<h2 id="[^"]*-title" class="sr-only">/, 'Two races: the select names the focus race, so its heading is for screen readers only');
   assert.doesNotMatch(mileHtml, /\d\.\d\d\s*mi\b/, 'Miles never to two decimals (mats are named, prose distances take one decimal)'); assert.doesNotMatch(mileHtml, /5:00\/km/);
   const kmHtml = render([base], 'km'); assert.match(kmHtml, /5:00\/km/); assert.doesNotMatch(kmHtml, /\d\/mi\b/, 'Paces follow the units shown');
   const assertLimitedRecordsVisible = html => {
@@ -155,7 +158,7 @@ async function main() {
   assert.match(copyHtml, /Missing source checkpoint/, 'A held record in a copy edition keeps its own reason');
   assert.equal(occurrences(copyHtml, '<option '), 1, 'One focus option, the 2024 race');
   assert.doesNotMatch(copyHtml, /Lakeside 2018 ·|Lakeside 2019 ·|Across your selected races|rc-multi/, 'No copy in the focus options or the side-by-side comparison');
-  assert.equal(occurrences(copyHtml, 'Read this race in the split check'), 1, 'One split-check link, for the 2024 race');
+  assert.equal(occurrences(copyHtml, 'Read this race in the split check'), 0, 'The view\'s one way on is the race report (its share sheet has the split check)');
   // Only copies selected: the records view, with each sentence once and no calculated figure.
   const onlyCopies = renderCopies([copy2018, copy2019], copies);
   assert.match(onlyCopies, /Your race records are here/);
@@ -171,7 +174,7 @@ async function main() {
   // An empty screen, or one naming other editions, leaves the page as it was.
   assert.equal(renderCopies([copy2018, copy2019, real2024], []), renderToStaticMarkup(React.createElement(SelectedAnalysis, { races: [copy2018, copy2019, real2024], manifest: lakeside, units: 'mi' })));
   assert.equal(renderCopies([base, changed, later], copies), render([base, changed, later], 'mi'));
-  assert.match(renderCopies([copy2018, copy2019, real2024], []), /3 races\. Your recorded progression\./);
+  assert.match(renderCopies([copy2018, copy2019, real2024], []), /class="rc-multi"/, 'Without the screen the three races are compared');
   const details = (row, screen) => renderToStaticMarkup(React.createElement(RunnerRecordDetails, { race: row, manifest: lakeside, copyEditions: screen }));
   // A row is the race, its finish and one short tag; what the record lacks, and why, is in its disclosure.
   const { RecordedCheckpoints } = require('../components/RunnerSearch.tsx');

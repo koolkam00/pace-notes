@@ -11,7 +11,9 @@ import Arrow from '@/components/ui/Arrow';
  */
 export type Round = { year: number; answer: string; model: string; options: string[]; signature: number[] };
 
-const W = 320, H = 120, PAD = 14;
+// The plot fits its line (round 4: a tall plot floated the shape in its middle and its axis far under it): 6 units of
+// padding and a range only 15% wider than the shapes it draws.
+const W = 320, H = 120, PAD = 6;
 
 export default function NameThatCourse({ rounds, shapes, x, length, ticks, labelledBy }: {
   rounds: Round[]; shapes: Record<string, number[]>; x: number[]; length: number; ticks: { km: number; label: string }[]; labelledBy: string;
@@ -26,7 +28,8 @@ export default function NameThatCourse({ rounds, shapes, x, length, ticks, label
   const answered = pick !== null;
   const own = shapes[round.answer];
   const all = [...round.signature, ...(own ?? []), 0];
-  const lo = Math.min(...all) - 0.5, hi = Math.max(...all) + 0.5;
+  const span = Math.max(1, Math.max(...all) - Math.min(...all));
+  const lo = Math.min(...all) - 0.15 * span, hi = Math.max(...all) + 0.15 * span;
   const zero = PAD + (H - 2 * PAD) * (1 - (0 - lo) / (hi - lo || 1));
   const right = pick === round.answer;
   // Whether this edition's shape was nearest its own course's other years (the shape match named it), said as data.

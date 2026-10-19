@@ -39,8 +39,8 @@ export default function RaceMorningBody() {
   const pairName = (x: (typeof p.list)[number]) => `${x.city} ${x.cool_year} · ${x.hot_year}`;
   const tiles = (u: UnitSystem) => p.list.map((x) => ({
     id: `${x.city}-${x.cool_year}-${x.hot_year}`, lit: x.hotter_slowed_more,
-    key: `Sustained slowdown, ${pairName(x)}`, value: `${pct(x.cool_slowdown)} · ${pct(x.hot_slowdown)}`,
-    side: `${temp(x.cool_temp, u)} · ${temp(x.hot_temp, u)}`, pair: pairName(x),
+    key: `${x.city}: ${temp(x.cool_temp, u)} in ${x.cool_year} and ${temp(x.hot_temp, u)} in ${x.hot_year}; sustained slowdowns went from ${pct(x.cool_slowdown)} to ${pct(x.hot_slowdown)}.`, value: '',
+    side: `${temp(x.cool_temp, u)} · ${temp(x.hot_temp, u)}`, value2: `${pct(x.cool_slowdown)} · ${pct(x.hot_slowdown)}`, pair: pairName(x),
   }));
   // The readout opens on the pair furthest apart at the start (the first such in the data), the clearest case of a
   // warmer morning; the waffle draws the warmer-had-more pairs first, so its index counts in that order.
@@ -76,15 +76,17 @@ export default function RaceMorningBody() {
       yTicks={[{ value: top, label: `+${top} min` }]}
       axisTitle={{ start: 'Cooler start', end: 'Warmer start' }}
       scrub={{ label: 'Start temperature',
-        points: { x: curve.map((c) => (c.temp - tLo) / (tHi - tLo)), keys: curve.map((c) => `Median finish starting at ${temp(c.temp, u)}, against ${temp(base.temp, u)}`), values: curve.map((c) => `${signed(c.change)} min`),
-          side: [{ label: 'Each degree here', values: local.map((v) => perDeg(v, u)) }] },
+        // The readout leads with the H2's quantity (the minutes each degree adds here); the cumulative change against
+        // the curve's zero is its second row.
+        points: { x: curve.map((c) => (c.temp - tLo) / (tHi - tLo)), keys: curve.map((c) => `Median finish, each degree warmer near ${temp(c.temp, u)}`), values: local.map((v) => perDeg(v, u)),
+          side: [{ label: `Against a ${temp(base.temp, u)} start`, values: curve.map((c) => `${signed(c.change)} min`) }] },
         initial: at(warm), detents: [at(cool), at(warm)], follow: 'f' }}
       label={`Change in the median finish with the start temperature, against ${temp(base.temp, u)}: ${perDeg(Number(curveN.values.cool_slope), u)} near ${temp(cool, u)}, ${perDeg(Number(curveN.values.warm_slope), u)} near ${temp(warm, u)}.`} />
   );
   // The page's tables, in its All numbers at the foot (each in the reader's units where it has degrees).
   const pairsTable = (u: UnitSystem) => (
     <Values bare id={`rm-pairs-${u}`} caption="Same-course pairs: start temperature and sustained slowdown" columns={[{ key: 'p', label: 'Pair, cooler · warmer', text: true }, { key: 't', label: 'At the start' }, { key: 's', label: 'Sustained slowdown' }]}
-      rows={tiles(u).map((t) => [t.pair, t.side, t.value])} />
+      rows={tiles(u).map((t) => [t.pair, t.side, t.value2])} />
   );
   const curveTable = (u: UnitSystem) => (
     <Values bare id={`rm-curve-${u}`} caption={`The median finish against the start temperature (${u === 'mi' ? '°F' : '°C'})`}
@@ -114,7 +116,7 @@ export default function RaceMorningBody() {
         sentence={pairs.guard ? undefined : <Say nugget={pairs} term />}
         instrument={(
           <ByUnits {...Object.fromEntries(UNITS.map((u) => [u, (
-            <Waffle key={u} tiles={tiles(u)} initial={opening} sideLabel="At the start, cooler · warmer" label={`${p.hotter_slowed_more} of ${p.total} same-course pairs: the warmer year had more sustained slowdowns; tap a square to read its pair`}
+            <Waffle key={u} tiles={tiles(u)} initial={opening} line hint="Choose a square to read its pair." label={`${p.hotter_slowed_more} of ${p.total} same-course pairs: the warmer year had more sustained slowdowns; choose a square to read its pair`}
               keyLabels={{ lit: 'Warmer year, more sustained slowdowns', other: 'Cooler year, as many or more' }} />
           )])) as { mi: JSX.Element; km: JSX.Element }} />
         )}>

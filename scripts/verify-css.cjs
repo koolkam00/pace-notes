@@ -157,24 +157,29 @@ function deltaE(a, b) {
 
 /** 8. The pace ramp against every signal colour the tokens define. */
 function checkRamp(formatTs, tokensCss) {
-  const problems = [];
   const ramp = (formatTs.match(/export const PACE_RAMP = \[([^\]]+)\]/) || [])[1];
   if (!ramp) return ['lib/viz/format.ts: PACE_RAMP not found'];
+  // The dark theme's own ramp (PACE_RAMP_DARK), when there is one, follows the same rule.
+  const dark = (formatTs.match(/export const PACE_RAMP_DARK = \[([^\]]+)\]/) || [])[1];
+  return [...checkStops('PACE_RAMP', ramp, tokensCss), ...(dark ? checkStops('PACE_RAMP_DARK', dark, tokensCss) : [])];
+}
+function checkStops(name, ramp, tokensCss) {
+  const problems = [];
   const stops = [...ramp.matchAll(/#[0-9A-Fa-f]{6}/g)].map((m) => m[0]);
   const signals = [...uncomment(tokensCss).matchAll(/--(?:night-)?signal\s*:\s*(#[0-9A-Fa-f]{6})/g)].map((m) => m[1]);
-  if (stops.length < 3 || !signals.length) return ['lib/viz/format.ts: PACE_RAMP or the --signal tokens could not be read'];
+  if (stops.length < 3 || !signals.length) return [`lib/viz/format.ts: ${name} or the --signal tokens could not be read`];
   const mid = Math.floor(stops.length / 2);
   const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
   const hex = (c) => '#' + c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
   for (const stop of stops.slice(mid + 1)) {
     const worst = Math.min(...signals.map((sig) => deltaE(stop, sig)));
-    if (worst < 15) problems.push(`lib/viz/format.ts: PACE_RAMP warm stop ${stop} is ΔE ${worst.toFixed(1)} from a signal colour (needs ≥ 15)`);
+    if (worst < 15) problems.push(`lib/viz/format.ts: ${name} warm stop ${stop} is ΔE ${worst.toFixed(1)} from a signal colour (needs ≥ 15)`);
   }
   for (let k = mid; k < stops.length - 1; k++) {
     for (let f = 0; f <= 1; f += 0.05) {
       const c = hex(rgb(stops[k]).map((v, j) => v + f * (rgb(stops[k + 1])[j] - v)));
       const worst = Math.min(...signals.map((sig) => deltaE(c, sig)));
-      if (worst < 14) { problems.push(`lib/viz/format.ts: PACE_RAMP between ${stops[k]} and ${stops[k + 1]} passes ${c}, ΔE ${worst.toFixed(1)} from a signal colour (needs ≥ 14)`); break; }
+      if (worst < 14) { problems.push(`lib/viz/format.ts: ${name} between ${stops[k]} and ${stops[k + 1]} passes ${c}, ΔE ${worst.toFixed(1)} from a signal colour (needs ≥ 14)`); break; }
     }
   }
   return problems;

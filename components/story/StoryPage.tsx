@@ -83,7 +83,9 @@ export function StoryHero({ path, title, dek, figure, figures, variant, unitLine
   const bare = !figure && !figures && !sentence && !instrument;
   return (
     <section className={`story-hero-beat${bare ? ' is-bare' : ''}`} data-track-section="hero" data-beat={label}>
-      <Reading crumbs={<ChapterCrumbs path={path} />} title={typeof title === 'string' ? rich(title) : title} dek={dek}
+      {/* Every page in the chain sets its H1 at one size (round 4: stories 84 px beside analyses' and tools' 68 px
+          read as two sites in one chapter): the title size. */}
+      <Reading crumbs={<ChapterCrumbs path={path} />} title={typeof title === 'string' ? rich(title) : title} titleSize="title" dek={dek}
         variant={variant ?? (figures ? 'pair' : 'figure')} figure={figure} figures={figures} unitLine={unitLine}
         sentence={sentence} instrument={instrument} fallback={fallback} />
       {children}

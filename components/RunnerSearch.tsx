@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { UnitLink as Link, useUnits } from './UnitsProvider';
-import { matLabel, paceLabel, type UnitSystem } from '@/lib/units';
+import { matLabel, type UnitSystem } from '@/lib/units';
 import RunnerContext from './RunnerContext';
 import KeypadHint from './KeypadHint';
 import Arrow from './ui/Arrow';
@@ -13,25 +13,19 @@ import { trackAnalytics } from '@/lib/analytics';
 import { unitHref } from '@/lib/unit-preference';
 import { pacingPatternHref } from '@/lib/tools/links';
 import {
-  loadRunnerManifest, loadRunnerProfile, normalizeRunnerName, runnerDuration, runnerProgression, runnerSearchPage, searchRunnerNames, RUNNER_PAGE_SIZE,
+  displayName, loadRunnerManifest, loadRunnerProfile, normalizeRunnerName, runnerDuration, runnerProgression, runnerSearchPage, searchRunnerNames, RUNNER_PAGE_SIZE,
   type RunnerManifest, type RunnerMatch, type RunnerProfile, type RunnerRace,
 } from '@/lib/runner-search';
 
 const count = (value: number) => value.toLocaleString('en-US');
-/**
- * A result's name for reading in a list: a name recorded all in capitals ("ABBI JOHNSON") in title case ("Abbi
- * Johnson", after spaces, hyphens and apostrophes); any name with a lower-case letter exactly as recorded. The record's
- * own heading and details keep the recorded spelling.
- */
-export const listName = (name: string) => (/\p{Ll}/u.test(name) ? name : name.toLocaleLowerCase('en-US').replace(/(^|[\s'’(-])(\p{L})/gu, (_, before: string, letter: string) => before + letter.toLocaleUpperCase('en-US')));
 /** Above this many groups the results ask for a first name, so a common surname never means paging through thousands. */
 const NARROW_ABOVE = 100;
+/** A row's name, its country code quiet after it ("Brian Suozzo · USA"). */
+const shownName = (name: string) => { const [person, country] = displayName(name).split(' · '); return country ? <>{person}<span className="runner-country"> · {country}</span></> : person; };
 const raceLabel = (race: RunnerRace, manifest: RunnerManifest) => {
   const edition = manifest.editions[race.edition];
   return `${edition.city === 'New York' ? 'New York City' : edition.city} ${edition.year}`;
 };
-const percent = (value: number) => Math.abs(value).toFixed(1) + '%';
-const changeDescription = (value: number) => Math.abs(value) < 0.05 ? 'the same pace' : `${percent(value)} ${value > 0 ? 'slower' : 'faster'}`;
 /** A record's finish as recorded, in the page's one clock: a recorded "03:44:00" loses its leading zero, as "3:44:00". */
 const finishLabel = (race: RunnerRace) => (race.raw_times?.[8] || runnerDuration(race.times[8])).replace(/^0(\d:)/, '$1');
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'The records could not load. Please try again.';
@@ -153,14 +147,15 @@ export function FinishTimeStart() {
   </form>;
 }
 
-export function SelectedAnalysis({ races, manifest, units, copyEditions = NO_COPIES, report, listed }: {
+export function SelectedAnalysis({ races, manifest, units, copyEditions = NO_COPIES, report, listed, wet }: {
   races: RunnerRace[]; manifest: RunnerManifest; units: UnitSystem; copyEditions?: readonly CopyEdition[]; report?: ReportData;
+  /** Cities whose route profile reads the water under a bridge: the view shows no climb for them. */
+  wet?: readonly string[];
   /** Records the open profile above already lists with their tags and checkpoints: the analysis does not list them again. */
   listed?: ReadonlySet<number>;
 }) {
   // Copy-edition records join the limited records: no best, count, year span, change or table row comes from them.
   const progression = useMemo(() => runnerProgression(races.filter(race => !inCopyEdition(race, manifest, copyEditions)), manifest), [races, manifest, copyEditions]);
-  const valid = progression?.valid || [];
   const limited = races.filter(race => !analysed(race, manifest, copyEditions));
   // The limited records not already on screen in the profile (one chosen from another match, say).
   const unlisted = limited.filter(race => !listed?.has(race.id));
@@ -175,21 +170,10 @@ export function SelectedAnalysis({ races, manifest, units, copyEditions = NO_COP
       <LimitedRecords races={races} manifest={manifest} copyEditions={copyEditions} />
     </section>;
   }
-  const { best, earliestYear, latestYear, yearChange } = progression;
-  const table = <div className="runner-table-wrap table-wrap" role="region" tabIndex={0} aria-label="All eligible races you selected"><table className="table"><caption>All eligible races you selected</caption><thead><tr><th scope="col">Race</th><th scope="col">Finish</th><th scope="col">Average pace</th><th scope="col">Late vs early pace</th></tr></thead><tbody>
-    {valid.map(({ race, metrics }) => <tr key={race.id}><th scope="row">{raceLabel(race, manifest)}</th><td>{runnerDuration(metrics.finish)}</td><td>{paceLabel(metrics.pace, units)}</td><td>{changeDescription(metrics.lateChange)}</td></tr>)}
-  </tbody></table></div>;
-  // One race is its own heading (the race view's: the race and its finish), with no card: a count of one, a one-row
-  // table and a finish said twice would say nothing more. Two or more get the progression first.
-  const one = valid.length === 1;
-  return <section className="runner-analysis" {...(one ? { 'aria-label': 'The selected race' } : { 'aria-labelledby': 'runner-analysis-title' })}>
-    {one ? null : <>
-      <header className="runner-analysis-head"><h2 id="runner-analysis-title">{`${count(valid.length)} races. Your recorded progression.`}</h2></header>
-      <div className="runner-numbers night"><div><strong>{runnerDuration(best.metrics.finish)}</strong><span>Fastest selected eligible finish</span><small>{raceLabel(best.race, manifest)}</small></div><div><strong>{paceLabel(best.metrics.pace, units)}</strong><span>Average pace in that race</span></div><div><strong>{count(valid.length)}</strong><span>Eligible selected finishes</span><small>{earliestYear === latestYear ? earliestYear : `${earliestYear}–${latestYear}`}</small></div></div>
-      {yearChange !== null && <p className="runner-takeaway">Your fastest selected finish in {latestYear} was {Math.abs(yearChange) < 0.0005 ? 'the same time as' : `${runnerDuration(Math.abs(yearChange))} ${yearChange > 0 ? 'faster' : 'slower'} than`} your fastest selected finish in {earliestYear}.</p>}
-      {table}
-    </>}
-    <RunnerContext races={races} manifest={manifest} units={units} copyEditions={copyEditions} report={report} />
+  // The focus race leads, in the view's own heading (or, with two or more, its select): round 4 cut the progression
+  // card, its sentence and the race table (the table's numbers are in the comparison's All numbers).
+  return <section className="runner-analysis" aria-label={progression.valid.length === 1 ? 'The selected race' : 'The selected races'}>
+    <RunnerContext races={races} manifest={manifest} units={units} copyEditions={copyEditions} report={report} wet={wet} />
     {unlisted.length > 0 && <section className="runner-limited" aria-labelledby="runner-limited-title"><h3 id="runner-limited-title" className="runner-h">{`${count(unlisted.length)} selected ${unlisted.length === 1 ? 'record has' : 'records have'} limited analysis`}</h3><LimitedRecords races={unlisted} manifest={manifest} copyEditions={copyEditions} /></section>}
   </section>;
 }
@@ -200,7 +184,7 @@ export function SelectedAnalysis({ races, manifest, units, copyEditions = NO_COP
  * is chosen (a search that finds none has its own next steps); `report` is what the race report needs from the build.
  * The field and its button work from the first paint: a search made while the search data still loads waits for it.
  */
-export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts }: { copyEditions?: CopyEdition[]; report?: ReportData; starts?: ReactNode }) {
+export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts, wet }: { copyEditions?: CopyEdition[]; report?: ReportData; starts?: ReactNode; wet?: string[] }) {
   const { units } = useUnits();
   const [manifest, setManifest] = useState<RunnerManifest | null>(null);
   const [manifestError, setManifestError] = useState('');
@@ -335,11 +319,11 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
       {matches.length > NARROW_ABOVE && <p className="runner-note runner-narrow">Add a first name to narrow {count(matches.length)} groups.</p>}
       {/* Each row as a runner recognizes a race: one race by its city and year ("Washington 2014"), several by their
           count and span ("3 races · 2011–2025"). */}
-      {matches.length > 0 && <ul className="runner-matches">{visibleMatches.map(row => <li key={row[1]}><button className="runner-match" type="button" aria-expanded={profile?.id === row[1]} aria-controls="runner-profile" onClick={() => void openProfile(row[1])}><span><strong>{listName(row[0])}</strong><small>{row[2] === 1 ? `${row[5]} ${row[3]}` : `${count(row[2])} races · ${row[3] === row[4] ? row[3] : `${row[3]}–${row[4]}`}`}</small></span><span className="runner-match-action">{profileLoading === row[1] ? 'Loading…' : <span className="sr-only">See races</span>}<Arrow /></span></button></li>)}</ul>}
+      {matches.length > 0 && <ul className="runner-matches">{visibleMatches.map(row => <li key={row[1]}><button className="runner-match" type="button" aria-expanded={profile?.id === row[1]} aria-controls="runner-profile" onClick={() => void openProfile(row[1])}><span><strong>{shownName(row[0])}</strong><small>{row[2] === 1 ? `${row[5]} ${row[3]}` : `${count(row[2])} races · ${row[3] === row[4] ? row[3] : `${row[3]}–${row[4]}`}`}</small></span><span className="runner-match-action">{profileLoading === row[1] ? 'Loading…' : <span className="sr-only">See races</span>}<Arrow /></span></button></li>)}</ul>}
       {pages > 1 && <nav className="runner-pagination" aria-label="Search result pages"><button type="button" className="btn btn-secondary is-compact" disabled={page === 0} onClick={() => setPage(value => value - 1)}>Previous</button><span>{count(page * RUNNER_PAGE_SIZE + 1)}–{count(Math.min(matches.length, (page + 1) * RUNNER_PAGE_SIZE))} of {count(matches.length)}</span><button type="button" className="btn btn-secondary is-compact" disabled={page + 1 >= pages} onClick={() => setPage(value => value + 1)}>Next</button></nav>}
     </section>}
     {profileError && <div className="runner-error" role="alert"><p>{profileError} Select the match again to retry.</p></div>}
-    <div id="runner-profile" className="ph-no-capture">{manifest && profile && <section className="runner-profile" aria-labelledby="runner-profile-title"><h2 id="runner-profile-title" className="runner-h" tabIndex={-1} ref={profileHeading}>{profile.names.filter(Boolean).join(' / ') || 'Recorded race group'}</h2><p className="runner-note">Tick only the races you recognize. You can add races from other matches too.</p>
+    <div id="runner-profile" className="ph-no-capture">{manifest && profile && <section className="runner-profile" aria-labelledby="runner-profile-title"><h2 id="runner-profile-title" className="runner-h" tabIndex={-1} ref={profileHeading}>{[...new Set(profile.names.filter(Boolean).map(displayName))].join(' / ') || 'Recorded race group'}</h2><p className="runner-note">Tick only the races you recognize. You can add races from other matches too.</p>
       <ul className="runner-races">{orderedRaces.map(race => <li className="runner-race" key={race.id}><label className="runner-race-row"><input type="checkbox" checked={selected.some(row => row.id === race.id)} onChange={() => toggleRace(race)} /><span className="runner-race-body"><RunnerRecordDetails race={race} manifest={manifest} copyEditions={copyEditions} /></span></label>
         {!analysed(race, manifest, copyEditions) && <RecordedCheckpoints race={race} manifest={manifest} copyEditions={copyEditions} />}
       </li>)}</ul>
@@ -354,6 +338,6 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts 
     </div>
     {/* The analysis reads under the search and what it found, outside their column (from 900 px it is wider, on the
         same axis). */}
-    <div ref={analysisRef} className="runner-reading ph-no-capture">{confirmed && manifest && !noMatch && <SelectedAnalysis races={confirmed} manifest={manifest} units={units} copyEditions={copyEditions} report={report} listed={listed} />}</div>
+    <div ref={analysisRef} className="runner-reading ph-no-capture">{confirmed && manifest && !noMatch && <SelectedAnalysis races={confirmed} manifest={manifest} units={units} copyEditions={copyEditions} report={report} listed={listed} wet={wet} />}</div>
   </>;
 }

@@ -32,9 +32,10 @@
    stories' (the band's sentence is about distance), so its first screen has one accent, the H1's. */
 .home-start .hero-replay.is-band { --replay-h: calc(22vh - 20px); }
 @supports (height: 1svh) { .home-start .hero-replay.is-band { --replay-h: clamp(108px, calc(22svh - 20px), 180px); } }
-.home-start .hero-replay.is-band .replay-box { grid-row: 3; }
+/* The mats sit in the box's foot, in a strip the plot stops short of (--plot-b: the 16 px row, its 4 px margin and
+   6 px of air), so no runner is drawn under Start or 20K. */
+.home-start .hero-replay.is-band .replay-box { grid-row: 3; --plot-b: 26px; }
 .home-start .hero-replay.is-band .replay-mats { display: block; grid-row: 3; align-self: end; z-index: 1; height: 16px; margin: 0 0 4px; pointer-events: none; }
-.home-start .hero-replay.is-band .replay-mats span { text-shadow: 0 0 3px var(--night), 0 0 6px var(--night); }
 .home-start .hero-replay.is-band .replay-mats span:not(:first-child):not(:nth-child(3)):not(.is-finish) { display: none; }
 /* Under 300 px (200% zoom) the band is too short for a 20K label clear of the dots: Start and Finish name the ends. */
 @media (max-width: 299.98px) { .home-start .hero-replay.is-band .replay-mats span:nth-child(3) { display: none; } }
@@ -161,8 +162,8 @@
   .home-start .hero-replay.is-band .replay-frame { display: block; }
   .home-start .hero-replay.is-band .replay-clock { font-size: 1.75rem; }
   .home-start .hero-replay.is-band .replay-mats, .home-start .hero-replay.is-band .replay-axis-y { display: block; }
+  .home-start .hero-replay.is-band .replay-box { --plot-b: 0px; }
   .home-start .hero-replay.is-band .replay-mats { height: 22px; margin: 6px 0 0; }
-  .home-start .hero-replay.is-band .replay-mats span { text-shadow: none; }
   .home-start .hero-replay.is-band .replay-mats span:not(:first-child):not(:nth-child(3)):not(.is-finish) { display: block; }
   .home-start .hero-replay.is-band .replay-track { display: block; }
   .home-start .hero-replay.is-band .replay-moment { margin-top: var(--s-3); font-size: 1.0625rem; }

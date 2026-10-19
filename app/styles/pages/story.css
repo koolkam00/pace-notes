@@ -63,6 +63,13 @@
 .story-replay .chips[data-more='end'] .chips-row { -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 56px), transparent); mask-image: linear-gradient(to right, var(--ink) calc(100% - 56px), transparent); }
 .story-replay .chips[data-more='start'] .chips-row { -webkit-mask-image: linear-gradient(to left, var(--ink) calc(100% - 56px), transparent); mask-image: linear-gradient(to left, var(--ink) calc(100% - 56px), transparent); }
 .story-replay .chips[data-more='both'] .chips-row { -webkit-mask-image: linear-gradient(to right, transparent, var(--ink) 56px, var(--ink) calc(100% - 56px), transparent); mask-image: linear-gradient(to right, transparent, var(--ink) 56px, var(--ink) calc(100% - 56px), transparent); }
+/* Under 900 px the row runs to the screen's right edge, so a chip past it fades out at the edge of the glass rather
+   than being cut inside the card. */
+@media (max-width: 899.98px) {
+  .story-replay .hero-replay { overflow: visible; }
+  .story-replay .replay-pickers > .chips { align-self: stretch; max-width: none; margin-right: calc(-1 * var(--gutter)); }
+  .story-replay .replay-pickers > .chips .chips-row { padding-right: var(--gutter); scroll-padding-inline: 24px var(--gutter); }
+}
 @media (min-width: 900px) {
   .story-replay .chips .chips-row { flex-wrap: wrap; overflow: visible; -webkit-mask-image: none; mask-image: none; }
 }
@@ -79,6 +86,8 @@
 /* A stream's end shares sit on a raised tab edged in the stream's colour: ink text, readable on a thin stream or a wide one. */
 .viz-frame .river-tab { fill: var(--paper-raised); stroke: var(--type); stroke-width: 1.5; }
 .viz-frame .river-end { font-family: var(--sans); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; fill: var(--ink); }
+/* The neighbouring stream's name, quiet, inside its own band. */
+.viz-frame .river-other { font-family: var(--sans); font-size: 13px; font-weight: 500; fill: var(--ink-3); }
 [data-theme="dark"] .viz-frame .river-on { fill: var(--type-night, var(--type)); }
 [data-theme="dark"] .viz-frame .river-tab { stroke: var(--type-night, var(--type)); }
 @media (prefers-color-scheme: dark) {
@@ -157,26 +166,20 @@
 .which-key { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: calc(-1 * var(--s-2)) 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
 .which-ramp { display: inline-flex; gap: 2px; margin: 0 4px; }
 .which-key i { flex: none; width: 12px; height: 10px; border-radius: 2px; background: var(--bg, var(--paper-sunk)); }
-/* Dark mode: a block blends from the dark surface by how far it is from even, so an even 5K is not a paper tile. */
-@supports (background: color-mix(in oklab, red 50%, blue)) {
-  [data-theme="dark"] .which-blocks li, [data-theme="dark"] .which-key i { background: color-mix(in oklab, var(--bg, var(--paper-sunk)) var(--mix, 0%), var(--paper-sunk)); color: var(--ink); }
-}
-/* Dark mode: every block and key swatch keeps a hairline edge, so an even section (the ramp's midpoint) still reads as
-   a block rather than dissolving into the page. */
-[data-theme="dark"] .which-blocks li, [data-theme="dark"] .which-key i { box-shadow: inset 0 0 0 1px var(--rule-strong); }
+/* Dark mode: the blocks take the dark theme's own ramp (--bg-dark, lib/viz/format.ts PACE_RAMP_DARK), light ink on
+   every step, and the key swatches the same colours. Every block and swatch keeps a hairline edge, so an even section
+   (the ramp's midpoint, the surface's own colour) still reads as a block rather than dissolving into the page. */
+[data-theme="dark"] .which-blocks li, [data-theme="dark"] .which-key i { background: var(--bg-dark, var(--paper-sunk)); color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule-strong); }
 @media (prefers-color-scheme: dark) {
-  @supports (background: color-mix(in oklab, red 50%, blue)) {
-    :root:not([data-theme="light"]) .which-blocks li, :root:not([data-theme="light"]) .which-key i { background: color-mix(in oklab, var(--bg, var(--paper-sunk)) var(--mix, 0%), var(--paper-sunk)); color: var(--ink); }
-  }
-  :root:not([data-theme="light"]) .which-blocks li, :root:not([data-theme="light"]) .which-key i { box-shadow: inset 0 0 0 1px var(--rule-strong); }
+  :root:not([data-theme="light"]) .which-blocks li, :root:not([data-theme="light"]) .which-key i { background: var(--bg-dark, var(--paper-sunk)); color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule-strong); }
 }
 
 /* ---------- Name that course ---------- */
 /* The round spans the story's measure: the plot stretches to it at a fixed height, its strokes kept at screen width. */
 .ntc { display: grid; gap: var(--s-4); max-width: var(--measure-figure); }
 .ntc-figure { margin: 0; }
-.ntc-plot { display: block; width: 100%; height: 150px; overflow: visible; }
-@media (min-width: 900px) { .ntc-plot { height: 200px; } }
+.ntc-plot { display: block; width: 100%; height: 112px; overflow: visible; }
+@media (min-width: 900px) { .ntc-plot { height: 150px; } }
 .ntc-plot line, .ntc-plot path { vector-effect: non-scaling-stroke; }
 .ntc-zero { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 4 4; }
 .ntc-line { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
@@ -185,7 +188,7 @@
 /* The round's year: a plain label over the plot (the H2 asks the question). */
 .ntc-year { margin: 0 0 var(--s-2); font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
 /* The mats under the plot, at their distance along the course (the ends turned inward). */
-.ntc-axis { position: relative; height: 18px; font-size: 12px; font-weight: 500; line-height: 18px; color: var(--ink-3); }
+.ntc-axis { position: relative; height: 18px; margin-top: 8px; font-size: 12px; font-weight: 500; line-height: 18px; color: var(--ink-3); }
 .ntc-axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
 .ntc-caption { margin-top: var(--s-2); font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
 .ntc-options { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -251,16 +254,16 @@
 .fingerprints .viz-key-mark.is-line.is-quiet { background: var(--mark-quiet); box-shadow: none; height: 1px; opacity: .7; }
 
 /* Places after 30K (#shuffle): the field as one 100% bar, the gains bracketed, the tails named under its ends. */
-.place-shift .ps-bracket { position: relative; height: 34px; }
-.place-shift .ps-bracket::before { content: ''; position: absolute; left: 0; right: 0; bottom: 6px; height: 8px; border: 1.5px solid var(--ink); border-bottom: 0; border-radius: 2px 2px 0 0; }
-.place-shift .ps-bracket-label { position: absolute; right: 0; bottom: 18px; font-size: 14px; font-weight: 600; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink); }
-.place-shift .ps-track { position: relative; display: flex; gap: 2px; height: 28px; }
-.place-shift .ps-seg { display: flex; align-items: center; justify-content: center; min-width: 3px; flex-basis: 0; border-radius: 3px; overflow: hidden; }
-.place-shift .ps-seg.is-ink { background: var(--ink); }
-.place-shift .ps-seg.is-signal { background: var(--signal); }
-.place-shift .ps-seg.is-quiet { background: var(--fill-quiet); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
-.place-shift .ps-ends { display: flex; justify-content: space-between; gap: var(--s-4); margin-top: var(--s-3); font-size: var(--t-small); line-height: 1.35; color: var(--ink-2); }
-.place-shift .ps-end { max-width: 10.5em; }
-.place-shift .ps-end b { display: block; font-size: 1.0625rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
-.place-shift .ps-end.is-right { text-align: right; }
+.place-shift .ps-rows { display: grid; gap: var(--s-4); }
+.place-shift .ps-row { display: grid; gap: 6px; }
+.place-shift .ps-label { font-size: var(--t-small); line-height: 1.3; color: var(--ink-2); }
+.place-shift .ps-track { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+/* The longest bar takes the row less 4rem, so its share always fits beside it at any width; none is under 12 px. */
+.place-shift .ps-bar { flex: none; width: max(12px, calc((100% - 4rem) * var(--f, 0))); height: 22px; border-radius: 3px; }
+.place-shift .ps-bar.is-signal { background: var(--signal); }
+.place-shift .ps-bar.is-ink { background: var(--ink); }
+.place-shift .ps-value { font-size: 1.0625rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; color: var(--ink); }
+@media (min-width: 600px) {
+  .place-shift .ps-row { grid-template-columns: 11rem minmax(0, 1fr); align-items: center; gap: var(--s-4); }
+}
 

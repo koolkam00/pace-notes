@@ -23,9 +23,11 @@ export type StageChoice = {
   poster: ReplayPosterData;
   /** The point the moment names, marked on the field at the flag frame (the home band's back of the field). */
   mark?: { km: number; label: { mi: string; km: string } };
+  /** The share the moment gives, labelled on the stretch of the field it counts (the race-replay story: short of 20K). */
+  split?: { km: number; label: string };
 };
 
-type Replay = ComponentType<{ edition: ReplayEdition; flag: number; view?: 'field' | 'route'; band?: boolean; race: string; moment?: StageChoice['moment']; mark?: StageChoice['mark']; poster?: ReactNode; autoplay?: boolean }>;
+type Replay = ComponentType<{ edition: ReplayEdition; flag: number; view?: 'field' | 'route'; band?: boolean; race: string; moment?: StageChoice['moment']; mark?: StageChoice['mark']; split?: StageChoice['split']; poster?: ReactNode; autoplay?: boolean }>;
 let loaded: Replay | null = null;
 
 export default function ReplayStage({ choices, initial, band = false, picker = false, layout = false }: {
@@ -83,10 +85,10 @@ export default function ReplayStage({ choices, initial, band = false, picker = f
       ) : null}
       {Component && data ? (
         <Component key={`${choice.slug}-${shownView}`} edition={{ city: choice.city, year: choice.year, finishes: choice.finishes, sample: choice.sample, rows: data, route: choice.route }}
-          flag={choice.flag_s} view={shownView} band={band} race={choice.race} moment={choice.moment} mark={choice.mark} poster={shownView === 'field' ? poster : null} autoplay={!picked} />
+          flag={choice.flag_s} view={shownView} band={band} race={choice.race} moment={choice.moment} mark={choice.mark} split={choice.split} poster={shownView === 'field' ? poster : null} autoplay={!picked} />
       ) : (
         <ReplayFrame race={choice.race} clock={raceClock(choice.flag_s)} finished={hudShare(choice.poster.finished)} view={shownView} aspect={routeAspect(choice.route?.points)}
-          poster={shownView === 'field' ? poster : null} moment={choice.moment} mark={choice.mark} time={choice.flag_s} max={choice.poster.last_s + 300} busy={!error} status={error || undefined} />
+          poster={shownView === 'field' ? poster : null} moment={choice.moment} mark={choice.mark} split={choice.split} time={choice.flag_s} max={choice.poster.last_s + 300} busy={!error} status={error || undefined} />
       )}
     </div>
   );

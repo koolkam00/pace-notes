@@ -34,12 +34,16 @@ export type FrameProps = {
   live?: boolean;
   /** The route view's width-to-height ratio (routeAspect), so the frame fits the course's shape. */
   aspect?: number;
-  /** A point the moment's sentence names (the home band: how far the back of the field had come), marked at the foot of
-   *  the field with its distance while the flag frame shows: a tick and a label, never a control. */
+  /** A point the moment's sentence names (the home band: how far the back of the field had come): a ring on the last
+   *  lane at that exact distance, the back of the whole field (the sample need not hold its last runner), with its
+   *  distance on a hairline above it, in the plot's empty upper left, never on the axis row. Never a control. */
   mark?: { km: number; label: { mi: string; km: string } };
+  /** The share the moment's sentence gives (the race-replay story: short of 20K), labelled inside the stretch of the
+   *  field it counts, beside that mat, while the flag frame shows. The canvas dims the runners past it. */
+  split?: { km: number; label: string };
 };
 
-export default function ReplayFrame({ race, clock, finished, view, poster, canvas, moment, momentOn = true, playing = false, onPlay, time = 0, max = 0, onScrub, valuetext, busy, status, live = false, aspect, mark }: FrameProps) {
+export default function ReplayFrame({ race, clock, finished, view, poster, canvas, moment, momentOn = true, playing = false, onPlay, time = 0, max = 0, onScrub, valuetext, busy, status, live = false, aspect, mark, split }: FrameProps) {
   const hours = Math.max(0, Math.floor(max / 3600));
   const ready = !!onScrub;
   return (
@@ -56,13 +60,20 @@ export default function ReplayFrame({ race, clock, finished, view, poster, canva
       {/* The rank axis is named above the field, never on it, so no dot ever runs under its words. */}
       {view === 'field' ? <p className="replay-axis-y" aria-hidden="true">First to finish at the top</p> : null}
       <div className={`replay-box is-${view}`} style={view === 'route' && aspect ? ({ '--route-aspect': String(aspect) } as CSSProperties) : undefined}>
-        {poster}
-        {canvas}
-        {mark && view === 'field' ? (
-          <span className={`replay-mark${momentOn ? '' : ' is-off'}`} style={{ left: `${(fieldX(mark.km) * 100).toFixed(2)}%` }} aria-hidden="true">
-            <i /><ByUnits mi={mark.label.mi} km={mark.label.km} />
-          </span>
-        ) : null}
+        {/* The plot: the canvas and its labels, above the axis row (the home band sets that row over the box's foot, so
+            the plot stops short of it and no runner is ever drawn under a label). */}
+        <div className="replay-plot">
+          {poster}
+          {canvas}
+          {mark && view === 'field' ? (
+            <span className={`replay-mark${momentOn ? '' : ' is-off'}`} style={{ left: `${(fieldX(mark.km) * 100).toFixed(2)}%` }} aria-hidden="true">
+              <b><ByUnits mi={mark.label.mi} km={mark.label.km} /></b><i /><s />
+            </span>
+          ) : null}
+          {split && view === 'field' ? (
+            <span className={`replay-split${momentOn ? '' : ' is-off'}`} style={{ right: `${((1 - fieldX(split.km)) * 100).toFixed(2)}%` }} aria-hidden="true">{split.label}</span>
+          ) : null}
+        </div>
         {status ? <p className="replay-status">{status}</p> : null}
       </div>
       {view === 'field' ? (
