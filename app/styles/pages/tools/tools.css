@@ -372,4 +372,4 @@
 /* The closing stack's way back stays on one line (the planner's "Where improvement happens"): when it and "How we know"
    do not fit side by side, "How we know" takes its own row instead of the way back breaking in two. */
 .tool-page .chapter-end-links { flex-wrap: wrap; }
-.tool-page .chapter-end-links > .chapter-prev > span { white-space: nowrap; }
+@media (min-width: 360px) { .tool-page .chapter-end-links > .chapter-prev > span { white-space: nowrap; } }

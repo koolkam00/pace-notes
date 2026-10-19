@@ -151,7 +151,9 @@ function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_
     // units=km alone is not a comparison: a kilometres visitor arriving from a link still starts with the example.
     const restore = () => {
       const query = new URLSearchParams(window.location.search); query.delete('units');
-      const read = readAnalysisProfile(window.location.search, summary);
+      // Without a time in the address, the page's own starting time (finish-time context opens on the H1's 3:00).
+      const parsed = readAnalysisProfile(window.location.search, summary);
+      const read = query.has('goal') ? parsed : { ...parsed, goal: start.goal };
       // A course-only analysis never shows "All courses": without a course in the address it opens on its own.
       // Hills compares a course with every course at the same time, for all ages and genders: its refinements are not offered.
       const course = courseOnly ? { ...read, age: 'all', gender: 'all', previous: null } : read;
@@ -160,7 +162,7 @@ function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_
     };
     restore(); window.addEventListener('popstate', restore);
     return () => window.removeEventListener('popstate', restore);
-  }, [summary, courseOnly, start.city, terrain?.hidden]);
+  }, [summary, courseOnly, start.city, start.goal, terrain?.hidden]);
   useEffect(() => {
     if (!usesCityData || sameProfile(profile, start)) { setLoading(false); setError(''); return; }
     const controller = new AbortController();

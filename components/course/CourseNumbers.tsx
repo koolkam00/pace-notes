@@ -1,6 +1,7 @@
 import { Elevation } from '@/components/story/Units';
 import { clock, count, goalText, minutes, pct, routeClimb, shortDate, type CoursePageData } from '@/lib/course-page';
 import { sectionLabel } from '@/lib/nuggets/format';
+import { profileUnderWater } from '@/lib/nuggets/courses';
 import { SECTION_BOUNDS, signedPct } from '@/lib/viz/format';
 import { CourseTable, Fact } from './Fact';
 import { Degrees, NetElevation, Wind } from './CourseUnits';
@@ -14,10 +15,14 @@ import { GOAL_GAP } from './CourseGoals';
  */
 export default function CourseNumbers({ page }: { page: CoursePageData }) {
   const { display, summary: s, editions, weather, terrain, goals, types, archetypes, counted } = page;
-  // The one climb the page prints everywhere (the hero, #elevation, /courses): the route's 5K sections summed.
-  const climb = routeClimb(page);
+  // The one climb the page prints everywhere (the hero, #elevation, /courses): the route's 5K sections summed. A profile
+  // that reads the water under a bridge prints no climb, descent or net anywhere: its 5K table keeps the pace only.
+  const wet = profileUnderWater(page);
+  const climb = wet ? null : routeClimb(page);
+  const curve = s.curve?.length === 9 ? s.curve : null;
+  const sections = terrain && (!wet || curve) ? terrain : null;
   const byYear = new Map(weather.map((w) => [w.year, w]));
-  const tables = 3 + (terrain ? 1 : 0) + (goals.length ? 1 : 0) - (types ? 0 : 1);
+  const tables = 3 + (sections ? 1 : 0) + (goals.length ? 1 : 0) - (types ? 0 : 1);
   return (
     <details className="values course-numbers" id="all-numbers">
       <summary>
@@ -60,17 +65,21 @@ export default function CourseNumbers({ page }: { page: CoursePageData }) {
             })}
           </tbody>
         </CourseTable>
-        {terrain ? (
+        {sections ? (
           <CourseTable id="numbers-sections-caption" caption={`${display}, 5K by 5K`}>
-            <thead><tr><th scope="col">Section</th><th scope="col">Climb</th><th scope="col">Descent</th><th scope="col">Net</th><th scope="col" className="nowrap">Pace vs. avg.</th></tr></thead>
+            <thead><tr><th scope="col">Section</th>{wet ? null : <><th scope="col">Climb</th><th scope="col">Descent</th><th scope="col">Net</th></>}<th scope="col" className="nowrap">Pace vs. avg.</th></tr></thead>
             <tbody>
-              {terrain.map((t, i) => (
+              {sections.map((t, i) => (
                 <tr key={i}>
                   <th scope="row">{sectionLabel(...SECTION_BOUNDS[i])}</th>
-                  <td><Fact k={`t.gain@${i}`} v={t.gain_m}><Elevation metres={t.gain_m} /></Fact></td>
-                  <td><Fact k={`t.loss@${i}`} v={t.loss_m}><Elevation metres={t.loss_m} /></Fact></td>
-                  <td><Fact k={`t.net@${i}`} v={t.net_m}><NetElevation metres={t.net_m} /></Fact></td>
-                  <td>{s.curve?.length === 9 ? <Fact k={`curve@${i}`} v={s.curve[i]}>{signedPct(s.curve[i], 1)}</Fact> : '—'}</td>
+                  {wet ? null : (
+                    <>
+                      <td><Fact k={`t.gain@${i}`} v={t.gain_m}><Elevation metres={t.gain_m} /></Fact></td>
+                      <td><Fact k={`t.loss@${i}`} v={t.loss_m}><Elevation metres={t.loss_m} /></Fact></td>
+                      <td><Fact k={`t.net@${i}`} v={t.net_m}><NetElevation metres={t.net_m} /></Fact></td>
+                    </>
+                  )}
+                  <td>{curve ? <Fact k={`curve@${i}`} v={curve[i]}>{signedPct(curve[i], 1)}</Fact> : '—'}</td>
                 </tr>
               ))}
             </tbody>

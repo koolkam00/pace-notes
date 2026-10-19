@@ -22,7 +22,8 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
   const copies = manifest.duplicate_edition_screen ?? [];
   const held = new Set([...policy, ...copies].map((e) => `${e.city}|${e.year}`));
   const whole = (v) => `${Math.round(v * 100)}%`;
-  const hm = (s) => { const m = Math.round(s / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
+  // A finish clock time to the minute, floored as a race clock reads (3:59:36 is 3:59, never 4:00).
+  const hm = (s) => { const m = Math.floor(s / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
   const ft = (m) => `${Math.round(Math.abs(m) / 0.3048).toLocaleString('en-US')} ft`;
   const degF = (c) => `${(c * 1.8 + 32).toFixed(0)}°F`;
   const MATS = [[0, 5], [5, 10], [10, 15], [15, 20], [20, 25], [25, 30], [30, 35], [35, 40], [40, 42.195]];
@@ -111,7 +112,9 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
         const name = sectionName(courses.sections.indexOf(c.slowest_section));
         const usual = sectionName(courses.sections.indexOf(modal));
         const i = courses.sections.indexOf(c.slowest_section);
-        step(() => eq(said(n), `The slowest ${stretch(i)} is ${name}; on ${tally.get(modal)} of the ${shaped} courses with 5K splits it’s ${usual}.`, `course.late (${city}): the sentence`));
+        step(() => eq(said(n), `${named(city)}’s slowest ${stretch(i)} is ${name}; on ${tally.get(modal)} of ${shaped} courses it’s ${usual}.`, `course.late (${city}): the sentence`));
+        // The row's figure: how much slower than the course's own average its slowest section runs, in whole percent.
+        step(() => eq(n.figure && `${n.figure.value}${n.figure.unit}`, `${Math.round(c.curve[i])}% slower`, `course.late (${city}): the figure`));
       }
     }
 
@@ -124,13 +127,19 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const dev = solid ? c.curve[i] - courses.typical_curve[i] : NaN;
       const words = (v, own) => {
         const r = Math.round(Math.abs(v)), side = v > 0 ? 'slower' : 'quicker';
-        return own ? (r === 0 ? 'at its own average pace' : `${r}% ${side} than its own average`) : (r === 0 ? `the typical course runs this ${stretch(i)} at its average pace` : `the typical course runs this ${stretch(i)} ${r}% ${side}`);
+        return own ? (r === 0 ? 'at' : `${r}% ${side} than`) : (r === 0 ? 'at its average pace' : `${r}% ${side}`);
       };
       step(() => ok(!solid || Math.abs(dev - c.signature_points) < 0.011, `course.signature (${city}): the signature is the curve less the typical curve`));
       step(() => ok(!solid || c.deviation.every((d) => Math.abs(d) <= Math.abs(c.signature_points) + 1e-9), `course.signature (${city}): no section parts further than the signature`));
       const here = solid ? c.curve[i] : NaN, typ = solid ? courses.typical_curve[i] : NaN;
       step(() => eq(n.guard, solid && Math.abs(c.signature_points) >= 3 && words(here, true) !== words(typ, true), `course.signature (${city}): guard (3 points on three or more editions)`));
-      if (n.guard) step(() => eq(n.key, `${words(here, true)}; ${words(typ, false)}`, `course.signature (${city}): the row`));
+      if (n.guard) {
+        step(() => eq(n.key, `${sectionName(i)} runs ${words(here, true)} ${named(city)}’s average pace; the typical course runs it ${words(typ, false)}`, `course.signature (${city}): the row`));
+        // The figure is how far the section parts from the typical course's: the difference of the two whole percentages.
+        const apart = Math.round(here) - Math.round(typ);
+        step(() => eq(`${n.figure.value}${n.figure.unit}`, `${Math.abs(apart)}% ${apart > 0 ? 'slower' : 'quicker'}`, `course.signature (${city}): the figure`));
+        step(() => ok(Math.abs(apart) >= 3, `course.signature (${city}): the figure parts by 3 or more`));
+      }
       else if (solid && Math.abs(c.signature_points) < 3) step(() => ok(said(n).endsWith('paces much like the typical course, 5K by 5K.'), `course.signature (${city}): within 3 points everywhere, it paces like the typical course`));
     }
 
@@ -143,7 +152,10 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       step(() => eq(n.guard, guard, `course.times (${city}): guard`));
       if (guard) {
         step(() => eq([n.values.lo_year, n.values.hi_year], [lo.year, hi.year], `course.times (${city}): the range ends`));
-        step(() => eq(said(n), `The median finish ranged from ${hm(lo.median_s)} in ${lo.year} to ${hm(hi.median_s)} in ${hi.year}.`, `course.times (${city}): the sentence`));
+        // Under six minutes apart, the medians read as steady; otherwise as a range.
+        const spread = hi.median_s - lo.median_s;
+        step(() => eq(said(n), spread < 360 ? `Every median finish within ${Math.ceil(spread / 60)} minutes: ${hm(lo.median_s)} to ${hm(hi.median_s)}.`
+          : `The median finish ranged from ${hm(lo.median_s)} in ${lo.year} to ${hm(hi.median_s)} in ${hi.year}.`, `course.times (${city}): the sentence`));
       }
     }
 
@@ -175,8 +187,10 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
         for (let i = 1; i < mix.shares.length; i++) if (Math.abs(mix.shares[i] - archetypes.archetypes[i].share) > Math.abs(mix.shares[best] - archetypes.archetypes[best].share)) best = i;
         const here = mix.shares[best], every = archetypes.archetypes[best].share;
         step(() => eq([n.values.type, n.guard], [archetypes.archetypes[best].slug, Math.abs(here - every) >= 0.03], `course.types (${city}) recounts the type and its guard`));
-        if (n.guard) step(() => eq(said(n), `${here > every ? 'More' : 'Fewer'} ${archetypes.archetypes[best].name.toLowerCase()}s here: ${whole(here)}, against ${whole(every)} across every course.`, `course.types (${city}): the sentence`));
-        else step(() => eq(said(n), 'Paced much like every course: no type more than 3 points apart.', `course.types (${city}): within 3 points everywhere, the null finding`));
+        // The types are counted over every course with 5K splits, named by their number.
+        const across = archetypes.courses.length;
+        if (n.guard) step(() => eq(said(n), `${here > every ? 'More' : 'Fewer'} ${archetypes.archetypes[best].name.toLowerCase()}s here: ${whole(here)}, against ${whole(every)} across ${across} courses.`, `course.types (${city}): the sentence`));
+        else step(() => eq(said(n), `Paced much like the other courses: every type within 3% of its share across all ${across}.`, `course.types (${city}): within 3 points everywhere, the null finding`));
       } else step(() => eq(n.guard, false, `course.types (${city}): no mix, no claim`));
     }
 
@@ -193,13 +207,14 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const count = higher >= lower ? higher : lower;
       step(() => eq(n.guard, others.length >= 5 && (middle || count > 0), `course.among (${city}): guard`));
       const words = ['zero', 'one', 'two'];
-      const from = solidSelf ? '' : `, from ${words[c.editions]} edition${c.editions === 1 ? '' : 's'}`;
-      const all = count === others.length ? (solidSelf ? 'any other course' : 'every course') : null;
-      // The scope is the strip's key; the sentence keeps it only for "any other course" / "every course" and for a course
-      // with fewer editions.
-      const than = all ? `${all} with three or more editions` : solidSelf ? `${count} of the ${others.length} other courses` : `${count} of ${others.length} courses`;
+      const side = higher >= lower ? 'lower' : 'higher';
+      const all = count === others.length;
+      // A course of fewer editions leads with how many it has; the scope is said where the sentence counts all of them.
+      const than = solidSelf ? (all ? `all ${others.length} other courses with three or more editions` : `${count} of the ${others.length} other courses`)
+        : (all ? `all ${others.length} courses with three or more` : `${count} of the ${others.length} courses`);
       const want = middle ? `${named(city)}’s ${whole(c.slowdown)}: near the middle of ${others.length + 1} courses.`
-        : `${named(city)}’s ${whole(c.slowdown)}: ${higher >= lower ? 'lower' : 'higher'} than ${than}${from}.`;
+        : solidSelf ? `${named(city)}’s ${whole(c.slowdown)}: ${side} than ${than}.`
+          : `From its ${words[c.editions]} edition${c.editions === 1 ? '' : 's'}, ${named(city)}’s ${whole(c.slowdown)} is ${side} than ${than}.`;
       if (n.guard) step(() => eq(said(n).replace(/\u00a0/g, ' '), want, `course.among (${city}): the sentence`));
     }
 
@@ -217,7 +232,8 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       step(() => ok(shows ? poolN >= 100 && Math.abs(n.values.every - poolUnder) < 1e-12 && n.values.every_n === poolN : Number.isNaN(n.values.every), `course.goal (${city}): every course's share recounts (${n.values.every} against ${poolUnder})`));
       if (n.guard) {
         const gap = Math.abs(Math.round(row.under * 100) - Math.round(poolUnder * 100));
-        const against = gap >= 3 ? `, against ${whole(poolUnder)} across every course` : ', about the same as across every course';
+        // The pooled courses by their number, as the planner names them.
+        const against = gap >= 3 ? `, against ${whole(poolUnder)} across ${pool.length} courses` : `, about the same as across ${pool.length} courses`;
         step(() => eq(said(n), `Of ${named(city)} finishes on 4:00 pace at 20K, ${whole(row.under)} made 4:00${against}.`, `course.goal (${city}): the sentence`));
       }
     }

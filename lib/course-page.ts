@@ -40,6 +40,14 @@ export function clock(seconds: number): string {
   const s = Math.round(seconds);
   return `${Math.floor(s / 3600)}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
+/**
+ * A finish time to the minute, floored as a race clock reads it (14376 s, 3:59:36 → "3:59"): a median a few seconds under
+ * a round time never states the wrong side of it.
+ */
+export function finishMinute(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+}
 /** A duration under an hour: 565 → "9:25". */
 export function minutes(seconds: number): string {
   const s = Math.round(seconds);
@@ -235,9 +243,14 @@ function optional<T>(name: string): T | null {
   return getInsightsManifest().files[name] ? readInsight<T>(name) : null;
 }
 
-/** The course's own race name from the data: the supplied route's race, else the course summary's, else the city plus " Marathon". */
+/** A sponsor's name a route file puts before the race's own ("PZU Warsaw Marathon"): every page names the race plainly. */
+export const SPONSOR_PREFIX = /^PZU\s+/;
+/**
+ * The course's own race name from the data: the supplied route's race, else the course summary's, else the city plus
+ * " Marathon", without a sponsor's name in front, as every other course is titled ("Berlin Marathon", not "BMW …").
+ */
 export function raceName(city: string, geometry?: CourseGeometry | null, summary?: { race?: string } | null): string {
-  return geometry?.race || summary?.race || `${city} Marathon`;
+  return (geometry?.race || summary?.race || `${city} Marathon`).replace(SPONSOR_PREFIX, '');
 }
 
 /** How a page names a city in prose: New York's race is the New York City Marathon. */

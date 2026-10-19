@@ -5,12 +5,17 @@ import type { Courses } from '@/lib/insights';
 import { readInsight } from '@/lib/insights-server';
 import type { CoursePageData } from '@/lib/course-page';
 import ByUnits from '@/components/ui/ByUnits.client';
+import { sectionLabel } from '@/lib/nuggets/format';
+import { SECTION_BOUNDS } from '@/lib/viz/format';
 import { CourseSection, Said } from './Fact';
 
 /**
  * "What makes {city} {city}" (the redesign spec, section 7.10; "What sets {city} apart" for a name of two words or more,
  * which would stutter over two lines): only what sets the course apart, up to three rows divided
- * by hairlines, each a figure, the words that finish its sentence and a micro-chart of at most 48 px. A row shows only
+ * by hairlines, each a figure (a reading: how far, how much slower, how far from the typical course; never a section's
+ * name), the words that finish its sentence and a micro-chart of at most 48 px. One row is the section's finding, so its
+ * sentence is the H2 and the row keeps its figure and chart. Orange marks the first row's chart only: one accent per
+ * section. A row shows only
  * when its nugget's guard holds: a first 5K that ends 10 m or more above or below its start (that 5K's profile on its
  * own scale, over a level at the start's height), a slowest 5K unlike nearly every other course's (the nine sections
  * against the course's own average), and the 5K where its pacing parts most from the typical course's (both curves,
@@ -18,7 +23,8 @@ import { CourseSection, Said } from './Fact';
  * the "Name that course" game on /stories/courses.
  * A course with none of these has no glance at all (the page leaves the section out and opens on its first difference).
  */
-type Row = { id: string; figure: React.ReactNode; key: string; viz?: React.ReactNode };
+/** A row: its figure, the words that finish its sentence, and (alone, under its sentence as the H2) a short note naming what the figure is against. */
+type Row = { id: string; figure: React.ReactNode; key: string; note?: string; viz?: React.ReactNode };
 
 const W = 96, H = 40;
 const line = (p: readonly (readonly [number, number])[]) => p.map(([px, py], i) => `${i ? 'L' : 'M'}${px.toFixed(1)} ${py.toFixed(1)}`).join('');
@@ -112,27 +118,32 @@ export default function CourseGlance({ page }: { page: CoursePageData }) {
   const curve = s.curve?.length === 9 ? s.curve : null;
   if (!ids.length) return null;
   const kept = display.replace(/ /g, '\u00a0');
+  const single = ids.length === 1 ? getNugget(ids[0], { city }) : null;
+  const name = (i: number) => (SECTION_BOUNDS[i] ? sectionLabel(...SECTION_BOUNDS[i]) : '');
   const rows: Row[] = ids.map((id) => {
     const n = getNugget(id, { city }) as CourseNugget;
     if (id === 'course.start') {
       const km = n.figureKm;
-      return { id, figure: km ? <ByUnits mi={figureOf(n)} km={<BigNumber value={km.value} unit={km.unit} sr={km.sr} size="m" />} /> : figureOf(n), key: n.key!, viz: <StartViz page={page} /> };
+      // Alone, the H2 already says how far: the row is its chart.
+      const figure = single ? null : km ? <ByUnits mi={figureOf(n)} km={<BigNumber value={km.value} unit={km.unit} sr={km.sr} size="m" />} /> : figureOf(n);
+      return { id, figure, key: n.key!, viz: <StartViz page={page} /> };
     }
     if (id === 'course.late') {
       const slowest = s.slowest_section ? page.sections.indexOf(s.slowest_section) : -1;
-      return { id, figure: figureOf(n), key: n.key!, viz: curve && slowest >= 0 ? <LateViz curve={curve} slowest={slowest} /> : undefined };
+      return { id, figure: figureOf(n), key: n.key!, note: `than its average pace, at ${name(slowest)}`, viz: curve && slowest >= 0 ? <LateViz curve={curve} slowest={slowest} /> : undefined };
     }
     const at = s.signature_section ? page.sections.indexOf(s.signature_section) : -1;
-    return { id, figure: figureOf(n), key: n.key!, viz: curve && at >= 0 ? <SignatureViz curve={curve} typical={typicalCurve} at={at} /> : undefined };
+    return { id, figure: figureOf(n), key: n.key!, note: `than the typical course, at ${name(at)}`, viz: curve && at >= 0 ? <SignatureViz curve={curve} typical={typicalCurve} at={at} /> : undefined };
   });
   return (
-    <CourseSection id="at-a-glance" track="chapter-1" beat="At a glance" title={display.includes(' ') ? <>What sets <em className="is-plain">{kept}</em> apart</> : <>What makes {kept} <em className="is-plain">{kept}</em></>}>
-      <div className="course-glance">
+    <CourseSection id="at-a-glance" track="chapter-1" beat="At a glance"
+      title={single ? <Said nugget={single} /> : display.includes(' ') ? <>What sets <em className="is-plain">{kept}</em> apart</> : <>What makes {kept} <em className="is-plain">{kept}</em></>}>
+      <div className={`course-glance${single ? ' is-single' : ''}`}>
         <ul className="glance-rows">
-          {rows.map((r) => (
-            <li key={r.id} className="glance-row">
-              <span className="glance-figure">{r.figure}</span>
-              <span className="glance-key">{r.key}</span>
+          {rows.map((r, i) => (
+            <li key={r.id} className={`glance-row${i > 0 ? ' is-quiet' : ''}${r.figure ? '' : ' is-chart'}`}>
+              {r.figure ? <span className="glance-figure">{r.figure}</span> : null}
+              {single ? (r.figure && r.note ? <span className="glance-note">{r.note}</span> : null) : <span className="glance-key">{r.key}</span>}
               {r.viz ? <span className="glance-chart">{r.viz}</span> : null}
             </li>
           ))}

@@ -12,7 +12,7 @@ import type { Courses } from '@/lib/insights';
 import { readInsight } from '@/lib/insights-server';
 import { getNugget, readingOf, sentenceOf } from '@/lib/nuggets';
 import { count } from '@/lib/nuggets/format';
-import { MIN_EDITIONS } from '@/lib/nuggets/courses';
+import { MIN_EDITIONS, profileUnderWater } from '@/lib/nuggets/courses';
 import { JsonLd, absoluteUrl, pageCrumbs, pageMetadata } from '@/lib/seo';
 import '@/app/styles/pages/courses.css';
 
@@ -44,10 +44,10 @@ function ShapeFace({ curve }: { curve: number[] }) {
 
 /**
  * /courses (the redesign spec, section 7.10, cut under section 00): the H1 and the dek, then every course as one row
- * the chips sort: its route as its face (or its pace shape), its name,
- * and the figure the order is by, at the right and again as a bar under the name on one scale for every row, so the
- * sorted list is the chart (start temperatures, a range, draw as a span on one temperature scale). Under any other
- * order the share of sustained slowdowns moves to the row's small line. The courses with fewer than three editions are
+ * the chips sort: its route as its face in a fine ink-2 line (or its pace shape), its name, and the figure the order is
+ * by, at the right; the sorted figures are the ranking, so no bar repeats them (bars under every row read as
+ * underlines). Under any other order the share of sustained slowdowns moves to the row's small line. A route whose
+ * profile reads the water under a bridge prints no climb (as on its page). The courses with fewer than three editions are
  * drawn quieter: under the share's order they follow under their own hairline; under any other they stand in their
  * sorted place. The ItemList stays alphabetical.
  */
@@ -59,21 +59,14 @@ export default function CoursesPage() {
   for (const w of courses.weather.editions) temps.set(w.city, [...(temps.get(w.city) ?? []), w.temp]);
   const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
   const index = getNugget('courses.index');
-  // One scale for every row's bar, per order: zero to the round ten above the highest share, zero to the most climbing and
-  // the most finishes, and for start temperatures the coolest to the warmest morning on any course.
-  const scale = Math.ceil(Math.max(...pages.map((p) => p.summary.slowdown)) * 10) / 10;
-  const most = (v: number[]) => Math.max(1, ...v);
-  const climbTop = most(pages.map((p) => routeClimb(p)?.gain_m ?? 0));
-  const finishTop = most(pages.map((p) => p.summary.finishes));
-  const allTemps = [...temps.values()].flat();
-  const tLo = Math.min(...allTemps), tHi = Math.max(...allTemps);
-  const pc = (v: number) => `${Math.max(0, Math.min(100, v * 100)).toFixed(1)}%`;
+  // The one climb a course prints everywhere; none where the profile reads the water under a bridge.
+  const climbOf = (p: (typeof pages)[number]) => (profileUnderWater(p) ? null : routeClimb(p));
   const few = pages.filter((p) => p.summary.editions < MIN_EDITIONS).map((p) => p.slug);
   const by = (f: (p: (typeof pages)[number]) => number | null, dir: 1 | -1) =>
     [...pages].sort((a, b) => { const x = f(a), y = f(b); if (x === null) return 1; if (y === null) return -1; return dir * (x - y) || a.city.localeCompare(b.city); }).map((p) => p.slug);
   const orders: Record<SortKey, string[]> = {
     slowdown: by((p) => p.summary.slowdown, 1),
-    climb: by((p) => routeClimb(p)?.gain_m ?? null, -1),
+    climb: by((p) => climbOf(p)?.gain_m ?? null, -1),
     finishes: by((p) => p.summary.finishes, -1),
     temp: by((p) => (temps.get(p.city)?.length ? mean(temps.get(p.city)!) : null), 1),
     az: alpha.map((p) => p.slug),
@@ -81,7 +74,7 @@ export default function CoursesPage() {
   const rows = pages.map((p) => {
     const t = temps.get(p.city) ?? [];
     const share = p.summary.slowdown;
-    const climb = routeClimb(p);
+    const climb = climbOf(p);
     const editions = `${count(p.summary.editions)} ${p.summary.editions === 1 ? 'edition' : 'editions'}`;
     return {
       id: p.slug,
@@ -99,12 +92,6 @@ export default function CoursesPage() {
             <span className="f-climb">{climb ? <><Elevation metres={climb.gain_m} /><span className="sr-only"> of climbing</span></> : '—'}</span>
             <span className="f-finishes">{count(p.summary.finishes)}<span className="sr-only"> finishes</span></span>
             <span className="f-temp">{t.length ? <>{t.length > 1 ? <><Temperature c={Math.min(...t)} />–</> : null}<Temperature c={Math.max(...t)} /><span className="sr-only"> at the start</span></> : '—'}</span>
-          </span>
-          <span className="course-index-track" aria-hidden="true">
-            <i className="b-slowdown" style={{ width: pc(share / scale) }} />
-            {climb ? <i className="b-climb" style={{ width: pc(climb.gain_m / climbTop) }} /> : null}
-            <i className="b-finishes" style={{ width: pc(p.summary.finishes / finishTop) }} />
-            {t.length ? <i className="b-temp" style={{ left: pc((Math.min(...t) - tLo) / (tHi - tLo || 1)), width: `max(3px, ${pc((Math.max(...t) - Math.min(...t)) / (tHi - tLo || 1))})` }} /> : null}
           </span>
         </Link>
       ),

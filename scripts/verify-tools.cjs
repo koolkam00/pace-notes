@@ -312,10 +312,11 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.doesNotMatch(sourceOf('components/tools/CourseChooser.tsx'), /courseGoalReason|tooFewEditions|SLOWDOWN_DEFINITION/, 'The course chooser prints no eligibility reasons or definitions'); ok();
   // One row per course since the October 2026 redesign: the whole row is the link, and it names the goal it plans.
   assert.match(sourceOf('components/tools/CourseChooser.tsx'), /<Link className="cc-row" href=\{planHref\(course\.city, goal\) \?\? '\/tools\/plan'\}>[\s\S]*?Plan \{goalText\}[\s\S]*?<\/Link>/, 'Each course chooser row links to the planner for its course and goal'); ok();
-  // A race page links on once, to the checker (its primary under the glance, opening on this race), and back once
-  // (critic rounds 2 and 3, October 18, 2026): no second checker link, no chip cloud of the other races and no
-  // course-page link, which the course pages' own qualifying links cover.
-  assert.match(sourceOf('components/tools/QualifyingRace.tsx'), /<Link className="btn btn-secondary" href=\{checkerHref\(s\)\}>Check a time for \{shortName\(s\)\}<\/Link>/, 'The race page links on to the checker (a secondary button: the header holds the one orange call to action)'); ok();
+  // A race page links on once, to the checker (opening on this race), and back once (critic rounds 2 and 3, October 18,
+  // 2026): no second checker link, no chip cloud of the other races and no course-page link, which the course pages' own
+  // qualifying links cover. Since round 3 (October 19, 2026) the page opens on its standards table, the checker a
+  // compact secondary button beside the table's heading.
+  assert.match(sourceOf('components/tools/QualifyingRace.tsx'), /<Link className="btn btn-secondary is-compact no-print" href=\{checkerHref\(s\)\}>Check a time<\/Link>/, 'The race page links on to the checker (a secondary button: the header holds the one orange call to action)'); ok();
   assert.doesNotMatch(sourceOf('components/tools/QualifyingRace.tsx'), /href="\/tools\/qualifying"/, 'One link to the checker'); ok();
   assert.doesNotMatch(sourceOf('components/tools/QualifyingRace.tsx'), /QualifyingRaceLinks|course\.href/, 'No second list of links at the end of a race page'); ok();
   assert.deepEqual(qualifying.STANDARDS.map((s) => qualifying.QUALIFYING_COURSE[s.key]), ['Boston', 'New York', 'London', 'Chicago', 'Berlin', 'Sydney'], 'Every race with standards names its course');

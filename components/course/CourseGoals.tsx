@@ -27,7 +27,7 @@ export default function CourseGoals({ page }: { page: CoursePageData }) {
   return (
     <CourseSection id="goals" track="chapter-6" beat="Goals" title={<Said nugget={n} />}>
       <CourseTable id="goals-caption" captionHidden className="course-goals-table" caption={`Of finishes on each goal's pace through 20K in the ${race}, the share that made the goal`}>
-        <thead className="sr-only"><tr><th scope="col">Goal</th><th scope="col">Made the goal, out of 100 (every course ringed)</th><th scope="col">Made the goal</th><td /></tr></thead>
+        <thead className="sr-only"><tr><th scope="col">Goal</th><th scope="col">Made the goal, out of 100 (all the courses ringed)</th><th scope="col">Made the goal</th><td /></tr></thead>
         <tbody>
           {goals.map(({ goal, row, every }) => (
             <tr key={goal} className={goal === LEAD_GOAL ? 'is-lead' : undefined}>
@@ -54,7 +54,7 @@ export default function CourseGoals({ page }: { page: CoursePageData }) {
       {goals.some((g) => g.row && g.every) ? (
         <ul className="course-rows-key course-goals-key" aria-hidden="true">
           <li><i className="course-key-bar" />{display}</li>
-          <li><i className="course-key-ring" />Every course</li>
+          <li><i className="course-key-ring" />{(() => { const pooled = goals.find((g) => g.every)?.every; return pooled ? `${pooled.courses} courses` : 'Every course'; })()}</li>
         </ul>
       ) : null}
     </CourseSection>

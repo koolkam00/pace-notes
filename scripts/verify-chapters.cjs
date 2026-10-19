@@ -287,7 +287,9 @@ test('ChapterEnd: the finish card on /tools/plan, no tracking or feedback when a
   const plan = render('components/ChapterEnd.tsx', { path: '/tools/plan', track: false, feedback: false });
   assert.doesNotMatch(plan, /next-card night"[^>]*href|data-track-section|page-feedback/);
   assert.match(plan, /is-finish/);
-  assert.ok(['/research', '/runners'].every((h) => hrefs(plan).includes(h)));
+  // The way on from the finish (round 3): back to the start of the race, chapter 01, and on to a past race.
+  assert.ok([C.chapterHref(C.CHAPTERS[0]), '/runners'].every((h) => hrefs(plan).includes(h)), hrefs(plan).join(' '));
+  assert.match(plan, /Start at the gun: Chapter 01 · /);
   assert.equal(render('components/ChapterEnd.tsx', { path: '/methodology', feedback: false }), '');
 });
 test('ChapterRail marks the current page', () => {

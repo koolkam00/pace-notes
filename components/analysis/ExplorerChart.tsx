@@ -100,7 +100,7 @@ function Terrain({ answer, units, terrain, valuesId }: { answer: GuideAnswer; un
   // answer draws it: on the scale every course shares a flat course was a hairline under an empty plot.
   const own = Math.max(50, Math.ceil((Math.max(...metres) - Math.min(...metres)) / 25) * 25);
   return (
-    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={`${wholeElevation(own, units)} above the low point`} focus={focus} readoutKeys={['Climb', 'Against the same 5K elsewhere']}
+    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={`${wholeElevation(own, units)} above the low point`} focus={focus} readoutKeys={['Climb', 'Against every course']}
       sections={MARATHON_SECTION_ENDS.map((end, i) => ({ label: sectionLabel(end), startKm: i ? MARATHON_SECTION_ENDS[i - 1] : 0, endKm: end, pct: vs[i], display: signedWhole(vs[i]), climb: climb(i) }))}
       label={`Elevation, its top line ${wholeElevation(own, units)} above the lowest point, with each 5K's pace against the same 5K on every course combined; ${sectionLabel(MARATHON_SECTION_ENDS[focus])} washed`}
       values={<Values id={valuesId} caption="By section: the climb, and the pace against the same 5K on every course combined" columns={[{ key: 's', label: 'Section' }, { key: 'c', label: 'Climb' }, { key: 'p', label: 'Against elsewhere' }]}

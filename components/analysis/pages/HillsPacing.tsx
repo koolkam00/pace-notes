@@ -48,7 +48,7 @@ export default function HillsPacing() {
   const label = (i: number) => sectionLabel(i ? MARATHON_SECTION_ENDS[i - 1] : 0, MARATHON_SECTION_ENDS[i]);
   const climb = (g: number, u: UnitSystem) => (Number.isFinite(g) ? `+${elevation(g, u)}` : '—');
   const chart = (u: UnitSystem) => sections ? (
-    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={scale(u)} focus={v.climb_i} readoutKeys={['Climb', 'Against the same 5K elsewhere']}
+    <ElevationPace km={km} metres={metres} relief={own} reliefLabel={scale(u)} focus={v.climb_i} readoutKeys={['Climb', 'Against every course']}
       sections={sections.map((s, i) => ({ label: label(i), startKm: i ? MARATHON_SECTION_ENDS[i - 1] : 0, endKm: s.end, pct: s.vs, display: signedWhole(s.vs), climb: climb(s.gain, u) }))}
       label={`${courseName(city)}'s elevation, its top line ${elevation(own, u)} above its lowest point, with each 5K's pace near ${hm(v.goal_min)} against the same 5K on every course combined; ${label(v.climb_i)}, its climb, is washed`}
       values={<Values id={`hills-answer-${u}`} caption={`${courseName(city)} by section: the climb, and the pace near ${hm(v.goal_min)} against the same 5K on every course combined`} columns={[{ key: 's', label: 'Section' }, { key: 'c', label: 'Climb' }, { key: 'p', label: 'Against elsewhere' }]}

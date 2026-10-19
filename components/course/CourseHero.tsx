@@ -6,9 +6,9 @@ import { Elevation } from '@/components/story/Units';
 import { SlowdownTerm } from '@/components/tools/EvidenceTag';
 import YearStrip, { type YearPoint } from '@/components/viz/YearStrip';
 import { getNugget } from '@/lib/nuggets';
-import { heroKeyLead } from '@/lib/nuggets/courses';
-import { hm, pct, temp } from '@/lib/nuggets/format';
-import { heldEditions, MONTHS, routeClimb, type CoursePageData } from '@/lib/course-page';
+import { heroKeyLead, profileUnderWater } from '@/lib/nuggets/courses';
+import { pct, temp } from '@/lib/nuggets/format';
+import { finishMinute, heldEditions, MONTHS, routeClimb, type CoursePageData } from '@/lib/course-page';
 import { planHref } from '@/lib/tools/links';
 import type { UnitSystem } from '@/lib/units';
 import ByUnits from '@/components/ui/ByUnits.client';
@@ -53,7 +53,8 @@ function raceMonths(editions: { year: number; date: string | null }[]): string {
 export default function CourseHero({ page }: { page: CoursePageData }) {
   const { city, display, race, summary: s, geometry, editions } = page;
   const reading = getNugget('course.slowdown', { city });
-  const climb = routeClimb(page);
+  // A profile that reads the water under a bridge misstates the climb: the hero prints none there (#elevation is left out).
+  const climb = profileUnderWater(page) ? null : routeClimb(page);
   const years = s.years;
   const span = years.length > 1 ? `${years[0]}–${years[years.length - 1]}` : String(years[0] ?? '');
   const when = raceMonths(editions);
@@ -62,7 +63,7 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
   const latest = kept[kept.length - 1]?.year ?? editions[editions.length - 1]?.year;
   // Without the sentence, the strip labels the extremes among the editions the policy keeps.
   const extremes = kept.length > 1 ? [...new Set([kept.reduce((a, b) => (b.slowdown < a.slowdown ? b : a)).year, kept.reduce((a, b) => (b.slowdown > a.slowdown ? b : a)).year])] : [];
-  const points = (units: UnitSystem): YearPoint[] => editions.map((e) => ({ year: e.year, value: e.slowdown, display: pct(e.slowdown), side: [hm(e.median_s / 60), e.temp === null ? '—' : temp(e.temp, units)] }));
+  const points = (units: UnitSystem): YearPoint[] => editions.map((e) => ({ year: e.year, value: e.slowdown, display: pct(e.slowdown), side: [finishMinute(e.median_s), e.temp === null ? '—' : temp(e.temp, units)] }));
   const valueDomain: [number, number] = [0, Math.max(0.1, Math.ceil(Math.max(...editions.map((e) => e.slowdown)) * 10) / 10)];
   const extremeLabel = (p: YearPoint) => `${p.year} · ${p.display}`;
   // With the sentence, the strip opens on the edition it accents (the high end), so the needle, the readout and the
