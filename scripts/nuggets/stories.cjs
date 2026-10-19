@@ -64,7 +64,7 @@ module.exports = function stories({ json, eq, ok, core }) {
     for (const c of solid) { if (c.median_s < lo.median_s) lo = c; if (c.median_s > hi.median_s) hi = c; }
     eq([n.values.low, n.values.high, n.values.courses], [lo.city, hi.city, solid.length], 'field.byrace recounts the extremes among courses with three or more editions');
     eq(n.guard, solid.length >= 2 && hi.median_s - lo.median_s >= 60, 'field.byrace: guard');
-    if (n.guard) has(n, `course\u00a0by\u00a0course: *${hm(lo.median_s / 60)} to ${hm(hi.median_s / 60)}*`, 'field.byrace names the medians, course by course (each a course median across its editions)');
+    if (n.guard) has(n, `course by\u00a0course: *${hm(lo.median_s / 60)} to ${hm(hi.median_s / 60)}*`, 'field.byrace names the medians, course by course (each a course median across its editions)');
     ok(!shown(n).includes(lo.city) && !shown(n).includes(hi.city), 'field.byrace: no course name in the headline (owner decision 7)');
   };
 
@@ -137,7 +137,7 @@ module.exports = function stories({ json, eq, ok, core }) {
     for (const r of pos.coin_flip['30']) if (r.gap_lo_s >= 3 * Math.max(60, b.gap_lo_s) && r.gap_lo_s <= 600 && (!a || Math.abs(r.share - b.share) < Math.abs(a.share - b.share))) a = r;
     eq([n.values.gap30_s, n.values.at30, n.values.gap40_s, n.values.at40], [a.gap_lo_s, a.share, b.gap_lo_s, b.share], 'places.coin: the 30K band level with a minute back at 40K');
     eq(n.guard, Math.abs(a.share - b.share) <= 0.01, 'places.coin: "as often as" needs the two within a point');
-    if (n.guard && a.gap_lo_s % 60 === 0) has(n, `${word(a.gap_lo_s / 60).replace(/^./, (c) => c.toUpperCase())} minutes back* at 30K was as good as`, 'places.coin names the 30K gap');
+    if (n.guard && a.gap_lo_s % 60 === 0) has(n, `${word(a.gap_lo_s / 60).replace(/^./, (c) => c.toUpperCase())} minutes back* at 30K matched`, 'places.coin names the 30K gap');
   };
   R['places.breakeven'] = (n) => {
     const rows = pos.breakeven;

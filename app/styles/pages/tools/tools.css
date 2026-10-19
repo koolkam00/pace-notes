@@ -154,7 +154,7 @@
 /* The one Pace Notes data nugget a tool carries: its badge, the sentence, a small instrument. */
 .tool-nugget { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-3); margin: 0; }
 .tool-nugget-text { margin: 0; max-width: 30ch; font-family: var(--serif); font-optical-sizing: auto; font-size: var(--t-sentence); font-weight: 440; line-height: 1.25; letter-spacing: -.01em; color: var(--ink); text-wrap: pretty; }
-.tool-nugget-text em { font-style: italic; color: var(--signal-ink); }
+.tool-nugget-text em { font-style: italic; color: inherit; } /* ink, as every H2's: one accent per screen (round 3) */
 .tool-nugget .evidence-badge { justify-self: start; }
 
 /* ---------- Example ---------- */

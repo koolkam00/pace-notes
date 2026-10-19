@@ -274,7 +274,8 @@ if (hasOut) {
     for (const m of html.matchAll(/<h2\b[^>]*class="[^"]*\bt-h2\b[^"]*"[^>]*>([\s\S]*?)<\/h2>/g)) {
       headings++;
       const text = textOf(m[1]).replace(/\u2060/g, '').trim();
-      const words = text.split(/\s+/).filter(Boolean).length;
+      // A word has a letter or a digit: the space textOf leaves between an em and its full stop is not a word.
+      const words = text.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
       if (words <= H2_MAX_WORDS) continue;
       if (lenient) notes.push(`${route}: the beat heading "${text}" is ${words} words (at most ${H2_MAX_WORDS}; the analyses' package shortens it)`);
       else check(false, route, `the beat heading "${text}" is ${words} words: at most ${H2_MAX_WORDS}, one clause (the qualifier goes in the dek or the caption)`);

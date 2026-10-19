@@ -61,6 +61,10 @@ async function reading(h) {
   await feedback.locator('button:has-text("Hard to follow")').click({ force: true });
   await feedback.locator('button:has-text("Yes")').click({ force: true });
   h.check('feedback says thank you', /Thank you/.test(await feedback.locator('[role="status"]').innerText()));
+  // The reasons and the thank-you lengthen the page below the furthest point read, and PostHog measures depth against
+  // the page's height when the next page view goes out: on a short story (pacing types is under three phone screens
+  // since round 3) that alone drops a read to the end under 0.9, so the reader reads on to the new end first.
+  await toBottom();
   await page.waitForTimeout(800);
   await page.locator('a.site-title').click();
   await page.waitForURL(url => new URL(url).pathname === '/');
@@ -359,15 +363,21 @@ async function raceReport(h) {
   const button = name => page.locator('.race-report-actions .share-bar button', { hasText: name });
   const inSheet = name => page.locator('.race-report-sheet.is-open button', { hasText: name });
   const openSheet = async () => { await page.locator('.race-report-actions .race-report-share-open').click(); await page.waitForSelector('.race-report-sheet.is-open [data-report-save]', { timeout: 15000 }); await page.waitForTimeout(300); };
-  await openSheet();
-  // First an image the browser cannot encode: the export fails, reported once, with the button's own message.
+  // First an image the browser cannot encode, from before the sheet opens (the sheet draws its preview as it opens, and
+  // Save image reuses that drawing): the preview says so and reports nothing (drawing is not an export); then the
+  // export fails, reported once, with the button's own message.
   await page.evaluate(() => { window.__e2eToBlob = HTMLCanvasElement.prototype.toBlob; HTMLCanvasElement.prototype.toBlob = function (callback) { callback(null); }; });
+  await openSheet();
+  await page.waitForSelector('.race-report-sheet .race-report-preview-wait', { timeout: 15000 });
+  await page.waitForTimeout(800);
+  const drawNote = await page.locator('.race-report-sheet .race-report-preview-wait').textContent();
   for (let i = 0; i < 2; i++) { await inSheet('Save image').click(); await page.waitForTimeout(800); }
   const message = await page.locator('.race-report-sheet .race-report-note').textContent();
   await page.evaluate(() => { HTMLCanvasElement.prototype.toBlob = window.__e2eToBlob; });
   const [download] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), inSheet('Save image').click()]);
   const saved = download.suggestedFilename();
   await page.waitForTimeout(400);
+  const previewShown = await page.locator('.race-report-sheet img.race-report-preview').count();
   // The share sheet: first cancelled, then sent (with the image file, as iOS Safari offers it).
   await page.evaluate(() => {
     window.__e2eShares = 0;
@@ -399,6 +409,7 @@ async function raceReport(h) {
   const used = named(run, 'tool_used').map(p => `${p.$pathname}:${p.action}`);
   const errors = named(run, 'site_error').map(p => p.category);
   h.check('race report: the image is saved as pace-notes-race-report.png', saved === 'pace-notes-race-report.png', saved);
+  h.check('race report: a preview that cannot be drawn says so, and the saved image then shows at the top of the sheet', /could not be drawn/.test(drawNote || '') && previewShown === 1, { drawNote, previewShown });
   h.check('race report: one report_exported image and one share; the cancelled share sends nothing', JSON.stringify(exported) === '["/report:image","/report:share"]', exported);
   h.check('race report: Print is a print and Copy link a copied link; nothing is an edit', JSON.stringify(used) === '["/report:print","/report:copy_link"]', used);
   h.check('race report: an image that cannot be made is one site_error export, with its message', JSON.stringify(errors) === '["export"]' && /could not be made/.test(message || ''), { errors, message });

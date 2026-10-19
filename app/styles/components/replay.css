@@ -48,6 +48,8 @@
 .hero-replay .replay-mark i { display: block; width: 1px; height: 14px; background: var(--night-ink); transition: background-color var(--d-toggle) var(--ease-out); }
 .hero-replay .replay-mark.is-off { color: var(--night-ink-3); }
 .hero-replay .replay-mark.is-off i { background: var(--night-ink-3); }
+/* At 200% zoom (under 300 px) the plot is too short for a label beside Start and 20K: the sentence names the distance. */
+@media (max-width: 299.98px) { .hero-replay .replay-mark { display: none; } }
 .hero-replay .replay-status { position: absolute; left: 0; right: 0; bottom: 12px; margin: 0; font-size: var(--t-small); text-align: center; color: var(--night-ink-2); }
 
 /* Play and pause: 44 px at the start of the control row, beside the race clock (never on the canvas). */

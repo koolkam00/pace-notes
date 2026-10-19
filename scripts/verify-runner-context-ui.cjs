@@ -71,7 +71,8 @@ for (const units of ['mi', 'km']) {
   const html = render(PacingReadings, { race, metrics, manifest, units });
   assert.match(html, /3:30:58\.5/); assert.doesNotMatch(html, METHOD_COPY, 'No method copy beside the pacing');
   assert.match(html, units === 'mi' ? /8:03\/mi/ : /5:00\/km/);
-  assert.match(html, /the same pace as its 5–20K pace/);
+  // The view leads with the race report's verdict (an even race: no sustained slowdown), the term linked.
+  assert.match(html, /No <a [^>]*href="\/methodology#sustained-slowdown"[^>]*>sustained slowdown<\/a>: every stretch after 20K held the 5–\u2060?20K pace or better\./);
 }
 const comparison = {
   key: 'age_gender', label: 'Women, ages 35–39', n: 201, other_n: 200, rank: 50, ties: 2, percentile: 75, median_finish: 13000,

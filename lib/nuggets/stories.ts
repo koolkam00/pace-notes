@@ -122,7 +122,7 @@ export function fieldByRaceFrom(courses: Pick<Courses['courses'][number], 'city'
     id: 'field.byrace', page: '/finish-times#by-race', denominator: 'course',
     values: { courses: solid.length, low_s: lo?.median_s ?? NaN, high_s: hi?.median_s ?? NaN, low: lo?.city ?? '', high: hi?.city ?? '' },
     guard: ok,
-    headline: ok ? `Median finish, course\u00a0by\u00a0course: *${hm(lo!.median_s / 60)} to ${hm(hi!.median_s / 60)}*.` : '',
+    headline: ok ? `Median finish, course by\u00a0course: *${hm(lo!.median_s / 60)} to ${hm(hi!.median_s / 60)}*.` : '',
     fallback: 'Median finish, course by course.',
     figure: null,
   };
@@ -327,7 +327,7 @@ export function placesCoinFrom(coin: Positions['coin_flip']): Nugget {
     id: 'places.coin', page: '/stories/places#gap', denominator: 'positions',
     values: { gap30_s: a?.gap_lo_s ?? NaN, at30: a?.share ?? NaN, gap40_s: b?.gap_lo_s ?? NaN, at40: b?.share ?? NaN },
     guard: !!a && !!b && Math.abs(a.share - b.share) <= 0.01,
-    headline: a && b ? `*${words(a.gap_lo_s)} back* at 30K was as good as ${words(b.gap_lo_s).toLowerCase()} at 40K.` : '',
+    headline: a && b ? `*${words(a.gap_lo_s)} back* at 30K matched ${words(b.gap_lo_s).toLowerCase()} back at 40K.` : '',
     fallback: 'How often a finish beat the runner ahead to the line, by how far back it was, from 30K and from 40K.',
     figure: null,
   };

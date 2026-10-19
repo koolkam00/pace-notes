@@ -20,6 +20,7 @@ import { timesVerdict } from '@/lib/report-shared';
 import { readSplits } from '@/lib/tools/splits';
 import { sectionLabel } from '@/lib/units';
 import { capitalize } from '@/lib/nuggets/build';
+import { joinRanges } from '@/components/ui/keepTogether';
 import LapList from './LapList';
 import ReportActions from './ReportActions';
 
@@ -167,10 +168,10 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
         ) : record ? null : (
           <p className={sentenceClass}>
             {verdict.slowdown
-              ? <><em>A sustained slowdown</em> from {kmText(verdict.onsetKm)}, {verdict.off} off the 5–20K pace.</>
+              ? <><em>A sustained slowdown</em> {joinRanges(`from ${kmText(verdict.onsetKm)}, ${verdict.off} off the 5–20K pace.`)}</>
               : verdict.worst
-                ? <><em>No sustained slowdown</em>: the slowest stretch after 20K, {sectionLabel(model.sections[verdict.worst.index].startKm, model.sections[verdict.worst.index].endKm)}, ran {verdict.worst.off} off the 5–20K pace.</>
-                : <><em>No sustained slowdown</em>: every stretch after 20K held the 5–20K pace or better.</>}
+                ? <><em>No sustained slowdown</em>: {joinRanges(`the slowest stretch after 20K, ${sectionLabel(model.sections[verdict.worst.index].startKm, model.sections[verdict.worst.index].endKm)}, ran ${verdict.worst.off} off the 5–20K pace.`)}</>
+                : <><em>No sustained slowdown</em>: {joinRanges('every stretch after 20K held the 5–20K pace or better.')}</>}
           </p>
         )}
         <LapList rows={lines.sections.map((s, i) => ({ mat: s.mat, split: s.split, pace: s.pace, vs: s.vs, lit: lit[i], sr: sr(s) }))}

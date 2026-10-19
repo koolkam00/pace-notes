@@ -87,7 +87,14 @@ async function main() {
   const smallGain = { ...base, id: 9, edition: 2, times: [...base.times.slice(0, 8), base.times[8] - 0.2] };
   assert.match(render([base, smallGain], 'mi'), /0:00:00\.2 faster than/, 'A measurable fractional-second change must not be called the same time');
   const mileHtml = render([base, held], 'mi');
-  assert.match(mileHtml, /8:03\/mi/); assert.match(mileHtml, /3:30:58\.5/); assert.match(mileHtml, /the same pace as its 5–20K pace/);
+  assert.match(mileHtml, /8:03\/mi/); assert.match(mileHtml, /3:30:58\.5/); assert.match(mileHtml, /No <a [^>]*>sustained slowdown<\/a>: every stretch after 20K held the 5–\u2060?20K pace or better\./, 'An even race: the report\'s verdict, in its words');
+  // The pacing view leads with the race report's verdict (lib/report-verdict timesVerdict), in the report's words.
+  const slowingHtml = render([slowing], 'mi');
+  assert.match(slowingHtml, /class="rc-h">No <a [^>]*>sustained slowdown<\/a>: the slowest stretch after 20K, 30–\u2060?35K, ran 20% off the 5–\u2060?20K pace\.<\/h3>/, 'Under 25%: no sustained slowdown, and the slowest stretch after 20K named');
+  const fading = race(5, 1, 300, { times: RUNNER_POINTS.map(km => km * 300 + Math.max(0, km - 30) * 90) });
+  const fadingHtml = render([fading], 'mi');
+  assert.match(fadingHtml, /class="rc-h">A <a [^>]*>sustained slowdown<\/a> from 30K, 30% off the 5–\u2060?20K pace\.<\/h3>/, 'A qualifying race: the verdict names where it began and how far off');
+  assert.match(fadingHtml, /Highlighted: the sustained slowdown\./, 'and the lap list lights its rows, as the report does');
   assert.match(mileHtml, /limited analysis/i); assert.doesNotMatch(mileHtml, /the same pace than/);
   assert.match(mileHtml, /Casey Partial/); assert.match(mileHtml, /Incomplete edition held for review/);
   assert.match(mileHtml, /02:20:39/, 'Keep the faster held result visible as its recorded finish');

@@ -68,9 +68,9 @@
   margin: 0; max-width: 24ch; font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; font-size: clamp(1.375rem, 4.2vw + .35rem, 2.25rem);
   line-height: 1.15; letter-spacing: -.015em; color: var(--ink); text-wrap: balance;
 }
-.course-h2 em { font-style: italic; font-weight: inherit; color: var(--signal-ink); }
-/* An accent that names no number or section the chart draws ("What makes Boston Boston") is ink: orange is the reading. */
-.course-h2 em.is-plain { color: inherit; }
+/* One accent per screen (round 3): only an H1's italic is orange, so a beat's italic is ink and the chart's marks carry
+   the signal (base.css .t-h2 em; layout lint check 9). */
+.course-h2 em { font-style: italic; font-weight: inherit; color: inherit; }
 .course-beat-body { margin-top: var(--s-4); min-width: 0; }
 .course-beat-body > * + * { margin-top: var(--s-5); }
 .course-beat-body .viz-frame { max-width: none; }
