@@ -9,8 +9,8 @@ import { linear, pc, yScale } from './scale';
 /**
  * A waterfall (the redesign spec, section 3.6): one bar per section building a gap from zero, each starting where the
  * last one ended, then the total. The section where the gap grew most is signal and labelled; the first bar is called
- * out too. Bars where the gap shrank are quiet. With `span` the sentence is about a stretch, not a bar: the stretch is
- * washed in signal from its first bar to the last, its share named at its top, and every bar is ink.
+ * out too. Bars where the gap shrank are quiet. With `span` the sentence is about a stretch, not a bar: a signal hairline
+ * bracket spans the stretch from its first bar to the last, its share named under it, and every bar is ink.
  */
 export type WaterfallStep = { id: string; label: string; value: number; display: string };
 
@@ -41,7 +41,7 @@ export default function Waterfall({ steps, total, yTicks = [], xTicks, label, va
   // Three steps or fewer: every block carries its value, so none reads as missing. More: the signal and the first.
   const every = steps.length <= 3;
   const items: LabelItem[] = [
-    ...(washed ? [{ id: 'span', text: washed.text, x: x(washed.from), y: 0.02, priority: 4, prefer: 'right', tone: 'signal', gap: 8 } as LabelItem] : []),
+    ...(washed ? [{ id: 'span', text: washed.text, x: x(washed.from + 0.1), y: 0.02, priority: 4, prefer: 'right', tone: 'signal', gap: 8 } as LabelItem] : []),
     // Over a washed stretch every bar is ink, so the largest step's label stands a little higher on a leader down to its
     // own bar: a label wider than the bars never reads as its neighbour's.
     { id: 'big', text: `${steps[big].label} ${steps[big].display}`, x: x(big + 0.5), y: bars[big].top, priority: 3, tone: washed ? 'ink' : 'signal', gap: washed ? 16 : 8, ...(washed ? { prefer: 'above' as const, only: 'above' as const } : {}) },
@@ -53,7 +53,15 @@ export default function Waterfall({ steps, total, yTicks = [], xTicks, label, va
   const placed = placeLabels(items, { height, boxes: [...bars.map((b) => ({ x0: x(b.i + 0.18), x1: x(b.i + 0.82), y0: b.top, y1: b.bottom })), { x0: x(n - 1 + 0.18), x1: x(n - 1 + 0.82), y0: Math.min(y(0), y(ends[ends.length - 1])), y1: Math.max(y(0), y(ends[ends.length - 1])) }] });
   const plot = (
     <Plot>
-      {washed ? <rect className="a-signal" x={pc(x(washed.from))} width={pc(x(steps.length) - x(washed.from))} y="0" height="100%" /> : null}
+      {/* The stretch as a hairline bracket over its bars, its share named under it (a wash read as a muddy band on the
+          night card; WP9 round 4). */}
+      {washed ? (
+        <g className="waterfall-span" aria-hidden="true">
+          <rect x={pc(x(washed.from + 0.1))} width={pc(x(steps.length - 0.1) - x(washed.from + 0.1))} y="0" height={1.5} />
+          <rect x={pc(x(washed.from + 0.1))} width={1.5} y="0" height={7} />
+          <rect x={pc(x(steps.length - 0.1))} width={1.5} y="0" height={7} transform="translate(-1.5 0)" />
+        </g>
+      ) : null}
       <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label }))} side="right" />
       {bars.map(({ s, i, top, bottom }) => (
         <rect key={s.id} className={i === big && !washed ? 'm-signal' : s.value >= 0 ? 'm-ink' : 'm-quiet'} x={pc(x(i + 0.18))} width={pc(x(0.64) - x(0))} y={pc(top)} height={pc(Math.max(0.004, bottom - top))} rx={2} />

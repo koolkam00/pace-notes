@@ -140,7 +140,7 @@ export const CHAPTERS: readonly Chapter[] = [
     pages: [
       story('courses', 'Course fingerprints', 'courses.named'),
       analysis('course-comparison', 'Compare the courses', 'courses.compare', ALL_FINISHER),
-      analysis('hills-and-pacing', 'Hills and rhythm', 'terrain.climb'),
+      analysis('hills-and-pacing', 'Hills and pacing', 'terrain.climb'),
       page('/courses', 'course-index', 'Every course', 'Every course', 'courses.index', '/methodology#course-pages'),
     ],
     children: ['/courses/'], back: '/courses',
@@ -164,7 +164,7 @@ export const CHAPTERS: readonly Chapter[] = [
     lead: 'splitcheck.share', key: 'of finishes near the example’s time had a sustained slowdown' },
   { n: 11, id: 'chapter-11', part: 3, marker: '11', title: 'The next one', subtitle: 'Improvement, your plan',
     pages: [
-      analysis('finding-improvement', 'Where improvement happens', 'gains.final'),
+      analysis('finding-improvement', 'Where runners improve', 'gains.final'),
       tool('plan', 'Plan your race', 'Plan your race', 'plan.goal'),
     ],
     also: [{ href: '/tools/pace-band', label: 'Pace band' }, { href: '/tools/course-chooser', label: 'Course chooser' }, { href: '/tools/predictor', label: 'Finish-time predictor' }],

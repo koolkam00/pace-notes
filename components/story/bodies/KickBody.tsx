@@ -117,7 +117,7 @@ export default function KickBody() {
       </Beat>
 
       <Moved id="bank" href="/analyses/starting-pace">Fast starts and what followed are now on Starting pace.</Moved>
-      <Moved id="follows" href="/analyses/finding-improvement">The next race after a sustained slowdown is now on Where improvement happens.</Moved>
+      <Moved id="follows" href="/analyses/finding-improvement">The next race after a sustained slowdown is now on Where runners improve.</Moved>
     </StoryPage>
   );
 }

@@ -3,7 +3,6 @@ import LineProfile from '@/components/viz/LineProfile';
 import Values from '@/components/ui/Values';
 import CheckpointExplorer from '@/components/CheckpointExplorer';
 import AnalysisShell, { AnswerCard, Beat, ExploreBeat } from '../Shell';
-import { analysisBySlug } from '@/lib/ten-analyses';
 import { getCheckpointCurve, getCheckpointDefault } from '@/lib/analysis-server';
 import { getPersonalSummary } from '@/lib/personalized-data';
 import { getNugget } from '@/lib/nuggets';
@@ -13,7 +12,6 @@ const PATH = '/analyses/checkpoint';
 
 /** Chapter 04, page 1: even goal pace at 30K and how few made it, the cushion that made it a coin flip, then Make it yours. */
 export default function Checkpoint() {
-  const definition = analysisBySlug('checkpoint')!;
   const summary = getPersonalSummary()!;
   const under = getNugget('checkpoint.under'), cushion = getNugget('checkpoint.cushion');
   const v = under.values as { goal_min: number; mat_km: number; share: number; median_s: number; band_min: number };
@@ -26,15 +24,17 @@ export default function Checkpoint() {
         <DotGrid lit={lit} label={`${lit} of 100 finishes on even ${hm(v.goal_min)} pace at ${v.mat_km}K got under ${hm(v.goal_min)}`} />
         <p className="answer-dots-label"><strong>{lit}</strong> of 100 got under {hm(v.goal_min)}</p>
       </div>
-      {/* The group passed in a 2-minute band (the one holding even pace), not at even pace exactly. */}
+      {/* The group's 2-minute window at the mat is the dek's; the card gives even pace exactly and where they finished. */}
       <dl className="answer-cells">
-        <div><dt>At {v.mat_km}K</dt><dd>{hm(v.band_min)}–{hm(v.band_min + 2)}</dd><dd className="answer-cell-note">Even pace {clock(even)}</dd></div>
+        <div><dt>Even pace at {v.mat_km}K</dt><dd>{clock(even)}</dd></div>
         <div><dt>Median finish</dt><dd>{clock(v.median_s)}</dd></div>
       </dl>
     </AnswerCard>
   );
   return (
-    <AnalysisShell path={PATH} title={under} dek={definition.title} answer={answer}>
+    // The dek qualifies the H1 (critic round 4: a question dek the H1 had already answered): the group passed the mat in
+    // the 2-minute window that holds even pace, on every course.
+    <AnalysisShell path={PATH} title={under} dek={`Finishes passing ${v.mat_km}K in ${hm(v.band_min)}–${hm(v.band_min + 2)}, every course.`} answer={answer}>
       <Beat id="cushion" track="chapter-1" label="The cushion" title={cushion}><Cushion goal={v.goal_min} mat={v.mat_km} /></Beat>
       <ExploreBeat track="chapter-2">
         <CheckpointExplorer summary={summary} initial={row ? { row, checkpoint: v.mat_km, elapsed: even } : null} />
@@ -54,13 +54,15 @@ function Cushion({ goal, mat }: { goal: number; mat: number }) {
   const halfI = curve.reduce((b, p, i) => (p.share >= 0.5 ? i : b), -1);
   const halfAt = Number(getNugget('checkpoint.cushion').values.half_at_min);
   const initial = Number.isFinite(halfAt) ? curve.findIndex((p) => p.elapsed <= halfAt && halfAt < p.elapsed + 2) : halfI;
-  const t0 = Math.ceil(xs[0] / 10) * 10, t1 = Math.floor(xs[xs.length - 1] / 10) * 10;
+  // The axis runs on whole 5-minute marks, so the first ten-minute tick (2:30) sits at its left end.
+  const d0 = Math.floor(xs[0] / 5) * 5, d1 = Math.ceil(xs[xs.length - 1] / 5) * 5;
+  const t0 = Math.ceil(d0 / 10) * 10, t1 = Math.floor(d1 / 10) * 10;
   // Every ten minutes, and even pace named under its own line at every width (a round tick within four minutes of it
   // gives way), so the H2's "ahead of even pace" can be read off the chart.
   const ticks = Array.from({ length: Math.floor((t1 - t0) / 10) + 1 }, (_, i) => t0 + i * 10).filter((t) => Math.abs(t - evenMin) >= 4);
   const range = (p: { elapsed: number }) => `${clock(p.elapsed * 60).slice(0, -3)}–${clock((p.elapsed + 2) * 60).slice(0, -3)}`;
   return (
-    <LineProfile x={xs} xDomain={[xs[0], xs[xs.length - 1]]} yDomain={[0, 100]}
+    <LineProfile x={xs} xDomain={[d0, d1]} yDomain={[0, 100]}
       layers={[{ id: 'c', label: 'Under the goal', series: [{ id: 's', values: curve.map((p) => p.share * 100) }] }]}
       refs={[{ value: 50, dashed: true, label: 'half' }]}
       washes={evenI >= 0 ? [{ from: evenMin, to: evenMin }] : []}
@@ -68,8 +70,9 @@ function Cushion({ goal, mat }: { goal: number; mat: number }) {
       yTicks={[{ value: 100, label: '100%' }]}
       // No detents: each draws a dot on the axis, and the 2-minute bins' centres never sit on a labelled tick (even pace
       // falls inside a bin), so a snap dot would read as a tick off its own label. The needle opens on the finding.
-      scrub={{ label: `Split at ${mat}K`, initial: Math.max(0, initial), detents: [],
-        points: { x: xs.map((x) => (x - xs[0]) / (xs[xs.length - 1] - xs[0])), keys: curve.map((p) => `At ${mat}K in ${range(p)}, under ${hm(goal)}`), values: curve.map((p) => pct(p.share)),
+      // On the plot's own x scale; a dot marks where the needle meets the curve, as on starting pace's scrubber.
+      scrub={{ label: `Split at ${mat}K`, initial: Math.max(0, initial), detents: [], follow: 's',
+        points: { x: xs.map((x) => (x - d0) / (d1 - d0)), keys: curve.map((p) => `At ${mat}K in ${range(p)}, under ${hm(goal)}`), values: curve.map((p) => pct(p.share)),
           side: [{ label: 'Median finish', values: curve.map((p) => clock(p.median)) }] } }}
       axisTitle={{ start: `← faster at ${mat}K`, end: `slower at ${mat}K →` }}
       label={`The share of finishes under ${hm(goal)}, by split at ${mat}K: half made it from about ${Math.round(evenMin - halfAt)} minutes ahead of even pace`}

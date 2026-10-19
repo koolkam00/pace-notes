@@ -29,12 +29,23 @@ export default function DownhillStart() {
   const down = new Set(start.initial.downhill.filter((g) => g.terrain === 'downhill').flatMap((g) => g.edition_indices ?? []));
   const named = start.initial.courses.filter((c) => (c.edition_indices ?? []).some((i) => down.has(i))).map((c) => courseName(c.label));
   const band = (label: string) => bandWords(label).replace(/^[a-z]/, (c) => c.toUpperCase());
+  // The largest downhill-start course's share of the group's finishes (Boston's, about four in five), said once in the
+  // dek, so a reader knows whose race the group mostly is.
+  const downN = start.initial.downhill.filter((g) => g.terrain === 'downhill').reduce((t, g) => t + g.n, 0);
+  const biggest = start.initial.courses.filter((c) => (c.edition_indices ?? []).some((i) => down.has(i))).reduce<{ label: string; n: number } | null>((b, c) => (!b || c.n > b.n ? c : b), null);
+  const most = biggest && downN ? biggest.n / downN : 0;
+  const dek = named.length === v.courses && named.length > 1
+    ? `${and(named)} against every other course${most >= 0.5 ? `; ${courseName(biggest!.label)} is ${most >= 0.75 ? 'most' : 'over half'} of the downhill-start finishes` : ''}.`
+    : 'Downhill-start courses against every other course.';
   const answer = (
-    <AnswerCard kicker="Of 100, opened over 5% fast" className="answer-pair">
+    <AnswerCard kicker="Of 100, opened over 5% fast" className="answer-pair is-null">
       <div className="answer-grids">
         <div className="answer-grid">
-          <DotGrid lit={lit(v.downhill)} label={`${lit(v.downhill)} of 100 finishes on downhill-start courses opened over 5% fast`} />
-          <p className="answer-grid-label"><strong>{lit(v.downhill)}</strong> {named.length === v.courses ? <>on {and(named)}, the downhill starts</> : <>on the {countWord(v.courses)} downhill-start courses</>}</p>
+          {/* Both grids in one mark (critic round 4: orange on one side and rings on the other read as a difference, and a
+              ring means "you"): the matching numbers carry the null. */}
+          <DotGrid lit={lit(v.downhill)} compare label={`${lit(v.downhill)} of 100 finishes on downhill-start courses opened over 5% fast`} />
+          {/* The dek names the courses; the grid says which side it is. */}
+          <p className="answer-grid-label"><strong>{lit(v.downhill)}</strong> on the {countWord(v.courses)} downhill-start courses</p>
         </div>
         <div className="answer-grid">
           <DotGrid lit={lit(v.other)} compare label={`${lit(v.other)} of 100 finishes elsewhere opened over 5% fast`} />
@@ -50,13 +61,13 @@ export default function DownhillStart() {
   // (never on a band whose rate the previous page gave from another comparison).
   const clearest = rows.reduce<(typeof rows)[number] | undefined>((b, r) => (!b || Math.abs(r.other!.slowdown_pct - r.down!.slowdown_pct) > Math.abs(b.other!.slowdown_pct - b.down!.slowdown_pct) ? r : b), undefined);
   return (
-    <AnalysisShell path={PATH} title={opening} dek="What follows a downhill opening?" answer={answer}>
+    <AnalysisShell path={PATH} title={opening} dek={dek} answer={answer}>
       <Beat id="by-band" track="chapter-1" label="Band by band" title={bands} term>
-        {/* Bare rows: the label and a wide track, so a gap of a point or two reads; the values are in Values. The band
-            the H2 names (its accent) is the signal row, when its guard holds. */}
-        <Dumbbell bare rows={rows.map((r) => ({ id: r.band.id, label: band(r.band.label), a: r.other!.slowdown_pct / 100, b: r.down!.slowdown_pct / 100, display: pct(r.down!.slowdown_pct / 100), highlight: bands.guard && r.band.id === bands.values.band }))}
+        {/* Bare rows: the label and a wide track, so a gap of a point or two reads; the values are in Values. No row is
+            the accent: the H2 states the pattern across every band, and a near-null looks null. */}
+        <Dumbbell bare rows={rows.map((r) => ({ id: r.band.id, label: band(r.band.label), a: r.other!.slowdown_pct / 100, b: r.down!.slowdown_pct / 100, display: pct(r.down!.slowdown_pct / 100) }))}
           domain={[lo, top]} ticks={[lo, (lo + top) / 2, top].map((t) => ({ value: t, label: pct(t) }))} keyLabels={{ a: 'Every other course', b: 'Downhill-start courses' }}
-          label={`Sustained slowdown by opening band, downhill-start courses against every other course: 2 points or more fewer in ${bands.values.fewer} of ${bands.values.total} bands, within a point or so in the rest`}
+          label={`Sustained slowdown by opening band, downhill-start courses against every other course: 2 points or more fewer in ${bands.values.fewer} of ${bands.values.total} bands, ${Number(bands.values.more) ? `2 points or more higher in ${bands.values.more}, ` : ''}within a point or so in the rest`}
           values={<Values id="dh-bands" caption="Sustained slowdown by opening band" columns={[{ key: 'b', label: 'Opening', text: true }, { key: 'd', label: 'Downhill-start courses' }, { key: 'o', label: 'Every other course' }]}
             rows={rows.map((r) => [band(r.band.label), pct(r.down!.slowdown_pct / 100), pct(r.other!.slowdown_pct / 100)])} />} />
       </Beat>
