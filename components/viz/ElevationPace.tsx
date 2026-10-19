@@ -4,6 +4,7 @@ import Axis from './Axis';
 import Plot, { Baseline, Gridlines } from './Plot';
 import Scrubber from './Scrubber.client';
 import { areaPath, linear, linePath, pc } from './scale';
+import { fitClass, textWidth } from './labels';
 import { paceColour, paceText } from '@/lib/viz/format';
 
 /**
@@ -65,7 +66,9 @@ export default function ElevationPace({ km, metres, relief, reliefLabel, section
     )}>
       {/* The wash stays inside the plot: under a labelled top line it starts there, not above it. */}
       {focus !== undefined && sections[focus] ? <rect className="a-signal" x={pc(x(sections[focus].startKm))} width={pc(x(sections[last].endKm) - x(sections[focus].startKm))} y={reliefLabel ? pc(top) : '0'} height={reliefLabel ? pc(1 - top) : '100%'} /> : null}
-      {reliefLabel ? <Gridlines lines={[{ y: top, label: reliefLabel }]} /> : null}
+      {/* The top line's label hides below the plot width it fits (200% zoom); the chart's name keeps the relief. */}
+      {reliefLabel ? <Gridlines lines={[{ y: top }]} /> : null}
+      {reliefLabel ? <text className={`tick grid-label ${reliefFit(reliefLabel)}`.trim()} x="0" y={pc(top)} dy={-5}>{reliefLabel}</text> : null}
       <Baseline />
     </Plot>
   );
@@ -103,4 +106,11 @@ export default function ElevationPace({ km, metres, relief, reliefLabel, section
       values={values}
     />
   );
+}
+
+/** The width class for the relief label: fitClass, and below its first step (160 px) any label over 120 px hides, since
+ * a 200% zoom plot is about 135 px wide. */
+function reliefFit(text: string): string {
+  const w = textWidth(text, 12, 500) + 4;
+  return fitClass(w) || (w > 120 ? 'w160' : '');
 }

@@ -74,7 +74,7 @@
 /* A choice of 2 to 5 options: the site's segmented control, filling its cell. */
 /* It may shrink inside a row and scroll sideways in its own track (a phone at 200% text); each option is at least 44 px. */
 .tool-choice.seg { display: grid; width: 100%; min-width: 0; }
-.tool-choice.is-small .seg-btn { padding: 0 10px; }
+.tool-choice.is-small .seg-btn { min-width: 44px; padding: 0 10px; }
 .tool-choice .seg-label { display: inline-block; min-width: 24px; text-align: center; }
 /* Presets (common goals, distances): chips, never clipped; they wrap. */
 .tool-presets { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }

@@ -8,7 +8,7 @@ import { getNugget } from '@/lib/nuggets';
 const PATH = '/analyses/finish-time-context';
 
 /**
- * Chapter 06, page 2: the share of finishes under each time as one cumulative curve, the H1's mark (3:00, the fastest 5%)
+ * Chapter 06, page 2: the share of finishes under each time as one cumulative curve, the H1's mark (3:00, under which only 5% finished)
  * ringed by name and the readout opening on it (the H1's accent), then Make it yours, which draws its own curve only once
  * the visitor changes something. The share under 4:00 is chapter 01's finding, so the card does not open on it.
  */
