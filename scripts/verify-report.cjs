@@ -169,8 +169,9 @@ for (const scope of index.scopes) {
           assert.doesNotMatch(text, /held (their )?pace|held-pace|Held pace/, 'the card never says "held pace"');
           // The window is said to the minute ("4:01 to 4:05"), as the split check writes it.
           assert.match(c.label, /^complete finishes from \d+:\d\d to \d+:\d\d /, 'the window to the minute');
-          // The groups' median finishes are said once under the rows (round 4), not in each row's label.
-          assert.ok(/ finished at a median \d+:\d\d\.| Median finish: /.test(text), 'the median finishes, said once');
+          // The groups' median finishes are said once (round 4), not in each row's label: in the heading when it leads with
+          // the 20K lesson ("…, and finished at the same 3:32."; round 6), else under the rows.
+          assert.equal((text.match(/ finished at (?:a median|the same) \d+:\d\d\.| Median finish: /g) || []).length, 1, 'the median finishes, said once');
           assert.ok(text.includes(`${capitalize(approxWords(model.type.share, 'finishes'))} were ${model.type.name}s`) && !text.includes(archetypes.cohort_n.toLocaleString('en-US')), 'the pacing type names its share in words, under the type\'s own name, without the cohort count (that is on /methodology)');
           assert.ok(!text.includes('doi:10.1371/journal.pone.0251513') && !text.includes(splits.SLOWDOWN_DEFINITION), 'no definition or citation on the card');
           assert.doesNotMatch(text, METHOD_COPY, 'no method line on the card');
@@ -264,5 +265,18 @@ ok();
   ok(20);
 }
 assert.equal(report.REPORT_IMAGE_NAME, 'pace-notes-race-report.png'); ok();
+
+// The comparison's heading leads with the 20K lesson only while it holds (round 6): the finishes that slowed passed 20K
+// at least a minute before this race and every group finished within a minute of the others.
+{
+  const g = (key, at20, finish) => ({ key, name: key, n: 500, ed: 3, at20, finish });
+  const groups = [g('held', 6380, 12740), g('slowdown', 5944, 12750)];
+  assert.equal(report.at20Heading(6307, 12745, groups), 'Finishes like this one that had a sustained slowdown passed 20K 6:03 sooner, and finished at the same 3:32.', 'the lesson heading, with this race in the groups\' finishing minute');
+  assert.equal(report.at20Heading(6307, 12900, groups), 'Finishes like this one that had a sustained slowdown passed 20K 6:03 sooner, and finished at a median 3:32.', 'a race outside that minute reads "a median"');
+  assert.equal(report.at20Heading(5980, 12745, groups), null, 'under a minute sooner: the old heading');
+  assert.equal(report.at20Heading(6307, 12745, [g('held', 6380, 12740), g('slowdown', 5944, 12900)]), null, 'groups that finished apart: the old heading');
+  assert.equal(report.at20Heading(6307, 12745, [g('all', 6300, 12740)]), null, 'no slowdown group: the old heading');
+  ok(5);
+}
 
 console.log(`Race report checks passed (${checks}, ${((Date.now() - started) / 1000).toFixed(1)} s): link forms (typed with its comparison group, from a record with s, course and via only), the same window, groups, pacing type and opening group as the split check on ${compared} published windows across every course and recorded gender (${unpublished} unpublished ones say so), every data block with its finishes and cohort, no group under 100 finishes, no "you", rank, percentile or record in the card or the image, no definition, citation or method line (the term and the badges link to /methodology), and the units shown.`);

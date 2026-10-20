@@ -7,7 +7,7 @@ import TypeGlyph from '@/components/viz/TypeGlyph';
 import { runnerHandoffHref } from '@/lib/analytics-policy';
 import { loadInsight, type Archetypes } from '@/lib/insights';
 import {
-  ahead, buildReport, kmText, openingPct, paceText, pctSigned, relation, reportCourseCity, reportLink, reportLines, reportScope, reportShardPath, shareText,
+  ahead, at20Heading, buildReport, kmText, openingPct, paceText, pctSigned, relation, reportCourseCity, reportLink, reportLines, reportScope, reportShardPath, shareText,
   type ReportComparison, type ReportData, type ReportGender, type ReportGroup, type ReportModel, type ReportRecord,
 } from '@/lib/report';
 import type { RaceInsights } from '@/lib/runner-context';
@@ -231,9 +231,11 @@ function ComparisonBlock({ id, Head, comparison: c, model, gender, dropped, retr
   const note = dropped ? <p className="race-report-meta">{dropped} is not one of the comparison’s courses, so this race is compared with finishes on all courses.</p> : null;
   const at20 = model.times[3];
   const lead = c.state === 'ok' ? c.groups[0] : null;
+  // The lesson the rows hold, when they hold it: the finishes that slowed were well ahead at 20K and finished together.
+  const lesson = c.state === 'ok' ? at20Heading(at20, model.finish, c.groups) : null;
   return (
     <section className="race-report-block" aria-labelledby={id}>
-      <Head id={id}>{lead ? `At 20K, ${relation(at20 - lead.at20)} ${groupName(lead)}.` : 'Compared with finishes at this time'}</Head>
+      <Head id={id}>{lesson ?? (lead ? `At 20K, ${relation(at20 - lead.at20)} ${groupName(lead)}.` : 'Compared with finishes at this time')}</Head>
       {c.state === 'loading' ? <p className="race-report-meta">Loading the finishes at this time…</p> : null}
       {c.state === 'off' ? <div className="tool-state is-error"><p>{c.message}</p><button type="button" className="btn btn-secondary is-compact no-print" onClick={retry}>Try again</button></div> : null}
       {c.state === 'unavailable' ? <p><strong>{c.title}</strong> {c.message}</p> : null}
@@ -241,7 +243,7 @@ function ComparisonBlock({ id, Head, comparison: c, model, gender, dropped, retr
         <>
           <p>{count(c.n)} {c.label}{c.slowdownShare !== null ? <>: <strong>{shareText(c.slowdownShare)}</strong> had a <Link className="term-link" href={SLOWDOWN_HREF}>sustained slowdown</Link></> : null}.</p>
           <div className="race-report-table">
-            <At20 race={at20} groups={c.groups} />
+            <At20 race={at20} groups={c.groups} lit={lesson ? 'slowdown' : c.groups[0]?.key} finishSaid={!!lesson} />
           </div>
           {c.missing ? <p className="race-report-meta">{c.missing}</p> : null}
         </>
@@ -265,7 +267,7 @@ const hmFloor = (seconds: number) => { const m = Math.floor(seconds / 60); retur
  * under them: groups at the same finish time finish together, which is the point (one was well ahead at 20K). The scale
  * runs a minute or more past the times on whole minutes, its ends labelled.
  */
-function At20({ race, groups }: { race: number; groups: ReportGroup[] }) {
+function At20({ race, groups, lit, finishSaid = false }: { race: number; groups: ReportGroup[]; lit?: ReportGroup['key']; finishSaid?: boolean }) {
   const all = [race, ...groups.map((g) => g.at20)];
   const lo = (Math.floor(Math.min(...all) / 60) - 1) * 60, hi = (Math.ceil(Math.max(...all) / 60) + 1) * 60;
   const at = (v: number) => `${((100 * (v - lo)) / (hi - lo)).toFixed(2)}%`;
@@ -278,7 +280,7 @@ function At20({ race, groups }: { race: number; groups: ReportGroup[] }) {
     <figure className="viz at20">
       <ul className="at20-rows" role="img" aria-label={`At 20K: this race ${clock(race)}; ${groups.map((g) => `${g.name.toLowerCase()} median ${clock(g.at20)}`).join('; ')}. ${finishLine}`}>
         {groups.map((g, i) => (
-          <li key={g.key} className={i === 0 ? 'is-lit' : undefined}>
+          <li key={g.key} className={(lit ? g.key === lit : i === 0) ? 'is-lit' : undefined}>
             <span className="at20-label">{g.name} <small>· {count(g.n)} finishes</small></span>
             <span className="at20-track" aria-hidden="true">
               <i style={{ left: at(Math.min(race, g.at20)), width: at(lo + Math.abs(race - g.at20)) }} />
@@ -290,7 +292,8 @@ function At20({ race, groups }: { race: number; groups: ReportGroup[] }) {
         ))}
       </ul>
       <div className="at20-axis" aria-hidden="true"><span className="at20-ends"><span>{hm(lo)}</span><span>{hm(hi)}</span></span><span /></div>
-      <p className="at20-finish">{finishLine}</p>
+      {/* The groups' finish is said once: in the heading when it leads with it, else here. */}
+      {finishSaid ? null : <p className="at20-finish">{finishLine}</p>}
       <ul className="viz-key at20-key" aria-hidden="true"><li><i className="at20-key-median" />Group median at 20K</li><li><i className="at20-key-race" />This race at 20K</li></ul>
     </figure>
   );

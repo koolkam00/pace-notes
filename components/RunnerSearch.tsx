@@ -70,13 +70,15 @@ function limitedTag(reason: string | null): string {
 }
 
 /**
- * One recorded race as a row: the race and year, its recorded finish, and one short tag ("Pacing analysis", "Recorded
- * times only" for a copy edition, or why its analysis is limited). The recorded name, age, gender and the full reason
- * are in the record's "Recorded checkpoints" disclosure (RecordedCheckpoints).
+ * One recorded race as a row: the race and year and its recorded finish, with a short tag only for the exception
+ * ("Recorded times only" for a copy edition, or why its analysis is limited): the usual race, with its pacing analysis,
+ * says nothing more (round 6: "Pacing analysis" under every row made the list three lines a race). The recorded name,
+ * age, gender and the full reason are in the record's "Recorded checkpoints" disclosure (RecordedCheckpoints).
  */
 export function RunnerRecordDetails({ race, manifest, copyEditions = NO_COPIES }: { race: RunnerRace; manifest: RunnerManifest; copyEditions?: readonly CopyEdition[] }) {
   const copy = race.eligible && !!copyEditionOf(manifest.editions[race.edition], copyEditions);
-  return <><strong>{raceLabel(race, manifest)}</strong><span className="runner-recorded-finish"><span className="sr-only">Recorded finish: </span>{finishLabel(race)}</span><span className={copy ? 'runner-ineligible runner-copy' : race.eligible ? 'runner-eligible' : 'runner-ineligible'}>{copy ? 'Recorded times only' : race.eligible ? 'Pacing analysis' : limitedTag(race.reason)}</span></>;
+  const tag = copy ? 'Recorded times only' : race.eligible ? null : limitedTag(race.reason);
+  return <><strong>{raceLabel(race, manifest)}</strong><span className="runner-recorded-finish"><span className="sr-only">Recorded finish: </span>{finishLabel(race)}</span>{tag ? <span className={copy ? 'runner-ineligible runner-copy' : 'runner-ineligible'}>{tag}</span> : null}</>;
 }
 
 /**

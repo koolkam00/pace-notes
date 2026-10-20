@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState, type ComponentType } from 'react';
-import { MARATHON_KM, matLabel, paceLabel, paceValue, sectionLabel, type UnitSystem } from '@/lib/units';
+import { matLabel, paceLabel, paceValue, sectionLabel, type UnitSystem } from '@/lib/units';
 import { paceTicks } from '@/lib/pace-ticks';
 import { runnerDuration, runnerMetrics, type RunnerManifest, type RunnerMetrics, type RunnerRace } from '@/lib/runner-search';
 import { UnitLink } from './UnitsProvider';
@@ -97,10 +97,11 @@ export function PacingReadings({ race, metrics, manifest, units }: MeasuredRace 
   const times = wholeSeconds(metrics);
   const reading = times ? readSplits(times) : null;
   const verdict = reading ? timesVerdict(reading) : null;
-  // The last mat is named by its distance (42.2K), as on the report: "Finish 19:51" read as a finish time.
+  // Each row names its section ("30–35K"), the words the section comparison beside it uses (round 6: "35K 1:17:09" and
+  // "30–35K +35:44" named one stretch two ways on one screen).
   const rows = metrics.sections.map((section, i) => {
     const vs = section.pace / metrics.baseline - 1;
-    return { mat: i === metrics.sections.length - 1 ? `${MARATHON_KM.toFixed(1)}K` : matLabel(section.end), split: split(section.elapsed), pace: paceLabel(section.pace, units), vs, lit: reading ? toneOf(reading, i) === 'qualify' : false, sr: `${sectionLabel(section.start, section.end)}: ${paceLabel(section.pace, units)}, ${signed(100 * vs)} against the 5–20K pace` };
+    return { mat: sectionLabel(section.start, section.end), split: split(section.elapsed), pace: paceLabel(section.pace, units), vs, lit: reading ? toneOf(reading, i) === 'qualify' : false, sr: `${sectionLabel(section.start, section.end)}: ${paceLabel(section.pace, units)}, ${signed(100 * vs)} against the 5–20K pace` };
   });
   const term = <UnitLink className="term-link" href="/methodology#sustained-slowdown">sustained slowdown</UnitLink>;
   // Ranges never break at their dash ("5–20K", "30–35K"): joinRanges puts a word joiner after each.
@@ -115,7 +116,7 @@ export function PacingReadings({ race, metrics, manifest, units }: MeasuredRace 
     {/* The first 5K only where it parted from the early pace by 1% or more: a smaller difference says nothing. In the
         report's words and precision ("5.3% quicker"), so the two never disagree. */}
     {Math.abs(metrics.openingChange) >= 1 ? <p className="rc-copy">The first 5K was {openingPct(opening)} {opening < 0 ? 'quicker' : 'slower'} than the {joinRanges('5–20K')} pace.</p> : null}
-    <LapList rows={rows} baseline={paceLabel(metrics.baseline, units)} label={`Pace through ${titleFor(race, manifest)}, each mat against the 5–20K pace${verdict?.slowdown ? `; a sustained slowdown from ${matLabel(verdict.onsetKm)}` : ''}`}
+    <LapList by="section" rows={rows} baseline={paceLabel(metrics.baseline, units)} label={`Pace through ${titleFor(race, manifest)}, each mat against the 5–20K pace${verdict?.slowdown ? `; a sustained slowdown from ${matLabel(verdict.onsetKm)}` : ''}`}
       caption={verdict?.slowdown ? 'Highlighted: the sustained slowdown.' : undefined} />
     <details className="values rc-details"><summary><span>Checkpoint readings</span><span className="values-glyph" aria-hidden="true" /></summary>
       <div className="rc-table-wrap table-wrap" role="region" aria-label="Recorded checkpoints" tabIndex={0}><table className="table"><caption className="sr-only">Elapsed times and section paces</caption><thead><tr><th scope="col">Checkpoint</th><th scope="col">Elapsed</th><th scope="col">Section time</th><th scope="col">Section pace</th></tr></thead><tbody>{metrics.sections.map(section => <tr key={section.end}><th scope="row">{matLabel(section.end)}</th><td>{runnerDuration(section.cumulative)}</td><td>{runnerDuration(section.elapsed)}</td><td>{paceLabel(section.pace, units)}</td></tr>)}</tbody></table></div>

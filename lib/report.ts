@@ -232,6 +232,29 @@ export function relation(seconds: number): string {
   return s === 0 ? 'level with' : `${formatDuration(Math.abs(s))} ${s < 0 ? 'ahead of' : 'behind'}`;
 }
 
+/** h:mm, floored to the minute as a race clock reads it. */
+const hmFloor = (seconds: number) => { const m = Math.floor(seconds / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
+
+/**
+ * The comparison's heading when its 20K rows hold the lesson (round 6: the heading named the weaker fact, this race's
+ * gap to the finishes with no sustained slowdown): the finishes at this time that had a sustained slowdown passed 20K
+ * well before this race, and every group still finished together ("…passed 20K 6:03 sooner, and finished at the same 3:32."). It holds while that group passed 20K at least a minute sooner and every group's median finish is within a
+ * minute of the others; "the same" also needs this race's own finish in that minute, else "a median". Null otherwise,
+ * and the heading names this race against the first group, as before. Said as an observation of finishes like this
+ * one, never a promise.
+ */
+export function at20Heading(race20: number, finish: number, groups: ReportGroup[]): string | null {
+  const slow = groups.find((g) => g.key === 'slowdown');
+  if (!slow || groups.length < 2) return null;
+  const finishes = groups.map((g) => g.finish);
+  const together = Math.max(...finishes) - Math.min(...finishes) < 60;
+  const sooner = Math.round(race20 - slow.at20);
+  if (!together || sooner < 60) return null;
+  const median = hmFloor(Math.min(...finishes));
+  const same = hmFloor(finish) === median;
+  return `Finishes like this one that had a sustained slowdown passed 20K ${formatDuration(sooner)} sooner, and finished at ${same ? 'the same' : 'a median'} ${median}.`;
+}
+
 /* ---------- Words and numbers in the visitor's units (the image and its alternative text) ---------- */
 
 /** A pace in seconds per km, in the units shown, with its unit: "9:17/mi". */

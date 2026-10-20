@@ -39,6 +39,8 @@
 .lap-list { margin: var(--s-5) 0 0; min-width: 0; }
 .lap-head, .lap-rows li { display: grid; grid-template-columns: 2.75rem 3.75rem 4.5rem minmax(0, 1fr); align-items: center; column-gap: var(--s-2); }
 .lap-list.no-split .lap-head, .lap-list.no-split .lap-rows li { grid-template-columns: 3.25rem 4.5rem minmax(0, 1fr); }
+/* Named by section ("40K–finish"), the first column takes the longest name. */
+.lap-list.by-section .lap-head, .lap-list.by-section .lap-rows li { grid-template-columns: 5.25rem 3.75rem 4.5rem minmax(0, 1fr); }
 .lap-head { padding-bottom: 6px; border-bottom: 1px solid var(--rule); font-size: .75rem; font-weight: 600; line-height: 1.3; color: var(--ink-3); }
 .lap-head-bar { position: relative; align-self: stretch; min-width: 0; }
 /* The bar column's head names the zero line, from where it stands. */
@@ -54,7 +56,9 @@
 .lap-bar::before { content: ''; position: absolute; top: 0; bottom: 0; left: var(--zero, 0%); width: 1px; background: var(--ink-3); }
 .lap-bar i { position: absolute; top: 11px; height: 14px; border-radius: 3px; background: var(--mark-quiet); }
 .lap-rows li.is-lit i { background: var(--signal); }
-.lap-rows li.is-lit .lap-pace { color: var(--signal-ink); }
+/* The bars are the reading (orange where the sustained slowdown ran); the paces beside them stay ink, so a long
+   slowdown is one orange run of bars, never a column of orange numerals (round 6: twelve orange marks in one chart). */
+.lap-rows li.is-lit .lap-pace { color: var(--ink); font-weight: 600; }
 .lap-list.is-ink .lap-rows li.is-lit i { background: var(--ink); }
 .lap-list.is-ink .lap-rows li.is-lit .lap-pace { color: var(--ink); font-weight: 600; }
 .lap-caption { margin: var(--s-3) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }

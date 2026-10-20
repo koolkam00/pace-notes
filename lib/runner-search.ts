@@ -47,9 +47,13 @@ export function normalizeRunnerName(value: string): string {
 export function displayName(name: string): string {
   const code = /\s*\(([A-Z]{2,3})\)$/.exec(name);
   const parts = (code ? name.slice(0, code.index) : name).replace(/[()]/g, '').split(',').map(part => part.trim()).filter(Boolean);
-  const shown = (parts.length === 2 ? `${parts[1]} ${parts[0]}` : parts.join(', ')).replace(/\s+/g, ' ')
+  const cased = (parts.length === 2 ? `${parts[1]} ${parts[0]}` : parts.join(', ')).replace(/\s+/g, ' ')
     .replace(/[\p{L}\p{M}'’-]+/gu, (word, at: number) => /\p{Lu}/u.test(word) && /\p{Ll}/u.test(word) || at && /^(?:da|de|del|der|den|di|do|dos|du|la|le|van|von)$/.test(word) ? word
       : word.toLocaleLowerCase('en-US').replace(/(^|['’-])(\p{L})/gu, (_, before: string, letter: string) => before + letter.toLocaleUpperCase('en-US')));
+  // A token of digits alone in a name field (a bib or ID typed into the first name: "1728207887 Martin") is not shown,
+  // so a result row and its sort read by the name (round 6); a record's own details keep the recorded spelling.
+  const named = cased.split(' ').filter((word) => !/^\d+[,.]?$/.test(word)).join(' ').replace(/^,\s*|,\s*$/g, '').trim();
+  const shown = named || cased;
   return code ? `${shown} · ${code[1]}` : shown;
 }
 export function runnerNameMatches(name: string, query: string): boolean {

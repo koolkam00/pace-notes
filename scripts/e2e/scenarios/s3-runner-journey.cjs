@@ -82,9 +82,10 @@ async function copyEditionJourney(h) {
   h.check('the name finds one record group', await page.locator('.runner-match').count() === 1);
   await page.locator('.runner-match').first().click();
   await page.waitForSelector('.runner-profile', { timeout: 30000 });
-  const labels = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, item.querySelector('.runner-eligible, .runner-ineligible')?.textContent])));
-  const expected = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 'Recorded times only']), [`${city} ${source}`, 'Pacing analysis']]);
-  h.check('each copy record says "Recorded times only"; the field it repeats has pacing analysis', JSON.stringify(labels, Object.keys(expected).sort()) === JSON.stringify(expected, Object.keys(expected).sort()), labels);
+  const labels = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, item.querySelector('.runner-ineligible')?.textContent ?? 'none'])));
+  // Only the exception carries a tag: the field a copy repeats has its pacing analysis and says nothing more.
+  const expected = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 'Recorded times only']), [`${city} ${source}`, 'none']]);
+  h.check('each copy record says "Recorded times only"; the field it repeats carries no tag', JSON.stringify(labels, Object.keys(expected).sort()) === JSON.stringify(expected, Object.keys(expected).sort()), labels);
   const reasons = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, [...item.querySelectorAll('label small, .runner-raw p')].map(small => small.textContent).filter(text => text.startsWith('This edition’s records') || text.includes('largely repeat')).length])));
   const because = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 0]), [`${city} ${source}`, 0]]);
   h.check('no record in the profile explains the copy editions (that is /methodology\'s)', JSON.stringify(reasons, Object.keys(because).sort()) === JSON.stringify(because, Object.keys(because).sort()), reasons);

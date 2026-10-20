@@ -11,8 +11,11 @@ import type { ReactNode } from 'react';
  */
 export type LapRow = { mat: string; split?: string; pace: string; vs: number; lit?: boolean; sr: string };
 
-export default function LapList({ rows, baseline, label, caption, className, tone = 'signal' }: {
+export default function LapList({ rows, baseline, label, caption, className, tone = 'signal', by = 'mat' }: {
   rows: LapRow[];
+  /** What the first column names: the mat a split ends at (the report, standing alone), or the section ("30–35K"), where
+   *  the list sits beside a section-by-section comparison and the two should share one vocabulary (the runner view). */
+  by?: 'mat' | 'section';
   /** How lit rows are marked: signal for the finding (the report's sustained slowdown), ink for a stretch the copy names. */
   tone?: 'signal' | 'ink';
   /** The zero line's pace ("8:35/mi"): the bars run from it, and the caption names it. */
@@ -30,9 +33,9 @@ export default function LapList({ rows, baseline, label, caption, className, ton
   const zero = at(0);
   const splits = rows.some((r) => r.split);
   return (
-    <figure className={`viz lap-list${splits ? '' : ' no-split'}${tone === 'ink' ? ' is-ink' : ''}${className ? ` ${className}` : ''}`} style={{ ['--zero' as string]: `${zero.toFixed(2)}%` }}>
+    <figure className={`viz lap-list${splits ? '' : ' no-split'}${tone === 'ink' ? ' is-ink' : ''}${by === 'section' ? ' by-section' : ''}${className ? ` ${className}` : ''}`} style={{ ['--zero' as string]: `${zero.toFixed(2)}%` }}>
       <div className="lap-head" aria-hidden="true">
-        <span>Mat</span>{splits ? <span>Split</span> : null}<span>Pace</span><span className="lap-head-bar"><span>5–20K</span></span>
+        <span>{by === 'section' ? 'Section' : 'Mat'}</span>{splits ? <span>Split</span> : null}<span>Pace</span><span className="lap-head-bar"><span>5–20K</span></span>
       </div>
       <ol className="lap-rows" aria-label={label}>
         {rows.map((r, i) => (

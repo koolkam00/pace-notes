@@ -15,7 +15,7 @@ Module._resolveFilename = function (request, ...args) {
 const {
   RUNNER_RELEASE, RUNNER_POINTS, RUNNER_PAGE_SIZE, normalizeRunnerName, runnerNameMatches,
   runnerShardKey, validateRunnerManifest, loadRunnerManifest, searchRunnerNames, loadRunnerProfile,
-  validateRunnerProfile, runnerMetrics, runnerDuration, runnerProgression, runnerSearchPage,
+  validateRunnerProfile, runnerMetrics, runnerDuration, runnerProgression, runnerSearchPage, displayName,
 } = require('../lib/runner-search.ts');
 const { SelectedAnalysis } = require('../components/RunnerSearch.tsx');
 const React = require('react');
@@ -33,6 +33,12 @@ const race = (id, edition, pace = 300, extra = {}) => ({
 });
 
 async function main() {
+  // A shown name never opens on a token of digits alone (a bib or ID typed into a name field), so a common surname's
+  // results never lead with "1728207887 Martin" (round 6); a name of digits alone is shown as recorded.
+  assert.equal(displayName('MARTIN, 1728207887'), 'Martin');
+  assert.equal(displayName('Martin, Anne'), 'Anne Martin');
+  assert.equal(displayName('SMITH, JOSÉ (GBR)'), 'José Smith · GBR');
+  assert.equal(displayName('12345'), '12345');
   assert.equal(normalizeRunnerName('  JOSÉ,   O’Neíl—陳  '), 'jose o neil 陳');
   assert.equal(normalizeRunnerName('ＡＮＡ  İpek'), 'ana ipek');
   assert.equal(normalizeRunnerName('𠮷野家'), '𠮷野家');
@@ -184,7 +190,7 @@ async function main() {
   assert.doesNotMatch(details(copy2019, copies) + opened(copy2019, copies), /largely repeat|This edition’s records/, 'A copy record never explains the screen');
   assert.doesNotMatch(opened(copy2019, copies, false), /Pacing and peer comparisons are unavailable/);
   assert.doesNotMatch(details(real2024, copies), /This edition’s records|Recorded times only/, 'The field a copy repeats is not a copy');
-  assert.match(details(copy2019, []), /Pacing analysis/);
+  assert.doesNotMatch(details(copy2019, []), /Pacing analysis|Recorded times only|Limited|runner-eligible|runner-ineligible/, 'A record with its pacing analysis carries no tag: only the exception is marked');
   assert.doesNotMatch(details(copy2019, []), /Fixture Runner|Age not recorded|Recorded gender/, 'The row carries no name, age or gender: they are in the disclosure');
   assert.match(opened(copy2019, []), /Fixture Runner · Lakeside Marathon · Age not recorded · Gender not recorded/);
   assert.match(details(heldCopy, copies), /Limited: missing checkpoints|Limited analysis/);
