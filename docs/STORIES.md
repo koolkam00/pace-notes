@@ -50,6 +50,8 @@ Shares that a page prints as a percentage are stored with ten digits (`insights_
 
 Every sentence a story or `/finish-times` shows is a nugget in `lib/nuggets/stories.ts` with a guard and a plain fallback; `scripts/nuggets/stories.cjs` recounts each one from these files inside `verify-nuggets` (October 17, 2026).
 
+**What the pages draw (October 20, 2026; repository state on `feat/redesign`, not deployed).** Not every output in the table is drawn. A story page (`components/story/StoryPage.tsx`) is a reading (the H1 finding and its figure) and at most six beats, each one finding and one chart; every chart's table sits in one "All numbers" fold at the foot, which ends on "How these were measured →" (`/methodology#story-<slug>`), and the closing stack follows. The story deck, the cards and the per-chart table rows of the earlier pages are gone; the parts of each file that no beat draws (for example the pacing types' repeat-pair habits) stay published, verified below and listed on `/methodology#downloads`. `/stories` lists ten pages: the eight stories, `/finish-times` and `/slowdown`.
+
 The site reads the files at build time through `lib/insights-server.ts`, which re-checks the release, the runner manifest hash and every file hash. Browser fetches (replay rows) go through `lib/insights.ts`, which re-checks the SHA-256 in the browser.
 
 ### Final kick

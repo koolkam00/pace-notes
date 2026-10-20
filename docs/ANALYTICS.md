@@ -103,6 +103,18 @@ Analytics and recording failures must never block the site. Account access is ne
 
 ## Home sections (October 16, 2026)
 
+**Current set at release preparation (October 20, 2026; repository state on `feat/redesign`, draft pull request #71, not merged and not deployed).** The home page (`app/(home)/page.tsx`) marks five sections, in page order; `verify-analytics` and S6 (`HOME_SECTIONS`) pin them, and the built `out/index.html` carries exactly these five:
+
+| Section id | What it is |
+| --- | --- |
+| `hero` | The night hero: the race replay at its first finish, the H1 and its figure |
+| `paths` | Inside the hero: the three ways to start (`components/home/HomeDoors.tsx`): the plan form to `/tools/plan`, "Analyze a past race" (`/runners`) and "Start at the gun" (`/finish-times`) |
+| `stakes` | One guess on 100 dots (`home.second20k`: how many finishes ran their second 20K faster than their first), revealed on the same dots |
+| `guide` | The eleven chapters on their course line, each with its lead reading (`ChapterList`) |
+| `cta` | The closing call: Plan your race |
+
+Removed against the October 16 set below: `steps` (the three steps) and `stories` (the story cards; the chapter list names every story). `TRACKED_SECTIONS` in `lib/analytics-policy.ts` is unchanged, and `/` still has no `chapter-*` section, so the `home_depth@v1` note at the end of this section applies to the redesigned home page too. Against `main` (`6cc6684`), the redesign changed one analytics list: `STORY_SLUGS` gains `race-morning`, so `/stories/race-morning` is recorded under its own path; no event, property or enumerated value changed (`lib/analytics.ts`, `SiteAnalytics`, `SectionTracker`, `PageFeedback` and `scripts/e2e/allowed-properties.json` are as on `main`).
+
 **Since the redesign (WP1, October 17, 2026; on branch `feat/redesign`, not on main, not deployed)** the home page marks `hero, paths, stakes, guide, cta`: the night hero with the race replay and the three ways to start (`paths`, the plan form, "Analyze a past race" and "Read it start to finish", which goes to `/finish-times`; since WP9 round 5, October 19, it reads "Start at the gun"), one guess (`stakes`: how many of 100 finishes ran their second 20K faster than their first, answered on 100 dots), the chapters with their readings (`guide`) and the closing call (`cta`, Plan your race). `steps` and `stories` are gone (the chapter list names every story); `TRACKED_SECTIONS` is unchanged. Still no `chapter-*` on `/`. `verify-analytics` and S6 pin the new order; S1 and S6 follow a story from the chapter list (`main .chapter-list a[href^="/stories/"]`) instead of a story card. The table below is the October 16 layout.
 
 Repository state on branch `feat/storybrand-home` (StoryBrand PR A), not merged; not deployed. The home page (`app/(home)/page.tsx`) marks, in page order:

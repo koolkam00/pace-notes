@@ -218,11 +218,15 @@ CI runs it after `npm run build` in [`site-validation.yml`](../.github/workflows
 | `old-host` | `htw-live-study.vercel.app` is in any `<head>` (or in JSON-LD) |
 | `finish-counts` | an "N.N million" or "N.NM" in a title or description is not `finishesM()` |
 | `orphans` | a story or analysis page in the sitemap is not linked from `/research`, or any other sitemap page but the home page is linked from no other page in the export (October 16, 2026) |
+| `hub-counts` | a hub whose line counts its pages ("Ten stories, one finding each.") lists a different number, or its meta description and `og:description` do not open on the same count word (WP9 round 6, October 20, 2026) |
+| `title-brand` | a title without "Pace Notes" would still fit 60 characters with " \| Pace Notes", or a title names the brand twice: every title ends the same way unless the suffix would pass the limit or the title opens on the brand (release preparation, October 20, 2026; the course pages' `courseTitle()` follows the same rule) |
 | `home-form` | the home page's course select (`#home-plan-course`) does not have the planner's options (`#plan-course` on `/tools/plan`), the same values and names in the same order: the home list comes from the course pages, the planner's from its own data (October 16, 2026) |
 
 Warnings only: titles over 60 characters, descriptions over 155 (the site's limits), `og-image-fallback` (a page that uses a less specific card than the one `scripts/build-og-images.cjs` makes for it: a stale build or a missing card), and policy notes (noindex pages that also say nofollow, JSON-LD on pages the plan keeps without it, `changefreq` or `priority` in the sitemap).
 
 ## Moved addresses (October 18, 2026)
+
+**At release preparation (October 20, 2026; repository state on `feat/redesign`, draft pull request #71, not deployed):** 91 stubs in the export (`/packs`, its 84 question pages, `/packs/smyth_htw`, `/htw`, `/research/personalized`, `/your-race`, `/analyses/warming-and-pacing` and `/analyses/wind-and-pacing`), every one but `/your-race` answered by a 308 in `vercel.json`; `/courses/melbourne` 308s to `/courses` without a stub (PR #72, on `main`). The two weather stubs say where their question went in one plain sentence ("Warming through the race now has its own tab in race-day weather.", "Wind at the start now has its own tab in race-day weather."), as the other stubs do. The `/design-system` gallery was deleted (no address, no redirect: it was never public). `verify-seo` passed all 24 checks on the export.
 
 Branch state on `feat/redesign`, not deployed. The redesign closed the research archive (`/packs` and its 84 question pages), the archived personalized guide (`/research/personalized`) and the two weather-question pages (now tabs of race-day weather). Each old address is listed in `lib/seo-routes.ts`: `movedTo(path)` says where it went and `movedPages()` lists every address that keeps a stub.
 
