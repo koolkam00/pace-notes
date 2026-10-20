@@ -45,7 +45,6 @@ const Glyph = () => <span className="fold-glyph" aria-hidden="true" />;
 export default function PrivacyPage() {
   return <article className="info-page">
     <header className="info-hero">
-      <p className="t-kicker">Your visit</p>
       <h1 className="t-title">Privacy &amp; analytics</h1>
       <p className="info-dek">How we measure use of the site, what we never record, and how to switch it off.</p>
     </header>

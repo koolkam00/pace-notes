@@ -3,7 +3,8 @@ import { UnitLink as Link } from './UnitsProvider';
 
 /**
  * The footer (the redesign spec, sections 2.8 and 00): the brand line, one row of links to the pages outside the race
- * (the five main links are in the header on every page) and the Motion switch, in under half a phone screen.
+ * (the five main links are in the header on every page) and the Motion switch, in under half a phone screen. Four
+ * links, so the row is one line at 390 px (round 6): the open data is on How we know (#downloads) and in the menu.
  * S1 follows footer a[href="/privacy"] and S6 footer a[href="/about"].
  */
 export default function SiteFooter() {
@@ -16,7 +17,6 @@ export default function SiteFooter() {
           <Link href="/about">About</Link>
           <Link href="/privacy">Privacy</Link>
           <Link href="/request-analysis">Request an analysis</Link>
-          <a href="https://github.com/koolkam00/pace-notes/releases">Open data <span aria-hidden="true">↗</span></a>
         </nav>
         <MotionToggle />
       </div>

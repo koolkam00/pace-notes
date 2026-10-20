@@ -35,9 +35,10 @@
   transition: transform var(--d-quick) var(--ease-out);
 }
 .main-nav > a:hover::after { transform: translateX(3px); }
-.main-nav > a.nav-primary::after { background: var(--on-accent); }
+/* The filled pill carries no arrow, as no filled button on the site does (round 5), and its words sit centred in it. */
+.main-nav > a.nav-primary::after { display: none; }
 .main-nav > a.nav-primary {
-  margin: 4px 0 var(--s-2); padding: 6px 20px 6px 22px; border: 0; border-radius: var(--r-pill);
+  justify-content: center; margin: 4px 0 var(--s-2); padding: 6px 22px; border: 0; border-radius: var(--r-pill);
   background: var(--accent); color: var(--on-accent); font-weight: 600;
   transition: background-color var(--d-quick) var(--ease-out), transform var(--d-release) var(--spring);
 }

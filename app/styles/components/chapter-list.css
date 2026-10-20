@@ -49,6 +49,12 @@
   .chapter-link { grid-template-columns: calc(var(--line-x) * 2) minmax(0, 1fr); }
   .chapter-reading { grid-column: 2; justify-items: start; text-align: left; }
 }
+/* 200% zoom on a phone: the names a step smaller and the gap tighter, so a short name keeps its line ("The first 5K",
+   never "The / first 5K") and a longer one breaks at its middle. */
+@media (max-width: 299.98px) {
+  .chapter-link { column-gap: var(--s-2); }
+  .chapter-name { font-size: 1.0625rem; }
+}
 @media (min-width: 900px) {
   .is-full .chapter-reading .big-number.is-s { font-size: var(--t-figure-m); }
   .is-full .chapter-name { font-size: 1.5rem; }

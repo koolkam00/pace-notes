@@ -65,8 +65,8 @@
 .course-toc + .course-beat { padding-top: var(--s-6); }
 .course-beat[tabindex="-1"]:focus { outline: none; }
 .course-h2 {
-  margin: 0; max-width: 24ch; font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; font-size: clamp(1.375rem, 4.2vw + .35rem, 2.25rem);
-  line-height: 1.15; letter-spacing: -.015em; color: var(--ink); text-wrap: balance;
+  margin: 0; max-width: 24ch; font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; font-size: var(--t-h2);
+  line-height: 1.1; letter-spacing: -.018em; color: var(--ink); text-wrap: balance;
 }
 /* One accent per screen (round 3): only an H1's italic is orange, so a beat's italic is ink and the chart's marks carry
    the signal (base.css .t-h2 em; layout lint check 9). */

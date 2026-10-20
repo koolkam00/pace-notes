@@ -18,7 +18,6 @@ export const metadata = pageMetadata({
 export default function AboutPage() {
   return <article className="info-page">
     <header className="info-hero">
-      <p className="t-kicker">About</p>
       {/* Two sentences, two lines: the break falls after "number.", never mid-thought. */}
       <h1 className="t-title"><span className="title-line">A finish time is one number.</span> <span className="title-line">The race is the rest.</span></h1>
       <p className="info-dek">Pace Notes reads the recorded splits of {finishesM()} million marathon finishes, so a runner can see how races like theirs went.</p>

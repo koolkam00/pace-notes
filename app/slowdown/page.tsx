@@ -7,7 +7,7 @@ import ChapterEnd from '@/components/ChapterEnd';
 import Columns from '@/components/viz/Columns';
 import { Beat, Say } from '@/components/analysis/Shell';
 import { getStudyEvidence } from '@/lib/research-data';
-import { readingAttrs } from '@/lib/chapters';
+import { howWeKnowOf, readingAttrs } from '@/lib/chapters';
 import { getNugget, settledReadingOf } from '@/lib/nuggets';
 import { approxWords, count, pct, sectionLabel } from '@/lib/nuggets/format';
 import { capitalize } from '@/lib/nuggets/build';
@@ -79,8 +79,8 @@ export default function Page() {
         <AllNumbers tables={[
           first ? <Values key="history" bare id="sd-history" caption="Sustained slowdown by earlier recorded best" columns={[{ key: 'b', label: 'Earlier best', text: true }, { key: 's', label: 'Sustained slowdown' }, { key: 'n', label: 'Finishes' }]}
             rows={bands.map((r) => [bestLabel(String(r.label)), pct(Number(r.value) / 100), count(Number(r.n_value))])} /> : null,
-        ]} className="story-numbers" />
-        <ChapterEnd path={PATH} readingOf={settledReadingOf} />
+        ]} className="story-numbers" how={howWeKnowOf(PATH) ?? undefined} />
+        <ChapterEnd path={PATH} readingOf={settledReadingOf} how={!first} />
       </article>
     </div>
   );

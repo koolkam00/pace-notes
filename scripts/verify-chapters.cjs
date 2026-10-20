@@ -20,7 +20,8 @@
 //   9. Every beat heading (h2.t-h2) is a beat's finding in one clause: at most 12 words (with the export). The analyses'
 //      and the tools' headings are reported as notes until their package shortens them; every other page fails.
 //   6. The shell's components rendered on the server: the closing stack (its related section, the one next card last in
-//      its pagination nav as S2 and S3 follow it, no also rows, the way back, How we know, PageFeedback; the finish
+//      its pagination nav as S2 and S3 follow it, no also rows, the way back, How we know unless the page's All numbers
+//      carries it (how={false}), PageFeedback; the finish
 //      card on /tools/plan; a next chapter's lead and key), the rail's current page, the chapter list's variants and
 //      the crumbs.
 //
@@ -335,7 +336,7 @@ const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 const render = (file, props) => renderToStaticMarkup(React.createElement(require(path.join(root, file)).default, props));
 const hrefs = (html) => [...html.matchAll(/<a\b[^>]*\shref="([^"]*)"/g)].map((m) => m[1]);
-test('ChapterEnd on a story: related section, one next card, no also rows, the way back, How we know, feedback', () => {
+test('ChapterEnd on a story: related section, one next card, no also rows, the way back, How we know (or none, how={false}), feedback', () => {
   const html = render('components/ChapterEnd.tsx', { path: '/stories/round-numbers' });
   assert.match(html, /^<div class="chapter-end" data-track-section="related">/);
   const nav = /<nav class="chapter-next story-pagination"[^>]*>([\s\S]*?)<\/nav>/.exec(html);
@@ -346,8 +347,20 @@ test('ChapterEnd on a story: related section, one next card, no also rows, the w
   assert.ok(!hrefs(html).includes('/tools/marathon-pace/4-00'), 'no also-in-this-chapter row: one way forward (spec section 00, cut 4)');
   assert.doesNotMatch(html, /chapter-also/);
   assert.ok(hrefs(html).includes('/analyses/where-time-is-gained'), '← previous');
-  assert.ok(hrefs(html).includes('/methodology#story-round-numbers'), 'How we know');
+  assert.ok(hrefs(html).includes('/methodology#story-round-numbers'), 'How we know (the footer\'s own link steps aside on this page, footer.css)');
   assert.match(html, /<aside class="page-feedback/);
+  // A story keeps its methods at the foot of its All numbers (StoryPage), so its row is the way back alone: one way to
+  // /methodology per phone screen (round 6).
+  const story = render('components/ChapterEnd.tsx', { path: '/stories/round-numbers', how: false });
+  assert.ok(!hrefs(story).some((h) => h.startsWith('/methodology')), 'how={false}: no methods link in the closing stack');
+  assert.ok(hrefs(story).includes('/analyses/where-time-is-gained'), 'how={false}: still the way back');
+});
+test('AllNumbers ends on the page\'s methods link when given one', () => {
+  const { AllNumbers } = require(path.join(root, 'components/ui/Values.tsx'));
+  const html = renderToStaticMarkup(React.createElement(AllNumbers, { tables: [React.createElement('p', { key: 't' }, 'table')], how: C.howWeKnowOf('/stories/round-numbers') }));
+  assert.ok(hrefs(html).includes('/methodology#story-round-numbers'), 'How these were measured');
+  assert.match(html, /How these were measured/);
+  assert.doesNotMatch(renderToStaticMarkup(React.createElement(AllNumbers, { tables: [React.createElement('p', { key: 't' }, 'table')] })), /values-how/);
 });
 test('ChapterEnd on an analysis: the next card is the last link of nav.analysis-pagination; a new chapter shows its lead', () => {
   const html = render('components/ChapterEnd.tsx', { path: '/analyses/downhill-start', variant: 'analysis', readingOf: (id) => ({ value: 'V', sr: `value of ${id}` }) });

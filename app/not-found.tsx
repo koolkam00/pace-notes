@@ -1,6 +1,6 @@
 import Button from '@/components/ui/Button';
 
-export const metadata = { title: 'Page not found | Pace Notes', description: 'This page is not on the route. Head back to the start or read the stories from the data.', robots: { index: false, follow: true } };
+export const metadata = { title: 'Page Not Found | Pace Notes', description: 'This page is not on the route. Head back to the start or read the stories from the data.', robots: { index: false, follow: true } };
 
 /**
  * The 404 (the redesign spec, sections 7.15 and 00): what happened, in one line, and two ways back onto the course. The

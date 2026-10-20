@@ -1,6 +1,15 @@
 import { Fragment, type ReactNode } from 'react';
 import Arrow from './Arrow';
 import ScrollCue from './ScrollCue.client';
+import { UnitLink as Link } from '@/components/UnitsProvider';
+
+/**
+ * The page's one deep link to its methods, at the foot of its numbers (round 6: a "How we know" in the closing row and the
+ * footer's were two paths to /methodology on one phone screen): the method sits with the figures it explains.
+ */
+function HowLink({ href }: { href: string }) {
+  return <p className="values-how"><Link href={href} className="values-how-link">How these were measured<Arrow /></Link></p>;
+}
 
 /**
  * Values: a chart's table twin, in a disclosure (spec section 3.5). The summary reads "All numbers" and the row count,
@@ -25,11 +34,13 @@ type Props = {
   open?: boolean;
   /** One table of a page's "All numbers" (AllNumbers): its caption and table without a disclosure of its own. */
   bare?: boolean;
+  /** The page's /methodology anchor, linked at the foot of the open fold ("How these were measured"). */
+  how?: string;
   children?: ReactNode;
   className?: string;
 };
 
-export default function Values({ id, caption, columns, rows, reading, count, open = false, bare = false, children, className }: Props) {
+export default function Values({ id, caption, columns, rows, reading, count, open = false, bare = false, how, children, className }: Props) {
   const n = count ?? rows?.length;
   const captionId = `${id}-caption`;
   const body = (
@@ -62,7 +73,7 @@ export default function Values({ id, caption, columns, rows, reading, count, ope
         <span>All numbers{typeof n === 'number' ? <span className="values-count">{n.toLocaleString('en-US')} {n === 1 ? 'row' : 'rows'}</span> : null}</span>
         <span className="values-glyph" aria-hidden="true" />
       </summary>
-      <div className="values-body">{body}</div>
+      <div className="values-body">{body}{how ? <HowLink href={how} /> : null}</div>
     </details>
   );
 }
@@ -72,7 +83,7 @@ export default function Values({ id, caption, columns, rows, reading, count, ope
  * its foot, each with its caption, instead of a Values row under every chart. Pass the tables as `<Values bare …/>`
  * (or a ByUnits pair of them); empty entries are skipped and nothing renders without a table.
  */
-export function AllNumbers({ tables, id = 'all-numbers', className }: { tables: ReactNode[]; id?: string; className?: string }) {
+export function AllNumbers({ tables, id = 'all-numbers', className, how }: { tables: ReactNode[]; id?: string; className?: string; how?: string }) {
   const list = tables.filter(Boolean);
   if (!list.length) return null;
   return (
@@ -81,7 +92,7 @@ export function AllNumbers({ tables, id = 'all-numbers', className }: { tables: 
         <span>All numbers<span className="values-count">{list.length} {list.length === 1 ? 'table' : 'tables'}</span></span>
         <span className="values-glyph" aria-hidden="true" />
       </summary>
-      <div className="values-body all-numbers-body">{list.map((t, i) => <Fragment key={i}>{t}</Fragment>)}</div>
+      <div className="values-body all-numbers-body">{list.map((t, i) => <Fragment key={i}>{t}</Fragment>)}{how ? <HowLink href={how} /> : null}</div>
     </details>
   );
 }

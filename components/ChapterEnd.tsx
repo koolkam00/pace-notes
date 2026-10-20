@@ -9,21 +9,23 @@ import { howWeKnowOf, nextOf, placeOf, prevOf, type ReadingOf } from '@/lib/chap
  * The closing stack of every page in the race (the redesign spec, section 2.6, cut under section 00), in one phone
  * screen: the next card (or, on /tools/plan, the finish card), a row with "← previous" and "How we know", then "Was
  * this useful?". One way forward and one way back: a chapter's off-chain pages are listed in the contents and the
- * menu, not here. Nobody is dropped at a footer.
+ * menu, not here. Nobody is dropped at a footer. One way to the page's methods per screen (round 6): where the row
+ * carries "How we know", the footer's own link to /methodology steps aside (footer.css); a story keeps its methods at
+ * the foot of its "All numbers" (`how={false}` here), so its row is the way back alone.
  *
  * - `readingOf` resolves the next page's reading (lib/nuggets); without it the card shows no figure.
  * - `variant`: the card sits in nav.analysis-pagination on analyses (S2 and S3 follow `.analysis-pagination a`) and in
  *   nav.story-pagination elsewhere.
  * - `track` (default true) marks the stack as the page's `related` section; a course page renders it inside its own
  *   #other-courses section with `track={false}`, so the page keeps one. `feedback={false}` leaves PageFeedback to a
- *   page that places its own.
+ *   page that places its own. `how={false}` leaves the methods link to the page's "All numbers" (AllNumbers `how`).
  */
-export default function ChapterEnd({ path, readingOf, variant = 'story', track = true, feedback = true }: {
-  path: string; readingOf?: ReadingOf; variant?: 'story' | 'analysis'; track?: boolean; feedback?: boolean;
+export default function ChapterEnd({ path, readingOf, variant = 'story', track = true, feedback = true, how: withHow = true }: {
+  path: string; readingOf?: ReadingOf; variant?: 'story' | 'analysis'; track?: boolean; feedback?: boolean; how?: boolean;
 }) {
   const place = placeOf(path);
   if (!place) return feedback ? <PageFeedback /> : null;
-  const next = nextOf(path), how = howWeKnowOf(path);
+  const next = nextOf(path), how = withHow ? howWeKnowOf(path) : null;
   // One way forward, one way back: a page whose way back is also its next card (the planner's off-chain tools) keeps the card only.
   const back = prevOf(path);
   const prev = back && next && back.href === next.page.href ? null : back;

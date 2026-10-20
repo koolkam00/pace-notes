@@ -7,9 +7,21 @@
 .site-footer-home { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; font-size: 1.25rem; letter-spacing: -.015em; text-decoration: none; }
 .site-footer-home:hover { color: var(--ink); text-decoration: none; }
 .site-footer-brand span { font-family: var(--sans); font-size: var(--t-small); color: var(--ink-3); }
-.site-footer-links { flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 0 var(--s-5); }
-.site-footer-links a { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: var(--ink-2); font-family: var(--sans); font-size: .9375rem; font-weight: 500; text-decoration: none; }
+/* One row on a phone (round 6): the four links at 14 px with a 12 px gap fit a 358 px column, each at least 44 px wide
+   ("About" is 40 px of text); from 600 px 15 px and the usual 24 px. */
+.site-footer-links { flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 0 var(--s-3); }
+.site-footer-links a { display: inline-flex; align-items: center; gap: 4px; min-width: 44px; min-height: 44px; color: var(--ink-2); font-family: var(--sans); font-size: .875rem; font-weight: 500; text-decoration: none; }
+@media (min-width: 600px) {
+  .site-footer-links { gap: 0 var(--s-5); }
+  .site-footer-links a { font-size: .9375rem; }
+}
 .site-footer-links a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: .2em; }
+/* One way to a page's methods per screen (round 6): where the closing row carries the page's own "How we know"
+   (ChapterEnd, a reference tool's ToolEnd), the footer's link to /methodology steps aside, so the two never sit on one
+   phone screen. Without :has() both show, which loses nothing. */
+@supports selector(:has(a)) {
+  body:has(.chapter-how) .site-footer-links a[href="/methodology"] { display: none; }
+}
 
 /* The Motion switch: role="switch", 44 px tall; on is an ink track with the knob at the right. */
 .motion-toggle {

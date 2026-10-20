@@ -37,7 +37,7 @@
 .finish-card-link { display: inline-flex; align-items: center; gap: var(--s-2); min-height: 44px; color: var(--ink); font-family: var(--sans); font-size: 1rem; font-weight: 600; text-decoration: none; }
 .finish-card-link:hover { color: var(--ink); text-decoration: underline; text-underline-offset: .2em; }
 
-/* ← previous and How we know. */
+/* ← previous and How we know (a story's row is the way back alone: its methods are at the foot of its All numbers). */
 /* The way back and "How we know" share a row while both fit on one line each; a long way back keeps its words together
    and "How we know" steps to the next line, still at the right, rather than the label breaking in two. */
 .chapter-end-links { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--s-4); margin: calc(var(--s-2) * -1) 0 0; }

@@ -108,8 +108,8 @@
 @media (min-width: 900px) {
   .info-page { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--s-8); align-items: start; padding: var(--s-8) 0 var(--s-5); }
   .info-hero { position: sticky; top: calc(var(--header-h) + var(--s-6)); }
-  /* The info titles stay below the home page's H1 (63 px at 1440), as the hubs' do. */
-  .info-hero > h1, .info-stop > h1 { max-width: none; font-size: min(var(--t-title), 3.9rem); }
+  /* The info titles take the title token, the one H1 size of every page from 900 px (round 6). */
+  .info-hero > h1, .info-stop > h1 { max-width: none; }
   .info-stop > h1 { max-width: 16ch; }
   .info-stop { padding-top: var(--s-8); }
   .info-body { margin-top: 0; }
