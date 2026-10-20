@@ -18,7 +18,7 @@ The final system of the redesign, written October 20, 2026 from the code on `fea
 
 ## Type
 
-Three faces, self-hosted from `public/fonts/` (copied from the `@fontsource-variable` packages by `scripts/fonts/copy-fonts.cjs`; `app/styles/fonts.css`; each with metric-matched fallbacks from `scripts/font-fallbacks.cjs`, regenerated when headings change, `font-fallbacks --check`):
+Three faces, self-hosted from `public/fonts/` (copied from the `@fontsource-variable` packages by `scripts/fonts/copy-fonts.cjs`, which `npm run build` runs first so a build under `NEXT_PUBLIC_BASE_PATH` writes base-path font URLs; `app/styles/fonts.css`; each with metric-matched fallbacks from `scripts/font-fallbacks.cjs`, regenerated when headings change, `font-fallbacks --check`):
 
 | Face | Token | Use |
 | --- | --- | --- |

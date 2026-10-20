@@ -11,8 +11,9 @@
  * Three families, the Latin subsets first: Fraunces (opsz and wght axes only, upright and italic: no SOFT or WONK),
  * Inter (wght, with Cyrillic, Greek and Vietnamese for runner names) and Bricolage Grotesque (wght, the reading figure
  * only). Code on /methodology uses the device's monospace (--code), so no mono face is shipped. The family names stay the ones fontsource uses ('Fraunces Variable' …), so the font stacks
- * in app/styles/tokens.css are unchanged. URLs are /fonts/<file>: a build under NEXT_PUBLIC_BASE_PATH runs this script
- * first with that variable set, so the URLs carry the base path (app/layout.tsx preloads with it too).
+ * in app/styles/tokens.css are unchanged. URLs are /fonts/<file> under NEXT_PUBLIC_BASE_PATH: `npm run build` runs this
+ * script before `next build`, so a subpath build's URLs carry the base path (app/layout.tsx preloads with it too), and a
+ * build without one rewrites the committed block unchanged.
  */
 const fs = require('node:fs');
 const path = require('node:path');
