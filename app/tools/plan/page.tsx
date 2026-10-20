@@ -55,7 +55,7 @@ function planCourses(goal: CourseGoal | null, band: PaceBandIndex | null): PlanC
     const slug = courseSlug(city);
     return {
       slug, city, screened: goal && !listed.has(city) ? screenedReason(city, goal.screens) : null,
-      band: bandSlugs.has(slug), shapeGoals: shapeGoals[slug]?.goals.all ?? null, projector: projectorSlugs.has(slug), weather: weatherSlugs.has(slug), page: pages.has(slug),
+      band: bandSlugs.has(slug), shapeGoals: shapeGoals[slug]?.goals.all ?? null, editions: shapeGoals[slug]?.editions ?? null, projector: projectorSlugs.has(slug), weather: weatherSlugs.has(slug), page: pages.has(slug),
     };
   });
 }

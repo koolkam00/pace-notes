@@ -28,6 +28,8 @@ export interface PlanCourse {
   band: boolean; projector: boolean; weather: boolean;
   /** The goals (whole minutes) its course shape covers: the pace band's all-genders group, from the index at build time. */
   shapeGoals: [number, number] | null;
+  /** The pace band's screened editions for the course (the index's count): fewer than SHAPE_MIN_EDITIONS, no course shape. */
+  editions: number | null;
   /** /courses/<slug> exists. */
   page: boolean;
 }
@@ -257,7 +259,7 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
   // keeps its place and the card and strips take the course shape's layout with dashes for times, dimmed, until the shape
   // arrives, and printing waits for it.
   const shape = goal === null ? null : shapeFor(isAll ? 'all' : course?.slug ?? 'all', all, goal);
-  const shapeLoading = !shape && !isAll && Boolean(course?.band) && mayShape(course?.shapeGoals, minute) && Boolean(paceBandSha) && !bandIndex.error && !shard.error && (!bandIndex.data || shard.loading);
+  const shapeLoading = !shape && !isAll && Boolean(course?.band) && mayShape(course?.shapeGoals, minute, course?.editions) && Boolean(paceBandSha) && !bandIndex.error && !shard.error && (!bandIndex.data || shard.loading);
   // The card and band in the course shape's layout (courseCard): the shape itself, or its place while it loads.
   const { mode, shaped, pending, layout: courseCard, offered } = bandView({ shape, choice: q.pace, loading: shapeLoading });
   const bandState = offered ? 'choice' as const : !isAll && course && paceBandSha && !bandIndex.error && !shard.error ? 'none' as const : 'off' as const;
@@ -357,14 +359,15 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
     : !courseGoalSha ? null
     : goalData.error ? null
     : isAll && goalData.data && !published ? `Results on goal pace are published for goals from ${formatHM(goalData.data.goals[0] * 60)} to ${formatHM(goalData.data.goals[1] * 60)}. Your plan and pace band work for any goal from 1:30 to 8:00.`
-    : result?.state === 'unavailable' && goalData.data && offered ? goalPaceNote(result, course?.city ?? 'this course', goalData.data.min_editions)
+    : result?.state === 'unavailable' && goalData.data && offered ? goalPaceNote(result, course?.city ?? 'this course')
     : result?.state === 'unavailable' ? `No results for ${course?.city ?? 'this course'} at this goal. ${result.reason} Your plan and pace band still work.`
     : null;
-  // Why there is no shape: no pace-band group for the course (Prague), a goal outside the published goals (the note above
+  // Why there is no shape: no pace-band group for the course (Prague), too few editions for any shape (Singapore,
+  // Barcelona, Paris) or at this goal (Helsinki 4:27), a goal outside the published goals (the note above
   // already gives the course results' range when it shows, so the line then says only that there is none), or too few
   // finishes at this goal; never a count that was not made.
   const rangeNoted = result?.state === 'unavailable' && result.minutes === null && Boolean(result.course);
-  const noShape = course && minute !== null ? noShapeLine(noShapeReason({ scoped: course.band, gendered: true, minute, goals: bandGoals }), { city: course.city, goals: bandGoals, noted: rangeNoted }) : '';
+  const noShape = course && minute !== null ? noShapeLine(noShapeReason({ scoped: course.band, gendered: true, minute, goals: bandGoals, editions: course.editions, cellEditions: all?.ed ?? null }), { city: course.city, goals: bandGoals, noted: rangeNoted }) : '';
 
   return (
     <div className="plan-root" data-print={printMode}>

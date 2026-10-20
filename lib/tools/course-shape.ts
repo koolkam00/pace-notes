@@ -4,8 +4,10 @@
  * pages and by scripts/verify-tools.cjs:
  *
  * - the group is the pace band's `all` group for the course and recorded gender (every screened finish from G − 5:00 to
- *   G − 0:01, G the whole minute at or below the goal), published only with 100 finishes (`cellOf` returns its cell),
- *   whatever the number of editions behind it (a course with one or two screened editions has shapes from those alone);
+ *   G − 0:01, G the whole minute at or below the goal), published only with 100 finishes (`cellOf` returns its cell) and
+ *   shaped only when those finishes come from at least 3 editions, the minimum the course results need (owner decision,
+ *   October 20, 2026: "Do whatever you recommend"; one or two race days describe their own weather and fields more than
+ *   the course, so Singapore, Barcelona and Paris, and Helsinki at 4:27, stay even pace);
  * - its median elapsed time at each of the nine official timing points (the 5–40 km mats and the finish), times
  *   goal ÷ the median finish, so the band ends exactly on the goal (seconds kept) and keeps the course's proportions;
  * - between timing points each segment's pace is held evenly (the mile and km rows, and halfway on those strips). Those
@@ -31,13 +33,18 @@ export const BAND_OPTIONS: { value: BandMode; label: string }[] = [{ value: 'cou
 /** The control's label. */
 export const BAND_LABEL = 'Splits';
 
+/** The fewest editions a course shape rests on: the course results' minimum (tools/course-goal.json `min_editions`). */
+export const SHAPE_MIN_EDITIONS = 3;
+/** A course whose screened editions are too few for any course shape (known from the index at build time). */
+export const thinCourse = (editions: number | null | undefined) => typeof editions === 'number' && editions < SHAPE_MIN_EDITIONS;
+
 /** The whole minute a goal's group uses: the minute at or below the goal, so every finish in the window beat it (3:30:59 → 210). */
 export const bandMinute = (goal: number) => Math.floor(goal / 60);
 
 /**
  * The nine shaped elapsed times (seconds) for a goal, from a published cell's medians: e50[i] × goal ÷ e50[finish], the
- * finish exactly the goal. Null without a cell, or with medians that are not nine finite, rising times. The cell's
- * edition count does not enter: a published cell (100 finishes) is shaped however many editions it pools.
+ * finish exactly the goal. Null without a cell, or with medians that are not nine finite, rising times. The edition rule
+ * is the scope's (`shapeFor`).
  */
 export function courseShape(cell: { e50: number[] } | null | undefined, goal: number): number[] | null {
   const e = cell?.e50;
@@ -46,9 +53,14 @@ export function courseShape(cell: { e50: number[] } | null | undefined, goal: nu
   return e.map((v, i) => (i === e.length - 1 ? goal : (v * goal) / e[e.length - 1]));
 }
 
-/** The shape for a scope: none on all courses pooled (no course to shape it), otherwise the cell's. */
-export function shapeFor(scope: string, cell: { e50: number[] } | null | undefined, goal: number): number[] | null {
-  return scope === 'all' || scope === '' ? null : courseShape(cell, goal);
+/**
+ * The shape for a scope: none on all courses pooled (no course to shape it), none from a cell whose finishes come from
+ * fewer than SHAPE_MIN_EDITIONS editions, otherwise the cell's.
+ */
+export function shapeFor(scope: string, cell: { e50: number[]; ed?: number } | null | undefined, goal: number): number[] | null {
+  if (scope === 'all' || scope === '') return null;
+  if (cell && typeof cell.ed === 'number' && cell.ed < SHAPE_MIN_EDITIONS) return null;
+  return courseShape(cell, goal);
 }
 
 /**
@@ -87,7 +99,7 @@ export function bandView({ shape, choice, loading, stale = false }: { shape: num
  * Each course the pace band publishes, by slug: its city and its groups' published goals by recorded gender (whole
  * minutes), as the index lists them. A course missing here has no group at all (Prague) or is not in the data.
  */
-export type ShapeGoals = Record<string, { city: string | null; goals: Partial<Record<'all' | 'men' | 'women', [number, number]>> }>;
+export type ShapeGoals = Record<string, { city: string | null; editions: number; goals: Partial<Record<'all' | 'men' | 'women', [number, number]>> }>;
 
 /** Every course's published goals, read from the index at build time so a page knows before any file loads whether to wait for a shape. */
 export function shapeGoalsOf(index: Pick<PaceBandIndex, 'scopes' | 'shards'> | null): ShapeGoals {
@@ -99,17 +111,18 @@ export function shapeGoalsOf(index: Pick<PaceBandIndex, 'scopes' | 'shards'> | n
       const meta = scope.genders[g];
       if (meta && index?.shards?.[paceBandShardPath(scope.slug, g)]) goals[g] = [meta.goals[0], meta.goals[1]];
     }
-    out[scope.slug] = { city: scope.city, goals };
+    out[scope.slug] = { city: scope.city, editions: scope.editions, goals };
   }
   return out;
 }
 
 /**
- * Whether a course's group may have a shape at this minute: inside its published goals (a goal outside them settles at
- * once as even pace, with no wait for a file that cannot hold one; a gap inside them settles when its file arrives).
+ * Whether a course's group may have a shape at this minute: a course with enough editions, inside its published goals (a
+ * thin course or a goal outside them settles at once as even pace, with no wait for a file that cannot hold one; a gap
+ * inside them settles when its file arrives).
  */
-export const mayShape = (goals: readonly [number, number] | null | undefined, minute: number | null) =>
-  Boolean(goals) && minute !== null && minute >= goals![0] && minute <= goals![1];
+export const mayShape = (goals: readonly [number, number] | null | undefined, minute: number | null, editions?: number | null) =>
+  !thinCourse(editions) && Boolean(goals) && minute !== null && minute >= goals![0] && minute <= goals![1];
 
 /** Elapsed time at a distance on the shaped band: each segment between timing points (and from the start) run evenly. */
 export function shapedAt(shape: number[], km: number): number {
@@ -215,14 +228,22 @@ export function goalCell(pKm: number, overrun: number, units: UnitSystem, course
 /**
  * Why a course shows no shape at this goal, in order: the pace band has no group for the course (`course`: Prague, whose
  * editions were all screened out) or for this recorded gender (`gender`: Singapore, women; the pace band's choice), the
- * goal is outside the published goals (`range`: 2:30 to 6:30), or the group has too few finishes at this goal (`few`: a
- * goal inside 2:30 to 6:30 whose window was counted and held fewer than 100).
+ * course's screened editions are too few for any shape (`editions`: Singapore, Barcelona, Paris), the goal is outside the
+ * published goals (`range`: 2:30 to 6:30), the goal's group pools too few editions (`goal-editions`: Helsinki 4:27), or the
+ * group has too few finishes at this goal (`few`: a goal inside 2:30 to 6:30 whose window was counted and held fewer
+ * than 100).
  */
-export type NoShapeReason = 'course' | 'gender' | 'range' | 'few';
-export function noShapeReason({ scoped, gendered, minute, goals }: { scoped: boolean; gendered: boolean; minute: number; goals: readonly [number, number] }): NoShapeReason {
+export type NoShapeReason = 'course' | 'gender' | 'editions' | 'range' | 'goal-editions' | 'few';
+export function noShapeReason({ scoped, gendered, minute, goals, editions = null, cellEditions = null }: {
+  scoped: boolean; gendered: boolean; minute: number; goals: readonly [number, number];
+  /** The course's screened editions (the index's count) and the goal's cell's, when known. */
+  editions?: number | null; cellEditions?: number | null;
+}): NoShapeReason {
   if (!scoped) return 'course';
   if (!gendered) return 'gender';
+  if (thinCourse(editions)) return 'editions';
   if (minute < goals[0] || minute > goals[1]) return 'range';
+  if (thinCourse(cellEditions)) return 'goal-editions';
   return 'few';
 }
 
@@ -234,6 +255,8 @@ export function noShapeReason({ scoped, gendered, minute, goals }: { scoped: boo
 export function noShapeLine(reason: NoShapeReason, { city, genderWord = '', goals, noted = false }: { city: string; genderWord?: string; goals: readonly [number, number]; noted?: boolean }): string {
   if (reason === 'range') return noted ? 'No course shape at this goal.' : `Course shapes cover goals from ${formatHM(goals[0] * 60)} to ${formatHM(goals[1] * 60)}.`;
   if (reason === 'few') return `Too few finishes at this goal in ${city}${genderWord ? ` (recorded as ${genderWord})` : ''} for a course shape.`;
+  if (reason === 'editions') return `Too few editions in ${city} for a course shape.`;
+  if (reason === 'goal-editions') return `Too few editions at this goal in ${city}${genderWord ? ` (recorded as ${genderWord})` : ''} for a course shape.`;
   return `No course shape for ${city}${genderWord ? `, recorded as ${genderWord}` : ''}.`;
 }
 

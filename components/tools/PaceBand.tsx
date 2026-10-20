@@ -185,7 +185,7 @@ export default function PaceBand({ indexSha, profiles, unpublished, shapeGoals =
   // waits. Where there is no shape, one line in the choice's place says why, as on the planner.
   const shapeFrom = fresh ?? (stale && stale.place === place && stale.genderWord === genderWord ? stale : null);
   const shape = goal === null || !shapeFrom ? null : shapeFor(course, shapeFrom.all, goal);
-  const shapeLoading = !fresh && course !== 'all' && mayShape(published?.goals[gender], minute) && observed.state === 'loading';
+  const shapeLoading = !fresh && course !== 'all' && mayShape(published?.goals[gender], minute, published?.editions) && observed.state === 'loading';
   // Dimmed while the shape is on its way (pending): a group's first (dashes), or the last one of this group while it
   // reloads; courseBand, the band in the course shape's layout: the shape itself, or its place while it loads.
   const { mode, shaped, pending, layout: courseBand, offered } = bandView({ shape, choice: q.pace, loading: shapeLoading, stale: !fresh });
@@ -193,7 +193,7 @@ export default function PaceBand({ indexSha, profiles, unpublished, shapeGoals =
   // goal outside the observed goals, which the finishes section below gives, or too few finishes). Nothing on all
   // courses, for a course the data does not know (the finishes section says so) or when the data could not be loaded.
   const bandState = offered ? 'choice' as const : course !== 'all' && (published || known) && observed.state !== 'off' ? 'none' as const : 'off' as const;
-  const noShape = bandState === 'none' && minute !== null ? noShapeLine(noShapeReason({ scoped: Boolean(published), gendered: Boolean(published?.goals[gender]), minute, goals: [OBS_MIN, OBS_MAX] }),
+  const noShape = bandState === 'none' && minute !== null ? noShapeLine(noShapeReason({ scoped: Boolean(published), gendered: Boolean(published?.goals[gender]), minute, goals: [OBS_MIN, OBS_MAX], editions: published?.editions ?? null, cellEditions: fresh?.all.ed ?? null }),
     { city: city ?? '', genderWord, goals: [OBS_MIN, OBS_MAX], noted: true }) : '';
   // A hand-edited `pace` (pace=foo, pace=EVEN) is the default and leaves the address, as does `even` on all courses, where
   // no choice is offered; a choice of even pace on a course stays and carries to the next course, but not through All

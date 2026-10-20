@@ -381,7 +381,8 @@ async function plannerSplits(h) {
 // file held back 2.5 s) the card holds dashes in the course shape's layout, never even pace and never its line, nothing
 // moves when the shape lands, and printing waits. With the pace band's index held back, Prague, a goal outside a
 // course's goals (Boston 7:00) and a course the data does not know never show a course shape, a badge or the choice;
-// on the planner Singapore 3:30, outside its course's goals, settles at once, and Prague and Singapore 4:00 say why.
+// on the planner Singapore (one edition, too few for a course shape) settles at once at 3:30 and 4:00, and Prague and
+// Singapore say why.
 async function courseShapeFigures(h) {
   const run = await h.run('course shape figures', { ...PHONE });
   const page = await run.newPage();
@@ -435,8 +436,8 @@ async function courseShapeFigures(h) {
   await page.waitForTimeout(400);
   const bandEven = await bandNow();
 
-  // The planner, settled at once where there is no shape to wait for: Singapore 3:30 (its group's goals start at 3:46)
-  // with its file held back, Prague, and Singapore 4:00's note beside its one-edition shape.
+  // The planner, settled at once where there is no shape to wait for: Singapore (one edition, so no shape at any goal,
+  // owner decision of October 20, 2026) at 3:30 and 4:00 with its file held back, and Prague.
   const plannerAt = async (q, wait) => {
     await page.goto(SITE + '/tools/plan?' + q, { waitUntil: 'load' });
     await page.waitForTimeout(wait);
@@ -477,11 +478,12 @@ async function courseShapeFigures(h) {
       && band.line === 'Course shape: how finishes that made 4:00 ran Boston (recorded as women). Not a prediction.', band);
   h.check('course shape: on the pace band Even pace puts even pace on the strips, takes the badge off the band and keeps pace=even in the address',
     bandEven.at20 === '1:53:45' && bandEven.mile1 === '9:09' && band.mile1 !== '9:09' && /9:09\/mi even$/.test(bandEven.kicker) && bandEven.pace === 'even' && !bandEven.badge, { band, bandEven });
-  h.check('course shape: the planner settles at once where no shape can come (Singapore 3:30, its group\'s goals start at 3:46), and says why',
-    !sg330.pending && !sg330.shape && sg330.seg === 0 && sg330.none === 'Too few finishes at this goal in Singapore for a course shape.', sg330);
+  h.check('course shape: the planner settles at once where no shape can come (Singapore 3:30: one edition), and says why',
+    !sg330.pending && !sg330.shape && sg330.seg === 0 && sg330.none === 'Too few editions in Singapore for a course shape.', sg330);
   h.check('course shape: Prague has no course shape and says so, with no choice', !prague.shape && prague.seg === 0 && prague.none === 'No course shape for Prague.', prague);
-  h.check('course shape: beside Singapore\'s one-edition shape the note is about the results on goal pace only, and the card carries its badge',
-    sg400.shape && sg400.note === 'No results on goal pace for Singapore: they need 3 editions, and only one passed the data screens.' && !/any goal/.test(sg400.note) && sg400.badges === 2, sg400);
+  h.check('course shape: Singapore 4:00, a group on one edition, has no course shape: even pace at once, the one line, and the note on course results as before',
+    !sg400.pending && !sg400.shape && sg400.seg === 0 && sg400.none === 'Too few editions in Singapore for a course shape.'
+      && sg400.note === 'No results for Singapore at this goal. Only one edition passed the data screens; 3 are needed for any goal. Your plan and pace band still work.', sg400);
   h.check('course shape: before the pace band\'s index arrives, Prague, Boston 7:00 and an unknown course show no course shape, badge or choice, and the first two say why',
     early.every((e) => e.loading && e.seg === 0 && !e.badge && !/course shape/i.test(e.kicker)) && early[0].none === 'No course shape for Prague.' && early[1].none === 'No course shape at this goal.' && early[2].none === '', early);
 }
