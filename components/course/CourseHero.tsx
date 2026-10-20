@@ -7,11 +7,9 @@ import { SlowdownTerm } from '@/components/tools/EvidenceTag';
 import YearStrip, { type YearPoint } from '@/components/viz/YearStrip';
 import { getNugget } from '@/lib/nuggets';
 import { heroKeyLead, profileUnderWater } from '@/lib/nuggets/courses';
-import { pct, temp } from '@/lib/nuggets/format';
-import { finishMinute, heldEditions, MONTHS, routeClimb, type CoursePageData } from '@/lib/course-page';
+import { pct } from '@/lib/nuggets/format';
+import { heldEditions, MONTHS, routeClimb, type CoursePageData } from '@/lib/course-page';
 import { planHref } from '@/lib/tools/links';
-import type { UnitSystem } from '@/lib/units';
-import ByUnits from '@/components/ui/ByUnits.client';
 import { Fact, Said } from './Fact';
 import RouteFace from './RouteFace';
 
@@ -64,7 +62,9 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
   const latest = kept[kept.length - 1]?.year ?? editions[editions.length - 1]?.year;
   // Without the sentence, the strip labels the extremes among the editions the policy keeps.
   const extremes = kept.length > 1 ? [...new Set([kept.reduce((a, b) => (b.slowdown < a.slowdown ? b : a)).year, kept.reduce((a, b) => (b.slowdown > a.slowdown ? b : a)).year])] : [];
-  const points = (units: UnitSystem): YearPoint[] => editions.map((e) => ({ year: e.year, value: e.slowdown, display: pct(e.slowdown), side: [finishMinute(e.median_s), e.temp === null ? '—' : temp(e.temp, units)] }));
+  // The readout says the edition's share alone (round 6: its median finish and start temperature are #finish-times' and
+  // #weather's findings, and seven numbers crowded the first screen).
+  const points: YearPoint[] = editions.map((e) => ({ year: e.year, value: e.slowdown, display: pct(e.slowdown) }));
   const valueDomain: [number, number] = [0, Math.max(0.1, Math.ceil(Math.max(...editions.map((e) => e.slowdown)) * 10) / 10)];
   const extremeLabel = (p: YearPoint) => `${p.year} · ${p.display}`;
   // With the sentence, the strip opens on the edition it accents (the high end), so the needle, the readout and the
@@ -72,10 +72,11 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
   // as the needle's own (critic round 2). Without it, the latest edition the policy keeps, with the extremes labelled.
   const opening = reading.guard ? Number(reading.values.hi_year) : latest;
   const labelled = reading.guard ? [] : extremes;
-  const strip = (units: UnitSystem) => (
+  // Nothing on it depends on the units, so one strip serves both.
+  const strip = (
     <YearStrip
-      editions={points(units)}
-      selected={opening} sideLabels={['Median finish', 'At the start']}
+      editions={points}
+      selected={opening}
       valueDomain={valueDomain} average={s.slowdown} averageLabel="Average year" averageOnLine gaps="not in the data"
       extremeLabel={extremeLabel} labelled={labelled}
       label={`Sustained slowdown in ${display}, edition by edition, ${span}`} height={100} heightMd={168} signal={reading.guard} />
@@ -102,7 +103,7 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
       {/* How far the share ran, edition by edition: the strip below labels both ends. Without a strip (two editions) no
           mark carries the orange, so the sentence is said plainly. */}
       {reading.guard ? <p className="course-hero-sentence t-sentence">{stripped || typeof reading.headline !== 'string' ? <Said nugget={reading} /> : reading.headline.replace(/\*/g, '')}</p> : null}
-      {stripped ? <div className="course-hero-strip"><ByUnits mi={strip('mi')} km={strip('km')} /></div> : null}
+      {stripped ? <div className="course-hero-strip">{strip}</div> : null}
       {/* #plan, the page's call to action (its `cta` id): the planner for this course, which carries the pace band and
           the splits; the other tools are in the menu (critic round 5: a second row of tool links at the foot made the
           course pages the one template that ended on forward lists). */}

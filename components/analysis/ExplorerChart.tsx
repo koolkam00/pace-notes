@@ -82,7 +82,8 @@ function paceProfile({ answer, goal, units, valuesId, reference }: { answer: Gui
       layers={[{ id: 'p', label: 'Median', series: [...(ref ? [{ id: 'r', values: ref, tone: 'quiet' as const }] : []), { id: 'm', values: rows.map((r) => r.mid) }], band: { lo: rows.map((r) => r.lo), hi: rows.map((r) => r.hi) } }]}
       refs={[{ value: even, dashed: true, label: `even ${hm(goal)}, ${pace(even)}` }]}
       xTicks={KM_TICKS}
-      scrub={{ label: 'Section pace, start to finish', initial: slowest, detents: [slowest],
+      // The dot marks where the needle meets the median, at rest too (round 6: the readout floated with no mark).
+      scrub={{ label: 'Section pace, start to finish', initial: slowest, detents: [slowest], follow: 'm',
         // The side value is the H1's measure: each section against even pace ("+40 s/mi"); the middle half is in Values.
         points: { x: SECTION_MIDS.map((m) => m / 42.195), keys: MARATHON_SECTION_ENDS.map((e) => `${sectionLabel(e)}, median pace`), values: rows.map((r) => pace(r.mid)),
           side: [{ label: 'Against even', values: rows.map((r) => { const d = Math.round(r.mid - even); return `${d > 0 ? '+' : d < 0 ? '−' : ''}${Math.abs(d)} s/${units}`; }) }] } }}

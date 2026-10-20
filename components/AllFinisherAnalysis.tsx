@@ -12,8 +12,8 @@ import { ALL_FINISHER_DEFAULT, allFinisherGroupLabel, bandShort, bandWords, allF
   type AllFinisherEvidence, type AllFinisherGroup, type AllFinisherKind, type AllFinisherSelection, type AllFinisherStart } from '@/lib/all-finisher-context';
 import MakeItYours from './ui/MakeItYours.client';
 import { keepTogether } from './ui/keepTogether';
-import { AnswerAbove, AnswerRedrawn, ExploreSubmit } from './analysis/ExploreSubmit';
-import { sendHero } from './analysis/hero-event';
+import { AnswerAbove, ExploreSubmit } from './analysis/ExploreSubmit';
+import { sendHero, showAnswerCard } from './analysis/hero-event';
 import { bandColumns, courseStrip } from './analysis/all-finisher-hero';
 import Segmented from './ui/Segmented.client';
 import Values from './ui/Values';
@@ -191,7 +191,7 @@ export function AllFinisherResults({ groups, kind, start, units, focus, comparis
         {label(focus)}: the typical finish took <strong>{timeDifference(focus.after20_delta_s)}</strong> after 20K than the same distance at early-race pace.
       </p>
       {raceDay && <p className="explore-note">{focus.temp_c == null ? 'Start-hour temperature is unavailable.' : `Start-hour temperature: ${Math.round(units === 'mi' ? focus.temp_c * 1.8 + 32 : focus.temp_c)}°${units === 'mi' ? 'F' : 'C'}.`} {focus.opening_net_m == null ? '' : `Net elevation change over the first 5K: ${elevationLabel(focus.opening_net_m, units)}.`}</p>}
-      {redrawn ? <AnswerRedrawn /> : <>{chart}
+      {redrawn ? null : <>{chart}
       <Values id={`${id}-values`} caption={title}
         columns={[{ key: 'g', label: raceDay ? 'Race edition' : kind === 'weather' || kind === 'weather-profile' ? 'At the start' : kind === 'downhill' ? 'Opening' : 'Course', text: true },
           { key: 's', label: raceDay ? 'Slowdown rate in this edition' : 'Sustained slowdown' }, { key: 'o', label: 'Most often began' }, { key: 'l', label: 'Late-race pace' }, { key: 't', label: 'After 20K' }, { key: 'm', label: 'Median finish' }, { key: 'n', label: 'Finishes' }]}
@@ -269,6 +269,7 @@ function AllFinisherExplorer({ kind, start, historyNode, title, description, arc
     if (nextFocus) params.set('focus', nextFocus);
     if (nextCompare) params.set('compare', nextCompare);
     window.history.pushState(null, '', unitHref(window.location.pathname + '?' + params.toString(), units));
+    if (hero && (kind === 'courses' || kind === 'weather')) showAnswerCard();
   };
   const mode = (value: 'all' | 'history') => {
     const params = new URLSearchParams(window.location.search); params.set('comparison', value);
@@ -286,8 +287,9 @@ function AllFinisherExplorer({ kind, start, historyNode, title, description, arc
   // A courses view names the course it follows ("Washington · all paces", critic round 5: "All courses" said nothing on a
   // page that compares courses).
   const courseView = kind === 'courses' || kind === 'course-consistency' || kind === 'course-profile';
-  // Downhill starts across every course read as what the view compares ("Downhill starts"), so the row names the subject.
-  const summary = [...(openingBand ? [`First 5K ${bandWords(openingBand.label)}`] : []), courseView ? (focus ? label(focus) : 'All courses') : selection.city === 'All courses' ? (kind === 'downhill' ? 'Downhill starts' : 'All courses') : cityName(selection.city),
+  // Downhill starts across every course read as what the view compares ("Downhill starts"), so the row names the subject;
+  // the opening band goes first, short ("5–10% fast", round 6: the pill wrapped), its field says it is the first 5K.
+  const summary = [...(openingBand ? [bandWords(openingBand.label)] : []), courseView ? (focus ? label(focus) : 'All courses') : selection.city === 'All courses' ? (kind === 'downhill' ? 'Downhill starts' : 'All courses') : cityName(selection.city),
     ...(selection.early_pace === 'all' ? (courseView && focus ? ['all paces'] : []) : [earlyPaceLabel(start.early_pace_bands.find(b => b.id === selection.early_pace)!, units)]), ...(selection.age === 'all' ? [] : [selection.age]),
     ...(selection.gender === 'all' ? [] : [selection.gender]), ...(all ? [] : ['With an earlier result'])].filter(Boolean).join(' · ');
   const same = (a: AllFinisherSelection, b: AllFinisherSelection) => (Object.keys(b) as (keyof AllFinisherSelection)[]).every(key => a[key] === b[key]);
@@ -307,7 +309,8 @@ function AllFinisherExplorer({ kind, start, historyNode, title, description, arc
     if (!heroKind || (all && (pending || loading) && !row)) return;
     const parts = !untouched && focus ? (kind === 'courses' ? courseStrip(groups, { id: `${formId}-values`, subject: focus.id }) : bandColumns(groups, units, { id: `${formId}-values`, subject: focus.id })) : null;
     // The kicker names the selection; start temperatures keep the card's unit ("Berlin, by start temperature, °F").
-    sendHero(parts ? { kicker: kind === 'weather' ? `${summary}, by start temperature, ${units === 'mi' ? '°F' : '°C'}` : summary, chart: parts.chart, values: parts.values } : null);
+    sendHero(parts ? { kicker: kind === 'weather' ? `${summary}, by start temperature, ${units === 'mi' ? '°F' : '°C'}` : summary, chart: parts.chart, values: parts.values,
+      scope: `Showing ${summary} below. The headline is for all finishes.` } : null);
   }, [heroKind, all, pending, loading, row, untouched, focus, kind, groups, units, formId, summary]);
   // The comparison switch (archive pages only) is the form's first control.
   const modes = hasHistory ? <div className="explore-mode"><Segmented label="Choose the comparison" block value={all ? 'all' : 'history'} onChange={value => mode(value as 'all' | 'history')}

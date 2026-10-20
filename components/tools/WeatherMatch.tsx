@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { Choice, DurationField, ShareBar, Stepper } from '@/components/tools/ui';
+import { Choice, DurationField, ReadingFoot, Stepper } from '@/components/tools/ui';
 import { fmtGoal } from '@/lib/tools/pace-band-data';
 import Values, { AllNumbers } from '@/components/ui/Values';
 import { useQueryState } from '@/components/tools/useQueryState';
@@ -322,6 +322,11 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
   const refTone = centre === null ? 'Reference' : centre - hw > REF.c + REF.hw ? 'Cooler mornings' : centre + hw < REF.c - REF.hw ? 'Warmer mornings' : 'Reference window';
   const widenLabel = hw === 2 ? `Widen to ±${tSpan(3, tUnit)}` : `Back to ±${tSpan(2, tUnit)}`;
   const toggleWiden = () => setQ({ w: hw === 2 ? '3' : '2' });
+  // The window is the start temperature's option, in its cell (round 6: a link floating under the card): widening is
+  // offered only where it finds something (or to narrow back); otherwise the nearest published window is.
+  const showWiden = match ? match.kind === 'ok' || (match.kind === 'no-row' && (hw === 3 || match.widenHelps)) : false;
+  const nearest = match?.kind === 'no-row' && !showWiden && match.nearest !== null ? match.nearest : null;
+  const widenNote = match?.kind === 'no-row' && hw === 2 && match.widenHelps ? `A ±${tSpan(3, tUnit)} window has a published row at your pace.` : null;
   // The nearest published window's centre (whole °C), typed back in the field's unit: whole °F rounds to the same centre.
   const toNearest = (c: number) => { unitMemo.current = null; setQ({ temp: tUnit === 'f' ? String(Math.round(c * 1.8 + 32)) : String(c), tu: tUnit }); };
   const yourPace = paceKm !== null ? paceText(paceKm, units, bandSpan) : '';
@@ -360,7 +365,7 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
             <p className="tool-state">Loading the data…</p>
           ) : match ? (
             <ResultCard match={match} units={units} tUnit={tUnit} hw={hw} centre={centre} winText={winText} refText={refText} refTone={refTone}
-              bandLabel={bandLabel} yourTemp={yourTemp} yourPace={yourPace} widenLabel={widenLabel} onWiden={toggleWiden} onNearest={toNearest} isExample={isExample}
+              bandLabel={bandLabel} yourTemp={yourTemp} yourPace={yourPace} isExample={isExample}
               warmCount={warmCount} coldCount={coldCount} total={data.editions.length} paceLo={paceLo} paceHi={paceHi} step={step} badTemp={tempBad} />
           ) : null}
         </div>
@@ -389,6 +394,14 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
                     : exampleTemp ? 'An example. Type the forecast for your start time.'
                       : 'The forecast for your start time.'}
             </p>
+            {showWiden || nearest !== null ? (
+              <p className="weather-match-window no-print">
+                {showWiden
+                  ? <button type="button" className="tool-text-button weather-match-widen" aria-pressed={hw === 3} onClick={toggleWiden}>{widenLabel}</button>
+                  : <button type="button" className="tool-text-button weather-match-widen" onClick={() => toNearest(nearest!)}>Show mornings near {tAbs(nearest!, tUnit, 0)}</button>}
+                {widenNote ? <span>{widenNote}</span> : null}
+              </p>
+            ) : null}
           </div>
 
           <div className="tool-field weather-match-by">
@@ -455,15 +468,14 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
                       <p className="tool-panel-meta">{cap(plural(match.inWindow - match.row.ed.length, 'more race'))} started in the window with too few finishes at your pace.</p>
                     ) : match.kind === 'no-row' && !match.inWindow.length ? <p className="tool-panel-meta">No edition started in this window.</p> : null}
                   </header>
-                  <TempStrip editions={data.editions} tUnit={tUnit} marker={tempC} centre={centre} hw={hw} refName={refTone}
+                  <TempStrip editions={data.editions} tUnit={tUnit} centre={centre} hw={hw} refName={refTone}
                     emphasis={new Set(match.kind === 'ok' ? match.row.ed : match.inWindow.map((e) => e.id))}
-                    legend={match.kind === 'ok' ? 'Matched' : 'Started in this window'}
-                    label={`Start temperatures of all ${data.editions.length} editions, from ${tData(Math.min(...data.editions.map((e) => e.temp_c)), tUnit)} to ${tData(Math.max(...data.editions.map((e) => e.temp_c)), tUnit)}. ${match.kind === 'ok'
+                    label={`Start temperatures on an axis from ${tData(Math.min(...data.editions.map((e) => e.temp_c)), tUnit)} to ${tData(Math.max(...data.editions.map((e) => e.temp_c)), tUnit)}, the warmest and coolest of all ${data.editions.length} editions. ${match.kind === 'ok'
                       ? match.row.ed.length === match.inWindow
-                        ? `${match.inWindow === 1 ? 'The one edition' : `All ${count(match.inWindow)} editions`} that started in your window, ${winText}, matched and ${match.inWindow === 1 ? 'is' : 'are'} highlighted.`
-                        : `${count(match.row.ed.length)} of the ${count(match.inWindow)} editions that started in your window, ${winText}, matched and are highlighted.`
+                        ? `${match.inWindow === 1 ? 'The one edition' : `All ${count(match.inWindow)} editions`} that started in your window, ${winText}, matched and ${match.inWindow === 1 ? 'is' : 'are'} drawn.`
+                        : `${count(match.row.ed.length)} of the ${count(match.inWindow)} editions that started in your window, ${winText}, matched and are drawn.`
                       : match.inWindow.length === 0 ? `No edition started in your window, ${winText}.`
-                        : `${cap(plural(match.inWindow.length, 'edition'))} started in your window, ${winText}, and ${match.inWindow.length === 1 ? 'is' : 'are'} highlighted.`}`} />
+                        : `${cap(plural(match.inWindow.length, 'edition'))} started in your window, ${winText}, and ${match.inWindow.length === 1 ? 'is' : 'are'} drawn.`}`} />
                 </section>
               ) : null}
 
@@ -480,9 +492,7 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
           ) : null}
 
           <ResearchPanel tempC={tempOk ? tempC : null} dewC={dewOk ? dewC : null} need={need} tUnit={tUnit} goal={goalForResearch} by={by} paceLabel={yourPace} />
-
-          {/* One way forward: the chapter's next card. */}
-          <ShareBar />
+          {/* One way forward: the chapter's next card; Copy link sits on the card. */}
         </div>
       </div>
     </div>
@@ -494,20 +504,16 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
 /* tree, so the widen button keeps focus when the state changes)       */
 /* ------------------------------------------------------------------ */
 
-function ResultCard({ match, units, tUnit, hw, centre, winText, refText, refTone, bandLabel, yourTemp, yourPace, widenLabel, onWiden, onNearest, isExample,
+function ResultCard({ match, units, tUnit, hw, centre, winText, refText, refTone, bandLabel, yourTemp, yourPace, isExample,
   warmCount, coldCount, total, paceLo, paceHi, step, badTemp }: {
   match: Match; units: UnitSystem; tUnit: TUnit; hw: number; centre: number | null; winText: string; refText: string; refTone: string;
-  bandLabel: string; yourTemp: string; yourPace: string; widenLabel: string; onWiden: () => void; onNearest: (c: number) => void; isExample: boolean;
+  bandLabel: string; yourTemp: string; yourPace: string; isExample: boolean;
   warmCount: number; coldCount: number; total: number; paceLo: number; paceHi: number; step: number; badTemp: boolean;
 }) {
   const titleId = useId();
   let kicker: string;
   let figure: ReactNode;
   let body: ReactNode = null;
-  let widenNote: string | null = null;
-  // Widening is offered only where it finds something (or to narrow back); otherwise the nearest published window is.
-  const showWiden = match.kind === 'ok' || (match.kind === 'no-row' && (hw === 3 || match.widenHelps));
-  const nearest = match.kind === 'no-row' && !showWiden && match.nearest !== null ? match.nearest : null;
   const inBand = <span className="weather-match-nowrap">{bandLabel}</span>;
 
   if (match.kind === 'ok') {
@@ -559,30 +565,18 @@ function ResultCard({ match, units, tUnit, hw, centre, winText, refText, refTone
         {centre !== null && centre <= 5 ? <>Cold race mornings are rare too: {count(coldCount)} of {count(total)} races here started at {tAbs(3, tUnit, 0)} or colder.</> : null}
       </p>
     );
-    if (hw === 2 && match.widenHelps) widenNote = `A ±${tSpan(3, tUnit)} window has a published row at your pace.`;
   }
 
-  // The night card holds the answer only; the window's one control is a quiet text action under it (critic round 4: a
-  // button inside the card read as part of the answer). It stays in one place in the tree, so it keeps focus.
+  // The night card holds the answer only; the window's one control is the start temperature's option in the form.
   return (
-    <>
-      <section className={`tool-reading night weather-match-headline${match.kind === 'ok' ? '' : ' is-unavailable'}`} aria-labelledby={titleId}>
-        <div className="tool-reading-head">
-          <p className="tool-reading-kicker">{kicker}</p>
-          <h2 className="tool-reading-figure" id={titleId}>{figure}</h2>
-        </div>
-        {body}
-        {match.kind === 'ok' || match.kind === 'no-row' ? <EvidenceTag kind="data" /> : null}
-      </section>
-      {showWiden || nearest !== null ? (
-        <div className="weather-match-actions no-print">
-          {showWiden
-            ? <button type="button" className="tool-text-button weather-match-widen" aria-pressed={hw === 3} onClick={onWiden}>{widenLabel}</button>
-            : <button type="button" className="tool-text-button weather-match-widen" onClick={() => onNearest(nearest!)}>Show mornings near {tAbs(nearest!, tUnit, 0)}</button>}
-          {showWiden && widenNote ? <span>{widenNote}</span> : null}
-        </div>
-      ) : null}
-    </>
+    <section className={`tool-reading night weather-match-headline${match.kind === 'ok' ? '' : ' is-unavailable'}`} aria-labelledby={titleId}>
+      <div className="tool-reading-head">
+        <p className="tool-reading-kicker">{kicker}</p>
+        <h2 className="tool-reading-figure" id={titleId}>{figure}</h2>
+      </div>
+      {body}
+      {match.kind === 'ok' || match.kind === 'no-row' ? <ReadingFoot badge={<EvidenceTag kind="data" />} copy={match.kind === 'ok'} /> : null}
+    </section>
   );
 }
 
@@ -624,65 +618,76 @@ const secName = (i: number) => sectionName(SECTION_BOUNDS[i][0], SECTION_BOUNDS[
 /* ------------------------------------------------------------------ */
 
 /**
- * Every edition as a dot at its start temperature, stacked where they meet: the matched ones emphasised,
- * your window and the reference window shaded, your forecast a line. Drawn in pixels at the measured width.
+ * The races behind the result as dots at their start temperatures, stacked where they meet, in ink, on an axis that runs
+ * from the coolest to the warmest race morning in the data; your window and the reference window as bands, each named in
+ * place (round 6: about 200 grey races and a four-entry legend buried the 15 the heading names). Drawn in pixels at the
+ * measured width.
  */
-function TempStrip({ editions, tUnit, marker, centre, hw, refName, emphasis, legend, label }: {
-  editions: WeatherEdition[]; tUnit: TUnit; marker: number | null; centre: number | null; hw: number;
-  /** The reference window's name in the result's table ("Cooler mornings"), so the legend calls it the same. */
+function TempStrip({ editions, tUnit, centre, hw, refName, emphasis, label }: {
+  editions: WeatherEdition[]; tUnit: TUnit; centre: number | null; hw: number;
+  /** The reference window's name in the result's table ("Cooler mornings"), so the band is called the same. */
   refName?: string;
-  emphasis: Set<number>; legend: string; label: string;
+  emphasis: Set<number>; label: string;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const width = useWidth(box, 640);
-  const showRef = Boolean(refName);
+  const showRef = Boolean(refName) && !(centre === REF.c && hw === REF.hw);
   const narrow = width < 480;
-  const r = narrow ? 3.3 : 3.9;
-  const gap = 2 * r + 1.2;
+  const r = narrow ? 3.6 : 4.2;
+  const gap = 2 * r + 1.4;
   const temps = editions.map((e) => e.temp_c);
-  const loC = Math.min(-3, Math.floor(Math.min(...temps)) - 1, ...(marker !== null ? [Math.floor(marker) - 2] : []), ...(centre !== null ? [centre - hw - 1] : []));
-  const hiC = Math.max(28, Math.ceil(Math.max(...temps)) + 1, ...(marker !== null ? [Math.ceil(marker) + 2] : []), ...(centre !== null ? [centre + hw + 1] : []));
+  const loC = Math.min(-3, Math.floor(Math.min(...temps)) - 1, ...(centre !== null ? [centre - hw - 1] : []));
+  const hiC = Math.max(28, Math.ceil(Math.max(...temps)) + 1, ...(centre !== null ? [centre + hw + 1] : []));
   const m = { l: 12, r: 12 };
   const x = (c: number) => m.l + ((c - loC) / (hiC - loC)) * (width - m.l - m.r);
+  const shown = useMemo(() => editions.filter((e) => emphasis.has(e.id)), [editions, emphasis]);
 
+  // The drawn races stack upward from the axis where they meet.
   const placed = useMemo(() => {
     const out: { e: WeatherEdition; x: number; level: number }[] = [];
-    const sorted = [...editions].sort((a, b) => a.temp_c - b.temp_c || a.id - b.id);
+    const sorted = [...shown].sort((a, b) => a.temp_c - b.temp_c || a.id - b.id);
     for (const e of sorted) {
       const px = x(e.temp_c);
-      for (let k = 0; k < 200; k += 1) {
-        const level = k === 0 ? 0 : k % 2 ? (k + 1) / 2 : -k / 2;
-        if (!out.some((p) => p.level === level && Math.abs(p.x - px) < gap)) { out.push({ e, x: px, level }); break; }
-      }
+      let level = 0;
+      while (out.some((p) => p.level === level && Math.abs(p.x - px) < gap)) level += 1;
+      out.push({ e, x: px, level });
     }
     return out;
     // x depends on width, loC and hiC only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editions, width, loC, hiC, gap]);
-  const maxLevel = Math.max(1, ...placed.map((p) => Math.abs(p.level)));
-  const top = 26;
-  const swarmH = (2 * maxLevel + 1) * gap;
-  const mid = top + 8 + swarmH / 2;
-  const base = top + swarmH + 16;
+  }, [shown, width, loC, hiC, gap]);
+  const maxLevel = Math.max(2, ...placed.map((p) => p.level));
+  // The bands' names sit above them, in one row where they fit and in two where they would touch.
+  const bands = [
+    ...(centre !== null ? [{ key: 'yours', lo: centre - hw, hi: centre + hw, name: `Yours ${tWindow(centre - hw, centre + hw, tUnit)}` }] : []),
+    ...(showRef ? [{ key: 'ref', lo: REF.c - REF.hw, hi: REF.c + REF.hw, name: `${refName!.replace(/ mornings$| window$/, '')} ${tWindow(REF.c - REF.hw, REF.c + REF.hw, tUnit)}` }] : []),
+  ].map((b) => {
+    const w = b.name.length * 6.9;
+    const cx = (x(b.lo) + x(b.hi)) / 2;
+    const x0 = Math.max(2, Math.min(cx - w / 2, width - 2 - w));
+    return { ...b, w, x0 };
+  });
+  const clash = bands.length === 2 && bands[0].x0 < bands[1].x0 + bands[1].w + 10 && bands[1].x0 < bands[0].x0 + bands[0].w + 10;
+  const rowOf = (key: string) => (clash && key === 'ref' ? 1 : 0);
+  const labelRows = clash ? 2 : 1;
+  const top = 6 + labelRows * 16;
+  const base = top + 10 + (maxLevel + 1) * gap;
   const H = base + 24;
   const ticks: number[] = [];
   if (tUnit === 'f') for (let f = Math.ceil(cToF(loC) / 10) * 10; f <= cToF(hiC); f += 10) ticks.push(fToC(f));
   else for (let c = Math.ceil(loC / 5) * 5; c <= hiC; c += 5) ticks.push(c);
   // Leave room for the unit label at the right end of the axis.
   const shownTicks = ticks.filter((c) => x(c) <= width - m.r - 24);
-  const markerLabel = marker !== null ? `Your ${tAbs(marker, tUnit, tUnit === 'f' ? 0 : 1)}` : '';
-  const markerW = markerLabel.length * 7;
-  const markerAnchor = marker === null ? 'middle' : x(marker) - markerW / 2 < 2 ? 'start' : x(marker) + markerW / 2 > width - 2 ? 'end' : 'middle';
-  // Emphasised dots drawn last so they sit on top.
-  const ordered = [...placed].sort((a, b) => Number(emphasis.has(a.e.id)) - Number(emphasis.has(b.e.id)));
   return (
     <figure className="weather-match-figure">
       <div ref={box} className="weather-match-strip">
         <svg width={width} height={H} role="img" aria-label={label}>
-          {/* The reference window drawn the way "your window" is, a lighter band behind its races (critic round 5: two
-              dashed edges above and below the swarm read as stray marks). */}
-          {showRef ? <rect x={x(REF.c - REF.hw)} y={top} width={Math.max(0, x(REF.c + REF.hw) - x(REF.c - REF.hw))} height={base - top - 6} className="weather-match-zone is-ref" /> : null}
-          {centre !== null ? <rect x={x(centre - hw)} y={top} width={Math.max(0, x(centre + hw) - x(centre - hw))} height={base - top - 6} className="weather-match-zone is-yours" /> : null}
+          {bands.map((b) => (
+            <g key={b.key}>
+              <rect x={x(b.lo)} y={top} width={Math.max(0, x(b.hi) - x(b.lo))} height={base - top} className={`weather-match-zone is-${b.key}`} />
+              <text x={b.x0} y={top - 6 - (labelRows - 1 - rowOf(b.key)) * 16} className={`weather-match-zone-label is-${b.key}`}>{b.name}</text>
+            </g>
+          ))}
           <line className="weather-match-axis" x1={m.l} x2={width - m.r} y1={base} y2={base} />
           {shownTicks.map((c) => (
             <g key={c}>
@@ -691,24 +696,9 @@ function TempStrip({ editions, tUnit, marker, centre, hw, refName, emphasis, leg
             </g>
           ))}
           <text x={width - m.r} y={base + 18} textAnchor="end">{unitSign(tUnit)}</text>
-          {ordered.map((p) => {
-            const on = emphasis.has(p.e.id);
-            return <circle key={p.e.id} cx={p.x} cy={mid + p.level * gap} r={on ? r + 0.4 : r} className={on ? 'weather-match-dot is-on' : 'weather-match-dot'} />;
-          })}
-          {marker !== null ? (
-            <g>
-              <line className="weather-match-marker" x1={x(marker)} x2={x(marker)} y1={top - 6} y2={base} />
-              <text x={x(marker)} y={top - 11} textAnchor={markerAnchor} className="weather-match-marker-label">{markerLabel}</text>
-            </g>
-          ) : null}
+          {placed.map((p) => <circle key={p.e.id} cx={p.x} cy={base - r - 2 - p.level * gap} r={r} className="weather-match-dot is-on" />)}
         </svg>
       </div>
-      <ul className="weather-match-legend is-strip" aria-hidden="true">
-        {emphasis.size ? <li className="is-on"><i />{legend}</li> : null}
-        <li className="is-dot"><i />Other races</li>
-        {centre !== null ? <li className="is-zone-yours"><i />Your window</li> : null}
-        {showRef ? <li className="is-zone-ref"><i />{refName}, {tWindow(REF.c - REF.hw, REF.c + REF.hw, tUnit)}</li> : null}
-      </ul>
     </figure>
   );
 }

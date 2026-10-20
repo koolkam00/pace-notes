@@ -98,6 +98,7 @@ test('prevOf: within a chapter, across chapters, children and the start', () => 
   assert.equal(C.prevOf('/stories/race-morning').href, '/analyses/hills-and-pacing');
   assert.equal(C.prevOf('/report').href, '/runners');
   assert.equal(C.prevOf('/tools/marathon-pace/3-30').href, '/analyses/finish-time-context');
+  for (const tool of ['/tools/pace-band', '/tools/course-chooser', '/tools/predictor']) assert.equal(C.prevOf(tool).href, '/analyses/finding-improvement', `${tool} leads back to its chapter`);
   assert.equal(C.prevOf('/finish-times'), null);
 });
 test('a pending page is skipped by every link', () => {
@@ -228,14 +229,18 @@ for (const c of C.CHAPTERS) {
   }
 }
 const textOf = (html) => html.replace(/<span class="sr-only">[\s\S]*?<\/span>/g, '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;|\u00a0/g, ' ').replace(/&amp;/g, '&').replace(/&#x27;|&rsquo;/g, '’').replace(/\s+/g, ' ');
-/** The page's opener: from <main> to the first beat after the hero (a story's reading, an analysis's answer). */
+/**
+ * The page's opener: from <main> to the first beat after the hero (a story's reading, an analysis's answer), or to the
+ * closing stack where the answer is the page's only beat (round 6: an explorer under its card is no beat of its own).
+ */
 function opener(html) {
   const main = html.indexOf('<main');
   if (main < 0) return '';
   const rest = html.slice(main);
   const beats = [...rest.matchAll(/<section\b[^>]*\sdata-beat="[^"]*"/g)].map((m) => m.index);
   const hero = /<(?:header class="reading|section class="analysis-hero)/.exec(rest);
-  const end = beats.find((i) => hero && i > hero.index + 10) ?? rest.length;
+  const close = rest.search(/<div class="chapter-end"/);
+  const end = beats.find((i) => hero && i > hero.index + 10) ?? (close >= 0 ? close : rest.length);
   return rest.slice(0, end);
 }
 if (hasOut) {
@@ -307,8 +312,8 @@ if (hasOut) {
 // ---------- 10. An opener says its number once ----------
 // Read start to finish, a page's number arrives on the card into it, then in its H1's accent, then in the figure right
 // under the H1 (round 5): the opener must not say it twice. A figure under the H1 whose number is the H1 accent's own
-// fails on a story (its H1 says the finding in words, the figure carries the number); on an analysis or a tool, whose
-// receipt is its package's, it is a note.
+// fails on a story or an analysis (its H1 says the finding in words, the figure or the receipt carries the number;
+// round 6 promoted the analyses from a note); on a tool, whose result card is the visitor's own, it is a note.
 if (hasOut) {
   const NUMBER = /\d[\d,.:]*(?:%|×)?/g;
   for (const p of live) {
@@ -326,7 +331,7 @@ if (hasOut) {
     if (!twice.length) continue;
     const place = C.placeOf(p);
     const message = `the H1's accent "${textOf(em[1]).trim()}" and the figure under it ("${textOf(big[1]).trim()}") say ${twice.join(', ')} twice: say it once`;
-    if (place && 'page' in place && ['analysis', 'tool'].includes(place.page.kind)) notes.push(`${p}: ${message}`);
+    if (place && 'page' in place && place.page.kind === 'tool') notes.push(`${p}: ${message}`);
     else check(false, p, message);
   }
 }

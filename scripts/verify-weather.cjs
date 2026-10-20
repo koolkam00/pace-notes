@@ -228,9 +228,14 @@ try {
       // The tab states its finding: the nugget's sentence (lib/nuggets/analyses.ts), in the reader's units.
       const said = nugget ? sentenceOf(nugget, units).replace(/\*/g, '') : weatherFinding(candidate);
       assert.ok(html.replace(/<\/?em>/g, '').includes(said), `The tab states its finding: ${said}`);
-      // The card gives the interval's ends in plain words; its level is a method choice, stated on /methodology only.
-      const signed = (value) => `${value > 0 ? "+" : value < 0 ? "−" : ""}${weatherNumber(Math.abs(value), 1)}`;
-      assert.ok(html.includes(`Between ${signed(candidate.effect.low)} and ${signed(candidate.effect.high)} percentage points`), 'The card states the interval\'s ends');
+      // The card is drawn in the runner's unit (round 6): the second 20K's % slowing in the median race, and that plus the
+      // estimate, with the interval's ends in plain words; its level is a method choice, stated on /methodology only.
+      const v = evidence.editions.map((e) => e.pace_change_pct).filter(Number.isFinite).sort((a, b) => a - b);
+      const base = (v[Math.floor((v.length - 1) / 2)] + v[Math.ceil((v.length - 1) / 2)]) / 2;
+      const p1 = (value) => `${weatherNumber(value, 1)}%`;
+      assert.ok(html.includes(`between ${p1(base + candidate.effect.low)} and ${p1(base + candidate.effect.high)}`), 'The card states the interval\'s ends, in percent');
+      assert.ok(html.includes(`<b>${Math.round(base)}%</b>`) && html.includes(`<b>about ${Math.round(base + candidate.effect.estimate)}%</b>`), 'The card labels both bars in percent');
+      assert.doesNotMatch(visible, /\bpoints?\b/, 'No "points" on the card: the runner\'s unit is percent');
       assert.doesNotMatch(html, /\d% uncertainty interval|confidence interval|\d% interval/, 'The interval level belongs on /methodology');
       // The two race days in whole units, converted from the data, said once: in the tab's sentence ("11°F", "10 mph"),
       // never again on the card under it.
@@ -240,7 +245,6 @@ try {
         assert.ok(!html.includes(`<dd>${whole(q)}</dd>`), `The card does not repeat the race day ${whole(q)}`);
       }
       assert.ok(html.includes('Observed race days'), 'The edition browser is labeled as observed race days, apart from the adjusted estimate');
-      assert.ok(html.includes('percentage points'));
       assert.doesNotMatch(html, /half-marathon splits are measured|observed halfway/);
       for (const edition of evidence.editions) {
         assert.ok(html.includes(edition.city + ' ' + edition.year));
@@ -254,7 +258,7 @@ try {
   provider.useUnits = () => ({ units: 'mi', setUnits() {} });
   const page = renderToStaticMarkup(React.createElement(provider.default, null, React.createElement(route.default, { params: { slug: 'race-day-weather' } })));
   for (const id of ['temperature', ...ready.map(candidate => candidate.id)]) assert.match(page, new RegExp(`<div class="weather-panel" data-tab="${id}"`), `race-day-weather: the ${id} tab`);
-  assert.match(page, /percentage points\./, 'race-day-weather: the weather questions render inside it');
+  assert.match(page, /Second 20K slower than the first: /, 'race-day-weather: the weather questions render inside it');
   assert.doesNotMatch(page, /\d% uncertainty interval/, 'race-day-weather: the interval level belongs on /methodology');
 } finally {
   provider.useUnits = originalUseUnits;

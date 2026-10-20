@@ -76,11 +76,11 @@ function OpeningCurve() {
   const floor = yTicks[1].value - step * 0.75;
   const bestI = curve.indexOf(best);
   const span = xs[xs.length - 1] - xs[0];
-  // Each tick sits on the centre of the 1% bin that starts at it, counting away from even (even: 0–1% slower; 10%
-  // fast: 10–11% faster). The detents are those ticks' own bins only: a snap point draws a dot on the axis, so one off a
-  // labelled tick read as a misplaced tick.
-  const ticks = [-10, -5, 0, 5, 10].filter((t) => t >= curve[0].lo && t <= curve[curve.length - 1].lo + 1).map((t) => ({ value: t < 0 ? t - 0.5 : t + 0.5, label: t === 0 ? 'even' : `${Math.abs(t)}%` }));
-  const detents = ticks.map((t) => xs.indexOf(t.value)).filter((i) => i >= 0);
+  // Each tick sits on its bin edge (round 6: on bin centres the washed 1–4% band read as about 0.5–3.5%), so the axis
+  // reads true against the wash and the needle. No detents: each draws a dot on the axis, and the bins' centres never sit
+  // on a labelled edge.
+  const ticks = [-10, -5, 0, 5, 10].filter((t) => t >= curve[0].lo && t <= curve[curve.length - 1].lo + 1).map((t) => ({ value: t, label: t === 0 ? 'even' : `${Math.abs(t)}%` }));
+  const detents: number[] = [];
   return (
     // Behind is down and ahead is up, as on every pace and gap chart on the site: the best finish is the curve's peak.
     // The behind side is a quiet fill (slower is never orange).
@@ -101,7 +101,7 @@ function OpeningCurve() {
         points: { x: xs.map((x) => (x - xs[0] + 0.5) / (span + 1)), keys: curve.map((c) => `First 5K ${openingWords(c.lo)} · at the finish`), values: curve.map((c) => gap(c.finish_s)),
           side: [{ label: 'After 20K', values: curve.map((c) => gap(c.after20_s)) }, { label: 'Sustained slowdown', values: curve.map((c) => pct(c.slowdown)) }] },
         initial: bestI, detents,
-        // Away from the best bin (ringed), a dot marks where the needle meets the curve, so the readout is tied to it.
+        // A dot marks where the needle meets the curve, at rest on the best bin too, so the readout is tied to it.
         follow: 'finish',
       }}
       label={`The finish against same-pace finishes, by first-5K pace; the best average finishes went with a first 5K ${plateau && plateau.bins.length > 1 ? `${plateau.from}–${plateau.to}% slower, within ${Math.round(plateau.spread)} seconds of each other` : openingWords(best.lo)}`}

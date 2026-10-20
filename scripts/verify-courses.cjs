@@ -486,7 +486,8 @@ const kindOf = (dataKey) => {
 const decode = (text) => text.replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
   .replace(/&nbsp;/g, '\u00a0').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 const markup = (page) => page.replace(/<script\b[\s\S]*?<\/script>/gi, '').replace(/<style\b[\s\S]*?<\/style>/gi, '').replace(/<!--[\s\S]*?-->/g, '');
-const textOf = (fragment) => decode(fragment.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+// Word joiners (joinRanges: a range never breaks at its dash) are not text.
+const textOf = (fragment) => decode(fragment.replace(/<[^>]+>/g, ' ')).replace(/\u2060/g, '').replace(/\s+/g, ' ').trim();
 const innerText = (fragment) => decode(fragment.replace(/<[^>]+>/g, '')).trim();
 const attr = (tag, name) => { const m = new RegExp(`\\s${name}="([^"]*)"`).exec(tag); return m ? decode(m[1]) : null; };
 /** The markup of `<section id="…">` up to the next section or the feedback row. Sections never nest. */
@@ -583,7 +584,8 @@ if (html) {
     const goalsShown = !!f.ctx && f.ctx.editions >= courseGoal.min_editions;
     // The race mornings show only as the warmest/coolest contrast (5 °C or more) over three or more of them.
     const pairGap = f.hotCool ? Math.round((f.hotCool.hot.temp - f.hotCool.cool.temp) * 10) / 10 : null;
-    const weatherShown = pairGap !== null && pairGap >= courses.weather.pairs.min_gap_c && f.weather.length >= 3;
+    // #weather also needs its sentence's pair (course.weather's guard): a span of temperatures is no finding (round 6).
+    const weatherShown = pairGap !== null && pairGap >= courses.weather.pairs.min_gap_c && f.weather.length >= 3 && N.getNugget('course.weather', { city }).guard;
     // #elevation: a route whose profile is sound, with a climb its heading can name (a flat course's beat only said no
     // 5K climbs much; its climb is the hero's; critic round 4).
     const elevationShown = !!f.route && !f.wet && climbNugget.guard;
@@ -749,7 +751,7 @@ if (html) {
 
     // Weather: the 5 °C gate, the slope sentence for the courses with one, and context.
     const gap = f.hotCool ? Math.round((f.hotCool.hot.temp - f.hotCool.cool.temp) * 10) / 10 : null;
-    check(body.includes('class="course-hotcool"') === (gap !== null && gap >= courses.weather.pairs.min_gap_c && f.weather.length >= 3), where, `the coolest/warmest sentence against a ${gap} °C gap over ${f.weather.length} mornings`);
+    check(body.includes('class="course-hotcool"') === weatherShown, where, `the coolest/warmest sentence against a ${gap} °C gap over ${f.weather.length} mornings`);
     check(!body.includes('class="course-slope"'), where, 'the within-course slope sentence (cut under section 00) is back');
     if (!body.includes('class="course-hotcool"')) {
       const names = [...(sectionOf(body, 'weather') ?? '').matchAll(/\s(?:aria-label|title)="([^"]*)"/g)].map((m) => decode(m[1])).filter((n) => /warmest|coolest/i.test(n));

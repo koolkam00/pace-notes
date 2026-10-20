@@ -55,7 +55,8 @@ export default function CourseGoals({ page }: { page: CoursePageData }) {
       {goals.some((g) => g.row && g.every) ? (
         <ul className="course-rows-key course-goals-key" aria-hidden="true">
           <li><i className="course-key-bar" />{display}</li>
-          <li><i className="course-key-ring" />{(() => { const pooled = goals.find((g) => g.every)?.every; return pooled ? `${pooled.courses} other courses` : 'Other courses'; })()}</li>
+          {/* No count (round 6: one page named five different course counts; the slowdown H2 keeps the one that is a finding). */}
+          <li><i className="course-key-ring" />Other courses</li>
         </ul>
       ) : null}
     </CourseSection>

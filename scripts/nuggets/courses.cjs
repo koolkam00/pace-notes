@@ -119,9 +119,11 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
         const name = sectionName(courses.sections.indexOf(c.slowest_section));
         const usual = sectionName(courses.sections.indexOf(modal));
         const i = courses.sections.indexOf(c.slowest_section);
-        step(() => eq(said(n), `${named(city)}’s slowest ${stretch(i)} is ${name}; on ${tally.get(modal)} of ${shaped} courses it’s ${usual}.`, `course.late (${city}): the sentence`));
+        // The share of courses said in words (round 6): every, nearly every (85% or more), most, else the tally.
+        const k = tally.get(modal), on = k === shaped ? 'every course' : k / shaped >= 0.85 ? 'nearly every course' : k / shaped > 0.5 ? 'most courses' : `${k} of ${shaped} courses`;
+        step(() => eq(said(n), `${named(city)}’s slowest ${stretch(i)} is ${name}; on ${on} it’s ${usual}.`, `course.late (${city}): the sentence`));
         // The row names its baseline, the course's own average pace (the hills page's is other courses; critic round 4).
-        step(() => eq(n.key, `than ${named(city)}’s average pace, at ${name}, its slowest ${stretch(i)}; on ${tally.get(modal)} of ${shaped} courses it’s ${usual}`, `course.late (${city}): the row names its baseline`));
+        step(() => eq(n.key, `than ${named(city)}’s average pace, at ${name}, its slowest ${stretch(i)}; on ${on} it’s ${usual}`, `course.late (${city}): the row names its baseline`));
         // The row's figure: how much slower than the course's own average its slowest section runs, in whole percent.
         step(() => eq(n.figure && `${n.figure.value}${n.figure.unit}`, `${Math.round(c.curve[i])}% slower`, `course.late (${city}): the figure`));
       }
@@ -307,10 +309,16 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
         const apart = Math.abs(Math.round(hot.slowdown * 100) - Math.round(cool.slowdown * 100));
         const quiet = !same && apart < 5;
         step(() => eq([n.values.hot_year, n.values.cool_year, n.values.quiet], [hot.year, cool.year, quiet ? 1 : 0], `course.weather (${city}): the pair and the null rule`));
-        step(() => eq(said(n), same
+        // A hero that calls its edition the warmest or coolest morning: #weather says it leaves that year out, so its
+        // sentence (a quiet null above all) never denies what the hero has just shown (round 6).
+        const named = heroYear !== null && Number(hero.values.morning) !== 0 && mornings.some((e) => e.year === heroYear);
+        const lead = (rest) => (named ? `Apart from ${heroYear}, ${rest.charAt(0).toLowerCase()}${rest.slice(1)}` : rest);
+        step(() => eq(said(n), lead(same
           ? `At ${degF(hot.temp)} in ${hot.year} and at ${degF(cool.temp)} in ${cool.year}, the same ${whole(hot.slowdown)} had a sustained slowdown.`
-          : quiet ? `Warm or cool, about the same share had a sustained slowdown: ${whole(hot.slowdown)} at ${degF(hot.temp)}, ${whole(cool.slowdown)} at ${degF(cool.temp)}.`
-            : `At ${degF(hot.temp)} in ${hot.year}, ${whole(hot.slowdown)} had a sustained slowdown. At ${degF(cool.temp)} in ${cool.year}, ${whole(cool.slowdown)}.`, `course.weather (${city}): the sentence`));
+          : quiet ? `Its warmest and coolest mornings had about the same share of sustained slowdowns: ${whole(hot.slowdown)} at ${degF(hot.temp)}, ${whole(cool.slowdown)} at ${degF(cool.temp)}.`
+            : `At ${degF(hot.temp)} in ${hot.year}, ${whole(hot.slowdown)} had a sustained slowdown. At ${degF(cool.temp)} in ${cool.year}, ${whole(cool.slowdown)}.`), `course.weather (${city}): the sentence`));
+        step(() => ok(!(named && (quiet || same)) || said(n).startsWith(`Apart from ${heroYear}, `), `course.weather (${city}): a null under a hero that names its ${Number(hero.values.morning) > 0 ? 'warmest' : 'coolest'} morning says it leaves ${heroYear} out`));
+        step(() => ok(!/\bwarm or cool\b/i.test(said(n)), `course.weather (${city}): two mornings are not "warm or cool"`));
       } else if (mornings.length >= 2) {
         const temps = mornings.map((e) => e.temp);
         step(() => eq(said(n), `Race mornings from ${degF(Math.min(...temps))} to ${degF(Math.max(...temps))}.`, `course.weather (${city}): the span`));

@@ -170,9 +170,12 @@ export const CHAPTERS: readonly Chapter[] = [
   { n: 11, id: 'chapter-11', part: 3, marker: '11', title: 'The next one', subtitle: 'Improvement, your plan',
     pages: [
       analysis('finding-improvement', 'Where runners improve', 'gains.final'),
-      tool('plan', 'Plan your race', 'Plan your race', 'plan.courses'),
+      tool('plan', 'Plan your race', 'Plan your race', 'plan.goal'),
     ],
     also: [{ href: '/tools/pace-band', label: 'Pace band' }, { href: '/tools/course-chooser', label: 'Course chooser' }, { href: '/tools/predictor', label: 'Finish-time predictor' }],
+    // The chapter's tools lead on to the planner (their next card) and back to the chapter's opener, as every other
+    // also-in-this-chapter page has a way back (round 6: theirs ended on "How we know" alone).
+    back: '/analyses/finding-improvement',
     lead: 'gains.final', key: 'of the minutes improving finishes gained came after 30K' },
 ];
 

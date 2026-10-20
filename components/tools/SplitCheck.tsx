@@ -4,7 +4,8 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNod
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import DotGrid from '@/components/viz/DotGrid';
-import { Choice, ShareBar } from '@/components/tools/ui';
+import { Choice, ReadingFoot } from '@/components/tools/ui';
+import BigNumber from '@/components/ui/BigNumber';
 import Values from '@/components/ui/Values';
 import { useQueryState } from '@/components/tools/useQueryState';
 import KeypadHint from '@/components/KeypadHint';
@@ -506,21 +507,21 @@ export default function SplitCheck({ indexSha, archetypesSha, bandCourses, other
   return (
     <div className="split-check-root">
       <div className="tool-workspace split-check-workspace">
-        {/* The answer first (the analyses' grammar): the reading of the example race (a plain calculation from the times,
-            so no badge), the chapter's one Pace Notes data beat right under it, then the nine times that make it yours,
-            then one fold of numbers and the copy link. */}
+        {/* The chapter's lead first (round 6: the card into the chapter promises its 23%, so the page opens on it): of
+            finishes at this race's time, how many had a sustained slowdown, on 100 dots. Then the race itself on the
+            night card (a plain calculation from the times, so no badge), the nine times that make it yours, and one fold
+            of numbers. Shown from the first paint (a quiet placeholder while the finishes load), so nothing below moves. */}
+        <div className={`tool-results split-check-results split-check-data${stale ? ' is-stale' : ''}`}>
+          {hasReading || view === 'l' ? <ComparisonPanel comparison={view === 'l' ? { state: 'loading' } : comparison} where={where} genderWord={genderWord} fallbacks={fallbacks} type={type} isExample={isExample} /> : null}
+        </div>
+
         <div className={`tool-results tool-answer split-check-results${stale ? ' is-stale' : ''}`}>
           {stale ? <p className="split-check-updating" aria-hidden="true">Showing your last complete race</p> : null}
           {view === 'l' ? <div className="tool-state">Reading the times…</div>
-            : reading && shownTimes ? <ResultCard reading={reading} units={units} isExample={isExample} />
+            : reading && shownTimes ? <ResultCard reading={reading} units={units} isExample={isExample} finish={shownTimes[8]} />
             : (
               <div className="tool-empty">Enter all nine elapsed times (5, 10, 15, 20, 25, 30, 35 and 40 km, and the finish) to read your race. {entered ? `${entered} of 9 so far.` : ''} Missing mats are never estimated.</div>
             )}
-        </div>
-
-        {/* Shown from the first paint (a quiet placeholder while the finishes load), so the times below never move. */}
-        <div className={`tool-results split-check-results split-check-data${stale ? ' is-stale' : ''}`}>
-          {hasReading || view === 'l' ? <ComparisonPanel comparison={view === 'l' ? { state: 'loading' } : comparison} where={where} genderWord={genderWord} fallbacks={fallbacks} type={type} /> : null}
         </div>
 
         <form className="tool-inputs split-check-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Split check inputs">
@@ -592,19 +593,23 @@ type TypeResult = { name: string; arch: Archetype; index: number; all: Archetype
  * The night card: the verdict and every section against the runner's own 5–20K pace. A plain calculation from the
  * visitor's own times, so it carries no badge (AGENTS.md); the data beat under it carries the page's one.
  */
-function ResultCard({ reading, units, isExample }: { reading: SplitReading; units: UnitSystem; isExample: boolean }) {
+function ResultCard({ reading, units, isExample, finish }: { reading: SplitReading; units: UnitSystem; isExample: boolean; finish: number }) {
   const verdict = verdictOf(reading, isExample);
   return (
     <section className="tool-reading night split-check-headline" aria-labelledby="split-check-title">
       <div className="tool-reading-head">
-        <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}{verdict.kicker}</p>
-        <h2 className="tool-reading-figure" id="split-check-title">
-          {/* The result figure is ink on every tool; orange marks only a chart's subject. */}
-          <span>{pctSigned(verdict.value, 0)}</span>
-          <small>{verdict.line}</small>
-        </h2>
+        {/* Round 6: the race is the card's headline (the page's figure is the lead's share above), and the section that
+            decides it is a readout over the bars, not a second big percentage. */}
+        <p className="tool-reading-kicker">{isExample ? 'Example · A made-up race' : `Your race · ${formatDuration(finish, true)}`}</p>
+        <h2 className="tool-reading-title" id="split-check-title">{verdict.kicker}</h2>
       </div>
+      <p className="split-check-readout">
+        <b>{pctSigned(verdict.value, 0)}</b>
+        <span>{verdict.line}</span>
+      </p>
       <SectionBars reading={reading} units={units} example={isExample} />
+      {/* A plain calculation: no badge (the lead above carries the page's one), only the card's Copy link. */}
+      <ReadingFoot />
     </section>
   );
 }
@@ -648,8 +653,8 @@ function ResultRest({ times, reading, units, gender, compareOptions, compareOpen
         <p>Pace Notes split check{isExample ? ' (example race)' : ''}. Mat times entered: {CHECKPOINTS.map((km, i) => `${matLabel(km)} ${formatDuration(times[i], true)}`).join(' · ')}.</p>
       </div>
 
-      {/* One way forward: the chapter's next card. The race report is this tool's own action, beside Copy link. */}
-      <ShareBar extra={report ? <Link className="btn btn-primary is-compact" href={report}>Make a race report</Link> : null} />
+      {/* One way forward: the chapter's next card. The race report is this tool's own action (Copy link sits on the card). */}
+      {report ? <p className="split-check-report no-print"><Link className="btn btn-primary is-compact" href={report}>Make a race report</Link></p> : null}
     </>
   );
 }
@@ -810,18 +815,19 @@ function SectionTable({ reading, times, units }: { reading: SplitReading; times:
 /* Comparison with finishes in your window (Pace Notes data)           */
 /* ------------------------------------------------------------------ */
 
-function ComparisonPanel({ comparison, where, genderWord, fallbacks, type }: {
+function ComparisonPanel({ comparison, where, genderWord, fallbacks, type, isExample }: {
   comparison: Comparison; where: string; genderWord: string; fallbacks: ReactNode;
   /** This race's pacing type, once the types load: one line under the dots. */
   type: TypeResult;
+  isExample: boolean;
 }) {
   const ok = comparison.state === 'ok' ? comparison : null;
   return (
-    <section className={`tool-nugget split-check-compare is-${comparison.state}`} id="split-check-compare" aria-labelledby="split-check-compare-title">
+    <section className={`tool-lead split-check-compare is-${comparison.state}`} id="split-check-compare" aria-labelledby="split-check-compare-title">
       <EvidenceTag kind="data" />
       {comparison.state === 'loading' ? (
         <>
-          <p className="tool-nugget-text tool-panel-title split-check-loading" id="split-check-compare-title">Reading the finishes at your time…</p>
+          <p className="tool-lead-title split-check-loading" id="split-check-compare-title"><span className="tool-lead-line">Reading the finishes at your time…</span></p>
           <DotGrid lit={0} label="Loading the finishes at your time" />
         </>
       ) : null}
@@ -844,7 +850,7 @@ function ComparisonPanel({ comparison, where, genderWord, fallbacks, type }: {
         </div>
       ) : null}
       {ok ? <ComparisonBody ok={ok} where={where} genderWord={genderWord} fallbacks={fallbacks} /> : null}
-      {type && comparison.state !== 'loading' ? <p className="tool-panel-meta split-check-shape">Your shape: <b>{type.name}</b>, like {share(type.arch.share)} of finishes.</p> : null}
+      {type && comparison.state !== 'loading' ? <p className="tool-panel-meta split-check-shape">{isExample ? 'This race’s shape' : 'Your shape'}: <b>{type.name}</b>, like {share(type.arch.share)} of finishes.</p> : null}
     </section>
   );
 }
@@ -867,14 +873,16 @@ function ComparisonBody({ ok, where, genderWord, fallbacks }: {
   const range = `${windowEnd(ok.lo)} to ${windowEnd(ok.hi)}`;
   const recorded = genderWord ? `, recorded as ${genderWord}` : '';
   const lit = sd === null ? 0 : Math.round(sd * 100);
+  // The figure says the share once; the dots draw it, so they carry no caption that says it again (round 6).
   return (
     <>
       {sd !== null ? (
         <>
-          <p className="tool-nugget-text" id="split-check-compare-title">
-            Of {count(all.n)} finishes from {range} {where}{recorded}, <em>{share(sd)}</em> had a <SlowdownTerm />.
-          </p>
-          <DotGrid lit={lit} label={`${lit} of 100 finishes from ${range} ${where} had a sustained slowdown`} caption={<><strong>{lit} of 100</strong> finishes at your time</>} />
+          <h2 className="tool-lead-title" id="split-check-compare-title">
+            <BigNumber value={String(lit)} unit="%" size="l" sr={`${lit} percent`} />
+            <span className="tool-lead-line">of finishes from {range} {where}{recorded} had a <SlowdownTerm />.</span>
+          </h2>
+          <DotGrid className="split-check-dots" lit={lit} label={`${lit} of 100 of the ${count(all.n)} finishes from ${range} ${where}${recorded} had a sustained slowdown`} />
         </>
       ) : (
         <p className="tool-nugget-text" id="split-check-compare-title">{count(all.n)} finishes from {range} {where}{recorded}.</p>

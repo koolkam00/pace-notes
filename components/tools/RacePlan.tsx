@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useUnits } from '@/components/UnitsProvider';
-import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import PaceBandStrip from '@/components/tools/PaceBandStrip';
-import { DurationField, GoalBar, ShareBar, Stepper } from '@/components/tools/ui';
+import { DataLead, DurationField, GoalBar, ShareBar, Stepper } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
 import Values from '@/components/ui/Values';
 import { loadInsight } from '@/lib/insights';
@@ -111,11 +110,11 @@ function MatTable({ goal, pKm, units, observed }: { goal: number; pKm: number; u
 }
 
 /**
- * Every course on one line at the goal (critic round 5: the card into the planner promises "7–27% made 4:00, course by
- * course", so the planner opens on that spread, not on the pooled share): each course with 100 finishes on the goal's
- * pace through 20K as a dot at its share; the spread from the lowest to the highest in signal, or, with a course chosen,
- * that course's dot alone, named above it; the lowest and highest named below; all courses together a quiet tick.
- * Static HTML, no script: the course box above is the control.
+ * Where the reading sits among the courses (round 6: the spread course by course is the course chooser's reading, so the
+ * planner shows only where its own share falls): each course with 100 finishes on the goal's pace through 20K as a quiet
+ * dot at its share, the lowest and highest named under the line; the reading in signal, the chosen course's dot, or with
+ * every course pooled, the "All courses" tick. The other tick stays quiet. A label's leader stops short of its label.
+ * Static HTML, no script: the course box is the control.
  */
 function CourseSpread({ rows, chosen, pooled, label }: { rows: CourseGoalRow[]; chosen: string | null; pooled: number | null; label: string }) {
   const lo = rows[0], hi = rows[rows.length - 1];
@@ -139,14 +138,14 @@ function CourseSpread({ rows, chosen, pooled, label }: { rows: CourseGoalRow[]; 
     level.set(r, lv);
   }
   const stack = Math.max(0, ...placed.map((p) => p.level));
+  const pooledShown = pooled !== null && !(mine && near(mine.under, pooled));
   return (
-    <div className="plan-spread" role="img" aria-label={label} style={{ ['--stack' as string]: stack } as CSSProperties}>
+    <div className="plan-spread" role="img" aria-label={label} data-leader-scope="" style={{ ['--stack' as string]: stack } as CSSProperties}>
       <div className="plan-spread-line" aria-hidden="true">
-        {pooled !== null && !(mine && near(mine.under, pooled)) ? <span className={`plan-spread-all ${side(pooled)}`.trim()} style={{ left: at(pooled) }}>All courses</span> : null}
-        {pooled !== null ? <i className="plan-spread-tick" style={{ left: at(pooled) }} /> : null}
-        {mine ? null : <i className="plan-spread-span" style={{ left: at(lo.under), width: `calc(${at(hi.under)} - ${at(lo.under)})` }} />}
+        {pooledShown ? <span className={`plan-spread-all ${side(pooled!)}${mine ? '' : ' is-reading'}`.trim()} style={{ left: at(pooled!) }}>All courses</span> : null}
+        {pooled !== null ? <i className={`plan-spread-tick${mine ? '' : ' is-reading'}`} data-leader="" style={{ left: at(pooled) }} /> : null}
         {rows.map((r) => <i key={r.city} className={`plan-spread-dot${mine === r ? ' is-chosen' : ''}`} style={{ left: at(r.under), ['--level' as string]: level.get(r) ?? 0 } as CSSProperties} />)}
-        {mine ? <span className={`plan-spread-name ${side(mine.under)}`.trim()} style={{ left: at(mine.under) }}>{mine.city} {pct(mine.under)}</span> : null}
+        {mine ? <span className={`plan-spread-name ${side(mine.under)}`.trim()} style={{ left: at(mine.under) }}>{mine.city}</span> : null}
       </div>
       <div className="plan-spread-ends" aria-hidden="true">
         {mine !== lo ? <span className={side(lo.under) || undefined} style={{ left: at(lo.under) }}>{lo.city} {pct(lo.under)}</span> : null}
@@ -166,7 +165,15 @@ function DataProblem({ error, onRetry }: { error: string; onRetry: () => void })
   );
 }
 
-export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { courseGoalSha: string | null; paceBandSha: string | null; courses: PlanCourse[] }) {
+/**
+ * The example's reading, read at build from the same verified course-goal file (the page's server component), so the first
+ * paint opens on the lead the chapter card promises instead of a placeholder that the loaded data would push down.
+ */
+export interface PlanExample { minutes: number; tolerance: number; n: number; under: number; courses: number; rows: CourseGoalRow[] }
+
+export default function RacePlan({ courseGoalSha, paceBandSha, courses, example = null }: {
+  courseGoalSha: string | null; paceBandSha: string | null; courses: PlanCourse[]; example?: PlanExample | null;
+}) {
   const { units } = useUnits();
   const [q, setQuery, ready, fromUrl] = useQueryState(DEFAULTS);
   // The example: the default 4:00 on all courses, untouched and not from a link.
@@ -212,26 +219,31 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
   } : null;
   const comparison = observed && (observed.held || observed.slow) ? observed : null;
 
-  // The nugget: of finishes on the goal's pace through 20K (the course-goal rows at the nearest published goal), the share
-  // that made it, on every course pooled or on the chosen one.
+  // The lead: of finishes on the goal's pace through 20K (the course-goal rows at the nearest published goal), the share
+  // that made it, on every course pooled or on the chosen one. Until the file loads, the 4:00 example on every course reads
+  // the build's copy of the same rows.
+  const exampleOn = !goalData.data && example !== null && isAll && goal === example.minutes * 60;
   const result = goalData.data && goal !== null && course ? courseGoalResult(goalData.data, course.city, goal, course.screened) : null;
-  const published = goalData.data && goal !== null ? publishedGoal(goal, goalData.data.goals, goalData.data.goal_step_min) : null;
+  const published = goalData.data && goal !== null ? publishedGoal(goal, goalData.data.goals, goalData.data.goal_step_min)
+    : exampleOn ? { minutes: example!.minutes, rounded: false } : null;
   const share = useMemo(() => {
+    if (exampleOn) return { n: example!.n, under: example!.under, courses: example!.courses, minutes: example!.minutes, rounded: false };
     if (!goalData.data || goal === null) return null;
     if (isAll) return published ? { ...goalShare(goalData.data.rows, published.minutes), minutes: published.minutes, rounded: published.rounded } : null;
     if (result?.state === 'row') return { n: result.row.n, under: result.row.under, courses: 1, minutes: result.minutes, rounded: result.rounded };
     return null;
-  }, [goalData.data, goal, isAll, published, result]);
+  }, [exampleOn, example, goalData.data, goal, isAll, published, result]);
   const shareOk = share && typeof share.n === 'number' && typeof share.under === 'number' ? share as { n: number; under: number; courses: number; minutes: number; rounded: boolean } : null;
   // Every course's share at the published goal, lowest first: the courses the course-goal file lists, each with 100 such
-  // finishes (plan.courses's set, the chapter card's 7–27%), and the share across every course pooled (All numbers).
+  // finishes (the course chooser's set), drawn as where the reading sits; and the share across every course pooled.
   const spread = useMemo(() => {
+    if (exampleOn) return example!.rows.length >= 2 ? example!.rows : null;
     if (!goalData.data || !published) return null;
     const listed = new Set(goalData.data.courses.map((c) => c.city));
     const at = goalData.data.rows.filter((r) => r.goal === published.minutes && listed.has(r.city) && r.n >= 100).sort((a, b) => a.under - b.under || a.city.localeCompare(b.city));
     return at.length >= 2 ? at : null;
-  }, [goalData.data, published]);
-  const pooled = goalData.data && published ? goalShare(goalData.data.rows, published.minutes) : null;
+  }, [exampleOn, example, goalData.data, published]);
+  const pooled = exampleOn ? { under: example!.under } : goalData.data && published ? goalShare(goalData.data.rows, published.minutes) : null;
   const rows = useMemo(() => (goal === null ? [] : splitTable(goal, MARATHON_KM, units === 'mi' ? 'mi' : 'km')), [goal, units]);
 
   // Printing: the wristband strips alone, or the one-page plan (also what the browser's own print command gives).
@@ -247,7 +259,7 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
   };
 
   // One always-mounted, visually hidden status line, debounced while typing. The first settled result is not announced.
-  const loading = Boolean(courseGoalSha && !goalData.data && !goalData.error);
+  const loading = Boolean(courseGoalSha && !goalData.data && !goalData.error && !exampleOn);
   const dataError = goalData.error ?? bandIndex.error ?? shard.error;
   // One "Try again" loads every file that failed (a failed index also stops its shard), so either error box clears both.
   const retry = () => { if (goalData.error) goalData.retry(); if (bandIndex.error) bandIndex.retry(); if (shard.error) shard.retry(); };
@@ -255,15 +267,16 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
   const shareGoal = shareOk ? formatHM(shareOk.minutes * 60) : null;
   // The group's window, named wherever the group is ("within 2% of 4:00 pace"), as the chapter's reading names it: the
   // checkpoint analysis and the projector say "on 4:00 pace" of groups of their own.
-  const nearGoal = shareGoal ? `within ${Math.round((goalData.data?.tolerance ?? 0.02) * 100)}% of ${shareGoal} pace` : null;
-  const range = spread ? `${Math.round(spread[0].under * 100)}–${Math.round(spread[spread.length - 1].under * 100)}%` : null;
-  // The data beat's sentence: the spread, course by course; with a course chosen, its share first and the spread after.
-  const spreadText = spread && range && nearGoal && shareGoal
-    ? (isAll ? `of finishes ${nearGoal} through 20K, ${range} made ${shareGoal}, course by course.` : `of finishes ${nearGoal} through 20K in ${course?.city ?? ''}, ${madeOf100}% made ${shareGoal}; course by course, ${range}.`)
+  const tolerance = goalData.data?.tolerance ?? example?.tolerance ?? 0.02;
+  const nearGoal = shareGoal ? `within ${Math.round(tolerance * 100)}% of ${shareGoal} pace` : null;
+  // The lead's line, as the chapter card's key words it ("of finishes within 2% of 4:00 pace through 20K made 4:00").
+  const leadLine = nearGoal && shareGoal ? `of finishes ${nearGoal} through 20K${isAll ? '' : ` in ${course?.city ?? ''}`} made ${shareGoal}` : null;
+  const spreadText = spread && leadLine && madeOf100 !== null
+    ? `${madeOf100}% ${leadLine}; course by course, from ${Math.round(spread[0].under * 100)}% in ${spread[0].city} to ${Math.round(spread[spread.length - 1].under * 100)}% in ${spread[spread.length - 1].city}.`
     : null;
   const summary = goal === null || pKm === null ? problem : loading ? null : [
     `${fmtGoal(goal)} goal${course ? ` in ${course.city}` : ''}: even pace ${fmtPace(pKm, units)}.`,
-    shareOk ? `Pace Notes data: ${spreadText ?? `of 100 finishes ${nearGoal} through 20 km ${where}, ${madeOf100} made ${shareGoal}.`}` : '',
+    shareOk ? `Pace Notes data: ${spreadText ?? `${madeOf100}% ${leadLine}.`}` : '',
     result?.state === 'unavailable' ? 'No course results for this goal.' : '',
     dataError ?? '',
   ].filter(Boolean).join(' ');
@@ -293,7 +306,27 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
   return (
     <div className="plan-root" data-print={printMode}>
       <div className="tool-workspace">
-        {/* The answer first (the analyses' grammar): the plan for the example, then the inputs that make it yours. */}
+        {/* The lead first (round 6): the share the chapter card into this page promises, on paper with its badge, and where
+            it sits among the courses. Then the plan itself on the night card, the inputs that make it yours, and the band.
+            SectionTracker looks for the marked sections once per page view, so each stays mounted, hidden while it has
+            nothing to show, and counts when it first shows. */}
+        <div className="tool-results tool-lead-slot plan-lead-slot">
+          <p className="sr-only" aria-live="polite">{status}</p>
+          {planned && (missing || goalData.error) ? (
+            goalData.error ? <DataProblem error={goalData.error} onRetry={retry} /> : <p className="tool-note plan-unavailable">{missing}</p>
+          ) : null}
+          {planned && loading ? <p className="tool-state plan-loading" aria-hidden="true">Reading the finishes on your goal’s pace…</p> : null}
+          <div data-track-section="comparison" hidden={!planned || !shareOk}>
+            {planned && shareOk && madeOf100 !== null && leadLine ? (
+              <DataLead id="plan-comparison" titleId="plan-comparison-title" className="plan-comparison"
+                figure={{ value: String(madeOf100), unit: '%', sr: `${madeOf100} percent` }} line={<>{leadLine}.</>}>
+                {spread ? <CourseSpread rows={spread} chosen={isAll ? null : city} pooled={pooled?.under ?? null} label={spreadText ?? ''} /> : null}
+                {shareOk.rounded && goalData.data ? <p className="tool-note">{roundedNote(shareOk.minutes, goal, goalData.data.goal_step_min)}</p> : null}
+              </DataLead>
+            ) : null}
+          </div>
+        </div>
+
         <div className="tool-results tool-answer">
           {!planned ? <p className="tool-empty plan-problem">{problem}</p> : (
             <div className="print-only plan-print-head">
@@ -302,14 +335,12 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
               <p>Even pace {fmtPace(pKm, units)} · {fmtPace(pKm, units === 'mi' ? 'km' : 'mi')}. Cut the strips out along the dashed lines.</p>
             </div>
           )}
-          {/* SectionTracker looks for the marked sections once per page view, so each stays mounted, hidden while it has
-              nothing to show, and counts when it first shows. */}
           <div data-track-section="result" hidden={!planned}>
             {planned ? (
               <section className="tool-reading night plan-headline" aria-labelledby="plan-headline-title">
-                {/* The new number is the pace, as on the goal pages: the goal the visitor typed is the kicker. On a phone the
-                    mat times are the wristband's, below; from 900 px four of them fill the card's right half (critic round 3:
-                    a 670 px card held one number), hidden from assistive tech, which reads them on the strips. */}
+                {/* The plan's pace, as on the goal pages: the goal the visitor typed is the kicker. Four mat times under it on a
+                    phone and in the card's right half from 900 px (round 6: the dek promises the splits), hidden from
+                    assistive tech, which reads every mat on the strips. */}
                 <div className="tool-reading-head">
                   <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}<span id="plan-headline-title">{fmtGoal(goal)}{city ? ` in ${city}` : ''}</span></p>
                   <h2 className="tool-reading-figure">
@@ -346,40 +377,11 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
         </form>
 
         <div className="tool-results">
-          <p className="sr-only" aria-live="polite">{status}</p>
-          {planned && (missing || goalData.error) ? (
-            goalData.error ? <DataProblem error={goalData.error} onRetry={retry} /> : <p className="tool-note plan-unavailable">{missing}</p>
-          ) : null}
-
-          <div data-track-section="comparison" hidden={!planned || !shareOk}>
-            {planned && shareOk && madeOf100 !== null && shareGoal && nearGoal ? (
-              <section className="tool-panel plan-comparison" id="plan-comparison" aria-labelledby="plan-comparison-title">
-                <EvidenceTag kind="data" />
-                <div className="plan-nugget">
-                  {/* The spread, course by course, as the card into this page promises it; with a course chosen, its share
-                      first (the reading) and the spread after. The share across every course pooled is in All numbers. */}
-                  <p className="tool-nugget-text" id="plan-comparison-title">
-                    {spread && range ? (isAll
-                      ? <>Of finishes {nearGoal} through 20K, <em>{range}</em> made {shareGoal}, course by course.</>
-                      : <>Of finishes {nearGoal} through 20K in {city}, <em>{madeOf100}%</em> made {shareGoal}; course by course, {range}.</>)
-                      : <>Of finishes {nearGoal} through 20K{isAll ? '' : ` in ${city}`}, <em>{madeOf100}%</em> made {shareGoal}.</>}
-                  </p>
-                  {spread ? <CourseSpread rows={spread} chosen={isAll ? null : city} pooled={pooled?.under ?? null} label={spreadText ?? ''} /> : null}
-                </div>
-                {shareOk.rounded ? <p className="tool-note">{roundedNote(shareOk.minutes, goal, goalData.data!.goal_step_min)}</p> : null}
-                <Values id="plan-mats-values" caption={comparison ? `Every mat: your plan beside finishes from ${formatDuration(comparison.lo, true)} to ${formatDuration(comparison.hi, true)} ${where}` : 'Every mat: your plan'} count={9}>
-                  {pooled ? <p className="plan-pooled">On every course together, {Math.round(pooled.under * 100)} of 100 finishes {nearGoal} through 20K made {shareGoal}.</p> : null}
-                  <MatTable goal={goal} pKm={pKm} units={units} observed={comparison} />
-                </Values>
-              </section>
-            ) : null}
-          </div>
-
           <div data-track-section="pace-band" hidden={!planned}>
             {planned ? (
               <section className="tool-panel plan-band" id="plan-band" aria-labelledby="plan-band-title">
-                {/* No badge: the strips are the visitor's own even-pace times (the page's data badge sits on the nugget
-                    above, and the printed page names its source). */}
+                {/* No badge: the strips are the visitor's own even-pace times (the page's data badge sits on the lead, and
+                    the printed page names its source). */}
                 <header className="tool-panel-head plan-band-head">
                   <h2 className="tool-panel-title" id="plan-band-title">Your pace band</h2>
                 </header>
@@ -387,6 +389,10 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses }: { cour
                   observed={comparison ? { held: comparison.held, lo: comparison.lo, hi: comparison.hi, place, genderWord: '' } : null} profile={null} showBack={false} waiting={false} />
                 {/* One print action, the band this page exists for; the browser's own print command gives the whole plan. */}
                 <ShareBar extra={<button type="button" className="btn btn-primary is-compact" data-not-edit onClick={() => printAs('strip')}>Print wristband strips</button>} />
+                {/* Every mat: the plan beside the finishes at this time (the strips' "H" line), one fold. */}
+                <Values id="plan-mat-values" caption={comparison ? `Every mat: your plan beside finishes from ${formatDuration(comparison.lo, true)} to ${formatDuration(comparison.hi, true)} ${where}` : 'Every mat: your plan'} count={9}>
+                  <MatTable goal={goal} pKm={pKm} units={units} observed={comparison} />
+                </Values>
               </section>
             ) : null}
           </div>

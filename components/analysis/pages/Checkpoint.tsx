@@ -54,9 +54,11 @@ function Cushion({ goal, mat }: { goal: number; mat: number }) {
   const halfI = curve.reduce((b, p, i) => (p.share >= 0.5 ? i : b), -1);
   const halfAt = Number(getNugget('checkpoint.cushion').values.half_at_min);
   const initial = Number.isFinite(halfAt) ? curve.findIndex((p) => p.elapsed <= halfAt && halfAt < p.elapsed + 2) : halfI;
-  // The axis runs on whole 5-minute marks, so the first ten-minute tick (2:30) sits at its left end.
-  const d0 = Math.floor(xs[0] / 5) * 5, d1 = Math.ceil(xs[xs.length - 1] / 5) * 5;
-  const t0 = Math.ceil(d0 / 10) * 10, t1 = Math.floor(d1 / 10) * 10;
+  // The axis runs on whole 5-minute marks, so the first ten-minute tick (2:30) sits at its left end. Five minutes of room
+  // past the last split keep the needle clear of the gridline labels at the right edge at every position (round 6: at
+  // its last point it ran through "half" and "100%").
+  const d0 = Math.floor(xs[0] / 5) * 5, end = Math.ceil(xs[xs.length - 1] / 5) * 5, d1 = end + 5;
+  const t0 = Math.ceil(d0 / 10) * 10, t1 = Math.floor(end / 10) * 10;
   // Every ten minutes, and even pace named under its own line at every width (a round tick within four minutes of it
   // gives way), so the H2's "ahead of even pace" can be read off the chart.
   const ticks = Array.from({ length: Math.floor((t1 - t0) / 10) + 1 }, (_, i) => t0 + i * 10).filter((t) => Math.abs(t - evenMin) >= 4);

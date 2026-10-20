@@ -9,6 +9,7 @@ import ByUnits from '@/components/ui/ByUnits.client';
 import { sectionLabel } from '@/lib/nuggets/format';
 import { SECTION_BOUNDS } from '@/lib/viz/format';
 import { CourseSection, Said } from './Fact';
+import { joinRanges } from '@/components/ui/keepTogether';
 
 /**
  * "What makes {city} {city}" (the redesign spec, section 7.10; "What sets {city} apart" for a name of two words or more,
@@ -173,7 +174,7 @@ export default function CourseGlance({ page }: { page: CoursePageData }) {
           {rows.map((r, i) => (
             <li key={r.id} className={`glance-row${i > 0 ? ' is-quiet' : ''}${r.figure ? '' : ' is-chart'}`}>
               {r.figure ? <span className="glance-figure">{r.figure}</span> : null}
-              {single ? null : <span className="glance-key">{r.key}</span>}
+              {single ? null : <span className="glance-key">{joinRanges(r.key)}</span>}
               {r.viz ? <span className="glance-chart">{r.viz}</span> : null}
             </li>
           ))}

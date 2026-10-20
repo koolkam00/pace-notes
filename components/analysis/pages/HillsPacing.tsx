@@ -61,16 +61,17 @@ export default function HillsPacing() {
   ) : null;
   const answer = sections ? (
     // The course and the time, kept on one line each ("near\u00a04:00"); the climb is in the readout.
-    <AnswerCard values={<HeroSwap slot="values"><ByUnits mi={values('mi')} km={values('km')} /></HeroSwap>}>
+    <AnswerCard values={<HeroSwap slot="values"><ByUnits mi={values('mi')} km={values('km')} /></HeroSwap>}
+      explore={(
+        <ExploreBeat track="chapter-1" inCard>
+          <AnalysisExplorer definition={definition} summary={summary} initialAnswer={getAnalysisAnswers(start).find((a) => a.id === definition.id)!} start={start} terrain={{ elevations, step, baselines: terrainBaselines(), hidden: terrainHidden() }} untouched="none" hero />
+        </ExploreBeat>
+      )}>
       <HeroSwap kicker={`${courseName(city)}, finishes near\u00a0${hm(v.goal_min)}`}><ByUnits mi={chart('mi')} km={chart('km')} /></HeroSwap>
     </AnswerCard>
   ) : null;
   return (
     // The blocks' unit said once (on a phone they drop their % signs): each 5K's pace, in %, against the same 5K elsewhere.
-    <AnalysisShell path={PATH} title={n} dek={`Each 5K’s pace near ${hm(v.goal_min)}, in % against the same 5K on every course combined.`} answer={answer}>
-      <ExploreBeat track="chapter-1">
-        <AnalysisExplorer definition={definition} summary={summary} initialAnswer={getAnalysisAnswers(start).find((a) => a.id === definition.id)!} start={start} terrain={{ elevations, step, baselines: terrainBaselines(), hidden: terrainHidden() }} untouched="none" hero />
-      </ExploreBeat>
-    </AnalysisShell>
+    <AnalysisShell path={PATH} title={n} dek={`Each 5K’s pace near ${hm(v.goal_min)}, in % against the same 5K on every course combined.`} answer={answer} />
   );
 }

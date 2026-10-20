@@ -153,6 +153,15 @@ const INTERACTIONS = [
     selector: 'figure.viz [role="slider"]',
     async run(page, el, snap, ctx) {
       await inView(el);
+      // On the analyses' line charts the needle's dot shows where it meets the subject line, at rest too (round 6).
+      const dotShown = () => el.evaluate((n) => {
+        const dot = n.closest('figure.viz')?.querySelector('.scrub-dot');
+        if (!dot || n.closest('figure.viz')?.classList.contains('cdf')) return null;
+        return getComputedStyle(dot).visibility === 'visible';
+      });
+      const analysis = /\/analyses\//.test(new URL(page.url()).pathname);
+      const problems = [];
+      if (analysis && (await dotShown()) === false) problems.push('the needle\'s dot is hidden at rest');
       const d = await drag(page, el, 0.5, 0.3);
       if (!d) return ['slider has no box'];
       await pause(page, 200);
@@ -160,11 +169,12 @@ const INTERACTIONS = [
       await page.mouse.up();
       await pause(page, 250);
       await snap('scrub-30');
+      if (analysis && (await dotShown()) === false) problems.push('the needle\'s dot is hidden after a scrub');
       await el.focus();
       await page.keyboard.press('PageUp');
       await pause(page, 300);
       await snap('scrub-detent');
-      return [];
+      return problems;
     },
   },
   {

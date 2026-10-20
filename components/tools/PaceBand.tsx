@@ -336,8 +336,10 @@ export default function PaceBand({ indexSha, profiles, unpublished }: {
                       <MatLines units={units}
                         bracket={slowAt20 !== null && ok.held && ok.slow ? { km: 20, label: formatDuration(Math.abs(slowAt20)) } : undefined}
                         lines={[
-                          ...(ok.held ? [{ key: 'held', label: 'No sustained slowdown', tone: 'ink' as const, gaps: CHECKPOINTS.map((_, i) => gapAt(ok.held, i)!) }] : []),
-                          ...(ok.slow ? [{ key: 'slow', label: 'Sustained slowdown', tone: 'signal' as const, gaps: CHECKPOINTS.map((_, i) => gapAt(ok.slow, i)!) }] : []),
+                          // The group the sentence is about (the slowdown, ahead at 20K) in ink, the other quiet; the gap the
+                          // sentence names is the chart's one orange, the bracket at 20K (round 6: slower is never orange).
+                          ...(ok.held ? [{ key: 'held', label: 'No sustained slowdown', tone: 'quiet' as const, gaps: CHECKPOINTS.map((_, i) => gapAt(ok.held, i)!) }] : []),
+                          ...(ok.slow ? [{ key: 'slow', label: 'Sustained slowdown', tone: 'ink' as const, gaps: CHECKPOINTS.map((_, i) => gapAt(ok.slow, i)!) }] : []),
                         ]}
                         label={`Median elapsed time against even pace for ${fmtGoal(goal)} at every mat, for finishes from ${formatDuration(ok.lo, true)} to ${formatDuration(ok.hi, true)} ${ok.where}.${ok.held ? ` No sustained slowdown: ${aheadText(gapAt(ok.held, 3)!)} at 20 km.` : ''}${ok.slow ? ` Sustained slowdown: ${aheadText(gapAt(ok.slow, 3)!)} at 20 km.` : ''}`} />
                     ) : null}

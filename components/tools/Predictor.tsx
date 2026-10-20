@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { Choice, DataState, DurationField, EvidencePanel, ExampleNote, ShareBar, Stat } from '@/components/tools/ui';
+import { Choice, DataState, DurationField, EvidencePanel, ExampleNote, ReadingFoot, Stat } from '@/components/tools/ui';
 import KeypadHint from '@/components/KeypadHint';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
@@ -916,8 +916,7 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
                 <p className="tool-note predictor-stale"><strong>{stale.join(' and ')} {stale.length > 1 ? 'were' : 'was'} more than 6 months ago.</strong> A recent race predicts better.</p>
               ) : null}
               <ObservedPanel indexSha={indexSha} proj={proj} est={est} looks={looks} units={units} />
-              {/* One way forward: the chapter's next card (the planner). The share row is the only action here. */}
-              <ShareBar />
+              {/* One way forward: the chapter's next card (the planner); Copy link sits on the card. */}
             </>
           ) : null}
         </div>
@@ -967,7 +966,8 @@ function Headline({ est, dist, units, example, children }: { est: Estimates; dis
         {head(<><span className="sr-only">Typical recreational range: </span>{a}<span className="predictor-to">–</span>{b}</>,
           `The typical recreational range${r.extrapolation === 'shorter' ? ', less certain from a shorter race' : ''}, median ${fmtShort(goalMinute(r.median))} (${pace(r.median)}).`)}
         {children}
-        <EvidenceTag kind="research" />
+        {/* Copy link on the result it shares, in the card's foot (round 6: it sat alone on a row under the data). */}
+        <ReadingFoot badge={<EvidenceTag kind="research" />} />
       </section>
     );
   }
@@ -976,7 +976,8 @@ function Headline({ est, dist, units, example, children }: { est: Estimates; dis
       <section className="tool-reading night predictor-headline" aria-label="Your estimate">
         {head(fmtTime(est.riegel), 'One classic formula only: the fitness equations are not applied at walking speed.')}
         {children}
-        <EvidenceTag kind="research" />
+        {/* Copy link on the result it shares, in the card's foot (round 6: it sat alone on a row under the data). */}
+        <ReadingFoot badge={<EvidenceTag kind="research" />} />
       </section>
     );
   }
@@ -987,7 +988,7 @@ function Headline({ est, dist, units, example, children }: { est: Estimates; dis
     <section className="tool-reading night predictor-headline" aria-label="Your estimate">
       {head(a === b ? a : <>{a}<span className="predictor-to">–</span>{b}</>, 'Both classic formulas hold up well for races up to the half marathon.')}
       {children}
-      <EvidenceTag kind="research" />
+      <ReadingFoot badge={<EvidenceTag kind="research" />} />
     </section>
   );
 }

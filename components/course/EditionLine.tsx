@@ -3,7 +3,7 @@ import Axis from '@/components/viz/Axis';
 import Plot, { Baseline } from '@/components/viz/Plot';
 import Scrubber from '@/components/viz/Scrubber.client';
 import Annotation from '@/components/viz/Annotation';
-import { keepClearOf, placeLabels, REF_WIDTH, textWidth, widthClass, type LabelItem, type PlacedLabel } from '@/components/viz/labels';
+import { fitClass, keepClearOf, placeLabels, REF_WIDTH, textWidth, widthClass, type LabelItem, type PlacedLabel } from '@/components/viz/labels';
 
 /** The narrowest plot a course chart is drawn at (a 195 px screen, 200% zoom). */
 const NARROW = 160;
@@ -13,11 +13,10 @@ import { yearPad, yearTicks } from '@/components/viz/YearStrip';
 /**
  * The median finish, edition by edition (the redesign spec, section 7.10 "#finish-times"): a dot per edition on a
  * time-scaled axis, joined only across consecutive years, so a year with no edition leaves the line broken (no band,
- * which would read as a highlight) and a faint tick at its foot; scrubbed, it reads "not in the data". The y scale spans at least 20 minutes,
+ * which would read as a highlight) and a faint tick at its foot, which the needle steps across. The y scale spans at least 20 minutes,
  * centred on the editions, so a few seconds never draw as a climb or a drop (a steady course draws flat), and two to
  * four round-minute gridlines bracket the editions, one at or below the quickest and one at or above the slowest, each
- * labelled above its own line at the right end (moved only where it would meet a mark); a line no spot can label is
- * not drawn.
+ * labelled above its own line at the plot's left edge (hidden, never moved, where it would meet a mark).
  * The edition the readout opens on (the one the sentence accents) is signal
  * and unlabelled, since the readout names it; the other the sentence names is labelled in one format, on a leader where
  * the editions crowd it, and hides while the needle sits on it. Scrub the years: each edition's median and finishes.
@@ -59,10 +58,10 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
     const run = runs[runs.length - 1];
     if (run && p.year === run[run.length - 1].year + 1) run.push(p); else runs.push([p]);
   }
-  // Every year from the first to the last is a scrub point: an edition reads out its median, a year between editions
-  // "not in the data" (critic round 5: a year missing from the data looked like a race that was not run), marked by a
-  // faint tick at its foot.
-  const years = Array.from({ length: last - first + 1 }, (_, k) => first + k);
+  // The editions are the scrub points: the needle steps across a year with no edition (round 6: a stop there read out
+  // an empty value in the middle of the chart), which keeps a faint tick at its foot.
+  const years = sorted.map((p) => p.year);
+  const missing = Array.from({ length: last - first + 1 }, (_, k) => first + k).filter((yr) => !sorted.some((p) => p.year === yr));
   const byYear = new Map(sorted.map((p) => [p.year, p]));
   const scrubOf = (year: number) => years.indexOf(year);
   const dots = sorted.map((p) => ({ x: x(p.year), y: y(p.seconds), r: 5 }));
@@ -103,43 +102,36 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
     return { x0: (x0 - 16) / REF_WIDTH, x1: (x0 + w + 16) / REF_WIDTH, y0: (base - 15) / height, y1: (base + 6) / height };
   });
   // Each bracketing line is labelled above itself, never below (a label under its line reads as the band below's), at
-  // the right end on every course page (critic round 5: labels on the left on one page and the right on the next did not
-  // read as one system). Only a label that would meet a mark, another label or the resting needle there moves: just
-  // inside the needle where it rests in the right half, else to the left end; a line with no clear spot is not drawn, so
-  // every gridline drawn is labelled.
+  // one fixed place: the plot's left edge, inside the plot, as the elevation and shape charts label theirs (round 6:
+  // labels at the right end, mid-plot or beside the needle read as a ragged scale, and London's "4:30" beside the needle
+  // read as its label). Only where the chart opens with its needle in the left third (it would cross every label there)
+  // do all of them take the right edge instead. A label that would meet a mark, the edition's label or the resting
+  // needle is never moved: it hides below the plot width at which it clears them (a width class), and where it clears
+  // them at no width its line is drawn unlabelled.
   const meets = (a: { x0: number; x1: number; y0: number; y1: number }, b: { x0: number; x1: number; y0: number; y1: number }) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
-  // The needle the chart opens on runs the plot's height: no gridline label sits across it.
-  const rest = { x0: needle.x0 - 8 / REF_WIDTH, x1: needle.x0 + 8 / REF_WIDTH, y0: 0, y1: 1 };
-  const beside = rest.x0 > 0.5 ? rest.x0 : null;
-  const sides: { at: number; end: boolean }[] = [{ at: 1, end: true }, ...(beside !== null ? [{ at: beside, end: true }] : []), { at: 0, end: false }];
-  const marks = [...dots, ...along].map((d) => ({ x0: d.x - d.r / REF_WIDTH, x1: d.x + d.r / REF_WIDTH, y0: d.y - d.r / height, y1: d.y + d.r / height }));
-  const boxes = [...taken];
+  const marks = [...dots, ...along];
+  const right = needle.x0 < 1 / 3;
+  // A thing at plot fraction fx, r px either side, clears a label wpx wide at the edge from this plot width up.
+  const clearFrom = (fx: number, r: number, wpx: number) => { const room = right ? 1 - fx : fx; return room > 0 ? (wpx + r) / room : Infinity; };
   const grid = lines.map((v) => {
     const text = hm(v);
-    const w = (textWidth(text, 12, 500) + 6) / REF_WIDTH;
+    const wpx = textWidth(text, 12, 500) + 6;
     const fy = y(v);
-    // Against the resting needle the label is measured on the narrowest plot (200% zoom), where its pixels take the
-    // largest share: clear there, it is clear at every wider plot.
-    const wN = (textWidth(text, 12, 500) + 6) / NARROW;
-    for (const { at, end } of sides) {
-      const box = { x0: end ? at - w : at, x1: end ? at : at + w, y0: fy - 14 / height, y1: fy - 3 / height };
-      const narrow = { ...box, x0: end ? at - wN : at, x1: end ? at : at + wN };
-      if (box.y0 >= 0 && box.x0 >= 0 && box.x1 <= 1 && !meets(rest, narrow) && !boxes.some((t) => meets(t, box)) && !marks.some((m) => meets(m, box))) {
-        boxes.push(box);
-        return { y: fy, label: text, at, end, shown: true };
-      }
-    }
-    return { y: fy, label: text, at: 1, end: true, shown: false };
-  }).filter((g) => g.shown);
+    const top = fy - 14 / height, bottom = fy - 3 / height;
+    let need = clearFrom(needle.x0, 8, wpx);
+    for (const m of marks) if (m.y + m.r / height > top && m.y - m.r / height < bottom) need = Math.max(need, clearFrom(m.x, m.r, wpx));
+    // The edition's label, measured where it was placed (the narrowest phone's reference plot).
+    const edge = right ? { x0: 1 - wpx / REF_WIDTH, x1: 1 } : { x0: 0, x1: wpx / REF_WIDTH };
+    if (taken.some((t) => meets(t, { ...edge, y0: top, y1: bottom }))) need = Math.max(need, REF_WIDTH + 1);
+    const cls = need <= NARROW ? '' : Number.isFinite(need) ? fitClass(Math.ceil(need)) : 'w-never';
+    return { y: fy, label: text, cls, hidden: cls === 'w-never' };
+  });
   // Below the reference width (200% zoom) a gridline's label keeps its pixels at the plot's edge while the edition's label
   // moves in with the plot: the edition's label hides where it would meet one (its leader with it), and the readout and
   // the Values table keep it (Frankfurt at 195 px, round 4 merge).
-  for (const g of grid) {
+  for (const g of grid.filter((g) => !g.hidden)) {
     const w = textWidth(g.label, 12, 500) + 6;
-    keepClearOf(placed, (width) => {
-      const ax = g.at * width;
-      return { x0: g.end ? ax - w : ax, x1: g.end ? ax : ax + w, y0: g.y * height - 14, y1: g.y * height - 3 };
-    }, height);
+    keepClearOf(placed, (width) => ({ x0: right ? width - w : 0, x1: right ? width : w, y0: g.y * height - 14, y1: g.y * height - 3 }), height);
   }
   // A label a gridline runs through breaks the line under it (a knockout halo), so the line never crosses the text.
   placed = placed.map((l) => {
@@ -153,11 +145,11 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
         {grid.map((g) => (
           <g key={g.label}>
             <rect className="grid-line" x="0" y={pc(g.y)} width="100%" height="1" />
-            <text className="tick grid-label" x={pc(g.at)} y={pc(g.y)} dy={-5} textAnchor={g.end ? 'end' : undefined}>{g.label}</text>
+            {g.hidden ? null : <text className={`tick grid-label${g.cls ? ` ${g.cls}` : ''}`} x={right ? '100%' : '0'} y={pc(g.y)} dy={-5} textAnchor={right ? 'end' : undefined}>{g.label}</text>}
           </g>
         ))}
       </g>
-      {years.filter((yr) => !byYear.has(yr)).map((yr) => <rect key={`gap${yr}`} className="gap-tick" x={pc(x(yr))} width={1} transform="translate(-0.5 0)" y={pc(1 - 5 / height)} height={pc(5 / height)} />)}
+      {missing.map((yr) => <rect key={`gap${yr}`} className="gap-tick" x={pc(x(yr))} width={1} transform="translate(-0.5 0)" y={pc(1 - 5 / height)} height={pc(5 / height)} />)}
       {sorted.map((p, i) => <circle key={p.year} className={i === sel ? 'm-signal is-reading' : 'm-ink'} cx={pc(x(p.year))} cy={pc(y(p.seconds))} r={i === sel ? 5.5 : 4} />)}
       {lifted ? placed.filter((l) => l.minWidth !== null && l.dy < 0).map((l) => {
         const from = l.y + (l.dy + 3) / height, to = y(sorted[start].seconds) - 6 / height;
@@ -169,7 +161,7 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
   );
   const axis = <Axis centred ticks={yearTicks(first, last).map((yr) => ({ x: x(yr), label: String(yr) }))} />;
   const scrub = {
-    x: years.map((yr) => x(yr)), keys: years.map((yr) => (byYear.has(yr) ? String(yr) : `${yr} · not in the data`)), values: years.map((yr) => byYear.get(yr)?.display ?? '—'),
+    x: years.map((yr) => x(yr)), keys: years.map((yr) => String(yr)), values: years.map((yr) => byYear.get(yr)?.display ?? '—'),
     side: [{ label: sideLabel, values: years.map((yr) => byYear.get(yr)?.side ?? '—') }],
   };
   const detents = [...new Set([sel, ...(start >= 0 ? [start] : [])])].map((i) => scrubOf(sorted[i].year));

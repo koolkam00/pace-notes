@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import Arrow from '@/components/ui/Arrow';
-import { DataState, DurationField, GoalBar, ShareBar, Stepper } from '@/components/tools/ui';
+import { DataState, DurationField, GoalBar, ReadingFoot, Stepper } from '@/components/tools/ui';
 import { fmtGoal } from '@/lib/tools/pace-band-data';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { loadInsight } from '@/lib/insights';
@@ -129,7 +129,10 @@ function useCourseGoal(sha: string | null) {
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
 
-/** Where each course's share sits between the lowest and the highest: one dot per course, the two ends labelled. */
+/**
+ * Where each course's share sits between the fewest and the most: one tick per course, the two named on the card in ink
+ * (taller), every other one quiet. The names are the card's figures, so the strip carries no labels of its own.
+ */
 function ShareStrip({ items, goalText }: { items: Item[]; goalText: string }) {
   if (items.length < 2) return null;
   const sorted = [...items].sort((a, b) => a.row.under - b.row.under);
@@ -141,7 +144,6 @@ function ShareStrip({ items, goalText }: { items: Item[]; goalText: string }) {
       <div className="cc-strip-track">
         {sorted.map((it) => <i key={it.course.slug} className={it === lo || it === hi ? 'is-end' : undefined} style={{ left: at(it) }} />)}
       </div>
-      <div className="cc-strip-ends" aria-hidden="true"><span>{displayCity(lo.course.city)}</span><span>{displayCity(hi.course.city)}</span></div>
     </figure>
   );
 }
@@ -214,6 +216,13 @@ export default function CourseChooser({ sha, screened }: {
     const n = published.reduce((sum, p) => sum + p.row.n, 0);
     return { n, under: published.reduce((sum, p) => sum + p.row.n * p.row.under, 0) / n };
   }, [published]);
+  // The course where the most made the goal and the one where the fewest did (the card's two figures), when they differ.
+  const ends = useMemo(() => {
+    if (published.length < 2) return null;
+    const sorted = [...published].sort((a, b) => a.row.under - b.row.under || a.course.city.localeCompare(b.course.city));
+    const lo = sorted[0], hi = sorted[sorted.length - 1];
+    return pctText(lo.row.under) === pctText(hi.row.under) ? null : { lo, hi };
+  }, [published]);
   // The bars read on one fixed scale, 0 to 50% (0 to 100% should any share pass half), never stretched to the largest
   // share, so a 27% share never fills its track; a faint tick marks every course pooled, keyed once above the rows.
   const barTop = Math.max(...published.map((p) => p.row.under), 0) > 0.5 ? 1 : 0.5;
@@ -237,16 +246,25 @@ export default function CourseChooser({ sha, screened }: {
             {data && noGoal ? <p className="tool-empty">Choose a goal from {hm(range[0])} to {hm(range[1])} to see how finishes at that pace held up on each course.</p>
             : data && pooled ? (
               <section className="tool-reading night course-chooser-headline" aria-labelledby="course-chooser-title">
-                <div className="tool-reading-head">
-                  <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}Goal {goalText} · {published.length} courses</p>
-                </div>
-                <h2 className="tool-reading-figure course-chooser-title" id="course-chooser-title">
-                  {range2(published.map((p) => p.row.under))}
-                  <small>of finishes within {Math.round((data.tolerance ?? 0.02) * 100)}% of {goalText} pace through 20K made {goalText}, course by course</small>
-                </h2>
+                {/* Round 6: the chooser's own reading is the courses by name, the fewest and the most at the goal (the
+                    planner shows only where its share sits), over the strip of every course. */}
+                <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}{goalText} · {published.length} courses</p>
+                {ends ? (
+                  <h2 className="cc-pair" id="course-chooser-title">
+                    {/* Fewest first, as the strip under them runs. */}
+                    <span className="cc-pair-item"><b>{pctText(ends.lo.row.under)}</b><span>{displayCity(ends.lo.course.city)}</span></span>
+                    <span className="cc-pair-item"><b>{pctText(ends.hi.row.under)}</b><span>{displayCity(ends.hi.course.city)}</span></span>
+                    <span className="cc-pair-line">made {goalText} from within {Math.round((data.tolerance ?? 0.02) * 100)}% of its pace through 20K: the fewest and the most of any course.</span>
+                  </h2>
+                ) : (
+                  <h2 className="tool-reading-figure course-chooser-title" id="course-chooser-title">
+                    {range2(published.map((p) => p.row.under))}
+                    <small>of finishes within {Math.round((data.tolerance ?? 0.02) * 100)}% of {goalText} pace through 20K made {goalText}</small>
+                  </h2>
+                )}
                 <ShareStrip items={published} goalText={goalText} />
-                {/* The badge at the card's foot, as on every other tool card. */}
-                <EvidenceTag kind="data" />
+                {/* The badge and Copy link at the card's foot, as on every other tool card. */}
+                <ReadingFoot badge={<EvidenceTag kind="data" />} />
               </section>
             ) : data ? <p className="tool-empty">No course has a published row at {goalText}.</p> : null}
           </DataState>
@@ -345,7 +363,6 @@ export default function CourseChooser({ sha, screened }: {
               {unpublished.length ? <p className="tool-note">Not published at {goalText}: {unpublished.map(displayCity).join(', ')}.</p> : null}
             </section>
           </div>
-          <ShareBar />
             </>
           ) : null}
           {data && !noGoal ? (

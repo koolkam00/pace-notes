@@ -19,7 +19,9 @@
 //  11. a line crossing text inside a figure.viz: a label's leader (.leader) through another label, or the scrubber's
 //      needle (.scrub-needle) through a label or a gridline's label in its plot, by more than 2 px (round 5, October 19:
 //      Hamburg's leader through "Valencia", the hills needle through "164 ft above the low point"; check 4 compares
-//      text with text only).
+//      text with text only); an HTML leader ([data-leader]) through any text in its scope, its own label included;
+//  12. the visible gridline labels (text.grid-label) of one figure.viz at different x: one left edge, or one right edge
+//      (round 6: an edition line's labels at the left, the right and mid-plot).
 //
 //   node scripts/design/lint-layout.cjs --routes=<comma list | @file> [--widths=195,320,390,1440] [--dir=out]
 //        [--json=<file>] [--only=1,2,3] [--max=12]
@@ -59,7 +61,7 @@ function inspect({ isHome }) {
     }
     return false;
   };
-  const findings = { overflow: [], tinyText: [], overlap: [], outside: [], orange: [], clipped: [], accents: [], termH1: [], crossed: [] };
+  const findings = { overflow: [], tinyText: [], overlap: [], outside: [], orange: [], clipped: [], accents: [], termH1: [], crossed: [], gridX: [] };
 
   // 1. Horizontal overflow, with the elements that reach past the right edge.
   // Any overflow at all, even 1 px: a page that can move sideways under a thumb wobbles.
@@ -208,6 +210,33 @@ function inspect({ isHome }) {
       }
     }
   }
+  // 11 (HTML). A drawn leader outside an SVG ([data-leader], e.g. the planner's course-spread ticks) through any text in
+  // its scope ([data-leader-scope], else its parent), its own label included (round 6: the "All courses" tick split its
+  // own label between "co" and "urses"), by the same measure.
+  for (const el of document.querySelectorAll('[data-leader]')) {
+    if (hidden(el) || el.closest('details:not([open])')) continue;
+    const r = el.getBoundingClientRect();
+    if (r.height < 2) continue;
+    const cx = r.left + r.width / 2;
+    const scope = el.closest('[data-leader-scope]') || el.parentElement;
+    for (const t of scope.querySelectorAll('*')) {
+      if (t === el || t.children.length || !t.textContent.trim() || hidden(t)) continue;
+      const tr = t.getBoundingClientRect();
+      if (cx <= tr.left + 1 || cx >= tr.right - 1) continue;
+      const h = Math.min(r.bottom, tr.bottom - 2) - Math.max(r.top, tr.top + 2);
+      if (h > 2) findings.crossed.push(`${describe(el)} through ${describe(t)} (${h.toFixed(0)} px)`);
+    }
+  }
+  // 12. The gridline labels of one figure share one x: every visible text.grid-label in a figure.viz starts at one left
+  // edge, or (all end-anchored) ends at one right edge, within 1 px (round 6: an edition line put 3:30 at the left and
+  // 3:15, 3:45 and 4:00 at the right, and London's 4:30 mid-plot beside the needle).
+  for (const fig of document.querySelectorAll('figure.viz')) {
+    if (hidden(fig) || fig.closest('details:not([open])')) continue;
+    const labels = [...fig.querySelectorAll('text.grid-label')].filter((t) => t.textContent.trim() && !hidden(t)).map((t) => t.getBoundingClientRect());
+    if (labels.length < 2) continue;
+    const spread = (v) => Math.max(...v) - Math.min(...v);
+    if (spread(labels.map((b) => b.left)) > 1 && spread(labels.map((b) => b.right)) > 1) findings.gridX.push(`${describe(fig)}: gridline labels at ${labels.map((b) => Math.round(b.left)).join(', ')} px`);
+  }
 
   // 10. No term link inside an h1.
   for (const a of document.querySelectorAll('h1 .term-link')) if (!hidden(a)) findings.termH1.push(describe(a.closest('h1')));
@@ -310,19 +339,20 @@ async function lintOne(browser, route, width, opts) {
     9: findings.accents,
     10: findings.termH1,
     11: findings.crossed,
+    12: findings.gridX,
   };
   for (const k of Object.keys(checks)) if (!opts.only.has(Number(k))) delete checks[k];
   return { route, width, checks, foreign };
 }
 
-const NAMES = { 1: 'horizontal overflow', 2: 'hit area under 44×44', 3: 'chart text under 12 px', 4: 'text overlaps text in a figure', 5: 'text outside its SVG', 6: 'console or page error', 7: 'more than one orange control on the first screen', 8: 'chart text clipped', 9: 'two coloured heading accents within one screen', 10: 'a term link inside an h1', 11: 'a leader or the needle crosses text in a figure' };
+const NAMES = { 1: 'horizontal overflow', 2: 'hit area under 44×44', 3: 'chart text under 12 px', 4: 'text overlaps text in a figure', 5: 'text outside its SVG', 6: 'console or page error', 7: 'more than one orange control on the first screen', 8: 'chart text clipped', 9: 'two coloured heading accents within one screen', 10: 'a term link inside an h1', 11: 'a leader or the needle crosses text in a figure', 12: 'gridline labels of one figure at different x' };
 
 async function main() {
   const a = args(process.argv.slice(2));
   const routes = readRoutes(a.routes);
   const widths = String(a.widths || '195,320,390,1440').split(',').map(Number).filter(Boolean);
   const dir = path.resolve(ROOT, a.dir || 'out');
-  const only = new Set(String(a.only || '1,2,3,4,5,6,7,8,9,10,11').split(',').map(Number));
+  const only = new Set(String(a.only || '1,2,3,4,5,6,7,8,9,10,11,12').split(',').map(Number));
   const max = Number(a.max || 12);
   if (!fs.existsSync(path.join(dir, 'index.html'))) throw new Error(`No export at ${dir}: run npm run build first.`);
   const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined, args: ['--proxy-server=http://127.0.0.1:9', '--proxy-bypass-list=<-loopback>'] });

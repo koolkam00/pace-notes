@@ -174,6 +174,30 @@ for (const slug of [...TEN_ANALYSES.map(item => item.slug), 'downhill-start']) {
   for (const pattern of METHOD_COPY) assert.doesNotMatch(html, pattern, `${slug}: method copy belongs on /methodology (${pattern})`);
   assert.ok((html.match(/<section[^>]*class="beat/g) || []).length <= 3, `${slug}: at most two beats and the explorer after the answer`);
 }
+// A null looks null (round 6): a null finding's H1 accent is ink italic (em.is-null), never the signal, on every page
+// that sets it as its title (lib/nuggets/analyses.ts NULL_FINDINGS).
+{
+  const { NULL_FINDINGS } = require('../lib/nuggets/analyses.ts');
+  const { getNugget } = require('../lib/nuggets/index.ts');
+  assert.ok(NULL_FINDINGS.includes('downhill.opening') && NULL_FINDINGS.includes('weather.wind'), 'the two nulls are listed');
+  for (const id of NULL_FINDINGS) {
+    const n = getNugget(id);
+    const slug = n.page.replace(/^\/analyses\//, '').replace(/#.*$/, '');
+    if (n.page.includes('#')) {
+      // A tab's finding is the H1 only once its tab is chosen (TabTitle renders the first tab on the server): the tab's
+      // title is the null's Say, set quiet from the same list.
+      const React = require('react');
+      const { renderToStaticMarkup } = require('react-dom/server');
+      const { Say } = require('../components/analysis/Shell.tsx');
+      if (n.guard) assert.match(renderToStaticMarkup(React.createElement(Say, { nugget: n, quiet: true })), /<em class="is-null">/, `${id}: its quiet Say sets the null's ink italic`);
+      assert.match(fs.readFileSync('components/analysis/pages/RaceDayWeather.tsx', 'utf8'), /quiet=\{NULL_FINDINGS\.includes\(nuggets\[id\]\.id\)\}/, `${id}: the weather tab's H1 is set quiet from NULL_FINDINGS`);
+      continue;
+    }
+    const html = page(slug);
+    const accents = [...html.matchAll(/<em( class="[^"]*")?>/g)].filter((m) => html.lastIndexOf('<h1', m.index) > html.lastIndexOf('</h1>', m.index));
+    if (n.guard) assert.ok(accents.length && accents.some((m) => /is-null/.test(m[1] || '')), `${id}: its H1 accent on /analyses/${slug} is the null's ink italic`);
+  }
+}
 // The weather questions became tabs: race-day weather draws them, and their old routes forward with the tab's hash.
 {
   const html = page('race-day-weather');

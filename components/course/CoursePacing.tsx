@@ -9,7 +9,7 @@ import { CourseSection, Fact, Said } from './Fact';
 
 /**
  * "#pacing": the six pacing types, each a row with its glyph and colour: this course's share (filled, in the type's
- * colour) against the other courses' share, pooled by finishes (hollow, its key naming how many), the gap in signal on
+ * colour) against the other courses' share, pooled by finishes (hollow, its key naming them without a count), the gap in signal on
  * the row the sentence names. Its last line names the three courses whose pacing fingerprints sit nearest this one's
  * (five or more editions), "Paced most like Berlin: Eindhoven, Frankfurt and Hamburg." (critic round 5: said here, with
  * the pacing it is about, rather than as a list ahead of the closing stack).
@@ -27,7 +27,7 @@ export default function CoursePacing({ page }: { page: CoursePageData }) {
   return (
     <CourseSection id="pacing" track="chapter-4" beat="Pacing" title={<Said nugget={n} />}>
       <figure className="viz viz-frame dumbbell course-types">
-        <ul className="dumbbell-rows" role="img" aria-label={`The six pacing types in ${display}, each against the ${typesElsewhere.courses} other courses: ${archetypes.map((a, i) => `${a.name} ${Math.round(types.shares[i] * 100)}% against ${Math.round(elsewhere[i] * 100)}%`).join(', ')}`}>
+        <ul className="dumbbell-rows" role="img" aria-label={`The six pacing types in ${display}, each against the other courses: ${archetypes.map((a, i) => `${a.name} ${Math.round(types.shares[i] * 100)}% against ${Math.round(elsewhere[i] * 100)}%`).join(', ')}`}>
           {archetypes.map((a, i) => {
             const on = a.slug === named;
             const xa = x(elsewhere[i]), xb = x(types.shares[i]);
@@ -48,7 +48,8 @@ export default function CoursePacing({ page }: { page: CoursePageData }) {
         <ul className="viz-key" aria-hidden="true">
           {/* The filled mark in ink: filled is this course, whatever colour each row's type gives its dot. */}
           <li><i className="viz-key-mark" />{display}</li>
-          <li><i className="viz-key-mark is-hollow" />{`${typesElsewhere.courses} other courses`}</li>
+          {/* No count (round 6): the slowdown H2 keeps the one course count that is a finding. */}
+          <li><i className="viz-key-mark is-hollow" />Other courses</li>
         </ul>
       </figure>
       {shapedLike.length ? (

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { unitText, distanceLabel, distanceValue, DEFAULT_UNITS } from '@/lib/units';
 import { TEN_ANALYSES, analysisBySlug } from '@/lib/ten-analyses';
 import { getWeatherAnalyses } from '@/lib/weather-data';
+import { WEATHER_TAB_TITLES } from '@/lib/weather-catalog';
 import { JsonLd, breadcrumbs, movedMetadata, pageMetadata } from '@/lib/seo';
 import { movedTo } from '@/lib/seo-routes';
 import { PAGE_NUGGET, getNugget, sentenceOf, type NuggetId } from '@/lib/nuggets';
@@ -39,8 +40,8 @@ const SEO: Record<string, { title: string; description: string; crumb?: string }
   'finish-time-context': { title: 'Marathon Finish Times: Where Yours Falls | Pace Notes', description: 'See where a marathon finish time falls among comparable recorded finishes. Observed shares of finishes, not predictions.' },
   'finding-improvement': { title: 'Where Faster Marathon Finishes Found Time | Pace Notes', description: 'See where faster marathon finishes found their minutes against an earlier result: the opening, the middle or the late race. Not training advice.' },
   'age-and-pacing': { title: 'Marathon Pace Retention by Age Group | Pace Notes', description: `Compare how marathon finishes held pace from the first 20 km (${mi(20)}) to the second across age groups and recorded genders, within one finish-time band.` },
-  'warming-and-pacing': { title: 'Marathon Pacing When the Temperature Rises | Pace Notes', description: 'Warming through a marathon, and how much more the second 20K slowed.' },
-  'wind-and-pacing': { title: 'Wind and Marathon Pacing: Windy vs Calm Races | Pace Notes', description: 'Wind at the start of a marathon, and the second 20K.' },
+  'warming-and-pacing': { title: `${WEATHER_TAB_TITLES.warming} | Pace Notes`, description: 'Warming through a marathon, and how much more the second 20K slowed.' },
+  'wind-and-pacing': { title: `${WEATHER_TAB_TITLES.wind} | Pace Notes`, description: 'Wind at the start of a marathon, and the second 20K.' },
   'downhill-start': { title: 'Downhill Marathon Starts and Later Pace | Pace Notes', description: 'Compare opening pace and later slowing on marathon courses that start with a larger descent against courses with other openings.', crumb: 'Downhill starts' },
 };
 

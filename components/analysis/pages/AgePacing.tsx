@@ -30,7 +30,7 @@ export default function AgePacing() {
   const mid = Math.floor((rows.length - 1) / 2);
   const answer = rows.length >= 2 ? (
     // The kicker says what the values measure: how much slower each group ran its second 20K than its first.
-    <AnswerCard kicker="Second 20K against the first, by age group"
+    <AnswerCard kicker="Second 20K against the first"
       values={<Values id="age-two" caption="The second 20K against the first, by age group" columns={[{ key: 'a', label: 'Age group' }, { key: 'p', label: 'All finishes' }, { key: 's', label: `Near ${hm(goal)}` }]}
         rows={rows.map((r) => [r.age, signedPct(r.pooled), signedPct(r.same)])} />}>
       <LineProfile x={xs} xDomain={[-0.4, rows.length - 0.6]} yDomain={[lo, hi]}
@@ -38,7 +38,8 @@ export default function AgePacing() {
           labels: [
             // The pooled line's top (the oldest group, the H1's "slowed more"); its low point has no room above it at
             // a phone's width, so it is read in Values.
-            { x: pooledHi, y: rows[pooledHi].pooled, text: `${rows[pooledHi].age} ${signedPct(rows[pooledHi].pooled)}`, priority: 2, prefer: 'above' },
+            // In the quiet tone of its line (round 6: in white 600 it outshone the reading's orange label).
+            { x: pooledHi, y: rows[pooledHi].pooled, text: `${rows[pooledHi].age} ${signedPct(rows[pooledHi].pooled)}`, tone: 'quiet', priority: 2, prefer: 'above' },
             { x: mid, y: rows[mid].same, text: `Near ${hm(goal)}: ${signedPct(sameLo)} to ${signedPct(sameHi)}`, tone: 'signal', priority: 3, prefer: 'below' },
           ] }]}
         // Three evenly spaced ages (the ends and the middle) at every width; every group is in Values.

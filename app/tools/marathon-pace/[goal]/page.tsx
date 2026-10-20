@@ -92,9 +92,12 @@ function bunchingFor(minute: number): GoalBunching | null {
 
 /**
  * The pile-up as a figure: finishes per minute for ten minutes either side of the goal, the smooth curve over them and the
- * minute before the goal in signal. Server-drawn (no script on the page), from the same finish-time file as the sentence.
+ * minute before the goal in signal (in ink where no pile-up stands there). One window, the minute before, as the round
+ * numbers story measures every mark (round 6: "the four minutes before 3:00 held 1.52×" beside the story's "1.7× in the
+ * minute before 3:00" gave one idea two figures). Server-drawn (no script on the page), from the same finish-time file as
+ * the sentence.
  */
-function pileupFigure(minute: number, run: GoalBunching['run']): { figure: ReactNode; table: PileupTable } | null {
+function pileupFigure(minute: number, bunching: GoalBunching): { figure: ReactNode; table: PileupTable } | null {
   try {
     const ft = readInsight<FinishTimes>(FINISH_TIMES);
     const lo = minute - 10, hi = minute + 10;
@@ -104,16 +107,16 @@ function pileupFigure(minute: number, run: GoalBunching['run']): { figure: React
     const hm = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
     const before = minute - 1;
     const at = (m: number) => bins.find((b) => b.x === m)?.n ?? 0;
-    // The minute histogram's grammar (components/viz/Histogram), static: a silhouette, the smooth curve, the pile-up (the
-    // run of minutes before the goal standing well above the curve) in signal and named. With no such run, the minute
-    // before the goal in ink: no finding. No lens or needle, so the page ships no chart script.
+    // The minute histogram's grammar (components/viz/Histogram), static: a silhouette, the smooth curve, the minute before
+    // the goal in signal and named where it stands well above the curve (a pile-up); in ink where it does not: no
+    // finding. No lens or needle, so the page ships no chart script.
     const height = 130;
     const x = linear([lo, hi]), w = 1 / (hi - lo);
     const y = yScale(0, Math.max(...bins.map((b) => b.n), ...curve.map((c) => c.v)), { top: 0.16 });
-    const towers = run ? Array.from({ length: run.to - run.from + 1 }, (_, i) => run.from + i) : [before];
-    const top = Math.min(...towers.map((m) => y(at(m))));
-    const name = run && run.to > run.from ? `${hm(run.from)}–${hm(run.to)}` : hm(before);
-    const placed = placeLabels([{ id: 'before', text: name, x: x((towers[0] + towers[towers.length - 1] + 1) / 2), y: top, priority: 3, tone: run ? 'signal' : 'ink', gap: 6 }], { height });
+    const pile = bunching.run !== null;
+    const towers = [before];
+    const top = y(at(before));
+    const placed = placeLabels([{ id: 'before', text: hm(before), x: x(before + 0.5), y: top, priority: 3, tone: pile ? 'signal' : 'ink', gap: 6 }], { height });
     const plot = (
       <Plot>
         <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
@@ -121,7 +124,7 @@ function pileupFigure(minute: number, run: GoalBunching['run']): { figure: React
           <path className="a-edge" d={stepEdge(bins.map((b) => ({ x: x(b.x), y: y(b.n) })), w)} />
           <path className="l-ink2" d={curve.map((c, i) => `${i ? 'L' : 'M'}${u(x(c.x + 0.5))} ${u(y(c.v))}`).join('')} />
         </svg>
-        {towers.map((m) => <rect key={m} className={`${run ? 'm-signal' : 'm-ink'} is-reading histo-tower`} x={pc(x(m))} width={pc(w)} y={pc(y(at(m)))} height={pc(1 - y(at(m)))} />)}
+        {towers.map((m) => <rect key={m} className={`${pile ? 'm-signal' : 'm-ink'} is-reading histo-tower`} x={pc(x(m))} width={pc(w)} y={pc(y(at(m)))} height={pc(1 - y(at(m)))} />)}
         <Annotation labels={placed} />
         <Baseline />
       </Plot>
@@ -130,10 +133,10 @@ function pileupFigure(minute: number, run: GoalBunching['run']): { figure: React
     const table: PileupTable = {
       caption: `Finishes per minute around ${hm(minute)}, and what a smooth curve expects`,
       rows: bins.map((b) => [hm(b.x), b.n.toLocaleString('en-US'), Math.round(curve.find((c) => c.x === b.x)?.v ?? NaN).toLocaleString('en-US')]),
-      reading: bins.findIndex((b) => b.x === (run ? run.to : before)),
+      reading: bins.findIndex((b) => b.x === before),
     };
     const figure = (
-      <ChartFrame label={`Finishes per minute from ${hm(lo)} to ${hm(hi)}, against a smooth curve: ${run ? `${run.n.toLocaleString('en-US')} from ${hm(run.from)} to ${hm(run.to)}, ${run.ratio.toFixed(2)} times the curve` : `${at(before).toLocaleString('en-US')} in the minute before ${hm(minute)}`}`}
+      <ChartFrame label={`Finishes per minute from ${hm(lo)} to ${hm(hi)}, against a smooth curve: ${at(before).toLocaleString('en-US')} in the minute before ${hm(minute)}, ${bunching.ratio.toFixed(1)} times the curve`}
         height={height} heightMd={150} plot={plot}
         axis={<Axis ticks={[lo, minute, hi].map((m) => ({ x: x(m), label: hm(m) }))} />}
         keys={[{ label: 'Finishes per minute', mark: 'square', tone: 'quiet' }, { label: 'Smooth curve', mark: 'line' }]} />
@@ -179,7 +182,7 @@ export default function GoalPacePage({ params }: { params: { goal: string } }) {
   const observed = observedFor(minute);
   const bunching = bunchingFor(minute);
   const peers = goalPeers();
-  const pileup = bunching ? pileupFigure(minute, bunching.run) : null;
+  const pileup = bunching ? pileupFigure(minute, bunching) : null;
 
   // In the chain's frame (the chapter rail from 1180 px), as every page with a chapter crumb is (critic round 5).
   return (
