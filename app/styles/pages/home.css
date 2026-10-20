@@ -170,7 +170,7 @@
   .home-start .hero-replay.is-band .replay-scrub { margin-top: var(--s-2); }
 
   /* The guess: the question and its controls on the left, the 100 dots on the right. */
-  .home-stakes .guess { grid-template-columns: minmax(0, 1fr) minmax(0, 23rem); grid-template-rows: repeat(5, auto) 1fr; column-gap: var(--s-8); align-items: start; padding: 48px; }
+  .home-stakes .guess { grid-template-columns: minmax(0, 1fr) minmax(0, 23rem); grid-template-rows: repeat(5, auto) 1fr; column-gap: var(--s-8); align-items: start; }
   .home-stakes .guess > * { grid-column: 1; }
   .home-stakes .guess > .guess-marks { grid-column: 2; grid-row: 1 / -1; }
   /* Beside the question the 100 dots fill their column. */

@@ -2,7 +2,7 @@ import type { Archetypes } from '@/lib/insights';
 import { readInsight } from '@/lib/insights-server';
 import { STORIES } from '@/lib/stories';
 import { getNugget } from '@/lib/nuggets';
-import { evenestType } from '@/lib/nuggets/stories';
+import { evenestType, typeName } from '@/lib/nuggets/stories';
 import { countWord, hm, pct } from '@/lib/nuggets/format';
 import TypeGlyph from '@/components/viz/TypeGlyph';
 import Values from '@/components/ui/Values';
@@ -39,9 +39,12 @@ export default function PacingTypesBody() {
   const example = classifyTimes(EXAMPLE.map(parseClock), data.classifier);
   const exampleType = example ? types[example.best] : null;
   const finishSeconds = parseClock(EXAMPLE[8]);
-  const youTitle = exampleType && finishSeconds !== null
-    ? `This ${hm(Math.floor(finishSeconds / 60))} ran like ${/^[AEIOU]/i.test(exampleType.name) ? 'an' : 'a'} *${exampleType.name}*, as ${pct(exampleType.share)} of finishes did.`
+  // The example's mat times are the finder's starting point, not a recorded finish, so the beat says it is an example
+  // where it is read (round 6: "This 3:51" read as someone's race): the H2 gives its type, the dek what it is.
+  const youTitle = exampleType
+    ? `These splits make ${/^[AEIOU]/i.test(exampleType.name) ? 'an' : 'a'} *${typeName(exampleType.name)}*, the shape of ${pct(exampleType.share)} of finishes.`
     : 'Your pacing type, from your splits.';
+  const youDek = exampleType && finishSeconds !== null ? `An example race, finished in ${hm(Math.floor(finishSeconds / 60))}.` : undefined;
 
   return (
     <StoryPage path={PATH} numbers={[
@@ -76,7 +79,7 @@ export default function PacingTypesBody() {
       {/* The women-and-men beat is chapter 07's: an old link to it lands on this line, which shows only then. */}
       <Moved id="gender" href="/stories/who-holds-pace">Women and men, at the same finish times, are now chapter 07: Who holds pace.</Moved>
 
-      <Beat id="you" track="chapter-2" label="Your type" title={rich(youTitle)} aliases={['habits']}>
+      <Beat id="you" track="chapter-2" label="Your type" title={rich(youTitle)} dek={youDek} aliases={['habits']}>
         <WhichArchetype initial={EXAMPLE}
           data={{ types: types.map((t) => ({ name: t.name, share: t.share, profile: t.profile })), domain,
             classifier: { clip_lo: data.classifier.clip_lo, clip_hi: data.classifier.clip_hi, weights: data.classifier.weights, centroids: data.classifier.centroids } }} />

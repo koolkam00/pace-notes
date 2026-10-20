@@ -39,7 +39,11 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
   const centiles = (g: typeof FINISH_GROUPS[number]) => percentileMinutes(summary.bins.map((b) => ({ minute: b.minute, n: b[g] })), groups[g].total);
   const minutes = centiles('all');
   // The middle half is the H2's run (its ends are the H2's times), the one emphasis; the median is named in ink.
-  const layer = { minutes, band: [24, 74] as [number, number], bandLabel: 'The middle half', mark: { index: 49, text: 'Median' } };
+  // Each of the 99 dots is a hundredth of the field, said as a count (to the nearest hundred) in the key; the median's
+  // tick stands at the median itself, the median the ruler above names, not at its column's centre.
+  const each = Math.round(groups.all.total / 100 / 100) * 100;
+  const layer = { minutes, band: [24, 74] as [number, number], bandLabel: 'The middle half', mark: { index: 49, text: 'Median', at: medianAll },
+    each: `Each dot ≈ ${count(each)} finishes` };
   const dLo = Math.floor(minutes[0] / 30) * 30;
   const dHi = Math.ceil(minutes[98] / 30) * 30;
   const dotTicks = [];
@@ -90,7 +94,7 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
     ]}>
       {/* The H1 is the finding in words and the figure its time; the ruler draws the H1's claim: the time past the hour
           it names as the orange run, and the median (the figure's time) an ink dot inside it. */}
-      <StoryHero path={PATH} title={title.guard ? sentenceOf(title) : 'Marathon finish times'}
+      <StoryHero path={PATH} title={title.guard ? sentenceOf(title) : 'Marathon finish times'} stacked
         figure={median.figure ? { ...median.figure } : undefined} unitLine={median.key} fallback={!median.guard}
         instrument={title.guard && median.guard ? (
           <Ruler min={dLo} max={dHi} ticks={dotTicks} band={{ lo: hourMark, hi: dHi, label: `Over ${hm(hourMark)}`, tone: 'signal' }}
@@ -115,7 +119,7 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
           clock: a median at 3:59:56 is "3:59", never a rounded "4:00". */}
       <Beat id="by-race" track="chapter-3" label="Course by course" title={byRace} dek="Each course’s median across its editions, three or more.">
         <DotStrip items={drawn.map((c) => ({ id: c.city, label: c.city, value: c.median_s, display: finishMinute(c.median_s), detail: count(c.finishes) }))}
-          domain={[t0, t1]} ticks={stripTicks} readoutKey="Finishes" hint="Choose a dot to read its course."
+          domain={[t0, t1]} ticks={stripTicks} readoutKey="Finishes" hint="Choose a dot to read its course." mdScale={1.4}
           label={`Median finish of ${drawn.length} courses with three or more editions, ranked; choose a dot to read it`} />
       </Beat>
     </StoryPage>

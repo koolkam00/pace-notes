@@ -65,7 +65,7 @@
   --ordinal-2: #8A8273;
   --ordinal-3: #676155;
   --ordinal-4: #444038;
-  --mark-lit: var(--ink);           /* a dense field of lit tiles (a waffle): ink by day, a softer light by night */
+  --mark-lit: var(--ink-2);         /* a dense field of lit tiles (a waffle): soft ink by day, a softer light by night */
 
   /* ---------- Night (the race and the answer) ---------- */
   --night-ink-3: #8E897E;

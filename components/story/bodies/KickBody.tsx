@@ -60,37 +60,43 @@ export default function KickBody() {
         columns={[{ key: 's', label: 'Section' }, { key: 'd', label: 'With a sustained slowdown' }, { key: 'a', label: 'All finishes' }]}
         rows={data.magnet.map((m) => [sectionName(m.section), pct(m.slowdown), pct(m.all)])} reading={data.magnet.length - 1} />,
     ]}>
-      {/* The H1 says the finding with its minutes, once (round 5: a big "20 min" under it said them again); the dek
-          names the comparison, the same pace to 20K, and carries the term's one link to its definition. The next beat
-          draws the gap at every pace, so the opener needs no figure or instrument of its own. */}
-      <StoryHero path={PATH} title={story.heading ?? story.title}
+      {/* One beat: the H1 says the finding with its minutes, once; the dek names the comparison, the same pace through
+          20K, and carries the term's one link to its definition; the chart under it draws the gap at every pace, its two
+          ends labelled on the line and the H1's pooled minutes as an ink reference across it, so the opener says one
+          number once (round 6: an H2 restated the range under an H1 whose 20 the chart never drew). */}
+      <StoryHero path={PATH} title={story.heading ?? story.title} stacked
         dek={twins.guard ? rich('Against finishes with no sustained slowdown, from the same pace through 20K.', { term: true }) : undefined}
-        fallback={!twins.guard} sentence={twins.guard ? undefined : <Say nugget={twins} term />} />
+        fallback={!twins.guard} sentence={twins.guard ? undefined : <Say nugget={twins} term />}
+        instrument={(
+          <LineProfile x={cx} xDomain={[cost[0].lo_min, cost[cost.length - 1].lo_min + width]} yDomain={[0, gTop]}
+            layers={[{ id: 'gap', label: 'Minutes later', series: [{ id: 'gap', values: gap }], band: { lo: gap.map(() => 0), hi: gap },
+              labels: [
+                // The range's two ends, each on a point on the line: the low end under its point (the H1's line runs
+                // just above it), the high end over its own.
+                { x: cx[lowAt], y: gap[lowAt], text: `+${Math.round(gap[lowAt])} min`, tone: 'ink', priority: 3, prefer: 'below', gap: 10 },
+                { x: cx[highAt], y: gap[highAt], text: `+${Math.round(gap[highAt])} min`, tone: 'ink', priority: 3, prefer: 'above' },
+              ],
+              points: [{ x: cx[lowAt], y: gap[lowAt], kind: 'compare' }, { x: cx[highAt], y: gap[highAt], kind: 'compare' }] }]}
+            // The H1's minutes (every pace together, matched on race, recorded gender and pace through 20K) as one ink
+            // line across the bands, so the number the H1 names is drawn where the reader's eye already is.
+            refs={twins.guard ? [{ value: Number(twins.values.median_gap_s) / 60, label: `All paces · +${Math.round(Number(twins.values.median_gap_s) / 60)} min` }] : []}
+            xTicks={[180, 240, 300, 360].filter((v) => v > cost[0].lo_min && v < cost[cost.length - 1].lo_min + width).map((v) => ({ value: v, label: `${hm(v)} pace` }))}
+            // No gridline: the labels on the line give its ends, and the area stands on the zero line.
+            yTicks={[]}
+            axisTitle={{ start: 'Pace through 20K, as a finish time' }}
+            label={`Minutes later at the finish after a sustained slowdown, for each pace through 20K: ${Math.round(Number(bands.values.low_s) / 60)} to ${Math.round(Number(bands.values.high_s) / 60)} minutes, ${Math.round(Number(twins.values.median_gap_s) / 60)} across every pace.`} />
+        )}>
+        {/* The gap at every pace was a beat of its own (#twins); links to it land on the opener, which now draws it. */}
+        <span id="twins" className="beat-alias" aria-hidden="true" />
+      </StoryHero>
 
-      <Beat id="twins" track="chapter-1" label="Same pace, apart" title={bands}>
-        <LineProfile x={cx} xDomain={[cost[0].lo_min, cost[cost.length - 1].lo_min + width]} yDomain={[0, gTop]}
-          layers={[{ id: 'gap', label: 'Minutes later', series: [{ id: 'gap', values: gap }], band: { lo: gap.map(() => 0), hi: gap },
-            labels: [
-              // The H2's two ends ("13 to 24 minutes"), each on a point on the line. Lifted clear of the line as it climbs
-              // to the right, so each label stands above its point, not on the area.
-              { x: cx[lowAt], y: gap[lowAt], text: `+${Math.round(gap[lowAt])} min`, tone: 'ink', priority: 3, prefer: 'above', gap: 30 },
-              { x: cx[highAt], y: gap[highAt], text: `+${Math.round(gap[highAt])} min`, tone: 'ink', priority: 3, prefer: 'above' },
-            ],
-            points: [{ x: cx[lowAt], y: gap[lowAt], kind: 'compare' }, { x: cx[highAt], y: gap[highAt], kind: 'compare' }] }]}
-          xTicks={[180, 240, 300, 360].filter((v) => v > cost[0].lo_min && v < cost[cost.length - 1].lo_min + width).map((v) => ({ value: v, label: `${hm(v)} pace` }))}
-          // No gridline: the labels on the line give its ends, and the area stands on the zero line.
-          yTicks={[]}
-          axisTitle={{ start: 'Pace through 20K, as a finish time' }}
-          label={`Minutes later at the finish after a sustained slowdown, for each pace through 20K: ${Math.round(Number(bands.values.low_s) / 60)} to ${Math.round(Number(bands.values.high_s) / 60)} minutes.`} />
-      </Beat>
-
-      <Beat id="warning" track="chapter-2" label="The warning sign" title={warning}>
+      <Beat id="warning" track="chapter-1" label="The warning sign" title={warning}>
         <Columns max={wTop} items={w.rows.map((r, i) => ({ id: r.label, label: r.label.replace(/ slower$/, '').replace(/% /, '%'), value: r.later, display: pct(r.later), tone: i === w.rows.length - 1 ? 'signal' : 'ink' }))}
           label={`How often each pace at ${sectionName(w.after)}, against the 5–20K pace, was followed by a sustained slowdown: from ${pct(w.rows[0].later)} to ${pct(w.rows[w.rows.length - 1].later)}.`}
           caption={`Pace at ${sectionName(w.after)} against the 5–20K pace`} />
       </Beat>
 
-      <Beat id="states" track="chapter-3" label="No second wind" title={stay} aliases={['break']}
+      <Beat id="states" track="chapter-2" label="No second wind" title={stay} aliases={['break']}
         dek={stay.guard ? `Finishes at sustained-slowdown pace over ${sectionName(s.source)}.` : undefined}>
         {/* Staying slow is drawn in ink, never the accent (slower is never orange); the H2 gives the share. Ten by ten
             across the column on a phone; one wide band of 25 by 4 from 900 px, so it spans the measure. */}
@@ -100,7 +106,9 @@ export default function KickBody() {
 
       {/* A scale, not a second set of columns (round 5: two near-identical bar charts on one page): the last stretch's
           share as the one orange dot, against the band every 5K before it held. */}
-      <Beat id="magnet" track="chapter-4" label="The last stretch" title={magnet} aliases={['women-men']} dek={magnet.guard ? 'Finishes with a sustained slowdown, against each 5K before.' : undefined}>
+      <Beat id="magnet" track="chapter-3" label="The last stretch" title={magnet} aliases={['women-men']}
+        // The group, then what the band is: how often each 5K before ran faster than the 5K before it.
+        dek={magnet.guard ? `Finishes with a sustained slowdown. In each 5K before, only ${pct(Math.min(...before.map((m) => m.slowdown)))} to ${pct(Math.max(...before.map((m) => m.slowdown)))} were faster than the 5K before it.` : undefined}>
         <Ruler min={0} max={1} ticks={[0, 0.25, 0.5, 0.75, 1].map((v) => ({ value: v, label: pct(v) }))}
           band={{ lo: Math.min(...before.map((m) => m.slowdown)), hi: Math.max(...before.map((m) => m.slowdown)), label: 'Each 5K before' }}
           marks={[{ value: final.slowdown, kind: 'reading', label: `${sectionName(final.section)} ${pct(final.slowdown)}` }]}

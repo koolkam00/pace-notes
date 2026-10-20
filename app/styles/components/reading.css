@@ -82,6 +82,8 @@
   .reading-main { grid-column: 6 / -1; margin-top: 0; align-content: start; }
   .reading.is-stacked .reading-figure, .reading.is-stacked .reading-main { grid-column: 1 / -1; }
   .reading.is-stacked .reading-main { margin-top: var(--s-5); }
+  /* What the figure counts, at body size under a 144 px figure. */
+  .reading-unit-line { font-size: var(--t-body); line-height: 1.5; max-width: 34rem; }
 }
 
 @media (max-width: 299.98px) {

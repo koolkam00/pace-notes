@@ -48,14 +48,19 @@ export default function RoundNumbersBody() {
   // chart against the curve with the steps true of it. The steps then turn the chart against the curve, show a
   // quarter-hour that stays level (the contrast), and end where the H1 is: the minute before its mark, the tallest
   // tower, so the animated reading closes the loop with the headline as the static one does.
+  // The curve is defined once, in the chart's key, which shows in every mode (round 6: the static list dropped the step
+  // that said what the curve was, so "Against the curve" was never explained under reduced motion).
   const steps = [
     { text: sentenceOf(busiest), still: false },
-    { text: 'The line is a smooth curve: where finishes would fall if no minute on the clock were special.', still: false },
     ...(hasQuarter ? [{ text: sentenceOf(quarter) }] : []),
     { text: top.guard ? `Tallest of all: the minute before ${top.values.mark}.` : `The minute before ${top.values.mark}, against the curve.` },
   ];
   const last = steps.length - 1;
   const ratioFrom = hasQuarter ? last - 1 : last;
+  // A one-minute bin named as the minute it is ("Finishes in 3:58"), and the minute before a round mark by that mark
+  // (round 6: "from 3:58 to 3:59" read as two minutes of finishes).
+  const before = new Map(ft.marks.map((m) => [m.minutes - 1, m.mark]));
+  const binKey = (minute: number) => (before.has(minute) ? `In the minute before ${before.get(minute)}` : `Finishes in ${hm(minute)}`);
 
   const bubbleMark = String(rescue.values.mark);
   // The opener's instrument: the H1's minute against the curve, as two marks on one count scale (what the curve expected,
@@ -66,7 +71,7 @@ export default function RoundNumbersBody() {
     <Ruler min={0} max={scaleTop} ticks={[0, scaleTop / 2, scaleTop].map((v) => ({ value: v, label: count(v) }))}
       marks={[{ value: topRow.expected_minute_before, kind: 'typical', label: `Expected ${count(topRow.expected_minute_before)}` },
         { value: topRow.minute_before, kind: 'reading', label: `${hm(topMinute)} ${count(topRow.minute_before)}` }]}
-      label={`Finishes from ${hm(topMinute)} to ${hm(topMinute + 1)}: ${count(topRow.minute_before)}, against ${count(topRow.expected_minute_before)} on the smooth curve.`} />
+      label={`${binKey(topMinute)}: ${count(topRow.minute_before)} finishes, against ${count(topRow.expected_minute_before)} on the smooth curve.`} />
   ) : undefined;
 
   return (
@@ -78,7 +83,7 @@ export default function RoundNumbersBody() {
     ]}>
       {/* The figure is how many times the expected count the minute held and its unit line says so in a runner's
           words; the count itself is the scrolly's last readout (a sentence here restated the H1 a third time). */}
-      <StoryHero path={PATH} title={story.heading ?? story.title}
+      <StoryHero path={PATH} title={story.heading ?? story.title} stacked
         figure={top.figure ? { ...top.figure } : undefined} unitLine={top.key} fallback={!top.guard}
         sentence={top.figure ? undefined : <Say nugget={top} />} instrument={instrument} />
 
@@ -91,10 +96,11 @@ export default function RoundNumbersBody() {
               // The steps turn the lens (ScrollyLens), so the beat draws no lens control of its own (round 5: a lens, a
               // scrubber and four steps were three controls on one beat).
               lens={{ label: 'Show', ...LENS }} lensControl={false} ratioAt={ratioAt}
-              keyLabels={{ bin: 'Each minute', mark: 'Minute before a round mark', curve: 'The curve' }}
+              keyLabels={{ bin: 'Each minute', mark: 'Minute before a round mark', curve: 'The curve: where finishes would fall if no minute were special' }}
+              ratioBase="1×"
               scrub={{
                 label: `Finish minute, ${hm(LO)} to ${hm(HI)}`,
-                points: { x: xs, keys: bins.map((b) => `Finishes from ${hm(b.x)} to ${hm(b.x + 1)}`), values: bins.map((b) => count(b.n)),
+                points: { x: xs, keys: bins.map((b) => binKey(b.x)), values: bins.map((b) => count(b.n)),
                   // One decimal, as the figure above it says "1.7×" (the marks' two-decimal ratios are in All numbers).
                   side: [{ label: 'Against the curve', values: bins.map((b) => (Number.isFinite(ratio(b)) ? `${ratio(b).toFixed(1)}×` : '—')) }] },
                 // The chart opens on step one (the busiest minute), so its first readout adds to the reading above;

@@ -8,7 +8,7 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import ByUnits from '@/components/ui/ByUnits.client';
 import { AllNumbers } from '@/components/ui/Values';
 import type { TRACKED_SECTIONS } from '@/lib/analytics-policy';
-import { readingAttrs } from '@/lib/chapters';
+import { howWeKnowOf, readingAttrs } from '@/lib/chapters';
 import { readingOf, type Nugget, type NuggetText } from '@/lib/nuggets';
 
 type Track = (typeof TRACKED_SECTIONS)[number];
@@ -58,13 +58,16 @@ export function Say({ nugget, term = false }: { nugget: Nugget; term?: boolean }
  * rail beside them from 1180 px. Every section is a tracked beat: hero, chapter-1 … chapter-n, related.
  */
 export function StoryPage({ path, className, numbers = [], children }: { path: string; className?: string; numbers?: ReactNode[]; children: ReactNode }) {
+  // The page's methods are the last line of its All numbers (they sit with the figures they explain), so the closing row
+  // is the way back alone; a page with no tables keeps "How we know" in that row (round 6: one methods link per screen).
+  const tables = numbers.some(Boolean);
   return (
     <div className={`story-page with-rail${className ? ` ${className}` : ''}`} {...readingAttrs(path)}>
       <ChapterRail path={path} />
       <article className="story-flow">
         {children}
-        <AllNumbers tables={numbers} className="story-numbers" />
-        <ChapterEnd path={path} readingOf={readingOf} />
+        <AllNumbers tables={numbers} className="story-numbers" how={howWeKnowOf(path) ?? undefined} />
+        <ChapterEnd path={path} readingOf={readingOf} how={!tables} />
       </article>
     </div>
   );
@@ -76,9 +79,14 @@ export function StoryPage({ path, className, numbers = [], children }: { path: s
  * place (the pacing types' continuation of the home page's guess). With no figure, sentence or instrument (the race
  * replay, whose replay is its reading), the hairline under the H1 goes too, so the H1 sits straight over the children.
  */
-export function StoryHero({ path, title, dek, figure, figures, variant, unitLine, sentence, instrument, fallback, label = 'The reading', children }: {
+export function StoryHero({ path, title, dek, figure, figures, variant, unitLine, sentence, instrument, fallback, stacked = false, label = 'The reading', children }: {
   path: string; title: ReactNode; dek?: ReactNode; figure?: Figure; figures?: [Figure, Figure]; variant?: 'figure' | 'pair';
-  unitLine?: ReactNode; sentence?: ReactNode; instrument?: ReactNode; fallback?: boolean; label?: string; children?: ReactNode;
+  unitLine?: ReactNode; sentence?: ReactNode; instrument?: ReactNode; fallback?: boolean;
+  /** The instrument runs under the figure across the whole column at every width, as on a phone: a scale (a ruler, a
+   *  line) reads as one unit with the figure it draws (round 6: from 900 px a ruler floated small in an empty right
+   *  half). A block instrument (a legend, a waffle) sits beside the figure from 900 px instead. */
+  stacked?: boolean;
+  label?: string; children?: ReactNode;
 }) {
   const bare = !figure && !figures && !sentence && !instrument;
   return (
@@ -87,7 +95,7 @@ export function StoryHero({ path, title, dek, figure, figures, variant, unitLine
           read as two sites in one chapter): the title size. */}
       <Reading crumbs={<ChapterCrumbs path={path} />} title={typeof title === 'string' ? rich(title) : title} titleSize="title" dek={dek}
         variant={variant ?? (figures ? 'pair' : 'figure')} figure={figure} figures={figures} unitLine={unitLine}
-        sentence={sentence} instrument={instrument} fallback={fallback} />
+        sentence={sentence} instrument={instrument} fallback={fallback} stacked={stacked} />
       {children}
     </section>
   );

@@ -104,14 +104,15 @@
 
 /* ---------- Key, caption, states ---------- */
 .viz-frame .viz-key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: var(--s-4) 0 0; padding: 0; list-style: none; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
-.viz-frame .viz-key li { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
-.viz-frame .viz-key-mark { flex: none; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--ink); }
+/* Each swatch centres on its label's first line, so a label that wraps keeps its swatch beside its opening words. */
+.viz-frame .viz-key li { display: inline-flex; align-items: flex-start; gap: 8px; margin: 0; }
+.viz-frame .viz-key-mark { flex: none; display: inline-block; width: 10px; height: 10px; margin-top: calc((1.4em - 10px) / 2); border-radius: 50%; background: var(--ink); }
 .viz-frame .viz-key-mark.is-signal { background: var(--signal); }
 .viz-frame .viz-key-mark.is-quiet { background: var(--fill-quiet); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
 .viz-frame .viz-key-mark.is-ring { background: none; box-shadow: inset 0 0 0 2px var(--signal); }
 .viz-frame .viz-key-mark.is-hollow { background: var(--paper); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
 .viz-frame .viz-key-mark.is-square { border-radius: 2px; }
-.viz-frame .viz-key-mark.is-line, .viz-frame .viz-key-mark.is-dash { width: 18px; height: 2px; border-radius: 1px; }
+.viz-frame .viz-key-mark.is-line, .viz-frame .viz-key-mark.is-dash { width: 18px; height: 2px; margin-top: calc((1.4em - 2px) / 2); border-radius: 1px; }
 .viz-frame .viz-key-mark.is-dash { height: 0; background: none; border-top: 1px dashed var(--ink-3); }
 .viz-frame .viz-key-mark.is-band { width: 18px; height: 10px; border-radius: 2px; background: var(--fill-quiet); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
 .viz-frame .viz-key-mark.is-band.is-signal { background: var(--signal-wash); box-shadow: inset 0 0 0 1px var(--signal); }
@@ -138,6 +139,8 @@
 
 @media (min-width: 900px) {
   .viz-frame .viz-plot { height: var(--plot-h-md); }
+  /* The readout's keys read beside its 28 px value, not as a caption under a desktop headline (round 6). */
+  .viz-frame .readout-key, .viz-frame .readout-side dt { font-size: .9375rem; }
 }
 
 /* ---------- Labels hide below the width they fit (200% zoom); they stay in Values ---------- */

@@ -53,7 +53,9 @@
 /* Pick mode: the chosen mark takes a 2 px ink outline (the barcode's convention). The orange ring stays reserved for the
    reader's own guess, goal or time (principle 3). */
 .viz-frame .scrub-ring { position: absolute; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--ink); pointer-events: none; }
-.viz-frame.waffle .scrub-ring { width: calc(100% / var(--cols, 25) * 6 / 7); height: auto; aspect-ratio: 1; margin: 0; border-radius: 1.5px; transform: translate(-50%, -50%); background: var(--signal); box-shadow: 0 0 0 1px var(--paper); }
+/* The chosen pair: the tile in signal, ringed (a paper gap, then a signal line), so the one example stands out of the
+   field around it. */
+.viz-frame.waffle .scrub-ring { width: calc(100% / var(--cols, 25) * 11 / 14); height: auto; aspect-ratio: 1; margin: 0; border-radius: 2px; transform: translate(-50%, -50%); background: var(--signal); box-shadow: 0 0 0 2px var(--paper), 0 0 0 3.5px var(--signal); }
 @supports not (aspect-ratio: 1) { .viz-frame.waffle .scrub-ring { height: 10px; } }
 .viz-frame .is-pick .scrub-plot { cursor: pointer; }
 /* A dot strip's chosen dot fills with ink at its own size (round 5: grown, it covered its stacked neighbours), or keeps

@@ -2,7 +2,7 @@ import type { Demographics } from '@/lib/insights';
 import { readInsight } from '@/lib/insights-server';
 import { STORIES } from '@/lib/stories';
 import { getNugget } from '@/lib/nuggets';
-import { matLabel, ms, pct } from '@/lib/nuggets/format';
+import { countWord, matLabel, ms, pct } from '@/lib/nuggets/format';
 import { pointsApart } from '@/lib/nuggets/stories';
 import { MARATHON_KM } from '@/lib/units';
 import LineProfile from '@/components/viz/LineProfile';
@@ -49,12 +49,12 @@ export default function DemographicsBody() {
     <StoryPage path={PATH} numbers={[
       <Values key="wh-unmask" bare id="wh-unmask" caption="Second 20K against the first, recorded women and men"
         columns={[{ key: 'v', label: 'Compared' }, { key: 'w', label: 'Women' }, { key: 'm', label: 'Men' }]}
-        rows={[['All finishes', slower(o.pooled_women_block), slower(o.pooled_men_block)], ['Same race and minute', slower(o.women_block), slower(o.men_block)]]} reading={1} />,
+        rows={[['Same race and minute', slower(o.women_block), slower(o.men_block)], ['All finishes', slower(o.pooled_women_block), slower(o.pooled_men_block)]]} reading={0} />,
       <Values key="wh-ghost" bare id="wh-ghost" caption={`Finishing in ${band.label}: recorded women behind recorded men at each mat`}
         columns={[{ key: 'm', label: 'Mat' }, { key: 'g', label: 'Women behind' }]}
         rows={band.ghost_s.map((g, k) => [matLabel(MATS[k + 1]), ms(g)])} reading={peak - 1} />,
     ]}>
-      <StoryHero path={PATH} title={story.heading ?? story.title} fallback={!gender.guard}
+      <StoryHero path={PATH} title={story.heading ?? story.title} fallback={!gender.guard} stacked
         figures={[{ value: pct(w).replace('%', ''), unit: '%', sr: `${pct(w)} of recorded women's finishes`, key: 'Recorded women' }, { value: pct(m).replace('%', ''), unit: '%', sr: `${pct(m)} of recorded men's finishes`, key: 'Recorded men' }]}
         // The H1 says who had fewer; the pair says how often each did, and the key under it what is counted (the
         // term's first use, so it carries the link). A failed guard shows the plain sentence instead.
@@ -67,17 +67,19 @@ export default function DemographicsBody() {
             marks={[{ value: w, kind: 'reading', label: 'Women' }, { value: m, kind: 'compare', label: 'Men' }]} />
         ) : undefined} />
 
-      {/* The H2 is one clause (the gap, like for like, against all finishes); the two groups carry the gaps, each from
-          the unrounded difference (pointsApart), the same values the nugget's ratio is taken from. A runner's words, never
-          "pooled" (round 5). */}
+      {/* The H2 names its measure (second-20K slowing) and the like-for-like gap, the first pair drawn under it; the gap
+          over all finishes follows as the quiet ghost. Each gap label is the unrounded difference (pointsApart), the same
+          value the H2 and the dek's ratio are taken from. A runner's words, never "pooled" (round 5). */}
       <Beat id="unmask" track="chapter-1" label="Like for like" title={unmask}
-        dek="How much slower the second 20K ran than the first, recorded women against men.">
+        dek={unmask.guard
+          ? `Second 20K against the first. Same race and finish minute: ${Math.round(Number(unmask.values.ratio)) === 2 ? 'twice' : `${countWord(Math.round(Number(unmask.values.ratio)))} times`} the gap over all finishes.`
+          : 'How much slower the second 20K ran than the first, recorded women against men.'}>
         <PairBars highlight="matched" max={Math.ceil(Math.max(o.men_block, o.pooled_men_block) / 5) * 5}
           views={[
-            { id: 'pooled', label: 'All finishes', bars: [{ label: 'Recorded women', value: o.pooled_women_block, display: slower(o.pooled_women_block) }, { label: 'Recorded men', value: o.pooled_men_block, display: slower(o.pooled_men_block) }], gap: pointsApart(Number(unmask.values.pooled_gap)) },
             { id: 'matched', label: 'Same race, same finish minute', bars: [{ label: 'Recorded women', value: o.women_block, display: slower(o.women_block) }, { label: 'Recorded men', value: o.men_block, display: slower(o.men_block) }], gap: pointsApart(Number(unmask.values.matched_gap)) },
+            { id: 'pooled', label: 'All finishes', bars: [{ label: 'Recorded women', value: o.pooled_women_block, display: slower(o.pooled_women_block) }, { label: 'Recorded men', value: o.pooled_men_block, display: slower(o.pooled_men_block) }], gap: pointsApart(Number(unmask.values.pooled_gap)) },
           ]}
-          label={`Second 20K against the first. All finishes: women ${slower(o.pooled_women_block)}, men ${slower(o.pooled_men_block)}. Same race and finish minute: women ${slower(o.women_block)}, men ${slower(o.men_block)}.`} />
+          label={`Second 20K against the first. Same race and finish minute: women ${slower(o.women_block)}, men ${slower(o.men_block)}. All finishes: women ${slower(o.pooled_women_block)}, men ${slower(o.pooled_men_block)}.`} />
       </Beat>
 
       {/* The gap at every finish time restated the opener's finding (at the same finish times), so it is cut; its

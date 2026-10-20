@@ -14,7 +14,8 @@ import Readout, { type ReadoutProps } from './Readout';
  * States: `status="empty"` shows the explorer's "No published values for this selection" (role="status"), and
  * `status="error"` "This chart could not load" with a Retry link (role="alert"). An answer is never empty.
  */
-export type KeyItem = { label: string; mark: 'dot' | 'ring' | 'line' | 'dash' | 'square' | 'hollow' | 'band'; tone?: 'ink' | 'signal' | 'quiet' };
+/** `none` is a key line with no swatch, for what holds for every mark ("Each dot ≈ 38,700 finishes"). */
+export type KeyItem = { label: string; mark: 'dot' | 'ring' | 'line' | 'dash' | 'square' | 'hollow' | 'band' | 'none'; tone?: 'ink' | 'signal' | 'quiet' };
 
 type Props = {
   /** The finding, said in full: the plot's accessible name. */
@@ -57,7 +58,7 @@ export default function ChartFrame({ label, lens, readout, plot, axis, scrub, ke
               )}
               {keys?.length ? (
                 <ul className="viz-key" aria-hidden="true">
-                  {keys.map((key) => <li key={key.label}><i className={`viz-key-mark is-${key.mark}${key.tone ? ` is-${key.tone}` : ''}`} />{key.label}</li>)}
+                  {keys.map((key) => <li key={key.label}>{key.mark === 'none' ? null : <i className={`viz-key-mark is-${key.mark}${key.tone ? ` is-${key.tone}` : ''}`} />}{key.label}</li>)}
                 </ul>
               ) : null}
             </>

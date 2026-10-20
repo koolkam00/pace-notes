@@ -6,7 +6,7 @@ import Plot, { Baseline, Gridlines, RefLine } from './Plot';
 import Lens from './Lens.client';
 import Scrubber, { type ScrubPoints } from './Scrubber.client';
 import Annotation from './Annotation';
-import { placeLabels, type LabelItem } from './labels';
+import { placeLabels, REF_WIDTH, textWidth, type LabelItem } from './labels';
 import { linear, pc, stepEdge, stepPath, u, yScale } from './scale';
 
 /**
@@ -43,9 +43,11 @@ type Props = {
   keyLabels?: { bin: string; mark?: string; curve?: string };
   /** A still chart's readout above the plot (the finding's figures), when it has no scrub. */
   readout?: ReadoutProps;
+  /** The ratio lens's 1× line named ("1×", beside the gridline's "1.5× the curve"), where it crosses no tower. */
+  ratioBase?: string;
 };
 
-export default function Histogram({ bins, curve, marks = [], reading, ticks, label, lens, lensControl = true, scrub, labels = [], values, height = 220, heightMd = 300, keyLabels = { bin: 'Each bin' }, ratioAt = {}, readout }: Props) {
+export default function Histogram({ bins, curve, marks = [], reading, ticks, label, lens, lensControl = true, scrub, labels = [], values, height = 220, heightMd = 300, keyLabels = { bin: 'Each bin' }, ratioAt = {}, readout, ratioBase }: Props) {
   const x0 = bins[0].x, x1 = bins[bins.length - 1].x + 1;
   const x = linear([x0, x1]);
   const w = 1 / (x1 - x0);
@@ -79,6 +81,23 @@ export default function Histogram({ bins, curve, marks = [], reading, ticks, lab
     const ry = yScale(lo, hi, { top: 0.16, bottom: 0.04 });
     const ratioOf = new Map(ratios.map((r) => [r.x, r.r]));
     ratioTop = (m: number) => Math.min(ry(ratioOf.get(m) ?? 1), ry(1));
+    // The base's name goes where it crosses no tower (checklist 1): along the stretch, one label wide at the reference
+    // width, where the towers rise least over the line or dip least under it. Over the line its text stands 6 to 16 px
+    // above it; under it, 5 to 18 px below; ties go to the right, where the towers are short.
+    let base = { at: 1, below: true };
+    if (ratioBase) {
+      const span = Math.min(1, (textWidth(ratioBase, 13, 500) + 8) / REF_WIDTH);
+      const rise = (r: number) => (ry(1) - ry(r)) * height;
+      let cost = Infinity;
+      for (const start of ratios) {
+        const from = x(start.x);
+        if (from + span > 1 + 1e-9) break;
+        const inside = ratios.filter((r) => x(r.x) + w > from && x(r.x) < from + span).map((r) => rise(r.r));
+        const over = Math.max(0, Math.max(0, ...inside) - 5), under = Math.max(0, Math.max(0, ...inside.map((v) => -v)) - 4);
+        if (over <= cost) { cost = over; base = { at: from, below: false }; }
+        if (under <= cost) { cost = under; base = { at: from, below: true }; }
+      }
+    }
     const col = (m: number, cls: string) => {
       const top = ry(ratioOf.get(m) ?? 1), one = ry(1);
       return <rect key={`r${cls}${m}`} className={`${cls} histo-tower`} x={pc(x(m))} width={pc(w)} y={pc(Math.min(top, one))} height={pc(Math.abs(one - top))} />;
@@ -94,7 +113,7 @@ export default function Histogram({ bins, curve, marks = [], reading, ticks, lab
         </svg>
         {marks.filter((m) => m !== reading).map((m) => col(m, 'm-ink'))}
         {reading !== undefined ? col(reading, 'm-signal is-reading') : null}
-        <RefLine y={ry(1)} />
+        <RefLine y={ry(1)} label={ratioBase} at={base.at} below={base.below} />
       </g>
     );
   }

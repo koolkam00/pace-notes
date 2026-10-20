@@ -1,4 +1,6 @@
-/* Guess first (components/ui/GuessFirst.client.tsx): at most one per page. The page's one raised surface: a question,
+/* Guess first (components/ui/GuessFirst.client.tsx): at most one per page. Set on the page like every other beat, in
+   the beat's own whitespace, never a box (round 6: the bordered card read as a widget beside the story; a hairline over
+   it parted the question from its own heading or kicker): a question,
    a live "Your guess" readout, Lock it in and Skip, then the reveal on the SAME marks: the truth as a signal fill, the
    guess as an orange ring labelled You, a comparison a small filled quiet dot (a ring is only ever the reader). On the
    ruler the ring is the thumb: the native range lies over the ruler with its track and thumb invisible. Once the answer
@@ -6,8 +8,7 @@
 
 .guess {
   display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); max-width: 36rem;
-  padding: 20px; border: 1px solid var(--rule); border-radius: var(--r-md);
-  background: var(--paper-raised); color: var(--ink);
+  color: var(--ink);
 }
 .guess-question { margin: 0; }
 .guess-readout { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-4); min-height: 40px; }
@@ -32,7 +33,7 @@
   transition: transform var(--d-release) var(--spring);
 }
 .guess input[type='range'].guess-range::-moz-range-thumb { width: 30px; height: 30px; border: 1px solid var(--rule-strong); border-radius: 50%; background: var(--control-thumb); box-shadow: var(--shadow-raise); }
-/* Dark mode: the thumb is the light ink, so it reads on the dark raised surface. */
+/* Dark mode: the thumb is the light ink, so it reads on the dark page. */
 [data-theme="dark"] .guess input[type='range'].guess-range::-webkit-slider-thumb { border-color: var(--ink); background: var(--ink); }
 [data-theme="dark"] .guess input[type='range'].guess-range::-moz-range-thumb { border-color: var(--ink); background: var(--ink); }
 @media (prefers-color-scheme: dark) {
@@ -47,7 +48,7 @@
    lands exactly on the ruler's scale; the You ring under it is what the reader sees and drags. */
 .guess input[type='range'].guess-range.is-on-ruler { position: absolute; z-index: 1; top: 26px; left: -15px; width: calc(100% + 30px); opacity: 0; }
 .guess input[type='range'].guess-range.is-on-ruler:disabled { pointer-events: none; }
-.guess-range.is-on-ruler:focus-visible + span .guess-mark.is-you { box-shadow: 0 0 0 2px var(--paper-raised), 0 0 0 4px var(--focus); }
+.guess-range.is-on-ruler:focus-visible + span .guess-mark.is-you { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--focus); }
 .guess:not(.is-revealed) .guess-ruler { cursor: grab; }
 
 /* The marks: a ruler, or 100 dots. On the ruler, You labels the top row and the truth the row under it, both
@@ -58,9 +59,9 @@
 .guess-ruler-tick { position: absolute; top: 44px; width: 1px; height: 9px; background: var(--rule-strong); }
 .guess-ruler-tick-label { position: absolute; top: 62px; transform: translateX(-50%); }
 .guess-mark { position: absolute; top: 48px; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; transition: opacity var(--d-reveal) var(--ease-out), transform var(--d-reveal) var(--spring); }
-.guess-mark.is-truth { background: var(--signal); box-shadow: 0 0 0 2px var(--paper-raised); }
+.guess-mark.is-truth { background: var(--signal); box-shadow: 0 0 0 2px var(--paper); }
 .guess-mark.is-you { width: 20px; height: 20px; margin: -10px 0 0 -10px; border: 2px solid var(--signal); background: transparent; }
-.guess-mark.is-compare { width: 10px; height: 10px; margin: -5px 0 0 -5px; background: var(--ink-3); box-shadow: 0 0 0 2px var(--paper-raised); }
+.guess-mark.is-compare { width: 10px; height: 10px; margin: -5px 0 0 -5px; background: var(--ink-3); box-shadow: 0 0 0 2px var(--paper); }
 .guess-mark-label { position: absolute; transform: translateX(-50%); font-family: var(--sans); font-size: var(--t-direct); font-weight: 600; line-height: 16px; white-space: nowrap; color: var(--ink); }
 .guess-mark-label.is-you { top: 0; }
 .guess-mark-label.is-truth { top: 18px; color: var(--signal-ink); }
@@ -74,9 +75,9 @@
 .guess-dots { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: clamp(4px, 2.4vw, 10px); width: 100%; max-width: 300px; margin: 4px 0; padding: 0; list-style: none; }
 .guess-dot { width: 100%; aspect-ratio: 1; height: auto; margin: 0; border-radius: 50%; border: 1px solid var(--mark-quiet); background: var(--fill-quiet); transition: background-color var(--d-quick) var(--ease-out), transform var(--d-reveal) var(--spring); transition-delay: calc(var(--i, 0) * var(--stagger)); }
 .guess-dot.is-lit { border-color: var(--signal); background: var(--signal); }
-.guess-dot.is-you { box-shadow: 0 0 0 2px var(--paper-raised), 0 0 0 4px var(--signal); }
+.guess-dot.is-you { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--signal); }
 /* Before the first move the default guess is a quiet hairline ring, so the untouched guess never outshouts the page. */
-.guess:not(.is-touched) .guess-dot.is-you { box-shadow: 0 0 0 2px var(--paper-raised), 0 0 0 3px var(--mark-quiet); }
+.guess:not(.is-touched) .guess-dot.is-you { box-shadow: 0 0 0 2px var(--paper), 0 0 0 3px var(--mark-quiet); }
 .guess:not(.is-touched) .guess-dots-key i.is-you { border-color: var(--mark-quiet); }
 /* The ruler's You ring follows the same rule: quiet until the reader moves it. */
 .guess:not(.is-touched) .guess-mark.is-you { border-color: var(--mark-quiet); }
@@ -87,7 +88,7 @@
 .guess-dots-key i.is-lit { background: var(--signal); }
 .guess-dots-key i.is-you { border: 2px solid var(--signal); }
 /* Revealed: the guess steps back to a hairline ring in --ink-3 (and its key with it), so the truth's signal dots lead. */
-.guess.is-revealed .guess-dot.is-you { box-shadow: 0 0 0 2px var(--paper-raised), 0 0 0 3px var(--ink-3); }
+.guess.is-revealed .guess-dot.is-you { box-shadow: 0 0 0 2px var(--paper), 0 0 0 3px var(--ink-3); }
 .guess.is-revealed .guess-dots-key i.is-you { border: 1px solid var(--ink-3); }
 /* The ruler's You ring steps back the same way, so the truth is the one orange mark on the line. */
 .guess.is-revealed .guess-mark.is-you { border-width: 1.5px; border-color: var(--ink-3); }
@@ -111,7 +112,3 @@
 .guess-verdict { margin: 0; min-height: 1.25em; }
 .guess-verdict:empty { display: none; }
 .guess-next { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 600; color: var(--ink); }
-
-@media (min-width: 600px) {
-  .guess { padding: 28px; }
-}

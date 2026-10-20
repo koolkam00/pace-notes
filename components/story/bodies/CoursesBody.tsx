@@ -74,7 +74,7 @@ export default function CoursesBody() {
     ]}>
       {/* The figure and its key say the finding; the ruler sets it against chance, as a share (so the identification
           set's course count never shows beside the shape cohort's). A failed guard shows the plain sentence instead. */}
-      <StoryHero path={PATH} title={story.heading ?? story.title}
+      <StoryHero path={PATH} title={story.heading ?? story.title} stacked
         figure={named.figure ? { ...named.figure } : undefined} unitLine={named.guard ? named.key : undefined} fallback={!named.guard}
         sentence={named.guard ? undefined : <Say nugget={named} />}
         instrument={named.guard ? (
@@ -102,7 +102,7 @@ export default function CoursesBody() {
       <Beat id="steadiness" track="chapter-3" label="How steady" title={steady} aliases={['matched', 'hills']}>
         <DotStrip items={big.map((c) => ({ id: c.city, label: c.city, value: c.shares[even], display: pct(c.shares[even]), detail: count(c.finishes) }))}
           domain={[sLo, sHi]} ticks={Array.from({ length: Math.round((sHi - sLo) * 10) + 1 }, (_, i) => sLo + i / 10).map((v) => ({ value: v, label: pct(v) }))}
-          readoutKey="Finishes"
+          readoutKey="Finishes" mdScale={1.4}
           label={`${evenName}s as a share of each course's finishes, ${big.length} courses with 10,000 or more finishes and three or more editions; tap a dot to read it`} />
       </Beat>
 

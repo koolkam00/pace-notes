@@ -117,11 +117,13 @@
 .dot-grid-key i.is-ink { background: var(--ink); box-shadow: none; }
 .dot-grid-key i.is-signal { background: var(--signal); box-shadow: none; }
 
-/* The field as 99 finishes: phone dots, and from 900 px larger dots across the story's measure. */
-.viz-frame.percentile-dots .pd-wide { display: none; }
+/* The field as 99 finishes and the eras' two rows: phone dots, and from 900 px larger dots across the story's measure.
+   The course-by-course strip grows its dots with its taller plot (DotStrip mdScale) the same way. */
+.viz-frame.percentile-dots .pd-wide, .viz-frame.era-shift .es-wide { display: none; }
 @media (min-width: 900px) {
-  .viz-frame.percentile-dots .pd-phone { display: none; }
-  .viz-frame.percentile-dots .pd-wide { display: inline; }
+  .viz-frame.percentile-dots .pd-phone, .viz-frame.era-shift .es-phone { display: none; }
+  .viz-frame.percentile-dots .pd-wide, .viz-frame.era-shift .es-wide { display: inline; }
+  .story-beat .viz-frame.dot-strip circle { r: 7px; }
 }
 
 /* Two pairs of bars on one scale: each named, its gap drawn under it; the gap the sentence is about in signal. */
@@ -134,6 +136,8 @@
 .pair-bar-track { position: relative; align-self: center; height: 24px; border-radius: 2px; background: var(--paper-sunk); }
 .pair-bar-fill { position: absolute; inset: 0 auto 0 0; border-radius: 2px 4px 4px 2px; background: var(--ink); }
 .pair-bars-view:not(.is-highlight) .pair-bar-fill { background: var(--mark-quiet); }
+/* The comparison pair is the quiet ghost under the H2's pair: its name and values step back with its bars. */
+.pair-bars-view:not(.is-highlight) .pair-bars-name, .pair-bars-view:not(.is-highlight) .pair-bar-value { color: var(--ink-3); font-weight: 500; }
 .pair-bar-value { align-self: center; font-size: 1.0625rem; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; color: var(--ink); }
 .pair-bar-gaprow { grid-column: 2; position: relative; height: 26px; }
 .pair-bar-gap { position: absolute; top: 0; height: 6px; border-radius: 3px; background: var(--mark-quiet); }
@@ -165,7 +169,8 @@
 .which-error { margin: 0; }
 .which-key { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: calc(-1 * var(--s-2)) 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
 .which-ramp { display: inline-flex; gap: 2px; margin: 0 4px; }
-.which-key i { flex: none; width: 12px; height: 10px; border-radius: 2px; background: var(--bg, var(--paper-sunk)); }
+/* Each swatch keeps a hairline edge, so the ramp's midpoint (paper on paper) still reads as one of its five steps. */
+.which-key i { flex: none; width: 12px; height: 10px; border-radius: 2px; background: var(--bg, var(--paper-sunk)); box-shadow: inset 0 0 0 1px var(--rule); }
 /* Dark mode: the blocks take the dark theme's own ramp (--bg-dark, lib/viz/format.ts PACE_RAMP_DARK), light ink on
    every step, and the key swatches the same colours. Every block and swatch keeps a hairline edge, so an even section
    (the ramp's midpoint, the surface's own colour) still reads as a block rather than dissolving into the page. */
@@ -246,6 +251,15 @@
 
 @media (min-width: 900px) {
   .story-hero-beat .reading { padding-top: var(--page-top); }
+  /* The sentence that carries a beat's comparison reads at body size beside 42 px headings and 144 px figures, never
+     as a footnote (round 6: 14 px deks under desktop headlines). */
+  .story-beat-dek { font-size: var(--t-body); line-height: 1.55; }
+  /* A stacked opener's instrument (a scale) runs under its figure across the story's measure, one unit with it, its
+     direct labels and ticks a step larger so the scale reads with the figure rather than as fine print (round 6; the
+     labels are placed at the phone's narrowest plot, so the wider one leaves them room). */
+  .story-hero-beat .reading.is-stacked .reading-instrument { max-width: var(--measure-figure); }
+  .story-hero-beat .reading.is-stacked .viz-frame.ruler .viz-label { font-size: 15px; }
+  .story-hero-beat .reading.is-stacked .viz-frame.ruler .tick { font-size: 13px; }
   .type-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .which-grid { grid-template-columns: repeat(9, minmax(0, 1fr)); }
   /* Nine sections in a row once each has room for "40K–finish". */
