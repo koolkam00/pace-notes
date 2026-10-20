@@ -108,6 +108,15 @@
 
 /* Elevation: without section paces, no pace blocks. The route's totals under the chart, one line. */
 .course-elevation-plain .pace-blocks { display: none; }
+/* Each block says its unit where it fits (round 6: "+3" read unitless), the % dropped only by a block too narrow for it
+   (the 40K–finish block on a phone), by the block's own width as chart-frame.css does, not by the row's. */
+@container pace-row (max-width: 559.98px) { .course-page #elevation .viz-frame .pace-pct { display: inline; } }
+@container pace-block (max-width: 23.98px) { .course-page #elevation .viz-frame .pace-val.n1 .pace-pct { display: none; } }
+@container pace-block (max-width: 31.98px) { .course-page #elevation .viz-frame .pace-val.n2 .pace-pct { display: none; } }
+@container pace-block (max-width: 37.98px) { .course-page #elevation .viz-frame .pace-val.n3 .pace-pct { display: none; } }
+/* The climb the heading names is washed in ink, its blocks outlined in ink: slower is never orange (spec 1.3), and a
+   signal-tinted wash over the ramp's slower blocks read close to orange (round 6). */
+.course-page #elevation .viz-frame .a-signal { fill: var(--ink); opacity: .06; }
 .course-totals { display: flex; flex-wrap: wrap; gap: 4px var(--s-3); margin: var(--s-4) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
 .course-totals div { display: flex; flex-wrap: wrap; gap: 0 var(--s-2); }
 .course-totals dt { font-weight: 600; color: var(--ink); }
@@ -170,6 +179,9 @@
    would read as data). */
 .course-page .scrub:not(.is-away):not(.is-dragging) .scrub-detents i,
 .course-hero .scrub:not(.is-away):not(.is-dragging) .scrub-detents i { opacity: 0; }
+/* The edition the hero's sentence accents keeps its signal while the needle is elsewhere (round 6: it turned paper-white,
+   the brightest mark on the night card, outshining the orange it stood for). */
+.course-hero .viz-frame .scrub.is-away .m-signal.is-reading { fill: var(--signal); }
 
 /* One "‹ drag ›" hint per page: on its first scrubber (the hero's strip, else the first section's), never again below. */
 @supports selector(:has(a)) {
@@ -220,6 +232,16 @@
 .course-foot { margin-top: var(--s-6); scroll-margin-top: calc(var(--header-h) + var(--s-4)); }
 .course-foot[tabindex="-1"]:focus { outline: none; }
 .course-foot.is-last .chapter-end { margin-top: 0; }
+/* The closing stack takes the width of the content above it ("All numbers", the sections) from 900 px, so the page's last
+   block shares their right edge (round 6); the card spreads its title and its reading across that width. The rule is
+   shared with /courses (courses.css imports none of it: it repeats the four lines). */
+@media (min-width: 900px) {
+  .course-page .chapter-end { max-width: none; }
+  .course-page .chapter-end .chapter-next .next-card { grid-template-columns: minmax(0, 1fr) minmax(0, auto); column-gap: var(--s-7); align-items: end; }
+  .course-page .chapter-end .next-card-kicker { grid-column: 1 / -1; }
+  .course-page .chapter-end .next-card-title { grid-column: 1; margin-right: 0; }
+  .course-page .chapter-end .next-card-reading { grid-column: 2; grid-row: 2; margin-top: 0; }
+}
 
 /* #pacing's last line: the courses paced most like this one, three inline links in a quiet sentence (each link's hit
    area 44 px tall, a pseudo-element; the line keeps its own height). */

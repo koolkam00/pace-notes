@@ -184,6 +184,18 @@ export function slowestTally(summaries: { slowest_section?: string }[]): { modal
 }
 
 /**
+ * How many courses share the usual slowest section, in words where the count adds nothing (round 6: a page that named
+ * 25 of 27 here, 26 in its pacing key, 24 in its slowdown H2 and 23 in its goals key read as a miscount). The exact
+ * tally is in All numbers.
+ */
+export function onCourses(k: number, n: number): string {
+  if (k === n) return 'every course';
+  if (k / n >= 0.85) return 'nearly every course';
+  if (k / n > 0.5) return 'most courses';
+  return `${k} of ${n} courses`;
+}
+
+/**
  * At a glance (2): the median finisher's slowest 5K, said only where it is not the section most courses slow most in
  * (a slowest 5K like nearly every other course's sets nothing apart).
  */
@@ -205,11 +217,11 @@ function courseLate(ctx?: NuggetContext): Nugget {
     id: 'course.late', page: `/courses/${page?.slug ?? ''}#at-a-glance`, denominator: 'shape',
     values: { section: slowest ?? '', modal: modal ?? '', k, n, pace: v },
     guard,
-    headline: `${display}’s slowest ${stretchOf(i)} is *${name}*; on ${k} of ${n} courses it’s ${usual}.`,
-    fallback: i >= 0 && m >= 0 ? `${display}’s slowest ${stretchOf(i)} is ${name}, as on ${k} of ${n} courses.` : i >= 0 ? `${display}’s slowest ${stretchOf(i)} is ${name}.` : 'Where the median finish slowed most.',
+    headline: `${display}’s slowest ${stretchOf(i)} is *${name}*; on ${onCourses(k, n)} it’s ${usual}.`,
+    fallback: i >= 0 && m >= 0 ? `${display}’s slowest ${stretchOf(i)} is ${name}, as on ${onCourses(k, n)}.` : i >= 0 ? `${display}’s slowest ${stretchOf(i)} is ${name}.` : 'Where the median finish slowed most.',
     figure: i >= 0 && Number.isFinite(v) && v > 0 ? { value: `${by}%`, unit: ' slower', sr: `${by}% slower` } : null,
     // The baseline named (critic round 4: "than average" beside the hills page's "than elsewhere" read as one number).
-    key: `than ${display}’s average pace, at ${name}, its slowest ${stretchOf(i)}; on ${k} of ${n} courses it’s ${usual}`,
+    key: `than ${display}’s average pace, at ${name}, its slowest ${stretchOf(i)}; on ${onCourses(k, n)} it’s ${usual}`,
   };
 }
 
@@ -465,9 +477,10 @@ export const WEATHER_GAP = 5;
  * #weather: the warmest and coolest race mornings other than the hero's edition (critic round 5: the hero already tells
  * that year's share and its start; where it was the warmest or coolest morning, the hero says so once), at least the
  * screen's gap apart (5 °C). A share both mornings round to is said once; shares under WEATHER_GAP points apart are said
- * as one null ("Warm or cool, about the same share…"); a gap of WEATHER_GAP points or more is told as two facts. Where
- * the other mornings are closer than the screen's gap, the sentence says the span of every morning. Held and copied
- * editions are never named.
+ * as one null ("Its warmest and coolest mornings had about the same share…"); a gap of WEATHER_GAP points or more is
+ * told as two facts. Where the hero called its edition the warmest or coolest morning, the sentence opens "Apart from
+ * {year}". Where the other mornings are closer than the screen's gap, the guard fails and the page leaves #weather out
+ * (round 6: a temperature span is not a finding). Held and copied editions are never named.
  */
 function courseWeather(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
@@ -485,18 +498,24 @@ function courseWeather(ctx?: NuggetContext): Nugget {
   const same = guard && pct(hot!.slowdown) === pct(cool!.slowdown);
   const gap = guard ? Math.abs(Math.round(hot!.slowdown * 100) - Math.round(cool!.slowdown * 100)) : NaN;
   const quiet = guard && !same && gap < WEATHER_GAP;
+  // Where the hero's sentence calls its edition the warmest (or coolest) morning, the section says it leaves that year
+  // out ("Apart from 2022, …"), so it never seems to deny what the hero has just shown (round 6: "warm or cool, about the
+  // same share" under a hero whose worst year was its warmest).
+  const named = guard && hero !== null && Number(courseSlowdown(ctx).values.morning) !== 0 && w.some((e) => e.year === hero);
+  const lead = (rest: string) => (named ? `Apart from ${hero}, ${rest.charAt(0).toLowerCase()}${rest.slice(1)}` : rest);
   return {
     id: 'course.weather', page: `/courses/${page?.slug ?? ''}#weather`, denominator: 'course',
-    values: guard ? { hot_year: hot!.year, hot_temp: hot!.temp, hot_share: hot!.slowdown, cool_year: cool!.year, cool_temp: cool!.temp, cool_share: cool!.slowdown, editions: w.length, quiet: quiet ? 1 : 0, hero_year: hero ?? NaN,
+    values: guard ? { hot_year: hot!.year, hot_temp: hot!.temp, hot_share: hot!.slowdown, cool_year: cool!.year, cool_temp: cool!.temp, cool_share: cool!.slowdown, editions: w.length, quiet: quiet ? 1 : 0, hero_year: hero ?? NaN, apart: named ? 1 : 0,
       // Two facts accent the warmer morning's start; a null accents nothing.
       accent_year: !same && !quiet ? hot!.year : NaN }
       : { editions: w.length, coolest: lo, warmest: hi, hero_year: hero ?? NaN, accent_year: NaN },
     guard,
     // Two mornings whose shares round alike say the share once: the point is that it did not move.
-    headline: guard ? both((u) => same
+    // A quiet pair names the two mornings it compares, never "warm or cool" (round 6: two editions are not every morning).
+    headline: guard ? both((u) => lead(same
       ? `At ${temp(hot!.temp, u)} in ${hot!.year} and at ${temp(cool!.temp, u)} in ${cool!.year}, the same ${pct(hot!.slowdown)} had a sustained slowdown.`
-      : quiet ? `Warm or cool, about the same share had a sustained slowdown: ${pct(hot!.slowdown)} at ${temp(hot!.temp, u)}, ${pct(cool!.slowdown)} at ${temp(cool!.temp, u)}.`
-        : `At *${temp(hot!.temp, u)}* in ${hot!.year}, ${pct(hot!.slowdown)} had a sustained slowdown. At ${temp(cool!.temp, u)} in ${cool!.year}, ${pct(cool!.slowdown)}.`) : '',
+      : quiet ? `Its warmest and coolest mornings had about the same share of sustained slowdowns: ${pct(hot!.slowdown)} at ${temp(hot!.temp, u)}, ${pct(cool!.slowdown)} at ${temp(cool!.temp, u)}.`
+        : `At *${temp(hot!.temp, u)}* in ${hot!.year}, ${pct(hot!.slowdown)} had a sustained slowdown. At ${temp(cool!.temp, u)} in ${cool!.year}, ${pct(cool!.slowdown)}.`)) : '',
     fallback: both((u) => w.length >= 2 ? `Race mornings from ${temp(lo, u)} to ${temp(hi, u)}.` : w.length ? `One race morning: ${temp(lo, u)} at the start.` : 'Race mornings.'),
     figure: null,
   };

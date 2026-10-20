@@ -68,7 +68,8 @@ export default function CoursesPage() {
       id: p.slug,
       node: (
         <Link href={`/courses/${p.slug}`} className="course-index-row">
-          <span className="course-index-face">{p.geometry ? <RouteFace course={p.geometry} /> : null}</span>
+          {/* A course with no route keeps its slot with a quiet dash, so the blank never reads as an image that failed. */}
+          <span className="course-index-face">{p.geometry ? <RouteFace course={p.geometry} /> : <i className="course-index-noroute" aria-hidden="true" />}</span>
           <span className="course-index-name">{p.display}</span>
           <span className="course-index-meta">
             <span className="m-default">{editions}{climb ? <>{'\u00a0· '}<span className="nowrap"><Elevation metres={climb.gain_m} /> climb</span></> : null}</span>

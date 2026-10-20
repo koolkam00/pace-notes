@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { TRACKED_SECTIONS } from '@/lib/analytics-policy';
 import { withEm } from '@/components/ui/withEm';
+import { joinRanges } from '@/components/ui/keepTogether';
 import type { Nugget } from '@/lib/nuggets';
 import UnitsText from './UnitsText.client';
 
@@ -27,12 +28,13 @@ export function SectionLink({ to, className, children }: { to: string; className
 
 /**
  * A nugget's sentence as the page shows it: the headline when its guard holds, else the neutral fallback, with its one
- * *…* accent as <em>. A sentence that names a distance or a temperature follows the units switch.
+ * *…* accent as <em>, its ranges kept whole. A sentence that names a distance or a temperature follows the units switch.
  */
 export function Said({ nugget }: { nugget: Nugget }) {
   const text = nugget.guard ? nugget.headline : nugget.fallback;
-  if (typeof text === 'string') return <>{withEm(text)}</>;
-  return <UnitsText mi={text.mi} km={text.km} />;
+  // A section range ("35–40K", "20–25K") never breaks at its dash (round 6): a word joiner follows it.
+  if (typeof text === 'string') return <>{withEm(joinRanges(text))}</>;
+  return <UnitsText mi={joinRanges(text.mi)} km={joinRanges(text.km)} />;
 }
 
 /**

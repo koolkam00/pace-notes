@@ -31,16 +31,19 @@ export { WEATHER_MIN_MORNINGS };
  * sustained slowdown. The sentence compares the warmest and coolest mornings other than the hero's edition (the hero
  * tells that one, course.weather): the two it names are inked and labelled by year, no key, never joined (a line across
  * the cloud would read as a trend, "warmer, therefore"). The heading says the reading, so the readout opens on a prompt
- * and no dot is orange (a picked one rings in ink); where the other mornings are too close to compare, the sentence
- * gives the span and no dot is inked. The y scale runs from zero on the baseline to the round ten above the dots, both
- * labelled, and the readout names the measure. Elsewhere the mornings are in "All numbers".
+ * and no dot is orange (a picked one rings in ink); where the other mornings are too close to compare, the page
+ * leaves the section out (round 6; the page's contents drop its chip too). The y scale runs from zero on the baseline
+ * to the round ten above the dots, both labelled, and the readout names the measure. Elsewhere the mornings are in
+ * "All numbers".
  */
 export default function CourseWeatherByYear({ page }: { page: CoursePageData }) {
   const { city, display, weather, hotCool } = page;
   if (!hotCool || weather.length < WEATHER_MIN_MORNINGS) return null;
   const n = getNugget('course.weather', { city });
+  // No pair to compare, no section: a span of temperatures over an uninked scatter is not a finding (round 6).
+  if (!n.guard) return null;
   const v = n.values as Record<string, number>;
-  const pair = n.guard ? [v.hot_year, v.cool_year] : [];
+  const pair = [v.hot_year, v.cool_year];
   const inPair = (y: number) => pair.includes(y);
   const lo = Math.min(...weather.map((e) => e.temp)), hi = Math.max(...weather.map((e) => e.temp));
   const pad = Math.max(1.5, (hi - lo) * 0.08);
