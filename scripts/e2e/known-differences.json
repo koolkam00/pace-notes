@@ -33,8 +33,8 @@
   ],
   "home": [
     {
-      "pattern": "^attr:(class\\|(tool-field-hint band-choice-none|seg tool-choice is-small band-choice-seg|seg-btn band-choice-seg-btn|seg-label band-choice-seg-label)|aria-pressed\\|\\*\\*\\*)$",
-      "reason": "The band's Splits choice (October 20, 2026): on one course and goal the pace-band group publishes a course shape, so the workspace shows its Course shape | Even pace control; on the other there is none, so it shows one line in its place. Only the choice's own classes (band-choice-seg on the control, its buttons and labels) and the masked pressed state of its buttons, the one segmented choice in the planner's workspace, may differ. Which state shows, never the course or goal (the workspace text and the pressed state are masked)."
+      "pattern": "^attr:(class\\|(tool-field-hint band-choice-none|tool-field band-choice|tool-label|seg tool-choice is-small band-choice-seg|seg-btn band-choice-seg-btn|seg-label band-choice-seg-label)|aria-pressed\\|\\*\\*\\*)$",
+      "reason": "The band's Splits choice (October 20, 2026): on one course and goal the pace-band group publishes a course shape, so the workspace shows its Course shape | Even pace control; on the other there is none, so it shows one line in its place. Only the choice's own classes (its field and label, band-choice-seg on the control, its buttons and labels; the no-shape line has no field around it) and the masked pressed state of its buttons, the one segmented choice in the planner's workspace, may differ. Which state shows, never the course or goal (the workspace text and the pressed state are masked)."
     }
   ],
   "plan": [
