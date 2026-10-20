@@ -65,15 +65,18 @@ export function ToolHeader({ slug, title, children }: { slug: string; title?: Re
 /**
  * How a tools page ends (the redesign spec, section 2.6): a tool in the race ends on the chapter's closing stack (the next
  * card, or the planner's finish card); a reference tool on one row back to every tool and to how we know, then "Was
- * this useful?". One way forward, one way back.
+ * this useful?". One way forward, one way back. `numbers`: the page's "All numbers" of measured figures ends on its
+ * methods link (the goal pages, the planner's mats, the pace band's observed mats, weather match's mornings), so the row
+ * is the way back alone, as on a story; a tool whose tables are its own calculations, official standards or none keeps
+ * "How we know" in the row (release, October 20; verify-chapters rule 11).
  */
-export function ToolEnd({ path, how }: { path: string; how: `/methodology#${string}` }) {
-  if (placeOf(path)) return <ChapterEnd path={path} readingOf={settledReadingOf} />;
+export function ToolEnd({ path, how, numbers = false }: { path: string; how: `/methodology#${string}`; numbers?: boolean }) {
+  if (placeOf(path)) return <ChapterEnd path={path} readingOf={settledReadingOf} how={!numbers} />;
   return (
     <div className="chapter-end tool-end">
       <p className="chapter-end-links">
         <Link href="/tools" className="chapter-prev"><Arrow dir="left" /><span>All tools</span></Link>
-        <Link href={how} className="chapter-how">How we know<Arrow /></Link>
+        {numbers ? null : <Link href={how} className="chapter-how">How we know<Arrow /></Link>}
       </p>
       <PageFeedback />
     </div>

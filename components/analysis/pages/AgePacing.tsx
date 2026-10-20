@@ -8,8 +8,11 @@ import { EXAMPLE_PROFILE } from '@/lib/analysis-profile';
 import { getNugget } from '@/lib/nuggets';
 import { ageRows } from '@/lib/nuggets/analyses';
 import { hm } from '@/lib/nuggets/format';
+import { howWeKnowOf } from '@/lib/chapters';
 
 const PATH = '/analyses/age-and-pacing';
+/** The page's methods, at the foot of its All numbers (the closing row is the way back alone). */
+const HOW = howWeKnowOf(PATH) ?? undefined;
 /** One decimal everywhere ("+11.0%"), so a column of values reads alike. */
 const signedPct = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)}%`;
 
@@ -31,7 +34,7 @@ export default function AgePacing() {
   const answer = rows.length >= 2 ? (
     // The kicker says what the values measure: how much slower each group ran its second 20K than its first.
     <AnswerCard kicker="Second 20K against the first"
-      values={<Values id="age-two" caption="The second 20K against the first, by age group" columns={[{ key: 'a', label: 'Age group' }, { key: 'p', label: 'All finishes' }, { key: 's', label: `Near ${hm(goal)}` }]}
+      values={<Values id="age-two" how={HOW} caption="The second 20K against the first, by age group" columns={[{ key: 'a', label: 'Age group' }, { key: 'p', label: 'All finishes' }, { key: 's', label: `Near ${hm(goal)}` }]}
         rows={rows.map((r) => [r.age, signedPct(r.pooled), signedPct(r.same)])} />}>
       <LineProfile x={xs} xDomain={[-0.4, rows.length - 0.6]} yDomain={[lo, hi]}
         layers={[{ id: 'a', label: 'Age', series: [{ id: 'pooled', values: rows.map((r) => r.pooled), tone: 'quiet' }, { id: 'same', values: rows.map((r) => r.same), tone: 'signal' }],
@@ -53,7 +56,7 @@ export default function AgePacing() {
     </AnswerCard>
   ) : null;
   return (
-    <AnalysisShell path={PATH} title={n} answer={answer}
+    <AnalysisShell path={PATH} numbers title={n} answer={answer}
       // The H1 is the finding at the same finish time; the pooled shape is its setup, here.
       dek={n.guard ? `Across all finishes, ${n.values.u_shape ? 'the youngest and oldest' : 'older runners'} slowed more.` : definition.title}>
       <ExploreBeat track="chapter-1">

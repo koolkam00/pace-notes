@@ -76,6 +76,7 @@ const CHECKS = {
   orphans: 'Every story and analysis page is linked from /research, and every other sitemap page from at least one other page',
   'hub-counts': 'A hub whose line counts its pages ("Ten stories, one finding each.") lists that many and says the same count in its meta description and og:description',
   'home-form': "The home page's course list (#home-plan-course) has the planner's options (#plan-course), values and names in the same order",
+  'title-brand': 'Every title ends " | Pace Notes", or names the brand itself, unless the suffix would take it past 60 characters (one rule for every page: courseTitle() and docs/SEO.md)',
   'methods-anchors': 'Every /methodology#<id> link (in the exported HTML, and as a literal in app/, components/ or lib/) and every #<id> link on /methodology names an element id on /methodology',
 };
 const WARNINGS = {
@@ -447,6 +448,10 @@ for (const page of pages) {
 
   // JSON-LD
   checkJsonLd(page, where, BANNED);
+
+  // The brand: one ending for every title, dropped only where it would not fit (release, October 20, 2026).
+  if (!page.notFound && page.title && !/Pace Notes/.test(page.title) && chars(`${page.title} | Pace Notes`) <= 60) fail('title-brand', where, `"${page.title}" would fit 60 characters with " | Pace Notes"`);
+  if (!page.notFound && page.title && / \| Pace Notes$/.test(page.title) && /Pace Notes.* \| Pace Notes$/.test(page.title)) fail('title-brand', where, `"${page.title}" names the brand twice`);
 
   // Length warnings
   if (!page.notFound && page.title && chars(page.title) > 60) warn('title-length', where, `${chars(page.title)} characters: "${page.title}"`);

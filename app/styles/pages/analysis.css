@@ -40,6 +40,8 @@
 
 .answer-dots { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: end; gap: var(--s-5); }
 .answer-dots-label, .answer-grid-label { margin: 0; font-size: .9375rem; line-height: 1.35; color: var(--ink-2); }
+/* The checkpoint's dots name lit and unlit once (the H1 gives the number, so the card never says it twice). */
+.answer-dots .dot-grid-key { flex-direction: column; align-items: flex-start; gap: 8px; font-size: .9375rem; }
 .answer-dots-label strong, .answer-grid-label strong { display: block; font-family: var(--figure); font-size: 2.25rem; font-weight: 660; line-height: 1; letter-spacing: -.03em; color: var(--signal); }
 .answer-grids { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-5); }
 /* Two grids side by side share the card: their dots take the column's width (at most the grid's own 192 px). */

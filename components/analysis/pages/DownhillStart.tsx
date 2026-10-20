@@ -9,8 +9,11 @@ import { getNugget } from '@/lib/nuggets';
 import { countWord, pct } from '@/lib/nuggets/format';
 import { bandWords } from '@/lib/all-finisher-context';
 import { courseName } from '@/lib/nuggets/analyses';
+import { howWeKnowOf } from '@/lib/chapters';
 
 const PATH = '/analyses/downhill-start';
+/** The page's methods, at the foot of its All numbers (the closing row is the way back alone). */
+const HOW = howWeKnowOf(PATH) ?? undefined;
 /** "Boston, Sydney and Warsaw". */
 const and = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 
@@ -66,14 +69,14 @@ export default function DownhillStart() {
   const fastOpen = rows.find((r) => { const e = edges(r.band); return typeof e.upper === 'number' && e.upper <= -5 && e.lower != null; });
   const clearest = fastOpen ?? rows.reduce<(typeof rows)[number] | undefined>((b, r) => (!b || Math.abs(r.other!.slowdown_pct - r.down!.slowdown_pct) > Math.abs(b.other!.slowdown_pct - b.down!.slowdown_pct) ? r : b), undefined);
   return (
-    <AnalysisShell path={PATH} title={opening} dek={dek} answer={answer}>
+    <AnalysisShell path={PATH} numbers title={opening} dek={dek} answer={answer}>
       <Beat id="by-band" track="chapter-1" label="Band by band" title={bands} term>
         {/* Bare rows: the label and a wide track, so a gap of a point or two reads; the values are in Values. No row is
             the accent: the H2 states the pattern across every band, and a near-null looks null. */}
         <Dumbbell bare rows={rows.map((r) => ({ id: r.band.id, label: band(r.band.label), a: r.other!.slowdown_pct / 100, b: r.down!.slowdown_pct / 100, display: pct(r.down!.slowdown_pct / 100) }))}
           domain={[lo, top]} ticks={[lo, (lo + top) / 2, top].map((t) => ({ value: t, label: pct(t) }))} keyLabels={{ a: 'Every other course', b: 'Downhill-start courses' }}
           label={`Sustained slowdown by opening band, downhill-start courses against every other course: 2 points or more fewer in ${bands.values.fewer} of ${bands.values.total} bands, ${Number(bands.values.more) ? `2 points or more higher in ${bands.values.more}, ` : ''}within a point or so in the rest`}
-          values={<Values id="dh-bands" caption="Sustained slowdown by opening band" columns={[{ key: 'b', label: 'Opening', text: true }, { key: 'd', label: 'Downhill-start courses' }, { key: 'o', label: 'Every other course' }]}
+          values={<Values id="dh-bands" how={HOW} caption="Sustained slowdown by opening band" columns={[{ key: 'b', label: 'Opening', text: true }, { key: 'd', label: 'Downhill-start courses' }, { key: 'o', label: 'Every other course' }]}
             rows={rows.map((r) => [band(r.band.label), pct(r.down!.slowdown_pct / 100), pct(r.other!.slowdown_pct / 100)])} />} />
       </Beat>
       <ExploreBeat track="chapter-2"><AllFinisherAnalysis kind="downhill" start={start} linkTerm={false} opening={clearest?.band.id} untouched="none" /></ExploreBeat>

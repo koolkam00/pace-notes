@@ -12,8 +12,11 @@ import { extent, linear, pc, yScale } from './scale';
  * labelled directly (labels flip side when they would collide, and keep clear of the ring the chart opens on), joined by
  * a 1 px dashed line unless `pairLine` is off, the rest quiet. Tap any dot to read it out. The dots' knockout is one
  * layer drawn under all of them, so overlapping dots read as one cluster, never as crescents cut by a neighbour's halo.
+ * A point the sentence names outside the pair (`named`) keeps its quiet dot and takes a quiet label.
  */
-export type ScatterPoint = { id: string; x: number; y: number; label: string; key: string; value: string; inPair?: boolean };
+export type ScatterPoint = { id: string; x: number; y: number; label: string; key: string; value: string; inPair?: boolean;
+  /** A quiet label on a point outside the pair that the sentence names (a course's "Apart from 2022"): the dot stays quiet. */
+  named?: boolean };
 
 export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, label, axisTitle, values, height = 220, heightMd = 280, labelAll = false, selected, pairLine = true, side, prompt }: {
   points: ScatterPoint[]; xTicks: { value: number; label: string }[]; yTicks: { value: number; label: string }[];
@@ -45,7 +48,7 @@ export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, labe
   // The point the chart opens on carries the pick ring (12 px round it): its own label stands clear of the ring and
   // stays (the pair is labelled directly, so the open dot is named like the other); any other label hides while the
   // ring is on its dot (the readout names it then).
-  const items: LabelItem[] = points.map((p, i) => ({ p, i })).filter(({ p }) => labelAll || p.inPair).map(({ p, i }) => ({ id: p.id, text: p.label, x: x(p.x), y: y(p.y), priority: p.inPair ? 3 : 1, size: 13, prefer: 'right', gap: i === start ? 17 : 8, tone: p.inPair ? 'ink' : 'quiet', ...(i === start ? {} : { at: i }) }));
+  const items: LabelItem[] = points.map((p, i) => ({ p, i })).filter(({ p }) => labelAll || p.inPair || p.named).map(({ p, i }) => ({ id: p.id, text: p.label, x: x(p.x), y: y(p.y), priority: p.inPair ? 3 : p.named ? 2 : 1, size: 13, prefer: 'right', gap: i === start ? 17 : 8, tone: p.inPair ? 'ink' : 'quiet', ...(i === start ? {} : { at: i }) }));
   // Labels keep clear of every dot, of the ring the chart opens on (12 px round its point) and of the pair's line.
   const avoid = points.map((p, i) => ({ x: x(p.x), y: y(p.y), r: i === start ? 13 : 4 }));
   const along = joined ? Array.from({ length: 9 }, (_, k) => ({ x: x(pair[0].x) + ((k + 1) / 10) * (x(pair[1].x) - x(pair[0].x)), y: y(pair[0].y) + ((k + 1) / 10) * (y(pair[1].y) - y(pair[0].y)), r: 2 })) : [];

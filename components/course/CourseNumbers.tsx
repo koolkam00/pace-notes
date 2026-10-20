@@ -6,12 +6,15 @@ import { SECTION_BOUNDS, signedPct } from '@/lib/viz/format';
 import { CourseTable, Fact } from './Fact';
 import { Degrees, NetElevation, Wind } from './CourseUnits';
 import { GOAL_GAP } from './CourseGoals';
+import { HowLink } from '@/components/ui/Values';
+import { howWeKnowOf } from '@/lib/chapters';
 
 /**
  * "All numbers" (the redesign spec, section 00, cut 7): every long table on the course page in one disclosure after
  * the race's last chart: the whole course, edition by edition (with each race morning), 5K by 5K, goal by goal, and the
  * pacing types. Every figure is a checked <data> (scripts/verify-courses.cjs); a missing value is a dash. A duration given
- * back carries its "+", so it never reads as a clock time or a pace.
+ * back carries its "+", so it never reads as a clock time or a pace. Its last line is the page's methods link (release:
+ * every page with an "All numbers" ends it there; CourseOthers' closing row is the way back alone).
  */
 export default function CourseNumbers({ page }: { page: CoursePageData }) {
   const { display, summary: s, editions, weather, terrain, goals, types, typesElsewhere, archetypes, counted } = page;
@@ -22,6 +25,8 @@ export default function CourseNumbers({ page }: { page: CoursePageData }) {
   const curve = s.curve?.length === 9 ? s.curve : null;
   const sections = terrain && (!wet || curve) ? terrain : null;
   const byYear = new Map(weather.map((w) => [w.year, w]));
+  // The page's methods close its numbers, so the closing row is the way back alone (as on a story).
+  const how = howWeKnowOf(`/courses/${page.slug}`);
   const tables = 3 + (sections ? 1 : 0) + (goals.length ? 1 : 0) - (types ? 0 : 1);
   return (
     <details className="values course-numbers" id="all-numbers">
@@ -121,6 +126,7 @@ export default function CourseNumbers({ page }: { page: CoursePageData }) {
             </tbody>
           </CourseTable>
         ) : null}
+        {how ? <HowLink href={how} /> : null}
       </div>
     </details>
   );

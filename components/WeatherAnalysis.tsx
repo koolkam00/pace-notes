@@ -30,7 +30,10 @@ const one = (value: number) => `${weatherNumber(value, 1)}%`;
  * observed race days are the Values table under the card. Inside the page's masked .analysis-layout; no course picker
  * (the comparison is across all of them).
  */
-export default function WeatherAnalysis({ candidate, evidence, sentence }: { definition?: WeatherDefinition; candidate: WeatherCandidate; evidence: WeatherEvidence; questions?: WeatherDefinition[]; sentence?: NuggetText }) {
+export default function WeatherAnalysis({ candidate, evidence, sentence, how }: { definition?: WeatherDefinition; candidate: WeatherCandidate; evidence: WeatherEvidence; questions?: WeatherDefinition[]; sentence?: NuggetText;
+  /** The page's methods anchor, at the foot of this tab's All numbers. */
+  how?: string;
+}) {
   const { units } = useUnits();
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const { exposure } = candidate;
@@ -77,7 +80,7 @@ export default function WeatherAnalysis({ candidate, evidence, sentence }: { def
         </figure>
       </div>
       <div className="answer-values">
-        <Values id={`${id}-days`} caption={`Observed race days: ${heading.toLowerCase()} and second-20K slowing`} count={evidence.editions.length}
+        <Values id={`${id}-days`} how={how} caption={`Observed race days: ${heading.toLowerCase()} and second-20K slowing`} count={evidence.editions.length}
           columns={[{ key: 'e', label: 'Race', text: true }, { key: 'x', label: SHORT[candidate.id] }, { key: 's', label: 'Second 20K' }, { key: 'n', label: 'Finishes' }]}
           rows={evidence.editions.map(row => [`${row.city} ${row.year}`, weatherLabel(row[exposure.key], candidate.id, units), `${weatherNumber(row.pace_change_pct, 1)}%`, row.n.toLocaleString('en-US')])} />
       </div>

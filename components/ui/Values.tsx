@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
 import Arrow from './Arrow';
 import ScrollCue from './ScrollCue.client';
 import { UnitLink as Link } from '@/components/UnitsProvider';
@@ -7,7 +7,7 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
  * The page's one deep link to its methods, at the foot of its numbers (round 6: a "How we know" in the closing row and the
  * footer's were two paths to /methodology on one phone screen): the method sits with the figures it explains.
  */
-function HowLink({ href }: { href: string }) {
+export function HowLink({ href }: { href: string }) {
   return <p className="values-how"><Link href={href} className="values-how-link">How these were measured<Arrow /></Link></p>;
 }
 
@@ -95,4 +95,13 @@ export function AllNumbers({ tables, id = 'all-numbers', className, how }: { tab
       <div className="values-body all-numbers-body">{list.map((t, i) => <Fragment key={i}>{t}</Fragment>)}{how ? <HowLink href={how} /> : null}</div>
     </details>
   );
+}
+
+/**
+ * A Values element with the page's methods link at the foot of its fold (`how`); anything else is returned as it is. For
+ * a table built elsewhere (an explorer's parts, a chart's frame) that becomes the page's "All numbers": every page with
+ * one carries its methods there, and its closing row is the way back alone (release, October 20, 2026).
+ */
+export function withHow(node: ReactNode, how: string | null | undefined): ReactNode {
+  return how && isValidElement(node) && node.type === Values ? cloneElement(node as ReactElement<Props>, { how }) : node;
 }

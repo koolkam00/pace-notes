@@ -1,6 +1,7 @@
 'use client';
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { HERO_EVENT, type HeroDetail } from './hero-event';
+import { withHow } from '@/components/ui/Values';
 
 /** The selection the page's explorer last sent (null: the page's own example). */
 function useHeroDetail(): HeroDetail {
@@ -20,9 +21,12 @@ function useHeroDetail(): HeroDetail {
  * example set again sends null and it returns. `slot="values"` is the same swap for the card's "All numbers", which
  * sits on paper under the card (AnswerCard `values`). Inside the page's masked .analysis-layout, like the explorer.
  */
-export default function HeroSwap({ kicker, slot = 'chart', children }: { kicker?: ReactNode; slot?: 'chart' | 'values' | 'scope'; children?: ReactNode }) {
+export default function HeroSwap({ kicker, slot = 'chart', how, children }: { kicker?: ReactNode; slot?: 'chart' | 'values' | 'scope';
+  /** slot="values": the page's methods anchor, kept at the foot of a selection's "All numbers" as of the example's. */
+  how?: string; children?: ReactNode;
+}) {
   const detail = useHeroDetail();
-  if (slot === 'values') return <>{detail ? <Fragment key={detail.kicker}>{detail.values ?? null}</Fragment> : children}</>;
+  if (slot === 'values') return <>{detail ? <Fragment key={detail.kicker}>{withHow(detail.values ?? null, how)}</Fragment> : children}</>;
   // Under the dek while a selection is shown: what the card now draws, and that the H1 is the example's.
   if (slot === 'scope') return detail?.scope ? <span className="reading-scope">{detail.scope}</span> : null;
   // A selection always names itself ("Berlin · 4:00"), even on a card whose example needs no kicker.

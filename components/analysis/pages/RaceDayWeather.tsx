@@ -16,8 +16,12 @@ import { NULL_FINDINGS } from '@/lib/nuggets/analyses';
 import { temp } from '@/lib/nuggets/format';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import type { UnitSystem } from '@/lib/units';
+import { howWeKnowOf } from '@/lib/chapters';
+import { withHow } from '@/components/ui/Values';
 
 const PATH = '/analyses/race-day-weather';
+/** The page's methods, at the foot of each tab's All numbers (the closing row is the way back alone). */
+const HOW = howWeKnowOf(PATH) ?? undefined;
 
 /**
  * Chapter 09, page 2: three answers in tabs (start temperature, warming through the race, wind at the start), each shown
@@ -39,7 +43,7 @@ export default function RaceDayWeather() {
   const mi = parts('mi'), km = parts('km');
   const columns = mi && km ? (
     // Make it yours redraws the start-temperature card only, so it sits under that card, in its tab (round 6).
-    <AnswerCard values={<HeroSwap slot="values"><ByUnits mi={mi.values} km={km.values} /></HeroSwap>}
+    <AnswerCard values={<HeroSwap slot="values" how={HOW}><ByUnits mi={withHow(mi.values, HOW)} km={withHow(km.values, HOW)} /></HeroSwap>}
       explore={<ExploreBeat track="chapter-1" inCard><AllFinisherAnalysis kind="weather" start={start} linkTerm={false} untouched="none" hero /></ExploreBeat>}>
       <HeroSwap kicker={<ByUnits mi={mi.kicker} km={km.kicker} />}><ByUnits mi={mi.chart} km={km.chart} /></HeroSwap>
     </AnswerCard>
@@ -63,13 +67,13 @@ export default function RaceDayWeather() {
       const candidate = ready(id);
       if (!candidate) return [];
       const dek = nuggets[id].guard ? DEK[id] : definition.title;
-      return [{ id, label: id === 'warming' ? 'Warming' : 'Wind', title: <Say nugget={nuggets[id]} quiet={NULL_FINDINGS.includes(nuggets[id].id)} />, dek, panel: <WeatherAnalysis candidate={candidate} evidence={evidence} /> }];
+      return [{ id, label: id === 'warming' ? 'Warming' : 'Wind', title: <Say nugget={nuggets[id]} quiet={NULL_FINDINGS.includes(nuggets[id].id)} />, dek, panel: <WeatherAnalysis candidate={candidate} evidence={evidence} how={HOW} /> }];
     }),
   ];
   // The browser tab reads the tab's search title, not its sentence (round 6); the first tab keeps the page's own.
   const documentTitles = Object.fromEntries((['warming', 'wind'] as const).filter((id) => ready(id)).map((id) => [id, `${WEATHER_TAB_TITLES[id]} | Pace Notes`]));
   return (
-    <AnalysisShell path={PATH} title={n} heading={<TabTitle titles={tabs.map(({ id, title }) => ({ id, title }))} documentTitles={documentTitles} />} dek={<TabTitle titles={tabs.map(({ id, dek }) => ({ id, title: dek }))} />}
+    <AnalysisShell path={PATH} numbers={!!columns} title={n} heading={<TabTitle titles={tabs.map(({ id, title }) => ({ id, title }))} documentTitles={documentTitles} />} dek={<TabTitle titles={tabs.map(({ id, dek }) => ({ id, title: dek }))} />}
       answer={<WeatherTabs tabs={tabs.map(({ id, label, panel }) => ({ id, label, panel }))} />} />
   );
 }

@@ -82,8 +82,8 @@ export default function PlanPage() {
   return (
     <div className="tool-page">
       <ToolHeader slug="plan" />
-      <RacePlan courseGoalSha={courseGoalSha} paceBandSha={paceBandSha} courses={courses} example={courseGoalSha ? planExample(goal) : null} />
-      <ToolEnd path="/tools/plan" how="/methodology#tools-plan" />
+      <RacePlan courseGoalSha={courseGoalSha} paceBandSha={paceBandSha} courses={courses} example={courseGoalSha ? planExample(goal) : null} how="/methodology#tools-plan" />
+      <ToolEnd path="/tools/plan" how="/methodology#tools-plan" numbers />
     </div>
   );
 }

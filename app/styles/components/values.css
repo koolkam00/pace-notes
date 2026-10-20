@@ -27,7 +27,7 @@
 .all-numbers-body { display: grid; gap: var(--s-6); }
 /* The page's methods, last in its numbers: one quiet line with the plain arrow (an internal page). */
 .values-how { margin: var(--s-4) 0 0; }
-.all-numbers-body > .values-how { margin-top: 0; }
+.all-numbers-body > .values-how, .course-numbers-body > .values-how { margin-top: 0; }
 .values-how-link { display: inline-flex; align-items: center; gap: var(--s-2); min-height: 44px; color: var(--ink-2); font-family: var(--sans); font-size: .9375rem; font-weight: 500; text-decoration: none; }
 .values-how-link .arrow-icon { flex: none; color: var(--ink-3); transition: transform var(--d-quick) var(--ease-out); }
 .values-how-link:hover { color: var(--ink); text-decoration: none; }

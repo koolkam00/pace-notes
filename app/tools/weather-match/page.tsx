@@ -27,8 +27,8 @@ export default function WeatherMatchPage() {
   return (
     <div className="tool-page">
       <ToolHeader slug="weather-match" />
-      <WeatherMatch sha={sha} />
-      <ToolEnd path="/tools/weather-match" how="/methodology#tools-weather-match" />
+      <WeatherMatch sha={sha} how="/methodology#tools-weather-match" />
+      <ToolEnd path="/tools/weather-match" how="/methodology#tools-weather-match" numbers />
     </div>
   );
 }

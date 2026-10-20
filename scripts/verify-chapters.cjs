@@ -19,6 +19,8 @@
 //   7b. Every card in the chain carries a figure: each page's reading (the first page of a chapter: its lead) has one.
 //   9. Every beat heading (h2.t-h2) is a beat's finding in one clause: at most 12 words (with the export). The analyses'
 //      and the tools' headings are reported as notes until their package shortens them; every other page fails.
+//  11. One way to a page's methods (with the export): an All numbers fold ends on them and the closing row has no "How we
+//      know", or the row has it and no fold does; never both (a short list of tools keeps the row, ROW_WITH_NUMBERS).
 //   6. The shell's components rendered on the server: the closing stack (its related section, the one next card last in
 //      its pagination nav as S2 and S3 follow it, no also rows, the way back, How we know unless the page's All numbers
 //      carries it (how={false}), PageFeedback; the finish
@@ -334,6 +336,43 @@ if (hasOut) {
     if (place && 'page' in place && place.page.kind === 'tool') notes.push(`${p}: ${message}`);
     else check(false, p, message);
   }
+}
+
+// ---------- 11. One way to a page's methods ----------
+// One pattern on every page (release, October 20, 2026): a page whose figures sit in an "All numbers" fold ends that
+// fold on "How these were measured" and its closing row is the way back alone, as a story's is; a page without one keeps
+// "How we know" in its closing row (and the footer's own link to /methodology steps aside there). Never both, never two
+// anchors. The tools whose only fold holds their own calculations or official standards keep the row: "measured" would
+// not be true of them.
+const ROW_WITH_NUMBERS = {
+  '/tools/split-check': 'its fold is the visitor\'s own splits (drawn in the browser)',
+  '/tools/pace-calculator': 'its fold is the watch table, a calculation from the visitor\'s inputs',
+  '/tools/qualifying': 'its fold is Boston\'s published cut-offs, official figures',
+  '/tools/qualifying/boston': 'its fold is Boston\'s published cut-offs, official figures',
+};
+if (hasOut) {
+  const pages = [];
+  const walk = (dir) => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) { const f = path.join(dir, e.name); if (e.isDirectory()) { if (e.name !== '_next') walk(f); } else if (e.name.endsWith('.html')) pages.push(f); } };
+  walk(OUT);
+  let folds = 0, rows = 0;
+  for (const file of pages) {
+    const route = '/' + path.relative(OUT, file).replace(/\\/g, '/').replace(/(\/index)?\.html$/, '').replace(/^index$/, '');
+    if (route === '/methodology' || route === '/404') continue;
+    const html = fs.readFileSync(file, 'utf8');
+    const main = html.slice(Math.max(0, html.indexOf('<main')));
+    const row = (main.match(/class="chapter-how"/g) || []).length;
+    const how = [...new Set([...main.matchAll(/<a\b[^>]*class="values-how-link"[^>]*href="([^"]+)"|<a\b[^>]*href="([^"]+)"[^>]*class="values-how-link"/g)].map((m) => m[1] || m[2]))];
+    const numbers = /<summary><span>All numbers/.test(main);
+    check(row <= 1, route, `${row} "How we know" links in its closing stack`);
+    check(!(row && how.length), route, 'carries its methods twice: "How we know" in the closing row and "How these were measured" in its All numbers');
+    check(how.length <= 1, route, `its All numbers link ${how.length} different methods anchors (${how.join(', ')})`);
+    if (numbers && row && !ROW_WITH_NUMBERS[route]) check(false, route, 'has an All numbers fold but keeps "How we know" in its closing row: end the fold on "How these were measured" (Values or AllNumbers `how`) and pass how={false}');
+    if (how.length) folds++;
+    if (row) rows++;
+  }
+  for (const route of Object.keys(ROW_WITH_NUMBERS)) check(built(route), route, 'is listed in ROW_WITH_NUMBERS but not built');
+  check(folds >= 40, 'methods links', `only ${folds} pages end an All numbers on their methods (stories, analyses and course pages should)`);
+  notes.push(`methods: ${folds} pages close an All numbers on them, ${rows} keep "How we know" in the closing row`);
 }
 
 // ---------- 6. The components, rendered ----------

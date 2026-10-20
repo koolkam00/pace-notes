@@ -15,8 +15,11 @@ import { openingWords, sweetBand } from '@/lib/nuggets/analyses';
 import { bandWords } from '@/lib/all-finisher-context';
 import { ms, pct, spokenTime } from '@/lib/nuggets/format';
 import { UnitLink as Link } from '@/components/UnitsProvider';
+import { howWeKnowOf } from '@/lib/chapters';
 
 const PATH = '/analyses/starting-pace';
+/** The page's methods, at the foot of its All numbers (the closing row is the way back alone). */
+const HOW = howWeKnowOf(PATH) ?? undefined;
 const capitalize = (s: string) => s.replace(/^[a-z]/, (c) => c.toUpperCase());
 /** A gap against the same pace in words: "1:48 ahead", "2:04 behind", "even". */
 const gap = (s: number) => { const r = Math.round(s); return r === 0 ? 'even' : `${ms(Math.abs(r))} ${r < 0 ? 'ahead' : 'behind'}`; };
@@ -48,7 +51,7 @@ export default function StartingPace() {
   ) : null;
   return (
     // The dek is the band's sustained slowdowns against the same race and pace (the term linked here, once, under the H1).
-    <AnalysisShell path={PATH} title={bank} answer={answer}
+    <AnalysisShell path={PATH} numbers title={bank} answer={answer}
       dek={bank.guard && Number(v.slowdown) > Number(v.expected)
         ? <>Of these finishes, {pct(Number(v.slowdown))} had a <Link href={bank.term ?? '/methodology#sustained-slowdown'} className="term-link">sustained slowdown</Link>, against {pct(Number(v.expected))} at the same race and pace.</>
         : definition.title}>
@@ -106,7 +109,7 @@ function OpeningCurve() {
       }}
       label={`The finish against same-pace finishes, by first-5K pace; the best average finishes went with a first 5K ${plateau && plateau.bins.length > 1 ? `${plateau.from}–${plateau.to}% slower, within ${Math.round(plateau.spread)} seconds of each other` : openingWords(best.lo)}`}
       // The curve's own twin, 1% bin by bin, as the readout reads it (the explorer below gives the six wider bands).
-      values={<Values id="sp-curve-values" caption="Against the same race and 5–20K pace, by first 5K"
+      values={<Values id="sp-curve-values" how={HOW} caption="Against the same race and 5–20K pace, by first 5K"
         columns={[{ key: 'b', label: 'First 5K', text: true }, { key: 'f', label: 'At the finish' }, { key: 'a', label: 'After 20K' }, { key: 's', label: 'Sustained slowdown' }]}
         rows={curve.map((c) => [capitalize(openingWords(c.lo)), gap(c.finish_s), gap(c.after20_s), pct(c.slowdown)])} reading={bestI} />}
       height={220} heightMd={280} />

@@ -95,8 +95,8 @@
    its rows are data. */
 @media (min-width: 900px) {
   .tool-page.tools-index { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--s-8); align-items: start; padding-top: var(--s-8); }
-  .tool-page.tools-index > .tool-header { grid-column: 1; grid-row: 1 / span 3; position: sticky; top: calc(var(--header-h) + var(--s-6)); padding: 0; }
-  .tool-page.tools-index > .tools-group, .tool-page.tools-index > .tool-end { grid-column: 2; }
+  .tool-page.tools-index > .tool-header { grid-column: 1; grid-row: 1 / span 2; position: sticky; top: calc(var(--header-h) + var(--s-6)); padding: 0; }
+  .tool-page.tools-index > .tools-group { grid-column: 2; }
   .tool-page.tools-index > .tools-group:first-of-type { padding-top: 0; }
   .tool-page.tools-index .tools-list { max-width: none; }
 }

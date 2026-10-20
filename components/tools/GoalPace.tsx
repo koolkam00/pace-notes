@@ -63,7 +63,9 @@ export function GoalPaceDek({ goal, observed }: { goal: number; observed: GoalOb
 /** The pile-up's minutes as a table: each minute's finishes and the smooth curve's expectation, the reading row marked. */
 export interface PileupTable { caption: string; rows: [string, string, string][]; reading: number }
 
-export function GoalPaceBody({ goal, observed, bunching, pileup, pileupTable }: { goal: number; observed: GoalObserved | null; bunching: GoalBunching | null; peers?: GoalPeer[];
+export function GoalPaceBody({ goal, observed, bunching, pileup, pileupTable, how }: { goal: number; observed: GoalObserved | null; bunching: GoalBunching | null; peers?: GoalPeer[];
+  /** The page's methods anchor, the last line of its "All numbers" (ToolEnd `numbers`). */
+  how?: string;
   /** The pile-up's figure, drawn on the server (a mini minute histogram). */
   pileup?: ReactNode;
   /** Its numbers, for the page's one "All numbers" disclosure. */
@@ -139,7 +141,7 @@ export function GoalPaceBody({ goal, observed, bunching, pileup, pileupTable }: 
 
       {/* Section 00, cut 7: the page's tables in one disclosure at its foot, each with its caption, not a Values row under
           every beat. */}
-      <AllNumbers id="goal-pace-numbers" className="goal-pace-numbers" tables={[
+      <AllNumbers id="goal-pace-numbers" className="goal-pace-numbers" how={how} tables={[
         <Values bare key="every" id="goal-pace-every" caption={`Elapsed time at an even pace for a ${label} marathon, every ${unitWord(units)}, with the 5 km mats and halfway`}>
           <table className="table">
             <thead><tr><th scope="col">Split</th><th scope="col">Elapsed</th></tr></thead>

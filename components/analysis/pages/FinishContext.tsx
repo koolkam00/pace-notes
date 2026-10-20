@@ -7,8 +7,12 @@ import { getAnalysisAnswers, getAnalysisStart } from '@/lib/analysis-server';
 import { EXAMPLE_PROFILE } from '@/lib/analysis-profile';
 import { getNugget } from '@/lib/nuggets';
 import { hm, pct } from '@/lib/nuggets/format';
+import { howWeKnowOf } from '@/lib/chapters';
+import { withHow } from '@/components/ui/Values';
 
 const PATH = '/analyses/finish-time-context';
+/** The page's methods, at the foot of its All numbers (the closing row is the way back alone). */
+const HOW = howWeKnowOf(PATH) ?? undefined;
 
 /**
  * Chapter 06, page 2: the share of finishes under each time as one cumulative curve, the H1's mark (3:00, under which only 5% finished)
@@ -31,12 +35,12 @@ export default function FinishContext() {
   const parts = explorerParts({ id: 'ambition', answer: initialAnswer, goal: mark, units: 'mi', valuesId: 'ftc-answer', example: true, apart: true });
   const answer = parts ? (
     // Make it yours moves this chart (HeroSwap): the visitor's curve and time replace the example here, never a second copy.
-    <AnswerCard values={<HeroSwap slot="values">{parts?.values}</HeroSwap>}
+    <AnswerCard values={<HeroSwap slot="values" how={HOW}>{withHow(parts?.values, HOW)}</HeroSwap>}
       explore={<ExploreBeat track="chapter-1" inCard><AnalysisExplorer definition={definition} summary={summary} initialAnswer={initialAnswer} start={start} untouched="none" hero /></ExploreBeat>}>
       <HeroSwap kicker="Every finish, every course">{parts?.chart}</HeroSwap>
     </AnswerCard>
   ) : null;
   return (
-    <AnalysisShell path={PATH} title={n} dek={dek} answer={answer} />
+    <AnalysisShell path={PATH} numbers={!!parts} title={n} dek={dek} answer={answer} />
   );
 }

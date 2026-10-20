@@ -185,7 +185,10 @@ type Need = 'temp' | 'dew' | 'rh' | 'dew-above' | null;
 /** The goal is kept in the address as h:mm (h:mm:ss with seconds), as on every goal tool. */
 const DEFAULT_GOAL = '4:00';
 
-export default function WeatherMatch({ sha }: { sha: string | null }) {
+export default function WeatherMatch({ sha, how }: { sha: string | null;
+  /** The page's methods anchor, the last line of its "All numbers" (ToolEnd `numbers`). */
+  how?: string;
+}) {
   const { units } = useUnits();
   const [q, setQuery, ready, fromUrl] = useQueryState({ temp: '', tu: '', hum: 'dew', dew: '', rh: '', by: '', goal: DEFAULT_GOAL, pace: '', pu: '', w: '2' });
   const { data, error, retry } = useWeatherData(sha);
@@ -482,7 +485,7 @@ export default function WeatherMatch({ sha }: { sha: string | null }) {
               {/* One "All numbers" for the page (critic round 4: two table folds, a dew-point fold and the research fold
                   were four): the sections beside the reference, then the races and their mornings. */}
               {centre !== null && (match.kind === 'ok' || match.kind === 'no-row') ? (
-                <AllNumbers id="weather-match-numbers" className="weather-match-numbers" tables={[
+                <AllNumbers id="weather-match-numbers" className="weather-match-numbers" how={how} tables={[
                   match.kind === 'ok' ? <SectionValues key="sections" match={match} units={units} centre={centre} hw={hw} winText={winText} refText={refText} refTone={refTone} /> : null,
                   <EditionValues key="editions" id="weather-match-editions-values" units={units} tUnit={tUnit} caption={match.kind === 'ok' ? 'The matched races and their race-morning weather' : 'The races that started in this window and their race-morning weather'}
                     editions={(match.kind === 'ok' ? match.row.ed.map((id) => byId.get(id)).filter((e): e is WeatherEdition => !!e) : match.inWindow).sort((a, b) => a.temp_c - b.temp_c || a.city.localeCompare(b.city))} />,

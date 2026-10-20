@@ -194,9 +194,9 @@ export default function GoalPacePage({ params }: { params: { goal: string } }) {
         <p className="print-only goal-chart-print-note">Pace Notes {label} marathon pace. splithappens.run{goalPagePath(minute)}</p>
       </ToolPageHeader>
       <div className="goal-pace-stack">
-        <GoalPaceBody goal={minute} observed={observed} bunching={bunching} peers={peers} pileup={pileup?.figure ?? null} pileupTable={pileup?.table ?? null} />
+        <GoalPaceBody goal={minute} observed={observed} bunching={bunching} peers={peers} pileup={pileup?.figure ?? null} pileupTable={pileup?.table ?? null} how="/methodology#tools-goal-pages" />
       </div>
-      <ToolEnd path={goalPagePath(minute)} how="/methodology#tools-goal-pages" />
+      <ToolEnd path={goalPagePath(minute)} how="/methodology#tools-goal-pages" numbers />
     </div></ChainFrame>
   );
 }

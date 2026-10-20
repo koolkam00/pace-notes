@@ -120,11 +120,13 @@ export function GoalBar({ label, onStep, step = 60, labels, disabled, children }
     const workspace = ref.current?.closest('.tool-workspace');
     const inputs = workspace?.querySelector('.tool-inputs');
     if (!workspace || !inputs || typeof IntersectionObserver !== 'function') return undefined;
-    // Shown once the inputs have scrolled up out of view, and stepped away while an actions row (Copy link, Print) is on
-    // screen, so the bar never sits over a button it would hide.
-    let above = false;
+    // Shown once the inputs have scrolled up out of view and until the page's closing stack comes up, and stepped away
+    // while an actions row (Copy link, Print) is on screen, so the bar (fixed, taking no room) never sits over a button
+    // it would hide, the next card or the footer.
+    let above = false, ended = false;
     const actions = new Set<Element>();
-    const update = () => setShown(above && actions.size === 0);
+    const end = document.querySelector('.chapter-end');
+    const update = () => setShown(above && !ended && actions.size === 0);
     const io = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         if (entry.target === inputs) above = !entry.isIntersecting && entry.boundingClientRect.top < 0;
@@ -133,9 +135,12 @@ export function GoalBar({ label, onStep, step = 60, labels, disabled, children }
       }
       update();
     });
+    // The closing stack counts as reached once its top comes up into the bar's own strip at the foot of the screen.
+    const foot = new IntersectionObserver(([entry]) => { ended = entry.isIntersecting || entry.boundingClientRect.top < 0; update(); }, { rootMargin: '0px 0px -88px 0px' });
     io.observe(inputs);
+    if (end) foot.observe(end);
     workspace.querySelectorAll('.tool-share').forEach((row) => io.observe(row));
-    return () => io.disconnect();
+    return () => { io.disconnect(); foot.disconnect(); };
   }, []);
   const amount = step >= 60 ? `${step / 60} minute${step === 60 ? '' : 's'}` : `${step} seconds`;
   const [faster, slower] = labels ?? ['faster', 'slower'];

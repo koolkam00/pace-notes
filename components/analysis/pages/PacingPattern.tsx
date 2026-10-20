@@ -9,8 +9,12 @@ import { getNugget } from '@/lib/nuggets';
 import { hm } from '@/lib/nuggets/format';
 import { MARATHON_SECTION_ENDS, sectionLabel } from '@/lib/section-labels';
 import type { UnitSystem } from '@/lib/units';
+import { howWeKnowOf } from '@/lib/chapters';
+import { withHow } from '@/components/ui/Values';
 
 const PATH = '/analyses/pacing-pattern';
+/** The page's methods, at the foot of its All numbers (the closing row is the way back alone). */
+const HOW = howWeKnowOf(PATH) ?? undefined;
 
 /**
  * Chapter 03, page 2: how finishes near 4:00 ran each 5K, drawn as the median pace with its middle half against even
@@ -27,10 +31,10 @@ export default function PacingPattern() {
   const mi = parts('mi'), km = parts('km');
   return (
     // The dek adds what the chart shows: where the finishes fell behind even pace and where they were slowest.
-    <AnalysisShell path={PATH} title={n} dek={n.guard ? `They ran slower than even pace from ${MARATHON_SECTION_ENDS[Number(n.values.turn_i) - 1]}K, and slowest at ${sectionLabel(MARATHON_SECTION_ENDS[Number(n.values.slow_i)])}.` : definition.title}
+    <AnalysisShell path={PATH} numbers={!!(mi && km)} title={n} dek={n.guard ? `They ran slower than even pace from ${MARATHON_SECTION_ENDS[Number(n.values.turn_i) - 1]}K, and slowest at ${sectionLabel(MARATHON_SECTION_ENDS[Number(n.values.slow_i)])}.` : definition.title}
       answer={mi && km ? (
         // Make it yours sits under the card it redraws (round 6).
-        <AnswerCard values={<HeroSwap slot="values"><ByUnits mi={mi.values} km={km.values} /></HeroSwap>}
+        <AnswerCard values={<HeroSwap slot="values" how={HOW}><ByUnits mi={withHow(mi.values, HOW)} km={withHow(km.values, HOW)} /></HeroSwap>}
           explore={<ExploreBeat track="chapter-1" inCard><AnalysisExplorer definition={definition} summary={summary} initialAnswer={initialAnswer} untouched="none" hero /></ExploreBeat>}>
           <HeroSwap kicker={`Finishes near ${hm(goal)}, 5K by 5K`}><ByUnits mi={mi.chart} km={km.chart} /></HeroSwap>
         </AnswerCard>

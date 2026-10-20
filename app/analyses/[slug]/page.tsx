@@ -65,6 +65,12 @@ const TAIL: Record<string, string> = {
   'finding-improvement': 'Where faster marathon finishes found their minutes.',
 };
 
+/** What a weather tab's old route says while it forwards: one plain sentence, as the other moved pages say theirs. */
+const MOVED_LINE: Record<string, string> = {
+  'warming-and-pacing': 'Warming through the race now has its own tab in race-day weather.',
+  'wind-and-pacing': 'Wind at the start now has its own tab in race-day weather.',
+};
+
 /** The weather tabs' old routes: each describes its tab's finding (critic round 5: the warming one said "held pace"). */
 const COMPAT_NUGGET: Record<string, NuggetId> = { 'warming-and-pacing': 'weather.warming', 'wind-and-pacing': 'weather.wind' };
 
@@ -115,7 +121,7 @@ const BODIES: Record<string, () => JSX.Element> = {
 export default function AnalysisPage({ params }: { params: { slug: string } }) {
   const seo = seoFor(params.slug);
   const moved = movedTo(`/analyses/${params.slug}`);
-  if (moved) return <MovedPage to={moved} action="Go to race-day weather">{seo?.crumb ?? 'This question'} is now a tab of race-day weather.</MovedPage>;
+  if (moved) return <MovedPage to={moved} action="Go to race-day weather">{MOVED_LINE[params.slug] ?? 'This question now lives in race-day weather.'}</MovedPage>;
   const Body = BODIES[params.slug];
   if (!seo || !Body) notFound();
   return <>

@@ -16,8 +16,11 @@ import { courseName } from '@/lib/nuggets/analyses';
 import { hm, sectionLabel } from '@/lib/nuggets/format';
 import { MARATHON_SECTION_ENDS } from '@/lib/section-labels';
 import { elevationValue, type UnitSystem } from '@/lib/units';
+import { howWeKnowOf } from '@/lib/chapters';
 
 const PATH = '/analyses/hills-and-pacing';
+/** The page's methods, at the foot of its All numbers (the closing row is the way back alone). */
+const HOW = howWeKnowOf(PATH) ?? undefined;
 const elevation = (m: number, u: UnitSystem) => `${Math.round(elevationValue(m, u)).toLocaleString('en-US')} ${u === 'mi' ? 'ft' : 'm'}`;
 
 /**
@@ -56,12 +59,12 @@ export default function HillsPacing() {
   ) : null;
   // Climbing is the gain only (Boston's downhill first 5K still climbs 83 ft), so the net change sits beside it.
   const values = (u: UnitSystem) => sections ? (
-    <Values id={`hills-answer-${u}`} caption={`${courseName(city)} by section: the climbing, the net change, and the pace near ${hm(v.goal_min)} against the same 5K on every course combined`} columns={[{ key: 's', label: 'Section' }, { key: 'c', label: 'Climbing' }, { key: 'n', label: 'Net' }, { key: 'p', label: 'Against elsewhere' }]}
+    <Values id={`hills-answer-${u}`} how={HOW} caption={`${courseName(city)} by section: the climbing, the net change, and the pace near ${hm(v.goal_min)} against the same 5K on every course combined`} columns={[{ key: 's', label: 'Section' }, { key: 'c', label: 'Climbing' }, { key: 'n', label: 'Net' }, { key: 'p', label: 'Against elsewhere' }]}
       rows={sections.map((s, i) => [label(i), climb(s.gain, u), net(s.net, u), signedWhole(s.vs)])} reading={v.climb_i} />
   ) : null;
   const answer = sections ? (
     // The course and the time, kept on one line each ("near\u00a04:00"); the climb is in the readout.
-    <AnswerCard values={<HeroSwap slot="values"><ByUnits mi={values('mi')} km={values('km')} /></HeroSwap>}
+    <AnswerCard values={<HeroSwap slot="values" how={HOW}><ByUnits mi={values('mi')} km={values('km')} /></HeroSwap>}
       explore={(
         <ExploreBeat track="chapter-1" inCard>
           <AnalysisExplorer definition={definition} summary={summary} initialAnswer={getAnalysisAnswers(start).find((a) => a.id === definition.id)!} start={start} terrain={{ elevations, step, baselines: terrainBaselines(), hidden: terrainHidden() }} untouched="none" hero />
@@ -72,6 +75,6 @@ export default function HillsPacing() {
   ) : null;
   return (
     // The blocks' unit said once (on a phone they drop their % signs): each 5K's pace, in %, against the same 5K elsewhere.
-    <AnalysisShell path={PATH} title={n} dek={`Each 5K’s pace near ${hm(v.goal_min)}, in % against the same 5K on every course combined.`} answer={answer} />
+    <AnalysisShell path={PATH} numbers={!!sections} title={n} dek={`Each 5K’s pace near ${hm(v.goal_min)}, in % against the same 5K on every course combined.`} answer={answer} />
   );
 }

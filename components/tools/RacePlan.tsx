@@ -171,8 +171,10 @@ function DataProblem({ error, onRetry }: { error: string; onRetry: () => void })
  */
 export interface PlanExample { minutes: number; tolerance: number; n: number; under: number; courses: number; rows: CourseGoalRow[] }
 
-export default function RacePlan({ courseGoalSha, paceBandSha, courses, example = null }: {
+export default function RacePlan({ courseGoalSha, paceBandSha, courses, example = null, how }: {
   courseGoalSha: string | null; paceBandSha: string | null; courses: PlanCourse[]; example?: PlanExample | null;
+  /** The page's methods anchor, the last line of the mats' "All numbers" (ToolEnd `numbers`). */
+  how?: string;
 }) {
   const { units } = useUnits();
   const [q, setQuery, ready, fromUrl] = useQueryState(DEFAULTS);
@@ -390,7 +392,7 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
                 {/* One print action, the band this page exists for; the browser's own print command gives the whole plan. */}
                 <ShareBar extra={<button type="button" className="btn btn-primary is-compact" data-not-edit onClick={() => printAs('strip')}>Print wristband strips</button>} />
                 {/* Every mat: the plan beside the finishes at this time (the strips' "H" line), one fold. */}
-                <Values id="plan-mat-values" caption={comparison ? `Every mat: your plan beside finishes from ${formatDuration(comparison.lo, true)} to ${formatDuration(comparison.hi, true)} ${where}` : 'Every mat: your plan'} count={9}>
+                <Values id="plan-mat-values" how={how} caption={comparison ? `Every mat: your plan beside finishes from ${formatDuration(comparison.lo, true)} to ${formatDuration(comparison.hi, true)} ${where}` : 'Every mat: your plan'} count={9}>
                   <MatTable goal={goal} pKm={pKm} units={units} observed={comparison} />
                 </Values>
               </section>

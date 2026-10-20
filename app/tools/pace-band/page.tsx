@@ -65,8 +65,8 @@ export default function PaceBandPage() {
   return (
     <div className="tool-page">
       <ToolHeader slug="pace-band" />
-      <PaceBand indexSha={indexSha} profiles={profiles} unpublished={unpublished} />
-      <ToolEnd path="/tools/pace-band" how="/methodology#tools-pace-band" />
+      <PaceBand indexSha={indexSha} profiles={profiles} unpublished={unpublished} how="/methodology#tools-pace-band" />
+      <ToolEnd path="/tools/pace-band" how="/methodology#tools-pace-band" numbers />
     </div>
   );
 }

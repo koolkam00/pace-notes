@@ -1,6 +1,5 @@
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import Arrow from '@/components/ui/Arrow';
-import PageFeedback from '@/components/PageFeedback';
 import { getInsightsManifest } from '@/lib/insights-server';
 import { TOOLS, toolHref, type ToolGroup } from '@/lib/tools/registry';
 import { pageMetadata } from '@/lib/seo';
@@ -37,7 +36,8 @@ function Row({ href, title, line }: { href: string; title: string; line: string 
  * /tools (the redesign spec, section 00 cut 3): one list of tools in two groups, each row its name and one plain line of
  * what it does (critic round 4: a statistic and a badge on every row made the busiest list on the site, seven badges on a
  * phone screen). A data tool shows only when its file is in the verified manifest. The pace charts and the goal pages
- * are reference lookups too.
+ * are reference lookups too. Like /research, /stories and /analyses, it ends at its list (release: the privacy line and
+ * the feedback row that closed it are gone; the qualifying checker says beside its date-of-birth field where it goes).
  */
 export default function ToolsPage() {
   const manifest = getInsightsManifest();
@@ -73,10 +73,6 @@ export default function ToolsPage() {
           </section>
         );
       })}
-      <div className="chapter-end tool-end">
-        <p className="tools-privacy">Everything runs in your browser. Birth dates never go into links or analytics.</p>
-        <PageFeedback />
-      </div>
     </div>
   );
 }

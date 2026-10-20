@@ -110,12 +110,6 @@
   .story-beat .dot-grid.is-band .dot-grid-dots { grid-template-columns: repeat(25, minmax(0, 1fr)); gap: 7px; max-width: 30rem; }
 }
 
-/* The 100 dots' key: lit and unlit, named once. */
-.dot-grid-key { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: var(--t-small); font-weight: 400; color: var(--ink-2); }
-.dot-grid-key span { display: inline-flex; align-items: center; gap: 8px; }
-.dot-grid-key i { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--fill-quiet); box-shadow: inset 0 0 0 1px var(--mark-quiet); }
-.dot-grid-key i.is-ink { background: var(--ink); box-shadow: none; }
-.dot-grid-key i.is-signal { background: var(--signal); box-shadow: none; }
 
 /* The field as 99 finishes and the eras' two rows: phone dots, and from 900 px larger dots across the story's measure.
    The course-by-course strip grows its dots with its taller plot (DotStrip mdScale) the same way. */

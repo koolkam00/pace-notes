@@ -30,7 +30,8 @@ export { WEATHER_MIN_MORNINGS };
  * point) and there are three or more: every morning a dot, start temperature against the share of finishes with a
  * sustained slowdown. The sentence compares the warmest and coolest mornings other than the hero's edition (the hero
  * tells that one, course.weather): the two it names are inked and labelled by year, no key, never joined (a line across
- * the cloud would read as a trend, "warmer, therefore"). The heading says the reading, so the readout opens on a prompt
+ * the cloud would read as a trend, "warmer, therefore"); the year an "Apart from {year}" sentence sets aside is labelled
+ * quietly on its quiet dot, so the sentence names nothing the chart does not show. The heading says the reading, so the readout opens on a prompt
  * and no dot is orange (a picked one rings in ink); where the other mornings are too close to compare, the page
  * leaves the section out (round 6; the page's contents drop its chip too). The y scale runs from zero on the baseline
  * to the round ten above the dots, both labelled, and the readout names the measure. Elsewhere the mornings are in
@@ -49,7 +50,7 @@ export default function CourseWeatherByYear({ page }: { page: CoursePageData }) 
   const pad = Math.max(1.5, (hi - lo) * 0.08);
   const top = Math.max(0.1, Math.ceil(Math.max(...weather.map((e) => e.slowdown)) * 10) / 10);
   const chart = (units: UnitSystem) => (
-    <Scatter points={weather.map((e) => ({ id: String(e.year), x: e.temp, y: e.slowdown, label: String(e.year), key: `${e.year}, at the start`, value: temp(e.temp, units), inPair: inPair(e.year) }))}
+    <Scatter points={weather.map((e) => ({ id: String(e.year), x: e.temp, y: e.slowdown, label: String(e.year), key: `${e.year}, at the start`, value: temp(e.temp, units), inPair: inPair(e.year), named: v.apart === 1 && e.year === v.hero_year }))}
       side={[{ label: 'Sustained slowdown', values: weather.map((e) => pct(e.slowdown)) }]}
       xDomain={[lo - pad, hi + pad]} yDomain={[0, top]} xTicks={tempTicks(lo - pad, hi + pad, units)}
       yTicks={[{ value: top, label: pct(top) }, { value: 0, label: pct(0) }]} pairLine={false} selected={String(pair[0] ?? weather[weather.length - 1].year)} prompt="Choose a dot to read its year"

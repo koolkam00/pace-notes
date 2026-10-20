@@ -60,8 +60,10 @@ type ObservedOk = Extract<Observed, { state: 'ok' }>;
 /** A finish gap in plain words: "5 seconds", "1 second", "1:05". */
 const spokenGap = (seconds: number) => { const s = Math.round(Math.abs(seconds)); return s < 60 ? `${s} second${s === 1 ? '' : 's'}` : formatDuration(s); };
 
-export default function PaceBand({ indexSha, profiles, unpublished }: {
+export default function PaceBand({ indexSha, profiles, unpublished, how }: {
   indexSha: string | null; profiles: RouteProfile[]; unpublished: Record<string, UnpublishedCourse>;
+  /** The page's methods anchor, the last line of the observed mats' "All numbers" (ToolEnd `numbers`). */
+  how?: string;
 }) {
   const { units } = useUnits();
   const [q, setQuery, ready, fromUrl] = useQueryState(DEFAULTS);
@@ -343,7 +345,7 @@ export default function PaceBand({ indexSha, profiles, unpublished }: {
                         ]}
                         label={`Median elapsed time against even pace for ${fmtGoal(goal)} at every mat, for finishes from ${formatDuration(ok.lo, true)} to ${formatDuration(ok.hi, true)} ${ok.where}.${ok.held ? ` No sustained slowdown: ${aheadText(gapAt(ok.held, 3)!)} at 20 km.` : ''}${ok.slow ? ` Sustained slowdown: ${aheadText(gapAt(ok.slow, 3)!)} at 20 km.` : ''}`} />
                     ) : null}
-                    <Values id="pace-band-observed-values" caption={`Median elapsed time at each mat, finishes from ${formatDuration(ok.lo, true)} to ${formatDuration(ok.hi, true)} ${ok.where}${ok.genderWord ? `, recorded as ${ok.genderWord}` : ''}`} count={9}>
+                    <Values id="pace-band-observed-values" how={how} caption={`Median elapsed time at each mat, finishes from ${formatDuration(ok.lo, true)} to ${formatDuration(ok.hi, true)} ${ok.where}${ok.genderWord ? `, recorded as ${ok.genderWord}` : ''}`} count={9}>
                       <ObservedTable cells={ok} units={units} />
                     </Values>
                   </div>

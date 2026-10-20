@@ -7,8 +7,12 @@ import { getAnalysisStart } from '@/lib/analysis-server';
 import { getNugget } from '@/lib/nuggets';
 import { hm, pct } from '@/lib/nuggets/format';
 import { MARATHON_KM } from '@/lib/units';
+import { howWeKnowOf } from '@/lib/chapters';
+import { withHow } from '@/components/ui/Values';
 
 const PATH = '/analyses/where-time-is-gained';
+/** The page's methods, at the foot of its All numbers (the closing row is the way back alone). */
+const HOW = howWeKnowOf(PATH) ?? undefined;
 
 /**
  * Chapter 05, page 3: finishes just under and just over 4:00, the gap between them built section by section as a
@@ -28,13 +32,13 @@ export default function WhereTime() {
   const parts = explorerParts({ id: 'sections', answer: initialAnswer, goal, units: 'mi', valuesId: 'wt-answer', example: true, apart: true });
   const answer = parts ? (
     // The two groups are the dek's (right under the H1), so the card is the chart alone until a selection names its own.
-    <AnswerCard values={<HeroSwap slot="values">{parts.values}</HeroSwap>}
+    <AnswerCard values={<HeroSwap slot="values" how={HOW}>{withHow(parts.values, HOW)}</HeroSwap>}
       explore={<ExploreBeat track="chapter-1" inCard><AnalysisExplorer definition={definition} summary={summary} initialAnswer={initialAnswer} untouched="none" hero /></ExploreBeat>}>
       <HeroSwap>{parts.chart}</HeroSwap>
     </AnswerCard>
   ) : null;
   return (
-    <AnalysisShell path={PATH} title={n} answer={answer}
+    <AnalysisShell path={PATH} numbers title={n} answer={answer}
       // The share's base: after 20K is a little over half the race, so the H1's share is read against it (the guard holds
       // the share above it). The two groups are the card's kicker and the gap its total bar.
       dek={n.guard ? after : groups} />

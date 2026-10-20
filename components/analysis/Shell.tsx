@@ -71,8 +71,11 @@ export { textFor };
  * session replays (the Make it yours sheet, the goal line and every result the visitor picks are inside it). From
  * 1180 px the chapter rail runs beside it.
  */
-export default function AnalysisShell({ path, title, heading, dek, answer, children }: {
+export default function AnalysisShell({ path, title, heading, dek, answer, numbers = false, children }: {
   path: string; title: Nugget; answer: ReactNode; children?: ReactNode;
+  /** The page's "All numbers" ends on its methods link (Values `how`, withHow), so the closing row is the way back alone,
+   * as on a story; a page without one keeps "How we know" in that row (release: one pattern for every page). */
+  numbers?: boolean;
   /** The line under the H1: the finding's setup when the H1 is one clause (its second clause moved here), else the question. */
   dek: ReactNode;
   /** The H1's content when it is not the title nugget's sentence alone (race-day weather's tab-driven finding). The H1
@@ -94,7 +97,7 @@ export default function AnalysisShell({ path, title, heading, dek, answer, child
           <Reading crumbs={<ChapterCrumbs path={path} />} title={heading ?? <Say nugget={title} quiet={NULL_FINDINGS.includes(title.id)} />} titleSize="title" dek={dek ? <>{dek}<HeroSwap slot="scope" /></> : undefined} variant="receipt" receipt={answer} />
         </section>
         {children}
-        <ChapterEnd path={path} variant="analysis" readingOf={settledReadingOf} />
+        <ChapterEnd path={path} variant="analysis" readingOf={settledReadingOf} how={!numbers} />
       </div>
     </div>
   );

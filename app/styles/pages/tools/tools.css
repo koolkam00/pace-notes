@@ -242,10 +242,12 @@
 /* ---------- The goal bar (phones) ---------- */
 .tool-goalbar { display: none; }
 @media (max-width: 899.98px) {
+  /* Fixed, so it takes no room in the page while hidden (release: as a sticky element it kept about 64 px above the
+     closing stack); it shows only between the inputs and the closing stack (GoalBar), so it never covers either. */
   .tool-goalbar {
-    position: sticky; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 30;
+    position: fixed; left: 0; right: 0; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 30;
     display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 8px;
-    width: min(100%, 320px); margin: calc(var(--s-4) - var(--s-6)) auto 0; padding: 2px; border-radius: var(--r-pill);
+    width: min(calc(100% - 2 * var(--gutter)), 320px); margin: 0 auto; padding: 2px; border-radius: var(--r-pill);
     background: var(--paper); color: var(--ink); box-shadow: var(--shadow-sheet);
     opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity var(--d-quick) var(--ease-out), transform var(--d-toggle) var(--spring-soft);
   }
@@ -346,7 +348,6 @@
 /* A chip is its own affordance: never underlined as well, whatever link rule the page's copy sets. */
 .tool-page .tools-goal-links a, .tool-page .tools-goal-links a:hover { text-decoration: none; }
 .tools-goal-links a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.tools-privacy { margin: 0; max-width: var(--measure); font-size: var(--t-small); line-height: 1.5; color: var(--ink-3); }
 @media (min-width: 900px) {
   .tools-index .tool-header { padding-top: var(--s-8); }
   .tools-goals { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }

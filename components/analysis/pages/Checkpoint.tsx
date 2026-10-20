@@ -7,8 +7,11 @@ import { getCheckpointCurve, getCheckpointDefault } from '@/lib/analysis-server'
 import { getPersonalSummary } from '@/lib/personalized-data';
 import { getNugget } from '@/lib/nuggets';
 import { clock, hm, pct } from '@/lib/nuggets/format';
+import { howWeKnowOf } from '@/lib/chapters';
 
 const PATH = '/analyses/checkpoint';
+/** The page's methods, at the foot of its All numbers (the closing row is the way back alone). */
+const HOW = howWeKnowOf(PATH) ?? undefined;
 
 /** Chapter 04, page 1: even goal pace at 30K and how few made it, the cushion that made it a coin flip, then Make it yours. */
 export default function Checkpoint() {
@@ -22,7 +25,8 @@ export default function Checkpoint() {
     <AnswerCard kicker={`On even ${hm(v.goal_min)} pace at ${v.mat_km}K`}>
       <div className="answer-dots">
         <DotGrid lit={lit} label={`${lit} of 100 finishes on even ${hm(v.goal_min)} pace at ${v.mat_km}K got under ${hm(v.goal_min)}`} />
-        <p className="answer-dots-label"><strong>{lit}</strong> of 100 got under {hm(v.goal_min)}</p>
+        {/* The H1 gives the share; the card names its dots once (round 6: "14 of 100" said the H1's 14% again). */}
+        <p className="answer-dots-label dot-grid-key"><span><i className="is-signal" />Under {hm(v.goal_min)}</span><span><i />Not under</span></p>
       </div>
       {/* The group's 2-minute window at the mat is the dek's; the card gives even pace exactly and where they finished. */}
       <dl className="answer-cells">
@@ -34,7 +38,7 @@ export default function Checkpoint() {
   return (
     // The dek qualifies the H1 (critic round 4: a question dek the H1 had already answered): the group passed the mat in
     // the 2-minute window that holds even pace, on every course.
-    <AnalysisShell path={PATH} title={under} dek={`Finishes passing ${v.mat_km}K in ${hm(v.band_min)}–${hm(v.band_min + 2)}, every course.`} answer={answer}>
+    <AnalysisShell path={PATH} numbers title={under} dek={`Finishes passing ${v.mat_km}K in ${hm(v.band_min)}–${hm(v.band_min + 2)}, every course.`} answer={answer}>
       <Beat id="cushion" track="chapter-1" label="The cushion" title={cushion}><Cushion goal={v.goal_min} mat={v.mat_km} /></Beat>
       <ExploreBeat track="chapter-2">
         <CheckpointExplorer summary={summary} initial={row ? { row, checkpoint: v.mat_km, elapsed: even } : null} />
@@ -78,7 +82,7 @@ function Cushion({ goal, mat }: { goal: number; mat: number }) {
           side: [{ label: 'Median finish', values: curve.map((p) => clock(p.median)) }] } }}
       axisTitle={{ start: `← faster at ${mat}K`, end: `slower at ${mat}K →` }}
       label={`The share of finishes under ${hm(goal)}, by split at ${mat}K: half made it from about ${Math.round(evenMin - halfAt)} minutes ahead of even pace`}
-      values={<Values id="cp-cushion" caption={`Finishes under ${hm(goal)}, by split at ${mat}K`} columns={[{ key: 's', label: `At ${mat}K` }, { key: 'u', label: `Under ${hm(goal)}` }, { key: 'm', label: 'Median finish' }]}
+      values={<Values id="cp-cushion" how={HOW} caption={`Finishes under ${hm(goal)}, by split at ${mat}K`} columns={[{ key: 's', label: `At ${mat}K` }, { key: 'u', label: `Under ${hm(goal)}` }, { key: 'm', label: 'Median finish' }]}
         rows={curve.map((p) => [range(p), pct(p.share), clock(p.median)])} reading={Math.max(0, initial)} />}
       height={200} heightMd={250} />
   );
