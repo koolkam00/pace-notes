@@ -1,7 +1,8 @@
 'use client';
 
+import { Fragment } from 'react';
 import { type SplitInterval, type SplitRow } from '@/lib/tools/pace';
-import { goalCellLine, shapeCaption, shapeLine } from '@/lib/tools/course-shape';
+import { goalCell, shapeCaption, shapeLine, splitCaption } from '@/lib/tools/course-shape';
 import { CHECKPOINTS, fmtGoal } from '@/lib/tools/pace-band-data';
 import { formatDuration } from '@/lib/tools/time';
 import { KM_PER_MILE, elevationLabel, type UnitSystem } from '@/lib/units';
@@ -18,7 +19,9 @@ export interface StripObserved { held: { n: number; e50: number[] } | null; lo: 
  * the mat strip with each mat's time on the band and, at even pace, the held-pace median, the mile or km split strips, and
  * the optional route elevation strip for the back. With `shape` (lib/tools/course-shape.ts) the band is the course shape:
  * its nine timing points on the mat strip and `rows` built from them (bandRows), no "H" line (the band itself is the
- * observed shape), the Goal cell's even pace labelled as the average, and captions that name the shape and its source.
+ * observed shape; the mat cells then hold the name and the time alone, as the split cells do), the Goal cell's even pace
+ * labelled as the average, and captions that name the shape and its source on every strip, since each is cut out and
+ * worn on its own.
  * While a course's shape loads (`pending`, no shape yet) the strips keep their cells with dashes for times, never the
  * even-pace times under a choice of course shape. The preview is scaled to fit its column on every screen, in CSS alone
  * (em measures sized from the column, pace-band-strip.css), so it never scrolls, clips or shifts when the script runs. It
@@ -57,13 +60,16 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
             <div className="pace-band-cell is-lead">
               <span className="k">Goal</span>
               <b>{fmtGoal(goal)}</b>
-              <span className="h">{goalCellLine(pKm, overrun, units, course)}</span>
+              {/* At even pace one line, as before; in course shape "avg" once, then the watch on its own line, each phrase whole. */}
+              <span className="h">{course
+                ? goalCell(pKm, overrun, units, true).map((line, i) => <Fragment key={i}>{i ? <br /> : null}{line.map((p, j) => <Fragment key={j}>{j ? ' · ' : ''}<span className="nowrap">{p}</span></Fragment>)}</Fragment>)
+                : goalCell(pKm, overrun, units, false)[0].join(' · ')}</span>
             </div>
             {CHECKPOINTS.map((km, i) => (
               <div key={km} className={`pace-band-cell${i === 8 ? ' is-finish' : ''}`}>
                 <span className="k">{i === 8 ? 'Finish' : `${km}K`} <small>{i === 8 ? '26.2mi' : `${(km / KM_PER_MILE).toFixed(1)}mi`}</small></span>
                 <b>{i === 8 ? formatDuration(goal) : at(shape ? shape[i] : pKm * km)}</b>
-                <span className="h">{held ? `H ${formatDuration(held.e50[i])}` : ' '}</span>
+                {course ? null : <span className="h">{held ? `H ${formatDuration(held.e50[i])}` : ' '}</span>}
               </div>
             ))}
             <p className="pace-band-strip-caption">{caption}</p>
@@ -76,7 +82,7 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
                   <b>{at(r.elapsed)}</b>
                 </div>
               ))}
-              <p className="pace-band-strip-caption">{course ? 'Course shape' : 'Even pace'} {fmtGoal(goal)} · {interval === 'mi' ? 'each mile' : 'each km'} · strip {s + 1} of {strips.length}</p>
+              <p className="pace-band-strip-caption">{splitCaption(course, goal, interval, s + 1, strips.length)}</p>
             </div>
           ))}
           {showBack && profile ? <ElevationStrip profile={profile} units={units} /> : null}

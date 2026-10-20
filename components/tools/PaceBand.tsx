@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { useUnits } from '@/components/UnitsProvider';
-import BandChoice, { KickerText } from '@/components/tools/BandChoice';
+import BandChoice, { KickerText, ShapeLine } from '@/components/tools/BandChoice';
 import PaceBandStrip, { type RouteProfile } from '@/components/tools/PaceBandStrip';
 import MatLines, { aheadText } from '@/components/tools/MatLines';
 import { Choice, GoalBar, ShareBar, Stepper } from '@/components/tools/ui';
@@ -12,7 +12,7 @@ import KeypadHint from '@/components/KeypadHint';
 import Values from '@/components/ui/Values';
 import { loadInsight } from '@/lib/insights';
 import { loadShard, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
-import { bandChoice, bandKicker, bandMinute, bandMode, bandRows, goalPace, shapeFor, shapeLine, tidyChoice, type BandMode } from '@/lib/tools/course-shape';
+import { bandChoice, bandKicker, bandMinute, bandRows, bandView, goalPace, mayShape, noShapeLine, noShapeReason, shapeFor, shapeLine, tidyChoice, type ShapeGoals } from '@/lib/tools/course-shape';
 import { MARATHON_KM, splitTable, watchTarget, type SplitInterval } from '@/lib/tools/pace';
 import { CHECKPOINTS, PACE_BAND_INDEX, cellOf, fmtGoal, fmtPace, paceBandShardPath, type PaceBandCell as Cell } from '@/lib/tools/pace-band-data';
 import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
@@ -63,8 +63,10 @@ type ObservedOk = Extract<Observed, { state: 'ok' }>;
 /** A finish gap in plain words: "5 seconds", "1 second", "1:05". */
 const spokenGap = (seconds: number) => { const s = Math.round(Math.abs(seconds)); return s < 60 ? `${s} second${s === 1 ? '' : 's'}` : formatDuration(s); };
 
-export default function PaceBand({ indexSha, profiles, unpublished, how }: {
+export default function PaceBand({ indexSha, profiles, unpublished, shapeGoals = {}, how }: {
   indexSha: string | null; profiles: RouteProfile[]; unpublished: Record<string, UnpublishedCourse>;
+  /** Every published course's city and its groups' goals by recorded gender, from the index at build time (shapeGoalsOf). */
+  shapeGoals?: ShapeGoals;
   /** The page's methods anchor, the last line of the observed mats' "All numbers" (ToolEnd `numbers`). */
   how?: string;
 }) {
@@ -130,8 +132,10 @@ export default function PaceBand({ indexSha, profiles, unpublished, how }: {
   const scope = index?.scopes.find((s) => s.slug === course) ?? null;
   // A course other data knows (Prague, say) but the pace band does not publish: named, with the reason.
   const known = course !== 'all' && !scope && Object.prototype.hasOwnProperty.call(unpublished, course) ? unpublished[course] : null;
+  // A course the pace band publishes, known at build time, before the index loads: its city and its groups' goals.
+  const published = course !== 'all' && Object.prototype.hasOwnProperty.call(shapeGoals, course) ? shapeGoals[course] : null;
   // Never echo an unknown slug from the URL into the copy.
-  const city = scope?.city ?? known?.city ?? null;
+  const city = scope?.city ?? known?.city ?? published?.city ?? null;
   const place = course === 'all' ? 'All courses' : city ?? 'this course';
   const where = course === 'all' ? 'on all courses' : city ? `in ${city}` : 'on this course';
   const genderWord = gender === 'all' ? '' : gender === 'men' ? 'men' : 'women';
@@ -174,22 +178,26 @@ export default function PaceBand({ indexSha, profiles, unpublished, how }: {
   // The band (owner decision, October 20, 2026): on a course whose group (this recorded gender) publishes the goal, the
   // course shape (lib/tools/course-shape.ts) unless the visitor chose even pace; on all courses, or where the course has
   // no shape at this goal, even pace. A shape is only ever the group on screen: the last one stays while it reloads only
-  // for the same course and recorded gender, so a new gender's labels never sit on another group's times. While a
-  // group's shape is on its way the band keeps the course shape's layout with dashes for times, dimmed, and printing
-  // waits. Where there is no shape the finishes section below says why (not published for this goal, course or
-  // selection, or outside the observed range), so the Splits field shows nothing rather than say it twice.
+  // for the same course and recorded gender, so a new gender's labels never sit on another group's times. The page waits
+  // for a shape only where the course's group for this gender covers the goal (known at build time, before the index
+  // loads): Prague, a course the data does not know and a goal outside the group's goals settle at once as even pace.
+  // While a shape is on its way the band keeps the course shape's layout with dashes for times, dimmed, and printing
+  // waits. Where there is no shape, one line in the choice's place says why, as on the planner.
   const shapeFrom = fresh ?? (stale && stale.place === place && stale.genderWord === genderWord ? stale : null);
   const shape = goal === null || !shapeFrom ? null : shapeFor(course, shapeFrom.all, goal);
-  const shapeLoading = !fresh && course !== 'all' && observed.state === 'loading';
-  const mode: BandMode = bandMode(shape, q.pace);
-  const shaped = mode === 'course' ? shape : null;
-  // Dimmed while the shape is on its way: a group's first (dashes), or the last one of this group while it reloads.
-  const pending = (!shaped && shapeLoading && q.pace !== 'even') || (Boolean(shaped) && !fresh);
-  // The band in the course shape's layout: the shape itself, or its place while it loads.
-  const courseBand = Boolean(shaped) || pending;
-  const bandState = shape || shapeLoading ? 'choice' as const : 'off' as const;
+  const shapeLoading = !fresh && course !== 'all' && mayShape(published?.goals[gender], minute) && observed.state === 'loading';
+  // Dimmed while the shape is on its way (pending): a group's first (dashes), or the last one of this group while it
+  // reloads; courseBand, the band in the course shape's layout: the shape itself, or its place while it loads.
+  const { mode, shaped, pending, layout: courseBand, offered } = bandView({ shape, choice: q.pace, loading: shapeLoading, stale: !fresh });
+  // No shape: the one line says why, from what the build knows (no group for the course, none for this recorded gender, a
+  // goal outside the observed goals, which the finishes section below gives, or too few finishes). Nothing on all
+  // courses, for a course the data does not know (the finishes section says so) or when the data could not be loaded.
+  const bandState = offered ? 'choice' as const : course !== 'all' && (published || known) && observed.state !== 'off' ? 'none' as const : 'off' as const;
+  const noShape = bandState === 'none' && minute !== null ? noShapeLine(noShapeReason({ scoped: Boolean(published), gendered: Boolean(published?.goals[gender]), minute, goals: [OBS_MIN, OBS_MAX] }),
+    { city: city ?? '', genderWord, goals: [OBS_MIN, OBS_MAX], noted: true }) : '';
   // A hand-edited `pace` (pace=foo, pace=EVEN) is the default and leaves the address, as does `even` on all courses, where
-  // no choice is offered; a choice of even pace on a course stays, and carries to the next course.
+  // no choice is offered; a choice of even pace on a course stays and carries to the next course, but not through All
+  // courses (tidyChoice).
   useEffect(() => {
     if (ready && q.pace !== tidyChoice(q.pace, course === 'all')) setQuery({ pace: tidyChoice(q.pace, course === 'all') });
   }, [ready, q.pace, course, setQuery]);
@@ -197,7 +205,7 @@ export default function PaceBand({ indexSha, profiles, unpublished, how }: {
   const rows = useMemo(() => (goal === null ? [] : bandRows(goal, interval, shaped)), [goal, interval, shaped]);
   // Every marker on the band as a table: in the print options' fold, and printed with the full page.
   const wrist = goal === null || pKm === null ? null
-    : <Wristband rows={rows} goal={goal} pKm={pKm} units={units} overrun={overrun} even={shaped ? splitTable(goal, MARATHON_KM, interval) : null} />;
+    : <Wristband rows={rows} goal={goal} pKm={pKm} units={units} overrun={overrun} even={shaped ? splitTable(goal, MARATHON_KM, interval) : null} finishes={shaped && shapeFrom ? shapeFrom.all.n : null} />;
   const profile = profiles.find((p) => p.slug === course) ?? null;
   const showBack = q.back === '1' && profile !== null;
   // Results from untouched example inputs: nothing in the link, nothing changed yet.
@@ -289,6 +297,8 @@ export default function PaceBand({ indexSha, profiles, unpublished, how }: {
                   button under it and the print options folded below, never a second card repeating the planner's pace. */}
               <PrintPanel goal={goal} pKm={pKm} units={units} rows={rows} interval={interval} overrun={overrun} place={place} genderWord={genderWord}
                 kicker={bandKicker({ goal, place, genderWord, shape: shaped, units, overrun, example: isExample, pending: pending && !shaped })} busy={busy}
+                line={courseBand ? <ShapeLine goal={goal} city={city ?? ''} genderWord={genderWord} pending={pending && !shaped} /> : null}
+                choice={<BandChoice id="pace-band-choice" state={bandState} mode={pending ? 'course' : mode} onChange={(m) => setQ({ pace: bandChoice(m) })} line={noShape} className="no-print" />}
                 observed={fresh} profile={profile} showBack={showBack} onBack={(v) => setQ({ back: v ? '1' : '0' })} onPrint={printAs} waiting={held}
                 shape={shaped} dim={pending} course={courseBand} table={wrist}
                 controls={<>
@@ -302,7 +312,7 @@ export default function PaceBand({ indexSha, profiles, unpublished, how }: {
                   </div>
                 </>}
                 optionsOpen={Boolean(q.split) || overrun !== 0}
-                values={<Values id="pace-band-rows-values" how={shaped ? how : undefined} caption={shaped ? `Every marker on the band: the course shape beside even pace for ${fmtGoal(goal)}` : `Every marker on the band: even-pace elapsed time for ${fmtGoal(goal)}`} count={rows.length}>
+                values={<Values id="pace-band-rows-values" how={shaped ? how : undefined} caption={shaped ? `Every marker on the band: the course shape (timing points in bold) beside even pace for ${fmtGoal(goal)}` : `Every marker on the band: even-pace elapsed time for ${fmtGoal(goal)}`} count={rows.length}>
                   {wrist}</Values>} />
             </>
           )}
@@ -321,24 +331,22 @@ export default function PaceBand({ indexSha, profiles, unpublished, how }: {
                   {!scope && course !== 'all' ? <option value={course} disabled>{known ? `${known.city} · not published` : 'Unknown course'}</option> : null}
                   {index.scopes.filter((s) => s.slug !== 'all').map((s) => <option key={s.slug} value={s.slug}>{s.city ?? s.slug}</option>)}
                 </>
-              ) : course !== 'all' ? <option value={course}>{profile?.city ?? known?.city ?? 'Loading courses…'}</option> : null}
+              ) : course !== 'all' ? <option value={course}>{profile?.city ?? known?.city ?? published?.city ?? 'Loading courses…'}</option> : null}
             </select>
           </div>
           <div className="tool-field">
             <span className="tool-label" id="pace-band-gender">Recorded gender</span>
             <div role="group" aria-labelledby="pace-band-gender" className="ph-no-capture"><Choice label="Recorded gender" value={gender} onChange={(v) => setQ({ g: v })} options={GENDER_OPTIONS} small /></div>
           </div>
-          {goal !== null ? <BandChoice id="pace-band-choice" state={bandState} mode={pending ? 'course' : mode} onChange={(m) => setQ({ pace: bandChoice(m) })} /> : null}
         </form>
 
         <div className="tool-results">
           {goal !== null && pKm !== null ? (
             <>
-              {/* The finishes near the goal carry the Pace Notes data badge. At even pace it is the page's one badge (the band
-                  above is the visitor's own times); in course shape the band carries its own, and from 900 px, where this
-                  section sits directly under the band on the same screen, this one is left out (one badge per screen). */}
+              {/* The finishes near the goal carry the Pace Notes data badge at every width. At even pace it is the page's one
+                  badge (the band above is the visitor's own times); in course shape the band carries its own too. */}
               <section className="tool-panel pace-band-observed" id="pace-band-observed" aria-labelledby="pace-band-observed-title">
-                <EvidenceTag kind="data" className={courseBand ? 'is-narrow-only' : undefined} />
+                <EvidenceTag kind="data" />
                 {stale ? <p className="tool-note">Loading {place}{genderWord ? `, ${genderWord}` : ''}…</p> : null}
                 {observed.state === 'loading' && !stale ? <p className="tool-state" id="pace-band-observed-title">Loading the finishes near {fmtGoal(goal)}…</p> : null}
                 {shown.state === 'off' ? (
@@ -393,7 +401,7 @@ export default function PaceBand({ indexSha, profiles, unpublished, how }: {
               {/* No next-step row: the chapter's next card follows, the page's one way forward (section 00, cut 4). */}
 
               <GoalBar label="Goal" onStep={step}>
-                <b>{fmtGoal(goal)}</b><span>{goalPace(pKm, units, Boolean(shaped))}</span>
+                <b>{fmtGoal(goal)}</b><span>{goalPace(pKm, units, courseBand)}</span>
               </GoalBar>
             </>
           ) : null}
@@ -481,10 +489,11 @@ function GoalField({ seconds, raw, onChange, onStep, onEdit, onProblem }: {
 
 /**
  * Every marker on the band, as a table: even-pace elapsed time, calculated from the goal alone; with the course shape
- * (`even` then holds the even-pace rows), each marker's course-shape time beside its even-pace time. Exported for
- * scripts/verify-tools.cjs, which renders both.
+ * (`even` then holds the even-pace rows), each marker's course-shape time beside its even-pace time, the timing points
+ * (the mats and the finish, the observed ones) in bold and the others even between them, and the finishes the shape
+ * comes from (`finishes`) in its foot. Exported for scripts/verify-tools.cjs, which renders both.
  */
-export function Wristband({ rows, goal, pKm, units, overrun, even = null }: { rows: ReturnType<typeof splitTable>; goal: number; pKm: number; units: UnitSystem; overrun: number; even?: ReturnType<typeof splitTable> | null }) {
+export function Wristband({ rows, goal, pKm, units, overrun, even = null, finishes = null }: { rows: ReturnType<typeof splitTable>; goal: number; pKm: number; units: UnitSystem; overrun: number; even?: ReturnType<typeof splitTable> | null; finishes?: number | null }) {
   return (
     <table className="table pace-band-wrist">
       <thead><tr><th scope="col">Marker</th>{even ? <><th scope="col">Course shape</th><th scope="col">Even pace</th></> : <th scope="col">Elapsed</th>}</tr></thead>
@@ -502,6 +511,7 @@ export function Wristband({ rows, goal, pKm, units, overrun, even = null }: { ro
           );
         })}
       </tbody>
+      {even && finishes !== null ? <tfoot><tr><th scope="row">Finishes</th><td>{count(finishes)}</td><td /></tr></tfoot> : null}
       <caption className="sr-only">{even ? `Course-shape elapsed times for ${fmtGoal(goal)} (from Pace Notes data at the timing points, even between them), beside exact even-pace times` : `Exact even-pace elapsed times for ${fmtGoal(goal)}`}{overrun ? `; a watch reading ${pct(overrun, 1)} long shows ${even ? 'an average of ' : ''}${fmtPace(watchTarget(pKm, overrun), units)}` : ''}</caption>
     </table>
   );
@@ -542,13 +552,14 @@ function ObservedTable({ cells, units }: { cells: ObservedOk; units: UnitSystem 
 
 /**
  * The band to print, the page's answer: the kicker (goal, course and the band in its mode: the course shape's paces, or
- * the even pace), a live preview of the cut-out strips (the strips themselves for @media print), the one Print button,
- * and the print options folded under it: rows, a watch that reads long, the back strip, the full page and the band as a
- * table. The full page prints that table (`table`) in place of the strips.
+ * the even pace), in course shape the shape's one line, the Splits choice directly above the band it changes (or the one
+ * line saying why there is no shape), a live preview of the cut-out strips (the strips themselves for @media print), the
+ * one Print button, and the print options folded under it: rows, a watch that reads long, the back strip, the full page
+ * and the band as a table. The full page prints that table (`table`) in place of the strips.
  */
-function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWord, kicker, busy, observed, profile, showBack, onBack, onPrint, waiting, controls, values, optionsOpen = false, shape, dim, course, table }: {
+function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWord, kicker, line, choice, busy, observed, profile, showBack, onBack, onPrint, waiting, controls, values, optionsOpen = false, shape, dim, course, table }: {
   goal: number; pKm: number; units: UnitSystem; rows: ReturnType<typeof splitTable>; interval: SplitInterval; overrun: number; place: string; genderWord: string;
-  kicker: string; busy: boolean;
+  kicker: string; line: ReactNode; choice: ReactNode; busy: boolean;
   observed: ObservedOk | null; profile: RouteProfile | null; showBack: boolean; onBack: (v: boolean) => void; onPrint: (mode: 'strip' | 'page') => void;
   /** The goal field holds text that is not a goal: printing waits until it is fixed. */
   waiting: boolean; controls: ReactNode; values: ReactNode;
@@ -567,6 +578,8 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
           carry the data badge, and the printed strip names its source either way). */}
       {course ? <EvidenceTag kind="data" className="no-print" /> : null}
       <p className="tool-reading-kicker pace-band-kicker" id="pace-band-print-title"><KickerText text={kicker} /></p>
+      {line}
+      {choice}
       <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={interval} overrun={overrun} place={place} genderWord={genderWord}
         observed={observed} profile={profile} showBack={showBack} waiting={hold} shape={shape} pending={dim && !shape} />
       <ShareBar extra={<button type="button" className="btn btn-primary is-compact" data-not-edit disabled={hold} aria-describedby={waiting ? 'pace-band-print-held' : undefined} onClick={() => onPrint('strip')}>Print wristband strips</button>} />
@@ -585,8 +598,9 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
           {values}
         </div>
       </details>
-      {/* The full page prints the band as this table instead of the strips (the fold above is a screen control). */}
-      {table ? <div className="print-only pace-band-print-marks"><p className="pace-band-print-marks-title">Every marker on the band</p>{table}</div> : null}
+      {/* The full page prints the band as this table instead of the strips (the fold above is a screen control); in course
+          shape its title names the source, as the badge does on screen. */}
+      {table ? <div className="print-only pace-band-print-marks"><p className="pace-band-print-marks-title">Every marker on the band{shape ? ' · course shape from Pace Notes data' : ''}</p>{table}</div> : null}
     </section>
   );
 }

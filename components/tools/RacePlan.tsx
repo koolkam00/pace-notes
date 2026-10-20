@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useUnits } from '@/components/UnitsProvider';
-import BandChoice, { KickerText } from '@/components/tools/BandChoice';
+import BandChoice, { KickerText, ShapeLine } from '@/components/tools/BandChoice';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import PaceBandStrip from '@/components/tools/PaceBandStrip';
 import { DataLead, DurationField, GoalBar, ReadingFoot, ShareBar, Stepper } from '@/components/tools/ui';
@@ -10,10 +10,10 @@ import { useQueryState } from '@/components/tools/useQueryState';
 import Values from '@/components/ui/Values';
 import { loadInsight } from '@/lib/insights';
 import { loadShard, type CourseGoal, type CourseGoalRow, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
-import { bandChoice, bandKicker, bandMinute, bandMode, bandRows, cardMats, cardShapeLine, goalPace, matRows, noShapeLine, noShapeReason, shapeFor, shapeLine, shapePaces, tidyChoice } from '@/lib/tools/course-shape';
+import { bandChoice, bandKicker, bandMinute, bandRows, bandView, cardMats, goalPace, matRows, mayShape, noShapeLine, noShapeReason, shapeFor, shapeLine, shapePaces, tidyChoice } from '@/lib/tools/course-shape';
 import { MARATHON_KM, perUnit } from '@/lib/tools/pace';
 import { PACE_BAND_INDEX, cellOf, fmtGoal, fmtPace, paceBandShardPath, type PaceBandCell } from '@/lib/tools/pace-band-data';
-import { COURSE_GOAL_FILE, PLAN_GOAL_MAX_S, PLAN_GOAL_MIN_S, courseGoalResult, goalShare, publishedGoal, readPlanGoal, roundedNote } from '@/lib/tools/plan';
+import { COURSE_GOAL_FILE, PLAN_GOAL_MAX_S, PLAN_GOAL_MIN_S, courseGoalResult, goalPaceNote, goalShare, publishedGoal, readPlanGoal, roundedNote } from '@/lib/tools/plan';
 import { formatDuration, formatHM } from '@/lib/tools/time';
 import { KM_PER_MILE, matLabel, type UnitSystem } from '@/lib/units';
 import { count } from '@/lib/viz/format';
@@ -26,6 +26,8 @@ export interface PlanCourse {
   screened: string | null;
   /** The pace band, the race-day projector and the weather match publish this course. */
   band: boolean; projector: boolean; weather: boolean;
+  /** The goals (whole minutes) its course shape covers: the pace band's all-genders group, from the index at build time. */
+  shapeGoals: [number, number] | null;
   /** /courses/<slug> exists. */
   page: boolean;
 }
@@ -87,7 +89,7 @@ export function MatTable({ goal, units, observed, shape }: { goal: number; units
   if (shape) {
     return (
       <table className="tool-table plan-mat-table">
-        <caption className="sr-only">Course-shape elapsed time for your goal at each official mat, from {shape.window} (Pace Notes data), beside the even-pace time</caption>
+        <caption className="sr-only">Course-shape elapsed time for your goal at each official mat, from finishes {shape.window} (Pace Notes data), beside the even-pace time</caption>
         <thead><tr><th scope="col">Mat</th><th scope="col">Course shape</th><th scope="col">Even pace</th></tr></thead>
         <tbody>
           {mats.map((m, i) => (
@@ -250,23 +252,19 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
 
   // The band (owner decision, October 20, 2026): on a course whose group publishes this goal, the course shape (that
   // group's mat medians scaled to the goal, lib/tools/course-shape.ts) unless the visitor chose even pace; on all courses,
-  // or where the course has no shape at this goal, even pace, with the one line saying why. While a course's finishes
-  // load, the choice keeps its place and the card and strips take the course shape's layout with dashes for times,
-  // dimmed, until the shape arrives; printing waits for it.
+  // or where the course has no shape at this goal, even pace, with the one line saying why. A goal outside the goals the
+  // course's group covers (known at build time) settles at once; inside them, while the group's file loads, the choice
+  // keeps its place and the card and strips take the course shape's layout with dashes for times, dimmed, until the shape
+  // arrives, and printing waits for it.
   const shape = goal === null ? null : shapeFor(isAll ? 'all' : course?.slug ?? 'all', all, goal);
-  const shapeLoading = !shape && !isAll && Boolean(course?.band) && inBand && Boolean(paceBandSha) && !bandIndex.error && !shard.error && (!bandIndex.data || shard.loading);
-  const mode = bandMode(shape, q.pace);
-  const shaped = mode === 'course' ? shape : null;
-  const pending = shapeLoading && q.pace !== 'even';
-  // The card and band in the course shape's layout: the shape itself, or its place while it loads.
-  const courseCard = Boolean(shaped) || pending;
-  const bandState = shape || shapeLoading ? 'choice' as const : !isAll && course && paceBandSha && !bandIndex.error && !shard.error ? 'none' as const : 'off' as const;
-  // Why there is no shape: no pace-band group for the course (Prague), a goal outside the published goals, or too few
-  // finishes at this goal; never a count that was not made.
-  const noShape = course && minute !== null ? noShapeLine(noShapeReason({ scoped: course.band, gendered: true, minute, goals: bandGoals }), { city: course.city, goals: bandGoals }) : '';
+  const shapeLoading = !shape && !isAll && Boolean(course?.band) && mayShape(course?.shapeGoals, minute) && Boolean(paceBandSha) && !bandIndex.error && !shard.error && (!bandIndex.data || shard.loading);
+  // The card and band in the course shape's layout (courseCard): the shape itself, or its place while it loads.
+  const { mode, shaped, pending, layout: courseCard, offered } = bandView({ shape, choice: q.pace, loading: shapeLoading });
+  const bandState = offered ? 'choice' as const : !isAll && course && paceBandSha && !bandIndex.error && !shard.error ? 'none' as const : 'off' as const;
   const paces = shaped ? shapePaces(shaped) : null;
   // A hand-edited `pace` (pace=foo, pace=EVEN) is the default and leaves the address, as does `even` on all courses, where
-  // no choice is offered; a choice of even pace on a course stays, and carries to the next course.
+  // no choice is offered; a choice of even pace on a course stays and carries to the next course, but not through All
+  // courses (tidyChoice).
   useEffect(() => {
     if (ready && q.pace !== tidyChoice(q.pace, isAll)) setQuery({ pace: tidyChoice(q.pace, isAll) });
   }, [ready, q.pace, isAll, setQuery]);
@@ -297,7 +295,7 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
   }, [exampleOn, example, goalData.data, published]);
   const pooled = exampleOn ? { under: example!.under } : goalData.data && published ? goalShare(goalData.data.rows, published.minutes) : null;
   const rows = useMemo(() => (goal === null ? [] : bandRows(goal, units === 'mi' ? 'mi' : 'km', shaped)), [goal, units, shaped]);
-  const matShape = shaped && all && observed ? { times: shaped, n: all.n, window: `finishes from ${formatDuration(observed.lo, true)} to ${formatDuration(observed.hi, true)} ${where}` } : null;
+  const matShape = shaped && all && observed ? { times: shaped, n: all.n, window: `${formatDuration(observed.lo, true)} to ${formatDuration(observed.hi, true)} ${where}` } : null;
 
   // Printing: the wristband strips alone, or the one-page plan (also what the browser's own print command gives).
   const [printMode, setPrintMode] = useState<'plan' | 'strip'>('plan');
@@ -321,9 +319,8 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
   // The group's window, named wherever the group is ("within 2% of 4:00 pace"), as the chapter's reading names it: the
   // checkpoint analysis and the projector say "on 4:00 pace" of groups of their own.
   const tolerance = goalData.data?.tolerance ?? example?.tolerance ?? 0.02;
-  // Beside a card in course shape the lead's group is named as what it is, finishes near even pace for the goal, so the
-  // two never read as one claim about the other.
-  const nearGoal = shareGoal ? `within ${Math.round(tolerance * 100)}% of ${courseCard ? 'even ' : ''}${shareGoal} pace` : null;
+  // The same words in either mode, as the chapter's card says them: the Splits choice is about the band, not this group.
+  const nearGoal = shareGoal ? `within ${Math.round(tolerance * 100)}% of ${shareGoal} pace` : null;
   // The lead's line, as the chapter card's key words it ("of finishes within 2% of 4:00 pace through 20K made 4:00").
   const leadLine = nearGoal && shareGoal ? `of finishes ${nearGoal} through 20K${isAll ? '' : ` in ${course?.city ?? ''}`} made ${shareGoal}` : null;
   const spreadText = spread && leadLine && madeOf100 !== null
@@ -352,16 +349,22 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
   const leadShown = Boolean(planned && shareOk && madeOf100 !== null && leadLine);
   const unitWord = units === 'mi' ? 'mile' : 'km';
   const city = course?.city ?? null;
-  // Why the nugget is missing, when it is: said once, under the plan.
+  // Why the nugget is missing, when it is: said once, under the plan. Where the course has a shape at this goal (in
+  // either mode, so the Splits choice never rewrites it) the note is scoped to the results on goal pace (goalPaceNote),
+  // so their own minimum of editions never reads as a rule the shape beside it breaks.
   const missing = !planned ? null
     : unknown ? 'This link names a course that is not in the data. Choose one above; your plan and pace band still work.'
     : !courseGoalSha ? null
     : goalData.error ? null
     : isAll && goalData.data && !published ? `Results on goal pace are published for goals from ${formatHM(goalData.data.goals[0] * 60)} to ${formatHM(goalData.data.goals[1] * 60)}. Your plan and pace band work for any goal from 1:30 to 8:00.`
-    // Beside a course shape the note is about the results on goal pace only (the shape needs 100 finishes, not editions).
-    : result?.state === 'unavailable' && courseCard ? `No results on goal pace for ${course?.city ?? 'this course'} at this goal. ${result.reason}`
+    : result?.state === 'unavailable' && goalData.data && offered ? goalPaceNote(result, course?.city ?? 'this course', goalData.data.min_editions)
     : result?.state === 'unavailable' ? `No results for ${course?.city ?? 'this course'} at this goal. ${result.reason} Your plan and pace band still work.`
     : null;
+  // Why there is no shape: no pace-band group for the course (Prague), a goal outside the published goals (the note above
+  // already gives the course results' range when it shows, so the line then says only that there is none), or too few
+  // finishes at this goal; never a count that was not made.
+  const rangeNoted = result?.state === 'unavailable' && result.minutes === null && Boolean(result.course);
+  const noShape = course && minute !== null ? noShapeLine(noShapeReason({ scoped: course.band, gendered: true, minute, goals: bandGoals }), { city: course.city, goals: bandGoals, noted: rangeNoted }) : '';
 
   return (
     <div className="plan-root" data-print={printMode}>
@@ -393,19 +396,22 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
               <p className="plan-print-kicker">Pace Notes · race plan</p>
               <p className="plan-print-title">{place} · {fmtGoal(goal)} goal</p>
               <p>{shaped ? <>Course shape (Pace Notes data): {shapeLine(shaped, units)}.</>
+                : pending ? <>Course shape (Pace Notes data).</>
                 : <>Even pace {fmtPace(pKm, units)} · {fmtPace(pKm, units === 'mi' ? 'km' : 'mi')}.</>} Cut the strips out along the dashed lines.</p>
             </div>
           )}
           <div data-track-section="result" hidden={!planned}>
             {planned ? (
-              <section className={`tool-reading night plan-headline${pending ? ' is-pending' : ''}`} aria-labelledby="plan-headline-title" aria-busy={pending || undefined}>
+              <section className={`tool-reading night plan-headline${courseCard ? ' is-shape' : ''}${pending ? ' is-pending' : ''}`} aria-labelledby="plan-headline-title" aria-busy={pending || undefined}>
                 {/* The plan's pace, as on the goal pages: the goal the visitor typed is the kicker. Four mat times under it on a
                     phone and in the card's right half from 900 px (round 6: the dek promises the splits), hidden from
                     assistive tech, which reads every mat on the strips. In course shape the figure is the shape at a
                     glance, its two phases at equal weight (the pace through 20K, then from 30K to the finish), the line
                     under it says what the shape is (how finishes that made the goal ran the course, not a prediction), and
                     the four are real timing points (5K, 20K, 30K, the finish), never an interpolated half. While the shape
-                    loads the same layout holds dashes, so nothing says even pace and nothing moves when it lands. */}
+                    loads the same layout holds dashes and keeps the line's place unshown, so nothing says even pace,
+                    nothing claims a shape that has not arrived, and nothing moves when it lands. In course shape the mats
+                    stay under the figures until 1180 px, where the labels have room beside them (plan.css). */}
                 <div className="tool-reading-head">
                   <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}<span id="plan-headline-title">{fmtGoal(goal)}{city ? ` in ${city}` : ''}</span></p>
                   {courseCard ? (
@@ -413,9 +419,9 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
                       <h2 className="tool-reading-figure plan-shape">
                         <span className="plan-phase"><b>{paces ? formatDuration(perUnit(paces.to20, units)) : '—'}</b> <small>per {unitWord} to 20K</small></span>
                         <span className="sr-only">; </span>
-                        <span className="plan-phase"><b>{paces ? formatDuration(perUnit(paces.from30, units)) : '—'}</b> <small>from 30K to the finish</small></span>
+                        <span className="plan-phase"><b>{paces ? formatDuration(perUnit(paces.from30, units)) : '—'}</b> <small>per {unitWord} from 30K</small></span>
                       </h2>
-                      <p className="plan-shape-line">{cardShapeLine(goal, city ?? '')}</p>
+                      <ShapeLine goal={goal} city={city ?? ''} pending={pending} className="plan-shape-line" />
                     </>
                   ) : (
                     <h2 className="tool-reading-figure">
@@ -429,11 +435,10 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
                     <div key={k}><dt>{k}</dt><dd>{t === null ? '—' : formatDuration(t)}</dd></div>
                   ))}
                 </dl>
-                {/* The course shape is Pace Notes data: its badge sits on the lead above when the lead shows (one per screen),
-                    and here only once the lead is known not to show, so it never comes and goes while the lead loads. From
-                    900 px the band panel's badge, directly under the card, is on the same screen, so this one is left out
-                    there (plan.css). */}
-                {courseCard && !leadShown && !loading ? <ReadingFoot badge={<EvidenceTag kind="data" />} copy={false} className="is-narrow-only" /> : null}
+                {/* The course shape is Pace Notes data: its badge sits on the lead directly above when the lead shows, and
+                    here, at every width, once the lead is known not to show, so it never comes and goes while the lead
+                    loads (the band panel below carries its own). */}
+                {courseCard && !leadShown && !loading ? <ReadingFoot badge={<EvidenceTag kind="data" />} copy={false} /> : null}
               </section>
             ) : null}
           </div>
@@ -462,12 +467,13 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
           <div data-track-section="pace-band" hidden={!planned}>
             {planned ? (
               <section className="tool-panel plan-band" id="plan-band" aria-labelledby="plan-band-title">
-                {/* The course shape carries the Pace Notes data badge and the band's kicker, in the pace band's words; even
-                    pace none, the visitor's own times (the printed page names its source either way). */}
+                {/* The course shape carries the Pace Notes data badge and the band's kicker, without the two paces the card
+                    above already gives (a page says each number once); even pace none, the visitor's own times (the
+                    printed page names its source either way). */}
                 <header className="tool-panel-head plan-band-head">
                   {courseCard ? <EvidenceTag kind="data" /> : null}
                   <h2 className="tool-panel-title" id="plan-band-title">Your pace band</h2>
-                  {courseCard ? <p className="tool-reading-kicker plan-band-kicker"><KickerText text={bandKicker({ goal, place, shape: shaped, units, pending })} /></p> : null}
+                  {courseCard ? <p className="tool-reading-kicker plan-band-kicker"><KickerText text={bandKicker({ goal, place, shape: shaped, units, pending, phases: false })} /></p> : null}
                 </header>
                 <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={units === 'mi' ? 'mi' : 'km'} overrun={0} place={place} genderWord=""
                   observed={comparison ? { held: comparison.held, lo: comparison.lo, hi: comparison.hi, place, genderWord: '' } : null} profile={null} showBack={false} waiting={pending}
@@ -494,7 +500,7 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
               {/* No next-step row: the journey's finish card follows, the page's one way forward (section 00, cut 4). */}
               {dataError && !goalData.error ? <DataProblem error={dataError} onRetry={retry} /> : null}
               <GoalBar label="Goal" onStep={step}>
-                <b>{fmtGoal(goal)}</b><span>{goalPace(pKm, units, Boolean(shaped))}</span>
+                <b>{fmtGoal(goal)}</b><span>{goalPace(pKm, units, courseCard)}</span>
               </GoalBar>
             </>
           ) : null}

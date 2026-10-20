@@ -4,6 +4,7 @@ import { pageMetadata } from '@/lib/seo';
 import type { CourseGeometry } from '@/lib/insights';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import type { PaceBandIndex } from '@/lib/tools/data';
+import { shapeGoalsOf } from '@/lib/tools/course-shape';
 import { courseSlug } from '@/lib/tools/links';
 
 export const metadata = pageMetadata({
@@ -65,7 +66,7 @@ export default function PaceBandPage() {
   return (
     <div className="tool-page">
       <ToolHeader slug="pace-band" />
-      <PaceBand indexSha={indexSha} profiles={profiles} unpublished={unpublished} how="/methodology#tools-pace-band" />
+      <PaceBand indexSha={indexSha} profiles={profiles} unpublished={unpublished} shapeGoals={shapeGoalsOf(index)} how="/methodology#tools-pace-band" />
       <ToolEnd path="/tools/pace-band" how="/methodology#tools-pace-band" numbers />
     </div>
   );

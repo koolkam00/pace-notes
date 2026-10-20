@@ -47,7 +47,7 @@
   .tool-reading-figure.plan-shape { grid-template-columns: minmax(0, 1fr); row-gap: 0; }
   .tool-reading-figure.plan-shape small { margin-bottom: 6px; }
 }
-.plan-shape-line { margin: 4px 0 0; font-size: .9375rem; line-height: 1.4; color: var(--ink-2); text-wrap: pretty; }
+.plan-shape-line { margin: 4px 0 0; }
 .plan-band-kicker { margin: 0; }
 /* While a course's shape loads, the card's figures wait, dimmed (only opacity moves), until the shape replaces them. */
 .plan-headline .tool-reading-figure, .plan-headline .plan-card-mats { transition: opacity var(--d-quick); }
@@ -56,6 +56,13 @@
   .plan-headline { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-6); }
   .plan-card-mats { grid-template-columns: repeat(2, auto); gap: var(--s-4) var(--s-6); padding: 0 0 0 var(--s-6); border-top: 0; border-left: 1px solid var(--rule); }
   .plan-card-mats dd { font-size: 1.5rem; letter-spacing: -.02em; }
+}
+/* In course shape the two phases' labels need the card's width: from 900 px to 1180 px (a tablet held sideways, a small
+   laptop) the four times stay under the figures in one row, as on a phone, instead of taking the card's right half and
+   leaving the labels a few letters wide (round-2 review, October 20, 2026). */
+@media (min-width: 900px) and (max-width: 1179.98px) {
+  .plan-headline.is-shape { grid-template-columns: minmax(0, 1fr); }
+  .plan-headline.is-shape .plan-card-mats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-3); padding: var(--s-4) 0 0; border-top: 1px solid var(--rule); border-left: 0; }
 }
 
 /* ---------- The lead: where the share sits among the courses ---------- */

@@ -42,8 +42,8 @@
 }
 
 /* On screen the preview is a scaled picture of the band, so its printed micro text would be a few pixels. The preview
-   keeps only the mat names and the even times: the header line, the strips' legend, the mats' miles and the held line are
-   print only (the night card above lists the mat times). The mat names read at 11 px where the cell has room for them,
+   keeps only the mat names and the band's times: the header line, the strips' legend, the mats' miles and the held line
+   are print only (the night card above lists the mat times). The mat names read at 11 px where the cell has room for them,
    never wider than their cell. Print keeps every size. */
 @media screen {
   .pace-band-sheet-head, .pace-band-strip-caption, .pace-band-cell .k small, .pace-band-cell .h { display: none; }

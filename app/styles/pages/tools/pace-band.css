@@ -37,9 +37,9 @@
   .pace-band-root[data-print='strip'] .tool-results > :not(.pace-band-print-panel) { display: none !important; }
   .pace-band-root[data-print='strip'] .pace-band-print-panel { padding: 0; border: 0; }
   .pace-band-root[data-print='strip'] .pace-band-print-panel > header, .pace-band-root[data-print='strip'] .values { display: none; }
-  /* The sheet head names the goal, course, gender and mode, so the kicker does not print above it; nor does the full
-     page's table of every marker. */
-  .pace-band-root[data-print='strip'] .pace-band-kicker, .pace-band-root[data-print='strip'] .pace-band-print-marks { display: none !important; }
+  /* The sheet head names the goal, course, gender and mode, so the kicker and the shape's line do not print above it;
+     nor does the full page's table of every marker. */
+  .pace-band-root[data-print='strip'] .pace-band-kicker, .pace-band-root[data-print='strip'] .band-shape-line, .pace-band-root[data-print='strip'] .pace-band-print-marks { display: none !important; }
   /* Full page: the band, the observed groups and the band's every marker, no strips. */
   .pace-band-root[data-print='page'] .pace-band-strip, .pace-band-root[data-print='page'] .pace-band-sheet-wrap { display: none !important; }
   .pace-band-root[data-print='page'] .pace-band-print-notes { display: block; font-size: 8.5pt; line-height: 1.45; }
@@ -49,6 +49,9 @@
   .pace-band-print-marks .table th, .pace-band-print-marks .table td { font-size: 8.5pt; line-height: 1.2; }
   .pace-band-print-marks tr { break-inside: avoid; }
   .pace-band-root[data-print='page'] .table th, .pace-band-root[data-print='page'] .table td { height: auto; padding-top: .06cm; padding-bottom: .06cm; }
+  /* A fold's summary ("All numbers · 9 rows") is a screen control: the full page prints an open fold's table without it,
+     and a fold left closed (the browser's own print command) not at all. */
+  .pace-band-root[data-print='page'] details.values > summary, .pace-band-root[data-print='page'] details.values:not([open]) { display: none !important; }
   .pace-band-dim, .pace-band-held-dim { opacity: 1 !important; }
 }
 @supports selector(:has(a)) {

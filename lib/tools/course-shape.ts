@@ -12,11 +12,13 @@
  *   rows are interpolated: the observed facts are the nine timing points only.
  *
  * All courses pooled has no course to shape it, so it stays even pace, as does a course or goal without a cell.
- * The wording both pages print (the kicker, the card's line, the one line where there is no shape, the strip's labels)
- * is built here too, so the two pages say it in the same words.
+ * What a page draws from the shape and the visitor's choice (`bandView`), and the wording both pages print (the kicker,
+ * the shape's line, the one line where there is no shape, the strip's labels and captions), are built here too, so the
+ * two pages follow one rule and say it in the same words.
  */
+import type { PaceBandIndex } from '@/lib/tools/data';
 import { MARATHON_KM, perUnit, splitTable, watchTarget, type SplitInterval, type SplitRow } from '@/lib/tools/pace';
-import { CHECKPOINTS, fmtGoal, fmtPace } from '@/lib/tools/pace-band-data';
+import { CHECKPOINTS, fmtGoal, fmtPace, paceBandShardPath } from '@/lib/tools/pace-band-data';
 import { formatDuration, formatHM } from '@/lib/tools/time';
 import type { UnitSystem } from '@/lib/units';
 
@@ -62,9 +64,52 @@ export const bandChoice = (mode: BandMode) => (mode === 'even' ? 'even' : '');
 
 /**
  * The address value a page keeps once it has read its address: `even` stays only where a course could have a shape (not
- * on all courses, where no choice is offered); anything else (`pace=foo`, `pace=course`) is the default and leaves.
+ * on all courses, where no choice is offered); anything else (`pace=foo`, `pace=course`) is the default and leaves. So a
+ * choice of even pace carries from one course to the next, but not through All courses: back on a course, the band is
+ * that course's shape again.
  */
 export const tidyChoice = (pace: string, allCourses: boolean) => (!allCourses && pace === 'even' ? 'even' : '');
+
+/**
+ * What a page draws from its shape, the visitor's choice and its loading state, the same on both pages: the mode, the
+ * shape the band uses (`shaped`, null at even pace), whether the band waits for a shape on its way (`pending`: the
+ * course shape's layout with dashes, or a shape kept while its group reloads, `stale`), whether the band is in the course
+ * shape's layout (`layout`, the shape or its place) and whether the choice is offered (`offered`).
+ */
+export function bandView({ shape, choice, loading, stale = false }: { shape: number[] | null; choice: string; loading: boolean; stale?: boolean }) {
+  const mode = bandMode(shape, choice);
+  const shaped = mode === 'course' ? shape : null;
+  const pending = (!shape && loading && choice !== 'even') || (Boolean(shaped) && stale);
+  return { mode, shaped, pending, layout: Boolean(shaped) || pending, offered: Boolean(shape) || loading };
+}
+
+/**
+ * Each course the pace band publishes, by slug: its city and its groups' published goals by recorded gender (whole
+ * minutes), as the index lists them. A course missing here has no group at all (Prague) or is not in the data.
+ */
+export type ShapeGoals = Record<string, { city: string | null; goals: Partial<Record<'all' | 'men' | 'women', [number, number]>> }>;
+
+/** Every course's published goals, read from the index at build time so a page knows before any file loads whether to wait for a shape. */
+export function shapeGoalsOf(index: Pick<PaceBandIndex, 'scopes' | 'shards'> | null): ShapeGoals {
+  const out: ShapeGoals = {};
+  for (const scope of index?.scopes ?? []) {
+    if (scope.slug === 'all') continue;
+    const goals: ShapeGoals[string]['goals'] = {};
+    for (const g of ['all', 'men', 'women'] as const) {
+      const meta = scope.genders[g];
+      if (meta && index?.shards?.[paceBandShardPath(scope.slug, g)]) goals[g] = [meta.goals[0], meta.goals[1]];
+    }
+    out[scope.slug] = { city: scope.city, goals };
+  }
+  return out;
+}
+
+/**
+ * Whether a course's group may have a shape at this minute: inside its published goals (a goal outside them settles at
+ * once as even pace, with no wait for a file that cannot hold one; a gap inside them settles when its file arrives).
+ */
+export const mayShape = (goals: readonly [number, number] | null | undefined, minute: number | null) =>
+  Boolean(goals) && minute !== null && minute >= goals![0] && minute <= goals![1];
 
 /** Elapsed time at a distance on the shaped band: each segment between timing points (and from the start) run evenly. */
 export function shapedAt(shape: number[], km: number): number {
@@ -101,10 +146,10 @@ export function shapePaces(shape: number[]): { to20: number; from30: number } {
   return { to20: shape[3] / 20, from30: (shape[8] - shape[5]) / (MARATHON_KM - 30) };
 }
 
-/** The shape in words, the same on both pages and on paper: "8:41/mi to 20K, 9:48 from 30K". */
+/** The shape in words, the same on both pages and on paper: "8:41/mi to 20K, 9:48/mi from 30K". */
 export function shapeLine(shape: number[], units: UnitSystem): string {
   const { to20, from30 } = shapePaces(shape);
-  return `${fmtPace(to20, units)} to 20K, ${formatDuration(perUnit(from30, units))} from 30K`;
+  return `${fmtPace(to20, units)} to 20K, ${fmtPace(from30, units)} from 30K`;
 }
 
 /**
@@ -124,22 +169,28 @@ export function matRows(goal: number, shape: number[] | null): { km: number; sha
   return CHECKPOINTS.map((km, i) => ({ km, shaped: shape ? shape[i] : null, even: i === CHECKPOINTS.length - 1 ? goal : (goal / MARATHON_KM) * km }));
 }
 
-/** The card's one line in course shape: what the shape is, chosen by its outcome, and that it is not a prediction. */
-export const cardShapeLine = (goal: number, city: string) => `Course shape: how finishes that made ${fmtGoal(goal)} ran ${city}. Not a prediction.`;
+/** The short disclaimer that ends the shape's line, kept on one line where it shows. */
+export const SHAPE_DISCLAIMER = 'Not a prediction.';
+/** What the shape is, chosen by its outcome: "Course shape: how finishes that made 4:00 ran Boston." (with the recorded gender on the pace band). */
+export const shapeWhat = (goal: number, city: string, genderWord = '') =>
+  `Course shape: how finishes that made ${fmtGoal(goal)} ran ${city}${genderWord ? ` (recorded as ${genderWord})` : ''}.`;
+/** The shape's one line, the same on both pages (the planner's card, under the pace band's kicker): what it is, and that it is not a prediction. */
+export const cardShapeLine = (goal: number, city: string, genderWord = '') => `${shapeWhat(goal, city, genderWord)} ${SHAPE_DISCLAIMER}`;
 
 /**
- * The band's kicker, the same on both pages: the goal and course, then the band in its mode ("course shape, 8:41/mi to
- * 20K, 9:48 from 30K", with the recorded gender the shape comes from; "9:09/mi even"), and a watch that reads long. In
- * course shape the watch figure is labelled as the watch's average for the whole race, since the band's own pace changes
- * along the course; while the shape loads (`pending`) it reads "course shape" alone.
+ * The band's kicker: the goal and course, then the band in its mode ("course shape, 8:41/mi to 20K, 9:48/mi from 30K",
+ * with the recorded gender the shape comes from; "9:09/mi even"), and a watch that reads long. In course shape the watch
+ * figure is labelled as the watch's average for the whole race, since the band's own pace changes along the course;
+ * while the shape loads (`pending`) it reads "course shape" alone. The planner's card already gives the two phases, so
+ * its band panel's kicker leaves them out (`phases: false`: "4:00 · Boston · course shape").
  */
-export function bandKicker({ goal, place, genderWord = '', shape, units, overrun = 0, example = false, pending = false }: {
-  goal: number; place: string; genderWord?: string; shape: number[] | null; units: UnitSystem; overrun?: number; example?: boolean; pending?: boolean;
+export function bandKicker({ goal, place, genderWord = '', shape, units, overrun = 0, example = false, pending = false, phases = true }: {
+  goal: number; place: string; genderWord?: string; shape: number[] | null; units: UnitSystem; overrun?: number; example?: boolean; pending?: boolean; phases?: boolean;
 }): string {
   const pKm = goal / MARATHON_KM;
   const course = Boolean(shape) || pending;
   const head = `${example ? 'Example · ' : ''}${fmtGoal(goal)} · ${place}${course && genderWord ? ` · ${genderWord}` : ''}`;
-  const mode = shape ? `course shape, ${shapeLine(shape, units)}` : pending ? 'course shape' : `${fmtPace(pKm, units)} even`;
+  const mode = shape && phases ? `course shape, ${shapeLine(shape, units)}` : course ? 'course shape' : `${fmtPace(pKm, units)} even`;
   return `${head} · ${mode}${overrun ? ` · ${watchLine(pKm, overrun, units, course)}` : ''}`;
 }
 
@@ -149,14 +200,23 @@ export const watchLine = (pKm: number, overrun: number, units: UnitSystem, cours
 /** The goal's even pace where it travels with the band (the strip's Goal cell, the goal bar): labelled as the average in course shape. */
 export const goalPace = (pKm: number, units: UnitSystem, course: boolean) => `${course ? 'avg ' : ''}${fmtPace(pKm, units)}`;
 
-/** The printed mat strip's Goal cell under the goal: "9:09/mi · 5:41/km", in course shape "avg 9:09/mi · 5:41/km", and the watch. */
-export const goalCellLine = (pKm: number, overrun: number, units: UnitSystem, course: boolean) =>
-  `${course ? 'avg ' : ''}${formatDuration(perUnit(pKm, 'mi'))}/mi · ${formatDuration(pKm)}/km${overrun ? ` · ${watchLine(pKm, overrun, units, course)}` : ''}`;
+/**
+ * The printed mat strip's Goal cell under the goal, as lines of phrases. At even pace one line, as before: "9:09/mi ·
+ * 5:41/km", then the watch ("watch 9:04/mi"). In course shape "avg" is said once, for the cell ("avg 9:09/mi · 5:41/km"),
+ * and the watch's figure takes its own line ("watch 9:04/mi"), each phrase kept whole.
+ */
+export function goalCell(pKm: number, overrun: number, units: UnitSystem, course: boolean): string[][] {
+  const paces = [`${course ? 'avg ' : ''}${formatDuration(perUnit(pKm, 'mi'))}/mi`, `${formatDuration(pKm)}/km`];
+  const watch = overrun ? `watch ${fmtPace(watchTarget(pKm, overrun), units)}` : null;
+  if (!course) return [watch ? [...paces, watch] : paces];
+  return watch ? [paces, [watch]] : [paces];
+}
 
 /**
  * Why a course shows no shape at this goal, in order: the pace band has no group for the course (`course`: Prague, whose
- * editions were all screened out) or for this recorded gender (`gender`: Singapore, women), the goal is outside the
- * published goals (`range`: 2:30 to 6:30), or the group has too few finishes at this goal (`few`).
+ * editions were all screened out) or for this recorded gender (`gender`: Singapore, women; the pace band's choice), the
+ * goal is outside the published goals (`range`: 2:30 to 6:30), or the group has too few finishes at this goal (`few`: a
+ * goal inside 2:30 to 6:30 whose window was counted and held fewer than 100).
  */
 export type NoShapeReason = 'course' | 'gender' | 'range' | 'few';
 export function noShapeReason({ scoped, gendered, minute, goals }: { scoped: boolean; gendered: boolean; minute: number; goals: readonly [number, number] }): NoShapeReason {
@@ -166,12 +226,22 @@ export function noShapeReason({ scoped, gendered, minute, goals }: { scoped: boo
   return 'few';
 }
 
-/** The one line where a course has no shape (the same words wherever it shows), from its reason: never a count that was not made. */
-export function noShapeLine(reason: NoShapeReason, { city, genderWord = '', goals }: { city: string; genderWord?: string; goals: readonly [number, number] }): string {
-  if (reason === 'range') return `Course shapes cover goals from ${formatHM(goals[0] * 60)} to ${formatHM(goals[1] * 60)}.`;
+/**
+ * The one line where a course has no shape (the same words on both pages), from its reason: never a count that was not
+ * made. Outside the published goals it gives the range, unless the page already says it beside the line (`noted`: the
+ * planner's note on course results, the pace band's finishes section), where it reads "No course shape at this goal."
+ */
+export function noShapeLine(reason: NoShapeReason, { city, genderWord = '', goals, noted = false }: { city: string; genderWord?: string; goals: readonly [number, number]; noted?: boolean }): string {
+  if (reason === 'range') return noted ? 'No course shape at this goal.' : `Course shapes cover goals from ${formatHM(goals[0] * 60)} to ${formatHM(goals[1] * 60)}.`;
   if (reason === 'few') return `Too few finishes at this goal in ${city}${genderWord ? ` (recorded as ${genderWord})` : ''} for a course shape.`;
   return `No course shape for ${city}${genderWord ? `, recorded as ${genderWord}` : ''}.`;
 }
 
 /** The printed mat strip's caption in course mode. */
 export const shapeCaption = (place: string, genderWord = '') => `Course shape · finishes that made the goal in ${place}${genderWord ? `, ${genderWord}` : ''} · Pace Notes data`;
+/**
+ * A printed split strip's caption ("Course shape (Pace Notes data) 4:00 · each mile · strip 1 of 3"; at even pace "Even
+ * pace 4:00 · …"): each strip is cut out and worn on its own, so in course shape each names its source.
+ */
+export const splitCaption = (course: boolean, goal: number, interval: SplitInterval, strip: number, strips: number) =>
+  `${course ? 'Course shape (Pace Notes data)' : 'Even pace'} ${fmtGoal(goal)} · ${interval === 'mi' ? 'each mile' : 'each km'} · strip ${strip} of ${strips}`;

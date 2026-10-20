@@ -375,10 +375,13 @@ async function plannerSplits(h) {
 }
 
 // The course shape as both pages draw it (the reviewers' Boston 4:00 capture): the planner's card gives the two phases and
-// four real timing points, the fold each mat's shape beside even pace with its finishes, the band panel its badge and
-// kicker, and the lead names its group's even pace; the pace band's recorded gender takes that gender's group (women,
-// 20K 1:48:30). While a group loads (its file held back 2.5 s) the card holds dashes in the course shape's layout, never
-// even pace, nothing moves when the shape lands, and printing waits.
+// four real timing points, the fold each mat's shape beside even pace with its finishes, the band panel its badge and a
+// kicker without the card's paces, and the lead keeps the chapter's words; the pace band's recorded gender takes that
+// gender's group (women, 20K 1:48:30), and its Even pace press puts even pace on the strips. While a group loads (its
+// file held back 2.5 s) the card holds dashes in the course shape's layout, never even pace and never its line, nothing
+// moves when the shape lands, and printing waits. With the pace band's index held back, Prague, a goal outside a
+// course's goals (Boston 7:00) and a course the data does not know never show a course shape, a badge or the choice;
+// on the planner Singapore 3:30, outside its course's goals, settles at once, and Prague and Singapore 4:00 say why.
 async function courseShapeFigures(h) {
   const run = await h.run('course shape figures', { ...PHONE });
   const page = await run.newPage();
@@ -389,7 +392,9 @@ async function courseShapeFigures(h) {
   const pending = await page.evaluate(() => ({
     figure: [...document.querySelectorAll('.plan-headline .plan-phase b')].map((b) => b.textContent),
     mats: [...document.querySelectorAll('.plan-card-mats dt')].map((d) => d.textContent).join(' '),
-    text: document.querySelector('.plan-headline')?.textContent ?? '',
+    text: document.querySelector('.plan-headline')?.innerText ?? '',
+    lineShown: (() => { const l = document.querySelector('.plan-shape-line'); return Boolean(l) && getComputedStyle(l).visibility !== 'hidden'; })(),
+    goalBar: document.querySelector('.tool-goalbar-value > span')?.textContent ?? '',
     height: document.querySelector('.plan-headline')?.getBoundingClientRect().height ?? 0,
     print: document.querySelector('#plan-band .share-bar .btn-primary')?.disabled ?? null,
   }));
@@ -415,22 +420,70 @@ async function courseShapeFigures(h) {
   });
   await page.goto(SITE + '/tools/pace-band?course=boston&goal=4:00&g=women', { waitUntil: 'load' });
   await page.waitForFunction(() => /course shape, /.test(document.querySelector('.pace-band-kicker')?.textContent ?? ''), null, { timeout: 20000 });
-  const band = await page.evaluate(() => ({
+  const bandNow = () => page.evaluate(() => ({
     kicker: document.querySelector('.pace-band-kicker')?.textContent ?? '',
+    line: document.querySelector('#pace-band-band .band-shape-line')?.textContent ?? '',
     at20: [...document.querySelectorAll('.pace-band-strip.is-mats .pace-band-cell')].find((c) => /^20K/.test(c.querySelector('.k')?.textContent ?? ''))?.querySelector('b')?.textContent ?? '',
+    mile1: document.querySelector('.pace-band-strip.is-splits .pace-band-cell b')?.textContent ?? '',
     badge: Boolean(document.querySelector('#pace-band-band > .evidence-badge')),
+    choiceNext: document.querySelector('#pace-band-band .pace-band-kicker')?.nextElementSibling?.nextElementSibling?.classList.contains('band-choice') ?? false,
+    pace: new URL(location.href).searchParams.get('pace'),
   }));
+  const band = await bandNow();
+  // The pace band's Even pace press: even pace on the strips (Boston women 4:00: 20K 1:53:45, mile 1 9:09) and in the address.
+  await page.locator('#pace-band-band .band-choice .seg-btn', { hasText: 'Even pace' }).click();
+  await page.waitForTimeout(400);
+  const bandEven = await bandNow();
+
+  // The planner, settled at once where there is no shape to wait for: Singapore 3:30 (its group's goals start at 3:46)
+  // with its file held back, Prague, and Singapore 4:00's note beside its one-edition shape.
+  const plannerAt = async (q, wait) => {
+    await page.goto(SITE + '/tools/plan?' + q, { waitUntil: 'load' });
+    await page.waitForTimeout(wait);
+    return page.evaluate(() => ({
+      pending: Boolean(document.querySelector('.plan-headline.is-pending')), shape: Boolean(document.querySelector('.plan-headline.is-shape')),
+      seg: document.querySelectorAll('.band-choice .seg-btn').length, none: document.querySelector('.band-choice-none')?.textContent ?? '',
+      note: document.querySelector('.plan-unavailable')?.textContent ?? '', badges: document.querySelectorAll('.tool-workspace .evidence-badge').length,
+    }));
+  };
+  await page.route(/\/tools\/pace-band\/singapore\/\w+\.json(\?|$)/, async (route) => { await new Promise((r) => setTimeout(r, 2500)); await route.fallback(); });
+  const sg330 = await plannerAt('course=singapore&goal=3:30', 900);
+  const prague = await plannerAt('course=prague&goal=4:00', 1500);
+  const sg400 = await plannerAt('course=singapore&goal=4:00', 4500);
+
+  // The pace band with its index held back 2.5 s: what shows before it arrives.
+  await page.route(/\/tools\/pace-band\.json(\?|$)/, async (route) => { await new Promise((r) => setTimeout(r, 2500)); await route.fallback(); });
+  const early = [];
+  for (const q of ['course=prague&goal=4:00', 'course=boston&goal=7:00', 'course=nowhere&goal=4:00']) {
+    await page.goto(SITE + '/tools/pace-band?' + q, { waitUntil: 'load' });
+    await page.waitForTimeout(700);
+    early.push(await page.evaluate(() => ({
+      kicker: document.querySelector('.pace-band-kicker')?.textContent ?? '', seg: document.querySelectorAll('.band-choice .seg-btn').length,
+      badge: Boolean(document.querySelector('#pace-band-band > .evidence-badge')), none: document.querySelector('#pace-band-band .band-choice-none')?.textContent ?? '',
+      loading: /Loading the finishes/.test(document.querySelector('#pace-band-observed')?.textContent ?? ''),
+    })));
+  }
   await run.close();
-  h.check('course shape: while the group loads the card holds dashes in the course shape\'s layout, never even pace, and printing waits',
-    JSON.stringify(pending.figure) === '["—","—"]' && pending.mats === '5K 20K 30K Finish' && !/even pace/i.test(pending.text) && pending.print === true, pending);
+  h.check('course shape: while the group loads the card holds dashes in the course shape\'s layout, never even pace or its line, and printing waits',
+    JSON.stringify(pending.figure) === '["—","—"]' && pending.mats === '5K 20K 30K Finish' && !/even pace|Course shape:/i.test(pending.text) && !pending.lineShown && pending.goalBar === 'avg 9:09/mi' && pending.print === true, pending);
   h.check('course shape: Boston 4:00 on the card, 8:41 to 20K and 9:48 from 30K, at 5K, 20K, 30K and the finish, and the card keeps its height',
     JSON.stringify(card.figure) === '["8:41","9:48"]' && JSON.stringify(card.mats) === '["5K 26:38","20K 1:47:56","30K 2:45:41","Finish 4:00:00"]' && Math.abs(card.height - pending.height) < 1, { card, pendingHeight: pending.height });
-  h.check('course shape: the card says what the shape is, the band carries the badge and the kicker, the lead names even pace, and printing is back',
-    /^Course shape: how finishes that made 4:00 ran Boston\. Not a prediction\.$/.test(card.line) && card.kicker === '4:00 · Boston · course shape, 8:41/mi to 20K, 9:48 from 30K' && card.badge && /within 2% of even 4:00 pace/.test(card.lead) && card.print === false, card);
+  h.check('course shape: the card says what the shape is, the band carries the badge and a kicker without the card\'s paces, the lead keeps the chapter\'s words, and printing is back',
+    /^Course shape: how finishes that made 4:00 ran Boston\. Not a prediction\.$/.test(card.line) && card.kicker === '4:00 · Boston · course shape' && card.badge && /within 2% of 4:00 pace/.test(card.lead) && !/even 4:00/.test(card.lead) && card.print === false, card);
   h.check('course shape: the fold puts each mat\'s course shape beside even pace, with the 10,039 finishes',
     JSON.stringify(fold.head) === '["Mat","Course shape","Even pace"]' && JSON.stringify(fold.first) === '["26:38","28:26"]' && fold.finishes === '10,039', fold);
-  h.check('course shape: the pace band takes the chosen recorded gender\'s group (Boston women 4:00: 20K 1:48:30) with its badge',
-    band.at20 === '1:48:30' && /^4:00 · Boston · women · course shape, /.test(band.kicker) && band.badge, band);
+  h.check('course shape: the pace band takes the chosen recorded gender\'s group (Boston women 4:00: 20K 1:48:30) with its badge, its line and the choice above the band',
+    band.at20 === '1:48:30' && /^4:00 · Boston · women · course shape, \d:\d\d\/mi to 20K, \d+:\d\d\/mi from 30K$/.test(band.kicker) && band.badge && band.choiceNext
+      && band.line === 'Course shape: how finishes that made 4:00 ran Boston (recorded as women). Not a prediction.', band);
+  h.check('course shape: on the pace band Even pace puts even pace on the strips, takes the badge off the band and keeps pace=even in the address',
+    bandEven.at20 === '1:53:45' && bandEven.mile1 === '9:09' && band.mile1 !== '9:09' && /9:09\/mi even$/.test(bandEven.kicker) && bandEven.pace === 'even' && !bandEven.badge, { band, bandEven });
+  h.check('course shape: the planner settles at once where no shape can come (Singapore 3:30, its group\'s goals start at 3:46), and says why',
+    !sg330.pending && !sg330.shape && sg330.seg === 0 && sg330.none === 'Too few finishes at this goal in Singapore for a course shape.', sg330);
+  h.check('course shape: Prague has no course shape and says so, with no choice', !prague.shape && prague.seg === 0 && prague.none === 'No course shape for Prague.', prague);
+  h.check('course shape: beside Singapore\'s one-edition shape the note is about the results on goal pace only, and the card carries its badge',
+    sg400.shape && sg400.note === 'No results on goal pace for Singapore: they need 3 editions, and only one passed the data screens.' && !/any goal/.test(sg400.note) && sg400.badges === 2, sg400);
+  h.check('course shape: before the pace band\'s index arrives, Prague, Boston 7:00 and an unknown course show no course shape, badge or choice, and the first two say why',
+    early.every((e) => e.loading && e.seg === 0 && !e.badge && !/course shape/i.test(e.kicker)) && early[0].none === 'No course shape for Prague.' && early[1].none === 'No course shape at this goal.' && early[2].none === '', early);
 }
 
 // The race report on /report: its section is seen once; a failed image is site_error export, once (twice pressed), and

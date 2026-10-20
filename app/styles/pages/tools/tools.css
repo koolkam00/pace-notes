@@ -88,11 +88,10 @@
   .tool-choice:not(.band-choice-seg) .seg-btn { min-width: max-content; }
   .tool-choice:not(.band-choice-seg) .seg-label { min-width: 28px; }
 }
-/* A second Pace Notes data badge that shares a screen with the first from 900 px, where the two panels sit together (the
-   planner's card over its band, the pace band's band over its finishes), is left out there: one badge per screen. */
-@media (min-width: 900px) {
-  .evidence-badge.is-narrow-only, .tool-reading-foot.is-narrow-only { display: none; }
-}
+/* The course shape's one line (BandChoice ShapeLine: the planner's card, under the pace band's kicker). While a shape is
+   on its way it keeps its place, unshown, so the card and the band do not move when it lands. */
+.band-shape-line { margin: 0; font-size: .9375rem; line-height: 1.4; color: var(--ink-2); text-wrap: pretty; }
+.band-shape-line.is-pending { visibility: hidden; }
 /* Presets (common goals, distances): chips, never clipped; they wrap. */
 .tool-presets { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
 .tool-page .tool-presets button { min-width: 44px; min-height: 44px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: var(--r-pill); background: transparent; color: var(--ink);
