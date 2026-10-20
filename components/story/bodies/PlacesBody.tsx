@@ -43,10 +43,11 @@ export default function PlacesBody() {
   const beAt = be.reduce((best, b, i) => (Math.abs(b.x - Math.round(crossing)) < Math.abs(be[best].x - Math.round(crossing)) ? i : best), 0);
   const beTop = Math.ceil(Math.max(...be.map((b) => b.median)) / 5) * 5, beBottom = Math.floor(Math.min(...be.map((b) => b.median)) / 5) * 5;
   const slower = (x: number) => (x < 0 ? `${Math.abs(x)}% quicker` : `${x}% slower`);
-  /** Median places per 100 after 30K in words, whole places: "5 places lost per 100". */
+  /** Median places per 100 of the field after 30K, whole and signed as the chart's scale is ("−5 places per 100"), short
+   *  enough for the readout's one line at 320 px. */
   const placesPer100 = (m: number) => {
     const r = Math.round(m);
-    return r === 0 ? 'No change in places' : `${Math.abs(r)} place${Math.abs(r) === 1 ? '' : 's'} ${r > 0 ? 'gained' : 'lost'} per 100`;
+    return r === 0 ? 'No change in places' : `${r > 0 ? '+' : '−'}${Math.abs(r)} place${Math.abs(r) === 1 ? '' : 's'} per 100`;
   };
 
 
@@ -117,12 +118,12 @@ export default function PlacesBody() {
           // The top of the scale only: a gridline at the bottom of the domain would double the axis rule.
           yTicks={[{ value: beTop, label: `+${beTop}` }]}
           // The key always names where the needle is. It opens on the H2's point, the break-even pace, as its value
-          // ("17% slower than 5–20K"); scrubbed away, the key is the pace and the value what it did to places
+          // ("17% slower", against 5–20K in the key); scrubbed away, the key is the pace and the value what it did to places
           // (round 6: "30–40K pace: no places gained" glued two clauses and never said "break-even").
           scrub={{ label: '30–40K pace against the 5–20K pace',
             points: { x: be.map((b) => (b.x - be[0].x) / (be[be.length - 1].x - be[0].x)),
-              keys: be.map((b, i) => (i === beAt ? 'Break-even 30–40K pace' : b.x === 0 ? 'At even pace' : `At ${slower(b.x)}`)),
-              values: be.map((b, i) => (i === beAt ? `${b.x === 0 ? 'Even' : slower(b.x)} than 5–20K` : placesPer100(b.median))) },
+              keys: be.map((b, i) => (i === beAt ? 'Break-even 30–40K pace, against 5–20K' : b.x === 0 ? 'At even pace' : `At ${slower(b.x)}`)),
+              values: be.map((b, i) => (i === beAt ? (b.x === 0 ? 'Even' : slower(b.x)) : placesPer100(b.median))) },
             initial: beAt, detents: [beAt], follow: 'median' }}
           label={`Median places gained per 100 of the field after 30K, by 30–40K pace against the 5–20K pace; the line crosses zero near ${Math.round(crossing)}% slower.`} />
       </Beat>
