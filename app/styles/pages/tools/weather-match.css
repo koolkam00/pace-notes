@@ -29,32 +29,25 @@
 .weather-match-cols thead th small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
 .weather-match-cols td { font-size: 1.25rem; font-weight: 600; letter-spacing: -.01em; color: var(--ink); }
 .weather-match-cols td.is-ref { font-weight: 500; color: var(--ink-2); }
-.weather-match-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s-3); }
-/* The window's control sits close under the card it changes (the answer column's gap is 32 px, 48 px from 900 px). */
-.tool-answer > .weather-match-actions { margin-top: -20px; }
-@media (min-width: 900px) { .tool-answer > .weather-match-actions { margin-top: -36px; } }
-.weather-match-actions span { font-size: var(--t-small); color: var(--ink-2); }
+/* The window is the start temperature's option, a text button under its hint (round 6). */
+.weather-match-window { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s-3); margin: -6px 0 0; }
+.weather-match-window span { font-size: var(--t-small); color: var(--ink-2); }
 .weather-match-error { display: grid; justify-items: start; gap: var(--s-3); }
 
 /* ---------- Charts ---------- */
 .weather-match-figure { margin: 0; }
 .weather-match-strip svg { display: block; overflow: visible; }
 .weather-match-strip svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
-.weather-match-legend { display: flex; flex-wrap: wrap; gap: 4px var(--s-4); margin: var(--s-2) 0 0; padding: 0; list-style: none; font-size: var(--t-label); color: var(--ink-2); }
-.weather-match-legend li { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
-.weather-match-legend.is-strip i { flex: none; width: 10px; height: 10px; border: 0; border-radius: 50%; background: var(--fill-quiet); box-shadow: inset 0 0 0 1px var(--mark-quiet); }
-.weather-match-legend.is-strip .is-on i { background: var(--ink); box-shadow: none; }
-.weather-match-legend.is-strip .is-zone-yours i { width: 14px; border-radius: 2px; background: var(--wash); box-shadow: none; }
-.weather-match-legend.is-strip .is-zone-ref i { width: 14px; border-radius: 2px; background: var(--wash); box-shadow: inset 0 0 0 1px var(--rule-strong); opacity: .6; }
-
-/* The races in ink on a wash: the reading's accent is the card's. */
+/* The races behind the result in ink, on your window's wash; the reference window a lighter, outlined band; each band
+   named in place (the reading's accent is the card's). */
 .weather-match-zone.is-yours { fill: var(--wash); }
-.weather-match-zone.is-ref { fill: var(--wash); fill-opacity: .55; stroke: var(--rule-strong); stroke-width: 1; }
+/* The reference window a lighter wash with no outline: with only your window's races drawn, an outlined empty band read
+   as a bar (round 6). */
+.weather-match-zone.is-ref { fill: var(--wash); fill-opacity: .5; }
+.weather-match-strip svg .weather-match-zone-label { font-weight: 600; fill: var(--ink); }
+.weather-match-strip svg .weather-match-zone-label.is-ref { font-weight: 500; fill: var(--ink-3); }
 .weather-match-axis { stroke: var(--rule-strong); }
-.weather-match-dot { fill: var(--fill-quiet); stroke: var(--mark-quiet); stroke-width: 1; }
-.weather-match-dot.is-on { fill: var(--ink); stroke: var(--paper); }
-.weather-match-marker { stroke: var(--ink); stroke-width: 1.5; }
-.weather-match-strip svg .weather-match-marker-label { font-weight: 600; fill: var(--ink); }
+.weather-match-dot.is-on { fill: var(--ink); stroke: var(--paper); stroke-width: 1; }
 
 
 /* ---------- Published research (folded) ---------- */

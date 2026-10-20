@@ -137,6 +137,24 @@ export default function PaceCalculator() {
       </div>
       {q.view === 'chart' ? <PaceChart units={units} from={chartFrom} setFrom={setChartFrom} /> : (
         <div className="tool-workspace">
+          {/* The answer first (round 6: the solved value sat in a filled field that read as disabled): the third value of
+              the two typed, as a result reading on the night card with the pace in the other unit and the treadmill speed.
+              The solved field stays under it, editable, for solving the other way. */}
+          <div className="tool-results tool-answer">
+            {ready ? (
+              <section className="tool-reading night pace-calculator-headline" aria-labelledby="pace-calculator-title">
+                <div className="tool-reading-head">
+                  <p className="tool-reading-kicker">{solve === 'distance'
+                    ? `${formatDuration(seconds!, seconds! >= 3600)} at ${fmtPace(paceKm!, units)}`
+                    : `${preset ? preset.label : fmtDistance(km!, units)} ${solve === 'pace' ? `in ${formatDuration(seconds!, seconds! >= 3600)}` : `at ${fmtPace(paceKm!, units)}`}`}</p>
+                  <h2 className="tool-reading-figure" id="pace-calculator-title">
+                    {solve === 'distance' ? fmtDistance(km!, units) : solve === 'time' ? formatDuration(Math.round(seconds!), seconds! >= 3599.5) : formatDuration(Math.round(perUnit(paceKm!, units)))}
+                    <small>{solve === 'pace' ? `per ${units === 'mi' ? 'mile' : 'km'} · ` : solve === 'time' ? 'finish · ' : ''}{solve === 'pace' ? fmtPace(paceKm!, units === 'mi' ? 'km' : 'mi') : fmtPace(paceKm!, units)} · {speedText}</small>
+                  </h2>
+                </div>
+              </section>
+            ) : null}
+          </div>
           <form className="tool-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Pace calculator inputs">
             <h2>Any two of three</h2>
             <div className="tool-field">
@@ -166,8 +184,7 @@ export default function PaceCalculator() {
                 </>
               ) : null}
             </div>
-            {/* The converter is the answer (critic round 3: a night card above it repeated the planner's 9:09): the solved
-                box holds the third value in ink, and typing in it makes it one of the two. */}
+            {/* The solved box holds the third value, and typing in it makes it one of the two. */}
             <DurationField label={`Time${solve === 'time' ? ' (solved)' : ''}`} large solved={solve === 'time'}
               value={solve === 'time' ? (ready ? Math.round(seconds!) : null) : timeS}
               onChange={(s) => edit('time', { t: s === null ? '' : formatDuration(s, true) })}
@@ -176,16 +193,8 @@ export default function PaceCalculator() {
               value={solve === 'pace' ? (ready ? Math.round(perUnit(paceKm!, units)) : null) : paceUnitS}
               onChange={(s) => edit('pace', { p: s === null ? '' : formatDuration(s) })}
               placeholder={units === 'mi' ? '8:00' : '5:00'} />
-            {/* What the two give besides the third: the solved distance (it has no box of its own), the pace in the other
-                unit and the treadmill speed. */}
-            {ready ? (
-              <dl className="tool-cells pace-calculator-also">
-                {solve === 'distance'
-                  ? <div><dt>Distance (solved)</dt><dd>{fmtDistance(km!, units)}</dd></div>
-                  : <div><dt>Per {units === 'mi' ? 'km' : 'mile'}</dt><dd>{fmtPace(paceKm!, units === 'mi' ? 'km' : 'mi')}</dd></div>}
-                <div><dt>Treadmill speed</dt><dd>{speedText}<small>{units === 'mi' ? `${kmh(paceKm!).toFixed(1)} km/h` : `${mph(paceKm!).toFixed(1)} mph`}</small></dd></div>
-              </dl>
-            ) : <p className="tool-empty">{solvedOutOfRange ? solvedMessage(km!, units) : 'Enter two of distance, time and pace to see splits.'}</p>}
+            {/* The card above gives the pace in the other unit and the treadmill speed. */}
+            {ready ? null : <p className="tool-empty">{solvedOutOfRange ? solvedMessage(km!, units) : 'Enter two of distance, time and pace to see splits.'}</p>}
           </form>
 
           <div className="tool-results">

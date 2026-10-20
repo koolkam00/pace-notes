@@ -1,7 +1,8 @@
-/* The split check (/tools/split-check; the redesign spec, section 7.13): the verdict on one night card (the section that
-   decides it, every section as a bar against the runner's own 5–20K pace; a plain calculation, no badge), the chapter's
-   one Pace Notes data beat under it (finishes at the same time, as 100 dots), the nine mat times, then one "All numbers"
-   fold and the copy link. Every class here is prefixed split-check-. Imported by app/tools/split-check/layout.tsx. */
+/* The split check (/tools/split-check; the redesign spec, section 7.13): the chapter's lead first (finishes at the same
+   time as the race, as 100 dots: chapter 10's Pace Notes data reading), then the race on one night card (the section that
+   decides it, every section as a bar against the runner's own 5–20K pace; a plain calculation, no badge), the nine mat
+   times, then one "All numbers" fold. Every class here is prefixed split-check-. Imported by
+   app/tools/split-check/layout.tsx. */
 
 .split-check-root { min-width: 0; }
 .split-check-optional { margin-left: 6px; font-size: var(--t-label); font-weight: 400; color: var(--ink-3); }
@@ -31,7 +32,11 @@
 .split-check-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
 .split-check-buttons .split-check-privacy { flex: 1 1 13rem; margin: 0 0 0 var(--s-2); }
 
-/* ---------- The night card: the verdict and every section ---------- */
+/* ---------- The night card: the race, the section that decides it, every section ---------- */
+/* The section that decides the verdict, as a readout over the bars (round 6: the page's figure is the lead's share). */
+.split-check-readout { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--s-3); margin: 0; }
+.split-check-readout b { font-family: var(--sans); font-size: var(--t-readout); font-weight: 600; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+.split-check-readout span { flex: 1 1 12rem; font-size: .9375rem; line-height: 1.4; color: var(--ink-2); }
 .split-check-bars { margin: 0; touch-action: pan-y; }
 .split-check-bars svg { display: block; overflow: visible; }
 .split-check-bars svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
@@ -57,14 +62,16 @@
 .split-check-results.is-stale > :not(.split-check-updating) { opacity: .5; transition: opacity var(--d-quick); }
 .split-check-updating { margin: 0; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); }
 
-/* ---------- The data beat: finishes at the same time, right under the card ---------- */
-/* While the finishes load the beat keeps its shape (badge, a line, 100 quiet dots), so the times under it never move. */
-/* Without a reading (an empty or wrong set of times) the data beat holds nothing and takes no room. */
+/* ---------- The lead: finishes at the same time, first on the page ---------- */
+/* While the finishes load the lead keeps its shape (badge, a figure's height, 100 quiet dots), so nothing under it moves. */
+/* Without a reading (an empty or wrong set of times) the lead holds nothing and takes no room. */
 .split-check-data:empty { display: none; }
-.split-check-compare.is-loading .split-check-loading { min-height: calc(var(--t-sentence) * 1.25 * 3); color: var(--ink-3); }
+.split-check-compare.is-loading .split-check-loading { min-height: calc(var(--t-figure-l) * .9 + var(--s-2) + 1.0625rem * 1.4 * 2); align-content: end; }
+.split-check-compare.is-loading .tool-lead-line { color: var(--ink-3); }
 .split-check-unavailable { display: grid; gap: var(--s-2); }
 .split-check-off { display: grid; gap: var(--s-3); padding: 0; }
 .split-check-compare .tool-panel-title { max-width: 30ch; }
+.split-check-report { margin: 0; }
 /* The race's pacing type: one line under the dots. */
 .split-check-shape { margin: 0; }
 .split-check-shape b { font-weight: 600; color: var(--ink); }
@@ -86,11 +93,15 @@
    so no line of it is ever cut off under a fade. */
 @media (min-width: 900px) {
   .tool-page .split-check-root .tool-inputs { position: static; max-height: none; overflow: visible; background: none; }
-  /* The times, then the data beat, in the left column (so its number is on the first screen); the card spans the first two
-     rows on the right, and the fold and copy link follow it. The last row is flexible, so neither column waits for the other. */
-  .tool-workspace.split-check-workspace { grid-template-rows: auto auto 1fr; }
-  .tool-workspace.split-check-workspace > .tool-inputs { grid-column: 1; grid-row: 1; }
-  .tool-workspace.split-check-workspace > .tool-answer { grid-column: 2; grid-row: 1 / span 2; }
-  .tool-workspace.split-check-workspace > .tool-answer ~ .split-check-data { grid-column: 1; grid-row: 2 / span 2; }
+  /* The lead runs across the page (its figure and line on the left column, its dots on the right, where the card under
+     it starts), then the times on the left and the race's card on the right, then the fold. The last row is flexible, so
+     neither column waits for the other. */
+  .tool-workspace.split-check-workspace { grid-template-rows: auto auto auto 1fr; }
+  .tool-workspace.split-check-workspace > .split-check-data { grid-column: 1 / -1; grid-row: 1; }
+  .tool-workspace.split-check-workspace > .tool-inputs { grid-column: 1; grid-row: 2 / span 3; }
+  .tool-workspace.split-check-workspace > .tool-answer { grid-column: 2; grid-row: 2; }
   .tool-workspace.split-check-workspace > .tool-answer ~ .split-check-rest { grid-column: 2; grid-row: 3; }
+  .split-check-compare.is-ok { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--s-7); align-items: end; }
+  .split-check-compare.is-ok > :not(.split-check-dots) { grid-column: 1; }
+  .split-check-compare.is-ok > .split-check-dots { grid-column: 2; grid-row: 1 / span 3; align-self: end; }
 }

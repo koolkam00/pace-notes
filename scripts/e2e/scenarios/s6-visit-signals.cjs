@@ -316,7 +316,7 @@ async function toolEdits(h) {
   h.check('following a result\'s next step is not an edit', !used.some(u => u.startsWith('/tools/pace-calculator') || u.startsWith('/tools/plan')) && named(run, '$pageview').filter(p => p.$pathname === '/tools/plan').length === 1, { used, handedOn });
 }
 
-// The race planner: its course result, mat comparison and pace band are each seen once, in page order; its two print
+// The race planner: its mat comparison, course result and pace band are each seen once (the band last); its two print
 // buttons are prints and its Copy link a copied link, none of them an edit; the copied link keeps the course and goal.
 async function planner(h) {
   const run = await h.run('planner', { ...PHONE });
@@ -339,7 +339,10 @@ async function planner(h) {
   // Since the October 2026 redesign the page is short enough for the scroll to reach the chapter's end ("related") too:
   // it may follow the planner's three, once.
   const own = sections.filter(s => s !== 'related');
-  h.check('planner: the course result, the mat comparison and the pace band are each seen once, in page order', JSON.stringify(own) === '["result","comparison","pace-band"]' && sections.length - own.length <= 1 && (sections.length === own.length || sections[sections.length - 1] === 'related'), sections);
+  // Since round 6 (October 2026) the data beat (comparison) leads the page, above the plan's card (result). It is marked
+  // only once its finishes show, so on a linked course and goal (this run) it is first seen when its file loads, right
+  // after the card; on the example, read at build, it is seen first. Either way each is seen once, the band last.
+  h.check('planner: the mat comparison, the course result and the pace band are each seen once, the band last', ['["comparison","result","pace-band"]', '["result","comparison","pace-band"]'].includes(JSON.stringify(own)) && sections.length - own.length <= 1 && (sections.length === own.length || sections[sections.length - 1] === 'related'), sections);
   h.check('planner: the print button is a print and Copy link a copied link; neither is an edit', JSON.stringify(used) === '["/tools/plan:print","/tools/plan:copy_link"]', used);
   let link = null;
   try { link = new URL(copied); } catch { /* checked below */ }

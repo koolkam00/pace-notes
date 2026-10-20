@@ -34,11 +34,13 @@ function optional<T>(name: string): T | null {
 // ---------- Chapter 11 · the race planner ----------
 
 /**
- * Of finishes whose 5–20K pace was within the course-goal file's tolerance (2%) of the goal's even pace, on every
- * published course pooled, the share that made the goal: "Of 100 finishes within 2% of 4:00 pace through 20K, 14 made
- * 4:00." The window is named in the sentence and the key, so "on 4:00 pace at 20K" never means two groups on two pages
- * (the checkpoint analysis and the projector use their own windows, and say so). The guard holds while fewer than half
- * made it (the sentence's point is how few did); otherwise the share is stated plainly.
+ * The planner's reading (its contents row, the cards into it and the lead it opens on, round 6): of finishes whose 5–20K
+ * pace was within the course-goal file's tolerance (2%) of the goal's even pace, on every published course pooled, the
+ * share that made the goal: "Of 100 finishes within 2% of 4:00 pace through 20K, 14 made 4:00." The spread course by
+ * course is the course chooser's reading, so the planner draws only where this share sits among the courses. The window
+ * is named in the sentence and the key, so "on 4:00 pace at 20K" never means two groups on two pages (the checkpoint
+ * analysis and the projector use their own windows, and say so). The guard holds while fewer than half made it (the
+ * sentence's point is how few did); otherwise the share is stated plainly.
  */
 export function planGoalFrom(rows: CourseGoalRow[], goal: number = GOAL, tolerance = 0.02): Nugget {
   const share = goalShare(rows, goal);
@@ -53,34 +55,6 @@ export function planGoalFrom(rows: CourseGoalRow[], goal: number = GOAL, toleran
     fallback: share ? `${pct(share.under)} of finishes ${near} made ${g}.` : 'Plan your race: a course, a goal and a pace band.',
     figure: share ? { value: pct(share.under).replace('%', ''), unit: '%', sr: spokenPct(share.under) } : null,
     key: `of finishes ${near} made ${g}`,
-  };
-}
-
-/**
- * The planner's reading in the chain (its contents row and the cards into it): the course it asks a runner to pick,
- * counted. Of finishes within the course-goal file's tolerance of the goal's even pace through 20K, the share that made
- * the goal on each listed course with 100 such finishes, lowest to highest: "7–27% made 4:00 from within 2% of its pace
- * through 20K, course by course." The pooled share (plan.goal) is the planner's own first line and chapter 04's
- * checkpoint has a share of its own, so the card into the journey's last page says what only the planner adds: the
- * course moves it. The guard holds for two courses at least five points apart.
- */
-export function planCoursesFrom(data: Pick<CourseGoal, 'rows' | 'courses' | 'tolerance'> | null, goal: number = GOAL): Nugget {
-  const g = hm(goal);
-  const listed = new Set((data?.courses ?? []).map((c) => c.city));
-  const at = (data?.rows ?? []).filter((r) => r.goal === goal && listed.has(r.city) && r.n >= 100);
-  const lo = at.length ? at.reduce((a, b) => (b.under < a.under ? b : a)) : null;
-  const hi = at.length ? at.reduce((a, b) => (b.under > a.under ? b : a)) : null;
-  const whole = (v: number) => Math.round(v * 100);
-  const ok = !!lo && !!hi && at.length >= 2 && whole(hi.under) - whole(lo.under) >= 5;
-  const tol = Math.round((data?.tolerance ?? 0.02) * 100);
-  return {
-    id: 'plan.courses', page: '/tools/plan', denominator: 'tool',
-    values: lo && hi ? { goal, courses: at.length, low: lo.under, high: hi.under, low_city: lo.city, high_city: hi.city } : { goal },
-    guard: ok,
-    headline: ok ? `Of finishes within ${tol}% of ${g} pace through 20K, *${whole(lo!.under)}–${whole(hi!.under)}%* made ${g}, course by course.` : '',
-    fallback: 'Plan your race: a course, a goal and a pace band.',
-    figure: ok ? { value: `${whole(lo!.under)}–${whole(hi!.under)}`, unit: '%', sr: `${whole(lo!.under)} to ${whole(hi!.under)} percent` } : null,
-    key: `made ${g} from within ${tol}% of its pace through 20K, course by course`,
   };
 }
 
@@ -201,5 +175,4 @@ export const TOOL_NUGGETS: Record<string, Builder> = {
   'projector.range': () => projectorRangeFrom(optional<ProjectorShard>(`tools/projector/all/${PROJECTOR_MAT}.json`), optional<ProjectorIndex>('tools/projector.json')?.quantiles ?? []),
   'weathermatch.mornings': () => weatherMatchMorningsFrom(optional<WeatherMatch>('tools/weather-match.json')),
   'plan.goal': () => planGoalFrom(optional<CourseGoal>('tools/course-goal.json')?.rows ?? []),
-  'plan.courses': () => planCoursesFrom(optional<CourseGoal>('tools/course-goal.json')),
 };

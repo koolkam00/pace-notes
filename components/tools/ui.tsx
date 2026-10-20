@@ -1,6 +1,7 @@
 'use client';
 
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
+import BigNumber from '@/components/ui/BigNumber';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { formatDuration, parseDuration, type DurationMode } from '@/lib/tools/time';
 import { useUnits } from '@/components/UnitsProvider';
@@ -185,29 +186,82 @@ export function ExampleNote({ children }: { children?: ReactNode }) {
   );
 }
 
-/**
- * Copy link, and Print only where a page's result is made to print (`print`: the pace calculator's splits, the qualifying
- * list; the planner and the pace band pass their own print buttons as `extra`). The copied link carries the units on
- * screen, so it opens the same way for someone else. `.share-bar` keeps these out of the count of tool edits
- * (components/SiteAnalytics.tsx): a copied link is counted on its own, and so is printing.
- */
-export function ShareBar({ print = false, extra }: { print?: boolean; extra?: ReactNode }) {
+/** Copy the page's address (with the units on screen, so it opens the same way for someone else); `copied` for 1.8 s. */
+function useCopyLink() {
   const [copied, setCopied] = useState(false);
   const { units } = useUnits();
+  const copy = async () => {
+    const { origin, pathname, search, hash } = window.location;
+    try {
+      await navigator.clipboard.writeText(origin + withUnits(pathname + search + hash, units));
+      trackAnalytics('tool_used', { action: 'copy_link' });
+      setCopied(true); setTimeout(() => setCopied(false), 1800);
+    } catch { /* clipboard unavailable */ }
+  };
+  return { copied, copy };
+}
+
+/**
+ * Copy link, and Print only where a page's result is made to print (`print`: the pace calculator's splits, the qualifying
+ * list; the planner and the pace band pass their own print buttons as `extra`). `.share-bar` keeps these out of the count
+ * of tool edits (components/SiteAnalytics.tsx): a copied link is counted on its own, and so is printing. A tool with no
+ * print action carries `CopyLink` on its result card instead (round 6: a lone outlined button on its own row).
+ */
+export function ShareBar({ print = false, extra }: { print?: boolean; extra?: ReactNode }) {
+  const { copied, copy } = useCopyLink();
   return (
     <div className="tool-share share-bar no-print">
-      <button type="button" className="btn btn-secondary is-compact" onClick={async () => {
-        const { origin, pathname, search, hash } = window.location;
-        try {
-          await navigator.clipboard.writeText(origin + withUnits(pathname + search + hash, units));
-          trackAnalytics('tool_used', { action: 'copy_link' });
-          setCopied(true); setTimeout(() => setCopied(false), 1800);
-        } catch { /* clipboard unavailable */ }
-      }}>{copied ? 'Link copied' : 'Copy link'}</button>
+      <button type="button" className="btn btn-secondary is-compact" onClick={copy}>{copied ? 'Link copied' : 'Copy link'}</button>
       {print ? <button type="button" className="btn btn-secondary is-compact" data-not-edit onClick={() => window.print()}>Print</button> : null}
       {extra}
       <span className="sr-only" aria-live="polite">{copied ? 'Link copied to the clipboard' : ''}</span>
     </div>
+  );
+}
+
+/**
+ * Copy link on the result it shares (round 6): a quiet text button, 44 px tall, in the share bar's classes so a copied
+ * link is never counted as an edit. It sits in the card's foot row (ReadingFoot), never beside the kicker, so a kicker
+ * keeps its one line at every phone width.
+ */
+export function CopyLink() {
+  const { copied, copy } = useCopyLink();
+  return (
+    <span className="tool-share share-bar no-print tool-copy">
+      <button type="button" className="tool-copy-button" onClick={copy}>{copied ? 'Link copied' : 'Copy link'}</button>
+      <span className="sr-only" aria-live="polite">{copied ? 'Link copied to the clipboard' : ''}</span>
+    </span>
+  );
+}
+
+/**
+ * A night card's foot row: its evidence badge (if it has one) at the left and Copy link at the right, so every tool
+ * shares its result from the same place.
+ */
+export function ReadingFoot({ badge, copy = true }: { badge?: ReactNode; copy?: boolean }) {
+  if (!badge && !copy) return null;
+  return <div className={`tool-reading-foot${badge ? '' : ' is-copy-only'}`}>{badge ?? null}{copy ? <CopyLink /> : null}</div>;
+}
+
+/**
+ * A tool's lead (round 6): the Pace Notes data reading that the card into the page promises, first on the page and on
+ * paper: the badge, the figure, the line that says what it counts, then the instrument that draws it (`children`). The
+ * visitor's own calculation follows it on the night card.
+ */
+export function DataLead({ id, titleId, figure, line, children, className }: {
+  id?: string; titleId: string;
+  figure: { value: string; unit?: string; sr: string };
+  line: ReactNode; children?: ReactNode; className?: string;
+}) {
+  return (
+    <section className={`tool-lead${className ? ` ${className}` : ''}`} id={id} aria-labelledby={titleId}>
+      <EvidenceTag kind="data" />
+      <h2 className="tool-lead-title" id={titleId}>
+        <BigNumber value={figure.value} unit={figure.unit} sr={figure.sr} size="l" />
+        <span className="tool-lead-line">{line}</span>
+      </h2>
+      {children}
+    </section>
   );
 }
 

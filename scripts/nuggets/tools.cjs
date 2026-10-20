@@ -25,19 +25,6 @@ module.exports = function tools({ json, eq, ok, core }) {
     if (n.guard) ok(shown(n).includes(`within ${Math.round(data.tolerance * 100)}% of 4:00 pace through 20K, *${Math.round((made / total) * 100)}* made 4:00`), 'plan.goal: the headline names the window and the recounted share');
   };
 
-  // plan.courses: each listed course's own row at the goal (100 finishes or more), lowest and highest share that made it.
-  R['plan.courses'] = (n) => {
-    const data = json('public/data/insights/tools/course-goal.json');
-    const listed = data.courses.map((c) => c.city);
-    const shares = data.rows.filter((r) => r.goal === GOAL && listed.includes(r.city) && r.n >= 100).map((r) => r.under);
-    const lo = Math.min(...shares), hi = Math.max(...shares);
-    eq([n.values.courses, n.values.low, n.values.high], [shares.length, lo, hi], 'plan.courses recounts the courses and the lowest and highest shares');
-    const a = Math.round(lo * 100), b = Math.round(hi * 100);
-    eq(n.guard, shares.length >= 2 && b - a >= 5, 'plan.courses: guard');
-    if (n.guard) ok(n.figure.value === `${a}–${b}` && shown(n).includes(`*${a}–${b}%* made 4:00`), 'plan.courses: the figure and headline name the recounted range');
-    ok(n.key.includes(`within ${Math.round(data.tolerance * 100)}% of its pace through 20K`), 'plan.courses: the key names the window');
-  };
-
   // projector.range: all courses, the 25K mat, the 2-minute band whose top is the goal; its 10th and 90th percentile
   // finishes, widened to whole minutes.
   R['projector.range'] = (n) => {
@@ -107,8 +94,6 @@ module.exports = function tools({ json, eq, ok, core }) {
     return [
       [T.planGoalFrom([{ goal: 240, city: 'X', n: 400, ed: 5, under: 0.6, sd: 0.2, after20: 0, fin: [0, 0, 0] }]), '60% of finishes within 2% of 4:00 pace through 20K made 4:00.'],
       [T.planGoalFrom([]), 'Plan your race: a course, a goal and a pace band.'],
-      [T.planCoursesFrom({ tolerance: 0.02, courses: [{ city: 'X' }, { city: 'Y' }], rows: [{ goal: 240, city: 'X', n: 400, under: 0.14 }, { goal: 240, city: 'Y', n: 400, under: 0.16 }] }), 'Plan your race: a course, a goal and a pace band.'],
-      [T.planCoursesFrom(null), 'Plan your race: a course, a goal and a pace band.'],
       [T.projectorRangeFrom(pjShard([14000, 14299, 14500, 14901, 15300, 15996, 16500]), Q), 'Finishes on course for 3:58–4:00 at 25K ended from 3:58 to 4:27.'],
       [T.projectorRangeFrom(null, Q), 'From a tracker time at any mat, the finishes that followed.'],
       [T.splitCheckShareFrom({ window_s: 300, groups: { all: pbGroup(0, 0, 50), held: pbGroup(0, 0, 40), slowdown: pbGroup(0, 0, 10) } }, 14611), 'Finishes from 4:01 to 4:05, mat by mat.'],

@@ -14,6 +14,9 @@ export default function ChapterRail({ path }: { path: string }) {
   if (!place) return null;
   const { chapter } = place;
   const here = cleanPath(path);
+  // An also-in-this-chapter tool (the pace band, the chooser, the predictor) is no row of the chain: it shows as an
+  // indented current row after it, so the rail still says where the reader is (round 6).
+  const also = 'child' in place ? chapter.also?.find((a) => a.href === here) : undefined;
   return (
     <aside className="rail chapter-rail">
       <nav aria-label={`Chapter ${chapterNumber(chapter)}`}>
@@ -30,6 +33,12 @@ export default function ChapterRail({ path }: { path: string }) {
               {page.href === here ? <RailBeats /> : null}
             </li>
           ))}
+          {also ? (
+            <li className="rail-also">
+              <ChapterLink href={also.href} className="rail-link" aria-current="page">{also.label}</ChapterLink>
+              <RailBeats />
+            </li>
+          ) : null}
         </ol>
       </nav>
     </aside>

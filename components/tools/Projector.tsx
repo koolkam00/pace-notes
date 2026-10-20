@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { useUnits } from '@/components/UnitsProvider';
-import { Choice, DurationField, ShareBar } from '@/components/tools/ui';
+import { Choice, DurationField, ReadingFoot } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
 import KeypadHint from '@/components/KeypadHint';
 import Arrow from '@/components/ui/Arrow';
@@ -342,7 +342,7 @@ function PasteBox({ onRead, units }: { onRead: (readings: MatReading[]) => void;
 /* Where these finishes ended                                          */
 /* ------------------------------------------------------------------ */
 
-interface Marker { key: string; x: number; label: string; tone: 'median' | 'even' | 'target' }
+interface Marker { key: string; x: number; label: string; tone: 'even' | 'target' }
 
 /** Width of one character of a 12 px chart label. */
 const CHAR_W = 7.2;
@@ -361,8 +361,9 @@ function stackLabels(markers: Marker[], width: number, margin: number) {
 }
 
 /**
- * The finish times of the group as a density drawn from its published percentiles, the median in the accent, the
- * even-pace finish of the times entered dashed, and the target, when one is set, in ink.
+ * The finish times of the group as a density drawn from its published percentiles: the finishes at or under the
+ * even-pace finish of the times entered in the accent (the share the sentence above names), the even-pace finish dashed,
+ * and the target, when one is set, in ink. The median is the card's (round 6: it was said three times in two screens).
  * Drawn in pixels at the measured width, so labels stay 12 px.
  */
 function FinishChart({ q, Q, P, target, targetTag }: { q: number[]; Q: number[]; P: number; target: number | null; targetTag: string | null }) {
@@ -379,7 +380,6 @@ function FinishChart({ q, Q, P, target, targetTag }: { q: number[]; Q: number[];
   // The same h:mm:ss as the sentence above the chart, at every width.
   const fmt = (s: number) => formatDuration(s, true);
   const markers = stackLabels([
-    { key: 'median', x: x(q[i50]), label: `Median ${fmt(q[i50])}`, tone: 'median' as const },
     { key: 'even', x: x(P), label: `Even pace ${fmt(P)}`, tone: 'even' as const },
     ...(target !== null ? [{ key: 'target', x: x(target), label: `${narrow ? '' : 'Target '}${targetText(target)}${targetTag ? ` · ${targetTag}` : ''}`, tone: 'target' as const }] : []),
   ], width, m.l);
@@ -387,15 +387,21 @@ function FinishChart({ q, Q, P, target, targetTag }: { q: number[]; Q: number[];
   const top = 8 + rows * 18;
   const plotH = narrow ? 88 : 108;
   const base = top + plotH;
-  // No bracket under the bars: the card above already gives the middle 80% (critic round 3), so the chart shows only the
-  // new fact, the even-pace finish against the median.
   const H = base + 26;
   const densities = q.slice(0, -1).map((v, i) => 0.05 / Math.max(1, q[i + 1] - v));
   const maxD = Math.max(...densities);
   const step = niceStep(hi - lo, narrow ? 4 : 7, [60, 120, 300, 600, 900, 1800, 3600, 7200]);
   const ticks: number[] = [];
   for (let t = Math.ceil(lo / step) * step; t <= hi; t += step) ticks.push(t);
-  const label = `Finish times of these finishes: 10th percentile ${formatDuration(q[i10], true)}, median ${formatDuration(q[i50], true)}, 90th percentile ${formatDuration(q[i90], true)}. The even-pace finish of the times entered is ${formatDuration(P, true)}${target !== null && targetTag ? `; target ${targetText(target)}: ${targetTag}` : ''}.`;
+  const label = `Finish times of these finishes: 10th percentile ${formatDuration(q[i10], true)}, median ${formatDuration(q[i50], true)}, 90th percentile ${formatDuration(q[i90], true)}. The even-pace finish of the times entered is ${formatDuration(P, true)}; the finishes at or under it are marked${target !== null && targetTag ? `; target ${targetText(target)}: ${targetTag}` : ''}.`;
+  // Each bar split at the even-pace finish: the part at or under it is the reading.
+  const bars = densities.flatMap((d, i) => {
+    const h = (d / maxD) * (plotH - 6);
+    const [a, b] = [q[i], q[i + 1]];
+    if (b <= P) return [{ key: `${i}`, a, b, h, on: true }];
+    if (a >= P) return [{ key: `${i}`, a, b, h, on: false }];
+    return [{ key: `${i}a`, a, b: P, h, on: true }, { key: `${i}b`, a: P, b, h, on: false }];
+  });
   return (
     <div ref={ref} className="projector-chart">
       <svg width={width} height={H} role="img" aria-label={label}>
@@ -405,10 +411,7 @@ function FinishChart({ q, Q, P, target, targetTag }: { q: number[]; Q: number[];
             <text x={x(t)} y={base + 18} textAnchor="middle">{hm(t)}</text>
           </g>
         ))}
-        {densities.map((d, i) => {
-          const h = (d / maxD) * (plotH - 6);
-          return <rect key={i} className="projector-bar" x={x(q[i])} width={Math.max(0.5, x(q[i + 1]) - x(q[i]))} y={base - h} height={h} />;
-        })}
+        {bars.map((r) => <rect key={r.key} className={`projector-bar${r.on ? ' is-on' : ''}`} x={x(r.a)} width={Math.max(0.5, x(r.b) - x(r.a))} y={base - r.h} height={r.h} />)}
         <line className="projector-base" x1={m.l} x2={width - m.r} y1={base} y2={base} />
         {markers.map((mk) => (
           <line key={mk.key} className={`projector-marker-line is-${mk.tone}`} x1={mk.x} x2={mk.x} y1={14 + mk.row * 18 + 4} y2={base} />
@@ -736,9 +739,8 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
     const rangeText = windowText(cell.q[i10], cell.q[i90]);
     const median = cell.q[i50];
     const nextRow = laterRows[0];
-    // The median finish of the group against the even-pace finish of the times entered, to the second (9:32, never a
-    // rounded "10 minutes").
-    const gapS = Math.round(median - P);
+    // How many of these finishes made the even-pace finish of the times entered, or better.
+    const heldShare = shareUnder(P, cell.q, Q);
     // The mats still to come; the finish is the card's own headline, so the grid stops at 40K.
     const matRows = laterRows.filter((r) => r.km < 42);
     status = `${isExample ? `Example: ${formatDuration(E, true)} at ${matName(mat, units)}. ` : ''}${scopeName} at ${matName(mat, units)}: on ${bandText} even pace, ${count(cell.n)} finishes. Median finish ${formatDuration(median, true)}; 10th to 90th percentile ${rangeText.replace('–', ' to ')}.`
@@ -764,7 +766,7 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
             )}
           </dl>
           {activeNotice ? <p className="tool-reading-sub">{activeNotice}</p> : null}
-          <EvidenceTag kind="data" />
+          <ReadingFoot badge={<EvidenceTag kind="data" />} />
           <p className="print-only projector-entered">
             Entered: {formatDuration(E, true)} at {matName(mat, units)}{prev !== null ? `, ${formatDuration(prev, true)} at ${matName(mat - 5, units)}` : ''}{start !== null ? `, start ${formatClock(start)}` : ''}{target !== null ? `, target ${targetText(target)}` : ''}.
           </p>
@@ -773,12 +775,12 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
     results = (
       <>
         <section className="tool-panel projector-ended" aria-labelledby="projector-ended-title">
-          {/* Only the new fact (the card gives the range and the median): what even pace makes, and how far the median
-              finish ended from it. */}
+          {/* Only the new fact (the card gives the range and the median): what even pace makes, and how many of these
+              finishes made it (round 6: the median was said three times in two screens). Read from the published
+              percentiles, so "about". */}
           <p className="tool-nugget-text" id="projector-ended-title">
             Held to the finish, this pace makes {formatDuration(P, true)};{' '}
-            {Math.abs(gapS) < 30 ? <>the median was <em>about the same</em>.</>
-              : <>the median was <em>{formatDuration(Math.abs(gapS))} {gapS > 0 ? 'later' : 'earlier'}</em>.</>}
+            <em>{heldShare.bound === 'below' ? '5% or fewer' : heldShare.bound === 'above' ? 'more than 95%' : `about ${pctText(heldShare.share)}`}</em> of these finishes did.
           </p>
           <FinishChart q={cell.q} Q={Q} P={P} target={passed ? null : target} targetTag={targetTag} />
         </section>
@@ -796,11 +798,13 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
                 <small className="projector-lap-median">median {at(r.mid)}</small>
               </li>
             ))}
+            {/* At the next mat, the tracker's new time goes in the same field: the list's last row moves the mat on. */}
+            {E !== null && mat < 40 ? (
+              <li className="projector-advance-row no-print">
+                <button type="button" className="projector-link-button projector-advance" onClick={advance}>Passed {matName(mat + 5, units)}? Next mat <Arrow /></button>
+              </li>
+            ) : null}
           </ol> : null}
-          {/* At the next mat, the tracker's new time goes in the same field: one tap moves the mat on. */}
-          {E !== null && mat < 40 ? (
-            <button type="button" className="projector-link-button projector-advance no-print" onClick={advance}>Passed {matName(mat + 5, units)}? Next mat <Arrow /></button>
-          ) : null}
           {/* Clock times and runner cards wait in one disclosure, open once a start time is kept. */}
           <details className="tool-more projector-extras no-print" open={extrasOpen} onToggle={(e) => setExtrasOpen(e.currentTarget.open)}>
             <summary>Clock times and runner cards</summary>
@@ -832,8 +836,6 @@ export default function Projector({ indexSha }: { indexSha: string | null }) {
             </div>
           </details>
         </section>
-
-        <ShareBar />
       </>
     );
   }

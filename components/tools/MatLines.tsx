@@ -23,12 +23,13 @@ const hit = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y
  * saying so ("15 min ahead", then "10", "5"), each labelled above its line at the left, where every line still runs near
  * the start (critic round 5: "−15:00" read as minus fifteen minutes, and a "+5:00" row stood empty under the lines). A
  * row behind even pace is drawn only when a line goes there. Each line is named on the chart, beside the stretch where
- * its name has room (its furthest point first), so no key is needed; the one the sentence is about is in signal. Ticks
- * are 12 px. Drawn in pixels at the measured width.
+ * its name has room (its furthest point first), so no key is needed; the line the sentence is about is in ink, the
+ * other quiet, and the gap it names is the one signal mark. Ticks are 12 px. Drawn in pixels at the measured width.
  */
 export default function MatLines({ lines, zeroTick = 'Even', units: _units, label, bracket }: {
   lines: MatLine[];
-  /** The gap a sentence names between the first two lines at one mat ("8:26" at 20K): an ink bracket there, labelled. */
+  /** The gap a sentence names between the first two lines at one mat ("8:26" at 20K): a bracket there, labelled, in
+   *  signal (the chart's reading). */
   bracket?: { km: number; label: string };
   /** The zero line's name at its right end: "Even". */
   zeroTick?: string;

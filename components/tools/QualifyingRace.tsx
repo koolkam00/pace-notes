@@ -79,7 +79,11 @@ export default function QualifyingRace({ s }: { s: Standard }) {
         </p>
       </ToolPageHeader>
 
-      <div className="qrace-body">
+      <div className={`qrace-body${s.key === 'boston' ? ' has-cutoffs' : ''}`}>
+        {/* Boston opens on its cut-off (round 6: the runner's real lesson, that meeting the standard is not entry, was the
+            last beat, after the table and the rules); from 900 px the table stands beside it. */}
+        {s.key === 'boston' ? <BostonCutoffs /> : null}
+
         <section className="qrace-section" id="standards" aria-labelledby="qrace-standards-title">
           {/* The table the title promises opens the page (critic round 3: the first screen held only its rules), the way
               to check a time beside its title: a secondary button, the header's "Plan your race" stays the one orange. */}
@@ -128,12 +132,15 @@ export default function QualifyingRace({ s }: { s: Standard }) {
 
         <section className="qrace-section qrace-rules" id="rules" aria-labelledby="qrace-rules-title">
           <h2 className="tool-panel-title" id="qrace-rules-title">Meeting the standard is not entry by itself</h2>
-          <p>{s.entry}</p>
-          <h3>Applications</h3>
-          <p>{s.applications?.note ?? 'Application dates for this edition were not listed when checked.'}</p>
+          {/* How entry works and the applications fold with the other rules (round 6: about 120 words of prose before the
+              page's lesson). */}
           <details className="tool-more qrace-more-rules">
-            <summary>The window, the age group and every other rule</summary>
+            <summary>Entry, the window, the age group and every other rule</summary>
             <div className="tool-more-body">
+              <h3>Entry</h3>
+              <p>{s.entry}</p>
+              <h3>Applications</h3>
+              <p>{s.applications?.note ?? 'Application dates for this edition were not listed when checked.'}</p>
               <h3>Qualifying window</h3>
               <p>{s.windowNote}{last.byApplications && last.date ? ` Proof goes in with the application, so a time must be run by ${fmtDate(last.date)}, the application deadline.` : ''}</p>
               <h3>Age group</h3>
@@ -150,8 +157,6 @@ export default function QualifyingRace({ s }: { s: Standard }) {
           </details>
           {s.key === 'nyc' ? <NycPool s={s} /> : null}
         </section>
-
-        {s.key === 'boston' ? <BostonCutoffs /> : null}
       </div>
 
       {/* One way on, the checker (the button beside the table's title: every race is one tap away there) and, in the
@@ -203,7 +208,8 @@ function BostonCutoffs() {
   const years = Array.from({ length: last - first + 1 }, (_, i) => last - i);
   return (
     <section className="qrace-section qrace-cutoffs" id="cutoffs" aria-labelledby="qrace-cutoffs-title">
-      <EvidenceTag kind="official" />
+      {/* No badge of its own: the cut-offs open the page, right under the header's "Official standards" (one badge per
+          screen, round 6). */}
       <p className="tool-nugget-text" id="qrace-cutoffs-title">
         For {latest.year}, qualifiers needed to be <em>{fmtMargin(latest.cutoff)}</em> under their standard. Since {first}, <span className="nowrap">cut-offs</span> have run from {fmtMargin(lowest.cutoff)} ({list(lowestYears)}) to {fmtMargin(highest.cutoff)} ({highest.year}{highest.note ? `, ${highest.note.toLowerCase()}` : ''}).
       </p>
@@ -232,7 +238,7 @@ function BostonCutoffs() {
             </table>
           </Values>
         )} />
-      {/* The random draw is in the rules above ("Acceptance depends on the cut-off (and … a random selection …)"). */}
+      {/* The random draw is in the rules below ("Acceptance depends on the cut-off (and … a random selection …)"). */}
       <p className="tool-note">Past cut-offs are not a forecast.</p>
     </section>
   );

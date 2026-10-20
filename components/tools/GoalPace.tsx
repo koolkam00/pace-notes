@@ -42,8 +42,6 @@ export interface GoalObserved {
 export interface GoalBunching { before: number; after: number; expected: number; ratio: number; ci: [number, number];
   run: { from: number; to: number; n: number; expected: number; ratio: number } | null }
 
-const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
-
 const CHECKPOINTS = [...MATS_KM, MARATHON_KM];
 const count = (n: number) => Math.round(n).toLocaleString('en-US');
 const clock = (s: number) => formatDuration(s, true);
@@ -83,7 +81,6 @@ export function GoalPaceBody({ goal, observed, bunching, pileup, pileupTable }: 
   const groupText = observed?.held && observed.slow ? groupGapText(observed.held.e50, observed.slow.e50) : null;
   // A pile-up is a finding only when minutes before the mark stand well above the curve; a small bump reads as what it is.
   const run = bunching?.run ?? null;
-  const runMinutes = run ? run.to - run.from + 1 : 0;
   const uneven = observed?.sd != null && observed.sd >= UNEVEN_SHARE;
 
   return (
@@ -112,9 +109,11 @@ export function GoalPaceBody({ goal, observed, bunching, pileup, pileupTable }: 
         <section className="tool-panel goal-pace-bunching" aria-labelledby="goal-pace-bunching-title">
           <EvidenceTag kind="data" />
           <h2 className="tool-nugget-text" id="goal-pace-bunching-title">
+            {/* The minute before the mark, one decimal, as the round numbers story says every mark ("1.7×"), so a goal page
+                and the story never give one pile-up two figures (round 6). */}
             {run
-              ? <>The {runMinutes === 1 ? 'minute' : `${WORDS[runMinutes] ?? runMinutes} minutes`} before {label} held <em>{run.ratio.toFixed(2)}×</em> the finishes a smooth curve expects.</>
-              : <>Finishes near {label} stay close to the smooth curve: the minute before it holds {bunching.ratio.toFixed(2)}× the curve.</>}
+              ? <>The minute before {label} held <em>{bunching.ratio.toFixed(1)}×</em> the finishes a smooth curve expects.</>
+              : <>Finishes near {label} stay close to the smooth curve: the minute before it holds {bunching.ratio.toFixed(1)}× the curve.</>}
           </h2>
           {pileup}
         </section>

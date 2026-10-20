@@ -410,8 +410,9 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   const { renderToStaticMarkup } = require('react-dom/server');
   const RacePlan = require('../components/tools/RacePlan.tsx').default;
   const html = renderToStaticMarkup(React.createElement(RacePlan, { courseGoalSha: null, paceBandSha: null, courses: [] }));
-  // The answer first (the analyses' grammar): the plan's card in a left-out results slot, then the inputs, then the rest.
-  assert.match(html, /class="tool-workspace"><div class="tool-results tool-answer">[\s\S]*plan-headline[\s\S]*class="tool-inputs"[\s\S]*class="tool-results"><p class="sr-only" aria-live="polite">/, 'The card, then the inputs, then the results'); ok();
+  // The data beat leads (round 6: what finishes like this one did, before the plan's own times), in its own left-out slot
+  // with the live region; then the plan's card, then the inputs, then the rest.
+  assert.match(html, /class="tool-workspace"><div class="tool-results tool-lead-slot plan-lead-slot"><p class="sr-only" aria-live="polite">[\s\S]*<div class="tool-results tool-answer">[\s\S]*plan-headline[\s\S]*class="tool-inputs"[\s\S]*<div class="tool-results">/, 'The data beat, then the card, then the inputs, then the results'); ok();
   // The card leads with the pace (miles first), as the pace band and the goal pages do: the goal is its kicker.
   assert.match(html, /<span id="plan-headline-title">4:00<\/span><\/p><h2 class="tool-reading-figure">9:09<small>per mile, even pace · 5:41\/km<\/small><\/h2>/, '4:00 even pace: 9:09 per mile and 5:41/km, the goal as the kicker'); ok();
   // The mat times are listed once on a phone (the wristband strips) and once in print (the mat table); from 900 px four of
@@ -421,7 +422,7 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.deepEqual([...html.matchAll(/<tr( class="is-finish")?><th scope="row">(?:\d+K|Finish)(?:<small>[^<]*<\/small>)?<\/th><td>([^<]+)<\/td>/g)].map((m) => m[2]).slice(0, 9),
     ['28:26', '56:53', '1:25:19', '1:53:45', '2:22:12', '2:50:38', '3:19:05', '3:47:31', '4:00:00'], 'Even-pace time at each mat for 4:00 (14,400 s ÷ 42.195 km × each mat), in the printed mat table'); ok();
   // The tracker looks for sections once per page view, so all three are mounted from the start; the comparison is hidden until its data shows.
-  assert.deepEqual([...html.matchAll(/<div data-track-section="([^"]+)"( hidden="")?>/g)].map((m) => m[1] + (m[2] ? ' (hidden)' : '')), ['result', 'comparison (hidden)', 'pace-band']); ok();
+  assert.deepEqual([...html.matchAll(/<div data-track-section="([^"]+)"( hidden="")?>/g)].map((m) => m[1] + (m[2] ? ' (hidden)' : '')), ['comparison (hidden)', 'result', 'pace-band']); ok();
   assert.match(html, /class="tool-share share-bar no-print"><button[^>]*>Copy link<\/button><button type="button" class="btn btn-primary is-compact"[^>]*>Print wristband strips<\/button><span class="sr-only"/, 'Copy link and the one print action (the wristband strips) share one row'); ok();
   // No next-step row: the journey's finish card follows, the page's one way forward (section 00, cut 4).
   assert.doesNotMatch(html, /aria-label="Next step"|\/tools\/weather-match\?goal=|\/tools\/projector\?target=/, 'No next-step row before the finish card'); ok();

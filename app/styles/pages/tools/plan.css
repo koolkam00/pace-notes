@@ -1,5 +1,6 @@
-/* The race planner (/tools/plan; the redesign spec, section 7.13): the plan's pace on one night card, the course and goal
-   that make it yours, one Pace Notes data nugget on 100 dots, then the pace band to print (its strips hold the mat times). Every
+/* The race planner (/tools/plan; the redesign spec, section 7.13): the chapter's lead first (of finishes on the goal's
+   pace through 20K, the share that made it, and where that sits among the courses), the plan's pace and four mat times on
+   one night card, the course and goal that make it yours, then the pace band to print (its strips hold every mat). Every
    class here is prefixed plan-. Imported by app/tools/plan/layout.tsx, with pace-band-strip.css. */
 
 /* The tracked-section wrappers are the results' grid items: they may shrink below their content (the strip preview). */
@@ -10,47 +11,61 @@
 .plan-unavailable { color: var(--ink-2); }
 .plan-error { display: grid; gap: var(--s-3); justify-items: start; }
 
-/* ---------- From 900 px: the inputs beside the card, then the rest across the whole column ----------
+/* While a linked goal's finishes load, the lead keeps about its height, so the card under it does not jump. */
+.plan-loading { min-height: 15rem; margin: 0; padding: 0; }
+
+/* ---------- From 900 px: the lead across the page, then the inputs beside the card, then the band across the column ----------
    (critic round 5: the data beat, the band and the finish card sat in the right column with the left one empty under
    the inputs, the band clipped and the finish card half the width of every other closing card.) */
 @media (min-width: 900px) {
-  .plan-root .tool-workspace { grid-template-rows: auto auto; }
-  .plan-root .tool-workspace > .tool-inputs { grid-row: 1; position: static; max-height: none; overflow: visible; background: none; }
-  .plan-root .tool-workspace > .tool-answer ~ .tool-results { grid-column: 1 / -1; grid-row: 2; max-width: var(--measure-figure); }
+  .plan-root .tool-workspace { grid-template-rows: auto auto auto; }
+  .plan-root .tool-workspace > .plan-lead-slot { grid-column: 1 / -1; grid-row: 1; }
+  .plan-root .tool-workspace > .tool-inputs { grid-row: 2; position: static; max-height: none; overflow: visible; background: none; }
+  .plan-root .tool-workspace > .tool-answer { grid-row: 2; }
+  .plan-root .tool-workspace > .tool-answer ~ .tool-results { grid-column: 1 / -1; grid-row: 3; max-width: var(--measure-figure); }
   @supports selector(:has(a)) {
     .tool-page:has(.plan-root .tool-workspace) > .chapter-end { max-width: var(--measure-figure); margin-left: 0; }
   }
 }
 
-/* ---------- The card: the pace, and from 900 px four mat times in its right half ---------- */
-.plan-card-mats { display: none; }
+/* ---------- The card: the pace, then four mat times (in its right half from 900 px) ---------- */
+.plan-card-mats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-3); margin: 0; padding-top: var(--s-4); border-top: 1px solid var(--rule); }
+.plan-card-mats > div { min-width: 0; }
+.plan-card-mats dt { font-size: var(--t-label); font-weight: 500; line-height: 1.3; color: var(--ink-3); }
+.plan-card-mats dd { margin: 4px 0 0; font-family: var(--sans); font-size: 1.0625rem; font-weight: 600; line-height: 1.1; letter-spacing: -.01em; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+@media (max-width: 359.98px) {
+  .plan-card-mats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--s-4); }
+}
 @media (min-width: 900px) {
   .plan-headline { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-6); }
-  .plan-card-mats { display: grid; grid-template-columns: repeat(2, auto); gap: var(--s-4) var(--s-6); margin: 0; padding-left: var(--s-6); border-left: 1px solid var(--rule); }
-  .plan-card-mats dt { font-size: var(--t-label); font-weight: 500; line-height: 1.3; color: var(--ink-3); }
-  .plan-card-mats dd { margin: 4px 0 0; font-family: var(--sans); font-size: 1.5rem; font-weight: 600; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .plan-card-mats { grid-template-columns: repeat(2, auto); gap: var(--s-4) var(--s-6); padding: 0 0 0 var(--s-6); border-top: 0; border-left: 1px solid var(--rule); }
+  .plan-card-mats dd { font-size: 1.5rem; letter-spacing: -.02em; }
 }
 
-/* ---------- The nugget: the sentence over every course at the goal ---------- */
-.plan-nugget { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
-/* Every course on one line (RacePlan CourseSpread): a hairline, a dot per course stacked where they touch, the spread
-   from the lowest to the highest in signal (or the chosen course's dot alone, named above it), all courses together a
-   quiet tick, the two ends named under the line. */
-.plan-spread { --dot: 10px; --step: 10px; --label: 22px; max-width: var(--measure-figure); }
-.plan-spread-line { position: relative; height: calc(var(--label) + 8px + var(--stack, 0) * var(--step) + var(--dot)); }
+/* ---------- The lead: where the share sits among the courses ---------- */
+/* Every course on one line (RacePlan CourseSpread): a hairline, a quiet dot per course stacked where they touch, the two
+   ends named under the line; the reading in signal (the chosen course's dot, or the "All courses" tick, 2 px), the other
+   tick quiet. A tick's leader stops 4 px under its label. */
+.plan-spread { --dot: 10px; --step: 10px; --label: 18px; --gap: 10px; max-width: var(--measure-figure); }
+.plan-spread-line { position: relative; height: calc(var(--label) + var(--gap) + var(--stack, 0) * var(--step) + var(--dot)); }
 .plan-spread-line::before { content: ''; position: absolute; left: 0; right: 0; bottom: calc(var(--dot) / 2); height: 1px; background: var(--rule-strong); }
-.plan-spread-dot { position: absolute; bottom: calc(var(--level, 0) * var(--step)); width: var(--dot); height: var(--dot); margin-left: calc(var(--dot) / -2); border-radius: 50%; background: var(--mark-quiet); box-shadow: 0 0 0 1.5px var(--paper); }
-.plan-spread-dot.is-chosen { z-index: 1; background: var(--signal); }
-.plan-spread-span { position: absolute; bottom: calc(var(--dot) / 2 - 1px); height: 3px; border-radius: 2px; background: var(--signal); }
-.plan-spread-tick { position: absolute; bottom: calc(var(--dot) / 2); width: 1px; height: calc(var(--label) - 4px + var(--stack, 0) * var(--step) + var(--dot)); margin-left: -.5px; background: var(--ink-3); }
-.plan-spread-all, .plan-spread-name { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; font-size: var(--t-label); line-height: 1.3; }
+.plan-spread-dot { position: absolute; z-index: 1; bottom: calc(var(--level, 0) * var(--step)); width: var(--dot); height: var(--dot); margin-left: calc(var(--dot) / -2); border-radius: 50%; background: var(--mark-quiet); box-shadow: 0 0 0 1.5px var(--paper); }
+.plan-spread-dot.is-chosen { z-index: 2; background: var(--signal); }
+.plan-spread-tick { position: absolute; bottom: calc(var(--dot) / 2); width: 1px; height: calc(var(--gap) - 4px + var(--stack, 0) * var(--step) + var(--dot) / 2); margin-left: -.5px; background: var(--ink-3); }
+.plan-spread-tick.is-reading { z-index: 2; width: 2px; margin-left: -1px; background: var(--signal); }
+.plan-spread-all, .plan-spread-name { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; font-size: var(--t-label); line-height: var(--label); }
 .plan-spread-all { font-weight: 500; color: var(--ink-3); }
-.plan-spread-name { font-weight: 600; color: var(--ink); }
+.plan-spread-all.is-reading, .plan-spread-name { font-weight: 600; color: var(--ink); }
 .plan-spread-all.is-start, .plan-spread-name.is-start, .plan-spread-ends .is-start { transform: translateX(-6px); }
 .plan-spread-all.is-end, .plan-spread-name.is-end, .plan-spread-ends .is-end { transform: translateX(calc(-100% + 6px)); }
 .plan-spread-ends { position: relative; height: 22px; margin-top: 6px; }
 .plan-spread-ends span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; font-size: var(--t-label); font-weight: 500; line-height: 1.3; color: var(--ink-3); }
-.plan-pooled { margin: 0 0 var(--s-3); font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
+/* From 900 px the lead's figure and line sit left, its strip right, on the workspace's two columns. */
+@media (min-width: 900px) {
+  .plan-comparison { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--s-7); align-items: end; }
+  .plan-comparison > * { grid-column: 1; }
+  .plan-comparison > .plan-spread { grid-column: 2; grid-row: 1 / span 3; align-self: end; max-width: none; }
+}
 .plan-mat-table tbody th small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
 .plan-mat-table tfoot td, .plan-mat-table tfoot th { height: 36px; }
 

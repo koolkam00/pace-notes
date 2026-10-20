@@ -65,9 +65,8 @@
 .tool-page .tool-field input::placeholder, .tool-page .tool-inputs textarea::placeholder { color: var(--ink-3); opacity: 1; }
 /* The cell's value: the time a runner types, large and calm. */
 .tool-page .tool-field.is-large input { min-height: 60px; font-size: 1.5rem; font-weight: 600; letter-spacing: -.01em; }
-/* A value worked out from the other fields (the pace calculator's third box): quieter, on the page's paper. */
-/* The calculator's solved box holds the answer: in ink, a little heavier, on the sunk paper of a value worked out. */
-.tool-page .tool-field.is-solved input:not([type='checkbox']):not([type='radio']):not(:focus) { border-color: transparent; background: var(--paper-sunk); color: var(--ink); font-weight: 660; }
+/* A value worked out from the other fields (the pace calculator's third box) looks like every other box, so it reads as
+   one to type in: the night card above it reads the value (round 6: a filled box read as disabled). */
 .tool-page .tool-field input[aria-invalid='true'] { color: var(--signal-ink); box-shadow: inset 0 -2px 0 var(--signal); }
 .tool-field-hint { margin: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
 .tool-field-hint.is-error { color: var(--signal-ink); font-weight: 600; }
@@ -109,6 +108,18 @@
 .tool-reading { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); margin: 0; padding: 20px; border-radius: var(--r-md); background: var(--paper); color: var(--ink); min-width: 0; box-shadow: var(--night-edge); }
 .tool-reading > * { margin: 0; min-width: 0; }
 .tool-reading-head { display: grid; gap: 6px; }
+/* The card's foot: its badge at the left and Copy link at the right (ReadingFoot); the button's 44 px reaches into the
+   card's padding, so the row keeps the badge's height. */
+.tool-reading-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-width: 0; }
+.tool-reading-foot.is-copy-only { justify-content: flex-end; }
+.tool-copy { flex: none; margin: -12px -6px -12px 0; }
+.tool-page .tool-copy-button { min-height: 44px; padding: 0 6px; border: 0; border-radius: var(--r-xs); background: none; box-shadow: none; color: var(--ink-2);
+  font-family: var(--sans); font-size: var(--t-label); font-weight: 600; line-height: 1.2; white-space: nowrap; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--ink-3); text-underline-offset: 4px; }
+.tool-page .tool-copy-button:hover { color: var(--ink); text-decoration-color: currentColor; }
+.tool-page .tool-copy-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* A card's headline when the figure is not its point (the split check's race): one sentence in the serif. */
+.tool-reading-title { margin: 0; font-family: var(--serif); font-optical-sizing: auto; font-size: var(--t-sentence); font-weight: 440; line-height: 1.2; letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
 .tool-reading-kicker { margin: 0; font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; line-height: 1.4; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); text-wrap: balance; }
 .tool-reading-figure { margin: 0; font-family: var(--figure); font-size: var(--t-figure-l); font-weight: 660; line-height: .95; letter-spacing: -.03em; color: var(--ink); font-variant-numeric: proportional-nums; overflow-wrap: anywhere; }
 .tool-reading-figure small { display: block; margin-top: 8px; font-family: var(--sans); font-size: 1.0625rem; font-weight: 500; line-height: 1.3; letter-spacing: 0; color: var(--ink-2); }
@@ -159,6 +170,15 @@
 .tool-nugget-text { margin: 0; max-width: 30ch; font-family: var(--serif); font-optical-sizing: auto; font-size: var(--t-sentence); font-weight: 440; line-height: 1.25; letter-spacing: -.01em; color: var(--ink); text-wrap: pretty; }
 .tool-nugget-text em { font-style: italic; color: inherit; } /* ink, as every H2's: one accent per screen (round 3) */
 .tool-nugget .evidence-badge { justify-self: start; }
+
+/* The lead (DataLead, round 6): the chapter's Pace Notes data reading, first on the page, on paper: the badge, the
+   figure, one line of what it counts, then the instrument. */
+.tool-lead { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); margin: 0; min-width: 0; }
+.tool-lead > * { margin: 0; min-width: 0; }
+.tool-lead .evidence-badge { justify-self: start; }
+.tool-lead-title { display: grid; justify-items: start; gap: var(--s-2); margin: 0; font: inherit; }
+.tool-lead-title .big-number { margin-left: -.04em; }
+.tool-lead-line { max-width: 30ch; font-family: var(--sans); font-size: 1.0625rem; font-weight: 500; line-height: 1.4; letter-spacing: 0; color: var(--ink-2); text-wrap: pretty; }
 
 /* ---------- Example ---------- */
 .tool-example { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
@@ -346,7 +366,7 @@
 .mat-lines-line.is-ink circle { fill: var(--ink); }
 .mat-lines-line.is-signal path { stroke: var(--signal); }
 .mat-lines-line.is-signal circle { fill: var(--signal); }
-.mat-lines-line.is-quiet path { stroke: var(--mark-quiet); stroke-dasharray: 4 4; }
+.mat-lines-line.is-quiet path { stroke: var(--mark-quiet); }
 .mat-lines-line.is-quiet circle { fill: var(--mark-quiet); }
 .mat-lines svg .mat-lines-name { font-size: 13px; font-weight: 600; fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
 .mat-lines svg .mat-lines-name.is-signal { fill: var(--signal-ink); }
@@ -358,8 +378,8 @@
 .mat-lines-key-mark.is-signal { background: var(--signal); }
 .mat-lines-key-mark.is-quiet { background: var(--mark-quiet); }
 /* The gap the sentence names, bracketed at its mat. */
-.mat-lines-bracket path { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; }
-.mat-lines svg .mat-lines-bracket text { font-size: 14px; font-weight: 600; fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
+.mat-lines-bracket path { fill: none; stroke: var(--signal); stroke-width: 2; stroke-linejoin: round; }
+.mat-lines svg .mat-lines-bracket text { font-size: 14px; font-weight: 600; fill: var(--signal-ink); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
 
 /* The bracket under a finish-time histogram, named in a gap in its line. */
 .tool-page .range-bracket line { stroke: var(--ink-2); stroke-width: 1.5; }

@@ -12,6 +12,10 @@ export const metadata = pageMetadata({
   path: '/tools',
 });
 
+/** The race tools in the order a runner meets them (round 6): pick the race, plan it, pace it, follow it, read it back. */
+const RACE_ORDER = ['predictor', 'course-chooser', 'plan', 'pace-band', 'weather-match', 'projector', 'split-check'];
+const order = (slug: string) => { const i = RACE_ORDER.indexOf(slug); return i < 0 ? RACE_ORDER.length : i; };
+
 const GROUPS: { group: ToolGroup; title: string }[] = [
   { group: 'race', title: 'For your race' },
   { group: 'reference', title: 'Reference' },
@@ -44,10 +48,10 @@ export default function ToolsPage() {
     <div className="tool-page tools-index">
       <header className="tool-header">
         <h1 className="tool-title t-title">Tools</h1>
-        <p className="tool-dek">For one race: plan it, pace it, follow it and read it afterwards, beside what finishes like it ran.</p>
+        <p className="tool-dek">For one race: pick it, plan it, pace it, follow it, then read it back.</p>
       </header>
       {GROUPS.map(({ group, title }) => {
-        const tools = available.filter((t) => t.group === group);
+        const tools = available.filter((t) => t.group === group).sort((a, b) => (group === 'race' ? order(a.slug) - order(b.slug) : 0));
         return (
           <section key={group} className="tools-group" aria-labelledby={`tools-${group}`}>
             <h2 id={`tools-${group}`} className="tools-group-title">{title}</h2>

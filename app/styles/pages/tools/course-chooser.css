@@ -1,17 +1,28 @@
-/* The course chooser (/tools/course-chooser; the redesign spec, section 7.13): the spread of the share that made the goal
-   on one night card with a tick per course, the goal that makes it yours, then every course as one row, ranked by that
-   share. Every class here is
-   prefixed course-chooser- or cc-. Imported by app/tools/course-chooser/layout.tsx. */
+/* The course chooser (/tools/course-chooser; the redesign spec, section 7.13): the course where the most made the goal and
+   the one where the fewest did, by name, on one night card with a tick per course, the goal that makes it yours, then
+   every course as one row, ranked by that share. Every class here is prefixed course-chooser- or cc-. Imported by
+   app/tools/course-chooser/layout.tsx. */
 
 .course-chooser { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); min-width: 0; }
 
-/* ---------- The night card: the spread, and one dot per course ---------- */
+/* ---------- The night card: the most and the fewest by name, and one tick per course ---------- */
+/* Two figures divided by a hairline, each with its course under it; the line under both says what they count. */
+.cc-pair { display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); justify-content: start; gap: var(--s-2) 0; margin: 0; font: inherit; }
+.cc-pair-item { display: grid; align-content: start; gap: 6px; min-width: 0; padding-right: var(--s-6); }
+.cc-pair-item + .cc-pair-item { padding: 0 0 0 var(--s-6); border-left: 1px solid var(--rule); }
+.cc-pair-item b { font-family: var(--figure); font-size: var(--t-figure-l); font-weight: 660; line-height: .9; letter-spacing: -.03em; font-variant-numeric: proportional-nums; color: var(--ink); white-space: nowrap; }
+.cc-pair-item > span { font-size: 1rem; font-weight: 600; line-height: 1.25; color: var(--ink); }
+.cc-pair-line { grid-column: 1 / -1; max-width: 32ch; margin-top: var(--s-2); font-size: 1.0625rem; font-weight: 500; line-height: 1.35; color: var(--ink-2); text-wrap: pretty; }
+@media (max-width: 299.98px) {
+  .cc-pair-item { padding-right: var(--s-4); }
+  .cc-pair-item + .cc-pair-item { padding-left: var(--s-4); }
+  .cc-pair-item b { font-size: 2.5rem; }
+}
 .cc-strip { margin: var(--s-2) 0 0; }
 .cc-strip-track { position: relative; height: 24px; margin: 0 2px; border-bottom: 1px solid var(--rule-strong); }
 /* One tick per course: ticks never hide each other the way dots do where courses sit close together. */
 .cc-strip-track i { position: absolute; bottom: 0; width: 2px; height: 14px; margin-left: -1px; border-radius: 1px; background: var(--mark-quiet); }
 .cc-strip-track i.is-end { width: 3px; height: 22px; margin-left: -1.5px; background: var(--ink); }
-.cc-strip-ends { display: flex; justify-content: space-between; gap: var(--s-4); margin-top: 8px; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); }
 
 /* ---------- Every course: the controls, then one row each ---------- */
 .course-chooser-toolbar { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-3); }
