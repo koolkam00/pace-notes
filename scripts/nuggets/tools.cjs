@@ -73,6 +73,9 @@ module.exports = function tools({ json, eq, ok, core }) {
     eq(n.guard, all.n >= 100 && sd > 0 && sd < 1, 'splitcheck.share: guard');
     const lo = minute - shard.window_s / 60;
     if (n.guard) ok(shown(n).includes(`from ${hm(lo)} to ${hm(minute - 1)}`) && shown(n).includes(`*${pct(sd)}*`) && n.figure.value === pct(sd).replace('%', ''), 'splitcheck.share: the headline and figure name the window and the share');
+    // The key (home, the contents, a next card) says the window in words when it opens just past a round mark.
+    const mark = Math.floor(lo / 30) * 30;
+    eq(n.key, `of finishes ${lo > mark && lo - mark <= 5 ? `just over ${hm(mark)}` : `from ${hm(lo)} to ${hm(minute - 1)}`} had a sustained slowdown`, 'splitcheck.share: the key names the window in words');
   };
 
   // weathermatch.mornings: 18 °C ±2 against 6–10 °C, in the 5–20K pace band holding 4:00 even pace.

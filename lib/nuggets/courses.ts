@@ -85,7 +85,7 @@ function coursesIndex(): Nugget {
     id: 'courses.index', page: '/courses', denominator: 'course', values: { courses: n }, guard: n > 0,
     headline: `*${count(n)}* city marathons.`,
     fallback: 'City marathons.',
-    figure: n > 0 ? { value: count(n), sr: `${count(n)} city marathons` } : null,
+    figure: n > 0 ? { value: count(n), sr: `${count(n)} city marathons`, spoken: count(n) } : null,
     key: 'city marathons, each with its own page',
   };
 }

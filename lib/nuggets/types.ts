@@ -19,6 +19,12 @@ export type NuggetFigure = {
   unit?: string;
   /** The full spoken value ("4 hours 10 minutes", "47 percent"). */
   sr: string;
+  /**
+   * The number alone, as a screen reader hears it right before the key ("5 minutes 6 seconds", where `sr` says "5 minutes
+   * 6 seconds behind" for a figure read on its own): the guide, the contents and the next cards follow the figure with
+   * its key, so a word the key opens on is never said twice ("behind behind"). Defaults to `sr`.
+   */
+  spoken?: string;
 };
 
 export type Denominator = 'eligible' | 'story' | 'shape' | 'kick' | 'demographics' | 'positions' | 'course' | 'tool' | 'none';

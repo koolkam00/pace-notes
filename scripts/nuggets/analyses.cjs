@@ -170,9 +170,11 @@ module.exports = function analyses({ json, eq, ok, core }) {
     ok(!shown(n).includes(lo.label) && !shown(n).includes(hi.label), 'courses.compare: the headline names no course');
     ok(shown(n).includes(pct(lo.slowdown_pct / 100)) && shown(n).includes(pct(hi.slowdown_pct / 100)), 'courses.compare: the headline names both ends');
     if (n.guard) ok(shown(n).includes(`*${pct(hi.slowdown_pct / 100)}*`), 'courses.compare: the accent is the high end, the card\'s orange dot');
-    // The card's figure is the ratio of the two ends, one decimal (the page's H1 gives the ends themselves).
-    const ratio = (Math.round((hi.slowdown_pct / lo.slowdown_pct) * 10) / 10).toFixed(1);
-    eq(n.figure && n.figure.value, ratio, 'courses.compare: the card\'s figure is the high end over the low end');
+    // The card's figure is the range the page's H1 gives, its two ends in whole percent (round 6: one number on both
+    // sides of the tap).
+    const range = `${pct(lo.slowdown_pct / 100).replace('%', '')}–${pct(hi.slowdown_pct / 100).replace('%', '')}`;
+    eq(n.figure && `${n.figure.value}${n.figure.unit}`, `${range}%`, 'courses.compare: the card\'s figure is the H1\'s range');
+    eq(n.key, 'sustained slowdown, course by course', 'courses.compare: the key');
   };
 
   R['terrain.climb'] = (n) => {

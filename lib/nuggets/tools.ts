@@ -126,6 +126,9 @@ export function projectorRangeFrom(shard: Pick<ProjectorShard, 'band_s' | 'cells
 
 // ---------- Chapter 10 · the split check ----------
 
+/** A window that opens at most five minutes past a whole or half hour, in words ("just over 4:00"), else null. */
+const justOver = (lo: number) => { const mark = Math.floor(lo / 30) * 30; return lo > mark && lo - mark <= 5 ? `just over ${hm(mark)}` : null; };
+
 /** The finish of the split check's example race, in seconds (its ninth time). */
 const SPLIT_FINISH = SPLIT_EXAMPLE.split(',')[8].split(':').reduce((a, v) => a * 60 + Number(v), 0);
 
@@ -152,9 +155,11 @@ export function splitCheckShareFrom(shard: Pick<PaceBandShard, 'window_s' | 'gro
     headline: `Of finishes ${range}, *${pct(sd)}* had a sustained slowdown.`,
     fallback: all ? `Finishes ${range}, mat by mat.` : 'Check your splits against finishes at the same time.',
     figure: ok ? { value: pct(sd).replace('%', ''), unit: '%', sr: spokenPct(sd) } : null,
-    // The key stands alone, with the window it counts: it is read on home, the contents and the weather match's card,
-    // where no example sits above it (round 5: "the example’s 4:03" named an example none of them shows).
-    key: `of finishes ${range} had a sustained slowdown`,
+    // The key stands alone: it is read on home, the contents and the weather match's card, where no example sits above
+    // it (round 5: "the example’s 4:03" named an example none of them shows). It names the window in a runner's words,
+    // just over the round mark it starts after (round 6: "from 4:01 to 4:05" read like a database filter on the
+    // contents); the page itself, where the example explains it, keeps the exact window.
+    key: `of finishes ${justOver(lo) ?? range} had a sustained slowdown`,
     term: '/methodology#sustained-slowdown',
   };
 }

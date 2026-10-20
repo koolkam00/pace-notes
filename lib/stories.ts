@@ -120,7 +120,7 @@ export const STORIES: StoryDefinition[] = [
     published: '2026-10-07',
     seoTitle: 'Round Numbers: Marathon Finishes Bunch Under Round Times',
     get seoDescription() {
-      return `Marathon finish times pile up just under every hour and half-hour. See the bunching second by second in ${finishesMillions()} million recorded finishes.`;
+      return `Marathon finish times pile up just under every hour and half-hour. See the bunching minute by minute in ${finishesMillions()} million recorded finishes.`;
     } },
   { slug: 'race-replay', file: 'replay.json', number: '03', kicker: 'On the race clock', title: 'Watch a marathon unfold',
     /** The moment as a finding (the replay.title nugget), or the title when its guard fails. */
@@ -155,7 +155,7 @@ export const STORIES: StoryDefinition[] = [
     dek: 'What happens to a race after a sustained slowdown begins?',
     accent: '#E2416B',
     published: '2026-10-07',
-    /** The page's finding: same pace to 20K, the typical gap at the finish with a sustained slowdown (kick.twins). */
+    /** The page's finding: same pace through 20K, the typical gap at the finish with a sustained slowdown (kick.twins). */
     get seoTitle() {
       const twins = getNugget('kick.twins');
       return twins.guard && twins.figure ? `After a Marathon Slowdown: ${twins.figure.value} Minutes Apart | Pace Notes` : 'After a Marathon Slowdown | Pace Notes';
@@ -163,8 +163,8 @@ export const STORIES: StoryDefinition[] = [
     /** The page's own finding (kick.twins), then what the story follows. */
     get seoDescription() {
       const twins = getNugget('kick.twins');
-      const lead = twins.guard ? `Same pace to 20K, ${twins.figure?.value} minutes apart at the finish. ` : '';
-      return `${lead}What followed a sustained slowdown in recorded marathon finishes, from the warning sign to the finish.`;
+      const lead = twins.guard ? `Same pace through 20K, ${twins.figure?.value} minutes apart at the finish. ` : '';
+      return `${lead}What followed a sustained slowdown in recorded finishes, from the warning sign to the finish.`;
     } },
   { slug: 'who-holds-pace', file: 'demographics.json', number: '06', kicker: 'Gender and age', title: 'Women and men',
     get heading() { return headingOf('holds.title', this.title); },
@@ -185,12 +185,14 @@ export const STORIES: StoryDefinition[] = [
     accent: '#0FA3A3',
     published: '2026-10-07',
     seoTitle: 'Marathon Course Fingerprints: Pace by Section | Pace Notes',
+    /** What the page holds (round 6: the description promised weather, finish times and route profiles the story no
+     *  longer draws): its finding, then the fingerprints. */
     get seoDescription() {
-      const span = courseSpan();
       const shaped = shapedCourses();
-      return span && shaped
-        ? `Section-by-section pacing shapes for ${shaped === span.courses ? shaped : `${shaped} of ${span.courses}`} marathon courses, with race-morning weather, finish times from ${span.first} to ${span.last} and route profiles where mapped.`
-        : 'Section-by-section pacing shapes for marathon courses, with race-morning weather, finish times and route profiles where mapped.';
+      const named = getNugget('courses.named');
+      const lead = named.guard ? `A race’s pacing shape names its course ${Math.round(Number(named.values.share) * 100)}% of the time: ` : '';
+      const body = shaped ? `section-by-section fingerprints for ${shaped} city marathons.` : 'section-by-section fingerprints for city marathons.';
+      return `${lead}${body}`.replace(/^./, (c) => c.toUpperCase());
     } },
   { slug: 'race-morning', file: 'courses.json', number: '08', kicker: 'The weather', title: 'Race-morning weather',
     get heading() { return headingOf('weather.title', this.title); },

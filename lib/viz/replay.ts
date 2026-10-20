@@ -8,7 +8,7 @@ import { displayCity } from '@/lib/course-page';
 import type { ReplayEditionMeta, ReplayIndex, ReplayRows } from '@/lib/insights';
 import type { ReplayChoice } from '@/lib/insights-server';
 import { sentenceOf, textFor } from '@/lib/nuggets/core';
-import { matLabel, pct } from '@/lib/nuggets/format';
+import { count, matLabel, pct } from '@/lib/nuggets/format';
 import { replayFirstFrom } from '@/lib/nuggets/stories';
 import { byFinish, ribbonAt, sharesAt } from '@/components/viz/replay-geometry';
 import type { StageChoice } from '@/components/viz/ReplayStage.client';
@@ -21,9 +21,10 @@ export function defaultReplaySlug(choices: { slug: string }[]): string | undefin
 }
 
 /**
- * Each edition a page replays, ready for the stage. With `exact`, each moment's sentence gives its own share in figures
- * ("…, *47%* of the field had not reached 20K."), never the words its headline would use, so a page whose H1 already
- * says "nearly half" reads the number under the replay, for whichever race is picked.
+ * Each edition a page replays, ready for the stage. With `exact`, the moment's sentence gives the race's own counts
+ * ("*26,768* of 56,762 finishers had yet to reach 20K."), and the share is labelled on the field (short of 20K), so a
+ * page whose H1 already names the race and says "nearly half" never says its finding a second time under the replay
+ * (round 6), while a race the reader picks still reads its own numbers.
  */
 export function stageChoices(choices: ReplayChoice[], { exact = false }: { exact?: boolean } = {}): StageChoice[] {
   const index = new Map<string, ReplayEditionMeta>(readInsight<ReplayIndex>('replay.json').editions.map((e) => [e.slug, e]));
@@ -36,7 +37,9 @@ export function stageChoices(choices: ReplayChoice[], { exact = false }: { exact
     const shares = sharesAt(rows, flag);
     // The race as pages name it in prose ("New York City 2025"), in its label and its moment's sentence.
     const first = meta ? replayFirstFrom([{ ...meta, city: displayCity(meta.city) }]) : null;
-    const moment = first ? (exact ? textFor(first.fallback) : sentenceOf(first)) : '';
+    const short = Number(first?.values.not_past_20), field = Number(first?.values.finishes);
+    const counted = Number.isFinite(short) && Number.isFinite(field) && field > 0 ? `*${count(short)}* of ${count(field)} finishers had yet to reach ${matLabel(20)}.` : '';
+    const moment = first ? (exact ? counted || textFor(first.fallback) : sentenceOf(first)) : '';
     // With the share in figures, the field it counts is labelled on the plot, inside its own stretch (short of 20K).
     const share = Number(first?.values.share);
     const split = exact && Number.isFinite(share) && share > 0 ? { km: 20, label: `${pct(share)} not yet at ${matLabel(20)}` } : undefined;

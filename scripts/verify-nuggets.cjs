@@ -116,7 +116,7 @@ ok(/^as many finishes as expected in the minute before \d:\d\d$/.test(keys['roun
 eq(keys['holds.gender'], 'of recorded women’s and men’s finishes had a sustained slowdown, at the same finish times', 'chapter 07 key');
 ok(/^of races traced to their course by pacing shape alone, against \d+% by chance$/.test(keys['courses.named']), 'chapter 08 key');
 eq(keys['weather.pairs'], 'same-course pairs: the warmer year had more sustained slowdowns', 'chapter 09 key');
-ok(/^of finishes from \d:\d\d to \d:\d\d had a sustained slowdown$/.test(keys['splitcheck.share']), 'chapter 10 key');
+ok(/^of finishes (?:just over \d:\d\d|from \d:\d\d to \d:\d\d) had a sustained slowdown$/.test(keys['splitcheck.share']), 'chapter 10 key');
 ok(/^of finishes on even \d:\d\d pace at 30K still got under \d:\d\d$/.test(keys['checkpoint.under']), 'chapter 04 key');
 eq(keys['gains.final'], 'of the minutes improving finishes gained came after 30K', 'chapter 11 key');
 
@@ -129,6 +129,24 @@ for (const n of all.filter((x) => x.key)) {
   // finish" (round 5).
   if (/^(ahead|behind|slower|faster|quicker|later|earlier)\b/i.test(n.key)) ok(/\b(than|same|against|of the|elsewhere|typical)\b/i.test(n.key), `${n.id}: the key "${n.key}" opens on a direction without naming its comparator`);
   ok(!n.figure || !n.figure.unit || /^[%×]$/.test(n.figure.unit) || /^[\u00a0 ]|^°[CF]$|^in /.test(n.figure.unit), `${n.id}: the figure's unit "${n.figure && n.figure.unit}" needs a space before it`);
+}
+// A reading's spoken figure is read right before its key (the guide, the contents, a next card): it says the number
+// alone, so a screen reader never hears a word twice ("behind behind", "slower slower") or the subject twice ("20
+// percent of recorded women … of recorded women's finishes"; round 6). The rule: the keyed figure's last word is not
+// the key's first, and the two share no two words in a row.
+{
+  const words = (t) => t.toLowerCase().replace(/[’']s\b/g, '').replace(/[^a-z0-9%\s-]/g, ' ').split(/\s+/).filter(Boolean);
+  const pairs = (w) => w.slice(0, -1).map((x, i) => `${x} ${w[i + 1]}`);
+  for (const id of N.NUGGET_IDS.filter((i) => !N.CONTEXT_NUGGETS.includes(i))) {
+    const r = N.readingOf(id);
+    if (!r || !r.key) continue;
+    for (const f of [r, r.km].filter(Boolean)) {
+      const a = words(f.sr), b = words(r.key);
+      ok(a[a.length - 1] !== b[0], `${id}: the spoken figure "${f.sr}" ends on the word its key "${r.key}" opens on (give the figure a \`spoken\` number)`);
+      const shared = pairs(a).filter((p) => pairs(b).includes(p));
+      ok(!shared.length, `${id}: the spoken figure "${f.sr}" and its key "${r.key}" both say "${shared[0]}"`);
+    }
+  }
 }
 // One goal at one mat is one group: "on 4:00 pace at 20K" never stands for two different windows on two pages (the
 // course-goal data's 5–20K pace within 2%, the checkpoint's 2-minute band, the projector's projected-finish band). A key

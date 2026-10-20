@@ -130,8 +130,9 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
  * title as its link, then its reading. The link covers the whole row from behind (its ::after), so the row is one tap
  * target; its key is plain text, never a second link.
  */
-export function PageList({ kind, prefix, readingOf, label }: { kind: PageKind; prefix?: string; readingOf?: ReadingOf; label: string }) {
-  const groups = CHAPTERS.map((chapter) => ({ chapter, pages: livePages(chapter).filter((p) => p.kind === kind && (!prefix || p.href.startsWith(prefix))) })).filter((g) => g.pages.length);
+export function PageList({ kind, prefix, readingOf, label }: { kind: PageKind | PageKind[]; prefix?: string; readingOf?: ReadingOf; label: string }) {
+  const kinds = Array.isArray(kind) ? kind : [kind];
+  const groups = CHAPTERS.map((chapter) => ({ chapter, pages: livePages(chapter).filter((p) => kinds.includes(p.kind) && (!prefix || p.href.startsWith(prefix))) })).filter((g) => g.pages.length);
   return (
     <nav className="page-list" aria-label={label}>
       <ol className="page-list-groups">

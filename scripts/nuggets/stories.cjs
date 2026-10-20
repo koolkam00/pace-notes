@@ -70,7 +70,8 @@ module.exports = function stories({ json, eq, ok, core }) {
 
   R['replay.title'] = (n) => {
     eq(n.guard, first.s >= 0.45 && first.s < 0.5, 'replay.title: "nearly half" only from 0.45 to under 0.5');
-    ok(!shown(n).includes(first.e.city), 'replay.title: the H1 leaves the race to the replay');
+    // The H1 names its race (round 6): the share is the most extreme replay's, never a rule for every race.
+    ok(shown(n).includes(`${first.e.city === 'New York' ? 'New York City' : first.e.city} ${first.e.year}’s first finish`), 'replay.title: the H1 names the race it is true of');
   };
 
   R['replay.back'] = (n) => {
@@ -102,8 +103,10 @@ module.exports = function stories({ json, eq, ok, core }) {
     close(n.values.share, share, 'types.top recounts their share together');
     eq(n.guard, share > 0.5 && share < 1, 'types.top: "most" needs more than half');
     eq(n.figure.value, String(Math.round(share * 100)), 'types.top: the figure');
-    if (n.guard) has(n, `were *${sorted[0].name}s or ${sorted[1].name}s*.`, 'types.top names both types, the reading as its accent');
-    eq(n.key, `were ${sorted[0].name}s or ${sorted[1].name}s`, 'types.top: the key names both types');
+    // Each name is held on one line (a no-break space inside it), so "Gentle / faders" never splits in a heading.
+    const nb = (name) => name.replace(/ /g, '\u00a0');
+    if (n.guard) has(n, `were *${nb(sorted[0].name)}s or ${nb(sorted[1].name)}s*.`, 'types.top names both types, the reading as its accent');
+    eq(n.key, `were ${nb(sorted[0].name)}s or ${nb(sorted[1].name)}s`, 'types.top: the key names both types');
   };
 
   R['types.river'] = (n) => {
@@ -195,7 +198,8 @@ module.exports = function stories({ json, eq, ok, core }) {
     eq(n.values.share, kick.kick.slowdown_share, 'kick.magnet: the sentence counts the slowdown group, not all finishes');
     eq(n.guard, kick.kick.slowdown_final_below_baseline < 0.1 && kick.kick.slowdown_share > 0.5, 'kick.magnet: guard');
     // The group is the beat's dek ("Finishes with a sustained slowdown."); the fallback names it in the sentence.
-    if (n.guard) has(n, `Even so, *${pct(kick.kick.slowdown_share)}* sped up`, 'kick.magnet: the share');
+    if (n.guard) has(n, `Even so, *${pct(kick.kick.slowdown_share)}* ran the last`, 'kick.magnet: the share');
+    has(n, 'faster than 35–40K', 'kick.magnet: the comparator, the 5K before the last stretch');
     has({ ...n, guard: false }, `Of finishes with a sustained slowdown, ${pct(kick.kick.slowdown_share)}`, 'kick.magnet: the fallback names its denominator');
     has(n, 'last 1.4 mi', 'kick.magnet: the last 2.2 km in one-decimal miles', 'mi');
     has(n, 'last 2.2 km', 'kick.magnet: the last 2.2 km in kilometres', 'km');
@@ -256,7 +260,7 @@ module.exports = function stories({ json, eq, ok, core }) {
     const S = require('../../lib/nuggets/stories.ts');
     eq(S.pointsApart(n.values.matched_gap), `${(o.men_block - o.women_block).toFixed(1)} points apart`, 'holds.unmask: the matched bars\' gap label is the unrounded difference');
     eq(S.pointsApart(n.values.pooled_gap), `${(o.pooled_men_block - o.pooled_women_block).toFixed(1)} points apart`, 'holds.unmask: the pooled bars\' gap label');
-    if (n.guard) has(n, `the gap was *${Math.round(r) === 2 ? 'twice' : `${word(Math.round(r))} times`}* as wide`, 'holds.unmask names the ratio in words');
+    if (n.guard) has(n, `Like for like, recorded men’s second 20K slowed *${(o.men_block - o.women_block).toFixed(1)} points* more.`, 'holds.unmask names its measure and the matched gap its bars label');
   };
   R['holds.ghost'] = (n) => {
     let b = demo.bands[0];
@@ -345,12 +349,12 @@ module.exports = function stories({ json, eq, ok, core }) {
       [S.fieldByRaceFrom([{ city: 'A', finishes: 500, editions: 3, median_s: 15000 }]), 'Median finish, course by course.'],
       [S.typesTopFrom([{ name: 'Even', share: 0.3 }, { name: 'Odd', share: 0.15 }]), 'Two ways to run *the same race*.'],
       [S.replayBackFrom({ city: 'A', year: 2020, moments: { back_km_at_first: 30 } }), 'When the first runner finished A 2020, the back of the field had covered 18.6\u00a0mi.'],
-      [S.kickMagnetFrom({ slowdown_share: 0.4, slowdown_final_below_baseline: 0.02 }), 'Of finishes with a sustained slowdown, 40% sped up over the last 1.4 mi; 2.0% got back to their early pace.'],
+      [S.kickMagnetFrom({ slowdown_share: 0.4, slowdown_final_below_baseline: 0.02 }), 'Of finishes with a sustained slowdown, 40% ran the last 1.4 mi faster than 35–40K; 2.0% got back to their early pace.'],
       [S.typesRiverFrom({ archetypes: [{ name: 'Even', median_cv: 1 }, { name: 'Odd', median_cv: 9 }], river: [{ label: '2:30–2:45', shares: [0.3, 0.7] }, { label: '6:00–6:15', shares: [0.2, 0.8] }] }), 'Evens: 30% of 2:30–2:45 finishes, 20% of 6:00–6:15.'],
       [S.placesCoinFrom({ 30: [{ gap_lo_s: 60, share: 0.3 }, { gap_lo_s: 300, share: 0.1 }], 40: [{ gap_lo_s: 60, share: 0.2 }] }), 'How often a finish beat the runner ahead to the line, by how far back it was, from 30K and from 40K.'],
       [S.placesBreakevenFrom(null), 'Places gained after 30K, by the pace of 30–40K against a finish’s own 5–20K pace.'],
-      [S.kickTwinsFrom({ strata: 1, slowdown_finishes: 1, mean_gap_s: 300, median_gap_s: 300 }), 'Same pace to 20K, apart at the finish.'],
-      [S.kickTitleFrom({ median_gap_s: 300 }), 'From the same pace to 20K, finishes with and without a sustained slowdown.'],
+      [S.kickTwinsFrom({ strata: 1, slowdown_finishes: 1, mean_gap_s: 300, median_gap_s: 300 }), 'Same pace through 20K, apart at the finish.'],
+      [S.kickTitleFrom({ median_gap_s: 300 }), 'From the same pace through 20K, finishes with and without a sustained slowdown.'],
       [S.kickStayFrom([{ source: '25–30', target: '30–35', n: 10, stay: 0.4, back_within_10: 0.1 }]), 'Of finishes at sustained-slowdown pace over 25–30K, 40% stayed that slow over 30–35K.'],
       [S.roundTopFrom([{ mark: '3:00', minutes: 180, ratio: 1.02, minute_before: 100, expected_minute_before: 98 }]), '100 finishes landed between 2:59:00 and 2:59:59.'],
       [S.roundRescueFrom([{ mark: '4:00', minutes: 240, over: { n: 10, share_under: 0.2, expected_share_under: 0.3 } }]), '20% did. Away from a round mark, 30%.'],

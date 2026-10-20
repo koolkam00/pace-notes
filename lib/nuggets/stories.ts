@@ -149,7 +149,9 @@ export function replayFirstFrom(editions: Pick<ReplayEditionMeta, 'slug' | 'city
     headline: `When the first runner finished ${race}, *nearly half* the field had not reached 20K.`,
     fallback: `When the first runner finished ${race}, *${pct(share)}* of the field had not reached 20K.`,
     figure: shareFigure(share),
-    key: 'of the field had not reached 20K at the first finish',
+    // The race is named: the share is this edition's, the most extreme of the replays, never a rule for every race
+    // (round 6: "47% of the field" read as true of any marathon, and the replays run from 10% to 47%).
+    key: `of ${displayCity(e.city)} ${e.year}’s field had not reached 20K at the first finish`,
   };
 }
 
@@ -157,12 +159,17 @@ function replayFirst(): Nugget {
   return replayFirstFrom(readInsight<ReplayIndex>('replay.json').editions);
 }
 
-/** The race replay's H1: the moment as a finding, without the race (the replay names it). Same guard as replay.first. */
+/**
+ * The race replay's H1: the moment as a finding, in its own race, which the replay opens on (round 6: without the race
+ * it read as a general rule, while six of the eight replays had a fifth of the field or less short of 20K). Same guard
+ * as replay.first.
+ */
 export function replayTitleFrom(first: Nugget): Nugget {
+  const race = `${displayCity(String(first.values.city ?? ''))} ${first.values.year ?? ''}`;
   return {
     id: 'replay.title', page: '/stories/race-replay', denominator: 'positions',
-    values: { share: Number(first.values.share ?? NaN) }, guard: first.guard,
-    headline: 'At the first finish, *nearly half* the field hadn’t reached 20K.',
+    values: { share: Number(first.values.share ?? NaN), city: String(first.values.city ?? ''), year: Number(first.values.year ?? NaN) }, guard: first.guard,
+    headline: `At ${race}’s first finish, *nearly half* the field hadn’t reached 20K.`,
     fallback: 'Watch a marathon unfold',
     figure: null,
   };
@@ -222,7 +229,7 @@ const NBSP = '\u00a0';
 export function typesTopFrom(types: Pick<Archetypes['archetypes'][number], 'name' | 'share'>[]): Nugget {
   const [a, b] = [...types].sort((x, y) => y.share - x.share);
   const share = a && b ? a.share + b.share : NaN;
-  const names = a && b ? `${a.name}s or ${b.name}s` : '';
+  const names = a && b ? `${typeName(a.name)}s or ${typeName(b.name)}s` : '';
   return {
     id: 'types.top', page: '/stories/pacing-types', denominator: 'shape',
     values: { first: a?.name ?? '', first_share: a?.share ?? NaN, second: b?.name ?? '', second_share: b?.share ?? NaN, share, types: types.length },
@@ -250,6 +257,9 @@ export function typesSecondFrom(guess: Pick<Nugget, 'guard' | 'figure' | 'values
     figure: null,
   };
 }
+
+/** A pacing type's name kept on one line ("Late\u00a0fader"): a type's name never breaks across a line in a heading. */
+export const typeName = (name: string) => name.replace(/ /g, NBSP);
 
 /** The evenest pacing type: the lowest median pace variation. */
 export const evenestType = (types: Pick<Archetypes['archetypes'][number], 'median_cv'>[]) => types.reduce((best, t, i) => (t.median_cv < types[best].median_cv ? i : best), 0);
@@ -387,17 +397,17 @@ export function kickTwinsFrom(cost: Kick['cost']['stratified']): Nugget {
   return {
     id: 'kick.twins', page: '/stories/final-kick', denominator: 'kick', term: '/methodology#sustained-slowdown',
     values: { median_gap_s: cost.median_gap_s, strata: cost.strata, finishes: cost.slowdown_finishes }, guard: cost.median_gap_s > 600,
-    headline: `Same pace to 20K, *${minutes}${NBSP}minutes* apart at the finish.`,
-    fallback: 'Same pace to 20K, apart at the finish.',
+    headline: `Same pace through 20K, *${minutes}${NBSP}minutes* apart at the finish.`,
+    fallback: 'Same pace through 20K, apart at the finish.',
     figure: Number.isFinite(minutes) ? { value: String(minutes), unit: `${NBSP}min`, sr: `${minutes} minutes` } : null,
-    key: 'later at the finish with a sustained slowdown than without, on the same pace to 20K',
+    key: 'later at the finish with a sustained slowdown than without, on the same pace through 20K',
   };
 }
 
 /**
  * The final-kick H1: its own finding with its number (round 4: "Same pace to 20K, far apart" repeated chapter 01's
  * "Same 10K split, 49 minutes apart" and withheld its number), in one short claim (round 5: four display lines, then the
- * same minutes again as a big figure). The comparison, the same pace to 20K, is the opener's dek. Said as an
+ * same minutes again as a big figure). The comparison, the same pace through 20K, is the opener's dek. Said as an
  * observation, never a cause; the same guard as kick.twins (a typical gap of more than ten minutes), whose figure, on
  * the card into the page, gives the same whole minutes.
  */
@@ -407,7 +417,7 @@ export function kickTitleFrom(cost: Pick<Kick['cost']['stratified'], 'median_gap
     id: 'kick.title', page: '/stories/final-kick', denominator: 'kick',
     values: { median_gap_s: cost.median_gap_s }, guard: cost.median_gap_s > 600,
     headline: `A sustained slowdown: *${minutes}${NBSP}minutes* later at the finish.`,
-    fallback: 'From the same pace to 20K, finishes with and without a sustained slowdown.',
+    fallback: 'From the same pace through 20K, finishes with and without a sustained slowdown.',
     figure: null,
   };
 }
@@ -469,9 +479,10 @@ export function kickMagnetFrom(k: Pick<Kick['kick'], 'slowdown_share' | 'slowdow
   return {
     id: 'kick.magnet', page: '/stories/final-kick#magnet', denominator: 'kick',
     values: { share: k.slowdown_share, back: k.slowdown_final_below_baseline }, guard: ok,
-    // The group it counts (finishes with a sustained slowdown) is the beat's dek, as for kick.stay.
-    headline: both((u) => `Even so, *${pct(k.slowdown_share)}* sped up over the last ${distance(last, u)}.`),
-    fallback: both((u) => `Of finishes with a sustained slowdown, ${pct(k.slowdown_share)} sped up over the last ${distance(last, u)}; ${pct(k.slowdown_final_below_baseline, 1)} got back to their early pace.`),
+    // The group it counts (finishes with a sustained slowdown) is the beat's dek, as for kick.stay; the comparator is the
+    // 5K before the last stretch (round 6: "sped up" had none).
+    headline: both((u) => `Even so, *${pct(k.slowdown_share)}* ran the last ${distance(last, u)} faster than ${sectionLabel(35, 40)}.`),
+    fallback: both((u) => `Of finishes with a sustained slowdown, ${pct(k.slowdown_share)} ran the last ${distance(last, u)} faster than ${sectionLabel(35, 40)}; ${pct(k.slowdown_final_below_baseline, 1)} got back to their early pace.`),
     figure: null,
   };
 }
@@ -566,7 +577,7 @@ export function holdsGenderFrom(o: Pick<Demographics['overall'], 'women_slowdown
     values: { women: w, men: m }, guard: m > w,
     headline: `At the same finish times, *${pct(w)}* of recorded women’s finishes had a sustained slowdown, against ${pct(m)} of men’s.`,
     fallback: `At the same finish times: recorded women ${pct(w)}, recorded men ${pct(m)}.`,
-    figure: { value: `${pct(w)} · ${pct(m)}`, sr: `${spokenPct(w)} of recorded women, ${spokenPct(m)} of recorded men` },
+    figure: { value: `${pct(w)} · ${pct(m)}`, sr: `${spokenPct(w)} of recorded women, ${spokenPct(m)} of recorded men`, spoken: `${spokenPct(w)} and ${spokenPct(m)}` },
     key: 'of recorded women’s and men’s finishes had a sustained slowdown, at the same finish times',
   };
 }
@@ -601,9 +612,10 @@ export function holdsUnmaskFrom(o: Pick<Demographics['overall'], 'pooled_women_b
     id: 'holds.unmask', page: '/stories/who-holds-pace#unmask', denominator: 'demographics',
     values: { pooled_women: o.pooled_women_block, pooled_men: o.pooled_men_block, women: o.women_block, men: o.men_block, pooled_gap: pooled, matched_gap: matched, ratio: r },
     guard: pooled > 0 && matched > 0 && r >= 2,
-    // One clause: the two bar groups carry the gaps (pointsApart, from these unrounded values), and the dek says what is
-    // compared. The ratio is of second-20K slowing gaps, never of the sustained-slowdown shares the page opens on.
-    headline: `Like for like, the gap was *${Math.round(r) === 2 ? 'twice' : `${countWord(Math.round(r))} times`}* as wide.`,
+    // One clause that names its measure and its number (round 6: "the gap was three times as wide" switched from the
+    // opener's sustained-slowdown shares to second-20K slowing without saying so): the matched gap, in points, from the
+    // same unrounded value as its bars' label (pointsApart). The ratio to the gap over all finishes is the beat's dek.
+    headline: `Like for like, recorded men’s second 20K slowed *${(Math.round(Math.abs(matched) * 10) / 10).toFixed(1)} points* more.`,
     fallback: `Second 20K against the first, pooled: women ${signed(o.pooled_women_block)}%, men ${signed(o.pooled_men_block)}%. Same race and finish minute: ${signed(o.women_block)}% and ${signed(o.men_block)}%.`,
     figure: null,
   };

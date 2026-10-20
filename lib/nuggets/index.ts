@@ -51,7 +51,10 @@ export function getNugget(id: NuggetId, ctx?: NuggetContext): Nugget {
  */
 export function readingOf(id: NuggetId): (NuggetFigure & { key?: string; km?: NuggetFigure }) | null {
   const { figure, figureKm, key } = getNugget(id);
-  return figure ? { ...figure, key, ...(figureKm ? { km: figureKm } : {}) } : null;
+  if (!figure) return null;
+  // A reading is drawn with its key after it, so its spoken figure is the number alone (NuggetFigure.spoken).
+  const keyed = (f: NuggetFigure): NuggetFigure => (key && f.spoken ? { ...f, sr: f.spoken } : f);
+  return { ...keyed(figure), key, ...(figureKm ? { km: keyed(figureKm) } : {}) };
 }
 
 /**

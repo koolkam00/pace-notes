@@ -41,7 +41,7 @@ function runnerFigure(rate: number) {
   if (!Number.isFinite(rate) || rate <= 0 || rate >= 1) return null;
   const words = approxWords(rate);
   const tenths = /^about (\d) in 10$/.exec(words);
-  return tenths ? { value: `${tenths[1]} in 10`, sr: `about ${tenths[1]} in 10 finishes` } : { value: pct(rate).replace('%', ''), unit: '%', sr: spokenPct(rate) };
+  return tenths ? { value: `${tenths[1]} in 10`, sr: `about ${tenths[1]} in 10 finishes`, spoken: `about ${tenths[1]} in 10` } : { value: pct(rate).replace('%', ''), unit: '%', sr: spokenPct(rate) };
 }
 
 type Manifest = { points_km: number[] };

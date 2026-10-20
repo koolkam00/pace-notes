@@ -56,7 +56,7 @@ export function kickBankFrom(bands: BankBand[]): Nugget {
     // The figure is the H1's accent as the receipt prints it ("5:06 behind"); the key is the finding in two phone lines,
     // and it names whom the finish was behind (runners of the same 5–20K pace), because it is read away from the page,
     // on home and the contents (round 5).
-    figure: fastest ? { value: ms(fastest.finish_s), sr: `${spokenTime(Math.abs(fastest.finish_s))} ${fastest.finish_s > 0 ? 'behind' : 'ahead'}` } : null,
+    figure: fastest ? { value: ms(fastest.finish_s), sr: `${spokenTime(Math.abs(fastest.finish_s))} ${fastest.finish_s > 0 ? 'behind' : 'ahead'}`, spoken: spokenTime(Math.abs(fastest.finish_s)) } : null,
     key: `${fastest && fastest.finish_s < 0 ? 'ahead of' : 'behind'} same-pace runners at the finish, after a first 5K ${said}`,
   };
 }
@@ -130,8 +130,8 @@ export function downhillOpeningFrom(groups: AllFinisherGroup[], bands: OpeningBa
     fallback: `${pct(a.share)} of downhill-start finishes opened more than 5% fast; elsewhere ${pct(b.share)}.`,
     // One number when both sides round to it (the finding is that they match), else the pair.
     figure: !finite(a.share) ? null : pct(a.share) === pct(b.share)
-      ? { value: pct(a.share).replace('%', ''), unit: '%', sr: `${spokenPct(a.share)} on downhill-start courses and elsewhere` }
-      : { value: `${pct(a.share).replace('%', '')} · ${pct(b.share).replace('%', '')}`, unit: '%', sr: `${spokenPct(a.share)} on downhill-start courses, ${spokenPct(b.share)} elsewhere` },
+      ? { value: pct(a.share).replace('%', ''), unit: '%', sr: `${spokenPct(a.share)} on downhill-start courses and elsewhere`, spoken: spokenPct(a.share) }
+      : { value: `${pct(a.share).replace('%', '')} · ${pct(b.share).replace('%', '')}`, unit: '%', sr: `${spokenPct(a.share)} on downhill-start courses, ${spokenPct(b.share)} elsewhere`, spoken: `${spokenPct(a.share)} and ${spokenPct(b.share)}` },
     // A null reads as one: the key says the share was the same either way.
     key: pct(a.share) === pct(b.share) ? 'opened over 5% fast, downhill start or not' : 'opened over 5% fast: downhill-start courses · every other course',
   };
@@ -317,7 +317,7 @@ export function ageRetentionFrom(rows: AgeRow[], goal = GOAL): Nugget {
     fallback: 'How the second 20K changed with age, pooled and at the same finish time.',
     // Not the spread (a null drawn as a big number), but what every age group near the goal did: its second 20K ran
     // this much slower than its first, the same few percent whatever the age.
-    figure: rows.length ? { value: sameRange(rows), unit: '%', sr: `${sameRange(rows).replace('–', ' to ')} percent slower` } : null,
+    figure: rows.length ? { value: sameRange(rows), unit: '%', sr: `${sameRange(rows).replace('–', ' to ')} percent slower`, spoken: `${sameRange(rows).replace('–', ' to ')} percent` } : null,
     key: `slower over the second 20K than the first, in every age group near ${hm(goal)}`,
   };
 }
@@ -341,10 +341,11 @@ export function coursesCompareFrom(groups: AllFinisherGroup[]): Nugget {
     // The accent is the high end, the card's one orange dot (its readout opens there); the low end is named in ink.
     headline: `Sustained slowdown ran from ${pct(l)} to *${pct(h)}*, course by course.`,
     fallback: `Sustained slowdown across ${count(list.length)} courses.`,
-    // The card into this page (and its contents row) says the gap as one ratio, so the page's own two ends are the
-    // payoff one tap later, never the same range twice in a row (round 5).
-    figure: list.length >= 2 && l > 0 ? { value: one(h / l), unit: '×', sr: `${one(h / l)} times` } : null,
-    key: 'as common a sustained slowdown on the least steady course as on the steadiest',
+    // The card into this page (and its contents row) shows the range the page opens on, its two ends in whole percent,
+    // so the number a reader taps is the number the page's H1 then gives (round 6: a ratio on the card, "2.4×", was a
+    // figure the page never showed). The story card before it carries its own share, so the range is not repeated.
+    figure: list.length >= 2 && l > 0 ? { value: `${pct(l).replace('%', '')}–${pct(h).replace('%', '')}`, unit: '%', sr: `${pct(l).replace('%', '')} to ${spokenPct(h)}` } : null,
+    key: 'sustained slowdown, course by course',
   };
 }
 
@@ -366,7 +367,7 @@ export function terrainClimbFrom(city: string, sections: TerrainSection[] | null
     // One clause; the setup (finishes near the goal, each 5K against the same 5K on every course) is the page's dek.
     headline: `${name}’s ${at} climb ran *${r}% slower* than elsewhere.`,
     fallback: `Where ${name} climbs, against the same 5Ks elsewhere.`,
-    figure: reading && reading.slower ? { value: String(r), unit: '%', sr: `${r} percent slower` } : null,
+    figure: reading && reading.slower ? { value: String(r), unit: '%', sr: `${r} percent slower`, spoken: `${r} percent` } : null,
     key: `slower than the same 5K elsewhere, on ${name}’s ${at} climb`,
   };
 }

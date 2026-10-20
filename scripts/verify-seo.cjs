@@ -74,6 +74,7 @@ const CHECKS = {
   'old-host': `${OLD_HOST} is in no <head>`,
   'finish-counts': `Every "N.N million" or "N.NM" in a title or description equals finishesM() ("${FINISHES_M}")`,
   orphans: 'Every story and analysis page is linked from /research, and every other sitemap page from at least one other page',
+  'hub-counts': 'A hub whose line counts its pages ("Ten stories, one finding each.") lists that many and says the same count in its meta description and og:description',
   'home-form': "The home page's course list (#home-plan-course) has the planner's options (#plan-course), values and names in the same order",
   'methods-anchors': 'Every /methodology#<id> link (in the exported HTML, and as a literal in app/, components/ or lib/) and every #<id> link on /methodology names an element id on /methodology',
 };
@@ -671,6 +672,29 @@ let sitemapLocs = [];
     if (/^\/(stories|analyses)\/[^/]+$/.test(path)) { if (hub && !from.has('/research')) fail('orphans', path, 'is not linked from /research'); }
     else if (path !== '/' && !from.size) fail('orphans', path, 'no other page in the export links to it');
   }
+})();
+
+// ---------- Hub counts ----------
+
+(function checkHubCounts() {
+  const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+  let counted = 0;
+  for (const hub of ['/stories', '/analyses', '/tools']) {
+    const page = byPath.get(hub);
+    if (!page) continue;
+    const dek = /<p class="contents-dek">([\s\S]*?)<\/p>/.exec(page.html);
+    const first = dek ? textOf(dek[1]).trim().split(/\s+/)[0].toLowerCase() : '';
+    const n = WORDS.indexOf(first);
+    if (n < 0) continue;
+    counted++;
+    const rows = (page.html.match(/class="page-list-row"/g) || []).length;
+    if (rows !== n) fail('hub-counts', hub, `its line says ${first} but it lists ${rows}`);
+    for (const [label, text] of [['description', page.descriptions[0] ?? ''], ['og:description', (page.social['og:description'] || [])[0] ?? '']]) {
+      const said = (text.trim().split(/\s+/)[0] || '').toLowerCase();
+      if (WORDS.includes(said) && said !== first) fail('hub-counts', hub, `its ${label} opens on "${said}", its line on "${first}"`);
+    }
+  }
+  if (!counted) fail('hub-counts', '/stories', 'no hub line with a count was found (the check reads <p class="contents-dek">)');
 })();
 
 // ---------- Moved addresses: stubs, redirects and links ----------
