@@ -93,13 +93,15 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
       if (placed.every((l) => l.minWidth !== null)) break;
     }
   }
-  // Its box at the narrowest phone, in plot fractions, for the gridline labels to keep clear of.
+  // The edition's label as the gridline labels keep clear of it: its rows (plot fractions) and its left edge at any plot
+  // width (its anchor moves with the plot, its offset and text keep their pixels). Wide margins either side, so a
+  // gridline's label never reads as part of this one on the same baseline.
+  const MARGIN = 16;
   const taken = placed.filter((l) => l.minWidth !== null).map((l) => {
-    const w = textWidth(l.text, l.size ?? 14), ax = l.x * REF_WIDTH + l.dx;
-    const x0 = l.anchor === 'middle' ? ax - w / 2 : l.anchor === 'end' ? ax - w : ax;
+    const w = textWidth(l.text, l.size ?? 14);
+    const off = l.dx - (l.anchor === 'middle' ? w / 2 : l.anchor === 'end' ? w : 0);
     const base = l.y * height + l.dy;
-    // Wide margins either side, so a gridline's label never reads as part of this one on the same baseline.
-    return { x0: (x0 - 16) / REF_WIDTH, x1: (x0 + w + 16) / REF_WIDTH, y0: (base - 15) / height, y1: (base + 6) / height };
+    return { fx: l.x, off, w, y0: (base - 15) / height, y1: (base + 6) / height };
   });
   // Each bracketing line is labelled above itself, never below (a label under its line reads as the band below's), at
   // one fixed place: the plot's left edge, inside the plot, as the elevation and shape charts label theirs (round 6:
@@ -108,7 +110,6 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
   // do all of them take the right edge instead. A label that would meet a mark, the edition's label or the resting
   // needle is never moved: it hides below the plot width at which it clears them (a width class), and where it clears
   // them at no width its line is drawn unlabelled.
-  const meets = (a: { x0: number; x1: number; y0: number; y1: number }, b: { x0: number; x1: number; y0: number; y1: number }) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
   const marks = [...dots, ...along];
   const right = needle.x0 < 1 / 3;
   // A thing at plot fraction fx, r px either side, clears a label wpx wide at the edge from this plot width up.
@@ -120,9 +121,18 @@ export default function EditionLine({ points, selected, from, label, sideLabel, 
     const top = fy - 14 / height, bottom = fy - 3 / height;
     let need = clearFrom(needle.x0, 8, wpx);
     for (const m of marks) if (m.y + m.r / height > top && m.y - m.r / height < bottom) need = Math.max(need, clearFrom(m.x, m.r, wpx));
-    // The edition's label, measured where it was placed (the narrowest phone's reference plot).
-    const edge = right ? { x0: 1 - wpx / REF_WIDTH, x1: 1 } : { x0: 0, x1: wpx / REF_WIDTH };
-    if (taken.some((t) => meets(t, { ...edge, y0: top, y1: bottom }))) need = Math.max(need, REF_WIDTH + 1);
+    // The edition's label on the same rows, where it does not clear this label at the reference plot: the plot width
+    // from which its box, with the margins, does. Near the edge it moves away slowly as the plot widens, so the width
+    // just past the reference is not enough (merge of round 6: Valencia's "2021 · 3:39" over its "3:40" at 390 px);
+    // where it is never clear, the line is drawn unlabelled. Below the reference the edition's label gives way instead
+    // (keepClearOf, below).
+    for (const t of taken) {
+      if (!(t.y0 < bottom && top < t.y1)) continue;
+      // Left: off + fx·W − MARGIN ≥ wpx. Right: off + w + fx·W + MARGIN ≤ W − wpx.
+      const [gap, rate] = right ? [t.off + t.w + MARGIN + wpx, 1 - t.fx] : [wpx + MARGIN - t.off, t.fx];
+      const from = gap <= 0 ? 0 : rate > 0 ? gap / rate : Infinity;
+      if (from > REF_WIDTH) need = Math.max(need, from);
+    }
     const cls = need <= NARROW ? '' : Number.isFinite(need) ? fitClass(Math.ceil(need)) : 'w-never';
     return { y: fy, label: text, cls, hidden: cls === 'w-never' };
   });
