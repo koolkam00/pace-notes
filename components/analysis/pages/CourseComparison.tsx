@@ -24,17 +24,14 @@ export default function CourseComparison() {
   // The strip and its "All numbers" (all-finisher-hero.tsx): the same drawing a Make it yours selection takes over.
   const parts = courseStrip(start.initial.courses, { id: 'cc-courses' });
   const answer = parts ? (
-    <AnswerCard values={<HeroSwap slot="values">{parts.values}</HeroSwap>}>
+    <AnswerCard values={<HeroSwap slot="values">{parts.values}</HeroSwap>}
+      explore={<ExploreBeat track="chapter-1" inCard><AllFinisherAnalysis kind="courses" start={start} linkTerm={false} untouched="none" hero /></ExploreBeat>}>
       <HeroSwap kicker={parts.kicker}>{parts.chart}</HeroSwap>
     </AnswerCard>
   ) : null;
   return (
     // The term is linked in the dek, under the H1, never in it (a dotted underline in the display face outweighed the accent).
     <AnalysisShell path={PATH} title={n} answer={answer}
-      dek={<>Each course’s share of finishes with a <Link href={n.term ?? '/methodology#sustained-slowdown'} className="term-link">sustained slowdown</Link>, in an average year.</>}>
-      <ExploreBeat track="chapter-1">
-        <AllFinisherAnalysis kind="courses" start={start} linkTerm={false} untouched="none" hero />
-      </ExploreBeat>
-    </AnalysisShell>
+      dek={<>Each course’s share of finishes with a <Link href={n.term ?? '/methodology#sustained-slowdown'} className="term-link">sustained slowdown</Link>, in an average year.</>} />
   );
 }

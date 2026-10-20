@@ -20,9 +20,11 @@ function useHeroDetail(): HeroDetail {
  * example set again sends null and it returns. `slot="values"` is the same swap for the card's "All numbers", which
  * sits on paper under the card (AnswerCard `values`). Inside the page's masked .analysis-layout, like the explorer.
  */
-export default function HeroSwap({ kicker, slot = 'chart', children }: { kicker?: ReactNode; slot?: 'chart' | 'values'; children: ReactNode }) {
+export default function HeroSwap({ kicker, slot = 'chart', children }: { kicker?: ReactNode; slot?: 'chart' | 'values' | 'scope'; children?: ReactNode }) {
   const detail = useHeroDetail();
   if (slot === 'values') return <>{detail ? <Fragment key={detail.kicker}>{detail.values ?? null}</Fragment> : children}</>;
+  // Under the dek while a selection is shown: what the card now draws, and that the H1 is the example's.
+  if (slot === 'scope') return detail?.scope ? <span className="reading-scope">{detail.scope}</span> : null;
   // A selection always names itself ("Berlin · 4:00"), even on a card whose example needs no kicker.
   const named = detail ? detail.kicker : kicker;
   return (

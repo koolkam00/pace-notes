@@ -16,8 +16,8 @@ import KeypadHint from './KeypadHint';
 import { keepTogether } from './ui/keepTogether';
 import MakeItYours from './ui/MakeItYours.client';
 import ExplorerChart, { explorerParts, wholeElevation, type TerrainExtras } from './analysis/ExplorerChart';
-import { AnswerAbove, AnswerRedrawn, ExploreSubmit } from './analysis/ExploreSubmit';
-import { sendHero } from './analysis/hero-event';
+import { AnswerAbove, ExploreSubmit } from './analysis/ExploreSubmit';
+import { sendHero, showAnswerCard } from './analysis/hero-event';
 import { trackAnalytics } from '@/lib/analytics';
 import { unitHref } from '@/lib/unit-preference';
 
@@ -248,6 +248,7 @@ function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_
     trackAnalytics('analysis_filters_applied', { analysis: definition.id, course_scope: nextProfile.city === 'All courses' ? 'all' : 'single' });
     setSelection(nextProfile); setChanged(true); setFormError('');
     window.history.pushState(null, '', unitHref(window.location.pathname + profileSearch(nextProfile), units));
+    if (hero) showAnswerCard();
   };
   const baseline = terrain?.baselines?.[String(targetBucket(profile.goal))];
   // The page's own example, which the selection's headline is measured against (and, on pacing pattern, drawn beside).
@@ -256,7 +257,8 @@ function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_
   const field = (key: string) => `${formId}-${key}`;
   const timeLabel = ['profile', 'terrain', 'gains', 'age'].includes(definition.id) ? 'Finish time to explore' : 'Target time';
   // Only the choices that matter: the course, the time, and a refinement once one is set (never "All ages").
-  const summaryText = [cityName(profile.city), ...(definition.controls.time ? [clock(profile.goal * 60)] : []), ...(profile.age === 'all' ? [] : [profile.age]),
+  // Finish-time context reads its time as a mark ("All courses · under 3:00"), so its 3:00 never reads as the visitor's goal.
+  const summaryText = [cityName(profile.city), ...(definition.controls.time ? [`${definition.id === 'ambition' ? 'under ' : ''}${clock(profile.goal * 60)}`] : []), ...(profile.age === 'all' ? [] : [profile.age]),
     ...(profile.gender === 'all' ? [] : [profile.gender]), ...(profile.previous === null ? [] : [`earlier ${clock(profile.previous * 60)}`])].join(' · ');
   const cityOptions = summary.cities.filter(row => !courseOnly || (row.city !== EXAMPLE_PROFILE.city && !terrain?.hidden?.includes(row.city)));
   const terrainExtras: TerrainExtras | undefined = terrain ? { elevation: terrain.elevations[profile.city] ?? null, step: terrain.step, baseline } : undefined;
@@ -284,7 +286,9 @@ function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_
     const parts = changed && !atExample && answer && hasResults ? explorerParts({ id: definition.id, answer, goal: profile.goal, units, valuesId: `${formId}-values`, selectedAge,
       terrain: terrain ? { elevation: terrain.elevations[profile.city] ?? null, step: terrain.step, baseline } : undefined,
       yours: profile.goal !== start.goal, reference: { answer: reference.answer, goal: reference.goal, label: profile.city !== start.city ? (start.city === EXAMPLE_PROFILE.city ? 'Every course' : cityName(start.city)) : 'Every finish' }, apart: true }) : null;
-    sendHero(parts ? { kicker: summaryText, chart: parts.chart, values: parts.values } : null);
+    // The dek's line while the card draws the selection: what it shows, and whose the H1 is.
+    const example = `${start.city === EXAMPLE_PROFILE.city ? 'all courses' : cityName(start.city)}${profile.goal !== start.goal ? ` at ${clock(start.goal * 60)}` : ''}`;
+    sendHero(parts ? { kicker: summaryText, chart: parts.chart, values: parts.values, scope: `Showing ${summaryText} below. The headline is for ${example}.` } : null);
   }, [hero, changed, atExample, answer, hasResults, definition.id, profile.goal, profile.city, selectedAge, summaryText, units, terrain, baseline, formId, start.goal, start.city, reference]);
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -315,7 +319,7 @@ function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_
           {changed && !atExample ? <h2 className="explore-title">{keepTogether(text(visibleAnswer))}</h2> : null}
           {answer.widened && <p className="explore-note">{text(answer.widened)}</p>}
           {!hasResults ? <div className="explore-state"><p>Try All courses, fewer refinements or another finish time.</p><button className="btn btn-secondary is-compact" type="button" onClick={() => applyProfile(start)}>Back to the example</button></div>
-            : hero ? <AnswerRedrawn />
+            : hero ? null
             : <ExplorerChart id={definition.id} answer={answer} goal={profile.goal} units={units} terrain={terrainExtras} valuesId={`${formId}-values`} selectedAge={selectedAge} example={atExample} yours={profile.goal !== start.goal} />}
         </div> : null}
     </div>

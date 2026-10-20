@@ -31,7 +31,14 @@ module.exports = function analyses({ json, eq, ok, core }) {
     for (const b of kick.bank.bands) if (b.n >= 100 && (!fastest || b.open_s < fastest.open_s)) fastest = b;
     eq([n.values.band, n.values.open_s, n.values.finish_s, n.values.slowdown, n.values.expected], [fastest.label, fastest.open_s, fastest.finish_s, fastest.slowdown, fastest.expected], 'kick.bank recounts the fastest band');
     eq(n.guard, fastest.open_s < 0 && fastest.finish_s > 0, 'kick.bank: guard');
-    if (n.guard) ok(shown(n).includes(`banked ${msOf(fastest.open_s)}`) && shown(n).includes(`finished ${msOf(fastest.finish_s)} behind`), 'kick.bank: the headline names the banked and finish times');
+    // The H1 gives the meaning (what it gave back from 5K on, as a multiple of what it banked); the receipt has the times.
+    if (n.guard) {
+      const r = (fastest.finish_s - fastest.open_s) / -fastest.open_s, k = Math.round(r);
+      const words = !(r > 1) || k < 2 ? 'more than' : `${r < k ? 'almost' : 'more than'} ${k === 2 ? 'twice' : `${['', '', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'][k] ?? k} times`}`;
+      ok(shown(n).includes(`gave back *${words}* what it banked`), `kick.bank: the headline says the recounted multiple (${r.toFixed(2)}: ${words})`);
+      ok(!/\d:\d\d/.test(shown(n)), 'kick.bank: the H1 says no time (the receipt under it does)');
+      eq(n.figure.value, msOf(fastest.finish_s), 'kick.bank: the figure is the finish gap');
+    }
   };
 
   R['kick.sweetspot'] = (n) => {
@@ -170,9 +177,11 @@ module.exports = function analyses({ json, eq, ok, core }) {
     ok(!shown(n).includes(lo.label) && !shown(n).includes(hi.label), 'courses.compare: the headline names no course');
     ok(shown(n).includes(pct(lo.slowdown_pct / 100)) && shown(n).includes(pct(hi.slowdown_pct / 100)), 'courses.compare: the headline names both ends');
     if (n.guard) ok(shown(n).includes(`*${pct(hi.slowdown_pct / 100)}*`), 'courses.compare: the accent is the high end, the card\'s orange dot');
-    // The card's figure is the ratio of the two ends, one decimal (the page's H1 gives the ends themselves).
-    const ratio = (Math.round((hi.slowdown_pct / lo.slowdown_pct) * 10) / 10).toFixed(1);
-    eq(n.figure && n.figure.value, ratio, 'courses.compare: the card\'s figure is the high end over the low end');
+    // The card's figure is the range the page's H1 gives, its two ends in whole percent (round 6: one number on both
+    // sides of the tap).
+    const range = `${pct(lo.slowdown_pct / 100).replace('%', '')}–${pct(hi.slowdown_pct / 100).replace('%', '')}`;
+    eq(n.figure && `${n.figure.value}${n.figure.unit}`, `${range}%`, 'courses.compare: the card\'s figure is the H1\'s range');
+    eq(n.key, 'sustained slowdown, course by course', 'courses.compare: the key');
   };
 
   R['terrain.climb'] = (n) => {
@@ -228,13 +237,26 @@ module.exports = function analyses({ json, eq, ok, core }) {
   };
   R['weather.warming'] = (n) => {
     const c = wx.candidates.find((x) => x.id === 'warming');
-    eq(n.guard, c.status === 'ready' && c.takeaway_type === 'association' && c.effect.low > 0, 'weather.warming: guard');
-    if (n.guard) ok(shown(n).includes(`*${Math.round(c.effect.estimate)} ${Math.round(c.effect.estimate) === 1 ? 'point' : 'points'}*`) && shown(n, 'mi').includes(`${(c.exposure.q75 * 1.8).toFixed(0)}°F`), 'weather.warming: the sentence names the estimate and the rise');
+    // The base: the median race's second-20K change, recounted from the editions (each race once).
+    const v = wx.editions.map((e) => e.pace_change_pct).filter(Number.isFinite).sort((a, b) => a - b);
+    const base = (v[Math.floor((v.length - 1) / 2)] + v[Math.ceil((v.length - 1) / 2)]) / 2;
+    const was = Math.round(base), now = Math.round(base + c.effect.estimate);
+    eq(n.values.base, base, 'weather.warming: the base is the median race');
+    eq(n.guard, c.status === 'ready' && c.takeaway_type === 'association' && c.effect.low > 0 && now > was, 'weather.warming: guard');
+    if (n.guard) {
+      ok(shown(n).includes(`*about ${now}%* slower, not ${was}%`) && shown(n, 'mi').includes(`${(c.exposure.q75 * 1.8).toFixed(0)}°F instead of ${(c.exposure.q25 * 1.8).toFixed(0)}°F`), 'weather.warming: the sentence names both mornings and both percents');
+      // Said in the runner's unit (round 6): never "points".
+      ok(!/\bpoints?\b/.test(shown(n, 'mi') + shown(n, 'km')), 'weather.warming: no "points" in the H1');
+      eq(n.figure && n.figure.value, String(now), 'weather.warming: the figure is the larger rise\'s percent');
+    }
   };
   R['weather.wind'] = (n) => {
     const c = wx.candidates.find((x) => x.id === 'wind');
     eq(n.guard, c.status === 'ready' && c.takeaway_type === 'precise_null' && Math.abs(c.effect.low) < 1 && Math.abs(c.effect.high) < 1, 'weather.wind: guard (the interval inside ±1 point)');
-    if (n.guard) ok(shown(n, 'mi').includes(`${Math.round(c.exposure.q75 * 2.2369362920544)} mph`), 'weather.wind: the wind in mph');
+    if (n.guard) {
+      ok(shown(n, 'mi').includes(`${Math.round(c.exposure.q75 * 2.2369362920544)} mph wind at the start instead of ${Math.round(c.exposure.q25 * 2.2369362920544)} mph`), 'weather.wind: the wind in mph');
+      ok(!/\bpoints?\b/.test(shown(n, 'mi') + shown(n, 'km')), 'weather.wind: no "points" in the H1');
+    }
   };
 
   R['kick.recurrence'] = (n) => {
@@ -246,7 +268,8 @@ module.exports = function analyses({ json, eq, ok, core }) {
   R['gains.final'] = (n) => {
     const g = allCourses().gains[String(GOAL)];
     close(n.values.share, g.values[2] / g.total, 'gains.final recounts the share');
-    eq(n.guard, g.n >= 100 && g.values[2] / g.total > (KM - 30) / KM, 'gains.final: guard (more than its share of the distance)');
+    eq(n.guard, g.n >= 100 && g.values[2] / g.total > (KM - 30) / KM && g.values[2] > g.values[1], 'gains.final: guard (more than its share of the distance, and more than the 20K before)');
+    if (n.guard) ok(!/\d+%/.test(shown(n)) && shown(n).includes('after 30K'), 'gains.final: the H1 gives the meaning, the receipt the share');
   };
 
   R['slowdown.onset'] = (n) => {

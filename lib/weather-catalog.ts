@@ -9,3 +9,6 @@ export const WEATHER_QUESTIONS: WeatherDefinition[] = [
  * lib/seo-routes.ts movedTo). A question without a tab of its own opens the first, start temperature. */
 export const WEATHER_TABS: Readonly<Record<string, string>> = { warming: 'warming', wind: 'wind' };
 export const weatherHref = (item: WeatherDefinition) => `/analyses/race-day-weather#${WEATHER_TABS[item.id] ?? 'temperature'}`;
+/** Each tab's search title, also the browser tab's title while that tab is open (a sentence-long finding was too long
+ * for a browser tab, round 6). The old /analyses/<slug> stubs carry the same title. */
+export const WEATHER_TAB_TITLES: Readonly<Record<'warming' | 'wind', string>> = { warming: 'Marathon Pacing When the Temperature Rises', wind: 'Wind and Marathon Pacing: Windy vs Calm Races' };

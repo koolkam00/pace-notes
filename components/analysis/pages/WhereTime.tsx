@@ -28,7 +28,8 @@ export default function WhereTime() {
   const parts = explorerParts({ id: 'sections', answer: initialAnswer, goal, units: 'mi', valuesId: 'wt-answer', example: true, apart: true });
   const answer = parts ? (
     // The two groups are the dek's (right under the H1), so the card is the chart alone until a selection names its own.
-    <AnswerCard values={<HeroSwap slot="values">{parts.values}</HeroSwap>}>
+    <AnswerCard values={<HeroSwap slot="values">{parts.values}</HeroSwap>}
+      explore={<ExploreBeat track="chapter-1" inCard><AnalysisExplorer definition={definition} summary={summary} initialAnswer={initialAnswer} untouched="none" hero /></ExploreBeat>}>
       <HeroSwap>{parts.chart}</HeroSwap>
     </AnswerCard>
   ) : null;
@@ -36,10 +37,6 @@ export default function WhereTime() {
     <AnalysisShell path={PATH} title={n} answer={answer}
       // The share's base: after 20K is a little over half the race, so the H1's share is read against it (the guard holds
       // the share above it). The two groups are the card's kicker and the gap its total bar.
-      dek={n.guard ? after : groups}>
-      <ExploreBeat track="chapter-1">
-        <AnalysisExplorer definition={definition} summary={summary} initialAnswer={initialAnswer} untouched="none" hero />
-      </ExploreBeat>
-    </AnalysisShell>
+      dek={n.guard ? after : groups} />
   );
 }

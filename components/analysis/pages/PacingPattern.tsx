@@ -29,13 +29,11 @@ export default function PacingPattern() {
     // The dek adds what the chart shows: where the finishes fell behind even pace and where they were slowest.
     <AnalysisShell path={PATH} title={n} dek={n.guard ? `They ran slower than even pace from ${MARATHON_SECTION_ENDS[Number(n.values.turn_i) - 1]}K, and slowest at ${sectionLabel(MARATHON_SECTION_ENDS[Number(n.values.slow_i)])}.` : definition.title}
       answer={mi && km ? (
-        <AnswerCard values={<HeroSwap slot="values"><ByUnits mi={mi.values} km={km.values} /></HeroSwap>}>
+        // Make it yours sits under the card it redraws (round 6).
+        <AnswerCard values={<HeroSwap slot="values"><ByUnits mi={mi.values} km={km.values} /></HeroSwap>}
+          explore={<ExploreBeat track="chapter-1" inCard><AnalysisExplorer definition={definition} summary={summary} initialAnswer={initialAnswer} untouched="none" hero /></ExploreBeat>}>
           <HeroSwap kicker={`Finishes near ${hm(goal)}, 5K by 5K`}><ByUnits mi={mi.chart} km={km.chart} /></HeroSwap>
         </AnswerCard>
-      ) : null}>
-      <ExploreBeat track="chapter-1">
-        <AnalysisExplorer definition={definition} summary={summary} initialAnswer={initialAnswer} untouched="none" hero />
-      </ExploreBeat>
-    </AnalysisShell>
+      ) : null} />
   );
 }

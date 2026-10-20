@@ -19,6 +19,7 @@ import { getStudyEvidence } from '@/lib/research-data';
 import { MARATHON_SECTION_ENDS } from '@/lib/section-labels';
 import { terrainReading } from '@/lib/terrain-reading';
 import { getWeatherEvidence } from '@/lib/weather-data';
+import { medianChange, slowingPair } from '@/lib/weather-display';
 import type { WeatherCandidate } from '@/lib/weather-types';
 import { MARATHON_KM, distance, type UnitSystem } from '@/lib/units';
 import { clock, count, countWord, delta, hm, ms, pct, sectionLabel, spokenPct, spokenTime, temp } from './format';
@@ -42,6 +43,17 @@ const one = (v: number) => (Math.round(v * 10) / 10).toLocaleString('en-US', { m
 // ---------- Chapter 02 · starting pace ----------
 
 type BankBand = Kick['bank']['bands'][number];
+/**
+ * What a fast opening gave back from 5K on, as a multiple of what it banked by 5K, in words: "almost three times",
+ * "more than twice", or "more than" below one and a half. The receipt under the H1 carries the two times (round 6:
+ * the H1 and the receipt said 2:44 and 5:06 twice, so the H1 gives the meaning).
+ */
+export function gaveBackWords(open_s: number, finish_s: number): string {
+  const r = (finish_s - open_s) / -open_s;
+  const n = Math.round(r);
+  if (!(r > 1) || n < 2) return 'more than';
+  return `${r < n ? 'almost' : 'more than'} ${n === 2 ? 'twice' : `${countWord(n)} times`}`;
+}
 /** The fastest opening band (argmin of its banked time), what it banked, where it finished, and its sustained slowdowns. */
 export function kickBankFrom(bands: BankBand[]): Nugget {
   const fastest = bands.filter((b) => b.n >= 100).reduce<BankBand | null>((a, b) => (!a || b.open_s < a.open_s ? b : a), null);
@@ -51,9 +63,10 @@ export function kickBankFrom(bands: BankBand[]): Nugget {
     id: 'kick.bank', page: '/analyses/starting-pace', denominator: 'kick', term: '/methodology#sustained-slowdown',
     values: fastest ? { band: fastest.label, n: fastest.n, open_s: fastest.open_s, after20_s: fastest.after20_s, finish_s: fastest.finish_s, slowdown: fastest.slowdown, expected: fastest.expected } : {},
     guard: ok,
-    headline: `A first 5K ${said} banked ${ms(-(fastest?.open_s ?? 0))}, and *finished ${ms(fastest?.finish_s ?? 0)} behind*.`,
+    // The meaning, in words; the receipt under it adds up the two times (banked by 5K, behind at the finish).
+    headline: `A first 5K ${said} gave back *${ok ? gaveBackWords(fastest!.open_s, fastest!.finish_s) : 'more than'}* what it banked.`,
     fallback: 'How a fast first 5K finished, against the same pace.',
-    // The figure is the H1's accent as the receipt prints it ("5:06 behind"); the key is the finding in two phone lines,
+    // The figure is the receipt's result as it prints it ("5:06 behind"); the key is the finding in two phone lines,
     // and it names whom the finish was behind (runners of the same 5–20K pace), because it is read away from the page,
     // on home and the contents (round 5).
     figure: fastest ? { value: ms(fastest.finish_s), sr: `${spokenTime(Math.abs(fastest.finish_s))} ${fastest.finish_s > 0 ? 'behind' : 'ahead'}` } : null,
@@ -112,6 +125,12 @@ type OpeningBand = { id: string; label: string; lower?: number | null; upper?: n
 /** The opening bands more than 5% faster than the pace that followed: those whose faster edge is at most −5. */
 const fastBands = (bands: OpeningBand[]) => bands.filter((b) => typeof b.upper === 'number' && b.upper <= -5).map((b) => b.id);
 
+/**
+ * The findings that are nulls (round 6): their accent is set in ink italic, never the signal, so a null looks null
+ * (AnalysisShell and the race-day weather tabs read this; verify-ten-analyses checks the rendered H1s).
+ */
+export const NULL_FINDINGS: readonly string[] = ['downhill.opening', 'weather.wind'];
+
 /** The share of finishes that opened more than 5% fast, downhill-start courses against the rest. */
 export function downhillOpeningFrom(groups: AllFinisherGroup[], bands: OpeningBand[]): Nugget {
   const fast = new Set(fastBands(bands));
@@ -133,7 +152,8 @@ export function downhillOpeningFrom(groups: AllFinisherGroup[], bands: OpeningBa
       ? { value: pct(a.share).replace('%', ''), unit: '%', sr: `${spokenPct(a.share)} on downhill-start courses and elsewhere` }
       : { value: `${pct(a.share).replace('%', '')} · ${pct(b.share).replace('%', '')}`, unit: '%', sr: `${spokenPct(a.share)} on downhill-start courses, ${spokenPct(b.share)} elsewhere` },
     // A null reads as one: the key says the share was the same either way.
-    key: pct(a.share) === pct(b.share) ? 'opened over 5% fast, downhill start or not' : 'opened over 5% fast: downhill-start courses · every other course',
+    // A subject and the null said plainly (round 6: "opened over 5% fast, downhill start or not" had neither).
+    key: pct(a.share) === pct(b.share) ? 'of finishes opened over 5% fast, with or without a downhill start' : 'of finishes opened over 5% fast: downhill-start courses · every other course',
   };
 }
 
@@ -341,10 +361,11 @@ export function coursesCompareFrom(groups: AllFinisherGroup[]): Nugget {
     // The accent is the high end, the card's one orange dot (its readout opens there); the low end is named in ink.
     headline: `Sustained slowdown ran from ${pct(l)} to *${pct(h)}*, course by course.`,
     fallback: `Sustained slowdown across ${count(list.length)} courses.`,
-    // The card into this page (and its contents row) says the gap as one ratio, so the page's own two ends are the
-    // payoff one tap later, never the same range twice in a row (round 5).
-    figure: list.length >= 2 && l > 0 ? { value: one(h / l), unit: '×', sr: `${one(h / l)} times` } : null,
-    key: 'as common a sustained slowdown on the least steady course as on the steadiest',
+    // The card into this page (and its contents row) shows the range the page opens on, its two ends in whole percent,
+    // so the number a reader taps is the number the page's H1 then gives (round 6: a ratio on the card, "2.4×", was a
+    // figure the page never showed). The story card before it carries its own share, so the range is not repeated.
+    figure: list.length >= 2 && l > 0 ? { value: `${pct(l).replace('%', '')}–${pct(h).replace('%', '')}`, unit: '%', sr: `${pct(l).replace('%', '')} to ${spokenPct(h)}` } : null,
+    key: 'sustained slowdown, course by course',
   };
 }
 
@@ -411,32 +432,37 @@ export function weatherStartFrom(groups: AllFinisherGroup[]): Nugget {
 export const windWords = (mps: number, u: UnitSystem) => `${Math.round(mps * (u === 'mi' ? 2.2369362920544 : 3.6))} ${u === 'mi' ? 'mph' : 'km/h'}`;
 /** A temperature rise (°C in the data) in the reader's units: "11°F", "6°C". */
 export const riseWords = (c: number, u: UnitSystem) => `${(u === 'mi' ? c * 1.8 : c).toFixed(0)}°${u === 'mi' ? 'F' : 'C'}`;
-/** Warming over the first four hours: the larger rise went with more second-20K slowing (an interval above zero). */
-export function weatherWarmingFrom(c: WeatherCandidate | undefined): Nugget {
-  const ok = !!c && c.status === 'ready' && c.takeaway_type === 'association' && c.effect.low > 0;
+/**
+ * Warming over the first four hours: the larger rise went with more second-20K slowing (an interval above zero). Said in
+ * the percent a runner knows (round 6: "points" is a statistician's unit): the median race's second 20K ran `base`%
+ * slower than the first, and the estimate (percentage points) on top of it is the larger rise's "about N%". The card
+ * draws the same two numbers on the scale it shares with Wind.
+ */
+export function weatherWarmingFrom(c: WeatherCandidate | undefined, base: number): Nugget {
+  const pair = c ? slowingPair(c, base) : null;
+  const was = Math.round(base), now = pair ? Math.round(pair.with) : NaN;
+  const ok = !!c && c.status === 'ready' && c.takeaway_type === 'association' && c.effect.low > 0 && Number.isFinite(base) && now > was;
   return {
     id: 'weather.warming', page: '/analyses/race-day-weather#warming', denominator: 'course',
-    values: c ? { q25: c.exposure.q25, q75: c.exposure.q75, estimate: c.effect.estimate, low: c.effect.low, high: c.effect.high } : {},
+    values: c ? { q25: c.exposure.q25, q75: c.exposure.q75, estimate: c.effect.estimate, low: c.effect.low, high: c.effect.high, base } : {},
     guard: ok,
-    // The estimate is in percentage points of the second 20K's pace change, said in whole points as the card labels it
-    // ("+2.1 pts"); the four hours and the interval are on /methodology.
-    // The base (how much the second 20K slowed in a typical race) is the tab's dek.
-    headline: both((u) => `Warming ${riseWords(c?.exposure.q75 ?? NaN, u)}, not ${riseWords(c?.exposure.q25 ?? NaN, u)}: the second 20K slowed *${Math.round(c?.effect.estimate ?? NaN)} ${Math.round(c?.effect.estimate ?? NaN) === 1 ? 'point' : 'points'}* more.`),
+    // "On a morning that…, the second 20K ran": the morning and the slowing side by side, never one causing the other.
+    headline: both((u) => `On a morning that warmed ${riseWords(c?.exposure.q75 ?? NaN, u)} instead of ${riseWords(c?.exposure.q25 ?? NaN, u)}, the second 20K ran *about ${now}%* slower, not ${was}%.`),
     fallback: 'Warming through the race, and the second 20K.',
-    figure: c ? { value: `+${one(c.effect.estimate)}`, unit: 'pts', sr: `${one(c.effect.estimate)} points` } : null,
+    figure: ok ? { value: String(now), unit: '%', sr: `about ${now}%` } : null,
   };
 }
-/** Wind at the start: a precise null, the whole interval inside ±1 point. */
+/** Wind at the start: a precise null, the whole interval inside ±1 point. Said as the warming tab says its result. */
 export function weatherWindFrom(c: WeatherCandidate | undefined): Nugget {
   const ok = !!c && c.status === 'ready' && c.takeaway_type === 'precise_null' && Math.abs(c.effect.low) < 1 && Math.abs(c.effect.high) < 1;
   return {
     id: 'weather.wind', page: '/analyses/race-day-weather#wind', denominator: 'course',
     values: c ? { q25: c.exposure.q25, q75: c.exposure.q75, estimate: c.effect.estimate, low: c.effect.low, high: c.effect.high } : {},
     guard: ok,
-    // "Under 1 point either way" is the tab's dek.
-    headline: both((u) => `Wind of ${windWords(c?.exposure.q75 ?? NaN, u)}, not ${windWords(c?.exposure.q25 ?? NaN, u)}, made *no material difference*.`),
+    // A null: its accent is ink italic (NULL_FINDINGS). The card's two equal grey bars are its figure.
+    headline: both((u) => `With a ${windWords(c?.exposure.q75 ?? NaN, u)} wind at the start instead of ${windWords(c?.exposure.q25 ?? NaN, u)}, the second 20K ran *about the same*.`),
     fallback: 'Wind at the start, and the second 20K.',
-    figure: c ? { value: '≈ 0', sr: 'about zero' } : null,
+    figure: c ? { value: '≈ 0', sr: 'about the same' } : null,
   };
 }
 
@@ -456,18 +482,20 @@ export function kickRecurrenceFrom(r: Recurrence): Nugget {
   };
 }
 
-/** Improving finishes near the goal: the share of their gain found from 30K to the finish, against its share of the distance. */
+/**
+ * Improving finishes near the goal: the share of their gain found from 30K to the finish, against its share of the
+ * distance. The H1 gives the meaning (round 6: it and the receipt both said 44%): more time found after 30K than in the
+ * 20K before it, a stretch of more than half the race. The share is the receipt's result and the card's figure.
+ */
 export function gainsFinalFrom(row: { values: number[]; total: number; n: number } | null, goal = GOAL): Nugget {
   const share = row && row.total > 0 ? row.values[2] / row.total : NaN;
   const stretch = (MARATHON_KM - 30) / MARATHON_KM;
   return {
     id: 'gains.final', page: '/analyses/finding-improvement', denominator: 'eligible',
     values: row ? { goal_min: goal, open_min: row.values[0], middle_min: row.values[1], final_min: row.values[2], total_min: row.total, share, n: row.n } : {},
-    guard: !!row && row.n >= 100 && row.values.length === 3 && share > stretch,
-    // One share in the sentence (of the time found), and the stretch it came from as a distance, so two percentages of
-    // different things never sit together; the guard holds that stretch to less than its share of the race.
-    // One clause; the stretch as a distance, against its share of the race, is the page's dek.
-    headline: `Near ${hm(goal)}, improving finishes found *${pct(share)}* of their time after 30K.`,
+    guard: !!row && row.n >= 100 && row.values.length === 3 && share > stretch && row.values[2] > row.values[1],
+    // The stretch as a distance against its share of the race is the page's dek; the share itself is the receipt's.
+    headline: `Near ${hm(goal)}, improving finishes found *more time after 30K* than in the 20K before it.`,
     fallback: `Where improving finishes near ${hm(goal)} found their time.`,
     // "Of the minutes", never "of the time": read first as "44% of the time" (how often), it said something else.
     figure: shareFigure(share), key: 'of the minutes improving finishes gained came after 30K',
@@ -516,7 +544,7 @@ export const ANALYSIS_NUGGETS: Record<string, Builder> = {
   'courses.compare': () => coursesCompareFrom(af().initial.courses),
   'terrain.climb': () => { const { city } = getTerrainDefault(); return terrainClimbFrom(city, terrainSections(getCityData(city))); },
   'weather.start': () => weatherStartFrom(af().initial.weather),
-  'weather.warming': () => weatherWarmingFrom(weather('warming')),
+  'weather.warming': () => weatherWarmingFrom(weather('warming'), medianChange(getWeatherEvidence().editions)),
   'weather.wind': () => weatherWindFrom(weather('wind')),
   'kick.recurrence': () => kickRecurrenceFrom(readInsight<Kick>('kick.json').recurrence),
   'gains.final': () => gainsFinalFrom(allCourses()?.gains[String(GOAL)] ?? null),
